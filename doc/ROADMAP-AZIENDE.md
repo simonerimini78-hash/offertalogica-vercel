@@ -2,6 +2,20 @@
 
 La sezione aziende deve essere distinta dal calcolatore domestico.
 
+## Stato implementazione
+
+Prima versione inserita nel frontend:
+
+- scelta iniziale Privato / Azienda;
+- pannello aziendale separato;
+- raccolta ragione sociale, P.IVA, referente, telefono, email;
+- raccolta potenza, consumi annui, fasce F1/F2/F3, prezzo medio e quote fisse;
+- stima preliminare del margine business;
+- lead business con profilo aziendale salvato nel payload;
+- PDF riutilizzabile anche in modalita business per precompilare consumi e fornitore quando disponibili.
+
+La stima business non deve essere presentata come offerta finale. Serve solo come pre-qualifica commerciale fino a quando non saranno collegati listini/offerte business reali.
+
 ## Dati minimi richiesti
 
 - Ragione sociale
