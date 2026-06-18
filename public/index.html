@@ -1580,7 +1580,7 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
     }
   }
   modal.style.display = "flex";
-  leadStatus("Il codice OTP verifica il numero. I consensi commerciali restano separati e non preselezionati.");
+  leadStatus("Il codice OTP verifica il numero. Il consenso commerciale e facoltativo e non preselezionato.");
 };
 
 function chiudiLeadModal() {
@@ -1595,8 +1595,6 @@ function leggiLeadForm() {
   const consents = {
     service: Boolean(document.getElementById("lead-consenso-servizio")?.checked),
     marketing: Boolean(document.getElementById("lead-consenso-marketing")?.checked),
-    partners: Boolean(document.getElementById("lead-consenso-partner")?.checked),
-    profiling: Boolean(document.getElementById("lead-consenso-profilazione")?.checked),
   };
   return { nome, telefono, email, consents };
 }
@@ -1663,8 +1661,6 @@ async function inviaOtpDemo() {
         email,
         consentService: consents.service,
         consentMarketing: consents.marketing,
-        consentPartners: consents.partners,
-        consentProfiling: consents.profiling,
         calculation: {
           customerType: LEAD_STATE.customerType,
           bestSaving: LEAD_STATE.bestSaving,
@@ -2318,21 +2314,13 @@ collegaEventiUX();
             <input id="lead-email" type="email" autocomplete="email" placeholder="Email">
             <label class="lead-consent required">
                 <input id="lead-consenso-servizio" type="checkbox">
-                <span>Ho letto l'<a href="https://www.iubenda.com/privacy-policy/36565194" target="_blank" rel="noopener">informativa privacy</a> e acconsento al trattamento dei dati inseriti o estratti dalla bolletta per ricevere la comparazione richiesta.</span>
+                <span>Ho letto l'<a href="https://www.iubenda.com/privacy-policy/36565194" target="_blank" rel="noopener">informativa privacy</a> e richiedo la comparazione personalizzata sui dati inseriti o estratti dalla bolletta.</span>
             </label>
             <label class="lead-consent">
                 <input id="lead-consenso-marketing" type="checkbox">
                 <span>Acconsento a essere contattato telefonicamente, via email o SMS per ricevere consulenza e offerte luce/gas.</span>
             </label>
-            <label class="lead-consent">
-                <input id="lead-consenso-partner" type="checkbox">
-                <span>Acconsento alla comunicazione dei miei dati a partner commerciali selezionati per finalita di preventivo, consulenza o attivazione offerta.</span>
-            </label>
-            <label class="lead-consent">
-                <input id="lead-consenso-profilazione" type="checkbox">
-                <span>Acconsento alla profilazione dei dati di consumo per ricevere proposte personalizzate in base alla mia fornitura.</span>
-            </label>
-            <div class="lead-privacy-note">Le caselle commerciali sono facoltative e non sono preselezionate. L'OTP conferma il numero, ma non sostituisce i consensi privacy. Puoi revocare i consensi secondo quanto indicato nell'informativa.</div>
+            <div class="lead-privacy-note">La seconda casella e facoltativa e non preselezionata. L'OTP conferma il numero, ma non sostituisce il consenso commerciale. Puoi revocare i consensi secondo quanto indicato nell'informativa.</div>
             <input id="lead-otp" type="text" inputmode="numeric" placeholder="Codice OTP" style="display:none;">
         </div>
         <div class="lead-actions">
