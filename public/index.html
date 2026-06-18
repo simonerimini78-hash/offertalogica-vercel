@@ -96,6 +96,10 @@
         .choice-card span { display: block; font-size: 13px; color: var(--text-muted); line-height: 1.35; }
         .choice-card.primary { border-color: rgba(37,99,235,.35); }
         .choice-card.secondary { border-color: rgba(22,163,74,.35); }
+        .segment-switch { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 0 0 18px; }
+        .segment-switch button { border: 1px solid var(--border); background: #fff; color: var(--text-color); border-radius: 10px; padding: 14px; cursor: pointer; text-align: left; font-weight: 800; box-shadow: 0 8px 20px rgba(15,23,42,0.05); }
+        .segment-switch button span { display: block; color: var(--text-muted); font-size: 12px; font-weight: 500; margin-top: 3px; line-height: 1.35; }
+        .segment-switch button.active { border-color: var(--primary); background: #f0fdf4; color: #14532d; box-shadow: 0 0 0 2px rgba(22,163,74,.14); }
 
         .pdf-lead-panel { background: #ffffff; border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 24px; box-shadow: 0 10px 28px rgba(15,23,42,0.07); }
         .pdf-lead-panel h3 { border: 0; color: var(--text-color); margin-bottom: 6px; text-align: center; }
@@ -131,9 +135,20 @@
         .lead-teaser strong { display: block; font-size: 18px; margin-bottom: 4px; }
         .lead-teaser p { margin: 0 0 12px; color: #166534; font-size: 14px; }
         .lead-teaser button { background: var(--primary); color: #fff; border: 0; border-radius: 8px; padding: 11px 16px; font-weight: 800; cursor: pointer; }
+        .business-panel { display: none; background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 24px; box-shadow: 0 10px 28px rgba(15,23,42,0.07); }
+        .business-panel h3 { border: 0; color: var(--text-color); text-align: center; margin-bottom: 6px; }
+        .business-panel > p { color: var(--text-muted); text-align: center; font-size: 14px; margin-bottom: 16px; }
+        .business-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+        .business-section { border: 1px solid var(--border); border-radius: 10px; padding: 14px; background: #f8fafc; }
+        .business-section h4 { margin: 0 0 10px; color: var(--accent); font-size: 15px; }
+        .business-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; align-items: center; }
+        .business-result { display: none; margin-top: 16px; border: 1px solid #bbf7d0; background: #f0fdf4; color: #14532d; border-radius: 10px; padding: 16px; }
+        .business-result strong { display: block; font-size: 20px; margin-bottom: 6px; }
+        .business-result p { margin: 0 0 10px; color: #166534; font-size: 14px; }
+        .business-error { color: var(--danger); font-size: 13px; margin-top: 10px; display: none; }
 
         @media (max-width: 700px) {
-            .choice-grid { grid-template-columns: 1fr; }
+            .choice-grid, .segment-switch { grid-template-columns: 1fr; }
         }
 
         @media (max-width: 600px) {
@@ -146,6 +161,131 @@
 <body>
 
 <div class="container">
+    <div class="segment-switch" aria-label="Tipo cliente">
+        <button type="button" id="btn-segmento-privato" class="active">
+            Privato
+            <span>Calcolo domestico luce e gas con offerte proposte.</span>
+        </button>
+        <button type="button" id="btn-segmento-business">
+            Azienda / P.IVA
+            <span>Analisi preliminare per imprese, negozi, uffici e professionisti.</span>
+        </button>
+    </div>
+
+    <div class="business-panel" id="business-panel">
+        <h3>Analisi aziendale luce e gas</h3>
+        <p>Per le aziende il confronto dipende da potenza, fasce orarie e profilo di consumo. Qui stimiamo il margine e raccogliamo i dati per una verifica consulenziale.</p>
+
+        <div class="business-grid">
+            <div class="business-section">
+                <h4>Dati azienda</h4>
+                <div class="input-group">
+                    <label for="business-ragione">Ragione sociale</label>
+                    <input id="business-ragione" type="text" placeholder="Es. Rossi Srl">
+                </div>
+                <div class="input-group">
+                    <label for="business-piva">Partita IVA</label>
+                    <input id="business-piva" type="text" inputmode="numeric" placeholder="11 cifre">
+                </div>
+                <div class="input-group">
+                    <label for="business-attivita">Tipo attivita</label>
+                    <select id="business-attivita">
+                        <option value="">Seleziona...</option>
+                        <option value="negozio">Negozio / Retail</option>
+                        <option value="ufficio">Ufficio / Studio</option>
+                        <option value="ristorazione">Bar / Ristorante</option>
+                        <option value="artigianale">Laboratorio / Artigianale</option>
+                        <option value="industriale">Produzione / Industriale</option>
+                        <option value="altro">Altro</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="business-section">
+                <h4>Referente</h4>
+                <div class="input-group">
+                    <label for="business-referente">Nome referente</label>
+                    <input id="business-referente" type="text" autocomplete="name" placeholder="Nome e cognome">
+                </div>
+                <div class="input-group">
+                    <label for="business-telefono">Cellulare</label>
+                    <input id="business-telefono" type="tel" autocomplete="tel" placeholder="Es. 333...">
+                </div>
+                <div class="input-group">
+                    <label for="business-email">Email</label>
+                    <input id="business-email" type="email" autocomplete="email" placeholder="azienda@email.it">
+                </div>
+            </div>
+
+            <div class="business-section">
+                <h4>Energia elettrica</h4>
+                <div class="input-group">
+                    <label for="business-fornitore">Fornitore attuale</label>
+                    <input id="business-fornitore" type="text" placeholder="Es. Enel, E.ON, Dolomiti...">
+                </div>
+                <div class="input-group">
+                    <label for="business-potenza">Potenza impegnata kW</label>
+                    <input id="business-potenza" type="number" step="0.1" placeholder="Es. 15">
+                </div>
+                <div class="input-group">
+                    <label for="business-kwh">Consumo annuo kWh</label>
+                    <input id="business-kwh" type="number" placeholder="Totale annuo se non conosci F1/F2/F3">
+                </div>
+                <div style="display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px;">
+                    <div class="input-group">
+                        <label for="business-f1">F1</label>
+                        <input id="business-f1" type="number" placeholder="kWh">
+                    </div>
+                    <div class="input-group">
+                        <label for="business-f2">F2</label>
+                        <input id="business-f2" type="number" placeholder="kWh">
+                    </div>
+                    <div class="input-group">
+                        <label for="business-f3">F3</label>
+                        <input id="business-f3" type="number" placeholder="kWh">
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label for="business-prezzo-luce">Prezzo medio luce €/kWh</label>
+                    <input id="business-prezzo-luce" type="number" step="0.0001" placeholder="Se noto">
+                </div>
+                <div class="input-group">
+                    <label for="business-fisso-luce">Quota fissa luce €/anno</label>
+                    <input id="business-fisso-luce" type="number" placeholder="Se nota">
+                </div>
+            </div>
+
+            <div class="business-section">
+                <h4>Gas business</h4>
+                <div class="input-group">
+                    <label for="business-smc">Consumo annuo Smc</label>
+                    <input id="business-smc" type="number" placeholder="Lascia vuoto se non hai gas">
+                </div>
+                <div class="input-group">
+                    <label for="business-prezzo-gas">Prezzo medio gas €/Smc</label>
+                    <input id="business-prezzo-gas" type="number" step="0.0001" placeholder="Se noto">
+                </div>
+                <div class="input-group">
+                    <label for="business-fisso-gas">Quota fissa gas €/anno</label>
+                    <input id="business-fisso-gas" type="number" placeholder="Se nota">
+                </div>
+                <div class="upload-note">Se carichi una bolletta business dal box PDF, proveremo a leggere consumi e fornitore. La verifica finale resta consulenziale.</div>
+            </div>
+        </div>
+
+        <div class="business-actions">
+            <button type="button" class="btn-action" onclick="calcolaBusiness()">Calcola margine business</button>
+            <button type="button" class="lead-secondary" onclick="apriLeadBusiness()">Richiedi analisi aziendale</button>
+            <span class="upload-note">Per offerte business reali useremo il lead verificato e la bolletta caricata.</span>
+        </div>
+        <div class="business-error" id="business-error"></div>
+        <div class="business-result" id="business-result">
+            <strong id="business-saving">Margine stimato in elaborazione</strong>
+            <p id="business-copy"></p>
+            <button type="button" class="btn-action" onclick="apriLeadBusiness()">Sblocca analisi aziendale</button>
+        </div>
+    </div>
+
     <div class="pdf-lead-panel">
         <h3>Carica bolletta o scheda sintetica</h3>
         <p>Con i dati reali il confronto diventa più preciso. Su GitHub questa area prepara il flusso: la lettura PDF sicura sarà collegata al backend.</p>
@@ -683,6 +823,8 @@ const LEAD_STATE = {
   bestSaving: 0,
   leadId: "",
   leadSource: "manual",
+  customerType: "privato",
+  businessProfile: null,
   pdfData: null,
   pdfDocuments: [],
 };
@@ -924,6 +1066,117 @@ function leggiValore(id, fallback = "") {
 function euro(value) {
   return `${value.toFixed(2)} €`;
 }
+
+function setDisplay(selector, display) {
+  document.querySelectorAll(selector).forEach((element) => {
+    element.style.display = display;
+  });
+}
+
+function selezionaSegmentoCliente(tipo) {
+  LEAD_STATE.customerType = tipo;
+  const isBusiness = tipo === "business";
+  document.getElementById("btn-segmento-privato")?.classList.toggle("active", !isBusiness);
+  document.getElementById("btn-segmento-business")?.classList.toggle("active", isBusiness);
+  const businessPanel = document.getElementById("business-panel");
+  if (businessPanel) businessPanel.style.display = isBusiness ? "block" : "none";
+  setDisplay(".manual-block", isBusiness ? "none" : "block");
+  setDisplay(".btn-calc", isBusiness ? "none" : "block");
+  if (isBusiness) setDisplay(".fornitori-consigliati-section", "none");
+  const results = document.getElementById("results-area");
+  if (results) results.style.display = "none";
+}
+
+function leggiProfiloBusiness() {
+  const f1 = leggiNumero("business-f1");
+  const f2 = leggiNumero("business-f2");
+  const f3 = leggiNumero("business-f3");
+  const consumoFasce = f1 + f2 + f3;
+  const consumoLuce = consumoFasce > 0 ? consumoFasce : leggiNumero("business-kwh");
+  const consumoGas = leggiNumero("business-smc");
+  const prezzoLuce = leggiNumero("business-prezzo-luce", 0.155);
+  const prezzoGas = leggiNumero("business-prezzo-gas", 0.68);
+  const fissoLuce = leggiNumero("business-fisso-luce", consumoLuce > 0 ? 240 : 0);
+  const fissoGas = leggiNumero("business-fisso-gas", consumoGas > 0 ? 240 : 0);
+  const targetLuce = consumoLuce > 0 ? consumoLuce * 0.118 + Math.max(180, fissoLuce * 0.75) : 0;
+  const targetGas = consumoGas > 0 ? consumoGas * 0.50 + Math.max(180, fissoGas * 0.75) : 0;
+  const attualeLuce = consumoLuce > 0 ? consumoLuce * prezzoLuce + fissoLuce : 0;
+  const attualeGas = consumoGas > 0 ? consumoGas * prezzoGas + fissoGas : 0;
+  const costoAttuale = attualeLuce + attualeGas;
+  const costoBenchmark = targetLuce + targetGas;
+  const risparmioStimato = Math.max(0, costoAttuale - costoBenchmark);
+
+  return {
+    ragioneSociale: leggiValore("business-ragione"),
+    partitaIva: leggiValore("business-piva"),
+    attivita: leggiValore("business-attivita"),
+    referente: leggiValore("business-referente"),
+    telefono: leggiValore("business-telefono"),
+    email: leggiValore("business-email"),
+    fornitore: leggiValore("business-fornitore"),
+    potenzaKw: leggiNumero("business-potenza"),
+    consumoLuceKwh: consumoLuce,
+    fasce: { f1, f2, f3 },
+    consumoGasSmc: consumoGas,
+    prezzoLuceEurKwh: prezzoLuce,
+    prezzoGasEurSmc: prezzoGas,
+    quotaFissaLuceAnnua: fissoLuce,
+    quotaFissaGasAnnua: fissoGas,
+    costoAttuale,
+    costoBenchmark,
+    risparmioStimato,
+    metodologia: "Stima preliminare business su benchmark interno, da verificare con bolletta e offerte business reali.",
+  };
+}
+
+function mostraBusinessErrore(message) {
+  const error = document.getElementById("business-error");
+  if (!error) return;
+  error.innerText = message;
+  error.style.display = "block";
+}
+
+window.calcolaBusiness = function calcolaBusiness() {
+  const profile = leggiProfiloBusiness();
+  const error = document.getElementById("business-error");
+  const result = document.getElementById("business-result");
+  if (error) error.style.display = "none";
+
+  if (!profile.consumoLuceKwh && !profile.consumoGasSmc) {
+    mostraBusinessErrore("Inserisci almeno il consumo annuo luce o gas, oppure carica una bolletta business.");
+    if (result) result.style.display = "none";
+    return null;
+  }
+
+  LEAD_STATE.customerType = "business";
+  LEAD_STATE.businessProfile = profile;
+  LEAD_STATE.bestSaving = profile.risparmioStimato;
+
+  const saving = document.getElementById("business-saving");
+  const copy = document.getElementById("business-copy");
+  if (saving) {
+    saving.innerText = profile.risparmioStimato > 0
+      ? `Margine stimato fino a ${euro(profile.risparmioStimato)} / anno`
+      : "Profilo pronto per verifica consulenziale";
+  }
+  if (copy) {
+    copy.innerText = "La stima business usa consumi, potenza e fasce indicate per individuare un possibile margine. Le offerte aziendali vanno confermate su bolletta e condizioni negoziate.";
+  }
+  if (result) result.style.display = "block";
+  return profile;
+};
+
+window.apriLeadBusiness = function apriLeadBusiness() {
+  const profile = calcolaBusiness();
+  if (!profile) return;
+  const nome = document.getElementById("lead-nome");
+  const telefono = document.getElementById("lead-telefono");
+  const email = document.getElementById("lead-email");
+  if (nome && !nome.value) nome.value = profile.referente || profile.ragioneSociale || "";
+  if (telefono && !telefono.value) telefono.value = profile.telefono || "";
+  if (email && !email.value) email.value = profile.email || "";
+  apriLeadModal("business");
+};
 
 function maggiorazioneMaster(commodity) {
   if (commodity === "luce") {
@@ -1307,14 +1560,24 @@ function leadStatus(message, isError = false) {
 
 window.apriLeadModal = function apriLeadModal(source = "manual") {
   const modal = document.getElementById("lead-modal-backdrop");
+  const title = document.getElementById("lead-modal-title");
   const copy = document.getElementById("lead-modal-copy");
   if (!modal) return;
   LEAD_STATE.leadSource = source;
+  if (title) {
+    title.innerText = source === "business"
+      ? "Sblocca analisi aziendale"
+      : "Sblocca le 3 migliori offerte";
+  }
   if (copy) {
     const saving = LEAD_STATE.bestSaving > 0 ? ` Abbiamo stimato fino a ${euro(LEAD_STATE.bestSaving)} / anno di risparmio potenziale.` : "";
-    copy.innerText = source === "upload"
-      ? "Carica la bolletta in ambiente sicuro e verifica il cellulare per ricevere il confronto personalizzato."
-      : `Ti mostriamo subito le 3 offerte migliori per il tuo profilo: verifica il cellulare per vedere nomi, prezzi e link.${saving}`;
+    if (source === "business") {
+      copy.innerText = `Verifica il cellulare per confermare il lead aziendale e ricevere l'analisi sui consumi business.${saving}`;
+    } else if (source === "upload") {
+      copy.innerText = "Carica la bolletta in ambiente sicuro e verifica il cellulare per ricevere il confronto personalizzato.";
+    } else {
+      copy.innerText = `Ti mostriamo subito le 3 offerte migliori per il tuo profilo: verifica il cellulare per vedere nomi, prezzi e link.${saving}`;
+    }
   }
   modal.style.display = "flex";
   leadStatus("Il codice OTP verifica il numero. I consensi commerciali restano separati e non preselezionati.");
@@ -1370,6 +1633,21 @@ function creaProvaConsenso(consents) {
   };
 }
 
+function completaLeadVerificato() {
+  LEAD_STATE.verified = true;
+  chiudiLeadModal();
+  if (LEAD_STATE.customerType === "business") {
+    const result = document.getElementById("business-result");
+    const copy = document.getElementById("business-copy");
+    if (result) result.style.display = "block";
+    if (copy) {
+      copy.innerText = "Numero verificato. Il lead aziendale e pronto per la verifica consulenziale su bolletta, fasce e offerte business reali.";
+    }
+    return;
+  }
+  window.avviaComparazioneDati();
+}
+
 async function inviaOtpDemo() {
   if (!leadValido()) return;
   const { nome, telefono, email, consents } = leggiLeadForm();
@@ -1388,10 +1666,12 @@ async function inviaOtpDemo() {
         consentPartners: consents.partners,
         consentProfiling: consents.profiling,
         calculation: {
+          customerType: LEAD_STATE.customerType,
           bestSaving: LEAD_STATE.bestSaving,
           pdfData: LEAD_STATE.pdfData,
           pdfDocuments: LEAD_STATE.pdfDocuments,
           currentSupply: leggiOffertaAttuale(),
+          businessProfile: LEAD_STATE.businessProfile,
         },
         consentProof,
         privacyVersion: PRIVACY_VERSION,
@@ -1440,9 +1720,7 @@ async function verificaOtpDemo() {
       leadStatus("Codice demo non corretto.", true);
       return;
     }
-    LEAD_STATE.verified = true;
-    chiudiLeadModal();
-    window.avviaComparazioneDati();
+    completaLeadVerificato();
     return;
   }
   try {
@@ -1453,10 +1731,8 @@ async function verificaOtpDemo() {
     });
     const payload = await response.json();
     if (!payload.ok) throw new Error(payload.error || "Codice non corretto");
-    LEAD_STATE.verified = true;
     leadStatus("Lead verificato. Offerte sbloccate.");
-    chiudiLeadModal();
-    window.avviaComparazioneDati();
+    completaLeadVerificato();
   } catch (error) {
     leadStatus(error.message, true);
   }
@@ -1499,6 +1775,13 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
 };
 
 window.confermaPdfECalcola = function confermaPdfECalcola() {
+  const data = LEAD_STATE.pdfData || {};
+  if (LEAD_STATE.customerType === "business") {
+    applicaDatiPdfAlBusiness(data);
+    calcolaBusiness();
+    return;
+  }
+
   const master = document.getElementById("master-tendine-container");
   const blocks = document.getElementById("master-blocchi-inferiori");
   const calcHint = document.getElementById("master-pulsante-calc-manuale");
@@ -1507,11 +1790,22 @@ window.confermaPdfECalcola = function confermaPdfECalcola() {
   if (calcHint) calcHint.style.display = "block";
   modalitaCalcolo = "manuale";
 
-  const data = LEAD_STATE.pdfData || {};
   applicaDatiPdfAlModulo(data);
 
   window.avviaComparazioneDati();
 };
+
+function applicaDatiPdfAlBusiness(data) {
+  if (!data) return;
+  setField("business-fornitore", data.fornitore || "");
+  setField("business-potenza", data.potenza_impegnata_kw || "");
+  setField("business-kwh", data.consumo_luce_kwh || "");
+  setField("business-prezzo-luce", data.prezzo_luce_eur_kwh || "");
+  setField("business-fisso-luce", data.quota_fissa_vendita_luce_eur_anno || "");
+  setField("business-smc", data.consumo_gas_smc || "");
+  setField("business-prezzo-gas", data.prezzo_gas_eur_smc || "");
+  setField("business-fisso-gas", data.quota_fissa_vendita_gas_eur_anno || "");
+}
 
 function firstValue(...values) {
   return values.find((value) => value !== undefined && value !== null && value !== "");
@@ -1582,13 +1876,21 @@ window.azzeraPdfEModulo = function azzeraPdfEModulo() {
     "in-gas-cons-att", "in-gas-prezzo-att", "in-gas-fisso-att",
     "in-luce-cons-nuov", "in-luce-prezzo-nuov", "in-luce-fisso-nuov",
     "in-gas-cons-nuov", "in-gas-prezzo-nuov", "in-gas-fisso-nuov",
+    "business-fornitore", "business-potenza", "business-kwh", "business-f1",
+    "business-f2", "business-f3", "business-prezzo-luce", "business-fisso-luce",
+    "business-smc", "business-prezzo-gas", "business-fisso-gas",
   ].forEach(clearField);
+  LEAD_STATE.businessProfile = null;
   const results = document.getElementById("results-area");
   const teaser = document.getElementById("lead-teaser");
   const offers = document.querySelector(".fornitori-consigliati-section");
+  const businessResult = document.getElementById("business-result");
+  const businessError = document.getElementById("business-error");
   if (results) results.style.display = "none";
   if (teaser) teaser.style.display = "none";
   if (offers) offers.style.display = "none";
+  if (businessResult) businessResult.style.display = "none";
+  if (businessError) businessError.style.display = "none";
 };
 
 function setField(id, value) {
@@ -1711,6 +2013,8 @@ function sincronizzaConsumiNuovaOfferta() {
 }
 
 function collegaEventiUX() {
+  const btnPrivato = document.getElementById("btn-segmento-privato");
+  const btnBusiness = document.getElementById("btn-segmento-business");
   const btnMedi = document.getElementById("btn-attiva-medi");
   const btnPrecisi = document.getElementById("btn-attiva-precisi");
   const luceAtt = document.getElementById("in-luce-cons-att");
@@ -1718,6 +2022,9 @@ function collegaEventiUX() {
   const containerTendine = document.getElementById("master-tendine-container");
   const blocchiInferiori = document.getElementById("master-blocchi-inferiori");
   const pulsanteCalcoloManuale = document.getElementById("master-pulsante-calc-manuale");
+
+  btnPrivato?.addEventListener("click", () => selezionaSegmentoCliente("privato"));
+  btnBusiness?.addEventListener("click", () => selezionaSegmentoCliente("business"));
 
   btnMedi?.addEventListener("click", () => {
     modalitaCalcolo = "media";
