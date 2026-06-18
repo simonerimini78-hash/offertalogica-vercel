@@ -146,9 +146,10 @@
         <h3>Carica bolletta o scheda sintetica</h3>
         <p>Con i dati reali il confronto diventa più preciso. Su GitHub questa area prepara il flusso: la lettura PDF sicura sarà collegata al backend.</p>
         <div class="upload-drop">
-            <input id="pdf-static-input" type="file" accept="application/pdf">
+            <input id="pdf-static-input" type="file" accept="application/pdf" multiple>
             <button type="button" class="btn-action" onclick="preparaConfermaPdf()">Analizza PDF</button>
-            <div class="upload-note">PDF bolletta, file ricevuto via email o scheda sintetica. I documenti non vengono caricati nella versione statica.</div>
+            <button type="button" class="lead-secondary" onclick="azzeraPdfEModulo()">Azzera e cambia PDF</button>
+            <div class="upload-note">Puoi caricare una o più bollette PDF, ad esempio una luce e una gas, oppure una scheda sintetica.</div>
             <div class="pdf-review-static" id="pdf-review-static">
                 <strong>Dati pronti per la conferma</strong>
                 <p id="pdf-review-copy">Nel sito finale qui compariranno consumi, fornitore, POD/PDR, prezzo materia e quota fissa letti dal PDF. Confermando, il confronto parte senza aprire il pop-up lead.</p>
@@ -678,6 +679,7 @@ const LEAD_STATE = {
   bestSaving: 0,
   leadId: "",
   pdfData: null,
+  pdfDocuments: [],
 };
 
 const PARAMETRI_MASTER = {
@@ -1354,7 +1356,12 @@ async function inviaOtpDemo() {
         email,
         consentService: consenso,
         consentMarketing: false,
-        calculation: { bestSaving: LEAD_STATE.bestSaving, pdfData: LEAD_STATE.pdfData },
+        calculation: {
+          bestSaving: LEAD_STATE.bestSaving,
+          pdfData: LEAD_STATE.pdfData,
+          pdfDocuments: LEAD_STATE.pdfDocuments,
+          currentSupply: leggiOffertaAttuale(),
+        },
         privacyVersion: "v1",
       }),
     });
@@ -1427,44 +1434,36 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
   const input = document.getElementById("pdf-static-input");
   const panel = document.getElementById("pdf-review-static");
   const copy = document.getElementById("pdf-review-copy");
-  const file = input?.files?.[0];
-  if (!file) {
+  const files = Array.from(input?.files || []);
+  if (!files.length) {
     if (panel) panel.style.display = "block";
     if (copy) copy.innerText = "Seleziona prima una bolletta PDF o una scheda sintetica. Dopo la lettura mostreremo i dati da confermare prima della comparazione.";
     return;
   }
   if (panel) panel.style.display = "block";
-  if (copy) copy.innerText = "Analisi PDF in corso...";
-  const formData = new FormData();
-  formData.append("pdf", file);
-  try {
-    const response = await fetch("/api/analyze-pdf", { method: "POST", body: formData });
-    const contentType = response.headers.get("content-type") || "";
-    if (!response.ok || !contentType.includes("application/json")) {
-      throw new Error("api_non_disponibile");
-    }
-    const payload = await response.json();
-    if (!payload.ok) throw new Error(payload.error || "Errore analisi PDF");
-    LEAD_STATE.pdfData = payload.normalized;
-    if (copy) {
-      const data = payload.normalized;
-      copy.innerText = [
-        `Documento: ${data.kind || "PDF"}`,
-        `Servizio: ${data.commodity || "da verificare"}`,
-        `Fornitore: ${data.fornitore || "da verificare"}`,
-        data.consumo_luce_kwh ? `Luce: ${data.consumo_luce_kwh} kWh/anno` : "",
-        data.consumo_gas_smc ? `Gas: ${data.consumo_gas_smc} Smc/anno` : "",
-        data.prezzo_luce_eur_kwh ? `Prezzo luce: ${data.prezzo_luce_eur_kwh} €/kWh` : "",
-        data.prezzo_gas_eur_smc ? `Prezzo gas: ${data.prezzo_gas_eur_smc} €/Smc` : "",
-        "Controlla i dati e conferma per avviare la comparazione.",
-      ].filter(Boolean).join(" | ");
-    }
-  } catch (error) {
-    LEAD_STATE.pdfData = null;
-    if (copy) {
-      copy.innerText = "Preview locale: il file è selezionato, ma la lettura reale del PDF richiede le API Vercel attive. Puoi confermare per provare il funnel con una comparazione su profilo medio ARERA Q2 2026.";
+  if (copy) copy.innerText = `Analisi di ${files.length} PDF in corso...`;
+
+  const results = [];
+  for (const file of files) {
+    const formData = new FormData();
+    formData.append("pdf", file);
+    try {
+      const response = await fetch("/api/analyze-pdf", { method: "POST", body: formData });
+      const contentType = response.headers.get("content-type") || "";
+      if (!response.ok || !contentType.includes("application/json")) {
+        throw new Error("api_non_disponibile");
+      }
+      const payload = await response.json();
+      if (!payload.ok) throw new Error(payload.error || "Errore analisi PDF");
+      results.push({ filename: file.name, ...payload.normalized });
+    } catch (error) {
+      results.push({ filename: file.name, error: "Lettura non disponibile in questa preview" });
     }
   }
+
+  LEAD_STATE.pdfDocuments = [...LEAD_STATE.pdfDocuments, ...results];
+  LEAD_STATE.pdfData = mergePdfDocuments(LEAD_STATE.pdfDocuments);
+  if (copy) copy.innerHTML = renderPdfSummary(LEAD_STATE.pdfDocuments, LEAD_STATE.pdfData);
 };
 
 window.confermaPdfECalcola = function confermaPdfECalcola() {
@@ -1472,30 +1471,196 @@ window.confermaPdfECalcola = function confermaPdfECalcola() {
   const blocks = document.getElementById("master-blocchi-inferiori");
   const calcHint = document.getElementById("master-pulsante-calc-manuale");
   if (master) master.style.display = "block";
-  if (blocks) blocks.style.display = "none";
-  if (calcHint) calcHint.style.display = "none";
+  if (blocks) blocks.style.display = "grid";
+  if (calcHint) calcHint.style.display = "block";
+  modalitaCalcolo = "manuale";
 
   const data = LEAD_STATE.pdfData || {};
-  [
-    ["master-luce-consumo", "2700"],
-    ["master-luce-potenza", "3"],
-    ["master-luce-tipo", "fisso"],
-    ["master-gas-consumo", "700"],
-    ["master-tipo-fornitura", "dual"],
-    ["master-gas-regione", "nord-ovest"],
-    ["in-luce-cons-att", data.consumo_luce_kwh || "2700"],
-    ["in-luce-prezzo-att", data.prezzo_luce_eur_kwh || "0.1500"],
-    ["in-luce-fisso-att", data.quota_fissa_vendita_luce_eur_anno || "144"],
-    ["in-gas-cons-att", data.consumo_gas_smc || "700"],
-    ["in-gas-prezzo-att", data.prezzo_gas_eur_smc || "0.6800"],
-    ["in-gas-fisso-att", data.quota_fissa_vendita_gas_eur_anno || "120"],
-  ].forEach(([id, value]) => {
-    const element = document.getElementById(id);
-    if (element) element.value = value;
-  });
+  applicaDatiPdfAlModulo(data);
 
   window.avviaComparazioneDati();
 };
+
+function firstValue(...values) {
+  return values.find((value) => value !== undefined && value !== null && value !== "");
+}
+
+function mergePdfDocuments(documents) {
+  const merged = {};
+  documents.filter((doc) => !doc.error).forEach((doc) => {
+    if (!merged.fornitore && doc.fornitore) merged.fornitore = doc.fornitore;
+    if (doc.kind === "scheda_offerta") merged.hasOfferSheet = true;
+    if (doc.kind === "bolletta") merged.hasBill = true;
+    merged.kind = merged.hasOfferSheet && !merged.hasBill ? "scheda_offerta" : "bolletta";
+
+    if (doc.commodity === "luce" || doc.consumo_luce_kwh || doc.prezzo_luce_eur_kwh) {
+      merged.consumo_luce_kwh = firstValue(doc.consumo_luce_kwh, merged.consumo_luce_kwh);
+      merged.prezzo_luce_eur_kwh = firstValue(doc.prezzo_luce_eur_kwh, merged.prezzo_luce_eur_kwh);
+      merged.quota_fissa_vendita_luce_eur_anno = firstValue(doc.quota_fissa_vendita_luce_eur_anno, merged.quota_fissa_vendita_luce_eur_anno);
+      merged.potenza_impegnata_kw = firstValue(doc.potenza_impegnata_kw, merged.potenza_impegnata_kw);
+      merged.pod = firstValue(doc.pod, merged.pod);
+    }
+
+    if (doc.commodity === "gas" || doc.consumo_gas_smc || doc.prezzo_gas_eur_smc) {
+      merged.consumo_gas_smc = firstValue(doc.consumo_gas_smc, merged.consumo_gas_smc);
+      merged.prezzo_gas_eur_smc = firstValue(doc.prezzo_gas_eur_smc, merged.prezzo_gas_eur_smc);
+      merged.quota_fissa_vendita_gas_eur_anno = firstValue(doc.quota_fissa_vendita_gas_eur_anno, merged.quota_fissa_vendita_gas_eur_anno);
+      merged.pdr = firstValue(doc.pdr, merged.pdr);
+    }
+  });
+  return merged;
+}
+
+function renderPdfSummary(documents, merged) {
+  const rows = documents.map((doc) => {
+    if (doc.error) return `<li><strong>${doc.filename}</strong>: lettura non disponibile. Puoi cambiare PDF o confermare con dati medi.</li>`;
+    return `<li><strong>${doc.filename}</strong>: ${doc.kind || "PDF"} ${doc.commodity || ""} - ${doc.fornitore || "fornitore da verificare"}</li>`;
+  }).join("");
+  const mergedRows = [
+    merged.fornitore ? `Fornitore: ${merged.fornitore}` : "",
+    merged.consumo_luce_kwh ? `Luce: ${merged.consumo_luce_kwh} kWh/anno` : "",
+    merged.prezzo_luce_eur_kwh ? `Prezzo luce: ${merged.prezzo_luce_eur_kwh} €/kWh` : "",
+    merged.quota_fissa_vendita_luce_eur_anno ? `Fisso luce: ${merged.quota_fissa_vendita_luce_eur_anno} €/anno` : "",
+    merged.consumo_gas_smc ? `Gas: ${merged.consumo_gas_smc} Smc/anno` : "",
+    merged.prezzo_gas_eur_smc ? `Prezzo gas: ${merged.prezzo_gas_eur_smc} €/Smc` : "",
+    merged.quota_fissa_vendita_gas_eur_anno ? `Fisso gas: ${merged.quota_fissa_vendita_gas_eur_anno} €/anno` : "",
+    merged.pod ? `POD: ${merged.pod}` : "",
+    merged.pdr ? `PDR: ${merged.pdr}` : "",
+  ].filter(Boolean).join(" | ");
+
+  return `
+    <span>Documenti analizzati:</span>
+    <ul style="margin:6px 0 10px 18px;">${rows}</ul>
+    <span><strong>Dati che useremo per compilare il modulo:</strong> ${mergedRows || "nessun dato certo letto; verranno usati dati medi ARERA Q2 2026."}</span>
+  `;
+}
+
+window.azzeraPdfEModulo = function azzeraPdfEModulo() {
+  LEAD_STATE.pdfData = null;
+  LEAD_STATE.pdfDocuments = [];
+  const input = document.getElementById("pdf-static-input");
+  const panel = document.getElementById("pdf-review-static");
+  const copy = document.getElementById("pdf-review-copy");
+  if (input) input.value = "";
+  if (panel) panel.style.display = "none";
+  if (copy) copy.innerText = "";
+  [
+    "nome-fornitore-att", "nome-fornitore-nuov",
+    "in-luce-cons-att", "in-luce-prezzo-att", "in-luce-fisso-att",
+    "in-gas-cons-att", "in-gas-prezzo-att", "in-gas-fisso-att",
+    "in-luce-cons-nuov", "in-luce-prezzo-nuov", "in-luce-fisso-nuov",
+    "in-gas-cons-nuov", "in-gas-prezzo-nuov", "in-gas-fisso-nuov",
+  ].forEach(clearField);
+  const results = document.getElementById("results-area");
+  const teaser = document.getElementById("lead-teaser");
+  const offers = document.querySelector(".fornitori-consigliati-section");
+  if (results) results.style.display = "none";
+  if (teaser) teaser.style.display = "none";
+  if (offers) offers.style.display = "none";
+};
+
+function setField(id, value) {
+  const element = document.getElementById(id);
+  if (!element || value === undefined || value === null || value === "") return;
+  element.value = value;
+  element.dispatchEvent(new Event("input", { bubbles: true }));
+  element.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+function clearField(id) {
+  const element = document.getElementById(id);
+  if (element) element.value = "";
+}
+
+function providerValue(name) {
+  const lowered = String(name || "").toLowerCase();
+  if (lowered.includes("dolomiti")) return "dolomiti";
+  if (lowered.includes("hera")) return "hera";
+  if (lowered.includes("e.on")) return "eon";
+  if (lowered.includes("acea")) return "acea";
+  if (lowered.includes("pulsee")) return "pulsee";
+  if (lowered.includes("illumia")) return "illum";
+  if (lowered.includes("enel")) return "enel";
+  if (lowered.includes("eni")) return "eni";
+  return "altro";
+}
+
+function luceMasterBucket(consumo) {
+  const value = Number(consumo || 0);
+  if (!value) return "2700";
+  if (value <= 1800) return "1800";
+  if (value <= 3500) return "2700";
+  return "4000";
+}
+
+function gasMasterBucket(consumo) {
+  const value = Number(consumo || 0);
+  if (!value) return "700";
+  if (value <= 300) return "300";
+  if (value <= 1000) return "700";
+  return "1400";
+}
+
+function applicaDatiPdfAlModulo(data) {
+  [
+    "in-luce-cons-att", "in-luce-prezzo-att", "in-luce-fisso-att",
+    "in-gas-cons-att", "in-gas-prezzo-att", "in-gas-fisso-att",
+    "in-luce-cons-nuov", "in-luce-prezzo-nuov", "in-luce-fisso-nuov",
+    "in-gas-cons-nuov", "in-gas-prezzo-nuov", "in-gas-fisso-nuov",
+  ].forEach(clearField);
+
+  if (!data || Object.keys(data).length === 0) {
+    setField("master-luce-consumo", "2700");
+    setField("master-gas-consumo", "700");
+    setField("master-luce-potenza", "3");
+    setField("master-luce-tipo", "fisso");
+    setField("master-tipo-fornitura", "dual");
+    setField("master-gas-regione", "nord-ovest");
+    setField("in-luce-cons-att", "2700");
+    setField("in-luce-prezzo-att", "0.1500");
+    setField("in-luce-fisso-att", "144");
+    setField("in-gas-cons-att", "700");
+    setField("in-gas-prezzo-att", "0.6800");
+    setField("in-gas-fisso-att", "120");
+    return;
+  }
+
+  setField("master-luce-potenza", data.potenza_impegnata_kw || "3");
+  setField("master-gas-regione", "nord-ovest");
+  setField("master-tipo-fornitura", "dual");
+
+  const isOffer = data.kind === "scheda_offerta";
+  if (isOffer) {
+    setField("nome-fornitore-nuov", providerValue(data.fornitore));
+    if (data.commodity === "luce" || data.prezzo_luce_eur_kwh) {
+      setField("in-luce-prezzo-nuov", data.prezzo_luce_eur_kwh);
+      setField("in-luce-fisso-nuov", data.quota_fissa_vendita_luce_eur_anno);
+      setField("master-luce-tipo", "variabile");
+    }
+    if (data.commodity === "gas" || data.prezzo_gas_eur_smc) {
+      setField("in-gas-prezzo-nuov", data.prezzo_gas_eur_smc);
+      setField("in-gas-fisso-nuov", data.quota_fissa_vendita_gas_eur_anno);
+      setField("master-luce-tipo", "fisso");
+    }
+    return;
+  }
+
+  setField("nome-fornitore-att", providerValue(data.fornitore));
+  if (data.commodity === "luce" || data.consumo_luce_kwh || data.prezzo_luce_eur_kwh) {
+    setField("in-luce-cons-att", data.consumo_luce_kwh);
+    setField("in-luce-cons-nuov", data.consumo_luce_kwh);
+    setField("master-luce-consumo", luceMasterBucket(data.consumo_luce_kwh));
+    setField("in-luce-prezzo-att", data.prezzo_luce_eur_kwh);
+    setField("in-luce-fisso-att", data.quota_fissa_vendita_luce_eur_anno);
+  }
+  if (data.commodity === "gas" || data.consumo_gas_smc || data.prezzo_gas_eur_smc) {
+    setField("in-gas-cons-att", data.consumo_gas_smc);
+    setField("in-gas-cons-nuov", data.consumo_gas_smc);
+    setField("master-gas-consumo", gasMasterBucket(data.consumo_gas_smc));
+    setField("in-gas-prezzo-att", data.prezzo_gas_eur_smc);
+    setField("in-gas-fisso-att", data.quota_fissa_vendita_gas_eur_anno);
+  }
+}
 
 assicuraSchedeOfferte();
 
