@@ -1,3 +1,4 @@
+[SICUREZZA-LEAD-OTP.md](https://github.com/user-attachments/files/29092065/SICUREZZA-LEAD-OTP.md)
 # Architettura sicura lead, PDF e OTP
 
 Questa parte non deve vivere nel solo file statico GitHub Pages. Serve un backend HTTPS.
@@ -20,9 +21,22 @@ Questa parte non deve vivere nel solo file statico GitHub Pages. Serve un backen
 - Consumi luce/gas
 - Fornitore attuale, se noto
 - Esito calcolo sintetico
-- Consensi separati: servizio richiesto, marketing, eventuale cessione a partner
+- Consensi separati: richiesta comparazione e marketing/ricontatto commerciale
 - Timestamp consenso, IP, user agent, versione informativa
 - Stato OTP: pending, verified, expired
+
+## Consensi nel popup lead
+
+Per ridurre attrito e aumentare la conversione, il popup pubblico usa due sole caselle:
+
+- richiesta comparazione: necessaria per generare il confronto richiesto dall'utente;
+- marketing/ricontatto commerciale: telefonate, email o SMS commerciali, facoltativa e non preselezionata.
+
+L'OTP conferma il numero di telefono, ma non sostituisce il consenso commerciale. Il record lead deve salvare la versione dell'informativa, il timestamp lato client, il timestamp lato server, IP, user agent e origine del popup.
+
+Se l'utente non presta il consenso marketing opzionale, il lead non deve essere usato per campagne promozionali. Puo essere gestito solo per la richiesta effettivamente avviata dall'utente, nei limiti della base giuridica indicata nell'informativa.
+
+Eventuale comunicazione dati a partner o profilazione commerciale dovranno essere introdotte solo in una fase successiva, con testo informativo e consenso dedicati.
 
 ## PDF
 
