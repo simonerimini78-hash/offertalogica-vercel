@@ -1,12 +1,3 @@
-<!-- Awin verification 2932723 -->
-<header style="text-align: center; padding: 20px 20px 30px 20px; font-family: sans-serif;">
-    <h1 style="margin: 0; font-size: 42px; font-weight: 800; color: #2D5A27; letter-spacing: 2px;">
-        OFFERTA - LOGICA
-    </h1>
-    <p style="margin: 5px 0 0 0; color: #444; font-size: 16px; letter-spacing: 0.5px;">
-        La scelta intelligente per le tue utenze
-    </p>
-</header>
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -31,6 +22,10 @@
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         body { background-color: var(--bg-color); color: var(--text-color); padding: 20px; line-height: 1.6; }
         .container { max-width: 1000px; margin: 0 auto; }
+        .skip-link { position: absolute; left: -999px; top: 12px; background: #fff; color: var(--accent); padding: 10px 14px; border-radius: 8px; font-weight: 800; z-index: 2000; }
+        .skip-link:focus { left: 12px; }
+        .footer-privacy-action { background: transparent; border: 0; color: #555; text-decoration: none; margin: 0 10px; cursor: pointer; font-size: 13px; font-weight: 600; }
+        .footer-privacy-action:hover { color: var(--accent); text-decoration: underline; }
        
         /* Riquadri Manuali Perfettamente Speculari */
         .manual-container { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; margin-bottom: 30px; }
@@ -128,6 +123,10 @@
         .lead-primary { background: var(--primary); color: #fff; }
         .lead-secondary { background: #e2e8f0; color: var(--text-color); }
         .lead-status { margin-top: 10px; color: var(--text-muted); font-size: 13px; }
+        .offer-consent-backdrop { position: fixed; inset: 0; z-index: 1001; display: none; align-items: center; justify-content: center; padding: 20px; background: rgba(15,23,42,.58); }
+        .offer-consent-modal { width: min(560px, 100%); background: #fff; border-radius: 14px; border: 1px solid var(--border); padding: 22px; box-shadow: 0 24px 60px rgba(15,23,42,.28); }
+        .offer-consent-modal h3 { font-size: 20px; margin-bottom: 6px; color: var(--text-color); }
+        .offer-consent-modal p { color: var(--text-muted); font-size: 14px; margin-bottom: 14px; }
         .locked-offer { position: relative; }
         .locked-offer .partner-title::before { content: "Offerta riservata "; color: var(--accent); }
         .locked-offer a { background: var(--accent) !important; }
@@ -159,7 +158,19 @@
     </style>
 </head>
 <body>
+<a class="skip-link" href="#main-content">Vai al contenuto principale</a>
 
+<!-- Awin verification 2932723 -->
+<header style="text-align: center; padding: 20px 20px 30px 20px; font-family: sans-serif;">
+    <h1 style="margin: 0; font-size: 42px; font-weight: 800; color: #2D5A27; letter-spacing: 2px;">
+        OFFERTA - LOGICA
+    </h1>
+    <p style="margin: 5px 0 0 0; color: #444; font-size: 16px; letter-spacing: 0.5px;">
+        La scelta intelligente per le tue utenze
+    </p>
+</header>
+
+<main id="main-content" role="main">
 <div class="container">
     <div class="segment-switch" aria-label="Tipo cliente">
         <button type="button" id="btn-segmento-privato" class="active">
@@ -825,6 +836,7 @@ const LEAD_STATE = {
   leadSource: "manual",
   customerType: "privato",
   businessProfile: null,
+  selectedOffer: null,
   pdfData: null,
   pdfDocuments: [],
 };
@@ -1381,7 +1393,7 @@ function creaSchedaOfferta(offerta) {
       <div class="partner-details" style="font-size:13px; color:var(--text-muted); margin-top:2px;"></div>
       <div id="risparmio-partner-${offerta.id}" style="font-size:14px; font-weight:bold; color:var(--primary); margin-top:5px; display:none;"></div>
     </div>
-    <a id="link-partner-${offerta.id}" href="${offerta.link}" target="_blank" style="background:var(--dark-btn); color:white; text-decoration:none; padding:10px 20px; border-radius:8px; font-size:13px; font-weight:bold; white-space:nowrap;">Vedi Offerta</a>
+    <a id="link-partner-${offerta.id}" href="#" style="background:var(--dark-btn); color:white; text-decoration:none; padding:10px 20px; border-radius:8px; font-size:13px; font-weight:bold; white-space:nowrap;">Vedi Offerta</a>
   `;
   return card;
 }
@@ -1402,7 +1414,10 @@ function assicuraSchedeOfferte() {
     const link = document.getElementById(`link-partner-${offerta.id}`);
     if (title) title.innerText = offerta.nome;
     if (details) details.innerText = dettagliOfferta(offerta);
-    if (link) link.href = offerta.link;
+    if (link) {
+      link.href = "#";
+      link.removeAttribute("target");
+    }
   });
 }
 
@@ -1454,9 +1469,13 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
         if (title) title.innerText = offerta.nome;
         if (details) details.innerText = dettagliOfferta(offerta);
         if (link) {
-          link.innerText = "Vedi Offerta";
-          link.href = offerta.link;
-          link.onclick = null;
+          link.innerText = "Procedi";
+          link.href = "#";
+          link.removeAttribute("target");
+          link.onclick = (event) => {
+            event.preventDefault();
+            apriConsensoOfferta(offerta);
+          };
         }
         saving.style.color = risparmio ? "var(--primary)" : "var(--danger)";
         saving.innerText = risparmio
@@ -1580,7 +1599,7 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
     }
   }
   modal.style.display = "flex";
-  leadStatus("Il codice OTP verifica il numero. Il consenso commerciale e facoltativo e non preselezionato.");
+  leadStatus("Il codice OTP verifica il numero e sblocca il confronto. Il consenso partner viene richiesto solo se scegli un'offerta.");
 };
 
 function chiudiLeadModal() {
@@ -1594,7 +1613,7 @@ function leggiLeadForm() {
   const email = document.getElementById("lead-email")?.value.trim();
   const consents = {
     service: Boolean(document.getElementById("lead-consenso-servizio")?.checked),
-    marketing: Boolean(document.getElementById("lead-consenso-marketing")?.checked),
+    marketing: false,
   };
   return { nome, telefono, email, consents };
 }
@@ -1731,6 +1750,79 @@ async function verificaOtpDemo() {
     completaLeadVerificato();
   } catch (error) {
     leadStatus(error.message, true);
+  }
+}
+
+function offerConsentStatus(message, isError = false) {
+  const status = document.getElementById("offer-consent-status");
+  if (!status) return;
+  status.innerText = message;
+  status.style.color = isError ? "var(--danger)" : "var(--text-muted)";
+}
+
+window.apriConsensoOfferta = function apriConsensoOfferta(offerta) {
+  if (!LEAD_STATE.verified) {
+    apriLeadModal("unlock");
+    return;
+  }
+
+  LEAD_STATE.selectedOffer = {
+    id: String(offerta.id || ""),
+    name: offerta.nome || "",
+    link: offerta.link || "",
+  };
+
+  const modal = document.getElementById("offer-consent-backdrop");
+  const name = document.getElementById("offer-consent-offer-name");
+  const checkbox = document.getElementById("offer-consent-checkbox");
+  if (name) name.innerText = LEAD_STATE.selectedOffer.name || "offerta selezionata";
+  if (checkbox) checkbox.checked = false;
+  if (modal) modal.style.display = "flex";
+  offerConsentStatus("Questo consenso serve solo per procedere con l'offerta scelta.");
+};
+
+function chiudiConsensoOfferta() {
+  const modal = document.getElementById("offer-consent-backdrop");
+  if (modal) modal.style.display = "none";
+}
+
+async function confermaConsensoOfferta() {
+  const checkbox = document.getElementById("offer-consent-checkbox");
+  if (!checkbox?.checked) {
+    offerConsentStatus("Per procedere serve il consenso al ricontatto/trasmissione dati sull'offerta scelta.", true);
+    return;
+  }
+
+  const offer = LEAD_STATE.selectedOffer;
+  if (!offer?.link) {
+    offerConsentStatus("Offerta non disponibile. Riprova dal pulsante dell'offerta.", true);
+    return;
+  }
+
+  offerConsentStatus("Confermo il consenso e preparo il passaggio all'offerta...");
+
+  if (LEAD_STATE.leadId === "preview") {
+    chiudiConsensoOfferta();
+    window.location.href = offer.link;
+    return;
+  }
+
+  try {
+    const response = await fetch("/api/offer-consent", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        leadId: LEAD_STATE.leadId,
+        accepted: true,
+        offer,
+      }),
+    });
+    const payload = await response.json();
+    if (!payload.ok) throw new Error(payload.error || "Errore consenso offerta");
+    chiudiConsensoOfferta();
+    window.location.href = payload.redirectUrl || offer.link;
+  } catch (error) {
+    offerConsentStatus(error.message, true);
   }
 }
 
@@ -2061,9 +2153,18 @@ function collegaEventiUX() {
   document.getElementById("lead-modal-backdrop")?.addEventListener("click", (event) => {
     if (event.target?.id === "lead-modal-backdrop") chiudiLeadModal();
   });
+  document.getElementById("offer-consent-confirm")?.addEventListener("click", confermaConsensoOfferta);
+  document.getElementById("offer-consent-close")?.addEventListener("click", chiudiConsensoOfferta);
+  document.getElementById("offer-consent-backdrop")?.addEventListener("click", (event) => {
+    if (event.target?.id === "offer-consent-backdrop") chiudiConsensoOfferta();
+  });
 }
 
-collegaEventiUX();
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", collegaEventiUX);
+} else {
+  collegaEventiUX();
+}
 </script>
 <div class="fornitori-consigliati-section">
 <div class="lead-teaser" id="lead-teaser">
@@ -2080,7 +2181,7 @@ collegaEventiUX();
                 <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Prezzi. Luce: 0,1041 €/kWh | Gas: 0,519 €/Smc. Corrispettivo annuo: 108€ (Dual)</div>
                 <div id="risparmio-partner-1" style="font-size: 14px; font-weight: bold; color: var(--primary); margin-top: 5px; display: none;"></div>
             </div>
-            <a id="link-partner-1" href="https://eon-energia.com" target="_blank" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
+            <a id="link-partner-1" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
         </div>
 
         <!-- Offerta Consigliata 2: A2A -->
@@ -2090,7 +2191,7 @@ collegaEventiUX();
                 <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Prezzi. Luce: 0,129 €/kWh | Gas: 0,470 €/Smc. Corrispettivo annuo: 102€ (Variabile)</div>
                 <div id="risparmio-partner-2" style="font-size: 14px; font-weight: bold; color: var(--primary); margin-top: 5px; display: none;"></div>
             </div>
-            <a id="link-partner-2" href="https://a2a.it" target="_blank" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
+            <a id="link-partner-2" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
         </div>
 
         <!-- Offerta Consigliata 3: Magis Energia -->
@@ -2100,7 +2201,7 @@ collegaEventiUX();
                 <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Prezzi. Luce: 0,1027 €/kWh | Gas: 0,4930 €/Smc. Corrispettivo annuo: 96€ (Separate)</div>
                 <div id="risparmio-partner-3" style="font-size: 14px; font-weight: bold; color: var(--primary); margin-top: 5px; display: none;"></div>
             </div>
-            <a id="link-partner-3" href="https://magisenergia.it" target="_blank" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
+            <a id="link-partner-3" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
         </div>
 
         <!-- Offerta Consigliata 4: Octopus Luce e Gas -->
@@ -2110,7 +2211,7 @@ collegaEventiUX();
                 <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Prezzi. Luce: 0,1298 €/kWh | Gas: 0,4900 €/Smc. Corrispettivo annuo: 156€ (Fisso)</div>
                 <div id="risparmio-partner-4" style="font-size: 14px; font-weight: bold; color: var(--primary); margin-top: 5px; display: none;"></div>
             </div>
-            <a id="link-partner-4" href="https://octopusenergy.it" target="_blank" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
+            <a id="link-partner-4" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
         </div>
 
         <!-- Offerta Consigliata 5: Iren Fissa 36 Mesi -->
@@ -2120,7 +2221,7 @@ collegaEventiUX();
                 <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Prezzi. Luce: 0,1000 €/kWh | Gas: 0,4300 €/Smc. Corrispettivo annuo: 240€ (Bloccato 3 Anni)</div>
                 <div id="risparmio-partner-5" style="font-size: 14px; font-weight: bold; color: var(--primary); margin-top: 5px; display: none;"></div>
             </div>
-            <a id="link-partner-5" href="https://irenluceegas.it" target="_blank" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
+            <a id="link-partner-5" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
         </div>
 
         <!-- Offerta Consigliata 6: neN Luce Dieci -->
@@ -2130,7 +2231,7 @@ collegaEventiUX();
                 <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Prezzo Luce: 0,1190 €/kWh | Corrispettivo: 72€/anno (Bloccato per ben 10 Anni)</div>
                 <div id="risparmio-partner-6" style="font-size: 14px; font-weight: bold; color: var(--primary); margin-top: 5px; display: none;"></div>
             </div>
-            <a id="link-partner-6" href="https://nen.it" target="_blank" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
+            <a id="link-partner-6" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
         </div>
 
         <!-- Offerta Consigliata 7: neN Duel Luce e Gas -->
@@ -2140,7 +2241,7 @@ collegaEventiUX();
                 <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Prezzi. Luce: 0,1290 €/kWh | Gas: 0,4600 €/Smc. Corrispettivo annuo: 192€ (Bloccato 2 Anni)</div>
                 <div id="risparmio-partner-7" style="font-size: 14px; font-weight: bold; color: var(--primary); margin-top: 5px; display: none;"></div>
             </div>
-            <a id="link-partner-7" href="https://nen.it" target="_blank" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
+            <a id="link-partner-7" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
         </div>
 
         <!-- Offerta Consigliata 8: neN Luce Surf -->
@@ -2150,7 +2251,7 @@ collegaEventiUX();
                 <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Prezzo Variabile (PUN monorario) + 0€ spread. Corrispettivo annuo: 120€</div>
                 <div id="risparmio-partner-8" style="font-size: 14px; font-weight: bold; color: var(--primary); margin-top: 5px; display: none;"></div>
             </div>
-            <a id="link-partner-8" href="https://nen.it" target="_blank" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
+            <a id="link-partner-8" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
         </div>
 
         <!-- Offerta Consigliata 9: neN Gas Surf -->
@@ -2160,7 +2261,7 @@ collegaEventiUX();
                 <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Prezzo Variabile (PSV) + 0€ spread. Corrispettivo annuo: 120€</div>
                 <div id="risparmio-partner-9" style="font-size: 14px; font-weight: bold; color: var(--primary); margin-top: 5px; display: none;"></div>
             </div>
-            <a id="link-partner-9" href="https://nen.it" target="_blank" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
+            <a id="link-partner-9" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
         </div>
         <!-- Offerta Consigliata 10: Enel Fix Web -->
         <div class="partner-vertical-card" style="background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
@@ -2169,7 +2270,7 @@ collegaEventiUX();
                 <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Prezzi. Luce: 0,1390 €/kWh | Gas: 0,4900 €/Smc. Corrispettivo: 288€/anno (Fisso 3 Anni)</div>
                 <div id="risparmio-partner-10" style="font-size: 14px; font-weight: bold; color: var(--primary); margin-top: 5px; display: none;"></div>
             </div>
-            <a id="link-partner-10" href="https://enel.it" target="_blank" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
+            <a id="link-partner-10" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
         </div>
 
         <!-- Offerta Consigliata 11: Eni Plenitude Fix -->
@@ -2179,7 +2280,7 @@ collegaEventiUX();
                 <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Prezzi. Luce: 0,1440 €/kWh | Gas: 0,5678 €/Smc. Corrispettivo annuo: 180€ (Fisso 24H)</div>
                 <div id="risparmio-partner-11" style="font-size: 14px; font-weight: bold; color: var(--primary); margin-top: 5px; display: none;"></div>
             </div>
-            <a id="link-partner-11" href="https://eniplenitude.com" target="_blank" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
+            <a id="link-partner-11" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
         </div>
 
         <!-- Offerta Consigliata 12: Alperia Smile -->
@@ -2189,7 +2290,7 @@ collegaEventiUX();
                 <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Prezzi. Luce: 0,1027 €/kWh (36M) | Gas: 0,4500 €/Smc (24M). Corrispettivo: 239,40€/anno</div>
                 <div id="risparmio-partner-12" style="font-size: 14px; font-weight: bold; color: var(--primary); margin-top: 5px; display: none;"></div>
             </div>
-            <a id="link-partner-12" href="https://alperia.eu" target="_blank" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
+            <a id="link-partner-12" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
           </div>
     
         <!-- Offerta Consigliata 13: Sorgenia Next Energy Smart -->
@@ -2199,7 +2300,7 @@ collegaEventiUX();
                 <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Prezzi. Luce: 0,1300 €/kWh | Gas: 0,5200 €/Smc. Corrispettivo annuo: 258€ (Fisso 12 Mesi)</div>
                 <div id="risparmio-partner-13" style="font-size: 14px; font-weight: bold; color: var(--primary); margin-top: 5px; display: none;"></div>
            </div>
-           <a id="link-partner-13" href="https://www.sorgenia.it/partnership-sorgenia-offerte" target="_blank" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
+           <a id="link-partner-13" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
         </div>
 
         <div>
@@ -2303,6 +2404,7 @@ collegaEventiUX();
   </script>
 
 </div>
+</main>
 
 <div class="lead-modal-backdrop" id="lead-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="lead-modal-title">
     <div class="lead-modal">
@@ -2314,13 +2416,9 @@ collegaEventiUX();
             <input id="lead-email" type="email" autocomplete="email" placeholder="Email">
             <label class="lead-consent required">
                 <input id="lead-consenso-servizio" type="checkbox">
-                <span>Ho letto l'<a href="https://www.iubenda.com/privacy-policy/36565194" target="_blank" rel="noopener">informativa privacy</a> e richiedo la comparazione personalizzata sui dati inseriti o estratti dalla bolletta.</span>
+                <span>Ho letto l'<a href="https://www.iubenda.com/privacy-policy/36565194" target="_blank" rel="noopener">informativa privacy</a> e richiedo la comparazione personalizzata e il ricontatto necessario alla gestione della richiesta.</span>
             </label>
-            <label class="lead-consent">
-                <input id="lead-consenso-marketing" type="checkbox">
-                <span>Acconsento a essere contattato telefonicamente, via email o SMS per ricevere consulenza e offerte luce/gas.</span>
-            </label>
-            <div class="lead-privacy-note">La seconda casella e facoltativa e non preselezionata. L'OTP conferma il numero, ma non sostituisce il consenso commerciale. Puoi revocare i consensi secondo quanto indicato nell'informativa.</div>
+            <div class="lead-privacy-note">Questa richiesta serve a generare il confronto e verificare il numero. L'eventuale consenso partner verra richiesto solo se scegli di procedere con una specifica offerta.</div>
             <input id="lead-otp" type="text" inputmode="numeric" placeholder="Codice OTP" style="display:none;">
         </div>
         <div class="lead-actions">
@@ -2329,6 +2427,23 @@ collegaEventiUX();
             <button type="button" class="lead-secondary" id="lead-close">Chiudi</button>
         </div>
         <div class="lead-status" id="lead-status"></div>
+    </div>
+</div>
+
+<div class="offer-consent-backdrop" id="offer-consent-backdrop" role="dialog" aria-modal="true" aria-labelledby="offer-consent-title">
+    <div class="offer-consent-modal">
+        <h3 id="offer-consent-title">Procedi con l'offerta</h3>
+        <p>Hai scelto <strong id="offer-consent-offer-name">questa offerta</strong>. Per continuare dobbiamo trasmettere i tuoi dati al fornitore o a un partner commerciale incaricato di gestire la richiesta.</p>
+        <label class="lead-consent required">
+            <input id="offer-consent-checkbox" type="checkbox">
+            <span>Autorizzo OffertaLogica a trasmettere i miei dati e i dati della fornitura al fornitore o partner collegato all'offerta scelta, per essere ricontattato su quella proposta.</span>
+        </label>
+        <div class="lead-privacy-note">Senza questo consenso puoi vedere il confronto, ma non possiamo inoltrare la richiesta di attivazione o monetizzare il lead presso partner terzi.</div>
+        <div class="lead-actions">
+            <button type="button" class="lead-primary" id="offer-consent-confirm">Conferma e procedi</button>
+            <button type="button" class="lead-secondary" id="offer-consent-close">Annulla</button>
+        </div>
+        <div class="lead-status" id="offer-consent-status"></div>
     </div>
 </div>
 
@@ -2341,11 +2456,9 @@ collegaEventiUX();
     </p>
 
     <div style="margin-bottom: 20px;">
-        <!-- Link Privacy Policy -->
         <a href="https://www.iubenda.com/privacy-policy/36565194" class="iubenda-white iubenda-noiframe iubenda-embed" style="color: #555; text-decoration: none; margin: 0 10px;">Privacy Policy</a> | 
-        
-        <!-- Link Cookie Policy -->
-        <a href="https://www.iubenda.com/privacy-policy/36565194/cookie-policy" class="iubenda-white iubenda-noiframe iubenda-embed" style="color: #555; text-decoration: none; margin: 0 10px;">Cookie Policy</a>
+        <a href="https://www.iubenda.com/privacy-policy/36565194/cookie-policy" class="iubenda-white iubenda-noiframe iubenda-embed" style="color: #555; text-decoration: none; margin: 0 10px;">Cookie Policy</a> |
+        <button type="button" class="iubenda-cs-preferences-link footer-privacy-action" onclick="if (window._iub && window._iub.cs && window._iub.cs.api) { window._iub.cs.api.openPreferences(); }">Modifica preferenze cookie</button>
     </div>
 
     <!-- Script di Iubenda per gestire i pop-up -->

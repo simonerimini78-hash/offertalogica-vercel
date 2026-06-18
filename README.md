@@ -1,0 +1,83 @@
+# OffertaLogica Vercel
+
+Questa e la prima versione dell'app operativa per GitHub + Vercel.
+
+## Struttura
+
+```text
+public/index.html          Frontend pubblico
+api/analyze-pdf.js         Upload e lettura PDF testuali
+api/lead.js                Creazione lead
+api/send-otp.js            Invio OTP via SMS o demo
+api/verify-otp.js          Verifica OTP, con notifica lead business
+api/unlock-offers.js       Controllo lead verificato
+api/offer-consent.js       Consenso partner sull'offerta scelta
+lib/notify.js              Invio lead operativo/cedibile a webhook esterno
+lib/                       Utility server
+data/                      CSV offerte ARERA
+docs/                      Note privacy/sicurezza/aziende
+```
+
+## Deploy su Vercel
+
+1. Crea un repository GitHub con questa cartella.
+2. Importa il repository in Vercel.
+3. Imposta le variabili ambiente copiando `.env.example`.
+4. Deploy.
+
+## Variabili minime
+
+Per testare:
+
+```text
+OTP_SECRET=una-stringa-lunga-casuale
+```
+
+Senza provider SMS, l'API restituisce `demoCode` per provare il flusso.
+
+Per produzione:
+
+```text
+KV_REST_API_URL=
+KV_REST_API_TOKEN=
+TWILIO_ACCOUNT_SID=
+TWILIO_AUTH_TOKEN=
+TWILIO_FROM_NUMBER=
+LEAD_WEBHOOK_URL=
+LEAD_WEBHOOK_SECRET=
+OTP_SECRET=
+```
+
+## Notifica lead
+
+Per i privati l'OTP verifica il numero e sblocca le offerte, ma non invia il lead a terzi. Il webhook parte solo quando l'utente clicca su una specifica offerta e conferma il consenso partner in `api/offer-consent.js`.
+
+Per le aziende il popup resta unico: dopo OTP verificato il webhook puo ricevere l'evento `business_consulting_request`, perche la richiesta richiede un consulente e non un'attivazione self-service.
+
+Il webhook puo essere un endpoint Make, Zapier, CRM, Google Sheet o partner CPL/CPA. Se `LEAD_WEBHOOK_URL` non e configurato, il flusso continua senza invio esterno.
+
+Il payload contiene:
+
+- dati contatto;
+- tipo cliente privato/business;
+- consensi;
+- risparmio stimato;
+- dati PDF letti;
+- profilo business, se presente;
+- offerta selezionata;
+- timestamp consenso offerta.
+
+## Nota PDF
+
+L'endpoint legge bene PDF testuali. Per bollette scansionate o PDF complessi si puo collegare `GEMINI_API_KEY` come fallback OCR/AI in una fase successiva.
+
+## Nota privacy
+
+Prima della produzione reale servono:
+
+- informativa privacy definitiva;
+- consensi separati;
+- nomina responsabili esterni;
+- retention lead;
+- policy cancellazione PDF;
+- audit accessi.
