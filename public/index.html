@@ -109,12 +109,16 @@
         .pdf-review-static button { background: var(--primary); color: #fff; border: 0; border-radius: 8px; padding: 10px 14px; font-weight: 800; cursor: pointer; }
 
         .lead-modal-backdrop { position: fixed; inset: 0; z-index: 1000; display: none; align-items: center; justify-content: center; padding: 20px; background: rgba(15,23,42,.58); }
-        .lead-modal { width: min(520px, 100%); background: #fff; border-radius: 14px; border: 1px solid var(--border); padding: 22px; box-shadow: 0 24px 60px rgba(15,23,42,.28); }
+        .lead-modal { width: min(620px, 100%); max-height: min(92vh, 760px); overflow: auto; background: #fff; border-radius: 14px; border: 1px solid var(--border); padding: 22px; box-shadow: 0 24px 60px rgba(15,23,42,.28); }
         .lead-modal h3 { font-size: 20px; margin-bottom: 6px; color: var(--text-color); }
         .lead-modal p { color: var(--text-muted); font-size: 14px; margin-bottom: 14px; }
         .lead-form-grid { display: grid; gap: 10px; }
         .lead-form-grid input { border: 1px solid var(--border); border-radius: 8px; padding: 11px; font-size: 14px; }
-        .lead-consent { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; color: var(--text-muted); line-height: 1.35; }
+        .lead-consent { display: flex; align-items: flex-start; gap: 9px; font-size: 12px; color: var(--text-muted); line-height: 1.38; padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: #f8fafc; }
+        .lead-consent.required { border-color: rgba(22,163,74,.35); background: #f0fdf4; color: #14532d; }
+        .lead-consent input { margin-top: 2px; flex: 0 0 auto; }
+        .lead-consent a { color: var(--accent); font-weight: 700; text-decoration: none; }
+        .lead-privacy-note { margin: 4px 0 0; padding: 10px; border-radius: 8px; background: #fff7ed; color: #7c2d12; font-size: 12px; line-height: 1.4; }
         .lead-actions { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
         .lead-actions button { border: 0; border-radius: 8px; padding: 11px 16px; font-weight: 700; cursor: pointer; }
         .lead-primary { background: var(--primary); color: #fff; }
@@ -678,9 +682,12 @@ const LEAD_STATE = {
   otpDemo: "",
   bestSaving: 0,
   leadId: "",
+  leadSource: "manual",
   pdfData: null,
   pdfDocuments: [],
 };
+
+const PRIVACY_VERSION = "privacy-lead-v2-2026-06-18";
 
 const PARAMETRI_MASTER = {
   potenzaLuce: {
@@ -1302,6 +1309,7 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
   const modal = document.getElementById("lead-modal-backdrop");
   const copy = document.getElementById("lead-modal-copy");
   if (!modal) return;
+  LEAD_STATE.leadSource = source;
   if (copy) {
     const saving = LEAD_STATE.bestSaving > 0 ? ` Abbiamo stimato fino a ${euro(LEAD_STATE.bestSaving)} / anno di risparmio potenziale.` : "";
     copy.innerText = source === "upload"
@@ -1309,7 +1317,7 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
       : `Ti mostriamo subito le 3 offerte migliori per il tuo profilo: verifica il cellulare per vedere nomi, prezzi e link.${saving}`;
   }
   modal.style.display = "flex";
-  leadStatus("Nel sito finale il codice arrivera via SMS. In questa demo viene generato localmente.");
+  leadStatus("Il codice OTP verifica il numero. I consensi commerciali restano separati e non preselezionati.");
 };
 
 function chiudiLeadModal() {
@@ -1321,14 +1329,23 @@ function leggiLeadForm() {
   const nome = document.getElementById("lead-nome")?.value.trim();
   const telefono = document.getElementById("lead-telefono")?.value.trim();
   const email = document.getElementById("lead-email")?.value.trim();
-  const consenso = document.getElementById("lead-consenso")?.checked;
-  return { nome, telefono, email, consenso };
+  const consents = {
+    service: Boolean(document.getElementById("lead-consenso-servizio")?.checked),
+    marketing: Boolean(document.getElementById("lead-consenso-marketing")?.checked),
+    partners: Boolean(document.getElementById("lead-consenso-partner")?.checked),
+    profiling: Boolean(document.getElementById("lead-consenso-profilazione")?.checked),
+  };
+  return { nome, telefono, email, consents };
 }
 
 function leadValido() {
-  const { nome, telefono, email, consenso } = leggiLeadForm();
-  if (!nome || !telefono || !email || !consenso) {
-    leadStatus("Compila nome, telefono, email e consenso privacy.", true);
+  const { nome, telefono, email, consents } = leggiLeadForm();
+  if (!nome || !telefono || !email) {
+    leadStatus("Compila nome, telefono ed email.", true);
+    return false;
+  }
+  if (!consents.service) {
+    leadStatus("Per procedere serve il consenso al trattamento dei dati per la comparazione richiesta.", true);
     return false;
   }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -1342,9 +1359,21 @@ function leadValido() {
   return true;
 }
 
+function creaProvaConsenso(consents) {
+  return {
+    version: PRIVACY_VERSION,
+    acceptedAt: new Date().toISOString(),
+    source: LEAD_STATE.leadSource,
+    page: window.location.pathname || "/",
+    userAgent: navigator.userAgent || "",
+    consents,
+  };
+}
+
 async function inviaOtpDemo() {
   if (!leadValido()) return;
-  const { nome, telefono, email, consenso } = leggiLeadForm();
+  const { nome, telefono, email, consents } = leggiLeadForm();
+  const consentProof = creaProvaConsenso(consents);
   leadStatus("Creo il lead e invio il codice...");
   try {
     const leadResponse = await fetch("/api/lead", {
@@ -1354,15 +1383,18 @@ async function inviaOtpDemo() {
         name: nome,
         phone: telefono,
         email,
-        consentService: consenso,
-        consentMarketing: false,
+        consentService: consents.service,
+        consentMarketing: consents.marketing,
+        consentPartners: consents.partners,
+        consentProfiling: consents.profiling,
         calculation: {
           bestSaving: LEAD_STATE.bestSaving,
           pdfData: LEAD_STATE.pdfData,
           pdfDocuments: LEAD_STATE.pdfDocuments,
           currentSupply: leggiOffertaAttuale(),
         },
-        privacyVersion: "v1",
+        consentProof,
+        privacyVersion: PRIVACY_VERSION,
       }),
     });
     const leadPayload = await leadResponse.json();
@@ -1977,10 +2009,23 @@ collegaEventiUX();
             <input id="lead-nome" type="text" autocomplete="name" placeholder="Nome e cognome">
             <input id="lead-telefono" type="tel" autocomplete="tel" placeholder="Cellulare">
             <input id="lead-email" type="email" autocomplete="email" placeholder="Email">
-            <label class="lead-consent">
-                <input id="lead-consenso" type="checkbox">
-                <span>Acconsento al trattamento dei dati per ricevere il confronto richiesto e, separatamente ove previsto, comunicazioni commerciali secondo l'informativa privacy.</span>
+            <label class="lead-consent required">
+                <input id="lead-consenso-servizio" type="checkbox">
+                <span>Ho letto l'<a href="https://www.iubenda.com/privacy-policy/36565194" target="_blank" rel="noopener">informativa privacy</a> e acconsento al trattamento dei dati inseriti o estratti dalla bolletta per ricevere la comparazione richiesta.</span>
             </label>
+            <label class="lead-consent">
+                <input id="lead-consenso-marketing" type="checkbox">
+                <span>Acconsento a essere contattato telefonicamente, via email o SMS per ricevere consulenza e offerte luce/gas.</span>
+            </label>
+            <label class="lead-consent">
+                <input id="lead-consenso-partner" type="checkbox">
+                <span>Acconsento alla comunicazione dei miei dati a partner commerciali selezionati per finalita di preventivo, consulenza o attivazione offerta.</span>
+            </label>
+            <label class="lead-consent">
+                <input id="lead-consenso-profilazione" type="checkbox">
+                <span>Acconsento alla profilazione dei dati di consumo per ricevere proposte personalizzate in base alla mia fornitura.</span>
+            </label>
+            <div class="lead-privacy-note">Le caselle commerciali sono facoltative e non sono preselezionate. L'OTP conferma il numero, ma non sostituisce i consensi privacy. Puoi revocare i consensi secondo quanto indicato nell'informativa.</div>
             <input id="lead-otp" type="text" inputmode="numeric" placeholder="Codice OTP" style="display:none;">
         </div>
         <div class="lead-actions">
