@@ -1,0 +1,157 @@
+import formidable from "formidable";
+import { json, method } from "../lib/http.js";
+import { extractPdf } from "../lib/pdfExtract.js";
+
+export const config = {
+  api: { bodyParser: false },import { json, method, readJson } from "../lib/http.js";
+import { getJson } from "../lib/store.js";
+
+export default async function handler(req, res) {
+  if (!method(req, res, ["POST"])) return;
+import { json, method, readJson } from "../lib/http.js";
+import { hashOtp } from "../lib/otp.js";
+import { del, getJson, setJson } from "../lib/store.js";
+
+export default async function handler(req, res) {
+  if (!method(req, res, ["POST"])) return;
+
+  try {
+    const { leadId, code } = await readJson(req);
+    const lead = await getJson(`lead:${leadId}`);
+    const otp = await getJson(`otp:${leadId}`);
+    if (!lead || !otp) return json(res, 404, { ok: false, error: "Codice scaduto o lead non trovato" });
+    if (otp.expiresAt < Date.now()) return json(res, 400, { ok: false, error: "Codice scaduto" });
+    if (otp.attempts >= 5) return json(res, 429, { ok: false, error: "Troppi tentativi" });
+
+    const valid = hashOtp(lead.phone, String(code || "")) === otp.hash;
+    if (!valid) {
+      await setJson(`otp:${leadId}`, { ...otp, attempts: otp.attempts + 1 }, 300);
+      return json(res, 400, { ok: false, error: "Codice non corretto" });
+    }
+
+    const updatedLead = { ...lead, status: "verified", verifiedAt: new Date().toISOString() };
+    await setJson(`lead:${leadId}`, updatedLead, Number(process.env.LEAD_RETENTION_DAYS || 30) * 24 * 3600);
+    await del(`otp:${leadId}`);
+    json(res, 200, { ok: true, status: "verified" });
+  } catch (error) {
+    json(res, 400, { ok: false, error: error.message || "Errore verifica OTP" });
+  }
+}
+
+  try {
+    const { leadId } = await readJson(req);
+    const lead = await getJson(`lead:${leadId}`);
+    if (!lead) return json(res, 404, { ok: false, error: "Lead non trovato" });
+    if (lead.status !== "verified") return json(res, 403, { ok: false, error: "Lead non verificato" });
+
+    json(res, 200, {
+      ok: true,
+      unlocked: true,
+      message: "Lead verificato: il frontend puo mostrare le offerte complete.",
+    });
+  } catch (error) {
+    json(res, 400, { ok: false, error: error.message || "Errore sblocco offerte" });
+  }
+}
+
+};
+import { createId } from "@paralleldrive/cuid2";
+import { clientIp, json, method, readJson } from "../lib/http.js";
+import { setJson } from "../lib/store.js";
+import { sanitizeLead } from "../lib/validation.js";
+import { json, method, readJson } from "../lib/http.js";
+import { createOtp, hashOtp, otpExpiresAt, otpTtlSeconds, sendOtpSms } from "../lib/otp.js";
+import { getJson, setJson } from "../lib/store.js";
+
+export default async function handler(req, res) {
+  if (!method(req, res, ["POST"])) return;
+
+  try {
+    const { leadId } = await readJson(req);
+    const lead = await getJson(`lead:${leadId}`);
+    if (!lead) return json(res, 404, { ok: false, error: "Lead non trovato" });
+
+    const code = createOtp();
+    const otp = {
+      leadId,
+      hash: hashOtp(lead.phone, code),
+      attempts: 0,
+      expiresAt: otpExpiresAt(),
+      createdAt: new Date().toISOString(),
+    };
+    await setJson(`otp:${leadId}`, otp, otpTtlSeconds());
+    const sent = await sendOtpSms(lead.phone, code);
+
+    json(res, 200, {
+      ok: true,
+      sent: sent.sent,
+      provider: sent.provider,
+      demoCode: sent.demoCode,
+    });
+  } catch (error) {
+    json(res, 400, { ok: false, error: error.message || "Errore invio OTP" });
+  }
+}
+
+export default async function handler(req, res) {
+  if (!method(req, res, ["POST"])) return;
+
+  try {
+    const body = await readJson(req);
+    const lead = sanitizeLead(body);
+    const id = createId();
+    const retentionDays = Number(process.env.LEAD_RETENTION_DAYS || 30);
+    const record = {
+      id,
+      ...lead,
+      status: "pending_otp",
+      calculation: body.calculation || null,
+      consents: {
+        service: lead.consentService,
+        marketing: lead.consentMarketing,
+        privacyVersion: body.privacyVersion || "v1",
+      },
+      meta: {
+        ip: clientIp(req),
+        userAgent: req.headers["user-agent"] || "",
+        createdAt: new Date().toISOString(),
+      },
+    };
+
+    await setJson(`lead:${id}`, record, retentionDays * 24 * 3600);
+    json(res, 200, { ok: true, leadId: id, status: record.status });
+  } catch (error) {
+    json(res, 400, { ok: false, error: error.message || "Errore creazione lead" });
+  }
+}
+
+function parseForm(req) {
+  const maxFileSize = Number(process.env.MAX_PDF_BYTES || 8_000_000);
+  const form = formidable({
+    multiples: false,
+    maxFileSize,
+    filter: (part) => part.mimetype === "application/pdf",
+  });
+
+  return new Promise((resolve, reject) => {
+    form.parse(req, (error, fields, files) => {
+      if (error) reject(error);
+      else resolve({ fields, files });
+    });
+  });
+}
+
+export default async function handler(req, res) {
+  if (!method(req, res, ["POST"])) return;
+
+  try {
+    const { files } = await parseForm(req);
+    const file = Array.isArray(files.pdf) ? files.pdf[0] : files.pdf;
+    if (!file) return json(res, 400, { ok: false, error: "PDF mancante" });
+
+    const normalized = await extractPdf(file.filepath);
+    json(res, 200, { ok: true, normalized });
+  } catch (error) {
+    json(res, 400, { ok: false, error: error.message || "Errore analisi PDF" });
+  }
+}
