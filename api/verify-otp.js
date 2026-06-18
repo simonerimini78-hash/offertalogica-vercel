@@ -1,4 +1,5 @@
 import { json, method, readJson } from "../lib/http.js";
+import { notifyLeadVerified } from "../lib/notify.js";
 import { hashOtp } from "../lib/otp.js";
 import { del, getJson, setJson } from "../lib/store.js";
 
@@ -20,6 +21,20 @@ export default async function handler(req, res) {
     }
 
     const updatedLead = { ...lead, status: "verified", verifiedAt: new Date().toISOString() };
+    try {
+      const notification = await notifyLeadVerified(updatedLead);
+      updatedLead.notification = {
+        webhookSent: !notification.skipped,
+        sentAt: notification.skipped ? null : new Date().toISOString(),
+      };
+    } catch (notificationError) {
+      updatedLead.notification = {
+        webhookSent: false,
+        error: notificationError.message || "Errore invio webhook",
+        failedAt: new Date().toISOString(),
+      };
+    }
+
     await setJson(`lead:${leadId}`, updatedLead, Number(process.env.LEAD_RETENTION_DAYS || 30) * 24 * 3600);
     await del(`otp:${leadId}`);
     json(res, 200, { ok: true, status: "verified" });
