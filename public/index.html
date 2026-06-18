@@ -1799,11 +1799,10 @@ async function confermaConsensoOfferta() {
     return;
   }
 
-  offerConsentStatus("Confermo il consenso e preparo il passaggio all'offerta...");
+  offerConsentStatus("Confermo il consenso e registro la richiesta...");
 
   if (LEAD_STATE.leadId === "preview") {
-    chiudiConsensoOfferta();
-    window.location.href = offer.link;
+    offerConsentStatus("Richiesta registrata in anteprima. In produzione il consulente o il partner ricevera il lead verificato.");
     return;
   }
 
@@ -1819,8 +1818,7 @@ async function confermaConsensoOfferta() {
     });
     const payload = await response.json();
     if (!payload.ok) throw new Error(payload.error || "Errore consenso offerta");
-    chiudiConsensoOfferta();
-    window.location.href = payload.redirectUrl || offer.link;
+    offerConsentStatus("Richiesta ricevuta. Ti ricontatteremo per procedere con l'offerta scelta.");
   } catch (error) {
     offerConsentStatus(error.message, true);
   }

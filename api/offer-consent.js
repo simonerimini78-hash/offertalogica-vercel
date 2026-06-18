@@ -87,7 +87,11 @@ export default async function handler(req, res) {
     }
 
     await setJson(`lead:${leadId}`, updatedLead, Number(process.env.LEAD_RETENTION_DAYS || 30) * 24 * 3600);
-    json(res, 200, { ok: true, redirectUrl: selectedOffer.link || "" });
+    json(res, 200, {
+      ok: true,
+      status: "received",
+      webhookSent: Boolean(updatedLead.notification?.webhookSent),
+    });
   } catch (error) {
     json(res, 400, { ok: false, error: error.message || "Errore consenso offerta" });
   }
