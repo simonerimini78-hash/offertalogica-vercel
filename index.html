@@ -2495,10 +2495,21 @@ if (document.readyState === "loading") {
     <div style="margin-bottom: 20px;">
         <a href="https://www.iubenda.com/privacy-policy/36565194" class="iubenda-white iubenda-noiframe iubenda-embed" style="color: #555; text-decoration: none; margin: 0 10px;">Privacy Policy</a> | 
         <a href="https://www.iubenda.com/privacy-policy/36565194/cookie-policy" class="iubenda-white iubenda-noiframe iubenda-embed" style="color: #555; text-decoration: none; margin: 0 10px;">Cookie Policy</a> |
-        <button type="button" class="iubenda-cs-preferences-link footer-privacy-action" onclick="if (window._iub && window._iub.cs && window._iub.cs.api) { window._iub.cs.api.openPreferences(); }">Modifica preferenze cookie</button>
+        <button type="button" class="footer-privacy-action" onclick="apriPreferenzeCookie(event)">Modifica preferenze cookie</button>
     </div>
 
     <!-- Script di Iubenda per gestire i pop-up -->
+    <script type="text/javascript">
+        function apriPreferenzeCookie(event) {
+            if (event) event.preventDefault();
+            var officialButton = document.querySelector(".iubenda-tp-btn.iubenda-cs-preferences-link");
+            if (officialButton) {
+                officialButton.click();
+                return;
+            }
+            window.location.href = "https://www.iubenda.com/privacy-policy/36565194/cookie-policy";
+        }
+    </script>
     <script type="text/javascript">(function (w,d) {var loader = function () {var s = d.createElement("script"), tag = d.getElementsByTagName("script")[0]; s.src="https://cdn.iubenda.com/iubenda.js"; tag.parentNode.insertBefore(s,tag);}; if(w.addEventListener){w.addEventListener("load", loader, false);}else if(w.attachEvent){w.attachEvent("onload", loader);}else{w.onload = loader;}})(window, document);</script>
 </footer>
 </body>
