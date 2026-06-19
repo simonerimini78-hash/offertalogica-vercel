@@ -1,6 +1,7 @@
 import formidable from "formidable";
 import { json, method } from "../lib/http.js";
 import { extractPdf } from "../lib/pdfExtract.js";
+import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
 
 export const config = {
   api: { bodyParser: false },
@@ -24,6 +25,7 @@ function parseForm(req) {
 
 export default async function handler(req, res) {
   if (!method(req, res, ["POST"])) return;
+  if (!(await enforceRateLimit(req, res, { label: "analyze-pdf", ...rateLimitConfig("PDF", 15) }))) return;
 
   try {
     const { files } = await parseForm(req);

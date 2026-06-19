@@ -1,5 +1,6 @@
 import { json, method, readJson } from "../lib/http.js";
 import { notifyLeadVerified } from "../lib/notify.js";
+import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
 import { getJson, setJson } from "../lib/store.js";
 
 const ALLOWED_OFFER_DOMAINS = [
@@ -37,6 +38,7 @@ function isAllowedOfferLink(link) {
 
 export default async function handler(req, res) {
   if (!method(req, res, ["POST"])) return;
+  if (!(await enforceRateLimit(req, res, { label: "offer-consent", ...rateLimitConfig("OFFER_CONSENT", 60) }))) return;
 
   try {
     const body = await readJson(req);

@@ -13,6 +13,7 @@ api/verify-otp.js          Verifica OTP, con notifica lead business
 api/unlock-offers.js       Controllo lead verificato
 api/offer-consent.js       Consenso partner sull'offerta scelta
 lib/notify.js              Invio lead operativo/cedibile a webhook esterno
+lib/rateLimit.js           Limiti anti-spam per API, OTP e upload PDF
 lib/                       Utility server
 data/                      CSV offerte ARERA
 docs/                      Note privacy/sicurezza/aziende
@@ -47,6 +48,12 @@ LEAD_WEBHOOK_URL=
 LEAD_WEBHOOK_SECRET=
 OTP_SECRET=
 ```
+
+## Protezioni API
+
+Le API applicano rate limit su creazione lead, invio OTP, verifica OTP, upload PDF e consenso offerta. I limiti sono configurabili con le variabili `RATE_LIMIT_*` presenti in `.env.example`.
+
+In produzione e necessario configurare `KV_REST_API_URL` e `KV_REST_API_TOKEN`: senza KV il rate limit usa memoria temporanea, utile per test ma non sufficiente su funzioni serverless.
 
 ## Notifica lead
 
