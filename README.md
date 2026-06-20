@@ -6,6 +6,8 @@ Questa e la prima versione dell'app operativa per GitHub + Vercel.
 
 ```text
 public/index.html          Frontend pubblico
+come-funziona.html         Pagina trasparenza metodo e servizio
+partner.html               Pagina per fornitori, affiliate e partner
 api/analyze-pdf.js         Upload e lettura PDF testuali
 api/lead.js                Creazione lead
 api/send-otp.js            Invio OTP via SMS o demo
@@ -21,6 +23,12 @@ data/destinazioni-offerte.csv
                             Destinazioni monetizzazione offerte
 docs/                      Note privacy/sicurezza/aziende
 ```
+
+## Pagine pubbliche
+
+- `/`: calcolatore operativo.
+- `/come-funziona.html`: spiega metodo, dati usati, limiti della stima, partner e remunerazione.
+- `/partner.html`: presenta OffertaLogica a fornitori, network affiliate e partner commerciali.
 
 ## Deploy su Vercel
 
