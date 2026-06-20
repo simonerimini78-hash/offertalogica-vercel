@@ -21,6 +21,18 @@ function sanitizeOffer(input = {}) {
     id: String(input.id || "").slice(0, 40),
     name: String(input.name || "").slice(0, 160),
     link: String(input.link || "").slice(0, 500),
+    provider: String(input.provider || "").slice(0, 120),
+    destinationType: String(input.destinationType || "partner_lead").slice(0, 60),
+    destinationStatus: String(input.destinationStatus || "pending_destination").slice(0, 80),
+  };
+}
+
+function sanitizeTracking(input = {}) {
+  return {
+    source: String(input.source || "offer_click").slice(0, 60),
+    page: String(input.page || "").slice(0, 220),
+    clickedAt: String(input.clickedAt || "").slice(0, 40),
+    userAgent: String(input.userAgent || "").slice(0, 220),
   };
 }
 
@@ -46,6 +58,8 @@ export default async function handler(req, res) {
     const leadId = String(body.leadId || "").trim();
     const accepted = Boolean(body.accepted);
     const selectedOffer = sanitizeOffer(body.offer);
+    const tracking = sanitizeTracking(body.tracking);
+    const acceptedAt = new Date().toISOString();
 
     if (!leadId) return json(res, 400, { ok: false, error: "Lead mancante" });
     if (!accepted) return json(res, 400, { ok: false, error: "Consenso commerciale non confermato" });
@@ -60,14 +74,26 @@ export default async function handler(req, res) {
     const updatedLead = {
       ...lead,
       selectedOffer,
+      monetization: {
+        status: selectedOffer.destinationStatus === "attiva" ? "ready_to_redirect" : "partner_request_recorded",
+        destinationType: selectedOffer.destinationType,
+        destinationStatus: selectedOffer.destinationStatus,
+        provider: selectedOffer.provider,
+        offerId: selectedOffer.id,
+        offerName: selectedOffer.name,
+        link: selectedOffer.link,
+        trackedAt: acceptedAt,
+        tracking,
+      },
       consents: {
         ...lead.consents,
         marketing: Boolean(lead.consents?.marketing),
         partners: true,
         offerConsent: {
           accepted: true,
-          acceptedAt: new Date().toISOString(),
+          acceptedAt,
           offer: selectedOffer,
+          tracking,
           version: lead.consents?.privacyVersion || "privacy-lead-v1",
         },
       },

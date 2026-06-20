@@ -9,6 +9,7 @@ Questo documento separa il calcolo tecnico dalla destinazione commerciale.
 
 ```text
 da_cercare                  Non esiste ancora un canale concreto.
+da_contattare               Fornitore individuato, contatto commerciale da avviare.
 in_attesa_approvazione      Candidatura inviata, ma link non attivo.
 approvata                   Partner approvato, manca inserimento link o test.
 attiva                      Link/partner operativo e tracciamento verificato.
@@ -33,6 +34,23 @@ Un'offerta puo diventare monetizzata solo quando:
 3. il consenso partner e coerente con la destinazione;
 4. il click o l'invio lead viene registrato con `leadId`, offerta, timestamp e stato.
 
+## Tracking scelta offerta
+
+Quando l'utente clicca una specifica offerta e conferma il consenso partner, `api/offer-consent.js` salva nel lead:
+
+```text
+selectedOffer
+monetization.status
+monetization.destinationType
+monetization.destinationStatus
+monetization.provider
+monetization.trackedAt
+monetization.tracking.page
+monetization.tracking.clickedAt
+```
+
+Questi campi sono inclusi anche nel webhook lead, se `LEAD_WEBHOOK_URL` e configurato.
+
 ## Priorita attuale
 
 Le candidature Awin in attesa sono:
@@ -41,6 +59,10 @@ Le candidature Awin in attesa sono:
 - Octopus Energy;
 - NeN;
 - Alperia.
+
+Fornitori da contattare direttamente:
+
+- Sorgenia.
 
 Appena una candidatura viene approvata, aggiornare `data/destinazioni-offerte.csv`:
 
