@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@paralleldrive/cuid2": "^2.2.2",
+    "@vercel/analytics": "^2.0.1",
     "formidable": "^3.5.4",
     "pdf-parse": "^1.1.1"
   },
