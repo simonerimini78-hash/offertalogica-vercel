@@ -1,8 +1,9 @@
-import { json, method, readJson } from "../lib/http.js";
+import { json, method, readJson, requireAllowedOrigin } from "../lib/http.js";
 import { getJson } from "../lib/store.js";
 
 export default async function handler(req, res) {
   if (!method(req, res, ["POST"])) return;
+  if (!requireAllowedOrigin(req, res)) return;
 
   try {
     const { leadId } = await readJson(req);

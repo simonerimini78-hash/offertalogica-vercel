@@ -1,11 +1,12 @@
 import { createId } from "@paralleldrive/cuid2";
-import { clientIp, json, method, readJson } from "../lib/http.js";
+import { clientIp, json, method, readJson, requireAllowedOrigin } from "../lib/http.js";
 import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
 import { setJson } from "../lib/store.js";
 import { sanitizeLead } from "../lib/validation.js";
 
 export default async function handler(req, res) {
   if (!method(req, res, ["POST"])) return;
+  if (!requireAllowedOrigin(req, res)) return;
   if (!(await enforceRateLimit(req, res, { label: "lead", ...rateLimitConfig("LEAD", 30) }))) return;
 
   try {

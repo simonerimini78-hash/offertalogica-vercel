@@ -1,4 +1,4 @@
-import { json, method, readJson } from "../lib/http.js";
+import { json, method, readJson, requireAllowedOrigin } from "../lib/http.js";
 import { notifyLeadVerified } from "../lib/notify.js";
 import { hashOtp } from "../lib/otp.js";
 import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
@@ -6,6 +6,7 @@ import { del, getJson, setJson } from "../lib/store.js";
 
 export default async function handler(req, res) {
   if (!method(req, res, ["POST"])) return;
+  if (!requireAllowedOrigin(req, res)) return;
   if (!(await enforceRateLimit(req, res, { label: "verify-otp", ...rateLimitConfig("VERIFY_OTP", 60) }))) return;
 
   try {

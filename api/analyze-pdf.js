@@ -1,5 +1,5 @@
 import formidable from "formidable";
-import { json, method } from "../lib/http.js";
+import { json, method, requireAllowedOrigin } from "../lib/http.js";
 import { extractPdf } from "../lib/pdfExtract.js";
 import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
 
@@ -25,6 +25,7 @@ function parseForm(req) {
 
 export default async function handler(req, res) {
   if (!method(req, res, ["POST"])) return;
+  if (!requireAllowedOrigin(req, res)) return;
   if (!(await enforceRateLimit(req, res, { label: "analyze-pdf", ...rateLimitConfig("PDF", 15) }))) return;
 
   try {

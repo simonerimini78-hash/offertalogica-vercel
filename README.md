@@ -12,6 +12,7 @@ api/send-otp.js            Invio OTP via SMS o demo
 api/verify-otp.js          Verifica OTP, con notifica lead business
 api/unlock-offers.js       Controllo lead verificato
 api/offer-consent.js       Consenso partner sull'offerta scelta
+api/health.js              Diagnostica protetta Redis/API
 lib/notify.js              Invio lead operativo/cedibile a webhook esterno
 lib/rateLimit.js           Limiti anti-spam per API, OTP e upload PDF
 lib/                       Utility server
@@ -47,6 +48,8 @@ TWILIO_FROM_NUMBER=
 LEAD_WEBHOOK_URL=
 LEAD_WEBHOOK_SECRET=
 OTP_SECRET=
+HEALTHCHECK_TOKEN=
+ALLOWED_ORIGINS=https://offertalogica.it,https://www.offertalogica.it,https://offertalogica-vercel.vercel.app
 ```
 
 Sono supportati anche gli alias `KV_REST_API_URL` e `KV_REST_API_TOKEN`, utili se Vercel o un'integrazione precedente li hanno gia creati.
@@ -74,6 +77,27 @@ Dopo aver aggiunto o modificato le variabili ambiente, fai sempre un nuovo redep
 Le API applicano rate limit su creazione lead, invio OTP, verifica OTP, upload PDF e consenso offerta. I limiti sono configurabili con le variabili `RATE_LIMIT_*` presenti in `.env.example`.
 
 In produzione e necessario configurare Redis/Upstash: senza Redis il rate limit usa memoria temporanea, utile per test ma non sufficiente su funzioni serverless.
+
+Le API POST accettano richieste browser solo dagli origin indicati in `ALLOWED_ORIGINS`. Se aggiungi un nuovo dominio o sottodominio, aggiorna questa variabile in Vercel e fai redeploy.
+
+## Diagnostica protetta
+
+`api/health.js` controlla se lo storage Redis risponde, ma resta nascosta senza `HEALTHCHECK_TOKEN`. Per usarla:
+
+1. crea una variabile ambiente `HEALTHCHECK_TOKEN` con una stringa lunga casuale;
+2. fai redeploy;
+3. apri `https://offertalogica.it/api/health?token=IL_TUO_TOKEN`.
+
+Risposta attesa:
+
+```json
+{
+  "ok": true,
+  "storage": "redis"
+}
+```
+
+Se il token manca o e sbagliato, l'endpoint risponde come pagina non trovata.
 
 ## Notifica lead
 
