@@ -56,11 +56,11 @@ Sono supportati anche gli alias `KV_REST_API_URL` e `KV_REST_API_TOKEN`, utili s
 Per la produzione collega un database Redis dal Marketplace Vercel, per esempio Upstash Redis. Dopo il collegamento al progetto, Vercel deve avere in `Settings -> Environment Variables` almeno:
 
 ```text
-UPSTASH_REDIS_REST_URL
-UPSTASH_REDIS_REST_TOKEN
+UPSTASH_REDIS_KV_REST_API_URL
+UPSTASH_REDIS_KV_REST_API_TOKEN
 ```
 
-Se l'integrazione mostra solo una REST URL e un REST TOKEN con altri nomi, crea manualmente questi due alias:
+Il codice riconosce anche `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`. Se l'integrazione mostra solo una REST URL e un REST TOKEN con altri nomi, crea manualmente questi due alias:
 
 ```text
 KV_REST_API_URL=la REST URL
