@@ -761,8 +761,7 @@ function avviaComparazioneDati() {
                 <div style="padding: 20px; background-color: #f9f9f9; border-left: 4px solid #007bff; margin-bottom: 20px;">
                     <h4 style="margin: 0 0 5px 0; color: #333; font-size: 1rem;">Metodologia di calcolo</h4>
                     <p style="margin: 0; color: #555; font-size: 0.85rem;">
-                        I risparmi stimati sono calcolati utilizzando l'ultimo riferimento ARERA disponibile. 
-                        Questi valori servono per offrire una base di confronto omogenea tra le diverse proposte.
+                        Se inserisci i tuoi dati, la stima viene calcolata sui tuoi consumi. Se non li conosci, usiamo consumi medi e l'ultimo riferimento ARERA disponibile.
                     </p>
                 </div>
             `;
@@ -823,8 +822,8 @@ function avviaComparazioneDati() {
 </script>
 <script>
 const PERDITE_RETE_LUCE_VARIABILE = 1.102;
-const TESTO_METODOLOGIA_ARERA = "I risparmi stimati sono calcolati utilizzando l'ultimo riferimento ARERA disponibile. Questi valori servono per offrire una base di confronto omogenea tra le diverse proposte.";
-const TESTO_METODOLOGIA_MEDIA_ARERA = "La comparazione viene fatta sui consumi medi e sull'ultimo riferimento ARERA disponibile. Usiamo questa base omogenea per individuare se oggi ci sono tariffe migliori rispetto ai riferimenti precedenti e stimare il risparmio potenziale.";
+const TESTO_METODOLOGIA_CONSUMI_REALI = "I risparmi stimati sono calcolati sui consumi che hai inserito o confermato dalla bolletta. Applichiamo le condizioni economiche delle offerte allo stesso profilo di consumo, separando quota variabile e quota fissa.";
+const TESTO_METODOLOGIA_MEDIA_ARERA = "Quando non conosci i tuoi consumi, la comparazione viene fatta su consumi medi e sull'ultimo riferimento ARERA disponibile. Questa base omogenea serve a stimare il risparmio potenziale tra le diverse proposte.";
 
 const INDICI_MERCATO = {
   pun: {
@@ -1349,7 +1348,9 @@ function aggiornaVerdetto(differenzaNuova) {
     badgeNumero.style.display = "inline-block";
   }
   if (testoDescrizione) {
-    testoDescrizione.innerText = TESTO_METODOLOGIA_ARERA;
+    testoDescrizione.innerText = modalitaCalcolo === "media"
+      ? TESTO_METODOLOGIA_MEDIA_ARERA
+      : TESTO_METODOLOGIA_CONSUMI_REALI;
   }
   aggiornaBottoneAttiva(btnAttiva);
 }
@@ -1366,7 +1367,9 @@ function mostraSoloMetodologia() {
   if (titolo) titolo.innerText = "Metodologia di calcolo";
   if (badgeNumero) badgeNumero.style.display = "none";
   if (testoDescrizione) {
-    testoDescrizione.innerText = TESTO_METODOLOGIA_MEDIA_ARERA;
+    testoDescrizione.innerText = modalitaCalcolo === "media"
+      ? TESTO_METODOLOGIA_MEDIA_ARERA
+      : TESTO_METODOLOGIA_CONSUMI_REALI;
   }
   if (btnAttiva) btnAttiva.style.display = "none";
   if (comparazione) comparazione.remove();
