@@ -761,7 +761,7 @@ function avviaComparazioneDati() {
                 <div style="padding: 20px; background-color: #f9f9f9; border-left: 4px solid #007bff; margin-bottom: 20px;">
                     <h4 style="margin: 0 0 5px 0; color: #333; font-size: 1rem;">Metodologia di calcolo</h4>
                     <p style="margin: 0; color: #555; font-size: 0.85rem;">
-                        I risparmi stimati sono calcolati utilizzando i costi medi di sistema definiti da <strong>ARERA per il trimestre Q2 2026</strong>. 
+                        I risparmi stimati sono calcolati utilizzando l'ultimo riferimento ARERA disponibile nel calcolatore. 
                         Questi valori servono per offrire una base di confronto omogenea tra le diverse proposte.
                     </p>
                 </div>
@@ -823,6 +823,8 @@ function avviaComparazioneDati() {
 </script>
 <script>
 const PERDITE_RETE_LUCE_VARIABILE = 1.102;
+const TESTO_METODOLOGIA_ARERA = "I risparmi stimati sono calcolati utilizzando l'ultimo riferimento ARERA disponibile nel calcolatore. Questi valori servono per offrire una base di confronto omogenea tra le diverse proposte.";
+const TESTO_METODOLOGIA_MEDIA_ARERA = "La comparazione viene fatta sui consumi medi e sull'ultimo riferimento ARERA disponibile nel calcolatore. Usiamo questa base omogenea per individuare se oggi ci sono tariffe migliori rispetto ai riferimenti precedenti e stimare il risparmio potenziale.";
 
 const INDICI_MERCATO = {
   pun: {
@@ -1347,7 +1349,7 @@ function aggiornaVerdetto(differenzaNuova) {
     badgeNumero.style.display = "inline-block";
   }
   if (testoDescrizione) {
-    testoDescrizione.innerText = "I risparmi stimati sono calcolati utilizzando i costi medi di sistema definiti da ARERA per il trimestre Q2 2026. Questi valori servono per offrire una base di confronto omogenea tra le diverse proposte.";
+    testoDescrizione.innerText = TESTO_METODOLOGIA_ARERA;
   }
   aggiornaBottoneAttiva(btnAttiva);
 }
@@ -1364,7 +1366,7 @@ function mostraSoloMetodologia() {
   if (titolo) titolo.innerText = "Metodologia di calcolo";
   if (badgeNumero) badgeNumero.style.display = "none";
   if (testoDescrizione) {
-    testoDescrizione.innerText = "La comparazione viene fatta sui consumi medi e sui costi medi di sistema definiti da ARERA per il trimestre Q2 2026. Usiamo questa base omogenea per individuare se oggi ci sono tariffe migliori rispetto ai riferimenti precedenti e stimare il risparmio potenziale.";
+    testoDescrizione.innerText = TESTO_METODOLOGIA_MEDIA_ARERA;
   }
   if (btnAttiva) btnAttiva.style.display = "none";
   if (comparazione) comparazione.remove();
@@ -1566,7 +1568,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
   }
   if (teaserCopy) {
     teaserCopy.innerText = modalitaCalcolo === "media"
-      ? "Stima basata sui consumi medi e sui dati ARERA Q2 2026: sblocca il risultato per vedere fornitori, prezzi e link delle 3 offerte migliori."
+      ? "Stima basata sui consumi medi e sull'ultimo riferimento ARERA disponibile nel calcolatore: sblocca il risultato per vedere fornitori, prezzi e link delle 3 offerte migliori."
       : "Stima basata sui consumi che hai inserito: sblocca il risultato per vedere fornitori, prezzi e link delle 3 offerte migliori.";
   }
 }
@@ -2033,7 +2035,7 @@ function renderPdfSummary(documents, merged) {
   return `
     <span>Documenti analizzati:</span>
     <ul style="margin:6px 0 10px 18px;">${rows}</ul>
-    <span><strong>Dati che useremo per compilare il modulo:</strong> ${mergedRows || "nessun dato certo letto; verranno usati dati medi ARERA Q2 2026."}</span>
+    <span><strong>Dati che useremo per compilare il modulo:</strong> ${mergedRows || "nessun dato certo letto; verranno usati consumi medi e l'ultimo riferimento ARERA disponibile nel calcolatore."}</span>
   `;
 }
 
@@ -2257,7 +2259,7 @@ if (document.readyState === "loading") {
 <div class="fornitori-consigliati-section">
 <div class="lead-teaser" id="lead-teaser">
     <strong id="lead-teaser-title">Abbiamo trovato offerte più convenienti.</strong>
-    <p id="lead-teaser-copy">La stima usa consumi medi ARERA Q2 2026 e le offerte disponibili: sblocca le 3 migliori per vedere nomi, prezzi e link.</p>
+    <p id="lead-teaser-copy">La stima usa consumi medi e l'ultimo riferimento ARERA disponibile nel calcolatore: sblocca le 3 migliori per vedere nomi, prezzi e link.</p>
     <button type="button" onclick="apriLeadModal('teaser')">Sblocca le 3 offerte migliori</button>
 </div>
 <div class="vertical-cards-container" style="display: flex; flex-direction: column; gap: 15px;">
