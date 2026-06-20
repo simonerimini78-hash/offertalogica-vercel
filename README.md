@@ -17,6 +17,8 @@ lib/notify.js              Invio lead operativo/cedibile a webhook esterno
 lib/rateLimit.js           Limiti anti-spam per API, OTP e upload PDF
 lib/                       Utility server
 data/                      CSV offerte ARERA
+data/destinazioni-offerte.csv
+                            Destinazioni monetizzazione offerte
 docs/                      Note privacy/sicurezza/aziende
 ```
 
@@ -117,6 +119,20 @@ Il payload contiene:
 - profilo business, se presente;
 - offerta selezionata;
 - timestamp consenso offerta.
+
+## Monetizzazione offerte
+
+Le destinazioni commerciali sono separate dalle tariffe in `data/destinazioni-offerte.csv`.
+
+Usa questo file per segnare, per ogni offerta:
+
+- network o partner;
+- stato approvazione;
+- link tracking;
+- modello pagamento;
+- note operative.
+
+Le tariffe servono al calcolo. Le destinazioni servono a trasformare il click o il lead in ricavo. Vedi `docs/MONETIZZAZIONE-DESTINAZIONI.md`.
 
 ## Nota PDF
 
