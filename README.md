@@ -39,8 +39,8 @@ Senza provider SMS, l'API restituisce `demoCode` per provare il flusso.
 Per produzione:
 
 ```text
-KV_REST_API_URL=
-KV_REST_API_TOKEN=
+UPSTASH_REDIS_REST_URL=
+UPSTASH_REDIS_REST_TOKEN=
 TWILIO_ACCOUNT_SID=
 TWILIO_AUTH_TOKEN=
 TWILIO_FROM_NUMBER=
@@ -49,11 +49,31 @@ LEAD_WEBHOOK_SECRET=
 OTP_SECRET=
 ```
 
+Sono supportati anche gli alias `KV_REST_API_URL` e `KV_REST_API_TOKEN`, utili se Vercel o un'integrazione precedente li hanno gia creati.
+
+## Redis / KV su Vercel
+
+Per la produzione collega un database Redis dal Marketplace Vercel, per esempio Upstash Redis. Dopo il collegamento al progetto, Vercel deve avere in `Settings -> Environment Variables` almeno:
+
+```text
+UPSTASH_REDIS_REST_URL
+UPSTASH_REDIS_REST_TOKEN
+```
+
+Se l'integrazione mostra solo una REST URL e un REST TOKEN con altri nomi, crea manualmente questi due alias:
+
+```text
+KV_REST_API_URL=la REST URL
+KV_REST_API_TOKEN=il REST TOKEN
+```
+
+Dopo aver aggiunto o modificato le variabili ambiente, fai sempre un nuovo redeploy di produzione.
+
 ## Protezioni API
 
 Le API applicano rate limit su creazione lead, invio OTP, verifica OTP, upload PDF e consenso offerta. I limiti sono configurabili con le variabili `RATE_LIMIT_*` presenti in `.env.example`.
 
-In produzione e necessario configurare `KV_REST_API_URL` e `KV_REST_API_TOKEN`: senza KV il rate limit usa memoria temporanea, utile per test ma non sufficiente su funzioni serverless.
+In produzione e necessario configurare Redis/Upstash: senza Redis il rate limit usa memoria temporanea, utile per test ma non sufficiente su funzioni serverless.
 
 ## Notifica lead
 
