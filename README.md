@@ -21,6 +21,8 @@ lib/                       Utility server
 data/                      CSV offerte ARERA
 data/destinazioni-offerte.csv
                             Destinazioni monetizzazione offerte
+data/template-registro-lead.csv
+                            Template Google Sheet/CRM lead
 docs/                      Note privacy/sicurezza/aziende
 ```
 
@@ -141,6 +143,21 @@ Usa questo file per segnare, per ogni offerta:
 - note operative.
 
 Le tariffe servono al calcolo. Le destinazioni servono a trasformare il click o il lead in ricavo. Vedi `docs/MONETIZZAZIONE-DESTINAZIONI.md`.
+
+## Registro lead
+
+Il template iniziale per Google Sheet/CRM e `data/template-registro-lead.csv`.
+
+Usalo per tracciare:
+
+- lead verificati;
+- offerta scelta;
+- consenso partner;
+- destinazione commerciale;
+- stato lavorazione;
+- commissione prevista e confermata.
+
+Vedi `docs/REGISTRO-LEAD-CRM.md`.
 
 ## Nota PDF
 
