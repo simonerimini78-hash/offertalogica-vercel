@@ -23,6 +23,7 @@ data/destinazioni-offerte.csv
                             Destinazioni monetizzazione offerte
 data/template-registro-lead.csv
                             Template Google Sheet/CRM lead
+data/acquirenti-lead.csv   Registro potenziali acquirenti lead
 docs/                      Note privacy/sicurezza/aziende
 ```
 
@@ -54,6 +55,10 @@ Per produzione:
 ```text
 UPSTASH_REDIS_REST_URL=
 UPSTASH_REDIS_REST_TOKEN=
+ARUBA_SMS_USER_KEY=
+ARUBA_SMS_ACCESS_TOKEN=
+ARUBA_SMS_SENDER=
+ARUBA_SMS_MESSAGE_TYPE=
 TWILIO_ACCOUNT_SID=
 TWILIO_AUTH_TOKEN=
 TWILIO_FROM_NUMBER=
@@ -65,6 +70,31 @@ ALLOWED_ORIGINS=https://offertalogica.it,https://www.offertalogica.it,https://of
 ```
 
 Sono supportati anche gli alias `KV_REST_API_URL` e `KV_REST_API_TOKEN`, utili se Vercel o un'integrazione precedente li hanno gia creati.
+
+## SMS OTP
+
+Il sistema sceglie il provider in questo ordine:
+
+1. Aruba SMS, se sono configurate le variabili `ARUBA_SMS_*`;
+2. Twilio, se sono configurate le variabili `TWILIO_*`;
+3. demo, se non e configurato nessun provider.
+
+Variabili Aruba SMS consigliate:
+
+```text
+ARUBA_SMS_USER_KEY=
+ARUBA_SMS_ACCESS_TOKEN=
+ARUBA_SMS_SENDER=
+ARUBA_SMS_MESSAGE_TYPE=
+```
+
+In alternativa ad `ARUBA_SMS_ACCESS_TOKEN`, il codice supporta anche:
+
+```text
+ARUBA_SMS_SESSION_KEY=
+```
+
+`ARUBA_SMS_MESSAGE_TYPE` deve essere il valore indicato da Aruba per la tipologia di SMS acquistata. Non lasciare configurazioni parziali: se imposti Aruba, devono esserci `ARUBA_SMS_USER_KEY`, `ARUBA_SMS_SENDER`, `ARUBA_SMS_MESSAGE_TYPE` e almeno uno tra `ARUBA_SMS_ACCESS_TOKEN` e `ARUBA_SMS_SESSION_KEY`.
 
 ## Redis / KV su Vercel
 
@@ -158,6 +188,15 @@ Usalo per tracciare:
 - commissione prevista e confermata.
 
 Vedi `docs/REGISTRO-LEAD-CRM.md`.
+
+## Vendita lead
+
+I potenziali acquirenti o gestori lead sono tracciati in `data/acquirenti-lead.csv`.
+
+Vedi:
+
+- `docs/VENDITA-LEAD.md`
+- `docs/TEMPLATE-CONTATTO-ACQUIRENTI-LEAD.md`
 
 ## Nota PDF
 
