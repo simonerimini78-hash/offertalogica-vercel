@@ -49,6 +49,7 @@ function statusForOffer(offer, destination) {
   const issues = [];
   const checks = [];
   const commodities = [];
+  const certificationStatus = offer.certificazione?.stato || "da_verificare";
   if (offer.luce) commodities.push("luce");
   if (offer.gas) commodities.push("gas");
 
@@ -67,7 +68,7 @@ function statusForOffer(offer, destination) {
     if (Number(voce.prezzoVariabile) <= 0) issues.push(`${commodity}: prezzo non positivo`);
     if (Number(voce.quotaFissaAnnua) < 0) issues.push(`${commodity}: quota fissa negativa`);
   }
-  if (!offer.fonte || /da verificare/i.test(offer.fonte)) {
+  if (certificationStatus !== "certificata" && (!offer.fonte || /da verificare/i.test(offer.fonte))) {
     checks.push("Fonte tariffaria da verificare con scheda sintetica o fonte ufficiale");
   }
   if (!destination) {
@@ -84,7 +85,7 @@ function statusForOffer(offer, destination) {
   const priority = issues.length ? "bloccante" : checks.length >= 3 ? "alta" : checks.length ? "media" : "bassa";
   const status = issues.length ? "non_pubblicare" : checks.length ? "da_verificare" : "coerente";
 
-  return { issues, checks, priority, status };
+  return { issues, checks, priority, status, certificationStatus };
 }
 
 function main() {
@@ -108,6 +109,7 @@ function main() {
       tipo: offer.tipo,
       fornitura: offer.fornitura,
       commodities,
+      certificazione: audit.certificationStatus,
       stato_audit: audit.status,
       priorita_verifica: audit.priority,
       problemi: audit.issues.join("; "),
@@ -138,6 +140,7 @@ function main() {
     `Coerenti senza rilievi: ${rows.filter((row) => row.stato_audit === "coerente").length}`,
     `Da verificare: ${rows.filter((row) => row.stato_audit === "da_verificare").length}`,
     `Non pubblicare: ${rows.filter((row) => row.stato_audit === "non_pubblicare").length}`,
+    `Certificate: ${rows.filter((row) => row.certificazione === "certificata").length}`,
     "```",
     "",
     "## Priorita alte",
@@ -152,6 +155,7 @@ function main() {
     "- Le offerte solo luce o solo gas possono restare `separate`, ma vengono confrontate solo sulla commodity corretta.",
     "- Le offerte variabili dovrebbero usare una formula PUN/PSV esplicita, non solo un prezzo statico.",
     "- Le offerte senza fonte ufficiale o scheda sintetica restano da verificare.",
+    "- Una offerta e certificata solo se `data/offerte-proposte.json` contiene `certificazione.stato = certificata` e il registro `data/certificazione-offerte.csv` mantiene codice e fonte.",
     "- Le offerte senza link tracking o accordo partner non sono ancora monetizzabili.",
     "",
     "## File operativo",
@@ -168,6 +172,7 @@ function main() {
   console.log(JSON.stringify({
     ok: true,
     offerteAnalizzate: rows.length,
+    certificate: rows.filter((row) => row.certificazione === "certificata").length,
     coerenti: rows.filter((row) => row.stato_audit === "coerente").length,
     daVerificare: rows.filter((row) => row.stato_audit === "da_verificare").length,
     nonPubblicare: rows.filter((row) => row.stato_audit === "non_pubblicare").length,

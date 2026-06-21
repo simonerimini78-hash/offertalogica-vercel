@@ -24,12 +24,16 @@ data/destinazioni-offerte.csv
 data/calcolo-parametri.json Parametri aggiornabili del motore di calcolo
 data/offerte-proposte.json  Offerte proposte aggiornabili dal frontend
 data/audit-offerte.csv      Audit operativo delle offerte proposte
+data/certificazione-offerte.csv
+                            Registro fonti/codici per offerte certificate
 data/template-registro-lead.csv
                             Template Google Sheet/CRM lead
 data/acquirenti-lead.csv   Registro potenziali acquirenti lead
 docs/                      Note privacy/sicurezza/aziende
 docs/MOTORE-CALCOLO.md     Regole del motore tariffario e prossimi livelli di precisione
 docs/AUDIT-OFFERTE.md      Report sintetico sulle offerte da verificare
+docs/CERTIFICAZIONE-OFFERTE.md
+                            Fonti ufficiali e schede sintetiche usate per certificare le offerte
 docs/AGGIORNARE-PARAMETRI-CALCOLO.md
                             Istruzioni per aggiornare profilo medio, indici e componenti
 ```
@@ -149,6 +153,8 @@ npm run audit:offers
 ```
 
 Questo comando aggiorna `data/audit-offerte.csv` e `docs/AUDIT-OFFERTE.md`.
+
+Le offerte certificate sono tracciate in `data/certificazione-offerte.csv`. Non modificare un prezzo nel JSON pubblico senza aggiornare anche il registro di certificazione.
 
 ## Protezioni API
 

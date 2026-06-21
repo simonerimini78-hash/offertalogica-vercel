@@ -1,6 +1,6 @@
 {
-  "versioneDati": "offerte-proposte-2026-06-21-v1",
-  "fonte": "Configurazione OffertaLogica; offerte da verificare periodicamente con scheda sintetica o fonte ufficiale",
+  "versioneDati": "offerte-proposte-2026-06-21-v2-certified",
+  "fonte": "Configurazione OffertaLogica con prime offerte certificate da Portale Offerte ARERA/AU open data 20/06/2026; offerte residue da verificare con scheda sintetica o fonte ufficiale",
   "aggiornatoIl": "2026-06-21",
   "offerte": [
     {
@@ -12,26 +12,48 @@
       "link": "https://eon-energia.com",
       "destinationType": "da_definire",
       "destinationStatus": "da_cercare",
-      "luce": { "prezzoVariabile": 0.1041, "quotaFissaAnnua": 108 },
-      "gas": { "prezzoVariabile": 0.519, "quotaFissaAnnua": 108 },
-      "descrizione": "Dual",
-      "fonte": "Da verificare con scheda sintetica aggiornata",
-      "aggiornataIl": "2026-06-21"
+      "luce": { "prezzoVariabile": 0.1017, "quotaFissaAnnua": 109.2311 },
+      "gas": { "prezzoVariabile": 0.474, "quotaFissaAnnua": 108 },
+      "descrizione": "Dual certificata 12 mesi",
+      "fonte": "Certificata da Portale Offerte ARERA/AU open data 20/06/2026: E.ON Luce Insieme 000362DSFML01XXZA16S2D000000A000 + E.ON Gas Insieme 000362DSFML01XXLH06S2D000000A000",
+      "aggiornataIl": "2026-06-20",
+      "certificazione": {
+        "stato": "certificata",
+        "fonte": "portale_offerte_arera_au",
+        "dataFonte": "2026-06-20",
+        "validita": "2026-06-18/2026-06-25",
+        "codici": {
+          "luce": "000362DSFML01XXZA16S2D000000A000",
+          "gas": "000362DSFML01XXLH06S2D000000A000"
+        },
+        "note": "Prezzo luce netto calcolato come 0.1119 - sconto dual 0.0102 eur/kWh."
+      }
     },
     {
       "id": 2,
       "provider": "A2A",
-      "nome": "A2A Click",
-      "tipo": "variabile",
+      "nome": "A2A Start Luce e Gas",
+      "tipo": "fisso",
       "fornitura": "dual",
       "link": "https://a2a.it",
       "destinationType": "da_definire",
       "destinationStatus": "da_cercare",
-      "luce": { "prezzoVariabile": 0.129, "quotaFissaAnnua": 51 },
-      "gas": { "prezzoVariabile": 0.47, "quotaFissaAnnua": 51 },
-      "descrizione": "Variabile",
-      "fonte": "Da verificare con scheda sintetica aggiornata",
-      "aggiornataIl": "2026-06-21"
+      "luce": { "prezzoVariabile": 0.139, "quotaFissaAnnua": 114 },
+      "gas": { "prezzoVariabile": 0.49, "quotaFissaAnnua": 114 },
+      "descrizione": "Fisso 24 mesi",
+      "fonte": "Certificata da Portale Offerte ARERA/AU open data 20/06/2026: A2A Start Luce 000294ESFML01XXA2AStart260632225 + A2A Start Gas 000294GSFML01XXA2AStart260632226",
+      "aggiornataIl": "2026-06-20",
+      "certificazione": {
+        "stato": "certificata",
+        "fonte": "portale_offerte_arera_au",
+        "dataFonte": "2026-06-20",
+        "validita": "2026-06-15/2026-07-06",
+        "codici": {
+          "luce": "000294ESFML01XXA2AStart260632225",
+          "gas": "000294GSFML01XXA2AStart260632226"
+        },
+        "note": "Bonus one shot dual rilevato nel Portale Offerte ma non incluso nel costo annuo base."
+      }
     },
     {
       "id": 3,
@@ -57,11 +79,21 @@
       "link": "https://octopusenergy.it",
       "destinationType": "affiliazione",
       "destinationStatus": "in_attesa_approvazione",
-      "luce": { "prezzoVariabile": 0.1298, "quotaFissaAnnua": 78 },
-      "gas": { "prezzoVariabile": 0.49, "quotaFissaAnnua": 78 },
-      "descrizione": "Fisso",
-      "fonte": "Da verificare con scheda sintetica aggiornata",
-      "aggiornataIl": "2026-06-21"
+      "luce": { "prezzoVariabile": 0.1199, "quotaFissaAnnua": 72 },
+      "gas": { "prezzoVariabile": 0.45, "quotaFissaAnnua": 84 },
+      "descrizione": "Fisso 12 mesi",
+      "fonte": "Certificata da Portale Offerte ARERA/AU open data 20/06/2026: Octopus Fissa 12M 000129ESFML48XXXXXXXXOCTOFIXv148 + Octopus Fissa 12M Gas 000129GSFML68XXXXXXXXOCTOFIXGv68",
+      "aggiornataIl": "2026-06-20",
+      "certificazione": {
+        "stato": "certificata",
+        "fonte": "portale_offerte_arera_au",
+        "dataFonte": "2026-06-20",
+        "validita": "2026-06-18/2026-06-24",
+        "codici": {
+          "luce": "000129ESFML48XXXXXXXXOCTOFIXv148",
+          "gas": "000129GSFML68XXXXXXXXOCTOFIXGv68"
+        }
+      }
     },
     {
       "id": 5,
@@ -177,11 +209,21 @@
       "link": "https://alperia.eu",
       "destinationType": "affiliazione",
       "destinationStatus": "in_attesa_approvazione",
-      "luce": { "prezzoVariabile": 0.1027, "quotaFissaAnnua": 119.7 },
-      "gas": { "prezzoVariabile": 0.45, "quotaFissaAnnua": 119.7 },
-      "descrizione": "Luce 36M, Gas 24M",
-      "fonte": "Da verificare con scheda sintetica aggiornata",
-      "aggiornataIl": "2026-06-21"
+      "luce": { "prezzoVariabile": 0.1027, "quotaFissaAnnua": 95.4 },
+      "gas": { "prezzoVariabile": 0.45, "quotaFissaAnnua": 144 },
+      "descrizione": "Fisso Smile",
+      "fonte": "Certificata da Portale Offerte ARERA/AU open data 20/06/2026: Alperia Smile Easy Summer 000368ESFML01XX4085488X260611XVE + Alperia Gas Smile Start 000368GSFML02XX1895452X260611XVE",
+      "aggiornataIl": "2026-06-20",
+      "certificazione": {
+        "stato": "certificata",
+        "fonte": "portale_offerte_arera_au",
+        "dataFonte": "2026-06-20",
+        "validita": "2026-06-11/2026-07-10",
+        "codici": {
+          "luce": "000368ESFML01XX4085488X260611XVE",
+          "gas": "000368GSFML02XX1895452X260611XVE"
+        }
+      }
     },
     {
       "id": 13,
@@ -192,11 +234,22 @@
       "link": "https://www.sorgenia.it/partnership-sorgenia-offerte",
       "destinationType": "partner_lead",
       "destinationStatus": "da_contattare",
-      "luce": { "prezzoVariabile": 0.13, "quotaFissaAnnua": 129 },
-      "gas": { "prezzoVariabile": 0.52, "quotaFissaAnnua": 129 },
+      "luce": { "prezzoVariabile": 0.12595, "quotaFissaAnnua": 114 },
+      "gas": { "prezzoVariabile": 0.47, "quotaFissaAnnua": 114 },
       "descrizione": "Fisso 12 Mesi",
-      "fonte": "Da verificare con scheda sintetica aggiornata",
-      "aggiornataIl": "2026-06-21"
+      "fonte": "Certificata da Portale Offerte ARERA/AU open data 20/06/2026: Next Energy Smart dual 000390DS00L01XXDS014418000000000 con Next Energy Hybrid 000390DSFML01XXES014418010000000 + Next Energy Smart Gas 000390DSFML01XXGS014414010000000",
+      "aggiornataIl": "2026-06-20",
+      "certificazione": {
+        "stato": "certificata",
+        "fonte": "portale_offerte_arera_au",
+        "dataFonte": "2026-06-20",
+        "validita": "2026-06-19/2026-06-25",
+        "codici": {
+          "dual": "000390DS00L01XXDS014418000000000",
+          "luce": "000390DSFML01XXES014418010000000",
+          "gas": "000390DSFML01XXGS014414010000000"
+        }
+      }
     }
   ]
 }
