@@ -36,6 +36,7 @@ Prima di collegare un acquirente al webhook servono:
 
 ```text
 da_cercare                  Categoria utile, partner non individuato.
+da_valutare                 Partner reale individuato, ma modello/fit da verificare.
 da_contattare               Partner individuato, primo contatto da inviare.
 contattato                  Email o form inviato.
 in_valutazione              Partner sta valutando sito e condizioni.
@@ -72,6 +73,12 @@ Aggiornare ogni riga con:
 - stato;
 - note privacy;
 - priorita.
+
+La prima shortlist di soggetti reali da contattare o valutare e in:
+
+```text
+docs/RICERCA-ACQUIRENTI-LEAD.md
+```
 
 ## Domande da fare al potenziale acquirente
 

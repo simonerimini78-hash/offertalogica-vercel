@@ -196,6 +196,7 @@ I potenziali acquirenti o gestori lead sono tracciati in `data/acquirenti-lead.c
 Vedi:
 
 - `docs/VENDITA-LEAD.md`
+- `docs/RICERCA-ACQUIRENTI-LEAD.md`
 - `docs/TEMPLATE-CONTATTO-ACQUIRENTI-LEAD.md`
 
 ## Nota PDF
