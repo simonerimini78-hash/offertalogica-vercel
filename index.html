@@ -821,8 +821,14 @@ function avviaComparazioneDati() {
 } // Chiude in modo pulito la funzione principale avviaComparazioneDati
 </script>
 <script>
-const MOTORE_CALCOLO_VERSION = "motore-v3-quote-separate-2026-06-21";
-const PARAMETRI_CALCOLO = {
+let MOTORE_CALCOLO_VERSION = "motore-v4-parametri-esterni-2026-06-21";
+const DATI_CALCOLO_URLS = ["/data/calcolo-parametri.json", "data/calcolo-parametri.json"];
+let DATI_CALCOLO_META = {
+  versioneDati: "fallback-html-2026-06-21",
+  fonte: "Fallback interno HTML",
+  aggiornatoIl: "2026-06-21",
+};
+let PARAMETRI_CALCOLO = {
   perditeReteLuceVariabile: 1.102,
   profiloMedio: {
     luceConsumoKwh: 2700,
@@ -854,11 +860,11 @@ const PARAMETRI_CALCOLO = {
   },
   note: "Stima comparativa annua prima di IVA e imposte puntuali. Le componenti di profilo sono applicate in modo omogeneo a tutti gli scenari.",
 };
-const PERDITE_RETE_LUCE_VARIABILE = PARAMETRI_CALCOLO.perditeReteLuceVariabile;
+let PERDITE_RETE_LUCE_VARIABILE = PARAMETRI_CALCOLO.perditeReteLuceVariabile;
 const TESTO_METODOLOGIA_CONSUMI_REALI = "I risparmi stimati sono calcolati sui consumi che hai inserito o confermato dalla bolletta. Applichiamo le condizioni economiche delle offerte allo stesso profilo di consumo, separando quota variabile e quota fissa.";
 const TESTO_METODOLOGIA_MEDIA_ARERA = "Quando non conosci i tuoi consumi, la comparazione viene fatta su consumi medi e sull'ultimo riferimento ARERA disponibile. Questa base omogenea serve a stimare il risparmio potenziale tra le diverse proposte.";
 
-const INDICI_MERCATO = {
+let INDICI_MERCATO = {
   pun: {
     label: "PUN",
     valore: 0,
@@ -889,7 +895,7 @@ const LEAD_STATE = {
 
 const PRIVACY_VERSION = "privacy-lead-v2-2026-06-18";
 
-const PARAMETRI_MASTER = {
+let PARAMETRI_MASTER = {
   potenzaLuce: PARAMETRI_CALCOLO.componentiProfilo.potenzaLuceAnnua,
   regioneGas: PARAMETRI_CALCOLO.componentiProfilo.ambitoGasAnnua,
 };
@@ -901,6 +907,60 @@ const LINK_FORNITORI = {
   edison: "https://tuolinkaffiliazione.com",
   default: "https://google.com",
 };
+
+function mergeProfondo(base, aggiornamento) {
+  if (!aggiornamento || typeof aggiornamento !== "object") return base;
+  Object.entries(aggiornamento).forEach(([key, value]) => {
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      base[key] = mergeProfondo(base[key] && typeof base[key] === "object" ? base[key] : {}, value);
+    } else {
+      base[key] = value;
+    }
+  });
+  return base;
+}
+
+function aggiornaParametriDerivati() {
+  PERDITE_RETE_LUCE_VARIABILE = numeroSicuro(PARAMETRI_CALCOLO.perditeReteLuceVariabile, 1.102);
+  PARAMETRI_MASTER = {
+    potenzaLuce: PARAMETRI_CALCOLO.componentiProfilo?.potenzaLuceAnnua || {},
+    regioneGas: PARAMETRI_CALCOLO.componentiProfilo?.ambitoGasAnnua || {},
+  };
+}
+
+function applicaDatiCalcolo(data) {
+  if (!data || typeof data !== "object") return false;
+  DATI_CALCOLO_META = {
+    versioneDati: data.versioneDati || data.version || DATI_CALCOLO_META.versioneDati,
+    fonte: data.fonte || DATI_CALCOLO_META.fonte,
+    aggiornatoIl: data.aggiornatoIl || DATI_CALCOLO_META.aggiornatoIl,
+  };
+  if (data.parametriCalcolo) mergeProfondo(PARAMETRI_CALCOLO, data.parametriCalcolo);
+  if (data.indiciMercato) mergeProfondo(INDICI_MERCATO, data.indiciMercato);
+  aggiornaParametriDerivati();
+  return true;
+}
+
+async function caricaDatiCalcolo() {
+  if (!window.fetch || window.location.protocol === "file:") {
+    aggiornaParametriDerivati();
+    return false;
+  }
+
+  for (const url of DATI_CALCOLO_URLS) {
+    try {
+      const response = await fetch(url, { cache: "no-store" });
+      if (!response.ok) continue;
+      const data = await response.json();
+      if (applicaDatiCalcolo(data)) return true;
+    } catch (error) {
+      // Il fallback interno mantiene operativo il calcolatore.
+    }
+  }
+
+  aggiornaParametriDerivati();
+  return false;
+}
 
 const OFFERTE_PROPOSTE = [
   {
@@ -1487,7 +1547,7 @@ function renderComparazione(areaRisultati, confrontoNuova) {
       </tbody>
     </table>
     <p style="margin:10px 0 0; color:var(--text-muted); font-size:12px;">
-      ${PARAMETRI_CALCOLO.note} Versione: ${MOTORE_CALCOLO_VERSION}.
+      ${PARAMETRI_CALCOLO.note} Motore: ${MOTORE_CALCOLO_VERSION}. Dati: ${DATI_CALCOLO_META.versioneDati} (${DATI_CALCOLO_META.aggiornatoIl}).
     </p>
   `;
 }
@@ -2328,6 +2388,12 @@ function collegaEventiUX() {
   document.getElementById("offer-consent-close")?.addEventListener("click", chiudiConsensoOfferta);
   document.getElementById("offer-consent-backdrop")?.addEventListener("click", (event) => {
     if (event.target?.id === "offer-consent-backdrop") chiudiConsensoOfferta();
+  });
+
+  caricaDatiCalcolo().then(() => {
+    assicuraSchedeOfferte();
+    const risultatiVisibili = document.querySelector(".fornitori-consigliati-section")?.style.display === "block";
+    if (risultatiVisibili) avviaComparazioneDati();
   });
 }
 

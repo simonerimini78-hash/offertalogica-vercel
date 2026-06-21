@@ -21,11 +21,14 @@ lib/                       Utility server
 data/                      CSV offerte ARERA
 data/destinazioni-offerte.csv
                             Destinazioni monetizzazione offerte
+data/calcolo-parametri.json Parametri aggiornabili del motore di calcolo
 data/template-registro-lead.csv
                             Template Google Sheet/CRM lead
 data/acquirenti-lead.csv   Registro potenziali acquirenti lead
 docs/                      Note privacy/sicurezza/aziende
 docs/MOTORE-CALCOLO.md     Regole del motore tariffario e prossimi livelli di precisione
+docs/AGGIORNARE-PARAMETRI-CALCOLO.md
+                            Istruzioni per aggiornare profilo medio, indici e componenti
 ```
 
 ## Pagine pubbliche
@@ -38,7 +41,12 @@ docs/MOTORE-CALCOLO.md     Regole del motore tariffario e prossimi livelli di pr
 
 Il confronto separa materia/variabile, quota fissa vendita, componenti di profilo e totale annuo stimato. Le offerte solo luce o solo gas vengono confrontate solo sulla commodity corretta, evitando risparmi gonfiati.
 
-Vedi `docs/MOTORE-CALCOLO.md`.
+Il frontend online legge i parametri da `public/data/calcolo-parametri.json` e usa il fallback interno se il file non e disponibile.
+
+Vedi:
+
+- `docs/MOTORE-CALCOLO.md`
+- `docs/AGGIORNARE-PARAMETRI-CALCOLO.md`
 
 ## Deploy su Vercel
 

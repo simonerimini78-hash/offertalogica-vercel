@@ -1,0 +1,51 @@
+{
+  "versioneDati": "parametri-calcolo-2026-06-21-v1",
+  "fonte": "Configurazione OffertaLogica aggiornabile; valori da verificare con fonti ufficiali prima dell'uso commerciale pieno",
+  "aggiornatoIl": "2026-06-21",
+  "parametriCalcolo": {
+    "perditeReteLuceVariabile": 1.102,
+    "profiloMedio": {
+      "luceConsumoKwh": 2700,
+      "gasConsumoSmc": 700,
+      "prezzoLuceEurKwh": 0.15,
+      "prezzoGasEurSmc": 0.68,
+      "quotaFissaLuceAnnua": 144,
+      "quotaFissaGasAnnua": 120,
+      "potenzaKw": "3",
+      "regioneGas": "nord-ovest",
+      "tipoPrezzo": "fisso",
+      "tipoFornitura": "dual"
+    },
+    "componentiProfilo": {
+      "potenzaLuceAnnua": {
+        "3": 0,
+        "4.5": 32,
+        "6": 64
+      },
+      "ambitoGasAnnua": {
+        "": 0,
+        "nord-ovest": 0,
+        "nord-est": 8,
+        "centro": 15,
+        "sud": 25,
+        "sicilia": 35,
+        "sardegna": 35
+      }
+    },
+    "note": "Stima comparativa annua prima di IVA e imposte puntuali. Le componenti di profilo sono applicate in modo omogeneo a tutti gli scenari."
+  },
+  "indiciMercato": {
+    "pun": {
+      "label": "PUN",
+      "valore": 0,
+      "unita": "eur_kwh",
+      "note": "Da aggiornare con il valore medio ufficiale scelto per il periodo di confronto."
+    },
+    "psv": {
+      "label": "PSV",
+      "valore": 0,
+      "unita": "eur_smc",
+      "note": "Da aggiornare con il valore medio ufficiale scelto per il periodo di confronto."
+    }
+  }
+}

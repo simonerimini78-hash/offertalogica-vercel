@@ -19,7 +19,7 @@ Profilo                 Correzioni di profilo da potenza luce e ambito gas.
 Totale                  Somma delle componenti sopra.
 ```
 
-Per la luce variabile viene applicato il fattore perdite rete configurato nel codice:
+Per la luce variabile viene applicato il fattore perdite rete configurato nei dati:
 
 ```text
 PERDITE_RETE_LUCE_VARIABILE = 1.102
@@ -37,7 +37,14 @@ Questa regola evita l'errore di confrontare un'offerta solo luce o solo gas cont
 
 ## Profilo medio
 
-Quando l'utente non conosce i consumi, il frontend usa il profilo medio configurato in `PARAMETRI_CALCOLO.profiloMedio` dentro `index.html`.
+Quando l'utente non conosce i consumi, il frontend usa il profilo medio configurato in:
+
+```text
+public/data/calcolo-parametri.json
+data/calcolo-parametri.json
+```
+
+Se il file non viene caricato, il calcolatore usa il fallback interno dentro `index.html`.
 
 Valori attuali:
 
@@ -51,6 +58,23 @@ Fisso gas attuale stimato: 120 €/anno
 ```
 
 Questi valori devono essere aggiornati quando si aggiorna il riferimento medio ARERA o il benchmark interno.
+
+## File dati
+
+Il motore prova a leggere:
+
+```text
+/data/calcolo-parametri.json
+data/calcolo-parametri.json
+```
+
+La prima strada serve online su Vercel. La seconda e utile in ambienti statici compatibili.
+
+Vedi anche:
+
+```text
+docs/AGGIORNARE-PARAMETRI-CALCOLO.md
+```
 
 ## Cosa non e ancora incluso al centesimo
 
@@ -106,4 +130,4 @@ Il livello successivo e spostare:
 - scaglioni gas;
 - imposte;
 
-in file dati separati, caricati dal frontend o dal backend. In quel momento il calcolatore potra essere aggiornato senza toccare il codice HTML.
+in file dati separati, caricati dal frontend o dal backend. Il primo passaggio e gia stato fatto con `calcolo-parametri.json`; il prossimo e spostare anche offerte e componenti fiscali in dati strutturati.
