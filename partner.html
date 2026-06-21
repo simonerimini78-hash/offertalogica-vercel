@@ -128,7 +128,7 @@
             <div class="visual" aria-label="Flusso qualificazione lead OffertaLogica">
                 <div class="visual-header">
                     <strong>Flusso lead</strong>
-                    <span class="status">Redis + OTP attivi</span>
+                    <span class="status">Consenso + OTP</span>
                 </div>
                 <div class="pipeline">
                     <div class="pipeline-row">
@@ -207,10 +207,10 @@
             <div class="card">
                 <h2>Controlli tecnici</h2>
                 <ul>
-                    <li>Storage Redis Upstash collegato su Vercel.</li>
-                    <li>Rate limit su lead, OTP, verifica, PDF e consenso offerta.</li>
-                    <li>Controllo origin sulle API pubbliche.</li>
-                    <li>Endpoint health protetto per verificare lo storage server.</li>
+                    <li>Salvataggio server dei lead verificati e delle prove di consenso.</li>
+                    <li>Limitazioni sulle richieste ripetute per lead, OTP, PDF e consenso offerta.</li>
+                    <li>Controlli sulle chiamate API provenienti dal sito autorizzato.</li>
+                    <li>Verifiche tecniche riservate per controllare il corretto funzionamento del sistema.</li>
                 </ul>
             </div>
         </div>
@@ -230,7 +230,7 @@
                 <div class="process-item">
                     <div>
                         <h3>Offerta mappata</h3>
-                        <p>La destinazione viene collegata all'offerta nel file operativo `destinazioni-offerte.csv`.</p>
+                        <p>La destinazione commerciale viene collegata alla singola offerta, con regole di tracciamento e consenso coerenti con il canale scelto.</p>
                     </div>
                 </div>
                 <div class="process-item">
@@ -253,8 +253,8 @@
         <div class="shell">
             <div class="note-band">
                 <div>
-                    <h2>Stato attuale candidature</h2>
-                    <p>OffertaLogica e in fase di attivazione partnership. Le candidature affiliate in valutazione riguardano Plenitude, Octopus Energy, NeN e Alperia. Altri fornitori possono essere integrati tramite network, accordo diretto o gestione lead consulenziale.</p>
+                    <h2>Valutiamo collaborazioni energia</h2>
+                    <p>OffertaLogica puo integrare fornitori, network affiliate, broker e consulenti con percorsi tracciati, consenso dedicato e confronto basato sul profilo di consumo.</p>
                 </div>
                 <a class="button primary" href="mailto:offertalogica@gmail.com?subject=Partnership%20energia%20OffertaLogica">Scrivi a OffertaLogica</a>
             </div>
@@ -264,7 +264,7 @@
 
 <footer class="footer">
     <p style="margin-bottom: 8px; font-weight: bold;">&copy; 2026 OffertaLogica.it - Calcolatore Energetico</p>
-    <p style="margin-bottom: 15px; color: #999;">Analisi indipendente e trasparente delle offerte luce e gas.</p>
+    <p style="margin-bottom: 15px; color: #999;">Analisi indipendente e trasparente delle offerte luce e gas per privati e aziende.</p>
     <div>
         <a href="/">Calcolatore</a> |
         <a href="/come-funziona.html">Come funziona</a> |

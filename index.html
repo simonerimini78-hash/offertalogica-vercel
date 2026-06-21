@@ -310,7 +310,7 @@
 
     <div class="pdf-lead-panel">
         <h3>Carica bolletta o scheda sintetica</h3>
-        <p>Con i dati reali il confronto diventa più preciso. Su GitHub questa area prepara il flusso: la lettura PDF sicura sarà collegata al backend.</p>
+        <p>Carica una bolletta o una scheda sintetica: proveremo a leggere consumi, fornitore, prezzi e quote fisse per rendere il confronto più aderente alla tua fornitura.</p>
         <div class="upload-drop">
             <input id="pdf-static-input" type="file" accept="application/pdf" multiple>
             <button type="button" class="btn-action" onclick="preparaConfermaPdf()">Analizza PDF</button>
@@ -318,7 +318,7 @@
             <div class="upload-note">Puoi caricare una o più bollette PDF, ad esempio una luce e una gas, oppure una scheda sintetica.</div>
             <div class="pdf-review-static" id="pdf-review-static">
                 <strong>Dati pronti per la conferma</strong>
-                <p id="pdf-review-copy">Nel sito finale qui compariranno consumi, fornitore, POD/PDR, prezzo materia e quota fissa letti dal PDF. Confermando, il confronto parte senza aprire il pop-up lead.</p>
+                <p id="pdf-review-copy">Dopo l'analisi potrai confermare i dati letti dal PDF e avviare il confronto sui consumi reali, senza reinserire tutto a mano.</p>
                 <button type="button" onclick="confermaPdfECalcola()">Conferma dati e confronta</button>
             </div>
         </div>
@@ -901,7 +901,7 @@ let INDICI_MERCATO = {
 
 const LEAD_STATE = {
   verified: false,
-  otpDemo: "",
+  otpPreviewCode: "",
   bestSaving: 0,
   leadId: "",
   leadSource: "manual",
@@ -1950,6 +1950,10 @@ function leadStatus(message, isError = false) {
   status.style.color = isError ? "var(--danger)" : "var(--text-muted)";
 }
 
+function isLocalPreviewEnvironment() {
+  return window.location.protocol === "file:" || ["localhost", "127.0.0.1"].includes(window.location.hostname);
+}
+
 window.apriLeadModal = function apriLeadModal(source = "manual") {
   const modal = document.getElementById("lead-modal-backdrop");
   const title = document.getElementById("lead-modal-title");
@@ -2045,7 +2049,7 @@ function completaLeadVerificato() {
   window.avviaComparazioneDati();
 }
 
-async function inviaOtpDemo() {
+async function inviaOtp() {
   if (!leadValido()) return;
   const { nome, telefono, email, consents } = leggiLeadForm();
   LEAD_STATE.partnerConsent = Boolean(consents.partners);
@@ -2092,29 +2096,36 @@ async function inviaOtpDemo() {
     if (otpInput) otpInput.style.display = "block";
     if (sendBtn) sendBtn.style.display = "none";
     if (verifyBtn) verifyBtn.style.display = "inline-block";
-    leadStatus(otpPayload.demoCode ? `Demo OTP: ${otpPayload.demoCode}. In produzione arrivera via SMS.` : "Codice inviato via SMS.");
+    leadStatus(otpPayload.demoCode ? `Codice di prova: ${otpPayload.demoCode}.` : "Codice inviato via SMS.");
   } catch (error) {
-    LEAD_STATE.leadId = "preview";
-    LEAD_STATE.otpDemo = String(Math.floor(100000 + Math.random() * 900000));
     const otpInput = document.getElementById("lead-otp");
     const sendBtn = document.getElementById("lead-send-otp");
     const verifyBtn = document.getElementById("lead-verify-otp");
+    if (!isLocalPreviewEnvironment()) {
+      if (otpInput) otpInput.style.display = "none";
+      if (sendBtn) sendBtn.style.display = "inline-block";
+      if (verifyBtn) verifyBtn.style.display = "none";
+      leadStatus("Servizio OTP non disponibile in questo momento. Riprova tra poco.", true);
+      return;
+    }
+    LEAD_STATE.leadId = "preview";
+    LEAD_STATE.otpPreviewCode = String(Math.floor(100000 + Math.random() * 900000));
     if (otpInput) otpInput.style.display = "block";
     if (sendBtn) sendBtn.style.display = "none";
     if (verifyBtn) verifyBtn.style.display = "inline-block";
-    leadStatus(`Preview locale senza API: usa il codice demo ${LEAD_STATE.otpDemo}.`);
+    leadStatus(`Anteprima locale senza API: usa il codice ${LEAD_STATE.otpPreviewCode}.`);
   }
 }
 
-async function verificaOtpDemo() {
+async function verificaOtp() {
   const otp = document.getElementById("lead-otp")?.value.trim();
   if (!otp || !LEAD_STATE.leadId) {
     leadStatus("Inserisci il codice ricevuto.", true);
     return;
   }
   if (LEAD_STATE.leadId === "preview") {
-    if (otp !== LEAD_STATE.otpDemo) {
-      leadStatus("Codice demo non corretto.", true);
+    if (otp !== LEAD_STATE.otpPreviewCode) {
+      leadStatus("Codice di anteprima non corretto.", true);
       return;
     }
     completaLeadVerificato();
@@ -2557,8 +2568,8 @@ function collegaEventiUX() {
     });
   });
 
-  document.getElementById("lead-send-otp")?.addEventListener("click", inviaOtpDemo);
-  document.getElementById("lead-verify-otp")?.addEventListener("click", verificaOtpDemo);
+  document.getElementById("lead-send-otp")?.addEventListener("click", inviaOtp);
+  document.getElementById("lead-verify-otp")?.addEventListener("click", verificaOtp);
   document.getElementById("lead-close")?.addEventListener("click", chiudiLeadModal);
   document.getElementById("lead-modal-backdrop")?.addEventListener("click", (event) => {
     if (event.target?.id === "lead-modal-backdrop") chiudiLeadModal();
@@ -2868,7 +2879,7 @@ if (document.readyState === "loading") {
     <p style="margin-bottom: 8px; font-weight: bold;">&copy; 2026 OffertaLogica.it - Calcolatore Energetico</p>
     
     <p style="margin-bottom: 15px; color: #999;">
-        Analisi indipendente e trasparente delle offerte Luce e Gas per privati.
+        Analisi indipendente e trasparente delle offerte Luce e Gas per privati e aziende.
     </p>
 
     <div style="margin-bottom: 20px;">

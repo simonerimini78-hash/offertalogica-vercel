@@ -68,9 +68,10 @@ Per testare:
 
 ```text
 OTP_SECRET=una-stringa-lunga-casuale
+DEMO_OTP_ENABLED=true
 ```
 
-Senza provider SMS, l'API restituisce `demoCode` per provare il flusso.
+La modalita demo OTP va usata solo per test controllati. In produzione, senza provider SMS configurato, l'OTP restituisce errore e non sblocca le offerte.
 
 Per produzione:
 
@@ -87,6 +88,7 @@ TWILIO_FROM_NUMBER=
 LEAD_WEBHOOK_URL=
 LEAD_WEBHOOK_SECRET=
 OTP_SECRET=
+DEMO_OTP_ENABLED=false
 HEALTHCHECK_TOKEN=
 ALLOWED_ORIGINS=https://offertalogica.it,https://www.offertalogica.it,https://offertalogica-vercel.vercel.app
 ```
