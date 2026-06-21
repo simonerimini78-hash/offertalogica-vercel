@@ -7,7 +7,8 @@
     "dev": "vercel dev",
     "start": "vercel dev",
     "lint": "node scripts/check-env.mjs",
-    "validate:calculator": "node scripts/validate-calculator-data.mjs"
+    "validate:calculator": "node scripts/validate-calculator-data.mjs",
+    "audit:offers": "node scripts/audit-offers.mjs"
   },
   "dependencies": {
     "@paralleldrive/cuid2": "^2.2.2",

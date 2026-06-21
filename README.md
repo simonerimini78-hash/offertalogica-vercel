@@ -23,11 +23,13 @@ data/destinazioni-offerte.csv
                             Destinazioni monetizzazione offerte
 data/calcolo-parametri.json Parametri aggiornabili del motore di calcolo
 data/offerte-proposte.json  Offerte proposte aggiornabili dal frontend
+data/audit-offerte.csv      Audit operativo delle offerte proposte
 data/template-registro-lead.csv
                             Template Google Sheet/CRM lead
 data/acquirenti-lead.csv   Registro potenziali acquirenti lead
 docs/                      Note privacy/sicurezza/aziende
 docs/MOTORE-CALCOLO.md     Regole del motore tariffario e prossimi livelli di precisione
+docs/AUDIT-OFFERTE.md      Report sintetico sulle offerte da verificare
 docs/AGGIORNARE-PARAMETRI-CALCOLO.md
                             Istruzioni per aggiornare profilo medio, indici e componenti
 ```
@@ -139,6 +141,14 @@ npm run validate:calculator
 ```
 
 Il controllo verifica anche che le offerte solo luce o solo gas non vengano confrontate contro tutta la spesa luce+gas.
+
+Per generare la checklist delle offerte da verificare:
+
+```text
+npm run audit:offers
+```
+
+Questo comando aggiorna `data/audit-offerte.csv` e `docs/AUDIT-OFFERTE.md`.
 
 ## Protezioni API
 
