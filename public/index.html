@@ -821,7 +821,40 @@ function avviaComparazioneDati() {
 } // Chiude in modo pulito la funzione principale avviaComparazioneDati
 </script>
 <script>
-const PERDITE_RETE_LUCE_VARIABILE = 1.102;
+const MOTORE_CALCOLO_VERSION = "motore-v3-quote-separate-2026-06-21";
+const PARAMETRI_CALCOLO = {
+  perditeReteLuceVariabile: 1.102,
+  profiloMedio: {
+    luceConsumoKwh: 2700,
+    gasConsumoSmc: 700,
+    prezzoLuceEurKwh: 0.1500,
+    prezzoGasEurSmc: 0.6800,
+    quotaFissaLuceAnnua: 144,
+    quotaFissaGasAnnua: 120,
+    potenzaKw: "3",
+    regioneGas: "nord-ovest",
+    tipoPrezzo: "fisso",
+    tipoFornitura: "dual",
+  },
+  componentiProfilo: {
+    potenzaLuceAnnua: {
+      "3": 0,
+      "4.5": 32,
+      "6": 64,
+    },
+    ambitoGasAnnua: {
+      "": 0,
+      "nord-ovest": 0,
+      "nord-est": 8,
+      centro: 15,
+      sud: 25,
+      sicilia: 35,
+      sardegna: 35,
+    },
+  },
+  note: "Stima comparativa annua prima di IVA e imposte puntuali. Le componenti di profilo sono applicate in modo omogeneo a tutti gli scenari.",
+};
+const PERDITE_RETE_LUCE_VARIABILE = PARAMETRI_CALCOLO.perditeReteLuceVariabile;
 const TESTO_METODOLOGIA_CONSUMI_REALI = "I risparmi stimati sono calcolati sui consumi che hai inserito o confermato dalla bolletta. Applichiamo le condizioni economiche delle offerte allo stesso profilo di consumo, separando quota variabile e quota fissa.";
 const TESTO_METODOLOGIA_MEDIA_ARERA = "Quando non conosci i tuoi consumi, la comparazione viene fatta su consumi medi e sull'ultimo riferimento ARERA disponibile. Questa base omogenea serve a stimare il risparmio potenziale tra le diverse proposte.";
 
@@ -857,20 +890,8 @@ const LEAD_STATE = {
 const PRIVACY_VERSION = "privacy-lead-v2-2026-06-18";
 
 const PARAMETRI_MASTER = {
-  potenzaLuce: {
-    "3": 0,
-    "4.5": 32,
-    "6": 64,
-  },
-  regioneGas: {
-    "": 0,
-    "nord-ovest": 0,
-    "nord-est": 8,
-    centro: 15,
-    sud: 25,
-    sicilia: 35,
-    sardegna: 35,
-  },
+  potenzaLuce: PARAMETRI_CALCOLO.componentiProfilo.potenzaLuceAnnua,
+  regioneGas: PARAMETRI_CALCOLO.componentiProfilo.ambitoGasAnnua,
 };
 
 const LINK_FORNITORI = {
@@ -1053,39 +1074,66 @@ const OFFERTE_PROPOSTE = [
   },
 ];
 
+function numeroSicuro(value, fallback = 0) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+}
+
+function scenarioVuoto() {
+  return { consumo: 0, prezzoVariabile: 0, quotaFissaAnnua: 0, quoteUniversaliAnnue: 0 };
+}
+
 function risolviPrezzoVariabile(voce) {
+  const prezzoFallback = numeroSicuro(voce?.prezzoVariabile, 0);
   if (voce?.formula?.tipo === "indice_spread") {
     const indice = INDICI_MERCATO[voce.formula.indice]?.valore;
     const spread = Number(voce.formula.spread || 0);
-    if (Number.isFinite(indice)) return indice + spread;
+    if (Number.isFinite(indice) && indice > 0) return indice + spread;
   }
 
-  return Number(voce?.prezzoVariabile || 0);
+  return prezzoFallback;
 }
 
-function calcolaVoceEnergia({ consumo, prezzoVariabile, formula, quotaFissaAnnua, quoteUniversaliAnnue = 0, tipoTariffa, commodity }) {
-  const fattorePerdite = commodity === "luce" && tipoTariffa === "variabile" ? PERDITE_RETE_LUCE_VARIABILE : 1;
+function tipoPrezzoVoce(voce, tipoTariffa) {
+  if (voce?.formula?.tipo === "indice_spread") return "variabile";
+  return tipoTariffa || "fisso";
+}
+
+function calcolaVoceEnergia({ consumo = 0, prezzoVariabile = 0, formula, quotaFissaAnnua = 0, quoteUniversaliAnnue = 0, tipoTariffa, commodity }) {
+  const consumoProfilo = Math.max(0, numeroSicuro(consumo, 0));
+  const tipoVoce = tipoPrezzoVoce({ formula }, tipoTariffa);
+  const fattorePerdite = commodity === "luce" && tipoVoce === "variabile" ? PERDITE_RETE_LUCE_VARIABILE : 1;
   const prezzoCalcolo = risolviPrezzoVariabile({ prezzoVariabile, formula });
-  const quotaVariabile = consumo * prezzoCalcolo * fattorePerdite;
-  const quotaFissa = quotaFissaAnnua + quoteUniversaliAnnue;
+  const consumoFatturato = consumoProfilo * fattorePerdite;
+  const quotaMateria = consumoFatturato * prezzoCalcolo;
+  const quotaFissaVendita = Math.max(0, numeroSicuro(quotaFissaAnnua, 0));
+  const quotaTecnicaProfilo = Math.max(0, numeroSicuro(quoteUniversaliAnnue, 0));
+  const quotaFissa = quotaFissaVendita + quotaTecnicaProfilo;
 
   return {
-    consumo,
+    commodity,
+    consumo: consumoProfilo,
+    consumoFatturato,
+    tipoPrezzo: tipoVoce,
+    fattorePerdite,
     prezzoVariabile: prezzoCalcolo,
-    quotaVariabile,
+    quotaMateria,
+    quotaVariabile: quotaMateria,
+    quotaFissaVendita,
+    quotaTecnicaProfilo,
     quotaFissa,
-    totale: quotaVariabile + quotaFissa,
+    totale: quotaMateria + quotaFissa,
   };
 }
 
 function calcolaOfferta(offerta, tipoTariffa) {
   const luce = calcolaVoceEnergia({
-    ...offerta.luce,
+    ...(offerta?.luce || scenarioVuoto()),
     tipoTariffa,
     commodity: "luce",
   });
   const gas = calcolaVoceEnergia({
-    ...offerta.gas,
+    ...(offerta?.gas || scenarioVuoto()),
     tipoTariffa,
     commodity: "gas",
   });
@@ -1094,6 +1142,8 @@ function calcolaOfferta(offerta, tipoTariffa) {
     luce,
     gas,
     quotaVariabile: luce.quotaVariabile + gas.quotaVariabile,
+    quotaFissaVendita: luce.quotaFissaVendita + gas.quotaFissaVendita,
+    quotaTecnicaProfilo: luce.quotaTecnicaProfilo + gas.quotaTecnicaProfilo,
     quotaFissa: luce.quotaFissa + gas.quotaFissa,
     totale: luce.totale + gas.totale,
   };
@@ -1108,6 +1158,8 @@ function calcolaDifferenza(offertaAttuale, offertaConfronto, tipoTariffa) {
     confronto,
     differenza: {
       quotaVariabile: attuale.quotaVariabile - confronto.quotaVariabile,
+      quotaFissaVendita: attuale.quotaFissaVendita - confronto.quotaFissaVendita,
+      quotaTecnicaProfilo: attuale.quotaTecnicaProfilo - confronto.quotaTecnicaProfilo,
       quotaFissa: attuale.quotaFissa - confronto.quotaFissa,
       totale: attuale.totale - confronto.totale,
     },
@@ -1128,7 +1180,8 @@ function leggiValore(id, fallback = "") {
 }
 
 function euro(value) {
-  return `${value.toFixed(2)} €`;
+  const amount = numeroSicuro(value, 0);
+  return `${amount.toFixed(2)} €`;
 }
 
 function setDisplay(selector, display) {
@@ -1317,6 +1370,20 @@ function offertaPropostaPerCalcolo(offerta, attuale) {
   };
 }
 
+function scenarioAttualeComparabile(attuale, offerta) {
+  return {
+    luce: offerta.luce ? attuale.luce : scenarioVuoto(),
+    gas: offerta.gas ? attuale.gas : scenarioVuoto(),
+  };
+}
+
+function descriviAmbitoConfronto(offerta) {
+  if (offerta.luce && offerta.gas) return "luce e gas";
+  if (offerta.luce) return "solo luce";
+  if (offerta.gas) return "solo gas";
+  return "profilo selezionato";
+}
+
 function mostraErroreDatiMancanti() {
   const areaRisultati = document.getElementById("results-area");
   const badgeNumero = document.getElementById("verdetto-numero");
@@ -1385,7 +1452,8 @@ function rigaComparazione(label, valori) {
     <tr>
       <td style="padding:8px; border-bottom:1px solid #e2e8f0; font-weight:700;">${label}</td>
       <td style="padding:8px; border-bottom:1px solid #e2e8f0; text-align:right;">${euro(valori.quotaVariabile)}</td>
-      <td style="padding:8px; border-bottom:1px solid #e2e8f0; text-align:right;">${euro(valori.quotaFissa)}</td>
+      <td style="padding:8px; border-bottom:1px solid #e2e8f0; text-align:right;">${euro(valori.quotaFissaVendita)}</td>
+      <td style="padding:8px; border-bottom:1px solid #e2e8f0; text-align:right;">${euro(valori.quotaTecnicaProfilo)}</td>
       <td style="padding:8px; border-bottom:1px solid #e2e8f0; text-align:right; font-weight:800;">${euro(valori.totale)}</td>
     </tr>
   `;
@@ -1406,8 +1474,9 @@ function renderComparazione(areaRisultati, confrontoNuova) {
       <thead>
         <tr>
           <th style="padding:8px; text-align:left;">Scenario</th>
-          <th style="padding:8px; text-align:right;">Quota variabile</th>
-          <th style="padding:8px; text-align:right;">Quota fissa</th>
+          <th style="padding:8px; text-align:right;">Materia/variabile</th>
+          <th style="padding:8px; text-align:right;">Fissa vendita</th>
+          <th style="padding:8px; text-align:right;">Profilo</th>
           <th style="padding:8px; text-align:right;">Totale</th>
         </tr>
       </thead>
@@ -1417,6 +1486,9 @@ function renderComparazione(areaRisultati, confrontoNuova) {
         ${rigaComparazione("Differenza", confrontoNuova.differenza)}
       </tbody>
     </table>
+    <p style="margin:10px 0 0; color:var(--text-muted); font-size:12px;">
+      ${PARAMETRI_CALCOLO.note} Versione: ${MOTORE_CALCOLO_VERSION}.
+    </p>
   `;
 }
 
@@ -1431,10 +1503,10 @@ function prezzoOffertaTesto(voce, commodity) {
 
 function dettagliOfferta(offerta) {
   const luce = offerta.luce
-    ? `Luce: ${prezzoOffertaTesto(offerta.luce, "luce")} | Fisso: ${euro(offerta.luce.quotaFissaAnnua)}`
+    ? `Luce: ${prezzoOffertaTesto(offerta.luce, "luce")} | Fisso vendita: ${euro(offerta.luce.quotaFissaAnnua)}`
     : "Luce non inclusa";
   const gas = offerta.gas
-    ? `Gas: ${prezzoOffertaTesto(offerta.gas, "gas")} | Fisso: ${euro(offerta.gas.quotaFissaAnnua)}`
+    ? `Gas: ${prezzoOffertaTesto(offerta.gas, "gas")} | Fisso vendita: ${euro(offerta.gas.quotaFissaAnnua)}`
     : "Gas non incluso";
   return `${luce} | ${gas}. ${offerta.descrizione}`;
 }
@@ -1497,18 +1569,20 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       return;
     }
 
-    const costoOfferta = calcolaOfferta(offertaPropostaPerCalcolo(offerta, attuale), tipoTariffa);
-    const differenza = costoAttuale.totale - costoOfferta.totale;
+    const attualeComparabile = calcolaOfferta(scenarioAttualeComparabile(attuale, offerta), tipoTariffa);
+    const costoOfferta = calcolaOfferta(offertaPropostaPerCalcolo(offerta, attuale), offerta.tipo || tipoTariffa);
+    const differenza = attualeComparabile.totale - costoOfferta.totale;
     const risparmio = differenza >= 0;
+    const ambito = descriviAmbitoConfronto(offerta);
 
     card.style.display = "flex";
     saving.style.display = "block";
-    offerteCalcolate.push({ card, offerta, costo: costoOfferta.totale, differenza, risparmio, saving });
+    offerteCalcolate.push({ card, offerta, costo: costoOfferta.totale, costoOfferta, attualeComparabile, differenza, risparmio, saving, ambito });
   });
 
   offerteCalcolate
-    .sort((a, b) => a.costo - b.costo)
-    .forEach(({ card, offerta, costo, differenza, risparmio, saving }, index) => {
+    .sort((a, b) => (b.differenza - a.differenza) || (a.costo - b.costo))
+    .forEach(({ card, offerta, costo, costoOfferta, differenza, risparmio, saving, ambito }, index) => {
       if (index > 2) {
         card.style.setProperty("display", "none", "important");
         return;
@@ -1534,12 +1608,16 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
           };
         }
         saving.style.color = risparmio ? "var(--primary)" : "var(--danger)";
-        saving.innerText = risparmio
-          ? `Risparmio stimato annuo: ${euro(Math.abs(differenza))} | Costo annuo stimato: ${euro(costo)}`
-          : `Costo annuo piu alto di: ${euro(Math.abs(differenza))} | Costo annuo stimato: ${euro(costo)}`;
-        if (index === 0 && !saving.innerText.startsWith("Migliore offerta")) {
-          saving.innerText = `Migliore offerta per i tuoi consumi | ${saving.innerText}`;
-        }
+        const esito = risparmio
+          ? `Risparmio annuo stimato: ${euro(Math.abs(differenza))}`
+          : `Costo annuo più alto di: ${euro(Math.abs(differenza))}`;
+        const prefisso = index === 0 ? "Migliore offerta per i tuoi consumi | " : "";
+        saving.innerHTML = `
+          <span>${prefisso}${esito} | Costo stimato ${ambito}: ${euro(costo)}</span>
+          <small style="display:block; margin-top:3px; color:var(--text-muted); font-weight:600;">
+            Materia/variabile: ${euro(costoOfferta.quotaVariabile)} | Fissa vendita: ${euro(costoOfferta.quotaFissaVendita)} | Profilo: ${euro(costoOfferta.quotaTecnicaProfilo)}
+          </small>
+        `;
       } else {
         if (title) title.innerText = `#${index + 1}`;
         if (details) details.innerText = "Verifica il cellulare per vedere nome fornitore, dettagli economici e link.";
@@ -1553,8 +1631,8 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
         }
         saving.style.color = risparmio ? "var(--primary)" : "var(--danger)";
         saving.innerText = risparmio
-          ? `Risparmio potenziale stimato: ${euro(Math.abs(differenza))} / anno`
-          : `Costo stimato superiore all'attuale di: ${euro(Math.abs(differenza))} / anno`;
+          ? `Risparmio potenziale stimato ${ambito}: ${euro(Math.abs(differenza))} / anno`
+          : `Costo stimato superiore sull'ambito ${ambito}: ${euro(Math.abs(differenza))} / anno`;
       }
       contenitoreSchede?.appendChild(card);
     });
@@ -2125,18 +2203,18 @@ function applicaDatiPdfAlModulo(data) {
   ].forEach(clearField);
 
   if (!data || Object.keys(data).length === 0) {
-    setField("master-luce-consumo", "2700");
-    setField("master-gas-consumo", "700");
-    setField("master-luce-potenza", "3");
-    setField("master-luce-tipo", "fisso");
-    setField("master-tipo-fornitura", "dual");
-    setField("master-gas-regione", "nord-ovest");
-    setField("in-luce-cons-att", "2700");
-    setField("in-luce-prezzo-att", "0.1500");
-    setField("in-luce-fisso-att", "144");
-    setField("in-gas-cons-att", "700");
-    setField("in-gas-prezzo-att", "0.6800");
-    setField("in-gas-fisso-att", "120");
+    setField("master-luce-consumo", PARAMETRI_CALCOLO.profiloMedio.luceConsumoKwh);
+    setField("master-gas-consumo", PARAMETRI_CALCOLO.profiloMedio.gasConsumoSmc);
+    setField("master-luce-potenza", PARAMETRI_CALCOLO.profiloMedio.potenzaKw);
+    setField("master-luce-tipo", PARAMETRI_CALCOLO.profiloMedio.tipoPrezzo);
+    setField("master-tipo-fornitura", PARAMETRI_CALCOLO.profiloMedio.tipoFornitura);
+    setField("master-gas-regione", PARAMETRI_CALCOLO.profiloMedio.regioneGas);
+    setField("in-luce-cons-att", PARAMETRI_CALCOLO.profiloMedio.luceConsumoKwh);
+    setField("in-luce-prezzo-att", PARAMETRI_CALCOLO.profiloMedio.prezzoLuceEurKwh.toFixed(4));
+    setField("in-luce-fisso-att", PARAMETRI_CALCOLO.profiloMedio.quotaFissaLuceAnnua);
+    setField("in-gas-cons-att", PARAMETRI_CALCOLO.profiloMedio.gasConsumoSmc);
+    setField("in-gas-prezzo-att", PARAMETRI_CALCOLO.profiloMedio.prezzoGasEurSmc.toFixed(4));
+    setField("in-gas-fisso-att", PARAMETRI_CALCOLO.profiloMedio.quotaFissaGasAnnua);
     return;
   }
 
@@ -2425,12 +2503,12 @@ if (document.readyState === "loading") {
               if(pulsanteCalcoloManuale) pulsanteCalcoloManuale.style.display = "none";
 
               // A. Configura le tendine Master superiori
-              if(document.getElementById("master-luce-consumo")) document.getElementById("master-luce-consumo").value = "2700";
-              if(document.getElementById("master-luce-potenza")) document.getElementById("master-luce-potenza").value = "3";
-              if(document.getElementById("master-luce-tipo")) document.getElementById("master-luce-tipo").value = "fisso";
-              if(document.getElementById("master-gas-consumo")) document.getElementById("master-gas-consumo").value = "700";
-              if(document.getElementById("master-tipo-fornitura")) document.getElementById("master-tipo-fornitura").value = "dual";
-              if(document.getElementById("master-gas-regione")) document.getElementById("master-gas-regione").value = "nord-ovest";
+              if(document.getElementById("master-luce-consumo")) document.getElementById("master-luce-consumo").value = String(PARAMETRI_CALCOLO.profiloMedio.luceConsumoKwh);
+              if(document.getElementById("master-luce-potenza")) document.getElementById("master-luce-potenza").value = PARAMETRI_CALCOLO.profiloMedio.potenzaKw;
+              if(document.getElementById("master-luce-tipo")) document.getElementById("master-luce-tipo").value = PARAMETRI_CALCOLO.profiloMedio.tipoPrezzo;
+              if(document.getElementById("master-gas-consumo")) document.getElementById("master-gas-consumo").value = String(PARAMETRI_CALCOLO.profiloMedio.gasConsumoSmc);
+              if(document.getElementById("master-tipo-fornitura")) document.getElementById("master-tipo-fornitura").value = PARAMETRI_CALCOLO.profiloMedio.tipoFornitura;
+              if(document.getElementById("master-gas-regione")) document.getElementById("master-gas-regione").value = PARAMETRI_CALCOLO.profiloMedio.regioneGas;
 
               // B. SELEZIONE FORNITORI DI DEFAULT (Fondamentale se la funzione nativa li richiede)
               if(document.getElementById("nome-fornitore-att")) document.getElementById("nome-fornitore-att").value = "enel";
@@ -2438,26 +2516,22 @@ if (document.readyState === "loading") {
 
               // C. AUTOCOMPILA TUTTI I CAMPI NUMERICI INFERIORI (Valori stimati stabili)
               // Fornitura Attuale
-              if(document.getElementById("in-luce-cons-att")) document.getElementById("in-luce-cons-att").value = "2700";
-              if(document.getElementById("in-luce-prezzo-att")) document.getElementById("in-luce-prezzo-att").value = "0.1500";
-              if(document.getElementById("in-luce-fisso-att")) document.getElementById("in-luce-fisso-att").value = "144";
-              if(document.getElementById("in-luce-universali-att")) document.getElementById("in-luce-universali-att").value = "150";
+              if(document.getElementById("in-luce-cons-att")) document.getElementById("in-luce-cons-att").value = String(PARAMETRI_CALCOLO.profiloMedio.luceConsumoKwh);
+              if(document.getElementById("in-luce-prezzo-att")) document.getElementById("in-luce-prezzo-att").value = PARAMETRI_CALCOLO.profiloMedio.prezzoLuceEurKwh.toFixed(4);
+              if(document.getElementById("in-luce-fisso-att")) document.getElementById("in-luce-fisso-att").value = String(PARAMETRI_CALCOLO.profiloMedio.quotaFissaLuceAnnua);
 
-              if(document.getElementById("in-gas-cons-att")) document.getElementById("in-gas-cons-att").value = "700";
-              if(document.getElementById("in-gas-prezzo-att")) document.getElementById("in-gas-prezzo-att").value = "0.6800";
-              if(document.getElementById("in-gas-fisso-att")) document.getElementById("in-gas-fisso-att").value = "120";
-              if(document.getElementById("in-gas-universali-att")) document.getElementById("in-gas-universali-att").value = "150";
+              if(document.getElementById("in-gas-cons-att")) document.getElementById("in-gas-cons-att").value = String(PARAMETRI_CALCOLO.profiloMedio.gasConsumoSmc);
+              if(document.getElementById("in-gas-prezzo-att")) document.getElementById("in-gas-prezzo-att").value = PARAMETRI_CALCOLO.profiloMedio.prezzoGasEurSmc.toFixed(4);
+              if(document.getElementById("in-gas-fisso-att")) document.getElementById("in-gas-fisso-att").value = String(PARAMETRI_CALCOLO.profiloMedio.quotaFissaGasAnnua);
 
               // Nuova Offerta: resta vuota. Il confronto diretto si mostra solo se l'utente compila o carica una scheda.
-              if(document.getElementById("in-luce-cons-nuov")) document.getElementById("in-luce-cons-nuov").value = "2700";
+              if(document.getElementById("in-luce-cons-nuov")) document.getElementById("in-luce-cons-nuov").value = String(PARAMETRI_CALCOLO.profiloMedio.luceConsumoKwh);
               if(document.getElementById("in-luce-prezzo-nuov")) document.getElementById("in-luce-prezzo-nuov").value = "";
               if(document.getElementById("in-luce-fisso-nuov")) document.getElementById("in-luce-fisso-nuov").value = "";
-              if(document.getElementById("in-luce-universali-nuov")) document.getElementById("in-luce-universali-nuov").value = "150";
 
-              if(document.getElementById("in-gas-cons-nuov")) document.getElementById("in-gas-cons-nuov").value = "700";
+              if(document.getElementById("in-gas-cons-nuov")) document.getElementById("in-gas-cons-nuov").value = String(PARAMETRI_CALCOLO.profiloMedio.gasConsumoSmc);
               if(document.getElementById("in-gas-prezzo-nuov")) document.getElementById("in-gas-prezzo-nuov").value = "";
               if(document.getElementById("in-gas-fisso-nuov")) document.getElementById("in-gas-fisso-nuov").value = "";
-              if(document.getElementById("in-gas-universali-nuov")) document.getElementById("in-gas-universali-nuov").value = "150";
 
               // D. Forza l'apertura visiva dell'area risultati
               const areaRisultati = document.getElementById("results-area");

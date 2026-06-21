@@ -25,6 +25,7 @@ data/template-registro-lead.csv
                             Template Google Sheet/CRM lead
 data/acquirenti-lead.csv   Registro potenziali acquirenti lead
 docs/                      Note privacy/sicurezza/aziende
+docs/MOTORE-CALCOLO.md     Regole del motore tariffario e prossimi livelli di precisione
 ```
 
 ## Pagine pubbliche
@@ -32,6 +33,12 @@ docs/                      Note privacy/sicurezza/aziende
 - `/`: calcolatore operativo.
 - `/come-funziona.html`: spiega metodo, dati usati, limiti della stima, partner e remunerazione.
 - `/partner.html`: presenta OffertaLogica a fornitori, network affiliate e partner commerciali.
+
+## Motore di calcolo
+
+Il confronto separa materia/variabile, quota fissa vendita, componenti di profilo e totale annuo stimato. Le offerte solo luce o solo gas vengono confrontate solo sulla commodity corretta, evitando risparmi gonfiati.
+
+Vedi `docs/MOTORE-CALCOLO.md`.
 
 ## Deploy su Vercel
 
