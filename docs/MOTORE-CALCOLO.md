@@ -16,6 +16,7 @@ Per ogni scenario il motore separa:
 Materia/variabile       Consumo annuo x prezzo unitario dell'offerta.
 Fissa vendita           Corrispettivo fisso annuo commerciale dell'offerta.
 Profilo                 Correzioni di profilo da potenza luce e ambito gas.
+Reg./fisc.              Componenti regolate, imposte e IVA se valorizzate nei dati.
 Totale                  Somma delle componenti sopra.
 ```
 
@@ -66,9 +67,11 @@ Il motore prova a leggere:
 ```text
 /data/calcolo-parametri.json
 data/calcolo-parametri.json
+/data/offerte-proposte.json
+data/offerte-proposte.json
 ```
 
-La prima strada serve online su Vercel. La seconda e utile in ambienti statici compatibili.
+La prima strada serve online su Vercel. La seconda e utile in ambienti statici compatibili. Se i file non sono disponibili, il calcolatore usa i fallback interni.
 
 Vedi anche:
 
@@ -78,7 +81,9 @@ docs/AGGIORNARE-PARAMETRI-CALCOLO.md
 
 ## Cosa non e ancora incluso al centesimo
 
-La versione attuale e una stima comparativa omogenea. Non include ancora in modo puntuale:
+La versione attuale e una stima comparativa omogenea. Il motore ha gia campi per componenti regolate, imposte e IVA, ma i valori restano a zero finche non sono verificati.
+
+Non include ancora in modo puntuale:
 
 - IVA;
 - accise;
@@ -92,9 +97,16 @@ Queste componenti vanno aggiunte in una fase successiva usando tabelle aggiornab
 
 ## Regola di manutenzione tariffe
 
-Quando si aggiorna un'offerta, non modificare formule sparse.
+Quando si aggiorna un'offerta, non modificare formule sparse e non modificare l'array fallback dentro `index.html`.
 
-Aggiornare solo la scheda dentro `OFFERTE_PROPOSTE`:
+Aggiornare solo la scheda dentro:
+
+```text
+data/offerte-proposte.json
+public/data/offerte-proposte.json
+```
+
+Campi principali:
 
 ```text
 provider
@@ -118,7 +130,7 @@ formula: { tipo: "indice_spread", indice: "pun", spread: 0.0000 }
 formula: { tipo: "indice_spread", indice: "psv", spread: 0.0000 }
 ```
 
-Poi aggiornare `INDICI_MERCATO` con il valore medio scelto per il periodo di confronto.
+Poi aggiornare `indiciMercato` dentro `calcolo-parametri.json` con il valore medio scelto per il periodo di confronto.
 
 ## Prossimo salto di qualita
 
@@ -130,4 +142,4 @@ Il livello successivo e spostare:
 - scaglioni gas;
 - imposte;
 
-in file dati separati, caricati dal frontend o dal backend. Il primo passaggio e gia stato fatto con `calcolo-parametri.json`; il prossimo e spostare anche offerte e componenti fiscali in dati strutturati.
+in file dati separati, caricati dal frontend o dal backend. Parametri e offerte sono gia stati spostati in JSON; il prossimo passaggio e aggiungere componenti fiscali e scaglioni gas in dati strutturati.

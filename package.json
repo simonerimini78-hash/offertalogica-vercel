@@ -6,12 +6,11 @@
   "scripts": {
     "dev": "vercel dev",
     "start": "vercel dev",
-    "lint": "node scripts/check-env.mjs"
+    "lint": "node scripts/check-env.mjs",
+    "validate:calculator": "node scripts/validate-calculator-data.mjs"
   },
   "dependencies": {
     "@paralleldrive/cuid2": "^2.2.2",
-    "@vercel/analytics": "^2.0.1",
-    "@vercel/speed-insights": "^2.0.0",
     "formidable": "^3.5.4",
     "pdf-parse": "^1.1.1"
   },

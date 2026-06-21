@@ -821,9 +821,15 @@ function avviaComparazioneDati() {
 } // Chiude in modo pulito la funzione principale avviaComparazioneDati
 </script>
 <script>
-let MOTORE_CALCOLO_VERSION = "motore-v4-parametri-esterni-2026-06-21";
+let MOTORE_CALCOLO_VERSION = "motore-v5-dati-esterni-2026-06-21";
 const DATI_CALCOLO_URLS = ["/data/calcolo-parametri.json", "data/calcolo-parametri.json"];
+const DATI_OFFERTE_URLS = ["/data/offerte-proposte.json", "data/offerte-proposte.json"];
 let DATI_CALCOLO_META = {
+  versioneDati: "fallback-html-2026-06-21",
+  fonte: "Fallback interno HTML",
+  aggiornatoIl: "2026-06-21",
+};
+let DATI_OFFERTE_META = {
   versioneDati: "fallback-html-2026-06-21",
   fonte: "Fallback interno HTML",
   aggiornatoIl: "2026-06-21",
@@ -856,6 +862,20 @@ let PARAMETRI_CALCOLO = {
       sud: 25,
       sicilia: 35,
       sardegna: 35,
+    },
+  },
+  componentiRegolate: {
+    luce: {
+      variabileEurUnita: 0,
+      fissaAnnua: 0,
+      imposteEurUnita: 0,
+      ivaPercentuale: 0,
+    },
+    gas: {
+      variabileEurUnita: 0,
+      fissaAnnua: 0,
+      imposteEurUnita: 0,
+      ivaPercentuale: 0,
     },
   },
   note: "Stima comparativa annua prima di IVA e imposte puntuali. Le componenti di profilo sono applicate in modo omogeneo a tutti gli scenari.",
@@ -962,7 +982,7 @@ async function caricaDatiCalcolo() {
   return false;
 }
 
-const OFFERTE_PROPOSTE = [
+let OFFERTE_PROPOSTE = [
   {
     id: 1,
     provider: "E.ON",
@@ -1134,13 +1154,92 @@ const OFFERTE_PROPOSTE = [
   },
 ];
 
+function normalizzaVoceOfferta(voce) {
+  if (!voce || typeof voce !== "object") return null;
+  const normalized = {
+    prezzoVariabile: numeroSicuro(voce.prezzoVariabile, 0),
+    quotaFissaAnnua: numeroSicuro(voce.quotaFissaAnnua, 0),
+  };
+  if (voce.formula && typeof voce.formula === "object") {
+    normalized.formula = {
+      tipo: voce.formula.tipo || "",
+      indice: voce.formula.indice || "",
+      spread: numeroSicuro(voce.formula.spread, 0),
+    };
+  }
+  return normalized;
+}
+
+function normalizzaOfferta(offerta, index) {
+  if (!offerta || typeof offerta !== "object") return null;
+  const luce = normalizzaVoceOfferta(offerta.luce);
+  const gas = normalizzaVoceOfferta(offerta.gas);
+  if (!luce && !gas) return null;
+
+  return {
+    id: offerta.id || index + 1,
+    provider: offerta.provider || offerta.fornitore || "Fornitore",
+    nome: offerta.nome || offerta.offerta || "Offerta energia",
+    tipo: offerta.tipo || "fisso",
+    fornitura: offerta.fornitura || (luce && gas ? "dual" : "separate"),
+    link: offerta.link || "#",
+    destinationType: offerta.destinationType || "da_definire",
+    destinationStatus: offerta.destinationStatus || "da_cercare",
+    luce,
+    gas,
+    descrizione: offerta.descrizione || "",
+    fonte: offerta.fonte || "",
+    aggiornataIl: offerta.aggiornataIl || "",
+  };
+}
+
+function applicaDatiOfferte(data) {
+  const offerte = Array.isArray(data) ? data : data?.offerte;
+  if (!Array.isArray(offerte)) return false;
+
+  const offertePulite = offerte
+    .map((offerta, index) => normalizzaOfferta(offerta, index))
+    .filter(Boolean);
+
+  if (!offertePulite.length) return false;
+
+  DATI_OFFERTE_META = {
+    versioneDati: data.versioneDati || data.version || DATI_OFFERTE_META.versioneDati,
+    fonte: data.fonte || DATI_OFFERTE_META.fonte,
+    aggiornatoIl: data.aggiornatoIl || DATI_OFFERTE_META.aggiornatoIl,
+  };
+  OFFERTE_PROPOSTE = offertePulite;
+  return true;
+}
+
+async function caricaOfferteProposte() {
+  if (!window.fetch || window.location.protocol === "file:") return false;
+
+  for (const url of DATI_OFFERTE_URLS) {
+    try {
+      const response = await fetch(url, { cache: "no-store" });
+      if (!response.ok) continue;
+      const data = await response.json();
+      if (applicaDatiOfferte(data)) return true;
+    } catch (error) {
+      // Il fallback interno mantiene operative le offerte.
+    }
+  }
+
+  return false;
+}
+
 function numeroSicuro(value, fallback = 0) {
   const number = Number(value);
   return Number.isFinite(number) ? number : fallback;
 }
 
+function componentiRegolateVuote() {
+  return { variabileEurUnita: 0, fissaAnnua: 0, imposteEurUnita: 0, ivaPercentuale: 0 };
+}
+
 function scenarioVuoto() {
-  return { consumo: 0, prezzoVariabile: 0, quotaFissaAnnua: 0, quoteUniversaliAnnue: 0 };
+  return { consumo: 0, prezzoVariabile: 0, quotaFissaAnnua: 0, quoteUniversaliAnnue: 0, componentiRegolate: componentiRegolateVuote() };
 }
 
 function risolviPrezzoVariabile(voce) {
@@ -1159,7 +1258,7 @@ function tipoPrezzoVoce(voce, tipoTariffa) {
   return tipoTariffa || "fisso";
 }
 
-function calcolaVoceEnergia({ consumo = 0, prezzoVariabile = 0, formula, quotaFissaAnnua = 0, quoteUniversaliAnnue = 0, tipoTariffa, commodity }) {
+function calcolaVoceEnergia({ consumo = 0, prezzoVariabile = 0, formula, quotaFissaAnnua = 0, quoteUniversaliAnnue = 0, componentiRegolate, tipoTariffa, commodity }) {
   const consumoProfilo = Math.max(0, numeroSicuro(consumo, 0));
   const tipoVoce = tipoPrezzoVoce({ formula }, tipoTariffa);
   const fattorePerdite = commodity === "luce" && tipoVoce === "variabile" ? PERDITE_RETE_LUCE_VARIABILE : 1;
@@ -1168,7 +1267,15 @@ function calcolaVoceEnergia({ consumo = 0, prezzoVariabile = 0, formula, quotaFi
   const quotaMateria = consumoFatturato * prezzoCalcolo;
   const quotaFissaVendita = Math.max(0, numeroSicuro(quotaFissaAnnua, 0));
   const quotaTecnicaProfilo = Math.max(0, numeroSicuro(quoteUniversaliAnnue, 0));
-  const quotaFissa = quotaFissaVendita + quotaTecnicaProfilo;
+  const regolate = componentiRegolate || componentiRegolateVuote();
+  const quotaRegolataVariabile = consumoFatturato * Math.max(0, numeroSicuro(regolate.variabileEurUnita, 0));
+  const quotaImposte = consumoFatturato * Math.max(0, numeroSicuro(regolate.imposteEurUnita, 0));
+  const quotaRegolataFissa = Math.max(0, numeroSicuro(regolate.fissaAnnua, 0));
+  const imponibile = quotaMateria + quotaFissaVendita + quotaTecnicaProfilo + quotaRegolataVariabile + quotaRegolataFissa + quotaImposte;
+  const quotaIva = imponibile * Math.max(0, numeroSicuro(regolate.ivaPercentuale, 0));
+  const quotaRegolata = quotaRegolataVariabile + quotaRegolataFissa;
+  const quotaFissa = quotaFissaVendita + quotaTecnicaProfilo + quotaRegolataFissa;
+  const quotaFiscale = quotaImposte + quotaIva;
 
   return {
     commodity,
@@ -1181,8 +1288,14 @@ function calcolaVoceEnergia({ consumo = 0, prezzoVariabile = 0, formula, quotaFi
     quotaVariabile: quotaMateria,
     quotaFissaVendita,
     quotaTecnicaProfilo,
+    quotaRegolata,
+    quotaRegolataVariabile,
+    quotaRegolataFissa,
+    quotaImposte,
+    quotaIva,
+    quotaFiscale,
     quotaFissa,
-    totale: quotaMateria + quotaFissa,
+    totale: imponibile + quotaIva,
   };
 }
 
@@ -1204,6 +1317,10 @@ function calcolaOfferta(offerta, tipoTariffa) {
     quotaVariabile: luce.quotaVariabile + gas.quotaVariabile,
     quotaFissaVendita: luce.quotaFissaVendita + gas.quotaFissaVendita,
     quotaTecnicaProfilo: luce.quotaTecnicaProfilo + gas.quotaTecnicaProfilo,
+    quotaRegolata: luce.quotaRegolata + gas.quotaRegolata,
+    quotaImposte: luce.quotaImposte + gas.quotaImposte,
+    quotaIva: luce.quotaIva + gas.quotaIva,
+    quotaFiscale: luce.quotaFiscale + gas.quotaFiscale,
     quotaFissa: luce.quotaFissa + gas.quotaFissa,
     totale: luce.totale + gas.totale,
   };
@@ -1220,6 +1337,10 @@ function calcolaDifferenza(offertaAttuale, offertaConfronto, tipoTariffa) {
       quotaVariabile: attuale.quotaVariabile - confronto.quotaVariabile,
       quotaFissaVendita: attuale.quotaFissaVendita - confronto.quotaFissaVendita,
       quotaTecnicaProfilo: attuale.quotaTecnicaProfilo - confronto.quotaTecnicaProfilo,
+      quotaRegolata: attuale.quotaRegolata - confronto.quotaRegolata,
+      quotaImposte: attuale.quotaImposte - confronto.quotaImposte,
+      quotaIva: attuale.quotaIva - confronto.quotaIva,
+      quotaFiscale: attuale.quotaFiscale - confronto.quotaFiscale,
       quotaFissa: attuale.quotaFissa - confronto.quotaFissa,
       totale: attuale.totale - confronto.totale,
     },
@@ -1365,6 +1486,10 @@ function maggiorazioneMaster(commodity) {
   return PARAMETRI_MASTER.regioneGas[regione] || 0;
 }
 
+function componentiRegolateMaster(commodity) {
+  return PARAMETRI_CALCOLO.componentiRegolate?.[commodity] || componentiRegolateVuote();
+}
+
 function leggiOffertaAttuale() {
   return {
     luce: {
@@ -1372,12 +1497,14 @@ function leggiOffertaAttuale() {
       prezzoVariabile: leggiNumero("in-luce-prezzo-att"),
       quotaFissaAnnua: leggiNumero("in-luce-fisso-att"),
       quoteUniversaliAnnue: maggiorazioneMaster("luce"),
+      componentiRegolate: componentiRegolateMaster("luce"),
     },
     gas: {
       consumo: leggiNumero("in-gas-cons-att", leggiNumero("master-gas-consumo", 0)),
       prezzoVariabile: leggiNumero("in-gas-prezzo-att"),
       quotaFissaAnnua: leggiNumero("in-gas-fisso-att"),
       quoteUniversaliAnnue: maggiorazioneMaster("gas"),
+      componentiRegolate: componentiRegolateMaster("gas"),
     },
   };
 }
@@ -1389,12 +1516,14 @@ function leggiNuovaOfferta(attuale) {
       prezzoVariabile: leggiNumero("in-luce-prezzo-nuov"),
       quotaFissaAnnua: leggiNumero("in-luce-fisso-nuov"),
       quoteUniversaliAnnue: maggiorazioneMaster("luce"),
+      componentiRegolate: componentiRegolateMaster("luce"),
     },
     gas: {
       consumo: attuale.gas.consumo,
       prezzoVariabile: leggiNumero("in-gas-prezzo-nuov"),
       quotaFissaAnnua: leggiNumero("in-gas-fisso-nuov"),
       quoteUniversaliAnnue: maggiorazioneMaster("gas"),
+      componentiRegolate: componentiRegolateMaster("gas"),
     },
   };
 }
@@ -1419,14 +1548,16 @@ function offertaPropostaPerCalcolo(offerta, attuale) {
       formula: offerta.luce.formula,
       quotaFissaAnnua: offerta.luce.quotaFissaAnnua,
       quoteUniversaliAnnue: attuale.luce.quoteUniversaliAnnue,
-    } : { consumo: 0, prezzoVariabile: 0, quotaFissaAnnua: 0, quoteUniversaliAnnue: 0 },
+      componentiRegolate: attuale.luce.componentiRegolate,
+    } : scenarioVuoto(),
     gas: offerta.gas && usaGas ? {
       consumo: attuale.gas.consumo,
       prezzoVariabile: offerta.gas.prezzoVariabile,
       formula: offerta.gas.formula,
       quotaFissaAnnua: offerta.gas.quotaFissaAnnua,
       quoteUniversaliAnnue: attuale.gas.quoteUniversaliAnnue,
-    } : { consumo: 0, prezzoVariabile: 0, quotaFissaAnnua: 0, quoteUniversaliAnnue: 0 },
+      componentiRegolate: attuale.gas.componentiRegolate,
+    } : scenarioVuoto(),
   };
 }
 
@@ -1514,6 +1645,7 @@ function rigaComparazione(label, valori) {
       <td style="padding:8px; border-bottom:1px solid #e2e8f0; text-align:right;">${euro(valori.quotaVariabile)}</td>
       <td style="padding:8px; border-bottom:1px solid #e2e8f0; text-align:right;">${euro(valori.quotaFissaVendita)}</td>
       <td style="padding:8px; border-bottom:1px solid #e2e8f0; text-align:right;">${euro(valori.quotaTecnicaProfilo)}</td>
+      <td style="padding:8px; border-bottom:1px solid #e2e8f0; text-align:right;">${euro((valori.quotaRegolata || 0) + (valori.quotaFiscale || 0))}</td>
       <td style="padding:8px; border-bottom:1px solid #e2e8f0; text-align:right; font-weight:800;">${euro(valori.totale)}</td>
     </tr>
   `;
@@ -1537,6 +1669,7 @@ function renderComparazione(areaRisultati, confrontoNuova) {
           <th style="padding:8px; text-align:right;">Materia/variabile</th>
           <th style="padding:8px; text-align:right;">Fissa vendita</th>
           <th style="padding:8px; text-align:right;">Profilo</th>
+          <th style="padding:8px; text-align:right;">Reg./fisc.</th>
           <th style="padding:8px; text-align:right;">Totale</th>
         </tr>
       </thead>
@@ -1547,7 +1680,7 @@ function renderComparazione(areaRisultati, confrontoNuova) {
       </tbody>
     </table>
     <p style="margin:10px 0 0; color:var(--text-muted); font-size:12px;">
-      ${PARAMETRI_CALCOLO.note} Motore: ${MOTORE_CALCOLO_VERSION}. Dati: ${DATI_CALCOLO_META.versioneDati} (${DATI_CALCOLO_META.aggiornatoIl}).
+      ${PARAMETRI_CALCOLO.note} Motore: ${MOTORE_CALCOLO_VERSION}. Parametri: ${DATI_CALCOLO_META.versioneDati} (${DATI_CALCOLO_META.aggiornatoIl}). Offerte: ${DATI_OFFERTE_META.versioneDati} (${DATI_OFFERTE_META.aggiornatoIl}).
     </p>
   `;
 }
@@ -1675,7 +1808,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
         saving.innerHTML = `
           <span>${prefisso}${esito} | Costo stimato ${ambito}: ${euro(costo)}</span>
           <small style="display:block; margin-top:3px; color:var(--text-muted); font-weight:600;">
-            Materia/variabile: ${euro(costoOfferta.quotaVariabile)} | Fissa vendita: ${euro(costoOfferta.quotaFissaVendita)} | Profilo: ${euro(costoOfferta.quotaTecnicaProfilo)}
+            Materia/variabile: ${euro(costoOfferta.quotaVariabile)} | Fissa vendita: ${euro(costoOfferta.quotaFissaVendita)} | Profilo: ${euro(costoOfferta.quotaTecnicaProfilo)} | Reg./fisc.: ${euro(costoOfferta.quotaRegolata + costoOfferta.quotaFiscale)}
           </small>
         `;
       } else {
@@ -2390,7 +2523,7 @@ function collegaEventiUX() {
     if (event.target?.id === "offer-consent-backdrop") chiudiConsensoOfferta();
   });
 
-  caricaDatiCalcolo().then(() => {
+  Promise.all([caricaDatiCalcolo(), caricaOfferteProposte()]).then(() => {
     assicuraSchedeOfferte();
     const risultatiVisibili = document.querySelector(".fornitori-consigliati-section")?.style.display === "block";
     if (risultatiVisibili) avviaComparazioneDati();

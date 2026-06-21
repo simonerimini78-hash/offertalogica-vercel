@@ -32,6 +32,20 @@
         "sardegna": 35
       }
     },
+    "componentiRegolate": {
+      "luce": {
+        "variabileEurUnita": 0,
+        "fissaAnnua": 0,
+        "imposteEurUnita": 0,
+        "ivaPercentuale": 0
+      },
+      "gas": {
+        "variabileEurUnita": 0,
+        "fissaAnnua": 0,
+        "imposteEurUnita": 0,
+        "ivaPercentuale": 0
+      }
+    },
     "note": "Stima comparativa annua prima di IVA e imposte puntuali. Le componenti di profilo sono applicate in modo omogeneo a tutti gli scenari."
   },
   "indiciMercato": {

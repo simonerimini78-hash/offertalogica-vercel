@@ -22,6 +22,7 @@ data/                      CSV offerte ARERA
 data/destinazioni-offerte.csv
                             Destinazioni monetizzazione offerte
 data/calcolo-parametri.json Parametri aggiornabili del motore di calcolo
+data/offerte-proposte.json  Offerte proposte aggiornabili dal frontend
 data/template-registro-lead.csv
                             Template Google Sheet/CRM lead
 data/acquirenti-lead.csv   Registro potenziali acquirenti lead
@@ -39,9 +40,9 @@ docs/AGGIORNARE-PARAMETRI-CALCOLO.md
 
 ## Motore di calcolo
 
-Il confronto separa materia/variabile, quota fissa vendita, componenti di profilo e totale annuo stimato. Le offerte solo luce o solo gas vengono confrontate solo sulla commodity corretta, evitando risparmi gonfiati.
+Il confronto separa materia/variabile, quota fissa vendita, componenti di profilo, componenti regolate/fiscali e totale annuo stimato. Le offerte solo luce o solo gas vengono confrontate solo sulla commodity corretta, evitando risparmi gonfiati.
 
-Il frontend online legge i parametri da `public/data/calcolo-parametri.json` e usa il fallback interno se il file non e disponibile.
+Il frontend online legge i parametri da `public/data/calcolo-parametri.json` e le offerte da `public/data/offerte-proposte.json`. Se i file non sono disponibili usa il fallback interno.
 
 Vedi:
 
@@ -128,6 +129,16 @@ KV_REST_API_TOKEN=il REST TOKEN
 ```
 
 Dopo aver aggiunto o modificato le variabili ambiente, fai sempre un nuovo redeploy di produzione.
+
+## Controlli locali
+
+Per controllare HTML, JSON e motore di calcolo:
+
+```text
+npm run validate:calculator
+```
+
+Il controllo verifica anche che le offerte solo luce o solo gas non vengano confrontate contro tutta la spesa luce+gas.
 
 ## Protezioni API
 
