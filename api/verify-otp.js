@@ -1,6 +1,6 @@
 import { json, method, readJson, requireAllowedOrigin } from "../lib/http.js";
 import { notifyLeadVerified } from "../lib/notify.js";
-import { hashOtp } from "../lib/otp.js";
+import { checkTwilioVerify, hashOtp } from "../lib/otp.js";
 import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
 import { del, getJson, setJson } from "../lib/store.js";
 
@@ -17,7 +17,13 @@ export default async function handler(req, res) {
     if (otp.expiresAt < Date.now()) return json(res, 400, { ok: false, error: "Codice scaduto" });
     if (otp.attempts >= 5) return json(res, 429, { ok: false, error: "Troppi tentativi" });
 
-    const valid = hashOtp(lead.phone, String(code || "")) === otp.hash;
+    let valid = false;
+    if (otp.provider === "twilio-verify") {
+      const twilioResult = await checkTwilioVerify(lead.phone, String(code || ""));
+      valid = twilioResult.approved;
+    } else {
+      valid = hashOtp(lead.phone, String(code || "")) === otp.hash;
+    }
     if (!valid) {
       await setJson(`otp:${leadId}`, { ...otp, attempts: otp.attempts + 1 }, 300);
       return json(res, 400, { ok: false, error: "Codice non corretto" });

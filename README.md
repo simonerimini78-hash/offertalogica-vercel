@@ -84,6 +84,7 @@ ARUBA_SMS_SENDER=
 ARUBA_SMS_MESSAGE_TYPE=
 TWILIO_ACCOUNT_SID=
 TWILIO_AUTH_TOKEN=
+TWILIO_VERIFY_SERVICE_SID=
 TWILIO_FROM_NUMBER=
 LEAD_WEBHOOK_URL=
 LEAD_WEBHOOK_SECRET=
@@ -99,9 +100,18 @@ Sono supportati anche gli alias `KV_REST_API_URL` e `KV_REST_API_TOKEN`, utili s
 
 Il sistema sceglie il provider in questo ordine:
 
-1. Aruba SMS, se sono configurate le variabili `ARUBA_SMS_*`;
-2. Twilio, se sono configurate le variabili `TWILIO_*`;
-3. demo, se non e configurato nessun provider.
+1. Twilio Verify, se sono configurate `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` e `TWILIO_VERIFY_SERVICE_SID`;
+2. Aruba SMS, se sono configurate le variabili `ARUBA_SMS_*`;
+3. Twilio Messaging classico, se sono configurate `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` e `TWILIO_FROM_NUMBER`;
+4. demo solo se `DEMO_OTP_ENABLED=true`.
+
+Variabili Twilio Verify:
+
+```text
+TWILIO_ACCOUNT_SID=
+TWILIO_AUTH_TOKEN=
+TWILIO_VERIFY_SERVICE_SID=
+```
 
 Variabili Aruba SMS consigliate:
 

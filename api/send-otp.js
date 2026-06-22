@@ -19,15 +19,18 @@ export default async function handler(req, res) {
     }))) return;
 
     const code = createOtp();
+    const sent = await sendOtpSms(lead.phone, code);
     const otp = {
       leadId,
-      hash: hashOtp(lead.phone, code),
+      provider: sent.provider,
+      hash: sent.provider === "twilio-verify" ? "" : hashOtp(lead.phone, code),
       attempts: 0,
       expiresAt: otpExpiresAt(),
       createdAt: new Date().toISOString(),
+      providerStatus: sent.status || "",
+      providerSid: sent.sid || "",
     };
     await setJson(`otp:${leadId}`, otp, otpTtlSeconds());
-    const sent = await sendOtpSms(lead.phone, code);
 
     json(res, 200, {
       ok: true,
