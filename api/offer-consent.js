@@ -14,6 +14,7 @@ const ALLOWED_OFFER_DOMAINS = [
   "eniplenitude.com",
   "alperia.eu",
   "sorgenia.it",
+  "tradedoubler.com",
 ];
 
 function sanitizeOffer(input = {}) {
@@ -120,6 +121,7 @@ export default async function handler(req, res) {
       ok: true,
       status: "received",
       webhookSent: Boolean(updatedLead.notification?.webhookSent),
+      redirectUrl: selectedOffer.destinationStatus === "attiva" ? selectedOffer.link : "",
     });
   } catch (error) {
     json(res, 400, { ok: false, error: error.message || "Errore consenso offerta" });

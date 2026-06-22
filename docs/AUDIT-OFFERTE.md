@@ -7,8 +7,8 @@ Offerte analizzate: 13
 ## Risultato sintetico
 
 ```text
-Coerenti senza rilievi: 0
-Da verificare: 13
+Coerenti senza rilievi: 1
+Da verificare: 12
 Non pubblicare: 0
 Certificate: 5
 ```
@@ -21,7 +21,6 @@ Certificate: 5
 - 7 NeN - neN Duel Luce e Gas: Fonte tariffaria da verificare con scheda sintetica o fonte ufficiale; Monetizzazione non attiva: in_attesa_approvazione; Link tracking non configurato
 - 8 NeN - neN Luce Surf: Variabile senza formula PUN/PSV esplicita: oggi usa prezzo di calcolo statico; Fonte tariffaria da verificare con scheda sintetica o fonte ufficiale; Monetizzazione non attiva: in_attesa_approvazione; Link tracking non configurato
 - 9 NeN - neN Gas Surf: Variabile senza formula PUN/PSV esplicita: oggi usa prezzo di calcolo statico; Fonte tariffaria da verificare con scheda sintetica o fonte ufficiale; Monetizzazione non attiva: in_attesa_approvazione; Link tracking non configurato
-- 10 Enel - Enel Fix Web Luce e Gas: Fonte tariffaria da verificare con scheda sintetica o fonte ufficiale; Monetizzazione non attiva: da_cercare; Link tracking non configurato
 - 11 Eni Plenitude - Eni Plenitude Fix Scontata: Fonte tariffaria da verificare con scheda sintetica o fonte ufficiale; Monetizzazione non attiva: in_attesa_approvazione; Link tracking non configurato
 
 ## Regole applicate
