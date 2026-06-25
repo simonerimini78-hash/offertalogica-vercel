@@ -39,6 +39,10 @@ export default async function handler(req, res) {
       demoCode: sent.demoCode,
     });
   } catch (error) {
+    console.error("send_otp_failed", {
+      message: error.message || "Errore invio OTP",
+      at: new Date().toISOString(),
+    });
     json(res, 400, { ok: false, error: error.message || "Errore invio OTP" });
   }
 }
