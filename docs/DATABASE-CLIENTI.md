@@ -66,7 +66,7 @@ CUSTOMER_DB_EVENTS_TABLE=lead_events
 CUSTOMER_DB_HASH_SECRET=
 ```
 
-`CUSTOMER_DB_SUPABASE_SERVICE_ROLE_KEY` deve restare solo lato server in Vercel. Non va mai inserita nel frontend.
+`CUSTOMER_DB_SUPABASE_SERVICE_ROLE_KEY` puo contenere la nuova secret key Supabase `sb_secret_...` oppure la vecchia `service_role` JWT legacy. Deve restare solo lato server in Vercel. Non va mai inserita nel frontend, nel codice o su GitHub.
 
 `CUSTOMER_DB_HASH_SECRET` serve a salvare l'hash dell'indirizzo IP tecnico senza conservare l'IP in chiaro nello snapshot JSON.
 

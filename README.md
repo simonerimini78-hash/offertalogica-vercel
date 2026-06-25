@@ -168,6 +168,8 @@ CUSTOMER_DB_EVENTS_TABLE=lead_events
 CUSTOMER_DB_HASH_SECRET=
 ```
 
+`CUSTOMER_DB_SUPABASE_SERVICE_ROLE_KEY` puo essere la nuova chiave Supabase `sb_secret_...` o la vecchia `service_role` legacy. Deve stare solo nelle variabili ambiente Vercel.
+
 Se queste variabili mancano, il sito continua a funzionare senza salvare nel database clienti. Se sono presenti, il backend salva:
 
 - lead creato;
