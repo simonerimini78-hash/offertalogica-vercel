@@ -39,11 +39,11 @@ Un'offerta puo diventare monetizzata solo quando:
 Il calcolatore deve separare sempre due concetti:
 
 - `Le migliori per i tuoi consumi`: prime tre offerte ordinate per costo annuo stimato reale;
-- `Attivabile online`: offerte con affiliazione attiva che possono essere mostrate anche se non sono nelle prime tre, senza presentarle come le piu convenienti.
+- `Attivabile online`: offerte con affiliazione attiva che vengono mostrate sempre, anche se non coincidono con il filtro scelto o non sono nelle prime tre, senza presentarle come le piu convenienti quando non lo sono.
 
-Se un'offerta affiliata attiva e fuori dalla top 3, viene mostrata come `Attivabile online`. Se il suo costo stimato e molto vicino alla migliore, viene marcata come `Miglior compromesso attivabile`.
+Se un'offerta affiliata attiva e fuori dalla top 3, viene mostrata come `Attivabile online`. Se non coincide con il filtro selezionato, viene marcata come alternativa attivabile. Se il suo costo stimato e molto vicino alla migliore, viene marcata come `Miglior compromesso attivabile`.
 
-Questa regola protegge la fiducia del calcolatore: la monetizzazione non deve alterare la classifica economica.
+Questa regola protegge insieme fiducia e monetizzazione: la classifica economica resta calcolata sui consumi e sui filtri, ma il percorso commerciale non rimane mai senza destinazioni concrete.
 
 ## Tracking scelta offerta
 

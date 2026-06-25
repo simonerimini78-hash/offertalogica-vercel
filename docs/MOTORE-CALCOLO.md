@@ -1,6 +1,6 @@
 # Motore di calcolo OffertaLogica
 
-Aggiornamento: 2026-06-21
+Aggiornamento: 2026-06-25
 
 ## Obiettivo
 
@@ -131,6 +131,59 @@ formula: { tipo: "indice_spread", indice: "psv", spread: 0.0000 }
 ```
 
 Poi aggiornare `indiciMercato` dentro `calcolo-parametri.json` con il valore medio scelto per il periodo di confronto.
+
+## Uso degli open data ARERA/AU
+
+Gli open data del Portale Offerte sono la base piu credibile per allargare il magazzino offerte, ma non devono entrare automaticamente nel calcolatore pubblico.
+
+Flusso corretto:
+
+```text
+1. Scaricare o aggiornare i dati ARERA/AU.
+2. Trasformarli in candidati normalizzati.
+3. Escludere business, condomini, offerte non domestiche e righe con prezzi ambigui.
+4. Separare offerte fisse gia calcolabili da offerte variabili che richiedono PUN/PSV.
+5. Portare nel JSON live solo le offerte con match sicuro e fonte annotata.
+6. Tenere le offerte affiliate attive sempre visibili come destinazioni commerciali, anche fuori filtro.
+```
+
+Il comando operativo per scaricare l'ultimo pacchetto disponibile e:
+
+```text
+npm run sync:arera
+```
+
+Il comando operativo per creare una lista di lavoro dai candidati presenti e:
+
+```text
+npm run shortlist:arera
+```
+
+Questi comandi non aggiornano `offerte-proposte.json`: generano solo candidati e shortlist di manutenzione, cosi evitiamo di pubblicare offerte non verificate.
+
+La shortlist operativa non pesca da tutto il mercato indistinto: estrae prima le offerte dei fornitori presenti nella tendina del calcolatore e genera anche:
+
+```text
+data/arera-candidati-menu.csv
+```
+
+Il CSV completo resta disponibile come archivio tecnico, ma la manutenzione commerciale parte dai fornitori che OffertaLogica ha deciso di presidiare.
+
+Per aggiornare una offerta live senza copia-incolla manuale:
+
+```text
+npm run promote:arera -- --offer-id ID_OFFERTA --luce CODICE_LUCE --gas CODICE_GAS
+```
+
+Questo comando promuove solo righe fisse e pronte. Aggiorna anche il registro di certificazione, mantenendo il link commerciale esistente salvo uso esplicito di `--update-link`.
+
+Su GitHub e presente anche un workflow settimanale:
+
+```text
+.github/workflows/update-arera-open-data.yml
+```
+
+Il workflow aggiorna i candidati ARERA/AU, valida il calcolatore e committa i file di manutenzione se cambiano.
 
 ## Prossimo salto di qualita
 

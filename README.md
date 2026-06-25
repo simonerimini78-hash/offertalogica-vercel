@@ -31,6 +31,13 @@ data/certificazione-offerte.csv
 data/template-registro-lead.csv
                             Template Google Sheet/CRM lead
 data/acquirenti-lead.csv   Registro potenziali acquirenti lead
+data/offerte-reali-arera-candidati.csv
+                            Candidati importati dagli open data ARERA/AU
+data/arera-candidati-menu.csv
+                            Candidati ARERA/AU limitati ai fornitori della tendina
+data/arera-shortlist-manutenzione.csv
+                            Shortlist offerte da verificare/promuovere
+data/arera-sync-meta.json   Metadati ultimo sync ARERA/AU
 docs/                      Note privacy/sicurezza/aziende
 docs/MOTORE-CALCOLO.md     Regole del motore tariffario e prossimi livelli di precisione
 docs/AUDIT-OFFERTE.md      Report sintetico sulle offerte da verificare
@@ -38,6 +45,8 @@ docs/CERTIFICAZIONE-OFFERTE.md
                             Fonti ufficiali e schede sintetiche usate per certificare le offerte
 docs/AGGIORNARE-PARAMETRI-CALCOLO.md
                             Istruzioni per aggiornare profilo medio, indici e componenti
+.github/workflows/update-arera-open-data.yml
+                            Aggiornamento automatico candidati ARERA/AU
 ```
 
 ## Pagine pubbliche
@@ -210,6 +219,65 @@ npm run audit:offers
 Questo comando aggiorna `data/audit-offerte.csv` e `docs/AUDIT-OFFERTE.md`.
 
 Le offerte certificate sono tracciate in `data/certificazione-offerte.csv`. Non modificare un prezzo nel JSON pubblico senza aggiornare anche il registro di certificazione.
+
+## Aggiornamento open data ARERA/AU
+
+Gli open data del Portale Offerte ARERA/AU vengono usati come magazzino neutro di offerte reali.
+
+Per aggiornare manualmente i candidati:
+
+```text
+npm run sync:arera
+npm run shortlist:arera
+```
+
+`sync:arera` scarica l'ultimo pacchetto mercato libero luce/gas dal Portale Offerte e aggiorna:
+
+- `data/offerte-reali-arera-candidati.csv`;
+- `data/arera-sync-meta.json`.
+
+`shortlist:arera` genera:
+
+- `data/arera-shortlist-manutenzione.csv`.
+- `data/arera-candidati-menu.csv`.
+
+Il file completo `offerte-reali-arera-candidati.csv` resta come archivio tecnico. Il lavoro operativo parte invece da `arera-candidati-menu.csv`, che contiene solo i fornitori presenti nella tendina del calcolatore.
+
+Per promuovere una riga ARERA dentro il listino pubblico:
+
+```text
+npm run promote:arera -- --offer-id 11 --luce CODICE_LUCE --gas CODICE_GAS
+```
+
+Esempio per offerta solo luce:
+
+```text
+npm run promote:arera -- --offer-id 6 --luce CODICE_LUCE
+```
+
+Prima di scrivere i file puoi fare una simulazione:
+
+```text
+npm run promote:arera -- --offer-id 11 --luce CODICE_LUCE --gas CODICE_GAS --dry-run
+```
+
+Lo script aggiorna:
+
+- `data/offerte-proposte.json`;
+- `public/data/offerte-proposte.json`;
+- `data/certificazione-offerte.csv`.
+
+Per sicurezza promuove solo righe `pronta_fisso`. Le variabili `PUN/PSV + spread` restano fuori dalla promozione automatica finche non sono state modellate con formula completa.
+
+Il link live resta quello commerciale/affiliato gia presente. Solo se vuoi sostituirlo con il link ARERA devi aggiungere:
+
+```text
+--update-link
+```
+
+Il workflow GitHub `.github/workflows/update-arera-open-data.yml` esegue questi controlli ogni lunedi e poi lancia anche `validate:calculator` e `audit:offers`.
+
+Importante: l'automazione non modifica `data/offerte-proposte.json` e non modifica `public/data/offerte-proposte.json`. Le offerte pubbliche vanno promosse solo dopo verifica della scheda sintetica, link attivabile e modello di monetizzazione.
 
 ## Protezioni API
 

@@ -373,7 +373,7 @@
                         <label for="master-luce-tipo">Tipo di Tariffa (Luce e Gas)</label>
                         <select id="master-luce-tipo">
                             <option value="fisso" selected>Prezzo Fisso (Bloccato)</option>
-                            <option value="variabile">Prezzo Variable (Indicizzato PUN/PSV)</option>
+                            <option value="variabile">Prezzo Variabile (Indicizzato PUN/PSV)</option>
                         </select>
                     </div>
                 </div>
@@ -702,7 +702,7 @@ function avviaComparazioneDati() {
 
         const partnerDati = [
             { id: 1, nome: "E.ON Luce e Gas Insieme", lucePrezzo: 0.1041, gasPrezzo: 0.519, corrispettivoAnnuo: 108.00, tipo: "fisso", fornitura: "dual" },
-            { id: 2, nome: "A2A Click", lucePrezzo: 0.129, gasPrezzo: 0.470, corrispettivoAnnuo: 102.00, tipo: "variabile", fornitura: "dual" },
+            { id: 2, nome: "A2A Start Luce e Gas", lucePrezzo: 0.139, gasPrezzo: 0.490, corrispettivoAnnuo: 228.00, tipo: "fisso", fornitura: "dual" },
             { id: 3, nome: "Magis Energia Mia Fix", lucePrezzo: 0.1027, gasPrezzo: 0.4930, corrispettivoAnnuo: 96.00, tipo: "fisso", fornitura: "separate" },
             { id: 4, nome: "Octopus Luce e Gas", lucePrezzo: 0.1298, gasPrezzo: 0.4900, corrispettivoAnnuo: 156.00, tipo: "fisso", fornitura: "dual" },
             { id: 5, nome: "Iren Fissa 36 Mesi", lucePrezzo: 0.1000, gasPrezzo: 0.4300, corrispettivoAnnuo: 240.00, tipo: "fisso", fornitura: "dual" },
@@ -3081,11 +3081,11 @@ if (document.readyState === "loading") {
             <a id="link-partner-1" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
         </div>
 
-        <!-- Offerta Consigliata 2: A2A -->
+        <!-- Offerta Consigliata 2: A2A Start Luce e Gas -->
         <div class="partner-vertical-card" style="background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
             <div class="partner-meta">
-                <div class="partner-title" style="font-size: 16px; font-weight: bold; color: var(--text-color);">A2A Click</div>
-                <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Prezzi. Luce: 0,129 €/kWh | Gas: 0,470 €/Smc. Corrispettivo annuo: 102€ (Variabile)</div>
+                <div class="partner-title" style="font-size: 16px; font-weight: bold; color: var(--text-color);">A2A Start Luce e Gas</div>
+                <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Prezzi. Luce: 0,1390 €/kWh | Gas: 0,4900 €/Smc. Corrispettivo annuo: 114€ luce + 114€ gas (Fisso 24 mesi)</div>
                 <div id="risparmio-partner-2" style="font-size: 14px; font-weight: bold; color: var(--primary); margin-top: 5px; display: none;"></div>
             </div>
             <a id="link-partner-2" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
