@@ -1821,7 +1821,9 @@ function offertaAttivabileOnline(offerta) {
 function testoBadgeOfferta(item, migliore) {
   if (item.gruppoVisuale === "top" && item.posizioneEconomica === 1) return "Migliore per i tuoi consumi";
   if (item.gruppoVisuale === "top") return `#${item.posizioneEconomica} per costo stimato`;
+  if (item.gruppoVisuale === "attivabile" && item.compatibileRanking) return "Attivabile e coerente";
   if (item.gruppoVisuale === "attivabile" && item.posizioneEconomica && item.posizioneEconomica <= 3) return `#${item.posizioneEconomica} per costo stimato`;
+  if (item.gruppoVisuale === "attivabile") return "Alternativa attivabile";
   const scarto = item.costo - (migliore?.costo || item.costo);
   return scarto <= 50 ? "Miglior compromesso attivabile" : "Attivabile online";
 }
@@ -1876,6 +1878,31 @@ function assicuraIntestazioneOfferte(id, titolo, testo) {
     container.appendChild(header);
   }
   return header;
+}
+
+function assicuraMessaggioOfferteVuote() {
+  const container = document.querySelector(".vertical-cards-container");
+  if (!container) return null;
+  let message = document.getElementById("offerte-empty-message");
+  if (!message) {
+    message = document.createElement("div");
+    message.id = "offerte-empty-message";
+    message.style.cssText = "display:none; padding:16px; border:1px solid #fde68a; border-radius:10px; background:#fffbeb; color:#78350f; font-size:14px; line-height:1.45;";
+    container.appendChild(message);
+  }
+  return message;
+}
+
+function testoFiltroOfferte(tipoTariffa, tipoFornitura) {
+  const tariffa = tipoTariffa === "variabile" ? "prezzo variabile" : "prezzo fisso";
+  const fornitura = tipoFornitura === "dual" ? "dual fuel luce e gas" : "forniture separate";
+  return `${tariffa} / ${fornitura}`;
+}
+
+function descriviTipoOfferta(offerta) {
+  const tariffa = offerta.tipo === "variabile" ? "prezzo variabile" : "prezzo fisso";
+  const fornitura = offerta.fornitura === "dual" ? "dual fuel" : "fornitura separata";
+  return `${tariffa}, ${fornitura}`;
 }
 
 function aggiornaIntestazioneOfferte(header, titolo, testo) {
@@ -1933,8 +1960,9 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
   const headerAttivabili = assicuraIntestazioneOfferte(
     "offerte-attivabili-heading",
     "Offerte attivabili online",
-    "Sono proposte disponibili tramite i nostri partner: possono non essere le prime per prezzo, ma hanno un percorso di attivazione tracciabile."
+    "Le mostriamo sempre per darti una destinazione concreta. Se non coincidono con il filtro selezionato sono indicate come alternative."
   );
+  const emptyMessage = assicuraMessaggioOfferteVuote();
 
   OFFERTE_PROPOSTE.forEach((offerta) => {
     const saving = document.getElementById(`risparmio-partner-${offerta.id}`);
@@ -1943,7 +1971,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
 
     const compatibileRanking = offerta.tipo === tipoTariffa && offerta.fornitura === tipoFornitura;
     const attivabileOnline = offertaAttivabileOnline(offerta);
-    const attivabileCoerente = attivabileOnline && offertaCoerenteConFornitura(offerta, tipoFornitura);
+    const attivabileCoerente = attivabileOnline;
     if (!compatibileRanking && !attivabileCoerente) {
       card.style.setProperty("display", "none", "important");
       return;
@@ -1963,6 +1991,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       compatibileRanking,
       attivabileOnline,
       attivabileCoerente,
+      alternativeFiltro: attivabileOnline && !compatibileRanking,
       costo: costoOfferta.totale,
       costoOfferta,
       attualeComparabile,
@@ -2001,6 +2030,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
   const visibili = [...attivabiliPrioritarie, ...topEconomiche];
   const idsVisibili = new Set(visibili.map((item) => String(item.offerta.id)));
   const migliore = ordinateRanking[0] || offerteCalcolate[0] || null;
+  const hasVisibleOffers = visibili.length > 0;
 
   offerteCalcolate.forEach(({ card, offerta }) => {
     if (!idsVisibili.has(String(offerta.id))) {
@@ -2008,11 +2038,21 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
     }
   });
 
+  if (emptyMessage) {
+    emptyMessage.style.display = hasVisibleOffers ? "none" : "block";
+    emptyMessage.innerHTML = `
+      <strong style="display:block; margin-bottom:4px;">Nessuna offerta disponibile per questo filtro.</strong>
+      Al momento nella lista aggiornata non abbiamo offerte ${testoFiltroOfferte(tipoTariffa, tipoFornitura)}.
+      Stiamo ampliando i partner e le schede certificate: prova a cambiare filtro oppure carica la bolletta per una verifica più precisa.
+    `;
+    if (!hasVisibleOffers) contenitoreSchede?.appendChild(emptyMessage);
+  }
+
   aggiornaIntestazioneOfferte(
     headerTop,
     attivabiliPrioritarie.length ? "Altre offerte migliori per costo" : "Le 3 offerte migliori per i tuoi consumi",
     attivabiliPrioritarie.length
-      ? "Classifica economica calcolata sul tuo profilo, al netto delle offerte attivabili gia mostrate sopra."
+      ? "Classifica economica calcolata sul tuo profilo e sul filtro selezionato, al netto delle offerte attivabili gia mostrate sopra."
       : "Ordinate in base al costo annuo stimato sul profilo inserito."
   );
 
@@ -2026,12 +2066,14 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
     contenitoreSchede?.appendChild(headerTop);
   }
 
-  visibili.forEach(({ card, offerta, costo, costoOfferta, differenza, risparmio, saving, ambito, posizioneEconomica, gruppoVisuale, attivabileOnline }) => {
+  visibili.forEach(({ card, offerta, costo, costoOfferta, differenza, risparmio, saving, ambito, posizioneEconomica, gruppoVisuale, attivabileOnline, compatibileRanking, alternativeFiltro }) => {
       const context = {
         economyRank: posizioneEconomica,
         displayGroup: gruppoVisuale,
         isTopEconomic: gruppoVisuale === "top",
         isActiveAffiliate: attivabileOnline,
+        matchesSelectedFilter: Boolean(compatibileRanking),
+        isFilterAlternative: Boolean(alternativeFiltro),
         annualCost: Number(costo.toFixed(2)),
         annualDelta: Number(differenza.toFixed(2)),
         bestAnnualCost: migliore ? Number(migliore.costo.toFixed(2)) : Number(costo.toFixed(2)),
@@ -2049,10 +2091,13 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       const title = card.querySelector(".partner-title");
       const details = card.querySelector(".partner-details");
       const link = card.querySelector("a");
-      const badgeText = testoBadgeOfferta({ posizioneEconomica, gruppoVisuale, costo }, migliore);
+      const badgeText = testoBadgeOfferta({ posizioneEconomica, gruppoVisuale, costo, compatibileRanking }, migliore);
       const badge = `<span style="display:inline-block; margin:0 0 6px; padding:3px 8px; border:1px solid; border-radius:999px; font-size:11px; font-weight:800; ${stileBadgeOfferta({ posizioneEconomica, gruppoVisuale })}">${badgeText}</span>`;
       const onlineBadge = attivabileOnline && !badgeText.toLowerCase().includes("attivabile")
         ? `<span style="display:inline-block; margin:0 0 6px 6px; padding:3px 8px; border:1px solid #a7f3d0; border-radius:999px; background:#ecfdf5; color:#047857; font-size:11px; font-weight:800;">Attivabile online</span>`
+        : "";
+      const alternativeNote = alternativeFiltro
+        ? `<small style="display:block; margin-top:3px; color:#92400e; font-weight:700;">Alternativa ${descriviTipoOfferta(offerta)} mostrata anche se il filtro selezionato e ${testoFiltroOfferte(tipoTariffa, tipoFornitura)}.</small>`
         : "";
       if (LEAD_STATE.verified) {
         if (title) title.innerText = offerta.nome;
@@ -2073,6 +2118,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
         saving.innerHTML = `
           ${badge}${onlineBadge}
           <span style="display:block;">${esito} | Costo stimato ${ambito}: ${euro(costo)}</span>
+          ${alternativeNote}
           <small style="display:block; margin-top:3px; color:var(--text-muted); font-weight:600;">
             Materia energia/gas: ${euro(costoOfferta.quotaVariabile)} | Fissa vendita: ${euro(costoOfferta.quotaFissaVendita)} | Potenza/ambito: ${euro(costoOfferta.quotaTecnicaProfilo)} | Oneri, imposte e IVA: ${euroOneriFiscali(costoOfferta.quotaRegolata + costoOfferta.quotaFiscale)}
           </small>
@@ -2094,6 +2140,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
           <span style="display:block;">${risparmio
             ? `Risparmio potenziale stimato ${ambito}: ${euro(Math.abs(differenza))} / anno`
             : `Costo stimato superiore sull'ambito ${ambito}: ${euro(Math.abs(differenza))} / anno`}</span>
+          ${alternativeNote}
         `;
       }
       contenitoreSchede?.appendChild(card);
@@ -2112,11 +2159,11 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
     headerTop.style.display = "none";
   }
 
-  LEAD_STATE.bestSaving = Math.max(0, ...ordinateRanking.slice(0, 3).map((item) => item.differenza));
+  LEAD_STATE.bestSaving = Math.max(0, ...visibili.map((item) => item.differenza));
   const teaser = document.getElementById("lead-teaser");
   const teaserTitle = document.getElementById("lead-teaser-title");
   const teaserCopy = document.getElementById("lead-teaser-copy");
-  if (teaser) teaser.style.display = !LEAD_STATE.verified && offerteCalcolate.length > 0 ? "block" : "none";
+  if (teaser) teaser.style.display = !LEAD_STATE.verified && hasVisibleOffers ? "block" : "none";
   if (teaserTitle) {
     teaserTitle.innerText = LEAD_STATE.bestSaving > 0
       ? `Possibile risparmio fino a ${euro(LEAD_STATE.bestSaving)} / anno`
