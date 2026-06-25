@@ -712,7 +712,7 @@ function avviaComparazioneDati() {
             { id: 9, nome: "neN Gas Surf", lucePrezzo: 0.0000, gasPrezzo: 0.0000, corrispettivoAnnuo: 120.00, tipo: "variabile", fornitura: "separate" },
             // 🆕 ULTIME AGGIUNTE: ENEL, ENI PLENITUDE E ALPERIA
             { id: 10, nome: "Enel Fix Web Luce e Gas", lucePrezzo: 0.1390, gasPrezzo: 0.4900, corrispettivoAnnuo: 288.00, tipo: "fisso", fornitura: "dual" },
-            { id: 11, nome: "Eni Plenitude Fixa Time 24", lucePrezzo: 0.1440, gasPrezzo: 0.5678, corrispettivoAnnuo: 180.00, tipo: "fisso", fornitura: "dual" },
+            { id: 11, nome: "Eni Plenitude Fixa Time 24", lucePrezzo: 0.0987, gasPrezzo: 0.4205, corrispettivoAnnuo: 288.00, tipo: "fisso", fornitura: "dual" },
             { id: 12, nome: "Alperia Smile Easy / Start", lucePrezzo: 0.1027, gasPrezzo: 0.4500, corrispettivoAnnuo: 239.40, tipo: "fisso", fornitura: "dual" },
             { id: 13, nome: "Sorgenia Next Energy Smart", lucePrezzo: 0.1300, gasPrezzo: 0.5200, corrispettivoAnnuo: 258.00, tipo: "fisso", fornitura: "dual" },
         ];
@@ -835,9 +835,9 @@ let DATI_CALCOLO_META = {
   aggiornatoIl: "2026-06-21",
 };
 let DATI_OFFERTE_META = {
-  versioneDati: "fallback-html-2026-06-21-v2-certified",
+  versioneDati: "fallback-html-2026-06-25-v3-partner",
   fonte: "Fallback interno HTML con prime offerte certificate da Portale Offerte ARERA/AU",
-  aggiornatoIl: "2026-06-21",
+  aggiornatoIl: "2026-06-25",
 };
 let PARAMETRI_CALCOLO = {
   perditeReteLuceVariabile: 1.102,
@@ -883,7 +883,7 @@ let PARAMETRI_CALCOLO = {
       ivaPercentuale: 0,
     },
   },
-  note: "Stima comparativa annua prima di IVA e imposte puntuali. Le componenti di profilo sono applicate in modo omogeneo a tutti gli scenari.",
+  note: "Stima comparativa annua sulle componenti disponibili. Oneri, imposte e IVA puntuali sono indicati come n.n. quando non stimati nel dettaglio. Le componenti di profilo sono applicate in modo omogeneo a tutti gli scenari.",
 };
 let PERDITE_RETE_LUCE_VARIABILE = PARAMETRI_CALCOLO.perditeReteLuceVariabile;
 const TESTO_METODOLOGIA_CONSUMI_REALI = "I risparmi stimati sono calcolati sui consumi che hai inserito o confermato dalla bolletta. Applichiamo le condizioni economiche delle offerte allo stesso profilo di consumo, separando quota variabile e quota fissa.";
@@ -1160,9 +1160,9 @@ let OFFERTE_PROPOSTE = [
     link: "https://clk.tradedoubler.com/click?p=271844&a=3487966&epi=offertalogica&epi2=eni_plenitude_fixa_time_24&url=https%3A%2F%2Feniplenitude.com%2Fofferta%2Fcasa%2Fgas-e-luce",
     destinationType: "affiliazione",
     destinationStatus: "attiva",
-    luce: { prezzoVariabile: 0.144, quotaFissaAnnua: 90 },
-    gas: { prezzoVariabile: 0.5678, quotaFissaAnnua: 90 },
-    descrizione: "Fixa Time 24; condizioni aggiornate sulla landing ufficiale Plenitude",
+    luce: { prezzoVariabile: 0.0987, quotaFissaAnnua: 144 },
+    gas: { prezzoVariabile: 0.4205, quotaFissaAnnua: 144 },
+    descrizione: "Fixa Time 24 dual fuel; luce 0,0987 €/kWh e gas 0,4205 €/Smc, commercializzazione e vendita 144 €/anno per luce e 144 €/anno per gas",
   },
   {
     id: 12,
@@ -1447,6 +1447,28 @@ function euro(value) {
   return `${amount.toFixed(2)} €`;
 }
 
+function componentiRegolateDisponibili() {
+  const componenti = PARAMETRI_CALCOLO.componentiRegolate || {};
+  return ["luce", "gas"].some((commodity) => {
+    const valori = componenti[commodity] || {};
+    return [
+      valori.variabileEurUnita,
+      valori.fissaAnnua,
+      valori.imposteEurUnita,
+      valori.ivaPercentuale,
+    ].some((value) => Math.abs(numeroSicuro(value, 0)) > 0);
+  });
+}
+
+function euroOneriFiscali(value) {
+  return componentiRegolateDisponibili() ? euro(value) : "n.n.";
+}
+
+function notaOneriFiscali() {
+  if (componentiRegolateDisponibili()) return "";
+  return " Oneri, imposte e IVA: n.n. = dato non stimato nel dettaglio, per evitare di indicare come zero una voce che puo dipendere da bolletta, regime fiscale e condizioni applicate.";
+}
+
 function setDisplay(selector, display) {
   document.querySelectorAll(selector).forEach((element) => {
     element.style.display = display;
@@ -1727,7 +1749,7 @@ function rigaComparazione(label, valori) {
       <td style="padding:8px; border-bottom:1px solid #e2e8f0; text-align:right;">${euro(valori.quotaVariabile)}</td>
       <td style="padding:8px; border-bottom:1px solid #e2e8f0; text-align:right;">${euro(valori.quotaFissaVendita)}</td>
       <td style="padding:8px; border-bottom:1px solid #e2e8f0; text-align:right;">${euro(valori.quotaTecnicaProfilo)}</td>
-      <td style="padding:8px; border-bottom:1px solid #e2e8f0; text-align:right;">${euro((valori.quotaRegolata || 0) + (valori.quotaFiscale || 0))}</td>
+      <td style="padding:8px; border-bottom:1px solid #e2e8f0; text-align:right;">${euroOneriFiscali((valori.quotaRegolata || 0) + (valori.quotaFiscale || 0))}</td>
       <td style="padding:8px; border-bottom:1px solid #e2e8f0; text-align:right; font-weight:800;">${euro(valori.totale)}</td>
     </tr>
   `;
@@ -1750,8 +1772,8 @@ function renderComparazione(areaRisultati, confrontoNuova) {
           <th style="padding:8px; text-align:left;">Scenario</th>
           <th style="padding:8px; text-align:right;">Materia/variabile</th>
           <th style="padding:8px; text-align:right;">Fissa vendita</th>
-          <th style="padding:8px; text-align:right;">Profilo</th>
-          <th style="padding:8px; text-align:right;">Reg./fisc.</th>
+          <th style="padding:8px; text-align:right;">Potenza/ambito</th>
+          <th style="padding:8px; text-align:right;">Oneri, imposte e IVA</th>
           <th style="padding:8px; text-align:right;">Totale</th>
         </tr>
       </thead>
@@ -1762,7 +1784,7 @@ function renderComparazione(areaRisultati, confrontoNuova) {
       </tbody>
     </table>
     <p style="margin:10px 0 0; color:var(--text-muted); font-size:12px;">
-      ${PARAMETRI_CALCOLO.note} Motore: ${MOTORE_CALCOLO_VERSION}. Parametri: ${DATI_CALCOLO_META.versioneDati} (${DATI_CALCOLO_META.aggiornatoIl}). Offerte: ${DATI_OFFERTE_META.versioneDati} (${DATI_OFFERTE_META.aggiornatoIl}).
+      ${PARAMETRI_CALCOLO.note}${notaOneriFiscali()} Motore: ${MOTORE_CALCOLO_VERSION}. Parametri: ${DATI_CALCOLO_META.versioneDati} (${DATI_CALCOLO_META.aggiornatoIl}). Offerte: ${DATI_OFFERTE_META.versioneDati} (${DATI_OFFERTE_META.aggiornatoIl}).
     </p>
   `;
 }
@@ -1799,6 +1821,7 @@ function offertaAttivabileOnline(offerta) {
 function testoBadgeOfferta(item, migliore) {
   if (item.gruppoVisuale === "top" && item.posizioneEconomica === 1) return "Migliore per i tuoi consumi";
   if (item.gruppoVisuale === "top") return `#${item.posizioneEconomica} per costo stimato`;
+  if (item.gruppoVisuale === "attivabile" && item.posizioneEconomica && item.posizioneEconomica <= 3) return `#${item.posizioneEconomica} per costo stimato`;
   const scarto = item.costo - (migliore?.costo || item.costo);
   return scarto <= 50 ? "Miglior compromesso attivabile" : "Attivabile online";
 }
@@ -1853,6 +1876,14 @@ function assicuraIntestazioneOfferte(id, titolo, testo) {
     container.appendChild(header);
   }
   return header;
+}
+
+function aggiornaIntestazioneOfferte(header, titolo, testo) {
+  if (!header) return;
+  header.innerHTML = `
+    <div style="font-size:14px; font-weight:900;">${titolo}</div>
+    <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">${testo}</div>
+  `;
 }
 
 function assicuraSchedeOfferte() {
@@ -1953,10 +1984,8 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       .map((item, index) => [String(item.offerta.id), index + 1])
   );
 
-  const topEconomiche = ordinateRanking.slice(0, 3).map((item) => ({ ...item, gruppoVisuale: "top" }));
-  const idsTop = new Set(topEconomiche.map((item) => String(item.offerta.id)));
-  const attivabiliExtra = offerteCalcolate
-    .filter((item) => item.attivabileCoerente && !idsTop.has(String(item.offerta.id)))
+  const attivabiliPrioritarie = offerteCalcolate
+    .filter((item) => item.attivabileCoerente)
     .sort((a, b) => (a.costo - b.costo) || (b.differenza - a.differenza))
     .slice(0, 2)
     .map((item) => ({
@@ -1964,7 +1993,12 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       gruppoVisuale: "attivabile",
       posizioneEconomica: rankingGlobale.get(String(item.offerta.id)) || null,
     }));
-  const visibili = [...topEconomiche, ...attivabiliExtra];
+  const idsAttivabili = new Set(attivabiliPrioritarie.map((item) => String(item.offerta.id)));
+  const topEconomiche = ordinateRanking
+    .filter((item) => !idsAttivabili.has(String(item.offerta.id)))
+    .slice(0, 3)
+    .map((item) => ({ ...item, gruppoVisuale: "top" }));
+  const visibili = [...attivabiliPrioritarie, ...topEconomiche];
   const idsVisibili = new Set(visibili.map((item) => String(item.offerta.id)));
   const migliore = ordinateRanking[0] || offerteCalcolate[0] || null;
 
@@ -1974,7 +2008,20 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
     }
   });
 
-  if (headerTop) {
+  aggiornaIntestazioneOfferte(
+    headerTop,
+    attivabiliPrioritarie.length ? "Altre offerte migliori per costo" : "Le 3 offerte migliori per i tuoi consumi",
+    attivabiliPrioritarie.length
+      ? "Classifica economica calcolata sul tuo profilo, al netto delle offerte attivabili gia mostrate sopra."
+      : "Ordinate in base al costo annuo stimato sul profilo inserito."
+  );
+
+  if (headerAttivabili) {
+    headerAttivabili.style.display = attivabiliPrioritarie.length ? "block" : "none";
+    if (attivabiliPrioritarie.length) contenitoreSchede?.appendChild(headerAttivabili);
+  }
+
+  if (headerTop && !attivabiliPrioritarie.length) {
     headerTop.style.display = topEconomiche.length ? "block" : "none";
     contenitoreSchede?.appendChild(headerTop);
   }
@@ -2002,8 +2049,9 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       const title = card.querySelector(".partner-title");
       const details = card.querySelector(".partner-details");
       const link = card.querySelector("a");
-      const badge = `<span style="display:inline-block; margin:0 0 6px; padding:3px 8px; border:1px solid; border-radius:999px; font-size:11px; font-weight:800; ${stileBadgeOfferta({ posizioneEconomica, gruppoVisuale })}">${testoBadgeOfferta({ posizioneEconomica, gruppoVisuale, costo }, migliore)}</span>`;
-      const onlineBadge = attivabileOnline && gruppoVisuale !== "attivabile"
+      const badgeText = testoBadgeOfferta({ posizioneEconomica, gruppoVisuale, costo }, migliore);
+      const badge = `<span style="display:inline-block; margin:0 0 6px; padding:3px 8px; border:1px solid; border-radius:999px; font-size:11px; font-weight:800; ${stileBadgeOfferta({ posizioneEconomica, gruppoVisuale })}">${badgeText}</span>`;
+      const onlineBadge = attivabileOnline && !badgeText.toLowerCase().includes("attivabile")
         ? `<span style="display:inline-block; margin:0 0 6px 6px; padding:3px 8px; border:1px solid #a7f3d0; border-radius:999px; background:#ecfdf5; color:#047857; font-size:11px; font-weight:800;">Attivabile online</span>`
         : "";
       if (LEAD_STATE.verified) {
@@ -2026,7 +2074,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
           ${badge}${onlineBadge}
           <span style="display:block;">${esito} | Costo stimato ${ambito}: ${euro(costo)}</span>
           <small style="display:block; margin-top:3px; color:var(--text-muted); font-weight:600;">
-            Materia/variabile: ${euro(costoOfferta.quotaVariabile)} | Fissa vendita: ${euro(costoOfferta.quotaFissaVendita)} | Profilo: ${euro(costoOfferta.quotaTecnicaProfilo)} | Reg./fisc.: ${euro(costoOfferta.quotaRegolata + costoOfferta.quotaFiscale)}
+            Materia energia/gas: ${euro(costoOfferta.quotaVariabile)} | Fissa vendita: ${euro(costoOfferta.quotaFissaVendita)} | Potenza/ambito: ${euro(costoOfferta.quotaTecnicaProfilo)} | Oneri, imposte e IVA: ${euroOneriFiscali(costoOfferta.quotaRegolata + costoOfferta.quotaFiscale)}
           </small>
         `;
       } else {
@@ -2050,21 +2098,21 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       }
       contenitoreSchede?.appendChild(card);
       if (
-        gruppoVisuale === "top" &&
-        headerAttivabili &&
-        attivabiliExtra.length &&
-        topEconomiche[topEconomiche.length - 1]?.offerta?.id === offerta.id
+        gruppoVisuale === "attivabile" &&
+        headerTop &&
+        topEconomiche.length &&
+        attivabiliPrioritarie[attivabiliPrioritarie.length - 1]?.offerta?.id === offerta.id
       ) {
-        headerAttivabili.style.display = "block";
-        contenitoreSchede?.appendChild(headerAttivabili);
+        headerTop.style.display = "block";
+        contenitoreSchede?.appendChild(headerTop);
       }
     });
 
-  if (headerAttivabili && !attivabiliExtra.length) {
-    headerAttivabili.style.display = "none";
+  if (headerTop && !topEconomiche.length) {
+    headerTop.style.display = "none";
   }
 
-  LEAD_STATE.bestSaving = Math.max(0, ...topEconomiche.map((item) => item.differenza));
+  LEAD_STATE.bestSaving = Math.max(0, ...ordinateRanking.slice(0, 3).map((item) => item.differenza));
   const teaser = document.getElementById("lead-teaser");
   const teaserTitle = document.getElementById("lead-teaser-title");
   const teaserCopy = document.getElementById("lead-teaser-copy");
@@ -3079,7 +3127,7 @@ if (document.readyState === "loading") {
         <div class="partner-vertical-card" style="background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
             <div class="partner-meta">
                 <div class="partner-title" style="font-size: 16px; font-weight: bold; color: var(--text-color);">Eni Plenitude Fixa Time 24</div>
-                <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Prezzi da verificare con scheda sintetica. Corrispettivi di calcolo temporanei: Luce 0,1440 €/kWh | Gas 0,5678 €/Smc | Fissa 180€/anno.</div>
+                <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Prezzi. Luce: 0,0987 €/kWh | Gas: 0,4205 €/Smc. Commercializzazione e vendita: 144€/anno luce + 144€/anno gas.</div>
                 <div id="risparmio-partner-11" style="font-size: 14px; font-weight: bold; color: var(--primary); margin-top: 5px; display: none;"></div>
             </div>
             <a id="link-partner-11" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>

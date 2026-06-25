@@ -1,7 +1,7 @@
 {
-  "versioneDati": "parametri-calcolo-2026-06-21-v1",
+  "versioneDati": "parametri-calcolo-2026-06-25-v2",
   "fonte": "Configurazione OffertaLogica aggiornabile; valori da verificare con fonti ufficiali prima dell'uso commerciale pieno",
-  "aggiornatoIl": "2026-06-21",
+  "aggiornatoIl": "2026-06-25",
   "parametriCalcolo": {
     "perditeReteLuceVariabile": 1.102,
     "profiloMedio": {
@@ -46,7 +46,7 @@
         "ivaPercentuale": 0
       }
     },
-    "note": "Stima comparativa annua prima di IVA e imposte puntuali. Le componenti di profilo sono applicate in modo omogeneo a tutti gli scenari."
+    "note": "Stima comparativa annua sulle componenti disponibili. Oneri, imposte e IVA puntuali sono indicati come n.n. quando non stimati nel dettaglio. Le componenti di profilo sono applicate in modo omogeneo a tutti gli scenari."
   },
   "indiciMercato": {
     "pun": {

@@ -1,7 +1,7 @@
 {
-  "versioneDati": "offerte-proposte-2026-06-21-v2-certified",
+  "versioneDati": "offerte-proposte-2026-06-25-v3-partner",
   "fonte": "Configurazione OffertaLogica con prime offerte certificate da Portale Offerte ARERA/AU open data 20/06/2026; offerte residue da verificare con scheda sintetica o fonte ufficiale",
-  "aggiornatoIl": "2026-06-21",
+  "aggiornatoIl": "2026-06-25",
   "offerte": [
     {
       "id": 1,
@@ -230,10 +230,10 @@
         "prioritaCommerciale": "alta",
         "note": "Programma Eni Gas e Luce_CPL accettato; deeplinking autorizzato."
       },
-      "luce": { "prezzoVariabile": 0.144, "quotaFissaAnnua": 90 },
-      "gas": { "prezzoVariabile": 0.5678, "quotaFissaAnnua": 90 },
-      "descrizione": "Fixa Time 24; condizioni aggiornate sulla landing ufficiale Plenitude",
-      "fonte": "Landing ufficiale Plenitude Offerte luce e gas per la casa verificata il 25/06/2026: offerta Fixa Time 24. Prezzi da verificare con scheda sintetica aggiornata. Destinazione commerciale Tradedoubler attiva: programma Eni Gas e Luce_CPL 271844, sito 3487966, cookie 30 giorni, tasso cancellazione 62%, EPC medio 0.76 EUR.",
+      "luce": { "prezzoVariabile": 0.0987, "quotaFissaAnnua": 144 },
+      "gas": { "prezzoVariabile": 0.4205, "quotaFissaAnnua": 144 },
+      "descrizione": "Fixa Time 24 dual fuel; prezzi promozionali luce 0,0987 eur/kWh e gas 0,4205 eur/Smc, commercializzazione e vendita 144 euro/anno per luce e 144 euro/anno per gas",
+      "fonte": "Landing ufficiale Plenitude Offerte luce e gas per la casa verificata il 25/06/2026: luce monoraria prezzo 24H 0,0987 eur/kWh invece di 0,1172 eur/kWh, commercializzazione e vendita 144 eur/anno; gas 0,4205 eur/Smc invece di 0,4993 eur/Smc, commercializzazione e vendita 144 eur/anno. Destinazione commerciale Tradedoubler attiva: programma Eni Gas e Luce_CPL 271844, sito 3487966, cookie 30 giorni, tasso cancellazione 62%, EPC medio 0.76 EUR.",
       "aggiornataIl": "2026-06-25"
     },
     {

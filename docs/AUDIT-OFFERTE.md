@@ -7,8 +7,8 @@ Offerte analizzate: 13
 ## Risultato sintetico
 
 ```text
-Coerenti senza rilievi: 1
-Da verificare: 12
+Coerenti senza rilievi: 2
+Da verificare: 11
 Non pubblicare: 0
 Certificate: 5
 ```
