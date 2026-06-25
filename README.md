@@ -15,6 +15,7 @@ api/verify-otp.js          Verifica OTP, con notifica lead business
 api/unlock-offers.js       Controllo lead verificato
 api/offer-consent.js       Consenso partner sull'offerta scelta
 api/health.js              Diagnostica protetta Redis/API
+api/staff-leads.js         Vista protetta lead e CSV operativo
 api/staff-preview.js       Attivazione modalita staff/test senza lead
 lib/notify.js              Invio lead operativo/cedibile a webhook esterno
 lib/customerDb.js          Archivio clienti proprietario opzionale su Supabase/Postgres
@@ -47,6 +48,7 @@ docs/AGGIORNARE-PARAMETRI-CALCOLO.md
                             Istruzioni per aggiornare profilo medio, indici e componenti
 .github/workflows/update-arera-open-data.yml
                             Aggiornamento automatico candidati ARERA/AU
+staff-leads.html           Mini console protetta per controllare lead recenti
 ```
 
 ## Pagine pubbliche
@@ -187,6 +189,28 @@ Se queste variabili mancano, il sito continua a funzionare senza salvare nel dat
 - snapshot di calcolo, dati PDF estratti e consensi.
 
 Lo schema SQL consigliato e in `docs/DATABASE-CLIENTI.md`.
+
+## Vista staff lead
+
+Dopo aver configurato Supabase, puoi controllare i lead recenti da:
+
+```text
+https://offertalogica.it/staff-leads.html#token=IL_TUO_STAFF_PREVIEW_TOKEN
+```
+
+La pagina non e indicizzata dai motori di ricerca e richiede `STAFF_PREVIEW_TOKEN` o `HEALTHCHECK_TOKEN`.
+
+Endpoint JSON protetto:
+
+```text
+https://offertalogica.it/api/staff-leads?token=IL_TUO_TOKEN&limit=50
+```
+
+Export CSV protetto:
+
+```text
+https://offertalogica.it/api/staff-leads?token=IL_TUO_TOKEN&limit=50&format=csv
+```
 
 ## Modalita staff/test
 

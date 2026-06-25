@@ -129,3 +129,25 @@ mostra anche `customerDb`. Se il database non e configurato risponde:
 ```
 
 Quando Supabase e collegato correttamente, `configured` diventa `true` e `status` diventa `ready`.
+
+## Vista staff lead
+
+Per un controllo rapido senza entrare nel pannello Supabase:
+
+```text
+https://offertalogica.it/staff-leads.html#token=IL_TUO_STAFF_PREVIEW_TOKEN
+```
+
+La pagina usa l'endpoint protetto:
+
+```text
+https://offertalogica.it/api/staff-leads?token=IL_TUO_TOKEN&limit=50
+```
+
+Puoi scaricare anche un CSV operativo:
+
+```text
+https://offertalogica.it/api/staff-leads?token=IL_TUO_TOKEN&limit=50&format=csv
+```
+
+Usare questa vista solo internamente. Contiene dati personali e va protetta come il pannello Supabase.
