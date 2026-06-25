@@ -221,11 +221,13 @@ Le API POST accettano richieste browser solo dagli origin indicati in `ALLOWED_O
 
 ## Diagnostica protetta
 
-`api/health.js` controlla se lo storage Redis risponde e, se configurato, se il database clienti risponde. Resta nascosta senza `HEALTHCHECK_TOKEN`. Per usarla:
+`api/health.js` controlla se lo storage Redis risponde e, se configurato, se il database clienti risponde. Resta nascosta senza `HEALTHCHECK_TOKEN` o `STAFF_PREVIEW_TOKEN`. Per usarla:
 
 1. crea una variabile ambiente `HEALTHCHECK_TOKEN` con una stringa lunga casuale;
 2. fai redeploy;
 3. apri `https://offertalogica.it/api/health?token=IL_TUO_TOKEN`.
+
+Se il valore di `HEALTHCHECK_TOKEN` non e recuperabile perche e sensitive, puoi usare anche il valore di `STAFF_PREVIEW_TOKEN`.
 
 Risposta attesa:
 

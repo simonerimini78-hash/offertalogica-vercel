@@ -10,13 +10,18 @@ function requestToken(req) {
 }
 
 function isAuthorized(req) {
-  const expected = String(process.env.HEALTHCHECK_TOKEN || "").trim();
-  return Boolean(expected && requestToken(req) === expected);
+  const token = requestToken(req);
+  const healthToken = String(process.env.HEALTHCHECK_TOKEN || "").trim();
+  const staffToken = String(process.env.STAFF_PREVIEW_TOKEN || "").trim();
+  if (healthToken && token === healthToken) return "health";
+  if (staffToken && token === staffToken) return "staff";
+  return "";
 }
 
 export default async function handler(req, res) {
   if (!method(req, res, ["GET"])) return;
-  if (!isAuthorized(req)) return json(res, 404, { ok: false, error: "Not found" });
+  const authorizedBy = isAuthorized(req);
+  if (!authorizedBy) return json(res, 404, { ok: false, error: "Not found" });
 
   const startedAt = Date.now();
   try {
@@ -25,6 +30,7 @@ export default async function handler(req, res) {
     const ok = storageOk && customerDb.ok;
     json(res, ok ? 200 : 500, {
       ok,
+      authorizedBy,
       storage: persistentStoreConfigured() ? "redis" : "memory",
       customerDb,
       latencyMs: Date.now() - startedAt,
