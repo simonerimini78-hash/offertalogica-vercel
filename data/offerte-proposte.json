@@ -179,6 +179,24 @@
       "link": "https://clk.tradedoubler.com/click?p=348999&a=3487966&epi=offertalogica&epi2=enel_fix_web&url=https%3A%2F%2Fwww.enel.it%2Fit-it%2Flanding%2Fcasa%2Fenel-offerte",
       "destinationType": "affiliazione",
       "destinationStatus": "attiva",
+      "monetizzazione": {
+        "attiva": true,
+        "network": "Tradedoubler",
+        "programId": "348999",
+        "siteId": "3487966",
+        "modello": "Lead + transazione",
+        "commissionePrevista": {
+          "luce": 22,
+          "gas": 22,
+          "dual": 44,
+          "valuta": "EUR"
+        },
+        "cookieDays": 30,
+        "tassoCancellazione": 0,
+        "epcMedio": 0,
+        "prioritaCommerciale": "alta",
+        "note": "Programma Enel Italia accettato; deeplinking autorizzato."
+      },
       "luce": { "prezzoVariabile": 0.139, "quotaFissaAnnua": 144 },
       "gas": { "prezzoVariabile": 0.49, "quotaFissaAnnua": 144 },
       "descrizione": "Fisso 3 anni; bonus 200 euro in bolletta per dual fuel",
@@ -194,6 +212,24 @@
       "link": "https://clk.tradedoubler.com/click?p=271844&a=3487966&epi=offertalogica&epi2=eni_plenitude_fixa_time_24&url=https%3A%2F%2Feniplenitude.com%2Fofferta%2Fcasa%2Fgas-e-luce",
       "destinationType": "affiliazione",
       "destinationStatus": "attiva",
+      "monetizzazione": {
+        "attiva": true,
+        "network": "Tradedoubler",
+        "programId": "271844",
+        "siteId": "3487966",
+        "modello": "Lead CPL",
+        "commissionePrevista": {
+          "luce": 25,
+          "gas": 25,
+          "dual": 49,
+          "valuta": "EUR"
+        },
+        "cookieDays": 30,
+        "tassoCancellazione": 62,
+        "epcMedio": 0.76,
+        "prioritaCommerciale": "alta",
+        "note": "Programma Eni Gas e Luce_CPL accettato; deeplinking autorizzato."
+      },
       "luce": { "prezzoVariabile": 0.144, "quotaFissaAnnua": 90 },
       "gas": { "prezzoVariabile": 0.5678, "quotaFissaAnnua": 90 },
       "descrizione": "Fixa Time 24; condizioni aggiornate sulla landing ufficiale Plenitude",

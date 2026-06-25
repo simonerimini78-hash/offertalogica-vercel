@@ -18,6 +18,47 @@ const ALLOWED_OFFER_DOMAINS = [
   "tradedoubler.com",
 ];
 
+function numberOrNull(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function sanitizeMonetization(input = {}) {
+  const commission = input.commissionePrevista || input.expectedCommission || {};
+  return {
+    active: Boolean(input.attiva ?? input.active),
+    network: String(input.network || "").slice(0, 80),
+    programId: String(input.programId || "").slice(0, 40),
+    siteId: String(input.siteId || "").slice(0, 40),
+    model: String(input.modello || input.model || "").slice(0, 120),
+    expectedCommission: {
+      luce: numberOrNull(commission.luce),
+      gas: numberOrNull(commission.gas),
+      dual: numberOrNull(commission.dual),
+      currency: String(commission.valuta || commission.currency || "EUR").slice(0, 8),
+    },
+    cookieDays: numberOrNull(input.cookieDays),
+    cancellationRate: numberOrNull(input.tassoCancellazione ?? input.cancellationRate),
+    epc: numberOrNull(input.epcMedio ?? input.epc),
+    commercialPriority: String(input.prioritaCommerciale || input.commercialPriority || "").slice(0, 40),
+  };
+}
+
+function sanitizeRankingContext(input = {}) {
+  return {
+    economyRank: numberOrNull(input.economyRank),
+    displayGroup: String(input.displayGroup || "").slice(0, 40),
+    isTopEconomic: Boolean(input.isTopEconomic),
+    isActiveAffiliate: Boolean(input.isActiveAffiliate),
+    annualCost: numberOrNull(input.annualCost),
+    annualDelta: numberOrNull(input.annualDelta),
+    bestAnnualCost: numberOrNull(input.bestAnnualCost),
+    estimatedCommission: numberOrNull(input.estimatedCommission),
+    network: String(input.network || "").slice(0, 80),
+    commercialPriority: String(input.commercialPriority || "").slice(0, 40),
+  };
+}
+
 function sanitizeOffer(input = {}) {
   return {
     id: String(input.id || "").slice(0, 40),
@@ -26,6 +67,8 @@ function sanitizeOffer(input = {}) {
     provider: String(input.provider || "").slice(0, 120),
     destinationType: String(input.destinationType || "partner_lead").slice(0, 60),
     destinationStatus: String(input.destinationStatus || "pending_destination").slice(0, 80),
+    monetization: sanitizeMonetization(input.monetization || input.monetizzazione || {}),
+    rankingContext: sanitizeRankingContext(input.rankingContext || {}),
   };
 }
 
@@ -84,6 +127,18 @@ export default async function handler(req, res) {
         offerId: selectedOffer.id,
         offerName: selectedOffer.name,
         link: selectedOffer.link,
+        network: selectedOffer.monetization.network || selectedOffer.rankingContext.network || "",
+        model: selectedOffer.monetization.model || "",
+        programId: selectedOffer.monetization.programId || "",
+        siteId: selectedOffer.monetization.siteId || "",
+        expectedCommission: selectedOffer.rankingContext.estimatedCommission,
+        expectedCommissionByCommodity: selectedOffer.monetization.expectedCommission,
+        economyRank: selectedOffer.rankingContext.economyRank,
+        displayGroup: selectedOffer.rankingContext.displayGroup,
+        annualCost: selectedOffer.rankingContext.annualCost,
+        annualDelta: selectedOffer.rankingContext.annualDelta,
+        isTopEconomic: selectedOffer.rankingContext.isTopEconomic,
+        isActiveAffiliate: selectedOffer.rankingContext.isActiveAffiliate,
         trackedAt: acceptedAt,
         tracking,
       },

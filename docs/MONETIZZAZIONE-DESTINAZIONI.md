@@ -34,6 +34,17 @@ Un'offerta puo diventare monetizzata solo quando:
 3. il consenso partner e coerente con la destinazione;
 4. il click o l'invio lead viene registrato con `leadId`, offerta, timestamp e stato.
 
+## Regola di visualizzazione
+
+Il calcolatore deve separare sempre due concetti:
+
+- `Le migliori per i tuoi consumi`: prime tre offerte ordinate per costo annuo stimato reale;
+- `Attivabile online`: offerte con affiliazione attiva che possono essere mostrate anche se non sono nelle prime tre, senza presentarle come le piu convenienti.
+
+Se un'offerta affiliata attiva e fuori dalla top 3, viene mostrata come `Attivabile online`. Se il suo costo stimato e molto vicino alla migliore, viene marcata come `Miglior compromesso attivabile`.
+
+Questa regola protegge la fiducia del calcolatore: la monetizzazione non deve alterare la classifica economica.
+
 ## Tracking scelta offerta
 
 Quando l'utente clicca una specifica offerta e conferma il consenso partner, `api/offer-consent.js` salva nel lead:
@@ -44,6 +55,14 @@ monetization.status
 monetization.destinationType
 monetization.destinationStatus
 monetization.provider
+monetization.network
+monetization.model
+monetization.programId
+monetization.expectedCommission
+monetization.economyRank
+monetization.displayGroup
+monetization.annualCost
+monetization.annualDelta
 monetization.trackedAt
 monetization.tracking.page
 monetization.tracking.clickedAt

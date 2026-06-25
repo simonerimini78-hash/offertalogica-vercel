@@ -56,6 +56,38 @@ create index if not exists lead_events_event_type_idx on lead_events (event_type
 create index if not exists lead_events_created_at_idx on lead_events (created_at desc);
 ```
 
+## Vista commerciale opzionale
+
+Questa vista rende piu leggibili i lead che hanno scelto un'offerta. Non e obbligatoria per il funzionamento del sito.
+
+```sql
+create or replace view lead_commercial_view as
+select
+  id,
+  created_at,
+  updated_at,
+  status,
+  customer_type,
+  name,
+  email,
+  phone,
+  best_saving,
+  selected_offer ->> 'provider' as selected_provider,
+  selected_offer ->> 'name' as selected_offer_name,
+  record #>> '{monetization,network}' as network,
+  record #>> '{monetization,model}' as commission_model,
+  nullif(record #>> '{monetization,expectedCommission}', '')::numeric as expected_commission,
+  nullif(record #>> '{monetization,economyRank}', '')::numeric as economy_rank,
+  record #>> '{monetization,displayGroup}' as display_group,
+  nullif(record #>> '{monetization,annualCost}', '')::numeric as annual_cost,
+  nullif(record #>> '{monetization,annualDelta}', '')::numeric as annual_delta,
+  consent_service,
+  consent_partners,
+  privacy_version
+from lead_records
+where selected_offer is not null;
+```
+
 ## Variabili Vercel
 
 ```text
