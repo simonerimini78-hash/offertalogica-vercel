@@ -188,17 +188,17 @@
     {
       "id": 11,
       "provider": "Eni Plenitude",
-      "nome": "Eni Plenitude Fix Scontata",
+      "nome": "Eni Plenitude Fixa Time 24",
       "tipo": "fisso",
       "fornitura": "dual",
-      "link": "https://eniplenitude.com",
+      "link": "https://clk.tradedoubler.com/click?p=271844&a=3487966&epi=offertalogica&epi2=eni_plenitude_fixa_time_24&url=https%3A%2F%2Feniplenitude.com%2Fofferta%2Fcasa%2Fgas-e-luce",
       "destinationType": "affiliazione",
-      "destinationStatus": "in_attesa_approvazione",
+      "destinationStatus": "attiva",
       "luce": { "prezzoVariabile": 0.144, "quotaFissaAnnua": 90 },
       "gas": { "prezzoVariabile": 0.5678, "quotaFissaAnnua": 90 },
-      "descrizione": "Fisso 24H",
-      "fonte": "Da verificare con scheda sintetica aggiornata",
-      "aggiornataIl": "2026-06-21"
+      "descrizione": "Fixa Time 24; condizioni aggiornate sulla landing ufficiale Plenitude",
+      "fonte": "Landing ufficiale Plenitude Offerte luce e gas per la casa verificata il 25/06/2026: offerta Fixa Time 24. Prezzi da verificare con scheda sintetica aggiornata. Destinazione commerciale Tradedoubler attiva: programma Eni Gas e Luce_CPL 271844, sito 3487966, cookie 30 giorni, tasso cancellazione 62%, EPC medio 0.76 EUR.",
+      "aggiornataIl": "2026-06-25"
     },
     {
       "id": 12,

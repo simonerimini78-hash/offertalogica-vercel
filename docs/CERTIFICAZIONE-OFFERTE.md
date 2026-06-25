@@ -50,10 +50,10 @@ Restano da certificare con scheda sintetica aggiornata, open data con match chia
 8  neN Luce Surf
 9  neN Gas Surf
 10 Enel Fix Web Luce e Gas
-11 Eni Plenitude Fix Scontata
+11 Eni Plenitude Fixa Time 24
 ```
 
-Nota Plenitude: nel Portale Offerte sono presenti offerte Eni Plenitude come `Fixa Time`, ma non ho sovrascritto `Fix Scontata` perche il nome commerciale non coincide in modo sufficiente.
+Nota Plenitude: la landing ufficiale indicata e `Offerte luce e gas per la casa`, con offerta in evidenza `Fixa Time 24`. I corrispettivi di calcolo restano temporanei finche non viene acquisita la scheda sintetica aggiornata.
 
 Nota NeN: al momento non ho trovato un match diretto e sicuro nei file open data analizzati. Va certificata tramite scheda sintetica, portale partner o conferma affiliate.
 

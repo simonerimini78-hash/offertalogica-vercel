@@ -53,9 +53,13 @@ Questi campi sono inclusi anche nel webhook lead, se `LEAD_WEBHOOK_URL` e config
 
 ## Priorita attuale
 
+Affiliazioni attive su Tradedoubler:
+
+- Enel Italia, programma 348999, cookie 30 giorni, tasso cancellazione 0%;
+- Eni Gas e Luce_CPL / Plenitude, programma 271844, cookie post-click 30 giorni, tasso cancellazione 62%, EPC medio 0.76 EUR.
+
 Le candidature Awin in attesa sono:
 
-- Eni Plenitude;
 - Octopus Energy;
 - NeN;
 - Alperia.

@@ -21,7 +21,6 @@ Certificate: 5
 - 7 NeN - neN Duel Luce e Gas: Fonte tariffaria da verificare con scheda sintetica o fonte ufficiale; Monetizzazione non attiva: in_attesa_approvazione; Link tracking non configurato
 - 8 NeN - neN Luce Surf: Variabile senza formula PUN/PSV esplicita: oggi usa prezzo di calcolo statico; Fonte tariffaria da verificare con scheda sintetica o fonte ufficiale; Monetizzazione non attiva: in_attesa_approvazione; Link tracking non configurato
 - 9 NeN - neN Gas Surf: Variabile senza formula PUN/PSV esplicita: oggi usa prezzo di calcolo statico; Fonte tariffaria da verificare con scheda sintetica o fonte ufficiale; Monetizzazione non attiva: in_attesa_approvazione; Link tracking non configurato
-- 11 Eni Plenitude - Eni Plenitude Fix Scontata: Fonte tariffaria da verificare con scheda sintetica o fonte ufficiale; Monetizzazione non attiva: in_attesa_approvazione; Link tracking non configurato
 
 ## Regole applicate
 

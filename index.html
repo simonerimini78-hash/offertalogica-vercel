@@ -708,7 +708,7 @@ function avviaComparazioneDati() {
             { id: 9, nome: "neN Gas Surf", lucePrezzo: 0.0000, gasPrezzo: 0.0000, corrispettivoAnnuo: 120.00, tipo: "variabile", fornitura: "separate" },
             // 🆕 ULTIME AGGIUNTE: ENEL, ENI PLENITUDE E ALPERIA
             { id: 10, nome: "Enel Fix Web Luce e Gas", lucePrezzo: 0.1390, gasPrezzo: 0.4900, corrispettivoAnnuo: 288.00, tipo: "fisso", fornitura: "dual" },
-            { id: 11, nome: "Eni Plenitude Fix Scontata", lucePrezzo: 0.1440, gasPrezzo: 0.5678, corrispettivoAnnuo: 180.00, tipo: "fisso", fornitura: "dual" },
+            { id: 11, nome: "Eni Plenitude Fixa Time 24", lucePrezzo: 0.1440, gasPrezzo: 0.5678, corrispettivoAnnuo: 180.00, tipo: "fisso", fornitura: "dual" },
             { id: 12, nome: "Alperia Smile Easy / Start", lucePrezzo: 0.1027, gasPrezzo: 0.4500, corrispettivoAnnuo: 239.40, tipo: "fisso", fornitura: "dual" },
             { id: 13, nome: "Sorgenia Next Energy Smart", lucePrezzo: 0.1300, gasPrezzo: 0.5200, corrispettivoAnnuo: 258.00, tipo: "fisso", fornitura: "dual" },
         ];
@@ -923,8 +923,8 @@ let PARAMETRI_MASTER = {
 
 const LINK_FORNITORI = {
   enel: "https://clk.tradedoubler.com/click?p=348999&a=3487966&epi=offertalogica&epi2=enel_fix_web&url=https%3A%2F%2Fwww.enel.it%2Fit-it%2Flanding%2Fcasa%2Fenel-offerte",
-  eni: "#",
-  plenitude: "#",
+  eni: "https://clk.tradedoubler.com/click?p=271844&a=3487966&epi=offertalogica&epi2=eni_plenitude_fixa_time_24&url=https%3A%2F%2Feniplenitude.com%2Fofferta%2Fcasa%2Fgas-e-luce",
+  plenitude: "https://clk.tradedoubler.com/click?p=271844&a=3487966&epi=offertalogica&epi2=eni_plenitude_fixa_time_24&url=https%3A%2F%2Feniplenitude.com%2Fofferta%2Fcasa%2Fgas-e-luce",
   edison: "#",
   default: "#",
 };
@@ -1144,15 +1144,15 @@ let OFFERTE_PROPOSTE = [
   {
     id: 11,
     provider: "Eni Plenitude",
-    nome: "Eni Plenitude Fix Scontata",
+    nome: "Eni Plenitude Fixa Time 24",
     tipo: "fisso",
     fornitura: "dual",
-    link: "https://eniplenitude.com",
+    link: "https://clk.tradedoubler.com/click?p=271844&a=3487966&epi=offertalogica&epi2=eni_plenitude_fixa_time_24&url=https%3A%2F%2Feniplenitude.com%2Fofferta%2Fcasa%2Fgas-e-luce",
     destinationType: "affiliazione",
-    destinationStatus: "in_attesa_approvazione",
+    destinationStatus: "attiva",
     luce: { prezzoVariabile: 0.144, quotaFissaAnnua: 90 },
     gas: { prezzoVariabile: 0.5678, quotaFissaAnnua: 90 },
-    descrizione: "Fisso 24H",
+    descrizione: "Fixa Time 24; condizioni aggiornate sulla landing ufficiale Plenitude",
   },
   {
     id: 12,
@@ -2706,11 +2706,11 @@ if (document.readyState === "loading") {
             <a id="link-partner-10" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
         </div>
 
-        <!-- Offerta Consigliata 11: Eni Plenitude Fix -->
+        <!-- Offerta Consigliata 11: Eni Plenitude Fixa Time 24 -->
         <div class="partner-vertical-card" style="background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
             <div class="partner-meta">
-                <div class="partner-title" style="font-size: 16px; font-weight: bold; color: var(--text-color);">Eni Plenitude Fix Scontata</div>
-                <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Prezzi. Luce: 0,1440 €/kWh | Gas: 0,5678 €/Smc. Corrispettivo annuo: 180€ (Fisso 24H)</div>
+                <div class="partner-title" style="font-size: 16px; font-weight: bold; color: var(--text-color);">Eni Plenitude Fixa Time 24</div>
+                <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Prezzi da verificare con scheda sintetica. Corrispettivi di calcolo temporanei: Luce 0,1440 €/kWh | Gas 0,5678 €/Smc | Fissa 180€/anno.</div>
                 <div id="risparmio-partner-11" style="font-size: 14px; font-weight: bold; color: var(--primary); margin-top: 5px; display: none;"></div>
             </div>
             <a id="link-partner-11" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
