@@ -1,4 +1,5 @@
 import { json, method, readJson, requireAllowedOrigin } from "../lib/http.js";
+import { persistLeadSnapshot } from "../lib/customerDb.js";
 import { notifyLeadVerified } from "../lib/notify.js";
 import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
 import { getJson, setJson } from "../lib/store.js";
@@ -117,6 +118,10 @@ export default async function handler(req, res) {
     }
 
     await setJson(`lead:${leadId}`, updatedLead, Number(process.env.LEAD_RETENTION_DAYS || 30) * 24 * 3600);
+    const customerDb = await persistLeadSnapshot(updatedLead, "offer_partner_consent");
+    if (!customerDb.ok && !customerDb.skipped) {
+      console.warn("customer_db_offer_partner_consent_failed", customerDb.error);
+    }
     json(res, 200, {
       ok: true,
       status: "received",

@@ -15,7 +15,9 @@ api/verify-otp.js          Verifica OTP, con notifica lead business
 api/unlock-offers.js       Controllo lead verificato
 api/offer-consent.js       Consenso partner sull'offerta scelta
 api/health.js              Diagnostica protetta Redis/API
+api/staff-preview.js       Attivazione modalita staff/test senza lead
 lib/notify.js              Invio lead operativo/cedibile a webhook esterno
+lib/customerDb.js          Archivio clienti proprietario opzionale su Supabase/Postgres
 lib/rateLimit.js           Limiti anti-spam per API, OTP e upload PDF
 lib/                       Utility server
 data/                      CSV offerte ARERA
@@ -88,6 +90,10 @@ TWILIO_VERIFY_SERVICE_SID=
 TWILIO_FROM_NUMBER=
 LEAD_WEBHOOK_URL=
 LEAD_WEBHOOK_SECRET=
+CUSTOMER_DB_SUPABASE_URL=
+CUSTOMER_DB_SUPABASE_SERVICE_ROLE_KEY=
+CUSTOMER_DB_HASH_SECRET=
+STAFF_PREVIEW_TOKEN=
 OTP_SECRET=
 DEMO_OTP_ENABLED=false
 HEALTHCHECK_TOKEN=
@@ -148,6 +154,41 @@ KV_REST_API_TOKEN=il REST TOKEN
 
 Dopo aver aggiunto o modificato le variabili ambiente, fai sempre un nuovo redeploy di produzione.
 
+## Database clienti proprietario
+
+Redis/Upstash serve per OTP, rate limit e stato operativo temporaneo. Per costruire un patrimonio clienti interno, storico consumi, offerte viste, offerte scelte e ricontatti futuri, collega anche un database Postgres/Supabase.
+
+Variabili:
+
+```text
+CUSTOMER_DB_SUPABASE_URL=
+CUSTOMER_DB_SUPABASE_SERVICE_ROLE_KEY=
+CUSTOMER_DB_LEADS_TABLE=lead_records
+CUSTOMER_DB_EVENTS_TABLE=lead_events
+CUSTOMER_DB_HASH_SECRET=
+```
+
+Se queste variabili mancano, il sito continua a funzionare senza salvare nel database clienti. Se sono presenti, il backend salva:
+
+- lead creato;
+- lead verificato via OTP;
+- offerta scelta con consenso partner;
+- snapshot di calcolo, dati PDF estratti e consensi.
+
+Lo schema SQL consigliato e in `docs/DATABASE-CLIENTI.md`.
+
+## Modalita staff/test
+
+La modalita staff permette di controllare calcolatore, popup, offerte e landing senza creare lead, senza scrivere nel database clienti, senza webhook e senza OTP reale.
+
+1. Crea in Vercel una variabile `STAFF_PREVIEW_TOKEN` con una stringa lunga casuale.
+2. Fai redeploy.
+3. Apri il sito con `https://offertalogica.it/#staff=IL_TUO_TOKEN`.
+4. Il sito rimuove il token dalla barra indirizzi e mostra la barra `Modalita staff attiva`.
+5. Per uscire premi `Esci` nella barra staff oppure apri `https://offertalogica.it/#staff=off`.
+
+In modalita staff il codice OTP simulato e `000000`. Quando apri una landing Tradedoubler, il frontend prova a usare la URL finale senza il tracker affiliato, cosi i test non generano click affiliati artificiali.
+
 ## Controlli locali
 
 Per controllare HTML, JSON e motore di calcolo:
@@ -178,7 +219,7 @@ Le API POST accettano richieste browser solo dagli origin indicati in `ALLOWED_O
 
 ## Diagnostica protetta
 
-`api/health.js` controlla se lo storage Redis risponde, ma resta nascosta senza `HEALTHCHECK_TOKEN`. Per usarla:
+`api/health.js` controlla se lo storage Redis risponde e, se configurato, se il database clienti risponde. Resta nascosta senza `HEALTHCHECK_TOKEN`. Per usarla:
 
 1. crea una variabile ambiente `HEALTHCHECK_TOKEN` con una stringa lunga casuale;
 2. fai redeploy;
@@ -189,7 +230,12 @@ Risposta attesa:
 ```json
 {
   "ok": true,
-  "storage": "redis"
+  "storage": "redis",
+  "customerDb": {
+    "ok": true,
+    "configured": false,
+    "status": "not_configured"
+  }
 }
 ```
 

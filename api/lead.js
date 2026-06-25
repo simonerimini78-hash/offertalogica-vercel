@@ -1,5 +1,6 @@
 import { createId } from "@paralleldrive/cuid2";
 import { clientIp, json, method, readJson, requireAllowedOrigin } from "../lib/http.js";
+import { persistLeadSnapshot } from "../lib/customerDb.js";
 import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
 import { setJson } from "../lib/store.js";
 import { sanitizeLead } from "../lib/validation.js";
@@ -44,6 +45,10 @@ export default async function handler(req, res) {
     };
 
     await setJson(`lead:${id}`, record, retentionDays * 24 * 3600);
+    const customerDb = await persistLeadSnapshot(record, "lead_created");
+    if (!customerDb.ok && !customerDb.skipped) {
+      console.warn("customer_db_lead_created_failed", customerDb.error);
+    }
     json(res, 200, { ok: true, leadId: id, status: record.status });
   } catch (error) {
     json(res, 400, { ok: false, error: error.message || "Errore creazione lead" });

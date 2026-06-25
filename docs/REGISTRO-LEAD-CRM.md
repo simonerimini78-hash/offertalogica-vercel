@@ -1,6 +1,8 @@
 # Registro lead e CRM leggero
 
-Il primo registro operativo puo essere un Google Sheet o un CRM leggero. Lo scopo non e solo salvare contatti, ma misurare se OffertaLogica produce valore economico.
+Il registro operativo puo essere un Google Sheet o un CRM leggero, ma non deve essere l'unico archivio. Lo storico proprietario consigliato e il database clienti descritto in `docs/DATABASE-CLIENTI.md`.
+
+Google Sheet/CRM serve a lavorare le pratiche. Il database clienti serve a conservare il patrimonio OffertaLogica: consumi, consensi, offerte viste/scelte e storico utile per ricontatti futuri.
 
 Template colonne:
 

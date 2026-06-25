@@ -68,6 +68,17 @@ Il lead business puo uscire verso CRM/consulente con evento `business_consulting
 - Se il webhook fallisce, il lead resta comunque verificato e il record conserva l'errore di notifica.
 - Il webhook non deve ricevere PDF originali, ma solo dati estratti e normalizzati.
 
+## Modalita staff/test
+
+La modalita staff serve solo al titolare o a persone autorizzate per controllare calcolatore, offerte, popup e landing senza creare lead reali.
+
+- Variabile: `STAFF_PREVIEW_TOKEN`.
+- Link consigliato: `https://offertalogica.it/#staff=IL_TUO_TOKEN`, per evitare che il token venga inviato nella richiesta iniziale della pagina.
+- Il token viene rimosso dalla barra indirizzi dopo l'attivazione.
+- In modalita staff non vengono chiamati `api/lead`, `api/send-otp`, `api/verify-otp` e `api/offer-consent`.
+- Il codice OTP simulato e `000000`.
+- Non condividere il token con consulenti, partner o utenti finali.
+
 ## Sicurezza
 
 - HTTPS obbligatorio.

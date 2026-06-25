@@ -1,4 +1,5 @@
 import { json, method } from "../lib/http.js";
+import { checkCustomerDb } from "../lib/customerDb.js";
 import { checkStore, persistentStoreConfigured } from "../lib/store.js";
 
 function requestToken(req) {
@@ -20,9 +21,12 @@ export default async function handler(req, res) {
   const startedAt = Date.now();
   try {
     const storageOk = await checkStore();
-    json(res, storageOk ? 200 : 500, {
-      ok: storageOk,
+    const customerDb = await checkCustomerDb();
+    const ok = storageOk && customerDb.ok;
+    json(res, ok ? 200 : 500, {
+      ok,
       storage: persistentStoreConfigured() ? "redis" : "memory",
+      customerDb,
       latencyMs: Date.now() - startedAt,
       checkedAt: new Date().toISOString(),
     });

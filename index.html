@@ -35,6 +35,10 @@
         .skip-link:focus { left: 12px; }
         .footer-privacy-action { background: transparent; border: 0; color: #555; text-decoration: none; margin: 0 10px; cursor: pointer; font-size: 13px; font-weight: 600; }
         .footer-privacy-action:hover { color: var(--accent); text-decoration: underline; }
+        .staff-mode-banner { position: fixed; left: 16px; right: 16px; bottom: 16px; z-index: 1200; max-width: 760px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; background: #0f172a; color: #e2e8f0; border: 1px solid rgba(255,255,255,.12); border-radius: 10px; padding: 10px 12px; box-shadow: 0 18px 44px rgba(15,23,42,.35); font-size: 13px; }
+        .staff-mode-banner strong { color: #bbf7d0; }
+        .staff-mode-banner button { background: #e2e8f0; color: #0f172a; border: 0; border-radius: 7px; padding: 7px 10px; font-weight: 800; cursor: pointer; white-space: nowrap; }
+        .staff-mode-banner button:hover { background: #ffffff; }
        
         /* Riquadri Manuali Perfettamente Speculari */
         .manual-container { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; margin-bottom: 30px; }
@@ -912,9 +916,14 @@ const LEAD_STATE = {
   partnerConsent: false,
   pdfData: null,
   pdfDocuments: [],
+  staffMode: false,
+  staffActivatedAt: "",
 };
 
 const PRIVACY_VERSION = "privacy-lead-v2-2026-06-18";
+const STAFF_MODE_STORAGE_KEY = "offertalogicaStaffMode";
+const STAFF_MODE_LEAD_ID = "staff-preview";
+const STAFF_MODE_OTP = "000000";
 
 let PARAMETRI_MASTER = {
   potenzaLuce: PARAMETRI_CALCOLO.componentiProfilo.potenzaLuceAnnua,
@@ -1955,21 +1964,164 @@ function isLocalPreviewEnvironment() {
   return window.location.protocol === "file:" || ["localhost", "127.0.0.1"].includes(window.location.hostname);
 }
 
+function staffModeAttiva() {
+  return Boolean(LEAD_STATE.staffMode);
+}
+
+function pulisciTokenStaffDaUrl() {
+  try {
+    const url = new URL(window.location.href);
+    ["staff", "staffToken", "previewToken"].forEach((key) => url.searchParams.delete(key));
+    const hashParams = new URLSearchParams(String(url.hash || "").replace(/^#/, ""));
+    ["staff", "staffToken", "previewToken"].forEach((key) => hashParams.delete(key));
+    const nextHash = hashParams.toString();
+    url.hash = nextHash ? `#${nextHash}` : "";
+    window.history.replaceState({}, document.title, `${url.pathname}${url.search}${url.hash}`);
+  } catch {
+    window.history.replaceState({}, document.title, window.location.pathname || "/");
+  }
+}
+
+function leggiTokenStaffDaUrl() {
+  const query = new URLSearchParams(window.location.search || "");
+  const hash = new URLSearchParams(String(window.location.hash || "").replace(/^#/, ""));
+  return {
+    token: hash.get("staff") || hash.get("staffToken") || hash.get("previewToken") || query.get("staff") || query.get("staffToken") || query.get("previewToken") || "",
+    off: hash.get("staff") === "off" || query.get("staff") === "off",
+  };
+}
+
+function aggiornaBannerStaff() {
+  let banner = document.getElementById("staff-mode-banner");
+  if (!staffModeAttiva()) {
+    banner?.remove();
+    return;
+  }
+  if (!banner) {
+    banner = document.createElement("div");
+    banner.id = "staff-mode-banner";
+    banner.className = "staff-mode-banner";
+    banner.innerHTML = `
+      <span><strong>Modalita staff attiva.</strong> Test senza salvataggio lead, database o webhook.</span>
+      <button type="button" id="staff-mode-exit">Esci</button>
+    `;
+    document.body.appendChild(banner);
+    document.getElementById("staff-mode-exit")?.addEventListener("click", () => {
+      sessionStorage.removeItem(STAFF_MODE_STORAGE_KEY);
+      LEAD_STATE.staffMode = false;
+      LEAD_STATE.staffActivatedAt = "";
+      LEAD_STATE.verified = false;
+      LEAD_STATE.leadId = "";
+      aggiornaBannerStaff();
+      window.avviaComparazioneDati?.();
+    });
+  }
+}
+
+function abilitaModalitaStaff(activatedAt = "") {
+  LEAD_STATE.staffMode = true;
+  LEAD_STATE.staffActivatedAt = activatedAt || new Date().toISOString();
+  sessionStorage.setItem(STAFF_MODE_STORAGE_KEY, "true");
+  aggiornaBannerStaff();
+}
+
+async function inizializzaModalitaStaff() {
+  const staffRequest = leggiTokenStaffDaUrl();
+  if (staffRequest.off) {
+    sessionStorage.removeItem(STAFF_MODE_STORAGE_KEY);
+    LEAD_STATE.staffMode = false;
+    LEAD_STATE.staffActivatedAt = "";
+    pulisciTokenStaffDaUrl();
+    aggiornaBannerStaff();
+    return;
+  }
+
+  if (sessionStorage.getItem(STAFF_MODE_STORAGE_KEY) === "true") {
+    abilitaModalitaStaff("session");
+  }
+
+  if (!staffRequest.token) return;
+  pulisciTokenStaffDaUrl();
+
+  try {
+    const response = await fetch("/api/staff-preview", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: staffRequest.token }),
+    });
+    const payload = await response.json();
+    if (!payload.ok) throw new Error(payload.error || "Token staff non valido");
+    abilitaModalitaStaff(payload.activatedAt || "");
+  } catch (error) {
+    sessionStorage.removeItem(STAFF_MODE_STORAGE_KEY);
+    LEAD_STATE.staffMode = false;
+    aggiornaBannerStaff();
+    console.warn("Modalita staff non attivata", error.message);
+  }
+}
+
+function preparaInterfacciaOtpStaff() {
+  const otpInput = document.getElementById("lead-otp");
+  const sendBtn = document.getElementById("lead-send-otp");
+  const verifyBtn = document.getElementById("lead-verify-otp");
+  LEAD_STATE.leadId = STAFF_MODE_LEAD_ID;
+  LEAD_STATE.otpPreviewCode = STAFF_MODE_OTP;
+  LEAD_STATE.partnerConsent = Boolean(document.getElementById("lead-consenso-partner")?.checked);
+  if (otpInput) {
+    otpInput.value = "";
+    otpInput.style.display = "block";
+  }
+  if (sendBtn) sendBtn.style.display = "none";
+  if (verifyBtn) verifyBtn.style.display = "inline-block";
+  leadStatus(`Modalita staff: usa il codice ${STAFF_MODE_OTP}. Nessun dato viene salvato.`);
+}
+
+function linkStaffSenzaTracking(link) {
+  try {
+    const url = new URL(link);
+    const isTradedoubler = url.hostname === "clk.tradedoubler.com" || url.hostname.endsWith(".tradedoubler.com");
+    const target = isTradedoubler ? url.searchParams.get("url") : "";
+    if (target && /^https:\/\//i.test(target)) return target;
+    return link;
+  } catch {
+    return link;
+  }
+}
+
 window.apriLeadModal = function apriLeadModal(source = "manual") {
   const modal = document.getElementById("lead-modal-backdrop");
   const title = document.getElementById("lead-modal-title");
   const copy = document.getElementById("lead-modal-copy");
   const partnerCopy = document.getElementById("lead-partner-copy");
+  const otpInput = document.getElementById("lead-otp");
+  const sendBtn = document.getElementById("lead-send-otp");
+  const verifyBtn = document.getElementById("lead-verify-otp");
   if (!modal) return;
   LEAD_STATE.leadSource = source;
+  if (otpInput) {
+    otpInput.value = "";
+    otpInput.style.display = "none";
+  }
+  if (sendBtn) {
+    sendBtn.style.display = "inline-block";
+    sendBtn.innerText = staffModeAttiva() ? "Sblocca in modalita staff" : "Invia codice";
+  }
+  if (verifyBtn) {
+    verifyBtn.style.display = "none";
+    verifyBtn.innerText = staffModeAttiva() ? "Verifica staff e mostra offerte" : "Verifica e mostra offerte";
+  }
   if (title) {
-    title.innerText = source === "business"
+    title.innerText = staffModeAttiva()
+      ? "Verifica staff senza salvataggio"
+      : source === "business"
       ? "Sblocca analisi aziendale"
       : "Sblocca le 3 migliori offerte";
   }
   if (copy) {
     const saving = LEAD_STATE.bestSaving > 0 ? ` Abbiamo stimato fino a ${euro(LEAD_STATE.bestSaving)} / anno di risparmio potenziale.` : "";
-    if (source === "business") {
+    if (staffModeAttiva()) {
+      copy.innerText = `Percorso di controllo interno: puoi verificare calcolo, popup, offerte e landing senza creare lead, senza database e senza webhook.${saving}`;
+    } else if (source === "business") {
       copy.innerText = `Verifica il cellulare per confermare il lead aziendale e ricevere l'analisi sui consumi business.${saving}`;
     } else if (source === "upload") {
       copy.innerText = "Carica la bolletta in ambiente sicuro e verifica il cellulare per ricevere il confronto personalizzato.";
@@ -1983,7 +2135,9 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
       : "Autorizzo OffertaLogica a trasmettere i miei dati e i dati della fornitura al fornitore o partner collegato all'offerta che scegliero, per essere ricontattato su quella proposta.";
   }
   modal.style.display = "flex";
-  leadStatus("La prima casella sblocca il confronto. La seconda e facoltativa: se la accetti ora, non dovrai ridarla quando scegli un'offerta.");
+  leadStatus(staffModeAttiva()
+    ? "Modalita staff attiva: premi il pulsante verde e usa il codice 000000. Nessun dato viene salvato."
+    : "La prima casella sblocca il confronto. La seconda e facoltativa: se la accetti ora, non dovrai ridarla quando scegli un'offerta.");
 };
 
 function chiudiLeadModal() {
@@ -2043,7 +2197,9 @@ function completaLeadVerificato() {
     const copy = document.getElementById("business-copy");
     if (result) result.style.display = "block";
     if (copy) {
-      copy.innerText = "Numero verificato. Il lead aziendale e pronto per la verifica consulenziale su bolletta, fasce e offerte business reali.";
+      copy.innerText = staffModeAttiva()
+        ? "Modalita staff verificata. Puoi controllare il percorso business senza salvare un lead aziendale."
+        : "Numero verificato. Il lead aziendale e pronto per la verifica consulenziale su bolletta, fasce e offerte business reali.";
     }
     return;
   }
@@ -2051,6 +2207,11 @@ function completaLeadVerificato() {
 }
 
 async function inviaOtp() {
+  if (staffModeAttiva()) {
+    preparaInterfacciaOtpStaff();
+    return;
+  }
+
   if (!leadValido()) return;
   const { nome, telefono, email, consents } = leggiLeadForm();
   LEAD_STATE.partnerConsent = Boolean(consents.partners);
@@ -2124,6 +2285,15 @@ async function verificaOtp() {
     leadStatus("Inserisci il codice ricevuto.", true);
     return;
   }
+  if (LEAD_STATE.leadId === STAFF_MODE_LEAD_ID) {
+    if (otp !== STAFF_MODE_OTP) {
+      leadStatus("Codice staff non corretto.", true);
+      return;
+    }
+    leadStatus("Modalita staff verificata. Offerte sbloccate senza salvataggio.");
+    completaLeadVerificato();
+    return;
+  }
   if (LEAD_STATE.leadId === "preview") {
     if (otp !== LEAD_STATE.otpPreviewCode) {
       leadStatus("Codice di anteprima non corretto.", true);
@@ -2183,8 +2353,14 @@ window.apriConsensoOfferta = function apriConsensoOfferta(offerta) {
   const modal = document.getElementById("offer-consent-backdrop");
   const name = document.getElementById("offer-consent-offer-name");
   const checkbox = document.getElementById("offer-consent-checkbox");
+  const note = document.getElementById("offer-consent-note");
   if (name) name.innerText = LEAD_STATE.selectedOffer.name || "offerta selezionata";
   if (checkbox) checkbox.checked = false;
+  if (note) {
+    note.innerText = staffModeAttiva()
+      ? "Modalita staff: questo passaggio serve solo a testare il flusso. Nessun consenso, lead, webhook o click interno viene salvato."
+      : "Senza questo consenso puoi vedere il confronto, ma non possiamo inoltrare la richiesta di attivazione o monetizzare il lead presso partner terzi.";
+  }
   configuraPopupConsensoOfferta(!LEAD_STATE.partnerConsent);
   if (modal) modal.style.display = "flex";
   if (LEAD_STATE.partnerConsent) {
@@ -2218,6 +2394,17 @@ async function registraRichiestaOfferta() {
   }
 
   offerConsentStatus("Confermo il consenso e registro la richiesta...");
+
+  if (LEAD_STATE.leadId === STAFF_MODE_LEAD_ID || staffModeAttiva()) {
+    const safeLink = linkStaffSenzaTracking(offer.link);
+    if (safeLink && safeLink !== "#") {
+      offerConsentStatus("Modalita staff: nessun lead salvato. Apro la landing senza tracciamento affiliato quando disponibile.");
+      window.open(safeLink, "_blank", "noopener,noreferrer");
+    } else {
+      offerConsentStatus("Modalita staff: nessun lead salvato. Questa offerta non ha ancora una landing verificabile.");
+    }
+    return;
+  }
 
   if (LEAD_STATE.leadId === "preview") {
     offerConsentStatus("Richiesta registrata in anteprima. In produzione il consulente o il partner ricevera il lead verificato.");
@@ -2528,6 +2715,8 @@ function sincronizzaConsumiNuovaOfferta() {
 }
 
 function collegaEventiUX() {
+  inizializzaModalitaStaff();
+
   const btnPrivato = document.getElementById("btn-segmento-privato");
   const btnBusiness = document.getElementById("btn-segmento-business");
   const btnMedi = document.getElementById("btn-attiva-medi");
