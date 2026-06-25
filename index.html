@@ -1227,6 +1227,29 @@ function normalizzaVoceOfferta(voce) {
   return normalized;
 }
 
+function normalizzaMonetizzazioneOfferta(monetizzazione) {
+  if (!monetizzazione || typeof monetizzazione !== "object") return null;
+  const commissione = monetizzazione.commissionePrevista || {};
+  return {
+    attiva: Boolean(monetizzazione.attiva),
+    network: monetizzazione.network || "",
+    programId: monetizzazione.programId || "",
+    siteId: monetizzazione.siteId || "",
+    modello: monetizzazione.modello || "",
+    commissionePrevista: {
+      luce: numeroSicuro(commissione.luce, 0),
+      gas: numeroSicuro(commissione.gas, 0),
+      dual: numeroSicuro(commissione.dual, 0),
+      valuta: commissione.valuta || "EUR",
+    },
+    cookieDays: numeroSicuro(monetizzazione.cookieDays, 0),
+    tassoCancellazione: numeroSicuro(monetizzazione.tassoCancellazione, 0),
+    epcMedio: numeroSicuro(monetizzazione.epcMedio, 0),
+    prioritaCommerciale: monetizzazione.prioritaCommerciale || "",
+    note: monetizzazione.note || "",
+  };
+}
+
 function normalizzaOfferta(offerta, index) {
   if (!offerta || typeof offerta !== "object") return null;
   const luce = normalizzaVoceOfferta(offerta.luce);
@@ -1247,6 +1270,8 @@ function normalizzaOfferta(offerta, index) {
     descrizione: offerta.descrizione || "",
     fonte: offerta.fonte || "",
     aggiornataIl: offerta.aggiornataIl || "",
+    monetizzazione: normalizzaMonetizzazioneOfferta(offerta.monetizzazione),
+    certificazione: offerta.certificazione && typeof offerta.certificazione === "object" ? offerta.certificazione : null,
   };
 }
 
@@ -1772,14 +1797,14 @@ function offertaAttivabileOnline(offerta) {
 }
 
 function testoBadgeOfferta(item, migliore) {
-  if (item.posizioneEconomica === 1) return "Migliore per i tuoi consumi";
+  if (item.gruppoVisuale === "top" && item.posizioneEconomica === 1) return "Migliore per i tuoi consumi";
   if (item.gruppoVisuale === "top") return `#${item.posizioneEconomica} per costo stimato`;
   const scarto = item.costo - (migliore?.costo || item.costo);
   return scarto <= 50 ? "Miglior compromesso attivabile" : "Attivabile online";
 }
 
 function stileBadgeOfferta(item) {
-  if (item.posizioneEconomica === 1) return "background:#dcfce7; color:#14532d; border-color:#bbf7d0;";
+  if (item.gruppoVisuale === "top" && item.posizioneEconomica === 1) return "background:#dcfce7; color:#14532d; border-color:#bbf7d0;";
   if (item.gruppoVisuale === "top") return "background:#eff6ff; color:#1e40af; border-color:#bfdbfe;";
   return "background:#fef3c7; color:#92400e; border-color:#fde68a;";
 }
@@ -1807,6 +1832,29 @@ function creaSchedaOfferta(offerta) {
   return card;
 }
 
+function creaIntestazioneOfferte(id, titolo, testo) {
+  const header = document.createElement("div");
+  header.id = id;
+  header.className = "offers-list-heading";
+  header.style.cssText = "display:none; padding:4px 2px 0; color:var(--text-color);";
+  header.innerHTML = `
+    <div style="font-size:14px; font-weight:900;">${titolo}</div>
+    <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">${testo}</div>
+  `;
+  return header;
+}
+
+function assicuraIntestazioneOfferte(id, titolo, testo) {
+  const container = document.querySelector(".vertical-cards-container");
+  if (!container) return null;
+  let header = document.getElementById(id);
+  if (!header) {
+    header = creaIntestazioneOfferte(id, titolo, testo);
+    container.appendChild(header);
+  }
+  return header;
+}
+
 function assicuraSchedeOfferte() {
   const container = document.querySelector(".vertical-cards-container");
   if (!container) return;
@@ -1830,6 +1878,12 @@ function assicuraSchedeOfferte() {
   });
 }
 
+function offertaCoerenteConFornitura(offerta, tipoFornitura) {
+  if (tipoFornitura === "dual") return offerta.fornitura === "dual" && offerta.luce && offerta.gas;
+  if (tipoFornitura === "separate") return offerta.fornitura === "separate";
+  return offerta.fornitura === tipoFornitura;
+}
+
 function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitura) {
   assicuraSchedeOfferte();
   const sezioneFornitori = document.querySelector(".fornitori-consigliati-section");
@@ -1840,28 +1894,44 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
   if (sezioneFornitori) sezioneFornitori.style.display = "block";
   if (contenitoreSchede) contenitoreSchede.style.display = "flex";
 
+  const headerTop = assicuraIntestazioneOfferte(
+    "offerte-top-heading",
+    "Le 3 offerte migliori per i tuoi consumi",
+    "Ordinate in base al costo annuo stimato sul profilo inserito."
+  );
+  const headerAttivabili = assicuraIntestazioneOfferte(
+    "offerte-attivabili-heading",
+    "Offerte attivabili online",
+    "Sono proposte disponibili tramite i nostri partner: possono non essere le prime per prezzo, ma hanno un percorso di attivazione tracciabile."
+  );
+
   OFFERTE_PROPOSTE.forEach((offerta) => {
     const saving = document.getElementById(`risparmio-partner-${offerta.id}`);
     const card = saving?.closest(".partner-vertical-card");
     if (!saving || !card) return;
 
-    const compatibile = offerta.tipo === tipoTariffa && offerta.fornitura === tipoFornitura;
-    if (!compatibile) {
+    const compatibileRanking = offerta.tipo === tipoTariffa && offerta.fornitura === tipoFornitura;
+    const attivabileOnline = offertaAttivabileOnline(offerta);
+    const attivabileCoerente = attivabileOnline && offertaCoerenteConFornitura(offerta, tipoFornitura);
+    if (!compatibileRanking && !attivabileCoerente) {
       card.style.setProperty("display", "none", "important");
       return;
     }
 
-    const attualeComparabile = calcolaOfferta(scenarioAttualeComparabile(attuale, offerta), tipoTariffa);
-    const costoOfferta = calcolaOfferta(offertaPropostaPerCalcolo(offerta, attuale), offerta.tipo || tipoTariffa);
+    const tipoCalcoloOfferta = offerta.tipo || tipoTariffa;
+    const attualeComparabile = calcolaOfferta(scenarioAttualeComparabile(attuale, offerta), tipoCalcoloOfferta);
+    const costoOfferta = calcolaOfferta(offertaPropostaPerCalcolo(offerta, attuale), tipoCalcoloOfferta);
     const differenza = attualeComparabile.totale - costoOfferta.totale;
     const risparmio = differenza >= 0;
     const ambito = descriviAmbitoConfronto(offerta);
 
-    card.style.display = "flex";
     saving.style.display = "block";
     offerteCalcolate.push({
       card,
       offerta,
+      compatibileRanking,
+      attivabileOnline,
+      attivabileCoerente,
       costo: costoOfferta.totale,
       costoOfferta,
       attualeComparabile,
@@ -1869,29 +1939,45 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       risparmio,
       saving,
       ambito,
-      attivabileOnline: offertaAttivabileOnline(offerta),
     });
   });
 
-  const ordinate = offerteCalcolate
+  const ordinateRanking = offerteCalcolate
+    .filter((item) => item.compatibileRanking)
     .sort((a, b) => (b.differenza - a.differenza) || (a.costo - b.costo))
     .map((item, index) => ({ ...item, posizioneEconomica: index + 1 }));
 
-  const topEconomiche = ordinate.slice(0, 3).map((item) => ({ ...item, gruppoVisuale: "top" }));
+  const rankingGlobale = new Map(
+    [...offerteCalcolate]
+      .sort((a, b) => (b.differenza - a.differenza) || (a.costo - b.costo))
+      .map((item, index) => [String(item.offerta.id), index + 1])
+  );
+
+  const topEconomiche = ordinateRanking.slice(0, 3).map((item) => ({ ...item, gruppoVisuale: "top" }));
   const idsTop = new Set(topEconomiche.map((item) => String(item.offerta.id)));
-  const attivabiliExtra = ordinate
-    .filter((item) => item.attivabileOnline && !idsTop.has(String(item.offerta.id)))
+  const attivabiliExtra = offerteCalcolate
+    .filter((item) => item.attivabileCoerente && !idsTop.has(String(item.offerta.id)))
+    .sort((a, b) => (a.costo - b.costo) || (b.differenza - a.differenza))
     .slice(0, 2)
-    .map((item) => ({ ...item, gruppoVisuale: "attivabile" }));
+    .map((item) => ({
+      ...item,
+      gruppoVisuale: "attivabile",
+      posizioneEconomica: rankingGlobale.get(String(item.offerta.id)) || null,
+    }));
   const visibili = [...topEconomiche, ...attivabiliExtra];
   const idsVisibili = new Set(visibili.map((item) => String(item.offerta.id)));
-  const migliore = ordinate[0] || null;
+  const migliore = ordinateRanking[0] || offerteCalcolate[0] || null;
 
-  ordinate.forEach(({ card, offerta }) => {
+  offerteCalcolate.forEach(({ card, offerta }) => {
     if (!idsVisibili.has(String(offerta.id))) {
       card.style.setProperty("display", "none", "important");
     }
   });
+
+  if (headerTop) {
+    headerTop.style.display = topEconomiche.length ? "block" : "none";
+    contenitoreSchede?.appendChild(headerTop);
+  }
 
   visibili.forEach(({ card, offerta, costo, costoOfferta, differenza, risparmio, saving, ambito, posizioneEconomica, gruppoVisuale, attivabileOnline }) => {
       const context = {
@@ -1909,14 +1995,17 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       OFFER_RENDER_CONTEXTS.set(String(offerta.id), context);
 
       card.style.display = "flex";
-      card.style.borderColor = posizioneEconomica === 1 ? "var(--primary)" : (gruppoVisuale === "attivabile" ? "#fde68a" : "var(--border)");
-      card.style.boxShadow = posizioneEconomica === 1 ? "0 0 0 1px rgba(16, 185, 129, 0.18)" : "none";
+      card.style.borderColor = gruppoVisuale === "top" && posizioneEconomica === 1 ? "var(--primary)" : (gruppoVisuale === "attivabile" ? "#fde68a" : "var(--border)");
+      card.style.boxShadow = gruppoVisuale === "top" && posizioneEconomica === 1 ? "0 0 0 1px rgba(16, 185, 129, 0.18)" : "none";
       card.classList.toggle("locked-offer", !LEAD_STATE.verified);
 
       const title = card.querySelector(".partner-title");
       const details = card.querySelector(".partner-details");
       const link = card.querySelector("a");
       const badge = `<span style="display:inline-block; margin:0 0 6px; padding:3px 8px; border:1px solid; border-radius:999px; font-size:11px; font-weight:800; ${stileBadgeOfferta({ posizioneEconomica, gruppoVisuale })}">${testoBadgeOfferta({ posizioneEconomica, gruppoVisuale, costo }, migliore)}</span>`;
+      const onlineBadge = attivabileOnline && gruppoVisuale !== "attivabile"
+        ? `<span style="display:inline-block; margin:0 0 6px 6px; padding:3px 8px; border:1px solid #a7f3d0; border-radius:999px; background:#ecfdf5; color:#047857; font-size:11px; font-weight:800;">Attivabile online</span>`
+        : "";
       if (LEAD_STATE.verified) {
         if (title) title.innerText = offerta.nome;
         if (details) details.innerText = dettagliOfferta(offerta);
@@ -1934,7 +2023,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
           ? `Risparmio annuo stimato: ${euro(Math.abs(differenza))}`
           : `Costo annuo più alto di: ${euro(Math.abs(differenza))}`;
         saving.innerHTML = `
-          ${badge}
+          ${badge}${onlineBadge}
           <span style="display:block;">${esito} | Costo stimato ${ambito}: ${euro(costo)}</span>
           <small style="display:block; margin-top:3px; color:var(--text-muted); font-weight:600;">
             Materia/variabile: ${euro(costoOfferta.quotaVariabile)} | Fissa vendita: ${euro(costoOfferta.quotaFissaVendita)} | Profilo: ${euro(costoOfferta.quotaTecnicaProfilo)} | Reg./fisc.: ${euro(costoOfferta.quotaRegolata + costoOfferta.quotaFiscale)}
@@ -1953,14 +2042,27 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
         }
         saving.style.color = risparmio ? "var(--primary)" : "var(--danger)";
         saving.innerHTML = `
-          ${badge}
+          ${badge}${onlineBadge}
           <span style="display:block;">${risparmio
             ? `Risparmio potenziale stimato ${ambito}: ${euro(Math.abs(differenza))} / anno`
             : `Costo stimato superiore sull'ambito ${ambito}: ${euro(Math.abs(differenza))} / anno`}</span>
         `;
       }
       contenitoreSchede?.appendChild(card);
+      if (
+        gruppoVisuale === "top" &&
+        headerAttivabili &&
+        attivabiliExtra.length &&
+        topEconomiche[topEconomiche.length - 1]?.offerta?.id === offerta.id
+      ) {
+        headerAttivabili.style.display = "block";
+        contenitoreSchede?.appendChild(headerAttivabili);
+      }
     });
+
+  if (headerAttivabili && !attivabiliExtra.length) {
+    headerAttivabili.style.display = "none";
+  }
 
   LEAD_STATE.bestSaving = Math.max(0, ...topEconomiche.map((item) => item.differenza));
   const teaser = document.getElementById("lead-teaser");
@@ -2869,8 +2971,8 @@ if (document.readyState === "loading") {
 <div class="fornitori-consigliati-section">
 <div class="lead-teaser" id="lead-teaser">
     <strong id="lead-teaser-title">Abbiamo trovato offerte più convenienti.</strong>
-    <p id="lead-teaser-copy">La stima usa consumi medi e l'ultimo riferimento ARERA disponibile: sblocca le 3 migliori per vedere nomi, prezzi e link.</p>
-    <button type="button" onclick="apriLeadModal('teaser')">Sblocca le 3 offerte migliori</button>
+    <p id="lead-teaser-copy">La stima usa consumi medi e l'ultimo riferimento ARERA disponibile: sblocca le migliori offerte e quelle attivabili online.</p>
+    <button type="button" onclick="apriLeadModal('teaser')">Sblocca le offerte</button>
 </div>
 <div class="vertical-cards-container" style="display: flex; flex-direction: column; gap: 15px;">
         
