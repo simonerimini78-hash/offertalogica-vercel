@@ -28,7 +28,7 @@
             --dark-btn-hover: #1e293b;
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: ui-rounded, "SF Pro Rounded", "Aptos", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
         body { background-color: var(--bg-color); color: var(--text-color); padding: 20px; line-height: 1.6; }
         .container { max-width: 1000px; margin: 0 auto; }
         .skip-link { position: absolute; left: -999px; top: 12px; background: #fff; color: var(--accent); padding: 10px 14px; border-radius: 8px; font-weight: 800; z-index: 2000; }
@@ -170,6 +170,393 @@
             .partner-vertical-card { flex-direction: column; text-align: center; gap: 12px; }
             .partner-meta { text-align: center; }
             .btn-partner-vertical { width: 100%; text-align: center; }
+        }
+
+        /* Preview grafica: ritocchi leggeri senza stravolgere il progetto originale. */
+        body {
+            background:
+                radial-gradient(circle at 12% 8%, rgba(22, 163, 74, .10), transparent 28%),
+                radial-gradient(circle at 88% 18%, rgba(37, 99, 235, .08), transparent 30%),
+                linear-gradient(180deg, #f8fafc 0%, #eef4f8 48%, #f1f5f9 100%);
+        }
+        .container {
+            position: relative;
+        }
+        .container::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            pointer-events: none;
+            opacity: .42;
+            background-image:
+                linear-gradient(rgba(15,23,42,.035) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(15,23,42,.03) 1px, transparent 1px);
+            background-size: 44px 44px;
+            mask-image: linear-gradient(180deg, rgba(0,0,0,.85), transparent 72%);
+        }
+        header {
+            position: relative;
+            margin-bottom: 4px;
+        }
+        header h1 {
+            font-weight: 900 !important;
+            letter-spacing: clamp(.2px, .18vw, 1.2px) !important;
+            font-size: clamp(24px, 8.8vw, 42px) !important;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: clip;
+        }
+        header p {
+            font-weight: 700;
+        }
+        header::after {
+            content: "";
+            display: block;
+            width: 92px;
+            height: 4px;
+            margin: 12px auto 0;
+            border-radius: 999px;
+            background: linear-gradient(90deg, #16a34a, #2563eb);
+            opacity: .75;
+        }
+        .segment-switch button,
+        .choice-card,
+        .btn-calc,
+        .btn-action,
+        .lead-secondary,
+        .pdf-review-static button,
+        .btn-partner-vertical {
+            text-align: center;
+        }
+        .segment-switch button,
+        .choice-card {
+            display: grid;
+            align-content: center;
+            justify-items: center;
+        }
+        .segment-switch button {
+            min-height: 102px;
+            padding: 20px 22px;
+            font-size: 19px;
+            line-height: 1.25;
+            font-weight: 900;
+        }
+        .segment-switch button span { font-size: 14px; line-height: 1.38; margin-top: 8px; max-width: 360px; }
+        .choice-grid {
+            gap: 16px;
+        }
+        .choice-card {
+            min-height: 138px;
+            padding: 24px 26px;
+            border-color: rgba(22, 163, 74, .58);
+            background: linear-gradient(180deg, #f0fdf4 0%, #dff8e8 100%);
+        }
+        .choice-card strong,
+        .choice-card span {
+            text-align: center;
+        }
+        .choice-card strong {
+            font-size: 21px;
+            line-height: 1.18;
+            margin-bottom: 8px;
+            font-weight: 900;
+        }
+        .choice-card span {
+            font-size: 14.5px;
+            line-height: 1.42;
+            max-width: 420px;
+            font-weight: 700;
+        }
+        .pdf-lead-panel {
+            border-color: rgba(37, 99, 235, .20);
+            box-shadow: 0 18px 48px rgba(15, 23, 42, .09);
+            padding: 26px 24px;
+        }
+        .pdf-lead-panel h3 {
+            font-size: 26px;
+            line-height: 1.2;
+            margin-bottom: 10px;
+            font-weight: 900;
+        }
+        .pdf-lead-panel p {
+            font-size: 15px;
+            line-height: 1.5;
+            max-width: 780px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .upload-drop {
+            border: 1px solid rgba(37, 99, 235, .22);
+            background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,.8);
+            grid-template-columns: repeat(2, minmax(240px, 1fr));
+            justify-content: center;
+            align-items: center;
+            padding: 26px;
+            gap: 14px;
+        }
+        .upload-drop input,
+        .upload-note,
+        .pdf-review-static {
+            grid-column: 1 / -1;
+        }
+        .upload-drop input {
+            width: min(100%, 680px);
+            justify-self: center;
+            padding: 14px;
+            border: 1px dashed rgba(37, 99, 235, .35);
+            border-radius: 10px;
+            background: #eef6ff;
+            font-size: 14px;
+            text-align: center;
+        }
+        .upload-drop input::file-selector-button {
+            border: 0;
+            border-radius: 8px;
+            background: var(--dark-btn);
+            color: #fff;
+            padding: 12px 16px;
+            margin-right: 12px;
+            font-weight: 800;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .upload-drop > button {
+            min-height: 56px;
+            width: 100%;
+            border: 0;
+            border-radius: 9px;
+            padding: 14px 18px;
+            font-weight: 800;
+            font-size: 16px;
+            cursor: pointer;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .upload-drop > .lead-secondary {
+            background: #e2e8f0;
+            color: #334155;
+        }
+        .btn-calc {
+            min-height: 62px;
+            font-size: 17px;
+            font-weight: 900;
+            letter-spacing: .2px;
+            box-shadow: 0 14px 30px rgba(37,99,235,.22);
+        }
+        .manual-block > h3[style*="text-align: center"] {
+            font-size: 26px !important;
+            line-height: 1.2 !important;
+            margin-bottom: 24px !important;
+            font-weight: 900 !important;
+        }
+        #master-blocchi-inferiori .manual-block > h3 {
+            font-size: 21px;
+            line-height: 1.25;
+            font-weight: 900;
+        }
+        .manual-block,
+        .business-panel,
+        .fornitori-consigliati-section,
+        .verdetto-box {
+            box-shadow: 0 14px 36px rgba(15, 23, 42, .07);
+        }
+        .fornitori-consigliati-section {
+            padding: 28px !important;
+            border-radius: 16px !important;
+            border-color: rgba(37, 99, 235, .18) !important;
+            box-shadow: 0 18px 48px rgba(15, 23, 42, .09) !important;
+        }
+        .fornitori-consigliati-section h2 {
+            text-align: center;
+            font-size: 24px !important;
+            line-height: 1.2;
+            border-bottom: 0 !important;
+            margin-bottom: 18px !important;
+            padding-bottom: 0 !important;
+            font-weight: 900;
+        }
+        .lead-teaser {
+            text-align: center;
+            padding: 20px !important;
+            border-radius: 14px !important;
+            margin-bottom: 20px !important;
+        }
+        .lead-teaser strong {
+            font-size: 21px;
+            line-height: 1.2;
+        }
+        .lead-teaser button {
+            min-height: 50px;
+            min-width: 210px;
+            font-size: 16px;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+        .vertical-cards-container {
+            gap: 16px !important;
+        }
+        .offers-list-heading {
+            padding: 14px 16px !important;
+            border: 1px solid rgba(37, 99, 235, .14);
+            border-radius: 12px;
+            background: #f8fafc;
+            text-align: center;
+        }
+        .offers-list-heading > div:first-child {
+            font-size: 18px !important;
+            line-height: 1.2;
+        }
+        .offers-list-heading > div:last-child {
+            font-size: 13.5px !important;
+            line-height: 1.4;
+        }
+        .partner-vertical-card {
+            display: grid !important;
+            grid-template-columns: minmax(0, 1fr) minmax(168px, auto);
+            gap: 18px;
+            align-items: stretch !important;
+            padding: 20px 22px !important;
+            border-radius: 14px !important;
+            background: #ffffff !important;
+            border-color: rgba(148, 163, 184, .42) !important;
+            box-shadow: 0 10px 26px rgba(15, 23, 42, .06) !important;
+        }
+        .partner-vertical-card:not(.locked-offer) {
+            grid-template-columns: minmax(0, 1fr) minmax(180px, auto);
+        }
+        .partner-vertical-card:hover {
+            border-color: rgba(22, 163, 74, .45) !important;
+            box-shadow: 0 16px 36px rgba(15, 23, 42, .10) !important;
+            transform: translateY(-1px);
+        }
+        .partner-meta {
+            display: grid;
+            gap: 8px;
+            align-content: center;
+            text-align: left;
+        }
+        .partner-title {
+            font-size: 19px !important;
+            line-height: 1.22 !important;
+            font-weight: 900 !important;
+            color: #0f172a !important;
+        }
+        .locked-offer .partner-title::before {
+            display: inline-flex;
+            align-items: center;
+            margin: 0 8px 0 0;
+            padding: 3px 8px;
+            border-radius: 999px;
+            background: #eff6ff;
+            color: #1d4ed8;
+            font-size: 11px;
+            line-height: 1;
+            vertical-align: middle;
+        }
+        .partner-details {
+            font-size: 14px !important;
+            line-height: 1.45 !important;
+            color: #64748b !important;
+        }
+        [id^="risparmio-partner-"] {
+            margin-top: 4px !important;
+            padding: 11px 13px !important;
+            border-radius: 11px;
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            font-size: 14px !important;
+            line-height: 1.35 !important;
+        }
+        [id^="link-partner-"] {
+            width: 100%;
+            min-width: 168px;
+            min-height: 100%;
+            display: inline-flex !important;
+            align-items: center;
+            justify-content: center;
+            align-self: center;
+            text-align: center;
+            border-radius: 12px !important;
+            background: var(--primary) !important;
+            color: #fff !important;
+            font-size: 16px !important;
+            font-weight: 900 !important;
+            padding: 18px 20px !important;
+            box-shadow: 0 12px 26px rgba(22, 163, 74, .22);
+        }
+        .locked-offer [id^="link-partner-"] {
+            background: var(--accent) !important;
+            box-shadow: 0 12px 26px rgba(37, 99, 235, .22);
+        }
+        [id^="link-partner-"]:hover {
+            filter: brightness(.96);
+        }
+
+        @media (max-width: 700px) {
+            .pdf-lead-panel {
+                padding: 24px 16px;
+            }
+            .upload-drop {
+                grid-template-columns: 1fr;
+                padding: 16px 12px;
+                gap: 12px;
+            }
+            .upload-drop input,
+            .upload-drop > button,
+            .upload-note {
+                max-width: none;
+                width: 100%;
+            }
+            .upload-drop input {
+                padding: 12px;
+                font-size: 14px;
+                overflow: hidden;
+            }
+            .upload-drop input::file-selector-button {
+                display: block;
+                width: 100%;
+                margin: 0 0 10px;
+                font-size: 15px;
+            }
+            .choice-card {
+                min-height: 124px;
+                padding: 22px 20px;
+            }
+            .choice-card strong {
+                font-size: 19px;
+            }
+            .segment-switch button {
+                min-height: 92px;
+                font-size: 18px;
+            }
+            .fornitori-consigliati-section {
+                padding: 20px 14px !important;
+            }
+            .partner-vertical-card {
+                grid-template-columns: 1fr;
+                padding: 18px !important;
+                text-align: center;
+            }
+            .partner-meta {
+                text-align: center;
+            }
+            .locked-offer .partner-title::before {
+                display: flex;
+                width: fit-content;
+                margin: 0 auto 8px;
+            }
+            [id^="link-partner-"] {
+                min-width: 0;
+                min-height: 58px;
+            }
+            .manual-block > h3[style*="text-align: center"] {
+                font-size: 23px !important;
+            }
         }
     </style>
 </head>
