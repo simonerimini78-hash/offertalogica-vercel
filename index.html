@@ -62,6 +62,7 @@
 
         /* Area dei Risultati (Verdetto e Offerte in Fondo) */
         .results-layout { display: flex; flex-direction: column; gap: 30px; margin-bottom: 40px; }
+        #results-area { display: none; }
         
         /* Box Verdetto Dinamico (Neutro all'inizio, colorato dopo il calcolo) */
         .verdetto-box { background: var(--card-bg); border-radius: 12px; padding: 25px; border: 1px solid var(--border); text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
@@ -710,8 +711,8 @@
             <div class="upload-note">Puoi caricare una o più bollette PDF, ad esempio una luce e una gas, oppure una scheda sintetica.</div>
             <div class="pdf-review-static" id="pdf-review-static">
                 <strong>Dati pronti per la conferma</strong>
-                <p id="pdf-review-copy">Dopo l'analisi potrai confermare i dati letti dal PDF e avviare il confronto sui consumi reali, senza reinserire tutto a mano.</p>
-                <button type="button" onclick="confermaPdfECalcola()">Conferma dati e confronta</button>
+                <p id="pdf-review-copy">Dopo l'analisi potrai confermare i dati letti dal PDF. Il confronto partirà solo dal pulsante blu.</p>
+                <button type="button" onclick="confermaPdfECalcola()">Conferma dati letti</button>
             </div>
         </div>
     </div>
@@ -3048,6 +3049,15 @@ async function confermaConsensoOfferta() {
   await registraRichiestaOfferta();
 }
 
+function nascondiEsitiFincheNonConfronti() {
+  const areaRisultati = document.getElementById("results-area");
+  const teaser = document.getElementById("lead-teaser");
+  const sezioneOfferte = document.querySelector(".fornitori-consigliati-section");
+  if (areaRisultati) areaRisultati.style.display = "none";
+  if (teaser) teaser.style.display = "none";
+  if (sezioneOfferte) sezioneOfferte.style.display = "none";
+}
+
 async function registraRichiestaOfferta() {
   const offer = LEAD_STATE.selectedOffer;
   if (!offer?.link) {
@@ -3103,13 +3113,14 @@ async function registraRichiestaOfferta() {
 }
 
 window.preparaConfermaPdf = async function preparaConfermaPdf() {
+  nascondiEsitiFincheNonConfronti();
   const input = document.getElementById("pdf-static-input");
   const panel = document.getElementById("pdf-review-static");
   const copy = document.getElementById("pdf-review-copy");
   const files = Array.from(input?.files || []);
   if (!files.length) {
     if (panel) panel.style.display = "block";
-    if (copy) copy.innerText = "Seleziona prima una bolletta PDF o una scheda sintetica. Dopo la lettura mostreremo i dati da confermare prima della comparazione.";
+    if (copy) copy.innerText = "Seleziona prima una bolletta PDF o una scheda sintetica. Dopo la lettura mostreremo i dati da confermare; il confronto partirà solo dal pulsante blu.";
     return;
   }
   if (panel) panel.style.display = "block";
@@ -3142,7 +3153,13 @@ window.confermaPdfECalcola = function confermaPdfECalcola() {
   const data = LEAD_STATE.pdfData || {};
   if (LEAD_STATE.customerType === "business") {
     applicaDatiPdfAlBusiness(data);
-    calcolaBusiness();
+    nascondiEsitiFincheNonConfronti();
+    const businessResult = document.getElementById("business-result");
+    const businessError = document.getElementById("business-error");
+    const copy = document.getElementById("pdf-review-copy");
+    if (businessResult) businessResult.style.display = "none";
+    if (businessError) businessError.style.display = "none";
+    if (copy) copy.innerText = "Dati business confermati e inseriti nel modulo. Ora usa il pulsante dedicato all'analisi aziendale.";
     return;
   }
 
@@ -3155,8 +3172,9 @@ window.confermaPdfECalcola = function confermaPdfECalcola() {
   modalitaCalcolo = "manuale";
 
   applicaDatiPdfAlModulo(data);
-
-  window.avviaComparazioneDati();
+  nascondiEsitiFincheNonConfronti();
+  const copy = document.getElementById("pdf-review-copy");
+  if (copy) copy.innerText = "Dati confermati e inseriti nel modulo. Ora clicca il pulsante blu “ELABORA E CONFRONTA LE OFFERTE” per vedere il risultato.";
 };
 
 function applicaDatiPdfAlBusiness(data) {
@@ -3646,18 +3664,12 @@ if (document.readyState === "loading") {
               if(document.getElementById("in-gas-prezzo-nuov")) document.getElementById("in-gas-prezzo-nuov").value = "";
               if(document.getElementById("in-gas-fisso-nuov")) document.getElementById("in-gas-fisso-nuov").value = "";
 
-              // D. Forza l'apertura visiva dell'area risultati
-              const areaRisultati = document.getElementById("results-area");
-              if (areaRisultati) areaRisultati.style.display = "block";
+              // D. Prepara il profilo medio, ma non mostra risultati/offerte prima del confronto.
+              nascondiEsitiFincheNonConfronti();
 
               // E. Chiude eventuali pop-up aperti che bloccano lo script
               const tariffaModal = document.getElementById("tariffa-modal");
               if (tariffaModal) tariffaModal.style.display = "none";
-
-              // F. Avvia il calcolatore originale
-              if (typeof avviaComparazioneDati === "function") {
-                  avviaComparazioneDati();
-              }
           });
       }
 
@@ -3678,6 +3690,7 @@ if (document.readyState === "loading") {
               if(containerTendine) containerTendine.style.display = "block";
               if(blocchiInferiori) blocchiInferiori.style.display = "grid";
               if(pulsanteCalcoloManuale) pulsanteCalcoloManuale.style.display = "block";
+              nascondiEsitiFincheNonConfronti();
           });
       }
   });
