@@ -822,6 +822,7 @@
                     <option value="argos">Argos</option>
                     <option value="axpo">Axpo Energia</option>
                     <option value="dolomiti">Dolomiti Energia</option>
+                    <option value="eco">E.CO Energia Corrente</option>
                     <option value="eon">E.ON</option>
                     <option value="edison">Edison</option>
                     <option value="eni">Eni Plenitude</option>
@@ -895,6 +896,7 @@
                     <option value="argos">Argos</option>
                     <option value="axpo">Axpo Energia</option>
                     <option value="dolomiti">Dolomiti Energia</option>
+                    <option value="eco">E.CO Energia Corrente</option>
                     <option value="eon">E.ON</option>
                     <option value="edison">Edison</option>
                     <option value="eni">Eni Plenitude</option>
@@ -3379,6 +3381,7 @@ function clearField(id) {
 function providerValue(name) {
   const lowered = String(name || "").toLowerCase();
   if (lowered.includes("dolomiti")) return "dolomiti";
+  if (lowered.includes("e.co") || lowered.includes("eco energia") || lowered.includes("energia corrente")) return "eco";
   if (lowered.includes("hera")) return "hera";
   if (lowered.includes("e.on")) return "eon";
   if (lowered.includes("acea")) return "acea";
