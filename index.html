@@ -1103,6 +1103,8 @@ function avviaComparazioneDati() {
             { id: 11, nome: "Eni Plenitude Fixa Time 24", lucePrezzo: 0.0987, gasPrezzo: 0.4205, corrispettivoAnnuo: 288.00, tipo: "fisso", fornitura: "dual" },
             { id: 12, nome: "Alperia Smile Easy / Start", lucePrezzo: 0.1027, gasPrezzo: 0.4500, corrispettivoAnnuo: 239.40, tipo: "fisso", fornitura: "dual" },
             { id: 13, nome: "Sorgenia Next Energy Smart", lucePrezzo: 0.1300, gasPrezzo: 0.5200, corrispettivoAnnuo: 258.00, tipo: "fisso", fornitura: "dual" },
+            { id: 14, nome: "E.CO Prezzo Variabile Zero Spread Luce e Gas", lucePrezzo: 0.119351258, gasPrezzo: 0.504419055, corrispettivoAnnuo: 336.00, tipo: "variabile", fornitura: "dual" },
+            { id: 15, nome: "neN Surf Luce e Gas", lucePrezzo: 0.1290, gasPrezzo: 0.4700, corrispettivoAnnuo: 240.00, tipo: "variabile", fornitura: "dual" },
         ];
 
         partnerDati.forEach(partner => {
@@ -1632,6 +1634,29 @@ let OFFERTE_PROPOSTE = [
         gas: "000742GSVML01XXZEROSPEC260409D01",
       },
       note: "Le due schede sono offerte separate dello stesso venditore; OffertaLogica le abbina in calcolo per confrontare un profilo luce+gas senza dichiarare un bonus dual.",
+    },
+  },
+  {
+    id: 15,
+    provider: "NeN",
+    nome: "neN Surf Luce e Gas",
+    tipo: "variabile",
+    fornitura: "dual",
+    link: "https://nen.it",
+    destinationType: "affiliazione",
+    destinationStatus: "in_attesa_approvazione",
+    luce: { prezzoVariabile: 0.129, quotaFissaAnnua: 120 },
+    gas: { prezzoVariabile: 0.47, quotaFissaAnnua: 120 },
+    descrizione: "Combinazione variabile luce e gas da offerte separate neN Surf",
+    certificazione: {
+      stato: "da_verificare",
+      fonte: "combinazione_tecnica_offertalogica",
+      dataFonte: "2026-06-27",
+      codici: {
+        luce: "nen-luce-surf-da-verificare",
+        gas: "nen-gas-surf-da-verificare",
+      },
+      note: "Questa voce evita di confrontare singole commodity in una graduatoria dual fuel. Le offerte singole neN Luce Surf e neN Gas Surf restano disponibili solo quando il filtro e separato.",
     },
   },
 ];
@@ -2369,7 +2394,6 @@ function offertaCoerenteConFornitura(offerta, tipoFornitura) {
 
 function offertaCompatibileConRanking(offerta, tipoTariffa, tipoFornitura) {
   if (offerta.tipo !== tipoTariffa) return false;
-  if (tipoTariffa === "variabile") return true;
   return offertaCoerenteConFornitura(offerta, tipoFornitura);
 }
 

@@ -2,13 +2,13 @@
 
 Aggiornamento: 2026-06-21
 
-Offerte analizzate: 14
+Offerte analizzate: 15
 
 ## Risultato sintetico
 
 ```text
 Coerenti senza rilievi: 2
-Da verificare: 12
+Da verificare: 13
 Non pubblicare: 0
 Certificate: 6
 ```
@@ -21,6 +21,7 @@ Certificate: 6
 - 7 NeN - neN Duel Luce e Gas: Fonte tariffaria da verificare con scheda sintetica o fonte ufficiale; Monetizzazione non attiva: in_attesa_approvazione; Link tracking non configurato
 - 8 NeN - neN Luce Surf: Variabile senza formula PUN/PSV esplicita: oggi usa prezzo di calcolo statico; Fonte tariffaria da verificare con scheda sintetica o fonte ufficiale; Monetizzazione non attiva: in_attesa_approvazione; Link tracking non configurato
 - 9 NeN - neN Gas Surf: Variabile senza formula PUN/PSV esplicita: oggi usa prezzo di calcolo statico; Fonte tariffaria da verificare con scheda sintetica o fonte ufficiale; Monetizzazione non attiva: in_attesa_approvazione; Link tracking non configurato
+- 15 NeN - neN Surf Luce e Gas: Variabile senza formula PUN/PSV esplicita: oggi usa prezzo di calcolo statico; Fonte tariffaria da verificare con scheda sintetica o fonte ufficiale; Monetizzazione non attiva: in_attesa_approvazione; Link tracking non configurato
 
 ## Regole applicate
 

@@ -1,5 +1,5 @@
 {
-  "versioneDati": "offerte-proposte-2026-06-27-v4-eco",
+  "versioneDati": "offerte-proposte-2026-06-27-v5-nen-dual",
   "fonte": "Configurazione OffertaLogica con prime offerte certificate da Portale Offerte ARERA/AU open data 20/06/2026 e schede sintetiche PDF fornite; offerte residue da verificare con scheda sintetica o fonte ufficiale",
   "aggiornatoIl": "2026-06-27",
   "offerte": [
@@ -320,6 +320,31 @@
           "gas": "000742GSVML01XXZEROSPEC260409D01"
         },
         "note": "Le due schede sono offerte separate dello stesso venditore; OffertaLogica le abbina in calcolo per confrontare un profilo luce+gas senza dichiarare un bonus dual."
+      }
+    },
+    {
+      "id": 15,
+      "provider": "NeN",
+      "nome": "neN Surf Luce e Gas",
+      "tipo": "variabile",
+      "fornitura": "dual",
+      "link": "https://nen.it",
+      "destinationType": "affiliazione",
+      "destinationStatus": "in_attesa_approvazione",
+      "luce": { "prezzoVariabile": 0.129, "quotaFissaAnnua": 120 },
+      "gas": { "prezzoVariabile": 0.47, "quotaFissaAnnua": 120 },
+      "descrizione": "Combinazione variabile luce e gas da offerte separate neN Surf",
+      "fonte": "Combinazione tecnica OffertaLogica delle offerte separate neN Luce Surf e neN Gas Surf, usata solo per confrontare correttamente un profilo dual fuel; da verificare con schede sintetiche aggiornate prima dell'uso commerciale pieno.",
+      "aggiornataIl": "2026-06-27",
+      "certificazione": {
+        "stato": "da_verificare",
+        "fonte": "combinazione_tecnica_offertalogica",
+        "dataFonte": "2026-06-27",
+        "codici": {
+          "luce": "nen-luce-surf-da-verificare",
+          "gas": "nen-gas-surf-da-verificare"
+        },
+        "note": "Questa voce evita di confrontare singole commodity in una graduatoria dual fuel. Le offerte singole neN Luce Surf e neN Gas Surf restano disponibili solo quando il filtro e separato."
       }
     }
   ]
