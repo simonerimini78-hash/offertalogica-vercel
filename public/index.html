@@ -848,6 +848,7 @@
                     <option value="sinergy">Sinergy</option>
                     <option value="altro">Altro (Fornitore non in elenco)</option>
                 </select>
+                <div id="nuova-offerta-auto-hint" style="display:none; margin-top:8px; font-size:12px; color:var(--text-muted); line-height:1.35;"></div>
             </div>
             <div class="columns-subgrid">
                 <div class="column-energy">
@@ -1221,6 +1222,7 @@ function avviaComparazioneDati() {
 let MOTORE_CALCOLO_VERSION = "motore-v5-dati-esterni-2026-06-21";
 const DATI_CALCOLO_URLS = ["/data/calcolo-parametri.json", "data/calcolo-parametri.json"];
 const DATI_OFFERTE_URLS = ["/data/offerte-proposte.json", "data/offerte-proposte.json"];
+const DATI_ARERA_MENU_URLS = ["/data/offerte-arera-menu.json", "data/offerte-arera-menu.json"];
 let DATI_CALCOLO_META = {
   versioneDati: "fallback-html-2026-06-27-v3",
   fonte: "Fallback interno HTML",
@@ -1229,6 +1231,11 @@ let DATI_CALCOLO_META = {
 let DATI_OFFERTE_META = {
   versioneDati: "fallback-html-2026-06-27-v4-eco",
   fonte: "Fallback interno HTML con prime offerte certificate da Portale Offerte ARERA/AU e schede PDF",
+  aggiornatoIl: "2026-06-27",
+};
+let DATI_ARERA_MENU_META = {
+  versioneDati: "fallback-html-arera-menu-vuoto",
+  fonte: "Archivio ARERA non caricato",
   aggiornatoIl: "2026-06-27",
 };
 let PARAMETRI_CALCOLO = {
@@ -1323,6 +1330,9 @@ const STAFF_MODE_STORAGE_KEY = "offertalogicaStaffMode";
 const STAFF_MODE_LEAD_ID = "staff-preview";
 const STAFF_MODE_OTP = "000000";
 const OFFER_RENDER_CONTEXTS = new Map();
+let OFFERTE_ARERA_MENU = [];
+let NUOVA_OFFERTA_AUTOMATICA = null;
+let BLOCCO_AUTOFILL_NUOVA_OFFERTA = false;
 
 let PARAMETRI_MASTER = {
   potenzaLuce: PARAMETRI_CALCOLO.componentiProfilo.potenzaLuceAnnua,
@@ -1763,6 +1773,63 @@ async function caricaOfferteProposte() {
   return false;
 }
 
+function normalizzaRigaAreraMenu(riga) {
+  if (!riga || typeof riga !== "object") return null;
+  const prezzo = numeroSicuro(riga.prezzo, NaN);
+  const quotaFissaAnnua = numeroSicuro(riga.quotaFissaAnnua, NaN);
+  if (!riga.providerKey || !riga.commodity || !Number.isFinite(prezzo) || !Number.isFinite(quotaFissaAnnua)) return null;
+
+  return {
+    providerKey: String(riga.providerKey || "").trim(),
+    providerLabel: riga.providerLabel || riga.fornitore || "",
+    fornitore: riga.fornitore || riga.providerLabel || "",
+    commodity: riga.commodity === "gas" ? "gas" : "luce",
+    tipo: riga.tipo === "variabile" ? "variabile" : "fisso",
+    nome: riga.nome || "Offerta ARERA",
+    codice: riga.codice || "",
+    dataInizio: riga.dataInizio || "",
+    dataFine: riga.dataFine || "",
+    prezzo,
+    quotaFissaAnnua,
+    url: riga.url || "#",
+    fonte: riga.fonte || DATI_ARERA_MENU_META.fonte,
+    score: numeroSicuro(riga.score, 999),
+  };
+}
+
+function applicaDatiAreraMenu(data) {
+  const offerte = Array.isArray(data) ? data : data?.offerte;
+  if (!Array.isArray(offerte)) return false;
+
+  const pulite = offerte.map(normalizzaRigaAreraMenu).filter(Boolean);
+  if (!pulite.length) return false;
+
+  DATI_ARERA_MENU_META = {
+    versioneDati: data.versioneDati || data.version || DATI_ARERA_MENU_META.versioneDati,
+    fonte: data.fonte || DATI_ARERA_MENU_META.fonte,
+    aggiornatoIl: data.aggiornatoIl || DATI_ARERA_MENU_META.aggiornatoIl,
+  };
+  OFFERTE_ARERA_MENU = pulite;
+  return true;
+}
+
+async function caricaOfferteAreraMenu() {
+  if (!window.fetch || window.location.protocol === "file:") return false;
+
+  for (const url of DATI_ARERA_MENU_URLS) {
+    try {
+      const response = await fetch(url, { cache: "no-store" });
+      if (!response.ok) continue;
+      const data = await response.json();
+      if (applicaDatiAreraMenu(data)) return true;
+    } catch (error) {
+      // Se l'archivio ARERA non si carica, resta valido il confronto con le offerte pubblicate.
+    }
+  }
+
+  return false;
+}
+
 function numeroSicuro(value, fallback = 0) {
   const number = Number(value);
   return Number.isFinite(number) ? number : fallback;
@@ -1860,9 +1927,9 @@ function calcolaOfferta(offerta, tipoTariffa) {
   };
 }
 
-function calcolaDifferenza(offertaAttuale, offertaConfronto, tipoTariffa) {
-  const attuale = calcolaOfferta(offertaAttuale, tipoTariffa);
-  const confronto = calcolaOfferta(offertaConfronto, tipoTariffa);
+function calcolaDifferenza(offertaAttuale, offertaConfronto, tipoTariffaAttuale, tipoTariffaConfronto = tipoTariffaAttuale) {
+  const attuale = calcolaOfferta(offertaAttuale, tipoTariffaAttuale);
+  const confronto = calcolaOfferta(offertaConfronto, tipoTariffaConfronto);
 
   return {
     attuale,
@@ -2066,10 +2133,12 @@ function leggiOffertaAttuale() {
 }
 
 function leggiNuovaOfferta(attuale) {
+  const fonteAuto = NUOVA_OFFERTA_AUTOMATICA?.offerta || null;
   return {
     luce: {
       consumo: attuale.luce.consumo,
       prezzoVariabile: leggiNumero("in-luce-prezzo-nuov"),
+      formula: fonteAuto?.luce?.formula,
       quotaFissaAnnua: leggiNumero("in-luce-fisso-nuov"),
       quoteUniversaliAnnue: maggiorazioneMaster("luce"),
       componentiRegolate: componentiRegolateMaster("luce"),
@@ -2077,6 +2146,7 @@ function leggiNuovaOfferta(attuale) {
     gas: {
       consumo: attuale.gas.consumo,
       prezzoVariabile: leggiNumero("in-gas-prezzo-nuov"),
+      formula: fonteAuto?.gas?.formula,
       quotaFissaAnnua: leggiNumero("in-gas-fisso-nuov"),
       quoteUniversaliAnnue: maggiorazioneMaster("gas"),
       componentiRegolate: componentiRegolateMaster("gas"),
@@ -2091,6 +2161,20 @@ function nuovaOffertaCompilata() {
     "in-gas-prezzo-nuov",
     "in-gas-fisso-nuov",
   ].some((id) => leggiNumero(id) > 0);
+}
+
+function voceRichiesta(voce) {
+  return numeroSicuro(voce?.consumo, 0) > 0 || numeroSicuro(voce?.prezzoVariabile, 0) > 0 || numeroSicuro(voce?.quotaFissaAnnua, 0) > 0;
+}
+
+function voceNuovaPresente(voce) {
+  return Boolean(voce?.formula) || numeroSicuro(voce?.prezzoVariabile, 0) > 0 || numeroSicuro(voce?.quotaFissaAnnua, 0) > 0;
+}
+
+function nuovaOffertaComparabile(attuale, nuova) {
+  const luceRichiesta = voceRichiesta(attuale.luce);
+  const gasRichiesto = voceRichiesta(attuale.gas);
+  return (!luceRichiesta || voceNuovaPresente(nuova.luce)) && (!gasRichiesto || voceNuovaPresente(nuova.gas));
 }
 
 function offertaPropostaPerCalcolo(offerta, attuale) {
@@ -2235,9 +2319,6 @@ function renderComparazione(areaRisultati, confrontoNuova) {
         ${rigaComparazione("Differenza", confrontoNuova.differenza)}
       </tbody>
     </table>
-    <p style="margin:10px 0 0; color:var(--text-muted); font-size:12px;">
-      ${PARAMETRI_CALCOLO.note}${notaOneriFiscali()} Motore: ${MOTORE_CALCOLO_VERSION}. Parametri: ${DATI_CALCOLO_META.versioneDati} (${DATI_CALCOLO_META.aggiornatoIl}). Offerte: ${DATI_OFFERTE_META.versioneDati} (${DATI_OFFERTE_META.aggiornatoIl}).
-    </p>
   `;
 }
 
@@ -2687,8 +2768,9 @@ window.avviaComparazioneDati = function avviaComparazioneDati() {
   }
 
   const nuova = leggiNuovaOfferta(attuale);
-  const confrontoNuova = calcolaDifferenza(attuale, nuova, tipoTariffa);
-  const haNuovaOfferta = nuovaOffertaCompilata();
+  const tipoTariffaNuova = NUOVA_OFFERTA_AUTOMATICA?.offerta?.tipo || tipoTariffa;
+  const confrontoNuova = calcolaDifferenza(attuale, nuova, tipoTariffa, tipoTariffaNuova);
+  const haNuovaOfferta = nuovaOffertaCompilata() && nuovaOffertaComparabile(attuale, nuova);
   const areaRisultati = document.getElementById("results-area");
 
   if (areaRisultati) {
@@ -3378,18 +3460,226 @@ function clearField(id) {
   if (element) element.value = "";
 }
 
+const PROVIDER_MATCHERS = [
+  ["a2a", ["a2a"]],
+  ["acea", ["acea"]],
+  ["agasco", ["agasco"]],
+  ["alperia", ["alperia"]],
+  ["amga", ["amga"]],
+  ["argos", ["argos"]],
+  ["axpo", ["axpo"]],
+  ["dolomiti", ["dolomiti"]],
+  ["eco", ["e co", "e.co", "eco energia", "energia corrente"]],
+  ["eon", ["e on", "e.on", "eon"]],
+  ["edison", ["edison"]],
+  ["enel", ["enel"]],
+  ["eni", ["eni", "plenitude"]],
+  ["enercom", ["enercom"]],
+  ["engie", ["engie"]],
+  ["eja", ["eja energia"]],
+  ["hera", ["hera", "heracomm"]],
+  ["illum", ["illumia", "illum"]],
+  ["iren", ["iren"]],
+  ["magis", ["magis"]],
+  ["nen", ["nen", "nen energia"]],
+  ["nova", ["nova aeg", "nova"]],
+  ["octopus", ["octopus"]],
+  ["optima", ["optima"]],
+  ["poste", ["poste energia", "poste"]],
+  ["pulsee", ["pulsee"]],
+  ["sen", ["servizio elettrico nazionale"]],
+  ["sorgenia", ["sorgenia"]],
+  ["tate", ["tate"]],
+  ["vivi", ["vivi energia", "vivi"]],
+  ["wekiwi", ["wekiwi"]],
+  ["sinergy", ["sinergy"]],
+];
+
+function testoFornitoreNormalizzato(name) {
+  return String(name || "")
+    .toLowerCase()
+    .replace(/&/g, " e ")
+    .replace(/[^a-z0-9.]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function chiaveFornitoreDaNome(name) {
+  const normalized = testoFornitoreNormalizzato(name);
+  if (!normalized) return "";
+  const exact = PROVIDER_MATCHERS.find(([key]) => normalized === key);
+  if (exact) return exact[0];
+  const match = PROVIDER_MATCHERS.find(([, aliases]) => aliases.some((alias) => normalized.includes(alias)));
+  return match ? match[0] : "";
+}
+
 function providerValue(name) {
-  const lowered = String(name || "").toLowerCase();
-  if (lowered.includes("dolomiti")) return "dolomiti";
-  if (lowered.includes("e.co") || lowered.includes("eco energia") || lowered.includes("energia corrente")) return "eco";
-  if (lowered.includes("hera")) return "hera";
-  if (lowered.includes("e.on")) return "eon";
-  if (lowered.includes("acea")) return "acea";
-  if (lowered.includes("pulsee")) return "pulsee";
-  if (lowered.includes("illumia")) return "illum";
-  if (lowered.includes("enel")) return "enel";
-  if (lowered.includes("eni")) return "eni";
-  return "altro";
+  return chiaveFornitoreDaNome(name) || "altro";
+}
+
+function prezzoInputDaVoce(voce) {
+  if (!voce) return "";
+  const prezzo = risolviPrezzoVariabile(voce);
+  return numeroSicuro(prezzo, 0) > 0 ? prezzo.toFixed(4) : "";
+}
+
+function mostraHintNuovaOfferta(message, isError = false) {
+  const hint = document.getElementById("nuova-offerta-auto-hint");
+  if (!hint) return;
+  hint.style.display = message ? "block" : "none";
+  hint.style.color = isError ? "var(--danger)" : "var(--text-muted)";
+  hint.innerText = message || "";
+}
+
+function offertaCompletaPerProfilo(offerta, attuale) {
+  const luceRichiesta = voceRichiesta(attuale.luce);
+  const gasRichiesto = voceRichiesta(attuale.gas);
+  return (!luceRichiesta || Boolean(offerta.luce)) && (!gasRichiesto || Boolean(offerta.gas));
+}
+
+function costoOffertaSulProfilo(offerta, attuale) {
+  return calcolaOfferta(offertaPropostaPerCalcolo(offerta, attuale), offerta.tipo || "fisso").totale;
+}
+
+function costoRigaAreraSuProfilo(riga, attuale) {
+  const consumo = riga.commodity === "luce" ? attuale.luce.consumo : attuale.gas.consumo;
+  return (numeroSicuro(consumo, 0) * numeroSicuro(riga.prezzo, 0)) + numeroSicuro(riga.quotaFissaAnnua, 0);
+}
+
+function miglioreRigaArera(righe, commodity, tipo, attuale) {
+  return righe
+    .filter((riga) => riga.commodity === commodity && riga.tipo === tipo)
+    .sort((a, b) => (costoRigaAreraSuProfilo(a, attuale) - costoRigaAreraSuProfilo(b, attuale)) || (a.score - b.score))[0] || null;
+}
+
+function voceDaRigaArera(riga) {
+  if (!riga) return null;
+  return {
+    prezzoVariabile: riga.prezzo,
+    quotaFissaAnnua: riga.quotaFissaAnnua,
+  };
+}
+
+function offertaAreraDaRighe(providerKey, tipo, tipoFornitura, attuale) {
+  const righe = OFFERTE_ARERA_MENU.filter((riga) => riga.providerKey === providerKey);
+  if (!righe.length) return null;
+
+  const luce = miglioreRigaArera(righe, "luce", tipo, attuale);
+  const gas = miglioreRigaArera(righe, "gas", tipo, attuale);
+  if (tipoFornitura === "dual" && (!luce || !gas)) return null;
+  if (!luce && !gas) return null;
+
+  const providerLabel = luce?.providerLabel || gas?.providerLabel || providerKey;
+  const nome = luce && gas
+    ? `${providerLabel} - migliore offerta ARERA luce e gas`
+    : `${providerLabel} - ${luce ? luce.nome : gas.nome}`;
+
+  return normalizzaOfferta({
+    id: `arera-${providerKey}-${tipo}-${luce?.codice || "no-luce"}-${gas?.codice || "no-gas"}`,
+    provider: providerLabel,
+    nome,
+    tipo,
+    fornitura: luce && gas && tipoFornitura === "dual" ? "dual" : "separate",
+    link: luce?.url || gas?.url || "#",
+    destinationType: "arera",
+    destinationStatus: "solo_confronto",
+    luce: voceDaRigaArera(luce),
+    gas: voceDaRigaArera(gas),
+    descrizione: "Compilazione automatica da Portale Offerte ARERA/AU per confronto nel modulo nuova offerta.",
+    fonte: `${DATI_ARERA_MENU_META.fonte} Codici: ${[luce?.codice, gas?.codice].filter(Boolean).join(" + ")}`,
+    aggiornataIl: DATI_ARERA_MENU_META.aggiornatoIl,
+  }, 0);
+}
+
+function offerteAreraPerFornitore(providerKey, attuale, tipoFornitura) {
+  return ["fisso", "variabile"]
+    .map((tipo) => offertaAreraDaRighe(providerKey, tipo, tipoFornitura, attuale))
+    .filter(Boolean);
+}
+
+function miglioreNuovaOffertaPerFornitore(providerKey, attuale, tipoTariffa, tipoFornitura) {
+  const pubblicate = OFFERTE_PROPOSTE.filter((offerta) => chiaveFornitoreDaNome(offerta.provider) === providerKey);
+  const arera = offerteAreraPerFornitore(providerKey, attuale, tipoFornitura);
+  const candidate = [...pubblicate, ...arera]
+    .filter((offerta) => offertaCalcolabileConIndici(offerta))
+    .filter((offerta) => offertaCompletaPerProfilo(offerta, attuale));
+
+  const livelli = [
+    (offerta) => offerta.tipo === tipoTariffa && offertaCoerenteConFornitura(offerta, tipoFornitura),
+    (offerta) => offertaCoerenteConFornitura(offerta, tipoFornitura),
+    (offerta) => offerta.tipo === tipoTariffa,
+    () => true,
+  ];
+
+  for (const filtro of livelli) {
+    const gruppo = candidate.filter(filtro);
+    if (gruppo.length) {
+      return gruppo.sort((a, b) => costoOffertaSulProfilo(a, attuale) - costoOffertaSulProfilo(b, attuale))[0];
+    }
+  }
+
+  return null;
+}
+
+function cancellaNuovaOffertaAutomatica() {
+  if (BLOCCO_AUTOFILL_NUOVA_OFFERTA) return;
+  NUOVA_OFFERTA_AUTOMATICA = null;
+  mostraHintNuovaOfferta("");
+}
+
+function applicaOffertaAlBloccoNuovo(offerta, providerKey) {
+  BLOCCO_AUTOFILL_NUOVA_OFFERTA = true;
+  NUOVA_OFFERTA_AUTOMATICA = { offerta, providerKey, appliedAt: new Date().toISOString() };
+
+  setField("master-luce-tipo", offerta.tipo || "fisso");
+  setField("master-tipo-fornitura", offerta.fornitura === "dual" ? "dual" : "separate");
+  setField("in-luce-prezzo-nuov", prezzoInputDaVoce(offerta.luce));
+  setField("in-luce-fisso-nuov", offerta.luce ? offerta.luce.quotaFissaAnnua : "");
+  setField("in-gas-prezzo-nuov", prezzoInputDaVoce(offerta.gas));
+  setField("in-gas-fisso-nuov", offerta.gas ? offerta.gas.quotaFissaAnnua : "");
+
+  BLOCCO_AUTOFILL_NUOVA_OFFERTA = false;
+  const fonte = offerta.destinationType === "arera" ? "dati ARERA disponibili" : "offerte gia inserite nel calcolatore";
+  mostraHintNuovaOfferta(`Nuova offerta compilata automaticamente: ${offerta.nome} (${fonte}).`);
+}
+
+function svuotaCampiNuovaOfferta() {
+  BLOCCO_AUTOFILL_NUOVA_OFFERTA = true;
+  ["in-luce-prezzo-nuov", "in-luce-fisso-nuov", "in-gas-prezzo-nuov", "in-gas-fisso-nuov"].forEach(clearField);
+  BLOCCO_AUTOFILL_NUOVA_OFFERTA = false;
+}
+
+function aggiornaNuovaOffertaDaFornitore(options = {}) {
+  if (BLOCCO_AUTOFILL_NUOVA_OFFERTA) return false;
+  const { force = false } = options;
+  const providerKey = leggiValore("nome-fornitore-nuov", "");
+  if (!providerKey || providerKey === "altro") {
+    if (force) {
+      NUOVA_OFFERTA_AUTOMATICA = null;
+      svuotaCampiNuovaOfferta();
+      mostraHintNuovaOfferta("");
+    }
+    return false;
+  }
+
+  if (!force && !NUOVA_OFFERTA_AUTOMATICA && nuovaOffertaCompilata()) return false;
+
+  const attuale = leggiOffertaAttuale();
+  const tipoTariffa = leggiValore("master-luce-tipo", "fisso");
+  const tipoFornitura = leggiValore("master-tipo-fornitura", "dual");
+  const offerta = miglioreNuovaOffertaPerFornitore(providerKey, attuale, tipoTariffa, tipoFornitura);
+
+  if (!offerta) {
+    if (force) {
+      NUOVA_OFFERTA_AUTOMATICA = null;
+      svuotaCampiNuovaOfferta();
+      mostraHintNuovaOfferta("Per questo fornitore non abbiamo ancora una nuova offerta completa e confrontabile per i consumi inseriti.", true);
+    }
+    return false;
+  }
+
+  applicaOffertaAlBloccoNuovo(offerta, providerKey);
+  return true;
 }
 
 function luceMasterBucket(consumo) {
@@ -3519,6 +3809,19 @@ function collegaEventiUX() {
 
   luceAtt?.addEventListener("input", sincronizzaConsumiNuovaOfferta);
   gasAtt?.addEventListener("input", sincronizzaConsumiNuovaOfferta);
+  document.getElementById("nome-fornitore-nuov")?.addEventListener("change", () => {
+    aggiornaNuovaOffertaDaFornitore({ force: true });
+    const risultatiVisibili = document.querySelector(".fornitori-consigliati-section")?.style.display === "block";
+    if (risultatiVisibili) avviaComparazioneDati();
+  });
+  [
+    "in-luce-prezzo-nuov",
+    "in-luce-fisso-nuov",
+    "in-gas-prezzo-nuov",
+    "in-gas-fisso-nuov",
+  ].forEach((id) => {
+    document.getElementById(id)?.addEventListener("input", cancellaNuovaOffertaAutomatica);
+  });
 
   [
     "master-luce-consumo",
@@ -3529,6 +3832,8 @@ function collegaEventiUX() {
     "master-tipo-fornitura",
   ].forEach((id) => {
     document.getElementById(id)?.addEventListener("change", () => {
+      if (BLOCCO_AUTOFILL_NUOVA_OFFERTA) return;
+      aggiornaNuovaOffertaDaFornitore();
       const risultatiVisibili = document.querySelector(".fornitori-consigliati-section")?.style.display === "block";
       if (risultatiVisibili) avviaComparazioneDati();
     });
@@ -3546,7 +3851,7 @@ function collegaEventiUX() {
     if (event.target?.id === "offer-consent-backdrop") chiudiConsensoOfferta();
   });
 
-  Promise.all([caricaDatiCalcolo(), caricaOfferteProposte()]).then(() => {
+  Promise.all([caricaDatiCalcolo(), caricaOfferteProposte(), caricaOfferteAreraMenu()]).then(() => {
     assicuraSchedeOfferte();
     const risultatiVisibili = document.querySelector(".fornitori-consigliati-section")?.style.display === "block";
     if (risultatiVisibili) avviaComparazioneDati();
