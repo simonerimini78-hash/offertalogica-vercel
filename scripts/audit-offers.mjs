@@ -60,12 +60,13 @@ function statusForOffer(offer, destination) {
     checks.push("Fornitura separate con luce e gas entrambe presenti: verificare se e bundle reale o due offerte separate");
   }
   if (offer.tipo === "variabile") {
-    const hasFormula = commodities.some((commodity) => offer[commodity]?.formula?.tipo === "indice_spread");
-    if (!hasFormula) checks.push("Variabile senza formula PUN/PSV esplicita: oggi usa prezzo di calcolo statico");
+    const hasAllFormula = commodities.every((commodity) => offer[commodity]?.formula?.tipo === "indice_spread");
+    if (!hasAllFormula) checks.push("Variabile senza formula PUN/PSV esplicita: oggi usa prezzo di calcolo statico");
   }
   for (const commodity of commodities) {
     const voce = offer[commodity];
-    if (Number(voce.prezzoVariabile) <= 0) issues.push(`${commodity}: prezzo non positivo`);
+    const hasFormula = voce?.formula?.tipo === "indice_spread";
+    if (Number(voce.prezzoVariabile) <= 0 && !hasFormula) issues.push(`${commodity}: prezzo non positivo`);
     if (Number(voce.quotaFissaAnnua) < 0) issues.push(`${commodity}: quota fissa negativa`);
   }
   if (certificationStatus !== "certificata" && (!offer.fonte || /da verificare/i.test(offer.fonte))) {

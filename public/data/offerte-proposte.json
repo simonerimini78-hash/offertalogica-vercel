@@ -1,7 +1,7 @@
 {
-  "versioneDati": "offerte-proposte-2026-06-25-v3-partner",
-  "fonte": "Configurazione OffertaLogica con prime offerte certificate da Portale Offerte ARERA/AU open data 20/06/2026; offerte residue da verificare con scheda sintetica o fonte ufficiale",
-  "aggiornatoIl": "2026-06-25",
+  "versioneDati": "offerte-proposte-2026-06-27-v4-eco",
+  "fonte": "Configurazione OffertaLogica con prime offerte certificate da Portale Offerte ARERA/AU open data 20/06/2026 e schede sintetiche PDF fornite; offerte residue da verificare con scheda sintetica o fonte ufficiale",
+  "aggiornatoIl": "2026-06-27",
   "offerte": [
     {
       "id": 1,
@@ -285,6 +285,41 @@
           "luce": "000390DSFML01XXES014418010000000",
           "gas": "000390DSFML01XXGS014414010000000"
         }
+      }
+    }
+    ,
+    {
+      "id": 14,
+      "provider": "E.CO Energia Corrente",
+      "nome": "E.CO Prezzo Variabile Zero Spread Luce e Gas",
+      "tipo": "variabile",
+      "fornitura": "dual",
+      "link": "https://www.energiacorrente.it",
+      "destinationType": "partner_lead",
+      "destinationStatus": "da_contattare",
+      "luce": {
+        "prezzoVariabile": 0,
+        "formula": { "tipo": "indice_spread", "indice": "pun", "spread": 0 },
+        "quotaFissaAnnua": 168
+      },
+      "gas": {
+        "prezzoVariabile": 0,
+        "formula": { "tipo": "indice_spread", "indice": "psbg", "spread": 0 },
+        "quotaFissaAnnua": 168
+      },
+      "descrizione": "Prezzo variabile domestico: luce PUN Index GME + 0 eur/kWh e gas PSBG + 0 eur/Smc; combinazione luce e gas da schede separate, senza bonus dual rilevato",
+      "fonte": "Certificata da schede sintetiche PDF fornite il 27/06/2026: E.CO Energia Corrente luce 000742ESVOL01XXZEROSPEC260630D01 valida 01/04/2026-30/06/2026, PUN Index GME + 0 eur/kWh, corrispettivo annuo 168 eur/anno; gas 000742GSVML01XXZEROSPEC260409D01 valida 09/04/2026-30/06/2026, PSBG + 0 eur/Smc, corrispettivo annuo 168 eur/anno.",
+      "aggiornataIl": "2026-06-27",
+      "certificazione": {
+        "stato": "certificata",
+        "fonte": "scheda_sintetica_pdf",
+        "dataFonte": "2026-06-27",
+        "validita": "2026-04-01/2026-06-30",
+        "codici": {
+          "luce": "000742ESVOL01XXZEROSPEC260630D01",
+          "gas": "000742GSVML01XXZEROSPEC260409D01"
+        },
+        "note": "Le due schede sono offerte separate dello stesso venditore; OffertaLogica le abbina in calcolo per confrontare un profilo luce+gas senza dichiarare un bonus dual."
       }
     }
   ]

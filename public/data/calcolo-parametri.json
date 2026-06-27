@@ -1,7 +1,7 @@
 {
-  "versioneDati": "parametri-calcolo-2026-06-25-v2",
+  "versioneDati": "parametri-calcolo-2026-06-27-v3",
   "fonte": "Configurazione OffertaLogica aggiornabile; valori da verificare con fonti ufficiali prima dell'uso commerciale pieno",
-  "aggiornatoIl": "2026-06-25",
+  "aggiornatoIl": "2026-06-27",
   "parametriCalcolo": {
     "perditeReteLuceVariabile": 1.102,
     "profiloMedio": {
@@ -51,15 +51,21 @@
   "indiciMercato": {
     "pun": {
       "label": "PUN",
-      "valore": 0,
+      "valore": 0.119351258,
       "unita": "eur_kwh",
-      "note": "Da aggiornare con il valore medio ufficiale scelto per il periodo di confronto."
+      "note": "PUN Index GME maggio 2026: 119,351258 eur/MWh, convertito in 0,119351258 eur/kWh."
     },
     "psv": {
       "label": "PSV",
       "valore": 0,
       "unita": "eur_smc",
       "note": "Da aggiornare con il valore medio ufficiale scelto per il periodo di confronto."
+    },
+    "psbg": {
+      "label": "PSBG",
+      "valore": 0.504419055,
+      "unita": "eur_smc",
+      "note": "Prezzo medio mensile GME gas/prezzo sbilanciamento maggio 2026: 47,1419677419 eur/MWh, convertito in eur/Smc con PCS 38,52 MJ/Smc indicato nella scheda E.CO."
     }
   }
 }

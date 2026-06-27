@@ -2,15 +2,15 @@
 
 Aggiornamento: 2026-06-21
 
-Offerte analizzate: 13
+Offerte analizzate: 14
 
 ## Risultato sintetico
 
 ```text
 Coerenti senza rilievi: 2
-Da verificare: 11
+Da verificare: 12
 Non pubblicare: 0
-Certificate: 5
+Certificate: 6
 ```
 
 ## Priorita alte
