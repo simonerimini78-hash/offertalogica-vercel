@@ -2367,6 +2367,12 @@ function offertaCoerenteConFornitura(offerta, tipoFornitura) {
   return offerta.fornitura === tipoFornitura;
 }
 
+function offertaCompatibileConRanking(offerta, tipoTariffa, tipoFornitura) {
+  if (offerta.tipo !== tipoTariffa) return false;
+  if (tipoTariffa === "variabile") return true;
+  return offertaCoerenteConFornitura(offerta, tipoFornitura);
+}
+
 function voceIndicizzataCalcolabile(voce) {
   if (!voce?.formula || voce.formula.tipo !== "indice_spread") return true;
   const indice = INDICI_MERCATO[voce.formula.indice]?.valore;
@@ -2409,7 +2415,8 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       return;
     }
 
-    const compatibileRanking = offerta.tipo === tipoTariffa && offerta.fornitura === tipoFornitura;
+    const compatibileRanking = offertaCompatibileConRanking(offerta, tipoTariffa, tipoFornitura);
+    const filtroEsatto = offerta.tipo === tipoTariffa && offertaCoerenteConFornitura(offerta, tipoFornitura);
     const attivabileOnline = offertaAttivabileOnline(offerta);
     const attivabileCoerente = attivabileOnline;
     if (!compatibileRanking && !attivabileCoerente) {
@@ -2429,9 +2436,10 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       card,
       offerta,
       compatibileRanking,
+      filtroEsatto,
       attivabileOnline,
       attivabileCoerente,
-      alternativeFiltro: attivabileOnline && !compatibileRanking,
+      alternativeFiltro: !filtroEsatto,
       costo: costoOfferta.totale,
       costoOfferta,
       attualeComparabile,
@@ -2490,10 +2498,14 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
 
   aggiornaIntestazioneOfferte(
     headerTop,
-    attivabiliPrioritarie.length ? "Altre offerte migliori per costo" : "Le 3 offerte migliori per i tuoi consumi",
-    attivabiliPrioritarie.length
-      ? "Classifica economica calcolata sul tuo profilo e sul filtro selezionato, al netto delle offerte attivabili gia mostrate sopra."
-      : "Ordinate in base al costo annuo stimato sul profilo inserito."
+    tipoTariffa === "variabile"
+      ? "Le 3 migliori offerte a prezzo variabile"
+      : (attivabiliPrioritarie.length ? "Altre offerte migliori per costo" : "Le 3 offerte migliori per i tuoi consumi"),
+    tipoTariffa === "variabile"
+      ? "Classifica calcolata su tutte le offerte variabili disponibili nel calcolatore e ordinata sul profilo di consumo inserito."
+      : (attivabiliPrioritarie.length
+        ? "Classifica economica calcolata sul tuo profilo e sul filtro selezionato, al netto delle offerte attivabili gia mostrate sopra."
+        : "Ordinate in base al costo annuo stimato sul profilo inserito.")
   );
 
   if (headerAttivabili) {
@@ -2506,13 +2518,13 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
     contenitoreSchede?.appendChild(headerTop);
   }
 
-  visibili.forEach(({ card, offerta, costo, costoOfferta, differenza, risparmio, saving, ambito, posizioneEconomica, gruppoVisuale, attivabileOnline, compatibileRanking, alternativeFiltro }) => {
+  visibili.forEach(({ card, offerta, costo, costoOfferta, differenza, risparmio, saving, ambito, posizioneEconomica, gruppoVisuale, attivabileOnline, compatibileRanking, filtroEsatto, alternativeFiltro }) => {
       const context = {
         economyRank: posizioneEconomica,
         displayGroup: gruppoVisuale,
         isTopEconomic: gruppoVisuale === "top",
         isActiveAffiliate: attivabileOnline,
-        matchesSelectedFilter: Boolean(compatibileRanking),
+        matchesSelectedFilter: Boolean(filtroEsatto),
         isFilterAlternative: Boolean(alternativeFiltro),
         annualCost: Number(costo.toFixed(2)),
         annualDelta: Number(differenza.toFixed(2)),
@@ -2537,7 +2549,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
         ? `<span style="display:inline-block; margin:0 0 6px 6px; padding:3px 8px; border:1px solid #a7f3d0; border-radius:999px; background:#ecfdf5; color:#047857; font-size:11px; font-weight:800;">Attivabile online</span>`
         : "";
       const alternativeNote = alternativeFiltro
-        ? `<small style="display:block; margin-top:3px; color:#92400e; font-weight:700;">Alternativa ${descriviTipoOfferta(offerta)} mostrata anche se il filtro selezionato e ${testoFiltroOfferte(tipoTariffa, tipoFornitura)}.</small>`
+        ? `<small style="display:block; margin-top:3px; color:#92400e; font-weight:700;">${tipoTariffa === "variabile" && offerta.tipo === "variabile" ? "Offerta variabile" : "Alternativa"} ${descriviTipoOfferta(offerta)} mostrata anche se il filtro selezionato e ${testoFiltroOfferte(tipoTariffa, tipoFornitura)}.</small>`
         : "";
       if (LEAD_STATE.verified) {
         if (title) title.innerText = offerta.nome;
