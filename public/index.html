@@ -3217,6 +3217,15 @@ function chiudiConsensoOfferta() {
   if (modal) modal.style.display = "none";
 }
 
+function offertaConRedirectAttivo(offer) {
+  const monetization = offer?.monetization || {};
+  return (
+    offer?.destinationStatus === "attiva" &&
+    offer?.destinationType === "affiliazione" &&
+    Boolean(monetization.attiva || monetization.active)
+  );
+}
+
 async function confermaConsensoOfferta() {
   const checkbox = document.getElementById("offer-consent-checkbox");
   if (!LEAD_STATE.partnerConsent && !checkbox?.checked) {
@@ -3248,11 +3257,11 @@ async function registraRichiestaOfferta() {
 
   if (LEAD_STATE.leadId === STAFF_MODE_LEAD_ID || staffModeAttiva()) {
     const safeLink = linkStaffSenzaTracking(offer.link);
-    if (safeLink && safeLink !== "#") {
+    if (offertaConRedirectAttivo(offer) && safeLink && safeLink !== "#") {
       offerConsentStatus("Apro la pagina dell'offerta scelta.");
       window.location.href = safeLink;
     } else {
-      offerConsentStatus("Questa offerta non ha ancora una landing verificabile.");
+      offerConsentStatus("Richiesta registrata. Per continuare dobbiamo trasmettere i tuoi dati al fornitore o a un partner commerciale incaricato di gestire la richiesta.");
     }
     return;
   }

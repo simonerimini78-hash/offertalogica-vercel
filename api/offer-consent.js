@@ -93,6 +93,14 @@ function isAllowedOfferLink(link) {
   }
 }
 
+function shouldRedirectToOffer(offer) {
+  return (
+    offer.destinationStatus === "attiva" &&
+    offer.destinationType === "affiliazione" &&
+    Boolean(offer.monetization?.active)
+  );
+}
+
 export default async function handler(req, res) {
   if (!method(req, res, ["POST"])) return;
   if (!requireAllowedOrigin(req, res)) return;
@@ -120,7 +128,7 @@ export default async function handler(req, res) {
       ...lead,
       selectedOffer,
       monetization: {
-        status: selectedOffer.destinationStatus === "attiva" ? "ready_to_redirect" : "partner_request_recorded",
+        status: shouldRedirectToOffer(selectedOffer) ? "ready_to_redirect" : "partner_request_recorded",
         destinationType: selectedOffer.destinationType,
         destinationStatus: selectedOffer.destinationStatus,
         provider: selectedOffer.provider,
@@ -181,7 +189,7 @@ export default async function handler(req, res) {
       ok: true,
       status: "received",
       webhookSent: Boolean(updatedLead.notification?.webhookSent),
-      redirectUrl: selectedOffer.destinationStatus === "attiva" ? selectedOffer.link : "",
+      redirectUrl: shouldRedirectToOffer(selectedOffer) ? selectedOffer.link : "",
     });
   } catch (error) {
     json(res, 400, { ok: false, error: error.message || "Errore consenso offerta" });
