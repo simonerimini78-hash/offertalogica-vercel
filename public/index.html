@@ -3177,8 +3177,8 @@ function configuraPopupConsensoOfferta(richiedeConsenso) {
   const close = document.getElementById("offer-consent-close");
   if (label) label.style.display = richiedeConsenso ? "flex" : "none";
   if (note) note.style.display = richiedeConsenso ? "block" : "none";
-  if (confirm) confirm.style.display = richiedeConsenso ? "inline-block" : "none";
-  if (close) close.innerText = richiedeConsenso ? "Annulla" : "Chiudi";
+  if (confirm) confirm.style.display = "inline-block";
+  if (close) close.innerText = "Annulla";
 }
 
 window.apriConsensoOfferta = function apriConsensoOfferta(offerta) {
@@ -3205,17 +3205,11 @@ window.apriConsensoOfferta = function apriConsensoOfferta(offerta) {
   if (name) name.innerText = LEAD_STATE.selectedOffer.name || "offerta selezionata";
   if (checkbox) checkbox.checked = false;
   if (note) {
-    note.innerText = staffModeAttiva()
-      ? "Modalita staff: questo passaggio serve solo a testare il flusso. Nessun consenso, lead, webhook o click interno viene salvato."
-      : "Senza questo consenso puoi vedere il confronto, ma non possiamo inoltrare la richiesta di attivazione o monetizzare il lead presso partner terzi.";
+    note.innerText = "Senza questo consenso puoi vedere il confronto, ma non possiamo inoltrare la richiesta di attivazione o monetizzare il lead presso partner terzi.";
   }
   configuraPopupConsensoOfferta(!LEAD_STATE.partnerConsent);
   if (modal) modal.style.display = "flex";
-  if (LEAD_STATE.partnerConsent) {
-    registraRichiestaOfferta();
-  } else {
-    offerConsentStatus("Questo consenso serve solo per procedere con l'offerta scelta.");
-  }
+  offerConsentStatus("");
 };
 
 function chiudiConsensoOfferta() {
@@ -3225,7 +3219,7 @@ function chiudiConsensoOfferta() {
 
 async function confermaConsensoOfferta() {
   const checkbox = document.getElementById("offer-consent-checkbox");
-  if (!checkbox?.checked) {
+  if (!LEAD_STATE.partnerConsent && !checkbox?.checked) {
     offerConsentStatus("Per procedere serve il consenso al ricontatto/trasmissione dati sull'offerta scelta.", true);
     return;
   }
@@ -3255,10 +3249,10 @@ async function registraRichiestaOfferta() {
   if (LEAD_STATE.leadId === STAFF_MODE_LEAD_ID || staffModeAttiva()) {
     const safeLink = linkStaffSenzaTracking(offer.link);
     if (safeLink && safeLink !== "#") {
-      offerConsentStatus("Modalita staff: nessun lead salvato. Apro la landing senza tracciamento affiliato quando disponibile.");
-      window.open(safeLink, "_blank", "noopener,noreferrer");
+      offerConsentStatus("Apro la pagina dell'offerta scelta.");
+      window.location.href = safeLink;
     } else {
-      offerConsentStatus("Modalita staff: nessun lead salvato. Questa offerta non ha ancora una landing verificabile.");
+      offerConsentStatus("Questa offerta non ha ancora una landing verificabile.");
     }
     return;
   }
