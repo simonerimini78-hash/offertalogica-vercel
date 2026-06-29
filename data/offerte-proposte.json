@@ -1,6 +1,6 @@
 {
-  "versioneDati": "offerte-proposte-2026-06-29-v7-eon-funnel",
-  "fonte": "Configurazione OffertaLogica con prime offerte certificate da Portale Offerte ARERA/AU open data 20/06/2026 e schede sintetiche PDF fornite; offerte residue da verificare con scheda sintetica o fonte ufficiale; E.ON monetizzata tramite Tradedoubler con funnel diretto il 29/06/2026.",
+  "versioneDati": "offerte-proposte-2026-06-29-v8-funnel-enel-plenitude",
+  "fonte": "Configurazione OffertaLogica con prime offerte certificate da Portale Offerte ARERA/AU open data 20/06/2026 e schede sintetiche PDF fornite; offerte residue da verificare con scheda sintetica o fonte ufficiale; E.ON monetizzata tramite Tradedoubler con funnel diretto il 29/06/2026; link funnel Enel e configuratore Plenitude aggiornati il 29/06/2026.",
   "aggiornatoIl": "2026-06-29",
   "offerte": [
     {
@@ -239,7 +239,7 @@
       "nome": "Enel Fix Web Luce e Gas",
       "tipo": "fisso",
       "fornitura": "dual",
-      "link": "https://clk.tradedoubler.com/click?p=348999&a=3487966&epi=offertalogica&epi2=enel_fix_web&url=https%3A%2F%2Fwww.enel.it%2Fit-it%2Flanding%2Fcasa%2Fenel-offerte",
+      "link": "https://clk.tradedoubler.com/click?p=348999&a=3487966&epi=offertalogica&epi2=enel_fix_web_funnel&url=https%3A%2F%2Fwww.enel.it%2Fit-it%2Fcommodity-funnel%3Fpart__c%3D%2Fcontent%2Fenel-it%2Fit-it%2Fofferte-luce-gas%2Fenel-fix-web-luce-gas%26zoneid%3Dsito-landing_enel_offerte-card_luce_gas-cta-prospect",
       "destinationType": "affiliazione",
       "destinationStatus": "attiva",
       "monetizzazione": {
@@ -258,7 +258,7 @@
         "tassoCancellazione": 0,
         "epcMedio": 0,
         "prioritaCommerciale": "alta",
-        "note": "Programma Enel Italia accettato; deeplinking autorizzato."
+        "note": "Programma Enel Italia accettato; deeplink impostato verso funnel Enel Fix Web Luce e Gas."
       },
       "luce": {
         "prezzoVariabile": 0.139,
@@ -269,8 +269,8 @@
         "quotaFissaAnnua": 144
       },
       "descrizione": "Fisso 3 anni; bonus 200 euro in bolletta per dual fuel",
-      "fonte": "Landing ufficiale Enel Fix Web Luce e Gas verificata il 22/06/2026; bonus 200 euro indicato per attivazione dual fuel, non incluso nel costo annuo base.",
-      "aggiornataIl": "2026-06-22"
+      "fonte": "Landing ufficiale Enel Fix Web Luce e Gas verificata il 22/06/2026; bonus 200 euro indicato per attivazione dual fuel, non incluso nel costo annuo base. Destinazione Tradedoubler aggiornata verso funnel Enel Fix Web Luce e Gas il 29/06/2026.",
+      "aggiornataIl": "2026-06-29"
     },
     {
       "id": 11,
@@ -278,7 +278,7 @@
       "nome": "Eni Plenitude Fixa Time 24",
       "tipo": "fisso",
       "fornitura": "dual",
-      "link": "https://clk.tradedoubler.com/click?p=271844&a=3487966&epi=offertalogica&epi2=eni_plenitude_fixa_time_24&url=https%3A%2F%2Feniplenitude.com%2Fofferta%2Fcasa%2Fgas-e-luce",
+      "link": "https://clk.tradedoubler.com/click?p=271844&a=3487966&epi=offertalogica&epi2=eni_plenitude_fixa_time_24_config&url=https%3A%2F%2Feniplenitude.com%2Fconfigura-offerta%3F_lg%3D_o.WB.CWEB3EGP.BASE_LFIXA24TIV-GFIXA24TIV%257E_c.power.gas%257E_t.monoraria%257E_p.true%257E_b.digital",
       "destinationType": "affiliazione",
       "destinationStatus": "attiva",
       "monetizzazione": {
@@ -297,7 +297,7 @@
         "tassoCancellazione": 62,
         "epcMedio": 0.76,
         "prioritaCommerciale": "alta",
-        "note": "Programma Eni Gas e Luce_CPL accettato; deeplinking autorizzato."
+        "note": "Programma Eni Gas e Luce_CPL accettato; deeplink impostato verso configuratore Plenitude Fixa Time 24."
       },
       "luce": {
         "prezzoVariabile": 0.0987,
@@ -308,8 +308,8 @@
         "quotaFissaAnnua": 144
       },
       "descrizione": "Fixa Time 24 dual fuel; prezzi promozionali luce 0,0987 eur/kWh e gas 0,4205 eur/Smc, commercializzazione e vendita 144 euro/anno per luce e 144 euro/anno per gas",
-      "fonte": "Landing ufficiale Plenitude Offerte luce e gas per la casa verificata il 25/06/2026: luce monoraria prezzo 24H 0,0987 eur/kWh invece di 0,1172 eur/kWh, commercializzazione e vendita 144 eur/anno; gas 0,4205 eur/Smc invece di 0,4993 eur/Smc, commercializzazione e vendita 144 eur/anno. Destinazione commerciale Tradedoubler attiva: programma Eni Gas e Luce_CPL 271844, sito 3487966, cookie 30 giorni, tasso cancellazione 62%, EPC medio 0.76 EUR.",
-      "aggiornataIl": "2026-06-25"
+      "fonte": "Landing ufficiale Plenitude Offerte luce e gas per la casa verificata il 25/06/2026: luce monoraria prezzo 24H 0,0987 eur/kWh invece di 0,1172 eur/kWh, commercializzazione e vendita 144 eur/anno; gas 0,4205 eur/Smc invece di 0,4993 eur/Smc, commercializzazione e vendita 144 eur/anno. Destinazione commerciale Tradedoubler attiva: programma Eni Gas e Luce_CPL 271844, sito 3487966, cookie 30 giorni, tasso cancellazione 62%, EPC medio 0.76 EUR. Destinazione Tradedoubler aggiornata verso configuratore Plenitude Fixa Time 24 il 29/06/2026.",
+      "aggiornataIl": "2026-06-29"
     },
     {
       "id": 12,
