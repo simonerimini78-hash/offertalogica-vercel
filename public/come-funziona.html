@@ -13,6 +13,8 @@
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://offertalogica.it/come-funziona.html">
     <meta name="twitter:card" content="summary">
+    <link rel="icon" type="image/png" href="/assets/logo-offertalogica-icon.png">
+    <link rel="apple-touch-icon" href="/assets/logo-offertalogica-icon.png">
     <style>
         :root {
             --bg: #f1f5f9;
@@ -35,7 +37,8 @@
         .shell { max-width: 1080px; margin: 0 auto; padding: 0 22px; }
         .topbar { background: #ffffff; border-bottom: 1px solid var(--border); }
         .topbar-inner { min-height: 72px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-        .brand { text-decoration: none; color: var(--primary-dark); font-weight: 900; font-size: 24px; letter-spacing: .4px; white-space: nowrap; }
+        .brand { display: inline-flex; align-items: center; flex: 0 0 auto; line-height: 0; text-decoration: none; }
+        .brand img { display: block; width: 176px; max-width: 44vw; height: auto; }
         .nav { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
         .nav a { text-decoration: none; color: var(--dark); font-size: 14px; font-weight: 800; padding: 9px 12px; border-radius: 8px; }
         .nav a:hover { background: #f0fdf4; color: var(--primary-dark); }
@@ -83,7 +86,7 @@
 
         @media (max-width: 560px) {
             .shell { padding: 0 14px; }
-            .brand { font-size: 21px; }
+            .brand img { width: 150px; max-width: 56vw; }
             .nav a { padding: 8px 8px; }
             .panel { padding: 18px; }
             table { min-width: 520px; }
@@ -96,7 +99,9 @@
 
 <header class="topbar">
     <div class="shell topbar-inner">
-        <a class="brand" href="/">OFFERTA - LOGICA</a>
+        <a class="brand" href="/" aria-label="Torna al calcolatore OffertaLogica">
+            <img src="/assets/logo-offertalogica-header.png" alt="OffertaLogica.it">
+        </a>
         <nav class="nav" aria-label="Navigazione principale">
             <a href="/">Calcolatore</a>
             <a href="/come-funziona.html" aria-current="page">Come funziona</a>

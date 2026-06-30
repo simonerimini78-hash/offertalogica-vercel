@@ -13,6 +13,8 @@
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://offertalogica.it/">
     <meta name="twitter:card" content="summary">
+    <link rel="icon" type="image/png" href="/assets/logo-offertalogica-icon.png">
+    <link rel="apple-touch-icon" href="/assets/logo-offertalogica-icon.png">
     <style>
         :root {
             --bg-color: #f1f5f9;
@@ -148,6 +150,7 @@
         .lead-teaser p { margin: 0 0 12px; color: #166534; font-size: 14px; }
         .lead-teaser button { background: var(--primary); color: #fff; border: 0; border-radius: 8px; padding: 11px 16px; font-weight: 800; cursor: pointer; }
         .smart-home-teaser { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 16px; margin: 0 0 18px; padding: 18px; border: 1px solid rgba(37,99,235,.18); border-radius: 14px; background: linear-gradient(135deg, #ffffff 0%, #eff6ff 100%); box-shadow: 0 10px 26px rgba(15,23,42,.06); }
+        .smart-home-teaser.post-offers-teaser { margin-top: 18px; }
         .smart-home-teaser strong { display: block; font-size: 18px; line-height: 1.2; color: #0f172a; margin-bottom: 4px; }
         .smart-home-teaser p { margin: 0; color: #475569; font-size: 14px; line-height: 1.45; }
         .smart-home-teaser a { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: 12px 18px; border-radius: 10px; background: #0f172a; color: #fff; text-decoration: none; font-weight: 900; white-space: nowrap; }
@@ -171,8 +174,7 @@
         @media (max-width: 600px) {
             body { padding: 12px; }
             header { padding: 16px 8px 22px 8px !important; }
-            header h1 { font-size: 30px !important; letter-spacing: .6px !important; white-space: nowrap; }
-            header p { font-size: 14px !important; }
+            .site-logo-main { width: min(310px, 90vw); }
             .partner-vertical-card { flex-direction: column; text-align: center; gap: 12px; }
             .partner-meta { text-align: center; }
             .btn-partner-vertical { width: 100%; text-align: center; }
@@ -205,16 +207,17 @@
             position: relative;
             margin-bottom: 4px;
         }
-        header h1 {
-            font-weight: 900 !important;
-            letter-spacing: clamp(.2px, .18vw, 1.2px) !important;
-            font-size: clamp(24px, 8.8vw, 42px) !important;
-            max-width: 100%;
-            overflow: hidden;
-            text-overflow: clip;
+        .site-logo-link {
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            line-height: 0;
         }
-        header p {
-            font-weight: 700;
+        .site-logo-main {
+            display: block;
+            width: min(340px, 84vw);
+            height: auto;
+            margin: 0 auto;
         }
         header::after {
             content: "";
@@ -504,6 +507,9 @@
         }
 
         @media (max-width: 700px) {
+            .site-logo-main {
+                width: min(310px, 88vw);
+            }
             .pdf-lead-panel {
                 padding: 24px 16px;
             }
@@ -578,12 +584,9 @@
 
 <!-- Awin verification 2932723 -->
 <header style="text-align: center; padding: 20px 20px 30px 20px; font-family: sans-serif;">
-    <h1 style="margin: 0; font-size: clamp(30px, 8vw, 42px); font-weight: 800; color: #2D5A27; letter-spacing: clamp(0.6px, 0.3vw, 2px); white-space: nowrap;">
-        OFFERTA - LOGICA
-    </h1>
-    <p style="margin: 5px 0 0 0; color: #444; font-size: 16px; letter-spacing: 0.5px;">
-        La scelta intelligente per le tue utenze
-    </p>
+    <a class="site-logo-link" href="/" aria-label="OffertaLogica.it">
+        <img class="site-logo-main" src="/assets/logo-offertalogica-header.png" alt="OffertaLogica.it - Confronta, scegli, risparmia">
+    </a>
 </header>
 
 <main id="main-content" role="main">
@@ -3898,20 +3901,6 @@ if (document.readyState === "loading") {
     <p id="lead-teaser-copy">La stima usa consumi medi e l'ultimo riferimento ARERA disponibile: sblocca le migliori offerte e quelle attivabili online.</p>
     <button type="button" onclick="apriLeadModal('teaser')">Sblocca le offerte</button>
 </div>
-<div class="smart-home-teaser">
-    <div>
-        <strong>Casa smart, controllo e sicurezza</strong>
-        <p>Dopo il confronto energia puoi valutare soluzioni per rendere la casa piu controllabile da app, sicura e organizzata.</p>
-    </div>
-    <a href="/casa-smart.html">Scopri casa smart</a>
-</div>
-<div class="smart-home-teaser">
-    <div>
-        <strong>Internet casa e mobile</strong>
-        <p>Fibra, linea casa e offerte mobile completano il quadro delle utenze domestiche da tenere sotto controllo.</p>
-    </div>
-    <a href="/internet-casa.html">Scopri internet</a>
-</div>
 <div class="vertical-cards-container" style="display: flex; flex-direction: column; gap: 15px;">
         
         <!-- Offerta Consigliata 1: E.ON -->
@@ -4046,6 +4035,21 @@ if (document.readyState === "loading") {
         <div>
      </div>
   </div>
+
+<div class="smart-home-teaser post-offers-teaser">
+    <div>
+        <strong>Casa smart, controllo e sicurezza</strong>
+        <p>Dopo aver valutato le offerte luce e gas puoi scoprire soluzioni per rendere la casa piu controllabile da app, sicura e organizzata.</p>
+    </div>
+    <a href="/casa-smart.html">Scopri casa smart</a>
+</div>
+<div class="smart-home-teaser">
+    <div>
+        <strong>Internet casa e mobile</strong>
+        <p>Dopo il confronto energia puoi completare il quadro delle utenze domestiche con fibra, linea casa e offerte mobile.</p>
+    </div>
+    <a href="/internet-casa.html">Scopri internet</a>
+</div>
 
   <script>
   document.addEventListener("DOMContentLoaded", function() {

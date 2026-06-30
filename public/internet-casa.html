@@ -13,6 +13,8 @@
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://offertalogica.it/internet-casa.html">
     <meta name="twitter:card" content="summary">
+    <link rel="icon" type="image/png" href="/assets/logo-offertalogica-icon.png">
+    <link rel="apple-touch-icon" href="/assets/logo-offertalogica-icon.png">
     <style>
         :root {
             --bg-color: #f1f5f9;
@@ -48,9 +50,9 @@
         .page-shell { max-width: 1060px; margin: 0 auto; padding: 20px; }
         header { text-align: center; padding: 20px 20px 24px; }
         header a { text-decoration: none; }
-        header h1 { margin: 0; font-size: clamp(30px, 8vw, 42px); font-weight: 900; color: #2D5A27; letter-spacing: clamp(.6px, .3vw, 2px); white-space: nowrap; }
-        header p { margin: 5px 0 0; color: #444; font-size: 16px; letter-spacing: .5px; font-weight: 700; }
-        header::after { content: ""; display: block; width: 92px; height: 4px; margin: 12px auto 0; border-radius: 999px; background: linear-gradient(90deg, #16a34a, #2563eb); opacity: .75; }
+        .site-logo-link { display: inline-flex; align-items: center; justify-content: center; line-height: 0; }
+        .site-logo-main { display: block; width: min(430px, 88vw); height: auto; }
+        header::after { content: ""; display: none; }
         .top-nav { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin: 0 0 24px; }
         .top-nav a { min-height: 42px; display: inline-flex; align-items: center; justify-content: center; padding: 10px 14px; border: 1px solid rgba(148,163,184,.45); border-radius: 10px; background: #fff; color: #334155; text-decoration: none; font-weight: 800; box-shadow: 0 8px 18px rgba(15,23,42,.05); }
         .top-nav a.active { background: #eff6ff; color: #1d4ed8; border-color: rgba(37,99,235,.36); }
@@ -104,7 +106,7 @@
         @media (max-width: 560px) {
             .page-shell { padding: 12px; }
             header { padding: 16px 8px 20px; }
-            header h1 { font-size: 30px; white-space: nowrap; }
+            .site-logo-main { width: min(350px, 94vw); }
             .hero h2 { font-size: 35px; }
             .hero-copy { font-size: 16px; }
             .section { padding: 20px 16px; border-radius: 14px; }
@@ -118,10 +120,9 @@
 <a class="skip-link" href="#main-content">Vai al contenuto principale</a>
 <div class="page-shell">
     <header>
-        <a href="/" aria-label="Torna al calcolatore OffertaLogica">
-            <h1>OFFERTA - LOGICA</h1>
+        <a class="site-logo-link" href="/" aria-label="Torna al calcolatore OffertaLogica">
+            <img class="site-logo-main" src="/assets/logo-offertalogica-header.png" alt="OffertaLogica.it - Confronta, scegli, risparmia">
         </a>
-        <p>La scelta intelligente per le tue utenze</p>
     </header>
 
     <nav class="top-nav" aria-label="Navigazione principale">
