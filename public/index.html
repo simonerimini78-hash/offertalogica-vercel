@@ -2632,11 +2632,11 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
     headerTop,
     tipoTariffa === "variabile"
       ? "Le 3 migliori offerte a prezzo variabile"
-      : (attivabiliPrioritarie.length ? "Altre offerte migliori per costo" : "Le 3 offerte migliori per i tuoi consumi"),
+      : (attivabiliPrioritarie.length ? "Altre offerte con consulente" : "Le 3 offerte migliori per i tuoi consumi"),
     tipoTariffa === "variabile"
       ? "Classifica calcolata su tutte le offerte variabili disponibili nel calcolatore e ordinata sul profilo di consumo inserito."
       : (attivabiliPrioritarie.length
-        ? "Classifica economica calcolata sul tuo profilo e sul filtro selezionato, al netto delle offerte attivabili gia mostrate sopra."
+        ? "Queste proposte richiedono una verifica o un ricontatto: registriamo la richiesta e la facciamo gestire da un consulente o partner."
         : "Ordinate in base al costo annuo stimato sul profilo inserito.")
   );
 
