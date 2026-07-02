@@ -1,6 +1,6 @@
 {
-  "versioneDati": "offerte-proposte-2026-07-02-v9-alperia-awin",
-  "fonte": "Configurazione OffertaLogica con prime offerte certificate da Portale Offerte ARERA/AU e schede/landing fornitore; E.ON, Enel, Plenitude e Alperia monetizzate tramite network affiliate; Alperia IT accettata su Awin il 02/07/2026 con due funnel online fisso e variabile.",
+  "versioneDati": "offerte-proposte-2026-07-02-v12-eon-variabile-dual",
+  "fonte": "Configurazione OffertaLogica con prime offerte certificate da Portale Offerte ARERA/AU e schede/landing fornitore; E.ON aggiornata ai nuovi valori fissi e variabili comunicati il 02/07/2026; E.ON variabile usa una card dual con link principale Luce e Gas Insieme e link separati luce/gas conservati come riferimento; E.ON, Enel, Plenitude e Alperia monetizzate tramite network affiliate; Alperia IT accettata su Awin il 02/07/2026 con due funnel online fisso e variabile.",
   "aggiornatoIl": "2026-07-02",
   "offerte": [
     {
@@ -13,16 +13,16 @@
       "destinationType": "affiliazione",
       "destinationStatus": "attiva",
       "luce": {
-        "prezzoVariabile": 0.1017,
-        "quotaFissaAnnua": 109.2311
+        "prezzoVariabile": 0.1007,
+        "quotaFissaAnnua": 109.23
       },
       "gas": {
         "prezzoVariabile": 0.474,
         "quotaFissaAnnua": 108
       },
       "descrizione": "Dual certificata 12 mesi",
-      "fonte": "Certificata da Portale Offerte ARERA/AU open data 20/06/2026: E.ON Luce Insieme 000362DSFML01XXZA16S2D000000A000 + E.ON Gas Insieme 000362DSFML01XXLH06S2D000000A000. Destinazione commerciale Tradedoubler attiva dal 29/06/2026: programma 344125, sito 3487966, deeplink verso funnel E.ON Luce e Gas Insieme.",
-      "aggiornataIl": "2026-06-29",
+      "fonte": "Offerta E.ON Luce e Gas Insieme aggiornata con valori commerciali comunicati il 02/07/2026: luce 0,1007 €/kWh con sconto dual, gas 0,474 €/Smc, quota fissa luce 109,23 €/anno e quota fissa gas 108 €/anno. Destinazione commerciale Tradedoubler attiva dal 29/06/2026: programma 344125, sito 3487966, deeplink verso funnel E.ON Luce e Gas Insieme.",
+      "aggiornataIl": "2026-07-02",
       "certificazione": {
         "stato": "certificata",
         "fonte": "portale_offerte_arera_au",
@@ -32,7 +32,7 @@
           "luce": "000362DSFML01XXZA16S2D000000A000",
           "gas": "000362DSFML01XXLH06S2D000000A000"
         },
-        "note": "Prezzo luce netto calcolato come 0.1119 - sconto dual 0.0102 eur/kWh."
+        "note": "Prezzo luce netto aggiornato da 0,11187 €/kWh non scontato a 0,1007 €/kWh scontato per attivazione dual."
       },
       "monetizzazione": {
         "attiva": true,
@@ -51,6 +51,56 @@
         "epcMedio": null,
         "prioritaCommerciale": "alta",
         "note": "Programma E.ON Energia accettato; deeplink impostato verso il funnel E.ON Luce e Gas Insieme."
+      }
+    },
+    {
+      "id": 17,
+      "provider": "E.ON",
+      "nome": "E.ON Luce e Gas Insieme Variabile",
+      "tipo": "variabile",
+      "fornitura": "dual",
+      "link": "https://clk.tradedoubler.com/click?p=344125&a=3487966&epi=offertalogica&epi2=eon_variabile_luce_gas_dual&url=https%3A%2F%2Fwww.eon-energia.com%2Fofferta-luce-gas-insieme.html%3FswitchHolder%3Dno%26activeSupply%3Daltro%26where%3Dcasa",
+      "destinationType": "affiliazione",
+      "destinationStatus": "attiva",
+      "luce": {
+        "prezzoVariabile": 0,
+        "formula": {
+          "tipo": "indice_spread",
+          "indice": "pun",
+          "spread": 0.0088
+        },
+        "quotaFissaAnnua": 109.23
+      },
+      "gas": {
+        "prezzoVariabile": 0.6377,
+        "quotaFissaAnnua": 108
+      },
+      "descrizione": "Prezzo variabile: luce PUN + 0,0088 €/kWh; gas PSV DA 0,5577 €/Smc + 0,08 €/Smc. Bonus indicato: 27 € luce e 27 € gas in 3 rate, non conteggiato nel costo annuo base.",
+      "fonte": "Valori commerciali E.ON comunicati il 02/07/2026. Link di destinazione verso pagina E.ON Luce e Gas Insieme variabile, tracciato con Tradedoubler. Link separati di riferimento: luce https://www.eon-energia.com/luce/casa/eon-flex-luce.html?switchHolder=no&activeSupply=altro&where=casa; gas https://www.eon-energia.com/gas/casa/eon-flex-gas.html?switchHolder=no&activeSupply=altro&where=casa.",
+      "aggiornataIl": "2026-07-02",
+      "certificazione": {
+        "stato": "da_certificare",
+        "fonte": "valori_commerciali_fornitore",
+        "dataFonte": "2026-07-02",
+        "note": "Serve scheda sintetica o codice offerta per marcatura certificata. Il prezzo gas usa il valore PSV DA 0,5577 €/Smc indicato dalla comunicazione, più spread 0,08 €/Smc. La card dual usa il percorso Luce e Gas Insieme; i link separati luce/gas restano riferimenti tecnici."
+      },
+      "monetizzazione": {
+        "attiva": true,
+        "network": "Tradedoubler",
+        "programId": "344125",
+        "siteId": "3487966",
+        "modello": "Lead + transazione",
+        "commissionePrevista": {
+          "luce": 25,
+          "gas": 25,
+          "dual": 49,
+          "valuta": "EUR"
+        },
+        "cookieDays": null,
+        "tassoCancellazione": 83,
+        "epcMedio": null,
+        "prioritaCommerciale": "alta",
+        "note": "Programma E.ON Energia accettato; deeplink impostato verso la pagina E.ON Luce e Gas Insieme variabile indicata dal fornitore."
       }
     },
     {

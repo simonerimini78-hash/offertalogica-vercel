@@ -1107,7 +1107,7 @@ function avviaComparazioneDati() {
         const filtroFornitura = document.getElementById('master-tipo-fornitura').value; // 'separate' o 'dual'
 
         const partnerDati = [
-            { id: 1, nome: "E.ON Luce e Gas Insieme", lucePrezzo: 0.1041, gasPrezzo: 0.519, corrispettivoAnnuo: 108.00, tipo: "fisso", fornitura: "dual" },
+            { id: 1, nome: "E.ON Luce e Gas Insieme", lucePrezzo: 0.1007, gasPrezzo: 0.474, corrispettivoAnnuo: 217.23, tipo: "fisso", fornitura: "dual" },
             { id: 2, nome: "A2A Start Luce e Gas", lucePrezzo: 0.139, gasPrezzo: 0.490, corrispettivoAnnuo: 228.00, tipo: "fisso", fornitura: "dual" },
             { id: 3, nome: "Magis Energia Mia Fix", lucePrezzo: 0.1027, gasPrezzo: 0.4930, corrispettivoAnnuo: 96.00, tipo: "fisso", fornitura: "separate" },
             { id: 4, nome: "Octopus Luce e Gas", lucePrezzo: 0.1298, gasPrezzo: 0.4900, corrispettivoAnnuo: 156.00, tipo: "fisso", fornitura: "dual" },
@@ -1124,6 +1124,7 @@ function avviaComparazioneDati() {
             { id: 14, nome: "E.CO Prezzo Variabile Zero Spread Luce e Gas", lucePrezzo: 0.119351258, gasPrezzo: 0.504419055, corrispettivoAnnuo: 336.00, tipo: "variabile", fornitura: "dual" },
             { id: 15, nome: "neN Surf Luce e Gas", lucePrezzo: 0.1290, gasPrezzo: 0.4700, corrispettivoAnnuo: 240.00, tipo: "variabile", fornitura: "dual" },
             { id: 16, nome: "Alperia Luce e Gas Variabile PUN/PSV", lucePrezzo: 0.130351258, gasPrezzo: 0.664419055, corrispettivoAnnuo: 109.20, tipo: "variabile", fornitura: "dual" },
+            { id: 17, nome: "E.ON Luce e Gas Insieme Variabile", lucePrezzo: 0.128151258, gasPrezzo: 0.6377, corrispettivoAnnuo: 217.23, tipo: "variabile", fornitura: "dual" },
         ];
 
         partnerDati.forEach(partner => {
@@ -1202,6 +1203,11 @@ function avviaComparazioneDati() {
             let linkDestinazione = LINK_FORNITORI.default;
 
             switch(nomeFornitore.toLowerCase()) {
+                case "e.on":
+                case "e on":
+                case "eon":
+                    linkDestinazione = sceltaTariffa === "variabile" ? LINK_FORNITORI.eonVariabile : LINK_FORNITORI.eon;
+                    break;
                 case "enel": 
                     linkDestinazione = LINK_FORNITORI.enel; 
                     break;
@@ -1245,9 +1251,9 @@ let DATI_CALCOLO_META = {
   aggiornatoIl: "2026-06-27",
 };
 let DATI_OFFERTE_META = {
-  versioneDati: "fallback-html-2026-06-29-v7-eon-funnel",
-  fonte: "Fallback interno HTML con prime offerte certificate da Portale Offerte ARERA/AU e schede PDF",
-  aggiornatoIl: "2026-06-27",
+  versioneDati: "fallback-html-2026-07-02-v12-eon-variabile-dual",
+  fonte: "Fallback interno HTML con offerte attivabili E.ON, Enel, Plenitude e Alperia filtrate per fisso/variabile",
+  aggiornatoIl: "2026-07-02",
 };
 let DATI_ARERA_MENU_META = {
   versioneDati: "fallback-html-arera-menu-vuoto",
@@ -1356,6 +1362,8 @@ let PARAMETRI_MASTER = {
 };
 
 const LINK_FORNITORI = {
+  eon: "https://clk.tradedoubler.com/click?p=344125&a=3487966&epi=offertalogica&epi2=eon_luce_gas_insieme_funnel&url=https%3A%2F%2Fwww.eon-energia.com%2Fofferta-luce-gas-insieme%2Ffunnel-bundle-new.html",
+  eonVariabile: "https://clk.tradedoubler.com/click?p=344125&a=3487966&epi=offertalogica&epi2=eon_variabile_luce_gas_dual&url=https%3A%2F%2Fwww.eon-energia.com%2Fofferta-luce-gas-insieme.html%3FswitchHolder%3Dno%26activeSupply%3Daltro%26where%3Dcasa",
   enel: "https://clk.tradedoubler.com/click?p=348999&a=3487966&epi=offertalogica&epi2=enel_fix_web_funnel&url=https%3A%2F%2Fwww.enel.it%2Fit-it%2Fcommodity-funnel%3Fpart__c%3D%2Fcontent%2Fenel-it%2Fit-it%2Fofferte-luce-gas%2Fenel-fix-web-luce-gas%26zoneid%3Dsito-landing_enel_offerte-card_luce_gas-cta-prospect",
   eni: "https://clk.tradedoubler.com/click?p=271844&a=3487966&epi=offertalogica&epi2=eni_plenitude_fixa_time_24_config&url=https%3A%2F%2Feniplenitude.com%2Fconfigura-offerta%3F_lg%3D_o.WB.CWEB3EGP.BASE_LFIXA24TIV-GFIXA24TIV%257E_c.power.gas%257E_t.monoraria%257E_p.true%257E_b.digital",
   plenitude: "https://clk.tradedoubler.com/click?p=271844&a=3487966&epi=offertalogica&epi2=eni_plenitude_fixa_time_24_config&url=https%3A%2F%2Feniplenitude.com%2Fconfigura-offerta%3F_lg%3D_o.WB.CWEB3EGP.BASE_LFIXA24TIV-GFIXA24TIV%257E_c.power.gas%257E_t.monoraria%257E_p.true%257E_b.digital",
@@ -1441,7 +1449,7 @@ let OFFERTE_PROPOSTE = [
       prioritaCommerciale: "alta",
       note: "Programma E.ON Energia accettato; deeplink impostato verso il funnel E.ON Luce e Gas Insieme."
     },
-    luce: { prezzoVariabile: 0.1017, quotaFissaAnnua: 109.2311 },
+    luce: { prezzoVariabile: 0.1007, quotaFissaAnnua: 109.23 },
     gas: { prezzoVariabile: 0.474, quotaFissaAnnua: 108 },
     descrizione: "Dual certificata 12 mesi",
     certificazione: {
@@ -1452,6 +1460,42 @@ let OFFERTE_PROPOSTE = [
         luce: "000362DSFML01XXZA16S2D000000A000",
         gas: "000362DSFML01XXLH06S2D000000A000",
       },
+    },
+  },
+  {
+    id: 17,
+    provider: "E.ON",
+    nome: "E.ON Luce e Gas Insieme Variabile",
+    tipo: "variabile",
+    fornitura: "dual",
+    link: "https://clk.tradedoubler.com/click?p=344125&a=3487966&epi=offertalogica&epi2=eon_variabile_luce_gas_dual&url=https%3A%2F%2Fwww.eon-energia.com%2Fofferta-luce-gas-insieme.html%3FswitchHolder%3Dno%26activeSupply%3Daltro%26where%3Dcasa",
+    destinationType: "affiliazione",
+    destinationStatus: "attiva",
+    monetizzazione: {
+      attiva: true,
+      network: "Tradedoubler",
+      programId: "344125",
+      siteId: "3487966",
+      modello: "Lead + transazione",
+      commissionePrevista: { luce: 25, gas: 25, dual: 49, valuta: "EUR" },
+      cookieDays: null,
+      tassoCancellazione: 83,
+      epcMedio: null,
+      prioritaCommerciale: "alta",
+      note: "Programma E.ON Energia accettato; deeplink impostato verso la pagina E.ON Luce e Gas Insieme variabile. Link separati disponibili: E.ON Flex Luce e E.ON Flex Gas."
+    },
+    luce: {
+      prezzoVariabile: 0,
+      formula: { tipo: "indice_spread", indice: "pun", spread: 0.0088 },
+      quotaFissaAnnua: 109.23,
+    },
+    gas: { prezzoVariabile: 0.6377, quotaFissaAnnua: 108 },
+    descrizione: "Prezzo variabile: luce PUN + 0,0088 €/kWh; gas PSV DA 0,5577 €/Smc + 0,08 €/Smc. Bonus indicato: 27 € luce e 27 € gas in 3 rate, non conteggiato nel costo annuo base.",
+    certificazione: {
+      stato: "da_certificare",
+      fonte: "valori_commerciali_fornitore",
+      dataFonte: "2026-07-02",
+      note: "Valori inseriti da pagina/offerta E.ON comunicata il 02/07/2026. Link separati di riferimento: luce E.ON Flex Luce, gas E.ON Flex Gas. Per la card dual viene usato il percorso Luce e Gas Insieme.",
     },
   },
   {
@@ -2440,7 +2484,7 @@ function offertaAttivabileOnline(offerta) {
 function testoBadgeOfferta(item, migliore) {
   if (item.gruppoVisuale === "top" && item.posizioneEconomica === 1) return "Migliore per i tuoi consumi";
   if (item.gruppoVisuale === "top") return `#${item.posizioneEconomica} per costo stimato`;
-  if (item.gruppoVisuale === "attivabile" && item.compatibileRanking) return "Attivabile e coerente";
+  if (item.gruppoVisuale === "attivabile" && item.compatibileRanking) return "Partner attivabile online";
   if (item.gruppoVisuale === "attivabile" && item.posizioneEconomica && item.posizioneEconomica <= 3) return `#${item.posizioneEconomica} per costo stimato`;
   if (item.gruppoVisuale === "attivabile") return "Alternativa attivabile";
   const scarto = item.costo - (migliore?.costo || item.costo);
@@ -2450,6 +2494,7 @@ function testoBadgeOfferta(item, migliore) {
 function stileBadgeOfferta(item) {
   if (item.gruppoVisuale === "top" && item.posizioneEconomica === 1) return "background:#dcfce7; color:#14532d; border-color:#bbf7d0;";
   if (item.gruppoVisuale === "top") return "background:#eff6ff; color:#1e40af; border-color:#bfdbfe;";
+  if (item.gruppoVisuale === "attivabile") return "background:#ecfdf5; color:#047857; border-color:#a7f3d0;";
   return "background:#fef3c7; color:#92400e; border-color:#fde68a;";
 }
 
@@ -2593,8 +2638,8 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
   );
   const headerAttivabili = assicuraIntestazioneOfferte(
     "offerte-attivabili-heading",
-    "Offerte attivabili online",
-    "Le mostriamo sempre per darti una destinazione concreta. Se non coincidono con il filtro selezionato sono indicate come alternative."
+    "Offerte partner attivabili online",
+    "Proposte coerenti con il filtro selezionato e attivabili tramite link dei fornitori partner."
   );
   const emptyMessage = assicuraMessaggioOfferteVuote();
 
@@ -2611,7 +2656,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
     const compatibileRanking = offertaCompatibileConRanking(offerta, tipoTariffa, tipoFornitura);
     const filtroEsatto = offerta.tipo === tipoTariffa && offertaCoerenteConFornitura(offerta, tipoFornitura);
     const attivabileOnline = offertaAttivabileOnline(offerta);
-    const attivabileCoerente = attivabileOnline;
+    const attivabileCoerente = attivabileOnline && filtroEsatto;
     if (!compatibileRanking && !attivabileCoerente) {
       card.style.setProperty("display", "none", "important");
       return;
@@ -2657,7 +2702,6 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
   const attivabiliPrioritarie = offerteCalcolate
     .filter((item) => item.attivabileCoerente)
     .sort((a, b) => (a.costo - b.costo) || (b.differenza - a.differenza))
-    .slice(0, 3)
     .map((item) => ({
       ...item,
       gruppoVisuale: "attivabile",
@@ -2691,13 +2735,13 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
 
   aggiornaIntestazioneOfferte(
     headerTop,
-    tipoTariffa === "variabile"
-      ? "Le 3 migliori offerte a prezzo variabile"
-      : (attivabiliPrioritarie.length ? "Altre offerte con consulente" : "Le 3 offerte migliori per i tuoi consumi"),
-    tipoTariffa === "variabile"
-      ? "Classifica calcolata su tutte le offerte variabili disponibili nel calcolatore e ordinata sul profilo di consumo inserito."
-      : (attivabiliPrioritarie.length
-        ? "Queste proposte richiedono una verifica o un ricontatto: registriamo la richiesta e la facciamo gestire da un consulente o partner."
+    attivabiliPrioritarie.length
+      ? "Altre offerte con consulente"
+      : (tipoTariffa === "variabile" ? "Le 3 migliori offerte a prezzo variabile" : "Le 3 offerte migliori per i tuoi consumi"),
+    attivabiliPrioritarie.length
+      ? "Queste proposte rispettano il filtro selezionato ma richiedono una verifica o un ricontatto: registriamo la richiesta e la facciamo gestire da un consulente o partner."
+      : (tipoTariffa === "variabile"
+        ? "Classifica calcolata sulle offerte variabili disponibili nel calcolatore e ordinata sul profilo di consumo inserito."
         : "Ordinate in base al costo annuo stimato sul profilo inserito.")
   );
 
@@ -2741,7 +2785,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       const onlineBadge = attivabileOnline && !badgeText.toLowerCase().includes("attivabile")
         ? `<span style="display:inline-block; margin:0 0 6px 6px; padding:3px 8px; border:1px solid #a7f3d0; border-radius:999px; background:#ecfdf5; color:#047857; font-size:11px; font-weight:800;">Attivabile online</span>`
         : "";
-      const alternativeNote = alternativeFiltro
+      const alternativeNote = alternativeFiltro && gruppoVisuale !== "attivabile"
         ? `<small style="display:block; margin-top:3px; color:#92400e; font-weight:700;">${tipoTariffa === "variabile" && offerta.tipo === "variabile" ? "Offerta variabile" : "Alternativa"} ${descriviTipoOfferta(offerta)} mostrata anche se il filtro selezionato e ${testoFiltroOfferte(tipoTariffa, tipoFornitura)}.</small>`
         : "";
       if (LEAD_STATE.verified) {
@@ -2812,7 +2856,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
   if (teaserTitle) {
     teaserTitle.innerText = LEAD_STATE.bestSaving > 0
       ? `Possibile risparmio fino a ${euro(LEAD_STATE.bestSaving)} / anno`
-      : "Abbiamo trovato le 3 offerte più adatte al tuo profilo";
+      : "Abbiamo trovato le offerte più adatte al tuo profilo";
   }
   if (teaserCopy) {
     teaserCopy.innerText = modalitaCalcolo === "media"
@@ -3965,7 +4009,7 @@ if (document.readyState === "loading") {
         <div class="partner-vertical-card" style="background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
             <div class="partner-meta">
                 <div class="partner-title" style="font-size: 16px; font-weight: bold; color: var(--text-color);">E.ON Luce e Gas Insieme</div>
-                <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Prezzi. Luce: 0,1041 €/kWh | Gas: 0,519 €/Smc. Corrispettivo annuo: 108€ (Dual)</div>
+                <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Prezzi. Luce: 0,1007 €/kWh | Gas: 0,474 €/Smc. Fisso vendita: 109,23€ luce + 108€ gas</div>
                 <div id="risparmio-partner-1" style="font-size: 14px; font-weight: bold; color: var(--primary); margin-top: 5px; display: none;"></div>
             </div>
             <a id="link-partner-1" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
