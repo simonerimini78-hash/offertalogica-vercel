@@ -3287,6 +3287,15 @@ function offerConsentStatus(message, isError = false) {
   status.style.color = isError ? "var(--danger)" : "var(--text-muted)";
 }
 
+function testoHtmlSicuro(value) {
+  return String(value || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
 function configuraPopupConsensoOfferta(richiedeConsenso) {
   const label = document.getElementById("offer-consent-label");
   const note = document.getElementById("offer-consent-note");
@@ -3317,12 +3326,19 @@ window.apriConsensoOfferta = function apriConsensoOfferta(offerta) {
 
   const modal = document.getElementById("offer-consent-backdrop");
   const name = document.getElementById("offer-consent-offer-name");
+  const intro = document.getElementById("offer-consent-intro");
   const checkbox = document.getElementById("offer-consent-checkbox");
   const note = document.getElementById("offer-consent-note");
   if (name) name.innerText = LEAD_STATE.selectedOffer.name || "offerta selezionata";
+  if (intro) {
+    const nomeOfferta = testoHtmlSicuro(LEAD_STATE.selectedOffer.name || "questa offerta");
+    intro.innerHTML = offertaConRedirectAttivo(LEAD_STATE.selectedOffer)
+      ? `Hai scelto <strong id="offer-consent-offer-name">${nomeOfferta}</strong>. Per continuare apriremo il funnel ufficiale del fornitore o del partner commerciale collegato all'offerta.`
+      : `Hai scelto <strong id="offer-consent-offer-name">${nomeOfferta}</strong>. Per continuare dobbiamo trasmettere i tuoi dati al fornitore o a un partner commerciale incaricato di gestire la richiesta.<br><br>Le condizioni finali dovranno essere confermate dal consulente o dal fornitore: eventuali costi accessori, servizi aggiuntivi, vincoli o promozioni non rilevati dal calcolatore potrebbero modificare la convenienza stimata.`;
+  }
   if (checkbox) checkbox.checked = false;
   if (note) {
-    note.innerText = "Senza questo consenso puoi vedere il confronto, ma non possiamo inoltrare la richiesta di attivazione o monetizzare il lead presso partner terzi.";
+    note.innerText = "Senza questo consenso puoi vedere il confronto, ma non possiamo inoltrare la richiesta di attivazione o ricontatto ai partner incaricati.";
   }
   configuraPopupConsensoOfferta(!LEAD_STATE.partnerConsent);
   if (modal) modal.style.display = "flex";
@@ -4276,12 +4292,12 @@ if (document.readyState === "loading") {
 <div class="offer-consent-backdrop" id="offer-consent-backdrop" role="dialog" aria-modal="true" aria-labelledby="offer-consent-title">
     <div class="offer-consent-modal">
         <h3 id="offer-consent-title">Procedi con l'offerta</h3>
-        <p>Hai scelto <strong id="offer-consent-offer-name">questa offerta</strong>. Per continuare dobbiamo trasmettere i tuoi dati al fornitore o a un partner commerciale incaricato di gestire la richiesta.</p>
+        <p id="offer-consent-intro">Hai scelto <strong id="offer-consent-offer-name">questa offerta</strong>. Per continuare dobbiamo trasmettere i tuoi dati al fornitore o a un partner commerciale incaricato di gestire la richiesta.</p>
         <label class="lead-consent required" id="offer-consent-label">
             <input id="offer-consent-checkbox" type="checkbox">
             <span>Autorizzo OffertaLogica a trasmettere i miei dati e i dati della fornitura al fornitore o partner collegato all'offerta scelta, per essere ricontattato su quella proposta.</span>
         </label>
-        <div class="lead-privacy-note" id="offer-consent-note">Senza questo consenso puoi vedere il confronto, ma non possiamo inoltrare la richiesta di attivazione o monetizzare il lead presso partner terzi.</div>
+        <div class="lead-privacy-note" id="offer-consent-note">Senza questo consenso puoi vedere il confronto, ma non possiamo inoltrare la richiesta di attivazione o ricontatto ai partner incaricati.</div>
         <div class="lead-actions">
             <button type="button" class="lead-primary" id="offer-consent-confirm">Conferma e procedi</button>
             <button type="button" class="lead-secondary" id="offer-consent-close">Annulla</button>
