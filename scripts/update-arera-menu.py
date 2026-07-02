@@ -7,10 +7,11 @@ import json
 import re
 import sys
 import tempfile
+import urllib.error
 import urllib.request
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from urllib.parse import urljoin
 
@@ -21,6 +22,16 @@ SOURCE_LABEL = "Portale Offerte ARERA/Acquirente Unico Open Data"
 PUN_FALLBACK = 0.119351258
 PSV_FALLBACK = 0.504419055
 REFERENCE_CONSUMPTION = {"luce": 2700, "gas": 700}
+BROWSER_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/126.0.0.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "it-IT,it;q=0.9,en;q=0.8",
+    "Cache-Control": "no-cache",
+}
 
 
 @dataclass(frozen=True)
@@ -265,23 +276,57 @@ def extract_xml_links(open_data_html: str) -> dict[str, str]:
 
 
 def download_file(url: str, path: Path) -> None:
-    request = urllib.request.Request(url, headers={"User-Agent": "OffertaLogica-ARERA-updater/1.0"})
+    request = urllib.request.Request(url, headers=BROWSER_HEADERS)
     with urllib.request.urlopen(request, timeout=60) as response:
         path.write_bytes(response.read())
 
 
-def download_current_files(destination: Path) -> dict[str, Path]:
-    destination.mkdir(parents=True, exist_ok=True)
-    request = urllib.request.Request(OPEN_DATA_URL, headers={"User-Agent": "OffertaLogica-ARERA-updater/1.0"})
-    with urllib.request.urlopen(request, timeout=60) as response:
-        page = response.read().decode("utf-8", errors="replace")
-    links = extract_xml_links(page)
+def direct_xml_links(days_back: int = 10) -> list[dict[str, str]]:
+    candidates: list[dict[str, str]] = []
+    today = datetime.now()
+    for offset in range(days_back):
+        day = today - timedelta(days=offset)
+        stamp = day.strftime("%Y%m%d")
+        folder = f"{day.year}_{day.month}"
+        base = f"https://www.ilportaleofferte.it/portaleOfferte/resources/opendata/csv/offerteML/{folder}"
+        candidates.append(
+            {
+                "E": f"{base}/PO_Offerte_E_MLIBERO_{stamp}.xml",
+                "G": f"{base}/PO_Offerte_G_MLIBERO_{stamp}.xml",
+                "D": f"{base}/PO_Offerte_D_MLIBERO_{stamp}.xml",
+            }
+        )
+    return candidates
+
+
+def download_link_set(links: dict[str, str], destination: Path) -> dict[str, Path]:
     files: dict[str, Path] = {}
     for kind, url in links.items():
         out = destination / Path(url).name
         download_file(url, out)
         files[kind] = out
     return files
+
+
+def download_current_files(destination: Path) -> dict[str, Path]:
+    destination.mkdir(parents=True, exist_ok=True)
+    try:
+        request = urllib.request.Request(OPEN_DATA_URL, headers=BROWSER_HEADERS)
+        with urllib.request.urlopen(request, timeout=60) as response:
+            page = response.read().decode("utf-8", errors="replace")
+        return download_link_set(extract_xml_links(page), destination)
+    except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as error:
+        print(f"Avviso: pagina Open Data non raggiungibile da questo ambiente ({error}). Provo i link XML diretti.")
+
+    last_error: Exception | None = None
+    for links in direct_xml_links():
+        try:
+            return download_link_set(links, destination)
+        except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as error:
+            last_error = error
+            continue
+
+    raise RuntimeError(f"Impossibile scaricare gli XML ARERA anche con link diretti: {last_error}")
 
 
 def latest_matching(source_dir: Path, patterns: tuple[str, ...]) -> Path:
@@ -369,10 +414,17 @@ def main() -> int:
         payload = build_payload(files, as_of)
         write_json(root, payload)
     else:
-        with tempfile.TemporaryDirectory(prefix="offertalogica-arera-") as tmp:
-            files = download_current_files(Path(tmp))
-            payload = build_payload(files, as_of)
-            write_json(root, payload)
+        try:
+            with tempfile.TemporaryDirectory(prefix="offertalogica-arera-") as tmp:
+                files = download_current_files(Path(tmp))
+                payload = build_payload(files, as_of)
+                write_json(root, payload)
+        except Exception as error:
+            existing = root / "data" / "offerte-arera-menu.json"
+            if existing.exists():
+                print(f"Avviso: aggiornamento ARERA saltato ({error}). Mantengo il JSON esistente.")
+                return 0
+            raise
 
     print(
         f"Creato offerte-arera-menu.json con {payload['statistiche']['totaleRighe']} righe "
