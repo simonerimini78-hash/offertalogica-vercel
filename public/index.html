@@ -3747,7 +3747,9 @@ function miglioreNuovaOffertaPerFornitore(providerKey, attuale, tipoTariffa, tip
   for (const filtro of livelli) {
     const gruppo = candidate.filter(filtro);
     if (gruppo.length) {
-      return gruppo.sort((a, b) => costoOffertaSulProfilo(a, attuale) - costoOffertaSulProfilo(b, attuale))[0];
+      const attivabili = gruppo.filter(offertaAttivabileOnline);
+      const preferite = attivabili.length ? attivabili : gruppo;
+      return preferite.sort((a, b) => costoOffertaSulProfilo(a, attuale) - costoOffertaSulProfilo(b, attuale))[0];
     }
   }
 
