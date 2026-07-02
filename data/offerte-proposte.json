@@ -1,7 +1,7 @@
 {
-  "versioneDati": "offerte-proposte-2026-06-29-v8-funnel-enel-plenitude",
-  "fonte": "Configurazione OffertaLogica con prime offerte certificate da Portale Offerte ARERA/AU open data 20/06/2026 e schede sintetiche PDF fornite; offerte residue da verificare con scheda sintetica o fonte ufficiale; E.ON monetizzata tramite Tradedoubler con funnel diretto il 29/06/2026; link funnel Enel e configuratore Plenitude aggiornati il 29/06/2026.",
-  "aggiornatoIl": "2026-06-29",
+  "versioneDati": "offerte-proposte-2026-07-02-v9-alperia-awin",
+  "fonte": "Configurazione OffertaLogica con prime offerte certificate da Portale Offerte ARERA/AU e schede/landing fornitore; E.ON, Enel, Plenitude e Alperia monetizzate tramite network affiliate; Alperia IT accettata su Awin il 02/07/2026 con due funnel online fisso e variabile.",
+  "aggiornatoIl": "2026-07-02",
   "offerte": [
     {
       "id": 1,
@@ -317,9 +317,9 @@
       "nome": "Alperia Smile Easy / Start",
       "tipo": "fisso",
       "fornitura": "dual",
-      "link": "https://alperia.eu",
+      "link": "https://www.awin1.com/cread.php?awinmid=17975&awinaffid=2932723&clickref=offertalogica_alperia_fisso&ued=https%3A%2F%2Fwww.alperia.eu%2Ffunnel-energia-e-gas%2F%3Ftoken%3Doff101633_off101609%26culture%3Dit-IT",
       "destinationType": "affiliazione",
-      "destinationStatus": "in_attesa_approvazione",
+      "destinationStatus": "attiva",
       "luce": {
         "prezzoVariabile": 0.1027,
         "quotaFissaAnnua": 95.4
@@ -328,8 +328,8 @@
         "prezzoVariabile": 0.45,
         "quotaFissaAnnua": 144
       },
-      "descrizione": "Fisso Smile",
-      "fonte": "Certificata da Portale Offerte ARERA/AU open data 20/06/2026: Alperia Smile Easy Summer 000368ESFML01XX4085488X260611XVE + Alperia Gas Smile Start 000368GSFML02XX1895452X260611XVE",
+      "descrizione": "Sottoscrivibile online. Luce monoraria 0,1027 €/kWh bloccata 36 mesi; gas 0,45 €/Smc bloccato 24 mesi. Energia rinnovabile certificata e gas con CO2 compensata.",
+      "fonte": "Dati offerta comunicati da landing Alperia il 02/07/2026: funnel off101633_off101609; luce 0,1027 €/kWh con quota fissa 95,40 €/POD/anno; gas 0,45 €/Smc con quota fissa 144 €/PDR/anno. Tracciamento Awin programma 17975, affiliate 2932723.",
       "aggiornataIl": "2026-06-20",
       "certificazione": {
         "stato": "certificata",
@@ -339,7 +339,80 @@
         "codici": {
           "luce": "000368ESFML01XX4085488X260611XVE",
           "gas": "000368GSFML02XX1895452X260611XVE"
-        }
+        },
+        "note": "Offerta sottoscrivibile solo online; prezzo luce invariato 36 mesi e prezzo gas invariato 24 mesi secondo dati landing Alperia."
+      },
+      "monetizzazione": {
+        "attiva": true,
+        "network": "Awin",
+        "programId": "17975",
+        "siteId": "2932723",
+        "modello": "Affiliazione",
+        "commissionePrevista": {
+          "dual": 0,
+          "valuta": "EUR"
+        },
+        "cookieDays": 0,
+        "tassoCancellazione": 0,
+        "epcMedio": 0,
+        "prioritaCommerciale": "media",
+        "note": "Programma Alperia IT accettato su Awin. Commissione, cookie e cancellazione da completare dai dati programma."
+      }
+    },
+    {
+      "id": 16,
+      "provider": "Alperia",
+      "nome": "Alperia Luce e Gas Variabile PUN/PSV",
+      "tipo": "variabile",
+      "fornitura": "dual",
+      "link": "https://www.awin1.com/cread.php?awinmid=17975&awinaffid=2932723&clickref=offertalogica_alperia_variabile&ued=https%3A%2F%2Fwww.alperia.eu%2Ffunnel-energia-e-gas%2F%3Ftoken%3Doff101536_off101541%26culture%3Dit-IT",
+      "destinationType": "affiliazione",
+      "destinationStatus": "attiva",
+      "monetizzazione": {
+        "attiva": true,
+        "network": "Awin",
+        "programId": "17975",
+        "siteId": "2932723",
+        "modello": "Affiliazione",
+        "commissionePrevista": {
+          "dual": 0,
+          "valuta": "EUR"
+        },
+        "cookieDays": 0,
+        "tassoCancellazione": 0,
+        "epcMedio": 0,
+        "prioritaCommerciale": "media",
+        "note": "Programma Alperia IT accettato su Awin. Offerta variabile online con deeplink al funnel Alperia."
+      },
+      "luce": {
+        "prezzoVariabile": 0.130351258,
+        "formula": {
+          "tipo": "indice_spread",
+          "indice": "pun",
+          "spread": 0.011
+        },
+        "quotaFissaAnnua": 109.2
+      },
+      "gas": {
+        "prezzoVariabile": 0.664419055,
+        "formula": {
+          "tipo": "indice_spread",
+          "indice": "psv",
+          "spread": 0.16
+        },
+        "quotaFissaAnnua": 0
+      },
+      "descrizione": "Sottoscrivibile online. Luce PUN Index GME quartorario + spread 0,011 €/kWh; gas PSV + spread 0,16 €/Smc. Quote fisse promozionali del primo anno: luce 109,20 €, gas 0 €.",
+      "fonte": "Dati offerta comunicati da landing Alperia il 02/07/2026: funnel off101536_off101541; luce PUN Index GME quartorario + 0,011 €/kWh; gas PSV + 0,16 €/Smc; quota fissa luce 109,20 €/POD nel primo anno, 97,20 €/POD nel secondo anno, 85,20 €/POD dal terzo anno; quota fissa gas 0 €/PDR nel primo anno, 144 €/PDR dal secondo anno. Tracciamento Awin programma 17975, affiliate 2932723.",
+      "aggiornataIl": "2026-07-02",
+      "certificazione": {
+        "stato": "certificata",
+        "fonte": "landing_fornitore_alperia",
+        "dataFonte": "2026-07-02",
+        "codici": {
+          "dual": "off101536_off101541"
+        },
+        "note": "Le quote fisse variano negli anni successivi; per il confronto annuo viene usato il primo anno indicato."
       }
     },
     {

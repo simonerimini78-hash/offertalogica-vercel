@@ -1116,13 +1116,14 @@ function avviaComparazioneDati() {
             { id: 7, nome: "neN Duel Luce e Gas", lucePrezzo: 0.1290, gasPrezzo: 0.4600, corrispettivoAnnuo: 192.00, tipo: "fisso", fornitura: "dual" },
             { id: 8, nome: "neN Luce Surf", lucePrezzo: 0.0000, gasPrezzo: 0.0000, corrispettivoAnnuo: 120.00, tipo: "variabile", fornitura: "separate" },
             { id: 9, nome: "neN Gas Surf", lucePrezzo: 0.0000, gasPrezzo: 0.0000, corrispettivoAnnuo: 120.00, tipo: "variabile", fornitura: "separate" },
-            // 🆕 ULTIME AGGIUNTE: ENEL, ENI PLENITUDE E ALPERIA
+            // Offerte attivabili e offerte con consulente.
             { id: 10, nome: "Enel Fix Web Luce e Gas", lucePrezzo: 0.1390, gasPrezzo: 0.4900, corrispettivoAnnuo: 288.00, tipo: "fisso", fornitura: "dual" },
             { id: 11, nome: "Eni Plenitude Fixa Time 24", lucePrezzo: 0.0987, gasPrezzo: 0.4205, corrispettivoAnnuo: 288.00, tipo: "fisso", fornitura: "dual" },
             { id: 12, nome: "Alperia Smile Easy / Start", lucePrezzo: 0.1027, gasPrezzo: 0.4500, corrispettivoAnnuo: 239.40, tipo: "fisso", fornitura: "dual" },
             { id: 13, nome: "Sorgenia Next Energy Smart", lucePrezzo: 0.1300, gasPrezzo: 0.5200, corrispettivoAnnuo: 258.00, tipo: "fisso", fornitura: "dual" },
             { id: 14, nome: "E.CO Prezzo Variabile Zero Spread Luce e Gas", lucePrezzo: 0.119351258, gasPrezzo: 0.504419055, corrispettivoAnnuo: 336.00, tipo: "variabile", fornitura: "dual" },
             { id: 15, nome: "neN Surf Luce e Gas", lucePrezzo: 0.1290, gasPrezzo: 0.4700, corrispettivoAnnuo: 240.00, tipo: "variabile", fornitura: "dual" },
+            { id: 16, nome: "Alperia Luce e Gas Variabile PUN/PSV", lucePrezzo: 0.130351258, gasPrezzo: 0.664419055, corrispettivoAnnuo: 109.20, tipo: "variabile", fornitura: "dual" },
         ];
 
         partnerDati.forEach(partner => {
@@ -1312,9 +1313,9 @@ let INDICI_MERCATO = {
   },
   psv: {
     label: "PSV",
-    valore: 0,
+    valore: 0.504419055,
     unita: "€/Smc",
-    note: "Da aggiornare con il valore medio scelto per il periodo di confronto.",
+    note: "Fallback tecnico per offerte PSV: usa il valore medio gas gia presente nel motore, da sostituire con il PSV medio ufficiale del periodo al prossimo aggiornamento dati.",
   },
   psbg: {
     label: "PSBG",
@@ -1358,6 +1359,7 @@ const LINK_FORNITORI = {
   enel: "https://clk.tradedoubler.com/click?p=348999&a=3487966&epi=offertalogica&epi2=enel_fix_web_funnel&url=https%3A%2F%2Fwww.enel.it%2Fit-it%2Fcommodity-funnel%3Fpart__c%3D%2Fcontent%2Fenel-it%2Fit-it%2Fofferte-luce-gas%2Fenel-fix-web-luce-gas%26zoneid%3Dsito-landing_enel_offerte-card_luce_gas-cta-prospect",
   eni: "https://clk.tradedoubler.com/click?p=271844&a=3487966&epi=offertalogica&epi2=eni_plenitude_fixa_time_24_config&url=https%3A%2F%2Feniplenitude.com%2Fconfigura-offerta%3F_lg%3D_o.WB.CWEB3EGP.BASE_LFIXA24TIV-GFIXA24TIV%257E_c.power.gas%257E_t.monoraria%257E_p.true%257E_b.digital",
   plenitude: "https://clk.tradedoubler.com/click?p=271844&a=3487966&epi=offertalogica&epi2=eni_plenitude_fixa_time_24_config&url=https%3A%2F%2Feniplenitude.com%2Fconfigura-offerta%3F_lg%3D_o.WB.CWEB3EGP.BASE_LFIXA24TIV-GFIXA24TIV%257E_c.power.gas%257E_t.monoraria%257E_p.true%257E_b.digital",
+  alperia: "https://www.awin1.com/cread.php?awinmid=17975&awinaffid=2932723&clickref=offertalogica_alperia_fisso&ued=https%3A%2F%2Fwww.alperia.eu%2Ffunnel-energia-e-gas%2F%3Ftoken%3Doff101633_off101609%26culture%3Dit-IT",
   edison: "#",
   default: "#",
 };
@@ -1606,12 +1608,25 @@ let OFFERTE_PROPOSTE = [
     nome: "Alperia Smile Easy / Start",
     tipo: "fisso",
     fornitura: "dual",
-    link: "https://alperia.eu",
+    link: "https://www.awin1.com/cread.php?awinmid=17975&awinaffid=2932723&clickref=offertalogica_alperia_fisso&ued=https%3A%2F%2Fwww.alperia.eu%2Ffunnel-energia-e-gas%2F%3Ftoken%3Doff101633_off101609%26culture%3Dit-IT",
     destinationType: "affiliazione",
-    destinationStatus: "in_attesa_approvazione",
+    destinationStatus: "attiva",
+    monetizzazione: {
+      attiva: true,
+      network: "Awin",
+      programId: "17975",
+      siteId: "2932723",
+      modello: "Affiliazione",
+      commissionePrevista: { dual: 0, valuta: "EUR" },
+      cookieDays: 0,
+      tassoCancellazione: 0,
+      epcMedio: 0,
+      prioritaCommerciale: "media",
+      note: "Programma Alperia IT accettato su Awin. Commissione, cookie e cancellazione da completare dai dati programma."
+    },
     luce: { prezzoVariabile: 0.1027, quotaFissaAnnua: 95.4 },
     gas: { prezzoVariabile: 0.45, quotaFissaAnnua: 144 },
-    descrizione: "Fisso Smile",
+    descrizione: "Sottoscrivibile online. Luce monoraria 0,1027 €/kWh bloccata 36 mesi; gas 0,45 €/Smc bloccato 24 mesi. Energia rinnovabile certificata e gas con CO2 compensata.",
     certificazione: {
       stato: "certificata",
       fonte: "portale_offerte_arera_au",
@@ -1620,6 +1635,49 @@ let OFFERTE_PROPOSTE = [
         luce: "000368ESFML01XX4085488X260611XVE",
         gas: "000368GSFML02XX1895452X260611XVE",
       },
+    },
+  },
+  {
+    id: 16,
+    provider: "Alperia",
+    nome: "Alperia Luce e Gas Variabile PUN/PSV",
+    tipo: "variabile",
+    fornitura: "dual",
+    link: "https://www.awin1.com/cread.php?awinmid=17975&awinaffid=2932723&clickref=offertalogica_alperia_variabile&ued=https%3A%2F%2Fwww.alperia.eu%2Ffunnel-energia-e-gas%2F%3Ftoken%3Doff101536_off101541%26culture%3Dit-IT",
+    destinationType: "affiliazione",
+    destinationStatus: "attiva",
+    monetizzazione: {
+      attiva: true,
+      network: "Awin",
+      programId: "17975",
+      siteId: "2932723",
+      modello: "Affiliazione",
+      commissionePrevista: { dual: 0, valuta: "EUR" },
+      cookieDays: 0,
+      tassoCancellazione: 0,
+      epcMedio: 0,
+      prioritaCommerciale: "media",
+      note: "Programma Alperia IT accettato su Awin. Offerta variabile online con deeplink al funnel Alperia."
+    },
+    luce: {
+      prezzoVariabile: 0,
+      formula: { tipo: "indice_spread", indice: "pun", spread: 0.011 },
+      quotaFissaAnnua: 109.2,
+    },
+    gas: {
+      prezzoVariabile: 0,
+      formula: { tipo: "indice_spread", indice: "psv", spread: 0.16 },
+      quotaFissaAnnua: 0,
+    },
+    descrizione: "Sottoscrivibile online. Luce PUN Index GME quartorario + spread 0,011 €/kWh; gas PSV + spread 0,16 €/Smc. Quote fisse promozionali: luce 109,20 € nel primo anno, gas 0 € nel primo anno.",
+    certificazione: {
+      stato: "certificata",
+      fonte: "scheda_offerta_alperia",
+      dataFonte: "2026-07-02",
+      codici: {
+        dual: "off101536_off101541",
+      },
+      note: "Le quote fisse della scheda variano negli anni successivi; per il confronto annuo viene usato il primo anno indicato."
     },
   },
   {
@@ -4016,7 +4074,7 @@ if (document.readyState === "loading") {
         <div class="partner-vertical-card" style="background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
             <div class="partner-meta">
                 <div class="partner-title" style="font-size: 16px; font-weight: bold; color: var(--text-color);">Alperia Smile Easy / Start</div>
-                <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Prezzi. Luce: 0,1027 €/kWh (36M) | Gas: 0,4500 €/Smc (24M). Corrispettivo: 239,40€/anno</div>
+                <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Attivabile online. Luce: 0,1027 €/kWh (36M) | Gas: 0,4500 €/Smc (24M). Fisso vendita: 95,40€ luce + 144€ gas</div>
                 <div id="risparmio-partner-12" style="font-size: 14px; font-weight: bold; color: var(--primary); margin-top: 5px; display: none;"></div>
             </div>
             <a id="link-partner-12" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
