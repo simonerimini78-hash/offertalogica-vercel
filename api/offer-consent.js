@@ -16,6 +16,8 @@ const ALLOWED_OFFER_DOMAINS = [
   "alperia.eu",
   "sorgenia.it",
   "tradedoubler.com",
+  "awin1.com",
+  "awin.com",
 ];
 
 function numberOrNull(value) {
