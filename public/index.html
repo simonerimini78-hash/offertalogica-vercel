@@ -1251,9 +1251,9 @@ let DATI_CALCOLO_META = {
   aggiornatoIl: "2026-06-27",
 };
 let DATI_OFFERTE_META = {
-  versioneDati: "fallback-html-2026-07-02-v12-eon-variabile-dual",
-  fonte: "Fallback interno HTML con offerte attivabili E.ON, Enel, Plenitude e Alperia filtrate per fisso/variabile",
-  aggiornatoIl: "2026-07-02",
+  versioneDati: "fallback-html-2026-07-03-v13-dolomiti-consulente",
+  fonte: "Fallback interno HTML con offerte attivabili E.ON, Enel, Plenitude e Alperia e offerte consulenziali Dolomiti da Portale Offerte ARERA",
+  aggiornatoIl: "2026-07-03",
 };
 let DATI_ARERA_MENU_META = {
   versioneDati: "fallback-html-arera-menu-vuoto",
@@ -1556,6 +1556,31 @@ let OFFERTE_PROPOSTE = [
     },
   },
   {
+    id: 18,
+    provider: "Dolomiti Energia",
+    nome: "Dolomiti Fisso Luce e Gas 36 WEB",
+    tipo: "fisso",
+    fornitura: "dual",
+    link: "https://www.dolomitienergia.it/offerte-casa/luce/dolomiti-fisso-luce-36.html",
+    destinationType: "partner_lead",
+    destinationStatus: "da_contattare",
+    luce: { prezzoVariabile: 0.119, quotaFissaAnnua: 72 },
+    gas: { prezzoVariabile: 0.4735, quotaFissaAnnua: 72 },
+    descrizione: "Combinazione consulenziale da offerte Dolomiti WEB 36 mesi: luce 0,119 €/kWh e gas 0,4735 €/Smc.",
+    fonte: "Portale Offerte ARERA/AU open data 03/07/2026: DOLOMITI FISSO LUCE 36 WEB 000139ESFML01XXW77174WR000000000 + DOLOMITI FISSO GAS 36 WEB 000139GSFML01XXW77185WR000000000.",
+    certificazione: {
+      stato: "certificata",
+      fonte: "portale_offerte_arera_au",
+      dataFonte: "2026-07-03",
+      validita: "fino al 2026-07-08",
+      codici: {
+        luce: "000139ESFML01XXW77174WR000000000",
+        gas: "000139GSFML01XXW77185WR000000000",
+      },
+      note: "Offerta mostrata come proposta con consulente: non abbiamo ancora funnel affiliato o accordo diretto Dolomiti.",
+    },
+  },
+  {
     id: 5,
     provider: "Iren",
     nome: "Iren Fissa 36 Mesi",
@@ -1776,6 +1801,39 @@ let OFFERTE_PROPOSTE = [
         gas: "000742GSVML01XXZEROSPEC260409D01",
       },
       note: "Le due schede sono offerte separate dello stesso venditore; OffertaLogica le abbina in calcolo per confrontare un profilo luce+gas senza dichiarare un bonus dual.",
+    },
+  },
+  {
+    id: 19,
+    provider: "Dolomiti Energia",
+    nome: "Dolomiti Sinergika Luce e Gas",
+    tipo: "variabile",
+    fornitura: "dual",
+    link: "https://www.dolomitienergia.it/offerte-casa/luce/sinergika.html",
+    destinationType: "partner_lead",
+    destinationStatus: "da_contattare",
+    luce: {
+      prezzoVariabile: 0,
+      formula: { tipo: "indice_spread", indice: "pun", spread: 0.01 },
+      quotaFissaAnnua: 125,
+    },
+    gas: {
+      prezzoVariabile: 0,
+      formula: { tipo: "indice_spread", indice: "psv", spread: 0.075 },
+      quotaFissaAnnua: 120,
+    },
+    descrizione: "Combinazione variabile Dolomiti: luce PUN + 0,0100 €/kWh e gas PSV + 0,0750 €/Smc, da verificare in fase consulenziale.",
+    fonte: "Portale Offerte ARERA/AU open data 03/07/2026: DOLOMITI SINERGIKA LUCE 000139ESVFL01XXW76965WR000000000 + DOLOMITI SINERGIKA GAS 000139GSVML01XXW76999WR000000000.",
+    certificazione: {
+      stato: "certificata",
+      fonte: "portale_offerte_arera_au",
+      dataFonte: "2026-07-03",
+      validita: "fino al 2026-07-15",
+      codici: {
+        luce: "000139ESVFL01XXW76965WR000000000",
+        gas: "000139GSVML01XXW76999WR000000000",
+      },
+      note: "Offerta mostrata come proposta con consulente: non abbiamo ancora funnel affiliato o accordo diretto Dolomiti.",
     },
   },
   {
