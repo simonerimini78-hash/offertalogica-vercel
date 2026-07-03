@@ -177,13 +177,13 @@ npm run promote:arera -- --offer-id ID_OFFERTA --luce CODICE_LUCE --gas CODICE_G
 
 Questo comando promuove solo righe fisse e pronte. Aggiorna anche il registro di certificazione, mantenendo il link commerciale esistente salvo uso esplicito di `--update-link`.
 
-Su GitHub e presente anche un workflow settimanale:
+Su GitHub e presente anche un workflow programmato:
 
 ```text
-.github/workflows/update-arera-open-data.yml
+.github/workflows/update-arera-menu.yml
 ```
 
-Il workflow aggiorna i candidati ARERA/AU, valida il calcolatore e committa i file di manutenzione se cambiano.
+Il workflow aggiorna il menu ARERA/AU e committa i file del menu se cambiano. La promozione dentro le offerte pubbliche resta manuale e controllata.
 
 ## Prossimo salto di qualita
 

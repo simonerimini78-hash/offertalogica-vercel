@@ -6,8 +6,10 @@ Questa e la prima versione dell'app operativa per GitHub + Vercel.
 
 ```text
 public/index.html          Frontend pubblico
-come-funziona.html         Pagina trasparenza metodo e servizio
-partner.html               Pagina per fornitori, affiliate e partner
+public/come-funziona.html  Pagina trasparenza metodo e servizio
+public/partner.html        Pagina per fornitori, affiliate e partner
+public/casa-smart.html     Pagina affiliazioni casa/smart home
+public/internet-casa.html  Pagina affiliazioni internet casa
 api/analyze-pdf.js         Upload e lettura PDF testuali
 api/lead.js                Creazione lead
 api/send-otp.js            Invio OTP via SMS o demo
@@ -46,9 +48,9 @@ docs/CERTIFICAZIONE-OFFERTE.md
                             Fonti ufficiali e schede sintetiche usate per certificare le offerte
 docs/AGGIORNARE-PARAMETRI-CALCOLO.md
                             Istruzioni per aggiornare profilo medio, indici e componenti
-.github/workflows/update-arera-open-data.yml
-                            Aggiornamento automatico candidati ARERA/AU
-staff-leads.html           Mini console protetta per controllare lead recenti
+.github/workflows/update-arera-menu.yml
+                            Aggiornamento automatico menu offerte ARERA/AU
+public/staff-leads.html    Mini console protetta per controllare lead recenti
 ```
 
 ## Pagine pubbliche
@@ -299,7 +301,7 @@ Il link live resta quello commerciale/affiliato gia presente. Solo se vuoi sosti
 --update-link
 ```
 
-Il workflow GitHub `.github/workflows/update-arera-open-data.yml` esegue questi controlli ogni lunedi e poi lancia anche `validate:calculator` e `audit:offers`.
+Il workflow GitHub `.github/workflows/update-arera-menu.yml` aggiorna il menu ARERA/AU con esecuzione manuale o programmata.
 
 Importante: l'automazione non modifica `data/offerte-proposte.json` e non modifica `public/data/offerte-proposte.json`. Le offerte pubbliche vanno promosse solo dopo verifica della scheda sintetica, link attivabile e modello di monetizzazione.
 

@@ -86,9 +86,7 @@ function validateDataFiles() {
 }
 
 function loadEngineContext() {
-  const scripts = validateInlineScripts("index.html");
-  validateInlineScripts("public/index.html");
-  assertSame("index.html", "public/index.html");
+  const scripts = validateInlineScripts("public/index.html");
 
   const engine = scripts.find((script) => script.includes("MOTORE_CALCOLO_VERSION"));
   assert(engine, "script motore non trovato");

@@ -71,7 +71,7 @@
                     <input id="limit" type="number" min="1" max="200" value="50">
                 </div>
                 <button type="button" onclick="loadLeads()">Aggiorna</button>
-                <a id="csv-link" class="button" href="#">CSV</a>
+                <button id="csv-button" type="button" class="button">CSV</button>
             </div>
             <div id="status" class="status">Inserisci il token e aggiorna.</div>
         </section>
@@ -106,7 +106,7 @@
         const statusBox = document.getElementById("status");
         const metricsBox = document.getElementById("metrics");
         const rowsBox = document.getElementById("rows");
-        const csvLink = document.getElementById("csv-link");
+        const csvButton = document.getElementById("csv-button");
 
         function tokenFromHash() {
             const hash = new URLSearchParams(String(location.hash || "").replace(/^#/, ""));
@@ -191,9 +191,10 @@
                 return;
             }
             setStatus("Caricamento lead...");
-            csvLink.href = `/api/staff-leads?token=${encodeURIComponent(token)}&limit=${encodeURIComponent(limit)}&format=csv`;
             try {
-                const response = await fetch(`/api/staff-leads?token=${encodeURIComponent(token)}&limit=${encodeURIComponent(limit)}`);
+                const response = await fetch(`/api/staff-leads?limit=${encodeURIComponent(limit)}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
                 const data = await response.json();
                 if (!response.ok || !data.ok) throw new Error(data.error || data.status || "Errore caricamento");
                 renderMetrics(data.summary);
@@ -205,6 +206,36 @@
                 setStatus(error.message || "Errore caricamento", true);
             }
         }
+
+        async function downloadCsv() {
+            const token = tokenInput.value.trim();
+            const limit = limitInput.value || "50";
+            if (!token) {
+                setStatus("Token mancante.", true);
+                return;
+            }
+            setStatus("Preparazione CSV...");
+            try {
+                const response = await fetch(`/api/staff-leads?limit=${encodeURIComponent(limit)}&format=csv`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (!response.ok) throw new Error("Errore download CSV");
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.href = url;
+                link.download = `offertalogica-leads-${new Date().toISOString().slice(0, 10)}.csv`;
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                URL.revokeObjectURL(url);
+                setStatus("CSV generato.");
+            } catch (error) {
+                setStatus(error.message || "Errore download CSV", true);
+            }
+        }
+
+        csvButton.addEventListener("click", downloadCsv);
 
         const initialToken = tokenFromHash();
         if (initialToken) {

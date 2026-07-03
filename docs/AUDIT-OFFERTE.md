@@ -1,16 +1,16 @@
 # Audit offerte proposte
 
-Aggiornamento: 2026-06-21
+Aggiornamento: 2026-07-03
 
-Offerte analizzate: 15
+Offerte analizzate: 19
 
 ## Risultato sintetico
 
 ```text
-Coerenti senza rilievi: 2
-Da verificare: 13
+Coerenti senza rilievi: 5
+Da verificare: 14
 Non pubblicare: 0
-Certificate: 6
+Certificate: 9
 ```
 
 ## Priorita alte

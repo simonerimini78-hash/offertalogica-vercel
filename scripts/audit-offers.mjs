@@ -94,6 +94,7 @@ function main() {
   const destinations = readCsv("data/destinazioni-offerte.csv");
   const destinationById = new Map(destinations.map((row) => [String(row.offerta_id), row]));
   const rows = [];
+  const today = new Date().toISOString().slice(0, 10);
 
   for (const offer of offersData.offerte) {
     const destination = destinationById.get(String(offer.id));
@@ -131,7 +132,7 @@ function main() {
   const summary = [
     "# Audit offerte proposte",
     "",
-    "Aggiornamento: 2026-06-21",
+    `Aggiornamento: ${today}`,
     "",
     `Offerte analizzate: ${rows.length}`,
     "",

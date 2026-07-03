@@ -102,10 +102,10 @@ scartata                  Fuori perimetro o non adatta al calcolatore domestico.
 Il file:
 
 ```text
-.github/workflows/update-arera-open-data.yml
+.github/workflows/update-arera-menu.yml
 ```
 
-aggiorna i candidati ogni lunedi, genera la shortlist, valida i dati pubblici e aggiorna l'audit offerte.
+aggiorna il menu ARERA/AU usato come magazzino tecnico consultabile. Non promuove automaticamente offerte nel calcolatore pubblico e non sostituisce la verifica umana.
 
 La pubblicazione live resta manuale:
 
