@@ -1,5 +1,5 @@
 {
-  "versioneDati": "offerte-proposte-2026-07-03-v13-dolomiti-consulente",
+  "versioneDati": "offerte-proposte-2026-07-03-v14-variabili-calcolabili",
   "fonte": "Configurazione OffertaLogica con offerte partner attivabili online e offerte consulenziali certificate da Portale Offerte ARERA/AU; Dolomiti Energia aggiunta il 03/07/2026 come proposta con consulente, senza funnel affiliato diretto.",
   "aggiornatoIl": "2026-07-03",
   "offerte": [
@@ -590,7 +590,7 @@
         "quotaFissaAnnua": 125
       },
       "gas": {
-        "prezzoVariabile": 0,
+        "prezzoVariabile": 0.579419055,
         "formula": {
           "tipo": "indice_spread",
           "indice": "psv",
@@ -598,7 +598,7 @@
         },
         "quotaFissaAnnua": 120
       },
-      "descrizione": "Combinazione variabile Dolomiti: luce PUN + 0,0100 €/kWh e gas PSV + 0,0750 €/Smc, da verificare in fase consulenziale.",
+      "descrizione": "Combinazione variabile Dolomiti: luce PUN + 0,0100 €/kWh e gas PSV + 0,0750 €/Smc, da verificare in fase consulenziale. Fallback gas operativo: 0,579419055 €/Smc se il PSV non viene caricato.",
       "fonte": "Portale Offerte ARERA/AU open data 03/07/2026: DOLOMITI SINERGIKA LUCE 000139ESVFL01XXW76965WR000000000 + DOLOMITI SINERGIKA GAS 000139GSVML01XXW76999WR000000000.",
       "aggiornataIl": "2026-07-03",
       "certificazione": {

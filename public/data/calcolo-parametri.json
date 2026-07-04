@@ -1,7 +1,7 @@
 {
-  "versioneDati": "parametri-calcolo-2026-06-27-v3",
+  "versioneDati": "parametri-calcolo-2026-07-03-v4-psv-operativo",
   "fonte": "Configurazione OffertaLogica aggiornabile; valori da verificare con fonti ufficiali prima dell'uso commerciale pieno",
-  "aggiornatoIl": "2026-06-27",
+  "aggiornatoIl": "2026-07-03",
   "parametriCalcolo": {
     "perditeReteLuceVariabile": 1.102,
     "profiloMedio": {
@@ -57,9 +57,9 @@
     },
     "psv": {
       "label": "PSV",
-      "valore": 0,
+      "valore": 0.504419055,
       "unita": "eur_smc",
-      "note": "Da aggiornare con il valore medio ufficiale scelto per il periodo di confronto."
+      "note": "Valore operativo gas usato per rendere calcolabili le offerte indicizzate PSV nel confronto; allineato al riferimento gas gia presente nel motore e da sostituire con il PSV medio ufficiale del periodo al prossimo aggiornamento dati."
     },
     "psbg": {
       "label": "PSBG",

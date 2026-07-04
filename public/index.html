@@ -1241,7 +1241,7 @@ function avviaComparazioneDati() {
 } // Chiude in modo pulito la funzione principale avviaComparazioneDati
 </script>
 <script>
-let MOTORE_CALCOLO_VERSION = "motore-v5-dati-esterni-2026-06-21";
+let MOTORE_CALCOLO_VERSION = "motore-v6-arera-first-2026-07-03";
 const DATI_CALCOLO_URLS = ["/data/calcolo-parametri.json", "data/calcolo-parametri.json"];
 const DATI_OFFERTE_URLS = ["/data/offerte-proposte.json", "data/offerte-proposte.json"];
 const DATI_ARERA_MENU_URLS = ["/data/offerte-arera-menu.json", "data/offerte-arera-menu.json"];
@@ -1251,7 +1251,7 @@ let DATI_CALCOLO_META = {
   aggiornatoIl: "2026-06-27",
 };
 let DATI_OFFERTE_META = {
-  versioneDati: "fallback-html-2026-07-03-v13-dolomiti-consulente",
+  versioneDati: "fallback-html-2026-07-03-v14-variabili-calcolabili",
   fonte: "Fallback interno HTML con offerte attivabili E.ON, Enel, Plenitude e Alperia e offerte consulenziali Dolomiti da Portale Offerte ARERA",
   aggiornatoIl: "2026-07-03",
 };
@@ -1818,11 +1818,11 @@ let OFFERTE_PROPOSTE = [
       quotaFissaAnnua: 125,
     },
     gas: {
-      prezzoVariabile: 0,
+      prezzoVariabile: 0.579419055,
       formula: { tipo: "indice_spread", indice: "psv", spread: 0.075 },
       quotaFissaAnnua: 120,
     },
-    descrizione: "Combinazione variabile Dolomiti: luce PUN + 0,0100 €/kWh e gas PSV + 0,0750 €/Smc, da verificare in fase consulenziale.",
+    descrizione: "Combinazione variabile Dolomiti: luce PUN + 0,0100 €/kWh e gas PSV + 0,0750 €/Smc, da verificare in fase consulenziale. Fallback gas operativo: 0,579419055 €/Smc se il PSV non viene caricato.",
     fonte: "Portale Offerte ARERA/AU open data 03/07/2026: DOLOMITI SINERGIKA LUCE 000139ESVFL01XXW76965WR000000000 + DOLOMITI SINERGIKA GAS 000139GSVML01XXW76999WR000000000.",
     certificazione: {
       stato: "certificata",
@@ -1982,6 +1982,7 @@ function normalizzaRigaAreraMenu(riga) {
     url: riga.url || "#",
     fonte: riga.fonte || DATI_ARERA_MENU_META.fonte,
     score: numeroSicuro(riga.score, 999),
+    qualitaPrezzo: riga.qualitaPrezzo || "",
   };
 }
 
@@ -1996,6 +1997,7 @@ function applicaDatiAreraMenu(data) {
     versioneDati: data.versioneDati || data.version || DATI_ARERA_MENU_META.versioneDati,
     fonte: data.fonte || DATI_ARERA_MENU_META.fonte,
     aggiornatoIl: data.aggiornatoIl || DATI_ARERA_MENU_META.aggiornatoIl,
+    indiciUsati: data.indiciUsati || DATI_ARERA_MENU_META.indiciUsati || null,
   };
   OFFERTE_ARERA_MENU = pulite;
   return true;
@@ -2635,11 +2637,11 @@ function aggiornaIntestazioneOfferte(header, titolo, testo) {
   `;
 }
 
-function assicuraSchedeOfferte() {
+function assicuraSchedeOfferte(offerte = OFFERTE_PROPOSTE) {
   const container = document.querySelector(".vertical-cards-container");
   if (!container) return;
 
-  OFFERTE_PROPOSTE.forEach((offerta) => {
+  offerte.forEach((offerta) => {
     let saving = document.getElementById(`risparmio-partner-${offerta.id}`);
     if (!saving) {
       container.appendChild(creaSchedaOfferta(offerta));
@@ -2679,8 +2681,256 @@ function offertaCalcolabileConIndici(offerta) {
   return ["luce", "gas"].every((commodity) => !offerta[commodity] || voceIndicizzataCalcolabile(offerta[commodity]));
 }
 
+const REGOLE_ESCLUSIONE_ARERA_PRIVATI = [
+  { pattern: /\bbusiness\b|\bbus\b|p\.?\s*iva|partita iva|professionist/i, reason: "business" },
+  { pattern: /vulnerabil|stg|over\s*50|over\s*75|\bunder\b/i, reason: "profilo speciale" },
+  { pattern: /condominio|condoindex|\bcond\b/i, reason: "condominio" },
+  { pattern: /\blavoro\b|second[ae]\s+cas[ae]/i, reason: "seconda casa/lavoro" },
+  { pattern: /alto\s+adige|caldaro|carezza|sciliar/i, reason: "territoriale" },
+];
+
+function parseDataArera(value) {
+  const match = String(value || "").match(/^(\d{2})\/(\d{2})\/(\d{4})_(\d{2}):(\d{2}):(\d{2})$/);
+  if (!match) return null;
+  const [, day, month, year, hour, minute, second] = match.map(Number);
+  const date = new Date(year, month - 1, day, hour, minute, second);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function providerMenzionatoDaNomeOfferta(nome) {
+  const normalized = testoFornitoreNormalizzato(nome);
+  if (!normalized) return "";
+  const exact = PROVIDER_MATCHERS.find(([key]) => normalized === key);
+  if (exact) return exact[0];
+  const match = PROVIDER_MATCHERS.find(([, aliases]) => aliases.some((alias) => normalized.includes(alias)));
+  return match ? match[0] : "";
+}
+
+function motiviEsclusioneArera(riga) {
+  const motivi = [];
+  const testo = `${riga.nome || ""} ${riga.url || ""} ${riga.fonte || ""}`;
+  REGOLE_ESCLUSIONE_ARERA_PRIVATI.forEach((regola) => {
+    if (regola.pattern.test(testo)) motivi.push(regola.reason);
+  });
+
+  const providerMenzionato = providerMenzionatoDaNomeOfferta(riga.nome);
+  if (providerMenzionato && providerMenzionato !== riga.providerKey) {
+    motivi.push("fornitore incoerente");
+  }
+
+  const inizio = parseDataArera(riga.dataInizio);
+  const fine = parseDataArera(riga.dataFine);
+  const oggi = new Date();
+  if (inizio && inizio > oggi) motivi.push("non ancora attiva");
+  if (fine && fine < oggi) motivi.push("scaduta");
+
+  if (riga.commodity === "luce" && numeroSicuro(riga.prezzo, 0) > 0 && numeroSicuro(riga.prezzo, 0) < 0.04) {
+    motivi.push("prezzo luce anomalo");
+  }
+  if (riga.commodity === "gas" && riga.tipo === "fisso" && numeroSicuro(riga.prezzo, 0) > 0 && numeroSicuro(riga.prezzo, 0) < 0.25) {
+    motivi.push("prezzo gas anomalo");
+  }
+
+  return [...new Set(motivi)];
+}
+
+function rigaAreraIdonea(riga) {
+  return motiviEsclusioneArera(riga).length === 0;
+}
+
+function tokenSignificativi(value) {
+  const stopTokens = [
+    "luce", "gas", "energia", "offerta", "casa", "web", "dual",
+    "a2a", "acea", "alperia", "argos", "axpo", "dolomiti", "eco", "edison",
+    "enel", "eni", "plenitude", "eon", "hera", "illumia", "iren", "magis",
+    "nen", "octopus", "pulsee", "sorgenia", "engie",
+  ];
+  return testoFornitoreNormalizzato(value)
+    .split(" ")
+    .filter((token) => token.length >= 3)
+    .filter((token) => !stopTokens.includes(token));
+}
+
+function similaritaOfferta(areraNames, nomeCommerciale) {
+  const base = tokenSignificativi(nomeCommerciale);
+  if (!base.length) return 0;
+  const text = testoFornitoreNormalizzato(areraNames);
+  const matches = base.filter((token) => text.includes(token)).length;
+  return matches / base.length;
+}
+
+function miglioreOffertaCommerciale(providerKey, tipo, tipoFornitura, nomiArera = "") {
+  const candidate = OFFERTE_PROPOSTE
+    .filter((offerta) => chiaveFornitoreDaNome(offerta.provider) === providerKey)
+    .filter((offerta) => offerta.tipo === tipo)
+    .filter((offerta) => offertaCoerenteConFornitura(offerta, tipoFornitura))
+    .sort((a, b) => {
+      const activeScore = Number(offertaAttivabileOnline(b)) - Number(offertaAttivabileOnline(a));
+      if (activeScore) return activeScore;
+      return similaritaOfferta(nomiArera, b.nome) - similaritaOfferta(nomiArera, a.nome);
+    })[0] || null;
+
+  if (!candidate) return null;
+  const score = similaritaOfferta(nomiArera, candidate.nome);
+  return { offerta: candidate, score };
+}
+
+function matchCommercialeSufficiente(providerKey, tipo, nomiArera, commerciale, score) {
+  if (score >= 0.45) return true;
+  const testoArera = testoFornitoreNormalizzato(nomiArera);
+  if (providerKey === "alperia" && tipo === "variabile") {
+    return testoArera.includes("alperia") && (testoArera.includes("free") || testoArera.includes("home"));
+  }
+  if (providerKey === "alperia" && tipo === "fisso") {
+    return testoArera.includes("alperia") && (testoArera.includes("smile") || testoArera.includes("start") || testoArera.includes("easy"));
+  }
+  if (providerKey === "eni" && tipo === "fisso") {
+    return testoArera.includes("fixa") || testoArera.includes("plenitude");
+  }
+  if (providerKey === "enel" && tipo === "fisso") {
+    return testoArera.includes("fix");
+  }
+  if (providerKey === "eon") {
+    return testoArera.includes("e.on") || testoArera.includes("eon");
+  }
+  return false;
+}
+
+function arricchisciOffertaAreraConCommerciale(offerta, providerKey, tipo, tipoFornitura, nomiArera) {
+  const match = miglioreOffertaCommerciale(providerKey, tipo, tipoFornitura, nomiArera);
+  if (!match) return offerta;
+
+  const commerciale = match.offerta;
+  const copia = { ...offerta };
+  const matchSufficiente = matchCommercialeSufficiente(providerKey, tipo, nomiArera, commerciale, match.score);
+  if (offertaAttivabileOnline(commerciale) && matchSufficiente) {
+    copia.link = commerciale.link;
+    copia.destinationType = commerciale.destinationType;
+    copia.destinationStatus = commerciale.destinationStatus;
+    copia.monetizzazione = commerciale.monetizzazione;
+    copia.descrizione = `${offerta.descrizione} Percorso partner disponibile per offerta coerente (${commerciale.nome}).`;
+    copia.nome = offerta.nome;
+    return copia;
+  }
+
+  if (commerciale.destinationType === "partner_lead" || commerciale.destinationStatus === "da_contattare") {
+    copia.destinationType = "partner_lead";
+    copia.destinationStatus = "da_contattare";
+    copia.link = "#";
+    copia.descrizione = `${offerta.descrizione} Richiede verifica consulenziale prima di eventuale attivazione.`;
+  }
+  return copia;
+}
+
+function providerKeysArera() {
+  return [...new Set(OFFERTE_ARERA_MENU.map((riga) => riga.providerKey).filter(Boolean))].sort();
+}
+
+function miglioreRigaAreraPerProvider(providerKey, commodity, tipo, attuale) {
+  return OFFERTE_ARERA_MENU
+    .filter((riga) => riga.providerKey === providerKey && riga.commodity === commodity && riga.tipo === tipo)
+    .filter(rigaAreraIdonea)
+    .sort((a, b) => (costoRigaAreraSuProfilo(a, attuale) - costoRigaAreraSuProfilo(b, attuale)) || (a.score - b.score))[0] || null;
+}
+
+function offertaAreraRankingProvider(providerKey, tipo, tipoFornitura, attuale) {
+  const luce = miglioreRigaAreraPerProvider(providerKey, "luce", tipo, attuale);
+  const gas = miglioreRigaAreraPerProvider(providerKey, "gas", tipo, attuale);
+  if (tipoFornitura === "dual" && (!luce || !gas)) return null;
+  if (!luce && !gas) return null;
+
+  const providerLabel = luce?.providerLabel || gas?.providerLabel || providerKey;
+  const nomiArera = [luce?.nome, gas?.nome].filter(Boolean).join(" + ");
+  const offerta = normalizzaOfferta({
+    id: `arera-${providerKey}-${tipo}-${tipoFornitura}-${luce?.codice || "no-luce"}-${gas?.codice || "no-gas"}`,
+    provider: providerLabel,
+    nome: luce && gas ? `${providerLabel} - ${nomiArera}` : `${providerLabel} - ${nomiArera}`,
+    tipo,
+    fornitura: luce && gas && tipoFornitura === "dual" ? "dual" : "separate",
+    link: "#",
+    destinationType: "partner_lead",
+    destinationStatus: "da_contattare",
+    luce: voceDaRigaArera(luce),
+    gas: voceDaRigaArera(gas),
+    descrizione: `Ranking tecnico da Portale Offerte ARERA/AU. Codici: ${[luce?.codice, gas?.codice].filter(Boolean).join(" + ")}`,
+    fonte: `${DATI_ARERA_MENU_META.fonte} Codici: ${[luce?.codice, gas?.codice].filter(Boolean).join(" + ")}`,
+    aggiornataIl: DATI_ARERA_MENU_META.aggiornatoIl,
+  }, 0);
+
+  return arricchisciOffertaAreraConCommerciale(offerta, providerKey, tipo, tipoFornitura, nomiArera);
+}
+
+function offertaAreraSeparataRanking(luce, gas, tipo) {
+  const sameProvider = luce.providerKey === gas.providerKey;
+  const providerLabel = sameProvider
+    ? luce.providerLabel
+    : `${luce.providerLabel} + ${gas.providerLabel}`;
+  const nomiArera = `${luce.nome} + ${gas.nome}`;
+  const offerta = normalizzaOfferta({
+    id: `arera-separata-${tipo}-${luce.codice}-${gas.codice}`,
+    provider: providerLabel,
+    nome: sameProvider ? `${providerLabel} - ${nomiArera}` : `${providerLabel} - miglior abbinamento separato`,
+    tipo,
+    fornitura: "separate",
+    link: "#",
+    destinationType: "partner_lead",
+    destinationStatus: "da_contattare",
+    luce: voceDaRigaArera(luce),
+    gas: voceDaRigaArera(gas),
+    descrizione: `Ranking tecnico separato da Portale Offerte ARERA/AU. Codici: ${luce.codice} + ${gas.codice}`,
+    fonte: `${DATI_ARERA_MENU_META.fonte} Codici: ${luce.codice} + ${gas.codice}`,
+    aggiornataIl: DATI_ARERA_MENU_META.aggiornatoIl,
+  }, 0);
+
+  return sameProvider
+    ? arricchisciOffertaAreraConCommerciale(offerta, luce.providerKey, tipo, "separate", nomiArera)
+    : offerta;
+}
+
+function costruisciOfferteAreraRanking(attuale, tipoTariffa, tipoFornitura) {
+  if (!OFFERTE_ARERA_MENU.length) return [];
+
+  if (tipoFornitura === "dual") {
+    return providerKeysArera()
+      .map((providerKey) => offertaAreraRankingProvider(providerKey, tipoTariffa, "dual", attuale))
+      .filter(Boolean);
+  }
+
+  const miglioriLuce = providerKeysArera()
+    .map((providerKey) => miglioreRigaAreraPerProvider(providerKey, "luce", tipoTariffa, attuale))
+    .filter(Boolean)
+    .sort((a, b) => costoRigaAreraSuProfilo(a, attuale) - costoRigaAreraSuProfilo(b, attuale))
+    .slice(0, 8);
+  const miglioriGas = providerKeysArera()
+    .map((providerKey) => miglioreRigaAreraPerProvider(providerKey, "gas", tipoTariffa, attuale))
+    .filter(Boolean)
+    .sort((a, b) => costoRigaAreraSuProfilo(a, attuale) - costoRigaAreraSuProfilo(b, attuale))
+    .slice(0, 8);
+
+  const abbinamenti = [];
+  miglioriLuce.forEach((luce) => {
+    miglioriGas.forEach((gas) => {
+      abbinamenti.push(offertaAreraSeparataRanking(luce, gas, tipoTariffa));
+    });
+  });
+
+  return abbinamenti
+    .filter(Boolean)
+    .sort((a, b) => costoOffertaSulProfilo(a, attuale) - costoOffertaSulProfilo(b, attuale))
+    .slice(0, 20);
+}
+
+function costruisciOfferteRanking(attuale, tipoTariffa, tipoFornitura) {
+  const daArera = costruisciOfferteAreraRanking(attuale, tipoTariffa, tipoFornitura);
+  if (daArera.length) return daArera;
+  return OFFERTE_PROPOSTE
+    .filter((offerta) => offertaCalcolabileConIndici(offerta))
+    .filter((offerta) => offertaCompatibileConRanking(offerta, tipoTariffa, tipoFornitura));
+}
+
 function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitura) {
-  assicuraSchedeOfferte();
+  const offerteCandidati = costruisciOfferteRanking(attuale, tipoTariffa, tipoFornitura);
+  assicuraSchedeOfferte(offerteCandidati);
   const sezioneFornitori = document.querySelector(".fornitori-consigliati-section");
   const contenitoreSchede = document.querySelector(".vertical-cards-container");
   const offerteCalcolate = [];
@@ -2688,6 +2938,9 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
 
   if (sezioneFornitori) sezioneFornitori.style.display = "block";
   if (contenitoreSchede) contenitoreSchede.style.display = "flex";
+  document.querySelectorAll(".partner-vertical-card").forEach((card) => {
+    card.style.setProperty("display", "none", "important");
+  });
 
   const headerTop = assicuraIntestazioneOfferte(
     "offerte-top-heading",
@@ -2701,7 +2954,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
   );
   const emptyMessage = assicuraMessaggioOfferteVuote();
 
-  OFFERTE_PROPOSTE.forEach((offerta) => {
+  offerteCandidati.forEach((offerta) => {
     const saving = document.getElementById(`risparmio-partner-${offerta.id}`);
     const card = saving?.closest(".partner-vertical-card");
     if (!saving || !card) return;
@@ -2757,20 +3010,20 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       .map((item, index) => [String(item.offerta.id), index + 1])
   );
 
+  const topEconomiche = ordinateRanking
+    .slice(0, 3)
+    .map((item) => ({ ...item, gruppoVisuale: "top" }));
+  const idsTop = new Set(topEconomiche.map((item) => String(item.offerta.id)));
   const attivabiliPrioritarie = offerteCalcolate
     .filter((item) => item.attivabileCoerente)
+    .filter((item) => !idsTop.has(String(item.offerta.id)))
     .sort((a, b) => (a.costo - b.costo) || (b.differenza - a.differenza))
     .map((item) => ({
       ...item,
       gruppoVisuale: "attivabile",
       posizioneEconomica: rankingGlobale.get(String(item.offerta.id)) || null,
     }));
-  const idsAttivabili = new Set(attivabiliPrioritarie.map((item) => String(item.offerta.id)));
-  const topEconomiche = ordinateRanking
-    .filter((item) => !idsAttivabili.has(String(item.offerta.id)))
-    .slice(0, 3)
-    .map((item) => ({ ...item, gruppoVisuale: "top" }));
-  const visibili = [...attivabiliPrioritarie, ...topEconomiche];
+  const visibili = [...topEconomiche, ...attivabiliPrioritarie];
   const idsVisibili = new Set(visibili.map((item) => String(item.offerta.id)));
   const migliore = ordinateRanking[0] || offerteCalcolate[0] || null;
   const hasVisibleOffers = visibili.length > 0;
@@ -2793,27 +3046,32 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
 
   aggiornaIntestazioneOfferte(
     headerTop,
-    attivabiliPrioritarie.length
-      ? "Altre offerte con consulente"
-      : (tipoTariffa === "variabile" ? "Le 3 migliori offerte a prezzo variabile" : "Le 3 offerte migliori per i tuoi consumi"),
-    attivabiliPrioritarie.length
-      ? "Queste proposte rispettano il filtro selezionato ma richiedono una verifica o un ricontatto: registriamo la richiesta e la facciamo gestire da un consulente o partner."
-      : (tipoTariffa === "variabile"
-        ? "Classifica calcolata sulle offerte variabili disponibili nel calcolatore e ordinata sul profilo di consumo inserito."
-        : "Ordinate in base al costo annuo stimato sul profilo inserito.")
+    tipoTariffa === "variabile" ? "Le 3 migliori offerte a prezzo variabile" : "Le 3 offerte migliori per i tuoi consumi",
+    OFFERTE_ARERA_MENU.length
+      ? "Classifica tecnica calcolata dal file ARERA aggiornato, ordinata sul profilo di consumo inserito."
+      : "Classifica calcolata sulle offerte disponibili nel calcolatore, ordinata sul profilo di consumo inserito."
   );
 
-  if (headerAttivabili) {
-    headerAttivabili.style.display = attivabiliPrioritarie.length ? "block" : "none";
-    if (attivabiliPrioritarie.length) contenitoreSchede?.appendChild(headerAttivabili);
-  }
-
-  if (headerTop && !attivabiliPrioritarie.length) {
+  if (headerTop) {
     headerTop.style.display = topEconomiche.length ? "block" : "none";
-    contenitoreSchede?.appendChild(headerTop);
+    if (topEconomiche.length) contenitoreSchede?.appendChild(headerTop);
   }
 
+  if (headerAttivabili) {
+    aggiornaIntestazioneOfferte(
+      headerAttivabili,
+      "Offerte partner attivabili online",
+      "Proposte coerenti con il filtro selezionato e collegate a un funnel partner, mostrate senza alterare la classifica tecnica."
+    );
+    headerAttivabili.style.display = attivabiliPrioritarie.length ? "block" : "none";
+  }
+
+  let intestazioneAttivabiliInserita = false;
   visibili.forEach(({ card, offerta, costo, costoOfferta, differenza, risparmio, saving, ambito, posizioneEconomica, gruppoVisuale, attivabileOnline, compatibileRanking, filtroEsatto, alternativeFiltro }) => {
+      if (gruppoVisuale === "attivabile" && headerAttivabili && !intestazioneAttivabiliInserita) {
+        contenitoreSchede?.appendChild(headerAttivabili);
+        intestazioneAttivabiliInserita = true;
+      }
       const context = {
         economyRank: posizioneEconomica,
         displayGroup: gruppoVisuale,
@@ -2891,15 +3149,6 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
         `;
       }
       contenitoreSchede?.appendChild(card);
-      if (
-        gruppoVisuale === "attivabile" &&
-        headerTop &&
-        topEconomiche.length &&
-        attivabiliPrioritarie[attivabiliPrioritarie.length - 1]?.offerta?.id === offerta.id
-      ) {
-        headerTop.style.display = "block";
-        contenitoreSchede?.appendChild(headerTop);
-      }
     });
 
   if (headerTop && !topEconomiche.length) {
@@ -3749,13 +3998,22 @@ function costoOffertaSulProfilo(offerta, attuale) {
 }
 
 function costoRigaAreraSuProfilo(riga, attuale) {
-  const consumo = riga.commodity === "luce" ? attuale.luce.consumo : attuale.gas.consumo;
-  return (numeroSicuro(consumo, 0) * numeroSicuro(riga.prezzo, 0)) + numeroSicuro(riga.quotaFissaAnnua, 0);
+  const base = riga.commodity === "luce" ? attuale.luce : attuale.gas;
+  return calcolaVoceEnergia({
+    consumo: base.consumo,
+    prezzoVariabile: riga.prezzo,
+    quotaFissaAnnua: riga.quotaFissaAnnua,
+    quoteUniversaliAnnue: base.quoteUniversaliAnnue,
+    componentiRegolate: base.componentiRegolate,
+    tipoTariffa: riga.tipo,
+    commodity: riga.commodity,
+  }).totale;
 }
 
 function miglioreRigaArera(righe, commodity, tipo, attuale) {
   return righe
     .filter((riga) => riga.commodity === commodity && riga.tipo === tipo)
+    .filter(rigaAreraIdonea)
     .sort((a, b) => (costoRigaAreraSuProfilo(a, attuale) - costoRigaAreraSuProfilo(b, attuale)) || (a.score - b.score))[0] || null;
 }
 
