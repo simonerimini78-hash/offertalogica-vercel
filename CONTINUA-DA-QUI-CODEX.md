@@ -152,12 +152,41 @@ Verifica finale eseguita:
 
 ## Prossime priorita
 
-1. Verificare a fondo i filtri fisso/variabile e dual/separate con diversi profili di consumo.
-2. Rifinire i testi dei popup per offerte non partner/consulente.
-3. Collegare Aruba SMS quando alias e API sono pronti.
-4. Migliorare pagina partner/investor per Switcho e possibili collaborazioni.
-5. Preparare scheda tecnica commerciale del flusso lead.
-6. Lavorare su SEO e pagine fornitore quando il motore e stabile.
+Priorita aggiornate dopo analisi Switcho e decisione di non andare online finche la trattativa non e piu chiara:
+
+1. Sistemare pagina SEO "Migliori offerte luce e gas luglio 2026".
+2. Inserire Dolomiti, Acea e Lene nelle pagine contenuto e nel radar offerte.
+3. Rafforzare la promessa strategica: "se non conviene, te lo diciamo".
+4. Verificare funnel lead/offerta/non partner.
+5. Collegare bene analytics/eventi.
+6. Poi collegare SMS Aruba e preparare il traffico.
+
+Nota strategica:
+
+- Il motore del calcolatore e considerato sistemato a livello operativo.
+- La priorita ora non e rifare il motore, ma curare asset, credibilita, funnel, contenuti e misurazione.
+- Il sito non va spinto online in modo aggressivo finche non si chiude o chiarisce la trattativa con Switcho.
+- OffertaLogica deve apparire come una piccola infrastruttura aziendale seria, non come un semplice esperimento.
+- La frase cardine resta: "OffertaLogica calcola le offerte sui tuoi consumi reali, letti dalla bolletta o inseriti manualmente. Se non conviene cambiare, te lo diciamo."
+
+Pagina contenuto preparata:
+
+- `public/offerte-luce-gas-aggiornate.html`
+- Titolo impostato in modo non assoluto: "Offerte luce e gas aggiornate: confrontale sui tuoi consumi".
+- La pagina non promette "migliori offerte per tutti".
+- Include promessa: "se dai tuoi dati non emerge un risparmio reale, te lo diciamo".
+- Include radar Dolomiti, Acea e Lene.
+- Legge le offerte dal file pubblico `public/data/offerte-proposte.json`.
+- Per prudenza pre-Switcho e pre-traffico, al momento resta `noindex,follow` e non va inserita in sitemap finche non decidiamo di renderla una vera pagina SEO indicizzabile.
+- Testi visibili ripuliti: non contiene riferimenti interni a Switcho, noindex, modalita controllata, funnel, lead, monetizzazione o note da cantiere.
+
+Funnel lead/offerta/non partner:
+
+- Controllato il 2026-07-04.
+- Le offerte partner attive possono restituire `redirectUrl` dopo consenso offerta.
+- Le offerte non partner/con consulente non devono aprire landing esterne: registrano la richiesta e mostrano messaggio di ricontatto.
+- Aggiornata whitelist domini in `api/offer-consent.js` per coprire anche Dolomiti, Acea, Lene ed E.CO/Energia Corrente.
+- Verifica domini offerte attuali: OK, nessun dominio mancante.
 
 ## Regola di comunicazione con Simone
 
