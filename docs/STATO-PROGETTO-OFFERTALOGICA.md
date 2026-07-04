@@ -2,6 +2,16 @@
 
 Aggiornato: 2026-07-04
 
+## Punto di rientro Codex
+
+Prima di riprendere il lavoro dopo una pausa, un cambio sessione o un reset di contesto, leggere:
+
+- `CONTINUA-DA-QUI-CODEX.md`
+- `docs/STATO-PROGETTO-OFFERTALOGICA.md`
+- `docs/VERIFICA-CALCOLO-OFFERTE.md`
+
+Il file `CONTINUA-DA-QUI-CODEX.md` contiene il prompt breve da incollare in una nuova sessione e l'elenco delle cose da non rompere.
+
 ## Regole operative del calcolatore
 
 ### Motore di calcolo
@@ -39,4 +49,3 @@ Prima di modificare codice:
 - Cosa cambio.
 - Cosa non tocco.
 - Come verifico che funzioni.
-
