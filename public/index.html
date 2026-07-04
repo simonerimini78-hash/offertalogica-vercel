@@ -3013,17 +3013,24 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
   const topEconomiche = ordinateRanking
     .slice(0, 3)
     .map((item) => ({ ...item, gruppoVisuale: "top" }));
-  const idsTop = new Set(topEconomiche.map((item) => String(item.offerta.id)));
+  const pesoPrioritaCommerciale = (item) => {
+    const priorita = String(item.offerta.monetizzazione?.prioritaCommerciale || "").toLowerCase();
+    if (priorita === "alta") return 3;
+    if (priorita === "media") return 2;
+    if (priorita === "bassa") return 1;
+    return 0;
+  };
   const attivabiliPrioritarie = offerteCalcolate
     .filter((item) => item.attivabileCoerente)
-    .filter((item) => !idsTop.has(String(item.offerta.id)))
-    .sort((a, b) => (a.costo - b.costo) || (b.differenza - a.differenza))
+    .sort((a, b) => (pesoPrioritaCommerciale(b) - pesoPrioritaCommerciale(a)) || (a.costo - b.costo) || (b.differenza - a.differenza))
     .map((item) => ({
       ...item,
       gruppoVisuale: "attivabile",
       posizioneEconomica: rankingGlobale.get(String(item.offerta.id)) || null,
     }));
-  const visibili = [...topEconomiche, ...attivabiliPrioritarie];
+  const idsAttivabili = new Set(attivabiliPrioritarie.map((item) => String(item.offerta.id)));
+  const topTrasparenti = topEconomiche.filter((item) => !idsAttivabili.has(String(item.offerta.id)));
+  const visibili = [...attivabiliPrioritarie, ...topTrasparenti];
   const idsVisibili = new Set(visibili.map((item) => String(item.offerta.id)));
   const migliore = ordinateRanking[0] || offerteCalcolate[0] || null;
   const hasVisibleOffers = visibili.length > 0;
@@ -3046,31 +3053,29 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
 
   aggiornaIntestazioneOfferte(
     headerTop,
-    tipoTariffa === "variabile" ? "Le 3 migliori offerte a prezzo variabile" : "Le 3 offerte migliori per i tuoi consumi",
+    tipoTariffa === "variabile" ? "Migliori offerte ARERA a prezzo variabile" : "Migliori offerte ARERA per costo",
     OFFERTE_ARERA_MENU.length
-      ? "Classifica tecnica calcolata dal file ARERA aggiornato, ordinata sul profilo di consumo inserito."
+      ? "Classifica tecnica calcolata dal file ARERA aggiornato. Le offerte partner gia mostrate sopra mantengono il badge con la loro posizione economica."
       : "Classifica calcolata sulle offerte disponibili nel calcolatore, ordinata sul profilo di consumo inserito."
   );
 
   if (headerTop) {
-    headerTop.style.display = topEconomiche.length ? "block" : "none";
-    if (topEconomiche.length) contenitoreSchede?.appendChild(headerTop);
+    headerTop.style.display = topTrasparenti.length ? "block" : "none";
   }
 
   if (headerAttivabili) {
     aggiornaIntestazioneOfferte(
       headerAttivabili,
       "Offerte partner attivabili online",
-      "Proposte coerenti con il filtro selezionato e collegate a un funnel partner, mostrate senza alterare la classifica tecnica."
+      "Proposte coerenti con il filtro selezionato e collegate a un funnel partner. La convenienza tecnica resta indicata nei badge e nella classifica ARERA."
     );
     headerAttivabili.style.display = attivabiliPrioritarie.length ? "block" : "none";
+    if (attivabiliPrioritarie.length) contenitoreSchede?.appendChild(headerAttivabili);
   }
 
-  let intestazioneAttivabiliInserita = false;
   visibili.forEach(({ card, offerta, costo, costoOfferta, differenza, risparmio, saving, ambito, posizioneEconomica, gruppoVisuale, attivabileOnline, compatibileRanking, filtroEsatto, alternativeFiltro }) => {
-      if (gruppoVisuale === "attivabile" && headerAttivabili && !intestazioneAttivabiliInserita) {
-        contenitoreSchede?.appendChild(headerAttivabili);
-        intestazioneAttivabiliInserita = true;
+      if (gruppoVisuale === "top" && headerTop && headerTop.style.display !== "none" && headerTop.parentNode !== contenitoreSchede) {
+        contenitoreSchede?.appendChild(headerTop);
       }
       const context = {
         economyRank: posizioneEconomica,
@@ -3151,7 +3156,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       contenitoreSchede?.appendChild(card);
     });
 
-  if (headerTop && !topEconomiche.length) {
+  if (headerTop && !topTrasparenti.length) {
     headerTop.style.display = "none";
   }
 
