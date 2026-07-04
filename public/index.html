@@ -2544,8 +2544,9 @@ function offertaAttivabileOnline(offerta) {
 function testoBadgeOfferta(item, migliore) {
   if (item.gruppoVisuale === "top" && item.posizioneEconomica === 1) return "Migliore per i tuoi consumi";
   if (item.gruppoVisuale === "top") return `#${item.posizioneEconomica} per costo stimato`;
-  if (item.gruppoVisuale === "attivabile" && item.compatibileRanking) return "Partner attivabile online";
   if (item.gruppoVisuale === "attivabile" && item.posizioneEconomica && item.posizioneEconomica <= 3) return `#${item.posizioneEconomica} per costo stimato`;
+  if (item.gruppoVisuale === "attivabile" && item.posizioneEconomica) return `Partner attivabile online - #${item.posizioneEconomica} per costo`;
+  if (item.gruppoVisuale === "attivabile" && item.compatibileRanking) return "Partner attivabile online";
   if (item.gruppoVisuale === "attivabile") return "Alternativa attivabile";
   const scarto = item.costo - (migliore?.costo || item.costo);
   return scarto <= 50 ? "Miglior compromesso attivabile" : "Attivabile online";
@@ -3010,27 +3011,20 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       .map((item, index) => [String(item.offerta.id), index + 1])
   );
 
-  const topEconomiche = ordinateRanking
-    .slice(0, 3)
-    .map((item) => ({ ...item, gruppoVisuale: "top" }));
-  const pesoPrioritaCommerciale = (item) => {
-    const priorita = String(item.offerta.monetizzazione?.prioritaCommerciale || "").toLowerCase();
-    if (priorita === "alta") return 3;
-    if (priorita === "media") return 2;
-    if (priorita === "bassa") return 1;
-    return 0;
-  };
   const attivabiliPrioritarie = offerteCalcolate
     .filter((item) => item.attivabileCoerente)
-    .sort((a, b) => (pesoPrioritaCommerciale(b) - pesoPrioritaCommerciale(a)) || (a.costo - b.costo) || (b.differenza - a.differenza))
+    .sort((a, b) => (a.costo - b.costo) || (b.differenza - a.differenza))
+    .slice(0, 3)
     .map((item) => ({
       ...item,
       gruppoVisuale: "attivabile",
       posizioneEconomica: rankingGlobale.get(String(item.offerta.id)) || null,
     }));
-  const idsAttivabili = new Set(attivabiliPrioritarie.map((item) => String(item.offerta.id)));
-  const topTrasparenti = topEconomiche.filter((item) => !idsAttivabili.has(String(item.offerta.id)));
-  const visibili = [...attivabiliPrioritarie, ...topTrasparenti];
+  const miglioriConConsulente = ordinateRanking
+    .filter((item) => !item.attivabileOnline)
+    .slice(0, 3)
+    .map((item) => ({ ...item, gruppoVisuale: "top" }));
+  const visibili = [...attivabiliPrioritarie, ...miglioriConConsulente];
   const idsVisibili = new Set(visibili.map((item) => String(item.offerta.id)));
   const migliore = ordinateRanking[0] || offerteCalcolate[0] || null;
   const hasVisibleOffers = visibili.length > 0;
@@ -3053,21 +3047,21 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
 
   aggiornaIntestazioneOfferte(
     headerTop,
-    tipoTariffa === "variabile" ? "Migliori offerte ARERA a prezzo variabile" : "Migliori offerte ARERA per costo",
+    "Migliori offerte per costo con consulente",
     OFFERTE_ARERA_MENU.length
-      ? "Classifica tecnica calcolata dal file ARERA aggiornato. Le offerte partner gia mostrate sopra mantengono il badge con la loro posizione economica."
-      : "Classifica calcolata sulle offerte disponibili nel calcolatore, ordinata sul profilo di consumo inserito."
+      ? "Le 3 proposte più convenienti per costo annuo stimato sul tuo profilo. Per queste offerte serve verifica consulenziale o ricontatto prima dell'eventuale attivazione."
+      : "Le 3 proposte più convenienti tra le offerte disponibili nel calcolatore. Per queste offerte serve verifica consulenziale o ricontatto."
   );
 
   if (headerTop) {
-    headerTop.style.display = topTrasparenti.length ? "block" : "none";
+    headerTop.style.display = miglioriConConsulente.length ? "block" : "none";
   }
 
   if (headerAttivabili) {
     aggiornaIntestazioneOfferte(
       headerAttivabili,
       "Offerte partner attivabili online",
-      "Proposte coerenti con il filtro selezionato e collegate a un funnel partner. La convenienza tecnica resta indicata nei badge e nella classifica ARERA."
+      "Le 3 migliori proposte attivabili online tra i partner disponibili per il filtro selezionato. La posizione economica resta indicata nei badge."
     );
     headerAttivabili.style.display = attivabiliPrioritarie.length ? "block" : "none";
     if (attivabiliPrioritarie.length) contenitoreSchede?.appendChild(headerAttivabili);
@@ -3156,7 +3150,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       contenitoreSchede?.appendChild(card);
     });
 
-  if (headerTop && !topTrasparenti.length) {
+  if (headerTop && !miglioriConConsulente.length) {
     headerTop.style.display = "none";
   }
 
