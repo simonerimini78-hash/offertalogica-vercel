@@ -87,6 +87,7 @@
                         <th>Cliente</th>
                         <th>Contatti</th>
                         <th>Fonte</th>
+                        <th>Dati letti</th>
                         <th>Risparmio</th>
                         <th>Offerta scelta</th>
                         <th>Consensi</th>
@@ -94,7 +95,7 @@
                     </tr>
                 </thead>
                 <tbody id="rows">
-                    <tr><td colspan="9" class="muted">Nessun dato caricato.</td></tr>
+                    <tr><td colspan="10" class="muted">Nessun dato caricato.</td></tr>
                 </tbody>
             </table>
         </section>
@@ -159,13 +160,15 @@
 
         function renderRows(leads = []) {
             if (!leads.length) {
-                rowsBox.innerHTML = `<tr><td colspan="9" class="muted">Nessun lead trovato.</td></tr>`;
+                rowsBox.innerHTML = `<tr><td colspan="10" class="muted">Nessun lead trovato.</td></tr>`;
                 return;
             }
             rowsBox.innerHTML = leads.map((lead) => {
                 const offer = lead.selectedOffer || {};
                 const monetization = lead.monetization || {};
                 const consents = lead.consents || {};
+                const current = lead.currentSupply || {};
+                const profile = lead.comparisonProfile || {};
                 const consentClass = consents.partners ? "ok" : "warn";
                 return `
                     <tr>
@@ -174,6 +177,12 @@
                         <td>${escapeHtml(lead.name || "")}</td>
                         <td>${escapeHtml(lead.phone || "")}<br><span class="muted">${escapeHtml(lead.email || "")}</span></td>
                         <td>${escapeHtml(lead.source || "")}</td>
+                        <td>
+                            <strong>${escapeHtml(lead.dataOrigin || "")}</strong>
+                            <br><span class="muted">PDF: ${escapeHtml(lead.pdfDocumentCount ?? 0)}</span>
+                            <br><span class="muted">${escapeHtml(current.provider || "")} ${escapeHtml(current.luceConsumoKwh || "")} kWh ${escapeHtml(current.gasConsumoSmc || "")} Smc</span>
+                            <br><span class="muted">${escapeHtml(profile.tipoPrezzo || "")} ${escapeHtml(profile.tipoFornitura || "")}</span>
+                        </td>
                         <td>${escapeHtml(euro(lead.bestSaving))}</td>
                         <td>${escapeHtml(offer.provider || "")}<br><strong>${escapeHtml(offer.name || "")}</strong><br><span class="muted">${escapeHtml(offer.destinationStatus || "")}</span></td>
                         <td><span class="badge ${consentClass}">servizio ${consents.service ? "si" : "no"}</span><br><span class="badge ${consentClass}">partner ${consents.partners ? "si" : "no"}</span></td>

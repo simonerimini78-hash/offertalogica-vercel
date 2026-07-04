@@ -41,6 +41,14 @@ Il file `CONTINUA-DA-QUI-CODEX.md` contiene il prompt breve da incollare in una 
 - Le offerte sbloccate richiedono lead verificato via OTP.
 - Il consenso privacy serve per generare e mostrare il confronto/offerte.
 - Il consenso partner deve essere richiesto prima di trasmettere dati a fornitori o partner commerciali.
+- Il PDF originale non deve essere conservato stabilmente, salvo scelta futura con consenso specifico.
+- I dati tecnici estratti o inseriti devono restare nel database OffertaLogica: origine dato, consumi, prezzi, quote fisse, filtri scelti, risparmio stimato e offerta scelta.
+- Le origini dati devono essere distinguibili: `pdf_upload`, `manual_input`, `arera_average_profile`, `business_profile`.
+- Per affinare il motore usare viste o dataset anonimizzati, senza nome, email, telefono, POD o PDR.
+
+### Strategia dati reali
+
+La regolazione al centesimo puo essere migliorata con dati reali. Per questo, la priorita operativa e portare traffico al calcolatore e incentivare caricamento bollette/schede, salvando i dati normalizzati nel sistema proprietario. Le bollette reali serviranno per verificare voci ricorrenti, errori di estrazione, differenze fra fornitori e accuratezza del ranking.
 
 ## Regola di lavoro
 

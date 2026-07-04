@@ -113,6 +113,16 @@ Altri fornitori possono essere presenti nel ranking ARERA o nel blocco consulent
 
 Il blocco "Offerte partner attivabili online" e stato corretto per pescare anche dalle offerte partner dirette attive, non solo dagli agganci ARERA.
 
+Decisione strategica del 2026-07-04: la regolazione millimetrica del motore puo essere rimandata. La priorita ora e portare utenti reali sul sito, far caricare bollette e salvare nel database OffertaLogica i dati tecnici normalizzati utili a migliorare il motore.
+
+Regola dati:
+
+- non salvare stabilmente il PDF originale;
+- salvare nel lead i dati estratti/inseriti, origine dato, consumi, prezzi, quote fisse, profilo comparazione e offerta scelta;
+- distinguere `pdf_upload`, `manual_input`, `arera_average_profile`, `business_profile`;
+- non trasmettere dati a partner esterni senza consenso partner su offerta specifica;
+- usare viste/dataset anonimizzati per analizzare e migliorare il motore senza nominativi.
+
 Verifica finale eseguita:
 
 - `dual fuel / prezzo fisso`: blocco partner con 3 card visibili.
@@ -160,4 +170,3 @@ Prima di modificare codice rispondere sempre:
 - Come verifico che funzioni.
 
 Se una richiesta e ambigua, non inventare. Ripetere la regola in italiano semplice e chiedere conferma prima di toccare codice.
-
