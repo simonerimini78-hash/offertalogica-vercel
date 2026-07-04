@@ -12,6 +12,19 @@ Il backend salva uno snapshot in tre momenti:
 - `lead_verified`: l'OTP viene verificato;
 - `offer_partner_consent`: l'utente sceglie una specifica offerta e conferma il consenso partner.
 
+In piu, il frontend invia eventi tecnici anonimi/non invasivi a `/api/track-event` per misurare il percorso prima e dopo il lead:
+
+- caricamento e conferma PDF;
+- click su "Elabora e confronta";
+- apertura/chiusura popup lead;
+- richiesta e verifica OTP;
+- offerte mostrate;
+- click offerta partner o offerta con consulente;
+- conferma consenso partner;
+- richiesta registrata o redirect verso funnel affiliato.
+
+Questi eventi non devono contenere nome, telefono, email, POD, PDR, nome file PDF o testo della bolletta. Servono a capire conversione, punti di abbandono e valore commerciale del funnel.
+
 La modalita staff non passa da questi endpoint e quindi non salva nulla.
 
 ## Cosa viene conservato
@@ -21,12 +34,14 @@ La modalita staff non passa da questi endpoint e quindi non salva nulla.
 - Dati PDF normalizzati: valori tecnici estratti da bolletta o scheda sintetica.
 - Consensi e prova tecnica del consenso: versione privacy, fonte, pagina, timestamp server.
 - Offerta scelta e monetizzazione prevista, se l'utente procede con una proposta.
+- Eventi tecnici di funnel nella tabella `lead_events`, collegati al lead quando esiste oppure anonimi quando l'utente non ha ancora lasciato i dati.
 
 ## Cosa non viene conservato
 
 - Il file PDF originale non viene salvato come documento permanente.
 - In modalita staff non viene creato alcun lead e non viene scritto nulla nel database.
 - I dati non vengono trasmessi a partner esterni finche l'utente non conferma anche il consenso partner su una specifica offerta.
+- Gli eventi analytics interni non salvano dati personali o testo della bolletta.
 
 ## Schema Supabase/Postgres
 

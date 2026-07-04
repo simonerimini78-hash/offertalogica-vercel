@@ -1375,6 +1375,73 @@ const LEAD_STATE = {
   staffActivatedAt: "",
 };
 
+const ANALYTICS_SESSION_KEY = "offertalogicaAnalyticsSession";
+
+function trackingApiDisponibile() {
+  return window.location.protocol === "https:" || /\.vercel\.app$/i.test(window.location.hostname);
+}
+
+function analyticsSessionId() {
+  try {
+    let id = sessionStorage.getItem(ANALYTICS_SESSION_KEY);
+    if (!id) {
+      id = window.crypto?.randomUUID
+        ? window.crypto.randomUUID()
+        : `ol-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+      sessionStorage.setItem(ANALYTICS_SESSION_KEY, id);
+    }
+    return id;
+  } catch {
+    return "";
+  }
+}
+
+function trackEvent(eventType, payload = {}) {
+  if (!trackingApiDisponibile()) return;
+  if (LEAD_STATE.staffMode) return;
+
+  const leadId = LEAD_STATE.leadId && !["preview", STAFF_MODE_LEAD_ID].includes(LEAD_STATE.leadId)
+    ? LEAD_STATE.leadId
+    : "";
+  const body = JSON.stringify({
+    eventType,
+    sessionId: analyticsSessionId(),
+    leadId,
+    page: window.location.pathname || "/",
+    customerType: LEAD_STATE.customerType,
+    dataOrigin: determinaOrigineDatoLead(),
+    source: LEAD_STATE.leadSource,
+    payload: {
+      page: window.location.pathname || "/",
+      customerType: LEAD_STATE.customerType,
+      dataOrigin: determinaOrigineDatoLead(),
+      leadSource: LEAD_STATE.leadSource,
+      verified: LEAD_STATE.verified,
+      staffMode: LEAD_STATE.staffMode,
+      bestSaving: LEAD_STATE.bestSaving,
+      pdfDocumentCount: (LEAD_STATE.pdfDocuments || []).length,
+      ...payload,
+    },
+  });
+
+  try {
+    if (navigator.sendBeacon) {
+      const blob = new Blob([body], { type: "application/json" });
+      navigator.sendBeacon("/api/track-event", blob);
+      return;
+    }
+  } catch {
+    // Il tracciamento non deve mai interferire con il confronto.
+  }
+
+  fetch("/api/track-event", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body,
+    keepalive: true,
+  }).catch(() => {});
+}
+
 const PRIVACY_VERSION = "privacy-lead-v3-2026-07-04";
 const STAFF_MODE_STORAGE_KEY = "offertalogicaStaffMode";
 const STAFF_MODE_LEAD_ID = "staff-preview";
@@ -2214,6 +2281,7 @@ function setDisplay(selector, display) {
 
 function selezionaSegmentoCliente(tipo) {
   LEAD_STATE.customerType = tipo;
+  trackEvent("customer_segment_selected", { customerType: tipo });
   const isBusiness = tipo === "business";
   document.getElementById("btn-segmento-privato")?.classList.toggle("active", !isBusiness);
   document.getElementById("btn-segmento-business")?.classList.toggle("active", isBusiness);
@@ -2282,6 +2350,7 @@ window.calcolaBusiness = function calcolaBusiness() {
   if (error) error.style.display = "none";
 
   if (!profile.consumoLuceKwh && !profile.consumoGasSmc) {
+    trackEvent("business_calculation_missing_consumption");
     mostraBusinessErrore("Inserisci almeno il consumo annuo luce o gas, oppure carica una bolletta business.");
     if (result) result.style.display = "none";
     return null;
@@ -2303,12 +2372,22 @@ window.calcolaBusiness = function calcolaBusiness() {
     copy.innerText = "La stima business usa consumi, potenza e fasce indicate per individuare un possibile margine. Le offerte aziendali vanno confermate su bolletta e condizioni negoziate.";
   }
   if (result) result.style.display = "block";
+  trackEvent("business_calculation_completed", {
+    customerType: "business",
+    dataOrigin: "business_profile",
+    bestSaving: profile.risparmioStimato,
+  });
   return profile;
 };
 
 window.apriLeadBusiness = function apriLeadBusiness() {
   const profile = calcolaBusiness();
   if (!profile) return;
+  trackEvent("business_lead_modal_requested", {
+    customerType: "business",
+    dataOrigin: "business_profile",
+    bestSaving: profile.risparmioStimato,
+  });
   const nome = document.getElementById("lead-nome");
   const telefono = document.getElementById("lead-telefono");
   const email = document.getElementById("lead-email");
@@ -3302,6 +3381,18 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
     });
 
   LEAD_STATE.bestSaving = Math.max(0, ...visibili.map((item) => item.differenza));
+  trackEvent("offers_rendered", {
+    tipoPrezzo: tipoTariffa,
+    tipoFornitura,
+    visibleOffersCount: visibili.length,
+    activePartnerOffersCount: attivabiliPrioritarie.length,
+    consultantOffersCount: miglioriConConsulente.length,
+    bestSaving: LEAD_STATE.bestSaving,
+    offerId: String(visibili[0]?.offerta?.id || ""),
+    offerName: visibili[0]?.offerta?.nome || "",
+    provider: visibili[0]?.offerta?.provider || "",
+    displayGroup: visibili[0]?.gruppoVisuale || "",
+  });
   const teaser = document.getElementById("lead-teaser");
   const teaserTitle = document.getElementById("lead-teaser-title");
   const teaserCopy = document.getElementById("lead-teaser-copy");
@@ -3344,8 +3435,17 @@ window.avviaComparazioneDati = function avviaComparazioneDati() {
   const tipoTariffa = leggiValore("master-luce-tipo", "fisso");
   const tipoFornitura = leggiValore("master-tipo-fornitura", "dual");
   const attuale = leggiOffertaAttuale();
+  trackEvent("comparison_started", {
+    tipoPrezzo: tipoTariffa,
+    tipoFornitura,
+    ...leggiProfiloComparazione(),
+  });
 
   if (attuale.luce.prezzoVariabile === 0 && attuale.gas.prezzoVariabile === 0) {
+    trackEvent("comparison_missing_current_price", {
+      tipoPrezzo: tipoTariffa,
+      tipoFornitura,
+    });
     mostraErroreDatiMancanti();
     return;
   }
@@ -3367,6 +3467,12 @@ window.avviaComparazioneDati = function avviaComparazioneDati() {
   }
 
   aggiornaOfferteProposte(attuale, confrontoNuova.attuale, tipoTariffa, tipoFornitura);
+  trackEvent("comparison_completed", {
+    tipoPrezzo: tipoTariffa,
+    tipoFornitura,
+    hasNewOffer: haNuovaOfferta,
+    bestSaving: LEAD_STATE.bestSaving,
+  });
 };
 
 function leadStatus(message, isError = false) {
@@ -3551,6 +3657,7 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
       : "Autorizzo OffertaLogica a trasmettere i miei dati e i dati della fornitura al fornitore o partner collegato all'offerta che scegliero, per essere ricontattato su quella proposta.";
   }
   modal.style.display = "flex";
+  trackEvent("lead_modal_opened", { leadSource: source });
   leadStatus(staffModeAttiva()
     ? "Modalita staff attiva: premi il pulsante verde e usa il codice 000000. Nessun dato viene salvato."
     : "La prima casella sblocca il confronto. La seconda e facoltativa: se la accetti ora, non dovrai ridarla quando scegli un'offerta.");
@@ -3559,6 +3666,7 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
 function chiudiLeadModal() {
   const modal = document.getElementById("lead-modal-backdrop");
   if (modal) modal.style.display = "none";
+  trackEvent("lead_modal_closed", { leadSource: LEAD_STATE.leadSource });
 }
 
 function leggiLeadForm() {
@@ -3611,6 +3719,7 @@ function creaProvaConsenso(consents) {
 function completaLeadVerificato() {
   LEAD_STATE.verified = true;
   chiudiLeadModal();
+  trackEvent("offers_unlocked", { leadSource: LEAD_STATE.leadSource });
   if (LEAD_STATE.customerType === "business") {
     const result = document.getElementById("business-result");
     const copy = document.getElementById("business-copy");
@@ -3631,11 +3740,18 @@ async function inviaOtp() {
     return;
   }
 
-  if (!leadValido()) return;
+  if (!leadValido()) {
+    trackEvent("lead_form_invalid", { leadSource: LEAD_STATE.leadSource });
+    return;
+  }
   const { nome, telefono, email, consents } = leggiLeadForm();
   LEAD_STATE.partnerConsent = Boolean(consents.partners);
   const consentProof = creaProvaConsenso(consents);
   leadStatus("Creo il lead e invio il codice...");
+  trackEvent("otp_request_started", {
+    leadSource: LEAD_STATE.leadSource,
+    source: LEAD_STATE.leadSource,
+  });
   try {
     const leadResponse = await fetch("/api/lead", {
       method: "POST",
@@ -3669,6 +3785,10 @@ async function inviaOtp() {
     const leadPayload = await leadResponse.json();
     if (!leadPayload.ok) throw new Error(leadPayload.error || "Errore lead");
     LEAD_STATE.leadId = leadPayload.leadId;
+    trackEvent("lead_created_client", {
+      leadSource: LEAD_STATE.leadSource,
+      source: LEAD_STATE.leadSource,
+    });
 
     const otpResponse = await fetch("/api/send-otp", {
       method: "POST",
@@ -3684,6 +3804,10 @@ async function inviaOtp() {
     if (otpInput) otpInput.style.display = "block";
     if (sendBtn) sendBtn.style.display = "none";
     if (verifyBtn) verifyBtn.style.display = "inline-block";
+    trackEvent("otp_sent", {
+      leadSource: LEAD_STATE.leadSource,
+      demoMode: Boolean(otpPayload.demoCode),
+    });
     leadStatus(otpPayload.demoCode ? `Codice di prova: ${otpPayload.demoCode}.` : "Codice inviato via SMS.");
   } catch (error) {
     const otpInput = document.getElementById("lead-otp");
@@ -3693,6 +3817,10 @@ async function inviaOtp() {
       if (otpInput) otpInput.style.display = "none";
       if (sendBtn) sendBtn.style.display = "inline-block";
       if (verifyBtn) verifyBtn.style.display = "none";
+      trackEvent("otp_failed", {
+        leadSource: LEAD_STATE.leadSource,
+        reason: "service_unavailable",
+      });
       leadStatus("Servizio OTP non disponibile in questo momento. Riprova tra poco.", true);
       return;
     }
@@ -3701,6 +3829,10 @@ async function inviaOtp() {
     if (otpInput) otpInput.style.display = "block";
     if (sendBtn) sendBtn.style.display = "none";
     if (verifyBtn) verifyBtn.style.display = "inline-block";
+    trackEvent("otp_failed_preview_fallback", {
+      leadSource: LEAD_STATE.leadSource,
+      reason: "local_preview_fallback",
+    });
     leadStatus(`Anteprima locale senza API: usa il codice ${LEAD_STATE.otpPreviewCode}.`);
   }
 }
@@ -3708,6 +3840,7 @@ async function inviaOtp() {
 async function verificaOtp() {
   const otp = document.getElementById("lead-otp")?.value.trim();
   if (!otp || !LEAD_STATE.leadId) {
+    trackEvent("otp_verify_missing_code", { leadSource: LEAD_STATE.leadSource });
     leadStatus("Inserisci il codice ricevuto.", true);
     return;
   }
@@ -3729,6 +3862,7 @@ async function verificaOtp() {
     return;
   }
   try {
+    trackEvent("otp_verify_started", { leadSource: LEAD_STATE.leadSource });
     const response = await fetch("/api/verify-otp", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -3737,8 +3871,13 @@ async function verificaOtp() {
     const payload = await response.json();
     if (!payload.ok) throw new Error(payload.error || "Codice non corretto");
     leadStatus("Lead verificato. Offerte sbloccate.");
+    trackEvent("otp_verified", { leadSource: LEAD_STATE.leadSource });
     completaLeadVerificato();
   } catch (error) {
+    trackEvent("otp_verify_failed", {
+      leadSource: LEAD_STATE.leadSource,
+      reason: "invalid_or_expired_code",
+    });
     leadStatus(error.message, true);
   }
 }
@@ -3772,6 +3911,13 @@ function configuraPopupConsensoOfferta(richiedeConsenso) {
 
 window.apriConsensoOfferta = function apriConsensoOfferta(offerta) {
   if (!LEAD_STATE.verified) {
+    trackEvent("offer_click_locked", {
+      offerId: String(offerta?.id || ""),
+      offerName: offerta?.nome || "",
+      provider: offerta?.provider || "",
+      destinationType: offerta?.destinationType || "",
+      destinationStatus: offerta?.destinationStatus || "",
+    });
     apriLeadModal("unlock");
     return;
   }
@@ -3806,6 +3952,20 @@ window.apriConsensoOfferta = function apriConsensoOfferta(offerta) {
   configuraPopupConsensoOfferta(!LEAD_STATE.partnerConsent);
   if (modal) modal.style.display = "flex";
   offerConsentStatus("");
+  trackEvent("offer_consent_opened", {
+    offerId: LEAD_STATE.selectedOffer.id,
+    offerName: LEAD_STATE.selectedOffer.name,
+    provider: LEAD_STATE.selectedOffer.provider,
+    destinationType: LEAD_STATE.selectedOffer.destinationType,
+    destinationStatus: LEAD_STATE.selectedOffer.destinationStatus,
+    displayGroup: LEAD_STATE.selectedOffer.rankingContext?.displayGroup || "",
+    economyRank: LEAD_STATE.selectedOffer.rankingContext?.economyRank || null,
+    displayRank: LEAD_STATE.selectedOffer.rankingContext?.displayRank || null,
+    annualCost: LEAD_STATE.selectedOffer.rankingContext?.annualCost || null,
+    annualDelta: LEAD_STATE.selectedOffer.rankingContext?.annualDelta || null,
+    network: LEAD_STATE.selectedOffer.monetization?.network || "",
+    model: LEAD_STATE.selectedOffer.monetization?.modello || LEAD_STATE.selectedOffer.monetization?.model || "",
+  });
 };
 
 function chiudiConsensoOfferta() {
@@ -3825,11 +3985,23 @@ function offertaConRedirectAttivo(offer) {
 async function confermaConsensoOfferta() {
   const checkbox = document.getElementById("offer-consent-checkbox");
   if (!LEAD_STATE.partnerConsent && !checkbox?.checked) {
+    trackEvent("offer_partner_consent_missing", {
+      offerId: LEAD_STATE.selectedOffer?.id || "",
+      offerName: LEAD_STATE.selectedOffer?.name || "",
+      provider: LEAD_STATE.selectedOffer?.provider || "",
+    });
     offerConsentStatus("Per procedere serve il consenso al ricontatto/trasmissione dati sull'offerta scelta.", true);
     return;
   }
 
   LEAD_STATE.partnerConsent = true;
+  trackEvent("offer_partner_consent_confirmed", {
+    offerId: LEAD_STATE.selectedOffer?.id || "",
+    offerName: LEAD_STATE.selectedOffer?.name || "",
+    provider: LEAD_STATE.selectedOffer?.provider || "",
+    destinationType: LEAD_STATE.selectedOffer?.destinationType || "",
+    destinationStatus: LEAD_STATE.selectedOffer?.destinationStatus || "",
+  });
   await registraRichiestaOfferta();
 }
 
@@ -3845,11 +4017,30 @@ function nascondiEsitiFincheNonConfronti() {
 async function registraRichiestaOfferta() {
   const offer = LEAD_STATE.selectedOffer;
   if (!offer?.link) {
+    trackEvent("offer_request_missing_link", {
+      offerId: offer?.id || "",
+      offerName: offer?.name || "",
+      provider: offer?.provider || "",
+    });
     offerConsentStatus("Offerta non disponibile. Riprova dal pulsante dell'offerta.", true);
     return;
   }
 
   offerConsentStatus("Confermo il consenso e registro la richiesta...");
+  trackEvent("offer_request_started", {
+    offerId: offer.id || "",
+    offerName: offer.name || "",
+    provider: offer.provider || "",
+    destinationType: offer.destinationType || "",
+    destinationStatus: offer.destinationStatus || "",
+    displayGroup: offer.rankingContext?.displayGroup || "",
+    economyRank: offer.rankingContext?.economyRank || null,
+    displayRank: offer.rankingContext?.displayRank || null,
+    annualCost: offer.rankingContext?.annualCost || null,
+    annualDelta: offer.rankingContext?.annualDelta || null,
+    network: offer.monetization?.network || "",
+    model: offer.monetization?.modello || offer.monetization?.model || "",
+  });
 
   if (LEAD_STATE.leadId === STAFF_MODE_LEAD_ID || staffModeAttiva()) {
     const safeLink = linkStaffSenzaTracking(offer.link);
@@ -3887,11 +4078,33 @@ async function registraRichiestaOfferta() {
     if (!payload.ok) throw new Error(payload.error || "Errore consenso offerta");
     if (payload.redirectUrl) {
       offerConsentStatus("Richiesta registrata. Ti portiamo alla pagina dell'offerta scelta.");
+      trackEvent("offer_redirect", {
+        offerId: offer.id || "",
+        offerName: offer.name || "",
+        provider: offer.provider || "",
+        destinationType: offer.destinationType || "",
+        destinationStatus: offer.destinationStatus || "",
+        redirect: true,
+      });
       window.location.href = payload.redirectUrl;
       return;
     }
+    trackEvent("offer_request_recorded", {
+      offerId: offer.id || "",
+      offerName: offer.name || "",
+      provider: offer.provider || "",
+      destinationType: offer.destinationType || "",
+      destinationStatus: offer.destinationStatus || "",
+      redirect: false,
+    });
     offerConsentStatus("Richiesta ricevuta. Ti ricontatteremo per procedere con l'offerta scelta.");
   } catch (error) {
+    trackEvent("offer_request_failed", {
+      offerId: offer.id || "",
+      offerName: offer.name || "",
+      provider: offer.provider || "",
+      reason: "api_error",
+    });
     offerConsentStatus(error.message, true);
   }
 }
@@ -3903,12 +4116,14 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
   const copy = document.getElementById("pdf-review-copy");
   const files = Array.from(input?.files || []);
   if (!files.length) {
+    trackEvent("pdf_no_file_selected");
     if (panel) panel.style.display = "block";
     if (copy) copy.innerText = "Seleziona prima una bolletta PDF o una scheda sintetica. Dopo la lettura mostreremo i dati da confermare; il confronto partirà solo dal pulsante blu.";
     return;
   }
   if (panel) panel.style.display = "block";
   if (copy) copy.innerText = `Analisi di ${files.length} PDF in corso...`;
+  trackEvent("pdf_analysis_started", { fileCount: files.length });
 
   const results = [];
   for (const file of files) {
@@ -3931,11 +4146,21 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
   LEAD_STATE.pdfDocuments = [...LEAD_STATE.pdfDocuments, ...results];
   LEAD_STATE.pdfData = mergePdfDocuments(LEAD_STATE.pdfDocuments);
   LEAD_STATE.dataOrigin = "pdf_upload";
+  trackEvent("pdf_analysis_completed", {
+    fileCount: files.length,
+    successCount: results.filter((item) => !item.error).length,
+    errorCount: results.filter((item) => item.error).length,
+  });
   if (copy) copy.innerHTML = renderPdfSummary(LEAD_STATE.pdfDocuments, LEAD_STATE.pdfData);
 };
 
 window.confermaPdfECalcola = function confermaPdfECalcola() {
   const data = LEAD_STATE.pdfData || {};
+  trackEvent("pdf_data_confirmed", {
+    pdfDocumentCount: (LEAD_STATE.pdfDocuments || []).length,
+    successCount: (LEAD_STATE.pdfDocuments || []).filter((item) => !item.error).length,
+    errorCount: (LEAD_STATE.pdfDocuments || []).filter((item) => item.error).length,
+  });
   if (LEAD_STATE.customerType === "business") {
     applicaDatiPdfAlBusiness(data);
     nascondiEsitiFincheNonConfronti();
@@ -4029,6 +4254,9 @@ function renderPdfSummary(documents, merged) {
 }
 
 window.azzeraPdfEModulo = function azzeraPdfEModulo() {
+  trackEvent("pdf_reset", {
+    pdfDocumentCount: (LEAD_STATE.pdfDocuments || []).length,
+  });
   LEAD_STATE.pdfData = null;
   LEAD_STATE.pdfDocuments = [];
   LEAD_STATE.dataOrigin = "manual_input";

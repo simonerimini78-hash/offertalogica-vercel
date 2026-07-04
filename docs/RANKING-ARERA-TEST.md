@@ -1,6 +1,6 @@
 # Test ranking ARERA
 
-Generato: 2026-07-04T18:42:41.666Z
+Generato: 2026-07-04T19:05:33.959Z
 Fonte ARERA: arera-menu-2026-07-02 (2026-07-02)
 Offerte lette: 646
 Indici usati: PUN 0.119351258, PSV 0.504419055

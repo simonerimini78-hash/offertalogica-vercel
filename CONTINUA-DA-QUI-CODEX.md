@@ -130,6 +130,23 @@ Verifica finale eseguita:
 - `scripts/validate-calculator-data.mjs`: OK.
 - `scripts/verify-calcolo-offerte.mjs`: OK, 0 errori, 0 warning.
 
+Misurazione funnel aggiunta:
+
+- endpoint `api/track-event.js`;
+- helper frontend `trackEvent(...)` in `public/index.html`;
+- eventi salvati in `lead_events` su Supabase tramite `lib/customerDb.js`;
+- modalita staff esclusa dal tracciamento;
+- anteprime locali escluse dal tracciamento;
+- eventi senza PII: niente nome, telefono, email, POD/PDR, nome file PDF o testo bolletta.
+
+Eventi principali:
+
+- `pdf_analysis_started`, `pdf_analysis_completed`, `pdf_data_confirmed`, `pdf_reset`;
+- `comparison_started`, `comparison_completed`, `offers_rendered`;
+- `lead_modal_opened`, `lead_modal_closed`, `otp_sent`, `otp_verified`, `offers_unlocked`;
+- `offer_consent_opened`, `offer_partner_consent_confirmed`, `offer_redirect`, `offer_request_recorded`;
+- eventi business preliminari.
+
 ## File da leggere prima di ogni modifica seria
 
 - `docs/STATO-PROGETTO-OFFERTALOGICA.md`
@@ -154,12 +171,13 @@ Verifica finale eseguita:
 
 Priorita aggiornate dopo analisi Switcho e decisione di non andare online finche la trattativa non e piu chiara:
 
-1. Sistemare pagina SEO "Migliori offerte luce e gas luglio 2026".
-2. Inserire Dolomiti, Acea e Lene nelle pagine contenuto e nel radar offerte.
-3. Rafforzare la promessa strategica: "se non conviene, te lo diciamo".
-4. Verificare funnel lead/offerta/non partner.
-5. Collegare bene analytics/eventi.
-6. Poi collegare SMS Aruba e preparare il traffico.
+1. Fatto: sistemata pagina contenuto offerte luce/gas aggiornata, senza promessa assoluta di "migliore per tutti".
+2. Fatto: Dolomiti, Acea e Lene inseriti nel radar contenuto.
+3. Fatto: rafforzata promessa strategica "se non conviene, te lo diciamo".
+4. Fatto: verificato funnel lead/offerta/non partner e whitelist domini.
+5. Fatto: collegati analytics/eventi tecnici interni senza PII.
+6. Prossimo: collegare SMS Aruba quando alias/credenziali sono pronti.
+7. Prossimo: preparare traffico e pagine SEO indicizzabili quando la trattativa Switcho e la strategia partner sono piu chiare.
 
 Nota strategica:
 

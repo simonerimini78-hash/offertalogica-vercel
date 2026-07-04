@@ -50,6 +50,14 @@ Il file `CONTINUA-DA-QUI-CODEX.md` contiene il prompt breve da incollare in una 
 
 La regolazione al centesimo puo essere migliorata con dati reali. Per questo, la priorita operativa e portare traffico al calcolatore e incentivare caricamento bollette/schede, salvando i dati normalizzati nel sistema proprietario. Le bollette reali serviranno per verificare voci ricorrenti, errori di estrazione, differenze fra fornitori e accuratezza del ranking.
 
+### Analytics interni
+
+- Il sito invia eventi tecnici a `/api/track-event` per misurare caricamento PDF, confronto, popup lead, OTP, offerte sbloccate e scelta offerta.
+- Gli eventi finiscono in `lead_events` su Supabase.
+- Prima del lead gli eventi restano anonimi; dopo la creazione del lead possono essere collegati al relativo `lead_id`.
+- Non salvare negli eventi nome, telefono, email, POD, PDR, nome file PDF o testo della bolletta.
+- La modalita staff e le anteprime locali non devono sporcare il database.
+
 ## Regola di lavoro
 
 Prima di modificare codice:

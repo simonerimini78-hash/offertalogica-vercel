@@ -1,6 +1,6 @@
 # Audit offerte proposte
 
-Aggiornamento: 2026-07-03
+Aggiornamento: 2026-07-04
 
 Offerte analizzate: 19
 
