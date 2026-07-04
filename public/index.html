@@ -424,6 +424,33 @@
             font-size: 13.5px !important;
             line-height: 1.4;
         }
+        .offer-result-group {
+            display: none;
+            padding: 18px;
+            border: 1px solid rgba(148, 163, 184, .34);
+            border-radius: 16px;
+            background: #ffffff;
+            box-shadow: 0 10px 28px rgba(15, 23, 42, .05);
+        }
+        .offer-result-group + .offer-result-group {
+            margin-top: 6px;
+        }
+        .offer-result-group.partner-group {
+            border-color: rgba(22, 163, 74, .34);
+            background: linear-gradient(180deg, #f7fef9 0%, #ffffff 55%);
+        }
+        .offer-result-group.consultant-group {
+            border-color: rgba(37, 99, 235, .22);
+            background: linear-gradient(180deg, #f8fbff 0%, #ffffff 55%);
+        }
+        .offer-result-group .offers-list-heading {
+            margin-bottom: 14px;
+        }
+        .offer-group-cards {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
         .partner-vertical-card {
             display: grid !important;
             grid-template-columns: minmax(0, 1fr) minmax(168px, auto);
@@ -2542,6 +2569,8 @@ function offertaAttivabileOnline(offerta) {
 }
 
 function testoBadgeOfferta(item, migliore) {
+  if (item.gruppoVisuale === "top" && item.posizioneGruppo === 1) return "Migliore con consulente";
+  if (item.gruppoVisuale === "top" && item.posizioneGruppo) return `Consulente #${item.posizioneGruppo} per costo`;
   if (item.gruppoVisuale === "top" && item.posizioneEconomica === 1) return "Migliore per i tuoi consumi";
   if (item.gruppoVisuale === "top") return `#${item.posizioneEconomica} per costo stimato`;
   if (item.gruppoVisuale === "attivabile" && item.posizioneEconomica && item.posizioneEconomica <= 3) return `#${item.posizioneEconomica} per costo stimato`;
@@ -2603,6 +2632,48 @@ function assicuraIntestazioneOfferte(id, titolo, testo) {
     container.appendChild(header);
   }
   return header;
+}
+
+function creaGruppoOfferte(id, classe, titolo, testo) {
+  const group = document.createElement("div");
+  group.id = id;
+  group.className = `offer-result-group ${classe || ""}`.trim();
+  group.innerHTML = `
+    <div class="offers-list-heading">
+      <div>${titolo}</div>
+      <div>${testo}</div>
+    </div>
+    <div class="offer-group-cards"></div>
+  `;
+  return group;
+}
+
+function assicuraGruppoOfferte(id, classe, titolo, testo) {
+  const container = document.querySelector(".vertical-cards-container");
+  if (!container) return null;
+  let group = document.getElementById(id);
+  if (!group) {
+    group = creaGruppoOfferte(id, classe, titolo, testo);
+    container.appendChild(group);
+  }
+  aggiornaGruppoOfferte(group, titolo, testo);
+  return group;
+}
+
+function aggiornaGruppoOfferte(group, titolo, testo) {
+  if (!group) return;
+  const title = group.querySelector(".offers-list-heading > div:first-child");
+  const copy = group.querySelector(".offers-list-heading > div:last-child");
+  if (title) title.innerText = titolo;
+  if (copy) copy.innerText = testo;
+}
+
+function resetGruppoOfferte(group, visible) {
+  if (!group) return null;
+  group.style.display = visible ? "block" : "none";
+  const cards = group.querySelector(".offer-group-cards");
+  if (cards) cards.innerHTML = "";
+  return cards;
 }
 
 function assicuraMessaggioOfferteVuote() {
@@ -2943,16 +3014,10 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
     card.style.setProperty("display", "none", "important");
   });
 
-  const headerTop = assicuraIntestazioneOfferte(
-    "offerte-top-heading",
-    "Le 3 offerte migliori per i tuoi consumi",
-    "Ordinate in base al costo annuo stimato sul profilo inserito."
-  );
-  const headerAttivabili = assicuraIntestazioneOfferte(
-    "offerte-attivabili-heading",
-    "Offerte partner attivabili online",
-    "Proposte coerenti con il filtro selezionato e attivabili tramite link dei fornitori partner."
-  );
+  ["offerte-top-heading", "offerte-attivabili-heading"].forEach((id) => {
+    const legacyHeader = document.getElementById(id);
+    if (legacyHeader) legacyHeader.remove();
+  });
   const emptyMessage = assicuraMessaggioOfferteVuote();
 
   offerteCandidati.forEach((offerta) => {
@@ -3015,19 +3080,40 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
     .filter((item) => item.attivabileCoerente)
     .sort((a, b) => (a.costo - b.costo) || (b.differenza - a.differenza))
     .slice(0, 3)
-    .map((item) => ({
+    .map((item, index) => ({
       ...item,
       gruppoVisuale: "attivabile",
+      posizioneGruppo: index + 1,
       posizioneEconomica: rankingGlobale.get(String(item.offerta.id)) || null,
     }));
   const miglioriConConsulente = ordinateRanking
     .filter((item) => !item.attivabileOnline)
     .slice(0, 3)
-    .map((item) => ({ ...item, gruppoVisuale: "top" }));
+    .map((item, index) => ({
+      ...item,
+      gruppoVisuale: "top",
+      posizioneGruppo: index + 1,
+    }));
   const visibili = [...attivabiliPrioritarie, ...miglioriConConsulente];
   const idsVisibili = new Set(visibili.map((item) => String(item.offerta.id)));
   const migliore = ordinateRanking[0] || offerteCalcolate[0] || null;
   const hasVisibleOffers = visibili.length > 0;
+  const gruppoPartner = assicuraGruppoOfferte(
+    "offerte-partner-online-group",
+    "partner-group",
+    "Offerte partner attivabili online",
+    "Le 3 migliori proposte attivabili online tra i partner disponibili e coerenti con il filtro selezionato."
+  );
+  const gruppoConsulente = assicuraGruppoOfferte(
+    "offerte-consulente-group",
+    "consultant-group",
+    "Migliori offerte per costo con consulente",
+    OFFERTE_ARERA_MENU.length
+      ? "Le 3 proposte più convenienti per costo annuo stimato sul tuo profilo. Richiedono verifica consulenziale o ricontatto prima dell'eventuale attivazione."
+      : "Le 3 proposte più convenienti tra le offerte disponibili nel calcolatore. Richiedono verifica consulenziale o ricontatto."
+  );
+  const contenitorePartner = resetGruppoOfferte(gruppoPartner, attivabiliPrioritarie.length > 0);
+  const contenitoreConsulente = resetGruppoOfferte(gruppoConsulente, miglioriConConsulente.length > 0);
 
   offerteCalcolate.forEach(({ card, offerta }) => {
     if (!idsVisibili.has(String(offerta.id))) {
@@ -3045,34 +3131,11 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
     if (!hasVisibleOffers) contenitoreSchede?.appendChild(emptyMessage);
   }
 
-  aggiornaIntestazioneOfferte(
-    headerTop,
-    "Migliori offerte per costo con consulente",
-    OFFERTE_ARERA_MENU.length
-      ? "Le 3 proposte più convenienti per costo annuo stimato sul tuo profilo. Per queste offerte serve verifica consulenziale o ricontatto prima dell'eventuale attivazione."
-      : "Le 3 proposte più convenienti tra le offerte disponibili nel calcolatore. Per queste offerte serve verifica consulenziale o ricontatto."
-  );
-
-  if (headerTop) {
-    headerTop.style.display = miglioriConConsulente.length ? "block" : "none";
-  }
-
-  if (headerAttivabili) {
-    aggiornaIntestazioneOfferte(
-      headerAttivabili,
-      "Offerte partner attivabili online",
-      "Le 3 migliori proposte attivabili online tra i partner disponibili per il filtro selezionato. La posizione economica resta indicata nei badge."
-    );
-    headerAttivabili.style.display = attivabiliPrioritarie.length ? "block" : "none";
-    if (attivabiliPrioritarie.length) contenitoreSchede?.appendChild(headerAttivabili);
-  }
-
-  visibili.forEach(({ card, offerta, costo, costoOfferta, differenza, risparmio, saving, ambito, posizioneEconomica, gruppoVisuale, attivabileOnline, compatibileRanking, filtroEsatto, alternativeFiltro }) => {
-      if (gruppoVisuale === "top" && headerTop && headerTop.style.display !== "none" && headerTop.parentNode !== contenitoreSchede) {
-        contenitoreSchede?.appendChild(headerTop);
-      }
+  visibili.forEach(({ card, offerta, costo, costoOfferta, differenza, risparmio, saving, ambito, posizioneEconomica, posizioneGruppo, gruppoVisuale, attivabileOnline, compatibileRanking, filtroEsatto, alternativeFiltro }) => {
+      const contenitoreTarget = gruppoVisuale === "attivabile" ? contenitorePartner : contenitoreConsulente;
       const context = {
         economyRank: posizioneEconomica,
+        displayRank: posizioneGruppo,
         displayGroup: gruppoVisuale,
         isTopEconomic: gruppoVisuale === "top",
         isActiveAffiliate: attivabileOnline,
@@ -3095,7 +3158,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       const title = card.querySelector(".partner-title");
       const details = card.querySelector(".partner-details");
       const link = card.querySelector("a");
-      const badgeText = testoBadgeOfferta({ posizioneEconomica, gruppoVisuale, costo, compatibileRanking }, migliore);
+      const badgeText = testoBadgeOfferta({ posizioneEconomica, posizioneGruppo, gruppoVisuale, costo, compatibileRanking }, migliore);
       const badge = `<span style="display:inline-block; margin:0 0 6px; padding:3px 8px; border:1px solid; border-radius:999px; font-size:11px; font-weight:800; ${stileBadgeOfferta({ posizioneEconomica, gruppoVisuale })}">${badgeText}</span>`;
       const onlineBadge = attivabileOnline && !badgeText.toLowerCase().includes("attivabile")
         ? `<span style="display:inline-block; margin:0 0 6px 6px; padding:3px 8px; border:1px solid #a7f3d0; border-radius:999px; background:#ecfdf5; color:#047857; font-size:11px; font-weight:800;">Attivabile online</span>`
@@ -3128,7 +3191,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
           </small>
         `;
       } else {
-        if (title) title.innerText = gruppoVisuale === "top" ? `#${posizioneEconomica}` : "Attivabile online";
+        if (title) title.innerText = gruppoVisuale === "top" ? `Consulente #${posizioneGruppo || posizioneEconomica}` : "Attivabile online";
         if (details) details.innerText = "Verifica il cellulare per vedere nome fornitore, dettagli economici e link.";
         if (link) {
           link.innerText = "Sblocca";
@@ -3147,12 +3210,8 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
           ${alternativeNote}
         `;
       }
-      contenitoreSchede?.appendChild(card);
+      contenitoreTarget?.appendChild(card);
     });
-
-  if (headerTop && !miglioriConConsulente.length) {
-    headerTop.style.display = "none";
-  }
 
   LEAD_STATE.bestSaving = Math.max(0, ...visibili.map((item) => item.differenza));
   const teaser = document.getElementById("lead-teaser");

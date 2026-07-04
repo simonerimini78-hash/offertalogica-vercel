@@ -1,6 +1,6 @@
 # Verifica calcolo offerte
 
-Generato: 2026-07-04T12:48:11.441Z
+Generato: 2026-07-04T13:05:28.639Z
 Motore frontend: motore-v6-arera-first-2026-07-03
 Parametri: parametri-calcolo-2026-07-03-v4-psv-operativo
 Offerte commerciali: offerte-proposte-2026-07-03-v14-variabili-calcolabili
