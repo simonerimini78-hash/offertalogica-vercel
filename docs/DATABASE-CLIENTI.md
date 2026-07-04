@@ -215,3 +215,19 @@ https://offertalogica.it/api/staff-leads?token=IL_TUO_TOKEN&limit=50&format=csv
 ```
 
 Usare questa vista solo internamente. Contiene dati personali e va protetta come il pannello Supabase.
+
+## Vista staff analytics
+
+Per capire dove gli utenti si fermano o quali offerte cliccano:
+
+```text
+https://offertalogica.it/staff-analytics.html#token=IL_TUO_STAFF_PREVIEW_TOKEN
+```
+
+La pagina usa l'endpoint protetto:
+
+```text
+https://offertalogica.it/api/staff-analytics?token=IL_TUO_TOKEN&limit=200
+```
+
+Questa vista legge `lead_events` e mostra solo eventi tecnici/funnel: sessioni, PDF analizzati, confronti completati, popup lead, OTP, offerte cliccate, redirect partner e richieste consulente. Non deve mostrare nominativi o dati sensibili.

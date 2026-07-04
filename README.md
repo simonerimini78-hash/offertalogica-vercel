@@ -16,8 +16,10 @@ api/send-otp.js            Invio OTP via SMS o demo
 api/verify-otp.js          Verifica OTP, con notifica lead business
 api/unlock-offers.js       Controllo lead verificato
 api/offer-consent.js       Consenso partner sull'offerta scelta
+api/track-event.js         Raccolta eventi tecnici funnel senza PII
 api/health.js              Diagnostica protetta Redis/API
 api/staff-leads.js         Vista protetta lead e CSV operativo
+api/staff-analytics.js     Vista protetta eventi/funnel
 api/staff-preview.js       Attivazione modalita staff/test senza lead
 lib/notify.js              Invio lead operativo/cedibile a webhook esterno
 lib/customerDb.js          Archivio clienti proprietario opzionale su Supabase/Postgres
@@ -51,6 +53,8 @@ docs/AGGIORNARE-PARAMETRI-CALCOLO.md
 .github/workflows/update-arera-menu.yml
                             Aggiornamento automatico menu offerte ARERA/AU
 public/staff-leads.html    Mini console protetta per controllare lead recenti
+public/staff-analytics.html
+                            Mini console protetta per controllare eventi e funnel
 ```
 
 ## Pagine pubbliche
@@ -212,6 +216,22 @@ Export CSV protetto:
 
 ```text
 https://offertalogica.it/api/staff-leads?token=IL_TUO_TOKEN&limit=50&format=csv
+```
+
+## Vista staff analytics
+
+Dopo aver configurato Supabase e caricato una versione con gli eventi funnel, puoi controllare andamento del percorso da:
+
+```text
+https://offertalogica.it/staff-analytics.html#token=IL_TUO_STAFF_PREVIEW_TOKEN
+```
+
+La pagina non mostra nominativi: riassume eventi tecnici come PDF letti, confronti completati, popup aperti, OTP verificati, offerte cliccate, redirect partner e richieste consulente.
+
+Endpoint JSON protetto:
+
+```text
+https://offertalogica.it/api/staff-analytics?token=IL_TUO_TOKEN&limit=200
 ```
 
 ## Modalita staff/test

@@ -133,7 +133,9 @@ Verifica finale eseguita:
 Misurazione funnel aggiunta:
 
 - endpoint `api/track-event.js`;
+- endpoint staff protetto `api/staff-analytics.js`;
 - helper frontend `trackEvent(...)` in `public/index.html`;
+- pagina protetta `public/staff-analytics.html`;
 - eventi salvati in `lead_events` su Supabase tramite `lib/customerDb.js`;
 - modalita staff esclusa dal tracciamento;
 - anteprime locali escluse dal tracciamento;
@@ -146,6 +148,12 @@ Eventi principali:
 - `lead_modal_opened`, `lead_modal_closed`, `otp_sent`, `otp_verified`, `offers_unlocked`;
 - `offer_consent_opened`, `offer_partner_consent_confirmed`, `offer_redirect`, `offer_request_recorded`;
 - eventi business preliminari.
+
+Accesso analytics interno:
+
+`https://offertalogica.it/staff-analytics.html#token=IL_TUO_STAFF_PREVIEW_TOKEN`
+
+La pagina mostra funnel, provider/offerte cliccate, origine dati ed eventi recenti. Non mostra nominativi.
 
 ## File da leggere prima di ogni modifica seria
 
