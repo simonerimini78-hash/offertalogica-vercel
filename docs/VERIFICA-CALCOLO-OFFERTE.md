@@ -1,6 +1,6 @@
 # Verifica calcolo offerte
 
-Generato: 2026-07-04T13:05:28.639Z
+Generato: 2026-07-04T13:49:20.266Z
 Motore frontend: motore-v6-arera-first-2026-07-03
 Parametri: parametri-calcolo-2026-07-03-v4-psv-operativo
 Offerte commerciali: offerte-proposte-2026-07-03-v14-variabili-calcolabili
@@ -16,16 +16,16 @@ Questa sezione spiega perche un'offerta affiliata attiva viene mostrata oppure e
 
 | Partner | Offerta commerciale | Filtro | Esito | Motivo | Offerta ARERA agganciata |
 | --- | --- | --- | --- | --- | --- |
-| E.ON | E.ON Luce e Gas Insieme | fisso / dual | non visibile | gas non idoneo: scaduta (9) | - |
-| E.ON | E.ON Luce e Gas Insieme Variabile | variabile / dual | non visibile | luce non idonea: scaduta (6); gas non idoneo: scaduta (4) | - |
-| Enel | Enel Fix Web Luce e Gas | fisso / dual | non visibile | righe ARERA valide, ma nome/codici non agganciati al funnel partner commerciale | Enel Energia - Enel Night Free + Enel  Flash Gas |
+| E.ON | E.ON Luce e Gas Insieme | fisso / dual | visibile | offerta ARERA valida e agganciata a funnel partner attivo | E.ON Luce e Gas Insieme |
+| E.ON | E.ON Luce e Gas Insieme Variabile | variabile / dual | visibile | offerta ARERA valida e agganciata a funnel partner attivo | E.ON Luce e Gas Insieme Variabile |
+| Enel | Enel Fix Web Luce e Gas | fisso / dual | visibile | offerta ARERA valida e agganciata a funnel partner attivo | Enel Fix Web Luce e Gas |
 | Eni Plenitude | Eni Plenitude Fixa Time 24 | fisso / dual | visibile | offerta ARERA valida e agganciata a funnel partner attivo | Eni Plenitude - Fixa Time 24 Smart Luce + Fixa Time 24 Smart Gas |
 | Alperia | Alperia Smile Easy / Start | fisso / dual | visibile | offerta ARERA valida e agganciata a funnel partner attivo | Alperia - Alperia Smile Easy Summer + Alperia Gas Smile Start |
 | Alperia | Alperia Luce e Gas Variabile PUN/PSV | variabile / dual | visibile | offerta ARERA valida e agganciata a funnel partner attivo | Alperia - Alperia Free Welcome + Alperia Gas Home Promo |
 
 ## Privato medio - dual fuel - fisso
 
-Offerte generate: 16
+Offerte generate: 18
 
 | # | Fornitore | Offerta | Totale | Variabile | Fissa vendita | Risparmio vs attuale | Stato |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -33,23 +33,25 @@ Offerte generate: 16
 | 2 | Octopus Energy | Octopus Energy - Octopus Fissa 12M + Octopus Fissa 12M Gas | 777.76 EUR | 621.76 EUR | 156.00 EUR | 367.24 EUR | da_contattare |
 | 3 | Dolomiti Energia | Dolomiti Energia - DOLOMITI FISSO LUCE 120 + DOLOMITI FISSO GAS 36 WEB | 790.75 EUR | 598.75 EUR | 192.00 EUR | 354.25 EUR | da_contattare |
 | 4 | Engie | Engie - Energia PuntoFisso - 12 mesi + Energia PuntoFisso - 12 mesi | 801.37 EUR | 645.37 EUR | 156.00 EUR | 343.63 EUR | da_contattare |
-| 5 | Alperia | Alperia - Alperia Smile Easy Summer + Alperia Gas Smile Start | 831.69 EUR | 592.29 EUR | 239.40 EUR | 313.31 EUR | attivabile |
-| 6 | Edison | Edison - Edison 5xTe Luce km0 + Edison Web Gas | 853.30 EUR | 631.30 EUR | 222.00 EUR | 291.70 EUR | da_contattare |
-| 7 | neN | neN - Due Luce + Due Gas | 860.80 EUR | 656.80 EUR | 204.00 EUR | 284.20 EUR | da_contattare |
-| 8 | Eni Plenitude | Eni Plenitude - Fixa Time 24 Smart Luce + Fixa Time 24 Smart Gas | 863.30 EUR | 575.30 EUR | 288.00 EUR | 281.70 EUR | attivabile |
-| 9 | Illumia | Illumia - Energia Lunga Luce Special + Energia Lunga Gas | 874.59 EUR | 682.59 EUR | 192.00 EUR | 270.41 EUR | da_contattare |
-| 10 | A2A Energia | A2A Energia - A2A Click Luce + A2A Click - GAS | 881.90 EUR | 671.90 EUR | 210.00 EUR | 263.10 EUR | da_contattare |
+| 5 | E.ON | E.ON Luce e Gas Insieme | 820.92 EUR | 603.69 EUR | 217.23 EUR | 324.08 EUR | attivabile |
+| 6 | Alperia | Alperia - Alperia Smile Easy Summer + Alperia Gas Smile Start | 831.69 EUR | 592.29 EUR | 239.40 EUR | 313.31 EUR | attivabile |
+| 7 | Edison | Edison - Edison 5xTe Luce km0 + Edison Web Gas | 853.30 EUR | 631.30 EUR | 222.00 EUR | 291.70 EUR | da_contattare |
+| 8 | neN | neN - Due Luce + Due Gas | 860.80 EUR | 656.80 EUR | 204.00 EUR | 284.20 EUR | da_contattare |
+| 9 | Eni Plenitude | Eni Plenitude - Fixa Time 24 Smart Luce + Fixa Time 24 Smart Gas | 863.30 EUR | 575.30 EUR | 288.00 EUR | 281.70 EUR | attivabile |
+| 10 | Illumia | Illumia - Energia Lunga Luce Special + Energia Lunga Gas | 874.59 EUR | 682.59 EUR | 192.00 EUR | 270.41 EUR | da_contattare |
 
 ### Attivabili online rilevate
 
 | # | Fornitore | Offerta | Totale | Variabile | Fissa vendita | Risparmio vs attuale | Stato |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 5 | Alperia | Alperia - Alperia Smile Easy Summer + Alperia Gas Smile Start | 831.69 EUR | 592.29 EUR | 239.40 EUR | 313.31 EUR | attivabile |
-| 8 | Eni Plenitude | Eni Plenitude - Fixa Time 24 Smart Luce + Fixa Time 24 Smart Gas | 863.30 EUR | 575.30 EUR | 288.00 EUR | 281.70 EUR | attivabile |
+| 5 | E.ON | E.ON Luce e Gas Insieme | 820.92 EUR | 603.69 EUR | 217.23 EUR | 324.08 EUR | attivabile |
+| 6 | Alperia | Alperia - Alperia Smile Easy Summer + Alperia Gas Smile Start | 831.69 EUR | 592.29 EUR | 239.40 EUR | 313.31 EUR | attivabile |
+| 9 | Eni Plenitude | Eni Plenitude - Fixa Time 24 Smart Luce + Fixa Time 24 Smart Gas | 863.30 EUR | 575.30 EUR | 288.00 EUR | 281.70 EUR | attivabile |
+| 16 | Enel | Enel Fix Web Luce e Gas | 1006.30 EUR | 718.30 EUR | 288.00 EUR | 138.70 EUR | attivabile |
 
 ## Privato medio - dual fuel - variabile
 
-Offerte generate: 19
+Offerte generate: 20
 
 | # | Fornitore | Offerta | Totale | Variabile | Fissa vendita | Risparmio vs attuale | Stato |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -69,10 +71,11 @@ Offerte generate: 19
 | # | Fornitore | Offerta | Totale | Variabile | Fissa vendita | Risparmio vs attuale | Stato |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 1 | Alperia | Alperia - Alperia Free Welcome + Alperia Gas Home Promo | 796.94 EUR | 796.94 EUR | 0.00 EUR | 389.37 EUR | attivabile |
+| 16 | E.ON | E.ON Luce e Gas Insieme Variabile | 1044.92 EUR | 827.69 EUR | 217.23 EUR | 141.39 EUR | attivabile |
 
 ## Privato alto consumo - dual fuel - fisso
 
-Offerte generate: 16
+Offerte generate: 18
 
 | # | Fornitore | Offerta | Totale | Variabile | Fissa vendita | Risparmio vs attuale | Stato |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -80,19 +83,21 @@ Offerte generate: 16
 | 2 | Octopus Energy | Octopus Energy - Octopus Fissa 12M + Octopus Fissa 12M Gas | 1147.20 EUR | 991.20 EUR | 156.00 EUR | 532.80 EUR | da_contattare |
 | 3 | Dolomiti Energia | Dolomiti Energia - DOLOMITI FISSO LUCE 120 + DOLOMITI FISSO GAS 36 WEB | 1156.20 EUR | 964.20 EUR | 192.00 EUR | 523.80 EUR | da_contattare |
 | 4 | Engie | Engie - Energia PuntoFisso - 12 mesi + Energia PuntoFisso - 12 mesi | 1187.80 EUR | 1031.80 EUR | 156.00 EUR | 492.20 EUR | da_contattare |
-| 5 | Alperia | Alperia - Alperia Smile Easy Summer + Alperia Gas Smile Start | 1190.20 EUR | 950.80 EUR | 239.40 EUR | 489.80 EUR | attivabile |
-| 6 | Eni Plenitude | Eni Plenitude - Fixa Time 24 Smart Luce + Fixa Time 24 Smart Gas | 1212.00 EUR | 924.00 EUR | 288.00 EUR | 468.00 EUR | attivabile |
-| 7 | Edison | Edison - Edison 5xTe Luce km0 + Edison Web Gas | 1242.00 EUR | 1020.00 EUR | 222.00 EUR | 438.00 EUR | da_contattare |
-| 8 | neN | neN - Due Luce + Due Gas | 1252.00 EUR | 1048.00 EUR | 204.00 EUR | 428.00 EUR | da_contattare |
-| 9 | Enel Energia | Enel Energia - Enel Night Free + Enel  Flash Gas | 1260.00 EUR | 936.00 EUR | 324.00 EUR | 420.00 EUR | da_contattare |
-| 10 | A2A Energia | A2A Energia - A2A Click Luce + A2A Click - GAS | 1282.00 EUR | 1072.00 EUR | 210.00 EUR | 398.00 EUR | da_contattare |
+| 5 | E.ON | E.ON Luce e Gas Insieme | 1188.83 EUR | 971.60 EUR | 217.23 EUR | 491.17 EUR | attivabile |
+| 6 | Alperia | Alperia - Alperia Smile Easy Summer + Alperia Gas Smile Start | 1190.20 EUR | 950.80 EUR | 239.40 EUR | 489.80 EUR | attivabile |
+| 7 | Eni Plenitude | Eni Plenitude - Fixa Time 24 Smart Luce + Fixa Time 24 Smart Gas | 1212.00 EUR | 924.00 EUR | 288.00 EUR | 468.00 EUR | attivabile |
+| 8 | Edison | Edison - Edison 5xTe Luce km0 + Edison Web Gas | 1242.00 EUR | 1020.00 EUR | 222.00 EUR | 438.00 EUR | da_contattare |
+| 9 | neN | neN - Due Luce + Due Gas | 1252.00 EUR | 1048.00 EUR | 204.00 EUR | 428.00 EUR | da_contattare |
+| 10 | Enel Energia | Enel Energia - Enel Night Free + Enel  Flash Gas | 1260.00 EUR | 936.00 EUR | 324.00 EUR | 420.00 EUR | da_contattare |
 
 ### Attivabili online rilevate
 
 | # | Fornitore | Offerta | Totale | Variabile | Fissa vendita | Risparmio vs attuale | Stato |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 5 | Alperia | Alperia - Alperia Smile Easy Summer + Alperia Gas Smile Start | 1190.20 EUR | 950.80 EUR | 239.40 EUR | 489.80 EUR | attivabile |
-| 6 | Eni Plenitude | Eni Plenitude - Fixa Time 24 Smart Luce + Fixa Time 24 Smart Gas | 1212.00 EUR | 924.00 EUR | 288.00 EUR | 468.00 EUR | attivabile |
+| 5 | E.ON | E.ON Luce e Gas Insieme | 1188.83 EUR | 971.60 EUR | 217.23 EUR | 491.17 EUR | attivabile |
+| 6 | Alperia | Alperia - Alperia Smile Easy Summer + Alperia Gas Smile Start | 1190.20 EUR | 950.80 EUR | 239.40 EUR | 489.80 EUR | attivabile |
+| 7 | Eni Plenitude | Eni Plenitude - Fixa Time 24 Smart Luce + Fixa Time 24 Smart Gas | 1212.00 EUR | 924.00 EUR | 288.00 EUR | 468.00 EUR | attivabile |
+| 17 | Enel | Enel Fix Web Luce e Gas | 1432.00 EUR | 1144.00 EUR | 288.00 EUR | 248.00 EUR | attivabile |
 
 ## Privato medio - forniture separate - fisso
 

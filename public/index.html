@@ -2992,12 +2992,71 @@ function costruisciOfferteAreraRanking(attuale, tipoTariffa, tipoFornitura) {
     .slice(0, 20);
 }
 
-function costruisciOfferteRanking(attuale, tipoTariffa, tipoFornitura) {
-  const daArera = costruisciOfferteAreraRanking(attuale, tipoTariffa, tipoFornitura);
-  if (daArera.length) return daArera;
+function offertePartnerDiretteAttivabili(tipoTariffa, tipoFornitura) {
   return OFFERTE_PROPOSTE
+    .filter((offerta) => offertaAttivabileOnline(offerta))
     .filter((offerta) => offertaCalcolabileConIndici(offerta))
     .filter((offerta) => offertaCompatibileConRanking(offerta, tipoTariffa, tipoFornitura));
+}
+
+function chiaveOffertaFiltro(offerta) {
+  const provider = chiaveFornitoreDaNome(offerta?.provider) || testoFornitoreNormalizzato(offerta?.provider);
+  return `${provider || offerta?.provider || offerta?.id}-${offerta?.tipo}-${offerta?.fornitura}`;
+}
+
+function unisciOfferteCandidati(offerteRanking, offertePartner) {
+  const result = [...offerteRanking];
+  const ids = new Set(result.map((offerta) => String(offerta.id)));
+  const partnerAttiveGiaPresenti = new Set(
+    result
+      .filter((offerta) => offertaAttivabileOnline(offerta))
+      .map((offerta) => chiaveOffertaFiltro(offerta))
+  );
+  offertePartner.forEach((offerta) => {
+    const id = String(offerta.id);
+    const key = chiaveOffertaFiltro(offerta);
+    if (!ids.has(id) && !partnerAttiveGiaPresenti.has(key)) {
+      result.push(offerta);
+      ids.add(id);
+      partnerAttiveGiaPresenti.add(key);
+    }
+  });
+  return result;
+}
+
+function costruisciOfferteRanking(attuale, tipoTariffa, tipoFornitura) {
+  const daArera = costruisciOfferteAreraRanking(attuale, tipoTariffa, tipoFornitura);
+  const partnerDirette = offertePartnerDiretteAttivabili(tipoTariffa, tipoFornitura);
+  if (daArera.length) return unisciOfferteCandidati(daArera, partnerDirette);
+  const fallback = OFFERTE_PROPOSTE
+    .filter((offerta) => offertaCalcolabileConIndici(offerta))
+    .filter((offerta) => offertaCompatibileConRanking(offerta, tipoTariffa, tipoFornitura));
+  return unisciOfferteCandidati(fallback, partnerDirette);
+}
+
+function chiaveGruppoPartner(item) {
+  return chiaveOffertaFiltro(item?.offerta);
+}
+
+function offertaCommercialeDiretta(item) {
+  return !String(item?.offerta?.id || "").startsWith("arera-");
+}
+
+function preferisciPartnerAttivabile(nuovo, corrente) {
+  if (!corrente) return true;
+  const deltaCosto = nuovo.costo - corrente.costo;
+  if (Math.abs(deltaCosto) > 0.01) return deltaCosto < 0;
+  return offertaCommercialeDiretta(nuovo) && !offertaCommercialeDiretta(corrente);
+}
+
+function deduplicaPartnerAttivabili(items) {
+  const bestByProvider = new Map();
+  items.forEach((item) => {
+    const key = chiaveGruppoPartner(item);
+    const current = bestByProvider.get(key);
+    if (preferisciPartnerAttivabile(item, current)) bestByProvider.set(key, item);
+  });
+  return [...bestByProvider.values()];
 }
 
 function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitura) {
@@ -3076,8 +3135,9 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       .map((item, index) => [String(item.offerta.id), index + 1])
   );
 
-  const attivabiliPrioritarie = offerteCalcolate
-    .filter((item) => item.attivabileCoerente)
+  const attivabiliPrioritarie = deduplicaPartnerAttivabili(
+    offerteCalcolate.filter((item) => item.attivabileCoerente)
+  )
     .sort((a, b) => (a.costo - b.costo) || (b.differenza - a.differenza))
     .slice(0, 3)
     .map((item, index) => ({
