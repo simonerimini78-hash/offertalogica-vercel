@@ -35,9 +35,9 @@
     },
     "eon": {
       "label": "E.ON",
-      "logo": null,
+      "logo": "/assets/providers/eon.svg",
       "source": "https://commons.wikimedia.org/wiki/Special:Redirect/file/Logo_E.ON.svg",
-      "usageStatus": "fallback_testuale_per_stabilita_visuale"
+      "usageStatus": "marchio_pubblico_tracciato"
     },
     "octopus": {
       "label": "Octopus Energy",

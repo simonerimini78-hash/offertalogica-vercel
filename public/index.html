@@ -484,16 +484,37 @@
         .partner-brand-line {
             display: flex;
             align-items: center;
-            gap: 16px;
+            gap: 0;
             min-width: 0;
+            min-height: 54px;
+            padding-left: 132px;
+            position: relative;
+        }
+        .partner-brand-line::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 50%;
+            width: 116px;
+            height: 54px;
+            transform: translateY(-50%);
+            border-radius: 12px;
+            background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+            border: 1px dashed rgba(148, 163, 184, .28);
+            box-sizing: border-box;
+            pointer-events: none;
         }
         .partner-brand-slot {
-            flex: 0 0 auto;
+            position: absolute;
+            left: 0;
+            top: 50%;
             width: 116px;
-            min-height: 54px;
+            height: 54px;
+            transform: translateY(-50%);
             display: inline-flex;
             align-items: center;
             justify-content: center;
+            z-index: 1;
         }
         .provider-logo-shell {
             width: 116px;
@@ -662,10 +683,21 @@
             .partner-brand-line {
                 flex-direction: column;
                 justify-content: center;
+                min-height: 128px;
+                padding-left: 0;
+                padding-top: 74px;
+            }
+            .partner-brand-line::before {
+                left: 50%;
+                top: 0;
+                transform: translateX(-50%);
             }
             .partner-brand-slot {
                 margin: 0 auto;
                 width: 116px;
+                left: 50%;
+                top: 0;
+                transform: translateX(-50%);
             }
             .locked-offer .partner-title::before {
                 display: flex;
@@ -1375,7 +1407,7 @@ let PROVIDER_BRANDS = {
   alperia: { label: "Alperia", logo: "/assets/providers/alperia.png" },
   enel: { label: "Enel", logo: "/assets/providers/enel.png" },
   eni: { label: "Plenitude", logo: "/assets/providers/plenitude.svg" },
-  eon: { label: "E.ON", logo: null },
+  eon: { label: "E.ON", logo: "/assets/providers/eon.svg" },
   octopus: { label: "Octopus Energy", logo: "/assets/providers/octopus.svg" },
 };
 let PARAMETRI_CALCOLO = {
