@@ -489,7 +489,11 @@
         }
         .partner-brand-slot {
             flex: 0 0 auto;
-            display: none;
+            width: 116px;
+            min-height: 54px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
         }
         .provider-logo-shell {
             width: 116px;
@@ -522,6 +526,19 @@
             font-weight: 900;
             color: #0f172a;
             text-align: center;
+        }
+        .provider-logo-placeholder {
+            background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+            border-style: dashed;
+            box-shadow: none;
+        }
+        .provider-logo-placeholder .provider-logo-fallback {
+            color: #64748b;
+        }
+        .provider-logo-fallback.is-eon {
+            color: #e2001a;
+            font-size: 24px;
+            letter-spacing: -.03em;
         }
         .partner-title {
             font-size: 20px !important;
@@ -648,6 +665,7 @@
             }
             .partner-brand-slot {
                 margin: 0 auto;
+                width: 116px;
             }
             .locked-offer .partner-title::before {
                 display: flex;
@@ -1357,7 +1375,7 @@ let PROVIDER_BRANDS = {
   alperia: { label: "Alperia", logo: "/assets/providers/alperia.png" },
   enel: { label: "Enel", logo: "/assets/providers/enel.png" },
   eni: { label: "Plenitude", logo: "/assets/providers/plenitude.svg" },
-  eon: { label: "E.ON", logo: "/assets/providers/eon.svg" },
+  eon: { label: "E.ON", logo: null },
   octopus: { label: "Octopus Energy", logo: "/assets/providers/octopus.svg" },
 };
 let PARAMETRI_CALCOLO = {
@@ -2851,17 +2869,23 @@ function brandOfferta(offerta) {
   return brand ? { key, ...brand } : null;
 }
 
+function htmlLogoFallback(label, options = {}) {
+  const safeLabel = testoHtmlSicuro(label || "Fornitore");
+  const classi = ["provider-logo-fallback"];
+  if (options.key === "eon") classi.push("is-eon");
+  const shellClass = options.placeholder ? "provider-logo-shell provider-logo-placeholder" : "provider-logo-shell";
+  return `<span class="${shellClass}" title="${safeLabel}"><span class="${classi.join(" ")}">${safeLabel}</span></span>`;
+}
+
 function aggiornaLogoOfferta(card, offerta, mostraLogo = true) {
   const slot = card?.querySelector(".partner-brand-slot");
   if (!slot) return;
   const brand = mostraLogo ? brandOfferta(offerta) : null;
   if (!brand) {
-    slot.innerHTML = "";
-    slot.style.display = "none";
+    slot.innerHTML = htmlLogoFallback("Fornitore", { placeholder: true });
     return;
   }
   const label = testoHtmlSicuro(brand.label || offerta?.provider || "Fornitore");
-  slot.style.display = "inline-flex";
   if (brand.logo) {
     slot.innerHTML = `
       <span class="provider-logo-shell" title="${label}">
@@ -2870,10 +2894,10 @@ function aggiornaLogoOfferta(card, offerta, mostraLogo = true) {
     `;
     const img = slot.querySelector(".provider-logo");
     img?.addEventListener("error", () => {
-      slot.innerHTML = `<span class="provider-logo-shell"><span class="provider-logo-fallback">${label}</span></span>`;
+      slot.innerHTML = htmlLogoFallback(brand.label || offerta?.provider || "Fornitore", { key: brand.key });
     }, { once: true });
   } else {
-    slot.innerHTML = `<span class="provider-logo-shell"><span class="provider-logo-fallback">${label}</span></span>`;
+    slot.innerHTML = htmlLogoFallback(brand.label || offerta?.provider || "Fornitore", { key: brand.key });
   }
 }
 
