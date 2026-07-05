@@ -2841,10 +2841,13 @@ function creaSchedaOfferta(offerta) {
   const card = document.createElement("div");
   card.className = "partner-vertical-card";
   card.style.cssText = "background:#f8fafc; border:1px solid var(--border); border-radius:10px; padding:15px 20px; display:flex; justify-content:space-between; align-items:center;";
+  const logoIniziale = (typeof LEAD_STATE !== "undefined" && LEAD_STATE.verified)
+    ? htmlLogoOfferta(offerta, true)
+    : htmlLogoFallback("Fornitore", { placeholder: true });
   card.innerHTML = `
     <div class="partner-meta">
       <div class="partner-brand-line">
-        <span class="partner-brand-slot" aria-hidden="true"></span>
+        <span class="partner-brand-slot" aria-hidden="true">${logoIniziale}</span>
         <div class="partner-title" style="font-size:16px; font-weight:bold; color:var(--text-color);">${offerta.nome}</div>
       </div>
       <div class="partner-details" style="font-size:13px; color:var(--text-muted); margin-top:2px;"></div>
@@ -2877,27 +2880,29 @@ function htmlLogoFallback(label, options = {}) {
   return `<span class="${shellClass}" title="${safeLabel}"><span class="${classi.join(" ")}">${safeLabel}</span></span>`;
 }
 
+function htmlLogoOfferta(offerta, mostraLogo = true) {
+  const brand = mostraLogo ? brandOfferta(offerta) : null;
+  if (!brand) return htmlLogoFallback("Fornitore", { placeholder: true });
+  const rawLabel = brand.label || offerta?.provider || "Fornitore";
+  const label = testoHtmlSicuro(rawLabel);
+  if (!brand.logo) return htmlLogoFallback(rawLabel, { key: brand.key });
+  return `
+    <span class="provider-logo-shell" title="${label}">
+      <img class="provider-logo" src="${testoHtmlSicuro(brand.logo)}" alt="${label}" loading="lazy">
+    </span>
+  `;
+}
+
 function aggiornaLogoOfferta(card, offerta, mostraLogo = true) {
   const slot = card?.querySelector(".partner-brand-slot");
   if (!slot) return;
   const brand = mostraLogo ? brandOfferta(offerta) : null;
-  if (!brand) {
-    slot.innerHTML = htmlLogoFallback("Fornitore", { placeholder: true });
-    return;
-  }
-  const label = testoHtmlSicuro(brand.label || offerta?.provider || "Fornitore");
-  if (brand.logo) {
-    slot.innerHTML = `
-      <span class="provider-logo-shell" title="${label}">
-        <img class="provider-logo" src="${testoHtmlSicuro(brand.logo)}" alt="${label}" loading="lazy">
-      </span>
-    `;
+  slot.innerHTML = htmlLogoOfferta(offerta, mostraLogo);
+  if (brand?.logo) {
     const img = slot.querySelector(".provider-logo");
     img?.addEventListener("error", () => {
       slot.innerHTML = htmlLogoFallback(brand.label || offerta?.provider || "Fornitore", { key: brand.key });
     }, { once: true });
-  } else {
-    slot.innerHTML = htmlLogoFallback(brand.label || offerta?.provider || "Fornitore", { key: brand.key });
   }
 }
 
