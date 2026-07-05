@@ -1,6 +1,6 @@
 {
   "ok": true,
-  "generatedAt": "2026-07-04T19:16:39.788Z",
+  "generatedAt": "2026-07-05T17:25:58.123Z",
   "engineVersion": "motore-v6-arera-first-2026-07-03",
   "paramsVersion": "parametri-calcolo-2026-07-03-v4-psv-operativo",
   "offersVersion": "offerte-proposte-2026-07-03-v14-variabili-calcolabili",
@@ -565,7 +565,7 @@
         "quotaFissaLuceAttuale": 144,
         "quotaFissaGasAttuale": 120
       },
-      "generatedOffers": 20,
+      "generatedOffers": 19,
       "top": [
         {
           "rank": 3,
@@ -866,7 +866,7 @@
           "economicRank": 1
         },
         {
-          "rank": 20,
+          "rank": 19,
           "id": "17",
           "provider": "E.ON",
           "name": "E.ON Luce e Gas Insieme Variabile",

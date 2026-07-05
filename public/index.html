@@ -476,6 +476,42 @@
             align-content: center;
             text-align: left;
         }
+        .partner-brand-line {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+        }
+        .partner-brand-slot {
+            flex: 0 0 auto;
+            display: none;
+        }
+        .provider-logo-shell {
+            width: 94px;
+            height: 46px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 10px;
+            border-radius: 12px;
+            background: #ffffff;
+            border: 1px solid rgba(148, 163, 184, .24);
+            box-shadow: 0 8px 18px rgba(15, 23, 42, .05);
+            overflow: hidden;
+        }
+        .provider-logo {
+            display: block;
+            width: 100%;
+            height: 30px;
+            object-fit: contain;
+        }
+        .provider-logo-fallback {
+            font-size: 13px;
+            line-height: 1.1;
+            font-weight: 900;
+            color: #0f172a;
+            text-align: center;
+        }
         .partner-title {
             font-size: 19px !important;
             line-height: 1.22 !important;
@@ -590,6 +626,13 @@
             }
             .partner-meta {
                 text-align: center;
+            }
+            .partner-brand-line {
+                flex-direction: column;
+                justify-content: center;
+            }
+            .partner-brand-slot {
+                margin: 0 auto;
             }
             .locked-offer .partner-title::before {
                 display: flex;
@@ -1272,6 +1315,7 @@ let MOTORE_CALCOLO_VERSION = "motore-v6-arera-first-2026-07-03";
 const DATI_CALCOLO_URLS = ["/data/calcolo-parametri.json", "data/calcolo-parametri.json"];
 const DATI_OFFERTE_URLS = ["/data/offerte-proposte.json", "data/offerte-proposte.json"];
 const DATI_ARERA_MENU_URLS = ["/data/offerte-arera-menu.json", "data/offerte-arera-menu.json"];
+const DATI_PROVIDER_BRAND_URLS = ["/data/provider-brand.json", "data/provider-brand.json"];
 let DATI_CALCOLO_META = {
   versioneDati: "fallback-html-2026-06-27-v3",
   fonte: "Fallback interno HTML",
@@ -1286,6 +1330,20 @@ let DATI_ARERA_MENU_META = {
   versioneDati: "fallback-html-arera-menu-vuoto",
   fonte: "Archivio ARERA non caricato",
   aggiornatoIl: "2026-06-27",
+};
+let DATI_PROVIDER_BRAND_META = {
+  versioneDati: "provider-brand-fallback-2026-07-05",
+  fonte: "Fallback interno HTML",
+  aggiornatoIl: "2026-07-05",
+};
+let PROVIDER_BRANDS = {
+  a2a: { label: "A2A", logo: "/assets/providers/a2a.svg" },
+  acea: { label: "Acea", logo: "/assets/providers/acea.png" },
+  alperia: { label: "Alperia", logo: "/assets/providers/alperia.png" },
+  enel: { label: "Enel", logo: "/assets/providers/enel.png" },
+  eni: { label: "Plenitude", logo: "/assets/providers/plenitude.svg" },
+  eon: { label: "E.ON", logo: "/assets/providers/eon.svg" },
+  octopus: { label: "Octopus Energy", logo: "/assets/providers/octopus.svg" },
 };
 let PARAMETRI_CALCOLO = {
   perditeReteLuceVariabile: 1.102,
@@ -2115,6 +2173,49 @@ async function caricaOfferteAreraMenu() {
   return false;
 }
 
+function normalizzaBrandProvider(key, brand) {
+  if (!key || !brand || typeof brand !== "object") return null;
+  return {
+    label: String(brand.label || key).trim(),
+    logo: String(brand.logo || "").trim(),
+    source: String(brand.source || "").trim(),
+    usageStatus: String(brand.usageStatus || "").trim(),
+  };
+}
+
+function applicaDatiProviderBrand(data) {
+  const providers = data?.providers;
+  if (!providers || typeof providers !== "object") return false;
+  const normalized = {};
+  Object.entries(providers).forEach(([key, brand]) => {
+    const item = normalizzaBrandProvider(key, brand);
+    if (item) normalized[String(key).trim()] = item;
+  });
+  if (!Object.keys(normalized).length) return false;
+  PROVIDER_BRANDS = { ...PROVIDER_BRANDS, ...normalized };
+  DATI_PROVIDER_BRAND_META = {
+    versioneDati: data.versioneDati || data.version || DATI_PROVIDER_BRAND_META.versioneDati,
+    fonte: data.fonte || DATI_PROVIDER_BRAND_META.fonte,
+    aggiornatoIl: data.aggiornatoIl || DATI_PROVIDER_BRAND_META.aggiornatoIl,
+  };
+  return true;
+}
+
+async function caricaProviderBrand() {
+  if (!window.fetch || window.location.protocol === "file:") return false;
+  for (const url of DATI_PROVIDER_BRAND_URLS) {
+    try {
+      const response = await fetch(url, { cache: "no-store" });
+      if (!response.ok) continue;
+      const data = await response.json();
+      if (applicaDatiProviderBrand(data)) return true;
+    } catch (error) {
+      // I loghi sono solo un arricchimento grafico: il calcolatore resta operativo.
+    }
+  }
+  return false;
+}
+
 function numeroSicuro(value, fallback = 0) {
   const number = Number(value);
   return Number.isFinite(number) ? number : fallback;
@@ -2709,13 +2810,52 @@ function creaSchedaOfferta(offerta) {
   card.style.cssText = "background:#f8fafc; border:1px solid var(--border); border-radius:10px; padding:15px 20px; display:flex; justify-content:space-between; align-items:center;";
   card.innerHTML = `
     <div class="partner-meta">
-      <div class="partner-title" style="font-size:16px; font-weight:bold; color:var(--text-color);">${offerta.nome}</div>
+      <div class="partner-brand-line">
+        <span class="partner-brand-slot" aria-hidden="true"></span>
+        <div class="partner-title" style="font-size:16px; font-weight:bold; color:var(--text-color);">${offerta.nome}</div>
+      </div>
       <div class="partner-details" style="font-size:13px; color:var(--text-muted); margin-top:2px;"></div>
       <div id="risparmio-partner-${offerta.id}" style="font-size:14px; font-weight:bold; color:var(--primary); margin-top:5px; display:none;"></div>
     </div>
     <a id="link-partner-${offerta.id}" href="#" style="background:var(--dark-btn); color:white; text-decoration:none; padding:10px 20px; border-radius:8px; font-size:13px; font-weight:bold; white-space:nowrap;">Vedi Offerta</a>
   `;
   return card;
+}
+
+function testoHtmlSicuro(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function brandOfferta(offerta) {
+  const key = chiaveFornitoreDaNome(offerta?.provider) || chiaveFornitoreDaNome(offerta?.nome);
+  const brand = key ? PROVIDER_BRANDS[key] : null;
+  return brand ? { key, ...brand } : null;
+}
+
+function aggiornaLogoOfferta(card, offerta, mostraLogo = true) {
+  const slot = card?.querySelector(".partner-brand-slot");
+  if (!slot) return;
+  const brand = mostraLogo ? brandOfferta(offerta) : null;
+  if (!brand) {
+    slot.innerHTML = "";
+    slot.style.display = "none";
+    return;
+  }
+  const label = testoHtmlSicuro(brand.label || offerta?.provider || "Fornitore");
+  slot.style.display = "inline-flex";
+  if (brand.logo) {
+    slot.innerHTML = `
+      <span class="provider-logo-shell" title="${label}">
+        <img class="provider-logo" src="${testoHtmlSicuro(brand.logo)}" alt="${label}" loading="lazy">
+      </span>
+    `;
+  } else {
+    slot.innerHTML = `<span class="provider-logo-shell"><span class="provider-logo-fallback">${label}</span></span>`;
+  }
 }
 
 function creaIntestazioneOfferte(id, titolo, testo) {
@@ -2831,6 +2971,7 @@ function assicuraSchedeOfferte(offerte = OFFERTE_PROPOSTE) {
     const details = card?.querySelector(".partner-details");
     const link = document.getElementById(`link-partner-${offerta.id}`);
     if (title) title.innerText = offerta.nome;
+    aggiornaLogoOfferta(card, offerta, LEAD_STATE.verified);
     if (details) details.innerText = dettagliOfferta(offerta);
     if (link) {
       link.href = "#";
@@ -3335,6 +3476,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
         : "";
       if (LEAD_STATE.verified) {
         if (title) title.innerText = offerta.nome;
+        aggiornaLogoOfferta(card, offerta, true);
         if (details) details.innerText = dettagliOfferta(offerta);
         if (link) {
           link.innerText = "Procedi";
@@ -3359,6 +3501,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
         `;
       } else {
         if (title) title.innerText = gruppoVisuale === "top" ? `Consulente #${posizioneGruppo || posizioneEconomica}` : "Attivabile online";
+        aggiornaLogoOfferta(card, offerta, false);
         if (details) details.innerText = "Verifica il cellulare per vedere nome fornitore, dettagli economici e link.";
         if (link) {
           link.innerText = "Sblocca";
@@ -4704,7 +4847,7 @@ function collegaEventiUX() {
     if (event.target?.id === "offer-consent-backdrop") chiudiConsensoOfferta();
   });
 
-  Promise.all([caricaDatiCalcolo(), caricaOfferteProposte(), caricaOfferteAreraMenu()]).then(() => {
+  Promise.all([caricaDatiCalcolo(), caricaOfferteProposte(), caricaOfferteAreraMenu(), caricaProviderBrand()]).then(() => {
     assicuraSchedeOfferte();
     const risultatiVisibili = document.querySelector(".fornitori-consigliati-section")?.style.display === "block";
     if (risultatiVisibili) avviaComparazioneDati();

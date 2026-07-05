@@ -1,6 +1,6 @@
 {
   "ok": true,
-  "generatedAt": "2026-07-04T19:16:54.444Z",
+  "generatedAt": "2026-07-05T17:25:58.064Z",
   "arera": {
     "versioneDati": "arera-menu-2026-07-02",
     "aggiornatoIl": "2026-07-02",
@@ -393,8 +393,8 @@
       "label": "Privato medio - dual fuel - prezzo variabile",
       "tipo": "variabile",
       "fornitura": "dual",
-      "providerCount": 19,
-      "excludedCount": 38,
+      "providerCount": 18,
+      "excludedCount": 40,
       "excludedExamples": [
         {
           "providerKey": "acea",
@@ -592,6 +592,19 @@
           ]
         },
         {
+          "providerKey": "optima",
+          "providerLabel": "Optima Italia",
+          "commodity": "luce",
+          "tipo": "variabile",
+          "nome": "Optima Solution",
+          "codice": "002626ESVOL01XX2119X2703OOOOOOOO",
+          "prezzo": 0.15760126,
+          "quotaFissaAnnua": 300,
+          "reasons": [
+            "offerta scaduta"
+          ]
+        },
+        {
           "providerKey": "vivi",
           "providerLabel": "Vivi Energia",
           "commodity": "luce",
@@ -638,19 +651,6 @@
           "nome": "VIVIweb Allday Flex24 Lucegas",
           "codice": "000652ESVML02XXVWEBALLDABD010726",
           "prezzo": 0.13335126,
-          "quotaFissaAnnua": 120,
-          "reasons": [
-            "offerta scaduta"
-          ]
-        },
-        {
-          "providerKey": "vivi",
-          "providerLabel": "Vivi Energia",
-          "commodity": "luce",
-          "tipo": "variabile",
-          "nome": "VIVIattivo LuceGas",
-          "codice": "000652ESVFL24XXVIVIATTDFDO050626",
-          "prezzo": 0.13685126,
           "quotaFissaAnnua": 120,
           "reasons": [
             "offerta scaduta"
@@ -1524,8 +1524,8 @@
       "label": "Privato medio - forniture separate - prezzo variabile",
       "tipo": "variabile",
       "fornitura": "separata",
-      "providerCount": 20,
-      "excludedCount": 38,
+      "providerCount": 19,
+      "excludedCount": 40,
       "excludedExamples": [
         {
           "providerKey": "acea",
@@ -1723,6 +1723,19 @@
           ]
         },
         {
+          "providerKey": "optima",
+          "providerLabel": "Optima Italia",
+          "commodity": "luce",
+          "tipo": "variabile",
+          "nome": "Optima Solution",
+          "codice": "002626ESVOL01XX2119X2703OOOOOOOO",
+          "prezzo": 0.15760126,
+          "quotaFissaAnnua": 300,
+          "reasons": [
+            "offerta scaduta"
+          ]
+        },
+        {
           "providerKey": "vivi",
           "providerLabel": "Vivi Energia",
           "commodity": "luce",
@@ -1769,19 +1782,6 @@
           "nome": "VIVIweb Allday Flex24 Lucegas",
           "codice": "000652ESVML02XXVWEBALLDABD010726",
           "prezzo": 0.13335126,
-          "quotaFissaAnnua": 120,
-          "reasons": [
-            "offerta scaduta"
-          ]
-        },
-        {
-          "providerKey": "vivi",
-          "providerLabel": "Vivi Energia",
-          "commodity": "luce",
-          "tipo": "variabile",
-          "nome": "VIVIattivo LuceGas",
-          "codice": "000652ESVFL24XXVIVIATTDFDO050626",
-          "prezzo": 0.13685126,
           "quotaFissaAnnua": 120,
           "reasons": [
             "offerta scaduta"

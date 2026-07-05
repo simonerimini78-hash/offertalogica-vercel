@@ -1,6 +1,6 @@
 # Test ranking ARERA
 
-Generato: 2026-07-04T19:16:54.445Z
+Generato: 2026-07-05T17:25:58.064Z
 Fonte ARERA: arera-menu-2026-07-02 (2026-07-02)
 Offerte lette: 646
 Indici usati: PUN 0.119351258, PSV 0.504419055
@@ -60,8 +60,8 @@ Offerte escluse dal filtro idoneita: 89
 Consumi: 2700 kWh luce, 700 Smc gas
 Tipo prezzo: variabile
 Tipo fornitura: dual
-Fornitori confrontabili: 19
-Offerte escluse dal filtro idoneita: 38
+Fornitori confrontabili: 18
+Offerte escluse dal filtro idoneita: 40
 
 | # | Fornitore | Totale annuo | Quota variabile | Quota fissa vendita | Luce | Gas | Esito commerciale |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -95,11 +95,11 @@ Offerte escluse dal filtro idoneita: 38
 | 13 | Illumia | luce | variabile | Under Autentico | fuori perimetro privato standard: vulnerabili/eta |
 | 14 | Illumia | luce | variabile | Under Autentico | fuori perimetro privato standard: vulnerabili/eta |
 | 15 | Iren Luce e Gas | luce | variabile | SEV IREN X VULNERABILI STG | fuori perimetro privato standard: vulnerabili/eta |
-| 16 | Vivi Energia | luce | variabile | VIVIweb Allday Flex Luce | offerta scaduta |
-| 17 | Vivi Energia | luce | variabile | VIVIweb Allday Flex Lucegas | offerta scaduta |
-| 18 | Vivi Energia | luce | variabile | VIVIweb Allday Flex24 Luce | offerta scaduta |
-| 19 | Vivi Energia | luce | variabile | VIVIweb Allday Flex24 Lucegas | offerta scaduta |
-| 20 | Vivi Energia | luce | variabile | VIVIattivo LuceGas | offerta scaduta |
+| 16 | Optima Italia | luce | variabile | Optima Solution | offerta scaduta |
+| 17 | Vivi Energia | luce | variabile | VIVIweb Allday Flex Luce | offerta scaduta |
+| 18 | Vivi Energia | luce | variabile | VIVIweb Allday Flex Lucegas | offerta scaduta |
+| 19 | Vivi Energia | luce | variabile | VIVIweb Allday Flex24 Luce | offerta scaduta |
+| 20 | Vivi Energia | luce | variabile | VIVIweb Allday Flex24 Lucegas | offerta scaduta |
 
 ## Privato alto consumo - dual fuel - prezzo fisso
 
@@ -228,8 +228,8 @@ Offerte escluse dal filtro idoneita: 89
 Consumi: 2700 kWh luce, 700 Smc gas
 Tipo prezzo: variabile
 Tipo fornitura: separata
-Fornitori confrontabili: 20
-Offerte escluse dal filtro idoneita: 38
+Fornitori confrontabili: 19
+Offerte escluse dal filtro idoneita: 40
 
 | # | Fornitore | Totale annuo | Quota variabile | Quota fissa vendita | Luce | Gas | Esito commerciale |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -263,11 +263,11 @@ Offerte escluse dal filtro idoneita: 38
 | 13 | Illumia | luce | variabile | Under Autentico | fuori perimetro privato standard: vulnerabili/eta |
 | 14 | Illumia | luce | variabile | Under Autentico | fuori perimetro privato standard: vulnerabili/eta |
 | 15 | Iren Luce e Gas | luce | variabile | SEV IREN X VULNERABILI STG | fuori perimetro privato standard: vulnerabili/eta |
-| 16 | Vivi Energia | luce | variabile | VIVIweb Allday Flex Luce | offerta scaduta |
-| 17 | Vivi Energia | luce | variabile | VIVIweb Allday Flex Lucegas | offerta scaduta |
-| 18 | Vivi Energia | luce | variabile | VIVIweb Allday Flex24 Luce | offerta scaduta |
-| 19 | Vivi Energia | luce | variabile | VIVIweb Allday Flex24 Lucegas | offerta scaduta |
-| 20 | Vivi Energia | luce | variabile | VIVIattivo LuceGas | offerta scaduta |
+| 16 | Optima Italia | luce | variabile | Optima Solution | offerta scaduta |
+| 17 | Vivi Energia | luce | variabile | VIVIweb Allday Flex Luce | offerta scaduta |
+| 18 | Vivi Energia | luce | variabile | VIVIweb Allday Flex Lucegas | offerta scaduta |
+| 19 | Vivi Energia | luce | variabile | VIVIweb Allday Flex24 Luce | offerta scaduta |
+| 20 | Vivi Energia | luce | variabile | VIVIweb Allday Flex24 Lucegas | offerta scaduta |
 
 ### Migliori offerte luce separate
 

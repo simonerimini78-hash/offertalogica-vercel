@@ -1,6 +1,6 @@
 # Verifica calcolo offerte
 
-Generato: 2026-07-04T19:16:39.788Z
+Generato: 2026-07-05T17:25:58.123Z
 Motore frontend: motore-v6-arera-first-2026-07-03
 Parametri: parametri-calcolo-2026-07-03-v4-psv-operativo
 Offerte commerciali: offerte-proposte-2026-07-03-v14-variabili-calcolabili
@@ -51,7 +51,7 @@ Offerte generate: 18
 
 ## Privato medio - dual fuel - variabile
 
-Offerte generate: 20
+Offerte generate: 19
 
 | # | Fornitore | Offerta | Totale | Variabile | Fissa vendita | Risparmio vs attuale | Stato |
 | --- | --- | --- | --- | --- | --- | --- | --- |
