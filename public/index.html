@@ -2925,8 +2925,41 @@ function htmlLogoOfferta(offerta, mostraLogo = true) {
   `;
 }
 
+function assicuraStrutturaLogoOfferta(card) {
+  if (!card) return null;
+
+  let brandLine = card.querySelector(".partner-brand-line");
+  let slot = card.querySelector(".partner-brand-slot");
+
+  if (brandLine && slot) return slot;
+
+  const meta = card.querySelector(".partner-meta");
+  const title = card.querySelector(".partner-title");
+  if (!meta || !title) return null;
+
+  if (!brandLine) {
+    brandLine = document.createElement("div");
+    brandLine.className = "partner-brand-line";
+    meta.insertBefore(brandLine, meta.firstChild);
+    brandLine.appendChild(title);
+  } else if (!brandLine.contains(title)) {
+    brandLine.appendChild(title);
+  }
+
+  if (!slot) {
+    slot = document.createElement("span");
+    slot.className = "partner-brand-slot";
+    slot.setAttribute("aria-hidden", "true");
+    brandLine.insertBefore(slot, brandLine.firstChild);
+  } else if (slot.parentElement !== brandLine) {
+    brandLine.insertBefore(slot, brandLine.firstChild);
+  }
+
+  return slot;
+}
+
 function aggiornaLogoOfferta(card, offerta, mostraLogo = true) {
-  const slot = card?.querySelector(".partner-brand-slot");
+  const slot = assicuraStrutturaLogoOfferta(card);
   if (!slot) return;
   const brand = mostraLogo ? brandOfferta(offerta) : null;
   slot.innerHTML = htmlLogoOfferta(offerta, mostraLogo);
