@@ -837,6 +837,132 @@
                 font-size: 23px !important;
             }
         }
+        .guided-assistant-launcher {
+            position: fixed;
+            right: 22px;
+            bottom: 88px;
+            z-index: 950;
+            border: 0;
+            border-radius: 999px;
+            padding: 13px 18px;
+            background: linear-gradient(135deg, #0ea34a 0%, #58c91d 100%);
+            color: #fff;
+            font-weight: 900;
+            font-size: 14px;
+            box-shadow: 0 18px 38px rgba(22, 163, 74, .28);
+            cursor: pointer;
+        }
+        .guided-assistant-launcher:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 20px 44px rgba(22, 163, 74, .34);
+        }
+        .guided-assistant {
+            position: fixed;
+            right: 22px;
+            bottom: 146px;
+            z-index: 951;
+            width: min(380px, calc(100vw - 28px));
+            max-height: min(620px, calc(100vh - 180px));
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            border: 1px solid rgba(148, 163, 184, .38);
+            border-radius: 18px;
+            background: #fff;
+            box-shadow: 0 24px 70px rgba(15, 23, 42, .24);
+        }
+        .guided-assistant.is-open {
+            display: flex;
+        }
+        .guided-assistant-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 16px 16px 12px;
+            border-bottom: 1px solid #e2e8f0;
+            background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+        }
+        .guided-assistant-header strong {
+            display: block;
+            color: #0f172a;
+            font-size: 16px;
+        }
+        .guided-assistant-header span {
+            display: block;
+            color: #64748b;
+            font-size: 12px;
+            margin-top: 2px;
+            line-height: 1.35;
+        }
+        .guided-assistant-close {
+            border: 0;
+            background: #e2e8f0;
+            color: #0f172a;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-weight: 900;
+        }
+        .guided-assistant-body {
+            padding: 14px;
+            overflow: auto;
+        }
+        .guided-assistant-message {
+            border-radius: 14px;
+            padding: 12px;
+            background: #f0fdf4;
+            color: #14532d;
+            font-size: 13px;
+            line-height: 1.45;
+            margin-bottom: 12px;
+        }
+        .guided-assistant-options {
+            display: grid;
+            gap: 8px;
+        }
+        .guided-assistant-option {
+            width: 100%;
+            border: 1px solid #dbeafe;
+            border-radius: 12px;
+            padding: 11px 12px;
+            background: #fff;
+            color: #0f172a;
+            text-align: left;
+            font-weight: 800;
+            cursor: pointer;
+            box-shadow: 0 6px 16px rgba(15, 23, 42, .05);
+        }
+        .guided-assistant-option small {
+            display: block;
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 2px;
+            line-height: 1.3;
+        }
+        .guided-assistant-option:hover {
+            border-color: #16a34a;
+            background: #f8fafc;
+        }
+        .guided-assistant-highlight {
+            outline: 3px solid rgba(22, 163, 74, .28) !important;
+            outline-offset: 4px;
+            transition: outline .2s ease;
+        }
+        @media (max-width: 560px) {
+            .guided-assistant-launcher {
+                right: 14px;
+                bottom: 78px;
+                padding: 12px 15px;
+            }
+            .guided-assistant {
+                right: 14px;
+                bottom: 132px;
+                max-height: min(560px, calc(100vh - 150px));
+            }
+        }
     </style>
 </head>
 <body>
@@ -5459,6 +5585,51 @@ if (document.readyState === "loading") {
 </div>
 </main>
 
+<button type="button" class="guided-assistant-launcher" id="guided-assistant-toggle" aria-expanded="false" aria-controls="guided-assistant-panel">
+    Hai bisogno di aiuto?
+</button>
+
+<section class="guided-assistant" id="guided-assistant-panel" aria-label="Assistente guidato OffertaLogica">
+    <div class="guided-assistant-header">
+        <div>
+            <strong>Assistente OffertaLogica</strong>
+            <span>Ti aiuto a scegliere il percorso giusto, senza raccogliere dati in questa chat.</span>
+        </div>
+        <button type="button" class="guided-assistant-close" id="guided-assistant-close" aria-label="Chiudi assistente">x</button>
+    </div>
+    <div class="guided-assistant-body">
+        <div class="guided-assistant-message" id="guided-assistant-message">
+            Dimmi cosa vuoi fare: ti porto direttamente nella sezione corretta del calcolatore.
+        </div>
+        <div class="guided-assistant-options">
+            <button type="button" class="guided-assistant-option" data-assistant-action="pdf">
+                Ho una bolletta o una scheda sintetica
+                <small>Carica il PDF e conferma i dati letti.</small>
+            </button>
+            <button type="button" class="guided-assistant-option" data-assistant-action="media">
+                Non conosco i miei consumi
+                <small>Usa un profilo medio e poi verifica le offerte.</small>
+            </button>
+            <button type="button" class="guided-assistant-option" data-assistant-action="manuale">
+                Conosco i miei consumi
+                <small>Inserisci i dati reali della tua fornitura.</small>
+            </button>
+            <button type="button" class="guided-assistant-option" data-assistant-action="business">
+                Sono un'azienda o P.IVA
+                <small>Apri il percorso business con verifica consulenziale.</small>
+            </button>
+            <button type="button" class="guided-assistant-option" data-assistant-action="offerte">
+                Voglio capire le offerte
+                <small>Le offerte si sbloccano dopo il confronto e OTP.</small>
+            </button>
+            <button type="button" class="guided-assistant-option" data-assistant-action="privacy">
+                Come trattate i miei dati?
+                <small>Consulta privacy, cookie e termini del servizio.</small>
+            </button>
+        </div>
+    </div>
+</section>
+
 <div class="lead-modal-backdrop" id="lead-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="lead-modal-title">
     <div class="lead-modal">
         <h3 id="lead-modal-title">Sblocca le 3 migliori offerte</h3>
@@ -5503,6 +5674,81 @@ if (document.readyState === "loading") {
         <div class="lead-status" id="offer-consent-status"></div>
     </div>
 </div>
+
+<script>
+(function initGuidedAssistant() {
+    const panel = document.getElementById("guided-assistant-panel");
+    const toggle = document.getElementById("guided-assistant-toggle");
+    const close = document.getElementById("guided-assistant-close");
+    const message = document.getElementById("guided-assistant-message");
+
+    if (!panel || !toggle || !message) return;
+
+    function setOpen(isOpen) {
+        panel.classList.toggle("is-open", isOpen);
+        toggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
+    }
+
+    function setMessage(text) {
+        message.textContent = text;
+    }
+
+    function scrollToTarget(selector) {
+        const target = document.querySelector(selector);
+        if (!target) return;
+        target.scrollIntoView({ behavior: "smooth", block: "center" });
+        target.classList.add("guided-assistant-highlight");
+        window.setTimeout(() => target.classList.remove("guided-assistant-highlight"), 1800);
+    }
+
+    function activateButton(id) {
+        const button = document.getElementById(id);
+        if (button) button.click();
+        return button;
+    }
+
+    function handleAction(action) {
+        setOpen(true);
+        switch (action) {
+            case "pdf":
+                setMessage("Ottima scelta: caricando la bolletta o la scheda sintetica il confronto diventa piu preciso. Dopo la lettura controlla i dati e confermali.");
+                scrollToTarget(".pdf-lead-panel");
+                break;
+            case "media":
+                setMessage("Useremo un profilo medio e l'ultimo riferimento ARERA disponibile. E' utile per una prima stima, poi puoi raffinare con la bolletta.");
+                activateButton("btn-attiva-medi");
+                scrollToTarget("#btn-attiva-medi");
+                break;
+            case "manuale":
+                setMessage("Perfetto: inserisci consumi, prezzi e quote fisse della tua fornitura. Il confronto sara calcolato sui tuoi dati reali.");
+                activateButton("btn-attiva-precisi");
+                scrollToTarget("#master-blocchi-inferiori");
+                break;
+            case "business":
+                setMessage("Per aziende e P.IVA il confronto e preliminare: servono consumi, potenza, fasce e spesso una verifica consulenziale.");
+                activateButton("btn-segmento-business");
+                scrollToTarget("#business-panel");
+                break;
+            case "offerte":
+                setMessage("Le offerte compaiono dopo il pulsante blu di confronto. Per vedere nomi, prezzi e link serve la verifica OTP del numero.");
+                scrollToTarget(".fornitori-consigliati-section");
+                break;
+            case "privacy":
+                setMessage("I riferimenti privacy, cookie e termini sono nel footer. Le stime restano informative e i documenti del fornitore fanno sempre fede.");
+                scrollToTarget("footer");
+                break;
+            default:
+                setMessage("Scegli una delle opzioni: ti porto nel punto giusto del calcolatore.");
+        }
+    }
+
+    toggle.addEventListener("click", () => setOpen(!panel.classList.contains("is-open")));
+    close?.addEventListener("click", () => setOpen(false));
+    document.querySelectorAll("[data-assistant-action]").forEach((button) => {
+        button.addEventListener("click", () => handleAction(button.dataset.assistantAction));
+    });
+})();
+</script>
 
 <footer style="text-align: center; padding: 40px 20px; color: #777; font-family: 'Helvetica', sans-serif; border-top: 2px solid #f0f0f0; margin-top: 50px; font-size: 13px;">
     
