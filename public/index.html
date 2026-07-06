@@ -28,6 +28,10 @@
             --border: #cbd5e1;
             --dark-btn: #334155;
             --dark-btn-hover: #1e293b;
+            --logo-green-deep: #048a3d;
+            --logo-green: #16a34a;
+            --logo-green-bright: #7ed321;
+            --logo-green-gradient: linear-gradient(135deg, #048a3d 0%, #16a34a 46%, #7ed321 100%);
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: ui-rounded, "SF Pro Rounded", "Aptos", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
@@ -672,6 +676,74 @@
         [id^="link-partner-"]:hover {
             filter: brightness(.96);
         }
+        .upload-drop > .btn-action,
+        .pdf-review-static button,
+        .btn-calc,
+        [id^="link-partner-"] {
+            background: var(--logo-green-gradient) !important;
+            color: #ffffff !important;
+            border: 0 !important;
+            box-shadow: 0 14px 30px rgba(22, 163, 74, .24), inset 0 1px 0 rgba(255,255,255,.22) !important;
+            transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
+        }
+        .upload-drop > .btn-action:hover,
+        .pdf-review-static button:hover,
+        .btn-calc:hover,
+        [id^="link-partner-"]:hover {
+            filter: saturate(1.08) brightness(1.02);
+            box-shadow: 0 18px 38px rgba(22, 163, 74, .30), inset 0 1px 0 rgba(255,255,255,.26) !important;
+            transform: translateY(-1px);
+        }
+        .btn-calc {
+            min-height: 68px;
+            font-size: 19px;
+            line-height: 1.15;
+            letter-spacing: .15px;
+            border-radius: 11px;
+        }
+        .current-supply-heading {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: baseline;
+            column-gap: 8px;
+            row-gap: 2px;
+            color: #102334 !important;
+            background: none !important;
+            -webkit-text-fill-color: initial !important;
+            letter-spacing: -.02em;
+            text-shadow: 0 10px 24px rgba(15, 35, 52, .08);
+        }
+        .current-supply-heading .title-dark {
+            color: #102334;
+            font-weight: 950;
+        }
+        .current-supply-heading .title-green {
+            position: relative;
+            display: inline-block;
+            background: var(--logo-green-gradient);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: var(--logo-green);
+            -webkit-text-fill-color: transparent;
+            font-weight: 950;
+        }
+        .current-supply-heading .title-green::after {
+            content: "";
+            position: absolute;
+            left: 4px;
+            right: 4px;
+            bottom: -4px;
+            height: 3px;
+            border-radius: 999px;
+            background: var(--logo-green-gradient);
+            opacity: .62;
+        }
+        .locked-offer [id^="link-partner-"] {
+            background: var(--accent) !important;
+            box-shadow: 0 12px 26px rgba(37, 99, 235, .22) !important;
+            transform: none;
+        }
 
         @media (max-width: 700px) {
             .site-logo-main {
@@ -923,8 +995,9 @@
     <!-- TESTATA CENTRATA CON SPAZIO DI 50PX (PULITA SENZA DOPPIONI) -->
     <div class="manual-block" style="margin-bottom: 25px; border-color: var(--accent); padding: 25px 20px;">
         
-        <h3 style="text-align: center; color: var(--accent); font-size: 20px; margin-bottom: 20px; border-bottom: none; padding-bottom: 0; font-weight: 700;">
-            🏠 La tua fornitura attuale Luce e Gas
+        <h3 class="current-supply-heading" style="text-align: center; color: var(--accent); font-size: 20px; margin-bottom: 20px; border-bottom: none; padding-bottom: 0; font-weight: 700;">
+            <span class="title-dark">La tua fornitura attuale</span>
+            <span class="title-green">Luce e Gas</span>
         </h3>
         
         <div class="choice-grid">
