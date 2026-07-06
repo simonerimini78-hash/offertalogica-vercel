@@ -70,10 +70,10 @@
       "key": "dolomiti",
       "label": "Dolomiti Energia",
       "status": "ready",
-      "logo": "/assets/providers/dolomiti.svg",
-      "source": "https://www.dolomitienergia.it/dam/dolomiti-energia/common/icons/logo-portale-offerte.svg",
-      "usageStatus": "asset_ufficiale_sito_fornitore_logo_chiaro",
-      "logoShell": "dark"
+      "logo": "/assets/providers/dolomiti.png",
+      "source": "logo fornito da screenshot operativo 2026-07-06",
+      "usageStatus": "asset_fornito_utente_logo_viola",
+      "logoShell": null
     },
     {
       "key": "eco",
