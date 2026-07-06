@@ -1,6 +1,6 @@
 # CONTINUA DA QUI - OffertaLogica
 
-Ultimo aggiornamento: 2026-07-04
+Ultimo aggiornamento: 2026-07-06
 
 Questo file e il punto di ritorno del progetto. Quando una nuova sessione Codex riparte, leggere prima questo file e poi `docs/STATO-PROGETTO-OFFERTALOGICA.md`.
 
@@ -31,13 +31,19 @@ OffertaLogica e un calcolatore luce/gas per privati e aziende.
 
 Il progetto gira su GitHub + Vercel con dominio `offertalogica.it`.
 
-Il pacchetto operativo corrente e:
+Il pacchetto completo di riferimento lato progetto e:
 
-`offertalogica-v20-arera-audit-partner`
+`offertalogica-v25-loghi-preview-20260706`
 
-Lo zip completo corrente e:
+Ultimi zip incrementali importanti generati dopo la base completa:
 
-`offertalogica-v20-arera-audit-partner.zip`
+- `offertalogica-v29-verde-logo-approvato-20260706.zip`
+- `offertalogica-v30-aruba-priorita-sms-20260706.zip`
+- `offertalogica-v31-aruba-login-api-20260706.zip`
+- `offertalogica-v32-aruba-auth-diagnostica-20260706.zip`
+- `offertalogica-v33-testo-sms-otp-20260706.zip`
+
+Nota importante sugli zip incrementali: quelli v30-v33 contengono solo `lib/otp.js` e non devono toccare grafica, offerte, loghi o motore.
 
 ## Cose gia impostate
 
@@ -49,7 +55,8 @@ Lo zip completo corrente e:
 - Script di verifica in `scripts/`.
 - Database lead su Supabase.
 - Redis/Upstash per storage operativo.
-- OTP con Twilio testato; Aruba SMS in attesa/da collegare quando alias e credenziali sono definitivi.
+- OTP reale con Aruba SMS collegato e testato il 2026-07-06.
+- Twilio resta configurato come fallback, ma il codice ora da priorita ad Aruba SMS.
 - Privacy/iubenda presente, con attenzione ancora da mantenere su consensi e testi.
 - Pagine SEO/istituzionali: `come-funziona`, `partner`, `casa-smart`, `internet-casa`, staff lead.
 
@@ -129,6 +136,49 @@ Verifica finale eseguita:
 - blocco consulente con 3 card separate.
 - `scripts/validate-calculator-data.mjs`: OK.
 - `scripts/verify-calcolo-offerte.mjs`: OK, 0 errori, 0 warning.
+
+## Stato SMS OTP Aruba - 2026-07-06
+
+Aruba SMS e stato collegato con alias approvato:
+
+- mittente Aruba: `RAGroup`;
+- provider selezionato in health check: `aruba-sms`;
+- auth mode in health check: `login`;
+- `userKeyLooksLikeUsername: true` e atteso, perche la vecchia `ARUBA_SMS_USER_KEY` contiene la username/email e non va usata come vero `user_key`;
+- OTP reale arrivato correttamente sul cellulare;
+- offerte sbloccate correttamente dopo OTP;
+- bottone `Procedi` verso partner attivabile testato: apre correttamente il portale del fornitore;
+- credito Aruba scalato correttamente;
+- Supabase salva correttamente i tentativi/eventi.
+
+Variabili Vercel Aruba rilevanti:
+
+- `ARUBA_SMS_USERNAME` = username Aruba SMS;
+- `ARUBA_SMS_API_PASSWORD` = API password Aruba;
+- `ARUBA_SMS_SENDER` = `RAGroup`;
+- `ARUBA_SMS_MESSAGE_TYPE` = `GP`;
+- `ARUBA_SMS_ACCESS_TOKEN` puo restare configurato, ma il codice usa prima login con username + API password;
+- non usare la username come vero `user_key` API.
+
+Zip backend SMS prodotti:
+
+- `offertalogica-v30-aruba-priorita-sms-20260706.zip`: priorita Aruba rispetto a Twilio.
+- `offertalogica-v31-aruba-login-api-20260706.zip`: login Aruba con username + API password.
+- `offertalogica-v32-aruba-auth-diagnostica-20260706.zip`: evita di usare username/email come `user_key` diretto e aggiunge diagnostica `authMode`.
+- `offertalogica-v33-testo-sms-otp-20260706.zip`: aggiorna solo il testo SMS.
+
+Testo SMS approvato per v33:
+
+`OffertaLogica: il tuo codice di verifica e' 906129. Valido 5 minuti. Non condividerlo.`
+
+Motivo del testo: usa solo caratteri GSM semplici, evita accenti e riduce il rischio di SMS doppi.
+
+Stato operativo:
+
+- v32 ha permesso il funzionamento reale Aruba.
+- v33 e stato generato per correggere il testo del messaggio.
+- Dopo caricamento v33 su GitHub e redeploy Vercel, rifare un solo test OTP per confermare il nuovo testo.
+- Se si fanno troppi tentativi, `/api/send-otp` puo restituire `429`: e il rate limit anti-abuso, non un errore Aruba.
 
 Misurazione funnel aggiunta:
 
