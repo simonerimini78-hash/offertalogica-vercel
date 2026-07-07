@@ -24,8 +24,9 @@ Il file `CONTINUA-DA-QUI-CODEX.md` contiene il prompt breve da incollare in una 
 
 ### Blocco offerte partner attivabili online
 
-- Deve mostrare fino a 3 offerte partner attive e attivabili online.
+- Deve mostrare fino a 6 offerte partner attive e attivabili online.
 - Le offerte devono essere coerenti con il filtro selezionato.
+- Nei testi pubblici non deve dichiarare un numero fisso di offerte: usare "le migliori offerte" o formule equivalenti.
 - Quando il file ARERA e' disponibile, prezzi e ranking devono arrivare dal file ARERA aggiornato.
 - Il file partner deve arricchire le offerte con link, logo, stato commerciale e tracciamento, non sostituire il prezzo ARERA.
 - Un partner non deve essere mostrato come attivabile se non esiste un aggancio coerente e prudente con una proposta ARERA valida per lo stesso filtro.
@@ -45,6 +46,20 @@ Il file `CONTINUA-DA-QUI-CODEX.md` contiene il prompt breve da incollare in una 
 - Deve mostrare fino a 3 offerte non attivabili online, ordinate per convenienza sul profilo dell'utente.
 - Queste offerte richiedono verifica consulenziale o ricontatto prima dell'eventuale attivazione.
 - Deve restare separato dal blocco partner per evitare confusione.
+- Nei testi pubblici non deve dichiarare un numero fisso di offerte.
+
+### Fornitori in menu
+
+- Le tendine dei fornitori devono includere anche `Lene Energia` e `Segnoverde`.
+- Segnoverde non deve essere trattato come dual fuel: se il filtro utente e' dual, non va forzato come proposta dual.
+- Se in futuro una collaborazione consente di indirizzare richieste verso un partner consulenziale, la gestione deve restare coerente con il consenso specifico dell'utente.
+
+### Pagine pubbliche
+
+- `internet-casa.html` e `casa-smart.html` devono restare pagine-vetrina: hero, blocchi offerta e CTA.
+- Non inserire nelle pagine pubbliche spiegazioni operative su come costruiamo il sistema.
+- La pagina `partner.html` puo restare B2B, ma deve evitare parole e dettagli da implementazione interna come `leadId`, `webhook`, `CRM`, `CPA/CPL`.
+- Le eventuali note tecniche devono restare nei documenti interni, non nei testi visibili ai clienti.
 
 ### Lead e consensi
 

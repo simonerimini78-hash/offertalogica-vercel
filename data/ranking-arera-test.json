@@ -1,10 +1,10 @@
 {
   "ok": true,
-  "generatedAt": "2026-07-05T18:20:00.744Z",
+  "generatedAt": "2026-07-07T19:54:01.093Z",
   "arera": {
-    "versioneDati": "arera-menu-2026-07-02",
-    "aggiornatoIl": "2026-07-02",
-    "offerte": 646,
+    "versioneDati": "arera-menu-2026-07-07",
+    "aggiornatoIl": "2026-07-07",
+    "offerte": 638,
     "indiciUsati": {
       "pun": 0.119351258,
       "psv": 0.504419055
@@ -16,8 +16,8 @@
       "label": "Privato medio - dual fuel - prezzo fisso",
       "tipo": "fisso",
       "fornitura": "dual",
-      "providerCount": 16,
-      "excludedCount": 89,
+      "providerCount": 20,
+      "excludedCount": 21,
       "excludedExamples": [
         {
           "providerKey": "a2a",
@@ -30,32 +30,6 @@
           "quotaFissaAnnua": 72,
           "reasons": [
             "fornitore non coerente: offerta sembra nen, ma providerKey e a2a"
-          ]
-        },
-        {
-          "providerKey": "acea",
-          "providerLabel": "Acea Energia",
-          "commodity": "luce",
-          "tipo": "fisso",
-          "nome": "Acea Energia Fix",
-          "codice": "000774ESFML01XXRT4D4027760000000",
-          "prezzo": 0.125,
-          "quotaFissaAnnua": 90,
-          "reasons": [
-            "offerta scaduta"
-          ]
-        },
-        {
-          "providerKey": "acea",
-          "providerLabel": "Acea Energia",
-          "commodity": "luce",
-          "tipo": "fisso",
-          "nome": "Acea Energia Fix",
-          "codice": "000774ESFFL01XXRT4D4027760000000",
-          "prezzo": 0.12566667,
-          "quotaFissaAnnua": 90,
-          "reasons": [
-            "offerta scaduta"
           ]
         },
         {
@@ -128,19 +102,6 @@
           "providerLabel": "Enel Energia",
           "commodity": "luce",
           "tipo": "fisso",
-          "nome": "Enel Fix Web Luce",
-          "codice": "000142ESFML01XXResECAn0000115810",
-          "prezzo": 0.1495,
-          "quotaFissaAnnua": 144,
-          "reasons": [
-            "offerta scaduta"
-          ]
-        },
-        {
-          "providerKey": "enel",
-          "providerLabel": "Enel Energia",
-          "commodity": "luce",
-          "tipo": "fisso",
           "nome": "Enel Seconda Casa Luce",
           "codice": "000142ESFML01XXResECAn0000115913",
           "prezzo": 0.174,
@@ -150,133 +111,172 @@
           ]
         },
         {
-          "providerKey": "eon",
-          "providerLabel": "E.ON",
+          "providerKey": "illum",
+          "providerLabel": "Illumia",
           "commodity": "luce",
           "tipo": "fisso",
-          "nome": "E.ON LuceClickVerde",
-          "codice": "000362ESFML01XXL616S2D000000A000",
-          "prezzo": 0.1075,
-          "quotaFissaAnnua": 109.2311,
+          "nome": "Over 50 Super Tenace 36",
+          "codice": "000155ESFML03XXZZ04000Z260611E01",
+          "prezzo": 0.0681,
+          "quotaFissaAnnua": 168,
           "reasons": [
-            "offerta scaduta"
+            "fuori perimetro privato standard: vulnerabili/eta"
           ]
         },
         {
-          "providerKey": "eon",
-          "providerLabel": "E.ON",
+          "providerKey": "illum",
+          "providerLabel": "Illumia",
           "commodity": "luce",
           "tipo": "fisso",
-          "nome": "E.ON LuceClick biorariaVerde",
-          "codice": "000362ESFFL01XXL626S2D000000A000",
-          "prezzo": 0.10795,
-          "quotaFissaAnnua": 109.2311,
+          "nome": "Under Super Tenace 36",
+          "codice": "000155ESFML04XXZZ03780Z260611E01",
+          "prezzo": 0.0703,
+          "quotaFissaAnnua": 168,
           "reasons": [
-            "offerta scaduta"
+            "fuori perimetro privato standard: vulnerabili/eta"
           ]
         },
         {
-          "providerKey": "eon",
-          "providerLabel": "E.ON",
+          "providerKey": "illum",
+          "providerLabel": "Illumia",
           "commodity": "luce",
           "tipo": "fisso",
-          "nome": "E.ON Luce Insieme",
-          "codice": "000362DSFML01XXZA16S2D000000A000",
-          "prezzo": 0.1119,
-          "quotaFissaAnnua": 109.2311,
+          "nome": "Under Tenace 12",
+          "codice": "000155ESFML02XXZZ05991Z260611E01",
+          "prezzo": 0.078,
+          "quotaFissaAnnua": 168,
           "reasons": [
-            "offerta scaduta"
+            "fuori perimetro privato standard: vulnerabili/eta"
           ]
         },
         {
-          "providerKey": "eon",
-          "providerLabel": "E.ON",
+          "providerKey": "illum",
+          "providerLabel": "Illumia",
           "commodity": "luce",
           "tipo": "fisso",
-          "nome": "E.ON Luce Chiara Click",
-          "codice": "000362ESFML01XXLW16S2DD00000A000",
-          "prezzo": 0.1125,
-          "quotaFissaAnnua": 109.2311,
+          "nome": "Over 50 Super Tenace 36",
+          "codice": "000155ESFFL03XXZZ04000Z260611E03",
+          "prezzo": 0.10159,
+          "quotaFissaAnnua": 168,
           "reasons": [
-            "offerta scaduta"
+            "fuori perimetro privato standard: vulnerabili/eta"
           ]
         },
         {
-          "providerKey": "eon",
-          "providerLabel": "E.ON",
+          "providerKey": "illum",
+          "providerLabel": "Illumia",
           "commodity": "luce",
           "tipo": "fisso",
-          "nome": "E.ON Luce Premia",
-          "codice": "000362ESFML01XXZL16S2DCB0000A000",
-          "prezzo": 0.1185,
-          "quotaFissaAnnua": 109.2311,
+          "nome": "Under Super Tenace 36",
+          "codice": "000155ESFFL04XXZZ03780Z260611E03",
+          "prezzo": 0.10489,
+          "quotaFissaAnnua": 168,
           "reasons": [
-            "offerta scaduta"
+            "fuori perimetro privato standard: vulnerabili/eta"
           ]
         },
         {
-          "providerKey": "eon",
-          "providerLabel": "E.ON",
+          "providerKey": "illum",
+          "providerLabel": "Illumia",
           "commodity": "luce",
           "tipo": "fisso",
-          "nome": "E.ON LuceClick - Amico new",
-          "codice": "000362ESFML01XXL616S2DA00000A000",
-          "prezzo": 0.1185,
-          "quotaFissaAnnua": 109.2311,
+          "nome": "Under Tenace 12",
+          "codice": "000155ESFFL02XXZZ05991Z260611E03",
+          "prezzo": 0.11644,
+          "quotaFissaAnnua": 168,
           "reasons": [
-            "offerta scaduta"
+            "fuori perimetro privato standard: vulnerabili/eta"
           ]
         },
         {
-          "providerKey": "eon",
-          "providerLabel": "E.ON",
-          "commodity": "luce",
+          "providerKey": "axpo",
+          "providerLabel": "Axpo Energia",
+          "commodity": "gas",
           "tipo": "fisso",
-          "nome": "E.ON Libera Luce",
-          "codice": "000362ESFML01XXLS16S2D000000X000",
-          "prezzo": 0.136,
-          "quotaFissaAnnua": 69.2711,
+          "nome": "Scegli Sereno GAS 2.0",
+          "codice": "000099GSFML07XXAXPOIXFIX87482607",
+          "prezzo": 0.19768,
+          "quotaFissaAnnua": 144,
           "reasons": [
-            "offerta scaduta"
+            "prezzo gas fisso anomalo per profilo privato standard"
           ]
         },
         {
-          "providerKey": "eon",
-          "providerLabel": "E.ON",
-          "commodity": "luce",
+          "providerKey": "axpo",
+          "providerLabel": "Axpo Energia",
+          "commodity": "gas",
           "tipo": "fisso",
-          "nome": "E.ON Luce Chiara Light",
-          "codice": "000362ESFML01XXLW16S2D000000A000",
-          "prezzo": 0.1433,
-          "quotaFissaAnnua": 121.2311,
+          "nome": "Scegli Sereno GAS 2.0 Light",
+          "codice": "000099GSFML07XXAXPOIXFIX87262607",
+          "prezzo": 0.22516,
+          "quotaFissaAnnua": 156,
           "reasons": [
-            "offerta scaduta"
+            "prezzo gas fisso anomalo per profilo privato standard"
           ]
         },
         {
-          "providerKey": "eon",
-          "providerLabel": "E.ON",
-          "commodity": "luce",
+          "providerKey": "eco",
+          "providerLabel": "E.CO Energia Corrente",
+          "commodity": "gas",
           "tipo": "fisso",
-          "nome": "E.ON Luce Tua",
-          "codice": "000362ESFML01XXLS16S2D000000A000",
-          "prezzo": 0.1442,
-          "quotaFissaAnnua": 121.2311,
+          "nome": "E.CO Gas Prezzo Relax BUS",
+          "codice": "000742GSFML01XXRELAXFIX260731B01",
+          "prezzo": 0.54,
+          "quotaFissaAnnua": 180,
           "reasons": [
-            "offerta scaduta"
+            "fuori perimetro privato: business/P.IVA"
           ]
         },
         {
-          "providerKey": "eon",
-          "providerLabel": "E.ON",
-          "commodity": "luce",
+          "providerKey": "eco",
+          "providerLabel": "E.CO Energia Corrente",
+          "commodity": "gas",
           "tipo": "fisso",
-          "nome": "E.ON Luce Casa Per 24",
-          "codice": "000362ESFML01XXZL16S2DACR000C000",
-          "prezzo": 0.1354,
-          "quotaFissaAnnua": 145.2311,
+          "nome": "E.CO Gas Prezzo Relax BUS LINK",
+          "codice": "000742GSFML01XXRELREFIX260731B01",
+          "prezzo": 0.54,
+          "quotaFissaAnnua": 192,
           "reasons": [
-            "offerta scaduta"
+            "fuori perimetro privato: business/P.IVA"
+          ]
+        },
+        {
+          "providerKey": "eco",
+          "providerLabel": "E.CO Energia Corrente",
+          "commodity": "gas",
+          "tipo": "fisso",
+          "nome": "E.CO Gas Prezzo Chiaro BUS",
+          "codice": "000742GSFML01XXCHIAROFX260731B01",
+          "prezzo": 0.52,
+          "quotaFissaAnnua": 300,
+          "reasons": [
+            "fuori perimetro privato: business/P.IVA"
+          ]
+        },
+        {
+          "providerKey": "eco",
+          "providerLabel": "E.CO Energia Corrente",
+          "commodity": "gas",
+          "tipo": "fisso",
+          "nome": "E.CO Gas Prezzo Chiaro BUS LINK",
+          "codice": "000742GSFML01XXCHIAREFX260731B01",
+          "prezzo": 0.52,
+          "quotaFissaAnnua": 312,
+          "reasons": [
+            "fuori perimetro privato: business/P.IVA"
+          ]
+        },
+        {
+          "providerKey": "illum",
+          "providerLabel": "Illumia",
+          "commodity": "gas",
+          "tipo": "fisso",
+          "nome": "Under Blindato Gas 36",
+          "codice": "000155GSFML03XXZZZZ05085Z260611G",
+          "prezzo": 0.589,
+          "quotaFissaAnnua": 118.8,
+          "reasons": [
+            "fuori perimetro privato standard: vulnerabili/eta"
           ]
         }
       ],
@@ -304,24 +304,24 @@
         },
         {
           "rank": 2,
-          "provider": "Octopus Energy",
-          "totale": 777.76,
-          "costoVariabile": 621.76,
-          "costoFisso": 156,
+          "provider": "Acea Energia",
+          "totale": 769.3,
+          "costoVariabile": 547.3,
+          "costoFisso": 222,
           "luce": {
-            "nome": "Octopus Fissa 12M",
-            "prezzo": 0.1188,
-            "quotaFissaAnnua": 72,
+            "nome": "Acea Energia Fix",
+            "prezzo": 0.099,
+            "quotaFissaAnnua": 111,
             "qualitaPrezzo": "puntuale"
           },
           "gas": {
-            "nome": "Octopus Fissa 12M Gas",
-            "prezzo": 0.43,
-            "quotaFissaAnnua": 84,
+            "nome": "Acea Energia Fix",
+            "prezzo": 0.4,
+            "quotaFissaAnnua": 111,
             "qualitaPrezzo": "puntuale"
           },
-          "commercialStatus": "affiliazione_in_attesa",
-          "commercialLabel": "affiliazione in attesa"
+          "commercialStatus": "solo_confronto",
+          "commercialLabel": "solo confronto"
         },
         {
           "rank": 3,
@@ -367,24 +367,24 @@
         },
         {
           "rank": 5,
-          "provider": "Alperia",
-          "totale": 831.69,
-          "costoVariabile": 592.29,
-          "costoFisso": 239.4,
+          "provider": "Iren Luce e Gas",
+          "totale": 812.92,
+          "costoVariabile": 569.92,
+          "costoFisso": 243,
           "luce": {
-            "nome": "Alperia Smile Easy Summer",
-            "prezzo": 0.1027,
-            "quotaFissaAnnua": 95.4,
+            "nome": "IREN PRIMA SCELTA LUCE FISSA",
+            "prezzo": 0.0996,
+            "quotaFissaAnnua": 123,
             "qualitaPrezzo": "puntuale"
           },
           "gas": {
-            "nome": "Alperia Gas Smile Start",
-            "prezzo": 0.45,
-            "quotaFissaAnnua": 144,
+            "nome": "IREN PRIMA SCELTA GAS",
+            "prezzo": 0.43,
+            "quotaFissaAnnua": 120,
             "qualitaPrezzo": "puntuale"
           },
-          "commercialStatus": "attivabile_online",
-          "commercialLabel": "attivabile online"
+          "commercialStatus": "solo_confronto",
+          "commercialLabel": "solo confronto"
         }
       ]
     },
@@ -393,8 +393,8 @@
       "label": "Privato medio - dual fuel - prezzo variabile",
       "tipo": "variabile",
       "fornitura": "dual",
-      "providerCount": 18,
-      "excludedCount": 40,
+      "providerCount": 21,
+      "excludedCount": 12,
       "excludedExamples": [
         {
           "providerKey": "acea",
@@ -446,84 +446,6 @@
           "quotaFissaAnnua": 252,
           "reasons": [
             "fuori perimetro privato standard: vulnerabili/eta"
-          ]
-        },
-        {
-          "providerKey": "eon",
-          "providerLabel": "E.ON",
-          "commodity": "luce",
-          "tipo": "variabile",
-          "nome": "E.ON Luce Drive Smarty",
-          "codice": "000362ESVFL01XXZY36S2DDS0000A000",
-          "prezzo": 0.12191792,
-          "quotaFissaAnnua": 121.2311,
-          "reasons": [
-            "offerta scaduta"
-          ]
-        },
-        {
-          "providerKey": "eon",
-          "providerLabel": "E.ON",
-          "commodity": "luce",
-          "tipo": "variabile",
-          "nome": "E.ON FlexClick Luce - PROMO",
-          "codice": "000362ESVFL01XXZG36S2DFLXD00A000",
-          "prezzo": 0.12815126,
-          "quotaFissaAnnua": 109.2311,
-          "reasons": [
-            "offerta scaduta"
-          ]
-        },
-        {
-          "providerKey": "eon",
-          "providerLabel": "E.ON",
-          "commodity": "luce",
-          "tipo": "variabile",
-          "nome": "E.ON Flex Luce",
-          "codice": "000362ESVFL01XXZG36S2DFLX000C000",
-          "prezzo": 0.14025126,
-          "quotaFissaAnnua": 121.2311,
-          "reasons": [
-            "offerta scaduta"
-          ]
-        },
-        {
-          "providerKey": "eon",
-          "providerLabel": "E.ON",
-          "commodity": "luce",
-          "tipo": "variabile",
-          "nome": "E.ON FreeComfort Luce Casa",
-          "codice": "000362ESVFL01XXZG36S2DACRFC0A000",
-          "prezzo": 0.12915126,
-          "quotaFissaAnnua": 157.2311,
-          "reasons": [
-            "offerta scaduta"
-          ]
-        },
-        {
-          "providerKey": "eon",
-          "providerLabel": "E.ON",
-          "commodity": "luce",
-          "tipo": "variabile",
-          "nome": "E.ON Flex Luce Per 24",
-          "codice": "000362ESVFL01XXZJ36S2DRI0000D000",
-          "prezzo": 0.14585126,
-          "quotaFissaAnnua": 121.2311,
-          "reasons": [
-            "offerta scaduta"
-          ]
-        },
-        {
-          "providerKey": "eon",
-          "providerLabel": "E.ON",
-          "commodity": "luce",
-          "tipo": "variabile",
-          "nome": "E.ON Flex Luce Casa",
-          "codice": "000362ESVFL01XXZG36S2DACR000E000",
-          "prezzo": 0.14745126,
-          "quotaFissaAnnua": 145.2311,
-          "reasons": [
-            "offerta scaduta"
           ]
         },
         {
@@ -592,68 +514,42 @@
           ]
         },
         {
-          "providerKey": "optima",
-          "providerLabel": "Optima Italia",
-          "commodity": "luce",
+          "providerKey": "eco",
+          "providerLabel": "E.CO Energia Corrente",
+          "commodity": "gas",
           "tipo": "variabile",
-          "nome": "Optima Solution",
-          "codice": "002626ESVOL01XX2119X2703OOOOOOOO",
-          "prezzo": 0.15760126,
-          "quotaFissaAnnua": 300,
+          "nome": "E.CO Gas Sostanza Gold",
+          "codice": "000742GSVML01XXSOSTGOLD260930B01",
+          "prezzo": 0.64441905,
+          "quotaFissaAnnua": 240,
           "reasons": [
-            "offerta scaduta"
+            "fuori perimetro privato standard: vulnerabili/eta"
           ]
         },
         {
-          "providerKey": "vivi",
-          "providerLabel": "Vivi Energia",
-          "commodity": "luce",
+          "providerKey": "eco",
+          "providerLabel": "E.CO Energia Corrente",
+          "commodity": "gas",
           "tipo": "variabile",
-          "nome": "VIVIweb Allday Flex Luce",
-          "codice": "000652ESFFL38XXVWEBALLDAYE260626",
-          "prezzo": 0.13335126,
-          "quotaFissaAnnua": 120,
+          "nome": "E.CO Gas Sostanza Gold LINK",
+          "codice": "000742GSVML01XXSTGLDREF260930B01",
+          "prezzo": 0.64441905,
+          "quotaFissaAnnua": 252,
           "reasons": [
-            "offerta scaduta"
+            "fuori perimetro privato standard: vulnerabili/eta"
           ]
         },
         {
-          "providerKey": "vivi",
-          "providerLabel": "Vivi Energia",
-          "commodity": "luce",
+          "providerKey": "illum",
+          "providerLabel": "Illumia",
+          "commodity": "gas",
           "tipo": "variabile",
-          "nome": "VIVIweb Allday Flex Lucegas",
-          "codice": "000652ESFFL38XXVWEBALLDAYD260626",
-          "prezzo": 0.13335126,
-          "quotaFissaAnnua": 120,
+          "nome": "Under Limpido Gas",
+          "codice": "000155GSVML15XXZZZZ03527Z260611G",
+          "prezzo": 0.63341905,
+          "quotaFissaAnnua": 118.8,
           "reasons": [
-            "offerta scaduta"
-          ]
-        },
-        {
-          "providerKey": "vivi",
-          "providerLabel": "Vivi Energia",
-          "commodity": "luce",
-          "tipo": "variabile",
-          "nome": "VIVIweb Allday Flex24 Luce",
-          "codice": "000652ESVML02XXVWEBALLDABE010726",
-          "prezzo": 0.13335126,
-          "quotaFissaAnnua": 120,
-          "reasons": [
-            "offerta scaduta"
-          ]
-        },
-        {
-          "providerKey": "vivi",
-          "providerLabel": "Vivi Energia",
-          "commodity": "luce",
-          "tipo": "variabile",
-          "nome": "VIVIweb Allday Flex24 Lucegas",
-          "codice": "000652ESVML02XXVWEBALLDABD010726",
-          "prezzo": 0.13335126,
-          "quotaFissaAnnua": 120,
-          "reasons": [
-            "offerta scaduta"
+            "fuori perimetro privato standard: vulnerabili/eta"
           ]
         }
       ],
@@ -723,6 +619,27 @@
         },
         {
           "rank": 4,
+          "provider": "Engie",
+          "totale": 871.01,
+          "costoVariabile": 753.01,
+          "costoFisso": 118,
+          "luce": {
+            "nome": "Energia VedoChiaro",
+            "prezzo": 0.12735126,
+            "quotaFissaAnnua": 59,
+            "qualitaPrezzo": "puntuale_pun_fallback"
+          },
+          "gas": {
+            "nome": "Energia VedoChiaro",
+            "prezzo": 0.53441905,
+            "quotaFissaAnnua": 59,
+            "qualitaPrezzo": "puntuale_psv_fallback"
+          },
+          "commercialStatus": "solo_confronto",
+          "commercialLabel": "solo confronto"
+        },
+        {
+          "rank": 5,
           "provider": "Octopus Energy",
           "totale": 932.39,
           "costoVariabile": 776.39,
@@ -741,27 +658,6 @@
           },
           "commercialStatus": "affiliazione_in_attesa",
           "commercialLabel": "affiliazione in attesa"
-        },
-        {
-          "rank": 5,
-          "provider": "Engie",
-          "totale": 934.71,
-          "costoVariabile": 760.71,
-          "costoFisso": 174,
-          "luce": {
-            "nome": "Taaanta Energia",
-            "prezzo": 0.11935126,
-            "quotaFissaAnnua": 96,
-            "qualitaPrezzo": "puntuale_pun_fallback"
-          },
-          "gas": {
-            "nome": "Benvenuto in ENGIE",
-            "prezzo": 0.57941905,
-            "quotaFissaAnnua": 78,
-            "qualitaPrezzo": "puntuale_psv_fallback"
-          },
-          "commercialStatus": "solo_confronto",
-          "commercialLabel": "solo confronto"
         }
       ]
     },
@@ -770,8 +666,8 @@
       "label": "Privato alto consumo - dual fuel - prezzo fisso",
       "tipo": "fisso",
       "fornitura": "dual",
-      "providerCount": 16,
-      "excludedCount": 89,
+      "providerCount": 20,
+      "excludedCount": 21,
       "excludedExamples": [
         {
           "providerKey": "a2a",
@@ -784,32 +680,6 @@
           "quotaFissaAnnua": 72,
           "reasons": [
             "fornitore non coerente: offerta sembra nen, ma providerKey e a2a"
-          ]
-        },
-        {
-          "providerKey": "acea",
-          "providerLabel": "Acea Energia",
-          "commodity": "luce",
-          "tipo": "fisso",
-          "nome": "Acea Energia Fix",
-          "codice": "000774ESFML01XXRT4D4027760000000",
-          "prezzo": 0.125,
-          "quotaFissaAnnua": 90,
-          "reasons": [
-            "offerta scaduta"
-          ]
-        },
-        {
-          "providerKey": "acea",
-          "providerLabel": "Acea Energia",
-          "commodity": "luce",
-          "tipo": "fisso",
-          "nome": "Acea Energia Fix",
-          "codice": "000774ESFFL01XXRT4D4027760000000",
-          "prezzo": 0.12566667,
-          "quotaFissaAnnua": 90,
-          "reasons": [
-            "offerta scaduta"
           ]
         },
         {
@@ -882,19 +752,6 @@
           "providerLabel": "Enel Energia",
           "commodity": "luce",
           "tipo": "fisso",
-          "nome": "Enel Fix Web Luce",
-          "codice": "000142ESFML01XXResECAn0000115810",
-          "prezzo": 0.1495,
-          "quotaFissaAnnua": 144,
-          "reasons": [
-            "offerta scaduta"
-          ]
-        },
-        {
-          "providerKey": "enel",
-          "providerLabel": "Enel Energia",
-          "commodity": "luce",
-          "tipo": "fisso",
           "nome": "Enel Seconda Casa Luce",
           "codice": "000142ESFML01XXResECAn0000115913",
           "prezzo": 0.174,
@@ -904,133 +761,172 @@
           ]
         },
         {
-          "providerKey": "eon",
-          "providerLabel": "E.ON",
+          "providerKey": "illum",
+          "providerLabel": "Illumia",
           "commodity": "luce",
           "tipo": "fisso",
-          "nome": "E.ON LuceClickVerde",
-          "codice": "000362ESFML01XXL616S2D000000A000",
-          "prezzo": 0.1075,
-          "quotaFissaAnnua": 109.2311,
+          "nome": "Over 50 Super Tenace 36",
+          "codice": "000155ESFML03XXZZ04000Z260611E01",
+          "prezzo": 0.0681,
+          "quotaFissaAnnua": 168,
           "reasons": [
-            "offerta scaduta"
+            "fuori perimetro privato standard: vulnerabili/eta"
           ]
         },
         {
-          "providerKey": "eon",
-          "providerLabel": "E.ON",
+          "providerKey": "illum",
+          "providerLabel": "Illumia",
           "commodity": "luce",
           "tipo": "fisso",
-          "nome": "E.ON LuceClick biorariaVerde",
-          "codice": "000362ESFFL01XXL626S2D000000A000",
-          "prezzo": 0.10795,
-          "quotaFissaAnnua": 109.2311,
+          "nome": "Under Super Tenace 36",
+          "codice": "000155ESFML04XXZZ03780Z260611E01",
+          "prezzo": 0.0703,
+          "quotaFissaAnnua": 168,
           "reasons": [
-            "offerta scaduta"
+            "fuori perimetro privato standard: vulnerabili/eta"
           ]
         },
         {
-          "providerKey": "eon",
-          "providerLabel": "E.ON",
+          "providerKey": "illum",
+          "providerLabel": "Illumia",
           "commodity": "luce",
           "tipo": "fisso",
-          "nome": "E.ON Luce Insieme",
-          "codice": "000362DSFML01XXZA16S2D000000A000",
-          "prezzo": 0.1119,
-          "quotaFissaAnnua": 109.2311,
+          "nome": "Under Tenace 12",
+          "codice": "000155ESFML02XXZZ05991Z260611E01",
+          "prezzo": 0.078,
+          "quotaFissaAnnua": 168,
           "reasons": [
-            "offerta scaduta"
+            "fuori perimetro privato standard: vulnerabili/eta"
           ]
         },
         {
-          "providerKey": "eon",
-          "providerLabel": "E.ON",
+          "providerKey": "illum",
+          "providerLabel": "Illumia",
           "commodity": "luce",
           "tipo": "fisso",
-          "nome": "E.ON Luce Chiara Click",
-          "codice": "000362ESFML01XXLW16S2DD00000A000",
-          "prezzo": 0.1125,
-          "quotaFissaAnnua": 109.2311,
+          "nome": "Over 50 Super Tenace 36",
+          "codice": "000155ESFFL03XXZZ04000Z260611E03",
+          "prezzo": 0.10159,
+          "quotaFissaAnnua": 168,
           "reasons": [
-            "offerta scaduta"
+            "fuori perimetro privato standard: vulnerabili/eta"
           ]
         },
         {
-          "providerKey": "eon",
-          "providerLabel": "E.ON",
+          "providerKey": "illum",
+          "providerLabel": "Illumia",
           "commodity": "luce",
           "tipo": "fisso",
-          "nome": "E.ON Luce Premia",
-          "codice": "000362ESFML01XXZL16S2DCB0000A000",
-          "prezzo": 0.1185,
-          "quotaFissaAnnua": 109.2311,
+          "nome": "Under Super Tenace 36",
+          "codice": "000155ESFFL04XXZZ03780Z260611E03",
+          "prezzo": 0.10489,
+          "quotaFissaAnnua": 168,
           "reasons": [
-            "offerta scaduta"
+            "fuori perimetro privato standard: vulnerabili/eta"
           ]
         },
         {
-          "providerKey": "eon",
-          "providerLabel": "E.ON",
+          "providerKey": "illum",
+          "providerLabel": "Illumia",
           "commodity": "luce",
           "tipo": "fisso",
-          "nome": "E.ON LuceClick - Amico new",
-          "codice": "000362ESFML01XXL616S2DA00000A000",
-          "prezzo": 0.1185,
-          "quotaFissaAnnua": 109.2311,
+          "nome": "Under Tenace 12",
+          "codice": "000155ESFFL02XXZZ05991Z260611E03",
+          "prezzo": 0.11644,
+          "quotaFissaAnnua": 168,
           "reasons": [
-            "offerta scaduta"
+            "fuori perimetro privato standard: vulnerabili/eta"
           ]
         },
         {
-          "providerKey": "eon",
-          "providerLabel": "E.ON",
-          "commodity": "luce",
+          "providerKey": "axpo",
+          "providerLabel": "Axpo Energia",
+          "commodity": "gas",
           "tipo": "fisso",
-          "nome": "E.ON Libera Luce",
-          "codice": "000362ESFML01XXLS16S2D000000X000",
-          "prezzo": 0.136,
-          "quotaFissaAnnua": 69.2711,
+          "nome": "Scegli Sereno GAS 2.0",
+          "codice": "000099GSFML07XXAXPOIXFIX87482607",
+          "prezzo": 0.19768,
+          "quotaFissaAnnua": 144,
           "reasons": [
-            "offerta scaduta"
+            "prezzo gas fisso anomalo per profilo privato standard"
           ]
         },
         {
-          "providerKey": "eon",
-          "providerLabel": "E.ON",
-          "commodity": "luce",
+          "providerKey": "axpo",
+          "providerLabel": "Axpo Energia",
+          "commodity": "gas",
           "tipo": "fisso",
-          "nome": "E.ON Luce Chiara Light",
-          "codice": "000362ESFML01XXLW16S2D000000A000",
-          "prezzo": 0.1433,
-          "quotaFissaAnnua": 121.2311,
+          "nome": "Scegli Sereno GAS 2.0 Light",
+          "codice": "000099GSFML07XXAXPOIXFIX87262607",
+          "prezzo": 0.22516,
+          "quotaFissaAnnua": 156,
           "reasons": [
-            "offerta scaduta"
+            "prezzo gas fisso anomalo per profilo privato standard"
           ]
         },
         {
-          "providerKey": "eon",
-          "providerLabel": "E.ON",
-          "commodity": "luce",
+          "providerKey": "eco",
+          "providerLabel": "E.CO Energia Corrente",
+          "commodity": "gas",
           "tipo": "fisso",
-          "nome": "E.ON Luce Tua",
-          "codice": "000362ESFML01XXLS16S2D000000A000",
-          "prezzo": 0.1442,
-          "quotaFissaAnnua": 121.2311,
+          "nome": "E.CO Gas Prezzo Relax BUS",
+          "codice": "000742GSFML01XXRELAXFIX260731B01",
+          "prezzo": 0.54,
+          "quotaFissaAnnua": 180,
           "reasons": [
-            "offerta scaduta"
+            "fuori perimetro privato: business/P.IVA"
           ]
         },
         {
-          "providerKey": "eon",
-          "providerLabel": "E.ON",
-          "commodity": "luce",
+          "providerKey": "eco",
+          "providerLabel": "E.CO Energia Corrente",
+          "commodity": "gas",
           "tipo": "fisso",
-          "nome": "E.ON Luce Casa Per 24",
-          "codice": "000362ESFML01XXZL16S2DACR000C000",
-          "prezzo": 0.1354,
-          "quotaFissaAnnua": 145.2311,
+          "nome": "E.CO Gas Prezzo Relax BUS LINK",
+          "codice": "000742GSFML01XXRELREFIX260731B01",
+          "prezzo": 0.54,
+          "quotaFissaAnnua": 192,
           "reasons": [
-            "offerta scaduta"
+            "fuori perimetro privato: business/P.IVA"
+          ]
+        },
+        {
+          "providerKey": "eco",
+          "providerLabel": "E.CO Energia Corrente",
+          "commodity": "gas",
+          "tipo": "fisso",
+          "nome": "E.CO Gas Prezzo Chiaro BUS",
+          "codice": "000742GSFML01XXCHIAROFX260731B01",
+          "prezzo": 0.52,
+          "quotaFissaAnnua": 300,
+          "reasons": [
+            "fuori perimetro privato: business/P.IVA"
+          ]
+        },
+        {
+          "providerKey": "eco",
+          "providerLabel": "E.CO Energia Corrente",
+          "commodity": "gas",
+          "tipo": "fisso",
+          "nome": "E.CO Gas Prezzo Chiaro BUS LINK",
+          "codice": "000742GSFML01XXCHIAREFX260731B01",
+          "prezzo": 0.52,
+          "quotaFissaAnnua": 312,
+          "reasons": [
+            "fuori perimetro privato: business/P.IVA"
+          ]
+        },
+        {
+          "providerKey": "illum",
+          "providerLabel": "Illumia",
+          "commodity": "gas",
+          "tipo": "fisso",
+          "nome": "Under Blindato Gas 36",
+          "codice": "000155GSFML03XXZZZZ05085Z260611G",
+          "prezzo": 0.589,
+          "quotaFissaAnnua": 118.8,
+          "reasons": [
+            "fuori perimetro privato standard: vulnerabili/eta"
           ]
         }
       ],
@@ -1058,24 +954,24 @@
         },
         {
           "rank": 2,
-          "provider": "Octopus Energy",
-          "totale": 1147.2,
-          "costoVariabile": 991.2,
-          "costoFisso": 156,
+          "provider": "Acea Energia",
+          "totale": 1098,
+          "costoVariabile": 876,
+          "costoFisso": 222,
           "luce": {
-            "nome": "Octopus Fissa 12M",
-            "prezzo": 0.1188,
-            "quotaFissaAnnua": 72,
+            "nome": "Acea Energia Fix",
+            "prezzo": 0.099,
+            "quotaFissaAnnua": 111,
             "qualitaPrezzo": "puntuale"
           },
           "gas": {
-            "nome": "Octopus Fissa 12M Gas",
-            "prezzo": 0.43,
-            "quotaFissaAnnua": 84,
+            "nome": "Acea Energia Fix",
+            "prezzo": 0.4,
+            "quotaFissaAnnua": 111,
             "qualitaPrezzo": "puntuale"
           },
-          "commercialStatus": "affiliazione_in_attesa",
-          "commercialLabel": "affiliazione in attesa"
+          "commercialStatus": "solo_confronto",
+          "commercialLabel": "solo confronto"
         },
         {
           "rank": 3,
@@ -1100,6 +996,27 @@
         },
         {
           "rank": 4,
+          "provider": "Iren Luce e Gas",
+          "totale": 1157.4,
+          "costoVariabile": 914.4,
+          "costoFisso": 243,
+          "luce": {
+            "nome": "IREN PRIMA SCELTA LUCE FISSA",
+            "prezzo": 0.0996,
+            "quotaFissaAnnua": 123,
+            "qualitaPrezzo": "puntuale"
+          },
+          "gas": {
+            "nome": "IREN PRIMA SCELTA GAS",
+            "prezzo": 0.43,
+            "quotaFissaAnnua": 120,
+            "qualitaPrezzo": "puntuale"
+          },
+          "commercialStatus": "solo_confronto",
+          "commercialLabel": "solo confronto"
+        },
+        {
+          "rank": 5,
           "provider": "Engie",
           "totale": 1187.8,
           "costoVariabile": 1031.8,
@@ -1118,27 +1035,6 @@
           },
           "commercialStatus": "solo_confronto",
           "commercialLabel": "solo confronto"
-        },
-        {
-          "rank": 5,
-          "provider": "Alperia",
-          "totale": 1190.2,
-          "costoVariabile": 950.8,
-          "costoFisso": 239.4,
-          "luce": {
-            "nome": "Alperia Smile Easy Summer",
-            "prezzo": 0.1027,
-            "quotaFissaAnnua": 95.4,
-            "qualitaPrezzo": "puntuale"
-          },
-          "gas": {
-            "nome": "Alperia Gas Smile Start",
-            "prezzo": 0.45,
-            "quotaFissaAnnua": 144,
-            "qualitaPrezzo": "puntuale"
-          },
-          "commercialStatus": "attivabile_online",
-          "commercialLabel": "attivabile online"
         }
       ]
     },
@@ -1147,8 +1043,8 @@
       "label": "Privato medio - forniture separate - prezzo fisso",
       "tipo": "fisso",
       "fornitura": "separata",
-      "providerCount": 19,
-      "excludedCount": 89,
+      "providerCount": 22,
+      "excludedCount": 21,
       "excludedExamples": [
         {
           "providerKey": "a2a",
@@ -1161,32 +1057,6 @@
           "quotaFissaAnnua": 72,
           "reasons": [
             "fornitore non coerente: offerta sembra nen, ma providerKey e a2a"
-          ]
-        },
-        {
-          "providerKey": "acea",
-          "providerLabel": "Acea Energia",
-          "commodity": "luce",
-          "tipo": "fisso",
-          "nome": "Acea Energia Fix",
-          "codice": "000774ESFML01XXRT4D4027760000000",
-          "prezzo": 0.125,
-          "quotaFissaAnnua": 90,
-          "reasons": [
-            "offerta scaduta"
-          ]
-        },
-        {
-          "providerKey": "acea",
-          "providerLabel": "Acea Energia",
-          "commodity": "luce",
-          "tipo": "fisso",
-          "nome": "Acea Energia Fix",
-          "codice": "000774ESFFL01XXRT4D4027760000000",
-          "prezzo": 0.12566667,
-          "quotaFissaAnnua": 90,
-          "reasons": [
-            "offerta scaduta"
           ]
         },
         {
@@ -1259,19 +1129,6 @@
           "providerLabel": "Enel Energia",
           "commodity": "luce",
           "tipo": "fisso",
-          "nome": "Enel Fix Web Luce",
-          "codice": "000142ESFML01XXResECAn0000115810",
-          "prezzo": 0.1495,
-          "quotaFissaAnnua": 144,
-          "reasons": [
-            "offerta scaduta"
-          ]
-        },
-        {
-          "providerKey": "enel",
-          "providerLabel": "Enel Energia",
-          "commodity": "luce",
-          "tipo": "fisso",
           "nome": "Enel Seconda Casa Luce",
           "codice": "000142ESFML01XXResECAn0000115913",
           "prezzo": 0.174,
@@ -1281,143 +1138,182 @@
           ]
         },
         {
-          "providerKey": "eon",
-          "providerLabel": "E.ON",
+          "providerKey": "illum",
+          "providerLabel": "Illumia",
           "commodity": "luce",
           "tipo": "fisso",
-          "nome": "E.ON LuceClickVerde",
-          "codice": "000362ESFML01XXL616S2D000000A000",
-          "prezzo": 0.1075,
-          "quotaFissaAnnua": 109.2311,
+          "nome": "Over 50 Super Tenace 36",
+          "codice": "000155ESFML03XXZZ04000Z260611E01",
+          "prezzo": 0.0681,
+          "quotaFissaAnnua": 168,
           "reasons": [
-            "offerta scaduta"
+            "fuori perimetro privato standard: vulnerabili/eta"
           ]
         },
         {
-          "providerKey": "eon",
-          "providerLabel": "E.ON",
+          "providerKey": "illum",
+          "providerLabel": "Illumia",
           "commodity": "luce",
           "tipo": "fisso",
-          "nome": "E.ON LuceClick biorariaVerde",
-          "codice": "000362ESFFL01XXL626S2D000000A000",
-          "prezzo": 0.10795,
-          "quotaFissaAnnua": 109.2311,
+          "nome": "Under Super Tenace 36",
+          "codice": "000155ESFML04XXZZ03780Z260611E01",
+          "prezzo": 0.0703,
+          "quotaFissaAnnua": 168,
           "reasons": [
-            "offerta scaduta"
+            "fuori perimetro privato standard: vulnerabili/eta"
           ]
         },
         {
-          "providerKey": "eon",
-          "providerLabel": "E.ON",
+          "providerKey": "illum",
+          "providerLabel": "Illumia",
           "commodity": "luce",
           "tipo": "fisso",
-          "nome": "E.ON Luce Insieme",
-          "codice": "000362DSFML01XXZA16S2D000000A000",
-          "prezzo": 0.1119,
-          "quotaFissaAnnua": 109.2311,
+          "nome": "Under Tenace 12",
+          "codice": "000155ESFML02XXZZ05991Z260611E01",
+          "prezzo": 0.078,
+          "quotaFissaAnnua": 168,
           "reasons": [
-            "offerta scaduta"
+            "fuori perimetro privato standard: vulnerabili/eta"
           ]
         },
         {
-          "providerKey": "eon",
-          "providerLabel": "E.ON",
+          "providerKey": "illum",
+          "providerLabel": "Illumia",
           "commodity": "luce",
           "tipo": "fisso",
-          "nome": "E.ON Luce Chiara Click",
-          "codice": "000362ESFML01XXLW16S2DD00000A000",
-          "prezzo": 0.1125,
-          "quotaFissaAnnua": 109.2311,
+          "nome": "Over 50 Super Tenace 36",
+          "codice": "000155ESFFL03XXZZ04000Z260611E03",
+          "prezzo": 0.10159,
+          "quotaFissaAnnua": 168,
           "reasons": [
-            "offerta scaduta"
+            "fuori perimetro privato standard: vulnerabili/eta"
           ]
         },
         {
-          "providerKey": "eon",
-          "providerLabel": "E.ON",
+          "providerKey": "illum",
+          "providerLabel": "Illumia",
           "commodity": "luce",
           "tipo": "fisso",
-          "nome": "E.ON Luce Premia",
-          "codice": "000362ESFML01XXZL16S2DCB0000A000",
-          "prezzo": 0.1185,
-          "quotaFissaAnnua": 109.2311,
+          "nome": "Under Super Tenace 36",
+          "codice": "000155ESFFL04XXZZ03780Z260611E03",
+          "prezzo": 0.10489,
+          "quotaFissaAnnua": 168,
           "reasons": [
-            "offerta scaduta"
+            "fuori perimetro privato standard: vulnerabili/eta"
           ]
         },
         {
-          "providerKey": "eon",
-          "providerLabel": "E.ON",
+          "providerKey": "illum",
+          "providerLabel": "Illumia",
           "commodity": "luce",
           "tipo": "fisso",
-          "nome": "E.ON LuceClick - Amico new",
-          "codice": "000362ESFML01XXL616S2DA00000A000",
-          "prezzo": 0.1185,
-          "quotaFissaAnnua": 109.2311,
+          "nome": "Under Tenace 12",
+          "codice": "000155ESFFL02XXZZ05991Z260611E03",
+          "prezzo": 0.11644,
+          "quotaFissaAnnua": 168,
           "reasons": [
-            "offerta scaduta"
+            "fuori perimetro privato standard: vulnerabili/eta"
           ]
         },
         {
-          "providerKey": "eon",
-          "providerLabel": "E.ON",
-          "commodity": "luce",
+          "providerKey": "axpo",
+          "providerLabel": "Axpo Energia",
+          "commodity": "gas",
           "tipo": "fisso",
-          "nome": "E.ON Libera Luce",
-          "codice": "000362ESFML01XXLS16S2D000000X000",
-          "prezzo": 0.136,
-          "quotaFissaAnnua": 69.2711,
+          "nome": "Scegli Sereno GAS 2.0",
+          "codice": "000099GSFML07XXAXPOIXFIX87482607",
+          "prezzo": 0.19768,
+          "quotaFissaAnnua": 144,
           "reasons": [
-            "offerta scaduta"
+            "prezzo gas fisso anomalo per profilo privato standard"
           ]
         },
         {
-          "providerKey": "eon",
-          "providerLabel": "E.ON",
-          "commodity": "luce",
+          "providerKey": "axpo",
+          "providerLabel": "Axpo Energia",
+          "commodity": "gas",
           "tipo": "fisso",
-          "nome": "E.ON Luce Chiara Light",
-          "codice": "000362ESFML01XXLW16S2D000000A000",
-          "prezzo": 0.1433,
-          "quotaFissaAnnua": 121.2311,
+          "nome": "Scegli Sereno GAS 2.0 Light",
+          "codice": "000099GSFML07XXAXPOIXFIX87262607",
+          "prezzo": 0.22516,
+          "quotaFissaAnnua": 156,
           "reasons": [
-            "offerta scaduta"
+            "prezzo gas fisso anomalo per profilo privato standard"
           ]
         },
         {
-          "providerKey": "eon",
-          "providerLabel": "E.ON",
-          "commodity": "luce",
+          "providerKey": "eco",
+          "providerLabel": "E.CO Energia Corrente",
+          "commodity": "gas",
           "tipo": "fisso",
-          "nome": "E.ON Luce Tua",
-          "codice": "000362ESFML01XXLS16S2D000000A000",
-          "prezzo": 0.1442,
-          "quotaFissaAnnua": 121.2311,
+          "nome": "E.CO Gas Prezzo Relax BUS",
+          "codice": "000742GSFML01XXRELAXFIX260731B01",
+          "prezzo": 0.54,
+          "quotaFissaAnnua": 180,
           "reasons": [
-            "offerta scaduta"
+            "fuori perimetro privato: business/P.IVA"
           ]
         },
         {
-          "providerKey": "eon",
-          "providerLabel": "E.ON",
-          "commodity": "luce",
+          "providerKey": "eco",
+          "providerLabel": "E.CO Energia Corrente",
+          "commodity": "gas",
           "tipo": "fisso",
-          "nome": "E.ON Luce Casa Per 24",
-          "codice": "000362ESFML01XXZL16S2DACR000C000",
-          "prezzo": 0.1354,
-          "quotaFissaAnnua": 145.2311,
+          "nome": "E.CO Gas Prezzo Relax BUS LINK",
+          "codice": "000742GSFML01XXRELREFIX260731B01",
+          "prezzo": 0.54,
+          "quotaFissaAnnua": 192,
           "reasons": [
-            "offerta scaduta"
+            "fuori perimetro privato: business/P.IVA"
+          ]
+        },
+        {
+          "providerKey": "eco",
+          "providerLabel": "E.CO Energia Corrente",
+          "commodity": "gas",
+          "tipo": "fisso",
+          "nome": "E.CO Gas Prezzo Chiaro BUS",
+          "codice": "000742GSFML01XXCHIAROFX260731B01",
+          "prezzo": 0.52,
+          "quotaFissaAnnua": 300,
+          "reasons": [
+            "fuori perimetro privato: business/P.IVA"
+          ]
+        },
+        {
+          "providerKey": "eco",
+          "providerLabel": "E.CO Energia Corrente",
+          "commodity": "gas",
+          "tipo": "fisso",
+          "nome": "E.CO Gas Prezzo Chiaro BUS LINK",
+          "codice": "000742GSFML01XXCHIAREFX260731B01",
+          "prezzo": 0.52,
+          "quotaFissaAnnua": 312,
+          "reasons": [
+            "fuori perimetro privato: business/P.IVA"
+          ]
+        },
+        {
+          "providerKey": "illum",
+          "providerLabel": "Illumia",
+          "commodity": "gas",
+          "tipo": "fisso",
+          "nome": "Under Blindato Gas 36",
+          "codice": "000155GSFML03XXZZZZ05085Z260611G",
+          "prezzo": 0.589,
+          "quotaFissaAnnua": 118.8,
+          "reasons": [
+            "fuori perimetro privato standard: vulnerabili/eta"
           ]
         }
       ],
       "top": [
         {
           "rank": 1,
-          "provider": "Axpo Energia + Octopus Energy",
-          "totale": 707.72,
-          "costoVariabile": 479.72,
-          "costoFisso": 228,
+          "provider": "Axpo Energia + Acea Energia",
+          "totale": 713.72,
+          "costoVariabile": 458.72,
+          "costoFisso": 255,
           "luce": {
             "nome": "Scegli Sereno 2.0 36 Mesi Giorno 3Fasce",
             "prezzo": 0.06619333,
@@ -1425,13 +1321,13 @@
             "qualitaPrezzo": "media_fasce"
           },
           "gas": {
-            "nome": "Octopus Fissa 12M Gas",
-            "prezzo": 0.43,
-            "quotaFissaAnnua": 84,
+            "nome": "Acea Energia Fix",
+            "prezzo": 0.4,
+            "quotaFissaAnnua": 111,
             "qualitaPrezzo": "puntuale"
           },
           "commercialStatus": "separata",
-          "commercialLabel": "solo confronto / affiliazione in attesa"
+          "commercialLabel": "solo confronto / solo confronto"
         },
         {
           "rank": 2,
@@ -1498,24 +1394,24 @@
         },
         {
           "rank": 5,
-          "provider": "Magis Energia + Octopus Energy",
-          "totale": 741.01,
-          "costoVariabile": 561.01,
-          "costoFisso": 180,
+          "provider": "Axpo Energia + Iren Luce e Gas",
+          "totale": 743.72,
+          "costoVariabile": 479.72,
+          "costoFisso": 264,
           "luce": {
-            "nome": "MIA LUCE FIX WEB",
-            "prezzo": 0.0963,
-            "quotaFissaAnnua": 96,
-            "qualitaPrezzo": "puntuale"
+            "nome": "Scegli Sereno 2.0 36 Mesi Giorno 3Fasce",
+            "prezzo": 0.06619333,
+            "quotaFissaAnnua": 144,
+            "qualitaPrezzo": "media_fasce"
           },
           "gas": {
-            "nome": "Octopus Fissa 12M Gas",
+            "nome": "IREN PRIMA SCELTA GAS",
             "prezzo": 0.43,
-            "quotaFissaAnnua": 84,
+            "quotaFissaAnnua": 120,
             "qualitaPrezzo": "puntuale"
           },
           "commercialStatus": "separata",
-          "commercialLabel": "solo confronto / affiliazione in attesa"
+          "commercialLabel": "solo confronto / solo confronto"
         }
       ]
     },
@@ -1524,8 +1420,8 @@
       "label": "Privato medio - forniture separate - prezzo variabile",
       "tipo": "variabile",
       "fornitura": "separata",
-      "providerCount": 19,
-      "excludedCount": 40,
+      "providerCount": 22,
+      "excludedCount": 12,
       "excludedExamples": [
         {
           "providerKey": "acea",
@@ -1577,84 +1473,6 @@
           "quotaFissaAnnua": 252,
           "reasons": [
             "fuori perimetro privato standard: vulnerabili/eta"
-          ]
-        },
-        {
-          "providerKey": "eon",
-          "providerLabel": "E.ON",
-          "commodity": "luce",
-          "tipo": "variabile",
-          "nome": "E.ON Luce Drive Smarty",
-          "codice": "000362ESVFL01XXZY36S2DDS0000A000",
-          "prezzo": 0.12191792,
-          "quotaFissaAnnua": 121.2311,
-          "reasons": [
-            "offerta scaduta"
-          ]
-        },
-        {
-          "providerKey": "eon",
-          "providerLabel": "E.ON",
-          "commodity": "luce",
-          "tipo": "variabile",
-          "nome": "E.ON FlexClick Luce - PROMO",
-          "codice": "000362ESVFL01XXZG36S2DFLXD00A000",
-          "prezzo": 0.12815126,
-          "quotaFissaAnnua": 109.2311,
-          "reasons": [
-            "offerta scaduta"
-          ]
-        },
-        {
-          "providerKey": "eon",
-          "providerLabel": "E.ON",
-          "commodity": "luce",
-          "tipo": "variabile",
-          "nome": "E.ON Flex Luce",
-          "codice": "000362ESVFL01XXZG36S2DFLX000C000",
-          "prezzo": 0.14025126,
-          "quotaFissaAnnua": 121.2311,
-          "reasons": [
-            "offerta scaduta"
-          ]
-        },
-        {
-          "providerKey": "eon",
-          "providerLabel": "E.ON",
-          "commodity": "luce",
-          "tipo": "variabile",
-          "nome": "E.ON FreeComfort Luce Casa",
-          "codice": "000362ESVFL01XXZG36S2DACRFC0A000",
-          "prezzo": 0.12915126,
-          "quotaFissaAnnua": 157.2311,
-          "reasons": [
-            "offerta scaduta"
-          ]
-        },
-        {
-          "providerKey": "eon",
-          "providerLabel": "E.ON",
-          "commodity": "luce",
-          "tipo": "variabile",
-          "nome": "E.ON Flex Luce Per 24",
-          "codice": "000362ESVFL01XXZJ36S2DRI0000D000",
-          "prezzo": 0.14585126,
-          "quotaFissaAnnua": 121.2311,
-          "reasons": [
-            "offerta scaduta"
-          ]
-        },
-        {
-          "providerKey": "eon",
-          "providerLabel": "E.ON",
-          "commodity": "luce",
-          "tipo": "variabile",
-          "nome": "E.ON Flex Luce Casa",
-          "codice": "000362ESVFL01XXZG36S2DACR000E000",
-          "prezzo": 0.14745126,
-          "quotaFissaAnnua": 145.2311,
-          "reasons": [
-            "offerta scaduta"
           ]
         },
         {
@@ -1723,68 +1541,42 @@
           ]
         },
         {
-          "providerKey": "optima",
-          "providerLabel": "Optima Italia",
-          "commodity": "luce",
+          "providerKey": "eco",
+          "providerLabel": "E.CO Energia Corrente",
+          "commodity": "gas",
           "tipo": "variabile",
-          "nome": "Optima Solution",
-          "codice": "002626ESVOL01XX2119X2703OOOOOOOO",
-          "prezzo": 0.15760126,
-          "quotaFissaAnnua": 300,
+          "nome": "E.CO Gas Sostanza Gold",
+          "codice": "000742GSVML01XXSOSTGOLD260930B01",
+          "prezzo": 0.64441905,
+          "quotaFissaAnnua": 240,
           "reasons": [
-            "offerta scaduta"
+            "fuori perimetro privato standard: vulnerabili/eta"
           ]
         },
         {
-          "providerKey": "vivi",
-          "providerLabel": "Vivi Energia",
-          "commodity": "luce",
+          "providerKey": "eco",
+          "providerLabel": "E.CO Energia Corrente",
+          "commodity": "gas",
           "tipo": "variabile",
-          "nome": "VIVIweb Allday Flex Luce",
-          "codice": "000652ESFFL38XXVWEBALLDAYE260626",
-          "prezzo": 0.13335126,
-          "quotaFissaAnnua": 120,
+          "nome": "E.CO Gas Sostanza Gold LINK",
+          "codice": "000742GSVML01XXSTGLDREF260930B01",
+          "prezzo": 0.64441905,
+          "quotaFissaAnnua": 252,
           "reasons": [
-            "offerta scaduta"
+            "fuori perimetro privato standard: vulnerabili/eta"
           ]
         },
         {
-          "providerKey": "vivi",
-          "providerLabel": "Vivi Energia",
-          "commodity": "luce",
+          "providerKey": "illum",
+          "providerLabel": "Illumia",
+          "commodity": "gas",
           "tipo": "variabile",
-          "nome": "VIVIweb Allday Flex Lucegas",
-          "codice": "000652ESFFL38XXVWEBALLDAYD260626",
-          "prezzo": 0.13335126,
-          "quotaFissaAnnua": 120,
+          "nome": "Under Limpido Gas",
+          "codice": "000155GSVML15XXZZZZ03527Z260611G",
+          "prezzo": 0.63341905,
+          "quotaFissaAnnua": 118.8,
           "reasons": [
-            "offerta scaduta"
-          ]
-        },
-        {
-          "providerKey": "vivi",
-          "providerLabel": "Vivi Energia",
-          "commodity": "luce",
-          "tipo": "variabile",
-          "nome": "VIVIweb Allday Flex24 Luce",
-          "codice": "000652ESVML02XXVWEBALLDABE010726",
-          "prezzo": 0.13335126,
-          "quotaFissaAnnua": 120,
-          "reasons": [
-            "offerta scaduta"
-          ]
-        },
-        {
-          "providerKey": "vivi",
-          "providerLabel": "Vivi Energia",
-          "commodity": "luce",
-          "tipo": "variabile",
-          "nome": "VIVIweb Allday Flex24 Lucegas",
-          "codice": "000652ESVML02XXVWEBALLDABD010726",
-          "prezzo": 0.13335126,
-          "quotaFissaAnnua": 120,
-          "reasons": [
-            "offerta scaduta"
+            "fuori perimetro privato standard: vulnerabili/eta"
           ]
         }
       ],
@@ -1833,6 +1625,27 @@
         },
         {
           "rank": 3,
+          "provider": "Engie + E.CO Energia Corrente",
+          "totale": 743.92,
+          "costoVariabile": 588.92,
+          "costoFisso": 155,
+          "luce": {
+            "nome": "Energia VedoChiaro",
+            "prezzo": 0.12735126,
+            "quotaFissaAnnua": 59,
+            "qualitaPrezzo": "puntuale_pun_fallback"
+          },
+          "gas": {
+            "nome": "ECO GAS INDEX PSV 30",
+            "prezzo": 0.3,
+            "quotaFissaAnnua": 96,
+            "qualitaPrezzo": "puntuale"
+          },
+          "commercialStatus": "separata",
+          "commercialLabel": "solo confronto / richiede consulente"
+        },
+        {
+          "rank": 4,
           "provider": "Illumia + E.CO Energia Corrente",
           "totale": 745.12,
           "costoVariabile": 565.12,
@@ -1853,7 +1666,7 @@
           "commercialLabel": "solo confronto / richiede consulente"
         },
         {
-          "rank": 4,
+          "rank": 5,
           "provider": "Dolomiti Energia + E.CO Energia Corrente",
           "totale": 746.56,
           "costoVariabile": 572.56,
@@ -1872,27 +1685,6 @@
           },
           "commercialStatus": "separata",
           "commercialLabel": "richiede consulente / richiede consulente"
-        },
-        {
-          "rank": 5,
-          "provider": "Engie + E.CO Energia Corrente",
-          "totale": 757.12,
-          "costoVariabile": 565.12,
-          "costoFisso": 192,
-          "luce": {
-            "nome": "Taaanta Energia",
-            "prezzo": 0.11935126,
-            "quotaFissaAnnua": 96,
-            "qualitaPrezzo": "puntuale_pun_fallback"
-          },
-          "gas": {
-            "nome": "ECO GAS INDEX PSV 30",
-            "prezzo": 0.3,
-            "quotaFissaAnnua": 96,
-            "qualitaPrezzo": "puntuale"
-          },
-          "commercialStatus": "separata",
-          "commercialLabel": "solo confronto / richiede consulente"
         }
       ]
     }

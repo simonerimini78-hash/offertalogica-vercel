@@ -1,6 +1,6 @@
 # Verifica calcolo offerte
 
-Generato: 2026-07-07T18:53:50.393Z
+Generato: 2026-07-07T19:53:04.153Z
 Motore frontend: motore-v6-arera-first-2026-07-03
 Parametri: parametri-calcolo-2026-07-03-v4-psv-operativo
 Offerte commerciali: offerte-proposte-2026-07-07-v15-affiliazioni-a2a-octopus
