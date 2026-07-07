@@ -246,6 +246,19 @@ La pagina mostra funnel, provider/offerte cliccate, origine dati ed eventi recen
 - `docs/MONETIZZAZIONE-DESTINAZIONI.md`
 - `docs/DATABASE-CLIENTI.md`
 
+## Punto v43 - loghi e forniture separate
+
+Data: 2026-07-07.
+
+- Base: `offertalogica-v42-calcolatore-arera-aggiornato-20260707`.
+- Motore di calcolo non modificato: resta ARERA-first.
+- Modifica v43: aggiornati i loghi fornitori con asset forniti da Simone.
+- File principali toccati: `public/index.html`, `public/data/provider-brand.json`, `data/provider-brand.json`, `public/assets/providers/*-user.png`.
+- Nelle offerte con fornitura separata e due fornitori diversi, il blocco logo usa due caselle affiancate: una per luce e una per gas.
+- Le card mantengono altezza e struttura esistenti; cambia solo la resa del marchio.
+- Se il logo manca, compare fallback testuale nella stessa mini-casella, senza accorciare o deformare il blocco.
+- Verifiche eseguite: `scripts/validate-calculator-data.mjs` OK; `scripts/verify-calcolo-offerte.mjs` OK; asset loghi richiesti presenti; JSON brand root/pubblico identici.
+
 ## Cose da non rompere
 
 - Separazione dei due blocchi offerte.

@@ -508,6 +508,15 @@
             box-sizing: border-box;
             pointer-events: none;
         }
+        .partner-brand-line.is-split-brand {
+            min-height: 58px;
+            padding-left: 200px;
+        }
+        .partner-brand-line.is-split-brand::before {
+            width: 184px;
+            border: none;
+            background: transparent;
+        }
         .partner-brand-slot {
             position: absolute;
             left: 0;
@@ -519,6 +528,9 @@
             align-items: center;
             justify-content: center;
             z-index: 1;
+        }
+        .partner-brand-line.is-split-brand .partner-brand-slot {
+            width: 184px;
         }
         .provider-logo-shell {
             width: 116px;
@@ -550,17 +562,31 @@
             object-fit: contain;
         }
         .provider-logo-split {
-            gap: 5px;
-            padding: 7px 8px;
+            width: 184px;
+            height: 54px;
+            gap: 6px;
+            padding: 0;
+            border: 0;
+            background: transparent;
+            box-shadow: none;
+            overflow: visible;
         }
         .provider-logo-split-item {
             min-width: 0;
-            flex: 1 1 0;
+            width: 82px;
+            height: 54px;
+            flex: 0 0 82px;
             display: inline-flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             gap: 2px;
+            padding: 5px 6px;
+            border-radius: 12px;
+            background: #ffffff;
+            border: 1px solid rgba(148, 163, 184, .24);
+            box-shadow: 0 10px 22px rgba(15, 23, 42, .07);
+            box-sizing: border-box;
         }
         .provider-logo-split-label {
             font-size: 8px;
@@ -572,8 +598,8 @@
         }
         .provider-logo-split-img {
             display: block;
-            width: 46px;
-            height: 18px;
+            width: 66px;
+            height: 24px;
             object-fit: contain;
         }
         .provider-logo-split-item.is-logo-on-dark-mini .provider-logo-split-img {
@@ -584,9 +610,10 @@
         }
         .provider-logo-split-plus {
             color: #94a3b8;
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 900;
             line-height: 1;
+            align-self: center;
         }
         .provider-logo-split-fallback {
             max-width: 46px;
@@ -812,10 +839,18 @@
                 padding-left: 0;
                 padding-top: 74px;
             }
+            .partner-brand-line.is-split-brand {
+                min-height: 132px;
+                padding-left: 0;
+                padding-top: 78px;
+            }
             .partner-brand-line::before {
                 left: 50%;
                 top: 0;
                 transform: translateX(-50%);
+            }
+            .partner-brand-line.is-split-brand::before {
+                width: 184px;
             }
             .partner-brand-slot {
                 margin: 0 auto;
@@ -823,6 +858,9 @@
                 left: 50%;
                 top: 0;
                 transform: translateX(-50%);
+            }
+            .partner-brand-line.is-split-brand .partner-brand-slot {
+                width: 184px;
             }
             .locked-offer .partner-title::before {
                 display: flex;
@@ -1456,13 +1494,21 @@ let DATI_PROVIDER_BRAND_META = {
   aggiornatoIl: "2026-07-05",
 };
 let PROVIDER_BRANDS = {
-  a2a: { label: "A2A", logo: "/assets/providers/a2a.svg" },
+  a2a: { label: "A2A", logo: "/assets/providers/a2a-user.png" },
   acea: { label: "Acea", logo: "/assets/providers/acea.png" },
   alperia: { label: "Alperia", logo: "/assets/providers/alperia.png" },
+  axpo: { label: "Axpo Energia", logo: "/assets/providers/axpo-user.png" },
+  dolomiti: { label: "Dolomiti Energia", logo: "/assets/providers/dolomiti-user.png" },
+  edison: { label: "Edison", logo: "/assets/providers/edison-user.png" },
   enel: { label: "Enel", logo: "/assets/providers/enel.png" },
-  eni: { label: "Plenitude", logo: "/assets/providers/plenitude.svg" },
-  eon: { label: "E.ON", logo: "/assets/providers/eon.svg" },
-  octopus: { label: "Octopus Energy", logo: "/assets/providers/octopus.png" },
+  eni: { label: "Plenitude", logo: "/assets/providers/plenitude-user.png" },
+  engie: { label: "Engie", logo: "/assets/providers/engie-user.png" },
+  eon: { label: "E.ON", logo: "/assets/providers/eon-user.png" },
+  iren: { label: "Iren Luce e Gas", logo: "/assets/providers/iren-user.png" },
+  lene: { label: "Lene Energia", logo: "/assets/providers/lene-user.png" },
+  magis: { label: "Magis Energia", logo: "/assets/providers/magis-user.png" },
+  octopus: { label: "Octopus Energy", logo: "/assets/providers/octopus-user.png" },
+  segnoverde: { label: "Segnoverde", logo: "/assets/providers/segnoverde-user.png" },
 };
 let PARAMETRI_CALCOLO = {
   perditeReteLuceVariabile: 1.102,
@@ -3054,7 +3100,7 @@ function htmlLogoMiniComponente(brand, commodity) {
     `;
   }
   return `
-    <span class="provider-logo-split-item${darkClass}" title="${label}">
+    <span class="provider-logo-split-item${darkClass}" title="${label}" data-provider-label="${label}" data-provider-key="${testoHtmlSicuro(brand?.key || "")}" data-commodity="${commodity}">
       <span class="provider-logo-split-label">${commodityLabel}</span>
       <img class="provider-logo-split-img" src="${testoHtmlSicuro(brand.logo)}" alt="${label}" loading="lazy">
     </span>
@@ -3130,6 +3176,8 @@ function aggiornaLogoOfferta(card, offerta, mostraLogo = true) {
   const slot = assicuraStrutturaLogoOfferta(card);
   if (!slot) return;
   const brand = mostraLogo ? brandOfferta(offerta) : null;
+  const brandLine = card.querySelector(".partner-brand-line");
+  brandLine?.classList.toggle("is-split-brand", Boolean(mostraLogo && offertaSeparataMultiFornitore(offerta)));
   slot.innerHTML = htmlLogoOfferta(offerta, mostraLogo);
   if (brand?.logo) {
     const img = slot.querySelector(".provider-logo");
@@ -3137,6 +3185,20 @@ function aggiornaLogoOfferta(card, offerta, mostraLogo = true) {
       slot.innerHTML = htmlLogoFallback(brand.label || offerta?.provider || "Fornitore", { key: brand.key });
     }, { once: true });
   }
+  slot.querySelectorAll(".provider-logo-split-img").forEach((img) => {
+    img.addEventListener("error", () => {
+      const item = img.closest(".provider-logo-split-item");
+      if (!item) return;
+      const label = item.getAttribute("data-provider-label") || "Fornitore";
+      const key = item.getAttribute("data-provider-key") || "";
+      const commodity = item.getAttribute("data-commodity") || "";
+      const commodityLabel = commodity === "luce" ? "Luce" : commodity === "gas" ? "Gas" : "";
+      item.innerHTML = `
+        <span class="provider-logo-split-label">${commodityLabel}</span>
+        <span class="provider-logo-split-fallback${key === "eon" ? " is-eon" : ""}">${testoHtmlSicuro(label)}</span>
+      `;
+    }, { once: true });
+  });
 }
 
 function creaIntestazioneOfferte(id, titolo, testo) {
@@ -4780,6 +4842,7 @@ const PROVIDER_MATCHERS = [
   ["hera", ["hera", "heracomm"]],
   ["illum", ["illumia", "illum"]],
   ["iren", ["iren"]],
+  ["lene", ["lene"]],
   ["magis", ["magis"]],
   ["nen", ["nen", "nen energia"]],
   ["nova", ["nova aeg", "nova"]],
@@ -4787,6 +4850,7 @@ const PROVIDER_MATCHERS = [
   ["optima", ["optima"]],
   ["poste", ["poste energia", "poste"]],
   ["pulsee", ["pulsee"]],
+  ["segnoverde", ["segnoverde", "segno verde"]],
   ["sen", ["servizio elettrico nazionale"]],
   ["sorgenia", ["sorgenia"]],
   ["tate", ["tate"]],
