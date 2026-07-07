@@ -1,6 +1,6 @@
 # CONTINUA DA QUI - OffertaLogica
 
-Ultimo aggiornamento: 2026-07-06
+Ultimo aggiornamento: 2026-07-07
 
 Questo file e il punto di ritorno del progetto. Quando una nuova sessione Codex riparte, leggere prima questo file e poi `docs/STATO-PROGETTO-OFFERTALOGICA.md`.
 
@@ -33,6 +33,10 @@ Il progetto gira su GitHub + Vercel con dominio `offertalogica.it`.
 
 Il pacchetto completo di riferimento lato progetto e:
 
+`offertalogica-v42-calcolatore-arera-aggiornato-20260707`
+
+Base storica stabile precedente:
+
 `offertalogica-v25-loghi-preview-20260706`
 
 Ultimi zip incrementali importanti generati dopo la base completa:
@@ -42,8 +46,16 @@ Ultimi zip incrementali importanti generati dopo la base completa:
 - `offertalogica-v31-aruba-login-api-20260706.zip`
 - `offertalogica-v32-aruba-auth-diagnostica-20260706.zip`
 - `offertalogica-v33-testo-sms-otp-20260706.zip`
+- `offertalogica-v34-termini-disclaimer-20260706.zip`
+- `offertalogica-v35-assistente-guidato-20260706.zip`
+- `offertalogica-v36-partner-a2a-octopus-mobile-20260707.zip`
+- `offertalogica-v37-affiliazioni-deeplink-20260707.zip`
+- `offertalogica-v38-logo-octopus-20260707.zip`
+- `offertalogica-v39-arera-partner-sync-octopus-20260707.zip`
+- `offertalogica-v40-arera-first-partner-20260707.zip`
+- `offertalogica-v42-calcolatore-arera-aggiornato-20260707.zip` quando verra generato dopo approvazione.
 
-Nota importante sugli zip incrementali: quelli v30-v33 contengono solo `lib/otp.js` e non devono toccare grafica, offerte, loghi o motore.
+Nota importante sugli zip incrementali: quelli v30-v33 contengono solo `lib/otp.js` e non devono toccare grafica, offerte, loghi o motore. Il v34 tocca solo pagine pubbliche statiche, footer, sitemap e termini/disclaimer. Il v35 aggiunge solo un assistente guidato frontend alla homepage. Il v36 aggiorna partner energia e pagina internet/mobile.
 
 ## Cose gia impostate
 
@@ -59,6 +71,17 @@ Nota importante sugli zip incrementali: quelli v30-v33 contengono solo `lib/otp.
 - Twilio resta configurato come fallback, ma il codice ora da priorita ad Aruba SMS.
 - Privacy/iubenda presente, con attenzione ancora da mantenere su consensi e testi.
 - Pagine SEO/istituzionali: `come-funziona`, `partner`, `casa-smart`, `internet-casa`, staff lead.
+- Controllo pre-lancio: homepage e robots indicizzabili; `offerte-luce-gas-aggiornate.html` resta in `noindex,follow` finche' non viene lanciata ufficialmente come pagina SEO.
+- Termini/disclaimer: aggiunta pagina `termini-condizioni.html`, link nei footer pubblici e nota breve sulle stime informative.
+- Promemoria operativo SMS: l'alias Aruba attivo e' `RAGroup`; prima della scadenza annuale del servizio/alias va verificato o rinnovato dal pannello Aruba/AGCOM.
+- Assistente guidato v35: pannello in homepage, senza AI/API, senza raccolta dati in chat. Guida l'utente verso PDF, profilo medio, dati reali, business, offerte e privacy.
+- Partner aggiornati 2026-07-07: A2A e Octopus accettati su Tradedoubler e promossi a partner energia attivabili; Ho Mobile e Very Mobile inseriti nella sezione Internet casa/mobile con link affiliati e loghi.
+- Deeplink aggiornati 2026-07-07: nella cartella v36 A2A punta al funnel fisso dual A2A dentro tracking Tradedoubler; Octopus punta alla pagina informazioni personali dentro tracking Tradedoubler. Lo zip v36 creato prima di questa correzione va rigenerato prima di un eventuale caricamento.
+- Pacchetto corretto da caricare: v37. Include deeplink A2A, Octopus, Ho Mobile e Very Mobile dentro tracking Tradedoubler. Lo zip v36 precedente resta superato.
+- Pacchetto v38: stessa base v37, con logo Octopus aggiornato in `public/assets/providers/octopus.png` e riferimento HTML corretto da `octopus.svg` a `octopus.png`.
+- Pacchetto v39: corregge il collegamento tra offerte ARERA aggiornate e partner attivabili per Octopus/A2A. I prezzi devono arrivare da `offerte-arera-menu.json`; il link affiliato resta da `offerte-proposte.json`.
+- Pacchetto v40: prima introduzione della regola ARERA-first. La v42 supera il vecchio fallback pubblico: se ARERA non si carica, non si mostrano prezzi statici come se fossero aggiornati.
+- Pacchetto v42: rigenera `offerte-arera-menu.json` dai file ufficiali `PO_Offerte_E_MLIBERO_20260707.xml` e `PO_Offerte_G_MLIBERO_20260707.xml`, elimina il fallback pubblico a offerte statiche quando ARERA non e' disponibile e fa fallire lo script se il download ARERA non riesce.
 
 ## Regola madre del calcolatore
 
@@ -85,7 +108,9 @@ Dopo il click su "Elabora e confronta le offerte" devono comparire due blocchi d
 - Mostra fino a 3 offerte partner attive e attivabili online.
 - Devono essere coerenti con filtro selezionato.
 - Devono essere ordinate per costo stimato sul profilo utente.
-- Le offerte partner attive devono essere considerate anche se non agganciate perfettamente dal ranking ARERA.
+- Quando il file ARERA e' disponibile, prezzi e ranking devono arrivare dal file ARERA aggiornato.
+- I partner attivabili usano `offerte-proposte.json` solo per link, logo, stato commerciale e tracciamento.
+- Un partner non deve essere mostrato come attivabile se non esiste un aggancio coerente e prudente con una proposta ARERA valida per lo stesso filtro.
 - Se lo stesso partner compare due volte per lo stesso filtro, mostrare una sola card.
 
 ### 2. Migliori offerte per costo con consulente
@@ -103,14 +128,14 @@ Partner attualmente considerati attivi online:
 - Enel
 - Eni Plenitude
 - Alperia
+- A2A
+- Octopus
 
 Altri fornitori possono essere presenti nel ranking ARERA o nel blocco consulente:
 
-- Octopus
 - Dolomiti
 - E.CO Energia Corrente
 - Magis
-- A2A
 - Edison
 - Sorgenia
 - NeN
@@ -118,7 +143,7 @@ Altri fornitori possono essere presenti nel ranking ARERA o nel blocco consulent
 
 ## Ultima modifica importante
 
-Il blocco "Offerte partner attivabili online" e stato corretto per pescare anche dalle offerte partner dirette attive, non solo dagli agganci ARERA.
+Il blocco "Offerte partner attivabili online" e stato corretto in modalita ARERA-first: i prezzi arrivano dal file ARERA aggiornato; il file partner arricchisce solo con link/logo/stato commerciale. Non usare piu prezzi partner statici quando ARERA e' disponibile.
 
 Decisione strategica del 2026-07-04: la regolazione millimetrica del motore puo essere rimandata. La priorita ora e portare utenti reali sul sito, far caricare bollette e salvare nel database OffertaLogica i dati tecnici normalizzati utili a migliorare il motore.
 
@@ -166,6 +191,14 @@ Zip backend SMS prodotti:
 - `offertalogica-v31-aruba-login-api-20260706.zip`: login Aruba con username + API password.
 - `offertalogica-v32-aruba-auth-diagnostica-20260706.zip`: evita di usare username/email come `user_key` diretto e aggiunge diagnostica `authMode`.
 - `offertalogica-v33-testo-sms-otp-20260706.zip`: aggiorna solo il testo SMS.
+- `offertalogica-v34-termini-disclaimer-20260706.zip`: aggiunge termini e condizioni, nota disclaimer nel footer, link footer e sitemap aggiornata.
+- `offertalogica-v35-assistente-guidato-20260706.zip`: aggiunge assistente guidato frontend in homepage.
+- `offertalogica-v36-partner-a2a-octopus-mobile-20260707.zip`: aggiorna A2A e Octopus come partner energia attivi, aggiorna `data/offerte-proposte.json` e `public/data/offerte-proposte.json`, aggiunge Ho Mobile e Very Mobile alla pagina Internet casa/mobile con loghi e tracking. Attenzione: dopo la prima creazione dello zip sono stati corretti i deeplink A2A/Octopus nella cartella v36; rigenerare lo zip prima di caricarlo.
+- `offertalogica-v37-affiliazioni-deeplink-20260707.zip`: pacchetto corretto da caricare. Parte dalla v36 e aggiunge deeplink puliti dentro tracking Tradedoubler per A2A fisso, Octopus, Ho Mobile e Very Mobile.
+- `offertalogica-v38-logo-octopus-20260707.zip`: stessa base v37, aggiunge il logo Octopus aggiornato e corregge il mapping provider in homepage.
+- `offertalogica-v39-arera-partner-sync-octopus-20260707.zip`: stessa base v38, modifica solo il matching commerciale. Octopus e A2A, quando presenti nel file ARERA aggiornato, usano prezzi ARERA ma conservano il percorso partner affiliato.
+- `offertalogica-v40-arera-first-partner-20260707.zip`: stessa base v39, forza la regola ARERA-first. Se il menu ARERA e' disponibile, i partner attivabili vengono calcolati dai prezzi ARERA e non dai valori statici del file partner.
+- `offertalogica-v42-calcolatore-arera-aggiornato-20260707.zip`: da generare solo dopo approvazione. Contiene dati ARERA 2026-07-07, script ARERA che fallisce in caso di download non riuscito, messaggio pubblico generico "Offerte in aggiornamento" se il file ARERA non e' caricato.
 
 Testo SMS approvato per v33:
 
@@ -239,8 +272,8 @@ Priorita aggiornate dopo analisi Switcho e decisione di non andare online finche
 
 Nota strategica:
 
-- Il motore del calcolatore e considerato sistemato a livello operativo.
-- La priorita ora non e rifare il motore, ma curare asset, credibilita, funnel, contenuti e misurazione.
+- Il motore del calcolatore e considerato sistemato a livello operativo solo se `offerte-arera-menu.json` e' aggiornato e caricato.
+- La priorita ora non e rifare il motore, ma non bisogna mai perdere la regola ARERA-first: il calcolo deve partire da dati ARERA aggiornati.
 - Il sito non va spinto online in modo aggressivo finche non si chiude o chiarisce la trattativa con Switcho.
 - OffertaLogica deve apparire come una piccola infrastruttura aziendale seria, non come un semplice esperimento.
 - La frase cardine resta: "OffertaLogica calcola le offerte sui tuoi consumi reali, letti dalla bolletta o inseriti manualmente. Se non conviene cambiare, te lo diciamo."

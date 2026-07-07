@@ -1,5 +1,5 @@
 {
-  "versioneDati": "provider-brand-2026-07-06-v3-safe-logo-pack",
+  "versioneDati": "provider-brand-2026-07-06-v2",
   "fonte": "Registro brand OffertaLogica. I marchi sono usati solo per identificare offerte e fornitori confrontati; preferire asset ufficiali o di affiliazione quando disponibili.",
   "aggiornatoIl": "2026-07-06",
   "providers": {
@@ -28,28 +28,28 @@
       "usageStatus": "marchio_pubblico_tracciato"
     },
     "amga": {
-      "label": "AMGA Energia e Servizi",
-      "logo": "/assets/providers/amga.png",
-      "source": "https://www.amgaenergia.it/wp-content/uploads/2024/05/LOGO-AES.png",
-      "usageStatus": "asset_ufficiale_sito_fornitore"
+      "label": "Amga",
+      "logo": "/assets/providers/amga.svg",
+      "source": "https://www.amgaenergia.it/wp-content/plugins/webtoffee-gdpr-cookie-consent/images/webtoffee-logo.svg",
+      "usageStatus": "asset_pubblico_recuperato_da_sito_fornitore"
     },
     "argos": {
       "label": "Argos",
       "logo": null,
-      "source": "https://argosenergia.it/",
-      "usageStatus": "dominio_non_validato_fallback_riquadro"
+      "source": "https://www.argosenergia.it/",
+      "usageStatus": "logo_non_recuperato_fallback_riquadro"
     },
     "axpo": {
       "label": "Axpo Energia",
-      "logo": "/assets/providers/axpo.svg",
-      "source": "https://commons.wikimedia.org/wiki/Special:Redirect/file/Axpo_logo_neu.svg",
-      "usageStatus": "marchio_pubblico_tracciato"
+      "logo": "/assets/providers/axpo.png",
+      "source": "https://www.axpo.com/content/dam/axpo19/italy/new-assets-2024/immagini-sezioni/video-hp/Axpo-Video-Teaser-Sito-Homepage_16-9_ChiSiamo_E.png",
+      "usageStatus": "asset_pubblico_recuperato_da_sito_fornitore"
     },
     "dolomiti": {
       "label": "Dolomiti Energia",
-      "logo": "/assets/providers/dolomiti.png",
-      "source": "logo fornito da screenshot operativo 2026-07-06",
-      "usageStatus": "asset_fornito_utente_logo_viola"
+      "logo": "/assets/providers/dolomiti.svg",
+      "source": "https://www.dolomitienergia.it/etc.clientlibs/dolomiti-energia/clientlibs/clientlib-base/resources/images/logo-white.svg",
+      "usageStatus": "asset_pubblico_recuperato_da_sito_fornitore"
     },
     "eco": {
       "label": "E.CO Energia Corrente",
@@ -66,8 +66,8 @@
     "edison": {
       "label": "Edison",
       "logo": "/assets/providers/edison.png",
-      "source": "https://www.edisonenergia.it/wps/wcm/connect/4c4801f9-1bc8-4cae-ac8c-8426b6a78500/logo_edison.png",
-      "usageStatus": "asset_ufficiale_sito_fornitore"
+      "source": "https://www.edisonenergia.it/wps/wcm/connect/4c4801f9-1bc8-4cae-ac8c-8426b6a78500/logo_edison.png?MOD=AJPERES&CACHEID=ROOTWORKSPACE-4c4801f9-1bc8-4cae-ac8c-8426b6a78500-oA0T8Fp",
+      "usageStatus": "asset_pubblico_recuperato_da_sito_fornitore"
     },
     "eni": {
       "label": "Plenitude",
@@ -84,14 +84,14 @@
     "enercom": {
       "label": "Enercom",
       "logo": "/assets/providers/enercom.webp",
-      "source": "https://www.enercom.it/wp-content/uploads/2023/07/enercom-logo.webp",
-      "usageStatus": "asset_ufficiale_sito_fornitore"
+      "source": "https://www.enercom.it/wp-content/uploads/2026/01/enercoach-logo.webp",
+      "usageStatus": "asset_pubblico_recuperato_da_sito_fornitore"
     },
     "engie": {
       "label": "Engie",
-      "logo": "/assets/providers/engie.svg",
-      "source": "https://www.engie.it/_astro/logo-engie.BN0cqiDx.svg",
-      "usageStatus": "asset_ufficiale_sito_fornitore"
+      "logo": "/assets/providers/engie.png",
+      "source": "https://d3evrc0h48esvv.cloudfront.net/8181114/engie-business.png?version=1.0&t=1740064235319&fm=webp&w=original&h=726",
+      "usageStatus": "asset_pubblico_recuperato_da_sito_fornitore"
     },
     "eja": {
       "label": "Eja Energia",
@@ -109,25 +109,25 @@
       "label": "Illumia",
       "logo": "/assets/providers/illum.png",
       "source": "https://www.illumia.it/wp-content/uploads/2025/01/LOGORED-500x260.png",
-      "usageStatus": "asset_ufficiale_sito_fornitore"
+      "usageStatus": "asset_pubblico_recuperato_da_sito_fornitore"
     },
     "iren": {
       "label": "Iren Luce e Gas",
       "logo": "/assets/providers/iren.png",
       "source": "https://www.irenlucegas.it/content/dam/iren/evergreen/icone-e-loghi/loghi/logo_iren_color_2020.png",
-      "usageStatus": "asset_ufficiale_sito_fornitore"
+      "usageStatus": "asset_pubblico_recuperato_da_sito_fornitore"
     },
     "magis": {
       "label": "Magis Energia",
       "logo": "/assets/providers/magis.svg",
       "source": "https://www.magisenergia.it/img/logo.svg",
-      "usageStatus": "asset_ufficiale_sito_fornitore"
+      "usageStatus": "asset_pubblico_recuperato_da_sito_fornitore"
     },
     "nen": {
       "label": "neN",
-      "logo": "/assets/providers/nen.png",
-      "source": "https://nen.it/content/dam/nen/brand/loghi-official/endorsement/NeN-logo-endorsement-blue.png",
-      "usageStatus": "asset_ufficiale_sito_fornitore"
+      "logo": "/assets/providers/nen.svg",
+      "source": "https://nen.it/content/dam/nen/brand/loghi-official/portale-offerte/Portale-offerte-w.svg",
+      "usageStatus": "asset_pubblico_recuperato_da_sito_fornitore"
     },
     "nova": {
       "label": "Nova Aeg",
@@ -144,20 +144,20 @@
     "optima": {
       "label": "Optima Italia",
       "logo": "/assets/providers/optima.svg",
-      "source": "https://www.optimaitalia.com/wp-content/uploads/2025/09/optima_new-1.svg",
-      "usageStatus": "asset_ufficiale_sito_fornitore"
+      "source": "https://www.optimaitalia.com/wp-content/uploads/2025/09/optima-white.svg",
+      "usageStatus": "asset_pubblico_recuperato_da_sito_fornitore"
     },
     "poste": {
       "label": "Poste Energia",
-      "logo": "/assets/providers/poste.png",
-      "source": "https://www.media.poste.it/03827cbe-81a9-4d31-be55-bab5c161f851/lg/png/logo-poste-italianei@1x",
-      "usageStatus": "asset_corporate_poste_italiane"
+      "logo": null,
+      "source": "https://www.poste.it/prodotti/poste-energia.html",
+      "usageStatus": "logo_non_recuperato_fallback_riquadro"
     },
     "pulsee": {
       "label": "Pulsee Luce e Gas",
       "logo": "/assets/providers/pulsee.svg",
-      "source": "https://pulsee.it/assets/pulsee/media/logo/Logo_Pulsee.svg",
-      "usageStatus": "asset_ufficiale_sito_fornitore"
+      "source": "https://pulsee.it/assets/pulsee/media/static-images/trustpilot-logo.svg?_u=74a1dd420fbd41f9a86d31aacc0efa3b1bbb38f4",
+      "usageStatus": "asset_pubblico_recuperato_da_sito_fornitore"
     },
     "sen": {
       "label": "Servizio Elettrico Nazionale",
@@ -169,7 +169,7 @@
       "label": "Sorgenia",
       "logo": "/assets/providers/sorgenia.svg",
       "source": "https://www.sorgenia.it/sites/default/themes/sorgenia/assets/images/logo.svg",
-      "usageStatus": "asset_ufficiale_sito_fornitore"
+      "usageStatus": "asset_pubblico_recuperato_da_sito_fornitore"
     },
     "tate": {
       "label": "Tate",
@@ -179,21 +179,21 @@
     },
     "vivi": {
       "label": "Vivi Energia",
-      "logo": "/assets/providers/vivi.svg",
-      "source": "https://www.vivienergia.it/static/images/common/logo-color.svg",
-      "usageStatus": "asset_ufficiale_sito_fornitore"
+      "logo": "/assets/providers/vivi.jpg",
+      "source": "https://vivienergia.imgix.net/uploads/2026/03/04161015/Logo-portaleofferte.jpg?width=1440&auto=format",
+      "usageStatus": "asset_pubblico_recuperato_da_sito_fornitore"
     },
     "wekiwi": {
       "label": "Wekiwi",
       "logo": "/assets/providers/wekiwi.png",
-      "source": "https://www.wekiwi.it/wp-content/uploads/2023/06/wekiwi_logo_black.png",
-      "usageStatus": "asset_ufficiale_sito_fornitore"
+      "source": "https://www.wekiwi.it/wp-content/uploads/2023/06/wekiwi_logo_white.png",
+      "usageStatus": "asset_pubblico_recuperato_da_sito_fornitore"
     },
     "sinergy": {
       "label": "Sinergy",
       "logo": "/assets/providers/sinergy.svg",
-      "source": "https://sinergylucegas.com/wp-content/uploads/PortaleOfferte_logo_colori.svg",
-      "usageStatus": "asset_ufficiale_sito_fornitore"
+      "source": "https://sinergylucegas.com/wp-content/uploads/logo-sinergy-bianco.svg",
+      "usageStatus": "asset_pubblico_recuperato_da_sito_fornitore"
     }
   }
 }

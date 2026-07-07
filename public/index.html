@@ -1417,215 +1417,17 @@
 </style>
 <script>
 function avviaComparazioneDati() {
-    // 🆕 Lettura immediata della tariffa in essere dell'utente dal Blocco Master
-    const tariffaInEssereTipo = document.getElementById('master-luce-tipo').value; // Recupera 'fisso' o 'variabile'
-    const tariffaInEssereFornitura = document.getElementById('master-tipo-fornitura').value; // Recupera 'dual' o 'separate'
-    // 1. Estrazione dati blocco attuale (Sinistra) con Fallback automatico su Blocco Master
-    const cLuceAtt = parseFloat(document.getElementById('in-luce-cons-att').value) || parseFloat(document.getElementById('master-luce-consumo').value);
-    const pLuceAtt = parseFloat(document.getElementById('in-luce-prezzo-att').value) || 0;
-    const fLuceAtt = parseFloat(document.getElementById('in-luce-fisso-att').value) || 0;
-    
-    const cGasAtt = parseFloat(document.getElementById('in-gas-cons-att').value) || parseFloat(document.getElementById('master-gas-consumo').value);
-    const pGasAtt = parseFloat(document.getElementById('in-gas-prezzo-att').value) || 0;
-    const fGasAtt = parseFloat(document.getElementById('in-gas-fisso-att').value) || 0;
-    
-    // Spese universali blocco attuale (Sinistra)
-    const uLuceAtt = parseFloat(document.getElementById('in-luce-universali-att')?.value) || 0;
-    const uGasAtt = parseFloat(document.getElementById('in-gas-universali-att')?.value) || 0;
-
-    // --- CONTROLLO DI SICUREZZA: VALIDAZIONE DEI DATI INSERITI DALL'UTENTE ---
-    if (pLuceAtt === 0 && pGasAtt === 0) {
-        const areaRisultati = document.getElementById('results-area');
-        const badgeNumero = document.getElementById('verdetto-numero');
-        const testoDescrizione = document.getElementById('verdetto-testo');
-        const btnAttiva = document.getElementById('btn-attiva-subito');
-        const scatolaVerdetto = document.querySelector('.verdetto-box');
-
-        if (areaRisultati) {
-            areaRisultati.style.display = "flex"; 
-            if (scatolaVerdetto) scatolaVerdetto.className = "verdetto-box"; 
-            if (badgeNumero) badgeNumero.innerText = "Dati Mancanti";
-            if (testoDescrizione) testoDescrizione.innerText = "Per favore, inserisci almeno il 'Prezzo Spesa' della Luce o del Gas nel modulo della tua Fornitura Attuale (a sinistra) per poter elaborare un calcolo del risparmio certosino.";
-            if (btnAttiva) btnAttiva.style.display = "none"; 
-        }
-        return; 
+    const areaRisultati = document.getElementById("results-area");
+    if (areaRisultati) {
+        areaRisultati.style.display = "flex";
+        areaRisultati.innerHTML = `
+            <div class="verdetto-box warning">
+                <h2>Calcolatore in caricamento</h2>
+                <p>Attendi qualche istante e riprova.</p>
+            </div>
+        `;
     }
-// --- AVVIO DIRETTO DEL CALCOLO AUTOMATICO ---
-    // 🆕 Avviamo subito il calcolo passando il tipo di tariffa letto all'inizio dal Blocco Master
-    eseguiCalcoloFinale(tariffaInEssereTipo);
-    
-    // --- SOTTO-FUNZIONE INTERNA CHE ESEGUE IL CALCOLO REALE DOPO LA SCELTA DALL'ALTO ---
-    function eseguiCalcoloFinale(sceltaTariffa) {
-        
-        // 1. Estrazione dati nuova offerta (Destra) con Fallback automatico su Blocco Master
-        const cLuceNuov = parseFloat(document.getElementById('in-luce-cons-nuov').value) || parseFloat(document.getElementById('master-luce-consumo').value);
-        const pLuceNuov = parseFloat(document.getElementById('in-luce-prezzo-nuov').value) || 0;
-        const fLuceNuov = parseFloat(document.getElementById('in-luce-fisso-nuov').value) || 0;
-        
-        const cGasNuov = parseFloat(document.getElementById('in-gas-cons-nuov').value) || parseFloat(document.getElementById('master-gas-consumo').value);
-        const pGasNuov = parseFloat(document.getElementById('in-gas-prezzo-nuov').value) || 0;
-        const fGasNuov = parseFloat(document.getElementById('in-gas-fisso-nuov').value) || 0;
-
-        // Spese universali nuova offerta (Destra)
-        const uLuceNuov = parseFloat(document.getElementById('in-luce-universali-nuov')?.value) || 0;
-        const uGasNuov = parseFloat(document.getElementById('in-gas-universali-nuov')?.value) || 0;
-
-        // 2. Gestione degli elementi dell'interfaccia grafica dei risultati
-        const areaRisultati = document.getElementById('results-area');
-        const badgeNumero = document.getElementById('verdetto-numero');
-        const testoDescrizione = document.getElementById('verdetto-testo');
-        const btnAttiva = document.getElementById('btn-attiva-subito');
-
-        // 3. Elaborazione delle perdite di rete (+10,2% sulla Luce) se l'utente sceglie VARIABILE nel pop-up
-        let prezzoLuceAttFinale = pLuceAtt;
-        let prezzoLuceNuovFinale = pLuceNuov;
-
-        if (sceltaTariffa === 'variabile') {
-            prezzoLuceAttFinale = pLuceAtt * 1.102;
-            prezzoLuceNuovFinale = pLuceNuov * 1.102;
-        }
-
-        // 4. Formule matematiche di confronto della spesa annua complessiva
-        const spesaAttuale = (cLuceAtt * prezzoLuceAttFinale) + fLuceAtt + uLuceAtt + (cGasAtt * pGasAtt) + fGasAtt + uGasAtt;
-        const spesaNuova = (cLuceNuov * prezzoLuceNuovFinale) + fLuceNuov + uLuceNuov + (cGasNuov * pGasNuov) + fGasNuov + uGasNuov;
-        const bilancio = spesaAttuale - spesaNuova;
-
-        // 5. LOGICA COMPILAZIONE, FILTRO E COLORAZIONE PARTNER IN BASE AL POP-UP
-        const filtroFornitura = document.getElementById('master-tipo-fornitura').value; // 'separate' o 'dual'
-
-        const partnerDati = [
-            { id: 1, nome: "E.ON Luce e Gas Insieme", lucePrezzo: 0.1007, gasPrezzo: 0.474, corrispettivoAnnuo: 217.23, tipo: "fisso", fornitura: "dual" },
-            { id: 2, nome: "A2A Start Luce e Gas", lucePrezzo: 0.139, gasPrezzo: 0.490, corrispettivoAnnuo: 228.00, tipo: "fisso", fornitura: "dual" },
-            { id: 3, nome: "Magis Energia Mia Fix", lucePrezzo: 0.1027, gasPrezzo: 0.4930, corrispettivoAnnuo: 96.00, tipo: "fisso", fornitura: "separate" },
-            { id: 4, nome: "Octopus Luce e Gas", lucePrezzo: 0.1298, gasPrezzo: 0.4900, corrispettivoAnnuo: 156.00, tipo: "fisso", fornitura: "dual" },
-            { id: 5, nome: "Iren Fissa 36 Mesi", lucePrezzo: 0.1000, gasPrezzo: 0.4300, corrispettivoAnnuo: 240.00, tipo: "fisso", fornitura: "dual" },
-            { id: 6, nome: "neN Luce Dieci", lucePrezzo: 0.1190, gasPrezzo: 0.0000, corrispettivoAnnuo: 72.00, tipo: "fisso", fornitura: "separate" },
-            { id: 7, nome: "neN Duel Luce e Gas", lucePrezzo: 0.1290, gasPrezzo: 0.4600, corrispettivoAnnuo: 192.00, tipo: "fisso", fornitura: "dual" },
-            { id: 8, nome: "neN Luce Surf", lucePrezzo: 0.0000, gasPrezzo: 0.0000, corrispettivoAnnuo: 120.00, tipo: "variabile", fornitura: "separate" },
-            { id: 9, nome: "neN Gas Surf", lucePrezzo: 0.0000, gasPrezzo: 0.0000, corrispettivoAnnuo: 120.00, tipo: "variabile", fornitura: "separate" },
-            // Offerte attivabili e offerte con consulente.
-            { id: 10, nome: "Enel Fix Web Luce e Gas", lucePrezzo: 0.1390, gasPrezzo: 0.4900, corrispettivoAnnuo: 288.00, tipo: "fisso", fornitura: "dual" },
-            { id: 11, nome: "Eni Plenitude Fixa Time 24", lucePrezzo: 0.0987, gasPrezzo: 0.4205, corrispettivoAnnuo: 288.00, tipo: "fisso", fornitura: "dual" },
-            { id: 12, nome: "Alperia Smile Easy / Start", lucePrezzo: 0.1027, gasPrezzo: 0.4500, corrispettivoAnnuo: 239.40, tipo: "fisso", fornitura: "dual" },
-            { id: 13, nome: "Sorgenia Next Energy Smart", lucePrezzo: 0.1300, gasPrezzo: 0.5200, corrispettivoAnnuo: 258.00, tipo: "fisso", fornitura: "dual" },
-            { id: 14, nome: "E.CO Prezzo Variabile Zero Spread Luce e Gas", lucePrezzo: 0.119351258, gasPrezzo: 0.504419055, corrispettivoAnnuo: 336.00, tipo: "variabile", fornitura: "dual" },
-            { id: 15, nome: "neN Surf Luce e Gas", lucePrezzo: 0.1290, gasPrezzo: 0.4700, corrispettivoAnnuo: 240.00, tipo: "variabile", fornitura: "dual" },
-            { id: 16, nome: "Alperia Luce e Gas Variabile PUN/PSV", lucePrezzo: 0.130351258, gasPrezzo: 0.664419055, corrispettivoAnnuo: 109.20, tipo: "variabile", fornitura: "dual" },
-            { id: 17, nome: "E.ON Luce e Gas Insieme Variabile", lucePrezzo: 0.128151258, gasPrezzo: 0.6377, corrispettivoAnnuo: 217.23, tipo: "variabile", fornitura: "dual" },
-        ];
-
-        partnerDati.forEach(partner => {
-            const containerRisparmio = document.getElementById(`risparmio-partner-${partner.id}`);
-            const schedaPartnerCompleta = containerRisparmio ? containerRisparmio.closest('.partner-vertical-card') : null;
-
-            // 🔒 FILTRO RIGIDO: Mostra l'offerta SOLO se tipo e fornitura corrispondono al 100% alla situazione dell'utente
-            const isCompatibile = (partner.tipo === sceltaTariffa && partner.fornitura === tariffaInEssereFornitura);
-
-            if (schedaPartnerCompleta) {
-                if (!isCompatibile) {
-                    // 🔒 FORZATURA RIGIDA: Scompare totalmente e istantaneamente dalla pagina
-                    schedaPartnerCompleta.style.setProperty('display', 'none', 'important');
-                } else {
-                    // Se è compatibile, viene mostrata con il layout originale
-                    schedaPartnerCompleta.style.display = "flex";
-                    if (containerRisparmio) containerRisparmio.style.display = "block";
-
-                    // 💡 Calcolo intelligente: esclude il gas o la luce se siamo in modalità tariffe separate e uno dei consumi è a zero
-                    const spesaPartnerLuce = (cLuceAtt > 0 && partner.lucePrezzo > 0) ? 
-                        ((cLuceAtt * partner.lucePrezzo) + (partner.corrispettivoAnnuo / (tariffaInEssereFornitura === "dual" ? 2 : 1)) + uLuceAtt) : 0;
-                        
-                    const spesaPartnerGas = (cGasAtt > 0 && partner.gasPrezzo > 0) ? 
-                        ((cGasAtt * partner.gasPrezzo) + (partner.corrispettivoAnnuo / (tariffaInEssereFornitura === "dual" ? 2 : 1)) + uGasAtt) : 0;
-                        
-                    const spesaPartnerTotale = spesaPartnerLuce + spesaPartnerGas;
-                    const differenzaContabile = spesaPartnerTotale - spesaAttuale;
-
-                    if (differenzaContabile < 0) {
-                        // RISPARMIO -> TESTO VERDE CON SEGNO MENO (-)
-                        containerRisparmio.style.color = "var(--primary)";
-                        containerRisparmio.innerText = "Risparmio stimato: - " + Math.abs(differenzaContabile).toFixed(2) + " € / anno";
-                    } else if (differenzaContabile > 0) {
-                        // PERDITA -> TESTO ROSSO CON SEGNO PIÙ (+)
-                        containerRisparmio.style.color = "var(--danger)";
-                        containerRisparmio.innerText = "Spesa aggiuntiva: + " + differenzaContabile.toFixed(2) + " € / anno";
-                    } else {
-                        containerRisparmio.style.color = "var(--text-muted)";
-                        containerRisparmio.innerText = "Nessuna differenza economica rilevante: 0.00 €";
-                    }
-                }
-            }
-        });
-
-        // 6. Box informativo sulla metodologia (sostituisce il verdetto)
-        if (areaRisultati) {
-            areaRisultati.style.display = "block";
-            areaRisultati.innerHTML = `
-                <div style="padding: 20px; background-color: #f9f9f9; border-left: 4px solid #007bff; margin-bottom: 20px;">
-                    <h4 style="margin: 0 0 5px 0; color: #333; font-size: 1rem;">Metodologia di calcolo</h4>
-                    <p style="margin: 0; color: #555; font-size: 0.85rem;">
-                        Se inserisci i tuoi dati, la stima viene calcolata sui tuoi consumi. Se non li conosci, usiamo consumi medi e l'ultimo riferimento ARERA disponibile.
-                    </p>
-                </div>
-            `;
-        }
-    
-        // 7. Se ha inserito l'offerta a destra, mostra il verdetto singolo
-        if (areaRisultati) areaRisultati.style.display = "flex";
-        
-        const sezioneFornitoriSotto = document.querySelector('.fornitori-consigliati-section');
-        if (sezioneFornitoriSotto) sezioneFornitoriSotto.style.display = "block"; // 🆕 RENDE VISIBILE LA SEZIONE ESTERNA
-        
-        // 🔒 Proteggiamo la riga inserendola dentro un controllo di sicurezza
-        const contenitoreSchede = document.querySelector('.vertical-cards-container');
-        if (contenitoreSchede) contenitoreSchede.style.display = 'flex';
-
-        if (bilancio > 0) {
-            // L'utente risparmia -> NUMERO VERDE
-            const scatolaVerdetto = document.querySelector('.verdetto-box');
-            if (scatolaVerdetto) scatolaVerdetto.className = "verdetto-box success";
-            if (badgeNumero) badgeNumero.innerText = "- " + bilancio.toFixed(2) + " € / anno";
-            if (testoDescrizione) testoDescrizione.innerText = "Le nuove offerte proposte, sono convenienti rispetto ad una tariffa media nazionale.";
-            
-            let nomeFornitore = document.getElementById('nome-fornitore-nuov') ? document.getElementById('nome-fornitore-nuov').value.trim() : ""; 
-            let linkDestinazione = LINK_FORNITORI.default;
-
-            switch(nomeFornitore.toLowerCase()) {
-                case "e.on":
-                case "e on":
-                case "eon":
-                    linkDestinazione = sceltaTariffa === "variabile" ? LINK_FORNITORI.eonVariabile : LINK_FORNITORI.eon;
-                    break;
-                case "enel": 
-                    linkDestinazione = LINK_FORNITORI.enel; 
-                    break;
-                case "eni":
-                case "plenitude": 
-                    linkDestinazione = LINK_FORNITORI.plenitude; 
-                    break;
-                case "edison": 
-                    linkDestinazione = LINK_FORNITORI.edison; 
-                    break;
-                default: 
-                    linkDestinazione = LINK_FORNITORI.default; 
-                    break;
-            }
-            
-            if (btnAttiva) {
-                btnAttiva.href = linkDestinazione;
-                btnAttiva.innerText = nomeFornitore !== "" ? "Attiva Subito con " + nomeFornitore : "Attiva Subito l'Offerta";
-                btnAttiva.style.display = "inline-block";
-            }
-        } else {
-            // L'utente spende di più -> NUMERO ROSSO
-            const perdita = Math.abs(bilancio);
-            const scatolaVerdetto = document.querySelector('.verdetto-box');
-            if (scatolaVerdetto) scatolaVerdetto.className = "verdetto-box warning";
-            if (badgeNumero) badgeNumero.innerText = "+ " + perdita.toFixed(2) + " € / anno";
-            if (testoDescrizione) testoDescrizione.innerText = "Attenzione: con queste nuove offerte proposte, andresti a spendere di più rispetto ad una tariffa media nazionale.";
-            if (btnAttiva) btnAttiva.style.display = "none";
-        }
-    } // Chiude in modo pulito la sotto-funzione eseguiCalcoloFinale
-} // Chiude in modo pulito la funzione principale avviaComparazioneDati
+}
 </script>
 <script>
 let MOTORE_CALCOLO_VERSION = "motore-v6-arera-first-2026-07-03";
@@ -3592,6 +3394,15 @@ function matchCommercialeSufficiente(providerKey, tipo, nomiArera, commerciale, 
   if (providerKey === "eon") {
     return testoArera.includes("e.on") || testoArera.includes("eon");
   }
+  if (providerKey === "octopus") {
+    return testoArera.includes("octopus") && (
+      (tipo === "fisso" && (testoArera.includes("fissa") || testoArera.includes("fix"))) ||
+      (tipo === "variabile" && (testoArera.includes("flex") || testoArera.includes("variabile")))
+    );
+  }
+  if (providerKey === "a2a") {
+    return testoArera.includes("a2a");
+  }
   return false;
 }
 
@@ -3767,12 +3578,8 @@ function unisciOfferteCandidati(offerteRanking, offertePartner) {
 
 function costruisciOfferteRanking(attuale, tipoTariffa, tipoFornitura) {
   const daArera = costruisciOfferteAreraRanking(attuale, tipoTariffa, tipoFornitura);
-  const partnerDirette = offertePartnerDiretteAttivabili(tipoTariffa, tipoFornitura);
-  if (daArera.length) return unisciOfferteCandidati(daArera, partnerDirette);
-  const fallback = OFFERTE_PROPOSTE
-    .filter((offerta) => offertaCalcolabileConIndici(offerta))
-    .filter((offerta) => offertaCompatibileConRanking(offerta, tipoTariffa, tipoFornitura));
-  return unisciOfferteCandidati(fallback, partnerDirette);
+  if (daArera.length) return daArera;
+  return [];
 }
 
 function chiaveGruppoPartner(item) {
@@ -3924,11 +3731,16 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
 
   if (emptyMessage) {
     emptyMessage.style.display = hasVisibleOffers ? "none" : "block";
-    emptyMessage.innerHTML = `
-      <strong style="display:block; margin-bottom:4px;">Nessuna offerta disponibile per questo filtro.</strong>
-      Al momento nella lista aggiornata non abbiamo offerte ${testoFiltroOfferte(tipoTariffa, tipoFornitura)}.
-      Stiamo ampliando i partner e le schede certificate: prova a cambiare filtro oppure carica la bolletta per una verifica più precisa.
-    `;
+    emptyMessage.innerHTML = !OFFERTE_ARERA_MENU.length
+      ? `
+        <strong style="display:block; margin-bottom:4px;">Offerte in aggiornamento.</strong>
+        Stiamo aggiornando le proposte disponibili. Riprova tra poco per vedere il confronto più recente.
+      `
+      : `
+        <strong style="display:block; margin-bottom:4px;">Nessuna offerta disponibile per questo filtro.</strong>
+        Al momento nella lista aggiornata non abbiamo offerte ${testoFiltroOfferte(tipoTariffa, tipoFornitura)}.
+        Stiamo ampliando i partner e le schede certificate: prova a cambiare filtro oppure carica la bolletta per una verifica più precisa.
+      `;
     if (!hasVisibleOffers) contenitoreSchede?.appendChild(emptyMessage);
   }
 

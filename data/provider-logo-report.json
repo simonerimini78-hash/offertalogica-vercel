@@ -1,295 +1,319 @@
-{
-  "generatedAt": "2026-07-06",
-  "ready": 28,
-  "fallback": 4,
-  "providers": [
-    {
-      "key": "a2a",
-      "label": "A2A",
-      "status": "ready",
-      "logo": "/assets/providers/a2a.svg",
-      "source": "https://commons.wikimedia.org/wiki/Special:Redirect/file/A2A_%28Unternehmen%29.svg",
-      "usageStatus": "marchio_pubblico_tracciato",
-      "logoShell": null
-    },
-    {
-      "key": "acea",
-      "label": "Acea",
-      "status": "ready",
-      "logo": "/assets/providers/acea.png",
-      "source": "https://commons.wikimedia.org/wiki/Special:Redirect/file/Logo-acea-2024.png",
-      "usageStatus": "marchio_pubblico_tracciato",
-      "logoShell": null
-    },
-    {
-      "key": "agasco",
-      "label": "Agasco",
-      "status": "fallback",
-      "logo": null,
-      "source": "https://www.agasco.it/",
-      "usageStatus": "logo_non_recuperato_fallback_riquadro",
-      "logoShell": null
-    },
-    {
-      "key": "alperia",
-      "label": "Alperia",
-      "status": "ready",
-      "logo": "/assets/providers/alperia.png",
-      "source": "https://commons.wikimedia.org/wiki/Special:Redirect/file/LogoAlperia.png",
-      "usageStatus": "marchio_pubblico_tracciato",
-      "logoShell": null
-    },
-    {
-      "key": "amga",
-      "label": "AMGA Energia e Servizi",
-      "status": "ready",
-      "logo": "/assets/providers/amga.png",
-      "source": "https://www.amgaenergia.it/wp-content/uploads/2024/05/LOGO-AES.png",
-      "usageStatus": "asset_ufficiale_sito_fornitore",
-      "logoShell": null
-    },
-    {
-      "key": "argos",
-      "label": "Argos",
-      "status": "fallback",
-      "logo": null,
-      "source": "https://argosenergia.it/",
-      "usageStatus": "dominio_non_validato_fallback_riquadro",
-      "logoShell": null
-    },
-    {
-      "key": "axpo",
-      "label": "Axpo Energia",
-      "status": "ready",
-      "logo": "/assets/providers/axpo.svg",
-      "source": "https://commons.wikimedia.org/wiki/Special:Redirect/file/Axpo_logo_neu.svg",
-      "usageStatus": "marchio_pubblico_tracciato",
-      "logoShell": null
-    },
-    {
-      "key": "dolomiti",
-      "label": "Dolomiti Energia",
-      "status": "ready",
-      "logo": "/assets/providers/dolomiti.png",
-      "source": "logo fornito da screenshot operativo 2026-07-06",
-      "usageStatus": "asset_fornito_utente_logo_viola",
-      "logoShell": null
-    },
-    {
-      "key": "eco",
-      "label": "E.CO Energia Corrente",
-      "status": "fallback",
-      "logo": null,
-      "source": "https://www.energia-corrente.it/",
-      "usageStatus": "logo_non_recuperato_fallback_riquadro",
-      "logoShell": null
-    },
-    {
-      "key": "eon",
-      "label": "E.ON",
-      "status": "ready",
-      "logo": "/assets/providers/eon.svg",
-      "source": "https://commons.wikimedia.org/wiki/Special:Redirect/file/Logo_E.ON.svg",
-      "usageStatus": "marchio_pubblico_tracciato",
-      "logoShell": null
-    },
-    {
-      "key": "edison",
-      "label": "Edison",
-      "status": "ready",
-      "logo": "/assets/providers/edison.png",
-      "source": "https://www.edisonenergia.it/wps/wcm/connect/4c4801f9-1bc8-4cae-ac8c-8426b6a78500/logo_edison.png",
-      "usageStatus": "asset_ufficiale_sito_fornitore",
-      "logoShell": null
-    },
-    {
-      "key": "eni",
-      "label": "Plenitude",
-      "status": "ready",
-      "logo": "/assets/providers/plenitude.svg",
-      "source": "https://eniplenitude.com/content/dam/plenitude-it/immagini/icone/nuovo-menu/new%20logo%20desktop.svg",
-      "usageStatus": "asset_ufficiale_sito_fornitore",
-      "logoShell": null
-    },
-    {
-      "key": "enel",
-      "label": "Enel",
-      "status": "ready",
-      "logo": "/assets/providers/enel.png",
-      "source": "https://commons.wikimedia.org/wiki/Special:Redirect/file/Enel_logo_2026.png",
-      "usageStatus": "marchio_pubblico_tracciato",
-      "logoShell": null
-    },
-    {
-      "key": "enercom",
-      "label": "Enercom",
-      "status": "ready",
-      "logo": "/assets/providers/enercom.webp",
-      "source": "https://www.enercom.it/wp-content/uploads/2023/07/enercom-logo.webp",
-      "usageStatus": "asset_ufficiale_sito_fornitore",
-      "logoShell": null
-    },
-    {
-      "key": "engie",
-      "label": "Engie",
-      "status": "ready",
-      "logo": "/assets/providers/engie.svg",
-      "source": "https://www.engie.it/_astro/logo-engie.BN0cqiDx.svg",
-      "usageStatus": "asset_ufficiale_sito_fornitore",
-      "logoShell": null
-    },
-    {
-      "key": "eja",
-      "label": "Eja Energia",
-      "status": "fallback",
-      "logo": null,
-      "source": "https://www.ejaenergia.it/",
-      "usageStatus": "logo_non_recuperato_fallback_riquadro",
-      "logoShell": null
-    },
-    {
-      "key": "hera",
-      "label": "Hera Comm",
-      "status": "ready",
-      "logo": "/assets/providers/hera.svg",
-      "source": "https://heracomm.gruppohera.it/documents/d/heracomm/logo-val",
-      "usageStatus": "asset_pubblico_recuperato_da_sito_fornitore",
-      "logoShell": null
-    },
-    {
-      "key": "illum",
-      "label": "Illumia",
-      "status": "ready",
-      "logo": "/assets/providers/illum.png",
-      "source": "https://www.illumia.it/wp-content/uploads/2025/01/LOGORED-500x260.png",
-      "usageStatus": "asset_ufficiale_sito_fornitore",
-      "logoShell": null
-    },
-    {
-      "key": "iren",
-      "label": "Iren Luce e Gas",
-      "status": "ready",
-      "logo": "/assets/providers/iren.png",
-      "source": "https://www.irenlucegas.it/content/dam/iren/evergreen/icone-e-loghi/loghi/logo_iren_color_2020.png",
-      "usageStatus": "asset_ufficiale_sito_fornitore",
-      "logoShell": null
-    },
-    {
-      "key": "magis",
-      "label": "Magis Energia",
-      "status": "ready",
-      "logo": "/assets/providers/magis.svg",
-      "source": "https://www.magisenergia.it/img/logo.svg",
-      "usageStatus": "asset_ufficiale_sito_fornitore",
-      "logoShell": null
-    },
-    {
-      "key": "nen",
-      "label": "neN",
-      "status": "ready",
-      "logo": "/assets/providers/nen.png",
-      "source": "https://nen.it/content/dam/nen/brand/loghi-official/endorsement/NeN-logo-endorsement-blue.png",
-      "usageStatus": "asset_ufficiale_sito_fornitore",
-      "logoShell": null
-    },
-    {
-      "key": "nova",
-      "label": "Nova Aeg",
-      "status": "ready",
-      "logo": "/assets/providers/nova.svg",
-      "source": "https://www.novaaeg.it/wp-content/uploads/sites/3/2022/08/logoPortaleOfferte.svg",
-      "usageStatus": "asset_pubblico_recuperato_da_sito_fornitore",
-      "logoShell": null
-    },
-    {
-      "key": "octopus",
-      "label": "Octopus Energy",
-      "status": "ready",
-      "logo": "/assets/providers/octopus.svg",
-      "source": "https://commons.wikimedia.org/wiki/Special:Redirect/file/Octopus_Energy_logo_%282019%29.svg",
-      "usageStatus": "marchio_pubblico_tracciato",
-      "logoShell": null
-    },
-    {
-      "key": "optima",
-      "label": "Optima Italia",
-      "status": "ready",
-      "logo": "/assets/providers/optima.svg",
-      "source": "https://www.optimaitalia.com/wp-content/uploads/2025/09/optima_new-1.svg",
-      "usageStatus": "asset_ufficiale_sito_fornitore",
-      "logoShell": null
-    },
-    {
-      "key": "poste",
-      "label": "Poste Energia",
-      "status": "ready",
-      "logo": "/assets/providers/poste.png",
-      "source": "https://www.media.poste.it/03827cbe-81a9-4d31-be55-bab5c161f851/lg/png/logo-poste-italianei@1x",
-      "usageStatus": "asset_corporate_poste_italiane",
-      "logoShell": null
-    },
-    {
-      "key": "pulsee",
-      "label": "Pulsee Luce e Gas",
-      "status": "ready",
-      "logo": "/assets/providers/pulsee.svg",
-      "source": "https://pulsee.it/assets/pulsee/media/logo/Logo_Pulsee.svg",
-      "usageStatus": "asset_ufficiale_sito_fornitore",
-      "logoShell": null
-    },
-    {
-      "key": "sen",
-      "label": "Servizio Elettrico Nazionale",
-      "status": "ready",
-      "logo": "/assets/providers/sen.png",
-      "source": "https://www.servizioelettriconazionale.it/etc.clientlibs/servizio-elettrico-nazionale/clientlibs/clientlib-site/resources/images/logo-sen-pittogramma.png",
-      "usageStatus": "asset_pubblico_recuperato_da_sito_fornitore",
-      "logoShell": null
-    },
-    {
-      "key": "sorgenia",
-      "label": "Sorgenia",
-      "status": "ready",
-      "logo": "/assets/providers/sorgenia.svg",
-      "source": "https://www.sorgenia.it/sites/default/themes/sorgenia/assets/images/logo.svg",
-      "usageStatus": "asset_ufficiale_sito_fornitore",
-      "logoShell": null
-    },
-    {
-      "key": "tate",
-      "label": "Tate",
-      "status": "ready",
-      "logo": "/assets/providers/tate.png",
-      "source": "https://cdn.prod.website-files.com/6285f541c451f42daf730fa8/62b1e155d1a61eb2240d940b_T_webclip.png",
-      "usageStatus": "asset_pubblico_recuperato_da_sito_fornitore",
-      "logoShell": null
-    },
-    {
-      "key": "vivi",
-      "label": "Vivi Energia",
-      "status": "ready",
-      "logo": "/assets/providers/vivi.svg",
-      "source": "https://www.vivienergia.it/static/images/common/logo-color.svg",
-      "usageStatus": "asset_ufficiale_sito_fornitore",
-      "logoShell": null
-    },
-    {
-      "key": "wekiwi",
-      "label": "Wekiwi",
-      "status": "ready",
-      "logo": "/assets/providers/wekiwi.png",
-      "source": "https://www.wekiwi.it/wp-content/uploads/2023/06/wekiwi_logo_black.png",
-      "usageStatus": "asset_ufficiale_sito_fornitore",
-      "logoShell": null
-    },
-    {
-      "key": "sinergy",
-      "label": "Sinergy",
-      "status": "ready",
-      "logo": "/assets/providers/sinergy.svg",
-      "source": "https://sinergylucegas.com/wp-content/uploads/PortaleOfferte_logo_colori.svg",
-      "usageStatus": "asset_ufficiale_sito_fornitore",
-      "logoShell": null
-    }
-  ]
-}
+[
+  {
+    "key": "a2a",
+    "label": "A2A Energia",
+    "status": "kept",
+    "logo": "/assets/providers/a2a.svg"
+  },
+  {
+    "key": "acea",
+    "label": "Acea Energia",
+    "status": "kept",
+    "logo": "/assets/providers/acea.png"
+  },
+  {
+    "key": "agasco",
+    "label": "Agasco",
+    "status": "missing",
+    "ok": false,
+    "error": "homepage: <urlopen error [Errno 8] nodename nor servname provided, or not known>"
+  },
+  {
+    "key": "alperia",
+    "label": "Alperia",
+    "status": "kept",
+    "logo": "/assets/providers/alperia.png"
+  },
+  {
+    "key": "amga",
+    "label": "Amga",
+    "status": "downloaded",
+    "ok": true,
+    "logo": "/assets/providers/amga.svg",
+    "source": "https://www.amgaenergia.it/wp-content/plugins/webtoffee-gdpr-cookie-consent/images/webtoffee-logo.svg",
+    "reason": "img:scored",
+    "score": 305,
+    "contentType": "image/svg+xml",
+    "bytes": 7105
+  },
+  {
+    "key": "argos",
+    "label": "Argos",
+    "status": "missing",
+    "ok": false,
+    "error": "homepage: <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: Hostname mismatch, certificate is not valid for 'www.argosenergia.it'. (_ssl.c:1129)>"
+  },
+  {
+    "key": "axpo",
+    "label": "Axpo Energia",
+    "status": "downloaded",
+    "ok": true,
+    "logo": "/assets/providers/axpo.png",
+    "source": "https://www.axpo.com/content/dam/axpo19/italy/new-assets-2024/immagini-sezioni/video-hp/Axpo-Video-Teaser-Sito-Homepage_16-9_ChiSiamo_E.png",
+    "reason": "img:scored",
+    "score": 110,
+    "contentType": "image/png",
+    "bytes": 2511582
+  },
+  {
+    "key": "dolomiti",
+    "label": "Dolomiti Energia",
+    "status": "downloaded",
+    "ok": true,
+    "logo": "/assets/providers/dolomiti.svg",
+    "source": "https://www.dolomitienergia.it/etc.clientlibs/dolomiti-energia/clientlibs/clientlib-base/resources/images/logo-white.svg",
+    "reason": "img:scored",
+    "score": 340,
+    "contentType": "image/svg+xml",
+    "bytes": 22977
+  },
+  {
+    "key": "eco",
+    "label": "E.CO Energia Corrente",
+    "status": "missing",
+    "ok": false,
+    "error": "homepage: <urlopen error [Errno 8] nodename nor servname provided, or not known>"
+  },
+  {
+    "key": "eon",
+    "label": "E.ON",
+    "status": "kept",
+    "logo": "/assets/providers/eon.svg"
+  },
+  {
+    "key": "edison",
+    "label": "Edison",
+    "status": "downloaded",
+    "ok": true,
+    "logo": "/assets/providers/edison.png",
+    "source": "https://www.edisonenergia.it/wps/wcm/connect/4c4801f9-1bc8-4cae-ac8c-8426b6a78500/logo_edison.png?MOD=AJPERES&CACHEID=ROOTWORKSPACE-4c4801f9-1bc8-4cae-ac8c-8426b6a78500-oA0T8Fp",
+    "reason": "img:scored",
+    "score": 275,
+    "contentType": "image/png",
+    "bytes": 1645
+  },
+  {
+    "key": "eni",
+    "label": "Plenitude",
+    "status": "kept",
+    "logo": "/assets/providers/plenitude.svg"
+  },
+  {
+    "key": "enel",
+    "label": "Enel Energia",
+    "status": "kept",
+    "logo": "/assets/providers/enel.png"
+  },
+  {
+    "key": "enercom",
+    "label": "Enercom",
+    "status": "downloaded",
+    "ok": true,
+    "logo": "/assets/providers/enercom.webp",
+    "source": "https://www.enercom.it/wp-content/uploads/2026/01/enercoach-logo.webp",
+    "reason": "img:scored",
+    "score": 290,
+    "contentType": "image/webp",
+    "bytes": 5474
+  },
+  {
+    "key": "engie",
+    "label": "Engie",
+    "status": "downloaded",
+    "ok": true,
+    "logo": "/assets/providers/engie.png",
+    "source": "https://d3evrc0h48esvv.cloudfront.net/8181114/engie-business.png?version=1.0&t=1740064235319&fm=webp&w=original&h=726",
+    "reason": "source:scored",
+    "score": 95,
+    "contentType": "image/webp",
+    "bytes": 8466
+  },
+  {
+    "key": "eja",
+    "label": "Eja Energia",
+    "status": "missing",
+    "ok": false,
+    "error": "homepage: <urlopen error [Errno 8] nodename nor servname provided, or not known>"
+  },
+  {
+    "key": "hera",
+    "label": "Hera Comm",
+    "status": "downloaded",
+    "ok": true,
+    "logo": "/assets/providers/hera.svg",
+    "source": "https://heracomm.gruppohera.it/documents/d/heracomm/logo-val",
+    "reason": "img:scored",
+    "score": 310,
+    "contentType": "image/svg+xml",
+    "bytes": 189872
+  },
+  {
+    "key": "illum",
+    "label": "Illumia",
+    "status": "downloaded",
+    "ok": true,
+    "logo": "/assets/providers/illum.png",
+    "source": "https://www.illumia.it/wp-content/uploads/2025/01/LOGORED-500x260.png",
+    "reason": "img:scored",
+    "score": 290,
+    "contentType": "image/png",
+    "bytes": 23977
+  },
+  {
+    "key": "iren",
+    "label": "Iren Luce e Gas",
+    "status": "downloaded",
+    "ok": true,
+    "logo": "/assets/providers/iren.png",
+    "source": "https://www.irenlucegas.it/content/dam/iren/evergreen/icone-e-loghi/loghi/logo_iren_color_2020.png",
+    "reason": "img:scored",
+    "score": 360,
+    "contentType": "image/png",
+    "bytes": 15838
+  },
+  {
+    "key": "magis",
+    "label": "Magis Energia",
+    "status": "downloaded",
+    "ok": true,
+    "logo": "/assets/providers/magis.svg",
+    "source": "https://www.magisenergia.it/img/logo.svg",
+    "reason": "img:scored",
+    "score": 340,
+    "contentType": "image/svg+xml",
+    "bytes": 6718
+  },
+  {
+    "key": "nen",
+    "label": "neN",
+    "status": "downloaded",
+    "ok": true,
+    "logo": "/assets/providers/nen.svg",
+    "source": "https://nen.it/content/dam/nen/brand/loghi-official/portale-offerte/Portale-offerte-w.svg",
+    "reason": "img:scored",
+    "score": 325,
+    "contentType": "image/svg+xml",
+    "bytes": 18346
+  },
+  {
+    "key": "nova",
+    "label": "Nova Aeg",
+    "status": "downloaded",
+    "ok": true,
+    "logo": "/assets/providers/nova.svg",
+    "source": "https://www.novaaeg.it/wp-content/uploads/sites/3/2022/08/logoPortaleOfferte.svg",
+    "reason": "img:scored",
+    "score": 340,
+    "contentType": "image/svg+xml",
+    "bytes": 6785
+  },
+  {
+    "key": "octopus",
+    "label": "Octopus Energy",
+    "status": "kept",
+    "logo": "/assets/providers/octopus.svg"
+  },
+  {
+    "key": "optima",
+    "label": "Optima Italia",
+    "status": "downloaded",
+    "ok": true,
+    "logo": "/assets/providers/optima.svg",
+    "source": "https://www.optimaitalia.com/wp-content/uploads/2025/09/optima-white.svg",
+    "reason": "img:scored",
+    "score": 340,
+    "contentType": "image/svg+xml",
+    "bytes": 4370
+  },
+  {
+    "key": "poste",
+    "label": "Poste Energia",
+    "status": "missing",
+    "ok": false,
+    "error": "homepage: HTTP Error 404: Not Found"
+  },
+  {
+    "key": "pulsee",
+    "label": "Pulsee Luce e Gas",
+    "status": "downloaded",
+    "ok": true,
+    "logo": "/assets/providers/pulsee.svg",
+    "source": "https://pulsee.it/assets/pulsee/media/static-images/trustpilot-logo.svg?_u=74a1dd420fbd41f9a86d31aacc0efa3b1bbb38f4",
+    "reason": "img:scored",
+    "score": 275,
+    "contentType": "image/svg+xml",
+    "bytes": 8525
+  },
+  {
+    "key": "sen",
+    "label": "Servizio Elettrico Nazionale",
+    "status": "downloaded",
+    "ok": true,
+    "logo": "/assets/providers/sen.png",
+    "source": "https://www.servizioelettriconazionale.it/etc.clientlibs/servizio-elettrico-nazionale/clientlibs/clientlib-site/resources/images/logo-sen-pittogramma.png",
+    "reason": "img:scored",
+    "score": 360,
+    "contentType": "image/png",
+    "bytes": 725
+  },
+  {
+    "key": "sorgenia",
+    "label": "Sorgenia",
+    "status": "downloaded",
+    "ok": true,
+    "logo": "/assets/providers/sorgenia.svg",
+    "source": "https://www.sorgenia.it/sites/default/themes/sorgenia/assets/images/logo.svg",
+    "reason": "img:scored",
+    "score": 305,
+    "contentType": "image/svg+xml",
+    "bytes": 8845
+  },
+  {
+    "key": "tate",
+    "label": "Tate",
+    "status": "downloaded",
+    "ok": true,
+    "logo": "/assets/providers/tate.png",
+    "source": "https://cdn.prod.website-files.com/6285f541c451f42daf730fa8/62b1e155d1a61eb2240d940b_T_webclip.png",
+    "reason": "link:apple-touch-icon",
+    "score": 20,
+    "contentType": "image/png",
+    "bytes": 3608
+  },
+  {
+    "key": "vivi",
+    "label": "Vivi Energia",
+    "status": "downloaded",
+    "ok": true,
+    "logo": "/assets/providers/vivi.jpg",
+    "source": "https://vivienergia.imgix.net/uploads/2026/03/04161015/Logo-portaleofferte.jpg?width=1440&auto=format",
+    "reason": "img:scored",
+    "score": 310,
+    "contentType": "image/avif",
+    "bytes": 20298
+  },
+  {
+    "key": "wekiwi",
+    "label": "Wekiwi",
+    "status": "downloaded",
+    "ok": true,
+    "logo": "/assets/providers/wekiwi.png",
+    "source": "https://www.wekiwi.it/wp-content/uploads/2023/06/wekiwi_logo_white.png",
+    "reason": "img:scored",
+    "score": 290,
+    "contentType": "image/png",
+    "bytes": 9694
+  },
+  {
+    "key": "sinergy",
+    "label": "Sinergy",
+    "status": "downloaded",
+    "ok": true,
+    "logo": "/assets/providers/sinergy.svg",
+    "source": "https://sinergylucegas.com/wp-content/uploads/logo-sinergy-bianco.svg",
+    "reason": "img:scored",
+    "score": 305,
+    "contentType": "image/svg+xml",
+    "bytes": 11485
+  }
+]
