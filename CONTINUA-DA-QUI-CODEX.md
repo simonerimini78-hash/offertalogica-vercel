@@ -33,7 +33,7 @@ Il progetto gira su GitHub + Vercel con dominio `offertalogica.it`.
 
 Il pacchetto completo di riferimento lato progetto e:
 
-`offertalogica-v46-pagine-vetrina-provider-20260707`
+`offertalogica-v47-offerte-bloccate-senza-cifre-20260707`
 
 Base storica stabile precedente:
 
@@ -57,6 +57,7 @@ Ultimi zip incrementali importanti generati dopo la base completa:
 - `offertalogica-v43-loghi-forniture-separate-20260707.zip`
 - `offertalogica-v44-card-risparmio-evidente-20260707.zip`
 - `offertalogica-v46-pagine-vetrina-provider-20260707.zip`
+- `offertalogica-v47-offerte-bloccate-senza-cifre-20260707.zip`
 
 Nota importante sugli zip incrementali: quelli v30-v33 contengono solo `lib/otp.js` e non devono toccare grafica, offerte, loghi o motore. Il v34 tocca solo pagine pubbliche statiche, footer, sitemap e termini/disclaimer. Il v35 aggiunge solo un assistente guidato frontend alla homepage. Il v36 aggiorna partner energia e pagina internet/mobile.
 
@@ -293,6 +294,17 @@ Data: 2026-07-07.
 - Rimossa la pagina preview pubblica `public/index-preview-pelle-premium.html`.
 - Aggiunti `Lene Energia` e `Segnoverde` nelle tendine fornitore.
 - Segnoverde e' compatibile solo con forniture separate: non forzarlo nel dual fuel.
+- Non sono stati toccati ranking, dati ARERA, link partner, OTP, lead, database o consensi.
+
+## Punto v47 - offerte bloccate senza cifre
+
+Data: 2026-07-07.
+
+- Base: `offertalogica-v46-pagine-vetrina-provider-20260707`.
+- Motore di calcolo non modificato: resta ARERA-first.
+- Prima dello sblocco OTP, le card offerte non devono mostrare importi di costo stimato o risparmio stimato.
+- Prima dello sblocco si mostrano solo badge, tipo di percorso e testo neutro: `Disponibile dopo verifica`.
+- Dopo OTP verificato, le card tornano a mostrare costo stimato, risparmio annuo stimato e dettaglio tecnico.
 - Non sono stati toccati ranking, dati ARERA, link partner, OTP, lead, database o consensi.
 
 ## Cose da non rompere

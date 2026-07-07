@@ -3940,14 +3940,16 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
             apriLeadModal("unlock");
           };
         }
-        saving.style.color = risparmio ? "var(--primary)" : "var(--danger)";
+        saving.style.color = "var(--text-muted)";
         saving.innerHTML = `
           ${badge}${onlineBadge}
           <span class="offer-metrics">
-            <span class="offer-cost-line"><span>${costoStimatoLabel}</span><strong>${euro(costo)} / anno</strong></span>
-            <span class="${savingLineClass}"><span>${risparmioLockedLabel}</span><strong>${euro(Math.abs(differenza))} / anno</strong></span>
+            <span class="offer-cost-line"><span>Costo stimato</span><strong>Disponibile dopo verifica</strong></span>
+            <span class="offer-saving-line"><span>Risparmio stimato</span><strong>Disponibile dopo verifica</strong></span>
           </span>
-          ${alternativeNote}
+          <small style="display:block; margin-top:3px; color:var(--text-muted); font-weight:600;">
+            Sblocca per vedere importi, prezzo, fornitore e percorso ufficiale.
+          </small>
         `;
       }
       contenitoreTarget?.appendChild(card);
