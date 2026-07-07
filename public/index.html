@@ -1218,7 +1218,7 @@
         <div class="choice-grid">
             <button type="button" id="btn-attiva-medi" class="choice-card primary">
                 <strong>Non conosco i miei consumi</strong>
-                <span>Usa profili medi e filtri principali per stimare subito le 3 offerte più adatte.</span>
+                <span>Usa profili medi e filtri principali per stimare subito le offerte più adatte.</span>
             </button>
             <button type="button" id="btn-attiva-precisi" class="choice-card secondary">
                 <strong>Conosco i miei consumi</strong>
@@ -1324,6 +1324,7 @@
                     <option value="hera">Hera Comm</option>
                     <option value="illum">Illumia</option>
                     <option value="iren">Iren Luce e Gas</option>
+                    <option value="lene">Lene Energia</option>
                     <option value="magis">Magis Energia</option>
                     <option value="nen">neN</option>
                     <option value="nova">Nova Aeg</option>
@@ -1331,6 +1332,7 @@
                     <option value="optima">Optima Italia</option>
                     <option value="poste">Poste Energia</option>
                     <option value="pulsee">Pulsee Luce e Gas</option>
+                    <option value="segnoverde">Segnoverde</option>
                     <option value="sen">Servizio Elettrico Nazionale</option>
                     <option value="sorgenia">Sorgenia</option>
                     <option value="tate">Tate</option>
@@ -1399,6 +1401,7 @@
                     <option value="hera">Hera Comm</option>
                     <option value="illum">Illumia</option>
                     <option value="iren">Iren Luce e Gas</option>
+                    <option value="lene">Lene Energia</option>
                     <option value="magis">Magis Energia</option>
                     <option value="nen">neN</option>
                     <option value="nova">Nova Aeg</option>
@@ -1406,6 +1409,7 @@
                     <option value="optima">Optima Italia</option>
                     <option value="poste">Poste Energia</option>
                     <option value="pulsee">Pulsee Luce e Gas</option>
+                    <option value="segnoverde">Segnoverde</option>
                     <option value="sen">Servizio Elettrico Nazionale</option>
                     <option value="sorgenia">Sorgenia</option>
                     <option value="tate">Tate</option>
@@ -3558,6 +3562,7 @@ function miglioreRigaAreraPerProvider(providerKey, commodity, tipo, attuale) {
 }
 
 function offertaAreraRankingProvider(providerKey, tipo, tipoFornitura, attuale) {
+  if (!providerCompatibileConTipoFornitura(providerKey, tipoFornitura)) return null;
   const luce = miglioreRigaAreraPerProvider(providerKey, "luce", tipo, attuale);
   const gas = miglioreRigaAreraPerProvider(providerKey, "gas", tipo, attuale);
   if (tipoFornitura === "dual" && (!luce || !gas)) return null;
@@ -3801,7 +3806,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
     offerteCalcolate.filter((item) => item.attivabileCoerente)
   )
     .sort((a, b) => (a.costo - b.costo) || (b.differenza - a.differenza))
-    .slice(0, 3)
+    .slice(0, 6)
     .map((item, index) => ({
       ...item,
       gruppoVisuale: "attivabile",
@@ -3824,15 +3829,15 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
     "offerte-partner-online-group",
     "partner-group",
     "Offerte partner attivabili online",
-    "Le 3 migliori proposte attivabili online tra i partner disponibili e coerenti con il filtro selezionato."
+    "Le migliori proposte attivabili online tra i partner disponibili e coerenti con il filtro selezionato."
   );
   const gruppoConsulente = assicuraGruppoOfferte(
     "offerte-consulente-group",
     "consultant-group",
     "Migliori offerte per costo con consulente",
     OFFERTE_ARERA_MENU.length
-      ? "Le 3 proposte più convenienti per costo annuo stimato sul tuo profilo. Richiedono verifica consulenziale o ricontatto prima dell'eventuale attivazione."
-      : "Le 3 proposte più convenienti tra le offerte disponibili nel calcolatore. Richiedono verifica consulenziale o ricontatto."
+      ? "Le migliori proposte per costo annuo stimato sul tuo profilo. Richiedono verifica consulenziale o ricontatto prima dell'eventuale attivazione."
+      : "Le migliori proposte tra le offerte disponibili nel calcolatore. Richiedono verifica consulenziale o ricontatto."
   );
   const contenitorePartner = resetGruppoOfferte(gruppoPartner, attivabiliPrioritarie.length > 0);
   const contenitoreConsulente = resetGruppoOfferte(gruppoConsulente, miglioriConConsulente.length > 0);
@@ -4205,7 +4210,7 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
       ? "Verifica staff senza salvataggio"
       : source === "business"
       ? "Sblocca analisi aziendale"
-      : "Sblocca le 3 migliori offerte";
+      : "Sblocca le migliori offerte";
   }
   if (copy) {
     const saving = LEAD_STATE.bestSaving > 0 ? ` Abbiamo stimato fino a ${euro(LEAD_STATE.bestSaving)} / anno di risparmio potenziale.` : "";
@@ -4216,7 +4221,7 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
     } else if (source === "upload") {
       copy.innerText = "Carica la bolletta in ambiente sicuro e verifica il cellulare per ricevere il confronto personalizzato.";
     } else {
-      copy.innerText = `Ti mostriamo subito le 3 offerte migliori per il tuo profilo: verifica il cellulare per vedere nomi, prezzi e link.${saving}`;
+      copy.innerText = `Ti mostriamo subito le offerte migliori per il tuo profilo: verifica il cellulare per vedere nomi, prezzi e link.${saving}`;
     }
   }
   if (partnerCopy) {
@@ -4907,7 +4912,7 @@ const PROVIDER_MATCHERS = [
   ["optima", ["optima"]],
   ["poste", ["poste energia", "poste"]],
   ["pulsee", ["pulsee"]],
-  ["segnoverde", ["segnoverde", "segno verde"]],
+  ["segnoverde", ["segnoverde", "segno verde", "sogno verde"]],
   ["sen", ["servizio elettrico nazionale"]],
   ["sorgenia", ["sorgenia"]],
   ["tate", ["tate"]],
@@ -4915,6 +4920,12 @@ const PROVIDER_MATCHERS = [
   ["wekiwi", ["wekiwi"]],
   ["sinergy", ["sinergy"]],
 ];
+
+const PROVIDER_SOLO_FORNITURE_SEPARATE = new Set(["segnoverde"]);
+
+function providerCompatibileConTipoFornitura(providerKey, tipoFornitura) {
+  return !(tipoFornitura === "dual" && PROVIDER_SOLO_FORNITURE_SEPARATE.has(providerKey));
+}
 
 function testoFornitoreNormalizzato(name) {
   return String(name || "")
@@ -4991,6 +5002,7 @@ function voceDaRigaArera(riga) {
 }
 
 function offertaAreraDaRighe(providerKey, tipo, tipoFornitura, attuale) {
+  if (!providerCompatibileConTipoFornitura(providerKey, tipoFornitura)) return null;
   const righe = OFFERTE_ARERA_MENU.filter((riga) => riga.providerKey === providerKey);
   if (!righe.length) return null;
 
@@ -5591,7 +5603,7 @@ if (document.readyState === "loading") {
 
 <div class="lead-modal-backdrop" id="lead-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="lead-modal-title">
     <div class="lead-modal">
-        <h3 id="lead-modal-title">Sblocca le 3 migliori offerte</h3>
+        <h3 id="lead-modal-title">Sblocca le migliori offerte</h3>
         <p id="lead-modal-copy">Lascia i tuoi dati per ricevere il confronto personalizzato e verificare il numero con codice OTP.</p>
         <div class="lead-form-grid">
             <input id="lead-nome" type="text" autocomplete="name" placeholder="Nome e cognome">

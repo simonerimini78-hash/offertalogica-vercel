@@ -33,7 +33,7 @@ Il progetto gira su GitHub + Vercel con dominio `offertalogica.it`.
 
 Il pacchetto completo di riferimento lato progetto e:
 
-`offertalogica-v42-calcolatore-arera-aggiornato-20260707`
+`offertalogica-v46-pagine-vetrina-provider-20260707`
 
 Base storica stabile precedente:
 
@@ -53,7 +53,10 @@ Ultimi zip incrementali importanti generati dopo la base completa:
 - `offertalogica-v38-logo-octopus-20260707.zip`
 - `offertalogica-v39-arera-partner-sync-octopus-20260707.zip`
 - `offertalogica-v40-arera-first-partner-20260707.zip`
-- `offertalogica-v42-calcolatore-arera-aggiornato-20260707.zip` quando verra generato dopo approvazione.
+- `offertalogica-v42-calcolatore-arera-aggiornato-20260707.zip`
+- `offertalogica-v43-loghi-forniture-separate-20260707.zip`
+- `offertalogica-v44-card-risparmio-evidente-20260707.zip`
+- `offertalogica-v46-pagine-vetrina-provider-20260707.zip`
 
 Nota importante sugli zip incrementali: quelli v30-v33 contengono solo `lib/otp.js` e non devono toccare grafica, offerte, loghi o motore. Il v34 tocca solo pagine pubbliche statiche, footer, sitemap e termini/disclaimer. Il v35 aggiunge solo un assistente guidato frontend alla homepage. Il v36 aggiorna partner energia e pagina internet/mobile.
 
@@ -76,6 +79,10 @@ Nota importante sugli zip incrementali: quelli v30-v33 contengono solo `lib/otp.
 - Promemoria operativo SMS: l'alias Aruba attivo e' `RAGroup`; prima della scadenza annuale del servizio/alias va verificato o rinnovato dal pannello Aruba/AGCOM.
 - Assistente guidato v35: pannello in homepage, senza AI/API, senza raccolta dati in chat. Guida l'utente verso PDF, profilo medio, dati reali, business, offerte e privacy.
 - Partner aggiornati 2026-07-07: A2A e Octopus accettati su Tradedoubler e promossi a partner energia attivabili; Ho Mobile e Very Mobile inseriti nella sezione Internet casa/mobile con link affiliati e loghi.
+- Pagine pubbliche v46: `internet-casa.html` e `casa-smart.html` sono pagine-vetrina con hero e blocchi offerta; non devono contenere spiegazioni interne su come costruiamo il sistema.
+- Pagina `partner.html` v46: resta B2B, ma senza parole operative come `leadId`, `webhook`, `CRM`, `CPA/CPL` o spiegazioni tecniche da cantiere.
+- Menu fornitori v46: aggiunti `Lene Energia` e `Segnoverde` nei menu a tendina offerta attuale/nuova offerta.
+- Regola Segnoverde: Segnoverde non va trattato come dual fuel; se il filtro e' dual non deve essere forzato come offerta dual, perche' opera su luce e gas separati.
 - Deeplink aggiornati 2026-07-07: nella cartella v36 A2A punta al funnel fisso dual A2A dentro tracking Tradedoubler; Octopus punta alla pagina informazioni personali dentro tracking Tradedoubler. Lo zip v36 creato prima di questa correzione va rigenerato prima di un eventuale caricamento.
 - Pacchetto corretto da caricare: v37. Include deeplink A2A, Octopus, Ho Mobile e Very Mobile dentro tracking Tradedoubler. Lo zip v36 precedente resta superato.
 - Pacchetto v38: stessa base v37, con logo Octopus aggiornato in `public/assets/providers/octopus.png` e riferimento HTML corretto da `octopus.svg` a `octopus.png`.
@@ -105,9 +112,10 @@ Dopo il click su "Elabora e confronta le offerte" devono comparire due blocchi d
 
 ### 1. Offerte partner attivabili online
 
-- Mostra fino a 3 offerte partner attive e attivabili online.
+- Mostra fino a 6 offerte partner attive e attivabili online.
 - Devono essere coerenti con filtro selezionato.
 - Devono essere ordinate per costo stimato sul profilo utente.
+- Nei testi pubblici non dichiarare un numero fisso: usare "le migliori offerte" o formule equivalenti.
 - Quando il file ARERA e' disponibile, prezzi e ranking devono arrivare dal file ARERA aggiornato.
 - I partner attivabili usano `offerte-proposte.json` solo per link, logo, stato commerciale e tracciamento.
 - Un partner non deve essere mostrato come attivabile se non esiste un aggancio coerente e prudente con una proposta ARERA valida per lo stesso filtro.
@@ -118,6 +126,7 @@ Dopo il click su "Elabora e confronta le offerte" devono comparire due blocchi d
 - Mostra fino a 3 offerte non attivabili online.
 - Devono essere ordinate per convenienza sul profilo utente.
 - Devono restare separate dal blocco partner.
+- Nei testi pubblici non dichiarare un numero fisso: usare "migliori offerte per costo con consulente" o formule equivalenti.
 - Quando l'utente procede, non aprire automaticamente la pagina fornitore: mostrare popup di richiesta consulente/trasmissione dati.
 
 ## Partner attivi importanti
@@ -272,6 +281,19 @@ Data: 2026-07-07.
 - Aggiornati `public/data/provider-brand.json`, `data/provider-brand.json` e fallback HTML `PROVIDER_BRANDS`.
 - Non sono stati toccati ranking, dati ARERA, link partner, OTP, lead, database o consensi.
 - Verifiche eseguite: `scripts/validate-calculator-data.mjs` OK; `scripts/verify-calcolo-offerte.mjs` OK; sintassi script inline OK; JSON brand root/pubblico identici; asset E.CO presente.
+
+## Punto v46 - pagine vetrina pulite e provider menu
+
+Data: 2026-07-07.
+
+- Base: `offertalogica-v45-internet-affiliati-pulito-20260707`.
+- Motore di calcolo non modificato: resta ARERA-first.
+- `internet-casa.html` e `casa-smart.html` sono state rese pagine-vetrina: hero, blocchi offerta e CTA, senza spiegazioni interne su affiliazioni, commissioni o costruzione del sistema.
+- `partner.html` resta pagina B2B, ma ripulita da parole operative tipo `leadId`, `webhook`, `CRM`, `CPA/CPL` e note da cantiere.
+- Rimossa la pagina preview pubblica `public/index-preview-pelle-premium.html`.
+- Aggiunti `Lene Energia` e `Segnoverde` nelle tendine fornitore.
+- Segnoverde e' compatibile solo con forniture separate: non forzarlo nel dual fuel.
+- Non sono stati toccati ranking, dati ARERA, link partner, OTP, lead, database o consensi.
 
 ## Cose da non rompere
 
