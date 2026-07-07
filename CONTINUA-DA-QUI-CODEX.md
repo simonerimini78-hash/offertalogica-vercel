@@ -259,6 +259,20 @@ Data: 2026-07-07.
 - Se il logo manca, compare fallback testuale nella stessa mini-casella, senza accorciare o deformare il blocco.
 - Verifiche eseguite: `scripts/validate-calculator-data.mjs` OK; `scripts/verify-calcolo-offerte.mjs` OK; asset loghi richiesti presenti; JSON brand root/pubblico identici.
 
+## Punto v44 - costo prima, risparmio evidente
+
+Data: 2026-07-07.
+
+- Base: `offertalogica-v43-loghi-forniture-separate-20260707`.
+- Motore di calcolo non modificato: resta ARERA-first.
+- Modifica v44: nelle card offerte viene mostrato prima `Costo stimato ... / anno`.
+- Subito sotto viene mostrato `Risparmio annuo stimato` o `Risparmio potenziale stimato`, graficamente piu evidente.
+- Il dettaglio tecnico resta sotto in piccolo: materia energia/gas, fissa vendita, potenza/ambito, oneri/imposte/IVA.
+- Aggiunto logo `E.CO Energia Corrente` fornito da Simone in `public/assets/providers/eco-user.png`.
+- Aggiornati `public/data/provider-brand.json`, `data/provider-brand.json` e fallback HTML `PROVIDER_BRANDS`.
+- Non sono stati toccati ranking, dati ARERA, link partner, OTP, lead, database o consensi.
+- Verifiche eseguite: `scripts/validate-calculator-data.mjs` OK; `scripts/verify-calcolo-offerte.mjs` OK; sintassi script inline OK; JSON brand root/pubblico identici; asset E.CO presente.
+
 ## Cose da non rompere
 
 - Separazione dei due blocchi offerte.

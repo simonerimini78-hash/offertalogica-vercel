@@ -645,6 +645,57 @@
             font-size: 24px;
             letter-spacing: -.03em;
         }
+        .offer-metrics {
+            display: grid;
+            gap: 7px;
+            margin-top: 2px;
+        }
+        .offer-cost-line,
+        .offer-saving-line {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .offer-cost-line {
+            color: #475569;
+            font-size: 13px;
+            line-height: 1.25;
+            font-weight: 800;
+        }
+        .offer-cost-line strong {
+            color: #0f172a;
+            font-size: 15px;
+            font-weight: 900;
+            white-space: nowrap;
+        }
+        .offer-saving-line {
+            padding: 9px 10px;
+            border: 1px solid rgba(22, 163, 74, .22);
+            border-radius: 10px;
+            background: linear-gradient(180deg, #ecfdf5 0%, #f7fef9 100%);
+            color: var(--primary);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.72);
+        }
+        .offer-saving-line.is-negative {
+            border-color: rgba(220, 38, 38, .22);
+            background: linear-gradient(180deg, #fef2f2 0%, #fff7f7 100%);
+            color: var(--danger);
+        }
+        .offer-saving-line span {
+            font-size: 12px;
+            line-height: 1.15;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: .02em;
+        }
+        .offer-saving-line strong {
+            font-size: 22px;
+            line-height: 1;
+            font-weight: 950;
+            white-space: nowrap;
+        }
         .partner-title {
             font-size: 20px !important;
             line-height: 1.22 !important;
@@ -1499,6 +1550,7 @@ let PROVIDER_BRANDS = {
   alperia: { label: "Alperia", logo: "/assets/providers/alperia.png" },
   axpo: { label: "Axpo Energia", logo: "/assets/providers/axpo-user.png" },
   dolomiti: { label: "Dolomiti Energia", logo: "/assets/providers/dolomiti-user.png" },
+  eco: { label: "E.CO Energia Corrente", logo: "/assets/providers/eco-user.png" },
   edison: { label: "Edison", logo: "/assets/providers/edison-user.png" },
   enel: { label: "Enel", logo: "/assets/providers/enel.png" },
   eni: { label: "Plenitude", logo: "/assets/providers/plenitude-user.png" },
@@ -3842,6 +3894,10 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       const alternativeNote = alternativeFiltro && gruppoVisuale !== "attivabile"
         ? `<small style="display:block; margin-top:3px; color:#92400e; font-weight:700;">${tipoTariffa === "variabile" && offerta.tipo === "variabile" ? "Offerta variabile" : "Alternativa"} ${descriviTipoOfferta(offerta)} mostrata anche se il filtro selezionato e ${testoFiltroOfferte(tipoTariffa, tipoFornitura)}.</small>`
         : "";
+      const costoStimatoLabel = `Costo stimato ${ambito}`;
+      const risparmioLabel = risparmio ? "Risparmio annuo stimato" : "Costo annuo più alto";
+      const risparmioLockedLabel = risparmio ? "Risparmio potenziale stimato" : "Costo stimato superiore";
+      const savingLineClass = risparmio ? "offer-saving-line" : "offer-saving-line is-negative";
       if (LEAD_STATE.verified) {
         if (title) title.innerText = titoloOffertaVisibile(offerta);
         aggiornaLogoOfferta(card, offerta, true);
@@ -3856,12 +3912,12 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
           };
         }
         saving.style.color = risparmio ? "var(--primary)" : "var(--danger)";
-        const esito = risparmio
-          ? `Risparmio annuo stimato: ${euro(Math.abs(differenza))}`
-          : `Costo annuo più alto di: ${euro(Math.abs(differenza))}`;
         saving.innerHTML = `
           ${badge}${onlineBadge}
-          <span style="display:block;">${esito} | Costo stimato ${ambito}: ${euro(costo)}</span>
+          <span class="offer-metrics">
+            <span class="offer-cost-line"><span>${costoStimatoLabel}</span><strong>${euro(costo)} / anno</strong></span>
+            <span class="${savingLineClass}"><span>${risparmioLabel}</span><strong>${euro(Math.abs(differenza))} / anno</strong></span>
+          </span>
           ${alternativeNote}
           <small style="display:block; margin-top:3px; color:var(--text-muted); font-weight:600;">
             Materia energia/gas: ${euro(costoOfferta.quotaVariabile)} | Fissa vendita: ${euro(costoOfferta.quotaFissaVendita)} | Potenza/ambito: ${euro(costoOfferta.quotaTecnicaProfilo)} | Oneri, imposte e IVA: ${euroOneriFiscali(costoOfferta.quotaRegolata + costoOfferta.quotaFiscale)}
@@ -3882,9 +3938,10 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
         saving.style.color = risparmio ? "var(--primary)" : "var(--danger)";
         saving.innerHTML = `
           ${badge}${onlineBadge}
-          <span style="display:block;">${risparmio
-            ? `Risparmio potenziale stimato ${ambito}: ${euro(Math.abs(differenza))} / anno`
-            : `Costo stimato superiore sull'ambito ${ambito}: ${euro(Math.abs(differenza))} / anno`}</span>
+          <span class="offer-metrics">
+            <span class="offer-cost-line"><span>${costoStimatoLabel}</span><strong>${euro(costo)} / anno</strong></span>
+            <span class="${savingLineClass}"><span>${risparmioLockedLabel}</span><strong>${euro(Math.abs(differenza))} / anno</strong></span>
+          </span>
           ${alternativeNote}
         `;
       }

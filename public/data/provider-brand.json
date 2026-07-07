@@ -1,5 +1,5 @@
 {
-  "versioneDati": "provider-brand-2026-07-07-v43-user-assets",
+  "versioneDati": "provider-brand-2026-07-07-v44-user-assets-eco",
   "fonte": "Registro brand OffertaLogica. I marchi sono usati solo per identificare offerte e fornitori confrontati; preferire asset ufficiali o di affiliazione quando disponibili.",
   "aggiornatoIl": "2026-07-07",
   "providers": {
@@ -53,9 +53,9 @@
     },
     "eco": {
       "label": "E.CO Energia Corrente",
-      "logo": null,
-      "source": "https://www.energia-corrente.it/",
-      "usageStatus": "logo_non_recuperato_fallback_riquadro"
+      "logo": "/assets/providers/eco-user.png",
+      "source": "asset fornito dal titolare OffertaLogica il 2026-07-07",
+      "usageStatus": "asset_fornito_da_titolare"
     },
     "eon": {
       "label": "E.ON",
