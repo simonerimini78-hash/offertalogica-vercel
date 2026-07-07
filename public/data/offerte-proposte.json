@@ -1,7 +1,7 @@
 {
-  "versioneDati": "offerte-proposte-2026-07-03-v14-variabili-calcolabili",
-  "fonte": "Configurazione OffertaLogica con offerte partner attivabili online e offerte consulenziali certificate da Portale Offerte ARERA/AU; Dolomiti Energia aggiunta il 03/07/2026 come proposta con consulente, senza funnel affiliato diretto.",
-  "aggiornatoIl": "2026-07-03",
+  "versioneDati": "offerte-proposte-2026-07-07-v15-affiliazioni-a2a-octopus",
+  "fonte": "Configurazione OffertaLogica con offerte partner attivabili online e offerte consulenziali certificate da Portale Offerte ARERA/AU; Dolomiti Energia aggiunta il 03/07/2026 come proposta con consulente, senza funnel affiliato diretto. A2A e Octopus aggiornati il 07/07/2026 come programmi Tradedoubler accettati.",
+  "aggiornatoIl": "2026-07-07",
   "offerte": [
     {
       "id": 1,
@@ -109,9 +109,9 @@
       "nome": "A2A Start Luce e Gas",
       "tipo": "fisso",
       "fornitura": "dual",
-      "link": "https://a2a.it",
-      "destinationType": "da_definire",
-      "destinationStatus": "da_cercare",
+      "link": "https://clk.tradedoubler.com/click?p=318075&a=3487966&epi=offertalogica&epi2=a2a_start_luce_gas&url=https%3A%2F%2Fwww.a2a.it%2Fsottoscrizione%2Fattiva%3Fd%3Dcasa%26cy%3Ddual%26to%3Dmono%26f%3Dgadwords%26df%3Dbrandtolp%26ide%3DP-1000%26idg%3DP-1001",
+      "destinationType": "affiliazione",
+      "destinationStatus": "attiva",
       "luce": {
         "prezzoVariabile": 0.139,
         "quotaFissaAnnua": 114
@@ -121,8 +121,8 @@
         "quotaFissaAnnua": 114
       },
       "descrizione": "Fisso 24 mesi",
-      "fonte": "Certificata da Portale Offerte ARERA/AU open data 20/06/2026: A2A Start Luce 000294ESFML01XXA2AStart260632225 + A2A Start Gas 000294GSFML01XXA2AStart260632226",
-      "aggiornataIl": "2026-06-20",
+      "fonte": "Certificata da Portale Offerte ARERA/AU open data 20/06/2026: A2A Start Luce 000294ESFML01XXA2AStart260632225 + A2A Start Gas 000294GSFML01XXA2AStart260632226 Destinazione commerciale Tradedoubler attiva dal 07/07/2026: programma 318075, sito 3487966.",
+      "aggiornataIl": "2026-07-07",
       "certificazione": {
         "stato": "certificata",
         "fonte": "portale_offerte_arera_au",
@@ -133,6 +133,24 @@
           "gas": "000294GSFML01XXA2AStart260632226"
         },
         "note": "Bonus one shot dual rilevato nel Portale Offerte ma non incluso nel costo annuo base."
+      },
+      "monetizzazione": {
+        "attiva": true,
+        "network": "Tradedoubler",
+        "programId": "318075",
+        "siteId": "3487966",
+        "modello": "CPL/CPA energia",
+        "commissionePrevista": {
+          "luce": 30,
+          "gas": 30,
+          "dual": 50,
+          "valuta": "EUR"
+        },
+        "cookieDays": 30,
+        "tassoCancellazione": 42,
+        "epcMedio": 0,
+        "prioritaCommerciale": "media",
+        "note": "Programma A2A 2021_CPL accettato. Deeplink A2A fisso dual inserito nel click tracker; commissione indicativa da riepilogo programma 30-50 EUR."
       }
     },
     {
@@ -162,9 +180,9 @@
       "nome": "Octopus Luce e Gas Monoraria",
       "tipo": "fisso",
       "fornitura": "dual",
-      "link": "https://octopusenergy.it",
+      "link": "https://clk.tradedoubler.com/click?p=357545&a=3487966&epi=offertalogica&epi2=octopus_luce_gas_monoraria&url=https%3A%2F%2Foctopusenergy.it%2Fofferta%2Finformazioni-personali",
       "destinationType": "affiliazione",
-      "destinationStatus": "in_attesa_approvazione",
+      "destinationStatus": "attiva",
       "luce": {
         "prezzoVariabile": 0.1199,
         "quotaFissaAnnua": 72
@@ -174,8 +192,8 @@
         "quotaFissaAnnua": 84
       },
       "descrizione": "Fisso 12 mesi",
-      "fonte": "Certificata da Portale Offerte ARERA/AU open data 20/06/2026: Octopus Fissa 12M 000129ESFML48XXXXXXXXOCTOFIXv148 + Octopus Fissa 12M Gas 000129GSFML68XXXXXXXXOCTOFIXGv68",
-      "aggiornataIl": "2026-06-20",
+      "fonte": "Certificata da Portale Offerte ARERA/AU open data 20/06/2026: Octopus Fissa 12M 000129ESFML48XXXXXXXXOCTOFIXv148 + Octopus Fissa 12M Gas 000129GSFML68XXXXXXXXOCTOFIXGv68 Destinazione commerciale Tradedoubler attiva dal 07/07/2026: programma 357545, sito 3487966.",
+      "aggiornataIl": "2026-07-07",
       "certificazione": {
         "stato": "certificata",
         "fonte": "portale_offerte_arera_au",
@@ -185,6 +203,24 @@
           "luce": "000129ESFML48XXXXXXXXOCTOFIXv148",
           "gas": "000129GSFML68XXXXXXXXOCTOFIXGv68"
         }
+      },
+      "monetizzazione": {
+        "attiva": true,
+        "network": "Tradedoubler",
+        "programId": "357545",
+        "siteId": "3487966",
+        "modello": "Lead energia",
+        "commissionePrevista": {
+          "luce": 45,
+          "gas": 45,
+          "dual": 45,
+          "valuta": "EUR"
+        },
+        "cookieDays": 20,
+        "tassoCancellazione": 6,
+        "epcMedio": 3.3,
+        "prioritaCommerciale": "alta",
+        "note": "Programma Octopus Energy IT accettato. Deeplink Octopus inserito nel click tracker; lead Octopus indicato 45 EUR."
       }
     },
     {
