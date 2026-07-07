@@ -27,6 +27,8 @@ Il file `CONTINUA-DA-QUI-CODEX.md` contiene il prompt breve da incollare in una 
 - Deve mostrare fino a 6 offerte partner attive e attivabili online.
 - Le offerte devono essere coerenti con il filtro selezionato.
 - Nei testi pubblici non deve dichiarare un numero fisso di offerte: usare "le migliori offerte" o formule equivalenti.
+- Prima dello sblocco OTP non deve mostrare importi precisi di costo o risparmio dentro le card.
+- Dopo lo sblocco OTP puo mostrare costo stimato, risparmio annuo stimato e dettaglio tecnico.
 - Quando il file ARERA e' disponibile, prezzi e ranking devono arrivare dal file ARERA aggiornato.
 - Il file partner deve arricchire le offerte con link, logo, stato commerciale e tracciamento, non sostituire il prezzo ARERA.
 - Un partner non deve essere mostrato come attivabile se non esiste un aggancio coerente e prudente con una proposta ARERA valida per lo stesso filtro.
@@ -47,6 +49,7 @@ Il file `CONTINUA-DA-QUI-CODEX.md` contiene il prompt breve da incollare in una 
 - Queste offerte richiedono verifica consulenziale o ricontatto prima dell'eventuale attivazione.
 - Deve restare separato dal blocco partner per evitare confusione.
 - Nei testi pubblici non deve dichiarare un numero fisso di offerte.
+- Prima dello sblocco OTP non deve esporre importi di costo o risparmio nelle singole card.
 
 ### Fornitori in menu
 
