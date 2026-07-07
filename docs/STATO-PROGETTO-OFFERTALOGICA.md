@@ -1,6 +1,6 @@
 # Stato progetto OffertaLogica
 
-Aggiornato: 2026-07-04
+Aggiornato: 2026-07-07
 
 ## Punto di rientro Codex
 
@@ -26,9 +26,19 @@ Il file `CONTINUA-DA-QUI-CODEX.md` contiene il prompt breve da incollare in una 
 
 - Deve mostrare fino a 3 offerte partner attive e attivabili online.
 - Le offerte devono essere coerenti con il filtro selezionato.
-- Le offerte partner attive devono essere considerate anche quando non vengono agganciate perfettamente dal ranking ARERA.
+- Quando il file ARERA e' disponibile, prezzi e ranking devono arrivare dal file ARERA aggiornato.
+- Il file partner deve arricchire le offerte con link, logo, stato commerciale e tracciamento, non sostituire il prezzo ARERA.
+- Un partner non deve essere mostrato come attivabile se non esiste un aggancio coerente e prudente con una proposta ARERA valida per lo stesso filtro.
 - Se lo stesso partner compare piu volte per lo stesso filtro, si mostra una sola card, scegliendo la proposta migliore per costo stimato.
 - Questo blocco ha priorita commerciale, ma deve restare trasparente: il badge puo indicare la posizione economica rispetto al ranking generale.
+
+### Regola ARERA-first
+
+- `offerte-arera-menu.json` e' la fonte primaria per prezzi, quote fisse, filtro fisso/variabile e ranking.
+- `offerte-proposte.json` contiene metadati commerciali: link affiliati, loghi, stato partner e tracciamento.
+- Se il download ARERA fallisce, lo script di aggiornamento deve fallire: non deve lasciare dati vecchi facendo risultare l'automazione riuscita.
+- Se il frontend non carica il file ARERA, non deve mostrare offerte con prezzi statici come se fossero aggiornate.
+- Esempio verificato il 2026-07-07: Octopus fisso e' passato dalle righe scadute al 06/07/2026 alle righe valide dal 07/07/2026 al 13/07/2026.
 
 ### Blocco migliori offerte per costo con consulente
 

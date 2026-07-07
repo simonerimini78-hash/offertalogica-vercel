@@ -308,6 +308,21 @@ def download_link_set(links: dict[str, str], destination: Path) -> dict[str, Pat
     return files
 
 
+def source_date_from_files(files: dict[str, Path]) -> datetime | None:
+    dates: list[datetime] = []
+    for path in files.values():
+        match = re.search(r"MLIBERO_(\d{8})\.xml$", path.name, re.I)
+        if not match:
+            continue
+        try:
+            dates.append(datetime.strptime(match.group(1), "%Y%m%d"))
+        except ValueError:
+            continue
+    if not dates:
+        return None
+    return min(dates)
+
+
 def download_current_files(destination: Path) -> dict[str, Path]:
     destination.mkdir(parents=True, exist_ok=True)
     try:
@@ -411,20 +426,16 @@ def main() -> int:
     root = args.package_root.resolve()
     if args.source_dir:
         files = local_files(args.source_dir.resolve())
-        payload = build_payload(files, as_of)
+        payload = build_payload(files, source_date_from_files(files) or as_of)
         write_json(root, payload)
     else:
         try:
             with tempfile.TemporaryDirectory(prefix="offertalogica-arera-") as tmp:
                 files = download_current_files(Path(tmp))
-                payload = build_payload(files, as_of)
+                payload = build_payload(files, source_date_from_files(files) or as_of)
                 write_json(root, payload)
         except Exception as error:
-            existing = root / "data" / "offerte-arera-menu.json"
-            if existing.exists():
-                print(f"Avviso: aggiornamento ARERA saltato ({error}). Mantengo il JSON esistente.")
-                return 0
-            raise
+            raise RuntimeError(f"Aggiornamento ARERA non riuscito: {error}") from error
 
     print(
         f"Creato offerte-arera-menu.json con {payload['statistiche']['totaleRighe']} righe "
