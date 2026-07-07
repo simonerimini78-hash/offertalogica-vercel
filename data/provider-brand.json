@@ -1,13 +1,13 @@
 {
-  "versioneDati": "provider-brand-2026-07-06-v2",
+  "versioneDati": "provider-brand-2026-07-07-v43-user-assets",
   "fonte": "Registro brand OffertaLogica. I marchi sono usati solo per identificare offerte e fornitori confrontati; preferire asset ufficiali o di affiliazione quando disponibili.",
-  "aggiornatoIl": "2026-07-06",
+  "aggiornatoIl": "2026-07-07",
   "providers": {
     "a2a": {
       "label": "A2A",
-      "logo": "/assets/providers/a2a.svg",
-      "source": "https://commons.wikimedia.org/wiki/Special:Redirect/file/A2A_%28Unternehmen%29.svg",
-      "usageStatus": "marchio_pubblico_tracciato"
+      "logo": "/assets/providers/a2a-user.png",
+      "source": "asset fornito dal titolare OffertaLogica il 2026-07-07",
+      "usageStatus": "asset_fornito_da_titolare"
     },
     "acea": {
       "label": "Acea",
@@ -17,9 +17,9 @@
     },
     "agasco": {
       "label": "Agasco",
-      "logo": null,
-      "source": "https://www.agasco.it/",
-      "usageStatus": "logo_non_recuperato_fallback_riquadro"
+      "logo": "/assets/providers/agasco-user.png",
+      "source": "asset fornito dal titolare OffertaLogica il 2026-07-07",
+      "usageStatus": "asset_fornito_da_titolare"
     },
     "alperia": {
       "label": "Alperia",
@@ -41,15 +41,15 @@
     },
     "axpo": {
       "label": "Axpo Energia",
-      "logo": "/assets/providers/axpo.png",
-      "source": "https://www.axpo.com/content/dam/axpo19/italy/new-assets-2024/immagini-sezioni/video-hp/Axpo-Video-Teaser-Sito-Homepage_16-9_ChiSiamo_E.png",
-      "usageStatus": "asset_pubblico_recuperato_da_sito_fornitore"
+      "logo": "/assets/providers/axpo-user.png",
+      "source": "asset fornito dal titolare OffertaLogica il 2026-07-07",
+      "usageStatus": "asset_fornito_da_titolare"
     },
     "dolomiti": {
       "label": "Dolomiti Energia",
-      "logo": "/assets/providers/dolomiti.svg",
-      "source": "https://www.dolomitienergia.it/etc.clientlibs/dolomiti-energia/clientlibs/clientlib-base/resources/images/logo-white.svg",
-      "usageStatus": "asset_pubblico_recuperato_da_sito_fornitore"
+      "logo": "/assets/providers/dolomiti-user.png",
+      "source": "asset fornito dal titolare OffertaLogica il 2026-07-07",
+      "usageStatus": "asset_fornito_da_titolare"
     },
     "eco": {
       "label": "E.CO Energia Corrente",
@@ -59,21 +59,21 @@
     },
     "eon": {
       "label": "E.ON",
-      "logo": "/assets/providers/eon.svg",
-      "source": "https://commons.wikimedia.org/wiki/Special:Redirect/file/Logo_E.ON.svg",
-      "usageStatus": "marchio_pubblico_tracciato"
+      "logo": "/assets/providers/eon-user.png",
+      "source": "asset fornito dal titolare OffertaLogica il 2026-07-07",
+      "usageStatus": "asset_fornito_da_titolare"
     },
     "edison": {
       "label": "Edison",
-      "logo": "/assets/providers/edison.png",
-      "source": "https://www.edisonenergia.it/wps/wcm/connect/4c4801f9-1bc8-4cae-ac8c-8426b6a78500/logo_edison.png?MOD=AJPERES&CACHEID=ROOTWORKSPACE-4c4801f9-1bc8-4cae-ac8c-8426b6a78500-oA0T8Fp",
-      "usageStatus": "asset_pubblico_recuperato_da_sito_fornitore"
+      "logo": "/assets/providers/edison-user.png",
+      "source": "asset fornito dal titolare OffertaLogica il 2026-07-07",
+      "usageStatus": "asset_fornito_da_titolare"
     },
     "eni": {
       "label": "Plenitude",
-      "logo": "/assets/providers/plenitude.svg",
-      "source": "https://eniplenitude.com/content/dam/plenitude-it/immagini/icone/nuovo-menu/new%20logo%20desktop.svg",
-      "usageStatus": "asset_ufficiale_sito_fornitore"
+      "logo": "/assets/providers/plenitude-user.png",
+      "source": "asset fornito dal titolare OffertaLogica il 2026-07-07",
+      "usageStatus": "asset_fornito_da_titolare"
     },
     "enel": {
       "label": "Enel",
@@ -89,9 +89,9 @@
     },
     "engie": {
       "label": "Engie",
-      "logo": "/assets/providers/engie.png",
-      "source": "https://d3evrc0h48esvv.cloudfront.net/8181114/engie-business.png?version=1.0&t=1740064235319&fm=webp&w=original&h=726",
-      "usageStatus": "asset_pubblico_recuperato_da_sito_fornitore"
+      "logo": "/assets/providers/engie-user.png",
+      "source": "asset fornito dal titolare OffertaLogica il 2026-07-07",
+      "usageStatus": "asset_fornito_da_titolare"
     },
     "eja": {
       "label": "Eja Energia",
@@ -101,33 +101,33 @@
     },
     "hera": {
       "label": "Hera Comm",
-      "logo": "/assets/providers/hera.svg",
-      "source": "https://heracomm.gruppohera.it/documents/d/heracomm/logo-val",
-      "usageStatus": "asset_pubblico_recuperato_da_sito_fornitore"
+      "logo": "/assets/providers/hera-user.png",
+      "source": "asset fornito dal titolare OffertaLogica il 2026-07-07",
+      "usageStatus": "asset_fornito_da_titolare"
     },
     "illum": {
       "label": "Illumia",
-      "logo": "/assets/providers/illum.png",
-      "source": "https://www.illumia.it/wp-content/uploads/2025/01/LOGORED-500x260.png",
-      "usageStatus": "asset_pubblico_recuperato_da_sito_fornitore"
+      "logo": "/assets/providers/illumia-user.png",
+      "source": "asset fornito dal titolare OffertaLogica il 2026-07-07",
+      "usageStatus": "asset_fornito_da_titolare"
     },
     "iren": {
       "label": "Iren Luce e Gas",
-      "logo": "/assets/providers/iren.png",
-      "source": "https://www.irenlucegas.it/content/dam/iren/evergreen/icone-e-loghi/loghi/logo_iren_color_2020.png",
-      "usageStatus": "asset_pubblico_recuperato_da_sito_fornitore"
+      "logo": "/assets/providers/iren-user.png",
+      "source": "asset fornito dal titolare OffertaLogica il 2026-07-07",
+      "usageStatus": "asset_fornito_da_titolare"
     },
     "magis": {
       "label": "Magis Energia",
-      "logo": "/assets/providers/magis.svg",
-      "source": "https://www.magisenergia.it/img/logo.svg",
-      "usageStatus": "asset_pubblico_recuperato_da_sito_fornitore"
+      "logo": "/assets/providers/magis-user.png",
+      "source": "asset fornito dal titolare OffertaLogica il 2026-07-07",
+      "usageStatus": "asset_fornito_da_titolare"
     },
     "nen": {
-      "label": "neN",
-      "logo": "/assets/providers/nen.svg",
-      "source": "https://nen.it/content/dam/nen/brand/loghi-official/portale-offerte/Portale-offerte-w.svg",
-      "usageStatus": "asset_pubblico_recuperato_da_sito_fornitore"
+      "label": "NeN",
+      "logo": "/assets/providers/nen-user.png",
+      "source": "asset fornito dal titolare OffertaLogica il 2026-07-07",
+      "usageStatus": "asset_fornito_da_titolare"
     },
     "nova": {
       "label": "Nova Aeg",
@@ -137,9 +137,9 @@
     },
     "octopus": {
       "label": "Octopus Energy",
-      "logo": "/assets/providers/octopus.svg",
-      "source": "https://commons.wikimedia.org/wiki/Special:Redirect/file/Octopus_Energy_logo_%282019%29.svg",
-      "usageStatus": "marchio_pubblico_tracciato"
+      "logo": "/assets/providers/octopus-user.png",
+      "source": "asset fornito dal titolare OffertaLogica il 2026-07-07",
+      "usageStatus": "asset_fornito_da_titolare"
     },
     "optima": {
       "label": "Optima Italia",
@@ -155,9 +155,9 @@
     },
     "pulsee": {
       "label": "Pulsee Luce e Gas",
-      "logo": "/assets/providers/pulsee.svg",
-      "source": "https://pulsee.it/assets/pulsee/media/static-images/trustpilot-logo.svg?_u=74a1dd420fbd41f9a86d31aacc0efa3b1bbb38f4",
-      "usageStatus": "asset_pubblico_recuperato_da_sito_fornitore"
+      "logo": "/assets/providers/pulsee-user.png",
+      "source": "asset fornito dal titolare OffertaLogica il 2026-07-07",
+      "usageStatus": "asset_fornito_da_titolare"
     },
     "sen": {
       "label": "Servizio Elettrico Nazionale",
@@ -167,9 +167,9 @@
     },
     "sorgenia": {
       "label": "Sorgenia",
-      "logo": "/assets/providers/sorgenia.svg",
-      "source": "https://www.sorgenia.it/sites/default/themes/sorgenia/assets/images/logo.svg",
-      "usageStatus": "asset_pubblico_recuperato_da_sito_fornitore"
+      "logo": "/assets/providers/sorgenia-user.png",
+      "source": "asset fornito dal titolare OffertaLogica il 2026-07-07",
+      "usageStatus": "asset_fornito_da_titolare"
     },
     "tate": {
       "label": "Tate",
@@ -179,9 +179,9 @@
     },
     "vivi": {
       "label": "Vivi Energia",
-      "logo": "/assets/providers/vivi.jpg",
-      "source": "https://vivienergia.imgix.net/uploads/2026/03/04161015/Logo-portaleofferte.jpg?width=1440&auto=format",
-      "usageStatus": "asset_pubblico_recuperato_da_sito_fornitore"
+      "logo": "/assets/providers/vivi-user.png",
+      "source": "asset fornito dal titolare OffertaLogica il 2026-07-07",
+      "usageStatus": "asset_fornito_da_titolare"
     },
     "wekiwi": {
       "label": "Wekiwi",
@@ -194,6 +194,30 @@
       "logo": "/assets/providers/sinergy.svg",
       "source": "https://sinergylucegas.com/wp-content/uploads/logo-sinergy-bianco.svg",
       "usageStatus": "asset_pubblico_recuperato_da_sito_fornitore"
+    },
+    "lene": {
+      "label": "Lene Energia",
+      "logo": "/assets/providers/lene-user.png",
+      "source": "asset fornito dal titolare OffertaLogica il 2026-07-07",
+      "usageStatus": "asset_fornito_da_titolare"
+    },
+    "segnoverde": {
+      "label": "Segnoverde",
+      "logo": "/assets/providers/segnoverde-user.png",
+      "source": "asset fornito dal titolare OffertaLogica il 2026-07-07",
+      "usageStatus": "asset_fornito_da_titolare"
+    },
+    "very": {
+      "label": "Very Mobile",
+      "logo": "/assets/providers/very-mobile-user.png",
+      "source": "asset fornito dal titolare OffertaLogica il 2026-07-07",
+      "usageStatus": "asset_fornito_da_titolare_mobile"
+    },
+    "ho": {
+      "label": "ho. Mobile",
+      "logo": "/assets/providers/ho-mobile-user.png",
+      "source": "asset fornito dal titolare OffertaLogica il 2026-07-07",
+      "usageStatus": "asset_fornito_da_titolare_mobile"
     }
   }
 }
