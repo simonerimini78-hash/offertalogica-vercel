@@ -34,6 +34,18 @@ BROWSER_HEADERS = {
 }
 
 
+def log_info(message: str) -> None:
+    print(f"[ARERA] {message}", flush=True)
+
+
+def log_error(message: str) -> None:
+    print(f"[ARERA] ERRORE: {message}", file=sys.stderr, flush=True)
+
+
+class AreraFilesNotFound(FileNotFoundError):
+    pass
+
+
 @dataclass(frozen=True)
 class ProviderRule:
     key: str
@@ -281,22 +293,52 @@ def download_file(url: str, path: Path) -> None:
         path.write_bytes(response.read())
 
 
-def direct_xml_links(days_back: int = 10) -> list[dict[str, str]]:
-    candidates: list[dict[str, str]] = []
-    today = datetime.now()
+def direct_xml_links(days_back: int = 10, start_date: datetime | None = None) -> list[tuple[str, dict[str, str]]]:
+    candidates: list[tuple[str, dict[str, str]]] = []
+    today = start_date or datetime.now()
     for offset in range(days_back):
         day = today - timedelta(days=offset)
         stamp = day.strftime("%Y%m%d")
         folder = f"{day.year}_{day.month}"
         base = f"https://www.ilportaleofferte.it/portaleOfferte/resources/opendata/csv/offerteML/{folder}"
         candidates.append(
-            {
-                "E": f"{base}/PO_Offerte_E_MLIBERO_{stamp}.xml",
-                "G": f"{base}/PO_Offerte_G_MLIBERO_{stamp}.xml",
-                "D": f"{base}/PO_Offerte_D_MLIBERO_{stamp}.xml",
-            }
+            (
+                stamp,
+                {
+                    "E": f"{base}/PO_Offerte_E_MLIBERO_{stamp}.xml",
+                    "G": f"{base}/PO_Offerte_G_MLIBERO_{stamp}.xml",
+                    "D": f"{base}/PO_Offerte_D_MLIBERO_{stamp}.xml",
+                },
+            )
         )
     return candidates
+
+
+def source_date_from_urls(urls: list[str]) -> str:
+    dates: list[str] = []
+    for url in urls:
+        match = re.search(r"MLIBERO_(\d{8})\.xml", url, re.I)
+        if match:
+            dates.append(match.group(1))
+    return min(dates) if dates else "non determinata"
+
+
+def describe_files(files: dict[str, Path]) -> str:
+    parts = []
+    if "E" in files:
+        parts.append(f"luce={files['E'].name}")
+    if "G" in files:
+        parts.append(f"gas={files['G'].name}")
+    if "D" in files:
+        parts.append(f"dual={files['D'].name}")
+    return ", ".join(parts) or "nessun file"
+
+
+def no_files_message(date_stamp: str) -> str:
+    return (
+        f"Nessun file ARERA trovato per la data {date_stamp}. "
+        "Aggiornamento non eseguito. I dati esistenti non sono stati modificati."
+    )
 
 
 def download_link_set(links: dict[str, str], destination: Path) -> dict[str, Path]:
@@ -323,25 +365,55 @@ def source_date_from_files(files: dict[str, Path]) -> datetime | None:
     return min(dates)
 
 
-def download_current_files(destination: Path) -> dict[str, Path]:
+def download_current_files(destination: Path, requested_date: datetime) -> dict[str, Path]:
+    requested_stamp = requested_date.strftime("%Y%m%d")
     destination.mkdir(parents=True, exist_ok=True)
+    log_info(f"Data ARERA cercata: {requested_stamp}.")
     try:
+        log_info("Leggo la pagina Open Data del Portale Offerte.")
         request = urllib.request.Request(OPEN_DATA_URL, headers=BROWSER_HEADERS)
         with urllib.request.urlopen(request, timeout=60) as response:
             page = response.read().decode("utf-8", errors="replace")
-        return download_link_set(extract_xml_links(page), destination)
+        links = extract_xml_links(page)
+        page_stamp = source_date_from_urls(list(links.values()))
+        log_info(f"File ARERA trovati nella pagina Open Data per la data {page_stamp}.")
+        files = download_link_set(links, destination)
+        log_info(f"Download completato: {describe_files(files)}.")
+        return files
     except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as error:
-        print(f"Avviso: pagina Open Data non raggiungibile da questo ambiente ({error}). Provo i link XML diretti.")
+        log_info(f"Pagina Open Data non raggiungibile da questo ambiente ({error}). Provo i link XML diretti.")
 
     last_error: Exception | None = None
-    for links in direct_xml_links():
+    searched_dates: list[str] = []
+    for date_stamp, links in direct_xml_links(start_date=requested_date):
+        searched_dates.append(date_stamp)
+        log_info(f"Cerco file ARERA per la data {date_stamp}.")
         try:
-            return download_link_set(links, destination)
-        except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as error:
+            files = download_link_set(links, destination)
+            log_info(f"File ARERA trovati per la data {date_stamp}: {describe_files(files)}.")
+            return files
+        except urllib.error.HTTPError as error:
             last_error = error
+            if error.code == 404:
+                log_info(no_files_message(date_stamp))
+            else:
+                log_info(
+                    f"Download ARERA non riuscito per la data {date_stamp}: "
+                    f"HTTP {error.code} {error.reason}."
+                )
+            continue
+        except (urllib.error.URLError, TimeoutError) as error:
+            last_error = error
+            log_info(f"Download ARERA non riuscito per la data {date_stamp}: {error}.")
             continue
 
-    raise RuntimeError(f"Impossibile scaricare gli XML ARERA anche con link diretti: {last_error}")
+    if len(searched_dates) == 1:
+        raise RuntimeError(no_files_message(searched_dates[0]))
+    raise RuntimeError(
+        "Nessun file ARERA valido trovato per le date cercate "
+        f"({', '.join(searched_dates)}). Aggiornamento non eseguito. "
+        f"I dati esistenti non sono stati modificati. Ultimo errore: {last_error}"
+    )
 
 
 def latest_matching(source_dir: Path, patterns: tuple[str, ...]) -> Path:
@@ -349,7 +421,7 @@ def latest_matching(source_dir: Path, patterns: tuple[str, ...]) -> Path:
     for pattern in patterns:
         matches.extend(source_dir.glob(pattern))
     if not matches:
-        raise FileNotFoundError(f"Nessun file trovato in {source_dir} per {patterns}")
+        raise AreraFilesNotFound(f"Nessun file trovato in {source_dir} per {patterns}")
     return sorted(matches, key=lambda path: path.stat().st_mtime)[-1]
 
 
@@ -379,11 +451,12 @@ def dedupe_rows(rows: list[dict[str, object]]) -> list[dict[str, object]]:
     )
 
 
-def write_json(root: Path, payload: dict[str, object]) -> None:
+def write_json(root: Path, payload: dict[str, object]) -> list[Path]:
     targets = [root / "data" / "offerte-arera-menu.json", root / "public" / "data" / "offerte-arera-menu.json"]
     for target in targets:
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return targets
 
 
 def build_payload(files: dict[str, Path], as_of: datetime) -> dict[str, object]:
@@ -424,23 +497,35 @@ def main() -> int:
         as_of = datetime.strptime(args.as_of, "%Y-%m-%d")
 
     root = args.package_root.resolve()
-    if args.source_dir:
-        files = local_files(args.source_dir.resolve())
-        payload = build_payload(files, source_date_from_files(files) or as_of)
-        write_json(root, payload)
-    else:
-        try:
+    try:
+        if args.source_dir:
+            log_info(f"Cerco file ARERA locali in {args.source_dir.resolve()} per la data {as_of.strftime('%Y%m%d')}.")
+            files = local_files(args.source_dir.resolve())
+            source_date = source_date_from_files(files) or as_of
+            log_info(f"Parsing file ARERA per la data {source_date.strftime('%Y%m%d')}.")
+            payload = build_payload(files, source_date)
+            targets = write_json(root, payload)
+        else:
             with tempfile.TemporaryDirectory(prefix="offertalogica-arera-") as tmp:
-                files = download_current_files(Path(tmp))
-                payload = build_payload(files, source_date_from_files(files) or as_of)
-                write_json(root, payload)
-        except Exception as error:
-            raise RuntimeError(f"Aggiornamento ARERA non riuscito: {error}") from error
+                files = download_current_files(Path(tmp), as_of)
+                source_date = source_date_from_files(files) or as_of
+                log_info(f"Parsing file ARERA per la data {source_date.strftime('%Y%m%d')}.")
+                payload = build_payload(files, source_date)
+                targets = write_json(root, payload)
+    except Exception as error:
+        if isinstance(error, AreraFilesNotFound):
+            log_error(no_files_message(as_of.strftime("%Y%m%d")))
+        log_error(f"Aggiornamento ARERA non riuscito: {error}")
+        log_error("I dati esistenti non sono stati modificati.")
+        return 1
 
-    print(
+    log_info(
         f"Creato offerte-arera-menu.json con {payload['statistiche']['totaleRighe']} righe "
-        f"({payload['statistiche']['fileLuce']} / {payload['statistiche']['fileGas']})"
+        f"({payload['statistiche']['fileLuce']} / {payload['statistiche']['fileGas']})."
     )
+    log_info("Aggiornamento completato correttamente.")
+    for target in targets:
+        log_info(f"Aggiornato: {target.relative_to(root)}")
     return 0
 
 

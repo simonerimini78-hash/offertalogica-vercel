@@ -40,6 +40,7 @@ Il file `CONTINUA-DA-QUI-CODEX.md` contiene il prompt breve da incollare in una 
 - `offerte-arera-menu.json` e' la fonte primaria per prezzi, quote fisse, filtro fisso/variabile e ranking.
 - `offerte-proposte.json` contiene metadati commerciali: link affiliati, loghi, stato partner e tracciamento.
 - Se il download ARERA fallisce, lo script di aggiornamento deve fallire: non deve lasciare dati vecchi facendo risultare l'automazione riuscita.
+- Se ARERA non ha ancora pubblicato file per la data cercata, il workflow deve fallire con exit code 1 ma il log deve dire chiaramente che nessun file ARERA valido e' stato trovato e che i dati esistenti non sono stati modificati.
 - Se il frontend non carica il file ARERA, non deve mostrare offerte con prezzi statici come se fossero aggiornate.
 - Esempio verificato il 2026-07-07: Octopus fisso e' passato dalle righe scadute al 06/07/2026 alle righe valide dal 07/07/2026 al 13/07/2026.
 
