@@ -52,6 +52,13 @@ Il file `CONTINUA-DA-QUI-CODEX.md` contiene il prompt breve da incollare in una 
 - Nei testi pubblici non deve dichiarare un numero fisso di offerte.
 - Prima dello sblocco OTP non deve esporre importi di costo o risparmio nelle singole card.
 
+### Responsive mobile card offerte
+
+- Fix v49 applicato solo a `public/index.html`, nella parte CSS.
+- Su mobile le card offerte devono restare sempre dentro il viewport, senza scroll orizzontale.
+- Titoli lunghi, dettagli tecnici, area costo/risparmio, CTA e loghi doppi per forniture separate devono andare a capo o disporsi in verticale.
+- Non usare questo fix come occasione per modificare ranking, calcolo, dati ARERA, offerte partner, OTP, lead o consensi.
+
 ### Fornitori in menu
 
 - Le tendine dei fornitori devono includere anche `Lene Energia` e `Segnoverde`.
