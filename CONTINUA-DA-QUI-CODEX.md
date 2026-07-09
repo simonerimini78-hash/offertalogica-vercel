@@ -321,6 +321,19 @@ Data: 2026-07-09.
 - Non sono stati toccati ranking, dati partner, frontend, OTP, lead, Supabase, consensi, loghi o pagine pubbliche.
 - Verifiche: scenario senza file con exit code 1 e log chiaro; scenario reale ARERA 20260709 su cartella temporanea con download/parsing riusciti; `scripts/validate-calculator-data.mjs` OK; `scripts/verify-calcolo-offerte.mjs` OK.
 
+## Punto v49 - fix responsive mobile card offerte
+
+Data: 2026-07-09.
+
+- Base: `offertalogica-v48-log-arera-chiari-20260709`.
+- Modifica limitata a `public/index.html`, solo regole CSS responsive delle card offerte.
+- Obiettivo: evitare overflow orizzontale e contenuti fuori card su mobile.
+- Aggiunte regole `min-width: 0`, `max-width: 100%`, wrapping testi lunghi e layout verticale sotto 700px.
+- Sistemati i casi critici: titolo offerta lungo, dettagli tecnici lunghi, area costo/risparmio, CTA, loghi singoli e loghi doppi per forniture separate.
+- Sotto 380px i loghi doppi possono andare a capo in modo controllato, restando dentro la card.
+- Non sono stati toccati motore di calcolo, dati ARERA, ranking, offerte partner, offerte consulente, OTP, lead, Supabase, consensi, link affiliati, tracciamento eventi o logica di blocco/sblocco.
+- Verifiche: homepage locale su 320px, 360px, 390px e 430px; card bloccate e simulazione card sbloccate; nessun overflow interno alle card; `scrollWidth` uguale al viewport; `scripts/validate-calculator-data.mjs` OK; `scripts/verify-calcolo-offerte.mjs` OK.
+
 ## Cose da non rompere
 
 - Separazione dei due blocchi offerte.
