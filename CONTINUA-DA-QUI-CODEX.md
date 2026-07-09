@@ -33,7 +33,7 @@ Il progetto gira su GitHub + Vercel con dominio `offertalogica.it`.
 
 Il pacchetto completo di riferimento lato progetto e:
 
-`offertalogica-v47-offerte-bloccate-senza-cifre-20260707`
+`offertalogica-v48-log-arera-chiari-20260709`
 
 Base storica stabile precedente:
 
@@ -58,6 +58,7 @@ Ultimi zip incrementali importanti generati dopo la base completa:
 - `offertalogica-v44-card-risparmio-evidente-20260707.zip`
 - `offertalogica-v46-pagine-vetrina-provider-20260707.zip`
 - `offertalogica-v47-offerte-bloccate-senza-cifre-20260707.zip`
+- `offertalogica-v48-log-arera-chiari-20260709.zip`
 
 Nota importante sugli zip incrementali: quelli v30-v33 contengono solo `lib/otp.js` e non devono toccare grafica, offerte, loghi o motore. Il v34 tocca solo pagine pubbliche statiche, footer, sitemap e termini/disclaimer. Il v35 aggiunge solo un assistente guidato frontend alla homepage. Il v36 aggiorna partner energia e pagina internet/mobile.
 
@@ -306,6 +307,19 @@ Data: 2026-07-07.
 - Prima dello sblocco si mostrano solo badge, tipo di percorso e testo neutro: `Disponibile dopo verifica`.
 - Dopo OTP verificato, le card tornano a mostrare costo stimato, risparmio annuo stimato e dettaglio tecnico.
 - Non sono stati toccati ranking, dati ARERA, link partner, OTP, lead, database o consensi.
+
+## Punto v48 - log ARERA chiari nel workflow
+
+Data: 2026-07-09.
+
+- Base: `offertalogica-v47-offerte-bloccate-senza-cifre-20260707`.
+- Modifica limitata a `scripts/update-arera-menu.py`.
+- Motore di calcolo non modificato: resta ARERA-first.
+- Se ARERA non pubblica file validi per la data cercata, lo script continua a fallire con exit code 1.
+- Il log ora indica la data cercata e stampa un messaggio esplicito: `Nessun file ARERA trovato per la data YYYYMMDD. Aggiornamento non eseguito. I dati esistenti non sono stati modificati.`
+- Se i file sono trovati, il log indica la data usata, i file scaricati e i due JSON aggiornati: `data/offerte-arera-menu.json` e `public/data/offerte-arera-menu.json`.
+- Non sono stati toccati ranking, dati partner, frontend, OTP, lead, Supabase, consensi, loghi o pagine pubbliche.
+- Verifiche: scenario senza file con exit code 1 e log chiaro; scenario reale ARERA 20260709 su cartella temporanea con download/parsing riusciti; `scripts/validate-calculator-data.mjs` OK; `scripts/verify-calcolo-offerte.mjs` OK.
 
 ## Cose da non rompere
 
