@@ -1,6 +1,6 @@
 {
   "ok": true,
-  "generatedAt": "2026-07-10T18:49:23.086Z",
+  "generatedAt": "2026-07-10T19:54:54.906Z",
   "engineVersion": "motore-v6-arera-first-2026-07-03",
   "paramsVersion": "parametri-calcolo-2026-07-03-v4-psv-operativo",
   "offersVersion": "offerte-proposte-2026-07-07-v15-affiliazioni-a2a-octopus",
@@ -8,8 +8,8 @@
   "areraUpdatedAt": "2026-07-10",
   "areraRows": 609,
   "errorCount": 0,
-  "warningCount": 3,
-  "partnerWarningCount": 3,
+  "warningCount": 0,
+  "partnerWarningCount": 0,
   "partnerAudit": [
     {
       "provider": "E.ON",
@@ -17,8 +17,8 @@
       "providerKey": "eon",
       "tipo": "fisso",
       "fornitura": "dual",
-      "status": "non_visibile",
-      "reason": "luce assente nel file ARERA; gas assente nel file ARERA",
+      "status": "visibile",
+      "reason": "offerta ARERA valida e agganciata a funnel partner attivo",
       "areraLight": {
         "commodity": "luce",
         "rows": 0,
@@ -33,7 +33,7 @@
         "bestEligible": "",
         "excludedSummary": ""
       },
-      "matchedOffer": ""
+      "matchedOffer": "E.ON Luce e Gas Insieme"
     },
     {
       "provider": "E.ON",
@@ -41,8 +41,8 @@
       "providerKey": "eon",
       "tipo": "variabile",
       "fornitura": "dual",
-      "status": "non_visibile",
-      "reason": "luce assente nel file ARERA; gas assente nel file ARERA",
+      "status": "visibile",
+      "reason": "offerta ARERA valida e agganciata a funnel partner attivo",
       "areraLight": {
         "commodity": "luce",
         "rows": 0,
@@ -57,7 +57,7 @@
         "bestEligible": "",
         "excludedSummary": ""
       },
-      "matchedOffer": ""
+      "matchedOffer": "E.ON Luce e Gas Insieme Variabile"
     },
     {
       "provider": "A2A",
@@ -113,8 +113,8 @@
       "providerKey": "enel",
       "tipo": "fisso",
       "fornitura": "dual",
-      "status": "non_visibile",
-      "reason": "righe ARERA valide, ma nome/codici non agganciati al funnel partner commerciale",
+      "status": "visibile",
+      "reason": "offerta ARERA valida e agganciata a funnel partner attivo",
       "areraLight": {
         "commodity": "luce",
         "rows": 9,
@@ -129,7 +129,7 @@
         "bestEligible": "Enel  Flash Gas (000142GSFML01XXResECAn0000116062)",
         "excludedSummary": ""
       },
-      "matchedOffer": "Enel Energia - Enel Night Free + Enel  Flash Gas"
+      "matchedOffer": "Enel Fix Web Luce e Gas"
     },
     {
       "provider": "Eni Plenitude",
@@ -218,7 +218,7 @@
         "quotaFissaLuceAttuale": 144,
         "quotaFissaGasAttuale": 120
       },
-      "generatedOffers": 18,
+      "generatedOffers": 20,
       "top": [
         {
           "rank": 2,
@@ -329,6 +329,33 @@
           "displayRank": 4
         },
         {
+          "rank": 19,
+          "id": "1",
+          "provider": "E.ON",
+          "name": "E.ON Luce e Gas Insieme",
+          "tipo": "fisso",
+          "fornitura": "dual",
+          "destinationType": "affiliazione",
+          "destinationStatus": "attiva",
+          "active": true,
+          "link": "https://clk.tradedoubler.com/click?p=344125&a=3487966&epi=offertalogica&epi2=eon_luce_gas_insieme_funnel&url=https%3A%2F%2Fwww.eon-energia.com%2Fofferta-luce-gas-insieme%2Ffunnel-bundle-new.html",
+          "total": 820.92,
+          "saving": 324.08,
+          "variable": 603.69,
+          "fixedSales": 217.23,
+          "profileCharges": 0,
+          "regulatedAndTaxes": 0,
+          "reconcileDelta": 0,
+          "lightPrice": 0.1007,
+          "lightFixed": 109.23,
+          "gasPrice": 0.474,
+          "gasFixed": 108,
+          "lightTotal": 381.12,
+          "gasTotal": 439.8,
+          "economicRank": 5,
+          "displayRank": 5
+        },
+        {
           "rank": 3,
           "id": "arera-alperia-fisso-dual-000368ESFML01XX4085488X260611XVE-000368GSFML02XX1895452X260611XVE",
           "provider": "Alperia",
@@ -352,8 +379,8 @@
           "gasFixed": 144,
           "lightTotal": 372.69,
           "gasTotal": 459,
-          "economicRank": 5,
-          "displayRank": 5
+          "economicRank": 6,
+          "displayRank": 6
         },
         {
           "rank": 15,
@@ -379,8 +406,8 @@
           "gasFixed": 84,
           "lightTotal": 407.61,
           "gasTotal": 427,
-          "economicRank": 6,
-          "displayRank": 6
+          "economicRank": 7,
+          "displayRank": 7
         },
         {
           "rank": 14,
@@ -406,8 +433,8 @@
           "gasFixed": 108,
           "lightTotal": 430.8,
           "gasTotal": 430,
-          "economicRank": 7,
-          "displayRank": 7
+          "economicRank": 8,
+          "displayRank": 8
         },
         {
           "rank": 11,
@@ -433,8 +460,8 @@
           "gasFixed": 144,
           "lightTotal": 411.3,
           "gasTotal": 452,
-          "economicRank": 8,
-          "displayRank": 8
+          "economicRank": 9,
+          "displayRank": 9
         },
         {
           "rank": 7,
@@ -460,38 +487,37 @@
           "gasFixed": 90,
           "lightTotal": 399.3,
           "gasTotal": 464.5,
-          "economicRank": 9,
-          "displayRank": 9
-        },
-        {
-          "rank": 12,
-          "id": "arera-illum-fisso-dual-000155ESFML04XXZZ03963Z260611E01-000155GSFML05XXZZZZ03847Z260611G",
-          "provider": "Illumia",
-          "name": "Illumia - Energia Lunga Luce Special + Energia Lunga Gas",
-          "tipo": "fisso",
-          "fornitura": "dual",
-          "destinationType": "partner_lead",
-          "destinationStatus": "da_contattare",
-          "active": false,
-          "link": "#",
-          "total": 874.59,
-          "saving": 270.41,
-          "variable": 682.59,
-          "fixedSales": 192,
-          "profileCharges": 0,
-          "regulatedAndTaxes": 0,
-          "reconcileDelta": 0,
-          "lightPrice": 0.117997,
-          "lightFixed": 108,
-          "gasPrice": 0.52,
-          "gasFixed": 84,
-          "lightTotal": 426.59,
-          "gasTotal": 448,
           "economicRank": 10,
           "displayRank": 10
         }
       ],
       "active": [
+        {
+          "rank": 19,
+          "id": "1",
+          "provider": "E.ON",
+          "name": "E.ON Luce e Gas Insieme",
+          "tipo": "fisso",
+          "fornitura": "dual",
+          "destinationType": "affiliazione",
+          "destinationStatus": "attiva",
+          "active": true,
+          "link": "https://clk.tradedoubler.com/click?p=344125&a=3487966&epi=offertalogica&epi2=eon_luce_gas_insieme_funnel&url=https%3A%2F%2Fwww.eon-energia.com%2Fofferta-luce-gas-insieme%2Ffunnel-bundle-new.html",
+          "total": 820.92,
+          "saving": 324.08,
+          "variable": 603.69,
+          "fixedSales": 217.23,
+          "profileCharges": 0,
+          "regulatedAndTaxes": 0,
+          "reconcileDelta": 0,
+          "lightPrice": 0.1007,
+          "lightFixed": 109.23,
+          "gasPrice": 0.474,
+          "gasFixed": 108,
+          "lightTotal": 381.12,
+          "gasTotal": 439.8,
+          "economicRank": 5
+        },
         {
           "rank": 3,
           "id": "arera-alperia-fisso-dual-000368ESFML01XX4085488X260611XVE-000368GSFML02XX1895452X260611XVE",
@@ -516,7 +542,7 @@
           "gasFixed": 144,
           "lightTotal": 372.69,
           "gasTotal": 459,
-          "economicRank": 5
+          "economicRank": 6
         },
         {
           "rank": 15,
@@ -542,7 +568,7 @@
           "gasFixed": 84,
           "lightTotal": 407.61,
           "gasTotal": 427,
-          "economicRank": 6
+          "economicRank": 7
         },
         {
           "rank": 11,
@@ -568,7 +594,7 @@
           "gasFixed": 144,
           "lightTotal": 411.3,
           "gasTotal": 452,
-          "economicRank": 8
+          "economicRank": 9
         },
         {
           "rank": 1,
@@ -594,7 +620,33 @@
           "gasFixed": 108,
           "lightTotal": 444.9,
           "gasTotal": 437,
-          "economicRank": 11
+          "economicRank": 12
+        },
+        {
+          "rank": 20,
+          "id": "10",
+          "provider": "Enel",
+          "name": "Enel Fix Web Luce e Gas",
+          "tipo": "fisso",
+          "fornitura": "dual",
+          "destinationType": "affiliazione",
+          "destinationStatus": "attiva",
+          "active": true,
+          "link": "https://clk.tradedoubler.com/click?p=348999&a=3487966&epi=offertalogica&epi2=enel_fix_web_funnel&url=https%3A%2F%2Fwww.enel.it%2Fit-it%2Fcommodity-funnel%3Fpart__c%3D%2Fcontent%2Fenel-it%2Fit-it%2Fofferte-luce-gas%2Fenel-fix-web-luce-gas%26zoneid%3Dsito-landing_enel_offerte-card_luce_gas-cta-prospect",
+          "total": 1006.3,
+          "saving": 138.7,
+          "variable": 718.3,
+          "fixedSales": 288,
+          "profileCharges": 0,
+          "regulatedAndTaxes": 0,
+          "reconcileDelta": 0,
+          "lightPrice": 0.139,
+          "lightFixed": 144,
+          "gasPrice": 0.49,
+          "gasFixed": 144,
+          "lightTotal": 519.3,
+          "gasTotal": 487,
+          "economicRank": 19
         }
       ],
       "errors": [],
@@ -613,7 +665,7 @@
         "quotaFissaLuceAttuale": 144,
         "quotaFissaGasAttuale": 120
       },
-      "generatedOffers": 19,
+      "generatedOffers": 20,
       "top": [
         {
           "rank": 3,
@@ -912,6 +964,32 @@
           "lightTotal": 387.85,
           "gasTotal": 409.09,
           "economicRank": 1
+        },
+        {
+          "rank": 20,
+          "id": "17",
+          "provider": "E.ON",
+          "name": "E.ON Luce e Gas Insieme Variabile",
+          "tipo": "variabile",
+          "fornitura": "dual",
+          "destinationType": "affiliazione",
+          "destinationStatus": "attiva",
+          "active": true,
+          "link": "https://clk.tradedoubler.com/click?p=344125&a=3487966&epi=offertalogica&epi2=eon_variabile_luce_gas_dual&url=https%3A%2F%2Fwww.eon-energia.com%2Fofferta-luce-gas-insieme.html%3FswitchHolder%3Dno%26activeSupply%3Daltro%26where%3Dcasa",
+          "total": 1044.92,
+          "saving": 141.39,
+          "variable": 827.69,
+          "fixedSales": 217.23,
+          "profileCharges": 0,
+          "regulatedAndTaxes": 0,
+          "reconcileDelta": 0,
+          "lightPrice": 0,
+          "lightFixed": 109.23,
+          "gasPrice": 0.6377,
+          "gasFixed": 108,
+          "lightTotal": 490.53,
+          "gasTotal": 554.39,
+          "economicRank": 16
         }
       ],
       "errors": [],
@@ -930,7 +1008,7 @@
         "quotaFissaLuceAttuale": 144,
         "quotaFissaGasAttuale": 120
       },
-      "generatedOffers": 18,
+      "generatedOffers": 20,
       "top": [
         {
           "rank": 2,
@@ -1041,6 +1119,33 @@
           "displayRank": 4
         },
         {
+          "rank": 19,
+          "id": "1",
+          "provider": "E.ON",
+          "name": "E.ON Luce e Gas Insieme",
+          "tipo": "fisso",
+          "fornitura": "dual",
+          "destinationType": "affiliazione",
+          "destinationStatus": "attiva",
+          "active": true,
+          "link": "https://clk.tradedoubler.com/click?p=344125&a=3487966&epi=offertalogica&epi2=eon_luce_gas_insieme_funnel&url=https%3A%2F%2Fwww.eon-energia.com%2Fofferta-luce-gas-insieme%2Ffunnel-bundle-new.html",
+          "total": 1188.83,
+          "saving": 491.17,
+          "variable": 971.6,
+          "fixedSales": 217.23,
+          "profileCharges": 0,
+          "regulatedAndTaxes": 0,
+          "reconcileDelta": 0,
+          "lightPrice": 0.1007,
+          "lightFixed": 109.23,
+          "gasPrice": 0.474,
+          "gasFixed": 108,
+          "lightTotal": 512.03,
+          "gasTotal": 676.8,
+          "economicRank": 5,
+          "displayRank": 5
+        },
+        {
           "rank": 3,
           "id": "arera-alperia-fisso-dual-000368ESFML01XX4085488X260611XVE-000368GSFML02XX1895452X260611XVE",
           "provider": "Alperia",
@@ -1064,8 +1169,8 @@
           "gasFixed": 144,
           "lightTotal": 506.2,
           "gasTotal": 684,
-          "economicRank": 5,
-          "displayRank": 5
+          "economicRank": 6,
+          "displayRank": 6
         },
         {
           "rank": 11,
@@ -1091,8 +1196,8 @@
           "gasFixed": 144,
           "lightTotal": 540,
           "gasTotal": 672,
-          "economicRank": 6,
-          "displayRank": 6
+          "economicRank": 7,
+          "displayRank": 7
         },
         {
           "rank": 15,
@@ -1118,8 +1223,8 @@
           "gasFixed": 84,
           "lightTotal": 569.2,
           "gasTotal": 672,
-          "economicRank": 7,
-          "displayRank": 7
+          "economicRank": 8,
+          "displayRank": 8
         },
         {
           "rank": 14,
@@ -1145,8 +1250,8 @@
           "gasFixed": 108,
           "lightTotal": 592,
           "gasTotal": 660,
-          "economicRank": 8,
-          "displayRank": 8
+          "economicRank": 9,
+          "displayRank": 9
         },
         {
           "rank": 7,
@@ -1172,38 +1277,37 @@
           "gasFixed": 90,
           "lightTotal": 528,
           "gasTotal": 732,
-          "economicRank": 9,
-          "displayRank": 9
-        },
-        {
-          "rank": 8,
-          "id": "arera-enel-fisso-dual-000142ESFML01XXResECAn0000116026-000142GSFML01XXResECAn0000116062",
-          "provider": "Enel Energia",
-          "name": "Enel Energia - Enel Night Free + Enel  Flash Gas",
-          "tipo": "fisso",
-          "fornitura": "dual",
-          "destinationType": "partner_lead",
-          "destinationStatus": "da_contattare",
-          "active": false,
-          "link": "#",
-          "total": 1260,
-          "saving": 420,
-          "variable": 936,
-          "fixedSales": 324,
-          "profileCharges": 0,
-          "regulatedAndTaxes": 0,
-          "reconcileDelta": 0,
-          "lightPrice": 0.087,
-          "lightFixed": 180,
-          "gasPrice": 0.49,
-          "gasFixed": 144,
-          "lightTotal": 528,
-          "gasTotal": 732,
           "economicRank": 10,
           "displayRank": 10
         }
       ],
       "active": [
+        {
+          "rank": 19,
+          "id": "1",
+          "provider": "E.ON",
+          "name": "E.ON Luce e Gas Insieme",
+          "tipo": "fisso",
+          "fornitura": "dual",
+          "destinationType": "affiliazione",
+          "destinationStatus": "attiva",
+          "active": true,
+          "link": "https://clk.tradedoubler.com/click?p=344125&a=3487966&epi=offertalogica&epi2=eon_luce_gas_insieme_funnel&url=https%3A%2F%2Fwww.eon-energia.com%2Fofferta-luce-gas-insieme%2Ffunnel-bundle-new.html",
+          "total": 1188.83,
+          "saving": 491.17,
+          "variable": 971.6,
+          "fixedSales": 217.23,
+          "profileCharges": 0,
+          "regulatedAndTaxes": 0,
+          "reconcileDelta": 0,
+          "lightPrice": 0.1007,
+          "lightFixed": 109.23,
+          "gasPrice": 0.474,
+          "gasFixed": 108,
+          "lightTotal": 512.03,
+          "gasTotal": 676.8,
+          "economicRank": 5
+        },
         {
           "rank": 3,
           "id": "arera-alperia-fisso-dual-000368ESFML01XX4085488X260611XVE-000368GSFML02XX1895452X260611XVE",
@@ -1228,7 +1332,7 @@
           "gasFixed": 144,
           "lightTotal": 506.2,
           "gasTotal": 684,
-          "economicRank": 5
+          "economicRank": 6
         },
         {
           "rank": 11,
@@ -1254,7 +1358,7 @@
           "gasFixed": 144,
           "lightTotal": 540,
           "gasTotal": 672,
-          "economicRank": 6
+          "economicRank": 7
         },
         {
           "rank": 15,
@@ -1280,7 +1384,7 @@
           "gasFixed": 84,
           "lightTotal": 569.2,
           "gasTotal": 672,
-          "economicRank": 7
+          "economicRank": 8
         },
         {
           "rank": 1,
@@ -1306,7 +1410,33 @@
           "gasFixed": 108,
           "lightTotal": 610,
           "gasTotal": 672,
-          "economicRank": 11
+          "economicRank": 12
+        },
+        {
+          "rank": 20,
+          "id": "10",
+          "provider": "Enel",
+          "name": "Enel Fix Web Luce e Gas",
+          "tipo": "fisso",
+          "fornitura": "dual",
+          "destinationType": "affiliazione",
+          "destinationStatus": "attiva",
+          "active": true,
+          "link": "https://clk.tradedoubler.com/click?p=348999&a=3487966&epi=offertalogica&epi2=enel_fix_web_funnel&url=https%3A%2F%2Fwww.enel.it%2Fit-it%2Fcommodity-funnel%3Fpart__c%3D%2Fcontent%2Fenel-it%2Fit-it%2Fofferte-luce-gas%2Fenel-fix-web-luce-gas%26zoneid%3Dsito-landing_enel_offerte-card_luce_gas-cta-prospect",
+          "total": 1432,
+          "saving": 248,
+          "variable": 1144,
+          "fixedSales": 288,
+          "profileCharges": 0,
+          "regulatedAndTaxes": 0,
+          "reconcileDelta": 0,
+          "lightPrice": 0.139,
+          "lightFixed": 144,
+          "gasPrice": 0.49,
+          "gasFixed": 144,
+          "lightTotal": 700,
+          "gasTotal": 732,
+          "economicRank": 19
         }
       ],
       "errors": [],
