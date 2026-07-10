@@ -147,6 +147,23 @@
         .offer-consent-modal { width: min(560px, 100%); background: #fff; border-radius: 14px; border: 1px solid var(--border); padding: 22px; box-shadow: 0 24px 60px rgba(15,23,42,.28); }
         .offer-consent-modal h3 { font-size: 20px; margin-bottom: 6px; color: var(--text-color); }
         .offer-consent-modal p { color: var(--text-muted); font-size: 14px; margin-bottom: 14px; }
+        .activation-helper-fab { position: fixed; right: 22px; bottom: 84px; z-index: 920; display: none; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 12px 16px; border: 0; border-radius: 999px; background: var(--logo-green-gradient); color: #fff; font-weight: 900; cursor: pointer; box-shadow: 0 16px 34px rgba(22,163,74,.24); }
+        .activation-helper-fab:hover { transform: translateY(-1px); box-shadow: 0 20px 42px rgba(22,163,74,.30); }
+        .activation-helper-backdrop { position: fixed; inset: 0; z-index: 1002; display: none; align-items: center; justify-content: center; padding: 20px; background: rgba(15,23,42,.62); }
+        .activation-helper-modal { width: min(720px, 100%); max-height: min(92vh, 820px); overflow: auto; background: #fff; border-radius: 16px; border: 1px solid var(--border); padding: 22px; box-shadow: 0 24px 60px rgba(15,23,42,.30); }
+        .activation-helper-modal h3 { font-size: 21px; margin-bottom: 6px; color: var(--text-color); }
+        .activation-helper-modal p { color: var(--text-muted); font-size: 14px; line-height: 1.45; margin-bottom: 14px; }
+        .activation-helper-offer { display: none; margin: 0 0 12px; padding: 12px; border-radius: 10px; border: 1px solid #bbf7d0; background: #f0fdf4; color: #14532d; font-size: 13px; line-height: 1.4; }
+        .activation-helper-fields { display: grid; gap: 10px; margin: 12px 0; }
+        .activation-helper-field { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: #f8fafc; }
+        .activation-helper-field strong { display: block; color: var(--text-color); font-size: 13px; margin-bottom: 3px; }
+        .activation-helper-field code { display: block; color: #0f172a; white-space: normal; overflow-wrap: anywhere; word-break: break-word; font-size: 14px; }
+        .activation-helper-field small { display: block; margin-top: 4px; color: var(--text-muted); font-size: 11px; line-height: 1.35; }
+        .activation-helper-field button { border: 0; border-radius: 8px; padding: 9px 12px; background: #0f172a; color: #fff; font-weight: 800; cursor: pointer; }
+        .activation-helper-field button:disabled { background: #cbd5e1; color: #64748b; cursor: not-allowed; }
+        .activation-helper-checklist { margin-top: 12px; padding: 12px; border-radius: 10px; border: 1px solid #dbeafe; background: #eff6ff; color: #1e3a8a; font-size: 13px; line-height: 1.45; }
+        .activation-helper-checklist ul { margin: 8px 0 0 18px; }
+        .activation-helper-checklist li { margin: 3px 0; }
         .locked-offer { position: relative; }
         .locked-offer .partner-title::before { content: "Offerta riservata "; color: var(--accent); }
         .locked-offer a { background: var(--logo-green-gradient) !important; }
@@ -178,6 +195,9 @@
 
         @media (max-width: 600px) {
             body { padding: 12px; }
+            .activation-helper-fab { left: 12px; right: 12px; bottom: 72px; width: auto; border-radius: 12px; }
+            .activation-helper-field { grid-template-columns: 1fr; }
+            .activation-helper-field button { width: 100%; }
             header { padding: 16px 8px 22px 8px !important; }
             .site-logo-main { width: min(310px, 90vw); }
             .partner-vertical-card { flex-direction: column; text-align: center; gap: 12px; }
@@ -1806,6 +1826,10 @@ const LEAD_STATE = {
   pdfDocuments: [],
   staffMode: false,
   staffActivatedAt: "",
+  activationAssistant: {
+    pendingUrl: "",
+    offer: null,
+  },
 };
 
 const ANALYTICS_SESSION_KEY = "offertalogicaAnalyticsSession";
@@ -4720,6 +4744,241 @@ function offertaConRedirectAttivo(offer) {
   );
 }
 
+function valoreDatoAttivazione(value) {
+  if (value === undefined || value === null) return "";
+  const text = String(value).trim();
+  if (!text || text === "-" || text.toLowerCase() === "n.n." || text.toLowerCase() === "undefined") return "";
+  return text;
+}
+
+function valoreConUnitaAttivazione(value, unit) {
+  const text = valoreDatoAttivazione(value);
+  if (!text) return "";
+  if (!unit || text.toLowerCase().includes(unit.toLowerCase())) return text;
+  return `${text} ${unit}`;
+}
+
+function campiAssistenteAttivazione() {
+  const data = LEAD_STATE.pdfData || {};
+  return [
+    {
+      label: "Fornitore attuale",
+      value: valoreDatoAttivazione(data.fornitore),
+      hint: "Utile se il nuovo fornitore chiede da chi stai passando.",
+    },
+    {
+      label: "POD luce",
+      value: valoreDatoAttivazione(data.pod),
+      hint: "Codice tecnico della fornitura elettrica.",
+    },
+    {
+      label: "PDR gas",
+      value: valoreDatoAttivazione(data.pdr),
+      hint: "Codice tecnico della fornitura gas.",
+    },
+    {
+      label: "Consumo annuo luce",
+      value: valoreConUnitaAttivazione(data.consumo_luce_kwh, "kWh/anno"),
+      hint: "Serve per verificare che il preventivo del fornitore sia coerente.",
+    },
+    {
+      label: "Consumo annuo gas",
+      value: valoreConUnitaAttivazione(data.consumo_gas_smc, "Smc/anno"),
+      hint: "Serve per verificare la stima gas durante l'attivazione.",
+    },
+    {
+      label: "Potenza impegnata",
+      value: valoreConUnitaAttivazione(data.potenza_impegnata_kw, "kW"),
+      hint: "Di solito e 3 kW per molte forniture domestiche.",
+    },
+    {
+      label: "Codice cliente",
+      value: valoreDatoAttivazione(firstValue(data.codice_cliente, data.codiceCliente, data.customer_code)),
+      hint: "Se rilevato, aiuta il fornitore a identificare meglio la pratica.",
+    },
+    {
+      label: "Indirizzo fornitura",
+      value: valoreDatoAttivazione(firstValue(data.indirizzo_fornitura, data.indirizzoFornitura, data.indirizzo)),
+      hint: "Se rilevato, controlla che coincida con l'utenza da attivare.",
+    },
+  ].map((field) => ({
+    ...field,
+    available: Boolean(valoreDatoAttivazione(field.value)),
+  }));
+}
+
+function assistenteHaDatiBolletta() {
+  const data = LEAD_STATE.pdfData || {};
+  const docs = LEAD_STATE.pdfDocuments || [];
+  const hasBillDoc = docs.some((doc) => !doc.error && doc.kind === "bolletta");
+  return Boolean(
+    data.hasBill ||
+    hasBillDoc ||
+    data.pod ||
+    data.pdr ||
+    data.consumo_luce_kwh ||
+    data.consumo_gas_smc
+  );
+}
+
+function assistenteAttivazioneDisponibile() {
+  if (!assistenteHaDatiBolletta()) return false;
+  return campiAssistenteAttivazione().some((field) => field.available);
+}
+
+function aggiornaAssistenteAttivazioneVisibilita() {
+  const button = document.getElementById("activation-helper-fab");
+  if (!button) return;
+  const visible = assistenteAttivazioneDisponibile();
+  button.style.display = visible ? "inline-flex" : "none";
+  button.setAttribute("aria-hidden", visible ? "false" : "true");
+}
+
+function assistenteAttivazioneStatus(message, isError = false) {
+  const status = document.getElementById("activation-helper-status");
+  if (!status) return;
+  status.innerText = message || "";
+  status.style.color = isError ? "var(--danger)" : "var(--text-muted)";
+}
+
+async function copiaTestoAssistente(text) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "readonly");
+  textarea.style.position = "fixed";
+  textarea.style.left = "-9999px";
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand("copy");
+  textarea.remove();
+}
+
+async function copiaCampoAssistenteAttivazione(index) {
+  const fields = campiAssistenteAttivazione();
+  const field = fields[index];
+  if (!field?.available) return;
+  try {
+    await copiaTestoAssistente(field.value);
+    assistenteAttivazioneStatus(`Copiato: ${field.label}.`);
+    trackEvent("activation_data_copied", { field: field.label, mode: "single" });
+  } catch {
+    assistenteAttivazioneStatus("Copia non riuscita. Puoi selezionare il dato manualmente.", true);
+  }
+}
+
+async function copiaTuttiDatiAssistenteAttivazione() {
+  const lines = campiAssistenteAttivazione()
+    .filter((field) => field.available)
+    .map((field) => `${field.label}: ${field.value}`);
+  if (!lines.length) {
+    assistenteAttivazioneStatus("Nessun dato tecnico copiabile rilevato.", true);
+    return;
+  }
+  try {
+    await copiaTestoAssistente(lines.join("\n"));
+    assistenteAttivazioneStatus("Dati tecnici copiati.");
+    trackEvent("activation_data_copied", { field: "all", mode: "bulk" });
+  } catch {
+    assistenteAttivazioneStatus("Copia non riuscita. Puoi copiare i dati uno alla volta.", true);
+  }
+}
+
+function renderAssistenteAttivazione() {
+  const fieldsEl = document.getElementById("activation-helper-fields");
+  const offerEl = document.getElementById("activation-helper-offer");
+  const openBtn = document.getElementById("activation-helper-open");
+  const offer = LEAD_STATE.activationAssistant?.offer || LEAD_STATE.selectedOffer || null;
+  const pendingUrl = LEAD_STATE.activationAssistant?.pendingUrl || "";
+  const fields = campiAssistenteAttivazione();
+
+  if (offerEl) {
+    const offerName = offer?.name || offer?.nome || "";
+    offerEl.style.display = offerName ? "block" : "none";
+    offerEl.innerHTML = offerName
+      ? `Stai procedendo con <strong>${testoHtmlSicuro(offerName)}</strong>. Tieni aperta questa finestra mentre compili il sito del fornitore.`
+      : "";
+  }
+
+  if (fieldsEl) {
+    fieldsEl.innerHTML = fields.map((field, index) => {
+      const value = field.available ? field.value : "Non rilevato nella bolletta caricata";
+      return `
+        <div class="activation-helper-field">
+          <div>
+            <strong>${testoHtmlSicuro(field.label)}</strong>
+            <code>${testoHtmlSicuro(value)}</code>
+            <small>${testoHtmlSicuro(field.hint || "")}</small>
+          </div>
+          <button type="button" data-activation-copy="${index}" ${field.available ? "" : "disabled"}>Copia</button>
+        </div>
+      `;
+    }).join("");
+    fieldsEl.querySelectorAll("[data-activation-copy]").forEach((button) => {
+      button.addEventListener("click", () => copiaCampoAssistenteAttivazione(Number(button.dataset.activationCopy)));
+    });
+  }
+
+  if (openBtn) {
+    openBtn.style.display = pendingUrl ? "inline-block" : "none";
+  }
+  assistenteAttivazioneStatus("");
+}
+
+window.apriAssistenteAttivazione = function apriAssistenteAttivazione(options = {}) {
+  if (!assistenteAttivazioneDisponibile()) return;
+  LEAD_STATE.activationAssistant = {
+    pendingUrl: options.url || LEAD_STATE.activationAssistant?.pendingUrl || "",
+    offer: options.offer || LEAD_STATE.activationAssistant?.offer || LEAD_STATE.selectedOffer || null,
+  };
+  renderAssistenteAttivazione();
+  const modal = document.getElementById("activation-helper-backdrop");
+  if (modal) modal.style.display = "flex";
+  trackEvent("activation_assistant_opened", {
+    source: options.source || "manual_button",
+    hasPendingUrl: Boolean(LEAD_STATE.activationAssistant.pendingUrl),
+    offerId: LEAD_STATE.activationAssistant.offer?.id || "",
+    offerName: LEAD_STATE.activationAssistant.offer?.name || "",
+    provider: LEAD_STATE.activationAssistant.offer?.provider || "",
+  });
+};
+
+function chiudiAssistenteAttivazione() {
+  const modal = document.getElementById("activation-helper-backdrop");
+  if (modal) modal.style.display = "none";
+}
+
+function apriFunnelDaAssistente() {
+  const url = LEAD_STATE.activationAssistant?.pendingUrl || "";
+  const offer = LEAD_STATE.activationAssistant?.offer || {};
+  if (!url) {
+    assistenteAttivazioneStatus("Nessun link di attivazione disponibile per questa offerta.", true);
+    return;
+  }
+  trackEvent("partner_funnel_opened", {
+    offerId: offer.id || "",
+    offerName: offer.name || "",
+    provider: offer.provider || "",
+    assisted: true,
+  });
+  const opened = window.open(url, "_blank", "noopener,noreferrer");
+  if (!opened) window.location.href = url;
+}
+
+function apriAssistentePrimaDelRedirect(url, offer, source = "partner_redirect") {
+  if (!assistenteAttivazioneDisponibile()) return false;
+  LEAD_STATE.activationAssistant = {
+    pendingUrl: url,
+    offer: offer || LEAD_STATE.selectedOffer || null,
+  };
+  chiudiConsensoOfferta();
+  window.apriAssistenteAttivazione({ source, url, offer });
+  return true;
+}
+
 async function confermaConsensoOfferta() {
   const checkbox = document.getElementById("offer-consent-checkbox");
   if (!LEAD_STATE.partnerConsent && !checkbox?.checked) {
@@ -4784,6 +5043,7 @@ async function registraRichiestaOfferta() {
     const safeLink = linkStaffSenzaTracking(offer.link);
     if (offertaConRedirectAttivo(offer) && safeLink && safeLink !== "#") {
       offerConsentStatus("Apro la pagina dell'offerta scelta.");
+      if (apriAssistentePrimaDelRedirect(safeLink, offer, "staff_redirect")) return;
       window.location.href = safeLink;
     } else {
       offerConsentStatus("Richiesta registrata. Per continuare dobbiamo trasmettere i tuoi dati al fornitore o a un partner commerciale incaricato di gestire la richiesta.");
@@ -4824,6 +5084,7 @@ async function registraRichiestaOfferta() {
         destinationStatus: offer.destinationStatus || "",
         redirect: true,
       });
+      if (apriAssistentePrimaDelRedirect(payload.redirectUrl, offer, "partner_redirect")) return;
       window.location.href = payload.redirectUrl;
       return;
     }
@@ -4890,6 +5151,7 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
     errorCount: results.filter((item) => item.error).length,
   });
   if (copy) copy.innerHTML = renderPdfSummary(LEAD_STATE.pdfDocuments, LEAD_STATE.pdfData);
+  aggiornaAssistenteAttivazioneVisibilita();
 };
 
 window.confermaPdfECalcola = function confermaPdfECalcola() {
@@ -4907,6 +5169,7 @@ window.confermaPdfECalcola = function confermaPdfECalcola() {
     const copy = document.getElementById("pdf-review-copy");
     if (businessResult) businessResult.style.display = "none";
     if (businessError) businessError.style.display = "none";
+    aggiornaAssistenteAttivazioneVisibilita();
     if (copy) copy.innerText = "Dati business confermati e inseriti nel modulo. Ora usa il pulsante dedicato all'analisi aziendale.";
     return;
   }
@@ -4921,6 +5184,7 @@ window.confermaPdfECalcola = function confermaPdfECalcola() {
 
   applicaDatiPdfAlModulo(data);
   nascondiEsitiFincheNonConfronti();
+  aggiornaAssistenteAttivazioneVisibilita();
   const copy = document.getElementById("pdf-review-copy");
   if (copy) copy.innerText = "Dati confermati e inseriti nel modulo. Ora clicca il pulsante blu “ELABORA E CONFRONTA LE OFFERTE” per vedere il risultato.";
 };
@@ -4998,6 +5262,7 @@ window.azzeraPdfEModulo = function azzeraPdfEModulo() {
   LEAD_STATE.pdfData = null;
   LEAD_STATE.pdfDocuments = [];
   LEAD_STATE.dataOrigin = "manual_input";
+  LEAD_STATE.activationAssistant = { pendingUrl: "", offer: null };
   const input = document.getElementById("pdf-static-input");
   const panel = document.getElementById("pdf-review-static");
   const copy = document.getElementById("pdf-review-copy");
@@ -5025,6 +5290,8 @@ window.azzeraPdfEModulo = function azzeraPdfEModulo() {
   if (offers) offers.style.display = "none";
   if (businessResult) businessResult.style.display = "none";
   if (businessError) businessError.style.display = "none";
+  aggiornaAssistenteAttivazioneVisibilita();
+  chiudiAssistenteAttivazione();
 };
 
 function setField(id, value) {
@@ -5450,6 +5717,13 @@ function collegaEventiUX() {
   document.getElementById("offer-consent-backdrop")?.addEventListener("click", (event) => {
     if (event.target?.id === "offer-consent-backdrop") chiudiConsensoOfferta();
   });
+  document.getElementById("activation-helper-open")?.addEventListener("click", apriFunnelDaAssistente);
+  document.getElementById("activation-helper-copy-all")?.addEventListener("click", copiaTuttiDatiAssistenteAttivazione);
+  document.getElementById("activation-helper-close")?.addEventListener("click", chiudiAssistenteAttivazione);
+  document.getElementById("activation-helper-backdrop")?.addEventListener("click", (event) => {
+    if (event.target?.id === "activation-helper-backdrop") chiudiAssistenteAttivazione();
+  });
+  aggiornaAssistenteAttivazioneVisibilita();
 
   Promise.all([caricaDatiCalcolo(), caricaOfferteProposte(), caricaOfferteAreraMenu(), caricaProviderBrand()]).then(() => {
     assicuraSchedeOfferte();
@@ -5756,6 +6030,33 @@ if (document.readyState === "loading") {
         </div>
     </div>
 </section>
+
+<button type="button" class="activation-helper-fab" id="activation-helper-fab" onclick="apriAssistenteAttivazione({ source: 'floating_button' })" aria-hidden="true">
+    I miei dati per attivare
+</button>
+
+<div class="activation-helper-backdrop" id="activation-helper-backdrop" role="dialog" aria-modal="true" aria-labelledby="activation-helper-title">
+    <div class="activation-helper-modal">
+        <h3 id="activation-helper-title">Dati utili per completare l'attivazione</h3>
+        <p>Tieni aperta questa finestra mentre compili il sito del fornitore. I dati sotto arrivano dalla bolletta caricata e puoi copiarli senza cercarli di nuovo.</p>
+        <div class="activation-helper-offer" id="activation-helper-offer"></div>
+        <div class="activation-helper-fields" id="activation-helper-fields"></div>
+        <div class="activation-helper-checklist">
+            Prima di confermare sul sito del fornitore controlla:
+            <ul>
+                <li>che POD e PDR corrispondano alla tua fornitura;</li>
+                <li>che il consumo stimato sia coerente con la bolletta;</li>
+                <li>che eventuali servizi extra, vincoli o costi accessori siano chiari.</li>
+            </ul>
+        </div>
+        <div class="lead-actions">
+            <button type="button" class="lead-primary" id="activation-helper-open">Apri sito ufficiale</button>
+            <button type="button" class="lead-secondary" id="activation-helper-copy-all">Copia dati tecnici</button>
+            <button type="button" class="lead-secondary" id="activation-helper-close">Chiudi</button>
+        </div>
+        <div class="lead-status" id="activation-helper-status"></div>
+    </div>
+</div>
 
 <div class="lead-modal-backdrop" id="lead-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="lead-modal-title">
     <div class="lead-modal">

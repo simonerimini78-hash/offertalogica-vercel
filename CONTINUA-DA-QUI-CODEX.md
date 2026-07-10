@@ -432,3 +432,153 @@ Data: 2026-07-10.
 - Non sono stati modificati prezzi ARERA, file offerte, ranking generale, link affiliati, OTP, lead, Supabase, consensi, grafica o pagine pubbliche.
 - Verifiche: `scripts/validate-calculator-data.mjs` OK; `scripts/verify-calcolo-offerte.mjs` OK con 0 errori.
 - Esito verifica: profilo `medio-dual-fisso` passa da Magis Energia ad Acea Energia come prima offerta; Magis resta nei profili `forniture separate`.
+
+## Scaletta SEO - piano per posizionamento organico
+
+Data: 2026-07-10.
+
+Nota di metodo:
+
+- Non esiste garanzia di arrivare primi su Google.
+- Il piano SEO deve essere costruito su contenuti utili, struttura tecnica pulita, dati verificabili e differenziazione reale rispetto ai competitor.
+- Prima di spingere traffico forte, chiarire la gestione delle offerte non partner e attendere risposta Switcho o canale alternativo.
+
+1. Base tecnica:
+   - `robots.txt` corretto.
+   - Nessun `noindex` sulle pagine che devono posizionarsi.
+   - Sitemap aggiornata.
+   - Search Console attiva.
+   - Pagine veloci da mobile.
+   - Meta title e description puliti.
+   - Dati strutturati dove sensato: `Organization`, `Breadcrumb`, `FAQ`, eventualmente `WebApplication`.
+
+2. Pagine SEO principali:
+   - `/offerte-luce-gas-aggiornate`
+   - `/migliori-offerte-luce-gas`
+   - `/confronto-bolletta-luce-gas`
+   - `/offerte-luce-gas-prezzo-fisso`
+   - `/offerte-luce-gas-prezzo-variabile`
+   - `/offerte-luce-gas-business`
+   - `/come-leggere-bolletta-luce-gas`
+   - `/cambiare-fornitore-luce-gas-conviene`
+
+3. Pagine fornitore:
+   - Enel
+   - E.ON
+   - Plenitude
+   - Alperia
+   - Octopus
+   - A2A
+   - Acea
+   - Dolomiti
+   - NeN
+   - Sorgenia
+   - Edison
+   - Lene
+   - Segnoverde
+
+   Ogni pagina fornitore deve contenere:
+   - come funziona il fornitore;
+   - offerte presenti nel radar ARERA;
+   - quando conviene;
+   - quando non conviene;
+   - link al calcolatore;
+   - nota che il risultato cambia in base ai consumi reali.
+
+4. Vantaggio competitivo SEO:
+
+   Frase cardine:
+   "OffertaLogica non mostra solo offerte medie: calcola il confronto sui consumi reali dell'utente, inseriti a mano o letti dalla bolletta."
+
+5. Strategia contenuti:
+   - PUN e PSV: cosa cambiano in bolletta.
+   - Prezzo fisso o variabile: quando conviene.
+   - Quota fissa vendita: perche cambia il risparmio.
+   - Perche l'offerta piu economica non e sempre la migliore.
+   - Come confrontare una bolletta luce e gas senza farsi ingannare.
+
+6. Fiducia:
+   - chi siamo;
+   - metodo di calcolo;
+   - fonti ARERA;
+   - aggiornamento dati;
+   - privacy;
+   - nessuna promessa falsa;
+   - promessa: "se non conviene, te lo diciamo".
+
+7. Link e autorevolezza:
+   - citazioni da partner;
+   - directory affidabili;
+   - blog locali;
+   - comunicati stampa;
+   - LinkedIn;
+   - eventuali articoli su progetto innovativo/utility/bollette.
+
+8. Tempistiche realistiche:
+   - 0-30 giorni: indicizzazione e prime impression.
+   - 30-90 giorni: prime query lunghe.
+   - 3-6 mesi: crescita seria se i contenuti sono buoni.
+   - 6-12 mesi: possibilita reale di posizionarsi su keyword competitive.
+
+Priorita attuale:
+
+- Aspettare risposta Switcho.
+- Continuare a monitorare nuove affiliazioni.
+- Non lanciare traffico pesante finche non e chiaro il canale di uscita per le offerte non partner.
+- Correggere solo bug reali o incoerenze operative.
+
+## Punto v53 - Assistente dati per attivazione
+
+Data: 2026-07-10.
+
+Base di partenza:
+
+- `offertalogica-v52-filtro-dual-magis-20260710`.
+
+Cosa e stato aggiunto:
+
+- Pulsante `I miei dati per attivare`, visibile solo quando e stata letta una bolletta o sono disponibili dati tecnici tipici della bolletta.
+- Popup di supporto prima del redirect verso il fornitore partner, con dati copiabili:
+  - fornitore attuale;
+  - POD luce;
+  - PDR gas;
+  - consumo annuo luce;
+  - consumo annuo gas;
+  - potenza impegnata;
+  - codice cliente, se rilevato;
+  - indirizzo fornitura, se rilevato.
+- Copia singolo dato e copia di tutti i dati tecnici.
+- Apertura del funnel ufficiale del fornitore in nuova scheda dal popup, cosi OffertaLogica resta aperta come guida.
+- Eventi analytics:
+  - `activation_assistant_opened`;
+  - `activation_data_copied`;
+  - `partner_funnel_opened`.
+- Reset del pulsante e del popup quando viene azzerato il caricamento PDF.
+
+Cosa non e stato toccato:
+
+- Motore di calcolo.
+- Regola ARERA-first.
+- Ranking offerte.
+- Prezzi/offerte partner.
+- Offerte consulente.
+- OTP.
+- Lead.
+- Supabase.
+- Consensi.
+- Link affiliati.
+- Pagine pubbliche.
+
+Regola operativa:
+
+- Non si compila automaticamente il sito del fornitore: OffertaLogica mostra e rende copiabili i dati utili, poi l'utente compila sul sito ufficiale.
+- Se non ci sono dati tecnici da bolletta, il redirect resta quello precedente.
+
+Verifiche eseguite:
+
+- `/Users/simo78/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node scripts/validate-calculator-data.mjs` OK.
+- `/Users/simo78/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node scripts/verify-calcolo-offerte.mjs` OK, 0 errori.
+
+Prossima attenzione:
+
+- Verificare in produzione, con una bolletta reale caricata, che il popup mostri POD/PDR e consumi corretti prima dell'apertura del sito del partner.
