@@ -582,3 +582,56 @@ Verifiche eseguite:
 Prossima attenzione:
 
 - Verificare in produzione, con una bolletta reale caricata, che il popup mostri POD/PDR e consumi corretti prima dell'apertura del sito del partner.
+
+## Punto v54 - Fix redirect assistente e partner attivabili
+
+Data: 2026-07-10.
+
+Base di partenza:
+
+- `offertalogica-v53-assistente-attivazione-20260710`.
+
+Problemi rilevati:
+
+- Dal popup assistente dati, il click sul sito del fornitore apriva una nuova scheda ma poteva cambiare anche la scheda del calcolatore, facendo perdere il popup con i dati copiabili.
+- Enel, pur essendo affiliato attivo, poteva finire nel blocco "Migliori offerte per costo con consulente" quando il ranking ARERA generava una proposta Enel non agganciata al funnel partner.
+
+Cosa e stato corretto:
+
+- Rimosso il fallback `window.location.href` dall'apertura del funnel tramite assistente.
+- Il popup ora apre il sito del fornitore tramite link temporaneo `target="_blank"` e mantiene OffertaLogica nella scheda corrente.
+- Etichetta del pulsante assistente resa piu chiara: `Procedi sul sito del fornitore`.
+- Riattivata l'unione tra ranking ARERA e offerte partner dirette tramite:
+  - `offertePartnerDiretteAttivabili`;
+  - `unisciOfferteCandidati`.
+- Se un fornitore e gia presente tra i partner attivabili, non viene riproposto sotto nel blocco consulente con la stessa chiave fornitore/tipo/fornitura.
+
+Cosa non e stato toccato:
+
+- Motore di calcolo.
+- Formula costi.
+- Regola ARERA-first.
+- Prezzi ARERA.
+- OTP.
+- Lead.
+- Supabase.
+- Consensi.
+- PDF reader.
+- Link affiliati gia presenti.
+
+Verifiche eseguite:
+
+- `/Users/simo78/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node scripts/validate-calculator-data.mjs` OK.
+- `/Users/simo78/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node scripts/verify-calcolo-offerte.mjs` OK, 0 errori, 0 warning.
+- Profilo `medio-dual-fisso`: partner attivabili rilevati nel report tecnico:
+  - E.ON;
+  - Alperia;
+  - Octopus Energy;
+  - Eni Plenitude;
+  - A2A Energia;
+  - Enel.
+
+Regola da mantenere:
+
+- I partner diretti coerenti con il filtro devono restare nel blocco "Offerte partner attivabili online".
+- Il blocco consulente deve servire per offerte non attivabili direttamente o che richiedono verifica, non per duplicare un partner gia attivo.

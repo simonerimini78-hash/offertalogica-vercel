@@ -3875,8 +3875,8 @@ function unisciOfferteCandidati(offerteRanking, offertePartner) {
 
 function costruisciOfferteRanking(attuale, tipoTariffa, tipoFornitura) {
   const daArera = costruisciOfferteAreraRanking(attuale, tipoTariffa, tipoFornitura);
-  if (daArera.length) return daArera;
-  return [];
+  const partnerDirette = offertePartnerDiretteAttivabili(tipoTariffa, tipoFornitura);
+  return unisciOfferteCandidati(daArera, partnerDirette);
 }
 
 function chiaveGruppoPartner(item) {
@@ -3991,8 +3991,10 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       posizioneGruppo: index + 1,
       posizioneEconomica: rankingGlobale.get(String(item.offerta.id)) || null,
     }));
+  const chiaviPartnerAttivabili = new Set(attivabiliPrioritarie.map((item) => chiaveGruppoPartner(item)));
   const miglioriConConsulente = ordinateRanking
     .filter((item) => !item.attivabileOnline)
+    .filter((item) => !chiaviPartnerAttivabili.has(chiaveGruppoPartner(item)))
     .slice(0, 3)
     .map((item, index) => ({
       ...item,
@@ -4964,8 +4966,15 @@ function apriFunnelDaAssistente() {
     provider: offer.provider || "",
     assisted: true,
   });
-  const opened = window.open(url, "_blank", "noopener,noreferrer");
-  if (!opened) window.location.href = url;
+  const link = document.createElement("a");
+  link.href = url;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  link.style.display = "none";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  assistenteAttivazioneStatus("Ho aperto il sito del fornitore in una nuova scheda. Tieni questa finestra aperta per copiare i dati tecnici.");
 }
 
 function apriAssistentePrimaDelRedirect(url, offer, source = "partner_redirect") {
@@ -6050,7 +6059,7 @@ if (document.readyState === "loading") {
             </ul>
         </div>
         <div class="lead-actions">
-            <button type="button" class="lead-primary" id="activation-helper-open">Apri sito ufficiale</button>
+            <button type="button" class="lead-primary" id="activation-helper-open">Procedi sul sito del fornitore</button>
             <button type="button" class="lead-secondary" id="activation-helper-copy-all">Copia dati tecnici</button>
             <button type="button" class="lead-secondary" id="activation-helper-close">Chiudi</button>
         </div>
