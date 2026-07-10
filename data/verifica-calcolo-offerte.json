@@ -1,6 +1,6 @@
 {
   "ok": true,
-  "generatedAt": "2026-07-10T18:20:19.234Z",
+  "generatedAt": "2026-07-10T18:49:23.086Z",
   "engineVersion": "motore-v6-arera-first-2026-07-03",
   "paramsVersion": "parametri-calcolo-2026-07-03-v4-psv-operativo",
   "offersVersion": "offerte-proposte-2026-07-07-v15-affiliazioni-a2a-octopus",
@@ -218,35 +218,8 @@
         "quotaFissaLuceAttuale": 144,
         "quotaFissaGasAttuale": 120
       },
-      "generatedOffers": 19,
+      "generatedOffers": 18,
       "top": [
-        {
-          "rank": 14,
-          "id": "arera-magis-fisso-dual-000592ESFML01XXDXX0726XMIAFIXWEB-000592GSFML01XXDXX0726XMIAFIXWEB",
-          "provider": "Magis Energia",
-          "name": "Magis Energia - MIA LUCE FIX WEB + MIA GAS FIX WEB",
-          "tipo": "fisso",
-          "fornitura": "dual",
-          "destinationType": "partner_lead",
-          "destinationStatus": "da_contattare",
-          "active": false,
-          "link": "#",
-          "total": 755.11,
-          "saving": 389.89,
-          "variable": 563.11,
-          "fixedSales": 192,
-          "profileCharges": 0,
-          "regulatedAndTaxes": 0,
-          "reconcileDelta": 0,
-          "lightPrice": 0.0963,
-          "lightFixed": 96,
-          "gasPrice": 0.433,
-          "gasFixed": 96,
-          "lightTotal": 356.01,
-          "gasTotal": 399.1,
-          "economicRank": 1,
-          "displayRank": 1
-        },
         {
           "rank": 2,
           "id": "arera-acea-fisso-dual-000774ESFML01XXRT4D4028030000000-000774GSFML01XXRT4D4028030000000",
@@ -271,8 +244,8 @@
           "gasFixed": 111,
           "lightTotal": 378.3,
           "gasTotal": 391,
-          "economicRank": 2,
-          "displayRank": 2
+          "economicRank": 1,
+          "displayRank": 1
         },
         {
           "rank": 10,
@@ -298,8 +271,8 @@
           "gasFixed": 84,
           "lightTotal": 387.09,
           "gasTotal": 402.15,
-          "economicRank": 3,
-          "displayRank": 3
+          "economicRank": 2,
+          "displayRank": 2
         },
         {
           "rank": 5,
@@ -325,8 +298,8 @@
           "gasFixed": 72,
           "lightTotal": 387.3,
           "gasTotal": 403.45,
-          "economicRank": 4,
-          "displayRank": 4
+          "economicRank": 3,
+          "displayRank": 3
         },
         {
           "rank": 13,
@@ -352,8 +325,8 @@
           "gasFixed": 120,
           "lightTotal": 391.92,
           "gasTotal": 421,
-          "economicRank": 5,
-          "displayRank": 5
+          "economicRank": 4,
+          "displayRank": 4
         },
         {
           "rank": 3,
@@ -379,11 +352,11 @@
           "gasFixed": 144,
           "lightTotal": 372.69,
           "gasTotal": 459,
-          "economicRank": 6,
-          "displayRank": 6
+          "economicRank": 5,
+          "displayRank": 5
         },
         {
-          "rank": 16,
+          "rank": 15,
           "id": "arera-octopus-fisso-dual-000129ESFML51XXXXXXXXOCTOFIXv151-000129GSFML71XXXXXXXXOCTOFIXGv71",
           "provider": "Octopus Energy",
           "name": "Octopus Energy - Octopus Fissa 12M + Octopus Fissa 12M Gas",
@@ -406,11 +379,11 @@
           "gasFixed": 84,
           "lightTotal": 407.61,
           "gasTotal": 427,
-          "economicRank": 7,
-          "displayRank": 7
+          "economicRank": 6,
+          "displayRank": 6
         },
         {
-          "rank": 15,
+          "rank": 14,
           "id": "arera-nen-fisso-dual-029748ESFML01XX260709LDDUE000000-029748GSFML01XX260709GDDUE000000",
           "provider": "neN",
           "name": "neN - Due Luce + Due Gas",
@@ -433,8 +406,8 @@
           "gasFixed": 108,
           "lightTotal": 430.8,
           "gasTotal": 430,
-          "economicRank": 8,
-          "displayRank": 8
+          "economicRank": 7,
+          "displayRank": 7
         },
         {
           "rank": 11,
@@ -460,8 +433,8 @@
           "gasFixed": 144,
           "lightTotal": 411.3,
           "gasTotal": 452,
-          "economicRank": 9,
-          "displayRank": 9
+          "economicRank": 8,
+          "displayRank": 8
         },
         {
           "rank": 7,
@@ -487,6 +460,33 @@
           "gasFixed": 90,
           "lightTotal": 399.3,
           "gasTotal": 464.5,
+          "economicRank": 9,
+          "displayRank": 9
+        },
+        {
+          "rank": 12,
+          "id": "arera-illum-fisso-dual-000155ESFML04XXZZ03963Z260611E01-000155GSFML05XXZZZZ03847Z260611G",
+          "provider": "Illumia",
+          "name": "Illumia - Energia Lunga Luce Special + Energia Lunga Gas",
+          "tipo": "fisso",
+          "fornitura": "dual",
+          "destinationType": "partner_lead",
+          "destinationStatus": "da_contattare",
+          "active": false,
+          "link": "#",
+          "total": 874.59,
+          "saving": 270.41,
+          "variable": 682.59,
+          "fixedSales": 192,
+          "profileCharges": 0,
+          "regulatedAndTaxes": 0,
+          "reconcileDelta": 0,
+          "lightPrice": 0.117997,
+          "lightFixed": 108,
+          "gasPrice": 0.52,
+          "gasFixed": 84,
+          "lightTotal": 426.59,
+          "gasTotal": 448,
           "economicRank": 10,
           "displayRank": 10
         }
@@ -516,10 +516,10 @@
           "gasFixed": 144,
           "lightTotal": 372.69,
           "gasTotal": 459,
-          "economicRank": 6
+          "economicRank": 5
         },
         {
-          "rank": 16,
+          "rank": 15,
           "id": "arera-octopus-fisso-dual-000129ESFML51XXXXXXXXOCTOFIXv151-000129GSFML71XXXXXXXXOCTOFIXGv71",
           "provider": "Octopus Energy",
           "name": "Octopus Energy - Octopus Fissa 12M + Octopus Fissa 12M Gas",
@@ -542,7 +542,7 @@
           "gasFixed": 84,
           "lightTotal": 407.61,
           "gasTotal": 427,
-          "economicRank": 7
+          "economicRank": 6
         },
         {
           "rank": 11,
@@ -568,7 +568,7 @@
           "gasFixed": 144,
           "lightTotal": 411.3,
           "gasTotal": 452,
-          "economicRank": 9
+          "economicRank": 8
         },
         {
           "rank": 1,
@@ -594,7 +594,7 @@
           "gasFixed": 108,
           "lightTotal": 444.9,
           "gasTotal": 437,
-          "economicRank": 12
+          "economicRank": 11
         }
       ],
       "errors": [],
@@ -613,7 +613,7 @@
         "quotaFissaLuceAttuale": 144,
         "quotaFissaGasAttuale": 120
       },
-      "generatedOffers": 20,
+      "generatedOffers": 19,
       "top": [
         {
           "rank": 3,
@@ -724,7 +724,7 @@
           "displayRank": 4
         },
         {
-          "rank": 17,
+          "rank": 16,
           "id": "arera-octopus-variabile-dual-000129ESVFL97XXXXXXXXOCTOFLEXv97-000129GSVML20XXXXXXXOCTOFLEXGv20",
           "provider": "Octopus Energy",
           "name": "Octopus Energy - Octopus Flex + Octopus Flex Gas",
@@ -751,7 +751,7 @@
           "displayRank": 5
         },
         {
-          "rank": 16,
+          "rank": 15,
           "id": "arera-nen-variabile-dual-029748ESVML01XX260709LDSURF00000-029748GSVML01XX260709GDSURF00000",
           "provider": "neN",
           "name": "neN - Surf Luce + Surf Gas",
@@ -859,29 +859,29 @@
           "displayRank": 9
         },
         {
-          "rank": 15,
-          "id": "arera-magis-variabile-dual-000592ESVFL02XXDBX0426XOFFERTMIA-000592GSVML02XXDBX0426XOFFERTMIA",
-          "provider": "Magis Energia",
-          "name": "Magis Energia - MIA LUCE + MIA GAS",
+          "rank": 11,
+          "id": "arera-eni-variabile-dual-026160ESVFL49XX0LTCASAVPLU160626-026160GSVML49XX00GTCASANOP160626",
+          "provider": "Eni Plenitude",
+          "name": "Eni Plenitude - Trend Casa Luce Plus + Trend Casa NoPensieri Gas",
           "tipo": "variabile",
           "fornitura": "dual",
           "destinationType": "partner_lead",
           "destinationStatus": "da_contattare",
           "active": false,
           "link": "#",
-          "total": 986.71,
-          "saving": 199.6,
-          "variable": 746.71,
-          "fixedSales": 240,
+          "total": 998.67,
+          "saving": 187.64,
+          "variable": 878.67,
+          "fixedSales": 120,
           "profileCharges": 0,
           "regulatedAndTaxes": 0,
           "reconcileDelta": 0,
-          "lightPrice": 0.11935126,
-          "lightFixed": 120,
-          "gasPrice": 0.55941905,
+          "lightPrice": 0.14135126,
+          "lightFixed": 0,
+          "gasPrice": 0.65441905,
           "gasFixed": 120,
-          "lightTotal": 475.12,
-          "gasTotal": 511.59,
+          "lightTotal": 420.58,
+          "gasTotal": 578.09,
           "economicRank": 10,
           "displayRank": 10
         }
@@ -930,35 +930,8 @@
         "quotaFissaLuceAttuale": 144,
         "quotaFissaGasAttuale": 120
       },
-      "generatedOffers": 19,
+      "generatedOffers": 18,
       "top": [
-        {
-          "rank": 14,
-          "id": "arera-magis-fisso-dual-000592ESFML01XXDXX0726XMIAFIXWEB-000592GSFML01XXDXX0726XMIAFIXWEB",
-          "provider": "Magis Energia",
-          "name": "Magis Energia - MIA LUCE FIX WEB + MIA GAS FIX WEB",
-          "tipo": "fisso",
-          "fornitura": "dual",
-          "destinationType": "partner_lead",
-          "destinationStatus": "da_contattare",
-          "active": false,
-          "link": "#",
-          "total": 1096.8,
-          "saving": 583.2,
-          "variable": 904.8,
-          "fixedSales": 192,
-          "profileCharges": 0,
-          "regulatedAndTaxes": 0,
-          "reconcileDelta": 0,
-          "lightPrice": 0.0963,
-          "lightFixed": 96,
-          "gasPrice": 0.433,
-          "gasFixed": 96,
-          "lightTotal": 481.2,
-          "gasTotal": 615.6,
-          "economicRank": 1,
-          "displayRank": 1
-        },
         {
           "rank": 2,
           "id": "arera-acea-fisso-dual-000774ESFML01XXRT4D4028030000000-000774GSFML01XXRT4D4028030000000",
@@ -983,8 +956,8 @@
           "gasFixed": 111,
           "lightTotal": 507,
           "gasTotal": 591,
-          "economicRank": 2,
-          "displayRank": 2
+          "economicRank": 1,
+          "displayRank": 1
         },
         {
           "rank": 5,
@@ -1010,8 +983,8 @@
           "gasFixed": 72,
           "lightTotal": 516,
           "gasTotal": 640.2,
-          "economicRank": 3,
-          "displayRank": 3
+          "economicRank": 2,
+          "displayRank": 2
         },
         {
           "rank": 13,
@@ -1037,8 +1010,8 @@
           "gasFixed": 120,
           "lightTotal": 521.4,
           "gasTotal": 636,
-          "economicRank": 4,
-          "displayRank": 4
+          "economicRank": 3,
+          "displayRank": 3
         },
         {
           "rank": 10,
@@ -1064,8 +1037,8 @@
           "gasFixed": 84,
           "lightTotal": 538.8,
           "gasTotal": 629.4,
-          "economicRank": 5,
-          "displayRank": 5
+          "economicRank": 4,
+          "displayRank": 4
         },
         {
           "rank": 3,
@@ -1091,8 +1064,8 @@
           "gasFixed": 144,
           "lightTotal": 506.2,
           "gasTotal": 684,
-          "economicRank": 6,
-          "displayRank": 6
+          "economicRank": 5,
+          "displayRank": 5
         },
         {
           "rank": 11,
@@ -1118,11 +1091,11 @@
           "gasFixed": 144,
           "lightTotal": 540,
           "gasTotal": 672,
-          "economicRank": 7,
-          "displayRank": 7
+          "economicRank": 6,
+          "displayRank": 6
         },
         {
-          "rank": 16,
+          "rank": 15,
           "id": "arera-octopus-fisso-dual-000129ESFML51XXXXXXXXOCTOFIXv151-000129GSFML71XXXXXXXXOCTOFIXGv71",
           "provider": "Octopus Energy",
           "name": "Octopus Energy - Octopus Fissa 12M + Octopus Fissa 12M Gas",
@@ -1145,11 +1118,11 @@
           "gasFixed": 84,
           "lightTotal": 569.2,
           "gasTotal": 672,
-          "economicRank": 8,
-          "displayRank": 8
+          "economicRank": 7,
+          "displayRank": 7
         },
         {
-          "rank": 15,
+          "rank": 14,
           "id": "arera-nen-fisso-dual-029748ESFML01XX260709LDDUE000000-029748GSFML01XX260709GDDUE000000",
           "provider": "neN",
           "name": "neN - Due Luce + Due Gas",
@@ -1172,8 +1145,8 @@
           "gasFixed": 108,
           "lightTotal": 592,
           "gasTotal": 660,
-          "economicRank": 9,
-          "displayRank": 9
+          "economicRank": 8,
+          "displayRank": 8
         },
         {
           "rank": 7,
@@ -1197,6 +1170,33 @@
           "lightFixed": 132,
           "gasPrice": 0.535,
           "gasFixed": 90,
+          "lightTotal": 528,
+          "gasTotal": 732,
+          "economicRank": 9,
+          "displayRank": 9
+        },
+        {
+          "rank": 8,
+          "id": "arera-enel-fisso-dual-000142ESFML01XXResECAn0000116026-000142GSFML01XXResECAn0000116062",
+          "provider": "Enel Energia",
+          "name": "Enel Energia - Enel Night Free + Enel  Flash Gas",
+          "tipo": "fisso",
+          "fornitura": "dual",
+          "destinationType": "partner_lead",
+          "destinationStatus": "da_contattare",
+          "active": false,
+          "link": "#",
+          "total": 1260,
+          "saving": 420,
+          "variable": 936,
+          "fixedSales": 324,
+          "profileCharges": 0,
+          "regulatedAndTaxes": 0,
+          "reconcileDelta": 0,
+          "lightPrice": 0.087,
+          "lightFixed": 180,
+          "gasPrice": 0.49,
+          "gasFixed": 144,
           "lightTotal": 528,
           "gasTotal": 732,
           "economicRank": 10,
@@ -1228,7 +1228,7 @@
           "gasFixed": 144,
           "lightTotal": 506.2,
           "gasTotal": 684,
-          "economicRank": 6
+          "economicRank": 5
         },
         {
           "rank": 11,
@@ -1254,10 +1254,10 @@
           "gasFixed": 144,
           "lightTotal": 540,
           "gasTotal": 672,
-          "economicRank": 7
+          "economicRank": 6
         },
         {
-          "rank": 16,
+          "rank": 15,
           "id": "arera-octopus-fisso-dual-000129ESFML51XXXXXXXXOCTOFIXv151-000129GSFML71XXXXXXXXOCTOFIXGv71",
           "provider": "Octopus Energy",
           "name": "Octopus Energy - Octopus Fissa 12M + Octopus Fissa 12M Gas",
@@ -1280,7 +1280,7 @@
           "gasFixed": 84,
           "lightTotal": 569.2,
           "gasTotal": 672,
-          "economicRank": 8
+          "economicRank": 7
         },
         {
           "rank": 1,
@@ -1306,7 +1306,7 @@
           "gasFixed": 108,
           "lightTotal": 610,
           "gasTotal": 672,
-          "economicRank": 12
+          "economicRank": 11
         }
       ],
       "errors": [],

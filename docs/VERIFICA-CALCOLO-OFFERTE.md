@@ -1,6 +1,6 @@
 # Verifica calcolo offerte
 
-Generato: 2026-07-10T18:20:19.234Z
+Generato: 2026-07-10T18:49:23.086Z
 Motore frontend: motore-v6-arera-first-2026-07-03
 Parametri: parametri-calcolo-2026-07-03-v4-psv-operativo
 Offerte commerciali: offerte-proposte-2026-07-07-v15-affiliazioni-a2a-octopus
@@ -27,33 +27,33 @@ Questa sezione spiega perche un'offerta affiliata attiva viene mostrata oppure e
 
 ## Privato medio - dual fuel - fisso
 
-Offerte generate: 19
+Offerte generate: 18
 
 | # | Fornitore | Offerta | Totale | Variabile | Fissa vendita | Risparmio vs attuale | Stato |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | Magis Energia | Magis Energia - MIA LUCE FIX WEB + MIA GAS FIX WEB | 755.11 EUR | 563.11 EUR | 192.00 EUR | 389.89 EUR | da_contattare |
-| 2 | Acea Energia | Acea Energia - Acea Energia Fix + Acea Energia Fix | 769.30 EUR | 547.30 EUR | 222.00 EUR | 375.70 EUR | da_contattare |
-| 3 | Engie | Engie - Energia PuntoFisso - 12 mesi + Energia PuntoFisso - 12 mesi | 789.24 EUR | 633.24 EUR | 156.00 EUR | 355.76 EUR | da_contattare |
-| 4 | Dolomiti Energia | Dolomiti Energia - DOLOMITI FISSO LUCE 120 + DOLOMITI FISSO GAS 36 WEB | 790.75 EUR | 598.75 EUR | 192.00 EUR | 354.25 EUR | da_contattare |
-| 5 | Iren Luce e Gas | Iren Luce e Gas - IREN PRIMA SCELTA LUCE FISSA + IREN PRIMA SCELTA GAS | 812.92 EUR | 569.92 EUR | 243.00 EUR | 332.08 EUR | da_contattare |
-| 6 | Alperia | Alperia - Alperia Smile Easy Summer + Alperia Gas Smile Start | 831.69 EUR | 592.29 EUR | 239.40 EUR | 313.31 EUR | attivabile |
-| 7 | Octopus Energy | Octopus Energy - Octopus Fissa 12M + Octopus Fissa 12M Gas | 834.61 EUR | 678.61 EUR | 156.00 EUR | 310.39 EUR | attivabile |
-| 8 | neN | neN - Due Luce + Due Gas | 860.80 EUR | 656.80 EUR | 204.00 EUR | 284.20 EUR | da_contattare |
-| 9 | Eni Plenitude | Eni Plenitude - Fixa Time 24 Smart Luce + Fixa Time 24 Smart Gas | 863.30 EUR | 575.30 EUR | 288.00 EUR | 281.70 EUR | attivabile |
-| 10 | Edison | Edison - Edison 5xTe Luce km0 + Edison Web Gas | 863.80 EUR | 641.80 EUR | 222.00 EUR | 281.20 EUR | da_contattare |
+| 1 | Acea Energia | Acea Energia - Acea Energia Fix + Acea Energia Fix | 769.30 EUR | 547.30 EUR | 222.00 EUR | 375.70 EUR | da_contattare |
+| 2 | Engie | Engie - Energia PuntoFisso - 12 mesi + Energia PuntoFisso - 12 mesi | 789.24 EUR | 633.24 EUR | 156.00 EUR | 355.76 EUR | da_contattare |
+| 3 | Dolomiti Energia | Dolomiti Energia - DOLOMITI FISSO LUCE 120 + DOLOMITI FISSO GAS 36 WEB | 790.75 EUR | 598.75 EUR | 192.00 EUR | 354.25 EUR | da_contattare |
+| 4 | Iren Luce e Gas | Iren Luce e Gas - IREN PRIMA SCELTA LUCE FISSA + IREN PRIMA SCELTA GAS | 812.92 EUR | 569.92 EUR | 243.00 EUR | 332.08 EUR | da_contattare |
+| 5 | Alperia | Alperia - Alperia Smile Easy Summer + Alperia Gas Smile Start | 831.69 EUR | 592.29 EUR | 239.40 EUR | 313.31 EUR | attivabile |
+| 6 | Octopus Energy | Octopus Energy - Octopus Fissa 12M + Octopus Fissa 12M Gas | 834.61 EUR | 678.61 EUR | 156.00 EUR | 310.39 EUR | attivabile |
+| 7 | neN | neN - Due Luce + Due Gas | 860.80 EUR | 656.80 EUR | 204.00 EUR | 284.20 EUR | da_contattare |
+| 8 | Eni Plenitude | Eni Plenitude - Fixa Time 24 Smart Luce + Fixa Time 24 Smart Gas | 863.30 EUR | 575.30 EUR | 288.00 EUR | 281.70 EUR | attivabile |
+| 9 | Edison | Edison - Edison 5xTe Luce km0 + Edison Web Gas | 863.80 EUR | 641.80 EUR | 222.00 EUR | 281.20 EUR | da_contattare |
+| 10 | Illumia | Illumia - Energia Lunga Luce Special + Energia Lunga Gas | 874.59 EUR | 682.59 EUR | 192.00 EUR | 270.41 EUR | da_contattare |
 
 ### Attivabili online rilevate
 
 | # | Fornitore | Offerta | Totale | Variabile | Fissa vendita | Risparmio vs attuale | Stato |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 6 | Alperia | Alperia - Alperia Smile Easy Summer + Alperia Gas Smile Start | 831.69 EUR | 592.29 EUR | 239.40 EUR | 313.31 EUR | attivabile |
-| 7 | Octopus Energy | Octopus Energy - Octopus Fissa 12M + Octopus Fissa 12M Gas | 834.61 EUR | 678.61 EUR | 156.00 EUR | 310.39 EUR | attivabile |
-| 9 | Eni Plenitude | Eni Plenitude - Fixa Time 24 Smart Luce + Fixa Time 24 Smart Gas | 863.30 EUR | 575.30 EUR | 288.00 EUR | 281.70 EUR | attivabile |
-| 12 | A2A Energia | A2A Energia - A2A Click Luce + A2A Click - GAS | 881.90 EUR | 671.90 EUR | 210.00 EUR | 263.10 EUR | attivabile |
+| 5 | Alperia | Alperia - Alperia Smile Easy Summer + Alperia Gas Smile Start | 831.69 EUR | 592.29 EUR | 239.40 EUR | 313.31 EUR | attivabile |
+| 6 | Octopus Energy | Octopus Energy - Octopus Fissa 12M + Octopus Fissa 12M Gas | 834.61 EUR | 678.61 EUR | 156.00 EUR | 310.39 EUR | attivabile |
+| 8 | Eni Plenitude | Eni Plenitude - Fixa Time 24 Smart Luce + Fixa Time 24 Smart Gas | 863.30 EUR | 575.30 EUR | 288.00 EUR | 281.70 EUR | attivabile |
+| 11 | A2A Energia | A2A Energia - A2A Click Luce + A2A Click - GAS | 881.90 EUR | 671.90 EUR | 210.00 EUR | 263.10 EUR | attivabile |
 
 ## Privato medio - dual fuel - variabile
 
-Offerte generate: 20
+Offerte generate: 19
 
 | # | Fornitore | Offerta | Totale | Variabile | Fissa vendita | Risparmio vs attuale | Stato |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -66,7 +66,7 @@ Offerte generate: 20
 | 7 | Acea Energia | Acea Energia - Acea Energia Sprint Web + Acea Energia Sprint Web | 951.14 EUR | 759.14 EUR | 192.00 EUR | 235.17 EUR | da_contattare |
 | 8 | Dolomiti Energia | Dolomiti Energia - ENERGIA CASA PRIMIERO + DOLOMITI SINERGIKA GAS | 966.15 EUR | 768.15 EUR | 198.00 EUR | 220.16 EUR | da_contattare |
 | 9 | Edison | Edison - Edison World Luce Plus + Edison Dynamic Plus Gas | 972.71 EUR | 753.71 EUR | 219.00 EUR | 213.60 EUR | da_contattare |
-| 10 | Magis Energia | Magis Energia - MIA LUCE + MIA GAS | 986.71 EUR | 746.71 EUR | 240.00 EUR | 199.60 EUR | da_contattare |
+| 10 | Eni Plenitude | Eni Plenitude - Trend Casa Luce Plus + Trend Casa NoPensieri Gas | 998.67 EUR | 878.67 EUR | 120.00 EUR | 187.64 EUR | da_contattare |
 
 ### Attivabili online rilevate
 
@@ -76,29 +76,29 @@ Offerte generate: 20
 
 ## Privato alto consumo - dual fuel - fisso
 
-Offerte generate: 19
+Offerte generate: 18
 
 | # | Fornitore | Offerta | Totale | Variabile | Fissa vendita | Risparmio vs attuale | Stato |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | Magis Energia | Magis Energia - MIA LUCE FIX WEB + MIA GAS FIX WEB | 1096.80 EUR | 904.80 EUR | 192.00 EUR | 583.20 EUR | da_contattare |
-| 2 | Acea Energia | Acea Energia - Acea Energia Fix + Acea Energia Fix | 1098.00 EUR | 876.00 EUR | 222.00 EUR | 582.00 EUR | da_contattare |
-| 3 | Dolomiti Energia | Dolomiti Energia - DOLOMITI FISSO LUCE 120 + DOLOMITI FISSO GAS 36 WEB | 1156.20 EUR | 964.20 EUR | 192.00 EUR | 523.80 EUR | da_contattare |
-| 4 | Iren Luce e Gas | Iren Luce e Gas - IREN PRIMA SCELTA LUCE FISSA + IREN PRIMA SCELTA GAS | 1157.40 EUR | 914.40 EUR | 243.00 EUR | 522.60 EUR | da_contattare |
-| 5 | Engie | Engie - Energia PuntoFisso - 12 mesi + Energia PuntoFisso - 12 mesi | 1168.20 EUR | 1012.20 EUR | 156.00 EUR | 511.80 EUR | da_contattare |
-| 6 | Alperia | Alperia - Alperia Smile Easy Summer + Alperia Gas Smile Start | 1190.20 EUR | 950.80 EUR | 239.40 EUR | 489.80 EUR | attivabile |
-| 7 | Eni Plenitude | Eni Plenitude - Fixa Time 24 Smart Luce + Fixa Time 24 Smart Gas | 1212.00 EUR | 924.00 EUR | 288.00 EUR | 468.00 EUR | attivabile |
-| 8 | Octopus Energy | Octopus Energy - Octopus Fissa 12M + Octopus Fissa 12M Gas | 1241.20 EUR | 1085.20 EUR | 156.00 EUR | 438.80 EUR | attivabile |
-| 9 | neN | neN - Due Luce + Due Gas | 1252.00 EUR | 1048.00 EUR | 204.00 EUR | 428.00 EUR | da_contattare |
-| 10 | Edison | Edison - Edison 5xTe Luce km0 + Edison Web Gas | 1260.00 EUR | 1038.00 EUR | 222.00 EUR | 420.00 EUR | da_contattare |
+| 1 | Acea Energia | Acea Energia - Acea Energia Fix + Acea Energia Fix | 1098.00 EUR | 876.00 EUR | 222.00 EUR | 582.00 EUR | da_contattare |
+| 2 | Dolomiti Energia | Dolomiti Energia - DOLOMITI FISSO LUCE 120 + DOLOMITI FISSO GAS 36 WEB | 1156.20 EUR | 964.20 EUR | 192.00 EUR | 523.80 EUR | da_contattare |
+| 3 | Iren Luce e Gas | Iren Luce e Gas - IREN PRIMA SCELTA LUCE FISSA + IREN PRIMA SCELTA GAS | 1157.40 EUR | 914.40 EUR | 243.00 EUR | 522.60 EUR | da_contattare |
+| 4 | Engie | Engie - Energia PuntoFisso - 12 mesi + Energia PuntoFisso - 12 mesi | 1168.20 EUR | 1012.20 EUR | 156.00 EUR | 511.80 EUR | da_contattare |
+| 5 | Alperia | Alperia - Alperia Smile Easy Summer + Alperia Gas Smile Start | 1190.20 EUR | 950.80 EUR | 239.40 EUR | 489.80 EUR | attivabile |
+| 6 | Eni Plenitude | Eni Plenitude - Fixa Time 24 Smart Luce + Fixa Time 24 Smart Gas | 1212.00 EUR | 924.00 EUR | 288.00 EUR | 468.00 EUR | attivabile |
+| 7 | Octopus Energy | Octopus Energy - Octopus Fissa 12M + Octopus Fissa 12M Gas | 1241.20 EUR | 1085.20 EUR | 156.00 EUR | 438.80 EUR | attivabile |
+| 8 | neN | neN - Due Luce + Due Gas | 1252.00 EUR | 1048.00 EUR | 204.00 EUR | 428.00 EUR | da_contattare |
+| 9 | Edison | Edison - Edison 5xTe Luce km0 + Edison Web Gas | 1260.00 EUR | 1038.00 EUR | 222.00 EUR | 420.00 EUR | da_contattare |
+| 10 | Enel Energia | Enel Energia - Enel Night Free + Enel  Flash Gas | 1260.00 EUR | 936.00 EUR | 324.00 EUR | 420.00 EUR | da_contattare |
 
 ### Attivabili online rilevate
 
 | # | Fornitore | Offerta | Totale | Variabile | Fissa vendita | Risparmio vs attuale | Stato |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 6 | Alperia | Alperia - Alperia Smile Easy Summer + Alperia Gas Smile Start | 1190.20 EUR | 950.80 EUR | 239.40 EUR | 489.80 EUR | attivabile |
-| 7 | Eni Plenitude | Eni Plenitude - Fixa Time 24 Smart Luce + Fixa Time 24 Smart Gas | 1212.00 EUR | 924.00 EUR | 288.00 EUR | 468.00 EUR | attivabile |
-| 8 | Octopus Energy | Octopus Energy - Octopus Fissa 12M + Octopus Fissa 12M Gas | 1241.20 EUR | 1085.20 EUR | 156.00 EUR | 438.80 EUR | attivabile |
-| 12 | A2A Energia | A2A Energia - A2A Click Luce + A2A Click - GAS | 1282.00 EUR | 1072.00 EUR | 210.00 EUR | 398.00 EUR | attivabile |
+| 5 | Alperia | Alperia - Alperia Smile Easy Summer + Alperia Gas Smile Start | 1190.20 EUR | 950.80 EUR | 239.40 EUR | 489.80 EUR | attivabile |
+| 6 | Eni Plenitude | Eni Plenitude - Fixa Time 24 Smart Luce + Fixa Time 24 Smart Gas | 1212.00 EUR | 924.00 EUR | 288.00 EUR | 468.00 EUR | attivabile |
+| 7 | Octopus Energy | Octopus Energy - Octopus Fissa 12M + Octopus Fissa 12M Gas | 1241.20 EUR | 1085.20 EUR | 156.00 EUR | 438.80 EUR | attivabile |
+| 11 | A2A Energia | A2A Energia - A2A Click Luce + A2A Click - GAS | 1282.00 EUR | 1072.00 EUR | 210.00 EUR | 398.00 EUR | attivabile |
 
 ## Privato medio - forniture separate - fisso
 
