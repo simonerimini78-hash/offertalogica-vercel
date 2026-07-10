@@ -149,7 +149,7 @@
         .offer-consent-modal p { color: var(--text-muted); font-size: 14px; margin-bottom: 14px; }
         .locked-offer { position: relative; }
         .locked-offer .partner-title::before { content: "Offerta riservata "; color: var(--accent); }
-        .locked-offer a { background: var(--accent) !important; }
+        .locked-offer a { background: var(--logo-green-gradient) !important; }
         .lead-teaser { display: none; margin: 0 0 18px; padding: 18px; border: 1px solid #bbf7d0; border-radius: 12px; background: #f0fdf4; color: #14532d; }
         .lead-teaser strong { display: block; font-size: 18px; margin-bottom: 4px; }
         .lead-teaser p { margin: 0 0 12px; color: #166534; font-size: 14px; }
@@ -403,13 +403,22 @@
             line-height: 1.2;
         }
         .lead-teaser button {
-            min-height: 50px;
-            min-width: 210px;
-            font-size: 16px;
+            min-height: 56px;
+            min-width: 230px;
+            font-size: 17px;
             display: inline-flex;
             justify-content: center;
             align-items: center;
             text-align: center;
+            border-radius: 12px;
+            background: var(--logo-green-gradient) !important;
+            box-shadow: 0 16px 34px rgba(22, 163, 74, .28), inset 0 1px 0 rgba(255,255,255,.24);
+            transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
+        }
+        .lead-teaser button:hover {
+            filter: saturate(1.08) brightness(1.02);
+            box-shadow: 0 20px 42px rgba(22, 163, 74, .34), inset 0 1px 0 rgba(255,255,255,.28);
+            transform: translateY(-1px);
         }
         .vertical-cards-container {
             gap: 16px !important;
@@ -749,8 +758,8 @@
             box-shadow: 0 12px 26px rgba(22, 163, 74, .22);
         }
         .locked-offer [id^="link-partner-"] {
-            background: var(--accent) !important;
-            box-shadow: 0 12px 26px rgba(37, 99, 235, .22);
+            background: var(--logo-green-gradient) !important;
+            box-shadow: 0 16px 34px rgba(22, 163, 74, .28), inset 0 1px 0 rgba(255,255,255,.24) !important;
         }
         [id^="link-partner-"]:hover {
             filter: brightness(.96);
@@ -819,8 +828,8 @@
             opacity: .62;
         }
         .locked-offer [id^="link-partner-"] {
-            background: var(--accent) !important;
-            box-shadow: 0 12px 26px rgba(37, 99, 235, .22) !important;
+            background: var(--logo-green-gradient) !important;
+            box-shadow: 0 16px 34px rgba(22, 163, 74, .28), inset 0 1px 0 rgba(255,255,255,.24) !important;
             transform: none;
         }
         .fornitori-consigliati-section,
@@ -991,12 +1000,25 @@
                 white-space: normal;
                 overflow-wrap: anywhere;
             }
+            .lead-teaser button {
+                width: 100%;
+                min-width: 0;
+                min-height: 62px;
+                font-size: 18px;
+                border-radius: 13px;
+            }
             [id^="link-partner-"] {
                 min-width: 0;
                 width: 100%;
                 min-height: 58px;
                 padding: 15px 16px !important;
                 white-space: normal !important;
+            }
+            .locked-offer [id^="link-partner-"] {
+                min-height: 74px;
+                font-size: 18px !important;
+                border-radius: 14px !important;
+                box-shadow: 0 18px 40px rgba(22, 163, 74, .32), inset 0 1px 0 rgba(255,255,255,.26) !important;
             }
             .manual-block > h3[style*="text-align: center"] {
                 font-size: 23px !important;

@@ -396,3 +396,15 @@ Prima di modificare codice rispondere sempre:
 - Come verifico che funzioni.
 
 Se una richiesta e ambigua, non inventare. Ripetere la regola in italiano semplice e chiedere conferma prima di toccare codice.
+
+## Punto v50 - pulsanti sblocco mobile piu visibili
+
+Data: 2026-07-10.
+
+- Base: `offertalogica-v49-card-offerte-mobile-20260709`.
+- Portati avanti i JSON ARERA aggiornati al 2026-07-10 gia generati dal Mac, cosi il pacchetto non regredisce sui dati caricati dopo l'ultimo aggiornamento manuale.
+- Modifica limitata a `public/index.html`, solo CSS dei pulsanti di sblocco/offerte.
+- Su mobile il pulsante `Sblocca le offerte` e i CTA `Sblocca` delle card bloccate sono piu grandi, piu leggibili e usano la stessa sfumatura verde del pulsante `Elabora e confronta le offerte`.
+- Rimossa la forzatura blu dei CTA bloccati, sostituita da `var(--logo-green-gradient)`.
+- Non sono stati toccati motore, ranking, dati partner, OTP, lead, Supabase, consensi, link affiliati, tracciamento eventi o logica di blocco/sblocco.
+- Verifiche: `scripts/validate-calculator-data.mjs` OK; `scripts/verify-calcolo-offerte.mjs` OK con 0 errori.
