@@ -408,3 +408,15 @@ Data: 2026-07-10.
 - Rimossa la forzatura blu dei CTA bloccati, sostituita da `var(--logo-green-gradient)`.
 - Non sono stati toccati motore, ranking, dati partner, OTP, lead, Supabase, consensi, link affiliati, tracciamento eventi o logica di blocco/sblocco.
 - Verifiche: `scripts/validate-calculator-data.mjs` OK; `scripts/verify-calcolo-offerte.mjs` OK con 0 errori.
+
+## Punto v51 - effetto pulse premium su sblocco offerte
+
+Data: 2026-07-10.
+
+- Base: `offertalogica-v50-sblocca-mobile-evidente-20260710`.
+- Modifica limitata a `public/index.html`, solo CSS.
+- Aggiunto effetto `unlockPulse` sui pulsanti di sblocco: animazione leggera, non lampeggiante, con 3 cicli e poi stop.
+- L'effetto usa lo stesso linguaggio visivo del gradiente verde gia approvato per `Elabora e confronta le offerte`.
+- Aggiunto rispetto di `prefers-reduced-motion: reduce`, cosi l'animazione viene disattivata per utenti che hanno riduzione movimento attiva.
+- Non sono stati toccati motore, ranking, dati ARERA, dati partner, OTP, lead, Supabase, consensi, link affiliati, tracciamento eventi o logica di blocco/sblocco.
+- Verifiche prima dello zip: `scripts/validate-calculator-data.mjs` OK; `scripts/verify-calcolo-offerte.mjs` OK con 0 errori.

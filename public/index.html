@@ -413,6 +413,7 @@
             border-radius: 12px;
             background: var(--logo-green-gradient) !important;
             box-shadow: 0 16px 34px rgba(22, 163, 74, .28), inset 0 1px 0 rgba(255,255,255,.24);
+            animation: unlockPulse 1.75s ease-out .45s 3 both;
             transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
         }
         .lead-teaser button:hover {
@@ -760,6 +761,7 @@
         .locked-offer [id^="link-partner-"] {
             background: var(--logo-green-gradient) !important;
             box-shadow: 0 16px 34px rgba(22, 163, 74, .28), inset 0 1px 0 rgba(255,255,255,.24) !important;
+            animation: unlockPulse 1.75s ease-out .45s 3 both;
         }
         [id^="link-partner-"]:hover {
             filter: brightness(.96);
@@ -788,6 +790,22 @@
             line-height: 1.15;
             letter-spacing: .15px;
             border-radius: 11px;
+        }
+        @keyframes unlockPulse {
+            0%, 100% {
+                transform: translateY(0) scale(1);
+                box-shadow: 0 16px 34px rgba(22, 163, 74, .28), inset 0 1px 0 rgba(255,255,255,.24);
+            }
+            45% {
+                transform: translateY(-1px) scale(1.018);
+                box-shadow: 0 22px 46px rgba(22, 163, 74, .38), 0 0 0 7px rgba(126, 211, 33, .13), inset 0 1px 0 rgba(255,255,255,.30);
+            }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .lead-teaser button,
+            .locked-offer [id^="link-partner-"] {
+                animation: none !important;
+            }
         }
         .current-supply-heading {
             display: flex;
@@ -830,6 +848,7 @@
         .locked-offer [id^="link-partner-"] {
             background: var(--logo-green-gradient) !important;
             box-shadow: 0 16px 34px rgba(22, 163, 74, .28), inset 0 1px 0 rgba(255,255,255,.24) !important;
+            animation: unlockPulse 1.75s ease-out .45s 3 both;
             transform: none;
         }
         .fornitori-consigliati-section,
