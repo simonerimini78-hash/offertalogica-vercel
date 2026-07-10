@@ -420,3 +420,15 @@ Data: 2026-07-10.
 - Aggiunto rispetto di `prefers-reduced-motion: reduce`, cosi l'animazione viene disattivata per utenti che hanno riduzione movimento attiva.
 - Non sono stati toccati motore, ranking, dati ARERA, dati partner, OTP, lead, Supabase, consensi, link affiliati, tracciamento eventi o logica di blocco/sblocco.
 - Verifiche prima dello zip: `scripts/validate-calculator-data.mjs` OK; `scripts/verify-calcolo-offerte.mjs` OK con 0 errori.
+
+## Punto v52 - Magis esclusa dal filtro dual fuel
+
+Data: 2026-07-10.
+
+- Base: `offertalogica-v51-sblocca-pulse-demo-20260710`.
+- Problema rilevato: Magis Energia compariva nella lista dual fuel perche il motore ARERA abbinava la migliore luce e il migliore gas dello stesso fornitore, anche se commercialmente erano due forniture separate.
+- Correzione limitata a `public/index.html`: aggiunto `magis` in `PROVIDER_SOLO_FORNITURE_SEPARATE`, mantenendo gia presente `segnoverde`.
+- Effetto: Magis non compare piu nelle liste dual fuel; resta disponibile nelle liste forniture separate, dove e coerente.
+- Non sono stati modificati prezzi ARERA, file offerte, ranking generale, link affiliati, OTP, lead, Supabase, consensi, grafica o pagine pubbliche.
+- Verifiche: `scripts/validate-calculator-data.mjs` OK; `scripts/verify-calcolo-offerte.mjs` OK con 0 errori.
+- Esito verifica: profilo `medio-dual-fisso` passa da Magis Energia ad Acea Energia come prima offerta; Magis resta nei profili `forniture separate`.

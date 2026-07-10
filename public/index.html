@@ -5077,7 +5077,7 @@ const PROVIDER_MATCHERS = [
   ["sinergy", ["sinergy"]],
 ];
 
-const PROVIDER_SOLO_FORNITURE_SEPARATE = new Set(["segnoverde"]);
+const PROVIDER_SOLO_FORNITURE_SEPARATE = new Set(["segnoverde", "magis"]);
 
 function providerCompatibileConTipoFornitura(providerKey, tipoFornitura) {
   return !(tipoFornitura === "dual" && PROVIDER_SOLO_FORNITURE_SEPARATE.has(providerKey));
