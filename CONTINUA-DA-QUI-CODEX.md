@@ -33,7 +33,7 @@ Il progetto gira su GitHub + Vercel con dominio `offertalogica.it`.
 
 Il pacchetto completo di riferimento lato progetto e:
 
-`offertalogica-v59-arera-update-locale-mac-20260713`
+`offertalogica-v60-seo-offerte-aggiornate-20260713`
 
 Base stabile precedente:
 
@@ -65,6 +65,49 @@ Ultimi zip incrementali importanti generati dopo la base completa:
 - `offertalogica-v48-log-arera-chiari-20260709.zip`
 - `offertalogica-v54-redirect-assistente-partner-fix-20260710.zip`
 - `offertalogica-v59-arera-update-locale-mac-20260713.zip`
+- `offertalogica-v60-seo-offerte-aggiornate-20260713.zip`
+
+## Punto v60 - prima spinta SEO pagina offerte aggiornate
+
+Obiettivo:
+
+- iniziare l'indicizzazione organica senza promettere una "migliore offerta" assoluta;
+- posizionare OffertaLogica sul concetto distintivo: il confronto cambia con i consumi reali;
+- collegare la pagina SEO principale dalla homepage e dalla sitemap.
+
+Modifiche v60:
+
+- `public/offerte-luce-gas-aggiornate.html` passa da `noindex,follow` a `index,follow`;
+- aggiornati title, meta description, Open Graph e H1;
+- aggiunti dati strutturati `WebPage` e `FAQPage`;
+- aggiunta nota dinamica che legge `public/data/offerte-arera-menu.json` e mostra la data ARERA disponibile;
+- aggiunto link interno "Offerte aggiornate" nel footer homepage;
+- aggiunta pagina `offerte-luce-gas-aggiornate.html` in `public/sitemap.xml` e `sitemap.xml`.
+
+Regola contenuti:
+
+- non scrivere "migliori offerte luglio 2026" come promessa assoluta;
+- usare formule come "offerte aggiornate", "confronto sui consumi reali", "non esiste una migliore per tutti";
+- le tabelle orientano, ma il calcolatore resta il punto centrale.
+
+Cosa non e' stato toccato:
+
+- motore di calcolo;
+- ranking;
+- JSON ARERA;
+- offerte partner;
+- OTP;
+- lead;
+- Supabase;
+- consensi;
+- link affiliati.
+
+Verifiche v60:
+
+- pagina SEO senza `noindex`: OK;
+- pagina presente in sitemap pubblica e root: OK;
+- `npm run validate-calculator-data`: OK;
+- `npm run verify-calcolo-offerte`: OK, 0 errori, 0 warning.
 
 ## Punto v59 - aggiornamento ARERA locale da Mac
 
