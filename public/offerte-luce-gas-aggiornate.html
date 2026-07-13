@@ -469,41 +469,51 @@
         return (Number.isFinite(price) ? price * 10000 : 999999) + (Number.isFinite(fixed) ? fixed : 999999);
     }
 
-    function compactText(value) {
+    function testoFornitoreNormalizzato(value) {
         return String(value || "")
             .toLowerCase()
-            .normalize("NFD")
-            .replace(/[\u0300-\u036f]/g, "")
-            .replace(/[^a-z0-9]+/g, "");
+            .replace(/&/g, " e ")
+            .replace(/[^a-z0-9.]+/g, " ")
+            .replace(/\s+/g, " ")
+            .trim();
+    }
+
+    const PROVIDER_MATCHERS_SEO = [
+        ["a2a", ["a2a"]],
+        ["acea", ["acea"]],
+        ["alperia", ["alperia"]],
+        ["axpo", ["axpo"]],
+        ["dolomiti", ["dolomiti"]],
+        ["eco", ["e co", "e.co", "eco energia", "energia corrente"]],
+        ["eon", ["e on", "e.on", "eon"]],
+        ["edison", ["edison"]],
+        ["enel", ["enel"]],
+        ["eni", ["eni", "plenitude"]],
+        ["engie", ["engie"]],
+        ["hera", ["hera", "heracomm"]],
+        ["iren", ["iren"]],
+        ["lene", ["lene"]],
+        ["magis", ["magis"]],
+        ["nen", ["nen", "nen energia"]],
+        ["octopus", ["octopus"]],
+        ["pulsee", ["pulsee"]],
+        ["segnoverde", ["segnoverde", "segno verde", "sogno verde"]],
+        ["sorgenia", ["sorgenia"]],
+        ["vivi", ["vivi energia", "vivi"]]
+    ];
+
+    function providerMenzionatoDaNomeOfferta(nome) {
+        const normalized = testoFornitoreNormalizzato(nome);
+        if (!normalized) return "";
+        const exact = PROVIDER_MATCHERS_SEO.find(([key]) => normalized === key);
+        if (exact) return exact[0];
+        const match = PROVIDER_MATCHERS_SEO.find(([, aliases]) => aliases.some((alias) => normalized.includes(alias)));
+        return match ? match[0] : "";
     }
 
     function isBrandCompatible(offer, key) {
-        const brandNeedles = {
-            a2a: ["a2a"],
-            acea: ["acea"],
-            alperia: ["alperia"],
-            axpo: ["axpo"],
-            dolomiti: ["dolomiti"],
-            eco: ["energiacorrente"],
-            edison: ["edison"],
-            enel: ["enel"],
-            engie: ["engie"],
-            eni: ["eni", "plenitude"],
-            eon: ["eon"],
-            hera: ["hera"],
-            iren: ["iren"],
-            magis: ["magis"],
-            nen: ["nen"],
-            octopus: ["octopus"],
-            pulsee: ["pulsee"],
-            sorgenia: ["sorgenia"],
-            vivi: ["vivi"]
-        };
-        const haystack = compactText([offer && offer.nome, offer && offer.url].join(" "));
-        const foreignNeedles = Object.entries(brandNeedles)
-            .filter(([brandKey]) => brandKey !== key)
-            .flatMap(([, needles]) => needles);
-        return !foreignNeedles.some((needle) => haystack.includes(needle));
+        const mentioned = providerMenzionatoDaNomeOfferta(offer && offer.nome);
+        return !mentioned || mentioned === key;
     }
 
     function bestAreraOffer(areraOffers, key, commodity, tipo) {
