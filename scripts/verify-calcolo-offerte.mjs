@@ -237,7 +237,7 @@ function checkAffiliateMatch(item) {
   if (provider.includes("enel") && !name.includes("fix")) {
     return "Enel attivabile ma offerta ARERA non riconducibile a Fix Web";
   }
-  if (provider.includes("alperia") && item.tipo === "variabile" && !(name.includes("free") || name.includes("home"))) {
+  if (provider.includes("alperia") && item.tipo === "variabile" && !(name.includes("free") || name.includes("home") || name.includes("variabile") || name.includes("pun") || name.includes("psv"))) {
     return "Alperia variabile attivabile ma nome ARERA non coerente";
   }
   if (provider.includes("plenitude") && item.tipo === "fisso" && !name.includes("fixa")) {
