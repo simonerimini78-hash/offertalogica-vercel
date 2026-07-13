@@ -33,7 +33,7 @@ Il progetto gira su GitHub + Vercel con dominio `offertalogica.it`.
 
 Il pacchetto completo di riferimento lato progetto e:
 
-`offertalogica-v60-seo-offerte-aggiornate-20260713`
+`offertalogica-v67-fix-dual-arera-minimo-20260713`
 
 Base stabile precedente:
 
@@ -66,6 +66,36 @@ Ultimi zip incrementali importanti generati dopo la base completa:
 - `offertalogica-v54-redirect-assistente-partner-fix-20260710.zip`
 - `offertalogica-v59-arera-update-locale-mac-20260713.zip`
 - `offertalogica-v60-seo-offerte-aggiornate-20260713.zip`
+- `offertalogica-v67-fix-dual-arera-minimo-20260713.zip`
+
+## Punto v67 - correzione minima offerte dual ARERA-first
+
+Problema:
+
+- con il filtro `Dual Fuel`, il motore poteva combinare la migliore riga luce e la migliore riga gas dello stesso fornitore anche quando non erano la stessa offerta commerciale;
+- questo poteva far comparire offerte sbagliate nel blocco dual, ad esempio coppie costruite da offerte singole;
+- alcune offerte partner attivabili rischiavano di usare prezzi statici o righe ARERA non coerenti con il funnel commerciale.
+
+Regola v67:
+
+- se la tendina e' `Dual Fuel`, il calcolatore deve restituire solo offerte dual coerenti;
+- per le offerte ARERA non partner, la coppia luce/gas viene considerata dual solo quando le due righe puntano alla stessa pagina/offerta ARERA;
+- per le offerte partner attivabili, il prezzo viene aggiornato dai dati ARERA coerenti con quella specifica offerta partner;
+- il partner aggiunge link, stato commerciale e tracciamento, ma non deve sostituire il prezzo ARERA;
+- E.ON dual fisso deve usare `E.ON Luce Insieme` + `E.ON Gas Insieme`, non `LuceClick/GasClick`;
+- A2A Start deve agganciare righe ARERA Start, non Click;
+- Magis e Segnoverde restano esclusi dal dual.
+
+Cosa e' stato toccato:
+
+- solo `public/index.html`;
+- nessuna modifica a OTP, lead, Supabase, consensi, link affiliati, PDF, pagine SEO o loghi.
+
+Verifiche v67:
+
+- `node scripts/validate-calculator-data.mjs`: OK;
+- `node scripts/verify-calcolo-offerte.mjs`: OK, 0 errori, 0 warning;
+- controllo sintassi script inline di `public/index.html`: OK.
 
 ## Punto v60 - prima spinta SEO pagina offerte aggiornate
 
