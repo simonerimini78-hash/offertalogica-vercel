@@ -33,7 +33,7 @@ Il progetto gira su GitHub + Vercel con dominio `offertalogica.it`.
 
 Il pacchetto completo di riferimento lato progetto e:
 
-`offertalogica-v58-arera-unico-manuale-automatico-20260713`
+`offertalogica-v59-arera-update-locale-mac-20260713`
 
 Base stabile precedente:
 
@@ -64,31 +64,43 @@ Ultimi zip incrementali importanti generati dopo la base completa:
 - `offertalogica-v47-offerte-bloccate-senza-cifre-20260707.zip`
 - `offertalogica-v48-log-arera-chiari-20260709.zip`
 - `offertalogica-v54-redirect-assistente-partner-fix-20260710.zip`
-- `offertalogica-v58-arera-unico-manuale-automatico-20260713.zip`
+- `offertalogica-v59-arera-update-locale-mac-20260713.zip`
 
-## Punto v58 - ARERA manuale da pulsante + automatico programmato
+## Punto v59 - aggiornamento ARERA locale da Mac
 
-Decisione:
+Problema:
 
-- deve restare un solo workflow visibile su GitHub Actions: `Aggiorna offerte ARERA`;
-- il pulsante/manual run deve comportarsi come nelle versioni storiche: `python scripts/update-arera-menu.py`;
-- il percorso automatico programmato deve provare prima lo scaricamento con `curl` e user-agent browser;
-- se il percorso automatico `curl` fallisce, prova il percorso storico Python;
-- se ARERA/GitHub risponde ancora `403 Forbidden`, il workflow deve fallire e non deve modificare dati esistenti.
+- il workflow GitHub Actions storico `Aggiorna offerte ARERA` riceve `HTTP 403 Forbidden` dal Portale Offerte;
+- il problema e' lato accesso/rete GitHub Actions, non lato motore di calcolo;
+- senza XML ARERA nuovi non si possono aggiornare i JSON.
 
-Nota tecnica:
+Soluzione operativa aggiunta:
 
-- se il vecchio pulsante manuale fallisce oggi con `403`, la causa probabile e il blocco del Portale Offerte verso IP GitHub Actions;
-- il codice puo mantenere il vecchio pulsante e tentare un download piu robusto, ma non puo garantire accesso se ARERA blocca GitHub lato rete;
-- per un automatico davvero affidabile potrebbe servire un ambiente non bloccato da ARERA, per esempio runner self-hosted, script locale sul Mac, o altra fonte ufficiale autorizzata.
+- nuovo script locale `scripts/aggiorna-arera-locale-mac.sh`;
+- guida `docs/AGGIORNAMENTO-ARERA-LOCALE.md`;
+- lo script scarica gli XML ARERA dalla connessione del Mac;
+- genera `data/offerte-arera-menu.json`;
+- genera `public/data/offerte-arera-menu.json`;
+- se non trova XML validi, fallisce e non modifica i dati esistenti.
 
-Cosa e stato modificato in v58:
+Comando operativo sul Mac:
 
-- `.github/workflows/update-arera-menu.yml`;
-- aggiunto `scripts/download-arera-open-data.sh`;
-- aggiornato solo lo script di verifica `scripts/verify-calcolo-offerte.mjs` per riconoscere il nome corrente dell'offerta Alperia variabile `Variabile PUN/PSV` nell'audit automatico.
+```bash
+bash scripts/aggiorna-arera-locale-mac.sh
+```
 
-Cosa non e stato toccato:
+Per una data precisa:
+
+```bash
+bash scripts/aggiorna-arera-locale-mac.sh 2026-07-13
+```
+
+Dopo l'esecuzione caricare su GitHub:
+
+- `data/offerte-arera-menu.json`;
+- `public/data/offerte-arera-menu.json`.
+
+Cosa non e' stato toccato:
 
 - motore di calcolo;
 - ranking;
@@ -99,11 +111,16 @@ Cosa non e stato toccato:
 - Supabase;
 - consensi;
 - loghi;
-- link affiliati.
+- link affiliati;
+- workflow GitHub esistente.
 
-Verifiche v58:
+Nota verifica:
 
-- `bash -n scripts/download-arera-open-data.sh`: OK;
+- aggiornato solo lo script `scripts/verify-calcolo-offerte.mjs` per riconoscere il nome corrente dell'offerta Alperia variabile `Variabile PUN/PSV` nell'audit automatico; non cambia il sito e non cambia il calcolo.
+
+Verifiche v59:
+
+- `bash -n scripts/aggiorna-arera-locale-mac.sh`: OK;
 - `PYTHONPYCACHEPREFIX=/tmp/offertalogica-pycache python3 -m py_compile scripts/update-arera-menu.py`: OK;
 - `npm run validate-calculator-data`: OK;
 - `npm run verify-calcolo-offerte`: OK, 0 errori, 0 warning.
