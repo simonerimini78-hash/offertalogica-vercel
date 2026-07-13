@@ -2,8 +2,6 @@ name: Aggiorna offerte ARERA
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "20 6 * * *"
 
 permissions:
   contents: write
