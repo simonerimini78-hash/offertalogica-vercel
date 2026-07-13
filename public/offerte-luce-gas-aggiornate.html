@@ -374,7 +374,7 @@
     function formatCommodity(commodity, suffix) {
         const formula = formatFormula(commodity);
         if (formula) return formula;
-        return formatNumber(commodity && commodity.prezzoVariabile, suffix);
+        return formatNumber(commodity && (commodity.prezzoVariabile ?? commodity.prezzo), suffix);
     }
 
     function formatFixed(offer) {
@@ -423,9 +423,162 @@
     }
 
     function sortOffers(a, b) {
+        const scoreA = Number(a.totalScore);
+        const scoreB = Number(b.totalScore);
+        if (Number.isFinite(scoreA) && Number.isFinite(scoreB) && scoreA !== scoreB) {
+            return scoreA - scoreB;
+        }
         return String(a.provider || "").localeCompare(String(b.provider || ""), "it") ||
             String(a.tipo || "").localeCompare(String(b.tipo || ""), "it") ||
             String(a.nome || "").localeCompare(String(b.nome || ""), "it");
+    }
+
+    function providerKey(value) {
+        const normalized = String(value || "")
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "");
+        if (normalized.includes("plenitude") || normalized.includes("eni")) return "eni";
+        if (normalized.includes("e.on") || normalized.includes("eon")) return "eon";
+        if (normalized.includes("enel")) return "enel";
+        if (normalized.includes("alperia")) return "alperia";
+        if (normalized.includes("octopus")) return "octopus";
+        if (normalized.includes("a2a")) return "a2a";
+        if (normalized.includes("dolomiti")) return "dolomiti";
+        if (normalized.includes("acea")) return "acea";
+        if (normalized.includes("nen")) return "nen";
+        if (normalized.includes("edison")) return "edison";
+        if (normalized.includes("sorgenia")) return "sorgenia";
+        if (normalized.includes("magis")) return "magis";
+        if (normalized.includes("e.co") || normalized.includes("energia corrente")) return "eco";
+        if (normalized.includes("axpo")) return "axpo";
+        if (normalized.includes("engie")) return "engie";
+        if (normalized.includes("iren")) return "iren";
+        if (normalized.includes("pulsee")) return "pulsee";
+        if (normalized.includes("vivi")) return "vivi";
+        if (normalized.includes("hera")) return "hera";
+        return normalized.replace(/[^a-z0-9]+/g, "");
+    }
+
+    function areraScore(row) {
+        if (!row) return 999999;
+        const score = Number(row && row.score);
+        if (Number.isFinite(score)) return score;
+        const price = Number(row && row.prezzo);
+        const fixed = Number(row && row.quotaFissaAnnua);
+        return (Number.isFinite(price) ? price * 10000 : 999999) + (Number.isFinite(fixed) ? fixed : 999999);
+    }
+
+    function compactText(value) {
+        return String(value || "")
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/[^a-z0-9]+/g, "");
+    }
+
+    function isBrandCompatible(offer, key) {
+        const brandNeedles = {
+            a2a: ["a2a"],
+            acea: ["acea"],
+            alperia: ["alperia"],
+            axpo: ["axpo"],
+            dolomiti: ["dolomiti"],
+            eco: ["energiacorrente"],
+            edison: ["edison"],
+            enel: ["enel"],
+            engie: ["engie"],
+            eni: ["eni", "plenitude"],
+            eon: ["eon"],
+            hera: ["hera"],
+            iren: ["iren"],
+            magis: ["magis"],
+            nen: ["nen"],
+            octopus: ["octopus"],
+            pulsee: ["pulsee"],
+            sorgenia: ["sorgenia"],
+            vivi: ["vivi"]
+        };
+        const haystack = compactText([offer && offer.nome, offer && offer.url].join(" "));
+        const foreignNeedles = Object.entries(brandNeedles)
+            .filter(([brandKey]) => brandKey !== key)
+            .flatMap(([, needles]) => needles);
+        return !foreignNeedles.some((needle) => haystack.includes(needle));
+    }
+
+    function bestAreraOffer(areraOffers, key, commodity, tipo) {
+        return areraOffers
+            .filter((offer) => (offer.providerKey || providerKey(offer.providerLabel || offer.fornitore)) === key)
+            .filter((offer) => offer.commodity === commodity)
+            .filter((offer) => !tipo || offer.tipo === tipo)
+            .filter((offer) => Number(offer.prezzo) > 0)
+            .filter((offer) => isBrandCompatible(offer, key))
+            .sort((a, b) => areraScore(a) - areraScore(b) || String(a.nome || "").localeCompare(String(b.nome || ""), "it"))[0] || null;
+    }
+
+    function recordFromArera(luce, gas, options) {
+        const first = luce || gas || {};
+        const second = gas || luce || {};
+        const tipo = options.tipo || first.tipo || second.tipo || "n.d.";
+        const provider = options.provider || first.providerLabel || second.providerLabel || first.fornitore || second.fornitore || "n.d.";
+        const luceName = luce && luce.nome ? luce.nome : "";
+        const gasName = gas && gas.nome ? gas.nome : "";
+        const sameName = luceName && gasName && luceName.toLowerCase() === gasName.toLowerCase();
+        const nome = options.nome || (sameName ? luceName : [luceName, gasName].filter(Boolean).join(" + ")) || "Offerta aggiornata ARERA";
+        return {
+            provider: provider,
+            nome: nome,
+            tipo: tipo,
+            fornitura: options.fornitura || (luce && gas ? "luce e gas" : (luce ? "luce" : "gas")),
+            luce: luce,
+            gas: gas,
+            destinationStatus: options.destinationStatus || "da_contattare",
+            aggiornataIl: options.aggiornataIl || "",
+            totalScore: areraScore(luce) + areraScore(gas)
+        };
+    }
+
+    function buildOnlineOffers(areraOffers, commercialOffers, areraDate) {
+        return commercialOffers
+            .filter((offer) => offer.destinationStatus === "attiva")
+            .map((offer) => {
+                const key = providerKey(offer.provider);
+                const tipo = offer.tipo || "";
+                const luce = bestAreraOffer(areraOffers, key, "luce", tipo);
+                const gas = bestAreraOffer(areraOffers, key, "gas", tipo);
+                if (!luce && !gas) return null;
+                return recordFromArera(luce, gas, {
+                    provider: offer.provider,
+                    tipo: tipo,
+                    fornitura: offer.fornitura,
+                    destinationStatus: "attiva",
+                    aggiornataIl: areraDate
+                });
+            })
+            .filter(Boolean)
+            .sort(sortOffers);
+    }
+
+    function buildConsultantOffers(areraOffers, commercialOffers, areraDate) {
+        const activeKeys = new Set(commercialOffers
+            .filter((offer) => offer.destinationStatus === "attiva")
+            .map((offer) => providerKey(offer.provider)));
+        const preferredKeys = ["dolomiti", "acea", "nen", "edison", "sorgenia", "magis", "eco", "axpo", "engie", "iren", "pulsee", "vivi", "hera"];
+        const rows = [];
+        preferredKeys.forEach((key) => {
+            if (activeKeys.has(key)) return;
+            ["fisso", "variabile"].forEach((tipo) => {
+                const luce = bestAreraOffer(areraOffers, key, "luce", tipo);
+                const gas = bestAreraOffer(areraOffers, key, "gas", tipo);
+                if (!luce && !gas) return;
+                rows.push(recordFromArera(luce, gas, {
+                    tipo: tipo,
+                    destinationStatus: "da_contattare",
+                    aggiornataIl: areraDate
+                }));
+            });
+        });
+        return rows.sort(sortOffers).slice(0, 12);
     }
 
     function formatDateIt(value) {
@@ -458,18 +611,19 @@
         const onlineTarget = document.getElementById("online-offers");
         const consultantTarget = document.getElementById("consultant-offers");
         try {
-            const response = await fetch("/data/offerte-proposte.json", { cache: "no-store" });
-            if (!response.ok) throw new Error("Dati non disponibili");
-            const data = await response.json();
-            const offers = Array.isArray(data.offerte) ? data.offerte : [];
-            const online = offers
-                .filter((offer) => offer.destinationStatus === "attiva")
-                .sort(sortOffers);
-            const consultant = offers
-                .filter((offer) => offer.destinationStatus !== "attiva")
-                .filter((offer) => ["Dolomiti Energia", "Acea Energia", "NeN", "Octopus Energy", "A2A", "Edison", "Sorgenia"].some((name) => String(offer.provider || "").toLowerCase().includes(name.toLowerCase())))
-                .sort(sortOffers)
-                .slice(0, 12);
+            const [areraResponse, commercialResponse] = await Promise.all([
+                fetch("/data/offerte-arera-menu.json", { cache: "no-store" }),
+                fetch("/data/offerte-proposte.json", { cache: "no-store" })
+            ]);
+            if (!areraResponse.ok) throw new Error("Dati ARERA non disponibili");
+            if (!commercialResponse.ok) throw new Error("Dati partner non disponibili");
+            const areraData = await areraResponse.json();
+            const commercialData = await commercialResponse.json();
+            const areraOffers = Array.isArray(areraData.offerte) ? areraData.offerte : [];
+            const commercialOffers = Array.isArray(commercialData.offerte) ? commercialData.offerte : [];
+            const areraDate = areraData.aggiornatoIl || "";
+            const online = buildOnlineOffers(areraOffers, commercialOffers, areraDate);
+            const consultant = buildConsultantOffers(areraOffers, commercialOffers, areraDate);
 
             onlineTarget.innerHTML = online.length ? online.map((offer) => offerRow(offer, true)).join("") : '<tr><td colspan="8">Nessuna offerta attivabile online censita.</td></tr>';
             consultantTarget.innerHTML = consultant.length ? consultant.map((offer) => offerRow(offer, false)).join("") : '<tr><td colspan="8">Nessuna offerta con verifica consulente disponibile.</td></tr>';

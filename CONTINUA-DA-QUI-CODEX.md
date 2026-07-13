@@ -743,3 +743,49 @@ Regola da mantenere:
 
 - I partner diretti coerenti con il filtro devono restare nel blocco "Offerte partner attivabili online".
 - Il blocco consulente deve servire per offerte non attivabili direttamente o che richiedono verifica, non per duplicare un partner gia attivo.
+
+## Punto v61 - Pagina SEO offerte aggiornata con fonte ARERA live
+
+Data: 2026-07-13.
+
+Base di partenza:
+
+- `offertalogica-v60-seo-offerte-aggiornate-20260713`.
+
+Problema rilevato:
+
+- La pagina `public/offerte-luce-gas-aggiornate.html` mostrava correttamente la nota "Dati ARERA aggiornati al 13 luglio 2026", ma le tabelle visibili delle offerte leggevano ancora i prezzi da `offerte-proposte.json`.
+- `offerte-proposte.json` contiene dati commerciali/partner e puo restare indietro rispetto al file ARERA aggiornato.
+
+Cosa e stato corretto:
+
+- La pagina SEO ora legge i prezzi visibili da `public/data/offerte-arera-menu.json`.
+- `offerte-proposte.json` viene usato solo per capire quali fornitori hanno un percorso partner attivabile online.
+- Nelle righe tabellari, nome offerta, prezzo luce, prezzo gas e quota fissa vengono dalla stessa riga/sorgente ARERA aggiornata.
+- Per evitare righe incoerenti, la pagina filtra offerte ARERA in cui nome o URL rimandano chiaramente a un altro marchio.
+- Le offerte consulente vengono costruite dai fornitori non partner presenti nel file ARERA aggiornato.
+
+Cosa non e stato toccato:
+
+- Motore di calcolo.
+- Regola ARERA-first.
+- Ranking del calcolatore.
+- Offerte partner operative nel calcolatore.
+- OTP.
+- Lead.
+- Supabase.
+- Consensi.
+- Link affiliati.
+- Tracciamento.
+
+Regola da mantenere:
+
+- Ogni volta che `offerte-arera-menu.json` viene aggiornato, anche la pagina `offerte-luce-gas-aggiornate.html` deve mostrare automaticamente i nuovi valori.
+- La pagina SEO non deve tornare a usare `offerte-proposte.json` come fonte dei prezzi visibili.
+
+Verifiche eseguite:
+
+- Sintassi JavaScript della pagina: OK.
+- Simulazione caricamento pagina con dati locali: OK, righe aggiornate al `2026-07-13`.
+- `/Users/simo78/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node scripts/validate-calculator-data.mjs` OK.
+- `/Users/simo78/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node scripts/verify-calcolo-offerte.mjs` OK, 0 errori, 0 warning.
