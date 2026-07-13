@@ -1,6 +1,6 @@
 # CONTINUA DA QUI - OffertaLogica
 
-Ultimo aggiornamento: 2026-07-07
+Ultimo aggiornamento: 2026-07-13
 
 Questo file e il punto di ritorno del progetto. Quando una nuova sessione Codex riparte, leggere prima questo file e poi `docs/STATO-PROGETTO-OFFERTALOGICA.md`.
 
@@ -33,7 +33,11 @@ Il progetto gira su GitHub + Vercel con dominio `offertalogica.it`.
 
 Il pacchetto completo di riferimento lato progetto e:
 
-`offertalogica-v48-log-arera-chiari-20260709`
+`offertalogica-v55-arera-curl-download-workflow-20260713`
+
+Base stabile immediatamente precedente:
+
+`offertalogica-v54-redirect-assistente-partner-fix-20260710`
 
 Base storica stabile precedente:
 
@@ -59,6 +63,59 @@ Ultimi zip incrementali importanti generati dopo la base completa:
 - `offertalogica-v46-pagine-vetrina-provider-20260707.zip`
 - `offertalogica-v47-offerte-bloccate-senza-cifre-20260707.zip`
 - `offertalogica-v48-log-arera-chiari-20260709.zip`
+- `offertalogica-v54-redirect-assistente-partner-fix-20260710.zip`
+- `offertalogica-v55-arera-curl-download-workflow-20260713.zip`
+
+## Punto v55 - aggiornamento ARERA su GitHub Actions
+
+Problema rilevato:
+
+- il Portale Offerte ARERA/Open Data risulta aggiornato, ma GitHub Actions riceve `HTTP 403 Forbidden`;
+- manualmente il download puo funzionare perche parte da browser/Mac, mentre GitHub Actions usa IP datacenter e richieste automatiche;
+- non bisogna trasformare un download fallito in un falso aggiornamento riuscito.
+
+Modifica v55:
+
+- aggiunto `scripts/download-arera-open-data.sh`;
+- il workflow `.github/workflows/update-arera-menu.yml` prova prima un download con `curl`, user-agent browser, header italiani e retry;
+- se `curl` scarica XML elettrico e gas, `scripts/update-arera-menu.py` lavora su quei file locali;
+- se anche `curl` viene bloccato, resta il fallback Python diretto gia esistente;
+- aggiunto input manuale `source_dir` nel workflow GitHub Actions;
+- aggiunto input manuale `as_of` nel workflow GitHub Actions;
+- aggiunta cartella documentata `data/arera-manual-upload/` per caricare manualmente XML ufficiali ARERA quando GitHub e' bloccato.
+
+Regola operativa ARERA-first:
+
+- se GitHub non riesce a scaricare i file reali, il workflow deve fallire;
+- i dati esistenti non devono essere modificati;
+- non reintrodurre fallback pubblico a prezzi statici;
+- in emergenza si caricano gli XML ufficiali in `data/arera-manual-upload/` e si lancia il workflow con `source_dir=data/arera-manual-upload`.
+
+Cosa non e' stato toccato in v55:
+
+- motore di calcolo;
+- ranking offerte;
+- dati partner;
+- offerte statiche;
+- OTP;
+- lead;
+- Supabase;
+- consensi;
+- frontend;
+- loghi;
+- pagine pubbliche;
+- link affiliati.
+
+Nota verifica:
+
+- aggiornato solo lo script `scripts/verify-calcolo-offerte.mjs` per accettare il nome corrente dell'offerta Alperia variabile `Variabile PUN/PSV` nell'audit automatico; non cambia il sito e non cambia il calcolo.
+
+Verifiche eseguite in v55:
+
+- `bash -n scripts/download-arera-open-data.sh`: OK;
+- `PYTHONPYCACHEPREFIX=/tmp/offertalogica-pycache python3 -m py_compile scripts/update-arera-menu.py`: OK;
+- `npm run validate-calculator-data`: OK;
+- `npm run verify-calcolo-offerte`: OK, 0 errori, 0 warning.
 
 Nota importante sugli zip incrementali: quelli v30-v33 contengono solo `lib/otp.js` e non devono toccare grafica, offerte, loghi o motore. Il v34 tocca solo pagine pubbliche statiche, footer, sitemap e termini/disclaimer. Il v35 aggiunge solo un assistente guidato frontend alla homepage. Il v36 aggiorna partner energia e pagina internet/mobile.
 
