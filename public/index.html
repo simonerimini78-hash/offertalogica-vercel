@@ -3854,7 +3854,12 @@ function chiaveOffertaFiltro(offerta) {
 }
 
 function unisciOfferteCandidati(offerteRanking, offertePartner) {
-  const result = [...offerteRanking];
+  const chiaviPartnerDirette = new Set(offertePartner.map((offerta) => chiaveOffertaFiltro(offerta)));
+  const result = offerteRanking.filter((offerta) => {
+    const key = chiaveOffertaFiltro(offerta);
+    const generataDaArera = String(offerta?.id || "").startsWith("arera-");
+    return !(generataDaArera && chiaviPartnerDirette.has(key));
+  });
   const ids = new Set(result.map((offerta) => String(offerta.id)));
   const partnerAttiveGiaPresenti = new Set(
     result
