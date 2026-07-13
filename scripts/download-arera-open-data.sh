@@ -10,7 +10,7 @@ UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Ge
 mkdir -p "$OUT_DIR"
 
 log() {
-  printf '[ARERA-CURL] %s\n' "$1"
+  printf '[ARERA-AUTO] %s\n' "$1"
 }
 
 download_one() {
@@ -79,5 +79,5 @@ for offset in $(seq 0 $((DAYS_BACK - 1))); do
   fi
 done
 
-log "Nessun file XML ARERA scaricato con curl. Se GitHub e' bloccato dal Portale Offerte, usare il source_dir manuale del workflow."
+log "Nessun file XML ARERA scaricato automaticamente."
 exit 1
