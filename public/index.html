@@ -4818,7 +4818,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
         aggiornaLogoOfferta(card, offerta, false);
         if (details) details.innerText = "Verifica il cellulare per vedere nome fornitore, dettagli economici e link.";
         if (link) {
-          link.innerText = "Sblocca";
+          link.innerText = "Verifica";
           link.href = "#";
           link.onclick = (event) => {
             event.preventDefault();
@@ -4833,7 +4833,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
             <span class="offer-saving-line"><span>Risparmio stimato</span><strong>Disponibile dopo verifica</strong></span>
           </span>
           <small style="display:block; margin-top:3px; color:var(--text-muted); font-weight:600;">
-            Sblocca per vedere importi, prezzo, fornitore e percorso ufficiale.
+            Verifica il numero per vedere importi, prezzo, fornitore e percorso ufficiale.
           </small>
         `;
       }
@@ -4864,8 +4864,8 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
   }
   if (teaserCopy) {
     teaserCopy.innerText = modalitaCalcolo === "media"
-      ? "Stima basata sui consumi medi e sull'ultimo riferimento ARERA disponibile: sblocca il risultato per vedere le migliori offerte e quelle attivabili online."
-      : "Stima basata sui consumi che hai inserito: sblocca il risultato per vedere le migliori offerte e quelle attivabili online.";
+      ? "Stima basata sui consumi medi e sull'ultimo riferimento ARERA disponibile: verifica il numero per visualizzare le migliori offerte e quelle attivabili online."
+      : "Stima basata sui consumi che hai inserito: verifica il numero per visualizzare le migliori offerte e quelle attivabili online.";
   }
 }
 
@@ -5100,7 +5100,7 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
   }
   if (verifyBtn) {
     verifyBtn.style.display = "none";
-    verifyBtn.innerText = staffModeAttiva() ? "Verifica staff e mostra offerte" : "Verifica e mostra offerte";
+    verifyBtn.innerText = staffModeAttiva() ? "Verifica staff e mostra le offerte" : "Verifica e mostra le offerte";
   }
   if (title) {
     title.innerText = staffModeAttiva()
@@ -5315,7 +5315,7 @@ async function verificaOtp() {
       leadStatus("Codice staff non corretto.", true);
       return;
     }
-    leadStatus("Modalita staff verificata. Offerte sbloccate senza salvataggio.");
+    leadStatus("Modalita staff verificata. Offerte disponibili senza salvataggio.");
     completaLeadVerificato();
     return;
   }
@@ -5336,7 +5336,7 @@ async function verificaOtp() {
     });
     const payload = await response.json();
     if (!payload.ok) throw new Error(payload.error || "Codice non corretto");
-    leadStatus("Lead verificato. Offerte sbloccate.");
+    leadStatus("Numero verificato. Le offerte sono ora disponibili.");
     trackEvent("otp_verified", { leadSource: LEAD_STATE.leadSource });
     completaLeadVerificato();
   } catch (error) {
@@ -6805,8 +6805,8 @@ if (document.readyState === "loading") {
 <div class="fornitori-consigliati-section">
 <div class="lead-teaser" id="lead-teaser">
     <strong id="lead-teaser-title">Abbiamo trovato offerte più convenienti.</strong>
-    <p id="lead-teaser-copy">La stima usa consumi medi e l'ultimo riferimento ARERA disponibile: sblocca le migliori offerte e quelle attivabili online.</p>
-    <button type="button" onclick="apriLeadModal('teaser')">Sblocca le offerte</button>
+    <p id="lead-teaser-copy">La stima usa consumi medi e l'ultimo riferimento ARERA disponibile: verifica il numero per visualizzare le migliori offerte e quelle attivabili online.</p>
+    <button type="button" onclick="apriLeadModal('teaser')">Verifica e visualizza le offerte</button>
 </div>
 <div class="vertical-cards-container" style="display: flex; flex-direction: column; gap: 15px;">
         
@@ -7099,7 +7099,7 @@ if (document.readyState === "loading") {
             </button>
             <button type="button" class="guided-assistant-option" data-assistant-action="offerte">
                 Voglio capire le offerte
-                <small>Le offerte si sbloccano dopo il confronto e OTP.</small>
+                <small>Le offerte saranno visibili dopo il confronto e la verifica OTP.</small>
             </button>
             <button type="button" class="guided-assistant-option" data-assistant-action="privacy">
                 Come trattate i miei dati?
@@ -7158,7 +7158,7 @@ Nessun dato sarà inviato a un fornitore finché non sceglierai un'offerta.</p>
         </div>
         <div class="lead-actions">
             <button type="button" class="lead-primary" id="lead-send-otp">Invia il codice di verifica</button>
-            <button type="button" class="lead-primary" id="lead-verify-otp" style="display:none;">Verifica e mostra offerte</button>
+            <button type="button" class="lead-primary" id="lead-verify-otp" style="display:none;">Verifica e mostra le offerte</button>
             <button type="button" class="lead-secondary" id="lead-close">Chiudi</button>
         </div>
         <div class="lead-status" id="lead-status"></div>

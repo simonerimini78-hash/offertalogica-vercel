@@ -26,6 +26,21 @@ Prima di modificare codice usa sempre questo schema:
 - Come verifico che funzioni.
 
 
+
+## Aggiornamento v80 - popup OTP e CTA senza linguaggio “sblocca”
+
+Modifiche applicate in `public/index.html`:
+
+- confermata la nuova intestazione del popup OTP: “Verifica il numero e visualizza il confronto”;
+- confermati i testi semplici che spiegano che il numero serve per ricevere il codice e che nessun dato viene inviato a un fornitore prima della scelta di un'offerta;
+- mantenuti separati il consenso necessario alla comparazione e quello facoltativo per la trasmissione al fornitore o partner;
+- sostituita la CTA “Sblocca le offerte” con “Verifica e visualizza le offerte”;
+- sostituiti i riferimenti pubblici a “sbloccare” con formulazioni coerenti basate sulla verifica del numero;
+- il pulsante finale OTP ora usa “Verifica e mostra le offerte”;
+- aggiornati anche i messaggi di stato e il testo dell'assistente per evitare ambiguita.
+
+Non sono state modificate logica OTP, consensi, API, tracciamento, catalogo offerte o calcoli.
+
 ## Aggiornamento v78 - conferma PDF guidata e reset completo del percorso
 
 Modifiche applicate in `public/index.html`:
@@ -63,11 +78,11 @@ Il progetto gira su GitHub + Vercel con dominio `offertalogica.it`.
 
 Il pacchetto incrementale piu recente lato progetto e:
 
-`offertalogica-v78-guida-conferma-pdf-reset-percorso-20260714`
+`offertalogica-v80-popup-otp-cta-verifica-20260714`
 
 Base immediatamente precedente:
 
-`offertalogica-v77-blocchi-simmetrici-upload-evidenziato-20260714`
+`offertalogica-v79-messaggio-pdf-coerente-20260714`
 
 Il pacchetto completo di riferimento lato progetto resta:
 
