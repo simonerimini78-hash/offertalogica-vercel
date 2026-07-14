@@ -1,6 +1,6 @@
 # CONTINUA DA QUI - OffertaLogica
 
-Ultimo aggiornamento: 2026-07-13
+Ultimo aggiornamento: 2026-07-14
 
 Questo file e il punto di ritorno del progetto. Quando una nuova sessione Codex riparte, leggere prima questo file e poi `docs/STATO-PROGETTO-OFFERTALOGICA.md`.
 
@@ -33,7 +33,11 @@ Il progetto gira su GitHub + Vercel con dominio `offertalogica.it`.
 
 Il pacchetto completo di riferimento lato progetto e:
 
-`offertalogica-v67-fix-dual-arera-minimo-20260713`
+`offertalogica-v70-pdf-etichette-bolletta-20260714`
+
+Base calcolatore stabile precedente:
+
+`offertalogica-v69-pdf-plenitude-20260714`
 
 Base stabile precedente:
 
@@ -67,6 +71,72 @@ Ultimi zip incrementali importanti generati dopo la base completa:
 - `offertalogica-v59-arera-update-locale-mac-20260713.zip`
 - `offertalogica-v60-seo-offerte-aggiornate-20260713.zip`
 - `offertalogica-v67-fix-dual-arera-minimo-20260713.zip`
+- `offertalogica-v68b-workflow-visibile-20260713.zip`
+- `offertalogica-v69-pdf-plenitude-fix-only-20260714.zip`
+- `offertalogica-v70-pdf-quote-fisse-mese-anno-20260714.zip`
+
+## Punto v70 - campi coerenti con bolletta e quota fissa mese/anno
+
+Problema risolto:
+
+- le etichette `Prezzo Spesa` e `Fisso` non aiutavano l'utente a individuare i valori corretti nella bolletta;
+- molte bollette mostrano la quota fissa in euro al mese, mentre il motore lavora internamente con valori annuali.
+
+Regola v70:
+
+- il prezzo da inserire e identificato come `Prezzo vendita`, con richiamo alla riga `Quota per consumi - di cui spesa per la vendita`;
+- per la nuova offerta viene richiamato anche il termine `corrispettivo energia/gas`;
+- ogni quota fissa ha un selettore esplicito `€/mese` o `€/anno`;
+- se l'utente inserisce un valore mensile, il calcolatore lo annualizza automaticamente;
+- PDF, dati medi e offerte ARERA continuano a compilare valori annuali impostando automaticamente `€/anno`.
+
+Cosa e' stato toccato:
+
+- `public/index.html` per testi, quattro selettori e conversione mese/anno;
+- `lib/pdfExtract.js` e incluso nello zip solo per consegnare insieme la correzione Plenitude v69;
+- nessuna modifica a prezzi, formule economiche, ranking, dati ARERA, offerte partner, OTP, lead, Supabase o consensi.
+
+Verifiche v70:
+
+- `12 €/mese` e `144 €/anno` producono entrambi `144 €/anno`: OK;
+- quattro selettori presenti con ID univoci: OK;
+- sintassi dei blocchi JavaScript della pagina: OK;
+- `node scripts/validate-calculator-data.mjs`: OK;
+- `node scripts/verify-calcolo-offerte.mjs`: OK, 0 errori e 0 warning.
+
+## Punto v69 - lettura bolletta Plenitude dual
+
+Problema risolto:
+
+- una bolletta Eni Plenitude veniva classificata erroneamente come Acea perche la ricerca generica `acea` intercettava la parola `cartacea`;
+- il formato Plenitude separa alcune etichette su piu righe e il parser non leggeva consumi annui, POD, PDR e quote fisse;
+- il prezzo luce poteva essere confuso con il prezzo medio totale e il prezzo gas con lo sconto domiciliazione.
+
+Regola v69:
+
+- il riconoscimento del fornitore usa nomi completi con confini di parola;
+- per lo Scontrino dell'energia viene letta la componente di vendita, non il prezzo medio comprensivo di rete e oneri;
+- le quote fisse mensili di vendita vengono annualizzate;
+- vengono letti consumi annui, potenza impegnata, POD e PDR anche nel layout Plenitude;
+- il documento resta sempre `needsReview: true`: i dati devono essere confermati dall'utente prima del confronto.
+
+Cosa e' stato toccato:
+
+- solo `lib/pdfExtract.js`;
+- nessuna modifica a frontend, motore di calcolo, ranking, dati ARERA, offerte partner, OTP, lead, Supabase o consensi.
+
+Verifiche v69:
+
+- fattura Plenitude dual: fornitore, consumi annui, prezzi vendita, quote fisse, potenza, POD e PDR riconosciuti;
+- regressione fattura Hera dual: campi principali ancora riconosciuti;
+- `node scripts/validate-calculator-data.mjs`: OK;
+- `node scripts/verify-calcolo-offerte.mjs`: OK, 0 errori e 0 warning.
+
+## Punto v68 - workflow ARERA senza esecuzione giornaliera
+
+- rimossa soltanto la pianificazione `schedule` che generava email di errore per i 403 del Portale Offerte;
+- mantenuto `workflow_dispatch`, quindi il pulsante manuale GitHub resta disponibile;
+- nessuna modifica allo script ARERA o al motore del calcolatore.
 
 ## Punto v67 - correzione minima offerte dual ARERA-first
 
