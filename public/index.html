@@ -1872,7 +1872,7 @@
 
         <div id="pdf-data-review-guidance" class="guided-step-notice pdf-data-review-guidance" role="status" aria-live="polite" tabindex="-1" hidden>
             <span class="guided-step-arrow" aria-hidden="true">↓</span>
-            <span><strong>I dati sono stati inseriti qui sotto.</strong> Controllali, completa gli eventuali campi evidenziati e poi avvia il confronto.</span>
+            <span><strong>I dati sono stati inseriti nel modulo.</strong> Controlla entrambe le schede, completa gli eventuali campi evidenziati e poi usa il pulsante di confronto.</span>
         </div>
 
         <div class="manual-block supply-compare-card current-supply-card" id="blocco-attuale">
@@ -5911,13 +5911,15 @@ function accompagnaAllaRevisioneDatiPdf(data) {
   pulisciSegnalazioniDatiMancanti();
   if (mancanti.length) segnalaCampiMancanti(mancanti);
 
-  const targetLabel = isOffer ? "nell'offerta specifica" : "nella fornitura attuale";
   const missingCopy = mancanti.length
-    ? ` Abbiamo evidenziato in rosso ${mancanti.length === 1 ? "il dato non letto" : `${mancanti.length} dati non letti`}: completali prima del confronto.`
-    : " I dati letti risultano completi: controllali prima di continuare.";
+    ? ` Completa ${mancanti.length === 1 ? "il campo evidenziato" : `i ${mancanti.length} campi evidenziati`} prima di continuare.`
+    : " Controlla con attenzione i valori inseriti.";
+  const guidanceCopy = isOffer
+    ? `<strong>I dati della scheda sintetica sono stati inseriti nell'offerta specifica.</strong>${missingCopy} Verifica anche che “La tua fornitura attuale” contenga tutti i dati necessari; se mancano, carica la bolletta oppure inseriscili manualmente. Poi premi <strong>“Confronta questa proposta”</strong>.`
+    : `<strong>I dati della bolletta sono stati inseriti nella fornitura attuale.</strong>${missingCopy} Poi premi <strong>“Mostra le offerte disponibili”</strong>.`;
   mostraGuida(
     "pdf-data-review-guidance",
-    `<strong>I dati sono stati inseriti ${targetLabel}.</strong>${missingCopy} Poi premi il pulsante blu per avviare il confronto.`
+    guidanceCopy
   );
 
   target?.classList.remove("pdf-data-target");
@@ -7235,7 +7237,7 @@ Nessun dato sarà inviato a un fornitore finché non sceglierai un'offerta.</p>
                 scrollToTarget("#business-panel");
                 break;
             case "offerte":
-                setMessage("Le offerte compaiono dopo il pulsante blu di confronto. Per vedere nomi, prezzi e link serve la verifica OTP del numero.");
+                setMessage("Le offerte compaiono dopo il pulsante di confronto. Per vedere nomi, prezzi e link serve la verifica OTP del numero.");
                 scrollToTarget(".fornitori-consigliati-section");
                 break;
             case "privacy":

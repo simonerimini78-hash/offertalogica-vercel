@@ -1137,3 +1137,11 @@ Verifiche eseguite:
   - reset richiude la sezione e azzera il riepilogo: OK.
 - Verifica statica desktop e mobile: OK.
 - Corretto overflow orizzontale mobile della griglia luce/gas.
+
+## Aggiornamento v79 — messaggio dopo conferma PDF
+
+- Rimosso il riferimento al “pulsante blu”: la guida usa ora il nome esatto dell’azione.
+- Eliminata la frase che dichiarava completi i dati letti dal PDF.
+- Dopo una scheda sintetica viene ricordato che per il confronto servono anche i dati della fornitura attuale, ottenibili caricando la bolletta o inserendoli manualmente.
+- Dopo una bolletta la guida invita a controllare i valori e premere “Mostra le offerte disponibili”.
+- Nessuna modifica a calcoli, parsing PDF, validazioni, OTP o catalogo offerte.
