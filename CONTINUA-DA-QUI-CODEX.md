@@ -33,6 +33,10 @@ Il progetto gira su GitHub + Vercel con dominio `offertalogica.it`.
 
 Il pacchetto completo di riferimento lato progetto e:
 
+`offertalogica-v75-popup-otp-schede-coerenti-20260714`
+
+Base stabile precedente:
+
 `offertalogica-v74-staff-nuova-offerta-chiara-20260714`
 
 Base calcolatore stabile da cui deriva v74:
@@ -81,6 +85,43 @@ Ultimi zip incrementali importanti generati dopo la base completa:
 - `offertalogica-v71-blocco-risparmio-incompleto-20260714.zip`
 - `offertalogica-v72-pdf-dolomiti-quota-fissa-20260714.zip`
 - `offertalogica-v74-staff-nuova-offerta-chiara-20260714-incrementale.zip`
+- `offertalogica-v75-popup-otp-schede-coerenti-20260714-incrementale.zip`
+
+## Punto v75 - popup OTP e schede visivamente coerenti
+
+Interventi completati:
+
+- la scheda `Confronta un'offerta o un fornitore specifico` usa lo stesso accento blu, lo stesso stile del titolo e la stessa densita visiva della fornitura attuale;
+- le tre modalita esistenti sono rimaste visibili, ma come righe informative compatte senza tre riquadri pesanti;
+- il badge `Facoltativo` resta secondario;
+- il popup OTP usa il titolo `Verifica il numero e visualizza il confronto`;
+- viene chiarito che nessun dato va a un fornitore prima della scelta di un'offerta;
+- la prima casella resta necessaria per comparazione e gestione della richiesta;
+- la seconda casella resta facoltativa e riguarda soltanto il fornitore o partner della proposta scelta;
+- il pulsante ora dice `Invia il codice di verifica`;
+- nome, cellulare ed email hanno anche un'etichetta accessibile;
+- l'instradamento PDF e rimasto invariato: scheda sintetica nella nuova offerta, bolletta nella fornitura attuale.
+
+Cosa non e stato toccato:
+
+- riconoscimento e analisi PDF;
+- invio e verifica OTP;
+- logica e prova dei consensi;
+- formule, dati ARERA, ranking, offerte, link affiliati, lead e database;
+- percorsi Privato, Azienda e dati medi.
+
+File modificati in v75:
+
+- `public/index.html`;
+- `CONTINUA-DA-QUI-CODEX.md`.
+
+Verifiche v75:
+
+- sintassi di tutti gli script inline: OK;
+- due consensi presenti una sola volta e ID HTML univoci: OK;
+- instradamento della scheda sintetica verso i campi della nuova offerta invariato: OK;
+- `npm run validate:calculator`: OK;
+- `npm run verify:offers`: OK, 0 errori, 0 warning e 0 partner warning.
 
 ## Punto v74 - gestione lead staff e nuova offerta piu chiara
 
