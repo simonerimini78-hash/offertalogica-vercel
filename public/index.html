@@ -53,18 +53,19 @@
 
         .manual-block { background: var(--card-bg); border-radius: 12px; padding: 20px; border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
         .manual-block h3 { font-size: 16px; margin-bottom: 15px; border-bottom: 2px solid var(--accent); padding-bottom: 5px; color: var(--text-color); text-align: left; }
-        .manual-block.offerta-inserita h3 { border-bottom-color: var(--primary); }
+        .manual-block.offerta-inserita h3 { border-bottom-color: var(--accent); }
         
         .columns-subgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
         .column-energy h4 { font-size: 13px; color: var(--accent); margin-bottom: 10px; text-align: left; text-transform: uppercase; letter-spacing: 0.5px; }
-        .manual-block.offerta-inserita .column-energy h4 { color: var(--primary); }
+        .manual-block.offerta-inserita .column-energy h4 { color: var(--accent); }
         .optional-offer-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+        .optional-title-label { display: inline-flex; align-items: flex-start; gap: 5px; min-width: 0; }
         .optional-badge { flex: 0 0 auto; padding: 4px 8px; border-radius: 999px; background: #f1f5f9; color: #64748b; font-size: 11px; font-weight: 700; }
         .optional-offer-intro { margin: -4px 0 14px; color: var(--text-muted); font-size: 13px; line-height: 1.5; }
-        .optional-mode-list { display: grid; gap: 7px; margin: 0 0 15px; }
-        .optional-mode-item { padding: 9px 10px; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc; }
-        .optional-mode-item strong { display: block; color: var(--text-color); font-size: 12px; margin-bottom: 2px; }
-        .optional-mode-item span { display: block; color: var(--text-muted); font-size: 11px; line-height: 1.35; }
+        .optional-mode-list { display: grid; gap: 4px; margin: 0 0 14px; padding: 0 0 12px; border-bottom: 1px solid var(--border); }
+        .optional-mode-item { color: var(--text-muted); font-size: 11px; line-height: 1.4; }
+        .optional-mode-item strong { display: inline; color: var(--text-color); font-size: 11px; }
+        .optional-mode-item span { display: inline; }
         .provider-help { display: block; margin-top: 6px; color: var(--text-muted); font-size: 11px; line-height: 1.4; }
         #nuova-offerta-auto-hint { white-space: pre-line; padding: 9px 10px; border-radius: 8px; background: #f8fafc; border: 1px solid #e2e8f0; }
         .field-error-message { display: block; margin-top: 5px; color: #b91c1c; font-size: 11px; line-height: 1.35; font-weight: 700; }
@@ -161,6 +162,10 @@
         .lead-consent.required { border-color: rgba(22,163,74,.35); background: #f0fdf4; color: #14532d; }
         .lead-consent input { margin-top: 2px; flex: 0 0 auto; }
         .lead-consent a { color: var(--accent); font-weight: 700; text-decoration: none; }
+        .lead-consent-copy { display: block; min-width: 0; }
+        .lead-consent-detail { display: block; margin-top: 7px; color: var(--text-muted); }
+        .lead-consent.required .lead-consent-detail { color: #166534; }
+        #lead-modal-copy { white-space: pre-line; }
         .lead-privacy-note { margin: 4px 0 0; padding: 10px; border-radius: 8px; background: #fff7ed; color: #7c2d12; font-size: 12px; line-height: 1.4; }
         .lead-actions { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
         .lead-actions button { border: 0; border-radius: 8px; padding: 11px 16px; font-weight: 700; cursor: pointer; }
@@ -1590,12 +1595,12 @@
                 </div>
             </div>
         </div> <div class="manual-block offerta-inserita" id="blocco-nuovo">
-            <h3 class="optional-offer-title"><span>Confronta un'offerta o un fornitore specifico</span><span class="optional-badge">Facoltativo</span></h3>
+            <h3 class="optional-offer-title"><span class="optional-title-label"><span aria-hidden="true">📊</span><span>Confronta un'offerta o un fornitore specifico</span></span><span class="optional-badge">Facoltativo</span></h3>
             <p class="optional-offer-intro">Usa questa sezione solo se vuoi confrontare una proposta specifica o vedere le offerte aggiornate di un determinato fornitore. Puoi saltarla e visualizzare direttamente le offerte disponibili.</p>
             <div class="optional-mode-list" aria-label="Modalita facoltative per confrontare una proposta specifica">
-                <div class="optional-mode-item"><strong>Scegli un fornitore</strong><span>Visualizza le offerte aggiornate disponibili nel catalogo.</span></div>
-                <div class="optional-mode-item"><strong>Carica una scheda sintetica</strong><span>Usa il caricamento PDF qui sopra per recuperare automaticamente prezzi e condizioni.</span></div>
-                <div class="optional-mode-item"><strong>Inserisci i dati manualmente</strong><span>Per una proposta non presente nel catalogo o per correggere dati mancanti.</span></div>
+                <div class="optional-mode-item"><strong>Scegli un fornitore:</strong> <span>visualizza le offerte aggiornate disponibili.</span></div>
+                <div class="optional-mode-item"><strong>Carica una scheda sintetica:</strong> <span>recupera automaticamente prezzi e condizioni.</span></div>
+                <div class="optional-mode-item"><strong>Inserisci i dati manualmente:</strong> <span>confronta una proposta non presente o completa i dati mancanti.</span></div>
             </div>
             <div class="input-group" style="margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">
                 <label for="nome-fornitore-nuov" style="color: var(--accent); font-weight: bold;">Di quale fornitore vuoi vedere le offerte?</label>
@@ -4679,7 +4684,7 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
   }
   if (sendBtn) {
     sendBtn.style.display = "inline-block";
-    sendBtn.innerText = staffModeAttiva() ? "Sblocca in modalita staff" : "Invia codice";
+    sendBtn.innerText = staffModeAttiva() ? "Sblocca in modalita staff" : "Invia il codice di verifica";
   }
   if (verifyBtn) {
     verifyBtn.style.display = "none";
@@ -4688,32 +4693,28 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
   if (title) {
     title.innerText = staffModeAttiva()
       ? "Verifica staff senza salvataggio"
-      : source === "business"
-      ? "Sblocca analisi aziendale"
-      : "Sblocca le migliori offerte";
+      : "Verifica il numero e visualizza il confronto";
   }
   if (copy) {
     const saving = LEAD_STATE.bestSaving > 0 ? ` Abbiamo stimato fino a ${euro(LEAD_STATE.bestSaving)} / anno di risparmio potenziale.` : "";
     if (staffModeAttiva()) {
       copy.innerText = `Percorso di controllo interno: puoi verificare calcolo, popup, offerte e landing senza creare lead, senza database e senza webhook.${saving}`;
-    } else if (source === "business") {
-      copy.innerText = `Verifica il cellulare per confermare il lead aziendale e ricevere l'analisi sui consumi business.${saving}`;
-    } else if (source === "upload") {
-      copy.innerText = "Carica la bolletta in ambiente sicuro e verifica il cellulare per ricevere il confronto personalizzato.";
     } else {
-      copy.innerText = `Ti mostriamo subito le offerte migliori per il tuo profilo: verifica il cellulare per vedere nomi, prezzi e link.${saving}`;
+      copy.innerText = "Inserisci i tuoi dati per ricevere il codice di verifica.\nNessun dato sarà inviato a un fornitore finché non sceglierai un'offerta.";
     }
   }
   if (partnerCopy) {
-    partnerCopy.innerText = source === "business"
-      ? "Autorizzo OffertaLogica a trasmettere i miei dati e i dati della fornitura a consulenti o partner incaricati della pratica business, per essere ricontattato sulla richiesta."
-      : "Autorizzo OffertaLogica a trasmettere i miei dati e i dati della fornitura al fornitore o partner collegato all'offerta che scegliero, per essere ricontattato su quella proposta.";
+    if (source === "business") {
+      partnerCopy.innerText = "Autorizzo OffertaLogica a trasmettere i miei dati e i dati della fornitura a consulenti o partner incaricati della pratica business, per essere ricontattato sulla richiesta.";
+    } else {
+      partnerCopy.innerHTML = "<strong>Facoltativo</strong> - autorizzo OffertaLogica a trasmettere i miei dati al fornitore o partner dell'offerta che sceglierò, per essere ricontattato esclusivamente in merito a quella proposta.";
+    }
   }
   modal.style.display = "flex";
   trackEvent("lead_modal_opened", { leadSource: source });
   leadStatus(staffModeAttiva()
     ? "Modalita staff attiva: premi il pulsante verde e usa il codice 000000. Nessun dato viene salvato."
-    : "La prima casella sblocca il confronto. La seconda e facoltativa: se la accetti ora, non dovrai ridarla quando scegli un'offerta.");
+    : "");
 };
 
 function chiudiLeadModal() {
@@ -6435,25 +6436,26 @@ if (document.readyState === "loading") {
 
 <div class="lead-modal-backdrop" id="lead-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="lead-modal-title">
     <div class="lead-modal">
-        <h3 id="lead-modal-title">Sblocca le migliori offerte</h3>
-        <p id="lead-modal-copy">Lascia i tuoi dati per ricevere il confronto personalizzato e verificare il numero con codice OTP.</p>
+        <h3 id="lead-modal-title">Verifica il numero e visualizza il confronto</h3>
+        <p id="lead-modal-copy">Inserisci i tuoi dati per ricevere il codice di verifica.
+Nessun dato sarà inviato a un fornitore finché non sceglierai un'offerta.</p>
         <div class="lead-form-grid">
-            <input id="lead-nome" type="text" autocomplete="name" placeholder="Nome e cognome">
-            <input id="lead-telefono" type="tel" autocomplete="tel" placeholder="Cellulare">
-            <input id="lead-email" type="email" autocomplete="email" placeholder="Email">
+            <input id="lead-nome" type="text" autocomplete="name" aria-label="Nome e cognome" placeholder="Nome e cognome">
+            <input id="lead-telefono" type="tel" autocomplete="tel" aria-label="Cellulare" placeholder="Cellulare">
+            <input id="lead-email" type="email" autocomplete="email" aria-label="Email" placeholder="Email">
             <label class="lead-consent required">
                 <input id="lead-consenso-servizio" type="checkbox">
-                <span>Ho letto l'<a href="https://www.iubenda.com/privacy-policy/36565194" target="_blank" rel="noopener">informativa privacy</a> e richiedo la comparazione personalizzata, il ricontatto necessario alla gestione della richiesta e il trattamento dei dati inseriti o caricati per migliorare il servizio OffertaLogica anche in forma aggregata e anonimizzata.</span>
+                <span class="lead-consent-copy"><strong>Richiedo la comparazione personalizzata e il ricontatto necessario alla gestione della mia richiesta.</strong> Dichiaro di aver letto l'<a href="https://www.iubenda.com/privacy-policy/36565194" target="_blank" rel="noopener">informativa privacy</a>.<span class="lead-consent-detail">Useremo i dati inseriti o caricati per elaborare il confronto e gestire la tua richiesta.</span></span>
             </label>
             <label class="lead-consent">
                 <input id="lead-consenso-partner" type="checkbox">
-                <span id="lead-partner-copy">Autorizzo OffertaLogica a trasmettere i miei dati e i dati della fornitura al fornitore o partner collegato all'offerta che scegliero, per essere ricontattato su quella proposta.</span>
+                <span id="lead-partner-copy" class="lead-consent-copy"><strong>Facoltativo</strong> - autorizzo OffertaLogica a trasmettere i miei dati al fornitore o partner dell'offerta che sceglierò, per essere ricontattato esclusivamente in merito a quella proposta.</span>
             </label>
-            <div class="lead-privacy-note">La prima casella e necessaria per vedere il confronto. La seconda e facoltativa: se non la selezioni ora, te la chiederemo solo quando scegli una specifica offerta.</div>
+            <div class="lead-privacy-note">Il primo punto è necessario per elaborare e mostrarti il confronto. Il secondo potrà essere autorizzato anche successivamente, quando sceglierai un'offerta.</div>
             <input id="lead-otp" type="text" inputmode="numeric" placeholder="Codice OTP" style="display:none;">
         </div>
         <div class="lead-actions">
-            <button type="button" class="lead-primary" id="lead-send-otp">Invia codice</button>
+            <button type="button" class="lead-primary" id="lead-send-otp">Invia il codice di verifica</button>
             <button type="button" class="lead-primary" id="lead-verify-otp" style="display:none;">Verifica e mostra offerte</button>
             <button type="button" class="lead-secondary" id="lead-close">Chiudi</button>
         </div>
