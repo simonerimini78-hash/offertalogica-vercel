@@ -33,7 +33,7 @@ Il progetto gira su GitHub + Vercel con dominio `offertalogica.it`.
 
 Il pacchetto completo di riferimento lato progetto e:
 
-`offertalogica-v70-pdf-etichette-bolletta-20260714`
+`offertalogica-v71-blocco-risparmio-incompleto-20260714`
 
 Base calcolatore stabile precedente:
 
@@ -74,6 +74,38 @@ Ultimi zip incrementali importanti generati dopo la base completa:
 - `offertalogica-v68b-workflow-visibile-20260713.zip`
 - `offertalogica-v69-pdf-plenitude-fix-only-20260714.zip`
 - `offertalogica-v70-pdf-quote-fisse-mese-anno-20260714.zip`
+- `offertalogica-v71-blocco-risparmio-incompleto-20260714.zip`
+
+## Punto v71 - nessun risparmio con dati incompleti
+
+Problema risolto:
+
+- i campi numerici vuoti venivano trasformati in zero e il calcolatore poteva mostrare un risparmio apparentemente preciso partendo da una bolletta letta solo in parte;
+- le etichette tecniche rendevano difficile capire quali valori copiare dalla bolletta.
+
+Regola v71:
+
+- il risparmio viene calcolato solo se consumo, prezzo e costo fisso sono presenti sia per luce sia per gas;
+- una quota fissa scritta esplicitamente come zero resta valida, mentre una casella vuota e considerata mancante;
+- se l'utente inizia a compilare una nuova offerta, anche prezzo e costo fisso della nuova offerta devono essere completi;
+- in caso di dati mancanti non vengono mostrati importi, offerte precedenti o vecchi risparmi;
+- la pagina evidenzia le caselle mancanti e porta l'utente direttamente alla prima da completare;
+- le etichette sono formulate come domande semplici: consumo annuo, prezzo luce/gas e costo fisso della bolletta.
+
+Cosa e' stato toccato:
+
+- solo `public/index.html`;
+- nessuna modifica a formule economiche, perdite di rete, ranking, dati ARERA, offerte partner, OTP, PDF, lead, Supabase o consensi.
+
+Verifiche v71:
+
+- profilo Plenitude completo accettato: OK;
+- quota fissa vuota bloccata prima del calcolo: OK;
+- quota fissa zero inserita esplicitamente accettata: OK;
+- guardia dati incompleti eseguita prima di `calcolaDifferenza`: OK;
+- sintassi di tutti i blocchi JavaScript inline: OK;
+- `npm run validate:calculator`: OK;
+- `npm run verify:offers`: OK, 0 errori e 0 warning.
 
 ## Punto v70 - campi coerenti con bolletta e quota fissa mese/anno
 
