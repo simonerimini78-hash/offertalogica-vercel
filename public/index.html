@@ -58,6 +58,25 @@
         .columns-subgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
         .column-energy h4 { font-size: 13px; color: var(--accent); margin-bottom: 10px; text-align: left; text-transform: uppercase; letter-spacing: 0.5px; }
         .manual-block.offerta-inserita .column-energy h4 { color: var(--primary); }
+        .optional-offer-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+        .optional-badge { flex: 0 0 auto; padding: 4px 8px; border-radius: 999px; background: #f1f5f9; color: #64748b; font-size: 11px; font-weight: 700; }
+        .optional-offer-intro { margin: -4px 0 14px; color: var(--text-muted); font-size: 13px; line-height: 1.5; }
+        .optional-mode-list { display: grid; gap: 7px; margin: 0 0 15px; }
+        .optional-mode-item { padding: 9px 10px; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc; }
+        .optional-mode-item strong { display: block; color: var(--text-color); font-size: 12px; margin-bottom: 2px; }
+        .optional-mode-item span { display: block; color: var(--text-muted); font-size: 11px; line-height: 1.35; }
+        .provider-help { display: block; margin-top: 6px; color: var(--text-muted); font-size: 11px; line-height: 1.4; }
+        #nuova-offerta-auto-hint { white-space: pre-line; padding: 9px 10px; border-radius: 8px; background: #f8fafc; border: 1px solid #e2e8f0; }
+        .field-error-message { display: block; margin-top: 5px; color: #b91c1c; font-size: 11px; line-height: 1.35; font-weight: 700; }
+        .input-group input, .input-group select { scroll-margin-top: 90px; }
+        .optional-offer-title > span:first-child,
+        #blocco-nuovo .column-energy,
+        #blocco-nuovo .input-group { min-width: 0; }
+
+        @media (max-width: 600px) {
+            #blocco-nuovo .columns-subgrid { grid-template-columns: 1fr; }
+            .optional-offer-title { align-items: flex-start; flex-direction: column; }
+        }
 
         .input-group { display: flex; flex-direction: column; margin-bottom: 12px; text-align: left; }
         .input-group label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; font-weight: 600; }
@@ -1520,7 +1539,6 @@
                     <option value="sinergy">Sinergy</option>
                     <option value="altro">Altro (Fornitore non in elenco)</option>
                 </select>
-                <div id="nuova-offerta-auto-hint" style="display:none; margin-top:8px; font-size:12px; color:var(--text-muted); line-height:1.35;"></div>
             </div>
             <div class="columns-subgrid">
                 <div class="column-energy">
@@ -1572,11 +1590,17 @@
                 </div>
             </div>
         </div> <div class="manual-block offerta-inserita" id="blocco-nuovo">
-            <h3>📊 Nuova Offerta <span style="font-size: 13px; color: #64748b; font-weight: normal; font-style: italic;">(Facoltativa)</span></h3>
+            <h3 class="optional-offer-title"><span>Confronta un'offerta o un fornitore specifico</span><span class="optional-badge">Facoltativo</span></h3>
+            <p class="optional-offer-intro">Usa questa sezione solo se vuoi confrontare una proposta specifica o vedere le offerte aggiornate di un determinato fornitore. Puoi saltarla e visualizzare direttamente le offerte disponibili.</p>
+            <div class="optional-mode-list" aria-label="Modalita facoltative per confrontare una proposta specifica">
+                <div class="optional-mode-item"><strong>Scegli un fornitore</strong><span>Visualizza le offerte aggiornate disponibili nel catalogo.</span></div>
+                <div class="optional-mode-item"><strong>Carica una scheda sintetica</strong><span>Usa il caricamento PDF qui sopra per recuperare automaticamente prezzi e condizioni.</span></div>
+                <div class="optional-mode-item"><strong>Inserisci i dati manualmente</strong><span>Per una proposta non presente nel catalogo o per correggere dati mancanti.</span></div>
+            </div>
             <div class="input-group" style="margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">
-                <label style="color: var(--accent); font-weight: bold;">Nome del tuo Nuovo Fornitore:</label>
-                <select id="nome-fornitore-nuov" style="width: 100%; padding: 10px; border: 1px solid var(--accent); border-radius: 8px; background-color: var(--card-bg); color: var(--text-color); font-size: 14px;">
-                    <option value="" disabled selected>-- Seleziona il tuo fornitore --</option>
+                <label for="nome-fornitore-nuov" style="color: var(--accent); font-weight: bold;">Di quale fornitore vuoi vedere le offerte?</label>
+                <select id="nome-fornitore-nuov" aria-describedby="nuova-offerta-menu-help nuova-offerta-auto-hint" style="width: 100%; padding: 10px; border: 1px solid var(--accent); border-radius: 8px; background-color: var(--card-bg); color: var(--text-color); font-size: 14px;">
+                    <option value="" disabled selected>Seleziona un fornitore</option>
                     <option value="a2a">A2A Energia</option>
                     <option value="acea">Acea Energia</option>
                     <option value="agasco">Agasco</option>
@@ -1613,24 +1637,26 @@
                     <option value="sinergy">Sinergy</option>
                     <option value="altro">Altro (Fornitore non in elenco)</option>
                 </select>
+                <small id="nuova-offerta-menu-help" class="provider-help">Dopo la selezione mostreremo le offerte aggiornate del fornitore presenti nel catalogo.</small>
+                <div id="nuova-offerta-auto-hint" role="status" aria-live="polite" style="display:none; margin-top:8px; font-size:12px; color:var(--text-muted); line-height:1.4;"></div>
             </div>
             <div class="columns-subgrid">
                 <div class="column-energy">
                     <h4>⚡ LUCE</h4>
                     <div class="input-group">
-                        <label>Consumo annuo luce (kWh)</label>
+                        <label for="in-luce-cons-nuov">Consumo annuo luce (kWh)</label>
                         <input type="number" id="in-luce-cons-nuov" placeholder="Es. 2700">
                     </div>
                     <div class="input-group">
-                        <label>Prezzo della nuova offerta luce (€/kWh)</label>
-                        <small class="input-guidance">Cerca nell'offerta: prezzo energia o componente vendita.</small>
-                        <input type="number" id="in-luce-prezzo-nuov" step="0.0001" placeholder="Es. 0.1450">
+                        <label for="in-luce-prezzo-nuov">Prezzo della nuova offerta luce (€/kWh)</label>
+                        <small id="in-luce-prezzo-nuov-help" class="input-guidance">Cerca nell'offerta: prezzo energia o componente vendita.</small>
+                        <input type="number" id="in-luce-prezzo-nuov" aria-describedby="in-luce-prezzo-nuov-help" step="0.0001" placeholder="Es. 0.1450">
                     </div>
                     <div class="input-group">
-                        <label>Costo fisso della nuova offerta luce</label>
-                        <small class="input-guidance">Inserisci il valore e scegli se e mensile o annuale.</small>
+                        <label for="in-luce-fisso-nuov">Costo fisso della nuova offerta luce</label>
+                        <small id="in-luce-fisso-nuov-help" class="input-guidance">Inserisci il valore e scegli se e mensile o annuale.</small>
                         <div class="fixed-fee-input">
-                            <input type="number" id="in-luce-fisso-nuov" step="0.01" placeholder="Es. 12">
+                            <input type="number" id="in-luce-fisso-nuov" aria-describedby="in-luce-fisso-nuov-help" step="0.01" placeholder="Es. 12">
                             <select id="in-luce-fisso-nuov-unita" aria-label="Unita quota fissa luce nuova offerta">
                                 <option value="mese" selected>€/mese</option>
                                 <option value="anno">€/anno</option>
@@ -1642,19 +1668,19 @@
                 <div class="column-energy">
                     <h4>🔥 GAS</h4>
                     <div class="input-group">
-                        <label>Consumo annuo gas (Smc)</label>
+                        <label for="in-gas-cons-nuov">Consumo annuo gas (Smc)</label>
                         <input type="number" id="in-gas-cons-nuov" placeholder="Es. 1000">
                     </div>
                     <div class="input-group">
-                        <label>Prezzo della nuova offerta gas (€/Smc)</label>
-                        <small class="input-guidance">Cerca nell'offerta: prezzo gas o componente vendita.</small>
-                        <input type="number" id="in-gas-prezzo-nuov" step="0.0001" placeholder="Es. 0.6500">
+                        <label for="in-gas-prezzo-nuov">Prezzo della nuova offerta gas (€/Smc)</label>
+                        <small id="in-gas-prezzo-nuov-help" class="input-guidance">Cerca nell'offerta: prezzo gas o componente vendita.</small>
+                        <input type="number" id="in-gas-prezzo-nuov" aria-describedby="in-gas-prezzo-nuov-help" step="0.0001" placeholder="Es. 0.6500">
                     </div>
                     <div class="input-group">
-                        <label>Costo fisso della nuova offerta gas</label>
-                        <small class="input-guidance">Inserisci il valore e scegli se e mensile o annuale.</small>
+                        <label for="in-gas-fisso-nuov">Costo fisso della nuova offerta gas</label>
+                        <small id="in-gas-fisso-nuov-help" class="input-guidance">Inserisci il valore e scegli se e mensile o annuale.</small>
                         <div class="fixed-fee-input">
-                            <input type="number" id="in-gas-fisso-nuov" step="0.01" placeholder="Es. 12">
+                            <input type="number" id="in-gas-fisso-nuov" aria-describedby="in-gas-fisso-nuov-help" step="0.01" placeholder="Es. 12">
                             <select id="in-gas-fisso-nuov-unita" aria-label="Unita quota fissa gas nuova offerta">
                                 <option value="mese" selected>€/mese</option>
                                 <option value="anno">€/anno</option>
@@ -1670,7 +1696,7 @@
     </div> <!-- 2. CHIUSURA DEL CONTENITORE GENERALE DELLA GRIGLIA -->
 
        
-    <button class="btn-calc" onclick="avviaComparazioneDati()">ELABORA E CONFRONTA LE OFFERTE</button>
+    <button id="comparison-submit-button" class="btn-calc" onclick="avviaComparazioneDati()">Mostra le offerte disponibili</button>
 
     <!-- Risultato della Comparazione (Appare dopo il click) -->
     <div class="results-layout" id="results-area">
@@ -2812,19 +2838,19 @@ function leggiValore(id, fallback = "") {
 }
 
 const CAMPI_ATTUALI_ESSENZIALI = [
-  { id: "in-luce-cons-att", label: "consumo annuo della luce", zeroAmmesso: false },
-  { id: "in-luce-prezzo-att", label: "prezzo della luce", zeroAmmesso: false },
-  { id: "in-luce-fisso-att", label: "costo fisso della luce", zeroAmmesso: true },
-  { id: "in-gas-cons-att", label: "consumo annuo del gas", zeroAmmesso: false },
-  { id: "in-gas-prezzo-att", label: "prezzo del gas", zeroAmmesso: false },
-  { id: "in-gas-fisso-att", label: "costo fisso del gas", zeroAmmesso: true },
+  { id: "in-luce-cons-att", label: "consumo annuo della luce", zeroAmmesso: false, instruction: "Inserisci il consumo annuo della luce in kWh." },
+  { id: "in-luce-prezzo-att", label: "prezzo della luce", zeroAmmesso: false, instruction: "Inserisci il prezzo della luce in euro/kWh." },
+  { id: "in-luce-fisso-att", label: "costo fisso della luce", zeroAmmesso: true, instruction: "Inserisci il costo fisso luce e scegli euro/mese o euro/anno." },
+  { id: "in-gas-cons-att", label: "consumo annuo del gas", zeroAmmesso: false, instruction: "Inserisci il consumo annuo del gas in Smc." },
+  { id: "in-gas-prezzo-att", label: "prezzo del gas", zeroAmmesso: false, instruction: "Inserisci il prezzo del gas in euro/Smc." },
+  { id: "in-gas-fisso-att", label: "costo fisso del gas", zeroAmmesso: true, instruction: "Inserisci il costo fisso gas e scegli euro/mese o euro/anno." },
 ];
 
 const CAMPI_NUOVA_OFFERTA_ESSENZIALI = [
-  { id: "in-luce-prezzo-nuov", label: "prezzo vendita luce della nuova offerta", zeroAmmesso: false },
-  { id: "in-luce-fisso-nuov", label: "quota fissa luce della nuova offerta", zeroAmmesso: true },
-  { id: "in-gas-prezzo-nuov", label: "prezzo vendita gas della nuova offerta", zeroAmmesso: false },
-  { id: "in-gas-fisso-nuov", label: "quota fissa gas della nuova offerta", zeroAmmesso: true },
+  { id: "in-luce-prezzo-nuov", label: "prezzo vendita luce della nuova offerta", zeroAmmesso: false, instruction: "Inserisci il prezzo dell'energia della proposta in euro/kWh." },
+  { id: "in-luce-fisso-nuov", label: "quota fissa luce della nuova offerta", zeroAmmesso: true, instruction: "Inserisci la quota fissa luce della proposta e scegli euro/mese o euro/anno." },
+  { id: "in-gas-prezzo-nuov", label: "prezzo vendita gas della nuova offerta", zeroAmmesso: false, instruction: "Inserisci il prezzo del gas della proposta in euro/Smc." },
+  { id: "in-gas-fisso-nuov", label: "quota fissa gas della nuova offerta", zeroAmmesso: true, instruction: "Inserisci la quota fissa gas della proposta e scegli euro/mese o euro/anno." },
 ];
 
 function statoCampoNumerico(config) {
@@ -2839,18 +2865,50 @@ function campiMancanti(configurazioni) {
   return configurazioni.map(statoCampoNumerico).filter((campo) => !campo.valido);
 }
 
+function erroreCampoId(element) {
+  return `${element.id}-error`;
+}
+
+function pulisciErroreCampo(element) {
+  if (!element) return;
+  element.classList.remove("calculation-field-missing");
+  element.removeAttribute("aria-invalid");
+  const errorId = erroreCampoId(element);
+  const error = document.getElementById(errorId);
+  if (error) error.remove();
+  const describedBy = String(element.getAttribute("aria-describedby") || "")
+    .split(/\s+/)
+    .filter(Boolean)
+    .filter((id) => id !== errorId);
+  if (describedBy.length) element.setAttribute("aria-describedby", describedBy.join(" "));
+  else element.removeAttribute("aria-describedby");
+}
+
 function pulisciSegnalazioniDatiMancanti() {
   [...CAMPI_ATTUALI_ESSENZIALI, ...CAMPI_NUOVA_OFFERTA_ESSENZIALI].forEach(({ id }) => {
     const element = document.getElementById(id);
-    element?.classList.remove("calculation-field-missing");
-    element?.removeAttribute("aria-invalid");
+    pulisciErroreCampo(element);
   });
 }
 
 function segnalaCampiMancanti(mancanti) {
-  mancanti.forEach(({ element }) => {
+  const daPdf = determinaOrigineDatoLead() === "pdf_upload";
+  mancanti.forEach(({ element, instruction }) => {
+    if (!element) return;
     element?.classList.add("calculation-field-missing");
     element?.setAttribute("aria-invalid", "true");
+    const errorId = erroreCampoId(element);
+    document.getElementById(errorId)?.remove();
+    const error = document.createElement("small");
+    error.id = errorId;
+    error.className = "field-error-message";
+    error.setAttribute("role", "alert");
+    error.textContent = `${daPdf ? "Dato non rilevato nel PDF. " : ""}${instruction || "Inserisci un valore valido."}`;
+    const anchor = element.closest(".fixed-fee-input") || element;
+    anchor.insertAdjacentElement("afterend", error);
+    const describedBy = new Set(String(element.getAttribute("aria-describedby") || "").split(/\s+/).filter(Boolean));
+    describedBy.add(errorId);
+    element.setAttribute("aria-describedby", [...describedBy].join(" "));
   });
 }
 
@@ -5512,6 +5570,7 @@ window.azzeraPdfEModulo = function azzeraPdfEModulo() {
   LEAD_STATE.pdfDocuments = [];
   LEAD_STATE.dataOrigin = "manual_input";
   LEAD_STATE.activationAssistant = { pendingUrl: "", offer: null };
+  NUOVA_OFFERTA_AUTOMATICA = null;
   const input = document.getElementById("pdf-static-input");
   const panel = document.getElementById("pdf-review-static");
   const copy = document.getElementById("pdf-review-copy");
@@ -5545,6 +5604,8 @@ window.azzeraPdfEModulo = function azzeraPdfEModulo() {
   if (businessError) businessError.style.display = "none";
   aggiornaAssistenteAttivazioneVisibilita();
   chiudiAssistenteAttivazione();
+  mostraHintNuovaOfferta("");
+  aggiornaTestoPulsanteConfronto();
 };
 
 function setField(id, value) {
@@ -5643,6 +5704,31 @@ function mostraHintNuovaOfferta(message, isError = false) {
   hint.style.display = message ? "block" : "none";
   hint.style.color = isError ? "var(--danger)" : "var(--text-muted)";
   hint.innerText = message || "";
+}
+
+function etichettaFornitoreSelezionato() {
+  const select = document.getElementById("nome-fornitore-nuov");
+  return select?.selectedOptions?.[0]?.textContent?.trim() || "il fornitore selezionato";
+}
+
+function durataOffertaTesto(offerta = {}) {
+  if (offerta.validita) return String(offerta.validita);
+  const match = String(offerta.descrizione || "").match(/\b\d+\s*mesi\b/i);
+  return match ? match[0] : "";
+}
+
+function aggiornaTestoPulsanteConfronto() {
+  const button = document.getElementById("comparison-submit-button");
+  if (!button) return;
+  if (NUOVA_OFFERTA_AUTOMATICA?.offerta) {
+    button.textContent = "Confronta le offerte selezionate";
+    return;
+  }
+  if (nuovaOffertaCompilata()) {
+    button.textContent = "Confronta questa proposta";
+    return;
+  }
+  button.textContent = "Mostra le offerte disponibili";
 }
 
 function offertaCompletaPerProfilo(offerta, attuale) {
@@ -5750,7 +5836,11 @@ function miglioreNuovaOffertaPerFornitore(providerKey, attuale, tipoTariffa, tip
 function cancellaNuovaOffertaAutomatica() {
   if (BLOCCO_AUTOFILL_NUOVA_OFFERTA) return;
   NUOVA_OFFERTA_AUTOMATICA = null;
-  mostraHintNuovaOfferta("");
+  const providerKey = leggiValore("nome-fornitore-nuov", "");
+  mostraHintNuovaOfferta(providerKey
+    ? `Stai inserendo manualmente una proposta di ${etichettaFornitoreSelezionato()}. I valori inseriti sostituiscono l'offerta caricata dal catalogo.`
+    : "");
+  aggiornaTestoPulsanteConfronto();
 }
 
 function applicaOffertaAlBloccoNuovo(offerta, providerKey) {
@@ -5766,7 +5856,10 @@ function applicaOffertaAlBloccoNuovo(offerta, providerKey) {
 
   BLOCCO_AUTOFILL_NUOVA_OFFERTA = false;
   const fonte = offerta.destinationType === "arera" ? "dati ARERA disponibili" : "offerte gia inserite nel calcolatore";
-  mostraHintNuovaOfferta(`Nuova offerta compilata automaticamente: ${offerta.nome} (${fonte}).`);
+  const tipo = offerta.tipo === "variabile" ? "Prezzo variabile" : "Prezzo fisso";
+  const durata = durataOffertaTesto(offerta);
+  mostraHintNuovaOfferta(`Offerte disponibili di ${offerta.provider || etichettaFornitoreSelezionato()}\nOfferta selezionata per il confronto: ${offerta.nome}. ${tipo}${durata ? `, ${durata}` : ""}. Fonte: ${fonte}.\nPuoi modificare i valori sotto oppure inserire manualmente una proposta diversa.`);
+  aggiornaTestoPulsanteConfronto();
 }
 
 function svuotaCampiNuovaOfferta() {
@@ -5774,6 +5867,7 @@ function svuotaCampiNuovaOfferta() {
   ["in-luce-prezzo-nuov", "in-luce-fisso-nuov", "in-gas-prezzo-nuov", "in-gas-fisso-nuov"].forEach(clearField);
   ["in-luce-fisso-nuov-unita", "in-gas-fisso-nuov-unita"].forEach((id) => setField(id, "mese"));
   BLOCCO_AUTOFILL_NUOVA_OFFERTA = false;
+  aggiornaTestoPulsanteConfronto();
 }
 
 function aggiornaNuovaOffertaDaFornitore(options = {}) {
@@ -5784,7 +5878,10 @@ function aggiornaNuovaOffertaDaFornitore(options = {}) {
     if (force) {
       NUOVA_OFFERTA_AUTOMATICA = null;
       svuotaCampiNuovaOfferta();
-      mostraHintNuovaOfferta("");
+      mostraHintNuovaOfferta(providerKey === "altro"
+        ? "Fornitore non presente nel catalogo. Inserisci manualmente i dati della proposta nei campi sotto."
+        : "");
+      aggiornaTestoPulsanteConfronto();
     }
     return false;
   }
@@ -5800,7 +5897,8 @@ function aggiornaNuovaOffertaDaFornitore(options = {}) {
     if (force) {
       NUOVA_OFFERTA_AUTOMATICA = null;
       svuotaCampiNuovaOfferta();
-      mostraHintNuovaOfferta("Per questo fornitore non abbiamo ancora una nuova offerta completa e confrontabile per i consumi inseriti.", true);
+      mostraHintNuovaOfferta(`Offerte disponibili di ${etichettaFornitoreSelezionato()}\nNon abbiamo trovato una proposta completa e coerente con il profilo selezionato. Puoi inserire manualmente prezzi e costi fissi nei campi sotto.`, true);
+      aggiornaTestoPulsanteConfronto();
     }
     return false;
   }
@@ -5826,6 +5924,7 @@ function gasMasterBucket(consumo) {
 }
 
 function applicaDatiPdfAlModulo(data) {
+  NUOVA_OFFERTA_AUTOMATICA = null;
   [
     "in-luce-cons-att", "in-luce-prezzo-att", "in-luce-fisso-att",
     "in-gas-cons-att", "in-gas-prezzo-att", "in-gas-fisso-att",
@@ -5846,6 +5945,7 @@ function applicaDatiPdfAlModulo(data) {
     setField("in-gas-cons-att", PARAMETRI_CALCOLO.profiloMedio.gasConsumoSmc);
     setField("in-gas-prezzo-att", PARAMETRI_CALCOLO.profiloMedio.prezzoGasEurSmc.toFixed(4));
     impostaQuotaFissaAnnua("in-gas-fisso-att", "in-gas-fisso-att-unita", PARAMETRI_CALCOLO.profiloMedio.quotaFissaGasAnnua);
+    aggiornaTestoPulsanteConfronto();
     return;
   }
 
@@ -5866,6 +5966,8 @@ function applicaDatiPdfAlModulo(data) {
       impostaQuotaFissaAnnua("in-gas-fisso-nuov", "in-gas-fisso-nuov-unita", data.quota_fissa_vendita_gas_eur_anno);
       setField("master-luce-tipo", "fisso");
     }
+    mostraHintNuovaOfferta(`Proposta caricata dalla scheda sintetica di ${data.fornitore || "un fornitore"}. Controlla i valori letti e completa gli eventuali dati mancanti.`);
+    aggiornaTestoPulsanteConfronto();
     return;
   }
 
@@ -5884,6 +5986,7 @@ function applicaDatiPdfAlModulo(data) {
     setField("in-gas-prezzo-att", data.prezzo_gas_eur_smc);
     impostaQuotaFissaAnnua("in-gas-fisso-att", "in-gas-fisso-att-unita", data.quota_fissa_vendita_gas_eur_anno);
   }
+  aggiornaTestoPulsanteConfronto();
 }
 
 assicuraSchedeOfferte();
@@ -5939,12 +6042,12 @@ function collegaEventiUX() {
   [...CAMPI_ATTUALI_ESSENZIALI, ...CAMPI_NUOVA_OFFERTA_ESSENZIALI].forEach(({ id }) => {
     const field = document.getElementById(id);
     field?.addEventListener("input", () => {
-      field.classList.remove("calculation-field-missing");
-      field.removeAttribute("aria-invalid");
+      pulisciErroreCampo(field);
     });
   });
   document.getElementById("nome-fornitore-nuov")?.addEventListener("change", () => {
     aggiornaNuovaOffertaDaFornitore({ force: true });
+    aggiornaTestoPulsanteConfronto();
     const risultatiVisibili = document.querySelector(".fornitori-consigliati-section")?.style.display === "block";
     if (risultatiVisibili) avviaComparazioneDati();
   });
@@ -5993,6 +6096,7 @@ function collegaEventiUX() {
     if (event.target?.id === "activation-helper-backdrop") chiudiAssistenteAttivazione();
   });
   aggiornaAssistenteAttivazioneVisibilita();
+  aggiornaTestoPulsanteConfronto();
 
   Promise.all([caricaDatiCalcolo(), caricaOfferteProposte(), caricaOfferteAreraMenu(), caricaProviderBrand()]).then(() => {
     assicuraSchedeOfferte();

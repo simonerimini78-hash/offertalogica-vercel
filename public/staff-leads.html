@@ -14,6 +14,7 @@
             --border: #cbd5e1;
             --primary: #16a34a;
             --danger: #b91c1c;
+            --danger-bg: #fee2e2;
         }
         * { box-sizing: border-box; }
         body { margin: 0; font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: var(--text); }
@@ -22,12 +23,14 @@
         h1 { font-size: 28px; margin: 0 0 4px; }
         p { color: var(--muted); margin: 0; }
         .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px; margin-bottom: 16px; }
-        .controls { display: grid; grid-template-columns: minmax(0, 1fr) 120px auto auto; gap: 10px; align-items: end; }
+        .controls { display: grid; grid-template-columns: minmax(0, 1fr) 120px auto auto auto; gap: 10px; align-items: end; }
         label { display: block; font-size: 13px; font-weight: 800; margin-bottom: 5px; color: #334155; }
         input { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 11px; font-size: 14px; }
         button, .button { border: 0; border-radius: 8px; padding: 11px 14px; font-weight: 900; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
         button { background: var(--primary); color: #fff; }
         .button { background: #e2e8f0; color: var(--text); }
+        button.danger { background: var(--danger); }
+        button.subtle-danger { background: var(--danger-bg); color: var(--danger); padding: 7px 10px; font-size: 12px; }
         .status { margin-top: 10px; font-size: 14px; color: var(--muted); }
         .status.error { color: var(--danger); font-weight: 800; }
         .metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
@@ -43,6 +46,15 @@
         .badge.ok { background: #dcfce7; color: #166534; }
         .badge.warn { background: #fef3c7; color: #92400e; }
         .muted { color: var(--muted); }
+        details { max-width: 420px; margin-top: 7px; }
+        summary { cursor: pointer; color: #166534; font-weight: 800; }
+        .pdf-details { margin-top: 8px; padding: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; }
+        .pdf-details dl { display: grid; grid-template-columns: minmax(120px, auto) 1fr; gap: 4px 10px; margin: 8px 0; }
+        .pdf-details dt { color: var(--muted); }
+        .pdf-details dd { margin: 0; overflow-wrap: anywhere; }
+        .pdf-document { padding-top: 8px; margin-top: 8px; border-top: 1px solid #e2e8f0; }
+        .missing { color: #9a3412; font-weight: 700; }
+        .economic-note { max-width: 210px; }
         @media (max-width: 780px) {
             .shell { padding: 16px; }
             header, .controls { grid-template-columns: 1fr; display: grid; }
@@ -75,6 +87,7 @@
                 </div>
                 <button type="button" onclick="loadLeads()">Aggiorna</button>
                 <button id="csv-button" type="button" class="button">CSV</button>
+                <button id="reset-button" type="button" class="danger">Azzera lead</button>
             </div>
             <div id="status" class="status">Inserisci il token e aggiorna.</div>
         </section>
@@ -95,10 +108,11 @@
                         <th>Offerta scelta</th>
                         <th>Consensi</th>
                         <th>Monetizzazione</th>
+                        <th>Azioni</th>
                     </tr>
                 </thead>
                 <tbody id="rows">
-                    <tr><td colspan="10" class="muted">Nessun dato caricato.</td></tr>
+                    <tr><td colspan="11" class="muted">Nessun dato caricato.</td></tr>
                 </tbody>
             </table>
         </section>
@@ -111,6 +125,8 @@
         const metricsBox = document.getElementById("metrics");
         const rowsBox = document.getElementById("rows");
         const csvButton = document.getElementById("csv-button");
+        const resetButton = document.getElementById("reset-button");
+        let currentLeads = [];
 
         function tokenFromHash() {
             const hash = new URLSearchParams(String(location.hash || "").replace(/^#/, ""));
@@ -154,16 +170,110 @@
 
         function renderMetrics(summary = {}) {
             metricsBox.innerHTML = `
-                <div class="metric"><strong>${summary.recentRows || 0}</strong><span>Lead recenti caricati</span></div>
+                <div class="metric"><strong>${summary.recentRows || 0}</strong><span>Contatti presenti</span></div>
+                <div class="metric"><strong>${summary.verifiedRows || 0}</strong><span>Numeri verificati con OTP</span></div>
                 <div class="metric"><strong>${summary.withSelectedOffer || 0}</strong><span>Con offerta scelta</span></div>
-                <div class="metric"><strong>${summary.withPartnerConsent || 0}</strong><span>Con consenso partner</span></div>
-                <div class="metric"><strong>${euro(summary.expectedCommission || 0)}</strong><span>Commissioni potenziali recenti</span></div>
+                <div class="metric"><strong>${euro(summary.confirmedRevenue || 0)}</strong><span>Entrate confermate, non semplici click</span></div>
             `;
+        }
+
+        function hasValue(value) {
+            return value !== null && value !== undefined && value !== "";
+        }
+
+        const pdfLabels = [
+            ["fornitore", "Fornitore"],
+            ["commodity", "Fornitura"],
+            ["consumo_luce_kwh", "Consumo luce annuo"],
+            ["prezzo_luce_eur_kwh", "Prezzo luce"],
+            ["quota_fissa_vendita_luce_eur_anno", "Quota fissa luce annua"],
+            ["consumo_gas_smc", "Consumo gas annuo"],
+            ["prezzo_gas_eur_smc", "Prezzo gas"],
+            ["quota_fissa_vendita_gas_eur_anno", "Quota fissa gas annua"],
+            ["potenza_impegnata_kw", "Potenza impegnata"],
+            ["pod", "POD"],
+            ["pdr", "PDR"],
+            ["textExtracted", "Caratteri letti dal PDF"],
+        ];
+
+        function pdfValue(key, value) {
+            if (!hasValue(value)) return "";
+            const units = {
+                consumo_luce_kwh: " kWh/anno",
+                prezzo_luce_eur_kwh: " euro/kWh",
+                quota_fissa_vendita_luce_eur_anno: " euro/anno",
+                consumo_gas_smc: " Smc/anno",
+                prezzo_gas_eur_smc: " euro/Smc",
+                quota_fissa_vendita_gas_eur_anno: " euro/anno",
+                potenza_impegnata_kw: " kW",
+            };
+            return `${value}${units[key] || ""}`;
+        }
+
+        function renderPdfFields(data = {}) {
+            const rows = pdfLabels
+                .filter(([key]) => hasValue(data[key]))
+                .map(([key, label]) => `<dt>${escapeHtml(label)}</dt><dd>${escapeHtml(pdfValue(key, data[key]))}</dd>`)
+                .join("");
+            return rows ? `<dl>${rows}</dl>` : `<span class="muted">Nessun campo tecnico estratto.</span>`;
+        }
+
+        function missingPdfFields(data = {}) {
+            const commodity = String(data.commodity || "").toLowerCase();
+            const required = [];
+            if (["luce", "dual"].includes(commodity) || hasValue(data.consumo_luce_kwh)) {
+                required.push(["consumo_luce_kwh", "consumo luce"], ["prezzo_luce_eur_kwh", "prezzo luce"], ["quota_fissa_vendita_luce_eur_anno", "quota fissa luce"]);
+            }
+            if (["gas", "dual"].includes(commodity) || hasValue(data.consumo_gas_smc)) {
+                required.push(["consumo_gas_smc", "consumo gas"], ["prezzo_gas_eur_smc", "prezzo gas"], ["quota_fissa_vendita_gas_eur_anno", "quota fissa gas"]);
+            }
+            return required.filter(([key]) => !hasValue(data[key])).map(([, label]) => label);
+        }
+
+        function renderPdfDetails(lead) {
+            const documents = Array.isArray(lead.pdfDocuments) ? lead.pdfDocuments : [];
+            if (!documents.length) return `<span class="muted">Nessun PDF associato</span>`;
+            const merged = lead.pdfData || {};
+            const docs = documents.map((doc, index) => {
+                const missing = missingPdfFields(doc);
+                return `
+                    <div class="pdf-document">
+                        <strong>Documento ${index + 1}: ${escapeHtml(doc.filename || "senza nome")}</strong>
+                        ${doc.error ? `<div class="missing">${escapeHtml(doc.error)}</div>` : renderPdfFields(doc)}
+                        ${missing.length ? `<div class="missing">Non letti: ${escapeHtml(missing.join(", "))}</div>` : ""}
+                    </div>
+                `;
+            }).join("");
+            return `
+                <details>
+                    <summary>Dati bolletta (${documents.length})</summary>
+                    <div class="pdf-details">
+                        <strong>Dati finali usati dal modulo</strong>
+                        ${renderPdfFields(merged)}
+                        ${docs}
+                        <button type="button" class="button copy-pdf" data-copy-id="${escapeHtml(lead.id)}" style="margin-top:10px; padding:7px 10px; font-size:12px;">Copia dati tecnici</button>
+                    </div>
+                </details>
+            `;
+        }
+
+        function monetizationLabel(monetization = {}) {
+            const status = String(monetization.status || "");
+            if (["commission_approved", "commission_confirmed", "paid", "pagato"].includes(status.toLowerCase())) {
+                return `<span class="badge ok">Entrata confermata</span><br>${escapeHtml(euro(monetization.expectedCommission))}`;
+            }
+            if (status === "ready_to_redirect") {
+                return `<span class="badge warn">Click verso il fornitore</span><div class="muted economic-note">Attivazione e commissione non ancora confermate.</div>`;
+            }
+            if (status === "partner_request_recorded") {
+                return `<span class="badge warn">Richiesta registrata</span><div class="muted economic-note">Non e una vendita confermata.</div>`;
+            }
+            return `<span class="muted">Nessuna entrata confermata</span>`;
         }
 
         function renderRows(leads = []) {
             if (!leads.length) {
-                rowsBox.innerHTML = `<tr><td colspan="10" class="muted">Nessun lead trovato.</td></tr>`;
+                rowsBox.innerHTML = `<tr><td colspan="11" class="muted">Nessun lead trovato.</td></tr>`;
                 return;
             }
             rowsBox.innerHTML = leads.map((lead) => {
@@ -185,11 +295,13 @@
                             <br><span class="muted">PDF: ${escapeHtml(lead.pdfDocumentCount ?? 0)}</span>
                             <br><span class="muted">${escapeHtml(current.provider || "")} ${escapeHtml(current.luceConsumoKwh || "")} kWh ${escapeHtml(current.gasConsumoSmc || "")} Smc</span>
                             <br><span class="muted">${escapeHtml(profile.tipoPrezzo || "")} ${escapeHtml(profile.tipoFornitura || "")}</span>
+                            ${renderPdfDetails(lead)}
                         </td>
                         <td>${escapeHtml(euro(lead.bestSaving))}</td>
                         <td>${escapeHtml(offer.provider || "")}<br><strong>${escapeHtml(offer.name || "")}</strong><br><span class="muted">${escapeHtml(offer.destinationStatus || "")}</span></td>
                         <td><span class="badge ${consentClass}">servizio ${consents.service ? "si" : "no"}</span><br><span class="badge ${consentClass}">partner ${consents.partners ? "si" : "no"}</span></td>
-                        <td>${escapeHtml(monetization.status || "")}<br><span class="muted">${escapeHtml(monetization.network || "")} ${escapeHtml(euro(monetization.expectedCommission))}</span></td>
+                        <td>${monetizationLabel(monetization)}${hasValue(monetization.expectedCommission) ? `<br><span class="muted">Potenziale: ${escapeHtml(euro(monetization.expectedCommission))}</span>` : ""}</td>
+                        <td><button type="button" class="subtle-danger delete-lead" data-lead-id="${escapeHtml(lead.id)}">Elimina</button></td>
                     </tr>
                 `;
             }).join("");
@@ -210,12 +322,74 @@
                 const data = await response.json();
                 if (!response.ok || !data.ok) throw new Error(data.error || data.status || "Errore caricamento");
                 renderMetrics(data.summary);
+                currentLeads = data.leads || [];
                 renderRows(data.leads);
                 setStatus(`Aggiornato: ${formatDate(data.checkedAt)}. Database: ${data.status}.`);
             } catch (error) {
                 renderMetrics({});
+                currentLeads = [];
                 renderRows([]);
                 setStatus(error.message || "Errore caricamento", true);
+            }
+        }
+
+        async function deleteRequest(url, confirmation) {
+            const token = tokenInput.value.trim();
+            if (!token) throw new Error("Token staff mancante.");
+            const response = await fetch(url, {
+                method: "DELETE",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "X-Staff-Confirmation": confirmation,
+                },
+            });
+            const data = await response.json();
+            if (!response.ok || !data.ok) throw new Error(data.error || data.status || "Eliminazione non riuscita");
+            return data;
+        }
+
+        async function deleteLead(id) {
+            const lead = currentLeads.find((item) => item.id === id);
+            const label = lead?.name || id;
+            if (!window.confirm(`Eliminare definitivamente il contatto ${label}? L'operazione non si puo annullare.`)) return;
+            setStatus("Eliminazione contatto...");
+            try {
+                await deleteRequest(`/api/staff-leads?id=${encodeURIComponent(id)}`, "ELIMINA_LEAD");
+                await loadLeads();
+                setStatus(`Contatto ${label} eliminato.`);
+            } catch (error) {
+                setStatus(error.message || "Eliminazione non riuscita", true);
+            }
+        }
+
+        async function resetLeads() {
+            const confirmation = window.prompt("Questa operazione elimina tutti i contatti e i relativi eventi collegati. Gli analytics anonimi restano. Scrivi AZZERA per continuare.");
+            if (confirmation !== "AZZERA") {
+                if (confirmation !== null) setStatus("Azzeramento annullato: conferma non corretta.", true);
+                return;
+            }
+            setStatus("Azzeramento archivio lead...");
+            resetButton.disabled = true;
+            try {
+                const data = await deleteRequest("/api/staff-leads?scope=all", "AZZERA_LEAD");
+                await loadLeads();
+                setStatus(`Archivio lead azzerato. Contatti rimossi: ${data.deletedCount || 0}.`);
+            } catch (error) {
+                setStatus(error.message || "Azzeramento non riuscito", true);
+            } finally {
+                resetButton.disabled = false;
+            }
+        }
+
+        async function copyPdfData(id) {
+            const lead = currentLeads.find((item) => item.id === id);
+            if (!lead) return;
+            const content = JSON.stringify({ pdfData: lead.pdfData || {}, pdfDocuments: lead.pdfDocuments || [] }, null, 2);
+            try {
+                await navigator.clipboard.writeText(content);
+                setStatus("Dati tecnici PDF copiati.");
+            } catch {
+                setStatus("Copia non riuscita: apri il dettaglio e seleziona i dati manualmente.", true);
             }
         }
 
@@ -248,6 +422,13 @@
         }
 
         csvButton.addEventListener("click", downloadCsv);
+        resetButton.addEventListener("click", resetLeads);
+        rowsBox.addEventListener("click", (event) => {
+            const deleteButton = event.target.closest(".delete-lead");
+            if (deleteButton) deleteLead(deleteButton.dataset.leadId || "");
+            const copyButton = event.target.closest(".copy-pdf");
+            if (copyButton) copyPdfData(copyButton.dataset.copyId || "");
+        });
 
         const initialToken = tokenFromHash();
         if (initialToken) {

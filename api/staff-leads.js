@@ -1,5 +1,6 @@
-import { json, method } from "../lib/http.js";
-import { listCustomerLeads } from "../lib/customerDb.js";
+import { json, method, requireAllowedOrigin } from "../lib/http.js";
+import { deleteCustomerLeads, listCustomerLeads } from "../lib/customerDb.js";
+import { del } from "../lib/store.js";
 
 function requestToken(req) {
   const auth = String(req.headers.authorization || "");
@@ -36,6 +37,13 @@ function toCsv(leads) {
     "currentProvider",
     "luceConsumoKwh",
     "gasConsumoSmc",
+    "lucePrezzoEurKwh",
+    "gasPrezzoEurSmc",
+    "quotaFissaLuceAnnua",
+    "quotaFissaGasAnnua",
+    "potenzaKw",
+    "pod",
+    "pdr",
     "tipoPrezzo",
     "tipoFornitura",
     "bestSaving",
@@ -63,6 +71,13 @@ function toCsv(leads) {
     currentProvider: lead.currentSupply?.provider || "",
     luceConsumoKwh: lead.currentSupply?.luceConsumoKwh ?? "",
     gasConsumoSmc: lead.currentSupply?.gasConsumoSmc ?? "",
+    lucePrezzoEurKwh: lead.currentSupply?.lucePrezzoEurKwh ?? "",
+    gasPrezzoEurSmc: lead.currentSupply?.gasPrezzoEurSmc ?? "",
+    quotaFissaLuceAnnua: lead.currentSupply?.quotaFissaLuceAnnua ?? "",
+    quotaFissaGasAnnua: lead.currentSupply?.quotaFissaGasAnnua ?? "",
+    potenzaKw: lead.comparisonProfile?.potenzaKw ?? lead.pdfData?.potenza_impegnata_kw ?? "",
+    pod: lead.pdfData?.pod || "",
+    pdr: lead.pdfData?.pdr || "",
     tipoPrezzo: lead.comparisonProfile?.tipoPrezzo || "",
     tipoFornitura: lead.comparisonProfile?.tipoFornitura || "",
     bestSaving: lead.bestSaving,
@@ -83,11 +98,34 @@ function toCsv(leads) {
 }
 
 export default async function handler(req, res) {
-  if (!method(req, res, ["GET"])) return;
+  if (!method(req, res, ["GET", "DELETE"])) return;
   const authorizedBy = isAuthorized(req);
   if (!authorizedBy) return json(res, 404, { ok: false, error: "Not found" });
 
   const url = new URL(req.url || "/api/staff-leads", `https://${req.headers.host || "offertalogica.it"}`);
+  if (req.method === "DELETE") {
+    if (authorizedBy !== "staff") return json(res, 403, { ok: false, error: "Operazione riservata al token staff" });
+    if (!requireAllowedOrigin(req, res)) return;
+
+    const id = String(url.searchParams.get("id") || "").trim();
+    const resetAll = url.searchParams.get("scope") === "all";
+    const expectedConfirmation = resetAll ? "AZZERA_LEAD" : "ELIMINA_LEAD";
+    const confirmation = String(req.headers["x-staff-confirmation"] || "").trim();
+    if (confirmation !== expectedConfirmation || (!id && !resetAll)) {
+      return json(res, 400, { ok: false, error: "Conferma eliminazione non valida" });
+    }
+
+    const result = await deleteCustomerLeads({ id, all: resetAll });
+    if (result.ok) {
+      await Promise.allSettled((result.deletedIds || []).map((leadId) => del(`lead:${leadId}`)));
+    }
+    return json(res, result.ok ? 200 : 500, {
+      ...result,
+      authorizedBy,
+      checkedAt: new Date().toISOString(),
+    });
+  }
+
   const limit = url.searchParams.get("limit") || 50;
   const format = String(url.searchParams.get("format") || "json").toLowerCase();
   const result = await listCustomerLeads({ limit });

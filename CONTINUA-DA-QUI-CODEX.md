@@ -33,6 +33,10 @@ Il progetto gira su GitHub + Vercel con dominio `offertalogica.it`.
 
 Il pacchetto completo di riferimento lato progetto e:
 
+`offertalogica-v74-staff-nuova-offerta-chiara-20260714`
+
+Base calcolatore stabile da cui deriva v74:
+
 `offertalogica-v72-pdf-dolomiti-quota-fissa-20260714`
 
 Base calcolatore stabile precedente:
@@ -76,6 +80,52 @@ Ultimi zip incrementali importanti generati dopo la base completa:
 - `offertalogica-v70-pdf-quote-fisse-mese-anno-20260714.zip`
 - `offertalogica-v71-blocco-risparmio-incompleto-20260714.zip`
 - `offertalogica-v72-pdf-dolomiti-quota-fissa-20260714.zip`
+- `offertalogica-v74-staff-nuova-offerta-chiara-20260714-incrementale.zip`
+
+## Punto v74 - gestione lead staff e nuova offerta piu chiara
+
+Interventi completati:
+
+- la pagina staff consente di eliminare un singolo contatto o azzerare tutti i lead;
+- l'azzeramento richiede la conferma testuale `AZZERA`, e le API di cancellazione accettano soltanto il token staff, non il token health;
+- quando si azzerano i lead vengono eliminati anche gli eventi collegati ai contatti, mentre gli analytics anonimi restano;
+- un click verso il fornitore o una richiesta registrata non viene conteggiata come entrata;
+- le entrate vengono sommate soltanto con stato commissione confermata/approvata o pagata;
+- la pagina staff mostra, per ogni documento, i dati tecnici PDF normalizzati gia salvati nel lead e segnala quelli non letti;
+- il PDF originale e il testo integrale non vengono archiviati ne esposti: restano solo i campi tecnici necessari a migliorare il lettore;
+- la sezione `Nuova Offerta (Facoltativa)` e stata rinominata `Confronta un'offerta o un fornitore specifico`, mantenendo il badge secondario `Facoltativo`;
+- sono spiegati senza nuovi passaggi i tre usi esistenti: fornitore, scheda sintetica e inserimento manuale;
+- menu fornitore, stato dell'offerta caricata e testo del pulsante finale sono piu chiari;
+- i campi non validi mantengono bordo rosso e focus automatico, ma ora mostrano anche un messaggio testuale specifico accessibile;
+- su schermi stretti le colonne della sola sezione facoltativa vengono impilate per evitare compressioni.
+
+Cosa non e stato toccato:
+
+- formule, prezzi, dati ARERA, regola ARERA-first e ranking;
+- offerte partner e consulente, link affiliati e loghi;
+- parser PDF, OTP, consensi, flussi Privato/Azienda e percorso dati medi;
+- schema Supabase e raccolta pubblica dei lead.
+
+File modificati in v74:
+
+- `api/staff-leads.js`;
+- `lib/customerDb.js`;
+- `public/staff-leads.html`;
+- `public/index.html`;
+- `CONTINUA-DA-QUI-CODEX.md`.
+
+Verifiche v74:
+
+- sintassi API, libreria e script inline: OK;
+- ID HTML univoci e associazioni label/campo: OK;
+- test simulato lettura dati PDF staff, ricavi confermati, eliminazione singola e azzeramento: OK;
+- token health rifiutato per DELETE e token staff autorizzato: OK;
+- `npm run validate:calculator`: OK;
+- `npm run verify:offers`: OK, 0 errori, 0 warning e 0 partner warning.
+
+Nota di sicurezza:
+
+- se un valore di `STAFF_PREVIEW_TOKEN` e stato incollato in una chat o in uno screenshot, sostituirlo in Vercel e fare un redeploy prima di usare la funzione di cancellazione.
 
 ## Punto v72 - quota fissa Dolomiti e bollette separate
 
