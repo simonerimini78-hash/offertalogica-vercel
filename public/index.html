@@ -5096,24 +5096,17 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
   }
   if (sendBtn) {
     sendBtn.style.display = "inline-block";
-    sendBtn.innerText = staffModeAttiva() ? "Sblocca in modalita staff" : "Invia il codice di verifica";
+    sendBtn.innerText = "Invia il codice di verifica";
   }
   if (verifyBtn) {
     verifyBtn.style.display = "none";
-    verifyBtn.innerText = staffModeAttiva() ? "Verifica staff e mostra le offerte" : "Verifica e mostra le offerte";
+    verifyBtn.innerText = "Verifica e mostra le offerte";
   }
   if (title) {
-    title.innerText = staffModeAttiva()
-      ? "Verifica staff senza salvataggio"
-      : "Verifica il numero e visualizza il confronto";
+    title.innerText = "Verifica il numero e visualizza il confronto";
   }
   if (copy) {
-    const saving = LEAD_STATE.bestSaving > 0 ? ` Abbiamo stimato fino a ${euro(LEAD_STATE.bestSaving)} / anno di risparmio potenziale.` : "";
-    if (staffModeAttiva()) {
-      copy.innerText = `Percorso di controllo interno: puoi verificare calcolo, popup, offerte e landing senza creare lead, senza database e senza webhook.${saving}`;
-    } else {
-      copy.innerText = "Inserisci i tuoi dati per ricevere il codice di verifica.\nNessun dato sarà inviato a un fornitore finché non sceglierai un'offerta.";
-    }
+    copy.innerText = "Inserisci i tuoi dati per ricevere il codice di verifica.\nNessun dato sarà inviato a un fornitore finché non sceglierai un'offerta.";
   }
   if (partnerCopy) {
     if (source === "business") {
@@ -5125,7 +5118,7 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
   modal.style.display = "flex";
   trackEvent("lead_modal_opened", { leadSource: source });
   leadStatus(staffModeAttiva()
-    ? "Modalita staff attiva: premi il pulsante verde e usa il codice 000000. Nessun dato viene salvato."
+    ? "Modalita staff attiva: premi “Invia il codice di verifica” e usa il codice 000000. Nessun dato viene salvato."
     : "");
 };
 

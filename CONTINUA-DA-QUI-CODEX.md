@@ -26,6 +26,17 @@ Prima di modificare codice usa sempre questo schema:
 - Come verifico che funzioni.
 
 
+## Aggiornamento v81 - popup OTP staff identico alla pagina pubblica
+
+Modifiche applicate in `public/index.html`:
+
+- la modalita staff mostra ora lo stesso titolo, lo stesso testo introduttivo, gli stessi consensi e le stesse CTA del popup OTP pubblico;
+- rimossi dal contenuto principale del popup i testi alternativi `Verifica staff senza salvataggio`, `Sblocca in modalita staff` e `Verifica staff e mostra le offerte`;
+- la natura di anteprima resta comunicata separatamente dal banner staff e dal messaggio di stato, senza sostituire i contenuti che vedra l'utente finale;
+- il messaggio staff non fa piu riferimento al colore del pulsante e indica direttamente `Invia il codice di verifica` e il codice di prova `000000`.
+
+Non sono state modificate logica OTP, modalita senza salvataggio, consensi, API, tracciamento, offerte o calcoli.
+
 
 ## Aggiornamento v80 - popup OTP e CTA senza linguaggio “sblocca”
 
@@ -78,11 +89,11 @@ Il progetto gira su GitHub + Vercel con dominio `offertalogica.it`.
 
 Il pacchetto incrementale piu recente lato progetto e:
 
-`offertalogica-v80-popup-otp-cta-verifica-20260714`
+`offertalogica-v81-staff-popup-otp-coerente-20260714`
 
 Base immediatamente precedente:
 
-`offertalogica-v79-messaggio-pdf-coerente-20260714`
+`offertalogica-v80-popup-otp-cta-verifica-20260714`
 
 Il pacchetto completo di riferimento lato progetto resta:
 
