@@ -63,6 +63,7 @@
         .input-group label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; font-weight: 600; }
         .input-guidance { display: block; min-height: 25px; margin: -1px 0 5px; color: #64748b; font-size: 10px; line-height: 1.25; }
         .input-group input { background: #f8fafc; border: 1px solid var(--border); border-radius: 6px; padding: 8px; color: var(--text-color); font-size: 13px; }
+        .calculation-field-missing { border-color: #dc2626 !important; box-shadow: 0 0 0 2px rgba(220,38,38,.12) !important; }
         .fixed-fee-input { display: grid; grid-template-columns: minmax(0, 1fr) 88px; gap: 6px; }
         .fixed-fee-input input { min-width: 0; width: 100%; box-sizing: border-box; }
         .fixed-fee-input select { width: 100%; box-sizing: border-box; background: #f8fafc; border: 1px solid var(--border); border-radius: 6px; padding: 8px 5px; color: var(--text-color); font-size: 12px; }
@@ -1525,17 +1526,17 @@
                 <div class="column-energy">
                     <h4>⚡ LUCE</h4>
                     <div class="input-group">
-                        <label>Consumo Annuo (kWh)</label>
+                        <label>Quanta luce usi in un anno? (kWh)</label>
                         <input type="number" id="in-luce-cons-att" placeholder="Es. 2700">
                     </div>
                     <div class="input-group">
-                        <label>Prezzo vendita (€/kWh)</label>
-                        <small class="input-guidance">In bolletta: Quota per consumi, riga "di cui spesa per la vendita".</small>
+                        <label>Quanto paghi la luce? (€/kWh)</label>
+                        <small class="input-guidance">Cerca in bolletta: "di cui spesa per la vendita".</small>
                         <input type="number" id="in-luce-prezzo-att" step="0.0001" placeholder="Es. 0.1450">
                     </div>
                     <div class="input-group">
-                        <label>Quota fissa vendita</label>
-                        <small class="input-guidance">Copia il valore e seleziona l'unita indicata in bolletta.</small>
+                        <label>Costo fisso della bolletta luce</label>
+                        <small class="input-guidance">Inserisci il valore e scegli se e mensile o annuale.</small>
                         <div class="fixed-fee-input">
                             <input type="number" id="in-luce-fisso-att" step="0.01" placeholder="Es. 12">
                             <select id="in-luce-fisso-att-unita" aria-label="Unita quota fissa luce attuale">
@@ -1549,17 +1550,17 @@
                 <div class="column-energy">
                     <h4>🔥 GAS</h4>
                     <div class="input-group">
-                        <label>Consumo Annuo (Smc)</label>
+                        <label>Quanto gas usi in un anno? (Smc)</label>
                         <input type="number" id="in-gas-cons-att" placeholder="Es. 1000">
                     </div>
                     <div class="input-group">
-                        <label>Prezzo vendita (€/Smc)</label>
-                        <small class="input-guidance">In bolletta: Quota per consumi, riga "di cui spesa per la vendita".</small>
+                        <label>Quanto paghi il gas? (€/Smc)</label>
+                        <small class="input-guidance">Cerca in bolletta: "di cui spesa per la vendita".</small>
                         <input type="number" id="in-gas-prezzo-att" step="0.0001" placeholder="Es. 0.6500">
                     </div>
                     <div class="input-group">
-                        <label>Quota fissa vendita</label>
-                        <small class="input-guidance">Copia il valore e seleziona l'unita indicata in bolletta.</small>
+                        <label>Costo fisso della bolletta gas</label>
+                        <small class="input-guidance">Inserisci il valore e scegli se e mensile o annuale.</small>
                         <div class="fixed-fee-input">
                             <input type="number" id="in-gas-fisso-att" step="0.01" placeholder="Es. 12">
                             <select id="in-gas-fisso-att-unita" aria-label="Unita quota fissa gas attuale">
@@ -1617,17 +1618,17 @@
                 <div class="column-energy">
                     <h4>⚡ LUCE</h4>
                     <div class="input-group">
-                        <label>Consumo Annuo (kWh)</label>
+                        <label>Consumo annuo luce (kWh)</label>
                         <input type="number" id="in-luce-cons-nuov" placeholder="Es. 2700">
                     </div>
                     <div class="input-group">
-                        <label>Prezzo vendita (€/kWh)</label>
-                        <small class="input-guidance">Nell'offerta: corrispettivo energia o prezzo della componente vendita.</small>
+                        <label>Prezzo della nuova offerta luce (€/kWh)</label>
+                        <small class="input-guidance">Cerca nell'offerta: prezzo energia o componente vendita.</small>
                         <input type="number" id="in-luce-prezzo-nuov" step="0.0001" placeholder="Es. 0.1450">
                     </div>
                     <div class="input-group">
-                        <label>Quota fissa vendita</label>
-                        <small class="input-guidance">Copia il valore e seleziona l'unita indicata nell'offerta.</small>
+                        <label>Costo fisso della nuova offerta luce</label>
+                        <small class="input-guidance">Inserisci il valore e scegli se e mensile o annuale.</small>
                         <div class="fixed-fee-input">
                             <input type="number" id="in-luce-fisso-nuov" step="0.01" placeholder="Es. 12">
                             <select id="in-luce-fisso-nuov-unita" aria-label="Unita quota fissa luce nuova offerta">
@@ -1641,17 +1642,17 @@
                 <div class="column-energy">
                     <h4>🔥 GAS</h4>
                     <div class="input-group">
-                        <label>Consumo Annuo (Smc)</label>
+                        <label>Consumo annuo gas (Smc)</label>
                         <input type="number" id="in-gas-cons-nuov" placeholder="Es. 1000">
                     </div>
                     <div class="input-group">
-                        <label>Prezzo vendita (€/Smc)</label>
-                        <small class="input-guidance">Nell'offerta: corrispettivo gas o prezzo della componente vendita.</small>
+                        <label>Prezzo della nuova offerta gas (€/Smc)</label>
+                        <small class="input-guidance">Cerca nell'offerta: prezzo gas o componente vendita.</small>
                         <input type="number" id="in-gas-prezzo-nuov" step="0.0001" placeholder="Es. 0.6500">
                     </div>
                     <div class="input-group">
-                        <label>Quota fissa vendita</label>
-                        <small class="input-guidance">Copia il valore e seleziona l'unita indicata nell'offerta.</small>
+                        <label>Costo fisso della nuova offerta gas</label>
+                        <small class="input-guidance">Inserisci il valore e scegli se e mensile o annuale.</small>
                         <div class="fixed-fee-input">
                             <input type="number" id="in-gas-fisso-nuov" step="0.01" placeholder="Es. 12">
                             <select id="in-gas-fisso-nuov-unita" aria-label="Unita quota fissa gas nuova offerta">
@@ -2810,6 +2811,56 @@ function leggiValore(id, fallback = "") {
   return document.getElementById(id)?.value || fallback;
 }
 
+const CAMPI_ATTUALI_ESSENZIALI = [
+  { id: "in-luce-cons-att", label: "consumo annuo della luce", zeroAmmesso: false },
+  { id: "in-luce-prezzo-att", label: "prezzo della luce", zeroAmmesso: false },
+  { id: "in-luce-fisso-att", label: "costo fisso della luce", zeroAmmesso: true },
+  { id: "in-gas-cons-att", label: "consumo annuo del gas", zeroAmmesso: false },
+  { id: "in-gas-prezzo-att", label: "prezzo del gas", zeroAmmesso: false },
+  { id: "in-gas-fisso-att", label: "costo fisso del gas", zeroAmmesso: true },
+];
+
+const CAMPI_NUOVA_OFFERTA_ESSENZIALI = [
+  { id: "in-luce-prezzo-nuov", label: "prezzo vendita luce della nuova offerta", zeroAmmesso: false },
+  { id: "in-luce-fisso-nuov", label: "quota fissa luce della nuova offerta", zeroAmmesso: true },
+  { id: "in-gas-prezzo-nuov", label: "prezzo vendita gas della nuova offerta", zeroAmmesso: false },
+  { id: "in-gas-fisso-nuov", label: "quota fissa gas della nuova offerta", zeroAmmesso: true },
+];
+
+function statoCampoNumerico(config) {
+  const element = document.getElementById(config.id);
+  const raw = element ? String(element.value || "").trim().replace(",", ".") : "";
+  const value = raw === "" ? NaN : Number(raw);
+  const valido = Number.isFinite(value) && (config.zeroAmmesso ? value >= 0 : value > 0);
+  return { ...config, element, raw, value, valido };
+}
+
+function campiMancanti(configurazioni) {
+  return configurazioni.map(statoCampoNumerico).filter((campo) => !campo.valido);
+}
+
+function pulisciSegnalazioniDatiMancanti() {
+  [...CAMPI_ATTUALI_ESSENZIALI, ...CAMPI_NUOVA_OFFERTA_ESSENZIALI].forEach(({ id }) => {
+    const element = document.getElementById(id);
+    element?.classList.remove("calculation-field-missing");
+    element?.removeAttribute("aria-invalid");
+  });
+}
+
+function segnalaCampiMancanti(mancanti) {
+  mancanti.forEach(({ element }) => {
+    element?.classList.add("calculation-field-missing");
+    element?.setAttribute("aria-invalid", "true");
+  });
+}
+
+function elencoSempliceCampi(mancanti) {
+  const labels = mancanti.map(({ label }) => label);
+  if (labels.length <= 1) return labels[0] || "un dato necessario";
+  if (labels.length === 2) return `${labels[0]} e ${labels[1]}`;
+  return `${labels.slice(0, -1).join(", ")} e ${labels.at(-1)}`;
+}
+
 function quotaFissaAnnuaDaCampo(inputId, unitaId) {
   const valore = leggiNumero(inputId, 0);
   return leggiValore(unitaId, "anno") === "mese" ? valore * 12 : valore;
@@ -3108,20 +3159,43 @@ function descriviAmbitoConfronto(offerta) {
   return "profilo selezionato";
 }
 
-function mostraErroreDatiMancanti() {
+function mostraErroreDatiMancanti(mancanti, contesto = "fornitura attuale") {
   const areaRisultati = document.getElementById("results-area");
+  const titolo = document.getElementById("verdetto-titolo");
   const badgeNumero = document.getElementById("verdetto-numero");
   const testoDescrizione = document.getElementById("verdetto-testo");
   const btnAttiva = document.getElementById("btn-attiva-subito");
   const scatolaVerdetto = document.querySelector(".verdetto-box");
+  const comparazione = document.getElementById("comparazione-dettaglio-costi");
+  const offerte = document.querySelector(".fornitori-consigliati-section");
+  const teaser = document.getElementById("lead-teaser");
 
   if (areaRisultati) areaRisultati.style.display = "flex";
-  if (scatolaVerdetto) scatolaVerdetto.className = "verdetto-box";
-  if (badgeNumero) badgeNumero.innerText = "Dati Mancanti";
+  if (scatolaVerdetto) scatolaVerdetto.className = "verdetto-box warning";
+  if (titolo) titolo.innerText = "Completa i dati";
+  if (badgeNumero) {
+    badgeNumero.innerText = "Dati mancanti";
+    badgeNumero.style.display = "inline-block";
+  }
   if (testoDescrizione) {
-    testoDescrizione.innerText = "Per favore, inserisci almeno il 'Prezzo Spesa' della Luce o del Gas nel modulo della tua Fornitura Attuale (a sinistra) per poter elaborare un calcolo del risparmio certosino.";
+    testoDescrizione.innerText = mancanti.length <= 2
+      ? `Per calcolare il risparmio ci manca: ${elencoSempliceCampi(mancanti)}.`
+      : "Alcuni dati della bolletta non sono completi. Compila le caselle evidenziate in rosso.";
   }
   if (btnAttiva) btnAttiva.style.display = "none";
+  if (comparazione) comparazione.remove();
+  if (offerte) offerte.style.display = "none";
+  if (teaser) teaser.style.display = "none";
+  LEAD_STATE.bestSaving = 0;
+  segnalaCampiMancanti(mancanti);
+  window.setTimeout(() => {
+    mancanti[0]?.element?.scrollIntoView({ behavior: "smooth", block: "center" });
+    mancanti[0]?.element?.focus({ preventScroll: true });
+  }, 50);
+  trackEvent("comparison_incomplete_data", {
+    context: contesto,
+    missingFields: mancanti.map(({ id }) => id),
+  });
 }
 
 function aggiornaVerdetto(differenzaNuova) {
@@ -4343,6 +4417,7 @@ function aggiornaConsumiDaMasterSeMedia() {
 
 window.avviaComparazioneDati = function avviaComparazioneDati() {
   aggiornaConsumiDaMasterSeMedia();
+  pulisciSegnalazioniDatiMancanti();
 
   const tipoTariffa = leggiValore("master-luce-tipo", "fisso");
   const tipoFornitura = leggiValore("master-tipo-fornitura", "dual");
@@ -4353,19 +4428,27 @@ window.avviaComparazioneDati = function avviaComparazioneDati() {
     ...leggiProfiloComparazione(),
   });
 
-  if (attuale.luce.prezzoVariabile === 0 && attuale.gas.prezzoVariabile === 0) {
+  const mancantiAttuale = campiMancanti(CAMPI_ATTUALI_ESSENZIALI);
+  if (mancantiAttuale.length) {
     trackEvent("comparison_missing_current_price", {
       tipoPrezzo: tipoTariffa,
       tipoFornitura,
+      missingFields: mancantiAttuale.map(({ id }) => id),
     });
-    mostraErroreDatiMancanti();
+    mostraErroreDatiMancanti(mancantiAttuale, "fornitura attuale");
     return;
   }
 
   const nuova = leggiNuovaOfferta(attuale);
+  const nuovaIniziata = nuovaOffertaCompilata();
+  const mancantiNuova = nuovaIniziata ? campiMancanti(CAMPI_NUOVA_OFFERTA_ESSENZIALI) : [];
+  if (mancantiNuova.length) {
+    mostraErroreDatiMancanti(mancantiNuova, "nuova offerta");
+    return;
+  }
   const tipoTariffaNuova = NUOVA_OFFERTA_AUTOMATICA?.offerta?.tipo || tipoTariffa;
   const confrontoNuova = calcolaDifferenza(attuale, nuova, tipoTariffa, tipoTariffaNuova);
-  const haNuovaOfferta = nuovaOffertaCompilata() && nuovaOffertaComparabile(attuale, nuova);
+  const haNuovaOfferta = nuovaIniziata && nuovaOffertaComparabile(attuale, nuova);
   const areaRisultati = document.getElementById("results-area");
 
   if (areaRisultati) {
@@ -5853,6 +5936,13 @@ function collegaEventiUX() {
 
   luceAtt?.addEventListener("input", sincronizzaConsumiNuovaOfferta);
   gasAtt?.addEventListener("input", sincronizzaConsumiNuovaOfferta);
+  [...CAMPI_ATTUALI_ESSENZIALI, ...CAMPI_NUOVA_OFFERTA_ESSENZIALI].forEach(({ id }) => {
+    const field = document.getElementById(id);
+    field?.addEventListener("input", () => {
+      field.classList.remove("calculation-field-missing");
+      field.removeAttribute("aria-invalid");
+    });
+  });
   document.getElementById("nome-fornitore-nuov")?.addEventListener("change", () => {
     aggiornaNuovaOffertaDaFornitore({ force: true });
     const risultatiVisibili = document.querySelector(".fornitori-consigliati-section")?.style.display === "block";
