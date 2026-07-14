@@ -33,7 +33,7 @@ Il progetto gira su GitHub + Vercel con dominio `offertalogica.it`.
 
 Il pacchetto completo di riferimento lato progetto e:
 
-`offertalogica-v71-blocco-risparmio-incompleto-20260714`
+`offertalogica-v72-pdf-dolomiti-quota-fissa-20260714`
 
 Base calcolatore stabile precedente:
 
@@ -75,6 +75,39 @@ Ultimi zip incrementali importanti generati dopo la base completa:
 - `offertalogica-v69-pdf-plenitude-fix-only-20260714.zip`
 - `offertalogica-v70-pdf-quote-fisse-mese-anno-20260714.zip`
 - `offertalogica-v71-blocco-risparmio-incompleto-20260714.zip`
+- `offertalogica-v72-pdf-dolomiti-quota-fissa-20260714.zip`
+
+## Punto v72 - quota fissa Dolomiti e bollette separate
+
+Problema risolto:
+
+- Dolomiti scrive `di cui spesa per vendita energia elettrica/gas naturale`, senza la parola `di` dopo vendita;
+- il parser riconosceva la sezione `QUOTA FISSA` ma non catturava il valore in euro al mese;
+- nella bolletta gas un IBAN che iniziava con `IT` poteva essere scambiato per un POD, classificando erroneamente il documento come dual.
+
+Regola v72:
+
+- sotto `QUOTA FISSA` viene letto soltanto il valore `di cui spesa per vendita`, non il totale comprensivo di rete e oneri;
+- sono accettate sia le diciture `vendita di energia/gas` sia `vendita energia/gas`;
+- il POD deve rispettare il formato tecnico `IT...E...`, evitando i falsi positivi sugli IBAN;
+- due PDF Dolomiti caricati separatamente restano rispettivamente luce e gas e vengono poi uniti dal flusso multi-documento;
+- sotto le caselle del costo fisso compare una guida semplice per trovare la riga corretta in bolletta.
+
+Cosa e' stato toccato:
+
+- `lib/pdfExtract.js` per il formato Dolomiti e il POD;
+- `public/index.html` soltanto per la guida visibile sotto le due quote fisse attuali;
+- nessuna modifica a formule economiche, perdite di rete, ranking, dati ARERA, offerte partner, OTP, lead, Supabase o consensi.
+
+Verifiche v72:
+
+- Dolomiti gas: documento gas, quota fissa vendita `12 €/mese = 144 €/anno`, PDR presente e nessun falso POD: OK;
+- Dolomiti luce: documento luce, quota fissa vendita `10,43 €/mese = 125,16 €/anno`, POD presente: OK;
+- regressione Plenitude dual: quote fisse, POD e PDR presenti: OK;
+- regressione Hera dual: quote fisse, POD e PDR presenti: OK;
+- sintassi dei blocchi JavaScript inline: OK;
+- `npm run validate:calculator`: OK;
+- `npm run verify:offers`: OK, 0 errori e 0 warning.
 
 ## Punto v71 - nessun risparmio con dati incompleti
 
