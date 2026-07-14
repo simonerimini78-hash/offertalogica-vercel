@@ -1045,3 +1045,57 @@ Verifiche eseguite:
 - Simulazione caricamento pagina con dati locali: OK, righe aggiornate al `2026-07-13`.
 - `/Users/simo78/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node scripts/validate-calculator-data.mjs` OK.
 - `/Users/simo78/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node scripts/verify-calcolo-offerte.mjs` OK, 0 errori, 0 warning.
+
+## Punto v76 - UX grafica offerta specifica e consumi sincronizzati
+
+Data: 2026-07-14.
+
+Base di partenza:
+
+- `offertalogica-v75-popup-otp-schede-coerenti-20260714-incrementale`.
+
+Obiettivo:
+
+- Rendere piu chiara e gradevole la sezione facoltativa per confrontare un'offerta o un fornitore specifico.
+- Evitare la duplicazione visiva dei consumi, che erano gia sincronizzati con la fornitura attuale.
+- Non modificare motore di calcolo, PDF, catalogo offerte, OTP, lead o consensi.
+
+Cosa e stato modificato in `public/index.html`:
+
+- Nuova gerarchia grafica della scheda facoltativa con badge, testo breve e due azioni riconoscibili.
+- Pulsante `Carica una scheda sintetica` che porta al caricatore PDF gia esistente.
+- Pulsante `Inserisci una proposta manualmente` che apre o chiude i campi economici senza aggiungere passaggi al percorso normale.
+- Il menu fornitore resta sempre visibile e, quando viene selezionato, apre automaticamente i dettagli dell'offerta caricata dal catalogo.
+- I campi duplicati dei consumi nella colonna destra sono diventati input nascosti, mantenendo gli ID e la logica esistenti.
+- A video compare ora un riepilogo in sola lettura dei consumi luce e gas, sincronizzato in tempo reale con la fornitura attuale.
+- Aggiunto il comando `Modifica a sinistra`, che porta ai consumi della fornitura attuale.
+- I dettagli economici si aprono automaticamente anche quando:
+  - viene selezionato un fornitore;
+  - il fornitore non e presente nel catalogo;
+  - viene caricata una scheda sintetica;
+  - un campo della nuova offerta deve essere corretto.
+- Il reset PDF richiude i dettagli e azzera correttamente il riepilogo.
+- Su schermi fino a 600 px anche la fornitura attuale passa a una sola colonna, eliminando l'overflow orizzontale dei campi luce/gas.
+
+Cosa non e stato toccato:
+
+- Formule e motore di calcolo.
+- Sincronizzazione logica dei consumi.
+- Lettura e conferma PDF.
+- Evidenziazione e focus dei campi mancanti.
+- Catalogo fornitori e selezione automatica delle offerte.
+- OTP, lead, database, webhook e consensi.
+- Ranking e risultati del confronto.
+
+Verifiche eseguite:
+
+- Sintassi di tutti gli script inline con `node --check`: OK.
+- Controllo ID duplicati nell'HTML: nessun duplicato.
+- Test browser delle interazioni principali tramite Chrome DevTools Protocol:
+  - sincronizzazione consumo attuale -> input nascosto -> riepilogo visivo: OK;
+  - apertura e chiusura dettagli manuali: OK;
+  - selezione `Altro` apre i campi manuali: OK;
+  - caricamento simulato scheda sintetica apre e compila i dettagli: OK;
+  - reset richiude la sezione e azzera il riepilogo: OK.
+- Verifica statica desktop e mobile: OK.
+- Corretto overflow orizzontale mobile della griglia luce/gas.

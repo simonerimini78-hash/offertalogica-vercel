@@ -58,25 +58,132 @@
         .columns-subgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
         .column-energy h4 { font-size: 13px; color: var(--accent); margin-bottom: 10px; text-align: left; text-transform: uppercase; letter-spacing: 0.5px; }
         .manual-block.offerta-inserita .column-energy h4 { color: var(--accent); }
-        .optional-offer-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-        .optional-title-label { display: inline-flex; align-items: flex-start; gap: 5px; min-width: 0; }
-        .optional-badge { flex: 0 0 auto; padding: 4px 8px; border-radius: 999px; background: #f1f5f9; color: #64748b; font-size: 11px; font-weight: 700; }
-        .optional-offer-intro { margin: -4px 0 14px; color: var(--text-muted); font-size: 13px; line-height: 1.5; }
-        .optional-mode-list { display: grid; gap: 4px; margin: 0 0 14px; padding: 0 0 12px; border-bottom: 1px solid var(--border); }
-        .optional-mode-item { color: var(--text-muted); font-size: 11px; line-height: 1.4; }
-        .optional-mode-item strong { display: inline; color: var(--text-color); font-size: 11px; }
-        .optional-mode-item span { display: inline; }
-        .provider-help { display: block; margin-top: 6px; color: var(--text-muted); font-size: 11px; line-height: 1.4; }
+        #master-blocchi-inferiori { align-items: start; }
+        #master-blocchi-inferiori .manual-block { min-width: 0; }
+        .optional-offer-card {
+            position: relative;
+            overflow: hidden;
+            border-color: #93c5fd;
+            background: linear-gradient(180deg, #f8fbff 0%, #ffffff 42%);
+            box-shadow: 0 12px 30px rgba(37, 99, 235, 0.09);
+        }
+        .optional-offer-card::before {
+            content: "";
+            position: absolute;
+            inset: 0 0 auto 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--accent), #38bdf8);
+        }
+        .optional-offer-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+        .optional-offer-title {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            min-width: 0;
+            margin: 0 !important;
+            padding: 0 !important;
+            border: 0 !important;
+            font-size: 18px !important;
+            line-height: 1.18;
+        }
+        .optional-title-icon { flex: 0 0 auto; font-size: 18px; line-height: 1.2; }
+        .optional-badge {
+            flex: 0 0 auto;
+            padding: 5px 9px;
+            border: 1px solid #dbeafe;
+            border-radius: 999px;
+            background: #eff6ff;
+            color: #475569;
+            font-size: 10px;
+            line-height: 1;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+        }
+        .optional-offer-intro { margin: 0 0 14px; color: var(--text-muted); font-size: 13px; line-height: 1.5; }
+        .optional-offer-intro strong { color: var(--text-color); }
+        .optional-offer-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+        .optional-action-button {
+            width: 100%;
+            min-height: 58px;
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            padding: 10px 11px;
+            border: 1px solid #dbeafe;
+            border-radius: 10px;
+            background: rgba(255,255,255,.92);
+            color: var(--text-color);
+            text-align: left;
+            cursor: pointer;
+            box-shadow: 0 1px 2px rgba(15,23,42,.04);
+            transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+        }
+        .optional-action-button:hover { border-color: #60a5fa; box-shadow: 0 6px 16px rgba(37,99,235,.10); transform: translateY(-1px); }
+        .optional-action-button:focus-visible { outline: 3px solid rgba(37,99,235,.22); outline-offset: 2px; }
+        .optional-action-icon { flex: 0 0 auto; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; background: #eff6ff; font-size: 16px; }
+        .optional-action-copy { min-width: 0; display: grid; gap: 1px; }
+        .optional-action-copy strong { font-size: 11px; line-height: 1.25; }
+        .optional-action-copy small { color: var(--text-muted); font-size: 9.5px; line-height: 1.25; }
+        .optional-provider-panel {
+            margin-bottom: 12px;
+            padding: 12px;
+            border: 1px solid #bfdbfe;
+            border-radius: 11px;
+            background: #ffffff;
+        }
+        .optional-provider-panel label { display: block; margin-bottom: 5px; color: var(--accent); font-size: 11px; font-weight: 800; }
+        .optional-provider-panel select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--accent);
+            border-radius: 8px;
+            background-color: var(--card-bg);
+            color: var(--text-color);
+            font-size: 14px;
+        }
+        .provider-help { display: block; margin-top: 6px; color: var(--text-muted); font-size: 10px; line-height: 1.4; }
         #nuova-offerta-auto-hint { white-space: pre-line; padding: 9px 10px; border-radius: 8px; background: #f8fafc; border: 1px solid #e2e8f0; }
+        .optional-consumption-card {
+            display: grid;
+            gap: 9px;
+            margin-bottom: 12px;
+            padding: 11px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 11px;
+            background: #f8fafc;
+        }
+        .optional-consumption-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+        .optional-consumption-heading strong { display: block; font-size: 11px; color: var(--text-color); }
+        .optional-consumption-heading span { display: block; margin-top: 1px; color: var(--text-muted); font-size: 9.5px; line-height: 1.35; }
+        .optional-consumption-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .optional-consumption-item { padding: 8px 9px; border: 1px solid #e2e8f0; border-radius: 9px; background: #ffffff; }
+        .optional-consumption-item span { display: block; color: var(--text-muted); font-size: 9.5px; }
+        .optional-consumption-item strong { display: block; margin-top: 1px; color: var(--text-color); font-size: 12px; }
+        .optional-link-button { align-self: start; border: 0; background: transparent; color: var(--accent); font-size: 10px; font-weight: 800; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+        .optional-link-button:hover { color: #1d4ed8; }
+        .optional-offer-details {
+            margin-top: 12px;
+            padding-top: 13px;
+            border-top: 1px solid #dbeafe;
+        }
+        .optional-offer-details[hidden] { display: none !important; }
+        .optional-details-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 11px; }
+        .optional-details-heading strong { display: block; font-size: 12px; color: var(--text-color); }
+        .optional-details-heading span { display: block; margin-top: 2px; color: var(--text-muted); font-size: 10px; line-height: 1.35; }
+        .optional-offer-card .column-energy { min-width: 0; padding: 11px; border: 1px solid #e2e8f0; border-radius: 10px; background: #ffffff; }
+        .optional-offer-card .column-energy h4 { margin-bottom: 9px; }
+        .optional-offer-card .input-group { min-width: 0; }
+        .optional-offer-card .input-guidance { min-height: 0; }
         .field-error-message { display: block; margin-top: 5px; color: #b91c1c; font-size: 11px; line-height: 1.35; font-weight: 700; }
         .input-group input, .input-group select { scroll-margin-top: 90px; }
-        .optional-offer-title > span:first-child,
-        #blocco-nuovo .column-energy,
-        #blocco-nuovo .input-group { min-width: 0; }
 
         @media (max-width: 600px) {
-            #blocco-nuovo .columns-subgrid { grid-template-columns: 1fr; }
-            .optional-offer-title { align-items: flex-start; flex-direction: column; }
+            .columns-subgrid { grid-template-columns: 1fr; }
+            .optional-offer-header { align-items: flex-start; }
+            .optional-offer-title { font-size: 16px !important; }
+            .optional-offer-actions { grid-template-columns: 1fr; }
+            .optional-consumption-heading { flex-direction: column; }
         }
 
         .input-group { display: flex; flex-direction: column; margin-bottom: 12px; text-align: left; }
@@ -143,6 +250,11 @@
 
         .pdf-lead-panel { background: #ffffff; border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 24px; box-shadow: 0 10px 28px rgba(15,23,42,0.07); }
         .pdf-lead-panel h3 { border: 0; color: var(--text-color); margin-bottom: 6px; text-align: center; }
+        .pdf-lead-panel.pdf-upload-attention { animation: pdfAttention 1.5s ease; }
+        @keyframes pdfAttention {
+            0%, 100% { box-shadow: 0 10px 28px rgba(15,23,42,0.07); }
+            35% { border-color: var(--accent); box-shadow: 0 0 0 4px rgba(37,99,235,.14), 0 14px 32px rgba(37,99,235,.14); }
+        }
         .pdf-lead-panel p { color: var(--text-muted); text-align: center; font-size: 14px; margin-bottom: 14px; }
         .upload-drop { border: 1.5px dashed #94a3b8; background: #f8fafc; border-radius: 12px; padding: 18px; display: grid; gap: 10px; justify-items: center; text-align: center; }
         .upload-drop input { max-width: 100%; color: var(--text-muted); }
@@ -1594,17 +1706,27 @@
                     </div>
                 </div>
             </div>
-        </div> <div class="manual-block offerta-inserita" id="blocco-nuovo">
-            <h3 class="optional-offer-title"><span class="optional-title-label"><span aria-hidden="true">📊</span><span>Confronta un'offerta o un fornitore specifico</span></span><span class="optional-badge">Facoltativo</span></h3>
-            <p class="optional-offer-intro">Usa questa sezione solo se vuoi confrontare una proposta specifica o vedere le offerte aggiornate di un determinato fornitore. Puoi saltarla e visualizzare direttamente le offerte disponibili.</p>
-            <div class="optional-mode-list" aria-label="Modalita facoltative per confrontare una proposta specifica">
-                <div class="optional-mode-item"><strong>Scegli un fornitore:</strong> <span>visualizza le offerte aggiornate disponibili.</span></div>
-                <div class="optional-mode-item"><strong>Carica una scheda sintetica:</strong> <span>recupera automaticamente prezzi e condizioni.</span></div>
-                <div class="optional-mode-item"><strong>Inserisci i dati manualmente:</strong> <span>confronta una proposta non presente o completa i dati mancanti.</span></div>
+        </div> <div class="manual-block offerta-inserita optional-offer-card" id="blocco-nuovo">
+            <div class="optional-offer-header">
+                <h3 class="optional-offer-title"><span class="optional-title-icon" aria-hidden="true">📊</span><span>Confronta un'offerta o un fornitore specifico</span></h3>
+                <span class="optional-badge">Facoltativo</span>
             </div>
-            <div class="input-group" style="margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">
-                <label for="nome-fornitore-nuov" style="color: var(--accent); font-weight: bold;">Di quale fornitore vuoi vedere le offerte?</label>
-                <select id="nome-fornitore-nuov" aria-describedby="nuova-offerta-menu-help nuova-offerta-auto-hint" style="width: 100%; padding: 10px; border: 1px solid var(--accent); border-radius: 8px; background-color: var(--card-bg); color: var(--text-color); font-size: 14px;">
+            <p class="optional-offer-intro"><strong>Puoi ignorare questa sezione.</strong> Usala solo per vedere le offerte di un fornitore preciso o confrontare una proposta che hai già ricevuto.</p>
+
+            <div class="optional-offer-actions" aria-label="Azioni facoltative per una proposta specifica">
+                <button type="button" class="optional-action-button" id="optional-upload-sheet">
+                    <span class="optional-action-icon" aria-hidden="true">📄</span>
+                    <span class="optional-action-copy"><strong>Carica una scheda sintetica</strong><small>Leggiamo automaticamente prezzi e condizioni.</small></span>
+                </button>
+                <button type="button" class="optional-action-button" id="optional-manual-toggle" aria-expanded="false" aria-controls="nuova-offerta-details">
+                    <span class="optional-action-icon" aria-hidden="true">✍️</span>
+                    <span class="optional-action-copy"><strong id="optional-manual-toggle-label">Inserisci una proposta manualmente</strong><small>Per offerte non presenti o dati da correggere.</small></span>
+                </button>
+            </div>
+
+            <div class="optional-provider-panel">
+                <label for="nome-fornitore-nuov">Di quale fornitore vuoi vedere le offerte?</label>
+                <select id="nome-fornitore-nuov" aria-describedby="nuova-offerta-menu-help nuova-offerta-auto-hint">
                     <option value="" disabled selected>Seleziona un fornitore</option>
                     <option value="a2a">A2A Energia</option>
                     <option value="acea">Acea Energia</option>
@@ -1641,55 +1763,74 @@
                     <option value="wekiwi">Wekiwi</option>
                     <option value="sinergy">Sinergy</option>
                     <option value="altro">Altro (Fornitore non in elenco)</option>
+                
                 </select>
-                <small id="nuova-offerta-menu-help" class="provider-help">Dopo la selezione mostreremo le offerte aggiornate del fornitore presenti nel catalogo.</small>
+                <small id="nuova-offerta-menu-help" class="provider-help">Seleziona un fornitore: caricheremo automaticamente la proposta più adatta disponibile nel catalogo.</small>
                 <div id="nuova-offerta-auto-hint" role="status" aria-live="polite" style="display:none; margin-top:8px; font-size:12px; color:var(--text-muted); line-height:1.4;"></div>
             </div>
-            <div class="columns-subgrid">
-                <div class="column-energy">
-                    <h4>⚡ LUCE</h4>
-                    <div class="input-group">
-                        <label for="in-luce-cons-nuov">Consumo annuo luce (kWh)</label>
-                        <input type="number" id="in-luce-cons-nuov" placeholder="Es. 2700">
+
+            <div class="optional-consumption-card" aria-label="Consumi usati per confrontare l'offerta specifica">
+                <div class="optional-consumption-heading">
+                    <div>
+                        <strong>Consumi usati nel confronto</strong>
+                        <span>Sono gli stessi della fornitura attuale e si aggiornano automaticamente.</span>
                     </div>
-                    <div class="input-group">
-                        <label for="in-luce-prezzo-nuov">Prezzo della nuova offerta luce (€/kWh)</label>
-                        <small id="in-luce-prezzo-nuov-help" class="input-guidance">Cerca nell'offerta: prezzo energia o componente vendita.</small>
-                        <input type="number" id="in-luce-prezzo-nuov" aria-describedby="in-luce-prezzo-nuov-help" step="0.0001" placeholder="Es. 0.1450">
+                    <button type="button" class="optional-link-button" id="optional-edit-consumptions">Modifica a sinistra</button>
+                </div>
+                <div class="optional-consumption-grid">
+                    <div class="optional-consumption-item"><span>⚡ Luce</span><strong id="optional-luce-consumption-summary">Da inserire</strong></div>
+                    <div class="optional-consumption-item"><span>🔥 Gas</span><strong id="optional-gas-consumption-summary">Da inserire</strong></div>
+                </div>
+                <input type="hidden" id="in-luce-cons-nuov" value="">
+                <input type="hidden" id="in-gas-cons-nuov" value="">
+            </div>
+
+            <div class="optional-offer-details" id="nuova-offerta-details" hidden>
+                <div class="optional-details-heading">
+                    <div>
+                        <strong>Dati economici dell'offerta</strong>
+                        <span>Controlla i valori caricati dal catalogo o dal PDF. Puoi correggerli manualmente.</span>
                     </div>
-                    <div class="input-group">
-                        <label for="in-luce-fisso-nuov">Costo fisso della nuova offerta luce</label>
-                        <small id="in-luce-fisso-nuov-help" class="input-guidance">Inserisci il valore e scegli se e mensile o annuale.</small>
-                        <div class="fixed-fee-input">
-                            <input type="number" id="in-luce-fisso-nuov" aria-describedby="in-luce-fisso-nuov-help" step="0.01" placeholder="Es. 12">
-                            <select id="in-luce-fisso-nuov-unita" aria-label="Unita quota fissa luce nuova offerta">
-                                <option value="mese" selected>€/mese</option>
-                                <option value="anno">€/anno</option>
-                            </select>
+                    <button type="button" class="optional-link-button" id="optional-details-close">Nascondi</button>
+                </div>
+                <div class="columns-subgrid">
+                    <div class="column-energy">
+                        <h4>⚡ LUCE</h4>
+                        <div class="input-group">
+                            <label for="in-luce-prezzo-nuov">Prezzo luce dell'offerta (€/kWh)</label>
+                            <small id="in-luce-prezzo-nuov-help" class="input-guidance">Cerca nell'offerta il prezzo energia o la componente vendita.</small>
+                            <input type="number" id="in-luce-prezzo-nuov" aria-describedby="in-luce-prezzo-nuov-help" step="0.0001" placeholder="Es. 0.1450">
+                        </div>
+                        <div class="input-group">
+                            <label for="in-luce-fisso-nuov">Quota fissa luce</label>
+                            <small id="in-luce-fisso-nuov-help" class="input-guidance">Inserisci il valore e indica se è mensile o annuale.</small>
+                            <div class="fixed-fee-input">
+                                <input type="number" id="in-luce-fisso-nuov" aria-describedby="in-luce-fisso-nuov-help" step="0.01" placeholder="Es. 12">
+                                <select id="in-luce-fisso-nuov-unita" aria-label="Unita quota fissa luce nuova offerta">
+                                    <option value="mese" selected>€/mese</option>
+                                    <option value="anno">€/anno</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
-                </div>
-              
-                <div class="column-energy">
-                    <h4>🔥 GAS</h4>
-                    <div class="input-group">
-                        <label for="in-gas-cons-nuov">Consumo annuo gas (Smc)</label>
-                        <input type="number" id="in-gas-cons-nuov" placeholder="Es. 1000">
-                    </div>
-                    <div class="input-group">
-                        <label for="in-gas-prezzo-nuov">Prezzo della nuova offerta gas (€/Smc)</label>
-                        <small id="in-gas-prezzo-nuov-help" class="input-guidance">Cerca nell'offerta: prezzo gas o componente vendita.</small>
-                        <input type="number" id="in-gas-prezzo-nuov" aria-describedby="in-gas-prezzo-nuov-help" step="0.0001" placeholder="Es. 0.6500">
-                    </div>
-                    <div class="input-group">
-                        <label for="in-gas-fisso-nuov">Costo fisso della nuova offerta gas</label>
-                        <small id="in-gas-fisso-nuov-help" class="input-guidance">Inserisci il valore e scegli se e mensile o annuale.</small>
-                        <div class="fixed-fee-input">
-                            <input type="number" id="in-gas-fisso-nuov" aria-describedby="in-gas-fisso-nuov-help" step="0.01" placeholder="Es. 12">
-                            <select id="in-gas-fisso-nuov-unita" aria-label="Unita quota fissa gas nuova offerta">
-                                <option value="mese" selected>€/mese</option>
-                                <option value="anno">€/anno</option>
-                            </select>
+
+                    <div class="column-energy">
+                        <h4>🔥 GAS</h4>
+                        <div class="input-group">
+                            <label for="in-gas-prezzo-nuov">Prezzo gas dell'offerta (€/Smc)</label>
+                            <small id="in-gas-prezzo-nuov-help" class="input-guidance">Cerca nell'offerta il prezzo gas o la componente vendita.</small>
+                            <input type="number" id="in-gas-prezzo-nuov" aria-describedby="in-gas-prezzo-nuov-help" step="0.0001" placeholder="Es. 0.6500">
+                        </div>
+                        <div class="input-group">
+                            <label for="in-gas-fisso-nuov">Quota fissa gas</label>
+                            <small id="in-gas-fisso-nuov-help" class="input-guidance">Inserisci il valore e indica se è mensile o annuale.</small>
+                            <div class="fixed-fee-input">
+                                <input type="number" id="in-gas-fisso-nuov" aria-describedby="in-gas-fisso-nuov-help" step="0.01" placeholder="Es. 12">
+                                <select id="in-gas-fisso-nuov-unita" aria-label="Unita quota fissa gas nuova offerta">
+                                    <option value="mese" selected>€/mese</option>
+                                    <option value="anno">€/anno</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -3250,6 +3391,7 @@ function mostraErroreDatiMancanti(mancanti, contesto = "fornitura attuale") {
   if (offerte) offerte.style.display = "none";
   if (teaser) teaser.style.display = "none";
   LEAD_STATE.bestSaving = 0;
+  if (mancanti.some(({ id }) => String(id).includes("-nuov"))) apriDettagliNuovaOfferta();
   segnalaCampiMancanti(mancanti);
   window.setTimeout(() => {
     mancanti[0]?.element?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -5606,6 +5748,8 @@ window.azzeraPdfEModulo = function azzeraPdfEModulo() {
   aggiornaAssistenteAttivazioneVisibilita();
   chiudiAssistenteAttivazione();
   mostraHintNuovaOfferta("");
+  chiudiDettagliNuovaOfferta();
+  sincronizzaConsumiNuovaOfferta();
   aggiornaTestoPulsanteConfronto();
 };
 
@@ -5697,6 +5841,55 @@ function prezzoInputDaVoce(voce) {
   if (!voce) return "";
   const prezzo = risolviPrezzoVariabile(voce);
   return numeroSicuro(prezzo, 0) > 0 ? prezzo.toFixed(4) : "";
+}
+
+function formattaConsumoRiepilogo(value, unita) {
+  const numero = Number(String(value || "").replace(",", "."));
+  if (!Number.isFinite(numero) || numero <= 0) return "Da inserire";
+  return `${new Intl.NumberFormat("it-IT", { maximumFractionDigits: 0 }).format(numero)} ${unita}/anno`;
+}
+
+function aggiornaRiepilogoConsumiOfferta() {
+  const luce = document.getElementById("optional-luce-consumption-summary");
+  const gas = document.getElementById("optional-gas-consumption-summary");
+  if (luce) luce.textContent = formattaConsumoRiepilogo(document.getElementById("in-luce-cons-att")?.value, "kWh");
+  if (gas) gas.textContent = formattaConsumoRiepilogo(document.getElementById("in-gas-cons-att")?.value, "Smc");
+}
+
+function impostaDettagliNuovaOffertaAperti(aperti, options = {}) {
+  const details = document.getElementById("nuova-offerta-details");
+  const toggle = document.getElementById("optional-manual-toggle");
+  const label = document.getElementById("optional-manual-toggle-label");
+  if (!details) return;
+  details.hidden = !aperti;
+  if (toggle) toggle.setAttribute("aria-expanded", aperti ? "true" : "false");
+  if (label) label.textContent = aperti ? "Nascondi i dati dell'offerta" : "Inserisci una proposta manualmente";
+  if (aperti && options.focus) {
+    window.setTimeout(() => document.getElementById("in-luce-prezzo-nuov")?.focus(), 30);
+  }
+}
+
+function apriDettagliNuovaOfferta(options = {}) {
+  impostaDettagliNuovaOffertaAperti(true, options);
+}
+
+function chiudiDettagliNuovaOfferta() {
+  impostaDettagliNuovaOffertaAperti(false);
+}
+
+function vaiAlCaricatoreScheda() {
+  const panel = document.querySelector(".pdf-lead-panel");
+  const input = document.getElementById("pdf-static-input");
+  panel?.scrollIntoView({ behavior: "smooth", block: "center" });
+  panel?.classList.add("pdf-upload-attention");
+  window.setTimeout(() => panel?.classList.remove("pdf-upload-attention"), 1600);
+  window.setTimeout(() => input?.focus({ preventScroll: true }), 450);
+}
+
+function vaiAiConsumiAttuali() {
+  const first = document.getElementById("in-luce-cons-att") || document.getElementById("in-gas-cons-att");
+  first?.scrollIntoView({ behavior: "smooth", block: "center" });
+  window.setTimeout(() => first?.focus({ preventScroll: true }), 350);
 }
 
 function mostraHintNuovaOfferta(message, isError = false) {
@@ -5845,6 +6038,7 @@ function cancellaNuovaOffertaAutomatica() {
 }
 
 function applicaOffertaAlBloccoNuovo(offerta, providerKey) {
+  apriDettagliNuovaOfferta();
   BLOCCO_AUTOFILL_NUOVA_OFFERTA = true;
   NUOVA_OFFERTA_AUTOMATICA = { offerta, providerKey, appliedAt: new Date().toISOString() };
 
@@ -5877,6 +6071,7 @@ function aggiornaNuovaOffertaDaFornitore(options = {}) {
   const providerKey = leggiValore("nome-fornitore-nuov", "");
   if (!providerKey || providerKey === "altro") {
     if (force) {
+      if (providerKey === "altro") apriDettagliNuovaOfferta();
       NUOVA_OFFERTA_AUTOMATICA = null;
       svuotaCampiNuovaOfferta();
       mostraHintNuovaOfferta(providerKey === "altro"
@@ -5896,6 +6091,7 @@ function aggiornaNuovaOffertaDaFornitore(options = {}) {
 
   if (!offerta) {
     if (force) {
+      apriDettagliNuovaOfferta();
       NUOVA_OFFERTA_AUTOMATICA = null;
       svuotaCampiNuovaOfferta();
       mostraHintNuovaOfferta(`Offerte disponibili di ${etichettaFornitoreSelezionato()}\nNon abbiamo trovato una proposta completa e coerente con il profilo selezionato. Puoi inserire manualmente prezzi e costi fissi nei campi sotto.`, true);
@@ -5956,6 +6152,7 @@ function applicaDatiPdfAlModulo(data) {
 
   const isOffer = data.kind === "scheda_offerta";
   if (isOffer) {
+    apriDettagliNuovaOfferta();
     setField("nome-fornitore-nuov", providerValue(data.fornitore));
     if (data.commodity === "luce" || data.prezzo_luce_eur_kwh) {
       setField("in-luce-prezzo-nuov", data.prezzo_luce_eur_kwh);
@@ -6004,6 +6201,7 @@ function sincronizzaConsumiNuovaOfferta() {
     if (!source || !target) return;
     target.value = source.value;
   });
+  aggiornaRiepilogoConsumiOfferta();
 }
 
 function collegaEventiUX() {
@@ -6040,6 +6238,13 @@ function collegaEventiUX() {
 
   luceAtt?.addEventListener("input", sincronizzaConsumiNuovaOfferta);
   gasAtt?.addEventListener("input", sincronizzaConsumiNuovaOfferta);
+  document.getElementById("optional-upload-sheet")?.addEventListener("click", vaiAlCaricatoreScheda);
+  document.getElementById("optional-edit-consumptions")?.addEventListener("click", vaiAiConsumiAttuali);
+  document.getElementById("optional-manual-toggle")?.addEventListener("click", () => {
+    const details = document.getElementById("nuova-offerta-details");
+    impostaDettagliNuovaOffertaAperti(Boolean(details?.hidden), { focus: Boolean(details?.hidden) });
+  });
+  document.getElementById("optional-details-close")?.addEventListener("click", chiudiDettagliNuovaOfferta);
   [...CAMPI_ATTUALI_ESSENZIALI, ...CAMPI_NUOVA_OFFERTA_ESSENZIALI].forEach(({ id }) => {
     const field = document.getElementById(id);
     field?.addEventListener("input", () => {
@@ -6047,6 +6252,7 @@ function collegaEventiUX() {
     });
   });
   document.getElementById("nome-fornitore-nuov")?.addEventListener("change", () => {
+    apriDettagliNuovaOfferta();
     aggiornaNuovaOffertaDaFornitore({ force: true });
     aggiornaTestoPulsanteConfronto();
     const risultatiVisibili = document.querySelector(".fornitori-consigliati-section")?.style.display === "block";
@@ -6097,6 +6303,7 @@ function collegaEventiUX() {
     if (event.target?.id === "activation-helper-backdrop") chiudiAssistenteAttivazione();
   });
   aggiornaAssistenteAttivazioneVisibilita();
+  sincronizzaConsumiNuovaOfferta();
   aggiornaTestoPulsanteConfronto();
 
   Promise.all([caricaDatiCalcolo(), caricaOfferteProposte(), caricaOfferteAreraMenu(), caricaProviderBrand()]).then(() => {
@@ -6325,6 +6532,8 @@ if (document.readyState === "loading") {
               if(document.getElementById("in-gas-prezzo-nuov")) document.getElementById("in-gas-prezzo-nuov").value = "";
               if(document.getElementById("in-gas-fisso-nuov")) document.getElementById("in-gas-fisso-nuov").value = "";
               if(document.getElementById("in-gas-fisso-nuov-unita")) document.getElementById("in-gas-fisso-nuov-unita").value = "mese";
+              sincronizzaConsumiNuovaOfferta();
+              chiudiDettagliNuovaOfferta();
 
               // D. Prepara il profilo medio, ma non mostra risultati/offerte prima del confronto.
               nascondiEsitiFincheNonConfronti();
@@ -6348,6 +6557,8 @@ if (document.readyState === "loading") {
               
               if(document.getElementById("nome-fornitore-att")) document.getElementById("nome-fornitore-att").value = "";
               if(document.getElementById("nome-fornitore-nuov")) document.getElementById("nome-fornitore-nuov").value = "";
+              sincronizzaConsumiNuovaOfferta();
+              chiudiDettagliNuovaOfferta();
 
               // Mostriamo l'interfaccia manuale
               if(containerTendine) containerTendine.style.display = "block";
