@@ -1528,6 +1528,87 @@
             0%, 100% { transform: translateY(0); }
             50% { transform: translateY(4px); }
         }
+
+        /* v78 — guida contestuale nei passaggi PDF e nei punti di transizione */
+        .guided-step-notice {
+            display: flex;
+            align-items: center;
+            gap: 11px;
+            width: 100%;
+            margin: 0 0 14px;
+            padding: 12px 14px;
+            border: 1px solid #22c55e;
+            border-radius: 11px;
+            background: #f0fdf4;
+            color: #14532d;
+            font-size: 13px;
+            line-height: 1.45;
+            text-align: left;
+            box-shadow: 0 7px 20px rgba(22, 163, 74, .11);
+        }
+        .guided-step-notice[hidden] { display: none !important; }
+        .guided-step-notice strong { color: #14532d; }
+        .guided-step-arrow {
+            flex: 0 0 auto;
+            display: grid;
+            place-items: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 999px;
+            background: #16a34a;
+            color: #ffffff;
+            font-size: 19px;
+            line-height: 1;
+            font-weight: 900;
+            animation: pdfArrowBounce .9s ease-in-out 3;
+        }
+        .pdf-review-static {
+            scroll-margin-top: 24px;
+        }
+        .pdf-review-static.pdf-confirm-attention {
+            animation: pdfConfirmAttention 2.8s ease;
+        }
+        #pdf-confirm-data-button {
+            width: 100%;
+            min-height: 46px;
+            margin-top: 4px;
+            font-size: 14px;
+        }
+        #pdf-confirm-data-button:disabled {
+            opacity: .62;
+            cursor: wait;
+        }
+        .pdf-data-review-guidance {
+            grid-column: 1 / -1;
+            margin-bottom: 0;
+            scroll-margin-top: 24px;
+        }
+        .supply-compare-card.pdf-data-target {
+            animation: pdfDataTargetAttention 3s ease;
+        }
+        #comparison-next-step-guidance {
+            max-width: 760px;
+            margin: 18px auto 12px;
+            scroll-margin-top: 24px;
+        }
+        @keyframes pdfConfirmAttention {
+            0%, 100% { border-color: var(--border); box-shadow: none; }
+            18%, 58% { border-color: #16a34a; box-shadow: 0 0 0 5px rgba(22, 163, 74, .15), 0 15px 34px rgba(22, 163, 74, .14); }
+        }
+        @keyframes pdfDataTargetAttention {
+            0%, 100% { box-shadow: 0 12px 30px rgba(37, 99, 235, .09); }
+            18%, 58% { box-shadow: 0 0 0 5px rgba(22, 163, 74, .15), 0 18px 40px rgba(22, 163, 74, .18); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .pdf-context-icon,
+            .guided-step-arrow,
+            .pdf-lead-panel.pdf-upload-attention,
+            .upload-drop.pdf-upload-target,
+            .pdf-review-static.pdf-confirm-attention,
+            .supply-compare-card.pdf-data-target {
+                animation: none !important;
+            }
+        }
         @media (max-width: 600px) {
             .compare-card-header { min-height: 0; }
             .compare-card-title { font-size: 16px !important; }
@@ -1683,12 +1764,16 @@
         <div class="upload-drop" id="pdf-upload-drop">
             <input id="pdf-static-input" type="file" accept="application/pdf" multiple aria-describedby="pdf-upload-context-notice">
             <button type="button" class="btn-action" onclick="preparaConfermaPdf()">Analizza PDF</button>
-            <button type="button" class="lead-secondary" onclick="azzeraPdfEModulo()">Azzera e cambia PDF</button>
+            <button type="button" class="lead-secondary" onclick="azzeraPdfEModulo()">Rimuovi PDF e ricomincia</button>
             <div class="upload-note">Puoi caricare una o più bollette PDF, ad esempio una luce e una gas, oppure una scheda sintetica.</div>
-            <div class="pdf-review-static" id="pdf-review-static">
-                <strong>Dati pronti per la conferma</strong>
-                <p id="pdf-review-copy">Dopo l'analisi potrai confermare i dati letti dal PDF. Il confronto partirà solo dal pulsante blu.</p>
-                <button type="button" onclick="confermaPdfECalcola()">Conferma dati letti</button>
+            <div class="pdf-review-static" id="pdf-review-static" tabindex="-1">
+                <div id="pdf-confirm-guidance" class="guided-step-notice" role="status" aria-live="polite" hidden>
+                    <span class="guided-step-arrow" aria-hidden="true">↓</span>
+                    <span><strong>Leggi e conferma i dati estratti.</strong> Controlla il riepilogo, poi premi il pulsante verde per inserirli nel modulo.</span>
+                </div>
+                <strong id="pdf-review-title">Dati pronti per la conferma</strong>
+                <p id="pdf-review-copy">Dopo l'analisi potrai confermare i dati letti dal PDF. Il confronto partirà solo dopo la tua conferma.</p>
+                <button type="button" id="pdf-confirm-data-button" onclick="confermaPdfECalcola()">Ho controllato: conferma e inserisci i dati</button>
             </div>
         </div>
     </div>
@@ -1784,6 +1869,11 @@
         </div>
                 <!-- 1. APERTURA DEL CONTENITORE GENERALE DELLA GRIGLIA (Questo attiva l'affiancamento) -->
     <div class="manual-container" id="master-blocchi-inferiori" style="display: none;">
+
+        <div id="pdf-data-review-guidance" class="guided-step-notice pdf-data-review-guidance" role="status" aria-live="polite" tabindex="-1" hidden>
+            <span class="guided-step-arrow" aria-hidden="true">↓</span>
+            <span><strong>I dati sono stati inseriti qui sotto.</strong> Controllali, completa gli eventuali campi evidenziati e poi avvia il confronto.</span>
+        </div>
 
         <div class="manual-block supply-compare-card current-supply-card" id="blocco-attuale">
             <div class="compare-card-header">
@@ -2016,6 +2106,10 @@
         </p>
     </div> <!-- 2. CHIUSURA DEL CONTENITORE GENERALE DELLA GRIGLIA -->
 
+    <div id="comparison-next-step-guidance" class="guided-step-notice" role="status" aria-live="polite" tabindex="-1" hidden>
+        <span class="guided-step-arrow" aria-hidden="true">↓</span>
+        <span><strong>Il profilo medio è già pronto.</strong> Non devi modificare nulla: premi il pulsante qui sotto per vedere le offerte.</span>
+    </div>
        
     <button id="comparison-submit-button" class="btn-calc" onclick="avviaComparazioneDati()">Mostra le offerte disponibili</button>
 
@@ -4796,6 +4890,7 @@ function aggiornaConsumiDaMasterSeMedia() {
 }
 
 window.avviaComparazioneDati = function avviaComparazioneDati() {
+  nascondiGuida("comparison-next-step-guidance");
   aggiornaConsumiDaMasterSeMedia();
   pulisciSegnalazioniDatiMancanti();
 
@@ -5733,20 +5828,134 @@ async function registraRichiestaOfferta() {
   }
 }
 
+function movimentoRidottoAttivo() {
+  return Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches);
+}
+
+function portaElementoInVista(element, options = {}) {
+  if (!element) return;
+  const { block = "center", focus = false, delay = 60 } = options;
+  window.setTimeout(() => {
+    element.scrollIntoView({ behavior: movimentoRidottoAttivo() ? "auto" : "smooth", block });
+    if (focus) window.setTimeout(() => element.focus?.({ preventScroll: true }), 260);
+  }, delay);
+}
+
+function nascondiGuida(id) {
+  const guide = document.getElementById(id);
+  if (guide) guide.hidden = true;
+}
+
+function mostraGuida(id, html, options = {}) {
+  const guide = document.getElementById(id);
+  if (!guide) return;
+  const copy = guide.querySelector("span:last-child");
+  if (copy && html) copy.innerHTML = html;
+  guide.hidden = false;
+  if (options.scroll) portaElementoInVista(guide, { block: options.block || "center", focus: Boolean(options.focus) });
+}
+
+function pulisciGuidePercorsoPdf() {
+  ["pdf-confirm-guidance", "pdf-data-review-guidance", "comparison-next-step-guidance"].forEach(nascondiGuida);
+  document.getElementById("pdf-review-static")?.classList.remove("pdf-confirm-attention");
+  document.getElementById("blocco-attuale")?.classList.remove("pdf-data-target");
+  document.getElementById("blocco-nuovo")?.classList.remove("pdf-data-target");
+}
+
+function configuraConfermaPdfPronta(results) {
+  const panel = document.getElementById("pdf-review-static");
+  const title = document.getElementById("pdf-review-title");
+  const button = document.getElementById("pdf-confirm-data-button");
+  const successCount = results.filter((item) => !item.error).length;
+  const hasReadableData = successCount > 0 && Object.keys(LEAD_STATE.pdfData || {}).length > 0;
+
+  if (title) title.innerText = hasReadableData
+    ? "Dati letti: controlla e conferma"
+    : "Lettura completata: conferma per continuare";
+  if (button) {
+    button.disabled = false;
+    button.innerText = hasReadableData
+      ? "Ho controllato: conferma e inserisci i dati"
+      : "Conferma e passa al modulo";
+  }
+  mostraGuida(
+    "pdf-confirm-guidance",
+    hasReadableData
+      ? "<strong>Leggi e conferma i dati estratti.</strong> Controlla il riepilogo, poi premi il pulsante verde: solo così i valori verranno inseriti nel modulo."
+      : "<strong>Conferma il passaggio.</strong> Non siamo riusciti a leggere tutti i dati: premi il pulsante verde per aprire il modulo e completarli manualmente."
+  );
+  panel?.classList.remove("pdf-confirm-attention");
+  void panel?.offsetWidth;
+  panel?.classList.add("pdf-confirm-attention");
+  portaElementoInVista(panel, { block: "center", focus: true, delay: 90 });
+  window.setTimeout(() => panel?.classList.remove("pdf-confirm-attention"), 3200);
+}
+
+function configurazioniPdfDaControllare(data, isOffer) {
+  const hasLuce = Boolean(data?.consumo_luce_kwh || data?.prezzo_luce_eur_kwh || data?.quota_fissa_vendita_luce_eur_anno || data?.commodity === "luce");
+  const hasGas = Boolean(data?.consumo_gas_smc || data?.prezzo_gas_eur_smc || data?.quota_fissa_vendita_gas_eur_anno || data?.commodity === "gas");
+  const base = isOffer ? CAMPI_NUOVA_OFFERTA_ESSENZIALI : CAMPI_ATTUALI_ESSENZIALI;
+  const luce = base.filter(({ id }) => id.includes("-luce-"));
+  const gas = base.filter(({ id }) => id.includes("-gas-"));
+  if (hasLuce && !hasGas) return luce;
+  if (hasGas && !hasLuce) return gas;
+  return base;
+}
+
+function accompagnaAllaRevisioneDatiPdf(data) {
+  const isOffer = data?.kind === "scheda_offerta";
+  const target = document.getElementById(isOffer ? "blocco-nuovo" : "blocco-attuale");
+  const configs = configurazioniPdfDaControllare(data, isOffer);
+  const mancanti = campiMancanti(configs);
+
+  pulisciSegnalazioniDatiMancanti();
+  if (mancanti.length) segnalaCampiMancanti(mancanti);
+
+  const targetLabel = isOffer ? "nell'offerta specifica" : "nella fornitura attuale";
+  const missingCopy = mancanti.length
+    ? ` Abbiamo evidenziato in rosso ${mancanti.length === 1 ? "il dato non letto" : `${mancanti.length} dati non letti`}: completali prima del confronto.`
+    : " I dati letti risultano completi: controllali prima di continuare.";
+  mostraGuida(
+    "pdf-data-review-guidance",
+    `<strong>I dati sono stati inseriti ${targetLabel}.</strong>${missingCopy} Poi premi il pulsante blu per avviare il confronto.`
+  );
+
+  target?.classList.remove("pdf-data-target");
+  void target?.offsetWidth;
+  target?.classList.add("pdf-data-target");
+  portaElementoInVista(document.getElementById("pdf-data-review-guidance") || target, { block: "start", focus: true, delay: 100 });
+  window.setTimeout(() => target?.classList.remove("pdf-data-target"), 3400);
+}
+
 window.preparaConfermaPdf = async function preparaConfermaPdf() {
   nascondiEsitiFincheNonConfronti();
+  nascondiGuida("pdf-data-review-guidance");
+  nascondiGuida("comparison-next-step-guidance");
   const input = document.getElementById("pdf-static-input");
   const panel = document.getElementById("pdf-review-static");
+  const title = document.getElementById("pdf-review-title");
   const copy = document.getElementById("pdf-review-copy");
+  const confirmButton = document.getElementById("pdf-confirm-data-button");
   const files = Array.from(input?.files || []);
   if (!files.length) {
     trackEvent("pdf_no_file_selected");
     if (panel) panel.style.display = "block";
-    if (copy) copy.innerText = "Seleziona prima una bolletta PDF o una scheda sintetica. Dopo la lettura mostreremo i dati da confermare; il confronto partirà solo dal pulsante blu.";
+    if (title) title.innerText = "Prima seleziona il documento";
+    if (copy) copy.innerText = "Seleziona una bolletta PDF o una scheda sintetica, poi premi “Analizza PDF”. Dopo la lettura ti chiederemo di controllare e confermare i dati.";
+    if (confirmButton) confirmButton.disabled = true;
+    nascondiGuida("pdf-confirm-guidance");
+    portaElementoInVista(document.getElementById("pdf-upload-drop"), { block: "center" });
+    input?.focus({ preventScroll: true });
     return;
   }
   if (panel) panel.style.display = "block";
-  if (copy) copy.innerText = `Analisi di ${files.length} PDF in corso...`;
+  if (title) title.innerText = "Analisi del documento in corso";
+  if (copy) copy.innerText = `Stiamo leggendo ${files.length === 1 ? "il PDF" : `${files.length} PDF`}... Al termine dovrai controllare e confermare i dati estratti.`;
+  if (confirmButton) {
+    confirmButton.disabled = true;
+    confirmButton.innerText = "Analisi in corso...";
+  }
+  nascondiGuida("pdf-confirm-guidance");
   trackEvent("pdf_analysis_started", { fileCount: files.length });
 
   const results = [];
@@ -5776,16 +5985,22 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
     errorCount: results.filter((item) => item.error).length,
   });
   if (copy) copy.innerHTML = renderPdfSummary(LEAD_STATE.pdfDocuments, LEAD_STATE.pdfData);
+  configuraConfermaPdfPronta(results);
   aggiornaAssistenteAttivazioneVisibilita();
 };
 
 window.confermaPdfECalcola = function confermaPdfECalcola() {
   const data = LEAD_STATE.pdfData || {};
+  const confirmButton = document.getElementById("pdf-confirm-data-button");
+  if (confirmButton?.disabled) return;
   trackEvent("pdf_data_confirmed", {
     pdfDocumentCount: (LEAD_STATE.pdfDocuments || []).length,
     successCount: (LEAD_STATE.pdfDocuments || []).filter((item) => !item.error).length,
     errorCount: (LEAD_STATE.pdfDocuments || []).filter((item) => item.error).length,
   });
+  nascondiGuida("pdf-confirm-guidance");
+  document.getElementById("pdf-review-static")?.classList.remove("pdf-confirm-attention");
+
   if (LEAD_STATE.customerType === "business") {
     applicaDatiPdfAlBusiness(data);
     nascondiEsitiFincheNonConfronti();
@@ -5795,7 +6010,8 @@ window.confermaPdfECalcola = function confermaPdfECalcola() {
     if (businessResult) businessResult.style.display = "none";
     if (businessError) businessError.style.display = "none";
     aggiornaAssistenteAttivazioneVisibilita();
-    if (copy) copy.innerText = "Dati business confermati e inseriti nel modulo. Ora usa il pulsante dedicato all'analisi aziendale.";
+    if (copy) copy.innerText = "Dati confermati e inseriti nel modulo business. Controllali e completa gli eventuali valori mancanti prima di richiedere l'analisi.";
+    portaElementoInVista(document.getElementById("business-panel"), { block: "start" });
     return;
   }
 
@@ -5811,7 +6027,8 @@ window.confermaPdfECalcola = function confermaPdfECalcola() {
   nascondiEsitiFincheNonConfronti();
   aggiornaAssistenteAttivazioneVisibilita();
   const copy = document.getElementById("pdf-review-copy");
-  if (copy) copy.innerText = "Dati confermati e inseriti nel modulo. Ora clicca il pulsante blu “ELABORA E CONFRONTA LE OFFERTE” per vedere il risultato.";
+  if (copy) copy.innerText = "Dati confermati e inseriti nel modulo. Controlla l'area evidenziata qui sotto, completa gli eventuali dati mancanti e poi avvia il confronto.";
+  accompagnaAllaRevisioneDatiPdf(data);
 };
 
 function applicaDatiPdfAlBusiness(data) {
@@ -5887,14 +6104,32 @@ window.azzeraPdfEModulo = function azzeraPdfEModulo() {
   LEAD_STATE.pdfData = null;
   LEAD_STATE.pdfDocuments = [];
   LEAD_STATE.dataOrigin = "manual_input";
+  LEAD_STATE.verified = false;
+  LEAD_STATE.otpPreviewCode = "";
+  LEAD_STATE.bestSaving = 0;
+  LEAD_STATE.leadId = "";
+  LEAD_STATE.leadSource = "manual";
+  LEAD_STATE.selectedOffer = null;
+  LEAD_STATE.partnerConsent = false;
   LEAD_STATE.activationAssistant = { pendingUrl: "", offer: null };
+  LEAD_STATE.businessProfile = null;
   NUOVA_OFFERTA_AUTOMATICA = null;
+  modalitaCalcolo = "manuale";
+  pulisciGuidePercorsoPdf();
+  pulisciSegnalazioniDatiMancanti();
   const input = document.getElementById("pdf-static-input");
   const panel = document.getElementById("pdf-review-static");
   const copy = document.getElementById("pdf-review-copy");
+  const title = document.getElementById("pdf-review-title");
+  const confirmButton = document.getElementById("pdf-confirm-data-button");
   if (input) input.value = "";
   if (panel) panel.style.display = "none";
-  if (copy) copy.innerText = "";
+  if (title) title.innerText = "Dati pronti per la conferma";
+  if (copy) copy.innerText = "Dopo l'analisi potrai confermare i dati letti dal PDF. Il confronto partirà solo dopo la tua conferma.";
+  if (confirmButton) {
+    confirmButton.disabled = false;
+    confirmButton.innerText = "Ho controllato: conferma e inserisci i dati";
+  }
   [
     "nome-fornitore-att", "nome-fornitore-nuov",
     "in-luce-cons-att", "in-luce-prezzo-att", "in-luce-fisso-att",
@@ -5909,7 +6144,37 @@ window.azzeraPdfEModulo = function azzeraPdfEModulo() {
     "in-luce-fisso-att-unita", "in-gas-fisso-att-unita",
     "in-luce-fisso-nuov-unita", "in-gas-fisso-nuov-unita",
   ].forEach((id) => setField(id, "mese"));
-  LEAD_STATE.businessProfile = null;
+  ["btn-attiva-medi", "btn-attiva-precisi"].forEach((id) => document.getElementById(id)?.classList.remove("selected"));
+  const master = document.getElementById("master-tendine-container");
+  const blocks = document.getElementById("master-blocchi-inferiori");
+  const calcHint = document.getElementById("master-pulsante-calc-manuale");
+  if (master) master.style.display = "none";
+  if (blocks) blocks.style.display = "none";
+  if (calcHint) calcHint.style.display = "none";
+  setField("master-luce-consumo", PARAMETRI_CALCOLO.profiloMedio.luceConsumoKwh);
+  setField("master-gas-consumo", PARAMETRI_CALCOLO.profiloMedio.gasConsumoSmc);
+  setField("master-luce-potenza", PARAMETRI_CALCOLO.profiloMedio.potenzaKw);
+  setField("master-luce-tipo", PARAMETRI_CALCOLO.profiloMedio.tipoPrezzo);
+  setField("master-tipo-fornitura", PARAMETRI_CALCOLO.profiloMedio.tipoFornitura);
+  setField("master-gas-regione", PARAMETRI_CALCOLO.profiloMedio.regioneGas);
+
+  ["lead-nome", "lead-telefono", "lead-email", "lead-otp"].forEach(clearField);
+  ["lead-consenso-servizio", "lead-consenso-partner", "offer-consent-checkbox"].forEach((id) => {
+    const checkbox = document.getElementById(id);
+    if (checkbox) checkbox.checked = false;
+  });
+  const leadModal = document.getElementById("lead-modal-backdrop");
+  const offerConsentModal = document.getElementById("offer-consent-backdrop");
+  if (leadModal) leadModal.style.display = "none";
+  if (offerConsentModal) offerConsentModal.style.display = "none";
+  const otpInput = document.getElementById("lead-otp");
+  const sendOtp = document.getElementById("lead-send-otp");
+  const verifyOtp = document.getElementById("lead-verify-otp");
+  if (otpInput) otpInput.style.display = "none";
+  if (sendOtp) sendOtp.style.display = "inline-block";
+  if (verifyOtp) verifyOtp.style.display = "none";
+  leadStatus("");
+
   const results = document.getElementById("results-area");
   const teaser = document.getElementById("lead-teaser");
   const offers = document.querySelector(".fornitori-consigliati-section");
@@ -5926,6 +6191,24 @@ window.azzeraPdfEModulo = function azzeraPdfEModulo() {
   chiudiDettagliNuovaOfferta();
   sincronizzaConsumiNuovaOfferta();
   aggiornaTestoPulsanteConfronto();
+
+  const notice = document.getElementById("pdf-upload-context-notice");
+  const uploadPanel = document.getElementById("pdf-upload-panel");
+  const uploadDrop = document.getElementById("pdf-upload-drop");
+  if (notice) {
+    notice.hidden = false;
+    notice.innerHTML = '<span class="pdf-context-icon" aria-hidden="true">↓</span><span><strong>Documento rimosso: il percorso è ripartito.</strong> Carica un nuovo PDF oppure scegli più sotto “Non conosco i miei consumi” o “Conosco i miei consumi”.</span>';
+  }
+  uploadPanel?.classList.remove("pdf-upload-attention");
+  uploadDrop?.classList.remove("pdf-upload-target");
+  void uploadPanel?.offsetWidth;
+  uploadPanel?.classList.add("pdf-upload-attention");
+  uploadDrop?.classList.add("pdf-upload-target");
+  portaElementoInVista(uploadPanel, { block: "start", focus: false, delay: 80 });
+  window.setTimeout(() => {
+    uploadPanel?.classList.remove("pdf-upload-attention");
+    uploadDrop?.classList.remove("pdf-upload-target");
+  }, 3200);
 };
 
 function setField(id, value) {
@@ -6431,9 +6714,11 @@ function collegaEventiUX() {
   document.getElementById("pdf-static-input")?.addEventListener("change", (event) => {
     const count = event.target?.files?.length || 0;
     const notice = document.getElementById("pdf-upload-context-notice");
+    nascondiGuida("pdf-confirm-guidance");
+    document.getElementById("pdf-review-static")?.classList.remove("pdf-confirm-attention");
     if (!notice || count < 1) return;
     notice.hidden = false;
-    notice.innerHTML = `<span class="pdf-context-icon" aria-hidden="true">✓</span><span><strong>${count === 1 ? "PDF selezionato" : `${count} PDF selezionati`}.</strong> Ora premi <strong>Analizza PDF</strong> per leggere i dati.</span>`;
+    notice.innerHTML = `<span class="pdf-context-icon" aria-hidden="true">✓</span><span><strong>${count === 1 ? "PDF selezionato" : `${count} PDF selezionati`}.</strong> Ora premi <strong>Analizza PDF</strong> per leggere i dati. Dopo l'analisi dovrai controllarli e confermarli.</span>`;
   });
   document.getElementById("optional-edit-consumptions")?.addEventListener("click", vaiAiConsumiAttuali);
   document.getElementById("optional-manual-toggle")?.addEventListener("click", () => {
@@ -6737,6 +7022,12 @@ if (document.readyState === "loading") {
               // E. Chiude eventuali pop-up aperti che bloccano lo script
               const tariffaModal = document.getElementById("tariffa-modal");
               if (tariffaModal) tariffaModal.style.display = "none";
+
+              mostraGuida(
+                "comparison-next-step-guidance",
+                "<strong>Il profilo medio è già pronto.</strong> Non devi modificare nulla: premi il pulsante qui sotto per vedere le offerte.",
+                { scroll: true, block: "center", focus: true }
+              );
           });
       }
 
@@ -6746,6 +7037,8 @@ if (document.readyState === "loading") {
               resetBotteonStyles();
               btnPrecisi.classList.add("selected");
               LEAD_STATE.dataOrigin = "manual_input";
+              nascondiGuida("comparison-next-step-guidance");
+              nascondiGuida("pdf-data-review-guidance");
               
               // Svuota i campi pre-compilati per lasciare spazio all'utente
               const inputs = blocchiInferiori ? blocchiInferiori.querySelectorAll("input") : [];

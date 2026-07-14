@@ -26,6 +26,22 @@ Prima di modificare codice usa sempre questo schema:
 - Come verifico che funzioni.
 
 
+## Aggiornamento v78 - conferma PDF guidata e reset completo del percorso
+
+Modifiche applicate in `public/index.html`:
+
+- dopo l'analisi del PDF la pagina scorre automaticamente al riepilogo e mostra una guida evidente: "Leggi e conferma i dati estratti";
+- il pulsante di conferma e ora a tutta larghezza e specifica che i dati vengono inseriti nel modulo solo dopo la conferma;
+- dopo la conferma la pagina porta direttamente ai dati compilati, evidenzia la scheda interessata e segnala subito gli eventuali valori non letti;
+- il percorso distingue bolletta attuale e scheda sintetica, guidando rispettivamente alla scheda corretta;
+- scegliendo "Non conosco i miei consumi" compare una guida che chiarisce che il profilo medio e gia pronto e non serve modificare nulla;
+- "Azzera e cambia PDF" e stato rinominato "Rimuovi PDF e ricomincia" e ora azzera documento, dati derivati, risultati, errori, OTP/lead corrente e stati del confronto, riportando l'utente al caricatore;
+- aggiunto supporto a `prefers-reduced-motion` per evitare animazioni quando richiesto dal dispositivo.
+
+Verificati sintassi JavaScript, assenza di ID duplicati, sequenza selezione PDF -> analisi -> conferma -> revisione dati, reset del percorso e guida del profilo medio.
+
+Non sono state modificate formule, catalogo offerte, API di lettura PDF, testi legali dei consensi o logica economica del confronto.
+
 ## Aggiornamento v77 - blocchi simmetrici e destinazione PDF evidente
 
 Modifiche applicate in `public/index.html`:
@@ -47,11 +63,11 @@ Il progetto gira su GitHub + Vercel con dominio `offertalogica.it`.
 
 Il pacchetto incrementale piu recente lato progetto e:
 
-`offertalogica-v77-blocchi-simmetrici-upload-evidenziato-20260714`
+`offertalogica-v78-guida-conferma-pdf-reset-percorso-20260714`
 
 Base immediatamente precedente:
 
-`offertalogica-v76-ux-offerta-specifica-20260714`
+`offertalogica-v77-blocchi-simmetrici-upload-evidenziato-20260714`
 
 Il pacchetto completo di riferimento lato progetto resta:
 
