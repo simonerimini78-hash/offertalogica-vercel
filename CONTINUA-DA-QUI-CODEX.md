@@ -25,13 +25,35 @@ Prima di modificare codice usa sempre questo schema:
 - Cosa non tocco.
 - Come verifico che funzioni.
 
+
+## Aggiornamento v77 - blocchi simmetrici e destinazione PDF evidente
+
+Modifiche applicate in `public/index.html`:
+
+- le schede "La tua fornitura attuale" e "Confronta un'offerta o un fornitore specifico" usano ora la stessa struttura grafica, bordo, testata, badge e altezza;
+- la griglia desktop mantiene le due schede perfettamente allineate e della stessa altezza;
+- i consumi restano sincronizzati: i campi tecnici della nuova offerta sono nascosti, mentre il riepilogo a destra si aggiorna dai valori della fornitura attuale;
+- cliccando "Carica una scheda sintetica" la pagina porta al caricatore PDF, mostra un messaggio "Sei nel punto giusto" e anima sia il pannello sia l'area di caricamento;
+- dopo la scelta del file, il messaggio indica chiaramente di premere "Analizza PDF";
+- verificati sintassi JavaScript, assenza di ID duplicati, sincronizzazione dei consumi, parita delle altezze desktop e assenza di overflow mobile.
+
+Non sono state modificate formule, catalogo offerte, lettura PDF, OTP, consensi o logica di confronto.
+
 ## Stato attuale sintetico
 
 OffertaLogica e un calcolatore luce/gas per privati e aziende.
 
 Il progetto gira su GitHub + Vercel con dominio `offertalogica.it`.
 
-Il pacchetto completo di riferimento lato progetto e:
+Il pacchetto incrementale piu recente lato progetto e:
+
+`offertalogica-v77-blocchi-simmetrici-upload-evidenziato-20260714`
+
+Base immediatamente precedente:
+
+`offertalogica-v76-ux-offerta-specifica-20260714`
+
+Il pacchetto completo di riferimento lato progetto resta:
 
 `offertalogica-v75-popup-otp-schede-coerenti-20260714`
 

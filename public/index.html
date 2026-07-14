@@ -1367,6 +1367,173 @@
                 flex: 0 0 12px;
             }
         }
+
+        /* v77 — due schede speculari e richiamo evidente al caricatore PDF */
+        #master-blocchi-inferiori {
+            align-items: stretch;
+        }
+        #master-blocchi-inferiori .supply-compare-card {
+            position: relative;
+            height: 100%;
+            overflow: hidden;
+            border-color: #93c5fd;
+            background: linear-gradient(180deg, #f8fbff 0%, #ffffff 42%);
+            box-shadow: 0 12px 30px rgba(37, 99, 235, 0.09);
+        }
+        #master-blocchi-inferiori .supply-compare-card::before {
+            content: "";
+            position: absolute;
+            inset: 0 0 auto 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--accent), #38bdf8);
+        }
+        .compare-card-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            min-height: 50px;
+            margin-bottom: 8px;
+        }
+        .compare-card-title {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            min-width: 0;
+            margin: 0 !important;
+            padding: 0 !important;
+            border: 0 !important;
+            color: var(--text-color) !important;
+            font-size: 18px !important;
+            line-height: 1.18;
+            font-weight: 900;
+            text-transform: none;
+        }
+        .compare-card-icon {
+            flex: 0 0 auto;
+            font-size: 18px;
+            line-height: 1.2;
+        }
+        .compare-card-badge {
+            flex: 0 0 auto;
+            padding: 5px 9px;
+            border: 1px solid #dbeafe;
+            border-radius: 999px;
+            background: #eff6ff;
+            color: #475569;
+            font-size: 10px;
+            line-height: 1;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+        }
+        .compare-card-badge-current {
+            border-color: #bbf7d0;
+            background: #f0fdf4;
+            color: #166534;
+        }
+        .compare-card-intro {
+            min-height: 42px;
+            margin: 0 0 14px;
+            color: var(--text-muted);
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        .compare-card-intro strong { color: var(--text-color); }
+        .compare-provider-panel {
+            margin: 0 0 14px;
+            padding: 12px;
+            border: 1px solid #bfdbfe;
+            border-radius: 11px;
+            background: #ffffff;
+        }
+        .compare-provider-panel label {
+            display: block;
+            margin-bottom: 5px;
+            color: var(--accent) !important;
+            font-size: 11px !important;
+            font-weight: 800 !important;
+        }
+        .compare-provider-panel select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--accent);
+            border-radius: 8px;
+            background-color: var(--card-bg);
+            color: var(--text-color);
+            font-size: 14px;
+        }
+        .current-supply-card .columns-subgrid {
+            margin-top: 2px;
+        }
+        .current-supply-card .column-energy {
+            min-width: 0;
+            padding: 11px;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            background: #ffffff;
+        }
+        .optional-offer-card {
+            border-color: #93c5fd;
+        }
+        .pdf-lead-panel {
+            scroll-margin-top: 24px;
+        }
+        .pdf-context-notice {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin: 0 0 14px;
+            padding: 12px 14px;
+            border: 1px solid #60a5fa;
+            border-radius: 10px;
+            background: #eff6ff;
+            color: #1e3a8a;
+            font-size: 13px;
+            line-height: 1.4;
+            text-align: left;
+            box-shadow: 0 6px 18px rgba(37,99,235,.10);
+        }
+        .pdf-context-notice[hidden] { display: none !important; }
+        .pdf-context-icon {
+            flex: 0 0 auto;
+            display: grid;
+            place-items: center;
+            width: 30px;
+            height: 30px;
+            border-radius: 999px;
+            background: var(--accent);
+            color: #ffffff;
+            font-size: 18px;
+            font-weight: 900;
+            animation: pdfArrowBounce .9s ease-in-out 3;
+        }
+        .pdf-lead-panel.pdf-upload-attention {
+            animation: pdfPanelAttention 2.8s ease;
+        }
+        .upload-drop.pdf-upload-target {
+            animation: pdfDropAttention 2.8s ease;
+        }
+        @keyframes pdfPanelAttention {
+            0%, 100% { border-color: rgba(37,99,235,.20); box-shadow: 0 18px 48px rgba(15,23,42,.09); }
+            18%, 58% { border-color: var(--accent); box-shadow: 0 0 0 5px rgba(37,99,235,.16), 0 22px 52px rgba(37,99,235,.18); }
+        }
+        @keyframes pdfDropAttention {
+            0%, 100% { background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%); border-color: rgba(37,99,235,.22); }
+            18%, 58% { background: #eff6ff; border-color: var(--accent); }
+        }
+        @keyframes pdfArrowBounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(4px); }
+        }
+        @media (max-width: 600px) {
+            .compare-card-header { min-height: 0; }
+            .compare-card-title { font-size: 16px !important; }
+            .compare-card-intro { min-height: 0; }
+            .pdf-context-notice { align-items: flex-start; justify-content: flex-start; }
+        }
     </style>
 </head>
 <body>
@@ -1506,11 +1673,15 @@
         </div>
     </div>
 
-    <div class="pdf-lead-panel">
+    <div class="pdf-lead-panel" id="pdf-upload-panel">
         <h3>Carica bolletta o scheda sintetica</h3>
         <p>Carica una bolletta o una scheda sintetica: proveremo a leggere consumi, fornitore, prezzi e quote fisse per rendere il confronto più aderente alla tua fornitura.</p>
-        <div class="upload-drop">
-            <input id="pdf-static-input" type="file" accept="application/pdf" multiple>
+        <div id="pdf-upload-context-notice" class="pdf-context-notice" role="status" aria-live="polite" hidden>
+            <span class="pdf-context-icon" aria-hidden="true">↓</span>
+            <span><strong>Sei nel punto giusto.</strong> Seleziona qui il PDF della scheda sintetica, poi premi <strong>Analizza PDF</strong>.</span>
+        </div>
+        <div class="upload-drop" id="pdf-upload-drop">
+            <input id="pdf-static-input" type="file" accept="application/pdf" multiple aria-describedby="pdf-upload-context-notice">
             <button type="button" class="btn-action" onclick="preparaConfermaPdf()">Analizza PDF</button>
             <button type="button" class="lead-secondary" onclick="azzeraPdfEModulo()">Azzera e cambia PDF</button>
             <div class="upload-note">Puoi caricare una o più bollette PDF, ad esempio una luce e una gas, oppure una scheda sintetica.</div>
@@ -1614,11 +1785,15 @@
                 <!-- 1. APERTURA DEL CONTENITORE GENERALE DELLA GRIGLIA (Questo attiva l'affiancamento) -->
     <div class="manual-container" id="master-blocchi-inferiori" style="display: none;">
 
-        <div class="manual-block" id="blocco-attuale">
-            <h3>📉 La tua Fornitura Attuale</h3>
-            <div class="input-group" style="margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">
-                <label style="color: var(--accent); font-weight: bold;">Nome del tuo Fornitore Attuale:</label>
-                <select id="nome-fornitore-att" style="width: 100%; padding: 10px; border: 1px solid var(--accent); border-radius: 8px; background-color: var(--card-bg); color: var(--text-color); font-size: 14px;">
+        <div class="manual-block supply-compare-card current-supply-card" id="blocco-attuale">
+            <div class="compare-card-header">
+                <h3 class="compare-card-title"><span class="compare-card-icon" aria-hidden="true">📉</span><span>La tua fornitura attuale</span></h3>
+                <span class="compare-card-badge compare-card-badge-current">Attuale</span>
+            </div>
+            <p class="compare-card-intro">Inserisci o verifica i dati della fornitura che stai pagando oggi. Saranno la base del confronto.</p>
+            <div class="input-group compare-provider-panel current-provider-panel">
+                <label for="nome-fornitore-att">Qual è il tuo fornitore attuale?</label>
+                <select id="nome-fornitore-att">
                     <option value="" disabled selected>-- Seleziona il tuo fornitore --</option>
                     <option value="a2a">A2A Energia</option>
                     <option value="acea">Acea Energia</option>
@@ -1706,12 +1881,12 @@
                     </div>
                 </div>
             </div>
-        </div> <div class="manual-block offerta-inserita optional-offer-card" id="blocco-nuovo">
-            <div class="optional-offer-header">
-                <h3 class="optional-offer-title"><span class="optional-title-icon" aria-hidden="true">📊</span><span>Confronta un'offerta o un fornitore specifico</span></h3>
-                <span class="optional-badge">Facoltativo</span>
+        </div> <div class="manual-block offerta-inserita optional-offer-card supply-compare-card" id="blocco-nuovo">
+            <div class="compare-card-header optional-offer-header">
+                <h3 class="compare-card-title optional-offer-title"><span class="compare-card-icon optional-title-icon" aria-hidden="true">📊</span><span>Confronta un'offerta o un fornitore specifico</span></h3>
+                <span class="compare-card-badge optional-badge">Facoltativo</span>
             </div>
-            <p class="optional-offer-intro"><strong>Puoi ignorare questa sezione.</strong> Usala solo per vedere le offerte di un fornitore preciso o confrontare una proposta che hai già ricevuto.</p>
+            <p class="compare-card-intro optional-offer-intro"><strong>Puoi ignorare questa sezione.</strong> Usala solo per vedere le offerte di un fornitore preciso o confrontare una proposta che hai già ricevuto.</p>
 
             <div class="optional-offer-actions" aria-label="Azioni facoltative per una proposta specifica">
                 <button type="button" class="optional-action-button" id="optional-upload-sheet">
@@ -1724,7 +1899,7 @@
                 </button>
             </div>
 
-            <div class="optional-provider-panel">
+            <div class="optional-provider-panel compare-provider-panel">
                 <label for="nome-fornitore-nuov">Di quale fornitore vuoi vedere le offerte?</label>
                 <select id="nome-fornitore-nuov" aria-describedby="nuova-offerta-menu-help nuova-offerta-auto-hint">
                     <option value="" disabled selected>Seleziona un fornitore</option>
@@ -5878,12 +6053,26 @@ function chiudiDettagliNuovaOfferta() {
 }
 
 function vaiAlCaricatoreScheda() {
-  const panel = document.querySelector(".pdf-lead-panel");
+  const panel = document.getElementById("pdf-upload-panel") || document.querySelector(".pdf-lead-panel");
+  const drop = document.getElementById("pdf-upload-drop");
   const input = document.getElementById("pdf-static-input");
-  panel?.scrollIntoView({ behavior: "smooth", block: "center" });
-  panel?.classList.add("pdf-upload-attention");
-  window.setTimeout(() => panel?.classList.remove("pdf-upload-attention"), 1600);
-  window.setTimeout(() => input?.focus({ preventScroll: true }), 450);
+  const notice = document.getElementById("pdf-upload-context-notice");
+  if (notice) {
+    notice.hidden = false;
+    notice.innerHTML = '<span class="pdf-context-icon" aria-hidden="true">↓</span><span><strong>Sei nel punto giusto.</strong> Seleziona qui il PDF della scheda sintetica, poi premi <strong>Analizza PDF</strong>.</span>';
+  }
+  panel?.scrollIntoView({ behavior: "smooth", block: "start" });
+  panel?.classList.remove("pdf-upload-attention");
+  drop?.classList.remove("pdf-upload-target");
+  window.requestAnimationFrame(() => {
+    panel?.classList.add("pdf-upload-attention");
+    drop?.classList.add("pdf-upload-target");
+  });
+  window.setTimeout(() => {
+    panel?.classList.remove("pdf-upload-attention");
+    drop?.classList.remove("pdf-upload-target");
+  }, 3000);
+  window.setTimeout(() => input?.focus({ preventScroll: true }), 650);
 }
 
 function vaiAiConsumiAttuali() {
@@ -6239,6 +6428,13 @@ function collegaEventiUX() {
   luceAtt?.addEventListener("input", sincronizzaConsumiNuovaOfferta);
   gasAtt?.addEventListener("input", sincronizzaConsumiNuovaOfferta);
   document.getElementById("optional-upload-sheet")?.addEventListener("click", vaiAlCaricatoreScheda);
+  document.getElementById("pdf-static-input")?.addEventListener("change", (event) => {
+    const count = event.target?.files?.length || 0;
+    const notice = document.getElementById("pdf-upload-context-notice");
+    if (!notice || count < 1) return;
+    notice.hidden = false;
+    notice.innerHTML = `<span class="pdf-context-icon" aria-hidden="true">✓</span><span><strong>${count === 1 ? "PDF selezionato" : `${count} PDF selezionati`}.</strong> Ora premi <strong>Analizza PDF</strong> per leggere i dati.</span>`;
+  });
   document.getElementById("optional-edit-consumptions")?.addEventListener("click", vaiAiConsumiAttuali);
   document.getElementById("optional-manual-toggle")?.addEventListener("click", () => {
     const details = document.getElementById("nuova-offerta-details");
