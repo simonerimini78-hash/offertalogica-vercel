@@ -2371,6 +2371,7 @@ const LEAD_STATE = {
   pdfDocuments: [],
   comparisonScope: "unknown",
   gasDecision: "",
+  electricityDecision: "",
   pendingPdfDecision: null,
   staffMode: false,
   staffActivatedAt: "",
@@ -3355,18 +3356,20 @@ function inizializzaSelectFornitoreGas() {
 
 function ambitoConfrontoAttivo() {
   const scope = LEAD_STATE.comparisonScope;
-  if (["luce", "gas", "dual", "separate", "pending_gas"].includes(scope)) return scope;
+  if (["luce", "gas", "dual", "separate", "pending_gas", "pending_luce"].includes(scope)) return scope;
   const selected = leggiValore("master-tipo-fornitura", "dual");
   return ["luce", "gas", "dual", "separate"].includes(selected) ? selected : "dual";
 }
 
 function tipoFornituraPerCalcolo() {
   const scope = ambitoConfrontoAttivo();
-  return scope === "pending_gas" ? "luce" : scope;
+  if (scope === "pending_gas") return "luce";
+  if (scope === "pending_luce") return "gas";
+  return scope;
 }
 
 function configurazioniPerAmbito(configurazioni, scope = ambitoConfrontoAttivo()) {
-  const effective = scope === "pending_gas" ? "luce" : scope;
+  const effective = scope === "pending_gas" ? "luce" : scope === "pending_luce" ? "gas" : scope;
   if (effective === "luce") return configurazioni.filter(({ id }) => id.includes("-luce-"));
   if (effective === "gas") return configurazioni.filter(({ id }) => id.includes("-gas-"));
   return configurazioni;
@@ -3388,23 +3391,26 @@ function aggiornaIndicatoreProfiloPdf() {
   if (scope === "dual") parts.push("luce e gas, stesso fornitore");
   if (scope === "separate") parts.push("luce e gas, fornitori separati");
   if (scope === "pending_gas") parts.push("bolletta gas da caricare");
+  if (scope === "pending_luce") parts.push("bolletta luce da caricare");
   indicator.textContent = parts.length ? `Profilo: ${parts.join(" · ")}` : "";
   indicator.hidden = parts.length === 0;
 }
 
 function applicaAmbitoConfronto(scope, options = {}) {
-  const normalized = ["luce", "gas", "dual", "separate", "pending_gas"].includes(scope) ? scope : "dual";
+  const normalized = ["luce", "gas", "dual", "separate", "pending_gas", "pending_luce"].includes(scope) ? scope : "dual";
   LEAD_STATE.comparisonScope = normalized;
   if (options.gasDecision !== undefined) LEAD_STATE.gasDecision = options.gasDecision;
+  if (options.electricityDecision !== undefined) LEAD_STATE.electricityDecision = options.electricityDecision;
   inizializzaSelectFornitoreGas();
 
-  const showLuce = normalized !== "gas";
-  const showGas = ["gas", "dual", "separate"].includes(normalized);
+  const effective = normalized === "pending_gas" ? "luce" : normalized === "pending_luce" ? "gas" : normalized;
+  const showLuce = effective !== "gas";
+  const showGas = ["gas", "dual", "separate"].includes(effective);
   ["current-luce-column", "master-luce-column", "new-offer-luce-column", "optional-luce-consumption-item", "current-provider-luce-panel", "business-luce-section"].forEach((id) => toggleAmbitoElemento(id, showLuce));
   ["current-gas-column", "master-gas-column", "new-offer-gas-column", "optional-gas-consumption-item", "current-provider-gas-panel", "business-gas-section"].forEach((id) => toggleAmbitoElemento(id, showGas));
 
   const select = document.getElementById("master-tipo-fornitura");
-  if (select) select.value = normalized === "pending_gas" ? "luce" : normalized;
+  if (select) select.value = normalized === "pending_gas" ? "luce" : normalized === "pending_luce" ? "gas" : normalized;
   aggiornaIndicatoreProfiloPdf();
   sincronizzaConsumiNuovaOfferta();
   aggiornaTestoPulsanteConfronto();
@@ -3459,26 +3465,50 @@ async function confermaAmbitoPdf(data) {
   if (data?.kind !== "bolletta") return ambitoConfrontoAttivo();
   if (data.commodity === "dual") {
     const sameProvider = data.fornitore_luce && data.fornitore_gas && data.fornitore_luce === data.fornitore_gas;
+    LEAD_STATE.gasDecision = "detected";
+    LEAD_STATE.electricityDecision = "detected";
     return sameProvider ? "dual" : "separate";
   }
-  if (data.commodity === "gas") return "gas";
-  if (data.commodity !== "luce") return ambitoConfrontoAttivo();
 
-  const scelta = await apriDecisionePdf({
-    title: "Vuoi confrontare anche una fornitura gas?",
-    copy: "Nel PDF abbiamo trovato soltanto la fornitura elettrica. Il gas potrebbe non esserci, potrebbe avere un altro fornitore oppure potresti voler confrontare solo la luce.",
-    options: [
-      { value: "luce_no_gas", label: "No, ho solo la luce", primary: true },
-      { value: "pending_gas", label: "Sì, devo ancora caricare la bolletta gas" },
-      { value: "luce_not_compare", label: "Ho anche il gas, ma voglio confrontare solo la luce" },
-    ],
-  });
-  if (scelta === "pending_gas") {
-    LEAD_STATE.gasDecision = "pending_upload";
-    return "pending_gas";
+  if (data.commodity === "luce") {
+    const scelta = await apriDecisionePdf({
+      title: "Vuoi confrontare anche una fornitura gas?",
+      copy: "Nel PDF abbiamo trovato soltanto la fornitura elettrica. Il gas potrebbe non esserci, potrebbe avere un altro fornitore oppure potresti voler confrontare solo la luce.",
+      options: [
+        { value: "luce_no_gas", label: "No, ho solo la luce", primary: true },
+        { value: "pending_gas", label: "Sì, devo ancora caricare la bolletta gas" },
+        { value: "luce_not_compare", label: "Ho anche il gas, ma voglio confrontare solo la luce" },
+      ],
+    });
+    LEAD_STATE.electricityDecision = "detected";
+    if (scelta === "pending_gas") {
+      LEAD_STATE.gasDecision = "pending_upload";
+      return "pending_gas";
+    }
+    LEAD_STATE.gasDecision = scelta === "luce_not_compare" ? "not_compared" : "not_present";
+    return "luce";
   }
-  LEAD_STATE.gasDecision = scelta === "luce_not_compare" ? "not_compared" : "not_present";
-  return "luce";
+
+  if (data.commodity === "gas") {
+    const scelta = await apriDecisionePdf({
+      title: "Vuoi confrontare anche una fornitura luce?",
+      copy: "Nel PDF abbiamo trovato soltanto la fornitura gas. La luce potrebbe non esserci, potrebbe avere un altro fornitore oppure potresti voler confrontare solo il gas.",
+      options: [
+        { value: "gas_no_luce", label: "No, ho solo il gas", primary: true },
+        { value: "pending_luce", label: "Sì, devo ancora caricare la bolletta luce" },
+        { value: "gas_not_compare", label: "Ho anche la luce, ma voglio confrontare solo il gas" },
+      ],
+    });
+    LEAD_STATE.gasDecision = "detected";
+    if (scelta === "pending_luce") {
+      LEAD_STATE.electricityDecision = "pending_upload";
+      return "pending_luce";
+    }
+    LEAD_STATE.electricityDecision = scelta === "gas_not_compare" ? "not_compared" : "not_present";
+    return "gas";
+  }
+
+  return ambitoConfrontoAttivo();
 }
 
 function statoCampoNumerico(config) {
@@ -3731,7 +3761,7 @@ function determinaOrigineDatoLead() {
 }
 
 function leggiProfiloComparazione() {
-  const scope = ambitoConfrontoAttivo();
+  const scope = tipoFornituraPerCalcolo();
   const usaLuce = scope !== "gas";
   const usaGas = ["gas", "dual", "separate"].includes(scope);
   return {
@@ -3739,6 +3769,7 @@ function leggiProfiloComparazione() {
     tipoPrezzo: leggiValore("master-luce-tipo", PARAMETRI_CALCOLO.profiloMedio.tipoPrezzo),
     tipoFornitura: tipoFornituraPerCalcolo(),
     gasDecision: LEAD_STATE.gasDecision || "",
+    electricityDecision: LEAD_STATE.electricityDecision || "",
     regioneGas: usaGas ? leggiValore("master-gas-regione", PARAMETRI_CALCOLO.profiloMedio.regioneGas) : "",
     potenzaKw: usaLuce ? leggiNumero("master-luce-potenza", PARAMETRI_CALCOLO.profiloMedio.potenzaKw) : 0,
     luceConsumoKwh: usaLuce ? leggiNumero("in-luce-cons-att", leggiNumero("master-luce-consumo", PARAMETRI_CALCOLO.profiloMedio.luceConsumoKwh)) : 0,
@@ -3752,7 +3783,7 @@ function leggiProfiloComparazione() {
 }
 
 function leggiOffertaAttuale() {
-  const scope = ambitoConfrontoAttivo();
+  const scope = tipoFornituraPerCalcolo();
   const usaLuce = scope !== "gas";
   const usaGas = ["gas", "dual", "separate"].includes(scope);
   return {
@@ -3778,7 +3809,7 @@ function leggiOffertaAttuale() {
 
 function leggiNuovaOfferta(attuale) {
   const fonteAuto = NUOVA_OFFERTA_AUTOMATICA?.offerta || null;
-  const scope = ambitoConfrontoAttivo();
+  const scope = tipoFornituraPerCalcolo();
   const usaLuce = scope !== "gas";
   const usaGas = ["gas", "dual", "separate"].includes(scope);
   return {
@@ -5148,6 +5179,11 @@ window.avviaComparazioneDati = function avviaComparazioneDati() {
     vaiAlCaricatoreScheda();
     return;
   }
+  if (ambitoConfrontoAttivo() === "pending_luce") {
+    mostraGuida("pdf-data-review-guidance", "<strong>La fornitura gas è pronta.</strong> Hai scelto di aggiungere anche la luce: carica ora la bolletta luce, poi conferma i nuovi dati.", { scroll: true, focus: true });
+    vaiAlCaricatoreScheda();
+    return;
+  }
   const attuale = leggiOffertaAttuale();
   trackEvent("comparison_started", {
     tipoPrezzo: tipoTariffa,
@@ -5301,6 +5337,15 @@ async function apriAnteprimaProfiloFornituraStaff() {
       { value: "luce_no_gas", label: "No, ho solo la luce", primary: true },
       { value: "pending_gas", label: "Sì, devo ancora caricare la bolletta gas" },
       { value: "luce_not_compare", label: "Ho anche il gas, ma voglio confrontare solo la luce" },
+    ],
+  });
+  await apriDecisionePdf({
+    title: "Vuoi confrontare anche una fornitura luce?",
+    copy: "Anteprima staff mostrata quando il PDF contiene soltanto la fornitura gas.",
+    options: [
+      { value: "gas_no_luce", label: "No, ho solo il gas", primary: true },
+      { value: "pending_luce", label: "Sì, devo ancora caricare la bolletta luce" },
+      { value: "gas_not_compare", label: "Ho anche la luce, ma voglio confrontare solo il gas" },
     ],
   });
 }
@@ -5890,7 +5935,7 @@ function campiAssistenteAttivazione() {
   const nome = valoreDatoAttivazione(document.getElementById("lead-nome")?.value);
   const telefono = valoreDatoAttivazione(document.getElementById("lead-telefono")?.value);
   const email = valoreDatoAttivazione(document.getElementById("lead-email")?.value);
-  const scope = ambitoConfrontoAttivo();
+  const scope = tipoFornituraPerCalcolo();
   const usaLuce = scope !== "gas";
   const usaGas = ["gas", "dual", "separate"].includes(scope);
   const fields = [
@@ -6516,7 +6561,7 @@ window.confermaPdfECalcola = async function confermaPdfECalcola() {
     const customerType = await confermaProfiloClientePdf(data);
     if (customerType && customerType !== LEAD_STATE.customerType) selezionaSegmentoCliente(customerType);
     const scope = await confermaAmbitoPdf(data);
-    applicaAmbitoConfronto(scope, { gasDecision: LEAD_STATE.gasDecision });
+    applicaAmbitoConfronto(scope, { gasDecision: LEAD_STATE.gasDecision, electricityDecision: LEAD_STATE.electricityDecision });
   }
 
   if (LEAD_STATE.customerType === "business") {
@@ -6530,6 +6575,11 @@ window.confermaPdfECalcola = async function confermaPdfECalcola() {
     aggiornaAssistenteAttivazioneVisibilita();
     if (ambitoConfrontoAttivo() === "pending_gas") {
       if (copy) copy.innerText = "Dati luce confermati e inseriti nel modulo aziendale. Ora carica la bolletta gas: i dati già letti restano memorizzati.";
+      vaiAlCaricatoreScheda();
+      return;
+    }
+    if (ambitoConfrontoAttivo() === "pending_luce") {
+      if (copy) copy.innerText = "Dati gas confermati e inseriti nel modulo aziendale. Ora carica la bolletta luce: i dati già letti restano memorizzati.";
       vaiAlCaricatoreScheda();
       return;
     }
@@ -6553,6 +6603,12 @@ window.confermaPdfECalcola = async function confermaPdfECalcola() {
   if (ambitoConfrontoAttivo() === "pending_gas") {
     if (copy) copy.innerText = "Dati luce confermati. Ora carica la bolletta gas: conserveremo i dati già letti e uniremo le due forniture senza sovrascriverle.";
     mostraGuida("pdf-data-review-guidance", "<strong>La luce è stata memorizzata.</strong> Seleziona ora il PDF della bolletta gas e premi <strong>Analizza PDF</strong>.");
+    vaiAlCaricatoreScheda();
+    return;
+  }
+  if (ambitoConfrontoAttivo() === "pending_luce") {
+    if (copy) copy.innerText = "Dati gas confermati. Ora carica la bolletta luce: conserveremo i dati già letti e uniremo le due forniture senza sovrascriverle.";
+    mostraGuida("pdf-data-review-guidance", "<strong>Il gas è stato memorizzato.</strong> Seleziona ora il PDF della bolletta luce e premi <strong>Analizza PDF</strong>.");
     vaiAlCaricatoreScheda();
     return;
   }
@@ -6687,6 +6743,7 @@ window.azzeraPdfEModulo = function azzeraPdfEModulo() {
   LEAD_STATE.pdfDocuments = [];
   LEAD_STATE.comparisonScope = "unknown";
   LEAD_STATE.gasDecision = "";
+  LEAD_STATE.electricityDecision = "";
   LEAD_STATE.pendingPdfDecision = null;
   LEAD_STATE.dataOrigin = "manual_input";
   LEAD_STATE.verified = false;
@@ -6976,6 +7033,10 @@ function aggiornaTestoPulsanteConfronto() {
   const scope = ambitoConfrontoAttivo();
   if (scope === "pending_gas") {
     button.textContent = "Carica la bolletta gas per continuare";
+    return;
+  }
+  if (scope === "pending_luce") {
+    button.textContent = "Carica la bolletta luce per continuare";
     return;
   }
   if (NUOVA_OFFERTA_AUTOMATICA?.offerta) {

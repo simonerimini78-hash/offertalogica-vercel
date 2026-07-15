@@ -26,6 +26,27 @@ Prima di modificare codice usa sempre questo schema:
 - Come verifico che funzioni.
 
 
+## Aggiornamento v87 - percorso simmetrico per bolletta solo gas
+
+Correzione del flusso introdotto in v86:
+
+- quando il PDF contiene soltanto gas, viene ora chiesto se l'utente:
+  - ha solo il gas;
+  - deve ancora caricare la bolletta luce;
+  - ha anche la luce ma vuole confrontare soltanto il gas;
+- scegliendo solo gas, tutti i campi luce vengono esclusi dalla validazione e nascosti;
+- scegliendo di caricare successivamente la luce, i dati gas restano memorizzati e il caricatore PDF viene riaperto;
+- aggiunto lo stato `pending_luce`, simmetrico a `pending_gas`, in indicatore profilo, pulsante di confronto, guida utente e riepilogo dati per attivazione;
+- la modalità staff mostra anche l'anteprima della domanda relativa alla luce;
+- mantenuto invariato il percorso già funzionante per bolletta solo luce.
+
+Verifiche v87:
+
+- test parser esistenti: 12/12 superati;
+- test del percorso luce/gas simmetrico: 5/5 superati;
+- totale test automatici: 17/17 superati;
+- sintassi di tutti gli script inline: OK.
+
 ## Aggiornamento v86 - profilo aziendale e scelta della fornitura da confrontare
 
 Modifiche applicate al percorso successivo alla lettura della bolletta:
