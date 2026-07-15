@@ -1251,3 +1251,14 @@ Verifiche eseguite:
 - Dopo una scheda sintetica viene ricordato che per il confronto servono anche i dati della fornitura attuale, ottenibili caricando la bolletta o inserendoli manualmente.
 - Dopo una bolletta la guida invita a controllare i valori e premere “Mostra le offerte disponibili”.
 - Nessuna modifica a calcoli, parsing PDF, validazioni, OTP o catalogo offerte.
+
+## v85 — ottimizzazione lettore PDF su documenti reali
+- Corretto `matchNumber`: una corrispondenza non numerica non interrompe più la ricerca.
+- Aggiunti parser tolleranti ai layout Dolomiti, Plenitude e Hera, comprese etichette spezzate su più righe.
+- Migliorata l'estrazione dei consumi annui, prezzi di vendita, quote fisse, POD/PDR e potenza.
+- Aggiunti dati utili all'attivazione: intestatario, codice fiscale, codice cliente, indirizzo di fornitura.
+- Aggiunti dati delle offerte: nome/codice offerta, fisso/variabile, indice e spread.
+- Le schede variabili non vengono trasformate in un falso prezzo fisso: E.ON restituisce PUN + spread e quota annua.
+- Il consumo gas espresso in mc viene convertito in Smc solo quando il documento contiene il coefficiente C, con warning esplicito.
+- Il frontend conserva i nuovi campi durante l'unione dei PDF e li rende disponibili al riepilogo di attivazione.
+- Suite: 10 test automatici superati, inclusi casi Dolomiti, Plenitude ed E.ON.

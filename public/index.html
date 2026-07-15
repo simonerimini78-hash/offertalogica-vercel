@@ -6337,6 +6337,14 @@ function mergePdfDocuments(documents) {
   validDocuments.forEach((doc) => {
     if (!merged.fornitore && doc.fornitore) merged.fornitore = doc.fornitore;
     merged.kind = doc.kind;
+    [
+      "intestatario", "codice_fiscale", "codice_cliente", "indirizzo_fornitura",
+      "nome_offerta", "codice_offerta", "tipo_prezzo", "indice_riferimento",
+      "spread_luce_eur_kwh", "spread_gas_eur_smc", "consumo_gas_mc",
+      "coefficiente_conversione_gas_c"
+    ].forEach((field) => {
+      merged[field] = firstValue(doc[field], merged[field]);
+    });
 
     if (doc.commodity === "luce" || doc.commodity === "dual" || doc.consumo_luce_kwh || doc.prezzo_luce_eur_kwh) {
       merged.consumo_luce_kwh = firstValue(doc.consumo_luce_kwh, merged.consumo_luce_kwh);
@@ -6389,6 +6397,11 @@ function renderPdfSummary(documents, merged) {
     merged.quota_fissa_vendita_gas_eur_anno ? `Fisso gas: ${merged.quota_fissa_vendita_gas_eur_anno} €/anno` : "",
     merged.pod ? `POD: ${testoHtmlSicuro(merged.pod)}` : "",
     merged.pdr ? `PDR: ${testoHtmlSicuro(merged.pdr)}` : "",
+    merged.codice_cliente ? `Codice cliente: ${testoHtmlSicuro(merged.codice_cliente)}` : "",
+    merged.codice_fiscale ? `Codice fiscale: ${testoHtmlSicuro(merged.codice_fiscale)}` : "",
+    merged.indirizzo_fornitura ? `Indirizzo: ${testoHtmlSicuro(merged.indirizzo_fornitura)}` : "",
+    merged.tipo_prezzo ? `Tipo prezzo: ${testoHtmlSicuro(merged.tipo_prezzo)}` : "",
+    merged.indice_riferimento ? `Indice: ${testoHtmlSicuro(merged.indice_riferimento)}` : "",
   ].filter(Boolean).join(" | ");
 
   return `
