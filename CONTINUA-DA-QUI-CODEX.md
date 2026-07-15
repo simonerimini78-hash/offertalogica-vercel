@@ -26,6 +26,36 @@ Prima di modificare codice usa sempre questo schema:
 - Come verifico che funzioni.
 
 
+## Aggiornamento v82 - assistente attivazione ripristinato e aiuto proattivo
+
+Modifiche applicate in `public/index.html`:
+
+- il riepilogo dei dati utili all'attivazione viene nuovamente intercettato prima dell'apertura del percorso del fornitore quando sono disponibili dati tecnici della bolletta;
+- il popup mostra i dati disponibili di anagrafica verificata e fornitura, tra cui nome, cellulare, email, codice fiscale se letto, POD, PDR, fornitore attuale, consumi, potenza, codice cliente e indirizzo;
+- ogni dato disponibile può essere copiato singolarmente oppure con `Copia tutti i dati disponibili`;
+- i dati non rilevati non occupano più schede vuote: sono riassunti in un avviso compatto;
+- le azioni del popup restano visibili anche su mobile e il percorso di attivazione viene aperto in una nuova scheda, mantenendo OffertaLogica disponibile come guida;
+- aggiunto un popup di assistenza proattiva, mostrato al massimo una volta per sessione in caso di inattività, uscita intenzionale da desktop o errori ripetuti;
+- il popup offre tre scelte non obbligatorie: aprire l'assistente, richiedere un ricontatto a OffertaLogica oppure continuare da soli;
+- la richiesta di ricontatto riutilizza la verifica OTP ma usa testo e consenso specifici per l'assistenza, senza mostrare o inviare il consenso al fornitore;
+- la verifica effettuata solo per il ricontatto non sblocca automaticamente le offerte nel client;
+- nome, cellulare ed email nel popup OTP hanno ora etichette sempre visibili;
+- il campo OTP ha etichetta, `autocomplete=one-time-code`, limite di sei cifre, tastiera numerica e focus automatico;
+- il messaggio OTP indica il numero parzialmente mascherato;
+- lo stesso comportamento resta disponibile in modalità staff, con codice di prova `000000` e senza salvataggio.
+
+Non sono state modificate formule, ranking, catalogo offerte, analisi PDF, API esistenti, database o logica economica. La richiesta di assistenza usa l'endpoint lead/OTP già presente e viene distinta tramite `requestType: assistance_callback`, `assistanceReason` e la fonte del consenso.
+
+Verifiche v82:
+
+- sintassi di tutti gli script inline: OK;
+- ID HTML duplicati: nessuno;
+- popup assistenza e richiesta ricontatto: OK su desktop e mobile;
+- consenso partner nascosto e forzato a `false` nel percorso assistenza: OK;
+- verifica assistenza separata dallo sblocco delle offerte: OK;
+- intercettazione del percorso di attivazione con POD/PDR e dati copiabili: OK;
+- nessun overflow orizzontale a 390 px e 1440 px: OK.
+
 ## Aggiornamento v81 - popup OTP staff identico alla pagina pubblica
 
 Modifiche applicate in `public/index.html`:
@@ -89,11 +119,11 @@ Il progetto gira su GitHub + Vercel con dominio `offertalogica.it`.
 
 Il pacchetto incrementale piu recente lato progetto e:
 
-`offertalogica-v81-staff-popup-otp-coerente-20260714`
+`offertalogica-v82-assistente-attivazione-aiuto-ricontatto-20260715`
 
 Base immediatamente precedente:
 
-`offertalogica-v80-popup-otp-cta-verifica-20260714`
+`offertalogica-v81-staff-popup-otp-coerente-20260714`
 
 Il pacchetto completo di riferimento lato progetto resta:
 

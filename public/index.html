@@ -269,6 +269,8 @@
         .lead-modal h3 { font-size: 20px; margin-bottom: 6px; color: var(--text-color); }
         .lead-modal p { color: var(--text-muted); font-size: 14px; margin-bottom: 14px; }
         .lead-form-grid { display: grid; gap: 10px; }
+        .lead-field { display: grid; gap: 5px; color: var(--text-color); font-size: 12px; font-weight: 800; }
+        .lead-field input { width: 100%; }
         .lead-form-grid input { border: 1px solid var(--border); border-radius: 8px; padding: 11px; font-size: 14px; }
         .lead-consent { display: flex; align-items: flex-start; gap: 9px; font-size: 12px; color: var(--text-muted); line-height: 1.38; padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: #f8fafc; }
         .lead-consent.required { border-color: rgba(22,163,74,.35); background: #f0fdf4; color: #14532d; }
@@ -288,7 +290,7 @@
         .offer-consent-modal { width: min(560px, 100%); background: #fff; border-radius: 14px; border: 1px solid var(--border); padding: 22px; box-shadow: 0 24px 60px rgba(15,23,42,.28); }
         .offer-consent-modal h3 { font-size: 20px; margin-bottom: 6px; color: var(--text-color); }
         .offer-consent-modal p { color: var(--text-muted); font-size: 14px; margin-bottom: 14px; }
-        .activation-helper-fab { position: fixed; right: 22px; bottom: 84px; z-index: 920; display: none; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 12px 16px; border: 0; border-radius: 999px; background: var(--logo-green-gradient); color: #fff; font-weight: 900; cursor: pointer; box-shadow: 0 16px 34px rgba(22,163,74,.24); }
+        .activation-helper-fab { position: fixed; left: 22px; right: auto; bottom: 22px; z-index: 920; display: none; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 12px 16px; border: 0; border-radius: 999px; background: var(--logo-green-gradient); color: #fff; font-weight: 900; cursor: pointer; box-shadow: 0 16px 34px rgba(22,163,74,.24); }
         .activation-helper-fab:hover { transform: translateY(-1px); box-shadow: 0 20px 42px rgba(22,163,74,.30); }
         .activation-helper-backdrop { position: fixed; inset: 0; z-index: 1002; display: none; align-items: center; justify-content: center; padding: 20px; background: rgba(15,23,42,.62); }
         .activation-helper-modal { width: min(720px, 100%); max-height: min(92vh, 820px); overflow: auto; background: #fff; border-radius: 16px; border: 1px solid var(--border); padding: 22px; box-shadow: 0 24px 60px rgba(15,23,42,.30); }
@@ -305,6 +307,19 @@
         .activation-helper-checklist { margin-top: 12px; padding: 12px; border-radius: 10px; border: 1px solid #dbeafe; background: #eff6ff; color: #1e3a8a; font-size: 13px; line-height: 1.45; }
         .activation-helper-checklist ul { margin: 8px 0 0 18px; }
         .activation-helper-checklist li { margin: 3px 0; }
+        .activation-helper-missing { margin: 10px 0 0; padding: 10px 12px; border-radius: 9px; background: #fff7ed; color: #7c2d12; font-size: 12px; line-height: 1.4; }
+        .activation-helper-actions { position: sticky; bottom: -22px; z-index: 2; margin: 14px -2px -22px; padding: 12px 2px 20px; border-top: 1px solid #e2e8f0; background: linear-gradient(180deg, rgba(255,255,255,.94), #fff 26%); }
+        .assistance-rescue-backdrop { position: fixed; inset: 0; z-index: 1100; display: none; align-items: center; justify-content: center; padding: 20px; background: rgba(15,23,42,.62); }
+        .assistance-rescue-modal { width: min(520px, 100%); max-height: min(90vh, 680px); overflow: auto; background: #fff; border: 1px solid var(--border); border-radius: 16px; padding: 22px; box-shadow: 0 24px 60px rgba(15,23,42,.30); }
+        .assistance-rescue-modal h3 { margin: 0 0 7px; color: var(--text-color); font-size: 21px; }
+        .assistance-rescue-modal p { margin: 0 0 15px; color: var(--text-muted); font-size: 14px; line-height: 1.5; }
+        .assistance-rescue-actions { display: grid; gap: 10px; }
+        .assistance-rescue-actions button { width: 100%; min-height: 48px; border: 0; border-radius: 10px; padding: 12px 14px; font-weight: 850; cursor: pointer; }
+        .assistance-rescue-actions .is-primary { background: var(--primary); color: #fff; }
+        .assistance-rescue-actions .is-help { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+        .assistance-rescue-actions .is-secondary { background: #e2e8f0; color: var(--text-color); }
+        .assistance-rescue-note { margin-top: 12px; color: var(--text-muted); font-size: 12px; line-height: 1.4; }
+        .assistance-rescue-success { display: none; padding: 14px; border: 1px solid #bbf7d0; border-radius: 10px; background: #f0fdf4; color: #14532d; line-height: 1.45; }
         .locked-offer { position: relative; }
         .locked-offer .partner-title::before { content: "Offerta riservata "; color: var(--accent); }
         .locked-offer a { background: var(--logo-green-gradient) !important; }
@@ -336,7 +351,9 @@
 
         @media (max-width: 600px) {
             body { padding: 12px; }
-            .activation-helper-fab { left: 12px; right: 12px; bottom: 72px; width: auto; border-radius: 12px; }
+            .activation-helper-fab { left: 12px; right: 12px; bottom: 132px; width: auto; border-radius: 12px; }
+            .assistance-rescue-backdrop { padding: 12px; align-items: flex-end; }
+            .assistance-rescue-modal { width: 100%; max-height: min(88vh, 680px); border-radius: 16px 16px 10px 10px; padding: 18px; }
             .activation-helper-field { grid-template-columns: 1fr; }
             .activation-helper-field button { width: 100%; }
             header { padding: 16px 8px 22px 8px !important; }
@@ -2308,6 +2325,11 @@ const LEAD_STATE = {
     pendingUrl: "",
     offer: null,
   },
+  assistance: {
+    reason: "",
+    difficultyCount: 0,
+    shown: false,
+  },
 };
 
 const ANALYTICS_SESSION_KEY = "offertalogicaAnalyticsSession";
@@ -3670,6 +3692,7 @@ function mostraErroreDatiMancanti(mancanti, contesto = "fornitura attuale") {
     context: contesto,
     missingFields: mancanti.map(({ id }) => id),
   });
+  registraDifficoltaAssistenza(`missing_${contesto.replace(/\s+/g, "_")}`);
 }
 
 function aggiornaVerdetto(differenzaNuova) {
@@ -4952,6 +4975,20 @@ function leadStatus(message, isError = false) {
   status.style.color = isError ? "var(--danger)" : "var(--text-muted)";
 }
 
+function mostraCampoOtp(visible, focus = false) {
+  const wrapper = document.getElementById("lead-otp-field");
+  const input = document.getElementById("lead-otp");
+  if (wrapper) wrapper.style.display = visible ? "grid" : "none";
+  if (input) input.style.display = "block";
+  if (visible && focus) window.setTimeout(() => input?.focus(), 40);
+}
+
+function telefonoMascherato(value) {
+  const digits = String(value || "").replace(/\D/g, "");
+  if (digits.length < 4) return "numero indicato";
+  return `${digits.slice(0, 3)} •••• ${digits.slice(-3)}`;
+}
+
 function isLocalPreviewEnvironment() {
   return window.location.protocol === "file:" || ["localhost", "127.0.0.1"].includes(window.location.hostname);
 }
@@ -5061,7 +5098,7 @@ function preparaInterfacciaOtpStaff() {
   LEAD_STATE.partnerConsent = Boolean(document.getElementById("lead-consenso-partner")?.checked);
   if (otpInput) {
     otpInput.value = "";
-    otpInput.style.display = "block";
+    mostraCampoOtp(true, true);
   }
   if (sendBtn) sendBtn.style.display = "none";
   if (verifyBtn) verifyBtn.style.display = "inline-block";
@@ -5085,6 +5122,9 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
   const title = document.getElementById("lead-modal-title");
   const copy = document.getElementById("lead-modal-copy");
   const partnerCopy = document.getElementById("lead-partner-copy");
+  const serviceCopy = document.getElementById("lead-service-copy");
+  const partnerLabel = document.getElementById("lead-partner-label");
+  const privacySummary = document.getElementById("lead-privacy-summary");
   const otpInput = document.getElementById("lead-otp");
   const sendBtn = document.getElementById("lead-send-otp");
   const verifyBtn = document.getElementById("lead-verify-otp");
@@ -5092,23 +5132,41 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
   LEAD_STATE.leadSource = source;
   if (otpInput) {
     otpInput.value = "";
-    otpInput.style.display = "none";
+    mostraCampoOtp(false);
   }
+  const isAssistance = source === "assistance_callback";
   if (sendBtn) {
     sendBtn.style.display = "inline-block";
     sendBtn.innerText = "Invia il codice di verifica";
   }
   if (verifyBtn) {
     verifyBtn.style.display = "none";
-    verifyBtn.innerText = "Verifica e mostra le offerte";
+    verifyBtn.innerText = isAssistance ? "Verifica e richiedi il ricontatto" : "Verifica e mostra le offerte";
   }
   if (title) {
-    title.innerText = "Verifica il numero e visualizza il confronto";
+    title.innerText = isAssistance ? "Richiedi assistenza" : "Verifica il numero e visualizza il confronto";
   }
   if (copy) {
-    copy.innerText = "Inserisci i tuoi dati per ricevere il codice di verifica.\nNessun dato sarà inviato a un fornitore finché non sceglierai un'offerta.";
+    copy.innerText = isAssistance
+      ? "Inserisci i tuoi dati e verifica il numero. OffertaLogica potrà ricontattarti per aiutarti a completare il confronto."
+      : "Inserisci i tuoi dati per ricevere il codice di verifica.\nNessun dato sarà inviato a un fornitore finché non sceglierai un'offerta.";
   }
-  if (partnerCopy) {
+  if (serviceCopy) {
+    serviceCopy.innerHTML = isAssistance
+      ? `<strong>Richiedo di essere ricontattato da OffertaLogica per ricevere assistenza sul confronto.</strong> Dichiaro di aver letto l'<a href="https://www.iubenda.com/privacy-policy/36565194" target="_blank" rel="noopener">informativa privacy</a>.<span class="lead-consent-detail">Useremo i dati solo per verificare la richiesta e fornirti l'assistenza richiesta.</span>`
+      : `<strong>Richiedo la comparazione personalizzata e il ricontatto necessario alla gestione della mia richiesta.</strong> Dichiaro di aver letto l'<a href="https://www.iubenda.com/privacy-policy/36565194" target="_blank" rel="noopener">informativa privacy</a>.<span class="lead-consent-detail">Useremo i dati inseriti o caricati per elaborare il confronto e gestire la tua richiesta.</span>`;
+  }
+  if (partnerLabel) partnerLabel.style.display = isAssistance ? "none" : "flex";
+  const serviceCheckbox = document.getElementById("lead-consenso-servizio");
+  const partnerCheckbox = document.getElementById("lead-consenso-partner");
+  if (serviceCheckbox) serviceCheckbox.checked = false;
+  if (partnerCheckbox) partnerCheckbox.checked = false;
+  if (privacySummary) {
+    privacySummary.innerText = isAssistance
+      ? "La verifica serve a confermare il numero sul quale desideri essere ricontattato. Questa richiesta non autorizza l'invio dei dati a un fornitore."
+      : "Il primo punto è necessario per elaborare e mostrarti il confronto. Il secondo potrà essere autorizzato anche successivamente, quando sceglierai un'offerta.";
+  }
+  if (partnerCopy && !isAssistance) {
     if (source === "business") {
       partnerCopy.innerText = "Autorizzo OffertaLogica a trasmettere i miei dati e i dati della fornitura a consulenti o partner incaricati della pratica business, per essere ricontattato sulla richiesta.";
     } else {
@@ -5135,7 +5193,9 @@ function leggiLeadForm() {
   const consents = {
     service: Boolean(document.getElementById("lead-consenso-servizio")?.checked),
     marketing: false,
-    partners: Boolean(document.getElementById("lead-consenso-partner")?.checked),
+    partners: LEAD_STATE.leadSource === "assistance_callback"
+      ? false
+      : Boolean(document.getElementById("lead-consenso-partner")?.checked),
   };
   return { nome, telefono, email, consents };
 }
@@ -5147,7 +5207,9 @@ function leadValido() {
     return false;
   }
   if (!consents.service) {
-    leadStatus("Per procedere serve il consenso al trattamento dei dati per la comparazione richiesta.", true);
+    leadStatus(LEAD_STATE.leadSource === "assistance_callback"
+      ? "Per richiedere il ricontatto serve il consenso al trattamento dei dati per l'assistenza richiesta."
+      : "Per procedere serve il consenso al trattamento dei dati per la comparazione richiesta.", true);
     return false;
   }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -5176,8 +5238,13 @@ function creaProvaConsenso(consents) {
 }
 
 function completaLeadVerificato() {
-  LEAD_STATE.verified = true;
   chiudiLeadModal();
+  if (LEAD_STATE.leadSource === "assistance_callback") {
+    trackEvent("assistance_callback_verified", { reason: LEAD_STATE.assistance?.reason || "manual" });
+    mostraConfermaRichiestaAssistenza();
+    return;
+  }
+  LEAD_STATE.verified = true;
   trackEvent("offers_unlocked", { leadSource: LEAD_STATE.leadSource });
   if (LEAD_STATE.customerType === "business") {
     const result = document.getElementById("business-result");
@@ -5231,6 +5298,8 @@ async function inviaOtp() {
           pdfDocuments: LEAD_STATE.pdfDocuments,
           currentSupply: leggiOffertaAttuale(),
           businessProfile: LEAD_STATE.businessProfile,
+          requestType: LEAD_STATE.leadSource === "assistance_callback" ? "assistance_callback" : "comparison",
+          assistanceReason: LEAD_STATE.assistance?.reason || "",
           dataStewardship: {
             originalPdfStored: false,
             internalImprovement: true,
@@ -5260,20 +5329,23 @@ async function inviaOtp() {
     const otpInput = document.getElementById("lead-otp");
     const sendBtn = document.getElementById("lead-send-otp");
     const verifyBtn = document.getElementById("lead-verify-otp");
-    if (otpInput) otpInput.style.display = "block";
+    mostraCampoOtp(true, true);
     if (sendBtn) sendBtn.style.display = "none";
     if (verifyBtn) verifyBtn.style.display = "inline-block";
     trackEvent("otp_sent", {
       leadSource: LEAD_STATE.leadSource,
       demoMode: Boolean(otpPayload.demoCode),
     });
-    leadStatus(otpPayload.demoCode ? `Codice di prova: ${otpPayload.demoCode}.` : "Codice inviato via SMS.");
+    const telefonoDestinazione = document.getElementById("lead-telefono")?.value || "";
+    leadStatus(otpPayload.demoCode
+      ? `Codice di prova: ${otpPayload.demoCode}.`
+      : `Codice inviato al ${telefonoMascherato(telefonoDestinazione)}.`);
   } catch (error) {
     const otpInput = document.getElementById("lead-otp");
     const sendBtn = document.getElementById("lead-send-otp");
     const verifyBtn = document.getElementById("lead-verify-otp");
     if (!isLocalPreviewEnvironment()) {
-      if (otpInput) otpInput.style.display = "none";
+      mostraCampoOtp(false);
       if (sendBtn) sendBtn.style.display = "inline-block";
       if (verifyBtn) verifyBtn.style.display = "none";
       trackEvent("otp_failed", {
@@ -5285,7 +5357,7 @@ async function inviaOtp() {
     }
     LEAD_STATE.leadId = "preview";
     LEAD_STATE.otpPreviewCode = String(Math.floor(100000 + Math.random() * 900000));
-    if (otpInput) otpInput.style.display = "block";
+    mostraCampoOtp(true, true);
     if (sendBtn) sendBtn.style.display = "none";
     if (verifyBtn) verifyBtn.style.display = "inline-block";
     trackEvent("otp_failed_preview_fallback", {
@@ -5466,51 +5538,23 @@ function valoreConUnitaAttivazione(value, unit) {
 
 function campiAssistenteAttivazione() {
   const data = LEAD_STATE.pdfData || {};
+  const nome = valoreDatoAttivazione(document.getElementById("lead-nome")?.value);
+  const telefono = valoreDatoAttivazione(document.getElementById("lead-telefono")?.value);
+  const email = valoreDatoAttivazione(document.getElementById("lead-email")?.value);
   return [
-    {
-      label: "Fornitore attuale",
-      value: valoreDatoAttivazione(data.fornitore),
-      hint: "Utile se il nuovo fornitore chiede da chi stai passando.",
-    },
-    {
-      label: "POD luce",
-      value: valoreDatoAttivazione(data.pod),
-      hint: "Codice tecnico della fornitura elettrica.",
-    },
-    {
-      label: "PDR gas",
-      value: valoreDatoAttivazione(data.pdr),
-      hint: "Codice tecnico della fornitura gas.",
-    },
-    {
-      label: "Consumo annuo luce",
-      value: valoreConUnitaAttivazione(data.consumo_luce_kwh, "kWh/anno"),
-      hint: "Serve per verificare che il preventivo del fornitore sia coerente.",
-    },
-    {
-      label: "Consumo annuo gas",
-      value: valoreConUnitaAttivazione(data.consumo_gas_smc, "Smc/anno"),
-      hint: "Serve per verificare la stima gas durante l'attivazione.",
-    },
-    {
-      label: "Potenza impegnata",
-      value: valoreConUnitaAttivazione(data.potenza_impegnata_kw, "kW"),
-      hint: "Di solito e 3 kW per molte forniture domestiche.",
-    },
-    {
-      label: "Codice cliente",
-      value: valoreDatoAttivazione(firstValue(data.codice_cliente, data.codiceCliente, data.customer_code)),
-      hint: "Se rilevato, aiuta il fornitore a identificare meglio la pratica.",
-    },
-    {
-      label: "Indirizzo fornitura",
-      value: valoreDatoAttivazione(firstValue(data.indirizzo_fornitura, data.indirizzoFornitura, data.indirizzo)),
-      hint: "Se rilevato, controlla che coincida con l'utenza da attivare.",
-    },
-  ].map((field) => ({
-    ...field,
-    available: Boolean(valoreDatoAttivazione(field.value)),
-  }));
+    { label: "Nome e cognome", value: nome || valoreDatoAttivazione(firstValue(data.intestatario, data.nome_intestatario, data.nomeIntestatario)), hint: "Dato anagrafico utile durante la compilazione.", category: "personal" },
+    { label: "Cellulare", value: telefono, hint: "Numero già verificato su OffertaLogica.", category: "personal" },
+    { label: "Email", value: email, hint: "Indirizzo usato per la richiesta.", category: "personal" },
+    { label: "Codice fiscale", value: valoreDatoAttivazione(firstValue(data.codice_fiscale, data.codiceFiscale, data.cf, data.tax_code)), hint: "Se rilevato nella bolletta, controllalo prima di copiarlo.", category: "technical" },
+    { label: "Fornitore attuale", value: valoreDatoAttivazione(data.fornitore), hint: "Utile se il nuovo fornitore chiede da chi stai passando.", category: "technical" },
+    { label: "POD luce", value: valoreDatoAttivazione(data.pod), hint: "Codice tecnico della fornitura elettrica.", category: "technical" },
+    { label: "PDR gas", value: valoreDatoAttivazione(data.pdr), hint: "Codice tecnico della fornitura gas.", category: "technical" },
+    { label: "Consumo annuo luce", value: valoreConUnitaAttivazione(data.consumo_luce_kwh, "kWh/anno"), hint: "Serve per verificare che il preventivo del fornitore sia coerente.", category: "technical" },
+    { label: "Consumo annuo gas", value: valoreConUnitaAttivazione(data.consumo_gas_smc, "Smc/anno"), hint: "Serve per verificare la stima gas durante l'attivazione.", category: "technical" },
+    { label: "Potenza impegnata", value: valoreConUnitaAttivazione(data.potenza_impegnata_kw, "kW"), hint: "Di solito è 3 kW per molte forniture domestiche.", category: "technical" },
+    { label: "Codice cliente", value: valoreDatoAttivazione(firstValue(data.codice_cliente, data.codiceCliente, data.customer_code)), hint: "Se rilevato, aiuta il fornitore a identificare meglio la pratica.", category: "technical" },
+    { label: "Indirizzo fornitura", value: valoreDatoAttivazione(firstValue(data.indirizzo_fornitura, data.indirizzoFornitura, data.indirizzo)), hint: "Se rilevato, controlla che coincida con l'utenza da attivare.", category: "technical" },
+  ].map((field) => ({ ...field, available: Boolean(valoreDatoAttivazione(field.value)) }));
 }
 
 function assistenteHaDatiBolletta() {
@@ -5528,8 +5572,7 @@ function assistenteHaDatiBolletta() {
 }
 
 function assistenteAttivazioneDisponibile() {
-  if (!assistenteHaDatiBolletta()) return false;
-  return campiAssistenteAttivazione().some((field) => field.available);
+  return campiAssistenteAttivazione().some((field) => field.available && field.category === "technical");
 }
 
 function aggiornaAssistenteAttivazioneVisibilita() {
@@ -5581,12 +5624,12 @@ async function copiaTuttiDatiAssistenteAttivazione() {
     .filter((field) => field.available)
     .map((field) => `${field.label}: ${field.value}`);
   if (!lines.length) {
-    assistenteAttivazioneStatus("Nessun dato tecnico copiabile rilevato.", true);
+    assistenteAttivazioneStatus("Nessun dato copiabile rilevato.", true);
     return;
   }
   try {
     await copiaTestoAssistente(lines.join("\n"));
-    assistenteAttivazioneStatus("Dati tecnici copiati.");
+    assistenteAttivazioneStatus("Dati disponibili copiati.");
     trackEvent("activation_data_copied", { field: "all", mode: "bulk" });
   } catch {
     assistenteAttivazioneStatus("Copia non riuscita. Puoi copiare i dati uno alla volta.", true);
@@ -5605,24 +5648,25 @@ function renderAssistenteAttivazione() {
     const offerName = offer?.name || offer?.nome || "";
     offerEl.style.display = offerName ? "block" : "none";
     offerEl.innerHTML = offerName
-      ? `Stai procedendo con <strong>${testoHtmlSicuro(offerName)}</strong>. Tieni aperta questa finestra mentre compili il sito del fornitore.`
+      ? `Stai procedendo con <strong>${testoHtmlSicuro(offerName)}</strong>. Tieni aperta OffertaLogica mentre completi il percorso di attivazione.`
       : "";
   }
 
   if (fieldsEl) {
-    fieldsEl.innerHTML = fields.map((field, index) => {
-      const value = field.available ? field.value : "Non rilevato nella bolletta caricata";
-      return `
+    const availableFields = fields.map((field, index) => ({ ...field, originalIndex: index })).filter((field) => field.available);
+    const missingTechnical = fields.filter((field) => !field.available && field.category === "technical").map((field) => field.label);
+    fieldsEl.innerHTML = availableFields.map((field) => `
         <div class="activation-helper-field">
           <div>
             <strong>${testoHtmlSicuro(field.label)}</strong>
-            <code>${testoHtmlSicuro(value)}</code>
+            <code>${testoHtmlSicuro(field.value)}</code>
             <small>${testoHtmlSicuro(field.hint || "")}</small>
           </div>
-          <button type="button" data-activation-copy="${index}" ${field.available ? "" : "disabled"}>Copia</button>
+          <button type="button" data-activation-copy="${field.originalIndex}">Copia</button>
         </div>
-      `;
-    }).join("");
+      `).join("") + (missingTechnical.length
+        ? `<div class="activation-helper-missing"><strong>Non rilevati nella bolletta:</strong> ${testoHtmlSicuro(missingTechnical.join(", "))}. Se il portale li richiede, recuperali dal documento originale.</div>`
+        : "");
     fieldsEl.querySelectorAll("[data-activation-copy]").forEach((button) => {
       button.addEventListener("click", () => copiaCampoAssistenteAttivazione(Number(button.dataset.activationCopy)));
     });
@@ -5678,7 +5722,7 @@ function apriFunnelDaAssistente() {
   document.body.appendChild(link);
   link.click();
   link.remove();
-  assistenteAttivazioneStatus("Ho aperto il sito del fornitore in una nuova scheda. Tieni questa finestra aperta per copiare i dati tecnici.");
+  assistenteAttivazioneStatus("Ho aperto il percorso di attivazione in una nuova scheda. Tieni OffertaLogica aperta per copiare i dati quando servono.");
 }
 
 function apriAssistentePrimaDelRedirect(url, offer, source = "partner_redirect") {
@@ -5713,6 +5757,104 @@ async function confermaConsensoOfferta() {
     destinationStatus: LEAD_STATE.selectedOffer?.destinationStatus || "",
   });
   await registraRichiestaOfferta();
+}
+
+const ASSISTANCE_PROMPT_SESSION_KEY = "offertalogicaAssistancePromptShown";
+let assistanceInactivityTimer = null;
+let assistanceFirstInteractionAt = 0;
+let assistanceLastInteractionAt = Date.now();
+let assistanceUserInteracted = false;
+
+function assistenzaModalAperta() {
+  return ["lead-modal-backdrop", "offer-consent-backdrop", "activation-helper-backdrop", "assistance-rescue-backdrop"]
+    .some((id) => document.getElementById(id)?.style.display === "flex");
+}
+
+function assistenzaGiaMostrata() {
+  try { return sessionStorage.getItem(ASSISTANCE_PROMPT_SESSION_KEY) === "1"; }
+  catch { return Boolean(LEAD_STATE.assistance?.shown); }
+}
+
+function marcaAssistenzaMostrata() {
+  LEAD_STATE.assistance.shown = true;
+  try { sessionStorage.setItem(ASSISTANCE_PROMPT_SESSION_KEY, "1"); } catch {}
+}
+
+function mostraRichiestaAssistenza(reason = "manual", options = {}) {
+  const { force = false, success = false } = options;
+  if (!force && assistenzaGiaMostrata()) return false;
+  if (!success && assistenzaModalAperta()) return false;
+  const backdrop = document.getElementById("assistance-rescue-backdrop");
+  const title = document.getElementById("assistance-rescue-title");
+  const copy = document.getElementById("assistance-rescue-copy");
+  const actions = document.getElementById("assistance-rescue-actions");
+  const successBox = document.getElementById("assistance-rescue-success");
+  if (!backdrop || !title || !copy || !actions || !successBox) return false;
+  LEAD_STATE.assistance.reason = reason;
+  if (!success) marcaAssistenzaMostrata();
+  title.innerText = success ? "Richiesta ricevuta" : "Ti serve una mano?";
+  copy.innerText = success
+    ? "Il numero è stato verificato. OffertaLogica potrà ricontattarti per aiutarti a completare il confronto."
+    : "Possiamo guidarti nel punto in cui ti trovi oppure puoi chiedere di essere ricontattato da OffertaLogica.";
+  actions.style.display = success ? "none" : "grid";
+  successBox.style.display = success ? "block" : "none";
+  backdrop.style.display = "flex";
+  window.setTimeout(() => {
+    const focusTarget = success ? document.getElementById("assistance-rescue-success-close") : document.getElementById("assistance-rescue-open-guide");
+    focusTarget?.focus();
+  }, 30);
+  if (!success) trackEvent("assistance_prompt_shown", { reason });
+  return true;
+}
+
+function mostraConfermaRichiestaAssistenza() {
+  mostraRichiestaAssistenza("callback_verified", { force: true, success: true });
+}
+
+function chiudiRichiestaAssistenza(source = "close") {
+  const backdrop = document.getElementById("assistance-rescue-backdrop");
+  if (backdrop) backdrop.style.display = "none";
+  trackEvent("assistance_prompt_closed", { source, reason: LEAD_STATE.assistance?.reason || "" });
+}
+
+function apriGuidaDaRichiestaAssistenza() {
+  const reason = LEAD_STATE.assistance?.reason || "manual";
+  chiudiRichiestaAssistenza("open_guide");
+  window.apriAssistenteGuidato?.("Dimmi cosa vuoi fare: ti porto direttamente nel punto corretto del calcolatore.");
+  trackEvent("assistance_guide_opened", { reason });
+}
+
+function richiediRicontattoAssistenza() {
+  const reason = LEAD_STATE.assistance?.reason || "manual";
+  chiudiRichiestaAssistenza("callback");
+  window.apriLeadModal("assistance_callback");
+  trackEvent("assistance_callback_started", { reason });
+}
+
+function registraDifficoltaAssistenza(reason = "validation_error") {
+  LEAD_STATE.assistance.difficultyCount = Number(LEAD_STATE.assistance.difficultyCount || 0) + 1;
+  if (LEAD_STATE.assistance.difficultyCount >= 2) mostraRichiestaAssistenza(reason);
+}
+
+function resetTimerAssistenza() {
+  assistanceUserInteracted = true;
+  assistanceLastInteractionAt = Date.now();
+  if (!assistanceFirstInteractionAt) assistanceFirstInteractionAt = assistanceLastInteractionAt;
+  if (assistanceInactivityTimer) window.clearTimeout(assistanceInactivityTimer);
+  assistanceInactivityTimer = window.setTimeout(() => {
+    if (assistanceUserInteracted && Date.now() - assistanceLastInteractionAt >= 75000) mostraRichiestaAssistenza("inactivity");
+  }, 76000);
+}
+
+function inizializzaAssistenzaProattiva() {
+  ["pointerdown", "keydown", "input", "change", "scroll"].forEach((eventName) => {
+    document.addEventListener(eventName, resetTimerAssistenza, { passive: true });
+  });
+  document.addEventListener("mouseleave", (event) => {
+    if (event.clientY > 0 || window.innerWidth < 700) return;
+    if (!assistanceUserInteracted || Date.now() - assistanceFirstInteractionAt < 25000) return;
+    mostraRichiestaAssistenza("exit_intent");
+  });
 }
 
 function nascondiEsitiFincheNonConfronti() {
@@ -6165,7 +6307,7 @@ window.azzeraPdfEModulo = function azzeraPdfEModulo() {
   const otpInput = document.getElementById("lead-otp");
   const sendOtp = document.getElementById("lead-send-otp");
   const verifyOtp = document.getElementById("lead-verify-otp");
-  if (otpInput) otpInput.style.display = "none";
+  mostraCampoOtp(false);
   if (sendOtp) sendOtp.style.display = "inline-block";
   if (verifyOtp) verifyOtp.style.display = "none";
   leadStatus("");
@@ -6778,6 +6920,19 @@ function collegaEventiUX() {
   document.getElementById("activation-helper-backdrop")?.addEventListener("click", (event) => {
     if (event.target?.id === "activation-helper-backdrop") chiudiAssistenteAttivazione();
   });
+  document.getElementById("assistance-rescue-open-guide")?.addEventListener("click", apriGuidaDaRichiestaAssistenza);
+  document.getElementById("assistance-rescue-callback")?.addEventListener("click", richiediRicontattoAssistenza);
+  document.getElementById("assistance-rescue-continue")?.addEventListener("click", () => chiudiRichiestaAssistenza("continue"));
+  document.getElementById("assistance-rescue-success-close")?.addEventListener("click", () => chiudiRichiestaAssistenza("success_close"));
+  document.getElementById("assistance-rescue-backdrop")?.addEventListener("click", (event) => {
+    if (event.target?.id === "assistance-rescue-backdrop") chiudiRichiestaAssistenza("backdrop");
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    if (document.getElementById("assistance-rescue-backdrop")?.style.display === "flex") chiudiRichiestaAssistenza("escape");
+    else if (document.getElementById("activation-helper-backdrop")?.style.display === "flex") chiudiAssistenteAttivazione();
+  });
+  inizializzaAssistenzaProattiva();
   aggiornaAssistenteAttivazioneVisibilita();
   sincronizzaConsumiNuovaOfferta();
   aggiornaTestoPulsanteConfronto();
@@ -7109,7 +7264,7 @@ if (document.readyState === "loading") {
 <div class="activation-helper-backdrop" id="activation-helper-backdrop" role="dialog" aria-modal="true" aria-labelledby="activation-helper-title">
     <div class="activation-helper-modal">
         <h3 id="activation-helper-title">Dati utili per completare l'attivazione</h3>
-        <p>Tieni aperta questa finestra mentre compili il sito del fornitore. I dati sotto arrivano dalla bolletta caricata e puoi copiarli senza cercarli di nuovo.</p>
+        <p>Tieni aperta OffertaLogica mentre completi l'attivazione. Qui trovi i dati disponibili della bolletta e della verifica del numero, pronti da copiare nei campi richiesti.</p>
         <div class="activation-helper-offer" id="activation-helper-offer"></div>
         <div class="activation-helper-fields" id="activation-helper-fields"></div>
         <div class="activation-helper-checklist">
@@ -7120,12 +7275,31 @@ if (document.readyState === "loading") {
                 <li>che eventuali servizi extra, vincoli o costi accessori siano chiari.</li>
             </ul>
         </div>
-        <div class="lead-actions">
-            <button type="button" class="lead-primary" id="activation-helper-open">Procedi sul sito del fornitore</button>
-            <button type="button" class="lead-secondary" id="activation-helper-copy-all">Copia dati tecnici</button>
+        <div class="lead-actions activation-helper-actions">
+            <button type="button" class="lead-primary" id="activation-helper-open">Apri il percorso di attivazione</button>
+            <button type="button" class="lead-secondary" id="activation-helper-copy-all">Copia tutti i dati disponibili</button>
             <button type="button" class="lead-secondary" id="activation-helper-close">Chiudi</button>
         </div>
         <div class="lead-status" id="activation-helper-status"></div>
+    </div>
+</div>
+
+<div class="assistance-rescue-backdrop" id="assistance-rescue-backdrop" role="dialog" aria-modal="true" aria-labelledby="assistance-rescue-title">
+    <div class="assistance-rescue-modal">
+        <h3 id="assistance-rescue-title">Ti serve una mano?</h3>
+        <p id="assistance-rescue-copy">Possiamo guidarti nel punto in cui ti trovi oppure puoi chiedere di essere ricontattato da OffertaLogica.</p>
+        <div class="assistance-rescue-actions" id="assistance-rescue-actions">
+            <button type="button" class="is-help" id="assistance-rescue-open-guide">Apri l'assistente</button>
+            <button type="button" class="is-primary" id="assistance-rescue-callback">Richiedi un ricontatto</button>
+            <button type="button" class="is-secondary" id="assistance-rescue-continue">Continua da solo</button>
+        </div>
+        <div class="assistance-rescue-success" id="assistance-rescue-success">
+            La richiesta di assistenza è stata registrata. Puoi continuare a usare il calcolatore: i dati già inseriti restano disponibili.
+            <div class="lead-actions">
+                <button type="button" class="lead-primary" id="assistance-rescue-success-close">Continua sul calcolatore</button>
+            </div>
+        </div>
+        <div class="assistance-rescue-note">Il ricontatto riguarda soltanto l'assistenza su OffertaLogica e non autorizza l'invio dei dati a un fornitore.</div>
     </div>
 </div>
 
@@ -7135,19 +7309,19 @@ if (document.readyState === "loading") {
         <p id="lead-modal-copy">Inserisci i tuoi dati per ricevere il codice di verifica.
 Nessun dato sarà inviato a un fornitore finché non sceglierai un'offerta.</p>
         <div class="lead-form-grid">
-            <input id="lead-nome" type="text" autocomplete="name" aria-label="Nome e cognome" placeholder="Nome e cognome">
-            <input id="lead-telefono" type="tel" autocomplete="tel" aria-label="Cellulare" placeholder="Cellulare">
-            <input id="lead-email" type="email" autocomplete="email" aria-label="Email" placeholder="Email">
+            <label class="lead-field" for="lead-nome"><span>Nome e cognome</span><input id="lead-nome" type="text" autocomplete="name" placeholder="Mario Rossi"></label>
+            <label class="lead-field" for="lead-telefono"><span>Cellulare</span><input id="lead-telefono" type="tel" autocomplete="tel" inputmode="tel" placeholder="333 1234567"></label>
+            <label class="lead-field" for="lead-email"><span>Email</span><input id="lead-email" type="email" autocomplete="email" inputmode="email" placeholder="nome@email.it"></label>
             <label class="lead-consent required">
                 <input id="lead-consenso-servizio" type="checkbox">
-                <span class="lead-consent-copy"><strong>Richiedo la comparazione personalizzata e il ricontatto necessario alla gestione della mia richiesta.</strong> Dichiaro di aver letto l'<a href="https://www.iubenda.com/privacy-policy/36565194" target="_blank" rel="noopener">informativa privacy</a>.<span class="lead-consent-detail">Useremo i dati inseriti o caricati per elaborare il confronto e gestire la tua richiesta.</span></span>
+                <span class="lead-consent-copy" id="lead-service-copy"><strong>Richiedo la comparazione personalizzata e il ricontatto necessario alla gestione della mia richiesta.</strong> Dichiaro di aver letto l'<a href="https://www.iubenda.com/privacy-policy/36565194" target="_blank" rel="noopener">informativa privacy</a>.<span class="lead-consent-detail">Useremo i dati inseriti o caricati per elaborare il confronto e gestire la tua richiesta.</span></span>
             </label>
-            <label class="lead-consent">
+            <label class="lead-consent" id="lead-partner-label">
                 <input id="lead-consenso-partner" type="checkbox">
                 <span id="lead-partner-copy" class="lead-consent-copy"><strong>Facoltativo</strong> - autorizzo OffertaLogica a trasmettere i miei dati al fornitore o partner dell'offerta che sceglierò, per essere ricontattato esclusivamente in merito a quella proposta.</span>
             </label>
-            <div class="lead-privacy-note">Il primo punto è necessario per elaborare e mostrarti il confronto. Il secondo potrà essere autorizzato anche successivamente, quando sceglierai un'offerta.</div>
-            <input id="lead-otp" type="text" inputmode="numeric" placeholder="Codice OTP" style="display:none;">
+            <div class="lead-privacy-note" id="lead-privacy-summary">Il primo punto è necessario per elaborare e mostrarti il confronto. Il secondo potrà essere autorizzato anche successivamente, quando sceglierai un'offerta.</div>
+            <label class="lead-field" id="lead-otp-field" for="lead-otp" style="display:none;"><span>Codice ricevuto via SMS</span><input id="lead-otp" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" placeholder="000000"></label>
         </div>
         <div class="lead-actions">
             <button type="button" class="lead-primary" id="lead-send-otp">Invia il codice di verifica</button>
@@ -7241,6 +7415,12 @@ Nessun dato sarà inviato a un fornitore finché non sceglierai un'offerta.</p>
                 setMessage("Scegli una delle opzioni: ti porto nel punto giusto del calcolatore.");
         }
     }
+
+    window.apriAssistenteGuidato = function apriAssistenteGuidato(customMessage = "") {
+        if (customMessage) setMessage(customMessage);
+        setOpen(true);
+        window.setTimeout(() => close?.focus(), 30);
+    };
 
     toggle.addEventListener("click", () => setOpen(!panel.classList.contains("is-open")));
     close?.addEventListener("click", () => setOpen(false));
