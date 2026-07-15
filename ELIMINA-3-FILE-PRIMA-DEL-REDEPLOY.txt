@@ -1,0 +1,11 @@
+ELIMINA QUESTI 3 FILE DAL REPOSITORY GITHUB PRIMA DEL REDEPLOY
+
+1. api/staff-pdf-file.js
+2. api/cleanup-pdf-archive.js
+3. api/send.otp.js
+
+Motivo:
+- staff-pdf-file e cleanup-pdf-archive sono stati incorporati in api/staff-pdf-analyses.js
+- send.otp.js è una vecchia rotta duplicata; il sito usa api/send-otp.js
+
+Dopo la cancellazione resteranno 12 file nella cartella api, compatibili con il piano Vercel Hobby.
