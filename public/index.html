@@ -6117,27 +6117,38 @@ function pulisciGuidePercorsoPdf() {
   document.getElementById("blocco-nuovo")?.classList.remove("pdf-data-target");
 }
 
+function risultatoPdfUtilizzabile(item) {
+  return Boolean(item && !item.error && item.recognized !== false && item.kind !== "unknown" && item.commodity !== "unknown");
+}
+
 function configuraConfermaPdfPronta(results) {
   const panel = document.getElementById("pdf-review-static");
   const title = document.getElementById("pdf-review-title");
   const button = document.getElementById("pdf-confirm-data-button");
-  const successCount = results.filter((item) => !item.error).length;
-  const hasReadableData = successCount > 0 && Object.keys(LEAD_STATE.pdfData || {}).length > 0;
+  const successCount = results.filter(risultatoPdfUtilizzabile).length;
+  const mixedDocuments = Boolean(LEAD_STATE.pdfData?.mixed_documents);
+  const hasReadableData = successCount > 0 && !mixedDocuments && Object.keys(LEAD_STATE.pdfData || {}).length > 0;
 
-  if (title) title.innerText = hasReadableData
-    ? "Dati letti: controlla e conferma"
-    : "Lettura completata: conferma per continuare";
+  if (title) title.innerText = mixedDocuments
+    ? "Separa bolletta e scheda sintetica"
+    : hasReadableData
+      ? "Dati letti: controlla e conferma"
+      : "Documento non riconosciuto: completa manualmente";
   if (button) {
-    button.disabled = false;
-    button.innerText = hasReadableData
-      ? "Ho controllato: conferma e inserisci i dati"
-      : "Conferma e passa al modulo";
+    button.disabled = mixedDocuments;
+    button.innerText = mixedDocuments
+      ? "Carica separatamente i documenti"
+      : hasReadableData
+        ? "Ho controllato: conferma e inserisci i dati"
+        : "Conferma e passa al modulo";
   }
   mostraGuida(
     "pdf-confirm-guidance",
-    hasReadableData
-      ? "<strong>Leggi e conferma i dati estratti.</strong> Controlla il riepilogo, poi premi il pulsante verde: solo così i valori verranno inseriti nel modulo."
-      : "<strong>Conferma il passaggio.</strong> Non siamo riusciti a leggere tutti i dati: premi il pulsante verde per aprire il modulo e completarli manualmente."
+    mixedDocuments
+      ? "<strong>Hai caricato insieme una bolletta e una scheda sintetica.</strong> Per evitare di mescolare i dati della fornitura attuale con quelli della nuova offerta, rimuovi i PDF e analizzali separatamente."
+      : hasReadableData
+        ? "<strong>Leggi e conferma i dati estratti.</strong> Controlla il riepilogo, poi premi il pulsante verde: solo così i valori verranno inseriti nel modulo."
+        : "<strong>Il documento non ha fornito dati sufficientemente affidabili.</strong> Puoi confermare per aprire il modulo e completare i valori manualmente."
   );
   panel?.classList.remove("pdf-confirm-attention");
   void panel?.offsetWidth;
@@ -6222,14 +6233,18 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
     try {
       const response = await fetch("/api/analyze-pdf", { method: "POST", body: formData });
       const contentType = response.headers.get("content-type") || "";
-      if (!response.ok || !contentType.includes("application/json")) {
-        throw new Error("api_non_disponibile");
-      }
+      if (!contentType.includes("application/json")) throw new Error("api_non_disponibile");
       const payload = await response.json();
-      if (!payload.ok) throw new Error(payload.error || "Errore analisi PDF");
+      if (!response.ok || !payload.ok) throw new Error(payload.error || "Errore analisi PDF");
       results.push({ filename: file.name, ...payload.normalized });
     } catch (error) {
-      results.push({ filename: file.name, error: "Lettura non disponibile in questa preview" });
+      const safeMessage = [
+        "PDF troppo grande",
+        "PDF protetto o cifrato",
+        "Il file caricato non è un PDF valido",
+        "PDF mancante o formato non accettato",
+      ].includes(error?.message) ? error.message : "Lettura non disponibile";
+      results.push({ filename: file.name, error: safeMessage });
     }
   }
 
@@ -6238,7 +6253,8 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
   LEAD_STATE.dataOrigin = "pdf_upload";
   trackEvent("pdf_analysis_completed", {
     fileCount: files.length,
-    successCount: results.filter((item) => !item.error).length,
+    successCount: results.filter(risultatoPdfUtilizzabile).length,
+    unrecognizedCount: results.filter((item) => !item.error && !risultatoPdfUtilizzabile(item)).length,
     errorCount: results.filter((item) => item.error).length,
   });
   if (copy) copy.innerHTML = renderPdfSummary(LEAD_STATE.pdfDocuments, LEAD_STATE.pdfData);
@@ -6305,52 +6321,80 @@ function firstValue(...values) {
 }
 
 function mergePdfDocuments(documents) {
-  const merged = {};
-  documents.filter((doc) => !doc.error).forEach((doc) => {
-    if (!merged.fornitore && doc.fornitore) merged.fornitore = doc.fornitore;
-    if (doc.kind === "scheda_offerta") merged.hasOfferSheet = true;
-    if (doc.kind === "bolletta") merged.hasBill = true;
-    merged.kind = merged.hasOfferSheet && !merged.hasBill ? "scheda_offerta" : "bolletta";
+  const validDocuments = documents.filter(risultatoPdfUtilizzabile);
+  const hasOfferSheet = validDocuments.some((doc) => doc.kind === "scheda_offerta");
+  const hasBill = validDocuments.some((doc) => doc.kind === "bolletta");
 
-    if (doc.commodity === "luce" || doc.consumo_luce_kwh || doc.prezzo_luce_eur_kwh) {
+  if (hasOfferSheet && hasBill) {
+    return {
+      kind: "mixed",
+      commodity: "unknown",
+      mixed_documents: true,
+    };
+  }
+
+  const merged = {};
+  validDocuments.forEach((doc) => {
+    if (!merged.fornitore && doc.fornitore) merged.fornitore = doc.fornitore;
+    merged.kind = doc.kind;
+
+    if (doc.commodity === "luce" || doc.commodity === "dual" || doc.consumo_luce_kwh || doc.prezzo_luce_eur_kwh) {
       merged.consumo_luce_kwh = firstValue(doc.consumo_luce_kwh, merged.consumo_luce_kwh);
       merged.prezzo_luce_eur_kwh = firstValue(doc.prezzo_luce_eur_kwh, merged.prezzo_luce_eur_kwh);
       merged.quota_fissa_vendita_luce_eur_anno = firstValue(doc.quota_fissa_vendita_luce_eur_anno, merged.quota_fissa_vendita_luce_eur_anno);
       merged.potenza_impegnata_kw = firstValue(doc.potenza_impegnata_kw, merged.potenza_impegnata_kw);
+      merged.potenza_disponibile_kw = firstValue(doc.potenza_disponibile_kw, merged.potenza_disponibile_kw);
       merged.pod = firstValue(doc.pod, merged.pod);
     }
 
-    if (doc.commodity === "gas" || doc.consumo_gas_smc || doc.prezzo_gas_eur_smc) {
+    if (doc.commodity === "gas" || doc.commodity === "dual" || doc.consumo_gas_smc || doc.prezzo_gas_eur_smc) {
       merged.consumo_gas_smc = firstValue(doc.consumo_gas_smc, merged.consumo_gas_smc);
       merged.prezzo_gas_eur_smc = firstValue(doc.prezzo_gas_eur_smc, merged.prezzo_gas_eur_smc);
       merged.quota_fissa_vendita_gas_eur_anno = firstValue(doc.quota_fissa_vendita_gas_eur_anno, merged.quota_fissa_vendita_gas_eur_anno);
       merged.pdr = firstValue(doc.pdr, merged.pdr);
     }
   });
+
+  const hasLuce = Boolean(merged.consumo_luce_kwh || merged.prezzo_luce_eur_kwh || merged.quota_fissa_vendita_luce_eur_anno || merged.pod);
+  const hasGas = Boolean(merged.consumo_gas_smc || merged.prezzo_gas_eur_smc || merged.quota_fissa_vendita_gas_eur_anno || merged.pdr);
+  merged.commodity = hasLuce && hasGas ? "dual" : hasGas ? "gas" : hasLuce ? "luce" : "unknown";
   return merged;
 }
 
 function renderPdfSummary(documents, merged) {
   const rows = documents.map((doc) => {
-    if (doc.error) return `<li><strong>${doc.filename}</strong>: lettura non disponibile. Puoi cambiare PDF o confermare con dati medi.</li>`;
-    return `<li><strong>${doc.filename}</strong>: ${doc.kind || "PDF"} ${doc.commodity || ""} - ${doc.fornitore || "fornitore da verificare"}</li>`;
+    if (doc.error) return `<li><strong>${testoHtmlSicuro(doc.filename)}</strong>: ${testoHtmlSicuro(doc.error)}. Puoi cambiare PDF oppure continuare con la compilazione manuale.</li>`;
+    if (!risultatoPdfUtilizzabile(doc)) {
+      return `<li><strong>${testoHtmlSicuro(doc.filename)}</strong>: documento non riconosciuto o privo di dati sufficientemente affidabili.</li>`;
+    }
+    const review = doc.confidence === "high" ? "affidabilità alta" : "da controllare";
+    return `<li><strong>${testoHtmlSicuro(doc.filename)}</strong>: ${testoHtmlSicuro(doc.kind || "PDF")} ${testoHtmlSicuro(doc.commodity || "")} - ${testoHtmlSicuro(doc.fornitore || "fornitore da verificare")} (${review})</li>`;
   }).join("");
+
+  if (merged?.mixed_documents) {
+    return `
+      <span>Documenti analizzati:</span>
+      <ul style="margin:6px 0 10px 18px;">${rows}</ul>
+      <span><strong>I dati non sono stati uniti:</strong> bolletta e scheda sintetica appartengono a due confronti diversi. Analizzale separatamente per evitare sovrascritture.</span>
+    `;
+  }
+
   const mergedRows = [
-    merged.fornitore ? `Fornitore: ${merged.fornitore}` : "",
+    merged.fornitore ? `Fornitore: ${testoHtmlSicuro(merged.fornitore)}` : "",
     merged.consumo_luce_kwh ? `Luce: ${merged.consumo_luce_kwh} kWh/anno` : "",
     merged.prezzo_luce_eur_kwh ? `Prezzo luce: ${merged.prezzo_luce_eur_kwh} €/kWh` : "",
     merged.quota_fissa_vendita_luce_eur_anno ? `Fisso luce: ${merged.quota_fissa_vendita_luce_eur_anno} €/anno` : "",
     merged.consumo_gas_smc ? `Gas: ${merged.consumo_gas_smc} Smc/anno` : "",
     merged.prezzo_gas_eur_smc ? `Prezzo gas: ${merged.prezzo_gas_eur_smc} €/Smc` : "",
     merged.quota_fissa_vendita_gas_eur_anno ? `Fisso gas: ${merged.quota_fissa_vendita_gas_eur_anno} €/anno` : "",
-    merged.pod ? `POD: ${merged.pod}` : "",
-    merged.pdr ? `PDR: ${merged.pdr}` : "",
+    merged.pod ? `POD: ${testoHtmlSicuro(merged.pod)}` : "",
+    merged.pdr ? `PDR: ${testoHtmlSicuro(merged.pdr)}` : "",
   ].filter(Boolean).join(" | ");
 
   return `
     <span>Documenti analizzati:</span>
     <ul style="margin:6px 0 10px 18px;">${rows}</ul>
-    <span><strong>Dati che useremo per compilare il modulo:</strong> ${mergedRows || "nessun dato certo letto; verranno usati consumi medi e l'ultimo riferimento ARERA disponibile."}</span>
+    <span><strong>Dati che useremo per compilare il modulo:</strong> ${mergedRows || "nessun dato sufficientemente affidabile; completa il modulo manualmente."}</span>
   `;
 }
 

@@ -26,6 +26,30 @@ Prima di modificare codice usa sempre questo schema:
 - Come verifico che funzioni.
 
 
+## Aggiornamento v84 - prima messa in sicurezza del lettore PDF
+
+Modifiche applicate senza introdurre OCR o nuovi calcoli economici:
+
+- corretto il caso critico in cui un prezzo come `0.123 €/kWh` poteva diventare `123 €/kWh`;
+- rimossi i fallback che prendevano il primo valore generico in `€/kWh` o `€/Smc` senza un contesto commerciale riconoscibile;
+- aggiunti controlli prudenziali sui valori palesemente fuori intervallo;
+- un documento senza dati energetici non viene più classificato automaticamente come bolletta luce;
+- `potenza impegnata` e `potenza disponibile` restano campi separati;
+- POD e PDR vengono normalizzati e accettati solo con formato coerente;
+- il fornitore viene scelto in base alla prima occorrenza nell'intestazione del documento, non all'ordine fisso dell'elenco;
+- il frontend non usa documenti non riconosciuti e blocca l'unione di bolletta e scheda sintetica caricate insieme;
+- il riepilogo PDF distingue documento utilizzabile, documento non riconosciuto e documenti incompatibili;
+- l'API verifica la firma reale `%PDF-`, restituisce errori più chiari e cancella il file temporaneo;
+- aggiunti 6 test automatici sul parser, tutti superati.
+
+Questa versione non aggiunge ancora OCR, parser specifici per nuovi fornitori o dati anagrafici per l'attivazione. Il prossimo passo va deciso dopo test su PDF reali che oggi falliscono.
+
+Verifiche v84:
+
+- test parser Node: 6/6 superati;
+- sintassi `lib/pdfExtract.js` e `api/analyze-pdf.js`: OK;
+- sintassi degli script inline di `public/index.html`: OK.
+
 ## Aggiornamento v83 - anteprime staff complete e coerenti con la pagina pubblica
 
 Modifiche applicate in `public/index.html`:
