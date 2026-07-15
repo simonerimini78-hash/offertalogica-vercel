@@ -26,6 +26,43 @@ Prima di modificare codice usa sempre questo schema:
 - Come verifico che funzioni.
 
 
+## Aggiornamento v86 - profilo aziendale e scelta della fornitura da confrontare
+
+Modifiche applicate al percorso successivo alla lettura della bolletta:
+
+- il parser rileva il profilo `azienda / non domestico` usando diciture contrattuali, ragione sociale e partita IVA del cliente, evitando per quanto possibile la partita IVA del fornitore;
+- quando viene rilevata un'utenza aziendale, l'utente deve confermare il profilo prima che i dati siano inseriti nel percorso business;
+- quando una bolletta contiene soltanto luce, viene chiesto esplicitamente se l'utente:
+  - ha solo la luce;
+  - deve ancora caricare la bolletta gas;
+  - ha anche il gas ma vuole confrontare soltanto la luce;
+- scegliendo solo luce, i campi gas vengono esclusi dalla validazione e nascosti sia nel percorso privato sia nel percorso business;
+- scegliendo di caricare successivamente il gas, i dati luce restano memorizzati e il caricatore PDF viene riaperto;
+- bollette luce e gas di fornitori differenti mantengono separati `fornitore luce attuale` e `fornitore gas attuale`;
+- il profilo inviato al lead non include consumi o fornitori predefiniti per una commodity esclusa dal confronto;
+- la modalità staff include l'anteprima dei nuovi popup `Profilo e fornitura`;
+- il popup decisionale richiede una scelta esplicita: click sullo sfondo ed Esc non selezionano silenziosamente `solo luce`.
+
+Miglioramenti aggiuntivi del parser:
+
+- lettura più robusta di codice fiscale, POD, PDR, potenza e indirizzo nei layout Plenitude appiattiti da `pdf-parse`;
+- indirizzi luce e gas mantenuti separati quando disponibili;
+- aggiunti `customer_type`, livello di affidabilità ed evidenza rilevata.
+
+Verifiche v86:
+
+- test automatici parser: 12/12 superati;
+- prova sui testi estratti dai cinque PDF reali caricati: Dolomiti luce, Dolomiti gas, Plenitude dual, Hera multiservizio e scheda E.ON riconosciuti con i campi attesi;
+- sintassi di tutti gli script inline: OK;
+- nessun ID HTML duplicato.
+
+## Aggiornamento v85 - parser verificato su documenti reali
+
+- migliorata l'estrazione di consumi, prezzi e quote fisse per Dolomiti, Plenitude, Hera ed E.ON;
+- aggiunti nome intestatario, codice fiscale, codice cliente, indirizzo, nome e codice offerta;
+- supportata la conversione del consumo gas da mc a Smc quando è presente il coefficiente C;
+- aggiunti test di regressione sui layout reali disponibili.
+
 ## Aggiornamento v84 - prima messa in sicurezza del lettore PDF
 
 Modifiche applicate senza introdurre OCR o nuovi calcoli economici:
@@ -1251,14 +1288,3 @@ Verifiche eseguite:
 - Dopo una scheda sintetica viene ricordato che per il confronto servono anche i dati della fornitura attuale, ottenibili caricando la bolletta o inserendoli manualmente.
 - Dopo una bolletta la guida invita a controllare i valori e premere “Mostra le offerte disponibili”.
 - Nessuna modifica a calcoli, parsing PDF, validazioni, OTP o catalogo offerte.
-
-## v85 — ottimizzazione lettore PDF su documenti reali
-- Corretto `matchNumber`: una corrispondenza non numerica non interrompe più la ricerca.
-- Aggiunti parser tolleranti ai layout Dolomiti, Plenitude e Hera, comprese etichette spezzate su più righe.
-- Migliorata l'estrazione dei consumi annui, prezzi di vendita, quote fisse, POD/PDR e potenza.
-- Aggiunti dati utili all'attivazione: intestatario, codice fiscale, codice cliente, indirizzo di fornitura.
-- Aggiunti dati delle offerte: nome/codice offerta, fisso/variabile, indice e spread.
-- Le schede variabili non vengono trasformate in un falso prezzo fisso: E.ON restituisce PUN + spread e quota annua.
-- Il consumo gas espresso in mc viene convertito in Smc solo quando il documento contiene il coefficiente C, con warning esplicito.
-- Il frontend conserva i nuovi campi durante l'unione dei PDF e li rende disponibili al riepilogo di attivazione.
-- Suite: 10 test automatici superati, inclusi casi Dolomiti, Plenitude ed E.ON.

@@ -290,6 +290,19 @@
         .lead-modal { width: min(620px, 100%); max-height: min(92vh, 760px); overflow: auto; background: #fff; border-radius: 14px; border: 1px solid var(--border); padding: 22px; box-shadow: 0 24px 60px rgba(15,23,42,.28); }
         .lead-modal h3 { font-size: 20px; margin-bottom: 6px; color: var(--text-color); }
         .lead-modal p { color: var(--text-muted); font-size: 14px; margin-bottom: 14px; }
+        .pdf-decision-backdrop { position: fixed; inset: 0; z-index: 1100; display: none; align-items: center; justify-content: center; padding: 20px; background: rgba(15,23,42,.62); }
+        .pdf-decision-modal { width: min(620px, 100%); max-height: min(92dvh, 760px); overflow: auto; background: #fff; border-radius: 14px; border: 1px solid var(--border); padding: 22px; box-shadow: 0 24px 60px rgba(15,23,42,.3); }
+        .pdf-decision-modal h3 { margin: 0 0 8px; color: var(--text-color); font-size: 21px; }
+        .pdf-decision-modal p { margin: 0 0 16px; color: var(--text-muted); font-size: 14px; line-height: 1.5; }
+        .pdf-decision-actions { display: grid; gap: 10px; }
+        .pdf-decision-actions button { width: 100%; min-height: 46px; border-radius: 9px; border: 1px solid var(--border); padding: 11px 14px; text-align: left; font-weight: 800; cursor: pointer; background: #fff; color: var(--text-color); }
+        .pdf-decision-actions button.is-primary { border-color: var(--primary); background: var(--primary); color: #fff; }
+        .pdf-decision-actions button:hover { filter: brightness(.98); transform: translateY(-1px); }
+        .pdf-decision-note { margin-top: 12px; color: var(--text-muted); font-size: 12px; line-height: 1.45; }
+        .current-provider-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; }
+        .comparison-scope-hidden { display: none !important; }
+        .pdf-profile-indicator { display: inline-flex; margin: 6px 0 0; padding: 5px 9px; border-radius: 999px; background: #eff6ff; color: #1d4ed8; font-size: 12px; font-weight: 800; }
+        @media (max-width: 680px) { .current-provider-grid { grid-template-columns: 1fr; } .pdf-decision-backdrop { padding: 10px; align-items: flex-end; } .pdf-decision-modal { max-height: 92dvh; border-radius: 14px 14px 0 0; } }
         .lead-form-grid { display: grid; gap: 10px; }
         .lead-field { display: grid; gap: 5px; color: var(--text-color); font-size: 12px; font-weight: 800; }
         .lead-field input { width: 100%; }
@@ -1724,10 +1737,10 @@
                 </div>
             </div>
 
-            <div class="business-section">
+            <div class="business-section" id="business-luce-section">
                 <h4>Energia elettrica</h4>
                 <div class="input-group">
-                    <label for="business-fornitore">Fornitore attuale</label>
+                    <label for="business-fornitore">Fornitore luce attuale</label>
                     <input id="business-fornitore" type="text" placeholder="Es. Enel, E.ON, Dolomiti...">
                 </div>
                 <div class="input-group">
@@ -1762,8 +1775,12 @@
                 </div>
             </div>
 
-            <div class="business-section">
+            <div class="business-section" id="business-gas-section">
                 <h4>Gas business</h4>
+                <div class="input-group">
+                    <label for="business-fornitore-gas">Fornitore gas attuale</label>
+                    <input id="business-fornitore-gas" type="text" placeholder="Lascia vuoto se non hai gas">
+                </div>
                 <div class="input-group">
                     <label for="business-smc">Consumo annuo Smc</label>
                     <input id="business-smc" type="number" placeholder="Lascia vuoto se non hai gas">
@@ -1840,7 +1857,7 @@
             
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px;">
                 
-                <div class="column-energy" style="border: none; padding: 0; background: transparent;">
+                <div class="column-energy" id="master-luce-column" style="border: none; padding: 0; background: transparent;">
                     <h4 style="color: var(--accent); margin-bottom: 15px;">Fornitura Elettrica</h4>
                     <div class="input-group">
                         <label for="master-luce-consumo">Consumo Annuo Luce</label>
@@ -1867,7 +1884,7 @@
                     </div>
                 </div>
 
-                <div class="column-energy" style="border: none; padding: 0; background: transparent;">
+                <div class="column-energy" id="master-gas-column" style="border: none; padding: 0; background: transparent;">
                     <h4 style="color: var(--accent); margin-bottom: 15px;">Fornitura Gas Naturale</h4>
                     <div class="input-group">
                         <label for="master-gas-consumo">Consumo Annuo Gas</label>
@@ -1892,6 +1909,8 @@
                     <div class="input-group">
                         <label for="master-tipo-fornitura">Tipo di Fornitura</label>
                         <select id="master-tipo-fornitura">
+                            <option value="luce">Solo luce</option>
+                            <option value="gas">Solo gas</option>
                             <option value="separate">Forniture Separate (Fornitori diversi)</option>
                             <option value="dual" selected>Dual Fuel (Luce + Gas con lo stesso fornitore)</option>
                         </select>
@@ -1920,9 +1939,11 @@
                 <span class="compare-card-badge compare-card-badge-current">Attuale</span>
             </div>
             <p class="compare-card-intro">Inserisci o verifica i dati della fornitura che stai pagando oggi. Saranno la base del confronto.</p>
-            <div class="input-group compare-provider-panel current-provider-panel">
-                <label for="nome-fornitore-att">Qual è il tuo fornitore attuale?</label>
-                <select id="nome-fornitore-att">
+            <div class="compare-provider-panel current-provider-panel">
+                <div class="current-provider-grid">
+                    <div class="input-group" id="current-provider-luce-panel">
+                        <label for="nome-fornitore-att">Fornitore luce attuale</label>
+                        <select id="nome-fornitore-att">
                     <option value="" disabled selected>-- Seleziona il tuo fornitore --</option>
                     <option value="a2a">A2A Energia</option>
                     <option value="acea">Acea Energia</option>
@@ -1960,9 +1981,16 @@
                     <option value="sinergy">Sinergy</option>
                     <option value="altro">Altro (Fornitore non in elenco)</option>
                 </select>
+                    </div>
+                    <div class="input-group" id="current-provider-gas-panel">
+                        <label for="nome-fornitore-gas-att">Fornitore gas attuale</label>
+                        <select id="nome-fornitore-gas-att" aria-label="Fornitore gas attuale"></select>
+                    </div>
+                </div>
+                <span class="pdf-profile-indicator" id="pdf-profile-indicator" hidden></span>
             </div>
             <div class="columns-subgrid">
-                <div class="column-energy">
+                <div class="column-energy" id="current-luce-column">
                     <h4>⚡ LUCE</h4>
                     <div class="input-group">
                         <label>Quanta luce usi in un anno? (kWh)</label>
@@ -1986,7 +2014,7 @@
                     </div>
                 </div>
                 
-                <div class="column-energy">
+                <div class="column-energy" id="current-gas-column">
                     <h4>🔥 GAS</h4>
                     <div class="input-group">
                         <label>Quanto gas usi in un anno? (Smc)</label>
@@ -2082,8 +2110,8 @@
                     <button type="button" class="optional-link-button" id="optional-edit-consumptions">Modifica a sinistra</button>
                 </div>
                 <div class="optional-consumption-grid">
-                    <div class="optional-consumption-item"><span>⚡ Luce</span><strong id="optional-luce-consumption-summary">Da inserire</strong></div>
-                    <div class="optional-consumption-item"><span>🔥 Gas</span><strong id="optional-gas-consumption-summary">Da inserire</strong></div>
+                    <div class="optional-consumption-item" id="optional-luce-consumption-item"><span>⚡ Luce</span><strong id="optional-luce-consumption-summary">Da inserire</strong></div>
+                    <div class="optional-consumption-item" id="optional-gas-consumption-item"><span>🔥 Gas</span><strong id="optional-gas-consumption-summary">Da inserire</strong></div>
                 </div>
                 <input type="hidden" id="in-luce-cons-nuov" value="">
                 <input type="hidden" id="in-gas-cons-nuov" value="">
@@ -2098,7 +2126,7 @@
                     <button type="button" class="optional-link-button" id="optional-details-close">Nascondi</button>
                 </div>
                 <div class="columns-subgrid">
-                    <div class="column-energy">
+                    <div class="column-energy" id="new-offer-luce-column">
                         <h4>⚡ LUCE</h4>
                         <div class="input-group">
                             <label for="in-luce-prezzo-nuov">Prezzo luce dell'offerta (€/kWh)</label>
@@ -2118,7 +2146,7 @@
                         </div>
                     </div>
 
-                    <div class="column-energy">
+                    <div class="column-energy" id="new-offer-gas-column">
                         <h4>🔥 GAS</h4>
                         <div class="input-group">
                             <label for="in-gas-prezzo-nuov">Prezzo gas dell'offerta (€/Smc)</label>
@@ -2341,6 +2369,9 @@ const LEAD_STATE = {
   partnerConsent: false,
   pdfData: null,
   pdfDocuments: [],
+  comparisonScope: "unknown",
+  gasDecision: "",
+  pendingPdfDecision: null,
   staffMode: false,
   staffActivatedAt: "",
   activationAssistant: {
@@ -3312,6 +3343,144 @@ const CAMPI_NUOVA_OFFERTA_ESSENZIALI = [
   { id: "in-gas-fisso-nuov", label: "quota fissa gas della nuova offerta", zeroAmmesso: true, instruction: "Inserisci la quota fissa gas della proposta e scegli euro/mese o euro/anno." },
 ];
 
+
+let PDF_DECISION_RESOLVE = null;
+
+function inizializzaSelectFornitoreGas() {
+  const luce = document.getElementById("nome-fornitore-att");
+  const gas = document.getElementById("nome-fornitore-gas-att");
+  if (!luce || !gas || gas.options.length) return;
+  Array.from(luce.options).forEach((option) => gas.appendChild(option.cloneNode(true)));
+}
+
+function ambitoConfrontoAttivo() {
+  const scope = LEAD_STATE.comparisonScope;
+  if (["luce", "gas", "dual", "separate", "pending_gas"].includes(scope)) return scope;
+  const selected = leggiValore("master-tipo-fornitura", "dual");
+  return ["luce", "gas", "dual", "separate"].includes(selected) ? selected : "dual";
+}
+
+function tipoFornituraPerCalcolo() {
+  const scope = ambitoConfrontoAttivo();
+  return scope === "pending_gas" ? "luce" : scope;
+}
+
+function configurazioniPerAmbito(configurazioni, scope = ambitoConfrontoAttivo()) {
+  const effective = scope === "pending_gas" ? "luce" : scope;
+  if (effective === "luce") return configurazioni.filter(({ id }) => id.includes("-luce-"));
+  if (effective === "gas") return configurazioni.filter(({ id }) => id.includes("-gas-"));
+  return configurazioni;
+}
+
+function toggleAmbitoElemento(id, visible) {
+  document.getElementById(id)?.classList.toggle("comparison-scope-hidden", !visible);
+}
+
+function aggiornaIndicatoreProfiloPdf() {
+  const indicator = document.getElementById("pdf-profile-indicator");
+  if (!indicator) return;
+  const parts = [];
+  if (LEAD_STATE.customerType === "business") parts.push("Azienda / non domestico");
+  else if (LEAD_STATE.customerType === "privato") parts.push("Privato / domestico");
+  const scope = ambitoConfrontoAttivo();
+  if (scope === "luce") parts.push("solo luce");
+  if (scope === "gas") parts.push("solo gas");
+  if (scope === "dual") parts.push("luce e gas, stesso fornitore");
+  if (scope === "separate") parts.push("luce e gas, fornitori separati");
+  if (scope === "pending_gas") parts.push("bolletta gas da caricare");
+  indicator.textContent = parts.length ? `Profilo: ${parts.join(" · ")}` : "";
+  indicator.hidden = parts.length === 0;
+}
+
+function applicaAmbitoConfronto(scope, options = {}) {
+  const normalized = ["luce", "gas", "dual", "separate", "pending_gas"].includes(scope) ? scope : "dual";
+  LEAD_STATE.comparisonScope = normalized;
+  if (options.gasDecision !== undefined) LEAD_STATE.gasDecision = options.gasDecision;
+  inizializzaSelectFornitoreGas();
+
+  const showLuce = normalized !== "gas";
+  const showGas = ["gas", "dual", "separate"].includes(normalized);
+  ["current-luce-column", "master-luce-column", "new-offer-luce-column", "optional-luce-consumption-item", "current-provider-luce-panel", "business-luce-section"].forEach((id) => toggleAmbitoElemento(id, showLuce));
+  ["current-gas-column", "master-gas-column", "new-offer-gas-column", "optional-gas-consumption-item", "current-provider-gas-panel", "business-gas-section"].forEach((id) => toggleAmbitoElemento(id, showGas));
+
+  const select = document.getElementById("master-tipo-fornitura");
+  if (select) select.value = normalized === "pending_gas" ? "luce" : normalized;
+  aggiornaIndicatoreProfiloPdf();
+  sincronizzaConsumiNuovaOfferta();
+  aggiornaTestoPulsanteConfronto();
+}
+
+function chiudiDecisionePdf(value = null) {
+  const backdrop = document.getElementById("pdf-decision-backdrop");
+  if (backdrop) backdrop.style.display = "none";
+  const resolve = PDF_DECISION_RESOLVE;
+  PDF_DECISION_RESOLVE = null;
+  if (resolve) resolve(value);
+}
+
+function apriDecisionePdf({ title, copy, options }) {
+  const backdrop = document.getElementById("pdf-decision-backdrop");
+  const titleElement = document.getElementById("pdf-decision-title");
+  const copyElement = document.getElementById("pdf-decision-copy");
+  const actions = document.getElementById("pdf-decision-actions");
+  if (!backdrop || !actions) return Promise.resolve(options?.[0]?.value ?? null);
+  if (titleElement) titleElement.textContent = title || "Completa la scelta";
+  if (copyElement) copyElement.textContent = copy || "";
+  actions.innerHTML = "";
+  return new Promise((resolve) => {
+    PDF_DECISION_RESOLVE = resolve;
+    (options || []).forEach((option, index) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = option.label;
+      if (option.primary || index === 0) button.classList.add("is-primary");
+      button.addEventListener("click", () => chiudiDecisionePdf(option.value));
+      actions.appendChild(button);
+    });
+    backdrop.style.display = "flex";
+    window.setTimeout(() => actions.querySelector("button")?.focus(), 30);
+  });
+}
+
+async function confermaProfiloClientePdf(data) {
+  if (data?.kind !== "bolletta" || data?.customer_type !== "business") return LEAD_STATE.customerType;
+  const scelta = await apriDecisionePdf({
+    title: "Abbiamo rilevato un'utenza aziendale",
+    copy: `Nel documento compare un profilo non domestico${data.customer_type_evidence ? ` (${data.customer_type_evidence})` : ""}. Conferma il percorso corretto.`,
+    options: [
+      { value: "business", label: "Sì, è un'utenza aziendale / non domestica", primary: true },
+      { value: "privato", label: "No, è un'abitazione privata" },
+    ],
+  });
+  return scelta || LEAD_STATE.customerType;
+}
+
+async function confermaAmbitoPdf(data) {
+  if (data?.kind !== "bolletta") return ambitoConfrontoAttivo();
+  if (data.commodity === "dual") {
+    const sameProvider = data.fornitore_luce && data.fornitore_gas && data.fornitore_luce === data.fornitore_gas;
+    return sameProvider ? "dual" : "separate";
+  }
+  if (data.commodity === "gas") return "gas";
+  if (data.commodity !== "luce") return ambitoConfrontoAttivo();
+
+  const scelta = await apriDecisionePdf({
+    title: "Vuoi confrontare anche una fornitura gas?",
+    copy: "Nel PDF abbiamo trovato soltanto la fornitura elettrica. Il gas potrebbe non esserci, potrebbe avere un altro fornitore oppure potresti voler confrontare solo la luce.",
+    options: [
+      { value: "luce_no_gas", label: "No, ho solo la luce", primary: true },
+      { value: "pending_gas", label: "Sì, devo ancora caricare la bolletta gas" },
+      { value: "luce_not_compare", label: "Ho anche il gas, ma voglio confrontare solo la luce" },
+    ],
+  });
+  if (scelta === "pending_gas") {
+    LEAD_STATE.gasDecision = "pending_upload";
+    return "pending_gas";
+  }
+  LEAD_STATE.gasDecision = scelta === "luce_not_compare" ? "not_compared" : "not_present";
+  return "luce";
+}
+
 function statoCampoNumerico(config) {
   const element = document.getElementById(config.id);
   const raw = element ? String(element.value || "").trim().replace(",", ".") : "";
@@ -3429,6 +3598,7 @@ function selezionaSegmentoCliente(tipo) {
   if (isBusiness) setDisplay(".fornitori-consigliati-section", "none");
   const results = document.getElementById("results-area");
   if (results) results.style.display = "none";
+  aggiornaIndicatoreProfiloPdf();
 }
 
 function leggiProfiloBusiness() {
@@ -3458,6 +3628,8 @@ function leggiProfiloBusiness() {
     telefono: leggiValore("business-telefono"),
     email: leggiValore("business-email"),
     fornitore: leggiValore("business-fornitore"),
+    fornitoreLuce: leggiValore("business-fornitore"),
+    fornitoreGas: leggiValore("business-fornitore-gas"),
     potenzaKw: leggiNumero("business-potenza"),
     consumoLuceKwh: consumoLuce,
     fasce: { f1, f2, f3 },
@@ -3559,69 +3731,79 @@ function determinaOrigineDatoLead() {
 }
 
 function leggiProfiloComparazione() {
+  const scope = ambitoConfrontoAttivo();
+  const usaLuce = scope !== "gas";
+  const usaGas = ["gas", "dual", "separate"].includes(scope);
   return {
     dataOrigin: determinaOrigineDatoLead(),
     tipoPrezzo: leggiValore("master-luce-tipo", PARAMETRI_CALCOLO.profiloMedio.tipoPrezzo),
-    tipoFornitura: leggiValore("master-tipo-fornitura", PARAMETRI_CALCOLO.profiloMedio.tipoFornitura),
-    regioneGas: leggiValore("master-gas-regione", PARAMETRI_CALCOLO.profiloMedio.regioneGas),
-    potenzaKw: leggiNumero("master-luce-potenza", PARAMETRI_CALCOLO.profiloMedio.potenzaKw),
-    luceConsumoKwh: leggiNumero("in-luce-cons-att", leggiNumero("master-luce-consumo", PARAMETRI_CALCOLO.profiloMedio.luceConsumoKwh)),
-    gasConsumoSmc: leggiNumero("in-gas-cons-att", leggiNumero("master-gas-consumo", PARAMETRI_CALCOLO.profiloMedio.gasConsumoSmc)),
-    fornitoreAttuale: leggiValore("nome-fornitore-att", ""),
+    tipoFornitura: tipoFornituraPerCalcolo(),
+    gasDecision: LEAD_STATE.gasDecision || "",
+    regioneGas: usaGas ? leggiValore("master-gas-regione", PARAMETRI_CALCOLO.profiloMedio.regioneGas) : "",
+    potenzaKw: usaLuce ? leggiNumero("master-luce-potenza", PARAMETRI_CALCOLO.profiloMedio.potenzaKw) : 0,
+    luceConsumoKwh: usaLuce ? leggiNumero("in-luce-cons-att", leggiNumero("master-luce-consumo", PARAMETRI_CALCOLO.profiloMedio.luceConsumoKwh)) : 0,
+    gasConsumoSmc: usaGas ? leggiNumero("in-gas-cons-att", leggiNumero("master-gas-consumo", PARAMETRI_CALCOLO.profiloMedio.gasConsumoSmc)) : 0,
+    fornitoreAttuale: usaLuce ? leggiValore("nome-fornitore-att", "") : leggiValore("nome-fornitore-gas-att", ""),
+    fornitoreLuceAttuale: usaLuce ? leggiValore("nome-fornitore-att", "") : "",
+    fornitoreGasAttuale: usaGas ? leggiValore("nome-fornitore-gas-att", "") : "",
     fornitoreNuovaOfferta: leggiValore("nome-fornitore-nuov", ""),
     pdfDocumentCount: (LEAD_STATE.pdfDocuments || []).length,
   };
 }
 
 function leggiOffertaAttuale() {
+  const scope = ambitoConfrontoAttivo();
+  const usaLuce = scope !== "gas";
+  const usaGas = ["gas", "dual", "separate"].includes(scope);
   return {
-    provider: leggiValore("nome-fornitore-att", ""),
-    luce: {
+    provider: usaLuce ? leggiValore("nome-fornitore-att", "") : leggiValore("nome-fornitore-gas-att", ""),
+    providerLuce: leggiValore("nome-fornitore-att", ""),
+    providerGas: leggiValore("nome-fornitore-gas-att", ""),
+    luce: usaLuce ? {
       consumo: leggiNumero("in-luce-cons-att", leggiNumero("master-luce-consumo", 0)),
       prezzoVariabile: leggiNumero("in-luce-prezzo-att"),
       quotaFissaAnnua: quotaFissaAnnuaDaCampo("in-luce-fisso-att", "in-luce-fisso-att-unita"),
       quoteUniversaliAnnue: maggiorazioneMaster("luce"),
       componentiRegolate: componentiRegolateMaster("luce"),
-    },
-    gas: {
+    } : scenarioVuoto(),
+    gas: usaGas ? {
       consumo: leggiNumero("in-gas-cons-att", leggiNumero("master-gas-consumo", 0)),
       prezzoVariabile: leggiNumero("in-gas-prezzo-att"),
       quotaFissaAnnua: quotaFissaAnnuaDaCampo("in-gas-fisso-att", "in-gas-fisso-att-unita"),
       quoteUniversaliAnnue: maggiorazioneMaster("gas"),
       componentiRegolate: componentiRegolateMaster("gas"),
-    },
+    } : scenarioVuoto(),
   };
 }
 
 function leggiNuovaOfferta(attuale) {
   const fonteAuto = NUOVA_OFFERTA_AUTOMATICA?.offerta || null;
+  const scope = ambitoConfrontoAttivo();
+  const usaLuce = scope !== "gas";
+  const usaGas = ["gas", "dual", "separate"].includes(scope);
   return {
-    luce: {
+    luce: usaLuce ? {
       consumo: attuale.luce.consumo,
       prezzoVariabile: leggiNumero("in-luce-prezzo-nuov"),
       formula: fonteAuto?.luce?.formula,
       quotaFissaAnnua: quotaFissaAnnuaDaCampo("in-luce-fisso-nuov", "in-luce-fisso-nuov-unita"),
       quoteUniversaliAnnue: maggiorazioneMaster("luce"),
       componentiRegolate: componentiRegolateMaster("luce"),
-    },
-    gas: {
+    } : scenarioVuoto(),
+    gas: usaGas ? {
       consumo: attuale.gas.consumo,
       prezzoVariabile: leggiNumero("in-gas-prezzo-nuov"),
       formula: fonteAuto?.gas?.formula,
       quotaFissaAnnua: quotaFissaAnnuaDaCampo("in-gas-fisso-nuov", "in-gas-fisso-nuov-unita"),
       quoteUniversaliAnnue: maggiorazioneMaster("gas"),
       componentiRegolate: componentiRegolateMaster("gas"),
-    },
+    } : scenarioVuoto(),
   };
 }
 
 function nuovaOffertaCompilata() {
-  return [
-    "in-luce-prezzo-nuov",
-    "in-luce-fisso-nuov",
-    "in-gas-prezzo-nuov",
-    "in-gas-fisso-nuov",
-  ].some((id) => leggiNumero(id) > 0);
+  const ids = configurazioniPerAmbito(CAMPI_NUOVA_OFFERTA_ESSENZIALI).map(({ id }) => id);
+  return ids.some((id) => leggiNumero(id) > 0);
 }
 
 function voceRichiesta(voce) {
@@ -4149,13 +4331,25 @@ function assicuraMessaggioOfferteVuote() {
 
 function testoFiltroOfferte(tipoTariffa, tipoFornitura) {
   const tariffa = tipoTariffa === "variabile" ? "prezzo variabile" : "prezzo fisso";
-  const fornitura = tipoFornitura === "dual" ? "dual fuel luce e gas" : "forniture separate";
+  const fornitura = tipoFornitura === "luce"
+    ? "solo luce"
+    : tipoFornitura === "gas"
+      ? "solo gas"
+      : tipoFornitura === "dual"
+        ? "dual fuel luce e gas"
+        : "forniture separate";
   return `${tariffa} / ${fornitura}`;
 }
 
 function descriviTipoOfferta(offerta) {
   const tariffa = offerta.tipo === "variabile" ? "prezzo variabile" : "prezzo fisso";
-  const fornitura = offerta.fornitura === "dual" ? "dual fuel" : "fornitura separata";
+  const fornitura = offerta.luce && !offerta.gas
+    ? "solo luce"
+    : offerta.gas && !offerta.luce
+      ? "solo gas"
+      : offerta.fornitura === "dual"
+        ? "dual fuel"
+        : "fornitura separata";
   return `${tariffa}, ${fornitura}`;
 }
 
@@ -4192,9 +4386,11 @@ function assicuraSchedeOfferte(offerte = OFFERTE_PROPOSTE) {
 }
 
 function offertaCoerenteConFornitura(offerta, tipoFornitura) {
+  if (tipoFornitura === "luce") return Boolean(offerta.luce) && !offerta.gas;
+  if (tipoFornitura === "gas") return Boolean(offerta.gas) && !offerta.luce;
   if (tipoFornitura === "dual") return offerta.fornitura === "dual" && offerta.luce && offerta.gas;
-  if (tipoFornitura === "separate") return offerta.fornitura === "separate";
-  return offerta.fornitura === tipoFornitura;
+  if (tipoFornitura === "separate") return offerta.fornitura === "separate" && offerta.luce && offerta.gas;
+  return false;
 }
 
 function offertaCompatibileConRanking(offerta, tipoTariffa, tipoFornitura) {
@@ -4483,11 +4679,16 @@ function offertaAreraRankingProvider(providerKey, tipo, tipoFornitura, attuale) 
     if (!coppiaDual) return null;
     luce = coppiaDual.luce;
     gas = coppiaDual.gas;
+  } else if (tipoFornitura === "luce") {
+    luce = miglioreRigaAreraPerProvider(providerKey, "luce", tipo, attuale);
+  } else if (tipoFornitura === "gas") {
+    gas = miglioreRigaAreraPerProvider(providerKey, "gas", tipo, attuale);
   } else {
     luce = miglioreRigaAreraPerProvider(providerKey, "luce", tipo, attuale);
     gas = miglioreRigaAreraPerProvider(providerKey, "gas", tipo, attuale);
   }
   if (tipoFornitura === "dual" && (!luce || !gas)) return null;
+  if (tipoFornitura === "separate" && (!luce || !gas)) return null;
   if (!luce && !gas) return null;
 
   const providerLabel = luce?.providerLabel || gas?.providerLabel || providerKey;
@@ -4495,7 +4696,7 @@ function offertaAreraRankingProvider(providerKey, tipo, tipoFornitura, attuale) 
   const offerta = normalizzaOfferta({
     id: `arera-${providerKey}-${tipo}-${tipoFornitura}-${luce?.codice || "no-luce"}-${gas?.codice || "no-gas"}`,
     provider: providerLabel,
-    nome: luce && gas ? `${providerLabel} - ${nomiArera}` : `${providerLabel} - ${nomiArera}`,
+    nome: `${providerLabel} - ${nomiArera}`,
     tipo,
     fornitura: luce && gas && tipoFornitura === "dual" ? "dual" : "separate",
     link: "#",
@@ -4555,9 +4756,9 @@ function offertaAreraSeparataRanking(luce, gas, tipo) {
 function costruisciOfferteAreraRanking(attuale, tipoTariffa, tipoFornitura) {
   if (!OFFERTE_ARERA_MENU.length) return [];
 
-  if (tipoFornitura === "dual") {
+  if (["dual", "luce", "gas"].includes(tipoFornitura)) {
     return providerKeysArera()
-      .map((providerKey) => offertaAreraRankingProvider(providerKey, tipoTariffa, "dual", attuale))
+      .map((providerKey) => offertaAreraRankingProvider(providerKey, tipoTariffa, tipoFornitura, attuale))
       .filter(Boolean);
   }
 
@@ -4924,11 +5125,12 @@ function aggiornaConsumiDaMasterSeMedia() {
   const gasAtt = document.getElementById("in-gas-cons-att");
   const gasNuov = document.getElementById("in-gas-cons-nuov");
 
-  if (luceMaster) {
+  const scope = ambitoConfrontoAttivo();
+  if (luceMaster && scope !== "gas") {
     if (luceAtt) luceAtt.value = luceMaster;
     if (luceNuov) luceNuov.value = luceMaster;
   }
-  if (gasMaster) {
+  if (gasMaster && ["gas", "dual", "separate"].includes(scope)) {
     if (gasAtt) gasAtt.value = gasMaster;
     if (gasNuov) gasNuov.value = gasMaster;
   }
@@ -4940,7 +5142,12 @@ window.avviaComparazioneDati = function avviaComparazioneDati() {
   pulisciSegnalazioniDatiMancanti();
 
   const tipoTariffa = leggiValore("master-luce-tipo", "fisso");
-  const tipoFornitura = leggiValore("master-tipo-fornitura", "dual");
+  const tipoFornitura = tipoFornituraPerCalcolo();
+  if (ambitoConfrontoAttivo() === "pending_gas") {
+    mostraGuida("pdf-data-review-guidance", "<strong>La fornitura luce è pronta.</strong> Hai scelto di aggiungere anche il gas: carica ora la bolletta gas, poi conferma i nuovi dati.", { scroll: true, focus: true });
+    vaiAlCaricatoreScheda();
+    return;
+  }
   const attuale = leggiOffertaAttuale();
   trackEvent("comparison_started", {
     tipoPrezzo: tipoTariffa,
@@ -4948,7 +5155,7 @@ window.avviaComparazioneDati = function avviaComparazioneDati() {
     ...leggiProfiloComparazione(),
   });
 
-  const mancantiAttuale = campiMancanti(CAMPI_ATTUALI_ESSENZIALI);
+  const mancantiAttuale = campiMancanti(configurazioniPerAmbito(CAMPI_ATTUALI_ESSENZIALI));
   if (mancantiAttuale.length) {
     trackEvent("comparison_missing_current_price", {
       tipoPrezzo: tipoTariffa,
@@ -4961,7 +5168,7 @@ window.avviaComparazioneDati = function avviaComparazioneDati() {
 
   const nuova = leggiNuovaOfferta(attuale);
   const nuovaIniziata = nuovaOffertaCompilata();
-  const mancantiNuova = nuovaIniziata ? campiMancanti(CAMPI_NUOVA_OFFERTA_ESSENZIALI) : [];
+  const mancantiNuova = nuovaIniziata ? campiMancanti(configurazioniPerAmbito(CAMPI_NUOVA_OFFERTA_ESSENZIALI)) : [];
   if (mancantiNuova.length) {
     mostraErroreDatiMancanti(mancantiNuova, "nuova offerta");
     return;
@@ -5077,6 +5284,27 @@ function apriAnteprimaAttivazioneStaff() {
   window.apriAssistenteAttivazione?.({ source: "staff_preview", force: true });
 }
 
+async function apriAnteprimaProfiloFornituraStaff() {
+  chiudiPannelloAnteprimeStaff();
+  await apriDecisionePdf({
+    title: "Abbiamo rilevato un'utenza aziendale",
+    copy: "Anteprima staff della conferma del profilo rilevato dal PDF.",
+    options: [
+      { value: "business", label: "Sì, è un'utenza aziendale / non domestica", primary: true },
+      { value: "privato", label: "No, è un'abitazione privata" },
+    ],
+  });
+  await apriDecisionePdf({
+    title: "Vuoi confrontare anche una fornitura gas?",
+    copy: "Anteprima staff mostrata quando il PDF contiene soltanto la fornitura elettrica.",
+    options: [
+      { value: "luce_no_gas", label: "No, ho solo la luce", primary: true },
+      { value: "pending_gas", label: "Sì, devo ancora caricare la bolletta gas" },
+      { value: "luce_not_compare", label: "Ho anche il gas, ma voglio confrontare solo la luce" },
+    ],
+  });
+}
+
 function apriAnteprimaConsensoOffertaStaff() {
   if (!LEAD_STATE.verified) {
     staffPreviewStatus("Prima verifica il numero con il codice staff 000000.", true);
@@ -5107,6 +5335,7 @@ function creaPannelloAnteprimeStaff() {
       <button type="button" id="staff-preview-help">Aiuto difficoltà</button>
       <button type="button" id="staff-preview-callback">Richiesta ricontatto</button>
       <button type="button" id="staff-preview-activation">Dati per attivare</button>
+      <button type="button" id="staff-preview-profile-scope">Profilo e fornitura</button>
       <button type="button" id="staff-preview-consent">Consenso offerta</button>
       <button type="button" id="staff-preview-close">Chiudi anteprime</button>
     </div>
@@ -5117,6 +5346,7 @@ function creaPannelloAnteprimeStaff() {
   document.getElementById("staff-preview-help")?.addEventListener("click", apriAnteprimaAiutoStaff);
   document.getElementById("staff-preview-callback")?.addEventListener("click", apriAnteprimaRicontattoStaff);
   document.getElementById("staff-preview-activation")?.addEventListener("click", apriAnteprimaAttivazioneStaff);
+  document.getElementById("staff-preview-profile-scope")?.addEventListener("click", apriAnteprimaProfiloFornituraStaff);
   document.getElementById("staff-preview-consent")?.addEventListener("click", apriAnteprimaConsensoOffertaStaff);
   document.getElementById("staff-preview-close")?.addEventListener("click", chiudiPannelloAnteprimeStaff);
   return panel;
@@ -5660,20 +5890,27 @@ function campiAssistenteAttivazione() {
   const nome = valoreDatoAttivazione(document.getElementById("lead-nome")?.value);
   const telefono = valoreDatoAttivazione(document.getElementById("lead-telefono")?.value);
   const email = valoreDatoAttivazione(document.getElementById("lead-email")?.value);
-  return [
+  const scope = ambitoConfrontoAttivo();
+  const usaLuce = scope !== "gas";
+  const usaGas = ["gas", "dual", "separate"].includes(scope);
+  const fields = [
     { label: "Nome e cognome", value: nome || valoreDatoAttivazione(firstValue(data.intestatario, data.nome_intestatario, data.nomeIntestatario)), hint: "Dato anagrafico utile durante la compilazione.", category: "personal" },
     { label: "Cellulare", value: telefono, hint: "Numero già verificato su OffertaLogica.", category: "personal" },
     { label: "Email", value: email, hint: "Indirizzo usato per la richiesta.", category: "personal" },
-    { label: "Codice fiscale", value: valoreDatoAttivazione(firstValue(data.codice_fiscale, data.codiceFiscale, data.cf, data.tax_code)), hint: "Se rilevato nella bolletta, controllalo prima di copiarlo.", category: "technical" },
-    { label: "Fornitore attuale", value: valoreDatoAttivazione(data.fornitore), hint: "Utile se il nuovo fornitore chiede da chi stai passando.", category: "technical" },
-    { label: "POD luce", value: valoreDatoAttivazione(data.pod), hint: "Codice tecnico della fornitura elettrica.", category: "technical" },
-    { label: "PDR gas", value: valoreDatoAttivazione(data.pdr), hint: "Codice tecnico della fornitura gas.", category: "technical" },
-    { label: "Consumo annuo luce", value: valoreConUnitaAttivazione(data.consumo_luce_kwh, "kWh/anno"), hint: "Serve per verificare che il preventivo del fornitore sia coerente.", category: "technical" },
-    { label: "Consumo annuo gas", value: valoreConUnitaAttivazione(data.consumo_gas_smc, "Smc/anno"), hint: "Serve per verificare la stima gas durante l'attivazione.", category: "technical" },
-    { label: "Potenza impegnata", value: valoreConUnitaAttivazione(data.potenza_impegnata_kw, "kW"), hint: "Di solito è 3 kW per molte forniture domestiche.", category: "technical" },
+    { label: LEAD_STATE.customerType === "business" ? "Codice fiscale / Partita IVA" : "Codice fiscale", value: valoreDatoAttivazione(firstValue(data.codice_fiscale, data.codiceFiscale, data.cf, data.tax_code)), hint: "Se rilevato nella bolletta, controllalo prima di copiarlo.", category: "technical" },
+    { label: "Fornitore luce attuale", value: usaLuce ? valoreDatoAttivazione(firstValue(data.fornitore_luce, data.fornitore)) : "", hint: "Utile se il nuovo fornitore chiede da chi stai passando per la luce.", category: "technical", applicable: usaLuce },
+    { label: "Fornitore gas attuale", value: usaGas ? valoreDatoAttivazione(firstValue(data.fornitore_gas, data.fornitore)) : "", hint: "Utile se il nuovo fornitore chiede da chi stai passando per il gas.", category: "technical", applicable: usaGas },
+    { label: "POD luce", value: usaLuce ? valoreDatoAttivazione(data.pod) : "", hint: "Codice tecnico della fornitura elettrica.", category: "technical", applicable: usaLuce },
+    { label: "PDR gas", value: usaGas ? valoreDatoAttivazione(data.pdr) : "", hint: "Codice tecnico della fornitura gas.", category: "technical", applicable: usaGas },
+    { label: "Consumo annuo luce", value: usaLuce ? valoreConUnitaAttivazione(data.consumo_luce_kwh, "kWh/anno") : "", hint: "Serve per verificare che il preventivo del fornitore sia coerente.", category: "technical", applicable: usaLuce },
+    { label: "Consumo annuo gas", value: usaGas ? valoreConUnitaAttivazione(data.consumo_gas_smc, "Smc/anno") : "", hint: "Serve per verificare la stima gas durante l'attivazione.", category: "technical", applicable: usaGas },
+    { label: "Potenza impegnata", value: usaLuce ? valoreConUnitaAttivazione(data.potenza_impegnata_kw, "kW") : "", hint: "Controlla il valore indicato nella bolletta luce.", category: "technical", applicable: usaLuce },
     { label: "Codice cliente", value: valoreDatoAttivazione(firstValue(data.codice_cliente, data.codiceCliente, data.customer_code)), hint: "Se rilevato, aiuta il fornitore a identificare meglio la pratica.", category: "technical" },
     { label: "Indirizzo fornitura", value: valoreDatoAttivazione(firstValue(data.indirizzo_fornitura, data.indirizzoFornitura, data.indirizzo)), hint: "Se rilevato, controlla che coincida con l'utenza da attivare.", category: "technical" },
-  ].map((field) => ({ ...field, available: Boolean(valoreDatoAttivazione(field.value)) }));
+  ];
+  return fields
+    .filter((field) => field.applicable !== false)
+    .map((field) => ({ ...field, available: Boolean(valoreDatoAttivazione(field.value)) }));
 }
 
 function assistenteHaDatiBolletta() {
@@ -6158,9 +6395,10 @@ function configuraConfermaPdfPronta(results) {
 }
 
 function configurazioniPdfDaControllare(data, isOffer) {
+  const base = isOffer ? CAMPI_NUOVA_OFFERTA_ESSENZIALI : CAMPI_ATTUALI_ESSENZIALI;
+  if (!isOffer && data?.kind === "bolletta") return configurazioniPerAmbito(base);
   const hasLuce = Boolean(data?.consumo_luce_kwh || data?.prezzo_luce_eur_kwh || data?.quota_fissa_vendita_luce_eur_anno || data?.commodity === "luce");
   const hasGas = Boolean(data?.consumo_gas_smc || data?.prezzo_gas_eur_smc || data?.quota_fissa_vendita_gas_eur_anno || data?.commodity === "gas");
-  const base = isOffer ? CAMPI_NUOVA_OFFERTA_ESSENZIALI : CAMPI_ATTUALI_ESSENZIALI;
   const luce = base.filter(({ id }) => id.includes("-luce-"));
   const gas = base.filter(({ id }) => id.includes("-gas-"));
   if (hasLuce && !hasGas) return luce;
@@ -6262,7 +6500,7 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
   aggiornaAssistenteAttivazioneVisibilita();
 };
 
-window.confermaPdfECalcola = function confermaPdfECalcola() {
+window.confermaPdfECalcola = async function confermaPdfECalcola() {
   const data = LEAD_STATE.pdfData || {};
   const confirmButton = document.getElementById("pdf-confirm-data-button");
   if (confirmButton?.disabled) return;
@@ -6274,6 +6512,13 @@ window.confermaPdfECalcola = function confermaPdfECalcola() {
   nascondiGuida("pdf-confirm-guidance");
   document.getElementById("pdf-review-static")?.classList.remove("pdf-confirm-attention");
 
+  if (data.kind === "bolletta") {
+    const customerType = await confermaProfiloClientePdf(data);
+    if (customerType && customerType !== LEAD_STATE.customerType) selezionaSegmentoCliente(customerType);
+    const scope = await confermaAmbitoPdf(data);
+    applicaAmbitoConfronto(scope, { gasDecision: LEAD_STATE.gasDecision });
+  }
+
   if (LEAD_STATE.customerType === "business") {
     applicaDatiPdfAlBusiness(data);
     nascondiEsitiFincheNonConfronti();
@@ -6283,7 +6528,12 @@ window.confermaPdfECalcola = function confermaPdfECalcola() {
     if (businessResult) businessResult.style.display = "none";
     if (businessError) businessError.style.display = "none";
     aggiornaAssistenteAttivazioneVisibilita();
-    if (copy) copy.innerText = "Dati confermati e inseriti nel modulo business. Controllali e completa gli eventuali valori mancanti prima di richiedere l'analisi.";
+    if (ambitoConfrontoAttivo() === "pending_gas") {
+      if (copy) copy.innerText = "Dati luce confermati e inseriti nel modulo aziendale. Ora carica la bolletta gas: i dati già letti restano memorizzati.";
+      vaiAlCaricatoreScheda();
+      return;
+    }
+    if (copy) copy.innerText = "Dati confermati e inseriti nel modulo business. Controllali e completa soltanto gli eventuali valori pertinenti alla fornitura scelta.";
     portaElementoInVista(document.getElementById("business-panel"), { block: "start" });
     return;
   }
@@ -6300,13 +6550,22 @@ window.confermaPdfECalcola = function confermaPdfECalcola() {
   nascondiEsitiFincheNonConfronti();
   aggiornaAssistenteAttivazioneVisibilita();
   const copy = document.getElementById("pdf-review-copy");
-  if (copy) copy.innerText = "Dati confermati e inseriti nel modulo. Controlla l'area evidenziata qui sotto, completa gli eventuali dati mancanti e poi avvia il confronto.";
+  if (ambitoConfrontoAttivo() === "pending_gas") {
+    if (copy) copy.innerText = "Dati luce confermati. Ora carica la bolletta gas: conserveremo i dati già letti e uniremo le due forniture senza sovrascriverle.";
+    mostraGuida("pdf-data-review-guidance", "<strong>La luce è stata memorizzata.</strong> Seleziona ora il PDF della bolletta gas e premi <strong>Analizza PDF</strong>.");
+    vaiAlCaricatoreScheda();
+    return;
+  }
+  if (copy) copy.innerText = "Dati confermati e inseriti nel modulo. Controlla l'area evidenziata qui sotto, completa soltanto i dati pertinenti e poi avvia il confronto.";
   accompagnaAllaRevisioneDatiPdf(data);
 };
 
 function applicaDatiPdfAlBusiness(data) {
   if (!data) return;
-  setField("business-fornitore", data.fornitore || "");
+  setField("business-ragione", data.intestatario || "");
+  setField("business-piva", /^\d{11}$/.test(String(data.codice_fiscale || "")) ? data.codice_fiscale : "");
+  setField("business-fornitore", data.fornitore_luce || (data.commodity !== "gas" ? data.fornitore : "") || "");
+  setField("business-fornitore-gas", data.fornitore_gas || (data.commodity === "gas" ? data.fornitore : "") || "");
   setField("business-potenza", data.potenza_impegnata_kw || "");
   setField("business-kwh", data.consumo_luce_kwh || "");
   setField("business-prezzo-luce", data.prezzo_luce_eur_kwh || "");
@@ -6335,37 +6594,44 @@ function mergePdfDocuments(documents) {
 
   const merged = {};
   validDocuments.forEach((doc) => {
-    if (!merged.fornitore && doc.fornitore) merged.fornitore = doc.fornitore;
     merged.kind = doc.kind;
     [
       "intestatario", "codice_fiscale", "codice_cliente", "indirizzo_fornitura",
-      "nome_offerta", "codice_offerta", "tipo_prezzo", "indice_riferimento",
-      "spread_luce_eur_kwh", "spread_gas_eur_smc", "consumo_gas_mc",
-      "coefficiente_conversione_gas_c"
+      "indirizzo_fornitura_luce", "indirizzo_fornitura_gas", "customer_type",
+      "customer_type_confidence", "customer_type_evidence", "nome_offerta", "codice_offerta",
+      "tipo_prezzo", "indice_riferimento", "spread_luce_eur_kwh", "spread_gas_eur_smc",
+      "consumo_gas_mc", "coefficiente_conversione_gas_c"
     ].forEach((field) => {
       merged[field] = firstValue(doc[field], merged[field]);
     });
 
-    if (doc.commodity === "luce" || doc.commodity === "dual" || doc.consumo_luce_kwh || doc.prezzo_luce_eur_kwh) {
+    if (doc.commodity === "luce" || doc.commodity === "dual" || doc.consumo_luce_kwh || doc.prezzo_luce_eur_kwh || doc.pod) {
+      merged.fornitore_luce = firstValue(doc.fornitore, doc.fornitore_luce, merged.fornitore_luce);
       merged.consumo_luce_kwh = firstValue(doc.consumo_luce_kwh, merged.consumo_luce_kwh);
       merged.prezzo_luce_eur_kwh = firstValue(doc.prezzo_luce_eur_kwh, merged.prezzo_luce_eur_kwh);
       merged.quota_fissa_vendita_luce_eur_anno = firstValue(doc.quota_fissa_vendita_luce_eur_anno, merged.quota_fissa_vendita_luce_eur_anno);
       merged.potenza_impegnata_kw = firstValue(doc.potenza_impegnata_kw, merged.potenza_impegnata_kw);
       merged.potenza_disponibile_kw = firstValue(doc.potenza_disponibile_kw, merged.potenza_disponibile_kw);
       merged.pod = firstValue(doc.pod, merged.pod);
+      merged.indirizzo_fornitura_luce = firstValue(doc.indirizzo_fornitura_luce, doc.indirizzo_fornitura, merged.indirizzo_fornitura_luce);
     }
 
-    if (doc.commodity === "gas" || doc.commodity === "dual" || doc.consumo_gas_smc || doc.prezzo_gas_eur_smc) {
+    if (doc.commodity === "gas" || doc.commodity === "dual" || doc.consumo_gas_smc || doc.prezzo_gas_eur_smc || doc.pdr) {
+      merged.fornitore_gas = firstValue(doc.fornitore, doc.fornitore_gas, merged.fornitore_gas);
       merged.consumo_gas_smc = firstValue(doc.consumo_gas_smc, merged.consumo_gas_smc);
       merged.prezzo_gas_eur_smc = firstValue(doc.prezzo_gas_eur_smc, merged.prezzo_gas_eur_smc);
       merged.quota_fissa_vendita_gas_eur_anno = firstValue(doc.quota_fissa_vendita_gas_eur_anno, merged.quota_fissa_vendita_gas_eur_anno);
       merged.pdr = firstValue(doc.pdr, merged.pdr);
+      merged.indirizzo_fornitura_gas = firstValue(doc.indirizzo_fornitura_gas, doc.indirizzo_fornitura, merged.indirizzo_fornitura_gas);
     }
   });
 
   const hasLuce = Boolean(merged.consumo_luce_kwh || merged.prezzo_luce_eur_kwh || merged.quota_fissa_vendita_luce_eur_anno || merged.pod);
   const hasGas = Boolean(merged.consumo_gas_smc || merged.prezzo_gas_eur_smc || merged.quota_fissa_vendita_gas_eur_anno || merged.pdr);
   merged.commodity = hasLuce && hasGas ? "dual" : hasGas ? "gas" : hasLuce ? "luce" : "unknown";
+  if (merged.fornitore_luce && merged.fornitore_gas && merged.fornitore_luce === merged.fornitore_gas) merged.fornitore = merged.fornitore_luce;
+  else merged.fornitore = merged.fornitore_luce || merged.fornitore_gas || "";
+  merged.indirizzo_fornitura = merged.indirizzo_fornitura_luce || merged.indirizzo_fornitura_gas || merged.indirizzo_fornitura || "";
   return merged;
 }
 
@@ -6388,7 +6654,9 @@ function renderPdfSummary(documents, merged) {
   }
 
   const mergedRows = [
-    merged.fornitore ? `Fornitore: ${testoHtmlSicuro(merged.fornitore)}` : "",
+    merged.customer_type === "business" ? "Profilo rilevato: azienda / non domestico" : merged.customer_type === "privato" ? "Profilo rilevato: privato / domestico" : "",
+    merged.fornitore_luce ? `Fornitore luce: ${testoHtmlSicuro(merged.fornitore_luce)}` : "",
+    merged.fornitore_gas ? `Fornitore gas: ${testoHtmlSicuro(merged.fornitore_gas)}` : "",
     merged.consumo_luce_kwh ? `Luce: ${merged.consumo_luce_kwh} kWh/anno` : "",
     merged.prezzo_luce_eur_kwh ? `Prezzo luce: ${merged.prezzo_luce_eur_kwh} €/kWh` : "",
     merged.quota_fissa_vendita_luce_eur_anno ? `Fisso luce: ${merged.quota_fissa_vendita_luce_eur_anno} €/anno` : "",
@@ -6417,6 +6685,9 @@ window.azzeraPdfEModulo = function azzeraPdfEModulo() {
   });
   LEAD_STATE.pdfData = null;
   LEAD_STATE.pdfDocuments = [];
+  LEAD_STATE.comparisonScope = "unknown";
+  LEAD_STATE.gasDecision = "";
+  LEAD_STATE.pendingPdfDecision = null;
   LEAD_STATE.dataOrigin = "manual_input";
   LEAD_STATE.verified = false;
   LEAD_STATE.otpPreviewCode = "";
@@ -6445,12 +6716,12 @@ window.azzeraPdfEModulo = function azzeraPdfEModulo() {
     confirmButton.innerText = "Ho controllato: conferma e inserisci i dati";
   }
   [
-    "nome-fornitore-att", "nome-fornitore-nuov",
+    "nome-fornitore-att", "nome-fornitore-gas-att", "nome-fornitore-nuov",
     "in-luce-cons-att", "in-luce-prezzo-att", "in-luce-fisso-att",
     "in-gas-cons-att", "in-gas-prezzo-att", "in-gas-fisso-att",
     "in-luce-cons-nuov", "in-luce-prezzo-nuov", "in-luce-fisso-nuov",
     "in-gas-cons-nuov", "in-gas-prezzo-nuov", "in-gas-fisso-nuov",
-    "business-fornitore", "business-potenza", "business-kwh", "business-f1",
+    "business-ragione", "business-piva", "business-fornitore", "business-fornitore-gas", "business-potenza", "business-kwh", "business-f1",
     "business-f2", "business-f3", "business-prezzo-luce", "business-fisso-luce",
     "business-smc", "business-prezzo-gas", "business-fisso-gas",
   ].forEach(clearField);
@@ -6470,6 +6741,7 @@ window.azzeraPdfEModulo = function azzeraPdfEModulo() {
   setField("master-luce-potenza", PARAMETRI_CALCOLO.profiloMedio.potenzaKw);
   setField("master-luce-tipo", PARAMETRI_CALCOLO.profiloMedio.tipoPrezzo);
   setField("master-tipo-fornitura", PARAMETRI_CALCOLO.profiloMedio.tipoFornitura);
+  applicaAmbitoConfronto(PARAMETRI_CALCOLO.profiloMedio.tipoFornitura);
   setField("master-gas-regione", PARAMETRI_CALCOLO.profiloMedio.regioneGas);
 
   ["lead-nome", "lead-telefono", "lead-email", "lead-otp"].forEach(clearField);
@@ -6481,6 +6753,7 @@ window.azzeraPdfEModulo = function azzeraPdfEModulo() {
   const offerConsentModal = document.getElementById("offer-consent-backdrop");
   if (leadModal) leadModal.style.display = "none";
   if (offerConsentModal) offerConsentModal.style.display = "none";
+  chiudiDecisionePdf(null);
   const otpInput = document.getElementById("lead-otp");
   const sendOtp = document.getElementById("lead-send-otp");
   const verifyOtp = document.getElementById("lead-verify-otp");
@@ -6700,6 +6973,11 @@ function durataOffertaTesto(offerta = {}) {
 function aggiornaTestoPulsanteConfronto() {
   const button = document.getElementById("comparison-submit-button");
   if (!button) return;
+  const scope = ambitoConfrontoAttivo();
+  if (scope === "pending_gas") {
+    button.textContent = "Carica la bolletta gas per continuare";
+    return;
+  }
   if (NUOVA_OFFERTA_AUTOMATICA?.offerta) {
     button.textContent = "Confronta le offerte selezionate";
     return;
@@ -6708,7 +6986,11 @@ function aggiornaTestoPulsanteConfronto() {
     button.textContent = "Confronta questa proposta";
     return;
   }
-  button.textContent = "Mostra le offerte disponibili";
+  button.textContent = scope === "luce"
+    ? "Mostra le offerte luce disponibili"
+    : scope === "gas"
+      ? "Mostra le offerte gas disponibili"
+      : "Mostra le offerte disponibili";
 }
 
 function offertaCompletaPerProfilo(offerta, attuale) {
@@ -6754,9 +7036,10 @@ function offertaAreraDaRighe(providerKey, tipo, tipoFornitura, attuale) {
   const righe = OFFERTE_ARERA_MENU.filter((riga) => riga.providerKey === providerKey);
   if (!righe.length) return null;
 
-  const luce = miglioreRigaArera(righe, "luce", tipo, attuale);
-  const gas = miglioreRigaArera(righe, "gas", tipo, attuale);
+  const luce = tipoFornitura === "gas" ? null : miglioreRigaArera(righe, "luce", tipo, attuale);
+  const gas = tipoFornitura === "luce" ? null : miglioreRigaArera(righe, "gas", tipo, attuale);
   if (tipoFornitura === "dual" && (!luce || !gas)) return null;
+  if (tipoFornitura === "separate" && (!luce || !gas)) return null;
   if (!luce && !gas) return null;
 
   const providerLabel = luce?.providerLabel || gas?.providerLabel || providerKey;
@@ -6765,7 +7048,7 @@ function offertaAreraDaRighe(providerKey, tipo, tipoFornitura, attuale) {
     : `${providerLabel} - ${luce ? luce.nome : gas.nome}`;
 
   return normalizzaOfferta({
-    id: `arera-${providerKey}-${tipo}-${luce?.codice || "no-luce"}-${gas?.codice || "no-gas"}`,
+    id: `arera-${providerKey}-${tipo}-${tipoFornitura}-${luce?.codice || "no-luce"}-${gas?.codice || "no-gas"}`,
     provider: providerLabel,
     nome,
     tipo,
@@ -6829,7 +7112,9 @@ function applicaOffertaAlBloccoNuovo(offerta, providerKey) {
   NUOVA_OFFERTA_AUTOMATICA = { offerta, providerKey, appliedAt: new Date().toISOString() };
 
   setField("master-luce-tipo", offerta.tipo || "fisso");
-  setField("master-tipo-fornitura", offerta.fornitura === "dual" ? "dual" : "separate");
+  if (["dual", "separate"].includes(ambitoConfrontoAttivo())) {
+    applicaAmbitoConfronto(offerta.fornitura === "dual" ? "dual" : "separate");
+  }
   setField("in-luce-prezzo-nuov", prezzoInputDaVoce(offerta.luce));
   impostaQuotaFissaAnnua("in-luce-fisso-nuov", "in-luce-fisso-nuov-unita", offerta.luce ? offerta.luce.quotaFissaAnnua : "");
   setField("in-gas-prezzo-nuov", prezzoInputDaVoce(offerta.gas));
@@ -6872,7 +7157,7 @@ function aggiornaNuovaOffertaDaFornitore(options = {}) {
 
   const attuale = leggiOffertaAttuale();
   const tipoTariffa = leggiValore("master-luce-tipo", "fisso");
-  const tipoFornitura = leggiValore("master-tipo-fornitura", "dual");
+  const tipoFornitura = tipoFornituraPerCalcolo();
   const offerta = miglioreNuovaOffertaPerFornitore(providerKey, attuale, tipoTariffa, tipoFornitura);
 
   if (!offerta) {
@@ -6908,6 +7193,7 @@ function gasMasterBucket(consumo) {
 
 function applicaDatiPdfAlModulo(data) {
   NUOVA_OFFERTA_AUTOMATICA = null;
+  inizializzaSelectFornitoreGas();
   [
     "in-luce-cons-att", "in-luce-prezzo-att", "in-luce-fisso-att",
     "in-gas-cons-att", "in-gas-prezzo-att", "in-gas-fisso-att",
@@ -6916,6 +7202,7 @@ function applicaDatiPdfAlModulo(data) {
   ].forEach(clearField);
 
   if (!data || Object.keys(data).length === 0) {
+    applicaAmbitoConfronto("dual");
     setField("master-luce-consumo", PARAMETRI_CALCOLO.profiloMedio.luceConsumoKwh);
     setField("master-gas-consumo", PARAMETRI_CALCOLO.profiloMedio.gasConsumoSmc);
     setField("master-luce-potenza", PARAMETRI_CALCOLO.profiloMedio.potenzaKw);
@@ -6932,44 +7219,45 @@ function applicaDatiPdfAlModulo(data) {
     return;
   }
 
-  setField("master-luce-potenza", data.potenza_impegnata_kw || "3");
-  setField("master-gas-regione", "nord-ovest");
-  setField("master-tipo-fornitura", "dual");
+  if (data.potenza_impegnata_kw) setField("master-luce-potenza", data.potenza_impegnata_kw);
+  if (!leggiValore("master-gas-regione", "")) setField("master-gas-regione", "nord-ovest");
 
   const isOffer = data.kind === "scheda_offerta";
   if (isOffer) {
     apriDettagliNuovaOfferta();
     setField("nome-fornitore-nuov", providerValue(data.fornitore));
-    if (data.commodity === "luce" || data.prezzo_luce_eur_kwh) {
+    if (data.commodity === "luce" || data.prezzo_luce_eur_kwh || data.spread_luce_eur_kwh) {
       setField("in-luce-prezzo-nuov", data.prezzo_luce_eur_kwh);
       impostaQuotaFissaAnnua("in-luce-fisso-nuov", "in-luce-fisso-nuov-unita", data.quota_fissa_vendita_luce_eur_anno);
-      setField("master-luce-tipo", "variabile");
     }
-    if (data.commodity === "gas" || data.prezzo_gas_eur_smc) {
+    if (data.commodity === "gas" || data.prezzo_gas_eur_smc || data.spread_gas_eur_smc) {
       setField("in-gas-prezzo-nuov", data.prezzo_gas_eur_smc);
       impostaQuotaFissaAnnua("in-gas-fisso-nuov", "in-gas-fisso-nuov-unita", data.quota_fissa_vendita_gas_eur_anno);
-      setField("master-luce-tipo", "fisso");
     }
+    if (data.tipo_prezzo) setField("master-luce-tipo", data.tipo_prezzo);
     mostraHintNuovaOfferta(`Proposta caricata dalla scheda sintetica di ${data.fornitore || "un fornitore"}. Controlla i valori letti e completa gli eventuali dati mancanti.`);
     aggiornaTestoPulsanteConfronto();
     return;
   }
 
-  setField("nome-fornitore-att", providerValue(data.fornitore));
-  if (data.commodity === "luce" || data.consumo_luce_kwh || data.prezzo_luce_eur_kwh) {
+  setField("nome-fornitore-att", providerValue(data.fornitore_luce || (data.commodity !== "gas" ? data.fornitore : "")));
+  setField("nome-fornitore-gas-att", providerValue(data.fornitore_gas || (data.commodity === "gas" ? data.fornitore : "")));
+  if (data.commodity === "luce" || data.commodity === "dual" || data.consumo_luce_kwh || data.prezzo_luce_eur_kwh) {
     setField("in-luce-cons-att", data.consumo_luce_kwh);
     setField("in-luce-cons-nuov", data.consumo_luce_kwh);
     setField("master-luce-consumo", luceMasterBucket(data.consumo_luce_kwh));
     setField("in-luce-prezzo-att", data.prezzo_luce_eur_kwh);
     impostaQuotaFissaAnnua("in-luce-fisso-att", "in-luce-fisso-att-unita", data.quota_fissa_vendita_luce_eur_anno);
   }
-  if (data.commodity === "gas" || data.consumo_gas_smc || data.prezzo_gas_eur_smc) {
+  if (data.commodity === "gas" || data.commodity === "dual" || data.consumo_gas_smc || data.prezzo_gas_eur_smc) {
     setField("in-gas-cons-att", data.consumo_gas_smc);
     setField("in-gas-cons-nuov", data.consumo_gas_smc);
     setField("master-gas-consumo", gasMasterBucket(data.consumo_gas_smc));
     setField("in-gas-prezzo-att", data.prezzo_gas_eur_smc);
     impostaQuotaFissaAnnua("in-gas-fisso-att", "in-gas-fisso-att-unita", data.quota_fissa_vendita_gas_eur_anno);
   }
+  if (data.tipo_prezzo) setField("master-luce-tipo", data.tipo_prezzo);
+  aggiornaIndicatoreProfiloPdf();
   aggiornaTestoPulsanteConfronto();
 }
 
@@ -6992,6 +7280,8 @@ function sincronizzaConsumiNuovaOfferta() {
 
 function collegaEventiUX() {
   inizializzaModalitaStaff();
+  inizializzaSelectFornitoreGas();
+  applicaAmbitoConfronto(leggiValore("master-tipo-fornitura", "dual"));
 
   const btnPrivato = document.getElementById("btn-segmento-privato");
   const btnBusiness = document.getElementById("btn-segmento-business");
@@ -7074,6 +7364,7 @@ function collegaEventiUX() {
   ].forEach((id) => {
     document.getElementById(id)?.addEventListener("change", () => {
       if (BLOCCO_AUTOFILL_NUOVA_OFFERTA) return;
+      if (id === "master-tipo-fornitura") applicaAmbitoConfronto(leggiValore("master-tipo-fornitura", "dual"));
       aggiornaNuovaOffertaDaFornitore();
       const risultatiVisibili = document.querySelector(".fornitori-consigliati-section")?.style.display === "block";
       if (risultatiVisibili) avviaComparazioneDati();
@@ -7104,9 +7395,13 @@ function collegaEventiUX() {
   document.getElementById("assistance-rescue-backdrop")?.addEventListener("click", (event) => {
     if (event.target?.id === "assistance-rescue-backdrop") chiudiRichiestaAssistenza("backdrop");
   });
+  document.getElementById("pdf-decision-backdrop")?.addEventListener("click", (event) => {
+    if (event.target?.id === "pdf-decision-backdrop") chiudiDecisionePdf(null);
+  });
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;
-    if (document.getElementById("assistance-rescue-backdrop")?.style.display === "flex") chiudiRichiestaAssistenza("escape");
+    if (document.getElementById("pdf-decision-backdrop")?.style.display === "flex") chiudiDecisionePdf(null);
+    else if (document.getElementById("assistance-rescue-backdrop")?.style.display === "flex") chiudiRichiestaAssistenza("escape");
     else if (document.getElementById("activation-helper-backdrop")?.style.display === "flex") chiudiAssistenteAttivazione();
   });
   inizializzaAssistenzaProattiva();
@@ -7477,6 +7772,15 @@ if (document.readyState === "loading") {
             </div>
         </div>
         <div class="assistance-rescue-note">Il ricontatto riguarda soltanto l'assistenza su OffertaLogica e non autorizza l'invio dei dati a un fornitore.</div>
+    </div>
+</div>
+
+<div class="pdf-decision-backdrop" id="pdf-decision-backdrop" role="dialog" aria-modal="true" aria-labelledby="pdf-decision-title">
+    <div class="pdf-decision-modal">
+        <h3 id="pdf-decision-title">Completa la scelta</h3>
+        <p id="pdf-decision-copy"></p>
+        <div class="pdf-decision-actions" id="pdf-decision-actions"></div>
+        <div class="pdf-decision-note" id="pdf-decision-note">La scelta serve soltanto a mostrare i campi e le offerte pertinenti. Potrai modificarla caricando un altro documento o ricominciando.</div>
     </div>
 </div>
 

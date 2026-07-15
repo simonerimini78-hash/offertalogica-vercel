@@ -160,3 +160,58 @@ test("legge una scheda E.ON variabile senza inventare un prezzo fisso", () => {
   assert.equal(result.prezzo_luce_eur_kwh, null);
   assert.equal(result.quota_fissa_vendita_luce_eur_anno, 192.71);
 });
+
+test("legge i dati tecnici Plenitude dal testo reale appiattito", () => {
+  const result = extractPdfDataFromText(`
+    Contratto intestato a:
+    MONICA PAMBIANCO
+    Codice Fiscale/Partita IVA
+    Indirizzo di fatturazione
+    PMBMNC62H60D704P
+    VIALE DELLA RESISTENZA 17, 47032 BERTINORO FC
+    Eni Plenitude SpA Società Benefit Codice Fiscale e Partita IVA 12300020158
+    Tipologia cliente: domestico
+    Indirizzo di fornituraPDRMatricola misuratore
+    Viale Della Resistenza 17, 47032 Bertinoro FC10400000417522SMGR034018080269
+    In un anno hai consumato 1.363 Smc
+    di cui spesa per la vendita di gas naturale 84,22 €0,410829 €/Smc
+    Indirizzo di fornituraPotenza ImpegnataPODPotenza Disponibile
+    Viale Della Resistenza 17,
+    47032 Bertinoro FC
+    3 kWIT001E512058083,3 kW
+    In un anno hai consumato 2.196 kWh
+    di cui spesa per la vendita di energia elettrica 59,78 €0,149077 €/kWh
+  `);
+
+  assert.equal(result.codice_fiscale, "PMBMNC62H60D704P");
+  assert.equal(result.pdr, "10400000417522");
+  assert.equal(result.pod, "IT001E51205808");
+  assert.equal(result.potenza_impegnata_kw, 3);
+  assert.equal(result.potenza_disponibile_kw, 3.3);
+  assert.equal(result.indirizzo_fornitura, "Viale Della Resistenza 17, 47032 Bertinoro FC");
+  assert.equal(result.customer_type, "privato");
+});
+
+test("rileva un'utenza aziendale senza confondere la partita IVA del fornitore", () => {
+  const business = extractPdfDataFromText(`
+    FATTURA ENERGIA ELETTRICA
+    Contratto intestato a: ROSSI INDUSTRIE SRL
+    Codice Fiscale/Partita IVA: 01234567890
+    Tipologia cliente: non domestico
+    Consumo annuo 25.000 kWh
+    Codice POD IT001E12345678
+  `);
+  assert.equal(business.customer_type, "business");
+  assert.equal(business.codice_fiscale, "01234567890");
+
+  const privateBill = extractPdfDataFromText(`
+    Eni Plenitude SpA Codice Fiscale e Partita IVA 12300020158
+    Contratto intestato a: MARIO ROSSI
+    Codice Fiscale: RSSMRA80A01H501U
+    Tipologia cliente: domestico residente
+    Consumo annuo 2.700 kWh
+    Codice POD IT001E12345678
+  `);
+  assert.equal(privateBill.customer_type, "privato");
+  assert.equal(privateBill.codice_fiscale, "RSSMRA80A01H501U");
+});
