@@ -1373,3 +1373,68 @@ Verifiche eseguite:
 - Dopo una scheda sintetica viene ricordato che per il confronto servono anche i dati della fornitura attuale, ottenibili caricando la bolletta o inserendoli manualmente.
 - Dopo una bolletta la guida invita a controllare i valori e premere “Mostra le offerte disponibili”.
 - Nessuna modifica a calcoli, parsing PDF, validazioni, OTP o catalogo offerte.
+
+## Punto v91 - Regressioni parser dual, spread e archivio staff
+
+Data: 2026-07-15.
+
+Punto di ripristino GitHub creato prima delle modifiche:
+
+- commit di partenza `6be0a087c32875f09ab39bed72eefc69ddef6e77` su `main`;
+- tag protetto `pre-parser-regression-patch`;
+- branch protetto `fix/parser-regression-archive`;
+- non usare reset o checkout della v89 e non eliminare tag o branch di ripristino.
+
+Versione parser:
+
+- `v91-dual-offer-regression-1`.
+
+Cosa e stato corretto:
+
+- Nei documenti dual i dati dell'offerta luce e gas restano separati e non si sovrascrivono.
+- Aggiunti nel JSON normalizzato i campi:
+  - `nome_offerta_luce`, `codice_offerta_luce`, `tipo_prezzo_luce`, `indice_riferimento_luce`, `spread_luce_eur_kwh`;
+  - `nome_offerta_gas`, `codice_offerta_gas`, `tipo_prezzo_gas`, `indice_riferimento_gas`, `spread_gas_eur_smc`.
+- I campi generici `nome_offerta`, `codice_offerta`, `tipo_prezzo` e `indice_riferimento` restano disponibili per compatibilita, ma nei documenti dual sono compilati solo se il valore e realmente comune.
+- Hera Hybrid viene classificata come `ibrido`, non come semplice prezzo fisso.
+- Plenitude dual mantiene nomi e codici distinti per Fixa Time Luce Base e Fixa Time Gas Base.
+- Dolomiti luce e gas estraggono lo spread vicino alla struttura economica dell'offerta senza confonderlo con perdite, rete o oneri.
+- ButanGas business riconosce PUN Index GME, prezzo variabile, spread luce, prezzo medio di vendita e indirizzo reale.
+- Gli indirizzi composti da istruzioni o frasi informative vengono rifiutati e segnalati per revisione.
+- L'area `public/staff-pdf.html` mostra e permette di correggere i nuovi campi separati, mantenendo i campi generici per i record gia archiviati.
+
+Schema dati:
+
+- nessuna migrazione Supabase;
+- nessuna nuova tabella o colonna;
+- i nuovi valori sono salvati nei JSON `normalized_data` e `confirmed_data` gia esistenti.
+
+Cosa non e stato toccato:
+
+- motore di calcolo e ranking offerte;
+- regola ARERA-first e dati partner;
+- OTP, lead, consensi e Supabase;
+- archivio PDF e relative API;
+- pagine pubbliche del calcolatore.
+
+Test di regressione aggiunti:
+
+- Hera dual;
+- Eni Plenitude dual;
+- Dolomiti luce;
+- Dolomiti gas;
+- ButanGas business;
+- presenza e compatibilita dei campi nella pagina staff PDF.
+
+Verifiche eseguite:
+
+- test JavaScript: 30 superati, 0 falliti;
+- test Python aggiornamento ARERA: 2 superati;
+- `npm run validate:calculator`: OK;
+- `npm run verify:offers`: OK, 0 errori e 0 warning;
+- sintassi JavaScript: OK;
+- funzioni presenti in `api`: 12.
+
+Regola da mantenere:
+
+- ogni futura modifica del parser deve conservare questi test e non deve ricondurre i documenti dual a un unico nome/codice offerta generico.

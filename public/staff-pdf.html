@@ -78,7 +78,9 @@ const DISPLAY_FIELDS = [
   "fornitore","kind","commodity","customer_type","intestatario","codice_fiscale","codice_cliente","indirizzo_fornitura",
   "consumo_luce_kwh","consumo_gas_smc","prezzo_luce_eur_kwh","prezzo_gas_eur_smc",
   "quota_fissa_vendita_luce_eur_anno","quota_fissa_vendita_gas_eur_anno","potenza_impegnata_kw","potenza_disponibile_kw",
-  "pod","pdr","nome_offerta","codice_offerta","tipo_prezzo","indice_riferimento","spread_luce_eur_kwh","spread_gas_eur_smc"
+  "pod","pdr","nome_offerta","codice_offerta","tipo_prezzo","indice_riferimento",
+  "nome_offerta_luce","codice_offerta_luce","tipo_prezzo_luce","indice_riferimento_luce","spread_luce_eur_kwh",
+  "nome_offerta_gas","codice_offerta_gas","tipo_prezzo_gas","indice_riferimento_gas","spread_gas_eur_smc"
 ];
 const LABELS = {
   fornitore:"Fornitore",kind:"Tipo documento",commodity:"Fornitura",customer_type:"Tipo cliente",intestatario:"Intestatario",
@@ -86,7 +88,9 @@ const LABELS = {
   consumo_luce_kwh:"Consumo luce kWh",consumo_gas_smc:"Consumo gas Smc",prezzo_luce_eur_kwh:"Prezzo luce €/kWh",prezzo_gas_eur_smc:"Prezzo gas €/Smc",
   quota_fissa_vendita_luce_eur_anno:"Quota fissa luce €/anno",quota_fissa_vendita_gas_eur_anno:"Quota fissa gas €/anno",
   potenza_impegnata_kw:"Potenza impegnata kW",potenza_disponibile_kw:"Potenza disponibile kW",pod:"POD",pdr:"PDR",
-  nome_offerta:"Nome offerta",codice_offerta:"Codice offerta",tipo_prezzo:"Tipo prezzo",indice_riferimento:"Indice",spread_luce_eur_kwh:"Spread luce",spread_gas_eur_smc:"Spread gas"
+  nome_offerta:"Nome offerta comune",codice_offerta:"Codice offerta comune",tipo_prezzo:"Tipo prezzo comune",indice_riferimento:"Indice comune",
+  nome_offerta_luce:"Nome offerta luce",codice_offerta_luce:"Codice offerta luce",tipo_prezzo_luce:"Tipo prezzo luce",indice_riferimento_luce:"Indice luce",spread_luce_eur_kwh:"Spread luce €/kWh",
+  nome_offerta_gas:"Nome offerta gas",codice_offerta_gas:"Codice offerta gas",tipo_prezzo_gas:"Tipo prezzo gas",indice_riferimento_gas:"Indice gas",spread_gas_eur_smc:"Spread gas €/Smc"
 };
 let token = new URLSearchParams(location.hash.replace(/^#/, "")).get("token") || new URLSearchParams(location.search).get("token") || "";
 let analyses = [];
