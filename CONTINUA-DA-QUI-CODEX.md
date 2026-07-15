@@ -26,6 +26,47 @@ Prima di modificare codice usa sempre questo schema:
 - Come verifico che funzioni.
 
 
+## Aggiornamento v89 - archivio PDF privato e diagnostica staff
+
+Aggiunto un archivio tecnico dedicato alla fase di test del lettore PDF, senza modificare formule, ranking o correzione Axpo v88:
+
+- archiviazione del PDF originale in un bucket Supabase privato, attiva soltanto con `PDF_ARCHIVE_MODE`;
+- modalità `all`, `problematic` e `off`, con predefinita `off`;
+- hash SHA-256 per evitare copie fisiche duplicate dello stesso documento;
+- conservazione di versione parser, esito, dati normalizzati, avvisi, pagine e diagnostica campo per campo;
+- estrazione del testo per pagina tramite `pdf-parse`, mantenendo invariato il parser testuale esistente;
+- pagina protetta `staff-pdf.html` per aprire l'originale con link temporaneo, verificare i valori attesi, annotare correzioni e creare casi di test;
+- API staff per elenco, revisione, apertura protetta ed eliminazione;
+- endpoint protetto per cancellare gli elementi oltre la scadenza;
+- script SQL per tabella `pdf_analyses` e bucket privato `pdf-test-archive`;
+- link all'archivio nella modalità staff;
+- nessuna nuova checkbox o passaggio nel percorso pubblico.
+
+Configurazione e attivazione sono documentate in `docs/ARCHIVIO-PDF-TEST.md`. Durante la fase controllata usare `PDF_ARCHIVE_MODE=all`; prima dell'apertura pubblica rivalutare e passare a `problematic` o `off`.
+
+Verifiche v89:
+
+- test parser e percorso simmetrico precedenti: OK;
+- nuovi test diagnostica e modalità archivio: OK;
+- totale test Node disponibili nel pacchetto: 23/23;
+- sintassi di API, librerie e script inline: OK;
+- nessuna modifica ai file ARERA v88, alle formule o al ranking.
+
+File v89:
+
+- `api/analyze-pdf.js`;
+- `api/staff-pdf-analyses.js`;
+- `api/staff-pdf-file.js`;
+- `api/cleanup-pdf-archive.js`;
+- `lib/pdfExtract.js`;
+- `lib/pdfArchive.js`;
+- `lib/staffAuth.js`;
+- `public/index.html`;
+- `public/staff-pdf.html`;
+- `supabase/pdf-analysis-archive.sql`;
+- `docs/ARCHIVIO-PDF-TEST.md`;
+- test diagnostica e archivio.
+
 ## Aggiornamento v88 - correzione componenti ARERA e offerta Axpo non domestica
 
 Corretto un errore nell'importazione XML ARERA che poteva trasformare una componente commerciale o uno spread in un falso prezzo completo dell'energia:

@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Archivio PDF staff - OffertaLogica</title>
+  <style>
+    :root { --bg:#f3f6fb; --card:#fff; --text:#172033; --muted:#667085; --line:#d8deea; --primary:#0f766e; --danger:#b42318; --warn:#b54708; --ok:#027a48; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; background:var(--bg); color:var(--text); }
+    button,input,select,textarea { font:inherit; }
+    header { position:sticky; top:0; z-index:5; background:#fff; border-bottom:1px solid var(--line); padding:14px 18px; display:flex; gap:14px; align-items:center; justify-content:space-between; }
+    header h1 { margin:0; font-size:20px; }
+    header p { margin:3px 0 0; color:var(--muted); font-size:13px; }
+    .header-actions { display:flex; gap:8px; flex-wrap:wrap; }
+    .btn { border:0; border-radius:8px; padding:9px 13px; cursor:pointer; font-weight:750; background:#e8edf5; color:var(--text); }
+    .btn.primary { background:var(--primary); color:#fff; }
+    .btn.danger { background:#fee4e2; color:var(--danger); }
+    .layout { display:grid; grid-template-columns:minmax(300px,390px) minmax(0,1fr); gap:18px; padding:18px; max-width:1600px; margin:auto; }
+    .panel { background:var(--card); border:1px solid var(--line); border-radius:12px; min-width:0; box-shadow:0 8px 24px rgba(16,24,40,.05); }
+    .filters { padding:14px; border-bottom:1px solid var(--line); display:grid; grid-template-columns:1fr 1fr; gap:9px; }
+    .filters input { grid-column:1/-1; }
+    input,select,textarea { width:100%; border:1px solid var(--line); border-radius:8px; padding:9px 10px; background:#fff; color:var(--text); }
+    .list { max-height:calc(100vh - 190px); overflow:auto; padding:8px; }
+    .item { width:100%; text-align:left; border:1px solid transparent; border-radius:10px; padding:11px; background:#fff; cursor:pointer; margin-bottom:6px; }
+    .item:hover,.item.active { border-color:#9fd5cf; background:#f0fdfa; }
+    .item strong { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .item small { display:block; color:var(--muted); margin-top:4px; }
+    .badges { display:flex; gap:5px; flex-wrap:wrap; margin-top:7px; }
+    .badge { display:inline-flex; border-radius:999px; padding:3px 7px; font-size:11px; font-weight:800; background:#eef2f6; }
+    .badge.complete { color:var(--ok); background:#ecfdf3; }
+    .badge.partial,.badge.pending { color:var(--warn); background:#fffaeb; }
+    .badge.failed,.badge.unrecognized { color:var(--danger); background:#fef3f2; }
+    .detail { padding:18px; min-height:70vh; }
+    .empty { color:var(--muted); display:grid; place-items:center; min-height:50vh; text-align:center; }
+    .detail-head { display:flex; gap:12px; justify-content:space-between; align-items:flex-start; border-bottom:1px solid var(--line); padding-bottom:14px; margin-bottom:16px; }
+    .detail-head h2 { margin:0 0 5px; font-size:22px; word-break:break-word; }
+    .meta { color:var(--muted); font-size:13px; line-height:1.5; }
+    h3 { font-size:16px; margin:22px 0 10px; }
+    .summary { display:grid; grid-template-columns:repeat(4,minmax(130px,1fr)); gap:9px; }
+    .summary div { border:1px solid var(--line); border-radius:9px; padding:10px; }
+    .summary span { display:block; color:var(--muted); font-size:12px; }
+    .summary strong { display:block; margin-top:3px; word-break:break-word; }
+    .table-wrap { overflow:auto; border:1px solid var(--line); border-radius:9px; }
+    table { width:100%; border-collapse:collapse; min-width:850px; font-size:13px; }
+    th,td { padding:9px; border-bottom:1px solid var(--line); vertical-align:top; text-align:left; }
+    th { background:#f8fafc; position:sticky; top:0; }
+    td.snippet { min-width:330px; color:#475467; line-height:1.35; }
+    .edit-grid { display:grid; grid-template-columns:repeat(3,minmax(170px,1fr)); gap:10px; }
+    .field label { display:block; color:var(--muted); font-size:12px; font-weight:750; margin-bottom:4px; }
+    .review-grid { display:grid; grid-template-columns:220px 1fr; gap:10px; margin-top:14px; }
+    .actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
+    .status { margin-top:10px; color:var(--muted); font-size:13px; min-height:20px; }
+    pre { white-space:pre-wrap; word-break:break-word; background:#101828; color:#f9fafb; padding:12px; border-radius:9px; max-height:320px; overflow:auto; font-size:12px; }
+    @media (max-width:960px) { .layout{grid-template-columns:1fr}.list{max-height:360px}.summary{grid-template-columns:repeat(2,1fr)}.edit-grid{grid-template-columns:repeat(2,1fr)} }
+    @media (max-width:600px) { header{align-items:flex-start;flex-direction:column}.layout{padding:10px}.detail{padding:13px}.summary,.edit-grid,.review-grid{grid-template-columns:1fr}.detail-head{flex-direction:column}.filters{grid-template-columns:1fr}.filters input{grid-column:auto} }
+  </style>
+</head>
+<body>
+<header>
+  <div><h1>Archivio PDF del lettore</h1><p>Originali privati, diagnostica e dati verificati per i test di regressione.</p></div>
+  <div class="header-actions"><button class="btn" id="open-calculator">Apri calcolatore staff</button><button class="btn primary" id="refresh">Aggiorna</button></div>
+</header>
+<main class="layout">
+  <section class="panel">
+    <div class="filters">
+      <input id="provider-filter" placeholder="Filtra per fornitore">
+      <select id="status-filter"><option value="">Tutti gli esiti</option><option value="complete">Completa</option><option value="partial">Parziale</option><option value="unrecognized">Non riconosciuta</option><option value="failed">Fallita</option></select>
+      <select id="review-filter"><option value="">Tutte le revisioni</option><option value="pending">Da verificare</option><option value="reviewed">Verificata</option><option value="test_case">Caso di test</option><option value="discarded">Scartata</option></select>
+    </div>
+    <div class="list" id="analysis-list"><div class="empty">Inserisci il token staff nell’URL.</div></div>
+  </section>
+  <section class="panel detail" id="detail"><div class="empty">Seleziona un’analisi PDF.</div></section>
+</main>
+<script>
+const DISPLAY_FIELDS = [
+  "fornitore","kind","commodity","customer_type","intestatario","codice_fiscale","codice_cliente","indirizzo_fornitura",
+  "consumo_luce_kwh","consumo_gas_smc","prezzo_luce_eur_kwh","prezzo_gas_eur_smc",
+  "quota_fissa_vendita_luce_eur_anno","quota_fissa_vendita_gas_eur_anno","potenza_impegnata_kw","potenza_disponibile_kw",
+  "pod","pdr","nome_offerta","codice_offerta","tipo_prezzo","indice_riferimento","spread_luce_eur_kwh","spread_gas_eur_smc"
+];
+const LABELS = {
+  fornitore:"Fornitore",kind:"Tipo documento",commodity:"Fornitura",customer_type:"Tipo cliente",intestatario:"Intestatario",
+  codice_fiscale:"Codice fiscale / P.IVA",codice_cliente:"Codice cliente",indirizzo_fornitura:"Indirizzo fornitura",
+  consumo_luce_kwh:"Consumo luce kWh",consumo_gas_smc:"Consumo gas Smc",prezzo_luce_eur_kwh:"Prezzo luce €/kWh",prezzo_gas_eur_smc:"Prezzo gas €/Smc",
+  quota_fissa_vendita_luce_eur_anno:"Quota fissa luce €/anno",quota_fissa_vendita_gas_eur_anno:"Quota fissa gas €/anno",
+  potenza_impegnata_kw:"Potenza impegnata kW",potenza_disponibile_kw:"Potenza disponibile kW",pod:"POD",pdr:"PDR",
+  nome_offerta:"Nome offerta",codice_offerta:"Codice offerta",tipo_prezzo:"Tipo prezzo",indice_riferimento:"Indice",spread_luce_eur_kwh:"Spread luce",spread_gas_eur_smc:"Spread gas"
+};
+let token = new URLSearchParams(location.hash.replace(/^#/, "")).get("token") || new URLSearchParams(location.search).get("token") || "";
+let analyses = [];
+let selectedId = "";
+const esc = (value) => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
+const fmt = (value) => value === null || value === undefined || value === "" ? "—" : typeof value === "object" ? JSON.stringify(value) : String(value);
+function api(path, options={}) {
+  return fetch(path, { ...options, headers:{"x-staff-token":token,...(options.headers||{})} }).then(async response => {
+    const payload = await response.json().catch(()=>({}));
+    if (!response.ok || !payload.ok) throw new Error(payload.error || "Errore API");
+    return payload;
+  });
+}
+function showStatus(message, error=false) { const el=document.getElementById("detail-status"); if(el){el.textContent=message;el.style.color=error?"var(--danger)":"var(--muted)";} }
+function archiveUrl() {
+  const params=new URLSearchParams({limit:"200"});
+  const status=document.getElementById("status-filter").value; const provider=document.getElementById("provider-filter").value.trim(); const reviewStatus=document.getElementById("review-filter").value;
+  if(status)params.set("status",status); if(provider)params.set("provider",provider); if(reviewStatus)params.set("reviewStatus",reviewStatus);
+  return `/api/staff-pdf-analyses?${params}`;
+}
+async function loadAnalyses() {
+  const list=document.getElementById("analysis-list");
+  if(!token){list.innerHTML='<div class="empty">Apri la pagina con <code>#token=TOKEN_STAFF</code>.</div>';return;}
+  list.innerHTML='<div class="empty">Caricamento…</div>';
+  try { const payload=await api(archiveUrl()); analyses=payload.analyses||[]; renderList(); if(selectedId){const row=analyses.find(x=>x.id===selectedId); if(row)renderDetail(row);} }
+  catch(error){list.innerHTML=`<div class="empty">${esc(error.message)}</div>`;}
+}
+function renderList() {
+  const list=document.getElementById("analysis-list");
+  if(!analyses.length){list.innerHTML='<div class="empty">Nessuna analisi trovata.</div>';return;}
+  list.innerHTML=analyses.map(item=>`<button class="item ${item.id===selectedId?'active':''}" data-id="${esc(item.id)}"><strong>${esc(item.original_file_name||'documento.pdf')}</strong><small>${esc(new Date(item.created_at).toLocaleString('it-IT'))} · ${esc(item.provider||'fornitore non rilevato')}</small><div class="badges"><span class="badge ${esc(item.status)}">${esc(item.status)}</span><span class="badge ${esc(item.review_status)}">${esc(item.review_status)}</span><span class="badge">${esc(item.kind)} · ${esc(item.commodity)}</span></div></button>`).join("");
+  list.querySelectorAll(".item").forEach(button=>button.addEventListener("click",()=>{selectedId=button.dataset.id;renderList();renderDetail(analyses.find(x=>x.id===selectedId));}));
+}
+function inputValue(value){return value===null||value===undefined?"":typeof value==="object"?JSON.stringify(value):String(value);}
+function renderDetail(item) {
+  if(!item)return;
+  const n=item.normalized_data||{}; const confirmed=item.confirmed_data||{}; const diagnostics=item.diagnostics||[];
+  document.getElementById("detail").innerHTML=`
+    <div class="detail-head"><div><h2>${esc(item.original_file_name)}</h2><div class="meta">${esc(item.parser_version)} · hash ${esc((item.file_sha256||'').slice(0,12))}… · scadenza ${item.expires_at?esc(new Date(item.expires_at).toLocaleDateString('it-IT')):'—'}</div></div><div class="actions"><button class="btn primary" id="open-pdf">Apri PDF originale</button><button class="btn danger" id="delete-analysis">Elimina</button></div></div>
+    <div class="summary"><div><span>Esito</span><strong>${esc(item.status)}</strong></div><div><span>Revisione</span><strong>${esc(item.review_status)}</strong></div><div><span>Fornitore</span><strong>${esc(item.provider||'—')}</strong></div><div><span>Pagine / testo</span><strong>${esc(item.page_count||'—')} / ${esc(item.text_length||0)}</strong></div></div>
+    ${item.error_message?`<h3>Errore</h3><pre>${esc(item.error_code)}\n${esc(item.error_message)}</pre>`:''}
+    <h3>Diagnostica campo per campo</h3>
+    <div class="table-wrap"><table><thead><tr><th>Campo</th><th>Esito</th><th>Valore</th><th>Pagina</th><th>Metodo</th><th>Testo sorgente</th></tr></thead><tbody>${diagnostics.map(d=>`<tr><td>${esc(d.label||d.field)}</td><td><span class="badge ${esc(d.status)}">${esc(d.status)}</span><br><small>${esc(d.confidence||'')}</small></td><td>${esc(fmt(d.value))}</td><td>${esc(d.page||'—')}</td><td>${esc(d.method||'—')}</td><td class="snippet">${esc(d.source_snippet||'—')}</td></tr>`).join('')||'<tr><td colspan="6">Diagnostica non disponibile.</td></tr>'}</tbody></table></div>
+    <h3>Dati corretti attesi</h3><div class="edit-grid">${DISPLAY_FIELDS.map(key=>`<div class="field"><label for="expected-${esc(key)}">${esc(LABELS[key]||key)}</label><input id="expected-${esc(key)}" data-field="${esc(key)}" value="${esc(inputValue(Object.prototype.hasOwnProperty.call(confirmed,key)?confirmed[key]:n[key]))}"></div>`).join('')}</div>
+    <div class="review-grid"><div class="field"><label for="review-status">Stato revisione</label><select id="review-status"><option value="pending">Da verificare</option><option value="reviewed">Verificata</option><option value="test_case">Caso di test</option><option value="discarded">Scartata</option></select></div><div class="field"><label for="staff-notes">Note staff</label><textarea id="staff-notes" rows="3" placeholder="Cosa non legge, posizione corretta, particolarità del layout…">${esc(item.staff_notes||'')}</textarea></div></div>
+    <div class="actions"><button class="btn primary" id="save-review">Salva verifica</button><button class="btn" id="show-json">Mostra JSON grezzo</button></div><div class="status" id="detail-status"></div><pre id="raw-json" hidden>${esc(JSON.stringify(n,null,2))}</pre>`;
+  document.getElementById("review-status").value=item.review_status||"pending";
+  document.getElementById("open-pdf").addEventListener("click",()=>openPdf(item.id));
+  document.getElementById("delete-analysis").addEventListener("click",()=>deleteAnalysis(item.id));
+  document.getElementById("save-review").addEventListener("click",()=>saveReview(item));
+  document.getElementById("show-json").addEventListener("click",()=>{const pre=document.getElementById("raw-json");pre.hidden=!pre.hidden;});
+}
+function parseInput(value, original) {
+  const trimmed=value.trim(); if(trimmed==="")return null;
+  if(typeof original==="number"){const n=Number(trimmed.replace(",","."));return Number.isFinite(n)?n:trimmed;}
+  if(trimmed==="true")return true;if(trimmed==="false")return false;return trimmed;
+}
+async function saveReview(item) {
+  const n=item.normalized_data||{}; const confirmedData={}; const correctionSummary={};
+  document.querySelectorAll("[data-field]").forEach(input=>{const key=input.dataset.field;const value=parseInput(input.value,n[key]);confirmedData[key]=value;if(JSON.stringify(value)!==JSON.stringify(n[key]))correctionSummary[key]={extracted:n[key]??null,confirmed:value};});
+  showStatus("Salvataggio…");
+  try { await api("/api/staff-pdf-analyses",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:item.id,confirmedData,correctionSummary,reviewStatus:document.getElementById("review-status").value,staffNotes:document.getElementById("staff-notes").value})}); showStatus("Verifica salvata."); await loadAnalyses(); }
+  catch(error){showStatus(error.message,true);}
+}
+async function openPdf(id) { const tab=window.open("about:blank","_blank"); if(tab)tab.opener=null; showStatus("Creo un collegamento protetto…"); try{const p=await api(`/api/staff-pdf-file?id=${encodeURIComponent(id)}`);if(tab)tab.location.href=p.signedUrl;else showStatus("Il browser ha bloccato la nuova scheda. Consenti i popup e riprova.",true);if(tab)showStatus("PDF aperto con link temporaneo.");}catch(error){if(tab)tab.close();showStatus(error.message,true);} }
+async function deleteAnalysis(id) { if(!confirm("Eliminare questa analisi? Il PDF originale viene rimosso se non è condiviso da altri test."))return; try{await api("/api/staff-pdf-analyses",{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({id})});selectedId="";document.getElementById("detail").innerHTML='<div class="empty">Analisi eliminata.</div>';await loadAnalyses();}catch(error){showStatus(error.message,true);} }
+document.getElementById("refresh").addEventListener("click",loadAnalyses);
+document.getElementById("status-filter").addEventListener("change",loadAnalyses);
+document.getElementById("review-filter").addEventListener("change",loadAnalyses);
+let timer;document.getElementById("provider-filter").addEventListener("input",()=>{clearTimeout(timer);timer=setTimeout(loadAnalyses,350);});
+document.getElementById("open-calculator").addEventListener("click",()=>{location.href=`/#staff=${encodeURIComponent(token)}`;});
+loadAnalyses();
+</script>
+</body>
+</html>

@@ -2455,6 +2455,7 @@ function trackEvent(eventType, payload = {}) {
 
 const PRIVACY_VERSION = "privacy-lead-v3-2026-07-04";
 const STAFF_MODE_STORAGE_KEY = "offertalogicaStaffMode";
+const STAFF_MODE_TOKEN_STORAGE_KEY = "offertalogicaStaffToken";
 const STAFF_MODE_LEAD_ID = "staff-preview";
 const STAFF_MODE_OTP = "000000";
 const OFFER_RENDER_CONTEXTS = new Map();
@@ -5364,6 +5365,15 @@ function apriAnteprimaConsensoOffertaStaff() {
   window.apriConsensoOfferta?.(offer);
 }
 
+function apriArchivioPdfStaff() {
+  const token = sessionStorage.getItem(STAFF_MODE_TOKEN_STORAGE_KEY) || "";
+  if (!token) {
+    staffPreviewStatus("Token staff non disponibile in questa sessione. Riattiva la modalità staff dal link protetto.", true);
+    return;
+  }
+  window.open(`/staff-pdf.html#token=${encodeURIComponent(token)}`, "_blank", "noopener");
+}
+
 function creaPannelloAnteprimeStaff() {
   let panel = document.getElementById("staff-preview-panel");
   if (panel) return panel;
@@ -5374,7 +5384,7 @@ function creaPannelloAnteprimeStaff() {
   panel.setAttribute("aria-label", "Anteprime modalità staff");
   panel.innerHTML = `
     <h3>Anteprime modalità staff</h3>
-    <p>Apri gli stessi popup e passaggi della pagina pubblica. In modalità staff non vengono salvati lead, consensi o webhook.</p>
+    <p>Apri gli stessi popup e passaggi della pagina pubblica. Lead, consensi e webhook restano disattivati; l’archivio PDF di test è separato.</p>
     <div class="staff-preview-grid">
       <button type="button" id="staff-preview-otp">Verifica offerte</button>
       <button type="button" id="staff-preview-help">Aiuto difficoltà</button>
@@ -5382,6 +5392,7 @@ function creaPannelloAnteprimeStaff() {
       <button type="button" id="staff-preview-activation">Dati per attivare</button>
       <button type="button" id="staff-preview-profile-scope">Profilo e fornitura</button>
       <button type="button" id="staff-preview-consent">Consenso offerta</button>
+      <button type="button" id="staff-preview-pdf-archive">Archivio PDF</button>
       <button type="button" id="staff-preview-close">Chiudi anteprime</button>
     </div>
     <div class="staff-preview-status" id="staff-preview-status" aria-live="polite"></div>
@@ -5393,6 +5404,7 @@ function creaPannelloAnteprimeStaff() {
   document.getElementById("staff-preview-activation")?.addEventListener("click", apriAnteprimaAttivazioneStaff);
   document.getElementById("staff-preview-profile-scope")?.addEventListener("click", apriAnteprimaProfiloFornituraStaff);
   document.getElementById("staff-preview-consent")?.addEventListener("click", apriAnteprimaConsensoOffertaStaff);
+  document.getElementById("staff-preview-pdf-archive")?.addEventListener("click", apriArchivioPdfStaff);
   document.getElementById("staff-preview-close")?.addEventListener("click", chiudiPannelloAnteprimeStaff);
   return panel;
 }
@@ -5410,14 +5422,16 @@ function aggiornaBannerStaff() {
     banner.id = "staff-mode-banner";
     banner.className = "staff-mode-banner";
     banner.innerHTML = `
-      <span class="staff-mode-copy"><strong>Modalità staff attiva.</strong> Stessa interfaccia pubblica, senza salvataggio di lead, database o webhook.</span>
+      <span class="staff-mode-copy"><strong>Modalità staff attiva.</strong> Stessa interfaccia pubblica, senza salvataggio di lead o webhook. I PDF di test possono essere archiviati separatamente.</span>
       <span class="staff-mode-actions">
         <button type="button" id="staff-preview-toggle" aria-expanded="false" aria-controls="staff-preview-panel">Anteprime</button>
+        <button type="button" id="staff-pdf-archive-open">Archivio PDF</button>
         <button type="button" id="staff-mode-exit">Esci</button>
       </span>
     `;
     document.body.appendChild(banner);
     creaPannelloAnteprimeStaff();
+    document.getElementById("staff-pdf-archive-open")?.addEventListener("click", apriArchivioPdfStaff);
     document.getElementById("staff-preview-toggle")?.addEventListener("click", () => {
       const panel = creaPannelloAnteprimeStaff();
       const willOpen = Boolean(panel.hidden);
@@ -5428,6 +5442,7 @@ function aggiornaBannerStaff() {
     });
     document.getElementById("staff-mode-exit")?.addEventListener("click", () => {
       sessionStorage.removeItem(STAFF_MODE_STORAGE_KEY);
+      sessionStorage.removeItem(STAFF_MODE_TOKEN_STORAGE_KEY);
       LEAD_STATE.staffMode = false;
       LEAD_STATE.staffActivatedAt = "";
       LEAD_STATE.verified = false;
@@ -5452,6 +5467,7 @@ async function inizializzaModalitaStaff() {
   const staffRequest = leggiTokenStaffDaUrl();
   if (staffRequest.off) {
     sessionStorage.removeItem(STAFF_MODE_STORAGE_KEY);
+    sessionStorage.removeItem(STAFF_MODE_TOKEN_STORAGE_KEY);
     LEAD_STATE.staffMode = false;
     LEAD_STATE.staffActivatedAt = "";
     pulisciTokenStaffDaUrl();
@@ -5474,9 +5490,11 @@ async function inizializzaModalitaStaff() {
     });
     const payload = await response.json();
     if (!payload.ok) throw new Error(payload.error || "Token staff non valido");
+    sessionStorage.setItem(STAFF_MODE_TOKEN_STORAGE_KEY, staffRequest.token);
     abilitaModalitaStaff(payload.activatedAt || "");
   } catch (error) {
     sessionStorage.removeItem(STAFF_MODE_STORAGE_KEY);
+    sessionStorage.removeItem(STAFF_MODE_TOKEN_STORAGE_KEY);
     LEAD_STATE.staffMode = false;
     aggiornaBannerStaff();
     console.warn("Modalita staff non attivata", error.message);
@@ -6513,13 +6531,19 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
   for (const file of files) {
     const formData = new FormData();
     formData.append("pdf", file);
+    formData.append("archiveContext", JSON.stringify({
+      sessionId: analyticsSessionId(),
+      staffMode: staffModeAttiva(),
+      customerType: LEAD_STATE.customerType,
+      uploadSequence: LEAD_STATE.pdfDocuments.length + results.length + 1,
+    }));
     try {
       const response = await fetch("/api/analyze-pdf", { method: "POST", body: formData });
       const contentType = response.headers.get("content-type") || "";
       if (!contentType.includes("application/json")) throw new Error("api_non_disponibile");
       const payload = await response.json();
       if (!response.ok || !payload.ok) throw new Error(payload.error || "Errore analisi PDF");
-      results.push({ filename: file.name, ...payload.normalized });
+      results.push({ filename: file.name, archive: payload.archive || null, ...payload.normalized });
     } catch (error) {
       const safeMessage = [
         "PDF troppo grande",

@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import formidable from "formidable";
 import { json, method, requireAllowedOrigin } from "../lib/http.js";
 import { extractPdf } from "../lib/pdfExtract.js";
+import { archivePdfAnalysis } from "../lib/pdfArchive.js";
 import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
 
 export const config = {
@@ -29,6 +30,22 @@ function parseForm(req) {
       else resolve({ fields, files });
     });
   });
+}
+
+
+function fieldValue(value) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function parseArchiveContext(fields = {}) {
+  const raw = fieldValue(fields.archiveContext);
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(String(raw));
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
 }
 
 async function isRealPdf(filePath) {
@@ -59,19 +76,43 @@ export default async function handler(req, res) {
   if (!(await enforceRateLimit(req, res, { label: "analyze-pdf", ...rateLimitConfig("PDF", 15) }))) return;
 
   let temporaryFilePath = "";
+  let fileMetadata = null;
+  let archiveContext = {};
+  let validPdf = false;
   try {
-    const { files } = await parseForm(req);
+    const { fields, files } = await parseForm(req);
+    archiveContext = parseArchiveContext(fields);
     const file = Array.isArray(files.pdf) ? files.pdf[0] : files.pdf;
     if (!file) return json(res, 400, { ok: false, error: "PDF mancante o formato non accettato" });
 
     temporaryFilePath = file.filepath;
+    fileMetadata = {
+      originalFilename: file.originalFilename || file.newFilename || "documento.pdf",
+      mimeType: file.mimetype || "application/pdf",
+      fileSize: Number(file.size || 0),
+    };
     if (!(await isRealPdf(temporaryFilePath))) {
       return json(res, 415, { ok: false, error: "Il file caricato non è un PDF valido" });
     }
+    validPdf = true;
 
     const normalized = await extractPdf(temporaryFilePath);
-    return json(res, 200, { ok: true, normalized });
+    const archive = await archivePdfAnalysis({
+      filePath: temporaryFilePath,
+      ...fileMetadata,
+      normalized,
+      context: archiveContext,
+    }).catch(() => ({ stored: false, reason: "archive_error" }));
+    return json(res, 200, { ok: true, normalized, archive });
   } catch (error) {
+    if (validPdf && temporaryFilePath && fileMetadata) {
+      await archivePdfAnalysis({
+        filePath: temporaryFilePath,
+        ...fileMetadata,
+        error,
+        context: archiveContext,
+      }).catch(() => {});
+    }
     const mapped = publicError(error);
     return json(res, mapped.status, { ok: false, error: mapped.error });
   } finally {
