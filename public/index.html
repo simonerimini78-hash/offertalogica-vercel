@@ -42,10 +42,32 @@
         .skip-link:focus { left: 12px; }
         .footer-privacy-action { background: transparent; border: 0; color: #555; text-decoration: none; margin: 0 10px; cursor: pointer; font-size: 13px; font-weight: 600; }
         .footer-privacy-action:hover { color: var(--accent); text-decoration: underline; }
-        .staff-mode-banner { position: fixed; left: 16px; right: 16px; bottom: 16px; z-index: 1200; max-width: 760px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; background: #0f172a; color: #e2e8f0; border: 1px solid rgba(255,255,255,.12); border-radius: 10px; padding: 10px 12px; box-shadow: 0 18px 44px rgba(15,23,42,.35); font-size: 13px; }
+        .staff-mode-banner { position: fixed; left: 16px; right: 16px; bottom: 16px; z-index: 900; max-width: 900px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; background: #0f172a; color: #e2e8f0; border: 1px solid rgba(255,255,255,.12); border-radius: 10px; padding: 10px 12px; box-shadow: 0 18px 44px rgba(15,23,42,.35); font-size: 13px; }
+        .staff-mode-copy { min-width: 0; }
         .staff-mode-banner strong { color: #bbf7d0; }
+        .staff-mode-actions { display: flex; align-items: center; gap: 7px; flex: 0 0 auto; }
         .staff-mode-banner button { background: #e2e8f0; color: #0f172a; border: 0; border-radius: 7px; padding: 7px 10px; font-weight: 800; cursor: pointer; white-space: nowrap; }
         .staff-mode-banner button:hover { background: #ffffff; }
+        .staff-mode-banner button[aria-expanded="true"] { background: #bbf7d0; }
+        .staff-preview-panel { position: fixed; left: 16px; right: 16px; bottom: 76px; z-index: 899; max-width: 900px; margin: 0 auto; padding: 14px; border: 1px solid #334155; border-radius: 12px; background: #0f172a; color: #e2e8f0; box-shadow: 0 18px 44px rgba(15,23,42,.38); }
+        .staff-preview-panel[hidden] { display: none !important; }
+        .staff-preview-panel h3 { margin: 0 0 3px; color: #ffffff; font-size: 15px; }
+        .staff-preview-panel p { margin: 0 0 11px; color: #cbd5e1; font-size: 12px; line-height: 1.45; }
+        .staff-preview-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+        .staff-preview-grid button { min-height: 42px; border: 1px solid #475569; border-radius: 8px; padding: 8px 9px; background: #1e293b; color: #f8fafc; font-size: 11px; font-weight: 800; cursor: pointer; }
+        .staff-preview-grid button:hover { background: #334155; }
+        .staff-preview-grid button:focus-visible { outline: 3px solid rgba(187,247,208,.35); outline-offset: 2px; }
+        .staff-preview-status { min-height: 18px; margin-top: 8px; color: #bbf7d0; font-size: 11px; font-weight: 700; }
+        body.staff-preview-open .guided-assistant-launcher,
+        body.staff-preview-open .activation-helper-fab { visibility: hidden; pointer-events: none; }
+        @media (max-width: 700px) {
+            .staff-mode-banner { left: 8px; right: 8px; bottom: 8px; align-items: flex-start; }
+            .staff-mode-copy { font-size: 11px; line-height: 1.35; }
+            .staff-mode-actions { flex-direction: column; }
+            .staff-mode-banner button { padding: 6px 8px; font-size: 11px; }
+            .staff-preview-panel { left: 8px; right: 8px; bottom: 78px; max-height: calc(100dvh - 100px); overflow: auto; }
+            .staff-preview-grid { grid-template-columns: 1fr 1fr; }
+        }
        
         /* Riquadri Manuali Perfettamente Speculari */
         .manual-container { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; margin-bottom: 30px; }
@@ -5020,10 +5042,92 @@ function leggiTokenStaffDaUrl() {
   };
 }
 
+function staffPreviewStatus(message = "", isError = false) {
+  const status = document.getElementById("staff-preview-status");
+  if (!status) return;
+  status.innerText = message;
+  status.style.color = isError ? "#fecaca" : "#bbf7d0";
+}
+
+function chiudiPannelloAnteprimeStaff() {
+  const panel = document.getElementById("staff-preview-panel");
+  const toggle = document.getElementById("staff-preview-toggle");
+  if (panel) panel.hidden = true;
+  if (toggle) toggle.setAttribute("aria-expanded", "false");
+  document.body.classList.remove("staff-preview-open");
+}
+
+function apriAnteprimaOtpStaff() {
+  chiudiPannelloAnteprimeStaff();
+  window.apriLeadModal?.("teaser");
+}
+
+function apriAnteprimaAiutoStaff() {
+  chiudiPannelloAnteprimeStaff();
+  mostraRichiestaAssistenza("staff_preview", { force: true });
+}
+
+function apriAnteprimaRicontattoStaff() {
+  chiudiPannelloAnteprimeStaff();
+  window.apriLeadModal?.("assistance_callback");
+}
+
+function apriAnteprimaAttivazioneStaff() {
+  chiudiPannelloAnteprimeStaff();
+  window.apriAssistenteAttivazione?.({ source: "staff_preview", force: true });
+}
+
+function apriAnteprimaConsensoOffertaStaff() {
+  if (!LEAD_STATE.verified) {
+    staffPreviewStatus("Prima verifica il numero con il codice staff 000000.", true);
+    return;
+  }
+  const offer = OFFERTE_PROPOSTE.find((item) => item?.link && item.link !== "#") || OFFERTE_PROPOSTE[0];
+  if (!offer) {
+    staffPreviewStatus("Nessuna offerta disponibile per l'anteprima.", true);
+    return;
+  }
+  chiudiPannelloAnteprimeStaff();
+  window.apriConsensoOfferta?.(offer);
+}
+
+function creaPannelloAnteprimeStaff() {
+  let panel = document.getElementById("staff-preview-panel");
+  if (panel) return panel;
+  panel = document.createElement("section");
+  panel.id = "staff-preview-panel";
+  panel.className = "staff-preview-panel";
+  panel.hidden = true;
+  panel.setAttribute("aria-label", "Anteprime modalità staff");
+  panel.innerHTML = `
+    <h3>Anteprime modalità staff</h3>
+    <p>Apri gli stessi popup e passaggi della pagina pubblica. In modalità staff non vengono salvati lead, consensi o webhook.</p>
+    <div class="staff-preview-grid">
+      <button type="button" id="staff-preview-otp">Verifica offerte</button>
+      <button type="button" id="staff-preview-help">Aiuto difficoltà</button>
+      <button type="button" id="staff-preview-callback">Richiesta ricontatto</button>
+      <button type="button" id="staff-preview-activation">Dati per attivare</button>
+      <button type="button" id="staff-preview-consent">Consenso offerta</button>
+      <button type="button" id="staff-preview-close">Chiudi anteprime</button>
+    </div>
+    <div class="staff-preview-status" id="staff-preview-status" aria-live="polite"></div>
+  `;
+  document.body.appendChild(panel);
+  document.getElementById("staff-preview-otp")?.addEventListener("click", apriAnteprimaOtpStaff);
+  document.getElementById("staff-preview-help")?.addEventListener("click", apriAnteprimaAiutoStaff);
+  document.getElementById("staff-preview-callback")?.addEventListener("click", apriAnteprimaRicontattoStaff);
+  document.getElementById("staff-preview-activation")?.addEventListener("click", apriAnteprimaAttivazioneStaff);
+  document.getElementById("staff-preview-consent")?.addEventListener("click", apriAnteprimaConsensoOffertaStaff);
+  document.getElementById("staff-preview-close")?.addEventListener("click", chiudiPannelloAnteprimeStaff);
+  return panel;
+}
+
 function aggiornaBannerStaff() {
   let banner = document.getElementById("staff-mode-banner");
   if (!staffModeAttiva()) {
     banner?.remove();
+    document.getElementById("staff-preview-panel")?.remove();
+    document.body.classList.remove("staff-preview-open");
     return;
   }
   if (!banner) {
@@ -5031,19 +5135,34 @@ function aggiornaBannerStaff() {
     banner.id = "staff-mode-banner";
     banner.className = "staff-mode-banner";
     banner.innerHTML = `
-      <span><strong>Modalita staff attiva.</strong> Test senza salvataggio lead, database o webhook.</span>
-      <button type="button" id="staff-mode-exit">Esci</button>
+      <span class="staff-mode-copy"><strong>Modalità staff attiva.</strong> Stessa interfaccia pubblica, senza salvataggio di lead, database o webhook.</span>
+      <span class="staff-mode-actions">
+        <button type="button" id="staff-preview-toggle" aria-expanded="false" aria-controls="staff-preview-panel">Anteprime</button>
+        <button type="button" id="staff-mode-exit">Esci</button>
+      </span>
     `;
     document.body.appendChild(banner);
+    creaPannelloAnteprimeStaff();
+    document.getElementById("staff-preview-toggle")?.addEventListener("click", () => {
+      const panel = creaPannelloAnteprimeStaff();
+      const willOpen = Boolean(panel.hidden);
+      panel.hidden = !willOpen;
+      document.body.classList.toggle("staff-preview-open", willOpen);
+      document.getElementById("staff-preview-toggle")?.setAttribute("aria-expanded", willOpen ? "true" : "false");
+      staffPreviewStatus("");
+    });
     document.getElementById("staff-mode-exit")?.addEventListener("click", () => {
       sessionStorage.removeItem(STAFF_MODE_STORAGE_KEY);
       LEAD_STATE.staffMode = false;
       LEAD_STATE.staffActivatedAt = "";
       LEAD_STATE.verified = false;
       LEAD_STATE.leadId = "";
+      chiudiPannelloAnteprimeStaff();
       aggiornaBannerStaff();
       window.avviaComparazioneDati?.();
     });
+  } else {
+    creaPannelloAnteprimeStaff();
   }
 }
 
@@ -5679,7 +5798,8 @@ function renderAssistenteAttivazione() {
 }
 
 window.apriAssistenteAttivazione = function apriAssistenteAttivazione(options = {}) {
-  if (!assistenteAttivazioneDisponibile()) return;
+  const anteprimaStaffForzata = staffModeAttiva() && Boolean(options.force);
+  if (!assistenteAttivazioneDisponibile() && !anteprimaStaffForzata) return;
   LEAD_STATE.activationAssistant = {
     pendingUrl: options.url || LEAD_STATE.activationAssistant?.pendingUrl || "",
     offer: options.offer || LEAD_STATE.activationAssistant?.offer || LEAD_STATE.selectedOffer || null,

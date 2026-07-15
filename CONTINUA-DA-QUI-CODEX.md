@@ -1,6 +1,6 @@
 # CONTINUA DA QUI - OffertaLogica
 
-Ultimo aggiornamento: 2026-07-14
+Ultimo aggiornamento: 2026-07-15
 
 Questo file e il punto di ritorno del progetto. Quando una nuova sessione Codex riparte, leggere prima questo file e poi `docs/STATO-PROGETTO-OFFERTALOGICA.md`.
 
@@ -25,6 +25,32 @@ Prima di modificare codice usa sempre questo schema:
 - Cosa non tocco.
 - Come verifico che funzioni.
 
+
+## Aggiornamento v83 - anteprime staff complete e coerenti con la pagina pubblica
+
+Modifiche applicate in `public/index.html`:
+
+- la modalità staff continua a usare gli stessi popup, testi e passaggi della pagina pubblica, mantenendo esclusivamente il bypass di salvataggi, webhook e tracciamento;
+- il banner staff è ora posizionato sotto i popup, così non copre più modali OTP, assistenza, consenso o dati per l'attivazione;
+- aggiunto il comando staff `Anteprime`, che permette di aprire direttamente gli stessi componenti pubblici per verificare:
+  - verifica OTP delle offerte;
+  - popup `Ti serve una mano?`;
+  - richiesta di ricontatto;
+  - riepilogo `Dati utili per completare l'attivazione`;
+  - consenso relativo all'offerta scelta;
+- il riepilogo dei dati per l'attivazione può essere aperto in anteprima staff anche prima del caricamento di una bolletta, mostrando correttamente quali informazioni non sono ancora disponibili;
+- su mobile, quando il pannello anteprime è aperto, i pulsanti flottanti pubblici vengono temporaneamente nascosti per evitare sovrapposizioni; appena il pannello viene chiuso tornano disponibili;
+- nessun controllo staff è visibile nella pagina pubblica.
+
+Verifiche v83:
+
+- sintassi di tutti gli script inline: OK;
+- popup OTP, aiuto e dati per l'attivazione apribili dal pannello staff: OK;
+- banner staff sotto i backdrop dei popup: OK;
+- nessun overflow orizzontale a 390 px: OK;
+- pannello anteprime mobile senza sovrapposizione con l'assistente flottante: OK.
+
+Non sono state modificate formule, ranking, catalogo, PDF, OTP pubblico, consensi, API, database o flussi degli utenti reali.
 
 ## Aggiornamento v82 - assistente attivazione ripristinato e aiuto proattivo
 
@@ -119,11 +145,11 @@ Il progetto gira su GitHub + Vercel con dominio `offertalogica.it`.
 
 Il pacchetto incrementale piu recente lato progetto e:
 
-`offertalogica-v82-assistente-attivazione-aiuto-ricontatto-20260715`
+`offertalogica-v83-staff-anteprime-complete-20260715`
 
 Base immediatamente precedente:
 
-`offertalogica-v81-staff-popup-otp-coerente-20260714`
+`offertalogica-v82-assistente-attivazione-aiuto-ricontatto-20260715`
 
 Il pacchetto completo di riferimento lato progetto resta:
 
