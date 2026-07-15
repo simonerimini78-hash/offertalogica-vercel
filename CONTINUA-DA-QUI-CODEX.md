@@ -26,6 +26,29 @@ Prima di modificare codice usa sempre questo schema:
 - Come verifico che funzioni.
 
 
+## Aggiornamento v88 - correzione componenti ARERA e offerta Axpo non domestica
+
+Corretto un errore nell'importazione XML ARERA che poteva trasformare una componente commerciale o uno spread in un falso prezzo completo dell'energia:
+
+- gli intervalli appartenenti alla stessa componente ARERA vengono ora trattati come fasce o scaglioni alternativi;
+- le diverse componenti commerciali applicabili vengono sommate, invece di mediare indiscriminatamente tutti i valori presenti nell'offerta;
+- gli scaglioni vengono selezionati sul consumo annuo di riferimento prima del calcolo del prezzo rappresentativo;
+- il catalogo pubblico privati accetta esplicitamente soltanto offerte con `TIPO_CLIENTE 01`;
+- le offerte Axpo rilevate nei file del 13 luglio 2026 hanno `TIPO_CLIENTE 02` e sono quindi correttamente escluse dal ranking domestico;
+- il valore artificiale Axpo `0,066595 €/kWh`, derivato dalla vecchia media, non viene piu generato;
+- non sono stati modificati frontend, ranking commerciale, partner, link affiliati, PDF, OTP, lead, consensi o database.
+
+Verifiche v88:
+
+- test di regressione XML: prezzo a fasce e componenti ricostruito a `0,14019 €/kWh`; offerta `TIPO_CLIENTE 02` esclusa;
+- JSON ARERA rigenerati dai file luce e gas del 13 luglio 2026 e identici tra `data/` e `public/data/`;
+- `npm run validate:calculator`: OK;
+- `npm run verify:offers`: OK, zero errori e zero avvisi;
+- `npm run test:ranking-arera`: OK;
+- test PDF e percorso simmetrico v87: 17/17 superati;
+- prova nel browser locale su fisso dual, fisso separato e variabile dual: Axpo e il prezzo anomalo non compaiono; nessun errore console.
+
+
 ## Aggiornamento v87 - percorso simmetrico per bolletta solo gas
 
 Correzione del flusso introdotto in v86:

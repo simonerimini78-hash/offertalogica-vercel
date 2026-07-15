@@ -158,6 +158,11 @@ def provider_for(offer: ET.Element) -> tuple[str, str] | None:
 
 
 def is_consumer_offer(offer: ET.Element) -> bool:
+    # The public calculator ranks domestic offers. Relying only on words such as
+    # "business" is unsafe because many non-domestic products have neutral names.
+    if node_text(offer, "po:DettaglioOfferta/po:TIPO_CLIENTE") != "01":
+        return False
+
     blob = normalize_text(
         " ".join(
             [
@@ -171,16 +176,53 @@ def is_consumer_offer(offer: ET.Element) -> bool:
     return not any(word in blob for word in EXCLUDED_OFFER_WORDS)
 
 
-def unit_prices(offer: ET.Element, unit: str) -> list[float]:
-    prices: list[float] = []
-    for interval in offer.findall(".//po:ComponenteImpresa/po:IntervalloPrezzi", NS):
-        if node_text(interval, "po:UNITA_MISURA") != unit:
+def interval_applies(interval: ET.Element, annual_consumption: float) -> bool:
+    lower = parse_float(node_text(interval, "po:CONSUMO_DA"))
+    upper = parse_float(node_text(interval, "po:CONSUMO_A"))
+    if lower is not None and annual_consumption < lower:
+        return False
+    if upper is not None and annual_consumption > upper:
+        return False
+    return True
+
+
+def unit_component_prices(
+    offer: ET.Element,
+    unit: str,
+    annual_consumption: float,
+) -> list[float]:
+    """Return one applicable price for each XML commercial component.
+
+    Intervals belonging to the same component can describe tariff bands and
+    consumption brackets. They are alternatives inside that component, while
+    different components are cumulative. Flattening every interval into one
+    list and averaging it can turn a real energy price into a small spread.
+    """
+    component_prices: list[float] = []
+
+    for component in offer.findall(".//po:ComponenteImpresa", NS):
+        prices_by_band: dict[str, list[float]] = {}
+
+        for interval in component.findall("po:IntervalloPrezzi", NS):
+            if node_text(interval, "po:UNITA_MISURA") != unit:
+                continue
+            if not interval_applies(interval, annual_consumption):
+                continue
+
+            value = parse_float(node_text(interval, "po:PREZZO"))
+            if value is None or value < 0:
+                continue
+
+            band = node_text(interval, "po:FASCIA_COMPONENTE") or "00"
+            prices_by_band.setdefault(band, []).append(value)
+
+        if not prices_by_band:
             continue
-        value = parse_float(node_text(interval, "po:PREZZO"))
-        if value is None:
-            continue
-        prices.append(value)
-    return prices
+
+        band_totals = [sum(values) for values in prices_by_band.values()]
+        component_prices.append(sum(band_totals) / len(band_totals))
+
+    return component_prices
 
 
 def annual_fee(offer: ET.Element) -> float | None:
@@ -197,14 +239,13 @@ def annual_fee(offer: ET.Element) -> float | None:
     return round(sum(values), 4)
 
 
-def representative_price(raw_prices: list[float], commodity: str, tipo: str) -> tuple[float | None, str]:
-    values = [value for value in raw_prices if value >= 0]
+def representative_price(component_prices: list[float], commodity: str, tipo: str) -> tuple[float | None, str]:
+    values = [value for value in component_prices if value >= 0]
     if not values:
         return None, "missing"
 
-    rounded_unique = sorted({round(value, 8) for value in values})
-    raw_price = rounded_unique[0] if len(rounded_unique) == 1 else sum(rounded_unique) / len(rounded_unique)
-    quality = "puntuale" if len(rounded_unique) == 1 else "media_fasce"
+    raw_price = sum(values)
+    quality = "puntuale" if len(values) == 1 else "somma_componenti"
 
     if tipo == "variabile":
         if commodity == "luce" and raw_price < 0.08:
@@ -242,7 +283,11 @@ def parse_offer_file(path: Path, commodity: str, as_of: datetime) -> list[dict[s
         if tipo not in {"fisso", "variabile"}:
             continue
 
-        price, quality = representative_price(unit_prices(offer, unit), commodity, tipo)
+        price, quality = representative_price(
+            unit_component_prices(offer, unit, REFERENCE_CONSUMPTION[commodity]),
+            commodity,
+            tipo,
+        )
         fee = annual_fee(offer)
         if price is None or fee is None:
             continue
