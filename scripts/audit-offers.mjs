@@ -2,183 +2,81 @@ import fs from "node:fs";
 
 const root = new URL("../", import.meta.url);
 
-function read(path) {
-  return fs.readFileSync(new URL(path, root), "utf8");
-}
-
 function readJson(path) {
-  return JSON.parse(read(path));
+  return JSON.parse(fs.readFileSync(new URL(path, root), "utf8"));
 }
 
-function parseCsvLine(line) {
-  const result = [];
-  let current = "";
-  let quoted = false;
-  for (let index = 0; index < line.length; index += 1) {
-    const char = line[index];
-    if (char === '"') {
-      quoted = !quoted;
-      continue;
-    }
-    if (char === "," && !quoted) {
-      result.push(current);
-      current = "";
-      continue;
-    }
-    current += char;
-  }
-  result.push(current);
-  return result;
+function csvCell(value) {
+  return `"${String(value ?? "").replace(/"/g, '""')}"`;
 }
 
-function readCsv(path) {
-  const lines = read(path).trim().split(/\r?\n/);
-  const headers = parseCsvLine(lines[0]);
-  return lines.slice(1).filter(Boolean).map((line) => {
-    const cells = parseCsvLine(line);
-    return Object.fromEntries(headers.map((header, index) => [header, cells[index] || ""]));
+function assert(condition, message) {
+  if (!condition) throw new Error(message);
+}
+
+try {
+  const catalog = readJson("data/offerte-arera-menu.json");
+  const report = readJson("data/arera-update-report.json");
+  assert(Number(catalog.schemaVersion) >= 93, "Catalogo ARERA non v93");
+  assert(Number(report.schemaVersion) >= 93, "Report ARERA non v93");
+  assert(report.offertePrecedentiRipescate === 0, "Il report contiene recuperi selettivi dal catalogo precedente");
+
+  const rows = (report.quarantena || []).map((item) => ({
+    codice: item.codiceOfferta || "",
+    commodity: item.commodity || "",
+    fornitore: item.fornitore || "",
+    nome: item.nome || "",
+    campo_problematico: item.campoProblematico || "",
+    unita: item.unita || "",
+    motivi: (item.motivi || [item.motivo]).filter(Boolean).join("; "),
+    testo_sorgente: item.testoSorgente || "",
+    stato: "quarantena_non_pubblicata",
+  }));
+  const headers = Object.keys(rows[0] || {
+    codice: "", commodity: "", fornitore: "", nome: "", campo_problematico: "",
+    unita: "", motivi: "", testo_sorgente: "", stato: "",
   });
-}
-
-function money(value) {
-  const number = Number(value || 0);
-  return Number.isFinite(number) ? number.toFixed(2) : "0.00";
-}
-
-function statusForOffer(offer, destination) {
-  const issues = [];
-  const checks = [];
-  const commodities = [];
-  const certificationStatus = offer.certificazione?.stato || "da_verificare";
-  if (offer.luce) commodities.push("luce");
-  if (offer.gas) commodities.push("gas");
-
-  if (offer.fornitura === "dual" && commodities.length !== 2) {
-    issues.push("Dual fuel senza entrambe le commodity");
-  }
-  if (offer.fornitura === "separate" && commodities.length === 2) {
-    checks.push("Fornitura separate con luce e gas entrambe presenti: verificare se e bundle reale o due offerte separate");
-  }
-  if (offer.tipo === "variabile") {
-    const hasAllFormula = commodities.every((commodity) => offer[commodity]?.formula?.tipo === "indice_spread");
-    if (!hasAllFormula) checks.push("Variabile senza formula PUN/PSV esplicita: oggi usa prezzo di calcolo statico");
-  }
-  for (const commodity of commodities) {
-    const voce = offer[commodity];
-    const hasFormula = voce?.formula?.tipo === "indice_spread";
-    if (Number(voce.prezzoVariabile) <= 0 && !hasFormula) issues.push(`${commodity}: prezzo non positivo`);
-    if (Number(voce.quotaFissaAnnua) < 0) issues.push(`${commodity}: quota fissa negativa`);
-  }
-  if (certificationStatus !== "certificata" && (!offer.fonte || /da verificare/i.test(offer.fonte))) {
-    checks.push("Fonte tariffaria da verificare con scheda sintetica o fonte ufficiale");
-  }
-  if (!destination) {
-    checks.push("Destinazione monetizzazione mancante in data/destinazioni-offerte.csv");
-  } else {
-    if (destination.stato === "da_cercare" || destination.stato === "in_attesa_approvazione") {
-      checks.push(`Monetizzazione non attiva: ${destination.stato}`);
-    }
-    if (!destination.link_tracking) {
-      checks.push("Link tracking non configurato");
-    }
-  }
-
-  const priority = issues.length ? "bloccante" : checks.length >= 3 ? "alta" : checks.length ? "media" : "bassa";
-  const status = issues.length ? "non_pubblicare" : checks.length ? "da_verificare" : "coerente";
-
-  return { issues, checks, priority, status, certificationStatus };
-}
-
-function main() {
-  const offersData = readJson("data/offerte-proposte.json");
-  const destinations = readCsv("data/destinazioni-offerte.csv");
-  const destinationById = new Map(destinations.map((row) => [String(row.offerta_id), row]));
-  const rows = [];
-  const today = new Date().toISOString().slice(0, 10);
-
-  for (const offer of offersData.offerte) {
-    const destination = destinationById.get(String(offer.id));
-    const audit = statusForOffer(offer, destination);
-    const commodities = [
-      offer.luce ? `luce ${offer.luce.prezzoVariabile} eur/kWh fisso ${money(offer.luce.quotaFissaAnnua)}` : "",
-      offer.gas ? `gas ${offer.gas.prezzoVariabile} eur/Smc fisso ${money(offer.gas.quotaFissaAnnua)}` : "",
-    ].filter(Boolean).join(" | ");
-
-    rows.push({
-      id: offer.id,
-      provider: offer.provider,
-      nome: offer.nome,
-      tipo: offer.tipo,
-      fornitura: offer.fornitura,
-      commodities,
-      certificazione: audit.certificationStatus,
-      stato_audit: audit.status,
-      priorita_verifica: audit.priority,
-      problemi: audit.issues.join("; "),
-      verifiche: audit.checks.join("; "),
-      monetizzazione: destination ? `${destination.tipo_destinazione}/${destination.network_partner}/${destination.stato}` : "mancante",
-      fonte: offer.fonte || "",
-    });
-  }
-
-  const headers = Object.keys(rows[0]);
   const csv = [
-    headers.join(","),
-    ...rows.map((row) => headers.map((header) => `"${String(row[header] ?? "").replace(/"/g, '""')}"`).join(",")),
+    headers.map(csvCell).join(","),
+    ...rows.map((row) => headers.map((header) => csvCell(row[header])).join(",")),
   ].join("\n");
   fs.writeFileSync(new URL("data/audit-offerte.csv", root), `${csv}\n`);
 
-  const high = rows.filter((row) => row.priorita_verifica === "alta" || row.priorita_verifica === "bloccante");
+  const stats = report.statistiche || {};
+  const reasons = new Map();
+  for (const row of rows) {
+    for (const reason of row.motivi.split("; ").filter(Boolean)) {
+      reasons.set(reason, (reasons.get(reason) || 0) + 1);
+    }
+  }
   const summary = [
-    "# Audit offerte proposte",
+    "# Audit catalogo ARERA",
     "",
-    `Aggiornamento: ${today}`,
+    `Catalogo: ${catalog.versioneDati} (${catalog.aggiornatoIl})`,
+    `Pubblicazione atomica: ${report.statoPubblicazioneAtomica}`,
     "",
-    `Offerte analizzate: ${rows.length}`,
+    `- Offerte ricevute: ${stats.offerteRicevute || 0}`,
+    `- Offerte private pubblicate: ${catalog.offerte.length}`,
+    `- Offerte business pubblicate: ${catalog.offerteBusiness.length}`,
+    `- Offerte in quarantena: ${rows.length}`,
+    `- Record precedenti ripescati: ${report.offertePrecedentiRipescate || 0}`,
     "",
-    "## Risultato sintetico",
+    "## Motivi principali",
     "",
-    "```text",
-    `Coerenti senza rilievi: ${rows.filter((row) => row.stato_audit === "coerente").length}`,
-    `Da verificare: ${rows.filter((row) => row.stato_audit === "da_verificare").length}`,
-    `Non pubblicare: ${rows.filter((row) => row.stato_audit === "non_pubblicare").length}`,
-    `Certificate: ${rows.filter((row) => row.certificazione === "certificata").length}`,
-    "```",
+    ...[...reasons.entries()].sort((a, b) => b[1] - a[1]).slice(0, 20).map(([reason, count]) => `- ${reason}: ${count}`),
     "",
-    "## Priorita alte",
-    "",
-    high.length
-      ? high.map((row) => `- ${row.id} ${row.provider} - ${row.nome}: ${row.verifiche || row.problemi}`).join("\n")
-      : "- Nessuna priorita alta o bloccante.",
-    "",
-    "## Regole applicate",
-    "",
-    "- Le offerte dual fuel devono contenere luce e gas.",
-    "- Le offerte solo luce o solo gas possono restare `separate`, ma vengono confrontate solo sulla commodity corretta.",
-    "- Le offerte variabili dovrebbero usare una formula PUN/PSV esplicita, non solo un prezzo statico.",
-    "- Le offerte senza fonte ufficiale o scheda sintetica restano da verificare.",
-    "- Una offerta e certificata solo se `data/offerte-proposte.json` contiene `certificazione.stato = certificata` e il registro `data/certificazione-offerte.csv` mantiene codice e fonte.",
-    "- Le offerte senza link tracking o accordo partner non sono ancora monetizzabili.",
-    "",
-    "## File operativo",
-    "",
-    "```text",
-    "data/audit-offerte.csv",
-    "```",
-    "",
-    "Usare questo CSV come checklist prima di promuovere un'offerta tra le prime 3 definitive.",
+    "Il file `data/audit-offerte.csv` e un report di quarantena, non un catalogo prezzi e non alimenta il frontend.",
     "",
   ].join("\n");
   fs.writeFileSync(new URL("docs/AUDIT-OFFERTE.md", root), summary);
-
   console.log(JSON.stringify({
     ok: true,
-    offerteAnalizzate: rows.length,
-    certificate: rows.filter((row) => row.certificazione === "certificata").length,
-    coerenti: rows.filter((row) => row.stato_audit === "coerente").length,
-    daVerificare: rows.filter((row) => row.stato_audit === "da_verificare").length,
-    nonPubblicare: rows.filter((row) => row.stato_audit === "non_pubblicare").length,
+    catalog: catalog.versioneDati,
+    privateOffers: catalog.offerte.length,
+    businessOffers: catalog.offerteBusiness.length,
+    quarantined: rows.length,
   }, null, 2));
+} catch (error) {
+  console.error(error.message);
+  process.exit(1);
 }
-
-main();
