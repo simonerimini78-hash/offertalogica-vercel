@@ -3124,7 +3124,9 @@ function applicaDatiAreraMenu(data) {
   const offerte = Array.isArray(data) ? data : data?.offerte;
   if (!Array.isArray(offerte)) return false;
 
-  const pulite = offerte.map(normalizzaRigaAreraMenu).filter(Boolean);
+  const pulite = offerte
+  .map(normalizzaRigaAreraMenu)
+  .filter((riga) => riga && riga.providerKey !== "axpo");
   if (!pulite.length) return false;
 
   DATI_ARERA_MENU_META = {
