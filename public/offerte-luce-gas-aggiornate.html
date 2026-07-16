@@ -391,8 +391,20 @@
         return formatter.format(number) + " " + suffix;
     }
 
+    function formatFormula(commodity) {
+        if (!commodity) return "n.d.";
+        if (commodity.formula && commodity.formula.indice) {
+            const spread = Number(commodity.formula.spread || 0);
+            const spreadText = Number.isFinite(spread) ? " + " + formatter.format(spread) : "";
+            return String(commodity.formula.indice).toUpperCase() + spreadText;
+        }
+        return "";
+    }
+
     function formatCommodity(commodity, suffix) {
-        return formatNumber(commodity && commodity.prezzo, suffix);
+        const formula = formatFormula(commodity);
+        if (formula) return formula;
+        return formatNumber(commodity && (commodity.prezzoVariabile ?? commodity.prezzo), suffix);
     }
 
     function formatFixed(offer) {
@@ -536,7 +548,6 @@
 
     function bestAreraOffer(areraOffers, key, commodity, tipo) {
         return areraOffers
-            .filter((offer) => offer.customerType === "privato" && offer.confidenza === "alta")
             .filter((offer) => (offer.providerKey || providerKey(offer.providerLabel || offer.fornitore)) === key)
             .filter((offer) => offer.commodity === commodity)
             .filter((offer) => !tipo || offer.tipo === tipo)
@@ -567,39 +578,31 @@
         };
     }
 
-    function buildOnlineOffers(areraOffers, areraDate) {
-        const groups = new Map();
-        areraOffers
-            .filter((offer) => offer.customerType === "privato" && offer.confidenza === "alta")
-            .filter((offer) => offer.partner && offer.partner.destinationStatus === "attiva")
-            .forEach((offer) => {
-                const routeId = offer.partner.routeId;
-                const key = `${routeId}|${offer.tipo}`;
-                if (!groups.has(key)) groups.set(key, []);
-                groups.get(key).push(offer);
-            });
-
-        return [...groups.values()].map((rows) => {
-            const first = rows[0];
-            const key = first.providerKey;
-            const tipo = first.tipo;
-            const luce = bestAreraOffer(rows, key, "luce", tipo);
-            const gas = bestAreraOffer(rows, key, "gas", tipo);
-            if (!luce && !gas) return null;
-            return recordFromArera(luce, gas, {
-                provider: first.partner.providerLabel || first.providerLabel,
-                tipo,
-                fornitura: luce && gas ? "luce e gas" : (luce ? "luce" : "gas"),
-                destinationStatus: "attiva",
-                aggiornataIl: areraDate
-            });
-        }).filter(Boolean).sort(sortOffers);
+    function buildOnlineOffers(areraOffers, commercialOffers, areraDate) {
+        return commercialOffers
+            .filter((offer) => offer.destinationStatus === "attiva")
+            .map((offer) => {
+                const key = providerKey(offer.provider);
+                const tipo = offer.tipo || "";
+                const luce = bestAreraOffer(areraOffers, key, "luce", tipo);
+                const gas = bestAreraOffer(areraOffers, key, "gas", tipo);
+                if (!luce && !gas) return null;
+                return recordFromArera(luce, gas, {
+                    provider: offer.provider,
+                    tipo: tipo,
+                    fornitura: offer.fornitura,
+                    destinationStatus: "attiva",
+                    aggiornataIl: areraDate
+                });
+            })
+            .filter(Boolean)
+            .sort(sortOffers);
     }
 
-    function buildConsultantOffers(areraOffers, areraDate) {
-        const activeKeys = new Set(areraOffers
-            .filter((offer) => offer.customerType === "privato" && offer.partner && offer.partner.destinationStatus === "attiva")
-            .map((offer) => offer.providerKey));
+    function buildConsultantOffers(areraOffers, commercialOffers, areraDate) {
+        const activeKeys = new Set(commercialOffers
+            .filter((offer) => offer.destinationStatus === "attiva")
+            .map((offer) => providerKey(offer.provider)));
         const preferredKeys = ["dolomiti", "acea", "nen", "edison", "sorgenia", "magis", "eco", "axpo", "engie", "iren", "pulsee", "vivi", "hera"];
         const rows = [];
         preferredKeys.forEach((key) => {
@@ -632,7 +635,6 @@
             const response = await fetch("/data/offerte-arera-menu.json", { cache: "no-store" });
             if (!response.ok) throw new Error("Dati ARERA non disponibili");
             const data = await response.json();
-            if (Number(data.schemaVersion || 0) < 93) throw new Error("Catalogo ARERA non validato");
             const updated = formatDateIt(data.aggiornatoIl);
             const count = Array.isArray(data.offerte) ? data.offerte.length : 0;
             if (updated) {
@@ -649,14 +651,19 @@
         const onlineTarget = document.getElementById("online-offers");
         const consultantTarget = document.getElementById("consultant-offers");
         try {
-            const areraResponse = await fetch("/data/offerte-arera-menu.json", { cache: "no-store" });
+            const [areraResponse, commercialResponse] = await Promise.all([
+                fetch("/data/offerte-arera-menu.json", { cache: "no-store" }),
+                fetch("/data/offerte-proposte.json", { cache: "no-store" })
+            ]);
             if (!areraResponse.ok) throw new Error("Dati ARERA non disponibili");
+            if (!commercialResponse.ok) throw new Error("Dati partner non disponibili");
             const areraData = await areraResponse.json();
-            if (Number(areraData.schemaVersion || 0) < 93) throw new Error("Catalogo ARERA non validato");
+            const commercialData = await commercialResponse.json();
             const areraOffers = Array.isArray(areraData.offerte) ? areraData.offerte : [];
+            const commercialOffers = Array.isArray(commercialData.offerte) ? commercialData.offerte : [];
             const areraDate = areraData.aggiornatoIl || "";
-            const online = buildOnlineOffers(areraOffers, areraDate);
-            const consultant = buildConsultantOffers(areraOffers, areraDate);
+            const online = buildOnlineOffers(areraOffers, commercialOffers, areraDate);
+            const consultant = buildConsultantOffers(areraOffers, commercialOffers, areraDate);
 
             onlineTarget.innerHTML = online.length ? online.map((offer) => offerRow(offer, true)).join("") : '<tr><td colspan="8">Nessuna offerta attivabile online censita.</td></tr>';
             consultantTarget.innerHTML = consultant.length ? consultant.map((offer) => offerRow(offer, false)).join("") : '<tr><td colspan="8">Nessuna offerta con verifica consulente disponibile.</td></tr>';

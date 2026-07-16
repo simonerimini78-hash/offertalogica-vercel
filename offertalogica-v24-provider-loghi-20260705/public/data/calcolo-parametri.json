@@ -1,0 +1,71 @@
+{
+  "versioneDati": "parametri-calcolo-2026-07-03-v4-psv-operativo",
+  "fonte": "Configurazione OffertaLogica aggiornabile; valori da verificare con fonti ufficiali prima dell'uso commerciale pieno",
+  "aggiornatoIl": "2026-07-03",
+  "parametriCalcolo": {
+    "perditeReteLuceVariabile": 1.102,
+    "profiloMedio": {
+      "luceConsumoKwh": 2700,
+      "gasConsumoSmc": 700,
+      "prezzoLuceEurKwh": 0.15,
+      "prezzoGasEurSmc": 0.68,
+      "quotaFissaLuceAnnua": 144,
+      "quotaFissaGasAnnua": 120,
+      "potenzaKw": "3",
+      "regioneGas": "nord-ovest",
+      "tipoPrezzo": "fisso",
+      "tipoFornitura": "dual"
+    },
+    "componentiProfilo": {
+      "potenzaLuceAnnua": {
+        "3": 0,
+        "4.5": 32,
+        "6": 64
+      },
+      "ambitoGasAnnua": {
+        "": 0,
+        "nord-ovest": 0,
+        "nord-est": 8,
+        "centro": 15,
+        "sud": 25,
+        "sicilia": 35,
+        "sardegna": 35
+      }
+    },
+    "componentiRegolate": {
+      "luce": {
+        "variabileEurUnita": 0,
+        "fissaAnnua": 0,
+        "imposteEurUnita": 0,
+        "ivaPercentuale": 0
+      },
+      "gas": {
+        "variabileEurUnita": 0,
+        "fissaAnnua": 0,
+        "imposteEurUnita": 0,
+        "ivaPercentuale": 0
+      }
+    },
+    "note": "Stima comparativa annua sulle componenti disponibili. Oneri, imposte e IVA puntuali sono indicati come n.n. quando non stimati nel dettaglio. Le componenti di profilo sono applicate in modo omogeneo a tutti gli scenari."
+  },
+  "indiciMercato": {
+    "pun": {
+      "label": "PUN",
+      "valore": 0.119351258,
+      "unita": "eur_kwh",
+      "note": "PUN Index GME maggio 2026: 119,351258 eur/MWh, convertito in 0,119351258 eur/kWh."
+    },
+    "psv": {
+      "label": "PSV",
+      "valore": 0.504419055,
+      "unita": "eur_smc",
+      "note": "Valore operativo gas usato per rendere calcolabili le offerte indicizzate PSV nel confronto; allineato al riferimento gas gia presente nel motore e da sostituire con il PSV medio ufficiale del periodo al prossimo aggiornamento dati."
+    },
+    "psbg": {
+      "label": "PSBG",
+      "valore": 0.504419055,
+      "unita": "eur_smc",
+      "note": "Prezzo medio mensile GME gas/prezzo sbilanciamento maggio 2026: 47,1419677419 eur/MWh, convertito in eur/Smc con PCS 38,52 MJ/Smc indicato nella scheda E.CO."
+    }
+  }
+}

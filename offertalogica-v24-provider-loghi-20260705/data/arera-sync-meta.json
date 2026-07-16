@@ -1,0 +1,27 @@
+{
+  "ok": true,
+  "generatedAt": "2026-06-25T13:50:40.836Z",
+  "sourcePage": "https://www.ilportaleofferte.it/portaleOfferte/it/open-data.page",
+  "sources": {
+    "offerteLuce": "https://www.ilportaleofferte.it/portaleOfferte/resources/opendata/csv/offerteML/2026_6/PO_Offerte_E_MLIBERO_20260625.xml",
+    "parametriLuce": "https://www.ilportaleofferte.it/portaleOfferte/resources/opendata/csv/parametriML/2026_6/PO_Parametri_Mercato_Libero_E_20260625.csv",
+    "offerteGas": "https://www.ilportaleofferte.it/portaleOfferte/resources/opendata/csv/offerteML/2026_6/PO_Offerte_G_MLIBERO_20260625.xml",
+    "parametriGas": "https://www.ilportaleofferte.it/portaleOfferte/resources/opendata/csv/parametriML/2026_6/PO_Parametri_Mercato_Libero_G_20260625.csv",
+    "offerteDual": "https://www.ilportaleofferte.it/portaleOfferte/resources/opendata/csv/offerteML/2026_6/PO_Offerte_D_MLIBERO_20260625.xml"
+  },
+  "output": "data/offerte-reali-arera-candidati.csv",
+  "counts": {
+    "total": 5967,
+    "luce": 3406,
+    "da_verificare": 3305,
+    "variabile": 4930,
+    "gas": 2561,
+    "si": 2662,
+    "fisso": 1032,
+    "altro": 5
+  },
+  "parametriLuceRows": 100,
+  "parametriGasRows": 96,
+  "dualOffersDetected": 40,
+  "note": "Il sync aggiorna solo candidati e metadati. Le offerte pubbliche restano in data/offerte-proposte.json e vanno promosse dopo verifica."
+}
