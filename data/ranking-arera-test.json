@@ -1,10 +1,10 @@
 {
   "ok": true,
-  "generatedAt": "2026-07-07T19:54:01.093Z",
+  "generatedAt": "2026-07-16T07:37:30.182Z",
   "arera": {
-    "versioneDati": "arera-menu-2026-07-07",
-    "aggiornatoIl": "2026-07-07",
-    "offerte": 638,
+    "versioneDati": "arera-menu-2026-07-16",
+    "aggiornatoIl": "2026-07-16",
+    "offerte": 358,
     "indiciUsati": {
       "pun": 0.119351258,
       "psv": 0.504419055
@@ -16,8 +16,8 @@
       "label": "Privato medio - dual fuel - prezzo fisso",
       "tipo": "fisso",
       "fornitura": "dual",
-      "providerCount": 20,
-      "excludedCount": 21,
+      "providerCount": 10,
+      "excludedCount": 1,
       "excludedExamples": [
         {
           "providerKey": "a2a",
@@ -25,282 +25,35 @@
           "commodity": "luce",
           "tipo": "fisso",
           "nome": "NeN Dieci Luce",
-          "codice": "029748ESFML01XX260626LD10X000000",
+          "codice": "029748ESFML01XX260709LD10X000000",
           "prezzo": 0.119,
           "quotaFissaAnnua": 72,
           "reasons": [
             "fornitore non coerente: offerta sembra nen, ma providerKey e a2a"
-          ]
-        },
-        {
-          "providerKey": "alperia",
-          "providerLabel": "Alperia",
-          "commodity": "luce",
-          "tipo": "fisso",
-          "nome": "Alperia Direct Alto Adige",
-          "codice": "000368ESFML01XX3835448X260511XVE",
-          "prezzo": 0.10494,
-          "quotaFissaAnnua": 86.2,
-          "reasons": [
-            "offerta territoriale: da non usare come proposta nazionale standard"
-          ]
-        },
-        {
-          "providerKey": "eco",
-          "providerLabel": "E.CO Energia Corrente",
-          "commodity": "luce",
-          "tipo": "fisso",
-          "nome": "E.CO Luce Prezzo Relax BUS",
-          "codice": "000742ESFML01XXPZRELAXF260731B01",
-          "prezzo": 0.0763,
-          "quotaFissaAnnua": 180,
-          "reasons": [
-            "fuori perimetro privato: business/P.IVA"
-          ]
-        },
-        {
-          "providerKey": "eco",
-          "providerLabel": "E.CO Energia Corrente",
-          "commodity": "luce",
-          "tipo": "fisso",
-          "nome": "E.CO Luce Prezzo Relax BUS LINK",
-          "codice": "000742ESFML01XXRELAXREF260731B01",
-          "prezzo": 0.0763,
-          "quotaFissaAnnua": 192,
-          "reasons": [
-            "fuori perimetro privato: business/P.IVA"
-          ]
-        },
-        {
-          "providerKey": "eco",
-          "providerLabel": "E.CO Energia Corrente",
-          "commodity": "luce",
-          "tipo": "fisso",
-          "nome": "E.CO Luce Prezzo Chiaro BUS",
-          "codice": "000742ESFML01XXPRZCHIAF260731B01",
-          "prezzo": 0.0738,
-          "quotaFissaAnnua": 300,
-          "reasons": [
-            "fuori perimetro privato: business/P.IVA"
-          ]
-        },
-        {
-          "providerKey": "eco",
-          "providerLabel": "E.CO Energia Corrente",
-          "commodity": "luce",
-          "tipo": "fisso",
-          "nome": "E.CO Luce Prezzo Chiaro BUS LINK",
-          "codice": "000742ESFML01XXCHIAREFF260731B01",
-          "prezzo": 0.0738,
-          "quotaFissaAnnua": 312,
-          "reasons": [
-            "fuori perimetro privato: business/P.IVA"
-          ]
-        },
-        {
-          "providerKey": "enel",
-          "providerLabel": "Enel Energia",
-          "commodity": "luce",
-          "tipo": "fisso",
-          "nome": "Enel Seconda Casa Luce",
-          "codice": "000142ESFML01XXResECAn0000115913",
-          "prezzo": 0.174,
-          "quotaFissaAnnua": 144,
-          "reasons": [
-            "fuori perimetro privato standard: lavoro/seconda casa"
-          ]
-        },
-        {
-          "providerKey": "illum",
-          "providerLabel": "Illumia",
-          "commodity": "luce",
-          "tipo": "fisso",
-          "nome": "Over 50 Super Tenace 36",
-          "codice": "000155ESFML03XXZZ04000Z260611E01",
-          "prezzo": 0.0681,
-          "quotaFissaAnnua": 168,
-          "reasons": [
-            "fuori perimetro privato standard: vulnerabili/eta"
-          ]
-        },
-        {
-          "providerKey": "illum",
-          "providerLabel": "Illumia",
-          "commodity": "luce",
-          "tipo": "fisso",
-          "nome": "Under Super Tenace 36",
-          "codice": "000155ESFML04XXZZ03780Z260611E01",
-          "prezzo": 0.0703,
-          "quotaFissaAnnua": 168,
-          "reasons": [
-            "fuori perimetro privato standard: vulnerabili/eta"
-          ]
-        },
-        {
-          "providerKey": "illum",
-          "providerLabel": "Illumia",
-          "commodity": "luce",
-          "tipo": "fisso",
-          "nome": "Under Tenace 12",
-          "codice": "000155ESFML02XXZZ05991Z260611E01",
-          "prezzo": 0.078,
-          "quotaFissaAnnua": 168,
-          "reasons": [
-            "fuori perimetro privato standard: vulnerabili/eta"
-          ]
-        },
-        {
-          "providerKey": "illum",
-          "providerLabel": "Illumia",
-          "commodity": "luce",
-          "tipo": "fisso",
-          "nome": "Over 50 Super Tenace 36",
-          "codice": "000155ESFFL03XXZZ04000Z260611E03",
-          "prezzo": 0.10159,
-          "quotaFissaAnnua": 168,
-          "reasons": [
-            "fuori perimetro privato standard: vulnerabili/eta"
-          ]
-        },
-        {
-          "providerKey": "illum",
-          "providerLabel": "Illumia",
-          "commodity": "luce",
-          "tipo": "fisso",
-          "nome": "Under Super Tenace 36",
-          "codice": "000155ESFFL04XXZZ03780Z260611E03",
-          "prezzo": 0.10489,
-          "quotaFissaAnnua": 168,
-          "reasons": [
-            "fuori perimetro privato standard: vulnerabili/eta"
-          ]
-        },
-        {
-          "providerKey": "illum",
-          "providerLabel": "Illumia",
-          "commodity": "luce",
-          "tipo": "fisso",
-          "nome": "Under Tenace 12",
-          "codice": "000155ESFFL02XXZZ05991Z260611E03",
-          "prezzo": 0.11644,
-          "quotaFissaAnnua": 168,
-          "reasons": [
-            "fuori perimetro privato standard: vulnerabili/eta"
-          ]
-        },
-        {
-          "providerKey": "axpo",
-          "providerLabel": "Axpo Energia",
-          "commodity": "gas",
-          "tipo": "fisso",
-          "nome": "Scegli Sereno GAS 2.0",
-          "codice": "000099GSFML07XXAXPOIXFIX87482607",
-          "prezzo": 0.19768,
-          "quotaFissaAnnua": 144,
-          "reasons": [
-            "prezzo gas fisso anomalo per profilo privato standard"
-          ]
-        },
-        {
-          "providerKey": "axpo",
-          "providerLabel": "Axpo Energia",
-          "commodity": "gas",
-          "tipo": "fisso",
-          "nome": "Scegli Sereno GAS 2.0 Light",
-          "codice": "000099GSFML07XXAXPOIXFIX87262607",
-          "prezzo": 0.22516,
-          "quotaFissaAnnua": 156,
-          "reasons": [
-            "prezzo gas fisso anomalo per profilo privato standard"
-          ]
-        },
-        {
-          "providerKey": "eco",
-          "providerLabel": "E.CO Energia Corrente",
-          "commodity": "gas",
-          "tipo": "fisso",
-          "nome": "E.CO Gas Prezzo Relax BUS",
-          "codice": "000742GSFML01XXRELAXFIX260731B01",
-          "prezzo": 0.54,
-          "quotaFissaAnnua": 180,
-          "reasons": [
-            "fuori perimetro privato: business/P.IVA"
-          ]
-        },
-        {
-          "providerKey": "eco",
-          "providerLabel": "E.CO Energia Corrente",
-          "commodity": "gas",
-          "tipo": "fisso",
-          "nome": "E.CO Gas Prezzo Relax BUS LINK",
-          "codice": "000742GSFML01XXRELREFIX260731B01",
-          "prezzo": 0.54,
-          "quotaFissaAnnua": 192,
-          "reasons": [
-            "fuori perimetro privato: business/P.IVA"
-          ]
-        },
-        {
-          "providerKey": "eco",
-          "providerLabel": "E.CO Energia Corrente",
-          "commodity": "gas",
-          "tipo": "fisso",
-          "nome": "E.CO Gas Prezzo Chiaro BUS",
-          "codice": "000742GSFML01XXCHIAROFX260731B01",
-          "prezzo": 0.52,
-          "quotaFissaAnnua": 300,
-          "reasons": [
-            "fuori perimetro privato: business/P.IVA"
-          ]
-        },
-        {
-          "providerKey": "eco",
-          "providerLabel": "E.CO Energia Corrente",
-          "commodity": "gas",
-          "tipo": "fisso",
-          "nome": "E.CO Gas Prezzo Chiaro BUS LINK",
-          "codice": "000742GSFML01XXCHIAREFX260731B01",
-          "prezzo": 0.52,
-          "quotaFissaAnnua": 312,
-          "reasons": [
-            "fuori perimetro privato: business/P.IVA"
-          ]
-        },
-        {
-          "providerKey": "illum",
-          "providerLabel": "Illumia",
-          "commodity": "gas",
-          "tipo": "fisso",
-          "nome": "Under Blindato Gas 36",
-          "codice": "000155GSFML03XXZZZZ05085Z260611G",
-          "prezzo": 0.589,
-          "quotaFissaAnnua": 118.8,
-          "reasons": [
-            "fuori perimetro privato standard: vulnerabili/eta"
           ]
         }
       ],
       "top": [
         {
           "rank": 1,
-          "provider": "Magis Energia",
-          "totale": 755.11,
-          "costoVariabile": 563.11,
-          "costoFisso": 192,
+          "provider": "E.ON",
+          "totale": 765.87,
+          "costoVariabile": 548.76,
+          "costoFisso": 217.11,
           "luce": {
-            "nome": "MIA LUCE FIX WEB",
-            "prezzo": 0.0963,
-            "quotaFissaAnnua": 96,
-            "qualitaPrezzo": "puntuale"
+            "nome": "E.ON LuceClickVerde",
+            "prezzo": 0.0998,
+            "quotaFissaAnnua": 109.11,
+            "qualitaPrezzo": "prezzo_esplicito"
           },
           "gas": {
-            "nome": "MIA GAS FIX WEB",
-            "prezzo": 0.433,
-            "quotaFissaAnnua": 96,
-            "qualitaPrezzo": "puntuale"
+            "nome": "E.ON Gas Click",
+            "prezzo": 0.399,
+            "quotaFissaAnnua": 108,
+            "qualitaPrezzo": "prezzo_esplicito"
           },
-          "commercialStatus": "solo_confronto",
-          "commercialLabel": "solo confronto"
+          "commercialStatus": "attivabile_online",
+          "commercialLabel": "attivabile online"
         },
         {
           "rank": 2,
@@ -312,76 +65,76 @@
             "nome": "Acea Energia Fix",
             "prezzo": 0.099,
             "quotaFissaAnnua": 111,
-            "qualitaPrezzo": "puntuale"
+            "qualitaPrezzo": "prezzo_esplicito"
           },
           "gas": {
             "nome": "Acea Energia Fix",
             "prezzo": 0.4,
             "quotaFissaAnnua": 111,
-            "qualitaPrezzo": "puntuale"
+            "qualitaPrezzo": "prezzo_esplicito"
           },
           "commercialStatus": "solo_confronto",
           "commercialLabel": "solo confronto"
         },
         {
           "rank": 3,
-          "provider": "Dolomiti Energia",
-          "totale": 790.75,
-          "costoVariabile": 598.75,
-          "costoFisso": 192,
-          "luce": {
-            "nome": "DOLOMITI FISSO LUCE 120",
-            "prezzo": 0.099,
-            "quotaFissaAnnua": 120,
-            "qualitaPrezzo": "puntuale"
-          },
-          "gas": {
-            "nome": "DOLOMITI FISSO GAS 36 WEB",
-            "prezzo": 0.4735,
-            "quotaFissaAnnua": 72,
-            "qualitaPrezzo": "puntuale"
-          },
-          "commercialStatus": "richiede_consulente",
-          "commercialLabel": "richiede consulente"
-        },
-        {
-          "rank": 4,
           "provider": "Engie",
-          "totale": 801.37,
-          "costoVariabile": 645.37,
+          "totale": 780.68,
+          "costoVariabile": 624.68,
           "costoFisso": 156,
           "luce": {
             "nome": "Energia PuntoFisso - 12 mesi",
-            "prezzo": 0.1186,
+            "prezzo": 0.1134,
             "quotaFissaAnnua": 72,
-            "qualitaPrezzo": "puntuale"
+            "qualitaPrezzo": "prezzo_esplicito"
           },
           "gas": {
             "nome": "Energia PuntoFisso - 12 mesi",
-            "prezzo": 0.4645,
+            "prezzo": 0.455,
             "quotaFissaAnnua": 84,
-            "qualitaPrezzo": "puntuale"
+            "qualitaPrezzo": "prezzo_esplicito"
           },
           "commercialStatus": "solo_confronto",
           "commercialLabel": "solo confronto"
         },
         {
-          "rank": 5,
-          "provider": "Iren Luce e Gas",
-          "totale": 812.92,
-          "costoVariabile": 569.92,
-          "costoFisso": 243,
+          "rank": 4,
+          "provider": "neN",
+          "totale": 860.8,
+          "costoVariabile": 656.8,
+          "costoFisso": 204,
           "luce": {
-            "nome": "IREN PRIMA SCELTA LUCE FISSA",
-            "prezzo": 0.0996,
-            "quotaFissaAnnua": 123,
-            "qualitaPrezzo": "puntuale"
+            "nome": "Due Luce",
+            "prezzo": 0.124,
+            "quotaFissaAnnua": 96,
+            "qualitaPrezzo": "prezzo_esplicito"
           },
           "gas": {
-            "nome": "IREN PRIMA SCELTA GAS",
-            "prezzo": 0.43,
-            "quotaFissaAnnua": 120,
-            "qualitaPrezzo": "puntuale"
+            "nome": "Due Gas",
+            "prezzo": 0.46,
+            "quotaFissaAnnua": 108,
+            "qualitaPrezzo": "prezzo_esplicito"
+          },
+          "commercialStatus": "affiliazione_in_attesa",
+          "commercialLabel": "affiliazione in attesa"
+        },
+        {
+          "rank": 5,
+          "provider": "Edison",
+          "totale": 895.3,
+          "costoVariabile": 673.3,
+          "costoFisso": 222,
+          "luce": {
+            "nome": "Edison 5xTe Luce km0",
+            "prezzo": 0.099,
+            "quotaFissaAnnua": 132,
+            "qualitaPrezzo": "prezzo_esplicito"
+          },
+          "gas": {
+            "nome": "Edison Web Gas",
+            "prezzo": 0.58,
+            "quotaFissaAnnua": 90,
+            "qualitaPrezzo": "prezzo_esplicito"
           },
           "commercialStatus": "solo_confronto",
           "commercialLabel": "solo confronto"
@@ -393,8 +146,8 @@
       "label": "Privato medio - dual fuel - prezzo variabile",
       "tipo": "variabile",
       "fornitura": "dual",
-      "providerCount": 21,
-      "excludedCount": 12,
+      "providerCount": 15,
+      "excludedCount": 3,
       "excludedExamples": [
         {
           "providerKey": "acea",
@@ -423,131 +176,14 @@
           ]
         },
         {
-          "providerKey": "eco",
-          "providerLabel": "E.CO Energia Corrente",
-          "commodity": "luce",
-          "tipo": "variabile",
-          "nome": "E.CO Luce Sostanza Gold",
-          "codice": "000742ESVOL01XXSOSTGOLD260930B01",
-          "prezzo": 0.13105126,
-          "quotaFissaAnnua": 240,
-          "reasons": [
-            "fuori perimetro privato standard: vulnerabili/eta"
-          ]
-        },
-        {
-          "providerKey": "eco",
-          "providerLabel": "E.CO Energia Corrente",
-          "commodity": "luce",
-          "tipo": "variabile",
-          "nome": "E.CO Luce Sostanza Gold LINK",
-          "codice": "000742ESVOL01XXSTGLDREF260930B01",
-          "prezzo": 0.13105126,
-          "quotaFissaAnnua": 252,
-          "reasons": [
-            "fuori perimetro privato standard: vulnerabili/eta"
-          ]
-        },
-        {
-          "providerKey": "illum",
-          "providerLabel": "Illumia",
-          "commodity": "luce",
-          "tipo": "variabile",
-          "nome": "Over 50 Autentico Non Orario",
-          "codice": "000155ESVFL15XXZZ03560Z260611E03",
-          "prezzo": 0.12579626,
-          "quotaFissaAnnua": 168,
-          "reasons": [
-            "fuori perimetro privato standard: vulnerabili/eta"
-          ]
-        },
-        {
-          "providerKey": "illum",
-          "providerLabel": "Illumia",
-          "commodity": "luce",
-          "tipo": "variabile",
-          "nome": "Over 50 Autentico Non Orario",
-          "codice": "000155ESVML15XXZZ03560Z260611E01",
-          "prezzo": 0.12799626,
-          "quotaFissaAnnua": 168,
-          "reasons": [
-            "fuori perimetro privato standard: vulnerabili/eta"
-          ]
-        },
-        {
-          "providerKey": "illum",
-          "providerLabel": "Illumia",
-          "commodity": "luce",
-          "tipo": "variabile",
-          "nome": "Under Autentico",
-          "codice": "000155ESVFL15XXZZ03545Z260611E03",
-          "prezzo": 0.12799626,
-          "quotaFissaAnnua": 168,
-          "reasons": [
-            "fuori perimetro privato standard: vulnerabili/eta"
-          ]
-        },
-        {
-          "providerKey": "illum",
-          "providerLabel": "Illumia",
-          "commodity": "luce",
-          "tipo": "variabile",
-          "nome": "Under Autentico",
-          "codice": "000155ESVML15XXZZ03545Z260611E01",
-          "prezzo": 0.13019626,
-          "quotaFissaAnnua": 168,
-          "reasons": [
-            "fuori perimetro privato standard: vulnerabili/eta"
-          ]
-        },
-        {
           "providerKey": "iren",
           "providerLabel": "Iren Luce e Gas",
           "commodity": "luce",
           "tipo": "variabile",
           "nome": "SEV IREN X VULNERABILI STG",
-          "codice": "001060ESVFL01XX000SEDOSIVS260710",
+          "codice": "001060ESVFL02XX000SEDOSIVS260806",
           "prezzo": 0.11935126,
           "quotaFissaAnnua": 35,
-          "reasons": [
-            "fuori perimetro privato standard: vulnerabili/eta"
-          ]
-        },
-        {
-          "providerKey": "eco",
-          "providerLabel": "E.CO Energia Corrente",
-          "commodity": "gas",
-          "tipo": "variabile",
-          "nome": "E.CO Gas Sostanza Gold",
-          "codice": "000742GSVML01XXSOSTGOLD260930B01",
-          "prezzo": 0.64441905,
-          "quotaFissaAnnua": 240,
-          "reasons": [
-            "fuori perimetro privato standard: vulnerabili/eta"
-          ]
-        },
-        {
-          "providerKey": "eco",
-          "providerLabel": "E.CO Energia Corrente",
-          "commodity": "gas",
-          "tipo": "variabile",
-          "nome": "E.CO Gas Sostanza Gold LINK",
-          "codice": "000742GSVML01XXSTGLDREF260930B01",
-          "prezzo": 0.64441905,
-          "quotaFissaAnnua": 252,
-          "reasons": [
-            "fuori perimetro privato standard: vulnerabili/eta"
-          ]
-        },
-        {
-          "providerKey": "illum",
-          "providerLabel": "Illumia",
-          "commodity": "gas",
-          "tipo": "variabile",
-          "nome": "Under Limpido Gas",
-          "codice": "000155GSVML15XXZZZZ03527Z260611G",
-          "prezzo": 0.63341905,
-          "quotaFissaAnnua": 118.8,
           "reasons": [
             "fuori perimetro privato standard: vulnerabili/eta"
           ]
@@ -557,89 +193,68 @@
         {
           "rank": 1,
           "provider": "Alperia",
-          "totale": 796.94,
-          "costoVariabile": 796.94,
+          "totale": 852.94,
+          "costoVariabile": 852.94,
           "costoFisso": 0,
           "luce": {
             "nome": "Alperia Free Welcome",
             "prezzo": 0.13035126,
             "quotaFissaAnnua": 0,
-            "qualitaPrezzo": "puntuale_pun_fallback"
+            "qualitaPrezzo": "indice_piu_spread_semantico"
           },
           "gas": {
             "nome": "Alperia Gas Home Promo",
-            "prezzo": 0.58441905,
+            "prezzo": 0.66441905,
             "quotaFissaAnnua": 0,
-            "qualitaPrezzo": "media_fasce_psv_fallback"
+            "qualitaPrezzo": "indice_piu_spread_semantico"
           },
           "commercialStatus": "attivabile_online",
           "commercialLabel": "attivabile online"
         },
         {
           "rank": 2,
-          "provider": "E.CO Energia Corrente",
-          "totale": 803.48,
-          "costoVariabile": 581.48,
-          "costoFisso": 222,
-          "luce": {
-            "nome": "E.CO LUCE SOLE SPECIAL",
-            "prezzo": 0.12485126,
-            "quotaFissaAnnua": 126,
-            "qualitaPrezzo": "puntuale_pun_fallback"
-          },
-          "gas": {
-            "nome": "ECO GAS INDEX PSV 30",
-            "prezzo": 0.3,
-            "quotaFissaAnnua": 96,
-            "qualitaPrezzo": "puntuale"
-          },
-          "commercialStatus": "richiede_consulente",
-          "commercialLabel": "richiede consulente"
-        },
-        {
-          "rank": 3,
           "provider": "Illumia",
-          "totale": 821.12,
-          "costoVariabile": 593.12,
-          "costoFisso": 228,
+          "totale": 911.21,
+          "costoVariabile": 743.21,
+          "costoFisso": 168,
           "luce": {
             "nome": "Luce Flex",
             "prezzo": 0.11935126,
             "quotaFissaAnnua": 84,
-            "qualitaPrezzo": "puntuale_pun_fallback"
+            "qualitaPrezzo": "indice_piu_spread_semantico"
           },
           "gas": {
-            "nome": "Illumia Smart Flex Gas",
-            "prezzo": 0.34,
-            "quotaFissaAnnua": 144,
-            "qualitaPrezzo": "puntuale"
+            "nome": "Gas Flex",
+            "prezzo": 0.55441905,
+            "quotaFissaAnnua": 84,
+            "qualitaPrezzo": "indice_piu_spread_semantico"
+          },
+          "commercialStatus": "solo_confronto",
+          "commercialLabel": "solo confronto"
+        },
+        {
+          "rank": 3,
+          "provider": "Engie",
+          "totale": 917.71,
+          "costoVariabile": 760.71,
+          "costoFisso": 157,
+          "luce": {
+            "nome": "Taaanta Energia",
+            "prezzo": 0.11935126,
+            "quotaFissaAnnua": 79,
+            "qualitaPrezzo": "indice_piu_spread_semantico"
+          },
+          "gas": {
+            "nome": "Benvenuto in ENGIE",
+            "prezzo": 0.57941905,
+            "quotaFissaAnnua": 78,
+            "qualitaPrezzo": "indice_piu_spread_semantico"
           },
           "commercialStatus": "solo_confronto",
           "commercialLabel": "solo confronto"
         },
         {
           "rank": 4,
-          "provider": "Engie",
-          "totale": 871.01,
-          "costoVariabile": 753.01,
-          "costoFisso": 118,
-          "luce": {
-            "nome": "Energia VedoChiaro",
-            "prezzo": 0.12735126,
-            "quotaFissaAnnua": 59,
-            "qualitaPrezzo": "puntuale_pun_fallback"
-          },
-          "gas": {
-            "nome": "Energia VedoChiaro",
-            "prezzo": 0.53441905,
-            "quotaFissaAnnua": 59,
-            "qualitaPrezzo": "puntuale_psv_fallback"
-          },
-          "commercialStatus": "solo_confronto",
-          "commercialLabel": "solo confronto"
-        },
-        {
-          "rank": 5,
           "provider": "Octopus Energy",
           "totale": 932.39,
           "costoVariabile": 776.39,
@@ -648,16 +263,37 @@
             "nome": "Octopus Flex",
             "prezzo": 0.12815126,
             "quotaFissaAnnua": 72,
-            "qualitaPrezzo": "puntuale_pun_fallback"
+            "qualitaPrezzo": "indice_piu_spread_semantico"
           },
           "gas": {
             "nome": "Octopus Flex Gas",
             "prezzo": 0.56441905,
             "quotaFissaAnnua": 84,
-            "qualitaPrezzo": "puntuale_psv_fallback"
+            "qualitaPrezzo": "indice_piu_spread_semantico"
           },
           "commercialStatus": "affiliazione_in_attesa",
           "commercialLabel": "affiliazione in attesa"
+        },
+        {
+          "rank": 5,
+          "provider": "Acea Energia",
+          "totale": 951.14,
+          "costoVariabile": 759.14,
+          "costoFisso": 192,
+          "luce": {
+            "nome": "Acea Energia Sprint Web",
+            "prezzo": 0.12635126,
+            "quotaFissaAnnua": 96,
+            "qualitaPrezzo": "indice_piu_spread_semantico"
+          },
+          "gas": {
+            "nome": "Acea Energia Sprint Web",
+            "prezzo": 0.54741905,
+            "quotaFissaAnnua": 96,
+            "qualitaPrezzo": "indice_piu_spread_semantico"
+          },
+          "commercialStatus": "solo_confronto",
+          "commercialLabel": "solo confronto"
         }
       ]
     },
@@ -666,8 +302,8 @@
       "label": "Privato alto consumo - dual fuel - prezzo fisso",
       "tipo": "fisso",
       "fornitura": "dual",
-      "providerCount": 20,
-      "excludedCount": 21,
+      "providerCount": 10,
+      "excludedCount": 1,
       "excludedExamples": [
         {
           "providerKey": "a2a",
@@ -675,282 +311,35 @@
           "commodity": "luce",
           "tipo": "fisso",
           "nome": "NeN Dieci Luce",
-          "codice": "029748ESFML01XX260626LD10X000000",
+          "codice": "029748ESFML01XX260709LD10X000000",
           "prezzo": 0.119,
           "quotaFissaAnnua": 72,
           "reasons": [
             "fornitore non coerente: offerta sembra nen, ma providerKey e a2a"
-          ]
-        },
-        {
-          "providerKey": "alperia",
-          "providerLabel": "Alperia",
-          "commodity": "luce",
-          "tipo": "fisso",
-          "nome": "Alperia Direct Alto Adige",
-          "codice": "000368ESFML01XX3835448X260511XVE",
-          "prezzo": 0.10494,
-          "quotaFissaAnnua": 86.2,
-          "reasons": [
-            "offerta territoriale: da non usare come proposta nazionale standard"
-          ]
-        },
-        {
-          "providerKey": "eco",
-          "providerLabel": "E.CO Energia Corrente",
-          "commodity": "luce",
-          "tipo": "fisso",
-          "nome": "E.CO Luce Prezzo Relax BUS",
-          "codice": "000742ESFML01XXPZRELAXF260731B01",
-          "prezzo": 0.0763,
-          "quotaFissaAnnua": 180,
-          "reasons": [
-            "fuori perimetro privato: business/P.IVA"
-          ]
-        },
-        {
-          "providerKey": "eco",
-          "providerLabel": "E.CO Energia Corrente",
-          "commodity": "luce",
-          "tipo": "fisso",
-          "nome": "E.CO Luce Prezzo Relax BUS LINK",
-          "codice": "000742ESFML01XXRELAXREF260731B01",
-          "prezzo": 0.0763,
-          "quotaFissaAnnua": 192,
-          "reasons": [
-            "fuori perimetro privato: business/P.IVA"
-          ]
-        },
-        {
-          "providerKey": "eco",
-          "providerLabel": "E.CO Energia Corrente",
-          "commodity": "luce",
-          "tipo": "fisso",
-          "nome": "E.CO Luce Prezzo Chiaro BUS",
-          "codice": "000742ESFML01XXPRZCHIAF260731B01",
-          "prezzo": 0.0738,
-          "quotaFissaAnnua": 300,
-          "reasons": [
-            "fuori perimetro privato: business/P.IVA"
-          ]
-        },
-        {
-          "providerKey": "eco",
-          "providerLabel": "E.CO Energia Corrente",
-          "commodity": "luce",
-          "tipo": "fisso",
-          "nome": "E.CO Luce Prezzo Chiaro BUS LINK",
-          "codice": "000742ESFML01XXCHIAREFF260731B01",
-          "prezzo": 0.0738,
-          "quotaFissaAnnua": 312,
-          "reasons": [
-            "fuori perimetro privato: business/P.IVA"
-          ]
-        },
-        {
-          "providerKey": "enel",
-          "providerLabel": "Enel Energia",
-          "commodity": "luce",
-          "tipo": "fisso",
-          "nome": "Enel Seconda Casa Luce",
-          "codice": "000142ESFML01XXResECAn0000115913",
-          "prezzo": 0.174,
-          "quotaFissaAnnua": 144,
-          "reasons": [
-            "fuori perimetro privato standard: lavoro/seconda casa"
-          ]
-        },
-        {
-          "providerKey": "illum",
-          "providerLabel": "Illumia",
-          "commodity": "luce",
-          "tipo": "fisso",
-          "nome": "Over 50 Super Tenace 36",
-          "codice": "000155ESFML03XXZZ04000Z260611E01",
-          "prezzo": 0.0681,
-          "quotaFissaAnnua": 168,
-          "reasons": [
-            "fuori perimetro privato standard: vulnerabili/eta"
-          ]
-        },
-        {
-          "providerKey": "illum",
-          "providerLabel": "Illumia",
-          "commodity": "luce",
-          "tipo": "fisso",
-          "nome": "Under Super Tenace 36",
-          "codice": "000155ESFML04XXZZ03780Z260611E01",
-          "prezzo": 0.0703,
-          "quotaFissaAnnua": 168,
-          "reasons": [
-            "fuori perimetro privato standard: vulnerabili/eta"
-          ]
-        },
-        {
-          "providerKey": "illum",
-          "providerLabel": "Illumia",
-          "commodity": "luce",
-          "tipo": "fisso",
-          "nome": "Under Tenace 12",
-          "codice": "000155ESFML02XXZZ05991Z260611E01",
-          "prezzo": 0.078,
-          "quotaFissaAnnua": 168,
-          "reasons": [
-            "fuori perimetro privato standard: vulnerabili/eta"
-          ]
-        },
-        {
-          "providerKey": "illum",
-          "providerLabel": "Illumia",
-          "commodity": "luce",
-          "tipo": "fisso",
-          "nome": "Over 50 Super Tenace 36",
-          "codice": "000155ESFFL03XXZZ04000Z260611E03",
-          "prezzo": 0.10159,
-          "quotaFissaAnnua": 168,
-          "reasons": [
-            "fuori perimetro privato standard: vulnerabili/eta"
-          ]
-        },
-        {
-          "providerKey": "illum",
-          "providerLabel": "Illumia",
-          "commodity": "luce",
-          "tipo": "fisso",
-          "nome": "Under Super Tenace 36",
-          "codice": "000155ESFFL04XXZZ03780Z260611E03",
-          "prezzo": 0.10489,
-          "quotaFissaAnnua": 168,
-          "reasons": [
-            "fuori perimetro privato standard: vulnerabili/eta"
-          ]
-        },
-        {
-          "providerKey": "illum",
-          "providerLabel": "Illumia",
-          "commodity": "luce",
-          "tipo": "fisso",
-          "nome": "Under Tenace 12",
-          "codice": "000155ESFFL02XXZZ05991Z260611E03",
-          "prezzo": 0.11644,
-          "quotaFissaAnnua": 168,
-          "reasons": [
-            "fuori perimetro privato standard: vulnerabili/eta"
-          ]
-        },
-        {
-          "providerKey": "axpo",
-          "providerLabel": "Axpo Energia",
-          "commodity": "gas",
-          "tipo": "fisso",
-          "nome": "Scegli Sereno GAS 2.0",
-          "codice": "000099GSFML07XXAXPOIXFIX87482607",
-          "prezzo": 0.19768,
-          "quotaFissaAnnua": 144,
-          "reasons": [
-            "prezzo gas fisso anomalo per profilo privato standard"
-          ]
-        },
-        {
-          "providerKey": "axpo",
-          "providerLabel": "Axpo Energia",
-          "commodity": "gas",
-          "tipo": "fisso",
-          "nome": "Scegli Sereno GAS 2.0 Light",
-          "codice": "000099GSFML07XXAXPOIXFIX87262607",
-          "prezzo": 0.22516,
-          "quotaFissaAnnua": 156,
-          "reasons": [
-            "prezzo gas fisso anomalo per profilo privato standard"
-          ]
-        },
-        {
-          "providerKey": "eco",
-          "providerLabel": "E.CO Energia Corrente",
-          "commodity": "gas",
-          "tipo": "fisso",
-          "nome": "E.CO Gas Prezzo Relax BUS",
-          "codice": "000742GSFML01XXRELAXFIX260731B01",
-          "prezzo": 0.54,
-          "quotaFissaAnnua": 180,
-          "reasons": [
-            "fuori perimetro privato: business/P.IVA"
-          ]
-        },
-        {
-          "providerKey": "eco",
-          "providerLabel": "E.CO Energia Corrente",
-          "commodity": "gas",
-          "tipo": "fisso",
-          "nome": "E.CO Gas Prezzo Relax BUS LINK",
-          "codice": "000742GSFML01XXRELREFIX260731B01",
-          "prezzo": 0.54,
-          "quotaFissaAnnua": 192,
-          "reasons": [
-            "fuori perimetro privato: business/P.IVA"
-          ]
-        },
-        {
-          "providerKey": "eco",
-          "providerLabel": "E.CO Energia Corrente",
-          "commodity": "gas",
-          "tipo": "fisso",
-          "nome": "E.CO Gas Prezzo Chiaro BUS",
-          "codice": "000742GSFML01XXCHIAROFX260731B01",
-          "prezzo": 0.52,
-          "quotaFissaAnnua": 300,
-          "reasons": [
-            "fuori perimetro privato: business/P.IVA"
-          ]
-        },
-        {
-          "providerKey": "eco",
-          "providerLabel": "E.CO Energia Corrente",
-          "commodity": "gas",
-          "tipo": "fisso",
-          "nome": "E.CO Gas Prezzo Chiaro BUS LINK",
-          "codice": "000742GSFML01XXCHIAREFX260731B01",
-          "prezzo": 0.52,
-          "quotaFissaAnnua": 312,
-          "reasons": [
-            "fuori perimetro privato: business/P.IVA"
-          ]
-        },
-        {
-          "providerKey": "illum",
-          "providerLabel": "Illumia",
-          "commodity": "gas",
-          "tipo": "fisso",
-          "nome": "Under Blindato Gas 36",
-          "codice": "000155GSFML03XXZZZZ05085Z260611G",
-          "prezzo": 0.589,
-          "quotaFissaAnnua": 118.8,
-          "reasons": [
-            "fuori perimetro privato standard: vulnerabili/eta"
           ]
         }
       ],
       "top": [
         {
           "rank": 1,
-          "provider": "Magis Energia",
-          "totale": 1096.8,
-          "costoVariabile": 904.8,
-          "costoFisso": 192,
+          "provider": "E.ON",
+          "totale": 1095.11,
+          "costoVariabile": 878,
+          "costoFisso": 217.11,
           "luce": {
-            "nome": "MIA LUCE FIX WEB",
-            "prezzo": 0.0963,
-            "quotaFissaAnnua": 96,
-            "qualitaPrezzo": "puntuale"
+            "nome": "E.ON LuceClickVerde",
+            "prezzo": 0.0998,
+            "quotaFissaAnnua": 109.11,
+            "qualitaPrezzo": "prezzo_esplicito"
           },
           "gas": {
-            "nome": "MIA GAS FIX WEB",
-            "prezzo": 0.433,
-            "quotaFissaAnnua": 96,
-            "qualitaPrezzo": "puntuale"
+            "nome": "E.ON Gas Click",
+            "prezzo": 0.399,
+            "quotaFissaAnnua": 108,
+            "qualitaPrezzo": "prezzo_esplicito"
           },
-          "commercialStatus": "solo_confronto",
-          "commercialLabel": "solo confronto"
+          "commercialStatus": "attivabile_online",
+          "commercialLabel": "attivabile online"
         },
         {
           "rank": 2,
@@ -962,76 +351,76 @@
             "nome": "Acea Energia Fix",
             "prezzo": 0.099,
             "quotaFissaAnnua": 111,
-            "qualitaPrezzo": "puntuale"
+            "qualitaPrezzo": "prezzo_esplicito"
           },
           "gas": {
             "nome": "Acea Energia Fix",
             "prezzo": 0.4,
             "quotaFissaAnnua": 111,
-            "qualitaPrezzo": "puntuale"
+            "qualitaPrezzo": "prezzo_esplicito"
           },
           "commercialStatus": "solo_confronto",
           "commercialLabel": "solo confronto"
         },
         {
           "rank": 3,
-          "provider": "Dolomiti Energia",
-          "totale": 1156.2,
-          "costoVariabile": 964.2,
-          "costoFisso": 192,
+          "provider": "Engie",
+          "totale": 1155.6,
+          "costoVariabile": 999.6,
+          "costoFisso": 156,
           "luce": {
-            "nome": "DOLOMITI FISSO LUCE 120",
-            "prezzo": 0.099,
-            "quotaFissaAnnua": 120,
-            "qualitaPrezzo": "puntuale"
-          },
-          "gas": {
-            "nome": "DOLOMITI FISSO GAS 36 WEB",
-            "prezzo": 0.4735,
+            "nome": "Energia PuntoFisso - 12 mesi",
+            "prezzo": 0.1134,
             "quotaFissaAnnua": 72,
-            "qualitaPrezzo": "puntuale"
-          },
-          "commercialStatus": "richiede_consulente",
-          "commercialLabel": "richiede consulente"
-        },
-        {
-          "rank": 4,
-          "provider": "Iren Luce e Gas",
-          "totale": 1157.4,
-          "costoVariabile": 914.4,
-          "costoFisso": 243,
-          "luce": {
-            "nome": "IREN PRIMA SCELTA LUCE FISSA",
-            "prezzo": 0.0996,
-            "quotaFissaAnnua": 123,
-            "qualitaPrezzo": "puntuale"
+            "qualitaPrezzo": "prezzo_esplicito"
           },
           "gas": {
-            "nome": "IREN PRIMA SCELTA GAS",
-            "prezzo": 0.43,
-            "quotaFissaAnnua": 120,
-            "qualitaPrezzo": "puntuale"
+            "nome": "Energia PuntoFisso - 12 mesi",
+            "prezzo": 0.455,
+            "quotaFissaAnnua": 84,
+            "qualitaPrezzo": "prezzo_esplicito"
           },
           "commercialStatus": "solo_confronto",
           "commercialLabel": "solo confronto"
         },
         {
-          "rank": 5,
-          "provider": "Engie",
-          "totale": 1187.8,
-          "costoVariabile": 1031.8,
-          "costoFisso": 156,
+          "rank": 4,
+          "provider": "neN",
+          "totale": 1252,
+          "costoVariabile": 1048,
+          "costoFisso": 204,
           "luce": {
-            "nome": "Energia PuntoFisso - 12 mesi",
-            "prezzo": 0.1186,
-            "quotaFissaAnnua": 72,
-            "qualitaPrezzo": "puntuale"
+            "nome": "Due Luce",
+            "prezzo": 0.124,
+            "quotaFissaAnnua": 96,
+            "qualitaPrezzo": "prezzo_esplicito"
           },
           "gas": {
-            "nome": "Energia PuntoFisso - 12 mesi",
-            "prezzo": 0.4645,
-            "quotaFissaAnnua": 84,
-            "qualitaPrezzo": "puntuale"
+            "nome": "Due Gas",
+            "prezzo": 0.46,
+            "quotaFissaAnnua": 108,
+            "qualitaPrezzo": "prezzo_esplicito"
+          },
+          "commercialStatus": "affiliazione_in_attesa",
+          "commercialLabel": "affiliazione in attesa"
+        },
+        {
+          "rank": 5,
+          "provider": "Edison",
+          "totale": 1314,
+          "costoVariabile": 1092,
+          "costoFisso": 222,
+          "luce": {
+            "nome": "Edison 5xTe Luce km0",
+            "prezzo": 0.099,
+            "quotaFissaAnnua": 132,
+            "qualitaPrezzo": "prezzo_esplicito"
+          },
+          "gas": {
+            "nome": "Edison Web Gas",
+            "prezzo": 0.58,
+            "quotaFissaAnnua": 90,
+            "qualitaPrezzo": "prezzo_esplicito"
           },
           "commercialStatus": "solo_confronto",
           "commercialLabel": "solo confronto"
@@ -1043,8 +432,8 @@
       "label": "Privato medio - forniture separate - prezzo fisso",
       "tipo": "fisso",
       "fornitura": "separata",
-      "providerCount": 22,
-      "excludedCount": 21,
+      "providerCount": 13,
+      "excludedCount": 1,
       "excludedExamples": [
         {
           "providerKey": "a2a",
@@ -1052,363 +441,116 @@
           "commodity": "luce",
           "tipo": "fisso",
           "nome": "NeN Dieci Luce",
-          "codice": "029748ESFML01XX260626LD10X000000",
+          "codice": "029748ESFML01XX260709LD10X000000",
           "prezzo": 0.119,
           "quotaFissaAnnua": 72,
           "reasons": [
             "fornitore non coerente: offerta sembra nen, ma providerKey e a2a"
-          ]
-        },
-        {
-          "providerKey": "alperia",
-          "providerLabel": "Alperia",
-          "commodity": "luce",
-          "tipo": "fisso",
-          "nome": "Alperia Direct Alto Adige",
-          "codice": "000368ESFML01XX3835448X260511XVE",
-          "prezzo": 0.10494,
-          "quotaFissaAnnua": 86.2,
-          "reasons": [
-            "offerta territoriale: da non usare come proposta nazionale standard"
-          ]
-        },
-        {
-          "providerKey": "eco",
-          "providerLabel": "E.CO Energia Corrente",
-          "commodity": "luce",
-          "tipo": "fisso",
-          "nome": "E.CO Luce Prezzo Relax BUS",
-          "codice": "000742ESFML01XXPZRELAXF260731B01",
-          "prezzo": 0.0763,
-          "quotaFissaAnnua": 180,
-          "reasons": [
-            "fuori perimetro privato: business/P.IVA"
-          ]
-        },
-        {
-          "providerKey": "eco",
-          "providerLabel": "E.CO Energia Corrente",
-          "commodity": "luce",
-          "tipo": "fisso",
-          "nome": "E.CO Luce Prezzo Relax BUS LINK",
-          "codice": "000742ESFML01XXRELAXREF260731B01",
-          "prezzo": 0.0763,
-          "quotaFissaAnnua": 192,
-          "reasons": [
-            "fuori perimetro privato: business/P.IVA"
-          ]
-        },
-        {
-          "providerKey": "eco",
-          "providerLabel": "E.CO Energia Corrente",
-          "commodity": "luce",
-          "tipo": "fisso",
-          "nome": "E.CO Luce Prezzo Chiaro BUS",
-          "codice": "000742ESFML01XXPRZCHIAF260731B01",
-          "prezzo": 0.0738,
-          "quotaFissaAnnua": 300,
-          "reasons": [
-            "fuori perimetro privato: business/P.IVA"
-          ]
-        },
-        {
-          "providerKey": "eco",
-          "providerLabel": "E.CO Energia Corrente",
-          "commodity": "luce",
-          "tipo": "fisso",
-          "nome": "E.CO Luce Prezzo Chiaro BUS LINK",
-          "codice": "000742ESFML01XXCHIAREFF260731B01",
-          "prezzo": 0.0738,
-          "quotaFissaAnnua": 312,
-          "reasons": [
-            "fuori perimetro privato: business/P.IVA"
-          ]
-        },
-        {
-          "providerKey": "enel",
-          "providerLabel": "Enel Energia",
-          "commodity": "luce",
-          "tipo": "fisso",
-          "nome": "Enel Seconda Casa Luce",
-          "codice": "000142ESFML01XXResECAn0000115913",
-          "prezzo": 0.174,
-          "quotaFissaAnnua": 144,
-          "reasons": [
-            "fuori perimetro privato standard: lavoro/seconda casa"
-          ]
-        },
-        {
-          "providerKey": "illum",
-          "providerLabel": "Illumia",
-          "commodity": "luce",
-          "tipo": "fisso",
-          "nome": "Over 50 Super Tenace 36",
-          "codice": "000155ESFML03XXZZ04000Z260611E01",
-          "prezzo": 0.0681,
-          "quotaFissaAnnua": 168,
-          "reasons": [
-            "fuori perimetro privato standard: vulnerabili/eta"
-          ]
-        },
-        {
-          "providerKey": "illum",
-          "providerLabel": "Illumia",
-          "commodity": "luce",
-          "tipo": "fisso",
-          "nome": "Under Super Tenace 36",
-          "codice": "000155ESFML04XXZZ03780Z260611E01",
-          "prezzo": 0.0703,
-          "quotaFissaAnnua": 168,
-          "reasons": [
-            "fuori perimetro privato standard: vulnerabili/eta"
-          ]
-        },
-        {
-          "providerKey": "illum",
-          "providerLabel": "Illumia",
-          "commodity": "luce",
-          "tipo": "fisso",
-          "nome": "Under Tenace 12",
-          "codice": "000155ESFML02XXZZ05991Z260611E01",
-          "prezzo": 0.078,
-          "quotaFissaAnnua": 168,
-          "reasons": [
-            "fuori perimetro privato standard: vulnerabili/eta"
-          ]
-        },
-        {
-          "providerKey": "illum",
-          "providerLabel": "Illumia",
-          "commodity": "luce",
-          "tipo": "fisso",
-          "nome": "Over 50 Super Tenace 36",
-          "codice": "000155ESFFL03XXZZ04000Z260611E03",
-          "prezzo": 0.10159,
-          "quotaFissaAnnua": 168,
-          "reasons": [
-            "fuori perimetro privato standard: vulnerabili/eta"
-          ]
-        },
-        {
-          "providerKey": "illum",
-          "providerLabel": "Illumia",
-          "commodity": "luce",
-          "tipo": "fisso",
-          "nome": "Under Super Tenace 36",
-          "codice": "000155ESFFL04XXZZ03780Z260611E03",
-          "prezzo": 0.10489,
-          "quotaFissaAnnua": 168,
-          "reasons": [
-            "fuori perimetro privato standard: vulnerabili/eta"
-          ]
-        },
-        {
-          "providerKey": "illum",
-          "providerLabel": "Illumia",
-          "commodity": "luce",
-          "tipo": "fisso",
-          "nome": "Under Tenace 12",
-          "codice": "000155ESFFL02XXZZ05991Z260611E03",
-          "prezzo": 0.11644,
-          "quotaFissaAnnua": 168,
-          "reasons": [
-            "fuori perimetro privato standard: vulnerabili/eta"
-          ]
-        },
-        {
-          "providerKey": "axpo",
-          "providerLabel": "Axpo Energia",
-          "commodity": "gas",
-          "tipo": "fisso",
-          "nome": "Scegli Sereno GAS 2.0",
-          "codice": "000099GSFML07XXAXPOIXFIX87482607",
-          "prezzo": 0.19768,
-          "quotaFissaAnnua": 144,
-          "reasons": [
-            "prezzo gas fisso anomalo per profilo privato standard"
-          ]
-        },
-        {
-          "providerKey": "axpo",
-          "providerLabel": "Axpo Energia",
-          "commodity": "gas",
-          "tipo": "fisso",
-          "nome": "Scegli Sereno GAS 2.0 Light",
-          "codice": "000099GSFML07XXAXPOIXFIX87262607",
-          "prezzo": 0.22516,
-          "quotaFissaAnnua": 156,
-          "reasons": [
-            "prezzo gas fisso anomalo per profilo privato standard"
-          ]
-        },
-        {
-          "providerKey": "eco",
-          "providerLabel": "E.CO Energia Corrente",
-          "commodity": "gas",
-          "tipo": "fisso",
-          "nome": "E.CO Gas Prezzo Relax BUS",
-          "codice": "000742GSFML01XXRELAXFIX260731B01",
-          "prezzo": 0.54,
-          "quotaFissaAnnua": 180,
-          "reasons": [
-            "fuori perimetro privato: business/P.IVA"
-          ]
-        },
-        {
-          "providerKey": "eco",
-          "providerLabel": "E.CO Energia Corrente",
-          "commodity": "gas",
-          "tipo": "fisso",
-          "nome": "E.CO Gas Prezzo Relax BUS LINK",
-          "codice": "000742GSFML01XXRELREFIX260731B01",
-          "prezzo": 0.54,
-          "quotaFissaAnnua": 192,
-          "reasons": [
-            "fuori perimetro privato: business/P.IVA"
-          ]
-        },
-        {
-          "providerKey": "eco",
-          "providerLabel": "E.CO Energia Corrente",
-          "commodity": "gas",
-          "tipo": "fisso",
-          "nome": "E.CO Gas Prezzo Chiaro BUS",
-          "codice": "000742GSFML01XXCHIAROFX260731B01",
-          "prezzo": 0.52,
-          "quotaFissaAnnua": 300,
-          "reasons": [
-            "fuori perimetro privato: business/P.IVA"
-          ]
-        },
-        {
-          "providerKey": "eco",
-          "providerLabel": "E.CO Energia Corrente",
-          "commodity": "gas",
-          "tipo": "fisso",
-          "nome": "E.CO Gas Prezzo Chiaro BUS LINK",
-          "codice": "000742GSFML01XXCHIAREFX260731B01",
-          "prezzo": 0.52,
-          "quotaFissaAnnua": 312,
-          "reasons": [
-            "fuori perimetro privato: business/P.IVA"
-          ]
-        },
-        {
-          "providerKey": "illum",
-          "providerLabel": "Illumia",
-          "commodity": "gas",
-          "tipo": "fisso",
-          "nome": "Under Blindato Gas 36",
-          "codice": "000155GSFML03XXZZZZ05085Z260611G",
-          "prezzo": 0.589,
-          "quotaFissaAnnua": 118.8,
-          "reasons": [
-            "fuori perimetro privato standard: vulnerabili/eta"
           ]
         }
       ],
       "top": [
         {
           "rank": 1,
-          "provider": "Axpo Energia + Acea Energia",
-          "totale": 713.72,
-          "costoVariabile": 458.72,
-          "costoFisso": 255,
+          "provider": "Engie + E.ON",
+          "totale": 765.48,
+          "costoVariabile": 585.48,
+          "costoFisso": 180,
           "luce": {
-            "nome": "Scegli Sereno 2.0 36 Mesi Giorno 3Fasce",
-            "prezzo": 0.06619333,
-            "quotaFissaAnnua": 144,
-            "qualitaPrezzo": "media_fasce"
+            "nome": "Energia PuntoFisso - 12 mesi",
+            "prezzo": 0.1134,
+            "quotaFissaAnnua": 72,
+            "qualitaPrezzo": "prezzo_esplicito"
+          },
+          "gas": {
+            "nome": "E.ON Gas Click",
+            "prezzo": 0.399,
+            "quotaFissaAnnua": 108,
+            "qualitaPrezzo": "prezzo_esplicito"
+          },
+          "commercialStatus": "separata",
+          "commercialLabel": "solo confronto / attivabile online"
+        },
+        {
+          "rank": 2,
+          "provider": "Acea Energia + E.ON",
+          "totale": 765.6,
+          "costoVariabile": 546.6,
+          "costoFisso": 219,
+          "luce": {
+            "nome": "Acea Energia Fix",
+            "prezzo": 0.099,
+            "quotaFissaAnnua": 111,
+            "qualitaPrezzo": "prezzo_esplicito"
+          },
+          "gas": {
+            "nome": "E.ON Gas Click",
+            "prezzo": 0.399,
+            "quotaFissaAnnua": 108,
+            "qualitaPrezzo": "prezzo_esplicito"
+          },
+          "commercialStatus": "separata",
+          "commercialLabel": "solo confronto / attivabile online"
+        },
+        {
+          "rank": 3,
+          "provider": "E.ON + E.ON",
+          "totale": 765.87,
+          "costoVariabile": 548.76,
+          "costoFisso": 217.11,
+          "luce": {
+            "nome": "E.ON LuceClickVerde",
+            "prezzo": 0.0998,
+            "quotaFissaAnnua": 109.11,
+            "qualitaPrezzo": "prezzo_esplicito"
+          },
+          "gas": {
+            "nome": "E.ON Gas Click",
+            "prezzo": 0.399,
+            "quotaFissaAnnua": 108,
+            "qualitaPrezzo": "prezzo_esplicito"
+          },
+          "commercialStatus": "separata",
+          "commercialLabel": "attivabile online / attivabile online"
+        },
+        {
+          "rank": 4,
+          "provider": "Engie + Acea Energia",
+          "totale": 769.18,
+          "costoVariabile": 586.18,
+          "costoFisso": 183,
+          "luce": {
+            "nome": "Energia PuntoFisso - 12 mesi",
+            "prezzo": 0.1134,
+            "quotaFissaAnnua": 72,
+            "qualitaPrezzo": "prezzo_esplicito"
           },
           "gas": {
             "nome": "Acea Energia Fix",
             "prezzo": 0.4,
             "quotaFissaAnnua": 111,
-            "qualitaPrezzo": "puntuale"
-          },
-          "commercialStatus": "separata",
-          "commercialLabel": "solo confronto / solo confronto"
-        },
-        {
-          "rank": 2,
-          "provider": "Axpo Energia + Magis Energia",
-          "totale": 721.82,
-          "costoVariabile": 481.82,
-          "costoFisso": 240,
-          "luce": {
-            "nome": "Scegli Sereno 2.0 36 Mesi Giorno 3Fasce",
-            "prezzo": 0.06619333,
-            "quotaFissaAnnua": 144,
-            "qualitaPrezzo": "media_fasce"
-          },
-          "gas": {
-            "nome": "MIA GAS FIX WEB",
-            "prezzo": 0.433,
-            "quotaFissaAnnua": 96,
-            "qualitaPrezzo": "puntuale"
-          },
-          "commercialStatus": "separata",
-          "commercialLabel": "solo confronto / solo confronto"
-        },
-        {
-          "rank": 3,
-          "provider": "Axpo Energia + Dolomiti Energia",
-          "totale": 726.17,
-          "costoVariabile": 510.17,
-          "costoFisso": 216,
-          "luce": {
-            "nome": "Scegli Sereno 2.0 36 Mesi Giorno 3Fasce",
-            "prezzo": 0.06619333,
-            "quotaFissaAnnua": 144,
-            "qualitaPrezzo": "media_fasce"
-          },
-          "gas": {
-            "nome": "DOLOMITI FISSO GAS 36 WEB",
-            "prezzo": 0.4735,
-            "quotaFissaAnnua": 72,
-            "qualitaPrezzo": "puntuale"
-          },
-          "commercialStatus": "separata",
-          "commercialLabel": "solo confronto / richiede consulente"
-        },
-        {
-          "rank": 4,
-          "provider": "Axpo Energia + Engie",
-          "totale": 731.87,
-          "costoVariabile": 503.87,
-          "costoFisso": 228,
-          "luce": {
-            "nome": "Scegli Sereno 2.0 36 Mesi Giorno 3Fasce",
-            "prezzo": 0.06619333,
-            "quotaFissaAnnua": 144,
-            "qualitaPrezzo": "media_fasce"
-          },
-          "gas": {
-            "nome": "Energia PuntoFisso - 12 mesi",
-            "prezzo": 0.4645,
-            "quotaFissaAnnua": 84,
-            "qualitaPrezzo": "puntuale"
+            "qualitaPrezzo": "prezzo_esplicito"
           },
           "commercialStatus": "separata",
           "commercialLabel": "solo confronto / solo confronto"
         },
         {
           "rank": 5,
-          "provider": "Axpo Energia + Iren Luce e Gas",
-          "totale": 743.72,
-          "costoVariabile": 479.72,
-          "costoFisso": 264,
+          "provider": "Acea Energia + Acea Energia",
+          "totale": 769.3,
+          "costoVariabile": 547.3,
+          "costoFisso": 222,
           "luce": {
-            "nome": "Scegli Sereno 2.0 36 Mesi Giorno 3Fasce",
-            "prezzo": 0.06619333,
-            "quotaFissaAnnua": 144,
-            "qualitaPrezzo": "media_fasce"
+            "nome": "Acea Energia Fix",
+            "prezzo": 0.099,
+            "quotaFissaAnnua": 111,
+            "qualitaPrezzo": "prezzo_esplicito"
           },
           "gas": {
-            "nome": "IREN PRIMA SCELTA GAS",
-            "prezzo": 0.43,
-            "quotaFissaAnnua": 120,
-            "qualitaPrezzo": "puntuale"
+            "nome": "Acea Energia Fix",
+            "prezzo": 0.4,
+            "quotaFissaAnnua": 111,
+            "qualitaPrezzo": "prezzo_esplicito"
           },
           "commercialStatus": "separata",
           "commercialLabel": "solo confronto / solo confronto"
@@ -1420,8 +562,8 @@
       "label": "Privato medio - forniture separate - prezzo variabile",
       "tipo": "variabile",
       "fornitura": "separata",
-      "providerCount": 22,
-      "excludedCount": 12,
+      "providerCount": 18,
+      "excludedCount": 3,
       "excludedExamples": [
         {
           "providerKey": "acea",
@@ -1450,131 +592,14 @@
           ]
         },
         {
-          "providerKey": "eco",
-          "providerLabel": "E.CO Energia Corrente",
-          "commodity": "luce",
-          "tipo": "variabile",
-          "nome": "E.CO Luce Sostanza Gold",
-          "codice": "000742ESVOL01XXSOSTGOLD260930B01",
-          "prezzo": 0.13105126,
-          "quotaFissaAnnua": 240,
-          "reasons": [
-            "fuori perimetro privato standard: vulnerabili/eta"
-          ]
-        },
-        {
-          "providerKey": "eco",
-          "providerLabel": "E.CO Energia Corrente",
-          "commodity": "luce",
-          "tipo": "variabile",
-          "nome": "E.CO Luce Sostanza Gold LINK",
-          "codice": "000742ESVOL01XXSTGLDREF260930B01",
-          "prezzo": 0.13105126,
-          "quotaFissaAnnua": 252,
-          "reasons": [
-            "fuori perimetro privato standard: vulnerabili/eta"
-          ]
-        },
-        {
-          "providerKey": "illum",
-          "providerLabel": "Illumia",
-          "commodity": "luce",
-          "tipo": "variabile",
-          "nome": "Over 50 Autentico Non Orario",
-          "codice": "000155ESVFL15XXZZ03560Z260611E03",
-          "prezzo": 0.12579626,
-          "quotaFissaAnnua": 168,
-          "reasons": [
-            "fuori perimetro privato standard: vulnerabili/eta"
-          ]
-        },
-        {
-          "providerKey": "illum",
-          "providerLabel": "Illumia",
-          "commodity": "luce",
-          "tipo": "variabile",
-          "nome": "Over 50 Autentico Non Orario",
-          "codice": "000155ESVML15XXZZ03560Z260611E01",
-          "prezzo": 0.12799626,
-          "quotaFissaAnnua": 168,
-          "reasons": [
-            "fuori perimetro privato standard: vulnerabili/eta"
-          ]
-        },
-        {
-          "providerKey": "illum",
-          "providerLabel": "Illumia",
-          "commodity": "luce",
-          "tipo": "variabile",
-          "nome": "Under Autentico",
-          "codice": "000155ESVFL15XXZZ03545Z260611E03",
-          "prezzo": 0.12799626,
-          "quotaFissaAnnua": 168,
-          "reasons": [
-            "fuori perimetro privato standard: vulnerabili/eta"
-          ]
-        },
-        {
-          "providerKey": "illum",
-          "providerLabel": "Illumia",
-          "commodity": "luce",
-          "tipo": "variabile",
-          "nome": "Under Autentico",
-          "codice": "000155ESVML15XXZZ03545Z260611E01",
-          "prezzo": 0.13019626,
-          "quotaFissaAnnua": 168,
-          "reasons": [
-            "fuori perimetro privato standard: vulnerabili/eta"
-          ]
-        },
-        {
           "providerKey": "iren",
           "providerLabel": "Iren Luce e Gas",
           "commodity": "luce",
           "tipo": "variabile",
           "nome": "SEV IREN X VULNERABILI STG",
-          "codice": "001060ESVFL01XX000SEDOSIVS260710",
+          "codice": "001060ESVFL02XX000SEDOSIVS260806",
           "prezzo": 0.11935126,
           "quotaFissaAnnua": 35,
-          "reasons": [
-            "fuori perimetro privato standard: vulnerabili/eta"
-          ]
-        },
-        {
-          "providerKey": "eco",
-          "providerLabel": "E.CO Energia Corrente",
-          "commodity": "gas",
-          "tipo": "variabile",
-          "nome": "E.CO Gas Sostanza Gold",
-          "codice": "000742GSVML01XXSOSTGOLD260930B01",
-          "prezzo": 0.64441905,
-          "quotaFissaAnnua": 240,
-          "reasons": [
-            "fuori perimetro privato standard: vulnerabili/eta"
-          ]
-        },
-        {
-          "providerKey": "eco",
-          "providerLabel": "E.CO Energia Corrente",
-          "commodity": "gas",
-          "tipo": "variabile",
-          "nome": "E.CO Gas Sostanza Gold LINK",
-          "codice": "000742GSVML01XXSTGLDREF260930B01",
-          "prezzo": 0.64441905,
-          "quotaFissaAnnua": 252,
-          "reasons": [
-            "fuori perimetro privato standard: vulnerabili/eta"
-          ]
-        },
-        {
-          "providerKey": "illum",
-          "providerLabel": "Illumia",
-          "commodity": "gas",
-          "tipo": "variabile",
-          "nome": "Under Limpido Gas",
-          "codice": "000155GSVML15XXZZZZ03527Z260611G",
-          "prezzo": 0.63341905,
-          "quotaFissaAnnua": 118.8,
           "reasons": [
             "fuori perimetro privato standard: vulnerabili/eta"
           ]
@@ -1583,108 +608,108 @@
       "top": [
         {
           "rank": 1,
-          "provider": "Alperia + E.CO Energia Corrente",
-          "totale": 693.85,
-          "costoVariabile": 597.85,
+          "provider": "Alperia + Alperia",
+          "totale": 852.94,
+          "costoVariabile": 852.94,
+          "costoFisso": 0,
+          "luce": {
+            "nome": "Alperia Free Welcome",
+            "prezzo": 0.13035126,
+            "quotaFissaAnnua": 0,
+            "qualitaPrezzo": "indice_piu_spread_semantico"
+          },
+          "gas": {
+            "nome": "Alperia Gas Home Promo",
+            "prezzo": 0.66441905,
+            "quotaFissaAnnua": 0,
+            "qualitaPrezzo": "indice_piu_spread_semantico"
+          },
+          "commercialStatus": "separata",
+          "commercialLabel": "attivabile online / attivabile online"
+        },
+        {
+          "rank": 2,
+          "provider": "Alperia + Illumia",
+          "totale": 859.94,
+          "costoVariabile": 775.94,
+          "costoFisso": 84,
+          "luce": {
+            "nome": "Alperia Free Welcome",
+            "prezzo": 0.13035126,
+            "quotaFissaAnnua": 0,
+            "qualitaPrezzo": "indice_piu_spread_semantico"
+          },
+          "gas": {
+            "nome": "Gas Flex",
+            "prezzo": 0.55441905,
+            "quotaFissaAnnua": 84,
+            "qualitaPrezzo": "indice_piu_spread_semantico"
+          },
+          "commercialStatus": "separata",
+          "commercialLabel": "attivabile online / solo confronto"
+        },
+        {
+          "rank": 3,
+          "provider": "Alperia + neN",
+          "totale": 860.94,
+          "costoVariabile": 740.94,
+          "costoFisso": 120,
+          "luce": {
+            "nome": "Alperia Free Welcome",
+            "prezzo": 0.13035126,
+            "quotaFissaAnnua": 0,
+            "qualitaPrezzo": "indice_piu_spread_semantico"
+          },
+          "gas": {
+            "nome": "Surf Gas",
+            "prezzo": 0.50441905,
+            "quotaFissaAnnua": 120,
+            "qualitaPrezzo": "indice_piu_spread_semantico"
+          },
+          "commercialStatus": "separata",
+          "commercialLabel": "attivabile online / affiliazione in attesa"
+        },
+        {
+          "rank": 4,
+          "provider": "Alperia + Octopus Energy",
+          "totale": 866.94,
+          "costoVariabile": 782.94,
+          "costoFisso": 84,
+          "luce": {
+            "nome": "Alperia Free Welcome",
+            "prezzo": 0.13035126,
+            "quotaFissaAnnua": 0,
+            "qualitaPrezzo": "indice_piu_spread_semantico"
+          },
+          "gas": {
+            "nome": "Octopus Flex Gas",
+            "prezzo": 0.56441905,
+            "quotaFissaAnnua": 84,
+            "qualitaPrezzo": "indice_piu_spread_semantico"
+          },
+          "commercialStatus": "separata",
+          "commercialLabel": "attivabile online / affiliazione in attesa"
+        },
+        {
+          "rank": 5,
+          "provider": "Alperia + Acea Energia",
+          "totale": 867.04,
+          "costoVariabile": 771.04,
           "costoFisso": 96,
           "luce": {
             "nome": "Alperia Free Welcome",
             "prezzo": 0.13035126,
             "quotaFissaAnnua": 0,
-            "qualitaPrezzo": "puntuale_pun_fallback"
+            "qualitaPrezzo": "indice_piu_spread_semantico"
           },
           "gas": {
-            "nome": "ECO GAS INDEX PSV 30",
-            "prezzo": 0.3,
+            "nome": "Acea Energia Sprint Web",
+            "prezzo": 0.54741905,
             "quotaFissaAnnua": 96,
-            "qualitaPrezzo": "puntuale"
+            "qualitaPrezzo": "indice_piu_spread_semantico"
           },
           "commercialStatus": "separata",
-          "commercialLabel": "attivabile online / richiede consulente"
-        },
-        {
-          "rank": 2,
-          "provider": "Eni Plenitude + E.CO Energia Corrente",
-          "totale": 726.58,
-          "costoVariabile": 630.58,
-          "costoFisso": 96,
-          "luce": {
-            "nome": "Trend Casa Luce Plus",
-            "prezzo": 0.14135126,
-            "quotaFissaAnnua": 0,
-            "qualitaPrezzo": "puntuale_pun_fallback"
-          },
-          "gas": {
-            "nome": "ECO GAS INDEX PSV 30",
-            "prezzo": 0.3,
-            "quotaFissaAnnua": 96,
-            "qualitaPrezzo": "puntuale"
-          },
-          "commercialStatus": "separata",
-          "commercialLabel": "attivabile online / richiede consulente"
-        },
-        {
-          "rank": 3,
-          "provider": "Engie + E.CO Energia Corrente",
-          "totale": 743.92,
-          "costoVariabile": 588.92,
-          "costoFisso": 155,
-          "luce": {
-            "nome": "Energia VedoChiaro",
-            "prezzo": 0.12735126,
-            "quotaFissaAnnua": 59,
-            "qualitaPrezzo": "puntuale_pun_fallback"
-          },
-          "gas": {
-            "nome": "ECO GAS INDEX PSV 30",
-            "prezzo": 0.3,
-            "quotaFissaAnnua": 96,
-            "qualitaPrezzo": "puntuale"
-          },
-          "commercialStatus": "separata",
-          "commercialLabel": "solo confronto / richiede consulente"
-        },
-        {
-          "rank": 4,
-          "provider": "Illumia + E.CO Energia Corrente",
-          "totale": 745.12,
-          "costoVariabile": 565.12,
-          "costoFisso": 180,
-          "luce": {
-            "nome": "Luce Flex",
-            "prezzo": 0.11935126,
-            "quotaFissaAnnua": 84,
-            "qualitaPrezzo": "puntuale_pun_fallback"
-          },
-          "gas": {
-            "nome": "ECO GAS INDEX PSV 30",
-            "prezzo": 0.3,
-            "quotaFissaAnnua": 96,
-            "qualitaPrezzo": "puntuale"
-          },
-          "commercialStatus": "separata",
-          "commercialLabel": "solo confronto / richiede consulente"
-        },
-        {
-          "rank": 5,
-          "provider": "Dolomiti Energia + E.CO Energia Corrente",
-          "totale": 746.56,
-          "costoVariabile": 572.56,
-          "costoFisso": 174,
-          "luce": {
-            "nome": "ENERGIA CASA PRIMIERO",
-            "prezzo": 0.12185126,
-            "quotaFissaAnnua": 78,
-            "qualitaPrezzo": "puntuale_pun_fallback"
-          },
-          "gas": {
-            "nome": "ECO GAS INDEX PSV 30",
-            "prezzo": 0.3,
-            "quotaFissaAnnua": 96,
-            "qualitaPrezzo": "puntuale"
-          },
-          "commercialStatus": "separata",
-          "commercialLabel": "richiede consulente / richiede consulente"
+          "commercialLabel": "attivabile online / solo confronto"
         }
       ]
     }

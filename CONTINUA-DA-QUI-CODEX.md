@@ -1438,3 +1438,55 @@ Verifiche eseguite:
 Regola da mantenere:
 
 - ogni futura modifica del parser deve conservare questi test e non deve ricondurre i documenti dual a un unico nome/codice offerta generico.
+
+## Punto v92 - Catalogo ARERA canonico e protezione regressione Axpo
+
+Data: 2026-07-16.
+
+Punto di ripristino creato prima della modifica:
+
+- commit di partenza `33b72874f455676de1a1ff5106c3b436554137a2` su `main`;
+- tag protetto `pre-v92-axpo-catalog-fix`.
+
+Origine dei valori Axpo errati:
+
+- `0.066595 €/kWh` derivava dalla vecchia media indiscriminata dei valori luce
+  `0`, `0.005`, `0.0055`, `0.11931`, `0.12945`, `0.14031`;
+- `0.25051333 €/Smc` derivava dalla vecchia media delle componenti gas
+  `0.045`, `0.65654`, `0.050`;
+- il percorso storico impostava `qualitaPrezzo: media_fasce`;
+- un secondo generatore JavaScript e una copia storica v24 potevano scrivere gli
+  stessi JSON pubblici con logiche autonome.
+
+Correzione:
+
+- `scripts/update-arera-menu.py` e l'unica trasformazione canonica;
+- i vecchi ingressi JavaScript/Python sono wrapper senza logica di prezzo;
+- ogni aggiornamento passa da staging, provenienza valori, validazione,
+  quarantena e pubblicazione atomica;
+- `media_fasce`, singole componenti, unita incompatibili e valori applicabili
+  dopo il periodo fisso non possono diventare prezzo principale;
+- l'ultimo record viene conservato soltanto se era gia stato validato dalla
+  trasformazione canonica;
+- le offerte business sono salvate in `offerteBusiness` e non entrano nel
+  catalogo `offerte` usato dai confronti privati;
+- report: `data/arera-update-report.json`;
+- staging completo: artefatto GitHub Actions per 90 giorni;
+- documentazione percorso: `docs/ARERA-CATALOG-PIPELINE.md`.
+
+Valori Axpo verificati:
+
+- luce `000099ESFFL07XXAXPOIXFIX89922607`: `0.14586 €/kWh`, quota fissa
+  `144 €/anno`, fisso 36 mesi, business;
+- gas `000099GSFML07XXAXPOIXFIX91292607`: `0.77154 €/Smc`, quota fissa
+  complessiva `156 €/anno`, fisso 24 mesi, business;
+- i dettagli di fasce e componenti restano separati in
+  `data/arera-verified-price-overrides.json`.
+
+Regressioni protette:
+
+- Acea Energia Fix luce resta `0.099 €/kWh`, `111 €/anno`, fisso 12 mesi;
+- un aggiornamento che ripropone Axpo `0.0666` o `0.2505` viene messo in
+  quarantena e non sostituisce l'ultimo record valido;
+- nessuna modifica a parser bollette, OTP, lead, archivio PDF o Supabase;
+- nessuna nuova API e nessun deployment.

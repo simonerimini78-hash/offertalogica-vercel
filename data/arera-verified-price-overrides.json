@@ -1,0 +1,49 @@
+{
+  "versione": 1,
+  "descrizione": "Valori sintetici verificati su condizioni economiche quando l'XML ARERA/AU espone piu componenti o fasce che non possono essere aggregate automaticamente.",
+  "offerte": {
+    "000099ESFFL07XXAXPOIXFIX89922607": {
+      "commodity": "luce",
+      "customerType": "business",
+      "tipo": "fisso",
+      "durataMesi": 36,
+      "quotaFissaAnnua": 144,
+      "prezzoSintetico": {
+        "valore": 0.14586,
+        "sorgente": "Condizioni economiche Axpo Scegli Sereno 2.0 verificate il 2026-07-16",
+        "etichettaOriginale": "Prezzo sintetico verificato per il confronto",
+        "testoVicino": "Valore sintetico della componente energia nel periodo fisso di 36 mesi; non deriva dalla media delle fasce."
+      },
+      "dettagliTecnici": [
+        {"etichetta": "F0", "valore": 0.12887, "unitaMisura": "€/kWh", "usoNelPrezzoPrincipale": false},
+        {"etichetta": "F1", "valore": 0.12945, "unitaMisura": "€/kWh", "usoNelPrezzoPrincipale": false},
+        {"etichetta": "F2", "valore": 0.14031, "unitaMisura": "€/kWh", "usoNelPrezzoPrincipale": false},
+        {"etichetta": "F3", "valore": 0.11931, "unitaMisura": "€/kWh", "usoNelPrezzoPrincipale": false},
+        {"etichetta": "Adeguamento consumo annuo sotto 50.000 kWh", "valore": 0.0055, "unitaMisura": "€/kWh", "usoNelPrezzoPrincipale": false},
+        {"etichetta": "Dal 37° mese: PUN Index GME + spread", "valore": 0.011, "unitaMisura": "€/kWh", "usoNelPrezzoPrincipale": false, "periodo": "dal 37° mese"}
+      ]
+    },
+    "000099GSFML07XXAXPOIXFIX91292607": {
+      "commodity": "gas",
+      "customerType": "business",
+      "tipo": "fisso",
+      "durataMesi": 24,
+      "quotaFissaAnnua": 156,
+      "prezzoSintetico": {
+        "valore": 0.77154,
+        "sorgente": "Condizioni economiche Axpo Scegli Sereno GAS 2.0 Light verificate il 2026-07-16",
+        "etichettaOriginale": "Prezzo sintetico verificato per il confronto",
+        "testoVicino": "Valore sintetico della componente gas nel periodo fisso di 24 mesi; non deriva dalla media delle componenti."
+      },
+      "dettagliTecnici": [
+        {"etichetta": "Componente gas", "valore": 0.657, "unitaMisura": "€/Smc", "usoNelPrezzoPrincipale": false},
+        {"etichetta": "Quota vendita variabile", "valore": 0.05, "unitaMisura": "€/Smc", "usoNelPrezzoPrincipale": false},
+        {"etichetta": "Adeguamento consumo annuo sotto 5.000 Smc", "valore": 0.02, "unitaMisura": "€/Smc", "usoNelPrezzoPrincipale": false},
+        {"etichetta": "Gestione bilanciamento", "valore": 0.045, "unitaMisura": "€/Smc", "usoNelPrezzoPrincipale": false},
+        {"etichetta": "Quota vendita fissa", "valore": 144, "unitaMisura": "€/anno", "usoNelPrezzoPrincipale": false},
+        {"etichetta": "Gestione fornitura", "valore": 12, "unitaMisura": "€/anno", "usoNelPrezzoPrincipale": false},
+        {"etichetta": "Dal 25° mese: PSBIL + spread", "valore": 0.15, "unitaMisura": "€/Smc", "usoNelPrezzoPrincipale": false, "periodo": "dal 25° mese"}
+      ]
+    }
+  }
+}
