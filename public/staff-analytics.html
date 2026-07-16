@@ -56,6 +56,8 @@
         .badge { display: inline-flex; border-radius: 999px; padding: 3px 8px; background: #e0f2fe; color: #075985; font-weight: 800; font-size: 12px; white-space: nowrap; }
         .badge.ok { background: #dcfce7; color: #166534; }
         .badge.warn { background: #fef3c7; color: #92400e; }
+        .catalog-status { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 0 0 14px; }
+        .catalog-table table { min-width: 980px; }
         .muted { color: var(--muted); }
         @media (max-width: 980px) {
             .metrics, .grid, .funnel { grid-template-columns: 1fr 1fr; }
@@ -96,6 +98,32 @@
         </section>
 
         <section class="metrics" id="metrics" aria-live="polite"></section>
+
+        <section class="panel" id="catalog-panel" hidden>
+            <h2>Catalogo ARERA pubblicato</h2>
+            <div class="catalog-status" id="catalog-status"></div>
+            <div class="metrics" id="catalog-metrics"></div>
+            <h2>Motivi di esclusione</h2>
+            <div class="list" id="catalog-exclusions"></div>
+            <h2>Offerte in quarantena</h2>
+            <div class="table-wrap catalog-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Codice</th>
+                            <th>Venditore e offerta</th>
+                            <th>Campo</th>
+                            <th>Valori e unita</th>
+                            <th>Testo sorgente</th>
+                            <th>Motivo del blocco</th>
+                        </tr>
+                    </thead>
+                    <tbody id="catalog-quarantine">
+                        <tr><td colspan="6" class="muted">Nessun report caricato.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
 
         <section class="panel">
             <h2>Funnel operativo</h2>
@@ -150,6 +178,11 @@
         const limitInput = document.getElementById("limit");
         const statusBox = document.getElementById("status");
         const metricsBox = document.getElementById("metrics");
+        const catalogPanel = document.getElementById("catalog-panel");
+        const catalogStatusBox = document.getElementById("catalog-status");
+        const catalogMetricsBox = document.getElementById("catalog-metrics");
+        const catalogExclusionsBox = document.getElementById("catalog-exclusions");
+        const catalogQuarantineBox = document.getElementById("catalog-quarantine");
         const funnelBox = document.getElementById("funnel");
         const providersBox = document.getElementById("providers");
         const offersBox = document.getElementById("offers");
@@ -280,6 +313,58 @@
             }).join("");
         }
 
+        function renderCatalogReport(report = {}) {
+            const stats = report.statistiche || {};
+            const atomicState = report.statoPubblicazioneAtomica || "non disponibile";
+            const published = report.pubblicazioneAutorizzata === true;
+            catalogPanel.hidden = false;
+            catalogStatusBox.innerHTML = `
+                <span class="badge ${published ? "ok" : "warn"}">${escapeHtml(published ? "Pubblicazione validata" : "Pubblicazione bloccata")}</span>
+                <span class="badge">${escapeHtml(atomicState)}</span>
+                <span class="muted">Versione ${escapeHtml(report.versioneDati || "n.d.")} | aggiornamento ${escapeHtml(report.aggiornatoIl || "n.d.")}</span>
+            `;
+            catalogMetricsBox.innerHTML = `
+                <div class="metric"><strong>${escapeHtml(stats.offerteRicevute || 0)}</strong><span>Offerte ricevute</span></div>
+                <div class="metric"><strong>${escapeHtml(stats.totaleRighe || 0)}</strong><span>Offerte validate</span></div>
+                <div class="metric"><strong>${escapeHtml(stats.offertePrivati || 0)}</strong><span>Offerte private</span></div>
+                <div class="metric"><strong>${escapeHtml(stats.offerteBusiness || 0)}</strong><span>Offerte business</span></div>
+                <div class="metric"><strong>${escapeHtml(stats.inQuarantena || 0)}</strong><span>In quarantena</span></div>
+                <div class="metric"><strong>${escapeHtml(stats.scadute || 0)}</strong><span>Scadute</span></div>
+                <div class="metric"><strong>${escapeHtml(stats.escluse || 0)}</strong><span>Escluse</span></div>
+                <div class="metric"><strong>${escapeHtml(report.offertePrecedentiRipescate || 0)}</strong><span>Record precedenti ripescati</span></div>
+            `;
+            renderList(catalogExclusionsBox, objectToList(report.motiviEsclusione || {}), "Nessuna esclusione registrata");
+            const quarantine = Array.isArray(report.quarantena) ? report.quarantena : [];
+            if (!quarantine.length) {
+                catalogQuarantineBox.innerHTML = '<tr><td colspan="6" class="muted">Nessuna offerta in quarantena.</td></tr>';
+                return;
+            }
+            catalogQuarantineBox.innerHTML = quarantine.map((item) => {
+                const values = Array.isArray(item.valoriCandidati)
+                    ? item.valoriCandidati.map((value) => JSON.stringify(value)).join(" | ")
+                    : "";
+                const reasons = Array.isArray(item.motivi) ? item.motivi.join(", ") : (item.motivo || "");
+                return `
+                    <tr>
+                        <td>${escapeHtml(item.codiceOfferta || "n.d.")}<br><span class="muted">${escapeHtml(item.commodity || "")}</span></td>
+                        <td>${escapeHtml(item.fornitore || "n.d.")}<br><span class="muted">${escapeHtml(item.nome || "")}</span></td>
+                        <td>${escapeHtml(item.campoProblematico || "n.d.")}</td>
+                        <td>${escapeHtml(values || "n.d.")}<br><span class="muted">${escapeHtml(item.unita || "")}</span></td>
+                        <td>${escapeHtml(item.testoSorgente || "n.d.")}</td>
+                        <td><span class="badge warn">${escapeHtml(reasons || "da verificare")}</span></td>
+                    </tr>
+                `;
+            }).join("");
+        }
+
+        async function loadCatalogReport() {
+            const response = await fetch("/data/arera-update-report.json", { cache: "no-store" });
+            if (!response.ok) throw new Error("Report ARERA non disponibile");
+            const report = await response.json();
+            if (Number(report.schemaVersion) < 93) throw new Error("Report ARERA precedente alla versione canonica");
+            renderCatalogReport(report);
+        }
+
         async function loadAnalytics() {
             const token = tokenInput.value.trim();
             const limit = limitInput.value || "200";
@@ -302,6 +387,13 @@
                 renderList(originsBox, objectToList(summary.byDataOrigin || {}), "Nessuna origine dati");
                 renderList(eventTypesBox, objectToList(summary.byEventType || {}), "Nessun evento");
                 renderRows(data.events || []);
+                await loadCatalogReport().catch((error) => {
+                    catalogPanel.hidden = false;
+                    catalogStatusBox.innerHTML = `<span class="badge warn">${escapeHtml(error.message || "Report ARERA non disponibile")}</span>`;
+                    catalogMetricsBox.innerHTML = "";
+                    catalogExclusionsBox.innerHTML = '<p class="muted">Motivi non disponibili.</p>';
+                    catalogQuarantineBox.innerHTML = '<tr><td colspan="6" class="muted">Report non caricato.</td></tr>';
+                });
                 setStatus(`Aggiornato: ${formatDate(data.checkedAt)}. Database: ${data.status}.`);
             } catch (error) {
                 renderMetrics({});

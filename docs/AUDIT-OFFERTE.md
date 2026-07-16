@@ -1,41 +1,19 @@
-# Audit offerte proposte
+# Audit catalogo ARERA
 
-Aggiornamento: 2026-07-05
+Catalogo: arera-menu-v93-2026-07-16 (2026-07-16)
+Pubblicazione atomica: completata
 
-Offerte analizzate: 19
+- Offerte ricevute: 5957
+- Offerte private pubblicate: 190
+- Offerte business pubblicate: 46
+- Offerte in quarantena: 582
+- Record precedenti ripescati: 0
 
-## Risultato sintetico
+## Motivi principali
 
-```text
-Coerenti senza rilievi: 5
-Da verificare: 14
-Non pubblicare: 0
-Certificate: 9
-```
+- indice_corrente_non_presente_nel_catalogo_arera: 393
+- nessun_prezzo_principale_semanticamente_compatibile: 102
+- prezzo_multifascia_senza_sintesi_verificata: 85
+- tipo_cliente_non_riconosciuto: 2
 
-## Priorita alte
-
-- 3 Magis Energia - Magis Energia Mia Fix: Fornitura separate con luce e gas entrambe presenti: verificare se e bundle reale o due offerte separate; Fonte tariffaria da verificare con scheda sintetica o fonte ufficiale; Monetizzazione non attiva: da_cercare; Link tracking non configurato
-- 5 Iren - Iren Fissa 36 Mesi: Fonte tariffaria da verificare con scheda sintetica o fonte ufficiale; Monetizzazione non attiva: da_cercare; Link tracking non configurato
-- 6 NeN - neN Luce Dieci: Fonte tariffaria da verificare con scheda sintetica o fonte ufficiale; Monetizzazione non attiva: in_attesa_approvazione; Link tracking non configurato
-- 7 NeN - neN Duel Luce e Gas: Fonte tariffaria da verificare con scheda sintetica o fonte ufficiale; Monetizzazione non attiva: in_attesa_approvazione; Link tracking non configurato
-- 8 NeN - neN Luce Surf: Variabile senza formula PUN/PSV esplicita: oggi usa prezzo di calcolo statico; Fonte tariffaria da verificare con scheda sintetica o fonte ufficiale; Monetizzazione non attiva: in_attesa_approvazione; Link tracking non configurato
-- 9 NeN - neN Gas Surf: Variabile senza formula PUN/PSV esplicita: oggi usa prezzo di calcolo statico; Fonte tariffaria da verificare con scheda sintetica o fonte ufficiale; Monetizzazione non attiva: in_attesa_approvazione; Link tracking non configurato
-- 15 NeN - neN Surf Luce e Gas: Variabile senza formula PUN/PSV esplicita: oggi usa prezzo di calcolo statico; Fonte tariffaria da verificare con scheda sintetica o fonte ufficiale; Monetizzazione non attiva: in_attesa_approvazione; Link tracking non configurato
-
-## Regole applicate
-
-- Le offerte dual fuel devono contenere luce e gas.
-- Le offerte solo luce o solo gas possono restare `separate`, ma vengono confrontate solo sulla commodity corretta.
-- Le offerte variabili dovrebbero usare una formula PUN/PSV esplicita, non solo un prezzo statico.
-- Le offerte senza fonte ufficiale o scheda sintetica restano da verificare.
-- Una offerta e certificata solo se `data/offerte-proposte.json` contiene `certificazione.stato = certificata` e il registro `data/certificazione-offerte.csv` mantiene codice e fonte.
-- Le offerte senza link tracking o accordo partner non sono ancora monetizzabili.
-
-## File operativo
-
-```text
-data/audit-offerte.csv
-```
-
-Usare questo CSV come checklist prima di promuovere un'offerta tra le prime 3 definitive.
+Il file `data/audit-offerte.csv` e un report di quarantena, non un catalogo prezzi e non alimenta il frontend.

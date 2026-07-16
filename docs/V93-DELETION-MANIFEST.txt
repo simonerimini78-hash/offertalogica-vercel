@@ -1,0 +1,41 @@
+OFFERTALOGICA V93 - FILE E CARTELLE DA ELIMINARE DAL REPOSITORY
+
+Queste eliminazioni sono necessarie per non conservare cataloghi o applicazioni parallele.
+Il tag pre-v93-arera-single-source permette di recuperare la situazione precedente.
+
+CARTELLE COMPLETE
+
+offertalogica-v24-provider-loghi-20260705/
+offertalogica-v70-pdf-quote-fisse-mese-anno-20260714/
+offertalogica-v75-popup-otp-schede-coerenti-20260714-incrementale/
+offertalogica-v75-popup-otp-schede-coerenti-20260714-incrementale 2/
+
+FILE DATI OBSOLETI
+
+data/arera-candidati-menu.csv
+data/arera-shortlist-manutenzione.csv
+data/arera-sync-meta.json
+data/certificazione-offerte.csv
+data/destinazioni-offerte.csv
+data/offerte-proposte.json
+data/offerte-reali-arera
+data/offerte-reali-arera-candidati.csv
+public/data/offerte-proposte.json
+
+SCRIPT OBSOLETI
+
+scripts/promote-arera-offer.mjs
+scripts/shortlist-arera-candidates.mjs
+scripts/sync-arera-open-data.mjs
+
+PAGINA PREVIEW OBSOLETA
+
+public/index-preview-pelle-premium.html
+
+DOCUMENTI SUPERATI
+
+docs/AGGIORNARE-PARAMETRI-CALCOLO.md
+docs/AUDIT-AZIENDALE-2026-07-03.md
+docs/CERTIFICAZIONE-OFFERTE.md
+docs/IMPORT-ARERA-OPEN-DATA.md
+docs/MONETIZZAZIONE-DESTINAZIONI.md

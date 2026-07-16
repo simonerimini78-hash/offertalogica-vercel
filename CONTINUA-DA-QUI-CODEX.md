@@ -1,6 +1,6 @@
 # CONTINUA DA QUI - OffertaLogica
 
-Ultimo aggiornamento: 2026-07-15
+Ultimo aggiornamento: 2026-07-16
 
 Questo file e il punto di ritorno del progetto. Quando una nuova sessione Codex riparte, leggere prima questo file e poi `docs/STATO-PROGETTO-OFFERTALOGICA.md`.
 
@@ -24,6 +24,46 @@ Prima di modificare codice usa sempre questo schema:
 - Cosa cambio.
 - Cosa non tocco.
 - Come verifico che funzioni.
+
+## Punto v93 - ARERA/AU unica fonte di verita
+
+Data: 2026-07-16.
+
+Punto di ripristino:
+
+- commit iniziale `1f2bde6e820d69e1076df3f3cd5cd1ad4bae7069` su `main`;
+- tag protetto `pre-v93-arera-single-source`.
+
+Regola vincolante:
+
+- `scripts/update-arera-menu.py` e l'unica trasformazione economica degli XML ARERA/AU;
+- il flusso e XML -> staging -> normalizzazione -> validazione -> quarantena -> pubblicazione atomica;
+- calcolatore, ranking, SEO, pagine fornitore e card partner leggono lo stesso `public/data/offerte-arera-menu.json`;
+- `data/partner-metadata.json` contiene soltanto logo, URL e informazioni non economiche;
+- offerta non letta o non validata con certezza = offerta non pubblicata;
+- nessuna singola offerta del catalogo precedente viene ripescata;
+- se l'aggiornamento fallisce, resta integralmente pubblicato il catalogo precedente;
+- privati e business restano in array separati;
+- nessun fallback statico per offerte variabili prive di prezzo principale certo.
+
+Percorsi paralleli eliminati:
+
+- `data/offerte-proposte.json` e copia pubblica;
+- sync, shortlist e promozione ARERA autonomi;
+- CSV candidati, destinazioni economiche e certificazioni statiche;
+- vecchie copie-versione dell'app conservate dentro il repository.
+
+Catalogo ufficiale rigenerato dagli XML del 16 luglio 2026:
+
+- offerte private: 190;
+- offerte business: 46;
+- offerte in quarantena: 582;
+- route partner configurate: 8;
+- righe partner correnti abbinate: 18.
+
+La diagnostica completa e visibile in `public/staff-analytics.html` e nel report `public/data/arera-update-report.json`.
+
+Non sono stati modificati parser bollette, archivio PDF, OTP, lead, consensi, Supabase o logica di calcolo dei consumi. Nessuna nuova API e nessun deployment.
 
 
 ## Aggiornamento v89 - archivio PDF privato e diagnostica staff
@@ -1466,12 +1506,13 @@ Correzione:
   quarantena e pubblicazione atomica;
 - `media_fasce`, singole componenti, unita incompatibili e valori applicabili
   dopo il periodo fisso non possono diventare prezzo principale;
-- l'ultimo record viene conservato soltanto se era gia stato validato dalla
-  trasformazione canonica;
+- nota storica: il recupero selettivo dell'ultimo record previsto in v92 e
+  stato rimosso dalla v93; ora resta solo l'intero catalogo precedente quando
+  l'aggiornamento fallisce;
 - le offerte business sono salvate in `offerteBusiness` e non entrano nel
   catalogo `offerte` usato dai confronti privati;
 - report: `data/arera-update-report.json`;
-- staging completo: artefatto GitHub Actions per 90 giorni;
+- staging completo: `data/.arera-staging/` locale e ignorato da Git;
 - documentazione percorso: `docs/ARERA-CATALOG-PIPELINE.md`.
 
 Valori Axpo verificati:
@@ -1487,6 +1528,6 @@ Regressioni protette:
 
 - Acea Energia Fix luce resta `0.099 €/kWh`, `111 €/anno`, fisso 12 mesi;
 - un aggiornamento che ripropone Axpo `0.0666` o `0.2505` viene messo in
-  quarantena e non sostituisce l'ultimo record valido;
+  quarantena e non viene pubblicato;
 - nessuna modifica a parser bollette, OTP, lead, archivio PDF o Supabase;
 - nessuna nuova API e nessun deployment.
