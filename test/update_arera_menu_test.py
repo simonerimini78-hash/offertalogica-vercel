@@ -3,13 +3,11 @@ from __future__ import annotations
 
 import copy
 import importlib.util
-import json
 import sys
 import tempfile
 import unittest
 from datetime import datetime
 from pathlib import Path
-from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -43,8 +41,6 @@ def offer_xml(
     customer_type: str,
     duration: int,
     components: list[str],
-    data_inizio: str = "09/07/2026_12:00:00",
-    data_fine: str = "20/07/2026_11:59:59",
 ) -> str:
     return f"""<?xml version="1.0" encoding="UTF-8"?>
 <ListaOfferteMercatoLibero xmlns="{NS}">
@@ -61,8 +57,8 @@ def offer_xml(
       <Contatti><URL_OFFERTA>https://example.test/offerta</URL_OFFERTA></Contatti>
     </DettaglioOfferta>
     <ValiditaOfferta>
-      <DATA_INIZIO>{data_inizio}</DATA_INIZIO>
-      <DATA_FINE>{data_fine}</DATA_FINE>
+      <DATA_INIZIO>09/07/2026_12:00:00</DATA_INIZIO>
+      <DATA_FINE>20/07/2026_11:59:59</DATA_FINE>
     </ValiditaOfferta>
     {''.join(components)}
   </offerta>
@@ -91,10 +87,8 @@ def axpo_gas_xml() -> str:
         name="Scegli Sereno GAS 2.0 Light",
         customer_type="02",
         duration=24,
-        data_inizio="14/07/2026_12:00:00",
         components=[
             component("Gestione bilanciamento", [("00", 0.045)], "04"),
-            component("Onere Adeguamento Consumi", [("00", 0.020)], "04"),
             component("Gestione fornitura", [("00", 12)], "01"),
             component("Prezzo gas", [("00", 0.65654)], "04"),
             component("Quota vendita fissa", [("00", 144)], "01"),
@@ -131,33 +125,16 @@ class UpdateAreraMenuTest(unittest.TestCase):
             )
         return rows, diagnostics
 
-    def validated(self, private_rows, business_rows=(), previous=None, diagnostics=None):
-        staging = {
-            "schemaVersion": 93,
-            "versioneDati": "arera-menu-v93-2026-07-16",
-            "aggiornatoIl": "2026-07-16",
-            "statistiche": {},
-            "offerte": list(private_rows),
-            "offerteBusiness": list(business_rows),
-        }
-        return MODULE.validate_staging_catalog(
-            staging,
-            previous or {},
-            diagnostics or [],
-            enforce_minimum=False,
-        )
-
     def test_axpo_light_uses_verified_synthetic_price(self):
         rows, diagnostics = self.parse(axpo_light_xml(), "luce", OVERRIDES)
         self.assertEqual(diagnostics, [])
         self.assertEqual(len(rows), 1)
-        row = rows[0]
-        self.assertEqual(row["customerType"], "business")
-        self.assertEqual(row["durataMesi"], 36)
-        self.assertAlmostEqual(row["prezzo"], 0.14586, places=8)
-        self.assertEqual(row["quotaFissaAnnua"], 144)
-        self.assertEqual(row["qualitaPrezzo"], "verificato_specifica_commerciale")
-        self.assertNotAlmostEqual(row["prezzo"], 0.0666, places=4)
+        self.assertEqual(rows[0]["customerType"], "business")
+        self.assertEqual(rows[0]["durataMesi"], 36)
+        self.assertAlmostEqual(rows[0]["prezzo"], 0.14586, places=8)
+        self.assertEqual(rows[0]["quotaFissaAnnua"], 144)
+        self.assertEqual(rows[0]["qualitaPrezzo"], "verificato_specifica_commerciale")
+        self.assertNotAlmostEqual(rows[0]["prezzo"], 0.0666, places=4)
         required_evidence = {
             "sorgente",
             "codiceOfferta",
@@ -166,22 +143,21 @@ class UpdateAreraMenuTest(unittest.TestCase):
             "periodoValidita",
             "testoVicino",
         }
-        self.assertTrue(row["valoriEstratti"])
-        for value in row["valoriEstratti"]:
+        self.assertTrue(rows[0]["valoriEstratti"])
+        for value in rows[0]["valoriEstratti"]:
             self.assertTrue(required_evidence.issubset(value))
 
     def test_axpo_gas_uses_verified_synthetic_price(self):
         rows, diagnostics = self.parse(axpo_gas_xml(), "gas", OVERRIDES)
         self.assertEqual(diagnostics, [])
         self.assertEqual(len(rows), 1)
-        row = rows[0]
-        self.assertEqual(row["customerType"], "business")
-        self.assertEqual(row["durataMesi"], 24)
-        self.assertAlmostEqual(row["prezzo"], 0.77154, places=8)
-        self.assertEqual(row["quotaFissaAnnua"], 156)
-        self.assertNotAlmostEqual(row["prezzo"], 0.2505, places=4)
+        self.assertEqual(rows[0]["customerType"], "business")
+        self.assertEqual(rows[0]["durataMesi"], 24)
+        self.assertAlmostEqual(rows[0]["prezzo"], 0.77154, places=8)
+        self.assertEqual(rows[0]["quotaFissaAnnua"], 156)
+        self.assertNotAlmostEqual(rows[0]["prezzo"], 0.2505, places=4)
 
-    def test_multiband_price_is_quarantined_without_verified_synthesis(self):
+    def test_multiband_price_is_rejected_without_verified_synthesis(self):
         rows, diagnostics = self.parse(axpo_light_xml(), "luce")
         self.assertEqual(rows, [])
         self.assertEqual(diagnostics[0]["motivo"], "prezzo_multifascia_senza_sintesi_verificata")
@@ -190,44 +166,49 @@ class UpdateAreraMenuTest(unittest.TestCase):
         rows, diagnostics = self.parse(acea_light_xml(), "luce")
         self.assertEqual(diagnostics, [])
         self.assertEqual(len(rows), 1)
-        row = rows[0]
-        self.assertEqual(row["customerType"], "privato")
-        self.assertEqual(row["tipo"], "fisso")
-        self.assertEqual(row["durataMesi"], 12)
-        self.assertAlmostEqual(row["prezzo"], 0.099, places=8)
-        self.assertEqual(row["quotaFissaAnnua"], 111)
+        self.assertEqual(rows[0]["customerType"], "privato")
+        self.assertEqual(rows[0]["tipo"], "fisso")
+        self.assertEqual(rows[0]["durataMesi"], 12)
+        self.assertAlmostEqual(rows[0]["prezzo"], 0.099, places=8)
+        self.assertEqual(rows[0]["quotaFissaAnnua"], 111)
 
-    def test_wrong_daily_axpo_values_are_quarantined_without_selective_fallback(self):
+    def test_daily_update_quarantines_wrong_axpo_values_and_keeps_last_valid(self):
         acea, _ = self.parse(acea_light_xml(), "luce")
-        valid_light, _ = self.parse(axpo_light_xml(), "luce", OVERRIDES)
-        valid_gas, _ = self.parse(axpo_gas_xml(), "gas", OVERRIDES)
-        previous = {"offerte": acea, "offerteBusiness": valid_light + valid_gas}
+        axpo_light, _ = self.parse(axpo_light_xml(), "luce", OVERRIDES)
+        axpo_gas, _ = self.parse(axpo_gas_xml(), "gas", OVERRIDES)
+        previous = {"offerte": acea, "offerteBusiness": axpo_light + axpo_gas}
 
-        wrong_light = copy.deepcopy(valid_light[0])
+        wrong_light = copy.deepcopy(axpo_light[0])
         wrong_light.update(prezzo=0.0666, qualitaPrezzo="media_fasce")
-        wrong_gas = copy.deepcopy(valid_gas[0])
+        wrong_gas = copy.deepcopy(axpo_gas[0])
         wrong_gas.update(prezzo=0.2505, qualitaPrezzo="media_fasce")
-        published, report = self.validated(acea, [wrong_light, wrong_gas], previous=previous)
+        staging = {
+            "versioneDati": "arera-menu-2026-07-17",
+            "aggiornatoIl": "2026-07-17",
+            "statistiche": {},
+            "offerte": acea,
+            "offerteBusiness": [wrong_light, wrong_gas],
+        }
 
-        self.assertEqual(published["offerteBusiness"], [])
-        self.assertEqual(report["offertePrecedentiRipescate"], 0)
+        published, report = MODULE.validate_and_merge(staging, previous, [])
+        published_business = {row["codice"]: row for row in published["offerteBusiness"]}
+        self.assertAlmostEqual(published_business[AXPO_LIGHT]["prezzo"], 0.14586, places=8)
+        self.assertAlmostEqual(published_business[AXPO_GAS]["prezzo"], 0.77154, places=8)
         quarantined_codes = {item["codiceOfferta"] for item in report["quarantena"]}
         self.assertEqual(quarantined_codes, {AXPO_LIGHT, AXPO_GAS})
-        self.assertTrue(all(not item["ultimoValidoConservato"] for item in report["quarantena"]))
-
-    def test_expired_or_absent_previous_offer_is_not_republished(self):
-        acea, _ = self.parse(acea_light_xml(), "luce")
-        old = copy.deepcopy(acea[0])
-        old["codice"] = "000774ESFML01XXEXPIRED0000000001"
-        old["dataFine"] = "01/07/2026_23:59:59"
-        published, report = self.validated(acea, previous={"offerte": [old], "offerteBusiness": []})
-        self.assertEqual([row["codice"] for row in published["offerte"]], [ACEA_LIGHT])
-        self.assertEqual(report["offertePrecedentiRipescate"], 0)
+        self.assertTrue(all(item["ultimoValidoConservato"] for item in report["quarantena"]))
 
     def test_business_offers_never_enter_private_catalog(self):
         acea, _ = self.parse(acea_light_xml(), "luce")
         axpo_light, _ = self.parse(axpo_light_xml(), "luce", OVERRIDES)
-        published, _ = self.validated(acea, axpo_light)
+        staging = {
+            "versioneDati": "arera-menu-2026-07-16",
+            "aggiornatoIl": "2026-07-16",
+            "statistiche": {},
+            "offerte": acea,
+            "offerteBusiness": axpo_light,
+        }
+        published, _ = MODULE.validate_and_merge(staging, {}, [])
         self.assertEqual([row["codice"] for row in published["offerte"]], [ACEA_LIGHT])
         self.assertEqual([row["codice"] for row in published["offerteBusiness"]], [AXPO_LIGHT])
 
@@ -236,75 +217,6 @@ class UpdateAreraMenuTest(unittest.TestCase):
         suspicious = copy.deepcopy(acea[0])
         suspicious["provenienzaPrezzo"]["etichettaOriginale"] = "Dal 37° mese PUN + 0,011"
         self.assertIn("valore_futuro_usato_come_prezzo", MODULE.validate_candidate_row(suspicious))
-
-    def test_partner_metadata_rejects_economic_fields(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            (root / "data").mkdir()
-            (root / "data" / "partner-metadata.json").write_text(
-                json.dumps({
-                    "versione": "test",
-                    "routes": [{
-                        "routeId": "bad",
-                        "providerKey": "eon",
-                        "url": "https://example.test",
-                        "namePatterns": ["offerta"],
-                        "prezzoLuce": 0.01,
-                    }],
-                }),
-                encoding="utf-8",
-            )
-            with self.assertRaisesRegex(ValueError, "Campi partner non ammessi|Campo economico non ammesso"):
-                MODULE.load_partner_metadata(root)
-
-    def test_optional_dual_xml_cannot_block_complete_light_and_gas_download(self):
-        links = {
-            "E": "https://example.test/PO_Offerte_E_MLIBERO_20260716.xml",
-            "G": "https://example.test/PO_Offerte_G_MLIBERO_20260716.xml",
-            "D": "https://example.test/PO_Offerte_D_MLIBERO_20260716.xml",
-        }
-        with tempfile.TemporaryDirectory() as tmp:
-            def fake_download(url, target):
-                if "_D_" in url:
-                    raise MODULE.urllib.error.URLError("dual non disponibile")
-                target.write_text("<xml />", encoding="utf-8")
-
-            with mock.patch.object(MODULE, "download_file", side_effect=fake_download):
-                files = MODULE.download_link_set(links, Path(tmp))
-        self.assertEqual(set(files), {"E", "G"})
-
-    def test_atomic_publish_rolls_back_every_target_after_interruption(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            targets = [
-                root / "data" / "offerte-arera-menu.json",
-                root / "public" / "data" / "offerte-arera-menu.json",
-                root / "data" / "arera-update-report.json",
-                root / "public" / "data" / "arera-update-report.json",
-            ]
-            for index, target in enumerate(targets):
-                target.parent.mkdir(parents=True, exist_ok=True)
-                target.write_text(json.dumps({"old": index}), encoding="utf-8")
-            before = {target: target.read_bytes() for target in targets}
-            real_replace = MODULE.os.replace
-            replacements = 0
-
-            def interrupted_replace(source, destination):
-                nonlocal replacements
-                if ".rollback." not in str(source):
-                    replacements += 1
-                    if replacements == 2:
-                        raise OSError("interruzione simulata")
-                return real_replace(source, destination)
-
-            with mock.patch.object(MODULE.os, "replace", side_effect=interrupted_replace):
-                with self.assertRaisesRegex(OSError, "interruzione simulata"):
-                    MODULE.atomic_publish_catalog(
-                        root,
-                        {"schemaVersion": 93, "offerte": [], "offerteBusiness": []},
-                        {"schemaVersion": 93, "pubblicazioneAutorizzata": True},
-                    )
-            self.assertEqual({target: target.read_bytes() for target in targets}, before)
 
 
 if __name__ == "__main__":

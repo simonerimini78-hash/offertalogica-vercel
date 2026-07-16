@@ -22,17 +22,14 @@ Lo script:
 - scarica gli XML ufficiali ARERA;
 - genera `data/offerte-arera-menu.json`;
 - genera `public/data/offerte-arera-menu.json`;
-- genera i report di validazione e quarantena in `data/` e `public/data/`;
 - non modifica i dati se non trova file XML validi.
 
 ## File da caricare su GitHub
 
-Dopo l'esecuzione, caricare questi quattro file:
+Dopo l'esecuzione, caricare questi due file:
 
 - `data/offerte-arera-menu.json`
 - `public/data/offerte-arera-menu.json`
-- `data/arera-update-report.json`
-- `public/data/arera-update-report.json`
 
 Non caricare la cartella `.arera-download`.
 

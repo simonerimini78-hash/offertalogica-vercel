@@ -3,37 +3,157 @@ import path from "node:path";
 import vm from "node:vm";
 import { fileURLToPath } from "node:url";
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const htmlPath = path.join(root, "public/index.html");
-const paramsPath = path.join(root, "public/data/calcolo-parametri.json");
-const catalogPath = path.join(root, "public/data/offerte-arera-menu.json");
-const resultPath = path.join(root, "data/verifica-calcolo-offerte.json");
-const reportPath = path.join(root, "docs/VERIFICA-CALCOLO-OFFERTE.md");
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const root = path.resolve(__dirname, "..");
 
-function assert(condition, message) {
-  if (!condition) throw new Error(message);
+const HTML_PATH = path.join(root, "public/index.html");
+const PARAMS_PATH = path.join(root, "public/data/calcolo-parametri.json");
+const OFFERS_PATH = path.join(root, "public/data/offerte-proposte.json");
+const ARERA_PATH = path.join(root, "public/data/offerte-arera-menu.json");
+const REPORT_PATH = path.join(root, "docs/VERIFICA-CALCOLO-OFFERTE.md");
+const RESULT_PATH = path.join(root, "data/verifica-calcolo-offerte.json");
+
+const PROFILES = [
+  {
+    id: "medio-dual-fisso",
+    label: "Privato medio - dual fuel - fisso",
+    tipo: "fisso",
+    fornitura: "dual",
+    luceKwh: 2700,
+    gasSmc: 700,
+    prezzoLuceAttuale: 0.15,
+    prezzoGasAttuale: 0.68,
+    quotaFissaLuceAttuale: 144,
+    quotaFissaGasAttuale: 120,
+  },
+  {
+    id: "medio-dual-variabile",
+    label: "Privato medio - dual fuel - variabile",
+    tipo: "variabile",
+    fornitura: "dual",
+    luceKwh: 2700,
+    gasSmc: 700,
+    prezzoLuceAttuale: 0.15,
+    prezzoGasAttuale: 0.68,
+    quotaFissaLuceAttuale: 144,
+    quotaFissaGasAttuale: 120,
+  },
+  {
+    id: "alto-dual-fisso",
+    label: "Privato alto consumo - dual fuel - fisso",
+    tipo: "fisso",
+    fornitura: "dual",
+    luceKwh: 4000,
+    gasSmc: 1200,
+    prezzoLuceAttuale: 0.15,
+    prezzoGasAttuale: 0.68,
+    quotaFissaLuceAttuale: 144,
+    quotaFissaGasAttuale: 120,
+  },
+  {
+    id: "medio-separata-fisso",
+    label: "Privato medio - forniture separate - fisso",
+    tipo: "fisso",
+    fornitura: "separate",
+    luceKwh: 2700,
+    gasSmc: 700,
+    prezzoLuceAttuale: 0.15,
+    prezzoGasAttuale: 0.68,
+    quotaFissaLuceAttuale: 144,
+    quotaFissaGasAttuale: 120,
+  },
+  {
+    id: "medio-separata-variabile",
+    label: "Privato medio - forniture separate - variabile",
+    tipo: "variabile",
+    fornitura: "separate",
+    luceKwh: 2700,
+    gasSmc: 700,
+    prezzoLuceAttuale: 0.15,
+    prezzoGasAttuale: 0.68,
+    quotaFissaLuceAttuale: 144,
+    quotaFissaGasAttuale: 120,
+  },
+];
+
+const BAD_NAME_PATTERNS = [
+  /\bbusiness\b|\bbus\b|p\.?\s*iva|partita iva/i,
+  /vulnerabil|stg|over\s*50|over\s*75|\bunder\b/i,
+  /condominio|condoindex|\bcond\b/i,
+  /\blavoro\b|second[ae]\s+cas[ae]/i,
+  /alto\s+adige|caldaro|carezza|sciliar/i,
+];
+
+function providerKeyFromName(value) {
+  const text = String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+  if (!text) return "";
+  if (text.includes("e.on") || text.includes("eon")) return "eon";
+  if (text.includes("plenitude") || text.includes("eni gas") || /\beni\b/.test(text)) return "eni";
+  if (text.includes("alperia")) return "alperia";
+  if (text.includes("enel")) return "enel";
+  if (text.includes("octopus")) return "octopus";
+  if (text.includes("dolomiti")) return "dolomiti";
+  if (text.includes("e.co") || text.includes("energia corrente") || text.includes("eco energia")) return "eco";
+  if (text.includes("sorgenia")) return "sorgenia";
+  if (text.includes("a2a")) return "a2a";
+  if (text.includes("acea")) return "acea";
+  if (text.includes("edison")) return "edison";
+  if (text.includes("iren")) return "iren";
+  if (text.includes("magis")) return "magis";
+  if (text.includes("axpo")) return "axpo";
+  if (text.includes("illumia")) return "illum";
+  if (text.includes("nen")) return "nen";
+  if (text.includes("engie")) return "engie";
+  if (text.includes("pulsee")) return "pulsee";
+  return text.replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
-function readJson(file) {
-  return JSON.parse(fs.readFileSync(file, "utf8"));
+function readJson(filePath) {
+  return JSON.parse(fs.readFileSync(filePath, "utf8"));
 }
 
-function loadEngine() {
-  const html = fs.readFileSync(htmlPath, "utf8");
+function readText(filePath) {
+  return fs.readFileSync(filePath, "utf8");
+}
+
+function round(value, decimals = 2) {
+  const factor = 10 ** decimals;
+  return Math.round((Number(value) + Number.EPSILON) * factor) / factor;
+}
+
+function money(value) {
+  return `${round(value, 2).toFixed(2)} EUR`;
+}
+
+function escapeCell(value) {
+  return String(value ?? "")
+    .replace(/\|/g, "\\|")
+    .replace(/\n/g, " ");
+}
+
+function table(headers, rows) {
+  if (!rows.length) return "_Nessuna riga._";
+  return [
+    `| ${headers.map(escapeCell).join(" | ")} |`,
+    `| ${headers.map(() => "---").join(" | ")} |`,
+    ...rows.map((row) => `| ${row.map(escapeCell).join(" | ")} |`),
+  ].join("\n");
+}
+
+function loadFrontendEngine() {
+  const html = readText(HTML_PATH);
   const scripts = [...html.matchAll(/<script(?:(?!src=)[^>]*)>([\s\S]*?)<\/script>/gi)].map((match) => match[1]);
-  const source = scripts.find((script) => script.includes("MOTORE_CALCOLO_VERSION"));
-  assert(source, "Script motore non trovato");
-  const storage = { getItem: () => null, setItem: () => {}, removeItem: () => {} };
+  const engine = scripts.find((script) => script.includes("MOTORE_CALCOLO_VERSION"));
+  if (!engine) throw new Error("Script motore non trovato in public/index.html");
+
   const context = {
     console,
     Date,
     Math,
-    URL,
-    Blob,
-    setTimeout: () => 0,
-    clearTimeout: () => {},
-    sessionStorage: storage,
-    localStorage: storage,
     document: {
       readyState: "loading",
       getElementById: () => null,
@@ -42,125 +162,452 @@ function loadEngine() {
       addEventListener: () => {},
     },
     window: {
-      location: { protocol: "file:", hostname: "localhost", pathname: "/", origin: "http://localhost" },
-      addEventListener: () => {},
-      setTimeout: () => 0,
-      fetch: null,
+      location: { protocol: "file:", href: "file://verify" },
+      setTimeout: () => {},
     },
     navigator: { userAgent: "verify-calcolo-offerte" },
   };
   vm.createContext(context);
-  vm.runInContext(`${source}\nthis.__engine = {\n  applicaDatiCalcolo,\n  applicaDatiAreraMenu,\n  costruisciOfferteRanking,\n  calcolaOfferta,\n  offertaPropostaPerCalcolo,\n  scenarioAttualeComparabile,\n  offertaAttivabileOnline,\n  get rows() { return OFFERTE_ARERA_MENU; },\n  get version() { return MOTORE_CALCOLO_VERSION; },\n  get areraMeta() { return DATI_ARERA_MENU_META; }\n};`, context);
+  vm.runInContext(`${engine}
+this.__engine = {
+  applicaDatiCalcolo,
+  applicaDatiOfferte,
+  applicaDatiAreraMenu,
+  costruisciOfferteRanking,
+  calcolaOfferta,
+  offertaPropostaPerCalcolo,
+  scenarioAttualeComparabile,
+  offertaAttivabileOnline,
+  offertaCompatibileConRanking,
+  motiviEsclusioneArera,
+  get version() { return MOTORE_CALCOLO_VERSION; },
+  get dataMeta() { return DATI_CALCOLO_META; },
+  get offersMeta() { return DATI_OFFERTE_META; },
+  get areraMeta() { return DATI_ARERA_MENU_META; },
+  get areraRows() { return OFFERTE_ARERA_MENU; },
+};`, context);
   return context.__engine;
 }
 
-function round2(value) {
-  return Math.round((Number(value) + Number.EPSILON) * 100) / 100;
-}
-
-function actualProfile(luceKwh, gasSmc) {
+function buildActual(profile) {
+  const emptyRegulated = {};
   return {
-    luce: { consumo: luceKwh, prezzoVariabile: 0.15, quotaFissaAnnua: 144, quoteUniversaliAnnue: 0, componentiRegolate: {} },
-    gas: { consumo: gasSmc, prezzoVariabile: 0.68, quotaFissaAnnua: 120, quoteUniversaliAnnue: 0, componentiRegolate: {} },
+    luce: {
+      consumo: profile.luceKwh,
+      prezzoVariabile: profile.prezzoLuceAttuale,
+      quotaFissaAnnua: profile.quotaFissaLuceAttuale,
+      quoteUniversaliAnnue: 0,
+      componentiRegolate: emptyRegulated,
+    },
+    gas: {
+      consumo: profile.gasSmc,
+      prezzoVariabile: profile.prezzoGasAttuale,
+      quotaFissaAnnua: profile.quotaFissaGasAttuale,
+      quoteUniversaliAnnue: 0,
+      componentiRegolate: emptyRegulated,
+    },
   };
 }
 
-function analyze(engine, profile) {
-  const actual = actualProfile(profile.luceKwh, profile.gasSmc);
+function reconcile(cost) {
+  const subtotal = cost.quotaVariabile
+    + cost.quotaFissaVendita
+    + cost.quotaTecnicaProfilo
+    + cost.quotaRegolata
+    + cost.quotaFiscale;
+  return round(cost.totale - subtotal, 4);
+}
+
+function nameHasBadPattern(name) {
+  return BAD_NAME_PATTERNS.some((pattern) => pattern.test(String(name || "")));
+}
+
+function isActiveCommercialOffer(offer) {
+  return offer?.destinationType === "affiliazione"
+    && offer?.destinationStatus === "attiva"
+    && Boolean(offer?.link)
+    && offer.link !== "#";
+}
+
+function checkAffiliateMatch(item) {
+  if (!item.active) return null;
+  const provider = String(item.provider || "").toLowerCase();
+  const name = String(item.name || "").toLowerCase();
+
+  if (provider.includes("enel") && !name.includes("fix")) {
+    return "Enel attivabile ma offerta ARERA non riconducibile a Fix Web";
+  }
+  if (provider.includes("alperia") && item.tipo === "variabile" && !(name.includes("free") || name.includes("home") || name.includes("variabile") || name.includes("pun") || name.includes("psv"))) {
+    return "Alperia variabile attivabile ma nome ARERA non coerente";
+  }
+  if (provider.includes("plenitude") && item.tipo === "fisso" && !name.includes("fixa")) {
+    return "Plenitude attivabile ma nome ARERA non riconducibile a Fixa";
+  }
+  return null;
+}
+
+function analyzeOffer(engine, profile, offer, rank) {
+  const actual = buildActual(profile);
+  const currentComparable = engine.calcolaOfferta(engine.scenarioAttualeComparabile(actual, offer), offer.tipo || profile.tipo);
+  const proposed = engine.calcolaOfferta(engine.offertaPropostaPerCalcolo(offer, actual), offer.tipo || profile.tipo);
+  const saving = currentComparable.totale - proposed.totale;
+  const active = engine.offertaAttivabileOnline(offer);
+  const item = {
+    rank,
+    id: String(offer.id || ""),
+    provider: offer.provider || "",
+    name: offer.nome || "",
+    tipo: offer.tipo || "",
+    fornitura: offer.fornitura || "",
+    destinationType: offer.destinationType || "",
+    destinationStatus: offer.destinationStatus || "",
+    active,
+    link: offer.link || "",
+    total: round(proposed.totale, 2),
+    saving: round(saving, 2),
+    variable: round(proposed.quotaVariabile, 2),
+    fixedSales: round(proposed.quotaFissaVendita, 2),
+    profileCharges: round(proposed.quotaTecnicaProfilo, 2),
+    regulatedAndTaxes: round(proposed.quotaRegolata + proposed.quotaFiscale, 2),
+    reconcileDelta: reconcile(proposed),
+    lightPrice: offer.luce?.prezzoVariabile ?? null,
+    lightFixed: offer.luce?.quotaFissaAnnua ?? null,
+    gasPrice: offer.gas?.prezzoVariabile ?? null,
+    gasFixed: offer.gas?.quotaFissaAnnua ?? null,
+    lightTotal: round(proposed.luce.totale, 2),
+    gasTotal: round(proposed.gas.totale, 2),
+  };
+
+  const errors = [];
+  const warnings = [];
+
+  if (item.tipo !== profile.tipo) errors.push(`tipo non coerente: atteso ${profile.tipo}, trovato ${item.tipo}`);
+  if (profile.fornitura === "dual" && item.fornitura !== "dual") errors.push(`fornitura non coerente: attesa dual, trovata ${item.fornitura}`);
+  if (profile.fornitura === "separate" && item.fornitura !== "separate") errors.push(`fornitura non coerente: attesa separate, trovata ${item.fornitura}`);
+  if (profile.fornitura === "dual" && (!offer.luce || !offer.gas)) errors.push("dual senza luce o gas");
+  if (item.total <= 0 || !Number.isFinite(item.total)) errors.push("totale annuo non valido");
+  if (item.variable < 0 || item.fixedSales < 0) errors.push("componenti negative");
+  if (Math.abs(item.reconcileDelta) > 0.02) errors.push(`totale non riconciliato con componenti: delta ${item.reconcileDelta}`);
+  if (nameHasBadPattern(item.name)) errors.push("nome offerta contiene pattern escluso per profilo privato standard");
+  if (item.active && !(item.destinationType === "affiliazione" && item.destinationStatus === "attiva" && item.link && item.link !== "#")) {
+    errors.push("offerta marcata attivabile ma destinazione/link non validi");
+  }
+
+  const affiliateIssue = checkAffiliateMatch(item);
+  if (affiliateIssue) errors.push(affiliateIssue);
+
+  if (!item.active && item.destinationStatus !== "da_contattare") {
+    warnings.push("offerta non attivabile senza stato lead/ricontatto");
+  }
+  if (item.tipo === "variabile" && (Number(item.lightPrice || 0) === 0 || Number(item.gasPrice || 0) === 0)) {
+    warnings.push("prezzo variabile pari a zero su una commodity inclusa");
+  }
+
+  return { item, errors, warnings };
+}
+
+function analyzeProfile(engine, profile) {
+  const actual = buildActual(profile);
   const offers = engine.costruisciOfferteRanking(actual, profile.tipo, profile.fornitura);
-  const rows = offers.map((offer) => {
-    const proposed = engine.calcolaOfferta(engine.offertaPropostaPerCalcolo(offer, actual), offer.tipo);
-    const current = engine.calcolaOfferta(engine.scenarioAttualeComparabile(actual, offer), offer.tipo);
-    return {
-      id: offer.id,
-      provider: offer.provider,
-      name: offer.nome,
-      type: offer.tipo,
-      supply: offer.fornitura,
-      annualCost: round2(proposed.totale),
-      annualSaving: round2(current.totale - proposed.totale),
-      online: engine.offertaAttivabileOnline(offer),
-      destinationStatus: offer.destinationStatus,
-      codes: offer.codiciArera || String(offer.id).split("-").filter((part) => /^[A-Z0-9]{20,40}$/i.test(part)),
-    };
-  }).sort((a, b) => a.annualCost - b.annualCost);
-  for (const row of rows) {
-    assert(Number.isFinite(row.annualCost) && row.annualCost > 0, `${profile.id}: costo non valido per ${row.provider}`);
-    assert(String(row.id).startsWith("arera-"), `${profile.id}: offerta non canonica ${row.id}`);
+  const analyzed = offers.map((offer, index) => analyzeOffer(engine, profile, offer, index + 1));
+  const sorted = analyzed
+    .sort((a, b) => (a.item.total - b.item.total) || (b.item.saving - a.item.saving))
+    .map((entry, index) => ({
+      ...entry,
+      item: { ...entry.item, economicRank: index + 1 },
+    }));
+  const top = sorted.slice(0, 10).map((entry, index) => ({
+    ...entry,
+    item: { ...entry.item, displayRank: index + 1 },
+  }));
+  const active = sorted.filter((entry) => entry.item.active);
+  const errors = [];
+  const warnings = [];
+
+  if (!offers.length) errors.push("nessuna offerta generata");
+  if (!top.length) errors.push("nessuna top offerta calcolata");
+  if (profile.fornitura === "dual" && top.some((entry) => !entry.item.lightPrice || !entry.item.gasPrice)) {
+    errors.push("top dual con commodity mancante");
   }
-  return { ...profile, offers: rows.length, top: rows.slice(0, 10) };
+
+  for (const entry of top) {
+    entry.errors.forEach((error) => errors.push(`#${entry.item.displayRank} ${entry.item.provider}: ${error}`));
+    entry.warnings.forEach((warning) => warnings.push(`#${entry.item.displayRank} ${entry.item.provider}: ${warning}`));
+  }
+
+  return {
+    profile,
+    generatedOffers: offers.length,
+    top: top.map((entry) => entry.item),
+    active: active.slice(0, 10).map((entry) => entry.item),
+    errors,
+    warnings,
+  };
 }
 
-try {
-  const params = readJson(paramsPath);
-  const catalog = readJson(catalogPath);
-  assert(Number(catalog.schemaVersion) >= 93, "Catalogo ARERA non v93");
-  const engine = loadEngine();
-  assert(engine.applicaDatiCalcolo(params), "Parametri calcolo non caricati");
-  assert(engine.applicaDatiAreraMenu(catalog), "Catalogo ARERA non caricato");
-  assert(engine.rows.length === catalog.offerte.length, "Il motore non usa tutte e sole le offerte private validate");
-  assert(engine.rows.every((row) => row.customerType === "privato"), "Offerta business nel motore privati");
-  const axpoBusiness = catalog.offerteBusiness.filter((row) => row.providerKey === "axpo");
-  assert(axpoBusiness.length >= 2, "Regressione Axpo business non presente nel catalogo business");
-  assert(!engine.rows.some((row) => row.providerKey === "axpo" && row.customerType === "business"), "Axpo business visibile ai privati");
-  const octopus = engine.rows.filter((row) => row.providerKey === "octopus");
-  assert(!octopus.some((row) => row.commodity === "luce" && Math.abs(row.prezzo - 0.1199) < 1e-8), "Vecchia Octopus luce ripescata");
-  assert(!octopus.some((row) => row.commodity === "gas" && Math.abs(row.prezzo - 0.45) < 1e-8), "Vecchia Octopus gas ripescata");
+function profileForCommercialOffer(offer) {
+  return PROFILES.find((profile) => profile.tipo === offer.tipo && profile.fornitura === offer.fornitura) || null;
+}
 
-  const profiles = [
-    { id: "privato-medio-dual-fisso", tipo: "fisso", fornitura: "dual", luceKwh: 2700, gasSmc: 700 },
-    { id: "privato-alto-dual-fisso", tipo: "fisso", fornitura: "dual", luceKwh: 4500, gasSmc: 1200 },
-    { id: "privato-medio-separate-fisso", tipo: "fisso", fornitura: "separate", luceKwh: 2700, gasSmc: 700 },
-    { id: "privato-solo-luce-fisso", tipo: "fisso", fornitura: "luce", luceKwh: 2700, gasSmc: 0 },
-    { id: "privato-solo-gas-fisso", tipo: "fisso", fornitura: "gas", luceKwh: 0, gasSmc: 700 },
-    { id: "privato-dual-variabile-senza-fallback", tipo: "variabile", fornitura: "dual", luceKwh: 2700, gasSmc: 700 },
-  ].map((profile) => analyze(engine, profile));
+function reasonSummary(reasons) {
+  const counts = new Map();
+  reasons.forEach((reason) => counts.set(reason, (counts.get(reason) || 0) + 1));
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .map(([reason, count]) => `${reason} (${count})`)
+    .join(", ");
+}
 
-  for (const profile of profiles.filter((item) => item.tipo === "fisso")) {
-    assert(profile.offers > 0, `${profile.id}: nessuna offerta`);
-  }
-  const variable = profiles.find((item) => item.tipo === "variabile");
-  assert(variable.offers === 0, "Offerte variabili non validate pubblicate tramite fallback");
-
-  const output = {
-    ok: true,
-    generatedAt: new Date().toISOString(),
-    engineVersion: engine.version,
-    catalogVersion: catalog.versioneDati,
-    catalogDate: catalog.aggiornatoIl,
-    privateOffers: catalog.offerte.length,
-    businessOffers: catalog.offerteBusiness.length,
-    profiles,
+function commodityDiagnostic(engine, providerKey, tipo, commodity) {
+  const rows = engine.areraRows.filter((row) => (
+    row.providerKey === providerKey
+    && row.tipo === tipo
+    && row.commodity === commodity
+  ));
+  const eligible = rows.filter((row) => engine.motiviEsclusioneArera(row).length === 0);
+  const excludedReasons = rows.flatMap((row) => engine.motiviEsclusioneArera(row));
+  return {
+    commodity,
+    rows: rows.length,
+    eligible: eligible.length,
+    bestEligible: eligible[0] ? `${eligible[0].nome} (${eligible[0].codice || "senza codice"})` : "",
+    excludedSummary: excludedReasons.length ? reasonSummary(excludedReasons) : "",
   };
-  fs.writeFileSync(resultPath, `${JSON.stringify(output, null, 2)}\n`);
+}
+
+function explainPartnerVisibility(engine, commercialOffer) {
+  const providerKey = providerKeyFromName(`${commercialOffer.provider} ${commercialOffer.nome}`);
+  const profile = profileForCommercialOffer(commercialOffer);
+  const base = {
+    provider: commercialOffer.provider || "",
+    offer: commercialOffer.nome || "",
+    providerKey,
+    tipo: commercialOffer.tipo || "",
+    fornitura: commercialOffer.fornitura || "",
+    status: "non_verificato",
+    reason: "",
+    areraLight: null,
+    areraGas: null,
+    matchedOffer: "",
+  };
+
+  if (!providerKey) {
+    return { ...base, status: "non_visibile", reason: "fornitore commerciale non riconosciuto" };
+  }
+  if (!profile) {
+    return { ...base, status: "non_visibile", reason: "nessun profilo di verifica coerente con tipo/fornitura dell'offerta" };
+  }
+
+  const actual = buildActual(profile);
+  const generated = engine.costruisciOfferteRanking(actual, profile.tipo, profile.fornitura);
+  const providerGenerated = generated.filter((offer) => providerKeyFromName(offer.provider) === providerKey);
+  const activeMatch = providerGenerated.find((offer) => engine.offertaAttivabileOnline(offer));
+  const anyMatch = providerGenerated[0] || null;
+  const light = commodityDiagnostic(engine, providerKey, commercialOffer.tipo, "luce");
+  const gas = commodityDiagnostic(engine, providerKey, commercialOffer.tipo, "gas");
+
+  if (activeMatch) {
+    return {
+      ...base,
+      status: "visibile",
+      reason: "offerta ARERA valida e agganciata a funnel partner attivo",
+      areraLight: light,
+      areraGas: gas,
+      matchedOffer: activeMatch.nome || "",
+    };
+  }
+
+  if (commercialOffer.fornitura === "dual") {
+    const missing = [];
+    if (!light.eligible) {
+      missing.push(light.rows ? `luce non idonea: ${light.excludedSummary || "nessuna riga valida"}` : "luce assente nel file ARERA");
+    }
+    if (!gas.eligible) {
+      missing.push(gas.rows ? `gas non idoneo: ${gas.excludedSummary || "nessuna riga valida"}` : "gas assente nel file ARERA");
+    }
+    if (missing.length) {
+      return {
+        ...base,
+        status: "non_visibile",
+        reason: missing.join("; "),
+        areraLight: light,
+        areraGas: gas,
+        matchedOffer: anyMatch?.nome || "",
+      };
+    }
+  }
+
+  if (anyMatch) {
+    return {
+      ...base,
+      status: "non_visibile",
+      reason: "righe ARERA valide, ma nome/codici non agganciati al funnel partner commerciale",
+      areraLight: light,
+      areraGas: gas,
+      matchedOffer: anyMatch.nome || "",
+    };
+  }
+
+  return {
+    ...base,
+    status: "non_visibile",
+    reason: "nessuna offerta generata nel ranking ARERA per questo partner e filtro",
+    areraLight: light,
+    areraGas: gas,
+    matchedOffer: "",
+  };
+}
+
+function analyzePartnerVisibility(engine, offersData) {
+  const commercialOffers = (Array.isArray(offersData) ? offersData : offersData?.offerte || [])
+    .filter(isActiveCommercialOffer);
+  return commercialOffers.map((offer) => explainPartnerVisibility(engine, offer));
+}
+
+function rowsForOffers(offers) {
+  return offers.map((offer) => [
+    offer.displayRank || offer.economicRank || offer.rank,
+    offer.provider,
+    offer.name,
+    money(offer.total),
+    money(offer.variable),
+    money(offer.fixedSales),
+    money(offer.saving),
+    offer.active ? "attivabile" : offer.destinationStatus,
+  ]);
+}
+
+function rowsForPartnerAudit(rows) {
+  return rows.map((row) => [
+    row.provider,
+    row.offer,
+    `${row.tipo} / ${row.fornitura}`,
+    row.status === "visibile" ? "visibile" : "non visibile",
+    row.reason,
+    row.matchedOffer || "-",
+  ]);
+}
+
+function writeReport(result) {
   const lines = [
     "# Verifica calcolo offerte",
     "",
-    `Catalogo: ${catalog.versioneDati} (${catalog.aggiornatoIl})`,
-    `Motore: ${engine.version}`,
-    `Offerte private validate: ${catalog.offerte.length}`,
-    `Offerte business separate: ${catalog.offerteBusiness.length}`,
+    `Generato: ${result.generatedAt}`,
+    `Motore frontend: ${result.engineVersion}`,
+    `Parametri: ${result.paramsVersion}`,
+    `Offerte commerciali: ${result.offersVersion}`,
+    `ARERA: ${result.areraVersion} (${result.areraUpdatedAt})`,
     "",
-    "Il ranking usa esclusivamente il catalogo ARERA v93 validato. Le offerte variabili prive di prezzo principale certo restano in quarantena e non ricevono fallback statici.",
+    result.ok
+      ? "**Esito automatico: OK.** Nessun errore bloccante trovato nei profili verificati."
+      : "**Esito automatico: ATTENZIONE.** Sono presenti errori da risolvere prima di pubblicare.",
     "",
-    ...profiles.flatMap((profile) => [
-      `## ${profile.id}`,
-      "",
-      `Offerte generate: ${profile.offers}`,
-      "",
-      ...profile.top.slice(0, 5).map((row, index) => `${index + 1}. ${row.provider}: ${row.annualCost.toFixed(2)} euro/anno`),
-      "",
-    ]),
+    "La verifica usa il motore del frontend, non una copia separata: carica `public/index.html`, applica i JSON pubblici e calcola le offerte come farebbe il sito.",
+    "",
+    "## Audit partner attivi",
+    "",
+    "Questa sezione spiega perche un'offerta affiliata attiva viene mostrata oppure esclusa. Il principio e: il funnel partner viene agganciato solo se esiste una proposta ARERA coerente e valida per lo stesso filtro.",
+    "",
+    table(
+      ["Partner", "Offerta commerciale", "Filtro", "Esito", "Motivo", "Offerta ARERA agganciata"],
+      rowsForPartnerAudit(result.partnerAudit),
+    ),
+    "",
   ];
-  fs.writeFileSync(reportPath, `${lines.join("\n").trimEnd()}\n`);
-  console.log(JSON.stringify({
-    ok: true,
-    catalog: catalog.versioneDati,
-    privateOffers: catalog.offerte.length,
-    businessOffers: catalog.offerteBusiness.length,
-    profiles: profiles.map(({ id, offers, top }) => ({ id, offers, best: top[0]?.provider || null })),
-  }, null, 2));
-} catch (error) {
-  console.error(error.message);
-  process.exit(1);
+
+  for (const profileResult of result.profiles) {
+    lines.push(`## ${profileResult.profile.label}`);
+    lines.push("");
+    lines.push(`Offerte generate: ${profileResult.generatedOffers}`);
+    lines.push("");
+    lines.push(table(
+      ["#", "Fornitore", "Offerta", "Totale", "Variabile", "Fissa vendita", "Risparmio vs attuale", "Stato"],
+      rowsForOffers(profileResult.top),
+    ));
+    lines.push("");
+
+    if (profileResult.active.length) {
+      lines.push("### Attivabili online rilevate");
+      lines.push("");
+      lines.push(table(
+        ["#", "Fornitore", "Offerta", "Totale", "Variabile", "Fissa vendita", "Risparmio vs attuale", "Stato"],
+        rowsForOffers(profileResult.active),
+      ));
+      lines.push("");
+    }
+
+    if (profileResult.errors.length) {
+      lines.push("### Errori");
+      lines.push("");
+      profileResult.errors.forEach((error) => lines.push(`- ${error}`));
+      lines.push("");
+    }
+
+    if (profileResult.warnings.length) {
+      lines.push("### Avvisi");
+      lines.push("");
+      profileResult.warnings.forEach((warning) => lines.push(`- ${warning}`));
+      lines.push("");
+    }
+  }
+
+  fs.writeFileSync(REPORT_PATH, `${lines.join("\n")}\n`);
 }
+
+function main() {
+  const params = readJson(PARAMS_PATH);
+  const offers = readJson(OFFERS_PATH);
+  const arera = readJson(ARERA_PATH);
+  const engine = loadFrontendEngine();
+
+  if (!engine.applicaDatiCalcolo(params)) throw new Error("Parametri calcolo non caricati");
+  if (!engine.applicaDatiOfferte(offers)) throw new Error("Offerte proposte non caricate");
+  if (!engine.applicaDatiAreraMenu(arera)) throw new Error("Offerte ARERA non caricate");
+
+  const profiles = PROFILES.map((profile) => analyzeProfile(engine, profile));
+  const partnerAudit = analyzePartnerVisibility(engine, offers);
+  const allErrors = profiles.flatMap((profile) => profile.errors);
+  const allWarnings = profiles.flatMap((profile) => profile.warnings);
+  const partnerWarnings = partnerAudit
+    .filter((row) => row.status !== "visibile")
+    .map((row) => `${row.provider} ${row.offer}: ${row.reason}`);
+  const result = {
+    ok: allErrors.length === 0,
+    generatedAt: new Date().toISOString(),
+    engineVersion: engine.version,
+    paramsVersion: engine.dataMeta.versioneDati,
+    offersVersion: engine.offersMeta.versioneDati,
+    areraVersion: engine.areraMeta.versioneDati,
+    areraUpdatedAt: engine.areraMeta.aggiornatoIl,
+    areraRows: engine.areraRows.length,
+    errorCount: allErrors.length,
+    warningCount: allWarnings.length + partnerWarnings.length,
+    partnerWarningCount: partnerWarnings.length,
+    partnerAudit,
+    profiles,
+  };
+
+  fs.writeFileSync(RESULT_PATH, `${JSON.stringify(result, null, 2)}\n`);
+  writeReport(result);
+  console.log(JSON.stringify({
+    ok: result.ok,
+    report: path.relative(root, REPORT_PATH),
+    result: path.relative(root, RESULT_PATH),
+    errors: result.errorCount,
+    warnings: result.warningCount,
+    partnerWarnings: result.partnerWarningCount,
+    profiles: profiles.map((profile) => ({
+      id: profile.profile.id,
+      generatedOffers: profile.generatedOffers,
+      first: profile.top[0] ? {
+        provider: profile.top[0].provider,
+        total: profile.top[0].total,
+        status: profile.top[0].active ? "attivabile" : profile.top[0].destinationStatus,
+      } : null,
+    })),
+  }, null, 2));
+
+  if (!result.ok) process.exit(1);
+}
+
+main();

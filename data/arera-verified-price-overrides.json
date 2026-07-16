@@ -3,13 +3,10 @@
   "descrizione": "Valori sintetici verificati su condizioni economiche quando l'XML ARERA/AU espone piu componenti o fasce che non possono essere aggregate automaticamente.",
   "offerte": {
     "000099ESFFL07XXAXPOIXFIX89922607": {
-      "nomeOfferta": "Scegli Sereno 2.0 36 Mesi Giorno 3Fasce",
       "commodity": "luce",
       "customerType": "business",
       "tipo": "fisso",
       "durataMesi": 36,
-      "dataInizio": "09/07/2026_12:00:00",
-      "dataFine": "20/07/2026_11:59:59",
       "quotaFissaAnnua": 144,
       "prezzoSintetico": {
         "valore": 0.14586,
@@ -27,13 +24,10 @@
       ]
     },
     "000099GSFML07XXAXPOIXFIX91292607": {
-      "nomeOfferta": "Scegli Sereno GAS 2.0 Light",
       "commodity": "gas",
       "customerType": "business",
       "tipo": "fisso",
       "durataMesi": 24,
-      "dataInizio": "14/07/2026_12:00:00",
-      "dataFine": "20/07/2026_11:59:59",
       "quotaFissaAnnua": 156,
       "prezzoSintetico": {
         "valore": 0.77154,

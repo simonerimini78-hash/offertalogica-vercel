@@ -378,12 +378,10 @@
             const response = await fetch("/data/offerte-arera-menu.json", { cache: "no-store" });
             if (!response.ok) throw new Error("Dati ARERA non disponibili");
             const data = await response.json();
-            if (Number(data.schemaVersion) < 93) throw new Error("Catalogo ARERA non validato");
             const offers = Array.isArray(data.offerte) ? data.offerte : [];
             const updated = formatDateIt(data.aggiornatoIl);
             const eon = offers
                 .filter((row) => row.providerKey === "eon")
-                .filter((row) => row.customerType === "privato" && row.confidenza === "alta")
                 .filter((row) => row.commodity === "luce" || row.commodity === "gas")
                 .filter((row) => row.tipo === "fisso" || row.tipo === "variabile")
                 .filter((row) => Number(row.prezzo) > 0)
