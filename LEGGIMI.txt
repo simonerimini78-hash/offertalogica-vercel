@@ -1,0 +1,15 @@
+CARICAMENTO DIRETTO SU MAIN
+
+1. Estrai lo ZIP.
+2. Apri il repository GitHub sul branch main.
+3. Usa Add file -> Upload files.
+4. Trascina insieme:
+   - la cartella api
+   - il file vercel.json
+5. Conferma il commit direttamente su main.
+
+La modifica nasconde soltanto E.CO Energia Corrente:
+- providerKey = eco
+- providerLabel/fornitore = E.CO Energia Corrente
+
+Ecoenergia (providerKey ecoenergia) NON viene nascosta.
