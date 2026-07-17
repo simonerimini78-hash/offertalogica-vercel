@@ -106,7 +106,7 @@ PROVIDERS: tuple[ProviderRule, ...] = (
     ProviderRule("argos", "Argos", (r"\bargos\b",)),
     ProviderRule("axpo", "Axpo Energia", (r"\baxpo\b", r"axpo"), ("01141160992",)),
     ProviderRule("dolomiti", "Dolomiti Energia", (r"\bdolomiti\b",)),
-    ProviderRule("eco", "E.CO Energia Corrente", (r"\be\.?\s*co\b", r"energia corrente")),
+    ProviderRule("eco","E.CO Energia Corrente",(r"\be\.\s*co\b", r"\benergia corrente\b", r"\b000742",)),
     ProviderRule("eon", "E.ON", (r"\be\.?\s*on\b",), ("03429130234",)),
     ProviderRule("edison", "Edison", (r"\bedison\b",)),
     ProviderRule("eni", "Eni Plenitude", (r"\bplenitude\b", r"\beni\b", r"gas e luce")),
@@ -285,10 +285,10 @@ def extracted_values(
             ):
                 role = "dettaglio_tecnico"
                 rejected_reason = "valore_futuro_non_applicabile_al_periodo_fisso"
-            elif matches_any(context, PRIMARY_PRICE_PATTERNS):
-                role = "prezzo_principale_candidato"
             elif tipo == "variabile" and matches_any(context, SPREAD_PATTERNS):
-                role = "spread_corrente_candidato"
+                 role = "spread_corrente_candidato"
+            elif matches_any(context, PRIMARY_PRICE_PATTERNS):
+                 role = "prezzo_principale_candidato"
             else:
                 rejected_reason = "etichetta_non_compatibile_con_prezzo_principale"
 
