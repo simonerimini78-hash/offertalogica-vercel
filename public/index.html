@@ -1854,11 +1854,9 @@
         </div>
 
         <div id="master-tendine-container" style="display: none;">
-            
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px;">
-                
+
+            <div id="master-commodity-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
                 <div class="column-energy" id="master-luce-column" style="border: none; padding: 0; background: transparent;">
-                    <h4 style="color: var(--accent); margin-bottom: 15px;">Fornitura Elettrica</h4>
                     <div class="input-group">
                         <label for="master-luce-consumo">Consumo Annuo Luce</label>
                         <select id="master-luce-consumo">
@@ -1875,11 +1873,9 @@
                             <option value="6">6.0 kW (Elevato)</option>
                         </select>
                     </div>
-                    <!-- OFFERTALOGICA_PRICE_COMPARISON_PANEL_20260719: selezione prezzo spostata nel pannello comune -->
                 </div>
 
                 <div class="column-energy" id="master-gas-column" style="border: none; padding: 0; background: transparent;">
-                    <h4 style="color: var(--accent); margin-bottom: 15px;">Fornitura Gas Naturale</h4>
                     <div class="input-group">
                         <label for="master-gas-consumo">Consumo Annuo Gas</label>
                         <select id="master-gas-consumo">
@@ -1900,29 +1896,27 @@
                             <option value="sardegna">Sardegna</option>
                         </select>
                     </div>
-                    <div class="input-group">
-                        <label for="master-tipo-fornitura">Tipo di Fornitura</label>
-                        <select id="master-tipo-fornitura">
-                            <option value="luce">Solo luce</option>
-                            <option value="gas">Solo gas</option>
-                            <option value="separate">Forniture Separate (Fornitori diversi)</option>
-                            <option value="dual" selected>Dual Fuel (Luce + Gas con lo stesso fornitore)</option>
-                        </select>
-                    </div>
                 </div>
-
             </div>
 
-            <!-- OFFERTALOGICA_PRICE_COMPARISON_PANEL_20260719 -->
-            <div id="master-prezzo-confronto-panel" class="column-energy" style="margin-top: 20px; padding: 16px; border: 1px solid #93c5fd; border-radius: 12px; background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);">
-                <h4 style="color: var(--accent); margin-bottom: 12px;">Tipo di prezzo da confrontare</h4>
-                <div class="input-group" style="margin-bottom: 0;">
-                    <label for="master-luce-tipo">Quali offerte vuoi vedere?</label>
+            <!-- OFFERTALOGICA_PRICE_COMPARISON_PANEL_20260719: filtri comuni allineati su due colonne -->
+            <div id="master-common-filters" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-top: 2px; align-items: start;">
+                <div id="master-prezzo-confronto-panel" class="input-group" style="min-width: 0;">
+                    <label for="master-luce-tipo">Tipo di Prezzo</label>
                     <select id="master-luce-tipo">
                         <option value="fisso" selected>Prezzo Fisso (Bloccato)</option>
                         <option value="variabile">Prezzo Variabile (Indicizzato PUN/PSV)</option>
                     </select>
-                    <small class="provider-help">La bolletta imposta automaticamente la scelta iniziale. Puoi cambiarla: le classifiche verranno ricalcolate sullo stesso consumo.</small>
+                </div>
+
+                <div class="input-group" style="min-width: 0;">
+                    <label for="master-tipo-fornitura">Tipo di Fornitura</label>
+                    <select id="master-tipo-fornitura">
+                        <option value="luce">Solo luce</option>
+                        <option value="gas">Solo gas</option>
+                        <option value="separate">Forniture Separate (Fornitori diversi)</option>
+                        <option value="dual" selected>Dual Fuel (Luce + Gas con lo stesso fornitore)</option>
+                    </select>
                 </div>
             </div>
         </div>
