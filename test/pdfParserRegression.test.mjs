@@ -20,7 +20,7 @@ test("regressione Hera dual: mantiene separate luce e gas e riconosce la struttu
     Codice offerta: 000415ETVML01XX000HHYXECXMXBXV21
   `);
 
-  assert.equal(PDF_PARSER_VERSION, "v91-dual-offer-regression-1");
+  assert.equal(PDF_PARSER_VERSION, "v98-contract-period-evidence-1");
   assert.equal(result.commodity, "dual");
   assert.equal(result.nome_offerta_luce, "Hera Hybrid Casa EE_L_B - V21");
   assert.equal(result.codice_offerta_luce, "000415ETVML01XX000HHYXECXMXBXV21");
@@ -159,4 +159,33 @@ test("regressione ButanGas business: usa PUN e rifiuta indirizzi istruttivi", ()
   `);
   assert.equal(invalidAddress.indirizzo_fornitura, null);
   assert.ok(invalidAddress.warnings.includes("indirizzo_fornitura_non_valido"));
+});
+
+
+test("regressione Free Luce&Gas 2019: riconosce fornitore, business, prezzo materia, potenze e dati tabellari", () => {
+  const result = extractPdfDataFromText(`
+    Free Luce&Gas S.r.l. P.I. e C.F. : 11788741004 Via Dei Prati Fiscali, 199 - 00141 Roma
+    Documento n° E-2019-00018699
+    FORNITURA e RIEPILOGO DEGLI IMPORTI ROMAGNA ALLEVAMENTI GROUP SOCIETA' VICOLO SANTA CROCE 2/A 48125 RAVENNA
+    BOLLETTA ENERGIA ELETTRICA
+    COSTO MEDIO DELLA FORNITURA Costo unitario della materia Energia 0,055492 €/kWh
+    Costo unitario dell'intera bolletta 0,304307 €/kWh
+    RIEPILOGO DATI POD IT001E53942290 Vicolo Santa Croce 2/A Ravenna (RA)
+    Imp. 10 kW - Dis. 11 kW BTA4 BASSA TENSIONE - 380V
+    Codice Cliente Data Emissione Applicabile solo ai casi FRLG141176 09/09/2019
+  `);
+
+  assert.equal(result.fornitore, "Free Luce&Gas");
+  assert.equal(result.kind, "bolletta");
+  assert.equal(result.commodity, "luce");
+  assert.equal(result.prezzo_luce_eur_kwh, 0.055492);
+  assert.equal(result.potenza_impegnata_kw, 10);
+  assert.equal(result.potenza_disponibile_kw, 11);
+  assert.equal(result.pod, "IT001E53942290");
+  assert.equal(result.intestatario, "ROMAGNA ALLEVAMENTI GROUP SOCIETA'");
+  assert.equal(result.codice_cliente, "FRLG141176");
+  assert.equal(result.indirizzo_fornitura, "Vicolo Santa Croce 2/A Ravenna (RA)");
+  assert.equal(result.customer_type, "business");
+  assert.equal(result.consumo_luce_kwh, null);
+  assert.equal(result.quota_fissa_vendita_luce_eur_anno, null);
 });
