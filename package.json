@@ -12,7 +12,6 @@
     "test:partner-arera": "node scripts/test-partner-arera.mjs",
     "verify:offers": "node scripts/verify-calcolo-offerte.mjs",
     "audit:offers": "node scripts/audit-offers.mjs",
-    "test:reader-shadow": "node --test test/pdfReaderContract.test.mjs test/pdfEvidencePolicy.test.mjs test/pdfAiReader.test.mjs test/pdfReaderShadow.test.mjs",
     "sync:arera": "node scripts/sync-arera-open-data.mjs",
     "shortlist:arera": "node scripts/shortlist-arera-candidates.mjs",
     "promote:arera": "node scripts/promote-arera-offer.mjs"
