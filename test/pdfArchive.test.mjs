@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { shouldArchivePdf } from "../lib/pdfArchive.js";
+import { buildArchivedNormalizedData, shouldArchivePdf } from "../lib/pdfArchive.js";
 
 test("modalità archivio all conserva ogni PDF", () => {
   assert.equal(shouldArchivePdf({ mode: "all", normalized: { recognized: true, needsReview: false } }), true);
@@ -10,10 +10,23 @@ test("modalità problematic conserva solo esiti non completi", () => {
   assert.equal(shouldArchivePdf({ mode: "problematic", normalized: { recognized: true, needsReview: false, warnings: [], diagnostics: [] } }), false);
   assert.equal(shouldArchivePdf({ mode: "problematic", normalized: { recognized: true, needsReview: true, warnings: [], diagnostics: [] } }), true);
   assert.equal(shouldArchivePdf({ mode: "problematic", error: new Error("parse") }), true);
+  assert.equal(shouldArchivePdf({
+    mode: "problematic",
+    normalized: { recognized: true, needsReview: false, warnings: [], diagnostics: [] },
+    shadow: { enabled: true, arbitration: { counts: { blocked: 1 } } },
+  }), true);
 });
 
 test("modalità off non conserva", () => {
   assert.equal(shouldArchivePdf({ mode: "off", normalized: { recognized: false } }), false);
+});
+
+test("i dati shadow restano nell'archivio privato senza mutare il normalizzato", () => {
+  const normalized = { parser_version: "legacy", recognized: true };
+  const shadow = { enabled: true, pipeline_version: "shadow-test" };
+  const archived = buildArchivedNormalizedData(normalized, shadow);
+  assert.equal(normalized._reader_shadow, undefined);
+  assert.deepEqual(archived._reader_shadow, shadow);
 });
 
 test("archivia PDF e metadati usando storage privato e tabella diagnostica", async (t) => {

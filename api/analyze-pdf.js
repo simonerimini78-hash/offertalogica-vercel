@@ -3,6 +3,7 @@ import formidable from "formidable";
 import { json, method, requireAllowedOrigin } from "../lib/http.js";
 import { extractPdf } from "../lib/pdfExtract.js";
 import { archivePdfAnalysis } from "../lib/pdfArchive.js";
+import { runPdfReaderShadow } from "../lib/pdfReaderShadow.js";
 import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
 
 export const config = {
@@ -79,6 +80,7 @@ export default async function handler(req, res) {
   let fileMetadata = null;
   let archiveContext = {};
   let validPdf = false;
+  const analysisDeadlineAt = Date.now() + 24_000;
   try {
     const { fields, files } = await parseForm(req);
     archiveContext = parseArchiveContext(fields);
@@ -97,10 +99,23 @@ export default async function handler(req, res) {
     validPdf = true;
 
     const normalized = await extractPdf(temporaryFilePath);
+    const shadow = await runPdfReaderShadow({
+      filePath: temporaryFilePath,
+      filename: fileMetadata.originalFilename,
+      legacyNormalized: normalized,
+      deadlineAt: analysisDeadlineAt,
+    }).catch((error) => ({
+      enabled: true,
+      mode: "shadow",
+      pipeline_version: "shadow-gpt41-v1",
+      public_output: "legacy_unchanged",
+      error: String(error?.message || "shadow_pipeline_error").slice(0, 300),
+    }));
     const archive = await archivePdfAnalysis({
       filePath: temporaryFilePath,
       ...fileMetadata,
       normalized,
+      shadow,
       context: archiveContext,
     }).catch(() => ({ stored: false, reason: "archive_error" }));
     return json(res, 200, { ok: true, normalized, archive });

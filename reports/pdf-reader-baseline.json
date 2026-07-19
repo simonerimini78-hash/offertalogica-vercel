@@ -1,0 +1,42 @@
+{
+  "report_version": "1.0.0",
+  "created_at": "2026-07-19T00:00:00.000Z",
+  "technical_base": {
+    "local_commit": "2a94f3801cfa603c99395ea6db38db6ff118ec4e",
+    "tree": "16aae2d4db5d7b52bca717a9068c8a4c72c26741",
+    "remote_main_observed": "00df1e2009f7dc67012dd526ec1cd1e97dfcee53",
+    "remote_difference": "Il commit remoto successivo modifica soltanto i due cataloghi ARERA; i blob osservati coincidono con la base tecnica locale."
+  },
+  "reader": {
+    "parser_version": "v91-dual-offer-regression-1",
+    "public_endpoint": "api/analyze-pdf.js",
+    "native_parser": "pdf-parse",
+    "openai_before_patch": false,
+    "ocr_before_patch": false,
+    "archive_before_patch": "Supabase privato opzionale con normalizzato e diagnostici legacy",
+    "vercel_max_duration_seconds": 30
+  },
+  "repository": {
+    "api_functions": 12,
+    "api_limit_respected": true
+  },
+  "baseline_checks": {
+    "node_tests": { "passed": 30, "failed": 0 },
+    "python_arera_tests": { "passed": 7, "failed": 0 },
+    "lint": "passed",
+    "validate_calculator": "passed",
+    "ranking_arera": "passed",
+    "verify_offers": "passed",
+    "audit_offers": "passed",
+    "python_compile": "passed"
+  },
+  "foundation_validation": {
+    "menu_providers": 34,
+    "bill_resources": 100,
+    "direct_bill_pdfs": 31,
+    "offer_candidates": 16,
+    "certified_offer_sheets": 0,
+    "integration_tests_passed": 4
+  },
+  "main_gap": "Il parser appiattisce il testo e l'archivio conserva soprattutto l'esito finale; manca un contratto comune di candidati con provenienza ed evidenza confrontabile tra parser, OCR e IA."
+}

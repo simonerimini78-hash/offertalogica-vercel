@@ -1,0 +1,44 @@
+{
+  "report_version": "1.0.0",
+  "created_at": "2026-07-19T00:00:00.000Z",
+  "pipeline_version": "shadow-gpt41-v1",
+  "scope": "Prima iterazione shadow; nessuna promozione nel risultato pubblico.",
+  "implemented": [
+    "contratto candidati adattato ai campi OffertaLogica",
+    "conversione diagnostici legacy in candidati",
+    "policy deterministica senza majority voting",
+    "adapter Responses API disattivato per default e mockabile",
+    "Structured Outputs strict e store false",
+    "archiviazione privata sotto normalized_data._reader_shadow",
+    "timeout limitato e margine per Vercel"
+  ],
+  "not_implemented": [
+    "OCR selettivo",
+    "escalation automatica al modello maggiore",
+    "recupero di esempi dal corpus",
+    "uso dei valori shadow nel calcolatore"
+  ],
+  "comparison": {
+    "public_contract_changed": false,
+    "calculator_formulas_changed": false,
+    "legacy_parser_changed": false,
+    "api_count_before": 12,
+    "api_count_after": 12,
+    "real_openai_calls": 0,
+    "mocked_ai_contract": "passed",
+    "shadow_tests_passed": 19,
+    "all_node_tests_passed": 50,
+    "python_tests_passed": 7,
+    "binary_pdf_smoke_test": "not_run_local_pdf_parse_dependency_unavailable",
+    "single_source_critical_result": "needs_review",
+    "critical_conflict_result": "blocked",
+    "independent_agreement_result": "accepted"
+  },
+  "activation": {
+    "default": "off",
+    "shadow_flag": "PDF_AI_MODE=shadow",
+    "recommended_environment": "Preview soltanto dopo verifica privacy",
+    "deployment_performed": false
+  },
+  "next_gate": "Revisionare documenti reali per fornitore e tipo, misurare precisione/recall campo per campo e certificare il corpus prima di qualsiasi promozione pubblica."
+}
