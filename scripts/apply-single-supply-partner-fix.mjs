@@ -6,6 +6,9 @@ export const PATCH_MARKER_V1 = "OFFERTALOGICA_SINGLE_SUPPLY_PARTNERS_V1";
 export const PATCH_MARKER_V2 = "OFFERTALOGICA_SINGLE_SUPPLY_PARTNERS_V2";
 export const UI_MARKER = "OFFERTALOGICA_PRICE_COMPARISON_PANEL_20260719";
 export const DEDUP_MARKER = "OFFERTALOGICA_PROVIDER_DEDUP_20260719";
+export const DEDUP_MARKER_V3 = "OFFERTALOGICA_PROVIDER_DEDUP_V3_20260719";
+export const STRICT_TYPE_MARKER = "OFFERTALOGICA_STRICT_SELECTED_PRICE_TYPE_20260719";
+export const PRICE_LABEL_MARKER = "OFFERTALOGICA_VISIBLE_PRICE_TYPE_20260719";
 export const CERTIFIED_MONO_MARKER = "OFFERTALOGICA_CERTIFIED_MONO_ARERA_20260719";
 
 export const OLD_PARTNER_BLOCK = `function offertePartnerDiretteAttivabili(tipoTariffa, tipoFornitura, attuale) {
@@ -174,7 +177,7 @@ export const OLD_FILTER_KEY_FUNCTION = `function chiaveOffertaFiltro(offerta) {
   return \`\${provider || offerta?.provider || offerta?.id}-\${offerta?.tipo}-\${offerta?.fornitura}\`;
 }`;
 
-export const NEW_FILTER_KEY_FUNCTION = `// ${DEDUP_MARKER}
+export const V2_FILTER_KEY_FUNCTION = `// ${DEDUP_MARKER}
 function ambitoEffettivoOfferta(offerta) {
   const haLuce = Boolean(offerta?.luce);
   const haGas = Boolean(offerta?.gas);
@@ -199,6 +202,80 @@ function chiaveOffertaFiltro(offerta) {
   return \`\${chiaveProviderOfferta(offerta)}-\${offerta?.tipo}-\${ambitoEffettivoOfferta(offerta)}\`;
 }`;
 
+export const NEW_FILTER_KEY_FUNCTION = `// ${DEDUP_MARKER_V3}
+function ambitoEffettivoOfferta(offerta) {
+  const haLuce = Boolean(offerta?.luce);
+  const haGas = Boolean(offerta?.gas);
+  if (haLuce && !haGas) return "luce";
+  if (haGas && !haLuce) return "gas";
+  return offerta?.fornitura === "dual" ? "dual" : "separate";
+}
+
+function normalizzaIdentitaProvider(value) {
+  return testoFornitoreNormalizzato(value)
+    .replace(/\\b(societa|srl|spa|energia|energy|italia|servizi|services|smart)\\b/g, " ")
+    .replace(/\\s+/g, " ")
+    .trim();
+}
+
+function offertaPartnerOriginale(offerta) {
+  const originalId = offerta?.certificazione?.partnerOriginalId;
+  if (originalId === undefined || originalId === null || originalId === "") return null;
+  return OFFERTE_PROPOSTE.find((item) => String(item?.id) === String(originalId)) || null;
+}
+
+function identitaProviderOfferta(offerta) {
+  const identities = new Set();
+  const add = (prefix, value) => {
+    const normalized = String(value || "").trim();
+    if (normalized) identities.add(\`\${prefix}:\${normalized}\`);
+  };
+
+  const originale = offertaPartnerOriginale(offerta);
+  const provider = originale?.provider || offerta?.provider || "";
+  add("provider-key", chiaveFornitoreDaNome(provider));
+  add("provider-name", normalizzaIdentitaProvider(provider));
+
+  const componenti = offerta?.componentiSeparate;
+  const componentKeys = [...new Set([
+    componenti?.luce?.providerKey,
+    componenti?.gas?.providerKey,
+  ].filter(Boolean))];
+  componentKeys.forEach((key) => add("provider-key", key));
+
+  const codici = offerta?.certificazione?.codici || {};
+  Object.values(codici).filter(Boolean).forEach((codice) => add("arera-code", codice));
+
+  const monetizzazione = originale?.monetizzazione || offerta?.monetizzazione || {};
+  if (monetizzazione.programId) add("program", monetizzazione.programId);
+
+  return identities;
+}
+
+function offerteStessoFornitore(prima, seconda) {
+  const identitaPrima = identitaProviderOfferta(prima);
+  const identitaSeconda = identitaProviderOfferta(seconda);
+  for (const identity of identitaPrima) {
+    if (identitaSeconda.has(identity)) return true;
+  }
+  return false;
+}
+
+function chiaveProviderOfferta(offerta) {
+  const identities = [...identitaProviderOfferta(offerta)];
+  const providerKey = identities.find((value) => value.startsWith("provider-key:"));
+  if (providerKey) return providerKey.slice("provider-key:".length);
+
+  const providerName = identities.find((value) => value.startsWith("provider-name:"));
+  if (providerName) return providerName.slice("provider-name:".length);
+
+  return String(offerta?.id || "");
+}
+
+function chiaveOffertaFiltro(offerta) {
+  return \`\${chiaveProviderOfferta(offerta)}-\${offerta?.tipo}-\${ambitoEffettivoOfferta(offerta)}\`;
+}`;
+
 export const OLD_GROUP_KEY_FUNCTION = `function chiaveGruppoPartner(item) {
   return chiaveOffertaFiltro(item?.offerta);
 }`;
@@ -208,6 +285,66 @@ export const NEW_GROUP_KEY_FUNCTION = `function chiaveGruppoPartner(item) {
   // per impedire doppioni fra i due gruppi basta la chiave del fornitore reale.
   return chiaveProviderOfferta(item?.offerta);
 }`;
+
+export const OLD_OFFER_DETAILS_FUNCTION = `function dettagliOfferta(offerta) {
+  if (offertaSeparataMultiFornitore(offerta)) {
+    return \`\${dettagliOffertaSeparata(offerta)} \${offerta.descrizione || ""}\`.trim();
+  }
+  const luce = offerta.luce
+    ? \`Luce: \${prezzoOffertaTesto(offerta.luce, "luce")} | Fisso vendita: \${euro(offerta.luce.quotaFissaAnnua)}\`
+    : "Luce non inclusa";
+  const gas = offerta.gas
+    ? \`Gas: \${prezzoOffertaTesto(offerta.gas, "gas")} | Fisso vendita: \${euro(offerta.gas.quotaFissaAnnua)}\`
+    : "Gas non incluso";
+  return \`\${luce} | \${gas}. \${offerta.descrizione}\`;
+}`;
+
+export const NEW_OFFER_DETAILS_FUNCTION = `// ${PRICE_LABEL_MARKER}
+function dettagliOfferta(offerta) {
+  const tipoPrezzo = offerta?.tipo === "variabile"
+    ? "Prezzo variabile (indicizzato)"
+    : "Prezzo fisso (bloccato)";
+  const notaPrezzo = offerta?.tipo === "variabile"
+    ? "Il valore unitario mostrato e il riferimento corrente usato per la stima e puo variare nel tempo."
+    : "Il valore unitario e trattato come fisso secondo le condizioni economiche dell'offerta.";
+
+  if (offertaSeparataMultiFornitore(offerta)) {
+    return \`\${tipoPrezzo}. \${dettagliOffertaSeparata(offerta)} \${notaPrezzo} \${offerta.descrizione || ""}\`.trim();
+  }
+  const luce = offerta.luce
+    ? \`Luce: \${prezzoOffertaTesto(offerta.luce, "luce")} | Fisso vendita: \${euro(offerta.luce.quotaFissaAnnua)}\`
+    : "Luce non inclusa";
+  const gas = offerta.gas
+    ? \`Gas: \${prezzoOffertaTesto(offerta.gas, "gas")} | Fisso vendita: \${euro(offerta.gas.quotaFissaAnnua)}\`
+    : "Gas non incluso";
+  return \`\${tipoPrezzo}. \${luce} | \${gas}. \${notaPrezzo} \${offerta.descrizione || ""}\`.trim();
+}`;
+
+
+export const OLD_BADGE_DECLARATION = `      const badge = \`<span style="display:inline-block; margin:0 0 6px; padding:3px 8px; border:1px solid; border-radius:999px; font-size:11px; font-weight:800; \${stileBadgeOfferta({ posizioneEconomica, gruppoVisuale })}">\${badgeText}</span>\`;`;
+
+export const NEW_BADGE_DECLARATION = `      const tipoPrezzoBadge = offerta?.tipo === "variabile" ? "Prezzo variabile" : "Prezzo fisso";
+      const badge = \`<span style="display:inline-block; margin:0 0 6px; padding:3px 8px; border:1px solid; border-radius:999px; font-size:11px; font-weight:800; \${stileBadgeOfferta({ posizioneEconomica, gruppoVisuale })}">\${badgeText}</span><span style="display:inline-block; margin:0 0 6px 6px; padding:3px 8px; border:1px solid #bfdbfe; border-radius:999px; background:#eff6ff; color:#1d4ed8; font-size:11px; font-weight:800;">\${tipoPrezzoBadge}</span>\`;`;
+
+export const OLD_CONSULTANT_DEDUP_BLOCK = `  const chiaviPartnerAttivabili = new Set(attivabiliPrioritarie.map((item) => chiaveGruppoPartner(item)));
+  const miglioriConConsulente = ordinateRanking
+    .filter((item) => !item.attivabileOnline)
+    .filter((item) => !chiaviPartnerAttivabili.has(chiaveGruppoPartner(item)))`;
+
+export const NEW_CONSULTANT_DEDUP_BLOCK = `  // ${DEDUP_MARKER_V3}: un fornitore gia presente tra le attivabili
+  // non puo ricomparire nel gruppo consulente, anche se la riga ARERA usa
+  // un nome legale, un codice o una struttura tecnica differente.
+  // ${STRICT_TYPE_MARKER}: il gruppo consulente deve rispettare esattamente
+  // il tipo prezzo e la fornitura selezionati, senza alternative o fallback.
+  const miglioriConConsulente = ordinateRanking
+    .filter((item) => item.compatibileRanking && item.filtroEsatto)
+    .filter((item) => item.offerta?.tipo === tipoTariffa)
+    .filter((item) => offertaCoerenteConFornitura(item.offerta, tipoFornitura))
+    .filter((item) => !item.attivabileOnline)
+    .filter((item) => !attivabiliPrioritarie.some((partner) => (
+      offerteStessoFornitore(item.offerta, partner.offerta)
+    )))`;
+
 
 function replaceExactlyOnce(source, oldText, newText, label) {
   const occurrences = source.split(oldText).length - 1;
@@ -275,12 +412,23 @@ export function patchSource(source) {
     );
   }
 
-  state = applyReplacement(
-    state,
-    OLD_FILTER_KEY_FUNCTION,
-    NEW_FILTER_KEY_FUNCTION,
-    "chiave filtro offerte"
-  );
+  if (!state.source.includes(DEDUP_MARKER_V3)) {
+    if (state.source.includes(DEDUP_MARKER)) {
+      state = applyReplacement(
+        state,
+        V2_FILTER_KEY_FUNCTION,
+        NEW_FILTER_KEY_FUNCTION,
+        "chiave filtro offerte v2"
+      );
+    } else {
+      state = applyReplacement(
+        state,
+        OLD_FILTER_KEY_FUNCTION,
+        NEW_FILTER_KEY_FUNCTION,
+        "chiave filtro offerte"
+      );
+    }
+  }
 
   state = applyReplacement(
     state,
@@ -289,14 +437,41 @@ export function patchSource(source) {
     "deduplicazione gruppi"
   );
 
+  state = applyReplacement(
+    state,
+    OLD_CONSULTANT_DEDUP_BLOCK,
+    NEW_CONSULTANT_DEDUP_BLOCK,
+    "esclusione duplicati e filtro esatto del gruppo consulente"
+  );
+
+  state = applyReplacement(
+    state,
+    OLD_OFFER_DETAILS_FUNCTION,
+    NEW_OFFER_DETAILS_FUNCTION,
+    "etichetta visibile del tipo prezzo"
+  );
+
+  state = applyReplacement(
+    state,
+    OLD_BADGE_DECLARATION,
+    NEW_BADGE_DECLARATION,
+    "badge fisso o variabile sulle schede"
+  );
+
   const output = state.source;
   const requiredChecks = [
     [PATCH_MARKER_V2, "proiezione mono-fornitura"],
     [UI_MARKER, "pannello prezzo"],
-    [DEDUP_MARKER, "deduplicazione per fornitore"],
+    [DEDUP_MARKER_V3, "deduplicazione rigorosa per fornitore"],
+    [STRICT_TYPE_MARKER, "filtro esatto del tipo prezzo"],
+    [PRICE_LABEL_MARKER, "tipo prezzo visibile"],
     [CERTIFIED_MONO_MARKER, "abbinamento ARERA mono-fornitura"],
     ["partnerOriginalId: offerta.id", "ID partner originale"],
     [NEW_ARERA_LOOKUP, "ricerca ARERA con ID originale"],
+    [NEW_CONSULTANT_DEDUP_BLOCK, "esclusione partner dal gruppo consulente"],
+    ["function offerteStessoFornitore", "confronto identita fornitore"],
+    [NEW_OFFER_DETAILS_FUNCTION, "dettagli con tipo prezzo"],
+    [NEW_BADGE_DECLARATION, "badge tipo prezzo"],
     ['id="master-prezzo-confronto-panel"', "riquadro prezzo"],
     ['if (data.tipo_prezzo) setField("master-luce-tipo", data.tipo_prezzo);', "preselezione PDF"],
     ['"master-luce-tipo",', "evento cambio menu"],
@@ -332,7 +507,7 @@ export async function applyPatch({
   }
 
   await fs.writeFile(targetPath, result.source, "utf8");
-  console.log("[incremental-price-filter] Menu prezzo e deduplicazione applicati a public/index.html.");
+  console.log("[incremental-price-filter] Filtro variabile rigoroso, deduplicazione e badge prezzo applicati a public/index.html.");
   return result;
 }
 

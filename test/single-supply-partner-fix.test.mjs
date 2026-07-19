@@ -3,17 +3,21 @@ import assert from "node:assert/strict";
 import {
   PATCH_MARKER_V2,
   UI_MARKER,
-  DEDUP_MARKER,
+  DEDUP_MARKER_V3,
+  STRICT_TYPE_MARKER,
+  PRICE_LABEL_MARKER,
   CERTIFIED_MONO_MARKER,
   OLD_PARTNER_BLOCK,
-  V1_PARTNER_BLOCK,
   OLD_ARERA_LOOKUP,
-  NEW_ARERA_LOOKUP,
   OLD_CERTIFIED_MONO_LOOKUP,
   OLD_PRICE_GROUP,
   OLD_SUPPLY_TAIL,
   OLD_FILTER_KEY_FUNCTION,
   OLD_GROUP_KEY_FUNCTION,
+  OLD_CONSULTANT_DEDUP_BLOCK,
+  OLD_OFFER_DETAILS_FUNCTION,
+  OLD_BADGE_DECLARATION,
+  NEW_CONSULTANT_DEDUP_BLOCK,
   patchSource,
 } from "../scripts/apply-single-supply-partner-fix.mjs";
 
@@ -29,7 +33,7 @@ const MENU_CHANGE_LISTENER = `[
     "master-tipo-fornitura",
   ].forEach((id) => {`;
 
-function fixture(partnerBlock = OLD_PARTNER_BLOCK) {
+function fixture() {
   return [
     "<html>",
     OLD_PRICE_GROUP,
@@ -37,11 +41,16 @@ function fixture(partnerBlock = OLD_PARTNER_BLOCK) {
     "<script>",
     OLD_ARERA_LOOKUP,
     OLD_CERTIFIED_MONO_LOOKUP,
-    partnerBlock,
+    OLD_PARTNER_BLOCK,
     OLD_FILTER_KEY_FUNCTION,
     "function unisciOfferteCandidati() {}",
     "function costruisciOfferteRanking() {}",
     OLD_GROUP_KEY_FUNCTION,
+    OLD_CONSULTANT_DEDUP_BLOCK,
+    OLD_OFFER_DETAILS_FUNCTION,
+    "function render() {",
+    OLD_BADGE_DECLARATION,
+    "}",
     PDF_AUTO_SELECTION,
     MENU_CHANGE_LISTENER,
     "</script>",
@@ -49,58 +58,68 @@ function fixture(partnerBlock = OLD_PARTNER_BLOCK) {
   ].join("\n");
 }
 
-test("applica tutte le migliorie incrementali al codice corrente", () => {
+test("applica il pacchetto incrementale completo", () => {
   const result = patchSource(fixture());
   assert.equal(result.changed, true);
-  assert.match(result.source, new RegExp(PATCH_MARKER_V2));
-  assert.match(result.source, new RegExp(UI_MARKER));
-  assert.match(result.source, new RegExp(DEDUP_MARKER));
-  assert.match(result.source, new RegExp(CERTIFIED_MONO_MARKER));
-  assert.ok(result.source.includes(NEW_ARERA_LOOKUP));
+  for (const marker of [
+    PATCH_MARKER_V2,
+    UI_MARKER,
+    DEDUP_MARKER_V3,
+    STRICT_TYPE_MARKER,
+    PRICE_LABEL_MARKER,
+    CERTIFIED_MONO_MARKER,
+  ]) {
+    assert.match(result.source, new RegExp(marker));
+  }
 });
 
-test("sposta il menu in un riquadro comune senza duplicarlo", () => {
+test("il gruppo consulente rispetta esattamente tipo e fornitura selezionati", () => {
+  const result = patchSource(fixture());
+  assert.match(result.source, /item\.compatibileRanking && item\.filtroEsatto/);
+  assert.match(result.source, /item\.offerta\?\.tipo === tipoTariffa/);
+  assert.match(result.source, /offertaCoerenteConFornitura\(item\.offerta, tipoFornitura\)/);
+  assert.doesNotMatch(result.source, /chiaviPartnerAttivabili\.has/);
+});
+
+test("un fornitore attivabile non puo ricomparire con consulente", () => {
+  const result = patchSource(fixture());
+  assert.match(
+    result.source,
+    /!attivabiliPrioritarie\.some\(\(partner\) => \(\s*offerteStessoFornitore\(item\.offerta, partner\.offerta\)/
+  );
+});
+
+test("ogni scheda mostra esplicitamente prezzo fisso o variabile", () => {
+  const result = patchSource(fixture());
+  assert.match(result.source, /Prezzo variabile \(indicizzato\)/);
+  assert.match(result.source, /Prezzo fisso \(bloccato\)/);
+  assert.match(result.source, /tipoPrezzoBadge/);
+  assert.match(result.source, />\$\{tipoPrezzoBadge\}<\/span>/);
+});
+
+test("spiega che il valore variabile non e bloccato", () => {
+  const result = patchSource(fixture());
+  assert.match(result.source, /riferimento corrente usato per la stima e puo variare nel tempo/);
+});
+
+test("mantiene menu comune, preselezione PDF e ricalcolo", () => {
   const result = patchSource(fixture());
   assert.match(result.source, /id="master-prezzo-confronto-panel"/);
-  assert.match(result.source, /Tipo di prezzo da confrontare/);
-  assert.match(result.source, /La bolletta imposta automaticamente la scelta iniziale/);
   assert.equal(result.source.split('id="master-luce-tipo"').length - 1, 1);
-});
-
-test("mantiene la preselezione automatica dal PDF", () => {
-  const result = patchSource(fixture());
   assert.ok(result.source.includes(PDF_AUTO_SELECTION));
-});
-
-test("mantiene il ricalcolo quando cambia il menu", () => {
-  const result = patchSource(fixture());
   assert.ok(result.source.includes(MENU_CHANGE_LISTENER));
 });
 
-test("usa prima l'abbinamento ARERA certificato per solo luce o solo gas", () => {
+test("mantiene abbinamento ARERA certificato solo gas e solo luce", () => {
   const result = patchSource(fixture());
   assert.match(result.source, /const certificata = rigaAreraPartnerCertificata\(offerta, commodity\)/);
-  assert.match(result.source, /if \(certificata\) return certificata/);
-});
-
-test("deduplica partner e consulente usando il fornitore reale", () => {
-  const result = patchSource(fixture());
-  assert.match(result.source, /function chiaveProviderOfferta/);
-  assert.match(result.source, /return chiaveProviderOfferta\(item\?\.offerta\)/);
-  assert.doesNotMatch(result.source, /return chiaveOffertaFiltro\(item\?\.offerta\)/);
+  assert.match(result.source, /partnerOriginalId: offerta\.id/);
 });
 
 test("non trasforma offerte fisse in variabili per riempire la lista", () => {
   const result = patchSource(fixture());
-  assert.match(result.source, /if \(offerta\.tipo !== tipoTariffa\) return false|offertaCompatibileConRanking/);
+  assert.match(result.source, /item\.offerta\?\.tipo === tipoTariffa/);
   assert.doesNotMatch(result.source, /tipo:\s*tipoTariffa/);
-});
-
-test("aggiorna anche il precedente fix v1", () => {
-  const result = patchSource(fixture(V1_PARTNER_BLOCK));
-  assert.equal(result.changed, true);
-  assert.match(result.source, new RegExp(PATCH_MARKER_V2));
-  assert.match(result.source, /partnerOriginalId: offerta\.id/);
 });
 
 test("e idempotente", () => {
@@ -111,7 +130,7 @@ test("e idempotente", () => {
   assert.equal(second.source, first.source);
 });
 
-test("si ferma senza modificare versioni non riconosciute", () => {
+test("si ferma su codice non riconosciuto", () => {
   assert.throws(
     () => patchSource("<html><script>function diversa() {}</script></html>"),
     /Patch non applicata|Verifica fallita/
