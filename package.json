@@ -6,10 +6,12 @@
   "scripts": {
     "dev": "vercel dev",
     "start": "vercel dev",
+    "postinstall": "node scripts/apply-single-supply-partner-fix.mjs",
     "lint": "node scripts/check-env.mjs",
     "validate:calculator": "node scripts/validate-calculator-data.mjs",
     "test:ranking-arera": "node scripts/test-ranking-arera.mjs",
     "test:partner-arera": "node scripts/test-partner-arera.mjs",
+    "test:single-supply-partners": "node --test test/single-supply-partner-fix.test.mjs",
     "verify:offers": "node scripts/verify-calcolo-offerte.mjs",
     "audit:offers": "node scripts/audit-offers.mjs",
     "sync:arera": "node scripts/sync-arera-open-data.mjs",
