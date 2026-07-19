@@ -6,7 +6,6 @@
   "scripts": {
     "dev": "vercel dev",
     "start": "vercel dev",
-    "postinstall": "node scripts/apply-single-supply-partner-fix.mjs",
     "lint": "node scripts/check-env.mjs",
     "validate:calculator": "node scripts/validate-calculator-data.mjs",
     "test:ranking-arera": "node scripts/test-ranking-arera.mjs",

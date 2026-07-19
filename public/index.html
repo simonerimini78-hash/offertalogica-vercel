@@ -1875,13 +1875,7 @@
                             <option value="6">6.0 kW (Elevato)</option>
                         </select>
                     </div>
-                    <div class="input-group">
-                        <label for="master-luce-tipo">Tipo di Tariffa (Luce e Gas)</label>
-                        <select id="master-luce-tipo">
-                            <option value="fisso" selected>Prezzo Fisso (Bloccato)</option>
-                            <option value="variabile">Prezzo Variabile (Indicizzato PUN/PSV)</option>
-                        </select>
-                    </div>
+                    <!-- OFFERTALOGICA_PRICE_COMPARISON_PANEL_20260719: selezione prezzo spostata nel pannello comune -->
                 </div>
 
                 <div class="column-energy" id="master-gas-column" style="border: none; padding: 0; background: transparent;">
@@ -1917,6 +1911,19 @@
                     </div>
                 </div>
 
+            </div>
+
+            <!-- OFFERTALOGICA_PRICE_COMPARISON_PANEL_20260719 -->
+            <div id="master-prezzo-confronto-panel" class="column-energy" style="margin-top: 20px; padding: 16px; border: 1px solid #93c5fd; border-radius: 12px; background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);">
+                <h4 style="color: var(--accent); margin-bottom: 12px;">Tipo di prezzo da confrontare</h4>
+                <div class="input-group" style="margin-bottom: 0;">
+                    <label for="master-luce-tipo">Quali offerte vuoi vedere?</label>
+                    <select id="master-luce-tipo">
+                        <option value="fisso" selected>Prezzo Fisso (Bloccato)</option>
+                        <option value="variabile">Prezzo Variabile (Indicizzato PUN/PSV)</option>
+                    </select>
+                    <small class="provider-help">La bolletta imposta automaticamente la scelta iniziale. Puoi cambiarla: le classifiche verranno ricalcolate sullo stesso consumo.</small>
+                </div>
             </div>
         </div>
     </div> 
@@ -4101,9 +4108,17 @@ function dettagliOffertaSeparata(offerta) {
   return `Luce con ${luceProvider}${luceNome}. Gas con ${gasProvider}${gasNome}. Due forniture separate da verificare con consulente.`;
 }
 
+// OFFERTALOGICA_VISIBLE_PRICE_TYPE_20260719
 function dettagliOfferta(offerta) {
+  const tipoPrezzo = offerta?.tipo === "variabile"
+    ? "Prezzo variabile (indicizzato)"
+    : "Prezzo fisso (bloccato)";
+  const notaPrezzo = offerta?.tipo === "variabile"
+    ? "Il valore unitario mostrato e il riferimento corrente usato per la stima e puo variare nel tempo."
+    : "Il valore unitario e trattato come fisso secondo le condizioni economiche dell'offerta.";
+
   if (offertaSeparataMultiFornitore(offerta)) {
-    return `${dettagliOffertaSeparata(offerta)} ${offerta.descrizione || ""}`.trim();
+    return `${tipoPrezzo}. ${dettagliOffertaSeparata(offerta)} ${notaPrezzo} ${offerta.descrizione || ""}`.trim();
   }
   const luce = offerta.luce
     ? `Luce: ${prezzoOffertaTesto(offerta.luce, "luce")} | Fisso vendita: ${euro(offerta.luce.quotaFissaAnnua)}`
@@ -4111,7 +4126,7 @@ function dettagliOfferta(offerta) {
   const gas = offerta.gas
     ? `Gas: ${prezzoOffertaTesto(offerta.gas, "gas")} | Fisso vendita: ${euro(offerta.gas.quotaFissaAnnua)}`
     : "Gas non incluso";
-  return `${luce} | ${gas}. ${offerta.descrizione}`;
+  return `${tipoPrezzo}. ${luce} | ${gas}. ${notaPrezzo} ${offerta.descrizione || ""}`.trim();
 }
 
 function offertaAttivabileOnline(offerta) {
@@ -4738,7 +4753,8 @@ const ABBINAMENTI_PARTNER_ARERA = Object.freeze({
 });
 
 function rigaAreraPartnerCertificata(offerta, commodity) {
-  const regola = ABBINAMENTI_PARTNER_ARERA[String(offerta?.id || "")]?.[commodity];
+  const partnerId = offerta?.certificazione?.partnerOriginalId || offerta?.id;
+  const regola = ABBINAMENTI_PARTNER_ARERA[String(partnerId || "")]?.[commodity];
   if (!regola) return null;
   const providerKey = chiaveFornitoreDaNome(offerta?.provider);
   const nomiAmmessi = new Set((regola.nomi || []).map(testoFornitoreNormalizzato));
@@ -4759,6 +4775,12 @@ function miglioreRigaAreraPerPartner(offerta, commodity, attuale) {
   const codice = offerta?.certificazione?.codici?.[commodity];
   const esatta = rigaAreraDaCodice(codice);
   if (esatta) return esatta;
+
+  // OFFERTALOGICA_CERTIFIED_MONO_ARERA_20260719
+  // Nelle proiezioni solo luce/gas usa prima l'abbinamento ARERA certificato
+  // del partner originale; il riconoscimento per nome resta soltanto un fallback.
+  const certificata = rigaAreraPartnerCertificata(offerta, commodity);
+  if (certificata) return certificata;
 
   const providerKey = chiaveFornitoreDaNome(offerta?.provider);
   if (!providerKey) return null;
@@ -4942,18 +4964,118 @@ function costruisciOfferteAreraRanking(attuale, tipoTariffa, tipoFornitura) {
     .slice(0, 20);
 }
 
+// OFFERTALOGICA_SINGLE_SUPPLY_PARTNERS_V2
+function proiettaPartnerSuFornituraSingola(offerta, tipoFornitura) {
+  if (!["luce", "gas"].includes(tipoFornitura)) return offerta;
+
+  const commodity = tipoFornitura;
+  const altraCommodity = commodity === "luce" ? "gas" : "luce";
+  if (!offerta?.[commodity]) return null;
+
+  // Le offerte gia mono-fornitura restano invariate.
+  if (!offerta?.[altraCommodity]) return offerta;
+
+  const label = commodity === "luce" ? "Solo luce" : "Solo gas";
+  return {
+    ...offerta,
+    id: `${offerta.id}-${commodity}`,
+    nome: `${offerta.nome} - ${label}`,
+    fornitura: "separate",
+    luce: commodity === "luce" ? offerta.luce : null,
+    gas: commodity === "gas" ? offerta.gas : null,
+    descrizione: `${offerta.descrizione || ""} Confronto calcolato sulla sola fornitura ${commodity}. Il percorso partner puo richiedere di selezionare la singola fornitura nel funnel.`.trim(),
+    certificazione: {
+      ...(offerta.certificazione || {}),
+      partnerOriginalId: offerta.id,
+      derivataDaOffertaDual: true,
+      fornituraCalcolata: commodity,
+    },
+  };
+}
+
 function offertePartnerDiretteAttivabili(tipoTariffa, tipoFornitura, attuale) {
   return OFFERTE_PROPOSTE
     .filter((offerta) => offertaAttivabileOnline(offerta))
+    .map((offerta) => proiettaPartnerSuFornituraSingola(offerta, tipoFornitura))
+    .filter(Boolean)
     .filter((offerta) => offertaCompatibileConRanking(offerta, tipoTariffa, tipoFornitura))
     .map((offerta) => offertaPartnerConPrezziArera(offerta, attuale))
     .filter(Boolean)
     .filter((offerta) => offertaCalcolabileConIndici(offerta));
 }
 
+// OFFERTALOGICA_PROVIDER_DEDUP_V3_20260719
+function ambitoEffettivoOfferta(offerta) {
+  const haLuce = Boolean(offerta?.luce);
+  const haGas = Boolean(offerta?.gas);
+  if (haLuce && !haGas) return "luce";
+  if (haGas && !haLuce) return "gas";
+  return offerta?.fornitura === "dual" ? "dual" : "separate";
+}
+
+function normalizzaIdentitaProvider(value) {
+  return testoFornitoreNormalizzato(value)
+    .replace(/\b(societa|srl|spa|energia|energy|italia|servizi|services|smart)\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function offertaPartnerOriginale(offerta) {
+  const originalId = offerta?.certificazione?.partnerOriginalId;
+  if (originalId === undefined || originalId === null || originalId === "") return null;
+  return OFFERTE_PROPOSTE.find((item) => String(item?.id) === String(originalId)) || null;
+}
+
+function identitaProviderOfferta(offerta) {
+  const identities = new Set();
+  const add = (prefix, value) => {
+    const normalized = String(value || "").trim();
+    if (normalized) identities.add(`${prefix}:${normalized}`);
+  };
+
+  const originale = offertaPartnerOriginale(offerta);
+  const provider = originale?.provider || offerta?.provider || "";
+  add("provider-key", chiaveFornitoreDaNome(provider));
+  add("provider-name", normalizzaIdentitaProvider(provider));
+
+  const componenti = offerta?.componentiSeparate;
+  const componentKeys = [...new Set([
+    componenti?.luce?.providerKey,
+    componenti?.gas?.providerKey,
+  ].filter(Boolean))];
+  componentKeys.forEach((key) => add("provider-key", key));
+
+  const codici = offerta?.certificazione?.codici || {};
+  Object.values(codici).filter(Boolean).forEach((codice) => add("arera-code", codice));
+
+  const monetizzazione = originale?.monetizzazione || offerta?.monetizzazione || {};
+  if (monetizzazione.programId) add("program", monetizzazione.programId);
+
+  return identities;
+}
+
+function offerteStessoFornitore(prima, seconda) {
+  const identitaPrima = identitaProviderOfferta(prima);
+  const identitaSeconda = identitaProviderOfferta(seconda);
+  for (const identity of identitaPrima) {
+    if (identitaSeconda.has(identity)) return true;
+  }
+  return false;
+}
+
+function chiaveProviderOfferta(offerta) {
+  const identities = [...identitaProviderOfferta(offerta)];
+  const providerKey = identities.find((value) => value.startsWith("provider-key:"));
+  if (providerKey) return providerKey.slice("provider-key:".length);
+
+  const providerName = identities.find((value) => value.startsWith("provider-name:"));
+  if (providerName) return providerName.slice("provider-name:".length);
+
+  return String(offerta?.id || "");
+}
+
 function chiaveOffertaFiltro(offerta) {
-  const provider = chiaveFornitoreDaNome(offerta?.provider) || testoFornitoreNormalizzato(offerta?.provider);
-  return `${provider || offerta?.provider || offerta?.id}-${offerta?.tipo}-${offerta?.fornitura}`;
+  return `${chiaveProviderOfferta(offerta)}-${offerta?.tipo}-${ambitoEffettivoOfferta(offerta)}`;
 }
 
 function unisciOfferteCandidati(offerteRanking, offertePartner) {
@@ -4988,7 +5110,9 @@ function costruisciOfferteRanking(attuale, tipoTariffa, tipoFornitura) {
 }
 
 function chiaveGruppoPartner(item) {
-  return chiaveOffertaFiltro(item?.offerta);
+  // Il confronto corrente ha gia un solo tipo prezzo e un solo ambito:
+  // per impedire doppioni fra i due gruppi basta la chiave del fornitore reale.
+  return chiaveProviderOfferta(item?.offerta);
 }
 
 function offertaCommercialeDiretta(item) {
@@ -5105,13 +5229,16 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       posizioneEconomica: rankingGlobale.get(String(item.offerta.id)) || null,
     }));
 
+  // OFFERTALOGICA_STRICT_SELECTED_PRICE_TYPE_20260719
+  // Il gruppo consulente rispetta esattamente tipo prezzo e fornitura e
+  // non può contenere alcun fornitore già riconosciuto come partner.
   const miglioriConConsulente = ordinateRanking
     .filter((item) => item.compatibileRanking && item.filtroEsatto)
     .filter((item) => item.offerta?.tipo === tipoTariffa)
     .filter((item) => offertaCoerenteConFornitura(item.offerta, tipoFornitura))
     .filter((item) => !item.attivabileOnline)
     .filter((item) => !partnerAttivabiliCoerenti.some((partner) => (
-      chiaveGruppoPartner(item) === chiaveGruppoPartner(partner)
+      offerteStessoFornitore(item.offerta, partner.offerta)
     )))
     .slice(0, 3)
     .map((item, index) => ({
@@ -5190,7 +5317,8 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       const link = card.querySelector("a");
       const separataMulti = offertaSeparataMultiFornitore(offerta);
       const badgeText = testoBadgeOfferta({ offerta, posizioneEconomica, posizioneGruppo, gruppoVisuale, costo, compatibileRanking }, migliore);
-      const badge = `<span style="display:inline-block; margin:0 0 6px; padding:3px 8px; border:1px solid; border-radius:999px; font-size:11px; font-weight:800; ${stileBadgeOfferta({ posizioneEconomica, gruppoVisuale })}">${badgeText}</span>`;
+      const tipoPrezzoBadge = offerta?.tipo === "variabile" ? "Prezzo variabile" : "Prezzo fisso";
+      const badge = `<span style="display:inline-block; margin:0 0 6px; padding:3px 8px; border:1px solid; border-radius:999px; font-size:11px; font-weight:800; ${stileBadgeOfferta({ posizioneEconomica, gruppoVisuale })}">${badgeText}</span><span style="display:inline-block; margin:0 0 6px 6px; padding:3px 8px; border:1px solid #bfdbfe; border-radius:999px; background:#eff6ff; color:#1d4ed8; font-size:11px; font-weight:800;">${tipoPrezzoBadge}</span>`;
       const onlineBadge = attivabileOnline && !badgeText.toLowerCase().includes("attivabile")
         ? `<span style="display:inline-block; margin:0 0 6px 6px; padding:3px 8px; border:1px solid #a7f3d0; border-radius:999px; background:#ecfdf5; color:#047857; font-size:11px; font-weight:800;">Attivabile online</span>`
         : "";
