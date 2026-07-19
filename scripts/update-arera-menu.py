@@ -39,9 +39,16 @@ ALLOWED_PRICE_QUALITIES = {
 PRIMARY_PRICE_PATTERNS = (
     r"\bcosto\s+per\s+consumi\b",
     r"\bprezzo\s+(?:luce|energia|gas)\b",
+    r"\bprezzo\s+componente\s+(?:energia\s+elettricit.|materia\s+prima\s+gas)\b",
+    r"\bprezzo\s+fisso\s+(?:energia|gas)\b",
+    r"\bprezzo\s+quota\s+energia\b",
+    r"\bprezzo\s+base\b",
     r"\bprezzo\s+(?:della\s+)?materia(?:\s+prima)?\b",
     r"\bcomponente\s+(?:energia|gas)\b",
+    r"\bcomponente\s+sostitutiva\s+materia\s+prima\s+gas\b",
+    r"\bcorrispettivo\s+(?:luce|gas)\b",
     r"\bcorrispettivo\s+per\s+il\s+consumo\b",
+    r"^prezzo(?:\s+prezzo)?$",
 )
 SPREAD_PATTERNS = (
     r"\bspread\b",
@@ -95,6 +102,7 @@ class ProviderRule:
     label: str
     patterns: tuple[str, ...]
     piva: tuple[str, ...] = ()
+    code_prefixes: tuple[str, ...] = ()
 
 
 PROVIDERS: tuple[ProviderRule, ...] = (
@@ -106,16 +114,16 @@ PROVIDERS: tuple[ProviderRule, ...] = (
     ProviderRule("argos", "Argos", (r"\bargos\b",)),
     ProviderRule("axpo", "Axpo Energia", (r"\baxpo\b", r"axpo"), ("01141160992",)),
     ProviderRule("dolomiti", "Dolomiti Energia", (r"\bdolomiti\b",)),
-    ProviderRule("eco","E.CO Energia Corrente",(r"\be\.\s*co\b", r"\benergia corrente\b", r"\b000742",)),
+    ProviderRule("eco", "E.CO Energia Corrente", (), (), ("000742",)),
     ProviderRule("eon", "E.ON", (r"\be\.?\s*on\b",), ("03429130234",)),
     ProviderRule("edison", "Edison", (r"\bedison\b",)),
-    ProviderRule("eni", "Eni Plenitude", (r"\bplenitude\b", r"\beni\b", r"gas e luce")),
+    ProviderRule("eni", "Eni Plenitude", (r"\bplenitude\b", r"\beni\b"), ("12300020158",)),
     ProviderRule("enel", "Enel Energia", (r"\benel\b",)),
     ProviderRule("enercom", "Enercom", (r"\benercom\b",)),
     ProviderRule("engie", "Engie", (r"\bengie\b",)),
     ProviderRule("eja", "Eja Energia", (r"\beja\b",)),
     ProviderRule("hera", "Hera Comm", (r"\bhera\b",)),
-    ProviderRule("illum", "Illumia", (r"\billumia\b",)),
+    ProviderRule("illum", "Illumia", (r"\billumia\b",), ("02356770988",)),
     ProviderRule("iren", "Iren Luce e Gas", (r"\biren\b",)),
     ProviderRule("magis", "Magis Energia", (r"\bmagis\b",)),
     ProviderRule("nen", "neN", (r"\bnen\b", r"\bne n\b")),
@@ -127,7 +135,7 @@ PROVIDERS: tuple[ProviderRule, ...] = (
     ProviderRule("sen", "Servizio Elettrico Nazionale", (r"servizio elettrico nazionale",)),
     ProviderRule("sorgenia", "Sorgenia", (r"\bsorgenia\b",)),
     ProviderRule("tate", "Tate", (r"\btate\b",)),
-    ProviderRule("vivi", "Vivi Energia", (r"\bvivi energia\b",)),
+    ProviderRule("vivi", "Vivi Energia", (r"\bvivi(?:\s+energia|attivo|clear|web)?\b",)),
     ProviderRule("wekiwi", "Wekiwi", (r"\bwekiwi\b",)),
     ProviderRule("sinergy", "Sinergy", (r"\bsinergy\b",)),
 )
@@ -182,22 +190,43 @@ def parse_float(value: str) -> float | None:
 def provider_for(offer: ET.Element) -> tuple[str, str] | None:
     piva = node_text(offer, "po:IdentificativiOfferta/po:PIVA_UTENTE")
     code = node_text(offer, "po:IdentificativiOfferta/po:COD_OFFERTA")
-    fields = [
-        piva,
-        code,
-        node_text(offer, "po:DettaglioOfferta/po:NOME_OFFERTA"),
-        node_text(offer, "po:DettaglioOfferta/po:DESCRIZIONE"),
-        node_text(offer, "po:DettaglioOfferta/po:Contatti/po:URL_OFFERTA"),
-        node_text(offer, "po:DettaglioOfferta/po:Contatti/po:URL_SITO_VENDITORE"),
-    ]
-    blob = normalize_text(" ".join(fields))
+    name = normalize_text(node_text(offer, "po:DettaglioOfferta/po:NOME_OFFERTA"))
+    description = normalize_text(node_text(offer, "po:DettaglioOfferta/po:DESCRIZIONE"))
+    offer_url = normalize_text(node_text(offer, "po:DettaglioOfferta/po:Contatti/po:URL_OFFERTA"))
+    seller_url = normalize_text(node_text(offer, "po:DettaglioOfferta/po:Contatti/po:URL_SITO_VENDITORE"))
 
+    # I prefissi espliciti hanno precedenza assoluta: servono per marchi come
+    # E.CO, il cui nome descrittivo compare anche in offerte di altri venditori.
     for rule in PROVIDERS:
+        if rule.code_prefixes:
+            if any(code.startswith(prefix) for prefix in rule.code_prefixes):
+                return rule.key, rule.label
+
+    candidates: list[tuple[int, int, ProviderRule]] = []
+    for order, rule in enumerate(PROVIDERS):
+        if rule.code_prefixes:
+            continue
+        score = 0
+        for pattern in rule.patterns:
+            if name and re.search(pattern, name):
+                score = max(score, 100)
+            if description and re.search(pattern, description):
+                score = max(score, 80)
+            if code and re.search(pattern, normalize_text(code)):
+                score = max(score, 70)
+            if offer_url and re.search(pattern, offer_url):
+                score = max(score, 50)
+            if seller_url and re.search(pattern, seller_url):
+                score = max(score, 30)
         if piva and piva in rule.piva:
-            return rule.key, rule.label
-        if any(re.search(pattern, blob) for pattern in rule.patterns):
-            return rule.key, rule.label
-    return None
+            score = max(score, 60)
+        if score:
+            candidates.append((score, -order, rule))
+
+    if not candidates:
+        return None
+    _, _, selected = max(candidates, key=lambda item: (item[0], item[1]))
+    return selected.key, selected.label
 
 
 def customer_segment(offer: ET.Element) -> tuple[str, str]:
@@ -496,6 +525,7 @@ def parse_offer_file(
         url = node_text(offer, "po:DettaglioOfferta/po:Contatti/po:URL_OFFERTA")
         site = node_text(offer, "po:DettaglioOfferta/po:Contatti/po:URL_SITO_VENDITORE")
         code = node_text(offer, "po:IdentificativiOfferta/po:COD_OFFERTA")
+        seller_vat = node_text(offer, "po:IdentificativiOfferta/po:PIVA_UTENTE")
         customer_type, customer_type_code = customer_segment(offer)
         duration_value = parse_float(node_text(offer, "po:DettaglioOfferta/po:DURATA"))
         duration = int(duration_value) if duration_value is not None else None
@@ -555,10 +585,12 @@ def parse_offer_file(
                 "tipo": tipo,
                 "nome": nome or f"{provider_label} offerta {commodity}",
                 "codice": code,
+                "pivaVenditore": seller_vat,
                 "dataInizio": data_inizio,
                 "dataFine": data_fine,
                 "customerType": customer_type,
                 "tipoClienteCodice": customer_type_code,
+                "tipoOffertaCodice": tipo_raw,
                 "durataMesi": duration,
                 "prezzo": price,
                 "quotaFissaAnnua": fee,
@@ -576,14 +608,119 @@ def parse_offer_file(
     return rows
 
 
+def parse_dual_file(
+    path: Path,
+    light_rows: list[dict[str, object]],
+    gas_rows: list[dict[str, object]],
+    as_of: datetime,
+    diagnostics: list[dict[str, object]] | None = None,
+) -> list[dict[str, object]]:
+    tree = ET.parse(path)
+    diagnostics = diagnostics if diagnostics is not None else []
+    light_by_code = {str(row.get("codice") or ""): row for row in light_rows}
+    gas_by_code = {str(row.get("codice") or ""): row for row in gas_rows}
+    rows: list[dict[str, object]] = []
+
+    for offer in tree.findall(".//po:offerta", NS):
+        code = node_text(offer, "po:IdentificativiOfferta/po:COD_OFFERTA")
+        seller_vat = node_text(offer, "po:IdentificativiOfferta/po:PIVA_UTENTE")
+        light_code = node_text(offer, "po:OffertaDual/po:OFFERTE_CONGIUNTE_EE")
+        gas_code = node_text(offer, "po:OffertaDual/po:OFFERTE_CONGIUNTE_GAS")
+        match = provider_for(offer)
+        data_inizio = node_text(offer, "po:ValiditaOfferta/po:DATA_INIZIO")
+        data_fine = node_text(offer, "po:ValiditaOfferta/po:DATA_FINE")
+        end_date = parse_portale_date(data_fine)
+        if end_date and end_date < as_of:
+            continue
+
+        def reject(reason: str) -> None:
+            diagnostics.append(
+                {
+                    "recordType": "dual",
+                    "codiceOfferta": code,
+                    "codiceOffertaLuce": light_code,
+                    "codiceOffertaGas": gas_code,
+                    "commodity": "dual",
+                    "stato": "scartato",
+                    "motivo": reason,
+                    "sorgente": source_label_for(path),
+                }
+            )
+
+        if not match:
+            continue
+        if not code or not light_code or not gas_code:
+            reject("riferimenti_dual_incompleti")
+            continue
+
+        tipo_raw = node_text(offer, "po:DettaglioOfferta/po:TIPO_OFFERTA")
+        tipo = {"01": "fisso", "02": "variabile"}.get(tipo_raw, "")
+        customer_type, customer_type_code = customer_segment(offer)
+        light = light_by_code.get(light_code)
+        gas = gas_by_code.get(gas_code)
+        if light is None or gas is None:
+            reject("componente_dual_non_validata")
+            continue
+
+        provider_key, provider_label = match
+        if tipo not in {"fisso", "variabile"} or customer_type not in {"privato", "business"}:
+            reject("metadati_dual_non_validi")
+            continue
+        if light.get("commodity") != "luce" or gas.get("commodity") != "gas":
+            reject("commodity_dual_non_coerenti")
+            continue
+        if light.get("providerKey") != provider_key or gas.get("providerKey") != provider_key:
+            reject("fornitore_componenti_dual_non_coerente")
+            continue
+        if light.get("tipo") != tipo or gas.get("tipo") != tipo:
+            reject("tipo_prezzo_componenti_dual_non_coerente")
+            continue
+        if light.get("customerType") != customer_type or gas.get("customerType") != customer_type:
+            reject("clientela_componenti_dual_non_coerente")
+            continue
+
+        duration_value = parse_float(node_text(offer, "po:DettaglioOfferta/po:DURATA"))
+        duration = int(duration_value) if duration_value is not None else None
+        name = node_text(offer, "po:DettaglioOfferta/po:NOME_OFFERTA")
+        url = node_text(offer, "po:DettaglioOfferta/po:Contatti/po:URL_OFFERTA")
+        site = node_text(offer, "po:DettaglioOfferta/po:Contatti/po:URL_SITO_VENDITORE")
+        rows.append(
+            {
+                "providerKey": provider_key,
+                "providerLabel": provider_label,
+                "fornitore": provider_label,
+                "fornitura": "dual",
+                "tipo": tipo,
+                "nome": name or f"{provider_label} offerta dual",
+                "codice": code,
+                "pivaVenditore": seller_vat,
+                "codiceOffertaLuce": light_code,
+                "codiceOffertaGas": gas_code,
+                "dataInizio": data_inizio,
+                "dataFine": data_fine,
+                "customerType": customer_type,
+                "tipoClienteCodice": customer_type_code,
+                "tipoOffertaCodice": tipo_raw,
+                "durataMesi": duration,
+                "url": url or site or "#",
+                "fonte": f"{SOURCE_LABEL} - file D - codice {code}",
+                "score": round(float(light["score"]) + float(gas["score"]), 4),
+                "luce": copy.deepcopy(light),
+                "gas": copy.deepcopy(gas),
+            }
+        )
+
+    return rows
+
+
 def extract_xml_links(open_data_html: str) -> dict[str, str]:
     links: dict[str, str] = {}
     pattern = re.compile(r'href=["\']([^"\']*PO_Offerte_([EGD])_MLIBERO_\d+\.xml)["\']', re.I)
     for href, kind in pattern.findall(open_data_html):
         kind = kind.upper()
         links[kind] = urljoin(OPEN_DATA_URL, html.unescape(href))
-    if "E" not in links or "G" not in links:
-        raise RuntimeError("Open Data XML luce/gas non trovati nella pagina del Portale Offerte")
+    if not all(kind in links for kind in ("E", "G", "D")):
+        raise RuntimeError("Open Data XML luce/gas/dual non trovati nella pagina del Portale Offerte")
     return links
 
 
@@ -729,6 +866,7 @@ def local_files(source_dir: Path) -> dict[str, Path]:
     return {
         "E": latest_matching(source_dir, ("PO_Offerte_E_MLIBERO_*.xml", "offerte_elettrico*.xml")),
         "G": latest_matching(source_dir, ("PO_Offerte_G_MLIBERO_*.xml", "offerte_gas*.xml")),
+        "D": latest_matching(source_dir, ("PO_Offerte_D_MLIBERO_*.xml", "offerte_dual*.xml")),
     }
 
 
@@ -773,6 +911,15 @@ def existing_rows(payload: dict[str, object]) -> list[dict[str, object]]:
     return rows
 
 
+def existing_dual_rows(payload: dict[str, object]) -> list[dict[str, object]]:
+    rows: list[dict[str, object]] = []
+    for field in ("offerteDual", "offerteDualBusiness"):
+        value = payload.get(field, [])
+        if isinstance(value, list):
+            rows.extend(item for item in value if isinstance(item, dict))
+    return rows
+
+
 def blocked_quality(value: object) -> bool:
     quality = str(value or "")
     return quality in BLOCKED_PRICE_QUALITIES or quality.startswith("media_fasce")
@@ -797,6 +944,8 @@ def validate_candidate_row(row: dict[str, object]) -> list[str]:
         reasons.append("tipo_cliente_non_valido")
     if commodity not in {"luce", "gas"}:
         reasons.append("commodity_non_valida")
+    if row.get("providerKey") == "eco" and not str(row.get("codice") or "").startswith("000742"):
+        reasons.append("codice_venditore_eco_non_valido")
     try:
         if float(row.get("prezzo", 0)) <= 0:
             reasons.append("prezzo_non_positivo")
@@ -817,6 +966,39 @@ def validate_candidate_row(row: dict[str, object]) -> list[str]:
             reasons.append("componente_non_principale_usata_come_prezzo")
         if matches_any(label_context, FUTURE_COMPONENT_PATTERNS):
             reasons.append("valore_futuro_usato_come_prezzo")
+    return reasons
+
+
+def validate_dual_candidate(row: dict[str, object]) -> list[str]:
+    reasons: list[str] = []
+    light = row.get("luce")
+    gas = row.get("gas")
+    if row.get("fornitura") != "dual":
+        reasons.append("fornitura_dual_non_valida")
+    if row.get("tipo") not in {"fisso", "variabile"}:
+        reasons.append("tipo_dual_non_valido")
+    if row.get("customerType") not in {"privato", "business"}:
+        reasons.append("tipo_cliente_dual_non_valido")
+    if row.get("providerKey") == "eco" and not str(row.get("codice") or "").startswith("000742"):
+        reasons.append("codice_venditore_eco_dual_non_valido")
+    if not isinstance(light, dict) or not isinstance(gas, dict):
+        reasons.append("componenti_dual_assenti")
+        return reasons
+
+    if str(row.get("codiceOffertaLuce") or "") != str(light.get("codice") or ""):
+        reasons.append("riferimento_luce_dual_non_esatto")
+    if str(row.get("codiceOffertaGas") or "") != str(gas.get("codice") or ""):
+        reasons.append("riferimento_gas_dual_non_esatto")
+    if light.get("commodity") != "luce" or gas.get("commodity") != "gas":
+        reasons.append("commodity_componenti_dual_non_valide")
+    if light.get("providerKey") != row.get("providerKey") or gas.get("providerKey") != row.get("providerKey"):
+        reasons.append("fornitore_componenti_dual_non_valido")
+    if light.get("tipo") != row.get("tipo") or gas.get("tipo") != row.get("tipo"):
+        reasons.append("tipo_componenti_dual_non_valido")
+    if light.get("customerType") != row.get("customerType") or gas.get("customerType") != row.get("customerType"):
+        reasons.append("clientela_componenti_dual_non_valida")
+    reasons.extend(f"luce:{reason}" for reason in validate_candidate_row(light))
+    reasons.extend(f"gas:{reason}" for reason in validate_candidate_row(gas))
     return reasons
 
 
@@ -852,10 +1034,61 @@ def unexpected_changes(candidate: dict[str, object], previous: dict[str, object]
     return reasons
 
 
+def unexpected_dual_changes(candidate: dict[str, object], previous: dict[str, object]) -> list[str]:
+    if not is_last_valid_dual(previous):
+        return []
+    reasons: list[str] = []
+    for field, label in (
+        ("tipo", "tipo_prezzo_dual_modificato"),
+        ("customerType", "tipo_cliente_dual_modificato"),
+        ("durataMesi", "durata_dual_modificata"),
+        ("codiceOffertaLuce", "riferimento_luce_dual_modificato"),
+        ("codiceOffertaGas", "riferimento_gas_dual_modificato"),
+    ):
+        if previous.get(field) is not None and candidate.get(field) != previous.get(field):
+            reasons.append(label)
+    for commodity in ("luce", "gas"):
+        current_component = candidate.get(commodity)
+        previous_component = previous.get(commodity)
+        if isinstance(current_component, dict) and isinstance(previous_component, dict):
+            reasons.extend(
+                f"{commodity}:{reason}"
+                for reason in unexpected_changes(current_component, previous_component)
+            )
+    return reasons
+
+
 def public_row(row: dict[str, object]) -> dict[str, object]:
     result = copy.deepcopy(row)
     result.pop("valoriEstratti", None)
+    for commodity in ("luce", "gas"):
+        if isinstance(result.get(commodity), dict):
+            result[commodity] = public_row(result[commodity])
     return result
+
+
+def is_last_valid_dual(row: dict[str, object] | None) -> bool:
+    return bool(row) and not validate_dual_candidate(row or {})
+
+
+def dedupe_dual_rows(rows: list[dict[str, object]]) -> list[dict[str, object]]:
+    best: dict[str, dict[str, object]] = {}
+    for row in rows:
+        code = str(row.get("codice") or "")
+        if not code:
+            continue
+        current = best.get(code)
+        if current is None or float(row.get("score", 0)) < float(current.get("score", 0)):
+            best[code] = row
+    return sorted(
+        best.values(),
+        key=lambda item: (
+            str(item.get("providerKey") or ""),
+            str(item.get("tipo") or ""),
+            float(item.get("score", 0)),
+            str(item.get("nome") or ""),
+        ),
+    )
 
 
 def validate_and_merge(
@@ -907,25 +1140,94 @@ def validate_and_merge(
             final_by_key.setdefault(key, public_row(previous))
 
     rows = dedupe_rows(list(final_by_key.values()))
+    final_single_by_key = {row_key(row): row for row in rows}
+    previous_dual_by_key = {
+        str(row.get("codice") or ""): row
+        for row in existing_dual_rows(previous_payload)
+        if str(row.get("codice") or "")
+    }
+    final_dual_by_key: dict[str, dict[str, object]] = {}
+
+    for raw_candidate in existing_dual_rows(staging_payload):
+        candidate = copy.deepcopy(raw_candidate)
+        code = str(candidate.get("codice") or "")
+        light_code = str(candidate.get("codiceOffertaLuce") or "")
+        gas_code = str(candidate.get("codiceOffertaGas") or "")
+        light = final_single_by_key.get((light_code, "luce"))
+        gas = final_single_by_key.get((gas_code, "gas"))
+        if light:
+            candidate["luce"] = copy.deepcopy(light)
+        if gas:
+            candidate["gas"] = copy.deepcopy(gas)
+        reasons = validate_dual_candidate(candidate)
+        previous = previous_dual_by_key.get(code)
+        if previous:
+            reasons.extend(unexpected_dual_changes(candidate, previous))
+        if reasons:
+            quarantine.append(
+                {
+                    "recordType": "dual",
+                    "codiceOfferta": code,
+                    "codiceOffertaLuce": light_code,
+                    "codiceOffertaGas": gas_code,
+                    "fornitore": candidate.get("fornitore"),
+                    "motivi": sorted(set(reasons)),
+                    "ultimoValidoConservato": is_last_valid_dual(previous),
+                }
+            )
+            if is_last_valid_dual(previous):
+                final_dual_by_key[code] = public_row(previous)
+            continue
+        candidate["score"] = round(float(candidate["luce"]["score"]) + float(candidate["gas"]["score"]), 4)
+        final_dual_by_key[code] = public_row(candidate)
+
+    for diagnostic in diagnostics:
+        if diagnostic.get("recordType") != "dual":
+            continue
+        code = str(diagnostic.get("codiceOfferta") or "")
+        previous = previous_dual_by_key.get(code)
+        if is_last_valid_dual(previous):
+            final_dual_by_key.setdefault(code, public_row(previous))
+
+    dual_rows = dedupe_dual_rows(list(final_dual_by_key.values()))
     private_rows = [row for row in rows if row.get("customerType") == "privato"]
     business_rows = [row for row in rows if row.get("customerType") == "business"]
+    private_dual_rows = [row for row in dual_rows if row.get("customerType") == "privato"]
+    business_dual_rows = [row for row in dual_rows if row.get("customerType") == "business"]
     if not private_rows:
         raise ValueError("Validazione staging fallita: nessuna offerta privata valida; catalogo pubblico invariato")
+    if "offerteDual" in staging_payload and not private_dual_rows:
+        raise ValueError("Validazione staging fallita: nessuna vera offerta dual privata valida; catalogo pubblico invariato")
     if any(blocked_quality(row.get("qualitaPrezzo")) for row in rows):
         raise ValueError("Validazione staging fallita: qualitaPrezzo bloccata nel risultato")
     if any(row.get("customerType") != "privato" for row in private_rows):
         raise ValueError("Validazione staging fallita: offerta business nel catalogo privati")
+    if any(row.get("customerType") != "privato" for row in private_dual_rows):
+        raise ValueError("Validazione staging fallita: offerta dual business nel catalogo privati")
+    if any(
+        row.get("providerKey") == "eco" and not str(row.get("codice") or "").startswith("000742")
+        for row in rows
+    ):
+        raise ValueError("Validazione staging fallita: catalogo E.CO contiene codici di altri venditori")
 
     payload = {
-        **{key: copy.deepcopy(value) for key, value in staging_payload.items() if key not in {"offerte", "offerteBusiness"}},
+        **{
+            key: copy.deepcopy(value)
+            for key, value in staging_payload.items()
+            if key not in {"offerte", "offerteBusiness", "offerteDual", "offerteDualBusiness"}
+        },
         "offerte": private_rows,
         "offerteBusiness": business_rows,
+        "offerteDual": private_dual_rows,
+        "offerteDualBusiness": business_dual_rows,
     }
     payload["statistiche"] = {
         **dict(payload.get("statistiche") or {}),
-        "totaleRighe": len(private_rows) + len(business_rows),
+        "totaleRighe": len(private_rows) + len(business_rows) + len(private_dual_rows) + len(business_dual_rows),
         "offertePrivati": len(private_rows),
         "offerteBusiness": len(business_rows),
+        "offerteDualPrivati": len(private_dual_rows),
+        "offerteDualBusiness": len(business_dual_rows),
         "inQuarantena": len(quarantine),
         "scartate": len(diagnostics),
     }
@@ -958,19 +1260,23 @@ def write_report(root: Path, report: dict[str, object]) -> Path:
     return target
 
 
-def atomic_publish(root: Path, payload: dict[str, object]) -> list[Path]:
-    targets = [root / "data" / "offerte-arera-menu.json", root / "public" / "data" / "offerte-arera-menu.json"]
+def atomic_publish(root: Path, payload: dict[str, object], report: dict[str, object]) -> list[Path]:
+    target_bodies = {
+        root / "data" / "offerte-arera-menu.json": json_text(payload),
+        root / "public" / "data" / "offerte-arera-menu.json": json_text(payload),
+        root / "data" / "arera-update-report.json": json_text(report),
+    }
+    targets = list(target_bodies)
     temporary: list[tuple[Path, Path]] = []
     originals = {target: target.read_bytes() if target.exists() else None for target in targets}
     replaced: list[Path] = []
-    body = json_text(payload)
     try:
         for target in targets:
             target.parent.mkdir(parents=True, exist_ok=True)
             fd, name = tempfile.mkstemp(prefix=f".{target.name}.", suffix=".tmp", dir=target.parent)
             os.close(fd)
             temp_path = Path(name)
-            temp_path.write_text(body, encoding="utf-8")
+            temp_path.write_text(target_bodies[target], encoding="utf-8")
             json.loads(temp_path.read_text(encoding="utf-8"))
             temporary.append((temp_path, target))
         for temp_path, target in temporary:
@@ -999,10 +1305,10 @@ def build_staging_payload(
 ) -> tuple[dict[str, object], list[dict[str, object]]]:
     overrides = load_verified_overrides(root)
     diagnostics: list[dict[str, object]] = []
-    rows: list[dict[str, object]] = []
-    rows.extend(parse_offer_file(files["E"], "luce", as_of, overrides, diagnostics))
-    rows.extend(parse_offer_file(files["G"], "gas", as_of, overrides, diagnostics))
-    rows = dedupe_rows(rows)
+    light_rows = dedupe_rows(parse_offer_file(files["E"], "luce", as_of, overrides, diagnostics))
+    gas_rows = dedupe_rows(parse_offer_file(files["G"], "gas", as_of, overrides, diagnostics))
+    rows = dedupe_rows(light_rows + gas_rows)
+    dual_rows = dedupe_dual_rows(parse_dual_file(files["D"], light_rows, gas_rows, as_of, diagnostics))
 
     return {
         "versioneDati": f"arera-menu-{as_of.strftime('%Y-%m-%d')}",
@@ -1014,10 +1320,13 @@ def build_staging_payload(
         },
         "offerte": [row for row in rows if row.get("customerType") == "privato"],
         "offerteBusiness": [row for row in rows if row.get("customerType") == "business"],
+        "offerteDual": [row for row in dual_rows if row.get("customerType") == "privato"],
+        "offerteDualBusiness": [row for row in dual_rows if row.get("customerType") == "business"],
         "statistiche": {
-            "totaleRighe": len(rows),
+            "totaleRighe": len(rows) + len(dual_rows),
             "fileLuce": files["E"].name,
             "fileGas": files["G"].name,
+            "fileDual": files["D"].name,
         },
     }, diagnostics
 
@@ -1056,14 +1365,14 @@ def main() -> int:
             source_date = source_date_from_files(files) or as_of
             log_info(f"Parsing file ARERA per la data {source_date.strftime('%Y%m%d')}.")
             payload, report, staging_path = build_validated_payload(files, source_date, root)
-            targets = atomic_publish(root, payload)
+            targets = atomic_publish(root, payload, report)
         else:
             with tempfile.TemporaryDirectory(prefix="offertalogica-arera-") as tmp:
                 files = download_current_files(Path(tmp), as_of)
                 source_date = source_date_from_files(files) or as_of
                 log_info(f"Parsing file ARERA per la data {source_date.strftime('%Y%m%d')}.")
                 payload, report, staging_path = build_validated_payload(files, source_date, root)
-                targets = atomic_publish(root, payload)
+                targets = atomic_publish(root, payload, report)
     except Exception as error:
         failure_report = report or {
             "versioneDati": f"arera-menu-{as_of.strftime('%Y-%m-%d')}",
@@ -1080,10 +1389,11 @@ def main() -> int:
         log_error("I dati esistenti non sono stati modificati.")
         return 1
 
-    report_path = write_report(root, report or {})
+    report_path = root / "data" / "arera-update-report.json"
     log_info(
         f"Creato offerte-arera-menu.json con {payload['statistiche']['totaleRighe']} righe "
-        f"({payload['statistiche']['fileLuce']} / {payload['statistiche']['fileGas']})."
+        f"({payload['statistiche']['fileLuce']} / {payload['statistiche']['fileGas']} / "
+        f"{payload['statistiche']['fileDual']})."
     )
     log_info(f"Staging validato: {staging_path.relative_to(root) if staging_path else 'non disponibile'}")
     log_info(f"Report aggiornamento: {report_path.relative_to(root)}")

@@ -1,10 +1,11 @@
 {
   "ok": true,
-  "generatedAt": "2026-07-16T07:37:30.182Z",
+  "generatedAt": "2026-07-19T06:28:59.125Z",
   "arera": {
-    "versioneDati": "arera-menu-2026-07-16",
-    "aggiornatoIl": "2026-07-16",
-    "offerte": 358,
+    "versioneDati": "arera-menu-2026-07-19",
+    "aggiornatoIl": "2026-07-19",
+    "offerte": 472,
+    "offerteDual": 21,
     "indiciUsati": {
       "pun": 0.119351258,
       "psv": 0.504419055
@@ -16,72 +17,43 @@
       "label": "Privato medio - dual fuel - prezzo fisso",
       "tipo": "fisso",
       "fornitura": "dual",
-      "providerCount": 10,
-      "excludedCount": 1,
-      "excludedExamples": [
-        {
-          "providerKey": "a2a",
-          "providerLabel": "A2A Energia",
-          "commodity": "luce",
-          "tipo": "fisso",
-          "nome": "NeN Dieci Luce",
-          "codice": "029748ESFML01XX260709LD10X000000",
-          "prezzo": 0.119,
-          "quotaFissaAnnua": 72,
-          "reasons": [
-            "fornitore non coerente: offerta sembra nen, ma providerKey e a2a"
-          ]
-        }
-      ],
+      "providerCount": 5,
+      "excludedCount": 0,
+      "excludedExamples": [],
       "top": [
         {
           "rank": 1,
-          "provider": "E.ON",
-          "totale": 765.87,
-          "costoVariabile": 548.76,
-          "costoFisso": 217.11,
+          "provider": "Illumia",
+          "totale": 778.3,
+          "costoVariabile": 610.3,
+          "costoFisso": 168,
+          "codice": "000155DSFML01XX05103SFMX05102SFM",
+          "codiceOffertaLuce": "000155DSFML04XXZZ05103Z260711E01",
+          "codiceOffertaGas": "000155DSFML04XXZZZZ05102Z260711G",
           "luce": {
-            "nome": "E.ON LuceClickVerde",
-            "prezzo": 0.0998,
-            "quotaFissaAnnua": 109.11,
-            "qualitaPrezzo": "prezzo_esplicito"
-          },
-          "gas": {
-            "nome": "E.ON Gas Click",
-            "prezzo": 0.399,
-            "quotaFissaAnnua": 108,
-            "qualitaPrezzo": "prezzo_esplicito"
-          },
-          "commercialStatus": "attivabile_online",
-          "commercialLabel": "attivabile online"
-        },
-        {
-          "rank": 2,
-          "provider": "Acea Energia",
-          "totale": 769.3,
-          "costoVariabile": 547.3,
-          "costoFisso": 222,
-          "luce": {
-            "nome": "Acea Energia Fix",
+            "nome": "Energia Lunghissima Luce",
             "prezzo": 0.099,
-            "quotaFissaAnnua": 111,
+            "quotaFissaAnnua": 84,
             "qualitaPrezzo": "prezzo_esplicito"
           },
           "gas": {
-            "nome": "Acea Energia Fix",
-            "prezzo": 0.4,
-            "quotaFissaAnnua": 111,
+            "nome": "Energia Lunghissima Gas",
+            "prezzo": 0.49,
+            "quotaFissaAnnua": 84,
             "qualitaPrezzo": "prezzo_esplicito"
           },
           "commercialStatus": "solo_confronto",
           "commercialLabel": "solo confronto"
         },
         {
-          "rank": 3,
+          "rank": 2,
           "provider": "Engie",
           "totale": 780.68,
           "costoVariabile": 624.68,
           "costoFisso": 156,
+          "codice": "001714DSFML17XXPUMD0001700000000",
+          "codiceOffertaLuce": "001714ESFML17XXPUMD0001700000000",
+          "codiceOffertaGas": "001714GSFML17XXPUMD0001700000000",
           "luce": {
             "nome": "Energia PuntoFisso - 12 mesi",
             "prezzo": 0.1134,
@@ -98,46 +70,76 @@
           "commercialLabel": "solo confronto"
         },
         {
-          "rank": 4,
-          "provider": "neN",
-          "totale": 860.8,
-          "costoVariabile": 656.8,
-          "costoFisso": 204,
+          "rank": 3,
+          "provider": "Vivi Energia",
+          "totale": 929.53,
+          "costoVariabile": 701.53,
+          "costoFisso": 228,
+          "codice": "000652DSFML04XXWEBALLDABDF100726",
+          "codiceOffertaLuce": "000652ESFML04XXWEBALLDABDF100726",
+          "codiceOffertaGas": "000652GSFML04XXWEBALLDABDF100726",
           "luce": {
-            "nome": "Due Luce",
-            "prezzo": 0.124,
-            "quotaFissaAnnua": 96,
+            "nome": "VIVIweb Allday Fix24 Lucegas",
+            "prezzo": 0.1289,
+            "quotaFissaAnnua": 114,
             "qualitaPrezzo": "prezzo_esplicito"
           },
           "gas": {
-            "nome": "Due Gas",
-            "prezzo": 0.46,
-            "quotaFissaAnnua": 108,
-            "qualitaPrezzo": "prezzo_esplicito"
-          },
-          "commercialStatus": "affiliazione_in_attesa",
-          "commercialLabel": "affiliazione in attesa"
-        },
-        {
-          "rank": 5,
-          "provider": "Edison",
-          "totale": 895.3,
-          "costoVariabile": 673.3,
-          "costoFisso": 222,
-          "luce": {
-            "nome": "Edison 5xTe Luce km0",
-            "prezzo": 0.099,
-            "quotaFissaAnnua": 132,
-            "qualitaPrezzo": "prezzo_esplicito"
-          },
-          "gas": {
-            "nome": "Edison Web Gas",
-            "prezzo": 0.58,
-            "quotaFissaAnnua": 90,
+            "nome": "VIVIweb Allday Fix24 Lucegas",
+            "prezzo": 0.505,
+            "quotaFissaAnnua": 114,
             "qualitaPrezzo": "prezzo_esplicito"
           },
           "commercialStatus": "solo_confronto",
           "commercialLabel": "solo confronto"
+        },
+        {
+          "rank": 4,
+          "provider": "Pulsee Luce e Gas",
+          "totale": 949.42,
+          "costoVariabile": 661.42,
+          "costoFisso": 288,
+          "codice": "040505DSFML01XXPULSEEFIX00252607",
+          "codiceOffertaLuce": "040505ESFML07XXPULSEEFIX91812607",
+          "codiceOffertaGas": "040505GSFML07XXPULSEEFIX91182607",
+          "luce": {
+            "nome": "Pulsee Luce e Gas RELAX Fix - P 36 mesi",
+            "prezzo": 0.1156,
+            "quotaFissaAnnua": 144,
+            "qualitaPrezzo": "prezzo_esplicito"
+          },
+          "gas": {
+            "nome": "Pulsee Luce e Gas RELAX Fix - G 36 mesi",
+            "prezzo": 0.499,
+            "quotaFissaAnnua": 144,
+            "qualitaPrezzo": "prezzo_esplicito"
+          },
+          "commercialStatus": "solo_confronto",
+          "commercialLabel": "solo confronto"
+        },
+        {
+          "rank": 5,
+          "provider": "Sorgenia",
+          "totale": 1002.41,
+          "costoVariabile": 774.41,
+          "costoFisso": 228,
+          "codice": "000390DS00L01XXDS014644000000000",
+          "codiceOffertaLuce": "000390DSFML01XXES014644010000000",
+          "codiceOffertaGas": "000390DSFML01XXGS014640010000000",
+          "luce": {
+            "nome": "Next Energy Hybrid",
+            "prezzo": 0.13904,
+            "quotaFissaAnnua": 114,
+            "qualitaPrezzo": "prezzo_esplicito"
+          },
+          "gas": {
+            "nome": "Next Energy Smart Gas",
+            "prezzo": 0.57,
+            "quotaFissaAnnua": 114,
+            "qualitaPrezzo": "prezzo_esplicito"
+          },
+          "commercialStatus": "richiede_consulente",
+          "commercialLabel": "richiede consulente"
         }
       ]
     },
@@ -146,87 +148,53 @@
       "label": "Privato medio - dual fuel - prezzo variabile",
       "tipo": "variabile",
       "fornitura": "dual",
-      "providerCount": 15,
-      "excludedCount": 3,
-      "excludedExamples": [
-        {
-          "providerKey": "acea",
-          "providerLabel": "Acea Energia",
-          "commodity": "luce",
-          "tipo": "variabile",
-          "nome": "LUCE OVER 75 26_01",
-          "codice": "000694ESVFL01XXACEALUCEOVER75NEW",
-          "prezzo": 0.13385126,
-          "quotaFissaAnnua": 90,
-          "reasons": [
-            "fuori perimetro privato standard: vulnerabili/eta"
-          ]
-        },
-        {
-          "providerKey": "acea",
-          "providerLabel": "Acea Energia",
-          "commodity": "luce",
-          "tipo": "variabile",
-          "nome": "LUCE SECONDE CASE",
-          "codice": "000694ESVFL01XXACEALUCESCASE2601",
-          "prezzo": 0.13385126,
-          "quotaFissaAnnua": 90,
-          "reasons": [
-            "fuori perimetro privato standard: lavoro/seconda casa"
-          ]
-        },
-        {
-          "providerKey": "iren",
-          "providerLabel": "Iren Luce e Gas",
-          "commodity": "luce",
-          "tipo": "variabile",
-          "nome": "SEV IREN X VULNERABILI STG",
-          "codice": "001060ESVFL02XX000SEDOSIVS260806",
-          "prezzo": 0.11935126,
-          "quotaFissaAnnua": 35,
-          "reasons": [
-            "fuori perimetro privato standard: vulnerabili/eta"
-          ]
-        }
-      ],
+      "providerCount": 3,
+      "excludedCount": 0,
+      "excludedExamples": [],
       "top": [
         {
           "rank": 1,
-          "provider": "Alperia",
-          "totale": 852.94,
-          "costoVariabile": 852.94,
-          "costoFisso": 0,
+          "provider": "Engie",
+          "totale": 871.01,
+          "costoVariabile": 753.01,
+          "costoFisso": 118,
+          "codice": "001714DSVFL07XXVECH0000700000000",
+          "codiceOffertaLuce": "001714ESVFL07XXVECH0000700000000",
+          "codiceOffertaGas": "001714GSVML07XXVECH0000700000000",
           "luce": {
-            "nome": "Alperia Free Welcome",
-            "prezzo": 0.13035126,
-            "quotaFissaAnnua": 0,
+            "nome": "Energia VedoChiaro",
+            "prezzo": 0.12735126,
+            "quotaFissaAnnua": 59,
             "qualitaPrezzo": "indice_piu_spread_semantico"
           },
           "gas": {
-            "nome": "Alperia Gas Home Promo",
-            "prezzo": 0.66441905,
-            "quotaFissaAnnua": 0,
+            "nome": "Energia VedoChiaro",
+            "prezzo": 0.53441905,
+            "quotaFissaAnnua": 59,
             "qualitaPrezzo": "indice_piu_spread_semantico"
           },
-          "commercialStatus": "attivabile_online",
-          "commercialLabel": "attivabile online"
+          "commercialStatus": "solo_confronto",
+          "commercialLabel": "solo confronto"
         },
         {
           "rank": 2,
-          "provider": "Illumia",
-          "totale": 911.21,
-          "costoVariabile": 743.21,
-          "costoFisso": 168,
+          "provider": "Pulsee Luce e Gas",
+          "totale": 999.69,
+          "costoVariabile": 819.69,
+          "costoFisso": 180,
+          "codice": "040505DSVFL02XXPULSEEPUM35482607",
+          "codiceOffertaLuce": "040505DSVFL07XXPULSEEPUM88612607",
+          "codiceOffertaGas": "040505DSVML07XXPULSEEPGA88742607",
           "luce": {
-            "nome": "Luce Flex",
-            "prezzo": 0.11935126,
-            "quotaFissaAnnua": 84,
+            "nome": "Pulsee Luce e Gas Semplice Index - P",
+            "prezzo": 0.13635126,
+            "quotaFissaAnnua": 90,
             "qualitaPrezzo": "indice_piu_spread_semantico"
           },
           "gas": {
-            "nome": "Gas Flex",
-            "prezzo": 0.55441905,
-            "quotaFissaAnnua": 84,
+            "nome": "Pulsee Luce e Gas Semplice Index - G",
+            "prezzo": 0.59141905,
+            "quotaFissaAnnua": 90,
             "qualitaPrezzo": "indice_piu_spread_semantico"
           },
           "commercialStatus": "solo_confronto",
@@ -234,62 +202,23 @@
         },
         {
           "rank": 3,
-          "provider": "Engie",
-          "totale": 917.71,
-          "costoVariabile": 760.71,
-          "costoFisso": 157,
+          "provider": "Vivi Energia",
+          "totale": 1019.16,
+          "costoVariabile": 791.16,
+          "costoFisso": 228,
+          "codice": "000652DSFFL40XXVWEBALLDAYD100726",
+          "codiceOffertaLuce": "000652ESFFL40XXVWEBALLDAYD100726",
+          "codiceOffertaGas": "000652GSVML40XXVWEBALLDAYD100726",
           "luce": {
-            "nome": "Taaanta Energia",
-            "prezzo": 0.11935126,
-            "quotaFissaAnnua": 79,
+            "nome": "VIVIweb Allday Flex Lucegas",
+            "prezzo": 0.13335126,
+            "quotaFissaAnnua": 114,
             "qualitaPrezzo": "indice_piu_spread_semantico"
           },
           "gas": {
-            "nome": "Benvenuto in ENGIE",
-            "prezzo": 0.57941905,
-            "quotaFissaAnnua": 78,
-            "qualitaPrezzo": "indice_piu_spread_semantico"
-          },
-          "commercialStatus": "solo_confronto",
-          "commercialLabel": "solo confronto"
-        },
-        {
-          "rank": 4,
-          "provider": "Octopus Energy",
-          "totale": 932.39,
-          "costoVariabile": 776.39,
-          "costoFisso": 156,
-          "luce": {
-            "nome": "Octopus Flex",
-            "prezzo": 0.12815126,
-            "quotaFissaAnnua": 72,
-            "qualitaPrezzo": "indice_piu_spread_semantico"
-          },
-          "gas": {
-            "nome": "Octopus Flex Gas",
-            "prezzo": 0.56441905,
-            "quotaFissaAnnua": 84,
-            "qualitaPrezzo": "indice_piu_spread_semantico"
-          },
-          "commercialStatus": "affiliazione_in_attesa",
-          "commercialLabel": "affiliazione in attesa"
-        },
-        {
-          "rank": 5,
-          "provider": "Acea Energia",
-          "totale": 951.14,
-          "costoVariabile": 759.14,
-          "costoFisso": 192,
-          "luce": {
-            "nome": "Acea Energia Sprint Web",
-            "prezzo": 0.12635126,
-            "quotaFissaAnnua": 96,
-            "qualitaPrezzo": "indice_piu_spread_semantico"
-          },
-          "gas": {
-            "nome": "Acea Energia Sprint Web",
-            "prezzo": 0.54741905,
-            "quotaFissaAnnua": 96,
+            "nome": "VIVIweb Allday Flex Lucegas",
+            "prezzo": 0.56341906,
+            "quotaFissaAnnua": 114,
             "qualitaPrezzo": "indice_piu_spread_semantico"
           },
           "commercialStatus": "solo_confronto",
@@ -302,72 +231,43 @@
       "label": "Privato alto consumo - dual fuel - prezzo fisso",
       "tipo": "fisso",
       "fornitura": "dual",
-      "providerCount": 10,
-      "excludedCount": 1,
-      "excludedExamples": [
-        {
-          "providerKey": "a2a",
-          "providerLabel": "A2A Energia",
-          "commodity": "luce",
-          "tipo": "fisso",
-          "nome": "NeN Dieci Luce",
-          "codice": "029748ESFML01XX260709LD10X000000",
-          "prezzo": 0.119,
-          "quotaFissaAnnua": 72,
-          "reasons": [
-            "fornitore non coerente: offerta sembra nen, ma providerKey e a2a"
-          ]
-        }
-      ],
+      "providerCount": 5,
+      "excludedCount": 0,
+      "excludedExamples": [],
       "top": [
         {
           "rank": 1,
-          "provider": "E.ON",
-          "totale": 1095.11,
-          "costoVariabile": 878,
-          "costoFisso": 217.11,
+          "provider": "Illumia",
+          "totale": 1152,
+          "costoVariabile": 984,
+          "costoFisso": 168,
+          "codice": "000155DSFML01XX05103SFMX05102SFM",
+          "codiceOffertaLuce": "000155DSFML04XXZZ05103Z260711E01",
+          "codiceOffertaGas": "000155DSFML04XXZZZZ05102Z260711G",
           "luce": {
-            "nome": "E.ON LuceClickVerde",
-            "prezzo": 0.0998,
-            "quotaFissaAnnua": 109.11,
-            "qualitaPrezzo": "prezzo_esplicito"
-          },
-          "gas": {
-            "nome": "E.ON Gas Click",
-            "prezzo": 0.399,
-            "quotaFissaAnnua": 108,
-            "qualitaPrezzo": "prezzo_esplicito"
-          },
-          "commercialStatus": "attivabile_online",
-          "commercialLabel": "attivabile online"
-        },
-        {
-          "rank": 2,
-          "provider": "Acea Energia",
-          "totale": 1098,
-          "costoVariabile": 876,
-          "costoFisso": 222,
-          "luce": {
-            "nome": "Acea Energia Fix",
+            "nome": "Energia Lunghissima Luce",
             "prezzo": 0.099,
-            "quotaFissaAnnua": 111,
+            "quotaFissaAnnua": 84,
             "qualitaPrezzo": "prezzo_esplicito"
           },
           "gas": {
-            "nome": "Acea Energia Fix",
-            "prezzo": 0.4,
-            "quotaFissaAnnua": 111,
+            "nome": "Energia Lunghissima Gas",
+            "prezzo": 0.49,
+            "quotaFissaAnnua": 84,
             "qualitaPrezzo": "prezzo_esplicito"
           },
           "commercialStatus": "solo_confronto",
           "commercialLabel": "solo confronto"
         },
         {
-          "rank": 3,
+          "rank": 2,
           "provider": "Engie",
           "totale": 1155.6,
           "costoVariabile": 999.6,
           "costoFisso": 156,
+          "codice": "001714DSFML17XXPUMD0001700000000",
+          "codiceOffertaLuce": "001714ESFML17XXPUMD0001700000000",
+          "codiceOffertaGas": "001714GSFML17XXPUMD0001700000000",
           "luce": {
             "nome": "Energia PuntoFisso - 12 mesi",
             "prezzo": 0.1134,
@@ -384,46 +284,76 @@
           "commercialLabel": "solo confronto"
         },
         {
-          "rank": 4,
-          "provider": "neN",
-          "totale": 1252,
-          "costoVariabile": 1048,
-          "costoFisso": 204,
+          "rank": 3,
+          "provider": "Pulsee Luce e Gas",
+          "totale": 1349.2,
+          "costoVariabile": 1061.2,
+          "costoFisso": 288,
+          "codice": "040505DSFML01XXPULSEEFIX00252607",
+          "codiceOffertaLuce": "040505ESFML07XXPULSEEFIX91812607",
+          "codiceOffertaGas": "040505GSFML07XXPULSEEFIX91182607",
           "luce": {
-            "nome": "Due Luce",
-            "prezzo": 0.124,
-            "quotaFissaAnnua": 96,
+            "nome": "Pulsee Luce e Gas RELAX Fix - P 36 mesi",
+            "prezzo": 0.1156,
+            "quotaFissaAnnua": 144,
             "qualitaPrezzo": "prezzo_esplicito"
           },
           "gas": {
-            "nome": "Due Gas",
-            "prezzo": 0.46,
-            "quotaFissaAnnua": 108,
-            "qualitaPrezzo": "prezzo_esplicito"
-          },
-          "commercialStatus": "affiliazione_in_attesa",
-          "commercialLabel": "affiliazione in attesa"
-        },
-        {
-          "rank": 5,
-          "provider": "Edison",
-          "totale": 1314,
-          "costoVariabile": 1092,
-          "costoFisso": 222,
-          "luce": {
-            "nome": "Edison 5xTe Luce km0",
-            "prezzo": 0.099,
-            "quotaFissaAnnua": 132,
-            "qualitaPrezzo": "prezzo_esplicito"
-          },
-          "gas": {
-            "nome": "Edison Web Gas",
-            "prezzo": 0.58,
-            "quotaFissaAnnua": 90,
+            "nome": "Pulsee Luce e Gas RELAX Fix - G 36 mesi",
+            "prezzo": 0.499,
+            "quotaFissaAnnua": 144,
             "qualitaPrezzo": "prezzo_esplicito"
           },
           "commercialStatus": "solo_confronto",
           "commercialLabel": "solo confronto"
+        },
+        {
+          "rank": 4,
+          "provider": "Vivi Energia",
+          "totale": 1349.6,
+          "costoVariabile": 1121.6,
+          "costoFisso": 228,
+          "codice": "000652DSFML04XXWEBALLDABDF100726",
+          "codiceOffertaLuce": "000652ESFML04XXWEBALLDABDF100726",
+          "codiceOffertaGas": "000652GSFML04XXWEBALLDABDF100726",
+          "luce": {
+            "nome": "VIVIweb Allday Fix24 Lucegas",
+            "prezzo": 0.1289,
+            "quotaFissaAnnua": 114,
+            "qualitaPrezzo": "prezzo_esplicito"
+          },
+          "gas": {
+            "nome": "VIVIweb Allday Fix24 Lucegas",
+            "prezzo": 0.505,
+            "quotaFissaAnnua": 114,
+            "qualitaPrezzo": "prezzo_esplicito"
+          },
+          "commercialStatus": "solo_confronto",
+          "commercialLabel": "solo confronto"
+        },
+        {
+          "rank": 5,
+          "provider": "Sorgenia",
+          "totale": 1468.16,
+          "costoVariabile": 1240.16,
+          "costoFisso": 228,
+          "codice": "000390DS00L01XXDS014644000000000",
+          "codiceOffertaLuce": "000390DSFML01XXES014644010000000",
+          "codiceOffertaGas": "000390DSFML01XXGS014640010000000",
+          "luce": {
+            "nome": "Next Energy Hybrid",
+            "prezzo": 0.13904,
+            "quotaFissaAnnua": 114,
+            "qualitaPrezzo": "prezzo_esplicito"
+          },
+          "gas": {
+            "nome": "Next Energy Smart Gas",
+            "prezzo": 0.57,
+            "quotaFissaAnnua": 114,
+            "qualitaPrezzo": "prezzo_esplicito"
+          },
+          "commercialStatus": "richiede_consulente",
+          "commercialLabel": "richiede consulente"
         }
       ]
     },
@@ -432,97 +362,50 @@
       "label": "Privato medio - forniture separate - prezzo fisso",
       "tipo": "fisso",
       "fornitura": "separata",
-      "providerCount": 13,
-      "excludedCount": 1,
+      "providerCount": 22,
+      "excludedCount": 2,
       "excludedExamples": [
         {
-          "providerKey": "a2a",
-          "providerLabel": "A2A Energia",
+          "providerKey": "alperia",
+          "providerLabel": "Alperia",
           "commodity": "luce",
           "tipo": "fisso",
-          "nome": "NeN Dieci Luce",
-          "codice": "029748ESFML01XX260709LD10X000000",
-          "prezzo": 0.119,
-          "quotaFissaAnnua": 72,
+          "nome": "Alperia Direct Alto Adige",
+          "codice": "000368ESFML01XX3835448X260511XVE",
+          "prezzo": 0.10494,
+          "quotaFissaAnnua": 86.2,
           "reasons": [
-            "fornitore non coerente: offerta sembra nen, ma providerKey e a2a"
+            "offerta territoriale: da non usare come proposta nazionale standard"
+          ]
+        },
+        {
+          "providerKey": "enel",
+          "providerLabel": "Enel Energia",
+          "commodity": "luce",
+          "tipo": "fisso",
+          "nome": "Enel Seconda Casa Luce",
+          "codice": "000142ESFML01XXResECAn0000116040",
+          "prezzo": 0.174,
+          "quotaFissaAnnua": 144,
+          "reasons": [
+            "fuori perimetro privato standard: lavoro/seconda casa"
           ]
         }
       ],
       "top": [
         {
           "rank": 1,
-          "provider": "Engie + E.ON",
-          "totale": 765.48,
-          "costoVariabile": 585.48,
-          "costoFisso": 180,
+          "provider": "Illumia + Acea Energia",
+          "totale": 742.3,
+          "costoVariabile": 547.3,
+          "costoFisso": 195,
+          "codice": null,
+          "codiceOffertaLuce": "000155ESFML06XXZZ03839Z260711E01",
+          "codiceOffertaGas": "000774GSFML01XXRT4D4028030000000",
           "luce": {
-            "nome": "Energia PuntoFisso - 12 mesi",
-            "prezzo": 0.1134,
-            "quotaFissaAnnua": 72,
-            "qualitaPrezzo": "prezzo_esplicito"
-          },
-          "gas": {
-            "nome": "E.ON Gas Click",
-            "prezzo": 0.399,
-            "quotaFissaAnnua": 108,
-            "qualitaPrezzo": "prezzo_esplicito"
-          },
-          "commercialStatus": "separata",
-          "commercialLabel": "solo confronto / attivabile online"
-        },
-        {
-          "rank": 2,
-          "provider": "Acea Energia + E.ON",
-          "totale": 765.6,
-          "costoVariabile": 546.6,
-          "costoFisso": 219,
-          "luce": {
-            "nome": "Acea Energia Fix",
+            "nome": "Energia Lunga Luce",
             "prezzo": 0.099,
-            "quotaFissaAnnua": 111,
-            "qualitaPrezzo": "prezzo_esplicito"
-          },
-          "gas": {
-            "nome": "E.ON Gas Click",
-            "prezzo": 0.399,
-            "quotaFissaAnnua": 108,
-            "qualitaPrezzo": "prezzo_esplicito"
-          },
-          "commercialStatus": "separata",
-          "commercialLabel": "solo confronto / attivabile online"
-        },
-        {
-          "rank": 3,
-          "provider": "E.ON + E.ON",
-          "totale": 765.87,
-          "costoVariabile": 548.76,
-          "costoFisso": 217.11,
-          "luce": {
-            "nome": "E.ON LuceClickVerde",
-            "prezzo": 0.0998,
-            "quotaFissaAnnua": 109.11,
-            "qualitaPrezzo": "prezzo_esplicito"
-          },
-          "gas": {
-            "nome": "E.ON Gas Click",
-            "prezzo": 0.399,
-            "quotaFissaAnnua": 108,
-            "qualitaPrezzo": "prezzo_esplicito"
-          },
-          "commercialStatus": "separata",
-          "commercialLabel": "attivabile online / attivabile online"
-        },
-        {
-          "rank": 4,
-          "provider": "Engie + Acea Energia",
-          "totale": 769.18,
-          "costoVariabile": 586.18,
-          "costoFisso": 183,
-          "luce": {
-            "nome": "Energia PuntoFisso - 12 mesi",
-            "prezzo": 0.1134,
-            "quotaFissaAnnua": 72,
+            "quotaFissaAnnua": 84,
             "qualitaPrezzo": "prezzo_esplicito"
           },
           "gas": {
@@ -535,15 +418,90 @@
           "commercialLabel": "solo confronto / solo confronto"
         },
         {
-          "rank": 5,
-          "provider": "Acea Energia + Acea Energia",
-          "totale": 769.3,
-          "costoVariabile": 547.3,
-          "costoFisso": 222,
+          "rank": 2,
+          "provider": "Illumia + Engie",
+          "totale": 753.8,
+          "costoVariabile": 585.8,
+          "costoFisso": 168,
+          "codice": null,
+          "codiceOffertaLuce": "000155ESFML06XXZZ03839Z260711E01",
+          "codiceOffertaGas": "001714GSFML17XXPUMD0001700000000",
           "luce": {
-            "nome": "Acea Energia Fix",
+            "nome": "Energia Lunga Luce",
             "prezzo": 0.099,
+            "quotaFissaAnnua": 84,
+            "qualitaPrezzo": "prezzo_esplicito"
+          },
+          "gas": {
+            "nome": "Energia PuntoFisso - 12 mesi",
+            "prezzo": 0.455,
+            "quotaFissaAnnua": 84,
+            "qualitaPrezzo": "prezzo_esplicito"
+          },
+          "commercialStatus": "separata",
+          "commercialLabel": "solo confronto / solo confronto"
+        },
+        {
+          "rank": 3,
+          "provider": "Illumia + Alperia",
+          "totale": 762.3,
+          "costoVariabile": 582.3,
+          "costoFisso": 180,
+          "codice": null,
+          "codiceOffertaLuce": "000155ESFML06XXZZ03839Z260711E01",
+          "codiceOffertaGas": "000368GSFML03XX1895452X260711XVE",
+          "luce": {
+            "nome": "Energia Lunga Luce",
+            "prezzo": 0.099,
+            "quotaFissaAnnua": 84,
+            "qualitaPrezzo": "prezzo_esplicito"
+          },
+          "gas": {
+            "nome": "Alperia Gas Smile Start",
+            "prezzo": 0.45,
+            "quotaFissaAnnua": 96,
+            "qualitaPrezzo": "prezzo_esplicito"
+          },
+          "commercialStatus": "separata",
+          "commercialLabel": "solo confronto / attivabile online"
+        },
+        {
+          "rank": 4,
+          "provider": "Alperia + Acea Energia",
+          "totale": 763.69,
+          "costoVariabile": 557.29,
+          "costoFisso": 206.4,
+          "codice": null,
+          "codiceOffertaLuce": "000368ESFML02XX4085488X260711XVE",
+          "codiceOffertaGas": "000774GSFML01XXRT4D4028030000000",
+          "luce": {
+            "nome": "Alperia Smile Easy Summer",
+            "prezzo": 0.1027,
+            "quotaFissaAnnua": 95.4,
+            "qualitaPrezzo": "prezzo_esplicito"
+          },
+          "gas": {
+            "nome": "Acea Energia Fix",
+            "prezzo": 0.4,
             "quotaFissaAnnua": 111,
+            "qualitaPrezzo": "prezzo_esplicito"
+          },
+          "commercialStatus": "separata",
+          "commercialLabel": "attivabile online / solo confronto"
+        },
+        {
+          "rank": 5,
+          "provider": "Engie + Acea Energia",
+          "totale": 769.18,
+          "costoVariabile": 586.18,
+          "costoFisso": 183,
+          "codice": null,
+          "codiceOffertaLuce": "001714ESFML17XXPUMD0001700000000",
+          "codiceOffertaGas": "000774GSFML01XXRT4D4028030000000",
+          "luce": {
+            "nome": "Energia PuntoFisso - 12 mesi",
+            "prezzo": 0.1134,
+            "quotaFissaAnnua": 72,
             "qualitaPrezzo": "prezzo_esplicito"
           },
           "gas": {
@@ -562,7 +520,7 @@
       "label": "Privato medio - forniture separate - prezzo variabile",
       "tipo": "variabile",
       "fornitura": "separata",
-      "providerCount": 18,
+      "providerCount": 20,
       "excludedCount": 3,
       "excludedExamples": [
         {
@@ -608,10 +566,37 @@
       "top": [
         {
           "rank": 1,
+          "provider": "Alperia + Engie",
+          "totale": 820.94,
+          "costoVariabile": 761.94,
+          "costoFisso": 59,
+          "codice": null,
+          "codiceOffertaLuce": "000368ESVOL02XX3105054X260711XVE",
+          "codiceOffertaGas": "001714GSVML07XXVECH0000700000000",
+          "luce": {
+            "nome": "Alperia Free Welcome",
+            "prezzo": 0.13035126,
+            "quotaFissaAnnua": 0,
+            "qualitaPrezzo": "indice_piu_spread_semantico"
+          },
+          "gas": {
+            "nome": "Energia VedoChiaro",
+            "prezzo": 0.53441905,
+            "quotaFissaAnnua": 59,
+            "qualitaPrezzo": "indice_piu_spread_semantico"
+          },
+          "commercialStatus": "separata",
+          "commercialLabel": "attivabile online / solo confronto"
+        },
+        {
+          "rank": 2,
           "provider": "Alperia + Alperia",
           "totale": 852.94,
           "costoVariabile": 852.94,
           "costoFisso": 0,
+          "codice": null,
+          "codiceOffertaLuce": "000368ESVOL02XX3105054X260711XVE",
+          "codiceOffertaGas": "000368GSVML01XX2875038X260401XVE",
           "luce": {
             "nome": "Alperia Free Welcome",
             "prezzo": 0.13035126,
@@ -628,11 +613,38 @@
           "commercialLabel": "attivabile online / attivabile online"
         },
         {
-          "rank": 2,
+          "rank": 3,
+          "provider": "Eni Plenitude + Engie",
+          "totale": 853.67,
+          "costoVariabile": 794.67,
+          "costoFisso": 59,
+          "codice": null,
+          "codiceOffertaLuce": "026160ESVML51XX0LTCASAVPLU130726",
+          "codiceOffertaGas": "001714GSVML07XXVECH0000700000000",
+          "luce": {
+            "nome": "Trend Casa Luce Plus",
+            "prezzo": 0.14135126,
+            "quotaFissaAnnua": 0,
+            "qualitaPrezzo": "indice_piu_spread_semantico"
+          },
+          "gas": {
+            "nome": "Energia VedoChiaro",
+            "prezzo": 0.53441905,
+            "quotaFissaAnnua": 59,
+            "qualitaPrezzo": "indice_piu_spread_semantico"
+          },
+          "commercialStatus": "separata",
+          "commercialLabel": "attivabile online / solo confronto"
+        },
+        {
+          "rank": 4,
           "provider": "Alperia + Illumia",
           "totale": 859.94,
           "costoVariabile": 775.94,
           "costoFisso": 84,
+          "codice": null,
+          "codiceOffertaLuce": "000368ESVOL02XX3105054X260711XVE",
+          "codiceOffertaGas": "000155GSVML34XXZZZZ02910Z260711G",
           "luce": {
             "nome": "Alperia Free Welcome",
             "prezzo": 0.13035126,
@@ -649,11 +661,14 @@
           "commercialLabel": "attivabile online / solo confronto"
         },
         {
-          "rank": 3,
+          "rank": 5,
           "provider": "Alperia + neN",
           "totale": 860.94,
           "costoVariabile": 740.94,
           "costoFisso": 120,
+          "codice": null,
+          "codiceOffertaLuce": "000368ESVOL02XX3105054X260711XVE",
+          "codiceOffertaGas": "029748GSVML01XX260709GDSURF00000",
           "luce": {
             "nome": "Alperia Free Welcome",
             "prezzo": 0.13035126,
@@ -668,48 +683,6 @@
           },
           "commercialStatus": "separata",
           "commercialLabel": "attivabile online / affiliazione in attesa"
-        },
-        {
-          "rank": 4,
-          "provider": "Alperia + Octopus Energy",
-          "totale": 866.94,
-          "costoVariabile": 782.94,
-          "costoFisso": 84,
-          "luce": {
-            "nome": "Alperia Free Welcome",
-            "prezzo": 0.13035126,
-            "quotaFissaAnnua": 0,
-            "qualitaPrezzo": "indice_piu_spread_semantico"
-          },
-          "gas": {
-            "nome": "Octopus Flex Gas",
-            "prezzo": 0.56441905,
-            "quotaFissaAnnua": 84,
-            "qualitaPrezzo": "indice_piu_spread_semantico"
-          },
-          "commercialStatus": "separata",
-          "commercialLabel": "attivabile online / affiliazione in attesa"
-        },
-        {
-          "rank": 5,
-          "provider": "Alperia + Acea Energia",
-          "totale": 867.04,
-          "costoVariabile": 771.04,
-          "costoFisso": 96,
-          "luce": {
-            "nome": "Alperia Free Welcome",
-            "prezzo": 0.13035126,
-            "quotaFissaAnnua": 0,
-            "qualitaPrezzo": "indice_piu_spread_semantico"
-          },
-          "gas": {
-            "nome": "Acea Energia Sprint Web",
-            "prezzo": 0.54741905,
-            "quotaFissaAnnua": 96,
-            "qualitaPrezzo": "indice_piu_spread_semantico"
-          },
-          "commercialStatus": "separata",
-          "commercialLabel": "attivabile online / solo confronto"
         }
       ]
     }

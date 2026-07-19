@@ -93,6 +93,18 @@ function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
 }
 
+function assertTrueDualCatalog(arera) {
+  if (!Array.isArray(arera.offerteDual) || !arera.offerteDual.length) {
+    throw new Error("Catalogo ARERA privo di vere offerte dual dal file D");
+  }
+  for (const dual of arera.offerteDual) {
+    if (dual.customerType !== "privato") throw new Error(`Offerta dual business nel catalogo privato: ${dual.codice}`);
+    if (dual.codiceOffertaLuce !== dual.luce?.codice || dual.codiceOffertaGas !== dual.gas?.codice) {
+      throw new Error(`Riferimenti E/G non esatti per la dual ${dual.codice}`);
+    }
+  }
+}
+
 function round(value, decimals = 2) {
   const factor = 10 ** decimals;
   return Math.round((Number(value) + Number.EPSILON) * factor) / factor;
@@ -419,6 +431,36 @@ function combineDual(luce, gas, profile, commercial) {
   };
 }
 
+function bestTrueDualPerProvider(arera, params, profile, commercialIndex, diagnostics) {
+  const best = new Map();
+  for (const dual of Array.isArray(arera.offerteDual) ? arera.offerteDual : []) {
+    if (!dual || dual.fornitura !== "dual" || dual.tipo !== profile.tipo || dual.customerType !== "privato") continue;
+    const luce = dual.luce;
+    const gas = dual.gas;
+    if (String(dual.codiceOffertaLuce || "") !== String(luce?.codice || "")) continue;
+    if (String(dual.codiceOffertaGas || "") !== String(gas?.codice || "")) continue;
+    if (luce?.providerKey !== dual.providerKey || gas?.providerKey !== dual.providerKey) continue;
+    if (!isUsableOffer(luce, profile, "luce", diagnostics)) continue;
+    if (!isUsableOffer(gas, profile, "gas", diagnostics)) continue;
+    const luceCalc = calcCommodity(luce, profile, params);
+    const gasCalc = calcCommodity(gas, profile, params);
+    if (!luceCalc || !gasCalc) continue;
+    const result = combineDual(
+      luceCalc,
+      gasCalc,
+      profile,
+      commercialStatus(dual.providerKey, profile.tipo, commercialIndex),
+    );
+    result.codice = dual.codice;
+    result.nome = dual.nome;
+    result.codiceOffertaLuce = dual.codiceOffertaLuce;
+    result.codiceOffertaGas = dual.codiceOffertaGas;
+    const current = best.get(dual.providerKey);
+    if (!current || result.totale < current.totale) best.set(dual.providerKey, result);
+  }
+  return best;
+}
+
 function combineSeparate(luce, gas, profile, commercialIndex) {
   const providerKey = `${luce.providerKey}+${gas.providerKey}`;
   return {
@@ -443,16 +485,9 @@ function combineSeparate(luce, gas, profile, commercialIndex) {
 
 function rankProfile(arera, params, commercialIndex, profile, limit = DEFAULT_LIMIT) {
   const diagnostics = { excluded: new Map() };
-  const lightByProvider = bestPerProvider(arera, params, profile, "luce", diagnostics);
-  const gasByProvider = bestPerProvider(arera, params, profile, "gas", diagnostics);
 
   if (profile.fornitura === "dual") {
-    const ranked = [];
-    for (const [providerKey, luce] of lightByProvider) {
-      const gas = gasByProvider.get(providerKey);
-      if (!gas) continue;
-      ranked.push(combineDual(luce, gas, profile, commercialStatus(providerKey, profile.tipo, commercialIndex)));
-    }
+    const ranked = [...bestTrueDualPerProvider(arera, params, profile, commercialIndex, diagnostics).values()];
     ranked.sort((a, b) => a.totale - b.totale);
     return {
       mode: "dual",
@@ -465,6 +500,8 @@ function rankProfile(arera, params, commercialIndex, profile, limit = DEFAULT_LI
     };
   }
 
+  const lightByProvider = bestPerProvider(arera, params, profile, "luce", diagnostics);
+  const gasByProvider = bestPerProvider(arera, params, profile, "gas", diagnostics);
   const lightRanked = [...lightByProvider.values()].sort((a, b) => a.totale - b.totale);
   const gasRanked = [...gasByProvider.values()].sort((a, b) => a.totale - b.totale);
   const pairs = [];
@@ -637,6 +674,9 @@ function buildSummary(profileResults) {
       totale: item.totale,
       costoVariabile: item.costoVariabile,
       costoFisso: item.costoFisso,
+      codice: item.codice || null,
+      codiceOffertaLuce: item.codiceOffertaLuce || item.luce.codice,
+      codiceOffertaGas: item.codiceOffertaGas || item.gas.codice,
       luce: {
         nome: item.luce.nome,
         prezzo: item.luce.prezzo,
@@ -657,6 +697,7 @@ function buildSummary(profileResults) {
 
 function main() {
   const arera = readJson(ARERA_PATH);
+  assertTrueDualCatalog(arera);
   const params = readJson(PARAMS_PATH);
   const destinations = readDestinations();
   const commercialIndex = buildCommercialIndex(destinations);
@@ -672,6 +713,7 @@ function main() {
       versioneDati: arera.versioneDati,
       aggiornatoIl: arera.aggiornatoIl,
       offerte: arera.offerte.length,
+      offerteDual: arera.offerteDual.length,
       indiciUsati: arera.indiciUsati || {},
     },
     profiles: buildSummary(profileResults),

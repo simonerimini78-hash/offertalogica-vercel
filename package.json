@@ -9,6 +9,7 @@
     "lint": "node scripts/check-env.mjs",
     "validate:calculator": "node scripts/validate-calculator-data.mjs",
     "test:ranking-arera": "node scripts/test-ranking-arera.mjs",
+    "test:partner-arera": "node scripts/test-partner-arera.mjs",
     "verify:offers": "node scripts/verify-calcolo-offerte.mjs",
     "audit:offers": "node scripts/audit-offers.mjs",
     "sync:arera": "node scripts/sync-arera-open-data.mjs",

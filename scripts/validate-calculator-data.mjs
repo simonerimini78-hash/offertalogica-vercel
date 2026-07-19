@@ -51,9 +51,43 @@ function validateOffer(offer, index) {
   }
 }
 
+function validateAreraCatalog() {
+  assertSame("data/offerte-arera-menu.json", "public/data/offerte-arera-menu.json");
+  const arera = readJson("data/offerte-arera-menu.json");
+  assert(Array.isArray(arera.offerte), "catalogo ARERA: offerte singole mancanti");
+  assert(Array.isArray(arera.offerteDual), "catalogo ARERA: vere offerte dual mancanti");
+  assert(arera.offerteDual.length > 0, "catalogo ARERA: nessuna vera offerta dual privata");
+
+  for (const row of arera.offerte) {
+    assert(row.customerType === "privato", `catalogo privati: offerta ${row.codice} non privata`);
+    if (row.providerKey === "eco") {
+      assert(String(row.codice || "").startsWith("000742"), `E.CO associata al codice errato ${row.codice}`);
+    }
+    if (row.tipo === "variabile" && row.qualitaPrezzo === "indice_piu_spread_semantico") {
+      assert(Number.isFinite(Number(row.provenienzaPrezzo?.valoreIndice)), `offerta variabile ${row.codice}: indice mancante`);
+      assert(Number(row.prezzo) !== Number(row.provenienzaPrezzo?.valore), `offerta variabile ${row.codice}: spread pubblicato come prezzo`);
+    }
+  }
+
+  for (const dual of arera.offerteDual) {
+    assert(dual.customerType === "privato", `catalogo dual privati: offerta ${dual.codice} non privata`);
+    assert(dual.fornitura === "dual", `offerta ${dual.codice}: fornitura dual mancante`);
+    assert(dual.luce?.commodity === "luce" && dual.gas?.commodity === "gas", `offerta ${dual.codice}: componenti dual non valide`);
+    assert(dual.codiceOffertaLuce === dual.luce.codice, `offerta ${dual.codice}: riferimento luce non esatto`);
+    assert(dual.codiceOffertaGas === dual.gas.codice, `offerta ${dual.codice}: riferimento gas non esatto`);
+    assert(dual.providerKey === dual.luce.providerKey && dual.providerKey === dual.gas.providerKey, `offerta ${dual.codice}: fornitori mescolati`);
+    assert(dual.tipo === dual.luce.tipo && dual.tipo === dual.gas.tipo, `offerta ${dual.codice}: tipi prezzo mescolati`);
+  }
+
+  const illumia = arera.offerteDual.filter((dual) => dual.providerKey === "illum");
+  assert(illumia.length > 0, "catalogo ARERA: offerta dual Illumia non trovata");
+  return arera;
+}
+
 function validateDataFiles() {
   assertSame("data/calcolo-parametri.json", "public/data/calcolo-parametri.json");
   assertSame("data/offerte-proposte.json", "public/data/offerte-proposte.json");
+  validateAreraCatalog();
 
   const params = readJson("data/calcolo-parametri.json");
   const offers = readJson("data/offerte-proposte.json");

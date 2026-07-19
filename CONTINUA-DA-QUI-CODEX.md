@@ -1490,3 +1490,47 @@ Regressioni protette:
   quarantena e non sostituisce l'ultimo record valido;
 - nessuna modifica a parser bollette, OTP, lead, archivio PDF o Supabase;
 - nessuna nuova API e nessun deployment.
+
+## Punto v94 - Vere dual ARERA e partner attivabili preservati
+
+Data: 2026-07-19.
+
+Regola definitiva del confronto dual:
+
+- il blocco generale "Migliori offerte per costo con consulente" usa soltanto
+  vere offerte dual dichiarate nel file ARERA D;
+- il blocco "Offerte partner attivabili online" resta operativo e monetizzabile;
+- per un partner attivo, luce e gas vengono letti esclusivamente dalle righe
+  correnti dei file ARERA E e G appartenenti alla specifica famiglia commerciale
+  collegata al funnel affiliato;
+- non si scelgono la luce e il gas piu economici del venditore e non si usano
+  prezzi statici come fallback pubblico;
+- se manca una delle due righe, se il nome commerciale e ambiguo o se esistono
+  piu corrispondenze, la card partner non viene pubblicata;
+- i link affiliati e la monetizzazione esistenti non sono stati modificati.
+
+Correzioni catalogo collegate:
+
+- P.IVA Plenitude corretta in `12300020158`; la precedente `03163990611`
+  apparteneva a un altro venditore;
+- riconosciute le etichette ARERA correnti per A2A, Alperia, Octopus, Enel e
+  Plenitude senza rendere ammissibili dispacciamento, capacita,
+  commercializzazione, spread futuri o unita incompatibili;
+- cataloghi `data/offerte-arera-menu.json` e
+  `public/data/offerte-arera-menu.json` rigenerati insieme dai file E/G/D del
+  19 luglio 2026 e verificati identici.
+
+Partner dual verificati dal catalogo corrente:
+
+- E.ON fisso e variabile;
+- A2A fisso;
+- Octopus fisso;
+- Enel fisso;
+- Eni Plenitude fisso;
+- Alperia fisso e variabile.
+
+Test aggiunto:
+
+- `npm run test:partner-arera` controlla sintassi JavaScript, assenza di prezzi
+  hardcoded nella mappatura e presenza di una sola riga ARERA luce e gas per
+  ciascuno degli otto percorsi partner attivi.
