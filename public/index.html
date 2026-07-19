@@ -4556,14 +4556,32 @@ function similaritaOfferta(areraNames, nomeCommerciale) {
   return matches / base.length;
 }
 
+// OFFERTALOGICA_ARERA_PARTNER_PATH_20260719
+// Il prezzo e il tipo restano quelli della riga ARERA. Il catalogo commerciale
+// viene usato esclusivamente per recuperare un percorso partner attivo dello
+// stesso fornitore e compatibile con la fornitura richiesta.
+function percorsoCommercialeSupportaFornitura(offerta, tipoFornitura) {
+  if (tipoFornitura === "luce") return Boolean(offerta?.luce);
+  if (tipoFornitura === "gas") return Boolean(offerta?.gas);
+  if (["dual", "separate"].includes(tipoFornitura)) return Boolean(offerta?.luce && offerta?.gas);
+  return false;
+}
+
 function miglioreOffertaCommerciale(providerKey, tipo, tipoFornitura, nomiArera = "") {
   const candidate = OFFERTE_PROPOSTE
     .filter((offerta) => chiaveFornitoreDaNome(offerta.provider) === providerKey)
-    .filter((offerta) => offerta.tipo === tipo)
-    .filter((offerta) => offertaCoerenteConFornitura(offerta, tipoFornitura))
+    .filter((offerta) => percorsoCommercialeSupportaFornitura(offerta, tipoFornitura))
     .sort((a, b) => {
       const activeScore = Number(offertaAttivabileOnline(b)) - Number(offertaAttivabileOnline(a));
       if (activeScore) return activeScore;
+
+      const typeScore = Number(b.tipo === tipo) - Number(a.tipo === tipo);
+      if (typeScore) return typeScore;
+
+      const supplyScore = Number(offertaCoerenteConFornitura(b, tipoFornitura))
+        - Number(offertaCoerenteConFornitura(a, tipoFornitura));
+      if (supplyScore) return supplyScore;
+
       return similaritaOfferta(nomiArera, b.nome) - similaritaOfferta(nomiArera, a.nome);
     })[0] || null;
 
@@ -4620,13 +4638,27 @@ function arricchisciOffertaAreraConCommerciale(offerta, providerKey, tipo, tipoF
 
   const commerciale = match.offerta;
   const copia = { ...offerta };
-  const matchSufficiente = matchCommercialeSufficiente(providerKey, tipo, nomiArera, commerciale, match.score);
+  const tipoCommercialeCoincide = commerciale.tipo === tipo;
+  const matchSufficiente = tipoCommercialeCoincide
+    ? matchCommercialeSufficiente(providerKey, tipo, nomiArera, commerciale, match.score)
+    : percorsoCommercialeSupportaFornitura(commerciale, tipoFornitura);
+
   if (offertaAttivabileOnline(commerciale) && matchSufficiente) {
     copia.link = commerciale.link;
     copia.destinationType = commerciale.destinationType;
     copia.destinationStatus = commerciale.destinationStatus;
     copia.monetizzazione = commerciale.monetizzazione;
-    copia.descrizione = `${offerta.descrizione} Percorso partner disponibile per offerta coerente (${commerciale.nome}).`;
+    copia.certificazione = {
+      ...(offerta.certificazione || {}),
+      partnerOriginalId: commerciale.id,
+      percorsoPartnerDaCatalogo: true,
+      percorsoPartnerTipoOriginale: commerciale.tipo,
+      percorsoPartnerFornituraOriginale: commerciale.fornitura,
+    };
+    const notaPercorso = tipoCommercialeCoincide
+      ? `Percorso partner disponibile per offerta coerente (${commerciale.nome}).`
+      : `Percorso partner attivo disponibile tramite ${commerciale.provider}; condizioni economiche e tipologia restano quelle dell'offerta ARERA selezionata.`;
+    copia.descrizione = `${offerta.descrizione} ${notaPercorso}`.trim();
     copia.nome = offerta.nome;
     return copia;
   }
@@ -5056,10 +5088,15 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       .map((item, index) => [String(item.offerta.id), index + 1])
   );
 
-  const attivabiliPrioritarie = deduplicaPartnerAttivabili(
+  // OFFERTALOGICA_PARTNER_GROUP_EXCLUSION_20260719
+  // Conserva l'intero insieme dei partner coerenti prima del limite visuale:
+  // nessun partner escluso dalla top 6 può ricomparire tra i consulenti.
+  const partnerAttivabiliCoerenti = deduplicaPartnerAttivabili(
     offerteCalcolate.filter((item) => item.attivabileCoerente)
   )
-    .sort((a, b) => (a.costo - b.costo) || (b.differenza - a.differenza))
+    .sort((a, b) => (a.costo - b.costo) || (b.differenza - a.differenza));
+
+  const attivabiliPrioritarie = partnerAttivabiliCoerenti
     .slice(0, 6)
     .map((item, index) => ({
       ...item,
@@ -5067,10 +5104,15 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       posizioneGruppo: index + 1,
       posizioneEconomica: rankingGlobale.get(String(item.offerta.id)) || null,
     }));
-  const chiaviPartnerAttivabili = new Set(attivabiliPrioritarie.map((item) => chiaveGruppoPartner(item)));
+
   const miglioriConConsulente = ordinateRanking
+    .filter((item) => item.compatibileRanking && item.filtroEsatto)
+    .filter((item) => item.offerta?.tipo === tipoTariffa)
+    .filter((item) => offertaCoerenteConFornitura(item.offerta, tipoFornitura))
     .filter((item) => !item.attivabileOnline)
-    .filter((item) => !chiaviPartnerAttivabili.has(chiaveGruppoPartner(item)))
+    .filter((item) => !partnerAttivabiliCoerenti.some((partner) => (
+      chiaveGruppoPartner(item) === chiaveGruppoPartner(partner)
+    )))
     .slice(0, 3)
     .map((item, index) => ({
       ...item,
