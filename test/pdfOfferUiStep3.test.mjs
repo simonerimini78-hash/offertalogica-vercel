@@ -10,8 +10,8 @@ test("il riepilogo PDF mostra offerte, spread, validità e indirizzi per commodi
     "Offerta gas:",
     "Spread luce:",
     "Spread gas:",
-    "Validità luce:",
-    "Validità gas:",
+    "formatPdfValidityLine",
+    "Scadenza condizioni ${commodityLabel}",
     "Indirizzo luce:",
     "Indirizzo gas:",
   ]) assert.ok(html.includes(marker), `manca ${marker}`);

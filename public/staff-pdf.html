@@ -131,6 +131,19 @@ function renderList() {
   list.querySelectorAll(".item").forEach(button=>button.addEventListener("click",()=>{selectedId=button.dataset.id;renderList();renderDetail(analyses.find(x=>x.id===selectedId));}));
 }
 function inputValue(value){return value===null||value===undefined?"":typeof value==="object"?JSON.stringify(value):String(value);}
+function readinessValue(normalized, area, commodity) {
+  return normalized?.readiness?.[area]?.[commodity]?.status || "—";
+}
+function renderValidationSummary(normalized) {
+  if (!normalized?.completeness && !normalized?.readiness) return "";
+  const issues = Array.isArray(normalized.validation_issues) ? normalized.validation_issues : [];
+  const issueRows = issues.map(issue=>`<tr><td>${esc(LABELS[issue.field]||issue.field)}</td><td>${esc(issue.severity||'—')}</td><td>${esc(issue.code||'—')}</td></tr>`).join("");
+  return `
+    <h3>Validazione e completezza Step 4</h3>
+    <div class="summary"><div><span>Completezza</span><strong>${esc(normalized.completeness?.score ?? '—')}%</strong></div><div><span>Confronto luce</span><strong>${esc(readinessValue(normalized,'confronto','luce'))}</strong></div><div><span>Confronto gas</span><strong>${esc(readinessValue(normalized,'confronto','gas'))}</strong></div><div><span>Attivazione luce / gas</span><strong>${esc(readinessValue(normalized,'attivazione','luce'))} / ${esc(readinessValue(normalized,'attivazione','gas'))}</strong></div></div>
+    ${issueRows?`<div class="table-wrap"><table><thead><tr><th>Campo</th><th>Livello</th><th>Motivo</th></tr></thead><tbody>${issueRows}</tbody></table></div>`:'<div class="meta">Nessuna incoerenza deterministica rilevata.</div>'}
+  `;
+}
 function renderDetail(item) {
   if(!item)return;
   const n=item.normalized_data||{}; const confirmed=item.confirmed_data||{}; const diagnostics=item.diagnostics||[];
@@ -138,6 +151,7 @@ function renderDetail(item) {
     <div class="detail-head"><div><h2>${esc(item.original_file_name)}</h2><div class="meta">${esc(item.parser_version)} · hash ${esc((item.file_sha256||'').slice(0,12))}… · scadenza ${item.expires_at?esc(new Date(item.expires_at).toLocaleDateString('it-IT')):'—'}</div></div><div class="actions"><button class="btn primary" id="open-pdf">Apri PDF originale</button><button class="btn danger" id="delete-analysis">Elimina</button></div></div>
     <div class="summary"><div><span>Esito</span><strong>${esc(item.status)}</strong></div><div><span>Revisione</span><strong>${esc(item.review_status)}</strong></div><div><span>Fornitore</span><strong>${esc(item.provider||'—')}</strong></div><div><span>Pagine / testo</span><strong>${esc(item.page_count||'—')} / ${esc(item.text_length||0)}</strong></div></div>
     ${item.error_message?`<h3>Errore</h3><pre>${esc(item.error_code)}\n${esc(item.error_message)}</pre>`:''}
+    ${renderValidationSummary(n)}
     <h3>Diagnostica campo per campo</h3>
     <div class="table-wrap"><table><thead><tr><th>Campo</th><th>Esito</th><th>Valore</th><th>Pagina</th><th>Metodo</th><th>Testo sorgente</th></tr></thead><tbody>${diagnostics.map(d=>`<tr><td>${esc(d.label||d.field)}</td><td><span class="badge ${esc(d.status)}">${esc(d.status)}</span><br><small>${esc(d.confidence||'')}</small></td><td>${esc(fmt(d.value))}</td><td>${esc(d.page||'—')}</td><td>${esc(d.method||'—')}</td><td class="snippet">${esc(d.source_snippet||'—')}</td></tr>`).join('')||'<tr><td colspan="6">Diagnostica non disponibile.</td></tr>'}</tbody></table></div>
     <h3>Dati corretti attesi</h3><div class="edit-grid">${DISPLAY_FIELDS.map(key=>`<div class="field"><label for="expected-${esc(key)}">${esc(LABELS[key]||key)}</label><input id="expected-${esc(key)}" data-field="${esc(key)}" value="${esc(inputValue(Object.prototype.hasOwnProperty.call(confirmed,key)?confirmed[key]:n[key]))}"></div>`).join('')}</div>

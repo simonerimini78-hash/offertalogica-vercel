@@ -6925,6 +6925,32 @@ function formatPdfContractDate(value) {
   return match ? `${match[3]}/${match[2]}/${match[1]}` : String(value || "");
 }
 
+function formatPdfValidityLine(commodityLabel, validFrom, validTo) {
+  const from = formatPdfContractDate(validFrom);
+  const to = formatPdfContractDate(validTo);
+  if (from && to) return `Validità ${commodityLabel}: ${from}–${to}`;
+  if (from) return `Decorrenza condizioni ${commodityLabel}: ${from}`;
+  if (to) return `Scadenza condizioni ${commodityLabel}: ${to}`;
+  return "";
+}
+
+function mergePdfReadiness(target, source) {
+  const output = target || { confronto: {}, attivazione: {} };
+  for (const area of ["confronto", "attivazione"]) {
+    output[area] = output[area] || {};
+    for (const commodity of ["luce", "gas"]) {
+      if (source?.[area]?.[commodity]) output[area][commodity] = source[area][commodity];
+    }
+  }
+  return output;
+}
+
+function pdfReadinessLine(label, entry) {
+  const status = entry?.status;
+  if (!status) return "";
+  return `${label}: ${status.replace(/_/g, " ")}`;
+}
+
 function mergePdfDocuments(documents) {
   const validDocuments = documents.filter(risultatoPdfUtilizzabile);
   const hasOfferSheet = validDocuments.some((doc) => doc.kind === "scheda_offerta");
@@ -6953,6 +6979,11 @@ function mergePdfDocuments(documents) {
     ].forEach((field) => {
       merged[field] = firstValue(doc[field], merged[field]);
     });
+    merged.field_status = { ...(merged.field_status || {}), ...(doc.field_status || {}) };
+    merged.readiness = mergePdfReadiness(merged.readiness, doc.readiness);
+    merged.validation_notes = [...new Set([...(merged.validation_notes || []), ...(doc.validation_notes || [])])];
+    merged.validation_issues = [...(merged.validation_issues || []), ...(doc.validation_issues || [])];
+    merged.completeness = firstValue(doc.completeness, merged.completeness);
 
     if (doc.commodity === "luce" || doc.commodity === "dual" || doc.consumo_luce_kwh || doc.prezzo_luce_eur_kwh || doc.pod) {
       merged.fornitore_luce = firstValue(doc.fornitore, doc.fornitore_luce, merged.fornitore_luce);
@@ -7040,12 +7071,16 @@ function renderPdfSummary(documents, merged) {
   const gasType = merged.tipo_prezzo_gas || (merged.commodity === "gas" ? merged.tipo_prezzo : "");
   const luceIndex = merged.indice_riferimento_luce || (merged.commodity === "luce" ? merged.indice_riferimento : "");
   const gasIndex = merged.indice_riferimento_gas || (merged.commodity === "gas" ? merged.indice_riferimento : "");
-  const sameSupplyAddress = merged.indirizzo_fornitura_luce && merged.indirizzo_fornitura_gas
-    && merged.indirizzo_fornitura_luce === merged.indirizzo_fornitura_gas;
-  const luceValidity = merged.decorrenza_condizioni_economiche_luce || merged.scadenza_condizioni_economiche_luce
-    ? `${formatPdfContractDate(merged.decorrenza_condizioni_economiche_luce) || "?"}–${formatPdfContractDate(merged.scadenza_condizioni_economiche_luce) || "?"}` : "";
-  const gasValidity = merged.decorrenza_condizioni_economiche_gas || merged.scadenza_condizioni_economiche_gas
-    ? `${formatPdfContractDate(merged.decorrenza_condizioni_economiche_gas) || "?"}–${formatPdfContractDate(merged.scadenza_condizioni_economiche_gas) || "?"}` : "";
+  const luceValidity = formatPdfValidityLine(
+    "luce",
+    merged.decorrenza_condizioni_economiche_luce,
+    merged.scadenza_condizioni_economiche_luce,
+  );
+  const gasValidity = formatPdfValidityLine(
+    "gas",
+    merged.decorrenza_condizioni_economiche_gas,
+    merged.scadenza_condizioni_economiche_gas,
+  );
 
   const mergedRows = [
     merged.customer_type === "business" ? "Profilo rilevato: azienda / non domestico" : merged.customer_type === "privato" ? "Profilo rilevato: privato / domestico" : "",
@@ -7061,9 +7096,8 @@ function renderPdfSummary(documents, merged) {
     merged.pdr ? `PDR: ${testoHtmlSicuro(merged.pdr)}` : "",
     merged.codice_cliente ? `Codice cliente: ${testoHtmlSicuro(merged.codice_cliente)}` : "",
     merged.codice_fiscale ? `Codice fiscale: ${testoHtmlSicuro(merged.codice_fiscale)}` : "",
-    sameSupplyAddress ? `Indirizzo: ${testoHtmlSicuro(merged.indirizzo_fornitura_luce)}` : "",
-    !sameSupplyAddress && merged.indirizzo_fornitura_luce ? `Indirizzo luce: ${testoHtmlSicuro(merged.indirizzo_fornitura_luce)}` : "",
-    !sameSupplyAddress && merged.indirizzo_fornitura_gas ? `Indirizzo gas: ${testoHtmlSicuro(merged.indirizzo_fornitura_gas)}` : "",
+    merged.indirizzo_fornitura_luce ? `Indirizzo luce: ${testoHtmlSicuro(merged.indirizzo_fornitura_luce)}` : "",
+    merged.indirizzo_fornitura_gas ? `Indirizzo gas: ${testoHtmlSicuro(merged.indirizzo_fornitura_gas)}` : "",
     luceOfferName ? `Offerta luce: ${testoHtmlSicuro(luceOfferName)}` : "",
     luceOfferCode ? `Codice offerta luce: ${testoHtmlSicuro(luceOfferCode)}` : "",
     luceType ? `Tipo prezzo luce: ${testoHtmlSicuro(luceType)}` : "",
@@ -7071,7 +7105,7 @@ function renderPdfSummary(documents, merged) {
     luceIndex ? `Indice luce: ${testoHtmlSicuro(luceIndex)}` : "",
     Number.isFinite(Number(merged.spread_luce_eur_kwh)) ? `Spread luce: ${merged.spread_luce_eur_kwh} €/kWh` : "",
     merged.periodicita_aggiornamento_indice_luce ? `Aggiornamento indice luce: ${testoHtmlSicuro(merged.periodicita_aggiornamento_indice_luce)}` : "",
-    luceValidity ? `Validità luce: ${testoHtmlSicuro(luceValidity)}` : "",
+    luceValidity ? testoHtmlSicuro(luceValidity) : "",
     merged.formula_prezzo_luce ? `Formula luce: ${testoHtmlSicuro(merged.formula_prezzo_luce)}` : "",
     merged.sconti_offerta_luce?.length ? `Sconti luce: ${testoHtmlSicuro(merged.sconti_offerta_luce.join(", "))}` : "",
     gasOfferName ? `Offerta gas: ${testoHtmlSicuro(gasOfferName)}` : "",
@@ -7081,11 +7115,15 @@ function renderPdfSummary(documents, merged) {
     gasIndex ? `Indice gas: ${testoHtmlSicuro(gasIndex)}` : "",
     Number.isFinite(Number(merged.spread_gas_eur_smc)) ? `Spread gas: ${merged.spread_gas_eur_smc} €/Smc` : "",
     merged.periodicita_aggiornamento_indice_gas ? `Aggiornamento indice gas: ${testoHtmlSicuro(merged.periodicita_aggiornamento_indice_gas)}` : "",
-    gasValidity ? `Validità gas: ${testoHtmlSicuro(gasValidity)}` : "",
+    gasValidity ? testoHtmlSicuro(gasValidity) : "",
     merged.formula_prezzo_gas ? `Formula gas: ${testoHtmlSicuro(merged.formula_prezzo_gas)}` : "",
     merged.sconti_offerta_gas?.length ? `Sconti gas: ${testoHtmlSicuro(merged.sconti_offerta_gas.join(", "))}` : "",
     !luceType && !gasType && merged.tipo_prezzo ? `Tipo prezzo: ${testoHtmlSicuro(merged.tipo_prezzo)}` : "",
     !luceIndex && !gasIndex && merged.indice_riferimento ? `Indice: ${testoHtmlSicuro(merged.indice_riferimento)}` : "",
+    pdfReadinessLine("Stato confronto luce", merged.readiness?.confronto?.luce),
+    pdfReadinessLine("Stato confronto gas", merged.readiness?.confronto?.gas),
+    pdfReadinessLine("Stato attivazione luce", merged.readiness?.attivazione?.luce),
+    pdfReadinessLine("Stato attivazione gas", merged.readiness?.attivazione?.gas),
   ].filter(Boolean).join(" | ");
 
   return `

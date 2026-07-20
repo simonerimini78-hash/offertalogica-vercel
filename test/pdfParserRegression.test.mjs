@@ -20,7 +20,7 @@ test("regressione Hera dual: mantiene separate luce e gas e riconosce la struttu
     Codice offerta: 000415ETVML01XX000HHYXECXMXBXV21
   `);
 
-  assert.equal(PDF_PARSER_VERSION, "v101-offer-contract-details-step3");
+  assert.equal(PDF_PARSER_VERSION, "v102-validation-completeness-step4");
   assert.equal(result.commodity, "dual");
   assert.equal(result.nome_offerta_luce, "Hera Hybrid Casa EE_L_B - V21");
   assert.equal(result.codice_offerta_luce, "000415ETVML01XX000HHYXECXMXBXV21");
