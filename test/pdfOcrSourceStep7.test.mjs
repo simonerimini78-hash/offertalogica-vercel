@@ -10,21 +10,23 @@ test("Step 7: l'API usa il wrapper OCR controllato e conserva i controlli esiste
   assert.match(source, /requireAllowedOrigin/);
   assert.match(source, /enforceRateLimit/);
   assert.match(source, /isRealPdf/);
-  assert.match(source, /analysisDeadlineAt = Date\.now\(\) \+ 24_000/);
+  assert.match(source, /PDF_ANALYSIS_DEADLINE_MS \|\| "55000"/);
+  assert.match(source, /analysisDeadlineAt = Date\.now\(\) \+ analysisDeadlineMs/);
 });
 
 test("Step 7: il motore usa italiano locale, PDFium grigio e un solo worker riutilizzato", async () => {
   const source = await read("../lib/pdfOcr.js");
-  assert.match(source, /@tesseract\.js-data\/ita\/4\.0\.0\/ita\.traineddata\.gz/);
+  assert.match(source, /@tesseract\.js-data[\\/\"]+ita[\\/\"]+4\.0\.0_best_int/);
   assert.match(source, /colorSpace: "Gray"/);
   assert.match(source, /render: "bitmap"/);
-  assert.equal((source.match(/createItalianWorker\(/g) || []).length, 2); // definizione + una chiamata
+  assert.match(source, /PDFiumLibrary\.init\(\{ wasmBinary \}\)/);
+  assert.equal((source.match(/createItalianWorker\(/g) || []).length, 2);
   assert.match(source, /worker\.terminate/);
 });
 
-test("Step 7: nessuna modifica a interfaccia, parser deterministico o hotfix origini", async () => {
-  const packageFiles = await fs.readdir(new URL("..", import.meta.url), { recursive: true });
-  assert.equal(packageFiles.includes("public/index.html"), false);
-  assert.equal(packageFiles.includes("lib/pdfExtract.js"), false);
-  assert.equal(packageFiles.includes("lib/http.js"), false);
+test("Step 7.2: parser deterministico e hotfix origini restano separati dall'OCR", async () => {
+  const parser = await read("../lib/pdfExtract.js");
+  const http = await read("../lib/http.js");
+  assert.doesNotMatch(parser, /pdfOcr|tesseract|pdfium/i);
+  assert.doesNotMatch(http, /pdfOcr|tesseract|pdfium/i);
 });

@@ -7949,11 +7949,18 @@ function mergePdfDocuments(documents) {
 function renderPdfSummary(documents, merged) {
   const rows = documents.map((doc) => {
     if (doc.error) return `<li><strong>${testoHtmlSicuro(doc.filename)}</strong>: ${testoHtmlSicuro(doc.error)}. Puoi cambiare PDF oppure continuare con la compilazione manuale.</li>`;
+    const ocrStatus = doc.ocr?.applied
+      ? " OCR applicato: tutti i dati ricavati restano da controllare."
+      : doc.ocr?.attempted && doc.ocr?.reason === "ocr_error"
+        ? " OCR avviato ma non disponibile nel deployment."
+        : doc.ocr?.attempted && doc.ocr?.reason === "no_material_improvement"
+          ? " OCR eseguito senza dati sufficientemente affidabili."
+          : "";
     if (!risultatoPdfUtilizzabile(doc)) {
-      return `<li><strong>${testoHtmlSicuro(doc.filename)}</strong>: documento non riconosciuto o privo di dati sufficientemente affidabili.</li>`;
+      return `<li><strong>${testoHtmlSicuro(doc.filename)}</strong>: documento non riconosciuto o privo di dati sufficientemente affidabili.${ocrStatus}</li>`;
     }
     const review = doc.confidence === "high" ? "affidabilità alta" : "da controllare";
-    return `<li><strong>${testoHtmlSicuro(doc.filename)}</strong>: ${testoHtmlSicuro(doc.kind || "PDF")} ${testoHtmlSicuro(doc.commodity || "")} - ${testoHtmlSicuro(doc.fornitore || "fornitore da verificare")} (${review})</li>`;
+    return `<li><strong>${testoHtmlSicuro(doc.filename)}</strong>: ${testoHtmlSicuro(doc.kind || "PDF")} ${testoHtmlSicuro(doc.commodity || "")} - ${testoHtmlSicuro(doc.fornitore || "fornitore da verificare")} (${review})${ocrStatus}</li>`;
   }).join("");
 
   if (merged?.merge_blocked) {
