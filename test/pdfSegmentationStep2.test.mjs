@@ -23,7 +23,7 @@ test("Hera dual: associa indirizzi, punti e prezzi alla commodity corretta", () 
     Quota fissa 1 mesi 14,02 €/mese
     di cui spesa per la vendita di energia elettrica 12,100000 €/mese
   `);
-  assert.equal(PDF_PARSER_VERSION, "v102-validation-completeness-step4");
+  assert.equal(PDF_PARSER_VERSION, "v102.1-activation-readiness-step4-1");
   assert.equal(result.commodity, "dual");
   assert.equal(result.pdr, "12345678901234");
   assert.equal(result.pod, "IT001E12345678");

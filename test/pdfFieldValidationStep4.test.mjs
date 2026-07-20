@@ -23,6 +23,8 @@ function baseDual(overrides = {}) {
     quota_fissa_vendita_gas_eur_anno: 144,
     pod: "IT001E51379686",
     pdr: "03081000767573",
+    potenza_impegnata_kw: 3,
+    potenza_disponibile_kw: 3.3,
     codice_fiscale: "PGLFPP81M07D704Q",
     codice_cliente: "1003507407",
     customer_type: "privato",
@@ -101,6 +103,8 @@ test("Step 4 marca la validità Edison con sola scadenza come parziale, non erra
   assert.ok(result.readiness.confronto.gas.partial_recommended.includes("validita_condizioni_economiche_gas"));
   assert.equal(result.confidence, "high");
   assert.equal(result.needsReview, false);
+  assert.equal(result.readiness.dati_bolletta.gas.status, "completo");
+  assert.equal(result.readiness.attivazione.gas.status, "incompleto");
 });
 
 test("Step 4 segnala contraddizioni tra commodity, indice e tipo prezzo", () => {
@@ -120,8 +124,12 @@ test("Step 4 produce readiness separate per confronto e attivazione", () => {
   const result = applyPdfFieldValidation(baseDual());
   assert.equal(result.readiness.confronto.luce.status, "completo");
   assert.equal(result.readiness.confronto.gas.status, "completo");
-  assert.equal(result.readiness.attivazione.luce.status, "completo");
-  assert.equal(result.readiness.attivazione.gas.status, "completo");
+  assert.equal(result.readiness.dati_bolletta.luce.status, "completo");
+  assert.equal(result.readiness.dati_bolletta.gas.status, "completo");
+  assert.equal(result.readiness.attivazione.luce.status, "incompleto");
+  assert.equal(result.readiness.attivazione.gas.status, "incompleto");
+  assert.equal(result.readiness.attivazione.luce.bill_data_status, "completo");
+  assert.ok(result.readiness.attivazione.luce.missing_external.includes("documento_identita"));
   assert.equal(result.completeness.validation_version, PDF_FIELD_VALIDATION_VERSION);
   assert.ok(result.completeness.score > 80);
 });
@@ -136,6 +144,59 @@ test("Step 4 non rende obbligatori nome offerta e validità per un confronto eco
   assert.equal(result.readiness.confronto.luce.status, "completo");
   assert.deepEqual(result.readiness.confronto.luce.missing, []);
   assert.ok(result.readiness.confronto.luce.missing_recommended.includes("nome_offerta_luce"));
+});
+
+test("Step 4.1 recupera il codice cliente dalle intestazioni Estra e privilegia il primo codice cliente reale", () => {
+  const estra = extractPdfDataFromText(`
+    Estra Energie BOLLETTA ENERGIA ELETTRICA
+    Codice cliente usalo per comunicare con noi 192693025
+    C.F. BNVRRT60L19D704H Intestatario fornitura BENEVENTI ROBERTO
+    POD IT001E51344941 Potenza impegnata 10 kW
+    Indirizzo di fornitura: VIA BRANDO BRANDI 72, 47121 FORLI' FC
+    Consumo annuo 1.330,3 kWh
+    spesa per la vendita di energia elettrica 0,188041 €/kWh
+    spesa per vendita energia elettrica 11,110000 €/Mese
+  `);
+  assert.equal(estra.codice_cliente, "192693025");
+
+  const dolomiti = extractPdfDataFromText(`
+    Dolomiti Energia BOLLETTA GAS
+    Codice cliente: 20142254 Conto contrattuale: 60287155
+    Codice Fiscale: RMNSMN78T23D704K I TUOI DATI IDENTIFICATIVI RIMINI SIMONE VIA CELLETTA 23
+    Codice cliente: 60287155 bollettino di pagamento importo
+    PDR 03081000466501 Consumo annuo 1.000 Smc
+  `);
+  assert.equal(dolomiti.codice_cliente, "20142254");
+});
+
+test("Step 4.1 rende parziali i dati bolletta quando manca il codice cliente", () => {
+  const result = applyPdfFieldValidation(baseDual({ codice_cliente: null }));
+  assert.equal(result.readiness.dati_bolletta.luce.status, "parziale");
+  assert.equal(result.readiness.dati_bolletta.gas.status, "parziale");
+  assert.ok(result.readiness.dati_bolletta.luce.missing.includes("codice_cliente"));
+  assert.ok(result.readiness.attivazione.luce.missing_bill.includes("codice_cliente"));
+  assert.equal(result.readiness.attivazione.luce.status, "incompleto");
+});
+
+test("Step 4.1 richiede la potenza impegnata soltanto per la luce", () => {
+  const result = applyPdfFieldValidation(baseDual({ potenza_impegnata_kw: null }));
+  assert.equal(result.field_status.potenza_impegnata_kw.status, "mancante");
+  assert.equal(result.readiness.dati_bolletta.luce.status, "parziale");
+  assert.ok(result.readiness.dati_bolletta.luce.missing.includes("potenza_impegnata_kw"));
+  assert.equal(result.readiness.dati_bolletta.gas.status, "completo");
+});
+
+test("Step 4.1 separa dati bolletta e attivazione eseguibile", () => {
+  const result = applyPdfFieldValidation(baseDual());
+  assert.deepEqual(result.readiness.dati_bolletta.luce.missing, []);
+  assert.equal(result.readiness.attivazione.luce.reason, "servono_dati_non_presenti_nella_bolletta");
+  for (const field of [
+    "recapito_telefonico",
+    "email",
+    "modalita_pagamento_o_iban",
+    "titolo_occupazione_immobile",
+    "consensi_attivazione",
+  ]) assert.ok(result.readiness.attivazione.luce.missing_external.includes(field));
 });
 
 test("il parser Step 4 applica la validazione senza modificare i valori economici", () => {
@@ -155,7 +216,7 @@ test("il parser Step 4 applica la validazione senza modificare i valori economic
     Decorrenza condizioni economiche: 05/01/2026
     Scadenza condizioni economiche: 01/04/2027
   `);
-  assert.equal(PDF_PARSER_VERSION, "v102-validation-completeness-step4");
+  assert.equal(PDF_PARSER_VERSION, "v102.1-activation-readiness-step4-1");
   assert.equal(result.consumo_luce_kwh, 1330.3);
   assert.equal(result.prezzo_luce_eur_kwh, 0.188041);
   assert.equal(result.quota_fissa_vendita_luce_eur_anno, 133.32);

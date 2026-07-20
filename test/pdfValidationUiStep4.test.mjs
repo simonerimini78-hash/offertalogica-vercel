@@ -18,14 +18,30 @@ test("Step 4 mostra sempre gli indirizzi per commodity e gli stati di readiness"
     "Indirizzo gas:",
     "Stato confronto luce",
     "Stato confronto gas",
-    "Stato attivazione luce",
-    "Stato attivazione gas",
+    "Stato dati bolletta luce",
+    "Stato dati bolletta gas",
+    "Stato attivazione completa luce",
+    "Stato attivazione completa gas",
+    "Dati bolletta mancanti luce",
+    "Dati da integrare per attivazione luce",
   ]) assert.ok(html.includes(marker), `manca ${marker}`);
   assert.ok(!html.includes("sameSupplyAddress ?"));
 });
 
 test("il merge browser conserva metadati di validazione Step 4", () => {
-  for (const field of ["field_status", "readiness", "validation_notes", "validation_issues", "completeness"]) {
+  for (const field of ["field_status", "readiness", "dati_bolletta", "validation_notes", "validation_issues", "completeness"]) {
     assert.ok(html.includes(field), `manca ${field}`);
   }
+});
+
+
+test("Step 4.1 mostra intestatario, potenza e nomi leggibili dei campi mancanti", () => {
+  for (const marker of [
+    "Intestatario:",
+    "Potenza impegnata luce:",
+    "Potenza disponibile luce:",
+    "codice fiscale o partita IVA",
+    "IBAN o modalità di pagamento",
+    "documento di identità",
+  ]) assert.ok(html.includes(marker), `manca ${marker}`);
 });

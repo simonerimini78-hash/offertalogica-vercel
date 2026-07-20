@@ -134,13 +134,18 @@ function inputValue(value){return value===null||value===undefined?"":typeof valu
 function readinessValue(normalized, area, commodity) {
   return normalized?.readiness?.[area]?.[commodity]?.status || "—";
 }
+function readinessMissing(normalized, area, commodity, field) {
+  const values = normalized?.readiness?.[area]?.[commodity]?.[field];
+  return Array.isArray(values) && values.length ? values.join(", ") : "—";
+}
 function renderValidationSummary(normalized) {
   if (!normalized?.completeness && !normalized?.readiness) return "";
   const issues = Array.isArray(normalized.validation_issues) ? normalized.validation_issues : [];
   const issueRows = issues.map(issue=>`<tr><td>${esc(LABELS[issue.field]||issue.field)}</td><td>${esc(issue.severity||'—')}</td><td>${esc(issue.code||'—')}</td></tr>`).join("");
   return `
-    <h3>Validazione e completezza Step 4</h3>
-    <div class="summary"><div><span>Completezza</span><strong>${esc(normalized.completeness?.score ?? '—')}%</strong></div><div><span>Confronto luce</span><strong>${esc(readinessValue(normalized,'confronto','luce'))}</strong></div><div><span>Confronto gas</span><strong>${esc(readinessValue(normalized,'confronto','gas'))}</strong></div><div><span>Attivazione luce / gas</span><strong>${esc(readinessValue(normalized,'attivazione','luce'))} / ${esc(readinessValue(normalized,'attivazione','gas'))}</strong></div></div>
+    <h3>Validazione e completezza Step 4.1</h3>
+    <div class="summary"><div><span>Completezza</span><strong>${esc(normalized.completeness?.score ?? '—')}%</strong></div><div><span>Confronto luce / gas</span><strong>${esc(readinessValue(normalized,'confronto','luce'))} / ${esc(readinessValue(normalized,'confronto','gas'))}</strong></div><div><span>Dati bolletta luce / gas</span><strong>${esc(readinessValue(normalized,'dati_bolletta','luce'))} / ${esc(readinessValue(normalized,'dati_bolletta','gas'))}</strong></div><div><span>Attivazione completa luce / gas</span><strong>${esc(readinessValue(normalized,'attivazione','luce'))} / ${esc(readinessValue(normalized,'attivazione','gas'))}</strong></div></div>
+    <div class="meta"><strong>Mancanti dalla bolletta luce:</strong> ${esc(readinessMissing(normalized,'dati_bolletta','luce','missing'))}<br><strong>Mancanti dalla bolletta gas:</strong> ${esc(readinessMissing(normalized,'dati_bolletta','gas','missing'))}<br><strong>Da integrare per attivazione luce:</strong> ${esc(readinessMissing(normalized,'attivazione','luce','missing_external'))}<br><strong>Da integrare per attivazione gas:</strong> ${esc(readinessMissing(normalized,'attivazione','gas','missing_external'))}</div>
     ${issueRows?`<div class="table-wrap"><table><thead><tr><th>Campo</th><th>Livello</th><th>Motivo</th></tr></thead><tbody>${issueRows}</tbody></table></div>`:'<div class="meta">Nessuna incoerenza deterministica rilevata.</div>'}
   `;
 }

@@ -6934,9 +6934,31 @@ function formatPdfValidityLine(commodityLabel, validFrom, validTo) {
   return "";
 }
 
+const PDF_READINESS_FIELD_LABELS = Object.freeze({
+  fornitore: "fornitore",
+  intestatario: "intestatario",
+  codice_fiscale: "codice fiscale o partita IVA",
+  codice_cliente: "codice cliente",
+  customer_type: "profilo cliente",
+  pod: "POD",
+  pdr: "PDR",
+  indirizzo_fornitura_luce: "indirizzo luce",
+  indirizzo_fornitura_gas: "indirizzo gas",
+  potenza_impegnata_kw: "potenza impegnata",
+  recapito_telefonico: "telefono",
+  email: "email",
+  modalita_pagamento_o_iban: "IBAN o modalità di pagamento",
+  titolo_occupazione_immobile: "titolo di occupazione dell'immobile",
+  consensi_attivazione: "consensi",
+  documento_identita: "documento di identità",
+  dati_nascita_e_residenza: "dati di nascita e residenza",
+  documento_firmatario: "documento del firmatario",
+  dati_legale_rappresentante: "dati del legale rappresentante",
+});
+
 function mergePdfReadiness(target, source) {
-  const output = target || { confronto: {}, attivazione: {} };
-  for (const area of ["confronto", "attivazione"]) {
+  const output = target || { confronto: {}, dati_bolletta: {}, attivazione: {} };
+  for (const area of ["confronto", "dati_bolletta", "attivazione"]) {
     output[area] = output[area] || {};
     for (const commodity of ["luce", "gas"]) {
       if (source?.[area]?.[commodity]) output[area][commodity] = source[area][commodity];
@@ -6949,6 +6971,13 @@ function pdfReadinessLine(label, entry) {
   const status = entry?.status;
   if (!status) return "";
   return `${label}: ${status.replace(/_/g, " ")}`;
+}
+
+function pdfReadinessFieldsLine(label, fields) {
+  const values = [...new Set((Array.isArray(fields) ? fields : [])
+    .map((field) => PDF_READINESS_FIELD_LABELS[field] || String(field || "").replace(/_/g, " "))
+    .filter(Boolean))];
+  return values.length ? `${label}: ${values.join(", ")}` : "";
 }
 
 function mergePdfDocuments(documents) {
@@ -7094,6 +7123,9 @@ function renderPdfSummary(documents, merged) {
     merged.quota_fissa_vendita_gas_eur_anno ? `Fisso gas: ${merged.quota_fissa_vendita_gas_eur_anno} €/anno` : "",
     merged.pod ? `POD: ${testoHtmlSicuro(merged.pod)}` : "",
     merged.pdr ? `PDR: ${testoHtmlSicuro(merged.pdr)}` : "",
+    merged.potenza_impegnata_kw ? `Potenza impegnata luce: ${merged.potenza_impegnata_kw} kW` : "",
+    merged.potenza_disponibile_kw ? `Potenza disponibile luce: ${merged.potenza_disponibile_kw} kW` : "",
+    merged.intestatario ? `Intestatario: ${testoHtmlSicuro(merged.intestatario)}` : "",
     merged.codice_cliente ? `Codice cliente: ${testoHtmlSicuro(merged.codice_cliente)}` : "",
     merged.codice_fiscale ? `Codice fiscale: ${testoHtmlSicuro(merged.codice_fiscale)}` : "",
     merged.indirizzo_fornitura_luce ? `Indirizzo luce: ${testoHtmlSicuro(merged.indirizzo_fornitura_luce)}` : "",
@@ -7122,8 +7154,14 @@ function renderPdfSummary(documents, merged) {
     !luceIndex && !gasIndex && merged.indice_riferimento ? `Indice: ${testoHtmlSicuro(merged.indice_riferimento)}` : "",
     pdfReadinessLine("Stato confronto luce", merged.readiness?.confronto?.luce),
     pdfReadinessLine("Stato confronto gas", merged.readiness?.confronto?.gas),
-    pdfReadinessLine("Stato attivazione luce", merged.readiness?.attivazione?.luce),
-    pdfReadinessLine("Stato attivazione gas", merged.readiness?.attivazione?.gas),
+    pdfReadinessLine("Stato dati bolletta luce", merged.readiness?.dati_bolletta?.luce),
+    pdfReadinessFieldsLine("Dati bolletta mancanti luce", merged.readiness?.dati_bolletta?.luce?.missing),
+    pdfReadinessLine("Stato dati bolletta gas", merged.readiness?.dati_bolletta?.gas),
+    pdfReadinessFieldsLine("Dati bolletta mancanti gas", merged.readiness?.dati_bolletta?.gas?.missing),
+    pdfReadinessLine("Stato attivazione completa luce", merged.readiness?.attivazione?.luce),
+    pdfReadinessFieldsLine("Dati da integrare per attivazione luce", merged.readiness?.attivazione?.luce?.missing_external),
+    pdfReadinessLine("Stato attivazione completa gas", merged.readiness?.attivazione?.gas),
+    pdfReadinessFieldsLine("Dati da integrare per attivazione gas", merged.readiness?.attivazione?.gas?.missing_external),
   ].filter(Boolean).join(" | ");
 
   return `
