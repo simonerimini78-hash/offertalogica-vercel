@@ -523,31 +523,88 @@
             padding: 26px;
             gap: 14px;
         }
-        .upload-drop input,
+        .pdf-file-picker,
+        .pdf-selected-files,
         .upload-note,
         .pdf-review-static {
             grid-column: 1 / -1;
         }
-        .upload-drop input {
+        .pdf-native-file-input {
+            position: absolute;
+            inline-size: 1px;
+            block-size: 1px;
+            opacity: 0;
+            pointer-events: none;
+        }
+        .pdf-file-picker {
             width: min(100%, 680px);
             justify-self: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
             padding: 14px;
             border: 1px dashed rgba(37, 99, 235, .35);
             border-radius: 10px;
             background: #eef6ff;
-            font-size: 14px;
-            text-align: center;
         }
-        .upload-drop input::file-selector-button {
+        .pdf-file-picker-button {
             border: 0;
             border-radius: 8px;
             background: var(--dark-btn);
             color: #fff;
             padding: 12px 16px;
-            margin-right: 12px;
             font-weight: 800;
             cursor: pointer;
             font-size: 14px;
+            white-space: nowrap;
+        }
+        .pdf-file-picker-status {
+            color: #334155;
+            font-size: 14px;
+            text-align: left;
+        }
+        .pdf-selected-files {
+            width: min(100%, 760px);
+            justify-self: center;
+        }
+        .pdf-selected-files[hidden] {
+            display: none;
+        }
+        .pdf-file-list {
+            display: grid;
+            gap: 8px;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+        .pdf-file-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 10px 12px;
+            border: 1px solid #dbeafe;
+            border-radius: 9px;
+            background: #fff;
+            color: #1e293b;
+            font-size: 14px;
+            text-align: left;
+        }
+        .pdf-file-item small {
+            display: block;
+            margin-top: 2px;
+            color: #64748b;
+        }
+        .pdf-file-remove {
+            flex: 0 0 auto;
+            border: 0;
+            border-radius: 7px;
+            padding: 8px 10px;
+            background: #fee2e2;
+            color: #991b1b;
+            font-weight: 800;
+            cursor: pointer;
         }
         .upload-drop > button {
             min-height: 56px;
@@ -1103,22 +1160,24 @@
                 padding: 16px 12px;
                 gap: 12px;
             }
-            .upload-drop input,
+            .pdf-file-picker,
+            .pdf-selected-files,
             .upload-drop > button,
             .upload-note {
                 max-width: none;
                 width: 100%;
             }
-            .upload-drop input {
+            .pdf-file-picker {
+                flex-direction: column;
+                align-items: stretch;
                 padding: 12px;
-                font-size: 14px;
-                overflow: hidden;
             }
-            .upload-drop input::file-selector-button {
-                display: block;
+            .pdf-file-picker-button {
                 width: 100%;
-                margin: 0 0 10px;
                 font-size: 15px;
+            }
+            .pdf-file-picker-status {
+                text-align: center;
             }
             .choice-card {
                 min-height: 124px;
@@ -1818,10 +1877,15 @@
             <span><strong>Sei nel punto giusto.</strong> Seleziona qui il PDF della scheda sintetica, poi premi <strong>Analizza PDF</strong>.</span>
         </div>
         <div class="upload-drop" id="pdf-upload-drop">
-            <input id="pdf-static-input" type="file" accept="application/pdf" multiple aria-describedby="pdf-upload-context-notice">
+            <div class="pdf-file-picker">
+                <input id="pdf-static-input" class="pdf-native-file-input" type="file" accept="application/pdf" multiple aria-describedby="pdf-upload-context-notice pdf-file-picker-status">
+                <button id="pdf-select-files-button" type="button" class="pdf-file-picker-button" onclick="apriSelettorePdf()">Scegli file</button>
+                <span id="pdf-file-picker-status" class="pdf-file-picker-status">Nessun PDF aggiunto</span>
+            </div>
+            <div id="pdf-selected-files" class="pdf-selected-files" aria-live="polite" hidden></div>
             <button type="button" class="btn-action" onclick="preparaConfermaPdf()">Analizza PDF</button>
-            <button type="button" class="lead-secondary" onclick="azzeraPdfEModulo()">Rimuovi PDF e ricomincia</button>
-            <div class="upload-note">Puoi caricare una o più bollette PDF, ad esempio una luce e una gas, oppure una scheda sintetica.</div>
+            <button type="button" class="lead-secondary" onclick="azzeraPdfEModulo()">Rimuovi tutti i PDF e ricomincia</button>
+            <div class="upload-note">Dopo il primo PDF usa <strong>Aggiungi file</strong>: i documenti già caricati restano memorizzati. Puoi rimuovere ogni PDF singolarmente prima della conferma.</div>
             <div class="pdf-review-static" id="pdf-review-static" tabindex="-1">
                 <div id="pdf-confirm-guidance" class="guided-step-notice" role="status" aria-live="polite" hidden>
                     <span class="guided-step-arrow" aria-hidden="true">↓</span>
@@ -6682,30 +6746,38 @@ function configuraConfermaPdfPronta(results) {
   const panel = document.getElementById("pdf-review-static");
   const title = document.getElementById("pdf-review-title");
   const button = document.getElementById("pdf-confirm-data-button");
-  const successCount = results.filter(risultatoPdfUtilizzabile).length;
+  const availableDocuments = (LEAD_STATE.pdfDocuments || []).length ? LEAD_STATE.pdfDocuments : results;
+  const successCount = availableDocuments.filter(risultatoPdfUtilizzabile).length;
   const mixedDocuments = Boolean(LEAD_STATE.pdfData?.mixed_documents);
-  const hasReadableData = successCount > 0 && !mixedDocuments && Object.keys(LEAD_STATE.pdfData || {}).length > 0;
+  const mergeBlocked = Boolean(LEAD_STATE.pdfData?.merge_blocked);
+  const hasReadableData = successCount > 0 && !mixedDocuments && !mergeBlocked && Object.keys(LEAD_STATE.pdfData || {}).length > 0;
 
-  if (title) title.innerText = mixedDocuments
-    ? "Separa bolletta e scheda sintetica"
-    : hasReadableData
-      ? "Dati letti: controlla e conferma"
-      : "Documento non riconosciuto: completa manualmente";
-  if (button) {
-    button.disabled = mixedDocuments;
-    button.innerText = mixedDocuments
-      ? "Carica separatamente i documenti"
+  if (title) title.innerText = mergeBlocked
+    ? "Separa i documenti prima di continuare"
+    : mixedDocuments
+      ? "Separa bolletta e scheda sintetica"
       : hasReadableData
-        ? "Ho controllato: conferma e inserisci i dati"
-        : "Conferma e passa al modulo";
+        ? "Dati letti: controlla e conferma"
+        : "Documento non riconosciuto: completa manualmente";
+  if (button) {
+    button.disabled = mixedDocuments || mergeBlocked;
+    button.innerText = mergeBlocked
+      ? "Rimuovi i documenti non omogenei"
+      : mixedDocuments
+        ? "Carica separatamente i documenti"
+        : hasReadableData
+          ? "Ho controllato: conferma e inserisci i dati"
+          : "Conferma e passa al modulo";
   }
   mostraGuida(
     "pdf-confirm-guidance",
-    mixedDocuments
-      ? "<strong>Hai caricato insieme una bolletta e una scheda sintetica.</strong> Per evitare di mescolare i dati della fornitura attuale con quelli della nuova offerta, rimuovi i PDF e analizzali separatamente."
-      : hasReadableData
-        ? "<strong>Leggi e conferma i dati estratti.</strong> Controlla il riepilogo, poi premi il pulsante verde: solo così i valori verranno inseriti nel modulo."
-        : "<strong>Il documento non ha fornito dati sufficientemente affidabili.</strong> Puoi confermare per aprire il modulo e completare i valori manualmente."
+    mergeBlocked
+      ? "<strong>I PDF non appartengono allo stesso cliente o alla stessa fornitura.</strong> Usa i pulsanti Rimuovi accanto ai documenti e lascia soltanto un gruppo omogeneo. Nessun valore è stato scelto o unito automaticamente."
+      : mixedDocuments
+        ? "<strong>Hai caricato insieme una bolletta e una scheda sintetica.</strong> Per evitare di mescolare i dati della fornitura attuale con quelli della nuova offerta, rimuovi i PDF e analizzali separatamente."
+        : hasReadableData
+          ? "<strong>Leggi e conferma i dati estratti.</strong> Controlla il riepilogo, poi premi il pulsante verde: solo così i valori verranno inseriti nel modulo."
+          : "<strong>Il documento non ha fornito dati sufficientemente affidabili.</strong> Puoi confermare per aprire il modulo e completare i valori manualmente."
   );
   panel?.classList.remove("pdf-confirm-attention");
   void panel?.offsetWidth;
@@ -6753,6 +6825,100 @@ function accompagnaAllaRevisioneDatiPdf(data) {
   window.setTimeout(() => target?.classList.remove("pdf-data-target"), 3400);
 }
 
+
+let PDF_PENDING_FILES = [];
+let PDF_UPLOAD_SEQUENCE = 0;
+
+function pdfFileFingerprint(file) {
+  return [file?.name || "", Number(file?.size || 0), Number(file?.lastModified || 0)].join("::");
+}
+
+function nuovoPdfUploadId(prefix = "pdf") {
+  PDF_UPLOAD_SEQUENCE += 1;
+  return `${prefix}-${Date.now()}-${PDF_UPLOAD_SEQUENCE}`;
+}
+
+function pdfFileSizeLabel(size) {
+  const bytes = Number(size || 0);
+  if (!Number.isFinite(bytes) || bytes <= 0) return "dimensione non disponibile";
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function aggiornaInterfacciaSelezionePdf() {
+  const pickerButton = document.getElementById("pdf-select-files-button");
+  const status = document.getElementById("pdf-file-picker-status");
+  const list = document.getElementById("pdf-selected-files");
+  const analyzed = Array.isArray(LEAD_STATE.pdfDocuments) ? LEAD_STATE.pdfDocuments : [];
+  const total = PDF_PENDING_FILES.length + analyzed.length;
+  if (pickerButton) pickerButton.innerText = total > 0 ? "Aggiungi file" : "Scegli file";
+  if (status) {
+    if (!total) status.innerText = "Nessun PDF aggiunto";
+    else if (PDF_PENDING_FILES.length) status.innerText = `${total} PDF presenti, ${PDF_PENDING_FILES.length} da analizzare`;
+    else status.innerText = `${total} PDF analizzati`;
+  }
+  if (!list) return;
+  if (!total) {
+    list.hidden = true;
+    list.innerHTML = "";
+    return;
+  }
+  const pendingRows = PDF_PENDING_FILES.map((entry) => `
+    <li class="pdf-file-item">
+      <span><strong>${testoHtmlSicuro(entry.file.name)}</strong><small>Da analizzare · ${pdfFileSizeLabel(entry.file.size)}</small></span>
+      <button type="button" class="pdf-file-remove" onclick="rimuoviFilePdf('${entry.id}', 'pending')" aria-label="Rimuovi ${testoHtmlSicuro(entry.file.name)}">Rimuovi</button>
+    </li>`);
+  const analyzedRows = analyzed.map((doc) => `
+    <li class="pdf-file-item">
+      <span><strong>${testoHtmlSicuro(doc.filename || "documento.pdf")}</strong><small>${doc.error ? testoHtmlSicuro(doc.error) : "Analizzato"}</small></span>
+      <button type="button" class="pdf-file-remove" onclick="rimuoviFilePdf('${doc.upload_id}', 'analyzed')" aria-label="Rimuovi ${testoHtmlSicuro(doc.filename || "documento.pdf")}">Rimuovi</button>
+    </li>`);
+  list.hidden = false;
+  list.innerHTML = `<ul class="pdf-file-list">${[...analyzedRows, ...pendingRows].join("")}</ul>`;
+}
+
+window.apriSelettorePdf = function apriSelettorePdf() {
+  const input = document.getElementById("pdf-static-input");
+  if (!input) return;
+  input.value = "";
+  input.click();
+};
+
+window.rimuoviFilePdf = function rimuoviFilePdf(id, source) {
+  if (source === "pending") {
+    PDF_PENDING_FILES = PDF_PENDING_FILES.filter((entry) => entry.id !== id);
+  } else {
+    LEAD_STATE.pdfDocuments = (LEAD_STATE.pdfDocuments || []).filter((doc) => doc.upload_id !== id);
+    LEAD_STATE.pdfData = LEAD_STATE.pdfDocuments.length ? mergePdfDocuments(LEAD_STATE.pdfDocuments) : null;
+    const panel = document.getElementById("pdf-review-static");
+    const title = document.getElementById("pdf-review-title");
+    const copy = document.getElementById("pdf-review-copy");
+    const confirmButton = document.getElementById("pdf-confirm-data-button");
+    if (LEAD_STATE.pdfDocuments.length) {
+      if (panel) panel.style.display = "block";
+      if (copy) copy.innerHTML = renderPdfSummary(LEAD_STATE.pdfDocuments, LEAD_STATE.pdfData);
+      configuraConfermaPdfPronta(LEAD_STATE.pdfDocuments);
+    } else {
+      if (panel) panel.style.display = "none";
+      if (title) title.innerText = "Dati pronti per la conferma";
+      if (copy) copy.innerText = "Dopo l'analisi potrai confermare i dati letti dal PDF. Il confronto partirà solo dopo la tua conferma.";
+      if (confirmButton) {
+        confirmButton.disabled = false;
+        confirmButton.innerText = "Ho controllato: conferma e inserisci i dati";
+      }
+    }
+  }
+  aggiornaInterfacciaSelezionePdf();
+  const notice = document.getElementById("pdf-upload-context-notice");
+  if (notice) {
+    const total = PDF_PENDING_FILES.length + (LEAD_STATE.pdfDocuments || []).length;
+    notice.hidden = false;
+    notice.innerHTML = total
+      ? `<span class="pdf-context-icon" aria-hidden="true">✓</span><span><strong>Documento rimosso.</strong> Restano ${total} PDF. Puoi aggiungerne altri oppure analizzare quelli in attesa.</span>`
+      : '<span class="pdf-context-icon" aria-hidden="true">↓</span><span><strong>Nessun PDF presente.</strong> Premi <strong>Scegli file</strong> per iniziare.</span>';
+  }
+};
+
 window.preparaConfermaPdf = async function preparaConfermaPdf() {
   nascondiEsitiFincheNonConfronti();
   nascondiGuida("pdf-data-review-guidance");
@@ -6762,16 +6928,27 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
   const title = document.getElementById("pdf-review-title");
   const copy = document.getElementById("pdf-review-copy");
   const confirmButton = document.getElementById("pdf-confirm-data-button");
-  const files = Array.from(input?.files || []);
+  const pendingEntries = [...PDF_PENDING_FILES];
+  const files = pendingEntries.map((entry) => entry.file);
   if (!files.length) {
     trackEvent("pdf_no_file_selected");
     if (panel) panel.style.display = "block";
-    if (title) title.innerText = "Prima seleziona il documento";
-    if (copy) copy.innerText = "Seleziona una bolletta PDF o una scheda sintetica, poi premi “Analizza PDF”. Dopo la lettura ti chiederemo di controllare e confermare i dati.";
-    if (confirmButton) confirmButton.disabled = true;
-    nascondiGuida("pdf-confirm-guidance");
+    if (LEAD_STATE.pdfDocuments.length) {
+      if (copy) copy.innerHTML = renderPdfSummary(LEAD_STATE.pdfDocuments, LEAD_STATE.pdfData);
+      configuraConfermaPdfPronta(LEAD_STATE.pdfDocuments);
+      const notice = document.getElementById("pdf-upload-context-notice");
+      if (notice) {
+        notice.hidden = false;
+        notice.innerHTML = '<span class="pdf-context-icon" aria-hidden="true">↓</span><span><strong>Nessun nuovo PDF da analizzare.</strong> Premi <strong>Aggiungi file</strong> oppure controlla e conferma i documenti già letti.</span>';
+      }
+    } else {
+      if (title) title.innerText = "Prima seleziona il documento";
+      if (copy) copy.innerText = "Seleziona una bolletta PDF o una scheda sintetica, poi premi “Analizza PDF”. Dopo la lettura ti chiederemo di controllare e confermare i dati.";
+      if (confirmButton) confirmButton.disabled = true;
+      nascondiGuida("pdf-confirm-guidance");
+    }
     portaElementoInVista(document.getElementById("pdf-upload-drop"), { block: "center" });
-    input?.focus({ preventScroll: true });
+    document.getElementById("pdf-select-files-button")?.focus({ preventScroll: true });
     return;
   }
   if (panel) panel.style.display = "block";
@@ -6785,7 +6962,9 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
   trackEvent("pdf_analysis_started", { fileCount: files.length });
 
   const results = [];
-  for (const file of files) {
+  for (let fileIndex = 0; fileIndex < files.length; fileIndex += 1) {
+    const file = files[fileIndex];
+    const pendingEntry = pendingEntries[fileIndex];
     const formData = new FormData();
     formData.append("pdf", file);
     formData.append("archiveContext", JSON.stringify({
@@ -6800,7 +6979,14 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
       if (!contentType.includes("application/json")) throw new Error("api_non_disponibile");
       const payload = await response.json();
       if (!response.ok || !payload.ok) throw new Error(payload.error || "Errore analisi PDF");
-      results.push({ filename: file.name, archive: payload.archive || null, ...payload.normalized });
+      results.push({
+        filename: file.name,
+        upload_id: pendingEntry.id,
+        file_fingerprint: pendingEntry.fingerprint,
+        file_size: Number(file.size || 0),
+        archive: payload.archive || null,
+        ...payload.normalized,
+      });
     } catch (error) {
       const safeMessage = [
         "PDF troppo grande",
@@ -6808,12 +6994,22 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
         "Il file caricato non è un PDF valido",
         "PDF mancante o formato non accettato",
       ].includes(error?.message) ? error.message : "Lettura non disponibile";
-      results.push({ filename: file.name, error: safeMessage });
+      results.push({
+        filename: file.name,
+        upload_id: pendingEntry.id,
+        file_fingerprint: pendingEntry.fingerprint,
+        file_size: Number(file.size || 0),
+        error: safeMessage,
+      });
     }
   }
 
+  const processedIds = new Set(pendingEntries.map((entry) => entry.id));
+  PDF_PENDING_FILES = PDF_PENDING_FILES.filter((entry) => !processedIds.has(entry.id));
+  if (input) input.value = "";
   LEAD_STATE.pdfDocuments = [...LEAD_STATE.pdfDocuments, ...results];
   LEAD_STATE.pdfData = mergePdfDocuments(LEAD_STATE.pdfDocuments);
+  aggiornaInterfacciaSelezionePdf();
   LEAD_STATE.dataOrigin = "pdf_upload";
   trackEvent("pdf_analysis_completed", {
     fileCount: files.length,
@@ -7102,8 +7298,90 @@ function pdfBlockedAutofillLine(contract) {
   return labels.length ? `Non autocompilati automaticamente: ${labels.join(", ")}` : "";
 }
 
+
+function normalizePdfTaxId(value) {
+  return String(value || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+function normalizePdfHolder(value) {
+  return String(value || "")
+    .toUpperCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^A-Z0-9]+/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .sort()
+    .join(" ");
+}
+
+function normalizePdfSupplyId(value) {
+  return String(value || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+function analyzePdfDocumentIsolation(validDocuments) {
+  const documents = Array.isArray(validDocuments) ? validDocuments : [];
+  if (documents.length < 2) return { blocked: false, reasons: [] };
+
+  const taxIds = [...new Set(documents.map((doc) => normalizePdfTaxId(doc.codice_fiscale)).filter(Boolean))];
+  const holders = [...new Set(documents.map((doc) => normalizePdfHolder(doc.intestatario)).filter(Boolean))];
+  const pods = [...new Set(documents.map((doc) => normalizePdfSupplyId(doc.pod)).filter(Boolean))];
+  const pdrs = [...new Set(documents.map((doc) => normalizePdfSupplyId(doc.pdr)).filter(Boolean))];
+  const reasons = [];
+
+  if (taxIds.length > 1) reasons.push("clienti_diversi_codice_fiscale");
+  if (!taxIds.length && holders.length > 1) reasons.push("clienti_diversi_intestatario");
+  if (taxIds.length === 1) {
+    const holdersWithTax = [...new Set(documents
+      .filter((doc) => normalizePdfTaxId(doc.codice_fiscale))
+      .map((doc) => normalizePdfHolder(doc.intestatario))
+      .filter(Boolean))];
+    const holdersWithoutTax = [...new Set(documents
+      .filter((doc) => !normalizePdfTaxId(doc.codice_fiscale))
+      .map((doc) => normalizePdfHolder(doc.intestatario))
+      .filter(Boolean))];
+    if (holdersWithTax.length > 1) reasons.push("intestatario_incoerente_con_codice_fiscale");
+    if (holdersWithTax.length === 1 && holdersWithoutTax.some((holder) => holder !== holdersWithTax[0])) {
+      reasons.push("documento_senza_codice_fiscale_di_altro_intestatario");
+    }
+  }
+  if (pods.length > 1) reasons.push("punti_luce_diversi");
+  if (pdrs.length > 1) reasons.push("punti_gas_diversi");
+
+  return {
+    blocked: reasons.length > 0,
+    reasons: [...new Set(reasons)],
+    tax_ids: taxIds,
+    holders,
+    pods,
+    pdrs,
+  };
+}
+
+function pdfIsolationReasonLabel(reason) {
+  const labels = {
+    clienti_diversi_codice_fiscale: "codici fiscali o partite IVA differenti",
+    clienti_diversi_intestatario: "intestatari differenti",
+    intestatario_incoerente_con_codice_fiscale: "intestatari incoerenti con il codice fiscale",
+    documento_senza_codice_fiscale_di_altro_intestatario: "un documento senza codice fiscale appartiene a un altro intestatario",
+    punti_luce_diversi: "POD differenti",
+    punti_gas_diversi: "PDR differenti",
+  };
+  return labels[reason] || String(reason || "").replace(/_/g, " ");
+}
+
 function mergePdfDocuments(documents) {
   const validDocuments = documents.filter(risultatoPdfUtilizzabile);
+  const isolation = analyzePdfDocumentIsolation(validDocuments);
+  if (isolation.blocked) {
+    return {
+      kind: "multiple_documents",
+      commodity: "unknown",
+      merge_blocked: true,
+      isolation,
+    };
+  }
   const hasOfferSheet = validDocuments.some((doc) => doc.kind === "scheda_offerta");
   const hasBill = validDocuments.some((doc) => doc.kind === "bolletta");
 
@@ -7207,6 +7485,15 @@ function renderPdfSummary(documents, merged) {
     const review = doc.confidence === "high" ? "affidabilità alta" : "da controllare";
     return `<li><strong>${testoHtmlSicuro(doc.filename)}</strong>: ${testoHtmlSicuro(doc.kind || "PDF")} ${testoHtmlSicuro(doc.commodity || "")} - ${testoHtmlSicuro(doc.fornitore || "fornitore da verificare")} (${review})</li>`;
   }).join("");
+
+  if (merged?.merge_blocked) {
+    const reasons = (merged.isolation?.reasons || []).map(pdfIsolationReasonLabel).join(", ");
+    return `
+      <span>Documenti analizzati:</span>
+      <ul style="margin:6px 0 10px 18px;">${rows}</ul>
+      <span><strong>I dati non sono stati uniti.</strong> Sono stati rilevati documenti appartenenti a clienti o forniture differenti${reasons ? `: ${testoHtmlSicuro(reasons)}` : ""}. Rimuovi i PDF non omogenei e lascia soltanto il gruppo che vuoi usare. Nessun campo verrà autocompilato finché il conflitto non è risolto.</span>
+    `;
+  }
 
   if (merged?.mixed_documents) {
     return `
@@ -7336,6 +7623,8 @@ window.azzeraPdfEModulo = function azzeraPdfEModulo() {
   const title = document.getElementById("pdf-review-title");
   const confirmButton = document.getElementById("pdf-confirm-data-button");
   if (input) input.value = "";
+  PDF_PENDING_FILES = [];
+  aggiornaInterfacciaSelezionePdf();
   if (panel) panel.style.display = "none";
   if (title) title.innerText = "Dati pronti per la conferma";
   if (copy) copy.innerText = "Dopo l'analisi potrai confermare i dati letti dal PDF. Il confronto partirà solo dopo la tua conferma.";
@@ -7570,7 +7859,7 @@ function vaiAlCaricatoreScheda() {
     panel?.classList.remove("pdf-upload-attention");
     drop?.classList.remove("pdf-upload-target");
   }, 3000);
-  window.setTimeout(() => input?.focus({ preventScroll: true }), 650);
+  window.setTimeout(() => document.getElementById("pdf-select-files-button")?.focus({ preventScroll: true }), 650);
 }
 
 function vaiAiConsumiAttuali() {
@@ -7964,13 +8253,38 @@ function collegaEventiUX() {
   gasAtt?.addEventListener("input", sincronizzaConsumiNuovaOfferta);
   document.getElementById("optional-upload-sheet")?.addEventListener("click", vaiAlCaricatoreScheda);
   document.getElementById("pdf-static-input")?.addEventListener("change", (event) => {
-    const count = event.target?.files?.length || 0;
+    const selected = Array.from(event.target?.files || []);
     const notice = document.getElementById("pdf-upload-context-notice");
+    const knownFingerprints = new Set([
+      ...PDF_PENDING_FILES.map((entry) => entry.fingerprint),
+      ...(LEAD_STATE.pdfDocuments || []).map((doc) => doc.file_fingerprint).filter(Boolean),
+    ]);
+    let added = 0;
+    let duplicates = 0;
+    selected.forEach((file) => {
+      const fingerprint = pdfFileFingerprint(file);
+      if (knownFingerprints.has(fingerprint)) {
+        duplicates += 1;
+        return;
+      }
+      knownFingerprints.add(fingerprint);
+      PDF_PENDING_FILES.push({
+        id: nuovoPdfUploadId("pending"),
+        fingerprint,
+        file,
+      });
+      added += 1;
+    });
+    if (event.target) event.target.value = "";
+    aggiornaInterfacciaSelezionePdf();
     nascondiGuida("pdf-confirm-guidance");
     document.getElementById("pdf-review-static")?.classList.remove("pdf-confirm-attention");
-    if (!notice || count < 1) return;
+    if (!notice || (!added && !duplicates)) return;
     notice.hidden = false;
-    notice.innerHTML = `<span class="pdf-context-icon" aria-hidden="true">✓</span><span><strong>${count === 1 ? "PDF selezionato" : `${count} PDF selezionati`}.</strong> Ora premi <strong>Analizza PDF</strong> per leggere i dati. Dopo l'analisi dovrai controllarli e confermarli.</span>`;
+    const duplicateCopy = duplicates ? ` ${duplicates === 1 ? "Un duplicato è stato ignorato." : `${duplicates} duplicati sono stati ignorati.`}` : "";
+    notice.innerHTML = added
+      ? `<span class="pdf-context-icon" aria-hidden="true">✓</span><span><strong>${added === 1 ? "PDF aggiunto" : `${added} PDF aggiunti`}.</strong> I documenti precedenti restano memorizzati. Ora premi <strong>Analizza PDF</strong>.${duplicateCopy}</span>`
+      : `<span class="pdf-context-icon" aria-hidden="true">✓</span><span><strong>Nessun nuovo PDF aggiunto.</strong>${duplicateCopy}</span>`;
   });
   document.getElementById("optional-edit-consumptions")?.addEventListener("click", vaiAiConsumiAttuali);
   document.getElementById("optional-manual-toggle")?.addEventListener("click", () => {
