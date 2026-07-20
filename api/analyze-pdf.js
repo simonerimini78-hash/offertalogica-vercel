@@ -79,7 +79,11 @@ export default async function handler(req, res) {
   let fileMetadata = null;
   let archiveContext = {};
   let validPdf = false;
-  const analysisDeadlineAt = Date.now() + 24_000;
+  const configuredDeadlineMs = Number.parseInt(process.env.PDF_ANALYSIS_DEADLINE_MS || "55000", 10);
+  const analysisDeadlineMs = Number.isFinite(configuredDeadlineMs)
+    ? Math.max(24_000, Math.min(55_000, configuredDeadlineMs))
+    : 55_000;
+  const analysisDeadlineAt = Date.now() + analysisDeadlineMs;
   try {
     const { fields, files } = await parseForm(req);
     archiveContext = parseArchiveContext(fields);
