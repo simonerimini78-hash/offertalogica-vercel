@@ -79,7 +79,7 @@ test("Step 5 produce un contratto JSON stabile e versionato", () => {
   const contract = buildPdfDataContract(baseDual());
   assert.equal(contract.schema, "offertalogica.pdf-data");
   assert.equal(contract.contract_version, PDF_DATA_CONTRACT_VERSION);
-  assert.equal(contract.contract_version, "1.0.0");
+  assert.equal(contract.contract_version, "1.1.0");
   assert.equal(contract.parser.mode, "deterministic");
   assert.equal(contract.document.commodity, "dual");
   assert.equal(contract.supplies.luce.annual_consumption, 1008);
@@ -183,7 +183,7 @@ test("Step 5 viene applicato all'output reale del parser senza cambiare i valori
   assert.equal(result.parser_version, "v103-safe-data-contract-step5");
   assert.equal(result.prezzo_luce_eur_kwh, 0.188041);
   assert.equal(result.quota_fissa_vendita_luce_eur_anno, 133.32);
-  assert.equal(result.data_contract.contract_version, "1.0.0");
+  assert.equal(result.data_contract.contract_version, "1.1.0");
   assert.equal(result.data_contract.fields.prezzo_luce_eur_kwh.normalized_value, 0.188041);
 });
 

@@ -6277,6 +6277,16 @@ function campiAssistenteAttivazione() {
   const scope = tipoFornituraPerCalcolo();
   const usaLuce = scope !== "gas";
   const usaGas = ["gas", "dual", "separate"].includes(scope);
+  const codiceClienteGenerico = valoreDatoAttivazione(firstValue(data.codice_cliente, data.codiceCliente, data.customer_code));
+  const codiceClienteLuce = usaLuce
+    ? valoreDatoAttivazione(firstValue(data.codice_cliente_luce, codiceClienteGenerico))
+    : "";
+  const codiceClienteGas = usaGas
+    ? valoreDatoAttivazione(firstValue(data.codice_cliente_gas, codiceClienteGenerico))
+    : "";
+  const codiceClienteComune = usaLuce && usaGas && codiceClienteLuce && codiceClienteLuce === codiceClienteGas
+    ? codiceClienteLuce
+    : "";
   const fields = [
     { label: "Nome e cognome", value: nome || valoreDatoAttivazione(firstValue(data.intestatario, data.nome_intestatario, data.nomeIntestatario)), hint: "Dato anagrafico utile durante la compilazione.", category: "personal" },
     { label: "Cellulare", value: telefono, hint: "Numero già verificato su OffertaLogica.", category: "personal" },
@@ -6289,7 +6299,9 @@ function campiAssistenteAttivazione() {
     { label: "Consumo annuo luce", value: usaLuce ? valoreConUnitaAttivazione(data.consumo_luce_kwh, "kWh/anno") : "", hint: "Serve per verificare che il preventivo del fornitore sia coerente.", category: "technical", applicable: usaLuce },
     { label: "Consumo annuo gas", value: usaGas ? valoreConUnitaAttivazione(data.consumo_gas_smc, "Smc/anno") : "", hint: "Serve per verificare la stima gas durante l'attivazione.", category: "technical", applicable: usaGas },
     { label: "Potenza impegnata", value: usaLuce ? valoreConUnitaAttivazione(data.potenza_impegnata_kw, "kW") : "", hint: "Controlla il valore indicato nella bolletta luce.", category: "technical", applicable: usaLuce },
-    { label: "Codice cliente", value: valoreDatoAttivazione(firstValue(data.codice_cliente, data.codiceCliente, data.customer_code)), hint: "Se rilevato, aiuta il fornitore a identificare meglio la pratica.", category: "technical" },
+    { label: "Codice cliente", value: codiceClienteComune, hint: "Codice comune alle due utenze.", category: "technical", applicable: Boolean(codiceClienteComune) },
+    { label: "Codice cliente luce", value: codiceClienteLuce, hint: "Codice contrattuale della fornitura elettrica.", category: "technical", applicable: usaLuce && !codiceClienteComune },
+    { label: "Codice cliente gas", value: codiceClienteGas, hint: "Codice contrattuale della fornitura gas.", category: "technical", applicable: usaGas && !codiceClienteComune },
     { label: "Indirizzo fornitura", value: valoreDatoAttivazione(firstValue(data.indirizzo_fornitura, data.indirizzoFornitura, data.indirizzo)), hint: "Se rilevato, controlla che coincida con l'utenza da attivare.", category: "technical" },
   ];
   return fields
@@ -7161,7 +7173,7 @@ function rebuildMergedPdfAutofillPlan(contract) {
         unit: entry.unit || null,
         requires_user_confirmation: true,
       }));
-    } else {
+    } else if (entry.status !== "non_applicabile" && entry.autofill.reason !== "codici_specifici_per_utenza") {
       blockedFields.push({
         source_field: entry.field,
         targets,
@@ -7195,7 +7207,21 @@ function mergePdfDataContract(target, source) {
     const incomingStronger = Boolean(incoming?.autofill?.allowed && !existing?.autofill?.allowed);
     const conflictingValues = existingHasValue && incomingHasValue
       && JSON.stringify(existing.normalized_value) !== JSON.stringify(incoming.normalized_value);
-    if (conflictingValues) {
+    if (conflictingValues && field === "codice_cliente") {
+      output.fields[field] = {
+        ...existing,
+        normalized_value: null,
+        original_value: null,
+        status: "non_applicabile",
+        status_reason: "codici_specifici_per_utenza",
+        alternatives: [...new Set([existing.normalized_value, incoming.normalized_value])],
+        autofill: {
+          ...(existing.autofill || {}),
+          allowed: false,
+          reason: "codici_specifici_per_utenza",
+        },
+      };
+    } else if (conflictingValues) {
       output.fields[field] = {
         ...existing,
         status: "da_verificare",
@@ -7221,6 +7247,43 @@ function mergePdfDataContract(target, source) {
   return rebuildMergedPdfAutofillPlan(output);
 }
 
+function syncMergedPdfCustomerCodes(merged) {
+  const contract = merged?.data_contract;
+  if (!contract) return merged;
+  const luce = merged.codice_cliente_luce || null;
+  const gas = merged.codice_cliente_gas || null;
+  const same = Boolean(luce && gas && String(luce) === String(gas));
+  const common = same ? luce : merged.commodity === "luce" ? luce : merged.commodity === "gas" ? gas : null;
+
+  contract.customer = {
+    ...(contract.customer || {}),
+    customer_code: common,
+    customer_codes: { luce, gas },
+  };
+  contract.supplies = contract.supplies || { luce: null, gas: null };
+  if (contract.supplies.luce) contract.supplies.luce.customer_code = luce;
+  if (contract.supplies.gas) contract.supplies.gas.customer_code = gas;
+
+  const generic = contract.fields?.codice_cliente;
+  if (generic && merged.commodity === "dual" && luce && gas && !same) {
+    contract.fields.codice_cliente = {
+      ...generic,
+      normalized_value: null,
+      original_value: null,
+      status: "non_applicabile",
+      status_reason: "codici_specifici_per_utenza",
+      alternatives: [luce, gas],
+      autofill: {
+        ...(generic.autofill || {}),
+        allowed: false,
+        reason: "codici_specifici_per_utenza",
+      },
+    };
+  }
+  rebuildMergedPdfAutofillPlan(contract);
+  return merged;
+}
+
 function formatPdfContractDate(value) {
   const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
   return match ? `${match[3]}/${match[2]}/${match[1]}` : String(value || "");
@@ -7240,6 +7303,8 @@ const PDF_READINESS_FIELD_LABELS = Object.freeze({
   intestatario: "intestatario",
   codice_fiscale: "codice fiscale o partita IVA",
   codice_cliente: "codice cliente",
+  codice_cliente_luce: "codice cliente luce",
+  codice_cliente_gas: "codice cliente gas",
   customer_type: "profilo cliente",
   pod: "POD",
   pdr: "PDR",
@@ -7293,7 +7358,7 @@ function pdfReadinessFieldsLine(label, fields) {
 
 function pdfBlockedAutofillLine(contract) {
   const blocked = (contract?.autofill_plan?.blocked_fields || [])
-    .filter((item) => !["valore_assente", "campo_non_mappato", "non_applicabile"].includes(item?.reason));
+    .filter((item) => !["valore_assente", "campo_non_mappato", "non_applicabile", "codici_specifici_per_utenza"].includes(item?.reason));
   const labels = [...new Set(blocked.map((item) => PDF_READINESS_FIELD_LABELS[item.source_field] || String(item.source_field || "").replace(/_/g, " ")).filter(Boolean))];
   return labels.length ? `Non autocompilati automaticamente: ${labels.join(", ")}` : "";
 }
@@ -7397,7 +7462,7 @@ function mergePdfDocuments(documents) {
   validDocuments.forEach((doc) => {
     merged.kind = doc.kind;
     [
-      "intestatario", "codice_fiscale", "codice_cliente", "indirizzo_fornitura",
+      "intestatario", "codice_fiscale", "indirizzo_fornitura",
       "indirizzo_fornitura_luce", "indirizzo_fornitura_gas", "customer_type",
       "customer_type_confidence", "customer_type_evidence", "nome_offerta", "codice_offerta",
       "tipo_prezzo", "tipo_prezzo_evidenza", "indice_riferimento", "spread_luce_eur_kwh", "spread_gas_eur_smc",
@@ -7416,7 +7481,8 @@ function mergePdfDocuments(documents) {
     merged.data_contract = mergePdfDataContract(merged.data_contract, doc.data_contract);
 
     if (doc.commodity === "luce" || doc.commodity === "dual" || doc.consumo_luce_kwh || doc.prezzo_luce_eur_kwh || doc.pod) {
-      merged.fornitore_luce = firstValue(doc.fornitore, doc.fornitore_luce, merged.fornitore_luce);
+      merged.fornitore_luce = firstValue(doc.fornitore_luce, doc.fornitore, merged.fornitore_luce);
+      merged.codice_cliente_luce = firstValue(doc.codice_cliente_luce, doc.codice_cliente, merged.codice_cliente_luce);
       merged.consumo_luce_kwh = firstValue(doc.consumo_luce_kwh, merged.consumo_luce_kwh);
       merged.prezzo_luce_eur_kwh = firstValue(doc.prezzo_luce_eur_kwh, merged.prezzo_luce_eur_kwh);
       merged.quota_fissa_vendita_luce_eur_anno = firstValue(doc.quota_fissa_vendita_luce_eur_anno, merged.quota_fissa_vendita_luce_eur_anno);
@@ -7436,7 +7502,8 @@ function mergePdfDocuments(documents) {
     }
 
     if (doc.commodity === "gas" || doc.commodity === "dual" || doc.consumo_gas_smc || doc.prezzo_gas_eur_smc || doc.pdr) {
-      merged.fornitore_gas = firstValue(doc.fornitore, doc.fornitore_gas, merged.fornitore_gas);
+      merged.fornitore_gas = firstValue(doc.fornitore_gas, doc.fornitore, merged.fornitore_gas);
+      merged.codice_cliente_gas = firstValue(doc.codice_cliente_gas, doc.codice_cliente, merged.codice_cliente_gas);
       merged.consumo_gas_smc = firstValue(doc.consumo_gas_smc, merged.consumo_gas_smc);
       merged.prezzo_gas_eur_smc = firstValue(doc.prezzo_gas_eur_smc, merged.prezzo_gas_eur_smc);
       merged.quota_fissa_vendita_gas_eur_anno = firstValue(doc.quota_fissa_vendita_gas_eur_anno, merged.quota_fissa_vendita_gas_eur_anno);
@@ -7457,6 +7524,16 @@ function mergePdfDocuments(documents) {
   const hasLuce = Boolean(merged.consumo_luce_kwh || merged.prezzo_luce_eur_kwh || merged.quota_fissa_vendita_luce_eur_anno || merged.pod);
   const hasGas = Boolean(merged.consumo_gas_smc || merged.prezzo_gas_eur_smc || merged.quota_fissa_vendita_gas_eur_anno || merged.pdr);
   merged.commodity = hasLuce && hasGas ? "dual" : hasGas ? "gas" : hasLuce ? "luce" : "unknown";
+  const codiceClienteLuce = merged.codice_cliente_luce || "";
+  const codiceClienteGas = merged.codice_cliente_gas || "";
+  if (merged.commodity === "dual") {
+    if (codiceClienteLuce && codiceClienteGas && String(codiceClienteLuce) === String(codiceClienteGas)) {
+      merged.codice_cliente = codiceClienteLuce;
+    } else {
+      delete merged.codice_cliente;
+    }
+  } else if (merged.commodity === "luce") merged.codice_cliente = codiceClienteLuce || merged.codice_cliente;
+  else if (merged.commodity === "gas") merged.codice_cliente = codiceClienteGas || merged.codice_cliente;
   if (merged.fornitore_luce && merged.fornitore_gas && merged.fornitore_luce === merged.fornitore_gas) merged.fornitore = merged.fornitore_luce;
   else merged.fornitore = merged.fornitore_luce || merged.fornitore_gas || "";
   if (merged.commodity === "luce") {
@@ -7473,6 +7550,7 @@ function mergePdfDocuments(documents) {
   }
   merged.indirizzo_fornitura = merged.indirizzo_fornitura_luce || merged.indirizzo_fornitura_gas || merged.indirizzo_fornitura || "";
   if (merged.data_contract?.document) merged.data_contract.document.commodity = merged.commodity;
+  syncMergedPdfCustomerCodes(merged);
   return merged;
 }
 
@@ -7523,6 +7601,10 @@ function renderPdfSummary(documents, merged) {
   );
   const dualSameProvider = merged.commodity === "dual" && merged.fornitore_luce && merged.fornitore_luce === merged.fornitore_gas;
   const dualSameAddress = merged.commodity === "dual" && merged.indirizzo_fornitura_luce && merged.indirizzo_fornitura_luce === merged.indirizzo_fornitura_gas;
+  const codiceClienteLuce = merged.codice_cliente_luce || (merged.commodity === "luce" ? merged.codice_cliente : "");
+  const codiceClienteGas = merged.codice_cliente_gas || (merged.commodity === "gas" ? merged.codice_cliente : "");
+  const dualSameCustomerCode = merged.commodity === "dual" && codiceClienteLuce && codiceClienteGas
+    && String(codiceClienteLuce) === String(codiceClienteGas);
   const externalLuce = merged.readiness?.attivazione?.luce?.missing_external || [];
   const externalGas = merged.readiness?.attivazione?.gas?.missing_external || [];
   const commonExternal = merged.commodity === "dual" ? externalLuce.filter((field) => externalGas.includes(field)) : [];
@@ -7545,7 +7627,9 @@ function renderPdfSummary(documents, merged) {
     merged.potenza_impegnata_kw ? `Potenza impegnata luce: ${merged.potenza_impegnata_kw} kW` : "",
     merged.potenza_disponibile_kw ? `Potenza disponibile luce: ${merged.potenza_disponibile_kw} kW` : "",
     merged.intestatario ? `Intestatario: ${testoHtmlSicuro(merged.intestatario)}` : "",
-    merged.codice_cliente ? `Codice cliente: ${testoHtmlSicuro(merged.codice_cliente)}` : "",
+    dualSameCustomerCode ? `Codice cliente: ${testoHtmlSicuro(codiceClienteLuce)}` : "",
+    !dualSameCustomerCode && codiceClienteLuce ? `${merged.commodity === "dual" ? "Codice cliente luce" : "Codice cliente"}: ${testoHtmlSicuro(codiceClienteLuce)}` : "",
+    !dualSameCustomerCode && codiceClienteGas ? `${merged.commodity === "dual" ? "Codice cliente gas" : "Codice cliente"}: ${testoHtmlSicuro(codiceClienteGas)}` : "",
     merged.codice_fiscale ? `Codice fiscale: ${testoHtmlSicuro(merged.codice_fiscale)}` : "",
     dualSameAddress ? `Indirizzo luce e gas: ${testoHtmlSicuro(merged.indirizzo_fornitura_luce)}` : "",
     !dualSameAddress && merged.indirizzo_fornitura_luce ? `Indirizzo luce: ${testoHtmlSicuro(merged.indirizzo_fornitura_luce)}` : "",
