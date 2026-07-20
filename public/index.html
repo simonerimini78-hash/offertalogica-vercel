@@ -299,10 +299,32 @@
         .pdf-decision-actions button.is-primary { border-color: var(--primary); background: var(--primary); color: #fff; }
         .pdf-decision-actions button:hover { filter: brightness(.98); transform: translateY(-1px); }
         .pdf-decision-note { margin-top: 12px; color: var(--text-muted); font-size: 12px; line-height: 1.45; }
+        .pdf-autofill-backdrop { position: fixed; inset: 0; z-index: 1120; display: none; align-items: center; justify-content: center; padding: 20px; background: rgba(15,23,42,.68); }
+        .pdf-autofill-modal { width: min(900px, 100%); max-height: min(94dvh, 860px); overflow: auto; background: #fff; border-radius: 14px; border: 1px solid var(--border); padding: 22px; box-shadow: 0 28px 70px rgba(15,23,42,.34); }
+        .pdf-autofill-modal h3 { margin: 0 0 8px; color: var(--text-color); font-size: 21px; }
+        .pdf-autofill-modal > p { margin: 0 0 14px; color: var(--text-muted); font-size: 14px; line-height: 1.5; }
+        .pdf-autofill-toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
+        .pdf-autofill-toolbar button { border: 1px solid var(--border); border-radius: 8px; background: #fff; color: var(--text-color); padding: 8px 11px; font-weight: 750; cursor: pointer; }
+        .pdf-autofill-list { display: grid; gap: 9px; }
+        .pdf-autofill-row { display: grid; grid-template-columns: minmax(190px, .9fr) minmax(160px, 1fr) minmax(160px, 1fr); gap: 12px; align-items: center; border: 1px solid #dbe3ee; border-radius: 10px; padding: 12px; background: #fff; }
+        .pdf-autofill-row.is-protected { border-color: #f59e0b; background: #fffbeb; }
+        .pdf-autofill-row.is-same { background: #f8fafc; }
+        .pdf-autofill-choice { display: flex; align-items: flex-start; gap: 9px; font-weight: 800; color: var(--text-color); }
+        .pdf-autofill-choice input { width: 18px; height: 18px; margin-top: 1px; flex: 0 0 auto; }
+        .pdf-autofill-value { min-width: 0; }
+        .pdf-autofill-value small { display: block; color: var(--text-muted); font-size: 11px; font-weight: 750; text-transform: uppercase; letter-spacing: .03em; margin-bottom: 3px; }
+        .pdf-autofill-value strong { display: block; overflow-wrap: anywhere; color: var(--text-color); font-size: 13px; }
+        .pdf-autofill-status { display: inline-flex; margin-top: 5px; padding: 3px 7px; border-radius: 999px; background: #eef2ff; color: #3730a3; font-size: 11px; font-weight: 800; }
+        .pdf-autofill-row.is-protected .pdf-autofill-status { background: #fef3c7; color: #92400e; }
+        .pdf-autofill-note { margin-top: 13px; padding: 10px 12px; border-radius: 9px; background: #f8fafc; color: var(--text-muted); font-size: 12px; line-height: 1.45; }
+        .pdf-autofill-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+        .pdf-autofill-actions button { min-height: 44px; border-radius: 9px; border: 1px solid var(--border); padding: 10px 15px; font-weight: 850; cursor: pointer; }
+        .pdf-autofill-actions .is-primary { border-color: var(--primary); background: var(--primary); color: #fff; }
+        .pdf-autofill-actions .is-primary:disabled { opacity: .5; cursor: not-allowed; }
         .current-provider-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; }
         .comparison-scope-hidden { display: none !important; }
         .pdf-profile-indicator { display: inline-flex; margin: 6px 0 0; padding: 5px 9px; border-radius: 999px; background: #eff6ff; color: #1d4ed8; font-size: 12px; font-weight: 800; }
-        @media (max-width: 680px) { .current-provider-grid { grid-template-columns: 1fr; } .pdf-decision-backdrop { padding: 10px; align-items: flex-end; } .pdf-decision-modal { max-height: 92dvh; border-radius: 14px 14px 0 0; } }
+        @media (max-width: 680px) { .current-provider-grid { grid-template-columns: 1fr; } .pdf-decision-backdrop, .pdf-autofill-backdrop { padding: 10px; align-items: flex-end; } .pdf-decision-modal, .pdf-autofill-modal { max-height: 92dvh; border-radius: 14px 14px 0 0; } .pdf-autofill-row { grid-template-columns: 1fr; gap: 8px; } .pdf-autofill-actions { display: grid; grid-template-columns: 1fr; } }
         .lead-form-grid { display: grid; gap: 10px; }
         .lead-field { display: grid; gap: 5px; color: var(--text-color); font-size: 12px; font-weight: 800; }
         .lead-field input { width: 100%; }
@@ -1893,7 +1915,7 @@
                 </div>
                 <strong id="pdf-review-title">Dati pronti per la conferma</strong>
                 <p id="pdf-review-copy">Dopo l'analisi potrai confermare i dati letti dal PDF. Il confronto partirà solo dopo la tua conferma.</p>
-                <button type="button" id="pdf-confirm-data-button" onclick="confermaPdfECalcola()">Ho controllato: conferma e inserisci i dati</button>
+                <button type="button" id="pdf-confirm-data-button" onclick="confermaPdfECalcola()">Controlla e scegli i dati da inserire</button>
             </div>
         </div>
     </div>
@@ -2021,6 +2043,10 @@
                     <option value="eco">E.CO Energia Corrente</option>
                     <option value="eon">E.ON</option>
                     <option value="edison">Edison</option>
+                    <option value="estra">Estra Energie</option>
+                    <option value="free">Free Luce&amp;Gas</option>
+                    <option value="butangas">ButanGas</option>
+                    <option value="unoenergy">Unoenergy</option>
                     <option value="eni">Eni Plenitude</option>
                     <option value="enel">Enel Energia</option>
                     <option value="enercom">Enercom</option>
@@ -2136,6 +2162,10 @@
                     <option value="eco">E.CO Energia Corrente</option>
                     <option value="eon">E.ON</option>
                     <option value="edison">Edison</option>
+                    <option value="estra">Estra Energie</option>
+                    <option value="free">Free Luce&amp;Gas</option>
+                    <option value="butangas">ButanGas</option>
+                    <option value="unoenergy">Unoenergy</option>
                     <option value="eni">Eni Plenitude</option>
                     <option value="enel">Enel Energia</option>
                     <option value="enercom">Enercom</option>
@@ -2434,6 +2464,7 @@ const LEAD_STATE = {
   partnerConsent: false,
   pdfData: null,
   pdfDocuments: [],
+  pdfAutofill: { previewedAt: "", appliedFields: [], skippedFields: [] },
   comparisonScope: "unknown",
   gasDecision: "",
   electricityDecision: "",
@@ -6778,7 +6809,7 @@ function configuraConfermaPdfPronta(results) {
       : mixedDocuments
         ? "Carica separatamente i documenti"
         : hasReadableData
-          ? "Ho controllato: conferma e inserisci i dati"
+          ? "Controlla e scegli i dati da inserire"
           : "Conferma e passa al modulo";
   }
   mostraGuida(
@@ -6788,7 +6819,7 @@ function configuraConfermaPdfPronta(results) {
       : mixedDocuments
         ? "<strong>Hai caricato insieme una bolletta e una scheda sintetica.</strong> Per evitare di mescolare i dati della fornitura attuale con quelli della nuova offerta, rimuovi i PDF e analizzali separatamente."
         : hasReadableData
-          ? "<strong>Leggi e conferma i dati estratti.</strong> Controlla il riepilogo, poi premi il pulsante verde: solo così i valori verranno inseriti nel modulo."
+          ? "<strong>Leggi i dati estratti e apri l’anteprima.</strong> Potrai scegliere campo per campo cosa inserire; i valori manuali resteranno protetti."
           : "<strong>Il documento non ha fornito dati sufficientemente affidabili.</strong> Puoi confermare per aprire il modulo e completare i valori manualmente."
   );
   panel?.classList.remove("pdf-confirm-attention");
@@ -6916,7 +6947,7 @@ window.rimuoviFilePdf = function rimuoviFilePdf(id, source) {
       if (copy) copy.innerText = "Dopo l'analisi potrai confermare i dati letti dal PDF. Il confronto partirà solo dopo la tua conferma.";
       if (confirmButton) {
         confirmButton.disabled = false;
-        confirmButton.innerText = "Ho controllato: conferma e inserisci i dati";
+        confirmButton.innerText = "Controlla e scegli i dati da inserire";
       }
     }
   }
@@ -7053,8 +7084,18 @@ window.confermaPdfECalcola = async function confermaPdfECalcola() {
     applicaAmbitoConfronto(scope, { gasDecision: LEAD_STATE.gasDecision, electricityDecision: LEAD_STATE.electricityDecision });
   }
 
+  let selectedAutofillRows = null;
+  if (data?.data_contract?.fields && !data.merge_blocked && !data.mixed_documents) {
+    selectedAutofillRows = await apriAnteprimaAutocompilazionePdf(data);
+    if (selectedAutofillRows === null) {
+      const copy = document.getElementById("pdf-review-copy");
+      if (copy) copy.innerText = "Anteprima chiusa: il modulo non è stato modificato. Puoi riaprire la selezione premendo di nuovo il pulsante di conferma.";
+      return;
+    }
+  }
+
   if (LEAD_STATE.customerType === "business") {
-    applicaDatiPdfAlBusiness(data);
+    applicaDatiPdfAlBusiness(data, selectedAutofillRows);
     nascondiEsitiFincheNonConfronti();
     const businessResult = document.getElementById("business-result");
     const businessError = document.getElementById("business-error");
@@ -7072,7 +7113,9 @@ window.confermaPdfECalcola = async function confermaPdfECalcola() {
       vaiAlCaricatoreScheda();
       return;
     }
-    if (copy) copy.innerText = "Dati confermati e inseriti nel modulo business. Controllali e completa soltanto gli eventuali valori pertinenti alla fornitura scelta.";
+    if (copy) copy.innerText = Array.isArray(selectedAutofillRows) && selectedAutofillRows.length === 0
+      ? "Nessun campo del modulo business è stato modificato. I dati letti restano disponibili nel riepilogo."
+      : "I campi selezionati sono stati inseriti nel modulo business. I valori manuali non selezionati sono rimasti invariati.";
     portaElementoInVista(document.getElementById("business-panel"), { block: "start" });
     return;
   }
@@ -7085,7 +7128,7 @@ window.confermaPdfECalcola = async function confermaPdfECalcola() {
   if (calcHint) calcHint.style.display = "block";
   modalitaCalcolo = "manuale";
 
-  applicaDatiPdfAlModulo(data);
+  applicaDatiPdfAlModulo(data, selectedAutofillRows);
   nascondiEsitiFincheNonConfronti();
   aggiornaAssistenteAttivazioneVisibilita();
   const copy = document.getElementById("pdf-review-copy");
@@ -7101,12 +7144,19 @@ window.confermaPdfECalcola = async function confermaPdfECalcola() {
     vaiAlCaricatoreScheda();
     return;
   }
-  if (copy) copy.innerText = "Dati confermati e inseriti nel modulo. Controlla l'area evidenziata qui sotto, completa soltanto i dati pertinenti e poi avvia il confronto.";
+  if (copy) copy.innerText = Array.isArray(selectedAutofillRows) && selectedAutofillRows.length === 0
+    ? "Nessun campo è stato modificato. I valori già presenti nel modulo sono rimasti invariati."
+    : "I campi selezionati sono stati inseriti nel modulo. I valori manuali non selezionati sono rimasti invariati; controlla l'area qui sotto e poi avvia il confronto.";
   accompagnaAllaRevisioneDatiPdf(data);
 };
 
 function applicaDatiPdfAlBusiness(data) {
   if (!data) return;
+  const selectedRows = arguments.length > 1 ? arguments[1] : null;
+  if (Array.isArray(selectedRows)) {
+    applicaRigheAutocompilazionePdf(selectedRows);
+    return;
+  }
   const safe = (field) => pdfSafeAutofillValue(data, field);
   const holder = safe("intestatario");
   const taxId = safe("codice_fiscale");
@@ -7155,6 +7205,348 @@ function pdfSafeAutofillValue(data, field) {
   const entry = pdfContractFieldEntry(data, field);
   if (!entry?.autofill?.allowed || entry.status !== "completo") return undefined;
   return entry.normalized_value;
+}
+
+
+const PDF_AUTOFILL_FIELD_IDS = Object.freeze([
+  "nome-fornitore-att", "nome-fornitore-gas-att", "nome-fornitore-nuov",
+  "in-luce-cons-att", "in-luce-prezzo-att", "in-luce-fisso-att", "in-luce-fisso-att-unita",
+  "in-gas-cons-att", "in-gas-prezzo-att", "in-gas-fisso-att", "in-gas-fisso-att-unita",
+  "in-luce-cons-nuov", "in-luce-prezzo-nuov", "in-luce-fisso-nuov", "in-luce-fisso-nuov-unita",
+  "in-gas-cons-nuov", "in-gas-prezzo-nuov", "in-gas-fisso-nuov", "in-gas-fisso-nuov-unita",
+  "master-luce-potenza", "master-luce-tipo",
+  "business-ragione", "business-piva", "business-fornitore", "business-fornitore-gas",
+  "business-potenza", "business-kwh", "business-prezzo-luce", "business-fisso-luce",
+  "business-smc", "business-prezzo-gas", "business-fisso-gas",
+]);
+const PDF_MANUAL_TOUCHED_FIELDS = new Set();
+let PDF_AUTOFILL_PREVIEW_ROWS = [];
+let PDF_AUTOFILL_PREVIEW_RESOLVE = null;
+
+function pdfAutofillMarkManualField(id) {
+  if (id && PDF_AUTOFILL_FIELD_IDS.includes(id)) PDF_MANUAL_TOUCHED_FIELDS.add(id);
+}
+
+function pdfAutofillClearManualFields() {
+  PDF_MANUAL_TOUCHED_FIELDS.clear();
+}
+
+function registraModificaManualePdf(event) {
+  if (!event?.isTrusted) return;
+  pdfAutofillMarkManualField(event.target?.id);
+}
+
+function pdfAutofillHasValue(value) {
+  return value !== undefined && value !== null && String(value).trim() !== "";
+}
+
+function pdfAutofillComparable(value, mode = "text") {
+  if (!pdfAutofillHasValue(value)) return null;
+  if (mode === "number" || mode === "fixed_annual") {
+    const number = Number(String(value).replace(",", "."));
+    return Number.isFinite(number) ? number : null;
+  }
+  return String(value).trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function pdfAutofillValuesEqual(left, right, mode = "text") {
+  const a = pdfAutofillComparable(left, mode);
+  const b = pdfAutofillComparable(right, mode);
+  if (a === null || b === null) return a === b;
+  if (mode === "number" || mode === "fixed_annual") {
+    return Math.abs(a - b) <= Math.max(0.000001, Math.abs(b) * 0.000001);
+  }
+  return a === b;
+}
+
+function pdfAutofillAddSpec(specs, data, field, label, targetIds, options = {}) {
+  const value = pdfSafeAutofillValue(data, field);
+  if (value === undefined) return;
+  specs.push({
+    id: `${field}-${targetIds.join("-")}`,
+    field,
+    label,
+    value,
+    target_ids: targetIds,
+    kind: options.kind || "value",
+    compare_mode: options.compare_mode || (typeof value === "number" ? "number" : "text"),
+    unit: options.unit || null,
+    input_id: options.input_id || targetIds[0],
+    unit_id: options.unit_id || null,
+    transform: options.transform || null,
+  });
+}
+
+function buildPdfAutofillSpecs(data, customerType = "privato") {
+  const specs = [];
+  if (!data?.data_contract?.fields) return specs;
+  const add = (field, label, targets, options) => pdfAutofillAddSpec(specs, data, field, label, targets, options);
+
+  if (customerType === "business") {
+    add("intestatario", "Ragione sociale / intestatario", ["business-ragione"]);
+    const taxId = pdfSafeAutofillValue(data, "codice_fiscale");
+    if (/^\d{11}$/.test(String(taxId || ""))) add("codice_fiscale", "Partita IVA", ["business-piva"]);
+    add("fornitore_luce", "Fornitore luce", ["business-fornitore"]);
+    add("fornitore_gas", "Fornitore gas", ["business-fornitore-gas"]);
+    add("potenza_impegnata_kw", "Potenza impegnata", ["business-potenza"], { unit: "kW", compare_mode: "number" });
+    add("consumo_luce_kwh", "Consumo annuo luce", ["business-kwh"], { unit: "kWh/anno", compare_mode: "number" });
+    add("prezzo_luce_eur_kwh", "Prezzo luce", ["business-prezzo-luce"], { unit: "€/kWh", compare_mode: "number" });
+    add("quota_fissa_vendita_luce_eur_anno", "Quota fissa luce", ["business-fisso-luce"], { unit: "€/anno", compare_mode: "number" });
+    add("consumo_gas_smc", "Consumo annuo gas", ["business-smc"], { unit: "Smc/anno", compare_mode: "number" });
+    add("prezzo_gas_eur_smc", "Prezzo gas", ["business-prezzo-gas"], { unit: "€/Smc", compare_mode: "number" });
+    add("quota_fissa_vendita_gas_eur_anno", "Quota fissa gas", ["business-fisso-gas"], { unit: "€/anno", compare_mode: "number" });
+    return specs;
+  }
+
+  if (data.kind === "scheda_offerta") {
+    const providerLuce = pdfSafeAutofillValue(data, "fornitore_luce");
+    const providerGas = pdfSafeAutofillValue(data, "fornitore_gas");
+    if (providerLuce !== undefined && (providerGas === undefined || providerLuce === providerGas)) {
+      add("fornitore_luce", "Fornitore della proposta", ["nome-fornitore-nuov"], { transform: "provider" });
+    } else if (providerGas !== undefined && providerLuce === undefined) {
+      add("fornitore_gas", "Fornitore della proposta", ["nome-fornitore-nuov"], { transform: "provider" });
+    }
+    add("prezzo_luce_eur_kwh", "Prezzo luce della proposta", ["in-luce-prezzo-nuov"], { unit: "€/kWh", compare_mode: "number" });
+    add("quota_fissa_vendita_luce_eur_anno", "Quota fissa luce della proposta", ["in-luce-fisso-nuov", "in-luce-fisso-nuov-unita"], {
+      kind: "fixed_annual", compare_mode: "fixed_annual", unit: "€/anno", input_id: "in-luce-fisso-nuov", unit_id: "in-luce-fisso-nuov-unita",
+    });
+    add("prezzo_gas_eur_smc", "Prezzo gas della proposta", ["in-gas-prezzo-nuov"], { unit: "€/Smc", compare_mode: "number" });
+    add("quota_fissa_vendita_gas_eur_anno", "Quota fissa gas della proposta", ["in-gas-fisso-nuov", "in-gas-fisso-nuov-unita"], {
+      kind: "fixed_annual", compare_mode: "fixed_annual", unit: "€/anno", input_id: "in-gas-fisso-nuov", unit_id: "in-gas-fisso-nuov-unita",
+    });
+    const priceTypeField = pdfSafeAutofillValue(data, "tipo_prezzo_luce") !== undefined ? "tipo_prezzo_luce" : "tipo_prezzo_gas";
+    const priceType = pdfSafeAutofillValue(data, priceTypeField);
+    if (["fisso", "variabile"].includes(priceType)) add(priceTypeField, "Tipo prezzo", ["master-luce-tipo"]);
+    return specs;
+  }
+
+  add("fornitore_luce", "Fornitore luce attuale", ["nome-fornitore-att"], { transform: "provider" });
+  add("fornitore_gas", "Fornitore gas attuale", ["nome-fornitore-gas-att"], { transform: "provider" });
+  add("potenza_impegnata_kw", "Potenza impegnata luce", ["master-luce-potenza"], { unit: "kW", compare_mode: "number" });
+  add("consumo_luce_kwh", "Consumo annuo luce", ["in-luce-cons-att", "in-luce-cons-nuov"], { unit: "kWh/anno", compare_mode: "number" });
+  add("prezzo_luce_eur_kwh", "Prezzo luce attuale", ["in-luce-prezzo-att"], { unit: "€/kWh", compare_mode: "number" });
+  add("quota_fissa_vendita_luce_eur_anno", "Quota fissa luce attuale", ["in-luce-fisso-att", "in-luce-fisso-att-unita"], {
+    kind: "fixed_annual", compare_mode: "fixed_annual", unit: "€/anno", input_id: "in-luce-fisso-att", unit_id: "in-luce-fisso-att-unita",
+  });
+  add("consumo_gas_smc", "Consumo annuo gas", ["in-gas-cons-att", "in-gas-cons-nuov"], { unit: "Smc/anno", compare_mode: "number" });
+  add("prezzo_gas_eur_smc", "Prezzo gas attuale", ["in-gas-prezzo-att"], { unit: "€/Smc", compare_mode: "number" });
+  add("quota_fissa_vendita_gas_eur_anno", "Quota fissa gas attuale", ["in-gas-fisso-att", "in-gas-fisso-att-unita"], {
+    kind: "fixed_annual", compare_mode: "fixed_annual", unit: "€/anno", input_id: "in-gas-fisso-att", unit_id: "in-gas-fisso-att-unita",
+  });
+  const priceTypeField = pdfSafeAutofillValue(data, "tipo_prezzo_luce") !== undefined ? "tipo_prezzo_luce" : "tipo_prezzo_gas";
+  const priceType = pdfSafeAutofillValue(data, priceTypeField);
+  if (["fisso", "variabile"].includes(priceType)) add(priceTypeField, "Tipo prezzo", ["master-luce-tipo"]);
+  return specs;
+}
+
+function pdfAutofillIncomingTargetValue(spec) {
+  if (spec.transform === "provider") return typeof providerValue === "function" ? providerValue(spec.value) : spec.value;
+  return spec.value;
+}
+
+function pdfAutofillElementValue(id) {
+  const element = document.getElementById(id);
+  return element ? element.value : "";
+}
+
+function pdfAutofillElementDisplay(id, value) {
+  const element = document.getElementById(id);
+  if (element?.tagName === "SELECT") {
+    const option = Array.from(element.options || []).find((item) => item.value === value);
+    return option?.textContent?.trim() || value;
+  }
+  return value;
+}
+
+function pdfAutofillCurrentState(spec) {
+  if (spec.kind === "fixed_annual") {
+    const raw = pdfAutofillElementValue(spec.input_id);
+    const unit = pdfAutofillElementValue(spec.unit_id) || "mese";
+    const numeric = Number(String(raw).replace(",", "."));
+    const annual = Number.isFinite(numeric) && raw !== "" ? (unit === "mese" ? numeric * 12 : numeric) : null;
+    const touched = PDF_MANUAL_TOUCHED_FIELDS.has(spec.input_id) || PDF_MANUAL_TOUCHED_FIELDS.has(spec.unit_id);
+    return {
+      has_value: annual !== null,
+      comparable_value: annual,
+      display: annual === null ? "Campo vuoto" : `${raw} €/${unit}`,
+      manually_touched: touched,
+      all_equal: annual !== null && pdfAutofillValuesEqual(annual, spec.value, "fixed_annual"),
+    };
+  }
+
+  const incoming = pdfAutofillIncomingTargetValue(spec);
+  const values = spec.target_ids.map((id) => ({ id, value: pdfAutofillElementValue(id) }));
+  const nonEmpty = values.filter((item) => pdfAutofillHasValue(item.value));
+  const touchedItems = values.filter((item) => PDF_MANUAL_TOUCHED_FIELDS.has(item.id));
+  const touched = touchedItems.length > 0;
+  const touchedMismatch = touchedItems.some((item) => !pdfAutofillValuesEqual(item.value, incoming, spec.compare_mode));
+  const allEqual = nonEmpty.length > 0
+    && nonEmpty.every((item) => pdfAutofillValuesEqual(item.value, incoming, spec.compare_mode))
+    && !touchedMismatch;
+  const distinctDisplay = [...new Set(nonEmpty.map((item) => pdfAutofillElementDisplay(item.id, item.value)))];
+  return {
+    has_value: nonEmpty.length > 0,
+    comparable_value: nonEmpty[0]?.value ?? null,
+    display: distinctDisplay.length ? distinctDisplay.join(" / ") : "Campo vuoto",
+    manually_touched: touched,
+    all_equal: allEqual,
+  };
+}
+
+function pdfAutofillFormatValue(value, unit = null) {
+  if (!pdfAutofillHasValue(value)) return "—";
+  const formatted = typeof value === "number" ? String(Math.round(value * 1_000_000) / 1_000_000) : String(value);
+  return unit ? `${formatted} ${unit}` : formatted;
+}
+
+function buildPdfAutofillPreviewRows(data, customerType = "privato") {
+  return buildPdfAutofillSpecs(data, customerType).map((spec, index) => {
+    const current = pdfAutofillCurrentState(spec);
+    const protectedManual = current.manually_touched && !current.all_equal;
+    const same = current.all_equal;
+    return {
+      ...spec,
+      index,
+      current_display: current.display,
+      incoming_display: pdfAutofillFormatValue(spec.value, spec.unit),
+      has_current_value: current.has_value,
+      manually_protected: protectedManual,
+      same_value: same,
+      selected: !same && !protectedManual,
+      disabled: same,
+      status: same ? "gia_presente" : protectedManual ? "valore_manuale_protetto" : current.has_value ? "valore_predefinito_aggiornabile" : "campo_vuoto",
+    };
+  });
+}
+
+function pdfAutofillStatusLabel(status) {
+  const labels = {
+    gia_presente: "Già presente: nessuna modifica",
+    valore_manuale_protetto: "Valore manuale protetto",
+    valore_predefinito_aggiornabile: "Valore esistente non modificato manualmente",
+    campo_vuoto: "Campo vuoto",
+  };
+  return labels[status] || status;
+}
+
+function renderPdfAutofillPreviewRows() {
+  const list = document.getElementById("pdf-autofill-preview-list");
+  if (!list) return;
+  if (!PDF_AUTOFILL_PREVIEW_ROWS.length) {
+    list.innerHTML = '<div class="pdf-autofill-note">Non ci sono campi nuovi e sicuri da inserire nel modulo.</div>';
+    aggiornaPulsanteAnteprimaPdf();
+    return;
+  }
+  list.innerHTML = PDF_AUTOFILL_PREVIEW_ROWS.map((row, index) => `
+    <label class="pdf-autofill-row${row.manually_protected ? " is-protected" : ""}${row.same_value ? " is-same" : ""}">
+      <span class="pdf-autofill-choice">
+        <input type="checkbox" data-pdf-autofill-index="${index}" ${row.selected ? "checked" : ""} ${row.disabled ? "disabled" : ""}>
+        <span>${testoHtmlSicuro(row.label)}<span class="pdf-autofill-status">${testoHtmlSicuro(pdfAutofillStatusLabel(row.status))}</span></span>
+      </span>
+      <span class="pdf-autofill-value"><small>Nel modulo</small><strong>${testoHtmlSicuro(row.current_display)}</strong></span>
+      <span class="pdf-autofill-value"><small>Dal PDF</small><strong>${testoHtmlSicuro(row.incoming_display)}</strong></span>
+    </label>
+  `).join("");
+  list.querySelectorAll("[data-pdf-autofill-index]").forEach((checkbox) => {
+    checkbox.addEventListener("change", () => {
+      const row = PDF_AUTOFILL_PREVIEW_ROWS[Number(checkbox.dataset.pdfAutofillIndex)];
+      if (row && !row.disabled) row.selected = checkbox.checked;
+      aggiornaPulsanteAnteprimaPdf();
+    });
+  });
+  aggiornaPulsanteAnteprimaPdf();
+}
+
+function aggiornaPulsanteAnteprimaPdf() {
+  const button = document.getElementById("pdf-autofill-apply");
+  if (!button) return;
+  const selected = PDF_AUTOFILL_PREVIEW_ROWS.filter((row) => row.selected && !row.disabled).length;
+  button.disabled = false;
+  button.textContent = selected === 0
+    ? "Continua senza modifiche"
+    : selected === 1
+      ? "Applica 1 campo selezionato"
+      : `Applica ${selected} campi selezionati`;
+}
+
+function apriAnteprimaAutocompilazionePdf(data) {
+  PDF_AUTOFILL_PREVIEW_ROWS = buildPdfAutofillPreviewRows(data, LEAD_STATE.customerType);
+  const backdrop = document.getElementById("pdf-autofill-preview-backdrop");
+  const copy = document.getElementById("pdf-autofill-preview-copy");
+  if (!backdrop) return Promise.resolve(PDF_AUTOFILL_PREVIEW_ROWS.filter((row) => row.selected && !row.disabled));
+  const protectedCount = PDF_AUTOFILL_PREVIEW_ROWS.filter((row) => row.manually_protected).length;
+  if (copy) copy.textContent = protectedCount
+    ? `${protectedCount} ${protectedCount === 1 ? "campo contiene" : "campi contengono"} un valore inserito manualmente e ${protectedCount === 1 ? "resta" : "restano"} deselezionato per sicurezza.`
+    : "Controlla i valori e scegli quali copiare nel modulo. Nessun campo viene modificato finché non premi Applica.";
+  renderPdfAutofillPreviewRows();
+  backdrop.style.display = "flex";
+  LEAD_STATE.pdfAutofill = {
+    ...(LEAD_STATE.pdfAutofill || {}),
+    previewedAt: new Date().toISOString(),
+    appliedFields: [],
+    skippedFields: [],
+  };
+  trackEvent("pdf_autofill_preview_opened", {
+    fieldCount: PDF_AUTOFILL_PREVIEW_ROWS.length,
+    protectedCount,
+  });
+  window.setTimeout(() => document.getElementById("pdf-autofill-apply")?.focus(), 30);
+  return new Promise((resolve) => { PDF_AUTOFILL_PREVIEW_RESOLVE = resolve; });
+}
+
+function chiudiAnteprimaAutocompilazionePdf(result = null) {
+  const backdrop = document.getElementById("pdf-autofill-preview-backdrop");
+  if (backdrop) backdrop.style.display = "none";
+  const resolve = PDF_AUTOFILL_PREVIEW_RESOLVE;
+  PDF_AUTOFILL_PREVIEW_RESOLVE = null;
+  if (resolve) resolve(result);
+}
+
+function confermaAnteprimaAutocompilazionePdf() {
+  const selected = PDF_AUTOFILL_PREVIEW_ROWS.filter((row) => row.selected && !row.disabled);
+  const skipped = PDF_AUTOFILL_PREVIEW_ROWS.filter((row) => !row.selected && !row.same_value).map((row) => row.field);
+  LEAD_STATE.pdfAutofill = {
+    ...(LEAD_STATE.pdfAutofill || {}),
+    appliedFields: selected.map((row) => row.field),
+    skippedFields: skipped,
+  };
+  trackEvent("pdf_autofill_preview_confirmed", {
+    selectedCount: selected.length,
+    skippedCount: skipped.length,
+    protectedSkippedCount: PDF_AUTOFILL_PREVIEW_ROWS.filter((row) => row.manually_protected && !row.selected).length,
+  });
+  chiudiAnteprimaAutocompilazionePdf(selected);
+}
+
+function selezionaCampiVuotiAnteprimaPdf() {
+  PDF_AUTOFILL_PREVIEW_ROWS.forEach((row) => {
+    if (!row.disabled) row.selected = !row.has_current_value && !row.manually_protected;
+  });
+  renderPdfAutofillPreviewRows();
+}
+
+function deselezionaTuttiCampiAnteprimaPdf() {
+  PDF_AUTOFILL_PREVIEW_ROWS.forEach((row) => { if (!row.disabled) row.selected = false; });
+  renderPdfAutofillPreviewRows();
+}
+
+function applicaRigheAutocompilazionePdf(rows) {
+  const selected = Array.isArray(rows) ? rows : [];
+  selected.forEach((row) => {
+    if (row.kind === "fixed_annual") {
+      impostaQuotaFissaAnnua(row.input_id, row.unit_id, row.value);
+      PDF_MANUAL_TOUCHED_FIELDS.delete(row.input_id);
+      PDF_MANUAL_TOUCHED_FIELDS.delete(row.unit_id);
+      return;
+    }
+    const value = pdfAutofillIncomingTargetValue(row);
+    row.target_ids.forEach((id) => {
+      setField(id, value);
+      PDF_MANUAL_TOUCHED_FIELDS.delete(id);
+    });
+  });
+  sincronizzaConsumiNuovaOfferta();
+  return selected.length;
 }
 
 function rebuildMergedPdfAutofillPlan(contract) {
@@ -7683,6 +8075,8 @@ window.azzeraPdfEModulo = function azzeraPdfEModulo() {
   });
   LEAD_STATE.pdfData = null;
   LEAD_STATE.pdfDocuments = [];
+  LEAD_STATE.pdfAutofill = { previewedAt: "", appliedFields: [], skippedFields: [] };
+  pdfAutofillClearManualFields();
   LEAD_STATE.comparisonScope = "unknown";
   LEAD_STATE.gasDecision = "";
   LEAD_STATE.electricityDecision = "";
@@ -7714,7 +8108,7 @@ window.azzeraPdfEModulo = function azzeraPdfEModulo() {
   if (copy) copy.innerText = "Dopo l'analisi potrai confermare i dati letti dal PDF. Il confronto partirà solo dopo la tua conferma.";
   if (confirmButton) {
     confirmButton.disabled = false;
-    confirmButton.innerText = "Ho controllato: conferma e inserisci i dati";
+    confirmButton.innerText = "Controlla e scegli i dati da inserire";
   }
   [
     "nome-fornitore-att", "nome-fornitore-gas-att", "nome-fornitore-nuov",
@@ -7755,6 +8149,7 @@ window.azzeraPdfEModulo = function azzeraPdfEModulo() {
   if (leadModal) leadModal.style.display = "none";
   if (offerConsentModal) offerConsentModal.style.display = "none";
   chiudiDecisionePdf(null);
+  chiudiAnteprimaAutocompilazionePdf(null);
   const otpInput = document.getElementById("lead-otp");
   const sendOtp = document.getElementById("lead-send-otp");
   const verifyOtp = document.getElementById("lead-verify-otp");
@@ -7830,6 +8225,10 @@ const PROVIDER_MATCHERS = [
   ["eco", ["e co", "e.co", "eco energia", "energia corrente"]],
   ["eon", ["e on", "e.on", "eon"]],
   ["edison", ["edison"]],
+  ["estra", ["estra", "estra energie"]],
+  ["free", ["free luce e gas", "free lucegas"]],
+  ["butangas", ["butangas", "butan gas"]],
+  ["unoenergy", ["unoenergy", "uno energy"]],
   ["enel", ["enel"]],
   ["eni", ["eni", "plenitude"]],
   ["enercom", ["enercom"]],
@@ -8201,12 +8600,8 @@ function gasMasterBucket(consumo) {
 function applicaDatiPdfAlModulo(data) {
   NUOVA_OFFERTA_AUTOMATICA = null;
   inizializzaSelectFornitoreGas();
-  [
-    "in-luce-cons-att", "in-luce-prezzo-att", "in-luce-fisso-att",
-    "in-gas-cons-att", "in-gas-prezzo-att", "in-gas-fisso-att",
-    "in-luce-cons-nuov", "in-luce-prezzo-nuov", "in-luce-fisso-nuov",
-    "in-gas-cons-nuov", "in-gas-prezzo-nuov", "in-gas-fisso-nuov",
-  ].forEach(clearField);
+  const selectedRows = arguments.length > 1 ? arguments[1] : null;
+  const safe = (field) => pdfSafeAutofillValue(data, field);
 
   if (!data || Object.keys(data).length === 0) {
     applicaAmbitoConfronto("dual");
@@ -8226,7 +8621,19 @@ function applicaDatiPdfAlModulo(data) {
     return;
   }
 
-  const safe = (field) => pdfSafeAutofillValue(data, field);
+  if (Array.isArray(selectedRows)) {
+    applicaRigheAutocompilazionePdf(selectedRows);
+    if (!leggiValore("master-gas-regione", "")) setField("master-gas-regione", "nord-ovest");
+    if (data.kind === "scheda_offerta") {
+      apriDettagliNuovaOfferta();
+      const provider = safe("fornitore_luce") ?? safe("fornitore_gas");
+      mostraHintNuovaOfferta(`Proposta caricata dalla scheda sintetica di ${provider || data.fornitore || "un fornitore"}. Hai scelto quali campi inserire nell'anteprima; i valori manuali non selezionati sono rimasti invariati.`);
+    }
+    aggiornaIndicatoreProfiloPdf();
+    aggiornaTestoPulsanteConfronto();
+    return;
+  }
+
   const power = safe("potenza_impegnata_kw");
   if (power !== undefined) setField("master-luce-potenza", power);
   if (!leggiValore("master-gas-regione", "")) setField("master-gas-regione", "nord-ovest");
@@ -8300,6 +8707,8 @@ function sincronizzaConsumiNuovaOfferta() {
 }
 
 function collegaEventiUX() {
+  document.addEventListener("input", registraModificaManualePdf, true);
+  document.addEventListener("change", registraModificaManualePdf, true);
   inizializzaModalitaStaff();
   inizializzaSelectFornitoreGas();
   applicaAmbitoConfronto(leggiValore("master-tipo-fornitura", "dual"));
@@ -8441,12 +8850,20 @@ function collegaEventiUX() {
   document.getElementById("assistance-rescue-backdrop")?.addEventListener("click", (event) => {
     if (event.target?.id === "assistance-rescue-backdrop") chiudiRichiestaAssistenza("backdrop");
   });
+  document.getElementById("pdf-autofill-select-empty")?.addEventListener("click", selezionaCampiVuotiAnteprimaPdf);
+  document.getElementById("pdf-autofill-clear-selection")?.addEventListener("click", deselezionaTuttiCampiAnteprimaPdf);
+  document.getElementById("pdf-autofill-cancel")?.addEventListener("click", () => chiudiAnteprimaAutocompilazionePdf(null));
+  document.getElementById("pdf-autofill-apply")?.addEventListener("click", confermaAnteprimaAutocompilazionePdf);
+  document.getElementById("pdf-autofill-preview-backdrop")?.addEventListener("click", (event) => {
+    if (event.target?.id === "pdf-autofill-preview-backdrop") chiudiAnteprimaAutocompilazionePdf(null);
+  });
   document.getElementById("pdf-decision-backdrop")?.addEventListener("click", (event) => {
     if (event.target?.id === "pdf-decision-backdrop") chiudiDecisionePdf(null);
   });
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;
-    if (document.getElementById("pdf-decision-backdrop")?.style.display === "flex") chiudiDecisionePdf(null);
+    if (document.getElementById("pdf-autofill-preview-backdrop")?.style.display === "flex") chiudiAnteprimaAutocompilazionePdf(null);
+    else if (document.getElementById("pdf-decision-backdrop")?.style.display === "flex") chiudiDecisionePdf(null);
     else if (document.getElementById("assistance-rescue-backdrop")?.style.display === "flex") chiudiRichiestaAssistenza("escape");
     else if (document.getElementById("activation-helper-backdrop")?.style.display === "flex") chiudiAssistenteAttivazione();
   });
@@ -8827,6 +9244,23 @@ if (document.readyState === "loading") {
         <p id="pdf-decision-copy"></p>
         <div class="pdf-decision-actions" id="pdf-decision-actions"></div>
         <div class="pdf-decision-note" id="pdf-decision-note">La scelta serve soltanto a mostrare i campi e le offerte pertinenti. Potrai modificarla caricando un altro documento o ricominciando.</div>
+    </div>
+</div>
+
+<div class="pdf-autofill-backdrop" id="pdf-autofill-preview-backdrop" role="dialog" aria-modal="true" aria-labelledby="pdf-autofill-preview-title">
+    <div class="pdf-autofill-modal">
+        <h3 id="pdf-autofill-preview-title">Anteprima dei dati da inserire</h3>
+        <p id="pdf-autofill-preview-copy">Scegli i campi da copiare nel modulo. I valori inseriti manualmente restano protetti e non sono selezionati automaticamente.</p>
+        <div class="pdf-autofill-toolbar">
+            <button type="button" id="pdf-autofill-select-empty">Seleziona solo i campi vuoti</button>
+            <button type="button" id="pdf-autofill-clear-selection">Deseleziona tutti</button>
+        </div>
+        <div class="pdf-autofill-list" id="pdf-autofill-preview-list"></div>
+        <div class="pdf-autofill-note">Un campo con valore manuale differente viene lasciato deselezionato. Puoi comunque selezionarlo singolarmente per autorizzarne esplicitamente la sostituzione.</div>
+        <div class="pdf-autofill-actions">
+            <button type="button" id="pdf-autofill-cancel">Annulla, non modificare il modulo</button>
+            <button type="button" class="is-primary" id="pdf-autofill-apply">Applica i campi selezionati</button>
+        </div>
     </div>
 </div>
 
