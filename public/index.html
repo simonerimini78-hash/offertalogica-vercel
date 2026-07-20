@@ -4134,11 +4134,17 @@ function offertaAttivabileOnline(offerta) {
 }
 
 function testoAzioneOfferta(offerta, attivabileOnline) {
+  if (offerta?.fornitura === "separate" && offerta?.tipo === "variabile") return "Verifica con consulente";
   if (offertaSeparataMultiFornitore(offerta)) return "Verifica con consulente";
   return "Procedi";
 }
 
 function testoBadgeOfferta(item, migliore) {
+  if (item.offerta?.fornitura === "separate" && item.offerta?.tipo === "variabile") {
+    return item.gruppoVisuale === "attivabile"
+      ? "Abbinamento partner con consulente"
+      : "Miglior costo con consulente";
+  }
   if (item.offerta && offertaSeparataMultiFornitore(item.offerta)) return "Abbinamento separato";
   if (item.gruppoVisuale === "top" && item.posizioneGruppo === 1) return "Migliore stimata con consulente";
   if (item.gruppoVisuale === "top" && item.posizioneGruppo) return "Verifica con consulente";
@@ -4693,7 +4699,7 @@ function miglioreRigaAreraPerProvider(providerKey, commodity, tipo, attuale) {
 }
 
 function miglioreCoppiaAreraDualPerProvider(providerKey, tipo, attuale) {
-  return OFFERTE_ARERA_DUAL
+  const coppiaDualPubblicata = OFFERTE_ARERA_DUAL
     .filter((offerta) => offerta.providerKey === providerKey && offerta.tipo === tipo)
     .filter((offerta) => rigaAreraIdonea(offerta.luce) && rigaAreraIdonea(offerta.gas))
     .sort((a, b) => {
@@ -4701,6 +4707,29 @@ function miglioreCoppiaAreraDualPerProvider(providerKey, tipo, attuale) {
       const costoB = costoRigaAreraSuProfilo(b.luce, attuale) + costoRigaAreraSuProfilo(b.gas, attuale);
       return costoA - costoB;
     })[0] || null;
+
+  if (coppiaDualPubblicata || tipo !== "variabile") return coppiaDualPubblicata;
+
+  // OFFERTALOGICA_VARIABLE_DUAL_FROM_ACTIVE_ARERA_ROWS_20260720
+  // Se il feed non espone una sezione dual dedicata, la modalità variabile
+  // parte dalle migliori righe luce e gas attive dello stesso fornitore.
+  const luce = miglioreRigaAreraPerProvider(providerKey, "luce", tipo, attuale);
+  const gas = miglioreRigaAreraPerProvider(providerKey, "gas", tipo, attuale);
+  if (!luce || !gas) return null;
+
+  return {
+    providerKey,
+    providerLabel: luce.providerLabel || gas.providerLabel || providerKey,
+    tipo,
+    nome: `${luce.nome} + ${gas.nome}`,
+    codice: "",
+    codiceOffertaLuce: luce.codice,
+    codiceOffertaGas: gas.codice,
+    url: "#",
+    luce,
+    gas,
+    sinteticaDaMenuArera: true,
+  };
 }
 
 function rigaAreraDaCodice(codice) {
@@ -4860,7 +4889,7 @@ function offertaAreraRankingProvider(providerKey, tipo, tipoFornitura, attuale) 
 
   const providerLabel = dual?.providerLabel || luce?.providerLabel || gas?.providerLabel || providerKey;
   const nomiArera = dual?.nome || [luce?.nome, gas?.nome].filter(Boolean).join(" + ");
-  const codiciArera = dual
+  const codiciArera = dual?.codice
     ? `${dual.codice} (${dual.codiceOffertaLuce} + ${dual.codiceOffertaGas})`
     : [luce?.codice, gas?.codice].filter(Boolean).join(" + ");
   const offerta = normalizzaOfferta({
@@ -4920,6 +4949,10 @@ function offertaAreraSeparataRanking(luce, gas, tipo) {
     },
   }, 0);
 
+  // Le forniture separate variabili richiedono sempre il supporto del consulente:
+  // nessuna singola card deve aprire due percorsi commerciali distinti.
+  if (tipo === "variabile") return offerta;
+
   return sameProvider
     ? arricchisciOffertaAreraConCommerciale(offerta, luce.providerKey, tipo, "separate", nomiArera)
     : offerta;
@@ -4934,16 +4967,17 @@ function costruisciOfferteAreraRanking(attuale, tipoTariffa, tipoFornitura) {
       .filter(Boolean);
   }
 
-  const miglioriLuce = providerKeysArera()
+  const tutteLeCombinazioniVariabili = tipoTariffa === "variabile";
+  const miglioriLuceOrdinate = providerKeysArera()
     .map((providerKey) => miglioreRigaAreraPerProvider(providerKey, "luce", tipoTariffa, attuale))
     .filter(Boolean)
-    .sort((a, b) => costoRigaAreraSuProfilo(a, attuale) - costoRigaAreraSuProfilo(b, attuale))
-    .slice(0, 8);
-  const miglioriGas = providerKeysArera()
+    .sort((a, b) => costoRigaAreraSuProfilo(a, attuale) - costoRigaAreraSuProfilo(b, attuale));
+  const miglioriGasOrdinate = providerKeysArera()
     .map((providerKey) => miglioreRigaAreraPerProvider(providerKey, "gas", tipoTariffa, attuale))
     .filter(Boolean)
-    .sort((a, b) => costoRigaAreraSuProfilo(a, attuale) - costoRigaAreraSuProfilo(b, attuale))
-    .slice(0, 8);
+    .sort((a, b) => costoRigaAreraSuProfilo(a, attuale) - costoRigaAreraSuProfilo(b, attuale));
+  const miglioriLuce = tutteLeCombinazioniVariabili ? miglioriLuceOrdinate : miglioriLuceOrdinate.slice(0, 8);
+  const miglioriGas = tutteLeCombinazioniVariabili ? miglioriGasOrdinate : miglioriGasOrdinate.slice(0, 8);
 
   const abbinamenti = [];
   miglioriLuce.forEach((luce) => {
@@ -4952,10 +4986,11 @@ function costruisciOfferteAreraRanking(attuale, tipoTariffa, tipoFornitura) {
     });
   });
 
-  return abbinamenti
+  const abbinamentiOrdinati = abbinamenti
     .filter(Boolean)
-    .sort((a, b) => costoOffertaSulProfilo(a, attuale) - costoOffertaSulProfilo(b, attuale))
-    .slice(0, 20);
+    .sort((a, b) => costoOffertaSulProfilo(a, attuale) - costoOffertaSulProfilo(b, attuale));
+
+  return tutteLeCombinazioniVariabili ? abbinamentiOrdinati : abbinamentiOrdinati.slice(0, 20);
 }
 
 // OFFERTALOGICA_SINGLE_SUPPLY_PARTNERS_V2
@@ -5130,6 +5165,28 @@ function deduplicaPartnerAttivabili(items) {
   return [...bestByProvider.values()];
 }
 
+function chiaviProviderComponentiSeparate(offerta) {
+  const componenti = offerta?.componentiSeparate;
+  const luceKey = componenti?.luce?.providerKey || chiaveFornitoreDaNome(componenti?.luce?.providerLabel);
+  const gasKey = componenti?.gas?.providerKey || chiaveFornitoreDaNome(componenti?.gas?.providerLabel);
+  return [luceKey, gasKey].filter(Boolean);
+}
+
+function providerPartnerAttiviPerFornitura(tipoFornitura) {
+  return new Set(
+    OFFERTE_PROPOSTE
+      .filter((offerta) => offertaAttivabileOnline(offerta))
+      .filter((offerta) => percorsoCommercialeSupportaFornitura(offerta, tipoFornitura))
+      .map((offerta) => chiaveFornitoreDaNome(offerta.provider))
+      .filter(Boolean)
+  );
+}
+
+function abbinamentoSeparatoFormatoDaPartner(offerta, providerPartner) {
+  const keys = chiaviProviderComponentiSeparate(offerta);
+  return keys.length === 2 && keys.every((key) => providerPartner.has(key));
+}
+
 function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitura) {
   const offerteCandidati = costruisciOfferteRanking(attuale, tipoTariffa, tipoFornitura);
   assicuraSchedeOfferte(offerteCandidati);
@@ -5209,9 +5266,20 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
   // OFFERTALOGICA_PARTNER_GROUP_EXCLUSION_20260719
   // Conserva l'intero insieme dei partner coerenti prima del limite visuale:
   // nessun partner escluso dalla top 6 può ricomparire tra i consulenti.
-  const partnerAttivabiliCoerenti = deduplicaPartnerAttivabili(
-    offerteCalcolate.filter((item) => item.attivabileCoerente)
-  )
+  const modalitaSeparateVariabile = tipoTariffa === "variabile" && tipoFornitura === "separate";
+  const providerPartnerSeparate = modalitaSeparateVariabile
+    ? providerPartnerAttiviPerFornitura("separate")
+    : new Set();
+  const candidatiPartner = modalitaSeparateVariabile
+    ? offerteCalcolate.filter((item) => (
+      item.compatibileRanking &&
+      item.filtroEsatto &&
+      abbinamentoSeparatoFormatoDaPartner(item.offerta, providerPartnerSeparate)
+    ))
+    : offerteCalcolate.filter((item) => item.attivabileCoerente);
+  const partnerAttivabiliCoerenti = (modalitaSeparateVariabile
+    ? candidatiPartner
+    : deduplicaPartnerAttivabili(candidatiPartner))
     .sort((a, b) => (a.costo - b.costo) || (b.differenza - a.differenza));
 
   const attivabiliPrioritarie = partnerAttivabiliCoerenti
@@ -5247,8 +5315,10 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
   const gruppoPartner = assicuraGruppoOfferte(
     "offerte-partner-online-group",
     "partner-group",
-    "Offerte partner attivabili online",
-    "Le migliori proposte attivabili online tra i partner disponibili e coerenti con il filtro selezionato."
+    modalitaSeparateVariabile ? "Migliori abbinamenti con fornitori partner" : "Offerte partner attivabili online",
+    modalitaSeparateVariabile
+      ? "Le migliori combinazioni luce e gas tra fornitori partner. La sottoscrizione delle due forniture viene gestita con il consulente."
+      : "Le migliori proposte attivabili online tra i partner disponibili e coerenti con il filtro selezionato."
   );
   const gruppoConsulente = assicuraGruppoOfferte(
     "offerte-consulente-group",
@@ -5310,6 +5380,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       const details = card.querySelector(".partner-details");
       const link = card.querySelector("a");
       const separataMulti = offertaSeparataMultiFornitore(offerta);
+      const separataVariabileConsulenziale = offerta?.fornitura === "separate" && offerta?.tipo === "variabile";
       const badgeText = testoBadgeOfferta({ offerta, posizioneEconomica, posizioneGruppo, gruppoVisuale, costo, compatibileRanking }, migliore);
       const tipoPrezzoBadge = offerta?.tipo === "variabile" ? "Prezzo variabile" : "Prezzo fisso";
       const badge = `<span style="display:inline-block; margin:0 0 6px; padding:3px 8px; border:1px solid; border-radius:999px; font-size:11px; font-weight:800; ${stileBadgeOfferta({ posizioneEconomica, gruppoVisuale })}">${badgeText}</span><span style="display:inline-block; margin:0 0 6px 6px; padding:3px 8px; border:1px solid #bfdbfe; border-radius:999px; background:#eff6ff; color:#1d4ed8; font-size:11px; font-weight:800;">${tipoPrezzoBadge}</span>`;
@@ -5349,7 +5420,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
           </small>
         `;
       } else {
-        if (title) title.innerText = gruppoVisuale === "top" || separataMulti ? "Offerta con consulente" : "Offerta attivabile online";
+        if (title) title.innerText = gruppoVisuale === "top" || separataMulti || separataVariabileConsulenziale ? "Offerta con consulente" : "Offerta attivabile online";
         aggiornaLogoOfferta(card, offerta, false);
         if (details) details.innerText = "Verifica il cellulare per vedere nome fornitore, dettagli economici e link.";
         if (link) {
