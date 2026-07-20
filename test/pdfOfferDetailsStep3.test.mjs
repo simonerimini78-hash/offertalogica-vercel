@@ -26,7 +26,7 @@ test("Step 3 Estra luce: estrae contratto, formula, spread contestualizzato e va
     Onere di recesso anticipato: nessuno
   `);
 
-  assert.equal(PDF_PARSER_VERSION, "v102.1-activation-readiness-step4-1");
+  assert.equal(PDF_PARSER_VERSION, "v103-safe-data-contract-step5");
   assert.equal(result.nome_offerta_luce, "ESTRA NATURA LUCE");
   assert.equal(result.codice_offerta_luce, "001231ESVFL01XXE77XX12122509GYNL");
   assert.equal(result.tipo_prezzo_luce, "variabile");

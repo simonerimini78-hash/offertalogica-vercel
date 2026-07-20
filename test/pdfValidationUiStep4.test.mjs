@@ -23,7 +23,7 @@ test("Step 4 mostra sempre gli indirizzi per commodity e gli stati di readiness"
     "Stato attivazione completa luce",
     "Stato attivazione completa gas",
     "Dati bolletta mancanti luce",
-    "Dati da integrare per attivazione luce",
+    "Dati comuni da integrare per l’attivazione",
   ]) assert.ok(html.includes(marker), `manca ${marker}`);
   assert.ok(!html.includes("sameSupplyAddress ?"));
 });

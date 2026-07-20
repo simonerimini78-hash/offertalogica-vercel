@@ -149,6 +149,18 @@ function renderValidationSummary(normalized) {
     ${issueRows?`<div class="table-wrap"><table><thead><tr><th>Campo</th><th>Livello</th><th>Motivo</th></tr></thead><tbody>${issueRows}</tbody></table></div>`:'<div class="meta">Nessuna incoerenza deterministica rilevata.</div>'}
   `;
 }
+function renderDataContractSummary(normalized) {
+  const contract = normalized?.data_contract;
+  if (!contract) return "";
+  const fields = Object.values(contract.fields || {}).filter((entry) => entry.normalized_value !== null && entry.normalized_value !== undefined && entry.normalized_value !== "");
+  const rows = fields.map((entry) => `<tr><td>${esc(LABELS[entry.field]||entry.field)}</td><td><strong>${esc(fmt(entry.normalized_value))}</strong>${entry.unit?`<br><small>${esc(entry.unit)}</small>`:""}<br><small>originale: ${esc(fmt(entry.original_value))} (${esc(entry.original_value_kind||"—")})</small></td><td>${esc(entry.status||"—")}</td><td>${esc(entry.provenance?.source||"—")}<br><small>${esc(entry.provenance?.method||"—")}</small></td><td>${esc(entry.evidence?.page||"—")}</td><td class="snippet">${esc(entry.evidence?.snippet||entry.evidence?.source_match||entry.evidence?.note||"—")}<br><small>qualità: ${esc(entry.evidence?.quality||"—")}</small></td><td>${entry.autofill?.allowed?'<span class="badge found">consentita dopo conferma</span>':`<span class="badge review">bloccata</span><br><small>${esc(entry.autofill?.reason||"—")}</small>`}</td></tr>`).join("");
+  return `
+    <h3>Contratto dati Step 5</h3>
+    <div class="summary"><div><span>Versione contratto</span><strong>${esc(contract.contract_version||"—")}</strong></div><div><span>Modalità</span><strong>${esc(contract.parser?.mode||"—")}</strong></div><div><span>Target sicuri</span><strong>${esc(contract.autofill_plan?.safe_target_count ?? 0)}</strong></div><div><span>Campi mappati bloccati</span><strong>${esc(contract.autofill_plan?.blocked_field_count ?? 0)}</strong></div></div>
+    <div class="meta"><strong>Regola:</strong> ${esc(contract.autofill_plan?.policy||"—")} · conferma utente richiesta: ${contract.autofill_plan?.requires_user_confirmation?"sì":"no"}</div>
+    <div class="table-wrap"><table><thead><tr><th>Campo</th><th>Valore normalizzato</th><th>Stato</th><th>Provenienza</th><th>Pagina</th><th>Evidenza</th><th>Autocompilazione</th></tr></thead><tbody>${rows||'<tr><td colspan="7">Nessun valore contrattualizzato.</td></tr>'}</tbody></table></div>
+  `;
+}
 function renderDetail(item) {
   if(!item)return;
   const n=item.normalized_data||{}; const confirmed=item.confirmed_data||{}; const diagnostics=item.diagnostics||[];
@@ -157,6 +169,7 @@ function renderDetail(item) {
     <div class="summary"><div><span>Esito</span><strong>${esc(item.status)}</strong></div><div><span>Revisione</span><strong>${esc(item.review_status)}</strong></div><div><span>Fornitore</span><strong>${esc(item.provider||'—')}</strong></div><div><span>Pagine / testo</span><strong>${esc(item.page_count||'—')} / ${esc(item.text_length||0)}</strong></div></div>
     ${item.error_message?`<h3>Errore</h3><pre>${esc(item.error_code)}\n${esc(item.error_message)}</pre>`:''}
     ${renderValidationSummary(n)}
+    ${renderDataContractSummary(n)}
     <h3>Diagnostica campo per campo</h3>
     <div class="table-wrap"><table><thead><tr><th>Campo</th><th>Esito</th><th>Valore</th><th>Pagina</th><th>Metodo</th><th>Testo sorgente</th></tr></thead><tbody>${diagnostics.map(d=>`<tr><td>${esc(d.label||d.field)}</td><td><span class="badge ${esc(d.status)}">${esc(d.status)}</span><br><small>${esc(d.confidence||'')}</small></td><td>${esc(fmt(d.value))}</td><td>${esc(d.page||'—')}</td><td>${esc(d.method||'—')}</td><td class="snippet">${esc(d.source_snippet||'—')}</td></tr>`).join('')||'<tr><td colspan="6">Diagnostica non disponibile.</td></tr>'}</tbody></table></div>
     <h3>Dati corretti attesi</h3><div class="edit-grid">${DISPLAY_FIELDS.map(key=>`<div class="field"><label for="expected-${esc(key)}">${esc(LABELS[key]||key)}</label><input id="expected-${esc(key)}" data-field="${esc(key)}" value="${esc(inputValue(Object.prototype.hasOwnProperty.call(confirmed,key)?confirmed[key]:n[key]))}"></div>`).join('')}</div>

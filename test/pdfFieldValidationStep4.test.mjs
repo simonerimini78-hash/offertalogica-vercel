@@ -216,7 +216,7 @@ test("il parser Step 4 applica la validazione senza modificare i valori economic
     Decorrenza condizioni economiche: 05/01/2026
     Scadenza condizioni economiche: 01/04/2027
   `);
-  assert.equal(PDF_PARSER_VERSION, "v102.1-activation-readiness-step4-1");
+  assert.equal(PDF_PARSER_VERSION, "v103-safe-data-contract-step5");
   assert.equal(result.consumo_luce_kwh, 1330.3);
   assert.equal(result.prezzo_luce_eur_kwh, 0.188041);
   assert.equal(result.quota_fissa_vendita_luce_eur_anno, 133.32);
