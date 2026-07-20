@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import formidable from "formidable";
 import { json, method, requireAllowedOrigin } from "../lib/http.js";
-import { extractPdf } from "../lib/pdfExtract.js";
+import { extractPdfWithControlledOcr } from "../lib/pdfExtractWithOcr.js";
 import { archivePdfAnalysis } from "../lib/pdfArchive.js";
 import { runPdfReaderShadow } from "../lib/pdfReaderShadow.js";
 import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
@@ -32,7 +32,6 @@ function parseForm(req) {
     });
   });
 }
-
 
 function fieldValue(value) {
   return Array.isArray(value) ? value[0] : value;
@@ -98,19 +97,31 @@ export default async function handler(req, res) {
     }
     validPdf = true;
 
-    const normalized = await extractPdf(temporaryFilePath);
-    const shadow = await runPdfReaderShadow({
-      filePath: temporaryFilePath,
+    const normalized = await extractPdfWithControlledOcr(temporaryFilePath, {
       filename: fileMetadata.originalFilename,
-      legacyNormalized: normalized,
       deadlineAt: analysisDeadlineAt,
-    }).catch((error) => ({
-      enabled: true,
-      mode: "shadow",
-      pipeline_version: "shadow-gpt41-v1",
-      public_output: "legacy_unchanged",
-      error: String(error?.message || "shadow_pipeline_error").slice(0, 300),
-    }));
+    });
+    const canRunShadow = analysisDeadlineAt - Date.now() >= 3_000;
+    const shadow = canRunShadow
+      ? await runPdfReaderShadow({
+        filePath: temporaryFilePath,
+        filename: fileMetadata.originalFilename,
+        legacyNormalized: normalized,
+        deadlineAt: analysisDeadlineAt,
+      }).catch((error) => ({
+        enabled: true,
+        mode: "shadow",
+        pipeline_version: "shadow-gpt41-v1",
+        public_output: "legacy_unchanged",
+        error: String(error?.message || "shadow_pipeline_error").slice(0, 300),
+      }))
+      : {
+        enabled: true,
+        mode: "shadow",
+        pipeline_version: "shadow-gpt41-v1",
+        public_output: "legacy_unchanged",
+        skipped: "analysis_deadline_near",
+      };
     const archive = await archivePdfAnalysis({
       filePath: temporaryFilePath,
       ...fileMetadata,
