@@ -22,7 +22,7 @@ function baseGas() {
 }
 
 test("espone il contratto completo necessario al coordinatore ibrido", () => {
-  assert.equal(PDF_HYBRID_POLICY_VERSION, "v106.8.5-hybrid-policy-recovery-1");
+  assert.equal(PDF_HYBRID_POLICY_VERSION, "v106.8.6-offer-code-separation-1");
   for (const field of ["consumo_gas_smc", "prezzo_gas_eur_smc", "quota_fissa_vendita_gas_eur_anno", "pdr", "codice_fiscale"]) {
     assert.ok(AI_EXTRACTABLE_FIELDS.includes(field), field);
   }
