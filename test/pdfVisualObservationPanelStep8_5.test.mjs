@@ -4,7 +4,7 @@ import fs from "node:fs/promises";
 import vm from "node:vm";
 
 const html = await fs.readFile(new URL("../public/index.html", import.meta.url), "utf8");
-const start = html.indexOf('const PDF_VISUAL_READING_PANEL_VERSION = "v106.5-visual-observation-panel-1";');
+const start = html.indexOf('const PDF_VISUAL_READING_PANEL_VERSION = "v106.8-review-provenance-panel-1";');
 const end = html.indexOf("function renderPdfSummary(documents, merged) {", start);
 assert.notEqual(start, -1, "blocco pannello visuale assente");
 assert.notEqual(end, -1, "fine blocco pannello visuale assente");
@@ -117,7 +117,7 @@ test("la visualizzazione non modifica il documento o il contratto di autofill", 
 });
 
 test("lo Step 8.5 è limitato al pannello di lettura e mantiene separate le osservazioni", () => {
-  assert.match(html, /v106\.5-visual-observation-panel-1/);
+  assert.match(html, /v106\.8-review-provenance-panel-1/);
   assert.match(html, /renderPdfVisualReadingPanels\(documents\)/);
   assert.match(html, /pdf-visual-reading-item\.is-observation/);
   assert.match(html, /compresi i valori che non sono adatti ai campi del comparatore/);

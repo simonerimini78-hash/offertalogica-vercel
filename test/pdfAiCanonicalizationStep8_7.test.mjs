@@ -115,10 +115,10 @@ async function runVisual(t, output) {
 test("il nome offerta generico viene canonicalizzato nel campo luce del modulo", async (t) => {
   const result = await runVisual(t, visualOutput());
 
-  assert.equal(PDF_AI_FALLBACK_PIPELINE_VERSION, "v106.7-visual-field-canonicalization-1");
+  assert.equal(PDF_AI_FALLBACK_PIPELINE_VERSION, "v106.8-ai-review-provenance-1");
   assert.equal(result.nome_offerta, "Soluzione Luce Flexi");
   assert.equal(result.nome_offerta_luce, "Soluzione Luce Flexi");
-  assert.equal(result.field_status.nome_offerta_luce.status, "completo");
+  assert.equal(result.field_status.nome_offerta_luce.status, "da_verificare");
   assert.equal(result.data_contract.supplies.luce.offer.name, "Soluzione Luce Flexi");
   assert.equal(result.data_contract.fields.nome_offerta_luce.review_required, true);
 });
@@ -150,7 +150,7 @@ test("il piano di autofill espone un solo codice cliente per una fornitura luce"
   const reviewFields = result.data_contract.autofill_plan.review_fields;
   const customerRows = reviewFields.filter((item) => ["codice_cliente", "codice_cliente_luce"].includes(item.source_field));
 
-  assert.equal(result.data_contract.autofill_plan.policy_version, "1.2.1");
+  assert.equal(result.data_contract.autofill_plan.policy_version, "1.3.0");
   assert.equal(customerRows.length, 1);
   assert.equal(customerRows[0].source_field, "codice_cliente_luce");
   assert.equal(customerRows[0].target, "activation.codice_cliente_luce");
@@ -182,7 +182,7 @@ test("il prompt visuale richiede checklist identità e campi offerta specifici p
   });
   const prompt = request.input[0].content;
 
-  assert.equal(PDF_AI_ADAPTER_VERSION, "2.3.0");
+  assert.equal(PDF_AI_ADAPTER_VERSION, "2.4.0");
   assert.match(prompt, /identity checklist/i);
   assert.match(prompt, /11-digit P\.IVA/i);
   assert.match(prompt, /nome_offerta_luce/);

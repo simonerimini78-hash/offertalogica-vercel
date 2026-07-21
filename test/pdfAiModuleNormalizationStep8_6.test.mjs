@@ -102,15 +102,15 @@ test("le classificazioni visuali al 90% vengono normalizzate per il modulo", asy
     transport: async () => ({ id: "resp_step8_6", output_text: JSON.stringify(actualLikeOutput()) }),
   });
 
-  assert.equal(PDF_AI_FALLBACK_PIPELINE_VERSION, "v106.7-visual-field-canonicalization-1");
+  assert.equal(PDF_AI_FALLBACK_PIPELINE_VERSION, "v106.8-ai-review-provenance-1");
   assert.equal(result.ai.applied, true);
   assert.equal(result.kind, "bolletta");
   assert.equal(result.commodity, "luce");
   assert.equal(result.recognized, true);
-  assert.equal(result.field_status.pod.status, "completo");
-  assert.equal(result.field_status.indirizzo_fornitura_luce.status, "completo");
-  assert.equal(result.field_status.potenza_impegnata_kw.status, "completo");
-  assert.equal(result.field_status.potenza_disponibile_kw.status, "completo");
+  assert.equal(result.field_status.pod.status, "da_verificare");
+  assert.equal(result.field_status.indirizzo_fornitura_luce.status, "da_verificare");
+  assert.equal(result.field_status.potenza_impegnata_kw.status, "da_verificare");
+  assert.equal(result.field_status.potenza_disponibile_kw.status, "da_verificare");
   assert.equal(result.field_status.consumo_luce_kwh.status, "mancante");
   assert.equal(result.field_status.prezzo_luce_eur_kwh.status, "mancante");
   assert.equal(result.field_status.quota_fissa_vendita_luce_eur_anno.status, "mancante");
@@ -139,7 +139,7 @@ test("il contratto crea la fornitura luce congrua senza usare consumo bimestrale
   assert.equal(luce.annual_consumption, null);
   assert.equal(luce.sales_price, null);
   assert.equal(luce.fixed_sales_fee_annual, null);
-  assert.equal(result.readiness.dati_bolletta.luce.status, "completo");
+  assert.equal(result.readiness.dati_bolletta.luce.status, "da_verificare");
   assert.equal(result.readiness.confronto.luce.status, "incompleto");
 
   const review = new Set(result.data_contract.autofill_plan.review_fields.map((item) => item.source_field));
@@ -154,7 +154,7 @@ test("il contratto crea la fornitura luce congrua senza usare consumo bimestrale
 test("la commodity viene sintetizzata dai metadati visuali quando manca il candidato esplicito", () => {
   const candidates = aiPdfToCandidates(actualLikeOutput({ includeCommodityCandidate: false }), "test-model");
   const commodity = candidates.find((item) => item.field === "commodity");
-  assert.equal(PDF_CANDIDATE_CONTRACT_VERSION, "1.0.2");
+  assert.equal(PDF_CANDIDATE_CONTRACT_VERSION, "1.0.3");
   assert.equal(commodity?.normalized_value, "electricity");
   assert.equal(commodity?.semantic_role, "classification");
   assert.equal(commodity?.confidence, 94);
@@ -180,7 +180,7 @@ test("un POD valido corregge una classificazione gas AI incoerente senza modific
 
 test("il pannello elimina l'indirizzo generico duplicato e le osservazioni sotto il 70%", async () => {
   const html = await fs.readFile(new URL("../public/index.html", import.meta.url), "utf8");
-  const start = html.indexOf('const PDF_VISUAL_READING_PANEL_VERSION = "v106.5-visual-observation-panel-1";');
+  const start = html.indexOf('const PDF_VISUAL_READING_PANEL_VERSION = "v106.8-review-provenance-panel-1";');
   const end = html.indexOf("function renderPdfSummary(documents, merged) {", start);
   const source = `${html.slice(start, end)}\nglobalThis.__collectVisual = collectPdfVisualReadingEntries;`;
   const context = vm.createContext({

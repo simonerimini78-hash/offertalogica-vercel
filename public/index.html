@@ -8148,12 +8148,14 @@ function mergePdfDocuments(documents) {
   return merged;
 }
 
-const PDF_VISUAL_READING_PANEL_VERSION = "v106.5-visual-observation-panel-1";
+const PDF_VISUAL_READING_PANEL_VERSION = "v106.8-review-provenance-panel-1";
 
 const PDF_VISUAL_FIELD_LABELS = {
   kind: "Tipo documento",
   commodity: "Fornitura",
   fornitore: "Fornitore",
+  fornitore_luce: "Fornitore luce",
+  fornitore_gas: "Fornitore gas",
   customer_type: "Tipo cliente",
   intestatario: "Intestatario",
   codice_fiscale: "Codice fiscale / P. IVA",
@@ -8167,6 +8169,8 @@ const PDF_VISUAL_FIELD_LABELS = {
   pdr: "PDR",
   nome_offerta_luce: "Offerta luce",
   nome_offerta_gas: "Offerta gas",
+  codice_prodotto_fornitore_luce: "Codice prodotto fornitore luce",
+  codice_prodotto_fornitore_gas: "Codice prodotto fornitore gas",
   potenza_impegnata_kw: "Potenza impegnata",
   potenza_disponibile_kw: "Potenza disponibile",
   consumo_luce_kwh: "Consumo luce letto",
@@ -8237,19 +8241,24 @@ function collectPdfVisualReadingEntries(doc = {}) {
   Object.entries(doc.ai.field_meta || {}).forEach(([field, meta]) => add({ field, ...(meta || {}) }, true));
   (doc.ai.rejected_fields || []).forEach((entry) => add(entry || {}, false));
 
-  const preferredAddressField = doc.commodity === "luce"
-    ? "indirizzo_fornitura_luce"
-    : doc.commodity === "gas"
-      ? "indirizzo_fornitura_gas"
-      : null;
-  const preferredAddressValues = new Set(entries
-    .filter((entry) => entry.field === preferredAddressField)
-    .map((entry) => `${entry.value.toLowerCase()}|${entry.page}`));
-  const visibleEntries = entries.filter((entry) => !(
-    preferredAddressField
-    && entry.field === "indirizzo_fornitura"
-    && preferredAddressValues.has(`${entry.value.toLowerCase()}|${entry.page}`)
-  ));
+  const commoditySuffix = doc.commodity === "luce" || doc.commodity === "gas" ? doc.commodity : null;
+  const aliasPreferences = commoditySuffix ? [
+    ["indirizzo_fornitura", `indirizzo_fornitura_${commoditySuffix}`],
+    ["nome_offerta", `nome_offerta_${commoditySuffix}`],
+    ["codice_prodotto_fornitore", `codice_prodotto_fornitore_${commoditySuffix}`],
+    [`fornitore_${commoditySuffix}`, "fornitore"],
+    [`codice_cliente_${commoditySuffix}`, "codice_cliente"],
+  ] : [];
+  const hiddenKeys = new Set();
+  aliasPreferences.forEach(([hiddenField, preferredField]) => {
+    const preferredValues = new Set(entries
+      .filter((entry) => entry.field === preferredField)
+      .map((entry) => `${entry.value.toLowerCase()}|${entry.page}`));
+    entries
+      .filter((entry) => entry.field === hiddenField && preferredValues.has(`${entry.value.toLowerCase()}|${entry.page}`))
+      .forEach((entry) => hiddenKeys.add(`${entry.field}|${entry.value.toLowerCase()}|${entry.page}`));
+  });
+  const visibleEntries = entries.filter((entry) => !hiddenKeys.has(`${entry.field}|${entry.value.toLowerCase()}|${entry.page}`));
 
   return visibleEntries.sort((left, right) => {
     if (left.accepted !== right.accepted) return left.accepted ? -1 : 1;
