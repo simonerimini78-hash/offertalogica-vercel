@@ -80,7 +80,10 @@ const DISPLAY_FIELDS = [
   "quota_fissa_vendita_luce_eur_anno","quota_fissa_vendita_gas_eur_anno","potenza_impegnata_kw","potenza_disponibile_kw",
   "pod","pdr","nome_offerta","codice_offerta","tipo_prezzo","indice_riferimento",
   "nome_offerta_luce","codice_offerta_luce","tipo_prezzo_luce","indice_riferimento_luce","spread_luce_eur_kwh",
-  "nome_offerta_gas","codice_offerta_gas","tipo_prezzo_gas","indice_riferimento_gas","spread_gas_eur_smc"
+  "nome_offerta_gas","codice_offerta_gas","tipo_prezzo_gas","indice_riferimento_gas","spread_gas_eur_smc",
+  "indirizzo_fornitura_luce","indirizzo_fornitura_gas",
+  "decorrenza_condizioni_economiche_luce","scadenza_condizioni_economiche_luce","struttura_prezzo_luce","periodicita_aggiornamento_indice_luce","formula_prezzo_luce","onere_recesso_anticipato_luce","codice_condizioni_economiche_luce","altre_caratteristiche_offerta_luce",
+  "decorrenza_condizioni_economiche_gas","scadenza_condizioni_economiche_gas","struttura_prezzo_gas","periodicita_aggiornamento_indice_gas","formula_prezzo_gas","onere_recesso_anticipato_gas","codice_condizioni_economiche_gas","altre_caratteristiche_offerta_gas"
 ];
 const LABELS = {
   fornitore:"Fornitore",kind:"Tipo documento",commodity:"Fornitura",customer_type:"Tipo cliente",intestatario:"Intestatario",
@@ -90,7 +93,10 @@ const LABELS = {
   potenza_impegnata_kw:"Potenza impegnata kW",potenza_disponibile_kw:"Potenza disponibile kW",pod:"POD",pdr:"PDR",
   nome_offerta:"Nome offerta comune",codice_offerta:"Codice offerta comune",tipo_prezzo:"Tipo prezzo comune",indice_riferimento:"Indice comune",
   nome_offerta_luce:"Nome offerta luce",codice_offerta_luce:"Codice offerta luce",tipo_prezzo_luce:"Tipo prezzo luce",indice_riferimento_luce:"Indice luce",spread_luce_eur_kwh:"Spread luce €/kWh",
-  nome_offerta_gas:"Nome offerta gas",codice_offerta_gas:"Codice offerta gas",tipo_prezzo_gas:"Tipo prezzo gas",indice_riferimento_gas:"Indice gas",spread_gas_eur_smc:"Spread gas €/Smc"
+  nome_offerta_gas:"Nome offerta gas",codice_offerta_gas:"Codice offerta gas",tipo_prezzo_gas:"Tipo prezzo gas",indice_riferimento_gas:"Indice gas",spread_gas_eur_smc:"Spread gas €/Smc",
+  indirizzo_fornitura_luce:"Indirizzo luce",indirizzo_fornitura_gas:"Indirizzo gas",
+  decorrenza_condizioni_economiche_luce:"Decorrenza luce",scadenza_condizioni_economiche_luce:"Scadenza luce",struttura_prezzo_luce:"Struttura luce",periodicita_aggiornamento_indice_luce:"Aggiornamento indice luce",formula_prezzo_luce:"Formula luce",onere_recesso_anticipato_luce:"Recesso luce",codice_condizioni_economiche_luce:"Codice condizioni luce",altre_caratteristiche_offerta_luce:"Caratteristiche luce",
+  decorrenza_condizioni_economiche_gas:"Decorrenza gas",scadenza_condizioni_economiche_gas:"Scadenza gas",struttura_prezzo_gas:"Struttura gas",periodicita_aggiornamento_indice_gas:"Aggiornamento indice gas",formula_prezzo_gas:"Formula gas",onere_recesso_anticipato_gas:"Recesso gas",codice_condizioni_economiche_gas:"Codice condizioni gas",altre_caratteristiche_offerta_gas:"Caratteristiche gas"
 };
 let token = new URLSearchParams(location.hash.replace(/^#/, "")).get("token") || new URLSearchParams(location.search).get("token") || "";
 let analyses = [];
@@ -125,6 +131,36 @@ function renderList() {
   list.querySelectorAll(".item").forEach(button=>button.addEventListener("click",()=>{selectedId=button.dataset.id;renderList();renderDetail(analyses.find(x=>x.id===selectedId));}));
 }
 function inputValue(value){return value===null||value===undefined?"":typeof value==="object"?JSON.stringify(value):String(value);}
+function readinessValue(normalized, area, commodity) {
+  return normalized?.readiness?.[area]?.[commodity]?.status || "—";
+}
+function readinessMissing(normalized, area, commodity, field) {
+  const values = normalized?.readiness?.[area]?.[commodity]?.[field];
+  return Array.isArray(values) && values.length ? values.join(", ") : "—";
+}
+function renderValidationSummary(normalized) {
+  if (!normalized?.completeness && !normalized?.readiness) return "";
+  const issues = Array.isArray(normalized.validation_issues) ? normalized.validation_issues : [];
+  const issueRows = issues.map(issue=>`<tr><td>${esc(LABELS[issue.field]||issue.field)}</td><td>${esc(issue.severity||'—')}</td><td>${esc(issue.code||'—')}</td></tr>`).join("");
+  return `
+    <h3>Validazione e completezza Step 4.1</h3>
+    <div class="summary"><div><span>Completezza</span><strong>${esc(normalized.completeness?.score ?? '—')}%</strong></div><div><span>Confronto luce / gas</span><strong>${esc(readinessValue(normalized,'confronto','luce'))} / ${esc(readinessValue(normalized,'confronto','gas'))}</strong></div><div><span>Dati bolletta luce / gas</span><strong>${esc(readinessValue(normalized,'dati_bolletta','luce'))} / ${esc(readinessValue(normalized,'dati_bolletta','gas'))}</strong></div><div><span>Attivazione completa luce / gas</span><strong>${esc(readinessValue(normalized,'attivazione','luce'))} / ${esc(readinessValue(normalized,'attivazione','gas'))}</strong></div></div>
+    <div class="meta"><strong>Mancanti dalla bolletta luce:</strong> ${esc(readinessMissing(normalized,'dati_bolletta','luce','missing'))}<br><strong>Mancanti dalla bolletta gas:</strong> ${esc(readinessMissing(normalized,'dati_bolletta','gas','missing'))}<br><strong>Da integrare per attivazione luce:</strong> ${esc(readinessMissing(normalized,'attivazione','luce','missing_external'))}<br><strong>Da integrare per attivazione gas:</strong> ${esc(readinessMissing(normalized,'attivazione','gas','missing_external'))}</div>
+    ${issueRows?`<div class="table-wrap"><table><thead><tr><th>Campo</th><th>Livello</th><th>Motivo</th></tr></thead><tbody>${issueRows}</tbody></table></div>`:'<div class="meta">Nessuna incoerenza deterministica rilevata.</div>'}
+  `;
+}
+function renderDataContractSummary(normalized) {
+  const contract = normalized?.data_contract;
+  if (!contract) return "";
+  const fields = Object.values(contract.fields || {}).filter((entry) => entry.normalized_value !== null && entry.normalized_value !== undefined && entry.normalized_value !== "");
+  const rows = fields.map((entry) => `<tr><td>${esc(LABELS[entry.field]||entry.field)}</td><td><strong>${esc(fmt(entry.normalized_value))}</strong>${entry.unit?`<br><small>${esc(entry.unit)}</small>`:""}<br><small>originale: ${esc(fmt(entry.original_value))} (${esc(entry.original_value_kind||"—")})</small></td><td>${esc(entry.status||"—")}</td><td>${esc(entry.provenance?.source||"—")}<br><small>${esc(entry.provenance?.method||"—")}</small></td><td>${esc(entry.evidence?.page||"—")}</td><td class="snippet">${esc(entry.evidence?.snippet||entry.evidence?.source_match||entry.evidence?.note||"—")}<br><small>qualità: ${esc(entry.evidence?.quality||"—")}</small></td><td>${entry.autofill?.allowed?'<span class="badge found">consentita dopo conferma</span>':`<span class="badge review">bloccata</span><br><small>${esc(entry.autofill?.reason||"—")}</small>`}</td></tr>`).join("");
+  return `
+    <h3>Contratto dati Step 5</h3>
+    <div class="summary"><div><span>Versione contratto</span><strong>${esc(contract.contract_version||"—")}</strong></div><div><span>Modalità</span><strong>${esc(contract.parser?.mode||"—")}</strong></div><div><span>Target sicuri</span><strong>${esc(contract.autofill_plan?.safe_target_count ?? 0)}</strong></div><div><span>Campi mappati bloccati</span><strong>${esc(contract.autofill_plan?.blocked_field_count ?? 0)}</strong></div></div>
+    <div class="meta"><strong>Regola:</strong> ${esc(contract.autofill_plan?.policy||"—")} · conferma utente richiesta: ${contract.autofill_plan?.requires_user_confirmation?"sì":"no"}</div>
+    <div class="table-wrap"><table><thead><tr><th>Campo</th><th>Valore normalizzato</th><th>Stato</th><th>Provenienza</th><th>Pagina</th><th>Evidenza</th><th>Autocompilazione</th></tr></thead><tbody>${rows||'<tr><td colspan="7">Nessun valore contrattualizzato.</td></tr>'}</tbody></table></div>
+  `;
+}
 function renderDetail(item) {
   if(!item)return;
   const n=item.normalized_data||{}; const confirmed=item.confirmed_data||{}; const diagnostics=item.diagnostics||[];
@@ -132,6 +168,8 @@ function renderDetail(item) {
     <div class="detail-head"><div><h2>${esc(item.original_file_name)}</h2><div class="meta">${esc(item.parser_version)} · hash ${esc((item.file_sha256||'').slice(0,12))}… · scadenza ${item.expires_at?esc(new Date(item.expires_at).toLocaleDateString('it-IT')):'—'}</div></div><div class="actions"><button class="btn primary" id="open-pdf">Apri PDF originale</button><button class="btn danger" id="delete-analysis">Elimina</button></div></div>
     <div class="summary"><div><span>Esito</span><strong>${esc(item.status)}</strong></div><div><span>Revisione</span><strong>${esc(item.review_status)}</strong></div><div><span>Fornitore</span><strong>${esc(item.provider||'—')}</strong></div><div><span>Pagine / testo</span><strong>${esc(item.page_count||'—')} / ${esc(item.text_length||0)}</strong></div></div>
     ${item.error_message?`<h3>Errore</h3><pre>${esc(item.error_code)}\n${esc(item.error_message)}</pre>`:''}
+    ${renderValidationSummary(n)}
+    ${renderDataContractSummary(n)}
     <h3>Diagnostica campo per campo</h3>
     <div class="table-wrap"><table><thead><tr><th>Campo</th><th>Esito</th><th>Valore</th><th>Pagina</th><th>Metodo</th><th>Testo sorgente</th></tr></thead><tbody>${diagnostics.map(d=>`<tr><td>${esc(d.label||d.field)}</td><td><span class="badge ${esc(d.status)}">${esc(d.status)}</span><br><small>${esc(d.confidence||'')}</small></td><td>${esc(fmt(d.value))}</td><td>${esc(d.page||'—')}</td><td>${esc(d.method||'—')}</td><td class="snippet">${esc(d.source_snippet||'—')}</td></tr>`).join('')||'<tr><td colspan="6">Diagnostica non disponibile.</td></tr>'}</tbody></table></div>
     <h3>Dati corretti attesi</h3><div class="edit-grid">${DISPLAY_FIELDS.map(key=>`<div class="field"><label for="expected-${esc(key)}">${esc(LABELS[key]||key)}</label><input id="expected-${esc(key)}" data-field="${esc(key)}" value="${esc(inputValue(Object.prototype.hasOwnProperty.call(confirmed,key)?confirmed[key]:n[key]))}"></div>`).join('')}</div>
