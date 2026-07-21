@@ -16,7 +16,7 @@ test("la lettura visuale AI è automatica e il quadro consenso è rimosso", () =
 });
 
 test("il server applica direttamente il fallback controllato dopo parser e OCR", () => {
-  assert.match(api, /applyControlledPdfAiFallback\(temporaryFilePath/);
+  assert.match(api, /applyControlledPdfAiFallback\(pdfFilePath/);
   assert.doesNotMatch(api, /aiFallbackConsent/);
 });
 
