@@ -80,27 +80,17 @@ function mockTransport(output, onCall = () => {}) {
 
 const fallbackEnv = Object.freeze({ PDF_AI_MODE: "fallback", PDF_AI_TIMEOUT_MS: "12000" });
 
-test("il fallback resta spento senza modalità esplicita o senza consenso", async (t) => {
+test("il fallback resta spento senza modalità esplicita", async (t) => {
   const filePath = await withPdf(t);
   let calls = 0;
   const disabled = await applyControlledPdfAiFallback(filePath, {
     normalized: baseUnknown(),
-    consentGranted: true,
     env: {},
     apiKey: "test-key",
     transport: mockTransport(electricityOutput(), () => { calls += 1; }),
   });
-  const noConsent = await applyControlledPdfAiFallback(filePath, {
-    normalized: baseUnknown(),
-    consentGranted: false,
-    env: fallbackEnv,
-    apiKey: "test-key",
-    transport: mockTransport(electricityOutput(), () => { calls += 1; }),
-  });
   assert.equal(disabled.ai.reason, "disabled");
-  assert.equal(disabled.ai.consent_granted, true);
-  assert.equal(noConsent.ai.reason, "consent_not_granted");
-  assert.equal(noConsent.ai.consent_granted, false);
+  assert.equal(disabled.ai.automatic_fallback, true);
   assert.equal(calls, 0);
 });
 
@@ -109,7 +99,6 @@ test("senza chiave API il fallback fallisce in modo controllato", async (t) => {
   let calls = 0;
   const result = await applyControlledPdfAiFallback(filePath, {
     normalized: baseUnknown(),
-    consentGranted: true,
     env: fallbackEnv,
     apiKey: "",
     transport: mockTransport(electricityOutput(), () => { calls += 1; }),
@@ -117,7 +106,7 @@ test("senza chiave API il fallback fallisce in modo controllato", async (t) => {
   assert.equal(result.ai.attempted, true);
   assert.equal(result.ai.applied, false);
   assert.equal(result.ai.reason, "missing_openai_api_key");
-  assert.equal(result.ai.consent_granted, true);
+  assert.equal(result.ai.automatic_fallback, true);
   assert.equal(calls, 0);
 });
 
@@ -136,7 +125,6 @@ test("un risultato deterministico completo impedisce ogni invio all'AI", async (
   let calls = 0;
   const result = await applyControlledPdfAiFallback(filePath, {
     normalized: strong,
-    consentGranted: true,
     env: fallbackEnv,
     apiKey: "test-key",
     transport: mockTransport(electricityOutput(), () => { calls += 1; }),
@@ -151,7 +139,6 @@ test("il fallback completa solo campi mancanti e li espone come revisione esplic
   const result = await applyControlledPdfAiFallback(filePath, {
     filename: "scan-illeggibile.pdf",
     normalized: baseUnknown(),
-    consentGranted: true,
     env: fallbackEnv,
     apiKey: "test-key",
     transport: mockTransport(electricityOutput()),
@@ -184,7 +171,6 @@ test("un valore parser esistente non viene mai sovrascritto dall'AI", async (t) 
   output.candidates.find((item) => item.field === "prezzo_luce_eur_kwh").evidence = "Prezzo vendita energia 0,990000 EUR/kWh";
   const result = await applyControlledPdfAiFallback(filePath, {
     normalized: baseUnknown({ prezzo_luce_eur_kwh: 0.18 }),
-    consentGranted: true,
     env: fallbackEnv,
     apiKey: "test-key",
     transport: mockTransport(output),
@@ -203,7 +189,6 @@ test("unità mensili non vengono accettate come quota annua", async (t) => {
   fixed.evidence = "Quota fissa vendita 10 EUR/mese";
   const result = await applyControlledPdfAiFallback(filePath, {
     normalized: baseUnknown(),
-    consentGranted: true,
     env: fallbackEnv,
     apiKey: "test-key",
     transport: mockTransport(output),
@@ -220,7 +205,6 @@ test("candidati che contraddicono parser o OCR sono rifiutati", async (t) => {
   pod.contradicts = ["ocr"];
   const result = await applyControlledPdfAiFallback(filePath, {
     normalized: baseUnknown(),
-    consentGranted: true,
     env: fallbackEnv,
     apiKey: "test-key",
     transport: mockTransport(output),
@@ -234,14 +218,12 @@ test("la policy richiede tempo residuo sufficiente e può limitare i nomi file",
   const tooLate = shouldAttemptPdfAiFallback({
     normalized: baseUnknown(),
     filename: "scan.pdf",
-    consentGranted: true,
     deadlineAt: Date.now() + 1000,
     env: fallbackEnv,
   });
   const blockedName = shouldAttemptPdfAiFallback({
     normalized: baseUnknown(),
     filename: "documento.pdf",
-    consentGranted: true,
     env: { ...fallbackEnv, PDF_AI_FILENAME_PATTERN: "unoenergy" },
   });
   assert.equal(tooLate.reason, "insufficient_time_budget");

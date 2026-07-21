@@ -6,30 +6,31 @@ const html = await fs.readFile(new URL("../public/index.html", import.meta.url),
 const api = await fs.readFile(new URL("../api/analyze-pdf.js", import.meta.url), "utf8");
 const contract = await fs.readFile(new URL("../lib/pdfDataContract.js", import.meta.url), "utf8");
 
-test("l'interfaccia richiede un consenso facoltativo e non preselezionato", () => {
-  assert.match(html, /id="pdf-ai-fallback-consent"\s+type="checkbox"/);
-  assert.doesNotMatch(html, /id="pdf-ai-fallback-consent"[^>]*\bchecked\b/);
-  assert.match(html, /Solo quando parser e OCR non bastano, autorizzo l’invio del PDF/);
-  assert.match(html, /informativa privacy/);
+test("la lettura visuale AI è automatica e il quadro consenso è rimosso", () => {
+  assert.doesNotMatch(html, /id="pdf-ai-fallback-consent"/);
+  assert.doesNotMatch(html, /formData\.append\("aiFallbackConsent"/);
+  assert.doesNotMatch(api, /fields\.aiFallbackConsent/);
+  assert.doesNotMatch(api, /consentGranted/);
+  assert.match(html, /il sistema tenta automaticamente una lettura visuale AI/);
+  assert.match(html, /visualAiFallback:\s*"automatic"/);
 });
 
-test("il consenso viene inviato esplicitamente per ogni PDF", () => {
-  assert.match(html, /formData\.append\("aiFallbackConsent", aiFallbackConsent \? "1" : "0"\)/);
-  assert.match(api, /fields\.aiFallbackConsent/);
-  assert.match(api, /consentGranted:\s*aiFallbackConsent/);
+test("il server applica direttamente il fallback controllato dopo parser e OCR", () => {
+  assert.match(api, /applyControlledPdfAiFallback\(temporaryFilePath/);
+  assert.doesNotMatch(api, /aiFallbackConsent/);
 });
 
-test("i campi AI sono visibili nell'anteprima ma deselezionati", () => {
+test("i campi AI restano visibili nell'anteprima ma deselezionati", () => {
   assert.match(html, /\["pdf_image_ocr", "pdf_visual_ai"\]\.includes\(entry\.provenance\?\.origin\)/);
   assert.match(html, /Lettura visuale AI da verificare e selezionare/);
-  assert.match(html, /Lettura visuale AI autorizzata ma disattivata nel deployment/);
+  assert.match(html, /Lettura visuale AI automatica disattivata nel deployment/);
   assert.match(html, /campi provengono.*lettura visuale AI/);
   assert.match(contract, /reviewSource === "ai"/);
   assert.match(contract, /origin: aiField \? "pdf_visual_ai"/);
   assert.match(contract, /requires_explicit_selection: true/);
 });
 
-test("il reset revoca la scelta locale del consenso", () => {
-  assert.match(html, /const aiConsent = document\.getElementById\("pdf-ai-fallback-consent"\)/);
-  assert.match(html, /aiConsent\.checked = false/);
+test("il reset non contiene più stato locale per il consenso AI", () => {
+  assert.doesNotMatch(html, /const aiConsent = document\.getElementById\("pdf-ai-fallback-consent"\)/);
+  assert.doesNotMatch(html, /aiConsent\.checked = false/);
 });

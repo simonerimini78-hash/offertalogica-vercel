@@ -549,7 +549,6 @@
         }
         .pdf-file-picker,
         .pdf-selected-files,
-        .pdf-ai-fallback-consent,
         .upload-note,
         .pdf-review-static {
             grid-column: 1 / -1;
@@ -596,27 +595,6 @@
         .pdf-selected-files[hidden] {
             display: none;
         }
-        .pdf-ai-fallback-consent {
-            width: min(100%, 760px);
-            justify-self: center;
-            display: flex;
-            align-items: flex-start;
-            gap: 10px;
-            padding: 12px 14px;
-            border: 1px solid #cbd5e1;
-            border-radius: 10px;
-            background: #ffffff;
-            color: #334155;
-            text-align: left;
-            font-size: 12px;
-            line-height: 1.45;
-        }
-        .pdf-ai-fallback-consent input {
-            flex: 0 0 auto;
-            margin-top: 3px;
-        }
-        .pdf-ai-fallback-consent strong { color: #0f172a; }
-        .pdf-ai-fallback-consent a { color: var(--accent); font-weight: 700; }
         .pdf-file-list {
             display: grid;
             gap: 8px;
@@ -1917,7 +1895,7 @@
 
     <div class="pdf-lead-panel" id="pdf-upload-panel">
         <h3>Carica bolletta o scheda sintetica</h3>
-        <p>Carica una bolletta o una scheda sintetica: proveremo a leggere consumi, fornitore, prezzi e quote fisse per rendere il confronto più aderente alla tua fornitura.</p>
+        <p>Carica una bolletta o una scheda sintetica: proveremo a leggere consumi, fornitore, prezzi e quote fisse. Quando la lettura standard e l’OCR non bastano, il sistema tenta automaticamente una lettura visuale AI; i dati ottenuti restano sempre da controllare.</p>
         <div id="pdf-upload-context-notice" class="pdf-context-notice" role="status" aria-live="polite" hidden>
             <span class="pdf-context-icon" aria-hidden="true">↓</span>
             <span><strong>Sei nel punto giusto.</strong> Seleziona qui il PDF della scheda sintetica, poi premi <strong>Analizza PDF</strong>.</span>
@@ -1929,10 +1907,6 @@
                 <span id="pdf-file-picker-status" class="pdf-file-picker-status">Nessun PDF aggiunto</span>
             </div>
             <div id="pdf-selected-files" class="pdf-selected-files" aria-live="polite" hidden></div>
-            <label class="pdf-ai-fallback-consent" for="pdf-ai-fallback-consent">
-                <input id="pdf-ai-fallback-consent" type="checkbox">
-                <span><strong>Lettura visuale assistita facoltativa.</strong> Solo quando parser e OCR non bastano, autorizzo l’invio del PDF al servizio AI configurato da OffertaLogica per tentare una lettura aggiuntiva. I dati ottenuti saranno sempre mostrati come da controllare e resteranno deselezionati. Consulta l’<a href="https://www.iubenda.com/privacy-policy/36565194" target="_blank" rel="noopener">informativa privacy</a>.</span>
-            </label>
             <button type="button" class="btn-action" onclick="preparaConfermaPdf()">Analizza PDF</button>
             <button type="button" class="lead-secondary" onclick="azzeraPdfEModulo()">Rimuovi tutti i PDF e ricomincia</button>
             <div class="upload-note">Dopo il primo PDF usa <strong>Aggiungi file</strong>: i documenti già caricati restano memorizzati. Puoi rimuovere ogni PDF singolarmente prima della conferma.</div>
@@ -7032,7 +7006,7 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
   nascondiGuida("pdf-confirm-guidance");
   trackEvent("pdf_analysis_started", {
     fileCount: files.length,
-    visualAiConsent: Boolean(document.getElementById("pdf-ai-fallback-consent")?.checked),
+    visualAiFallback: "automatic",
   });
 
   const results = [];
@@ -7041,8 +7015,6 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
     const pendingEntry = pendingEntries[fileIndex];
     const formData = new FormData();
     formData.append("pdf", file);
-    const aiFallbackConsent = Boolean(document.getElementById("pdf-ai-fallback-consent")?.checked);
-    formData.append("aiFallbackConsent", aiFallbackConsent ? "1" : "0");
     formData.append("archiveContext", JSON.stringify({
       sessionId: analyticsSessionId(),
       staffMode: staffModeAttiva(),
@@ -8049,10 +8021,10 @@ function renderPdfSummary(documents, merged) {
           : "";
     const aiStatus = doc.ai?.applied
       ? " Lettura visuale AI applicata: tutti i dati ricavati restano da controllare."
-      : doc.ai?.consent_granted && doc.ai?.reason === "disabled"
-        ? " Lettura visuale AI autorizzata ma disattivata nel deployment."
+      : doc.ai?.automatic_fallback && doc.ai?.reason === "disabled"
+        ? " Lettura visuale AI automatica disattivata nel deployment."
         : doc.ai?.attempted && doc.ai?.reason === "missing_openai_api_key"
-          ? " Lettura visuale AI autorizzata ma non configurata nel deployment."
+          ? " Lettura visuale AI automatica non configurata nel deployment."
           : doc.ai?.attempted && ["openai_timeout", "insufficient_time_budget"].some((reason) => String(doc.ai?.reason || "").includes(reason))
             ? " Lettura visuale AI non completata entro il tempo disponibile."
             : doc.ai?.attempted && doc.ai?.reason === "no_material_improvement"
@@ -8187,8 +8159,6 @@ window.azzeraPdfEModulo = function azzeraPdfEModulo() {
   LEAD_STATE.pdfDocuments = [];
   LEAD_STATE.pdfAutofill = { previewedAt: "", appliedFields: [], skippedFields: [] };
   pdfAutofillClearManualFields();
-  const aiConsent = document.getElementById("pdf-ai-fallback-consent");
-  if (aiConsent) aiConsent.checked = false;
   LEAD_STATE.comparisonScope = "unknown";
   LEAD_STATE.gasDecision = "";
   LEAD_STATE.electricityDecision = "";

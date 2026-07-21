@@ -97,28 +97,13 @@ test("il trasporto mock restituisce candidati IA senza chiamate reali", async (t
   assert.equal(captured.store, false);
 });
 
-test("il fallback non invia il PDF senza consenso esplicito", async (t) => {
+test("il fallback automatico usa lo stesso contratto strutturato", async (t) => {
   const filePath = await withPdf(t);
   let calls = 0;
   const result = await runPdfAiFallback({
     filePath,
     apiKey: "test-key",
     env: { PDF_AI_MODE: "fallback" },
-    consentGranted: false,
-    transport: async () => { calls += 1; },
-  });
-  assert.equal(result.status, "consent_required");
-  assert.equal(calls, 0);
-});
-
-test("il fallback autorizzato usa lo stesso contratto strutturato", async (t) => {
-  const filePath = await withPdf(t);
-  let calls = 0;
-  const result = await runPdfAiFallback({
-    filePath,
-    apiKey: "test-key",
-    env: { PDF_AI_MODE: "fallback" },
-    consentGranted: true,
     legacyNormalized: { parser_version: "legacy", page_count: 1, diagnostics: [] },
     transport: async () => {
       calls += 1;
