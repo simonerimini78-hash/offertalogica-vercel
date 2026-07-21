@@ -549,6 +549,7 @@
         }
         .pdf-file-picker,
         .pdf-selected-files,
+        .pdf-ai-fallback-consent,
         .upload-note,
         .pdf-review-static {
             grid-column: 1 / -1;
@@ -595,6 +596,27 @@
         .pdf-selected-files[hidden] {
             display: none;
         }
+        .pdf-ai-fallback-consent {
+            width: min(100%, 760px);
+            justify-self: center;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 12px 14px;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            background: #ffffff;
+            color: #334155;
+            text-align: left;
+            font-size: 12px;
+            line-height: 1.45;
+        }
+        .pdf-ai-fallback-consent input {
+            flex: 0 0 auto;
+            margin-top: 3px;
+        }
+        .pdf-ai-fallback-consent strong { color: #0f172a; }
+        .pdf-ai-fallback-consent a { color: var(--accent); font-weight: 700; }
         .pdf-file-list {
             display: grid;
             gap: 8px;
@@ -1907,6 +1929,10 @@
                 <span id="pdf-file-picker-status" class="pdf-file-picker-status">Nessun PDF aggiunto</span>
             </div>
             <div id="pdf-selected-files" class="pdf-selected-files" aria-live="polite" hidden></div>
+            <label class="pdf-ai-fallback-consent" for="pdf-ai-fallback-consent">
+                <input id="pdf-ai-fallback-consent" type="checkbox">
+                <span><strong>Lettura visuale assistita facoltativa.</strong> Solo quando parser e OCR non bastano, autorizzo l’invio del PDF al servizio AI configurato da OffertaLogica per tentare una lettura aggiuntiva. I dati ottenuti saranno sempre mostrati come da controllare e resteranno deselezionati. Consulta l’<a href="https://www.iubenda.com/privacy-policy/36565194" target="_blank" rel="noopener">informativa privacy</a>.</span>
+            </label>
             <button type="button" class="btn-action" onclick="preparaConfermaPdf()">Analizza PDF</button>
             <button type="button" class="lead-secondary" onclick="azzeraPdfEModulo()">Rimuovi tutti i PDF e ricomincia</button>
             <div class="upload-note">Dopo il primo PDF usa <strong>Aggiungi file</strong>: i documenti già caricati restano memorizzati. Puoi rimuovere ogni PDF singolarmente prima della conferma.</div>
@@ -7004,7 +7030,10 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
     confirmButton.innerText = "Analisi in corso...";
   }
   nascondiGuida("pdf-confirm-guidance");
-  trackEvent("pdf_analysis_started", { fileCount: files.length });
+  trackEvent("pdf_analysis_started", {
+    fileCount: files.length,
+    visualAiConsent: Boolean(document.getElementById("pdf-ai-fallback-consent")?.checked),
+  });
 
   const results = [];
   for (let fileIndex = 0; fileIndex < files.length; fileIndex += 1) {
@@ -7012,6 +7041,8 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
     const pendingEntry = pendingEntries[fileIndex];
     const formData = new FormData();
     formData.append("pdf", file);
+    const aiFallbackConsent = Boolean(document.getElementById("pdf-ai-fallback-consent")?.checked);
+    formData.append("aiFallbackConsent", aiFallbackConsent ? "1" : "0");
     formData.append("archiveContext", JSON.stringify({
       sessionId: analyticsSessionId(),
       staffMode: staffModeAttiva(),
@@ -7213,12 +7244,12 @@ function pdfPreviewAutofillEntry(data, field) {
   const entry = pdfContractFieldEntry(data, field);
   if (!entry || entry.status !== "completo") return null;
   if (entry.autofill?.allowed) return { entry, review_required: false };
-  const ocrReview = Boolean(
+  const assistedReview = Boolean(
     entry.autofill?.review_selectable
     && entry.autofill?.requires_explicit_selection
-    && entry.provenance?.origin === "pdf_image_ocr"
+    && ["pdf_image_ocr", "pdf_visual_ai"].includes(entry.provenance?.origin)
   );
-  return ocrReview ? { entry, review_required: true } : null;
+  return assistedReview ? { entry, review_required: true } : null;
 }
 
 function pdfPreviewAutofillValue(data, field) {
@@ -7440,7 +7471,7 @@ function buildPdfAutofillPreviewRows(data, customerType = "privato") {
         : protectedManual
           ? "valore_manuale_protetto"
           : spec.review_required
-            ? "ocr_da_verificare"
+            ? spec.source_origin === "pdf_visual_ai" ? "ai_da_verificare" : "ocr_da_verificare"
             : current.has_value
               ? "valore_predefinito_aggiornabile"
               : "campo_vuoto",
@@ -7454,6 +7485,7 @@ function pdfAutofillStatusLabel(status) {
     valore_manuale_protetto: "Valore manuale protetto",
     valore_predefinito_aggiornabile: "Valore esistente non modificato manualmente",
     ocr_da_verificare: "OCR da verificare e selezionare",
+    ai_da_verificare: "Lettura visuale AI da verificare e selezionare",
     campo_vuoto: "Campo vuoto",
   };
   return labels[status] || status;
@@ -7505,10 +7537,12 @@ function apriAnteprimaAutocompilazionePdf(data) {
   const copy = document.getElementById("pdf-autofill-preview-copy");
   if (!backdrop) return Promise.resolve(PDF_AUTOFILL_PREVIEW_ROWS.filter((row) => row.selected && !row.disabled));
   const protectedCount = PDF_AUTOFILL_PREVIEW_ROWS.filter((row) => row.manually_protected).length;
-  const ocrReviewCount = PDF_AUTOFILL_PREVIEW_ROWS.filter((row) => row.review_required && !row.same_value).length;
+  const ocrReviewCount = PDF_AUTOFILL_PREVIEW_ROWS.filter((row) => row.review_required && !row.same_value && row.source_origin === "pdf_image_ocr").length;
+  const aiReviewCount = PDF_AUTOFILL_PREVIEW_ROWS.filter((row) => row.review_required && !row.same_value && row.source_origin === "pdf_visual_ai").length;
   if (copy) {
     const messages = [];
     if (ocrReviewCount) messages.push(`${ocrReviewCount} ${ocrReviewCount === 1 ? "campo proviene" : "campi provengono"} dall'OCR: ${ocrReviewCount === 1 ? "è deselezionato" : "sono deselezionati"} finché non li scegli esplicitamente.`);
+    if (aiReviewCount) messages.push(`${aiReviewCount} ${aiReviewCount === 1 ? "campo proviene" : "campi provengono"} dalla lettura visuale AI: ${aiReviewCount === 1 ? "è deselezionato" : "sono deselezionati"} finché non li scegli esplicitamente.`);
     if (protectedCount) messages.push(`${protectedCount} ${protectedCount === 1 ? "campo contiene" : "campi contengono"} un valore inserito manualmente e ${protectedCount === 1 ? "resta" : "restano"} deselezionato per sicurezza.`);
     copy.textContent = messages.length
       ? `${messages.join(" ")} Controlla i valori prima di applicarli.`
@@ -7526,6 +7560,7 @@ function apriAnteprimaAutocompilazionePdf(data) {
     fieldCount: PDF_AUTOFILL_PREVIEW_ROWS.length,
     protectedCount,
     ocrReviewCount,
+    aiReviewCount,
   });
   window.setTimeout(() => document.getElementById("pdf-autofill-apply")?.focus(), 30);
   return new Promise((resolve) => { PDF_AUTOFILL_PREVIEW_RESOLVE = resolve; });
@@ -8012,11 +8047,22 @@ function renderPdfSummary(documents, merged) {
         : doc.ocr?.attempted && doc.ocr?.reason === "no_material_improvement"
           ? " OCR eseguito senza dati sufficientemente affidabili."
           : "";
+    const aiStatus = doc.ai?.applied
+      ? " Lettura visuale AI applicata: tutti i dati ricavati restano da controllare."
+      : doc.ai?.consent_granted && doc.ai?.reason === "disabled"
+        ? " Lettura visuale AI autorizzata ma disattivata nel deployment."
+        : doc.ai?.attempted && doc.ai?.reason === "missing_openai_api_key"
+          ? " Lettura visuale AI autorizzata ma non configurata nel deployment."
+          : doc.ai?.attempted && ["openai_timeout", "insufficient_time_budget"].some((reason) => String(doc.ai?.reason || "").includes(reason))
+            ? " Lettura visuale AI non completata entro il tempo disponibile."
+            : doc.ai?.attempted && doc.ai?.reason === "no_material_improvement"
+              ? " Lettura visuale AI eseguita senza dati sufficientemente affidabili."
+              : "";
     if (!risultatoPdfUtilizzabile(doc)) {
-      return `<li><strong>${testoHtmlSicuro(doc.filename)}</strong>: documento non riconosciuto o privo di dati sufficientemente affidabili.${ocrStatus}</li>`;
+      return `<li><strong>${testoHtmlSicuro(doc.filename)}</strong>: documento non riconosciuto o privo di dati sufficientemente affidabili.${ocrStatus}${aiStatus}</li>`;
     }
     const review = doc.confidence === "high" ? "affidabilità alta" : "da controllare";
-    return `<li><strong>${testoHtmlSicuro(doc.filename)}</strong>: ${testoHtmlSicuro(doc.kind || "PDF")} ${testoHtmlSicuro(doc.commodity || "")} - ${testoHtmlSicuro(doc.fornitore || "fornitore da verificare")} (${review})${ocrStatus}</li>`;
+    return `<li><strong>${testoHtmlSicuro(doc.filename)}</strong>: ${testoHtmlSicuro(doc.kind || "PDF")} ${testoHtmlSicuro(doc.commodity || "")} - ${testoHtmlSicuro(doc.fornitore || "fornitore da verificare")} (${review})${ocrStatus}${aiStatus}</li>`;
   }).join("");
 
   if (merged?.merge_blocked) {
@@ -8125,11 +8171,11 @@ function renderPdfSummary(documents, merged) {
     pdfBlockedAutofillLine(merged.data_contract),
   ].filter(Boolean).join(" | ");
 
-  const ocrReviewTargets = Number(merged.data_contract?.autofill_plan?.review_target_count || 0);
+  const assistedReviewTargets = Number(merged.data_contract?.autofill_plan?.review_target_count || 0);
   return `
     <span>Documenti analizzati:</span>
     <ul style="margin:6px 0 10px 18px;">${rows}</ul>
-    <span><strong>Dati letti:</strong> ${mergedRows || "nessun dato sufficientemente affidabile; completa il modulo manualmente."}<br><small>Nel modulo saranno inseriti soltanto i campi completi ammessi dal contratto dati, dopo la tua conferma.${ocrReviewTargets ? " I dati OCR compariranno nell’anteprima deselezionati e dovrai sceglierli esplicitamente." : ""}</small></span>
+    <span><strong>Dati letti:</strong> ${mergedRows || "nessun dato sufficientemente affidabile; completa il modulo manualmente."}<br><small>Nel modulo saranno inseriti soltanto i campi completi ammessi dal contratto dati, dopo la tua conferma.${assistedReviewTargets ? " I dati ottenuti tramite OCR o lettura visuale AI compariranno nell’anteprima deselezionati e dovrai sceglierli esplicitamente." : ""}</small></span>
   `;
 }
 
@@ -8141,6 +8187,8 @@ window.azzeraPdfEModulo = function azzeraPdfEModulo() {
   LEAD_STATE.pdfDocuments = [];
   LEAD_STATE.pdfAutofill = { previewedAt: "", appliedFields: [], skippedFields: [] };
   pdfAutofillClearManualFields();
+  const aiConsent = document.getElementById("pdf-ai-fallback-consent");
+  if (aiConsent) aiConsent.checked = false;
   LEAD_STATE.comparisonScope = "unknown";
   LEAD_STATE.gasDecision = "";
   LEAD_STATE.electricityDecision = "";
@@ -9320,7 +9368,7 @@ if (document.readyState === "loading") {
             <button type="button" id="pdf-autofill-clear-selection">Deseleziona tutti</button>
         </div>
         <div class="pdf-autofill-list" id="pdf-autofill-preview-list"></div>
-        <div class="pdf-autofill-note">I dati OCR sono sempre deselezionati all’apertura e richiedono una scelta esplicita. Un valore manuale differente resta protetto finché non ne autorizzi singolarmente la sostituzione.</div>
+        <div class="pdf-autofill-note">I dati OCR sono sempre deselezionati all’apertura. Anche i dati della lettura visuale AI restano deselezionati e richiedono una scelta esplicita. Un valore manuale differente resta protetto finché non ne autorizzi singolarmente la sostituzione.</div>
         <div class="pdf-autofill-actions">
             <button type="button" id="pdf-autofill-cancel">Annulla, non modificare il modulo</button>
             <button type="button" class="is-primary" id="pdf-autofill-apply">Applica i campi selezionati</button>

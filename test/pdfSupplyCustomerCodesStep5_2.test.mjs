@@ -75,7 +75,7 @@ test("Step 5.2 mette il codice cliente dentro la singola utenza del contratto", 
     code: "192693025",
     pod: "IT001E51344941",
   });
-  assert.equal(luce.data_contract.contract_version, "1.1.0");
+  assert.equal(luce.data_contract.contract_version, "1.2.0");
   assert.equal(luce.data_contract.fields.codice_cliente_luce.normalized_value, "192693025");
   assert.equal(luce.data_contract.fields.codice_cliente_luce.autofill.allowed, true);
   assert.equal(luce.data_contract.fields.codice_cliente_gas.status, "non_applicabile");

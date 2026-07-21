@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import formidable from "formidable";
 import { json, method, requireAllowedOrigin } from "../lib/http.js";
 import { extractPdfWithControlledOcr } from "../lib/pdfExtractWithOcr.js";
+import { applyControlledPdfAiFallback } from "../lib/pdfAiFallback.js";
 import { archivePdfAnalysis } from "../lib/pdfArchive.js";
 import { runPdfReaderShadow } from "../lib/pdfReaderShadow.js";
 import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
@@ -101,8 +102,15 @@ export default async function handler(req, res) {
     }
     validPdf = true;
 
-    const normalized = await extractPdfWithControlledOcr(temporaryFilePath, {
+    const aiFallbackConsent = /^(?:1|true|yes|on)$/i.test(String(fieldValue(fields.aiFallbackConsent) || "").trim());
+    const ocrNormalized = await extractPdfWithControlledOcr(temporaryFilePath, {
       filename: fileMetadata.originalFilename,
+      deadlineAt: analysisDeadlineAt,
+    });
+    const normalized = await applyControlledPdfAiFallback(temporaryFilePath, {
+      filename: fileMetadata.originalFilename,
+      normalized: ocrNormalized,
+      consentGranted: aiFallbackConsent,
       deadlineAt: analysisDeadlineAt,
     });
     const canRunShadow = analysisDeadlineAt - Date.now() >= 3_000;
