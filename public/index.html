@@ -7353,10 +7353,11 @@ function pdfSafeAutofillValue(data, field) {
 
 function pdfPreviewAutofillEntry(data, field) {
   const entry = pdfContractFieldEntry(data, field);
-  if (!entry || entry.status !== "completo") return null;
-  if (entry.autofill?.allowed) return { entry, review_required: false };
+  if (!entry) return null;
+  if (entry.autofill?.allowed && entry.status === "completo") return { entry, review_required: false };
   const assistedReview = Boolean(
-    entry.autofill?.review_selectable
+    ["completo", "da_verificare"].includes(entry.status)
+    && entry.autofill?.review_selectable
     && entry.autofill?.requires_explicit_selection
     && ["pdf_image_ocr", "pdf_visual_ai"].includes(entry.provenance?.origin)
   );
@@ -7749,7 +7750,7 @@ function rebuildMergedPdfAutofillPlan(contract) {
         unit: entry.unit || null,
         requires_user_confirmation: true,
       }));
-    } else if (entry.autofill.review_selectable && entry.status === "completo") {
+    } else if (entry.autofill.review_selectable && ["completo", "da_verificare"].includes(entry.status)) {
       targets.forEach((target) => reviewFields.push({
         source_field: entry.field,
         target,
