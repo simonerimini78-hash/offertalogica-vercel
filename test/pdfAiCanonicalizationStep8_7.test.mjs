@@ -115,7 +115,7 @@ async function runVisual(t, output) {
 test("il nome offerta generico viene canonicalizzato nel campo luce del modulo", async (t) => {
   const result = await runVisual(t, visualOutput());
 
-  assert.equal(PDF_AI_FALLBACK_PIPELINE_VERSION, "v106.8-ai-review-provenance-1");
+  assert.equal(PDF_AI_FALLBACK_PIPELINE_VERSION, "v106.8.1-timeout-recovery-1");
   assert.equal(result.nome_offerta, "Soluzione Luce Flexi");
   assert.equal(result.nome_offerta_luce, "Soluzione Luce Flexi");
   assert.equal(result.field_status.nome_offerta_luce.status, "da_verificare");
@@ -182,7 +182,7 @@ test("il prompt visuale richiede checklist identità e campi offerta specifici p
   });
   const prompt = request.input[0].content;
 
-  assert.equal(PDF_AI_ADAPTER_VERSION, "2.4.0");
+  assert.equal(PDF_AI_ADAPTER_VERSION, "2.4.1");
   assert.match(prompt, /identity checklist/i);
   assert.match(prompt, /11-digit P\.IVA/i);
   assert.match(prompt, /nome_offerta_luce/);

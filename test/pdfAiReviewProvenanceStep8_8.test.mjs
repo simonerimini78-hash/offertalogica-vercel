@@ -124,7 +124,7 @@ async function runVisual(t) {
 test("i dati visuali validi restano da verificare in field_status, readiness e completezza", async (t) => {
   const result = await runVisual(t);
 
-  assert.equal(PDF_AI_FALLBACK_PIPELINE_VERSION, "v106.8-ai-review-provenance-1");
+  assert.equal(PDF_AI_FALLBACK_PIPELINE_VERSION, "v106.8.1-timeout-recovery-1");
   for (const field of ["fornitore", "customer_type", "intestatario", "codice_fiscale", "codice_cliente", "indirizzo_fornitura_luce", "pod", "potenza_impegnata_kw", "potenza_disponibile_kw", "nome_offerta_luce"]) {
     assert.equal(result.field_status[field].status, "da_verificare", field);
     assert.equal(result.field_status[field].reason, "ai_visuale_da_confermare", field);
@@ -204,7 +204,7 @@ test("versioni, prompt e pannello espongono la distinzione del codice prodotto",
   });
   const prompt = request.input[0].content;
 
-  assert.equal(PDF_AI_ADAPTER_VERSION, "2.4.0");
+  assert.equal(PDF_AI_ADAPTER_VERSION, "2.4.1");
   assert.equal(PDF_CANDIDATE_CONTRACT_VERSION, "1.0.3");
   assert.equal(PDF_DATA_CONTRACT_VERSION, "1.3.0");
   assert.equal(PDF_FIELD_VALIDATION_VERSION, "v106.8-ai-review-status-1");

@@ -102,7 +102,7 @@ test("le classificazioni visuali al 90% vengono normalizzate per il modulo", asy
     transport: async () => ({ id: "resp_step8_6", output_text: JSON.stringify(actualLikeOutput()) }),
   });
 
-  assert.equal(PDF_AI_FALLBACK_PIPELINE_VERSION, "v106.8-ai-review-provenance-1");
+  assert.equal(PDF_AI_FALLBACK_PIPELINE_VERSION, "v106.8.1-timeout-recovery-1");
   assert.equal(result.ai.applied, true);
   assert.equal(result.kind, "bolletta");
   assert.equal(result.commodity, "luce");
