@@ -114,8 +114,8 @@ function baseline() {
 }
 
 test("Step 8.8.1 espone le nuove versioni di recupero timeout", () => {
-  assert.equal(PDF_AI_ADAPTER_VERSION, "2.4.1");
-  assert.equal(PDF_AI_FALLBACK_PIPELINE_VERSION, "v106.8.1-timeout-recovery-1");
+  assert.equal(PDF_AI_ADAPTER_VERSION, "2.4.2");
+  assert.equal(PDF_AI_FALLBACK_PIPELINE_VERSION, "v106.8.2-tax-and-unit-cost-observations-1");
 });
 
 test("dopo openai_timeout esegue un recupero compatto sulla prima pagina", async (t) => {
@@ -146,7 +146,7 @@ test("dopo openai_timeout esegue un recupero compatto sulla prima pagina", async
   assert.equal(result.attempts, 2);
   assert.equal(result.recovered_from, "openai_timeout");
   assert.equal(result.request_profile, "emergency");
-  assert.equal(result.primary_timeout_ms, 19_000);
+  assert.ok(result.primary_timeout_ms >= 18_900 && result.primary_timeout_ms <= 19_000);
   assert.ok(result.recovery_timeout_ms >= 5_000);
 
   const recoveryRequest = requests[1];

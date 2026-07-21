@@ -102,7 +102,7 @@ test("le classificazioni visuali al 90% vengono normalizzate per il modulo", asy
     transport: async () => ({ id: "resp_step8_6", output_text: JSON.stringify(actualLikeOutput()) }),
   });
 
-  assert.equal(PDF_AI_FALLBACK_PIPELINE_VERSION, "v106.8.1-timeout-recovery-1");
+  assert.equal(PDF_AI_FALLBACK_PIPELINE_VERSION, "v106.8.2-tax-and-unit-cost-observations-1");
   assert.equal(result.ai.applied, true);
   assert.equal(result.kind, "bolletta");
   assert.equal(result.commodity, "luce");
@@ -154,7 +154,7 @@ test("il contratto crea la fornitura luce congrua senza usare consumo bimestrale
 test("la commodity viene sintetizzata dai metadati visuali quando manca il candidato esplicito", () => {
   const candidates = aiPdfToCandidates(actualLikeOutput({ includeCommodityCandidate: false }), "test-model");
   const commodity = candidates.find((item) => item.field === "commodity");
-  assert.equal(PDF_CANDIDATE_CONTRACT_VERSION, "1.0.3");
+  assert.equal(PDF_CANDIDATE_CONTRACT_VERSION, "1.0.4");
   assert.equal(commodity?.normalized_value, "electricity");
   assert.equal(commodity?.semantic_role, "classification");
   assert.equal(commodity?.confidence, 94);
