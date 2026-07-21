@@ -8215,6 +8215,8 @@ function collectPdfVisualReadingEntries(doc = {}) {
   const add = (entry, accepted) => {
     const value = pdfVisualCandidateValue(entry);
     if (!value) return;
+    const confidence = Number(entry.confidence);
+    if (!accepted && Number.isFinite(confidence) && confidence < 70) return;
     const field = String(entry.field || "").trim();
     const page = Number(entry.page || 0);
     const key = `${field}|${value.toLowerCase()}|${page}`;
@@ -8225,7 +8227,7 @@ function collectPdfVisualReadingEntries(doc = {}) {
       label: pdfVisualFieldLabel(field, entry.label),
       value,
       page,
-      confidence: Number(entry.confidence),
+      confidence,
       evidence: String(entry.evidence || entry.source_snippet || "").trim(),
       accepted,
       reason: String(entry.reason || ""),
@@ -8235,7 +8237,21 @@ function collectPdfVisualReadingEntries(doc = {}) {
   Object.entries(doc.ai.field_meta || {}).forEach(([field, meta]) => add({ field, ...(meta || {}) }, true));
   (doc.ai.rejected_fields || []).forEach((entry) => add(entry || {}, false));
 
-  return entries.sort((left, right) => {
+  const preferredAddressField = doc.commodity === "luce"
+    ? "indirizzo_fornitura_luce"
+    : doc.commodity === "gas"
+      ? "indirizzo_fornitura_gas"
+      : null;
+  const preferredAddressValues = new Set(entries
+    .filter((entry) => entry.field === preferredAddressField)
+    .map((entry) => `${entry.value.toLowerCase()}|${entry.page}`));
+  const visibleEntries = entries.filter((entry) => !(
+    preferredAddressField
+    && entry.field === "indirizzo_fornitura"
+    && preferredAddressValues.has(`${entry.value.toLowerCase()}|${entry.page}`)
+  ));
+
+  return visibleEntries.sort((left, right) => {
     if (left.accepted !== right.accepted) return left.accepted ? -1 : 1;
     if (left.page !== right.page) return left.page - right.page;
     return left.label.localeCompare(right.label, "it");
