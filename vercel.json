@@ -1,6 +1,10 @@
 {
   "version": 2,
   "functions": {
+    "api/analyze-pdf.js": {
+      "maxDuration": 60,
+      "includeFiles": "{node_modules/@hyzyla/pdfium/dist/pdfium.wasm,node_modules/@tesseract.js-data/ita/4.0.0_best_int/ita.traineddata.gz,node_modules/tesseract.js/src/worker-script/node/**,node_modules/tesseract.js-core/**}"
+    },
     "api/*.js": {
       "maxDuration": 30
     }

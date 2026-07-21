@@ -308,6 +308,7 @@
         .pdf-autofill-list { display: grid; gap: 9px; }
         .pdf-autofill-row { display: grid; grid-template-columns: minmax(190px, .9fr) minmax(160px, 1fr) minmax(160px, 1fr); gap: 12px; align-items: center; border: 1px solid #dbe3ee; border-radius: 10px; padding: 12px; background: #fff; }
         .pdf-autofill-row.is-protected { border-color: #f59e0b; background: #fffbeb; }
+        .pdf-autofill-row.is-review { border-color: #60a5fa; background: #eff6ff; }
         .pdf-autofill-row.is-same { background: #f8fafc; }
         .pdf-autofill-choice { display: flex; align-items: flex-start; gap: 9px; font-weight: 800; color: var(--text-color); }
         .pdf-autofill-choice input { width: 18px; height: 18px; margin-top: 1px; flex: 0 0 auto; }
@@ -316,6 +317,7 @@
         .pdf-autofill-value strong { display: block; overflow-wrap: anywhere; color: var(--text-color); font-size: 13px; }
         .pdf-autofill-status { display: inline-flex; margin-top: 5px; padding: 3px 7px; border-radius: 999px; background: #eef2ff; color: #3730a3; font-size: 11px; font-weight: 800; }
         .pdf-autofill-row.is-protected .pdf-autofill-status { background: #fef3c7; color: #92400e; }
+        .pdf-autofill-row.is-review .pdf-autofill-status { background: #dbeafe; color: #1d4ed8; }
         .pdf-autofill-note { margin-top: 13px; padding: 10px 12px; border-radius: 9px; background: #f8fafc; color: var(--text-muted); font-size: 12px; line-height: 1.45; }
         .pdf-autofill-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
         .pdf-autofill-actions button { min-height: 44px; border-radius: 9px; border: 1px solid var(--border); padding: 10px 15px; font-weight: 850; cursor: pointer; }
@@ -7207,6 +7209,22 @@ function pdfSafeAutofillValue(data, field) {
   return entry.normalized_value;
 }
 
+function pdfPreviewAutofillEntry(data, field) {
+  const entry = pdfContractFieldEntry(data, field);
+  if (!entry || entry.status !== "completo") return null;
+  if (entry.autofill?.allowed) return { entry, review_required: false };
+  const ocrReview = Boolean(
+    entry.autofill?.review_selectable
+    && entry.autofill?.requires_explicit_selection
+    && entry.provenance?.origin === "pdf_image_ocr"
+  );
+  return ocrReview ? { entry, review_required: true } : null;
+}
+
+function pdfPreviewAutofillValue(data, field) {
+  return pdfPreviewAutofillEntry(data, field)?.entry?.normalized_value;
+}
+
 
 const PDF_AUTOFILL_FIELD_IDS = Object.freeze([
   "nome-fornitore-att", "nome-fornitore-gas-att", "nome-fornitore-nuov",
@@ -7260,7 +7278,8 @@ function pdfAutofillValuesEqual(left, right, mode = "text") {
 }
 
 function pdfAutofillAddSpec(specs, data, field, label, targetIds, options = {}) {
-  const value = pdfSafeAutofillValue(data, field);
+  const selection = pdfPreviewAutofillEntry(data, field);
+  const value = selection?.entry?.normalized_value;
   if (value === undefined) return;
   specs.push({
     id: `${field}-${targetIds.join("-")}`,
@@ -7274,6 +7293,8 @@ function pdfAutofillAddSpec(specs, data, field, label, targetIds, options = {}) 
     input_id: options.input_id || targetIds[0],
     unit_id: options.unit_id || null,
     transform: options.transform || null,
+    review_required: Boolean(selection.review_required),
+    source_origin: selection.entry?.provenance?.origin || "pdf_native_text",
   });
 }
 
@@ -7284,7 +7305,7 @@ function buildPdfAutofillSpecs(data, customerType = "privato") {
 
   if (customerType === "business") {
     add("intestatario", "Ragione sociale / intestatario", ["business-ragione"]);
-    const taxId = pdfSafeAutofillValue(data, "codice_fiscale");
+    const taxId = pdfPreviewAutofillValue(data, "codice_fiscale");
     if (/^\d{11}$/.test(String(taxId || ""))) add("codice_fiscale", "Partita IVA", ["business-piva"]);
     add("fornitore_luce", "Fornitore luce", ["business-fornitore"]);
     add("fornitore_gas", "Fornitore gas", ["business-fornitore-gas"]);
@@ -7299,8 +7320,8 @@ function buildPdfAutofillSpecs(data, customerType = "privato") {
   }
 
   if (data.kind === "scheda_offerta") {
-    const providerLuce = pdfSafeAutofillValue(data, "fornitore_luce");
-    const providerGas = pdfSafeAutofillValue(data, "fornitore_gas");
+    const providerLuce = pdfPreviewAutofillValue(data, "fornitore_luce");
+    const providerGas = pdfPreviewAutofillValue(data, "fornitore_gas");
     if (providerLuce !== undefined && (providerGas === undefined || providerLuce === providerGas)) {
       add("fornitore_luce", "Fornitore della proposta", ["nome-fornitore-nuov"], { transform: "provider" });
     } else if (providerGas !== undefined && providerLuce === undefined) {
@@ -7314,8 +7335,8 @@ function buildPdfAutofillSpecs(data, customerType = "privato") {
     add("quota_fissa_vendita_gas_eur_anno", "Quota fissa gas della proposta", ["in-gas-fisso-nuov", "in-gas-fisso-nuov-unita"], {
       kind: "fixed_annual", compare_mode: "fixed_annual", unit: "€/anno", input_id: "in-gas-fisso-nuov", unit_id: "in-gas-fisso-nuov-unita",
     });
-    const priceTypeField = pdfSafeAutofillValue(data, "tipo_prezzo_luce") !== undefined ? "tipo_prezzo_luce" : "tipo_prezzo_gas";
-    const priceType = pdfSafeAutofillValue(data, priceTypeField);
+    const priceTypeField = pdfPreviewAutofillValue(data, "tipo_prezzo_luce") !== undefined ? "tipo_prezzo_luce" : "tipo_prezzo_gas";
+    const priceType = pdfPreviewAutofillValue(data, priceTypeField);
     if (["fisso", "variabile"].includes(priceType)) add(priceTypeField, "Tipo prezzo", ["master-luce-tipo"]);
     return specs;
   }
@@ -7333,8 +7354,8 @@ function buildPdfAutofillSpecs(data, customerType = "privato") {
   add("quota_fissa_vendita_gas_eur_anno", "Quota fissa gas attuale", ["in-gas-fisso-att", "in-gas-fisso-att-unita"], {
     kind: "fixed_annual", compare_mode: "fixed_annual", unit: "€/anno", input_id: "in-gas-fisso-att", unit_id: "in-gas-fisso-att-unita",
   });
-  const priceTypeField = pdfSafeAutofillValue(data, "tipo_prezzo_luce") !== undefined ? "tipo_prezzo_luce" : "tipo_prezzo_gas";
-  const priceType = pdfSafeAutofillValue(data, priceTypeField);
+  const priceTypeField = pdfPreviewAutofillValue(data, "tipo_prezzo_luce") !== undefined ? "tipo_prezzo_luce" : "tipo_prezzo_gas";
+  const priceType = pdfPreviewAutofillValue(data, priceTypeField);
   if (["fisso", "variabile"].includes(priceType)) add(priceTypeField, "Tipo prezzo", ["master-luce-tipo"]);
   return specs;
 }
@@ -7412,9 +7433,17 @@ function buildPdfAutofillPreviewRows(data, customerType = "privato") {
       has_current_value: current.has_value,
       manually_protected: protectedManual,
       same_value: same,
-      selected: !same && !protectedManual,
+      selected: !same && !protectedManual && !spec.review_required,
       disabled: same,
-      status: same ? "gia_presente" : protectedManual ? "valore_manuale_protetto" : current.has_value ? "valore_predefinito_aggiornabile" : "campo_vuoto",
+      status: same
+        ? "gia_presente"
+        : protectedManual
+          ? "valore_manuale_protetto"
+          : spec.review_required
+            ? "ocr_da_verificare"
+            : current.has_value
+              ? "valore_predefinito_aggiornabile"
+              : "campo_vuoto",
     };
   });
 }
@@ -7424,6 +7453,7 @@ function pdfAutofillStatusLabel(status) {
     gia_presente: "Già presente: nessuna modifica",
     valore_manuale_protetto: "Valore manuale protetto",
     valore_predefinito_aggiornabile: "Valore esistente non modificato manualmente",
+    ocr_da_verificare: "OCR da verificare e selezionare",
     campo_vuoto: "Campo vuoto",
   };
   return labels[status] || status;
@@ -7433,12 +7463,12 @@ function renderPdfAutofillPreviewRows() {
   const list = document.getElementById("pdf-autofill-preview-list");
   if (!list) return;
   if (!PDF_AUTOFILL_PREVIEW_ROWS.length) {
-    list.innerHTML = '<div class="pdf-autofill-note">Non ci sono campi nuovi e sicuri da inserire nel modulo.</div>';
+    list.innerHTML = '<div class="pdf-autofill-note">Non ci sono campi disponibili per l’inserimento. I valori incompleti, in conflitto o non supportati restano esclusi.</div>';
     aggiornaPulsanteAnteprimaPdf();
     return;
   }
   list.innerHTML = PDF_AUTOFILL_PREVIEW_ROWS.map((row, index) => `
-    <label class="pdf-autofill-row${row.manually_protected ? " is-protected" : ""}${row.same_value ? " is-same" : ""}">
+    <label class="pdf-autofill-row${row.manually_protected ? " is-protected" : ""}${row.review_required && !row.manually_protected && !row.same_value ? " is-review" : ""}${row.same_value ? " is-same" : ""}">
       <span class="pdf-autofill-choice">
         <input type="checkbox" data-pdf-autofill-index="${index}" ${row.selected ? "checked" : ""} ${row.disabled ? "disabled" : ""}>
         <span>${testoHtmlSicuro(row.label)}<span class="pdf-autofill-status">${testoHtmlSicuro(pdfAutofillStatusLabel(row.status))}</span></span>
@@ -7475,9 +7505,15 @@ function apriAnteprimaAutocompilazionePdf(data) {
   const copy = document.getElementById("pdf-autofill-preview-copy");
   if (!backdrop) return Promise.resolve(PDF_AUTOFILL_PREVIEW_ROWS.filter((row) => row.selected && !row.disabled));
   const protectedCount = PDF_AUTOFILL_PREVIEW_ROWS.filter((row) => row.manually_protected).length;
-  if (copy) copy.textContent = protectedCount
-    ? `${protectedCount} ${protectedCount === 1 ? "campo contiene" : "campi contengono"} un valore inserito manualmente e ${protectedCount === 1 ? "resta" : "restano"} deselezionato per sicurezza.`
-    : "Controlla i valori e scegli quali copiare nel modulo. Nessun campo viene modificato finché non premi Applica.";
+  const ocrReviewCount = PDF_AUTOFILL_PREVIEW_ROWS.filter((row) => row.review_required && !row.same_value).length;
+  if (copy) {
+    const messages = [];
+    if (ocrReviewCount) messages.push(`${ocrReviewCount} ${ocrReviewCount === 1 ? "campo proviene" : "campi provengono"} dall'OCR: ${ocrReviewCount === 1 ? "è deselezionato" : "sono deselezionati"} finché non li scegli esplicitamente.`);
+    if (protectedCount) messages.push(`${protectedCount} ${protectedCount === 1 ? "campo contiene" : "campi contengono"} un valore inserito manualmente e ${protectedCount === 1 ? "resta" : "restano"} deselezionato per sicurezza.`);
+    copy.textContent = messages.length
+      ? `${messages.join(" ")} Controlla i valori prima di applicarli.`
+      : "Controlla i valori e scegli quali copiare nel modulo. Nessun campo viene modificato finché non premi Applica.";
+  }
   renderPdfAutofillPreviewRows();
   backdrop.style.display = "flex";
   LEAD_STATE.pdfAutofill = {
@@ -7489,6 +7525,7 @@ function apriAnteprimaAutocompilazionePdf(data) {
   trackEvent("pdf_autofill_preview_opened", {
     fieldCount: PDF_AUTOFILL_PREVIEW_ROWS.length,
     protectedCount,
+    ocrReviewCount,
   });
   window.setTimeout(() => document.getElementById("pdf-autofill-apply")?.focus(), 30);
   return new Promise((resolve) => { PDF_AUTOFILL_PREVIEW_RESOLVE = resolve; });
@@ -7552,6 +7589,7 @@ function applicaRigheAutocompilazionePdf(rows) {
 function rebuildMergedPdfAutofillPlan(contract) {
   if (!contract?.fields) return contract;
   const safeFields = [];
+  const reviewFields = [];
   const blockedFields = [];
   Object.values(contract.fields).forEach((entry) => {
     const targets = Array.isArray(entry?.autofill?.targets) ? entry.autofill.targets : [];
@@ -7564,6 +7602,17 @@ function rebuildMergedPdfAutofillPlan(contract) {
         value: entry.normalized_value,
         unit: entry.unit || null,
         requires_user_confirmation: true,
+      }));
+    } else if (entry.autofill.review_selectable && entry.status === "completo") {
+      targets.forEach((target) => reviewFields.push({
+        source_field: entry.field,
+        target,
+        use: entry.autofill.use,
+        value: entry.normalized_value,
+        unit: entry.unit || null,
+        requires_user_confirmation: true,
+        requires_explicit_selection: true,
+        provenance: entry.provenance?.origin || null,
       }));
     } else if (entry.status !== "non_applicabile" && entry.autofill.reason !== "codici_specifici_per_utenza") {
       blockedFields.push({
@@ -7578,8 +7627,10 @@ function rebuildMergedPdfAutofillPlan(contract) {
   contract.autofill_plan = {
     ...(contract.autofill_plan || {}),
     safe_fields: safeFields,
+    review_fields: reviewFields,
     blocked_fields: blockedFields,
     safe_target_count: safeFields.length,
+    review_target_count: reviewFields.length,
     blocked_field_count: blockedFields.length,
   };
   return contract;
@@ -7596,7 +7647,8 @@ function mergePdfDataContract(target, source) {
     const existing = output.fields[field];
     const existingHasValue = pdfContractHasValue(existing?.normalized_value);
     const incomingHasValue = pdfContractHasValue(incoming?.normalized_value);
-    const incomingStronger = Boolean(incoming?.autofill?.allowed && !existing?.autofill?.allowed);
+    const autofillStrength = (entry) => entry?.autofill?.allowed ? 2 : entry?.autofill?.review_selectable ? 1 : 0;
+    const incomingStronger = autofillStrength(incoming) > autofillStrength(existing);
     const conflictingValues = existingHasValue && incomingHasValue
       && JSON.stringify(existing.normalized_value) !== JSON.stringify(incoming.normalized_value);
     if (conflictingValues && field === "codice_cliente") {
@@ -7610,6 +7662,8 @@ function mergePdfDataContract(target, source) {
         autofill: {
           ...(existing.autofill || {}),
           allowed: false,
+          review_selectable: false,
+          requires_explicit_selection: false,
           reason: "codici_specifici_per_utenza",
         },
       };
@@ -7622,6 +7676,8 @@ function mergePdfDataContract(target, source) {
         autofill: {
           ...(existing.autofill || {}),
           allowed: false,
+          review_selectable: false,
+          requires_explicit_selection: false,
           reason: "conflitto_tra_documenti",
         },
       };
@@ -7949,11 +8005,18 @@ function mergePdfDocuments(documents) {
 function renderPdfSummary(documents, merged) {
   const rows = documents.map((doc) => {
     if (doc.error) return `<li><strong>${testoHtmlSicuro(doc.filename)}</strong>: ${testoHtmlSicuro(doc.error)}. Puoi cambiare PDF oppure continuare con la compilazione manuale.</li>`;
+    const ocrStatus = doc.ocr?.applied
+      ? " OCR applicato: tutti i dati ricavati restano da controllare."
+      : doc.ocr?.attempted && doc.ocr?.reason === "ocr_error"
+        ? " OCR avviato ma non disponibile nel deployment."
+        : doc.ocr?.attempted && doc.ocr?.reason === "no_material_improvement"
+          ? " OCR eseguito senza dati sufficientemente affidabili."
+          : "";
     if (!risultatoPdfUtilizzabile(doc)) {
-      return `<li><strong>${testoHtmlSicuro(doc.filename)}</strong>: documento non riconosciuto o privo di dati sufficientemente affidabili.</li>`;
+      return `<li><strong>${testoHtmlSicuro(doc.filename)}</strong>: documento non riconosciuto o privo di dati sufficientemente affidabili.${ocrStatus}</li>`;
     }
     const review = doc.confidence === "high" ? "affidabilità alta" : "da controllare";
-    return `<li><strong>${testoHtmlSicuro(doc.filename)}</strong>: ${testoHtmlSicuro(doc.kind || "PDF")} ${testoHtmlSicuro(doc.commodity || "")} - ${testoHtmlSicuro(doc.fornitore || "fornitore da verificare")} (${review})</li>`;
+    return `<li><strong>${testoHtmlSicuro(doc.filename)}</strong>: ${testoHtmlSicuro(doc.kind || "PDF")} ${testoHtmlSicuro(doc.commodity || "")} - ${testoHtmlSicuro(doc.fornitore || "fornitore da verificare")} (${review})${ocrStatus}</li>`;
   }).join("");
 
   if (merged?.merge_blocked) {
@@ -8062,10 +8125,11 @@ function renderPdfSummary(documents, merged) {
     pdfBlockedAutofillLine(merged.data_contract),
   ].filter(Boolean).join(" | ");
 
+  const ocrReviewTargets = Number(merged.data_contract?.autofill_plan?.review_target_count || 0);
   return `
     <span>Documenti analizzati:</span>
     <ul style="margin:6px 0 10px 18px;">${rows}</ul>
-    <span><strong>Dati letti:</strong> ${mergedRows || "nessun dato sufficientemente affidabile; completa il modulo manualmente."}<br><small>Nel modulo saranno inseriti soltanto i campi completi ammessi dal contratto dati, dopo la tua conferma.</small></span>
+    <span><strong>Dati letti:</strong> ${mergedRows || "nessun dato sufficientemente affidabile; completa il modulo manualmente."}<br><small>Nel modulo saranno inseriti soltanto i campi completi ammessi dal contratto dati, dopo la tua conferma.${ocrReviewTargets ? " I dati OCR compariranno nell’anteprima deselezionati e dovrai sceglierli esplicitamente." : ""}</small></span>
   `;
 }
 
@@ -9256,7 +9320,7 @@ if (document.readyState === "loading") {
             <button type="button" id="pdf-autofill-clear-selection">Deseleziona tutti</button>
         </div>
         <div class="pdf-autofill-list" id="pdf-autofill-preview-list"></div>
-        <div class="pdf-autofill-note">Un campo con valore manuale differente viene lasciato deselezionato. Puoi comunque selezionarlo singolarmente per autorizzarne esplicitamente la sostituzione.</div>
+        <div class="pdf-autofill-note">I dati OCR sono sempre deselezionati all’apertura e richiedono una scelta esplicita. Un valore manuale differente resta protetto finché non ne autorizzi singolarmente la sostituzione.</div>
         <div class="pdf-autofill-actions">
             <button type="button" id="pdf-autofill-cancel">Annulla, non modificare il modulo</button>
             <button type="button" class="is-primary" id="pdf-autofill-apply">Applica i campi selezionati</button>
