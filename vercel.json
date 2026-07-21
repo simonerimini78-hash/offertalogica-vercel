@@ -1,5 +1,6 @@
 {
   "version": 2,
+  "buildCommand": "node tools/patch-upload-intro.mjs",
   "functions": {
     "api/analyze-pdf.js": {
       "maxDuration": 60,
