@@ -7951,6 +7951,12 @@ function pdfReadinessFieldsLine(label, fields) {
   return values.length ? `${label}: ${values.join(", ")}` : "";
 }
 
+function pdfConsultantComparisonLine(label, entry) {
+  if (!entry?.consultant_evaluation_available) return "";
+  const missing = pdfReadinessFieldsLine("da integrare", entry.manual_input_required || entry.missing || []);
+  return `${label}: valutabile con consulente${missing ? ` (${missing})` : ""}`;
+}
+
 function pdfBlockedAutofillLine(contract) {
   const blocked = (contract?.autofill_plan?.blocked_fields || [])
     .filter((item) => !["valore_assente", "campo_non_mappato", "non_applicabile", "codici_specifici_per_utenza"].includes(item?.reason));
@@ -8149,7 +8155,7 @@ function mergePdfDocuments(documents) {
   return merged;
 }
 
-const PDF_VISUAL_READING_PANEL_VERSION = "v106.8-review-provenance-panel-1";
+const PDF_VISUAL_READING_PANEL_VERSION = "v106.8.4-business-consultant-panel-1";
 
 const PDF_VISUAL_FIELD_LABELS = {
   kind: "Tipo documento",
@@ -8207,6 +8213,7 @@ function pdfVisualObservationLabel(reason = "") {
     confidence_below_threshold: "Letto, ma non usato nel modulo",
     value_or_unit_not_safe: "Letto, ma periodo o significato da verificare",
     average_unit_cost_not_contract_price: "Costo medio letto, non prezzo contrattuale",
+    billing_period_consumption_not_annual: "Consumo del periodo letto, non consumo annuo",
     semantic_role_not_allowed: "Letto come informazione visiva",
     unknown_field: "Letto come informazione aggiuntiva",
     conflicting_ai_values: "Lettura discordante tra più punti",
@@ -8429,8 +8436,10 @@ function renderPdfSummary(documents, merged) {
     merged.sconti_offerta_gas?.length ? `Sconti gas: ${testoHtmlSicuro(merged.sconti_offerta_gas.join(", "))}` : "",
     !luceType && !gasType && merged.tipo_prezzo ? `Tipo prezzo: ${testoHtmlSicuro(merged.tipo_prezzo)}` : "",
     !luceIndex && !gasIndex && merged.indice_riferimento ? `Indice: ${testoHtmlSicuro(merged.indice_riferimento)}` : "",
-    pdfReadinessLine("Stato confronto luce", merged.readiness?.confronto?.luce),
-    pdfReadinessLine("Stato confronto gas", merged.readiness?.confronto?.gas),
+    pdfReadinessLine("Stato confronto luce automatico", merged.readiness?.confronto?.luce),
+    pdfConsultantComparisonLine("Percorso aziende luce", merged.readiness?.confronto?.luce),
+    pdfReadinessLine("Stato confronto gas automatico", merged.readiness?.confronto?.gas),
+    pdfConsultantComparisonLine("Percorso aziende gas", merged.readiness?.confronto?.gas),
     pdfReadinessLine("Stato dati bolletta luce", merged.readiness?.dati_bolletta?.luce),
     pdfReadinessFieldsLine("Dati bolletta mancanti luce", merged.readiness?.dati_bolletta?.luce?.missing),
     pdfReadinessLine("Stato dati bolletta gas", merged.readiness?.dati_bolletta?.gas),
@@ -8448,7 +8457,7 @@ function renderPdfSummary(documents, merged) {
     <span>Documenti analizzati:</span>
     <ul style="margin:6px 0 10px 18px;">${rows}</ul>
     ${visualReadingPanels}
-    <span><strong>Dati letti:</strong> ${mergedRows || "nessun dato sufficientemente affidabile; completa il modulo manualmente."}<br><small>Nel modulo saranno inseriti soltanto i campi completi ammessi dal contratto dati, dopo la tua conferma.${assistedReviewTargets ? " I dati ottenuti tramite OCR o lettura visuale AI compariranno nell’anteprima deselezionati e dovrai sceglierli esplicitamente." : ""}</small></span>
+    <span><strong>Dati letti:</strong> ${mergedRows || "nessun dato sufficientemente affidabile; completa il modulo manualmente."}<br><small>Nel modulo saranno proposti soltanto i campi ammessi dal contratto dati, sempre dopo la tua conferma.${assistedReviewTargets ? " I dati ottenuti tramite OCR o lettura visuale AI compariranno nell’anteprima deselezionati e dovrai sceglierli esplicitamente." : ""} Per le aziende, se consumo annuo o prezzo contrattuale non sono presenti, il confronto automatico resta incompleto ma la pratica può proseguire verso una valutazione con consulente.</small></span>
   `;
 }
 

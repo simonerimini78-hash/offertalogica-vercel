@@ -52,7 +52,7 @@ function aiOutput() {
       candidate("kind", "bill", null, null, "classification", "Bolletta per la fornitura di energia elettrica"),
       candidate("commodity", "electricity", null, null, "classification", "Energia elettrica"),
       candidate("customer_type", "business", null, null, "classification", "P.IVA 02525880395"),
-      candidate("consumo_luce_kwh", null, 4084, "kWh/anno", "actual_customer_value", "Consumi fatturati 4.084,0 kWh"),
+      candidate("consumo_luce_kwh", null, 4084, "kWh/anno", "actual_customer_value", "Consumo annuo 4.084,0 kWh"),
       candidate("pod", "IT001E53942290", null, null, "identifier", "POD IT001E53942290"),
       candidate("potenza_impegnata_kw", null, 10, "kW", "actual_customer_value", "Potenza impegnata 10,0 kW"),
     ],

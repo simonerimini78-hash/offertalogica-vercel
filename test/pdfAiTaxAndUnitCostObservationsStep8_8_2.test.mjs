@@ -196,8 +196,8 @@ test("prompt e versioni richiedono esplicitamente i costi medi come osservazioni
   });
   const prompt = request.input[0].content;
 
-  assert.equal(PDF_AI_FALLBACK_PIPELINE_VERSION, "v106.8.2-tax-and-unit-cost-observations-1");
-  assert.equal(PDF_AI_ADAPTER_VERSION, "2.4.2");
+  assert.equal(PDF_AI_FALLBACK_PIPELINE_VERSION, "v106.8.4-business-consultant-readiness-1");
+  assert.equal(PDF_AI_ADAPTER_VERSION, "2.4.3");
   assert.equal(PDF_CANDIDATE_CONTRACT_VERSION, "1.0.4");
   assert.match(prompt, /Costo medio unitario materia energia/);
   assert.match(prompt, /Costo medio unitario bolletta/);
@@ -207,7 +207,7 @@ test("prompt e versioni richiedono esplicitamente i costi medi come osservazioni
 
 test("il pannello spiega che il costo medio non è un prezzo contrattuale", async () => {
   const html = await fs.readFile(new URL("../public/index.html", import.meta.url), "utf8");
-  const start = html.indexOf('const PDF_VISUAL_READING_PANEL_VERSION = "v106.8-review-provenance-panel-1";');
+  const start = html.indexOf('const PDF_VISUAL_READING_PANEL_VERSION = "v106.8.4-business-consultant-panel-1";');
   const end = html.indexOf("function renderPdfSummary(documents, merged) {", start);
   const source = `${html.slice(start, end)}\nglobalThis.__collectVisual = collectPdfVisualReadingEntries;\nglobalThis.__reasonLabel = pdfVisualObservationLabel;`;
   const context = vm.createContext({ testoHtmlSicuro(value) { return String(value ?? ""); } });

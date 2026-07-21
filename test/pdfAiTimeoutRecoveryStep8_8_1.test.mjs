@@ -114,8 +114,8 @@ function baseline() {
 }
 
 test("Step 8.8.1 espone le nuove versioni di recupero timeout", () => {
-  assert.equal(PDF_AI_ADAPTER_VERSION, "2.4.2");
-  assert.equal(PDF_AI_FALLBACK_PIPELINE_VERSION, "v106.8.2-tax-and-unit-cost-observations-1");
+  assert.equal(PDF_AI_ADAPTER_VERSION, "2.4.3");
+  assert.equal(PDF_AI_FALLBACK_PIPELINE_VERSION, "v106.8.4-business-consultant-readiness-1");
 });
 
 test("dopo openai_timeout esegue un recupero compatto sulla prima pagina", async (t) => {

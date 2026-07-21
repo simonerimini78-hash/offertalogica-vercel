@@ -124,7 +124,7 @@ async function runVisual(t) {
 test("i dati visuali validi restano da verificare in field_status, readiness e completezza", async (t) => {
   const result = await runVisual(t);
 
-  assert.equal(PDF_AI_FALLBACK_PIPELINE_VERSION, "v106.8.2-tax-and-unit-cost-observations-1");
+  assert.equal(PDF_AI_FALLBACK_PIPELINE_VERSION, "v106.8.4-business-consultant-readiness-1");
   for (const field of ["fornitore", "customer_type", "intestatario", "codice_fiscale", "codice_cliente", "indirizzo_fornitura_luce", "pod", "potenza_impegnata_kw", "potenza_disponibile_kw", "nome_offerta_luce"]) {
     assert.equal(result.field_status[field].status, "da_verificare", field);
     assert.equal(result.field_status[field].reason, "ai_visuale_da_confermare", field);
@@ -134,7 +134,7 @@ test("i dati visuali validi restano da verificare in field_status, readiness e c
   assert.equal(result.readiness.confronto.luce.status, "incompleto");
   assert.ok(result.completeness.counts.da_verificare >= 10);
   assert.ok(result.completeness.verified_score < result.completeness.score);
-  assert.equal(result.completeness.validation_version, "v106.8-ai-review-status-1");
+  assert.equal(result.completeness.validation_version, "v106.8.4-business-consultant-readiness-1");
 });
 
 test("i campi AI da verificare restano selezionabili solo con conferma esplicita", async (t) => {
@@ -204,15 +204,15 @@ test("versioni, prompt e pannello espongono la distinzione del codice prodotto",
   });
   const prompt = request.input[0].content;
 
-  assert.equal(PDF_AI_ADAPTER_VERSION, "2.4.2");
+  assert.equal(PDF_AI_ADAPTER_VERSION, "2.4.3");
   assert.equal(PDF_CANDIDATE_CONTRACT_VERSION, "1.0.4");
-  assert.equal(PDF_DATA_CONTRACT_VERSION, "1.3.0");
-  assert.equal(PDF_FIELD_VALIDATION_VERSION, "v106.8-ai-review-status-1");
+  assert.equal(PDF_DATA_CONTRACT_VERSION, "1.3.1");
+  assert.equal(PDF_FIELD_VALIDATION_VERSION, "v106.8.4-business-consultant-readiness-1");
   assert.match(prompt, /codice_prodotto_fornitore_luce/);
   assert.match(prompt, /Do not map it to codice_offerta_luce\/gas/);
 
   const html = await fs.readFile(new URL("../public/index.html", import.meta.url), "utf8");
-  const start = html.indexOf('const PDF_VISUAL_READING_PANEL_VERSION = "v106.8-review-provenance-panel-1";');
+  const start = html.indexOf('const PDF_VISUAL_READING_PANEL_VERSION = "v106.8.4-business-consultant-panel-1";');
   const end = html.indexOf("function renderPdfSummary(documents, merged) {", start);
   const source = `${html.slice(start, end)}\nglobalThis.__collectVisual = collectPdfVisualReadingEntries;`;
   const context = vm.createContext({ testoHtmlSicuro(value) { return String(value ?? ""); } });

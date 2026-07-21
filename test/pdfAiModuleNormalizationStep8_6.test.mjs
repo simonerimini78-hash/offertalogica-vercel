@@ -102,7 +102,7 @@ test("le classificazioni visuali al 90% vengono normalizzate per il modulo", asy
     transport: async () => ({ id: "resp_step8_6", output_text: JSON.stringify(actualLikeOutput()) }),
   });
 
-  assert.equal(PDF_AI_FALLBACK_PIPELINE_VERSION, "v106.8.2-tax-and-unit-cost-observations-1");
+  assert.equal(PDF_AI_FALLBACK_PIPELINE_VERSION, "v106.8.4-business-consultant-readiness-1");
   assert.equal(result.ai.applied, true);
   assert.equal(result.kind, "bolletta");
   assert.equal(result.commodity, "luce");
@@ -180,7 +180,7 @@ test("un POD valido corregge una classificazione gas AI incoerente senza modific
 
 test("il pannello elimina l'indirizzo generico duplicato e le osservazioni sotto il 70%", async () => {
   const html = await fs.readFile(new URL("../public/index.html", import.meta.url), "utf8");
-  const start = html.indexOf('const PDF_VISUAL_READING_PANEL_VERSION = "v106.8-review-provenance-panel-1";');
+  const start = html.indexOf('const PDF_VISUAL_READING_PANEL_VERSION = "v106.8.4-business-consultant-panel-1";');
   const end = html.indexOf("function renderPdfSummary(documents, merged) {", start);
   const source = `${html.slice(start, end)}\nglobalThis.__collectVisual = collectPdfVisualReadingEntries;`;
   const context = vm.createContext({

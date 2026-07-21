@@ -129,7 +129,7 @@ test("la bolletta Sorgenia fotografata completa i dati anagrafici ma non trasfor
   assert.equal(result.potenza_disponibile_kw, 11);
   assert.equal(result.potenza_impegnata_kw, 10);
   assert.equal(result.consumo_luce_kwh ?? null, null);
-  assert.equal(result.ai.rejected_fields.some((item) => item.field === "consumo_luce_kwh" && item.reason === "value_or_unit_not_safe"), true);
+  assert.equal(result.ai.rejected_fields.some((item) => item.field === "consumo_luce_kwh" && item.reason === "billing_period_consumption_not_annual"), true);
 
   const reviewFields = result.data_contract.autofill_plan.review_fields.map((item) => item.source_field);
   for (const field of ["fornitore_luce", "intestatario", "codice_cliente_luce", "indirizzo_fornitura_luce", "pod", "potenza_impegnata_kw"]) {
@@ -147,7 +147,7 @@ test("i rifiuti AI espongono dettagli utili senza contenere il PDF", async (t) =
     transport: async () => ({ id: "resp_sorgenia_reject", output_text: JSON.stringify(sorgeniaOutput()) }),
   });
   const rejected = result.ai.rejected_fields.find((item) => item.field === "consumo_luce_kwh");
-  assert.equal(rejected.reason, "value_or_unit_not_safe");
+  assert.equal(rejected.reason, "billing_period_consumption_not_annual");
   assert.equal(rejected.confidence, 96);
   assert.equal(rejected.unit, "kWh");
   assert.match(rejected.label, /consumo luce kwh/i);

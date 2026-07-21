@@ -34,7 +34,7 @@ test("Step 5 rende compatto il riepilogo dual", () => {
   assert.match(html, /Indirizzo luce e gas:/);
   assert.match(html, /Dati comuni da integrare per l’attivazione/);
   assert.match(html, /commonExternal/);
-  assert.match(html, /Nel modulo saranno inseriti soltanto i campi completi ammessi dal contratto dati/);
+  assert.match(html, /Nel modulo saranno proposti soltanto i campi ammessi dal contratto dati/);
   assert.match(html, /Non autocompilati automaticamente/);
 });
 
