@@ -5,7 +5,7 @@ import { extractPdfWithControlledOcr } from "../lib/pdfExtractWithOcr.js";
 import {
   applyControlledPdfAiFallback,
   applyControlledPdfAiImageFallback,
-} from "../lib/pdfAiPipelineEconomicV3.js";
+} from "../lib/pdfAiPipelineEconomicV4.js";
 import { archivePdfAnalysis } from "../lib/pdfArchive.js";
 import { runPdfReaderShadow } from "../lib/pdfReaderShadow.js";
 import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
