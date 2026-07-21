@@ -5,7 +5,7 @@ import { extractPdfWithControlledOcr } from "../lib/pdfExtractWithOcr.js";
 import {
   applyControlledPdfAiFallback,
   applyControlledPdfAiImageFallback,
-} from "../lib/pdfAiFallback.js";
+} from "../lib/pdfAiFallbackAcceptance.js";
 import { archivePdfAnalysis } from "../lib/pdfArchive.js";
 import { runPdfReaderShadow } from "../lib/pdfReaderShadow.js";
 import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
@@ -259,7 +259,8 @@ export default async function handler(req, res) {
       await archivePdfAnalysis({
         filePath: pdfFilePath,
         ...fileMetadata,
-        error,
+        normalized: null,
+        shadow: null,
         context: archiveContext,
       }).catch(() => {});
     }
