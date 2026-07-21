@@ -319,6 +319,18 @@
         .pdf-autofill-row.is-protected .pdf-autofill-status { background: #fef3c7; color: #92400e; }
         .pdf-autofill-row.is-review .pdf-autofill-status { background: #dbeafe; color: #1d4ed8; }
         .pdf-autofill-note { margin-top: 13px; padding: 10px 12px; border-radius: 9px; background: #f8fafc; color: var(--text-muted); font-size: 12px; line-height: 1.45; }
+        .pdf-visual-reading-panel { margin: 12px 0 14px; border: 1px solid #93c5fd; border-radius: 12px; padding: 13px; background: #f8fbff; color: var(--text-color); }
+        .pdf-visual-reading-panel h4 { margin: 0 0 5px; font-size: 15px; color: #1e3a8a; }
+        .pdf-visual-reading-panel > p { margin: 0 0 10px; color: var(--text-muted); font-size: 12px; line-height: 1.45; }
+        .pdf-visual-reading-document + .pdf-visual-reading-document { margin-top: 12px; padding-top: 12px; border-top: 1px solid #bfdbfe; }
+        .pdf-visual-reading-document-title { margin-bottom: 8px; font-size: 12px; font-weight: 850; color: #1e40af; overflow-wrap: anywhere; }
+        .pdf-visual-reading-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; }
+        .pdf-visual-reading-item { border: 1px solid #dbeafe; border-radius: 9px; padding: 9px 10px; background: #fff; min-width: 0; }
+        .pdf-visual-reading-item.is-observation { border-color: #fde68a; background: #fffbeb; }
+        .pdf-visual-reading-item strong { display: block; margin: 0 0 3px; font-size: 12px; color: var(--text-color); }
+        .pdf-visual-reading-value { display: block; font-size: 13px; font-weight: 850; color: #0f172a; overflow-wrap: anywhere; }
+        .pdf-visual-reading-meta { display: block; margin-top: 4px; font-size: 10px; font-weight: 750; color: var(--text-muted); line-height: 1.35; }
+        .pdf-visual-reading-evidence { display: block; margin-top: 4px; font-size: 10px; color: #475569; line-height: 1.35; overflow-wrap: anywhere; }
         .pdf-autofill-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
         .pdf-autofill-actions button { min-height: 44px; border-radius: 9px; border: 1px solid var(--border); padding: 10px 15px; font-weight: 850; cursor: pointer; }
         .pdf-autofill-actions .is-primary { border-color: var(--primary); background: var(--primary); color: #fff; }
@@ -8136,6 +8148,137 @@ function mergePdfDocuments(documents) {
   return merged;
 }
 
+const PDF_VISUAL_READING_PANEL_VERSION = "v106.5-visual-observation-panel-1";
+
+const PDF_VISUAL_FIELD_LABELS = {
+  kind: "Tipo documento",
+  commodity: "Fornitura",
+  fornitore: "Fornitore",
+  customer_type: "Tipo cliente",
+  intestatario: "Intestatario",
+  codice_fiscale: "Codice fiscale / P. IVA",
+  codice_cliente: "Codice cliente",
+  codice_cliente_luce: "Codice cliente luce",
+  codice_cliente_gas: "Codice cliente gas",
+  indirizzo_fornitura: "Indirizzo di fornitura",
+  indirizzo_fornitura_luce: "Indirizzo di fornitura luce",
+  indirizzo_fornitura_gas: "Indirizzo di fornitura gas",
+  pod: "POD",
+  pdr: "PDR",
+  nome_offerta_luce: "Offerta luce",
+  nome_offerta_gas: "Offerta gas",
+  potenza_impegnata_kw: "Potenza impegnata",
+  potenza_disponibile_kw: "Potenza disponibile",
+  consumo_luce_kwh: "Consumo luce letto",
+  consumo_gas_smc: "Consumo gas letto",
+  prezzo_luce_eur_kwh: "Valore unitario luce letto",
+  prezzo_gas_eur_smc: "Valore unitario gas letto",
+  quota_fissa_vendita_luce_eur_anno: "Quota fissa luce letta",
+  quota_fissa_vendita_gas_eur_anno: "Quota fissa gas letta",
+  totale_fattura: "Totale fattura",
+};
+
+function pdfVisualFieldLabel(field, fallback = "") {
+  const normalized = String(field || "").trim();
+  if (PDF_VISUAL_FIELD_LABELS[normalized]) return PDF_VISUAL_FIELD_LABELS[normalized];
+  if (fallback) return fallback;
+  return normalized
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase()) || "Dato letto";
+}
+
+function pdfVisualCandidateValue(entry = {}) {
+  const raw = entry.value ?? entry.normalized_value ?? entry.value_text ?? entry.value_number;
+  if (raw === null || raw === undefined || raw === "") return "";
+  if (typeof raw === "object") return "";
+  const value = String(raw).trim();
+  if (!value) return "";
+  const unit = String(entry.unit || "").trim();
+  return unit && !value.toLowerCase().includes(unit.toLowerCase()) ? `${value} ${unit}` : value;
+}
+
+function pdfVisualObservationLabel(reason = "") {
+  const labels = {
+    confidence_below_threshold: "Letto, ma non usato nel modulo",
+    value_or_unit_not_safe: "Letto, ma periodo o significato da verificare",
+    semantic_role_not_allowed: "Letto come informazione visiva",
+    unknown_field: "Letto come informazione aggiuntiva",
+    conflicting_ai_values: "Lettura discordante tra più punti",
+  };
+  return labels[reason] || "Letto dalla fotografia, non usato nel modulo";
+}
+
+function collectPdfVisualReadingEntries(doc = {}) {
+  if (!doc.ai?.applied) return [];
+  const seen = new Set();
+  const entries = [];
+  const add = (entry, accepted) => {
+    const value = pdfVisualCandidateValue(entry);
+    if (!value) return;
+    const field = String(entry.field || "").trim();
+    const page = Number(entry.page || 0);
+    const key = `${field}|${value.toLowerCase()}|${page}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    entries.push({
+      field,
+      label: pdfVisualFieldLabel(field, entry.label),
+      value,
+      page,
+      confidence: Number(entry.confidence),
+      evidence: String(entry.evidence || entry.source_snippet || "").trim(),
+      accepted,
+      reason: String(entry.reason || ""),
+    });
+  };
+
+  Object.entries(doc.ai.field_meta || {}).forEach(([field, meta]) => add({ field, ...(meta || {}) }, true));
+  (doc.ai.rejected_fields || []).forEach((entry) => add(entry || {}, false));
+
+  return entries.sort((left, right) => {
+    if (left.accepted !== right.accepted) return left.accepted ? -1 : 1;
+    if (left.page !== right.page) return left.page - right.page;
+    return left.label.localeCompare(right.label, "it");
+  });
+}
+
+function renderPdfVisualReadingPanels(documents = []) {
+  const documentPanels = documents.map((doc) => {
+    const entries = collectPdfVisualReadingEntries(doc);
+    if (!entries.length) return "";
+    const items = entries.map((entry) => {
+      const meta = [
+        entry.page > 0 ? `pagina ${entry.page}` : "",
+        Number.isFinite(entry.confidence) ? `confidenza ${entry.confidence}%` : "",
+        entry.accepted ? "letto dalla fotografia — da verificare" : pdfVisualObservationLabel(entry.reason),
+      ].filter(Boolean).join(" · ");
+      return `
+        <div class="pdf-visual-reading-item${entry.accepted ? "" : " is-observation"}">
+          <strong>${testoHtmlSicuro(entry.label)}</strong>
+          <span class="pdf-visual-reading-value">${testoHtmlSicuro(entry.value)}</span>
+          <small class="pdf-visual-reading-meta">${testoHtmlSicuro(meta)}</small>
+          ${entry.evidence ? `<small class="pdf-visual-reading-evidence">Evidenza: ${testoHtmlSicuro(entry.evidence)}</small>` : ""}
+        </div>
+      `;
+    }).join("");
+    return `
+      <section class="pdf-visual-reading-document">
+        <div class="pdf-visual-reading-document-title">${testoHtmlSicuro(doc.filename || "Documento fotografato")}</div>
+        <div class="pdf-visual-reading-list">${items}</div>
+      </section>
+    `;
+  }).filter(Boolean).join("");
+
+  if (!documentPanels) return "";
+  return `
+    <section class="pdf-visual-reading-panel" data-panel-version="${PDF_VISUAL_READING_PANEL_VERSION}">
+      <h4>Dati letti dalla fotografia — da verificare</h4>
+      <p>Questa sezione mostra ciò che la lettura visuale ha riconosciuto, compresi i valori che non sono adatti ai campi del comparatore. Nessun elemento di questo riquadro viene inserito automaticamente nel modulo.</p>
+      ${documentPanels}
+    </section>
+  `;
+}
+
 function renderPdfSummary(documents, merged) {
   const rows = documents.map((doc) => {
     if (doc.error) return `<li><strong>${testoHtmlSicuro(doc.filename)}</strong>: ${testoHtmlSicuro(doc.error)}. Puoi cambiare PDF oppure continuare con la compilazione manuale.</li>`;
@@ -8163,12 +8306,14 @@ function renderPdfSummary(documents, merged) {
     const review = doc.confidence === "high" ? "affidabilità alta" : "da controllare";
     return `<li><strong>${testoHtmlSicuro(doc.filename)}</strong>: ${testoHtmlSicuro(doc.kind || "PDF")} ${testoHtmlSicuro(doc.commodity || "")} - ${testoHtmlSicuro(doc.fornitore || "fornitore da verificare")} (${review})${ocrStatus}${aiStatus}</li>`;
   }).join("");
+  const visualReadingPanels = renderPdfVisualReadingPanels(documents);
 
   if (merged?.merge_blocked) {
     const reasons = (merged.isolation?.reasons || []).map(pdfIsolationReasonLabel).join(", ");
     return `
       <span>Documenti analizzati:</span>
       <ul style="margin:6px 0 10px 18px;">${rows}</ul>
+      ${visualReadingPanels}
       <span><strong>I dati non sono stati uniti.</strong> Sono stati rilevati documenti appartenenti a clienti o forniture differenti${reasons ? `: ${testoHtmlSicuro(reasons)}` : ""}. Rimuovi i PDF non omogenei e lascia soltanto il gruppo che vuoi usare. Nessun campo verrà autocompilato finché il conflitto non è risolto.</span>
     `;
   }
@@ -8177,6 +8322,7 @@ function renderPdfSummary(documents, merged) {
     return `
       <span>Documenti analizzati:</span>
       <ul style="margin:6px 0 10px 18px;">${rows}</ul>
+      ${visualReadingPanels}
       <span><strong>I dati non sono stati uniti:</strong> bolletta e scheda sintetica appartengono a due confronti diversi. Analizzale separatamente per evitare sovrascritture.</span>
     `;
   }
@@ -8274,6 +8420,7 @@ function renderPdfSummary(documents, merged) {
   return `
     <span>Documenti analizzati:</span>
     <ul style="margin:6px 0 10px 18px;">${rows}</ul>
+    ${visualReadingPanels}
     <span><strong>Dati letti:</strong> ${mergedRows || "nessun dato sufficientemente affidabile; completa il modulo manualmente."}<br><small>Nel modulo saranno inseriti soltanto i campi completi ammessi dal contratto dati, dopo la tua conferma.${assistedReviewTargets ? " I dati ottenuti tramite OCR o lettura visuale AI compariranno nell’anteprima deselezionati e dovrai sceglierli esplicitamente." : ""}</small></span>
   `;
 }
