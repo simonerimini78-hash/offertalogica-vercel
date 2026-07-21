@@ -132,9 +132,10 @@ test("la bolletta Sorgenia fotografata completa i dati anagrafici ma non trasfor
   assert.equal(result.ai.rejected_fields.some((item) => item.field === "consumo_luce_kwh" && item.reason === "value_or_unit_not_safe"), true);
 
   const reviewFields = result.data_contract.autofill_plan.review_fields.map((item) => item.source_field);
-  for (const field of ["fornitore_luce", "intestatario", "codice_cliente", "codice_cliente_luce", "indirizzo_fornitura_luce", "pod", "potenza_impegnata_kw"]) {
+  for (const field of ["fornitore_luce", "intestatario", "codice_cliente_luce", "indirizzo_fornitura_luce", "pod", "potenza_impegnata_kw"]) {
     assert.equal(reviewFields.includes(field), true, `${field} deve essere selezionabile solo con conferma esplicita`);
   }
+  assert.equal(reviewFields.includes("codice_cliente"), false, "il codice cliente generico non deve duplicare quello luce");
 });
 
 test("i rifiuti AI espongono dettagli utili senza contenere il PDF", async (t) => {

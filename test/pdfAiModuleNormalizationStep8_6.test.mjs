@@ -102,7 +102,7 @@ test("le classificazioni visuali al 90% vengono normalizzate per il modulo", asy
     transport: async () => ({ id: "resp_step8_6", output_text: JSON.stringify(actualLikeOutput()) }),
   });
 
-  assert.equal(PDF_AI_FALLBACK_PIPELINE_VERSION, "v106.6-module-oriented-classification-1");
+  assert.equal(PDF_AI_FALLBACK_PIPELINE_VERSION, "v106.7-visual-field-canonicalization-1");
   assert.equal(result.ai.applied, true);
   assert.equal(result.kind, "bolletta");
   assert.equal(result.commodity, "luce");
@@ -143,9 +143,11 @@ test("il contratto crea la fornitura luce congrua senza usare consumo bimestrale
   assert.equal(result.readiness.confronto.luce.status, "incompleto");
 
   const review = new Set(result.data_contract.autofill_plan.review_fields.map((item) => item.source_field));
-  for (const field of ["fornitore_luce", "intestatario", "codice_fiscale", "codice_cliente", "codice_cliente_luce", "pod", "indirizzo_fornitura_luce", "potenza_impegnata_kw"]) {
+  for (const field of ["fornitore_luce", "intestatario", "codice_fiscale", "codice_cliente_luce", "pod", "indirizzo_fornitura_luce", "potenza_impegnata_kw"]) {
     assert.equal(review.has(field), true, `${field} deve restare selezionabile solo con conferma esplicita`);
   }
+  assert.equal(review.has("codice_cliente"), false, "il codice cliente generico non deve duplicare quello luce");
+  assert.equal(result.data_contract.fields.codice_cliente.autofill.reason, "rappresentato_da_codice_cliente_luce");
   assert.equal(result.data_contract.autofill_plan.safe_fields.length, 0);
 });
 
