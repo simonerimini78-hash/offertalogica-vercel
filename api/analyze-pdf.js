@@ -3,7 +3,7 @@ import formidable from "formidable";
 import { json, method, requireAllowedOrigin } from "../lib/http.js";
 import { extractPdfWithControlledOcr } from "../lib/pdfExtractWithOcr.js";
 import { archivePdfAnalysis } from "../lib/pdfArchive.js";
-import { runPdfReaderShadow } from "../lib/pdfReaderShadow.js";
+import { runPdfAiEndpointObservation } from "../lib/pdfAiEndpoint.js";
 import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
 
 export const config = {
@@ -78,6 +78,7 @@ export default async function handler(req, res) {
   let temporaryFilePath = "";
   let fileMetadata = null;
   let archiveContext = {};
+  let aiShadow = null;
   let validPdf = false;
   const configuredDeadlineMs = Number.parseInt(process.env.PDF_ANALYSIS_DEADLINE_MS || "55000", 10);
   const analysisDeadlineMs = Number.isFinite(configuredDeadlineMs)
@@ -105,32 +106,29 @@ export default async function handler(req, res) {
       filename: fileMetadata.originalFilename,
       deadlineAt: analysisDeadlineAt,
     });
-    const canRunShadow = analysisDeadlineAt - Date.now() >= 3_000;
-    const shadow = canRunShadow
-      ? await runPdfReaderShadow({
-        filePath: temporaryFilePath,
-        filename: fileMetadata.originalFilename,
-        legacyNormalized: normalized,
-        deadlineAt: analysisDeadlineAt,
-      }).catch((error) => ({
-        enabled: true,
-        mode: "shadow",
-        pipeline_version: "shadow-gpt41-v1",
-        public_output: "legacy_unchanged",
-        error: String(error?.message || "shadow_pipeline_error").slice(0, 300),
-      }))
-      : {
-        enabled: true,
-        mode: "shadow",
-        pipeline_version: "shadow-gpt41-v1",
-        public_output: "legacy_unchanged",
-        skipped: "analysis_deadline_near",
-      };
+    aiShadow = await runPdfAiEndpointObservation({
+      filePath: temporaryFilePath,
+      filename: fileMetadata.originalFilename,
+      fileSizeBytes: fileMetadata.fileSize,
+      normalized,
+      fields,
+      deadlineAt: analysisDeadlineAt,
+    }).catch(() => ({
+      endpoint_version: "8.3.0",
+      mode: "shadow",
+      attempted: false,
+      status: "error",
+      reason: "endpoint_shadow_error",
+      review_only: true,
+      public_output_unchanged: true,
+      diagnostics: {},
+      observation: null,
+    }));
     const archive = await archivePdfAnalysis({
       filePath: temporaryFilePath,
       ...fileMetadata,
       normalized,
-      shadow,
+      aiShadow,
       context: archiveContext,
     }).catch(() => ({ stored: false, reason: "archive_error" }));
     return json(res, 200, { ok: true, normalized, archive });
@@ -139,6 +137,7 @@ export default async function handler(req, res) {
       await archivePdfAnalysis({
         filePath: temporaryFilePath,
         ...fileMetadata,
+        aiShadow,
         error,
         context: archiveContext,
       }).catch(() => {});

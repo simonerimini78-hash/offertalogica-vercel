@@ -16,7 +16,8 @@
     "sync:arera": "node scripts/sync-arera-open-data.mjs",
     "shortlist:arera": "node scripts/shortlist-arera-candidates.mjs",
     "promote:arera": "node scripts/promote-arera-offer.mjs",
-    "test:pdf-ocr-step7": "node --test test/pdfOcr*.test.mjs"
+    "test:pdf-ocr-step7": "node --test test/pdfOcr*.test.mjs",
+    "test:pdf-ai-step8": "node --test test/pdfAi*Step8.test.mjs"
   },
   "dependencies": {
     "@hyzyla/pdfium": "^2.1.13",
