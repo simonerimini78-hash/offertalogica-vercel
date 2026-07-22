@@ -1,0 +1,52 @@
+HOTFIX URGENTE ARERA GAS — E.CO + ILLUMIA
+==========================================
+
+OBIETTIVO
+- impedire che lo spread gas venga trattato come prezzo finale;
+- conservare le offerte variabili come formula PSV + spread;
+- escludere dal catalogo solo gas le componenti appartenenti a offerte dual;
+- trasportare la formula fino al frontend;
+- fare includere al workflow anche il report ARERA aggiornato.
+
+IMPORTANTE
+Questo pacchetto NON contiene copie complete e potenzialmente vecchie dei file del sito.
+Applica invece una modifica controllata ai file presenti nella copia aggiornata del repository.
+Se la struttura non corrisponde, lo script si ferma e ripristina automaticamente i file.
+
+FILE DEL REPOSITORY CHE VERRANNO MODIFICATI
+- scripts/update-arera-menu.py
+- public/index.html
+- .github/workflows/update-arera-menu.yml
+
+PROCEDURA
+1. Assicurati di avere sul computer una copia aggiornata del repository/branch da correggere.
+2. Estrai questa cartella FUORI dal repository.
+3. Apri Terminale/Prompt in questa cartella.
+4. Esegui:
+
+   Windows:
+   py APPLICA_FIX_ARERA_SOLO_GAS.py C:\percorso\offertalogica-vercel
+   py VERIFICA_FIX_ARERA_SOLO_GAS.py C:\percorso\offertalogica-vercel
+
+   macOS/Linux:
+   python3 APPLICA_FIX_ARERA_SOLO_GAS.py /percorso/offertalogica-vercel
+   python3 VERIFICA_FIX_ARERA_SOLO_GAS.py /percorso/offertalogica-vercel
+
+5. La verifica deve terminare con “Verifica superata”.
+6. Carica su GitHub soltanto i tre file del repository elencati sopra.
+7. NON caricare i file con suffisso .bak-arera-solo-gas.
+8. Esegui manualmente il workflow GitHub “Aggiorna offerte ARERA” per rigenerare i JSON con i dati più recenti.
+9. Attendi il nuovo deploy Vercel e controlla le offerte gas variabili E.CO e Illumia.
+
+PERCHÉ SERVE RIGENERARE I JSON
+La correzione evita il problema nei prossimi aggiornamenti, ma il sito online usa ancora il catalogo già generato.
+Il workflow deve quindi ricreare:
+- data/offerte-arera-menu.json
+- public/data/offerte-arera-menu.json
+- data/arera-update-report.json
+
+RISULTATI ATTESI
+- E.CO Zero Premium: formula PSV + 0,0000 €/Smc, non prezzo finale 0,0000.
+- Illumia Sicurinsieme: formula PSV + 0,0500 €/Smc, non prezzo finale 0,0500.
+- offerte con OFFERTA_SINGOLA=NO o codice DS escluse dal catalogo solo gas.
+- offerte business mantenute separate dalle domestiche.

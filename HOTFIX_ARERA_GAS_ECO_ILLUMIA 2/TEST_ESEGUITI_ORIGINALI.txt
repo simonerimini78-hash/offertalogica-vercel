@@ -1,0 +1,15 @@
+TEST ESEGUITI
+
+1. Compilazione Python dell'applicatore: superata.
+2. Applicazione su copia completa del repository: superata.
+3. Compilazione di scripts/update-arera-menu.py modificato: superata.
+4. Controllo sintattico Node delle cinque funzioni JavaScript modificate: superato.
+5. Parsing del file gas reale del 17/07/2026: superato.
+6. E.CO Zero Premium:
+   formula PSV + 0,0000; quota 204 €/anno: superato.
+7. Illumia Sicurinsieme Gas:
+   formula PSV + 0,0500; quota 120 €/anno: superato.
+8. Illumia Energia Lunghissima Gas DS/OFFERTA_SINGOLA=NO esclusa: superato.
+9. Nessun codice DS e nessuna OFFERTA_SINGOLA=NO nel risultato singolo: superato.
+10. E.CO Prezzo Relax BUS classificata business: superato.
+11. Formula trasportata fino al frontend: superato tramite verifica statica e sintassi.

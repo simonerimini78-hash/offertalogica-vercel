@@ -1,0 +1,275 @@
+<?xml version='1.0' encoding='utf-8'?>
+<ListaOfferteMercatoLibero xmlns="http://www.acquirenteunico.it/schemas/SII_AU/OffertaRetail/01"><offerta>
+        <IdentificativiOfferta>
+            <PIVA_UTENTE>03672520404</PIVA_UTENTE>
+            <COD_OFFERTA>000742GSVML01XXZEROPREM260930D01</COD_OFFERTA>
+        </IdentificativiOfferta>
+        <DettaglioOfferta>
+            <TIPO_MERCATO>02</TIPO_MERCATO>
+            <OFFERTA_SINGOLA>SI</OFFERTA_SINGOLA>
+            <TIPO_CLIENTE>01</TIPO_CLIENTE>
+            <TIPO_OFFERTA>02</TIPO_OFFERTA>
+            <TIPOLOGIA_ATT_CONTR>99</TIPOLOGIA_ATT_CONTR>
+            <NOME_OFFERTA>E.CO GAS ZERO PREMIUM</NOME_OFFERTA>
+            <DESCRIZIONE>E.CO GAS ZERO PREMIUM</DESCRIZIONE>
+            <DURATA>12</DURATA>
+            <GARANZIE>Qualora, all’atto di sottoscrizione del contratto, il cliente richieda contestualmente di effettuare i pagamenti tramite addebito diretto in conto corrente sepa (sepa core direct debit), non è richiesto il versamento di alcun deposito cauzionale. Negli altri casi, è previsto il versamento di un deposito cauzionale, per dettagli si rimanda all’art. 9 delle CGF. In caso di mancato pagamento del suddetto deposito cauzionale, Energia corrente potrà richiedere al Distributore la sospensione della fornitura.</GARANZIE>
+            <ModalitaAttivazione>
+                <MODALITA>01</MODALITA>
+                <MODALITA>02</MODALITA>
+                <MODALITA>03</MODALITA>
+                <MODALITA>05</MODALITA>
+            </ModalitaAttivazione>
+            <Contatti>
+                <TELEFONO>0547419980</TELEFONO>
+                <URL_SITO_VENDITORE>https://www.energiacorrente.it</URL_SITO_VENDITORE>
+                <URL_OFFERTA>https://www.energiacorrente.it/glossario-offerte/</URL_OFFERTA>
+            </Contatti>
+        </DettaglioOfferta>
+        <RiferimentiPrezzoEnergia>
+            <IDX_PREZZO_ENERGIA>14</IDX_PREZZO_ENERGIA>
+        </RiferimentiPrezzoEnergia>
+        <ValiditaOfferta>
+            <DATA_INIZIO>02/07/2026_00:00:00</DATA_INIZIO>
+            <DATA_FINE>30/09/2026_00:00:00</DATA_FINE>
+        </ValiditaOfferta>
+        <MetodoPagamento>
+            <MODALITA_PAGAMENTO>01</MODALITA_PAGAMENTO>
+        </MetodoPagamento>
+        <MetodoPagamento>
+            <MODALITA_PAGAMENTO>02</MODALITA_PAGAMENTO>
+        </MetodoPagamento>
+        <MetodoPagamento>
+            <MODALITA_PAGAMENTO>04</MODALITA_PAGAMENTO>
+        </MetodoPagamento>
+        <TipoPrezzo>
+            <TIPOLOGIA_FASCE>01</TIPOLOGIA_FASCE>
+        </TipoPrezzo>
+        <ComponenteImpresa>
+            <NOME>Corrispettivo di commercializzazione Fisso</NOME>
+            <DESCRIZIONE>Corrispettivo fisso a copertura dei costi di commercializzazione e vendita</DESCRIZIONE>
+            <TIPOLOGIA>01</TIPOLOGIA>
+            <MACROAREA>01</MACROAREA>
+            <IntervalloPrezzi>
+                <PREZZO>204.0</PREZZO>
+                <UNITA_MISURA>01</UNITA_MISURA>
+            </IntervalloPrezzi>
+        </ComponenteImpresa>
+        <ComponenteImpresa>
+            <NOME>Spread</NOME>
+            <DESCRIZIONE>Spread</DESCRIZIONE>
+            <TIPOLOGIA>01</TIPOLOGIA>
+            <MACROAREA>04</MACROAREA>
+            <IntervalloPrezzi>
+                <FASCIA_COMPONENTE>01</FASCIA_COMPONENTE>
+                <PREZZO>0.0</PREZZO>
+                <UNITA_MISURA>04</UNITA_MISURA>
+            </IntervalloPrezzi>
+        </ComponenteImpresa>
+        <CondizioniContrattuali>
+            <TIPOLOGIA_CONDIZIONE>99</TIPOLOGIA_CONDIZIONE>
+            <ALTRO>MODALITA’ DI RINNOVO</ALTRO>
+            <DESCRIZIONE>Le presenti Condizioni Economiche sono valide per 12 mesi dalla data di attivazione della fornitura con E.CO Energia Corrente. Terminato il suddetto periodo, l’offerta si rinnova tacitamente per 12 mesi, e così via, alle medesime condizioni economiche, fatta salva la facoltà da parte di ECO di comunicare al Cliente il rinnovo a condizioni economiche diverse nel rispetto delle modalità e tempistiche di cui all’art. 13.7 e art. 13.8 del Codice di Condotta Commerciale, nonché secondo quanto previsto dall’art. 11 delle CGF. A tale fine ECO invierà al Cliente apposita comunicazione scritta, a mezzo raccomandata A/R o PEC o e-mail o SERC, con un preavviso di almeno 3 (tre) mesi rispetto alla decorrenza delle nuove e differenti condizioni economiche, considerandosi decorrente il suddetto termine dal primo giorno del mese successivo a quello di ricevimento da parte del Cliente stesso. Nella predetta comunicazione ECO indicherà al Cliente le modalità per recedere dal contratto qualora non intenda accettare le nuove condizioni economiche. In mancanza di recesso da parte del Cliente, le nuove condizioni economiche si riterranno accettate dal Cliente.</DESCRIZIONE>
+            <LIMITANTE>02</LIMITANTE>
+        </CondizioniContrattuali>
+    </offerta>
+    <offerta>
+        <IdentificativiOfferta>
+            <PIVA_UTENTE>03672520404</PIVA_UTENTE>
+            <COD_OFFERTA>000742GSFML01XXRELREFIX260731B01</COD_OFFERTA>
+        </IdentificativiOfferta>
+        <DettaglioOfferta>
+            <TIPO_MERCATO>02</TIPO_MERCATO>
+            <OFFERTA_SINGOLA>SI</OFFERTA_SINGOLA>
+            <TIPO_CLIENTE>02</TIPO_CLIENTE>
+            <TIPO_OFFERTA>01</TIPO_OFFERTA>
+            <TIPOLOGIA_ATT_CONTR>01</TIPOLOGIA_ATT_CONTR>
+            <NOME_OFFERTA>E.CO Gas Prezzo Relax BUS LINK</NOME_OFFERTA>
+            <DESCRIZIONE>E.CO Gas Prezzo Relax BUS LINK</DESCRIZIONE>
+            <DURATA>12</DURATA>
+            <GARANZIE>Qualora, all’atto di sottoscrizione del contratto, il cliente richieda contestualmente di effettuare i pagamenti tramite addebito diretto in conto corrente sepa (sepa core direct debit), non è richiesto il versamento di alcun deposito cauzionale. Negli altri casi, è previsto il versamento di un deposito cauzionale, per dettagli si rimanda all’art. 9 delle CGF. In caso di mancato pagamento del suddetto deposito cauzionale, Energia corrente potrà richiedere al Distributore la sospensione della fornitura.</GARANZIE>
+            <ModalitaAttivazione>
+                <MODALITA>01</MODALITA>
+                <MODALITA>02</MODALITA>
+                <MODALITA>03</MODALITA>
+                <MODALITA>05</MODALITA>
+            </ModalitaAttivazione>
+            <Contatti>
+                <TELEFONO>0547419980</TELEFONO>
+                <URL_SITO_VENDITORE>https://www.energiacorrente.it</URL_SITO_VENDITORE>
+                <URL_OFFERTA>https://www.energiacorrente.it/glossario-offerte/</URL_OFFERTA>
+            </Contatti>
+        </DettaglioOfferta>
+        <ValiditaOfferta>
+            <DATA_INIZIO>02/07/2026_00:00:00</DATA_INIZIO>
+            <DATA_FINE>31/07/2026_00:00:00</DATA_FINE>
+        </ValiditaOfferta>
+        <MetodoPagamento>
+            <MODALITA_PAGAMENTO>01</MODALITA_PAGAMENTO>
+        </MetodoPagamento>
+        <MetodoPagamento>
+            <MODALITA_PAGAMENTO>02</MODALITA_PAGAMENTO>
+        </MetodoPagamento>
+        <TipoPrezzo>
+            <TIPOLOGIA_FASCE>01</TIPOLOGIA_FASCE>
+        </TipoPrezzo>
+        <ComponenteImpresa>
+            <NOME>Corrispettivo di commercializzazione Fisso</NOME>
+            <DESCRIZIONE>Corrispettivo fisso a copertura dei costi di commercializzazione e vendita</DESCRIZIONE>
+            <TIPOLOGIA>01</TIPOLOGIA>
+            <MACROAREA>01</MACROAREA>
+            <IntervalloPrezzi>
+                <PREZZO>192.0</PREZZO>
+                <UNITA_MISURA>01</UNITA_MISURA>
+            </IntervalloPrezzi>
+        </ComponenteImpresa>
+        <ComponenteImpresa>
+            <NOME>Prezzo Gas Fisso</NOME>
+            <DESCRIZIONE>Prezzo Gas Fisso</DESCRIZIONE>
+            <TIPOLOGIA>01</TIPOLOGIA>
+            <MACROAREA>04</MACROAREA>
+            <IntervalloPrezzi>
+                <PREZZO>0.54</PREZZO>
+                <UNITA_MISURA>04</UNITA_MISURA>
+            </IntervalloPrezzi>
+        </ComponenteImpresa>
+        <CondizioniContrattuali>
+            <TIPOLOGIA_CONDIZIONE>99</TIPOLOGIA_CONDIZIONE>
+            <ALTRO>MODALITA’ DI RINNOVO</ALTRO>
+            <DESCRIZIONE>Terminato il periodo di validità, l’offerta evolve in offerta a prezzo variabile, con spread pari a 0.14 €/Smc, mentre restano invariate le altre condizioni economiche, fatta salva la facoltà da parte di ECO di comunicare al Cliente il rinnovo a condizioni economiche diverse nel rispetto delle modalità e tempistiche di cui all’art. 13.7 e art. 13.8 del Codice di Condotta Commerciale, nonché secondo quanto previsto dall’art. 11 delle CGF. A tale fine ECO invierà al Cliente apposita comunicazione scritta, a mezzo raccomandata A/R o PEC o e-mail o SERCQ, con un preavviso di almeno 3 (tre) mesi rispetto alla decorrenza delle nuove e differenti condizioni economiche, considerandosi decorrente il suddetto termine dal primo giorno del mese successivo a quello di ricevimento da parte del Cliente stesso. Fatta salva la prova contraria, la comunicazione si presume ricevuta dal Cliente trascorsi 10 (dieci) giorni dall’invio da parte del Fornitore. Nella predetta comunicazione ECO indicherà al Cliente le modalità per recedere dal contratto qualora non intenda accettare le nuove condizioni economiche. In mancanza di recesso da parte del Cliente, le nuove condizioni economiche si riterranno accettate dal Cliente.</DESCRIZIONE>
+            <LIMITANTE>02</LIMITANTE>
+        </CondizioniContrattuali>
+    </offerta>
+    <offerta>
+        <IdentificativiOfferta>
+            <PIVA_UTENTE>02356770988</PIVA_UTENTE>
+            <COD_OFFERTA>000155DSFML04XXZZZZ05102Z260711G</COD_OFFERTA>
+        </IdentificativiOfferta>
+        <DettaglioOfferta>
+            <TIPO_MERCATO>02</TIPO_MERCATO>
+            <OFFERTA_SINGOLA>NO</OFFERTA_SINGOLA>
+            <TIPO_CLIENTE>01</TIPO_CLIENTE>
+            <DOMESTICO_RESIDENTE>03</DOMESTICO_RESIDENTE>
+            <TIPO_OFFERTA>01</TIPO_OFFERTA>
+            <TIPOLOGIA_ATT_CONTR>99</TIPOLOGIA_ATT_CONTR>
+            <NOME_OFFERTA>Energia Lunghissima Gas</NOME_OFFERTA>
+            <DESCRIZIONE>Energia Lunghissima Gas</DESCRIZIONE>
+            <DURATA>36</DURATA>
+            <GARANZIE>DEPOSITO CAUZIONALE</GARANZIE>
+            <ModalitaAttivazione>
+                <MODALITA>99</MODALITA>
+                <DESCRIZIONE>Numero verde</DESCRIZIONE>
+            </ModalitaAttivazione>
+            <Contatti>
+                <TELEFONO>800808880</TELEFONO>
+                <URL_SITO_VENDITORE>www.illumia.it</URL_SITO_VENDITORE>
+                <URL_OFFERTA>https://www.illumia.it/casa/luce-gas/energia-lunghissima-luce-gas-bianca</URL_OFFERTA>
+            </Contatti>
+        </DettaglioOfferta>
+        <ValiditaOfferta>
+            <DATA_INIZIO>11/07/2026_00:00:00</DATA_INIZIO>
+            <DATA_FINE>10/08/2026_23:59:59</DATA_FINE>
+        </ValiditaOfferta>
+        <MetodoPagamento>
+            <MODALITA_PAGAMENTO>01</MODALITA_PAGAMENTO>
+            <DESCRIZIONE>Domiciliazione bancaria</DESCRIZIONE>
+        </MetodoPagamento>
+        <ComponenteImpresa>
+            <NOME>PREZZO_BASE_G</NOME>
+            <DESCRIZIONE>Prezzo base (€/Smc)</DESCRIZIONE>
+            <TIPOLOGIA>01</TIPOLOGIA>
+            <MACROAREA>04</MACROAREA>
+            <IntervalloPrezzi>
+                <PREZZO>0.490000</PREZZO>
+                <UNITA_MISURA>04</UNITA_MISURA>
+            </IntervalloPrezzi>
+        </ComponenteImpresa>
+        <ComponenteImpresa>
+            <NOME>CV_PERS_ANNO</NOME>
+            <DESCRIZIONE>CV quota fissa (€/anno)</DESCRIZIONE>
+            <TIPOLOGIA>01</TIPOLOGIA>
+            <MACROAREA>01</MACROAREA>
+            <IntervalloPrezzi>
+                <PREZZO>84.000000</PREZZO>
+                <UNITA_MISURA>01</UNITA_MISURA>
+            </IntervalloPrezzi>
+        </ComponenteImpresa>
+        <CondizioniContrattuali>
+            <TIPOLOGIA_CONDIZIONE>01</TIPOLOGIA_CONDIZIONE>
+            <DESCRIZIONE>Offerta riservata ai clienti provenienti da altro fornitore</DESCRIZIONE>
+            <LIMITANTE>02</LIMITANTE>
+        </CondizioniContrattuali>
+    </offerta>
+    <offerta>
+        <IdentificativiOfferta>
+            <PIVA_UTENTE>02356770988</PIVA_UTENTE>
+            <COD_OFFERTA>000155GSVML29XXZZZZ03130Z260711G</COD_OFFERTA>
+        </IdentificativiOfferta>
+        <DettaglioOfferta>
+            <TIPO_MERCATO>02</TIPO_MERCATO>
+            <OFFERTA_SINGOLA>SI</OFFERTA_SINGOLA>
+            <TIPO_CLIENTE>01</TIPO_CLIENTE>
+            <DOMESTICO_RESIDENTE>03</DOMESTICO_RESIDENTE>
+            <TIPO_OFFERTA>02</TIPO_OFFERTA>
+            <TIPOLOGIA_ATT_CONTR>99</TIPOLOGIA_ATT_CONTR>
+            <NOME_OFFERTA>Illumia Sicurinsieme Gas</NOME_OFFERTA>
+            <DESCRIZIONE>Illumia Sicurinsieme Gas</DESCRIZIONE>
+            <DURATA>-1</DURATA>
+            <GARANZIE>DEPOSITO CAUZIONALE</GARANZIE>
+            <ModalitaAttivazione>
+                <MODALITA>01</MODALITA>
+                <MODALITA>99</MODALITA>
+                <DESCRIZIONE>Numero verde</DESCRIZIONE>
+            </ModalitaAttivazione>
+            <Contatti>
+                <TELEFONO>800808880</TELEFONO>
+                <URL_SITO_VENDITORE>www.illumia.it</URL_SITO_VENDITORE>
+                <URL_OFFERTA>https://www.illumia.it/sicurinsieme/illumia-sicurinsieme-gas/</URL_OFFERTA>
+            </Contatti>
+        </DettaglioOfferta>
+        <RiferimentiPrezzoEnergia>
+            <IDX_PREZZO_ENERGIA>14</IDX_PREZZO_ENERGIA>
+        </RiferimentiPrezzoEnergia>
+        <ValiditaOfferta>
+            <DATA_INIZIO>11/07/2026_00:00:00</DATA_INIZIO>
+            <DATA_FINE>10/08/2026_23:59:59</DATA_FINE>
+        </ValiditaOfferta>
+        <MetodoPagamento>
+            <MODALITA_PAGAMENTO>99</MODALITA_PAGAMENTO>
+            <DESCRIZIONE>Bonifico conto</DESCRIZIONE>
+        </MetodoPagamento>
+        <MetodoPagamento>
+            <MODALITA_PAGAMENTO>04</MODALITA_PAGAMENTO>
+            <DESCRIZIONE>Bollettino precompilato</DESCRIZIONE>
+        </MetodoPagamento>
+        <MetodoPagamento>
+            <MODALITA_PAGAMENTO>01</MODALITA_PAGAMENTO>
+            <DESCRIZIONE>Domiciliazione bancaria</DESCRIZIONE>
+        </MetodoPagamento>
+        <ComponenteImpresa>
+            <NOME>SPREAD_G</NOME>
+            <DESCRIZIONE>Spread (€/Smc)</DESCRIZIONE>
+            <TIPOLOGIA>01</TIPOLOGIA>
+            <MACROAREA>04</MACROAREA>
+            <IntervalloPrezzi>
+                <PREZZO>0.050000</PREZZO>
+                <UNITA_MISURA>04</UNITA_MISURA>
+            </IntervalloPrezzi>
+        </ComponenteImpresa>
+        <ComponenteImpresa>
+            <NOME>CV_PERS_ANNO</NOME>
+            <DESCRIZIONE>CV quota fissa (€/anno)</DESCRIZIONE>
+            <TIPOLOGIA>01</TIPOLOGIA>
+            <MACROAREA>01</MACROAREA>
+            <IntervalloPrezzi>
+                <PREZZO>120.000000</PREZZO>
+                <UNITA_MISURA>01</UNITA_MISURA>
+            </IntervalloPrezzi>
+        </ComponenteImpresa>
+        <CondizioniContrattuali>
+            <TIPOLOGIA_CONDIZIONE>01</TIPOLOGIA_CONDIZIONE>
+            <DESCRIZIONE>Offerta riservata ai clienti provenienti da altro fornitore</DESCRIZIONE>
+            <LIMITANTE>02</LIMITANTE>
+        </CondizioniContrattuali>
+    </offerta>
+    </ListaOfferteMercatoLibero>
