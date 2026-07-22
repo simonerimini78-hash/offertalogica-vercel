@@ -299,10 +299,34 @@
         .pdf-decision-actions button.is-primary { border-color: var(--primary); background: var(--primary); color: #fff; }
         .pdf-decision-actions button:hover { filter: brightness(.98); transform: translateY(-1px); }
         .pdf-decision-note { margin-top: 12px; color: var(--text-muted); font-size: 12px; line-height: 1.45; }
+        .pdf-autofill-backdrop { position: fixed; inset: 0; z-index: 1120; display: none; align-items: center; justify-content: center; padding: 20px; background: rgba(15,23,42,.68); }
+        .pdf-autofill-modal { width: min(900px, 100%); max-height: min(94dvh, 860px); overflow: auto; background: #fff; border-radius: 14px; border: 1px solid var(--border); padding: 22px; box-shadow: 0 28px 70px rgba(15,23,42,.34); }
+        .pdf-autofill-modal h3 { margin: 0 0 8px; color: var(--text-color); font-size: 21px; }
+        .pdf-autofill-modal > p { margin: 0 0 14px; color: var(--text-muted); font-size: 14px; line-height: 1.5; }
+        .pdf-autofill-toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
+        .pdf-autofill-toolbar button { border: 1px solid var(--border); border-radius: 8px; background: #fff; color: var(--text-color); padding: 8px 11px; font-weight: 750; cursor: pointer; }
+        .pdf-autofill-list { display: grid; gap: 9px; }
+        .pdf-autofill-row { display: grid; grid-template-columns: minmax(190px, .9fr) minmax(160px, 1fr) minmax(160px, 1fr); gap: 12px; align-items: center; border: 1px solid #dbe3ee; border-radius: 10px; padding: 12px; background: #fff; }
+        .pdf-autofill-row.is-protected { border-color: #f59e0b; background: #fffbeb; }
+        .pdf-autofill-row.is-review { border-color: #60a5fa; background: #eff6ff; }
+        .pdf-autofill-row.is-same { background: #f8fafc; }
+        .pdf-autofill-choice { display: flex; align-items: flex-start; gap: 9px; font-weight: 800; color: var(--text-color); }
+        .pdf-autofill-choice input { width: 18px; height: 18px; margin-top: 1px; flex: 0 0 auto; }
+        .pdf-autofill-value { min-width: 0; }
+        .pdf-autofill-value small { display: block; color: var(--text-muted); font-size: 11px; font-weight: 750; text-transform: uppercase; letter-spacing: .03em; margin-bottom: 3px; }
+        .pdf-autofill-value strong { display: block; overflow-wrap: anywhere; color: var(--text-color); font-size: 13px; }
+        .pdf-autofill-status { display: inline-flex; margin-top: 5px; padding: 3px 7px; border-radius: 999px; background: #eef2ff; color: #3730a3; font-size: 11px; font-weight: 800; }
+        .pdf-autofill-row.is-protected .pdf-autofill-status { background: #fef3c7; color: #92400e; }
+        .pdf-autofill-row.is-review .pdf-autofill-status { background: #dbeafe; color: #1d4ed8; }
+        .pdf-autofill-note { margin-top: 13px; padding: 10px 12px; border-radius: 9px; background: #f8fafc; color: var(--text-muted); font-size: 12px; line-height: 1.45; }
+        .pdf-autofill-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+        .pdf-autofill-actions button { min-height: 44px; border-radius: 9px; border: 1px solid var(--border); padding: 10px 15px; font-weight: 850; cursor: pointer; }
+        .pdf-autofill-actions .is-primary { border-color: var(--primary); background: var(--primary); color: #fff; }
+        .pdf-autofill-actions .is-primary:disabled { opacity: .5; cursor: not-allowed; }
         .current-provider-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; }
         .comparison-scope-hidden { display: none !important; }
         .pdf-profile-indicator { display: inline-flex; margin: 6px 0 0; padding: 5px 9px; border-radius: 999px; background: #eff6ff; color: #1d4ed8; font-size: 12px; font-weight: 800; }
-        @media (max-width: 680px) { .current-provider-grid { grid-template-columns: 1fr; } .pdf-decision-backdrop { padding: 10px; align-items: flex-end; } .pdf-decision-modal { max-height: 92dvh; border-radius: 14px 14px 0 0; } }
+        @media (max-width: 680px) { .current-provider-grid { grid-template-columns: 1fr; } .pdf-decision-backdrop, .pdf-autofill-backdrop { padding: 10px; align-items: flex-end; } .pdf-decision-modal, .pdf-autofill-modal { max-height: 92dvh; border-radius: 14px 14px 0 0; } .pdf-autofill-row { grid-template-columns: 1fr; gap: 8px; } .pdf-autofill-actions { display: grid; grid-template-columns: 1fr; } }
         .lead-form-grid { display: grid; gap: 10px; }
         .lead-field { display: grid; gap: 5px; color: var(--text-color); font-size: 12px; font-weight: 800; }
         .lead-field input { width: 100%; }
@@ -523,31 +547,88 @@
             padding: 26px;
             gap: 14px;
         }
-        .upload-drop input,
+        .pdf-file-picker,
+        .pdf-selected-files,
         .upload-note,
         .pdf-review-static {
             grid-column: 1 / -1;
         }
-        .upload-drop input {
+        .pdf-native-file-input {
+            position: absolute;
+            inline-size: 1px;
+            block-size: 1px;
+            opacity: 0;
+            pointer-events: none;
+        }
+        .pdf-file-picker {
             width: min(100%, 680px);
             justify-self: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
             padding: 14px;
             border: 1px dashed rgba(37, 99, 235, .35);
             border-radius: 10px;
             background: #eef6ff;
-            font-size: 14px;
-            text-align: center;
         }
-        .upload-drop input::file-selector-button {
+        .pdf-file-picker-button {
             border: 0;
             border-radius: 8px;
             background: var(--dark-btn);
             color: #fff;
             padding: 12px 16px;
-            margin-right: 12px;
             font-weight: 800;
             cursor: pointer;
             font-size: 14px;
+            white-space: nowrap;
+        }
+        .pdf-file-picker-status {
+            color: #334155;
+            font-size: 14px;
+            text-align: left;
+        }
+        .pdf-selected-files {
+            width: min(100%, 760px);
+            justify-self: center;
+        }
+        .pdf-selected-files[hidden] {
+            display: none;
+        }
+        .pdf-file-list {
+            display: grid;
+            gap: 8px;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+        .pdf-file-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 10px 12px;
+            border: 1px solid #dbeafe;
+            border-radius: 9px;
+            background: #fff;
+            color: #1e293b;
+            font-size: 14px;
+            text-align: left;
+        }
+        .pdf-file-item small {
+            display: block;
+            margin-top: 2px;
+            color: #64748b;
+        }
+        .pdf-file-remove {
+            flex: 0 0 auto;
+            border: 0;
+            border-radius: 7px;
+            padding: 8px 10px;
+            background: #fee2e2;
+            color: #991b1b;
+            font-weight: 800;
+            cursor: pointer;
         }
         .upload-drop > button {
             min-height: 56px;
@@ -1103,22 +1184,24 @@
                 padding: 16px 12px;
                 gap: 12px;
             }
-            .upload-drop input,
+            .pdf-file-picker,
+            .pdf-selected-files,
             .upload-drop > button,
             .upload-note {
                 max-width: none;
                 width: 100%;
             }
-            .upload-drop input {
+            .pdf-file-picker {
+                flex-direction: column;
+                align-items: stretch;
                 padding: 12px;
-                font-size: 14px;
-                overflow: hidden;
             }
-            .upload-drop input::file-selector-button {
-                display: block;
+            .pdf-file-picker-button {
                 width: 100%;
-                margin: 0 0 10px;
                 font-size: 15px;
+            }
+            .pdf-file-picker-status {
+                text-align: center;
             }
             .choice-card {
                 min-height: 124px;
@@ -1818,10 +1901,15 @@
             <span><strong>Sei nel punto giusto.</strong> Seleziona qui il PDF della scheda sintetica, poi premi <strong>Analizza PDF</strong>.</span>
         </div>
         <div class="upload-drop" id="pdf-upload-drop">
-            <input id="pdf-static-input" type="file" accept="application/pdf" multiple aria-describedby="pdf-upload-context-notice">
+            <div class="pdf-file-picker">
+                <input id="pdf-static-input" class="pdf-native-file-input" type="file" accept="application/pdf" multiple aria-describedby="pdf-upload-context-notice pdf-file-picker-status">
+                <button id="pdf-select-files-button" type="button" class="pdf-file-picker-button" onclick="apriSelettorePdf()">Scegli file</button>
+                <span id="pdf-file-picker-status" class="pdf-file-picker-status">Nessun PDF aggiunto</span>
+            </div>
+            <div id="pdf-selected-files" class="pdf-selected-files" aria-live="polite" hidden></div>
             <button type="button" class="btn-action" onclick="preparaConfermaPdf()">Analizza PDF</button>
-            <button type="button" class="lead-secondary" onclick="azzeraPdfEModulo()">Rimuovi PDF e ricomincia</button>
-            <div class="upload-note">Puoi caricare una o più bollette PDF, ad esempio una luce e una gas, oppure una scheda sintetica.</div>
+            <button type="button" class="lead-secondary" onclick="azzeraPdfEModulo()">Rimuovi tutti i PDF e ricomincia</button>
+            <div class="upload-note">Dopo il primo PDF usa <strong>Aggiungi file</strong>: i documenti già caricati restano memorizzati. Puoi rimuovere ogni PDF singolarmente prima della conferma.</div>
             <div class="pdf-review-static" id="pdf-review-static" tabindex="-1">
                 <div id="pdf-confirm-guidance" class="guided-step-notice" role="status" aria-live="polite" hidden>
                     <span class="guided-step-arrow" aria-hidden="true">↓</span>
@@ -1829,7 +1917,7 @@
                 </div>
                 <strong id="pdf-review-title">Dati pronti per la conferma</strong>
                 <p id="pdf-review-copy">Dopo l'analisi potrai confermare i dati letti dal PDF. Il confronto partirà solo dopo la tua conferma.</p>
-                <button type="button" id="pdf-confirm-data-button" onclick="confermaPdfECalcola()">Ho controllato: conferma e inserisci i dati</button>
+                <button type="button" id="pdf-confirm-data-button" onclick="confermaPdfECalcola()">Controlla e scegli i dati da inserire</button>
             </div>
         </div>
     </div>
@@ -1957,6 +2045,10 @@
                     <option value="eco">E.CO Energia Corrente</option>
                     <option value="eon">E.ON</option>
                     <option value="edison">Edison</option>
+                    <option value="estra">Estra Energie</option>
+                    <option value="free">Free Luce&amp;Gas</option>
+                    <option value="butangas">ButanGas</option>
+                    <option value="unoenergy">Unoenergy</option>
                     <option value="eni">Eni Plenitude</option>
                     <option value="enel">Enel Energia</option>
                     <option value="enercom">Enercom</option>
@@ -2072,6 +2164,10 @@
                     <option value="eco">E.CO Energia Corrente</option>
                     <option value="eon">E.ON</option>
                     <option value="edison">Edison</option>
+                    <option value="estra">Estra Energie</option>
+                    <option value="free">Free Luce&amp;Gas</option>
+                    <option value="butangas">ButanGas</option>
+                    <option value="unoenergy">Unoenergy</option>
                     <option value="eni">Eni Plenitude</option>
                     <option value="enel">Enel Energia</option>
                     <option value="enercom">Enercom</option>
@@ -2370,6 +2466,7 @@ const LEAD_STATE = {
   partnerConsent: false,
   pdfData: null,
   pdfDocuments: [],
+  pdfAutofill: { previewedAt: "", appliedFields: [], skippedFields: [] },
   comparisonScope: "unknown",
   gasDecision: "",
   electricityDecision: "",
@@ -4124,27 +4221,25 @@ function dettagliOfferta(offerta) {
 }
 
 function offertaAttivabileOnline(offerta) {
-  return Boolean(
-    offerta?.monetizzazione?.attiva &&
-    offerta.destinationStatus === "attiva" &&
-    offerta.destinationType === "affiliazione" &&
-    offerta.link &&
+  const percorsoAffiliatoAttivo = Boolean(
+    offerta?.destinationStatus === "attiva" &&
+    offerta?.destinationType === "affiliazione" &&
+    offerta?.link &&
     offerta.link !== "#"
   );
+  // Il blocco monetizzazione contiene metadati economici ed è facoltativo.
+  // Un valore esplicito false disattiva il percorso; la sua assenza non deve
+  // eliminare affiliazioni già dichiarate attive, come Enel ed Eni.
+  const monetizzazioneEsplicitamenteDisattivata = offerta?.monetizzazione?.attiva === false;
+  return percorsoAffiliatoAttivo && !monetizzazioneEsplicitamenteDisattivata;
 }
 
 function testoAzioneOfferta(offerta, attivabileOnline) {
-  if (offerta?.fornitura === "separate" && (offerta?.tipo === "variabile" || (offerta?.luce && offerta?.gas))) return "Verifica con consulente";
   if (offertaSeparataMultiFornitore(offerta)) return "Verifica con consulente";
   return "Procedi";
 }
 
 function testoBadgeOfferta(item, migliore) {
-  if (item.offerta?.fornitura === "separate" && (item.offerta?.tipo === "variabile" || (item.offerta?.luce && item.offerta?.gas))) {
-    return item.gruppoVisuale === "attivabile"
-      ? "Abbinamento partner con consulente"
-      : "Miglior costo con consulente";
-  }
   if (item.offerta && offertaSeparataMultiFornitore(item.offerta)) return "Abbinamento separato";
   if (item.gruppoVisuale === "top" && item.posizioneGruppo === 1) return "Migliore stimata con consulente";
   if (item.gruppoVisuale === "top" && item.posizioneGruppo) return "Verifica con consulente";
@@ -4654,11 +4749,15 @@ function arricchisciOffertaAreraConCommerciale(offerta, providerKey, tipo, tipoF
   const commerciale = match.offerta;
   const copia = { ...offerta };
   const tipoCommercialeCoincide = commerciale.tipo === tipo;
-  const matchSufficiente = tipoCommercialeCoincide
-    ? matchCommercialeSufficiente(providerKey, tipo, nomiArera, commerciale, match.score)
-    : percorsoCommercialeSupportaFornitura(commerciale, tipoFornitura);
+  const corrispondenzaCommercialeEsatta = tipoCommercialeCoincide
+    && matchCommercialeSufficiente(providerKey, tipo, nomiArera, commerciale, match.score);
+  const percorsoCompatibile = percorsoCommercialeSupportaFornitura(commerciale, tipoFornitura);
 
-  if (offertaAttivabileOnline(commerciale) && matchSufficiente) {
+  // OFFERTALOGICA_ALWAYS_6_PARTNERS_3_CONSULTANT_20260722
+  // La scheda economica resta sempre quella ARERA selezionata. Il catalogo partner
+  // fornisce soltanto un percorso attivo dello stesso venditore e compatibile con
+  // la fornitura richiesta. Il funnel deve confermare le condizioni finali.
+  if (offertaAttivabileOnline(commerciale) && percorsoCompatibile) {
     copia.link = commerciale.link;
     copia.destinationType = commerciale.destinationType;
     copia.destinationStatus = commerciale.destinationStatus;
@@ -4669,10 +4768,14 @@ function arricchisciOffertaAreraConCommerciale(offerta, providerKey, tipo, tipoF
       percorsoPartnerDaCatalogo: true,
       percorsoPartnerTipoOriginale: commerciale.tipo,
       percorsoPartnerFornituraOriginale: commerciale.fornitura,
+      percorsoPartnerCorrispondenza: corrispondenzaCommercialeEsatta
+        ? "offerta_coerente"
+        : "fornitore_fornitura",
+      percorsoPartnerRichiedeConfermaCondizioni: !corrispondenzaCommercialeEsatta,
     };
-    const notaPercorso = tipoCommercialeCoincide
+    const notaPercorso = corrispondenzaCommercialeEsatta
       ? `Percorso partner disponibile per offerta coerente (${commerciale.nome}).`
-      : `Percorso partner attivo disponibile tramite ${commerciale.provider}; condizioni economiche e tipologia restano quelle dell'offerta ARERA selezionata.`;
+      : `Percorso partner attivo disponibile tramite ${commerciale.provider}. Il confronto usa le condizioni ARERA selezionate; verifica nel funnel nome e condizioni finali dell'offerta.`;
     copia.descrizione = `${offerta.descrizione} ${notaPercorso}`.trim();
     copia.nome = offerta.nome;
     return copia;
@@ -4699,7 +4802,7 @@ function miglioreRigaAreraPerProvider(providerKey, commodity, tipo, attuale) {
 }
 
 function miglioreCoppiaAreraDualPerProvider(providerKey, tipo, attuale) {
-  const coppiaDualPubblicata = OFFERTE_ARERA_DUAL
+  return OFFERTE_ARERA_DUAL
     .filter((offerta) => offerta.providerKey === providerKey && offerta.tipo === tipo)
     .filter((offerta) => rigaAreraIdonea(offerta.luce) && rigaAreraIdonea(offerta.gas))
     .sort((a, b) => {
@@ -4707,29 +4810,6 @@ function miglioreCoppiaAreraDualPerProvider(providerKey, tipo, attuale) {
       const costoB = costoRigaAreraSuProfilo(b.luce, attuale) + costoRigaAreraSuProfilo(b.gas, attuale);
       return costoA - costoB;
     })[0] || null;
-
-  if (coppiaDualPubblicata) return coppiaDualPubblicata;
-
-  // OFFERTALOGICA_DUAL_FROM_ACTIVE_ARERA_ROWS_20260721
-  // Se il feed non espone una sezione dual dedicata, sia il prezzo fisso sia
-  // il variabile partono dalle migliori righe luce e gas attive dello stesso fornitore.
-  const luce = miglioreRigaAreraPerProvider(providerKey, "luce", tipo, attuale);
-  const gas = miglioreRigaAreraPerProvider(providerKey, "gas", tipo, attuale);
-  if (!luce || !gas) return null;
-
-  return {
-    providerKey,
-    providerLabel: luce.providerLabel || gas.providerLabel || providerKey,
-    tipo,
-    nome: `${luce.nome} + ${gas.nome}`,
-    codice: "",
-    codiceOffertaLuce: luce.codice,
-    codiceOffertaGas: gas.codice,
-    url: "#",
-    luce,
-    gas,
-    sinteticaDaMenuArera: true,
-  };
 }
 
 function rigaAreraDaCodice(codice) {
@@ -4775,7 +4855,7 @@ const ABBINAMENTI_PARTNER_ARERA = Object.freeze({
   },
 });
 
-function rigaAreraPartnerCertificata(offerta, commodity) {
+function rigaAreraPartnerCertificata(offerta, commodity, attuale = null) {
   const partnerId = offerta?.certificazione?.partnerOriginalId || offerta?.id;
   const regola = ABBINAMENTI_PARTNER_ARERA[String(partnerId || "")]?.[commodity];
   if (!regola) return null;
@@ -4790,8 +4870,21 @@ function rigaAreraPartnerCertificata(offerta, commodity) {
     .filter((riga) => nomiAmmessi.has(testoFornitoreNormalizzato(riga.nome)))
     .filter((riga) => !regola.codiceInclude || String(riga.codice || "").includes(regola.codiceInclude));
 
-  if (candidate.length !== 1) return null;
-  return candidate[0];
+  if (!candidate.length) return null;
+
+  // Il feed ARERA può contenere più righe valide della stessa famiglia commerciale
+  // con codici o finestre temporali differenti. Non scartiamo più il partner:
+  // scegliamo la riga economicamente migliore sul profilo e, a parità, la più recente.
+  return [...candidate].sort((a, b) => {
+    if (attuale) {
+      const deltaCosto = costoRigaAreraSuProfilo(a, attuale) - costoRigaAreraSuProfilo(b, attuale);
+      if (Math.abs(deltaCosto) > 0.01) return deltaCosto;
+    }
+    const fineA = parseDataArera(a.dataFine)?.getTime() || 0;
+    const fineB = parseDataArera(b.dataFine)?.getTime() || 0;
+    if (fineA !== fineB) return fineB - fineA;
+    return String(a.codice || "").localeCompare(String(b.codice || ""));
+  })[0];
 }
 
 function miglioreRigaAreraPerPartner(offerta, commodity, attuale) {
@@ -4802,7 +4895,7 @@ function miglioreRigaAreraPerPartner(offerta, commodity, attuale) {
   // OFFERTALOGICA_CERTIFIED_MONO_ARERA_20260719
   // Nelle proiezioni solo luce/gas usa prima l'abbinamento ARERA certificato
   // del partner originale; il riconoscimento per nome resta soltanto un fallback.
-  const certificata = rigaAreraPartnerCertificata(offerta, commodity);
+  const certificata = rigaAreraPartnerCertificata(offerta, commodity, attuale);
   if (certificata) return certificata;
 
   const providerKey = chiaveFornitoreDaNome(offerta?.provider);
@@ -4829,8 +4922,8 @@ function offertaPartnerConPrezziArera(offerta, attuale) {
   if (!OFFERTE_ARERA_MENU.length) return null;
 
   if (offerta.fornitura === "dual") {
-    const luce = rigaAreraPartnerCertificata(offerta, "luce");
-    const gas = rigaAreraPartnerCertificata(offerta, "gas");
+    const luce = rigaAreraPartnerCertificata(offerta, "luce", attuale);
+    const gas = rigaAreraPartnerCertificata(offerta, "gas", attuale);
     if (!luce || !gas || luce.providerKey !== gas.providerKey || luce.tipo !== gas.tipo) return null;
     const codici = `${luce.codice} + ${gas.codice}`;
     return normalizzaOfferta({
@@ -4889,7 +4982,7 @@ function offertaAreraRankingProvider(providerKey, tipo, tipoFornitura, attuale) 
 
   const providerLabel = dual?.providerLabel || luce?.providerLabel || gas?.providerLabel || providerKey;
   const nomiArera = dual?.nome || [luce?.nome, gas?.nome].filter(Boolean).join(" + ");
-  const codiciArera = dual?.codice
+  const codiciArera = dual
     ? `${dual.codice} (${dual.codiceOffertaLuce} + ${dual.codiceOffertaGas})`
     : [luce?.codice, gas?.codice].filter(Boolean).join(" + ");
   const offerta = normalizzaOfferta({
@@ -4949,10 +5042,9 @@ function offertaAreraSeparataRanking(luce, gas, tipo) {
     },
   }, 0);
 
-  // OFFERTALOGICA_SEPARATE_ALWAYS_CONSULTANT_20260721
-  // Una proposta con forniture separate richiede sempre due verifiche contrattuali:
-  // non viene mai trasformata in attivazione diretta, anche con lo stesso fornitore.
-  return offerta;
+  return sameProvider
+    ? arricchisciOffertaAreraConCommerciale(offerta, luce.providerKey, tipo, "separate", nomiArera)
+    : offerta;
 }
 
 function costruisciOfferteAreraRanking(attuale, tipoTariffa, tipoFornitura) {
@@ -4964,18 +5056,38 @@ function costruisciOfferteAreraRanking(attuale, tipoTariffa, tipoFornitura) {
       .filter(Boolean);
   }
 
-  const tutteLeCombinazioniSeparate = tipoFornitura === "separate";
-  const miglioriLuceOrdinate = providerKeysArera()
-    .map((providerKey) => miglioreRigaAreraPerProvider(providerKey, "luce", tipoTariffa, attuale))
-    .filter(Boolean)
-    .sort((a, b) => costoRigaAreraSuProfilo(a, attuale) - costoRigaAreraSuProfilo(b, attuale));
-  const miglioriGasOrdinate = providerKeysArera()
-    .map((providerKey) => miglioreRigaAreraPerProvider(providerKey, "gas", tipoTariffa, attuale))
-    .filter(Boolean)
-    .sort((a, b) => costoRigaAreraSuProfilo(a, attuale) - costoRigaAreraSuProfilo(b, attuale));
-  const miglioriLuce = tutteLeCombinazioniSeparate ? miglioriLuceOrdinate : miglioriLuceOrdinate.slice(0, 8);
-  const miglioriGas = tutteLeCombinazioniSeparate ? miglioriGasOrdinate : miglioriGasOrdinate.slice(0, 8);
+  const partnerKeysAttivi = new Set(
+    OFFERTE_PROPOSTE
+      .filter((offerta) => offertaAttivabileOnline(offerta))
+      .filter((offerta) => percorsoCommercialeSupportaFornitura(offerta, "separate"))
+      .map((offerta) => chiaveFornitoreDaNome(offerta.provider))
+      .filter(Boolean)
+  );
 
+  const selezionaRigheSeparate = (commodity) => {
+    const ordinate = providerKeysArera()
+      .map((providerKey) => miglioreRigaAreraPerProvider(providerKey, commodity, tipoTariffa, attuale))
+      .filter(Boolean)
+      .sort((a, b) => costoRigaAreraSuProfilo(a, attuale) - costoRigaAreraSuProfilo(b, attuale));
+
+    // Mantiene sempre nel bacino le righe dei partner attivi, anche quando non
+    // rientrano nelle prime otto per costo. Aggiunge poi le migliori righe generali.
+    const result = [];
+    const seen = new Set();
+    const add = (riga) => {
+      const key = `${riga.providerKey}:${riga.codice}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        result.push(riga);
+      }
+    };
+    ordinate.filter((riga) => partnerKeysAttivi.has(riga.providerKey)).forEach(add);
+    ordinate.slice(0, 8).forEach(add);
+    return result;
+  };
+
+  const miglioriLuce = selezionaRigheSeparate("luce");
+  const miglioriGas = selezionaRigheSeparate("gas");
   const abbinamenti = [];
   miglioriLuce.forEach((luce) => {
     miglioriGas.forEach((gas) => {
@@ -4983,11 +5095,9 @@ function costruisciOfferteAreraRanking(attuale, tipoTariffa, tipoFornitura) {
     });
   });
 
-  const abbinamentiOrdinati = abbinamenti
+  return abbinamenti
     .filter(Boolean)
     .sort((a, b) => costoOffertaSulProfilo(a, attuale) - costoOffertaSulProfilo(b, attuale));
-
-  return tutteLeCombinazioniSeparate ? abbinamentiOrdinati : abbinamentiOrdinati.slice(0, 20);
 }
 
 // OFFERTALOGICA_SINGLE_SUPPLY_PARTNERS_V2
@@ -5162,26 +5272,34 @@ function deduplicaPartnerAttivabili(items) {
   return [...bestByProvider.values()];
 }
 
-function chiaviProviderComponentiSeparate(offerta) {
-  const componenti = offerta?.componentiSeparate;
-  const luceKey = componenti?.luce?.providerKey || chiaveFornitoreDaNome(componenti?.luce?.providerLabel);
-  const gasKey = componenti?.gas?.providerKey || chiaveFornitoreDaNome(componenti?.gas?.providerLabel);
-  return [luceKey, gasKey].filter(Boolean);
+// OFFERTALOGICA_ALWAYS_6_PARTNERS_3_CONSULTANT_20260722
+const NUMERO_OFFERTE_PARTNER_MENU = 6;
+const NUMERO_OFFERTE_CONSULENTE_MENU = 3;
+
+function selezionaPartnerAttivabiliPerMenu(items, limite = NUMERO_OFFERTE_PARTNER_MENU) {
+  const ordinate = [...items]
+    .sort((a, b) => (a.costo - b.costo) || (b.differenza - a.differenza));
+  const prioritaProvider = deduplicaPartnerAttivabili(ordinate)
+    .sort((a, b) => (a.costo - b.costo) || (b.differenza - a.differenza));
+  const selezionate = [];
+  const ids = new Set();
+  const add = (item) => {
+    const id = String(item?.offerta?.id || "");
+    if (!id || ids.has(id) || selezionate.length >= limite) return;
+    ids.add(id);
+    selezionate.push(item);
+  };
+  prioritaProvider.forEach(add);
+  ordinate.forEach(add);
+  return selezionate.slice(0, limite);
 }
 
-function providerPartnerAttiviPerFornitura(tipoFornitura) {
-  return new Set(
-    OFFERTE_PROPOSTE
-      .filter((offerta) => offertaAttivabileOnline(offerta))
-      .filter((offerta) => percorsoCommercialeSupportaFornitura(offerta, tipoFornitura))
-      .map((offerta) => chiaveFornitoreDaNome(offerta.provider))
-      .filter(Boolean)
-  );
-}
-
-function abbinamentoSeparatoFormatoDaPartner(offerta, providerPartner) {
-  const keys = chiaviProviderComponentiSeparate(offerta);
-  return keys.length === 2 && keys.every((key) => providerPartner.has(key));
+function selezionaConsulentiPerMenu(items, partnerVisibili, limite = NUMERO_OFFERTE_CONSULENTE_MENU) {
+  const idsPartner = new Set(partnerVisibili.map((item) => String(item?.offerta?.id || "")));
+  return items
+    .filter((item) => !item.attivabileOnline)
+    .filter((item) => !idsPartner.has(String(item?.offerta?.id || "")))
+    .slice(0, limite);
 }
 
 function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitura) {
@@ -5260,51 +5378,46 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       .map((item, index) => [String(item.offerta.id), index + 1])
   );
 
-  // OFFERTALOGICA_PARTNER_GROUP_EXCLUSION_20260719
-  // Conserva l'intero insieme dei partner coerenti prima del limite visuale:
-  // nessun partner escluso dalla top 6 può ricomparire tra i consulenti.
-  const modalitaSeparate = tipoFornitura === "separate";
-  const providerPartnerSeparate = modalitaSeparate
-    ? providerPartnerAttiviPerFornitura("separate")
-    : new Set();
-  const candidatiPartner = modalitaSeparate
-    ? offerteCalcolate.filter((item) => (
-      item.compatibileRanking &&
-      item.filtroEsatto &&
-      abbinamentoSeparatoFormatoDaPartner(item.offerta, providerPartnerSeparate)
-    ))
-    : offerteCalcolate.filter((item) => item.attivabileCoerente);
-  const partnerAttivabiliCoerenti = (modalitaSeparate
-    ? candidatiPartner
-    : deduplicaPartnerAttivabili(candidatiPartner))
+  // OFFERTALOGICA_ALWAYS_6_PARTNERS_3_CONSULTANT_20260722
+  // Ogni combinazione del menu deve mostrare sei percorsi partner attivi e
+  // tre migliori offerte esatte per costo con consulente.
+  const partnerAttivabiliCoerenti = offerteCalcolate
+    .filter((item) => item.attivabileCoerente)
     .sort((a, b) => (a.costo - b.costo) || (b.differenza - a.differenza));
 
-  const attivabiliPrioritarie = partnerAttivabiliCoerenti
-    .slice(0, 6)
-    .map((item, index) => ({
-      ...item,
-      gruppoVisuale: "attivabile",
-      posizioneGruppo: index + 1,
-      posizioneEconomica: rankingGlobale.get(String(item.offerta.id)) || null,
-    }));
+  const attivabiliPrioritarie = selezionaPartnerAttivabiliPerMenu(
+    partnerAttivabiliCoerenti,
+    NUMERO_OFFERTE_PARTNER_MENU
+  ).map((item, index) => ({
+    ...item,
+    gruppoVisuale: "attivabile",
+    posizioneGruppo: index + 1,
+    posizioneEconomica: rankingGlobale.get(String(item.offerta.id)) || null,
+  }));
 
-  // OFFERTALOGICA_STRICT_SELECTED_PRICE_TYPE_20260719
-  // Il gruppo consulente rispetta esattamente tipo prezzo e fornitura e
-  // non può contenere alcun fornitore già riconosciuto come partner.
-  const miglioriConConsulente = ordinateRanking
+  const candidatiConsulente = ordinateRanking
     .filter((item) => item.compatibileRanking && item.filtroEsatto)
     .filter((item) => item.offerta?.tipo === tipoTariffa)
-    .filter((item) => offertaCoerenteConFornitura(item.offerta, tipoFornitura))
-    .filter((item) => !item.attivabileOnline)
-    .filter((item) => !partnerAttivabiliCoerenti.some((partner) => (
-      offerteStessoFornitore(item.offerta, partner.offerta)
-    )))
-    .slice(0, 3)
-    .map((item, index) => ({
-      ...item,
-      gruppoVisuale: "top",
-      posizioneGruppo: index + 1,
-    }));
+    .filter((item) => offertaCoerenteConFornitura(item.offerta, tipoFornitura));
+
+  const miglioriConConsulente = selezionaConsulentiPerMenu(
+    candidatiConsulente,
+    attivabiliPrioritarie,
+    NUMERO_OFFERTE_CONSULENTE_MENU
+  ).map((item, index) => ({
+    ...item,
+    gruppoVisuale: "top",
+    posizioneGruppo: index + 1,
+  }));
+
+  if (attivabiliPrioritarie.length !== NUMERO_OFFERTE_PARTNER_MENU
+      || miglioriConConsulente.length !== NUMERO_OFFERTE_CONSULENTE_MENU) {
+    console.warn("[OffertaLogica] Composizione offerte incompleta", {
+      filtro: testoFiltroOfferte(tipoTariffa, tipoFornitura),
+      partner: attivabiliPrioritarie.length,
+      consulente: miglioriConConsulente.length,
+    });
+  }
   const visibili = [...attivabiliPrioritarie, ...miglioriConConsulente];
   const idsVisibili = new Set(visibili.map((item) => String(item.offerta.id)));
   const migliore = ordinateRanking[0] || offerteCalcolate[0] || null;
@@ -5312,15 +5425,13 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
   const gruppoPartner = assicuraGruppoOfferte(
     "offerte-partner-online-group",
     "partner-group",
-    modalitaSeparate ? "Migliori abbinamenti con fornitori partner" : "Offerte partner attivabili online",
-    modalitaSeparate
-      ? "Le migliori combinazioni luce e gas tra fornitori partner. La sottoscrizione delle due forniture viene gestita con il consulente."
-      : "Le migliori proposte attivabili online tra i partner disponibili e coerenti con il filtro selezionato."
+    "6 offerte partner attivabili online",
+    "Le migliori proposte attivabili online tra i partner disponibili e coerenti con il filtro selezionato."
   );
   const gruppoConsulente = assicuraGruppoOfferte(
     "offerte-consulente-group",
     "consultant-group",
-    "Migliori offerte per costo con consulente",
+    "3 migliori offerte per costo con consulente",
     OFFERTE_ARERA_MENU.length
       ? "Le migliori proposte per costo annuo stimato sul tuo profilo. Richiedono verifica consulenziale o ricontatto prima dell'eventuale attivazione."
       : "Le migliori proposte tra le offerte disponibili nel calcolatore. Richiedono verifica consulenziale o ricontatto."
@@ -5377,7 +5488,6 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       const details = card.querySelector(".partner-details");
       const link = card.querySelector("a");
       const separataMulti = offertaSeparataMultiFornitore(offerta);
-      const separataConsulenziale = offerta?.fornitura === "separate" && (offerta?.tipo === "variabile" || (offerta?.luce && offerta?.gas));
       const badgeText = testoBadgeOfferta({ offerta, posizioneEconomica, posizioneGruppo, gruppoVisuale, costo, compatibileRanking }, migliore);
       const tipoPrezzoBadge = offerta?.tipo === "variabile" ? "Prezzo variabile" : "Prezzo fisso";
       const badge = `<span style="display:inline-block; margin:0 0 6px; padding:3px 8px; border:1px solid; border-radius:999px; font-size:11px; font-weight:800; ${stileBadgeOfferta({ posizioneEconomica, gruppoVisuale })}">${badgeText}</span><span style="display:inline-block; margin:0 0 6px 6px; padding:3px 8px; border:1px solid #bfdbfe; border-radius:999px; background:#eff6ff; color:#1d4ed8; font-size:11px; font-weight:800;">${tipoPrezzoBadge}</span>`;
@@ -5417,7 +5527,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
           </small>
         `;
       } else {
-        if (title) title.innerText = gruppoVisuale === "top" || separataMulti || separataConsulenziale ? "Offerta con consulente" : "Offerta attivabile online";
+        if (title) title.innerText = gruppoVisuale === "top" || separataMulti ? "Offerta con consulente" : "Offerta attivabile online";
         aggiornaLogoOfferta(card, offerta, false);
         if (details) details.innerText = "Verifica il cellulare per vedere nome fornitore, dettagli economici e link.";
         if (link) {
@@ -6281,6 +6391,16 @@ function campiAssistenteAttivazione() {
   const scope = tipoFornituraPerCalcolo();
   const usaLuce = scope !== "gas";
   const usaGas = ["gas", "dual", "separate"].includes(scope);
+  const codiceClienteGenerico = valoreDatoAttivazione(firstValue(data.codice_cliente, data.codiceCliente, data.customer_code));
+  const codiceClienteLuce = usaLuce
+    ? valoreDatoAttivazione(firstValue(data.codice_cliente_luce, codiceClienteGenerico))
+    : "";
+  const codiceClienteGas = usaGas
+    ? valoreDatoAttivazione(firstValue(data.codice_cliente_gas, codiceClienteGenerico))
+    : "";
+  const codiceClienteComune = usaLuce && usaGas && codiceClienteLuce && codiceClienteLuce === codiceClienteGas
+    ? codiceClienteLuce
+    : "";
   const fields = [
     { label: "Nome e cognome", value: nome || valoreDatoAttivazione(firstValue(data.intestatario, data.nome_intestatario, data.nomeIntestatario)), hint: "Dato anagrafico utile durante la compilazione.", category: "personal" },
     { label: "Cellulare", value: telefono, hint: "Numero già verificato su OffertaLogica.", category: "personal" },
@@ -6293,7 +6413,9 @@ function campiAssistenteAttivazione() {
     { label: "Consumo annuo luce", value: usaLuce ? valoreConUnitaAttivazione(data.consumo_luce_kwh, "kWh/anno") : "", hint: "Serve per verificare che il preventivo del fornitore sia coerente.", category: "technical", applicable: usaLuce },
     { label: "Consumo annuo gas", value: usaGas ? valoreConUnitaAttivazione(data.consumo_gas_smc, "Smc/anno") : "", hint: "Serve per verificare la stima gas durante l'attivazione.", category: "technical", applicable: usaGas },
     { label: "Potenza impegnata", value: usaLuce ? valoreConUnitaAttivazione(data.potenza_impegnata_kw, "kW") : "", hint: "Controlla il valore indicato nella bolletta luce.", category: "technical", applicable: usaLuce },
-    { label: "Codice cliente", value: valoreDatoAttivazione(firstValue(data.codice_cliente, data.codiceCliente, data.customer_code)), hint: "Se rilevato, aiuta il fornitore a identificare meglio la pratica.", category: "technical" },
+    { label: "Codice cliente", value: codiceClienteComune, hint: "Codice comune alle due utenze.", category: "technical", applicable: Boolean(codiceClienteComune) },
+    { label: "Codice cliente luce", value: codiceClienteLuce, hint: "Codice contrattuale della fornitura elettrica.", category: "technical", applicable: usaLuce && !codiceClienteComune },
+    { label: "Codice cliente gas", value: codiceClienteGas, hint: "Codice contrattuale della fornitura gas.", category: "technical", applicable: usaGas && !codiceClienteComune },
     { label: "Indirizzo fornitura", value: valoreDatoAttivazione(firstValue(data.indirizzo_fornitura, data.indirizzoFornitura, data.indirizzo)), hint: "Se rilevato, controlla che coincida con l'utenza da attivare.", category: "technical" },
   ];
   return fields
@@ -6750,30 +6872,38 @@ function configuraConfermaPdfPronta(results) {
   const panel = document.getElementById("pdf-review-static");
   const title = document.getElementById("pdf-review-title");
   const button = document.getElementById("pdf-confirm-data-button");
-  const successCount = results.filter(risultatoPdfUtilizzabile).length;
+  const availableDocuments = (LEAD_STATE.pdfDocuments || []).length ? LEAD_STATE.pdfDocuments : results;
+  const successCount = availableDocuments.filter(risultatoPdfUtilizzabile).length;
   const mixedDocuments = Boolean(LEAD_STATE.pdfData?.mixed_documents);
-  const hasReadableData = successCount > 0 && !mixedDocuments && Object.keys(LEAD_STATE.pdfData || {}).length > 0;
+  const mergeBlocked = Boolean(LEAD_STATE.pdfData?.merge_blocked);
+  const hasReadableData = successCount > 0 && !mixedDocuments && !mergeBlocked && Object.keys(LEAD_STATE.pdfData || {}).length > 0;
 
-  if (title) title.innerText = mixedDocuments
-    ? "Separa bolletta e scheda sintetica"
-    : hasReadableData
-      ? "Dati letti: controlla e conferma"
-      : "Documento non riconosciuto: completa manualmente";
-  if (button) {
-    button.disabled = mixedDocuments;
-    button.innerText = mixedDocuments
-      ? "Carica separatamente i documenti"
+  if (title) title.innerText = mergeBlocked
+    ? "Separa i documenti prima di continuare"
+    : mixedDocuments
+      ? "Separa bolletta e scheda sintetica"
       : hasReadableData
-        ? "Ho controllato: conferma e inserisci i dati"
-        : "Conferma e passa al modulo";
+        ? "Dati letti: controlla e conferma"
+        : "Documento non riconosciuto: completa manualmente";
+  if (button) {
+    button.disabled = mixedDocuments || mergeBlocked;
+    button.innerText = mergeBlocked
+      ? "Rimuovi i documenti non omogenei"
+      : mixedDocuments
+        ? "Carica separatamente i documenti"
+        : hasReadableData
+          ? "Controlla e scegli i dati da inserire"
+          : "Conferma e passa al modulo";
   }
   mostraGuida(
     "pdf-confirm-guidance",
-    mixedDocuments
-      ? "<strong>Hai caricato insieme una bolletta e una scheda sintetica.</strong> Per evitare di mescolare i dati della fornitura attuale con quelli della nuova offerta, rimuovi i PDF e analizzali separatamente."
-      : hasReadableData
-        ? "<strong>Leggi e conferma i dati estratti.</strong> Controlla il riepilogo, poi premi il pulsante verde: solo così i valori verranno inseriti nel modulo."
-        : "<strong>Il documento non ha fornito dati sufficientemente affidabili.</strong> Puoi confermare per aprire il modulo e completare i valori manualmente."
+    mergeBlocked
+      ? "<strong>I PDF non appartengono allo stesso cliente o alla stessa fornitura.</strong> Usa i pulsanti Rimuovi accanto ai documenti e lascia soltanto un gruppo omogeneo. Nessun valore è stato scelto o unito automaticamente."
+      : mixedDocuments
+        ? "<strong>Hai caricato insieme una bolletta e una scheda sintetica.</strong> Per evitare di mescolare i dati della fornitura attuale con quelli della nuova offerta, rimuovi i PDF e analizzali separatamente."
+        : hasReadableData
+          ? "<strong>Leggi i dati estratti e apri l’anteprima.</strong> Potrai scegliere campo per campo cosa inserire; i valori manuali resteranno protetti."
+          : "<strong>Il documento non ha fornito dati sufficientemente affidabili.</strong> Puoi confermare per aprire il modulo e completare i valori manualmente."
   );
   panel?.classList.remove("pdf-confirm-attention");
   void panel?.offsetWidth;
@@ -6821,6 +6951,100 @@ function accompagnaAllaRevisioneDatiPdf(data) {
   window.setTimeout(() => target?.classList.remove("pdf-data-target"), 3400);
 }
 
+
+let PDF_PENDING_FILES = [];
+let PDF_UPLOAD_SEQUENCE = 0;
+
+function pdfFileFingerprint(file) {
+  return [file?.name || "", Number(file?.size || 0), Number(file?.lastModified || 0)].join("::");
+}
+
+function nuovoPdfUploadId(prefix = "pdf") {
+  PDF_UPLOAD_SEQUENCE += 1;
+  return `${prefix}-${Date.now()}-${PDF_UPLOAD_SEQUENCE}`;
+}
+
+function pdfFileSizeLabel(size) {
+  const bytes = Number(size || 0);
+  if (!Number.isFinite(bytes) || bytes <= 0) return "dimensione non disponibile";
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function aggiornaInterfacciaSelezionePdf() {
+  const pickerButton = document.getElementById("pdf-select-files-button");
+  const status = document.getElementById("pdf-file-picker-status");
+  const list = document.getElementById("pdf-selected-files");
+  const analyzed = Array.isArray(LEAD_STATE.pdfDocuments) ? LEAD_STATE.pdfDocuments : [];
+  const total = PDF_PENDING_FILES.length + analyzed.length;
+  if (pickerButton) pickerButton.innerText = total > 0 ? "Aggiungi file" : "Scegli file";
+  if (status) {
+    if (!total) status.innerText = "Nessun PDF aggiunto";
+    else if (PDF_PENDING_FILES.length) status.innerText = `${total} PDF presenti, ${PDF_PENDING_FILES.length} da analizzare`;
+    else status.innerText = `${total} PDF analizzati`;
+  }
+  if (!list) return;
+  if (!total) {
+    list.hidden = true;
+    list.innerHTML = "";
+    return;
+  }
+  const pendingRows = PDF_PENDING_FILES.map((entry) => `
+    <li class="pdf-file-item">
+      <span><strong>${testoHtmlSicuro(entry.file.name)}</strong><small>Da analizzare · ${pdfFileSizeLabel(entry.file.size)}</small></span>
+      <button type="button" class="pdf-file-remove" onclick="rimuoviFilePdf('${entry.id}', 'pending')" aria-label="Rimuovi ${testoHtmlSicuro(entry.file.name)}">Rimuovi</button>
+    </li>`);
+  const analyzedRows = analyzed.map((doc) => `
+    <li class="pdf-file-item">
+      <span><strong>${testoHtmlSicuro(doc.filename || "documento.pdf")}</strong><small>${doc.error ? testoHtmlSicuro(doc.error) : "Analizzato"}</small></span>
+      <button type="button" class="pdf-file-remove" onclick="rimuoviFilePdf('${doc.upload_id}', 'analyzed')" aria-label="Rimuovi ${testoHtmlSicuro(doc.filename || "documento.pdf")}">Rimuovi</button>
+    </li>`);
+  list.hidden = false;
+  list.innerHTML = `<ul class="pdf-file-list">${[...analyzedRows, ...pendingRows].join("")}</ul>`;
+}
+
+window.apriSelettorePdf = function apriSelettorePdf() {
+  const input = document.getElementById("pdf-static-input");
+  if (!input) return;
+  input.value = "";
+  input.click();
+};
+
+window.rimuoviFilePdf = function rimuoviFilePdf(id, source) {
+  if (source === "pending") {
+    PDF_PENDING_FILES = PDF_PENDING_FILES.filter((entry) => entry.id !== id);
+  } else {
+    LEAD_STATE.pdfDocuments = (LEAD_STATE.pdfDocuments || []).filter((doc) => doc.upload_id !== id);
+    LEAD_STATE.pdfData = LEAD_STATE.pdfDocuments.length ? mergePdfDocuments(LEAD_STATE.pdfDocuments) : null;
+    const panel = document.getElementById("pdf-review-static");
+    const title = document.getElementById("pdf-review-title");
+    const copy = document.getElementById("pdf-review-copy");
+    const confirmButton = document.getElementById("pdf-confirm-data-button");
+    if (LEAD_STATE.pdfDocuments.length) {
+      if (panel) panel.style.display = "block";
+      if (copy) copy.innerHTML = renderPdfSummary(LEAD_STATE.pdfDocuments, LEAD_STATE.pdfData);
+      configuraConfermaPdfPronta(LEAD_STATE.pdfDocuments);
+    } else {
+      if (panel) panel.style.display = "none";
+      if (title) title.innerText = "Dati pronti per la conferma";
+      if (copy) copy.innerText = "Dopo l'analisi potrai confermare i dati letti dal PDF. Il confronto partirà solo dopo la tua conferma.";
+      if (confirmButton) {
+        confirmButton.disabled = false;
+        confirmButton.innerText = "Controlla e scegli i dati da inserire";
+      }
+    }
+  }
+  aggiornaInterfacciaSelezionePdf();
+  const notice = document.getElementById("pdf-upload-context-notice");
+  if (notice) {
+    const total = PDF_PENDING_FILES.length + (LEAD_STATE.pdfDocuments || []).length;
+    notice.hidden = false;
+    notice.innerHTML = total
+      ? `<span class="pdf-context-icon" aria-hidden="true">✓</span><span><strong>Documento rimosso.</strong> Restano ${total} PDF. Puoi aggiungerne altri oppure analizzare quelli in attesa.</span>`
+      : '<span class="pdf-context-icon" aria-hidden="true">↓</span><span><strong>Nessun PDF presente.</strong> Premi <strong>Scegli file</strong> per iniziare.</span>';
+  }
+};
+
 window.preparaConfermaPdf = async function preparaConfermaPdf() {
   nascondiEsitiFincheNonConfronti();
   nascondiGuida("pdf-data-review-guidance");
@@ -6830,16 +7054,27 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
   const title = document.getElementById("pdf-review-title");
   const copy = document.getElementById("pdf-review-copy");
   const confirmButton = document.getElementById("pdf-confirm-data-button");
-  const files = Array.from(input?.files || []);
+  const pendingEntries = [...PDF_PENDING_FILES];
+  const files = pendingEntries.map((entry) => entry.file);
   if (!files.length) {
     trackEvent("pdf_no_file_selected");
     if (panel) panel.style.display = "block";
-    if (title) title.innerText = "Prima seleziona il documento";
-    if (copy) copy.innerText = "Seleziona una bolletta PDF o una scheda sintetica, poi premi “Analizza PDF”. Dopo la lettura ti chiederemo di controllare e confermare i dati.";
-    if (confirmButton) confirmButton.disabled = true;
-    nascondiGuida("pdf-confirm-guidance");
+    if (LEAD_STATE.pdfDocuments.length) {
+      if (copy) copy.innerHTML = renderPdfSummary(LEAD_STATE.pdfDocuments, LEAD_STATE.pdfData);
+      configuraConfermaPdfPronta(LEAD_STATE.pdfDocuments);
+      const notice = document.getElementById("pdf-upload-context-notice");
+      if (notice) {
+        notice.hidden = false;
+        notice.innerHTML = '<span class="pdf-context-icon" aria-hidden="true">↓</span><span><strong>Nessun nuovo PDF da analizzare.</strong> Premi <strong>Aggiungi file</strong> oppure controlla e conferma i documenti già letti.</span>';
+      }
+    } else {
+      if (title) title.innerText = "Prima seleziona il documento";
+      if (copy) copy.innerText = "Seleziona una bolletta PDF o una scheda sintetica, poi premi “Analizza PDF”. Dopo la lettura ti chiederemo di controllare e confermare i dati.";
+      if (confirmButton) confirmButton.disabled = true;
+      nascondiGuida("pdf-confirm-guidance");
+    }
     portaElementoInVista(document.getElementById("pdf-upload-drop"), { block: "center" });
-    input?.focus({ preventScroll: true });
+    document.getElementById("pdf-select-files-button")?.focus({ preventScroll: true });
     return;
   }
   if (panel) panel.style.display = "block";
@@ -6853,7 +7088,9 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
   trackEvent("pdf_analysis_started", { fileCount: files.length });
 
   const results = [];
-  for (const file of files) {
+  for (let fileIndex = 0; fileIndex < files.length; fileIndex += 1) {
+    const file = files[fileIndex];
+    const pendingEntry = pendingEntries[fileIndex];
     const formData = new FormData();
     formData.append("pdf", file);
     formData.append("archiveContext", JSON.stringify({
@@ -6868,7 +7105,14 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
       if (!contentType.includes("application/json")) throw new Error("api_non_disponibile");
       const payload = await response.json();
       if (!response.ok || !payload.ok) throw new Error(payload.error || "Errore analisi PDF");
-      results.push({ filename: file.name, archive: payload.archive || null, ...payload.normalized });
+      results.push({
+        filename: file.name,
+        upload_id: pendingEntry.id,
+        file_fingerprint: pendingEntry.fingerprint,
+        file_size: Number(file.size || 0),
+        archive: payload.archive || null,
+        ...payload.normalized,
+      });
     } catch (error) {
       const safeMessage = [
         "PDF troppo grande",
@@ -6876,12 +7120,22 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
         "Il file caricato non è un PDF valido",
         "PDF mancante o formato non accettato",
       ].includes(error?.message) ? error.message : "Lettura non disponibile";
-      results.push({ filename: file.name, error: safeMessage });
+      results.push({
+        filename: file.name,
+        upload_id: pendingEntry.id,
+        file_fingerprint: pendingEntry.fingerprint,
+        file_size: Number(file.size || 0),
+        error: safeMessage,
+      });
     }
   }
 
+  const processedIds = new Set(pendingEntries.map((entry) => entry.id));
+  PDF_PENDING_FILES = PDF_PENDING_FILES.filter((entry) => !processedIds.has(entry.id));
+  if (input) input.value = "";
   LEAD_STATE.pdfDocuments = [...LEAD_STATE.pdfDocuments, ...results];
   LEAD_STATE.pdfData = mergePdfDocuments(LEAD_STATE.pdfDocuments);
+  aggiornaInterfacciaSelezionePdf();
   LEAD_STATE.dataOrigin = "pdf_upload";
   trackEvent("pdf_analysis_completed", {
     fileCount: files.length,
@@ -6913,8 +7167,18 @@ window.confermaPdfECalcola = async function confermaPdfECalcola() {
     applicaAmbitoConfronto(scope, { gasDecision: LEAD_STATE.gasDecision, electricityDecision: LEAD_STATE.electricityDecision });
   }
 
+  let selectedAutofillRows = null;
+  if (data?.data_contract?.fields && !data.merge_blocked && !data.mixed_documents) {
+    selectedAutofillRows = await apriAnteprimaAutocompilazionePdf(data);
+    if (selectedAutofillRows === null) {
+      const copy = document.getElementById("pdf-review-copy");
+      if (copy) copy.innerText = "Anteprima chiusa: il modulo non è stato modificato. Puoi riaprire la selezione premendo di nuovo il pulsante di conferma.";
+      return;
+    }
+  }
+
   if (LEAD_STATE.customerType === "business") {
-    applicaDatiPdfAlBusiness(data);
+    applicaDatiPdfAlBusiness(data, selectedAutofillRows);
     nascondiEsitiFincheNonConfronti();
     const businessResult = document.getElementById("business-result");
     const businessError = document.getElementById("business-error");
@@ -6932,7 +7196,9 @@ window.confermaPdfECalcola = async function confermaPdfECalcola() {
       vaiAlCaricatoreScheda();
       return;
     }
-    if (copy) copy.innerText = "Dati confermati e inseriti nel modulo business. Controllali e completa soltanto gli eventuali valori pertinenti alla fornitura scelta.";
+    if (copy) copy.innerText = Array.isArray(selectedAutofillRows) && selectedAutofillRows.length === 0
+      ? "Nessun campo del modulo business è stato modificato. I dati letti restano disponibili nel riepilogo."
+      : "I campi selezionati sono stati inseriti nel modulo business. I valori manuali non selezionati sono rimasti invariati.";
     portaElementoInVista(document.getElementById("business-panel"), { block: "start" });
     return;
   }
@@ -6945,7 +7211,7 @@ window.confermaPdfECalcola = async function confermaPdfECalcola() {
   if (calcHint) calcHint.style.display = "block";
   modalitaCalcolo = "manuale";
 
-  applicaDatiPdfAlModulo(data);
+  applicaDatiPdfAlModulo(data, selectedAutofillRows);
   nascondiEsitiFincheNonConfronti();
   aggiornaAssistenteAttivazioneVisibilita();
   const copy = document.getElementById("pdf-review-copy");
@@ -6961,31 +7227,755 @@ window.confermaPdfECalcola = async function confermaPdfECalcola() {
     vaiAlCaricatoreScheda();
     return;
   }
-  if (copy) copy.innerText = "Dati confermati e inseriti nel modulo. Controlla l'area evidenziata qui sotto, completa soltanto i dati pertinenti e poi avvia il confronto.";
+  if (copy) copy.innerText = Array.isArray(selectedAutofillRows) && selectedAutofillRows.length === 0
+    ? "Nessun campo è stato modificato. I valori già presenti nel modulo sono rimasti invariati."
+    : "I campi selezionati sono stati inseriti nel modulo. I valori manuali non selezionati sono rimasti invariati; controlla l'area qui sotto e poi avvia il confronto.";
   accompagnaAllaRevisioneDatiPdf(data);
 };
 
 function applicaDatiPdfAlBusiness(data) {
   if (!data) return;
-  setField("business-ragione", data.intestatario || "");
-  setField("business-piva", /^\d{11}$/.test(String(data.codice_fiscale || "")) ? data.codice_fiscale : "");
-  setField("business-fornitore", data.fornitore_luce || (data.commodity !== "gas" ? data.fornitore : "") || "");
-  setField("business-fornitore-gas", data.fornitore_gas || (data.commodity === "gas" ? data.fornitore : "") || "");
-  setField("business-potenza", data.potenza_impegnata_kw || "");
-  setField("business-kwh", data.consumo_luce_kwh || "");
-  setField("business-prezzo-luce", data.prezzo_luce_eur_kwh || "");
-  setField("business-fisso-luce", data.quota_fissa_vendita_luce_eur_anno || "");
-  setField("business-smc", data.consumo_gas_smc || "");
-  setField("business-prezzo-gas", data.prezzo_gas_eur_smc || "");
-  setField("business-fisso-gas", data.quota_fissa_vendita_gas_eur_anno || "");
+  const selectedRows = arguments.length > 1 ? arguments[1] : null;
+  if (Array.isArray(selectedRows)) {
+    applicaRigheAutocompilazionePdf(selectedRows);
+    return;
+  }
+  const safe = (field) => pdfSafeAutofillValue(data, field);
+  const holder = safe("intestatario");
+  const taxId = safe("codice_fiscale");
+  const providerLuce = safe("fornitore_luce");
+  const providerGas = safe("fornitore_gas");
+  const power = safe("potenza_impegnata_kw");
+  const luceConsumption = safe("consumo_luce_kwh");
+  const lucePrice = safe("prezzo_luce_eur_kwh");
+  const luceFixed = safe("quota_fissa_vendita_luce_eur_anno");
+  const gasConsumption = safe("consumo_gas_smc");
+  const gasPrice = safe("prezzo_gas_eur_smc");
+  const gasFixed = safe("quota_fissa_vendita_gas_eur_anno");
+  if (holder !== undefined) setField("business-ragione", holder);
+  if (/^\d{11}$/.test(String(taxId || ""))) setField("business-piva", taxId);
+  if (providerLuce !== undefined) setField("business-fornitore", providerValue(providerLuce));
+  if (providerGas !== undefined) setField("business-fornitore-gas", providerValue(providerGas));
+  if (power !== undefined) setField("business-potenza", power);
+  if (luceConsumption !== undefined) setField("business-kwh", luceConsumption);
+  if (lucePrice !== undefined) setField("business-prezzo-luce", lucePrice);
+  if (luceFixed !== undefined) setField("business-fisso-luce", luceFixed);
+  if (gasConsumption !== undefined) setField("business-smc", gasConsumption);
+  if (gasPrice !== undefined) setField("business-prezzo-gas", gasPrice);
+  if (gasFixed !== undefined) setField("business-fisso-gas", gasFixed);
 }
 
 function firstValue(...values) {
   return values.find((value) => value !== undefined && value !== null && value !== "");
 }
 
+function firstNonEmptyArray(...values) {
+  return values.find((value) => Array.isArray(value) && value.length) || [];
+}
+
+function pdfContractFieldEntry(data, field) {
+  return data?.data_contract?.fields?.[field] || null;
+}
+
+function pdfContractHasValue(value) {
+  if (value === null || value === undefined || value === "") return false;
+  if (Array.isArray(value)) return value.length > 0;
+  if (typeof value === "object") return Object.keys(value).length > 0;
+  return true;
+}
+
+function pdfSafeAutofillValue(data, field) {
+  const entry = pdfContractFieldEntry(data, field);
+  if (!entry?.autofill?.allowed || entry.status !== "completo") return undefined;
+  return entry.normalized_value;
+}
+
+function pdfPreviewAutofillEntry(data, field) {
+  const entry = pdfContractFieldEntry(data, field);
+  if (!entry || entry.status !== "completo") return null;
+  if (entry.autofill?.allowed) return { entry, review_required: false };
+  const ocrReview = Boolean(
+    entry.autofill?.review_selectable
+    && entry.autofill?.requires_explicit_selection
+    && entry.provenance?.origin === "pdf_image_ocr"
+  );
+  return ocrReview ? { entry, review_required: true } : null;
+}
+
+function pdfPreviewAutofillValue(data, field) {
+  return pdfPreviewAutofillEntry(data, field)?.entry?.normalized_value;
+}
+
+
+const PDF_AUTOFILL_FIELD_IDS = Object.freeze([
+  "nome-fornitore-att", "nome-fornitore-gas-att", "nome-fornitore-nuov",
+  "in-luce-cons-att", "in-luce-prezzo-att", "in-luce-fisso-att", "in-luce-fisso-att-unita",
+  "in-gas-cons-att", "in-gas-prezzo-att", "in-gas-fisso-att", "in-gas-fisso-att-unita",
+  "in-luce-cons-nuov", "in-luce-prezzo-nuov", "in-luce-fisso-nuov", "in-luce-fisso-nuov-unita",
+  "in-gas-cons-nuov", "in-gas-prezzo-nuov", "in-gas-fisso-nuov", "in-gas-fisso-nuov-unita",
+  "master-luce-potenza", "master-luce-tipo",
+  "business-ragione", "business-piva", "business-fornitore", "business-fornitore-gas",
+  "business-potenza", "business-kwh", "business-prezzo-luce", "business-fisso-luce",
+  "business-smc", "business-prezzo-gas", "business-fisso-gas",
+]);
+const PDF_MANUAL_TOUCHED_FIELDS = new Set();
+let PDF_AUTOFILL_PREVIEW_ROWS = [];
+let PDF_AUTOFILL_PREVIEW_RESOLVE = null;
+
+function pdfAutofillMarkManualField(id) {
+  if (id && PDF_AUTOFILL_FIELD_IDS.includes(id)) PDF_MANUAL_TOUCHED_FIELDS.add(id);
+}
+
+function pdfAutofillClearManualFields() {
+  PDF_MANUAL_TOUCHED_FIELDS.clear();
+}
+
+function registraModificaManualePdf(event) {
+  if (!event?.isTrusted) return;
+  pdfAutofillMarkManualField(event.target?.id);
+}
+
+function pdfAutofillHasValue(value) {
+  return value !== undefined && value !== null && String(value).trim() !== "";
+}
+
+function pdfAutofillComparable(value, mode = "text") {
+  if (!pdfAutofillHasValue(value)) return null;
+  if (mode === "number" || mode === "fixed_annual") {
+    const number = Number(String(value).replace(",", "."));
+    return Number.isFinite(number) ? number : null;
+  }
+  return String(value).trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function pdfAutofillValuesEqual(left, right, mode = "text") {
+  const a = pdfAutofillComparable(left, mode);
+  const b = pdfAutofillComparable(right, mode);
+  if (a === null || b === null) return a === b;
+  if (mode === "number" || mode === "fixed_annual") {
+    return Math.abs(a - b) <= Math.max(0.000001, Math.abs(b) * 0.000001);
+  }
+  return a === b;
+}
+
+function pdfAutofillAddSpec(specs, data, field, label, targetIds, options = {}) {
+  const selection = pdfPreviewAutofillEntry(data, field);
+  const value = selection?.entry?.normalized_value;
+  if (value === undefined) return;
+  specs.push({
+    id: `${field}-${targetIds.join("-")}`,
+    field,
+    label,
+    value,
+    target_ids: targetIds,
+    kind: options.kind || "value",
+    compare_mode: options.compare_mode || (typeof value === "number" ? "number" : "text"),
+    unit: options.unit || null,
+    input_id: options.input_id || targetIds[0],
+    unit_id: options.unit_id || null,
+    transform: options.transform || null,
+    review_required: Boolean(selection.review_required),
+    source_origin: selection.entry?.provenance?.origin || "pdf_native_text",
+  });
+}
+
+function buildPdfAutofillSpecs(data, customerType = "privato") {
+  const specs = [];
+  if (!data?.data_contract?.fields) return specs;
+  const add = (field, label, targets, options) => pdfAutofillAddSpec(specs, data, field, label, targets, options);
+
+  if (customerType === "business") {
+    add("intestatario", "Ragione sociale / intestatario", ["business-ragione"]);
+    const taxId = pdfPreviewAutofillValue(data, "codice_fiscale");
+    if (/^\d{11}$/.test(String(taxId || ""))) add("codice_fiscale", "Partita IVA", ["business-piva"]);
+    add("fornitore_luce", "Fornitore luce", ["business-fornitore"]);
+    add("fornitore_gas", "Fornitore gas", ["business-fornitore-gas"]);
+    add("potenza_impegnata_kw", "Potenza impegnata", ["business-potenza"], { unit: "kW", compare_mode: "number" });
+    add("consumo_luce_kwh", "Consumo annuo luce", ["business-kwh"], { unit: "kWh/anno", compare_mode: "number" });
+    add("prezzo_luce_eur_kwh", "Prezzo luce", ["business-prezzo-luce"], { unit: "€/kWh", compare_mode: "number" });
+    add("quota_fissa_vendita_luce_eur_anno", "Quota fissa luce", ["business-fisso-luce"], { unit: "€/anno", compare_mode: "number" });
+    add("consumo_gas_smc", "Consumo annuo gas", ["business-smc"], { unit: "Smc/anno", compare_mode: "number" });
+    add("prezzo_gas_eur_smc", "Prezzo gas", ["business-prezzo-gas"], { unit: "€/Smc", compare_mode: "number" });
+    add("quota_fissa_vendita_gas_eur_anno", "Quota fissa gas", ["business-fisso-gas"], { unit: "€/anno", compare_mode: "number" });
+    return specs;
+  }
+
+  if (data.kind === "scheda_offerta") {
+    const providerLuce = pdfPreviewAutofillValue(data, "fornitore_luce");
+    const providerGas = pdfPreviewAutofillValue(data, "fornitore_gas");
+    if (providerLuce !== undefined && (providerGas === undefined || providerLuce === providerGas)) {
+      add("fornitore_luce", "Fornitore della proposta", ["nome-fornitore-nuov"], { transform: "provider" });
+    } else if (providerGas !== undefined && providerLuce === undefined) {
+      add("fornitore_gas", "Fornitore della proposta", ["nome-fornitore-nuov"], { transform: "provider" });
+    }
+    add("prezzo_luce_eur_kwh", "Prezzo luce della proposta", ["in-luce-prezzo-nuov"], { unit: "€/kWh", compare_mode: "number" });
+    add("quota_fissa_vendita_luce_eur_anno", "Quota fissa luce della proposta", ["in-luce-fisso-nuov", "in-luce-fisso-nuov-unita"], {
+      kind: "fixed_annual", compare_mode: "fixed_annual", unit: "€/anno", input_id: "in-luce-fisso-nuov", unit_id: "in-luce-fisso-nuov-unita",
+    });
+    add("prezzo_gas_eur_smc", "Prezzo gas della proposta", ["in-gas-prezzo-nuov"], { unit: "€/Smc", compare_mode: "number" });
+    add("quota_fissa_vendita_gas_eur_anno", "Quota fissa gas della proposta", ["in-gas-fisso-nuov", "in-gas-fisso-nuov-unita"], {
+      kind: "fixed_annual", compare_mode: "fixed_annual", unit: "€/anno", input_id: "in-gas-fisso-nuov", unit_id: "in-gas-fisso-nuov-unita",
+    });
+    const priceTypeField = pdfPreviewAutofillValue(data, "tipo_prezzo_luce") !== undefined ? "tipo_prezzo_luce" : "tipo_prezzo_gas";
+    const priceType = pdfPreviewAutofillValue(data, priceTypeField);
+    if (["fisso", "variabile"].includes(priceType)) add(priceTypeField, "Tipo prezzo", ["master-luce-tipo"]);
+    return specs;
+  }
+
+  add("fornitore_luce", "Fornitore luce attuale", ["nome-fornitore-att"], { transform: "provider" });
+  add("fornitore_gas", "Fornitore gas attuale", ["nome-fornitore-gas-att"], { transform: "provider" });
+  add("potenza_impegnata_kw", "Potenza impegnata luce", ["master-luce-potenza"], { unit: "kW", compare_mode: "number" });
+  add("consumo_luce_kwh", "Consumo annuo luce", ["in-luce-cons-att", "in-luce-cons-nuov"], { unit: "kWh/anno", compare_mode: "number" });
+  add("prezzo_luce_eur_kwh", "Prezzo luce attuale", ["in-luce-prezzo-att"], { unit: "€/kWh", compare_mode: "number" });
+  add("quota_fissa_vendita_luce_eur_anno", "Quota fissa luce attuale", ["in-luce-fisso-att", "in-luce-fisso-att-unita"], {
+    kind: "fixed_annual", compare_mode: "fixed_annual", unit: "€/anno", input_id: "in-luce-fisso-att", unit_id: "in-luce-fisso-att-unita",
+  });
+  add("consumo_gas_smc", "Consumo annuo gas", ["in-gas-cons-att", "in-gas-cons-nuov"], { unit: "Smc/anno", compare_mode: "number" });
+  add("prezzo_gas_eur_smc", "Prezzo gas attuale", ["in-gas-prezzo-att"], { unit: "€/Smc", compare_mode: "number" });
+  add("quota_fissa_vendita_gas_eur_anno", "Quota fissa gas attuale", ["in-gas-fisso-att", "in-gas-fisso-att-unita"], {
+    kind: "fixed_annual", compare_mode: "fixed_annual", unit: "€/anno", input_id: "in-gas-fisso-att", unit_id: "in-gas-fisso-att-unita",
+  });
+  const priceTypeField = pdfPreviewAutofillValue(data, "tipo_prezzo_luce") !== undefined ? "tipo_prezzo_luce" : "tipo_prezzo_gas";
+  const priceType = pdfPreviewAutofillValue(data, priceTypeField);
+  if (["fisso", "variabile"].includes(priceType)) add(priceTypeField, "Tipo prezzo", ["master-luce-tipo"]);
+  return specs;
+}
+
+function pdfAutofillIncomingTargetValue(spec) {
+  if (spec.transform === "provider") return typeof providerValue === "function" ? providerValue(spec.value) : spec.value;
+  return spec.value;
+}
+
+function pdfAutofillElementValue(id) {
+  const element = document.getElementById(id);
+  return element ? element.value : "";
+}
+
+function pdfAutofillElementDisplay(id, value) {
+  const element = document.getElementById(id);
+  if (element?.tagName === "SELECT") {
+    const option = Array.from(element.options || []).find((item) => item.value === value);
+    return option?.textContent?.trim() || value;
+  }
+  return value;
+}
+
+function pdfAutofillCurrentState(spec) {
+  if (spec.kind === "fixed_annual") {
+    const raw = pdfAutofillElementValue(spec.input_id);
+    const unit = pdfAutofillElementValue(spec.unit_id) || "mese";
+    const numeric = Number(String(raw).replace(",", "."));
+    const annual = Number.isFinite(numeric) && raw !== "" ? (unit === "mese" ? numeric * 12 : numeric) : null;
+    const touched = PDF_MANUAL_TOUCHED_FIELDS.has(spec.input_id) || PDF_MANUAL_TOUCHED_FIELDS.has(spec.unit_id);
+    return {
+      has_value: annual !== null,
+      comparable_value: annual,
+      display: annual === null ? "Campo vuoto" : `${raw} €/${unit}`,
+      manually_touched: touched,
+      all_equal: annual !== null && pdfAutofillValuesEqual(annual, spec.value, "fixed_annual"),
+    };
+  }
+
+  const incoming = pdfAutofillIncomingTargetValue(spec);
+  const values = spec.target_ids.map((id) => ({ id, value: pdfAutofillElementValue(id) }));
+  const nonEmpty = values.filter((item) => pdfAutofillHasValue(item.value));
+  const touchedItems = values.filter((item) => PDF_MANUAL_TOUCHED_FIELDS.has(item.id));
+  const touched = touchedItems.length > 0;
+  const touchedMismatch = touchedItems.some((item) => !pdfAutofillValuesEqual(item.value, incoming, spec.compare_mode));
+  const allEqual = nonEmpty.length > 0
+    && nonEmpty.every((item) => pdfAutofillValuesEqual(item.value, incoming, spec.compare_mode))
+    && !touchedMismatch;
+  const distinctDisplay = [...new Set(nonEmpty.map((item) => pdfAutofillElementDisplay(item.id, item.value)))];
+  return {
+    has_value: nonEmpty.length > 0,
+    comparable_value: nonEmpty[0]?.value ?? null,
+    display: distinctDisplay.length ? distinctDisplay.join(" / ") : "Campo vuoto",
+    manually_touched: touched,
+    all_equal: allEqual,
+  };
+}
+
+function pdfAutofillFormatValue(value, unit = null) {
+  if (!pdfAutofillHasValue(value)) return "—";
+  const formatted = typeof value === "number" ? String(Math.round(value * 1_000_000) / 1_000_000) : String(value);
+  return unit ? `${formatted} ${unit}` : formatted;
+}
+
+function buildPdfAutofillPreviewRows(data, customerType = "privato") {
+  return buildPdfAutofillSpecs(data, customerType).map((spec, index) => {
+    const current = pdfAutofillCurrentState(spec);
+    const protectedManual = current.manually_touched && !current.all_equal;
+    const same = current.all_equal;
+    return {
+      ...spec,
+      index,
+      current_display: current.display,
+      incoming_display: pdfAutofillFormatValue(spec.value, spec.unit),
+      has_current_value: current.has_value,
+      manually_protected: protectedManual,
+      same_value: same,
+      selected: !same && !protectedManual && !spec.review_required,
+      disabled: same,
+      status: same
+        ? "gia_presente"
+        : protectedManual
+          ? "valore_manuale_protetto"
+          : spec.review_required
+            ? "ocr_da_verificare"
+            : current.has_value
+              ? "valore_predefinito_aggiornabile"
+              : "campo_vuoto",
+    };
+  });
+}
+
+function pdfAutofillStatusLabel(status) {
+  const labels = {
+    gia_presente: "Già presente: nessuna modifica",
+    valore_manuale_protetto: "Valore manuale protetto",
+    valore_predefinito_aggiornabile: "Valore esistente non modificato manualmente",
+    ocr_da_verificare: "OCR da verificare e selezionare",
+    campo_vuoto: "Campo vuoto",
+  };
+  return labels[status] || status;
+}
+
+function renderPdfAutofillPreviewRows() {
+  const list = document.getElementById("pdf-autofill-preview-list");
+  if (!list) return;
+  if (!PDF_AUTOFILL_PREVIEW_ROWS.length) {
+    list.innerHTML = '<div class="pdf-autofill-note">Non ci sono campi disponibili per l’inserimento. I valori incompleti, in conflitto o non supportati restano esclusi.</div>';
+    aggiornaPulsanteAnteprimaPdf();
+    return;
+  }
+  list.innerHTML = PDF_AUTOFILL_PREVIEW_ROWS.map((row, index) => `
+    <label class="pdf-autofill-row${row.manually_protected ? " is-protected" : ""}${row.review_required && !row.manually_protected && !row.same_value ? " is-review" : ""}${row.same_value ? " is-same" : ""}">
+      <span class="pdf-autofill-choice">
+        <input type="checkbox" data-pdf-autofill-index="${index}" ${row.selected ? "checked" : ""} ${row.disabled ? "disabled" : ""}>
+        <span>${testoHtmlSicuro(row.label)}<span class="pdf-autofill-status">${testoHtmlSicuro(pdfAutofillStatusLabel(row.status))}</span></span>
+      </span>
+      <span class="pdf-autofill-value"><small>Nel modulo</small><strong>${testoHtmlSicuro(row.current_display)}</strong></span>
+      <span class="pdf-autofill-value"><small>Dal PDF</small><strong>${testoHtmlSicuro(row.incoming_display)}</strong></span>
+    </label>
+  `).join("");
+  list.querySelectorAll("[data-pdf-autofill-index]").forEach((checkbox) => {
+    checkbox.addEventListener("change", () => {
+      const row = PDF_AUTOFILL_PREVIEW_ROWS[Number(checkbox.dataset.pdfAutofillIndex)];
+      if (row && !row.disabled) row.selected = checkbox.checked;
+      aggiornaPulsanteAnteprimaPdf();
+    });
+  });
+  aggiornaPulsanteAnteprimaPdf();
+}
+
+function aggiornaPulsanteAnteprimaPdf() {
+  const button = document.getElementById("pdf-autofill-apply");
+  if (!button) return;
+  const selected = PDF_AUTOFILL_PREVIEW_ROWS.filter((row) => row.selected && !row.disabled).length;
+  button.disabled = false;
+  button.textContent = selected === 0
+    ? "Continua senza modifiche"
+    : selected === 1
+      ? "Applica 1 campo selezionato"
+      : `Applica ${selected} campi selezionati`;
+}
+
+function apriAnteprimaAutocompilazionePdf(data) {
+  PDF_AUTOFILL_PREVIEW_ROWS = buildPdfAutofillPreviewRows(data, LEAD_STATE.customerType);
+  const backdrop = document.getElementById("pdf-autofill-preview-backdrop");
+  const copy = document.getElementById("pdf-autofill-preview-copy");
+  if (!backdrop) return Promise.resolve(PDF_AUTOFILL_PREVIEW_ROWS.filter((row) => row.selected && !row.disabled));
+  const protectedCount = PDF_AUTOFILL_PREVIEW_ROWS.filter((row) => row.manually_protected).length;
+  const ocrReviewCount = PDF_AUTOFILL_PREVIEW_ROWS.filter((row) => row.review_required && !row.same_value).length;
+  if (copy) {
+    const messages = [];
+    if (ocrReviewCount) messages.push(`${ocrReviewCount} ${ocrReviewCount === 1 ? "campo proviene" : "campi provengono"} dall'OCR: ${ocrReviewCount === 1 ? "è deselezionato" : "sono deselezionati"} finché non li scegli esplicitamente.`);
+    if (protectedCount) messages.push(`${protectedCount} ${protectedCount === 1 ? "campo contiene" : "campi contengono"} un valore inserito manualmente e ${protectedCount === 1 ? "resta" : "restano"} deselezionato per sicurezza.`);
+    copy.textContent = messages.length
+      ? `${messages.join(" ")} Controlla i valori prima di applicarli.`
+      : "Controlla i valori e scegli quali copiare nel modulo. Nessun campo viene modificato finché non premi Applica.";
+  }
+  renderPdfAutofillPreviewRows();
+  backdrop.style.display = "flex";
+  LEAD_STATE.pdfAutofill = {
+    ...(LEAD_STATE.pdfAutofill || {}),
+    previewedAt: new Date().toISOString(),
+    appliedFields: [],
+    skippedFields: [],
+  };
+  trackEvent("pdf_autofill_preview_opened", {
+    fieldCount: PDF_AUTOFILL_PREVIEW_ROWS.length,
+    protectedCount,
+    ocrReviewCount,
+  });
+  window.setTimeout(() => document.getElementById("pdf-autofill-apply")?.focus(), 30);
+  return new Promise((resolve) => { PDF_AUTOFILL_PREVIEW_RESOLVE = resolve; });
+}
+
+function chiudiAnteprimaAutocompilazionePdf(result = null) {
+  const backdrop = document.getElementById("pdf-autofill-preview-backdrop");
+  if (backdrop) backdrop.style.display = "none";
+  const resolve = PDF_AUTOFILL_PREVIEW_RESOLVE;
+  PDF_AUTOFILL_PREVIEW_RESOLVE = null;
+  if (resolve) resolve(result);
+}
+
+function confermaAnteprimaAutocompilazionePdf() {
+  const selected = PDF_AUTOFILL_PREVIEW_ROWS.filter((row) => row.selected && !row.disabled);
+  const skipped = PDF_AUTOFILL_PREVIEW_ROWS.filter((row) => !row.selected && !row.same_value).map((row) => row.field);
+  LEAD_STATE.pdfAutofill = {
+    ...(LEAD_STATE.pdfAutofill || {}),
+    appliedFields: selected.map((row) => row.field),
+    skippedFields: skipped,
+  };
+  trackEvent("pdf_autofill_preview_confirmed", {
+    selectedCount: selected.length,
+    skippedCount: skipped.length,
+    protectedSkippedCount: PDF_AUTOFILL_PREVIEW_ROWS.filter((row) => row.manually_protected && !row.selected).length,
+  });
+  chiudiAnteprimaAutocompilazionePdf(selected);
+}
+
+function selezionaCampiVuotiAnteprimaPdf() {
+  PDF_AUTOFILL_PREVIEW_ROWS.forEach((row) => {
+    if (!row.disabled) row.selected = !row.has_current_value && !row.manually_protected;
+  });
+  renderPdfAutofillPreviewRows();
+}
+
+function deselezionaTuttiCampiAnteprimaPdf() {
+  PDF_AUTOFILL_PREVIEW_ROWS.forEach((row) => { if (!row.disabled) row.selected = false; });
+  renderPdfAutofillPreviewRows();
+}
+
+function applicaRigheAutocompilazionePdf(rows) {
+  const selected = Array.isArray(rows) ? rows : [];
+  selected.forEach((row) => {
+    if (row.kind === "fixed_annual") {
+      impostaQuotaFissaAnnua(row.input_id, row.unit_id, row.value);
+      PDF_MANUAL_TOUCHED_FIELDS.delete(row.input_id);
+      PDF_MANUAL_TOUCHED_FIELDS.delete(row.unit_id);
+      return;
+    }
+    const value = pdfAutofillIncomingTargetValue(row);
+    row.target_ids.forEach((id) => {
+      setField(id, value);
+      PDF_MANUAL_TOUCHED_FIELDS.delete(id);
+    });
+  });
+  sincronizzaConsumiNuovaOfferta();
+  return selected.length;
+}
+
+function rebuildMergedPdfAutofillPlan(contract) {
+  if (!contract?.fields) return contract;
+  const safeFields = [];
+  const reviewFields = [];
+  const blockedFields = [];
+  Object.values(contract.fields).forEach((entry) => {
+    const targets = Array.isArray(entry?.autofill?.targets) ? entry.autofill.targets : [];
+    if (!targets.length) return;
+    if (entry.autofill.allowed && entry.status === "completo") {
+      targets.forEach((target) => safeFields.push({
+        source_field: entry.field,
+        target,
+        use: entry.autofill.use,
+        value: entry.normalized_value,
+        unit: entry.unit || null,
+        requires_user_confirmation: true,
+      }));
+    } else if (entry.autofill.review_selectable && entry.status === "completo") {
+      targets.forEach((target) => reviewFields.push({
+        source_field: entry.field,
+        target,
+        use: entry.autofill.use,
+        value: entry.normalized_value,
+        unit: entry.unit || null,
+        requires_user_confirmation: true,
+        requires_explicit_selection: true,
+        provenance: entry.provenance?.origin || null,
+      }));
+    } else if (entry.status !== "non_applicabile" && entry.autofill.reason !== "codici_specifici_per_utenza") {
+      blockedFields.push({
+        source_field: entry.field,
+        targets,
+        use: entry.autofill.use,
+        status: entry.status,
+        reason: entry.autofill.reason,
+      });
+    }
+  });
+  contract.autofill_plan = {
+    ...(contract.autofill_plan || {}),
+    safe_fields: safeFields,
+    review_fields: reviewFields,
+    blocked_fields: blockedFields,
+    safe_target_count: safeFields.length,
+    review_target_count: reviewFields.length,
+    blocked_field_count: blockedFields.length,
+  };
+  return contract;
+}
+
+function mergePdfDataContract(target, source) {
+  if (!source) return target || null;
+  if (!target) return rebuildMergedPdfAutofillPlan(JSON.parse(JSON.stringify(source)));
+  const output = JSON.parse(JSON.stringify(target));
+  output.contract_version = source.contract_version || output.contract_version;
+  output.parser = source.parser || output.parser;
+  output.fields = output.fields || {};
+  Object.entries(source.fields || {}).forEach(([field, incoming]) => {
+    const existing = output.fields[field];
+    const existingHasValue = pdfContractHasValue(existing?.normalized_value);
+    const incomingHasValue = pdfContractHasValue(incoming?.normalized_value);
+    const autofillStrength = (entry) => entry?.autofill?.allowed ? 2 : entry?.autofill?.review_selectable ? 1 : 0;
+    const incomingStronger = autofillStrength(incoming) > autofillStrength(existing);
+    const conflictingValues = existingHasValue && incomingHasValue
+      && JSON.stringify(existing.normalized_value) !== JSON.stringify(incoming.normalized_value);
+    if (conflictingValues && field === "codice_cliente") {
+      output.fields[field] = {
+        ...existing,
+        normalized_value: null,
+        original_value: null,
+        status: "non_applicabile",
+        status_reason: "codici_specifici_per_utenza",
+        alternatives: [...new Set([existing.normalized_value, incoming.normalized_value])],
+        autofill: {
+          ...(existing.autofill || {}),
+          allowed: false,
+          review_selectable: false,
+          requires_explicit_selection: false,
+          reason: "codici_specifici_per_utenza",
+        },
+      };
+    } else if (conflictingValues) {
+      output.fields[field] = {
+        ...existing,
+        status: "da_verificare",
+        status_reason: "conflitto_tra_documenti",
+        alternatives: [...new Set([existing.normalized_value, incoming.normalized_value])],
+        autofill: {
+          ...(existing.autofill || {}),
+          allowed: false,
+          review_selectable: false,
+          requires_explicit_selection: false,
+          reason: "conflitto_tra_documenti",
+        },
+      };
+    } else if (!existing || (!existingHasValue && incomingHasValue) || incomingStronger) output.fields[field] = incoming;
+  });
+  output.supplies = output.supplies || { luce: null, gas: null };
+  if (source.supplies?.luce) output.supplies.luce = source.supplies.luce;
+  if (source.supplies?.gas) output.supplies.gas = source.supplies.gas;
+  output.customer = { ...(output.customer || {}) };
+  Object.entries(source.customer || {}).forEach(([field, value]) => {
+    if (!pdfContractHasValue(output.customer[field]) && pdfContractHasValue(value)) output.customer[field] = value;
+  });
+  output.readiness = source.readiness || output.readiness;
+  output.completeness = source.completeness || output.completeness;
+  return rebuildMergedPdfAutofillPlan(output);
+}
+
+function syncMergedPdfCustomerCodes(merged) {
+  const contract = merged?.data_contract;
+  if (!contract) return merged;
+  const luce = merged.codice_cliente_luce || null;
+  const gas = merged.codice_cliente_gas || null;
+  const same = Boolean(luce && gas && String(luce) === String(gas));
+  const common = same ? luce : merged.commodity === "luce" ? luce : merged.commodity === "gas" ? gas : null;
+
+  contract.customer = {
+    ...(contract.customer || {}),
+    customer_code: common,
+    customer_codes: { luce, gas },
+  };
+  contract.supplies = contract.supplies || { luce: null, gas: null };
+  if (contract.supplies.luce) contract.supplies.luce.customer_code = luce;
+  if (contract.supplies.gas) contract.supplies.gas.customer_code = gas;
+
+  const generic = contract.fields?.codice_cliente;
+  if (generic && merged.commodity === "dual" && luce && gas && !same) {
+    contract.fields.codice_cliente = {
+      ...generic,
+      normalized_value: null,
+      original_value: null,
+      status: "non_applicabile",
+      status_reason: "codici_specifici_per_utenza",
+      alternatives: [luce, gas],
+      autofill: {
+        ...(generic.autofill || {}),
+        allowed: false,
+        reason: "codici_specifici_per_utenza",
+      },
+    };
+  }
+  rebuildMergedPdfAutofillPlan(contract);
+  return merged;
+}
+
+function formatPdfContractDate(value) {
+  const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return match ? `${match[3]}/${match[2]}/${match[1]}` : String(value || "");
+}
+
+function formatPdfValidityLine(commodityLabel, validFrom, validTo) {
+  const from = formatPdfContractDate(validFrom);
+  const to = formatPdfContractDate(validTo);
+  if (from && to) return `Validità ${commodityLabel}: ${from}–${to}`;
+  if (from) return `Decorrenza condizioni ${commodityLabel}: ${from}`;
+  if (to) return `Scadenza condizioni ${commodityLabel}: ${to}`;
+  return "";
+}
+
+const PDF_READINESS_FIELD_LABELS = Object.freeze({
+  fornitore: "fornitore",
+  intestatario: "intestatario",
+  codice_fiscale: "codice fiscale o partita IVA",
+  codice_cliente: "codice cliente",
+  codice_cliente_luce: "codice cliente luce",
+  codice_cliente_gas: "codice cliente gas",
+  customer_type: "profilo cliente",
+  pod: "POD",
+  pdr: "PDR",
+  indirizzo_fornitura_luce: "indirizzo luce",
+  indirizzo_fornitura_gas: "indirizzo gas",
+  potenza_impegnata_kw: "potenza impegnata",
+  recapito_telefonico: "telefono",
+  email: "email",
+  modalita_pagamento_o_iban: "IBAN o modalità di pagamento",
+  titolo_occupazione_immobile: "titolo di occupazione dell'immobile",
+  consensi_attivazione: "consensi",
+  documento_identita: "documento di identità",
+  dati_nascita_e_residenza: "dati di nascita e residenza",
+  documento_firmatario: "documento del firmatario",
+  dati_legale_rappresentante: "dati del legale rappresentante",
+  fornitore_luce: "fornitore luce",
+  fornitore_gas: "fornitore gas",
+  consumo_luce_kwh: "consumo annuo luce",
+  prezzo_luce_eur_kwh: "prezzo luce",
+  quota_fissa_vendita_luce_eur_anno: "quota fissa luce",
+  consumo_gas_smc: "consumo annuo gas",
+  prezzo_gas_eur_smc: "prezzo gas",
+  quota_fissa_vendita_gas_eur_anno: "quota fissa gas",
+  tipo_prezzo_luce: "tipo prezzo luce",
+  tipo_prezzo_gas: "tipo prezzo gas",
+});
+
+function mergePdfReadiness(target, source) {
+  const output = target || { confronto: {}, dati_bolletta: {}, attivazione: {} };
+  for (const area of ["confronto", "dati_bolletta", "attivazione"]) {
+    output[area] = output[area] || {};
+    for (const commodity of ["luce", "gas"]) {
+      if (source?.[area]?.[commodity]) output[area][commodity] = source[area][commodity];
+    }
+  }
+  return output;
+}
+
+function pdfReadinessLine(label, entry) {
+  const status = entry?.status;
+  if (!status) return "";
+  return `${label}: ${status.replace(/_/g, " ")}`;
+}
+
+function pdfReadinessFieldsLine(label, fields) {
+  const values = [...new Set((Array.isArray(fields) ? fields : [])
+    .map((field) => PDF_READINESS_FIELD_LABELS[field] || String(field || "").replace(/_/g, " "))
+    .filter(Boolean))];
+  return values.length ? `${label}: ${values.join(", ")}` : "";
+}
+
+function pdfBlockedAutofillLine(contract) {
+  const blocked = (contract?.autofill_plan?.blocked_fields || [])
+    .filter((item) => !["valore_assente", "campo_non_mappato", "non_applicabile", "codici_specifici_per_utenza"].includes(item?.reason));
+  const labels = [...new Set(blocked.map((item) => PDF_READINESS_FIELD_LABELS[item.source_field] || String(item.source_field || "").replace(/_/g, " ")).filter(Boolean))];
+  return labels.length ? `Non autocompilati automaticamente: ${labels.join(", ")}` : "";
+}
+
+
+function normalizePdfTaxId(value) {
+  return String(value || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+function normalizePdfHolder(value) {
+  return String(value || "")
+    .toUpperCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^A-Z0-9]+/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .sort()
+    .join(" ");
+}
+
+function normalizePdfSupplyId(value) {
+  return String(value || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+function analyzePdfDocumentIsolation(validDocuments) {
+  const documents = Array.isArray(validDocuments) ? validDocuments : [];
+  if (documents.length < 2) return { blocked: false, reasons: [] };
+
+  const taxIds = [...new Set(documents.map((doc) => normalizePdfTaxId(doc.codice_fiscale)).filter(Boolean))];
+  const holders = [...new Set(documents.map((doc) => normalizePdfHolder(doc.intestatario)).filter(Boolean))];
+  const pods = [...new Set(documents.map((doc) => normalizePdfSupplyId(doc.pod)).filter(Boolean))];
+  const pdrs = [...new Set(documents.map((doc) => normalizePdfSupplyId(doc.pdr)).filter(Boolean))];
+  const reasons = [];
+
+  if (taxIds.length > 1) reasons.push("clienti_diversi_codice_fiscale");
+  if (!taxIds.length && holders.length > 1) reasons.push("clienti_diversi_intestatario");
+  if (taxIds.length === 1) {
+    const holdersWithTax = [...new Set(documents
+      .filter((doc) => normalizePdfTaxId(doc.codice_fiscale))
+      .map((doc) => normalizePdfHolder(doc.intestatario))
+      .filter(Boolean))];
+    const holdersWithoutTax = [...new Set(documents
+      .filter((doc) => !normalizePdfTaxId(doc.codice_fiscale))
+      .map((doc) => normalizePdfHolder(doc.intestatario))
+      .filter(Boolean))];
+    if (holdersWithTax.length > 1) reasons.push("intestatario_incoerente_con_codice_fiscale");
+    if (holdersWithTax.length === 1 && holdersWithoutTax.some((holder) => holder !== holdersWithTax[0])) {
+      reasons.push("documento_senza_codice_fiscale_di_altro_intestatario");
+    }
+  }
+  if (pods.length > 1) reasons.push("punti_luce_diversi");
+  if (pdrs.length > 1) reasons.push("punti_gas_diversi");
+
+  return {
+    blocked: reasons.length > 0,
+    reasons: [...new Set(reasons)],
+    tax_ids: taxIds,
+    holders,
+    pods,
+    pdrs,
+  };
+}
+
+function pdfIsolationReasonLabel(reason) {
+  const labels = {
+    clienti_diversi_codice_fiscale: "codici fiscali o partite IVA differenti",
+    clienti_diversi_intestatario: "intestatari differenti",
+    intestatario_incoerente_con_codice_fiscale: "intestatari incoerenti con il codice fiscale",
+    documento_senza_codice_fiscale_di_altro_intestatario: "un documento senza codice fiscale appartiene a un altro intestatario",
+    punti_luce_diversi: "POD differenti",
+    punti_gas_diversi: "PDR differenti",
+  };
+  return labels[reason] || String(reason || "").replace(/_/g, " ");
+}
+
 function mergePdfDocuments(documents) {
   const validDocuments = documents.filter(risultatoPdfUtilizzabile);
+  const isolation = analyzePdfDocumentIsolation(validDocuments);
+  if (isolation.blocked) {
+    return {
+      kind: "multiple_documents",
+      commodity: "unknown",
+      merge_blocked: true,
+      isolation,
+    };
+  }
   const hasOfferSheet = validDocuments.some((doc) => doc.kind === "scheda_offerta");
   const hasBill = validDocuments.some((doc) => doc.kind === "bolletta");
 
@@ -7001,17 +7991,27 @@ function mergePdfDocuments(documents) {
   validDocuments.forEach((doc) => {
     merged.kind = doc.kind;
     [
-      "intestatario", "codice_fiscale", "codice_cliente", "indirizzo_fornitura",
+      "intestatario", "codice_fiscale", "indirizzo_fornitura",
       "indirizzo_fornitura_luce", "indirizzo_fornitura_gas", "customer_type",
       "customer_type_confidence", "customer_type_evidence", "nome_offerta", "codice_offerta",
-      "tipo_prezzo", "indice_riferimento", "spread_luce_eur_kwh", "spread_gas_eur_smc",
+      "tipo_prezzo", "tipo_prezzo_evidenza", "indice_riferimento", "spread_luce_eur_kwh", "spread_gas_eur_smc",
+      "decorrenza_condizioni_economiche", "scadenza_condizioni_economiche", "struttura_prezzo",
+      "periodicita_aggiornamento_indice", "frequenza_fatturazione", "formula_prezzo",
+      "onere_recesso_anticipato", "codice_condizioni_economiche", "altre_caratteristiche_offerta",
       "consumo_gas_mc", "coefficiente_conversione_gas_c"
     ].forEach((field) => {
       merged[field] = firstValue(doc[field], merged[field]);
     });
+    merged.field_status = { ...(merged.field_status || {}), ...(doc.field_status || {}) };
+    merged.readiness = mergePdfReadiness(merged.readiness, doc.readiness);
+    merged.validation_notes = [...new Set([...(merged.validation_notes || []), ...(doc.validation_notes || [])])];
+    merged.validation_issues = [...(merged.validation_issues || []), ...(doc.validation_issues || [])];
+    merged.completeness = firstValue(doc.completeness, merged.completeness);
+    merged.data_contract = mergePdfDataContract(merged.data_contract, doc.data_contract);
 
     if (doc.commodity === "luce" || doc.commodity === "dual" || doc.consumo_luce_kwh || doc.prezzo_luce_eur_kwh || doc.pod) {
-      merged.fornitore_luce = firstValue(doc.fornitore, doc.fornitore_luce, merged.fornitore_luce);
+      merged.fornitore_luce = firstValue(doc.fornitore_luce, doc.fornitore, merged.fornitore_luce);
+      merged.codice_cliente_luce = firstValue(doc.codice_cliente_luce, doc.codice_cliente, merged.codice_cliente_luce);
       merged.consumo_luce_kwh = firstValue(doc.consumo_luce_kwh, merged.consumo_luce_kwh);
       merged.prezzo_luce_eur_kwh = firstValue(doc.prezzo_luce_eur_kwh, merged.prezzo_luce_eur_kwh);
       merged.quota_fissa_vendita_luce_eur_anno = firstValue(doc.quota_fissa_vendita_luce_eur_anno, merged.quota_fissa_vendita_luce_eur_anno);
@@ -7019,36 +8019,95 @@ function mergePdfDocuments(documents) {
       merged.potenza_disponibile_kw = firstValue(doc.potenza_disponibile_kw, merged.potenza_disponibile_kw);
       merged.pod = firstValue(doc.pod, merged.pod);
       merged.indirizzo_fornitura_luce = firstValue(doc.indirizzo_fornitura_luce, doc.indirizzo_fornitura, merged.indirizzo_fornitura_luce);
+      [
+        "nome_offerta_luce", "codice_offerta_luce", "tipo_prezzo_luce", "tipo_prezzo_evidenza_luce",
+        "indice_riferimento_luce", "spread_luce_eur_kwh", "decorrenza_condizioni_economiche_luce",
+        "scadenza_condizioni_economiche_luce", "struttura_prezzo_luce", "periodicita_aggiornamento_indice_luce",
+        "frequenza_fatturazione_luce", "formula_prezzo_luce", "onere_recesso_anticipato_luce",
+        "codice_condizioni_economiche_luce", "altre_caratteristiche_offerta_luce", "scadenza_contratto_luce"
+      ].forEach((field) => { merged[field] = firstValue(doc[field], merged[field]); });
+      merged.componenti_prezzo_luce = firstNonEmptyArray(doc.componenti_prezzo_luce, merged.componenti_prezzo_luce);
+      merged.sconti_offerta_luce = firstNonEmptyArray(doc.sconti_offerta_luce, merged.sconti_offerta_luce);
     }
 
     if (doc.commodity === "gas" || doc.commodity === "dual" || doc.consumo_gas_smc || doc.prezzo_gas_eur_smc || doc.pdr) {
-      merged.fornitore_gas = firstValue(doc.fornitore, doc.fornitore_gas, merged.fornitore_gas);
+      merged.fornitore_gas = firstValue(doc.fornitore_gas, doc.fornitore, merged.fornitore_gas);
+      merged.codice_cliente_gas = firstValue(doc.codice_cliente_gas, doc.codice_cliente, merged.codice_cliente_gas);
       merged.consumo_gas_smc = firstValue(doc.consumo_gas_smc, merged.consumo_gas_smc);
       merged.prezzo_gas_eur_smc = firstValue(doc.prezzo_gas_eur_smc, merged.prezzo_gas_eur_smc);
       merged.quota_fissa_vendita_gas_eur_anno = firstValue(doc.quota_fissa_vendita_gas_eur_anno, merged.quota_fissa_vendita_gas_eur_anno);
       merged.pdr = firstValue(doc.pdr, merged.pdr);
       merged.indirizzo_fornitura_gas = firstValue(doc.indirizzo_fornitura_gas, doc.indirizzo_fornitura, merged.indirizzo_fornitura_gas);
+      [
+        "nome_offerta_gas", "codice_offerta_gas", "tipo_prezzo_gas", "tipo_prezzo_evidenza_gas",
+        "indice_riferimento_gas", "spread_gas_eur_smc", "decorrenza_condizioni_economiche_gas",
+        "scadenza_condizioni_economiche_gas", "struttura_prezzo_gas", "periodicita_aggiornamento_indice_gas",
+        "frequenza_fatturazione_gas", "formula_prezzo_gas", "onere_recesso_anticipato_gas",
+        "codice_condizioni_economiche_gas", "altre_caratteristiche_offerta_gas", "scadenza_contratto_gas"
+      ].forEach((field) => { merged[field] = firstValue(doc[field], merged[field]); });
+      merged.componenti_prezzo_gas = firstNonEmptyArray(doc.componenti_prezzo_gas, merged.componenti_prezzo_gas);
+      merged.sconti_offerta_gas = firstNonEmptyArray(doc.sconti_offerta_gas, merged.sconti_offerta_gas);
     }
   });
 
   const hasLuce = Boolean(merged.consumo_luce_kwh || merged.prezzo_luce_eur_kwh || merged.quota_fissa_vendita_luce_eur_anno || merged.pod);
   const hasGas = Boolean(merged.consumo_gas_smc || merged.prezzo_gas_eur_smc || merged.quota_fissa_vendita_gas_eur_anno || merged.pdr);
   merged.commodity = hasLuce && hasGas ? "dual" : hasGas ? "gas" : hasLuce ? "luce" : "unknown";
+  const codiceClienteLuce = merged.codice_cliente_luce || "";
+  const codiceClienteGas = merged.codice_cliente_gas || "";
+  if (merged.commodity === "dual") {
+    if (codiceClienteLuce && codiceClienteGas && String(codiceClienteLuce) === String(codiceClienteGas)) {
+      merged.codice_cliente = codiceClienteLuce;
+    } else {
+      delete merged.codice_cliente;
+    }
+  } else if (merged.commodity === "luce") merged.codice_cliente = codiceClienteLuce || merged.codice_cliente;
+  else if (merged.commodity === "gas") merged.codice_cliente = codiceClienteGas || merged.codice_cliente;
   if (merged.fornitore_luce && merged.fornitore_gas && merged.fornitore_luce === merged.fornitore_gas) merged.fornitore = merged.fornitore_luce;
   else merged.fornitore = merged.fornitore_luce || merged.fornitore_gas || "";
+  if (merged.commodity === "luce") {
+    merged.nome_offerta = firstValue(merged.nome_offerta_luce, merged.nome_offerta);
+    merged.codice_offerta = firstValue(merged.codice_offerta_luce, merged.codice_offerta);
+    merged.tipo_prezzo = firstValue(merged.tipo_prezzo_luce, merged.tipo_prezzo);
+    merged.indice_riferimento = firstValue(merged.indice_riferimento_luce, merged.indice_riferimento);
+  }
+  if (merged.commodity === "gas") {
+    merged.nome_offerta = firstValue(merged.nome_offerta_gas, merged.nome_offerta);
+    merged.codice_offerta = firstValue(merged.codice_offerta_gas, merged.codice_offerta);
+    merged.tipo_prezzo = firstValue(merged.tipo_prezzo_gas, merged.tipo_prezzo);
+    merged.indice_riferimento = firstValue(merged.indice_riferimento_gas, merged.indice_riferimento);
+  }
   merged.indirizzo_fornitura = merged.indirizzo_fornitura_luce || merged.indirizzo_fornitura_gas || merged.indirizzo_fornitura || "";
+  if (merged.data_contract?.document) merged.data_contract.document.commodity = merged.commodity;
+  syncMergedPdfCustomerCodes(merged);
   return merged;
 }
 
 function renderPdfSummary(documents, merged) {
   const rows = documents.map((doc) => {
     if (doc.error) return `<li><strong>${testoHtmlSicuro(doc.filename)}</strong>: ${testoHtmlSicuro(doc.error)}. Puoi cambiare PDF oppure continuare con la compilazione manuale.</li>`;
+    const ocrStatus = doc.ocr?.applied
+      ? " OCR applicato: tutti i dati ricavati restano da controllare."
+      : doc.ocr?.attempted && doc.ocr?.reason === "ocr_error"
+        ? " OCR avviato ma non disponibile nel deployment."
+        : doc.ocr?.attempted && doc.ocr?.reason === "no_material_improvement"
+          ? " OCR eseguito senza dati sufficientemente affidabili."
+          : "";
     if (!risultatoPdfUtilizzabile(doc)) {
-      return `<li><strong>${testoHtmlSicuro(doc.filename)}</strong>: documento non riconosciuto o privo di dati sufficientemente affidabili.</li>`;
+      return `<li><strong>${testoHtmlSicuro(doc.filename)}</strong>: documento non riconosciuto o privo di dati sufficientemente affidabili.${ocrStatus}</li>`;
     }
     const review = doc.confidence === "high" ? "affidabilità alta" : "da controllare";
-    return `<li><strong>${testoHtmlSicuro(doc.filename)}</strong>: ${testoHtmlSicuro(doc.kind || "PDF")} ${testoHtmlSicuro(doc.commodity || "")} - ${testoHtmlSicuro(doc.fornitore || "fornitore da verificare")} (${review})</li>`;
+    return `<li><strong>${testoHtmlSicuro(doc.filename)}</strong>: ${testoHtmlSicuro(doc.kind || "PDF")} ${testoHtmlSicuro(doc.commodity || "")} - ${testoHtmlSicuro(doc.fornitore || "fornitore da verificare")} (${review})${ocrStatus}</li>`;
   }).join("");
+
+  if (merged?.merge_blocked) {
+    const reasons = (merged.isolation?.reasons || []).map(pdfIsolationReasonLabel).join(", ");
+    return `
+      <span>Documenti analizzati:</span>
+      <ul style="margin:6px 0 10px 18px;">${rows}</ul>
+      <span><strong>I dati non sono stati uniti.</strong> Sono stati rilevati documenti appartenenti a clienti o forniture differenti${reasons ? `: ${testoHtmlSicuro(reasons)}` : ""}. Rimuovi i PDF non omogenei e lascia soltanto il gruppo che vuoi usare. Nessun campo verrà autocompilato finché il conflitto non è risolto.</span>
+    `;
+  }
 
   if (merged?.mixed_documents) {
     return `
@@ -7058,10 +8117,41 @@ function renderPdfSummary(documents, merged) {
     `;
   }
 
+  const luceOfferName = merged.nome_offerta_luce || (merged.commodity === "luce" ? merged.nome_offerta : "");
+  const gasOfferName = merged.nome_offerta_gas || (merged.commodity === "gas" ? merged.nome_offerta : "");
+  const luceOfferCode = merged.codice_offerta_luce || (merged.commodity === "luce" ? merged.codice_offerta : "");
+  const gasOfferCode = merged.codice_offerta_gas || (merged.commodity === "gas" ? merged.codice_offerta : "");
+  const luceType = merged.tipo_prezzo_luce || (merged.commodity === "luce" ? merged.tipo_prezzo : "");
+  const gasType = merged.tipo_prezzo_gas || (merged.commodity === "gas" ? merged.tipo_prezzo : "");
+  const luceIndex = merged.indice_riferimento_luce || (merged.commodity === "luce" ? merged.indice_riferimento : "");
+  const gasIndex = merged.indice_riferimento_gas || (merged.commodity === "gas" ? merged.indice_riferimento : "");
+  const luceValidity = formatPdfValidityLine(
+    "luce",
+    merged.decorrenza_condizioni_economiche_luce,
+    merged.scadenza_condizioni_economiche_luce,
+  );
+  const gasValidity = formatPdfValidityLine(
+    "gas",
+    merged.decorrenza_condizioni_economiche_gas,
+    merged.scadenza_condizioni_economiche_gas,
+  );
+  const dualSameProvider = merged.commodity === "dual" && merged.fornitore_luce && merged.fornitore_luce === merged.fornitore_gas;
+  const dualSameAddress = merged.commodity === "dual" && merged.indirizzo_fornitura_luce && merged.indirizzo_fornitura_luce === merged.indirizzo_fornitura_gas;
+  const codiceClienteLuce = merged.codice_cliente_luce || (merged.commodity === "luce" ? merged.codice_cliente : "");
+  const codiceClienteGas = merged.codice_cliente_gas || (merged.commodity === "gas" ? merged.codice_cliente : "");
+  const dualSameCustomerCode = merged.commodity === "dual" && codiceClienteLuce && codiceClienteGas
+    && String(codiceClienteLuce) === String(codiceClienteGas);
+  const externalLuce = merged.readiness?.attivazione?.luce?.missing_external || [];
+  const externalGas = merged.readiness?.attivazione?.gas?.missing_external || [];
+  const commonExternal = merged.commodity === "dual" ? externalLuce.filter((field) => externalGas.includes(field)) : [];
+  const onlyLuceExternal = externalLuce.filter((field) => !commonExternal.includes(field));
+  const onlyGasExternal = externalGas.filter((field) => !commonExternal.includes(field));
+
   const mergedRows = [
     merged.customer_type === "business" ? "Profilo rilevato: azienda / non domestico" : merged.customer_type === "privato" ? "Profilo rilevato: privato / domestico" : "",
-    merged.fornitore_luce ? `Fornitore luce: ${testoHtmlSicuro(merged.fornitore_luce)}` : "",
-    merged.fornitore_gas ? `Fornitore gas: ${testoHtmlSicuro(merged.fornitore_gas)}` : "",
+    dualSameProvider ? `Fornitore luce e gas: ${testoHtmlSicuro(merged.fornitore_luce)}` : "",
+    !dualSameProvider && merged.fornitore_luce ? `Fornitore luce: ${testoHtmlSicuro(merged.fornitore_luce)}` : "",
+    !dualSameProvider && merged.fornitore_gas ? `Fornitore gas: ${testoHtmlSicuro(merged.fornitore_gas)}` : "",
     merged.consumo_luce_kwh ? `Luce: ${merged.consumo_luce_kwh} kWh/anno` : "",
     merged.prezzo_luce_eur_kwh ? `Prezzo luce: ${merged.prezzo_luce_eur_kwh} €/kWh` : "",
     merged.quota_fissa_vendita_luce_eur_anno ? `Fisso luce: ${merged.quota_fissa_vendita_luce_eur_anno} €/anno` : "",
@@ -7070,17 +8160,57 @@ function renderPdfSummary(documents, merged) {
     merged.quota_fissa_vendita_gas_eur_anno ? `Fisso gas: ${merged.quota_fissa_vendita_gas_eur_anno} €/anno` : "",
     merged.pod ? `POD: ${testoHtmlSicuro(merged.pod)}` : "",
     merged.pdr ? `PDR: ${testoHtmlSicuro(merged.pdr)}` : "",
-    merged.codice_cliente ? `Codice cliente: ${testoHtmlSicuro(merged.codice_cliente)}` : "",
+    merged.potenza_impegnata_kw ? `Potenza impegnata luce: ${merged.potenza_impegnata_kw} kW` : "",
+    merged.potenza_disponibile_kw ? `Potenza disponibile luce: ${merged.potenza_disponibile_kw} kW` : "",
+    merged.intestatario ? `Intestatario: ${testoHtmlSicuro(merged.intestatario)}` : "",
+    dualSameCustomerCode ? `Codice cliente: ${testoHtmlSicuro(codiceClienteLuce)}` : "",
+    !dualSameCustomerCode && codiceClienteLuce ? `${merged.commodity === "dual" ? "Codice cliente luce" : "Codice cliente"}: ${testoHtmlSicuro(codiceClienteLuce)}` : "",
+    !dualSameCustomerCode && codiceClienteGas ? `${merged.commodity === "dual" ? "Codice cliente gas" : "Codice cliente"}: ${testoHtmlSicuro(codiceClienteGas)}` : "",
     merged.codice_fiscale ? `Codice fiscale: ${testoHtmlSicuro(merged.codice_fiscale)}` : "",
-    merged.indirizzo_fornitura ? `Indirizzo: ${testoHtmlSicuro(merged.indirizzo_fornitura)}` : "",
-    merged.tipo_prezzo ? `Tipo prezzo: ${testoHtmlSicuro(merged.tipo_prezzo)}` : "",
-    merged.indice_riferimento ? `Indice: ${testoHtmlSicuro(merged.indice_riferimento)}` : "",
+    dualSameAddress ? `Indirizzo luce e gas: ${testoHtmlSicuro(merged.indirizzo_fornitura_luce)}` : "",
+    !dualSameAddress && merged.indirizzo_fornitura_luce ? `Indirizzo luce: ${testoHtmlSicuro(merged.indirizzo_fornitura_luce)}` : "",
+    !dualSameAddress && merged.indirizzo_fornitura_gas ? `Indirizzo gas: ${testoHtmlSicuro(merged.indirizzo_fornitura_gas)}` : "",
+    luceOfferName ? `Offerta luce: ${testoHtmlSicuro(luceOfferName)}` : "",
+    luceOfferCode ? `Codice offerta luce: ${testoHtmlSicuro(luceOfferCode)}` : "",
+    luceType ? `Tipo prezzo luce: ${testoHtmlSicuro(luceType)}` : "",
+    merged.struttura_prezzo_luce ? `Struttura luce: ${testoHtmlSicuro(merged.struttura_prezzo_luce)}` : "",
+    luceIndex ? `Indice luce: ${testoHtmlSicuro(luceIndex)}` : "",
+    Number.isFinite(Number(merged.spread_luce_eur_kwh)) ? `Spread luce: ${merged.spread_luce_eur_kwh} €/kWh` : "",
+    merged.periodicita_aggiornamento_indice_luce ? `Aggiornamento indice luce: ${testoHtmlSicuro(merged.periodicita_aggiornamento_indice_luce)}` : "",
+    luceValidity ? testoHtmlSicuro(luceValidity) : "",
+    merged.formula_prezzo_luce ? `Formula luce: ${testoHtmlSicuro(merged.formula_prezzo_luce)}` : "",
+    merged.sconti_offerta_luce?.length ? `Sconti luce: ${testoHtmlSicuro(merged.sconti_offerta_luce.join(", "))}` : "",
+    gasOfferName ? `Offerta gas: ${testoHtmlSicuro(gasOfferName)}` : "",
+    gasOfferCode ? `Codice offerta gas: ${testoHtmlSicuro(gasOfferCode)}` : "",
+    gasType ? `Tipo prezzo gas: ${testoHtmlSicuro(gasType)}` : "",
+    merged.struttura_prezzo_gas ? `Struttura gas: ${testoHtmlSicuro(merged.struttura_prezzo_gas)}` : "",
+    gasIndex ? `Indice gas: ${testoHtmlSicuro(gasIndex)}` : "",
+    Number.isFinite(Number(merged.spread_gas_eur_smc)) ? `Spread gas: ${merged.spread_gas_eur_smc} €/Smc` : "",
+    merged.periodicita_aggiornamento_indice_gas ? `Aggiornamento indice gas: ${testoHtmlSicuro(merged.periodicita_aggiornamento_indice_gas)}` : "",
+    gasValidity ? testoHtmlSicuro(gasValidity) : "",
+    merged.formula_prezzo_gas ? `Formula gas: ${testoHtmlSicuro(merged.formula_prezzo_gas)}` : "",
+    merged.sconti_offerta_gas?.length ? `Sconti gas: ${testoHtmlSicuro(merged.sconti_offerta_gas.join(", "))}` : "",
+    !luceType && !gasType && merged.tipo_prezzo ? `Tipo prezzo: ${testoHtmlSicuro(merged.tipo_prezzo)}` : "",
+    !luceIndex && !gasIndex && merged.indice_riferimento ? `Indice: ${testoHtmlSicuro(merged.indice_riferimento)}` : "",
+    pdfReadinessLine("Stato confronto luce", merged.readiness?.confronto?.luce),
+    pdfReadinessLine("Stato confronto gas", merged.readiness?.confronto?.gas),
+    pdfReadinessLine("Stato dati bolletta luce", merged.readiness?.dati_bolletta?.luce),
+    pdfReadinessFieldsLine("Dati bolletta mancanti luce", merged.readiness?.dati_bolletta?.luce?.missing),
+    pdfReadinessLine("Stato dati bolletta gas", merged.readiness?.dati_bolletta?.gas),
+    pdfReadinessFieldsLine("Dati bolletta mancanti gas", merged.readiness?.dati_bolletta?.gas?.missing),
+    pdfReadinessLine("Stato attivazione completa luce", merged.readiness?.attivazione?.luce),
+    pdfReadinessLine("Stato attivazione completa gas", merged.readiness?.attivazione?.gas),
+    pdfReadinessFieldsLine("Dati comuni da integrare per l’attivazione", commonExternal),
+    pdfReadinessFieldsLine("Dati specifici da integrare per attivazione luce", onlyLuceExternal),
+    pdfReadinessFieldsLine("Dati specifici da integrare per attivazione gas", onlyGasExternal),
+    pdfBlockedAutofillLine(merged.data_contract),
   ].filter(Boolean).join(" | ");
 
+  const ocrReviewTargets = Number(merged.data_contract?.autofill_plan?.review_target_count || 0);
   return `
     <span>Documenti analizzati:</span>
     <ul style="margin:6px 0 10px 18px;">${rows}</ul>
-    <span><strong>Dati che useremo per compilare il modulo:</strong> ${mergedRows || "nessun dato sufficientemente affidabile; completa il modulo manualmente."}</span>
+    <span><strong>Dati letti:</strong> ${mergedRows || "nessun dato sufficientemente affidabile; completa il modulo manualmente."}<br><small>Nel modulo saranno inseriti soltanto i campi completi ammessi dal contratto dati, dopo la tua conferma.${ocrReviewTargets ? " I dati OCR compariranno nell’anteprima deselezionati e dovrai sceglierli esplicitamente." : ""}</small></span>
   `;
 }
 
@@ -7090,6 +8220,8 @@ window.azzeraPdfEModulo = function azzeraPdfEModulo() {
   });
   LEAD_STATE.pdfData = null;
   LEAD_STATE.pdfDocuments = [];
+  LEAD_STATE.pdfAutofill = { previewedAt: "", appliedFields: [], skippedFields: [] };
+  pdfAutofillClearManualFields();
   LEAD_STATE.comparisonScope = "unknown";
   LEAD_STATE.gasDecision = "";
   LEAD_STATE.electricityDecision = "";
@@ -7114,12 +8246,14 @@ window.azzeraPdfEModulo = function azzeraPdfEModulo() {
   const title = document.getElementById("pdf-review-title");
   const confirmButton = document.getElementById("pdf-confirm-data-button");
   if (input) input.value = "";
+  PDF_PENDING_FILES = [];
+  aggiornaInterfacciaSelezionePdf();
   if (panel) panel.style.display = "none";
   if (title) title.innerText = "Dati pronti per la conferma";
   if (copy) copy.innerText = "Dopo l'analisi potrai confermare i dati letti dal PDF. Il confronto partirà solo dopo la tua conferma.";
   if (confirmButton) {
     confirmButton.disabled = false;
-    confirmButton.innerText = "Ho controllato: conferma e inserisci i dati";
+    confirmButton.innerText = "Controlla e scegli i dati da inserire";
   }
   [
     "nome-fornitore-att", "nome-fornitore-gas-att", "nome-fornitore-nuov",
@@ -7160,6 +8294,7 @@ window.azzeraPdfEModulo = function azzeraPdfEModulo() {
   if (leadModal) leadModal.style.display = "none";
   if (offerConsentModal) offerConsentModal.style.display = "none";
   chiudiDecisionePdf(null);
+  chiudiAnteprimaAutocompilazionePdf(null);
   const otpInput = document.getElementById("lead-otp");
   const sendOtp = document.getElementById("lead-send-otp");
   const verifyOtp = document.getElementById("lead-verify-otp");
@@ -7235,6 +8370,10 @@ const PROVIDER_MATCHERS = [
   ["eco", ["e co", "e.co", "eco energia", "energia corrente"]],
   ["eon", ["e on", "e.on", "eon"]],
   ["edison", ["edison"]],
+  ["estra", ["estra", "estra energie"]],
+  ["free", ["free luce e gas", "free lucegas"]],
+  ["butangas", ["butangas", "butan gas"]],
+  ["unoenergy", ["unoenergy", "uno energy"]],
   ["enel", ["enel"]],
   ["eni", ["eni", "plenitude"]],
   ["enercom", ["enercom"]],
@@ -7348,7 +8487,7 @@ function vaiAlCaricatoreScheda() {
     panel?.classList.remove("pdf-upload-attention");
     drop?.classList.remove("pdf-upload-target");
   }, 3000);
-  window.setTimeout(() => input?.focus({ preventScroll: true }), 650);
+  window.setTimeout(() => document.getElementById("pdf-select-files-button")?.focus({ preventScroll: true }), 650);
 }
 
 function vaiAiConsumiAttuali() {
@@ -7606,12 +8745,8 @@ function gasMasterBucket(consumo) {
 function applicaDatiPdfAlModulo(data) {
   NUOVA_OFFERTA_AUTOMATICA = null;
   inizializzaSelectFornitoreGas();
-  [
-    "in-luce-cons-att", "in-luce-prezzo-att", "in-luce-fisso-att",
-    "in-gas-cons-att", "in-gas-prezzo-att", "in-gas-fisso-att",
-    "in-luce-cons-nuov", "in-luce-prezzo-nuov", "in-luce-fisso-nuov",
-    "in-gas-cons-nuov", "in-gas-prezzo-nuov", "in-gas-fisso-nuov",
-  ].forEach(clearField);
+  const selectedRows = arguments.length > 1 ? arguments[1] : null;
+  const safe = (field) => pdfSafeAutofillValue(data, field);
 
   if (!data || Object.keys(data).length === 0) {
     applicaAmbitoConfronto("dual");
@@ -7631,44 +8766,70 @@ function applicaDatiPdfAlModulo(data) {
     return;
   }
 
-  if (data.potenza_impegnata_kw) setField("master-luce-potenza", data.potenza_impegnata_kw);
+  if (Array.isArray(selectedRows)) {
+    applicaRigheAutocompilazionePdf(selectedRows);
+    if (!leggiValore("master-gas-regione", "")) setField("master-gas-regione", "nord-ovest");
+    if (data.kind === "scheda_offerta") {
+      apriDettagliNuovaOfferta();
+      const provider = safe("fornitore_luce") ?? safe("fornitore_gas");
+      mostraHintNuovaOfferta(`Proposta caricata dalla scheda sintetica di ${provider || data.fornitore || "un fornitore"}. Hai scelto quali campi inserire nell'anteprima; i valori manuali non selezionati sono rimasti invariati.`);
+    }
+    aggiornaIndicatoreProfiloPdf();
+    aggiornaTestoPulsanteConfronto();
+    return;
+  }
+
+  const power = safe("potenza_impegnata_kw");
+  if (power !== undefined) setField("master-luce-potenza", power);
   if (!leggiValore("master-gas-regione", "")) setField("master-gas-regione", "nord-ovest");
 
   const isOffer = data.kind === "scheda_offerta";
   if (isOffer) {
     apriDettagliNuovaOfferta();
-    setField("nome-fornitore-nuov", providerValue(data.fornitore));
-    if (data.commodity === "luce" || data.prezzo_luce_eur_kwh || data.spread_luce_eur_kwh) {
-      setField("in-luce-prezzo-nuov", data.prezzo_luce_eur_kwh);
-      impostaQuotaFissaAnnua("in-luce-fisso-nuov", "in-luce-fisso-nuov-unita", data.quota_fissa_vendita_luce_eur_anno);
-    }
-    if (data.commodity === "gas" || data.prezzo_gas_eur_smc || data.spread_gas_eur_smc) {
-      setField("in-gas-prezzo-nuov", data.prezzo_gas_eur_smc);
-      impostaQuotaFissaAnnua("in-gas-fisso-nuov", "in-gas-fisso-nuov-unita", data.quota_fissa_vendita_gas_eur_anno);
-    }
-    if (data.tipo_prezzo) setField("master-luce-tipo", data.tipo_prezzo);
-    mostraHintNuovaOfferta(`Proposta caricata dalla scheda sintetica di ${data.fornitore || "un fornitore"}. Controlla i valori letti e completa gli eventuali dati mancanti.`);
+    const provider = safe("fornitore_luce") ?? safe("fornitore_gas");
+    const lucePrice = safe("prezzo_luce_eur_kwh");
+    const luceFixed = safe("quota_fissa_vendita_luce_eur_anno");
+    const gasPrice = safe("prezzo_gas_eur_smc");
+    const gasFixed = safe("quota_fissa_vendita_gas_eur_anno");
+    const priceType = safe("tipo_prezzo_luce") ?? safe("tipo_prezzo_gas");
+    if (provider !== undefined) setField("nome-fornitore-nuov", providerValue(provider));
+    if (lucePrice !== undefined) setField("in-luce-prezzo-nuov", lucePrice);
+    if (luceFixed !== undefined) impostaQuotaFissaAnnua("in-luce-fisso-nuov", "in-luce-fisso-nuov-unita", luceFixed);
+    if (gasPrice !== undefined) setField("in-gas-prezzo-nuov", gasPrice);
+    if (gasFixed !== undefined) impostaQuotaFissaAnnua("in-gas-fisso-nuov", "in-gas-fisso-nuov-unita", gasFixed);
+    if (priceType !== undefined) setField("master-luce-tipo", priceType);
+    mostraHintNuovaOfferta(`Proposta caricata dalla scheda sintetica di ${provider || data.fornitore || "un fornitore"}. Sono stati inseriti soltanto i campi completi ammessi dal contratto dati; controllali e completa quelli bloccati o mancanti.`);
     aggiornaTestoPulsanteConfronto();
     return;
   }
 
-  setField("nome-fornitore-att", providerValue(data.fornitore_luce || (data.commodity !== "gas" ? data.fornitore : "")));
-  setField("nome-fornitore-gas-att", providerValue(data.fornitore_gas || (data.commodity === "gas" ? data.fornitore : "")));
-  if (data.commodity === "luce" || data.commodity === "dual" || data.consumo_luce_kwh || data.prezzo_luce_eur_kwh) {
-    setField("in-luce-cons-att", data.consumo_luce_kwh);
-    setField("in-luce-cons-nuov", data.consumo_luce_kwh);
-    setField("master-luce-consumo", luceMasterBucket(data.consumo_luce_kwh));
-    setField("in-luce-prezzo-att", data.prezzo_luce_eur_kwh);
-    impostaQuotaFissaAnnua("in-luce-fisso-att", "in-luce-fisso-att-unita", data.quota_fissa_vendita_luce_eur_anno);
+  const providerLuce = safe("fornitore_luce");
+  const providerGas = safe("fornitore_gas");
+  const luceConsumption = safe("consumo_luce_kwh");
+  const lucePrice = safe("prezzo_luce_eur_kwh");
+  const luceFixed = safe("quota_fissa_vendita_luce_eur_anno");
+  const gasConsumption = safe("consumo_gas_smc");
+  const gasPrice = safe("prezzo_gas_eur_smc");
+  const gasFixed = safe("quota_fissa_vendita_gas_eur_anno");
+  const priceType = safe("tipo_prezzo_luce") ?? safe("tipo_prezzo_gas");
+
+  if (providerLuce !== undefined) setField("nome-fornitore-att", providerValue(providerLuce));
+  if (providerGas !== undefined) setField("nome-fornitore-gas-att", providerValue(providerGas));
+  if (luceConsumption !== undefined) {
+    setField("in-luce-cons-att", luceConsumption);
+    setField("in-luce-cons-nuov", luceConsumption);
+    setField("master-luce-consumo", luceMasterBucket(luceConsumption));
   }
-  if (data.commodity === "gas" || data.commodity === "dual" || data.consumo_gas_smc || data.prezzo_gas_eur_smc) {
-    setField("in-gas-cons-att", data.consumo_gas_smc);
-    setField("in-gas-cons-nuov", data.consumo_gas_smc);
-    setField("master-gas-consumo", gasMasterBucket(data.consumo_gas_smc));
-    setField("in-gas-prezzo-att", data.prezzo_gas_eur_smc);
-    impostaQuotaFissaAnnua("in-gas-fisso-att", "in-gas-fisso-att-unita", data.quota_fissa_vendita_gas_eur_anno);
+  if (lucePrice !== undefined) setField("in-luce-prezzo-att", lucePrice);
+  if (luceFixed !== undefined) impostaQuotaFissaAnnua("in-luce-fisso-att", "in-luce-fisso-att-unita", luceFixed);
+  if (gasConsumption !== undefined) {
+    setField("in-gas-cons-att", gasConsumption);
+    setField("in-gas-cons-nuov", gasConsumption);
+    setField("master-gas-consumo", gasMasterBucket(gasConsumption));
   }
-  if (data.tipo_prezzo) setField("master-luce-tipo", data.tipo_prezzo);
+  if (gasPrice !== undefined) setField("in-gas-prezzo-att", gasPrice);
+  if (gasFixed !== undefined) impostaQuotaFissaAnnua("in-gas-fisso-att", "in-gas-fisso-att-unita", gasFixed);
+  if (priceType !== undefined) setField("master-luce-tipo", priceType);
   aggiornaIndicatoreProfiloPdf();
   aggiornaTestoPulsanteConfronto();
 }
@@ -7691,6 +8852,8 @@ function sincronizzaConsumiNuovaOfferta() {
 }
 
 function collegaEventiUX() {
+  document.addEventListener("input", registraModificaManualePdf, true);
+  document.addEventListener("change", registraModificaManualePdf, true);
   inizializzaModalitaStaff();
   inizializzaSelectFornitoreGas();
   applicaAmbitoConfronto(leggiValore("master-tipo-fornitura", "dual"));
@@ -7728,13 +8891,38 @@ function collegaEventiUX() {
   gasAtt?.addEventListener("input", sincronizzaConsumiNuovaOfferta);
   document.getElementById("optional-upload-sheet")?.addEventListener("click", vaiAlCaricatoreScheda);
   document.getElementById("pdf-static-input")?.addEventListener("change", (event) => {
-    const count = event.target?.files?.length || 0;
+    const selected = Array.from(event.target?.files || []);
     const notice = document.getElementById("pdf-upload-context-notice");
+    const knownFingerprints = new Set([
+      ...PDF_PENDING_FILES.map((entry) => entry.fingerprint),
+      ...(LEAD_STATE.pdfDocuments || []).map((doc) => doc.file_fingerprint).filter(Boolean),
+    ]);
+    let added = 0;
+    let duplicates = 0;
+    selected.forEach((file) => {
+      const fingerprint = pdfFileFingerprint(file);
+      if (knownFingerprints.has(fingerprint)) {
+        duplicates += 1;
+        return;
+      }
+      knownFingerprints.add(fingerprint);
+      PDF_PENDING_FILES.push({
+        id: nuovoPdfUploadId("pending"),
+        fingerprint,
+        file,
+      });
+      added += 1;
+    });
+    if (event.target) event.target.value = "";
+    aggiornaInterfacciaSelezionePdf();
     nascondiGuida("pdf-confirm-guidance");
     document.getElementById("pdf-review-static")?.classList.remove("pdf-confirm-attention");
-    if (!notice || count < 1) return;
+    if (!notice || (!added && !duplicates)) return;
     notice.hidden = false;
-    notice.innerHTML = `<span class="pdf-context-icon" aria-hidden="true">✓</span><span><strong>${count === 1 ? "PDF selezionato" : `${count} PDF selezionati`}.</strong> Ora premi <strong>Analizza PDF</strong> per leggere i dati. Dopo l'analisi dovrai controllarli e confermarli.</span>`;
+    const duplicateCopy = duplicates ? ` ${duplicates === 1 ? "Un duplicato è stato ignorato." : `${duplicates} duplicati sono stati ignorati.`}` : "";
+    notice.innerHTML = added
+      ? `<span class="pdf-context-icon" aria-hidden="true">✓</span><span><strong>${added === 1 ? "PDF aggiunto" : `${added} PDF aggiunti`}.</strong> I documenti precedenti restano memorizzati. Ora premi <strong>Analizza PDF</strong>.${duplicateCopy}</span>`
+      : `<span class="pdf-context-icon" aria-hidden="true">✓</span><span><strong>Nessun nuovo PDF aggiunto.</strong>${duplicateCopy}</span>`;
   });
   document.getElementById("optional-edit-consumptions")?.addEventListener("click", vaiAiConsumiAttuali);
   document.getElementById("optional-manual-toggle")?.addEventListener("click", () => {
@@ -7807,12 +8995,20 @@ function collegaEventiUX() {
   document.getElementById("assistance-rescue-backdrop")?.addEventListener("click", (event) => {
     if (event.target?.id === "assistance-rescue-backdrop") chiudiRichiestaAssistenza("backdrop");
   });
+  document.getElementById("pdf-autofill-select-empty")?.addEventListener("click", selezionaCampiVuotiAnteprimaPdf);
+  document.getElementById("pdf-autofill-clear-selection")?.addEventListener("click", deselezionaTuttiCampiAnteprimaPdf);
+  document.getElementById("pdf-autofill-cancel")?.addEventListener("click", () => chiudiAnteprimaAutocompilazionePdf(null));
+  document.getElementById("pdf-autofill-apply")?.addEventListener("click", confermaAnteprimaAutocompilazionePdf);
+  document.getElementById("pdf-autofill-preview-backdrop")?.addEventListener("click", (event) => {
+    if (event.target?.id === "pdf-autofill-preview-backdrop") chiudiAnteprimaAutocompilazionePdf(null);
+  });
   document.getElementById("pdf-decision-backdrop")?.addEventListener("click", (event) => {
     if (event.target?.id === "pdf-decision-backdrop") chiudiDecisionePdf(null);
   });
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;
-    if (document.getElementById("pdf-decision-backdrop")?.style.display === "flex") chiudiDecisionePdf(null);
+    if (document.getElementById("pdf-autofill-preview-backdrop")?.style.display === "flex") chiudiAnteprimaAutocompilazionePdf(null);
+    else if (document.getElementById("pdf-decision-backdrop")?.style.display === "flex") chiudiDecisionePdf(null);
     else if (document.getElementById("assistance-rescue-backdrop")?.style.display === "flex") chiudiRichiestaAssistenza("escape");
     else if (document.getElementById("activation-helper-backdrop")?.style.display === "flex") chiudiAssistenteAttivazione();
   });
@@ -8193,6 +9389,23 @@ if (document.readyState === "loading") {
         <p id="pdf-decision-copy"></p>
         <div class="pdf-decision-actions" id="pdf-decision-actions"></div>
         <div class="pdf-decision-note" id="pdf-decision-note">La scelta serve soltanto a mostrare i campi e le offerte pertinenti. Potrai modificarla caricando un altro documento o ricominciando.</div>
+    </div>
+</div>
+
+<div class="pdf-autofill-backdrop" id="pdf-autofill-preview-backdrop" role="dialog" aria-modal="true" aria-labelledby="pdf-autofill-preview-title">
+    <div class="pdf-autofill-modal">
+        <h3 id="pdf-autofill-preview-title">Anteprima dei dati da inserire</h3>
+        <p id="pdf-autofill-preview-copy">Scegli i campi da copiare nel modulo. I valori inseriti manualmente restano protetti e non sono selezionati automaticamente.</p>
+        <div class="pdf-autofill-toolbar">
+            <button type="button" id="pdf-autofill-select-empty">Seleziona solo i campi vuoti</button>
+            <button type="button" id="pdf-autofill-clear-selection">Deseleziona tutti</button>
+        </div>
+        <div class="pdf-autofill-list" id="pdf-autofill-preview-list"></div>
+        <div class="pdf-autofill-note">I dati OCR sono sempre deselezionati all’apertura e richiedono una scelta esplicita. Un valore manuale differente resta protetto finché non ne autorizzi singolarmente la sostituzione.</div>
+        <div class="pdf-autofill-actions">
+            <button type="button" id="pdf-autofill-cancel">Annulla, non modificare il modulo</button>
+            <button type="button" class="is-primary" id="pdf-autofill-apply">Applica i campi selezionati</button>
+        </div>
     </div>
 </div>
 
