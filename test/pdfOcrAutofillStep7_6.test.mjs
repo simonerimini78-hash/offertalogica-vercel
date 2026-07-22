@@ -141,7 +141,7 @@ function ocrLightResult() {
     diagnostics: [],
     ocr: {
       applied: true,
-      pipeline_version: "v105.5-ocr-customer-code-reconciliation-1",
+      pipeline_version: "v105.6-ocr-large-photo-scaling-1",
       filled_fields: [
         "fornitore", "customer_type", "consumo_luce_kwh", "prezzo_luce_eur_kwh",
         "quota_fissa_vendita_luce_eur_anno", "potenza_impegnata_kw", "pod",

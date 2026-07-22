@@ -1,0 +1,26 @@
+OFFERTALOGICA — STEP 8.4.4
+Correzione OCR per PDF composti da fotografie ad altissima risoluzione
+Data: 22 luglio 2026
+
+PROBLEMA CONFERMATO
+- Step 8.4.3 carica e ricompone correttamente il PDF.
+- Sorgenia viene archiviata, ma Tesseract termina con ocr_error.
+- Le due pagine sono fotografie da 3096 x 4128 pixel.
+- La scala OCR standard 2.2 genera circa 61,9 milioni di pixel per pagina e un BMP 24 bit di circa 185 MB prima del lavoro interno di Tesseract.
+
+CORREZIONE
+- Conserva le dimensioni reali delle pagine rilevate da pdf-parse.
+- Mantiene la scala OCR 2.2 sui PDF normali.
+- Sulle sole pagine fotografiche giganti riduce automaticamente la scala per non superare 12 milioni di pixel.
+- Non modifica parser, regole di estrazione, merge OCR, AI, modulo o comparatore.
+- Aggiunge nel diagnostico OCR render_profiles con pagina, scala e dimensioni effettive.
+- Migliora il messaggio diagnostico quando il worker OCR restituisce un errore senza message.
+
+INSTALLAZIONE
+Copia nella radice del branch lettore-pdf-ocr-AI-step8 le cartelle lib e test contenute in questo pacchetto, mantenendo i percorsi.
+
+TEST DOPO IL DEPLOYMENT
+1. Caricare prima Sorgenia da 5,7 MB.
+2. Controllare che ocr.attempted sia true e che ocr.reason non sia ocr_error.
+3. Controllare ocr.render_profiles: la pagina Sorgenia deve avere una scala vicina a 0,969 e circa 12 milioni di pixel.
+4. Provare poi Irina.

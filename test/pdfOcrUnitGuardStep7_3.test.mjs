@@ -38,5 +38,5 @@ test("Step 7.3: conserva gli spread con unita esplicita", () => {
 });
 
 test("Step 7.3: aggiorna la versione della pipeline OCR", () => {
-  assert.equal(PDF_OCR_PIPELINE_VERSION, "v105.5-ocr-customer-code-reconciliation-1");
+  assert.equal(PDF_OCR_PIPELINE_VERSION, "v105.6-ocr-large-photo-scaling-1");
 });

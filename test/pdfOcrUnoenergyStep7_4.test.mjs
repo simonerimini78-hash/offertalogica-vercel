@@ -97,5 +97,5 @@ PREZZO PCS GJ 0.038466
 });
 
 test("Step 7.4 espone la nuova versione della pipeline", () => {
-  assert.equal(PDF_OCR_PIPELINE_VERSION, "v105.5-ocr-customer-code-reconciliation-1");
+  assert.equal(PDF_OCR_PIPELINE_VERSION, "v105.6-ocr-large-photo-scaling-1");
 });

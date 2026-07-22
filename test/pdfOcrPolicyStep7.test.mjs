@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import {
   isMaterialOcrImprovement,
   ocrMaxPages,
+  ocrMaxRenderPixels,
+  ocrRenderScale,
   ocrScale,
   scorePdfResult,
   selectOcrPageIndexes,
@@ -78,6 +80,19 @@ test("Step 7: scala OCR sempre entro il perimetro controllato", () => {
   assert.equal(ocrScale({ PDF_OCR_SCALE: "0.5" }), 1.5);
   assert.equal(ocrScale({ PDF_OCR_SCALE: "9" }), 3);
   assert.equal(ocrScale({}), 2.2);
+});
+
+test("Step 8.4.4: limita le fotografie giganti prima di creare il BMP Tesseract", () => {
+  const pageSize = { width: 3096, height: 4128 };
+  const scale = ocrRenderScale(pageSize, {});
+  assert.ok(scale < 1, `scala attesa sotto 1, ricevuta ${scale}`);
+  assert.ok(pageSize.width * pageSize.height * scale * scale <= ocrMaxRenderPixels({}) + 1);
+});
+
+test("Step 8.4.4: non riduce i normali PDF A4", () => {
+  assert.equal(ocrRenderScale({ width: 595, height: 842 }, {}), 2.2);
+  assert.equal(ocrRenderScale({}, {}), 2.2);
+  assert.equal(ocrMaxRenderPixels({ PDF_OCR_MAX_RENDER_PIXELS: "99999999" }), 16_000_000);
 });
 
 test("Step 7: punteggio premia identificativi e dati economici", () => {

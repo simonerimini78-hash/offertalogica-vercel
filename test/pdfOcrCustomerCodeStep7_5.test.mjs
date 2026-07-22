@@ -56,5 +56,5 @@ CONSUMO ANNUO: Da 28/02/2025 a 28/02/2026: 120 Smc
 });
 
 test("Step 7.5 espone la nuova versione della pipeline", () => {
-  assert.equal(PDF_OCR_PIPELINE_VERSION, "v105.5-ocr-customer-code-reconciliation-1");
+  assert.equal(PDF_OCR_PIPELINE_VERSION, "v105.6-ocr-large-photo-scaling-1");
 });
