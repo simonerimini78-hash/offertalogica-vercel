@@ -140,7 +140,7 @@ test("Step 8.4.2: Preview avvia automaticamente una sola lettura", async () => {
   }));
   assert.equal(calls, 1);
   assert.equal(reads, 1);
-  assert.equal(result.endpoint_version, "8.4.2");
+  assert.equal(result.endpoint_version, "8.4.3");
   assert.equal(result.status, "observed");
   assert.equal(result.diagnostics.endpoint.activation, "automatic_preview");
 });

@@ -125,6 +125,40 @@ test("Step 8.4.2: i blocchi sotto il limite Vercel vengono ricomposti senza perd
   }
 });
 
+
+test("Step 8.4.3: i blocchi mantengono application/pdf richiesto dal bucket privato", async () => {
+  const restoreEnv = withArchiveEnv();
+  const originalFetch = globalThis.fetch;
+  let receivedContentType = "";
+  globalThis.fetch = async (url, init = {}) => {
+    receivedContentType = String(init.headers?.["Content-Type"] || init.headers?.["content-type"] || "");
+    if (receivedContentType !== "application/pdf") {
+      return new Response(JSON.stringify({ message: "mime type application/octet-stream is not supported" }), {
+        status: 400,
+        headers: { "content-type": "application/json" },
+      });
+    }
+    return new Response(JSON.stringify({ Key: String(url) }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  };
+
+  try {
+    const stored = await storeTemporaryPdfChunk({
+      uploadId: UPLOAD_ID,
+      chunkIndex: 0,
+      chunkCount: 1,
+      buffer: Buffer.from("%PDF-1.7\nchunk"),
+    });
+    assert.equal(stored.stored, true);
+    assert.equal(receivedContentType, "application/pdf");
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv();
+  }
+});
+
 test("Step 8.4.2: l'endpoint gestisce blocchi e ricomposizione prima della lettura", async () => {
   const source = await fs.readFile(new URL("../api/analyze-pdf.js", import.meta.url), "utf8");
   assert.match(source, /uploadModeFromFields\(fields\) === "chunk"/);

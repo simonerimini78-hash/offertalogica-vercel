@@ -1,0 +1,19 @@
+OFFERTALOGICA — STEP 8.4.3
+Correzione mirata del caricamento a blocchi dei PDF fotografati oltre 3,5 MB.
+
+CAUSA CORRETTA
+Il bucket privato Supabase pdf-test-archive accetta soltanto application/pdf.
+Lo Step 8.4.2 inviava ogni blocco come application/octet-stream: Supabase lo respingeva
+prima della ricomposizione e l'endpoint restituiva {"ok":false,"error":"Errore analisi PDF"}.
+
+MODIFICA
+I blocchi mantengono Content-Type application/pdf.
+Non sono stati modificati parser, OCR, regole AI, comparatore, offerte o interfaccia.
+
+INSTALLAZIONE
+Caricare le cartelle api, lib e test nella radice del branch lettore-pdf-ocr-AI-step8,
+sostituendo esclusivamente i file omonimi.
+
+PROVA DOPO IL DEPLOY
+Caricare prima sorgenia 2(1).pdf da circa 5,7 MB.
+La prova utile è soltanto la lettura della bolletta fotografata.
