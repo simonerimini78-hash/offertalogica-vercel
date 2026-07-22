@@ -3,7 +3,8 @@ import formidable from "formidable";
 import { json, method, requireAllowedOrigin } from "../lib/http.js";
 import { extractPdfWithControlledOcr } from "../lib/pdfExtractWithOcr.js";
 import { archivePdfAnalysis } from "../lib/pdfArchive.js";
-import { runPdfAiEndpointObservation } from "../lib/pdfAiEndpoint.js";
+import { runPdfAiEndpointObservation, pdfAiPreviewEnvironment } from "../lib/pdfAiEndpoint.js";
+import { hasValidStaffToken } from "../lib/staffAuth.js";
 import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
 
 export const config = {
@@ -112,9 +113,11 @@ export default async function handler(req, res) {
       fileSizeBytes: fileMetadata.fileSize,
       normalized,
       fields,
+      previewEnvironment: pdfAiPreviewEnvironment(process.env),
+      staffAuthorized: hasValidStaffToken(req),
       deadlineAt: analysisDeadlineAt,
     }).catch(() => ({
-      endpoint_version: "8.3.0",
+      endpoint_version: "8.4.0",
       mode: "shadow",
       attempted: false,
       status: "error",

@@ -1,6 +1,8 @@
 import crypto from "node:crypto";
 import { json, method, readJson, requireAllowedOrigin } from "../lib/http.js";
 import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
+import { pdfAiConfig } from "../lib/pdfAiConfig.js";
+import { pdfArchiveConfigured } from "../lib/pdfArchive.js";
 
 function safeEqual(left, right) {
   const a = Buffer.from(String(left || ""));
@@ -24,10 +26,21 @@ export default async function handler(req, res) {
       return json(res, 403, { ok: false, error: "Token staff non valido" });
     }
 
+    const aiConfig = pdfAiConfig(process.env);
+    const pdfAiPreviewAvailable = Boolean(
+      String(process.env.VERCEL_ENV || "").trim().toLowerCase() === "preview" &&
+      aiConfig.mode === "shadow" &&
+      aiConfig.model &&
+      aiConfig.config_errors.length === 0 &&
+      String(process.env.OPENAI_API_KEY || "").trim() &&
+      pdfArchiveConfigured()
+    );
+
     json(res, 200, {
       ok: true,
       mode: "staff",
       activatedAt: new Date().toISOString(),
+      pdfAiPreviewAvailable,
     });
   } catch {
     json(res, 400, { ok: false, error: "Richiesta staff non valida" });

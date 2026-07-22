@@ -132,15 +132,46 @@ Garanzie:
 
 Il frontend pubblico non invia ancora `pdfAiConsent`: i normali caricamenti non generano chiamate AI.
 
-## Prossimo sottostep esatto — Punto 8.4
+## Punto 8.4 — gate Preview staff completato nel pacchetto corrente
 
-Preparare il collaudo reale esclusivamente in Preview:
+File modificati o aggiunti:
 
-1. aggiungere un controllo di consenso AI visibile soltanto in modalità staff/Preview;
-2. non mostrare candidati AI al cliente;
-3. configurare `PDF_AI_MODE=shadow`, modello, chiave e archivio soltanto nella Preview;
-4. provare un corpus anonimizzato multi-fornitore luce, gas e dual;
-5. confrontare parser/OCR con corroborazioni, revisioni e conflitti AI;
+- `public/index.html`;
+- `api/analyze-pdf.js`;
+- `api/staff-preview.js`;
+- `lib/staffAuth.js`;
+- `lib/pdfAiEndpoint.js`;
+- `test/pdfAiEndpointStep8.test.mjs`;
+- `test/pdfAiPreviewStep8.test.mjs`;
+- `docs/PDF-AI-STEP8-PREVIEW.md`.
+
+Garanzie introdotte:
+
+- controllo consenso AI visibile soltanto in modalità staff e in una Preview completamente configurata;
+- checkbox mai preselezionato e azzerato dopo ogni batch;
+- token staff inviato separatamente nell'header `X-Staff-Token`;
+- verifica server di `VERCEL_ENV=preview`;
+- consenso contraffatto in produzione bloccato prima della lettura AI del PDF;
+- Preview senza token staff bloccata prima della lettura AI del PDF;
+- sidecar AI ancora esclusivamente privato;
+- risposta pubblica e autofill invariati;
+- fallback pubblico ancora disattivato.
+
+Verifiche locali:
+
+- suite Step 8: `51/51`;
+- suite OCR Step 7: `40/40`;
+- suite forniture singole: `10/10`;
+- verifica offerte: zero errori e zero warning;
+- regressione completa: stessi due errori già presenti nel baseline per il file mancante `lib/pdfHybridPolicy.js`, non introdotti dallo Step 8.4.
+
+## Prossimo sottostep esatto — collaudo reale Step 8.4 in Preview
+
+1. configurare le variabili AI, archivio e staff soltanto nell'ambiente Preview;
+2. aprire la modalità staff tramite link protetto;
+3. provare il percorso senza consenso e confermare zero tentativi AI;
+4. provare un corpus anonimizzato multi-fornitore luce, gas e dual con consenso;
+5. confrontare parser/OCR con corroborazioni, revisioni e conflitti AI nel sidecar privato;
 6. misurare timeout, costi e percentuale di tentativi utili;
 7. lasciare il fallback pubblico disattivato.
 

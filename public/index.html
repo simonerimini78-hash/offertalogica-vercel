@@ -285,6 +285,10 @@
         .pdf-review-static strong { display: block; margin-bottom: 4px; color: var(--text-color); }
         .pdf-review-static p { text-align: left; margin: 0 0 10px; font-size: 13px; }
         .pdf-review-static button { background: var(--primary); color: #fff; border: 0; border-radius: 8px; padding: 10px 14px; font-weight: 800; cursor: pointer; }
+        .pdf-ai-consent-staff { display: flex; align-items: flex-start; gap: 9px; width: 100%; margin: 4px 0 2px; padding: 11px 12px; border: 1px solid #86efac; border-radius: 9px; background: #f0fdf4; color: #14532d; text-align: left; font-size: 12px; line-height: 1.45; }
+        .pdf-ai-consent-staff[hidden] { display: none !important; }
+        .pdf-ai-consent-staff input { width: 17px; height: 17px; margin: 1px 0 0; flex: 0 0 auto; accent-color: #15803d; }
+        .pdf-ai-consent-staff strong { display: inline; color: #14532d; }
 
         .lead-modal-backdrop { position: fixed; inset: 0; z-index: 1000; display: none; align-items: center; justify-content: center; padding: 20px; background: rgba(15,23,42,.58); }
         .lead-modal { width: min(620px, 100%); max-height: min(92vh, 760px); overflow: auto; background: #fff; border-radius: 14px; border: 1px solid var(--border); padding: 22px; box-shadow: 0 24px 60px rgba(15,23,42,.28); }
@@ -1907,6 +1911,10 @@
                 <span id="pdf-file-picker-status" class="pdf-file-picker-status">Nessun PDF aggiunto</span>
             </div>
             <div id="pdf-selected-files" class="pdf-selected-files" aria-live="polite" hidden></div>
+            <label id="pdf-ai-consent-staff" class="pdf-ai-consent-staff" hidden>
+                <input id="pdf-ai-consent-checkbox" type="checkbox" autocomplete="off">
+                <span><strong>Collaudo AI in Preview.</strong> Consento l’invio dei PDF selezionati al modello AI per una sola analisi shadow. I candidati AI resteranno nel sidecar privato e non verranno inseriti nel confronto.</span>
+            </label>
             <button type="button" class="btn-action" onclick="preparaConfermaPdf()">Analizza PDF</button>
             <button type="button" class="lead-secondary" onclick="azzeraPdfEModulo()">Rimuovi tutti i PDF e ricomincia</button>
             <div class="upload-note">Dopo il primo PDF usa <strong>Aggiungi file</strong>: i documenti già caricati restano memorizzati. Puoi rimuovere ogni PDF singolarmente prima della conferma.</div>
@@ -2473,6 +2481,7 @@ const LEAD_STATE = {
   pendingPdfDecision: null,
   staffMode: false,
   staffActivatedAt: "",
+  pdfAiPreviewAvailable: false,
   activationAssistant: {
     pendingUrl: "",
     offer: null,
@@ -5698,6 +5707,23 @@ function staffModeAttiva() {
   return Boolean(LEAD_STATE.staffMode);
 }
 
+function pdfAiPreviewAttiva() {
+  return Boolean(staffModeAttiva() && LEAD_STATE.pdfAiPreviewAvailable);
+}
+
+function azzeraConsensoPdfAiStaff() {
+  const checkbox = document.getElementById("pdf-ai-consent-checkbox");
+  if (checkbox) checkbox.checked = false;
+}
+
+function aggiornaControlloConsensoPdfAiStaff() {
+  const control = document.getElementById("pdf-ai-consent-staff");
+  if (!control) return;
+  const visible = pdfAiPreviewAttiva();
+  control.hidden = !visible;
+  if (!visible) azzeraConsensoPdfAiStaff();
+}
+
 function pulisciTokenStaffDaUrl() {
   try {
     const url = new URL(window.location.href);
@@ -5847,9 +5873,11 @@ function creaPannelloAnteprimeStaff() {
 function aggiornaBannerStaff() {
   let banner = document.getElementById("staff-mode-banner");
   if (!staffModeAttiva()) {
+    LEAD_STATE.pdfAiPreviewAvailable = false;
     banner?.remove();
     document.getElementById("staff-preview-panel")?.remove();
     document.body.classList.remove("staff-preview-open");
+    aggiornaControlloConsensoPdfAiStaff();
     return;
   }
   if (!banner) {
@@ -5880,6 +5908,7 @@ function aggiornaBannerStaff() {
       sessionStorage.removeItem(STAFF_MODE_TOKEN_STORAGE_KEY);
       LEAD_STATE.staffMode = false;
       LEAD_STATE.staffActivatedAt = "";
+      LEAD_STATE.pdfAiPreviewAvailable = false;
       LEAD_STATE.verified = false;
       LEAD_STATE.leadId = "";
       chiudiPannelloAnteprimeStaff();
@@ -5889,6 +5918,7 @@ function aggiornaBannerStaff() {
   } else {
     creaPannelloAnteprimeStaff();
   }
+  aggiornaControlloConsensoPdfAiStaff();
 }
 
 function abilitaModalitaStaff(activatedAt = "") {
@@ -5905,32 +5935,39 @@ async function inizializzaModalitaStaff() {
     sessionStorage.removeItem(STAFF_MODE_TOKEN_STORAGE_KEY);
     LEAD_STATE.staffMode = false;
     LEAD_STATE.staffActivatedAt = "";
+    LEAD_STATE.pdfAiPreviewAvailable = false;
     pulisciTokenStaffDaUrl();
     aggiornaBannerStaff();
     return;
   }
 
-  if (sessionStorage.getItem(STAFF_MODE_STORAGE_KEY) === "true") {
-    abilitaModalitaStaff("session");
+  const sessionToken = sessionStorage.getItem(STAFF_MODE_TOKEN_STORAGE_KEY) || "";
+  const tokenToValidate = staffRequest.token || sessionToken;
+  if (staffRequest.token) pulisciTokenStaffDaUrl();
+  if (!tokenToValidate) {
+    sessionStorage.removeItem(STAFF_MODE_STORAGE_KEY);
+    LEAD_STATE.staffMode = false;
+    LEAD_STATE.pdfAiPreviewAvailable = false;
+    aggiornaBannerStaff();
+    return;
   }
-
-  if (!staffRequest.token) return;
-  pulisciTokenStaffDaUrl();
 
   try {
     const response = await fetch("/api/staff-preview", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token: staffRequest.token }),
+      body: JSON.stringify({ token: tokenToValidate }),
     });
     const payload = await response.json();
     if (!payload.ok) throw new Error(payload.error || "Token staff non valido");
-    sessionStorage.setItem(STAFF_MODE_TOKEN_STORAGE_KEY, staffRequest.token);
+    sessionStorage.setItem(STAFF_MODE_TOKEN_STORAGE_KEY, tokenToValidate);
+    LEAD_STATE.pdfAiPreviewAvailable = Boolean(payload.pdfAiPreviewAvailable);
     abilitaModalitaStaff(payload.activatedAt || "");
   } catch (error) {
     sessionStorage.removeItem(STAFF_MODE_STORAGE_KEY);
     sessionStorage.removeItem(STAFF_MODE_TOKEN_STORAGE_KEY);
     LEAD_STATE.staffMode = false;
+    LEAD_STATE.pdfAiPreviewAvailable = false;
     aggiornaBannerStaff();
     console.warn("Modalita staff non attivata", error.message);
   }
@@ -7087,6 +7124,12 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
   nascondiGuida("pdf-confirm-guidance");
   trackEvent("pdf_analysis_started", { fileCount: files.length });
 
+  const pdfAiConsent = Boolean(
+    pdfAiPreviewAttiva() && document.getElementById("pdf-ai-consent-checkbox")?.checked
+  );
+  const pdfAiStaffToken = pdfAiConsent
+    ? (sessionStorage.getItem(STAFF_MODE_TOKEN_STORAGE_KEY) || "")
+    : "";
   const results = [];
   for (let fileIndex = 0; fileIndex < files.length; fileIndex += 1) {
     const file = files[fileIndex];
@@ -7099,8 +7142,13 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
       customerType: LEAD_STATE.customerType,
       uploadSequence: LEAD_STATE.pdfDocuments.length + results.length + 1,
     }));
+    const requestHeaders = {};
+    if (pdfAiConsent && pdfAiStaffToken) {
+      formData.append("pdfAiConsent", "true");
+      requestHeaders["X-Staff-Token"] = pdfAiStaffToken;
+    }
     try {
-      const response = await fetch("/api/analyze-pdf", { method: "POST", body: formData });
+      const response = await fetch("/api/analyze-pdf", { method: "POST", headers: requestHeaders, body: formData });
       const contentType = response.headers.get("content-type") || "";
       if (!contentType.includes("application/json")) throw new Error("api_non_disponibile");
       const payload = await response.json();
@@ -7130,6 +7178,7 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
     }
   }
 
+  azzeraConsensoPdfAiStaff();
   const processedIds = new Set(pendingEntries.map((entry) => entry.id));
   PDF_PENDING_FILES = PDF_PENDING_FILES.filter((entry) => !processedIds.has(entry.id));
   if (input) input.value = "";
@@ -8234,6 +8283,7 @@ window.azzeraPdfEModulo = function azzeraPdfEModulo() {
   LEAD_STATE.leadSource = "manual";
   LEAD_STATE.selectedOffer = null;
   LEAD_STATE.partnerConsent = false;
+  azzeraConsensoPdfAiStaff();
   LEAD_STATE.activationAssistant = { pendingUrl: "", offer: null };
   LEAD_STATE.businessProfile = null;
   NUOVA_OFFERTA_AUTOMATICA = null;
