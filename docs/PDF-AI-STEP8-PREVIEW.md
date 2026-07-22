@@ -1,79 +1,60 @@
-# PDF AI — Step 8.4 Preview staff controllata
+# PDF AI — Step 8.4.1 lettura visuale automatica in Preview staff
 
 Data: 22 luglio 2026
 
 ## Obiettivo
 
-Abilitare il collaudo reale del percorso AI shadow soltanto nelle Preview Vercel e soltanto per una sessione staff autenticata, senza modificare il risultato pubblico del lettore.
+Collaudare la lettura visuale AI sulle bollette fotografate direttamente nel normale caricatore della Preview, senza checkbox, richieste di consenso AI o pagine staff separate.
 
-## Protezioni introdotte
+## Attivazione
 
 L'AI può essere tentata soltanto quando tutte le condizioni seguenti sono vere:
 
 1. `PDF_AI_MODE=shadow`;
 2. `VERCEL_ENV=preview`;
 3. token staff valido nell'header `X-Staff-Token`;
-4. consenso dedicato `pdfAiConsent=true` selezionato esplicitamente;
-5. archivio PDF privato configurato;
-6. modello e chiave AI configurati;
-7. policy Step 8 rispettata per dimensione, pagine e budget temporale.
+4. archivio PDF privato configurato;
+5. modello e chiave AI configurati;
+6. limiti di pagine, byte e tempo rispettati.
 
-Il controllo di consenso:
+Il token staff viene inviato automaticamente dal normale caricatore quando la modalità staff è già attiva e la Preview dichiara disponibile il percorso AI.
 
-- è nascosto per gli utenti normali;
-- è nascosto anche allo staff quando la Preview non è completamente configurata;
-- non è mai preselezionato;
-- viene azzerato dopo ogni batch di analisi, all'uscita dalla modalità staff e al reset del lettore;
-- autorizza soltanto i PDF selezionati in quel batch.
+## Nessun controllo di consenso nell'interfaccia
 
-## Sicurezza server
+Non esistono:
 
-Il backend non considera attendibili `archiveContext.staffMode` o altri campi inviati dal browser.
+- checkbox AI;
+- testi di consenso AI;
+- campi multipart `pdfAiConsent`;
+- passaggi aggiuntivi prima di analizzare la bolletta.
 
-Controlla direttamente:
+La protezione è esclusivamente tecnica e server-side: ambiente Preview, autenticazione staff, archivio privato e configurazione AI.
 
-- ambiente Vercel Preview;
-- token staff con confronto temporale sicuro;
-- consenso AI dedicato;
-- disponibilità dell'archivio privato.
+## Risultato visibile per il collaudo
 
-Un client che invia manualmente `pdfAiConsent=true` in produzione o senza token staff riceve un risultato shadow `skipped`; il PDF non viene letto dal percorso AI e non viene inviato al provider.
+Nella Preview staff la risposta può aggiungere a `normalized` soltanto `ai_preview`, una vista sanitizzata e revisionabile contenente:
 
-## Risultato pubblico
+- classificazione visuale del documento;
+- campi di identità letti;
+- pagina, etichetta, evidenza e confidenza;
+- eventuali conferme del valore parser/OCR;
+- eventuali conflitti.
 
-La risposta resta:
+Il riepilogo mostra il riquadro:
 
-```json
-{ "ok": true, "normalized": {}, "archive": {} }
-```
+`Dati letti dalla fotografia — da verificare`
 
-Il sidecar `_ai_shadow` resta esclusivamente nella copia privata archiviata. Nessun candidato AI viene mostrato al cliente o applicato al modulo.
+Questi valori:
 
-## Variabili da configurare soltanto nella Preview
+- non sostituiscono parser o OCR;
+- non entrano nel contratto di autofill;
+- non vengono inseriti automaticamente nel modulo;
+- non sono restituiti in Production o senza token staff valido.
 
-Obbligatorie:
+Il sidecar completo `_ai_shadow` resta soltanto nell'archivio privato.
 
-- `STAFF_PREVIEW_TOKEN`;
-- `PDF_AI_MODE=shadow`;
-- `PDF_AI_MODEL`;
-- `OPENAI_API_KEY`;
-- `PDF_ARCHIVE_MODE=problematic` oppure `all`;
-- `PDF_ARCHIVE_BUCKET`;
-- `SUPABASE_URL`;
-- `SUPABASE_SERVICE_ROLE_KEY`.
+## Collaudo richiesto
 
-Le variabili AI e la chiave non devono essere abilitate nell'ambiente Production durante il collaudo.
+L'unica prova utente richiesta dopo il deploy è caricare bollette fotografate nella normale Preview staff e controllare ciò che appare nel riquadro della lettura visuale.
 
-## Collaudo reale ancora necessario
-
-Dopo il deploy Preview:
-
-1. aprire il link protetto staff;
-2. verificare che il controllo AI compaia solo nella Preview configurata;
-3. provare senza selezionare il consenso: nessun tentativo AI;
-4. selezionare il consenso e caricare un corpus anonimizzato multi-fornitore luce, gas e dual;
-5. controllare `_ai_shadow` nell'archivio privato;
-6. verificare che il risultato pubblico e il modulo siano identici al percorso senza AI;
-7. registrare tentativi, osservazioni utili, conflitti, timeout e costi.
-
-Il fallback pubblico resta disattivato.
+Non sono richiesti test manuali di checkbox, pagine archivio o pannelli staff.

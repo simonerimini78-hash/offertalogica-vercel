@@ -45,7 +45,7 @@ Garanzie:
 
 - modalità `off`, `shadow`, `fallback`, default `off`;
 - modello solo da ambiente;
-- consenso esplicito;
+- autorizzazione server tramite Preview staff;
 - limiti di pagine, byte, timeout e riserva;
 - campi AI limitati a classificazione e identità;
 - prezzi, consumi, quote, spread, indici e offerte esclusi;
@@ -92,7 +92,7 @@ Comportamento:
 ## Verifiche Punto 8.2
 
 - modalità off: nessuna chiamata;
-- consenso mancante: nessuna chiamata;
+- richiesta fuori Preview staff: nessuna chiamata;
 - fallback: bloccato dall'orchestratore shadow;
 - successo: sidecar con `review_plan.applied=false`;
 - timeout, eccezioni e piano invalido: non bloccanti;
@@ -122,65 +122,58 @@ Garanzie:
 - il vecchio `runPdfReaderShadow()` non è più importato dall'endpoint;
 - modalità endpoint ammessa: soltanto `shadow`;
 - archivio privato obbligatorio prima dell'invio;
-- consenso AI letto soltanto dal campo dedicato `pdfAiConsent`;
-- consenso servizio/marketing/partner non riutilizzato;
+- il precedente gate browser `pdfAiConsent` è stato eliminato nello Step 8.4.1;
 - il PDF viene letto soltanto dopo autorizzazione della policy;
 - `normalized` e risposta JSON pubblica restano invariati;
 - sidecar conservato soltanto nella copia privata come `_ai_shadow`;
 - errori e timeout restano non bloccanti;
 - fallback pubblico ancora disattivato.
 
-Il frontend pubblico non invia ancora `pdfAiConsent`: i normali caricamenti non generano chiamate AI.
+Il frontend pubblico non invia controlli o consensi AI. Le chiamate visuali sono autorizzate esclusivamente dai gate server della Preview staff.
 
-## Punto 8.4 — gate Preview staff completato nel pacchetto corrente
+## Punto 8.4.1 — lettura visuale automatica nella normale Preview staff
 
 File modificati o aggiunti:
 
 - `public/index.html`;
 - `api/analyze-pdf.js`;
-- `api/staff-preview.js`;
-- `lib/staffAuth.js`;
+- `lib/pdfAiConfig.js`;
+- `lib/pdfAiPolicy.js`;
+- `lib/pdfAiShadow.js`;
 - `lib/pdfAiEndpoint.js`;
-- `test/pdfAiEndpointStep8.test.mjs`;
-- `test/pdfAiPreviewStep8.test.mjs`;
-- `docs/PDF-AI-STEP8-PREVIEW.md`.
+- nuovo `lib/pdfAiPreview.js`;
+- test e documentazione Step 8 aggiornati.
 
-Garanzie introdotte:
+Garanzie:
 
-- controllo consenso AI visibile soltanto in modalità staff e in una Preview completamente configurata;
-- checkbox mai preselezionato e azzerato dopo ogni batch;
-- token staff inviato separatamente nell'header `X-Staff-Token`;
-- verifica server di `VERCEL_ENV=preview`;
-- consenso contraffatto in produzione bloccato prima della lettura AI del PDF;
-- Preview senza token staff bloccata prima della lettura AI del PDF;
-- sidecar AI ancora esclusivamente privato;
-- risposta pubblica e autofill invariati;
-- fallback pubblico ancora disattivato.
+- nessuna checkbox, testo o campo di consenso AI;
+- AI tentata automaticamente soltanto con `VERCEL_ENV=preview`, token staff valido, modalità shadow e archivio privato configurato;
+- Production e richieste non staff restano prive di dati AI;
+- il normale caricatore mostra un riquadro `Dati letti dalla fotografia — da verificare`;
+- la vista `ai_preview` contiene soltanto candidati sanitizzati, pagina, evidenza e confidenza;
+- nessun dato AI entra nel modulo o sostituisce parser/OCR;
+- il sidecar completo resta esclusivamente nell'archivio privato;
+- errori e timeout AI non bloccano la lettura normale.
 
 Verifiche locali:
 
-- suite Step 8: `51/51`;
-- suite OCR Step 7: `40/40`;
-- suite forniture singole: `10/10`;
-- verifica offerte: zero errori e zero warning;
-- regressione completa: stessi due errori già presenti nel baseline per il file mancante `lib/pdfHybridPolicy.js`, non introdotti dallo Step 8.4.
+- suite Step 8 aggiornata: `48/48`;
+- sintassi frontend e backend: valida;
+- OCR, forniture singole e offerte devono restare invariati prima della consegna.
 
-## Prossimo sottostep esatto — collaudo reale Step 8.4 in Preview
+## Prossimo collaudo esatto
 
-1. configurare le variabili AI, archivio e staff soltanto nell'ambiente Preview;
-2. aprire la modalità staff tramite link protetto;
-3. provare il percorso senza consenso e confermare zero tentativi AI;
-4. provare un corpus anonimizzato multi-fornitore luce, gas e dual con consenso;
-5. confrontare parser/OCR con corroborazioni, revisioni e conflitti AI nel sidecar privato;
-6. misurare timeout, costi e percentuale di tentativi utili;
-7. lasciare il fallback pubblico disattivato.
+Dopo il deploy non eseguire prove su checkbox, pannelli o pagine staff.
+
+L'unica prova utente richiesta è caricare bollette fotografate nella normale Preview staff e valutare i dati mostrati nel riquadro della lettura visuale. Il risultato reale delle bollette stabilisce se il lavoro è utile.
 
 ## Regole permanenti
 
 - parser deterministico > OCR > AI;
 - AI seconda opinione, mai fonte dominante;
 - AI spenta per default;
-- consenso esplicito prima dell'invio;
+- nessun consenso o controllo AI nell’interfaccia;
+- autorizzazione esclusivamente server-side in Preview staff;
 - nessun valore AI applicato automaticamente;
 - nessuna sovrascrittura dei dati validi;
 - pagina, etichetta, evidenza e provenienza obbligatorie;

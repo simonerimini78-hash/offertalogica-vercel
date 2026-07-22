@@ -1,25 +1,18 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {
-  hasExplicitPdfAiConsent,
-  PDF_AI_MODES,
-  pdfAiConfig,
-} from "../lib/pdfAiConfig.js";
+import { PDF_AI_MODES, pdfAiConfig } from "../lib/pdfAiConfig.js";
 import {
   PDF_AI_REVIEW_FIELDS,
   PDF_AI_REVIEW_OUTPUT_SCHEMA,
 } from "../lib/pdfAiSchema.js";
 
-test("Step 8 foundation: AI è spenta per default e il consenso è sempre richiesto", () => {
+test("Step 8 foundation: AI è spenta per default e non espone controlli di consenso", () => {
   const config = pdfAiConfig({});
   assert.equal(config.mode, "off");
   assert.equal(config.enabled, false);
   assert.equal(config.model, null);
-  assert.equal(config.requires_consent, true);
+  assert.equal("requires_consent" in config, false);
   assert.deepEqual(PDF_AI_MODES, ["off", "shadow", "fallback"]);
-  assert.equal(hasExplicitPdfAiConsent(false), false);
-  assert.equal(hasExplicitPdfAiConsent("yes"), true);
-  assert.equal(hasExplicitPdfAiConsent(["sì"]), true);
 });
 
 test("Step 8 foundation: configurazione invalida torna in off e viene segnalata", () => {

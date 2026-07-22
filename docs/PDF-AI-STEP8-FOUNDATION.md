@@ -1,26 +1,16 @@
-# Punto 8 — Fondazione AI visuale controllata
+# PDF AI — Fondazione Step 8 aggiornata
 
-Questo sottostep introduce esclusivamente le fondamenta testabili del Punto 8.
-Non modifica `api/analyze-pdf.js`, non effettua chiamate a servizi esterni e non cambia il risultato del Punto 7.
+La fondazione definisce configurazione, schema, policy e piano di revisione.
 
-## Garanzie iniziali
+Garanzie correnti:
 
-- modalità predefinita `off`;
-- consenso esplicito sempre obbligatorio;
-- modello configurato soltanto tramite `PDF_AI_MODEL`;
-- limiti rigidi per dimensione, numero di pagine e timeout;
-- primo schema limitato a classificazione e identificativi;
-- esclusione completa dei valori economici;
-- nessuna sovrascrittura dei valori deterministici o OCR;
-- ogni valore AI resta in `review_fields` e richiede selezione esplicita;
-- candidati privi di pagina, etichetta, evidenza o validità formale vengono scartati;
-- contraddizioni e candidati AI discordanti vengono messi in conflitto, non applicati.
-
-## Moduli
-
-- `lib/pdfAiConfig.js`: configurazione e consenso;
-- `lib/pdfAiSchema.js`: schema ristretto dell'output visuale;
-- `lib/pdfAiPolicy.js`: condizioni di attivazione e budget temporale;
-- `lib/pdfAiMerge.js`: validazione e piano di revisione non distruttivo.
-
-L'integrazione con il provider AI e con l'endpoint PDF sarà introdotta in un sottostep separato, dopo la verifica di queste fondamenta.
+- AI spenta per default;
+- modalità `off`, `shadow`, `fallback`;
+- modello soltanto da variabili ambiente;
+- limiti di pagine, byte, timeout e riserva;
+- autorizzazione reale eseguita dall'endpoint tramite Preview staff;
+- nessun controllo o consenso AI nel frontend;
+- campi AI limitati a classificazione e identità;
+- prezzi, consumi, quote, spread, indici e offerte ancora esclusi;
+- nessuna sovrascrittura dei dati parser/OCR;
+- candidati visuali sempre revisionabili e senza autofill automatico.

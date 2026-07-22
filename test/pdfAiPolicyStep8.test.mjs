@@ -21,7 +21,6 @@ function baseInput(extra = {}) {
   return {
     normalized: { kind: "bolletta", commodity: "gas", fornitore: "Fornitore", pdr: null },
     config: fallbackConfig(),
-    userConsent: true,
     deterministicExhausted: true,
     filename: "bolletta.pdf",
     fileSizeBytes: 500_000,
@@ -32,9 +31,8 @@ function baseInput(extra = {}) {
   };
 }
 
-test("Step 8 foundation: fallback parte solo dopo parser e OCR e con consenso", () => {
+test("Step 8 foundation: fallback parte solo dopo parser e OCR", () => {
   assert.equal(shouldAttemptPdfAi(baseInput()).attempt, true);
-  assert.equal(shouldAttemptPdfAi(baseInput({ userConsent: false })).reason, "missing_explicit_consent");
   assert.equal(shouldAttemptPdfAi(baseInput({ deterministicExhausted: false })).reason, "deterministic_pipeline_not_exhausted");
 });
 
@@ -53,7 +51,7 @@ test("Step 8 foundation: dimensione, pagine, modello e budget sono bloccanti", (
   assert.equal(shouldAttemptPdfAi(baseInput({ deadlineAt: NOW + 3_000 })).reason, "insufficient_time_budget");
 });
 
-test("Step 8 foundation: shadow osserva ma conserva gli stessi vincoli di sicurezza", () => {
+test("Step 8 foundation: shadow osserva con gli stessi limiti tecnici", () => {
   const config = pdfAiConfig({ PDF_AI_MODE: "shadow", PDF_AI_MODEL: "visual-model" });
   const decision = shouldAttemptPdfAi(baseInput({
     config,
@@ -62,7 +60,7 @@ test("Step 8 foundation: shadow osserva ma conserva gli stessi vincoli di sicure
   }));
   assert.equal(decision.attempt, true);
   assert.equal(decision.reason, "shadow_observation");
-  assert.equal(decision.requires_explicit_consent, true);
+  assert.equal("requires_explicit_consent" in decision, false);
 });
 
 test("Step 8 foundation: gap commodity determina l'identificativo richiesto", () => {

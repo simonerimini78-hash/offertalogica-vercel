@@ -4,6 +4,7 @@ import { json, method, requireAllowedOrigin } from "../lib/http.js";
 import { extractPdfWithControlledOcr } from "../lib/pdfExtractWithOcr.js";
 import { archivePdfAnalysis } from "../lib/pdfArchive.js";
 import { runPdfAiEndpointObservation, pdfAiPreviewEnvironment } from "../lib/pdfAiEndpoint.js";
+import { buildPdfAiPreview } from "../lib/pdfAiPreview.js";
 import { hasValidStaffToken } from "../lib/staffAuth.js";
 import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
 
@@ -107,17 +108,18 @@ export default async function handler(req, res) {
       filename: fileMetadata.originalFilename,
       deadlineAt: analysisDeadlineAt,
     });
+    const previewEnvironment = pdfAiPreviewEnvironment(process.env);
+    const staffAuthorized = hasValidStaffToken(req);
     aiShadow = await runPdfAiEndpointObservation({
       filePath: temporaryFilePath,
       filename: fileMetadata.originalFilename,
       fileSizeBytes: fileMetadata.fileSize,
       normalized,
-      fields,
-      previewEnvironment: pdfAiPreviewEnvironment(process.env),
-      staffAuthorized: hasValidStaffToken(req),
+      previewEnvironment,
+      staffAuthorized,
       deadlineAt: analysisDeadlineAt,
     }).catch(() => ({
-      endpoint_version: "8.4.0",
+      endpoint_version: "8.4.1",
       mode: "shadow",
       attempted: false,
       status: "error",
@@ -127,6 +129,10 @@ export default async function handler(req, res) {
       diagnostics: {},
       observation: null,
     }));
+    const aiPreview = previewEnvironment && staffAuthorized ? buildPdfAiPreview(aiShadow) : null;
+    const responseNormalized = aiPreview
+      ? { ...normalized, ai_preview: aiPreview, needsReview: true }
+      : normalized;
     const archive = await archivePdfAnalysis({
       filePath: temporaryFilePath,
       ...fileMetadata,
@@ -134,7 +140,7 @@ export default async function handler(req, res) {
       aiShadow,
       context: archiveContext,
     }).catch(() => ({ stored: false, reason: "archive_error" }));
-    return json(res, 200, { ok: true, normalized, archive });
+    return json(res, 200, { ok: true, normalized: responseNormalized, archive });
   } catch (error) {
     if (validPdf && temporaryFilePath && fileMetadata) {
       await archivePdfAnalysis({

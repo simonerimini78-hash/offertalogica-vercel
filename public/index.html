@@ -285,10 +285,13 @@
         .pdf-review-static strong { display: block; margin-bottom: 4px; color: var(--text-color); }
         .pdf-review-static p { text-align: left; margin: 0 0 10px; font-size: 13px; }
         .pdf-review-static button { background: var(--primary); color: #fff; border: 0; border-radius: 8px; padding: 10px 14px; font-weight: 800; cursor: pointer; }
-        .pdf-ai-consent-staff { display: flex; align-items: flex-start; gap: 9px; width: 100%; margin: 4px 0 2px; padding: 11px 12px; border: 1px solid #86efac; border-radius: 9px; background: #f0fdf4; color: #14532d; text-align: left; font-size: 12px; line-height: 1.45; }
-        .pdf-ai-consent-staff[hidden] { display: none !important; }
-        .pdf-ai-consent-staff input { width: 17px; height: 17px; margin: 1px 0 0; flex: 0 0 auto; accent-color: #15803d; }
-        .pdf-ai-consent-staff strong { display: inline; color: #14532d; }
+        .pdf-ai-preview-block { margin: 12px 0; padding: 13px; border: 1px solid #f0a6b8; border-radius: 10px; background: #fff1f5; color: #6b2137; }
+        .pdf-ai-preview-block strong { color: #6b2137; }
+        .pdf-ai-preview-block p { margin: 4px 0 10px; color: #7a3047; font-size: 12px; }
+        .pdf-ai-preview-document { margin-top: 10px; padding-top: 10px; border-top: 1px solid #f3bdca; }
+        .pdf-ai-preview-list { display: grid; gap: 8px; margin-top: 8px; }
+        .pdf-ai-preview-item { padding: 9px 10px; border-radius: 8px; background: rgba(255,255,255,.72); border: 1px solid #f4c5d0; }
+        .pdf-ai-preview-meta { display: block; margin-top: 3px; color: #8a4a5d; font-size: 11px; line-height: 1.35; }
 
         .lead-modal-backdrop { position: fixed; inset: 0; z-index: 1000; display: none; align-items: center; justify-content: center; padding: 20px; background: rgba(15,23,42,.58); }
         .lead-modal { width: min(620px, 100%); max-height: min(92vh, 760px); overflow: auto; background: #fff; border-radius: 14px; border: 1px solid var(--border); padding: 22px; box-shadow: 0 24px 60px rgba(15,23,42,.28); }
@@ -1911,10 +1914,6 @@
                 <span id="pdf-file-picker-status" class="pdf-file-picker-status">Nessun PDF aggiunto</span>
             </div>
             <div id="pdf-selected-files" class="pdf-selected-files" aria-live="polite" hidden></div>
-            <label id="pdf-ai-consent-staff" class="pdf-ai-consent-staff" hidden>
-                <input id="pdf-ai-consent-checkbox" type="checkbox" autocomplete="off">
-                <span><strong>Collaudo AI in Preview.</strong> Consento l’invio dei PDF selezionati al modello AI per una sola analisi shadow. I candidati AI resteranno nel sidecar privato e non verranno inseriti nel confronto.</span>
-            </label>
             <button type="button" class="btn-action" onclick="preparaConfermaPdf()">Analizza PDF</button>
             <button type="button" class="lead-secondary" onclick="azzeraPdfEModulo()">Rimuovi tutti i PDF e ricomincia</button>
             <div class="upload-note">Dopo il primo PDF usa <strong>Aggiungi file</strong>: i documenti già caricati restano memorizzati. Puoi rimuovere ogni PDF singolarmente prima della conferma.</div>
@@ -5711,19 +5710,6 @@ function pdfAiPreviewAttiva() {
   return Boolean(staffModeAttiva() && LEAD_STATE.pdfAiPreviewAvailable);
 }
 
-function azzeraConsensoPdfAiStaff() {
-  const checkbox = document.getElementById("pdf-ai-consent-checkbox");
-  if (checkbox) checkbox.checked = false;
-}
-
-function aggiornaControlloConsensoPdfAiStaff() {
-  const control = document.getElementById("pdf-ai-consent-staff");
-  if (!control) return;
-  const visible = pdfAiPreviewAttiva();
-  control.hidden = !visible;
-  if (!visible) azzeraConsensoPdfAiStaff();
-}
-
 function pulisciTokenStaffDaUrl() {
   try {
     const url = new URL(window.location.href);
@@ -5877,7 +5863,6 @@ function aggiornaBannerStaff() {
     banner?.remove();
     document.getElementById("staff-preview-panel")?.remove();
     document.body.classList.remove("staff-preview-open");
-    aggiornaControlloConsensoPdfAiStaff();
     return;
   }
   if (!banner) {
@@ -5918,7 +5903,6 @@ function aggiornaBannerStaff() {
   } else {
     creaPannelloAnteprimeStaff();
   }
-  aggiornaControlloConsensoPdfAiStaff();
 }
 
 function abilitaModalitaStaff(activatedAt = "") {
@@ -7124,10 +7108,7 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
   nascondiGuida("pdf-confirm-guidance");
   trackEvent("pdf_analysis_started", { fileCount: files.length });
 
-  const pdfAiConsent = Boolean(
-    pdfAiPreviewAttiva() && document.getElementById("pdf-ai-consent-checkbox")?.checked
-  );
-  const pdfAiStaffToken = pdfAiConsent
+  const pdfAiStaffToken = pdfAiPreviewAttiva()
     ? (sessionStorage.getItem(STAFF_MODE_TOKEN_STORAGE_KEY) || "")
     : "";
   const results = [];
@@ -7143,10 +7124,7 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
       uploadSequence: LEAD_STATE.pdfDocuments.length + results.length + 1,
     }));
     const requestHeaders = {};
-    if (pdfAiConsent && pdfAiStaffToken) {
-      formData.append("pdfAiConsent", "true");
-      requestHeaders["X-Staff-Token"] = pdfAiStaffToken;
-    }
+    if (pdfAiStaffToken) requestHeaders["X-Staff-Token"] = pdfAiStaffToken;
     try {
       const response = await fetch("/api/analyze-pdf", { method: "POST", headers: requestHeaders, body: formData });
       const contentType = response.headers.get("content-type") || "";
@@ -7178,7 +7156,6 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
     }
   }
 
-  azzeraConsensoPdfAiStaff();
   const processedIds = new Set(pendingEntries.map((entry) => entry.id));
   PDF_PENDING_FILES = PDF_PENDING_FILES.filter((entry) => !processedIds.has(entry.id));
   if (input) input.value = "";
@@ -8132,6 +8109,54 @@ function mergePdfDocuments(documents) {
   return merged;
 }
 
+const PDF_AI_PREVIEW_LABELS = Object.freeze({
+  kind: "Tipo documento",
+  commodity: "Fornitura",
+  fornitore: "Fornitore",
+  customer_type: "Profilo cliente",
+  intestatario: "Intestatario",
+  codice_fiscale: "Codice fiscale / P.IVA",
+  codice_cliente: "Codice cliente",
+  pod: "POD",
+  pdr: "PDR",
+  indirizzo_fornitura: "Indirizzo di fornitura",
+});
+
+function pdfAiPreviewValue(value) {
+  if (value === null || value === undefined || value === "") return "—";
+  return typeof value === "object" ? JSON.stringify(value) : String(value);
+}
+
+function renderPdfAiPreviewSections(documents = []) {
+  const sections = documents.flatMap((doc) => {
+    const preview = doc?.ai_preview;
+    if (!preview?.review_only) return [];
+    const entries = [
+      ...(Array.isArray(preview.fields) ? preview.fields : []),
+      ...(Array.isArray(preview.corroborated) ? preview.corroborated : []),
+    ];
+    if (!entries.length && !(preview.conflicts || []).length) return [];
+    const items = entries.map((entry) => {
+      const label = PDF_AI_PREVIEW_LABELS[entry.field] || entry.field || "Dato";
+      const status = entry.status === "confermato_parser_ocr" ? "coincide con parser/OCR" : "da verificare";
+      const meta = [
+        entry.page ? `pagina ${entry.page}` : "",
+        Number.isFinite(Number(entry.confidence)) ? `confidenza ${Math.round(Number(entry.confidence))}%` : "",
+        status,
+      ].filter(Boolean).join(" · ");
+      const evidence = entry.evidence ? `<span class="pdf-ai-preview-meta">Evidenza: ${testoHtmlSicuro(entry.evidence)}</span>` : "";
+      return `<div class="pdf-ai-preview-item"><strong>${testoHtmlSicuro(label)}</strong><br>${testoHtmlSicuro(pdfAiPreviewValue(entry.value))}<span class="pdf-ai-preview-meta">${testoHtmlSicuro(meta)}</span>${evidence}</div>`;
+    }).join("");
+    const conflictItems = (Array.isArray(preview.conflicts) ? preview.conflicts : []).map((entry) => {
+      const label = PDF_AI_PREVIEW_LABELS[entry.field] || entry.field || "Dato";
+      return `<div class="pdf-ai-preview-item"><strong>${testoHtmlSicuro(label)}</strong><br>Valore in conflitto: controllare manualmente.<span class="pdf-ai-preview-meta">La lettura visuale non ha sostituito il dato parser/OCR.</span></div>`;
+    }).join("");
+    return [`<div class="pdf-ai-preview-document"><strong>${testoHtmlSicuro(doc.filename || "Documento")}</strong><div class="pdf-ai-preview-list">${items}${conflictItems}</div></div>`];
+  });
+  if (!sections.length) return "";
+  return `<div class="pdf-ai-preview-block"><strong>Dati letti dalla fotografia — da verificare</strong><p>Questa sezione mostra la lettura visuale AI di prova. Nessun elemento viene inserito automaticamente nel modulo e nessun dato parser/OCR valido viene sostituito.</p>${sections.join("")}</div>`;
+}
+
 function renderPdfSummary(documents, merged) {
   const rows = documents.map((doc) => {
     if (doc.error) return `<li><strong>${testoHtmlSicuro(doc.filename)}</strong>: ${testoHtmlSicuro(doc.error)}. Puoi cambiare PDF oppure continuare con la compilazione manuale.</li>`;
@@ -8142,18 +8167,23 @@ function renderPdfSummary(documents, merged) {
         : doc.ocr?.attempted && doc.ocr?.reason === "no_material_improvement"
           ? " OCR eseguito senza dati sufficientemente affidabili."
           : "";
+    const aiStatus = doc.ai_preview?.review_only
+      ? " Lettura visuale AI applicata: tutti i dati ricavati restano da controllare."
+      : "";
     if (!risultatoPdfUtilizzabile(doc)) {
-      return `<li><strong>${testoHtmlSicuro(doc.filename)}</strong>: documento non riconosciuto o privo di dati sufficientemente affidabili.${ocrStatus}</li>`;
+      return `<li><strong>${testoHtmlSicuro(doc.filename)}</strong>: documento non riconosciuto o privo di dati sufficientemente affidabili.${ocrStatus}${aiStatus}</li>`;
     }
     const review = doc.confidence === "high" ? "affidabilità alta" : "da controllare";
-    return `<li><strong>${testoHtmlSicuro(doc.filename)}</strong>: ${testoHtmlSicuro(doc.kind || "PDF")} ${testoHtmlSicuro(doc.commodity || "")} - ${testoHtmlSicuro(doc.fornitore || "fornitore da verificare")} (${review})${ocrStatus}</li>`;
+    return `<li><strong>${testoHtmlSicuro(doc.filename)}</strong>: ${testoHtmlSicuro(doc.kind || "PDF")} ${testoHtmlSicuro(doc.commodity || "")} - ${testoHtmlSicuro(doc.fornitore || "fornitore da verificare")} (${review})${ocrStatus}${aiStatus}</li>`;
   }).join("");
+  const aiPreviewSections = renderPdfAiPreviewSections(documents);
 
   if (merged?.merge_blocked) {
     const reasons = (merged.isolation?.reasons || []).map(pdfIsolationReasonLabel).join(", ");
     return `
       <span>Documenti analizzati:</span>
       <ul style="margin:6px 0 10px 18px;">${rows}</ul>
+      ${aiPreviewSections}
       <span><strong>I dati non sono stati uniti.</strong> Sono stati rilevati documenti appartenenti a clienti o forniture differenti${reasons ? `: ${testoHtmlSicuro(reasons)}` : ""}. Rimuovi i PDF non omogenei e lascia soltanto il gruppo che vuoi usare. Nessun campo verrà autocompilato finché il conflitto non è risolto.</span>
     `;
   }
@@ -8162,6 +8192,7 @@ function renderPdfSummary(documents, merged) {
     return `
       <span>Documenti analizzati:</span>
       <ul style="margin:6px 0 10px 18px;">${rows}</ul>
+      ${aiPreviewSections}
       <span><strong>I dati non sono stati uniti:</strong> bolletta e scheda sintetica appartengono a due confronti diversi. Analizzale separatamente per evitare sovrascritture.</span>
     `;
   }
@@ -8259,6 +8290,7 @@ function renderPdfSummary(documents, merged) {
   return `
     <span>Documenti analizzati:</span>
     <ul style="margin:6px 0 10px 18px;">${rows}</ul>
+      ${aiPreviewSections}
     <span><strong>Dati letti:</strong> ${mergedRows || "nessun dato sufficientemente affidabile; completa il modulo manualmente."}<br><small>Nel modulo saranno inseriti soltanto i campi completi ammessi dal contratto dati, dopo la tua conferma.${ocrReviewTargets ? " I dati OCR compariranno nell’anteprima deselezionati e dovrai sceglierli esplicitamente." : ""}</small></span>
   `;
 }
@@ -8283,7 +8315,6 @@ window.azzeraPdfEModulo = function azzeraPdfEModulo() {
   LEAD_STATE.leadSource = "manual";
   LEAD_STATE.selectedOffer = null;
   LEAD_STATE.partnerConsent = false;
-  azzeraConsensoPdfAiStaff();
   LEAD_STATE.activationAssistant = { pendingUrl: "", offer: null };
   LEAD_STATE.businessProfile = null;
   NUOVA_OFFERTA_AUTOMATICA = null;

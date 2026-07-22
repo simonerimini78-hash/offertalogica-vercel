@@ -20,7 +20,6 @@ function baseInput(extra = {}) {
     normalized: { kind: "bolletta", commodity: "gas", fornitore: "Fornitore Alfa", pdr: null, page_count: 2 },
     pdfBuffer: Buffer.from("pdf-shadow-test"),
     filename: "bolletta-gas.pdf",
-    userConsent: true,
     deadlineAt: NOW + 20_000,
     now: NOW,
     config: shadowConfig(),
@@ -71,18 +70,6 @@ test("Step 8.2: modalità off non chiama il provider", async () => {
   }));
   assert.equal(result.status, "skipped");
   assert.equal(result.reason, "disabled");
-  assert.equal(calls, 0);
-});
-
-test("Step 8.2: consenso esplicito resta obbligatorio anche in shadow", async () => {
-  let calls = 0;
-  const result = await runPdfAiShadowObservation(baseInput({
-    userConsent: false,
-    reviewRunner: async () => { calls += 1; return successfulOutput(); },
-    planBuilder,
-  }));
-  assert.equal(result.status, "skipped");
-  assert.equal(result.reason, "missing_explicit_consent");
   assert.equal(calls, 0);
 });
 
