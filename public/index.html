@@ -4221,13 +4221,17 @@ function dettagliOfferta(offerta) {
 }
 
 function offertaAttivabileOnline(offerta) {
-  return Boolean(
-    offerta?.monetizzazione?.attiva &&
-    offerta.destinationStatus === "attiva" &&
-    offerta.destinationType === "affiliazione" &&
-    offerta.link &&
+  const percorsoAffiliatoAttivo = Boolean(
+    offerta?.destinationStatus === "attiva" &&
+    offerta?.destinationType === "affiliazione" &&
+    offerta?.link &&
     offerta.link !== "#"
   );
+  // Il blocco monetizzazione contiene metadati economici ed è facoltativo.
+  // Un valore esplicito false disattiva il percorso; la sua assenza non deve
+  // eliminare affiliazioni già dichiarate attive, come Enel ed Eni.
+  const monetizzazioneEsplicitamenteDisattivata = offerta?.monetizzazione?.attiva === false;
+  return percorsoAffiliatoAttivo && !monetizzazioneEsplicitamenteDisattivata;
 }
 
 function testoAzioneOfferta(offerta, attivabileOnline) {
@@ -4745,11 +4749,15 @@ function arricchisciOffertaAreraConCommerciale(offerta, providerKey, tipo, tipoF
   const commerciale = match.offerta;
   const copia = { ...offerta };
   const tipoCommercialeCoincide = commerciale.tipo === tipo;
-  const matchSufficiente = tipoCommercialeCoincide
-    ? matchCommercialeSufficiente(providerKey, tipo, nomiArera, commerciale, match.score)
-    : percorsoCommercialeSupportaFornitura(commerciale, tipoFornitura);
+  const corrispondenzaCommercialeEsatta = tipoCommercialeCoincide
+    && matchCommercialeSufficiente(providerKey, tipo, nomiArera, commerciale, match.score);
+  const percorsoCompatibile = percorsoCommercialeSupportaFornitura(commerciale, tipoFornitura);
 
-  if (offertaAttivabileOnline(commerciale) && matchSufficiente) {
+  // OFFERTALOGICA_ALWAYS_6_PARTNERS_3_CONSULTANT_20260722
+  // La scheda economica resta sempre quella ARERA selezionata. Il catalogo partner
+  // fornisce soltanto un percorso attivo dello stesso venditore e compatibile con
+  // la fornitura richiesta. Il funnel deve confermare le condizioni finali.
+  if (offertaAttivabileOnline(commerciale) && percorsoCompatibile) {
     copia.link = commerciale.link;
     copia.destinationType = commerciale.destinationType;
     copia.destinationStatus = commerciale.destinationStatus;
@@ -4760,10 +4768,14 @@ function arricchisciOffertaAreraConCommerciale(offerta, providerKey, tipo, tipoF
       percorsoPartnerDaCatalogo: true,
       percorsoPartnerTipoOriginale: commerciale.tipo,
       percorsoPartnerFornituraOriginale: commerciale.fornitura,
+      percorsoPartnerCorrispondenza: corrispondenzaCommercialeEsatta
+        ? "offerta_coerente"
+        : "fornitore_fornitura",
+      percorsoPartnerRichiedeConfermaCondizioni: !corrispondenzaCommercialeEsatta,
     };
-    const notaPercorso = tipoCommercialeCoincide
+    const notaPercorso = corrispondenzaCommercialeEsatta
       ? `Percorso partner disponibile per offerta coerente (${commerciale.nome}).`
-      : `Percorso partner attivo disponibile tramite ${commerciale.provider}; condizioni economiche e tipologia restano quelle dell'offerta ARERA selezionata.`;
+      : `Percorso partner attivo disponibile tramite ${commerciale.provider}. Il confronto usa le condizioni ARERA selezionate; verifica nel funnel nome e condizioni finali dell'offerta.`;
     copia.descrizione = `${offerta.descrizione} ${notaPercorso}`.trim();
     copia.nome = offerta.nome;
     return copia;
@@ -4843,7 +4855,7 @@ const ABBINAMENTI_PARTNER_ARERA = Object.freeze({
   },
 });
 
-function rigaAreraPartnerCertificata(offerta, commodity) {
+function rigaAreraPartnerCertificata(offerta, commodity, attuale = null) {
   const partnerId = offerta?.certificazione?.partnerOriginalId || offerta?.id;
   const regola = ABBINAMENTI_PARTNER_ARERA[String(partnerId || "")]?.[commodity];
   if (!regola) return null;
@@ -4858,8 +4870,21 @@ function rigaAreraPartnerCertificata(offerta, commodity) {
     .filter((riga) => nomiAmmessi.has(testoFornitoreNormalizzato(riga.nome)))
     .filter((riga) => !regola.codiceInclude || String(riga.codice || "").includes(regola.codiceInclude));
 
-  if (candidate.length !== 1) return null;
-  return candidate[0];
+  if (!candidate.length) return null;
+
+  // Il feed ARERA può contenere più righe valide della stessa famiglia commerciale
+  // con codici o finestre temporali differenti. Non scartiamo più il partner:
+  // scegliamo la riga economicamente migliore sul profilo e, a parità, la più recente.
+  return [...candidate].sort((a, b) => {
+    if (attuale) {
+      const deltaCosto = costoRigaAreraSuProfilo(a, attuale) - costoRigaAreraSuProfilo(b, attuale);
+      if (Math.abs(deltaCosto) > 0.01) return deltaCosto;
+    }
+    const fineA = parseDataArera(a.dataFine)?.getTime() || 0;
+    const fineB = parseDataArera(b.dataFine)?.getTime() || 0;
+    if (fineA !== fineB) return fineB - fineA;
+    return String(a.codice || "").localeCompare(String(b.codice || ""));
+  })[0];
 }
 
 function miglioreRigaAreraPerPartner(offerta, commodity, attuale) {
@@ -4870,7 +4895,7 @@ function miglioreRigaAreraPerPartner(offerta, commodity, attuale) {
   // OFFERTALOGICA_CERTIFIED_MONO_ARERA_20260719
   // Nelle proiezioni solo luce/gas usa prima l'abbinamento ARERA certificato
   // del partner originale; il riconoscimento per nome resta soltanto un fallback.
-  const certificata = rigaAreraPartnerCertificata(offerta, commodity);
+  const certificata = rigaAreraPartnerCertificata(offerta, commodity, attuale);
   if (certificata) return certificata;
 
   const providerKey = chiaveFornitoreDaNome(offerta?.provider);
@@ -4897,8 +4922,8 @@ function offertaPartnerConPrezziArera(offerta, attuale) {
   if (!OFFERTE_ARERA_MENU.length) return null;
 
   if (offerta.fornitura === "dual") {
-    const luce = rigaAreraPartnerCertificata(offerta, "luce");
-    const gas = rigaAreraPartnerCertificata(offerta, "gas");
+    const luce = rigaAreraPartnerCertificata(offerta, "luce", attuale);
+    const gas = rigaAreraPartnerCertificata(offerta, "gas", attuale);
     if (!luce || !gas || luce.providerKey !== gas.providerKey || luce.tipo !== gas.tipo) return null;
     const codici = `${luce.codice} + ${gas.codice}`;
     return normalizzaOfferta({
@@ -5031,17 +5056,38 @@ function costruisciOfferteAreraRanking(attuale, tipoTariffa, tipoFornitura) {
       .filter(Boolean);
   }
 
-  const miglioriLuce = providerKeysArera()
-    .map((providerKey) => miglioreRigaAreraPerProvider(providerKey, "luce", tipoTariffa, attuale))
-    .filter(Boolean)
-    .sort((a, b) => costoRigaAreraSuProfilo(a, attuale) - costoRigaAreraSuProfilo(b, attuale))
-    .slice(0, 8);
-  const miglioriGas = providerKeysArera()
-    .map((providerKey) => miglioreRigaAreraPerProvider(providerKey, "gas", tipoTariffa, attuale))
-    .filter(Boolean)
-    .sort((a, b) => costoRigaAreraSuProfilo(a, attuale) - costoRigaAreraSuProfilo(b, attuale))
-    .slice(0, 8);
+  const partnerKeysAttivi = new Set(
+    OFFERTE_PROPOSTE
+      .filter((offerta) => offertaAttivabileOnline(offerta))
+      .filter((offerta) => percorsoCommercialeSupportaFornitura(offerta, "separate"))
+      .map((offerta) => chiaveFornitoreDaNome(offerta.provider))
+      .filter(Boolean)
+  );
 
+  const selezionaRigheSeparate = (commodity) => {
+    const ordinate = providerKeysArera()
+      .map((providerKey) => miglioreRigaAreraPerProvider(providerKey, commodity, tipoTariffa, attuale))
+      .filter(Boolean)
+      .sort((a, b) => costoRigaAreraSuProfilo(a, attuale) - costoRigaAreraSuProfilo(b, attuale));
+
+    // Mantiene sempre nel bacino le righe dei partner attivi, anche quando non
+    // rientrano nelle prime otto per costo. Aggiunge poi le migliori righe generali.
+    const result = [];
+    const seen = new Set();
+    const add = (riga) => {
+      const key = `${riga.providerKey}:${riga.codice}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        result.push(riga);
+      }
+    };
+    ordinate.filter((riga) => partnerKeysAttivi.has(riga.providerKey)).forEach(add);
+    ordinate.slice(0, 8).forEach(add);
+    return result;
+  };
+
+  const miglioriLuce = selezionaRigheSeparate("luce");
+  const miglioriGas = selezionaRigheSeparate("gas");
   const abbinamenti = [];
   miglioriLuce.forEach((luce) => {
     miglioriGas.forEach((gas) => {
@@ -5051,8 +5097,7 @@ function costruisciOfferteAreraRanking(attuale, tipoTariffa, tipoFornitura) {
 
   return abbinamenti
     .filter(Boolean)
-    .sort((a, b) => costoOffertaSulProfilo(a, attuale) - costoOffertaSulProfilo(b, attuale))
-    .slice(0, 20);
+    .sort((a, b) => costoOffertaSulProfilo(a, attuale) - costoOffertaSulProfilo(b, attuale));
 }
 
 // OFFERTALOGICA_SINGLE_SUPPLY_PARTNERS_V2
@@ -5227,6 +5272,36 @@ function deduplicaPartnerAttivabili(items) {
   return [...bestByProvider.values()];
 }
 
+// OFFERTALOGICA_ALWAYS_6_PARTNERS_3_CONSULTANT_20260722
+const NUMERO_OFFERTE_PARTNER_MENU = 6;
+const NUMERO_OFFERTE_CONSULENTE_MENU = 3;
+
+function selezionaPartnerAttivabiliPerMenu(items, limite = NUMERO_OFFERTE_PARTNER_MENU) {
+  const ordinate = [...items]
+    .sort((a, b) => (a.costo - b.costo) || (b.differenza - a.differenza));
+  const prioritaProvider = deduplicaPartnerAttivabili(ordinate)
+    .sort((a, b) => (a.costo - b.costo) || (b.differenza - a.differenza));
+  const selezionate = [];
+  const ids = new Set();
+  const add = (item) => {
+    const id = String(item?.offerta?.id || "");
+    if (!id || ids.has(id) || selezionate.length >= limite) return;
+    ids.add(id);
+    selezionate.push(item);
+  };
+  prioritaProvider.forEach(add);
+  ordinate.forEach(add);
+  return selezionate.slice(0, limite);
+}
+
+function selezionaConsulentiPerMenu(items, partnerVisibili, limite = NUMERO_OFFERTE_CONSULENTE_MENU) {
+  const idsPartner = new Set(partnerVisibili.map((item) => String(item?.offerta?.id || "")));
+  return items
+    .filter((item) => !item.attivabileOnline)
+    .filter((item) => !idsPartner.has(String(item?.offerta?.id || "")))
+    .slice(0, limite);
+}
+
 function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitura) {
   const offerteCandidati = costruisciOfferteRanking(attuale, tipoTariffa, tipoFornitura);
   assicuraSchedeOfferte(offerteCandidati);
@@ -5303,40 +5378,46 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       .map((item, index) => [String(item.offerta.id), index + 1])
   );
 
-  // OFFERTALOGICA_PARTNER_GROUP_EXCLUSION_20260719
-  // Conserva l'intero insieme dei partner coerenti prima del limite visuale:
-  // nessun partner escluso dalla top 6 può ricomparire tra i consulenti.
-  const partnerAttivabiliCoerenti = deduplicaPartnerAttivabili(
-    offerteCalcolate.filter((item) => item.attivabileCoerente)
-  )
+  // OFFERTALOGICA_ALWAYS_6_PARTNERS_3_CONSULTANT_20260722
+  // Ogni combinazione del menu deve mostrare sei percorsi partner attivi e
+  // tre migliori offerte esatte per costo con consulente.
+  const partnerAttivabiliCoerenti = offerteCalcolate
+    .filter((item) => item.attivabileCoerente)
     .sort((a, b) => (a.costo - b.costo) || (b.differenza - a.differenza));
 
-  const attivabiliPrioritarie = partnerAttivabiliCoerenti
-    .slice(0, 6)
-    .map((item, index) => ({
-      ...item,
-      gruppoVisuale: "attivabile",
-      posizioneGruppo: index + 1,
-      posizioneEconomica: rankingGlobale.get(String(item.offerta.id)) || null,
-    }));
+  const attivabiliPrioritarie = selezionaPartnerAttivabiliPerMenu(
+    partnerAttivabiliCoerenti,
+    NUMERO_OFFERTE_PARTNER_MENU
+  ).map((item, index) => ({
+    ...item,
+    gruppoVisuale: "attivabile",
+    posizioneGruppo: index + 1,
+    posizioneEconomica: rankingGlobale.get(String(item.offerta.id)) || null,
+  }));
 
-  // OFFERTALOGICA_STRICT_SELECTED_PRICE_TYPE_20260719
-  // Il gruppo consulente rispetta esattamente tipo prezzo e fornitura e
-  // non può contenere alcun fornitore già riconosciuto come partner.
-  const miglioriConConsulente = ordinateRanking
+  const candidatiConsulente = ordinateRanking
     .filter((item) => item.compatibileRanking && item.filtroEsatto)
     .filter((item) => item.offerta?.tipo === tipoTariffa)
-    .filter((item) => offertaCoerenteConFornitura(item.offerta, tipoFornitura))
-    .filter((item) => !item.attivabileOnline)
-    .filter((item) => !partnerAttivabiliCoerenti.some((partner) => (
-      offerteStessoFornitore(item.offerta, partner.offerta)
-    )))
-    .slice(0, 3)
-    .map((item, index) => ({
-      ...item,
-      gruppoVisuale: "top",
-      posizioneGruppo: index + 1,
-    }));
+    .filter((item) => offertaCoerenteConFornitura(item.offerta, tipoFornitura));
+
+  const miglioriConConsulente = selezionaConsulentiPerMenu(
+    candidatiConsulente,
+    attivabiliPrioritarie,
+    NUMERO_OFFERTE_CONSULENTE_MENU
+  ).map((item, index) => ({
+    ...item,
+    gruppoVisuale: "top",
+    posizioneGruppo: index + 1,
+  }));
+
+  if (attivabiliPrioritarie.length !== NUMERO_OFFERTE_PARTNER_MENU
+      || miglioriConConsulente.length !== NUMERO_OFFERTE_CONSULENTE_MENU) {
+    console.warn("[OffertaLogica] Composizione offerte incompleta", {
+      filtro: testoFiltroOfferte(tipoTariffa, tipoFornitura),
+      partner: attivabiliPrioritarie.length,
+      consulente: miglioriConConsulente.length,
+    });
+  }
   const visibili = [...attivabiliPrioritarie, ...miglioriConConsulente];
   const idsVisibili = new Set(visibili.map((item) => String(item.offerta.id)));
   const migliore = ordinateRanking[0] || offerteCalcolate[0] || null;
@@ -5344,13 +5425,13 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
   const gruppoPartner = assicuraGruppoOfferte(
     "offerte-partner-online-group",
     "partner-group",
-    "Offerte partner attivabili online",
+    "6 offerte partner attivabili online",
     "Le migliori proposte attivabili online tra i partner disponibili e coerenti con il filtro selezionato."
   );
   const gruppoConsulente = assicuraGruppoOfferte(
     "offerte-consulente-group",
     "consultant-group",
-    "Migliori offerte per costo con consulente",
+    "3 migliori offerte per costo con consulente",
     OFFERTE_ARERA_MENU.length
       ? "Le migliori proposte per costo annuo stimato sul tuo profilo. Richiedono verifica consulenziale o ricontatto prima dell'eventuale attivazione."
       : "Le migliori proposte tra le offerte disponibili nel calcolatore. Richiedono verifica consulenziale o ricontatto."
