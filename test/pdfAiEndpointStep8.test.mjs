@@ -38,20 +38,19 @@ function endpointInput(extra = {}) {
     deadlineAt: NOW + 20_000,
     config: shadowConfig(),
     previewEnvironment: true,
-    staffAuthorized: true,
     archiveReady: true,
     ...extra,
   };
 }
 
-test("Step 8.4.1: riconosce esclusivamente Vercel Preview", () => {
+test("Step 8.4.2: riconosce esclusivamente Vercel Preview", () => {
   assert.equal(pdfAiPreviewEnvironment({ VERCEL_ENV: "preview" }), true);
   assert.equal(pdfAiPreviewEnvironment({ VERCEL_ENV: "production" }), false);
   assert.equal(pdfAiPreviewEnvironment({ VERCEL_ENV: "development" }), false);
   assert.equal(pdfAiPreviewEnvironment({}), false);
 });
 
-test("Step 8.4.1: produzione non legge né invia il PDF", async () => {
+test("Step 8.4.2: produzione non legge né invia il PDF", async () => {
   let reads = 0;
   let calls = 0;
   const result = await runPdfAiEndpointObservation(endpointInput({
@@ -66,22 +65,24 @@ test("Step 8.4.1: produzione non legge né invia il PDF", async () => {
   assert.equal(calls, 0);
 });
 
-test("Step 8.4.1: Preview senza autorizzazione staff non legge né invia il PDF", async () => {
+test("Step 8.4.2: la Preview non richiede pagina o token staff separati", async () => {
   let reads = 0;
   let calls = 0;
   const result = await runPdfAiEndpointObservation(endpointInput({
-    staffAuthorized: false,
-    readFile: async () => { reads += 1; return Buffer.from("%PDF-"); },
-    shadowRunner: async () => { calls += 1; return {}; },
+    readFile: async () => { reads += 1; return Buffer.from("%PDF-1.4\nTEST"); },
+    shadowRunner: async () => {
+      calls += 1;
+      return { status: "observed", diagnostics: {}, observation: { review_plan: { applied: false } } };
+    },
   }));
-  assert.equal(result.status, "skipped");
-  assert.equal(result.reason, "staff_authorization_required");
-  assert.equal(result.diagnostics.endpoint.staff_authorized, false);
+  assert.equal(result.status, "observed");
+  assert.equal(result.diagnostics.endpoint.activation, "automatic_preview");
+  assert.equal("staff_authorized" in result.diagnostics.endpoint, false);
   assert.equal(reads, 0);
-  assert.equal(calls, 0);
+  assert.equal(calls, 1);
 });
 
-test("Step 8.4.1: modalità off non legge il PDF e non chiama lo shadow", async () => {
+test("Step 8.4.2: modalità off non legge il PDF e non chiama lo shadow", async () => {
   let reads = 0;
   let calls = 0;
   const result = await runPdfAiEndpointObservation(endpointInput({
@@ -95,7 +96,7 @@ test("Step 8.4.1: modalità off non legge il PDF e non chiama lo shadow", async 
   assert.equal(calls, 0);
 });
 
-test("Step 8.4.1: senza archivio privato non legge né invia il PDF", async () => {
+test("Step 8.4.2: senza archivio privato non legge né invia il PDF", async () => {
   let reads = 0;
   let calls = 0;
   const result = await runPdfAiEndpointObservation(endpointInput({
@@ -109,7 +110,7 @@ test("Step 8.4.1: senza archivio privato non legge né invia il PDF", async () =
   assert.equal(calls, 0);
 });
 
-test("Step 8.4.1: Preview staff autorizzata avvia automaticamente una sola lettura", async () => {
+test("Step 8.4.2: Preview avvia automaticamente una sola lettura", async () => {
   let reads = 0;
   let calls = 0;
   const result = await runPdfAiEndpointObservation(endpointInput({
@@ -125,7 +126,7 @@ test("Step 8.4.1: Preview staff autorizzata avvia automaticamente una sola lettu
       const bytes = await input.loadPdfBuffer();
       assert.match(bytes.toString("ascii"), /^%PDF-/);
       return {
-        shadow_version: "8.4.1",
+        shadow_version: "8.4.2",
         mode: "shadow",
         attempted: true,
         status: "observed",
@@ -139,12 +140,12 @@ test("Step 8.4.1: Preview staff autorizzata avvia automaticamente una sola lettu
   }));
   assert.equal(calls, 1);
   assert.equal(reads, 1);
-  assert.equal(result.endpoint_version, "8.4.1");
+  assert.equal(result.endpoint_version, "8.4.2");
   assert.equal(result.status, "observed");
-  assert.equal(result.diagnostics.endpoint.activation, "automatic_preview_staff");
+  assert.equal(result.diagnostics.endpoint.activation, "automatic_preview");
 });
 
-test("Step 8.4.1: errore di lettura PDF resta non bloccante", async () => {
+test("Step 8.4.2: errore di lettura PDF resta non bloccante", async () => {
   let providerCalls = 0;
   const result = await runPdfAiShadowObservation({
     normalized: { kind: "bolletta", commodity: "luce", fornitore: "F", pod: "IT001E12345678", page_count: 1 },
@@ -162,10 +163,10 @@ test("Step 8.4.1: errore di lettura PDF resta non bloccante", async () => {
   assert.equal(providerCalls, 0);
 });
 
-test("Step 8.4.1: il sidecar AI entra soltanto nella copia privata archiviata", () => {
+test("Step 8.4.2: il sidecar AI entra soltanto nella copia privata archiviata", () => {
   const normalized = { parser_version: "legacy", recognized: true };
   const aiShadow = {
-    endpoint_version: "8.4.1",
+    endpoint_version: "8.4.2",
     status: "observed",
     public_output_unchanged: true,
     observation: { review_plan: { applied: false } },
@@ -175,7 +176,7 @@ test("Step 8.4.1: il sidecar AI entra soltanto nella copia privata archiviata", 
   assert.deepEqual(archived._ai_shadow, aiShadow);
 });
 
-test("Step 8.4.1: archivio problematic conserva osservazioni da revisionare", () => {
+test("Step 8.4.2: archivio problematic conserva osservazioni da revisionare", () => {
   const normalized = { recognized: true, needsReview: false, warnings: [], diagnostics: [] };
   assert.equal(shouldArchivePdf({
     mode: "problematic",
@@ -187,10 +188,10 @@ test("Step 8.4.1: archivio problematic conserva osservazioni da revisionare", ()
   }), true);
 });
 
-test("Step 8.4.1: endpoint espone solo la vista AI sanitizzata nella Preview staff", async () => {
+test("Step 8.4.2: endpoint espone solo la vista AI sanitizzata nella Preview", async () => {
   const source = await fs.readFile(new URL("../api/analyze-pdf.js", import.meta.url), "utf8");
   assert.match(source, /buildPdfAiPreview/);
-  assert.match(source, /previewEnvironment && staffAuthorized/);
+  assert.match(source, /const aiPreview = previewEnvironment \? buildPdfAiPreview/);
   assert.match(source, /normalized: responseNormalized/);
   assert.doesNotMatch(source, /pdfAiConsent/);
   assert.doesNotMatch(source, /return json\(res, 200, \{[^}]*aiShadow/);

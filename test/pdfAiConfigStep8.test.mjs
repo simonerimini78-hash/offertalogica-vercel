@@ -11,6 +11,8 @@ test("Step 8 foundation: AI è spenta per default e non espone controlli di cons
   assert.equal(config.mode, "off");
   assert.equal(config.enabled, false);
   assert.equal(config.model, null);
+  assert.equal(config.max_pages, 8);
+  assert.equal(config.max_bytes, 25_000_000);
   assert.equal("requires_consent" in config, false);
   assert.deepEqual(PDF_AI_MODES, ["off", "shadow", "fallback"]);
 });
@@ -34,7 +36,7 @@ test("Step 8 foundation: limiti operativi restano nel perimetro controllato", ()
     PDF_AI_RESERVE_MS: "1",
   });
   assert.equal(config.max_pages, 8);
-  assert.equal(config.max_bytes, 15_000_000);
+  assert.equal(config.max_bytes, 25_000_000);
   assert.equal(config.timeout_ms, 20_000);
   assert.equal(config.reserve_ms, 2_000);
   assert.equal(config.model, "model-from-env");

@@ -7066,6 +7066,82 @@ window.rimuoviFilePdf = function rimuoviFilePdf(id, source) {
   }
 };
 
+const PDF_DIRECT_UPLOAD_MAX_BYTES = 3_500_000;
+const PDF_LARGE_UPLOAD_CHUNK_BYTES = 2_400_000;
+const PDF_LARGE_UPLOAD_MAX_BYTES = 25_000_000;
+
+function nuovoPdfLargeUploadId() {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  return `pdf-${Date.now()}-${Math.random().toString(16).slice(2)}-${Math.random().toString(16).slice(2)}`;
+}
+
+async function leggiRispostaAnalisiPdf(response) {
+  const responseType = response.headers.get("content-type") || "";
+  if (!responseType.includes("application/json")) throw new Error("api_non_disponibile");
+  const payload = await response.json();
+  if (!response.ok || !payload.ok) throw new Error(payload.error || "Errore analisi PDF");
+  return payload;
+}
+
+async function analizzaPdfDiretto(file, archiveContext) {
+  const formData = new FormData();
+  formData.append("pdf", file);
+  formData.append("archiveContext", JSON.stringify(archiveContext));
+  const response = await fetch("/api/analyze-pdf", { method: "POST", body: formData });
+  return leggiRispostaAnalisiPdf(response);
+}
+
+async function pulisciPdfGrandeTemporaneo(uploadId, chunkCount) {
+  await fetch("/api/analyze-pdf", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ uploadMode: "cleanup", uploadId, chunkCount }),
+  }).catch(() => {});
+}
+
+async function analizzaPdfGrandeInBlocchi(file, archiveContext, onProgress = () => {}) {
+  if (Number(file.size || 0) > PDF_LARGE_UPLOAD_MAX_BYTES) throw new Error("PDF troppo grande");
+  const uploadId = nuovoPdfLargeUploadId();
+  const chunkCount = Math.ceil(file.size / PDF_LARGE_UPLOAD_CHUNK_BYTES);
+  try {
+    for (let chunkIndex = 0; chunkIndex < chunkCount; chunkIndex += 1) {
+      const start = chunkIndex * PDF_LARGE_UPLOAD_CHUNK_BYTES;
+      const end = Math.min(file.size, start + PDF_LARGE_UPLOAD_CHUNK_BYTES);
+      const formData = new FormData();
+      formData.append("uploadMode", "chunk");
+      formData.append("uploadId", uploadId);
+      formData.append("chunkIndex", String(chunkIndex));
+      formData.append("chunkCount", String(chunkCount));
+      formData.append("pdf", file.slice(start, end, "application/octet-stream"), `${file.name}.part-${String(chunkIndex + 1).padStart(2, "0")}`);
+      const response = await fetch("/api/analyze-pdf", { method: "POST", body: formData });
+      await leggiRispostaAnalisiPdf(response);
+      onProgress(chunkIndex + 1, chunkCount);
+    }
+    const response = await fetch("/api/analyze-pdf", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        uploadMode: "assemble",
+        uploadId,
+        chunkCount,
+        fileSize: Number(file.size || 0),
+        originalFilename: file.name,
+        archiveContext,
+      }),
+    });
+    return await leggiRispostaAnalisiPdf(response);
+  } catch (error) {
+    await pulisciPdfGrandeTemporaneo(uploadId, chunkCount);
+    throw error;
+  }
+}
+
+async function inviaPdfPerAnalisi(file, archiveContext, onProgress = () => {}) {
+  return Number(file.size || 0) <= PDF_DIRECT_UPLOAD_MAX_BYTES
+    ? analizzaPdfDiretto(file, archiveContext)
+    : analizzaPdfGrandeInBlocchi(file, archiveContext, onProgress);
+}
+
 window.preparaConfermaPdf = async function preparaConfermaPdf() {
   nascondiEsitiFincheNonConfronti();
   nascondiGuida("pdf-data-review-guidance");
@@ -7108,29 +7184,20 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
   nascondiGuida("pdf-confirm-guidance");
   trackEvent("pdf_analysis_started", { fileCount: files.length });
 
-  const pdfAiStaffToken = pdfAiPreviewAttiva()
-    ? (sessionStorage.getItem(STAFF_MODE_TOKEN_STORAGE_KEY) || "")
-    : "";
   const results = [];
   for (let fileIndex = 0; fileIndex < files.length; fileIndex += 1) {
     const file = files[fileIndex];
     const pendingEntry = pendingEntries[fileIndex];
-    const formData = new FormData();
-    formData.append("pdf", file);
-    formData.append("archiveContext", JSON.stringify({
+    const archiveContext = {
       sessionId: analyticsSessionId(),
       staffMode: staffModeAttiva(),
       customerType: LEAD_STATE.customerType,
       uploadSequence: LEAD_STATE.pdfDocuments.length + results.length + 1,
-    }));
-    const requestHeaders = {};
-    if (pdfAiStaffToken) requestHeaders["X-Staff-Token"] = pdfAiStaffToken;
+    };
     try {
-      const response = await fetch("/api/analyze-pdf", { method: "POST", headers: requestHeaders, body: formData });
-      const contentType = response.headers.get("content-type") || "";
-      if (!contentType.includes("application/json")) throw new Error("api_non_disponibile");
-      const payload = await response.json();
-      if (!response.ok || !payload.ok) throw new Error(payload.error || "Errore analisi PDF");
+      const payload = await inviaPdfPerAnalisi(file, archiveContext, (completed, total) => {
+        if (copy) copy.innerText = `Preparazione del PDF fotografato: blocco ${completed} di ${total}. La lettura inizierà automaticamente.`;
+      });
       results.push({
         filename: file.name,
         upload_id: pendingEntry.id,
@@ -7145,6 +7212,9 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
         "PDF protetto o cifrato",
         "Il file caricato non è un PDF valido",
         "PDF mancante o formato non accettato",
+        "Caricamento PDF incompleto",
+        "PDF fotografato grande disponibile solo nella Preview",
+        "Archivio privato PDF non configurato",
       ].includes(error?.message) ? error.message : "Lettura non disponibile";
       results.push({
         filename: file.name,
