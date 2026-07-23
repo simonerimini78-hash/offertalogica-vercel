@@ -126,7 +126,7 @@ test("Step 8.4.2: Preview avvia automaticamente una sola lettura", async () => {
       const bytes = await input.loadPdfBuffer();
       assert.match(bytes.toString("ascii"), /^%PDF-/);
       return {
-        shadow_version: "8.4.2",
+        shadow_version: "v106.8.8.8-consolidated-two-pass-1",
         mode: "shadow",
         attempted: true,
         status: "observed",
@@ -140,7 +140,7 @@ test("Step 8.4.2: Preview avvia automaticamente una sola lettura", async () => {
   }));
   assert.equal(calls, 1);
   assert.equal(reads, 1);
-  assert.equal(result.endpoint_version, "8.4.3");
+  assert.equal(result.endpoint_version, "8.8.8.8");
   assert.equal(result.status, "observed");
   assert.equal(result.diagnostics.endpoint.activation, "automatic_preview");
 });
@@ -166,7 +166,7 @@ test("Step 8.4.2: errore di lettura PDF resta non bloccante", async () => {
 test("Step 8.4.2: il sidecar AI entra soltanto nella copia privata archiviata", () => {
   const normalized = { parser_version: "legacy", recognized: true };
   const aiShadow = {
-    endpoint_version: "8.4.2",
+    endpoint_version: "8.8.8.8",
     status: "observed",
     public_output_unchanged: true,
     observation: { review_plan: { applied: false } },
@@ -191,7 +191,11 @@ test("Step 8.4.2: archivio problematic conserva osservazioni da revisionare", ()
 test("Step 8.4.2: endpoint espone solo la vista AI sanitizzata nella Preview", async () => {
   const source = await fs.readFile(new URL("../api/analyze-pdf.js", import.meta.url), "utf8");
   assert.match(source, /buildPdfAiPreview/);
+  assert.match(source, /buildPdfAiStatus/);
+  assert.doesNotMatch(source, /beforeOcr:/);
+  assert.match(source, /parser -> OCR controllato -> AI visuale/);
   assert.match(source, /const aiPreview = previewEnvironment \? buildPdfAiPreview/);
+  assert.match(source, /ai_status: aiStatus/);
   assert.match(source, /normalized: responseNormalized/);
   assert.doesNotMatch(source, /pdfAiConsent/);
   assert.doesNotMatch(source, /return json\(res, 200, \{[^}]*aiShadow/);

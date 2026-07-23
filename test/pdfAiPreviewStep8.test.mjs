@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
-import { buildPdfAiPreview } from "../lib/pdfAiPreview.js";
+import { buildPdfAiPreview, buildPdfAiStatus } from "../lib/pdfAiPreview.js";
 
 test("Step 8.4.2: la lettura visuale non dipende da pagine o token staff", async () => {
   const endpoint = await fs.readFile(new URL("../api/analyze-pdf.js", import.meta.url), "utf8");
@@ -63,4 +63,37 @@ test("Step 8.4.2: nessuna vista AI viene restituita per skip o errore", () => {
   assert.equal(buildPdfAiPreview({ status: "skipped" }), null);
   assert.equal(buildPdfAiPreview({ status: "error" }), null);
   assert.equal(buildPdfAiPreview(null), null);
+});
+
+
+test("Step 8.4.5: lo stato AI di Preview espone il motivo senza dati sensibili", () => {
+  const status = buildPdfAiStatus({
+    endpoint_version: "8.8.8.8",
+    shadow_version: "v106.8.8.8-consolidated-two-pass-1",
+    mode: "shadow",
+    attempted: true,
+    status: "timeout",
+    reason: "timeout",
+    diagnostics: {
+      client: {
+        elapsed_ms: 20001,
+        error: { code: "timeout", http_status: null },
+      },
+    },
+    apiKey: "non-deve-uscire",
+  });
+  assert.equal(status.attempted, true);
+  assert.equal(status.status, "timeout");
+  assert.equal(status.error_code, "timeout");
+  assert.equal(JSON.stringify(status).includes("non-deve-uscire"), false);
+});
+
+test("Step 8.8.8.8: l'AI visuale parte soltanto dopo parser e OCR", async () => {
+  const endpoint = await fs.readFile(new URL("../api/analyze-pdf.js", import.meta.url), "utf8");
+  const extractionIndex = endpoint.indexOf("extractPdfWithControlledOcr");
+  const aiIndex = endpoint.indexOf("aiShadow = await runAiObservation(normalized)");
+  assert.ok(extractionIndex > 0);
+  assert.ok(aiIndex > extractionIndex);
+  assert.doesNotMatch(endpoint, /beforeOcr:/);
+  assert.match(endpoint, /parser -> OCR controllato -> AI visuale/);
 });

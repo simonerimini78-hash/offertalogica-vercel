@@ -13,7 +13,7 @@ import {
   storeTemporaryPdfChunk,
 } from "../lib/pdfArchive.js";
 import { runPdfAiEndpointObservation, pdfAiPreviewEnvironment } from "../lib/pdfAiEndpoint.js";
-import { buildPdfAiPreview } from "../lib/pdfAiPreview.js";
+import { buildPdfAiPreview, buildPdfAiStatus } from "../lib/pdfAiPreview.js";
 import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
 
 export const config = {
@@ -208,19 +208,15 @@ export default async function handler(req, res) {
     }
     validPdf = true;
 
-    const normalized = await extractPdfWithControlledOcr(temporaryFilePath, {
-      filename: fileMetadata.originalFilename,
-      deadlineAt: analysisDeadlineAt,
-    });
-    aiShadow = await runPdfAiEndpointObservation({
+    const runAiObservation = async (normalizedInput) => runPdfAiEndpointObservation({
       filePath: temporaryFilePath,
       filename: fileMetadata.originalFilename,
       fileSizeBytes: fileMetadata.fileSize,
-      normalized,
+      normalized: normalizedInput,
       previewEnvironment,
       deadlineAt: analysisDeadlineAt,
     }).catch(() => ({
-      endpoint_version: "8.4.3",
+      endpoint_version: "8.8.8.8",
       mode: "shadow",
       attempted: false,
       status: "error",
@@ -230,10 +226,23 @@ export default async function handler(req, res) {
       diagnostics: {},
       observation: null,
     }));
+
+    const normalized = await extractPdfWithControlledOcr(temporaryFilePath, {
+      filename: fileMetadata.originalFilename,
+      deadlineAt: analysisDeadlineAt,
+    });
+
+    // Percorso unico e progressivo: parser -> OCR controllato -> AI visuale.
+    // L'AI parte solo in Preview e solo quando il risultato deterministico resta insufficiente.
+    if (previewEnvironment) aiShadow = await runAiObservation(normalized);
+
     const aiPreview = previewEnvironment ? buildPdfAiPreview(aiShadow) : null;
-    const responseNormalized = aiPreview
-      ? { ...normalized, ai_preview: aiPreview, needsReview: true }
-      : normalized;
+    const aiStatus = previewEnvironment ? buildPdfAiStatus(aiShadow) : null;
+    const responseNormalized = {
+      ...normalized,
+      ...(aiPreview ? { ai_preview: aiPreview, needsReview: true } : {}),
+      ...(aiStatus ? { ai_status: aiStatus } : {}),
+    };
     const archive = await archivePdfAnalysis({
       filePath: temporaryFilePath,
       ...fileMetadata,
