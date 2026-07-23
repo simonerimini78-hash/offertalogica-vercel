@@ -216,7 +216,7 @@ export default async function handler(req, res) {
       previewEnvironment,
       deadlineAt: analysisDeadlineAt,
     }).catch(() => ({
-      endpoint_version: "8.8.8.8",
+      endpoint_version: "8.8.8.9",
       mode: "shadow",
       attempted: false,
       status: "error",

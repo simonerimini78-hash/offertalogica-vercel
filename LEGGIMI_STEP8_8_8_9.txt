@@ -1,0 +1,41 @@
+OFFERTALOGICA — STEP 8.8.8.9
+Correzione mirata AI + OCR
+Data: 23 luglio 2026
+
+PROVA REALE DI PARTENZA
+Il test a 2 pagine ha dimostrato due blocchi indipendenti:
+- OCR ancora v105.6, terminato con ocr_error;
+- AI configurata come fallback ma fermata dall'endpoint con shadow_mode_required.
+
+CORREZIONI APPLICATE
+1. Un solo modo AI canonico: shadow.
+   Il vecchio valore ambientale fallback viene convertito internamente a shadow.
+   La produzione resta esclusa: servono Vercel Preview e archivio privato.
+2. OCR aggiornato da v105.6 a v105.7.
+   Il limite predefinito scende da 12 a 6 milioni di pixel.
+3. Gli errori OCR non vengono più assorbiti dal worker e indicano lo stadio preciso.
+4. Il vecchio hook AI prima dell'OCR è stato rimosso dal wrapper: l'ordine resta parser -> OCR -> AI.
+
+NESSUNA MODIFICA A
+- pdfExtract.js: la raccolta delle dimensioni pagina è già presente sul branch;
+- frontend;
+- archivio Supabase;
+- comparatore e offerte ARERA;
+- main.
+
+PERCORSO ATTIVO
+api/analyze-pdf.js
+ -> lib/pdfAiEndpoint.js
+ -> lib/pdfAiPipelineConsolidated.js
+ -> lib/pdfAiReader.js
+
+CHIAMATE AI
+- una chiamata generale;
+- una seconda e ultima chiamata solo quando mancano dati economici affidabili;
+- mai più di due chiamate.
+
+RISULTATO ATTESO NEL PROSSIMO TEST
+ocr.pipeline_version = v105.7-ocr-photo-memory-guard-1
+ai_status.endpoint_version = 8.8.8.9
+ai_status.mode = shadow
+ai_status.attempted = true, salvo PDF già letto completamente da parser/OCR
