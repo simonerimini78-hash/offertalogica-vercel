@@ -285,13 +285,6 @@
         .pdf-review-static strong { display: block; margin-bottom: 4px; color: var(--text-color); }
         .pdf-review-static p { text-align: left; margin: 0 0 10px; font-size: 13px; }
         .pdf-review-static button { background: var(--primary); color: #fff; border: 0; border-radius: 8px; padding: 10px 14px; font-weight: 800; cursor: pointer; }
-        .pdf-ai-preview-block { margin: 12px 0; padding: 13px; border: 1px solid #f0a6b8; border-radius: 10px; background: #fff1f5; color: #6b2137; }
-        .pdf-ai-preview-block strong { color: #6b2137; }
-        .pdf-ai-preview-block p { margin: 4px 0 10px; color: #7a3047; font-size: 12px; }
-        .pdf-ai-preview-document { margin-top: 10px; padding-top: 10px; border-top: 1px solid #f3bdca; }
-        .pdf-ai-preview-list { display: grid; gap: 8px; margin-top: 8px; }
-        .pdf-ai-preview-item { padding: 9px 10px; border-radius: 8px; background: rgba(255,255,255,.72); border: 1px solid #f4c5d0; }
-        .pdf-ai-preview-meta { display: block; margin-top: 3px; color: #8a4a5d; font-size: 11px; line-height: 1.35; }
 
         .lead-modal-backdrop { position: fixed; inset: 0; z-index: 1000; display: none; align-items: center; justify-content: center; padding: 20px; background: rgba(15,23,42,.58); }
         .lead-modal { width: min(620px, 100%); max-height: min(92vh, 760px); overflow: auto; background: #fff; border-radius: 14px; border: 1px solid var(--border); padding: 22px; box-shadow: 0 24px 60px rgba(15,23,42,.28); }
@@ -556,6 +549,7 @@
         }
         .pdf-file-picker,
         .pdf-selected-files,
+        .pdf-ai-fallback-consent,
         .upload-note,
         .pdf-review-static {
             grid-column: 1 / -1;
@@ -602,6 +596,27 @@
         .pdf-selected-files[hidden] {
             display: none;
         }
+        .pdf-ai-fallback-consent {
+            width: min(100%, 760px);
+            justify-self: center;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 12px 14px;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            background: #ffffff;
+            color: #334155;
+            text-align: left;
+            font-size: 12px;
+            line-height: 1.45;
+        }
+        .pdf-ai-fallback-consent input {
+            flex: 0 0 auto;
+            margin-top: 3px;
+        }
+        .pdf-ai-fallback-consent strong { color: #0f172a; }
+        .pdf-ai-fallback-consent a { color: var(--accent); font-weight: 700; }
         .pdf-file-list {
             display: grid;
             gap: 8px;
@@ -1914,6 +1929,10 @@
                 <span id="pdf-file-picker-status" class="pdf-file-picker-status">Nessun PDF aggiunto</span>
             </div>
             <div id="pdf-selected-files" class="pdf-selected-files" aria-live="polite" hidden></div>
+            <label class="pdf-ai-fallback-consent" for="pdf-ai-fallback-consent">
+                <input id="pdf-ai-fallback-consent" type="checkbox">
+                <span><strong>Lettura visuale assistita facoltativa.</strong> Solo quando parser e OCR non bastano, autorizzo l’invio del PDF al servizio AI configurato da OffertaLogica per tentare una lettura aggiuntiva. I dati ottenuti saranno sempre mostrati come da controllare e resteranno deselezionati. Consulta l’<a href="https://www.iubenda.com/privacy-policy/36565194" target="_blank" rel="noopener">informativa privacy</a>.</span>
+            </label>
             <button type="button" class="btn-action" onclick="preparaConfermaPdf()">Analizza PDF</button>
             <button type="button" class="lead-secondary" onclick="azzeraPdfEModulo()">Rimuovi tutti i PDF e ricomincia</button>
             <div class="upload-note">Dopo il primo PDF usa <strong>Aggiungi file</strong>: i documenti già caricati restano memorizzati. Puoi rimuovere ogni PDF singolarmente prima della conferma.</div>
@@ -2480,7 +2499,6 @@ const LEAD_STATE = {
   pendingPdfDecision: null,
   staffMode: false,
   staffActivatedAt: "",
-  pdfAiPreviewAvailable: false,
   activationAssistant: {
     pendingUrl: "",
     offer: null,
@@ -3609,10 +3627,12 @@ async function confermaProfiloClientePdf(data) {
 async function confermaAmbitoPdf(data) {
   if (data?.kind !== "bolletta") return ambitoConfrontoAttivo();
   if (data.commodity === "dual") {
-    const sameProvider = data.fornitore_luce && data.fornitore_gas && data.fornitore_luce === data.fornitore_gas;
+    const comparisonScope = ambitoConfrontoAttivo();
     LEAD_STATE.gasDecision = "detected";
     LEAD_STATE.electricityDecision = "detected";
-    return sameProvider ? "dual" : "separate";
+    // I fornitori attuali possono essere diversi: non devono decidere il tipo di offerta da confrontare.
+    // Manteniamo "separate" solo quando l'utente l'ha già scelto; negli altri casi il confronto resta dual.
+    return comparisonScope === "separate" ? "separate" : "dual";
   }
 
   if (data.commodity === "luce") {
@@ -4229,17 +4249,13 @@ function dettagliOfferta(offerta) {
 }
 
 function offertaAttivabileOnline(offerta) {
-  const percorsoAffiliatoAttivo = Boolean(
-    offerta?.destinationStatus === "attiva" &&
-    offerta?.destinationType === "affiliazione" &&
-    offerta?.link &&
+  return Boolean(
+    offerta?.monetizzazione?.attiva &&
+    offerta.destinationStatus === "attiva" &&
+    offerta.destinationType === "affiliazione" &&
+    offerta.link &&
     offerta.link !== "#"
   );
-  // Il blocco monetizzazione contiene metadati economici ed è facoltativo.
-  // Un valore esplicito false disattiva il percorso; la sua assenza non deve
-  // eliminare affiliazioni già dichiarate attive, come Enel ed Eni.
-  const monetizzazioneEsplicitamenteDisattivata = offerta?.monetizzazione?.attiva === false;
-  return percorsoAffiliatoAttivo && !monetizzazioneEsplicitamenteDisattivata;
 }
 
 function testoAzioneOfferta(offerta, attivabileOnline) {
@@ -4757,15 +4773,11 @@ function arricchisciOffertaAreraConCommerciale(offerta, providerKey, tipo, tipoF
   const commerciale = match.offerta;
   const copia = { ...offerta };
   const tipoCommercialeCoincide = commerciale.tipo === tipo;
-  const corrispondenzaCommercialeEsatta = tipoCommercialeCoincide
-    && matchCommercialeSufficiente(providerKey, tipo, nomiArera, commerciale, match.score);
-  const percorsoCompatibile = percorsoCommercialeSupportaFornitura(commerciale, tipoFornitura);
+  const matchSufficiente = tipoCommercialeCoincide
+    ? matchCommercialeSufficiente(providerKey, tipo, nomiArera, commerciale, match.score)
+    : percorsoCommercialeSupportaFornitura(commerciale, tipoFornitura);
 
-  // OFFERTALOGICA_ALWAYS_6_PARTNERS_3_CONSULTANT_20260722
-  // La scheda economica resta sempre quella ARERA selezionata. Il catalogo partner
-  // fornisce soltanto un percorso attivo dello stesso venditore e compatibile con
-  // la fornitura richiesta. Il funnel deve confermare le condizioni finali.
-  if (offertaAttivabileOnline(commerciale) && percorsoCompatibile) {
+  if (offertaAttivabileOnline(commerciale) && matchSufficiente) {
     copia.link = commerciale.link;
     copia.destinationType = commerciale.destinationType;
     copia.destinationStatus = commerciale.destinationStatus;
@@ -4776,14 +4788,10 @@ function arricchisciOffertaAreraConCommerciale(offerta, providerKey, tipo, tipoF
       percorsoPartnerDaCatalogo: true,
       percorsoPartnerTipoOriginale: commerciale.tipo,
       percorsoPartnerFornituraOriginale: commerciale.fornitura,
-      percorsoPartnerCorrispondenza: corrispondenzaCommercialeEsatta
-        ? "offerta_coerente"
-        : "fornitore_fornitura",
-      percorsoPartnerRichiedeConfermaCondizioni: !corrispondenzaCommercialeEsatta,
     };
-    const notaPercorso = corrispondenzaCommercialeEsatta
+    const notaPercorso = tipoCommercialeCoincide
       ? `Percorso partner disponibile per offerta coerente (${commerciale.nome}).`
-      : `Percorso partner attivo disponibile tramite ${commerciale.provider}. Il confronto usa le condizioni ARERA selezionate; verifica nel funnel nome e condizioni finali dell'offerta.`;
+      : `Percorso partner attivo disponibile tramite ${commerciale.provider}; condizioni economiche e tipologia restano quelle dell'offerta ARERA selezionata.`;
     copia.descrizione = `${offerta.descrizione} ${notaPercorso}`.trim();
     copia.nome = offerta.nome;
     return copia;
@@ -4863,7 +4871,7 @@ const ABBINAMENTI_PARTNER_ARERA = Object.freeze({
   },
 });
 
-function rigaAreraPartnerCertificata(offerta, commodity, attuale = null) {
+function rigaAreraPartnerCertificata(offerta, commodity) {
   const partnerId = offerta?.certificazione?.partnerOriginalId || offerta?.id;
   const regola = ABBINAMENTI_PARTNER_ARERA[String(partnerId || "")]?.[commodity];
   if (!regola) return null;
@@ -4878,21 +4886,8 @@ function rigaAreraPartnerCertificata(offerta, commodity, attuale = null) {
     .filter((riga) => nomiAmmessi.has(testoFornitoreNormalizzato(riga.nome)))
     .filter((riga) => !regola.codiceInclude || String(riga.codice || "").includes(regola.codiceInclude));
 
-  if (!candidate.length) return null;
-
-  // Il feed ARERA può contenere più righe valide della stessa famiglia commerciale
-  // con codici o finestre temporali differenti. Non scartiamo più il partner:
-  // scegliamo la riga economicamente migliore sul profilo e, a parità, la più recente.
-  return [...candidate].sort((a, b) => {
-    if (attuale) {
-      const deltaCosto = costoRigaAreraSuProfilo(a, attuale) - costoRigaAreraSuProfilo(b, attuale);
-      if (Math.abs(deltaCosto) > 0.01) return deltaCosto;
-    }
-    const fineA = parseDataArera(a.dataFine)?.getTime() || 0;
-    const fineB = parseDataArera(b.dataFine)?.getTime() || 0;
-    if (fineA !== fineB) return fineB - fineA;
-    return String(a.codice || "").localeCompare(String(b.codice || ""));
-  })[0];
+  if (candidate.length !== 1) return null;
+  return candidate[0];
 }
 
 function miglioreRigaAreraPerPartner(offerta, commodity, attuale) {
@@ -4903,7 +4898,7 @@ function miglioreRigaAreraPerPartner(offerta, commodity, attuale) {
   // OFFERTALOGICA_CERTIFIED_MONO_ARERA_20260719
   // Nelle proiezioni solo luce/gas usa prima l'abbinamento ARERA certificato
   // del partner originale; il riconoscimento per nome resta soltanto un fallback.
-  const certificata = rigaAreraPartnerCertificata(offerta, commodity, attuale);
+  const certificata = rigaAreraPartnerCertificata(offerta, commodity);
   if (certificata) return certificata;
 
   const providerKey = chiaveFornitoreDaNome(offerta?.provider);
@@ -4930,8 +4925,8 @@ function offertaPartnerConPrezziArera(offerta, attuale) {
   if (!OFFERTE_ARERA_MENU.length) return null;
 
   if (offerta.fornitura === "dual") {
-    const luce = rigaAreraPartnerCertificata(offerta, "luce", attuale);
-    const gas = rigaAreraPartnerCertificata(offerta, "gas", attuale);
+    const luce = rigaAreraPartnerCertificata(offerta, "luce");
+    const gas = rigaAreraPartnerCertificata(offerta, "gas");
     if (!luce || !gas || luce.providerKey !== gas.providerKey || luce.tipo !== gas.tipo) return null;
     const codici = `${luce.codice} + ${gas.codice}`;
     return normalizzaOfferta({
@@ -5064,38 +5059,17 @@ function costruisciOfferteAreraRanking(attuale, tipoTariffa, tipoFornitura) {
       .filter(Boolean);
   }
 
-  const partnerKeysAttivi = new Set(
-    OFFERTE_PROPOSTE
-      .filter((offerta) => offertaAttivabileOnline(offerta))
-      .filter((offerta) => percorsoCommercialeSupportaFornitura(offerta, "separate"))
-      .map((offerta) => chiaveFornitoreDaNome(offerta.provider))
-      .filter(Boolean)
-  );
+  const miglioriLuce = providerKeysArera()
+    .map((providerKey) => miglioreRigaAreraPerProvider(providerKey, "luce", tipoTariffa, attuale))
+    .filter(Boolean)
+    .sort((a, b) => costoRigaAreraSuProfilo(a, attuale) - costoRigaAreraSuProfilo(b, attuale))
+    .slice(0, 8);
+  const miglioriGas = providerKeysArera()
+    .map((providerKey) => miglioreRigaAreraPerProvider(providerKey, "gas", tipoTariffa, attuale))
+    .filter(Boolean)
+    .sort((a, b) => costoRigaAreraSuProfilo(a, attuale) - costoRigaAreraSuProfilo(b, attuale))
+    .slice(0, 8);
 
-  const selezionaRigheSeparate = (commodity) => {
-    const ordinate = providerKeysArera()
-      .map((providerKey) => miglioreRigaAreraPerProvider(providerKey, commodity, tipoTariffa, attuale))
-      .filter(Boolean)
-      .sort((a, b) => costoRigaAreraSuProfilo(a, attuale) - costoRigaAreraSuProfilo(b, attuale));
-
-    // Mantiene sempre nel bacino le righe dei partner attivi, anche quando non
-    // rientrano nelle prime otto per costo. Aggiunge poi le migliori righe generali.
-    const result = [];
-    const seen = new Set();
-    const add = (riga) => {
-      const key = `${riga.providerKey}:${riga.codice}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        result.push(riga);
-      }
-    };
-    ordinate.filter((riga) => partnerKeysAttivi.has(riga.providerKey)).forEach(add);
-    ordinate.slice(0, 8).forEach(add);
-    return result;
-  };
-
-  const miglioriLuce = selezionaRigheSeparate("luce");
-  const miglioriGas = selezionaRigheSeparate("gas");
   const abbinamenti = [];
   miglioriLuce.forEach((luce) => {
     miglioriGas.forEach((gas) => {
@@ -5105,7 +5079,8 @@ function costruisciOfferteAreraRanking(attuale, tipoTariffa, tipoFornitura) {
 
   return abbinamenti
     .filter(Boolean)
-    .sort((a, b) => costoOffertaSulProfilo(a, attuale) - costoOffertaSulProfilo(b, attuale));
+    .sort((a, b) => costoOffertaSulProfilo(a, attuale) - costoOffertaSulProfilo(b, attuale))
+    .slice(0, 20);
 }
 
 // OFFERTALOGICA_SINGLE_SUPPLY_PARTNERS_V2
@@ -5280,36 +5255,6 @@ function deduplicaPartnerAttivabili(items) {
   return [...bestByProvider.values()];
 }
 
-// OFFERTALOGICA_ALWAYS_6_PARTNERS_3_CONSULTANT_20260722
-const NUMERO_OFFERTE_PARTNER_MENU = 6;
-const NUMERO_OFFERTE_CONSULENTE_MENU = 3;
-
-function selezionaPartnerAttivabiliPerMenu(items, limite = NUMERO_OFFERTE_PARTNER_MENU) {
-  const ordinate = [...items]
-    .sort((a, b) => (a.costo - b.costo) || (b.differenza - a.differenza));
-  const prioritaProvider = deduplicaPartnerAttivabili(ordinate)
-    .sort((a, b) => (a.costo - b.costo) || (b.differenza - a.differenza));
-  const selezionate = [];
-  const ids = new Set();
-  const add = (item) => {
-    const id = String(item?.offerta?.id || "");
-    if (!id || ids.has(id) || selezionate.length >= limite) return;
-    ids.add(id);
-    selezionate.push(item);
-  };
-  prioritaProvider.forEach(add);
-  ordinate.forEach(add);
-  return selezionate.slice(0, limite);
-}
-
-function selezionaConsulentiPerMenu(items, partnerVisibili, limite = NUMERO_OFFERTE_CONSULENTE_MENU) {
-  const idsPartner = new Set(partnerVisibili.map((item) => String(item?.offerta?.id || "")));
-  return items
-    .filter((item) => !item.attivabileOnline)
-    .filter((item) => !idsPartner.has(String(item?.offerta?.id || "")))
-    .slice(0, limite);
-}
-
 function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitura) {
   const offerteCandidati = costruisciOfferteRanking(attuale, tipoTariffa, tipoFornitura);
   assicuraSchedeOfferte(offerteCandidati);
@@ -5386,46 +5331,40 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       .map((item, index) => [String(item.offerta.id), index + 1])
   );
 
-  // OFFERTALOGICA_ALWAYS_6_PARTNERS_3_CONSULTANT_20260722
-  // Ogni combinazione del menu deve mostrare sei percorsi partner attivi e
-  // tre migliori offerte esatte per costo con consulente.
-  const partnerAttivabiliCoerenti = offerteCalcolate
-    .filter((item) => item.attivabileCoerente)
+  // OFFERTALOGICA_PARTNER_GROUP_EXCLUSION_20260719
+  // Conserva l'intero insieme dei partner coerenti prima del limite visuale:
+  // nessun partner escluso dalla top 6 può ricomparire tra i consulenti.
+  const partnerAttivabiliCoerenti = deduplicaPartnerAttivabili(
+    offerteCalcolate.filter((item) => item.attivabileCoerente)
+  )
     .sort((a, b) => (a.costo - b.costo) || (b.differenza - a.differenza));
 
-  const attivabiliPrioritarie = selezionaPartnerAttivabiliPerMenu(
-    partnerAttivabiliCoerenti,
-    NUMERO_OFFERTE_PARTNER_MENU
-  ).map((item, index) => ({
-    ...item,
-    gruppoVisuale: "attivabile",
-    posizioneGruppo: index + 1,
-    posizioneEconomica: rankingGlobale.get(String(item.offerta.id)) || null,
-  }));
+  const attivabiliPrioritarie = partnerAttivabiliCoerenti
+    .slice(0, 6)
+    .map((item, index) => ({
+      ...item,
+      gruppoVisuale: "attivabile",
+      posizioneGruppo: index + 1,
+      posizioneEconomica: rankingGlobale.get(String(item.offerta.id)) || null,
+    }));
 
-  const candidatiConsulente = ordinateRanking
+  // OFFERTALOGICA_STRICT_SELECTED_PRICE_TYPE_20260719
+  // Il gruppo consulente rispetta esattamente tipo prezzo e fornitura e
+  // non può contenere alcun fornitore già riconosciuto come partner.
+  const miglioriConConsulente = ordinateRanking
     .filter((item) => item.compatibileRanking && item.filtroEsatto)
     .filter((item) => item.offerta?.tipo === tipoTariffa)
-    .filter((item) => offertaCoerenteConFornitura(item.offerta, tipoFornitura));
-
-  const miglioriConConsulente = selezionaConsulentiPerMenu(
-    candidatiConsulente,
-    attivabiliPrioritarie,
-    NUMERO_OFFERTE_CONSULENTE_MENU
-  ).map((item, index) => ({
-    ...item,
-    gruppoVisuale: "top",
-    posizioneGruppo: index + 1,
-  }));
-
-  if (attivabiliPrioritarie.length !== NUMERO_OFFERTE_PARTNER_MENU
-      || miglioriConConsulente.length !== NUMERO_OFFERTE_CONSULENTE_MENU) {
-    console.warn("[OffertaLogica] Composizione offerte incompleta", {
-      filtro: testoFiltroOfferte(tipoTariffa, tipoFornitura),
-      partner: attivabiliPrioritarie.length,
-      consulente: miglioriConConsulente.length,
-    });
-  }
+    .filter((item) => offertaCoerenteConFornitura(item.offerta, tipoFornitura))
+    .filter((item) => !item.attivabileOnline)
+    .filter((item) => !partnerAttivabiliCoerenti.some((partner) => (
+      offerteStessoFornitore(item.offerta, partner.offerta)
+    )))
+    .slice(0, 3)
+    .map((item, index) => ({
+      ...item,
+      gruppoVisuale: "top",
+      posizioneGruppo: index + 1,
+    }));
   const visibili = [...attivabiliPrioritarie, ...miglioriConConsulente];
   const idsVisibili = new Set(visibili.map((item) => String(item.offerta.id)));
   const migliore = ordinateRanking[0] || offerteCalcolate[0] || null;
@@ -5433,13 +5372,13 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
   const gruppoPartner = assicuraGruppoOfferte(
     "offerte-partner-online-group",
     "partner-group",
-    "6 offerte partner attivabili online",
+    "Offerte partner attivabili online",
     "Le migliori proposte attivabili online tra i partner disponibili e coerenti con il filtro selezionato."
   );
   const gruppoConsulente = assicuraGruppoOfferte(
     "offerte-consulente-group",
     "consultant-group",
-    "3 migliori offerte per costo con consulente",
+    "Migliori offerte per costo con consulente",
     OFFERTE_ARERA_MENU.length
       ? "Le migliori proposte per costo annuo stimato sul tuo profilo. Richiedono verifica consulenziale o ricontatto prima dell'eventuale attivazione."
       : "Le migliori proposte tra le offerte disponibili nel calcolatore. Richiedono verifica consulenziale o ricontatto."
@@ -5706,10 +5645,6 @@ function staffModeAttiva() {
   return Boolean(LEAD_STATE.staffMode);
 }
 
-function pdfAiPreviewAttiva() {
-  return Boolean(staffModeAttiva() && LEAD_STATE.pdfAiPreviewAvailable);
-}
-
 function pulisciTokenStaffDaUrl() {
   try {
     const url = new URL(window.location.href);
@@ -5859,7 +5794,6 @@ function creaPannelloAnteprimeStaff() {
 function aggiornaBannerStaff() {
   let banner = document.getElementById("staff-mode-banner");
   if (!staffModeAttiva()) {
-    LEAD_STATE.pdfAiPreviewAvailable = false;
     banner?.remove();
     document.getElementById("staff-preview-panel")?.remove();
     document.body.classList.remove("staff-preview-open");
@@ -5893,7 +5827,6 @@ function aggiornaBannerStaff() {
       sessionStorage.removeItem(STAFF_MODE_TOKEN_STORAGE_KEY);
       LEAD_STATE.staffMode = false;
       LEAD_STATE.staffActivatedAt = "";
-      LEAD_STATE.pdfAiPreviewAvailable = false;
       LEAD_STATE.verified = false;
       LEAD_STATE.leadId = "";
       chiudiPannelloAnteprimeStaff();
@@ -5919,39 +5852,32 @@ async function inizializzaModalitaStaff() {
     sessionStorage.removeItem(STAFF_MODE_TOKEN_STORAGE_KEY);
     LEAD_STATE.staffMode = false;
     LEAD_STATE.staffActivatedAt = "";
-    LEAD_STATE.pdfAiPreviewAvailable = false;
     pulisciTokenStaffDaUrl();
     aggiornaBannerStaff();
     return;
   }
 
-  const sessionToken = sessionStorage.getItem(STAFF_MODE_TOKEN_STORAGE_KEY) || "";
-  const tokenToValidate = staffRequest.token || sessionToken;
-  if (staffRequest.token) pulisciTokenStaffDaUrl();
-  if (!tokenToValidate) {
-    sessionStorage.removeItem(STAFF_MODE_STORAGE_KEY);
-    LEAD_STATE.staffMode = false;
-    LEAD_STATE.pdfAiPreviewAvailable = false;
-    aggiornaBannerStaff();
-    return;
+  if (sessionStorage.getItem(STAFF_MODE_STORAGE_KEY) === "true") {
+    abilitaModalitaStaff("session");
   }
+
+  if (!staffRequest.token) return;
+  pulisciTokenStaffDaUrl();
 
   try {
     const response = await fetch("/api/staff-preview", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token: tokenToValidate }),
+      body: JSON.stringify({ token: staffRequest.token }),
     });
     const payload = await response.json();
     if (!payload.ok) throw new Error(payload.error || "Token staff non valido");
-    sessionStorage.setItem(STAFF_MODE_TOKEN_STORAGE_KEY, tokenToValidate);
-    LEAD_STATE.pdfAiPreviewAvailable = Boolean(payload.pdfAiPreviewAvailable);
+    sessionStorage.setItem(STAFF_MODE_TOKEN_STORAGE_KEY, staffRequest.token);
     abilitaModalitaStaff(payload.activatedAt || "");
   } catch (error) {
     sessionStorage.removeItem(STAFF_MODE_STORAGE_KEY);
     sessionStorage.removeItem(STAFF_MODE_TOKEN_STORAGE_KEY);
     LEAD_STATE.staffMode = false;
-    LEAD_STATE.pdfAiPreviewAvailable = false;
     aggiornaBannerStaff();
     console.warn("Modalita staff non attivata", error.message);
   }
@@ -7066,82 +6992,6 @@ window.rimuoviFilePdf = function rimuoviFilePdf(id, source) {
   }
 };
 
-const PDF_DIRECT_UPLOAD_MAX_BYTES = 3_500_000;
-const PDF_LARGE_UPLOAD_CHUNK_BYTES = 2_400_000;
-const PDF_LARGE_UPLOAD_MAX_BYTES = 25_000_000;
-
-function nuovoPdfLargeUploadId() {
-  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
-  return `pdf-${Date.now()}-${Math.random().toString(16).slice(2)}-${Math.random().toString(16).slice(2)}`;
-}
-
-async function leggiRispostaAnalisiPdf(response) {
-  const responseType = response.headers.get("content-type") || "";
-  if (!responseType.includes("application/json")) throw new Error("api_non_disponibile");
-  const payload = await response.json();
-  if (!response.ok || !payload.ok) throw new Error(payload.error || "Errore analisi PDF");
-  return payload;
-}
-
-async function analizzaPdfDiretto(file, archiveContext) {
-  const formData = new FormData();
-  formData.append("pdf", file);
-  formData.append("archiveContext", JSON.stringify(archiveContext));
-  const response = await fetch("/api/analyze-pdf", { method: "POST", body: formData });
-  return leggiRispostaAnalisiPdf(response);
-}
-
-async function pulisciPdfGrandeTemporaneo(uploadId, chunkCount) {
-  await fetch("/api/analyze-pdf", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ uploadMode: "cleanup", uploadId, chunkCount }),
-  }).catch(() => {});
-}
-
-async function analizzaPdfGrandeInBlocchi(file, archiveContext, onProgress = () => {}) {
-  if (Number(file.size || 0) > PDF_LARGE_UPLOAD_MAX_BYTES) throw new Error("PDF troppo grande");
-  const uploadId = nuovoPdfLargeUploadId();
-  const chunkCount = Math.ceil(file.size / PDF_LARGE_UPLOAD_CHUNK_BYTES);
-  try {
-    for (let chunkIndex = 0; chunkIndex < chunkCount; chunkIndex += 1) {
-      const start = chunkIndex * PDF_LARGE_UPLOAD_CHUNK_BYTES;
-      const end = Math.min(file.size, start + PDF_LARGE_UPLOAD_CHUNK_BYTES);
-      const formData = new FormData();
-      formData.append("uploadMode", "chunk");
-      formData.append("uploadId", uploadId);
-      formData.append("chunkIndex", String(chunkIndex));
-      formData.append("chunkCount", String(chunkCount));
-      formData.append("pdf", file.slice(start, end, "application/octet-stream"), `${file.name}.part-${String(chunkIndex + 1).padStart(2, "0")}`);
-      const response = await fetch("/api/analyze-pdf", { method: "POST", body: formData });
-      await leggiRispostaAnalisiPdf(response);
-      onProgress(chunkIndex + 1, chunkCount);
-    }
-    const response = await fetch("/api/analyze-pdf", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        uploadMode: "assemble",
-        uploadId,
-        chunkCount,
-        fileSize: Number(file.size || 0),
-        originalFilename: file.name,
-        archiveContext,
-      }),
-    });
-    return await leggiRispostaAnalisiPdf(response);
-  } catch (error) {
-    await pulisciPdfGrandeTemporaneo(uploadId, chunkCount);
-    throw error;
-  }
-}
-
-async function inviaPdfPerAnalisi(file, archiveContext, onProgress = () => {}) {
-  return Number(file.size || 0) <= PDF_DIRECT_UPLOAD_MAX_BYTES
-    ? analizzaPdfDiretto(file, archiveContext)
-    : analizzaPdfGrandeInBlocchi(file, archiveContext, onProgress);
-}
-
 window.preparaConfermaPdf = async function preparaConfermaPdf() {
   nascondiEsitiFincheNonConfronti();
   nascondiGuida("pdf-data-review-guidance");
@@ -7182,22 +7032,31 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
     confirmButton.innerText = "Analisi in corso...";
   }
   nascondiGuida("pdf-confirm-guidance");
-  trackEvent("pdf_analysis_started", { fileCount: files.length });
+  trackEvent("pdf_analysis_started", {
+    fileCount: files.length,
+    visualAiConsent: Boolean(document.getElementById("pdf-ai-fallback-consent")?.checked),
+  });
 
   const results = [];
   for (let fileIndex = 0; fileIndex < files.length; fileIndex += 1) {
     const file = files[fileIndex];
     const pendingEntry = pendingEntries[fileIndex];
-    const archiveContext = {
+    const formData = new FormData();
+    formData.append("pdf", file);
+    const aiFallbackConsent = Boolean(document.getElementById("pdf-ai-fallback-consent")?.checked);
+    formData.append("aiFallbackConsent", aiFallbackConsent ? "1" : "0");
+    formData.append("archiveContext", JSON.stringify({
       sessionId: analyticsSessionId(),
       staffMode: staffModeAttiva(),
       customerType: LEAD_STATE.customerType,
       uploadSequence: LEAD_STATE.pdfDocuments.length + results.length + 1,
-    };
+    }));
     try {
-      const payload = await inviaPdfPerAnalisi(file, archiveContext, (completed, total) => {
-        if (copy) copy.innerText = `Preparazione del PDF fotografato: blocco ${completed} di ${total}. La lettura inizierà automaticamente.`;
-      });
+      const response = await fetch("/api/analyze-pdf", { method: "POST", body: formData });
+      const contentType = response.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) throw new Error("api_non_disponibile");
+      const payload = await response.json();
+      if (!response.ok || !payload.ok) throw new Error(payload.error || "Errore analisi PDF");
       results.push({
         filename: file.name,
         upload_id: pendingEntry.id,
@@ -7212,9 +7071,6 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
         "PDF protetto o cifrato",
         "Il file caricato non è un PDF valido",
         "PDF mancante o formato non accettato",
-        "Caricamento PDF incompleto",
-        "PDF fotografato grande disponibile solo nella Preview",
-        "Archivio privato PDF non configurato",
       ].includes(error?.message) ? error.message : "Lettura non disponibile";
       results.push({
         filename: file.name,
@@ -7390,12 +7246,12 @@ function pdfPreviewAutofillEntry(data, field) {
   const entry = pdfContractFieldEntry(data, field);
   if (!entry || entry.status !== "completo") return null;
   if (entry.autofill?.allowed) return { entry, review_required: false };
-  const ocrReview = Boolean(
+  const assistedReview = Boolean(
     entry.autofill?.review_selectable
     && entry.autofill?.requires_explicit_selection
-    && entry.provenance?.origin === "pdf_image_ocr"
+    && ["pdf_image_ocr", "pdf_visual_ai"].includes(entry.provenance?.origin)
   );
-  return ocrReview ? { entry, review_required: true } : null;
+  return assistedReview ? { entry, review_required: true } : null;
 }
 
 function pdfPreviewAutofillValue(data, field) {
@@ -7617,7 +7473,7 @@ function buildPdfAutofillPreviewRows(data, customerType = "privato") {
         : protectedManual
           ? "valore_manuale_protetto"
           : spec.review_required
-            ? "ocr_da_verificare"
+            ? spec.source_origin === "pdf_visual_ai" ? "ai_da_verificare" : "ocr_da_verificare"
             : current.has_value
               ? "valore_predefinito_aggiornabile"
               : "campo_vuoto",
@@ -7631,6 +7487,7 @@ function pdfAutofillStatusLabel(status) {
     valore_manuale_protetto: "Valore manuale protetto",
     valore_predefinito_aggiornabile: "Valore esistente non modificato manualmente",
     ocr_da_verificare: "OCR da verificare e selezionare",
+    ai_da_verificare: "Lettura visuale AI da verificare e selezionare",
     campo_vuoto: "Campo vuoto",
   };
   return labels[status] || status;
@@ -7682,10 +7539,12 @@ function apriAnteprimaAutocompilazionePdf(data) {
   const copy = document.getElementById("pdf-autofill-preview-copy");
   if (!backdrop) return Promise.resolve(PDF_AUTOFILL_PREVIEW_ROWS.filter((row) => row.selected && !row.disabled));
   const protectedCount = PDF_AUTOFILL_PREVIEW_ROWS.filter((row) => row.manually_protected).length;
-  const ocrReviewCount = PDF_AUTOFILL_PREVIEW_ROWS.filter((row) => row.review_required && !row.same_value).length;
+  const ocrReviewCount = PDF_AUTOFILL_PREVIEW_ROWS.filter((row) => row.review_required && !row.same_value && row.source_origin === "pdf_image_ocr").length;
+  const aiReviewCount = PDF_AUTOFILL_PREVIEW_ROWS.filter((row) => row.review_required && !row.same_value && row.source_origin === "pdf_visual_ai").length;
   if (copy) {
     const messages = [];
     if (ocrReviewCount) messages.push(`${ocrReviewCount} ${ocrReviewCount === 1 ? "campo proviene" : "campi provengono"} dall'OCR: ${ocrReviewCount === 1 ? "è deselezionato" : "sono deselezionati"} finché non li scegli esplicitamente.`);
+    if (aiReviewCount) messages.push(`${aiReviewCount} ${aiReviewCount === 1 ? "campo proviene" : "campi provengono"} dalla lettura visuale AI: ${aiReviewCount === 1 ? "è deselezionato" : "sono deselezionati"} finché non li scegli esplicitamente.`);
     if (protectedCount) messages.push(`${protectedCount} ${protectedCount === 1 ? "campo contiene" : "campi contengono"} un valore inserito manualmente e ${protectedCount === 1 ? "resta" : "restano"} deselezionato per sicurezza.`);
     copy.textContent = messages.length
       ? `${messages.join(" ")} Controlla i valori prima di applicarli.`
@@ -7703,6 +7562,7 @@ function apriAnteprimaAutocompilazionePdf(data) {
     fieldCount: PDF_AUTOFILL_PREVIEW_ROWS.length,
     protectedCount,
     ocrReviewCount,
+    aiReviewCount,
   });
   window.setTimeout(() => document.getElementById("pdf-autofill-apply")?.focus(), 30);
   return new Promise((resolve) => { PDF_AUTOFILL_PREVIEW_RESOLVE = resolve; });
@@ -8179,54 +8039,6 @@ function mergePdfDocuments(documents) {
   return merged;
 }
 
-const PDF_AI_PREVIEW_LABELS = Object.freeze({
-  kind: "Tipo documento",
-  commodity: "Fornitura",
-  fornitore: "Fornitore",
-  customer_type: "Profilo cliente",
-  intestatario: "Intestatario",
-  codice_fiscale: "Codice fiscale / P.IVA",
-  codice_cliente: "Codice cliente",
-  pod: "POD",
-  pdr: "PDR",
-  indirizzo_fornitura: "Indirizzo di fornitura",
-});
-
-function pdfAiPreviewValue(value) {
-  if (value === null || value === undefined || value === "") return "—";
-  return typeof value === "object" ? JSON.stringify(value) : String(value);
-}
-
-function renderPdfAiPreviewSections(documents = []) {
-  const sections = documents.flatMap((doc) => {
-    const preview = doc?.ai_preview;
-    if (!preview?.review_only) return [];
-    const entries = [
-      ...(Array.isArray(preview.fields) ? preview.fields : []),
-      ...(Array.isArray(preview.corroborated) ? preview.corroborated : []),
-    ];
-    if (!entries.length && !(preview.conflicts || []).length) return [];
-    const items = entries.map((entry) => {
-      const label = PDF_AI_PREVIEW_LABELS[entry.field] || entry.field || "Dato";
-      const status = entry.status === "confermato_parser_ocr" ? "coincide con parser/OCR" : "da verificare";
-      const meta = [
-        entry.page ? `pagina ${entry.page}` : "",
-        Number.isFinite(Number(entry.confidence)) ? `confidenza ${Math.round(Number(entry.confidence))}%` : "",
-        status,
-      ].filter(Boolean).join(" · ");
-      const evidence = entry.evidence ? `<span class="pdf-ai-preview-meta">Evidenza: ${testoHtmlSicuro(entry.evidence)}</span>` : "";
-      return `<div class="pdf-ai-preview-item"><strong>${testoHtmlSicuro(label)}</strong><br>${testoHtmlSicuro(pdfAiPreviewValue(entry.value))}<span class="pdf-ai-preview-meta">${testoHtmlSicuro(meta)}</span>${evidence}</div>`;
-    }).join("");
-    const conflictItems = (Array.isArray(preview.conflicts) ? preview.conflicts : []).map((entry) => {
-      const label = PDF_AI_PREVIEW_LABELS[entry.field] || entry.field || "Dato";
-      return `<div class="pdf-ai-preview-item"><strong>${testoHtmlSicuro(label)}</strong><br>Valore in conflitto: controllare manualmente.<span class="pdf-ai-preview-meta">La lettura visuale non ha sostituito il dato parser/OCR.</span></div>`;
-    }).join("");
-    return [`<div class="pdf-ai-preview-document"><strong>${testoHtmlSicuro(doc.filename || "Documento")}</strong><div class="pdf-ai-preview-list">${items}${conflictItems}</div></div>`];
-  });
-  if (!sections.length) return "";
-  return `<div class="pdf-ai-preview-block"><strong>Dati letti dalla fotografia — da verificare</strong><p>Questa sezione mostra la lettura visuale AI di prova. Nessun elemento viene inserito automaticamente nel modulo e nessun dato parser/OCR valido viene sostituito.</p>${sections.join("")}</div>`;
-}
-
 function renderPdfSummary(documents, merged) {
   const rows = documents.map((doc) => {
     if (doc.error) return `<li><strong>${testoHtmlSicuro(doc.filename)}</strong>: ${testoHtmlSicuro(doc.error)}. Puoi cambiare PDF oppure continuare con la compilazione manuale.</li>`;
@@ -8237,23 +8049,29 @@ function renderPdfSummary(documents, merged) {
         : doc.ocr?.attempted && doc.ocr?.reason === "no_material_improvement"
           ? " OCR eseguito senza dati sufficientemente affidabili."
           : "";
-    const aiStatus = doc.ai_preview?.review_only
+    const aiStatus = doc.ai?.applied
       ? " Lettura visuale AI applicata: tutti i dati ricavati restano da controllare."
-      : "";
+      : doc.ai?.consent_granted && doc.ai?.reason === "disabled"
+        ? " Lettura visuale AI autorizzata ma disattivata nel deployment."
+        : doc.ai?.attempted && doc.ai?.reason === "missing_openai_api_key"
+          ? " Lettura visuale AI autorizzata ma non configurata nel deployment."
+          : doc.ai?.attempted && ["openai_timeout", "insufficient_time_budget"].some((reason) => String(doc.ai?.reason || "").includes(reason))
+            ? " Lettura visuale AI non completata entro il tempo disponibile."
+            : doc.ai?.attempted && doc.ai?.reason === "no_material_improvement"
+              ? " Lettura visuale AI eseguita senza dati sufficientemente affidabili."
+              : "";
     if (!risultatoPdfUtilizzabile(doc)) {
       return `<li><strong>${testoHtmlSicuro(doc.filename)}</strong>: documento non riconosciuto o privo di dati sufficientemente affidabili.${ocrStatus}${aiStatus}</li>`;
     }
     const review = doc.confidence === "high" ? "affidabilità alta" : "da controllare";
     return `<li><strong>${testoHtmlSicuro(doc.filename)}</strong>: ${testoHtmlSicuro(doc.kind || "PDF")} ${testoHtmlSicuro(doc.commodity || "")} - ${testoHtmlSicuro(doc.fornitore || "fornitore da verificare")} (${review})${ocrStatus}${aiStatus}</li>`;
   }).join("");
-  const aiPreviewSections = renderPdfAiPreviewSections(documents);
 
   if (merged?.merge_blocked) {
     const reasons = (merged.isolation?.reasons || []).map(pdfIsolationReasonLabel).join(", ");
     return `
       <span>Documenti analizzati:</span>
       <ul style="margin:6px 0 10px 18px;">${rows}</ul>
-      ${aiPreviewSections}
       <span><strong>I dati non sono stati uniti.</strong> Sono stati rilevati documenti appartenenti a clienti o forniture differenti${reasons ? `: ${testoHtmlSicuro(reasons)}` : ""}. Rimuovi i PDF non omogenei e lascia soltanto il gruppo che vuoi usare. Nessun campo verrà autocompilato finché il conflitto non è risolto.</span>
     `;
   }
@@ -8262,7 +8080,6 @@ function renderPdfSummary(documents, merged) {
     return `
       <span>Documenti analizzati:</span>
       <ul style="margin:6px 0 10px 18px;">${rows}</ul>
-      ${aiPreviewSections}
       <span><strong>I dati non sono stati uniti:</strong> bolletta e scheda sintetica appartengono a due confronti diversi. Analizzale separatamente per evitare sovrascritture.</span>
     `;
   }
@@ -8356,12 +8173,11 @@ function renderPdfSummary(documents, merged) {
     pdfBlockedAutofillLine(merged.data_contract),
   ].filter(Boolean).join(" | ");
 
-  const ocrReviewTargets = Number(merged.data_contract?.autofill_plan?.review_target_count || 0);
+  const assistedReviewTargets = Number(merged.data_contract?.autofill_plan?.review_target_count || 0);
   return `
     <span>Documenti analizzati:</span>
     <ul style="margin:6px 0 10px 18px;">${rows}</ul>
-      ${aiPreviewSections}
-    <span><strong>Dati letti:</strong> ${mergedRows || "nessun dato sufficientemente affidabile; completa il modulo manualmente."}<br><small>Nel modulo saranno inseriti soltanto i campi completi ammessi dal contratto dati, dopo la tua conferma.${ocrReviewTargets ? " I dati OCR compariranno nell’anteprima deselezionati e dovrai sceglierli esplicitamente." : ""}</small></span>
+    <span><strong>Dati letti:</strong> ${mergedRows || "nessun dato sufficientemente affidabile; completa il modulo manualmente."}<br><small>Nel modulo saranno inseriti soltanto i campi completi ammessi dal contratto dati, dopo la tua conferma.${assistedReviewTargets ? " I dati ottenuti tramite OCR o lettura visuale AI compariranno nell’anteprima deselezionati e dovrai sceglierli esplicitamente." : ""}</small></span>
   `;
 }
 
@@ -8373,6 +8189,8 @@ window.azzeraPdfEModulo = function azzeraPdfEModulo() {
   LEAD_STATE.pdfDocuments = [];
   LEAD_STATE.pdfAutofill = { previewedAt: "", appliedFields: [], skippedFields: [] };
   pdfAutofillClearManualFields();
+  const aiConsent = document.getElementById("pdf-ai-fallback-consent");
+  if (aiConsent) aiConsent.checked = false;
   LEAD_STATE.comparisonScope = "unknown";
   LEAD_STATE.gasDecision = "";
   LEAD_STATE.electricityDecision = "";
@@ -9552,7 +9370,7 @@ if (document.readyState === "loading") {
             <button type="button" id="pdf-autofill-clear-selection">Deseleziona tutti</button>
         </div>
         <div class="pdf-autofill-list" id="pdf-autofill-preview-list"></div>
-        <div class="pdf-autofill-note">I dati OCR sono sempre deselezionati all’apertura e richiedono una scelta esplicita. Un valore manuale differente resta protetto finché non ne autorizzi singolarmente la sostituzione.</div>
+        <div class="pdf-autofill-note">I dati OCR sono sempre deselezionati all’apertura. Anche i dati della lettura visuale AI restano deselezionati e richiedono una scelta esplicita. Un valore manuale differente resta protetto finché non ne autorizzi singolarmente la sostituzione.</div>
         <div class="pdf-autofill-actions">
             <button type="button" id="pdf-autofill-cancel">Annulla, non modificare il modulo</button>
             <button type="button" class="is-primary" id="pdf-autofill-apply">Applica i campi selezionati</button>
