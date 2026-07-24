@@ -7238,6 +7238,7 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
         file_size: Number(file.size || 0),
         archive: payload.archive || null,
         ...payload.normalized,
+        reader: payload.reader || null,
       });
     } catch (error) {
       const safeMessage = [
@@ -8210,6 +8211,30 @@ function mergePdfDocuments(documents) {
 }
 
 function renderPdfSummary(documents, merged) {
+  function statoLettoreVisualePdf(doc) {
+    const reader = doc?.reader;
+    if (!reader) return "";
+    if (reader.public_output === "safe_review_merge") {
+      return " Lettura visuale IA applicata: tutti i dati ricavati restano da controllare.";
+    }
+    if (reader.mode === "shadow" && reader.status === "completed") {
+      return " Lettura visuale IA eseguita solo in diagnostica: il risultato pubblico non è stato modificato.";
+    }
+    if (reader.reason === "missing_openai_api_key") {
+      return " Lettura visuale IA non configurata in questa anteprima.";
+    }
+    if (reader.reason === "disabled" || reader.mode === "off") {
+      return " Lettura visuale IA non attiva in questa anteprima.";
+    }
+    if (["failed", "unavailable"].includes(reader.status)) {
+      return " Lettura visuale IA tentata ma non completata.";
+    }
+    if (reader.status === "completed" && Number(reader.candidate_count || 0) === 0) {
+      return " Lettura visuale IA completata senza dati sufficientemente affidabili.";
+    }
+    return "";
+  }
+
   const rows = documents.map((doc) => {
     if (doc.error) return `<li><strong>${testoHtmlSicuro(doc.filename)}</strong>: ${testoHtmlSicuro(doc.error)}. Puoi cambiare PDF oppure continuare con la compilazione manuale.</li>`;
     const ocrStatus = doc.ocr?.applied
@@ -8219,11 +8244,12 @@ function renderPdfSummary(documents, merged) {
         : doc.ocr?.attempted && doc.ocr?.reason === "no_material_improvement"
           ? " OCR eseguito senza dati sufficientemente affidabili."
           : "";
+    const visualReaderStatus = statoLettoreVisualePdf(doc);
     if (!risultatoPdfUtilizzabile(doc)) {
-      return `<li><strong>${testoHtmlSicuro(doc.filename)}</strong>: documento non riconosciuto o privo di dati sufficientemente affidabili.${ocrStatus}</li>`;
+      return `<li><strong>${testoHtmlSicuro(doc.filename)}</strong>: documento non riconosciuto o privo di dati sufficientemente affidabili.${ocrStatus}${visualReaderStatus}</li>`;
     }
     const review = doc.confidence === "high" ? "affidabilità alta" : "da controllare";
-    return `<li><strong>${testoHtmlSicuro(doc.filename)}</strong>: ${testoHtmlSicuro(doc.kind || "PDF")} ${testoHtmlSicuro(doc.commodity || "")} - ${testoHtmlSicuro(doc.fornitore || "fornitore da verificare")} (${review})${ocrStatus}</li>`;
+    return `<li><strong>${testoHtmlSicuro(doc.filename)}</strong>: ${testoHtmlSicuro(doc.kind || "PDF")} ${testoHtmlSicuro(doc.commodity || "")} - ${testoHtmlSicuro(doc.fornitore || "fornitore da verificare")} (${review})${ocrStatus}${visualReaderStatus}</li>`;
   }).join("");
 
   if (merged?.merge_blocked) {

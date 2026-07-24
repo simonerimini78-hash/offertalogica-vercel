@@ -65,7 +65,8 @@ test("costruisce una richiesta Responses privata, pinned e a schema strict", asy
   const request = await buildPdfAiRequest({ filePath, pageCount: 8 });
   assert.equal(request.model, PDF_AI_PRIMARY_MODEL);
   assert.equal(request.store, false);
-  assert.equal(request.input[1].content[0].detail, "high");
+  assert.equal(request.input[1].content[0].detail, undefined);
+  assert.equal(request.max_output_tokens, 6_500);
   assert.match(request.input[1].content[0].file_data, /^data:application\/pdf;base64,/);
   assert.equal(request.text.format.type, "json_schema");
   assert.equal(request.text.format.strict, true);

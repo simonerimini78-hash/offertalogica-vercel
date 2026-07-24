@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import formidable from "formidable";
 import { json, method, requireAllowedOrigin } from "../lib/http.js";
 import { extractPdfWithControlledOcr } from "../lib/pdfExtractWithOcr.js";
-import { runPdfAiPipeline } from "../lib/pdfAiPipeline.js";
+import { publicPdfAiStatus, runPdfAiPipeline } from "../lib/pdfAiPipeline.js";
 import { archivePdfAnalysis, pdfArchiveConfigured } from "../lib/pdfArchive.js";
 import { buildRasterArchivePdf } from "../lib/pdfRasterArchive.js";
 import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
@@ -225,7 +225,12 @@ export default async function handler(req, res) {
           archive = { stored: false, reason: "archive_error" };
         }
       }
-      return json(res, 200, { ok: true, normalized, archive });
+      return json(res, 200, {
+        ok: true,
+        normalized,
+        archive,
+        reader: publicPdfAiStatus(pipeline.audit),
+      });
     }
 
     const file = Array.isArray(files.pdf) ? files.pdf[0] : files.pdf;
@@ -264,7 +269,12 @@ export default async function handler(req, res) {
       shadow: pipeline.audit,
       context: archiveContext,
     }).catch(() => ({ stored: false, reason: "archive_error" }));
-    return json(res, 200, { ok: true, normalized, archive });
+    return json(res, 200, {
+      ok: true,
+      normalized,
+      archive,
+      reader: publicPdfAiStatus(pipeline.audit),
+    });
   } catch (error) {
     if (validPdf && pdfFilePath && fileMetadata) {
       await archivePdfAnalysis({

@@ -4,8 +4,12 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createPdfAiBudgetPlan } from "../lib/pdfAiConfig.js";
-import { filterSafePdfAiCandidates, runPdfAiPipeline } from "../lib/pdfAiPipeline.js";
+import { createPdfAiBudgetPlan, pdfAiConfig } from "../lib/pdfAiConfig.js";
+import {
+  filterSafePdfAiCandidates,
+  publicPdfAiStatus,
+  runPdfAiPipeline,
+} from "../lib/pdfAiPipeline.js";
 import { buildRasterBatchPlan } from "../lib/pdfAiRasterBatchedReader.js";
 import { buildRasterArchivePdf } from "../lib/pdfRasterArchive.js";
 
@@ -157,7 +161,7 @@ test("il budget Step 8 viene riservato prima delle chiamate", () => {
     env: FALLBACK_ENV,
   });
   assert.deepEqual(budget, {
-    configVersion: "step8-clean-budget-v1",
+    configVersion: "step8-clean-budget-v2-preview-active",
     mode: "fallback",
     totalBudgetMs: 55_000,
     responseMarginMs: 4_000,
@@ -167,6 +171,81 @@ test("il budget Step 8 viene riservato prima delle chiamate", () => {
     criticalRequestTimeoutMs: 21_250,
     sufficient: true,
   });
+});
+
+test("la Preview attiva il fallback senza configurazione manuale e la produzione resta spenta", () => {
+  assert.equal(pdfAiConfig({ VERCEL_ENV: "preview" }).mode, "fallback");
+  assert.equal(pdfAiConfig({ VERCEL_ENV: "preview", PDF_AI_PREVIEW_MODE: "off" }).mode, "off");
+  assert.equal(pdfAiConfig({ VERCEL_ENV: "production" }).mode, "off");
+  assert.equal(pdfAiConfig({ PDF_AI_MODE: "shadow" }).mode, "shadow");
+});
+
+test("lo stato pubblico del lettore non espone errori grezzi del provider", () => {
+  assert.deepEqual(publicPdfAiStatus({
+    enabled: true,
+    mode: "fallback",
+    public_output: "step7_preserved_after_ai_failure",
+    ai: {
+      status: "failed",
+      reason: "openai_http_400: dettagli privati del provider",
+      candidate_count: 0,
+      partial: false,
+    },
+    promoted: [],
+  }), {
+    mode: "fallback",
+    status: "failed",
+    reason: "openai_http_error",
+    public_output: "step7_preserved_after_ai_failure",
+    candidate_count: 0,
+    promoted_count: 0,
+    partial: false,
+  });
+});
+
+test("una bolletta raster classificata dall'IA diventa riconosciuta e utilizzabile", async (t) => {
+  const imageFiles = await rasterFixture(t);
+  const result = await runPdfAiPipeline({
+    imageFiles,
+    filename: "bolletta-fotografata.pdf",
+    normalized: baseline({ kind: "unknown", commodity: "unknown", recognized: false }),
+    env: FALLBACK_ENV,
+    apiKey: "test-key",
+    transport: async ({ request }) => {
+      const profile = requestProfile(request);
+      const candidates = profile === "critical_luce"
+        ? [aiCandidate({
+          field: "consumo_luce_kwh",
+          value: 2_700,
+          unit: "kWh/anno",
+          commodity: "electricity",
+          label: "Consumo annuo energia elettrica",
+          evidence: "Consumo annuo energia elettrica 2.700 kWh",
+          semanticRole: "actual_customer_value",
+        })]
+        : profile === "critical_gas"
+          ? [aiCandidate({
+            field: "consumo_gas_smc",
+            value: 640,
+            unit: "Smc/anno",
+            commodity: "gas",
+            label: "Consumo annuo gas naturale",
+            evidence: "Consumo annuo gas naturale 640 Smc",
+            semanticRole: "actual_customer_value",
+          })]
+          : [];
+      return transportResponse(validAiOutput({ candidates }), `resp_${profile}`);
+    },
+  });
+
+  assert.equal(result.normalized.kind, "bolletta");
+  assert.equal(result.normalized.commodity, "dual");
+  assert.equal(result.normalized.fornitore, "Fornitore Test");
+  assert.equal(result.normalized.recognized, true);
+  assert.equal(result.normalized.consumo_luce_kwh, 2_700);
+  assert.equal(result.normalized.consumo_gas_smc, 640);
+  assert.equal(result.audit.public_output, "safe_review_merge");
+  assert.equal(publicPdfAiStatus(result.audit).reason, null);
 });
 
 test("cinque pagine dual producono sempre il piano 3+2, luce critica e gas critico", async (t) => {
@@ -478,6 +557,8 @@ test("frontend e API usano un solo percorso raster Step 8 senza nuove funzioni",
   assert.match(apiSource, /runPdfAiPipeline/);
   assert.match(apiSource, /buildRasterArchivePdf/);
   assert.match(apiSource, /shadow:\s*pipeline\.audit/);
+  assert.match(apiSource, /reader:\s*publicPdfAiStatus\(pipeline\.audit\)/);
+  assert.match(html, /reader:\s*payload\.reader/);
   assert.doesNotMatch(apiSource, /ai:\s*pipeline\.audit/);
   assert.doesNotMatch(apiSource, /runPdfReaderShadow/);
   assert.match(staffArchiveApi, /action === "cleanup"/);

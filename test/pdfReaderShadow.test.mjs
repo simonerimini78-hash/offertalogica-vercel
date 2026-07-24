@@ -92,7 +92,7 @@ test("lo shadow viene aggiunto solo alla copia privata archiviata", () => {
 
 test("l'endpoint pubblico conserva la risposta legacy e le API restano 12", async () => {
   const source = await fs.readFile(new URL("../api/analyze-pdf.js", import.meta.url), "utf8");
-  assert.match(source, /return json\(res, 200, \{ ok: true, normalized, archive \}\)/);
+  assert.match(source, /reader:\s*publicPdfAiStatus\(pipeline\.audit\)/);
   assert.doesNotMatch(source, /return json\(res, 200, \{[^}]*shadow/);
   const apiFiles = (await fs.readdir(new URL("../api/", import.meta.url))).filter((name) => name.endsWith(".js"));
   assert.equal(apiFiles.length, 12);
