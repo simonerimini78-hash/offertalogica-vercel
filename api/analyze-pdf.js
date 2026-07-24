@@ -2,8 +2,9 @@ import fs from "node:fs/promises";
 import formidable from "formidable";
 import { json, method, requireAllowedOrigin } from "../lib/http.js";
 import { extractPdfWithControlledOcr } from "../lib/pdfExtractWithOcr.js";
-import { archivePdfAnalysis } from "../lib/pdfArchive.js";
-import { runPdfReaderShadow } from "../lib/pdfReaderShadow.js";
+import { runPdfAiPipeline } from "../lib/pdfAiPipeline.js";
+import { archivePdfAnalysis, pdfArchiveConfigured } from "../lib/pdfArchive.js";
+import { buildRasterArchivePdf } from "../lib/pdfRasterArchive.js";
 import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
 
 export const config = {
@@ -14,13 +15,22 @@ const ACCEPTED_UPLOAD_MIME_TYPES = new Set([
   "application/pdf",
   "application/x-pdf",
   "application/octet-stream",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
 ]);
+const ACCEPTED_IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const MAX_RASTER_PAGES = 8;
+const MAX_RASTER_TOTAL_BYTES = 4_050_000;
+const MAX_RASTER_PAGE_BYTES = 2_500_000;
 
 function parseForm(req) {
   const maxFileSize = Number(process.env.MAX_PDF_BYTES || 8_000_000);
   const form = formidable({
-    multiples: false,
-    maxFileSize,
+    multiples: true,
+    maxFiles: MAX_RASTER_PAGES,
+    maxFileSize: Math.max(maxFileSize, MAX_RASTER_PAGE_BYTES),
+    maxTotalFileSize: Math.max(maxFileSize, MAX_RASTER_TOTAL_BYTES),
     allowEmptyFiles: false,
     filter: (part) => ACCEPTED_UPLOAD_MIME_TYPES.has(part.mimetype || ""),
   });
@@ -48,6 +58,24 @@ function parseArchiveContext(fields = {}) {
   }
 }
 
+function safeInteger(value, fallback = 0) {
+  const parsed = Number.parseInt(String(fieldValue(value) || ""), 10);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function safeFilename(value) {
+  const raw = String(fieldValue(value) || "documento.pdf").split(/[\\/]/).pop() || "documento.pdf";
+  return raw.replace(/[\u0000-\u001f\u007f]/g, "").slice(0, 180) || "documento.pdf";
+}
+
+function rasterFilesFromForm(files = {}) {
+  const raw = files.pages || files.page || [];
+  const list = Array.isArray(raw) ? raw : [raw];
+  return list
+    .filter((file) => file && ACCEPTED_IMAGE_MIME_TYPES.has(file.mimetype || ""))
+    .sort((left, right) => String(left.originalFilename || "").localeCompare(String(right.originalFilename || "")));
+}
+
 async function isRealPdf(filePath) {
   const handle = await fs.open(filePath, "r");
   try {
@@ -59,9 +87,53 @@ async function isRealPdf(filePath) {
   }
 }
 
+async function validImageSignature(file) {
+  const bytes = await fs.readFile(file.filepath);
+  if (bytes.length < 12) return false;
+  const mime = String(file.mimetype || "");
+  if (mime === "image/jpeg") {
+    return bytes[0] === 0xff
+      && bytes[1] === 0xd8
+      && bytes[bytes.length - 2] === 0xff
+      && bytes[bytes.length - 1] === 0xd9;
+  }
+  if (mime === "image/png") {
+    return bytes.subarray(0, 8).equals(
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    );
+  }
+  if (mime === "image/webp") {
+    return bytes.subarray(0, 4).toString("ascii") === "RIFF"
+      && bytes.subarray(8, 12).toString("ascii") === "WEBP";
+  }
+  return false;
+}
+
+function unknownRasterBaseline({ filename, pageCount, originalBytes, rasterBytes }) {
+  return {
+    parser_version: "step8-clean-client-raster-v1",
+    page_count: pageCount,
+    diagnostics: [],
+    kind: "unknown",
+    commodity: "unknown",
+    recognized: false,
+    confidence: "low",
+    warnings: ["pdf_grande_rasterizzato_nel_browser", "verifica_utente_richiesta"],
+    textExtracted: 0,
+    needsReview: true,
+    upload_transport: {
+      mode: "client_rasterized_pdf_pages",
+      original_filename: filename,
+      original_bytes: originalBytes,
+      raster_bytes: rasterBytes,
+      page_count: pageCount,
+    },
+  };
+}
+
 function publicError(error) {
   const message = String(error?.message || "");
-  if (/maxFileSize|max file size|too large/i.test(message)) {
+  if (/maxFileSize|maxTotalFileSize|max file size|too large/i.test(message)) {
     return { status: 413, error: "PDF troppo grande" };
   }
   if (/password|encrypted|protected/i.test(message)) {
@@ -73,9 +145,13 @@ function publicError(error) {
 export default async function handler(req, res) {
   if (!method(req, res, ["POST"])) return;
   if (!requireAllowedOrigin(req, res)) return;
-  if (!(await enforceRateLimit(req, res, { label: "analyze-pdf", ...rateLimitConfig("PDF", 15) }))) return;
+  if (!(await enforceRateLimit(req, res, {
+    label: "analyze-pdf",
+    ...rateLimitConfig("PDF", 15),
+  }))) return;
 
-  let temporaryFilePath = "";
+  const temporaryFilePaths = [];
+  let pdfFilePath = "";
   let fileMetadata = null;
   let archiveContext = {};
   let validPdf = false;
@@ -84,60 +160,115 @@ export default async function handler(req, res) {
     ? Math.max(24_000, Math.min(55_000, configuredDeadlineMs))
     : 55_000;
   const analysisDeadlineAt = Date.now() + analysisDeadlineMs;
+
   try {
     const { fields, files } = await parseForm(req);
     archiveContext = parseArchiveContext(fields);
-    const file = Array.isArray(files.pdf) ? files.pdf[0] : files.pdf;
-    if (!file) return json(res, 400, { ok: false, error: "PDF mancante o formato non accettato" });
+    const rasterFiles = rasterFilesFromForm(files);
 
-    temporaryFilePath = file.filepath;
+    if (rasterFiles.length) {
+      if (rasterFiles.length > MAX_RASTER_PAGES) {
+        return json(res, 413, { ok: false, error: "Troppe pagine nel PDF fotografico" });
+      }
+      temporaryFilePaths.push(...rasterFiles.map((file) => file.filepath));
+      const signatures = await Promise.all(rasterFiles.map(validImageSignature));
+      if (signatures.some((valid) => !valid)) {
+        return json(res, 415, { ok: false, error: "Una pagina raster non è valida" });
+      }
+
+      const filename = safeFilename(fields.originalFilename);
+      const originalBytes = safeInteger(fields.originalSize, 0);
+      const rasterBytes = rasterFiles.reduce((sum, file) => sum + Number(file.size || 0), 0);
+      if (rasterBytes > MAX_RASTER_TOTAL_BYTES) {
+        return json(res, 413, { ok: false, error: "PDF fotografico ancora troppo grande" });
+      }
+      const imageFiles = rasterFiles.map((file, index) => ({
+        filePath: file.filepath,
+        mimeType: file.mimetype || "image/jpeg",
+        page: index + 1,
+      }));
+      const baseline = unknownRasterBaseline({
+        filename,
+        pageCount: imageFiles.length,
+        originalBytes,
+        rasterBytes,
+      });
+      const pipeline = await runPdfAiPipeline({
+        imageFiles,
+        filename,
+        normalized: baseline,
+        deadlineAt: analysisDeadlineAt,
+        archiveReady: pdfArchiveConfigured(),
+      });
+      const normalized = pipeline.normalized;
+      let archive = { stored: false, reason: "archive_disabled" };
+      if (pdfArchiveConfigured()) {
+        try {
+          const rasterArchive = await buildRasterArchivePdf(imageFiles);
+          temporaryFilePaths.push(rasterArchive.filePath);
+          archive = await archivePdfAnalysis({
+            filePath: rasterArchive.filePath,
+            originalFilename: filename,
+            mimeType: "application/pdf",
+            fileSize: rasterArchive.fileSize,
+            normalized,
+            shadow: pipeline.audit,
+            context: {
+              ...archiveContext,
+              archiveSource: rasterArchive.source,
+              originalBytes,
+              rasterBytes,
+              sourcePageCount: rasterArchive.pageCount,
+            },
+          });
+        } catch {
+          archive = { stored: false, reason: "archive_error" };
+        }
+      }
+      return json(res, 200, { ok: true, normalized, archive });
+    }
+
+    const file = Array.isArray(files.pdf) ? files.pdf[0] : files.pdf;
+    if (!file) {
+      return json(res, 400, { ok: false, error: "PDF mancante o formato non accettato" });
+    }
+
+    pdfFilePath = file.filepath;
+    temporaryFilePaths.push(pdfFilePath);
     fileMetadata = {
       originalFilename: file.originalFilename || file.newFilename || "documento.pdf",
       mimeType: file.mimetype || "application/pdf",
       fileSize: Number(file.size || 0),
     };
-    if (!(await isRealPdf(temporaryFilePath))) {
+    if (!(await isRealPdf(pdfFilePath))) {
       return json(res, 415, { ok: false, error: "Il file caricato non è un PDF valido" });
     }
     validPdf = true;
 
-    const normalized = await extractPdfWithControlledOcr(temporaryFilePath, {
+    const step7Normalized = await extractPdfWithControlledOcr(pdfFilePath, {
       filename: fileMetadata.originalFilename,
       deadlineAt: analysisDeadlineAt,
     });
-    const canRunShadow = analysisDeadlineAt - Date.now() >= 3_000;
-    const shadow = canRunShadow
-      ? await runPdfReaderShadow({
-        filePath: temporaryFilePath,
-        filename: fileMetadata.originalFilename,
-        legacyNormalized: normalized,
-        deadlineAt: analysisDeadlineAt,
-      }).catch((error) => ({
-        enabled: true,
-        mode: "shadow",
-        pipeline_version: "shadow-gpt41-v1",
-        public_output: "legacy_unchanged",
-        error: String(error?.message || "shadow_pipeline_error").slice(0, 300),
-      }))
-      : {
-        enabled: true,
-        mode: "shadow",
-        pipeline_version: "shadow-gpt41-v1",
-        public_output: "legacy_unchanged",
-        skipped: "analysis_deadline_near",
-      };
+    const pipeline = await runPdfAiPipeline({
+      filePath: pdfFilePath,
+      filename: fileMetadata.originalFilename,
+      normalized: step7Normalized,
+      deadlineAt: analysisDeadlineAt,
+      archiveReady: pdfArchiveConfigured(),
+    });
+    const normalized = pipeline.normalized;
     const archive = await archivePdfAnalysis({
-      filePath: temporaryFilePath,
+      filePath: pdfFilePath,
       ...fileMetadata,
       normalized,
-      shadow,
+      shadow: pipeline.audit,
       context: archiveContext,
     }).catch(() => ({ stored: false, reason: "archive_error" }));
     return json(res, 200, { ok: true, normalized, archive });
   } catch (error) {
-    if (validPdf && temporaryFilePath && fileMetadata) {
+    if (validPdf && pdfFilePath && fileMetadata) {
       await archivePdfAnalysis({
-        filePath: temporaryFilePath,
+        filePath: pdfFilePath,
         ...fileMetadata,
         error,
         context: archiveContext,
@@ -146,8 +277,6 @@ export default async function handler(req, res) {
     const mapped = publicError(error);
     return json(res, mapped.status, { ok: false, error: mapped.error });
   } finally {
-    if (temporaryFilePath) {
-      await fs.unlink(temporaryFilePath).catch(() => {});
-    }
+    await Promise.all(temporaryFilePaths.map((filePath) => fs.unlink(filePath).catch(() => {})));
   }
 }

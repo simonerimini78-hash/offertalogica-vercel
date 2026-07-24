@@ -1,6 +1,6 @@
 # CONTINUA DA QUI - OffertaLogica
 
-Ultimo aggiornamento: 2026-07-15
+Ultimo aggiornamento: 2026-07-23
 
 Questo file e il punto di ritorno del progetto. Quando una nuova sessione Codex riparte, leggere prima questo file e poi `docs/STATO-PROGETTO-OFFERTALOGICA.md`.
 
@@ -24,6 +24,69 @@ Prima di modificare codice usa sempre questo schema:
 - Cosa cambio.
 - Cosa non tocco.
 - Come verifico che funzioni.
+
+## Branch di prova Step 8 - lettore PDF/IA pulito
+
+Branch previsto:
+
+`lettore-pdf-ocr-AI-step8-pulito`
+
+Stato al 23 luglio 2026:
+
+- il branch nasce dall'attuale `main` e non deve essere unito finche i test reali non sono conclusi;
+- nessun deployment e nessun merge sono stati eseguiti;
+- `api/analyze-pdf.js` resta l'unico endpoint pubblico del lettore;
+- la cartella `api` resta composta da 12 funzioni;
+- i PDF standard continuano a usare parser e OCR Step 7;
+- i PDF grandi vengono rasterizzati nel browser e inviati come JPEG compressi;
+- esiste una sola pipeline IA runtime:
+  `api/analyze-pdf.js` -> `lib/pdfAiPipeline.js` -> `lib/pdfAiRasterBatchedReader.js` -> `lib/pdfAiReader.js`;
+- il piano per cinque pagine e deterministico: generale 1-3, generale 4-5, recupero critico luce e recupero critico gas;
+- lettura generale: `gpt-4.1-mini-2025-04-14`;
+- recuperi critici: `gpt-4.1-2025-04-14`;
+- il budget massimo e 55 secondi dentro i 60 secondi assegnati all'API;
+- in `PDF_AI_MODE=shadow` l'output pubblico Step 7 resta invariato;
+- candidati, rifiuti, conflitti e arbitraggio shadow vengono conservati solo nell'archivio privato;
+- i PDF raster vengono archiviati come copia PDF privata delle stesse pagine JPEG viste dall'IA;
+- `OPENAI_API_KEY` e service role Supabase restano solo server-side;
+- tutte le richieste OpenAI usano `store: false`;
+- POD, PDR, codice fiscale e codice cliente discordanti non vengono promossi;
+- prezzi medi di bolletta, rete, trasporto, oneri, imposte e potenza non possono diventare prezzi contrattuali;
+- una quota mensile non viene annualizzata automaticamente;
+- timeout, errore parziale o errore di fusione conservano il risultato Step 7.
+
+Verifiche automatiche completate:
+
+- test specifici Step 8, adapter, archivio e shadow: 26/26;
+- test OCR Step 7: 40/40;
+- suite complessiva: 213 test superati;
+- due test storici gia rotti nell'attuale `main` restano esclusi dal lavoro Step 8:
+  `pdfEvidenceArbitration.test.mjs` e `pdfHybridResilience.test.mjs`, perche
+  `lib/pdfHybrid.js` importa il file assente `lib/pdfHybridPolicy.js`;
+- `npm run verify:offers`: OK;
+- `npm run validate:calculator` e `npm run test:ranking-arera` falliscono anche
+  senza la patch perche il catalogo del `main` non contiene vere offerte dual;
+- il generatore dell'archivio raster e stato verificato su Irina (5 pagine,
+  circa 1,91 MB) e Sorgenia (2 pagine, circa 508 KB).
+
+Test reali ancora obbligatori prima del merge:
+
+- eseguire Irina tre volte;
+- eseguire Sorgenia tre volte;
+- controllare stabilita di commodity, consumi, potenza e batch;
+- controllare che nessun identificativo discordante venga promosso;
+- controllare assenza di timeout e `FUNCTION_INVOCATION_FAILED`;
+- non dichiarare il branch pronto per il merge prima di questi sei test.
+
+Comando locale predisposto:
+
+```bash
+OPENAI_API_KEY=... node scripts/benchmark-pdf-ai-step8.mjs --runs 3
+```
+
+Il report non anagrafico viene scritto in:
+
+`/private/tmp/offertalogica-step8-real-benchmark.json`
 
 
 ## Aggiornamento v89 - archivio PDF privato e diagnostica staff

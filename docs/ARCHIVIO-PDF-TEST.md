@@ -1,6 +1,8 @@
 # Archivio PDF di test - configurazione v89
 
-Questa funzione è disattivata per impostazione predefinita. Durante la fase di test controllata può conservare gli originali in un bucket Supabase privato e registrare la diagnostica campo per campo.
+Questa funzione e disattivata per impostazione predefinita. Durante la fase di test controllata puo conservare i PDF in un bucket Supabase privato e registrare la diagnostica campo per campo.
+
+Per i PDF standard viene conservato l'originale. Per i PDF grandi rasterizzati nel browser viene conservata una copia PDF privata ricostruita dalle stesse pagine JPEG analizzate dall'IA. Il record la identifica con `source_context.archiveSource=client_raster_reconstruction` e conserva separatamente dimensione originale dichiarata, dimensione raster e numero di pagine.
 
 ## 1. Creare tabella e bucket
 
@@ -43,17 +45,17 @@ La pagina permette di:
 - classificare il documento come verificato o caso di test;
 - eliminare analisi e file.
 
-## 4. Pulizia
+## 4. Pulizia e retention
 
 Ogni record riceve `expires_at`. L'endpoint protetto:
 
-`/api/cleanup-pdf-archive`
+`/api/staff-pdf-analyses?action=cleanup`
 
 elimina i record scaduti e rimuove il file quando non è condiviso da altre analisi dello stesso PDF. Deve essere chiamato con:
 
 `Authorization: Bearer CRON_SECRET`
 
-La pianificazione Vercel può essere aggiunta al repository completo; non è inclusa nel pacchetto incrementale per non sovrascrivere un eventuale `vercel.json` esistente.
+La pulizia riusa una delle 12 funzioni esistenti e non crea una tredicesima API. Per applicare davvero `PDF_ARCHIVE_RETENTION_DAYS`, l'azione deve essere richiamata periodicamente da un cron esterno o da una pianificazione compatibile con il piano Vercel. La sola variabile imposta `expires_at`, ma non avvia da sola la cancellazione.
 
 ## 5. Regola operativa
 
