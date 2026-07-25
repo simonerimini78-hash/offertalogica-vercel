@@ -6876,15 +6876,18 @@ function configuraConfermaPdfPronta(results) {
   const successCount = availableDocuments.filter(risultatoPdfUtilizzabile).length;
   const mixedDocuments = Boolean(LEAD_STATE.pdfData?.mixed_documents);
   const mergeBlocked = Boolean(LEAD_STATE.pdfData?.merge_blocked);
+  const identityReview = Boolean(LEAD_STATE.pdfData?.identity_review_required);
   const hasReadableData = successCount > 0 && !mixedDocuments && !mergeBlocked && Object.keys(LEAD_STATE.pdfData || {}).length > 0;
 
   if (title) title.innerText = mergeBlocked
     ? "Separa i documenti prima di continuare"
     : mixedDocuments
       ? "Separa bolletta e scheda sintetica"
-      : hasReadableData
-        ? "Dati letti: controlla e conferma"
-        : "Documento non riconosciuto: completa manualmente";
+      : identityReview
+        ? "Dati letti: verifica che i PDF siano dello stesso cliente"
+        : hasReadableData
+          ? "Dati letti: controlla e conferma"
+          : "Documento non riconosciuto: completa manualmente";
   if (button) {
     button.disabled = mixedDocuments || mergeBlocked;
     button.innerText = mergeBlocked
@@ -6901,9 +6904,11 @@ function configuraConfermaPdfPronta(results) {
       ? "<strong>I PDF non appartengono allo stesso cliente o alla stessa fornitura.</strong> Usa i pulsanti Rimuovi accanto ai documenti e lascia soltanto un gruppo omogeneo. Nessun valore è stato scelto o unito automaticamente."
       : mixedDocuments
         ? "<strong>Hai caricato insieme una bolletta e una scheda sintetica.</strong> Per evitare di mescolare i dati della fornitura attuale con quelli della nuova offerta, rimuovi i PDF e analizzali separatamente."
-        : hasReadableData
-          ? "<strong>Leggi i dati estratti e apri l’anteprima.</strong> Potrai scegliere campo per campo cosa inserire; i valori manuali resteranno protetti."
-          : "<strong>Il documento non ha fornito dati sufficientemente affidabili.</strong> Puoi confermare per aprire il modulo e completare i valori manualmente."
+        : identityReview
+          ? "<strong>I PDF luce e gas sono stati letti separatamente.</strong> Fornitori e codici cliente diversi sono ammessi. Un dato anagrafico è discordante: controllalo nell’anteprima; non verrà inserito automaticamente."
+          : hasReadableData
+            ? "<strong>Leggi i dati estratti e apri l’anteprima.</strong> Potrai scegliere campo per campo cosa inserire; i valori manuali resteranno protetti."
+            : "<strong>Il documento non ha fornito dati sufficientemente affidabili.</strong> Puoi confermare per aprire il modulo e completare i valori manualmente."
   );
   panel?.classList.remove("pdf-confirm-attention");
   void panel?.offsetWidth;
@@ -7822,7 +7827,7 @@ function rebuildMergedPdfAutofillPlan(contract) {
         requires_explicit_selection: true,
         provenance: entry.provenance?.origin || null,
       }));
-    } else if (entry.status !== "non_applicabile" && entry.autofill.reason !== "codici_specifici_per_utenza") {
+    } else if (entry.status !== "non_applicabile" && !["codici_specifici_per_utenza", "fornitori_specifici_per_utenza"].includes(entry.autofill.reason)) {
       blockedFields.push({
         source_field: entry.field,
         targets,
@@ -8014,7 +8019,7 @@ function pdfReadinessFieldsLine(label, fields) {
 
 function pdfBlockedAutofillLine(contract) {
   const blocked = (contract?.autofill_plan?.blocked_fields || [])
-    .filter((item) => !["valore_assente", "campo_non_mappato", "non_applicabile", "codici_specifici_per_utenza"].includes(item?.reason));
+    .filter((item) => !["valore_assente", "campo_non_mappato", "non_applicabile", "codici_specifici_per_utenza", "fornitori_specifici_per_utenza"].includes(item?.reason));
   const labels = [...new Set(blocked.map((item) => PDF_READINESS_FIELD_LABELS[item.source_field] || String(item.source_field || "").replace(/_/g, " ")).filter(Boolean))];
   return labels.length ? `Non autocompilati automaticamente: ${labels.join(", ")}` : "";
 }
@@ -8041,40 +8046,77 @@ function normalizePdfSupplyId(value) {
   return String(value || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
 
+function pdfDocumentFieldEntry(doc, field) {
+  return doc?.data_contract?.fields?.[field] || null;
+}
+
+function pdfDocumentFieldTrusted(doc, field) {
+  const entry = pdfDocumentFieldEntry(doc, field);
+  if (entry) return entry.status === "completo" && entry.autofill?.allowed === true;
+  const explicitStatus = doc?.field_status?.[field]?.status;
+  if (explicitStatus) return explicitStatus === "completo";
+  const legacyValue = doc?.[field];
+  return legacyValue !== null && legacyValue !== undefined && legacyValue !== "";
+}
+
 function analyzePdfDocumentIsolation(validDocuments) {
   const documents = Array.isArray(validDocuments) ? validDocuments : [];
-  if (documents.length < 2) return { blocked: false, reasons: [] };
+  if (documents.length < 2) return { blocked: false, reasons: [], review_required: false, review_reasons: [] };
 
-  const taxIds = [...new Set(documents.map((doc) => normalizePdfTaxId(doc.codice_fiscale)).filter(Boolean))];
-  const holders = [...new Set(documents.map((doc) => normalizePdfHolder(doc.intestatario)).filter(Boolean))];
-  const pods = [...new Set(documents.map((doc) => normalizePdfSupplyId(doc.pod)).filter(Boolean))];
-  const pdrs = [...new Set(documents.map((doc) => normalizePdfSupplyId(doc.pdr)).filter(Boolean))];
+  const observations = documents.map((doc) => ({
+    tax_id: normalizePdfTaxId(doc.codice_fiscale),
+    tax_id_trusted: pdfDocumentFieldTrusted(doc, "codice_fiscale"),
+    holder: normalizePdfHolder(doc.intestatario),
+    holder_value: String(doc.intestatario || "").trim(),
+    holder_trusted: pdfDocumentFieldTrusted(doc, "intestatario"),
+    pod: normalizePdfSupplyId(doc.pod),
+    pdr: normalizePdfSupplyId(doc.pdr),
+  }));
+  const unique = (values) => [...new Set(values.filter(Boolean))];
+  const taxIds = unique(observations.map((item) => item.tax_id));
+  const trustedTaxIds = unique(observations.filter((item) => item.tax_id_trusted).map((item) => item.tax_id));
+  const holders = unique(observations.map((item) => item.holder));
+  const trustedHolders = unique(observations.filter((item) => item.holder_trusted).map((item) => item.holder));
+  const trustedHolderValues = unique(observations.filter((item) => item.holder_trusted).map((item) => item.holder_value));
+  const pods = unique(observations.map((item) => item.pod));
+  const pdrs = unique(observations.map((item) => item.pdr));
   const reasons = [];
+  const reviewReasons = [];
 
-  if (taxIds.length > 1) reasons.push("clienti_diversi_codice_fiscale");
-  if (!taxIds.length && holders.length > 1) reasons.push("clienti_diversi_intestatario");
-  if (taxIds.length === 1) {
-    const holdersWithTax = [...new Set(documents
-      .filter((doc) => normalizePdfTaxId(doc.codice_fiscale))
-      .map((doc) => normalizePdfHolder(doc.intestatario))
-      .filter(Boolean))];
-    const holdersWithoutTax = [...new Set(documents
-      .filter((doc) => !normalizePdfTaxId(doc.codice_fiscale))
-      .map((doc) => normalizePdfHolder(doc.intestatario))
-      .filter(Boolean))];
-    if (holdersWithTax.length > 1) reasons.push("intestatario_incoerente_con_codice_fiscale");
-    if (holdersWithTax.length === 1 && holdersWithoutTax.some((holder) => holder !== holdersWithTax[0])) {
-      reasons.push("documento_senza_codice_fiscale_di_altro_intestatario");
+  for (let leftIndex = 0; leftIndex < observations.length; leftIndex += 1) {
+    for (let rightIndex = leftIndex + 1; rightIndex < observations.length; rightIndex += 1) {
+      const left = observations[leftIndex];
+      const right = observations[rightIndex];
+      const sameTrustedTax = Boolean(
+        left.tax_id && right.tax_id && left.tax_id === right.tax_id
+        && (left.tax_id_trusted || right.tax_id_trusted)
+      );
+
+      if (left.tax_id && right.tax_id && left.tax_id !== right.tax_id) {
+        if (left.tax_id_trusted && right.tax_id_trusted) reasons.push("clienti_diversi_codice_fiscale");
+        else reviewReasons.push("codice_fiscale_da_verificare");
+      }
+
+      if (left.holder && right.holder && left.holder !== right.holder) {
+        if (left.holder_trusted && right.holder_trusted && !sameTrustedTax) reasons.push("clienti_diversi_intestatario");
+        else reviewReasons.push("intestatario_da_verificare");
+      }
     }
   }
+
   if (pods.length > 1) reasons.push("punti_luce_diversi");
   if (pdrs.length > 1) reasons.push("punti_gas_diversi");
 
   return {
     blocked: reasons.length > 0,
     reasons: [...new Set(reasons)],
+    review_required: reasons.length === 0 && reviewReasons.length > 0,
+    review_reasons: [...new Set(reviewReasons)],
     tax_ids: taxIds,
+    trusted_tax_ids: trustedTaxIds,
     holders,
+    trusted_holders: trustedHolders,
+    trusted_holder_values: trustedHolderValues,
     pods,
     pdrs,
   };
@@ -8088,8 +8130,99 @@ function pdfIsolationReasonLabel(reason) {
     documento_senza_codice_fiscale_di_altro_intestatario: "un documento senza codice fiscale appartiene a un altro intestatario",
     punti_luce_diversi: "POD differenti",
     punti_gas_diversi: "PDR differenti",
+    codice_fiscale_da_verificare: "codice fiscale letto in modo discordante",
+    intestatario_da_verificare: "intestatario letto in modo discordante",
   };
   return labels[reason] || String(reason || "").replace(/_/g, " ");
+}
+
+function syncMergedPdfProviders(merged) {
+  const luce = merged?.fornitore_luce || null;
+  const gas = merged?.fornitore_gas || null;
+  const same = Boolean(luce && gas && String(luce) === String(gas));
+  if (merged?.commodity === "dual") merged.fornitore = same ? luce : "";
+  else if (merged?.commodity === "luce") merged.fornitore = luce || merged.fornitore || "";
+  else if (merged?.commodity === "gas") merged.fornitore = gas || merged.fornitore || "";
+
+  const contract = merged?.data_contract;
+  if (!contract) return merged;
+  contract.supplies = contract.supplies || { luce: null, gas: null };
+  if (contract.supplies.luce && luce) contract.supplies.luce.provider = luce;
+  if (contract.supplies.gas && gas) contract.supplies.gas.provider = gas;
+  const generic = contract.fields?.fornitore;
+  if (generic && merged.commodity === "dual" && luce && gas && !same) {
+    contract.fields.fornitore = {
+      ...generic,
+      normalized_value: null,
+      original_value: null,
+      status: "non_applicabile",
+      status_reason: "fornitori_specifici_per_utenza",
+      alternatives: [luce, gas],
+      autofill: {
+        ...(generic.autofill || {}),
+        allowed: false,
+        review_selectable: false,
+        requires_explicit_selection: false,
+        reason: "fornitori_specifici_per_utenza",
+      },
+    };
+  }
+  rebuildMergedPdfAutofillPlan(contract);
+  return merged;
+}
+
+function applyPdfIsolationReview(merged, isolation) {
+  if (!merged || !isolation?.review_required) return merged;
+  merged.identity_review_required = true;
+  merged.isolation = isolation;
+  merged.validation_notes = [...new Set([...(merged.validation_notes || []), ...isolation.review_reasons])];
+
+  const reviewIdentityField = (fieldName, alternatives, safeValue) => {
+    if (safeValue) merged[fieldName] = safeValue;
+    else delete merged[fieldName];
+    merged.field_status = {
+      ...(merged.field_status || {}),
+      [fieldName]: {
+        status: "da_verificare",
+        reason: "conflitto_tra_documenti",
+        evidence: alternatives.join(" | "),
+      },
+    };
+    const contract = merged.data_contract;
+    if (contract?.customer) {
+      if (fieldName === "codice_fiscale") contract.customer.tax_id = safeValue || null;
+      if (fieldName === "intestatario") contract.customer.holder = safeValue || null;
+    }
+    const entry = contract?.fields?.[fieldName];
+    if (entry) {
+      contract.fields[fieldName] = {
+        ...entry,
+        normalized_value: safeValue || null,
+        original_value: safeValue || null,
+        status: "da_verificare",
+        status_reason: "conflitto_tra_documenti",
+        alternatives,
+        autofill: {
+          ...(entry.autofill || {}),
+          allowed: false,
+          review_selectable: Boolean(safeValue),
+          requires_explicit_selection: Boolean(safeValue),
+          reason: "conflitto_tra_documenti",
+        },
+      };
+      rebuildMergedPdfAutofillPlan(contract);
+    }
+  };
+
+  if (isolation.review_reasons.includes("codice_fiscale_da_verificare")) {
+    const safeTaxId = isolation.trusted_tax_ids.length === 1 ? isolation.trusted_tax_ids[0] : null;
+    reviewIdentityField("codice_fiscale", isolation.tax_ids, safeTaxId);
+  }
+  if (isolation.review_reasons.includes("intestatario_da_verificare")) {
+    const safeHolder = isolation.trusted_holder_values.length === 1 ? isolation.trusted_holder_values[0] : null;
+    reviewIdentityField("intestatario", isolation.holders, safeHolder);
+  }
+  return merged;
 }
 
 function mergePdfDocuments(documents) {
@@ -8190,8 +8323,7 @@ function mergePdfDocuments(documents) {
     }
   } else if (merged.commodity === "luce") merged.codice_cliente = codiceClienteLuce || merged.codice_cliente;
   else if (merged.commodity === "gas") merged.codice_cliente = codiceClienteGas || merged.codice_cliente;
-  if (merged.fornitore_luce && merged.fornitore_gas && merged.fornitore_luce === merged.fornitore_gas) merged.fornitore = merged.fornitore_luce;
-  else merged.fornitore = merged.fornitore_luce || merged.fornitore_gas || "";
+  syncMergedPdfProviders(merged);
   if (merged.commodity === "luce") {
     merged.nome_offerta = firstValue(merged.nome_offerta_luce, merged.nome_offerta);
     merged.codice_offerta = firstValue(merged.codice_offerta_luce, merged.codice_offerta);
@@ -8207,6 +8339,7 @@ function mergePdfDocuments(documents) {
   merged.indirizzo_fornitura = merged.indirizzo_fornitura_luce || merged.indirizzo_fornitura_gas || merged.indirizzo_fornitura || "";
   if (merged.data_contract?.document) merged.data_contract.document.commodity = merged.commodity;
   syncMergedPdfCustomerCodes(merged);
+  applyPdfIsolationReview(merged, isolation);
   return merged;
 }
 
@@ -8359,10 +8492,13 @@ function renderPdfSummary(documents, merged) {
   ].filter(Boolean).join(" | ");
 
   const ocrReviewTargets = Number(merged.data_contract?.autofill_plan?.review_target_count || 0);
+  const identityReviewNotice = merged.identity_review_required
+    ? `<br><small><strong>Verifica identità:</strong> i fornitori e i codici cliente possono essere diversi tra luce e gas; il dato anagrafico discordante non è stato inserito automaticamente.</small>`
+    : "";
   return `
     <span>Documenti analizzati:</span>
     <ul style="margin:6px 0 10px 18px;">${rows}</ul>
-    <span><strong>Dati letti:</strong> ${mergedRows || "nessun dato sufficientemente affidabile; completa il modulo manualmente."}<br><small>Nel modulo saranno inseriti soltanto i campi completi ammessi dal contratto dati, dopo la tua conferma.${ocrReviewTargets ? " I dati OCR compariranno nell’anteprima deselezionati e dovrai sceglierli esplicitamente." : ""}</small></span>
+    <span><strong>Dati letti:</strong> ${mergedRows || "nessun dato sufficientemente affidabile; completa il modulo manualmente."}${identityReviewNotice}<br><small>Nel modulo saranno inseriti soltanto i campi completi ammessi dal contratto dati, dopo la tua conferma.${ocrReviewTargets ? " I dati OCR compariranno nell’anteprima deselezionati e dovrai sceglierli esplicitamente." : ""}</small></span>
   `;
 }
 
