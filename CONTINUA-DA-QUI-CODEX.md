@@ -1,6 +1,6 @@
 # CONTINUA DA QUI - OffertaLogica
 
-Ultimo aggiornamento: 2026-07-23
+Ultimo aggiornamento: 2026-07-25
 
 Questo file e il punto di ritorno del progetto. Quando una nuova sessione Codex riparte, leggere prima questo file e poi `docs/STATO-PROGETTO-OFFERTALOGICA.md`.
 
@@ -55,11 +55,32 @@ Stato al 23 luglio 2026:
 - una quota mensile non viene annualizzata automaticamente;
 - timeout, errore parziale o errore di fusione conservano il risultato Step 7.
 
+Miglioramento lettura IA del 25 luglio 2026:
+
+- anche i PDF standard usano due letture specialistiche dell'originale:
+  `critical_luce` e `critical_gas`;
+- i PDF raster usano la prima fase solo per mappare le pagine, poi inviano alle
+  letture tecniche le pagine con POD/PDR, consumi annuali, condizioni economiche
+  e codici offerta;
+- una pagina mista luce e gas resta disponibile a entrambe le letture;
+- consumi e righe economiche vengono restituiti come inventari strutturati con
+  pagina, etichetta, unita, ruolo e prova testuale;
+- il lettore distingue prezzo unitario completo, spread, indice, quota fissa,
+  singola componente e valore futuro o di rinnovo;
+- spread, indice, dispacciamento, capacita, componenti isolate e prezzi futuri
+  non possono diventare il prezzo principale;
+- una quota fissa mensile puo essere annualizzata solo dalla pipeline
+  deterministica, conservando valore originale e fattore 12;
+- la sola mappa generale non conta come lettura riuscita se entrambe le letture
+  tecniche falliscono;
+- nessuna modifica a frontend, formule del calcolatore, OTP, lead, archivio,
+  Supabase o numero di API.
+
 Verifiche automatiche completate:
 
-- test specifici Step 8, adapter, archivio e shadow: 26/26;
+- test specifici Step 8, adapter, archivio e shadow: 33/33;
 - test OCR Step 7: 40/40;
-- suite complessiva: 213 test superati;
+- suite complessiva: 222 test superati;
 - due test storici gia rotti nell'attuale `main` restano esclusi dal lavoro Step 8:
   `pdfEvidenceArbitration.test.mjs` e `pdfHybridResilience.test.mjs`, perche
   `lib/pdfHybrid.js` importa il file assente `lib/pdfHybridPolicy.js`;
@@ -68,6 +89,10 @@ Verifiche automatiche completate:
   senza la patch perche il catalogo del `main` non contiene vere offerte dual;
 - il generatore dell'archivio raster e stato verificato su Irina (5 pagine,
   circa 1,91 MB) e Sorgenia (2 pagine, circa 508 KB).
+
+La sessione locale del 25 luglio non disponeva di `OPENAI_API_KEY`: richieste e
+risposte GPT reali non sono state simulate. La prova sul branch Preview con i
+PDF reali resta obbligatoria prima di qualunque merge.
 
 Test reali ancora obbligatori prima del merge:
 

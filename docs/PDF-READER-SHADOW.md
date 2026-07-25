@@ -7,7 +7,9 @@ Lo Step 8 costruisce una base verificabile per migliorare la lettura di bollette
 Il flusso pubblico continua a usare esclusivamente `normalized` prodotto dal parser e dall'OCR controllato di Step 7. Lo shadow:
 
 1. converte i diagnostici legacy in candidati con campo, valore, unita, pagina, evidenza, ruolo semantico, fonte e confidenza;
-2. chiede a GPT-4.1 di leggere il PDF standard oppure le pagine JPEG prodotte nel browser per un PDF fotografico grande;
+2. chiede a GPT-4.1 di leggere separatamente luce e gas nel PDF originale
+   standard oppure nelle pagine JPEG prodotte nel browser per un PDF
+   fotografico grande;
 3. confronta le fonti con una policy deterministica;
 4. salva candidati, conflitti e decisioni soltanto nell'archivio PDF privato;
 5. non alimenta il calcolatore e non appare nella risposta pubblica.
@@ -19,6 +21,10 @@ Il flusso pubblico continua a usare esclusivamente `normalized` prodotto dal par
 - Due fonti indipendenti concordanti possono produrre `accepted`.
 - Valori critici discordanti producono `blocked`.
 - Esempi, soglie, sconti, tasse e componenti di rete non possono sostituire consumi o prezzi cliente.
+- Prezzo unitario completo, spread, indice, quota fissa, componente isolata e
+  prezzo futuro hanno ruoli distinti.
+- PUN, PSV, PSBIL, TTF, spread, dispacciamento, capacita e singole componenti
+  non possono diventare il prezzo unitario principale.
 - `calculator_ready` e vero soltanto quando tutti i campi necessari sono confermati da fonti indipendenti.
 
 ## Configurazione
@@ -53,6 +59,23 @@ Per un PDF raster di cinque pagine il piano e definito prima delle chiamate:
 - recupero critico gas con GPT-4.1.
 
 Le chiamate della stessa fase sono parallele. La fase critica non dipende dal tempo casualmente avanzato dalla lettura generale.
+
+La lettura generale classifica ogni pagina e segnala separatamente identita
+cliente, POD/PDR, consumo annuale, condizioni economiche e nome/codice offerta.
+Le pagine miste sono candidate sia per luce sia per gas. La fase generale non
+puo completare da sola il lettore: deve riuscire almeno una lettura critica.
+
+Per un PDF standard, quando la pipeline IA deve intervenire, vengono eseguite
+in parallelo due letture specialistiche dell'intero file originale:
+
+- `critical_luce`;
+- `critical_gas`.
+
+Entrambe producono inventari strutturati. I consumi vengono promossi soltanto
+se esplicitamente annuali o riferiti agli ultimi 12 mesi. Le righe economiche
+conservano il valore stampato, l'unita, il periodo, la formula, l'indice e la
+validita. L'eventuale conversione da quota mensile a quota annuale e eseguita
+solo dalla pipeline deterministica e resta tracciata.
 
 Prima di abilitare lo shadow su traffico reale devono essere completate la verifica privacy sui sub-responsabili e la valutazione della retention. L'abilitazione non fa parte di questa iterazione.
 

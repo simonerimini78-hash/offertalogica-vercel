@@ -6,11 +6,16 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createPdfAiBudgetPlan, pdfAiConfig } from "../lib/pdfAiConfig.js";
 import {
+  candidatesFromStructuredInventories,
   filterSafePdfAiCandidates,
   publicPdfAiStatus,
   runPdfAiPipeline,
+  structuredInventoryDiagnostics,
 } from "../lib/pdfAiPipeline.js";
-import { buildRasterBatchPlan } from "../lib/pdfAiRasterBatchedReader.js";
+import {
+  buildRasterBatchPlan,
+  selectCriticalPages,
+} from "../lib/pdfAiRasterBatchedReader.js";
 import { buildRasterArchivePdf } from "../lib/pdfRasterArchive.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -74,6 +79,9 @@ function validAiOutput({
   pageCount = 5,
   conflicts = [],
   reviewReasons = [],
+  pageMap = null,
+  consumptionObservations = [],
+  economicRows = [],
 } = {}) {
   return {
     document: {
@@ -89,10 +97,12 @@ function validAiOutput({
       table_density: "medium",
       ocr_recommended: true,
     },
-    page_map: [{ page: 1, role: "riepilogo", summary: "Dati della fornitura" }],
+    page_map: pageMap || [{ page: 1, role: "riepilogo", summary: "Dati della fornitura" }],
     candidates,
     conflicts,
     review_reasons: reviewReasons,
+    consumption_observations: consumptionObservations,
+    economic_rows: economicRows,
   };
 }
 
@@ -153,6 +163,31 @@ function internalCandidate({
   };
 }
 
+function economicRow(overrides = {}) {
+  return {
+    commodity: "electricity",
+    page: 2,
+    section_label: "Condizioni economiche dell'offerta",
+    row_label: "Prezzo energia applicato",
+    row_relation: "standalone",
+    quantity_number: null,
+    quantity_unit: null,
+    amount_number: null,
+    amount_unit: null,
+    unit_rate_number: 0.145,
+    unit_rate_unit: "EUR/kWh",
+    period_unit: "none",
+    component_role: "sales_variable",
+    price_basis: "total_unit_price",
+    validity_role: "current_contract",
+    formula_text: null,
+    index_reference: null,
+    evidence: "Prezzo energia applicato complessivo 0,145 EUR/kWh",
+    confidence: 95,
+    ...overrides,
+  };
+}
+
 test("il budget Step 8 viene riservato prima delle chiamate", () => {
   const budget = createPdfAiBudgetPlan({
     raster: true,
@@ -200,6 +235,10 @@ test("lo stato pubblico del lettore non espone errori grezzi del provider", () =
     candidate_count: 0,
     promoted_count: 0,
     partial: false,
+    consumption_observation_count: 0,
+    economic_row_count: 0,
+    inventories: { consumptions: [], economics: [] },
+    batches: [],
   });
 });
 
@@ -298,6 +337,116 @@ test("cinque pagine dual producono sempre il piano 3+2, luce critica e gas criti
   );
 });
 
+test("anche un PDF standard usa due passate specialistiche e gli inventari strutturati", async (t) => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), "ol-step8-standard-"));
+  const filePath = path.join(directory, "bolletta-standard.pdf");
+  await fs.writeFile(filePath, Buffer.from("%PDF-1.4\nstandard"));
+  t.after(() => fs.rm(directory, { recursive: true, force: true }));
+  const profiles = [];
+  const result = await runPdfAiPipeline({
+    filePath,
+    filename: "bolletta-standard.pdf",
+    normalized: baseline({ kind: "unknown", commodity: "unknown", recognized: false }),
+    env: FALLBACK_ENV,
+    apiKey: "test-key",
+    transport: async ({ request }) => {
+      const profile = requestProfile(request);
+      profiles.push(profile);
+      assert.equal(request.input[1].content[0].type, "input_file");
+      if (profile === "critical_luce") {
+        return transportResponse(validAiOutput({
+          commodity: "electricity",
+          consumptionObservations: [{
+            commodity: "electricity",
+            page: 2,
+            label: "Consumo annuo energia elettrica",
+            value_number: 2_700,
+            unit: "kWh/anno",
+            period_role: "annual",
+            evidence: "Consumo annuo energia elettrica 2.700 kWh",
+            confidence: 96,
+          }],
+          economicRows: [economicRow()],
+        }), "resp_file_luce");
+      }
+      return transportResponse(validAiOutput({
+        commodity: "gas",
+        consumptionObservations: [{
+          commodity: "gas",
+          page: 3,
+          label: "Consumo annuo gas naturale",
+          value_number: 700,
+          unit: "Smc/anno",
+          period_role: "annual",
+          evidence: "Consumo annuo gas naturale 700 Smc",
+          confidence: 96,
+        }],
+        economicRows: [economicRow({
+          commodity: "gas",
+          page: 3,
+          row_label: "Spread gas",
+          unit_rate_number: 0.08,
+          unit_rate_unit: "EUR/Smc",
+          price_basis: "spread",
+          formula_text: "PSV + 0,08 EUR/Smc",
+          index_reference: "PSV",
+          evidence: "Formula prezzo gas PSV + spread 0,08 EUR/Smc",
+        })],
+      }), "resp_file_gas");
+    },
+  });
+
+  assert.deepEqual(profiles.sort(), ["critical_gas", "critical_luce"]);
+  assert.equal(result.normalized.commodity, "dual");
+  assert.equal(result.normalized.consumo_luce_kwh, 2_700);
+  assert.equal(result.normalized.consumo_gas_smc, 700);
+  assert.equal(result.normalized.prezzo_luce_eur_kwh, 0.145);
+  assert.equal(result.normalized.spread_gas_eur_smc, 0.08);
+  assert.equal(result.audit.ai.batches.length, 2);
+  assert.ok(result.audit.ai.batches.every((batch) => batch.page_selection === "complete_original_pdf"));
+});
+
+test("una pagina mista luce e gas resta disponibile a entrambe le passate critiche", async (t) => {
+  const imageFiles = await rasterFixture(t, 4);
+  const pageMap = [
+    {
+      page: 1,
+      role: "identita cliente",
+      summary: "Dati condivisi del cliente",
+      domains: ["shared_identity"],
+      signals: {
+        customer_identity: true,
+        activation_identifiers: false,
+        annual_consumption: false,
+        economic_terms: false,
+        offer_name_or_code: false,
+      },
+    },
+    {
+      page: 2,
+      role: "riepilogo dual",
+      summary: "Consumi annuali e dati POD/PDR per entrambe le forniture",
+      domains: ["electricity", "gas", "offer_terms"],
+      signals: {
+        customer_identity: false,
+        activation_identifiers: true,
+        annual_consumption: true,
+        economic_terms: true,
+        offer_name_or_code: true,
+      },
+    },
+  ];
+  const results = [{
+    status: "completed",
+    pages: [1, 2],
+    document: { commodity: "dual" },
+    page_map: pageMap,
+    candidates: [],
+  }];
+  assert.ok(selectCriticalPages({ results, images: imageFiles, profile: "critical_luce" }).includes(2));
+  assert.ok(selectCriticalPages({ results, images: imageFiles, profile: "critical_gas" }).includes(2));
+});
+
 test("un fallimento totale dell'IA conserva integralmente il risultato Step 7", async (t) => {
   const imageFiles = await rasterFixture(t);
   const original = baseline({ fornitore: "Parser Energia" });
@@ -313,6 +462,46 @@ test("un fallimento totale dell'IA conserva integralmente il risultato Step 7", 
       throw new Error("provider_down");
     },
   });
+  assert.equal(calls, 4);
+  assert.deepEqual(result.normalized, original);
+  assert.equal(result.audit.ai.status, "failed");
+  assert.equal(result.audit.public_output, "step7_preserved_after_ai_failure");
+});
+
+test("la sola mappa generale non viene scambiata per una lettura tecnica riuscita", async (t) => {
+  const imageFiles = await rasterFixture(t);
+  const original = baseline({ fornitore: "Parser Energia" });
+  let calls = 0;
+  const result = await runPdfAiPipeline({
+    imageFiles,
+    filename: "letture-critiche-fallite.pdf",
+    normalized: original,
+    env: FALLBACK_ENV,
+    apiKey: "test-key",
+    transport: async ({ request }) => {
+      calls += 1;
+      if (requestProfile(request) === "general") {
+        return transportResponse(validAiOutput({
+          candidates: [],
+          pageMap: requestPages(request).map((page) => ({
+            page,
+            role: "pagina bolletta",
+            summary: "Pagina classificata per il routing",
+            domains: ["unknown"],
+            signals: {
+              customer_identity: false,
+              activation_identifiers: false,
+              annual_consumption: false,
+              economic_terms: false,
+              offer_name_or_code: false,
+            },
+          })),
+        }));
+      }
+      throw new Error("critical_reader_down");
+    },
+  });
+
   assert.equal(calls, 4);
   assert.deepEqual(result.normalized, original);
   assert.equal(result.audit.ai.status, "failed");
@@ -491,6 +680,60 @@ test("Costo per consumi con unità coerente è ammesso come prezzo contrattuale"
   const result = filterSafePdfAiCandidates({ candidates: [candidate], conflicts: [] });
   assert.equal(result.rejected.length, 0);
   assert.equal(result.accepted.length, 1);
+});
+
+test("uno spread strutturato resta spread e non diventa il prezzo principale", () => {
+  const row = economicRow({
+    row_label: "Spread luce",
+    unit_rate_number: 0.01818,
+    price_basis: "spread",
+    formula_text: "PUN Index GME + 0,01818 EUR/kWh",
+    index_reference: "PUN Index GME",
+    evidence: "Formula prezzo PUN Index GME + spread 0,01818 EUR/kWh",
+  });
+  const candidates = candidatesFromStructuredInventories({ economic_rows: [row] });
+  assert.deepEqual(candidates.map((item) => item.field), ["spread_luce_eur_kwh"]);
+  assert.equal(candidates[0].normalized_value, 0.01818);
+  assert.equal(candidates.some((item) => item.field === "prezzo_luce_eur_kwh"), false);
+});
+
+test("componenti future, indice e singole componenti restano informative", () => {
+  const rows = [
+    economicRow({
+      unit_rate_number: 0.011,
+      price_basis: "spread",
+      validity_role: "future_or_renewal",
+      row_label: "Dal 37 mese PUN + spread",
+      evidence: "Dal 37 mese PUN Index GME + spread 0,011 EUR/kWh",
+    }),
+    economicRow({
+      unit_rate_number: 0.0666,
+      price_basis: "single_component",
+      row_label: "Dispacciamento",
+      evidence: "Componente di dispacciamento 0,0666 EUR/kWh",
+    }),
+  ];
+  assert.equal(candidatesFromStructuredInventories({ economic_rows: rows }).length, 0);
+  const diagnostics = structuredInventoryDiagnostics({ economic_rows: rows });
+  assert.deepEqual(
+    diagnostics.economics.map((item) => item.reason),
+    ["informational_future_or_renewal", "informational_single_component"],
+  );
+});
+
+test("un candidato prezzo descritto come indice più spread viene bloccato", () => {
+  const candidate = internalCandidate({
+    field: "prezzo_luce_eur_kwh",
+    value: 0.01818,
+    unit: "EUR/kWh",
+    commodity: "luce",
+    label: "Formula prezzo",
+    evidence: "Formula prezzo PUN Index GME + spread 0,01818 EUR/kWh",
+    semanticRole: "sales_component",
+  });
+  const result = filterSafePdfAiCandidates({ candidates: [candidate], conflicts: [] });
+  assert.equal(result.accepted.length, 0);
+  assert.equal(result.rejected[0].reason, "indexed_component_not_total_unit_price");
 });
 
 test("un budget già scaduto non avvia chiamate e conserva Step 7", async (t) => {

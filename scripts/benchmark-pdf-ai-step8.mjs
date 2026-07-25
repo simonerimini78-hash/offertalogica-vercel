@@ -2,7 +2,10 @@ import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { runPdfAiPipeline } from "../lib/pdfAiPipeline.js";
+import {
+  PDF_AI_PIPELINE_VERSION,
+  runPdfAiPipeline,
+} from "../lib/pdfAiPipeline.js";
 
 const DEFAULT_RUNS = 3;
 const DEFAULT_OUTPUT = "/private/tmp/offertalogica-step8-real-benchmark.json";
@@ -140,16 +143,22 @@ function safeRunReport(result, elapsedMs) {
       reason: result.audit?.ai?.reason || null,
       partial: Boolean(result.audit?.ai?.partial),
       candidate_count: Number(result.audit?.ai?.candidate_count || 0),
+      consumption_observation_count: Number(result.audit?.ai?.consumption_observation_count || 0),
+      economic_row_count: Number(result.audit?.ai?.economic_row_count || 0),
       batches: (result.audit?.ai?.batches || []).map((batch) => ({
         id: batch.id,
         phase: batch.phase,
         profile: batch.profile,
         model: batch.model,
         pages: batch.pages,
+        page_selection: batch.page_selection,
         status: batch.status,
         reason: batch.reason,
         elapsed_ms: batch.elapsed_ms,
         candidate_count: batch.candidate_count,
+        consumption_observation_count: batch.consumption_observation_count || 0,
+        economic_row_count: batch.economic_row_count || 0,
+        document_commodity: batch.document_commodity || null,
       })),
     },
     promoted_fields: [...new Set((result.audit?.promoted || []).map((item) => item.field))].sort(),
@@ -234,7 +243,7 @@ async function main() {
   await Promise.all([fs.access(irinaPath), fs.access(sorgeniaPath)]);
   const report = {
     generated_at: new Date().toISOString(),
-    pipeline: "step8-clean-single-pipeline-v1",
+    pipeline: PDF_AI_PIPELINE_VERSION,
     runs_per_document: runs,
     documents: [],
   };
