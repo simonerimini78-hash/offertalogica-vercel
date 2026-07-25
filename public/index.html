@@ -6884,7 +6884,7 @@ function configuraConfermaPdfPronta(results) {
     : mixedDocuments
       ? "Separa bolletta e scheda sintetica"
       : identityReview
-        ? "Dati letti: verifica che i PDF siano dello stesso cliente"
+        ? "Dati letti: verifica l’anagrafica"
         : hasReadableData
           ? "Dati letti: controlla e conferma"
           : "Documento non riconosciuto: completa manualmente";
@@ -6905,7 +6905,7 @@ function configuraConfermaPdfPronta(results) {
       : mixedDocuments
         ? "<strong>Hai caricato insieme una bolletta e una scheda sintetica.</strong> Per evitare di mescolare i dati della fornitura attuale con quelli della nuova offerta, rimuovi i PDF e analizzali separatamente."
         : identityReview
-          ? "<strong>I PDF luce e gas sono stati letti separatamente.</strong> Fornitori e codici cliente diversi sono ammessi. Un dato anagrafico è discordante: controllalo nell’anteprima; non verrà inserito automaticamente."
+          ? "<strong>I PDF luce e gas sono stati letti separatamente.</strong> Fornitori e codici cliente diversi sono ammessi. Un dato anagrafico è discordante: resta visibile nel riepilogo ma non verrà inserito automaticamente."
           : hasReadableData
             ? "<strong>Leggi i dati estratti e apri l’anteprima.</strong> Potrai scegliere campo per campo cosa inserire; i valori manuali resteranno protetti."
             : "<strong>Il documento non ha fornito dati sufficientemente affidabili.</strong> Puoi confermare per aprire il modulo e completare i valori manualmente."
@@ -7243,7 +7243,6 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
         file_size: Number(file.size || 0),
         archive: payload.archive || null,
         ...payload.normalized,
-        reader: payload.reader || null,
       });
     } catch (error) {
       const safeMessage = [
@@ -8052,7 +8051,7 @@ function pdfDocumentFieldEntry(doc, field) {
 
 function pdfDocumentFieldTrusted(doc, field) {
   const entry = pdfDocumentFieldEntry(doc, field);
-  if (entry) return entry.status === "completo" && entry.autofill?.allowed === true;
+  if (entry) return entry.status === "completo";
   const explicitStatus = doc?.field_status?.[field]?.status;
   if (explicitStatus) return explicitStatus === "completo";
   const legacyValue = doc?.[field];
@@ -8083,27 +8082,21 @@ function analyzePdfDocumentIsolation(validDocuments) {
   const reasons = [];
   const reviewReasons = [];
 
-  for (let leftIndex = 0; leftIndex < observations.length; leftIndex += 1) {
-    for (let rightIndex = leftIndex + 1; rightIndex < observations.length; rightIndex += 1) {
-      const left = observations[leftIndex];
-      const right = observations[rightIndex];
-      const sameTrustedTax = Boolean(
-        left.tax_id && right.tax_id && left.tax_id === right.tax_id
-        && (left.tax_id_trusted || right.tax_id_trusted)
-      );
-
-      if (left.tax_id && right.tax_id && left.tax_id !== right.tax_id) {
-        if (left.tax_id_trusted && right.tax_id_trusted) reasons.push("clienti_diversi_codice_fiscale");
-        else reviewReasons.push("codice_fiscale_da_verificare");
-      }
-
-      if (left.holder && right.holder && left.holder !== right.holder) {
-        if (left.holder_trusted && right.holder_trusted && !sameTrustedTax) reasons.push("clienti_diversi_intestatario");
-        else reviewReasons.push("intestatario_da_verificare");
-      }
-    }
+  // Due identificativi fiscali affidabili e differenti indicano clienti diversi.
+  if (trustedTaxIds.length > 1) reasons.push("clienti_diversi_codice_fiscale");
+  // Se il codice fiscale è discordante ma l'intestatario coincide, non cancelliamo
+  // le due letture: l'anagrafica resta da verificare e non viene autocompilata.
+  else if (taxIds.length > 1) {
+    if (holders.length === 1) reviewReasons.push("codice_fiscale_da_verificare");
+    else reasons.push("clienti_diversi_intestatario");
   }
 
+  // Lo stesso codice fiscale/P.IVA, anche se ancora da verificare, è sufficiente
+  // per non scartare luce e gas quando il nome è scritto in modo leggermente diverso.
+  if (taxIds.length === 1 && holders.length > 1) reviewReasons.push("intestatario_da_verificare");
+  if (!taxIds.length && holders.length > 1) reasons.push("clienti_diversi_intestatario");
+
+  // L'attuale modello può rappresentare un solo POD e un solo PDR.
   if (pods.length > 1) reasons.push("punti_luce_diversi");
   if (pdrs.length > 1) reasons.push("punti_gas_diversi");
 
@@ -8344,30 +8337,6 @@ function mergePdfDocuments(documents) {
 }
 
 function renderPdfSummary(documents, merged) {
-  function statoLettoreVisualePdf(doc) {
-    const reader = doc?.reader;
-    if (!reader) return "";
-    if (reader.public_output === "safe_review_merge") {
-      return " Lettura visuale IA applicata: tutti i dati ricavati restano da controllare.";
-    }
-    if (reader.mode === "shadow" && reader.status === "completed") {
-      return " Lettura visuale IA eseguita solo in diagnostica: il risultato pubblico non è stato modificato.";
-    }
-    if (reader.reason === "missing_openai_api_key") {
-      return " Lettura visuale IA non configurata in questa anteprima.";
-    }
-    if (reader.reason === "disabled" || reader.mode === "off") {
-      return " Lettura visuale IA non attiva in questa anteprima.";
-    }
-    if (["failed", "unavailable"].includes(reader.status)) {
-      return " Lettura visuale IA tentata ma non completata.";
-    }
-    if (reader.status === "completed" && Number(reader.candidate_count || 0) === 0) {
-      return " Lettura visuale IA completata senza dati sufficientemente affidabili.";
-    }
-    return "";
-  }
-
   const rows = documents.map((doc) => {
     if (doc.error) return `<li><strong>${testoHtmlSicuro(doc.filename)}</strong>: ${testoHtmlSicuro(doc.error)}. Puoi cambiare PDF oppure continuare con la compilazione manuale.</li>`;
     const ocrStatus = doc.ocr?.applied
@@ -8377,12 +8346,11 @@ function renderPdfSummary(documents, merged) {
         : doc.ocr?.attempted && doc.ocr?.reason === "no_material_improvement"
           ? " OCR eseguito senza dati sufficientemente affidabili."
           : "";
-    const visualReaderStatus = statoLettoreVisualePdf(doc);
     if (!risultatoPdfUtilizzabile(doc)) {
-      return `<li><strong>${testoHtmlSicuro(doc.filename)}</strong>: documento non riconosciuto o privo di dati sufficientemente affidabili.${ocrStatus}${visualReaderStatus}</li>`;
+      return `<li><strong>${testoHtmlSicuro(doc.filename)}</strong>: documento non riconosciuto o privo di dati sufficientemente affidabili.${ocrStatus}</li>`;
     }
     const review = doc.confidence === "high" ? "affidabilità alta" : "da controllare";
-    return `<li><strong>${testoHtmlSicuro(doc.filename)}</strong>: ${testoHtmlSicuro(doc.kind || "PDF")} ${testoHtmlSicuro(doc.commodity || "")} - ${testoHtmlSicuro(doc.fornitore || "fornitore da verificare")} (${review})${ocrStatus}${visualReaderStatus}</li>`;
+    return `<li><strong>${testoHtmlSicuro(doc.filename)}</strong>: ${testoHtmlSicuro(doc.kind || "PDF")} ${testoHtmlSicuro(doc.commodity || "")} - ${testoHtmlSicuro(doc.fornitore || "fornitore da verificare")} (${review})${ocrStatus}</li>`;
   }).join("");
 
   if (merged?.merge_blocked) {
@@ -8493,7 +8461,7 @@ function renderPdfSummary(documents, merged) {
 
   const ocrReviewTargets = Number(merged.data_contract?.autofill_plan?.review_target_count || 0);
   const identityReviewNotice = merged.identity_review_required
-    ? `<br><small><strong>Verifica identità:</strong> i fornitori e i codici cliente possono essere diversi tra luce e gas; il dato anagrafico discordante non è stato inserito automaticamente.</small>`
+    ? `<br><small><strong>Verifica anagrafica:</strong> ${(merged.isolation?.review_reasons || []).map(pdfIsolationReasonLabel).map(testoHtmlSicuro).join(", ")}. I dati luce e gas restano separati e utilizzabili; il valore discordante non viene autocompilato automaticamente.</small>`
     : "";
   return `
     <span>Documenti analizzati:</span>
