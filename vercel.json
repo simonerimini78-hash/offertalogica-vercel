@@ -1,28 +1,6 @@
 {
   "version": 2,
   "functions": {
-    "api/pdf-analysis-start.js": {
-      "maxDuration": 60,
-      "includeFiles": "{node_modules/@hyzyla/pdfium/dist/pdfium.wasm,node_modules/@tesseract.js-data/ita/4.0.0_best_int/ita.traineddata.gz,node_modules/tesseract.js/src/worker-script/node/**,node_modules/tesseract.js-core/**}"
-    },
-    "api/pdf-analysis-page.js": {
-      "maxDuration": 45
-    },
-    "api/pdf-analysis-question.js": {
-      "maxDuration": 45
-    },
-    "api/pdf-analysis-finalize.js": {
-      "maxDuration": 30
-    },
-    "api/pdf-analysis-commit.js": {
-      "maxDuration": 15
-    },
-    "api/pdf-analysis-status.js": {
-      "maxDuration": 10
-    },
-    "api/pdf-analysis-cancel.js": {
-      "maxDuration": 20
-    },
     "api/analyze-pdf.js": {
       "maxDuration": 60,
       "includeFiles": "{node_modules/@hyzyla/pdfium/dist/pdfium.wasm,node_modules/@tesseract.js-data/ita/4.0.0_best_int/ita.traineddata.gz,node_modules/tesseract.js/src/worker-script/node/**,node_modules/tesseract.js-core/**}"
@@ -41,13 +19,34 @@
     {
       "source": "/(.*)",
       "headers": [
-        { "key": "Strict-Transport-Security", "value": "max-age=31536000; includeSubDomains" },
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "X-Frame-Options", "value": "DENY" },
-        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
-        { "key": "Cross-Origin-Opener-Policy", "value": "same-origin" },
-        { "key": "X-Permitted-Cross-Domain-Policies", "value": "none" },
-        { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=()" }
+        {
+          "key": "Strict-Transport-Security",
+          "value": "max-age=31536000; includeSubDomains"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Cross-Origin-Opener-Policy",
+          "value": "same-origin"
+        },
+        {
+          "key": "X-Permitted-Cross-Domain-Policies",
+          "value": "none"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=()"
+        }
       ]
     }
   ]

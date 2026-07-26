@@ -6,6 +6,7 @@ import { publicPdfAiStatus, runPdfAiPipeline } from "../lib/pdfAiPipeline.js";
 import { archivePdfAnalysis, pdfArchiveConfigured } from "../lib/pdfArchive.js";
 import { buildRasterArchivePdf } from "../lib/pdfRasterArchive.js";
 import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
+import { handlePdfAnalysisAction, pdfAnalysisAction } from "../lib/pdfAnalysisActions.js";
 
 export const config = {
   api: { bodyParser: false },
@@ -143,6 +144,11 @@ function publicError(error) {
 }
 
 export default async function handler(req, res) {
+  const sessionAction = pdfAnalysisAction(req);
+  if (sessionAction) {
+    await handlePdfAnalysisAction(sessionAction, req, res);
+    return;
+  }
   if (!method(req, res, ["POST"])) return;
   if (!requireAllowedOrigin(req, res)) return;
   if (!(await enforceRateLimit(req, res, {

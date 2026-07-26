@@ -7166,7 +7166,7 @@ function rimuoviSessionePdfBrowser(file) {
 }
 
 async function statoSessionePdf(credentials) {
-  return richiestaSessionePdf("/api/pdf-analysis-status", {
+  return richiestaSessionePdf("/api/analyze-pdf?action=status", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(credentials),
@@ -7181,7 +7181,7 @@ async function creaSessionePdf(file, raster, uploadSequence) {
   formData.append("pageCount", String(raster.pages.length));
   formData.append("archiveContext", JSON.stringify(archiveContext));
   if (Number(file.size || 0) <= PDF_DIRECT_UPLOAD_MAX_BYTES) formData.append("pdf", file);
-  return richiestaSessionePdf("/api/pdf-analysis-start", { method: "POST", body: formData });
+  return richiestaSessionePdf("/api/analyze-pdf?action=start", { method: "POST", body: formData });
 }
 
 async function caricaPaginaSessionePdf(credentials, page) {
@@ -7190,11 +7190,11 @@ async function caricaPaginaSessionePdf(credentials, page) {
   formData.append("analysisToken", credentials.analysisToken);
   formData.append("pageNumber", String(page.pageNumber));
   formData.append("page", page.blob, `page-${String(page.pageNumber).padStart(3, "0")}.jpg`);
-  return richiestaSessionePdf("/api/pdf-analysis-page", { method: "POST", body: formData });
+  return richiestaSessionePdf("/api/analyze-pdf?action=page", { method: "POST", body: formData });
 }
 
 async function commitSessionePdf(credentials) {
-  return richiestaSessionePdf("/api/pdf-analysis-commit", {
+  return richiestaSessionePdf("/api/analyze-pdf?action=commit", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(credentials),
@@ -7202,7 +7202,7 @@ async function commitSessionePdf(credentials) {
 }
 
 async function domandaSessionePdf(credentials, questionId) {
-  return richiestaSessionePdf("/api/pdf-analysis-question", {
+  return richiestaSessionePdf("/api/analyze-pdf?action=question", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ...credentials, questionId }),
@@ -7210,7 +7210,7 @@ async function domandaSessionePdf(credentials, questionId) {
 }
 
 async function finalizzaSessionePdf(credentials) {
-  return richiestaSessionePdf("/api/pdf-analysis-finalize", {
+  return richiestaSessionePdf("/api/analyze-pdf?action=finalize", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(credentials),
