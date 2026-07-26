@@ -14,6 +14,7 @@ import {
   pdfMaxBytes,
 } from "../lib/pdfArchive.js";
 import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
+import { classifyPdfAnalysisError, pdfAnalysisDiagnosticLog } from "../lib/pdfAnalysisDiagnostics.js";
 
 export const config = {
   api: { bodyParser: false },
@@ -140,6 +141,8 @@ export default async function handler(req, res) {
   let validPdf = false;
   let ingressMode = "vercel_multipart";
   let pdfHeader = { valid: false, sanitized: false, bytesRemoved: 0, fileSize: null };
+  let analysisStage = "request_received";
+  const requestStartedAt = Date.now();
   const configuredDeadlineMs = Number.parseInt(process.env.PDF_ANALYSIS_DEADLINE_MS || "52000", 10);
   const analysisDeadlineMs = Number.isFinite(configuredDeadlineMs)
     ? Math.max(24_000, Math.min(52_000, configuredDeadlineMs))
@@ -149,10 +152,12 @@ export default async function handler(req, res) {
   try {
     const contentType = String(req.headers?.["content-type"] || "").toLowerCase();
     if (contentType.includes("application/json")) {
+      analysisStage = "json_body";
       const body = await parseJsonBody(req);
       const rateLabel = body.action === "create_upload" ? "analyze-pdf-upload" : "analyze-pdf";
       if (!(await enforceRateLimit(req, res, { label: rateLabel, ...rateLimitConfig("PDF", 15) }))) return;
       if (body.action === "create_upload") {
+        analysisStage = "create_signed_upload";
         const upload = await createPdfDirectUpload({
           originalFilename: body.filename,
           mimeType: body.mimeType,
@@ -164,6 +169,7 @@ export default async function handler(req, res) {
       directUploadTicket = String(body.uploadTicket || "");
       archiveContext = normalizedArchiveContext(body.archiveContext);
       temporaryFilePath = path.join(os.tmpdir(), `offertalogica-pdf-${crypto.randomUUID()}.pdf`);
+      analysisStage = "download_signed_upload";
       fileMetadata = await downloadPdfDirectUpload({
         ticket: directUploadTicket,
         destinationPath: temporaryFilePath,
@@ -171,6 +177,7 @@ export default async function handler(req, res) {
       ingressMode = "supabase_signed_upload";
     } else {
       if (!(await enforceRateLimit(req, res, { label: "analyze-pdf", ...rateLimitConfig("PDF", 15) }))) return;
+      analysisStage = "parse_multipart";
       const { fields, files } = await parseForm(req);
       archiveContext = parseArchiveContext(fields);
       const file = Array.isArray(files.pdf) ? files.pdf[0] : files.pdf;
@@ -184,6 +191,7 @@ export default async function handler(req, res) {
       };
     }
 
+    analysisStage = "validate_pdf";
     pdfHeader = await normalizePdfFileHeader(temporaryFilePath);
     if (!pdfHeader.valid) {
       return json(res, 415, { ok: false, code: "PDF_INVALID", error: "Il file caricato non è un PDF valido" });
@@ -191,6 +199,7 @@ export default async function handler(req, res) {
     if (pdfHeader.sanitized && fileMetadata) fileMetadata.fileSize = pdfHeader.fileSize;
     validPdf = true;
 
+    analysisStage = "openai_analysis";
     const normalized = await extractPdfPureAi({
       filePath: temporaryFilePath,
       filename: fileMetadata.originalFilename,
@@ -203,6 +212,7 @@ export default async function handler(req, res) {
       pdf_header_normalized: Boolean(pdfHeader.sanitized),
       leading_bytes_removed: Number(pdfHeader.bytesRemoved || 0),
     };
+    analysisStage = "archive_success";
     const canArchive = analysisDeadlineAt - Date.now() >= 7_000;
     const archive = canArchive
       ? await archivePdfAnalysis({
@@ -214,17 +224,56 @@ export default async function handler(req, res) {
       : { stored: false, reason: "insufficient_time_budget" };
     return json(res, 200, { ok: true, normalized, archive });
   } catch (error) {
-    if (validPdf && temporaryFilePath && fileMetadata && analysisDeadlineAt - Date.now() >= 7_000) {
-      await archivePdfAnalysis({
-        filePath: temporaryFilePath,
-        ...fileMetadata,
-        error,
-        context: archiveContext,
-      }).catch(() => {});
+    const elapsedMs = Date.now() - requestStartedAt;
+    const remainingMs = analysisDeadlineAt - Date.now();
+    let archive = { stored: false, reason: "not_attempted" };
+    if (validPdf && temporaryFilePath && fileMetadata && remainingMs >= 7_000) {
+      try {
+        archive = await archivePdfAnalysis({
+          filePath: temporaryFilePath,
+          ...fileMetadata,
+          error,
+          context: archiveContext,
+        });
+      } catch (archiveError) {
+        archive = { stored: false, reason: "archive_error" };
+        console.error("[pdf-analysis-archive-error]", JSON.stringify({
+          event: "pdf_analysis_archive_failed",
+          stage: analysisStage,
+          ingress_mode: ingressMode,
+          filename: fileMetadata?.originalFilename || null,
+          file_size: Number(fileMetadata?.fileSize || 0) || null,
+          message: String(archiveError?.message || archiveError || "archive_error").slice(0, 500),
+        }));
+      }
+    } else if (validPdf && temporaryFilePath && fileMetadata) {
+      archive = { stored: false, reason: "insufficient_time_budget", remaining_ms: remainingMs };
     }
+
     const mapped = publicError(error);
+    const diagnostic = classifyPdfAnalysisError(error);
+    const logPayload = pdfAnalysisDiagnosticLog({
+      error,
+      publicCode: mapped.code,
+      stage: analysisStage,
+      ingressMode,
+      fileMetadata,
+      elapsedMs,
+      remainingMs,
+      archive,
+    });
+    console.error("[pdf-analysis-error]", JSON.stringify(logPayload));
+
     const { status, ...payload } = mapped;
-    return json(res, status, { ok: false, ...payload });
+    return json(res, status, {
+      ok: false,
+      ...payload,
+      diagnostic_code: diagnostic.diagnosticCode,
+      analysis_stage: analysisStage,
+      ingress_mode: ingressMode,
+      elapsed_ms: elapsedMs,
+      archive,
+    });
   } finally {
     if (directUploadTicket) await deletePdfDirectUpload(directUploadTicket).catch(() => {});
     if (temporaryFilePath) await fs.unlink(temporaryFilePath).catch(() => {});
