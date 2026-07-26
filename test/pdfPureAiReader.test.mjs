@@ -218,3 +218,265 @@ test("retry mirato: un HTTP 400 OpenAI non viene ritentato", async () => {
   assert.equal(attempts, 1);
   await fs.rm(dir, { recursive: true, force: true });
 });
+
+test("buildPdfPureAiRequest usa file_id senza incorporare Base64 quando il file è già su OpenAI", async () => {
+  const request = await buildPdfPureAiRequest({ fileId: "file_test_123", model: "test-model" });
+  const content = request.input[1].content;
+  const fileInput = content.find((item) => item.type === "input_file");
+  assert.deepEqual(fileInput, { type: "input_file", file_id: "file_test_123" });
+  assert.equal("file_data" in fileInput, false);
+  assert.equal("filename" in fileInput, false);
+});
+
+test("PDF grande: upload temporaneo Files API, Responses con file_id e cancellazione finale", async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "pure-ai-file-id-"));
+  const filePath = path.join(dir, "bolletta-grande.pdf");
+  await fs.writeFile(filePath, Buffer.concat([Buffer.from("%PDF-test\n"), Buffer.alloc(1_100_000)]));
+  let uploadCalls = 0;
+  let responseCalls = 0;
+  let deleteCalls = 0;
+  let capturedRequest;
+  const normalized = await extractPdfPureAi({
+    filePath,
+    filename: "bolletta-grande.pdf",
+    apiKey: "test-key",
+    env: {
+      PDF_AI_TIMEOUT_MS: "20000",
+      PDF_AI_FILE_ID_THRESHOLD_BYTES: "1000000",
+      PDF_AI_FILE_UPLOAD_TIMEOUT_MS: "5000",
+      PDF_AI_FILE_DELETE_TIMEOUT_MS: "500",
+    },
+    fileUploadTransport: async ({ filePath: uploadedPath, filename, apiKey }) => {
+      uploadCalls += 1;
+      assert.equal(uploadedPath, filePath);
+      assert.equal(filename, "bolletta-grande.pdf");
+      assert.equal(apiKey, "test-key");
+      return { id: "file_large_test" };
+    },
+    transport: async ({ request }) => {
+      responseCalls += 1;
+      capturedRequest = request;
+      return { id: "resp_file_id", output_text: JSON.stringify(electricityOutput()) };
+    },
+    fileDeleteTransport: async ({ fileId, apiKey }) => {
+      deleteCalls += 1;
+      assert.equal(fileId, "file_large_test");
+      assert.equal(apiKey, "test-key");
+      return { id: fileId, deleted: true };
+    },
+  });
+  const fileInput = capturedRequest.input[1].content.find((item) => item.type === "input_file");
+  assert.deepEqual(fileInput, { type: "input_file", file_id: "file_large_test" });
+  assert.equal(uploadCalls, 1);
+  assert.equal(responseCalls, 1);
+  assert.equal(deleteCalls, 1);
+  assert.equal(normalized.ai.transport_mode, "openai_file_id");
+  assert.equal(normalized.ai.openai_file_deleted, true);
+  assert.equal(normalized.ai.openai_file_delete_error, null);
+  assert.equal(normalized.ai.input_file_bytes > 1_000_000, true);
+  assert.equal(normalized.ai.file_id_threshold_bytes, 1_000_000);
+  await fs.rm(dir, { recursive: true, force: true });
+});
+
+test("PDF piccolo: conserva il trasporto inline e non usa la Files API", async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "pure-ai-inline-small-"));
+  const filePath = path.join(dir, "bolletta-piccola.pdf");
+  await fs.writeFile(filePath, "%PDF-test");
+  let uploadCalls = 0;
+  let deleteCalls = 0;
+  let capturedRequest;
+  const normalized = await extractPdfPureAi({
+    filePath,
+    apiKey: "test-key",
+    env: { PDF_AI_TIMEOUT_MS: "12000", PDF_AI_FILE_ID_THRESHOLD_BYTES: "1000000" },
+    fileUploadTransport: async () => {
+      uploadCalls += 1;
+      return { id: "file_not_expected" };
+    },
+    transport: async ({ request }) => {
+      capturedRequest = request;
+      return { id: "resp_inline", output_text: JSON.stringify(electricityOutput()) };
+    },
+    fileDeleteTransport: async () => {
+      deleteCalls += 1;
+      return { deleted: true };
+    },
+  });
+  const fileInput = capturedRequest.input[1].content.find((item) => item.type === "input_file");
+  assert.equal(fileInput.file_data.startsWith("data:application/pdf;base64,"), true);
+  assert.equal(uploadCalls, 0);
+  assert.equal(deleteCalls, 0);
+  assert.equal(normalized.ai.transport_mode, "pdf_originale");
+  assert.equal(normalized.ai.openai_file_deleted, null);
+  await fs.rm(dir, { recursive: true, force: true });
+});
+
+test("PDF grande: il retry 500 riusa lo stesso file_id senza ripetere l'upload", async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "pure-ai-file-id-retry-"));
+  const filePath = path.join(dir, "bolletta-grande.pdf");
+  await fs.writeFile(filePath, Buffer.concat([Buffer.from("%PDF-test\n"), Buffer.alloc(1_100_000)]));
+  let uploadCalls = 0;
+  let responseCalls = 0;
+  let deleteCalls = 0;
+  const seenFileIds = [];
+  const normalized = await extractPdfPureAi({
+    filePath,
+    apiKey: "test-key",
+    env: {
+      PDF_AI_TIMEOUT_MS: "20000",
+      PDF_AI_RETRY_DELAY_MS: "0",
+      PDF_AI_FILE_ID_THRESHOLD_BYTES: "1000000",
+    },
+    fileUploadTransport: async () => {
+      uploadCalls += 1;
+      return { id: "file_retry_test" };
+    },
+    transport: async ({ request }) => {
+      responseCalls += 1;
+      seenFileIds.push(request.input[1].content.find((item) => item.type === "input_file").file_id);
+      if (responseCalls === 1) {
+        return new Response(JSON.stringify({ error: { message: "temporary server error" } }), {
+          status: 500,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      return { id: "resp_retry_file_id", output_text: JSON.stringify(electricityOutput()) };
+    },
+    fileDeleteTransport: async () => {
+      deleteCalls += 1;
+      return { deleted: true };
+    },
+  });
+  assert.equal(uploadCalls, 1);
+  assert.equal(responseCalls, 2);
+  assert.deepEqual(seenFileIds, ["file_retry_test", "file_retry_test"]);
+  assert.equal(deleteCalls, 1);
+  assert.equal(normalized.ai.openai_attempts, 2);
+  assert.equal(normalized.ai.retry_count, 1);
+  await fs.rm(dir, { recursive: true, force: true });
+});
+
+test("PDF grande: anche dopo due HTTP 500 il file temporaneo OpenAI viene cancellato", async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "pure-ai-file-id-fail-cleanup-"));
+  const filePath = path.join(dir, "bolletta-grande.pdf");
+  await fs.writeFile(filePath, Buffer.concat([Buffer.from("%PDF-test\n"), Buffer.alloc(1_100_000)]));
+  let uploadCalls = 0;
+  let responseCalls = 0;
+  let deleteCalls = 0;
+  await assert.rejects(
+    extractPdfPureAi({
+      filePath,
+      apiKey: "test-key",
+      env: {
+        PDF_AI_TIMEOUT_MS: "20000",
+        PDF_AI_RETRY_DELAY_MS: "0",
+        PDF_AI_FILE_ID_THRESHOLD_BYTES: "1000000",
+      },
+      fileUploadTransport: async () => {
+        uploadCalls += 1;
+        return { id: "file_fail_cleanup" };
+      },
+      transport: async () => {
+        responseCalls += 1;
+        return new Response(JSON.stringify({ error: { message: "temporary server error" } }), {
+          status: 500,
+          headers: { "content-type": "application/json" },
+        });
+      },
+      fileDeleteTransport: async ({ fileId }) => {
+        deleteCalls += 1;
+        assert.equal(fileId, "file_fail_cleanup");
+        return { deleted: true };
+      },
+    }),
+    /openai_http_500/,
+  );
+  assert.equal(uploadCalls, 1);
+  assert.equal(responseCalls, 2);
+  assert.equal(deleteCalls, 1);
+  await fs.rm(dir, { recursive: true, force: true });
+});
+
+test("PDF grande: errore di cancellazione non annulla un'analisi riuscita e resta diagnosticato", async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "pure-ai-file-delete-fail-"));
+  const filePath = path.join(dir, "bolletta-grande.pdf");
+  await fs.writeFile(filePath, Buffer.concat([Buffer.from("%PDF-test\n"), Buffer.alloc(1_100_000)]));
+  const normalized = await extractPdfPureAi({
+    filePath,
+    apiKey: "test-key",
+    env: {
+      PDF_AI_TIMEOUT_MS: "20000",
+      PDF_AI_FILE_ID_THRESHOLD_BYTES: "1000000",
+      PDF_AI_FILE_DELETE_TIMEOUT_MS: "500",
+    },
+    fileUploadTransport: async () => ({ id: "file_delete_fail" }),
+    transport: async () => ({ id: "resp_delete_fail", output_text: JSON.stringify(electricityOutput()) }),
+    fileDeleteTransport: async () => new Response(JSON.stringify({ error: { message: "delete failed" } }), {
+      status: 500,
+      headers: { "content-type": "application/json" },
+    }),
+  });
+  assert.equal(normalized.ai.transport_mode, "openai_file_id");
+  assert.equal(normalized.ai.openai_file_deleted, false);
+  assert.match(normalized.ai.openai_file_delete_error, /openai_file_delete_http_500/);
+  await fs.rm(dir, { recursive: true, force: true });
+});
+
+test("default Files API: usa purpose user_data, scadenza di un'ora e file_id nella Responses API", async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "pure-ai-default-files-api-"));
+  const filePath = path.join(dir, "bolletta-grande.pdf");
+  const sourceBytes = Buffer.concat([Buffer.from("%PDF-test\n"), Buffer.alloc(19_694_477 - Buffer.byteLength("%PDF-test\n"))]);
+  await fs.writeFile(filePath, sourceBytes);
+  const originalFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url, options = {}) => {
+    calls.push({ url: String(url), options });
+    if (String(url).endsWith("/v1/files") && options.method === "POST") {
+      assert.ok(options.body instanceof FormData);
+      assert.equal(options.body.get("purpose"), "user_data");
+      assert.equal(options.body.get("expires_after[anchor]"), "created_at");
+      assert.equal(options.body.get("expires_after[seconds]"), "3600");
+      const uploadedFile = options.body.get("file");
+      assert.equal(uploadedFile.type, "application/pdf");
+      assert.equal(uploadedFile.size, sourceBytes.length);
+      assert.equal(uploadedFile.name, "bolletta-grande.pdf");
+      return new Response(JSON.stringify({ id: "file_default_transport" }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    }
+    if (String(url).endsWith("/v1/responses")) {
+      const request = JSON.parse(options.body);
+      const fileInput = request.input[1].content.find((item) => item.type === "input_file");
+      assert.deepEqual(fileInput, { type: "input_file", file_id: "file_default_transport" });
+      return new Response(JSON.stringify({ id: "resp_default_transport", output_text: JSON.stringify(electricityOutput()) }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    }
+    if (String(url).endsWith("/v1/files/file_default_transport") && options.method === "DELETE") {
+      return new Response(JSON.stringify({ id: "file_default_transport", deleted: true }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    }
+    throw new Error(`fetch inattesa: ${url}`);
+  };
+  try {
+    const normalized = await extractPdfPureAi({
+      filePath,
+      filename: "bolletta-grande.pdf",
+      apiKey: "test-key",
+      env: {
+        PDF_AI_TIMEOUT_MS: "20000",
+        PDF_AI_FILE_ID_THRESHOLD_BYTES: "1000000",
+      },
+    });
+    assert.equal(normalized.ai.transport_mode, "openai_file_id");
+    assert.equal(normalized.ai.openai_file_deleted, true);
+    assert.equal(calls.length, 3);
+  } finally {
+    globalThis.fetch = originalFetch;
+    await fs.rm(dir, { recursive: true, force: true });
+  }
+});
