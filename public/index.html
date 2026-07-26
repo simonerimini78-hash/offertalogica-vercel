@@ -6971,6 +6971,70 @@ function pdfFileSizeLabel(size) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+var PDF_DIRECT_UPLOAD_THRESHOLD_BYTES = 4_000_000;
+
+async function leggiRispostaPdfApi(response) {
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.includes("application/json")) {
+    if (response.status === 413) throw new Error("PDF troppo grande");
+    throw new Error("api_non_disponibile");
+  }
+  const payload = await response.json();
+  if (!response.ok || !payload.ok) throw new Error(payload.error || "Errore analisi PDF");
+  return payload;
+}
+
+async function analizzaPdfViaVercel(file, archiveContext) {
+  const formData = new FormData();
+  formData.append("pdf", file);
+  formData.append("archiveContext", JSON.stringify(archiveContext));
+  const response = await fetch("/api/analyze-pdf", { method: "POST", body: formData });
+  return leggiRispostaPdfApi(response);
+}
+
+async function analizzaPdfViaUploadFirmato(file, archiveContext) {
+  const sessionResponse = await fetch("/api/analyze-pdf", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      action: "create_upload",
+      filename: file.name,
+      fileSize: Number(file.size || 0),
+      mimeType: file.type || "application/pdf",
+    }),
+  });
+  const sessionPayload = await leggiRispostaPdfApi(sessionResponse);
+  const upload = sessionPayload.upload || {};
+  if (!upload.uploadUrl || !upload.uploadTicket) throw new Error("Caricamento protetto del PDF non riuscito");
+
+  const storageForm = new FormData();
+  storageForm.append("cacheControl", "0");
+  storageForm.append("", file);
+  const storageResponse = await fetch(upload.uploadUrl, {
+    method: "PUT",
+    headers: { "x-upsert": "false" },
+    body: storageForm,
+  });
+  if (!storageResponse.ok) throw new Error("Caricamento protetto del PDF non riuscito");
+
+  const analysisResponse = await fetch("/api/analyze-pdf", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      action: "analyze_uploaded_pdf",
+      uploadTicket: upload.uploadTicket,
+      archiveContext,
+    }),
+  });
+  return leggiRispostaPdfApi(analysisResponse);
+}
+
+async function analizzaPdfSelezionato(file, archiveContext) {
+  return Number(file?.size || 0) > PDF_DIRECT_UPLOAD_THRESHOLD_BYTES
+    ? analizzaPdfViaUploadFirmato(file, archiveContext)
+    : analizzaPdfViaVercel(file, archiveContext);
+}
+
 function aggiornaInterfacciaSelezionePdf() {
   const pickerButton = document.getElementById("pdf-select-files-button");
   const status = document.getElementById("pdf-file-picker-status");
@@ -7091,20 +7155,14 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
   for (let fileIndex = 0; fileIndex < files.length; fileIndex += 1) {
     const file = files[fileIndex];
     const pendingEntry = pendingEntries[fileIndex];
-    const formData = new FormData();
-    formData.append("pdf", file);
-    formData.append("archiveContext", JSON.stringify({
+    const archiveContext = {
       sessionId: analyticsSessionId(),
       staffMode: staffModeAttiva(),
       customerType: LEAD_STATE.customerType,
       uploadSequence: LEAD_STATE.pdfDocuments.length + results.length + 1,
-    }));
+    };
     try {
-      const response = await fetch("/api/analyze-pdf", { method: "POST", body: formData });
-      const contentType = response.headers.get("content-type") || "";
-      if (!contentType.includes("application/json")) throw new Error("api_non_disponibile");
-      const payload = await response.json();
-      if (!response.ok || !payload.ok) throw new Error(payload.error || "Errore analisi PDF");
+      const payload = await analizzaPdfSelezionato(file, archiveContext);
       results.push({
         filename: file.name,
         upload_id: pendingEntry.id,
@@ -7119,6 +7177,11 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
         "PDF protetto o cifrato",
         "Il file caricato non è un PDF valido",
         "PDF mancante o formato non accettato",
+        "Caricamento protetto dei PDF grandi non configurato",
+        "Caricamento protetto del PDF non riuscito",
+        "Caricamento PDF scaduto. Riprova.",
+        "PDF caricato non trovato. Riprova.",
+        "Il PDF caricato non corrisponde al file selezionato",
       ].includes(error?.message) ? error.message : "Lettura non disponibile";
       results.push({
         filename: file.name,

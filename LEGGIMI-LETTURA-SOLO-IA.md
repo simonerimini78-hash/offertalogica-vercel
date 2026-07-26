@@ -1,75 +1,120 @@
-# OffertaLogica — lettore solo IA nativo PDF v1.0.1
+# OffertaLogica — lettore IA nativo PDF con upload diretto v1.0.2
 
-Base prevista: branch di prova creato dal `main` attuale.
+Base verificata: branch `lettura-IA-pura.1`.
 
-## Correzione del 504
+Il lettore IA non viene modificato e conserva la versione:
 
-La versione v1.0.0 rasterizzava fino a 12 pagine in PNG prima di chiamare OpenAI. La route dispone di 60 secondi su Vercel, mentre il codice concedeva 55 secondi complessivi e richiedeva almeno 8 secondi residui per avviare la chiamata IA.
+`pure-ai-native-pdf-v1.0.1`
 
-Il difetto è stato riprodotto: la rasterizzazione poteva consumare il budget e provocare `openai_insufficient_time_budget`, trasformato dalla route in HTTP 504, prima che OpenAI venisse interrogata.
+La v1.0.2 modifica soltanto il percorso con cui i PDF grandi arrivano alla route.
 
-La v1.0.1 elimina completamente la rasterizzazione server-side:
+## Problema riprodotto
 
-`PDF originale -> OpenAI Responses API -> JSON Schema strict -> validazione di main -> anteprima utente`
+Il frontend del branch inviava ogni PDF intero a:
 
-## Percorso attivo
+`POST /api/analyze-pdf` con `multipart/form-data`.
 
-- Il PDF originale viene inviato come `input_file`.
-- Non vengono importati o eseguiti parser, OCR, Tesseract, PDFium o shadow reader.
-- Non viene aggiunta alcuna API: `api/analyze-pdf.js` sostituisce la route esistente.
-- Il numero di file JavaScript in `api/` resta invariato.
-- Il frontend, il comparatore, le formule, i cataloghi ARERA, OTP e lead non vengono modificati.
-- La risposta usa lo stesso `data_contract` già consumato dalla schermata di revisione.
+Vercel respingeva i documenti oltre il limite del corpo della Function prima che il codice venisse eseguito, restituendo:
 
-## Gestione del tempo
+- HTTP `413`;
+- `FUNCTION_PAYLOAD_TOO_LARGE`.
 
-- `vercel.json` di `main` configura già `api/analyze-pdf.js` con `maxDuration: 60`.
-- La deadline interna predefinita è 52 secondi, lasciando margine alla risposta HTTP e alla pulizia del file temporaneo.
-- Il timeout OpenAI predefinito è 46 secondi e non può superare 48 secondi.
-- L'archivio PDF viene eseguito solo se restano almeno 7 secondi nel budget interno; in caso contrario la lettura riuscita viene restituita senza attendere l'archiviazione.
-- Gli errori restituiscono anche un codice diagnostico, per esempio `AI_TIMEOUT`.
+Aumentare `MAX_PDF_BYTES` o `maxDuration` non può correggere questo errore, perché la richiesta viene bloccata prima di raggiungere `formidable` e prima della chiamata OpenAI.
 
-## Modello
+## Nuovo percorso
 
-Variabile dedicata consigliata:
+### PDF fino a 4.000.000 byte
 
-- `PDF_AI_PRIMARY_MODEL=gpt-4.1-2025-04-14`
+Resta invariato il percorso già verificato:
 
-La nuova route non eredita più `PDF_AI_MODEL`, che poteva appartenere al vecchio percorso shadow.
+`browser -> multipart /api/analyze-pdf -> GPT visuale`
 
-Variabili:
+### PDF oltre 4.000.000 byte
 
-- `OPENAI_API_KEY` — obbligatoria.
-- `PDF_AI_PRIMARY_MODEL` — opzionale; predefinito `gpt-4.1-2025-04-14`.
-- `PDF_AI_TIMEOUT_MS` — opzionale; predefinito `46000`, massimo interno `48000`.
-- `PDF_ANALYSIS_DEADLINE_MS` — opzionale; predefinito e massimo interno `52000`.
+Viene usato:
 
-Le vecchie variabili `PDF_AI_RASTER_SCALE`, `PDF_AI_MAX_RASTER_PAGES` e `PDF_AI_MAX_RASTER_BYTES` non sono più usate.
+`browser -> URL firmato Supabase -> bucket privato -> /api/analyze-pdf con piccolo JSON -> GPT visuale`
 
-## File inclusi
+La stessa route gestisce due operazioni JSON:
 
-- `api/analyze-pdf.js`
-- `lib/pdfPureAiReader.js`
-- `lib/pdfDataContract.js`
-- `test/pdfPureAiReader.test.mjs`
-- `LEGGIMI-LETTURA-SOLO-IA.md`
+- `create_upload`: genera un URL temporaneo firmato;
+- `analyze_uploaded_pdf`: scarica il PDF dal bucket, verifica firma e dimensione e avvia lo stesso lettore IA.
 
-## Verifiche eseguite
+Non viene aggiunto alcun file in `api/`: il totale resta 12.
 
-- Riproduzione del difetto `openai_insufficient_time_budget` della v1.0.0.
-- Controllo sintattico Node dei file runtime.
-- Richiesta OpenAI con PDF originale, `store: false` e Structured Output `json_schema` strict.
-- Nessun `input_image` e nessuna rasterizzazione.
-- Compatibilità con `offertalogica.pdf-data` e con l'anteprima esistente.
-- Annualizzazione della quota fissa mensile conservando la derivazione.
-- Variabile modello dedicata al lettore primary.
-- Test mirati: 4/4 superati.
+## Limite applicativo conservato
+
+Il limite del progetto resta quello già presente:
+
+- `MAX_PDF_BYTES`, se configurato;
+- altrimenti `8.000.000` byte.
+
+Questa patch non alza arbitrariamente il limite. Un file oltre il limite continua a essere rifiutato con `PDF_TOO_LARGE`.
+
+## Sicurezza
+
+- Il bucket resta privato.
+- `SUPABASE_SERVICE_ROLE_KEY` resta esclusivamente server-side.
+- Il percorso temporaneo è casuale e confinato sotto `pending/AAAA/MM/UUID.pdf`.
+- Il browser riceve un URL di upload firmato, non la service role.
+- La seconda richiesta usa un ticket firmato HMAC e non può indicare liberamente un altro oggetto del bucket.
+- Dimensione dichiarata e dimensione scaricata devono coincidere.
+- La firma `%PDF-` viene verificata prima dell'analisi.
+- L'oggetto temporaneo viene eliminato nel `finally` anche quando l'analisi fallisce dopo aver raggiunto la route.
+
+## Variabili necessarie per i PDF grandi
+
+- `SUPABASE_URL`;
+- `SUPABASE_SERVICE_ROLE_KEY`;
+- `PDF_ARCHIVE_BUCKET`, oppure il predefinito `pdf-test-archive`;
+- bucket privato esistente con limite file almeno pari a `MAX_PDF_BYTES`.
+
+`PDF_ARCHIVE_MODE` continua a controllare l'archiviazione permanente dell'analisi. Non espone chiavi al browser.
+
+## Diagnostica nella risposta
+
+Per un PDF piccolo:
+
+`normalized.ai.ingress_mode = vercel_multipart`
+
+Per un PDF grande:
+
+`normalized.ai.ingress_mode = supabase_signed_upload`
+
+In entrambi i casi:
+
+- `normalized.ai.ingress_version = pdf-ingress-v1.0.2`;
+- `normalized.parser_version = pure-ai-native-pdf-v1.0.1`;
+- `normalized.ai.transport_mode = pdf_originale`.
+
+## File modificati
+
+- `api/analyze-pdf.js`;
+- `lib/pdfArchive.js`;
+- `public/index.html`.
+
+Test aggiunti:
+
+- `test/pdfDirectUpload.test.mjs`;
+- `test/pdfDirectUploadFrontend.test.mjs`.
+
+## Verifiche locali
+
+- ZIP sorgente confrontato con il branch GitHub tramite SHA Git: coincidenza esatta sui file di lavoro.
+- API JavaScript: 12 prima e dopo.
+- Test mirati upload e regressioni del lettore: 34/34 superati.
+- Suite non OCR eseguibile: 160 test superati.
+- Due test legacy aggiuntivi non partono già nel branch originale perché manca `lib/pdfHybridPolicy.js`; la stessa anomalia è stata riprodotta sulla base non modificata.
+- `npm run verify:offers`: 0 errori, 0 avvisi, 0 partner warning.
+- `npm run validate:calculator` segnala già nella base originale `catalogo ARERA: vere offerte dual mancanti`; non è introdotto dalla patch.
 
 ## Limite della verifica
 
-Non è stata eseguita una chiamata reale all'API OpenAI perché la chiave del progetto non è disponibile nell'ambiente di verifica. Dopo il deployment Preview, controllare nella risposta di `/api/analyze-pdf`:
+Non è stata eseguita una prova reale contro il bucket Supabase del progetto, perché le credenziali non sono disponibili nell'ambiente locale. Il controllo obbligatorio dopo il deployment Preview è caricare Sorgenia e Irina e verificare:
 
-- `normalized.parser_version = pure-ai-native-pdf-v1.0.1`;
-- `normalized.ai.transport_mode = pdf_originale`;
-- `normalized.ai.openai_ms` e `normalized.ai.total_ms`;
-- in caso di errore, il campo `code` della risposta JSON.
+- assenza di `413 FUNCTION_PAYLOAD_TOO_LARGE`;
+- `ingress_mode: supabase_signed_upload`;
+- arrivo della risposta IA;
+- eliminazione dell'oggetto sotto `pending/` dopo la richiesta.
+
+Supabase consente gli upload standard anche oltre 6 MB, ma raccomanda TUS resumable per maggiore affidabilità sopra tale dimensione. Il progetto conserva per ora il limite massimo di 8 MB; se i test reali mostrano interruzioni di rete, TUS sarà una modifica successiva separata, non inclusa in questa patch.
