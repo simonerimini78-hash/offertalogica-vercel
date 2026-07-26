@@ -6980,7 +6980,13 @@ async function leggiRispostaPdfApi(response) {
     throw new Error("api_non_disponibile");
   }
   const payload = await response.json();
-  if (!response.ok || !payload.ok) throw new Error(payload.error || "Errore analisi PDF");
+  if (!response.ok || !payload.ok) {
+    if (payload.code === "PDF_TOO_LARGE" && Number(payload.maxFileSize || 0) > 0) {
+      const actual = Number(payload.fileSize || 0) > 0 ? ` (${pdfFileSizeLabel(payload.fileSize)})` : "";
+      throw new Error(`PDF troppo grande${actual}. Limite ${pdfFileSizeLabel(payload.maxFileSize)}.`);
+    }
+    throw new Error(payload.error || "Errore analisi PDF");
+  }
   return payload;
 }
 
@@ -7172,8 +7178,8 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
         ...payload.normalized,
       });
     } catch (error) {
-      const safeMessage = [
-        "PDF troppo grande",
+      const errorMessage = String(error?.message || "");
+      const safeMessage = errorMessage.startsWith("PDF troppo grande") || [
         "PDF protetto o cifrato",
         "Il file caricato non è un PDF valido",
         "PDF mancante o formato non accettato",
@@ -7182,7 +7188,7 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
         "Caricamento PDF scaduto. Riprova.",
         "PDF caricato non trovato. Riprova.",
         "Il PDF caricato non corrisponde al file selezionato",
-      ].includes(error?.message) ? error.message : "Lettura non disponibile";
+      ].includes(errorMessage) ? errorMessage : "Lettura non disponibile";
       results.push({
         filename: file.name,
         upload_id: pendingEntry.id,

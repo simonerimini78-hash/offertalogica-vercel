@@ -135,3 +135,40 @@ test("upload firmato rifiuta ticket alterato e file oltre il limite applicativo"
     /pdf_upload_invalid_ticket/,
   );
 });
+
+test("upload firmato: il limite predefinito accetta PDF sopra 8 MB fino a 20 MB", async (t) => {
+  const originalFetch = globalThis.fetch;
+  const env = {
+    PDF_ARCHIVE_MODE: process.env.PDF_ARCHIVE_MODE,
+    PDF_ARCHIVE_BUCKET: process.env.PDF_ARCHIVE_BUCKET,
+    SUPABASE_URL: process.env.SUPABASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    MAX_PDF_BYTES: process.env.MAX_PDF_BYTES,
+  };
+  process.env.PDF_ARCHIVE_MODE = "all";
+  process.env.PDF_ARCHIVE_BUCKET = "pdf-test-archive";
+  process.env.SUPABASE_URL = "https://example.supabase.co";
+  process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role-test";
+  delete process.env.MAX_PDF_BYTES;
+  globalThis.fetch = async (url) => {
+    const href = String(url);
+    const relative = href.slice(href.indexOf("/object/upload/sign/"));
+    return new Response(JSON.stringify({ url: `${relative}?token=signed-test` }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  };
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  });
+
+  const session = await createPdfDirectUpload({ originalFilename: "irina.pdf", fileSize: 12_000_000 });
+  assert.equal(session.maxFileSize, 20_000_000);
+  await assert.rejects(
+    createPdfDirectUpload({ originalFilename: "oltre-limite.pdf", fileSize: 20_000_001 }),
+    (error) => error?.message === "pdf_upload_too_large"
+      && error?.actualBytes === 20_000_001
+      && error?.maxBytes === 20_000_000,
+  );
+});

@@ -1,4 +1,4 @@
-# OffertaLogica — lettore IA nativo PDF con upload diretto v1.0.2
+# OffertaLogica — lettore IA nativo PDF con upload diretto v1.0.3
 
 Base verificata: branch `lettura-IA-pura.1`.
 
@@ -6,7 +6,7 @@ Il lettore IA non viene modificato e conserva la versione:
 
 `pure-ai-native-pdf-v1.0.1`
 
-La v1.0.2 modifica soltanto il percorso con cui i PDF grandi arrivano alla route.
+La v1.0.3 modifica soltanto il percorso con cui i PDF grandi arrivano alla route.
 
 ## Problema riprodotto
 
@@ -47,9 +47,9 @@ Non viene aggiunto alcun file in `api/`: il totale resta 12.
 Il limite del progetto resta quello già presente:
 
 - `MAX_PDF_BYTES`, se configurato;
-- altrimenti `8.000.000` byte.
+- altrimenti `20.000.000` byte.
 
-Questa patch non alza arbitrariamente il limite. Un file oltre il limite continua a essere rifiutato con `PDF_TOO_LARGE`.
+Il limite predefinito applicativo è ora 20.000.000 byte. Il valore resta configurabile con `MAX_PDF_BYTES`; un file oltre il limite configurato viene rifiutato con `PDF_TOO_LARGE` e la risposta indica dimensione ricevuta e limite effettivo.
 
 ## Sicurezza
 
@@ -83,7 +83,7 @@ Per un PDF grande:
 
 In entrambi i casi:
 
-- `normalized.ai.ingress_version = pdf-ingress-v1.0.2`;
+- `normalized.ai.ingress_version = pdf-ingress-v1.0.3`;
 - `normalized.parser_version = pure-ai-native-pdf-v1.0.1`;
 - `normalized.ai.transport_mode = pdf_originale`.
 
@@ -117,4 +117,14 @@ Non è stata eseguita una prova reale contro il bucket Supabase del progetto, pe
 - arrivo della risposta IA;
 - eliminazione dell'oggetto sotto `pending/` dopo la richiesta.
 
-Supabase consente gli upload standard anche oltre 6 MB, ma raccomanda TUS resumable per maggiore affidabilità sopra tale dimensione. Il progetto conserva per ora il limite massimo di 8 MB; se i test reali mostrano interruzioni di rete, TUS sarà una modifica successiva separata, non inclusa in questa patch.
+Supabase consente gli upload standard anche oltre 6 MB, ma raccomanda TUS resumable per maggiore affidabilità sopra tale dimensione. Il progetto conserva per ora il limite massimo di 20 MB; se i test reali mostrano interruzioni di rete, TUS sarà una modifica successiva separata, non inclusa in questa patch.
+
+
+## Correzione v1.0.3
+
+La prova reale ha confermato che Sorgenia usa correttamente `supabase_signed_upload`, mentre Irina superava il precedente limite interno di 8.000.000 byte. La v1.0.3 porta il limite predefinito a 20.000.000 byte senza modificare il lettore IA. OpenAI ammette file singoli inferiori a 50 MB; 20 MB mantiene un margine prudente per memoria, codifica Base64 e durata della Function.
+
+
+## Correzione PDF con prefisso estraneo
+
+La prova `G-2026-00052617.pdf` ha mostrato 171 byte di avviso PHP/HTML prima del vero header `%PDF-1.4`. Il documento si apre nei visualizzatori tolleranti, ma la verifica precedente lo respingeva correttamente perché non iniziava al byte zero con `%PDF-`. La v1.0.3 cerca un header PDF valido entro i primi 4096 byte, elimina soltanto il prefisso precedente e invia all’IA il PDF ripristinato. File senza un header `%PDF-1.x` o `%PDF-2.0` valido restano rifiutati. La risposta espone `ai.pdf_header_normalized` e `ai.leading_bytes_removed`.

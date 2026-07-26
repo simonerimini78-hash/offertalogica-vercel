@@ -42,7 +42,7 @@ test("frontend: un PDF grande usa upload firmato e invia alla Function solo JSON
     });
   });
 
-  const file = new File([new Uint8Array(5_000_000)], "irina.pdf", { type: "application/pdf" });
+  const file = new File([new Uint8Array(12_000_000)], "irina.pdf", { type: "application/pdf" });
   const payload = await analyze(file, { sessionId: "session-test" });
   assert.equal(payload.normalized.recognized, true);
   assert.equal(calls.length, 3);

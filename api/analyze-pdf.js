@@ -5,11 +5,13 @@ import path from "node:path";
 import formidable from "formidable";
 import { json, method, requireAllowedOrigin } from "../lib/http.js";
 import { extractPdfPureAi } from "../lib/pdfPureAiReader.js";
+import { normalizePdfFileHeader } from "../lib/pdfFileValidation.js";
 import {
   archivePdfAnalysis,
   createPdfDirectUpload,
   deletePdfDirectUpload,
   downloadPdfDirectUpload,
+  pdfMaxBytes,
 } from "../lib/pdfArchive.js";
 import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
 
@@ -17,7 +19,7 @@ export const config = {
   api: { bodyParser: false },
 };
 
-const PDF_INGRESS_VERSION = "pdf-ingress-v1.0.2";
+const PDF_INGRESS_VERSION = "pdf-ingress-v1.0.3";
 const JSON_BODY_LIMIT = 64_000;
 const ACCEPTED_UPLOAD_MIME_TYPES = new Set([
   "application/pdf",
@@ -26,7 +28,7 @@ const ACCEPTED_UPLOAD_MIME_TYPES = new Set([
 ]);
 
 function parseForm(req) {
-  const maxFileSize = Number(process.env.MAX_PDF_BYTES || 8_000_000);
+  const maxFileSize = pdfMaxBytes();
   const form = formidable({
     multiples: false,
     maxFileSize,
@@ -80,21 +82,16 @@ function parseArchiveContext(fields = {}) {
   return normalizedArchiveContext(fieldValue(fields.archiveContext));
 }
 
-async function isRealPdf(filePath) {
-  const handle = await fs.open(filePath, "r");
-  try {
-    const signature = Buffer.alloc(5);
-    const { bytesRead } = await handle.read(signature, 0, signature.length, 0);
-    return bytesRead === signature.length && signature.toString("ascii") === "%PDF-";
-  } finally {
-    await handle.close();
-  }
-}
-
 function publicError(error) {
   const message = String(error?.message || "");
   if (/maxFileSize|max file size|too large|pdf_upload_too_large/i.test(message)) {
-    return { status: 413, code: "PDF_TOO_LARGE", error: "PDF troppo grande" };
+    return {
+      status: 413,
+      code: "PDF_TOO_LARGE",
+      error: "PDF troppo grande",
+      fileSize: Number(error?.actualBytes || 0) || null,
+      maxFileSize: Number(error?.maxBytes || pdfMaxBytes()),
+    };
   }
   if (/pdf_upload_not_configured/.test(message)) {
     return { status: 503, code: "PDF_DIRECT_UPLOAD_NOT_CONFIGURED", error: "Caricamento protetto dei PDF grandi non configurato" };
@@ -142,6 +139,7 @@ export default async function handler(req, res) {
   let archiveContext = {};
   let validPdf = false;
   let ingressMode = "vercel_multipart";
+  let pdfHeader = { valid: false, sanitized: false, bytesRemoved: 0, fileSize: null };
   const configuredDeadlineMs = Number.parseInt(process.env.PDF_ANALYSIS_DEADLINE_MS || "52000", 10);
   const analysisDeadlineMs = Number.isFinite(configuredDeadlineMs)
     ? Math.max(24_000, Math.min(52_000, configuredDeadlineMs))
@@ -186,9 +184,11 @@ export default async function handler(req, res) {
       };
     }
 
-    if (!(await isRealPdf(temporaryFilePath))) {
-      return json(res, 415, { ok: false, error: "Il file caricato non è un PDF valido" });
+    pdfHeader = await normalizePdfFileHeader(temporaryFilePath);
+    if (!pdfHeader.valid) {
+      return json(res, 415, { ok: false, code: "PDF_INVALID", error: "Il file caricato non è un PDF valido" });
     }
+    if (pdfHeader.sanitized && fileMetadata) fileMetadata.fileSize = pdfHeader.fileSize;
     validPdf = true;
 
     const normalized = await extractPdfPureAi({
@@ -200,6 +200,8 @@ export default async function handler(req, res) {
       ...(normalized.ai || {}),
       ingress_mode: ingressMode,
       ingress_version: PDF_INGRESS_VERSION,
+      pdf_header_normalized: Boolean(pdfHeader.sanitized),
+      leading_bytes_removed: Number(pdfHeader.bytesRemoved || 0),
     };
     const canArchive = analysisDeadlineAt - Date.now() >= 7_000;
     const archive = canArchive
@@ -221,7 +223,8 @@ export default async function handler(req, res) {
       }).catch(() => {});
     }
     const mapped = publicError(error);
-    return json(res, mapped.status, { ok: false, code: mapped.code, error: mapped.error });
+    const { status, ...payload } = mapped;
+    return json(res, status, { ok: false, ...payload });
   } finally {
     if (directUploadTicket) await deletePdfDirectUpload(directUploadTicket).catch(() => {});
     if (temporaryFilePath) await fs.unlink(temporaryFilePath).catch(() => {});
