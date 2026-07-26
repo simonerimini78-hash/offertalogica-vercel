@@ -7050,9 +7050,10 @@ window.rimuoviFilePdf = function rimuoviFilePdf(id, source) {
   }
 };
 
-const PDF_DIRECT_UPLOAD_MAX_BYTES = 4_000_000;
-const PDF_RASTER_TARGET_BYTES = 3_250_000;
+const PDF_DIRECT_UPLOAD_MAX_BYTES = 3_800_000;
+const PDF_SESSION_PAGE_MAX_BYTES = 3_450_000;
 const PDF_RASTER_MAX_PAGES = 8;
+const PDF_SESSION_STORAGE_PREFIX = "offertalogica:pdf-session:v2:";
 let PDFJS_RASTER_MODULE_PROMISE = null;
 
 async function caricaPdfJsPerRasterizzazione() {
@@ -7077,11 +7078,7 @@ function canvasInJpegBlob(canvas, quality) {
 async function rasterizzaPaginePdf(file, { maxDimension, quality }) {
   const pdfjsLib = await caricaPdfJsPerRasterizzazione();
   const bytes = new Uint8Array(await file.arrayBuffer());
-  const loadingTask = pdfjsLib.getDocument({
-    data: bytes,
-    isEvalSupported: false,
-    useWorkerFetch: false,
-  });
+  const loadingTask = pdfjsLib.getDocument({ data: bytes, disableFontFace: false, useSystemFonts: true });
   const pdf = await loadingTask.promise;
   try {
     if (pdf.numPages > PDF_RASTER_MAX_PAGES) throw new Error("pdf_fotografico_troppe_pagine");
@@ -7090,7 +7087,7 @@ async function rasterizzaPaginePdf(file, { maxDimension, quality }) {
       const page = await pdf.getPage(pageNumber);
       const baseViewport = page.getViewport({ scale: 1 });
       const longestSide = Math.max(baseViewport.width, baseViewport.height) || 1;
-      const scale = Math.max(0.45, Math.min(2.4, maxDimension / longestSide));
+      const scale = Math.max(0.6, Math.min(3.2, maxDimension / longestSide));
       const viewport = page.getViewport({ scale });
       const canvas = document.createElement("canvas");
       canvas.width = Math.max(1, Math.round(viewport.width));
@@ -7112,73 +7109,185 @@ async function rasterizzaPaginePdf(file, { maxDimension, quality }) {
   }
 }
 
-async function preparaPaginePdfGrande(file) {
+async function preparaPaginePdfSessione(file) {
   const attempts = [
+    { maxDimension: 2400, quality: 0.90 },
+    { maxDimension: 2200, quality: 0.86 },
+    { maxDimension: 2000, quality: 0.82 },
     { maxDimension: 1800, quality: 0.78 },
     { maxDimension: 1600, quality: 0.72 },
-    { maxDimension: 1400, quality: 0.66 },
-    { maxDimension: 1200, quality: 0.58 },
-    { maxDimension: 1000, quality: 0.50 },
   ];
   let lastPages = [];
   for (const attempt of attempts) {
     const pages = await rasterizzaPaginePdf(file, attempt);
-    const totalBytes = pages.reduce((sum, item) => sum + Number(item.blob.size || 0), 0);
     lastPages = pages;
-    if (totalBytes <= PDF_RASTER_TARGET_BYTES) {
-      return { pages, totalBytes, settings: attempt };
+    if (pages.every((item) => Number(item.blob.size || 0) <= PDF_SESSION_PAGE_MAX_BYTES)) {
+      return {
+        pages,
+        totalBytes: pages.reduce((sum, item) => sum + Number(item.blob.size || 0), 0),
+        settings: attempt,
+      };
     }
   }
-  const finalBytes = lastPages.reduce((sum, item) => sum + Number(item.blob.size || 0), 0);
-  throw new Error(
-    finalBytes > PDF_RASTER_TARGET_BYTES
-      ? "pdf_fotografico_ancora_troppo_grande"
-      : "rasterizzazione_pdf_non_disponibile"
-  );
+  const largest = Math.max(0, ...lastPages.map((item) => Number(item.blob.size || 0)));
+  throw new Error(largest > PDF_SESSION_PAGE_MAX_BYTES ? "pagina_pdf_ancora_troppo_grande" : "rasterizzazione_pdf_non_disponibile");
 }
 
-function creaArchiveContextPdf(uploadSequence) {
-  return {
-    sessionId: analyticsSessionId(),
-    staffMode: staffModeAttiva(),
-    customerType: LEAD_STATE.customerType,
-    uploadSequence,
-  };
+async function richiestaSessionePdf(url, options = {}) {
+  const response = await fetch(url, options);
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.includes("application/json")) throw new Error("api_non_disponibile");
+  const payload = await response.json();
+  if (!response.ok || !payload.ok) throw new Error(payload.error || "Errore sessione PDF");
+  return payload;
 }
 
-async function inviaPdfPerAnalisi(file, uploadSequence) {
-  const archiveContext = creaArchiveContextPdf(uploadSequence);
-  if (Number(file.size || 0) <= PDF_DIRECT_UPLOAD_MAX_BYTES) {
-    const formData = new FormData();
-    formData.append("pdf", file);
-    formData.append("archiveContext", JSON.stringify(archiveContext));
-    return fetch("/api/analyze-pdf", { method: "POST", body: formData });
+function chiaveSessionePdf(file) {
+  return `${PDF_SESSION_STORAGE_PREFIX}${pdfFileFingerprint(file)}`;
+}
+
+function salvaSessionePdfBrowser(file, credentials) {
+  try {
+    sessionStorage.setItem(chiaveSessionePdf(file), JSON.stringify(credentials));
+  } catch {}
+}
+
+function leggiSessionePdfBrowser(file) {
+  try {
+    const parsed = JSON.parse(sessionStorage.getItem(chiaveSessionePdf(file)) || "null");
+    return parsed?.analysisId && parsed?.analysisToken ? parsed : null;
+  } catch {
+    return null;
   }
+}
 
-  trackEvent("pdf_large_client_raster_started", {
-    fileSize: Number(file.size || 0),
-    filenameExtension: String(file.name || "").split(".").pop()?.toLowerCase() || "pdf",
+function rimuoviSessionePdfBrowser(file) {
+  try { sessionStorage.removeItem(chiaveSessionePdf(file)); } catch {}
+}
+
+async function statoSessionePdf(credentials) {
+  return richiestaSessionePdf("/api/pdf-analysis-status", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(credentials),
   });
-  const raster = await preparaPaginePdfGrande(file);
+}
+
+async function creaSessionePdf(file, raster, uploadSequence) {
+  const archiveContext = creaArchiveContextPdf(uploadSequence);
   const formData = new FormData();
-  for (const page of raster.pages) {
-    formData.append(
-      "pages",
-      page.blob,
-      `page-${String(page.pageNumber).padStart(3, "0")}.jpg`
-    );
-  }
   formData.append("originalFilename", file.name || "documento.pdf");
   formData.append("originalSize", String(Number(file.size || 0)));
   formData.append("pageCount", String(raster.pages.length));
   formData.append("archiveContext", JSON.stringify(archiveContext));
-  trackEvent("pdf_large_client_raster_completed", {
+  if (Number(file.size || 0) <= PDF_DIRECT_UPLOAD_MAX_BYTES) formData.append("pdf", file);
+  return richiestaSessionePdf("/api/pdf-analysis-start", { method: "POST", body: formData });
+}
+
+async function caricaPaginaSessionePdf(credentials, page) {
+  const formData = new FormData();
+  formData.append("analysisId", credentials.analysisId);
+  formData.append("analysisToken", credentials.analysisToken);
+  formData.append("pageNumber", String(page.pageNumber));
+  formData.append("page", page.blob, `page-${String(page.pageNumber).padStart(3, "0")}.jpg`);
+  return richiestaSessionePdf("/api/pdf-analysis-page", { method: "POST", body: formData });
+}
+
+async function commitSessionePdf(credentials) {
+  return richiestaSessionePdf("/api/pdf-analysis-commit", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(credentials),
+  });
+}
+
+async function domandaSessionePdf(credentials, questionId) {
+  return richiestaSessionePdf("/api/pdf-analysis-question", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...credentials, questionId }),
+  });
+}
+
+async function finalizzaSessionePdf(credentials) {
+  return richiestaSessionePdf("/api/pdf-analysis-finalize", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(credentials),
+  });
+}
+
+async function inviaPdfPerAnalisi(file, uploadSequence, onProgress = () => {}) {
+  onProgress("Preparazione delle pagine ad alta qualità", 0, 1);
+  const raster = await preparaPaginePdfSessione(file);
+  trackEvent("pdf_page_session_raster_completed", {
     originalBytes: Number(file.size || 0),
     rasterBytes: raster.totalBytes,
     pageCount: raster.pages.length,
     maxDimension: raster.settings.maxDimension,
   });
-  return fetch("/api/analyze-pdf", { method: "POST", body: formData });
+
+  let credentials = leggiSessionePdfBrowser(file);
+  let statusPayload = null;
+  if (credentials) {
+    try {
+      statusPayload = await statoSessionePdf(credentials);
+      if (statusPayload.session?.status === "finalized" && statusPayload.final?.normalized) {
+        rimuoviSessionePdfBrowser(file);
+        return { ok: true, normalized: statusPayload.final.normalized, archive: null, reader: statusPayload.final.reader || null };
+      }
+    } catch {
+      credentials = null;
+      statusPayload = null;
+      rimuoviSessionePdfBrowser(file);
+    }
+  }
+
+  if (!credentials) {
+    onProgress("Creazione della sessione di lettura", 0, 1);
+    const started = await creaSessionePdf(file, raster, uploadSequence);
+    credentials = { analysisId: started.analysisId, analysisToken: started.analysisToken };
+    salvaSessionePdfBrowser(file, credentials);
+    statusPayload = { session: started.session, plan: [], answers: {} };
+  }
+
+  const uploadedCount = Number(statusPayload?.session?.uploadedPageCount || 0);
+  for (let index = uploadedCount; index < raster.pages.length; index += 1) {
+    onProgress(`Caricamento pagina ${index + 1} di ${raster.pages.length}`, index + 1, raster.pages.length);
+    await caricaPaginaSessionePdf(credentials, raster.pages[index]);
+  }
+
+  let planPayload;
+  if (["ready", "questioning"].includes(statusPayload?.session?.status) && Array.isArray(statusPayload.plan) && statusPayload.plan.length) {
+    planPayload = statusPayload;
+  } else {
+    onProgress("Preparazione delle domande mirate", 0, 1);
+    planPayload = await commitSessionePdf(credentials);
+  }
+
+  const answered = new Set(Object.keys(planPayload.answers || statusPayload?.answers || {}));
+  const plan = Array.isArray(planPayload.plan) ? planPayload.plan : [];
+  for (let index = 0; index < plan.length; index += 1) {
+    const question = plan[index];
+    if (answered.has(question.id)) continue;
+    onProgress(`Ricerca mirata ${index + 1}/${plan.length}: ${question.field}`, index + 1, plan.length);
+    let lastError = null;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        await domandaSessionePdf(credentials, question.id);
+        lastError = null;
+        break;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    if (lastError) throw lastError;
+  }
+
+  onProgress("Costruzione del risultato finale", plan.length, plan.length);
+  const finalized = await finalizzaSessionePdf(credentials);
+  rimuoviSessionePdfBrowser(file);
+  return finalized;
 }
 
 window.preparaConfermaPdf = async function preparaConfermaPdf() {
@@ -7228,14 +7337,14 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
     const file = files[fileIndex];
     const pendingEntry = pendingEntries[fileIndex];
     try {
-      const response = await inviaPdfPerAnalisi(
+      const payload = await inviaPdfPerAnalisi(
         file,
-        LEAD_STATE.pdfDocuments.length + results.length + 1
+        LEAD_STATE.pdfDocuments.length + results.length + 1,
+        (message, current, total) => {
+          if (title) title.innerText = "Analisi mirata del documento";
+          if (copy) copy.innerText = total > 1 ? `${message} (${current}/${total})` : message;
+        }
       );
-      const contentType = response.headers.get("content-type") || "";
-      if (!contentType.includes("application/json")) throw new Error("api_non_disponibile");
-      const payload = await response.json();
-      if (!response.ok || !payload.ok) throw new Error(payload.error || "Errore analisi PDF");
       results.push({
         filename: file.name,
         upload_id: pendingEntry.id,
@@ -8271,7 +8380,11 @@ function mergePdfDocuments(documents) {
       merged.potenza_impegnata_kw = firstValue(doc.potenza_impegnata_kw, merged.potenza_impegnata_kw);
       merged.potenza_disponibile_kw = firstValue(doc.potenza_disponibile_kw, merged.potenza_disponibile_kw);
       merged.pod = firstValue(doc.pod, merged.pod);
-      merged.indirizzo_fornitura_luce = firstValue(doc.indirizzo_fornitura_luce, doc.indirizzo_fornitura, merged.indirizzo_fornitura_luce);
+      merged.indirizzo_fornitura_luce = firstValue(
+        doc.indirizzo_fornitura_luce,
+        doc.commodity === "luce" ? doc.indirizzo_fornitura : null,
+        merged.indirizzo_fornitura_luce
+      );
       [
         "nome_offerta_luce", "codice_offerta_luce", "tipo_prezzo_luce", "tipo_prezzo_evidenza_luce",
         "indice_riferimento_luce", "spread_luce_eur_kwh", "decorrenza_condizioni_economiche_luce",
@@ -8290,7 +8403,11 @@ function mergePdfDocuments(documents) {
       merged.prezzo_gas_eur_smc = firstValue(doc.prezzo_gas_eur_smc, merged.prezzo_gas_eur_smc);
       merged.quota_fissa_vendita_gas_eur_anno = firstValue(doc.quota_fissa_vendita_gas_eur_anno, merged.quota_fissa_vendita_gas_eur_anno);
       merged.pdr = firstValue(doc.pdr, merged.pdr);
-      merged.indirizzo_fornitura_gas = firstValue(doc.indirizzo_fornitura_gas, doc.indirizzo_fornitura, merged.indirizzo_fornitura_gas);
+      merged.indirizzo_fornitura_gas = firstValue(
+        doc.indirizzo_fornitura_gas,
+        doc.commodity === "gas" ? doc.indirizzo_fornitura : null,
+        merged.indirizzo_fornitura_gas
+      );
       [
         "nome_offerta_gas", "codice_offerta_gas", "tipo_prezzo_gas", "tipo_prezzo_evidenza_gas",
         "indice_riferimento_gas", "spread_gas_eur_smc", "decorrenza_condizioni_economiche_gas",
