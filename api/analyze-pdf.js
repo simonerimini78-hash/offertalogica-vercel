@@ -61,24 +61,24 @@ async function isRealPdf(filePath) {
 function publicError(error) {
   const message = String(error?.message || "");
   if (/maxFileSize|max file size|too large/i.test(message)) {
-    return { status: 413, error: "PDF troppo grande" };
+    return { status: 413, code: "PDF_TOO_LARGE", error: "PDF troppo grande" };
   }
   if (/password|encrypted|protected/i.test(message)) {
-    return { status: 422, error: "PDF protetto o cifrato" };
+    return { status: 422, code: "PDF_PROTECTED", error: "PDF protetto o cifrato" };
   }
   if (/openai_missing_api_key/.test(message)) {
-    return { status: 503, error: "Lettura IA non configurata" };
+    return { status: 503, code: "AI_NOT_CONFIGURED", error: "Lettura IA non configurata" };
   }
   if (/openai_timeout|deadline|insufficient_time_budget/.test(message)) {
-    return { status: 504, error: "La lettura IA ha richiesto troppo tempo. Riprova." };
+    return { status: 504, code: "AI_TIMEOUT", error: "La lettura IA ha richiesto troppo tempo. Riprova." };
   }
   if (/openai_http_429/.test(message)) {
-    return { status: 503, error: "Servizio IA temporaneamente occupato. Riprova." };
+    return { status: 503, code: "AI_BUSY", error: "Servizio IA temporaneamente occupato. Riprova." };
   }
-  if (/openai_|pure_ai_|ai_raster_/.test(message)) {
-    return { status: 502, error: "La lettura IA non ha restituito un risultato utilizzabile" };
+  if (/openai_|pure_ai_/.test(message)) {
+    return { status: 502, code: "AI_INVALID_RESULT", error: "La lettura IA non ha restituito un risultato utilizzabile" };
   }
-  return { status: 400, error: "Errore analisi PDF" };
+  return { status: 400, code: "PDF_ANALYSIS_ERROR", error: "Errore analisi PDF" };
 }
 
 export default async function handler(req, res) {
@@ -90,10 +90,10 @@ export default async function handler(req, res) {
   let fileMetadata = null;
   let archiveContext = {};
   let validPdf = false;
-  const configuredDeadlineMs = Number.parseInt(process.env.PDF_ANALYSIS_DEADLINE_MS || "55000", 10);
+  const configuredDeadlineMs = Number.parseInt(process.env.PDF_ANALYSIS_DEADLINE_MS || "52000", 10);
   const analysisDeadlineMs = Number.isFinite(configuredDeadlineMs)
-    ? Math.max(24_000, Math.min(55_000, configuredDeadlineMs))
-    : 55_000;
+    ? Math.max(24_000, Math.min(52_000, configuredDeadlineMs))
+    : 52_000;
   const analysisDeadlineAt = Date.now() + analysisDeadlineMs;
   try {
     const { fields, files } = await parseForm(req);
@@ -117,15 +117,18 @@ export default async function handler(req, res) {
       filename: fileMetadata.originalFilename,
       deadlineAt: analysisDeadlineAt,
     });
-    const archive = await archivePdfAnalysis({
-      filePath: temporaryFilePath,
-      ...fileMetadata,
-      normalized,
-      context: archiveContext,
-    }).catch(() => ({ stored: false, reason: "archive_error" }));
+    const canArchive = analysisDeadlineAt - Date.now() >= 7_000;
+    const archive = canArchive
+      ? await archivePdfAnalysis({
+        filePath: temporaryFilePath,
+        ...fileMetadata,
+        normalized,
+        context: archiveContext,
+      }).catch(() => ({ stored: false, reason: "archive_error" }))
+      : { stored: false, reason: "insufficient_time_budget" };
     return json(res, 200, { ok: true, normalized, archive });
   } catch (error) {
-    if (validPdf && temporaryFilePath && fileMetadata) {
+    if (validPdf && temporaryFilePath && fileMetadata && analysisDeadlineAt - Date.now() >= 7_000) {
       await archivePdfAnalysis({
         filePath: temporaryFilePath,
         ...fileMetadata,
@@ -134,7 +137,7 @@ export default async function handler(req, res) {
       }).catch(() => {});
     }
     const mapped = publicError(error);
-    return json(res, mapped.status, { ok: false, error: mapped.error });
+    return json(res, mapped.status, { ok: false, code: mapped.code, error: mapped.error });
   } finally {
     if (temporaryFilePath) await fs.unlink(temporaryFilePath).catch(() => {});
   }
