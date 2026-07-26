@@ -143,3 +143,78 @@ test("usa PDF_AI_PRIMARY_MODEL senza ereditare la vecchia variabile shadow", asy
   assert.equal(capturedModel, "gpt-4.1-test-primary");
   await fs.rm(dir, { recursive: true, force: true });
 });
+
+test("retry mirato: un HTTP 500 OpenAI viene ritentato una sola volta e poi può riuscire", async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "pure-ai-retry-500-"));
+  const filePath = path.join(dir, "bolletta.pdf");
+  await fs.writeFile(filePath, "%PDF-test");
+  let attempts = 0;
+  const normalized = await extractPdfPureAi({
+    filePath,
+    apiKey: "test-key",
+    env: { PDF_AI_TIMEOUT_MS: "12000", PDF_AI_RETRY_DELAY_MS: "0" },
+    transport: async () => {
+      attempts += 1;
+      if (attempts === 1) {
+        return new Response(JSON.stringify({ error: { message: "temporary server error" } }), {
+          status: 500,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      return { id: "resp_retry_success", output_text: JSON.stringify(electricityOutput()) };
+    },
+  });
+  assert.equal(attempts, 2);
+  assert.equal(normalized.ai.openai_attempts, 2);
+  assert.equal(normalized.ai.retry_count, 1);
+  assert.equal(normalized.consumo_luce_kwh, 2740);
+  await fs.rm(dir, { recursive: true, force: true });
+});
+
+test("retry mirato: due HTTP 500 OpenAI producono errore dopo esattamente due tentativi", async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "pure-ai-retry-double-500-"));
+  const filePath = path.join(dir, "bolletta.pdf");
+  await fs.writeFile(filePath, "%PDF-test");
+  let attempts = 0;
+  await assert.rejects(
+    extractPdfPureAi({
+      filePath,
+      apiKey: "test-key",
+      env: { PDF_AI_TIMEOUT_MS: "12000", PDF_AI_RETRY_DELAY_MS: "0" },
+      transport: async () => {
+        attempts += 1;
+        return new Response(JSON.stringify({ error: { message: "temporary server error" } }), {
+          status: 500,
+          headers: { "content-type": "application/json" },
+        });
+      },
+    }),
+    /openai_http_500/,
+  );
+  assert.equal(attempts, 2);
+  await fs.rm(dir, { recursive: true, force: true });
+});
+
+test("retry mirato: un HTTP 400 OpenAI non viene ritentato", async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "pure-ai-no-retry-400-"));
+  const filePath = path.join(dir, "bolletta.pdf");
+  await fs.writeFile(filePath, "%PDF-test");
+  let attempts = 0;
+  await assert.rejects(
+    extractPdfPureAi({
+      filePath,
+      apiKey: "test-key",
+      env: { PDF_AI_TIMEOUT_MS: "12000", PDF_AI_RETRY_DELAY_MS: "0" },
+      transport: async () => {
+        attempts += 1;
+        return new Response(JSON.stringify({ error: { message: "bad request" } }), {
+          status: 400,
+          headers: { "content-type": "application/json" },
+        });
+      },
+    }),
+    /openai_http_400/,
+  );
+  assert.equal(attempts, 1);
+  await fs.rm(dir, { recursive: true, force: true });
+});
