@@ -1,9 +1,8 @@
 import fs from "node:fs/promises";
 import formidable from "formidable";
 import { json, method, requireAllowedOrigin } from "../lib/http.js";
-import { extractPdfWithControlledOcr } from "../lib/pdfExtractWithOcr.js";
+import { extractPdfPureAi } from "../lib/pdfPureAiReader.js";
 import { archivePdfAnalysis } from "../lib/pdfArchive.js";
-import { runPdfReaderShadow } from "../lib/pdfReaderShadow.js";
 import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
 
 export const config = {
@@ -67,6 +66,18 @@ function publicError(error) {
   if (/password|encrypted|protected/i.test(message)) {
     return { status: 422, error: "PDF protetto o cifrato" };
   }
+  if (/openai_missing_api_key/.test(message)) {
+    return { status: 503, error: "Lettura IA non configurata" };
+  }
+  if (/openai_timeout|deadline|insufficient_time_budget/.test(message)) {
+    return { status: 504, error: "La lettura IA ha richiesto troppo tempo. Riprova." };
+  }
+  if (/openai_http_429/.test(message)) {
+    return { status: 503, error: "Servizio IA temporaneamente occupato. Riprova." };
+  }
+  if (/openai_|pure_ai_|ai_raster_/.test(message)) {
+    return { status: 502, error: "La lettura IA non ha restituito un risultato utilizzabile" };
+  }
   return { status: 400, error: "Errore analisi PDF" };
 }
 
@@ -101,36 +112,15 @@ export default async function handler(req, res) {
     }
     validPdf = true;
 
-    const normalized = await extractPdfWithControlledOcr(temporaryFilePath, {
+    const normalized = await extractPdfPureAi({
+      filePath: temporaryFilePath,
       filename: fileMetadata.originalFilename,
       deadlineAt: analysisDeadlineAt,
     });
-    const canRunShadow = analysisDeadlineAt - Date.now() >= 3_000;
-    const shadow = canRunShadow
-      ? await runPdfReaderShadow({
-        filePath: temporaryFilePath,
-        filename: fileMetadata.originalFilename,
-        legacyNormalized: normalized,
-        deadlineAt: analysisDeadlineAt,
-      }).catch((error) => ({
-        enabled: true,
-        mode: "shadow",
-        pipeline_version: "shadow-gpt41-v1",
-        public_output: "legacy_unchanged",
-        error: String(error?.message || "shadow_pipeline_error").slice(0, 300),
-      }))
-      : {
-        enabled: true,
-        mode: "shadow",
-        pipeline_version: "shadow-gpt41-v1",
-        public_output: "legacy_unchanged",
-        skipped: "analysis_deadline_near",
-      };
     const archive = await archivePdfAnalysis({
       filePath: temporaryFilePath,
       ...fileMetadata,
       normalized,
-      shadow,
       context: archiveContext,
     }).catch(() => ({ stored: false, reason: "archive_error" }));
     return json(res, 200, { ok: true, normalized, archive });
@@ -146,8 +136,6 @@ export default async function handler(req, res) {
     const mapped = publicError(error);
     return json(res, mapped.status, { ok: false, error: mapped.error });
   } finally {
-    if (temporaryFilePath) {
-      await fs.unlink(temporaryFilePath).catch(() => {});
-    }
+    if (temporaryFilePath) await fs.unlink(temporaryFilePath).catch(() => {});
   }
 }
