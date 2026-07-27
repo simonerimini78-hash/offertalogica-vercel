@@ -1,130 +1,125 @@
-# OffertaLogica — lettore IA nativo PDF con upload diretto v1.0.3
+# OffertaLogica — lettore PDF visuale solo IA
 
-Base verificata: branch `lettura-IA-pura.1`.
+## Stato consolidato
 
-Il lettore IA non viene modificato e conserva la versione:
+Il percorso pubblico `POST /api/analyze-pdf` usa esclusivamente il lettore visuale IA nativo definito in `lib/pdfPureAiReader.js`.
 
-`pure-ai-native-pdf-v1.0.1`
+Non sono presenti nel runtime parser PDF testuali, OCR Tesseract, PDFium, lettore ibrido o modalità shadow.
 
-La v1.0.3 modifica soltanto il percorso con cui i PDF grandi arrivano alla route.
+Versioni correnti:
 
-## Problema riprodotto
+- lettore: `pure-ai-native-pdf-v1.0.4`;
+- ingresso PDF: `pdf-ingress-v1.0.3`;
+- modello predefinito: `gpt-4.1-2025-04-14`.
 
-Il frontend del branch inviava ogni PDF intero a:
-
-`POST /api/analyze-pdf` con `multipart/form-data`.
-
-Vercel respingeva i documenti oltre il limite del corpo della Function prima che il codice venisse eseguito, restituendo:
-
-- HTTP `413`;
-- `FUNCTION_PAYLOAD_TOO_LARGE`.
-
-Aumentare `MAX_PDF_BYTES` o `maxDuration` non può correggere questo errore, perché la richiesta viene bloccata prima di raggiungere `formidable` e prima della chiamata OpenAI.
-
-## Nuovo percorso
+## Flusso dei file
 
 ### PDF fino a 4.000.000 byte
 
-Resta invariato il percorso già verificato:
+`browser -> multipart /api/analyze-pdf -> OpenAI Responses`
 
-`browser -> multipart /api/analyze-pdf -> GPT visuale`
+La risposta espone:
+
+- `ai.ingress_mode = vercel_multipart`;
+- `ai.transport_mode = pdf_originale`.
 
 ### PDF oltre 4.000.000 byte
 
-Viene usato:
+`browser -> upload firmato Supabase -> /api/analyze-pdf con ticket -> OpenAI Responses`
 
-`browser -> URL firmato Supabase -> bucket privato -> /api/analyze-pdf con piccolo JSON -> GPT visuale`
+La risposta espone:
 
-La stessa route gestisce due operazioni JSON:
+- `ai.ingress_mode = supabase_signed_upload`.
 
-- `create_upload`: genera un URL temporaneo firmato;
-- `analyze_uploaded_pdf`: scarica il PDF dal bucket, verifica firma e dimensione e avvia lo stesso lettore IA.
+Il file temporaneo sotto `pending/` viene eliminato nel `finally` della richiesta di analisi.
 
-Non viene aggiunto alcun file in `api/`: il totale resta 12.
+### Trasporto verso OpenAI
 
-## Limite applicativo conservato
+- sotto 12.000.000 byte: `input_file.file_data` Base64;
+- da 12.000.000 byte: upload temporaneo a OpenAI Files e `input_file.file_id`;
+- il file OpenAI temporaneo viene eliminato in `finally`;
+- un solo retry è consentito esclusivamente per HTTP OpenAI 500, 502, 503 e 504, quando resta tempo sufficiente.
 
-Il limite del progetto resta quello già presente:
+## Limiti e validazione
 
-- `MAX_PDF_BYTES`, se configurato;
-- altrimenti `20.000.000` byte.
+- limite predefinito: 20.000.000 byte, configurabile con `MAX_PDF_BYTES`;
+- MIME accettati dal percorso firmato: `application/pdf` e `application/octet-stream`;
+- il file deve contenere un header `%PDF-1.x` o `%PDF-2.0` entro i primi 4096 byte;
+- eventuali byte estranei prima dell'header vengono rimossi senza modificare il resto del documento;
+- le quote fisse di vendita possono essere positive, pari a zero oppure negative quando il documento espone un credito o uno sconto; il valore mensile viene annualizzato conservando il segno;
+- dimensione dichiarata, ticket e dimensione scaricata devono coincidere.
 
-Il limite predefinito applicativo è ora 20.000.000 byte. Il valore resta configurabile con `MAX_PDF_BYTES`; un file oltre il limite configurato viene rifiutato con `PDF_TOO_LARGE` e la risposta indica dimensione ricevuta e limite effettivo.
+## Diagnostica
 
-## Sicurezza
+Gli errori pubblici includono:
 
-- Il bucket resta privato.
-- `SUPABASE_SERVICE_ROLE_KEY` resta esclusivamente server-side.
-- Il percorso temporaneo è casuale e confinato sotto `pending/AAAA/MM/UUID.pdf`.
-- Il browser riceve un URL di upload firmato, non la service role.
-- La seconda richiesta usa un ticket firmato HMAC e non può indicare liberamente un altro oggetto del bucket.
-- Dimensione dichiarata e dimensione scaricata devono coincidere.
-- La firma `%PDF-` viene verificata prima dell'analisi.
-- L'oggetto temporaneo viene eliminato nel `finally` anche quando l'analisi fallisce dopo aver raggiunto la route.
+- `diagnostic_code`;
+- `analysis_stage`;
+- `ingress_mode`;
+- `elapsed_ms`;
+- esito dell'archiviazione diagnostica.
 
-## Variabili necessarie per i PDF grandi
+I log Vercel usano gli eventi:
 
+- `[pdf-analysis-error]`;
+- `[pdf-analysis-archive-error]`.
+
+## Archiviazione
+
+L'archiviazione usa Supabase Storage e la tabella `pdf_analyses` quando configurata. La route staff esistente consente la pulizia dei record scaduti tramite l'azione `cleanup`.
+
+Variabili principali:
+
+- `OPENAI_API_KEY`;
 - `SUPABASE_URL`;
 - `SUPABASE_SERVICE_ROLE_KEY`;
-- `PDF_ARCHIVE_BUCKET`, oppure il predefinito `pdf-test-archive`;
-- bucket privato esistente con limite file almeno pari a `MAX_PDF_BYTES`.
+- `PDF_ARCHIVE_BUCKET`;
+- `PDF_ARCHIVE_MODE`;
+- `PDF_ARCHIVE_RETENTION_DAYS`;
+- `MAX_PDF_BYTES`.
 
-`PDF_ARCHIVE_MODE` continua a controllare l'archiviazione permanente dell'analisi. Non espone chiavi al browser.
+Variabili opzionali:
 
-## Diagnostica nella risposta
+- `PDF_AI_PRIMARY_MODEL`;
+- `PDF_AI_TIMEOUT_MS`;
+- `PDF_AI_RETRY_DELAY_MS`;
+- `PDF_AI_FILE_ID_THRESHOLD_BYTES`;
+- `PDF_AI_FILE_UPLOAD_TIMEOUT_MS`;
+- `PDF_AI_FILE_DELETE_TIMEOUT_MS`;
+- `PDF_ANALYSIS_DEADLINE_MS`.
 
-Per un PDF piccolo:
-
-`normalized.ai.ingress_mode = vercel_multipart`
-
-Per un PDF grande:
-
-`normalized.ai.ingress_mode = supabase_signed_upload`
-
-In entrambi i casi:
-
-- `normalized.ai.ingress_version = pdf-ingress-v1.0.3`;
-- `normalized.parser_version = pure-ai-native-pdf-v1.0.1`;
-- `normalized.ai.transport_mode = pdf_originale`.
-
-## File modificati
+## File runtime del lettore
 
 - `api/analyze-pdf.js`;
+- `lib/pdfPureAiReader.js`;
+- `lib/pdfFileValidation.js`;
+- `lib/pdfAnalysisDiagnostics.js`;
 - `lib/pdfArchive.js`;
+- `lib/pdfDataContract.js`;
+- `lib/pdfFieldValidation.js`;
 - `public/index.html`.
 
-Test aggiunti:
+## Vincoli verificati
 
-- `test/pdfDirectUpload.test.mjs`;
-- `test/pdfDirectUploadFrontend.test.mjs`.
+- le route API restano 12;
+- il comparatore e il catalogo ARERA non vengono modificati dal lettore;
+- il bucket deve essere privato e avere un limite almeno pari a `MAX_PDF_BYTES`;
+- i risultati visuali restano soggetti alla schermata di controllo dell'utente.
 
-## Verifiche locali
+## Limite noto
 
-- ZIP sorgente confrontato con il branch GitHub tramite SHA Git: coincidenza esatta sui file di lavoro.
-- API JavaScript: 12 prima e dopo.
-- Test mirati upload e regressioni del lettore: 34/34 superati.
-- Suite non OCR eseguibile: 160 test superati.
-- Due test legacy aggiuntivi non partono già nel branch originale perché manca `lib/pdfHybridPolicy.js`; la stessa anomalia è stata riprodotta sulla base non modificata.
-- `npm run verify:offers`: 0 errori, 0 avvisi, 0 partner warning.
-- `npm run validate:calculator` segnala già nella base originale `catalogo ARERA: vere offerte dual mancanti`; non è introdotto dalla patch.
+Un PDF fotografico può essere formalmente valido ma costruito con geometrie di pagina anomale che causano un errore interno del servizio IA. Non è presente una trasformazione automatica dedicata a singoli documenti o fornitori: eventuali fallback generali devono essere introdotti solo dopo evidenze su più casi reali.
 
-## Limite della verifica
+## Unione di più bollette dello stesso cliente
 
-Non è stata eseguita una prova reale contro il bucket Supabase del progetto, perché le credenziali non sono disponibili nell'ambiente locale. Il controllo obbligatorio dopo il deployment Preview è caricare Sorgenia e Irina e verificare:
+Quando vengono analizzate più bollette, il frontend non reinterpreta i dati restituiti dal lettore e non sceglie un fornitore, un indirizzo o un tipo di prezzo al posto dell'utente.
 
-- assenza di `413 FUNCTION_PAYLOAD_TOO_LARGE`;
-- `ingress_mode: supabase_signed_upload`;
-- arrivo della risposta IA;
-- eliminazione dell'oggetto sotto `pending/` dopo la richiesta.
+Regole consolidate:
 
-Supabase consente gli upload standard anche oltre 6 MB, ma raccomanda TUS resumable per maggiore affidabilità sopra tale dimensione. Il progetto conserva per ora il limite massimo di 20 MB; se i test reali mostrano interruzioni di rete, TUS sarà una modifica successiva separata, non inclusa in questa patch.
-
-
-## Correzione v1.0.3
-
-La prova reale ha confermato che Sorgenia usa correttamente `supabase_signed_upload`, mentre Irina superava il precedente limite interno di 8.000.000 byte. La v1.0.3 porta il limite predefinito a 20.000.000 byte senza modificare il lettore IA. OpenAI ammette file singoli inferiori a 50 MB; 20 MB mantiene un margine prudente per memoria, codifica Base64 e durata della Function.
-
-
-## Correzione PDF con prefisso estraneo
-
-La prova `G-2026-00052617.pdf` ha mostrato 171 byte di avviso PHP/HTML prima del vero header `%PDF-1.4`. Il documento si apre nei visualizzatori tolleranti, ma la verifica precedente lo respingeva correttamente perché non iniziava al byte zero con `%PDF-`. La v1.0.3 cerca un header PDF valido entro i primi 4096 byte, elimina soltanto il prefisso precedente e invia all’IA il PDF ripristinato. File senza un header `%PDF-1.x` o `%PDF-2.0` valido restano rifiutati. La risposta espone `ai.pdf_header_normalized` e `ai.leading_bytes_removed`.
+- i documenti vengono uniti soltanto quando codice fiscale o partita IVA e intestatario risultano compatibili;
+- luce e gas conservano separatamente fornitore, codice cliente, indirizzo, POD/PDR, consumi, prezzi, quote fisse e dati dell'offerta;
+- un campo comune viene valorizzato soltanto quando il valore luce e quello gas coincidono esattamente;
+- se due valori differenti puntano allo stesso controllo del modulo, il frontend non ne seleziona uno: il target resta bloccato per conflitto;
+- il risultato non dipende dall'ordine di caricamento dei PDF;
+- fornitori differenti per luce e gas determinano forniture separate, senza dialoghi o scelte arbitrarie del frontend;
+- valori mancanti in una bolletta restano mancanti e non vengono copiati dall'altra commodity.

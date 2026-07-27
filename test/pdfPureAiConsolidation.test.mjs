@@ -46,7 +46,7 @@ test("documentazione del lettore è unica e aggiornata", async () => {
   ];
   for (const relative of obsolete) assert.equal(await exists(relative), false, `documento obsoleto: ${relative}`);
   const readme = await fs.readFile(path.join(root, "LEGGIMI-LETTURA-SOLO-IA.md"), "utf8");
-  assert.match(readme, /pure-ai-native-pdf-v1\.0\.3/);
+  assert.match(readme, /pure-ai-native-pdf-v1\.0\.4/);
   assert.match(readme, /openai_file_id|file_id/);
   assert.match(readme, /20\.000\.000 byte/);
 });

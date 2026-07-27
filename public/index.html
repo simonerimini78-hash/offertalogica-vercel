@@ -3370,7 +3370,7 @@ function calcolaVoceEnergia({ consumo = 0, prezzoVariabile = 0, formula, quotaFi
   const prezzoCalcolo = risolviPrezzoVariabile({ prezzoVariabile, formula });
   const consumoFatturato = consumoProfilo * fattorePerdite;
   const quotaMateria = consumoFatturato * prezzoCalcolo;
-  const quotaFissaVendita = Math.max(0, numeroSicuro(quotaFissaAnnua, 0));
+  const quotaFissaVendita = numeroSicuro(quotaFissaAnnua, 0);
   const quotaTecnicaProfilo = Math.max(0, numeroSicuro(quoteUniversaliAnnue, 0));
   const regolate = componentiRegolate || componentiRegolateVuote();
   const quotaRegolataVariabile = consumoFatturato * Math.max(0, numeroSicuro(regolate.variabileEurUnita, 0));
@@ -3468,17 +3468,17 @@ function leggiValore(id, fallback = "") {
 const CAMPI_ATTUALI_ESSENZIALI = [
   { id: "in-luce-cons-att", label: "consumo annuo della luce", zeroAmmesso: false, instruction: "Inserisci il consumo annuo della luce in kWh." },
   { id: "in-luce-prezzo-att", label: "prezzo della luce", zeroAmmesso: false, instruction: "Inserisci il prezzo della luce in euro/kWh." },
-  { id: "in-luce-fisso-att", label: "costo fisso della luce", zeroAmmesso: true, instruction: "Inserisci il costo fisso luce e scegli euro/mese o euro/anno." },
+  { id: "in-luce-fisso-att", label: "costo fisso della luce", zeroAmmesso: true, negativoAmmesso: true, instruction: "Inserisci il costo fisso luce e scegli euro/mese o euro/anno." },
   { id: "in-gas-cons-att", label: "consumo annuo del gas", zeroAmmesso: false, instruction: "Inserisci il consumo annuo del gas in Smc." },
   { id: "in-gas-prezzo-att", label: "prezzo del gas", zeroAmmesso: false, instruction: "Inserisci il prezzo del gas in euro/Smc." },
-  { id: "in-gas-fisso-att", label: "costo fisso del gas", zeroAmmesso: true, instruction: "Inserisci il costo fisso gas e scegli euro/mese o euro/anno." },
+  { id: "in-gas-fisso-att", label: "costo fisso del gas", zeroAmmesso: true, negativoAmmesso: true, instruction: "Inserisci il costo fisso gas e scegli euro/mese o euro/anno." },
 ];
 
 const CAMPI_NUOVA_OFFERTA_ESSENZIALI = [
   { id: "in-luce-prezzo-nuov", label: "prezzo vendita luce della nuova offerta", zeroAmmesso: false, instruction: "Inserisci il prezzo dell'energia della proposta in euro/kWh." },
-  { id: "in-luce-fisso-nuov", label: "quota fissa luce della nuova offerta", zeroAmmesso: true, instruction: "Inserisci la quota fissa luce della proposta e scegli euro/mese o euro/anno." },
+  { id: "in-luce-fisso-nuov", label: "quota fissa luce della nuova offerta", zeroAmmesso: true, negativoAmmesso: true, instruction: "Inserisci la quota fissa luce della proposta e scegli euro/mese o euro/anno." },
   { id: "in-gas-prezzo-nuov", label: "prezzo vendita gas della nuova offerta", zeroAmmesso: false, instruction: "Inserisci il prezzo del gas della proposta in euro/Smc." },
-  { id: "in-gas-fisso-nuov", label: "quota fissa gas della nuova offerta", zeroAmmesso: true, instruction: "Inserisci la quota fissa gas della proposta e scegli euro/mese o euro/anno." },
+  { id: "in-gas-fisso-nuov", label: "quota fissa gas della nuova offerta", zeroAmmesso: true, negativoAmmesso: true, instruction: "Inserisci la quota fissa gas della proposta e scegli euro/mese o euro/anno." },
 ];
 
 
@@ -3652,7 +3652,7 @@ function statoCampoNumerico(config) {
   const element = document.getElementById(config.id);
   const raw = element ? String(element.value || "").trim().replace(",", ".") : "";
   const value = raw === "" ? NaN : Number(raw);
-  const valido = Number.isFinite(value) && (config.zeroAmmesso ? value >= 0 : value > 0);
+  const valido = Number.isFinite(value) && (config.negativoAmmesso ? true : config.zeroAmmesso ? value >= 0 : value > 0);
   return { ...config, element, raw, value, valido };
 }
 
@@ -8460,10 +8460,10 @@ function renderPdfSummary(documents, merged) {
     !dualSameProvider && merged.fornitore_gas ? `Fornitore gas: ${testoHtmlSicuro(merged.fornitore_gas)}` : "",
     merged.consumo_luce_kwh ? `Luce: ${merged.consumo_luce_kwh} kWh/anno` : "",
     merged.prezzo_luce_eur_kwh ? `Prezzo luce: ${merged.prezzo_luce_eur_kwh} €/kWh` : "",
-    merged.quota_fissa_vendita_luce_eur_anno ? `Fisso luce: ${merged.quota_fissa_vendita_luce_eur_anno} €/anno` : "",
+    pdfAutofillHasValue(merged.quota_fissa_vendita_luce_eur_anno) ? `Fisso luce: ${merged.quota_fissa_vendita_luce_eur_anno} €/anno` : "",
     merged.consumo_gas_smc ? `Gas: ${merged.consumo_gas_smc} Smc/anno` : "",
     merged.prezzo_gas_eur_smc ? `Prezzo gas: ${merged.prezzo_gas_eur_smc} €/Smc` : "",
-    merged.quota_fissa_vendita_gas_eur_anno ? `Fisso gas: ${merged.quota_fissa_vendita_gas_eur_anno} €/anno` : "",
+    pdfAutofillHasValue(merged.quota_fissa_vendita_gas_eur_anno) ? `Fisso gas: ${merged.quota_fissa_vendita_gas_eur_anno} €/anno` : "",
     merged.pod ? `POD: ${testoHtmlSicuro(merged.pod)}` : "",
     merged.pdr ? `PDR: ${testoHtmlSicuro(merged.pdr)}` : "",
     merged.potenza_impegnata_kw ? `Potenza impegnata luce: ${merged.potenza_impegnata_kw} kW` : "",

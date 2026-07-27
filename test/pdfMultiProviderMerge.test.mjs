@@ -55,7 +55,7 @@ function extractFunction(name) {
 function supplyDocument({ commodity, provider, customerCode, address, identifier, priceType, missingFixed = false, pages }) {
   const luce = commodity === "luce";
   const base = {
-    parser_version: "pure-ai-native-pdf-v1.0.3",
+    parser_version: "pure-ai-native-pdf-v1.0.4",
     page_count: pages,
     kind: "bolletta",
     commodity,
@@ -79,7 +79,7 @@ function supplyDocument({ commodity, provider, customerCode, address, identifier
     potenza_impegnata_kw: luce ? 3 : null,
     consumo_luce_kwh: luce ? 1628.91 : null,
     prezzo_luce_eur_kwh: luce ? 0.152429 : null,
-    quota_fissa_vendita_luce_eur_anno: luce && !missingFixed ? 84 : null,
+    quota_fissa_vendita_luce_eur_anno: luce && !missingFixed ? -73.2 : null,
     consumo_gas_smc: luce ? null : 1653.86,
     prezzo_gas_eur_smc: luce ? null : 0.565095,
     quota_fissa_vendita_gas_eur_anno: luce ? null : 240,
@@ -96,7 +96,7 @@ function supplyDocument({ commodity, provider, customerCode, address, identifier
     ocr: { attempted: false, applied: false, reason: "ai_only_mode" },
     ai: {
       applied: true,
-      reader_version: "pure-ai-native-pdf-v1.0.3",
+      reader_version: "pure-ai-native-pdf-v1.0.4",
       model: "gpt-4.1-2025-04-14",
       page_count: pages,
     },
@@ -113,7 +113,6 @@ function buildPair({ gasPriceType = "variabile" } = {}) {
       address: "VIA MULINO LOC. MONTEVEGLIO 19, 40053 VALSAMOGGIA BO",
       identifier: "IT001E49962531",
       priceType: "variabile",
-      missingFixed: true,
       pages: 12,
     }),
     gas: supplyDocument({
@@ -171,7 +170,8 @@ test("merge multi-fornitore: il risultato non dipende dall'ordine dei PDF", () =
   assert.equal(luceGas.codice_cliente_gas, "1001133382");
   assert.equal(luceGas.field_status.consumo_luce_kwh.status, "completo");
   assert.equal(luceGas.field_status.consumo_gas_smc.status, "completo");
-  assert.equal(luceGas.field_status.quota_fissa_vendita_luce_eur_anno.status, "mancante");
+  assert.equal(luceGas.field_status.quota_fissa_vendita_luce_eur_anno.status, "completo");
+  assert.equal(luceGas.quota_fissa_vendita_luce_eur_anno, -73.2);
   assert.equal(luceGas.field_status.quota_fissa_vendita_gas_eur_anno.status, "completo");
   assert.equal(luceGas.data_contract.parser.document_count, 2);
   assert.equal(luceGas.data_contract.parser.page_count, 23);
@@ -193,7 +193,7 @@ test("merge multi-fornitore: l'anteprima conserva i valori nella propria commodi
   assert.equal(byField.consumo_gas_smc.value, 1653.86);
   assert.equal(byField.prezzo_luce_eur_kwh.value, 0.152429);
   assert.equal(byField.prezzo_gas_eur_smc.value, 0.565095);
-  assert.equal(byField.quota_fissa_vendita_luce_eur_anno, undefined);
+  assert.equal(byField.quota_fissa_vendita_luce_eur_anno.value, -73.2);
   assert.equal(byField.quota_fissa_vendita_gas_eur_anno.value, 240);
   const priceType = specs.filter((item) => item.target_ids.includes("master-luce-tipo"));
   assert.equal(priceType.length, 1);
@@ -274,6 +274,29 @@ test("merge dual stesso fornitore: conserva i campi comuni soltanto quando coinc
   assert.equal(merged.fornitore, "Fornitore Comune");
   assert.equal(merged.indirizzo_fornitura, "VIA COMUNE 1, ROMA");
   assert.equal(merged.codice_cliente, "CLIENTE-COMUNE");
+});
+
+
+test("calcolo confronto: la quota fissa negativa resta un credito e non viene azzerata", () => {
+  const calculationStart = html.indexOf("function numeroSicuro(");
+  const calculationEnd = html.indexOf("function calcolaOfferta(", calculationStart);
+  assert.ok(calculationStart > 0 && calculationEnd > calculationStart);
+  const source = html.slice(calculationStart, calculationEnd);
+  const context = { INDICI_MERCATO: {}, PERDITE_RETE_LUCE_VARIABILE: 1 };
+  vm.createContext(context);
+  vm.runInContext(`${source}\nthis.calcola = calcolaVoceEnergia;`, context);
+  const result = context.calcola({
+    commodity: "luce",
+    consumo: 1000,
+    prezzoVariabile: 0.2,
+    quotaFissaAnnua: -73.2,
+    quoteUniversaliAnnue: 0,
+    componentiRegolate: { variabileEurUnita: 0, fissaAnnua: 0, imposteEurUnita: 0, ivaPercentuale: 0 },
+    tipoTariffa: "variabile",
+  });
+  assert.equal(result.quotaMateria, 200);
+  assert.equal(result.quotaFissaVendita, -73.2);
+  assert.equal(result.totale, 126.8);
 });
 
 test("ambito PDF: due fornitori letti diversi producono forniture separate senza scelta arbitraria", async () => {

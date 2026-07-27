@@ -102,6 +102,33 @@ test("normalizePureAiOutput mantiene il contratto e annualizza solo la quota men
   assert.equal(fixed.autofill.allowed, true);
 });
 
+
+test("quota fissa negativa: conserva il segno, annualizza e abilita l’autocompilazione", () => {
+  const output = electricityOutput();
+  const fixedAnswer = output.answers.find((item) => item.question_id === "quota_fissa_vendita_luce");
+  Object.assign(fixedAnswer, {
+    value_text: "-6,10 €/mese",
+    value_number: -6.1,
+    unit: "€/mese",
+    period: "month",
+    evidence: "di cui spesa per la vendita di energia elettrica -6,10 €/mese",
+  });
+  const normalized = normalizePureAiOutput(output, {
+    model: "test-model",
+    responseId: "resp_negative_fixed",
+    transportMode: "pdf_originale",
+    timings: { request_build_ms: 1, openai_ms: 1, total_ms: 2 },
+  });
+
+  assert.equal(normalized.quota_fissa_vendita_luce_eur_anno, -73.2);
+  assert.equal(normalized.field_status.quota_fissa_vendita_luce_eur_anno.status, "completo");
+  const fixed = normalized.data_contract.fields.quota_fissa_vendita_luce_eur_anno;
+  assert.equal(fixed.normalized_value, -73.2);
+  assert.equal(fixed.derivation.original_value, -6.1);
+  assert.equal(fixed.derivation.factor, 12);
+  assert.equal(fixed.autofill.allowed, true);
+});
+
 test("regressione 504: la chiamata IA parte senza rasterizzazione che consuma il budget", async () => {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "pure-ai-budget-"));
   const filePath = path.join(dir, "bolletta.pdf");

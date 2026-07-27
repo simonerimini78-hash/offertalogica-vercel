@@ -45,3 +45,15 @@ test("Step 4.1 mostra intestatario, potenza e nomi leggibili dei campi mancanti"
     "documento di identità",
   ]) assert.ok(html.includes(marker), `manca ${marker}`);
 });
+
+
+test("quote fisse negative: il modulo e il calcolo conservano crediti e sconti", () => {
+  for (const marker of [
+    'negativoAmmesso: true',
+    'config.negativoAmmesso ? true',
+    'const quotaFissaVendita = numeroSicuro(quotaFissaAnnua, 0);',
+    'pdfAutofillHasValue(merged.quota_fissa_vendita_luce_eur_anno)',
+    'pdfAutofillHasValue(merged.quota_fissa_vendita_gas_eur_anno)',
+  ]) assert.ok(html.includes(marker), `manca ${marker}`);
+  assert.ok(!html.includes('const quotaFissaVendita = Math.max(0, numeroSicuro(quotaFissaAnnua, 0));'));
+});
