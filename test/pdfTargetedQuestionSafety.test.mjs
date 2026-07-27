@@ -305,28 +305,25 @@ test("scheda sintetica: non sostituisce l'offerta corrente con la tariffa di rin
   assert.equal(rejectedReason(normalized, "indice_riferimento_luce"), "semantic_offer_field_not_contract_term");
 });
 
-test("richiesta IA: separa fatti osservati e dati contrattuali del confronto", async () => {
+test("richiesta IA: schema compatto limita il lavoro ai dati necessari al confronto", async () => {
   const request = await buildPdfPureAiRequest({ fileId: "file_test", filename: "documento.pdf" });
   const schema = request.text.format.schema;
   const electricity = schema.properties.electricity.properties;
   const gas = schema.properties.gas.properties;
-  assert.deepEqual(schema.required, ["document", "facts", "electricity", "gas"]);
+  assert.deepEqual(schema.required, ["document", "electricity", "gas"]);
   assert.ok(electricity.annual_consumption);
   assert.ok(electricity.price);
   assert.ok(electricity.fixed_fee);
   assert.ok(gas.annual_consumption);
   assert.ok(gas.price);
   assert.ok(gas.fixed_fee);
-  assert.ok(schema.properties.facts);
   assert.equal(schema.properties.answers, undefined);
-  assert.equal(request.max_output_tokens, 2800);
+  assert.equal(request.max_output_tokens, 1800);
   const prompt = request.input[0].content[0].text + "\n" + request.input[1].content[1].text;
   assert.match(prompt, /consumo annuo/i);
-  assert.match(prompt, /prezzo contrattuale/i);
+  assert.match(prompt, /prezzo commerciale/i);
   assert.match(prompt, /quota fissa commerciale/i);
-  assert.match(prompt, /POD\/PDR/i);
-  assert.match(prompt, /consumi fatturati/i);
-  assert.match(prompt, /costi medi/i);
+  assert.match(prompt, /non cercare POD\/PDR/i);
   assert.match(prompt, /rinnovi futuri/i);
 });
 
