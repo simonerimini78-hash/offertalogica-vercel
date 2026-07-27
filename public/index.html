@@ -4950,7 +4950,11 @@ function miglioreRigaAreraPerPartner(offerta, commodity, attuale) {
 function offertaPartnerConPrezziArera(offerta, attuale) {
   if (offerta.fornitura === "dual") {
     const dual = miglioreOffertaAreraDualPerPartner(offerta, attuale);
-    if (!dual) return null;
+    // Il catalogo commerciale partner e il catalogo ARERA D hanno ruoli distinti.
+    // Se il D contiene la stessa offerta aggiorniamo i dati economici dal D;
+    // altrimenti conserviamo la vera offerta dual del partner e il suo funnel,
+    // senza ricostruirla scegliendo liberamente una riga E e una riga G.
+    if (!dual) return normalizzaOfferta(offerta, 0);
     const codici = `${dual.codice} (${dual.codiceOffertaLuce} + ${dual.codiceOffertaGas})`;
     return normalizzaOfferta({
       ...offerta,
@@ -5276,13 +5280,11 @@ function unisciOfferteCandidati(offerteRanking, offertePartner) {
 
 function costruisciOfferteRanking(attuale, tipoTariffa, tipoFornitura) {
   const daArera = costruisciOfferteAreraRanking(attuale, tipoTariffa, tipoFornitura);
-
-  // Il menu dual nasce soltanto dal catalogo D. I percorsi partner vengono
-  // applicati ai record D da arricchisciOffertaAreraConCommerciale; non vengono
-  // aggiunte coppie ricostruite dai cataloghi E/G.
-  if (tipoFornitura === "dual") return daArera;
-
   const partnerDirette = offertePartnerDiretteAttivabili(tipoTariffa, tipoFornitura, attuale);
+
+  // Nel dual, il catalogo D alimenta il ranking ARERA e il gruppo consulente.
+  // Le offerte partner attive restano offerte commerciali dual autonome:
+  // non vengono create combinando righe E/G e mantengono il proprio funnel.
   return unisciOfferteCandidati(daArera, partnerDirette);
 }
 
