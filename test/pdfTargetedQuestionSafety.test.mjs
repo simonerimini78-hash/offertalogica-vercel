@@ -70,6 +70,27 @@ function rejectedReason(normalized, questionId) {
   return normalized.ai.rejected_questions.find((item) => item.question_id === questionId)?.reason || null;
 }
 
+test("validazione backend compatta: rifiuta i tre falsi positivi Free senza metadati prodotti dall'IA", () => {
+  const answers = [
+    { question_id: "fornitore", found: true, value_text: "Free Luce&Gas S.r.l.", value_number: null, unit: null, period: "none", page: 1, label: "Fornitore", evidence: "Free Luce&Gas S.r.l.", confidence: 100 },
+    { question_id: "pod", found: true, value_text: "IT001E53942290", value_number: null, unit: null, period: "none", page: 2, label: "POD", evidence: "POD IT001E53942290", confidence: 100 },
+    { question_id: "consumo_luce_kwh", found: true, value_text: "1.479,56 kWh", value_number: 1479.56, unit: "kWh", period: "none", page: 2, label: "RIEPILOGO DEI CONSUMI", evidence: "RIEPILOGO DEI CONSUMI (ultimi 12 mesi) - CONSUMO DA INIZIO FORNITURA TOTALE 1.479,56 kWh", confidence: 100 },
+    { question_id: "prezzo_luce_eur_kwh", found: true, value_text: "0,055492 €/kWh", value_number: 0.055492, unit: "€/kWh", period: "none", page: 2, label: "COSTO MEDIO DELLA FORNITURA", evidence: "Costo unitario della materia Energia 0,055492 €/kWh", confidence: 100 },
+    { question_id: "quota_fissa_vendita_luce", found: true, value_text: "10,154033 €", value_number: 10.154033, unit: "EUR", period: "month", page: 5, label: "Corr. Commercializzazione e Vendita", evidence: "Corr. Commercializzazione e Vendita 10,154033 1,00 10,15", confidence: 100 },
+  ];
+  const normalized = normalizePureAiOutput({
+    document: { kind: "bill", commodity: "electricity", customer_type: "business", page_count: 7 },
+    answers,
+  });
+
+  assert.equal(normalized.consumo_luce_kwh, undefined);
+  assert.equal(normalized.prezzo_luce_eur_kwh, undefined);
+  assert.equal(normalized.quota_fissa_vendita_luce_eur_anno, undefined);
+  assert.equal(rejectedReason(normalized, "consumo_luce_kwh"), "semantic_consumption_period_conflict");
+  assert.equal(rejectedReason(normalized, "prezzo_luce_eur_kwh"), "semantic_price_average_or_total");
+  assert.equal(rejectedReason(normalized, "quota_fissa_vendita_luce"), "semantic_fixed_month_not_evidenced");
+});
+
 test("regressione Free Luce&Gas: non usa come annuale il consumo da inizio fornitura di due mesi", () => {
   const answers = emptyAnswers();
   setAnswer(answers, "fornitore", {
@@ -290,14 +311,17 @@ test("richiesta IA: schema e prompt impongono domande mirate e verifica della fo
   const userPrompt = request.input[1].content[1].text;
   const answerProperties = request.text.format.schema.properties.answers.items.properties;
 
-  assert.equal(PDF_PURE_AI_READER_VERSION, "pure-ai-native-pdf-v1.0.6");
+  assert.equal(PDF_PURE_AI_READER_VERSION, "pure-ai-native-pdf-v1.0.7");
   assert.match(systemPrompt, /da inizio fornitura/);
   assert.match(systemPrompt, /spesa annua stimata/);
-  assert.match(systemPrompt, /rinnovo futuro/);
+  assert.match(systemPrompt, /rinnov[oi] futur/);
   assert.match(userPrompt, /consumo totale della luce riferito realmente a 12 mesi completi/);
   assert.match(userPrompt, /nome commerciale esatto dell'offerta luce/);
-  assert.ok(answerProperties.source_role);
-  assert.ok(answerProperties.usable_for_comparison);
-  assert.ok(answerProperties.certainty);
-  assert.ok(answerProperties.coverage_months);
+  assert.equal(answerProperties.source_role, undefined);
+  assert.equal(answerProperties.usable_for_comparison, undefined);
+  assert.equal(answerProperties.certainty, undefined);
+  assert.equal(answerProperties.coverage_months, undefined);
+  assert.equal(request.text.format.schema.properties.answers.minItems, 0);
+  assert.match(systemPrompt, /lettura parziale è valida/);
+  assert.match(systemPrompt, /inserisci soltanto le risposte effettivamente trovate/);
 });

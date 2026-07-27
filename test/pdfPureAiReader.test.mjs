@@ -74,8 +74,116 @@ test("buildPdfPureAiRequest invia direttamente il PDF originale", async () => {
   assert.equal(request.text.format.type, "json_schema");
   assert.equal(request.text.format.strict, true);
   assert.equal(request.store, false);
-  assert.equal(request.max_output_tokens, 6500);
+  assert.equal(request.max_output_tokens, 3400);
+  assert.equal(request.text.format.schema.properties.answers.minItems, 0);
+  assert.equal(request.text.format.schema.properties.answers.maxItems, PDF_PURE_AI_QUESTION_IDS.length);
+  assert.deepEqual(
+    request.text.format.schema.properties.answers.items.required,
+    ["question_id", "found", "value_text", "value_number", "unit", "period", "page", "label", "evidence", "confidence"],
+  );
   await fs.rm(dir, { recursive: true, force: true });
+});
+
+test("normalizePureAiOutput accetta una risposta sparsa e conserva i dati parziali", () => {
+  const full = electricityOutput();
+  const sparse = {
+    document: full.document,
+    answers: full.answers.filter((item) => item.found),
+  };
+  const normalized = normalizePureAiOutput(sparse, {
+    model: "test-model",
+    responseId: "resp_sparse",
+  });
+
+  assert.equal(sparse.answers.length < PDF_PURE_AI_QUESTION_IDS.length, true);
+  assert.equal(normalized.fornitore, "Hera Comm");
+  assert.equal(normalized.pod, "IT001E12345678");
+  assert.equal(normalized.consumo_luce_kwh, 2740);
+  assert.equal(normalized.quota_fissa_vendita_luce_eur_anno, 85.2);
+  assert.equal(normalized.ai.accepted_count >= 8, true);
+});
+
+test("richiesta essential riduce domande e output rispetto al profilo completo", async () => {
+  const full = await buildPdfPureAiRequest({ fileId: "file_test", profile: "full" });
+  const essential = await buildPdfPureAiRequest({ fileId: "file_test", profile: "essential" });
+  const fullQuestions = full.text.format.schema.properties.answers.items.properties.question_id.enum;
+  const essentialQuestions = essential.text.format.schema.properties.answers.items.properties.question_id.enum;
+
+  assert.equal(full.max_output_tokens, 3400);
+  assert.equal(essential.max_output_tokens, 1800);
+  assert.equal(essentialQuestions.length < fullQuestions.length, true);
+  assert.equal(essentialQuestions.includes("consumo_luce_kwh"), true);
+  assert.equal(essentialQuestions.includes("prezzo_gas_eur_smc"), true);
+  assert.equal(essentialQuestions.includes("decorrenza_condizioni_economiche_luce"), false);
+  assert.match(essential.input[1].content[1].text, /RECUPERO RAPIDO/);
+});
+
+test("timeout primario: esegue un recupero essenziale e restituisce una lettura parziale", async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "pure-ai-timeout-recovery-"));
+  const filePath = path.join(dir, "sorgenia.pdf");
+  await fs.writeFile(filePath, "%PDF-test");
+  const sparse = electricityOutput();
+  sparse.answers = sparse.answers.filter((item) => item.found && [
+    "fornitore", "customer_type", "intestatario", "codice_fiscale", "pod",
+    "potenza_impegnata_kw", "nome_offerta_luce",
+  ].includes(item.question_id));
+  const calls = [];
+
+  const normalized = await extractPdfPureAi({
+    filePath,
+    apiKey: "test-key",
+    model: "gpt-4.1-2025-04-14",
+    env: {
+      PDF_AI_TIMEOUT_MS: "12000",
+      PDF_AI_RECOVERY_TIMEOUT_MS: "8000",
+    },
+    transport: async ({ request, profile }) => {
+      calls.push({ profile, model: request.model, maxTokens: request.max_output_tokens });
+      if (profile === "full") throw new Error("openai_timeout");
+      return { id: "resp_recovery", output_text: JSON.stringify(sparse) };
+    },
+  });
+
+  assert.deepEqual(calls.map((item) => item.profile), ["full", "essential"]);
+  assert.equal(calls[1].model, "gpt-4.1-mini-2025-04-14");
+  assert.equal(calls[1].maxTokens, 1800);
+  assert.equal(normalized.fornitore, "Hera Comm");
+  assert.equal(normalized.pod, "IT001E12345678");
+  assert.equal(normalized.ai.request_profile, "essential");
+  assert.equal(normalized.ai.recovery_attempted, true);
+  assert.match(normalized.ai.recovered_from, /openai_timeout/);
+  assert.equal(normalized.ai.openai_attempts, 2);
+  await fs.rm(dir, { recursive: true, force: true });
+});
+
+test("regressione Sorgenia: una risposta compatta conserva la lettura parziale invece di annullarla", () => {
+  const answers = [
+    { question_id: "fornitore", found: true, value_text: "Sorgenia", value_number: null, unit: null, period: "none", page: 1, label: "Fornitore", evidence: "Sorgenia", confidence: 100 },
+    { question_id: "fornitore_luce", found: true, value_text: "Sorgenia", value_number: null, unit: null, period: "none", page: 1, label: "Fornitore", evidence: "Sorgenia", confidence: 100 },
+    { question_id: "customer_type", found: true, value_text: "business", value_number: null, unit: null, period: "none", page: 1, label: "Intestatario", evidence: "Romagna Allevamenti Societa' Agricola S.S.", confidence: 100 },
+    { question_id: "intestatario", found: true, value_text: "Romagna Allevamenti Societa' Agricola S.S.", value_number: null, unit: null, period: "none", page: 1, label: "Intestatario", evidence: "Romagna Allevamenti Societa' Agricola S.S.", confidence: 100 },
+    { question_id: "codice_fiscale", found: true, value_text: "02525880395", value_number: null, unit: null, period: "none", page: 1, label: "Codice Fiscale", evidence: "Codice Fiscale 02525880395", confidence: 100 },
+    { question_id: "codice_cliente", found: true, value_text: "4615991", value_number: null, unit: null, period: "none", page: 1, label: "CODICE CLIENTE", evidence: "CODICE CLIENTE 4615991", confidence: 100 },
+    { question_id: "pod", found: true, value_text: "IT001E53942290", value_number: null, unit: null, period: "none", page: 1, label: "POD", evidence: "POD IT001E53942290", confidence: 100 },
+    { question_id: "potenza_impegnata_kw", found: true, value_text: "10,0 kW", value_number: 10, unit: "kW", period: "none", page: 2, label: "Potenza impegnata", evidence: "Potenza impegnata: 10,0 kW", confidence: 100 },
+    { question_id: "potenza_disponibile_kw", found: true, value_text: "11,0 kW", value_number: 11, unit: "kW", period: "none", page: 2, label: "Potenza disponibile", evidence: "Potenza disponibile: 11,0 kW", confidence: 100 },
+    { question_id: "nome_offerta_luce", found: true, value_text: "Soluzione Luce Flexi", value_number: null, unit: null, period: "none", page: 2, label: "Prodotto attivo", evidence: "Prodotto attivo: Soluzione Luce Flexi", confidence: 100 },
+    { question_id: "codice_offerta_luce", found: true, value_text: "SLFLE052012016", value_number: null, unit: null, period: "none", page: 2, label: "Codice prodotto", evidence: "Codice prodotto: SLFLE052012016", confidence: 100 },
+    { question_id: "struttura_prezzo_luce", found: true, value_text: "per fasce", value_number: null, unit: null, period: "none", page: 2, label: "FASCE DI CONSUMO", evidence: "FASCE DI CONSUMO F1-F2-F3", confidence: 100 },
+  ];
+  const normalized = normalizePureAiOutput({
+    document: { kind: "bill", commodity: "electricity", customer_type: "business", page_count: 2 },
+    answers,
+  });
+
+  assert.equal(normalized.recognized, true);
+  assert.equal(normalized.fornitore, "Sorgenia");
+  assert.equal(normalized.pod, "IT001E53942290");
+  assert.equal(normalized.potenza_impegnata_kw, 10);
+  assert.equal(normalized.nome_offerta_luce, "Soluzione Luce Flexi");
+  assert.equal(normalized.codice_offerta_luce, "SLFLE052012016");
+  assert.equal(normalized.readiness.confronto.luce.status, "incompleto");
+  assert.equal(normalized.ai.accepted_count >= 10, true);
 });
 
 test("normalizePureAiOutput mantiene il contratto e annualizza solo la quota mensile", () => {

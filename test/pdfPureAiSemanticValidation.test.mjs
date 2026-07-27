@@ -188,7 +188,7 @@ test("classificazione generale: i dati specifici del cliente mantengono il docum
 });
 
 test("versione lettore semantico aggiornata", () => {
-  assert.equal(PDF_PURE_AI_READER_VERSION, "pure-ai-native-pdf-v1.0.6");
+  assert.equal(PDF_PURE_AI_READER_VERSION, "pure-ai-native-pdf-v1.0.7");
 });
 
 test("validazione semantica gas: distingue consumo annuo e prezzo materia prima da valori del periodo o medi", () => {
