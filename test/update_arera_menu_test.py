@@ -3,9 +3,11 @@ from __future__ import annotations
 
 import copy
 import importlib.util
+import json
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from datetime import datetime
 from pathlib import Path
 
@@ -96,6 +98,44 @@ def dual_xml(*, code: str, light_code: str, gas_code: str, name: str = "Energia 
 """
 
 
+
+def write_text_pdf(path: Path, lines: list[str]) -> None:
+    def escape_pdf(value: str) -> str:
+        return value.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+
+    commands = ["BT", "/F1 12 Tf", "72 760 Td", "14 TL"]
+    for index, line in enumerate(lines):
+        if index:
+            commands.append("T*")
+        commands.append(f"({escape_pdf(line)}) Tj")
+    commands.append("ET")
+    stream = "\n".join(commands).encode("latin-1")
+    objects = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] "
+        b"/Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+        b"<< /Length " + str(len(stream)).encode("ascii") + b" >>\nstream\n" + stream + b"\nendstream",
+    ]
+    output = bytearray(b"%PDF-1.4\n")
+    offsets = [0]
+    for number, body in enumerate(objects, start=1):
+        offsets.append(len(output))
+        output.extend(f"{number} 0 obj\n".encode("ascii"))
+        output.extend(body)
+        output.extend(b"\nendobj\n")
+    xref = len(output)
+    output.extend(f"xref\n0 {len(objects) + 1}\n".encode("ascii"))
+    output.extend(b"0000000000 65535 f \n")
+    for offset in offsets[1:]:
+        output.extend(f"{offset:010d} 00000 n \n".encode("ascii"))
+    output.extend(
+        f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n".encode("ascii")
+    )
+    path.write_bytes(output)
+
+
 def axpo_light_xml() -> str:
     return offer_xml(
         code=AXPO_LIGHT,
@@ -141,6 +181,332 @@ def acea_light_xml() -> str:
 
 
 class UpdateAreraMenuTest(unittest.TestCase):
+    def test_previous_month_reference_uses_last_completed_month(self):
+        self.assertEqual(
+            MODULE.previous_month_reference(datetime(2026, 7, 27)),
+            (2026, 6, "2026-06", "Giugno 2026"),
+        )
+        self.assertEqual(
+            MODULE.previous_month_reference(datetime(2027, 1, 3)),
+            (2026, 12, "2026-12", "Dicembre 2026"),
+        )
+
+    def test_gme_links_are_discovered_from_public_pages(self):
+        listing = """
+        <html><body>
+          <a href="/Home/AvvisieComunicati/AvvisieComunicatiME?id=7595">
+            Dati di sintesi elettrico - Giugno 2026
+          </a>
+        </body></html>
+        """
+        detail = """
+        <html><body><div>14/07/2026</div>
+          <a href="/Portals/0/Documents/it-IT//202606_Dati_di_sintesi_mensile.pdf">
+            Dati di sintesi elettrico - Giugno 2026
+          </a>
+        </body></html>
+        """
+        notice = MODULE.find_exact_link(
+            listing,
+            MODULE.GME_ELECTRIC_NOTICES_URL,
+            "Dati di sintesi elettrico - Giugno 2026",
+        )
+        self.assertEqual(
+            notice,
+            "https://gme.mercatoelettrico.org/Home/AvvisieComunicati/AvvisieComunicatiME?id=7595",
+        )
+        document = MODULE.find_pdf_link(
+            detail,
+            notice,
+            "Dati di sintesi elettrico - Giugno 2026",
+        )
+        self.assertEqual(
+            document,
+            "https://gme.mercatoelettrico.org/Portals/0/Documents/it-IT//202606_Dati_di_sintesi_mensile.pdf",
+        )
+        self.assertEqual(MODULE.publication_date_from_page(detail), "2026-07-14")
+
+    def test_gme_baseload_is_parsed_and_converted(self):
+        text = """
+        €/MWh 2026 2025 % Assoluta
+        Baseload 132,50 111,78 +18,5% +20,72
+        Mercato del Giorno Prima
+        Giugno 2026
+        """
+        eur_mwh, eur_kwh = MODULE.parse_gme_pun_text(text, "Giugno 2026")
+        self.assertEqual(eur_mwh, 132.50)
+        self.assertEqual(eur_kwh, 0.13250)
+
+    def test_download_previous_month_pun_runs_complete_pipeline(self):
+        listing = b"""
+        <html><body><a href="/Home/AvvisieComunicati/AvvisieComunicatiME?id=7595">
+        Dati di sintesi elettrico - Giugno 2026</a></body></html>
+        """
+        detail = b"""
+        <html><body><div>14/07/2026</div>
+        <a href="/Portals/0/Documents/it-IT//202606_Dati_di_sintesi_mensile.pdf">
+        Dati di sintesi elettrico - Giugno 2026</a></body></html>
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            pdf = Path(tmp) / "gme.pdf"
+            write_text_pdf(
+                pdf,
+                [
+                    "Baseload 132,50 111,78 +18,5% +20,72",
+                    "Mercato del Giorno Prima",
+                    "Giugno 2026",
+                ],
+            )
+            pdf_bytes = pdf.read_bytes()
+
+        responses = [
+            (listing, MODULE.GME_ELECTRIC_NOTICES_URL, "text/html"),
+            (
+                detail,
+                "https://gme.mercatoelettrico.org/Home/AvvisieComunicati/AvvisieComunicatiME?id=7595",
+                "text/html",
+            ),
+            (
+                pdf_bytes,
+                "https://gme.mercatoelettrico.org/Portals/0/Documents/it-IT//202606_Dati_di_sintesi_mensile.pdf",
+                "application/pdf",
+            ),
+        ]
+        with mock.patch.object(MODULE, "fetch_url", side_effect=responses):
+            snapshot = MODULE.download_previous_month_pun(datetime(2026, 7, 27))
+
+        self.assertIsNotNone(snapshot)
+        self.assertEqual(snapshot["periodo"], "2026-06")
+        self.assertEqual(snapshot["periodoLabel"], "Giugno 2026")
+        self.assertEqual(snapshot["pubblicatoIl"], "2026-07-14")
+        self.assertEqual(snapshot["valoreOriginale"], 132.50)
+        self.assertEqual(snapshot["valore"], 0.13250)
+        self.assertEqual(snapshot["stato"], "ufficiale")
+
+    def test_missing_monthly_publication_keeps_previous_index(self):
+        listing = b"<html><body><a href='/other'>Altro avviso</a></body></html>"
+        with mock.patch.object(
+            MODULE,
+            "fetch_url",
+            return_value=(listing, MODULE.GME_ELECTRIC_NOTICES_URL, "text/html"),
+        ):
+            self.assertIsNone(MODULE.download_previous_month_pun(datetime(2026, 7, 1)))
+
+    def test_missing_publication_after_grace_period_is_an_error(self):
+        listing = b"<html><body><a href='/other'>Altro avviso</a></body></html>"
+        with mock.patch.object(
+            MODULE,
+            "fetch_url",
+            return_value=(listing, MODULE.GME_ELECTRIC_NOTICES_URL, "text/html"),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "oltre la finestra di attesa"):
+                MODULE.download_previous_month_pun(datetime(2026, 7, 27))
+
+    def test_gme_parser_rejects_wrong_month_or_missing_baseload(self):
+        with self.assertRaisesRegex(ValueError, "Periodo GME inatteso"):
+            MODULE.parse_gme_pun_text(
+                "Baseload 132,50 Mercato del Giorno Prima Maggio 2026",
+                "Giugno 2026",
+            )
+        with self.assertRaisesRegex(ValueError, "Baseload non trovato"):
+            MODULE.parse_gme_pun_text(
+                "Mercato del Giorno Prima Giugno 2026 Picco 130,34",
+                "Giugno 2026",
+            )
+
+    def test_pdftotext_extracts_real_first_page_text(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            pdf = Path(tmp) / "gme.pdf"
+            write_text_pdf(
+                pdf,
+                [
+                    "Baseload 132,50 111,78 +18,5% +20,72",
+                    "Mercato del Giorno Prima",
+                    "Giugno 2026",
+                ],
+            )
+            text = MODULE.extract_first_page_pdf_text(pdf)
+        eur_mwh, eur_kwh = MODULE.parse_gme_pun_text(text, "Giugno 2026")
+        self.assertEqual(eur_mwh, 132.50)
+        self.assertEqual(eur_kwh, 0.13250)
+
+    def test_pun_snapshot_updates_only_pun_and_preserves_gas_indices(self):
+        parameters = {
+            "versioneDati": "old",
+            "aggiornatoIl": "2026-07-03",
+            "parametriCalcolo": {"perditeReteLuceVariabile": 1.102},
+            "indiciMercato": {
+                "pun": {"label": "PUN", "valore": 0.119351258, "unita": "eur_kwh"},
+                "psv": {"label": "PSV", "valore": 0.504419055, "unita": "eur_smc"},
+                "psbg": {"label": "PSBG", "valore": 0.504419055, "unita": "eur_smc"},
+            },
+        }
+        snapshot = {
+            "label": "PUN Index GME",
+            "valore": 0.1325,
+            "unita": "eur_kwh",
+            "periodo": "2026-06",
+            "periodoLabel": "Giugno 2026",
+            "valoreOriginale": 132.5,
+            "unitaOriginale": "eur_mwh",
+            "fonte": MODULE.GME_SOURCE_LABEL,
+            "urlFonte": "https://gme.example/notice",
+            "urlDocumento": "https://gme.example/document.pdf",
+            "pubblicatoIl": "2026-07-14",
+            "acquisitoIl": "2026-07-27",
+            "stato": "ufficiale",
+        }
+        updated = MODULE.apply_pun_snapshot(parameters, snapshot, datetime(2026, 7, 27))
+        self.assertEqual(updated["indiciMercato"]["pun"]["valore"], 0.1325)
+        self.assertEqual(updated["indiciMercato"]["pun"]["periodo"], "2026-06")
+        self.assertEqual(updated["indiciMercato"]["psv"], parameters["indiciMercato"]["psv"])
+        self.assertEqual(updated["parametriCalcolo"], parameters["parametriCalcolo"])
+
+    def test_semantic_variable_price_uses_supplied_pun(self):
+        values = [
+            {
+                "ruolo": "spread_corrente_candidato",
+                "valore": 0.0278,
+                "unitaMisura": "€/kWh",
+            }
+        ]
+        price, quality, provenance, error = MODULE.semantic_price(
+            values,
+            "luce",
+            "variabile",
+            {"pun": 0.1325, "psv": 0.504419055},
+        )
+        self.assertEqual(error, "")
+        self.assertEqual(quality, "indice_piu_spread_semantico")
+        self.assertAlmostEqual(price, 0.1603, places=8)
+        self.assertEqual(provenance["valoreIndice"], 0.1325)
+
+    def test_main_publishes_arera_and_pun_atomically(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "package"
+            source = Path(tmp) / "xml"
+            source.mkdir(parents=True)
+            (root / "data").mkdir(parents=True)
+            parameters = {
+                "versioneDati": "old",
+                "fonte": "old",
+                "aggiornatoIl": "2026-07-03",
+                "parametriCalcolo": {},
+                "indiciMercato": {
+                    "pun": {"label": "PUN", "valore": 0.119351258, "unita": "eur_kwh"},
+                    "psv": {"label": "PSV", "valore": 0.504419055, "unita": "eur_smc"},
+                    "psbg": {"label": "PSBG", "valore": 0.504419055, "unita": "eur_smc"},
+                },
+            }
+            (root / "data" / "calcolo-parametri.json").write_text(
+                json.dumps(parameters), encoding="utf-8"
+            )
+            light_code = "000155ESFML04XXZZ05103Z260711E01"
+            gas_code = "000155GSFML04XXZZZZ05102Z260711G"
+            (source / "PO_Offerte_E_MLIBERO_20260716.xml").write_text(
+                offer_xml(
+                    code=light_code,
+                    name="Illumia Luce Test",
+                    customer_type="01",
+                    duration=12,
+                    piva="02356770988",
+                    components=[
+                        component("Prezzo base", [("00", 0.11)], "03"),
+                        component("Quota vendita", [("00", 84)], "01"),
+                    ],
+                ),
+                encoding="utf-8",
+            )
+            (source / "PO_Offerte_G_MLIBERO_20260716.xml").write_text(
+                offer_xml(
+                    code=gas_code,
+                    name="Illumia Gas Test",
+                    customer_type="01",
+                    duration=12,
+                    piva="02356770988",
+                    components=[
+                        component("Prezzo base", [("00", 0.49)], "04"),
+                        component("Quota vendita", [("00", 84)], "01"),
+                    ],
+                ),
+                encoding="utf-8",
+            )
+            (source / "PO_Offerte_D_MLIBERO_20260716.xml").write_text(
+                dual_xml(
+                    code="000155DSFML01XX05103SFMX05102SFM",
+                    light_code=light_code,
+                    gas_code=gas_code,
+                    name="Illumia Dual Test",
+                ),
+                encoding="utf-8",
+            )
+            snapshot = {
+                "periodo": "2026-06",
+                "periodoLabel": "Giugno 2026",
+                "titolo": "Dati di sintesi elettrico - Giugno 2026",
+                "urlFonte": "https://gme.test/notice",
+                "urlDocumento": "https://gme.test/document.pdf",
+                "pubblicatoIl": "2026-07-14",
+                "label": "PUN Index GME",
+                "valore": 0.1325,
+                "unita": "eur_kwh",
+                "valoreOriginale": 132.5,
+                "unitaOriginale": "eur_mwh",
+                "fonte": MODULE.GME_SOURCE_LABEL,
+                "stato": "ufficiale",
+                "acquisitoIl": "2026-07-16",
+            }
+            argv = [
+                "update-arera-menu.py",
+                "--source-dir",
+                str(source),
+                "--package-root",
+                str(root),
+                "--as-of",
+                "2026-07-16",
+            ]
+            with mock.patch.object(MODULE, "download_previous_month_pun", return_value=snapshot), mock.patch.object(
+                sys, "argv", argv
+            ):
+                result = MODULE.main()
+
+            data_parameters = json.loads(
+                (root / "data" / "calcolo-parametri.json").read_text(encoding="utf-8")
+            )
+            public_parameters = json.loads(
+                (root / "public" / "data" / "calcolo-parametri.json").read_text(encoding="utf-8")
+            )
+            offers = json.loads(
+                (root / "data" / "offerte-arera-menu.json").read_text(encoding="utf-8")
+            )
+
+        self.assertEqual(result, 0)
+        self.assertEqual(data_parameters, public_parameters)
+        self.assertEqual(data_parameters["indiciMercato"]["pun"]["valore"], 0.1325)
+        self.assertEqual(offers["indiciUsati"]["pun"], 0.1325)
+        self.assertEqual(offers["indiciDettaglio"]["pun"]["periodo"], "2026-06")
+        self.assertEqual(len(offers["offerteDual"]), 1)
+
+    def test_atomic_publish_keeps_calculation_parameter_copies_identical(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            parameters = {"indiciMercato": {"pun": {"valore": 0.1325}}}
+            targets = MODULE.atomic_publish(
+                root,
+                {"offerte": [], "statistiche": {}},
+                {"pubblicazioneAutorizzata": True},
+                parameters,
+            )
+            data_parameters = json.loads(
+                (root / "data" / "calcolo-parametri.json").read_text(encoding="utf-8")
+            )
+            public_parameters = json.loads(
+                (root / "public" / "data" / "calcolo-parametri.json").read_text(encoding="utf-8")
+            )
+        self.assertEqual(data_parameters, public_parameters)
+        self.assertEqual(data_parameters["indiciMercato"]["pun"]["valore"], 0.1325)
+        self.assertEqual(len(targets), 5)
+
     def parse(self, xml: str, commodity: str, overrides=None):
         diagnostics: list[dict[str, object]] = []
         with tempfile.TemporaryDirectory() as tmp:

@@ -7,6 +7,8 @@ import html
 import json
 import os
 import re
+import shutil
+import subprocess
 import sys
 import tempfile
 import urllib.error
@@ -14,6 +16,7 @@ import urllib.request
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import urljoin
 
@@ -21,6 +24,27 @@ from urllib.parse import urljoin
 NS = {"po": "http://www.acquirenteunico.it/schemas/SII_AU/OffertaRetail/01"}
 OPEN_DATA_URL = "https://www.ilportaleofferte.it/portaleOfferte/it/open-data.page"
 SOURCE_LABEL = "Portale Offerte ARERA/Acquirente Unico Open Data"
+GME_ELECTRIC_NOTICES_URL = (
+    "https://gme.mercatoelettrico.org/Home/AvvisieComunicati/AvvisieComunicatiME"
+)
+GME_SOURCE_LABEL = "Gestore dei Mercati Energetici (GME)"
+ITALIAN_MONTHS = (
+    "Gennaio",
+    "Febbraio",
+    "Marzo",
+    "Aprile",
+    "Maggio",
+    "Giugno",
+    "Luglio",
+    "Agosto",
+    "Settembre",
+    "Ottobre",
+    "Novembre",
+    "Dicembre",
+)
+# Valori usati soltanto dalle funzioni isolate e dai test che non caricano il JSON
+# del progetto. Il flusso principale legge sempre gli indici pubblicati in
+# data/calcolo-parametri.json e aggiorna il PUN dal documento ufficiale GME.
 PUN_FALLBACK = 0.119351258
 PSV_FALLBACK = 0.504419055
 REFERENCE_CONSUMPTION = {"luce": 2700, "gas": 700}
@@ -82,6 +106,267 @@ BROWSER_HEADERS = {
     "Accept-Language": "it-IT,it;q=0.9,en;q=0.8",
     "Cache-Control": "no-cache",
 }
+
+
+class AnchorCollector(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.anchors: list[tuple[str, str]] = []
+        self.text_parts: list[str] = []
+        self._href: str | None = None
+        self._label_parts: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag.lower() != "a":
+            return
+        self._href = next((value for name, value in attrs if name.lower() == "href"), None)
+        self._label_parts = []
+
+    def handle_data(self, data: str) -> None:
+        if data.strip():
+            self.text_parts.append(data)
+        if self._href is not None:
+            self._label_parts.append(data)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag.lower() != "a" or self._href is None:
+            return
+        self.anchors.append((self._href, " ".join(self._label_parts).strip()))
+        self._href = None
+        self._label_parts = []
+
+
+def previous_month_reference(as_of: datetime) -> tuple[int, int, str, str]:
+    previous = as_of.replace(day=1) - timedelta(days=1)
+    label = f"{ITALIAN_MONTHS[previous.month - 1]} {previous.year}"
+    period = f"{previous.year:04d}-{previous.month:02d}"
+    return previous.year, previous.month, period, label
+
+
+def parse_html_links(page: str) -> AnchorCollector:
+    parser = AnchorCollector()
+    parser.feed(page)
+    parser.close()
+    return parser
+
+
+def find_exact_link(page: str, base_url: str, expected_label: str) -> str | None:
+    expected = normalize_text(expected_label)
+    parser = parse_html_links(page)
+    for href, label in parser.anchors:
+        if href and normalize_text(label) == expected:
+            return urljoin(base_url, href)
+    return None
+
+
+def find_pdf_link(page: str, base_url: str, expected_label: str) -> str | None:
+    exact = find_exact_link(page, base_url, expected_label)
+    if exact and exact.lower().split("?", 1)[0].endswith(".pdf"):
+        return exact
+    parser = parse_html_links(page)
+    for href, label in parser.anchors:
+        absolute = urljoin(base_url, href or "")
+        if absolute.lower().split("?", 1)[0].endswith(".pdf"):
+            if normalize_text(expected_label) in normalize_text(label) or not label.strip():
+                return absolute
+    return None
+
+
+def fetch_url(url: str, *, timeout: int = 60) -> tuple[bytes, str, str]:
+    request = urllib.request.Request(url, headers=BROWSER_HEADERS)
+    with urllib.request.urlopen(request, timeout=timeout) as response:
+        body = response.read()
+        final_url = response.geturl()
+        content_type = response.headers.get_content_type()
+    return body, final_url, content_type
+
+
+def publication_date_from_page(page: str) -> str:
+    text = " ".join(parse_html_links(page).text_parts)
+    match = re.search(r"\b(\d{2})/(\d{2})/(\d{4})\b", text)
+    if not match:
+        return ""
+    day, month, year = match.groups()
+    return f"{year}-{month}-{day}"
+
+
+def discover_gme_pun_document(as_of: datetime) -> dict[str, str] | None:
+    _, _, period, period_label = previous_month_reference(as_of)
+    expected_title = f"Dati di sintesi elettrico - {period_label}"
+    listing_bytes, listing_url, _ = fetch_url(GME_ELECTRIC_NOTICES_URL)
+    listing_page = listing_bytes.decode("utf-8", errors="replace")
+    notice_url = find_exact_link(listing_page, listing_url, expected_title)
+    if not notice_url:
+        return None
+
+    notice_bytes, notice_final_url, _ = fetch_url(notice_url)
+    notice_page = notice_bytes.decode("utf-8", errors="replace")
+    document_url = find_pdf_link(notice_page, notice_final_url, expected_title)
+    if not document_url:
+        raise RuntimeError(f"Documento PDF GME non trovato per {period_label}")
+
+    return {
+        "periodo": period,
+        "periodoLabel": period_label,
+        "titolo": expected_title,
+        "urlFonte": notice_final_url,
+        "urlDocumento": document_url,
+        "pubblicatoIl": publication_date_from_page(notice_page),
+    }
+
+
+def extract_first_page_pdf_text(pdf_path: Path) -> str:
+    executable = shutil.which("pdftotext")
+    if not executable:
+        raise RuntimeError("pdftotext non disponibile: installare poppler-utils nel workflow")
+    result = subprocess.run(
+        [executable, "-f", "1", "-l", "1", "-layout", str(pdf_path), "-"],
+        check=False,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=60,
+    )
+    if result.returncode != 0:
+        detail = (result.stderr or "").strip()
+        raise RuntimeError(f"Estrazione PDF GME non riuscita: {detail or result.returncode}")
+    if not result.stdout.strip():
+        raise RuntimeError("Il PDF GME non contiene testo estraibile nella prima pagina")
+    return result.stdout
+
+
+def parse_gme_pun_text(text: str, expected_period_label: str) -> tuple[float, float]:
+    normalized = normalize_text(text)
+    if normalize_text(expected_period_label) not in normalized:
+        raise ValueError(f"Periodo GME inatteso: atteso {expected_period_label}")
+    if "mercato del giorno prima" not in normalized:
+        raise ValueError("Sezione 'Mercato del Giorno Prima' assente nel documento GME")
+
+    match = re.search(r"\bBaseload\s+([0-9]{1,4}(?:[.,][0-9]{1,6})?)\b", text, re.I)
+    if not match:
+        raise ValueError("Valore Baseload non trovato nel documento GME")
+    eur_mwh = float(match.group(1).replace(",", "."))
+    if not 0 < eur_mwh < 1000:
+        raise ValueError(f"Valore Baseload GME non plausibile: {eur_mwh}")
+    return eur_mwh, round(eur_mwh / 1000, 9)
+
+
+def download_previous_month_pun(as_of: datetime) -> dict[str, object] | None:
+    document = discover_gme_pun_document(as_of)
+    if document is None:
+        _, _, _, period_label = previous_month_reference(as_of)
+        if as_of.day > 20:
+            raise RuntimeError(
+                f"Pubblicazione mensile GME non trovata per {period_label} oltre la finestra di attesa"
+            )
+        return None
+
+    pdf_bytes, final_url, content_type = fetch_url(str(document["urlDocumento"]))
+    if not pdf_bytes.startswith(b"%PDF") and content_type != "application/pdf":
+        raise RuntimeError(f"Il documento GME non e un PDF valido: {content_type}")
+
+    with tempfile.TemporaryDirectory(prefix="offertalogica-gme-") as tmp:
+        pdf_path = Path(tmp) / "dati-sintesi-gme.pdf"
+        pdf_path.write_bytes(pdf_bytes)
+        text = extract_first_page_pdf_text(pdf_path)
+
+    eur_mwh, eur_kwh = parse_gme_pun_text(text, str(document["periodoLabel"]))
+    return {
+        **document,
+        "urlDocumento": final_url,
+        "label": "PUN Index GME",
+        "valore": eur_kwh,
+        "unita": "eur_kwh",
+        "valoreOriginale": eur_mwh,
+        "unitaOriginale": "eur_mwh",
+        "fonte": GME_SOURCE_LABEL,
+        "stato": "ufficiale",
+        "acquisitoIl": as_of.strftime("%Y-%m-%d"),
+    }
+
+
+def load_calculation_parameters(root: Path) -> dict[str, object]:
+    path = root / "data" / "calcolo-parametri.json"
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError(f"JSON non valido: {path}")
+    return payload
+
+
+def market_index_values(parameters: dict[str, object]) -> dict[str, float]:
+    indices = parameters.get("indiciMercato")
+    if not isinstance(indices, dict):
+        raise ValueError("indiciMercato assente in calcolo-parametri.json")
+    values: dict[str, float] = {}
+    for key in ("pun", "psv", "psbg"):
+        item = indices.get(key)
+        if not isinstance(item, dict):
+            continue
+        try:
+            value = float(item.get("valore"))
+        except (TypeError, ValueError):
+            continue
+        if value > 0:
+            values[key] = value
+    if "pun" not in values or "psv" not in values:
+        raise ValueError("PUN o PSV non validi in calcolo-parametri.json")
+    return values
+
+
+def apply_pun_snapshot(
+    parameters: dict[str, object], snapshot: dict[str, object] | None, as_of: datetime
+) -> dict[str, object]:
+    updated = copy.deepcopy(parameters)
+    if snapshot is None:
+        return updated
+    indices = updated.setdefault("indiciMercato", {})
+    if not isinstance(indices, dict):
+        raise ValueError("indiciMercato non modificabile in calcolo-parametri.json")
+    pun = indices.setdefault("pun", {})
+    if not isinstance(pun, dict):
+        raise ValueError("Voce PUN non modificabile in calcolo-parametri.json")
+    pun.clear()
+    pun.update(
+        {
+            "label": snapshot["label"],
+            "valore": snapshot["valore"],
+            "unita": snapshot["unita"],
+            "periodo": snapshot["periodo"],
+            "periodoLabel": snapshot["periodoLabel"],
+            "valoreOriginale": snapshot["valoreOriginale"],
+            "unitaOriginale": snapshot["unitaOriginale"],
+            "fonte": snapshot["fonte"],
+            "urlFonte": snapshot["urlFonte"],
+            "urlDocumento": snapshot["urlDocumento"],
+            "pubblicatoIl": snapshot.get("pubblicatoIl") or "",
+            "acquisitoIl": snapshot["acquisitoIl"],
+            "stato": snapshot["stato"],
+            "note": (
+                f"PUN Index GME medio {snapshot['periodoLabel']}: "
+                f"{float(snapshot['valoreOriginale']):.6f} eur/MWh, "
+                f"convertito in {float(snapshot['valore']):.9f} eur/kWh."
+            ),
+        }
+    )
+    updated["versioneDati"] = (
+        f"parametri-calcolo-{as_of.strftime('%Y-%m-%d')}-pun-{snapshot['periodo']}"
+    )
+    updated["aggiornatoIl"] = as_of.strftime("%Y-%m-%d")
+    updated["fonte"] = (
+        "Configurazione OffertaLogica aggiornabile; PUN acquisito dalla pubblicazione "
+        "mensile ufficiale GME del mese precedente."
+    )
+    return updated
+
+
+def market_index_for(commodity: str, market_indices: dict[str, float] | None = None) -> float:
+    values = market_indices or {"pun": PUN_FALLBACK, "psv": PSV_FALLBACK}
+    key = "pun" if commodity == "luce" else "psv"
+    value = float(values.get(key, 0))
+    if value <= 0:
+        raise ValueError(f"Indice di mercato non valido: {key}")
+    return value
 
 
 def log_info(message: str) -> None:
@@ -387,7 +672,10 @@ def annual_fee(values: list[dict[str, object]]) -> tuple[float | None, list[dict
 
 
 def semantic_price(
-    values: list[dict[str, object]], commodity: str, tipo: str
+    values: list[dict[str, object]],
+    commodity: str,
+    tipo: str,
+    market_indices: dict[str, float] | None = None,
 ) -> tuple[float | None, str, dict[str, object] | None, str]:
     primary = [item for item in values if item["ruolo"] == "prezzo_principale_candidato"]
     unique_primary = sorted({round(float(item["valore"]), 8) for item in primary})
@@ -400,7 +688,7 @@ def semantic_price(
         if tipo == "variabile":
             threshold = 0.08 if commodity == "luce" else 0.25
             if selected_value < threshold:
-                index_value = PUN_FALLBACK if commodity == "luce" else PSV_FALLBACK
+                index_value = market_index_for(commodity, market_indices)
                 provenance["indiceApplicato"] = "PUN" if commodity == "luce" else "PSV"
                 provenance["valoreIndice"] = index_value
                 return (
@@ -419,7 +707,7 @@ def semantic_price(
             selected = next(item for item in spreads if round(float(item["valore"]), 8) == spread)
             provenance = copy.deepcopy(selected)
             provenance["ruolo"] = "spread_corrente_selezionato"
-            index_value = PUN_FALLBACK if commodity == "luce" else PSV_FALLBACK
+            index_value = market_index_for(commodity, market_indices)
             provenance["indiceApplicato"] = "PUN" if commodity == "luce" else "PSV"
             provenance["valoreIndice"] = index_value
             return round(index_value + spread, 8), "indice_piu_spread_semantico", provenance, ""
@@ -498,6 +786,7 @@ def parse_offer_file(
     as_of: datetime,
     overrides: dict[str, dict[str, object]] | None = None,
     diagnostics: list[dict[str, object]] | None = None,
+    market_indices: dict[str, float] | None = None,
 ) -> list[dict[str, object]]:
     tree = ET.parse(path)
     rows: list[dict[str, object]] = []
@@ -539,7 +828,9 @@ def parse_offer_file(
             data_fine,
             tipo,
         )
-        price, quality, price_provenance, price_error = semantic_price(values, commodity, tipo)
+        price, quality, price_provenance, price_error = semantic_price(
+            values, commodity, tipo, market_indices
+        )
         fee, fee_provenance = annual_fee(values)
 
         override_price, override_fee, override_quality, override_provenance, technical_details = apply_verified_override(
@@ -1260,10 +1551,17 @@ def write_report(root: Path, report: dict[str, object]) -> Path:
     return target
 
 
-def atomic_publish(root: Path, payload: dict[str, object], report: dict[str, object]) -> list[Path]:
+def atomic_publish(
+    root: Path,
+    payload: dict[str, object],
+    report: dict[str, object],
+    calculation_parameters: dict[str, object],
+) -> list[Path]:
     target_bodies = {
         root / "data" / "offerte-arera-menu.json": json_text(payload),
         root / "public" / "data" / "offerte-arera-menu.json": json_text(payload),
+        root / "data" / "calcolo-parametri.json": json_text(calculation_parameters),
+        root / "public" / "data" / "calcolo-parametri.json": json_text(calculation_parameters),
         root / "data" / "arera-update-report.json": json_text(report),
     }
     targets = list(target_bodies)
@@ -1301,12 +1599,21 @@ def atomic_publish(root: Path, payload: dict[str, object], report: dict[str, obj
 
 
 def build_staging_payload(
-    files: dict[str, Path], as_of: datetime, root: Path
+    files: dict[str, Path],
+    as_of: datetime,
+    root: Path,
+    market_indices: dict[str, float] | None = None,
+    index_context: dict[str, object] | None = None,
 ) -> tuple[dict[str, object], list[dict[str, object]]]:
     overrides = load_verified_overrides(root)
     diagnostics: list[dict[str, object]] = []
-    light_rows = dedupe_rows(parse_offer_file(files["E"], "luce", as_of, overrides, diagnostics))
-    gas_rows = dedupe_rows(parse_offer_file(files["G"], "gas", as_of, overrides, diagnostics))
+    indices = market_indices or {"pun": PUN_FALLBACK, "psv": PSV_FALLBACK}
+    light_rows = dedupe_rows(
+        parse_offer_file(files["E"], "luce", as_of, overrides, diagnostics, indices)
+    )
+    gas_rows = dedupe_rows(
+        parse_offer_file(files["G"], "gas", as_of, overrides, diagnostics, indices)
+    )
     rows = dedupe_rows(light_rows + gas_rows)
     dual_rows = dedupe_dual_rows(parse_dual_file(files["D"], light_rows, gas_rows, as_of, diagnostics))
 
@@ -1315,9 +1622,10 @@ def build_staging_payload(
         "fonte": f"{SOURCE_LABEL}. Le offerte variabili sono stimate con indice corrente del motore quando ARERA espone solo lo spread.",
         "aggiornatoIl": as_of.strftime("%Y-%m-%d"),
         "indiciUsati": {
-            "pun": PUN_FALLBACK,
-            "psv": PSV_FALLBACK,
+            "pun": float(indices["pun"]),
+            "psv": float(indices["psv"]),
         },
+        "indiciDettaglio": copy.deepcopy(index_context or {}),
         "offerte": [row for row in rows if row.get("customerType") == "privato"],
         "offerteBusiness": [row for row in rows if row.get("customerType") == "business"],
         "offerteDual": [row for row in dual_rows if row.get("customerType") == "privato"],
@@ -1332,12 +1640,19 @@ def build_staging_payload(
 
 
 def build_validated_payload(
-    files: dict[str, Path], as_of: datetime, root: Path
+    files: dict[str, Path],
+    as_of: datetime,
+    root: Path,
+    market_indices: dict[str, float] | None = None,
+    index_context: dict[str, object] | None = None,
 ) -> tuple[dict[str, object], dict[str, object], Path]:
-    staging_payload, diagnostics = build_staging_payload(files, as_of, root)
+    staging_payload, diagnostics = build_staging_payload(
+        files, as_of, root, market_indices, index_context
+    )
     staging_path = write_staging(root, staging_payload)
     previous_payload = read_json(root / "data" / "offerte-arera-menu.json")
     payload, report = validate_and_merge(staging_payload, previous_payload, diagnostics)
+    report["indiciMercato"] = copy.deepcopy(index_context or {})
     return payload, report, staging_path
 
 
@@ -1359,20 +1674,54 @@ def main() -> int:
     staging_path: Path | None = None
     report: dict[str, object] | None = None
     try:
+        current_parameters = load_calculation_parameters(root)
+        current_indices = market_index_values(current_parameters)
+        pun_snapshot = download_previous_month_pun(as_of)
+        calculation_parameters = apply_pun_snapshot(current_parameters, pun_snapshot, as_of)
+        market_indices = market_index_values(calculation_parameters)
+        _, _, expected_period, expected_period_label = previous_month_reference(as_of)
+        if pun_snapshot is None:
+            pun_context: dict[str, object] = {
+                "stato": "in_attesa_pubblicazione",
+                "periodoAtteso": expected_period,
+                "periodoAttesoLabel": expected_period_label,
+                "valoreConservato": current_indices["pun"],
+                "messaggio": "Pubblicazione GME non ancora disponibile; conservato ultimo PUN ufficiale valido.",
+            }
+            log_info(
+                f"PUN GME {expected_period_label} non ancora pubblicato; "
+                f"conservo {current_indices['pun']:.9f} eur/kWh."
+            )
+        else:
+            pun_context = copy.deepcopy(pun_snapshot)
+            log_info(
+                f"PUN GME {pun_snapshot['periodoLabel']}: "
+                f"{float(pun_snapshot['valoreOriginale']):.6f} eur/MWh = "
+                f"{float(pun_snapshot['valore']):.9f} eur/kWh."
+            )
+        index_context = {
+            "pun": pun_context,
+            "psv": copy.deepcopy(calculation_parameters.get("indiciMercato", {}).get("psv", {})),
+        }
+
         if args.source_dir:
             log_info(f"Cerco file ARERA locali in {args.source_dir.resolve()} per la data {as_of.strftime('%Y%m%d')}.")
             files = local_files(args.source_dir.resolve())
             source_date = source_date_from_files(files) or as_of
             log_info(f"Parsing file ARERA per la data {source_date.strftime('%Y%m%d')}.")
-            payload, report, staging_path = build_validated_payload(files, source_date, root)
-            targets = atomic_publish(root, payload, report)
+            payload, report, staging_path = build_validated_payload(
+                files, source_date, root, market_indices, index_context
+            )
+            targets = atomic_publish(root, payload, report, calculation_parameters)
         else:
             with tempfile.TemporaryDirectory(prefix="offertalogica-arera-") as tmp:
                 files = download_current_files(Path(tmp), as_of)
                 source_date = source_date_from_files(files) or as_of
                 log_info(f"Parsing file ARERA per la data {source_date.strftime('%Y%m%d')}.")
-                payload, report, staging_path = build_validated_payload(files, source_date, root)
-                targets = atomic_publish(root, payload, report)
+                payload, report, staging_path = build_validated_payload(
+                    files, source_date, root, market_indices, index_context
+                )
+                targets = atomic_publish(root, payload, report, calculation_parameters)
     except Exception as error:
         failure_report = report or {
             "versioneDati": f"arera-menu-{as_of.strftime('%Y-%m-%d')}",
