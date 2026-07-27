@@ -2,54 +2,49 @@
 
 ## Trasformazione canonica
 
-L'unico file autorizzato a calcolare `prezzo`, `quotaFissaAnnua` e
-`qualitaPrezzo` del catalogo pubblico e `scripts/update-arera-menu.py`.
+L'unico file autorizzato a calcolare e pubblicare `prezzo`,
+`quotaFissaAnnua` e `qualitaPrezzo` e:
 
-Il flusso e:
+`scripts/update-arera-menu.py`
 
-1. XML ARERA/AU luce e gas;
-2. estrazione in staging con provenienza di ogni valore;
-3. selezione semantica del prezzo principale;
-4. confronto con l'ultimo record validato;
-5. quarantena dei cambiamenti inattesi;
-6. pubblicazione atomica in `data/offerte-arera-menu.json` e
-   `public/data/offerte-arera-menu.json`.
+Flusso:
 
-`media_fasce`, componenti di dispacciamento/capacita/commercializzazione,
-adeguamenti consumo, valori futuri e unita non compatibili non sono qualita
-pubblicabili.
+1. acquisizione dei tre XML ARERA E, G e D;
+2. estrazione in staging con provenienza;
+3. validazione semantica di prezzi, unita e periodo;
+4. confronto con l'ultimo record valido;
+5. quarantena degli scostamenti sospetti;
+6. scrittura congiunta dei due cataloghi pubblici e del report.
 
-## Punti che possono avviare l'aggiornamento
+Non possono diventare prezzo principale: medie di fasce non previste dalla
+struttura dell'offerta, dispacciamento, capacita, commercializzazione,
+adeguamenti consumo, delta futuri, spread successivi alla scadenza e quote con
+unita incompatibili.
 
-- `.github/workflows/update-arera-menu.yml`: esegue la trasformazione canonica.
-- `scripts/aggiorna-arera-locale-mac.sh`: scarica gli XML e richiama la stessa
-  trasformazione canonica.
-- `scripts/build-public-arera-menu.mjs`: ingresso di compatibilita; delega al
-  trasformatore Python e non calcola prezzi.
-- `offertalogica-v24-provider-loghi-20260705/scripts/update-arera-menu.py` e
-  `build-public-arera-menu.mjs`: vecchi ingressi conservati come wrapper; non
-  contengono piu logiche di prezzo autonome.
+## Ingressi
 
-## File che non pubblicano il catalogo
+- `.github/workflows/update-arera-menu.yml`: automatico o manuale; il manuale
+  accetta `source_dir` e `as_of`.
+- `scripts/aggiorna-arera-locale-mac.sh`: acquisizione locale macOS e chiamata
+  allo stesso trasformatore.
+- `scripts/download-arera-open-data.sh`: utilita di recupero da ambiente shell.
 
-- `scripts/sync-arera-open-data.mjs` calcola `prezzo_calcolo` e aggiorna i
-  candidati CSV; questo valore non puo piu essere pubblicato direttamente.
-- `scripts/shortlist-arera-candidates.mjs` legge `prezzo_calcolo` e prepara la
-  shortlist, senza scrivere il catalogo pubblico.
-- `scripts/promote-arera-offer.mjs` modifica il catalogo separato delle offerte
-  proposte (`data/offerte-proposte.json`), non `offerte-arera-menu.json`.
-- `scripts/test-ranking-arera.mjs` e `scripts/verify-calcolo-offerte.mjs` leggono
-  il catalogo e producono report; non ne cambiano i prezzi.
-- `public/index.html` legge `prezzo` e `qualitaPrezzo`; la funzione
-  `risolviPrezzoVariabile` applica l'indice PUN/PSV durante il calcolo a video,
-  ma non scrive ne modifica il catalogo JSON.
+Non esistono trasformatori JavaScript paralleli del catalogo pubblico.
 
-## Diagnostica
+## Output
 
-- Lo staging completo e salvato in
-  `data/.arera-staging/offerte-arera-menu-staging.json` e conservato come
-  artefatto del workflow per 90 giorni.
-- Scarti e quarantena sono riepilogati in `data/arera-update-report.json`.
-- I valori sintetici verificati che non possono essere derivati in sicurezza
-  dall'XML sono dichiarati in `data/arera-verified-price-overrides.json` con
-  sorgente e dettagli tecnici separati.
+- `data/offerte-arera-menu.json`;
+- `public/data/offerte-arera-menu.json`;
+- `data/arera-update-report.json`;
+- staging temporaneo in `data/.arera-staging/`.
+
+I due JSON del catalogo devono essere identici. Se la validazione fallisce, i
+dati pubblicati restano invariati e l'aggiornamento termina con errore.
+
+## Script che non pubblicano il catalogo
+
+- `sync-arera-open-data.mjs`: prepara dati candidati.
+- `shortlist-arera-candidates.mjs`: prepara la shortlist.
+- `promote-arera-offer.mjs`: aggiorna `data/offerte-proposte.json`.
+- `test-ranking-arera.mjs`, `test-partner-arera.mjs`,
+  `verify-calcolo-offerte.mjs`: leggono e verificano senza riscrivere prezzi.

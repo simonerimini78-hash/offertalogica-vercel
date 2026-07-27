@@ -6971,6 +6971,76 @@ function pdfFileSizeLabel(size) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+var PDF_DIRECT_UPLOAD_THRESHOLD_BYTES = 4_000_000;
+
+async function leggiRispostaPdfApi(response) {
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.includes("application/json")) {
+    if (response.status === 413) throw new Error("PDF troppo grande");
+    throw new Error("api_non_disponibile");
+  }
+  const payload = await response.json();
+  if (!response.ok || !payload.ok) {
+    if (payload.code === "PDF_TOO_LARGE" && Number(payload.maxFileSize || 0) > 0) {
+      const actual = Number(payload.fileSize || 0) > 0 ? ` (${pdfFileSizeLabel(payload.fileSize)})` : "";
+      throw new Error(`PDF troppo grande${actual}. Limite ${pdfFileSizeLabel(payload.maxFileSize)}.`);
+    }
+    throw new Error(payload.error || "Errore analisi PDF");
+  }
+  return payload;
+}
+
+async function analizzaPdfViaVercel(file, archiveContext) {
+  const formData = new FormData();
+  formData.append("pdf", file);
+  formData.append("archiveContext", JSON.stringify(archiveContext));
+  const response = await fetch("/api/analyze-pdf", { method: "POST", body: formData });
+  return leggiRispostaPdfApi(response);
+}
+
+async function analizzaPdfViaUploadFirmato(file, archiveContext) {
+  const sessionResponse = await fetch("/api/analyze-pdf", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      action: "create_upload",
+      filename: file.name,
+      fileSize: Number(file.size || 0),
+      mimeType: file.type || "application/pdf",
+    }),
+  });
+  const sessionPayload = await leggiRispostaPdfApi(sessionResponse);
+  const upload = sessionPayload.upload || {};
+  if (!upload.uploadUrl || !upload.uploadTicket) throw new Error("Caricamento protetto del PDF non riuscito");
+
+  const storageForm = new FormData();
+  storageForm.append("cacheControl", "0");
+  storageForm.append("", file);
+  const storageResponse = await fetch(upload.uploadUrl, {
+    method: "PUT",
+    headers: { "x-upsert": "false" },
+    body: storageForm,
+  });
+  if (!storageResponse.ok) throw new Error("Caricamento protetto del PDF non riuscito");
+
+  const analysisResponse = await fetch("/api/analyze-pdf", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      action: "analyze_uploaded_pdf",
+      uploadTicket: upload.uploadTicket,
+      archiveContext,
+    }),
+  });
+  return leggiRispostaPdfApi(analysisResponse);
+}
+
+async function analizzaPdfSelezionato(file, archiveContext) {
+  return Number(file?.size || 0) > PDF_DIRECT_UPLOAD_THRESHOLD_BYTES
+    ? analizzaPdfViaUploadFirmato(file, archiveContext)
+    : analizzaPdfViaVercel(file, archiveContext);
+}
+
 function aggiornaInterfacciaSelezionePdf() {
   const pickerButton = document.getElementById("pdf-select-files-button");
   const status = document.getElementById("pdf-file-picker-status");
@@ -7091,20 +7161,14 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
   for (let fileIndex = 0; fileIndex < files.length; fileIndex += 1) {
     const file = files[fileIndex];
     const pendingEntry = pendingEntries[fileIndex];
-    const formData = new FormData();
-    formData.append("pdf", file);
-    formData.append("archiveContext", JSON.stringify({
+    const archiveContext = {
       sessionId: analyticsSessionId(),
       staffMode: staffModeAttiva(),
       customerType: LEAD_STATE.customerType,
       uploadSequence: LEAD_STATE.pdfDocuments.length + results.length + 1,
-    }));
+    };
     try {
-      const response = await fetch("/api/analyze-pdf", { method: "POST", body: formData });
-      const contentType = response.headers.get("content-type") || "";
-      if (!contentType.includes("application/json")) throw new Error("api_non_disponibile");
-      const payload = await response.json();
-      if (!response.ok || !payload.ok) throw new Error(payload.error || "Errore analisi PDF");
+      const payload = await analizzaPdfSelezionato(file, archiveContext);
       results.push({
         filename: file.name,
         upload_id: pendingEntry.id,
@@ -7114,12 +7178,17 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
         ...payload.normalized,
       });
     } catch (error) {
-      const safeMessage = [
-        "PDF troppo grande",
+      const errorMessage = String(error?.message || "");
+      const safeMessage = errorMessage.startsWith("PDF troppo grande") || [
         "PDF protetto o cifrato",
         "Il file caricato non è un PDF valido",
         "PDF mancante o formato non accettato",
-      ].includes(error?.message) ? error.message : "Lettura non disponibile";
+        "Caricamento protetto dei PDF grandi non configurato",
+        "Caricamento protetto del PDF non riuscito",
+        "Caricamento PDF scaduto. Riprova.",
+        "PDF caricato non trovato. Riprova.",
+        "Il PDF caricato non corrisponde al file selezionato",
+      ].includes(errorMessage) ? errorMessage : "Lettura non disponibile";
       results.push({
         filename: file.name,
         upload_id: pendingEntry.id,
@@ -7294,12 +7363,11 @@ function pdfPreviewAutofillEntry(data, field) {
   const entry = pdfContractFieldEntry(data, field);
   if (!entry || entry.status !== "completo") return null;
   if (entry.autofill?.allowed) return { entry, review_required: false };
-  const ocrReview = Boolean(
+  const explicitReview = Boolean(
     entry.autofill?.review_selectable
     && entry.autofill?.requires_explicit_selection
-    && entry.provenance?.origin === "pdf_image_ocr"
   );
-  return ocrReview ? { entry, review_required: true } : null;
+  return explicitReview ? { entry, review_required: true } : null;
 }
 
 function pdfPreviewAutofillValue(data, field) {
@@ -7521,7 +7589,7 @@ function buildPdfAutofillPreviewRows(data, customerType = "privato") {
         : protectedManual
           ? "valore_manuale_protetto"
           : spec.review_required
-            ? "ocr_da_verificare"
+            ? "dato_da_verificare"
             : current.has_value
               ? "valore_predefinito_aggiornabile"
               : "campo_vuoto",
@@ -7534,7 +7602,7 @@ function pdfAutofillStatusLabel(status) {
     gia_presente: "Già presente: nessuna modifica",
     valore_manuale_protetto: "Valore manuale protetto",
     valore_predefinito_aggiornabile: "Valore esistente non modificato manualmente",
-    ocr_da_verificare: "OCR da verificare e selezionare",
+    dato_da_verificare: "Dato da verificare e selezionare",
     campo_vuoto: "Campo vuoto",
   };
   return labels[status] || status;
@@ -7586,10 +7654,10 @@ function apriAnteprimaAutocompilazionePdf(data) {
   const copy = document.getElementById("pdf-autofill-preview-copy");
   if (!backdrop) return Promise.resolve(PDF_AUTOFILL_PREVIEW_ROWS.filter((row) => row.selected && !row.disabled));
   const protectedCount = PDF_AUTOFILL_PREVIEW_ROWS.filter((row) => row.manually_protected).length;
-  const ocrReviewCount = PDF_AUTOFILL_PREVIEW_ROWS.filter((row) => row.review_required && !row.same_value).length;
+  const reviewCount = PDF_AUTOFILL_PREVIEW_ROWS.filter((row) => row.review_required && !row.same_value).length;
   if (copy) {
     const messages = [];
-    if (ocrReviewCount) messages.push(`${ocrReviewCount} ${ocrReviewCount === 1 ? "campo proviene" : "campi provengono"} dall'OCR: ${ocrReviewCount === 1 ? "è deselezionato" : "sono deselezionati"} finché non li scegli esplicitamente.`);
+    if (reviewCount) messages.push(`${reviewCount} ${reviewCount === 1 ? "campo richiede" : "campi richiedono"} una verifica: ${reviewCount === 1 ? "è deselezionato" : "sono deselezionati"} finché non li scegli esplicitamente.`);
     if (protectedCount) messages.push(`${protectedCount} ${protectedCount === 1 ? "campo contiene" : "campi contengono"} un valore inserito manualmente e ${protectedCount === 1 ? "resta" : "restano"} deselezionato per sicurezza.`);
     copy.textContent = messages.length
       ? `${messages.join(" ")} Controlla i valori prima di applicarli.`
@@ -7606,7 +7674,7 @@ function apriAnteprimaAutocompilazionePdf(data) {
   trackEvent("pdf_autofill_preview_opened", {
     fieldCount: PDF_AUTOFILL_PREVIEW_ROWS.length,
     protectedCount,
-    ocrReviewCount,
+    reviewCount,
   });
   window.setTimeout(() => document.getElementById("pdf-autofill-apply")?.focus(), 30);
   return new Promise((resolve) => { PDF_AUTOFILL_PREVIEW_RESOLVE = resolve; });
@@ -8086,18 +8154,11 @@ function mergePdfDocuments(documents) {
 function renderPdfSummary(documents, merged) {
   const rows = documents.map((doc) => {
     if (doc.error) return `<li><strong>${testoHtmlSicuro(doc.filename)}</strong>: ${testoHtmlSicuro(doc.error)}. Puoi cambiare PDF oppure continuare con la compilazione manuale.</li>`;
-    const ocrStatus = doc.ocr?.applied
-      ? " OCR applicato: tutti i dati ricavati restano da controllare."
-      : doc.ocr?.attempted && doc.ocr?.reason === "ocr_error"
-        ? " OCR avviato ma non disponibile nel deployment."
-        : doc.ocr?.attempted && doc.ocr?.reason === "no_material_improvement"
-          ? " OCR eseguito senza dati sufficientemente affidabili."
-          : "";
     if (!risultatoPdfUtilizzabile(doc)) {
-      return `<li><strong>${testoHtmlSicuro(doc.filename)}</strong>: documento non riconosciuto o privo di dati sufficientemente affidabili.${ocrStatus}</li>`;
+      return `<li><strong>${testoHtmlSicuro(doc.filename)}</strong>: documento non riconosciuto o privo di dati sufficientemente affidabili.</li>`;
     }
     const review = doc.confidence === "high" ? "affidabilità alta" : "da controllare";
-    return `<li><strong>${testoHtmlSicuro(doc.filename)}</strong>: ${testoHtmlSicuro(doc.kind || "PDF")} ${testoHtmlSicuro(doc.commodity || "")} - ${testoHtmlSicuro(doc.fornitore || "fornitore da verificare")} (${review})${ocrStatus}</li>`;
+    return `<li><strong>${testoHtmlSicuro(doc.filename)}</strong>: ${testoHtmlSicuro(doc.kind || "PDF")} ${testoHtmlSicuro(doc.commodity || "")} - ${testoHtmlSicuro(doc.fornitore || "fornitore da verificare")} (${review})</li>`;
   }).join("");
 
   if (merged?.merge_blocked) {
@@ -8206,11 +8267,11 @@ function renderPdfSummary(documents, merged) {
     pdfBlockedAutofillLine(merged.data_contract),
   ].filter(Boolean).join(" | ");
 
-  const ocrReviewTargets = Number(merged.data_contract?.autofill_plan?.review_target_count || 0);
+  const reviewTargets = Number(merged.data_contract?.autofill_plan?.review_target_count || 0);
   return `
     <span>Documenti analizzati:</span>
     <ul style="margin:6px 0 10px 18px;">${rows}</ul>
-    <span><strong>Dati letti:</strong> ${mergedRows || "nessun dato sufficientemente affidabile; completa il modulo manualmente."}<br><small>Nel modulo saranno inseriti soltanto i campi completi ammessi dal contratto dati, dopo la tua conferma.${ocrReviewTargets ? " I dati OCR compariranno nell’anteprima deselezionati e dovrai sceglierli esplicitamente." : ""}</small></span>
+    <span><strong>Dati letti:</strong> ${mergedRows || "nessun dato sufficientemente affidabile; completa il modulo manualmente."}<br><small>Nel modulo saranno inseriti soltanto i campi completi ammessi dal contratto dati, dopo la tua conferma.${reviewTargets ? " I dati da verificare compariranno nell’anteprima deselezionati e dovrai sceglierli esplicitamente." : ""}</small></span>
   `;
 }
 
@@ -9401,7 +9462,7 @@ if (document.readyState === "loading") {
             <button type="button" id="pdf-autofill-clear-selection">Deseleziona tutti</button>
         </div>
         <div class="pdf-autofill-list" id="pdf-autofill-preview-list"></div>
-        <div class="pdf-autofill-note">I dati OCR sono sempre deselezionati all’apertura e richiedono una scelta esplicita. Un valore manuale differente resta protetto finché non ne autorizzi singolarmente la sostituzione.</div>
+        <div class="pdf-autofill-note">I dati da verificare sono deselezionati all’apertura e richiedono una scelta esplicita. Un valore manuale differente resta protetto finché non ne autorizzi singolarmente la sostituzione.</div>
         <div class="pdf-autofill-actions">
             <button type="button" id="pdf-autofill-cancel">Annulla, non modificare il modulo</button>
             <button type="button" class="is-primary" id="pdf-autofill-apply">Applica i campi selezionati</button>

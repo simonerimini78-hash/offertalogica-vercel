@@ -1,60 +1,54 @@
-# Archivio PDF di test - configurazione v89
+# Archivio PDF di test
 
-Questa funzione è disattivata per impostazione predefinita. Durante la fase di test controllata può conservare gli originali in un bucket Supabase privato e registrare la diagnostica campo per campo.
+L'archivio e disattivato per impostazione predefinita. Durante test controllati
+puo conservare gli originali in un bucket Supabase privato e registrare output,
+diagnostica e correzioni staff.
 
-## 1. Creare tabella e bucket
+## Configurazione
 
-Eseguire nel SQL editor di Supabase:
+Eseguire in Supabase:
 
 `supabase/pdf-analysis-archive.sql`
 
-Il bucket `pdf-test-archive` è privato. Non sono create policy pubbliche; l'accesso avviene soltanto tramite API server con la service role.
+Impostare su Vercel:
 
-## 2. Variabili Vercel
-
-Impostare:
-
-- `PDF_ARCHIVE_MODE=all` per archiviare tutti i documenti durante il test;
+- `PDF_ARCHIVE_MODE=all`, `problematic` oppure `off`;
 - `PDF_ARCHIVE_BUCKET=pdf-test-archive`;
 - `PDF_ARCHIVE_RETENTION_DAYS=180`;
-- `SUPABASE_URL` con l'URL del progetto Supabase;
-- `SUPABASE_SERVICE_ROLE_KEY` con la chiave server, mai esposta nel browser;
-- `STAFF_PREVIEW_TOKEN` già usato dalla modalità staff;
-- `CRON_SECRET` solo se si usa l'endpoint di pulizia automatica.
+- `SUPABASE_URL`;
+- `SUPABASE_SERVICE_ROLE_KEY`;
+- `STAFF_PREVIEW_TOKEN`;
+- `CRON_SECRET`.
 
-Modalità alternative:
+Il bucket deve restare privato. `SUPABASE_SERVICE_ROLE_KEY` e usata solo da
+codice server in `lib/pdfArchive.js` e non deve avere prefisso `NEXT_PUBLIC_`.
 
-- `PDF_ARCHIVE_MODE=problematic`: conserva soltanto analisi fallite, non riconosciute o da verificare;
-- `PDF_ARCHIVE_MODE=off`: non conserva originali e lascia invariato il lettore.
+## Uso staff
 
-## 3. Aprire l'archivio
-
-Attivare la modalità staff nel calcolatore. Nel banner compare `Archivio PDF`.
-
-Accesso diretto:
+Aprire:
 
 `/staff-pdf.html#token=IL_TUO_STAFF_PREVIEW_TOKEN`
 
-La pagina permette di:
+La pagina permette di consultare il risultato, aprire il PDF con URL firmato,
+correggere i campi, classificare il caso ed eliminare analisi e file.
 
-- aprire il PDF originale con un collegamento firmato valido cinque minuti;
-- vedere pagina, testo sorgente, metodo ed esito di ogni campo;
-- correggere i valori attesi;
-- classificare il documento come verificato o caso di test;
-- eliminare analisi e file.
+## Retention
 
-## 4. Pulizia
+Ogni record riceve `expires_at` in base a
+`PDF_ARCHIVE_RETENTION_DAYS`. La pulizia usa una funzione API gia esistente:
 
-Ogni record riceve `expires_at`. L'endpoint protetto:
+```text
+GET /api/staff-pdf-analyses?action=cleanup
+Authorization: Bearer CRON_SECRET
+```
 
-`/api/cleanup-pdf-archive`
+Si puo usare anche `POST`. L'operazione elimina i record scaduti e rimuove il
+file quando non e condiviso da altre analisi. Per applicare davvero la
+retention, pianificare una chiamata periodica esterna o un cron compatibile con
+il piano Vercel.
 
-elimina i record scaduti e rimuove il file quando non è condiviso da altre analisi dello stesso PDF. Deve essere chiamato con:
+## Regola operativa
 
-`Authorization: Bearer CRON_SECRET`
-
-La pianificazione Vercel può essere aggiunta al repository completo; non è inclusa nel pacchetto incrementale per non sovrascrivere un eventuale `vercel.json` esistente.
-
-## 5. Regola operativa
-
-Durante il test usare `all`. Prima dell'apertura pubblica rivalutare la modalità e passare a `problematic` o `off`. La pagina pubblica non aggiunge checkbox o passaggi; l'archiviazione dipende esclusivamente dalla configurazione server.
+Usare `all` soltanto durante il collaudo. Prima dell'apertura pubblica scegliere
+consapevolmente `problematic` o `off` e verificare informativa, consenso e
+periodo di conservazione.

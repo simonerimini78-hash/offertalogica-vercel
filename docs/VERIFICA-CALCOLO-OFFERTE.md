@@ -1,10 +1,10 @@
 # Verifica calcolo offerte
 
-Generato: 2026-07-19T06:28:59.329Z
+Generato: 2026-07-27T05:32:14.426Z
 Motore frontend: motore-v6-arera-first-2026-07-03
 Parametri: parametri-calcolo-2026-07-03-v4-psv-operativo
 Offerte commerciali: offerte-proposte-2026-07-07-v15-affiliazioni-a2a-octopus
-ARERA: arera-menu-2026-07-19 (2026-07-19)
+ARERA: arera-menu-2026-07-26 (2026-07-26)
 
 **Esito automatico: OK.** Nessun errore bloccante trovato nei profili verificati.
 
@@ -27,110 +27,121 @@ Questa sezione spiega perche un'offerta affiliata attiva viene mostrata oppure e
 
 ## Privato medio - dual fuel - fisso
 
-Offerte generate: 11
+Offerte generate: 6
 
 | # | Fornitore | Offerta | Totale | Variabile | Fissa vendita | Risparmio vs attuale | Stato |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | Illumia | Illumia - Energia Lunghissima | 778.30 EUR | 610.30 EUR | 168.00 EUR | 366.70 EUR | da_contattare |
-| 2 | Engie | Engie - Energia PuntoFisso - 12 mesi | 780.68 EUR | 624.68 EUR | 156.00 EUR | 364.32 EUR | da_contattare |
-| 3 | Alperia | Alperia - Alperia Smile Easy Summer + Alperia Gas Smile Start | 783.69 EUR | 592.29 EUR | 191.40 EUR | 361.31 EUR | attivabile |
-| 4 | E.ON | E.ON - E.ON Luce Insieme + E.ON Gas Insieme | 866.92 EUR | 649.81 EUR | 217.11 EUR | 278.08 EUR | attivabile |
-| 5 | Octopus Energy | Octopus Energy - Octopus Fissa 12M + Octopus Fissa 12M Gas | 902.28 EUR | 746.28 EUR | 156.00 EUR | 242.72 EUR | attivabile |
-| 6 | Eni Plenitude | Eni Plenitude - Fixa Time 24 Luce + Fixa Time 24 Gas | 910.50 EUR | 622.50 EUR | 288.00 EUR | 234.50 EUR | attivabile |
-| 7 | Vivi Energia | Vivi Energia - VIVIweb Allday Fix24 Lucegas | 929.53 EUR | 701.53 EUR | 228.00 EUR | 215.47 EUR | da_contattare |
-| 8 | A2A | A2A - A2A Start Luce + A2A Start Gas | 946.30 EUR | 718.30 EUR | 228.00 EUR | 198.70 EUR | attivabile |
-| 9 | Pulsee Luce e Gas | Pulsee Luce e Gas - Pulsee Luce e Gas RELAX Dual Fix 36 mesi | 949.42 EUR | 661.42 EUR | 288.00 EUR | 195.58 EUR | da_contattare |
-| 10 | Sorgenia | Sorgenia - Next Energy Smart | 1002.41 EUR | 774.41 EUR | 228.00 EUR | 142.59 EUR | da_contattare |
+| 1 | Alperia | Alperia - Alperia Smile Easy Summer + Alperia Gas Smile Start | 783.69 EUR | 592.29 EUR | 191.40 EUR | 361.31 EUR | attivabile |
+| 2 | Eni Plenitude | Eni Plenitude - Fixa Time 24 Luce + Fixa Time 24 Gas | 910.50 EUR | 622.50 EUR | 288.00 EUR | 234.50 EUR | attivabile |
+| 3 | A2A | A2A - A2A Start Luce + A2A Start Gas | 946.30 EUR | 718.30 EUR | 228.00 EUR | 198.70 EUR | attivabile |
+| 4 | E.ON | E.ON - E.ON Luce Insieme + E.ON Gas Insieme | 963.65 EUR | 746.54 EUR | 217.11 EUR | 181.35 EUR | attivabile |
+| 5 | Octopus Energy | Octopus Energy - Octopus Fissa 12M + Octopus Fissa 12M Gas | 1000.92 EUR | 844.92 EUR | 156.00 EUR | 144.08 EUR | attivabile |
+| 6 | Enel | Enel - Enel Fix Web Luce + Enel FixWeb Gas | 1083.30 EUR | 795.30 EUR | 288.00 EUR | 61.70 EUR | attivabile |
 
 ### Attivabili online rilevate
 
 | # | Fornitore | Offerta | Totale | Variabile | Fissa vendita | Risparmio vs attuale | Stato |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 3 | Alperia | Alperia - Alperia Smile Easy Summer + Alperia Gas Smile Start | 783.69 EUR | 592.29 EUR | 191.40 EUR | 361.31 EUR | attivabile |
-| 4 | E.ON | E.ON - E.ON Luce Insieme + E.ON Gas Insieme | 866.92 EUR | 649.81 EUR | 217.11 EUR | 278.08 EUR | attivabile |
-| 5 | Octopus Energy | Octopus Energy - Octopus Fissa 12M + Octopus Fissa 12M Gas | 902.28 EUR | 746.28 EUR | 156.00 EUR | 242.72 EUR | attivabile |
-| 6 | Eni Plenitude | Eni Plenitude - Fixa Time 24 Luce + Fixa Time 24 Gas | 910.50 EUR | 622.50 EUR | 288.00 EUR | 234.50 EUR | attivabile |
-| 8 | A2A | A2A - A2A Start Luce + A2A Start Gas | 946.30 EUR | 718.30 EUR | 228.00 EUR | 198.70 EUR | attivabile |
-| 11 | Enel | Enel - Enel Fix Web Luce + Enel FixWeb Gas | 1083.30 EUR | 795.30 EUR | 288.00 EUR | 61.70 EUR | attivabile |
+| 1 | Alperia | Alperia - Alperia Smile Easy Summer + Alperia Gas Smile Start | 783.69 EUR | 592.29 EUR | 191.40 EUR | 361.31 EUR | attivabile |
+| 2 | Eni Plenitude | Eni Plenitude - Fixa Time 24 Luce + Fixa Time 24 Gas | 910.50 EUR | 622.50 EUR | 288.00 EUR | 234.50 EUR | attivabile |
+| 3 | A2A | A2A - A2A Start Luce + A2A Start Gas | 946.30 EUR | 718.30 EUR | 228.00 EUR | 198.70 EUR | attivabile |
+| 4 | E.ON | E.ON - E.ON Luce Insieme + E.ON Gas Insieme | 963.65 EUR | 746.54 EUR | 217.11 EUR | 181.35 EUR | attivabile |
+| 5 | Octopus Energy | Octopus Energy - Octopus Fissa 12M + Octopus Fissa 12M Gas | 1000.92 EUR | 844.92 EUR | 156.00 EUR | 144.08 EUR | attivabile |
+| 6 | Enel | Enel - Enel Fix Web Luce + Enel FixWeb Gas | 1083.30 EUR | 795.30 EUR | 288.00 EUR | 61.70 EUR | attivabile |
 
 ## Privato medio - dual fuel - variabile
 
-Offerte generate: 5
+Offerte generate: 2
 
 | # | Fornitore | Offerta | Totale | Variabile | Fissa vendita | Risparmio vs attuale | Stato |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | Alperia | Alperia - Alperia Free Welcome + Alperia Gas Home Promo | 852.94 EUR | 852.94 EUR | 0.00 EUR | 333.37 EUR | attivabile |
-| 2 | Engie | Engie - Energia VedoChiaro | 871.01 EUR | 753.01 EUR | 118.00 EUR | 315.30 EUR | da_contattare |
-| 3 | Pulsee Luce e Gas | Pulsee Luce e Gas - Pulsee Luce e Gas Semplice Dual Index | 999.69 EUR | 819.69 EUR | 180.00 EUR | 186.62 EUR | da_contattare |
-| 4 | E.ON | E.ON - E.ON FlexClick Luce - PROMO + E.ON FlexClick Gas - PROMO | 1007.50 EUR | 790.39 EUR | 217.11 EUR | 178.81 EUR | attivabile |
-| 5 | Vivi Energia | Vivi Energia - VIVIweb Allday Flex Lucegas | 1019.17 EUR | 791.17 EUR | 228.00 EUR | 167.14 EUR | da_contattare |
+| 1 | Alperia | Alperia - Alperia Free Welcome + Alperia Gas Home Promo | 796.94 EUR | 796.94 EUR | 0.00 EUR | 389.37 EUR | attivabile |
+| 2 | E.ON | E.ON - E.ON FlexClick Luce - PROMO + E.ON FlexClick Gas - PROMO | 1007.50 EUR | 790.39 EUR | 217.11 EUR | 178.81 EUR | attivabile |
 
 ### Attivabili online rilevate
 
 | # | Fornitore | Offerta | Totale | Variabile | Fissa vendita | Risparmio vs attuale | Stato |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | Alperia | Alperia - Alperia Free Welcome + Alperia Gas Home Promo | 852.94 EUR | 852.94 EUR | 0.00 EUR | 333.37 EUR | attivabile |
-| 4 | E.ON | E.ON - E.ON FlexClick Luce - PROMO + E.ON FlexClick Gas - PROMO | 1007.50 EUR | 790.39 EUR | 217.11 EUR | 178.81 EUR | attivabile |
+| 1 | Alperia | Alperia - Alperia Free Welcome + Alperia Gas Home Promo | 796.94 EUR | 796.94 EUR | 0.00 EUR | 389.37 EUR | attivabile |
+| 2 | E.ON | E.ON - E.ON FlexClick Luce - PROMO + E.ON FlexClick Gas - PROMO | 1007.50 EUR | 790.39 EUR | 217.11 EUR | 178.81 EUR | attivabile |
 
 ## Privato alto consumo - dual fuel - fisso
 
-Offerte generate: 11
+Offerte generate: 6
 
 | # | Fornitore | Offerta | Totale | Variabile | Fissa vendita | Risparmio vs attuale | Stato |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 1 | Alperia | Alperia - Alperia Smile Easy Summer + Alperia Gas Smile Start | 1142.20 EUR | 950.80 EUR | 191.40 EUR | 537.80 EUR | attivabile |
-| 2 | Illumia | Illumia - Energia Lunghissima | 1152.00 EUR | 984.00 EUR | 168.00 EUR | 528.00 EUR | da_contattare |
-| 3 | Engie | Engie - Energia PuntoFisso - 12 mesi | 1155.60 EUR | 999.60 EUR | 156.00 EUR | 524.40 EUR | da_contattare |
-| 4 | E.ON | E.ON - E.ON Luce Insieme + E.ON Gas Insieme | 1261.11 EUR | 1044.00 EUR | 217.11 EUR | 418.89 EUR | attivabile |
-| 5 | Eni Plenitude | Eni Plenitude - Fixa Time 24 Luce + Fixa Time 24 Gas | 1286.00 EUR | 998.00 EUR | 288.00 EUR | 394.00 EUR | attivabile |
-| 6 | Pulsee Luce e Gas | Pulsee Luce e Gas - Pulsee Luce e Gas RELAX Dual Fix 36 mesi | 1349.20 EUR | 1061.20 EUR | 288.00 EUR | 330.80 EUR | da_contattare |
-| 7 | Vivi Energia | Vivi Energia - VIVIweb Allday Fix24 Lucegas | 1349.60 EUR | 1121.60 EUR | 228.00 EUR | 330.40 EUR | da_contattare |
-| 8 | Octopus Energy | Octopus Energy - Octopus Fissa 12M + Octopus Fissa 12M Gas | 1349.60 EUR | 1193.60 EUR | 156.00 EUR | 330.40 EUR | attivabile |
-| 9 | A2A | A2A - A2A Start Luce + A2A Start Gas | 1372.00 EUR | 1144.00 EUR | 228.00 EUR | 308.00 EUR | attivabile |
-| 10 | Sorgenia | Sorgenia - Next Energy Smart | 1468.16 EUR | 1240.16 EUR | 228.00 EUR | 211.84 EUR | da_contattare |
+| 2 | Eni Plenitude | Eni Plenitude - Fixa Time 24 Luce + Fixa Time 24 Gas | 1286.00 EUR | 998.00 EUR | 288.00 EUR | 394.00 EUR | attivabile |
+| 3 | A2A | A2A - A2A Start Luce + A2A Start Gas | 1372.00 EUR | 1144.00 EUR | 228.00 EUR | 308.00 EUR | attivabile |
+| 4 | E.ON | E.ON - E.ON Luce Insieme + E.ON Gas Insieme | 1420.71 EUR | 1203.60 EUR | 217.11 EUR | 259.29 EUR | attivabile |
+| 5 | Octopus Energy | Octopus Energy - Octopus Fissa 12M + Octopus Fissa 12M Gas | 1510.40 EUR | 1354.40 EUR | 156.00 EUR | 169.60 EUR | attivabile |
+| 6 | Enel | Enel - Enel Fix Web Luce + Enel FixWeb Gas | 1564.00 EUR | 1276.00 EUR | 288.00 EUR | 116.00 EUR | attivabile |
 
 ### Attivabili online rilevate
 
 | # | Fornitore | Offerta | Totale | Variabile | Fissa vendita | Risparmio vs attuale | Stato |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 1 | Alperia | Alperia - Alperia Smile Easy Summer + Alperia Gas Smile Start | 1142.20 EUR | 950.80 EUR | 191.40 EUR | 537.80 EUR | attivabile |
-| 4 | E.ON | E.ON - E.ON Luce Insieme + E.ON Gas Insieme | 1261.11 EUR | 1044.00 EUR | 217.11 EUR | 418.89 EUR | attivabile |
-| 5 | Eni Plenitude | Eni Plenitude - Fixa Time 24 Luce + Fixa Time 24 Gas | 1286.00 EUR | 998.00 EUR | 288.00 EUR | 394.00 EUR | attivabile |
-| 8 | Octopus Energy | Octopus Energy - Octopus Fissa 12M + Octopus Fissa 12M Gas | 1349.60 EUR | 1193.60 EUR | 156.00 EUR | 330.40 EUR | attivabile |
-| 9 | A2A | A2A - A2A Start Luce + A2A Start Gas | 1372.00 EUR | 1144.00 EUR | 228.00 EUR | 308.00 EUR | attivabile |
-| 11 | Enel | Enel - Enel Fix Web Luce + Enel FixWeb Gas | 1564.00 EUR | 1276.00 EUR | 288.00 EUR | 116.00 EUR | attivabile |
+| 2 | Eni Plenitude | Eni Plenitude - Fixa Time 24 Luce + Fixa Time 24 Gas | 1286.00 EUR | 998.00 EUR | 288.00 EUR | 394.00 EUR | attivabile |
+| 3 | A2A | A2A - A2A Start Luce + A2A Start Gas | 1372.00 EUR | 1144.00 EUR | 228.00 EUR | 308.00 EUR | attivabile |
+| 4 | E.ON | E.ON - E.ON Luce Insieme + E.ON Gas Insieme | 1420.71 EUR | 1203.60 EUR | 217.11 EUR | 259.29 EUR | attivabile |
+| 5 | Octopus Energy | Octopus Energy - Octopus Fissa 12M + Octopus Fissa 12M Gas | 1510.40 EUR | 1354.40 EUR | 156.00 EUR | 169.60 EUR | attivabile |
+| 6 | Enel | Enel - Enel Fix Web Luce + Enel FixWeb Gas | 1564.00 EUR | 1276.00 EUR | 288.00 EUR | 116.00 EUR | attivabile |
 
 ## Privato medio - forniture separate - fisso
 
-Offerte generate: 20
+Offerte generate: 121
 
 | # | Fornitore | Offerta | Totale | Variabile | Fissa vendita | Risparmio vs attuale | Stato |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | Illumia + Acea Energia | Illumia + Acea Energia - miglior abbinamento separato | 742.30 EUR | 547.30 EUR | 195.00 EUR | 402.70 EUR | da_contattare |
-| 2 | Illumia + Engie | Illumia + Engie - miglior abbinamento separato | 753.80 EUR | 585.80 EUR | 168.00 EUR | 391.20 EUR | da_contattare |
-| 3 | Illumia + Alperia | Illumia + Alperia - miglior abbinamento separato | 762.30 EUR | 582.30 EUR | 180.00 EUR | 382.70 EUR | da_contattare |
-| 4 | Alperia + Acea Energia | Alperia + Acea Energia - miglior abbinamento separato | 763.69 EUR | 557.29 EUR | 206.40 EUR | 381.31 EUR | da_contattare |
-| 5 | Engie + Acea Energia | Engie + Acea Energia - miglior abbinamento separato | 769.18 EUR | 586.18 EUR | 183.00 EUR | 375.82 EUR | da_contattare |
-| 6 | Acea Energia | Acea Energia - Acea Energia Fix + Acea Energia Fix | 769.30 EUR | 547.30 EUR | 222.00 EUR | 375.70 EUR | da_contattare |
-| 7 | Illumia + Iren Luce e Gas | Illumia + Iren Luce e Gas - miglior abbinamento separato | 772.30 EUR | 568.30 EUR | 204.00 EUR | 372.70 EUR | da_contattare |
-| 8 | Alperia + Engie | Alperia + Engie - miglior abbinamento separato | 775.19 EUR | 595.79 EUR | 179.40 EUR | 369.81 EUR | da_contattare |
-| 9 | Illumia | Illumia - Energia Lunga Luce + Energia Lunga Gas | 778.30 EUR | 610.30 EUR | 168.00 EUR | 366.70 EUR | da_contattare |
-| 10 | Magis Energia + Acea Energia | Magis Energia + Acea Energia - miglior abbinamento separato | 780.22 EUR | 573.22 EUR | 207.00 EUR | 364.78 EUR | da_contattare |
+| 1 | Illumia + Alperia | Illumia + Alperia - miglior abbinamento separato | 762.30 EUR | 582.30 EUR | 180.00 EUR | 382.70 EUR | da_contattare |
+| 2 | Illumia + Iren Luce e Gas | Illumia + Iren Luce e Gas - miglior abbinamento separato | 771.10 EUR | 585.10 EUR | 186.00 EUR | 373.90 EUR | da_contattare |
+| 3 | Illumia | Illumia - Energia Lunga Luce + Energia Lunga Gas | 778.30 EUR | 610.30 EUR | 168.00 EUR | 366.70 EUR | da_contattare |
+| 4 | Illumia + neN | Illumia + neN - miglior abbinamento separato | 781.30 EUR | 589.30 EUR | 192.00 EUR | 363.70 EUR | da_contattare |
+| 5 | Alperia | Alperia - Alperia Smile Easy Summer + Alperia Gas Smile Start | 783.69 EUR | 592.29 EUR | 191.40 EUR | 361.31 EUR | attivabile |
+| 6 | Illumia + A2A Energia | Illumia + A2A Energia - miglior abbinamento separato | 788.30 EUR | 596.30 EUR | 192.00 EUR | 356.70 EUR | da_contattare |
+| 7 | Illumia + Argos | Illumia + Argos - miglior abbinamento separato | 788.30 EUR | 596.30 EUR | 192.00 EUR | 356.70 EUR | da_contattare |
+| 8 | Alperia + Iren Luce e Gas | Alperia + Iren Luce e Gas - miglior abbinamento separato | 792.49 EUR | 595.09 EUR | 197.40 EUR | 352.51 EUR | da_contattare |
+| 9 | Illumia + Dolomiti Energia | Illumia + Dolomiti Energia - miglior abbinamento separato | 793.25 EUR | 637.25 EUR | 156.00 EUR | 351.75 EUR | da_contattare |
+| 10 | Dolomiti Energia + Alperia | Dolomiti Energia + Alperia - miglior abbinamento separato | 798.30 EUR | 582.30 EUR | 216.00 EUR | 346.70 EUR | da_contattare |
+
+### Attivabili online rilevate
+
+| # | Fornitore | Offerta | Totale | Variabile | Fissa vendita | Risparmio vs attuale | Stato |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 5 | Alperia | Alperia - Alperia Smile Easy Summer + Alperia Gas Smile Start | 783.69 EUR | 592.29 EUR | 191.40 EUR | 361.31 EUR | attivabile |
+| 74 | Eni Plenitude | Eni Plenitude - Fixa Time 24 Smart Luce + Fixa Time 24 Smart Gas | 863.30 EUR | 575.30 EUR | 288.00 EUR | 281.70 EUR | attivabile |
+| 88 | A2A Energia | A2A Energia - A2A Click Luce + A2A Click - GAS | 881.90 EUR | 671.90 EUR | 210.00 EUR | 263.10 EUR | attivabile |
+| 100 | Enel Energia | Enel Energia - Enel Night Free + Enel  Flash Gas | 901.90 EUR | 577.90 EUR | 324.00 EUR | 243.10 EUR | attivabile |
+| 101 | E.ON | E.ON - E.ON LuceClickVerde + E.ON Gas Premia | 902.07 EUR | 684.96 EUR | 217.11 EUR | 242.93 EUR | attivabile |
+| 121 | Octopus Energy | Octopus Energy - Octopus Fissa 12M + Octopus Fissa 12M Gas | 1000.92 EUR | 844.92 EUR | 156.00 EUR | 144.08 EUR | attivabile |
 
 ## Privato medio - forniture separate - variabile
 
-Offerte generate: 20
+Offerte generate: 132
 
 | # | Fornitore | Offerta | Totale | Variabile | Fissa vendita | Risparmio vs attuale | Stato |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | Alperia + Engie | Alperia + Engie - miglior abbinamento separato | 820.94 EUR | 761.94 EUR | 59.00 EUR | 365.37 EUR | da_contattare |
-| 2 | Alperia | Alperia - Alperia Free Welcome + Alperia Gas Home Promo | 852.94 EUR | 852.94 EUR | 0.00 EUR | 333.37 EUR | da_contattare |
-| 3 | Eni Plenitude + Engie | Eni Plenitude + Engie - miglior abbinamento separato | 853.67 EUR | 794.67 EUR | 59.00 EUR | 332.64 EUR | da_contattare |
-| 4 | Alperia + Illumia | Alperia + Illumia - miglior abbinamento separato | 859.94 EUR | 775.94 EUR | 84.00 EUR | 326.37 EUR | da_contattare |
-| 5 | Alperia + neN | Alperia + neN - miglior abbinamento separato | 860.94 EUR | 740.94 EUR | 120.00 EUR | 325.37 EUR | da_contattare |
-| 6 | Alperia + Octopus Energy | Alperia + Octopus Energy - miglior abbinamento separato | 866.94 EUR | 782.94 EUR | 84.00 EUR | 319.37 EUR | da_contattare |
-| 7 | Alperia + Acea Energia | Alperia + Acea Energia - miglior abbinamento separato | 867.04 EUR | 771.04 EUR | 96.00 EUR | 319.27 EUR | da_contattare |
-| 8 | Engie | Engie - Taaanta Energia + Energia VedoChiaro | 867.21 EUR | 729.21 EUR | 138.00 EUR | 319.10 EUR | da_contattare |
-| 9 | Illumia + Engie | Illumia + Engie - miglior abbinamento separato | 872.21 EUR | 729.21 EUR | 143.00 EUR | 314.10 EUR | da_contattare |
-| 10 | Dolomiti Energia + Engie | Dolomiti Energia + Engie - miglior abbinamento separato | 873.65 EUR | 736.65 EUR | 137.00 EUR | 312.66 EUR | da_contattare |
+| 1 | Alperia + E.CO Energia Corrente | Alperia + E.CO Energia Corrente - miglior abbinamento separato | 693.85 EUR | 597.85 EUR | 96.00 EUR | 492.46 EUR | da_contattare |
+| 2 | Eni Plenitude + E.CO Energia Corrente | Eni Plenitude + E.CO Energia Corrente - miglior abbinamento separato | 726.58 EUR | 630.58 EUR | 96.00 EUR | 459.73 EUR | da_contattare |
+| 3 | Engie + E.CO Energia Corrente | Engie + E.CO Energia Corrente - miglior abbinamento separato | 740.12 EUR | 565.12 EUR | 175.00 EUR | 446.19 EUR | da_contattare |
+| 4 | Illumia + E.CO Energia Corrente | Illumia + E.CO Energia Corrente - miglior abbinamento separato | 745.12 EUR | 565.12 EUR | 180.00 EUR | 441.19 EUR | da_contattare |
+| 5 | Dolomiti Energia + E.CO Energia Corrente | Dolomiti Energia + E.CO Energia Corrente - miglior abbinamento separato | 746.56 EUR | 572.56 EUR | 174.00 EUR | 439.75 EUR | da_contattare |
+| 6 | Octopus Energy + E.CO Energia Corrente | Octopus Energy + E.CO Energia Corrente - miglior abbinamento separato | 759.30 EUR | 591.30 EUR | 168.00 EUR | 427.01 EUR | da_contattare |
+| 7 | Alperia + Illumia | Alperia + Illumia - miglior abbinamento separato | 769.85 EUR | 625.85 EUR | 144.00 EUR | 416.46 EUR | da_contattare |
+| 8 | Acea Energia + E.CO Energia Corrente | Acea Energia + E.CO Energia Corrente - miglior abbinamento separato | 777.95 EUR | 585.95 EUR | 192.00 EUR | 408.36 EUR | da_contattare |
+| 9 | Edison + E.CO Energia Corrente | Edison + E.CO Energia Corrente - miglior abbinamento separato | 781.12 EUR | 565.12 EUR | 216.00 EUR | 405.19 EUR | da_contattare |
+| 10 | E.ON + E.CO Energia Corrente | E.ON + E.CO Energia Corrente - miglior abbinamento separato | 789.86 EUR | 572.75 EUR | 217.11 EUR | 396.45 EUR | da_contattare |
+
+### Attivabili online rilevate
+
+| # | Fornitore | Offerta | Totale | Variabile | Fissa vendita | Risparmio vs attuale | Stato |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 11 | Alperia | Alperia - Alperia Free Welcome + Alperia Gas Home Promo | 796.94 EUR | 796.94 EUR | 0.00 EUR | 389.37 EUR | attivabile |
+| 68 | Octopus Energy | Octopus Energy - Octopus Flex + Octopus Flex Gas | 932.39 EUR | 776.39 EUR | 156.00 EUR | 253.92 EUR | attivabile |
+| 102 | Eni Plenitude | Eni Plenitude - Trend Casa Luce Plus + Trend Casa NoPensieri Gas | 998.67 EUR | 878.67 EUR | 120.00 EUR | 187.64 EUR | attivabile |
+| 103 | E.ON | E.ON - E.ON Luce Drive Smarty + E.ON FlexClick Gas - PROMO | 1000.95 EUR | 771.85 EUR | 229.11 EUR | 185.36 EUR | attivabile |
+| 104 | A2A Energia | A2A Energia - A2A Easy Luce + A2A Easy Gas | 1008.21 EUR | 708.21 EUR | 300.00 EUR | 178.10 EUR | attivabile |
+| 132 | Enel Energia | Enel Energia - Enel Flex Control Luce + Enel Flex Control Gas | 1211.44 EUR | 851.44 EUR | 360.00 EUR | -25.13 EUR | attivabile |
 

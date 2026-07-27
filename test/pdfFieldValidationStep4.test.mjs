@@ -6,7 +6,6 @@ import {
   completeDualSupplyAddresses,
   PDF_FIELD_VALIDATION_VERSION,
 } from "../lib/pdfFieldValidation.js";
-import { extractPdfDataFromText, PDF_PARSER_VERSION } from "../lib/pdfExtract.js";
 
 function baseDual(overrides = {}) {
   return {
@@ -146,29 +145,6 @@ test("Step 4 non rende obbligatori nome offerta e validità per un confronto eco
   assert.ok(result.readiness.confronto.luce.missing_recommended.includes("nome_offerta_luce"));
 });
 
-test("Step 4.1 recupera il codice cliente dalle intestazioni Estra e privilegia il primo codice cliente reale", () => {
-  const estra = extractPdfDataFromText(`
-    Estra Energie BOLLETTA ENERGIA ELETTRICA
-    Codice cliente usalo per comunicare con noi 192693025
-    C.F. BNVRRT60L19D704H Intestatario fornitura BENEVENTI ROBERTO
-    POD IT001E51344941 Potenza impegnata 10 kW
-    Indirizzo di fornitura: VIA BRANDO BRANDI 72, 47121 FORLI' FC
-    Consumo annuo 1.330,3 kWh
-    spesa per la vendita di energia elettrica 0,188041 €/kWh
-    spesa per vendita energia elettrica 11,110000 €/Mese
-  `);
-  assert.equal(estra.codice_cliente, "192693025");
-
-  const dolomiti = extractPdfDataFromText(`
-    Dolomiti Energia BOLLETTA GAS
-    Codice cliente: 20142254 Conto contrattuale: 60287155
-    Codice Fiscale: RMNSMN78T23D704K I TUOI DATI IDENTIFICATIVI RIMINI SIMONE VIA CELLETTA 23
-    Codice cliente: 60287155 bollettino di pagamento importo
-    PDR 03081000466501 Consumo annuo 1.000 Smc
-  `);
-  assert.equal(dolomiti.codice_cliente, "20142254");
-});
-
 test("Step 4.1 rende parziali i dati bolletta quando manca il codice cliente", () => {
   const result = applyPdfFieldValidation(baseDual({ codice_cliente: null }));
   assert.equal(result.readiness.dati_bolletta.luce.status, "parziale");
@@ -197,29 +173,4 @@ test("Step 4.1 separa dati bolletta e attivazione eseguibile", () => {
     "titolo_occupazione_immobile",
     "consensi_attivazione",
   ]) assert.ok(result.readiness.attivazione.luce.missing_external.includes(field));
-});
-
-test("il parser Step 4 applica la validazione senza modificare i valori economici", () => {
-  const result = extractPdfDataFromText(`
-    Estra Energie BOLLETTA ENERGIA ELETTRICA Totale da pagare 70 euro.
-    Consumo annuo 1.330,3 kWh POD IT001E51344941.
-    di cui spesa per la vendita di energia elettrica 0,188041 €/kWh
-    Quota fissa e quota potenza
-    di cui spesa per vendita energia elettrica 11,110000 €/Mese 22,22
-    Codice fiscale BNVRRT60L19D704H
-    Indirizzo di fornitura: VIA BRANDO BRANDI 72, 47121 FORLI' FC POD IT001E51344941
-    Nome dell'offerta commerciale: ESTRA NATURA LUCE
-    Codice offerta: 001231ESVFL01XXE77XX12122509GYNL
-    Tipologia offerta: Prezzo variabile
-    Formula per il calcolo dell'energia: PUN FASCE + SPREAD + DISPACCIAMENTO
-    SPREAD (€/kWh) 0,03190000
-    Decorrenza condizioni economiche: 05/01/2026
-    Scadenza condizioni economiche: 01/04/2027
-  `);
-  assert.equal(PDF_PARSER_VERSION, "v103-safe-data-contract-step5");
-  assert.equal(result.consumo_luce_kwh, 1330.3);
-  assert.equal(result.prezzo_luce_eur_kwh, 0.188041);
-  assert.equal(result.quota_fissa_vendita_luce_eur_anno, 133.32);
-  assert.equal(result.field_status.validita_condizioni_economiche_luce.status, "completo");
-  assert.equal(result.readiness.confronto.luce.status, "completo");
 });

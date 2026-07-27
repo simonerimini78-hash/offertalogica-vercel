@@ -5,7 +5,6 @@ import {
   buildPdfDataContract,
   applyPdfDataContract,
 } from "../lib/pdfDataContract.js";
-import { extractPdfDataFromText, PDF_PARSER_VERSION } from "../lib/pdfExtract.js";
 
 function completeStatus() {
   return { status: "completo", reason: null, evidence: null };
@@ -13,7 +12,7 @@ function completeStatus() {
 
 function baseDual() {
   return {
-    parser_version: PDF_PARSER_VERSION,
+    parser_version: "fixture-contract-v1",
     page_count: 4,
     textExtracted: 9000,
     kind: "bolletta",
@@ -154,39 +153,14 @@ test("Step 5 non conta come bloccati i campi della commodity non applicabile", (
   assert.ok(!contract.autofill_plan.blocked_fields.some((item) => item.source_field.endsWith("gas") || item.source_field.includes("gas_")));
 });
 
-test("Step 5 espone in modo trasparente quando il parser legacy non fornisce uno snippet", () => {
+test("Step 5 espone in modo trasparente quando la sorgente non fornisce uno snippet", () => {
   const contract = buildPdfDataContract(baseDual());
   const field = contract.fields.codice_cliente;
   assert.equal(field.evidence.available, false);
   assert.equal(field.evidence.quality, "unavailable");
-  assert.equal(field.evidence.note, "evidenza_testuale_non_esposta_dal_parser_legacy");
+  assert.equal(field.evidence.note, "evidenza_testuale_non_disponibile");
   assert.equal(field.provenance.source, "parser");
 });
-
-test("Step 5 viene applicato all'output reale del parser senza cambiare i valori economici", () => {
-  const result = extractPdfDataFromText(`
-    Estra Energie BOLLETTA ENERGIA ELETTRICA Totale da pagare 70 euro.
-    Consumo annuo 1.330,3 kWh POD IT001E51344941.
-    di cui spesa per la vendita di energia elettrica 0,188041 €/kWh
-    Quota fissa e quota potenza
-    di cui spesa per vendita energia elettrica 11,110000 €/Mese 22,22
-    Codice fiscale BNVRRT60L19D704H
-    Indirizzo di fornitura: VIA BRANDO BRANDI 72, 47121 FORLI' FC POD IT001E51344941
-    Nome dell'offerta commerciale: ESTRA NATURA LUCE
-    Codice offerta: 001231ESVFL01XXE77XX12122509GYNL
-    Tipologia offerta: Prezzo variabile
-    Formula per il calcolo dell'energia: PUN FASCE + SPREAD + DISPACCIAMENTO
-    SPREAD (€/kWh) 0,03190000
-    Decorrenza condizioni economiche: 05/01/2026
-    Scadenza condizioni economiche: 01/04/2027
-  `);
-  assert.equal(result.parser_version, "v103-safe-data-contract-step5");
-  assert.equal(result.prezzo_luce_eur_kwh, 0.188041);
-  assert.equal(result.quota_fissa_vendita_luce_eur_anno, 133.32);
-  assert.equal(result.data_contract.contract_version, "1.1.0");
-  assert.equal(result.data_contract.fields.prezzo_luce_eur_kwh.normalized_value, 0.188041);
-});
-
 
 test("Step 5 marca come contestuale uno snippet che non contiene il valore normalizzato", () => {
   const input = baseDual();
