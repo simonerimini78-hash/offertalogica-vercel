@@ -151,6 +151,19 @@ function renderValidationSummary(normalized) {
     ${issueRows?`<div class="table-wrap"><table><thead><tr><th>Campo</th><th>Livello</th><th>Motivo</th></tr></thead><tbody>${issueRows}</tbody></table></div>`:'<div class="meta">Nessuna incoerenza deterministica rilevata.</div>'}
   `;
 }
+function renderObservedData(normalized) {
+  const facts = Array.isArray(normalized?.observed_data) ? normalized.observed_data : [];
+  const derived = Array.isArray(normalized?.derived_data) ? normalized.derived_data : [];
+  if (!facts.length && !derived.length) return "";
+  const factRows = facts.map((fact) => `<tr><td>${esc(LABELS[fact.field]||fact.field)}</td><td><strong>${esc(fmt(fact.value))}</strong>${fact.unit?`<br><small>${esc(fact.unit)}</small>`:""}</td><td>${esc(fact.role||"—")}</td><td>${esc(fact.page||"—")}</td><td class="snippet">${esc(fact.evidence||"—")}</td><td>${fact.usable_for_comparison?'<span class="badge found">utilizzabile</span>':'<span class="badge review">solo osservato</span>'}</td></tr>`).join("");
+  const derivedRows = derived.map((item) => `<tr><td>${esc(item.field)}</td><td><strong>${esc(fmt(item.value))}</strong>${item.unit?`<br><small>${esc(item.unit)}</small>`:""}</td><td>derivato</td><td>—</td><td class="snippet">${esc(item.formula||"—")}<br><small>${esc(item.reason||"—")}</small></td><td><span class="badge review">non contrattuale</span></td></tr>`).join("");
+  return `
+    <h3>Dati osservati nel documento</h3>
+    <div class="meta">Questi valori sono conservati anche quando non possono essere usati nel confronto. Consumi fatturati e costi medi non diventano automaticamente consumo annuo o prezzo contrattuale.</div>
+    <div class="table-wrap"><table><thead><tr><th>Campo</th><th>Valore</th><th>Classificazione</th><th>Pagina</th><th>Evidenza</th><th>Uso</th></tr></thead><tbody>${factRows||'<tr><td colspan="6">Nessun fatto osservato.</td></tr>'}${derivedRows}</tbody></table></div>
+  `;
+}
+
 function renderDataContractSummary(normalized) {
   const contract = normalized?.data_contract;
   if (!contract) return "";
@@ -168,20 +181,23 @@ function renderDetail(item) {
   const n=item.normalized_data||{}; const confirmed=item.confirmed_data||{}; const diagnostics=item.diagnostics||[];
   document.getElementById("detail").innerHTML=`
     <div class="detail-head"><div><h2>${esc(item.original_file_name)}</h2><div class="meta">${esc(item.parser_version)} · hash ${esc((item.file_sha256||'').slice(0,12))}… · scadenza ${item.expires_at?esc(new Date(item.expires_at).toLocaleDateString('it-IT')):'—'}</div></div><div class="actions"><button class="btn" id="replay-analysis">Prova questi dati nel calcolatore</button><button class="btn primary" id="open-pdf">Apri PDF originale</button><button class="btn danger" id="delete-analysis">Elimina</button></div></div>
-    <div class="summary"><div><span>Esito</span><strong>${esc(item.status)}</strong></div><div><span>Revisione</span><strong>${esc(item.review_status)}</strong></div><div><span>Fornitore</span><strong>${esc(item.provider||'—')}</strong></div><div><span>Prove sullo stesso PDF</span><strong>${esc(analyses.filter(row=>row.file_sha256&&row.file_sha256===item.file_sha256).length||1)}</strong></div></div>
+    <div class="summary"><div><span>Esito</span><strong>${esc(item.status)}</strong></div><div><span>Revisione</span><strong>${esc(item.review_status)}</strong></div><div><span>Fornitore</span><strong>${esc(item.provider||'—')}</strong></div><div><span>Passaggi IA</span><strong>${esc(n.ai?.analysis_pass_count ?? n.ai?.openai_attempts ?? '—')}</strong></div><div><span>Prove sullo stesso PDF</span><strong>${esc(analyses.filter(row=>row.file_sha256&&row.file_sha256===item.file_sha256).length||1)}</strong></div></div>
     ${item.error_message?`<h3>Errore</h3><pre>${esc(item.error_code)}\n${esc(item.error_message)}</pre>`:''}
     ${renderValidationSummary(n)}
+    ${renderObservedData(n)}
     ${renderDataContractSummary(n)}
     <h3>Diagnostica campo per campo</h3>
     <div class="table-wrap"><table><thead><tr><th>Campo</th><th>Esito</th><th>Valore</th><th>Pagina</th><th>Metodo</th><th>Testo sorgente</th></tr></thead><tbody>${diagnostics.map(d=>`<tr><td>${esc(d.label||d.field)}</td><td><span class="badge ${esc(d.status)}">${esc(d.status)}</span><br><small>${esc(d.confidence||'')}</small></td><td>${esc(fmt(d.value))}</td><td>${esc(d.page||'—')}</td><td>${esc(d.method||'—')}</td><td class="snippet">${esc(d.source_snippet||'—')}</td></tr>`).join('')||'<tr><td colspan="6">Diagnostica non disponibile.</td></tr>'}</tbody></table></div>
     <h3>Dati corretti attesi</h3><div class="edit-grid">${DISPLAY_FIELDS.map(key=>`<div class="field"><label for="expected-${esc(key)}">${esc(LABELS[key]||key)}</label><input id="expected-${esc(key)}" data-field="${esc(key)}" value="${esc(inputValue(Object.prototype.hasOwnProperty.call(confirmed,key)?confirmed[key]:n[key]))}"></div>`).join('')}</div>
     <div class="review-grid"><div class="field"><label for="review-status">Stato revisione</label><select id="review-status"><option value="pending">Da verificare</option><option value="reviewed">Verificata</option><option value="test_case">Caso di test</option><option value="discarded">Scartata</option></select></div><div class="field"><label for="staff-notes">Note staff</label><textarea id="staff-notes" rows="3" placeholder="Cosa non legge, posizione corretta, particolarità del layout…">${esc(item.staff_notes||'')}</textarea></div></div>
-    <div class="actions"><button class="btn primary" id="save-review">Salva verifica</button><button class="btn" id="show-ai-raw">Mostra risposta IA originale</button><button class="btn" id="show-normalized-json">Mostra risultato normalizzato</button></div><div class="status" id="detail-status"></div><pre id="ai-raw-json" hidden>${esc(JSON.stringify(n?._reader_trace?.raw_ai ?? {trace_non_disponibile:true},null,2))}</pre><pre id="normalized-json" hidden>${esc(JSON.stringify(Object.fromEntries(Object.entries(n).filter(([key])=>key!=="_reader_trace")),null,2))}</pre>`;
+    <div class="actions"><button class="btn primary" id="save-review">Salva verifica</button><button class="btn" id="show-ai-initial">Mostra prima lettura IA</button><button class="btn" id="show-ai-recovery">Mostra verifica mirata IA</button><button class="btn" id="show-ai-raw">Mostra risposta IA unificata</button><button class="btn" id="show-normalized-json">Mostra risultato normalizzato</button></div><div class="status" id="detail-status"></div><pre id="ai-initial-json" hidden>${esc(JSON.stringify(n?._reader_trace?.raw_ai_initial ?? n?._reader_trace?.raw_ai ?? {trace_non_disponibile:true},null,2))}</pre><pre id="ai-recovery-json" hidden>${esc(JSON.stringify(n?._reader_trace?.raw_ai_recovery ?? {verifica_mirata_non_eseguita:true, motivo:n?._reader_trace?.recovery_error||"budget_o_dati_gia_completi"},null,2))}</pre><pre id="ai-raw-json" hidden>${esc(JSON.stringify(n?._reader_trace?.raw_ai ?? {trace_non_disponibile:true},null,2))}</pre><pre id="normalized-json" hidden>${esc(JSON.stringify(Object.fromEntries(Object.entries(n).filter(([key])=>key!=="_reader_trace")),null,2))}</pre>`;
   document.getElementById("review-status").value=item.review_status||"pending";
   document.getElementById("replay-analysis").addEventListener("click",()=>replayAnalysis(item));
   document.getElementById("open-pdf").addEventListener("click",()=>openPdf(item.id));
   document.getElementById("delete-analysis").addEventListener("click",()=>deleteAnalysis(item.id));
   document.getElementById("save-review").addEventListener("click",()=>saveReview(item));
+  document.getElementById("show-ai-initial").addEventListener("click",()=>{const pre=document.getElementById("ai-initial-json");pre.hidden=!pre.hidden;});
+  document.getElementById("show-ai-recovery").addEventListener("click",()=>{const pre=document.getElementById("ai-recovery-json");pre.hidden=!pre.hidden;});
   document.getElementById("show-ai-raw").addEventListener("click",()=>{const pre=document.getElementById("ai-raw-json");pre.hidden=!pre.hidden;});
   document.getElementById("show-normalized-json").addEventListener("click",()=>{const pre=document.getElementById("normalized-json");pre.hidden=!pre.hidden;});
 }

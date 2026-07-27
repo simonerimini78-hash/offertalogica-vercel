@@ -62,7 +62,7 @@ function electricityOutput() {
   };
 }
 
-test("buildPdfPureAiRequest invia il PDF con schema compatto per il confronto", async () => {
+test("buildPdfPureAiRequest invia il PDF con fatti osservati e blocchi di confronto", async () => {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "pure-ai-native-"));
   const filePath = path.join(dir, "bolletta.pdf");
   await fs.writeFile(filePath, "%PDF-test");
@@ -74,16 +74,17 @@ test("buildPdfPureAiRequest invia il PDF con schema compatto per il confronto", 
   assert.equal(request.text.format.type, "json_schema");
   assert.equal(request.text.format.strict, true);
   assert.equal(request.store, false);
-  assert.equal(request.max_output_tokens, 1800);
-  assert.deepEqual(request.text.format.schema.required, ["document", "electricity", "gas"]);
+  assert.equal(request.max_output_tokens, 4500);
+  assert.deepEqual(request.text.format.schema.required, ["document", "facts", "electricity", "gas"]);
+  assert.ok(request.text.format.schema.properties.facts);
   assert.ok(request.text.format.schema.properties.electricity.properties.annual_consumption);
   assert.ok(request.text.format.schema.properties.electricity.properties.price);
   assert.ok(request.text.format.schema.properties.electricity.properties.fixed_fee);
   assert.equal(request.text.format.schema.properties.answers, undefined);
+  assert.match(content[1].text, /tutti i dati utili/i);
   assert.match(content[1].text, /consumo annuo/i);
-  assert.match(content[1].text, /prezzo commerciale/i);
-  assert.match(content[1].text, /quota fissa/i);
-  assert.doesNotMatch(content[1].text, /consumo_luce_kwh|prezzo_luce_f0_eur_kwh|quota_fissa_vendita_luce/i);
+  assert.match(content[1].text, /prezzo contrattuale/i);
+  assert.match(content[1].text, /quota fissa commerciale/i);
   await fs.rm(dir, { recursive: true, force: true });
 });
 
@@ -106,13 +107,15 @@ test("normalizePureAiOutput accetta una risposta sparsa e conserva i dati parzia
   assert.equal(normalized.ai.accepted_count >= 8, true);
 });
 
-test("richiesta unica: non esistono più profili full ed essential duplicati", async () => {
-  const first = await buildPdfPureAiRequest({ fileId: "file_test", profile: "full" });
-  const second = await buildPdfPureAiRequest({ fileId: "file_test", profile: "essential" });
-  assert.equal(first.max_output_tokens, 1800);
-  assert.equal(second.max_output_tokens, 1800);
+test("lettura completa e verifica mirata condividono lo stesso contratto dati", async () => {
+  const first = await buildPdfPureAiRequest({ fileId: "file_test", profile: "complete_document" });
+  const second = await buildPdfPureAiRequest({ fileId: "file_test", profile: "missing_fields_recovery", focusFields: ["pod", "prezzo_luce_eur_kwh"] });
+  assert.equal(first.max_output_tokens, 4500);
+  assert.equal(second.max_output_tokens, 3200);
   assert.deepEqual(first.text.format.schema, second.text.format.schema);
-  assert.equal(first.text.format.name, "offertalogica_comparison_essentials");
+  assert.equal(first.text.format.name, "offertalogica_complete_document");
+  assert.equal(second.text.format.name, "offertalogica_missing_fields_recovery");
+  assert.match(second.input[1].content[1].text, /pod, prezzo_luce_eur_kwh/i);
   assert.equal(first.text.format.schema.properties.answers, undefined);
 });
 
@@ -575,10 +578,150 @@ test("catena di custodia: conserva la risposta IA originale separata dal normali
     apiKey: "test-key",
     transport: async () => ({ id: "resp_trace", output_text: JSON.stringify(rawOutput) }),
   });
-  assert.equal(normalized._reader_trace.trace_version, "reader-trace-v1");
+  assert.equal(normalized._reader_trace.trace_version, "reader-trace-v2");
   assert.equal(normalized._reader_trace.response_id, "resp_trace");
   assert.deepEqual(normalized._reader_trace.raw_ai, rawOutput);
+  assert.deepEqual(normalized._reader_trace.raw_ai_initial, rawOutput);
+  assert.equal(normalized._reader_trace.raw_ai_recovery, null);
   assert.equal(normalized.consumo_luce_kwh, 2740);
+  await fs.rm(dir, { recursive: true, force: true });
+});
+
+
+test("Sorgenia: conserva i dati osservati ma non usa consumo fatturato e costo medio come dati contrattuali", () => {
+  const emptySupply = {
+    identity: { provider: null, offer_name: null, page: null, evidence: null, confidence: 0 },
+    annual_consumption: { total: null, f1: null, f2: null, f3: null, f23: null, unit: null, page: null, label: null, evidence: null, confidence: 0 },
+    price: { type: "unknown", single: null, f0: null, f1: null, f2: null, f3: null, f23: null, index: null, multiplier: null, spread: null, formula: null, periodicity: null, unit: null, page: null, label: null, evidence: null, confidence: 0 },
+    fixed_fee: { value: null, period: "none", unit: null, page: null, label: null, evidence: null, confidence: 0 },
+  };
+  const electricity = structuredClone(emptySupply);
+  electricity.identity = { provider: "Sorgenia", offer_name: "Soluzione Luce Flexi", page: 2, evidence: "Prodotto attivo: Soluzione Luce Flexi", confidence: 100 };
+  const normalized = normalizePureAiOutput({
+    document: {
+      kind: "bill", commodity: "electricity", customer_type: "business", page_count: 2,
+      classification_evidence: "Bolletta per la fornitura di energia elettrica nel mercato libero",
+      billing_period_start: "2018-12-01", billing_period_end: "2019-01-31", supply_start_date: "2017-08-01",
+    },
+    facts: [
+      { field: "customer_type", commodity: "common", value_text: "business", value_number: null, unit: null, period: "none", role: "customer_data", page: 1, label: "Ragione sociale", evidence: "Romagna Allevamenti Societa' Agricola S.S.", confidence: 100 },
+      { field: "intestatario", commodity: "common", value_text: "Romagna Allevamenti Societa' Agricola S.S.", value_number: null, unit: null, period: "none", role: "customer_data", page: 1, label: "Intestatario", evidence: "Romagna Allevamenti Societa' Agricola S.S.", confidence: 100 },
+      { field: "codice_fiscale", commodity: "common", value_text: "02525880395", value_number: null, unit: null, period: "none", role: "customer_data", page: 1, label: "Codice fiscale", evidence: "Codice Fiscale 02525880395", confidence: 100 },
+      { field: "codice_cliente", commodity: "common", value_text: "4615991", value_number: null, unit: null, period: "none", role: "customer_data", page: 1, label: "Codice cliente", evidence: "CODICE CLIENTE 4615991", confidence: 100 },
+      { field: "pod", commodity: "electricity", value_text: "IT001E53942290", value_number: null, unit: null, period: "none", role: "technical", page: 1, label: "POD", evidence: "POD IT001E53942290", confidence: 100 },
+      { field: "potenza_impegnata_kw", commodity: "electricity", value_text: "10,0", value_number: 10, unit: "kW", period: "none", role: "technical", page: 2, label: "Potenza impegnata", evidence: "Potenza impegnata: 10,0 kW", confidence: 100 },
+      { field: "consumo_fatturato_luce_kwh", commodity: "electricity", value_text: "4.084,0", value_number: 4084, unit: "kWh", period: "billing_period", role: "period_consumption", page: 2, label: "CONSUMI FATTURATI", evidence: "CONSUMI FATTURATI 4.084,0 kWh", confidence: 100 },
+      { field: "spesa_materia_energia_luce_eur", commodity: "electricity", value_text: "625,88", value_number: 625.88, unit: "EUR", period: "billing_period", role: "period_cost", page: 1, label: "SPESA PER LA MATERIA ENERGIA", evidence: "SPESA PER LA MATERIA ENERGIA 625,88 €", confidence: 100 },
+      { field: "costo_medio_materia_energia_luce_eur_kwh", commodity: "electricity", value_text: "0,15", value_number: 0.15, unit: "EUR/kWh", period: "billing_period", role: "average_cost", page: 2, label: "COSTO MEDIO UNITARIO", evidence: "COSTO MEDIO UNITARIO DELLA SPESA PER LA MATERIA ENERGIA 0,15", confidence: 100 },
+    ],
+    electricity,
+    gas: structuredClone(emptySupply),
+  });
+
+  assert.equal(normalized.customer_type, "business");
+  assert.equal(normalized.intestatario, "Romagna Allevamenti Societa' Agricola S.S.");
+  assert.equal(normalized.pod, "IT001E53942290");
+  assert.equal(normalized.potenza_impegnata_kw, 10);
+  assert.equal(normalized.consumo_luce_kwh, undefined);
+  assert.equal(normalized.prezzo_luce_eur_kwh, undefined);
+  assert.equal(normalized.observed_data.find((item) => item.field === "consumo_fatturato_luce_kwh").value, 4084);
+  assert.equal(normalized.observed_data.find((item) => item.field === "costo_medio_materia_energia_luce_eur_kwh").usable_for_comparison, false);
+  assert.equal(normalized.derived_data[0].field, "costo_effettivo_materia_energia_luce_eur_kwh");
+  assert.equal(normalized.derived_data[0].usable_for_comparison, false);
+});
+
+test("verifica mirata: recupera i campi mancanti senza perdere la prima lettura", async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "pure-ai-recovery-"));
+  const filePath = path.join(dir, "documento.pdf");
+  await fs.writeFile(filePath, "%PDF-test");
+  const emptySupply = () => ({
+    identity: { provider: null, offer_name: null, page: null, evidence: null, confidence: 0 },
+    annual_consumption: { total: null, f1: null, f2: null, f3: null, f23: null, unit: null, page: null, label: null, evidence: null, confidence: 0 },
+    price: { type: "unknown", single: null, f0: null, f1: null, f2: null, f3: null, f23: null, index: null, multiplier: null, spread: null, formula: null, periodicity: null, unit: null, page: null, label: null, evidence: null, confidence: 0 },
+    fixed_fee: { value: null, period: "none", unit: null, page: null, label: null, evidence: null, confidence: 0 },
+  });
+  const initialElectricity = emptySupply();
+  initialElectricity.identity = { provider: "Test Energia", offer_name: "Test Luce", page: 1, evidence: "Test Energia - Test Luce", confidence: 100 };
+  const initial = {
+    document: { kind: "bill", commodity: "electricity", customer_type: "consumer", page_count: 3, classification_evidence: "Bolletta luce", billing_period_start: null, billing_period_end: null, supply_start_date: null },
+    facts: [{ field: "fornitore_luce", commodity: "electricity", value_text: "Test Energia", value_number: null, unit: null, period: "none", role: "identity", page: 1, label: "Venditore", evidence: "Test Energia", confidence: 100 }],
+    electricity: initialElectricity,
+    gas: emptySupply(),
+  };
+  const recoveredElectricity = emptySupply();
+  recoveredElectricity.annual_consumption = { total: 2740, f1: null, f2: null, f3: null, f23: null, unit: "kWh", page: 3, label: "Consumo annuo", evidence: "Consumo annuo 2.740 kWh", confidence: 100 };
+  const recovery = {
+    document: { kind: "bill", commodity: "electricity", customer_type: "consumer", page_count: 3, classification_evidence: "Bolletta luce", billing_period_start: null, billing_period_end: null, supply_start_date: null },
+    facts: [
+      { field: "customer_type", commodity: "common", value_text: "Domestico residente", value_number: null, unit: null, period: "none", role: "customer_data", page: 2, label: "Tipologia cliente", evidence: "Tipologia cliente: Domestico residente", confidence: 100 },
+      { field: "pod", commodity: "electricity", value_text: "IT001E12345678", value_number: null, unit: null, period: "none", role: "technical", page: 2, label: "POD", evidence: "POD IT001E12345678", confidence: 100 },
+    ],
+    electricity: recoveredElectricity,
+    gas: emptySupply(),
+  };
+  const calls = [];
+  const normalized = await extractPdfPureAi({
+    filePath,
+    apiKey: "test-key",
+    deadlineAt: Date.now() + 52_000,
+    transport: async ({ profile }) => {
+      calls.push(profile);
+      return profile === "missing_fields_recovery"
+        ? { id: "resp_recovery", output_text: JSON.stringify(recovery) }
+        : { id: "resp_initial", output_text: JSON.stringify(initial) };
+    },
+  });
+  assert.deepEqual(calls, ["complete_document", "missing_fields_recovery"]);
+  assert.equal(normalized.pod, "IT001E12345678");
+  assert.equal(normalized.customer_type, "privato");
+  assert.equal(normalized.consumo_luce_kwh, 2740);
+  assert.equal(normalized.ai.recovery_attempted, true);
+  assert.equal(normalized.ai.recovery_completed, true);
+  assert.equal(normalized.ai.analysis_pass_count, 2);
+  assert.equal(normalized.ai.retry_count, 0);
+  assert.equal(normalized._reader_trace.raw_ai_initial.electricity.identity.provider, "Test Energia");
+  assert.equal(normalized._reader_trace.raw_ai_recovery.facts[1].field, "pod");
+  await fs.rm(dir, { recursive: true, force: true });
+});
+
+
+test("verifica mirata: un errore del secondo passaggio non annulla la prima lettura", async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "pure-ai-recovery-failure-"));
+  const filePath = path.join(dir, "documento.pdf");
+  await fs.writeFile(filePath, "%PDF-test");
+  const emptySupply = () => ({
+    identity: { provider: null, offer_name: null, page: null, evidence: null, confidence: 0 },
+    annual_consumption: { total: null, f1: null, f2: null, f3: null, f23: null, unit: null, page: null, label: null, evidence: null, confidence: 0 },
+    price: { type: "unknown", single: null, f0: null, f1: null, f2: null, f3: null, f23: null, index: null, multiplier: null, spread: null, formula: null, periodicity: null, unit: null, page: null, label: null, evidence: null, confidence: 0 },
+    fixed_fee: { value: null, period: "none", unit: null, page: null, label: null, evidence: null, confidence: 0 },
+  });
+  const electricity = emptySupply();
+  electricity.identity = { provider: "Test Energia", offer_name: "Test Luce", page: 1, evidence: "Test Energia - Test Luce", confidence: 100 };
+  const initial = {
+    document: { kind: "bill", commodity: "electricity", customer_type: "unknown", page_count: 2, classification_evidence: "Bolletta luce", billing_period_start: null, billing_period_end: null, supply_start_date: null },
+    facts: [{ field: "fornitore_luce", commodity: "electricity", value_text: "Test Energia", value_number: null, unit: null, period: "none", role: "identity", page: 1, label: "Venditore", evidence: "Test Energia", confidence: 100 }],
+    electricity,
+    gas: emptySupply(),
+  };
+  const calls = [];
+  const normalized = await extractPdfPureAi({
+    filePath,
+    apiKey: "test-key",
+    deadlineAt: Date.now() + 52_000,
+    transport: async ({ profile }) => {
+      calls.push(profile);
+      if (profile === "missing_fields_recovery") throw new Error("openai_http_500:test");
+      return { id: "resp_initial", output_text: JSON.stringify(initial) };
+    },
+  });
+  assert.deepEqual(calls, ["complete_document", "missing_fields_recovery"]);
+  assert.equal(normalized.fornitore, "Test Energia");
+  assert.equal(normalized.ai.recovery_attempted, true);
+  assert.equal(normalized.ai.recovery_completed, false);
+  assert.match(normalized.ai.recovery_error, /openai_http_500/);
+  assert.equal(normalized.ai.analysis_pass_count, 2);
+  assert.equal(normalized.ai.openai_attempts, 2);
+  assert.equal(normalized.ai.retry_count, 0);
   await fs.rm(dir, { recursive: true, force: true });
 });
 
@@ -588,7 +731,12 @@ test("catena di custodia: l'API archivia la traccia privata ma non la espone al 
   assert.match(routeSource, /archivePdfAnalysis\(\{[\s\S]*normalized,/);
   assert.match(routeSource, /const \{ _reader_trace: _privateReaderTrace, \.\.\.publicNormalized \} = normalized/);
   assert.match(routeSource, /normalized: publicNormalized/);
-  assert.match(staffSource, /Mostra risposta IA originale/);
+  assert.match(staffSource, /Mostra prima lettura IA/);
+  assert.match(staffSource, /Mostra verifica mirata IA/);
+  assert.match(staffSource, /Mostra risposta IA unificata/);
   assert.match(staffSource, /Mostra risultato normalizzato/);
+  assert.match(staffSource, /_reader_trace\?\.raw_ai_initial/);
+  assert.match(staffSource, /_reader_trace\?\.raw_ai_recovery/);
   assert.match(staffSource, /_reader_trace\?\.raw_ai/);
+  assert.match(staffSource, /Dati osservati nel documento/);
 });
