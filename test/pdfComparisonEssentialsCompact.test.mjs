@@ -72,6 +72,9 @@ test("schema compatto reale E.ON: conserva indice, moltiplicatore, spread e form
   assert.equal(normalized.spread_luce_eur_kwh, 0.0278);
   assert.equal(normalized.formula_prezzo_luce, "PUN Index GME*1,1+0,0278 €/kWh");
   assert.equal(normalized.quota_fissa_vendita_luce_eur_anno, 192.71);
+  assert.equal(normalized.prezzo_luce_eur_kwh, undefined);
+  assert.equal(normalized.prezzo_luce_f0_eur_kwh, undefined);
+  assert.equal(normalized.readiness.confronto.luce.pricing_mode, "variable_formula");
   assert.equal(normalized.readiness.confronto.luce.status, "completo");
 });
 
@@ -101,4 +104,67 @@ test("schema compatto mantiene i filtri Free su consumo breve, costo medio e quo
   assert.equal(normalized.quota_fissa_vendita_luce_eur_anno, undefined);
   assert.equal(normalized.ai.rejected_questions.some((item) => item.question_id === "consumo_luce_kwh"), true);
   assert.equal(normalized.ai.rejected_questions.some((item) => item.question_id === "prezzo_luce_eur_kwh"), true);
+});
+
+test("regressione reale E.ON: i null non diventano prezzi zero e la formula resta variabile", () => {
+  const electricity = emptySupply();
+  electricity.identity = {
+    provider: "E.ON Energia S.p.A.", offer_name: "E.ON LuceDinamica Click ECO", page: 1,
+    evidence: "E.ON LuceDinamica Click ECO - Venditore E.ON Energia S.p.A.", confidence: 100,
+  };
+  electricity.price = {
+    type: "variable", single: null, f0: null, f1: null, f2: null, f3: null, f23: null,
+    index: "PUN Index GME", multiplier: 1.1, spread: 0.0278,
+    formula: "PUN Index GME*1,1+0,0278 €/kWh", periodicity: "month", unit: "€/kWh", page: 1,
+    label: "Prezzo materia prima energia", evidence: "Totale PUN Index GME*1,1+0,0278 €/kWh", confidence: 100,
+  };
+  electricity.fixed_fee = {
+    value: 192.71, period: "year", unit: "€/anno", page: 1,
+    label: "Costo fisso anno", evidence: "Costo fisso anno 192,71 €/anno", confidence: 100,
+  };
+  const normalized = normalizePureAiOutput({
+    document: { kind: "offer_sheet", commodity: "electricity", customer_type: "business", page_count: 7 },
+    electricity,
+    gas: emptySupply(),
+  });
+  assert.equal(normalized.prezzo_luce_eur_kwh, undefined);
+  assert.equal(normalized.prezzo_luce_f0_eur_kwh, undefined);
+  assert.equal(normalized.prezzo_luce_f1_eur_kwh, undefined);
+  assert.equal(normalized.prezzo_luce_f2_eur_kwh, undefined);
+  assert.equal(normalized.prezzo_luce_f3_eur_kwh, undefined);
+  assert.equal(normalized.prezzo_luce_f23_eur_kwh, undefined);
+  assert.equal(normalized.quota_fissa_vendita_luce_eur_anno, 192.71);
+  assert.equal(normalized.readiness.confronto.luce.pricing_mode, "variable_formula");
+  assert.equal(normalized.readiness.confronto.luce.status, "completo");
+});
+
+test("regressione reale HERA: una bolletta con consumo annuo non viene riclassificata come scheda", () => {
+  const electricity = emptySupply();
+  electricity.identity = {
+    provider: "HERA COMM S.p.A.", offer_name: "Servizio Tutele Graduali D - Area Centro 1 Domestici", page: 5,
+    evidence: "Offerta commerciale in vigore: Servizio Tutele Graduali D - Area Centro 1 Domestici", confidence: 100,
+  };
+  electricity.annual_consumption = {
+    total: 1628.91, f1: null, f2: null, f3: null, f23: null, unit: "kWh", page: 7,
+    label: "Totale consumo annuo", evidence: "Totale consumo annuo dal 01.06.2025 al 31.05.2026: 1.628,91 kWh", confidence: 100,
+  };
+  electricity.price = {
+    type: "variable", single: null, f0: null, f1: null, f2: null, f3: null, f23: null,
+    index: "PUN Index GME", multiplier: null, spread: null,
+    formula: "Corrispettivo CELD fascia F1 +0,122252/+0,117891; CELD F2 +0,152087/+0,144582; Dispacciamento +0,015531",
+    periodicity: "Mensile", unit: "€/kWh", page: 6, label: "Box dell'offerta",
+    evidence: "Indice PUN Index GME. Tipologia a prezzo variabile. Formula con componenti CELD per fascia.", confidence: 100,
+  };
+  const normalized = normalizePureAiOutput({
+    document: { kind: "bill", commodity: "electricity", customer_type: "consumer", page_count: 12 },
+    electricity,
+    gas: emptySupply(),
+  });
+  assert.equal(normalized.kind, "bolletta");
+  assert.equal(normalized.consumo_luce_kwh, 1628.91);
+  assert.equal(normalized.prezzo_luce_eur_kwh, undefined);
+  assert.equal(normalized.prezzo_luce_f0_eur_kwh, undefined);
+  assert.equal(normalized.readiness.confronto.luce.pricing_mode, null);
+  assert.equal(normalized.readiness.confronto.luce.missing.includes("prezzo_luce_eur_kwh"), true);
+  assert.equal(normalized.readiness.dati_bolletta.luce.status, "parziale");
 });
