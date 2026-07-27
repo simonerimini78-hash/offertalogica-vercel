@@ -1,0 +1,44 @@
+BASE VERIFICATA
+- repository: simonerimini78-hash/offertalogica-vercel
+- branch tecnico: lettura-IA-pura.1
+- lettore: pure-ai-native-pdf-v1.0.3
+- frontend di partenza: Git blob 61d504ac33d7dba7536539b1925880720d664ef2
+
+CAUSA RIPRODOTTA
+- le due risposte IA individuali erano corrette;
+- il merge frontend sovrascriveva field_status, completeness e metadati con l'ultimo documento;
+- fornitore e indirizzo generici venivano scelti dalla fornitura luce quando luce e gas differivano;
+- il tipo prezzo condiviso veniva scelto dalla luce;
+- l'esito cambiava invertendo l'ordine dei PDF.
+
+CORREZIONE
+- merge per commodity e indipendente dall'ordine;
+- campi comuni solo in caso di uguaglianza esatta;
+- target condivisi discordanti bloccati;
+- readiness, completezza e parser aggregati;
+- indirizzi e codici cliente specifici per utenza conservati;
+- nessuna modifica alla lettura IA.
+
+VERIFICHE
+- risultati reali Edison + HERA, entrambi gli ordini: identici;
+- commodity risultante: dual con forniture separate;
+- parser aggregato: 2 documenti, 23 pagine;
+- completezza aggregata: 96, con sola quota fissa luce mancante;
+- test specifici multi-fornitore: 7/7;
+- suite completa consolidata: 119/119;
+- test consolidamento e assenza legacy: 4/4;
+- script incorporati in public/index.html: sintassi valida;
+- import relativi mancanti: 0;
+- route API: 12;
+- verify:offers: 0 errori, 0 warning, 0 partner warning;
+- file runtime PDF legacy: 0;
+- dipendenze OCR/parser legacy: 0.
+
+CONTROLLI BASE NON MODIFICATI
+Gli script validate:calculator, test:ranking-arera e test:partner-arera conservano gli stessi esiti già presenti nella base. Il pacchetto non li modifica e non ne nasconde i risultati.
+
+AGGIORNAMENTO MAIN
+Il branch tecnico risultava 1 commit indietro rispetto a main. Il commit mancante modifica esclusivamente:
+- data/offerte-arera-menu.json
+- public/data/offerte-arera-menu.json
+Il pacchetto non contiene né modifica questi file.
