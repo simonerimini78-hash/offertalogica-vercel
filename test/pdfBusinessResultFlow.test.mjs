@@ -42,11 +42,28 @@ test("PDF business: dopo l'applicazione dei dati avvia il calcolo preliminare", 
   assert.ok(calculateIndex > applyIndex, "il calcolo business deve avvenire dopo l'applicazione dei dati");
 });
 
-test("PDF business: non lascia più una schermata senza spiegazione", () => {
+test("PDF business: non mostra risultati con dati economici incompleti", () => {
   const source = extractFunction("confermaPdfECalcola");
   assert.match(source, /il risultato preliminare è stato calcolato/);
-  assert.match(source, /manca un consumo annuo valido/);
-  assert.match(source, /consumo del solo periodo fatturato non viene usato come consumo annuale/);
+  assert.match(source, /il confronto non è stato calcolato/);
+  assert.match(source, /Consumi del periodo, costi medi e periodicità non dimostrate non vengono usati/);
+  assert.match(source, /nessun valore predefinito viene inserito/);
+});
+
+test("profilo business: non usa prezzi o quote fisse predefiniti", () => {
+  const source = extractFunction("leggiProfiloBusiness");
+  assert.doesNotMatch(source, /0\.155/);
+  assert.doesNotMatch(source, /0\.68/);
+  assert.doesNotMatch(source, /\? 240/);
+  assert.match(source, /campiMancanti/);
+  assert.match(source, /datiCompleti/);
+});
+
+test("calcolo business: blocca il risultato finché i dati verificati non sono completi", () => {
+  const source = extractFunction("calcolaBusiness");
+  assert.match(source, /!profile\.datiCompleti/);
+  assert.match(source, /Nessun valore standard è stato inserito/);
+  assert.match(source, /result\.style\.display = "none"/);
 });
 
 test("profilo business: le offerte domestiche 6+3 restano escluse", () => {

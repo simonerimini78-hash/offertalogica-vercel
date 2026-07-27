@@ -1849,7 +1849,7 @@
                     </div>
                 </div>
                 <div class="input-group">
-                    <label for="business-prezzo-luce">Prezzo medio luce €/kWh</label>
+                    <label for="business-prezzo-luce">Prezzo commerciale luce €/kWh</label>
                     <input id="business-prezzo-luce" type="number" step="0.0001" placeholder="Se noto">
                 </div>
                 <div class="input-group">
@@ -1869,14 +1869,14 @@
                     <input id="business-smc" type="number" placeholder="Lascia vuoto se non hai gas">
                 </div>
                 <div class="input-group">
-                    <label for="business-prezzo-gas">Prezzo medio gas €/Smc</label>
+                    <label for="business-prezzo-gas">Prezzo commerciale gas €/Smc</label>
                     <input id="business-prezzo-gas" type="number" step="0.0001" placeholder="Se noto">
                 </div>
                 <div class="input-group">
                     <label for="business-fisso-gas">Quota fissa gas €/anno</label>
                     <input id="business-fisso-gas" type="number" placeholder="Se nota">
                 </div>
-                <div class="upload-note">Se carichi una bolletta business dal box PDF, proveremo a leggere consumi e fornitore. La verifica finale resta consulenziale.</div>
+                <div class="upload-note">Se carichi una bolletta business, inseriamo soltanto i dati dimostrati dal documento. Nessun prezzo, consumo annuo o costo fisso viene stimato automaticamente.</div>
             </div>
         </div>
 
@@ -3768,24 +3768,53 @@ function selezionaSegmentoCliente(tipo) {
   aggiornaIndicatoreProfiloPdf();
 }
 
+function leggiNumeroBusinessOpzionale(id) {
+  const element = document.getElementById(id);
+  const raw = element ? String(element.value || "").trim().replace(",", ".") : "";
+  if (raw === "") return null;
+  const value = Number.parseFloat(raw);
+  return Number.isFinite(value) ? value : null;
+}
+
 function leggiProfiloBusiness() {
-  const f1 = leggiNumero("business-f1");
-  const f2 = leggiNumero("business-f2");
-  const f3 = leggiNumero("business-f3");
-  const consumoFasce = f1 + f2 + f3;
-  const consumoLuce = consumoFasce > 0 ? consumoFasce : leggiNumero("business-kwh");
-  const consumoGas = leggiNumero("business-smc");
-  const prezzoLuce = leggiNumero("business-prezzo-luce", 0.155);
-  const prezzoGas = leggiNumero("business-prezzo-gas", 0.68);
-  const fissoLuce = leggiNumero("business-fisso-luce", consumoLuce > 0 ? 240 : 0);
-  const fissoGas = leggiNumero("business-fisso-gas", consumoGas > 0 ? 240 : 0);
-  const targetLuce = consumoLuce > 0 ? consumoLuce * 0.118 + Math.max(180, fissoLuce * 0.75) : 0;
-  const targetGas = consumoGas > 0 ? consumoGas * 0.50 + Math.max(180, fissoGas * 0.75) : 0;
-  const attualeLuce = consumoLuce > 0 ? consumoLuce * prezzoLuce + fissoLuce : 0;
-  const attualeGas = consumoGas > 0 ? consumoGas * prezzoGas + fissoGas : 0;
-  const costoAttuale = attualeLuce + attualeGas;
-  const costoBenchmark = targetLuce + targetGas;
-  const risparmioStimato = Math.max(0, costoAttuale - costoBenchmark);
+  const f1 = leggiNumeroBusinessOpzionale("business-f1");
+  const f2 = leggiNumeroBusinessOpzionale("business-f2");
+  const f3 = leggiNumeroBusinessOpzionale("business-f3");
+  const fasceCompilate = [f1, f2, f3].filter((value) => value !== null).length;
+  const fasceComplete = fasceCompilate === 3 && [f1, f2, f3].every((value) => Number.isFinite(value) && value >= 0);
+  const consumoFasce = fasceComplete ? f1 + f2 + f3 : null;
+  const consumoTotaleLuce = leggiNumeroBusinessOpzionale("business-kwh");
+  const consumoLuce = Number(consumoFasce) > 0 ? consumoFasce : consumoTotaleLuce;
+  const consumoGas = leggiNumeroBusinessOpzionale("business-smc");
+  const prezzoLuce = leggiNumeroBusinessOpzionale("business-prezzo-luce");
+  const prezzoGas = leggiNumeroBusinessOpzionale("business-prezzo-gas");
+  const fissoLuce = leggiNumeroBusinessOpzionale("business-fisso-luce");
+  const fissoGas = leggiNumeroBusinessOpzionale("business-fisso-gas");
+  const campiMancanti = [];
+
+  if (fasceCompilate > 0 && !fasceComplete) campiMancanti.push("tutte le fasce annuali F1, F2 e F3");
+  if (!(Number(consumoLuce) > 0) && !(Number(consumoGas) > 0)) campiMancanti.push("almeno un consumo annuo completo");
+  if (Number(consumoLuce) > 0) {
+    if (!(Number(prezzoLuce) > 0)) campiMancanti.push("prezzo commerciale luce");
+    if (!Number.isFinite(Number(fissoLuce))) campiMancanti.push("quota fissa commerciale luce con periodicità verificata");
+  }
+  if (Number(consumoGas) > 0) {
+    if (!(Number(prezzoGas) > 0)) campiMancanti.push("prezzo commerciale gas");
+    if (!Number.isFinite(Number(fissoGas))) campiMancanti.push("quota fissa commerciale gas con periodicità verificata");
+  }
+
+  const datiCompleti = campiMancanti.length === 0;
+  const targetLuce = datiCompleti && Number(consumoLuce) > 0
+    ? consumoLuce * 0.118 + Math.max(180, fissoLuce * 0.75)
+    : 0;
+  const targetGas = datiCompleti && Number(consumoGas) > 0
+    ? consumoGas * 0.50 + Math.max(180, fissoGas * 0.75)
+    : 0;
+  const attualeLuce = datiCompleti && Number(consumoLuce) > 0 ? consumoLuce * prezzoLuce + fissoLuce : 0;
+  const attualeGas = datiCompleti && Number(consumoGas) > 0 ? consumoGas * prezzoGas + fissoGas : 0;
+  const costoAttuale = datiCompleti ? attualeLuce + attualeGas : null;
+  const costoBenchmark = datiCompleti ? targetLuce + targetGas : null;
+  const risparmioStimato = datiCompleti ? Math.max(0, costoAttuale - costoBenchmark) : null;
 
   return {
     ragioneSociale: leggiValore("business-ragione"),
@@ -3797,18 +3826,20 @@ function leggiProfiloBusiness() {
     fornitore: leggiValore("business-fornitore"),
     fornitoreLuce: leggiValore("business-fornitore"),
     fornitoreGas: leggiValore("business-fornitore-gas"),
-    potenzaKw: leggiNumero("business-potenza"),
+    potenzaKw: leggiNumeroBusinessOpzionale("business-potenza"),
     consumoLuceKwh: consumoLuce,
-    fasce: { f1, f2, f3 },
+    fasce: { f1, f2, f3, complete: fasceComplete },
     consumoGasSmc: consumoGas,
     prezzoLuceEurKwh: prezzoLuce,
     prezzoGasEurSmc: prezzoGas,
     quotaFissaLuceAnnua: fissoLuce,
     quotaFissaGasAnnua: fissoGas,
+    datiCompleti,
+    campiMancanti,
     costoAttuale,
     costoBenchmark,
     risparmioStimato,
-    metodologia: "Stima preliminare business su benchmark interno, da verificare con bolletta e offerte business reali.",
+    metodologia: "Stima preliminare business calcolata solo con consumi annuali, prezzi commerciali e quote fisse verificati; nessun valore predefinito.",
   };
 }
 
@@ -3827,13 +3858,23 @@ window.calcolaBusiness = function calcolaBusiness() {
 
   if (!profile.consumoLuceKwh && !profile.consumoGasSmc) {
     trackEvent("business_calculation_missing_consumption");
-    mostraBusinessErrore("Inserisci almeno il consumo annuo luce o gas, oppure carica una bolletta business.");
+    mostraBusinessErrore("Inserisci almeno un consumo annuo realmente riferito a 12 mesi completi.");
     if (result) result.style.display = "none";
+    LEAD_STATE.bestSaving = 0;
+    return null;
+  }
+
+  if (!profile.datiCompleti) {
+    trackEvent("business_calculation_incomplete_verified_data", { missingFields: profile.campiMancanti });
+    mostraBusinessErrore(`Confronto non calcolato. Completa o verifica: ${profile.campiMancanti.join(", ")}. Nessun valore standard è stato inserito al posto dei dati mancanti.`);
+    if (result) result.style.display = "none";
+    LEAD_STATE.bestSaving = 0;
+    LEAD_STATE.businessProfile = profile;
     return null;
   }
 
   LEAD_STATE.customerType = "business";
-  LEAD_STATE.dataOrigin = "business_profile";
+  LEAD_STATE.dataOrigin = determinaOrigineDatoLead() === "pdf_upload" ? "pdf_upload" : "business_profile";
   LEAD_STATE.businessProfile = profile;
   LEAD_STATE.bestSaving = profile.risparmioStimato;
 
@@ -3845,12 +3886,12 @@ window.calcolaBusiness = function calcolaBusiness() {
       : "Profilo pronto per verifica consulenziale";
   }
   if (copy) {
-    copy.innerText = "La stima business usa consumi, potenza e fasce indicate per individuare un possibile margine. Le offerte aziendali vanno confermate su bolletta e condizioni negoziate.";
+    copy.innerText = "La stima usa esclusivamente consumi annuali, prezzi commerciali e quote fisse verificati. Le offerte business reali restano soggette a controllo consulenziale.";
   }
   if (result) result.style.display = "block";
   trackEvent("business_calculation_completed", {
     customerType: "business",
-    dataOrigin: "business_profile",
+    dataOrigin: LEAD_STATE.dataOrigin,
     bestSaving: profile.risparmioStimato,
   });
   return profile;
@@ -7303,7 +7344,8 @@ window.confermaPdfECalcola = async function confermaPdfECalcola() {
       } else if (Array.isArray(selectedAutofillRows) && selectedAutofillRows.length === 0) {
         copy.innerText = "Nessun campo business è stato applicato. Seleziona almeno il consumo annuo letto oppure inseriscilo manualmente per ottenere il risultato.";
       } else {
-        copy.innerText = "La bolletta business è stata letta, ma manca un consumo annuo valido. Il consumo del solo periodo fatturato non viene usato come consumo annuale: completa il campo evidenziato per calcolare il risultato.";
+        const missing = leggiProfiloBusiness().campiMancanti || [];
+        copy.innerText = `La bolletta business è stata letta, ma il confronto non è stato calcolato. Completa o verifica ${missing.length ? missing.join(", ") : "i dati economici richiesti"}. Consumi del periodo, costi medi e periodicità non dimostrate non vengono usati e nessun valore predefinito viene inserito.`;
       }
     }
     portaElementoInVista(document.getElementById("business-panel"), { block: "start" });
