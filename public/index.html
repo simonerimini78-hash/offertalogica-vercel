@@ -4948,13 +4948,27 @@ function offertaPartnerConPrezziArera(offerta, attuale) {
   if (!luce && !gas) return null;
 
   const codici = [luce?.codice, gas?.codice].filter(Boolean).join(" + ");
+  const providerLabel = luce?.providerLabel || gas?.providerLabel || offerta.provider;
+  const nomiArera = [luce?.nome, gas?.nome].filter(Boolean).join(" + ");
+  const categoriaFornitura = luce && gas
+    ? (offerta.fornitura === "dual" ? "dual" : "separate")
+    : luce ? "luce" : "gas";
   return normalizzaOfferta({
     ...offerta,
+    provider: providerLabel,
+    nome: `${providerLabel} - ${nomiArera}`,
     luce: voceDaRigaArera(luce),
     gas: voceDaRigaArera(gas),
     descrizione: `${offerta.descrizione || ""} Prezzi aggiornati da Portale Offerte ARERA/AU. Codici: ${codici}`.trim(),
     fonte: `${DATI_ARERA_MENU_META.fonte} Codici: ${codici}`,
     aggiornataIl: DATI_ARERA_MENU_META.aggiornatoIl,
+    certificazione: {
+      ...(offerta.certificazione || {}),
+      partnerOriginalId: offerta.certificazione?.partnerOriginalId || offerta.id,
+      codici: { luce: luce?.codice || null, gas: gas?.codice || null },
+      categoriaMenu: { tipo: offerta.tipo, fornitura: categoriaFornitura },
+      dataFonte: DATI_ARERA_MENU_META.aggiornatoIl,
+    },
   }, 0);
 }
 
@@ -5276,8 +5290,12 @@ function deduplicaPartnerAttivabili(items) {
 const NUMERO_OFFERTE_PARTNER_MENU = 6;
 const NUMERO_OFFERTE_CONSULENTE_MENU = 3;
 
-function selezionaPartnerAttivabiliPerMenu(items, limite = NUMERO_OFFERTE_PARTNER_MENU) {
-  const ordinate = [...items]
+function selezionaPartnerAttivabiliPerMenu(items, tipoTariffa, tipoFornitura, limite = NUMERO_OFFERTE_PARTNER_MENU) {
+  const coerenti = [...items]
+    .filter((item) => item?.attivabileOnline)
+    .filter((item) => item?.offerta?.tipo === tipoTariffa)
+    .filter((item) => offertaCoerenteConFornitura(item?.offerta, tipoFornitura));
+  const ordinate = coerenti
     .sort((a, b) => (a.costo - b.costo) || (b.differenza - a.differenza));
   const prioritaProvider = deduplicaPartnerAttivabili(ordinate)
     .sort((a, b) => (a.costo - b.costo) || (b.differenza - a.differenza));
@@ -5387,6 +5405,8 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
 
   const attivabiliPrioritarie = selezionaPartnerAttivabiliPerMenu(
     partnerAttivabiliCoerenti,
+    tipoTariffa,
+    tipoFornitura,
     NUMERO_OFFERTE_PARTNER_MENU
   ).map((item, index) => ({
     ...item,
@@ -7276,9 +7296,16 @@ window.confermaPdfECalcola = async function confermaPdfECalcola() {
       vaiAlCaricatoreScheda();
       return;
     }
-    if (copy) copy.innerText = Array.isArray(selectedAutofillRows) && selectedAutofillRows.length === 0
-      ? "Nessun campo del modulo business è stato modificato. I dati letti restano disponibili nel riepilogo."
-      : "I campi selezionati sono stati inseriti nel modulo business. I valori manuali non selezionati sono rimasti invariati.";
+    const businessProfile = window.calcolaBusiness?.() || null;
+    if (copy) {
+      if (businessProfile) {
+        copy.innerText = "I dati business selezionati sono stati inseriti e il risultato preliminare è stato calcolato. Controlla consumi, prezzi e quote fisse prima di richiedere la verifica consulenziale.";
+      } else if (Array.isArray(selectedAutofillRows) && selectedAutofillRows.length === 0) {
+        copy.innerText = "Nessun campo business è stato applicato. Seleziona almeno il consumo annuo letto oppure inseriscilo manualmente per ottenere il risultato.";
+      } else {
+        copy.innerText = "La bolletta business è stata letta, ma manca un consumo annuo valido. Il consumo del solo periodo fatturato non viene usato come consumo annuale: completa il campo evidenziato per calcolare il risultato.";
+      }
+    }
     portaElementoInVista(document.getElementById("business-panel"), { block: "start" });
     return;
   }
