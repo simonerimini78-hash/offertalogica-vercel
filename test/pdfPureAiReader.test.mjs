@@ -74,7 +74,7 @@ test("buildPdfPureAiRequest invia il PDF con fatti osservati e blocchi di confro
   assert.equal(request.text.format.type, "json_schema");
   assert.equal(request.text.format.strict, true);
   assert.equal(request.store, false);
-  assert.equal(request.max_output_tokens, 4500);
+  assert.equal(request.max_output_tokens, 2800);
   assert.deepEqual(request.text.format.schema.required, ["document", "facts", "electricity", "gas"]);
   assert.ok(request.text.format.schema.properties.facts);
   assert.ok(request.text.format.schema.properties.electricity.properties.annual_consumption);
@@ -109,12 +109,17 @@ test("normalizePureAiOutput accetta una risposta sparsa e conserva i dati parzia
 
 test("lettura completa e verifica mirata condividono lo stesso contratto dati", async () => {
   const first = await buildPdfPureAiRequest({ fileId: "file_test", profile: "complete_document" });
+  const fallback = await buildPdfPureAiRequest({ fileId: "file_test", profile: "fast_fallback" });
   const second = await buildPdfPureAiRequest({ fileId: "file_test", profile: "missing_fields_recovery", focusFields: ["pod", "prezzo_luce_eur_kwh"] });
-  assert.equal(first.max_output_tokens, 4500);
-  assert.equal(second.max_output_tokens, 3200);
+  assert.equal(first.max_output_tokens, 2800);
+  assert.equal(fallback.max_output_tokens, 1800);
+  assert.equal(second.max_output_tokens, 1400);
+  assert.deepEqual(first.text.format.schema, fallback.text.format.schema);
   assert.deepEqual(first.text.format.schema, second.text.format.schema);
   assert.equal(first.text.format.name, "offertalogica_complete_document");
+  assert.equal(fallback.text.format.name, "offertalogica_fast_fallback");
   assert.equal(second.text.format.name, "offertalogica_missing_fields_recovery");
+  assert.match(fallback.input[1].content[1].text, /lettura rapida/i);
   assert.match(second.input[1].content[1].text, /pod, prezzo_luce_eur_kwh/i);
   assert.equal(first.text.format.schema.properties.answers, undefined);
 });
@@ -137,6 +142,50 @@ test("timeout: esegue una sola chiamata e non avvia un secondo tentativo costoso
     /openai_timeout/,
   );
   assert.equal(calls, 1);
+  await fs.rm(dir, { recursive: true, force: true });
+});
+
+test("timeout con budget residuo: usa il fallback rapido e restituisce una lettura utilizzabile", async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "pure-ai-timeout-fallback-"));
+  const filePath = path.join(dir, "documento.pdf");
+  await fs.writeFile(filePath, "%PDF-test");
+  const emptySupply = () => ({
+    identity: { provider: null, offer_name: null, page: null, evidence: null, confidence: 0 },
+    annual_consumption: { total: null, f1: null, f2: null, f3: null, f23: null, unit: null, page: null, label: null, evidence: null, confidence: 0 },
+    price: { type: "unknown", single: null, f0: null, f1: null, f2: null, f3: null, f23: null, index: null, multiplier: null, spread: null, formula: null, periodicity: null, unit: null, page: null, label: null, evidence: null, confidence: 0 },
+    fixed_fee: { value: null, period: "none", unit: null, page: null, label: null, evidence: null, confidence: 0 },
+  });
+  const electricity = emptySupply();
+  electricity.identity = { provider: "Sorgenia", offer_name: "Soluzione Luce Flexi", page: 2, evidence: "Prodotto attivo: Soluzione Luce Flexi", confidence: 100 };
+  const fallbackOutput = {
+    document: { kind: "bill", commodity: "electricity", customer_type: "business", page_count: 2, classification_evidence: "Bolletta per la fornitura di energia elettrica", billing_period_start: null, billing_period_end: null, supply_start_date: null },
+    facts: [
+      { field: "fornitore_luce", commodity: "electricity", value_text: "Sorgenia", value_number: null, unit: null, period: "none", role: "identity", page: 2, label: "Prodotto attivo", evidence: "Prodotto attivo: Soluzione Luce Flexi", confidence: 100 },
+      { field: "pod", commodity: "electricity", value_text: "IT001E53942290", value_number: null, unit: null, period: "none", role: "technical", page: 1, label: "POD", evidence: "POD IT001E53942290", confidence: 100 },
+    ],
+    electricity,
+    gas: emptySupply(),
+  };
+  const calls = [];
+  const normalized = await extractPdfPureAi({
+    filePath,
+    apiKey: "test-key",
+    deadlineAt: Date.now() + 52_000,
+    transport: async ({ profile }) => {
+      calls.push(profile);
+      if (profile === "complete_document") throw new Error("openai_timeout");
+      return { id: "resp_fallback", output_text: JSON.stringify(fallbackOutput) };
+    },
+  });
+  assert.deepEqual(calls, ["complete_document", "fast_fallback"]);
+  assert.equal(normalized.fornitore, "Sorgenia");
+  assert.equal(normalized.pod, "IT001E53942290");
+  assert.equal(normalized.ai.fallback_used, true);
+  assert.equal(normalized.ai.request_profile, "fast_fallback");
+  assert.equal(normalized.ai.retry_count, 1);
+  assert.equal(normalized.ai.recovery_attempted, false);
+  assert.equal(normalized._reader_trace.raw_ai_primary, null);
+  assert.equal(normalized._reader_trace.raw_ai_fallback.facts[1].field, "pod");
   await fs.rm(dir, { recursive: true, force: true });
 });
 
@@ -578,7 +627,7 @@ test("catena di custodia: conserva la risposta IA originale separata dal normali
     apiKey: "test-key",
     transport: async () => ({ id: "resp_trace", output_text: JSON.stringify(rawOutput) }),
   });
-  assert.equal(normalized._reader_trace.trace_version, "reader-trace-v2");
+  assert.equal(normalized._reader_trace.trace_version, "reader-trace-v3");
   assert.equal(normalized._reader_trace.response_id, "resp_trace");
   assert.deepEqual(normalized._reader_trace.raw_ai, rawOutput);
   assert.deepEqual(normalized._reader_trace.raw_ai_initial, rawOutput);
@@ -731,7 +780,9 @@ test("catena di custodia: l'API archivia la traccia privata ma non la espone al 
   assert.match(routeSource, /archivePdfAnalysis\(\{[\s\S]*normalized,/);
   assert.match(routeSource, /const \{ _reader_trace: _privateReaderTrace, \.\.\.publicNormalized \} = normalized/);
   assert.match(routeSource, /normalized: publicNormalized/);
-  assert.match(staffSource, /Mostra prima lettura IA/);
+  assert.match(staffSource, /Mostra tentativo completo IA/);
+  assert.match(staffSource, /Mostra fallback rapido IA/);
+  assert.match(staffSource, /Mostra lettura utilizzata/);
   assert.match(staffSource, /Mostra verifica mirata IA/);
   assert.match(staffSource, /Mostra risposta IA unificata/);
   assert.match(staffSource, /Mostra risultato normalizzato/);

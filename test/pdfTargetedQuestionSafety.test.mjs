@@ -319,7 +319,7 @@ test("richiesta IA: separa fatti osservati e dati contrattuali del confronto", a
   assert.ok(gas.fixed_fee);
   assert.ok(schema.properties.facts);
   assert.equal(schema.properties.answers, undefined);
-  assert.equal(request.max_output_tokens, 4500);
+  assert.equal(request.max_output_tokens, 2800);
   const prompt = request.input[0].content[0].text + "\n" + request.input[1].content[1].text;
   assert.match(prompt, /consumo annuo/i);
   assert.match(prompt, /prezzo contrattuale/i);
