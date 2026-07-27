@@ -29,7 +29,16 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Genera JSON offerte ARERA
+      - name: Installa estrattore PDF GME
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils
+          pdftotext -v
+
+      - name: Verifica parser ARERA e PUN
+        run: python -m unittest discover -s test -p "update_arera_menu_test.py"
+
+      - name: Genera JSON offerte ARERA e aggiorna PUN
         env:
           SOURCE_DIR: ${{ inputs.source_dir }}
           AS_OF: ${{ inputs.as_of }}
@@ -47,8 +56,13 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/offerte-arera-menu.json public/data/offerte-arera-menu.json data/arera-update-report.json
+          git add \
+            data/offerte-arera-menu.json \
+            public/data/offerte-arera-menu.json \
+            data/calcolo-parametri.json \
+            public/data/calcolo-parametri.json \
+            data/arera-update-report.json
           if ! git diff --cached --quiet; then
-            git commit -m "Aggiorna offerte ARERA"
+            git commit -m "Aggiorna offerte ARERA e PUN GME"
             git push
           fi
