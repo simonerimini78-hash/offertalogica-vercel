@@ -26,3 +26,21 @@ test("area staff conserva i campi generici per i record esistenti", () => {
     assert.match(staffHtml, new RegExp(`\\b${field}\\b`));
   }
 });
+
+test("area staff rende revisionabili consumi e prezzi per fascia e moltiplicatori", () => {
+  for (const field of [
+    "consumo_luce_f1_kwh",
+    "consumo_luce_f2_kwh",
+    "consumo_luce_f3_kwh",
+    "consumo_luce_f23_kwh",
+    "prezzo_luce_f0_eur_kwh",
+    "prezzo_luce_f1_eur_kwh",
+    "prezzo_luce_f2_eur_kwh",
+    "prezzo_luce_f3_eur_kwh",
+    "prezzo_luce_f23_eur_kwh",
+    "moltiplicatore_indice_luce",
+    "moltiplicatore_indice_gas",
+  ]) {
+    assert.match(staffHtml, new RegExp(`\\b${field}\\b`), `Manca ${field}`);
+  }
+});

@@ -78,7 +78,7 @@ test("Step 5 produce un contratto JSON stabile e versionato", () => {
   const contract = buildPdfDataContract(baseDual());
   assert.equal(contract.schema, "offertalogica.pdf-data");
   assert.equal(contract.contract_version, PDF_DATA_CONTRACT_VERSION);
-  assert.equal(contract.contract_version, "1.1.0");
+  assert.equal(contract.contract_version, "1.2.0");
   assert.equal(contract.parser.mode, "deterministic");
   assert.equal(contract.document.commodity, "dual");
   assert.equal(contract.supplies.luce.annual_consumption, 1008);

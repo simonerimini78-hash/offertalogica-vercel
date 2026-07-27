@@ -2582,6 +2582,27 @@ let OFFERTE_ARERA_DUAL = [];
 let NUOVA_OFFERTA_AUTOMATICA = null;
 let BLOCCO_AUTOFILL_NUOVA_OFFERTA = false;
 
+function profiloPrezzoPdfVuoto() {
+  return {
+    consumiFasce: { f1: null, f2: null, f3: null, f23: null },
+    prezziFasce: { f0: null, f1: null, f2: null, f3: null, f23: null },
+    indice: "",
+    spread: null,
+    moltiplicatore: null,
+    formulaTesto: "",
+    struttura: "",
+  };
+}
+
+function statoPrezziPdfVuoto() {
+  return {
+    current: { luce: profiloPrezzoPdfVuoto(), gas: profiloPrezzoPdfVuoto() },
+    offer: { luce: profiloPrezzoPdfVuoto(), gas: profiloPrezzoPdfVuoto() },
+  };
+}
+
+let PDF_PRICING_PROFILES = statoPrezziPdfVuoto();
+
 let PARAMETRI_MASTER = {
   potenzaLuce: PARAMETRI_CALCOLO.componentiProfilo.potenzaLuceAnnua,
   regioneGas: PARAMETRI_CALCOLO.componentiProfilo.ambitoGasAnnua,
@@ -3113,17 +3134,32 @@ let OFFERTE_PROPOSTE = [
   },
 ];
 
+function normalizzaMappaFasce(input = {}) {
+  const output = {};
+  for (const fascia of ["f0", "f1", "f2", "f3", "f23"]) {
+    const value = Number(input?.[fascia]);
+    output[fascia] = Number.isFinite(value) && value >= 0 ? value : null;
+  }
+  return output;
+}
+
 function normalizzaVoceOfferta(voce) {
   if (!voce || typeof voce !== "object") return null;
   const normalized = {
     prezzoVariabile: numeroSicuro(voce.prezzoVariabile, 0),
     quotaFissaAnnua: numeroSicuro(voce.quotaFissaAnnua, 0),
+    prezziFasce: normalizzaMappaFasce(voce.prezziFasce),
   };
   if (voce.formula && typeof voce.formula === "object") {
+    const moltiplicatoreValue = Number(voce.formula.moltiplicatore);
     normalized.formula = {
       tipo: voce.formula.tipo || "",
       indice: voce.formula.indice || "",
       spread: numeroSicuro(voce.formula.spread, 0),
+      moltiplicatore: Number.isFinite(moltiplicatoreValue) && moltiplicatoreValue > 0 ? moltiplicatoreValue : 1,
+      moltiplicatoreEsplicito: Boolean(voce.formula.moltiplicatoreEsplicito || (Number.isFinite(moltiplicatoreValue) && moltiplicatoreValue > 0)),
+      perditeIncluse: Boolean(voce.formula.perditeIncluse),
+      testo: voce.formula.testo || "",
     };
   }
   return normalized;
@@ -3364,32 +3400,108 @@ function componentiRegolateVuote() {
 }
 
 function scenarioVuoto() {
-  return { consumo: 0, prezzoVariabile: 0, quotaFissaAnnua: 0, quoteUniversaliAnnue: 0, componentiRegolate: componentiRegolateVuote() };
+  return {
+    consumo: 0,
+    consumiFasce: { f1: null, f2: null, f3: null, f23: null },
+    prezzoVariabile: 0,
+    prezziFasce: { f0: null, f1: null, f2: null, f3: null, f23: null },
+    formula: null,
+    quotaFissaAnnua: 0,
+    quoteUniversaliAnnue: 0,
+    componentiRegolate: componentiRegolateVuote(),
+  };
+}
+
+function chiaveIndiceMercato(value) {
+  const source = String(value || "").toLowerCase();
+  if (/psbil|psbg/.test(source)) return "psbg";
+  if (/psv/.test(source)) return "psv";
+  if (/pun|gme|pvar/.test(source)) return "pun";
+  return source.trim();
 }
 
 function risolviPrezzoVariabile(voce) {
   const prezzoFallback = numeroSicuro(voce?.prezzoVariabile, 0);
-  if (voce?.formula?.tipo === "indice_spread") {
-    const indice = INDICI_MERCATO[voce.formula.indice]?.valore;
+  if (voce?.formula && ["indice_spread", "indice_formula", "indice_moltiplicatore_spread"].includes(voce.formula.tipo)) {
+    const key = chiaveIndiceMercato(voce.formula.indice || voce.formula.testo);
+    const indice = INDICI_MERCATO[key]?.valore;
     const spread = Number(voce.formula.spread || 0);
-    if (Number.isFinite(indice) && indice > 0) return indice + spread;
+    const multiplier = Number(voce.formula.moltiplicatore || 1);
+    if (Number.isFinite(indice) && indice > 0 && Number.isFinite(multiplier) && multiplier > 0 && Number.isFinite(spread)) {
+      return indice * multiplier + spread;
+    }
   }
-
   return prezzoFallback;
 }
 
 function tipoPrezzoVoce(voce, tipoTariffa) {
-  if (voce?.formula?.tipo === "indice_spread") return "variabile";
+  if (voce?.formula && ["indice_spread", "indice_formula", "indice_moltiplicatore_spread"].includes(voce.formula.tipo)) return "variabile";
   return tipoTariffa || "fisso";
 }
 
-function calcolaVoceEnergia({ consumo = 0, prezzoVariabile = 0, formula, quotaFissaAnnua = 0, quoteUniversaliAnnue = 0, componentiRegolate, tipoTariffa, commodity }) {
-  const consumoProfilo = Math.max(0, numeroSicuro(consumo, 0));
+function numeroFascia(input, fascia) {
+  const value = Number(input?.[fascia]);
+  return Number.isFinite(value) && value >= 0 ? value : null;
+}
+
+function consumiFasceNormalizzati(input = {}) {
+  const result = {
+    f1: numeroFascia(input, "f1"),
+    f2: numeroFascia(input, "f2"),
+    f3: numeroFascia(input, "f3"),
+    f23: numeroFascia(input, "f23"),
+  };
+  if (result.f23 === null && result.f2 !== null && result.f3 !== null) result.f23 = result.f2 + result.f3;
+  return result;
+}
+
+function prezziFasceNormalizzati(input = {}, prezzoMonorario = 0) {
+  const result = {};
+  for (const fascia of ["f0", "f1", "f2", "f3", "f23"]) result[fascia] = numeroFascia(input, fascia);
+  const mono = Number(prezzoMonorario);
+  if (result.f0 === null && Number.isFinite(mono) && mono > 0) result.f0 = mono;
+  return result;
+}
+
+function calcolaMateriaPerFasce(consumiInput, prezziInput) {
+  const consumi = consumiFasceNormalizzati(consumiInput);
+  const prezzi = prezziFasceNormalizzati(prezziInput);
+  if ([consumi.f1, consumi.f2, consumi.f3, prezzi.f1, prezzi.f2, prezzi.f3].every((value) => value !== null)) {
+    const consumo = consumi.f1 + consumi.f2 + consumi.f3;
+    if (consumo <= 0) return { ready: false, mode: null, consumo: 0, quota: 0, prezzoEffettivo: 0 };
+    const quota = consumi.f1 * prezzi.f1 + consumi.f2 * prezzi.f2 + consumi.f3 * prezzi.f3;
+    return { ready: true, mode: "f1_f2_f3", consumo, quota, prezzoEffettivo: quota / consumo };
+  }
+  if ([consumi.f1, consumi.f23, prezzi.f1, prezzi.f23].every((value) => value !== null)) {
+    const consumo = consumi.f1 + consumi.f23;
+    if (consumo <= 0) return { ready: false, mode: null, consumo: 0, quota: 0, prezzoEffettivo: 0 };
+    const quota = consumi.f1 * prezzi.f1 + consumi.f23 * prezzi.f23;
+    return { ready: true, mode: "f1_f23", consumo, quota, prezzoEffettivo: quota / consumo };
+  }
+  return { ready: false, mode: null, consumo: 0, quota: 0, prezzoEffettivo: 0 };
+}
+
+function formulaIncludePerdite(formula) {
+  if (!formula) return false;
+  if (formula.perditeIncluse || formula.moltiplicatoreEsplicito) return true;
+  return /lord[oa].{0,30}perdite|perdite.{0,30}incluse/i.test(String(formula.testo || ""));
+}
+
+function calcolaVoceEnergia({ consumo = 0, consumiFasce, prezzoVariabile = 0, prezziFasce, formula, quotaFissaAnnua = 0, quoteUniversaliAnnue = 0, componentiRegolate, tipoTariffa, commodity }) {
+  const consumoTotaleInserito = Math.max(0, numeroSicuro(consumo, 0));
   const tipoVoce = tipoPrezzoVoce({ formula }, tipoTariffa);
-  const fattorePerdite = commodity === "luce" && tipoVoce === "variabile" ? PERDITE_RETE_LUCE_VARIABILE : 1;
-  const prezzoCalcolo = risolviPrezzoVariabile({ prezzoVariabile, formula });
-  const consumoFatturato = consumoProfilo * fattorePerdite;
-  const quotaMateria = consumoFatturato * prezzoCalcolo;
+  const bandCalculation = commodity === "luce" && !formula
+    ? calcolaMateriaPerFasce(consumiFasce, prezziFasceNormalizzati(prezziFasce, prezzoVariabile))
+    : { ready: false, mode: null, consumo: 0, quota: 0, prezzoEffettivo: 0 };
+  const usaFasce = bandCalculation.ready;
+  const consumoProfilo = usaFasce ? bandCalculation.consumo : consumoTotaleInserito;
+  const perditeGiaNellaFormula = formulaIncludePerdite(formula);
+  const fattorePerdite = commodity === "luce" && tipoVoce === "variabile" && !perditeGiaNellaFormula
+    ? PERDITE_RETE_LUCE_VARIABILE
+    : 1;
+  const prezzoCalcolo = usaFasce ? bandCalculation.prezzoEffettivo : risolviPrezzoVariabile({ prezzoVariabile, formula });
+  const consumoFatturato = usaFasce ? consumoProfilo : consumoProfilo * fattorePerdite;
+  const quotaMateria = usaFasce ? bandCalculation.quota : consumoFatturato * prezzoCalcolo;
   const quotaFissaVendita = numeroSicuro(quotaFissaAnnua, 0);
   const quotaTecnicaProfilo = Math.max(0, numeroSicuro(quoteUniversaliAnnue, 0));
   const regolate = componentiRegolate || componentiRegolateVuote();
@@ -3409,6 +3521,9 @@ function calcolaVoceEnergia({ consumo = 0, prezzoVariabile = 0, formula, quotaFi
     tipoPrezzo: tipoVoce,
     fattorePerdite,
     prezzoVariabile: prezzoCalcolo,
+    prezziFasce: prezziFasceNormalizzati(prezziFasce, prezzoVariabile),
+    consumiFasce: consumiFasceNormalizzati(consumiFasce),
+    modalitaPrezzo: usaFasce ? bandCalculation.mode : formula ? "formula" : "monorario",
     quotaMateria,
     quotaVariabile: quotaMateria,
     quotaFissaVendita,
@@ -3999,17 +4114,89 @@ function leggiProfiloComparazione() {
   };
 }
 
+function profiloPrezziPdf(scope, commodity) {
+  return PDF_PRICING_PROFILES?.[scope]?.[commodity] || profiloPrezzoPdfVuoto();
+}
+
+function formulaDaProfiloPdf(scope, commodity, tipoTariffa = "") {
+  const profile = profiloPrezziPdf(scope, commodity);
+  const source = `${profile.indice || ""} ${profile.formulaTesto || ""}`;
+  const indice = chiaveIndiceMercato(source);
+  const spread = Number(profile.spread);
+  const multiplier = Number(profile.moltiplicatore);
+  const variable = ["variabile", "ibrido"].includes(String(tipoTariffa || "").toLowerCase()) || Boolean(indice && INDICI_MERCATO[indice]);
+  if (!variable || !indice || !INDICI_MERCATO[indice]) return null;
+  return {
+    tipo: Number.isFinite(multiplier) && multiplier > 0 ? "indice_moltiplicatore_spread" : "indice_spread",
+    indice,
+    spread: Number.isFinite(spread) ? spread : 0,
+    moltiplicatore: Number.isFinite(multiplier) && multiplier > 0 ? multiplier : 1,
+    moltiplicatoreEsplicito: Number.isFinite(multiplier) && multiplier > 0,
+    perditeIncluse: /lord[oa].{0,30}perdite|perdite.{0,30}incluse/i.test(profile.formulaTesto || ""),
+    testo: profile.formulaTesto || "",
+  };
+}
+
+function totaleConsumiFasce(input) {
+  const bands = consumiFasceNormalizzati(input);
+  if (bands.f1 !== null && bands.f2 !== null && bands.f3 !== null) return bands.f1 + bands.f2 + bands.f3;
+  if (bands.f1 !== null && bands.f23 !== null) return bands.f1 + bands.f23;
+  return 0;
+}
+
+function targetProfiloPdf(target) {
+  const match = String(target || "").match(/^pdf-(current|offer)-(consumo|prezzo|indice|spread|moltiplicatore|formula|struttura)-(luce|gas)(?:-(f0|f1|f2|f3|f23))?$/);
+  if (!match) return null;
+  return { scope: match[1], kind: match[2], commodity: match[3], band: match[4] || null };
+}
+
+function valoreTargetProfiloPdf(target) {
+  const parsed = targetProfiloPdf(target);
+  if (!parsed) return undefined;
+  const profile = profiloPrezziPdf(parsed.scope, parsed.commodity);
+  if (parsed.kind === "consumo") return profile.consumiFasce[parsed.band];
+  if (parsed.kind === "prezzo") return profile.prezziFasce[parsed.band];
+  if (parsed.kind === "indice") return profile.indice;
+  if (parsed.kind === "spread") return profile.spread;
+  if (parsed.kind === "moltiplicatore") return profile.moltiplicatore;
+  if (parsed.kind === "formula") return profile.formulaTesto;
+  if (parsed.kind === "struttura") return profile.struttura;
+  return undefined;
+}
+
+function impostaTargetProfiloPdf(target, value) {
+  const parsed = targetProfiloPdf(target);
+  if (!parsed) return false;
+  const profile = PDF_PRICING_PROFILES[parsed.scope][parsed.commodity];
+  if (parsed.kind === "consumo") profile.consumiFasce[parsed.band] = Number(value);
+  else if (parsed.kind === "prezzo") profile.prezziFasce[parsed.band] = Number(value);
+  else if (parsed.kind === "indice") profile.indice = String(value || "");
+  else if (parsed.kind === "spread") profile.spread = Number(value);
+  else if (parsed.kind === "moltiplicatore") profile.moltiplicatore = Number(value);
+  else if (parsed.kind === "formula") profile.formulaTesto = String(value || "");
+  else if (parsed.kind === "struttura") profile.struttura = String(value || "");
+  return true;
+}
+
 function leggiOffertaAttuale() {
   const scope = tipoFornituraPerCalcolo();
   const usaLuce = scope !== "gas";
   const usaGas = ["gas", "dual", "separate"].includes(scope);
+  const tipoTariffa = leggiValore("master-luce-tipo", "fisso");
+  const currentLuce = profiloPrezziPdf("current", "luce");
+  const currentGas = profiloPrezziPdf("current", "gas");
+  const consumoLuceManuale = leggiNumero("in-luce-cons-att", leggiNumero("master-luce-consumo", 0));
+  const consumoLuceFasce = totaleConsumiFasce(currentLuce.consumiFasce);
   return {
     provider: usaLuce ? leggiValore("nome-fornitore-att", "") : leggiValore("nome-fornitore-gas-att", ""),
     providerLuce: leggiValore("nome-fornitore-att", ""),
     providerGas: leggiValore("nome-fornitore-gas-att", ""),
     luce: usaLuce ? {
-      consumo: leggiNumero("in-luce-cons-att", leggiNumero("master-luce-consumo", 0)),
+      consumo: consumoLuceManuale || consumoLuceFasce,
+      consumiFasce: currentLuce.consumiFasce,
       prezzoVariabile: leggiNumero("in-luce-prezzo-att"),
+      prezziFasce: currentLuce.prezziFasce,
+      formula: formulaDaProfiloPdf("current", "luce", tipoTariffa),
       quotaFissaAnnua: quotaFissaAnnuaDaCampo("in-luce-fisso-att", "in-luce-fisso-att-unita"),
       quoteUniversaliAnnue: maggiorazioneMaster("luce"),
       componentiRegolate: componentiRegolateMaster("luce"),
@@ -4017,6 +4204,7 @@ function leggiOffertaAttuale() {
     gas: usaGas ? {
       consumo: leggiNumero("in-gas-cons-att", leggiNumero("master-gas-consumo", 0)),
       prezzoVariabile: leggiNumero("in-gas-prezzo-att"),
+      formula: formulaDaProfiloPdf("current", "gas", tipoTariffa),
       quotaFissaAnnua: quotaFissaAnnuaDaCampo("in-gas-fisso-att", "in-gas-fisso-att-unita"),
       quoteUniversaliAnnue: maggiorazioneMaster("gas"),
       componentiRegolate: componentiRegolateMaster("gas"),
@@ -4029,11 +4217,16 @@ function leggiNuovaOfferta(attuale) {
   const scope = tipoFornituraPerCalcolo();
   const usaLuce = scope !== "gas";
   const usaGas = ["gas", "dual", "separate"].includes(scope);
+  const tipoTariffa = leggiValore("master-luce-tipo", "fisso");
+  const offerLuce = profiloPrezziPdf("offer", "luce");
+  const offerGas = profiloPrezziPdf("offer", "gas");
   return {
     luce: usaLuce ? {
       consumo: attuale.luce.consumo,
+      consumiFasce: attuale.luce.consumiFasce,
       prezzoVariabile: leggiNumero("in-luce-prezzo-nuov"),
-      formula: fonteAuto?.luce?.formula,
+      prezziFasce: fonteAuto?.luce?.prezziFasce || offerLuce.prezziFasce,
+      formula: fonteAuto?.luce?.formula || formulaDaProfiloPdf("offer", "luce", tipoTariffa),
       quotaFissaAnnua: quotaFissaAnnuaDaCampo("in-luce-fisso-nuov", "in-luce-fisso-nuov-unita"),
       quoteUniversaliAnnue: maggiorazioneMaster("luce"),
       componentiRegolate: componentiRegolateMaster("luce"),
@@ -4041,7 +4234,7 @@ function leggiNuovaOfferta(attuale) {
     gas: usaGas ? {
       consumo: attuale.gas.consumo,
       prezzoVariabile: leggiNumero("in-gas-prezzo-nuov"),
-      formula: fonteAuto?.gas?.formula,
+      formula: fonteAuto?.gas?.formula || formulaDaProfiloPdf("offer", "gas", tipoTariffa),
       quotaFissaAnnua: quotaFissaAnnuaDaCampo("in-gas-fisso-nuov", "in-gas-fisso-nuov-unita"),
       quoteUniversaliAnnue: maggiorazioneMaster("gas"),
       componentiRegolate: componentiRegolateMaster("gas"),
@@ -4055,27 +4248,40 @@ function nuovaOffertaCompilata() {
 }
 
 function voceRichiesta(voce) {
-  return numeroSicuro(voce?.consumo, 0) > 0 || numeroSicuro(voce?.prezzoVariabile, 0) > 0 || numeroSicuro(voce?.quotaFissaAnnua, 0) > 0;
+  return numeroSicuro(voce?.consumo, 0) > 0
+    || totaleConsumiFasce(voce?.consumiFasce) > 0
+    || numeroSicuro(voce?.prezzoVariabile, 0) > 0
+    || Boolean(voce?.formula)
+    || numeroSicuro(voce?.quotaFissaAnnua, 0) !== 0;
 }
 
-function voceNuovaPresente(voce) {
-  return Boolean(voce?.formula) || numeroSicuro(voce?.prezzoVariabile, 0) > 0 || numeroSicuro(voce?.quotaFissaAnnua, 0) > 0;
+function voceCalcolabile(voce, commodity) {
+  const consumo = numeroSicuro(voce?.consumo, 0) || totaleConsumiFasce(voce?.consumiFasce);
+  if (!(consumo > 0)) return false;
+  if (voce?.formula && risolviPrezzoVariabile(voce) > 0) return true;
+  if (commodity === "luce" && calcolaMateriaPerFasce(voce?.consumiFasce, prezziFasceNormalizzati(voce?.prezziFasce, voce?.prezzoVariabile)).ready) return true;
+  return numeroSicuro(voce?.prezzoVariabile, 0) > 0;
+}
+
+function voceNuovaPresente(voce, commodity = "luce") {
+  return voceCalcolabile(voce, commodity) || numeroSicuro(voce?.quotaFissaAnnua, 0) !== 0;
 }
 
 function nuovaOffertaComparabile(attuale, nuova) {
   const luceRichiesta = voceRichiesta(attuale.luce);
   const gasRichiesto = voceRichiesta(attuale.gas);
-  return (!luceRichiesta || voceNuovaPresente(nuova.luce)) && (!gasRichiesto || voceNuovaPresente(nuova.gas));
+  return (!luceRichiesta || voceCalcolabile(nuova.luce, "luce")) && (!gasRichiesto || voceCalcolabile(nuova.gas, "gas"));
 }
 
 function offertaPropostaPerCalcolo(offerta, attuale) {
-  const usaLuce = attuale.luce.consumo > 0 || attuale.luce.prezzoVariabile > 0 || attuale.luce.quotaFissaAnnua > 0;
-  const usaGas = attuale.gas.consumo > 0 || attuale.gas.prezzoVariabile > 0 || attuale.gas.quotaFissaAnnua > 0;
-
+  const usaLuce = voceRichiesta(attuale.luce);
+  const usaGas = voceRichiesta(attuale.gas);
   return {
     luce: offerta.luce && usaLuce ? {
       consumo: attuale.luce.consumo,
+      consumiFasce: attuale.luce.consumiFasce,
       prezzoVariabile: offerta.luce.prezzoVariabile,
+      prezziFasce: offerta.luce.prezziFasce,
       formula: offerta.luce.formula,
       quotaFissaAnnua: offerta.luce.quotaFissaAnnua,
       quoteUniversaliAnnue: attuale.luce.quoteUniversaliAnnue,
@@ -4659,8 +4865,8 @@ function offertaCompatibileConRanking(offerta, tipoTariffa, tipoFornitura) {
 }
 
 function voceIndicizzataCalcolabile(voce) {
-  if (!voce?.formula || voce.formula.tipo !== "indice_spread") return true;
-  const indice = INDICI_MERCATO[voce.formula.indice]?.valore;
+  if (!voce?.formula) return true;
+  const indice = INDICI_MERCATO[chiaveIndiceMercato(voce.formula.indice || voce.formula.testo)]?.valore;
   return numeroSicuro(indice, 0) > 0 || numeroSicuro(voce.prezzoVariabile, 0) > 0;
 }
 
@@ -7657,6 +7863,11 @@ function buildPdfAutofillSpecs(data, customerType = "privato") {
   const specs = [];
   if (!data?.data_contract?.fields) return specs;
   const add = (field, label, targets, options) => pdfAutofillAddSpec(specs, data, field, label, targets, options);
+  const addProfile = (field, label, target, unit = null) => add(field, label, [target], {
+    kind: "pdf_profile",
+    compare_mode: typeof pdfPreviewAutofillValue(data, field) === "number" ? "number" : "text",
+    unit,
+  });
 
   if (customerType === "business") {
     add("intestatario", "Ragione sociale / intestatario", ["business-ragione"]);
@@ -7690,6 +7901,23 @@ function buildPdfAutofillSpecs(data, customerType = "privato") {
     add("quota_fissa_vendita_gas_eur_anno", "Quota fissa gas della proposta", ["in-gas-fisso-nuov", "in-gas-fisso-nuov-unita"], {
       kind: "fixed_annual", compare_mode: "fixed_annual", unit: "€/anno", input_id: "in-gas-fisso-nuov", unit_id: "in-gas-fisso-nuov-unita",
     });
+    for (const [field, label, target] of [
+      ["prezzo_luce_f1_eur_kwh", "Prezzo luce F1", "pdf-offer-prezzo-luce-f1"],
+      ["prezzo_luce_f2_eur_kwh", "Prezzo luce F2", "pdf-offer-prezzo-luce-f2"],
+      ["prezzo_luce_f3_eur_kwh", "Prezzo luce F3", "pdf-offer-prezzo-luce-f3"],
+      ["prezzo_luce_f23_eur_kwh", "Prezzo luce F23", "pdf-offer-prezzo-luce-f23"],
+    ]) addProfile(field, label, target, "€/kWh");
+    for (const [field, label, target, unit] of [
+      ["indice_riferimento_luce", "Indice luce", "pdf-offer-indice-luce", null],
+      ["spread_luce_eur_kwh", "Spread luce", "pdf-offer-spread-luce", "€/kWh"],
+      ["moltiplicatore_indice_luce", "Moltiplicatore indice luce", "pdf-offer-moltiplicatore-luce", null],
+      ["formula_prezzo_luce", "Formula prezzo luce", "pdf-offer-formula-luce", null],
+      ["struttura_prezzo_luce", "Struttura prezzo luce", "pdf-offer-struttura-luce", null],
+      ["indice_riferimento_gas", "Indice gas", "pdf-offer-indice-gas", null],
+      ["spread_gas_eur_smc", "Spread gas", "pdf-offer-spread-gas", "€/Smc"],
+      ["moltiplicatore_indice_gas", "Moltiplicatore indice gas", "pdf-offer-moltiplicatore-gas", null],
+      ["formula_prezzo_gas", "Formula prezzo gas", "pdf-offer-formula-gas", null],
+    ]) addProfile(field, label, target, unit);
     const priceTypeLuce = pdfPreviewAutofillValue(data, "tipo_prezzo_luce");
     const priceTypeGas = pdfPreviewAutofillValue(data, "tipo_prezzo_gas");
     const sharedPriceType = priceTypeLuce !== undefined && priceTypeGas !== undefined
@@ -7718,6 +7946,29 @@ function buildPdfAutofillSpecs(data, customerType = "privato") {
   add("quota_fissa_vendita_gas_eur_anno", "Quota fissa gas attuale", ["in-gas-fisso-att", "in-gas-fisso-att-unita"], {
     kind: "fixed_annual", compare_mode: "fixed_annual", unit: "€/anno", input_id: "in-gas-fisso-att", unit_id: "in-gas-fisso-att-unita",
   });
+  for (const [field, label, target] of [
+    ["consumo_luce_f1_kwh", "Consumo annuo luce F1", "pdf-current-consumo-luce-f1"],
+    ["consumo_luce_f2_kwh", "Consumo annuo luce F2", "pdf-current-consumo-luce-f2"],
+    ["consumo_luce_f3_kwh", "Consumo annuo luce F3", "pdf-current-consumo-luce-f3"],
+    ["consumo_luce_f23_kwh", "Consumo annuo luce F23", "pdf-current-consumo-luce-f23"],
+  ]) addProfile(field, label, target, "kWh/anno");
+  for (const [field, label, target] of [
+    ["prezzo_luce_f1_eur_kwh", "Prezzo luce attuale F1", "pdf-current-prezzo-luce-f1"],
+    ["prezzo_luce_f2_eur_kwh", "Prezzo luce attuale F2", "pdf-current-prezzo-luce-f2"],
+    ["prezzo_luce_f3_eur_kwh", "Prezzo luce attuale F3", "pdf-current-prezzo-luce-f3"],
+    ["prezzo_luce_f23_eur_kwh", "Prezzo luce attuale F23", "pdf-current-prezzo-luce-f23"],
+  ]) addProfile(field, label, target, "€/kWh");
+  for (const [field, label, target, unit] of [
+    ["indice_riferimento_luce", "Indice luce attuale", "pdf-current-indice-luce", null],
+    ["spread_luce_eur_kwh", "Spread luce attuale", "pdf-current-spread-luce", "€/kWh"],
+    ["moltiplicatore_indice_luce", "Moltiplicatore indice luce", "pdf-current-moltiplicatore-luce", null],
+    ["formula_prezzo_luce", "Formula prezzo luce attuale", "pdf-current-formula-luce", null],
+    ["struttura_prezzo_luce", "Struttura prezzo luce attuale", "pdf-current-struttura-luce", null],
+    ["indice_riferimento_gas", "Indice gas attuale", "pdf-current-indice-gas", null],
+    ["spread_gas_eur_smc", "Spread gas attuale", "pdf-current-spread-gas", "€/Smc"],
+    ["moltiplicatore_indice_gas", "Moltiplicatore indice gas", "pdf-current-moltiplicatore-gas", null],
+    ["formula_prezzo_gas", "Formula prezzo gas attuale", "pdf-current-formula-gas", null],
+  ]) addProfile(field, label, target, unit);
   const priceTypeLuce = pdfPreviewAutofillValue(data, "tipo_prezzo_luce");
   const priceTypeGas = pdfPreviewAutofillValue(data, "tipo_prezzo_gas");
   const sharedPriceType = priceTypeLuce !== undefined && priceTypeGas !== undefined
@@ -7753,6 +8004,17 @@ function pdfAutofillElementDisplay(id, value) {
 }
 
 function pdfAutofillCurrentState(spec) {
+  if (spec.kind === "pdf_profile") {
+    const currentValue = valoreTargetProfiloPdf(spec.target_ids[0]);
+    const hasValue = pdfAutofillHasValue(currentValue);
+    return {
+      has_value: hasValue,
+      comparable_value: currentValue,
+      display: hasValue ? pdfAutofillFormatValue(currentValue, spec.unit) : "Campo vuoto",
+      manually_touched: false,
+      all_equal: hasValue && pdfAutofillValuesEqual(currentValue, spec.value, spec.compare_mode),
+    };
+  }
   if (spec.kind === "fixed_annual") {
     const raw = pdfAutofillElementValue(spec.input_id);
     const unit = pdfAutofillElementValue(spec.unit_id) || "mese";
@@ -7943,6 +8205,10 @@ function deselezionaTuttiCampiAnteprimaPdf() {
 function applicaRigheAutocompilazionePdf(rows) {
   const selected = Array.isArray(rows) ? rows : [];
   selected.forEach((row) => {
+    if (row.kind === "pdf_profile") {
+      impostaTargetProfiloPdf(row.target_ids[0], row.value);
+      return;
+    }
     if (row.kind === "fixed_annual") {
       impostaQuotaFissaAnnua(row.input_id, row.unit_id, row.value);
       PDF_MANUAL_TOUCHED_FIELDS.delete(row.input_id);
@@ -8743,6 +9009,7 @@ window.azzeraPdfEModulo = function azzeraPdfEModulo() {
   if (businessPdfGrid) businessPdfGrid.innerHTML = "";
   if (businessPdfStatus) businessPdfStatus.innerHTML = "";
   NUOVA_OFFERTA_AUTOMATICA = null;
+  PDF_PRICING_PROFILES = statoPrezziPdfVuoto();
   modalitaCalcolo = "manuale";
   pulisciGuidePercorsoPdf();
   pulisciSegnalazioniDatiMancanti();
@@ -9165,6 +9432,7 @@ function cancellaNuovaOffertaAutomatica() {
 
 function applicaOffertaAlBloccoNuovo(offerta, providerKey) {
   apriDettagliNuovaOfferta();
+  PDF_PRICING_PROFILES.offer = { luce: profiloPrezzoPdfVuoto(), gas: profiloPrezzoPdfVuoto() };
   BLOCCO_AUTOFILL_NUOVA_OFFERTA = true;
   NUOVA_OFFERTA_AUTOMATICA = { offerta, providerKey, appliedAt: new Date().toISOString() };
 
@@ -9186,6 +9454,7 @@ function applicaOffertaAlBloccoNuovo(offerta, providerKey) {
 }
 
 function svuotaCampiNuovaOfferta() {
+  PDF_PRICING_PROFILES.offer = { luce: profiloPrezzoPdfVuoto(), gas: profiloPrezzoPdfVuoto() };
   BLOCCO_AUTOFILL_NUOVA_OFFERTA = true;
   ["in-luce-prezzo-nuov", "in-luce-fisso-nuov", "in-gas-prezzo-nuov", "in-gas-fisso-nuov"].forEach(clearField);
   ["in-luce-fisso-nuov-unita", "in-gas-fisso-nuov-unita"].forEach((id) => setField(id, "mese"));
@@ -9279,7 +9548,18 @@ function applicaDatiPdfAlModulo(data) {
   }
 
   if (Array.isArray(selectedRows)) {
-    applicaRigheAutocompilazionePdf(selectedRows);
+    if (data.kind === "scheda_offerta") {
+      PDF_PRICING_PROFILES.offer = { luce: profiloPrezzoPdfVuoto(), gas: profiloPrezzoPdfVuoto() };
+    } else {
+      PDF_PRICING_PROFILES.current = { luce: profiloPrezzoPdfVuoto(), gas: profiloPrezzoPdfVuoto() };
+    }
+    const previousAutofillBlock = BLOCCO_AUTOFILL_NUOVA_OFFERTA;
+    BLOCCO_AUTOFILL_NUOVA_OFFERTA = true;
+    try {
+      applicaRigheAutocompilazionePdf(selectedRows);
+    } finally {
+      BLOCCO_AUTOFILL_NUOVA_OFFERTA = previousAutofillBlock;
+    }
     if (!leggiValore("master-gas-regione", "")) setField("master-gas-regione", "nord-ovest");
     if (data.kind === "scheda_offerta") {
       apriDettagliNuovaOfferta();

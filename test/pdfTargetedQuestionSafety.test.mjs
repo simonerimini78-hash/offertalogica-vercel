@@ -311,7 +311,7 @@ test("richiesta IA: schema e prompt impongono domande mirate e verifica della fo
   const userPrompt = request.input[1].content[1].text;
   const answerProperties = request.text.format.schema.properties.answers.items.properties;
 
-  assert.equal(PDF_PURE_AI_READER_VERSION, "pure-ai-native-pdf-v1.0.7");
+  assert.equal(PDF_PURE_AI_READER_VERSION, "pure-ai-native-pdf-v1.0.9");
   assert.match(systemPrompt, /da inizio fornitura/);
   assert.match(systemPrompt, /spesa annua stimata/);
   assert.match(systemPrompt, /rinnov[oi] futur/);
@@ -324,4 +324,184 @@ test("richiesta IA: schema e prompt impongono domande mirate e verifica della fo
   assert.equal(request.text.format.schema.properties.answers.minItems, 0);
   assert.match(systemPrompt, /lettura parziale è valida/);
   assert.match(systemPrompt, /inserisci soltanto le risposte effettivamente trovate/);
+});
+
+
+test("scheda sintetica Acea: conserva nome, tipo, quota annua e prezzi F0/F1/F2/F3", () => {
+  const answers = emptyAnswers();
+  setAnswer(answers, "fornitore", {
+    value_text: "Acea Energia",
+    label: "Venditore",
+    evidence: "SCHEDA SINTETICA - Venditore Acea Energia",
+    source_role: undefined,
+    usable_for_comparison: undefined,
+  });
+  setAnswer(answers, "nome_offerta_luce", {
+    value_text: "Acea Energia Fix",
+    label: "Titolo offerta",
+    evidence: "SCHEDA SINTETICA ED INFORMAZIONI PRECONTRATTUALI - Acea Energia Fix",
+    source_role: undefined,
+    usable_for_comparison: undefined,
+  });
+  setAnswer(answers, "codice_offerta_luce", {
+    value_text: "000774ESFML01XXRT4D4028030000000",
+    label: "CODICE OFFERTA MONORARIA",
+    evidence: "CODICE OFFERTA MONORARIA: 000774ESFML01XXRT4D4028030000000",
+    source_role: undefined,
+    usable_for_comparison: undefined,
+  });
+  setAnswer(answers, "tipo_prezzo_luce", {
+    value_text: "fisso",
+    label: "Prezzo",
+    evidence: "CONDIZIONI ECONOMICHE - Prezzo fisso per 12 mesi",
+    source_role: undefined,
+    usable_for_comparison: undefined,
+  });
+  setAnswer(answers, "prezzo_luce_f0_eur_kwh", {
+    value_text: "0,099000 €/kWh",
+    value_number: 0.099,
+    unit: "€/kWh",
+    label: "F0",
+    evidence: "CONDIZIONI ECONOMICHE - Corrispettivi definiti dal venditore - Corrispettivo per il consumo F0: 0,099000 €/kWh",
+    source_role: undefined,
+    usable_for_comparison: undefined,
+  });
+  setAnswer(answers, "prezzo_luce_f1_eur_kwh", {
+    value_text: "0,100600 €/kWh",
+    value_number: 0.1006,
+    unit: "€/kWh",
+    label: "F1",
+    evidence: "CONDIZIONI ECONOMICHE - Corrispettivi definiti dal venditore - F1: 0,100600 €/kWh",
+    source_role: undefined,
+    usable_for_comparison: undefined,
+  });
+  setAnswer(answers, "prezzo_luce_f2_eur_kwh", {
+    value_text: "0,111200 €/kWh",
+    value_number: 0.1112,
+    unit: "€/kWh",
+    label: "F2",
+    evidence: "CONDIZIONI ECONOMICHE - Corrispettivi definiti dal venditore - F2: 0,111200 €/kWh",
+    source_role: undefined,
+    usable_for_comparison: undefined,
+  });
+  setAnswer(answers, "prezzo_luce_f3_eur_kwh", {
+    value_text: "0,087900 €/kWh",
+    value_number: 0.0879,
+    unit: "€/kWh",
+    label: "F3",
+    evidence: "CONDIZIONI ECONOMICHE - Corrispettivi definiti dal venditore - F3: 0,087900 €/kWh",
+    source_role: undefined,
+    usable_for_comparison: undefined,
+  });
+  setAnswer(answers, "quota_fissa_vendita_luce", {
+    value_text: "111,00 €/anno",
+    value_number: 111,
+    unit: "€/anno",
+    period: "year",
+    label: "Corrispettivo annuo",
+    evidence: "CONDIZIONI ECONOMICHE - CORRISPETTIVI DEFINITI DAL VENDITORE - Corrispettivo annuo 111,00 €/anno",
+    source_role: undefined,
+    usable_for_comparison: undefined,
+  });
+  setAnswer(answers, "struttura_prezzo_luce", {
+    value_text: "monoraria o fasce F1/F2/F3",
+    label: "Opzioni prezzo",
+    evidence: "L'offerta prevede la possibilità di scegliere tra opzione monoraria o differenziata per fasce F1/F2/F3",
+    source_role: undefined,
+    usable_for_comparison: undefined,
+  });
+  setAnswer(answers, "decorrenza_condizioni_economiche_luce", {
+    value_text: "03/07/2026",
+    label: "VALIDA DAL",
+    evidence: "OFFERTA VALIDA DAL 03/07/2026 AL 20/07/2026",
+    source_role: undefined,
+    usable_for_comparison: undefined,
+  });
+  setAnswer(answers, "scadenza_condizioni_economiche_luce", {
+    value_text: "20/07/2026",
+    label: "VALIDA AL",
+    evidence: "OFFERTA VALIDA DAL 03/07/2026 AL 20/07/2026",
+    source_role: undefined,
+    usable_for_comparison: undefined,
+  });
+
+  const normalized = normalizePureAiOutput(output({
+    kind: "offer_sheet",
+    commodity: "electricity",
+    customerType: "consumer",
+    answers,
+  }));
+
+  assert.equal(normalized.nome_offerta_luce, "Acea Energia Fix");
+  assert.equal(normalized.tipo_prezzo_luce, "fisso");
+  assert.equal(normalized.prezzo_luce_f0_eur_kwh, 0.099);
+  assert.equal(normalized.prezzo_luce_f1_eur_kwh, 0.1006);
+  assert.equal(normalized.prezzo_luce_f2_eur_kwh, 0.1112);
+  assert.equal(normalized.prezzo_luce_f3_eur_kwh, 0.0879);
+  assert.equal(normalized.prezzo_luce_eur_kwh, 0.099);
+  assert.equal(normalized.quota_fissa_vendita_luce_eur_anno, 111);
+  assert.equal(normalized.readiness.confronto.luce.status, "completo");
+  assert.equal(normalized.readiness.dati_bolletta.luce.status, "non_applicabile");
+  assert.equal(normalized.readiness.attivazione.luce.status, "non_applicabile");
+  assert.deepEqual(normalized.data_contract.supplies.luce.offer.price_bands, {
+    f0: 0.099,
+    f1: 0.1006,
+    f2: 0.1112,
+    f3: 0.0879,
+    f23: null,
+    unit: "EUR/kWh",
+  });
+});
+
+test("prezzi per fasce senza F0: non inventa un prezzo unico per il confronto", () => {
+  const answers = emptyAnswers();
+  setAnswer(answers, "nome_offerta_luce", {
+    value_text: "Offerta Fasce",
+    evidence: "SCHEDA SINTETICA - Offerta Fasce",
+    source_role: undefined,
+    usable_for_comparison: undefined,
+  });
+  setAnswer(answers, "tipo_prezzo_luce", {
+    value_text: "fisso",
+    evidence: "CONDIZIONI ECONOMICHE - Prezzo fisso per 12 mesi",
+    source_role: undefined,
+    usable_for_comparison: undefined,
+  });
+  for (const [id, value] of [
+    ["prezzo_luce_f1_eur_kwh", 0.11],
+    ["prezzo_luce_f2_eur_kwh", 0.10],
+    ["prezzo_luce_f3_eur_kwh", 0.09],
+  ]) {
+    const band = id.match(/_(f\d+)_/)[1].toUpperCase();
+    setAnswer(answers, id, {
+      value_text: `${value.toFixed(2).replace(".", ",")} €/kWh`,
+      value_number: value,
+      unit: "€/kWh",
+      label: band,
+      evidence: `CONDIZIONI ECONOMICHE - Corrispettivi definiti dal venditore - ${band}: ${value} €/kWh`,
+      source_role: undefined,
+      usable_for_comparison: undefined,
+    });
+  }
+  setAnswer(answers, "quota_fissa_vendita_luce", {
+    value_text: "90 €/anno",
+    value_number: 90,
+    unit: "€/anno",
+    period: "year",
+    evidence: "CONDIZIONI ECONOMICHE - CORRISPETTIVI DEFINITI DAL VENDITORE - Corrispettivo annuo 90 €/anno",
+    source_role: undefined,
+    usable_for_comparison: undefined,
+  });
+
+  const normalized = normalizePureAiOutput(output({
+    kind: "offer_sheet",
+    commodity: "electricity",
+    customerType: "consumer",
+    answers,
+  }));
+
+  assert.equal(normalized.prezzo_luce_eur_kwh, undefined);
+  assert.equal(normalized.readiness.confronto.luce.status, "completo");
+  assert.deepEqual(normalized.readiness.confronto.luce.missing, []);
+  assert.equal(normalized.readiness.confronto.luce.pricing_mode, "f1_f2_f3");
 });
