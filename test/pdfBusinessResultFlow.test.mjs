@@ -5,9 +5,8 @@ import fs from "node:fs";
 const html = fs.readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
 
 function extractFunction(name) {
-  const asyncPrefix = `async function ${name}(`;
-  const normalPrefix = `function ${name}(`;
-  const start = html.indexOf(asyncPrefix) >= 0 ? html.indexOf(asyncPrefix) : html.indexOf(normalPrefix);
+  const candidates = [`async function ${name}(`, `function ${name}(`, `window.${name} = function ${name}(`];
+  const start = candidates.map((prefix) => html.indexOf(prefix)).find((index) => index >= 0) ?? -1;
   assert.notEqual(start, -1, `Funzione ${name} non trovata`);
   const braceStart = html.indexOf("{", start);
   let depth = 0;
@@ -34,20 +33,22 @@ function extractFunction(name) {
   throw new Error(`Fine funzione ${name} non trovata`);
 }
 
-test("PDF business: dopo l'applicazione dei dati avvia il calcolo preliminare", () => {
+test("PDF business: acquisisce la pratica senza obbligare il confronto automatico", () => {
   const source = extractFunction("confermaPdfECalcola");
   const applyIndex = source.indexOf("applicaDatiPdfAlBusiness(data, selectedAutofillRows)");
-  const calculateIndex = source.indexOf("window.calcolaBusiness?.()");
   assert.ok(applyIndex >= 0, "applicazione dati business non trovata");
-  assert.ok(calculateIndex > applyIndex, "il calcolo business deve avvenire dopo l'applicazione dei dati");
+  const businessBlock = source.slice(applyIndex, source.indexOf("const master =", applyIndex));
+  assert.doesNotMatch(businessBlock, /calcolaBusiness/);
+  assert.match(businessBlock, /Bolletta business acquisita e salvata/);
+  assert.match(businessBlock, /Non è necessario completare il confronto automatico/);
 });
 
-test("PDF business: non mostra risultati con dati economici incompleti", () => {
-  const source = extractFunction("confermaPdfECalcola");
-  assert.match(source, /il risultato preliminare è stato calcolato/);
-  assert.match(source, /il confronto non è stato calcolato/);
-  assert.match(source, /Consumi del periodo, costi medi e periodicità non dimostrate non vengono usati/);
-  assert.match(source, /nessun valore predefinito viene inserito/);
+test("richiesta business: può partire anche senza dati economici completi", () => {
+  const source = extractFunction("apriLeadBusiness");
+  assert.match(source, /leggiProfiloBusiness\(\)/);
+  assert.doesNotMatch(source, /calcolaBusiness\(\)/);
+  assert.match(source, /LEAD_STATE\.businessProfile = profile/);
+  assert.match(source, /apriLeadModal\("business"\)/);
 });
 
 test("profilo business: non usa prezzi o quote fisse predefiniti", () => {
@@ -57,9 +58,12 @@ test("profilo business: non usa prezzi o quote fisse predefiniti", () => {
   assert.doesNotMatch(source, /\? 240/);
   assert.match(source, /campiMancanti/);
   assert.match(source, /datiCompleti/);
+  assert.match(source, /pdfArchiveStored/);
+  assert.match(source, /codiceClienteLuce/);
+  assert.match(source, /codiceOffertaLuce/);
 });
 
-test("calcolo business: blocca il risultato finché i dati verificati non sono completi", () => {
+test("calcolo business manuale: resta disponibile ma blocca dati incompleti", () => {
   const source = extractFunction("calcolaBusiness");
   assert.match(source, /!profile\.datiCompleti/);
   assert.match(source, /Nessun valore standard è stato inserito/);

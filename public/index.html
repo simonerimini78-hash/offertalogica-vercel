@@ -403,6 +403,17 @@
         .business-result strong { display: block; font-size: 20px; margin-bottom: 6px; }
         .business-result p { margin: 0 0 10px; color: #166534; font-size: 14px; }
         .business-error { color: var(--danger); font-size: 13px; margin-top: 10px; display: none; }
+        .business-pdf-summary { margin: 0 0 16px; padding: 15px; border: 1px solid #bfdbfe; border-radius: 11px; background: #f8fbff; }
+        .business-pdf-summary[hidden] { display: none !important; }
+        .business-pdf-summary-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+        .business-pdf-summary-head strong { display: block; color: #1e3a8a; font-size: 15px; }
+        .business-pdf-summary-head small { display: block; margin-top: 2px; color: var(--text-muted); line-height: 1.4; }
+        .business-pdf-summary-badge { flex: 0 0 auto; padding: 5px 8px; border-radius: 999px; background: #dbeafe; color: #1d4ed8; font-size: 10px; font-weight: 900; }
+        .business-pdf-summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; }
+        .business-pdf-summary-row { min-width: 0; padding: 9px 10px; border: 1px solid #dbeafe; border-radius: 9px; background: #fff; }
+        .business-pdf-summary-row span { display: block; color: var(--text-muted); font-size: 10px; font-weight: 750; }
+        .business-pdf-summary-row strong { display: block; margin-top: 2px; color: var(--text-color); font-size: 12px; overflow-wrap: anywhere; }
+        .business-pdf-summary-status { margin-top: 10px; color: #334155; font-size: 11px; line-height: 1.45; }
 
         @media (max-width: 700px) {
             .choice-grid, .segment-switch { grid-template-columns: 1fr; }
@@ -1776,8 +1787,17 @@
     </div>
 
     <div class="business-panel" id="business-panel">
-        <h3>Analisi aziendale luce e gas</h3>
-        <p>Per le aziende il confronto dipende da potenza, fasce orarie e profilo di consumo. Qui stimiamo il margine e raccogliamo i dati per una verifica consulenziale.</p>
+        <h3>Pratica aziendale e verifica consulenziale</h3>
+        <p>Salviamo la bolletta e i dati principali rilevati. Il consulente controllerà sul documento originale consumi e condizioni economiche prima di formulare il confronto.</p>
+
+        <section class="business-pdf-summary" id="business-pdf-summary" aria-live="polite" hidden>
+            <div class="business-pdf-summary-head">
+                <div><strong>Dati rilevati dalla bolletta</strong><small>Non devi copiarli da altri servizi. Restano collegati al PDF originale per la verifica del consulente.</small></div>
+                <span class="business-pdf-summary-badge">Pratica acquisita</span>
+            </div>
+            <div class="business-pdf-summary-grid" id="business-pdf-summary-grid"></div>
+            <div class="business-pdf-summary-status" id="business-pdf-summary-status"></div>
+        </section>
 
         <div class="business-grid">
             <div class="business-section">
@@ -1881,7 +1901,7 @@
         </div>
 
         <div class="business-actions">
-            <button type="button" class="btn-action" onclick="calcolaBusiness()">Calcola margine business</button>
+            <button type="button" class="btn-action" onclick="calcolaBusiness()">Calcola solo con dati economici completi</button>
             <button type="button" class="lead-secondary" onclick="apriLeadBusiness()">Richiedi analisi aziendale</button>
             <span class="upload-note">Per offerte business reali useremo il lead verificato e la bolletta caricata.</span>
         </div>
@@ -3839,6 +3859,21 @@ function leggiProfiloBusiness() {
     costoAttuale,
     costoBenchmark,
     risparmioStimato,
+    pdfDocumentCount: (LEAD_STATE.pdfDocuments || []).length,
+    pdfArchiveStored: (LEAD_STATE.pdfDocuments || []).some((doc) => Boolean(doc?.archive?.stored)),
+    pdfAnalysisIds: (LEAD_STATE.pdfDocuments || []).map((doc) => doc?.archive?.analysisId).filter(Boolean),
+    codiceCliente: firstValue(LEAD_STATE.pdfData?.codice_cliente, LEAD_STATE.pdfData?.codice_cliente_luce, LEAD_STATE.pdfData?.codice_cliente_gas) || "",
+    codiceClienteLuce: LEAD_STATE.pdfData?.codice_cliente_luce || "",
+    codiceClienteGas: LEAD_STATE.pdfData?.codice_cliente_gas || "",
+    pod: LEAD_STATE.pdfData?.pod || "",
+    pdr: LEAD_STATE.pdfData?.pdr || "",
+    indirizzoFornituraLuce: LEAD_STATE.pdfData?.indirizzo_fornitura_luce || LEAD_STATE.pdfData?.indirizzo_fornitura || "",
+    indirizzoFornituraGas: LEAD_STATE.pdfData?.indirizzo_fornitura_gas || "",
+    potenzaDisponibileKw: LEAD_STATE.pdfData?.potenza_disponibile_kw ?? null,
+    nomeOffertaLuce: LEAD_STATE.pdfData?.nome_offerta_luce || "",
+    codiceOffertaLuce: LEAD_STATE.pdfData?.codice_offerta_luce || "",
+    nomeOffertaGas: LEAD_STATE.pdfData?.nome_offerta_gas || "",
+    codiceOffertaGas: LEAD_STATE.pdfData?.codice_offerta_gas || "",
     metodologia: "Stima preliminare business calcolata solo con consumi annuali, prezzi commerciali e quote fisse verificati; nessun valore predefinito.",
   };
 }
@@ -3898,12 +3933,16 @@ window.calcolaBusiness = function calcolaBusiness() {
 };
 
 window.apriLeadBusiness = function apriLeadBusiness() {
-  const profile = calcolaBusiness();
-  if (!profile) return;
+  const profile = leggiProfiloBusiness();
+  LEAD_STATE.customerType = "business";
+  LEAD_STATE.dataOrigin = (LEAD_STATE.pdfDocuments || []).length ? "pdf_upload" : "business_profile";
+  LEAD_STATE.businessProfile = profile;
   trackEvent("business_lead_modal_requested", {
     customerType: "business",
-    dataOrigin: "business_profile",
-    bestSaving: profile.risparmioStimato,
+    dataOrigin: LEAD_STATE.dataOrigin,
+    bestSaving: Number(profile.risparmioStimato || 0),
+    pdfDocumentCount: profile.pdfDocumentCount,
+    pdfArchiveStored: profile.pdfArchiveStored,
   });
   const nome = document.getElementById("lead-nome");
   const telefono = document.getElementById("lead-telefono");
@@ -3929,8 +3968,8 @@ function componentiRegolateMaster(commodity) {
 }
 
 function determinaOrigineDatoLead() {
-  if (LEAD_STATE.customerType === "business") return "business_profile";
   if ((LEAD_STATE.pdfDocuments || []).length > 0) return "pdf_upload";
+  if (LEAD_STATE.customerType === "business") return "business_profile";
   if (LEAD_STATE.dataOrigin) return LEAD_STATE.dataOrigin;
   const blocchiInferiori = document.getElementById("master-blocchi-inferiori");
   return blocchiInferiori && blocchiInferiori.style.display !== "none"
@@ -6209,7 +6248,7 @@ async function inviaOtp() {
           requestType: LEAD_STATE.leadSource === "assistance_callback" ? "assistance_callback" : "comparison",
           assistanceReason: LEAD_STATE.assistance?.reason || "",
           dataStewardship: {
-            originalPdfStored: false,
+            originalPdfStored: (LEAD_STATE.pdfDocuments || []).some((doc) => Boolean(doc?.archive?.stored)),
             internalImprovement: true,
             anonymizedInsight: true,
           },
@@ -7026,6 +7065,7 @@ function accompagnaAllaRevisioneDatiPdf(data) {
 
 let PDF_PENDING_FILES = [];
 let PDF_UPLOAD_SEQUENCE = 0;
+const PDF_ARCHIVE_REPLAY_STORAGE_KEY = "offertalogicaPdfArchiveReplay";
 
 function pdfFileFingerprint(file) {
   return [file?.name || "", Number(file?.size || 0), Number(file?.lastModified || 0)].join("::");
@@ -7143,6 +7183,43 @@ function aggiornaInterfacciaSelezionePdf() {
     </li>`);
   list.hidden = false;
   list.innerHTML = `<ul class="pdf-file-list">${[...analyzedRows, ...pendingRows].join("")}</ul>`;
+}
+
+function importaAnalisiPdfDaArchivio() {
+  const params = new URLSearchParams(window.location.search || "");
+  if (params.get("pdfReplay") !== "1") return false;
+  let replay = null;
+  try { replay = JSON.parse(sessionStorage.getItem(PDF_ARCHIVE_REPLAY_STORAGE_KEY) || "null"); } catch {}
+  if (!replay?.normalized || typeof replay.normalized !== "object") return false;
+  const doc = {
+    filename: replay.filename || "documento-archivio.pdf",
+    upload_id: `archive-${replay.analysisId || Date.now()}`,
+    file_fingerprint: `archive::${replay.analysisId || replay.filename || Date.now()}`,
+    ...replay.normalized,
+    archive: { stored: true, analysisId: replay.analysisId || null, replay: true },
+  };
+  LEAD_STATE.pdfDocuments = [doc];
+  LEAD_STATE.pdfData = mergePdfDocuments(LEAD_STATE.pdfDocuments);
+  LEAD_STATE.dataOrigin = "pdf_archive_replay";
+  const panel = document.getElementById("pdf-review-static");
+  const copy = document.getElementById("pdf-review-copy");
+  const notice = document.getElementById("pdf-upload-context-notice");
+  if (panel) panel.style.display = "block";
+  if (copy) copy.innerHTML = renderPdfSummary(LEAD_STATE.pdfDocuments, LEAD_STATE.pdfData);
+  if (notice) {
+    notice.hidden = false;
+    notice.innerHTML = '<span class="pdf-context-icon" aria-hidden="true">✓</span><span><strong>Risultato riutilizzato dall’archivio.</strong> Nessuna nuova chiamata IA è stata eseguita e non è stato sostenuto alcun nuovo costo di lettura.</span>';
+  }
+  aggiornaInterfacciaSelezionePdf();
+  configuraConfermaPdfPronta(LEAD_STATE.pdfDocuments);
+  aggiornaAssistenteAttivazioneVisibilita();
+  try { sessionStorage.removeItem(PDF_ARCHIVE_REPLAY_STORAGE_KEY); } catch {}
+  try {
+    const cleanUrl = new URL(window.location.href);
+    cleanUrl.searchParams.delete("pdfReplay");
+    window.history.replaceState({}, document.title, `${cleanUrl.pathname}${cleanUrl.search}${cleanUrl.hash}`);
+  } catch {}
+  return true;
 }
 
 window.apriSelettorePdf = function apriSelettorePdf() {
@@ -7337,16 +7414,12 @@ window.confermaPdfECalcola = async function confermaPdfECalcola() {
       vaiAlCaricatoreScheda();
       return;
     }
-    const businessProfile = window.calcolaBusiness?.() || null;
+    LEAD_STATE.businessProfile = leggiProfiloBusiness();
     if (copy) {
-      if (businessProfile) {
-        copy.innerText = "I dati business selezionati sono stati inseriti e il risultato preliminare è stato calcolato. Controlla consumi, prezzi e quote fisse prima di richiedere la verifica consulenziale.";
-      } else if (Array.isArray(selectedAutofillRows) && selectedAutofillRows.length === 0) {
-        copy.innerText = "Nessun campo business è stato applicato. Seleziona almeno il consumo annuo letto oppure inseriscilo manualmente per ottenere il risultato.";
-      } else {
-        const missing = leggiProfiloBusiness().campiMancanti || [];
-        copy.innerText = `La bolletta business è stata letta, ma il confronto non è stato calcolato. Completa o verifica ${missing.length ? missing.join(", ") : "i dati economici richiesti"}. Consumi del periodo, costi medi e periodicità non dimostrate non vengono usati e nessun valore predefinito viene inserito.`;
-      }
+      const archiveStored = (LEAD_STATE.pdfDocuments || []).some((doc) => Boolean(doc?.archive?.stored));
+      copy.innerText = archiveStored
+        ? "Bolletta business acquisita e salvata. I dati principali letti sono mostrati nel pannello aziendale e restano associati al PDF originale per la verifica del consulente. Non è necessario completare il confronto automatico."
+        : "Bolletta business acquisita. I dati principali letti sono mostrati nel pannello aziendale; verifica nell’archivio staff che il PDF originale risulti salvato prima di inoltrare la pratica al consulente.";
     }
     portaElementoInVista(document.getElementById("business-panel"), { block: "start" });
     return;
@@ -7382,8 +7455,60 @@ window.confermaPdfECalcola = async function confermaPdfECalcola() {
   accompagnaAllaRevisioneDatiPdf(data);
 };
 
+function businessPdfDataRows(data) {
+  const rows = [];
+  const add = (label, ...values) => {
+    const value = firstValue(...values);
+    if (value === undefined || value === null || String(value).trim() === "") return;
+    rows.push({ label, value });
+  };
+  add("Fornitore luce", data?.fornitore_luce, data?.commodity === "luce" ? data?.fornitore : "");
+  add("Fornitore gas", data?.fornitore_gas, data?.commodity === "gas" ? data?.fornitore : "");
+  add("Ragione sociale", data?.intestatario);
+  add("Partita IVA / Codice fiscale", data?.codice_fiscale);
+  const commonCustomerCode = data?.codice_cliente;
+  if (commonCustomerCode) add("Codice cliente", commonCustomerCode);
+  else {
+    add("Codice cliente luce", data?.codice_cliente_luce);
+    add("Codice cliente gas", data?.codice_cliente_gas);
+  }
+  add("POD", data?.pod);
+  add("PDR", data?.pdr);
+  add("Indirizzo luce", data?.indirizzo_fornitura_luce, data?.commodity === "luce" ? data?.indirizzo_fornitura : "");
+  add("Indirizzo gas", data?.indirizzo_fornitura_gas, data?.commodity === "gas" ? data?.indirizzo_fornitura : "");
+  add("Potenza impegnata", data?.potenza_impegnata_kw !== undefined && data?.potenza_impegnata_kw !== null ? `${data.potenza_impegnata_kw} kW` : "");
+  add("Potenza disponibile", data?.potenza_disponibile_kw !== undefined && data?.potenza_disponibile_kw !== null ? `${data.potenza_disponibile_kw} kW` : "");
+  add("Offerta luce", data?.nome_offerta_luce);
+  add("Codice offerta luce", data?.codice_offerta_luce);
+  add("Tipo prezzo luce", data?.tipo_prezzo_luce);
+  add("Indice luce", data?.indice_riferimento_luce);
+  add("Offerta gas", data?.nome_offerta_gas);
+  add("Codice offerta gas", data?.codice_offerta_gas);
+  add("Tipo prezzo gas", data?.tipo_prezzo_gas);
+  add("Indice gas", data?.indice_riferimento_gas);
+  return rows;
+}
+
+function renderBusinessPdfData(data) {
+  const panel = document.getElementById("business-pdf-summary");
+  const grid = document.getElementById("business-pdf-summary-grid");
+  const status = document.getElementById("business-pdf-summary-status");
+  if (!panel || !grid || !status) return;
+  const rows = businessPdfDataRows(data);
+  const documents = LEAD_STATE.pdfDocuments || [];
+  const archived = documents.filter((doc) => Boolean(doc?.archive?.stored));
+  panel.hidden = rows.length === 0 && archived.length === 0;
+  grid.innerHTML = rows.map((row) => `
+    <div class="business-pdf-summary-row"><span>${testoHtmlSicuro(row.label)}</span><strong>${testoHtmlSicuro(row.value)}</strong></div>
+  `).join("");
+  status.innerHTML = archived.length
+    ? `<strong>PDF originale salvato:</strong> ${archived.length === 1 ? "documento disponibile" : `${archived.length} documenti disponibili`} nell’archivio staff. I dati sopra sono già associati alla pratica e saranno verificati dal consulente.`
+    : "I dati sono stati acquisiti, ma il response non conferma il salvataggio del PDF nell’archivio. Il consulente dovrà controllare la presenza del documento originale.";
+}
+
 function applicaDatiPdfAlBusiness(data) {
   if (!data) return;
+  renderBusinessPdfData(data);
   const selectedRows = arguments.length > 1 ? arguments[1] : null;
   if (Array.isArray(selectedRows)) {
     applicaRigheAutocompilazionePdf(selectedRows);
@@ -8611,6 +8736,12 @@ window.azzeraPdfEModulo = function azzeraPdfEModulo() {
   LEAD_STATE.partnerConsent = false;
   LEAD_STATE.activationAssistant = { pendingUrl: "", offer: null };
   LEAD_STATE.businessProfile = null;
+  const businessPdfSummary = document.getElementById("business-pdf-summary");
+  const businessPdfGrid = document.getElementById("business-pdf-summary-grid");
+  const businessPdfStatus = document.getElementById("business-pdf-summary-status");
+  if (businessPdfSummary) businessPdfSummary.hidden = true;
+  if (businessPdfGrid) businessPdfGrid.innerHTML = "";
+  if (businessPdfStatus) businessPdfStatus.innerHTML = "";
   NUOVA_OFFERTA_AUTOMATICA = null;
   modalitaCalcolo = "manuale";
   pulisciGuidePercorsoPdf();
@@ -9238,6 +9369,7 @@ function collegaEventiUX() {
   inizializzaModalitaStaff();
   inizializzaSelectFornitoreGas();
   applicaAmbitoConfronto(leggiValore("master-tipo-fornitura", "dual"));
+  importaAnalisiPdfDaArchivio();
 
   const btnPrivato = document.getElementById("btn-segmento-privato");
   const btnBusiness = document.getElementById("btn-segmento-business");
