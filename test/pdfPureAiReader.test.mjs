@@ -62,7 +62,7 @@ function electricityOutput() {
   };
 }
 
-test("buildPdfPureAiRequest invia direttamente il PDF originale", async () => {
+test("buildPdfPureAiRequest invia il PDF con schema compatto per il confronto", async () => {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "pure-ai-native-"));
   const filePath = path.join(dir, "bolletta.pdf");
   await fs.writeFile(filePath, "%PDF-test");
@@ -74,13 +74,16 @@ test("buildPdfPureAiRequest invia direttamente il PDF originale", async () => {
   assert.equal(request.text.format.type, "json_schema");
   assert.equal(request.text.format.strict, true);
   assert.equal(request.store, false);
-  assert.equal(request.max_output_tokens, 3400);
-  assert.equal(request.text.format.schema.properties.answers.minItems, 0);
-  assert.equal(request.text.format.schema.properties.answers.maxItems, PDF_PURE_AI_QUESTION_IDS.length);
-  assert.deepEqual(
-    request.text.format.schema.properties.answers.items.required,
-    ["question_id", "found", "value_text", "value_number", "unit", "period", "page", "label", "evidence", "confidence"],
-  );
+  assert.equal(request.max_output_tokens, 1800);
+  assert.deepEqual(request.text.format.schema.required, ["document", "electricity", "gas"]);
+  assert.ok(request.text.format.schema.properties.electricity.properties.annual_consumption);
+  assert.ok(request.text.format.schema.properties.electricity.properties.price);
+  assert.ok(request.text.format.schema.properties.electricity.properties.fixed_fee);
+  assert.equal(request.text.format.schema.properties.answers, undefined);
+  assert.match(content[1].text, /consumo annuo/i);
+  assert.match(content[1].text, /prezzo commerciale/i);
+  assert.match(content[1].text, /quota fissa/i);
+  assert.doesNotMatch(content[1].text, /consumo_luce_kwh|prezzo_luce_f0_eur_kwh|quota_fissa_vendita_luce/i);
   await fs.rm(dir, { recursive: true, force: true });
 });
 
@@ -103,56 +106,34 @@ test("normalizePureAiOutput accetta una risposta sparsa e conserva i dati parzia
   assert.equal(normalized.ai.accepted_count >= 8, true);
 });
 
-test("richiesta essential riduce domande e output rispetto al profilo completo", async () => {
-  const full = await buildPdfPureAiRequest({ fileId: "file_test", profile: "full" });
-  const essential = await buildPdfPureAiRequest({ fileId: "file_test", profile: "essential" });
-  const fullQuestions = full.text.format.schema.properties.answers.items.properties.question_id.enum;
-  const essentialQuestions = essential.text.format.schema.properties.answers.items.properties.question_id.enum;
-
-  assert.equal(full.max_output_tokens, 3400);
-  assert.equal(essential.max_output_tokens, 1800);
-  assert.equal(essentialQuestions.length < fullQuestions.length, true);
-  assert.equal(essentialQuestions.includes("consumo_luce_kwh"), true);
-  assert.equal(essentialQuestions.includes("prezzo_gas_eur_smc"), true);
-  assert.equal(essentialQuestions.includes("decorrenza_condizioni_economiche_luce"), false);
-  assert.match(essential.input[1].content[1].text, /RECUPERO RAPIDO/);
+test("richiesta unica: non esistono più profili full ed essential duplicati", async () => {
+  const first = await buildPdfPureAiRequest({ fileId: "file_test", profile: "full" });
+  const second = await buildPdfPureAiRequest({ fileId: "file_test", profile: "essential" });
+  assert.equal(first.max_output_tokens, 1800);
+  assert.equal(second.max_output_tokens, 1800);
+  assert.deepEqual(first.text.format.schema, second.text.format.schema);
+  assert.equal(first.text.format.name, "offertalogica_comparison_essentials");
+  assert.equal(first.text.format.schema.properties.answers, undefined);
 });
 
-test("timeout primario: esegue un recupero essenziale e restituisce una lettura parziale", async () => {
-  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "pure-ai-timeout-recovery-"));
-  const filePath = path.join(dir, "sorgenia.pdf");
+test("timeout: esegue una sola chiamata e non avvia un secondo tentativo costoso", async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "pure-ai-timeout-single-"));
+  const filePath = path.join(dir, "documento.pdf");
   await fs.writeFile(filePath, "%PDF-test");
-  const sparse = electricityOutput();
-  sparse.answers = sparse.answers.filter((item) => item.found && [
-    "fornitore", "customer_type", "intestatario", "codice_fiscale", "pod",
-    "potenza_impegnata_kw", "nome_offerta_luce",
-  ].includes(item.question_id));
-  const calls = [];
-
-  const normalized = await extractPdfPureAi({
-    filePath,
-    apiKey: "test-key",
-    model: "gpt-4.1-2025-04-14",
-    env: {
-      PDF_AI_TIMEOUT_MS: "12000",
-      PDF_AI_RECOVERY_TIMEOUT_MS: "8000",
-    },
-    transport: async ({ request, profile }) => {
-      calls.push({ profile, model: request.model, maxTokens: request.max_output_tokens });
-      if (profile === "full") throw new Error("openai_timeout");
-      return { id: "resp_recovery", output_text: JSON.stringify(sparse) };
-    },
-  });
-
-  assert.deepEqual(calls.map((item) => item.profile), ["full", "essential"]);
-  assert.equal(calls[1].model, "gpt-4.1-mini-2025-04-14");
-  assert.equal(calls[1].maxTokens, 1800);
-  assert.equal(normalized.fornitore, "Hera Comm");
-  assert.equal(normalized.pod, "IT001E12345678");
-  assert.equal(normalized.ai.request_profile, "essential");
-  assert.equal(normalized.ai.recovery_attempted, true);
-  assert.match(normalized.ai.recovered_from, /openai_timeout/);
-  assert.equal(normalized.ai.openai_attempts, 2);
+  let calls = 0;
+  await assert.rejects(
+    extractPdfPureAi({
+      filePath,
+      apiKey: "test-key",
+      env: { PDF_AI_TIMEOUT_MS: "9000" },
+      transport: async () => {
+        calls += 1;
+        throw new Error("openai_timeout");
+      },
+    }),
+    /openai_timeout/,
+  );
+  assert.equal(calls, 1);
   await fs.rm(dir, { recursive: true, force: true });
 });
 
@@ -279,35 +260,8 @@ test("usa PDF_AI_PRIMARY_MODEL senza ereditare la vecchia variabile shadow", asy
   await fs.rm(dir, { recursive: true, force: true });
 });
 
-test("retry mirato: un HTTP 500 OpenAI viene ritentato una sola volta e poi può riuscire", async () => {
-  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "pure-ai-retry-500-"));
-  const filePath = path.join(dir, "bolletta.pdf");
-  await fs.writeFile(filePath, "%PDF-test");
-  let attempts = 0;
-  const normalized = await extractPdfPureAi({
-    filePath,
-    apiKey: "test-key",
-    env: { PDF_AI_TIMEOUT_MS: "12000", PDF_AI_RETRY_DELAY_MS: "0" },
-    transport: async () => {
-      attempts += 1;
-      if (attempts === 1) {
-        return new Response(JSON.stringify({ error: { message: "temporary server error" } }), {
-          status: 500,
-          headers: { "content-type": "application/json" },
-        });
-      }
-      return { id: "resp_retry_success", output_text: JSON.stringify(electricityOutput()) };
-    },
-  });
-  assert.equal(attempts, 2);
-  assert.equal(normalized.ai.openai_attempts, 2);
-  assert.equal(normalized.ai.retry_count, 1);
-  assert.equal(normalized.consumo_luce_kwh, 2740);
-  await fs.rm(dir, { recursive: true, force: true });
-});
-
-test("retry mirato: due HTTP 500 OpenAI producono errore dopo esattamente due tentativi", async () => {
-  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "pure-ai-retry-double-500-"));
+test("HTTP 500: non ripete automaticamente una chiamata a pagamento", async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "pure-ai-no-retry-500-"));
   const filePath = path.join(dir, "bolletta.pdf");
   await fs.writeFile(filePath, "%PDF-test");
   let attempts = 0;
@@ -315,7 +269,7 @@ test("retry mirato: due HTTP 500 OpenAI producono errore dopo esattamente due te
     extractPdfPureAi({
       filePath,
       apiKey: "test-key",
-      env: { PDF_AI_TIMEOUT_MS: "12000", PDF_AI_RETRY_DELAY_MS: "0" },
+      env: { PDF_AI_TIMEOUT_MS: "12000" },
       transport: async () => {
         attempts += 1;
         return new Response(JSON.stringify({ error: { message: "temporary server error" } }), {
@@ -326,7 +280,31 @@ test("retry mirato: due HTTP 500 OpenAI producono errore dopo esattamente due te
     }),
     /openai_http_500/,
   );
-  assert.equal(attempts, 2);
+  assert.equal(attempts, 1);
+  await fs.rm(dir, { recursive: true, force: true });
+});
+
+test("HTTP 500: l'errore viene restituito dopo un solo tentativo", async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "pure-ai-single-500-"));
+  const filePath = path.join(dir, "bolletta.pdf");
+  await fs.writeFile(filePath, "%PDF-test");
+  let attempts = 0;
+  await assert.rejects(
+    extractPdfPureAi({
+      filePath,
+      apiKey: "test-key",
+      env: { PDF_AI_TIMEOUT_MS: "12000" },
+      transport: async () => {
+        attempts += 1;
+        return new Response(JSON.stringify({ error: { message: "temporary server error" } }), {
+          status: 500,
+          headers: { "content-type": "application/json" },
+        });
+      },
+    }),
+    /openai_http_500/,
+  );
+  assert.equal(attempts, 1);
   await fs.rm(dir, { recursive: true, force: true });
 });
 
@@ -446,52 +424,34 @@ test("PDF piccolo: conserva il trasporto inline e non usa la Files API", async (
   await fs.rm(dir, { recursive: true, force: true });
 });
 
-test("PDF grande: il retry 500 riusa lo stesso file_id senza ripetere l'upload", async () => {
-  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "pure-ai-file-id-retry-"));
+test("PDF grande: una risposta valida usa un solo upload e una sola analisi", async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "pure-ai-file-id-single-"));
   const filePath = path.join(dir, "bolletta-grande.pdf");
   await fs.writeFile(filePath, Buffer.concat([Buffer.from("%PDF-test\n"), Buffer.alloc(1_100_000)]));
   let uploadCalls = 0;
   let responseCalls = 0;
   let deleteCalls = 0;
-  const seenFileIds = [];
   const normalized = await extractPdfPureAi({
     filePath,
     apiKey: "test-key",
-    env: {
-      PDF_AI_TIMEOUT_MS: "20000",
-      PDF_AI_RETRY_DELAY_MS: "0",
-      PDF_AI_FILE_ID_THRESHOLD_BYTES: "1000000",
-    },
-    fileUploadTransport: async () => {
-      uploadCalls += 1;
-      return { id: "file_retry_test" };
-    },
+    env: { PDF_AI_TIMEOUT_MS: "20000", PDF_AI_FILE_ID_THRESHOLD_BYTES: "1000000" },
+    fileUploadTransport: async () => { uploadCalls += 1; return { id: "file_single_test" }; },
     transport: async ({ request }) => {
       responseCalls += 1;
-      seenFileIds.push(request.input[1].content.find((item) => item.type === "input_file").file_id);
-      if (responseCalls === 1) {
-        return new Response(JSON.stringify({ error: { message: "temporary server error" } }), {
-          status: 500,
-          headers: { "content-type": "application/json" },
-        });
-      }
-      return { id: "resp_retry_file_id", output_text: JSON.stringify(electricityOutput()) };
+      assert.equal(request.input[1].content.find((item) => item.type === "input_file").file_id, "file_single_test");
+      return { id: "resp_single_file_id", output_text: JSON.stringify(electricityOutput()) };
     },
-    fileDeleteTransport: async () => {
-      deleteCalls += 1;
-      return { deleted: true };
-    },
+    fileDeleteTransport: async () => { deleteCalls += 1; return { deleted: true }; },
   });
   assert.equal(uploadCalls, 1);
-  assert.equal(responseCalls, 2);
-  assert.deepEqual(seenFileIds, ["file_retry_test", "file_retry_test"]);
+  assert.equal(responseCalls, 1);
   assert.equal(deleteCalls, 1);
-  assert.equal(normalized.ai.openai_attempts, 2);
-  assert.equal(normalized.ai.retry_count, 1);
+  assert.equal(normalized.ai.openai_attempts, 1);
+  assert.equal(normalized.ai.retry_count, 0);
   await fs.rm(dir, { recursive: true, force: true });
 });
 
-test("PDF grande: anche dopo due HTTP 500 il file temporaneo OpenAI viene cancellato", async () => {
+test("PDF grande: dopo un HTTP 500 il file temporaneo OpenAI viene cancellato", async () => {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "pure-ai-file-id-fail-cleanup-"));
   const filePath = path.join(dir, "bolletta-grande.pdf");
   await fs.writeFile(filePath, Buffer.concat([Buffer.from("%PDF-test\n"), Buffer.alloc(1_100_000)]));
@@ -502,15 +462,8 @@ test("PDF grande: anche dopo due HTTP 500 il file temporaneo OpenAI viene cancel
     extractPdfPureAi({
       filePath,
       apiKey: "test-key",
-      env: {
-        PDF_AI_TIMEOUT_MS: "20000",
-        PDF_AI_RETRY_DELAY_MS: "0",
-        PDF_AI_FILE_ID_THRESHOLD_BYTES: "1000000",
-      },
-      fileUploadTransport: async () => {
-        uploadCalls += 1;
-        return { id: "file_fail_cleanup" };
-      },
+      env: { PDF_AI_TIMEOUT_MS: "20000", PDF_AI_FILE_ID_THRESHOLD_BYTES: "1000000" },
+      fileUploadTransport: async () => { uploadCalls += 1; return { id: "file_fail_cleanup" }; },
       transport: async () => {
         responseCalls += 1;
         return new Response(JSON.stringify({ error: { message: "temporary server error" } }), {
@@ -518,16 +471,12 @@ test("PDF grande: anche dopo due HTTP 500 il file temporaneo OpenAI viene cancel
           headers: { "content-type": "application/json" },
         });
       },
-      fileDeleteTransport: async ({ fileId }) => {
-        deleteCalls += 1;
-        assert.equal(fileId, "file_fail_cleanup");
-        return { deleted: true };
-      },
+      fileDeleteTransport: async () => { deleteCalls += 1; return { deleted: true }; },
     }),
     /openai_http_500/,
   );
   assert.equal(uploadCalls, 1);
-  assert.equal(responseCalls, 2);
+  assert.equal(responseCalls, 1);
   assert.equal(deleteCalls, 1);
   await fs.rm(dir, { recursive: true, force: true });
 });

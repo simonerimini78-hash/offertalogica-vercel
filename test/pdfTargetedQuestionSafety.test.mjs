@@ -305,25 +305,26 @@ test("scheda sintetica: non sostituisce l'offerta corrente con la tariffa di rin
   assert.equal(rejectedReason(normalized, "indice_riferimento_luce"), "semantic_offer_field_not_contract_term");
 });
 
-test("richiesta IA: schema e prompt impongono domande mirate e verifica della fonte", async () => {
+test("richiesta IA: schema compatto limita il lavoro ai dati necessari al confronto", async () => {
   const request = await buildPdfPureAiRequest({ fileId: "file_test", filename: "documento.pdf" });
-  const systemPrompt = request.input[0].content[0].text;
-  const userPrompt = request.input[1].content[1].text;
-  const answerProperties = request.text.format.schema.properties.answers.items.properties;
-
-  assert.equal(PDF_PURE_AI_READER_VERSION, "pure-ai-native-pdf-v1.0.9");
-  assert.match(systemPrompt, /da inizio fornitura/);
-  assert.match(systemPrompt, /spesa annua stimata/);
-  assert.match(systemPrompt, /rinnov[oi] futur/);
-  assert.match(userPrompt, /consumo totale della luce riferito realmente a 12 mesi completi/);
-  assert.match(userPrompt, /nome commerciale esatto dell'offerta luce/);
-  assert.equal(answerProperties.source_role, undefined);
-  assert.equal(answerProperties.usable_for_comparison, undefined);
-  assert.equal(answerProperties.certainty, undefined);
-  assert.equal(answerProperties.coverage_months, undefined);
-  assert.equal(request.text.format.schema.properties.answers.minItems, 0);
-  assert.match(systemPrompt, /lettura parziale è valida/);
-  assert.match(systemPrompt, /inserisci soltanto le risposte effettivamente trovate/);
+  const schema = request.text.format.schema;
+  const electricity = schema.properties.electricity.properties;
+  const gas = schema.properties.gas.properties;
+  assert.deepEqual(schema.required, ["document", "electricity", "gas"]);
+  assert.ok(electricity.annual_consumption);
+  assert.ok(electricity.price);
+  assert.ok(electricity.fixed_fee);
+  assert.ok(gas.annual_consumption);
+  assert.ok(gas.price);
+  assert.ok(gas.fixed_fee);
+  assert.equal(schema.properties.answers, undefined);
+  assert.equal(request.max_output_tokens, 1800);
+  const prompt = request.input[0].content[0].text + "\n" + request.input[1].content[1].text;
+  assert.match(prompt, /consumo annuo/i);
+  assert.match(prompt, /prezzo commerciale/i);
+  assert.match(prompt, /quota fissa commerciale/i);
+  assert.match(prompt, /non cercare POD\/PDR/i);
+  assert.match(prompt, /rinnovi futuri/i);
 });
 
 
