@@ -403,17 +403,6 @@
         .business-result strong { display: block; font-size: 20px; margin-bottom: 6px; }
         .business-result p { margin: 0 0 10px; color: #166534; font-size: 14px; }
         .business-error { color: var(--danger); font-size: 13px; margin-top: 10px; display: none; }
-        .business-pdf-summary { margin: 0 0 16px; padding: 15px; border: 1px solid #bfdbfe; border-radius: 11px; background: #f8fbff; }
-        .business-pdf-summary[hidden] { display: none !important; }
-        .business-pdf-summary-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
-        .business-pdf-summary-head strong { display: block; color: #1e3a8a; font-size: 15px; }
-        .business-pdf-summary-head small { display: block; margin-top: 2px; color: var(--text-muted); line-height: 1.4; }
-        .business-pdf-summary-badge { flex: 0 0 auto; padding: 5px 8px; border-radius: 999px; background: #dbeafe; color: #1d4ed8; font-size: 10px; font-weight: 900; }
-        .business-pdf-summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; }
-        .business-pdf-summary-row { min-width: 0; padding: 9px 10px; border: 1px solid #dbeafe; border-radius: 9px; background: #fff; }
-        .business-pdf-summary-row span { display: block; color: var(--text-muted); font-size: 10px; font-weight: 750; }
-        .business-pdf-summary-row strong { display: block; margin-top: 2px; color: var(--text-color); font-size: 12px; overflow-wrap: anywhere; }
-        .business-pdf-summary-status { margin-top: 10px; color: #334155; font-size: 11px; line-height: 1.45; }
 
         @media (max-width: 700px) {
             .choice-grid, .segment-switch { grid-template-columns: 1fr; }
@@ -1787,17 +1776,8 @@
     </div>
 
     <div class="business-panel" id="business-panel">
-        <h3>Pratica aziendale e verifica consulenziale</h3>
-        <p>Salviamo la bolletta e i dati principali rilevati. Il consulente controllerà sul documento originale consumi e condizioni economiche prima di formulare il confronto.</p>
-
-        <section class="business-pdf-summary" id="business-pdf-summary" aria-live="polite" hidden>
-            <div class="business-pdf-summary-head">
-                <div><strong>Dati rilevati dalla bolletta</strong><small>Non devi copiarli da altri servizi. Restano collegati al PDF originale per la verifica del consulente.</small></div>
-                <span class="business-pdf-summary-badge">Pratica acquisita</span>
-            </div>
-            <div class="business-pdf-summary-grid" id="business-pdf-summary-grid"></div>
-            <div class="business-pdf-summary-status" id="business-pdf-summary-status"></div>
-        </section>
+        <h3>Analisi aziendale luce e gas</h3>
+        <p>Per le aziende il confronto dipende da potenza, fasce orarie e profilo di consumo. Qui stimiamo il margine e raccogliamo i dati per una verifica consulenziale.</p>
 
         <div class="business-grid">
             <div class="business-section">
@@ -1869,7 +1849,7 @@
                     </div>
                 </div>
                 <div class="input-group">
-                    <label for="business-prezzo-luce">Prezzo commerciale luce €/kWh</label>
+                    <label for="business-prezzo-luce">Prezzo medio luce €/kWh</label>
                     <input id="business-prezzo-luce" type="number" step="0.0001" placeholder="Se noto">
                 </div>
                 <div class="input-group">
@@ -1889,19 +1869,19 @@
                     <input id="business-smc" type="number" placeholder="Lascia vuoto se non hai gas">
                 </div>
                 <div class="input-group">
-                    <label for="business-prezzo-gas">Prezzo commerciale gas €/Smc</label>
+                    <label for="business-prezzo-gas">Prezzo medio gas €/Smc</label>
                     <input id="business-prezzo-gas" type="number" step="0.0001" placeholder="Se noto">
                 </div>
                 <div class="input-group">
                     <label for="business-fisso-gas">Quota fissa gas €/anno</label>
                     <input id="business-fisso-gas" type="number" placeholder="Se nota">
                 </div>
-                <div class="upload-note">Se carichi una bolletta business, inseriamo soltanto i dati dimostrati dal documento. Nessun prezzo, consumo annuo o costo fisso viene stimato automaticamente.</div>
+                <div class="upload-note">Se carichi una bolletta business dal box PDF, proveremo a leggere consumi e fornitore. La verifica finale resta consulenziale.</div>
             </div>
         </div>
 
         <div class="business-actions">
-            <button type="button" class="btn-action" onclick="calcolaBusiness()">Calcola solo con dati economici completi</button>
+            <button type="button" class="btn-action" onclick="calcolaBusiness()">Calcola margine business</button>
             <button type="button" class="lead-secondary" onclick="apriLeadBusiness()">Richiedi analisi aziendale</button>
             <span class="upload-note">Per offerte business reali useremo il lead verificato e la bolletta caricata.</span>
         </div>
@@ -2582,27 +2562,6 @@ let OFFERTE_ARERA_DUAL = [];
 let NUOVA_OFFERTA_AUTOMATICA = null;
 let BLOCCO_AUTOFILL_NUOVA_OFFERTA = false;
 
-function profiloPrezzoPdfVuoto() {
-  return {
-    consumiFasce: { f1: null, f2: null, f3: null, f23: null },
-    prezziFasce: { f0: null, f1: null, f2: null, f3: null, f23: null },
-    indice: "",
-    spread: null,
-    moltiplicatore: null,
-    formulaTesto: "",
-    struttura: "",
-  };
-}
-
-function statoPrezziPdfVuoto() {
-  return {
-    current: { luce: profiloPrezzoPdfVuoto(), gas: profiloPrezzoPdfVuoto() },
-    offer: { luce: profiloPrezzoPdfVuoto(), gas: profiloPrezzoPdfVuoto() },
-  };
-}
-
-let PDF_PRICING_PROFILES = statoPrezziPdfVuoto();
-
 let PARAMETRI_MASTER = {
   potenzaLuce: PARAMETRI_CALCOLO.componentiProfilo.potenzaLuceAnnua,
   regioneGas: PARAMETRI_CALCOLO.componentiProfilo.ambitoGasAnnua,
@@ -3134,32 +3093,17 @@ let OFFERTE_PROPOSTE = [
   },
 ];
 
-function normalizzaMappaFasce(input = {}) {
-  const output = {};
-  for (const fascia of ["f0", "f1", "f2", "f3", "f23"]) {
-    const value = Number(input?.[fascia]);
-    output[fascia] = Number.isFinite(value) && value >= 0 ? value : null;
-  }
-  return output;
-}
-
 function normalizzaVoceOfferta(voce) {
   if (!voce || typeof voce !== "object") return null;
   const normalized = {
     prezzoVariabile: numeroSicuro(voce.prezzoVariabile, 0),
     quotaFissaAnnua: numeroSicuro(voce.quotaFissaAnnua, 0),
-    prezziFasce: normalizzaMappaFasce(voce.prezziFasce),
   };
   if (voce.formula && typeof voce.formula === "object") {
-    const moltiplicatoreValue = Number(voce.formula.moltiplicatore);
     normalized.formula = {
       tipo: voce.formula.tipo || "",
       indice: voce.formula.indice || "",
       spread: numeroSicuro(voce.formula.spread, 0),
-      moltiplicatore: Number.isFinite(moltiplicatoreValue) && moltiplicatoreValue > 0 ? moltiplicatoreValue : 1,
-      moltiplicatoreEsplicito: Boolean(voce.formula.moltiplicatoreEsplicito || (Number.isFinite(moltiplicatoreValue) && moltiplicatoreValue > 0)),
-      perditeIncluse: Boolean(voce.formula.perditeIncluse),
-      testo: voce.formula.testo || "",
     };
   }
   return normalized;
@@ -3400,109 +3344,33 @@ function componentiRegolateVuote() {
 }
 
 function scenarioVuoto() {
-  return {
-    consumo: 0,
-    consumiFasce: { f1: null, f2: null, f3: null, f23: null },
-    prezzoVariabile: 0,
-    prezziFasce: { f0: null, f1: null, f2: null, f3: null, f23: null },
-    formula: null,
-    quotaFissaAnnua: 0,
-    quoteUniversaliAnnue: 0,
-    componentiRegolate: componentiRegolateVuote(),
-  };
-}
-
-function chiaveIndiceMercato(value) {
-  const source = String(value || "").toLowerCase();
-  if (/psbil|psbg/.test(source)) return "psbg";
-  if (/psv/.test(source)) return "psv";
-  if (/pun|gme|pvar/.test(source)) return "pun";
-  return source.trim();
+  return { consumo: 0, prezzoVariabile: 0, quotaFissaAnnua: 0, quoteUniversaliAnnue: 0, componentiRegolate: componentiRegolateVuote() };
 }
 
 function risolviPrezzoVariabile(voce) {
   const prezzoFallback = numeroSicuro(voce?.prezzoVariabile, 0);
-  if (voce?.formula && ["indice_spread", "indice_formula", "indice_moltiplicatore_spread"].includes(voce.formula.tipo)) {
-    const key = chiaveIndiceMercato(voce.formula.indice || voce.formula.testo);
-    const indice = INDICI_MERCATO[key]?.valore;
+  if (voce?.formula?.tipo === "indice_spread") {
+    const indice = INDICI_MERCATO[voce.formula.indice]?.valore;
     const spread = Number(voce.formula.spread || 0);
-    const multiplier = Number(voce.formula.moltiplicatore || 1);
-    if (Number.isFinite(indice) && indice > 0 && Number.isFinite(multiplier) && multiplier > 0 && Number.isFinite(spread)) {
-      return indice * multiplier + spread;
-    }
+    if (Number.isFinite(indice) && indice > 0) return indice + spread;
   }
+
   return prezzoFallback;
 }
 
 function tipoPrezzoVoce(voce, tipoTariffa) {
-  if (voce?.formula && ["indice_spread", "indice_formula", "indice_moltiplicatore_spread"].includes(voce.formula.tipo)) return "variabile";
+  if (voce?.formula?.tipo === "indice_spread") return "variabile";
   return tipoTariffa || "fisso";
 }
 
-function numeroFascia(input, fascia) {
-  const value = Number(input?.[fascia]);
-  return Number.isFinite(value) && value >= 0 ? value : null;
-}
-
-function consumiFasceNormalizzati(input = {}) {
-  const result = {
-    f1: numeroFascia(input, "f1"),
-    f2: numeroFascia(input, "f2"),
-    f3: numeroFascia(input, "f3"),
-    f23: numeroFascia(input, "f23"),
-  };
-  if (result.f23 === null && result.f2 !== null && result.f3 !== null) result.f23 = result.f2 + result.f3;
-  return result;
-}
-
-function prezziFasceNormalizzati(input = {}, prezzoMonorario = 0) {
-  const result = {};
-  for (const fascia of ["f0", "f1", "f2", "f3", "f23"]) result[fascia] = numeroFascia(input, fascia);
-  const mono = Number(prezzoMonorario);
-  if (result.f0 === null && Number.isFinite(mono) && mono > 0) result.f0 = mono;
-  return result;
-}
-
-function calcolaMateriaPerFasce(consumiInput, prezziInput) {
-  const consumi = consumiFasceNormalizzati(consumiInput);
-  const prezzi = prezziFasceNormalizzati(prezziInput);
-  if ([consumi.f1, consumi.f2, consumi.f3, prezzi.f1, prezzi.f2, prezzi.f3].every((value) => value !== null)) {
-    const consumo = consumi.f1 + consumi.f2 + consumi.f3;
-    if (consumo <= 0) return { ready: false, mode: null, consumo: 0, quota: 0, prezzoEffettivo: 0 };
-    const quota = consumi.f1 * prezzi.f1 + consumi.f2 * prezzi.f2 + consumi.f3 * prezzi.f3;
-    return { ready: true, mode: "f1_f2_f3", consumo, quota, prezzoEffettivo: quota / consumo };
-  }
-  if ([consumi.f1, consumi.f23, prezzi.f1, prezzi.f23].every((value) => value !== null)) {
-    const consumo = consumi.f1 + consumi.f23;
-    if (consumo <= 0) return { ready: false, mode: null, consumo: 0, quota: 0, prezzoEffettivo: 0 };
-    const quota = consumi.f1 * prezzi.f1 + consumi.f23 * prezzi.f23;
-    return { ready: true, mode: "f1_f23", consumo, quota, prezzoEffettivo: quota / consumo };
-  }
-  return { ready: false, mode: null, consumo: 0, quota: 0, prezzoEffettivo: 0 };
-}
-
-function formulaIncludePerdite(formula) {
-  if (!formula) return false;
-  if (formula.perditeIncluse || formula.moltiplicatoreEsplicito) return true;
-  return /lord[oa].{0,30}perdite|perdite.{0,30}incluse/i.test(String(formula.testo || ""));
-}
-
-function calcolaVoceEnergia({ consumo = 0, consumiFasce, prezzoVariabile = 0, prezziFasce, formula, quotaFissaAnnua = 0, quoteUniversaliAnnue = 0, componentiRegolate, tipoTariffa, commodity }) {
-  const consumoTotaleInserito = Math.max(0, numeroSicuro(consumo, 0));
+function calcolaVoceEnergia({ consumo = 0, prezzoVariabile = 0, formula, quotaFissaAnnua = 0, quoteUniversaliAnnue = 0, componentiRegolate, tipoTariffa, commodity }) {
+  const consumoProfilo = Math.max(0, numeroSicuro(consumo, 0));
   const tipoVoce = tipoPrezzoVoce({ formula }, tipoTariffa);
-  const bandCalculation = commodity === "luce" && !formula
-    ? calcolaMateriaPerFasce(consumiFasce, prezziFasceNormalizzati(prezziFasce, prezzoVariabile))
-    : { ready: false, mode: null, consumo: 0, quota: 0, prezzoEffettivo: 0 };
-  const usaFasce = bandCalculation.ready;
-  const consumoProfilo = usaFasce ? bandCalculation.consumo : consumoTotaleInserito;
-  const perditeGiaNellaFormula = formulaIncludePerdite(formula);
-  const fattorePerdite = commodity === "luce" && tipoVoce === "variabile" && !perditeGiaNellaFormula
-    ? PERDITE_RETE_LUCE_VARIABILE
-    : 1;
-  const prezzoCalcolo = usaFasce ? bandCalculation.prezzoEffettivo : risolviPrezzoVariabile({ prezzoVariabile, formula });
-  const consumoFatturato = usaFasce ? consumoProfilo : consumoProfilo * fattorePerdite;
-  const quotaMateria = usaFasce ? bandCalculation.quota : consumoFatturato * prezzoCalcolo;
-  const quotaFissaVendita = numeroSicuro(quotaFissaAnnua, 0);
+  const fattorePerdite = commodity === "luce" && tipoVoce === "variabile" ? PERDITE_RETE_LUCE_VARIABILE : 1;
+  const prezzoCalcolo = risolviPrezzoVariabile({ prezzoVariabile, formula });
+  const consumoFatturato = consumoProfilo * fattorePerdite;
+  const quotaMateria = consumoFatturato * prezzoCalcolo;
+  const quotaFissaVendita = Math.max(0, numeroSicuro(quotaFissaAnnua, 0));
   const quotaTecnicaProfilo = Math.max(0, numeroSicuro(quoteUniversaliAnnue, 0));
   const regolate = componentiRegolate || componentiRegolateVuote();
   const quotaRegolataVariabile = consumoFatturato * Math.max(0, numeroSicuro(regolate.variabileEurUnita, 0));
@@ -3521,9 +3389,6 @@ function calcolaVoceEnergia({ consumo = 0, consumiFasce, prezzoVariabile = 0, pr
     tipoPrezzo: tipoVoce,
     fattorePerdite,
     prezzoVariabile: prezzoCalcolo,
-    prezziFasce: prezziFasceNormalizzati(prezziFasce, prezzoVariabile),
-    consumiFasce: consumiFasceNormalizzati(consumiFasce),
-    modalitaPrezzo: usaFasce ? bandCalculation.mode : formula ? "formula" : "monorario",
     quotaMateria,
     quotaVariabile: quotaMateria,
     quotaFissaVendita,
@@ -3603,17 +3468,17 @@ function leggiValore(id, fallback = "") {
 const CAMPI_ATTUALI_ESSENZIALI = [
   { id: "in-luce-cons-att", label: "consumo annuo della luce", zeroAmmesso: false, instruction: "Inserisci il consumo annuo della luce in kWh." },
   { id: "in-luce-prezzo-att", label: "prezzo della luce", zeroAmmesso: false, instruction: "Inserisci il prezzo della luce in euro/kWh." },
-  { id: "in-luce-fisso-att", label: "costo fisso della luce", zeroAmmesso: true, negativoAmmesso: true, instruction: "Inserisci il costo fisso luce e scegli euro/mese o euro/anno." },
+  { id: "in-luce-fisso-att", label: "costo fisso della luce", zeroAmmesso: true, instruction: "Inserisci il costo fisso luce e scegli euro/mese o euro/anno." },
   { id: "in-gas-cons-att", label: "consumo annuo del gas", zeroAmmesso: false, instruction: "Inserisci il consumo annuo del gas in Smc." },
   { id: "in-gas-prezzo-att", label: "prezzo del gas", zeroAmmesso: false, instruction: "Inserisci il prezzo del gas in euro/Smc." },
-  { id: "in-gas-fisso-att", label: "costo fisso del gas", zeroAmmesso: true, negativoAmmesso: true, instruction: "Inserisci il costo fisso gas e scegli euro/mese o euro/anno." },
+  { id: "in-gas-fisso-att", label: "costo fisso del gas", zeroAmmesso: true, instruction: "Inserisci il costo fisso gas e scegli euro/mese o euro/anno." },
 ];
 
 const CAMPI_NUOVA_OFFERTA_ESSENZIALI = [
   { id: "in-luce-prezzo-nuov", label: "prezzo vendita luce della nuova offerta", zeroAmmesso: false, instruction: "Inserisci il prezzo dell'energia della proposta in euro/kWh." },
-  { id: "in-luce-fisso-nuov", label: "quota fissa luce della nuova offerta", zeroAmmesso: true, negativoAmmesso: true, instruction: "Inserisci la quota fissa luce della proposta e scegli euro/mese o euro/anno." },
+  { id: "in-luce-fisso-nuov", label: "quota fissa luce della nuova offerta", zeroAmmesso: true, instruction: "Inserisci la quota fissa luce della proposta e scegli euro/mese o euro/anno." },
   { id: "in-gas-prezzo-nuov", label: "prezzo vendita gas della nuova offerta", zeroAmmesso: false, instruction: "Inserisci il prezzo del gas della proposta in euro/Smc." },
-  { id: "in-gas-fisso-nuov", label: "quota fissa gas della nuova offerta", zeroAmmesso: true, negativoAmmesso: true, instruction: "Inserisci la quota fissa gas della proposta e scegli euro/mese o euro/anno." },
+  { id: "in-gas-fisso-nuov", label: "quota fissa gas della nuova offerta", zeroAmmesso: true, instruction: "Inserisci la quota fissa gas della proposta e scegli euro/mese o euro/anno." },
 ];
 
 
@@ -3787,7 +3652,7 @@ function statoCampoNumerico(config) {
   const element = document.getElementById(config.id);
   const raw = element ? String(element.value || "").trim().replace(",", ".") : "";
   const value = raw === "" ? NaN : Number(raw);
-  const valido = Number.isFinite(value) && (config.negativoAmmesso ? true : config.zeroAmmesso ? value >= 0 : value > 0);
+  const valido = Number.isFinite(value) && (config.zeroAmmesso ? value >= 0 : value > 0);
   return { ...config, element, raw, value, valido };
 }
 
@@ -3903,53 +3768,24 @@ function selezionaSegmentoCliente(tipo) {
   aggiornaIndicatoreProfiloPdf();
 }
 
-function leggiNumeroBusinessOpzionale(id) {
-  const element = document.getElementById(id);
-  const raw = element ? String(element.value || "").trim().replace(",", ".") : "";
-  if (raw === "") return null;
-  const value = Number.parseFloat(raw);
-  return Number.isFinite(value) ? value : null;
-}
-
 function leggiProfiloBusiness() {
-  const f1 = leggiNumeroBusinessOpzionale("business-f1");
-  const f2 = leggiNumeroBusinessOpzionale("business-f2");
-  const f3 = leggiNumeroBusinessOpzionale("business-f3");
-  const fasceCompilate = [f1, f2, f3].filter((value) => value !== null).length;
-  const fasceComplete = fasceCompilate === 3 && [f1, f2, f3].every((value) => Number.isFinite(value) && value >= 0);
-  const consumoFasce = fasceComplete ? f1 + f2 + f3 : null;
-  const consumoTotaleLuce = leggiNumeroBusinessOpzionale("business-kwh");
-  const consumoLuce = Number(consumoFasce) > 0 ? consumoFasce : consumoTotaleLuce;
-  const consumoGas = leggiNumeroBusinessOpzionale("business-smc");
-  const prezzoLuce = leggiNumeroBusinessOpzionale("business-prezzo-luce");
-  const prezzoGas = leggiNumeroBusinessOpzionale("business-prezzo-gas");
-  const fissoLuce = leggiNumeroBusinessOpzionale("business-fisso-luce");
-  const fissoGas = leggiNumeroBusinessOpzionale("business-fisso-gas");
-  const campiMancanti = [];
-
-  if (fasceCompilate > 0 && !fasceComplete) campiMancanti.push("tutte le fasce annuali F1, F2 e F3");
-  if (!(Number(consumoLuce) > 0) && !(Number(consumoGas) > 0)) campiMancanti.push("almeno un consumo annuo completo");
-  if (Number(consumoLuce) > 0) {
-    if (!(Number(prezzoLuce) > 0)) campiMancanti.push("prezzo commerciale luce");
-    if (!Number.isFinite(Number(fissoLuce))) campiMancanti.push("quota fissa commerciale luce con periodicità verificata");
-  }
-  if (Number(consumoGas) > 0) {
-    if (!(Number(prezzoGas) > 0)) campiMancanti.push("prezzo commerciale gas");
-    if (!Number.isFinite(Number(fissoGas))) campiMancanti.push("quota fissa commerciale gas con periodicità verificata");
-  }
-
-  const datiCompleti = campiMancanti.length === 0;
-  const targetLuce = datiCompleti && Number(consumoLuce) > 0
-    ? consumoLuce * 0.118 + Math.max(180, fissoLuce * 0.75)
-    : 0;
-  const targetGas = datiCompleti && Number(consumoGas) > 0
-    ? consumoGas * 0.50 + Math.max(180, fissoGas * 0.75)
-    : 0;
-  const attualeLuce = datiCompleti && Number(consumoLuce) > 0 ? consumoLuce * prezzoLuce + fissoLuce : 0;
-  const attualeGas = datiCompleti && Number(consumoGas) > 0 ? consumoGas * prezzoGas + fissoGas : 0;
-  const costoAttuale = datiCompleti ? attualeLuce + attualeGas : null;
-  const costoBenchmark = datiCompleti ? targetLuce + targetGas : null;
-  const risparmioStimato = datiCompleti ? Math.max(0, costoAttuale - costoBenchmark) : null;
+  const f1 = leggiNumero("business-f1");
+  const f2 = leggiNumero("business-f2");
+  const f3 = leggiNumero("business-f3");
+  const consumoFasce = f1 + f2 + f3;
+  const consumoLuce = consumoFasce > 0 ? consumoFasce : leggiNumero("business-kwh");
+  const consumoGas = leggiNumero("business-smc");
+  const prezzoLuce = leggiNumero("business-prezzo-luce", 0.155);
+  const prezzoGas = leggiNumero("business-prezzo-gas", 0.68);
+  const fissoLuce = leggiNumero("business-fisso-luce", consumoLuce > 0 ? 240 : 0);
+  const fissoGas = leggiNumero("business-fisso-gas", consumoGas > 0 ? 240 : 0);
+  const targetLuce = consumoLuce > 0 ? consumoLuce * 0.118 + Math.max(180, fissoLuce * 0.75) : 0;
+  const targetGas = consumoGas > 0 ? consumoGas * 0.50 + Math.max(180, fissoGas * 0.75) : 0;
+  const attualeLuce = consumoLuce > 0 ? consumoLuce * prezzoLuce + fissoLuce : 0;
+  const attualeGas = consumoGas > 0 ? consumoGas * prezzoGas + fissoGas : 0;
+  const costoAttuale = attualeLuce + attualeGas;
+  const costoBenchmark = targetLuce + targetGas;
+  const risparmioStimato = Math.max(0, costoAttuale - costoBenchmark);
 
   return {
     ragioneSociale: leggiValore("business-ragione"),
@@ -3961,35 +3797,18 @@ function leggiProfiloBusiness() {
     fornitore: leggiValore("business-fornitore"),
     fornitoreLuce: leggiValore("business-fornitore"),
     fornitoreGas: leggiValore("business-fornitore-gas"),
-    potenzaKw: leggiNumeroBusinessOpzionale("business-potenza"),
+    potenzaKw: leggiNumero("business-potenza"),
     consumoLuceKwh: consumoLuce,
-    fasce: { f1, f2, f3, complete: fasceComplete },
+    fasce: { f1, f2, f3 },
     consumoGasSmc: consumoGas,
     prezzoLuceEurKwh: prezzoLuce,
     prezzoGasEurSmc: prezzoGas,
     quotaFissaLuceAnnua: fissoLuce,
     quotaFissaGasAnnua: fissoGas,
-    datiCompleti,
-    campiMancanti,
     costoAttuale,
     costoBenchmark,
     risparmioStimato,
-    pdfDocumentCount: (LEAD_STATE.pdfDocuments || []).length,
-    pdfArchiveStored: (LEAD_STATE.pdfDocuments || []).some((doc) => Boolean(doc?.archive?.stored)),
-    pdfAnalysisIds: (LEAD_STATE.pdfDocuments || []).map((doc) => doc?.archive?.analysisId).filter(Boolean),
-    codiceCliente: firstValue(LEAD_STATE.pdfData?.codice_cliente, LEAD_STATE.pdfData?.codice_cliente_luce, LEAD_STATE.pdfData?.codice_cliente_gas) || "",
-    codiceClienteLuce: LEAD_STATE.pdfData?.codice_cliente_luce || "",
-    codiceClienteGas: LEAD_STATE.pdfData?.codice_cliente_gas || "",
-    pod: LEAD_STATE.pdfData?.pod || "",
-    pdr: LEAD_STATE.pdfData?.pdr || "",
-    indirizzoFornituraLuce: LEAD_STATE.pdfData?.indirizzo_fornitura_luce || LEAD_STATE.pdfData?.indirizzo_fornitura || "",
-    indirizzoFornituraGas: LEAD_STATE.pdfData?.indirizzo_fornitura_gas || "",
-    potenzaDisponibileKw: LEAD_STATE.pdfData?.potenza_disponibile_kw ?? null,
-    nomeOffertaLuce: LEAD_STATE.pdfData?.nome_offerta_luce || "",
-    codiceOffertaLuce: LEAD_STATE.pdfData?.codice_offerta_luce || "",
-    nomeOffertaGas: LEAD_STATE.pdfData?.nome_offerta_gas || "",
-    codiceOffertaGas: LEAD_STATE.pdfData?.codice_offerta_gas || "",
-    metodologia: "Stima preliminare business calcolata solo con consumi annuali, prezzi commerciali e quote fisse verificati; nessun valore predefinito.",
+    metodologia: "Stima preliminare business su benchmark interno, da verificare con bolletta e offerte business reali.",
   };
 }
 
@@ -4008,23 +3827,13 @@ window.calcolaBusiness = function calcolaBusiness() {
 
   if (!profile.consumoLuceKwh && !profile.consumoGasSmc) {
     trackEvent("business_calculation_missing_consumption");
-    mostraBusinessErrore("Inserisci almeno un consumo annuo realmente riferito a 12 mesi completi.");
+    mostraBusinessErrore("Inserisci almeno il consumo annuo luce o gas, oppure carica una bolletta business.");
     if (result) result.style.display = "none";
-    LEAD_STATE.bestSaving = 0;
-    return null;
-  }
-
-  if (!profile.datiCompleti) {
-    trackEvent("business_calculation_incomplete_verified_data", { missingFields: profile.campiMancanti });
-    mostraBusinessErrore(`Confronto non calcolato. Completa o verifica: ${profile.campiMancanti.join(", ")}. Nessun valore standard è stato inserito al posto dei dati mancanti.`);
-    if (result) result.style.display = "none";
-    LEAD_STATE.bestSaving = 0;
-    LEAD_STATE.businessProfile = profile;
     return null;
   }
 
   LEAD_STATE.customerType = "business";
-  LEAD_STATE.dataOrigin = determinaOrigineDatoLead() === "pdf_upload" ? "pdf_upload" : "business_profile";
+  LEAD_STATE.dataOrigin = "business_profile";
   LEAD_STATE.businessProfile = profile;
   LEAD_STATE.bestSaving = profile.risparmioStimato;
 
@@ -4036,28 +3845,24 @@ window.calcolaBusiness = function calcolaBusiness() {
       : "Profilo pronto per verifica consulenziale";
   }
   if (copy) {
-    copy.innerText = "La stima usa esclusivamente consumi annuali, prezzi commerciali e quote fisse verificati. Le offerte business reali restano soggette a controllo consulenziale.";
+    copy.innerText = "La stima business usa consumi, potenza e fasce indicate per individuare un possibile margine. Le offerte aziendali vanno confermate su bolletta e condizioni negoziate.";
   }
   if (result) result.style.display = "block";
   trackEvent("business_calculation_completed", {
     customerType: "business",
-    dataOrigin: LEAD_STATE.dataOrigin,
+    dataOrigin: "business_profile",
     bestSaving: profile.risparmioStimato,
   });
   return profile;
 };
 
 window.apriLeadBusiness = function apriLeadBusiness() {
-  const profile = leggiProfiloBusiness();
-  LEAD_STATE.customerType = "business";
-  LEAD_STATE.dataOrigin = (LEAD_STATE.pdfDocuments || []).length ? "pdf_upload" : "business_profile";
-  LEAD_STATE.businessProfile = profile;
+  const profile = calcolaBusiness();
+  if (!profile) return;
   trackEvent("business_lead_modal_requested", {
     customerType: "business",
-    dataOrigin: LEAD_STATE.dataOrigin,
-    bestSaving: Number(profile.risparmioStimato || 0),
-    pdfDocumentCount: profile.pdfDocumentCount,
-    pdfArchiveStored: profile.pdfArchiveStored,
+    dataOrigin: "business_profile",
+    bestSaving: profile.risparmioStimato,
   });
   const nome = document.getElementById("lead-nome");
   const telefono = document.getElementById("lead-telefono");
@@ -4083,8 +3888,8 @@ function componentiRegolateMaster(commodity) {
 }
 
 function determinaOrigineDatoLead() {
-  if ((LEAD_STATE.pdfDocuments || []).length > 0) return "pdf_upload";
   if (LEAD_STATE.customerType === "business") return "business_profile";
+  if ((LEAD_STATE.pdfDocuments || []).length > 0) return "pdf_upload";
   if (LEAD_STATE.dataOrigin) return LEAD_STATE.dataOrigin;
   const blocchiInferiori = document.getElementById("master-blocchi-inferiori");
   return blocchiInferiori && blocchiInferiori.style.display !== "none"
@@ -4114,89 +3919,17 @@ function leggiProfiloComparazione() {
   };
 }
 
-function profiloPrezziPdf(scope, commodity) {
-  return PDF_PRICING_PROFILES?.[scope]?.[commodity] || profiloPrezzoPdfVuoto();
-}
-
-function formulaDaProfiloPdf(scope, commodity, tipoTariffa = "") {
-  const profile = profiloPrezziPdf(scope, commodity);
-  const source = `${profile.indice || ""} ${profile.formulaTesto || ""}`;
-  const indice = chiaveIndiceMercato(source);
-  const spread = Number(profile.spread);
-  const multiplier = Number(profile.moltiplicatore);
-  const variable = ["variabile", "ibrido"].includes(String(tipoTariffa || "").toLowerCase()) || Boolean(indice && INDICI_MERCATO[indice]);
-  if (!variable || !indice || !INDICI_MERCATO[indice]) return null;
-  return {
-    tipo: Number.isFinite(multiplier) && multiplier > 0 ? "indice_moltiplicatore_spread" : "indice_spread",
-    indice,
-    spread: Number.isFinite(spread) ? spread : 0,
-    moltiplicatore: Number.isFinite(multiplier) && multiplier > 0 ? multiplier : 1,
-    moltiplicatoreEsplicito: Number.isFinite(multiplier) && multiplier > 0,
-    perditeIncluse: /lord[oa].{0,30}perdite|perdite.{0,30}incluse/i.test(profile.formulaTesto || ""),
-    testo: profile.formulaTesto || "",
-  };
-}
-
-function totaleConsumiFasce(input) {
-  const bands = consumiFasceNormalizzati(input);
-  if (bands.f1 !== null && bands.f2 !== null && bands.f3 !== null) return bands.f1 + bands.f2 + bands.f3;
-  if (bands.f1 !== null && bands.f23 !== null) return bands.f1 + bands.f23;
-  return 0;
-}
-
-function targetProfiloPdf(target) {
-  const match = String(target || "").match(/^pdf-(current|offer)-(consumo|prezzo|indice|spread|moltiplicatore|formula|struttura)-(luce|gas)(?:-(f0|f1|f2|f3|f23))?$/);
-  if (!match) return null;
-  return { scope: match[1], kind: match[2], commodity: match[3], band: match[4] || null };
-}
-
-function valoreTargetProfiloPdf(target) {
-  const parsed = targetProfiloPdf(target);
-  if (!parsed) return undefined;
-  const profile = profiloPrezziPdf(parsed.scope, parsed.commodity);
-  if (parsed.kind === "consumo") return profile.consumiFasce[parsed.band];
-  if (parsed.kind === "prezzo") return profile.prezziFasce[parsed.band];
-  if (parsed.kind === "indice") return profile.indice;
-  if (parsed.kind === "spread") return profile.spread;
-  if (parsed.kind === "moltiplicatore") return profile.moltiplicatore;
-  if (parsed.kind === "formula") return profile.formulaTesto;
-  if (parsed.kind === "struttura") return profile.struttura;
-  return undefined;
-}
-
-function impostaTargetProfiloPdf(target, value) {
-  const parsed = targetProfiloPdf(target);
-  if (!parsed) return false;
-  const profile = PDF_PRICING_PROFILES[parsed.scope][parsed.commodity];
-  if (parsed.kind === "consumo") profile.consumiFasce[parsed.band] = Number(value);
-  else if (parsed.kind === "prezzo") profile.prezziFasce[parsed.band] = Number(value);
-  else if (parsed.kind === "indice") profile.indice = String(value || "");
-  else if (parsed.kind === "spread") profile.spread = Number(value);
-  else if (parsed.kind === "moltiplicatore") profile.moltiplicatore = Number(value);
-  else if (parsed.kind === "formula") profile.formulaTesto = String(value || "");
-  else if (parsed.kind === "struttura") profile.struttura = String(value || "");
-  return true;
-}
-
 function leggiOffertaAttuale() {
   const scope = tipoFornituraPerCalcolo();
   const usaLuce = scope !== "gas";
   const usaGas = ["gas", "dual", "separate"].includes(scope);
-  const tipoTariffa = leggiValore("master-luce-tipo", "fisso");
-  const currentLuce = profiloPrezziPdf("current", "luce");
-  const currentGas = profiloPrezziPdf("current", "gas");
-  const consumoLuceManuale = leggiNumero("in-luce-cons-att", leggiNumero("master-luce-consumo", 0));
-  const consumoLuceFasce = totaleConsumiFasce(currentLuce.consumiFasce);
   return {
     provider: usaLuce ? leggiValore("nome-fornitore-att", "") : leggiValore("nome-fornitore-gas-att", ""),
     providerLuce: leggiValore("nome-fornitore-att", ""),
     providerGas: leggiValore("nome-fornitore-gas-att", ""),
     luce: usaLuce ? {
-      consumo: consumoLuceManuale || consumoLuceFasce,
-      consumiFasce: currentLuce.consumiFasce,
+      consumo: leggiNumero("in-luce-cons-att", leggiNumero("master-luce-consumo", 0)),
       prezzoVariabile: leggiNumero("in-luce-prezzo-att"),
-      prezziFasce: currentLuce.prezziFasce,
-      formula: formulaDaProfiloPdf("current", "luce", tipoTariffa),
       quotaFissaAnnua: quotaFissaAnnuaDaCampo("in-luce-fisso-att", "in-luce-fisso-att-unita"),
       quoteUniversaliAnnue: maggiorazioneMaster("luce"),
       componentiRegolate: componentiRegolateMaster("luce"),
@@ -4204,7 +3937,6 @@ function leggiOffertaAttuale() {
     gas: usaGas ? {
       consumo: leggiNumero("in-gas-cons-att", leggiNumero("master-gas-consumo", 0)),
       prezzoVariabile: leggiNumero("in-gas-prezzo-att"),
-      formula: formulaDaProfiloPdf("current", "gas", tipoTariffa),
       quotaFissaAnnua: quotaFissaAnnuaDaCampo("in-gas-fisso-att", "in-gas-fisso-att-unita"),
       quoteUniversaliAnnue: maggiorazioneMaster("gas"),
       componentiRegolate: componentiRegolateMaster("gas"),
@@ -4217,16 +3949,11 @@ function leggiNuovaOfferta(attuale) {
   const scope = tipoFornituraPerCalcolo();
   const usaLuce = scope !== "gas";
   const usaGas = ["gas", "dual", "separate"].includes(scope);
-  const tipoTariffa = leggiValore("master-luce-tipo", "fisso");
-  const offerLuce = profiloPrezziPdf("offer", "luce");
-  const offerGas = profiloPrezziPdf("offer", "gas");
   return {
     luce: usaLuce ? {
       consumo: attuale.luce.consumo,
-      consumiFasce: attuale.luce.consumiFasce,
       prezzoVariabile: leggiNumero("in-luce-prezzo-nuov"),
-      prezziFasce: fonteAuto?.luce?.prezziFasce || offerLuce.prezziFasce,
-      formula: fonteAuto?.luce?.formula || formulaDaProfiloPdf("offer", "luce", tipoTariffa),
+      formula: fonteAuto?.luce?.formula,
       quotaFissaAnnua: quotaFissaAnnuaDaCampo("in-luce-fisso-nuov", "in-luce-fisso-nuov-unita"),
       quoteUniversaliAnnue: maggiorazioneMaster("luce"),
       componentiRegolate: componentiRegolateMaster("luce"),
@@ -4234,7 +3961,7 @@ function leggiNuovaOfferta(attuale) {
     gas: usaGas ? {
       consumo: attuale.gas.consumo,
       prezzoVariabile: leggiNumero("in-gas-prezzo-nuov"),
-      formula: fonteAuto?.gas?.formula || formulaDaProfiloPdf("offer", "gas", tipoTariffa),
+      formula: fonteAuto?.gas?.formula,
       quotaFissaAnnua: quotaFissaAnnuaDaCampo("in-gas-fisso-nuov", "in-gas-fisso-nuov-unita"),
       quoteUniversaliAnnue: maggiorazioneMaster("gas"),
       componentiRegolate: componentiRegolateMaster("gas"),
@@ -4248,40 +3975,27 @@ function nuovaOffertaCompilata() {
 }
 
 function voceRichiesta(voce) {
-  return numeroSicuro(voce?.consumo, 0) > 0
-    || totaleConsumiFasce(voce?.consumiFasce) > 0
-    || numeroSicuro(voce?.prezzoVariabile, 0) > 0
-    || Boolean(voce?.formula)
-    || numeroSicuro(voce?.quotaFissaAnnua, 0) !== 0;
+  return numeroSicuro(voce?.consumo, 0) > 0 || numeroSicuro(voce?.prezzoVariabile, 0) > 0 || numeroSicuro(voce?.quotaFissaAnnua, 0) > 0;
 }
 
-function voceCalcolabile(voce, commodity) {
-  const consumo = numeroSicuro(voce?.consumo, 0) || totaleConsumiFasce(voce?.consumiFasce);
-  if (!(consumo > 0)) return false;
-  if (voce?.formula && risolviPrezzoVariabile(voce) > 0) return true;
-  if (commodity === "luce" && calcolaMateriaPerFasce(voce?.consumiFasce, prezziFasceNormalizzati(voce?.prezziFasce, voce?.prezzoVariabile)).ready) return true;
-  return numeroSicuro(voce?.prezzoVariabile, 0) > 0;
-}
-
-function voceNuovaPresente(voce, commodity = "luce") {
-  return voceCalcolabile(voce, commodity) || numeroSicuro(voce?.quotaFissaAnnua, 0) !== 0;
+function voceNuovaPresente(voce) {
+  return Boolean(voce?.formula) || numeroSicuro(voce?.prezzoVariabile, 0) > 0 || numeroSicuro(voce?.quotaFissaAnnua, 0) > 0;
 }
 
 function nuovaOffertaComparabile(attuale, nuova) {
   const luceRichiesta = voceRichiesta(attuale.luce);
   const gasRichiesto = voceRichiesta(attuale.gas);
-  return (!luceRichiesta || voceCalcolabile(nuova.luce, "luce")) && (!gasRichiesto || voceCalcolabile(nuova.gas, "gas"));
+  return (!luceRichiesta || voceNuovaPresente(nuova.luce)) && (!gasRichiesto || voceNuovaPresente(nuova.gas));
 }
 
 function offertaPropostaPerCalcolo(offerta, attuale) {
-  const usaLuce = voceRichiesta(attuale.luce);
-  const usaGas = voceRichiesta(attuale.gas);
+  const usaLuce = attuale.luce.consumo > 0 || attuale.luce.prezzoVariabile > 0 || attuale.luce.quotaFissaAnnua > 0;
+  const usaGas = attuale.gas.consumo > 0 || attuale.gas.prezzoVariabile > 0 || attuale.gas.quotaFissaAnnua > 0;
+
   return {
     luce: offerta.luce && usaLuce ? {
       consumo: attuale.luce.consumo,
-      consumiFasce: attuale.luce.consumiFasce,
       prezzoVariabile: offerta.luce.prezzoVariabile,
-      prezziFasce: offerta.luce.prezziFasce,
       formula: offerta.luce.formula,
       quotaFissaAnnua: offerta.luce.quotaFissaAnnua,
       quoteUniversaliAnnue: attuale.luce.quoteUniversaliAnnue,
@@ -4865,8 +4579,8 @@ function offertaCompatibileConRanking(offerta, tipoTariffa, tipoFornitura) {
 }
 
 function voceIndicizzataCalcolabile(voce) {
-  if (!voce?.formula) return true;
-  const indice = INDICI_MERCATO[chiaveIndiceMercato(voce.formula.indice || voce.formula.testo)]?.valore;
+  if (!voce?.formula || voce.formula.tipo !== "indice_spread") return true;
+  const indice = INDICI_MERCATO[voce.formula.indice]?.valore;
   return numeroSicuro(indice, 0) > 0 || numeroSicuro(voce.prezzoVariabile, 0) > 0;
 }
 
@@ -5104,6 +4818,35 @@ function rigaAreraDaCodice(codice) {
   return OFFERTE_ARERA_MENU.find((riga) => String(riga.codice || "").trim() === normalized && rigaAreraIdonea(riga)) || null;
 }
 
+// OFFERTALOGICA_STRICT_ARERA_SOURCE_ROUTING_20260727
+// Una fornitura dual puo usare esclusivamente un record del catalogo D.
+// I cataloghi E e G restano le sole fonti per luce, gas e combinazioni separate.
+function offertaAreraDualDaCodice(codice) {
+  const normalized = String(codice || "").trim();
+  if (!normalized) return null;
+  return OFFERTE_ARERA_DUAL.find((offerta) => (
+    String(offerta?.codice || "").trim() === normalized
+    && rigaAreraIdonea(offerta.luce)
+    && rigaAreraIdonea(offerta.gas)
+  )) || null;
+}
+
+function miglioreOffertaAreraDualPerPartner(offerta, attuale) {
+  if (!offerta || offerta.fornitura !== "dual" || !OFFERTE_ARERA_DUAL.length) return null;
+  const providerKey = chiaveFornitoreDaNome(offerta.provider);
+  if (!providerKey) return null;
+
+  const codiceDualCertificato = String(offerta?.certificazione?.codici?.dual || "").trim();
+  if (codiceDualCertificato) {
+    const esatta = offertaAreraDualDaCodice(codiceDualCertificato);
+    if (!esatta) return null;
+    if (esatta.providerKey !== providerKey || esatta.tipo !== offerta.tipo) return null;
+    return esatta;
+  }
+
+  return miglioreCoppiaAreraDualPerProvider(providerKey, offerta.tipo, attuale);
+}
+
 // Associa il funnel affiliato a una specifica famiglia commerciale ARERA.
 // I prezzi restano sempre quelli del catalogo E/G corrente: qui non sono presenti valori economici.
 const ABBINAMENTI_PARTNER_ARERA = Object.freeze({
@@ -5205,56 +4948,48 @@ function miglioreRigaAreraPerPartner(offerta, commodity, attuale) {
 }
 
 function offertaPartnerConPrezziArera(offerta, attuale) {
-  if (!OFFERTE_ARERA_MENU.length) return null;
-
   if (offerta.fornitura === "dual") {
-    const luce = rigaAreraPartnerCertificata(offerta, "luce", attuale);
-    const gas = rigaAreraPartnerCertificata(offerta, "gas", attuale);
-    if (!luce || !gas || luce.providerKey !== gas.providerKey || luce.tipo !== gas.tipo) return null;
-    const codici = `${luce.codice} + ${gas.codice}`;
+    const dual = miglioreOffertaAreraDualPerPartner(offerta, attuale);
+    if (!dual) return null;
+    const codici = `${dual.codice} (${dual.codiceOffertaLuce} + ${dual.codiceOffertaGas})`;
     return normalizzaOfferta({
       ...offerta,
-      nome: `${offerta.provider} - ${luce.nome} + ${gas.nome}`,
-      luce: voceDaRigaArera(luce),
-      gas: voceDaRigaArera(gas),
-      descrizione: `${offerta.descrizione || ""} Prezzi aggiornati da Portale Offerte ARERA/AU. Codici: ${codici}`.trim(),
-      fonte: `${DATI_ARERA_MENU_META.fonte} Codici: ${codici}`,
+      provider: dual.providerLabel || dual.fornitore || offerta.provider,
+      nome: `${dual.providerLabel || dual.fornitore || offerta.provider} - ${dual.nome}`,
+      fornitura: "dual",
+      luce: voceDaRigaArera(dual.luce),
+      gas: voceDaRigaArera(dual.gas),
+      descrizione: `${offerta.descrizione || ""} Condizioni economiche dalla specifica offerta dual ARERA. Codici: ${codici}`.trim(),
+      fonte: `${DATI_ARERA_MENU_META.fonte} Catalogo D. Codici: ${codici}`,
       aggiornataIl: DATI_ARERA_MENU_META.aggiornatoIl,
       certificazione: {
         ...(offerta.certificazione || {}),
-        codici: { luce: luce.codice, gas: gas.codice },
+        codici: {
+          ...(offerta?.certificazione?.codici || {}),
+          dual: dual.codice,
+          luce: dual.codiceOffertaLuce,
+          gas: dual.codiceOffertaGas,
+        },
+        catalogoArera: "D",
         dataFonte: DATI_ARERA_MENU_META.aggiornatoIl,
       },
     }, 0);
   }
 
+  if (!OFFERTE_ARERA_MENU.length) return null;
   const luce = offerta.luce ? miglioreRigaAreraPerPartner(offerta, "luce", attuale) : null;
   const gas = offerta.gas ? miglioreRigaAreraPerPartner(offerta, "gas", attuale) : null;
   if ((offerta.luce && !luce) || (offerta.gas && !gas)) return null;
   if (!luce && !gas) return null;
 
   const codici = [luce?.codice, gas?.codice].filter(Boolean).join(" + ");
-  const providerLabel = luce?.providerLabel || gas?.providerLabel || offerta.provider;
-  const nomiArera = [luce?.nome, gas?.nome].filter(Boolean).join(" + ");
-  const categoriaFornitura = luce && gas
-    ? (offerta.fornitura === "dual" ? "dual" : "separate")
-    : luce ? "luce" : "gas";
   return normalizzaOfferta({
     ...offerta,
-    provider: providerLabel,
-    nome: `${providerLabel} - ${nomiArera}`,
     luce: voceDaRigaArera(luce),
     gas: voceDaRigaArera(gas),
     descrizione: `${offerta.descrizione || ""} Prezzi aggiornati da Portale Offerte ARERA/AU. Codici: ${codici}`.trim(),
     fonte: `${DATI_ARERA_MENU_META.fonte} Codici: ${codici}`,
     aggiornataIl: DATI_ARERA_MENU_META.aggiornatoIl,
-    certificazione: {
-      ...(offerta.certificazione || {}),
-      partnerOriginalId: offerta.certificazione?.partnerOriginalId || offerta.id,
-      codici: { luce: luce?.codice || null, gas: gas?.codice || null },
-      categoriaMenu: { tipo: offerta.tipo, fornitura: categoriaFornitura },
-      dataFonte: DATI_ARERA_MENU_META.aggiornatoIl,
-    },
   }, 0);
 }
 
@@ -5541,6 +5276,12 @@ function unisciOfferteCandidati(offerteRanking, offertePartner) {
 
 function costruisciOfferteRanking(attuale, tipoTariffa, tipoFornitura) {
   const daArera = costruisciOfferteAreraRanking(attuale, tipoTariffa, tipoFornitura);
+
+  // Il menu dual nasce soltanto dal catalogo D. I percorsi partner vengono
+  // applicati ai record D da arricchisciOffertaAreraConCommerciale; non vengono
+  // aggiunte coppie ricostruite dai cataloghi E/G.
+  if (tipoFornitura === "dual") return daArera;
+
   const partnerDirette = offertePartnerDiretteAttivabili(tipoTariffa, tipoFornitura, attuale);
   return unisciOfferteCandidati(daArera, partnerDirette);
 }
@@ -5576,12 +5317,8 @@ function deduplicaPartnerAttivabili(items) {
 const NUMERO_OFFERTE_PARTNER_MENU = 6;
 const NUMERO_OFFERTE_CONSULENTE_MENU = 3;
 
-function selezionaPartnerAttivabiliPerMenu(items, tipoTariffa, tipoFornitura, limite = NUMERO_OFFERTE_PARTNER_MENU) {
-  const coerenti = [...items]
-    .filter((item) => item?.attivabileOnline)
-    .filter((item) => item?.offerta?.tipo === tipoTariffa)
-    .filter((item) => offertaCoerenteConFornitura(item?.offerta, tipoFornitura));
-  const ordinate = coerenti
+function selezionaPartnerAttivabiliPerMenu(items, limite = NUMERO_OFFERTE_PARTNER_MENU) {
+  const ordinate = [...items]
     .sort((a, b) => (a.costo - b.costo) || (b.differenza - a.differenza));
   const prioritaProvider = deduplicaPartnerAttivabili(ordinate)
     .sort((a, b) => (a.costo - b.costo) || (b.differenza - a.differenza));
@@ -5691,8 +5428,6 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
 
   const attivabiliPrioritarie = selezionaPartnerAttivabiliPerMenu(
     partnerAttivabiliCoerenti,
-    tipoTariffa,
-    tipoFornitura,
     NUMERO_OFFERTE_PARTNER_MENU
   ).map((item, index) => ({
     ...item,
@@ -6454,7 +6189,7 @@ async function inviaOtp() {
           requestType: LEAD_STATE.leadSource === "assistance_callback" ? "assistance_callback" : "comparison",
           assistanceReason: LEAD_STATE.assistance?.reason || "",
           dataStewardship: {
-            originalPdfStored: (LEAD_STATE.pdfDocuments || []).some((doc) => Boolean(doc?.archive?.stored)),
+            originalPdfStored: false,
             internalImprovement: true,
             anonymizedInsight: true,
           },
@@ -6707,15 +6442,6 @@ function campiAssistenteAttivazione() {
   const codiceClienteComune = usaLuce && usaGas && codiceClienteLuce && codiceClienteLuce === codiceClienteGas
     ? codiceClienteLuce
     : "";
-  const indirizzoLuce = usaLuce
-    ? valoreDatoAttivazione(firstValue(data.indirizzo_fornitura_luce, usaGas ? "" : data.indirizzo_fornitura))
-    : "";
-  const indirizzoGas = usaGas
-    ? valoreDatoAttivazione(firstValue(data.indirizzo_fornitura_gas, usaLuce ? "" : data.indirizzo_fornitura))
-    : "";
-  const indirizzoComune = usaLuce && usaGas && indirizzoLuce && indirizzoGas && indirizzoLuce === indirizzoGas
-    ? indirizzoLuce
-    : !usaGas ? indirizzoLuce : !usaLuce ? indirizzoGas : "";
   const fields = [
     { label: "Nome e cognome", value: nome || valoreDatoAttivazione(firstValue(data.intestatario, data.nome_intestatario, data.nomeIntestatario)), hint: "Dato anagrafico utile durante la compilazione.", category: "personal" },
     { label: "Cellulare", value: telefono, hint: "Numero già verificato su OffertaLogica.", category: "personal" },
@@ -6731,9 +6457,7 @@ function campiAssistenteAttivazione() {
     { label: "Codice cliente", value: codiceClienteComune, hint: "Codice comune alle due utenze.", category: "technical", applicable: Boolean(codiceClienteComune) },
     { label: "Codice cliente luce", value: codiceClienteLuce, hint: "Codice contrattuale della fornitura elettrica.", category: "technical", applicable: usaLuce && !codiceClienteComune },
     { label: "Codice cliente gas", value: codiceClienteGas, hint: "Codice contrattuale della fornitura gas.", category: "technical", applicable: usaGas && !codiceClienteComune },
-    { label: "Indirizzo fornitura", value: indirizzoComune, hint: "Indirizzo comune alle forniture.", category: "technical", applicable: Boolean(indirizzoComune) },
-    { label: "Indirizzo fornitura luce", value: indirizzoLuce, hint: "Indirizzo associato al POD luce.", category: "technical", applicable: usaLuce && !indirizzoComune },
-    { label: "Indirizzo fornitura gas", value: indirizzoGas, hint: "Indirizzo associato al PDR gas.", category: "technical", applicable: usaGas && !indirizzoComune },
+    { label: "Indirizzo fornitura", value: valoreDatoAttivazione(firstValue(data.indirizzo_fornitura, data.indirizzoFornitura, data.indirizzo)), hint: "Se rilevato, controlla che coincida con l'utenza da attivare.", category: "technical" },
   ];
   return fields
     .filter((field) => field.applicable !== false)
@@ -7271,7 +6995,6 @@ function accompagnaAllaRevisioneDatiPdf(data) {
 
 let PDF_PENDING_FILES = [];
 let PDF_UPLOAD_SEQUENCE = 0;
-const PDF_ARCHIVE_REPLAY_STORAGE_KEY = "offertalogicaPdfArchiveReplay";
 
 function pdfFileFingerprint(file) {
   return [file?.name || "", Number(file?.size || 0), Number(file?.lastModified || 0)].join("::");
@@ -7287,76 +7010,6 @@ function pdfFileSizeLabel(size) {
   if (!Number.isFinite(bytes) || bytes <= 0) return "dimensione non disponibile";
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-var PDF_DIRECT_UPLOAD_THRESHOLD_BYTES = 4_000_000;
-
-async function leggiRispostaPdfApi(response) {
-  const contentType = response.headers.get("content-type") || "";
-  if (!contentType.includes("application/json")) {
-    if (response.status === 413) throw new Error("PDF troppo grande");
-    throw new Error("api_non_disponibile");
-  }
-  const payload = await response.json();
-  if (!response.ok || !payload.ok) {
-    if (payload.code === "PDF_TOO_LARGE" && Number(payload.maxFileSize || 0) > 0) {
-      const actual = Number(payload.fileSize || 0) > 0 ? ` (${pdfFileSizeLabel(payload.fileSize)})` : "";
-      throw new Error(`PDF troppo grande${actual}. Limite ${pdfFileSizeLabel(payload.maxFileSize)}.`);
-    }
-    throw new Error(payload.error || "Errore analisi PDF");
-  }
-  return payload;
-}
-
-async function analizzaPdfViaVercel(file, archiveContext) {
-  const formData = new FormData();
-  formData.append("pdf", file);
-  formData.append("archiveContext", JSON.stringify(archiveContext));
-  const response = await fetch("/api/analyze-pdf", { method: "POST", body: formData });
-  return leggiRispostaPdfApi(response);
-}
-
-async function analizzaPdfViaUploadFirmato(file, archiveContext) {
-  const sessionResponse = await fetch("/api/analyze-pdf", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      action: "create_upload",
-      filename: file.name,
-      fileSize: Number(file.size || 0),
-      mimeType: file.type || "application/pdf",
-    }),
-  });
-  const sessionPayload = await leggiRispostaPdfApi(sessionResponse);
-  const upload = sessionPayload.upload || {};
-  if (!upload.uploadUrl || !upload.uploadTicket) throw new Error("Caricamento protetto del PDF non riuscito");
-
-  const storageForm = new FormData();
-  storageForm.append("cacheControl", "0");
-  storageForm.append("", file);
-  const storageResponse = await fetch(upload.uploadUrl, {
-    method: "PUT",
-    headers: { "x-upsert": "false" },
-    body: storageForm,
-  });
-  if (!storageResponse.ok) throw new Error("Caricamento protetto del PDF non riuscito");
-
-  const analysisResponse = await fetch("/api/analyze-pdf", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      action: "analyze_uploaded_pdf",
-      uploadTicket: upload.uploadTicket,
-      archiveContext,
-    }),
-  });
-  return leggiRispostaPdfApi(analysisResponse);
-}
-
-async function analizzaPdfSelezionato(file, archiveContext) {
-  return Number(file?.size || 0) > PDF_DIRECT_UPLOAD_THRESHOLD_BYTES
-    ? analizzaPdfViaUploadFirmato(file, archiveContext)
-    : analizzaPdfViaVercel(file, archiveContext);
 }
 
 function aggiornaInterfacciaSelezionePdf() {
@@ -7389,43 +7042,6 @@ function aggiornaInterfacciaSelezionePdf() {
     </li>`);
   list.hidden = false;
   list.innerHTML = `<ul class="pdf-file-list">${[...analyzedRows, ...pendingRows].join("")}</ul>`;
-}
-
-function importaAnalisiPdfDaArchivio() {
-  const params = new URLSearchParams(window.location.search || "");
-  if (params.get("pdfReplay") !== "1") return false;
-  let replay = null;
-  try { replay = JSON.parse(sessionStorage.getItem(PDF_ARCHIVE_REPLAY_STORAGE_KEY) || "null"); } catch {}
-  if (!replay?.normalized || typeof replay.normalized !== "object") return false;
-  const doc = {
-    filename: replay.filename || "documento-archivio.pdf",
-    upload_id: `archive-${replay.analysisId || Date.now()}`,
-    file_fingerprint: `archive::${replay.analysisId || replay.filename || Date.now()}`,
-    ...replay.normalized,
-    archive: { stored: true, analysisId: replay.analysisId || null, replay: true },
-  };
-  LEAD_STATE.pdfDocuments = [doc];
-  LEAD_STATE.pdfData = mergePdfDocuments(LEAD_STATE.pdfDocuments);
-  LEAD_STATE.dataOrigin = "pdf_archive_replay";
-  const panel = document.getElementById("pdf-review-static");
-  const copy = document.getElementById("pdf-review-copy");
-  const notice = document.getElementById("pdf-upload-context-notice");
-  if (panel) panel.style.display = "block";
-  if (copy) copy.innerHTML = renderPdfSummary(LEAD_STATE.pdfDocuments, LEAD_STATE.pdfData);
-  if (notice) {
-    notice.hidden = false;
-    notice.innerHTML = '<span class="pdf-context-icon" aria-hidden="true">✓</span><span><strong>Risultato riutilizzato dall’archivio.</strong> Nessuna nuova chiamata IA è stata eseguita e non è stato sostenuto alcun nuovo costo di lettura.</span>';
-  }
-  aggiornaInterfacciaSelezionePdf();
-  configuraConfermaPdfPronta(LEAD_STATE.pdfDocuments);
-  aggiornaAssistenteAttivazioneVisibilita();
-  try { sessionStorage.removeItem(PDF_ARCHIVE_REPLAY_STORAGE_KEY); } catch {}
-  try {
-    const cleanUrl = new URL(window.location.href);
-    cleanUrl.searchParams.delete("pdfReplay");
-    window.history.replaceState({}, document.title, `${cleanUrl.pathname}${cleanUrl.search}${cleanUrl.hash}`);
-  } catch {}
-  return true;
 }
 
 window.apriSelettorePdf = function apriSelettorePdf() {
@@ -7516,14 +7132,20 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
   for (let fileIndex = 0; fileIndex < files.length; fileIndex += 1) {
     const file = files[fileIndex];
     const pendingEntry = pendingEntries[fileIndex];
-    const archiveContext = {
+    const formData = new FormData();
+    formData.append("pdf", file);
+    formData.append("archiveContext", JSON.stringify({
       sessionId: analyticsSessionId(),
       staffMode: staffModeAttiva(),
       customerType: LEAD_STATE.customerType,
       uploadSequence: LEAD_STATE.pdfDocuments.length + results.length + 1,
-    };
+    }));
     try {
-      const payload = await analizzaPdfSelezionato(file, archiveContext);
+      const response = await fetch("/api/analyze-pdf", { method: "POST", body: formData });
+      const contentType = response.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) throw new Error("api_non_disponibile");
+      const payload = await response.json();
+      if (!response.ok || !payload.ok) throw new Error(payload.error || "Errore analisi PDF");
       results.push({
         filename: file.name,
         upload_id: pendingEntry.id,
@@ -7533,17 +7155,12 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
         ...payload.normalized,
       });
     } catch (error) {
-      const errorMessage = String(error?.message || "");
-      const safeMessage = errorMessage.startsWith("PDF troppo grande") || [
+      const safeMessage = [
+        "PDF troppo grande",
         "PDF protetto o cifrato",
         "Il file caricato non è un PDF valido",
         "PDF mancante o formato non accettato",
-        "Caricamento protetto dei PDF grandi non configurato",
-        "Caricamento protetto del PDF non riuscito",
-        "Caricamento PDF scaduto. Riprova.",
-        "PDF caricato non trovato. Riprova.",
-        "Il PDF caricato non corrisponde al file selezionato",
-      ].includes(errorMessage) ? errorMessage : "Lettura non disponibile";
+      ].includes(error?.message) ? error.message : "Lettura non disponibile";
       results.push({
         filename: file.name,
         upload_id: pendingEntry.id,
@@ -7620,13 +7237,9 @@ window.confermaPdfECalcola = async function confermaPdfECalcola() {
       vaiAlCaricatoreScheda();
       return;
     }
-    LEAD_STATE.businessProfile = leggiProfiloBusiness();
-    if (copy) {
-      const archiveStored = (LEAD_STATE.pdfDocuments || []).some((doc) => Boolean(doc?.archive?.stored));
-      copy.innerText = archiveStored
-        ? "Bolletta business acquisita e salvata. I dati principali letti sono mostrati nel pannello aziendale e restano associati al PDF originale per la verifica del consulente. Non è necessario completare il confronto automatico."
-        : "Bolletta business acquisita. I dati principali letti sono mostrati nel pannello aziendale; verifica nell’archivio staff che il PDF originale risulti salvato prima di inoltrare la pratica al consulente.";
-    }
+    if (copy) copy.innerText = Array.isArray(selectedAutofillRows) && selectedAutofillRows.length === 0
+      ? "Nessun campo del modulo business è stato modificato. I dati letti restano disponibili nel riepilogo."
+      : "I campi selezionati sono stati inseriti nel modulo business. I valori manuali non selezionati sono rimasti invariati.";
     portaElementoInVista(document.getElementById("business-panel"), { block: "start" });
     return;
   }
@@ -7661,60 +7274,8 @@ window.confermaPdfECalcola = async function confermaPdfECalcola() {
   accompagnaAllaRevisioneDatiPdf(data);
 };
 
-function businessPdfDataRows(data) {
-  const rows = [];
-  const add = (label, ...values) => {
-    const value = firstValue(...values);
-    if (value === undefined || value === null || String(value).trim() === "") return;
-    rows.push({ label, value });
-  };
-  add("Fornitore luce", data?.fornitore_luce, data?.commodity === "luce" ? data?.fornitore : "");
-  add("Fornitore gas", data?.fornitore_gas, data?.commodity === "gas" ? data?.fornitore : "");
-  add("Ragione sociale", data?.intestatario);
-  add("Partita IVA / Codice fiscale", data?.codice_fiscale);
-  const commonCustomerCode = data?.codice_cliente;
-  if (commonCustomerCode) add("Codice cliente", commonCustomerCode);
-  else {
-    add("Codice cliente luce", data?.codice_cliente_luce);
-    add("Codice cliente gas", data?.codice_cliente_gas);
-  }
-  add("POD", data?.pod);
-  add("PDR", data?.pdr);
-  add("Indirizzo luce", data?.indirizzo_fornitura_luce, data?.commodity === "luce" ? data?.indirizzo_fornitura : "");
-  add("Indirizzo gas", data?.indirizzo_fornitura_gas, data?.commodity === "gas" ? data?.indirizzo_fornitura : "");
-  add("Potenza impegnata", data?.potenza_impegnata_kw !== undefined && data?.potenza_impegnata_kw !== null ? `${data.potenza_impegnata_kw} kW` : "");
-  add("Potenza disponibile", data?.potenza_disponibile_kw !== undefined && data?.potenza_disponibile_kw !== null ? `${data.potenza_disponibile_kw} kW` : "");
-  add("Offerta luce", data?.nome_offerta_luce);
-  add("Codice offerta luce", data?.codice_offerta_luce);
-  add("Tipo prezzo luce", data?.tipo_prezzo_luce);
-  add("Indice luce", data?.indice_riferimento_luce);
-  add("Offerta gas", data?.nome_offerta_gas);
-  add("Codice offerta gas", data?.codice_offerta_gas);
-  add("Tipo prezzo gas", data?.tipo_prezzo_gas);
-  add("Indice gas", data?.indice_riferimento_gas);
-  return rows;
-}
-
-function renderBusinessPdfData(data) {
-  const panel = document.getElementById("business-pdf-summary");
-  const grid = document.getElementById("business-pdf-summary-grid");
-  const status = document.getElementById("business-pdf-summary-status");
-  if (!panel || !grid || !status) return;
-  const rows = businessPdfDataRows(data);
-  const documents = LEAD_STATE.pdfDocuments || [];
-  const archived = documents.filter((doc) => Boolean(doc?.archive?.stored));
-  panel.hidden = rows.length === 0 && archived.length === 0;
-  grid.innerHTML = rows.map((row) => `
-    <div class="business-pdf-summary-row"><span>${testoHtmlSicuro(row.label)}</span><strong>${testoHtmlSicuro(row.value)}</strong></div>
-  `).join("");
-  status.innerHTML = archived.length
-    ? `<strong>PDF originale salvato:</strong> ${archived.length === 1 ? "documento disponibile" : `${archived.length} documenti disponibili`} nell’archivio staff. I dati sopra sono già associati alla pratica e saranno verificati dal consulente.`
-    : "I dati sono stati acquisiti, ma il response non conferma il salvataggio del PDF nell’archivio. Il consulente dovrà controllare la presenza del documento originale.";
-}
-
 function applicaDatiPdfAlBusiness(data) {
   if (!data) return;
-  renderBusinessPdfData(data);
   const selectedRows = arguments.length > 1 ? arguments[1] : null;
   if (Array.isArray(selectedRows)) {
     applicaRigheAutocompilazionePdf(selectedRows);
@@ -7863,11 +7424,6 @@ function buildPdfAutofillSpecs(data, customerType = "privato") {
   const specs = [];
   if (!data?.data_contract?.fields) return specs;
   const add = (field, label, targets, options) => pdfAutofillAddSpec(specs, data, field, label, targets, options);
-  const addProfile = (field, label, target, unit = null) => add(field, label, [target], {
-    kind: "pdf_profile",
-    compare_mode: typeof pdfPreviewAutofillValue(data, field) === "number" ? "number" : "text",
-    unit,
-  });
 
   if (customerType === "business") {
     add("intestatario", "Ragione sociale / intestatario", ["business-ragione"]);
@@ -7901,35 +7457,9 @@ function buildPdfAutofillSpecs(data, customerType = "privato") {
     add("quota_fissa_vendita_gas_eur_anno", "Quota fissa gas della proposta", ["in-gas-fisso-nuov", "in-gas-fisso-nuov-unita"], {
       kind: "fixed_annual", compare_mode: "fixed_annual", unit: "€/anno", input_id: "in-gas-fisso-nuov", unit_id: "in-gas-fisso-nuov-unita",
     });
-    for (const [field, label, target] of [
-      ["prezzo_luce_f1_eur_kwh", "Prezzo luce F1", "pdf-offer-prezzo-luce-f1"],
-      ["prezzo_luce_f2_eur_kwh", "Prezzo luce F2", "pdf-offer-prezzo-luce-f2"],
-      ["prezzo_luce_f3_eur_kwh", "Prezzo luce F3", "pdf-offer-prezzo-luce-f3"],
-      ["prezzo_luce_f23_eur_kwh", "Prezzo luce F23", "pdf-offer-prezzo-luce-f23"],
-    ]) addProfile(field, label, target, "€/kWh");
-    for (const [field, label, target, unit] of [
-      ["indice_riferimento_luce", "Indice luce", "pdf-offer-indice-luce", null],
-      ["spread_luce_eur_kwh", "Spread luce", "pdf-offer-spread-luce", "€/kWh"],
-      ["moltiplicatore_indice_luce", "Moltiplicatore indice luce", "pdf-offer-moltiplicatore-luce", null],
-      ["formula_prezzo_luce", "Formula prezzo luce", "pdf-offer-formula-luce", null],
-      ["struttura_prezzo_luce", "Struttura prezzo luce", "pdf-offer-struttura-luce", null],
-      ["indice_riferimento_gas", "Indice gas", "pdf-offer-indice-gas", null],
-      ["spread_gas_eur_smc", "Spread gas", "pdf-offer-spread-gas", "€/Smc"],
-      ["moltiplicatore_indice_gas", "Moltiplicatore indice gas", "pdf-offer-moltiplicatore-gas", null],
-      ["formula_prezzo_gas", "Formula prezzo gas", "pdf-offer-formula-gas", null],
-    ]) addProfile(field, label, target, unit);
-    const priceTypeLuce = pdfPreviewAutofillValue(data, "tipo_prezzo_luce");
-    const priceTypeGas = pdfPreviewAutofillValue(data, "tipo_prezzo_gas");
-    const sharedPriceType = priceTypeLuce !== undefined && priceTypeGas !== undefined
-      ? String(priceTypeLuce) === String(priceTypeGas) ? { field: "tipo_prezzo_luce", value: priceTypeLuce, label: "Tipo prezzo luce e gas" } : null
-      : priceTypeLuce !== undefined
-        ? { field: "tipo_prezzo_luce", value: priceTypeLuce, label: "Tipo prezzo luce" }
-        : priceTypeGas !== undefined
-          ? { field: "tipo_prezzo_gas", value: priceTypeGas, label: "Tipo prezzo gas" }
-          : null;
-    if (sharedPriceType && ["fisso", "variabile"].includes(sharedPriceType.value)) {
-      add(sharedPriceType.field, sharedPriceType.label, ["master-luce-tipo"]);
-    }
+    const priceTypeField = pdfPreviewAutofillValue(data, "tipo_prezzo_luce") !== undefined ? "tipo_prezzo_luce" : "tipo_prezzo_gas";
+    const priceType = pdfPreviewAutofillValue(data, priceTypeField);
+    if (["fisso", "variabile"].includes(priceType)) add(priceTypeField, "Tipo prezzo", ["master-luce-tipo"]);
     return specs;
   }
 
@@ -7946,41 +7476,9 @@ function buildPdfAutofillSpecs(data, customerType = "privato") {
   add("quota_fissa_vendita_gas_eur_anno", "Quota fissa gas attuale", ["in-gas-fisso-att", "in-gas-fisso-att-unita"], {
     kind: "fixed_annual", compare_mode: "fixed_annual", unit: "€/anno", input_id: "in-gas-fisso-att", unit_id: "in-gas-fisso-att-unita",
   });
-  for (const [field, label, target] of [
-    ["consumo_luce_f1_kwh", "Consumo annuo luce F1", "pdf-current-consumo-luce-f1"],
-    ["consumo_luce_f2_kwh", "Consumo annuo luce F2", "pdf-current-consumo-luce-f2"],
-    ["consumo_luce_f3_kwh", "Consumo annuo luce F3", "pdf-current-consumo-luce-f3"],
-    ["consumo_luce_f23_kwh", "Consumo annuo luce F23", "pdf-current-consumo-luce-f23"],
-  ]) addProfile(field, label, target, "kWh/anno");
-  for (const [field, label, target] of [
-    ["prezzo_luce_f1_eur_kwh", "Prezzo luce attuale F1", "pdf-current-prezzo-luce-f1"],
-    ["prezzo_luce_f2_eur_kwh", "Prezzo luce attuale F2", "pdf-current-prezzo-luce-f2"],
-    ["prezzo_luce_f3_eur_kwh", "Prezzo luce attuale F3", "pdf-current-prezzo-luce-f3"],
-    ["prezzo_luce_f23_eur_kwh", "Prezzo luce attuale F23", "pdf-current-prezzo-luce-f23"],
-  ]) addProfile(field, label, target, "€/kWh");
-  for (const [field, label, target, unit] of [
-    ["indice_riferimento_luce", "Indice luce attuale", "pdf-current-indice-luce", null],
-    ["spread_luce_eur_kwh", "Spread luce attuale", "pdf-current-spread-luce", "€/kWh"],
-    ["moltiplicatore_indice_luce", "Moltiplicatore indice luce", "pdf-current-moltiplicatore-luce", null],
-    ["formula_prezzo_luce", "Formula prezzo luce attuale", "pdf-current-formula-luce", null],
-    ["struttura_prezzo_luce", "Struttura prezzo luce attuale", "pdf-current-struttura-luce", null],
-    ["indice_riferimento_gas", "Indice gas attuale", "pdf-current-indice-gas", null],
-    ["spread_gas_eur_smc", "Spread gas attuale", "pdf-current-spread-gas", "€/Smc"],
-    ["moltiplicatore_indice_gas", "Moltiplicatore indice gas", "pdf-current-moltiplicatore-gas", null],
-    ["formula_prezzo_gas", "Formula prezzo gas attuale", "pdf-current-formula-gas", null],
-  ]) addProfile(field, label, target, unit);
-  const priceTypeLuce = pdfPreviewAutofillValue(data, "tipo_prezzo_luce");
-  const priceTypeGas = pdfPreviewAutofillValue(data, "tipo_prezzo_gas");
-  const sharedPriceType = priceTypeLuce !== undefined && priceTypeGas !== undefined
-    ? String(priceTypeLuce) === String(priceTypeGas) ? { field: "tipo_prezzo_luce", value: priceTypeLuce, label: "Tipo prezzo luce e gas" } : null
-    : priceTypeLuce !== undefined
-      ? { field: "tipo_prezzo_luce", value: priceTypeLuce, label: "Tipo prezzo luce" }
-      : priceTypeGas !== undefined
-        ? { field: "tipo_prezzo_gas", value: priceTypeGas, label: "Tipo prezzo gas" }
-        : null;
-  if (sharedPriceType && ["fisso", "variabile"].includes(sharedPriceType.value)) {
-    add(sharedPriceType.field, sharedPriceType.label, ["master-luce-tipo"]);
-  }
+  const priceTypeField = pdfPreviewAutofillValue(data, "tipo_prezzo_luce") !== undefined ? "tipo_prezzo_luce" : "tipo_prezzo_gas";
+  const priceType = pdfPreviewAutofillValue(data, priceTypeField);
+  if (["fisso", "variabile"].includes(priceType)) add(priceTypeField, "Tipo prezzo", ["master-luce-tipo"]);
   return specs;
 }
 
@@ -8004,17 +7502,6 @@ function pdfAutofillElementDisplay(id, value) {
 }
 
 function pdfAutofillCurrentState(spec) {
-  if (spec.kind === "pdf_profile") {
-    const currentValue = valoreTargetProfiloPdf(spec.target_ids[0]);
-    const hasValue = pdfAutofillHasValue(currentValue);
-    return {
-      has_value: hasValue,
-      comparable_value: currentValue,
-      display: hasValue ? pdfAutofillFormatValue(currentValue, spec.unit) : "Campo vuoto",
-      manually_touched: false,
-      all_equal: hasValue && pdfAutofillValuesEqual(currentValue, spec.value, spec.compare_mode),
-    };
-  }
   if (spec.kind === "fixed_annual") {
     const raw = pdfAutofillElementValue(spec.input_id);
     const unit = pdfAutofillElementValue(spec.unit_id) || "mese";
@@ -8205,10 +7692,6 @@ function deselezionaTuttiCampiAnteprimaPdf() {
 function applicaRigheAutocompilazionePdf(rows) {
   const selected = Array.isArray(rows) ? rows : [];
   selected.forEach((row) => {
-    if (row.kind === "pdf_profile") {
-      impostaTargetProfiloPdf(row.target_ids[0], row.value);
-      return;
-    }
     if (row.kind === "fixed_annual") {
       impostaQuotaFissaAnnua(row.input_id, row.unit_id, row.value);
       PDF_MANUAL_TOUCHED_FIELDS.delete(row.input_id);
@@ -8230,54 +7713,11 @@ function rebuildMergedPdfAutofillPlan(contract) {
   const safeFields = [];
   const reviewFields = [];
   const blockedFields = [];
-  const targetCandidates = new Map();
-
-  Object.values(contract.fields).forEach((entry) => {
-    const targets = Array.isArray(entry?.autofill?.targets) ? entry.autofill.targets : [];
-    if (!targets.length || entry.status !== "completo") return;
-    if (!entry.autofill?.allowed && !entry.autofill?.review_selectable) return;
-    targets.forEach((target) => {
-      const rows = targetCandidates.get(target) || [];
-      rows.push({ entry, valueKey: JSON.stringify(entry.normalized_value) });
-      targetCandidates.set(target, rows);
-    });
-  });
-
-  const conflictingTargets = new Map();
-  const targetOwners = new Map();
-  targetCandidates.forEach((rows, target) => {
-    const values = [...new Set(rows.map((row) => row.valueKey))];
-    if (values.length > 1) {
-      conflictingTargets.set(target, rows);
-      return;
-    }
-    const owner = [...rows].sort((left, right) => {
-      const strength = (row) => row.entry.autofill?.allowed ? 2 : row.entry.autofill?.review_selectable ? 1 : 0;
-      return strength(right) - strength(left);
-    })[0];
-    if (owner) targetOwners.set(target, owner.entry);
-  });
-
   Object.values(contract.fields).forEach((entry) => {
     const targets = Array.isArray(entry?.autofill?.targets) ? entry.autofill.targets : [];
     if (!targets.length) return;
-    const usableTargets = targets.filter((target) => !conflictingTargets.has(target) && targetOwners.get(target) === entry);
-    const conflicting = targets.filter((target) => conflictingTargets.has(target));
-
-    conflicting.forEach((target) => {
-      const alternatives = [...new Set((conflictingTargets.get(target) || []).map((row) => row.entry.normalized_value))];
-      blockedFields.push({
-        source_field: entry.field,
-        targets: [target],
-        use: entry.autofill.use,
-        status: entry.status,
-        reason: "target_condiviso_con_valori_in_conflitto",
-        alternatives,
-      });
-    });
-
     if (entry.autofill.allowed && entry.status === "completo") {
-      usableTargets.forEach((target) => safeFields.push({
+      targets.forEach((target) => safeFields.push({
         source_field: entry.field,
         target,
         use: entry.autofill.use,
@@ -8286,7 +7726,7 @@ function rebuildMergedPdfAutofillPlan(contract) {
         requires_user_confirmation: true,
       }));
     } else if (entry.autofill.review_selectable && entry.status === "completo") {
-      usableTargets.forEach((target) => reviewFields.push({
+      targets.forEach((target) => reviewFields.push({
         source_field: entry.field,
         target,
         use: entry.autofill.use,
@@ -8318,61 +7758,22 @@ function rebuildMergedPdfAutofillPlan(contract) {
   return contract;
 }
 
-function mergePdfReadiness(target, source) {
-  const output = target || { confronto: {}, dati_bolletta: {}, attivazione: {} };
-  for (const area of ["confronto", "dati_bolletta", "attivazione"]) {
-    output[area] = output[area] || {};
-    for (const commodity of ["luce", "gas"]) {
-      if (source?.[area]?.[commodity]) output[area][commodity] = source[area][commodity];
-    }
-  }
-  return output;
-}
-
-function mergePdfParserMetadata(target, source) {
-  if (!source) return target || null;
-  if (!target) return { ...source, document_count: Number(source.document_count || 1) };
-  const targetDocuments = Number(target.document_count || 1);
-  const sourceDocuments = Number(source.document_count || 1);
-  const sameValue = (field) => target[field] && source[field] && String(target[field]) === String(source[field]);
-  return {
-    mode: sameValue("mode") ? target.mode : "multiple_documents",
-    parser_version: sameValue("parser_version") ? target.parser_version : "multiple",
-    ocr_pipeline_version: sameValue("ocr_pipeline_version") ? target.ocr_pipeline_version : null,
-    ai_reader_version: sameValue("ai_reader_version") ? target.ai_reader_version : null,
-    ai_model: sameValue("ai_model") ? target.ai_model : null,
-    page_count: Number(target.page_count || 0) + Number(source.page_count || 0),
-    text_length: Number(target.text_length || 0) + Number(source.text_length || 0),
-    document_count: targetDocuments + sourceDocuments,
-  };
-}
-
 function mergePdfDataContract(target, source) {
   if (!source) return target || null;
-  if (!target) {
-    const copy = JSON.parse(JSON.stringify(source));
-    copy.parser = mergePdfParserMetadata(null, copy.parser);
-    return rebuildMergedPdfAutofillPlan(copy);
-  }
+  if (!target) return rebuildMergedPdfAutofillPlan(JSON.parse(JSON.stringify(source)));
   const output = JSON.parse(JSON.stringify(target));
   output.contract_version = source.contract_version || output.contract_version;
-  output.parser = mergePdfParserMetadata(output.parser, source.parser);
+  output.parser = source.parser || output.parser;
   output.fields = output.fields || {};
   Object.entries(source.fields || {}).forEach(([field, incoming]) => {
     const existing = output.fields[field];
     const existingHasValue = pdfContractHasValue(existing?.normalized_value);
     const incomingHasValue = pdfContractHasValue(incoming?.normalized_value);
-    const existingApplicable = Boolean(existing && existing.status !== "non_applicabile");
-    const incomingApplicable = Boolean(incoming && incoming.status !== "non_applicabile");
     const autofillStrength = (entry) => entry?.autofill?.allowed ? 2 : entry?.autofill?.review_selectable ? 1 : 0;
     const incomingStronger = autofillStrength(incoming) > autofillStrength(existing);
     const conflictingValues = existingHasValue && incomingHasValue
       && JSON.stringify(existing.normalized_value) !== JSON.stringify(incoming.normalized_value);
-    if (!existing || (!existingApplicable && incomingApplicable)) {
-      output.fields[field] = incoming;
-    } else if (existingApplicable && !incomingApplicable) {
-      // Il documento non applicabile non può cancellare il campo dell'altra utenza.
-    } else if (conflictingValues && field === "codice_cliente") {
+    if (conflictingValues && field === "codice_cliente") {
       output.fields[field] = {
         ...existing,
         normalized_value: null,
@@ -8402,7 +7803,7 @@ function mergePdfDataContract(target, source) {
           reason: "conflitto_tra_documenti",
         },
       };
-    } else if ((!existingHasValue && incomingHasValue) || incomingStronger) output.fields[field] = incoming;
+    } else if (!existing || (!existingHasValue && incomingHasValue) || incomingStronger) output.fields[field] = incoming;
   });
   output.supplies = output.supplies || { luce: null, gas: null };
   if (source.supplies?.luce) output.supplies.luce = source.supplies.luce;
@@ -8411,7 +7812,8 @@ function mergePdfDataContract(target, source) {
   Object.entries(source.customer || {}).forEach(([field, value]) => {
     if (!pdfContractHasValue(output.customer[field]) && pdfContractHasValue(value)) output.customer[field] = value;
   });
-  output.readiness = mergePdfReadiness(output.readiness, source.readiness);
+  output.readiness = source.readiness || output.readiness;
+  output.completeness = source.completeness || output.completeness;
   return rebuildMergedPdfAutofillPlan(output);
 }
 
@@ -8500,64 +7902,15 @@ const PDF_READINESS_FIELD_LABELS = Object.freeze({
   tipo_prezzo_gas: "tipo prezzo gas",
 });
 
-function mergePdfFieldStatusEntry(target, source) {
-  if (!source) return target || null;
-  if (!target) return { ...source };
-  if (target.status === "non_applicabile" && source.status !== "non_applicabile") return { ...source };
-  if (source.status === "non_applicabile" && target.status !== "non_applicabile") return { ...target };
-  const rank = { non_applicabile: 0, mancante: 1, parziale: 2, completo: 3, da_verificare: 4 };
-  const targetRank = rank[target.status] ?? 0;
-  const sourceRank = rank[source.status] ?? 0;
-  if (sourceRank > targetRank) return { ...source };
-  return {
-    ...target,
-    evidence: target.evidence || source.evidence || null,
-  };
-}
-
-function mergePdfFieldStatuses(target, source) {
-  const output = { ...(target || {}) };
-  Object.entries(source || {}).forEach(([field, status]) => {
-    output[field] = mergePdfFieldStatusEntry(output[field], status);
-  });
+function mergePdfReadiness(target, source) {
+  const output = target || { confronto: {}, dati_bolletta: {}, attivazione: {} };
+  for (const area of ["confronto", "dati_bolletta", "attivazione"]) {
+    output[area] = output[area] || {};
+    for (const commodity of ["luce", "gas"]) {
+      if (source?.[area]?.[commodity]) output[area][commodity] = source[area][commodity];
+    }
+  }
   return output;
-}
-
-function syncMergedPdfFieldStatusesFromContract(merged) {
-  const fields = merged?.data_contract?.fields || {};
-  const statuses = { ...(merged?.field_status || {}) };
-  Object.entries(statuses).forEach(([field, current]) => {
-    const contractField = fields[field];
-    if (!contractField?.status) return;
-    statuses[field] = {
-      ...current,
-      status: contractField.status,
-      reason: contractField.status_reason ?? current?.reason ?? null,
-    };
-  });
-  merged.field_status = statuses;
-  return merged;
-}
-
-function buildMergedPdfCompleteness(fieldStatus, validationVersion = null) {
-  const counts = Object.values(fieldStatus || {}).reduce((accumulator, item) => {
-    const status = item?.status || "mancante";
-    accumulator[status] = (accumulator[status] || 0) + 1;
-    return accumulator;
-  }, {
-    completo: 0,
-    parziale: 0,
-    mancante: 0,
-    da_verificare: 0,
-    non_applicabile: 0,
-  });
-  const applicable = counts.completo + counts.parziale + counts.mancante + counts.da_verificare;
-  const score = applicable ? Math.round(((counts.completo + counts.parziale * 0.5) / applicable) * 100) : 0;
-  return {
-    score,
-    counts,
-    validation_version: validationVersion || null,
-  };
 }
 
 function pdfReadinessLine(label, entry) {
@@ -8653,90 +8006,6 @@ function pdfIsolationReasonLabel(reason) {
   return labels[reason] || String(reason || "").replace(/_/g, " ");
 }
 
-function equalPdfValues(left, right) {
-  return pdfContractHasValue(left) && pdfContractHasValue(right)
-    && JSON.stringify(left) === JSON.stringify(right);
-}
-
-function setMergedCommonField(merged, genericField, luceField, gasField) {
-  const luce = merged[luceField];
-  const gas = merged[gasField];
-  if (merged.commodity === "luce") {
-    if (pdfContractHasValue(luce)) merged[genericField] = luce;
-    else delete merged[genericField];
-    return;
-  }
-  if (merged.commodity === "gas") {
-    if (pdfContractHasValue(gas)) merged[genericField] = gas;
-    else delete merged[genericField];
-    return;
-  }
-  if (merged.commodity === "dual" && equalPdfValues(luce, gas)) merged[genericField] = luce;
-  else delete merged[genericField];
-}
-
-function syncMergedPdfCommonSupplyFields(merged) {
-  setMergedCommonField(merged, "fornitore", "fornitore_luce", "fornitore_gas");
-  setMergedCommonField(merged, "indirizzo_fornitura", "indirizzo_fornitura_luce", "indirizzo_fornitura_gas");
-  [
-    ["nome_offerta", "nome_offerta_luce", "nome_offerta_gas"],
-    ["codice_offerta", "codice_offerta_luce", "codice_offerta_gas"],
-    ["tipo_prezzo", "tipo_prezzo_luce", "tipo_prezzo_gas"],
-    ["tipo_prezzo_evidenza", "tipo_prezzo_evidenza_luce", "tipo_prezzo_evidenza_gas"],
-    ["indice_riferimento", "indice_riferimento_luce", "indice_riferimento_gas"],
-    ["decorrenza_condizioni_economiche", "decorrenza_condizioni_economiche_luce", "decorrenza_condizioni_economiche_gas"],
-    ["scadenza_condizioni_economiche", "scadenza_condizioni_economiche_luce", "scadenza_condizioni_economiche_gas"],
-    ["struttura_prezzo", "struttura_prezzo_luce", "struttura_prezzo_gas"],
-    ["periodicita_aggiornamento_indice", "periodicita_aggiornamento_indice_luce", "periodicita_aggiornamento_indice_gas"],
-    ["frequenza_fatturazione", "frequenza_fatturazione_luce", "frequenza_fatturazione_gas"],
-    ["formula_prezzo", "formula_prezzo_luce", "formula_prezzo_gas"],
-    ["onere_recesso_anticipato", "onere_recesso_anticipato_luce", "onere_recesso_anticipato_gas"],
-    ["codice_condizioni_economiche", "codice_condizioni_economiche_luce", "codice_condizioni_economiche_gas"],
-    ["altre_caratteristiche_offerta", "altre_caratteristiche_offerta_luce", "altre_caratteristiche_offerta_gas"],
-    ["scadenza_contratto", "scadenza_contratto_luce", "scadenza_contratto_gas"],
-  ].forEach(([generic, luce, gas]) => setMergedCommonField(merged, generic, luce, gas));
-
-  const genericProvider = merged.data_contract?.fields?.fornitore;
-  if (genericProvider && merged.commodity === "dual" && merged.fornitore_luce && merged.fornitore_gas
-    && String(merged.fornitore_luce) !== String(merged.fornitore_gas)) {
-    merged.data_contract.fields.fornitore = {
-      ...genericProvider,
-      normalized_value: null,
-      original_value: null,
-      status: "non_applicabile",
-      status_reason: "fornitori_specifici_per_utenza",
-      alternatives: [merged.fornitore_luce, merged.fornitore_gas],
-      provenance: {
-        source: "merge",
-        origin: "multiple_pdf_documents",
-        source_version: merged.data_contract?.parser?.parser_version || null,
-        method: "commodity_preserving_merge",
-        confidence: null,
-      },
-      review_required: false,
-      evidence: {
-        available: false,
-        quality: "commodity_specific_values",
-        literal_value_present: false,
-        literal_value: null,
-        page: null,
-        label: null,
-        source_match: null,
-        snippet: null,
-        note: "fornitori_specifici_per_utenza",
-      },
-      autofill: {
-        ...(genericProvider.autofill || {}),
-        allowed: false,
-        review_selectable: false,
-        requires_explicit_selection: false,
-        reason: "fornitori_specifici_per_utenza",
-      },
-    };
-  }
-  return merged;
-}
-
 function mergePdfDocuments(documents) {
   const validDocuments = documents.filter(risultatoPdfUtilizzabile);
   const isolation = analyzePdfDocumentIsolation(validDocuments);
@@ -8774,11 +8043,11 @@ function mergePdfDocuments(documents) {
     ].forEach((field) => {
       merged[field] = firstValue(doc[field], merged[field]);
     });
-    merged.field_status = mergePdfFieldStatuses(merged.field_status, doc.field_status);
+    merged.field_status = { ...(merged.field_status || {}), ...(doc.field_status || {}) };
     merged.readiness = mergePdfReadiness(merged.readiness, doc.readiness);
     merged.validation_notes = [...new Set([...(merged.validation_notes || []), ...(doc.validation_notes || [])])];
     merged.validation_issues = [...(merged.validation_issues || []), ...(doc.validation_issues || [])];
-    merged.completeness_version = doc.completeness?.validation_version || merged.completeness_version || null;
+    merged.completeness = firstValue(doc.completeness, merged.completeness);
     merged.data_contract = mergePdfDataContract(merged.data_contract, doc.data_contract);
 
     if (doc.commodity === "luce" || doc.commodity === "dual" || doc.consumo_luce_kwh || doc.prezzo_luce_eur_kwh || doc.pod) {
@@ -8835,17 +8104,23 @@ function mergePdfDocuments(documents) {
     }
   } else if (merged.commodity === "luce") merged.codice_cliente = codiceClienteLuce || merged.codice_cliente;
   else if (merged.commodity === "gas") merged.codice_cliente = codiceClienteGas || merged.codice_cliente;
-  syncMergedPdfCommonSupplyFields(merged);
+  if (merged.fornitore_luce && merged.fornitore_gas && merged.fornitore_luce === merged.fornitore_gas) merged.fornitore = merged.fornitore_luce;
+  else merged.fornitore = merged.fornitore_luce || merged.fornitore_gas || "";
+  if (merged.commodity === "luce") {
+    merged.nome_offerta = firstValue(merged.nome_offerta_luce, merged.nome_offerta);
+    merged.codice_offerta = firstValue(merged.codice_offerta_luce, merged.codice_offerta);
+    merged.tipo_prezzo = firstValue(merged.tipo_prezzo_luce, merged.tipo_prezzo);
+    merged.indice_riferimento = firstValue(merged.indice_riferimento_luce, merged.indice_riferimento);
+  }
+  if (merged.commodity === "gas") {
+    merged.nome_offerta = firstValue(merged.nome_offerta_gas, merged.nome_offerta);
+    merged.codice_offerta = firstValue(merged.codice_offerta_gas, merged.codice_offerta);
+    merged.tipo_prezzo = firstValue(merged.tipo_prezzo_gas, merged.tipo_prezzo);
+    merged.indice_riferimento = firstValue(merged.indice_riferimento_gas, merged.indice_riferimento);
+  }
+  merged.indirizzo_fornitura = merged.indirizzo_fornitura_luce || merged.indirizzo_fornitura_gas || merged.indirizzo_fornitura || "";
   if (merged.data_contract?.document) merged.data_contract.document.commodity = merged.commodity;
   syncMergedPdfCustomerCodes(merged);
-  syncMergedPdfFieldStatusesFromContract(merged);
-  merged.completeness = buildMergedPdfCompleteness(merged.field_status, merged.completeness_version);
-  delete merged.completeness_version;
-  if (merged.data_contract) {
-    merged.data_contract.readiness = merged.readiness;
-    merged.data_contract.completeness = merged.completeness;
-    rebuildMergedPdfAutofillPlan(merged.data_contract);
-  }
   return merged;
 }
 
@@ -8920,10 +8195,10 @@ function renderPdfSummary(documents, merged) {
     !dualSameProvider && merged.fornitore_gas ? `Fornitore gas: ${testoHtmlSicuro(merged.fornitore_gas)}` : "",
     merged.consumo_luce_kwh ? `Luce: ${merged.consumo_luce_kwh} kWh/anno` : "",
     merged.prezzo_luce_eur_kwh ? `Prezzo luce: ${merged.prezzo_luce_eur_kwh} €/kWh` : "",
-    pdfAutofillHasValue(merged.quota_fissa_vendita_luce_eur_anno) ? `Fisso luce: ${merged.quota_fissa_vendita_luce_eur_anno} €/anno` : "",
+    merged.quota_fissa_vendita_luce_eur_anno ? `Fisso luce: ${merged.quota_fissa_vendita_luce_eur_anno} €/anno` : "",
     merged.consumo_gas_smc ? `Gas: ${merged.consumo_gas_smc} Smc/anno` : "",
     merged.prezzo_gas_eur_smc ? `Prezzo gas: ${merged.prezzo_gas_eur_smc} €/Smc` : "",
-    pdfAutofillHasValue(merged.quota_fissa_vendita_gas_eur_anno) ? `Fisso gas: ${merged.quota_fissa_vendita_gas_eur_anno} €/anno` : "",
+    merged.quota_fissa_vendita_gas_eur_anno ? `Fisso gas: ${merged.quota_fissa_vendita_gas_eur_anno} €/anno` : "",
     merged.pod ? `POD: ${testoHtmlSicuro(merged.pod)}` : "",
     merged.pdr ? `PDR: ${testoHtmlSicuro(merged.pdr)}` : "",
     merged.potenza_impegnata_kw ? `Potenza impegnata luce: ${merged.potenza_impegnata_kw} kW` : "",
@@ -9002,14 +8277,7 @@ window.azzeraPdfEModulo = function azzeraPdfEModulo() {
   LEAD_STATE.partnerConsent = false;
   LEAD_STATE.activationAssistant = { pendingUrl: "", offer: null };
   LEAD_STATE.businessProfile = null;
-  const businessPdfSummary = document.getElementById("business-pdf-summary");
-  const businessPdfGrid = document.getElementById("business-pdf-summary-grid");
-  const businessPdfStatus = document.getElementById("business-pdf-summary-status");
-  if (businessPdfSummary) businessPdfSummary.hidden = true;
-  if (businessPdfGrid) businessPdfGrid.innerHTML = "";
-  if (businessPdfStatus) businessPdfStatus.innerHTML = "";
   NUOVA_OFFERTA_AUTOMATICA = null;
-  PDF_PRICING_PROFILES = statoPrezziPdfVuoto();
   modalitaCalcolo = "manuale";
   pulisciGuidePercorsoPdf();
   pulisciSegnalazioniDatiMancanti();
@@ -9432,7 +8700,6 @@ function cancellaNuovaOffertaAutomatica() {
 
 function applicaOffertaAlBloccoNuovo(offerta, providerKey) {
   apriDettagliNuovaOfferta();
-  PDF_PRICING_PROFILES.offer = { luce: profiloPrezzoPdfVuoto(), gas: profiloPrezzoPdfVuoto() };
   BLOCCO_AUTOFILL_NUOVA_OFFERTA = true;
   NUOVA_OFFERTA_AUTOMATICA = { offerta, providerKey, appliedAt: new Date().toISOString() };
 
@@ -9454,7 +8721,6 @@ function applicaOffertaAlBloccoNuovo(offerta, providerKey) {
 }
 
 function svuotaCampiNuovaOfferta() {
-  PDF_PRICING_PROFILES.offer = { luce: profiloPrezzoPdfVuoto(), gas: profiloPrezzoPdfVuoto() };
   BLOCCO_AUTOFILL_NUOVA_OFFERTA = true;
   ["in-luce-prezzo-nuov", "in-luce-fisso-nuov", "in-gas-prezzo-nuov", "in-gas-fisso-nuov"].forEach(clearField);
   ["in-luce-fisso-nuov-unita", "in-gas-fisso-nuov-unita"].forEach((id) => setField(id, "mese"));
@@ -9522,12 +8788,6 @@ function applicaDatiPdfAlModulo(data) {
   inizializzaSelectFornitoreGas();
   const selectedRows = arguments.length > 1 ? arguments[1] : null;
   const safe = (field) => pdfSafeAutofillValue(data, field);
-  const sharedSafe = (luceField, gasField) => {
-    const luce = safe(luceField);
-    const gas = safe(gasField);
-    if (luce !== undefined && gas !== undefined) return JSON.stringify(luce) === JSON.stringify(gas) ? luce : undefined;
-    return luce !== undefined ? luce : gas;
-  };
 
   if (!data || Object.keys(data).length === 0) {
     applicaAmbitoConfronto("dual");
@@ -9548,22 +8808,11 @@ function applicaDatiPdfAlModulo(data) {
   }
 
   if (Array.isArray(selectedRows)) {
-    if (data.kind === "scheda_offerta") {
-      PDF_PRICING_PROFILES.offer = { luce: profiloPrezzoPdfVuoto(), gas: profiloPrezzoPdfVuoto() };
-    } else {
-      PDF_PRICING_PROFILES.current = { luce: profiloPrezzoPdfVuoto(), gas: profiloPrezzoPdfVuoto() };
-    }
-    const previousAutofillBlock = BLOCCO_AUTOFILL_NUOVA_OFFERTA;
-    BLOCCO_AUTOFILL_NUOVA_OFFERTA = true;
-    try {
-      applicaRigheAutocompilazionePdf(selectedRows);
-    } finally {
-      BLOCCO_AUTOFILL_NUOVA_OFFERTA = previousAutofillBlock;
-    }
+    applicaRigheAutocompilazionePdf(selectedRows);
     if (!leggiValore("master-gas-regione", "")) setField("master-gas-regione", "nord-ovest");
     if (data.kind === "scheda_offerta") {
       apriDettagliNuovaOfferta();
-      const provider = sharedSafe("fornitore_luce", "fornitore_gas");
+      const provider = safe("fornitore_luce") ?? safe("fornitore_gas");
       mostraHintNuovaOfferta(`Proposta caricata dalla scheda sintetica di ${provider || data.fornitore || "un fornitore"}. Hai scelto quali campi inserire nell'anteprima; i valori manuali non selezionati sono rimasti invariati.`);
     }
     aggiornaIndicatoreProfiloPdf();
@@ -9578,12 +8827,12 @@ function applicaDatiPdfAlModulo(data) {
   const isOffer = data.kind === "scheda_offerta";
   if (isOffer) {
     apriDettagliNuovaOfferta();
-    const provider = sharedSafe("fornitore_luce", "fornitore_gas");
+    const provider = safe("fornitore_luce") ?? safe("fornitore_gas");
     const lucePrice = safe("prezzo_luce_eur_kwh");
     const luceFixed = safe("quota_fissa_vendita_luce_eur_anno");
     const gasPrice = safe("prezzo_gas_eur_smc");
     const gasFixed = safe("quota_fissa_vendita_gas_eur_anno");
-    const priceType = sharedSafe("tipo_prezzo_luce", "tipo_prezzo_gas");
+    const priceType = safe("tipo_prezzo_luce") ?? safe("tipo_prezzo_gas");
     if (provider !== undefined) setField("nome-fornitore-nuov", providerValue(provider));
     if (lucePrice !== undefined) setField("in-luce-prezzo-nuov", lucePrice);
     if (luceFixed !== undefined) impostaQuotaFissaAnnua("in-luce-fisso-nuov", "in-luce-fisso-nuov-unita", luceFixed);
@@ -9603,7 +8852,7 @@ function applicaDatiPdfAlModulo(data) {
   const gasConsumption = safe("consumo_gas_smc");
   const gasPrice = safe("prezzo_gas_eur_smc");
   const gasFixed = safe("quota_fissa_vendita_gas_eur_anno");
-  const priceType = sharedSafe("tipo_prezzo_luce", "tipo_prezzo_gas");
+  const priceType = safe("tipo_prezzo_luce") ?? safe("tipo_prezzo_gas");
 
   if (providerLuce !== undefined) setField("nome-fornitore-att", providerValue(providerLuce));
   if (providerGas !== undefined) setField("nome-fornitore-gas-att", providerValue(providerGas));
@@ -9649,7 +8898,6 @@ function collegaEventiUX() {
   inizializzaModalitaStaff();
   inizializzaSelectFornitoreGas();
   applicaAmbitoConfronto(leggiValore("master-tipo-fornitura", "dual"));
-  importaAnalisiPdfDaArchivio();
 
   const btnPrivato = document.getElementById("btn-segmento-privato");
   const btnBusiness = document.getElementById("btn-segmento-business");
