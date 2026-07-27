@@ -1,0 +1,202 @@
+name: Correggi prezzo formula PDF PUN
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fix-pdf-formula-pun:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Applica correzione mirata
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path("public/index.html")
+          text = path.read_text(encoding="utf-8")
+          marker = "OFFERTALOGICA_PDF_PUN_FORMULA_PRICE_20260727"
+
+          if marker in text:
+              print("Correzione già presente: nessuna modifica necessaria.")
+              raise SystemExit(0)
+
+          helper_anchor = "function buildPdfAutofillSpecs(data, customerType = \"privato\") {"
+          if text.count(helper_anchor) != 1:
+              raise RuntimeError("Punto di inserimento buildPdfAutofillSpecs non univoco")
+
+          helper = r'''// OFFERTALOGICA_PDF_PUN_FORMULA_PRICE_20260727
+          // Per una scheda offerta variabile il lettore conserva formula, indice,
+          // moltiplicatore e spread. Il prezzo numerico viene derivato qui usando
+          // il PUN ufficiale già caricato in INDICI_MERCATO.
+          function pdfAutofillAddDerivedPunPriceSpec(specs, data, targetId) {
+            if (data?.kind !== "scheda_offerta") return false;
+            if (pdfPreviewAutofillValue(data, "prezzo_luce_eur_kwh") !== undefined) return false;
+
+            const priceType = String(pdfPreviewAutofillValue(data, "tipo_prezzo_luce") || "").toLowerCase();
+            const indexLabel = String(pdfPreviewAutofillValue(data, "indice_riferimento_luce") || "");
+            if (priceType !== "variabile" || !/\bpun\b/i.test(indexLabel)) return false;
+
+            const multiplierRaw = pdfPreviewAutofillValue(data, "moltiplicatore_indice_luce");
+            const spreadRaw = pdfPreviewAutofillValue(data, "spread_luce_eur_kwh");
+            const multiplier = multiplierRaw === undefined ? 1 : Number(String(multiplierRaw).replace(",", "."));
+            const spread = spreadRaw === undefined ? 0 : Number(String(spreadRaw).replace(",", "."));
+            const indexValue = Number(INDICI_MERCATO?.pun?.valore);
+            if (!Number.isFinite(indexValue) || indexValue <= 0) return false;
+            if (!Number.isFinite(multiplier) || multiplier <= 0 || !Number.isFinite(spread)) return false;
+
+            const value = Number((indexValue * multiplier + spread).toFixed(9));
+            if (!Number.isFinite(value) || value <= 0) return false;
+
+            const formula = String(pdfPreviewAutofillValue(data, "formula_prezzo_luce") || "PUN + spread");
+            const period = String(INDICI_MERCATO?.pun?.periodoLabel || INDICI_MERCATO?.pun?.periodo || "periodo ufficiale corrente");
+            specs.push({
+              id: `prezzo-luce-formula-pun-${targetId}`,
+              field: "prezzo_luce_formula_pun_calcolato",
+              label: `Prezzo luce calcolato da ${formula} · PUN ${period}`,
+              value,
+              target_ids: [targetId],
+              kind: "value",
+              compare_mode: "number",
+              unit: "€/kWh",
+              input_id: targetId,
+              unit_id: null,
+              transform: null,
+              review_required: false,
+              source_origin: "derived_official_gme_index",
+            });
+            return true;
+          }
+
+          '''
+          text = text.replace(helper_anchor, helper + helper_anchor, 1)
+
+          business_old = '''    add("consumo_luce_kwh", "Consumo annuo luce", ["business-kwh"], { unit: "kWh/anno", compare_mode: "number" });
+              add("prezzo_luce_eur_kwh", "Prezzo luce", ["business-prezzo-luce"], { unit: "€/kWh", compare_mode: "number" });'''
+          business_new = '''    add("consumo_luce_kwh", "Consumo annuo luce", ["business-kwh"], { unit: "kWh/anno", compare_mode: "number" });
+              if (pdfPreviewAutofillValue(data, "prezzo_luce_eur_kwh") !== undefined) {
+                add("prezzo_luce_eur_kwh", "Prezzo luce", ["business-prezzo-luce"], { unit: "€/kWh", compare_mode: "number" });
+              } else {
+                pdfAutofillAddDerivedPunPriceSpec(specs, data, "business-prezzo-luce");
+              }'''
+          if text.count(business_old) != 1:
+              raise RuntimeError("Blocco prezzo luce business non trovato o non univoco")
+          text = text.replace(business_old, business_new, 1)
+
+          offer_old = '''    add("prezzo_luce_eur_kwh", "Prezzo luce della proposta", ["in-luce-prezzo-nuov"], { unit: "€/kWh", compare_mode: "number" });
+              add("quota_fissa_vendita_luce_eur_anno", "Quota fissa luce della proposta", ["in-luce-fisso-nuov", "in-luce-fisso-nuov-unita"], {'''
+          offer_new = '''    if (pdfPreviewAutofillValue(data, "prezzo_luce_eur_kwh") !== undefined) {
+                add("prezzo_luce_eur_kwh", "Prezzo luce della proposta", ["in-luce-prezzo-nuov"], { unit: "€/kWh", compare_mode: "number" });
+              } else {
+                pdfAutofillAddDerivedPunPriceSpec(specs, data, "in-luce-prezzo-nuov");
+              }
+              add("quota_fissa_vendita_luce_eur_anno", "Quota fissa luce della proposta", ["in-luce-fisso-nuov", "in-luce-fisso-nuov-unita"], {'''
+          if text.count(offer_old) != 1:
+              raise RuntimeError("Blocco prezzo luce proposta non trovato o non univoco")
+          text = text.replace(offer_old, offer_new, 1)
+
+          apply_pattern = re.compile(
+              r'function applicaRigheAutocompilazionePdf\(rows\) \{.*?\n\}\n\nfunction rebuildMergedPdfAutofillPlan',
+              re.S,
+          )
+          match = apply_pattern.search(text)
+          if not match:
+              raise RuntimeError("Funzione applicaRigheAutocompilazionePdf non trovata")
+
+          apply_replacement = r'''function applicaRigheAutocompilazionePdf(rows) {
+            const selected = Array.isArray(rows) ? rows : [];
+            const previousAutofillBlock = BLOCCO_AUTOFILL_NUOVA_OFFERTA;
+            BLOCCO_AUTOFILL_NUOVA_OFFERTA = true;
+            try {
+              selected.forEach((row) => {
+                if (row.kind === "fixed_annual") {
+                  impostaQuotaFissaAnnua(row.input_id, row.unit_id, row.value);
+                  PDF_MANUAL_TOUCHED_FIELDS.delete(row.input_id);
+                  PDF_MANUAL_TOUCHED_FIELDS.delete(row.unit_id);
+                  return;
+                }
+                const value = pdfAutofillIncomingTargetValue(row);
+                row.target_ids.forEach((id) => {
+                  setField(id, value);
+                  PDF_MANUAL_TOUCHED_FIELDS.delete(id);
+                });
+              });
+            } finally {
+              BLOCCO_AUTOFILL_NUOVA_OFFERTA = previousAutofillBlock;
+            }
+            sincronizzaConsumiNuovaOfferta();
+            return selected.length;
+          }
+
+          function rebuildMergedPdfAutofillPlan'''
+          text, replacements = apply_pattern.subn(apply_replacement, text, count=1)
+          if replacements != 1:
+              raise RuntimeError("Sostituzione applicaRigheAutocompilazionePdf non riuscita")
+
+          required = [
+              marker,
+              'field: "prezzo_luce_formula_pun_calcolato"',
+              'pdfAutofillAddDerivedPunPriceSpec(specs, data, "in-luce-prezzo-nuov")',
+              'pdfAutofillAddDerivedPunPriceSpec(specs, data, "business-prezzo-luce")',
+              'BLOCCO_AUTOFILL_NUOVA_OFFERTA = true;',
+          ]
+          missing = [item for item in required if item not in text]
+          if missing:
+              raise RuntimeError(f"Verifica patch fallita: {missing}")
+
+          expected = round(0.1325 * 1.1 + 0.0278, 9)
+          if expected != 0.17355:
+              raise RuntimeError(f"Calcolo di controllo inatteso: {expected}")
+
+          path.write_text(text, encoding="utf-8")
+          print("Correzione applicata a public/index.html")
+          print(f"Controllo E.ON: 0.1325 × 1.1 + 0.0278 = {expected:.5f} €/kWh")
+          PY
+
+      - name: Verifica sintassi JavaScript
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          html = Path("public/index.html").read_text(encoding="utf-8")
+          scripts = []
+          for attrs, body in re.findall(r"<script([^>]*)>(.*?)</script>", html, flags=re.I | re.S):
+              if re.search(r"\bsrc\s*=", attrs, flags=re.I):
+                  continue
+              if body.strip():
+                  scripts.append(body)
+          Path("/tmp/offertalogica-inline.js").write_text("\n;\n".join(scripts), encoding="utf-8")
+          print(f"Script inline estratti: {len(scripts)}")
+          PY
+          node --check /tmp/offertalogica-inline.js
+
+      - name: Verifica modifica isolata
+        shell: bash
+        run: |
+          changed="$(git diff --name-only)"
+          test "$changed" = "public/index.html" || {
+            echo "File inattesi modificati:"
+            printf '%s\n' "$changed"
+            exit 1
+          }
+          git diff --check
+
+      - name: Commit correzione
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/index.html
+          if ! git diff --cached --quiet; then
+            git commit -m "Correggi prezzo PUN delle schede offerta variabili"
+            git push
+          fi
