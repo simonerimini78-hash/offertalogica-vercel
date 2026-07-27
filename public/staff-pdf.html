@@ -176,13 +176,14 @@ function renderDetail(item) {
     <div class="table-wrap"><table><thead><tr><th>Campo</th><th>Esito</th><th>Valore</th><th>Pagina</th><th>Metodo</th><th>Testo sorgente</th></tr></thead><tbody>${diagnostics.map(d=>`<tr><td>${esc(d.label||d.field)}</td><td><span class="badge ${esc(d.status)}">${esc(d.status)}</span><br><small>${esc(d.confidence||'')}</small></td><td>${esc(fmt(d.value))}</td><td>${esc(d.page||'—')}</td><td>${esc(d.method||'—')}</td><td class="snippet">${esc(d.source_snippet||'—')}</td></tr>`).join('')||'<tr><td colspan="6">Diagnostica non disponibile.</td></tr>'}</tbody></table></div>
     <h3>Dati corretti attesi</h3><div class="edit-grid">${DISPLAY_FIELDS.map(key=>`<div class="field"><label for="expected-${esc(key)}">${esc(LABELS[key]||key)}</label><input id="expected-${esc(key)}" data-field="${esc(key)}" value="${esc(inputValue(Object.prototype.hasOwnProperty.call(confirmed,key)?confirmed[key]:n[key]))}"></div>`).join('')}</div>
     <div class="review-grid"><div class="field"><label for="review-status">Stato revisione</label><select id="review-status"><option value="pending">Da verificare</option><option value="reviewed">Verificata</option><option value="test_case">Caso di test</option><option value="discarded">Scartata</option></select></div><div class="field"><label for="staff-notes">Note staff</label><textarea id="staff-notes" rows="3" placeholder="Cosa non legge, posizione corretta, particolarità del layout…">${esc(item.staff_notes||'')}</textarea></div></div>
-    <div class="actions"><button class="btn primary" id="save-review">Salva verifica</button><button class="btn" id="show-json">Mostra JSON grezzo</button></div><div class="status" id="detail-status"></div><pre id="raw-json" hidden>${esc(JSON.stringify(n,null,2))}</pre>`;
+    <div class="actions"><button class="btn primary" id="save-review">Salva verifica</button><button class="btn" id="show-ai-raw">Mostra risposta IA originale</button><button class="btn" id="show-normalized-json">Mostra risultato normalizzato</button></div><div class="status" id="detail-status"></div><pre id="ai-raw-json" hidden>${esc(JSON.stringify(n?._reader_trace?.raw_ai ?? {trace_non_disponibile:true},null,2))}</pre><pre id="normalized-json" hidden>${esc(JSON.stringify(Object.fromEntries(Object.entries(n).filter(([key])=>key!=="_reader_trace")),null,2))}</pre>`;
   document.getElementById("review-status").value=item.review_status||"pending";
   document.getElementById("replay-analysis").addEventListener("click",()=>replayAnalysis(item));
   document.getElementById("open-pdf").addEventListener("click",()=>openPdf(item.id));
   document.getElementById("delete-analysis").addEventListener("click",()=>deleteAnalysis(item.id));
   document.getElementById("save-review").addEventListener("click",()=>saveReview(item));
-  document.getElementById("show-json").addEventListener("click",()=>{const pre=document.getElementById("raw-json");pre.hidden=!pre.hidden;});
+  document.getElementById("show-ai-raw").addEventListener("click",()=>{const pre=document.getElementById("ai-raw-json");pre.hidden=!pre.hidden;});
+  document.getElementById("show-normalized-json").addEventListener("click",()=>{const pre=document.getElementById("normalized-json");pre.hidden=!pre.hidden;});
 }
 function parseInput(value, original) {
   const trimmed=value.trim(); if(trimmed==="")return null;

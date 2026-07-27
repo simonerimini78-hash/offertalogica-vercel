@@ -564,3 +564,31 @@ test("default Files API: usa purpose user_data, scadenza di un'ora e file_id nel
     await fs.rm(dir, { recursive: true, force: true });
   }
 });
+
+test("catena di custodia: conserva la risposta IA originale separata dal normalizzato", async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "pure-ai-trace-"));
+  const filePath = path.join(dir, "documento.pdf");
+  await fs.writeFile(filePath, "%PDF-test");
+  const rawOutput = electricityOutput();
+  const normalized = await extractPdfPureAi({
+    filePath,
+    apiKey: "test-key",
+    transport: async () => ({ id: "resp_trace", output_text: JSON.stringify(rawOutput) }),
+  });
+  assert.equal(normalized._reader_trace.trace_version, "reader-trace-v1");
+  assert.equal(normalized._reader_trace.response_id, "resp_trace");
+  assert.deepEqual(normalized._reader_trace.raw_ai, rawOutput);
+  assert.equal(normalized.consumo_luce_kwh, 2740);
+  await fs.rm(dir, { recursive: true, force: true });
+});
+
+test("catena di custodia: l'API archivia la traccia privata ma non la espone al browser", async () => {
+  const routeSource = await fs.readFile(new URL("../api/analyze-pdf.js", import.meta.url), "utf8");
+  const staffSource = await fs.readFile(new URL("../public/staff-pdf.html", import.meta.url), "utf8");
+  assert.match(routeSource, /archivePdfAnalysis\(\{[\s\S]*normalized,/);
+  assert.match(routeSource, /const \{ _reader_trace: _privateReaderTrace, \.\.\.publicNormalized \} = normalized/);
+  assert.match(routeSource, /normalized: publicNormalized/);
+  assert.match(staffSource, /Mostra risposta IA originale/);
+  assert.match(staffSource, /Mostra risultato normalizzato/);
+  assert.match(staffSource, /_reader_trace\?\.raw_ai/);
+});

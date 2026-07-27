@@ -222,7 +222,10 @@ export default async function handler(req, res) {
         context: archiveContext,
       }).catch(() => ({ stored: false, reason: "archive_error" }))
       : { stored: false, reason: "insufficient_time_budget" };
-    return json(res, 200, { ok: true, normalized, archive });
+    // La risposta originale dell'IA contiene evidenze diagnostiche riservate allo staff.
+    // Non viene esposta al browser pubblico.
+    const { _reader_trace: _privateReaderTrace, ...publicNormalized } = normalized;
+    return json(res, 200, { ok: true, normalized: publicNormalized, archive });
   } catch (error) {
     const elapsedMs = Date.now() - requestStartedAt;
     const remainingMs = analysisDeadlineAt - Date.now();
