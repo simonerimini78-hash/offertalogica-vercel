@@ -1,15 +1,10 @@
-name: Aggiorna offerte ARERA
+name: Aggiorna PUN GME
 
 on:
   workflow_dispatch:
     inputs:
-      source_dir:
-        description: "Cartella del repository contenente i tre XML E, G e D (vuoto = download automatico)"
-        required: false
-        default: ""
-        type: string
       as_of:
-        description: "Data dei file in formato YYYY-MM-DD (vuoto = oggi)"
+        description: "Data di controllo in formato YYYY-MM-DD (vuoto = oggi)"
         required: false
         default: ""
         type: string
@@ -18,14 +13,14 @@ permissions:
   contents: write
 
 jobs:
-  update-arera-menu:
+  update-pun-gme:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
@@ -35,34 +30,27 @@ jobs:
           sudo apt-get install -y poppler-utils
           pdftotext -v
 
-      - name: Verifica parser ARERA e PUN
+      - name: Verifica parser e modalità PUN isolata
         run: python -m unittest discover -s test -p "update_arera_menu_test.py"
 
-      - name: Genera JSON offerte ARERA e aggiorna PUN
+      - name: Aggiorna soltanto PUN GME
         env:
-          SOURCE_DIR: ${{ inputs.source_dir }}
           AS_OF: ${{ inputs.as_of }}
         run: |
-          args=()
-          if [ -n "$SOURCE_DIR" ]; then
-            args+=(--source-dir "$SOURCE_DIR")
-          fi
+          args=(--pun-only)
           if [ -n "$AS_OF" ]; then
             args+=(--as-of "$AS_OF")
           fi
           python scripts/update-arera-menu.py "${args[@]}"
 
-      - name: Commit aggiornamento se necessario
+      - name: Commit aggiornamento PUN se necessario
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add \
-            data/offerte-arera-menu.json \
-            public/data/offerte-arera-menu.json \
             data/calcolo-parametri.json \
-            public/data/calcolo-parametri.json \
-            data/arera-update-report.json
+            public/data/calcolo-parametri.json
           if ! git diff --cached --quiet; then
-            git commit -m "Aggiorna offerte ARERA e PUN GME"
+            git commit -m "Aggiorna PUN GME"
             git push
           fi
