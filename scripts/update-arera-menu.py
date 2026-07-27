@@ -1551,19 +1551,7 @@ def write_report(root: Path, report: dict[str, object]) -> Path:
     return target
 
 
-def atomic_publish(
-    root: Path,
-    payload: dict[str, object],
-    report: dict[str, object],
-    calculation_parameters: dict[str, object],
-) -> list[Path]:
-    target_bodies = {
-        root / "data" / "offerte-arera-menu.json": json_text(payload),
-        root / "public" / "data" / "offerte-arera-menu.json": json_text(payload),
-        root / "data" / "calcolo-parametri.json": json_text(calculation_parameters),
-        root / "public" / "data" / "calcolo-parametri.json": json_text(calculation_parameters),
-        root / "data" / "arera-update-report.json": json_text(report),
-    }
+def atomic_write_json_targets(target_bodies: dict[Path, str]) -> list[Path]:
     targets = list(target_bodies)
     temporary: list[tuple[Path, Path]] = []
     originals = {target: target.read_bytes() if target.exists() else None for target in targets}
@@ -1596,6 +1584,35 @@ def atomic_publish(
         for temp_path, _ in temporary:
             temp_path.unlink(missing_ok=True)
     return targets
+
+
+def atomic_publish_calculation_parameters(
+    root: Path, calculation_parameters: dict[str, object]
+) -> list[Path]:
+    body = json_text(calculation_parameters)
+    return atomic_write_json_targets(
+        {
+            root / "data" / "calcolo-parametri.json": body,
+            root / "public" / "data" / "calcolo-parametri.json": body,
+        }
+    )
+
+
+def atomic_publish(
+    root: Path,
+    payload: dict[str, object],
+    report: dict[str, object],
+    calculation_parameters: dict[str, object],
+) -> list[Path]:
+    return atomic_write_json_targets(
+        {
+            root / "data" / "offerte-arera-menu.json": json_text(payload),
+            root / "public" / "data" / "offerte-arera-menu.json": json_text(payload),
+            root / "data" / "calcolo-parametri.json": json_text(calculation_parameters),
+            root / "public" / "data" / "calcolo-parametri.json": json_text(calculation_parameters),
+            root / "data" / "arera-update-report.json": json_text(report),
+        }
+    )
 
 
 def build_staging_payload(
@@ -1657,11 +1674,42 @@ def build_validated_payload(
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Aggiorna il JSON ARERA usato dal menu nuova offerta.")
+    parser = argparse.ArgumentParser(
+        description="Aggiorna il catalogo ARERA oppure soltanto il PUN mensile GME."
+    )
     parser.add_argument("--source-dir", type=Path, help="Cartella locale con XML Open Data gia scaricati.")
     parser.add_argument("--package-root", type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument("--as-of", help="Data controllo in formato YYYY-MM-DD. Default: oggi.")
+    parser.add_argument(
+        "--pun-only",
+        action="store_true",
+        help="Aggiorna soltanto il PUN GME nei due calcolo-parametri.json, senza scaricare o elaborare offerte ARERA.",
+    )
     return parser.parse_args()
+
+
+def run_pun_only(root: Path, as_of: datetime) -> list[Path]:
+    current_parameters = load_calculation_parameters(root)
+    current_indices = market_index_values(current_parameters)
+    snapshot = download_previous_month_pun(as_of)
+    if snapshot is None:
+        _, _, _, expected_period_label = previous_month_reference(as_of)
+        log_info(
+            f"PUN GME {expected_period_label} non ancora pubblicato; "
+            f"conservo {current_indices['pun']:.9f} eur/kWh e non modifico i file."
+        )
+        return []
+
+    updated_parameters = apply_pun_snapshot(current_parameters, snapshot, as_of)
+    targets = atomic_publish_calculation_parameters(root, updated_parameters)
+    log_info(
+        f"PUN GME {snapshot['periodoLabel']}: "
+        f"{float(snapshot['valoreOriginale']):.6f} eur/MWh = "
+        f"{float(snapshot['valore']):.9f} eur/kWh."
+    )
+    for target in targets:
+        log_info(f"Aggiornato: {target.relative_to(root)}")
+    return targets
 
 
 def main() -> int:
@@ -1671,6 +1719,16 @@ def main() -> int:
         as_of = datetime.strptime(args.as_of, "%Y-%m-%d")
 
     root = args.package_root.resolve()
+    if args.pun_only:
+        try:
+            run_pun_only(root, as_of)
+        except Exception as error:
+            log_error(f"Aggiornamento PUN GME non riuscito: {error}")
+            log_error("I dati esistenti non sono stati modificati.")
+            return 1
+        log_info("Aggiornamento PUN GME completato correttamente.")
+        return 0
+
     staging_path: Path | None = None
     report: dict[str, object] | None = None
     try:

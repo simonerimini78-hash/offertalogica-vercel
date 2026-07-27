@@ -507,6 +507,138 @@ class UpdateAreraMenuTest(unittest.TestCase):
         self.assertEqual(data_parameters["indiciMercato"]["pun"]["valore"], 0.1325)
         self.assertEqual(len(targets), 5)
 
+    def test_pun_only_updates_parameter_files_without_arera_pipeline(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "package"
+            (root / "data").mkdir(parents=True)
+            parameters = {
+                "versioneDati": "old",
+                "fonte": "old",
+                "aggiornatoIl": "2026-07-03",
+                "parametriCalcolo": {"perditeReteLuceVariabile": 1.102},
+                "indiciMercato": {
+                    "pun": {"label": "PUN", "valore": 0.119351258, "unita": "eur_kwh"},
+                    "psv": {"label": "PSV", "valore": 0.504419055, "unita": "eur_smc"},
+                    "psbg": {"label": "PSBG", "valore": 0.504419055, "unita": "eur_smc"},
+                },
+            }
+            (root / "data" / "calcolo-parametri.json").write_text(
+                json.dumps(parameters), encoding="utf-8"
+            )
+            snapshot = {
+                "periodo": "2026-06",
+                "periodoLabel": "Giugno 2026",
+                "titolo": "Dati di sintesi elettrico - Giugno 2026",
+                "urlFonte": "https://gme.test/notice",
+                "urlDocumento": "https://gme.test/document.pdf",
+                "pubblicatoIl": "2026-07-14",
+                "label": "PUN Index GME",
+                "valore": 0.1325,
+                "unita": "eur_kwh",
+                "valoreOriginale": 132.5,
+                "unitaOriginale": "eur_mwh",
+                "fonte": MODULE.GME_SOURCE_LABEL,
+                "stato": "ufficiale",
+                "acquisitoIl": "2026-07-27",
+            }
+            argv = [
+                "update-arera-menu.py",
+                "--pun-only",
+                "--package-root",
+                str(root),
+                "--as-of",
+                "2026-07-27",
+            ]
+            with mock.patch.object(MODULE, "download_previous_month_pun", return_value=snapshot), mock.patch.object(
+                MODULE, "download_current_files", side_effect=AssertionError("ARERA non deve partire")
+            ), mock.patch.object(sys, "argv", argv):
+                result = MODULE.main()
+
+            data_parameters = json.loads(
+                (root / "data" / "calcolo-parametri.json").read_text(encoding="utf-8")
+            )
+            public_parameters = json.loads(
+                (root / "public" / "data" / "calcolo-parametri.json").read_text(encoding="utf-8")
+            )
+
+            self.assertEqual(result, 0)
+            self.assertEqual(data_parameters, public_parameters)
+            self.assertEqual(data_parameters["indiciMercato"]["pun"]["valore"], 0.1325)
+            self.assertEqual(data_parameters["indiciMercato"]["pun"]["periodo"], "2026-06")
+            self.assertEqual(data_parameters["indiciMercato"]["psv"], parameters["indiciMercato"]["psv"])
+            self.assertFalse((root / "data" / "offerte-arera-menu.json").exists())
+            self.assertFalse((root / "data" / "arera-update-report.json").exists())
+
+    def test_pun_only_waiting_period_keeps_both_parameter_files_unchanged(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "package"
+            data_path = root / "data" / "calcolo-parametri.json"
+            public_path = root / "public" / "data" / "calcolo-parametri.json"
+            data_path.parent.mkdir(parents=True)
+            public_path.parent.mkdir(parents=True)
+            parameters = {
+                "versioneDati": "old",
+                "aggiornatoIl": "2026-07-03",
+                "indiciMercato": {
+                    "pun": {"valore": 0.119351258},
+                    "psv": {"valore": 0.504419055},
+                },
+            }
+            original = json.dumps(parameters, ensure_ascii=False, indent=2) + "\n"
+            data_path.write_text(original, encoding="utf-8")
+            public_path.write_text(original, encoding="utf-8")
+            argv = [
+                "update-arera-menu.py",
+                "--pun-only",
+                "--package-root",
+                str(root),
+                "--as-of",
+                "2026-07-01",
+            ]
+            with mock.patch.object(MODULE, "download_previous_month_pun", return_value=None), mock.patch.object(
+                MODULE, "download_current_files", side_effect=AssertionError("ARERA non deve partire")
+            ), mock.patch.object(sys, "argv", argv):
+                result = MODULE.main()
+
+            self.assertEqual(result, 0)
+            self.assertEqual(data_path.read_text(encoding="utf-8"), original)
+            self.assertEqual(public_path.read_text(encoding="utf-8"), original)
+            self.assertFalse((root / "data" / "arera-update-report.json").exists())
+
+    def test_pun_only_failure_does_not_write_arera_report_or_change_parameters(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "package"
+            data_path = root / "data" / "calcolo-parametri.json"
+            data_path.parent.mkdir(parents=True)
+            parameters = {
+                "versioneDati": "old",
+                "indiciMercato": {
+                    "pun": {"valore": 0.119351258},
+                    "psv": {"valore": 0.504419055},
+                },
+            }
+            original = json.dumps(parameters)
+            data_path.write_text(original, encoding="utf-8")
+            argv = [
+                "update-arera-menu.py",
+                "--pun-only",
+                "--package-root",
+                str(root),
+                "--as-of",
+                "2026-07-27",
+            ]
+            with mock.patch.object(
+                MODULE, "download_previous_month_pun", side_effect=RuntimeError("GME non disponibile")
+            ), mock.patch.object(MODULE, "download_current_files", side_effect=AssertionError("ARERA non deve partire")), mock.patch.object(
+                sys, "argv", argv
+            ):
+                result = MODULE.main()
+
+            self.assertEqual(result, 1)
+            self.assertEqual(data_path.read_text(encoding="utf-8"), original)
+            self.assertFalse((root / "public" / "data" / "calcolo-parametri.json").exists())
+            self.assertFalse((root / "data" / "arera-update-report.json").exists())
+
     def parse(self, xml: str, commodity: str, overrides=None):
         diagnostics: list[dict[str, object]] = []
         with tempfile.TemporaryDirectory() as tmp:

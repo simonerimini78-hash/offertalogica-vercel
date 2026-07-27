@@ -8,7 +8,7 @@
     "start": "vercel dev",
     "lint": "node scripts/check-env.mjs",
     "test": "node --test test/*.test.mjs",
-    "test:python": "python3 -m unittest discover -s test -p \"update_arera_menu_test.py\"",
+    "test:python": "python3 -m unittest test/update_arera_menu_test.py",
     "test:pdf-reader": "node --test test/pdfPureAiReader.test.mjs test/pdfDirectUpload.test.mjs test/pdfDirectUploadFrontend.test.mjs test/pdfFileValidation.test.mjs test/pdfAnalysisDiagnostics.test.mjs test/pdfArchive.test.mjs",
     "validate:calculator": "node scripts/validate-calculator-data.mjs",
     "test:ranking-arera": "node scripts/test-ranking-arera.mjs",
