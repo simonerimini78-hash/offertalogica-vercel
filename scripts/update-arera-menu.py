@@ -155,7 +155,7 @@ def find_exact_link(page: str, base_url: str, expected_label: str) -> str | None
     parser = parse_html_links(page)
     for href, label in parser.anchors:
         if href and normalize_text(label) == expected:
-            return urljoin(base_url, href.replace("\\", "/")) urljoin(base_url, href)
+            return urljoin(base_url, href.replace("\\", "/"))
     return None
 
 
@@ -165,7 +165,7 @@ def find_pdf_link(page: str, base_url: str, expected_label: str) -> str | None:
         return exact
     parser = parse_html_links(page)
     for href, label in parser.anchors:
-        absolute = urljoinabsolute = urljoin(base_url, (href or "").replace("\\", "/"))base_url, href or "")
+        absolute = urljoin(base_url, (href or "").replace("\\", "/"))
         if absolute.lower().split("?", 1)[0].endswith(".pdf"):
             if normalize_text(expected_label) in normalize_text(label) or not label.strip():
                 return absolute
@@ -274,7 +274,7 @@ def download_previous_month_pun(as_of: datetime) -> dict[str, object] | None:
     eur_mwh, eur_kwh = parse_gme_pun_text(text, str(document["periodoLabel"]))
     return {
         **document,
-        "urlDocumento"urlDocumento": final_url.replace("\\", "/"),: final_url,
+        "urlDocumento": final_url.replace("\\", "/"),
         "label": "PUN Index GME",
         "valore": eur_kwh,
         "unita": "eur_kwh",
