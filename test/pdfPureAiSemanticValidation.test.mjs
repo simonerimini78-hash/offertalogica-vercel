@@ -18,6 +18,7 @@ function emptyAnswers() {
     label: null,
     evidence: null,
     confidence: 0,
+    fixed_fee_role: "none",
   }));
 }
 
@@ -33,6 +34,7 @@ function setAnswer(answers, questionId, patch) {
     label: questionId,
     evidence: "evidenza",
     confidence: 95,
+    fixed_fee_role: "none",
     ...patch,
   });
 }
@@ -221,7 +223,7 @@ test("classificazione generale: i dati specifici del cliente mantengono il docum
 });
 
 test("versione lettore semantico aggiornata", () => {
-  assert.equal(PDF_PURE_AI_READER_VERSION, "pure-ai-native-pdf-v1.0.16");
+  assert.equal(PDF_PURE_AI_READER_VERSION, "pure-ai-native-pdf-v1.0.17");
 });
 
 
@@ -500,3 +502,96 @@ test("quota potenza separata: non viene usata come quota fissa confrontabile", (
   assert.equal(normalized.quota_fissa_confrontabile_luce_eur_mese, undefined);
   assert.equal(rejectedReason(normalized, "quota_fissa_vendita_luce"), "semantic_fixed_fee_power_only");
 });
+
+
+test("quota fissa Hera reale: accetta il totale netto positivo quando la componente commerciale è negativa", () => {
+  const answers = emptyAnswers();
+  setAnswer(answers, "consumo_luce_kwh", {
+    value_text: "1.628,91 kWh", value_number: 1628.91, unit: "kWh",
+    evidence: "Totale consumo annuo ultimi 12 mesi: 1.628,91 kWh",
+  });
+  setAnswer(answers, "prezzo_luce_eur_kwh", {
+    value_text: "0,152429 €/kWh", value_number: 0.152429, unit: "€/kWh",
+    evidence: "di cui spesa per la vendita di energia elettrica 37,47 € 0,152429 €/kWh",
+  });
+  setAnswer(answers, "quota_fissa_vendita_luce", {
+    value_text: "3,220000 €/mese", value_number: 3.22, unit: "€/mese", period: "month",
+    label: "Quota fissa e quota potenza",
+    evidence: "Quota fissa e quota potenza 2 mesi 6,44 € 3,220000 €/mese; di cui spesa per la vendita di energia elettrica -12,20 € -6,100000 €/mese; di cui spesa per la rete e gli oneri generali di sistema 18,64 € 9,320000 €/mese; quota potenza 1,976667 €/kW/mese",
+    fixed_fee_role: "section_total",
+  });
+
+  const normalized = normalizePureAiOutput(documentOutput({ answers }));
+  assert.equal(normalized.quota_fissa_confrontabile_luce_eur_mese, 3.22);
+  assert.equal(normalized.readiness.confronto.luce.status, "completo");
+  assert.equal(rejectedReason(normalized, "quota_fissa_vendita_luce"), null);
+});
+
+test("quota fissa Plenitude dual reale: accetta le componenti commerciali positive anche con righe regolate vicine", () => {
+  const answers = emptyAnswers();
+  setAnswer(answers, "consumo_luce_kwh", {
+    value_text: "2.196 kWh", value_number: 2196, unit: "kWh",
+    evidence: "Consumo annuo ultimi 12 mesi luce 2.196 kWh",
+  });
+  setAnswer(answers, "prezzo_luce_eur_kwh", {
+    value_text: "0,149077 €/kWh", value_number: 0.149077, unit: "€/kWh",
+    evidence: "di cui spesa per la vendita di energia elettrica 0,149077 €/kWh",
+  });
+  setAnswer(answers, "quota_fissa_vendita_luce", {
+    value_text: "12,105000 €/mese", value_number: 12.105, unit: "€/mese", period: "month",
+    label: "di cui spesa per la vendita di energia elettrica",
+    evidence: "QUOTA FISSA 2 mesi 28,05 € 14,025000 €/mese; di cui spesa per la vendita di energia elettrica 24,21 € 12,105000 €/mese; di cui spesa per la rete e gli oneri generali di sistema 3,84 € 1,920000 €/mese; QUOTA POTENZA 3 kW",
+    fixed_fee_role: "commercial_component",
+  });
+  setAnswer(answers, "consumo_gas_smc", {
+    value_text: "1.363 Smc", value_number: 1363, unit: "Smc",
+    evidence: "Consumo annuo ultimi 12 mesi gas 1.363 Smc",
+  });
+  setAnswer(answers, "prezzo_gas_eur_smc", {
+    value_text: "0,410829 €/Smc", value_number: 0.410829, unit: "€/Smc",
+    evidence: "di cui spesa per la vendita di gas naturale 0,410829 €/Smc",
+  });
+  setAnswer(answers, "quota_fissa_vendita_gas", {
+    value_text: "12,000000 €/mese", value_number: 12, unit: "€/mese", period: "month",
+    label: "di cui spesa per la vendita di gas naturale",
+    evidence: "QUOTA FISSA 2 mesi 32,50 € 16,250000 €/mese; di cui spesa per la vendita di gas naturale 24,00 € 12,000000 €/mese; di cui spesa per la rete e gli oneri generali di sistema 8,50 € 4,250000 €/mese",
+    fixed_fee_role: "commercial_component",
+  });
+
+  const normalized = normalizePureAiOutput(documentOutput({ commodity: "dual", answers }));
+  assert.equal(normalized.quota_fissa_confrontabile_luce_eur_mese, 12.105);
+  assert.equal(normalized.quota_fissa_confrontabile_gas_eur_mese, 12);
+  assert.equal(normalized.readiness.confronto.luce.status, "completo");
+  assert.equal(normalized.readiness.confronto.gas.status, "completo");
+  assert.equal(rejectedReason(normalized, "quota_fissa_vendita_luce"), null);
+  assert.equal(rejectedReason(normalized, "quota_fissa_vendita_gas"), null);
+});
+
+test("quota fissa: un ruolo regolato dichiarato resta bloccato", () => {
+  const answers = emptyAnswers();
+  setAnswer(answers, "quota_fissa_vendita_gas", {
+    value_text: "4,25 €/mese", value_number: 4.25, unit: "€/mese", period: "month",
+    label: "spesa per la rete e gli oneri generali di sistema",
+    evidence: "di cui spesa per la rete e gli oneri generali di sistema 8,50 € 4,250000 €/mese",
+    fixed_fee_role: "regulated_component",
+  });
+
+  const normalized = normalizePureAiOutput(documentOutput({ commodity: "gas", answers }));
+  assert.equal(normalized.quota_fissa_confrontabile_gas_eur_mese, undefined);
+  assert.equal(rejectedReason(normalized, "quota_fissa_vendita_gas"), "semantic_fixed_fee_regulated_component");
+});
+
+test("quota fissa: un ruolo commerciale errato non può rendere valida una riga regolata", () => {
+  const answers = emptyAnswers();
+  setAnswer(answers, "quota_fissa_vendita_gas", {
+    value_text: "4,25 €/mese", value_number: 4.25, unit: "€/mese", period: "month",
+    label: "spesa per la rete e gli oneri generali di sistema",
+    evidence: "QUOTA FISSA 16,25 €/mese; di cui spesa per la vendita di gas naturale 12,00 €/mese; di cui spesa per la rete e gli oneri generali di sistema 4,25 €/mese",
+    fixed_fee_role: "commercial_component",
+  });
+
+  const normalized = normalizePureAiOutput(documentOutput({ commodity: "gas", answers }));
+  assert.equal(normalized.quota_fissa_confrontabile_gas_eur_mese, undefined);
+  assert.equal(rejectedReason(normalized, "quota_fissa_vendita_gas"), "semantic_fixed_fee_not_commercial");
+});
+
