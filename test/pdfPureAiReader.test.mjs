@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import {
   PDF_PURE_AI_QUESTION_IDS,
+  PDF_PURE_AI_REQUEST_QUESTION_IDS,
   PDF_PURE_AI_READER_VERSION,
   buildPdfPureAiRequest,
   extractPdfPureAi,
@@ -62,29 +63,59 @@ function electricityOutput() {
   };
 }
 
-test("buildPdfPureAiRequest invia il PDF con schema compatto per il confronto", async () => {
+test("buildPdfPureAiRequest forza una risposta per ogni dato economico prioritario", async () => {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "pure-ai-native-"));
   const filePath = path.join(dir, "bolletta.pdf");
   await fs.writeFile(filePath, "%PDF-test");
   const request = await buildPdfPureAiRequest({ filePath, model: "test-model" });
   const content = request.input[1].content;
   const fileInput = content.find((item) => item.type === "input_file");
+  const schema = request.text.format.schema;
   assert.ok(fileInput.file_data.startsWith("data:application/pdf;base64,"));
   assert.equal(content.some((item) => item.type === "input_image"), false);
   assert.equal(request.text.format.type, "json_schema");
   assert.equal(request.text.format.strict, true);
   assert.equal(request.store, false);
-  assert.equal(request.max_output_tokens, 1800);
-  assert.deepEqual(request.text.format.schema.required, ["document", "electricity", "gas"]);
-  assert.ok(request.text.format.schema.properties.electricity.properties.annual_consumption);
-  assert.ok(request.text.format.schema.properties.electricity.properties.price);
-  assert.ok(request.text.format.schema.properties.electricity.properties.fixed_fee);
-  assert.equal(request.text.format.schema.properties.answers, undefined);
-  assert.match(content[1].text, /consumo annuo/i);
-  assert.match(content[1].text, /prezzo commerciale/i);
-  assert.match(content[1].text, /quota fissa/i);
-  assert.doesNotMatch(content[1].text, /consumo_luce_kwh|prezzo_luce_f0_eur_kwh|quota_fissa_vendita_luce/i);
+  assert.equal(request.max_output_tokens, 4000);
+  assert.deepEqual(schema.required, ["document", "answers"]);
+  assert.equal(schema.properties.answers.minItems, PDF_PURE_AI_REQUEST_QUESTION_IDS.length);
+  assert.equal(schema.properties.answers.maxItems, PDF_PURE_AI_REQUEST_QUESTION_IDS.length);
+  assert.deepEqual(schema.properties.answers.items.properties.question_id.enum, PDF_PURE_AI_REQUEST_QUESTION_IDS);
+  assert.equal(schema.properties.electricity, undefined);
+  assert.equal(PDF_PURE_AI_REQUEST_QUESTION_IDS[0], "prezzo_luce_eur_kwh");
+  assert.ok(PDF_PURE_AI_REQUEST_QUESTION_IDS.includes("quota_fissa_vendita_luce"));
+  assert.ok(PDF_PURE_AI_REQUEST_QUESTION_IDS.includes("consumo_luce_kwh"));
+  assert.ok(PDF_PURE_AI_REQUEST_QUESTION_IDS.includes("prezzo_gas_eur_smc"));
+  assert.equal(PDF_PURE_AI_REQUEST_QUESTION_IDS.includes("pod"), false);
+  assert.equal(PDF_PURE_AI_REQUEST_QUESTION_IDS.includes("intestatario"), false);
+  assert.match(content[1].text, /prezzo_luce_eur_kwh/);
+  assert.match(content[1].text, /prezzo_gas_eur_smc/);
+  assert.match(content[1].text, /found=false/);
+  assert.match(content[1].text, /stesso ordine/i);
   await fs.rm(dir, { recursive: true, force: true });
+});
+
+test("replay archivio: continua a normalizzare il precedente schema compatto", () => {
+  const normalized = normalizePureAiOutput({
+    document: { kind: "bill", commodity: "electricity", customer_type: "consumer", page_count: 2 },
+    electricity: {
+      identity: { provider: "Venditore Test", offer_name: "Offerta Test", page: 1, evidence: "Prodotto attivo: Offerta Test", confidence: 100 },
+      annual_consumption: { total: 2700, f1: null, f2: null, f3: null, f23: null, unit: "kWh", page: 2, label: "Consumo annuo", evidence: "Consumo annuo ultimi 12 mesi 2.700 kWh", confidence: 100 },
+      price: { type: "fixed", single: 0.123, f0: null, f1: null, f2: null, f3: null, f23: null, index: null, multiplier: null, spread: null, formula: null, periodicity: null, unit: "€/kWh", page: 2, label: "Prezzo energia", evidence: "Prezzo componente energia 0,123 €/kWh", confidence: 100 },
+      fixed_fee: { value: 8, period: "month", unit: "€/mese", page: 2, label: "Quota fissa vendita", evidence: "Quota fissa vendita 8 €/mese", confidence: 100 },
+    },
+    gas: {
+      identity: { provider: null, offer_name: null, page: null, evidence: null, confidence: 0 },
+      annual_consumption: { total: null, f1: null, f2: null, f3: null, f23: null, unit: null, page: null, label: null, evidence: null, confidence: 0 },
+      price: { type: "unknown", single: null, f0: null, f1: null, f2: null, f3: null, f23: null, index: null, multiplier: null, spread: null, formula: null, periodicity: null, unit: null, page: null, label: null, evidence: null, confidence: 0 },
+      fixed_fee: { value: null, period: "none", unit: null, page: null, label: null, evidence: null, confidence: 0 },
+    },
+  });
+
+  assert.equal(normalized.fornitore, "Venditore Test");
+  assert.equal(normalized.prezzo_luce_eur_kwh, 0.123);
+  assert.equal(normalized.quota_fissa_vendita_luce_eur_anno, 96);
+  assert.equal(normalized.consumo_luce_kwh, 2700);
 });
 
 test("normalizePureAiOutput accetta una risposta sparsa e conserva i dati parziali", () => {
@@ -106,14 +137,14 @@ test("normalizePureAiOutput accetta una risposta sparsa e conserva i dati parzia
   assert.equal(normalized.ai.accepted_count >= 8, true);
 });
 
-test("richiesta unica: non esistono più profili full ed essential duplicati", async () => {
+test("richiesta unica: tutti i profili usano le stesse domande economiche forzate", async () => {
   const first = await buildPdfPureAiRequest({ fileId: "file_test", profile: "full" });
   const second = await buildPdfPureAiRequest({ fileId: "file_test", profile: "essential" });
-  assert.equal(first.max_output_tokens, 1800);
-  assert.equal(second.max_output_tokens, 1800);
+  assert.equal(first.max_output_tokens, 4000);
+  assert.equal(second.max_output_tokens, 4000);
   assert.deepEqual(first.text.format.schema, second.text.format.schema);
-  assert.equal(first.text.format.name, "offertalogica_comparison_essentials");
-  assert.equal(first.text.format.schema.properties.answers, undefined);
+  assert.equal(first.text.format.name, "offertalogica_forced_economic_questions");
+  assert.deepEqual(first.text.format.schema.required, ["document", "answers"]);
 });
 
 test("timeout: esegue una sola chiamata e non avvia un secondo tentativo costoso", async () => {

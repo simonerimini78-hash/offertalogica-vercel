@@ -102,6 +102,39 @@ test("validazione semantica generale: rifiuta costo medio e totale come prezzo c
   assert.equal(normalized.field_status.prezzo_luce_eur_kwh.status, "mancante");
 });
 
+test("validazione semantica generale: accetta il prezzo medio della sola spesa di vendita", () => {
+  const answers = emptyAnswers();
+  setAnswer(answers, "prezzo_luce_eur_kwh", {
+    value_text: "0,152429 €/kWh",
+    value_number: 0.152429,
+    unit: "€/kWh",
+    label: "Prezzo medio",
+    evidence: "di cui spesa per la vendita di energia elettrica 37,47 € 0,152429 €/kWh",
+  });
+
+  const normalized = normalizePureAiOutput(documentOutput({ answers }));
+  assert.equal(normalized.prezzo_luce_eur_kwh, 0.152429);
+  assert.equal(rejectedReason(normalized, "prezzo_luce_eur_kwh"), null);
+  const diagnostic = normalized.diagnostics.find((item) => item.field === "prezzo_luce_eur_kwh");
+  assert.equal(diagnostic?.source_role, "sales_component_rate");
+  assert.equal(diagnostic?.usable_for_comparison, true);
+});
+
+test("validazione semantica generale: continua a rifiutare il prezzo medio totale della quota consumi", () => {
+  const answers = emptyAnswers();
+  setAnswer(answers, "prezzo_luce_eur_kwh", {
+    value_text: "0,197462 €/kWh",
+    value_number: 0.197462,
+    unit: "€/kWh",
+    label: "Prezzo medio",
+    evidence: "Quota per consumi 245,819 kWh 48,54 € 0,197462 €/kWh",
+  });
+
+  const normalized = normalizePureAiOutput(documentOutput({ answers }));
+  assert.equal(normalized.prezzo_luce_eur_kwh, undefined);
+  assert.equal(rejectedReason(normalized, "prezzo_luce_eur_kwh"), "semantic_price_average_or_total");
+});
+
 test("validazione semantica generale: accetta il prezzo commerciale esplicito", () => {
   const answers = emptyAnswers();
   setAnswer(answers, "fornitore", { value_text: "Fornitore Test", evidence: "Fornitore Test" });
@@ -188,7 +221,7 @@ test("classificazione generale: i dati specifici del cliente mantengono il docum
 });
 
 test("versione lettore semantico aggiornata", () => {
-  assert.equal(PDF_PURE_AI_READER_VERSION, "pure-ai-native-pdf-v1.0.11");
+  assert.equal(PDF_PURE_AI_READER_VERSION, "pure-ai-native-pdf-v1.0.12");
 });
 
 test("validazione semantica gas: distingue consumo annuo e prezzo materia prima da valori del periodo o medi", () => {

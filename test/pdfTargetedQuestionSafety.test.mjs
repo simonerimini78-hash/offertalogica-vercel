@@ -305,26 +305,27 @@ test("scheda sintetica: non sostituisce l'offerta corrente con la tariffa di rin
   assert.equal(rejectedReason(normalized, "indice_riferimento_luce"), "semantic_offer_field_not_contract_term");
 });
 
-test("richiesta IA: schema compatto limita il lavoro ai dati necessari al confronto", async () => {
+test("richiesta IA: forza i dati economici senza ampliare la lettura ai dati di attivazione", async () => {
   const request = await buildPdfPureAiRequest({ fileId: "file_test", filename: "documento.pdf" });
   const schema = request.text.format.schema;
-  const electricity = schema.properties.electricity.properties;
-  const gas = schema.properties.gas.properties;
-  assert.deepEqual(schema.required, ["document", "electricity", "gas"]);
-  assert.ok(electricity.annual_consumption);
-  assert.ok(electricity.price);
-  assert.ok(electricity.fixed_fee);
-  assert.ok(gas.annual_consumption);
-  assert.ok(gas.price);
-  assert.ok(gas.fixed_fee);
-  assert.equal(schema.properties.answers, undefined);
-  assert.equal(request.max_output_tokens, 1800);
+  const questionIds = schema.properties.answers.items.properties.question_id.enum;
+  assert.deepEqual(schema.required, ["document", "answers"]);
+  assert.equal(schema.properties.answers.minItems, questionIds.length);
+  assert.equal(schema.properties.answers.maxItems, questionIds.length);
+  assert.ok(questionIds.includes("prezzo_luce_eur_kwh"));
+  assert.ok(questionIds.includes("quota_fissa_vendita_luce"));
+  assert.ok(questionIds.includes("consumo_luce_kwh"));
+  assert.ok(questionIds.includes("prezzo_gas_eur_smc"));
+  assert.equal(questionIds.includes("pod"), false);
+  assert.equal(questionIds.includes("pdr"), false);
+  assert.equal(questionIds.includes("intestatario"), false);
+  assert.equal(request.max_output_tokens, 4000);
   const prompt = request.input[0].content[0].text + "\n" + request.input[1].content[1].text;
   assert.match(prompt, /consumo annuo/i);
-  assert.match(prompt, /prezzo commerciale/i);
-  assert.match(prompt, /quota fissa commerciale/i);
-  assert.match(prompt, /non cercare POD\/PDR/i);
-  assert.match(prompt, /rinnovi futuri/i);
+  assert.match(prompt, /spesa per la vendita di energia elettrica/i);
+  assert.match(prompt, /quota fissa/i);
+  assert.match(prompt, /rinnovo futuro/i);
+  assert.match(prompt, /ogni domanda/i);
 });
 
 
