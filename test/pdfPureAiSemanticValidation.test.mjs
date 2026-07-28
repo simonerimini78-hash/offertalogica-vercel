@@ -221,7 +221,31 @@ test("classificazione generale: i dati specifici del cliente mantengono il docum
 });
 
 test("versione lettore semantico aggiornata", () => {
-  assert.equal(PDF_PURE_AI_READER_VERSION, "pure-ai-native-pdf-v1.0.12");
+  assert.equal(PDF_PURE_AI_READER_VERSION, "pure-ai-native-pdf-v1.0.14");
+});
+
+
+test("tipo prezzo: gestisce negazioni, componenti fisse e conflitti senza forzare variabile", () => {
+  const normalizeType = (valueText, evidence = valueText) => {
+    const answers = emptyAnswers();
+    setAnswer(answers, "tipo_prezzo_luce", { value_text: valueText, evidence });
+    return normalizePureAiOutput(documentOutput({ kind: "offer_sheet", commodity: "electricity", answers }));
+  };
+
+  assert.equal(normalizeType("Prezzo fisso, non variabile").tipo_prezzo_luce, "fisso");
+  assert.equal(normalizeType("Prezzo variabile, non fisso").tipo_prezzo_luce, "variabile");
+  assert.equal(
+    normalizeType("Prezzo variabile con corrispettivo fisso di commercializzazione").tipo_prezzo_luce,
+    "variabile",
+  );
+  assert.equal(
+    normalizeType("Offerta ibrida con componente fissa e componente variabile").tipo_prezzo_luce,
+    "ibrido",
+  );
+
+  const conflict = normalizeType("Prezzo fisso e prezzo variabile");
+  assert.equal(conflict.tipo_prezzo_luce, undefined);
+  assert.equal(rejectedReason(conflict, "tipo_prezzo_luce"), "invalid_price_type");
 });
 
 test("validazione semantica gas: distingue consumo annuo e prezzo materia prima da valori del periodo o medi", () => {
