@@ -122,19 +122,22 @@ test("Step 5.2 consente fornitori diversi per luce e gas dello stesso cliente", 
   assert.equal(merged.pdr, "03081000765318");
 });
 
-test("Step 5.2 mostra due codici cliente nel riepilogo quando sono differenti", () => {
+test("Step 5.2 conserva due codici cliente differenti ma non li mostra prima dell’attivazione", () => {
   const { mergePdfDocuments, renderPdfSummary } = loadMergeHelpers();
   const docs = [
     { ...supplyDoc({ commodity: "luce", provider: "Estra Energie", code: "192693025", pod: "IT001E51344941" }), filename: "Bolletta-estra-luce.pdf" },
     { ...supplyDoc({ commodity: "gas", provider: "Estra Energie", code: "192695348", pdr: "03081000765318" }), filename: "Bolletta-estra-gas.pdf" },
   ];
-  const summary = renderPdfSummary(docs, mergePdfDocuments(docs));
-  assert.match(summary, /Codice cliente luce: 192693025/);
-  assert.match(summary, /Codice cliente gas: 192695348/);
-  assert.doesNotMatch(summary, /Non autocompilati automaticamente: codice cliente(?:[<,]|$)/);
+  const merged = mergePdfDocuments(docs);
+  assert.equal(merged.codice_cliente_luce, "192693025");
+  assert.equal(merged.codice_cliente_gas, "192695348");
+  const summary = renderPdfSummary(docs, merged);
+  assert.doesNotMatch(summary, /Codice cliente luce:/);
+  assert.doesNotMatch(summary, /Codice cliente gas:/);
+  assert.doesNotMatch(summary, /codice cliente/i);
 });
 
-test("Step 5.2 conserva un solo codice comune quando coincide", () => {
+test("Step 5.2 conserva un solo codice comune ma non lo mostra prima dell’attivazione", () => {
   const { mergePdfDocuments, renderPdfSummary } = loadMergeHelpers();
   const docs = [
     { ...supplyDoc({ commodity: "luce", provider: "Hera Comm", code: "1003507407", pod: "IT001E51379686" }), filename: "luce.pdf" },
@@ -143,7 +146,7 @@ test("Step 5.2 conserva un solo codice comune quando coincide", () => {
   const merged = mergePdfDocuments(docs);
   assert.equal(merged.codice_cliente, "1003507407");
   const summary = renderPdfSummary(docs, merged);
-  assert.match(summary, /Codice cliente: 1003507407/);
+  assert.doesNotMatch(summary, /Codice cliente:/);
   assert.doesNotMatch(summary, /Codice cliente luce:/);
   assert.doesNotMatch(summary, /Codice cliente gas:/);
 });

@@ -4,7 +4,7 @@ import fs from "node:fs/promises";
 
 const html = await fs.readFile(new URL("../public/index.html", import.meta.url), "utf8");
 
-test("il riepilogo PDF mostra offerte, spread, validità e indirizzi per commodity", () => {
+test("il riepilogo PDF mostra i dati economici e conserva i dettagli tecnici fuori dalla sintesi", () => {
   for (const marker of [
     "Offerta luce:",
     "Offerta gas:",
@@ -12,9 +12,14 @@ test("il riepilogo PDF mostra offerte, spread, validità e indirizzi per commodi
     "Spread gas:",
     "formatPdfValidityLine",
     "Scadenza condizioni ${commodityLabel}",
-    "Indirizzo luce:",
-    "Indirizzo gas:",
   ]) assert.ok(html.includes(marker), `manca ${marker}`);
+  const start = html.indexOf("function renderPdfSummary");
+  const end = html.indexOf("window.azzeraPdfEModulo", start);
+  const summary = html.slice(start, end);
+  assert.ok(!summary.includes("Indirizzo luce:"));
+  assert.ok(!summary.includes("Indirizzo gas:"));
+  assert.ok(!summary.includes("Formula luce:"));
+  assert.ok(!summary.includes("Formula gas:"));
 });
 
 test("il merge del browser conserva i dettagli luce e gas", () => {

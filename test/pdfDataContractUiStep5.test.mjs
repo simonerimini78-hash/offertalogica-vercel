@@ -29,13 +29,17 @@ test("Step 5 blocca i conflitti tra più documenti", () => {
   assert.match(html, /allowed: false/);
 });
 
-test("Step 5 rende compatto il riepilogo dual", () => {
+test("Step 5 rende il riepilogo dual focalizzato sui dati di confronto", () => {
   assert.match(html, /Fornitore luce e gas:/);
-  assert.match(html, /Indirizzo luce e gas:/);
-  assert.match(html, /Dati comuni da integrare per l’attivazione/);
-  assert.match(html, /commonExternal/);
-  assert.match(html, /Nel modulo saranno inseriti soltanto i campi completi ammessi dal contratto dati/);
-  assert.match(html, /Non autocompilati automaticamente/);
+  assert.match(html, /I dati necessari all’attivazione non sono richiesti in questa fase/);
+  assert.match(html, /Dati economici essenziali non autocompilati/);
+  assert.doesNotMatch(html, /Dati comuni da integrare per l’attivazione/);
+  const start = html.indexOf("function renderPdfSummary");
+  const end = html.indexOf("window.azzeraPdfEModulo", start);
+  const summary = html.slice(start, end);
+  assert.doesNotMatch(summary, /Indirizzo luce e gas:/);
+  assert.doesNotMatch(summary, /Formula luce:/);
+  assert.doesNotMatch(summary, /Formula gas:/);
 });
 
 test("Step 5 non ripristina il fallback indiscriminato ai valori PDF grezzi", () => {

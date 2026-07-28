@@ -12,19 +12,21 @@ test("Step 4 presenta date complete e parziali senza punti interrogativi", () =>
   assert.ok(!html.includes('formatPdfContractDate(merged.decorrenza_condizioni_economiche_luce) || "?"'));
 });
 
-test("Step 4 mostra sempre gli indirizzi per commodity e gli stati di readiness", () => {
+test("la prima lettura mostra il confronto e non anticipa i dati di attivazione", () => {
   for (const marker of [
-    "Indirizzo luce:",
-    "Indirizzo gas:",
     "Stato confronto luce",
     "Stato confronto gas",
+    "Dati economici essenziali non autocompilati",
+    "I dati necessari all’attivazione non sono richiesti in questa fase",
+  ]) assert.ok(html.includes(marker), `manca ${marker}`);
+  for (const marker of [
     "Stato dati bolletta luce",
     "Stato dati bolletta gas",
     "Stato attivazione completa luce",
     "Stato attivazione completa gas",
     "Dati bolletta mancanti luce",
     "Dati comuni da integrare per l’attivazione",
-  ]) assert.ok(html.includes(marker), `manca ${marker}`);
+  ]) assert.ok(!html.includes(marker), `non deve comparire ${marker}`);
   assert.ok(!html.includes("sameSupplyAddress ?"));
 });
 
@@ -35,15 +37,17 @@ test("il merge browser conserva metadati di validazione Step 4", () => {
 });
 
 
-test("Step 4.1 mostra intestatario, potenza e nomi leggibili dei campi mancanti", () => {
+test("la sintesi iniziale non espone dati personali o checklist di attivazione", () => {
+  const start = html.indexOf("function renderPdfSummary");
+  const end = html.indexOf("window.azzeraPdfEModulo", start);
+  const summarySource = html.slice(start, end);
   for (const marker of [
     "Intestatario:",
     "Potenza impegnata luce:",
     "Potenza disponibile luce:",
-    "codice fiscale o partita IVA",
     "IBAN o modalità di pagamento",
     "documento di identità",
-  ]) assert.ok(html.includes(marker), `manca ${marker}`);
+  ]) assert.ok(!summarySource.includes(marker), `non deve comparire ${marker}`);
 });
 
 

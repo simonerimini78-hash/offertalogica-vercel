@@ -322,7 +322,7 @@ test("richiesta IA: forza i dati economici senza ampliare la lettura ai dati di 
   assert.equal(request.max_output_tokens, 4000);
   const prompt = request.input[0].content[0].text + "\n" + request.input[1].content[1].text;
   assert.match(prompt, /consumo annuo/i);
-  assert.match(prompt, /spesa per la vendita di energia elettrica/i);
+  assert.match(prompt, /vendita\/materia energia/i);
   assert.match(prompt, /quota fissa/i);
   assert.match(prompt, /rinnovo futuro/i);
   assert.match(prompt, /ogni domanda/i);
@@ -506,4 +506,15 @@ test("prezzi per fasce senza F0: non inventa un prezzo unico per il confronto", 
   assert.equal(normalized.readiness.confronto.luce.status, "completo");
   assert.deepEqual(normalized.readiness.confronto.luce.missing, []);
   assert.equal(normalized.readiness.confronto.luce.pricing_mode, "f1_f2_f3");
+});
+
+
+test("prompt generale: chiede il prezzo medio della sola componente commerciale senza legarsi a un fornitore", async () => {
+  const request = await buildPdfPureAiRequest({ fileId: "file_prompt_generale" });
+  const prompt = request.input.flatMap((item) => item.content || []).map((item) => item.text || "").join("\n");
+  assert.match(prompt, /prezzo\/?costo medio unitario/i);
+  assert.match(prompt, /vendita\/materia energia/i);
+  assert.match(prompt, /materia prima gas/i);
+  assert.match(prompt, /media ponderata/i);
+  assert.doesNotMatch(prompt, /HERA COMM|Servizio Tutele Graduali|0,152429/i);
 });
