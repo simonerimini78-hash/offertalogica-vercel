@@ -7049,8 +7049,8 @@ function configuraConfermaPdfPronta(results) {
 function configurazioniPdfDaControllare(data, isOffer) {
   const base = isOffer ? CAMPI_NUOVA_OFFERTA_ESSENZIALI : CAMPI_ATTUALI_ESSENZIALI;
   if (!isOffer && data?.kind === "bolletta") return configurazioniPerAmbito(base);
-  const hasLuce = Boolean(data?.consumo_luce_kwh || data?.prezzo_luce_eur_kwh || data?.quota_fissa_vendita_luce_eur_anno || data?.commodity === "luce");
-  const hasGas = Boolean(data?.consumo_gas_smc || data?.prezzo_gas_eur_smc || data?.quota_fissa_vendita_gas_eur_anno || data?.commodity === "gas");
+  const hasLuce = Boolean(data?.consumo_luce_kwh || data?.prezzo_luce_eur_kwh || data?.quota_fissa_vendita_luce_eur_anno || data?.quota_fissa_confrontabile_luce_eur_mese || data?.commodity === "luce");
+  const hasGas = Boolean(data?.consumo_gas_smc || data?.prezzo_gas_eur_smc || data?.quota_fissa_vendita_gas_eur_anno || data?.quota_fissa_confrontabile_gas_eur_mese || data?.commodity === "gas");
   const luce = base.filter(({ id }) => id.includes("-luce-"));
   const gas = base.filter(({ id }) => id.includes("-gas-"));
   if (hasLuce && !hasGas) return luce;
@@ -7688,11 +7688,17 @@ function buildPdfAutofillSpecs(data, customerType = "privato") {
   add("potenza_impegnata_kw", "Potenza impegnata luce", ["master-luce-potenza"], { unit: "kW", compare_mode: "number" });
   add("consumo_luce_kwh", "Consumo annuo luce", ["in-luce-cons-att", "in-luce-cons-nuov"], { unit: "kWh/anno", compare_mode: "number" });
   add("prezzo_luce_eur_kwh", "Prezzo luce attuale", ["in-luce-prezzo-att"], { unit: "€/kWh", compare_mode: "number" });
+  add("quota_fissa_confrontabile_luce_eur_mese", "Quota fissa netta luce rilevata", ["in-luce-fisso-att", "in-luce-fisso-att-unita"], {
+    kind: "fixed_monthly", compare_mode: "fixed_annual", unit: "€/mese", input_id: "in-luce-fisso-att", unit_id: "in-luce-fisso-att-unita",
+  });
   add("quota_fissa_vendita_luce_eur_anno", "Quota fissa luce attuale", ["in-luce-fisso-att", "in-luce-fisso-att-unita"], {
     kind: "fixed_annual", compare_mode: "fixed_annual", unit: "€/anno", input_id: "in-luce-fisso-att", unit_id: "in-luce-fisso-att-unita",
   });
   add("consumo_gas_smc", "Consumo annuo gas", ["in-gas-cons-att", "in-gas-cons-nuov"], { unit: "Smc/anno", compare_mode: "number" });
   add("prezzo_gas_eur_smc", "Prezzo gas attuale", ["in-gas-prezzo-att"], { unit: "€/Smc", compare_mode: "number" });
+  add("quota_fissa_confrontabile_gas_eur_mese", "Quota fissa netta gas rilevata", ["in-gas-fisso-att", "in-gas-fisso-att-unita"], {
+    kind: "fixed_monthly", compare_mode: "fixed_annual", unit: "€/mese", input_id: "in-gas-fisso-att", unit_id: "in-gas-fisso-att-unita",
+  });
   add("quota_fissa_vendita_gas_eur_anno", "Quota fissa gas attuale", ["in-gas-fisso-att", "in-gas-fisso-att-unita"], {
     kind: "fixed_annual", compare_mode: "fixed_annual", unit: "€/anno", input_id: "in-gas-fisso-att", unit_id: "in-gas-fisso-att-unita",
   });
@@ -7740,7 +7746,7 @@ function pdfAutofillElementDisplay(id, value) {
 }
 
 function pdfAutofillCurrentState(spec) {
-  if (spec.kind === "fixed_annual") {
+  if (spec.kind === "fixed_annual" || spec.kind === "fixed_monthly") {
     const raw = pdfAutofillElementValue(spec.input_id);
     const unit = pdfAutofillElementValue(spec.unit_id) || "mese";
     const numeric = Number(String(raw).replace(",", "."));
@@ -7751,7 +7757,7 @@ function pdfAutofillCurrentState(spec) {
       comparable_value: annual,
       display: annual === null ? "Campo vuoto" : `${raw} €/${unit}`,
       manually_touched: touched,
-      all_equal: annual !== null && pdfAutofillValuesEqual(annual, spec.value, "fixed_annual"),
+      all_equal: annual !== null && pdfAutofillValuesEqual(annual, spec.kind === "fixed_monthly" ? Number(spec.value) * 12 : spec.value, "fixed_annual"),
     };
   }
 
@@ -7935,8 +7941,9 @@ function applicaRigheAutocompilazionePdf(rows) {
       PDF_PROFILE_STATE[scope][row.profile_key || row.field] = row.value;
       return;
     }
-    if (row.kind === "fixed_annual") {
-      impostaQuotaFissaAnnua(row.input_id, row.unit_id, row.value);
+    if (row.kind === "fixed_annual" || row.kind === "fixed_monthly") {
+      if (row.kind === "fixed_monthly") impostaQuotaFissaMensile(row.input_id, row.unit_id, row.value);
+      else impostaQuotaFissaAnnua(row.input_id, row.unit_id, row.value);
       PDF_MANUAL_TOUCHED_FIELDS.delete(row.input_id);
       PDF_MANUAL_TOUCHED_FIELDS.delete(row.unit_id);
       return;
@@ -8133,9 +8140,11 @@ const PDF_READINESS_FIELD_LABELS = Object.freeze({
   consumo_luce_kwh: "consumo annuo luce",
   prezzo_luce_eur_kwh: "prezzo luce",
   quota_fissa_vendita_luce_eur_anno: "quota fissa luce",
+  quota_fissa_confrontabile_luce_eur_mese: "quota fissa netta luce mensile",
   consumo_gas_smc: "consumo annuo gas",
   prezzo_gas_eur_smc: "prezzo gas",
   quota_fissa_vendita_gas_eur_anno: "quota fissa gas",
+  quota_fissa_confrontabile_gas_eur_mese: "quota fissa netta gas mensile",
   tipo_prezzo_luce: "tipo prezzo luce",
   tipo_prezzo_gas: "tipo prezzo gas",
 });
@@ -8318,6 +8327,9 @@ function mergePdfDocuments(documents) {
       merged.consumo_luce_kwh = pick(doc.consumo_luce_kwh, merged.consumo_luce_kwh);
       merged.prezzo_luce_eur_kwh = pick(doc.prezzo_luce_eur_kwh, merged.prezzo_luce_eur_kwh);
       merged.quota_fissa_vendita_luce_eur_anno = pick(doc.quota_fissa_vendita_luce_eur_anno, merged.quota_fissa_vendita_luce_eur_anno);
+      merged.quota_fissa_confrontabile_luce_eur_mese = pick(doc.quota_fissa_confrontabile_luce_eur_mese, merged.quota_fissa_confrontabile_luce_eur_mese);
+      if (pdfAutofillHasValue(doc.quota_fissa_confrontabile_luce_eur_mese)) delete merged.quota_fissa_vendita_luce_eur_anno;
+      if (pdfAutofillHasValue(doc.quota_fissa_vendita_luce_eur_anno)) delete merged.quota_fissa_confrontabile_luce_eur_mese;
       merged.potenza_impegnata_kw = pick(doc.potenza_impegnata_kw, merged.potenza_impegnata_kw);
       merged.potenza_disponibile_kw = pick(doc.potenza_disponibile_kw, merged.potenza_disponibile_kw);
       merged.pod = pick(doc.pod, merged.pod);
@@ -8339,6 +8351,9 @@ function mergePdfDocuments(documents) {
       merged.consumo_gas_smc = pick(doc.consumo_gas_smc, merged.consumo_gas_smc);
       merged.prezzo_gas_eur_smc = pick(doc.prezzo_gas_eur_smc, merged.prezzo_gas_eur_smc);
       merged.quota_fissa_vendita_gas_eur_anno = pick(doc.quota_fissa_vendita_gas_eur_anno, merged.quota_fissa_vendita_gas_eur_anno);
+      merged.quota_fissa_confrontabile_gas_eur_mese = pick(doc.quota_fissa_confrontabile_gas_eur_mese, merged.quota_fissa_confrontabile_gas_eur_mese);
+      if (pdfAutofillHasValue(doc.quota_fissa_confrontabile_gas_eur_mese)) delete merged.quota_fissa_vendita_gas_eur_anno;
+      if (pdfAutofillHasValue(doc.quota_fissa_vendita_gas_eur_anno)) delete merged.quota_fissa_confrontabile_gas_eur_mese;
       merged.pdr = pick(doc.pdr, merged.pdr);
       merged.indirizzo_fornitura_gas = pick(doc.indirizzo_fornitura_gas, doc.indirizzo_fornitura, merged.indirizzo_fornitura_gas);
       [
@@ -8356,8 +8371,8 @@ function mergePdfDocuments(documents) {
   const verifiedHasValue = typeof pdfAutofillHasValue === "function" ? pdfAutofillHasValue : hasValue;
   // Marker di regressione: pdfAutofillHasValue(merged.quota_fissa_vendita_luce_eur_anno)
   // Marker di regressione: pdfAutofillHasValue(merged.quota_fissa_vendita_gas_eur_anno)
-  const hasLuce = verifiedHasValue(merged.consumo_luce_kwh) || verifiedHasValue(merged.prezzo_luce_eur_kwh) || verifiedHasValue(merged.quota_fissa_vendita_luce_eur_anno) || verifiedHasValue(merged.pod);
-  const hasGas = verifiedHasValue(merged.consumo_gas_smc) || verifiedHasValue(merged.prezzo_gas_eur_smc) || verifiedHasValue(merged.quota_fissa_vendita_gas_eur_anno) || verifiedHasValue(merged.pdr);
+  const hasLuce = verifiedHasValue(merged.consumo_luce_kwh) || verifiedHasValue(merged.prezzo_luce_eur_kwh) || verifiedHasValue(merged.quota_fissa_vendita_luce_eur_anno) || verifiedHasValue(merged.quota_fissa_confrontabile_luce_eur_mese) || verifiedHasValue(merged.pod);
+  const hasGas = verifiedHasValue(merged.consumo_gas_smc) || verifiedHasValue(merged.prezzo_gas_eur_smc) || verifiedHasValue(merged.quota_fissa_vendita_gas_eur_anno) || verifiedHasValue(merged.quota_fissa_confrontabile_gas_eur_mese) || verifiedHasValue(merged.pdr);
   merged.commodity = hasLuce && hasGas ? "dual" : hasGas ? "gas" : hasLuce ? "luce" : "unknown";
   const codiceClienteLuce = merged.codice_cliente_luce || "";
   const codiceClienteGas = merged.codice_cliente_gas || "";
@@ -8479,10 +8494,10 @@ function renderPdfSummary(documents, merged) {
     !dualSameProvider && merged.fornitore_gas ? `Fornitore gas: ${testoHtmlSicuro(merged.fornitore_gas)}` : "",
     merged.consumo_luce_kwh ? `Luce: ${merged.consumo_luce_kwh} kWh/anno` : "",
     merged.prezzo_luce_eur_kwh ? `Prezzo luce: ${merged.prezzo_luce_eur_kwh} €/kWh` : "",
-    merged.quota_fissa_vendita_luce_eur_anno ? `Fisso luce: ${merged.quota_fissa_vendita_luce_eur_anno} €/anno` : "",
+    pdfAutofillHasValue(merged.quota_fissa_confrontabile_luce_eur_mese) ? `Fisso luce rilevato: ${merged.quota_fissa_confrontabile_luce_eur_mese} €/mese` : pdfAutofillHasValue(merged.quota_fissa_vendita_luce_eur_anno) ? `Fisso luce: ${merged.quota_fissa_vendita_luce_eur_anno} €/anno` : "",
     merged.consumo_gas_smc ? `Gas: ${merged.consumo_gas_smc} Smc/anno` : "",
     merged.prezzo_gas_eur_smc ? `Prezzo gas: ${merged.prezzo_gas_eur_smc} €/Smc` : "",
-    merged.quota_fissa_vendita_gas_eur_anno ? `Fisso gas: ${merged.quota_fissa_vendita_gas_eur_anno} €/anno` : "",
+    pdfAutofillHasValue(merged.quota_fissa_confrontabile_gas_eur_mese) ? `Fisso gas rilevato: ${merged.quota_fissa_confrontabile_gas_eur_mese} €/mese` : pdfAutofillHasValue(merged.quota_fissa_vendita_gas_eur_anno) ? `Fisso gas: ${merged.quota_fissa_vendita_gas_eur_anno} €/anno` : "",
     luceOfferName ? `Offerta luce: ${testoHtmlSicuro(luceOfferName)}` : "",
     luceOfferCode ? `Codice offerta luce: ${testoHtmlSicuro(luceOfferCode)}` : "",
     luceType ? `Tipo prezzo luce: ${testoHtmlSicuro(luceType)}` : "",
@@ -8653,6 +8668,12 @@ function impostaQuotaFissaAnnua(inputId, unitaId, valoreAnnuale) {
   if (valoreAnnuale === undefined || valoreAnnuale === null || valoreAnnuale === "") return;
   setField(unitaId, "anno");
   setField(inputId, valoreAnnuale);
+}
+
+function impostaQuotaFissaMensile(inputId, unitaId, valoreMensile) {
+  if (valoreMensile === undefined || valoreMensile === null || valoreMensile === "") return;
+  setField(unitaId, "mese");
+  setField(inputId, valoreMensile);
 }
 
 function clearField(id) {
@@ -9091,14 +9112,18 @@ function applicaDatiPdfAlModulo(data) {
     const provider = safe("fornitore_luce") ?? safe("fornitore_gas");
     const lucePrice = safe("prezzo_luce_eur_kwh");
     const luceFixed = safe("quota_fissa_vendita_luce_eur_anno");
+    const luceFixedMonthly = safe("quota_fissa_confrontabile_luce_eur_mese");
     const gasPrice = safe("prezzo_gas_eur_smc");
     const gasFixed = safe("quota_fissa_vendita_gas_eur_anno");
+    const gasFixedMonthly = safe("quota_fissa_confrontabile_gas_eur_mese");
     const priceType = safe("tipo_prezzo_luce") ?? safe("tipo_prezzo_gas");
     if (provider !== undefined) setField("nome-fornitore-nuov", providerValue(provider));
     if (lucePrice !== undefined) setField("in-luce-prezzo-nuov", lucePrice);
-    if (luceFixed !== undefined) impostaQuotaFissaAnnua("in-luce-fisso-nuov", "in-luce-fisso-nuov-unita", luceFixed);
+    if (luceFixedMonthly !== undefined) impostaQuotaFissaMensile("in-luce-fisso-nuov", "in-luce-fisso-nuov-unita", luceFixedMonthly);
+    else if (luceFixed !== undefined) impostaQuotaFissaAnnua("in-luce-fisso-nuov", "in-luce-fisso-nuov-unita", luceFixed);
     if (gasPrice !== undefined) setField("in-gas-prezzo-nuov", gasPrice);
-    if (gasFixed !== undefined) impostaQuotaFissaAnnua("in-gas-fisso-nuov", "in-gas-fisso-nuov-unita", gasFixed);
+    if (gasFixedMonthly !== undefined) impostaQuotaFissaMensile("in-gas-fisso-nuov", "in-gas-fisso-nuov-unita", gasFixedMonthly);
+    else if (gasFixed !== undefined) impostaQuotaFissaAnnua("in-gas-fisso-nuov", "in-gas-fisso-nuov-unita", gasFixed);
     if (priceType !== undefined) setField("master-luce-tipo", priceType);
     mostraHintNuovaOfferta(`Proposta caricata dalla scheda sintetica di ${provider || data.fornitore || "un fornitore"}. Sono stati inseriti soltanto i campi completi ammessi dal contratto dati; controllali e completa quelli bloccati o mancanti.`);
     aggiornaTestoPulsanteConfronto();
@@ -9110,9 +9135,11 @@ function applicaDatiPdfAlModulo(data) {
   const luceConsumption = safe("consumo_luce_kwh");
   const lucePrice = safe("prezzo_luce_eur_kwh");
   const luceFixed = safe("quota_fissa_vendita_luce_eur_anno");
+  const luceFixedMonthly = safe("quota_fissa_confrontabile_luce_eur_mese");
   const gasConsumption = safe("consumo_gas_smc");
   const gasPrice = safe("prezzo_gas_eur_smc");
   const gasFixed = safe("quota_fissa_vendita_gas_eur_anno");
+  const gasFixedMonthly = safe("quota_fissa_confrontabile_gas_eur_mese");
   const priceType = safe("tipo_prezzo_luce") ?? safe("tipo_prezzo_gas");
 
   if (providerLuce !== undefined) setField("nome-fornitore-att", providerValue(providerLuce));
@@ -9123,14 +9150,16 @@ function applicaDatiPdfAlModulo(data) {
     setField("master-luce-consumo", luceMasterBucket(luceConsumption));
   }
   if (lucePrice !== undefined) setField("in-luce-prezzo-att", lucePrice);
-  if (luceFixed !== undefined) impostaQuotaFissaAnnua("in-luce-fisso-att", "in-luce-fisso-att-unita", luceFixed);
+  if (luceFixedMonthly !== undefined) impostaQuotaFissaMensile("in-luce-fisso-att", "in-luce-fisso-att-unita", luceFixedMonthly);
+  else if (luceFixed !== undefined) impostaQuotaFissaAnnua("in-luce-fisso-att", "in-luce-fisso-att-unita", luceFixed);
   if (gasConsumption !== undefined) {
     setField("in-gas-cons-att", gasConsumption);
     setField("in-gas-cons-nuov", gasConsumption);
     setField("master-gas-consumo", gasMasterBucket(gasConsumption));
   }
   if (gasPrice !== undefined) setField("in-gas-prezzo-att", gasPrice);
-  if (gasFixed !== undefined) impostaQuotaFissaAnnua("in-gas-fisso-att", "in-gas-fisso-att-unita", gasFixed);
+  if (gasFixedMonthly !== undefined) impostaQuotaFissaMensile("in-gas-fisso-att", "in-gas-fisso-att-unita", gasFixedMonthly);
+  else if (gasFixed !== undefined) impostaQuotaFissaAnnua("in-gas-fisso-att", "in-gas-fisso-att-unita", gasFixed);
   if (priceType !== undefined) setField("master-luce-tipo", priceType);
   aggiornaIndicatoreProfiloPdf();
   aggiornaTestoPulsanteConfronto();

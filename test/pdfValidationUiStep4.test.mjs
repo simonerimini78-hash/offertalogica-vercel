@@ -51,13 +51,13 @@ test("la sintesi iniziale non espone dati personali o checklist di attivazione",
 });
 
 
-test("quote fisse negative: il modulo e il calcolo conservano crediti e sconti", () => {
+test("quote fisse da bolletta: usa il valore mensile positivo e non mostra il negativo annualizzato", () => {
   for (const marker of [
-    'negativoAmmesso: true',
-    'config.negativoAmmesso ? true',
-    'const quotaFissaVendita = numeroSicuro(quotaFissaAnnua, 0);',
-    'pdfAutofillHasValue(merged.quota_fissa_vendita_luce_eur_anno)',
-    'pdfAutofillHasValue(merged.quota_fissa_vendita_gas_eur_anno)',
+    'quota_fissa_confrontabile_luce_eur_mese',
+    'quota_fissa_confrontabile_gas_eur_mese',
+    'kind: "fixed_monthly"',
+    'impostaQuotaFissaMensile',
+    'Fisso luce rilevato:',
   ]) assert.ok(html.includes(marker), `manca ${marker}`);
-  assert.ok(!html.includes('const quotaFissaVendita = Math.max(0, numeroSicuro(quotaFissaAnnua, 0));'));
+  assert.ok(!html.includes('Fisso luce: -73.2 €/anno'));
 });

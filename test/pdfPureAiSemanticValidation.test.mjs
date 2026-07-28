@@ -221,7 +221,7 @@ test("classificazione generale: i dati specifici del cliente mantengono il docum
 });
 
 test("versione lettore semantico aggiornata", () => {
-  assert.equal(PDF_PURE_AI_READER_VERSION, "pure-ai-native-pdf-v1.0.15");
+  assert.equal(PDF_PURE_AI_READER_VERSION, "pure-ai-native-pdf-v1.0.16");
 });
 
 
@@ -290,7 +290,7 @@ test("validazione semantica gas: distingue consumo del periodo e accetta il prez
   assert.equal(valid.prezzo_gas_eur_smc, 0.49);
 });
 
-test("quote fisse generali: accetta zero e valori negativi soltanto con evidenza commerciale", () => {
+test("quote fisse generali: conserva la quota mensile positiva e rifiuta componenti negative", () => {
   const answers = emptyAnswers();
   setAnswer(answers, "fornitore", { value_text: "Energia Test", evidence: "Energia Test" });
   setAnswer(answers, "pod", { value_text: "IT001E12345678", evidence: "POD IT001E12345678" });
@@ -302,8 +302,8 @@ test("quote fisse generali: accetta zero e valori negativi soltanto con evidenza
     evidence: "Quota fissa di commercializzazione e vendita 0 €/mese",
   });
   const zero = normalizePureAiOutput(documentOutput({ answers }));
-  assert.equal(zero.quota_fissa_vendita_luce_eur_anno, 0);
-  assert.equal(zero.field_status.quota_fissa_vendita_luce_eur_anno.status, "completo");
+  assert.equal(zero.quota_fissa_confrontabile_luce_eur_mese, 0);
+  assert.equal(zero.field_status.quota_fissa_confrontabile_luce_eur_mese.status, "completo");
 
   const negativeAnswers = emptyAnswers();
   setAnswer(negativeAnswers, "fornitore", { value_text: "Energia Test", evidence: "Energia Test" });
@@ -316,7 +316,9 @@ test("quote fisse generali: accetta zero e valori negativi soltanto con evidenza
     evidence: "Credito sulla quota fissa di vendita -6,10 €/mese",
   });
   const negative = normalizePureAiOutput(documentOutput({ answers: negativeAnswers }));
-  assert.equal(negative.quota_fissa_vendita_luce_eur_anno, -73.2);
+  assert.equal(negative.quota_fissa_vendita_luce_eur_anno, undefined);
+  assert.equal(negative.quota_fissa_confrontabile_luce_eur_mese, undefined);
+  assert.equal(negative.ai.rejected_questions.some((item) => item.question_id === "quota_fissa_vendita_luce" && item.reason === "negative_fixed_component_not_comparable"), true);
 });
 
 
@@ -436,16 +438,65 @@ test("prezzo confrontabile generale: usa il prezzo medio commerciale quando manc
     evidence: `Corrispettivo commerciale fascia ${band} ${value} €/kWh`,
   });
   setAnswer(answers, "quota_fissa_vendita_luce", {
-    value_text: "-6,10 €/mese", value_number: -6.1, unit: "€/mese", period: "month",
-    evidence: "di cui spesa per la vendita di energia elettrica -6,10 €/mese",
+    value_text: "3,220000 €/mese", value_number: 3.22, unit: "€/mese", period: "month",
+    label: "Quota fissa e quota potenza",
+    evidence: "Quota fissa e quota potenza 2 mesi 6,44 € 3,220000 €/mese",
   });
 
   const normalized = normalizePureAiOutput(documentOutput({ answers }));
   assert.equal(normalized.prezzo_luce_eur_kwh, 0.152429);
-  assert.equal(normalized.quota_fissa_vendita_luce_eur_anno, -73.2);
+  assert.equal(normalized.quota_fissa_confrontabile_luce_eur_mese, 3.22);
   assert.equal(normalized.readiness.confronto.luce.status, "completo");
   assert.equal(
     normalized.diagnostics.find((item) => item.field === "prezzo_luce_eur_kwh")?.source_role,
     "sales_component_rate",
   );
+});
+
+test("quota fissa dual: luce e gas restano mensili e separati", () => {
+  const answers = emptyAnswers();
+  setAnswer(answers, "consumo_luce_kwh", {
+    value_text: "2.000 kWh", value_number: 2000, unit: "kWh",
+    evidence: "Consumo annuo ultimi 12 mesi luce 2.000 kWh",
+  });
+  setAnswer(answers, "prezzo_luce_eur_kwh", {
+    value_text: "0,14 €/kWh", value_number: 0.14, unit: "€/kWh",
+    evidence: "Prezzo vendita energia elettrica 0,14 €/kWh",
+  });
+  setAnswer(answers, "quota_fissa_vendita_luce", {
+    value_text: "3,22 €/mese", value_number: 3.22, unit: "€/mese", period: "month",
+    evidence: "Quota fissa totale luce 3,22 €/mese",
+  });
+  setAnswer(answers, "consumo_gas_smc", {
+    value_text: "900 Smc", value_number: 900, unit: "Smc",
+    evidence: "Consumo annuo ultimi 12 mesi gas 900 Smc",
+  });
+  setAnswer(answers, "prezzo_gas_eur_smc", {
+    value_text: "0,52 €/Smc", value_number: 0.52, unit: "€/Smc",
+    evidence: "Prezzo materia gas 0,52 €/Smc",
+  });
+  setAnswer(answers, "quota_fissa_vendita_gas", {
+    value_text: "5,40 €/mese", value_number: 5.4, unit: "€/mese", period: "month",
+    evidence: "Quota fissa totale gas 5,40 €/mese",
+  });
+
+  const normalized = normalizePureAiOutput(documentOutput({ commodity: "dual", answers }));
+  assert.equal(normalized.quota_fissa_confrontabile_luce_eur_mese, 3.22);
+  assert.equal(normalized.quota_fissa_confrontabile_gas_eur_mese, 5.4);
+  assert.equal(normalized.quota_fissa_vendita_luce_eur_anno, undefined);
+  assert.equal(normalized.quota_fissa_vendita_gas_eur_anno, undefined);
+  assert.equal(normalized.readiness.confronto.luce.status, "completo");
+  assert.equal(normalized.readiness.confronto.gas.status, "completo");
+});
+
+test("quota potenza separata: non viene usata come quota fissa confrontabile", () => {
+  const answers = emptyAnswers();
+  setAnswer(answers, "quota_fissa_vendita_luce", {
+    value_text: "1,976667 €/kW/mese", value_number: 1.976667, unit: "€/kW/mese", period: "month",
+    evidence: "Quota potenza 3 kW per 2 mesi 1,976667 €/kW/mese",
+  });
+
+  const normalized = normalizePureAiOutput(documentOutput({ answers }));
+  assert.equal(normalized.quota_fissa_confrontabile_luce_eur_mese, undefined);
+  assert.equal(rejectedReason(normalized, "quota_fissa_vendita_luce"), "semantic_fixed_fee_power_only");
 });

@@ -79,7 +79,8 @@ function supplyDocument({ commodity, provider, customerCode, address, identifier
     potenza_impegnata_kw: luce ? 3 : null,
     consumo_luce_kwh: luce ? 1628.91 : null,
     prezzo_luce_eur_kwh: luce ? 0.152429 : null,
-    quota_fissa_vendita_luce_eur_anno: luce && !missingFixed ? -73.2 : null,
+    quota_fissa_vendita_luce_eur_anno: null,
+    quota_fissa_confrontabile_luce_eur_mese: luce && !missingFixed ? 3.22 : null,
     consumo_gas_smc: luce ? null : 1653.86,
     prezzo_gas_eur_smc: luce ? null : 0.565095,
     quota_fissa_vendita_gas_eur_anno: luce ? null : 240,
@@ -170,8 +171,8 @@ test("merge multi-fornitore: il risultato non dipende dall'ordine dei PDF", () =
   assert.equal(luceGas.codice_cliente_gas, "1001133382");
   assert.equal(luceGas.field_status.consumo_luce_kwh.status, "completo");
   assert.equal(luceGas.field_status.consumo_gas_smc.status, "completo");
-  assert.equal(luceGas.field_status.quota_fissa_vendita_luce_eur_anno.status, "completo");
-  assert.equal(luceGas.quota_fissa_vendita_luce_eur_anno, -73.2);
+  assert.equal(luceGas.field_status.quota_fissa_confrontabile_luce_eur_mese.status, "completo");
+  assert.equal(luceGas.quota_fissa_confrontabile_luce_eur_mese, 3.22);
   assert.equal(luceGas.field_status.quota_fissa_vendita_gas_eur_anno.status, "completo");
   assert.equal(luceGas.data_contract.parser.document_count, 2);
   assert.equal(luceGas.data_contract.parser.page_count, 23);
@@ -193,7 +194,8 @@ test("merge multi-fornitore: l'anteprima conserva i valori nella propria commodi
   assert.equal(byField.consumo_gas_smc.value, 1653.86);
   assert.equal(byField.prezzo_luce_eur_kwh.value, 0.152429);
   assert.equal(byField.prezzo_gas_eur_smc.value, 0.565095);
-  assert.equal(byField.quota_fissa_vendita_luce_eur_anno.value, -73.2);
+  assert.equal(byField.quota_fissa_confrontabile_luce_eur_mese.value, 3.22);
+  assert.equal(byField.quota_fissa_confrontabile_luce_eur_mese.kind, "fixed_monthly");
   assert.equal(byField.quota_fissa_vendita_gas_eur_anno.value, 240);
   const priceType = specs.filter((item) => item.target_ids.includes("master-luce-tipo"));
   assert.equal(priceType.length, 1);

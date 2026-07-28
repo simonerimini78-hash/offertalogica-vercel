@@ -114,7 +114,7 @@ test("replay archivio: continua a normalizzare il precedente schema compatto", (
 
   assert.equal(normalized.fornitore, "Venditore Test");
   assert.equal(normalized.prezzo_luce_eur_kwh, 0.123);
-  assert.equal(normalized.quota_fissa_vendita_luce_eur_anno, 96);
+  assert.equal(normalized.quota_fissa_confrontabile_luce_eur_mese, 8);
   assert.equal(normalized.consumo_luce_kwh, 2700);
 });
 
@@ -133,7 +133,7 @@ test("normalizePureAiOutput accetta una risposta sparsa e conserva i dati parzia
   assert.equal(normalized.fornitore, "Hera Comm");
   assert.equal(normalized.pod, "IT001E12345678");
   assert.equal(normalized.consumo_luce_kwh, 2740);
-  assert.equal(normalized.quota_fissa_vendita_luce_eur_anno, 85.2);
+  assert.equal(normalized.quota_fissa_confrontabile_luce_eur_mese, 7.1);
   assert.equal(normalized.ai.accepted_count >= 8, true);
 });
 
@@ -198,7 +198,7 @@ test("regressione Sorgenia: una risposta compatta conserva la lettura parziale i
   assert.equal(normalized.ai.accepted_count >= 10, true);
 });
 
-test("normalizePureAiOutput mantiene il contratto e annualizza solo la quota mensile", () => {
+test("normalizePureAiOutput mantiene la quota mensile osservata senza trasformarla in quota annua", () => {
   const normalized = normalizePureAiOutput(electricityOutput(), {
     model: "test-model",
     responseId: "resp_test",
@@ -210,20 +210,20 @@ test("normalizePureAiOutput mantiene il contratto e annualizza solo la quota men
   assert.equal(normalized.commodity, "luce");
   assert.equal(normalized.customer_type, "privato");
   assert.equal(normalized.consumo_luce_kwh, 2740);
-  assert.equal(normalized.quota_fissa_vendita_luce_eur_anno, 85.2);
+  assert.equal(normalized.quota_fissa_confrontabile_luce_eur_mese, 7.1);
   assert.equal(normalized.ai.transport_mode, "pdf_originale");
   assert.equal(normalized.ai.reader_version, PDF_PURE_AI_READER_VERSION);
   assert.equal(normalized.ai.openai_ms, 900);
-  const fixed = normalized.data_contract.fields.quota_fissa_vendita_luce_eur_anno;
+  const fixed = normalized.data_contract.fields.quota_fissa_confrontabile_luce_eur_mese;
   assert.equal(fixed.provenance.source, "ai");
   assert.equal(fixed.provenance.origin, "pdf_visual_ai");
   assert.equal(fixed.derivation.original_value, 7.1);
-  assert.equal(fixed.derivation.factor, 12);
+  assert.equal(fixed.derivation.factor, 1);
   assert.equal(fixed.autofill.allowed, true);
 });
 
 
-test("quota fissa negativa: conserva il segno, annualizza e abilita l’autocompilazione", () => {
+test("quota fissa negativa: non cambia segno, non annualizza e non autocompila", () => {
   const output = electricityOutput();
   const fixedAnswer = output.answers.find((item) => item.question_id === "quota_fissa_vendita_luce");
   Object.assign(fixedAnswer, {
@@ -240,13 +240,10 @@ test("quota fissa negativa: conserva il segno, annualizza e abilita l’autocomp
     timings: { request_build_ms: 1, openai_ms: 1, total_ms: 2 },
   });
 
-  assert.equal(normalized.quota_fissa_vendita_luce_eur_anno, -73.2);
-  assert.equal(normalized.field_status.quota_fissa_vendita_luce_eur_anno.status, "completo");
-  const fixed = normalized.data_contract.fields.quota_fissa_vendita_luce_eur_anno;
-  assert.equal(fixed.normalized_value, -73.2);
-  assert.equal(fixed.derivation.original_value, -6.1);
-  assert.equal(fixed.derivation.factor, 12);
-  assert.equal(fixed.autofill.allowed, true);
+  assert.equal(normalized.quota_fissa_vendita_luce_eur_anno, undefined);
+  assert.equal(normalized.quota_fissa_confrontabile_luce_eur_mese, undefined);
+  assert.equal(normalized.ai.rejected_questions.some((item) => item.question_id === "quota_fissa_vendita_luce" && item.reason === "negative_fixed_component_not_comparable"), true);
+  assert.equal(normalized.readiness.confronto.luce.status, "incompleto");
 });
 
 test("regressione 504: la chiamata IA parte senza rasterizzazione che consuma il budget", async () => {
