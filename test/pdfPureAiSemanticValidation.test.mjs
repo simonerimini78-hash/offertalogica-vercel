@@ -84,7 +84,7 @@ test("validazione semantica generale: accetta soltanto un totale annuale esplici
   assert.equal(rejectedReason(normalized, "consumo_luce_kwh"), null);
 });
 
-test("validazione semantica generale: rifiuta costo medio e totale come prezzo contrattuale", () => {
+test("validazione semantica generale: rifiuta il prezzo medio complessivo della fornitura", () => {
   const answers = emptyAnswers();
   setAnswer(answers, "fornitore", { value_text: "Fornitore Test", evidence: "Fornitore Test" });
   setAnswer(answers, "pod", { value_text: "IT001E12345678", evidence: "POD IT001E12345678" });
@@ -92,8 +92,8 @@ test("validazione semantica generale: rifiuta costo medio e totale come prezzo c
     value_text: "0,15 €/kWh",
     value_number: 0.15,
     unit: "€/kWh",
-    label: "Costo medio unitario",
-    evidence: "COSTO MEDIO UNITARIO DELLA SPESA PER LA MATERIA ENERGIA 0,15 €/kWh",
+    label: "Costo medio unitario della fornitura",
+    evidence: "COSTO MEDIO UNITARIO DELLA FORNITURA 0,15 €/kWh",
   });
 
   const normalized = normalizePureAiOutput(documentOutput({ answers }));
@@ -221,10 +221,34 @@ test("classificazione generale: i dati specifici del cliente mantengono il docum
 });
 
 test("versione lettore semantico aggiornata", () => {
-  assert.equal(PDF_PURE_AI_READER_VERSION, "pure-ai-native-pdf-v1.0.12");
+  assert.equal(PDF_PURE_AI_READER_VERSION, "pure-ai-native-pdf-v1.0.18");
 });
 
-test("validazione semantica gas: distingue consumo annuo e prezzo materia prima da valori del periodo o medi", () => {
+
+test("tipo prezzo: gestisce negazioni, componenti fisse e conflitti senza forzare variabile", () => {
+  const normalizeType = (valueText, evidence = valueText) => {
+    const answers = emptyAnswers();
+    setAnswer(answers, "tipo_prezzo_luce", { value_text: valueText, evidence });
+    return normalizePureAiOutput(documentOutput({ kind: "offer_sheet", commodity: "electricity", answers }));
+  };
+
+  assert.equal(normalizeType("Prezzo fisso, non variabile").tipo_prezzo_luce, "fisso");
+  assert.equal(normalizeType("Prezzo variabile, non fisso").tipo_prezzo_luce, "variabile");
+  assert.equal(
+    normalizeType("Prezzo variabile con corrispettivo fisso di commercializzazione").tipo_prezzo_luce,
+    "variabile",
+  );
+  assert.equal(
+    normalizeType("Offerta ibrida con componente fissa e componente variabile").tipo_prezzo_luce,
+    "ibrido",
+  );
+
+  const conflict = normalizeType("Prezzo fisso e prezzo variabile");
+  assert.equal(conflict.tipo_prezzo_luce, undefined);
+  assert.equal(rejectedReason(conflict, "tipo_prezzo_luce"), "invalid_price_type");
+});
+
+test("validazione semantica gas: distingue consumo del periodo e accetta il prezzo medio della sola materia gas", () => {
   const invalidAnswers = emptyAnswers();
   setAnswer(invalidAnswers, "fornitore", { value_text: "Gas Test", evidence: "Gas Test" });
   setAnswer(invalidAnswers, "pdr", { value_text: "12345678901234", evidence: "PDR 12345678901234" });
@@ -242,9 +266,9 @@ test("validazione semantica gas: distingue consumo annuo e prezzo materia prima 
   });
   const invalid = normalizePureAiOutput(documentOutput({ commodity: "gas", answers: invalidAnswers }));
   assert.equal(invalid.consumo_gas_smc, undefined);
-  assert.equal(invalid.prezzo_gas_eur_smc, undefined);
+  assert.equal(invalid.prezzo_gas_eur_smc, 0.78);
   assert.equal(rejectedReason(invalid, "consumo_gas_smc"), "semantic_consumption_not_annual");
-  assert.equal(rejectedReason(invalid, "prezzo_gas_eur_smc"), "semantic_price_average_or_total");
+  assert.equal(rejectedReason(invalid, "prezzo_gas_eur_smc"), null);
 
   const validAnswers = emptyAnswers();
   setAnswer(validAnswers, "fornitore", { value_text: "Gas Test", evidence: "Gas Test" });
@@ -266,7 +290,7 @@ test("validazione semantica gas: distingue consumo annuo e prezzo materia prima 
   assert.equal(valid.prezzo_gas_eur_smc, 0.49);
 });
 
-test("quote fisse generali: accetta zero e valori negativi soltanto con evidenza commerciale", () => {
+test("quote fisse generali: accetta zero e conserva i valori negativi senza usarli nel confronto", () => {
   const answers = emptyAnswers();
   setAnswer(answers, "fornitore", { value_text: "Energia Test", evidence: "Energia Test" });
   setAnswer(answers, "pod", { value_text: "IT001E12345678", evidence: "POD IT001E12345678" });
@@ -292,5 +316,139 @@ test("quote fisse generali: accetta zero e valori negativi soltanto con evidenza
     evidence: "Credito sulla quota fissa di vendita -6,10 €/mese",
   });
   const negative = normalizePureAiOutput(documentOutput({ answers: negativeAnswers }));
-  assert.equal(negative.quota_fissa_vendita_luce_eur_anno, -73.2);
+  assert.equal(negative.quota_fissa_vendita_luce_eur_anno, undefined);
+  assert.equal(negative.quota_fissa_dettaglio_luce.commercial_component.value, -6.1);
+  assert.equal(negative.quota_fissa_dettaglio_luce.selected_for_comparison, null);
+});
+
+
+test("prezzo confrontabile generale: F0 ha priorità sul prezzo medio commerciale", () => {
+  const answers = emptyAnswers();
+  setAnswer(answers, "consumo_luce_kwh", {
+    value_text: "2.000 kWh", value_number: 2000, unit: "kWh",
+    evidence: "Consumo annuo ultimi 12 mesi: 2.000 kWh",
+  });
+  setAnswer(answers, "prezzo_luce_eur_kwh", {
+    value_text: "0,150000 €/kWh", value_number: 0.15, unit: "€/kWh",
+    label: "Prezzo medio", evidence: "di cui spesa per la vendita di energia elettrica 0,150000 €/kWh",
+  });
+  setAnswer(answers, "prezzo_luce_f0_eur_kwh", {
+    value_text: "0,120000 €/kWh", value_number: 0.12, unit: "€/kWh",
+    label: "F0", evidence: "Prezzo componente energia F0 0,120000 €/kWh",
+  });
+  setAnswer(answers, "quota_fissa_vendita_luce", {
+    value_text: "96 €/anno", value_number: 96, unit: "€/anno", period: "year",
+    evidence: "Quota fissa commercializzazione 96 €/anno",
+  });
+
+  const normalized = normalizePureAiOutput(documentOutput({ answers }));
+  assert.equal(normalized.prezzo_luce_eur_kwh, 0.12);
+  assert.equal(normalized.readiness.confronto.luce.status, "completo");
+  assert.equal(
+    normalized.diagnostics.find((item) => item.field === "prezzo_luce_eur_kwh")?.derivation?.type,
+    "monoraria_f0_to_sales_price",
+  );
+});
+
+test("prezzo confrontabile generale: calcola la media ponderata F1/F2/F3 sui consumi annui", () => {
+  const answers = emptyAnswers();
+  setAnswer(answers, "consumo_luce_f1_kwh", {
+    value_text: "1.000 kWh", value_number: 1000, unit: "kWh", label: "F1",
+    evidence: "Consumo annuo ultimi 12 mesi F1 1.000 kWh",
+  });
+  setAnswer(answers, "consumo_luce_f2_kwh", {
+    value_text: "500 kWh", value_number: 500, unit: "kWh", label: "F2",
+    evidence: "Consumo annuo ultimi 12 mesi F2 500 kWh",
+  });
+  setAnswer(answers, "consumo_luce_f3_kwh", {
+    value_text: "500 kWh", value_number: 500, unit: "kWh", label: "F3",
+    evidence: "Consumo annuo ultimi 12 mesi F3 500 kWh",
+  });
+  for (const [id, band, value] of [
+    ["prezzo_luce_f1_eur_kwh", "F1", 0.10],
+    ["prezzo_luce_f2_eur_kwh", "F2", 0.20],
+    ["prezzo_luce_f3_eur_kwh", "F3", 0.30],
+  ]) setAnswer(answers, id, {
+    value_text: `${value.toFixed(2).replace(".", ",")} €/kWh`, value_number: value, unit: "€/kWh", label: band,
+    evidence: `Prezzo componente energia ${band} ${value.toFixed(2).replace(".", ",")} €/kWh`,
+  });
+  setAnswer(answers, "quota_fissa_vendita_luce", {
+    value_text: "120 €/anno", value_number: 120, unit: "€/anno", period: "year",
+    evidence: "Quota fissa vendita 120 €/anno",
+  });
+
+  const normalized = normalizePureAiOutput(documentOutput({ answers }));
+  assert.equal(normalized.consumo_luce_kwh, 2000);
+  assert.equal(normalized.prezzo_luce_eur_kwh, 0.175);
+  assert.equal(normalized.readiness.confronto.luce.status, "completo");
+  const diagnostic = normalized.diagnostics.find((item) => item.field === "prezzo_luce_eur_kwh");
+  assert.equal(diagnostic?.method, "deterministic_weighted_average");
+  assert.equal(diagnostic?.derivation?.type, "annual_band_weighted_sales_price_f1_f2_f3");
+});
+
+test("prezzo confrontabile generale: calcola la media ponderata F1/F23", () => {
+  const answers = emptyAnswers();
+  setAnswer(answers, "consumo_luce_f1_kwh", {
+    value_text: "1.000 kWh", value_number: 1000, unit: "kWh", label: "F1",
+    evidence: "Consumo annuo ultimi 12 mesi F1 1.000 kWh",
+  });
+  setAnswer(answers, "consumo_luce_f23_kwh", {
+    value_text: "2.000 kWh", value_number: 2000, unit: "kWh", label: "F23",
+    evidence: "Consumo annuo ultimi 12 mesi F23 2.000 kWh",
+  });
+  setAnswer(answers, "prezzo_luce_f1_eur_kwh", {
+    value_text: "0,10 €/kWh", value_number: 0.10, unit: "€/kWh", label: "F1",
+    evidence: "Prezzo componente energia F1 0,10 €/kWh",
+  });
+  setAnswer(answers, "prezzo_luce_f23_eur_kwh", {
+    value_text: "0,16 €/kWh", value_number: 0.16, unit: "€/kWh", label: "F23",
+    evidence: "Prezzo componente energia F23 0,16 €/kWh",
+  });
+  setAnswer(answers, "quota_fissa_vendita_luce", {
+    value_text: "84 €/anno", value_number: 84, unit: "€/anno", period: "year",
+    evidence: "Quota fissa commercializzazione 84 €/anno",
+  });
+
+  const normalized = normalizePureAiOutput(documentOutput({ answers }));
+  assert.equal(normalized.consumo_luce_kwh, 3000);
+  assert.equal(normalized.prezzo_luce_eur_kwh, 0.14);
+  assert.equal(normalized.readiness.confronto.luce.status, "completo");
+  assert.equal(
+    normalized.diagnostics.find((item) => item.field === "prezzo_luce_eur_kwh")?.derivation?.type,
+    "annual_band_weighted_sales_price_f1_f23",
+  );
+});
+
+test("prezzo confrontabile generale: usa il prezzo medio commerciale quando mancano i consumi annui per fascia", () => {
+  const answers = emptyAnswers();
+  setAnswer(answers, "consumo_luce_kwh", {
+    value_text: "1.628,91 kWh", value_number: 1628.91, unit: "kWh",
+    evidence: "Totale consumo annuo dal 01.06.2025 al 31.05.2026: 1.628,91 kWh",
+  });
+  setAnswer(answers, "prezzo_luce_eur_kwh", {
+    value_text: "0,152429 €/kWh", value_number: 0.152429, unit: "€/kWh", label: "Prezzo medio",
+    evidence: "di cui spesa per la vendita di energia elettrica 37,47 € 0,152429 €/kWh",
+  });
+  for (const [id, band, value] of [
+    ["prezzo_luce_f1_eur_kwh", "F1", 0.117891],
+    ["prezzo_luce_f2_eur_kwh", "F2", 0.144582],
+    ["prezzo_luce_f3_eur_kwh", "F3", 0.132897],
+  ]) setAnswer(answers, id, {
+    value_text: String(value), value_number: value, unit: "€/kWh", label: band,
+    evidence: `Corrispettivo commerciale fascia ${band} ${value} €/kWh`,
+  });
+  setAnswer(answers, "quota_fissa_vendita_luce", {
+    value_text: "-6,10 €/mese", value_number: -6.1, unit: "€/mese", period: "month",
+    evidence: "di cui spesa per la vendita di energia elettrica -6,10 €/mese",
+  });
+
+  const normalized = normalizePureAiOutput(documentOutput({ answers }));
+  assert.equal(normalized.prezzo_luce_eur_kwh, 0.152429);
+  assert.equal(normalized.quota_fissa_vendita_luce_eur_anno, undefined);
+  assert.equal(normalized.quota_fissa_dettaglio_luce.commercial_component.value, -6.1);
+  assert.equal(normalized.readiness.confronto.luce.status, "incompleto");
+  assert.equal(
+    normalized.diagnostics.find((item) => item.field === "prezzo_luce_eur_kwh")?.source_role,
+    "sales_component_rate",
+  );
 });

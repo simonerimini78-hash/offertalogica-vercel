@@ -106,6 +106,27 @@ test("Step 4 marca la validità Edison con sola scadenza come parziale, non erra
   assert.equal(result.readiness.attivazione.gas.status, "incompleto");
 });
 
+
+test("Step 4 rifiuta prezzi zero ma conserva consumi di fascia pari a zero", () => {
+  const zeroPrices = buildPdfFieldValidation(baseDual({
+    prezzo_luce_eur_kwh: 0,
+    prezzo_gas_eur_smc: 0,
+    prezzo_luce_f0_eur_kwh: 0,
+    consumo_luce_f1_kwh: 0,
+    consumo_luce_f2_kwh: 100,
+    consumo_luce_f3_kwh: 200,
+  }));
+
+  assert.equal(zeroPrices.fieldStatus.prezzo_luce_eur_kwh.status, "da_verificare");
+  assert.equal(zeroPrices.fieldStatus.prezzo_gas_eur_smc.status, "da_verificare");
+  assert.equal(zeroPrices.fieldStatus.prezzo_luce_f0_eur_kwh.status, "da_verificare");
+  assert.equal(zeroPrices.fieldStatus.consumo_luce_f1_kwh.status, "completo");
+  assert.equal(zeroPrices.readiness.confronto.luce.status, "incompleto");
+  assert.equal(zeroPrices.readiness.confronto.gas.status, "incompleto");
+  assert.ok(zeroPrices.readiness.confronto.luce.missing.includes("prezzo_luce_eur_kwh"));
+  assert.ok(zeroPrices.readiness.confronto.gas.missing.includes("prezzo_gas_eur_smc"));
+});
+
 test("Step 4 segnala contraddizioni tra commodity, indice e tipo prezzo", () => {
   const fixedWithIndex = buildPdfFieldValidation(baseDual({
     tipo_prezzo_luce: "fisso",

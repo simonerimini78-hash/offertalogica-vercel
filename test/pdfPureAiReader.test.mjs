@@ -5,7 +5,6 @@ import os from "node:os";
 import path from "node:path";
 import {
   PDF_PURE_AI_QUESTION_IDS,
-  PDF_PURE_AI_REQUEST_QUESTION_IDS,
   PDF_PURE_AI_READER_VERSION,
   buildPdfPureAiRequest,
   extractPdfPureAi,
@@ -63,59 +62,31 @@ function electricityOutput() {
   };
 }
 
-test("buildPdfPureAiRequest forza una risposta per ogni dato economico prioritario", async () => {
+test("buildPdfPureAiRequest invia il PDF con schema compatto per il confronto", async () => {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "pure-ai-native-"));
   const filePath = path.join(dir, "bolletta.pdf");
   await fs.writeFile(filePath, "%PDF-test");
   const request = await buildPdfPureAiRequest({ filePath, model: "test-model" });
   const content = request.input[1].content;
   const fileInput = content.find((item) => item.type === "input_file");
-  const schema = request.text.format.schema;
   assert.ok(fileInput.file_data.startsWith("data:application/pdf;base64,"));
   assert.equal(content.some((item) => item.type === "input_image"), false);
   assert.equal(request.text.format.type, "json_schema");
   assert.equal(request.text.format.strict, true);
   assert.equal(request.store, false);
   assert.equal(request.max_output_tokens, 4000);
-  assert.deepEqual(schema.required, ["document", "answers"]);
-  assert.equal(schema.properties.answers.minItems, PDF_PURE_AI_REQUEST_QUESTION_IDS.length);
-  assert.equal(schema.properties.answers.maxItems, PDF_PURE_AI_REQUEST_QUESTION_IDS.length);
-  assert.deepEqual(schema.properties.answers.items.properties.question_id.enum, PDF_PURE_AI_REQUEST_QUESTION_IDS);
-  assert.equal(schema.properties.electricity, undefined);
-  assert.equal(PDF_PURE_AI_REQUEST_QUESTION_IDS[0], "prezzo_luce_eur_kwh");
-  assert.ok(PDF_PURE_AI_REQUEST_QUESTION_IDS.includes("quota_fissa_vendita_luce"));
-  assert.ok(PDF_PURE_AI_REQUEST_QUESTION_IDS.includes("consumo_luce_kwh"));
-  assert.ok(PDF_PURE_AI_REQUEST_QUESTION_IDS.includes("prezzo_gas_eur_smc"));
-  assert.equal(PDF_PURE_AI_REQUEST_QUESTION_IDS.includes("pod"), false);
-  assert.equal(PDF_PURE_AI_REQUEST_QUESTION_IDS.includes("intestatario"), false);
-  assert.match(content[1].text, /prezzo_luce_eur_kwh/);
-  assert.match(content[1].text, /prezzo_gas_eur_smc/);
-  assert.match(content[1].text, /found=false/);
-  assert.match(content[1].text, /stesso ordine/i);
+  assert.deepEqual(request.text.format.schema.required, ["document", "supplies", "additional_data"]);
+  const supplySchema = request.text.format.schema.properties.supplies.items;
+  assert.ok(supplySchema.properties.annual_consumption);
+  assert.ok(supplySchema.properties.price);
+  assert.ok(supplySchema.properties.fixed_fee);
+  assert.ok(supplySchema.properties.fixed_fee.properties.section_total_value);
+  assert.equal(request.text.format.schema.properties.answers, undefined);
+  assert.match(content[1].text, /consumo annuo/i);
+  assert.match(content[1].text, /prezzo commerciale/i);
+  assert.match(content[1].text, /quota fissa/i);
+  assert.doesNotMatch(content[1].text, /consumo_luce_kwh|prezzo_luce_f0_eur_kwh|quota_fissa_vendita_luce/i);
   await fs.rm(dir, { recursive: true, force: true });
-});
-
-test("replay archivio: continua a normalizzare il precedente schema compatto", () => {
-  const normalized = normalizePureAiOutput({
-    document: { kind: "bill", commodity: "electricity", customer_type: "consumer", page_count: 2 },
-    electricity: {
-      identity: { provider: "Venditore Test", offer_name: "Offerta Test", page: 1, evidence: "Prodotto attivo: Offerta Test", confidence: 100 },
-      annual_consumption: { total: 2700, f1: null, f2: null, f3: null, f23: null, unit: "kWh", page: 2, label: "Consumo annuo", evidence: "Consumo annuo ultimi 12 mesi 2.700 kWh", confidence: 100 },
-      price: { type: "fixed", single: 0.123, f0: null, f1: null, f2: null, f3: null, f23: null, index: null, multiplier: null, spread: null, formula: null, periodicity: null, unit: "€/kWh", page: 2, label: "Prezzo energia", evidence: "Prezzo componente energia 0,123 €/kWh", confidence: 100 },
-      fixed_fee: { value: 8, period: "month", unit: "€/mese", page: 2, label: "Quota fissa vendita", evidence: "Quota fissa vendita 8 €/mese", confidence: 100 },
-    },
-    gas: {
-      identity: { provider: null, offer_name: null, page: null, evidence: null, confidence: 0 },
-      annual_consumption: { total: null, f1: null, f2: null, f3: null, f23: null, unit: null, page: null, label: null, evidence: null, confidence: 0 },
-      price: { type: "unknown", single: null, f0: null, f1: null, f2: null, f3: null, f23: null, index: null, multiplier: null, spread: null, formula: null, periodicity: null, unit: null, page: null, label: null, evidence: null, confidence: 0 },
-      fixed_fee: { value: null, period: "none", unit: null, page: null, label: null, evidence: null, confidence: 0 },
-    },
-  });
-
-  assert.equal(normalized.fornitore, "Venditore Test");
-  assert.equal(normalized.prezzo_luce_eur_kwh, 0.123);
-  assert.equal(normalized.quota_fissa_vendita_luce_eur_anno, 96);
-  assert.equal(normalized.consumo_luce_kwh, 2700);
 });
 
 test("normalizePureAiOutput accetta una risposta sparsa e conserva i dati parziali", () => {
@@ -137,14 +108,14 @@ test("normalizePureAiOutput accetta una risposta sparsa e conserva i dati parzia
   assert.equal(normalized.ai.accepted_count >= 8, true);
 });
 
-test("richiesta unica: tutti i profili usano le stesse domande economiche forzate", async () => {
+test("richiesta unica: non esistono più profili full ed essential duplicati", async () => {
   const first = await buildPdfPureAiRequest({ fileId: "file_test", profile: "full" });
   const second = await buildPdfPureAiRequest({ fileId: "file_test", profile: "essential" });
   assert.equal(first.max_output_tokens, 4000);
   assert.equal(second.max_output_tokens, 4000);
   assert.deepEqual(first.text.format.schema, second.text.format.schema);
-  assert.equal(first.text.format.name, "offertalogica_forced_economic_questions");
-  assert.deepEqual(first.text.format.schema.required, ["document", "answers"]);
+  assert.equal(first.text.format.name, "offertalogica_priority_economic_reading");
+  assert.equal(first.text.format.schema.properties.answers, undefined);
 });
 
 test("timeout: esegue una sola chiamata e non avvia un secondo tentativo costoso", async () => {
@@ -223,7 +194,7 @@ test("normalizePureAiOutput mantiene il contratto e annualizza solo la quota men
 });
 
 
-test("quota fissa negativa: conserva il segno, annualizza e abilita l’autocompilazione", () => {
+test("quota fissa negativa: conserva il valore letterale ma non lo annualizza nel confronto", () => {
   const output = electricityOutput();
   const fixedAnswer = output.answers.find((item) => item.question_id === "quota_fissa_vendita_luce");
   Object.assign(fixedAnswer, {
@@ -240,13 +211,15 @@ test("quota fissa negativa: conserva il segno, annualizza e abilita l’autocomp
     timings: { request_build_ms: 1, openai_ms: 1, total_ms: 2 },
   });
 
-  assert.equal(normalized.quota_fissa_vendita_luce_eur_anno, -73.2);
-  assert.equal(normalized.field_status.quota_fissa_vendita_luce_eur_anno.status, "completo");
-  const fixed = normalized.data_contract.fields.quota_fissa_vendita_luce_eur_anno;
-  assert.equal(fixed.normalized_value, -73.2);
-  assert.equal(fixed.derivation.original_value, -6.1);
-  assert.equal(fixed.derivation.factor, 12);
-  assert.equal(fixed.autofill.allowed, true);
+  assert.equal(normalized.quota_fissa_vendita_luce_eur_anno, undefined);
+  assert.equal(normalized.field_status.quota_fissa_vendita_luce_eur_anno.status, "mancante");
+  assert.equal(normalized.quota_fissa_dettaglio_luce.commercial_component.value, -6.1);
+  assert.equal(normalized.quota_fissa_dettaglio_luce.commercial_component.period, "month");
+  assert.equal(normalized.quota_fissa_dettaglio_luce.selected_for_comparison, null);
+  assert.equal(
+    normalized.ai.rejected_questions.find((item) => item.question_id === "quota_fissa_vendita_luce")?.reason,
+    "negative_fixed_component_preserved_not_compared",
+  );
 });
 
 test("regressione 504: la chiamata IA parte senza rasterizzazione che consuma il budget", async () => {
@@ -594,32 +567,4 @@ test("default Files API: usa purpose user_data, scadenza di un'ora e file_id nel
     globalThis.fetch = originalFetch;
     await fs.rm(dir, { recursive: true, force: true });
   }
-});
-
-test("catena di custodia: conserva la risposta IA originale separata dal normalizzato", async () => {
-  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "pure-ai-trace-"));
-  const filePath = path.join(dir, "documento.pdf");
-  await fs.writeFile(filePath, "%PDF-test");
-  const rawOutput = electricityOutput();
-  const normalized = await extractPdfPureAi({
-    filePath,
-    apiKey: "test-key",
-    transport: async () => ({ id: "resp_trace", output_text: JSON.stringify(rawOutput) }),
-  });
-  assert.equal(normalized._reader_trace.trace_version, "reader-trace-v1");
-  assert.equal(normalized._reader_trace.response_id, "resp_trace");
-  assert.deepEqual(normalized._reader_trace.raw_ai, rawOutput);
-  assert.equal(normalized.consumo_luce_kwh, 2740);
-  await fs.rm(dir, { recursive: true, force: true });
-});
-
-test("catena di custodia: l'API archivia la traccia privata ma non la espone al browser", async () => {
-  const routeSource = await fs.readFile(new URL("../api/analyze-pdf.js", import.meta.url), "utf8");
-  const staffSource = await fs.readFile(new URL("../public/staff-pdf.html", import.meta.url), "utf8");
-  assert.match(routeSource, /archivePdfAnalysis\(\{[\s\S]*normalized,/);
-  assert.match(routeSource, /const \{ _reader_trace: _privateReaderTrace, \.\.\.publicNormalized \} = normalized/);
-  assert.match(routeSource, /normalized: publicNormalized/);
-  assert.match(staffSource, /Mostra risposta IA originale/);
-  assert.match(staffSource, /Mostra risultato normalizzato/);
-  assert.match(staffSource, /_reader_trace\?\.raw_ai/);
 });

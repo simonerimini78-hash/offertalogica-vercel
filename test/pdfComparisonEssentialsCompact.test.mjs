@@ -78,7 +78,7 @@ test("schema compatto reale E.ON: conserva indice, moltiplicatore, spread e form
   assert.equal(normalized.readiness.confronto.luce.status, "completo");
 });
 
-test("schema compatto mantiene i filtri Free su consumo breve, costo medio e quota senza periodo", () => {
+test("schema compatto Free conserva il prezzo unitario della materia ma rifiuta consumo breve e quota senza periodo", () => {
   const electricity = emptySupply();
   electricity.identity = { provider: "Free Luce&Gas", offer_name: null, page: 1, evidence: "Free Luce&Gas", confidence: 100 };
   electricity.annual_consumption = {
@@ -100,10 +100,10 @@ test("schema compatto mantiene i filtri Free su consumo breve, costo medio e quo
     gas: emptySupply(),
   });
   assert.equal(normalized.consumo_luce_kwh, undefined);
-  assert.equal(normalized.prezzo_luce_eur_kwh, undefined);
+  assert.equal(normalized.prezzo_luce_eur_kwh, 0.055492);
   assert.equal(normalized.quota_fissa_vendita_luce_eur_anno, undefined);
   assert.equal(normalized.ai.rejected_questions.some((item) => item.question_id === "consumo_luce_kwh"), true);
-  assert.equal(normalized.ai.rejected_questions.some((item) => item.question_id === "prezzo_luce_eur_kwh"), true);
+  assert.equal(normalized.ai.rejected_questions.some((item) => item.question_id === "prezzo_luce_eur_kwh"), false);
 });
 
 test("regressione reale E.ON: i null non diventano prezzi zero e la formula resta variabile", () => {

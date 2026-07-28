@@ -305,27 +305,26 @@ test("scheda sintetica: non sostituisce l'offerta corrente con la tariffa di rin
   assert.equal(rejectedReason(normalized, "indice_riferimento_luce"), "semantic_offer_field_not_contract_term");
 });
 
-test("richiesta IA: forza i dati economici senza ampliare la lettura ai dati di attivazione", async () => {
+test("richiesta IA: schema compatto assegna la priorità ai dati economici e rende accessori gli altri", async () => {
   const request = await buildPdfPureAiRequest({ fileId: "file_test", filename: "documento.pdf" });
   const schema = request.text.format.schema;
-  const questionIds = schema.properties.answers.items.properties.question_id.enum;
-  assert.deepEqual(schema.required, ["document", "answers"]);
-  assert.equal(schema.properties.answers.minItems, questionIds.length);
-  assert.equal(schema.properties.answers.maxItems, questionIds.length);
-  assert.ok(questionIds.includes("prezzo_luce_eur_kwh"));
-  assert.ok(questionIds.includes("quota_fissa_vendita_luce"));
-  assert.ok(questionIds.includes("consumo_luce_kwh"));
-  assert.ok(questionIds.includes("prezzo_gas_eur_smc"));
-  assert.equal(questionIds.includes("pod"), false);
-  assert.equal(questionIds.includes("pdr"), false);
-  assert.equal(questionIds.includes("intestatario"), false);
+  const supply = schema.properties.supplies.items.properties;
+  assert.deepEqual(schema.required, ["document", "supplies", "additional_data"]);
+  assert.ok(supply.annual_consumption);
+  assert.ok(supply.price);
+  assert.ok(supply.fixed_fee);
+  assert.ok(supply.fixed_fee.properties.section_total_value);
+  assert.equal(schema.properties.answers, undefined);
   assert.equal(request.max_output_tokens, 4000);
   const prompt = request.input[0].content[0].text + "\n" + request.input[1].content[1].text;
+  assert.match(prompt, /priorità assoluta/i);
   assert.match(prompt, /consumo annuo/i);
-  assert.match(prompt, /spesa per la vendita di energia elettrica/i);
-  assert.match(prompt, /quota fissa/i);
-  assert.match(prompt, /rinnovo futuro/i);
-  assert.match(prompt, /ogni domanda/i);
+  assert.match(prompt, /prezzo unitario commerciale/i);
+  assert.match(prompt, /quota fissa commerciale/i);
+  assert.match(prompt, /formula e componenti necessarie/i);
+  assert.match(prompt, /dati aggiuntivi/i);
+  assert.match(prompt, /secondari/i);
+  assert.match(prompt, /rinnovi futuri/i);
 });
 
 
