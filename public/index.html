@@ -3674,39 +3674,8 @@ function statoCampoNumerico(config) {
   return { ...config, element, raw, value, valido };
 }
 
-function materiaLuceDaProfiloFasce(priceScope = "current") {
-  const consumi = fasceDaProfiloPdf("current", "consumo_luce");
-  const prezzi = fasceDaProfiloPdf(priceScope === "offer" ? "offer" : "current", "prezzo_luce");
-  const materia = calcolaMateriaPerFasce(consumi, prezzi);
-  if (!materia || !(materia.consumoFatturato > 0) || !(materia.quotaMateria > 0)) return null;
-  return materia;
-}
-
-function profiloPrezzoLucePerFasceCompleto(priceScope = "current") {
-  return Boolean(materiaLuceDaProfiloFasce(priceScope));
-}
-
-function campoEssenzialeCopertoDaProfiloAdattivo(campo) {
-  if (campo?.id === "in-luce-prezzo-att") return profiloPrezzoLucePerFasceCompleto("current");
-  if (campo?.id === "in-luce-prezzo-nuov") return profiloPrezzoLucePerFasceCompleto("offer");
-  return false;
-}
-
-function aggiornaStatoPrezzoLuceAdattivo(scope = "current") {
-  const normalizedScope = scope === "offer" ? "offer" : "current";
-  const fieldId = normalizedScope === "offer" ? "in-luce-prezzo-nuov" : "in-luce-prezzo-att";
-  const field = document.getElementById(fieldId);
-  if (!field) return;
-  const complete = profiloPrezzoLucePerFasceCompleto(normalizedScope);
-  field.dataset.adaptiveBandPrice = complete ? "true" : "false";
-  field.placeholder = complete ? "Calcolato dai prezzi per fascia sotto" : (normalizedScope === "offer" ? "Es. 0.1250" : "Es. 0.1450");
-  if (complete) pulisciErroreCampo(field);
-}
-
 function campiMancanti(configurazioni) {
-  return configurazioni
-    .map(statoCampoNumerico)
-    .filter((campo) => !campo.valido && !campoEssenzialeCopertoDaProfiloAdattivo(campo));
+  return configurazioni.map(statoCampoNumerico).filter((campo) => !campo.valido);
 }
 
 function erroreCampoId(element) {
@@ -4102,8 +4071,7 @@ function leggiNuovaOfferta(attuale) {
 
 function nuovaOffertaCompilata() {
   const ids = configurazioniPerAmbito(CAMPI_NUOVA_OFFERTA_ESSENZIALI).map(({ id }) => id);
-  const usaLuce = tipoFornituraPerCalcolo() !== "gas";
-  return ids.some((id) => leggiNumero(id) > 0) || (usaLuce && profiloPrezzoLucePerFasceCompleto("offer"));
+  return ids.some((id) => leggiNumero(id) > 0);
 }
 
 function voceRichiesta(voce) {
@@ -4111,8 +4079,7 @@ function voceRichiesta(voce) {
 }
 
 function voceNuovaPresente(voce) {
-  const materiaFasce = calcolaMateriaPerFasce(voce?.consumiFasce, voce?.prezziFasce);
-  return Boolean(voce?.formula) || Boolean(materiaFasce) || numeroSicuro(voce?.prezzoVariabile, 0) > 0 || numeroSicuro(voce?.quotaFissaAnnua, 0) > 0;
+  return Boolean(voce?.formula) || numeroSicuro(voce?.prezzoVariabile, 0) > 0 || numeroSicuro(voce?.quotaFissaAnnua, 0) > 0;
 }
 
 function nuovaOffertaComparabile(attuale, nuova) {
@@ -7086,104 +7053,17 @@ function numeroAdattivoPresente(value) {
   return value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value));
 }
 
-// OFFERTALOGICA_ADAPTIVE_BAND_CALCULATOR_V203
-// I prezzi per fascia letti dalla IA restano letterali nel modulo, ma quando
-// formano una matrice completa vengono collegati al motore di calcolo esistente.
-function bandaAdattivaPdf(entry) {
-  const text = `${entry?.band || ""} ${entry?.label || ""}`.toUpperCase().replace(/\s+/g, "");
-  if (/F2[\/+-]?F3|F23/.test(text)) return "f23";
-  if (text.includes("F1")) return "f1";
-  if (text.includes("F2")) return "f2";
-  if (text.includes("F3")) return "f3";
-  return "";
-}
-
-function numeroDaTestoAdattivoPdf(value) {
-  const raw = String(value ?? "").trim().replace(/\s+/g, "");
-  const match = raw.match(/-?\d[\d.,]*/);
-  if (!match) return null;
-  let token = match[0];
-  const comma = token.lastIndexOf(",");
-  const punto = token.lastIndexOf(".");
-  if (comma >= 0 && punto >= 0) {
-    const separatoreDecimale = comma > punto ? "," : ".";
-    const separatoreMigliaia = separatoreDecimale === "," ? "." : ",";
-    token = token.split(separatoreMigliaia).join("");
-    if (separatoreDecimale === ",") token = token.replace(",", ".");
-  } else if (comma >= 0) {
-    token = token.replace(/\./g, "").replace(",", ".");
-  } else if ((token.match(/\./g) || []).length > 1) {
-    const ultimoPunto = token.lastIndexOf(".");
-    token = `${token.slice(0, ultimoPunto).replace(/\./g, "")}${token.slice(ultimoPunto)}`;
-  }
-  const number = Number(token);
-  return Number.isFinite(number) ? number : null;
-}
-
-function numeroDaEntryAdattivoPdf(entry) {
-  if (entry?.value !== null && entry?.value !== undefined && entry?.value !== "") {
-    const number = Number(entry.value);
-    if (Number.isFinite(number)) return number;
-  }
-  return numeroDaTestoAdattivoPdf(entry?.value_text);
-}
-
-function mappaValoriBandaAdattivaPdf(entries, options = {}) {
-  const grouped = {};
-  (Array.isArray(entries) ? entries : []).forEach((entry) => {
-    const band = bandaAdattivaPdf(entry);
-    const value = numeroDaEntryAdattivoPdf(entry);
-    if (!band || !Number.isFinite(value) || value < 0 || (options.positive && value <= 0)) return;
-    grouped[band] = grouped[band] || [];
-    if (!grouped[band].some((existing) => Math.abs(existing - value) <= 1e-12)) grouped[band].push(value);
-  });
-  return Object.fromEntries(Object.entries(grouped)
-    .filter(([, values]) => values.length === 1)
-    .map(([band, values]) => [band, values[0]]));
-}
-
-function sincronizzaProfiloDaFornituraAdattivaPdf(supply, scope = "current") {
-  const normalizedScope = scope === "offer" ? "offer" : "current";
-  const profile = PDF_PROFILE_STATE[normalizedScope] || (PDF_PROFILE_STATE[normalizedScope] = {});
-  const empty = { consumptions: {}, prices: {} };
-  if (supply?.commodity !== "luce") return empty;
-
-  const consumptions = mappaValoriBandaAdattivaPdf(supply.annual_band_consumptions);
-  const prices = mappaValoriBandaAdattivaPdf(supply.price_items, { positive: true });
-  Object.entries(consumptions).forEach(([band, value]) => { profile[`consumo_luce_${band}`] = value; });
-  Object.entries(prices).forEach(([band, value]) => { profile[`prezzo_luce_${band}`] = value; });
-  return { consumptions, prices };
-}
-
-function aggiornaProfiloDaCampoAdattivoPdf(input) {
-  const scope = input?.dataset?.adaptiveProfileScope === "offer" ? "offer" : "current";
-  const key = String(input?.dataset?.adaptiveProfileKey || "");
-  if (!key) return;
-  const value = numeroDaTestoAdattivoPdf(input.value);
-  const valido = Number.isFinite(value) && value >= 0 && (!key.startsWith("prezzo_") || value > 0);
-  if (valido) PDF_PROFILE_STATE[scope][key] = value;
-  else delete PDF_PROFILE_STATE[scope][key];
-  aggiornaStatoPrezzoLuceAdattivo(scope);
-  if (scope === "current") aggiornaStatoPrezzoLuceAdattivo("offer");
-  aggiornaTestoPulsanteConfronto();
-}
-
-function rigaAdattivaPdf(label, value, unit = "", editable = true, options = {}) {
+function rigaAdattivaPdf(label, value, unit = "", editable = true) {
   const safeLabel = testoHtmlSicuro(label || "Voce economica");
-  const safeValue = testoHtmlSicuro(value ?? "");
+  const safeValue = testoHtmlSicuro(value || "");
   const safeUnit = testoHtmlSicuro(unit || "");
   const combined = [safeValue, safeUnit].filter(Boolean).join(" ");
-  const profileKey = String(options.profileKey || "");
-  const profileScope = options.scope === "offer" ? "offer" : "current";
-  const profileAttributes = profileKey
-    ? ` data-adaptive-profile-scope="${profileScope}" data-adaptive-profile-key="${testoHtmlSicuro(profileKey)}" inputmode="decimal"`
-    : "";
   return `<div class="adaptive-price-row"><label>${safeLabel}</label>${editable
-    ? `<input type="text" value="${combined}" aria-label="${safeLabel}"${profileAttributes}>`
+    ? `<input type="text" value="${combined}" aria-label="${safeLabel}">`
     : `<div class="adaptive-price-text">${combined || "—"}</div>`}</div>`;
 }
 
-function renderDettagliAdattiviFornitura(supply, targetId, scope = "current") {
+function renderDettagliAdattiviFornitura(supply, targetId) {
   const box = document.getElementById(targetId);
   if (!box) return;
   if (!supply) {
@@ -7191,30 +7071,14 @@ function renderDettagliAdattiviFornitura(supply, targetId, scope = "current") {
     box.classList.remove("is-visible");
     return;
   }
-  const bindings = sincronizzaProfiloDaFornituraAdattivaPdf(supply, scope);
   const rows = [];
   (supply.annual_band_consumptions || []).forEach((entry) => {
-    const band = bandaAdattivaPdf(entry);
-    const number = numeroDaEntryAdattivoPdf(entry);
-    const bound = band && Number.isFinite(number) && bindings.consumptions[band] !== undefined
-      && Math.abs(bindings.consumptions[band] - number) <= 1e-12;
-    const value = bound ? String(number).replace(".", ",") : valoreAdattivoPdf(entry);
-    rows.push(rigaAdattivaPdf(`Consumo annuo ${entry.band || entry.label || "Fascia"}`, value, entry.unit || "", true, {
-      scope,
-      profileKey: bound ? `consumo_luce_${band}` : "",
-    }));
+    const band = entry.band || entry.label || "Fascia";
+    rows.push(rigaAdattivaPdf(`Consumo annuo ${band}`, valoreAdattivoPdf(entry), entry.unit || ""));
   });
   (supply.price_items || []).forEach((entry) => {
-    const band = bandaAdattivaPdf(entry);
-    const number = numeroDaEntryAdattivoPdf(entry);
-    const bound = band && Number.isFinite(number) && bindings.prices[band] !== undefined
-      && Math.abs(bindings.prices[band] - number) <= 1e-12;
-    const value = bound ? String(number).replace(".", ",") : valoreAdattivoPdf(entry);
-    const bandLabel = entry.band ? ` ${entry.band}` : "";
-    rows.push(rigaAdattivaPdf(`${entry.label || "Prezzo"}${bandLabel}`, value, entry.unit || "", true, {
-      scope,
-      profileKey: bound ? `prezzo_luce_${band}` : "",
-    }));
+    const band = entry.band ? ` ${entry.band}` : "";
+    rows.push(rigaAdattivaPdf(`${entry.label || "Prezzo"}${band}`, valoreAdattivoPdf(entry), entry.unit || ""));
   });
   if (supply.index) rows.push(rigaAdattivaPdf("Indice", supply.index, "", true));
   if (numeroAdattivoPresente(supply.multiplier)) rows.push(rigaAdattivaPdf("Moltiplicatore", String(supply.multiplier).replace(".", ","), "", true));
@@ -7225,26 +7089,20 @@ function renderDettagliAdattiviFornitura(supply, targetId, scope = "current") {
   if (!rows.length) {
     box.innerHTML = "";
     box.classList.remove("is-visible");
-    aggiornaStatoPrezzoLuceAdattivo(scope);
     return;
   }
-  box.innerHTML = `<strong>Voci economiche presenti nel documento</strong><small>I prezzi per fascia completi vengono usati direttamente dal calcolatore. Le altre voci restano disponibili per controllo.</small><div class="adaptive-price-list">${rows.join("")}</div>`;
-  box.querySelectorAll("input[data-adaptive-profile-key]").forEach((input) => {
-    input.addEventListener("input", () => aggiornaProfiloDaCampoAdattivoPdf(input));
-  });
+  box.innerHTML = `<strong>Voci economiche presenti nel documento</strong><small>I valori sono riportati come compaiono nel documento. Restano modificabili e servono a verificare il prezzo principale.</small><div class="adaptive-price-list">${rows.join("")}</div>`;
   box.classList.add("is-visible");
-  aggiornaStatoPrezzoLuceAdattivo(scope);
 }
 
 function renderModuloAdattivoPdf(data) {
   svuotaDettagliAdattiviPdf();
   const supplies = Array.isArray(data?.adaptive_form?.supplies) ? data.adaptive_form.supplies : [];
   const isOffer = data?.kind === "scheda_offerta";
-  const scope = isOffer ? "offer" : "current";
   for (const supply of supplies) {
     const commodity = supply?.commodity === "luce" ? "luce" : supply?.commodity === "gas" ? "gas" : null;
     if (!commodity) continue;
-    renderDettagliAdattiviFornitura(supply, `adaptive-${scope}-${commodity}`, scope);
+    renderDettagliAdattiviFornitura(supply, `adaptive-${isOffer ? "offer" : "current"}-${commodity}`);
   }
 }
 
