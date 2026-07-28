@@ -7043,9 +7043,14 @@ function resetModuloPrimaDiNuovaLetturaPdf() {
 function valoreAdattivoPdf(entry) {
   if (!entry) return "";
   const text = String(entry.value_text ?? "").trim();
-  if (text) return text;
+  if (text && !["null", "undefined", "nan"].includes(text.toLowerCase())) return text;
+  if (entry.value === null || entry.value === undefined || entry.value === "") return "";
   const number = Number(entry.value);
   return Number.isFinite(number) ? String(number).replace(".", ",") : "";
+}
+
+function numeroAdattivoPresente(value) {
+  return value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value));
 }
 
 function rigaAdattivaPdf(label, value, unit = "", editable = true) {
@@ -7076,17 +7081,17 @@ function renderDettagliAdattiviFornitura(supply, targetId) {
     rows.push(rigaAdattivaPdf(`${entry.label || "Prezzo"}${band}`, valoreAdattivoPdf(entry), entry.unit || ""));
   });
   if (supply.index) rows.push(rigaAdattivaPdf("Indice", supply.index, "", true));
-  if (Number.isFinite(Number(supply.multiplier))) rows.push(rigaAdattivaPdf("Moltiplicatore", String(supply.multiplier).replace(".", ","), "", true));
-  if (Number.isFinite(Number(supply.spread))) rows.push(rigaAdattivaPdf("Spread", String(supply.spread).replace(".", ","), supply.commodity === "luce" ? "€/kWh" : "€/Smc", true));
+  if (numeroAdattivoPresente(supply.multiplier)) rows.push(rigaAdattivaPdf("Moltiplicatore", String(supply.multiplier).replace(".", ","), "", true));
+  if (numeroAdattivoPresente(supply.spread)) rows.push(rigaAdattivaPdf("Spread", String(supply.spread).replace(".", ","), supply.commodity === "luce" ? "€/kWh" : "€/Smc", true));
   if (supply.formula) rows.push(rigaAdattivaPdf("Formula", supply.formula, "", true));
   if (supply.periodicity) rows.push(rigaAdattivaPdf("Aggiornamento indice", supply.periodicity, "", true));
-  if (supply.price_structure) rows.push(rigaAdattivaPdf("Struttura prezzo", supply.price_structure, "", true));
+  if (supply.price_structure && supply.price_structure !== supply.formula) rows.push(rigaAdattivaPdf("Struttura prezzo", supply.price_structure, "", true));
   if (!rows.length) {
     box.innerHTML = "";
     box.classList.remove("is-visible");
     return;
   }
-  box.innerHTML = `<strong>Voci economiche presenti nel documento</strong><small>I valori sono riportati senza forzarli in un prezzo unico. Restano modificabili e saranno usati dal motore di calcolo adattivo.</small><div class="adaptive-price-list">${rows.join("")}</div>`;
+  box.innerHTML = `<strong>Voci economiche presenti nel documento</strong><small>I valori sono riportati come compaiono nel documento. Restano modificabili e servono a verificare il prezzo principale.</small><div class="adaptive-price-list">${rows.join("")}</div>`;
   box.classList.add("is-visible");
 }
 
