@@ -24,8 +24,6 @@ function price({ type = "unknown", single = null, f0 = null, f1 = null, f2 = nul
 function fixed({ value = null, text = null, unit = null, period = "none", page = null, evidence = null } = {}) {
   return {
     value, value_text: text, unit, period, page, label: "Quota fissa", evidence, confidence: value === null ? 0 : 100,
-    section_total_value: null, section_total_value_text: null, section_total_unit: null, section_total_period: "none",
-    section_total_page: null, section_total_label: null, section_total_evidence: null, section_total_confidence: 0,
   };
 }
 
@@ -44,15 +42,18 @@ test("IA Libera: la richiesta dice di compilare il modulo e archiviare gli altri
     await writeFile(filePath, Buffer.from("%PDF-1.4\n%%EOF"));
     const request = await buildPdfPureAiRequest({ filePath });
     const prompt = request.input.flatMap((item) => item.content || []).map((item) => item.text || "").join("\n");
-    assert.equal(PDF_PURE_AI_READER_VERSION, "pure-ai-native-pdf-v1.0.20-ia-libera");
-    assert.match(prompt, /COMPILARE IL MODULO DI CONFRONTO/i);
-    assert.match(prompt, /DATI DA CONSERVARE PER L'ATTIVAZIONE SUCCESSIVA/i);
-    assert.match(prompt, /non esiste una pagina o una sezione obbligatoria/i);
-    assert.match(prompt, /non trasform[a-z ]*automaticamente un prezzo generale in prezzo di fascia/i);
+    assert.equal(PDF_PURE_AI_READER_VERSION, "pure-ai-native-pdf-v1.0.21-ia-libera-slim");
+    assert.match(prompt, /compila il blocco supplies/i);
+    assert.match(prompt, /DATI PER DOPO/i);
+    assert.match(prompt, /qualunque pagina o sezione/i);
+    assert.match(prompt, /prezzo generale non diventa F1/i);
     const schema = request.text.format.schema;
     assert.ok(schema.properties.supplies);
     assert.ok(schema.properties.additional_data);
-    assert.equal(schema.properties.additional_data.items.properties.field.enum, undefined);
+    assert.ok(Array.isArray(schema.properties.additional_data.items.properties.field.enum));
+    assert.equal(schema.properties.additional_data.maxItems, 14);
+    assert.equal(schema.properties.supplies.items.properties.fixed_fee.properties.section_total_value, undefined);
+    assert.equal(request.max_output_tokens, 4000);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
@@ -125,10 +126,10 @@ test("IA Libera: senza F0 calcola una media semplice indicativa di F1 F2 F3", ()
   assert.equal(normalized.readiness.confronto.luce.status, "completo");
 });
 
-test("IA Libera: conserva i dati secondari noti e sconosciuti per il passaggio di attivazione", () => {
+test("IA Libera snella: conserva i dati secondari ammessi per il passaggio di attivazione", () => {
   const additional = [
     { field: "pod", commodity: "electricity", value_text: "IT001E12345678", value_number: null, unit: null, page: 1, label: "POD", evidence: "POD IT001E12345678", confidence: 100 },
-    { field: "codice_contratto", commodity: "electricity", value_text: "ABC-999", value_number: null, unit: null, page: 1, label: "Codice contratto", evidence: "Codice contratto ABC-999", confidence: 100 },
+    { field: "contract_code", commodity: "electricity", value_text: "ABC-999", value_number: null, unit: null, page: 1, label: "Codice contratto", evidence: "Codice contratto ABC-999", confidence: 100 },
   ];
   const normalized = normalizePureAiOutput(output({
     supplies: [{
