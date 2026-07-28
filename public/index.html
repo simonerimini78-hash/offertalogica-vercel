@@ -4010,7 +4010,7 @@ function formulaDaProfiloPdf(scope, commodity) {
 function fasceDaProfiloPdf(scope, prefix) {
   const profile = PDF_PROFILE_STATE[scope] || {};
   const value = (field) => { const number = Number(profile[field]); return Number.isFinite(number) ? number : undefined; };
-  return { f1: value(`${prefix}_f1`), f2: value(`${prefix}_f2`), f3: value(`${prefix}_f3`), f23: value(`${prefix}_f23`) };
+  return { f0: value(`${prefix}_f0`), f1: value(`${prefix}_f1`), f2: value(`${prefix}_f2`), f3: value(`${prefix}_f3`), f23: value(`${prefix}_f23`) };
 }
 
 function leggiOffertaAttuale() {
@@ -4051,8 +4051,12 @@ function leggiNuovaOfferta(attuale) {
     luce: usaLuce ? {
       consumo: attuale.luce.consumo,
       prezzoVariabile: leggiNumero("in-luce-prezzo-nuov"),
-      consumiFasce: fasceDaProfiloPdf("current", "consumo_luce"),
-      prezziFasce: fasceDaProfiloPdf("offer", "prezzo_luce"),
+      // OFFERTALOGICA_OFFER_SHEET_SINGLE_PRICE_20260728
+      // La scheda non contiene consumi propri: usa il prezzo isolato derivato da
+      // prezzo esplicito, F0 o media aritmetica delle fasce. La ponderazione per
+      // consumi resta esclusiva della bolletta attuale.
+      consumiFasce: {},
+      prezziFasce: {},
       formula: formulaDaProfiloPdf("offer", "luce") || fonteAuto?.luce?.formula,
       quotaFissaAnnua: quotaFissaAnnuaDaCampo("in-luce-fisso-nuov", "in-luce-fisso-nuov-unita"),
       quoteUniversaliAnnue: maggiorazioneMaster("luce"),
@@ -4866,6 +4870,7 @@ function arricchisciOffertaAreraConCommerciale(offerta, providerKey, tipo, tipoF
       ...(offerta.certificazione || {}),
       partnerOriginalId: commerciale.id,
       percorsoPartnerDaCatalogo: true,
+      datiEconomiciDaCatalogoPartner: false,
       percorsoPartnerTipoOriginale: commerciale.tipo,
       percorsoPartnerFornituraOriginale: commerciale.fornitura,
       percorsoPartnerCorrispondenza: corrispondenzaCommercialeEsatta
@@ -5047,34 +5052,72 @@ function miglioreRigaAreraPerPartner(offerta, commodity, attuale) {
     ) || (b.score - a.score))[0]?.riga || null;
 }
 
+// OFFERTALOGICA_DAILY_ARERA_PARTNER_PRICES_20260728
+// Il catalogo partner fornisce esclusivamente percorso, logo e monetizzazione.
+// Prezzi, quote fisse, formule e validita provengono sempre dal catalogo ARERA
+// aggiornato sul main. Non esiste alcun fallback ai prezzi statici partner.
 function offertaPartnerConPrezziArera(offerta, attuale) {
   if (offerta.fornitura === "dual") {
     const dual = miglioreOffertaAreraDualPerPartner(offerta, attuale);
-    // Il catalogo commerciale partner e il catalogo ARERA D hanno ruoli distinti.
-    // Se il D contiene la stessa offerta aggiorniamo i dati economici dal D;
-    // altrimenti conserviamo la vera offerta dual del partner e il suo funnel,
-    // senza ricostruirla scegliendo liberamente una riga E e una riga G.
-    if (!dual) return normalizzaOfferta(offerta, 0);
-    const codici = `${dual.codice} (${dual.codiceOffertaLuce} + ${dual.codiceOffertaGas})`;
+    if (dual) {
+      const codici = `${dual.codice} (${dual.codiceOffertaLuce} + ${dual.codiceOffertaGas})`;
+      return normalizzaOfferta({
+        ...offerta,
+        provider: dual.providerLabel || dual.fornitore || offerta.provider,
+        nome: `${dual.providerLabel || dual.fornitore || offerta.provider} - ${dual.nome}`,
+        fornitura: "dual",
+        luce: voceDaRigaArera(dual.luce),
+        gas: voceDaRigaArera(dual.gas),
+        descrizione: `Condizioni economiche giornaliere dalla specifica offerta dual ARERA. Il catalogo partner fornisce soltanto il percorso di attivazione. Codici: ${codici}`,
+        fonte: `${DATI_ARERA_MENU_META.fonte} Catalogo D. Codici: ${codici}`,
+        aggiornataIl: DATI_ARERA_MENU_META.aggiornatoIl,
+        certificazione: {
+          ...(offerta.certificazione || {}),
+          codici: {
+            ...(offerta?.certificazione?.codici || {}),
+            dual: dual.codice,
+            luce: dual.codiceOffertaLuce,
+            gas: dual.codiceOffertaGas,
+          },
+          catalogoArera: "D",
+          datiEconomiciDaCatalogoPartner: false,
+          dataFonte: DATI_ARERA_MENU_META.aggiornatoIl,
+        },
+      }, 0);
+    }
+
+    // Se il catalogo D non contiene una specifica dual corrente, la card partner
+    // puo essere valorizzata soltanto con due righe E/G correnti dello stesso
+    // venditore e dello stesso tipo prezzo. Il funnel deve confermare le condizioni.
+    if (!OFFERTE_ARERA_MENU.length) return null;
+    const providerKey = chiaveFornitoreDaNome(offerta.provider);
+    if (!providerKey) return null;
+    const luce = miglioreRigaAreraPerProvider(providerKey, "luce", offerta.tipo, attuale);
+    const gas = miglioreRigaAreraPerProvider(providerKey, "gas", offerta.tipo, attuale);
+    if (!luce || !gas) return null;
+    const providerLabel = luce.providerLabel || gas.providerLabel || offerta.provider;
+    const codici = `${luce.codice} + ${gas.codice}`;
     return normalizzaOfferta({
       ...offerta,
-      provider: dual.providerLabel || dual.fornitore || offerta.provider,
-      nome: `${dual.providerLabel || dual.fornitore || offerta.provider} - ${dual.nome}`,
+      provider: providerLabel,
+      nome: `${providerLabel} - ${luce.nome} + ${gas.nome}`,
       fornitura: "dual",
-      luce: voceDaRigaArera(dual.luce),
-      gas: voceDaRigaArera(dual.gas),
-      descrizione: `${offerta.descrizione || ""} Condizioni economiche dalla specifica offerta dual ARERA. Codici: ${codici}`.trim(),
-      fonte: `${DATI_ARERA_MENU_META.fonte} Catalogo D. Codici: ${codici}`,
+      luce: voceDaRigaArera(luce),
+      gas: voceDaRigaArera(gas),
+      descrizione: `Stima economica giornaliera composta dalle offerte luce e gas ARERA correnti dello stesso venditore. Il percorso partner e attivo, ma nome e condizioni finali devono essere confermati nel funnel. Codici: ${codici}`,
+      fonte: `${DATI_ARERA_MENU_META.fonte} Cataloghi E+G. Codici: ${codici}`,
       aggiornataIl: DATI_ARERA_MENU_META.aggiornatoIl,
       certificazione: {
         ...(offerta.certificazione || {}),
         codici: {
           ...(offerta?.certificazione?.codici || {}),
-          dual: dual.codice,
-          luce: dual.codiceOffertaLuce,
-          gas: dual.codiceOffertaGas,
+          luce: luce.codice,
+          gas: gas.codice,
         },
-        catalogoArera: "D",
+        catalogoArera: "E+G",
+        composizioneEconomicaGiornaliera: true,
+        percorsoPartnerRichiedeConfermaCondizioni: true,
+        datiEconomiciDaCatalogoPartner: false,
         dataFonte: DATI_ARERA_MENU_META.aggiornatoIl,
       },
     }, 0);
@@ -5091,9 +5134,15 @@ function offertaPartnerConPrezziArera(offerta, attuale) {
     ...offerta,
     luce: voceDaRigaArera(luce),
     gas: voceDaRigaArera(gas),
-    descrizione: `${offerta.descrizione || ""} Prezzi aggiornati da Portale Offerte ARERA/AU. Codici: ${codici}`.trim(),
+    descrizione: `Condizioni economiche giornaliere da Portale Offerte ARERA/AU. Il catalogo partner fornisce soltanto il percorso di attivazione. Codici: ${codici}`,
     fonte: `${DATI_ARERA_MENU_META.fonte} Codici: ${codici}`,
     aggiornataIl: DATI_ARERA_MENU_META.aggiornatoIl,
+    certificazione: {
+      ...(offerta.certificazione || {}),
+      catalogoArera: "E/G",
+      datiEconomiciDaCatalogoPartner: false,
+      dataFonte: DATI_ARERA_MENU_META.aggiornatoIl,
+    },
   }, 0);
 }
 
@@ -5382,9 +5431,8 @@ function costruisciOfferteRanking(attuale, tipoTariffa, tipoFornitura) {
   const daArera = costruisciOfferteAreraRanking(attuale, tipoTariffa, tipoFornitura);
   const partnerDirette = offertePartnerDiretteAttivabili(tipoTariffa, tipoFornitura, attuale);
 
-  // Nel dual, il catalogo D alimenta il ranking ARERA e il gruppo consulente.
-  // Le offerte partner attive restano offerte commerciali dual autonome:
-  // non vengono create combinando righe E/G e mantengono il proprio funnel.
+  // Il catalogo ARERA giornaliero alimenta sempre la parte economica.
+  // Il catalogo partner aggiunge soltanto i percorsi commerciali attivi.
   return unisciOfferteCandidati(daArera, partnerDirette);
 }
 
@@ -5788,7 +5836,10 @@ window.avviaComparazioneDati = function avviaComparazioneDati() {
     mostraErroreDatiMancanti(mancantiNuova, "nuova offerta");
     return;
   }
-  const tipoTariffaNuova = NUOVA_OFFERTA_AUTOMATICA?.offerta?.tipo || tipoTariffa;
+  const tipoTariffaNuova = PDF_PROFILE_STATE.offer.tipo_prezzo_luce
+    || PDF_PROFILE_STATE.offer.tipo_prezzo_gas
+    || NUOVA_OFFERTA_AUTOMATICA?.offerta?.tipo
+    || tipoTariffa;
   const confrontoNuova = calcolaDifferenza(attuale, nuova, tipoTariffa, tipoTariffaNuova);
   const haNuovaOfferta = nuovaIniziata && nuovaOffertaComparabile(attuale, nuova);
   const areaRisultati = document.getElementById("results-area");
@@ -7010,8 +7061,13 @@ function pulisciGuidePercorsoPdf() {
 }
 
 
-function svuotaDettagliAdattiviPdf() {
-  ["adaptive-current-luce", "adaptive-current-gas", "adaptive-offer-luce", "adaptive-offer-gas"].forEach((id) => {
+function svuotaDettagliAdattiviPdf(scope = "all") {
+  const ids = scope === "current"
+    ? ["adaptive-current-luce", "adaptive-current-gas"]
+    : scope === "offer"
+      ? ["adaptive-offer-luce", "adaptive-offer-gas"]
+      : ["adaptive-current-luce", "adaptive-current-gas", "adaptive-offer-luce", "adaptive-offer-gas"];
+  ids.forEach((id) => {
     const box = document.getElementById(id);
     if (!box) return;
     box.innerHTML = "";
@@ -7022,6 +7078,11 @@ function svuotaDettagliAdattiviPdf() {
 function resetModuloPrimaDiNuovaLetturaPdf() {
   LEAD_STATE.pdfData = null;
   LEAD_STATE.pdfDocuments = [];
+  if (typeof PDF_DOCUMENT_SLOTS !== "undefined") {
+    PDF_DOCUMENT_SLOTS.current = [];
+    PDF_DOCUMENT_SLOTS.offer = [];
+    PDF_ACTIVE_SLOT = null;
+  }
   LEAD_STATE.pdfAutofill = { previewedAt: "", appliedFields: [], skippedFields: [] };
   LEAD_STATE.comparisonScope = "unknown";
   LEAD_STATE.gasDecision = "";
@@ -7098,9 +7159,9 @@ function renderDettagliAdattiviFornitura(supply, targetId) {
 }
 
 function renderModuloAdattivoPdf(data) {
-  svuotaDettagliAdattiviPdf();
-  const supplies = Array.isArray(data?.adaptive_form?.supplies) ? data.adaptive_form.supplies : [];
   const isOffer = data?.kind === "scheda_offerta";
+  svuotaDettagliAdattiviPdf(isOffer ? "offer" : "current");
+  const supplies = Array.isArray(data?.adaptive_form?.supplies) ? data.adaptive_form.supplies : [];
   for (const supply of supplies) {
     const commodity = supply?.commodity === "luce" ? "luce" : supply?.commodity === "gas" ? "gas" : null;
     if (!commodity) continue;
@@ -7168,7 +7229,8 @@ function configuraConfermaPdfPronta(results) {
   const panel = document.getElementById("pdf-review-static");
   const title = document.getElementById("pdf-review-title");
   const button = document.getElementById("pdf-confirm-data-button");
-  const availableDocuments = (LEAD_STATE.pdfDocuments || []).length ? LEAD_STATE.pdfDocuments : results;
+  const activeDocuments = typeof pdfDocumentiSlot === "function" ? pdfDocumentiSlot() : [];
+  const availableDocuments = activeDocuments.length ? activeDocuments : results;
   const successCount = availableDocuments.filter(risultatoPdfUtilizzabile).length;
   const mixedDocuments = Boolean(LEAD_STATE.pdfData?.mixed_documents);
   const mergeBlocked = Boolean(LEAD_STATE.pdfData?.merge_blocked);
@@ -7233,8 +7295,8 @@ function accompagnaAllaRevisioneDatiPdf(data) {
     ? ` Completa ${mancanti.length === 1 ? "il campo evidenziato" : `i ${mancanti.length} campi evidenziati`} prima di continuare.`
     : " Controlla con attenzione i valori inseriti.";
   const guidanceCopy = isOffer
-    ? `<strong>I dati della scheda sintetica sono stati inseriti nell'offerta specifica.</strong>${missingCopy} Verifica anche che “La tua fornitura attuale” contenga tutti i dati necessari; se mancano, carica la bolletta oppure inseriscili manualmente. Poi premi <strong>“Confronta questa proposta”</strong>.`
-    : `<strong>I dati della bolletta sono stati inseriti nella fornitura attuale.</strong>${missingCopy} Poi premi <strong>“Mostra le offerte disponibili”</strong>.`;
+    ? `<strong>I dati della scheda sintetica sono stati inseriti nell'offerta specifica senza cancellare la bolletta.</strong>${missingCopy} Se la fornitura attuale non è ancora completa, puoi aggiungere la bolletta. Poi premi <strong>“Confronta questa proposta”</strong>.`
+    : `<strong>I dati della bolletta sono stati inseriti nella fornitura attuale senza cancellare l'eventuale scheda proposta.</strong>${missingCopy} Puoi aggiungere una scheda sintetica oppure mostrare direttamente le offerte disponibili.`;
   mostraGuida(
     "pdf-data-review-guidance",
     guidanceCopy
@@ -7248,8 +7310,64 @@ function accompagnaAllaRevisioneDatiPdf(data) {
 }
 
 
+// OFFERTALOGICA_PDF_CURRENT_OFFER_SLOTS_20260728
+// Bolletta e scheda sintetica vivono in due slot indipendenti. Un nuovo PDF
+// sostituisce soltanto lo slot dello stesso tipo e non cancella l'altro.
 let PDF_PENDING_FILES = [];
 let PDF_UPLOAD_SEQUENCE = 0;
+let PDF_ACTIVE_SLOT = null;
+const PDF_DOCUMENT_SLOTS = { current: [], offer: [] };
+
+function pdfSlotDaKind(kind) {
+  if (kind === "bolletta") return "current";
+  if (kind === "scheda_offerta") return "offer";
+  return null;
+}
+
+function pdfDocumentiAnalizzatiTutti() {
+  return [...PDF_DOCUMENT_SLOTS.current, ...PDF_DOCUMENT_SLOTS.offer];
+}
+
+function pdfDocumentiSlot(slot = PDF_ACTIVE_SLOT) {
+  return slot && Array.isArray(PDF_DOCUMENT_SLOTS[slot]) ? PDF_DOCUMENT_SLOTS[slot] : [];
+}
+
+function sincronizzaStatoDocumentiPdf(slot = PDF_ACTIVE_SLOT) {
+  PDF_ACTIVE_SLOT = slot && PDF_DOCUMENT_SLOTS[slot] ? slot : null;
+  LEAD_STATE.pdfDocuments = pdfDocumentiAnalizzatiTutti();
+  const activeDocuments = pdfDocumentiSlot();
+  LEAD_STATE.pdfData = activeDocuments.length ? mergePdfDocuments(activeDocuments) : null;
+  return LEAD_STATE.pdfData;
+}
+
+function resetCampiPdfSlot(slot) {
+  const normalized = slot === "offer" ? "offer" : "current";
+  Object.keys(PDF_PROFILE_STATE[normalized] || {}).forEach((key) => delete PDF_PROFILE_STATE[normalized][key]);
+  const ids = normalized === "offer"
+    ? ["nome-fornitore-nuov", "in-luce-cons-nuov", "in-luce-prezzo-nuov", "in-luce-fisso-nuov", "in-gas-cons-nuov", "in-gas-prezzo-nuov", "in-gas-fisso-nuov"]
+    : ["nome-fornitore-att", "nome-fornitore-gas-att", "in-luce-cons-att", "in-luce-prezzo-att", "in-luce-fisso-att", "in-gas-cons-att", "in-gas-prezzo-att", "in-gas-fisso-att", "in-luce-cons-nuov", "in-gas-cons-nuov"];
+  ids.forEach((id) => {
+    clearField(id);
+    PDF_MANUAL_TOUCHED_FIELDS.delete(id);
+  });
+  if (normalized === "offer") {
+    ["in-luce-fisso-nuov-unita", "in-gas-fisso-nuov-unita"].forEach((id) => setField(id, "mese"));
+    NUOVA_OFFERTA_AUTOMATICA = null;
+  } else {
+    ["in-luce-fisso-att-unita", "in-gas-fisso-att-unita"].forEach((id) => setField(id, "mese"));
+  }
+  svuotaDettagliAdattiviPdf(normalized);
+}
+
+function classificaLottoPdf(results) {
+  const valid = (Array.isArray(results) ? results : []).filter(risultatoPdfUtilizzabile);
+  const slots = [...new Set(valid.map((doc) => pdfSlotDaKind(doc.kind)).filter(Boolean))];
+  return {
+    valid,
+    slot: slots.length === 1 ? slots[0] : null,
+    mixed: slots.length > 1,
+  };
+}
 
 function pdfFileFingerprint(file) {
   return [file?.name || "", Number(file?.size || 0), Number(file?.lastModified || 0)].join("::");
@@ -7348,7 +7466,9 @@ function aggiornaInterfacciaSelezionePdf() {
   const pickerButton = document.getElementById("pdf-select-files-button");
   const status = document.getElementById("pdf-file-picker-status");
   const list = document.getElementById("pdf-selected-files");
-  const analyzed = Array.isArray(LEAD_STATE.pdfDocuments) ? LEAD_STATE.pdfDocuments : [];
+  const analyzed = typeof pdfDocumentiAnalizzatiTutti === "function"
+    ? pdfDocumentiAnalizzatiTutti()
+    : (Array.isArray(LEAD_STATE.pdfDocuments) ? LEAD_STATE.pdfDocuments : []);
   const total = PDF_PENDING_FILES.length + analyzed.length;
   if (pickerButton) pickerButton.innerText = total > 0 ? "Aggiungi file" : "Scegli file";
   if (status) {
@@ -7367,11 +7487,14 @@ function aggiornaInterfacciaSelezionePdf() {
       <span><strong>${testoHtmlSicuro(entry.file.name)}</strong><small>Da analizzare · ${pdfFileSizeLabel(entry.file.size)}</small></span>
       <button type="button" class="pdf-file-remove" onclick="rimuoviFilePdf('${entry.id}', 'pending')" aria-label="Rimuovi ${testoHtmlSicuro(entry.file.name)}">Rimuovi</button>
     </li>`);
-  const analyzedRows = analyzed.map((doc) => `
+  const analyzedRows = analyzed.map((doc) => {
+    const slotLabel = doc.kind === "scheda_offerta" ? "Scheda proposta" : doc.kind === "bolletta" ? "Bolletta attuale" : "Documento";
+    return `
     <li class="pdf-file-item">
-      <span><strong>${testoHtmlSicuro(doc.filename || "documento.pdf")}</strong><small>${doc.error ? testoHtmlSicuro(doc.error) : "Analizzato"}</small></span>
+      <span><strong>${testoHtmlSicuro(doc.filename || "documento.pdf")}</strong><small>${doc.error ? testoHtmlSicuro(doc.error) : `${slotLabel} · Analizzato`}</small></span>
       <button type="button" class="pdf-file-remove" onclick="rimuoviFilePdf('${doc.upload_id}', 'analyzed')" aria-label="Rimuovi ${testoHtmlSicuro(doc.filename || "documento.pdf")}">Rimuovi</button>
-    </li>`);
+    </li>`;
+  });
   list.hidden = false;
   list.innerHTML = `<ul class="pdf-file-list">${[...analyzedRows, ...pendingRows].join("")}</ul>`;
 }
@@ -7387,29 +7510,35 @@ window.rimuoviFilePdf = function rimuoviFilePdf(id, source) {
   if (source === "pending") {
     PDF_PENDING_FILES = PDF_PENDING_FILES.filter((entry) => entry.id !== id);
   } else {
-    const remainingDocuments = (LEAD_STATE.pdfDocuments || []).filter((doc) => doc.upload_id !== id);
-    resetModuloPrimaDiNuovaLetturaPdf();
-    LEAD_STATE.pdfDocuments = remainingDocuments;
-    LEAD_STATE.pdfData = remainingDocuments.length ? mergePdfDocuments(remainingDocuments) : null;
+    const slot = ["current", "offer"].find((key) => PDF_DOCUMENT_SLOTS[key].some((doc) => doc.upload_id === id));
+    if (slot) {
+      PDF_DOCUMENT_SLOTS[slot] = PDF_DOCUMENT_SLOTS[slot].filter((doc) => doc.upload_id !== id);
+      resetCampiPdfSlot(slot);
+      if (PDF_DOCUMENT_SLOTS[slot].length) {
+        sincronizzaStatoDocumentiPdf(slot);
+        LEAD_STATE.dataOrigin = "pdf_upload";
+        applicaRisultatoPdfDirettamente(PDF_DOCUMENT_SLOTS[slot]);
+      } else {
+        const fallbackSlot = PDF_DOCUMENT_SLOTS.current.length ? "current" : PDF_DOCUMENT_SLOTS.offer.length ? "offer" : null;
+        sincronizzaStatoDocumentiPdf(fallbackSlot);
+      }
+    }
     const panel = document.getElementById("pdf-review-static");
     const title = document.getElementById("pdf-review-title");
     const copy = document.getElementById("pdf-review-copy");
-    if (remainingDocuments.length) {
-      LEAD_STATE.dataOrigin = "pdf_upload";
-      applicaRisultatoPdfDirettamente(remainingDocuments);
-    } else {
+    if (!pdfDocumentiAnalizzatiTutti().length) {
       if (panel) panel.style.display = "none";
       if (title) title.innerText = "Lettura PDF";
-      if (copy) copy.innerText = "Seleziona uno o più PDF e premi Analizza PDF.";
+      if (copy) copy.innerText = "Seleziona una bolletta o una scheda sintetica e premi Analizza PDF.";
     }
   }
   aggiornaInterfacciaSelezionePdf();
   const notice = document.getElementById("pdf-upload-context-notice");
   if (notice) {
-    const total = PDF_PENDING_FILES.length + (LEAD_STATE.pdfDocuments || []).length;
+    const total = PDF_PENDING_FILES.length + pdfDocumentiAnalizzatiTutti().length;
     notice.hidden = false;
     notice.innerHTML = total
-      ? `<span class="pdf-context-icon" aria-hidden="true">✓</span><span><strong>Documento rimosso.</strong> Restano ${total} PDF. Puoi aggiungerne altri oppure analizzare quelli in attesa.</span>`
+      ? `<span class="pdf-context-icon" aria-hidden="true">✓</span><span><strong>Documento rimosso.</strong> Restano ${total} PDF. Bolletta e scheda proposta rimangono indipendenti.</span>`
       : '<span class="pdf-context-icon" aria-hidden="true">↓</span><span><strong>Nessun PDF presente.</strong> Premi <strong>Scegli file</strong> per iniziare.</span>';
   }
 };
@@ -7428,9 +7557,13 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
   if (!files.length) {
     trackEvent("pdf_no_file_selected");
     if (panel) panel.style.display = "block";
-    if (LEAD_STATE.pdfDocuments.length) {
-      if (copy) copy.innerHTML = renderPdfSummary(LEAD_STATE.pdfDocuments, LEAD_STATE.pdfData);
-      configuraConfermaPdfPronta(LEAD_STATE.pdfDocuments);
+    if (pdfDocumentiAnalizzatiTutti().length) {
+      const activeDocuments = pdfDocumentiSlot().length
+        ? pdfDocumentiSlot()
+        : (PDF_DOCUMENT_SLOTS.offer.length ? PDF_DOCUMENT_SLOTS.offer : PDF_DOCUMENT_SLOTS.current);
+      if (!PDF_ACTIVE_SLOT) sincronizzaStatoDocumentiPdf(activeDocuments === PDF_DOCUMENT_SLOTS.offer ? "offer" : "current");
+      if (copy) copy.innerHTML = renderPdfSummary(activeDocuments, LEAD_STATE.pdfData);
+      configuraConfermaPdfPronta(activeDocuments);
       const notice = document.getElementById("pdf-upload-context-notice");
       if (notice) {
         notice.hidden = false;
@@ -7446,7 +7579,9 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
     document.getElementById("pdf-select-files-button")?.focus({ preventScroll: true });
     return;
   }
-  resetModuloPrimaDiNuovaLetturaPdf();
+  // Non azzerare il modulo: la bolletta e la scheda proposta devono poter
+  // essere caricate in sequenza senza cancellarsi.
+  LEAD_STATE.pdfAutofill = { previewedAt: "", appliedFields: [], skippedFields: [] };
   if (panel) panel.style.display = "block";
   if (title) title.innerText = "Analisi del documento in corso";
   if (copy) copy.innerText = `Stiamo leggendo ${files.length === 1 ? "il PDF" : `${files.length} PDF`} e compilando direttamente il modulo...`;
@@ -7492,27 +7627,47 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
   const processedIds = new Set(pendingEntries.map((entry) => entry.id));
   PDF_PENDING_FILES = PDF_PENDING_FILES.filter((entry) => !processedIds.has(entry.id));
   if (input) input.value = "";
-  LEAD_STATE.pdfDocuments = [...results];
-  LEAD_STATE.pdfData = mergePdfDocuments(LEAD_STATE.pdfDocuments);
+  const batch = classificaLottoPdf(results);
+  if (batch.mixed) {
+    // Il lotto misto viene rifiutato, ma gli slot gia acquisiti e il relativo
+    // stato attivo restano intatti.
+    sincronizzaStatoDocumentiPdf(PDF_ACTIVE_SLOT);
+    if (panel) panel.style.display = "block";
+    if (title) title.innerText = "Separa bolletta e scheda sintetica";
+    if (copy) copy.innerText = "I documenti gia acquisiti restano memorizzati. Analizza la bolletta e la scheda proposta in due passaggi separati.";
+    if (confirmButton) confirmButton.disabled = true;
+  } else if (batch.slot) {
+    resetCampiPdfSlot(batch.slot);
+    PDF_DOCUMENT_SLOTS[batch.slot] = [...results];
+    sincronizzaStatoDocumentiPdf(batch.slot);
+    LEAD_STATE.dataOrigin = "pdf_upload";
+    applicaRisultatoPdfDirettamente(PDF_DOCUMENT_SLOTS[batch.slot]);
+  } else {
+    sincronizzaStatoDocumentiPdf(PDF_ACTIVE_SLOT);
+    applicaRisultatoPdfDirettamente(results);
+  }
   aggiornaInterfacciaSelezionePdf();
-  LEAD_STATE.dataOrigin = "pdf_upload";
   trackEvent("pdf_analysis_completed", {
     fileCount: files.length,
     successCount: results.filter(risultatoPdfUtilizzabile).length,
     unrecognizedCount: results.filter((item) => !item.error && !risultatoPdfUtilizzabile(item)).length,
     errorCount: results.filter((item) => item.error).length,
+    activeSlot: batch.slot || "",
+    retainedCurrentDocuments: PDF_DOCUMENT_SLOTS.current.length,
+    retainedOfferDocuments: PDF_DOCUMENT_SLOTS.offer.length,
   });
-  applicaRisultatoPdfDirettamente(results);
 };
 
 window.confermaPdfECalcola = async function confermaPdfECalcola() {
   const data = LEAD_STATE.pdfData || {};
   const confirmButton = document.getElementById("pdf-confirm-data-button");
   if (confirmButton?.disabled) return;
+  const activeDocuments = pdfDocumentiSlot();
   trackEvent("pdf_data_confirmed", {
-    pdfDocumentCount: (LEAD_STATE.pdfDocuments || []).length,
-    successCount: (LEAD_STATE.pdfDocuments || []).filter((item) => !item.error).length,
-    errorCount: (LEAD_STATE.pdfDocuments || []).filter((item) => item.error).length,
+    pdfDocumentCount: activeDocuments.length,
+    successCount: activeDocuments.filter((item) => !item.error).length,
+    errorCount: activeDocuments.filter((item) => item.error).length,
+    activeSlot: PDF_ACTIVE_SLOT || "",
   });
   nascondiGuida("pdf-confirm-guidance");
   document.getElementById("pdf-review-static")?.classList.remove("pdf-confirm-attention");
@@ -7775,42 +7930,104 @@ function pdfAutofillAddSpec(specs, data, field, label, targetIds, options = {}) 
   });
 }
 
-// OFFERTALOGICA_PDF_PUN_FORMULA_PRICE_20260727
-// Calcola il prezzo numerico delle schede luce indicizzate al PUN usando
-// indice ufficiale, moltiplicatore e spread letti dal documento.
-function pdfAutofillAddDerivedPunPriceSpec(specs, data, targetId) {
-  if (data?.kind !== "scheda_offerta") return false;
-  if (pdfPreviewAutofillValue(data, "prezzo_luce_eur_kwh") !== undefined) return false;
+// OFFERTALOGICA_OFFER_SHEET_BAND_PRICE_20260728
+function numeroPrezzoSchedaPdf(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const number = Number(String(value).replace(",", "."));
+  return Number.isFinite(number) && number > 0 ? number : null;
+}
 
+// Regola esclusiva per le schede sintetiche: prezzo esplicito > F0 > media
+// aritmetica F1/F2/F3 > media aritmetica F1/F23. F23 non viene mai sommata
+// insieme a F2 e F3. Le bollette continuano a usare i consumi reali per fascia.
+function calcolaPrezzoSchedaLuceDaFasce(prezzi = {}) {
+  const f0 = numeroPrezzoSchedaPdf(prezzi.f0);
+  const f1 = numeroPrezzoSchedaPdf(prezzi.f1);
+  const f2 = numeroPrezzoSchedaPdf(prezzi.f2);
+  const f3 = numeroPrezzoSchedaPdf(prezzi.f3);
+  const f23 = numeroPrezzoSchedaPdf(prezzi.f23);
+  if (f0 !== null) return { value: f0, modalita: "f0", fasce: ["F0"] };
+  if (f1 !== null && f2 !== null && f3 !== null) {
+    return { value: Number(((f1 + f2 + f3) / 3).toFixed(9)), modalita: "media_f1_f2_f3", fasce: ["F1", "F2", "F3"] };
+  }
+  if (f1 !== null && f23 !== null) {
+    return { value: Number(((f1 + f23) / 2).toFixed(9)), modalita: "media_f1_f23", fasce: ["F1", "F23"] };
+  }
+  return null;
+}
+
+function prezzoSchedaLuceDaContrattoPdf(data) {
+  if (data?.kind !== "scheda_offerta") return null;
+  if (pdfPreviewAutofillValue(data, "prezzo_luce_eur_kwh") !== undefined) return null;
+  return calcolaPrezzoSchedaLuceDaFasce({
+    f0: pdfPreviewAutofillValue(data, "prezzo_luce_f0_eur_kwh"),
+    f1: pdfPreviewAutofillValue(data, "prezzo_luce_f1_eur_kwh"),
+    f2: pdfPreviewAutofillValue(data, "prezzo_luce_f2_eur_kwh"),
+    f3: pdfPreviewAutofillValue(data, "prezzo_luce_f3_eur_kwh"),
+    f23: pdfPreviewAutofillValue(data, "prezzo_luce_f23_eur_kwh"),
+  });
+}
+
+function pdfAutofillAddDerivedBandPriceSpec(specs, data, targetId) {
+  const derived = prezzoSchedaLuceDaContrattoPdf(data);
+  if (!derived) return false;
+  const label = derived.modalita === "f0"
+    ? "Prezzo luce della proposta da F0"
+    : `Prezzo luce medio della proposta (${derived.fasce.join(" + ")})`;
+  specs.push({
+    id: `prezzo-luce-fasce-${targetId}`,
+    field: "prezzo_luce_fasce_calcolato",
+    label,
+    value: derived.value,
+    target_ids: [targetId],
+    kind: "value",
+    compare_mode: "number",
+    unit: "€/kWh",
+    input_id: targetId,
+    unit_id: null,
+    transform: null,
+    review_required: false,
+    source_origin: "derived_offer_sheet_bands",
+    profile_scope: null,
+    profile_key: null,
+  });
+  return true;
+}
+
+// OFFERTALOGICA_PDF_PUN_FORMULA_PRICE_20260727
+function prezzoSchedaLuceDaFormulaPun(data) {
+  if (data?.kind !== "scheda_offerta") return null;
+  if (pdfPreviewAutofillValue(data, "prezzo_luce_eur_kwh") !== undefined) return null;
   const priceType = String(pdfPreviewAutofillValue(data, "tipo_prezzo_luce") || "").toLowerCase();
   const indexLabel = String(pdfPreviewAutofillValue(data, "indice_riferimento_luce") || "");
-  if (priceType !== "variabile" || !/\bpun\b/i.test(indexLabel)) return false;
-
+  if (priceType !== "variabile" || !/\bpun\b/i.test(indexLabel)) return null;
   const formula = String(pdfPreviewAutofillValue(data, "formula_prezzo_luce") || "");
   const multiplierRaw = pdfPreviewAutofillValue(data, "moltiplicatore_indice_luce");
   const spreadRaw = pdfPreviewAutofillValue(data, "spread_luce_eur_kwh");
   const formulaHasMultiplier = /(?:\bpun\b[^\n]{0,40})[x×*]\s*\d/i.test(formula);
   const formulaHasAddition = /(?:\bpun\b[^\n]{0,80})\+\s*\d/i.test(formula);
-
-  if (multiplierRaw === undefined && formulaHasMultiplier) return false;
-  if (spreadRaw === undefined && formulaHasAddition) return false;
-
+  if (multiplierRaw === undefined && formulaHasMultiplier) return null;
+  if (spreadRaw === undefined && formulaHasAddition) return null;
   const multiplier = multiplierRaw === undefined ? 1 : Number(String(multiplierRaw).replace(",", "."));
   const spread = spreadRaw === undefined ? 0 : Number(String(spreadRaw).replace(",", "."));
   const indexValue = Number(INDICI_MERCATO?.pun?.valore);
-  if (!Number.isFinite(indexValue) || indexValue <= 0) return false;
-  if (!Number.isFinite(multiplier) || multiplier <= 0 || !Number.isFinite(spread)) return false;
-
+  if (!Number.isFinite(indexValue) || indexValue <= 0) return null;
+  if (!Number.isFinite(multiplier) || multiplier <= 0 || !Number.isFinite(spread)) return null;
   const value = Number((indexValue * multiplier + spread).toFixed(9));
-  if (!Number.isFinite(value) || value <= 0) return false;
-
+  if (!Number.isFinite(value) || value <= 0) return null;
   const period = String(INDICI_MERCATO?.pun?.periodoLabel || INDICI_MERCATO?.pun?.periodo || "periodo ufficiale corrente");
-  const formulaLabel = formula || `PUN × ${multiplier} + ${spread}`;
+  return { value, multiplier, spread, formula, period };
+}
+
+function pdfAutofillAddDerivedPunPriceSpec(specs, data, targetId) {
+  const derived = prezzoSchedaLuceDaFormulaPun(data);
+  if (!derived) return false;
+  const formulaLabel = derived.formula || `PUN × ${derived.multiplier} + ${derived.spread}`;
   specs.push({
     id: `prezzo-luce-formula-pun-${targetId}`,
     field: "prezzo_luce_formula_pun_calcolato",
-    label: `Prezzo luce calcolato da ${formulaLabel} · PUN ${period}`,
-    value,
+    label: `Prezzo luce calcolato da ${formulaLabel} · PUN ${derived.period}`,
+    value: derived.value,
     target_ids: [targetId],
     kind: "value",
     compare_mode: "number",
@@ -7842,7 +8059,7 @@ function buildPdfAutofillSpecs(data, customerType = "privato") {
     add("consumo_luce_kwh", "Consumo annuo luce", ["business-kwh"], { unit: "kWh/anno", compare_mode: "number" });
     if (pdfPreviewAutofillValue(data, "prezzo_luce_eur_kwh") !== undefined) {
       add("prezzo_luce_eur_kwh", "Prezzo luce", ["business-prezzo-luce"], { unit: "€/kWh", compare_mode: "number" });
-    } else {
+    } else if (!pdfAutofillAddDerivedBandPriceSpec(specs, data, "business-prezzo-luce")) {
       pdfAutofillAddDerivedPunPriceSpec(specs, data, "business-prezzo-luce");
     }
     add("quota_fissa_vendita_luce_eur_anno", "Quota fissa luce", ["business-fisso-luce"], { unit: "€/anno", compare_mode: "number" });
@@ -7862,7 +8079,7 @@ function buildPdfAutofillSpecs(data, customerType = "privato") {
     }
     if (pdfPreviewAutofillValue(data, "prezzo_luce_eur_kwh") !== undefined) {
       add("prezzo_luce_eur_kwh", "Prezzo luce della proposta", ["in-luce-prezzo-nuov"], { unit: "€/kWh", compare_mode: "number" });
-    } else {
+    } else if (!pdfAutofillAddDerivedBandPriceSpec(specs, data, "in-luce-prezzo-nuov")) {
       pdfAutofillAddDerivedPunPriceSpec(specs, data, "in-luce-prezzo-nuov");
     }
     add("quota_fissa_vendita_luce_eur_anno", "Quota fissa luce della proposta", ["in-luce-fisso-nuov", "in-luce-fisso-nuov-unita"], {
@@ -7876,6 +8093,8 @@ function buildPdfAutofillSpecs(data, customerType = "privato") {
     const gasPriceType = pdfPreviewAutofillValue(data, "tipo_prezzo_gas");
     if (["fisso", "variabile"].includes(lucePriceType) && (gasPriceType === undefined || gasPriceType === lucePriceType)) add("tipo_prezzo_luce", gasPriceType === lucePriceType ? "Tipo prezzo luce e gas" : "Tipo prezzo luce", ["master-luce-tipo"]);
     else if (["fisso", "variabile"].includes(gasPriceType) && lucePriceType === undefined) add("tipo_prezzo_gas", "Tipo prezzo gas", ["master-luce-tipo"]);
+    addProfile("tipo_prezzo_luce", "Tipo prezzo luce proposta", "pdf-offer-tipo-prezzo-luce", "offer");
+    addProfile("tipo_prezzo_gas", "Tipo prezzo gas proposta", "pdf-offer-tipo-prezzo-gas", "offer");
     addProfile("consumo_luce_f1_kwh", "Consumo F1 proposta", "pdf-offer-consumo-luce-f1", "offer");
     addProfile("consumo_luce_f2_kwh", "Consumo F2 proposta", "pdf-offer-consumo-luce-f2", "offer");
     addProfile("consumo_luce_f3_kwh", "Consumo F3 proposta", "pdf-offer-consumo-luce-f3", "offer");
@@ -7913,6 +8132,8 @@ function buildPdfAutofillSpecs(data, customerType = "privato") {
   const gasPriceType = pdfPreviewAutofillValue(data, "tipo_prezzo_gas");
   if (["fisso", "variabile"].includes(lucePriceType) && (gasPriceType === undefined || gasPriceType === lucePriceType)) add("tipo_prezzo_luce", gasPriceType === lucePriceType ? "Tipo prezzo luce e gas" : "Tipo prezzo luce", ["master-luce-tipo"]);
   else if (["fisso", "variabile"].includes(gasPriceType) && lucePriceType === undefined) add("tipo_prezzo_gas", "Tipo prezzo gas", ["master-luce-tipo"]);
+  addProfile("tipo_prezzo_luce", "Tipo prezzo luce attuale", "pdf-current-tipo-prezzo-luce", "current");
+  addProfile("tipo_prezzo_gas", "Tipo prezzo gas attuale", "pdf-current-tipo-prezzo-gas", "current");
   addProfile("consumo_luce_f1_kwh", "Consumo F1 attuale", "pdf-current-consumo-luce-f1", "current");
   addProfile("consumo_luce_f2_kwh", "Consumo F2 attuale", "pdf-current-consumo-luce-f2", "current");
   addProfile("consumo_luce_f3_kwh", "Consumo F3 attuale", "pdf-current-consumo-luce-f3", "current");
@@ -8774,6 +8995,11 @@ window.azzeraPdfEModulo = function azzeraPdfEModulo() {
   });
   LEAD_STATE.pdfData = null;
   LEAD_STATE.pdfDocuments = [];
+  PDF_DOCUMENT_SLOTS.current = [];
+  PDF_DOCUMENT_SLOTS.offer = [];
+  PDF_ACTIVE_SLOT = null;
+  Object.keys(PDF_PROFILE_STATE.current || {}).forEach((key) => delete PDF_PROFILE_STATE.current[key]);
+  Object.keys(PDF_PROFILE_STATE.offer || {}).forEach((key) => delete PDF_PROFILE_STATE.offer[key]);
   LEAD_STATE.pdfAutofill = { previewedAt: "", appliedFields: [], skippedFields: [] };
   pdfAutofillClearManualFields();
   LEAD_STATE.comparisonScope = "unknown";
@@ -9298,7 +9524,7 @@ function gasMasterBucket(consumo) {
 }
 
 function applicaDatiPdfAlModulo(data) {
-  NUOVA_OFFERTA_AUTOMATICA = null;
+  if (data?.kind === "scheda_offerta") NUOVA_OFFERTA_AUTOMATICA = null;
   inizializzaSelectFornitoreGas();
   const selectedRows = arguments.length > 1 ? arguments[1] : null;
   const safe = (field) => pdfSafeAutofillValue(data, field);
@@ -9342,7 +9568,9 @@ function applicaDatiPdfAlModulo(data) {
   if (isOffer) {
     apriDettagliNuovaOfferta();
     const provider = safe("fornitore_luce") ?? safe("fornitore_gas");
-    const lucePrice = safe("prezzo_luce_eur_kwh");
+    const prezzoFasce = prezzoSchedaLuceDaContrattoPdf(data);
+    const prezzoPun = prezzoSchedaLuceDaFormulaPun(data);
+    const lucePrice = safe("prezzo_luce_eur_kwh") ?? prezzoFasce?.value ?? prezzoPun?.value;
     const luceFixed = safe("quota_fissa_vendita_luce_eur_anno");
     const gasPrice = safe("prezzo_gas_eur_smc");
     const gasFixed = safe("quota_fissa_vendita_gas_eur_anno");
@@ -9352,8 +9580,12 @@ function applicaDatiPdfAlModulo(data) {
     if (luceFixed !== undefined) impostaQuotaFissaAnnua("in-luce-fisso-nuov", "in-luce-fisso-nuov-unita", luceFixed);
     if (gasPrice !== undefined) setField("in-gas-prezzo-nuov", gasPrice);
     if (gasFixed !== undefined) impostaQuotaFissaAnnua("in-gas-fisso-nuov", "in-gas-fisso-nuov-unita", gasFixed);
-    if (priceType !== undefined) setField("master-luce-tipo", priceType);
-    mostraHintNuovaOfferta(`Proposta caricata dalla scheda sintetica di ${provider || data.fornitore || "un fornitore"}. Sono stati inseriti soltanto i campi completi ammessi dal contratto dati; controllali e completa quelli bloccati o mancanti.`);
+    if (priceType !== undefined) {
+      setField("master-luce-tipo", priceType);
+      PDF_PROFILE_STATE.offer.tipo_prezzo_luce = priceType;
+      PDF_PROFILE_STATE.offer.tipo_prezzo_gas = priceType;
+    }
+    mostraHintNuovaOfferta(`Proposta caricata dalla scheda sintetica di ${provider || data.fornitore || "un fornitore"}. Il prezzo luce usa, in ordine, prezzo esplicito, F0, media delle fasce o formula PUN. Controlla i valori prima del confronto.`);
     aggiornaTestoPulsanteConfronto();
     return;
   }
@@ -9384,7 +9616,11 @@ function applicaDatiPdfAlModulo(data) {
   }
   if (gasPrice !== undefined) setField("in-gas-prezzo-att", gasPrice);
   if (gasFixed !== undefined) impostaQuotaFissaAnnua("in-gas-fisso-att", "in-gas-fisso-att-unita", gasFixed);
-  if (priceType !== undefined) setField("master-luce-tipo", priceType);
+  if (priceType !== undefined) {
+    setField("master-luce-tipo", priceType);
+    PDF_PROFILE_STATE.current.tipo_prezzo_luce = priceType;
+    PDF_PROFILE_STATE.current.tipo_prezzo_gas = priceType;
+  }
   aggiornaIndicatoreProfiloPdf();
   aggiornaTestoPulsanteConfronto();
 }
@@ -9427,11 +9663,14 @@ function importaAnalisiPdfDaArchivio() {
     replayed_from_archive: true,
     ...payload.normalized,
   };
-  LEAD_STATE.pdfDocuments = [replayDocument];
-  LEAD_STATE.pdfData = mergePdfDocuments(LEAD_STATE.pdfDocuments);
+  const slot = pdfSlotDaKind(replayDocument.kind);
+  if (!slot) return false;
+  resetCampiPdfSlot(slot);
+  PDF_DOCUMENT_SLOTS[slot] = [replayDocument];
+  sincronizzaStatoDocumentiPdf(slot);
   LEAD_STATE.dataOrigin = "pdf_upload";
   aggiornaInterfacciaSelezionePdf();
-  applicaRisultatoPdfDirettamente(LEAD_STATE.pdfDocuments);
+  applicaRisultatoPdfDirettamente(PDF_DOCUMENT_SLOTS[slot]);
   return true;
 }
 

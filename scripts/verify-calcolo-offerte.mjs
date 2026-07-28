@@ -181,6 +181,31 @@ this.__engine = {
   offertaCompatibileConRanking,
   risolviPrezzoVariabile,
   motiviEsclusioneArera,
+  calcolaPrezzoSchedaLuceDaFasce,
+  prezzoSchedaLuceDaContrattoPdf,
+  prezzoSchedaLuceDaFormulaPun,
+  classificaLottoPdf,
+  pdfSlotDaKind,
+  selezionaPartnerAttivabiliPerMenu,
+  selezionaConsulentiPerMenu,
+  testResetPdfSlots() {
+    PDF_DOCUMENT_SLOTS.current = [];
+    PDF_DOCUMENT_SLOTS.offer = [];
+    PDF_ACTIVE_SLOT = null;
+    LEAD_STATE.pdfDocuments = [];
+    LEAD_STATE.pdfData = null;
+  },
+  testSetPdfSlot(slot, documents) {
+    PDF_DOCUMENT_SLOTS[slot] = [...documents];
+    sincronizzaStatoDocumentiPdf(slot);
+    return {
+      active: PDF_ACTIVE_SLOT,
+      current: PDF_DOCUMENT_SLOTS.current.length,
+      offer: PDF_DOCUMENT_SLOTS.offer.length,
+      total: LEAD_STATE.pdfDocuments.length,
+      activeKind: LEAD_STATE.pdfData?.kind || null,
+    };
+  },
   get version() { return MOTORE_CALCOLO_VERSION; },
   get dataMeta() { return DATI_CALCOLO_META; },
   get offersMeta() { return DATI_OFFERTE_META; },
@@ -277,6 +302,10 @@ function analyzeOffer(engine, profile, offer, rank) {
     gasFixed: offer.gas?.quotaFissaAnnua ?? null,
     lightTotal: round(proposed.luce.totale, 2),
     gasTotal: round(proposed.gas.totale, 2),
+    areraCatalog: offer.certificazione?.catalogoArera || "",
+    areraUpdatedAt: offer.aggiornataIl || "",
+    economicsFromPartnerCatalog: offer.certificazione?.datiEconomiciDaCatalogoPartner !== false,
+    requiresConditionConfirmation: Boolean(offer.certificazione?.percorsoPartnerRichiedeConfermaCondizioni),
   };
 
   const errors = [];
@@ -295,7 +324,16 @@ function analyzeOffer(engine, profile, offer, rank) {
   }
 
   const affiliateIssue = checkAffiliateMatch(item);
-  if (affiliateIssue) errors.push(affiliateIssue);
+  if (affiliateIssue) {
+    if (item.requiresConditionConfirmation) warnings.push(`${affiliateIssue}; il funnel deve confermare le condizioni finali`);
+    else errors.push(affiliateIssue);
+  }
+  if (item.active && item.economicsFromPartnerCatalog) {
+    errors.push("card partner attiva senza marcatura economica ARERA");
+  }
+  if (item.active && item.areraUpdatedAt !== engine.areraMeta.aggiornatoIl) {
+    errors.push(`data economica card ${item.areraUpdatedAt || "mancante"} diversa dal catalogo ARERA ${engine.areraMeta.aggiornatoIl}`);
+  }
 
   if (!item.active && item.destinationStatus !== "da_contattare") {
     warnings.push("offerta non attivabile senza stato lead/ricontatto");
@@ -310,13 +348,31 @@ function analyzeOffer(engine, profile, offer, rank) {
 function analyzeProfile(engine, profile) {
   const actual = buildActual(profile);
   const offers = engine.costruisciOfferteRanking(actual, profile.tipo, profile.fornitura);
-  const analyzed = offers.map((offer, index) => analyzeOffer(engine, profile, offer, index + 1));
+  const analyzed = offers.map((offer, index) => ({
+    ...analyzeOffer(engine, profile, offer, index + 1),
+    offer,
+  }));
   const sorted = analyzed
     .sort((a, b) => (a.item.total - b.item.total) || (b.item.saving - a.item.saving))
     .map((entry, index) => ({
       ...entry,
       item: { ...entry.item, economicRank: index + 1 },
     }));
+  const uiItems = sorted.map((entry) => ({
+    offerta: entry.offer,
+    costo: entry.item.total,
+    differenza: entry.item.saving,
+    attivabileOnline: entry.item.active,
+    attivabileCoerente: entry.item.active,
+    compatibileRanking: true,
+    filtroEsatto: true,
+  }));
+  const partnerDisplay = engine.selezionaPartnerAttivabiliPerMenu(uiItems.filter((item) => item.attivabileCoerente), 6);
+  const consultantDisplay = engine.selezionaConsulentiPerMenu(
+    [...uiItems].sort((a, b) => (b.differenza - a.differenza) || (a.costo - b.costo)),
+    partnerDisplay,
+    3,
+  );
   const top = sorted.slice(0, 10).map((entry, index) => ({
     ...entry,
     item: { ...entry.item, displayRank: index + 1 },
@@ -330,6 +386,12 @@ function analyzeProfile(engine, profile) {
   if (profile.fornitura === "dual" && top.some((entry) => !entry.item.lightPrice || !entry.item.gasPrice)) {
     errors.push("top dual con commodity mancante");
   }
+  if (profile.id.endsWith("dual-fisso") && partnerDisplay.length !== 6) {
+    errors.push(`composizione partner fissa incompleta: ${partnerDisplay.length}/6`);
+  }
+  if (profile.id.endsWith("dual-fisso") && consultantDisplay.length !== 3) {
+    errors.push(`composizione consulente fissa incompleta: ${consultantDisplay.length}/3`);
+  }
 
   for (const entry of top) {
     entry.errors.forEach((error) => errors.push(`#${entry.item.displayRank} ${entry.item.provider}: ${error}`));
@@ -339,6 +401,8 @@ function analyzeProfile(engine, profile) {
   return {
     profile,
     generatedOffers: offers.length,
+    displayPartnerCount: partnerDisplay.length,
+    displayConsultantCount: consultantDisplay.length,
     top: top.map((entry) => entry.item),
     active: active.slice(0, 10).map((entry) => entry.item),
     errors,
@@ -555,6 +619,77 @@ function writeReport(result) {
   fs.writeFileSync(REPORT_PATH, `${lines.join("\n")}\n`);
 }
 
+function contractEntry(value) {
+  return {
+    status: "completo",
+    normalized_value: value,
+    autofill: { allowed: true },
+    provenance: { origin: "pdf_native_text" },
+  };
+}
+
+function runIntegrationAssertions(engine, params) {
+  const failures = [];
+  const assertClose = (actual, expected, label) => {
+    if (!Number.isFinite(actual) || Math.abs(actual - expected) > 1e-9) failures.push(`${label}: atteso ${expected}, trovato ${actual}`);
+  };
+  const assert = (condition, label) => { if (!condition) failures.push(label); };
+
+  assertClose(engine.calcolaPrezzoSchedaLuceDaFasce({ f0: 0.111, f1: 0.2, f23: 0.3 })?.value, 0.111, "F0 prioritario");
+  assertClose(engine.calcolaPrezzoSchedaLuceDaFasce({ f1: 0.12, f23: 0.18 })?.value, 0.15, "media F1/F23");
+  assertClose(engine.calcolaPrezzoSchedaLuceDaFasce({ f1: 0.12, f2: 0.15, f3: 0.18 })?.value, 0.15, "media F1/F2/F3");
+  assertClose(engine.calcolaPrezzoSchedaLuceDaFasce({ f1: 0.12, f2: 0.15, f3: 0.18, f23: 0.99 })?.value, 0.15, "F23 esclusa dalla matrice F1/F2/F3");
+  assert(engine.calcolaPrezzoSchedaLuceDaFasce({ f1: 0.12, f2: 0.15 }) === null, "fasce incomplete non devono produrre un prezzo");
+
+  const sheet = {
+    kind: "scheda_offerta",
+    data_contract: { fields: {
+      prezzo_luce_f1_eur_kwh: contractEntry(0.1),
+      prezzo_luce_f23_eur_kwh: contractEntry(0.2),
+    } },
+  };
+  assertClose(engine.prezzoSchedaLuceDaContrattoPdf(sheet)?.value, 0.15, "contratto PDF F1/F23");
+  sheet.data_contract.fields.prezzo_luce_eur_kwh = contractEntry(0.17);
+  assert(engine.prezzoSchedaLuceDaContrattoPdf(sheet) === null, "prezzo esplicito deve prevalere sulle fasce");
+
+  const punSheet = {
+    kind: "scheda_offerta",
+    data_contract: { fields: {
+      tipo_prezzo_luce: contractEntry("variabile"),
+      indice_riferimento_luce: contractEntry("PUN"),
+      moltiplicatore_indice_luce: contractEntry(1.1),
+      spread_luce_eur_kwh: contractEntry(0.0278),
+      formula_prezzo_luce: contractEntry("PUN × 1,1 + 0,0278"),
+    } },
+  };
+  const punExpected = Number((Number(params?.indiciMercato?.pun?.valore || params?.indici?.pun?.valore || 0.1325) * 1.1 + 0.0278).toFixed(9));
+  assertClose(engine.prezzoSchedaLuceDaFormulaPun(punSheet)?.value, punExpected, "formula PUN");
+
+  assert(engine.pdfSlotDaKind("bolletta") === "current", "bolletta deve usare slot current");
+  assert(engine.pdfSlotDaKind("scheda_offerta") === "offer", "scheda deve usare slot offer");
+  assert(engine.classificaLottoPdf([{ kind: "bolletta", commodity: "luce" }]).slot === "current", "lotto bolletta classificato current");
+  assert(engine.classificaLottoPdf([{ kind: "scheda_offerta", commodity: "luce" }]).slot === "offer", "lotto scheda classificato offer");
+  assert(engine.classificaLottoPdf([{ kind: "bolletta", commodity: "luce" }, { kind: "scheda_offerta", commodity: "luce" }]).mixed === true, "lotto misto deve essere separato senza cancellare slot esistenti");
+
+  engine.testResetPdfSlots();
+  const afterBill = engine.testSetPdfSlot("current", [{ kind: "bolletta", commodity: "luce", recognized: true, filename: "bolletta.pdf", upload_id: "bill-1" }]);
+  assert(afterBill.current === 1 && afterBill.offer === 0 && afterBill.total === 1, "caricamento bolletta nello slot current");
+  const afterSheet = engine.testSetPdfSlot("offer", [{ kind: "scheda_offerta", commodity: "luce", recognized: true, filename: "scheda.pdf", upload_id: "offer-1" }]);
+  assert(afterSheet.current === 1 && afterSheet.offer === 1 && afterSheet.total === 2 && afterSheet.activeKind === "scheda_offerta", "aggiunta scheda senza eliminare la bolletta");
+  const afterSheetReplacement = engine.testSetPdfSlot("offer", [{ kind: "scheda_offerta", commodity: "luce", recognized: true, filename: "scheda-2.pdf", upload_id: "offer-2" }]);
+  assert(afterSheetReplacement.current === 1 && afterSheetReplacement.offer === 1 && afterSheetReplacement.total === 2, "sostituzione scheda conserva la bolletta");
+
+  const html = readText(HTML_PATH);
+  assert(html.includes("OFFERTALOGICA_PDF_CURRENT_OFFER_SLOTS_20260728"), "marker persistenza PDF assente");
+  assert(html.includes("OFFERTALOGICA_OFFER_SHEET_SINGLE_PRICE_20260728"), "marker prezzo unico scheda assente");
+  assert(html.includes("OFFERTALOGICA_DAILY_ARERA_PARTNER_PRICES_20260728"), "marker prezzi ARERA giornalieri assente");
+  assert(!html.includes("if (!dual) return normalizzaOfferta(offerta, 0);"), "fallback ai prezzi statici partner ancora presente");
+  assert(html.includes("consumiFasce: {},\n      prezziFasce: {}"), "la scheda proposta usa ancora la ponderazione per consumi della bolletta");
+  assert(!html.includes("resetModuloPrimaDiNuovaLetturaPdf();\n  if (panel) panel.style.display = \"block\";"), "la nuova analisi azzera ancora globalmente bolletta e scheda");
+
+  return failures;
+}
+
 function main() {
   const params = readJson(PARAMS_PATH);
   const offers = readJson(OFFERS_PATH);
@@ -565,9 +700,10 @@ function main() {
   if (!engine.applicaDatiOfferte(offers)) throw new Error("Offerte proposte non caricate");
   if (!engine.applicaDatiAreraMenu(arera)) throw new Error("Offerte ARERA non caricate");
 
+  const integrationFailures = runIntegrationAssertions(engine, params);
   const profiles = PROFILES.map((profile) => analyzeProfile(engine, profile));
   const partnerAudit = analyzePartnerVisibility(engine, offers);
-  const allErrors = profiles.flatMap((profile) => profile.errors);
+  const allErrors = [...integrationFailures, ...profiles.flatMap((profile) => profile.errors)];
   const allWarnings = profiles.flatMap((profile) => profile.warnings);
   const partnerWarnings = partnerAudit
     .filter((row) => row.status !== "visibile")
@@ -584,6 +720,8 @@ function main() {
     errorCount: allErrors.length,
     warningCount: allWarnings.length + partnerWarnings.length,
     partnerWarningCount: partnerWarnings.length,
+    integrationCheckCount: 22,
+    integrationFailures,
     partnerAudit,
     profiles,
   };
