@@ -221,7 +221,7 @@ test("classificazione generale: i dati specifici del cliente mantengono il docum
 });
 
 test("versione lettore semantico aggiornata", () => {
-  assert.equal(PDF_PURE_AI_READER_VERSION, "pure-ai-native-pdf-v1.0.18");
+  assert.equal(PDF_PURE_AI_READER_VERSION, "pure-ai-native-pdf-v1.0.19");
 });
 
 
