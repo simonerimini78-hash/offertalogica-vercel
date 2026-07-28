@@ -5050,7 +5050,11 @@ function miglioreRigaAreraPerPartner(offerta, commodity, attuale) {
 function offertaPartnerConPrezziArera(offerta, attuale) {
   if (offerta.fornitura === "dual") {
     const dual = miglioreOffertaAreraDualPerPartner(offerta, attuale);
-    if (!dual) return null;
+    // Il catalogo commerciale partner e il catalogo ARERA D hanno ruoli distinti.
+    // Se il D contiene la stessa offerta aggiorniamo i dati economici dal D;
+    // altrimenti conserviamo la vera offerta dual del partner e il suo funnel,
+    // senza ricostruirla scegliendo liberamente una riga E e una riga G.
+    if (!dual) return normalizzaOfferta(offerta, 0);
     const codici = `${dual.codice} (${dual.codiceOffertaLuce} + ${dual.codiceOffertaGas})`;
     return normalizzaOfferta({
       ...offerta,
@@ -5376,13 +5380,11 @@ function unisciOfferteCandidati(offerteRanking, offertePartner) {
 
 function costruisciOfferteRanking(attuale, tipoTariffa, tipoFornitura) {
   const daArera = costruisciOfferteAreraRanking(attuale, tipoTariffa, tipoFornitura);
-
-  // Il menu dual nasce soltanto dal catalogo D. I percorsi partner vengono
-  // applicati ai record D da arricchisciOffertaAreraConCommerciale; non vengono
-  // aggiunte coppie ricostruite dai cataloghi E/G.
-  if (tipoFornitura === "dual") return daArera;
-
   const partnerDirette = offertePartnerDiretteAttivabili(tipoTariffa, tipoFornitura, attuale);
+
+  // Nel dual, il catalogo D alimenta il ranking ARERA e il gruppo consulente.
+  // Le offerte partner attive restano offerte commerciali dual autonome:
+  // non vengono create combinando righe E/G e mantengono il proprio funnel.
   return unisciOfferteCandidati(daArera, partnerDirette);
 }
 
@@ -7773,6 +7775,57 @@ function pdfAutofillAddSpec(specs, data, field, label, targetIds, options = {}) 
   });
 }
 
+// OFFERTALOGICA_PDF_PUN_FORMULA_PRICE_20260727
+// Calcola il prezzo numerico delle schede luce indicizzate al PUN usando
+// indice ufficiale, moltiplicatore e spread letti dal documento.
+function pdfAutofillAddDerivedPunPriceSpec(specs, data, targetId) {
+  if (data?.kind !== "scheda_offerta") return false;
+  if (pdfPreviewAutofillValue(data, "prezzo_luce_eur_kwh") !== undefined) return false;
+
+  const priceType = String(pdfPreviewAutofillValue(data, "tipo_prezzo_luce") || "").toLowerCase();
+  const indexLabel = String(pdfPreviewAutofillValue(data, "indice_riferimento_luce") || "");
+  if (priceType !== "variabile" || !/\bpun\b/i.test(indexLabel)) return false;
+
+  const formula = String(pdfPreviewAutofillValue(data, "formula_prezzo_luce") || "");
+  const multiplierRaw = pdfPreviewAutofillValue(data, "moltiplicatore_indice_luce");
+  const spreadRaw = pdfPreviewAutofillValue(data, "spread_luce_eur_kwh");
+  const formulaHasMultiplier = /(?:\bpun\b[^\n]{0,40})[x×*]\s*\d/i.test(formula);
+  const formulaHasAddition = /(?:\bpun\b[^\n]{0,80})\+\s*\d/i.test(formula);
+
+  if (multiplierRaw === undefined && formulaHasMultiplier) return false;
+  if (spreadRaw === undefined && formulaHasAddition) return false;
+
+  const multiplier = multiplierRaw === undefined ? 1 : Number(String(multiplierRaw).replace(",", "."));
+  const spread = spreadRaw === undefined ? 0 : Number(String(spreadRaw).replace(",", "."));
+  const indexValue = Number(INDICI_MERCATO?.pun?.valore);
+  if (!Number.isFinite(indexValue) || indexValue <= 0) return false;
+  if (!Number.isFinite(multiplier) || multiplier <= 0 || !Number.isFinite(spread)) return false;
+
+  const value = Number((indexValue * multiplier + spread).toFixed(9));
+  if (!Number.isFinite(value) || value <= 0) return false;
+
+  const period = String(INDICI_MERCATO?.pun?.periodoLabel || INDICI_MERCATO?.pun?.periodo || "periodo ufficiale corrente");
+  const formulaLabel = formula || `PUN × ${multiplier} + ${spread}`;
+  specs.push({
+    id: `prezzo-luce-formula-pun-${targetId}`,
+    field: "prezzo_luce_formula_pun_calcolato",
+    label: `Prezzo luce calcolato da ${formulaLabel} · PUN ${period}`,
+    value,
+    target_ids: [targetId],
+    kind: "value",
+    compare_mode: "number",
+    unit: "€/kWh",
+    input_id: targetId,
+    unit_id: null,
+    transform: null,
+    review_required: false,
+    source_origin: "derived_official_gme_index",
+    profile_scope: null,
+    profile_key: null,
+  });
+  return true;
+}
+
 function buildPdfAutofillSpecs(data, customerType = "privato") {
   const specs = [];
   if (!data?.data_contract?.fields) return specs;
@@ -7787,7 +7840,11 @@ function buildPdfAutofillSpecs(data, customerType = "privato") {
     add("fornitore_gas", "Fornitore gas", ["business-fornitore-gas"]);
     add("potenza_impegnata_kw", "Potenza impegnata", ["business-potenza"], { unit: "kW", compare_mode: "number" });
     add("consumo_luce_kwh", "Consumo annuo luce", ["business-kwh"], { unit: "kWh/anno", compare_mode: "number" });
-    add("prezzo_luce_eur_kwh", "Prezzo luce", ["business-prezzo-luce"], { unit: "€/kWh", compare_mode: "number" });
+    if (pdfPreviewAutofillValue(data, "prezzo_luce_eur_kwh") !== undefined) {
+      add("prezzo_luce_eur_kwh", "Prezzo luce", ["business-prezzo-luce"], { unit: "€/kWh", compare_mode: "number" });
+    } else {
+      pdfAutofillAddDerivedPunPriceSpec(specs, data, "business-prezzo-luce");
+    }
     add("quota_fissa_vendita_luce_eur_anno", "Quota fissa luce", ["business-fisso-luce"], { unit: "€/anno", compare_mode: "number" });
     add("consumo_gas_smc", "Consumo annuo gas", ["business-smc"], { unit: "Smc/anno", compare_mode: "number" });
     add("prezzo_gas_eur_smc", "Prezzo gas", ["business-prezzo-gas"], { unit: "€/Smc", compare_mode: "number" });
@@ -7803,7 +7860,11 @@ function buildPdfAutofillSpecs(data, customerType = "privato") {
     } else if (providerGas !== undefined && providerLuce === undefined) {
       add("fornitore_gas", "Fornitore della proposta", ["nome-fornitore-nuov"], { transform: "provider" });
     }
-    add("prezzo_luce_eur_kwh", "Prezzo luce della proposta", ["in-luce-prezzo-nuov"], { unit: "€/kWh", compare_mode: "number" });
+    if (pdfPreviewAutofillValue(data, "prezzo_luce_eur_kwh") !== undefined) {
+      add("prezzo_luce_eur_kwh", "Prezzo luce della proposta", ["in-luce-prezzo-nuov"], { unit: "€/kWh", compare_mode: "number" });
+    } else {
+      pdfAutofillAddDerivedPunPriceSpec(specs, data, "in-luce-prezzo-nuov");
+    }
     add("quota_fissa_vendita_luce_eur_anno", "Quota fissa luce della proposta", ["in-luce-fisso-nuov", "in-luce-fisso-nuov-unita"], {
       kind: "fixed_annual", compare_mode: "fixed_annual", unit: "€/anno", input_id: "in-luce-fisso-nuov", unit_id: "in-luce-fisso-nuov-unita",
     });
@@ -8081,24 +8142,31 @@ function deselezionaTuttiCampiAnteprimaPdf() {
 
 function applicaRigheAutocompilazionePdf(rows) {
   const selected = Array.isArray(rows) ? rows : [];
-  selected.forEach((row) => {
-    if (row.kind === "pdf_profile") {
-      const scope = row.profile_scope === "offer" ? "offer" : "current";
-      PDF_PROFILE_STATE[scope][row.profile_key || row.field] = row.value;
-      return;
-    }
-    if (row.kind === "fixed_annual") {
-      impostaQuotaFissaAnnua(row.input_id, row.unit_id, row.value);
-      PDF_MANUAL_TOUCHED_FIELDS.delete(row.input_id);
-      PDF_MANUAL_TOUCHED_FIELDS.delete(row.unit_id);
-      return;
-    }
-    const value = pdfAutofillIncomingTargetValue(row);
-    row.target_ids.forEach((id) => {
-      setField(id, value);
-      PDF_MANUAL_TOUCHED_FIELDS.delete(id);
+  const hasAutofillBlock = typeof BLOCCO_AUTOFILL_NUOVA_OFFERTA !== "undefined";
+  const previousAutofillBlock = hasAutofillBlock ? BLOCCO_AUTOFILL_NUOVA_OFFERTA : false;
+  if (hasAutofillBlock) BLOCCO_AUTOFILL_NUOVA_OFFERTA = true;
+  try {
+    selected.forEach((row) => {
+      if (row.kind === "pdf_profile") {
+        const scope = row.profile_scope === "offer" ? "offer" : "current";
+        PDF_PROFILE_STATE[scope][row.profile_key || row.field] = row.value;
+        return;
+      }
+      if (row.kind === "fixed_annual") {
+        impostaQuotaFissaAnnua(row.input_id, row.unit_id, row.value);
+        PDF_MANUAL_TOUCHED_FIELDS.delete(row.input_id);
+        PDF_MANUAL_TOUCHED_FIELDS.delete(row.unit_id);
+        return;
+      }
+      const value = pdfAutofillIncomingTargetValue(row);
+      row.target_ids.forEach((id) => {
+        setField(id, value);
+        PDF_MANUAL_TOUCHED_FIELDS.delete(id);
+      });
     });
-  });
+  } finally {
+    if (hasAutofillBlock) BLOCCO_AUTOFILL_NUOVA_OFFERTA = previousAutofillBlock;
+  }
   sincronizzaConsumiNuovaOfferta();
   return selected.length;
 }
