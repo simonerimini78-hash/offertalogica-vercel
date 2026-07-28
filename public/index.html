@@ -79,6 +79,16 @@
         
         .columns-subgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
         .column-energy h4 { font-size: 13px; color: var(--accent); margin-bottom: 10px; text-align: left; text-transform: uppercase; letter-spacing: 0.5px; }
+        .adaptive-price-details { display: none; margin-top: 12px; padding: 12px; border: 1px solid #bfdbfe; border-radius: 10px; background: #f8fbff; }
+        .adaptive-price-details.is-visible { display: block; }
+        .adaptive-price-details > strong { display: block; margin-bottom: 3px; color: #1d4ed8; font-size: 11px; }
+        .adaptive-price-details > small { display: block; margin-bottom: 9px; color: var(--text-muted); font-size: 9.5px; line-height: 1.35; }
+        .adaptive-price-list { display: grid; gap: 7px; }
+        .adaptive-price-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(105px, .7fr); gap: 8px; align-items: center; }
+        .adaptive-price-row label { min-width: 0; color: #334155; font-size: 10px; font-weight: 750; line-height: 1.25; }
+        .adaptive-price-row input { width: 100%; min-width: 0; padding: 7px 8px; border: 1px solid #93c5fd; border-radius: 7px; background: #fff; color: var(--text-color); font-size: 11px; }
+        .adaptive-price-text { padding: 7px 8px; border: 1px solid #dbeafe; border-radius: 7px; background: #fff; color: #334155; font-size: 10px; line-height: 1.35; overflow-wrap: anywhere; }
+        @media (max-width: 560px) { .adaptive-price-row { grid-template-columns: 1fr; gap: 3px; } }
         .manual-block.offerta-inserita .column-energy h4 { color: var(--accent); }
         #master-blocchi-inferiori { align-items: start; }
         #master-blocchi-inferiori .manual-block { min-width: 0; }
@@ -1895,7 +1905,7 @@
 
     <div class="pdf-lead-panel" id="pdf-upload-panel">
         <h3>Carica bolletta o scheda sintetica</h3>
-        <p>Carica una bolletta o una scheda sintetica: proveremo a leggere consumi, fornitore, prezzi e quote fisse per rendere il confronto più aderente alla tua fornitura.</p>
+        <p>Carica una bolletta o una scheda sintetica: l’IA leggerà il documento e compilerà direttamente il modulo, mantenendo anche fasce, formule e componenti presenti nel PDF.</p>
         <div id="pdf-upload-context-notice" class="pdf-context-notice" role="status" aria-live="polite" hidden>
             <span class="pdf-context-icon" aria-hidden="true">↓</span>
             <span><strong>Sei nel punto giusto.</strong> Seleziona qui il PDF della scheda sintetica, poi premi <strong>Analizza PDF</strong>.</span>
@@ -1909,15 +1919,10 @@
             <div id="pdf-selected-files" class="pdf-selected-files" aria-live="polite" hidden></div>
             <button type="button" class="btn-action" onclick="preparaConfermaPdf()">Analizza PDF</button>
             <button type="button" class="lead-secondary" onclick="azzeraPdfEModulo()">Rimuovi tutti i PDF e ricomincia</button>
-            <div class="upload-note">Dopo il primo PDF usa <strong>Aggiungi file</strong>: i documenti già caricati restano memorizzati. Puoi rimuovere ogni PDF singolarmente prima della conferma.</div>
-            <div class="pdf-review-static" id="pdf-review-static" tabindex="-1">
-                <div id="pdf-confirm-guidance" class="guided-step-notice" role="status" aria-live="polite" hidden>
-                    <span class="guided-step-arrow" aria-hidden="true">↓</span>
-                    <span><strong>Leggi e conferma i dati estratti.</strong> Controlla il riepilogo, poi premi il pulsante verde per inserirli nel modulo.</span>
-                </div>
-                <strong id="pdf-review-title">Dati pronti per la conferma</strong>
-                <p id="pdf-review-copy">Dopo l'analisi potrai confermare i dati letti dal PDF. Il confronto partirà solo dopo la tua conferma.</p>
-                <button type="button" id="pdf-confirm-data-button" onclick="confermaPdfECalcola()">Controlla e scegli i dati da inserire</button>
+            <div class="upload-note">Ogni nuova analisi sostituisce i dati letti dalla precedente. Puoi selezionare insieme più PDF appartenenti alla stessa fornitura.</div>
+            <div class="pdf-review-static" id="pdf-review-static" tabindex="-1" role="status" aria-live="polite">
+                <strong id="pdf-review-title">Lettura PDF</strong>
+                <p id="pdf-review-copy">Seleziona uno o più PDF e premi “Analizza PDF”. I dati saranno inseriti direttamente nel modulo.</p>
             </div>
         </div>
     </div>
@@ -2105,6 +2110,7 @@
                             </select>
                         </div>
                     </div>
+                    <div class="adaptive-price-details" id="adaptive-current-luce" aria-live="polite"></div>
                 </div>
                 
                 <div class="column-energy" id="current-gas-column">
@@ -2129,6 +2135,7 @@
                             </select>
                         </div>
                     </div>
+                    <div class="adaptive-price-details" id="adaptive-current-gas" aria-live="polite"></div>
                 </div>
             </div>
         </div> <div class="manual-block offerta-inserita optional-offer-card supply-compare-card" id="blocco-nuovo">
@@ -2241,6 +2248,7 @@
                                 </select>
                             </div>
                         </div>
+                        <div class="adaptive-price-details" id="adaptive-offer-luce" aria-live="polite"></div>
                     </div>
 
                     <div class="column-energy" id="new-offer-gas-column">
@@ -2261,6 +2269,7 @@
                                 </select>
                             </div>
                         </div>
+                        <div class="adaptive-price-details" id="adaptive-offer-gas" aria-live="polite"></div>
                     </div>
                 </div>
             </div>
@@ -6998,6 +7007,152 @@ function pulisciGuidePercorsoPdf() {
   document.getElementById("blocco-nuovo")?.classList.remove("pdf-data-target");
 }
 
+
+function svuotaDettagliAdattiviPdf() {
+  ["adaptive-current-luce", "adaptive-current-gas", "adaptive-offer-luce", "adaptive-offer-gas"].forEach((id) => {
+    const box = document.getElementById(id);
+    if (!box) return;
+    box.innerHTML = "";
+    box.classList.remove("is-visible");
+  });
+}
+
+function resetModuloPrimaDiNuovaLetturaPdf() {
+  LEAD_STATE.pdfData = null;
+  LEAD_STATE.pdfDocuments = [];
+  LEAD_STATE.pdfAutofill = { previewedAt: "", appliedFields: [], skippedFields: [] };
+  LEAD_STATE.comparisonScope = "unknown";
+  LEAD_STATE.gasDecision = "";
+  LEAD_STATE.electricityDecision = "";
+  LEAD_STATE.pendingPdfDecision = null;
+  Object.keys(PDF_PROFILE_STATE.current || {}).forEach((key) => delete PDF_PROFILE_STATE.current[key]);
+  Object.keys(PDF_PROFILE_STATE.offer || {}).forEach((key) => delete PDF_PROFILE_STATE.offer[key]);
+  [
+    "nome-fornitore-att", "nome-fornitore-gas-att", "nome-fornitore-nuov",
+    "in-luce-cons-att", "in-luce-prezzo-att", "in-luce-fisso-att",
+    "in-gas-cons-att", "in-gas-prezzo-att", "in-gas-fisso-att",
+    "in-luce-cons-nuov", "in-luce-prezzo-nuov", "in-luce-fisso-nuov",
+    "in-gas-cons-nuov", "in-gas-prezzo-nuov", "in-gas-fisso-nuov",
+  ].forEach(clearField);
+  ["in-luce-fisso-att-unita", "in-gas-fisso-att-unita", "in-luce-fisso-nuov-unita", "in-gas-fisso-nuov-unita"].forEach((id) => setField(id, "mese"));
+  svuotaDettagliAdattiviPdf();
+  pulisciSegnalazioniDatiMancanti();
+  nascondiEsitiFincheNonConfronti();
+}
+
+function valoreAdattivoPdf(entry) {
+  if (!entry) return "";
+  const text = String(entry.value_text ?? "").trim();
+  if (text) return text;
+  const number = Number(entry.value);
+  return Number.isFinite(number) ? String(number).replace(".", ",") : "";
+}
+
+function rigaAdattivaPdf(label, value, unit = "", editable = true) {
+  const safeLabel = testoHtmlSicuro(label || "Voce economica");
+  const safeValue = testoHtmlSicuro(value || "");
+  const safeUnit = testoHtmlSicuro(unit || "");
+  const combined = [safeValue, safeUnit].filter(Boolean).join(" ");
+  return `<div class="adaptive-price-row"><label>${safeLabel}</label>${editable
+    ? `<input type="text" value="${combined}" aria-label="${safeLabel}">`
+    : `<div class="adaptive-price-text">${combined || "—"}</div>`}</div>`;
+}
+
+function renderDettagliAdattiviFornitura(supply, targetId) {
+  const box = document.getElementById(targetId);
+  if (!box) return;
+  if (!supply) {
+    box.innerHTML = "";
+    box.classList.remove("is-visible");
+    return;
+  }
+  const rows = [];
+  (supply.annual_band_consumptions || []).forEach((entry) => {
+    const band = entry.band || entry.label || "Fascia";
+    rows.push(rigaAdattivaPdf(`Consumo annuo ${band}`, valoreAdattivoPdf(entry), entry.unit || ""));
+  });
+  (supply.price_items || []).forEach((entry) => {
+    const band = entry.band ? ` ${entry.band}` : "";
+    rows.push(rigaAdattivaPdf(`${entry.label || "Prezzo"}${band}`, valoreAdattivoPdf(entry), entry.unit || ""));
+  });
+  if (supply.index) rows.push(rigaAdattivaPdf("Indice", supply.index, "", true));
+  if (Number.isFinite(Number(supply.multiplier))) rows.push(rigaAdattivaPdf("Moltiplicatore", String(supply.multiplier).replace(".", ","), "", true));
+  if (Number.isFinite(Number(supply.spread))) rows.push(rigaAdattivaPdf("Spread", String(supply.spread).replace(".", ","), supply.commodity === "luce" ? "€/kWh" : "€/Smc", true));
+  if (supply.formula) rows.push(rigaAdattivaPdf("Formula", supply.formula, "", true));
+  if (supply.periodicity) rows.push(rigaAdattivaPdf("Aggiornamento indice", supply.periodicity, "", true));
+  if (supply.price_structure) rows.push(rigaAdattivaPdf("Struttura prezzo", supply.price_structure, "", true));
+  if (!rows.length) {
+    box.innerHTML = "";
+    box.classList.remove("is-visible");
+    return;
+  }
+  box.innerHTML = `<strong>Voci economiche presenti nel documento</strong><small>I valori sono riportati senza forzarli in un prezzo unico. Restano modificabili e saranno usati dal motore di calcolo adattivo.</small><div class="adaptive-price-list">${rows.join("")}</div>`;
+  box.classList.add("is-visible");
+}
+
+function renderModuloAdattivoPdf(data) {
+  svuotaDettagliAdattiviPdf();
+  const supplies = Array.isArray(data?.adaptive_form?.supplies) ? data.adaptive_form.supplies : [];
+  const isOffer = data?.kind === "scheda_offerta";
+  for (const supply of supplies) {
+    const commodity = supply?.commodity === "luce" ? "luce" : supply?.commodity === "gas" ? "gas" : null;
+    if (!commodity) continue;
+    renderDettagliAdattiviFornitura(supply, `adaptive-${isOffer ? "offer" : "current"}-${commodity}`);
+  }
+}
+
+function ambitoDirettoDaPdf(data) {
+  if (data?.commodity === "luce") return "luce";
+  if (data?.commodity === "gas") return "gas";
+  if (data?.commodity === "dual") return "dual";
+  return "dual";
+}
+
+function applicaRisultatoPdfDirettamente(results) {
+  const data = LEAD_STATE.pdfData || {};
+  const panel = document.getElementById("pdf-review-static");
+  const title = document.getElementById("pdf-review-title");
+  const copy = document.getElementById("pdf-review-copy");
+  const valid = (results || []).filter(risultatoPdfUtilizzabile);
+  const errors = (results || []).filter((item) => item?.error);
+
+  if (!valid.length || data?.mixed_documents || data?.merge_blocked) {
+    if (panel) panel.style.display = "block";
+    if (title) title.innerText = data?.mixed_documents || data?.merge_blocked ? "Documenti non omogenei" : "Lettura non completata";
+    if (copy) copy.innerText = errors.length
+      ? errors.map((item) => `${item.filename || "PDF"}: ${item.error}`).join(" · ")
+      : "Il documento non ha prodotto dati utilizzabili. Il modulo è rimasto vuoto.";
+    return false;
+  }
+
+  if (data.kind === "bolletta") {
+    if (["privato", "business"].includes(data.customer_type)) selezionaSegmentoCliente(data.customer_type);
+    applicaAmbitoConfronto(ambitoDirettoDaPdf(data));
+  }
+  if (LEAD_STATE.customerType === "business") {
+    applicaDatiPdfAlBusiness(data);
+    renderModuloAdattivoPdf(data);
+    aggiornaAssistenteAttivazioneVisibilita();
+    if (panel) panel.style.display = "none";
+    portaElementoInVista(document.getElementById("business-panel"), { block: "start" });
+    return true;
+  }
+  const master = document.getElementById("master-tendine-container");
+  const blocks = document.getElementById("master-blocchi-inferiori");
+  const calcHint = document.getElementById("master-pulsante-calc-manuale");
+  if (master) master.style.display = "block";
+  if (blocks) blocks.style.display = "grid";
+  if (calcHint) calcHint.style.display = "block";
+  modalitaCalcolo = "manuale";
+  applicaDatiPdfAlModulo(data);
+  renderModuloAdattivoPdf(data);
+  accompagnaAllaRevisioneDatiPdf(data);
+  nascondiEsitiFincheNonConfronti();
+  aggiornaAssistenteAttivazioneVisibilita();
+  if (panel) panel.style.display = "none";
+  return true;
+}
+
 function risultatoPdfUtilizzabile(item) {
   return Boolean(item && !item.error && item.recognized !== false && item.kind !== "unknown" && item.commodity !== "unknown");
 }
@@ -7225,24 +7380,20 @@ window.rimuoviFilePdf = function rimuoviFilePdf(id, source) {
   if (source === "pending") {
     PDF_PENDING_FILES = PDF_PENDING_FILES.filter((entry) => entry.id !== id);
   } else {
-    LEAD_STATE.pdfDocuments = (LEAD_STATE.pdfDocuments || []).filter((doc) => doc.upload_id !== id);
-    LEAD_STATE.pdfData = LEAD_STATE.pdfDocuments.length ? mergePdfDocuments(LEAD_STATE.pdfDocuments) : null;
+    const remainingDocuments = (LEAD_STATE.pdfDocuments || []).filter((doc) => doc.upload_id !== id);
+    resetModuloPrimaDiNuovaLetturaPdf();
+    LEAD_STATE.pdfDocuments = remainingDocuments;
+    LEAD_STATE.pdfData = remainingDocuments.length ? mergePdfDocuments(remainingDocuments) : null;
     const panel = document.getElementById("pdf-review-static");
     const title = document.getElementById("pdf-review-title");
     const copy = document.getElementById("pdf-review-copy");
-    const confirmButton = document.getElementById("pdf-confirm-data-button");
-    if (LEAD_STATE.pdfDocuments.length) {
-      if (panel) panel.style.display = "block";
-      if (copy) copy.innerHTML = renderPdfSummary(LEAD_STATE.pdfDocuments, LEAD_STATE.pdfData);
-      configuraConfermaPdfPronta(LEAD_STATE.pdfDocuments);
+    if (remainingDocuments.length) {
+      LEAD_STATE.dataOrigin = "pdf_upload";
+      applicaRisultatoPdfDirettamente(remainingDocuments);
     } else {
       if (panel) panel.style.display = "none";
-      if (title) title.innerText = "Dati pronti per la conferma";
-      if (copy) copy.innerText = "Dopo l'analisi potrai confermare i dati letti dal PDF. Il confronto partirà solo dopo la tua conferma.";
-      if (confirmButton) {
-        confirmButton.disabled = false;
-        confirmButton.innerText = "Controlla e scegli i dati da inserire";
-      }
+      if (title) title.innerText = "Lettura PDF";
+      if (copy) copy.innerText = "Seleziona uno o più PDF e premi Analizza PDF.";
     }
   }
   aggiornaInterfacciaSelezionePdf();
@@ -7280,7 +7431,7 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
       }
     } else {
       if (title) title.innerText = "Prima seleziona il documento";
-      if (copy) copy.innerText = "Seleziona una bolletta PDF o una scheda sintetica, poi premi “Analizza PDF”. Dopo la lettura ti chiederemo di controllare e confermare i dati.";
+      if (copy) copy.innerText = "Seleziona una bolletta PDF o una scheda sintetica, poi premi “Analizza PDF”. Dopo la lettura il modulo verrà compilato direttamente.";
       if (confirmButton) confirmButton.disabled = true;
       nascondiGuida("pdf-confirm-guidance");
     }
@@ -7288,13 +7439,11 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
     document.getElementById("pdf-select-files-button")?.focus({ preventScroll: true });
     return;
   }
+  resetModuloPrimaDiNuovaLetturaPdf();
   if (panel) panel.style.display = "block";
   if (title) title.innerText = "Analisi del documento in corso";
-  if (copy) copy.innerText = `Stiamo leggendo ${files.length === 1 ? "il PDF" : `${files.length} PDF`}... Al termine dovrai controllare e confermare i dati estratti.`;
-  if (confirmButton) {
-    confirmButton.disabled = true;
-    confirmButton.innerText = "Analisi in corso...";
-  }
+  if (copy) copy.innerText = `Stiamo leggendo ${files.length === 1 ? "il PDF" : `${files.length} PDF`} e compilando direttamente il modulo...`;
+  if (confirmButton) confirmButton.disabled = true;
   nascondiGuida("pdf-confirm-guidance");
   trackEvent("pdf_analysis_started", { fileCount: files.length });
 
@@ -7336,7 +7485,7 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
   const processedIds = new Set(pendingEntries.map((entry) => entry.id));
   PDF_PENDING_FILES = PDF_PENDING_FILES.filter((entry) => !processedIds.has(entry.id));
   if (input) input.value = "";
-  LEAD_STATE.pdfDocuments = [...LEAD_STATE.pdfDocuments, ...results];
+  LEAD_STATE.pdfDocuments = [...results];
   LEAD_STATE.pdfData = mergePdfDocuments(LEAD_STATE.pdfDocuments);
   aggiornaInterfacciaSelezionePdf();
   LEAD_STATE.dataOrigin = "pdf_upload";
@@ -7346,9 +7495,7 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
     unrecognizedCount: results.filter((item) => !item.error && !risultatoPdfUtilizzabile(item)).length,
     errorCount: results.filter((item) => item.error).length,
   });
-  if (copy) copy.innerHTML = renderPdfSummary(LEAD_STATE.pdfDocuments, LEAD_STATE.pdfData);
-  configuraConfermaPdfPronta(results);
-  aggiornaAssistenteAttivazioneVisibilita();
+  applicaRisultatoPdfDirettamente(results);
 };
 
 window.confermaPdfECalcola = async function confermaPdfECalcola() {
@@ -8293,6 +8440,14 @@ function mergePdfDocuments(documents) {
   const merged = {};
   validDocuments.forEach((doc) => {
     merged.kind = doc.kind;
+    merged.adaptive_form = merged.adaptive_form || { version: "adaptive-form-v2", supplies: [] };
+    (doc?.adaptive_form?.supplies || []).forEach((supply) => {
+      const commodity = supply?.commodity;
+      if (!commodity) return;
+      const index = merged.adaptive_form.supplies.findIndex((item) => item?.commodity === commodity);
+      if (index >= 0) merged.adaptive_form.supplies[index] = supply;
+      else merged.adaptive_form.supplies.push(supply);
+    });
     [
       "intestatario", "codice_fiscale", "indirizzo_fornitura",
       "indirizzo_fornitura_luce", "indirizzo_fornitura_gas", "customer_type",
@@ -8566,6 +8721,7 @@ window.azzeraPdfEModulo = function azzeraPdfEModulo() {
   modalitaCalcolo = "manuale";
   pulisciGuidePercorsoPdf();
   pulisciSegnalazioniDatiMancanti();
+  svuotaDettagliAdattiviPdf();
   const input = document.getElementById("pdf-static-input");
   const panel = document.getElementById("pdf-review-static");
   const copy = document.getElementById("pdf-review-copy");
@@ -9178,6 +9334,7 @@ function sincronizzaConsumiNuovaOfferta() {
 }
 
 function importaAnalisiPdfDaArchivio() {
+  // Nessuna nuova chiamata IA: il replay applica direttamente il risultato archiviato.
   const params = new URLSearchParams(window.location.search || "");
   if (params.get("pdfReplay") !== "1") return false;
   let payload;
@@ -9200,14 +9357,8 @@ function importaAnalisiPdfDaArchivio() {
   LEAD_STATE.pdfDocuments = [replayDocument];
   LEAD_STATE.pdfData = mergePdfDocuments(LEAD_STATE.pdfDocuments);
   LEAD_STATE.dataOrigin = "pdf_upload";
-  const panel = document.getElementById("pdf-review-static");
-  const title = document.getElementById("pdf-review-title");
-  const copy = document.getElementById("pdf-review-copy");
-  if (panel) panel.style.display = "block";
-  if (title) title.innerText = "Analisi caricata dall’archivio staff";
-  if (copy) copy.innerHTML = `${renderPdfSummary(LEAD_STATE.pdfDocuments, LEAD_STATE.pdfData)}<br><strong>Nessuna nuova chiamata IA:</strong> sono stati riutilizzati i dati archiviati.`;
-  configuraConfermaPdfPronta(LEAD_STATE.pdfDocuments);
   aggiornaInterfacciaSelezionePdf();
+  applicaRisultatoPdfDirettamente(LEAD_STATE.pdfDocuments);
   return true;
 }
 
@@ -9672,7 +9823,7 @@ if (document.readyState === "loading") {
         <div class="guided-assistant-options">
             <button type="button" class="guided-assistant-option" data-assistant-action="pdf">
                 Ho una bolletta o una scheda sintetica
-                <small>Carica il PDF e conferma i dati letti.</small>
+                <small>Carica il PDF: compileremo direttamente il modulo.</small>
             </button>
             <button type="button" class="guided-assistant-option" data-assistant-action="media">
                 Non conosco i miei consumi
