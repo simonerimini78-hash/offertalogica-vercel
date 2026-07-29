@@ -1,7 +1,7 @@
 {
-  "versioneDati": "parametri-calcolo-2026-07-03-v4-psv-operativo",
-  "fonte": "Configurazione OffertaLogica aggiornabile; valori da verificare con fonti ufficiali prima dell'uso commerciale pieno",
-  "aggiornatoIl": "2026-07-03",
+  "versioneDati": "parametri-calcolo-2026-07-27-pun-2026-06",
+  "fonte": "Configurazione OffertaLogica aggiornabile; PUN acquisito dalla pubblicazione mensile ufficiale GME del mese precedente.",
+  "aggiornatoIl": "2026-07-27",
   "parametriCalcolo": {
     "perditeReteLuceVariabile": 1.102,
     "profiloMedio": {
@@ -50,10 +50,20 @@
   },
   "indiciMercato": {
     "pun": {
-      "label": "PUN",
-      "valore": 0.119351258,
+      "label": "PUN Index GME",
+      "valore": 0.1325,
       "unita": "eur_kwh",
-      "note": "PUN Index GME maggio 2026: 119,351258 eur/MWh, convertito in 0,119351258 eur/kWh."
+      "periodo": "2026-06",
+      "periodoLabel": "Giugno 2026",
+      "valoreOriginale": 132.5,
+      "unitaOriginale": "eur_mwh",
+      "fonte": "Gestore dei Mercati Energetici (GME)",
+      "urlFonte": "https://gme.mercatoelettrico.org/Home/AvvisieComunicati/AvvisieComunicatiME?id=7595",
+      "urlDocumento": "https://gme.mercatoelettrico.org/Portals/0/Documents/it-IT//202606_Dati_di_sintesi_mensile.pdf",
+      "pubblicatoIl": "2026-07-14",
+      "acquisitoIl": "2026-07-27",
+      "stato": "ufficiale",
+      "note": "PUN Index GME medio Giugno 2026: 132.500000 eur/MWh, convertito in 0.132500000 eur/kWh."
     },
     "psv": {
       "label": "PSV",

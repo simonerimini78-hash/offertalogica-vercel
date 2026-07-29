@@ -44,15 +44,21 @@ PRIMARY_PRICE_PATTERNS = (
     r"\bprezzo\s+quota\s+energia\b",
     r"\bprezzo\s+base\b",
     r"\bprezzo\s+(?:della\s+)?materia(?:\s+prima)?\b",
+    r"\bprezzo(?:\s+\w+){1,3}\s+materia\s+prima\b",
+    r"\bcosto\s+materia\s+prima\b",
     r"\bcomponente\s+(?:energia|gas)\b",
     r"\bcomponente\s+sostitutiva\s+materia\s+prima\s+gas\b",
     r"\bcorrispettivo\s+(?:luce|gas)\b",
-    r"\bcorrispettivo\s+per\s+il\s+consumo\b",
+    r"\bcorrispettivo\s+energia\s+elettrica\b",
+    r"\bcorrispettivo\s+fisso\s+consumo\s+gas\b",
+    r"\bcorrispettivo\s+(?:per\s+il|al)\s+consumo\b",
     r"^prezzo(?:\s+prezzo)?$",
+    r"\bprezzo\s+fisso\b",
 )
 SPREAD_PATTERNS = (
     r"\bspread\b",
     r"corrispettivo.*mercato\s+all.?ingrosso",
+    r"corrispettivo\s+variabile\s+a\s+remunerazione",
 )
 BLOCKED_COMPONENT_PATTERNS = (
     r"dispacciament",
@@ -109,6 +115,7 @@ PROVIDERS: tuple[ProviderRule, ...] = (
     ProviderRule("a2a", "A2A Energia", (r"\ba2a\b",)),
     ProviderRule("acea", "Acea Energia", (r"\bacea\b", r"acea energia")),
     ProviderRule("agasco", "Agasco", (r"\bagasco\b",)),
+    ProviderRule("accendi", "Accendi Luce e Gas", (r"\baccendi\b",), ("03386091205",)),
     ProviderRule("alperia", "Alperia", (r"\balperia\b",)),
     ProviderRule("amga", "Amga", (r"\bamga\b",)),
     ProviderRule("argos", "Argos", (r"\bargos\b",)),
@@ -122,6 +129,7 @@ PROVIDERS: tuple[ProviderRule, ...] = (
     ProviderRule("enercom", "Enercom", (r"\benercom\b",)),
     ProviderRule("engie", "Engie", (r"\bengie\b",)),
     ProviderRule("eja", "Eja Energia", (r"\beja\b",)),
+    ProviderRule("elit", "Elit Energia", (r"\belit(?:\s+energia)?\b", r"\bmy\s+home\b"), ("11655010962",)),
     ProviderRule("hera", "Hera Comm", (r"\bhera\b",)),
     ProviderRule("illum", "Illumia", (r"\billumia\b",), ("02356770988",)),
     ProviderRule("iren", "Iren Luce e Gas", (r"\biren\b",)),
@@ -135,7 +143,7 @@ PROVIDERS: tuple[ProviderRule, ...] = (
     ProviderRule("sen", "Servizio Elettrico Nazionale", (r"servizio elettrico nazionale",)),
     ProviderRule("sorgenia", "Sorgenia", (r"\bsorgenia\b",)),
     ProviderRule("tate", "Tate", (r"\btate\b",)),
-    ProviderRule("vivi", "Vivi Energia", (r"\bvivi(?:\s+energia|attivo|clear|web)?\b",)),
+    ProviderRule("vivi", "Vivi Energia", (r"\bvivi(?:\s+energia|attivo|clear|web|plan|dinamico)?\b",), ("13149000153",)),
     ProviderRule("wekiwi", "Wekiwi", (r"\bwekiwi\b",)),
     ProviderRule("sinergy", "Sinergy", (r"\bsinergy\b",)),
 )
