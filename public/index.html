@@ -1905,7 +1905,6 @@
 
     <div class="pdf-lead-panel" id="pdf-upload-panel">
         <h3>Carica bolletta o scheda sintetica</h3>
-        <p>Carica una bolletta o una scheda sintetica: l’IA leggerà il documento e compilerà direttamente il modulo, mantenendo anche fasce, formule e componenti presenti nel PDF.</p>
         <div id="pdf-upload-context-notice" class="pdf-context-notice" role="status" aria-live="polite" hidden>
             <span class="pdf-context-icon" aria-hidden="true">↓</span>
             <span><strong>Sei nel punto giusto.</strong> Seleziona qui il PDF della scheda sintetica, poi premi <strong>Analizza PDF</strong>.</span>
@@ -3390,11 +3389,11 @@ function calcolaMateriaPerFasce(consumiFasce = {}, prezziFasce = {}) {
   const p2 = n(prezziFasce.f2);
   const p3 = n(prezziFasce.f3);
   const p23 = n(prezziFasce.f23);
-  if (f1 !== null && f23 !== null && p1 !== null && p23 !== null) {
-    return { modalitaPrezzo: "f1_f23", quotaMateria: f1 * p1 + f23 * p23, consumoFatturato: f1 + f23 };
-  }
   if (f1 !== null && f2 !== null && f3 !== null && p1 !== null && p2 !== null && p3 !== null) {
     return { modalitaPrezzo: "f1_f2_f3", quotaMateria: f1 * p1 + f2 * p2 + f3 * p3, consumoFatturato: f1 + f2 + f3 };
+  }
+  if (f1 !== null && f23 !== null && p1 !== null && p23 !== null) {
+    return { modalitaPrezzo: "f1_f23", quotaMateria: f1 * p1 + f23 * p23, consumoFatturato: f1 + f23 };
   }
   return null;
 }
@@ -4009,8 +4008,16 @@ function formulaDaProfiloPdf(scope, commodity) {
 
 function fasceDaProfiloPdf(scope, prefix) {
   const profile = PDF_PROFILE_STATE[scope] || {};
-  const value = (field) => { const number = Number(profile[field]); return Number.isFinite(number) ? number : undefined; };
-  return { f0: value(`${prefix}_f0`), f1: value(`${prefix}_f1`), f2: value(`${prefix}_f2`), f3: value(`${prefix}_f3`), f23: value(`${prefix}_f23`) };
+  const suffix = prefix === "consumo_luce" ? "_kwh" : prefix === "prezzo_luce" ? "_eur_kwh" : "";
+  const value = (band) => {
+    const keys = [`${prefix}_${band}${suffix}`, `${prefix}_${band}`];
+    for (const key of keys) {
+      const number = Number(profile[key]);
+      if (Number.isFinite(number)) return number;
+    }
+    return undefined;
+  };
+  return { f0: value("f0"), f1: value("f1"), f2: value("f2"), f3: value("f3"), f23: value("f23") };
 }
 
 function leggiOffertaAttuale() {
@@ -5617,9 +5624,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
     "offerte-partner-online-group",
     "partner-group",
     `${attivabiliPrioritarie.length} ${attivabiliPrioritarie.length === 1 ? "offerta partner attivabile online" : "offerte partner attivabili online"}`,
-    attivabiliPrioritarie.length === NUMERO_OFFERTE_PARTNER_MENU
-      ? "Le migliori proposte attivabili online tra i partner disponibili e coerenti con il filtro selezionato."
-      : `Catalogo ARERA del ${DATI_ARERA_MENU_META.aggiornatoIl || "giorno non disponibile"}: sono presenti ${attivabiliPrioritarie.length} dei ${NUMERO_OFFERTE_PARTNER_MENU} partner previsti. Il titolo mostra il numero reale e non dichiara offerte mancanti.`
+    "Le proposte partner attivabili online e coerenti con il filtro selezionato."
   );
   const gruppoConsulente = assicuraGruppoOfferte(
     "offerte-consulente-group",
@@ -7797,6 +7802,7 @@ window.confermaPdfECalcola = async function confermaPdfECalcola() {
 
 function applicaDatiPdfAlBusiness(data) {
   if (!data) return;
+  aggiornaProfiloPdfDaDati(data, data.kind === "scheda_offerta" ? "offer" : "current");
   const selectedRows = arguments.length > 1 ? arguments[1] : null;
   if (Array.isArray(selectedRows)) {
     applicaRigheAutocompilazionePdf(selectedRows);
@@ -7809,10 +7815,10 @@ function applicaDatiPdfAlBusiness(data) {
   const providerGas = safe("fornitore_gas");
   const power = safe("potenza_impegnata_kw");
   const luceConsumption = safe("consumo_luce_kwh");
-  const lucePrice = safe("prezzo_luce_eur_kwh");
+  const lucePrice = safe("prezzo_luce_eur_kwh") ?? prezzoBollettaLuceDaContrattoPdf(data)?.value;
   const luceFixed = safe("quota_fissa_vendita_luce_eur_anno");
   const gasConsumption = safe("consumo_gas_smc");
-  const gasPrice = safe("prezzo_gas_eur_smc");
+  const gasPrice = safe("prezzo_gas_eur_smc") ?? prezzoBollettaGasDaContrattoPdf(data)?.value;
   const gasFixed = safe("quota_fissa_vendita_gas_eur_anno");
   if (holder !== undefined) setField("business-ragione", holder);
   if (/^\d{11}$/.test(String(taxId || ""))) setField("business-piva", taxId);
@@ -7905,6 +7911,16 @@ function pdfPreviewAutofillValue(data, field) {
   return pdfPreviewAutofillEntry(data, field)?.entry?.normalized_value;
 }
 
+// I valori economici completi usati per un calcolo deterministico possono non
+// avere un campo diretto nel modulo (per esempio F0). Non vengono mostrati come
+// autocompilazione autonoma, ma possono alimentare il prezzo derivato.
+function pdfValoreContrattoCompletoPerCalcolo(data, field) {
+  const entry = pdfContractFieldEntry(data, field);
+  if (!entry || entry.status !== "completo") return undefined;
+  if (entry.provenance?.origin === "pdf_image_ocr" && !entry.autofill?.review_selectable) return undefined;
+  return entry.normalized_value;
+}
+
 
 const PDF_AUTOFILL_FIELD_IDS = Object.freeze([
   "nome-fornitore-att", "nome-fornitore-gas-att", "nome-fornitore-nuov",
@@ -7980,6 +7996,120 @@ function pdfAutofillAddSpec(specs, data, field, label, targetIds, options = {}) 
   });
 }
 
+// OFFERTALOGICA_CURRENT_BILL_PRICE_SLOTS_20260729
+function testoVocePrezzoAdattivaPdf(entry, includeEvidence = true) {
+  return [entry?.label, entry?.value_text, entry?.unit, includeEvidence ? entry?.evidence : null]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function prezzoVenditaEsplicitoDaVociAdattivePdf(data, commodity) {
+  if (data?.kind !== "bolletta") return null;
+  const supply = (Array.isArray(data?.adaptive_form?.supplies) ? data.adaptive_form.supplies : [])
+    .find((item) => item?.commodity === commodity);
+  if (!supply) return null;
+
+  const primary = numeroPrezzoSchedaPdf(supply?.primary_price?.value ?? supply?.primary_price?.value_text);
+  if (primary !== null) return { value: primary, modalita: "unit_price", source: "adaptive_primary_price" };
+
+  const expectedUnit = commodity === "luce" ? /(?:€|eur)\s*\/\s*kwh|kwh/i : /(?:€|eur)\s*\/\s*smc|smc/i;
+  const excluded = /rete|oneri|trasport|distribuz|impost|\biva\b|accis|quota\s+fissa|potenza|\bpun\b|\bpsv\b|spread|dispacci|capacit[aà]|totale/;
+  const preferred = commodity === "luce"
+    ? [
+        /di cui.*spesa.*(?:vendita|materia).*(?:energia elettrica|materia energia)/,
+        /spesa.*(?:vendita|materia).*(?:energia elettrica|materia energia)/,
+      ]
+    : [
+        /di cui.*spesa.*(?:vendita|materia).*(?:gas naturale|\bgas\b)/,
+        /spesa.*(?:vendita|materia).*(?:gas naturale|\bgas\b)/,
+      ];
+
+  const candidates = (Array.isArray(supply.price_items) ? supply.price_items : [])
+    .map((entry) => {
+      const value = numeroPrezzoSchedaPdf(entry?.value ?? entry?.value_text);
+      const labelText = testoVocePrezzoAdattivaPdf(entry, false);
+      const evidenceText = testoVocePrezzoAdattivaPdf(entry, true);
+      if (value === null || !expectedUnit.test(labelText) || excluded.test(labelText)) return null;
+      const score = preferred.reduce((best, pattern, index) => pattern.test(evidenceText) ? Math.max(best, 100 - index * 15) : best, 0);
+      return score ? { value, score, text: evidenceText, entry } : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.score - a.score);
+
+  if (!candidates.length) return null;
+  return {
+    value: candidates[0].value,
+    modalita: "price_component_vendita_esplicito",
+    source: "adaptive_price_items",
+    label: candidates[0].entry?.label || null,
+  };
+}
+
+function calcolaPrezzoBollettaLuceDaFasce(prezzi = {}, consumi = {}) {
+  const f0 = numeroPrezzoSchedaPdf(prezzi.f0);
+  const f1 = numeroPrezzoSchedaPdf(prezzi.f1);
+  const f2 = numeroPrezzoSchedaPdf(prezzi.f2);
+  const f3 = numeroPrezzoSchedaPdf(prezzi.f3);
+  const f23 = numeroPrezzoSchedaPdf(prezzi.f23);
+  const c1 = numeroPrezzoSchedaPdf(consumi.f1);
+  const c2 = numeroPrezzoSchedaPdf(consumi.f2);
+  const c3 = numeroPrezzoSchedaPdf(consumi.f3);
+  const c23 = numeroPrezzoSchedaPdf(consumi.f23);
+  if (f0 !== null) return { value: f0, modalita: "f0", fasce: ["F0"] };
+  if ([f1, f2, f3, c1, c2, c3].every((value) => value !== null)) {
+    const totale = c1 + c2 + c3;
+    if (totale > 0) return { value: Number(((f1 * c1 + f2 * c2 + f3 * c3) / totale).toFixed(9)), modalita: "media_ponderata_f1_f2_f3", fasce: ["F1", "F2", "F3"] };
+  }
+  if ([f1, f23, c1, c23].every((value) => value !== null)) {
+    const totale = c1 + c23;
+    if (totale > 0) return { value: Number(((f1 * c1 + f23 * c23) / totale).toFixed(9)), modalita: "media_ponderata_f1_f23", fasce: ["F1", "F23"] };
+  }
+  return null;
+}
+
+function prezzoBollettaLuceDaContrattoPdf(data) {
+  if (data?.kind !== "bolletta") return null;
+  const explicit = prezzoVenditaEsplicitoDaVociAdattivePdf(data, "luce");
+  if (explicit) return explicit;
+  return calcolaPrezzoBollettaLuceDaFasce({
+    f0: pdfValoreContrattoCompletoPerCalcolo(data, "prezzo_luce_f0_eur_kwh"),
+    f1: pdfValoreContrattoCompletoPerCalcolo(data, "prezzo_luce_f1_eur_kwh"),
+    f2: pdfValoreContrattoCompletoPerCalcolo(data, "prezzo_luce_f2_eur_kwh"),
+    f3: pdfValoreContrattoCompletoPerCalcolo(data, "prezzo_luce_f3_eur_kwh"),
+    f23: pdfValoreContrattoCompletoPerCalcolo(data, "prezzo_luce_f23_eur_kwh"),
+  }, {
+    f1: pdfValoreContrattoCompletoPerCalcolo(data, "consumo_luce_f1_kwh"),
+    f2: pdfValoreContrattoCompletoPerCalcolo(data, "consumo_luce_f2_kwh"),
+    f3: pdfValoreContrattoCompletoPerCalcolo(data, "consumo_luce_f3_kwh"),
+    f23: pdfValoreContrattoCompletoPerCalcolo(data, "consumo_luce_f23_kwh"),
+  });
+}
+
+function prezzoBollettaGasDaContrattoPdf(data) {
+  if (data?.kind !== "bolletta") return null;
+  return prezzoVenditaEsplicitoDaVociAdattivePdf(data, "gas");
+}
+
+const CAMPI_PROFILO_PDF = Object.freeze([
+  "tipo_prezzo_luce", "tipo_prezzo_gas",
+  "consumo_luce_f1_kwh", "consumo_luce_f2_kwh", "consumo_luce_f3_kwh", "consumo_luce_f23_kwh",
+  "prezzo_luce_f0_eur_kwh", "prezzo_luce_f1_eur_kwh", "prezzo_luce_f2_eur_kwh", "prezzo_luce_f3_eur_kwh", "prezzo_luce_f23_eur_kwh",
+  "indice_riferimento_luce", "moltiplicatore_indice_luce", "spread_luce_eur_kwh", "formula_prezzo_luce",
+  "indice_riferimento_gas", "moltiplicatore_indice_gas", "spread_gas_eur_smc", "formula_prezzo_gas",
+]);
+
+function aggiornaProfiloPdfDaDati(data, scope) {
+  const normalizedScope = scope === "offer" ? "offer" : "current";
+  const profile = PDF_PROFILE_STATE[normalizedScope] || (PDF_PROFILE_STATE[normalizedScope] = {});
+  CAMPI_PROFILO_PDF.forEach((field) => {
+    const value = pdfValoreContrattoCompletoPerCalcolo(data, field);
+    if (value !== undefined) profile[field] = value;
+  });
+}
+
 // OFFERTALOGICA_OFFER_SHEET_BAND_PRICE_20260728
 function numeroPrezzoSchedaPdf(value) {
   if (value === null || value === undefined || value === "") return null;
@@ -8041,16 +8171,16 @@ function prezzoSchedaLuceDaContrattoPdf(data) {
   if (data?.kind !== "scheda_offerta") return null;
   if (pdfPreviewAutofillValue(data, "prezzo_luce_eur_kwh") !== undefined) return null;
   return calcolaPrezzoSchedaLuceDaFasce({
-    f0: pdfPreviewAutofillValue(data, "prezzo_luce_f0_eur_kwh"),
-    f1: pdfPreviewAutofillValue(data, "prezzo_luce_f1_eur_kwh"),
-    f2: pdfPreviewAutofillValue(data, "prezzo_luce_f2_eur_kwh"),
-    f3: pdfPreviewAutofillValue(data, "prezzo_luce_f3_eur_kwh"),
-    f23: pdfPreviewAutofillValue(data, "prezzo_luce_f23_eur_kwh"),
+    f0: pdfValoreContrattoCompletoPerCalcolo(data, "prezzo_luce_f0_eur_kwh"),
+    f1: pdfValoreContrattoCompletoPerCalcolo(data, "prezzo_luce_f1_eur_kwh"),
+    f2: pdfValoreContrattoCompletoPerCalcolo(data, "prezzo_luce_f2_eur_kwh"),
+    f3: pdfValoreContrattoCompletoPerCalcolo(data, "prezzo_luce_f3_eur_kwh"),
+    f23: pdfValoreContrattoCompletoPerCalcolo(data, "prezzo_luce_f23_eur_kwh"),
   }, {
-    f1: pdfPreviewAutofillValue(data, "consumo_luce_f1_kwh"),
-    f2: pdfPreviewAutofillValue(data, "consumo_luce_f2_kwh"),
-    f3: pdfPreviewAutofillValue(data, "consumo_luce_f3_kwh"),
-    f23: pdfPreviewAutofillValue(data, "consumo_luce_f23_kwh"),
+    f1: pdfValoreContrattoCompletoPerCalcolo(data, "consumo_luce_f1_kwh"),
+    f2: pdfValoreContrattoCompletoPerCalcolo(data, "consumo_luce_f2_kwh"),
+    f3: pdfValoreContrattoCompletoPerCalcolo(data, "consumo_luce_f3_kwh"),
+    f23: pdfValoreContrattoCompletoPerCalcolo(data, "consumo_luce_f23_kwh"),
   });
 }
 
@@ -9651,6 +9781,7 @@ function applicaDatiPdfAlModulo(data) {
   if (!leggiValore("master-gas-regione", "")) setField("master-gas-regione", "nord-ovest");
 
   const isOffer = data.kind === "scheda_offerta";
+  aggiornaProfiloPdfDaDati(data, isOffer ? "offer" : "current");
   if (isOffer) {
     apriDettagliNuovaOfferta();
     const provider = safe("fornitore_luce") ?? safe("fornitore_gas");
@@ -9679,10 +9810,10 @@ function applicaDatiPdfAlModulo(data) {
   const providerLuce = safe("fornitore_luce");
   const providerGas = safe("fornitore_gas");
   const luceConsumption = safe("consumo_luce_kwh");
-  const lucePrice = safe("prezzo_luce_eur_kwh");
+  const lucePrice = safe("prezzo_luce_eur_kwh") ?? prezzoBollettaLuceDaContrattoPdf(data)?.value;
   const luceFixed = safe("quota_fissa_vendita_luce_eur_anno");
   const gasConsumption = safe("consumo_gas_smc");
-  const gasPrice = safe("prezzo_gas_eur_smc");
+  const gasPrice = safe("prezzo_gas_eur_smc") ?? prezzoBollettaGasDaContrattoPdf(data)?.value;
   const gasFixed = safe("quota_fissa_vendita_gas_eur_anno");
   const priceType = safe("tipo_prezzo_luce") ?? safe("tipo_prezzo_gas");
 
