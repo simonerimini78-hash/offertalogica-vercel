@@ -5616,8 +5616,10 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
   const gruppoPartner = assicuraGruppoOfferte(
     "offerte-partner-online-group",
     "partner-group",
-    "6 offerte partner attivabili online",
-    "Le migliori proposte attivabili online tra i partner disponibili e coerenti con il filtro selezionato."
+    `${attivabiliPrioritarie.length} ${attivabiliPrioritarie.length === 1 ? "offerta partner attivabile online" : "offerte partner attivabili online"}`,
+    attivabiliPrioritarie.length === NUMERO_OFFERTE_PARTNER_MENU
+      ? "Le migliori proposte attivabili online tra i partner disponibili e coerenti con il filtro selezionato."
+      : `Catalogo ARERA del ${DATI_ARERA_MENU_META.aggiornatoIl || "giorno non disponibile"}: sono presenti ${attivabiliPrioritarie.length} dei ${NUMERO_OFFERTE_PARTNER_MENU} partner previsti. Il titolo mostra il numero reale e non dichiara offerte mancanti.`
   );
   const gruppoConsulente = assicuraGruppoOfferte(
     "offerte-consulente-group",
@@ -7344,7 +7346,9 @@ function resetCampiPdfSlot(slot) {
   const normalized = slot === "offer" ? "offer" : "current";
   Object.keys(PDF_PROFILE_STATE[normalized] || {}).forEach((key) => delete PDF_PROFILE_STATE[normalized][key]);
   const ids = normalized === "offer"
-    ? ["nome-fornitore-nuov", "in-luce-cons-nuov", "in-luce-prezzo-nuov", "in-luce-fisso-nuov", "in-gas-cons-nuov", "in-gas-prezzo-nuov", "in-gas-fisso-nuov"]
+    // I consumi della proposta appartengono al profilo della bolletta e non alla
+    // scheda sintetica: non devono essere cancellati quando si sostituisce lo slot offer.
+    ? ["nome-fornitore-nuov", "in-luce-prezzo-nuov", "in-luce-fisso-nuov", "in-gas-prezzo-nuov", "in-gas-fisso-nuov"]
     : ["nome-fornitore-att", "nome-fornitore-gas-att", "in-luce-cons-att", "in-luce-prezzo-att", "in-luce-fisso-att", "in-gas-cons-att", "in-gas-prezzo-att", "in-gas-fisso-att", "in-luce-cons-nuov", "in-gas-cons-nuov"];
   ids.forEach((id) => {
     clearField(id);
@@ -7357,6 +7361,54 @@ function resetCampiPdfSlot(slot) {
     ["in-luce-fisso-att-unita", "in-gas-fisso-att-unita"].forEach((id) => setField(id, "mese"));
   }
   svuotaDettagliAdattiviPdf(normalized);
+}
+
+// OFFERTALOGICA_PDF_SLOT_REBUILD_20260729
+// Il DOM non e la fonte dello stato PDF. Dopo ogni lettura riuscita il modulo viene
+// ricostruito dai due slot persistenti: prima bolletta/current, poi scheda/offer.
+// Durante la ricostruzione gli eventi change generati da setField non possono
+// richiamare il catalogo partner e sovrascrivere i valori estratti dal PDF.
+function datiPdfValidiSlot(slot) {
+  const documents = pdfDocumentiSlot(slot).filter(risultatoPdfUtilizzabile);
+  if (!documents.length) return null;
+  const data = mergePdfDocuments(documents);
+  if (!data || data.merge_blocked || data.mixed_documents) return null;
+  if (slot === "current" && data.kind !== "bolletta") return null;
+  if (slot === "offer" && data.kind !== "scheda_offerta") return null;
+  return { documents, data };
+}
+
+function ricostruisciModuloDaSlotPdf(activeSlot = PDF_ACTIVE_SLOT) {
+  const current = datiPdfValidiSlot("current");
+  const offer = datiPdfValidiSlot("offer");
+  const previousAutofillBlock = BLOCCO_AUTOFILL_NUOVA_OFFERTA;
+  let appliedCurrent = false;
+  let appliedOffer = false;
+
+  BLOCCO_AUTOFILL_NUOVA_OFFERTA = true;
+  try {
+    if (current) resetCampiPdfSlot("current");
+    if (offer) resetCampiPdfSlot("offer");
+
+    if (current) {
+      LEAD_STATE.pdfData = current.data;
+      appliedCurrent = applicaRisultatoPdfDirettamente(current.documents);
+    }
+    if (offer) {
+      LEAD_STATE.pdfData = offer.data;
+      appliedOffer = applicaRisultatoPdfDirettamente(offer.documents);
+    }
+
+    // La scheda non possiede consumi propri: usa sempre quelli della bolletta.
+    sincronizzaConsumiNuovaOfferta();
+  } finally {
+    BLOCCO_AUTOFILL_NUOVA_OFFERTA = previousAutofillBlock;
+  }
+
+  const fallbackSlot = offer ? "offer" : current ? "current" : null;
+  sincronizzaStatoDocumentiPdf(activeSlot && PDF_DOCUMENT_SLOTS[activeSlot]?.length ? activeSlot : fallbackSlot);
+  LEAD_STATE.dataOrigin = (current || offer) ? "pdf_upload" : "manual_input";
+  return { appliedCurrent, appliedOffer };
 }
 
 function classificaLottoPdf(results) {
@@ -7514,14 +7566,8 @@ window.rimuoviFilePdf = function rimuoviFilePdf(id, source) {
     if (slot) {
       PDF_DOCUMENT_SLOTS[slot] = PDF_DOCUMENT_SLOTS[slot].filter((doc) => doc.upload_id !== id);
       resetCampiPdfSlot(slot);
-      if (PDF_DOCUMENT_SLOTS[slot].length) {
-        sincronizzaStatoDocumentiPdf(slot);
-        LEAD_STATE.dataOrigin = "pdf_upload";
-        applicaRisultatoPdfDirettamente(PDF_DOCUMENT_SLOTS[slot]);
-      } else {
-        const fallbackSlot = PDF_DOCUMENT_SLOTS.current.length ? "current" : PDF_DOCUMENT_SLOTS.offer.length ? "offer" : null;
-        sincronizzaStatoDocumentiPdf(fallbackSlot);
-      }
+      const fallbackSlot = PDF_DOCUMENT_SLOTS.offer.length ? "offer" : PDF_DOCUMENT_SLOTS.current.length ? "current" : null;
+      ricostruisciModuloDaSlotPdf(PDF_DOCUMENT_SLOTS[slot].length ? slot : fallbackSlot);
     }
     const panel = document.getElementById("pdf-review-static");
     const title = document.getElementById("pdf-review-title");
@@ -7628,21 +7674,25 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
   PDF_PENDING_FILES = PDF_PENDING_FILES.filter((entry) => !processedIds.has(entry.id));
   if (input) input.value = "";
   const batch = classificaLottoPdf(results);
-  if (batch.mixed) {
-    // Il lotto misto viene rifiutato, ma gli slot gia acquisiti e il relativo
-    // stato attivo restano intatti.
-    sincronizzaStatoDocumentiPdf(PDF_ACTIVE_SLOT);
-    if (panel) panel.style.display = "block";
-    if (title) title.innerText = "Separa bolletta e scheda sintetica";
-    if (copy) copy.innerText = "I documenti gia acquisiti restano memorizzati. Analizza la bolletta e la scheda proposta in due passaggi separati.";
-    if (confirmButton) confirmButton.disabled = true;
-  } else if (batch.slot) {
-    resetCampiPdfSlot(batch.slot);
-    PDF_DOCUMENT_SLOTS[batch.slot] = [...results];
-    sincronizzaStatoDocumentiPdf(batch.slot);
-    LEAD_STATE.dataOrigin = "pdf_upload";
-    applicaRisultatoPdfDirettamente(PDF_DOCUMENT_SLOTS[batch.slot]);
+  const validCurrent = batch.valid.filter((doc) => pdfSlotDaKind(doc.kind) === "current");
+  const validOffer = batch.valid.filter((doc) => pdfSlotDaKind(doc.kind) === "offer");
+  let activeSlot = PDF_ACTIVE_SLOT;
+
+  // Un lotto puo contenere bolletta e scheda: vengono divise nei rispettivi slot
+  // invece di essere rifiutate o fuse nello stesso documento.
+  if (validCurrent.length) {
+    PDF_DOCUMENT_SLOTS.current = [...validCurrent];
+    activeSlot = "current";
+  }
+  if (validOffer.length) {
+    PDF_DOCUMENT_SLOTS.offer = [...validOffer];
+    activeSlot = "offer";
+  }
+
+  if (validCurrent.length || validOffer.length) {
+    ricostruisciModuloDaSlotPdf(activeSlot);
   } else {
+    // Una lettura fallita non cancella ne i documenti gia acquisiti ne i campi.
     sincronizzaStatoDocumentiPdf(PDF_ACTIVE_SLOT);
     applicaRisultatoPdfDirettamente(results);
   }
@@ -7652,7 +7702,7 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
     successCount: results.filter(risultatoPdfUtilizzabile).length,
     unrecognizedCount: results.filter((item) => !item.error && !risultatoPdfUtilizzabile(item)).length,
     errorCount: results.filter((item) => item.error).length,
-    activeSlot: batch.slot || "",
+    activeSlot: activeSlot || "",
     retainedCurrentDocuments: PDF_DOCUMENT_SLOTS.current.length,
     retainedOfferDocuments: PDF_DOCUMENT_SLOTS.offer.length,
   });
@@ -7938,20 +7988,51 @@ function numeroPrezzoSchedaPdf(value) {
 }
 
 // Regola esclusiva per le schede sintetiche: prezzo esplicito > F0 > media
-// aritmetica F1/F2/F3 > media aritmetica F1/F23. F23 non viene mai sommata
-// insieme a F2 e F3. Le bollette continuano a usare i consumi reali per fascia.
-function calcolaPrezzoSchedaLuceDaFasce(prezzi = {}) {
+// delle fasce coerenti. Se la scheda contiene pesi/consumi completi per le stesse
+// fasce usa la media ponderata; altrimenti usa la media aritmetica. F23 non viene
+// mai combinata con F2 e F3. Le bollette restano sul calcolo per consumi reali.
+function mediaPrezziSchedaPdf(valori, pesi = []) {
+  const validWeights = pesi.length === valori.length
+    && pesi.every((value) => Number.isFinite(value) && value > 0);
+  if (validWeights) {
+    const totalePesi = pesi.reduce((sum, value) => sum + value, 0);
+    const totale = valori.reduce((sum, value, index) => sum + value * pesi[index], 0);
+    return { value: Number((totale / totalePesi).toFixed(9)), weighted: true };
+  }
+  return {
+    value: Number((valori.reduce((sum, value) => sum + value, 0) / valori.length).toFixed(9)),
+    weighted: false,
+  };
+}
+
+function calcolaPrezzoSchedaLuceDaFasce(prezzi = {}, pesi = {}) {
   const f0 = numeroPrezzoSchedaPdf(prezzi.f0);
   const f1 = numeroPrezzoSchedaPdf(prezzi.f1);
   const f2 = numeroPrezzoSchedaPdf(prezzi.f2);
   const f3 = numeroPrezzoSchedaPdf(prezzi.f3);
   const f23 = numeroPrezzoSchedaPdf(prezzi.f23);
-  if (f0 !== null) return { value: f0, modalita: "f0", fasce: ["F0"] };
+  const w1 = numeroPrezzoSchedaPdf(pesi.f1);
+  const w2 = numeroPrezzoSchedaPdf(pesi.f2);
+  const w3 = numeroPrezzoSchedaPdf(pesi.f3);
+  const w23 = numeroPrezzoSchedaPdf(pesi.f23);
+  if (f0 !== null) return { value: f0, modalita: "f0", fasce: ["F0"], ponderata: false };
   if (f1 !== null && f2 !== null && f3 !== null) {
-    return { value: Number(((f1 + f2 + f3) / 3).toFixed(9)), modalita: "media_f1_f2_f3", fasce: ["F1", "F2", "F3"] };
+    const media = mediaPrezziSchedaPdf([f1, f2, f3], [w1, w2, w3]);
+    return {
+      value: media.value,
+      modalita: media.weighted ? "media_ponderata_f1_f2_f3" : "media_aritmetica_f1_f2_f3",
+      fasce: ["F1", "F2", "F3"],
+      ponderata: media.weighted,
+    };
   }
   if (f1 !== null && f23 !== null) {
-    return { value: Number(((f1 + f23) / 2).toFixed(9)), modalita: "media_f1_f23", fasce: ["F1", "F23"] };
+    const media = mediaPrezziSchedaPdf([f1, f23], [w1, w23]);
+    return {
+      value: media.value,
+      modalita: media.weighted ? "media_ponderata_f1_f23" : "media_aritmetica_f1_f23",
+      fasce: ["F1", "F23"],
+      ponderata: media.weighted,
+    };
   }
   return null;
 }
@@ -7965,6 +8046,11 @@ function prezzoSchedaLuceDaContrattoPdf(data) {
     f2: pdfPreviewAutofillValue(data, "prezzo_luce_f2_eur_kwh"),
     f3: pdfPreviewAutofillValue(data, "prezzo_luce_f3_eur_kwh"),
     f23: pdfPreviewAutofillValue(data, "prezzo_luce_f23_eur_kwh"),
+  }, {
+    f1: pdfPreviewAutofillValue(data, "consumo_luce_f1_kwh"),
+    f2: pdfPreviewAutofillValue(data, "consumo_luce_f2_kwh"),
+    f3: pdfPreviewAutofillValue(data, "consumo_luce_f3_kwh"),
+    f23: pdfPreviewAutofillValue(data, "consumo_luce_f23_kwh"),
   });
 }
 
@@ -7973,7 +8059,7 @@ function pdfAutofillAddDerivedBandPriceSpec(specs, data, targetId) {
   if (!derived) return false;
   const label = derived.modalita === "f0"
     ? "Prezzo luce della proposta da F0"
-    : `Prezzo luce medio della proposta (${derived.fasce.join(" + ")})`;
+    : `Prezzo luce ${derived.ponderata ? "medio ponderato" : "medio aritmetico"} della proposta (${derived.fasce.join(" + ")})`;
   specs.push({
     id: `prezzo-luce-fasce-${targetId}`,
     field: "prezzo_luce_fasce_calcolato",
@@ -9665,12 +9751,9 @@ function importaAnalisiPdfDaArchivio() {
   };
   const slot = pdfSlotDaKind(replayDocument.kind);
   if (!slot) return false;
-  resetCampiPdfSlot(slot);
   PDF_DOCUMENT_SLOTS[slot] = [replayDocument];
-  sincronizzaStatoDocumentiPdf(slot);
-  LEAD_STATE.dataOrigin = "pdf_upload";
+  ricostruisciModuloDaSlotPdf(slot);
   aggiornaInterfacciaSelezionePdf();
-  applicaRisultatoPdfDirettamente(PDF_DOCUMENT_SLOTS[slot]);
   return true;
 }
 

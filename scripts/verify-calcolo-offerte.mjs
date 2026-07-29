@@ -636,9 +636,11 @@ function runIntegrationAssertions(engine, params) {
   const assert = (condition, label) => { if (!condition) failures.push(label); };
 
   assertClose(engine.calcolaPrezzoSchedaLuceDaFasce({ f0: 0.111, f1: 0.2, f23: 0.3 })?.value, 0.111, "F0 prioritario");
-  assertClose(engine.calcolaPrezzoSchedaLuceDaFasce({ f1: 0.12, f23: 0.18 })?.value, 0.15, "media F1/F23");
-  assertClose(engine.calcolaPrezzoSchedaLuceDaFasce({ f1: 0.12, f2: 0.15, f3: 0.18 })?.value, 0.15, "media F1/F2/F3");
-  assertClose(engine.calcolaPrezzoSchedaLuceDaFasce({ f1: 0.12, f2: 0.15, f3: 0.18, f23: 0.99 })?.value, 0.15, "F23 esclusa dalla matrice F1/F2/F3");
+  assertClose(engine.calcolaPrezzoSchedaLuceDaFasce({ f1: 0.12, f23: 0.18 })?.value, 0.15, "media aritmetica F1/F23");
+  assertClose(engine.calcolaPrezzoSchedaLuceDaFasce({ f1: 0.12, f23: 0.18 }, { f1: 40, f23: 60 })?.value, 0.156, "media ponderata F1/F23");
+  assertClose(engine.calcolaPrezzoSchedaLuceDaFasce({ f1: 0.12, f2: 0.15, f3: 0.18 })?.value, 0.15, "media aritmetica F1/F2/F3");
+  assertClose(engine.calcolaPrezzoSchedaLuceDaFasce({ f1: 0.12, f2: 0.15, f3: 0.18 }, { f1: 33, f2: 31, f3: 36 })?.value, 0.1509, "media ponderata F1/F2/F3");
+  assertClose(engine.calcolaPrezzoSchedaLuceDaFasce({ f1: 0.12, f2: 0.15, f3: 0.18, f23: 0.99 }, { f1: 33, f2: 31, f3: 36, f23: 999 })?.value, 0.1509, "F23 esclusa dalla matrice F1/F2/F3");
   assert(engine.calcolaPrezzoSchedaLuceDaFasce({ f1: 0.12, f2: 0.15 }) === null, "fasce incomplete non devono produrre un prezzo");
 
   const sheet = {
@@ -681,6 +683,7 @@ function runIntegrationAssertions(engine, params) {
 
   const html = readText(HTML_PATH);
   assert(html.includes("OFFERTALOGICA_PDF_CURRENT_OFFER_SLOTS_20260728"), "marker persistenza PDF assente");
+  assert(html.includes("OFFERTALOGICA_PDF_SLOT_REBUILD_20260729"), "marker ricostruzione slot PDF assente");
   assert(html.includes("OFFERTALOGICA_OFFER_SHEET_SINGLE_PRICE_20260728"), "marker prezzo unico scheda assente");
   assert(html.includes("OFFERTALOGICA_DAILY_ARERA_PARTNER_PRICES_20260728"), "marker prezzi ARERA giornalieri assente");
   assert(!html.includes("if (!dual) return normalizzaOfferta(offerta, 0);"), "fallback ai prezzi statici partner ancora presente");
@@ -720,7 +723,7 @@ function main() {
     errorCount: allErrors.length,
     warningCount: allWarnings.length + partnerWarnings.length,
     partnerWarningCount: partnerWarnings.length,
-    integrationCheckCount: 22,
+    integrationCheckCount: 26,
     integrationFailures,
     partnerAudit,
     profiles,
