@@ -23,18 +23,29 @@ function extractBetween(startToken, endToken) {
 
 const code = [
   extractBetween("function pdfContractFieldEntry", "function pdfCommonExactValue"),
+  extractBetween("function pdfSafeAutofillValue", "function pdfValoreContrattoCompletoPerCalcolo"),
   extractBetween("function pdfValoreContrattoCompletoPerCalcolo", "const PDF_AUTOFILL_FIELD_IDS"),
   extractBetween("function numeroPrezzoSchedaPdf", "function mediaPrezziSchedaPdf"),
   extractBetween("function testoVocePrezzoAdattivaPdf", "function prezzoVenditaEsplicitoDaVociAdattivePdf"),
-  extractBetween("function prezzoVenditaEsplicitoDaVociAdattivePdf", "function calcolaPrezzoBollettaLuceDaFasce"),
-  extractBetween("function calcolaPrezzoBollettaLuceDaFasce", "function prezzoBollettaLuceDaContrattoPdf"),
+  extractBetween("function pdfVocePrezzoHaUnitaCommodity", "function calcolaPrezzoBollettaLuceDaFasce"),
+  extractBetween("function calcolaPrezzoBollettaLuceDaFasce", "const CAMPI_PROFILO_PDF"),
+  extractBetween("function pdfAutofillHasValue", "function pdfAutofillAddSpec"),
+  extractBetween("function pdfAutofillAddSpec", "function pdfVocePrezzoHaUnitaCommodity"),
+  extractBetween("function buildPdfAutofillSpecs", "function pdfAutofillIncomingTargetValue"),
+  extractBetween("function pdfAutofillIncomingTargetValue", "function pdfAutofillStatusLabel"),
   extractBetween("function fasceDaProfiloPdf", "function leggiOffertaAttuale"),
   extractBetween("function calcolaMateriaPerFasce", "function calcolaVoceEnergia"),
 ].join("\n\n");
 
-const context = { PDF_PROFILE_STATE: { current: {}, offer: {} } };
+const context = {
+  PDF_PROFILE_STATE: { current: {}, offer: {} },
+  PDF_MANUAL_TOUCHED_FIELDS: new Set(),
+  document: { getElementById: () => ({ value: "", tagName: "INPUT" }) },
+  pdfAutofillAddDerivedBandPriceSpec: () => false,
+  pdfAutofillAddDerivedPunPriceSpec: () => false,
+};
 vm.createContext(context);
-vm.runInContext(`${code}\nthis.api = { pdfValoreContrattoCompletoPerCalcolo, prezzoVenditaEsplicitoDaVociAdattivePdf, calcolaPrezzoBollettaLuceDaFasce, fasceDaProfiloPdf, calcolaMateriaPerFasce };`, context);
+vm.runInContext(`${code}\nthis.api = { pdfValoreContrattoCompletoPerCalcolo, prezzoVenditaEsplicitoDaVociAdattivePdf, calcolaPrezzoBollettaLuceDaFasce, prezzoBollettaLuceDaContrattoPdf, prezzoBollettaGasDaContrattoPdf, pdfAutofillAddDerivedCurrentBillPriceSpec, buildPdfAutofillSpecs, buildPdfAutofillPreviewRows, fasceDaProfiloPdf, calcolaMateriaPerFasce };`, context);
 const api = context.api;
 
 const luceEstra = {
@@ -79,6 +90,92 @@ const gasEstra = {
     }],
   },
 };
+
+
+const generalLabels = [
+  {
+    commodity: "gas",
+    label: "Costo per materia gas naturale",
+    value: 0.827,
+    unit: "€/Smc",
+  },
+  {
+    commodity: "luce",
+    label: "Prezzo Materia Prima (PrzMP)",
+    value: 0.136923,
+    unit: "€/kWh",
+  },
+  {
+    commodity: "luce",
+    label: "Costo materia energia",
+    value: 0.145321,
+    unit: "€/kWh",
+  },
+  {
+    commodity: "gas",
+    label: "Materia prima gas naturale",
+    value: 0.612345,
+    unit: "€/Smc",
+  },
+];
+for (const fixture of generalLabels) {
+  const data = {
+    kind: "bolletta",
+    adaptive_form: { supplies: [{ commodity: fixture.commodity, primary_price: null, price_items: [fixture] }] },
+  };
+  assert(close(api.prezzoVenditaEsplicitoDaVociAdattivePdf(data, fixture.commodity)?.value, fixture.value), `Dicitura generale non promossa: ${fixture.label}`);
+}
+
+const componentWithDiscount = {
+  kind: "bolletta",
+  adaptive_form: { supplies: [{
+    commodity: "gas",
+    primary_price: null,
+    formula: "Corrispettivo Gas - Sconto Domiciliazione",
+    price_items: [
+      { label: "Corrispettivo Gas", value: 0.4324081, unit: "€/Smc" },
+      { label: "Sconto Domiciliazione", value: -0.0216204, unit: "€/Smc" },
+    ],
+  }] },
+};
+assert(api.prezzoVenditaEsplicitoDaVociAdattivePdf(componentWithDiscount, "gas") === null, "Un corrispettivo base con sconto separato viene usato come prezzo finale");
+
+const currentPreviewGas = {
+  kind: "bolletta",
+  customer_type: "privato",
+  data_contract: { fields: {} },
+  adaptive_form: { supplies: [{
+    commodity: "gas",
+    primary_price: null,
+    price_items: [{ label: "Costo per materia gas naturale", value: 0.827, unit: "€/Smc" }],
+  }] },
+};
+const previewGasRows = api.buildPdfAutofillPreviewRows(currentPreviewGas, "privato");
+const previewGasPrice = previewGasRows.find((row) => row.target_ids?.includes("in-gas-prezzo-att"));
+assert(close(previewGasPrice?.value, 0.827), "Il prezzo gas ricavato non entra nel piano dell'anteprima");
+assert(previewGasPrice?.selected === true && previewGasPrice?.status === "campo_vuoto", "Il prezzo gas ricavato non è selezionato nell'anteprima");
+
+const currentPreviewLuceBands = {
+  kind: "bolletta",
+  customer_type: "privato",
+  data_contract: { fields: {
+    prezzo_luce_f1_eur_kwh: { status: "completo", normalized_value: 0.156567, provenance: { origin: "pdf_visual_ai" }, autofill: { allowed: false } },
+    prezzo_luce_f23_eur_kwh: { status: "completo", normalized_value: 0.146567, provenance: { origin: "pdf_visual_ai" }, autofill: { allowed: false } },
+    consumo_luce_f1_kwh: { status: "completo", normalized_value: 732.8, provenance: { origin: "pdf_visual_ai" }, autofill: { allowed: false } },
+    consumo_luce_f23_kwh: { status: "completo", normalized_value: 1117.2, provenance: { origin: "pdf_visual_ai" }, autofill: { allowed: false } },
+  } },
+  adaptive_form: { supplies: [{
+    commodity: "luce",
+    primary_price: null,
+    price_items: [
+      { band: "F1", label: "Corrispettivo Energia (F1)", value: 0.156567, unit: "€/kWh" },
+      { band: "F23", label: "Corrispettivo Energia (F23)", value: 0.146567, unit: "€/kWh" },
+    ],
+  }] },
+};
+const previewLuceRows = api.buildPdfAutofillPreviewRows(currentPreviewLuceBands, "privato");
+const previewLucePrice = previewLuceRows.find((row) => row.target_ids?.includes("in-luce-prezzo-att"));
+assert(close(previewLucePrice?.value, 0.150528081, 1e-9), "La media ponderata F1/F23 non entra nel piano dell'anteprima");
 
 assert(close(api.prezzoVenditaEsplicitoDaVociAdattivePdf(luceEstra, "luce")?.value, 0.188041), "Bolletta Estra luce: prezzo vendita esplicito non promosso");
 assert(close(api.prezzoVenditaEsplicitoDaVociAdattivePdf(gasEstra, "gas")?.value, 0.561228), "Bolletta Estra gas: prezzo materia esplicito non promosso");
@@ -128,6 +225,9 @@ const materia = api.calcolaMateriaPerFasce({ f1: 10, f2: 20, f3: 30, f23: 50 }, 
 assert(materia?.modalitaPrezzo === "f1_f2_f3" && close(materia.quotaMateria, 140), "Il motore preferisce F1/F23 anche quando F1/F2/F3 sono complete");
 
 assert(html.includes("OFFERTALOGICA_CURRENT_BILL_PRICE_SLOTS_20260729"), "Marker slot prezzo bolletta assente");
+assert(html.includes("OFFERTALOGICA_CURRENT_BILL_PRICE_ANSWER_20260729"), "Marker risposta prezzo bolletta assente");
+assert(html.includes('pdfAutofillAddDerivedCurrentBillPriceSpec(specs, data, "luce", "in-luce-prezzo-att")'), "Il prezzo luce risolto non viene aggiunto all'anteprima");
+assert(html.includes('pdfAutofillAddDerivedCurrentBillPriceSpec(specs, data, "gas", "in-gas-prezzo-att")'), "Il prezzo gas risolto non viene aggiunto all'anteprima");
 assert(html.includes('const lucePrice = safe("prezzo_luce_eur_kwh") ?? prezzoBollettaLuceDaContrattoPdf(data)?.value;'), "Il prezzo luce derivato non viene inserito nel campo principale");
 assert(html.includes('const gasPrice = safe("prezzo_gas_eur_smc") ?? prezzoBollettaGasDaContrattoPdf(data)?.value;'), "Il prezzo gas adattivo non viene inserito nel campo principale");
 assert(html.includes("aggiornaProfiloPdfDaDati(data, isOffer ? \"offer\" : \"current\")"), "I valori per fascia non vengono salvati nello slot del profilo");

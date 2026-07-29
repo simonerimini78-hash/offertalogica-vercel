@@ -8006,45 +8006,107 @@ function testoVocePrezzoAdattivaPdf(entry, includeEvidence = true) {
     .trim();
 }
 
+function pdfVocePrezzoHaUnitaCommodity(entry, commodity) {
+  const text = [entry?.unit, entry?.label, entry?.value_text, entry?.evidence]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  return commodity === "luce"
+    ? /(?:€|eur)\s*\/\s*kwh\b/.test(text)
+    : /(?:€|eur)\s*\/\s*smc\b/.test(text);
+}
+
+function pdfPunteggioVocePrezzoVendita(entry, commodity, supply) {
+  const value = numeroPrezzoSchedaPdf(entry?.value ?? entry?.value_text);
+  if (value === null || !pdfVocePrezzoHaUnitaCommodity(entry, commodity)) return null;
+  if (entry?.band && String(entry.band).toLowerCase() !== "none") return null;
+
+  const label = testoVocePrezzoAdattivaPdf(entry, false);
+  const evidence = testoVocePrezzoAdattivaPdf(entry, true);
+  const excluded = /rete|oneri|trasport|distribuz|impost|\biva\b|accis|quota\s+fissa|potenza|\bpun\b|\bpsv\b|spread|dispacci|capacit[aà]|perdit|sconto|bonus|totale|intera\s+bolletta|quota\s+per\s+consumi/;
+  if (!label || excluded.test(label)) return null;
+
+  const patterns = commodity === "luce"
+    ? [
+        { re: /(?:di\s+cui\s+)?(?:spesa|costo)\s+per\s+(?:la\s+)?(?:vendita|materia)(?:\s+di)?\s+(?:energia\s+elettrica|materia\s+energia)/, score: 220 },
+        { re: /(?:prezzo|costo)\s+(?:unitario\s+)?(?:finale\s+)?(?:per\s+|della\s+|di\s+)?(?:materia\s+prima|materia\s+energia|energia\s+elettrica)/, score: 210 },
+        { re: /prezzo\s+materia\s+prima|\bprzmp\b/, score: 205 },
+        { re: /(?:materia\s+prima|materia\s+energia)\b/, score: 185 },
+        { re: /(?:corrispettivo|componente)\s+(?:di\s+)?(?:energia|materia\s+energia)\b/, score: 135 },
+        { re: /prezzo\s+(?:unitario|applicato|effettivo|finale)\b/, score: 125 },
+      ]
+    : [
+        { re: /(?:di\s+cui\s+)?(?:spesa|costo)\s+per\s+(?:la\s+)?(?:vendita|materia)(?:\s+di)?\s+(?:gas\s+naturale|gas)/, score: 220 },
+        { re: /(?:prezzo|costo)\s+(?:unitario\s+)?(?:finale\s+)?(?:per\s+|della\s+|di\s+)?(?:materia\s+prima\s+gas|materia\s+gas\s+naturale|gas\s+naturale|gas)/, score: 210 },
+        { re: /prezzo\s+materia\s+prima|\bprzmp\b/, score: 205 },
+        { re: /materia\s+(?:prima\s+)?gas(?:\s+naturale)?\b/, score: 185 },
+        { re: /(?:corrispettivo|componente)\s+(?:di\s+)?gas\b/, score: 135 },
+        { re: /prezzo\s+(?:unitario|applicato|effettivo|finale)\b/, score: 125 },
+      ];
+
+  let score = 0;
+  patterns.forEach((item) => {
+    if (item.re.test(label)) score = Math.max(score, item.score);
+  });
+  if (!score) {
+    // L'evidenza viene usata solo come supporto a un'etichetta generica; le esclusioni
+    // restano valutate sull'etichetta per non scartare una riga corretta quando lo
+    // snippet contiene anche la riga adiacente di rete/oneri.
+    patterns.forEach((item) => {
+      if (item.re.test(evidence)) score = Math.max(score, item.score - 45);
+    });
+  }
+  if (!score) return null;
+
+  const bareComponent = /^(?:corrispettivo|componente)\b/.test(label);
+  if (bareComponent) {
+    const otherItems = (Array.isArray(supply?.price_items) ? supply.price_items : [])
+      .filter((item) => item !== entry && pdfVocePrezzoHaUnitaCommodity(item, commodity));
+    const hasModifier = otherItems.some((item) => {
+      const otherValue = numeroPrezzoSchedaPdf(item?.value ?? item?.value_text);
+      const otherLabel = testoVocePrezzoAdattivaPdf(item, false);
+      return Number(item?.value) < 0 || /sconto|perdit|spread|dispacci|maggioraz|riduz|bonus/.test(otherLabel) || (otherValue !== null && /componente/.test(otherLabel));
+    });
+    const formula = String(supply?.formula || "").toLowerCase();
+    if (hasModifier || /[+\-*×]/.test(formula)) score -= 90;
+  }
+
+  if (score < 100) return null;
+  return { value, score, text: evidence, entry };
+}
+
 function prezzoVenditaEsplicitoDaVociAdattivePdf(data, commodity) {
   if (data?.kind !== "bolletta") return null;
   const supply = (Array.isArray(data?.adaptive_form?.supplies) ? data.adaptive_form.supplies : [])
     .find((item) => item?.commodity === commodity);
   if (!supply) return null;
 
-  const primary = numeroPrezzoSchedaPdf(supply?.primary_price?.value ?? supply?.primary_price?.value_text);
-  if (primary !== null) return { value: primary, modalita: "unit_price", source: "adaptive_primary_price" };
-
-  const expectedUnit = commodity === "luce" ? /(?:€|eur)\s*\/\s*kwh|kwh/i : /(?:€|eur)\s*\/\s*smc|smc/i;
-  const excluded = /rete|oneri|trasport|distribuz|impost|\biva\b|accis|quota\s+fissa|potenza|\bpun\b|\bpsv\b|spread|dispacci|capacit[aà]|totale/;
-  const preferred = commodity === "luce"
-    ? [
-        /di cui.*spesa.*(?:vendita|materia).*(?:energia elettrica|materia energia)/,
-        /spesa.*(?:vendita|materia).*(?:energia elettrica|materia energia)/,
-      ]
-    : [
-        /di cui.*spesa.*(?:vendita|materia).*(?:gas naturale|\bgas\b)/,
-        /spesa.*(?:vendita|materia).*(?:gas naturale|\bgas\b)/,
-      ];
+  const primaryEntry = supply?.primary_price;
+  const primary = numeroPrezzoSchedaPdf(primaryEntry?.value ?? primaryEntry?.value_text);
+  if (primary !== null && pdfVocePrezzoHaUnitaCommodity(primaryEntry, commodity)) {
+    return {
+      value: primary,
+      modalita: "unit_price",
+      source: "adaptive_primary_price",
+      label: primaryEntry?.label || null,
+    };
+  }
 
   const candidates = (Array.isArray(supply.price_items) ? supply.price_items : [])
-    .map((entry) => {
-      const value = numeroPrezzoSchedaPdf(entry?.value ?? entry?.value_text);
-      const labelText = testoVocePrezzoAdattivaPdf(entry, false);
-      const evidenceText = testoVocePrezzoAdattivaPdf(entry, true);
-      if (value === null || !expectedUnit.test(labelText) || excluded.test(labelText)) return null;
-      const score = preferred.reduce((best, pattern, index) => pattern.test(evidenceText) ? Math.max(best, 100 - index * 15) : best, 0);
-      return score ? { value, score, text: evidenceText, entry } : null;
-    })
+    .map((entry) => pdfPunteggioVocePrezzoVendita(entry, commodity, supply))
     .filter(Boolean)
-    .sort((a, b) => b.score - a.score);
+    .sort((a, b) => b.score - a.score || String(a.entry?.label || "").localeCompare(String(b.entry?.label || "")));
 
   if (!candidates.length) return null;
+  const top = candidates[0];
+  const second = candidates[1];
+  if (second && second.score === top.score && Math.abs(second.value - top.value) > 0.0000005) return null;
   return {
-    value: candidates[0].value,
+    value: top.value,
     modalita: "price_component_vendita_esplicito",
     source: "adaptive_price_items",
-    label: candidates[0].entry?.label || null,
+    label: top.entry?.label || null,
+    score: top.score,
   };
 }
 
@@ -8091,6 +8153,38 @@ function prezzoBollettaLuceDaContrattoPdf(data) {
 function prezzoBollettaGasDaContrattoPdf(data) {
   if (data?.kind !== "bolletta") return null;
   return prezzoVenditaEsplicitoDaVociAdattivePdf(data, "gas");
+}
+
+// OFFERTALOGICA_CURRENT_BILL_PRICE_ANSWER_20260729
+function pdfAutofillAddDerivedCurrentBillPriceSpec(specs, data, commodity, targetId) {
+  if (data?.kind !== "bolletta") return false;
+  const field = commodity === "luce" ? "prezzo_luce_eur_kwh" : "prezzo_gas_eur_smc";
+  if (pdfPreviewAutofillValue(data, field) !== undefined) return false;
+  const derived = commodity === "luce"
+    ? prezzoBollettaLuceDaContrattoPdf(data)
+    : prezzoBollettaGasDaContrattoPdf(data);
+  if (!derived || !Number.isFinite(Number(derived.value)) || Number(derived.value) <= 0) return false;
+  const unit = commodity === "luce" ? "€/kWh" : "€/Smc";
+  const commodityLabel = commodity === "luce" ? "luce" : "gas";
+  const sourceLabel = derived.label ? ` · ${derived.label}` : "";
+  specs.push({
+    id: `prezzo-${commodity}-bolletta-risolto-${targetId}`,
+    field: `${field}_risolto_da_pdf`,
+    label: `Prezzo ${commodityLabel} attuale ricavato dal PDF${sourceLabel}`,
+    value: Number(derived.value),
+    target_ids: [targetId],
+    kind: "value",
+    compare_mode: "number",
+    unit,
+    input_id: targetId,
+    unit_id: null,
+    transform: null,
+    review_required: false,
+    source_origin: derived.source || "derived_current_bill_price",
+    profile_scope: null,
+    profile_key: null,
+  });
+  return true;
 }
 
 const CAMPI_PROFILO_PDF = Object.freeze([
@@ -8275,12 +8369,18 @@ function buildPdfAutofillSpecs(data, customerType = "privato") {
     add("consumo_luce_kwh", "Consumo annuo luce", ["business-kwh"], { unit: "kWh/anno", compare_mode: "number" });
     if (pdfPreviewAutofillValue(data, "prezzo_luce_eur_kwh") !== undefined) {
       add("prezzo_luce_eur_kwh", "Prezzo luce", ["business-prezzo-luce"], { unit: "€/kWh", compare_mode: "number" });
+    } else if (data.kind === "bolletta") {
+      pdfAutofillAddDerivedCurrentBillPriceSpec(specs, data, "luce", "business-prezzo-luce");
     } else if (!pdfAutofillAddDerivedBandPriceSpec(specs, data, "business-prezzo-luce")) {
       pdfAutofillAddDerivedPunPriceSpec(specs, data, "business-prezzo-luce");
     }
     add("quota_fissa_vendita_luce_eur_anno", "Quota fissa luce", ["business-fisso-luce"], { unit: "€/anno", compare_mode: "number" });
     add("consumo_gas_smc", "Consumo annuo gas", ["business-smc"], { unit: "Smc/anno", compare_mode: "number" });
-    add("prezzo_gas_eur_smc", "Prezzo gas", ["business-prezzo-gas"], { unit: "€/Smc", compare_mode: "number" });
+    if (pdfPreviewAutofillValue(data, "prezzo_gas_eur_smc") !== undefined) {
+      add("prezzo_gas_eur_smc", "Prezzo gas", ["business-prezzo-gas"], { unit: "€/Smc", compare_mode: "number" });
+    } else if (data.kind === "bolletta") {
+      pdfAutofillAddDerivedCurrentBillPriceSpec(specs, data, "gas", "business-prezzo-gas");
+    }
     add("quota_fissa_vendita_gas_eur_anno", "Quota fissa gas", ["business-fisso-gas"], { unit: "€/anno", compare_mode: "number" });
     return specs;
   }
@@ -8335,12 +8435,20 @@ function buildPdfAutofillSpecs(data, customerType = "privato") {
   add("fornitore_gas", "Fornitore gas attuale", ["nome-fornitore-gas-att"], { transform: "provider" });
   add("potenza_impegnata_kw", "Potenza impegnata luce", ["master-luce-potenza"], { unit: "kW", compare_mode: "number" });
   add("consumo_luce_kwh", "Consumo annuo luce", ["in-luce-cons-att", "in-luce-cons-nuov"], { unit: "kWh/anno", compare_mode: "number" });
-  add("prezzo_luce_eur_kwh", "Prezzo luce attuale", ["in-luce-prezzo-att"], { unit: "€/kWh", compare_mode: "number" });
+  if (pdfPreviewAutofillValue(data, "prezzo_luce_eur_kwh") !== undefined) {
+    add("prezzo_luce_eur_kwh", "Prezzo luce attuale", ["in-luce-prezzo-att"], { unit: "€/kWh", compare_mode: "number" });
+  } else {
+    pdfAutofillAddDerivedCurrentBillPriceSpec(specs, data, "luce", "in-luce-prezzo-att");
+  }
   add("quota_fissa_vendita_luce_eur_anno", "Quota fissa luce attuale", ["in-luce-fisso-att", "in-luce-fisso-att-unita"], {
     kind: "fixed_annual", compare_mode: "fixed_annual", unit: "€/anno", input_id: "in-luce-fisso-att", unit_id: "in-luce-fisso-att-unita",
   });
   add("consumo_gas_smc", "Consumo annuo gas", ["in-gas-cons-att", "in-gas-cons-nuov"], { unit: "Smc/anno", compare_mode: "number" });
-  add("prezzo_gas_eur_smc", "Prezzo gas attuale", ["in-gas-prezzo-att"], { unit: "€/Smc", compare_mode: "number" });
+  if (pdfPreviewAutofillValue(data, "prezzo_gas_eur_smc") !== undefined) {
+    add("prezzo_gas_eur_smc", "Prezzo gas attuale", ["in-gas-prezzo-att"], { unit: "€/Smc", compare_mode: "number" });
+  } else {
+    pdfAutofillAddDerivedCurrentBillPriceSpec(specs, data, "gas", "in-gas-prezzo-att");
+  }
   add("quota_fissa_vendita_gas_eur_anno", "Quota fissa gas attuale", ["in-gas-fisso-att", "in-gas-fisso-att-unita"], {
     kind: "fixed_annual", compare_mode: "fixed_annual", unit: "€/anno", input_id: "in-gas-fisso-att", unit_id: "in-gas-fisso-att-unita",
   });
