@@ -1779,7 +1779,11 @@
             }
             body.mobile-pdf-status-visible .guided-assistant-launcher,
             body.mobile-pdf-status-visible .guided-assistant,
-            body.mobile-pdf-status-visible .activation-helper-fab {
+            body.mobile-pdf-status-visible .activation-helper-fab,
+            body.mobile-offers-focus .guided-assistant-launcher,
+            body.mobile-offers-focus .guided-assistant,
+            body.mobile-offers-focus .activation-helper-fab {
+                display: none !important;
                 visibility: hidden !important;
                 pointer-events: none !important;
             }
@@ -7042,7 +7046,11 @@ function assistenteAttivazioneDisponibile() {
 function aggiornaAssistenteAttivazioneVisibilita() {
   const button = document.getElementById("activation-helper-fab");
   if (!button) return;
-  const visible = assistenteAttivazioneDisponibile();
+  const activationStarted = Boolean(
+    LEAD_STATE.activationAssistant?.pendingUrl ||
+    LEAD_STATE.activationAssistant?.offer
+  );
+  const visible = activationStarted && assistenteAttivazioneDisponibile();
   button.style.display = visible ? "inline-flex" : "none";
   button.setAttribute("aria-hidden", visible ? "false" : "true");
 }
@@ -7149,6 +7157,7 @@ window.apriAssistenteAttivazione = function apriAssistenteAttivazione(options = 
     pendingUrl: options.url || LEAD_STATE.activationAssistant?.pendingUrl || "",
     offer: options.offer || LEAD_STATE.activationAssistant?.offer || LEAD_STATE.selectedOffer || null,
   };
+  aggiornaAssistenteAttivazioneVisibilita();
   renderAssistenteAttivazione();
   const modal = document.getElementById("activation-helper-backdrop");
   if (modal) modal.style.display = "flex";
@@ -7601,11 +7610,28 @@ function aggiornaStatoPdfMobileDopoAnalisi({ files = [], validCurrent = [], vali
   });
 }
 
+function attivaFocusOfferteMobile() {
+  if (!esperienzaPdfMobileAttiva()) return;
+  document.body.classList.add("mobile-offers-focus");
+  document.getElementById("guided-assistant-panel")?.classList.remove("is-open");
+  document.getElementById("guided-assistant-toggle")?.setAttribute("aria-expanded", "false");
+}
+
+function portaAlTeaserOfferteMobile() {
+  const teaser = document.getElementById("lead-teaser");
+  const offers = document.querySelector(".fornitori-consigliati-section");
+  const teaserVisible = teaser && window.getComputedStyle(teaser).display !== "none";
+  const target = teaserVisible ? teaser : offers;
+  if (target) portaElementoInVista(target, { block: "start", focus: false, delay: 40 });
+}
+
 function gestisciAzionePrimariaPdfMobile() {
   const action = MOBILE_PDF_STATUS_STATE.primaryAction;
   if (action === "compare") {
     nascondiStatoPdfMobile();
+    attivaFocusOfferteMobile();
     window.avviaComparazioneDati?.();
+    window.requestAnimationFrame(() => window.setTimeout(portaAlTeaserOfferteMobile, 30));
     return;
   }
   if (action === "missing") {
@@ -9939,6 +9965,7 @@ function renderPdfSummary(documents, merged) {
 }
 
 window.azzeraPdfEModulo = function azzeraPdfEModulo() {
+  document.body.classList.remove("mobile-offers-focus");
   trackEvent("pdf_reset", {
     pdfDocumentCount: (LEAD_STATE.pdfDocuments || []).length,
   });
@@ -10683,6 +10710,7 @@ function preparaRisparmioIngressoSocialMobile() {
 function apriOfferteDaIngressoSocial() {
   if (!SOCIAL_ENTRY_STATE.ready) return;
   SOCIAL_ENTRY_STATE.active = false;
+  attivaFocusOfferteMobile();
   document.documentElement.classList.remove("social-entry-requested");
   document.body.classList.remove("social-entry-active");
   const entry = document.getElementById("social-mobile-entry");

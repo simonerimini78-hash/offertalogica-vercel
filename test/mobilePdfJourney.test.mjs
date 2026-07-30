@@ -33,13 +33,19 @@ test("mobile PDF: durante l'analisi disabilita i controlli e li riattiva alla fi
   assert.match(analysis, /aggiornaStatoPdfMobileDopoAnalisi/);
 });
 
-test("mobile PDF: dopo una bolletta completa usa il confronto esistente", () => {
-  const status = between(html, "function aggiornaStatoPdfMobileDopoAnalisi", "function gestisciAzionePrimariaPdfMobile");
+test("mobile PDF: dopo una bolletta completa mostra il teaser offerte e non il modulo", () => {
+  const status = between(html, "function aggiornaStatoPdfMobileDopoAnalisi", "function attivaFocusOfferteMobile");
   assert.match(status, /Bolletta letta correttamente/);
   assert.match(status, /primaryLabel: "Confronta le offerte"/);
   assert.match(status, /primaryAction: "compare"/);
   const action = between(html, "function gestisciAzionePrimariaPdfMobile", "function controllaDatiDaStatoPdfMobile");
+  assert.match(action, /attivaFocusOfferteMobile\(\)/);
   assert.match(action, /window\.avviaComparazioneDati\?\.\(\)/);
+  assert.match(action, /portaAlTeaserOfferteMobile/);
+  const target = between(html, "function portaAlTeaserOfferteMobile", "function gestisciAzionePrimariaPdfMobile");
+  assert.match(target, /document\.getElementById\("lead-teaser"\)/);
+  assert.match(target, /document\.querySelector\("\.fornitori-consigliati-section"\)/);
+  assert.match(target, /portaElementoInVista\(target/);
 });
 
 test("mobile PDF: se mancano dati porta al primo campo evidenziato", () => {
@@ -79,4 +85,28 @@ test("mobile PDF: il reset chiude il pannello e ripristina i controlli", () => {
   const reset = between(html, "window.azzeraPdfEModulo = function azzeraPdfEModulo", "function aggiornaTestoPulsanteConfronto");
   assert.match(reset, /nascondiStatoPdfMobile\(\)/);
   assert.match(reset, /impostaControlliPdfInAnalisi\(false\)/);
+});
+
+
+test("mobile PDF: nasconde gli strumenti flottanti durante teaser e OTP", () => {
+  assert.match(html, /body\.mobile-offers-focus \.guided-assistant-launcher/);
+  assert.match(html, /body\.mobile-offers-focus \.activation-helper-fab/);
+  const focus = between(html, "function attivaFocusOfferteMobile", "function portaAlTeaserOfferteMobile");
+  assert.match(focus, /classList\.add\("mobile-offers-focus"\)/);
+  assert.match(focus, /guided-assistant-panel/);
+});
+
+test("mobile PDF: i dati per attivare compaiono solo dopo l'avvio dell'attivazione", () => {
+  const visibility = between(html, "function aggiornaAssistenteAttivazioneVisibilita", "function assistenteAttivazioneStatus");
+  assert.match(visibility, /activationStarted/);
+  assert.match(visibility, /LEAD_STATE\.activationAssistant\?\.pendingUrl/);
+  assert.match(visibility, /LEAD_STATE\.activationAssistant\?\.offer/);
+  assert.match(visibility, /activationStarted && assistenteAttivazioneDisponibile\(\)/);
+  const opener = between(html, "window.apriAssistenteAttivazione", "function chiudiAssistenteAttivazione");
+  assert.match(opener, /aggiornaAssistenteAttivazioneVisibilita\(\)/);
+});
+
+test("mobile PDF: il reset rimuove la modalità focalizzata sulle offerte", () => {
+  const reset = between(html, "window.azzeraPdfEModulo = function azzeraPdfEModulo", "function aggiornaTestoPulsanteConfronto");
+  assert.match(reset, /classList\.remove\("mobile-offers-focus"\)/);
 });
