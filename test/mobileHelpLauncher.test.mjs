@@ -41,10 +41,12 @@ test("aiuto mobile: apre lo stesso assistente del pulsante desktop", () => {
   assert.match(init, /panel\.classList\.toggle\("is-open", isOpen\)/);
 });
 
-test("aiuto mobile: non copre caricamento PDF, offerte o landing social", () => {
+test("aiuto mobile: resta disponibile nelle offerte ma non durante PDF o landing social", () => {
   const css = between(html, "\/\* OFFERTALOGICA_MOBILE_HELP_NEAR_IUBENDA_20260730 \*\/", "</style>");
   assert.match(css, /body\.mobile-pdf-status-visible \.guided-assistant-mobile-toggle/);
-  assert.match(css, /body\.mobile-offers-focus \.guided-assistant-mobile-toggle/);
   assert.match(css, /html\.social-entry-requested \.guided-assistant-mobile-toggle/);
-  assert.match(css, /display: none !important;/);
+  assert.doesNotMatch(css, /body\.mobile-offers-focus \.guided-assistant-mobile-toggle/);
+
+  const mobileJourneyCss = between(html, "\/\* OFFERTALOGICA_MOBILE_PDF_JOURNEY_V1_20260730 \*\/", "\/\* OFFERTALOGICA_SOCIAL_ENTRY_MOBILE_V1_20260730 \*\/");
+  assert.doesNotMatch(mobileJourneyCss, /body\.mobile-offers-focus \.guided-assistant[,\s]/);
 });
