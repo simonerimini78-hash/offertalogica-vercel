@@ -1773,10 +1773,10 @@
             inset: 0;
             z-index: 12000;
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             justify-content: center;
             min-height: 100dvh;
-            padding: max(22px, env(safe-area-inset-top)) 18px max(22px, env(safe-area-inset-bottom));
+            padding: max(32px, calc(env(safe-area-inset-top) + 12px)) 18px max(22px, env(safe-area-inset-bottom));
             overflow-y: auto;
             background:
                 radial-gradient(circle at 50% 12%, rgba(126, 211, 33, .16), transparent 31%),
@@ -1790,6 +1790,7 @@
             gap: 15px;
             padding: 4px 4px 12px;
             text-align: center;
+            margin-block: auto;
         }
         .social-entry-logo {
             width: min(78vw, 300px);

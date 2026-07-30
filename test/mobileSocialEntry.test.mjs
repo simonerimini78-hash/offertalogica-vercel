@@ -52,6 +52,12 @@ test("ingresso social: il pulsante usa il gradiente, il pulse e rispetta reduced
   assert.match(html, /prefers-reduced-motion: reduce/);
 });
 
+test("ingresso social: su viewport bassi non taglia il logo in alto", () => {
+  assert.match(html, /html\.social-entry-requested \.social-mobile-entry[\s\S]*align-items: flex-start/);
+  assert.match(html, /padding: max\(32px, calc\(env\(safe-area-inset-top\) \+ 12px\)\)/);
+  assert.match(html, /\.social-entry-card[\s\S]*margin-block: auto/);
+});
+
 test("offerte: propone la bolletta senza bloccare la stima media", () => {
   assert.match(html, /id="offers-personalize-prompt" hidden/);
   assert.match(html, /id="offers-upload-bill">Carica la bolletta</);
