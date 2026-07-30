@@ -1781,7 +1781,6 @@
             body.mobile-pdf-status-visible .guided-assistant,
             body.mobile-pdf-status-visible .activation-helper-fab,
             body.mobile-offers-focus .guided-assistant-launcher,
-            body.mobile-offers-focus .guided-assistant,
             body.mobile-offers-focus .activation-helper-fab {
                 display: none !important;
                 visibility: hidden !important;
@@ -2084,6 +2083,43 @@
         }
         @media (prefers-reduced-motion: reduce) {
             .social-entry-cta { animation: none; }
+        }
+
+        /* OFFERTALOGICA_MOBILE_HELP_NEAR_IUBENDA_20260730 */
+        .guided-assistant-mobile-toggle { display: none; }
+        @media (max-width: 560px) {
+            .guided-assistant-launcher { display: none !important; }
+            .guided-assistant-mobile-toggle {
+                position: fixed;
+                left: 58px;
+                bottom: max(10px, env(safe-area-inset-bottom));
+                z-index: 949;
+                display: grid;
+                place-items: center;
+                width: 42px;
+                height: 42px;
+                border: 1px solid rgba(22, 163, 74, .24);
+                border-radius: 999px;
+                padding: 0;
+                background: rgba(255, 255, 255, .97);
+                color: #15803d;
+                font-size: 22px;
+                line-height: 1;
+                font-weight: 950;
+                box-shadow: 0 10px 24px rgba(15, 23, 42, .16);
+                backdrop-filter: blur(8px);
+                cursor: pointer;
+            }
+            .guided-assistant-mobile-toggle:focus-visible {
+                outline: 3px solid rgba(22, 163, 74, .25);
+                outline-offset: 3px;
+            }
+            body.mobile-pdf-status-visible .guided-assistant-mobile-toggle,
+            html.social-entry-requested .guided-assistant-mobile-toggle {
+                display: none !important;
+                visibility: hidden !important;
+                pointer-events: none !important;
+            }
         }
     </style>
 <script>
@@ -7615,6 +7651,7 @@ function attivaFocusOfferteMobile() {
   document.body.classList.add("mobile-offers-focus");
   document.getElementById("guided-assistant-panel")?.classList.remove("is-open");
   document.getElementById("guided-assistant-toggle")?.setAttribute("aria-expanded", "false");
+  document.getElementById("guided-assistant-mobile-toggle")?.setAttribute("aria-expanded", "false");
 }
 
 function portaAlTeaserOfferteMobile() {
@@ -11218,6 +11255,7 @@ if (document.readyState === "loading") {
 <button type="button" class="guided-assistant-launcher" id="guided-assistant-toggle" aria-expanded="false" aria-controls="guided-assistant-panel">
     Hai bisogno di aiuto?
 </button>
+<button type="button" class="guided-assistant-mobile-toggle" id="guided-assistant-mobile-toggle" aria-expanded="false" aria-controls="guided-assistant-panel" aria-label="Apri l'assistente" title="Hai bisogno di aiuto?">?</button>
 
 <section class="guided-assistant" id="guided-assistant-panel" aria-label="Assistente guidato OffertaLogica">
     <div class="guided-assistant-header">
@@ -11382,14 +11420,66 @@ Nessun dato sarà inviato a un fornitore finché non sceglierai un'offerta.</p>
 (function initGuidedAssistant() {
     const panel = document.getElementById("guided-assistant-panel");
     const toggle = document.getElementById("guided-assistant-toggle");
+    const mobileToggle = document.getElementById("guided-assistant-mobile-toggle");
     const close = document.getElementById("guided-assistant-close");
     const message = document.getElementById("guided-assistant-message");
+    const mobileQuery = window.matchMedia("(max-width: 560px)");
 
     if (!panel || !toggle || !message) return;
 
     function setOpen(isOpen) {
         panel.classList.toggle("is-open", isOpen);
         toggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
+        mobileToggle?.setAttribute("aria-expanded", isOpen ? "true" : "false");
+    }
+
+    function resetMobileTogglePosition() {
+        if (!mobileToggle) return;
+        ["left", "right", "top", "bottom"].forEach((property) => mobileToggle.style.removeProperty(property));
+    }
+
+    function positionMobileToggleNearIubenda() {
+        if (!mobileToggle || !mobileQuery.matches) {
+            resetMobileTogglePosition();
+            return false;
+        }
+        const iubendaButton = document.querySelector(".iubenda-tp-btn.iubenda-cs-preferences-link");
+        if (!iubendaButton) {
+            resetMobileTogglePosition();
+            return false;
+        }
+        const rect = iubendaButton.getBoundingClientRect();
+        const style = window.getComputedStyle(iubendaButton);
+        if (!rect.width || !rect.height || style.display === "none" || style.visibility === "hidden") {
+            resetMobileTogglePosition();
+            return false;
+        }
+        const size = 42;
+        const gap = 8;
+        const edge = 8;
+        let left = rect.right + gap;
+        if (left + size > window.innerWidth - edge) left = rect.left - size - gap;
+        left = Math.max(edge, Math.min(left, window.innerWidth - size - edge));
+        let top = rect.top + ((rect.height - size) / 2);
+        top = Math.max(edge, Math.min(top, window.innerHeight - size - edge));
+        mobileToggle.style.left = `${Math.round(left)}px`;
+        mobileToggle.style.top = `${Math.round(top)}px`;
+        mobileToggle.style.right = "auto";
+        mobileToggle.style.bottom = "auto";
+        return true;
+    }
+
+    function initializeMobileTogglePosition() {
+        if (!mobileToggle) return;
+        positionMobileToggleNearIubenda();
+        const root = document.body || document.documentElement;
+        const observer = new MutationObserver(() => {
+            if (!positionMobileToggleNearIubenda()) return;
+            window.setTimeout(positionMobileToggleNearIubenda, 250);
+            observer.disconnect();
+        });
+        observer.observe(root, { childList: true, subtree: true });
+        window.setTimeout(() => observer.disconnect(), 5000);
     }
 
     function setMessage(text) {
@@ -11452,7 +11542,13 @@ Nessun dato sarà inviato a un fornitore finché non sceglierai un'offerta.</p>
     };
 
     toggle.addEventListener("click", () => setOpen(!panel.classList.contains("is-open")));
+    mobileToggle?.addEventListener("click", () => setOpen(!panel.classList.contains("is-open")));
     close?.addEventListener("click", () => setOpen(false));
+    window.addEventListener("resize", positionMobileToggleNearIubenda, { passive: true });
+    window.addEventListener("orientationchange", () => window.setTimeout(positionMobileToggleNearIubenda, 150));
+    mobileQuery.addEventListener?.("change", positionMobileToggleNearIubenda);
+    window.addEventListener("load", initializeMobileTogglePosition, { once: true });
+    window.setTimeout(initializeMobileTogglePosition, 0);
     document.querySelectorAll("[data-assistant-action]").forEach((button) => {
         button.addEventListener("click", () => handleAction(button.dataset.assistantAction));
     });
