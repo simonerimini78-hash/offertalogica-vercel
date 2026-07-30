@@ -1760,9 +1760,197 @@
             .compare-card-intro { min-height: 0; }
             .pdf-context-notice { align-items: flex-start; justify-content: flex-start; }
         }
+
+
+        /* OFFERTALOGICA_SOCIAL_ENTRY_MOBILE_V1_20260730 */
+        .social-mobile-entry { display: none; }
+        html.social-entry-requested,
+        html.social-entry-requested body { min-height: 100%; overflow: hidden; }
+        html.social-entry-requested body { padding: 0; background: #f7fbf7; }
+        html.social-entry-requested body > :not(.social-mobile-entry):not(script) { display: none !important; }
+        html.social-entry-requested .social-mobile-entry {
+            position: fixed;
+            inset: 0;
+            z-index: 12000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100dvh;
+            padding: max(22px, env(safe-area-inset-top)) 18px max(22px, env(safe-area-inset-bottom));
+            overflow-y: auto;
+            background:
+                radial-gradient(circle at 50% 12%, rgba(126, 211, 33, .16), transparent 31%),
+                radial-gradient(circle at 12% 82%, rgba(22, 163, 74, .10), transparent 29%),
+                linear-gradient(180deg, #ffffff 0%, #f7fbf7 100%);
+        }
+        .social-entry-card {
+            width: min(100%, 480px);
+            display: grid;
+            justify-items: center;
+            gap: 15px;
+            padding: 4px 4px 12px;
+            text-align: center;
+        }
+        .social-entry-logo {
+            width: min(78vw, 300px);
+            height: auto;
+            margin-bottom: 6px;
+            filter: drop-shadow(0 10px 24px rgba(15, 23, 42, .08));
+        }
+        .social-entry-eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            margin: 0;
+            padding: 7px 12px;
+            border: 1px solid #bbf7d0;
+            border-radius: 999px;
+            background: rgba(240, 253, 244, .92);
+            color: #15803d;
+            font-size: 12px;
+            font-weight: 900;
+            letter-spacing: .035em;
+            text-transform: uppercase;
+        }
+        .social-entry-title {
+            max-width: 420px;
+            margin: 0;
+            color: #0f172a;
+            font-size: clamp(28px, 8.3vw, 42px);
+            line-height: 1.08;
+            letter-spacing: -.035em;
+        }
+        .social-entry-saving {
+            display: grid;
+            justify-items: center;
+            gap: 1px;
+            min-height: 119px;
+            margin: 2px 0 0;
+        }
+        .social-entry-saving strong {
+            color: #20b52f;
+            font-size: clamp(62px, 19vw, 94px);
+            line-height: .98;
+            letter-spacing: -.055em;
+            font-variant-numeric: tabular-nums;
+            text-shadow: 0 9px 24px rgba(32, 181, 47, .15);
+        }
+        .social-entry-saving span {
+            color: #0f172a;
+            font-size: clamp(22px, 6.1vw, 30px);
+            line-height: 1.1;
+            font-weight: 800;
+        }
+        .social-entry-saving.is-loading strong {
+            color: #64748b;
+            font-size: clamp(25px, 7vw, 34px);
+            letter-spacing: -.02em;
+            text-shadow: none;
+        }
+        .social-entry-saving.is-loading span { color: #64748b; font-size: 16px; font-weight: 700; }
+        .social-entry-copy {
+            max-width: 410px;
+            margin: 0;
+            color: #475569;
+            font-size: 15px;
+            line-height: 1.48;
+        }
+        .social-entry-cta {
+            width: 100%;
+            min-height: 66px;
+            margin-top: 8px;
+            border: 0;
+            border-radius: 18px;
+            padding: 15px 20px;
+            background: var(--logo-green-gradient);
+            color: #ffffff;
+            font-size: 21px;
+            font-weight: 950;
+            letter-spacing: -.015em;
+            cursor: pointer;
+            box-shadow: 0 15px 34px rgba(22, 163, 74, .28), 0 0 0 0 rgba(126, 211, 33, .32);
+            animation: social-entry-pulse 1.9s ease-in-out infinite;
+        }
+        .social-entry-cta:hover { transform: translateY(-1px); }
+        .social-entry-cta:focus-visible { outline: 4px solid rgba(37, 99, 235, .25); outline-offset: 4px; }
+        .social-entry-cta:disabled {
+            cursor: wait;
+            opacity: .72;
+            animation: none;
+            box-shadow: 0 10px 24px rgba(22, 163, 74, .14);
+        }
+        .social-entry-note { margin: -3px 0 0; color: #64748b; font-size: 12px; font-weight: 700; }
+        @keyframes social-entry-pulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 15px 34px rgba(22, 163, 74, .28), 0 0 0 0 rgba(126, 211, 33, .30); }
+            50% { transform: scale(1.025); box-shadow: 0 18px 42px rgba(22, 163, 74, .34), 0 0 0 13px rgba(126, 211, 33, 0); }
+        }
+        .offers-personalize-prompt {
+            margin: 0 0 18px;
+            padding: 15px;
+            border: 1px solid #bfdbfe;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #f8fbff 0%, #f0fdf4 100%);
+            color: #0f172a;
+        }
+        .offers-personalize-prompt[hidden] { display: none !important; }
+        .offers-personalize-prompt strong { display: block; margin-bottom: 4px; font-size: 16px; }
+        .offers-personalize-prompt p { margin: 0 0 12px; color: #475569; font-size: 13px; line-height: 1.45; }
+        .offers-personalize-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .offers-personalize-actions button {
+            min-height: 45px;
+            border-radius: 9px;
+            padding: 9px 11px;
+            font-size: 12px;
+            font-weight: 900;
+            cursor: pointer;
+        }
+        .offers-personalize-upload { border: 0; background: var(--logo-green-gradient); color: #fff; }
+        .offers-personalize-continue { border: 1px solid #cbd5e1; background: #fff; color: #334155; }
+        @media (max-width: 420px) {
+            .social-entry-card { gap: 12px; }
+            .social-entry-logo { width: min(74vw, 270px); }
+            .social-entry-copy { font-size: 14px; }
+            .social-entry-cta { min-height: 62px; font-size: 19px; }
+            .offers-personalize-actions { grid-template-columns: 1fr; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .social-entry-cta { animation: none; }
+        }
     </style>
+<script>
+(function () {
+    try {
+        const params = new URLSearchParams(window.location.search || "");
+        const source = String(params.get("utm_source") || params.get("source") || "").toLowerCase();
+        const entry = String(params.get("entry") || "").toLowerCase();
+        const explicitSocial = params.get("social") === "1" || ["social", "instagram", "reel", "linkinbio"].includes(entry);
+        const socialSource = ["instagram", "ig", "reel", "linkinbio", "social"].some((token) => source.includes(token));
+        const mobile = window.matchMedia("(max-width: 768px)").matches;
+        const requested = Boolean(window.__OFFERTALOGICA_SOCIAL_ENTRY_FORCE__) || (mobile && (explicitSocial || socialSource));
+        window.__OFFERTALOGICA_SOCIAL_ENTRY_REQUESTED__ = requested;
+        if (requested) document.documentElement.classList.add("social-entry-requested");
+    } catch {
+        window.__OFFERTALOGICA_SOCIAL_ENTRY_REQUESTED__ = false;
+    }
+})();
+</script>
 </head>
 <body>
+<section class="social-mobile-entry" id="social-mobile-entry" aria-labelledby="social-entry-title" aria-live="polite">
+    <div class="social-entry-card">
+        <img class="social-entry-logo" src="/assets/logo-offertalogica-header.png" alt="OffertaLogica.it - Confronta, scegli, risparmia">
+        <p class="social-entry-eyebrow">Offerte luce e gas aggiornate</p>
+        <h1 class="social-entry-title" id="social-entry-title">Oggi potresti risparmiare fino a</h1>
+        <div class="social-entry-saving is-loading" id="social-entry-saving" role="status">
+            <strong id="social-entry-saving-value">Aggiorniamo le offerte di oggi</strong>
+            <span id="social-entry-saving-period">attendi qualche istante</span>
+        </div>
+        <p class="social-entry-copy">Stima basata sui consumi medi di una famiglia e sulle migliori offerte attivabili disponibili oggi.</p>
+        <button type="button" class="social-entry-cta" id="social-entry-cta" disabled>Scopri l'offerta</button>
+        <p class="social-entry-note">Senza bolletta e senza inserire consumi.</p>
+    </div>
+</section>
+
 <a class="skip-link" href="#main-content">Vai al contenuto principale</a>
 
 <!-- Awin verification 2932723 -->
@@ -2465,6 +2653,7 @@ const LEAD_STATE = {
   verified: false,
   otpPreviewCode: "",
   bestSaving: 0,
+  bestPartnerSaving: 0,
   leadId: "",
   leadSource: "manual",
   dataOrigin: "manual_input",
@@ -2490,6 +2679,14 @@ const LEAD_STATE = {
     difficultyCount: 0,
     shown: false,
   },
+};
+
+const SOCIAL_ENTRY_STATE = {
+  requested: Boolean(window.__OFFERTALOGICA_SOCIAL_ENTRY_REQUESTED__),
+  active: false,
+  ready: false,
+  isSocialJourney: false,
+  personalizationDismissed: false,
 };
 
 const PDF_ARCHIVE_REPLAY_STORAGE_KEY = "offertalogicaPdfArchiveReplay";
@@ -3914,6 +4111,7 @@ window.calcolaBusiness = function calcolaBusiness() {
   LEAD_STATE.dataOrigin = determinaOrigineDatoLead();
   LEAD_STATE.businessProfile = profile;
   LEAD_STATE.bestSaving = 0;
+  LEAD_STATE.bestPartnerSaving = 0;
 
   const saving = document.getElementById("business-saving");
   const copy = document.getElementById("business-copy");
@@ -3934,6 +4132,7 @@ window.apriLeadBusiness = function apriLeadBusiness() {
   LEAD_STATE.dataOrigin = determinaOrigineDatoLead();
   LEAD_STATE.businessProfile = profile;
   LEAD_STATE.bestSaving = 0;
+  LEAD_STATE.bestPartnerSaving = 0;
   trackEvent("business_lead_modal_requested", {
     customerType: "business",
     dataOrigin: determinaOrigineDatoLead(),
@@ -4165,6 +4364,7 @@ function mostraErroreDatiMancanti(mancanti, contesto = "fornitura attuale") {
   if (offerte) offerte.style.display = "none";
   if (teaser) teaser.style.display = "none";
   LEAD_STATE.bestSaving = 0;
+  LEAD_STATE.bestPartnerSaving = 0;
   if (mancanti.some(({ id }) => String(id).includes("-nuov"))) apriDettagliNuovaOfferta();
   segnalaCampiMancanti(mancanti);
   window.setTimeout(() => {
@@ -5751,6 +5951,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       contenitoreTarget?.appendChild(card);
     });
 
+  LEAD_STATE.bestPartnerSaving = Math.max(0, ...attivabiliPrioritarie.map((item) => item.differenza));
   LEAD_STATE.bestSaving = Math.max(0, ...visibili.map((item) => item.differenza));
   trackEvent("offers_rendered", {
     tipoPrezzo: tipoTariffa,
@@ -5759,6 +5960,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
     activePartnerOffersCount: attivabiliPrioritarie.length,
     consultantOffersCount: miglioriConConsulente.length,
     bestSaving: LEAD_STATE.bestSaving,
+    bestPartnerSaving: LEAD_STATE.bestPartnerSaving,
     offerId: String(visibili[0]?.offerta?.id || ""),
     offerName: visibili[0]?.offerta?.nome || "",
     provider: visibili[0]?.offerta?.provider || "",
@@ -5768,16 +5970,25 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
   const teaserTitle = document.getElementById("lead-teaser-title");
   const teaserCopy = document.getElementById("lead-teaser-copy");
   if (teaser) teaser.style.display = !LEAD_STATE.verified && hasVisibleOffers ? "block" : "none";
+  const teaserSaving = SOCIAL_ENTRY_STATE.isSocialJourney
+    ? LEAD_STATE.bestPartnerSaving
+    : LEAD_STATE.bestSaving;
   if (teaserTitle) {
-    teaserTitle.innerText = LEAD_STATE.bestSaving > 0
-      ? `Possibile risparmio fino a ${euro(LEAD_STATE.bestSaving)} / anno`
+    const teaserAmount = SOCIAL_ENTRY_STATE.isSocialJourney
+      ? formattaRisparmioSocial(teaserSaving)
+      : euro(teaserSaving);
+    teaserTitle.innerText = teaserSaving > 0
+      ? `Possibile risparmio fino a ${teaserAmount} / anno`
       : "Abbiamo trovato le offerte più adatte al tuo profilo";
   }
   if (teaserCopy) {
-    teaserCopy.innerText = modalitaCalcolo === "media"
-      ? "Stima basata sui consumi medi e sull'ultimo riferimento ARERA disponibile: verifica il numero per visualizzare le migliori offerte e quelle attivabili online."
-      : "Stima basata sui consumi che hai inserito: verifica il numero per visualizzare le migliori offerte e quelle attivabili online.";
+    teaserCopy.innerText = SOCIAL_ENTRY_STATE.isSocialJourney
+      ? "Stima basata sui consumi medi e sulle offerte partner attivabili disponibili oggi: verifica il numero per visualizzare fornitore, condizioni e percorso ufficiale."
+      : modalitaCalcolo === "media"
+        ? "Stima basata sui consumi medi e sull'ultimo riferimento ARERA disponibile: verifica il numero per visualizzare le migliori offerte e quelle attivabili online."
+        : "Stima basata sui consumi che hai inserito: verifica il numero per visualizzare le migliori offerte e quelle attivabili online.";
   }
+  aggiornaPromptBollettaDopoOfferte();
 }
 
 function aggiornaConsumiDaMasterSeMedia() {
@@ -9334,6 +9545,7 @@ window.azzeraPdfEModulo = function azzeraPdfEModulo() {
   LEAD_STATE.verified = false;
   LEAD_STATE.otpPreviewCode = "";
   LEAD_STATE.bestSaving = 0;
+  LEAD_STATE.bestPartnerSaving = 0;
   LEAD_STATE.leadId = "";
   LEAD_STATE.leadSource = "manual";
   LEAD_STATE.selectedOffer = null;
@@ -9572,14 +9784,17 @@ function chiudiDettagliNuovaOfferta() {
   impostaDettagliNuovaOffertaAperti(false);
 }
 
-function vaiAlCaricatoreScheda() {
+function vaiAlCaricatoreScheda(options = {}) {
   const panel = document.getElementById("pdf-upload-panel") || document.querySelector(".pdf-lead-panel");
   const drop = document.getElementById("pdf-upload-drop");
   const input = document.getElementById("pdf-static-input");
   const notice = document.getElementById("pdf-upload-context-notice");
   if (notice) {
+    const fromOffers = options?.source === "offers_personalization";
     notice.hidden = false;
-    notice.innerHTML = '<span class="pdf-context-icon" aria-hidden="true">↓</span><span><strong>Sei nel punto giusto.</strong> Seleziona qui il PDF della scheda sintetica, poi premi <strong>Analizza PDF</strong>.</span>';
+    notice.innerHTML = fromOffers
+      ? '<span class="pdf-context-icon" aria-hidden="true">↓</span><span><strong>Personalizza il confronto.</strong> Seleziona la tua bolletta, poi premi <strong>Analizza PDF</strong>: useremo i consumi reali al posto del profilo medio.</span>'
+      : '<span class="pdf-context-icon" aria-hidden="true">↓</span><span><strong>Sei nel punto giusto.</strong> Seleziona qui il PDF della scheda sintetica, poi premi <strong>Analizza PDF</strong>.</span>';
   }
   panel?.scrollIntoView({ behavior: "smooth", block: "start" });
   panel?.classList.remove("pdf-upload-attention");
@@ -9996,7 +10211,103 @@ function importaAnalisiPdfDaArchivio() {
   return true;
 }
 
+function formattaRisparmioSocial(value) {
+  const amount = Number(value);
+  if (!Number.isFinite(amount) || amount <= 0) return "";
+  return `${new Intl.NumberFormat("it-IT", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount)} €`;
+}
+
+function inizializzaIngressoSocialMobile() {
+  if (!SOCIAL_ENTRY_STATE.requested) return false;
+  SOCIAL_ENTRY_STATE.active = true;
+  SOCIAL_ENTRY_STATE.isSocialJourney = true;
+  document.documentElement.classList.add("social-entry-requested");
+  document.body.classList.add("social-entry-active");
+  trackEvent("social_entry_viewed", {
+    source: new URLSearchParams(window.location.search || "").get("utm_source") || "social_link",
+  });
+  return true;
+}
+
+function preparaRisparmioIngressoSocialMobile() {
+  if (!SOCIAL_ENTRY_STATE.active) return false;
+  const value = document.getElementById("social-entry-saving-value");
+  const period = document.getElementById("social-entry-saving-period");
+  const savingBox = document.getElementById("social-entry-saving");
+  const cta = document.getElementById("social-entry-cta");
+  const btnMedi = document.getElementById("btn-attiva-medi");
+
+  try {
+    btnMedi?.click();
+    LEAD_STATE.dataOrigin = "social_average_profile";
+    window.avviaComparazioneDati?.();
+    const saving = Number(LEAD_STATE.bestPartnerSaving || 0);
+    const formatted = formattaRisparmioSocial(saving);
+    if (value) value.textContent = formatted || "Offerte aggiornate";
+    if (period) period.textContent = formatted ? "all'anno su luce e gas" : "scopri la proposta attivabile più conveniente di oggi";
+    savingBox?.classList.remove("is-loading");
+    if (cta) cta.disabled = false;
+    SOCIAL_ENTRY_STATE.ready = true;
+    trackEvent("social_entry_saving_ready", {
+      bestPartnerSaving: saving,
+      dataOrigin: LEAD_STATE.dataOrigin,
+    });
+    return true;
+  } catch (error) {
+    if (value) value.textContent = "Offerte aggiornate";
+    if (period) period.textContent = "scopri la proposta disponibile oggi";
+    savingBox?.classList.remove("is-loading");
+    if (cta) cta.disabled = false;
+    SOCIAL_ENTRY_STATE.ready = true;
+    trackEvent("social_entry_saving_fallback", { message: String(error?.message || error || "") });
+    return false;
+  }
+}
+
+function apriOfferteDaIngressoSocial() {
+  if (!SOCIAL_ENTRY_STATE.ready) return;
+  SOCIAL_ENTRY_STATE.active = false;
+  document.documentElement.classList.remove("social-entry-requested");
+  document.body.classList.remove("social-entry-active");
+  const entry = document.getElementById("social-mobile-entry");
+  if (entry) entry.hidden = true;
+  const target = document.getElementById("lead-teaser") || document.querySelector(".fornitori-consigliati-section");
+  window.requestAnimationFrame(() => {
+    target?.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (target) {
+      target.setAttribute("tabindex", "-1");
+      window.setTimeout(() => target.focus({ preventScroll: true }), 450);
+    }
+  });
+  trackEvent("social_entry_offer_clicked", {
+    bestPartnerSaving: LEAD_STATE.bestPartnerSaving,
+  });
+}
+
+function aggiornaPromptBollettaDopoOfferte() {
+  const prompt = document.getElementById("offers-personalize-prompt");
+  if (!prompt) return;
+  const show = modalitaCalcolo === "media" && !SOCIAL_ENTRY_STATE.personalizationDismissed;
+  prompt.hidden = !show;
+}
+
+function continuaConStimaMedia() {
+  SOCIAL_ENTRY_STATE.personalizationDismissed = true;
+  const prompt = document.getElementById("offers-personalize-prompt");
+  if (prompt) prompt.hidden = true;
+  trackEvent("offers_bill_prompt_dismissed", { dataOrigin: LEAD_STATE.dataOrigin });
+}
+
+function caricaBollettaDaOfferte() {
+  SOCIAL_ENTRY_STATE.personalizationDismissed = true;
+  const prompt = document.getElementById("offers-personalize-prompt");
+  if (prompt) prompt.hidden = true;
+  trackEvent("offers_bill_prompt_clicked", { dataOrigin: LEAD_STATE.dataOrigin });
+  vaiAlCaricatoreScheda({ source: "offers_personalization" });
+}
+
 function collegaEventiUX() {
+  inizializzaIngressoSocialMobile();
   document.addEventListener("input", registraModificaManualePdf, true);
   document.addEventListener("change", registraModificaManualePdf, true);
   inizializzaModalitaStaff();
@@ -10036,6 +10347,9 @@ function collegaEventiUX() {
   luceAtt?.addEventListener("input", sincronizzaConsumiNuovaOfferta);
   gasAtt?.addEventListener("input", sincronizzaConsumiNuovaOfferta);
   document.getElementById("optional-upload-sheet")?.addEventListener("click", vaiAlCaricatoreScheda);
+  document.getElementById("social-entry-cta")?.addEventListener("click", apriOfferteDaIngressoSocial);
+  document.getElementById("offers-upload-bill")?.addEventListener("click", caricaBollettaDaOfferte);
+  document.getElementById("offers-keep-average")?.addEventListener("click", continuaConStimaMedia);
   document.getElementById("pdf-static-input")?.addEventListener("change", (event) => {
     const selected = Array.from(event.target?.files || []);
     const notice = document.getElementById("pdf-upload-context-notice");
@@ -10165,6 +10479,10 @@ function collegaEventiUX() {
 
   Promise.all([caricaDatiCalcolo(), caricaOfferteProposte(), caricaOfferteAreraMenu(), caricaProviderBrand()]).then(() => {
     assicuraSchedeOfferte();
+    if (SOCIAL_ENTRY_STATE.active) {
+      preparaRisparmioIngressoSocialMobile();
+      return;
+    }
     const risultatiVisibili = document.querySelector(".fornitori-consigliati-section")?.style.display === "block";
     if (risultatiVisibili) avviaComparazioneDati();
   });
@@ -10181,6 +10499,14 @@ if (document.readyState === "loading") {
     <strong id="lead-teaser-title">Abbiamo trovato offerte più convenienti.</strong>
     <p id="lead-teaser-copy">La stima usa consumi medi e l'ultimo riferimento ARERA disponibile: verifica il numero per visualizzare le migliori offerte e quelle attivabili online.</p>
     <button type="button" onclick="apriLeadModal('teaser')">Verifica e visualizza le offerte</button>
+</div>
+<div class="offers-personalize-prompt" id="offers-personalize-prompt" hidden>
+    <strong>Vuoi sapere quanto risparmieresti con i tuoi consumi reali?</strong>
+    <p>Carica la bolletta: confronteremo le offerte usando i tuoi consumi, senza perdere la stima che stai visualizzando.</p>
+    <div class="offers-personalize-actions">
+        <button type="button" class="offers-personalize-upload" id="offers-upload-bill">Carica la bolletta</button>
+        <button type="button" class="offers-personalize-continue" id="offers-keep-average">Continua con la stima media</button>
+    </div>
 </div>
 <div class="vertical-cards-container" style="display: flex; flex-direction: column; gap: 15px;">
         
