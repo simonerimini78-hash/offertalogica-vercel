@@ -7734,11 +7734,15 @@ function nascondiEsitiFincheNonConfronti() {
 
 async function registraRichiestaOfferta() {
   const offer = LEAD_STATE.selectedOffer;
-  if (!offer?.link) {
+  const destinazioneRichiestaDisponibile = offer?.activationChannel === "switcho"
+    ? Boolean(offer.switchoAvailable && offer.exactSwitchoMatch && offer.switchoReference && offer.switchoUrl)
+    : Boolean(offer?.link);
+  if (!destinazioneRichiestaDisponibile) {
     trackEvent("offer_request_missing_link", {
       offerId: offer?.id || "",
       offerName: offer?.name || "",
       provider: offer?.provider || "",
+      activationChannel: offer?.activationChannel || "",
     });
     offerConsentStatus("Offerta non disponibile. Riprova dal pulsante dell'offerta.", true);
     return;
@@ -7810,7 +7814,8 @@ async function registraRichiestaOfferta() {
         destinationStatus: offer.destinationStatus || "",
         redirect: true,
       });
-      if (apriAssistentePrimaDelRedirect(payload.redirectUrl, offer, "partner_redirect")) return;
+      const redirectAssistitoSwitcho = offer.activationChannel === "switcho";
+      if (!redirectAssistitoSwitcho && apriAssistentePrimaDelRedirect(payload.redirectUrl, offer, "partner_redirect")) return;
       window.location.href = payload.redirectUrl;
       return;
     }
