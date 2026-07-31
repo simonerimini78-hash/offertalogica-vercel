@@ -4971,8 +4971,16 @@ function preparaComposizioneOfferteVisibili({
   };
 }
 
-function testoAzioneOfferta(offerta, attivabileOnline) {
+// OFFERTALOGICA_SWITCHO_CTA_FOUNDATION_V1_20260731
+// Il testo della CTA cambia soltanto nella graduatoria unificata realmente pronta.
+// Con la configurazione legacy attuale continua a restituire esattamente "Procedi".
+function testoAzioneOfferta(offerta, attivabileOnline, canaliAttivazione = null, unifiedActive = false) {
   if (offertaSeparataMultiFornitore(offerta)) return "Verifica con consulente";
+  if (!unifiedActive) return "Procedi";
+  const route = canaliAttivazione?.route || (attivabileOnline ? "direct" : "informational_only");
+  if (route === "switcho") return "Attiva con assistenza gratuita";
+  if (route === "direct_and_switcho") return "Scegli come attivare";
+  if (route === "direct") return "Attiva online";
   return "Procedi";
 }
 
@@ -6310,6 +6318,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
         switchoAvailable: Boolean(canaliAttivazione?.switchoAvailable),
         exactSwitchoMatch: Boolean(canaliAttivazione?.exactSwitchoMatch),
         switchoReference: canaliAttivazione?.switchoReference || "",
+        switchoUrl: canaliAttivazione?.switchoUrl || "",
       };
       OFFER_RENDER_CONTEXTS.set(String(offerta.id), context);
 
@@ -6342,7 +6351,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
         aggiornaLogoOfferta(card, offerta, true);
         if (details) details.innerText = dettagliOfferta(offerta);
         if (link) {
-          link.innerText = testoAzioneOfferta(offerta, attivabileOnline);
+          link.innerText = testoAzioneOfferta(offerta, attivabileOnline, canaliAttivazione, unifiedActive);
           link.href = "#";
           link.removeAttribute("target");
           link.onclick = (event) => {
@@ -7174,6 +7183,12 @@ window.apriConsensoOfferta = function apriConsensoOfferta(offerta) {
     componentiSeparate: offerta.componentiSeparate || null,
     rankingContext: OFFER_RENDER_CONTEXTS.get(String(offerta.id)) || null,
   };
+  LEAD_STATE.selectedOffer.activationRoute = LEAD_STATE.selectedOffer.rankingContext?.activationRoute || "informational_only";
+  LEAD_STATE.selectedOffer.directAvailable = Boolean(LEAD_STATE.selectedOffer.rankingContext?.directAvailable);
+  LEAD_STATE.selectedOffer.switchoAvailable = Boolean(LEAD_STATE.selectedOffer.rankingContext?.switchoAvailable);
+  LEAD_STATE.selectedOffer.exactSwitchoMatch = Boolean(LEAD_STATE.selectedOffer.rankingContext?.exactSwitchoMatch);
+  LEAD_STATE.selectedOffer.switchoReference = LEAD_STATE.selectedOffer.rankingContext?.switchoReference || "";
+  LEAD_STATE.selectedOffer.switchoUrl = LEAD_STATE.selectedOffer.rankingContext?.switchoUrl || "";
 
   const modal = document.getElementById("offer-consent-backdrop");
   const name = document.getElementById("offer-consent-offer-name");
@@ -7212,6 +7227,10 @@ window.apriConsensoOfferta = function apriConsensoOfferta(offerta) {
     displayRank: LEAD_STATE.selectedOffer.rankingContext?.displayRank || null,
     annualCost: LEAD_STATE.selectedOffer.rankingContext?.annualCost || null,
     annualDelta: LEAD_STATE.selectedOffer.rankingContext?.annualDelta || null,
+    activationRoute: LEAD_STATE.selectedOffer.activationRoute || "informational_only",
+    directAvailable: Boolean(LEAD_STATE.selectedOffer.directAvailable),
+    switchoAvailable: Boolean(LEAD_STATE.selectedOffer.switchoAvailable),
+    switchoReference: LEAD_STATE.selectedOffer.switchoReference || "",
     network: LEAD_STATE.selectedOffer.monetization?.network || "",
     model: LEAD_STATE.selectedOffer.monetization?.modello || LEAD_STATE.selectedOffer.monetization?.model || "",
   });
@@ -7626,6 +7645,10 @@ async function registraRichiestaOfferta() {
     displayRank: offer.rankingContext?.displayRank || null,
     annualCost: offer.rankingContext?.annualCost || null,
     annualDelta: offer.rankingContext?.annualDelta || null,
+    activationRoute: offer.activationRoute || "informational_only",
+    directAvailable: Boolean(offer.directAvailable),
+    switchoAvailable: Boolean(offer.switchoAvailable),
+    switchoReference: offer.switchoReference || "",
     network: offer.monetization?.network || "",
     model: offer.monetization?.modello || offer.monetization?.model || "",
   });

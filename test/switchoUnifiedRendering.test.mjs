@@ -134,8 +134,9 @@ test("social: usa il miglior risparmio commerciale solo in modalità unificata",
   assert.match(html, /switchoOffersCount: switchoVisibleCount/);
 });
 
-test("CTA: il collegamento al percorso Switcho non è ancora attivato", () => {
-  assert.match(html, /link\.innerText = testoAzioneOfferta\(offerta, attivabileOnline\)/);
+test("CTA: prepara il testo per canale ma non attiva ancora il redirect Switcho", () => {
+  assert.match(html, /link\.innerText = testoAzioneOfferta\(offerta, attivabileOnline, canaliAttivazione, unifiedActive\)/);
   assert.match(html, /apriConsensoOfferta\(offerta\)/);
   assert.doesNotMatch(html, /window\.location\.href = canaliAttivazione\?\.switchoUrl/);
+  assert.doesNotMatch(html, /window\.location\.href = offer\.switchoUrl/);
 });

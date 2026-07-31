@@ -131,9 +131,9 @@ test("abilitazione: richiede flag, catalogo attivo e landing HTTPS", () => {
   }), false);
 });
 
-test("rendering: registra il routing nel contesto senza cambiare CTA", () => {
+test("rendering: registra il routing nel contesto e lo passa alla CTA protetta", () => {
   assert.match(html, /const canaliAttivazione = determinaCanaliAttivazione\(offerta\)/);
   assert.match(html, /activationRoute: canaliAttivazione\?\.route \|\| "informational_only"/);
   assert.match(html, /switchoAvailable: Boolean\(canaliAttivazione\?\.switchoAvailable\)/);
-  assert.match(html, /link\.innerText = testoAzioneOfferta\(offerta, attivabileOnline\)/);
+  assert.match(html, /link\.innerText = testoAzioneOfferta\(offerta, attivabileOnline, canaliAttivazione, unifiedActive\)/);
 });
