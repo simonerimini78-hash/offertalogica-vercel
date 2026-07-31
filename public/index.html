@@ -2913,6 +2913,16 @@ const SOCIAL_ENTRY_STATE = {
   personalizationDismissed: false,
 };
 
+// OFFERTALOGICA_SWITCHO_ROUTING_FOUNDATION_V1_20260731
+// L'integrazione resta disattivata finché non sono disponibili contratto,
+// landing co-branded e catalogo esatto delle offerte gestite da Switcho.
+const SWITCHO_INTEGRATION_CONFIG = Object.freeze({
+  enabled: false,
+  landingUrl: "",
+  catalogVersion: "pending-contract",
+  catalog: Object.freeze([]),
+});
+
 const PDF_ARCHIVE_REPLAY_STORAGE_KEY = "offertalogicaPdfArchiveReplay";
 const PDF_PROFILE_STATE = { current: {}, offer: {} };
 
@@ -3565,6 +3575,17 @@ function normalizzaMonetizzazioneOfferta(monetizzazione) {
   };
 }
 
+function normalizzaSwitchoOfferta(value) {
+  if (!value || typeof value !== "object") return null;
+  return {
+    catalogOfferId: String(value.catalogOfferId || "").trim(),
+    offerCode: String(value.offerCode || "").trim(),
+    providerKey: String(value.providerKey || "").trim(),
+    landingUrl: String(value.landingUrl || "").trim(),
+    active: value.active !== false,
+  };
+}
+
 function normalizzaOfferta(offerta, index) {
   if (!offerta || typeof offerta !== "object") return null;
   const luce = normalizzaVoceOfferta(offerta.luce);
@@ -3588,6 +3609,7 @@ function normalizzaOfferta(offerta, index) {
     componentiSeparate: offerta.componentiSeparate && typeof offerta.componentiSeparate === "object" ? offerta.componentiSeparate : null,
     monetizzazione: normalizzaMonetizzazioneOfferta(offerta.monetizzazione),
     certificazione: offerta.certificazione && typeof offerta.certificazione === "object" ? offerta.certificazione : null,
+    switcho: normalizzaSwitchoOfferta(offerta.switcho),
   };
 }
 
@@ -4767,6 +4789,79 @@ function offertaAttivabileOnline(offerta) {
   // eliminare affiliazioni già dichiarate attive, come Enel ed Eni.
   const monetizzazioneEsplicitamenteDisattivata = offerta?.monetizzazione?.attiva === false;
   return percorsoAffiliatoAttivo && !monetizzazioneEsplicitamenteDisattivata;
+}
+
+function normalizzaIdentificativoCanale(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function identificativiEsattiOfferta(offerta) {
+  const values = [
+    offerta?.switcho?.catalogOfferId,
+    offerta?.switcho?.offerCode,
+    offerta?.certificazione?.codice,
+    ...Object.values(offerta?.certificazione?.codici || {}),
+  ];
+  return new Set(values.map(normalizzaIdentificativoCanale).filter(Boolean));
+}
+
+function identificativiEsattiCatalogoSwitcho(item) {
+  const values = [
+    item?.catalogOfferId,
+    item?.offerCode,
+    item?.areraCode,
+    ...(Array.isArray(item?.offerCodes) ? item.offerCodes : []),
+  ];
+  return new Set(values.map(normalizzaIdentificativoCanale).filter(Boolean));
+}
+
+function trovaCorrispondenzaSwitchoEsatta(offerta, config = SWITCHO_INTEGRATION_CONFIG) {
+  if (!config?.enabled || !Array.isArray(config.catalog) || !config.catalog.length) return null;
+  const offerIdentifiers = identificativiEsattiOfferta(offerta);
+  if (!offerIdentifiers.size) return null;
+  const offerProviderKey = chiaveFornitoreDaNome(offerta?.provider || "");
+
+  return config.catalog.find((item) => {
+    if (!item || item.active === false) return false;
+    const catalogIdentifiers = identificativiEsattiCatalogoSwitcho(item);
+    if (![...catalogIdentifiers].some((identifier) => offerIdentifiers.has(identifier))) return false;
+    const catalogProviderKey = String(item.providerKey || chiaveFornitoreDaNome(item.provider || "")).trim();
+    return !catalogProviderKey || catalogProviderKey === offerProviderKey;
+  }) || null;
+}
+
+function urlSwitchoPerCorrispondenza(match, config = SWITCHO_INTEGRATION_CONFIG) {
+  const value = String(match?.landingUrl || config?.landingUrl || "").trim();
+  if (!value) return "";
+  try {
+    const url = new URL(value, window.location.origin);
+    return url.protocol === "https:" ? url.href : "";
+  } catch {
+    return "";
+  }
+}
+
+function determinaCanaliAttivazione(offerta, config = SWITCHO_INTEGRATION_CONFIG) {
+  const directAvailable = offertaAttivabileOnline(offerta);
+  const switchoMatch = trovaCorrispondenzaSwitchoEsatta(offerta, config);
+  const switchoUrl = urlSwitchoPerCorrispondenza(switchoMatch, config);
+  const switchoAvailable = Boolean(switchoMatch && switchoUrl);
+  const route = directAvailable && switchoAvailable
+    ? "direct_and_switcho"
+    : directAvailable
+      ? "direct"
+      : switchoAvailable
+        ? "switcho"
+        : "informational_only";
+
+  return {
+    directAvailable,
+    switchoAvailable,
+    exactSwitchoMatch: Boolean(switchoMatch),
+    route,
+    switchoUrl,
+    switchoReference: switchoMatch?.catalogOfferId || switchoMatch?.offerCode || switchoMatch?.areraCode || "",
+  };
 }
 
 function testoAzioneOfferta(offerta, attivabileOnline) {
