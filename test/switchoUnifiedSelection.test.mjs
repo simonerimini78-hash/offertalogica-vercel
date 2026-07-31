@@ -77,7 +77,7 @@ function item(id, costo, route, extra = {}) {
 test("configurazione: la graduatoria pubblica resta legacy", () => {
   assert.match(html, /rankingMode: "legacy_6_plus_3"/);
   assert.match(html, /unifiedOfferLimit: 9/);
-  assert.match(html, /const visibili = \[\.\.\.attivabiliPrioritarie, \.\.\.miglioriConConsulente\]/);
+  assert.match(html, /visibili: unifiedActive[\s\S]*\? offerteUnificate[\s\S]*: \[\.\.\.attivabiliPrioritarie, \.\.\.miglioriConConsulente\]/);
 });
 
 test("selezione unificata: ordina insieme diretto e Switcho per costo", () => {
