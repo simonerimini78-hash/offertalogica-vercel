@@ -2920,6 +2920,8 @@ const SWITCHO_INTEGRATION_CONFIG = Object.freeze({
   enabled: false,
   landingUrl: "",
   catalogVersion: "pending-contract",
+  rankingMode: "legacy_6_plus_3",
+  unifiedOfferLimit: 9,
   catalog: Object.freeze([]),
 });
 
@@ -4864,6 +4866,45 @@ function determinaCanaliAttivazione(offerta, config = SWITCHO_INTEGRATION_CONFIG
   };
 }
 
+// OFFERTALOGICA_SWITCHO_UNIFIED_SELECTION_V1_20260731
+// Prepara una graduatoria commerciale unica senza abilitarla nel funnel.
+// La visualizzazione resta legacy finché rankingMode non viene cambiato
+// dopo avere ricevuto landing e catalogo contrattuale verificati.
+function arricchisciCanaliAttivazione(item, config = SWITCHO_INTEGRATION_CONFIG) {
+  const canaliAttivazione = item?.canaliAttivazione || determinaCanaliAttivazione(item?.offerta, config);
+  return { ...item, canaliAttivazione };
+}
+
+function offertaCommercialmenteAttivabile(item, config = SWITCHO_INTEGRATION_CONFIG) {
+  const enriched = arricchisciCanaliAttivazione(item, config);
+  return ["direct", "switcho", "direct_and_switcho"].includes(enriched.canaliAttivazione?.route);
+}
+
+function selezionaOfferteCommercialiUnificate(items, limite = SWITCHO_INTEGRATION_CONFIG.unifiedOfferLimit, config = SWITCHO_INTEGRATION_CONFIG) {
+  const maxItems = Math.max(1, Number.parseInt(limite, 10) || 9);
+  const ids = new Set();
+  const selezionate = [];
+  const ordinate = (Array.isArray(items) ? items : [])
+    .map((item) => arricchisciCanaliAttivazione(item, config))
+    .filter((item) => item?.compatibileRanking !== false && item?.filtroEsatto !== false)
+    .filter((item) => offertaCommercialmenteAttivabile(item, config))
+    .sort((a, b) => (a.costo - b.costo) || (b.differenza - a.differenza));
+
+  ordinate.forEach((item) => {
+    const id = String(item?.offerta?.id || "");
+    if (!id || ids.has(id) || selezionate.length >= maxItems) return;
+    ids.add(id);
+    selezionate.push(item);
+  });
+  return selezionate;
+}
+
+function graduatoriaCommercialeUnificataPronta(config = SWITCHO_INTEGRATION_CONFIG) {
+  if (!config?.enabled || config?.rankingMode !== "unified") return false;
+  if (!Array.isArray(config.catalog) || !config.catalog.some((item) => item && item.active !== false)) return false;
+  return Boolean(urlSwitchoPerCorrispondenza(null, config));
+}
+
 function testoAzioneOfferta(offerta, attivabileOnline) {
   if (offertaSeparataMultiFornitore(offerta)) return "Verifica con consulente";
   return "Procedi";
@@ -6051,7 +6092,8 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
 
     const compatibileRanking = offertaCompatibileConRanking(offerta, tipoTariffa, tipoFornitura);
     const filtroEsatto = offerta.tipo === tipoTariffa && offertaCoerenteConFornitura(offerta, tipoFornitura);
-    const attivabileOnline = offertaAttivabileOnline(offerta);
+    const canaliAttivazione = determinaCanaliAttivazione(offerta);
+    const attivabileOnline = canaliAttivazione.directAvailable;
     const attivabileCoerente = attivabileOnline && filtroEsatto;
     if (!compatibileRanking && !attivabileCoerente) {
       card.style.setProperty("display", "none", "important");
@@ -6073,6 +6115,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       filtroEsatto,
       attivabileOnline,
       attivabileCoerente,
+      canaliAttivazione,
       alternativeFiltro: !filtroEsatto,
       costo: costoOfferta.totale,
       costoOfferta,
@@ -6177,7 +6220,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
     if (!hasVisibleOffers) contenitoreSchede?.appendChild(emptyMessage);
   }
 
-  visibili.forEach(({ card, offerta, costo, costoOfferta, differenza, risparmio, saving, ambito, posizioneEconomica, posizioneGruppo, gruppoVisuale, attivabileOnline, compatibileRanking, filtroEsatto, alternativeFiltro }) => {
+  visibili.forEach(({ card, offerta, costo, costoOfferta, differenza, risparmio, saving, ambito, posizioneEconomica, posizioneGruppo, gruppoVisuale, attivabileOnline, canaliAttivazione, compatibileRanking, filtroEsatto, alternativeFiltro }) => {
       const contenitoreTarget = gruppoVisuale === "attivabile" ? contenitorePartner : contenitoreConsulente;
       const context = {
         economyRank: posizioneEconomica,
@@ -6193,6 +6236,11 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
         estimatedCommission: commissionePrevista(offerta),
         network: offerta.monetizzazione?.network || "",
         commercialPriority: offerta.monetizzazione?.prioritaCommerciale || "",
+        activationRoute: canaliAttivazione?.route || "informational_only",
+        directAvailable: Boolean(canaliAttivazione?.directAvailable),
+        switchoAvailable: Boolean(canaliAttivazione?.switchoAvailable),
+        exactSwitchoMatch: Boolean(canaliAttivazione?.exactSwitchoMatch),
+        switchoReference: canaliAttivazione?.switchoReference || "",
       };
       OFFER_RENDER_CONTEXTS.set(String(offerta.id), context);
 
