@@ -1,0 +1,495 @@
+{
+  "versioneDati": "switcho-observed-2026-07-31-v1",
+  "fonte": "Elenco offerte visibile su Switcho comunicato dall'utente il 31/07/2026; confronto tecnico con il file ARERA importato da OffertaLogica il 31/07/2026.",
+  "osservatoIl": "2026-07-31",
+  "routingEnabled": false,
+  "nota": "Catalogo osservato per confronto e mappatura. Non abilita attivazioni o redirect finché mancano riferimenti stabili e landing contrattuale Switcho.",
+  "offerte": [
+    {
+      "id": "switcho-observed-dolomiti-fisso-36-web",
+      "providerKey": "dolomiti",
+      "provider": "Dolomiti Energia",
+      "nome": "Dolomiti Fisso Luce e Gas 36 Web",
+      "tipo": "fisso",
+      "fornitura": "dual",
+      "durataMesi": 36,
+      "luce": {
+        "prezzoVariabile": 0.129,
+        "quotaFissaAnnua": 72
+      },
+      "gas": {
+        "prezzoVariabile": 0.5285,
+        "quotaFissaAnnua": 72
+      },
+      "spesaStimataMensileSwitcho": 63.3,
+      "promozioni": [],
+      "areraMatch": {
+        "status": "exact_components",
+        "aggiornatoIl": "2026-07-31",
+        "codiceLuce": "000139ESFML01XXW77337WR000000000",
+        "codiceGas": "000139GSFML01XXW77348WR000000000"
+      }
+    },
+    {
+      "id": "switcho-observed-eni-fixa-time-smart-24",
+      "providerKey": "eni",
+      "provider": "Eni Plenitude",
+      "nome": "Eni Plenitude Fixa Time Smart 24",
+      "tipo": "fisso",
+      "fornitura": "dual",
+      "durataMesi": 24,
+      "luce": {
+        "prezzoVariabile": 0.099,
+        "quotaFissaAnnua": 144
+      },
+      "gas": {
+        "prezzoVariabile": 0.44,
+        "quotaFissaAnnua": 144
+      },
+      "spesaStimataMensileSwitcho": 65.5,
+      "promozioni": [],
+      "areraMatch": {
+        "status": "exact_components",
+        "aggiornatoIl": "2026-07-31",
+        "codiceLuce": "026160ESFML51XXLFIXA24VSMA130726",
+        "codiceGas": "026160GSFML51XX0GFIXA24SMA130726"
+      }
+    },
+    {
+      "id": "switcho-observed-lene-leggera-superleggera-24",
+      "providerKey": "lene",
+      "provider": "Lene",
+      "nome": "Lene Leggera Luce 24 e Superleggera Gas 24",
+      "tipo": "fisso",
+      "fornitura": "dual",
+      "durataMesi": 24,
+      "luce": {
+        "prezzoVariabile": 0.129,
+        "quotaFissaAnnua": 84
+      },
+      "gas": {
+        "prezzoVariabile": 0.531,
+        "quotaFissaAnnua": 84
+      },
+      "spesaStimataMensileSwitcho": 65.5,
+      "promozioni": [
+        {
+          "tipo": "sconto_percentuale_prezzo_gas",
+          "valorePercentuale": 10,
+          "nota": "Valore gas registrato come mostrato da Switcho; non applicare un secondo sconto nel calcolo."
+        }
+      ],
+      "areraMatch": {
+        "status": "not_found_in_2026_07_31_import",
+        "aggiornatoIl": "2026-07-31",
+        "nota": "Nessuna riga Lene nel file ARERA importato il 31/07/2026."
+      }
+    },
+    {
+      "id": "switcho-observed-nen-surf-dual",
+      "providerKey": "nen",
+      "provider": "NeN",
+      "nome": "NeN Surf Luce e Gas",
+      "tipo": "variabile",
+      "fornitura": "dual",
+      "durataMesi": null,
+      "luce": {
+        "prezzoVariabile": 0,
+        "formula": {
+          "tipo": "indice_spread",
+          "indice": "pun",
+          "spread": 0
+        },
+        "quotaFissaAnnua": 120
+      },
+      "gas": {
+        "prezzoVariabile": 0,
+        "formula": {
+          "tipo": "indice_spread",
+          "indice": "psv",
+          "spread": 0
+        },
+        "quotaFissaAnnua": 120
+      },
+      "spesaStimataMensileSwitcho": 66.4,
+      "promozioni": [
+        {
+          "tipo": "sconto_euro_per_fornitura",
+          "valoreEuroPerFornitura": 24,
+          "valoreEuroDual": 48,
+          "conteggiatoNelCalcolo": false
+        }
+      ],
+      "areraMatch": {
+        "status": "exact_components_promotion_unverified",
+        "aggiornatoIl": "2026-07-31",
+        "codiceLuce": "029748ESVML01XX260724LDSURF00000",
+        "codiceGas": "029748GSVML01XX260724GDSURF00000"
+      }
+    },
+    {
+      "id": "switcho-observed-acea-fix-dual",
+      "providerKey": "acea",
+      "provider": "Acea Energia",
+      "nome": "Acea Fix Luce e Gas",
+      "tipo": "fisso",
+      "fornitura": "dual",
+      "durataMesi": 12,
+      "luce": {
+        "prezzoVariabile": 0.103,
+        "quotaFissaAnnua": 144
+      },
+      "gas": {
+        "prezzoVariabile": 0.45,
+        "quotaFissaAnnua": 144
+      },
+      "spesaStimataMensileSwitcho": 66.7,
+      "promozioni": [],
+      "areraMatch": {
+        "status": "exact_components",
+        "aggiornatoIl": "2026-07-31",
+        "codiceLuce": "000774ESFML01XXRT4D4028120000000",
+        "codiceGas": "000774GSFML01XXRT4D4028120000000"
+      }
+    },
+    {
+      "id": "switcho-observed-octopus-flex-dual",
+      "providerKey": "octopus",
+      "provider": "Octopus Energy",
+      "nome": "Octopus Flex Luce e Gas",
+      "tipo": "variabile",
+      "fornitura": "dual",
+      "durataMesi": null,
+      "luce": {
+        "prezzoVariabile": 0,
+        "formula": {
+          "tipo": "indice_spread",
+          "indice": "pun",
+          "spread": 0.0088,
+          "fasce": 3
+        },
+        "quotaFissaAnnua": 72
+      },
+      "gas": {
+        "prezzoVariabile": 0,
+        "formula": {
+          "tipo": "indice_spread",
+          "indice": "psv",
+          "spread": 0.06
+        },
+        "quotaFissaAnnua": 84
+      },
+      "spesaStimataMensileSwitcho": 68.4,
+      "promozioni": [],
+      "areraMatch": {
+        "status": "exact_components",
+        "aggiornatoIl": "2026-07-31",
+        "codiceLuce": "000129ESVFL99XXXXXXXXOCTOFLEXv99",
+        "codiceGas": "000129GSVML21XXXXXXXOCTOFLEXGv21"
+      }
+    },
+    {
+      "id": "switcho-observed-hera-piucontrollo-flat-easy",
+      "providerKey": "hera",
+      "provider": "Hera Comm",
+      "nome": "Hera PiùControllo FLAT Easy Casa",
+      "tipo": "fisso",
+      "fornitura": "dual",
+      "durataMesi": 24,
+      "luce": {
+        "prezzoVariabile": 0.1239,
+        "quotaFissaAnnua": 120
+      },
+      "gas": {
+        "prezzoVariabile": 0.464,
+        "quotaFissaAnnua": 144
+      },
+      "spesaStimataMensileSwitcho": 68.6,
+      "promozioni": [],
+      "areraMatch": {
+        "status": "partial_current_import",
+        "aggiornatoIl": "2026-07-31",
+        "codiceLuce": "000415ESFML01XX000FLTE2GEC24XV50",
+        "nota": "La componente luce coincide; la riga gas corrispondente non compare nel file ARERA importato il 31/07/2026."
+      }
+    },
+    {
+      "id": "switcho-observed-eon-insieme-12",
+      "providerKey": "eon",
+      "provider": "E.ON",
+      "nome": "E.ON Luce e Gas Insieme",
+      "tipo": "fisso",
+      "fornitura": "dual",
+      "durataMesi": 12,
+      "luce": {
+        "prezzoVariabile": 0.1091,
+        "quotaFissaAnnua": 108
+      },
+      "gas": {
+        "prezzoVariabile": 0.599,
+        "quotaFissaAnnua": 108
+      },
+      "spesaStimataMensileSwitcho": 70.8,
+      "promozioni": [],
+      "areraMatch": {
+        "status": "same_name_conditions_mismatch",
+        "aggiornatoIl": "2026-07-31",
+        "codiceLuce": "000362DSFML01XXZA16T3D000000A000",
+        "codiceGas": "000362DSFML01XXLH06T3D000000A000",
+        "nota": "Nel file ARERA del 31/07/2026 risultano 0,108 €/kWh e 0,469 €/Smc, quindi non è una corrispondenza economica esatta."
+      }
+    },
+    {
+      "id": "switcho-observed-edison-dynamic-dual",
+      "providerKey": "edison",
+      "provider": "Edison",
+      "nome": "Edison Dynamic Luce e Gas",
+      "tipo": "variabile",
+      "fornitura": "dual",
+      "durataMesi": null,
+      "luce": {
+        "prezzoVariabile": 0,
+        "formula": {
+          "tipo": "indice_spread",
+          "indice": "pun",
+          "spread": 0.012
+        },
+        "quotaFissaAnnua": 96
+      },
+      "gas": {
+        "prezzoVariabile": 0,
+        "formula": {
+          "tipo": "indice_spread",
+          "indice": "psv",
+          "spread": 0.04
+        },
+        "quotaFissaAnnua": 96
+      },
+      "spesaStimataMensileSwitcho": 71.1,
+      "promozioni": [
+        {
+          "tipo": "sconto_commercializzazione",
+          "valorePercentuale": 20,
+          "nota": "Le quote fisse registrate sono quelle mostrate da Switcho; non applicare un secondo sconto."
+        },
+        {
+          "tipo": "benefit_non_energia",
+          "descrizione": "12 mesi di Prime"
+        }
+      ],
+      "areraMatch": {
+        "status": "same_name_conditions_mismatch",
+        "aggiornatoIl": "2026-07-31",
+        "codiceLuce": "000190ESVML16XXLESPEX001X16XXXX5",
+        "codiceGas": "000190GSVML13XXLGSPGX001X13XXXX5",
+        "nota": "Il file ARERA corrente espone condizioni e quote fisse differenti."
+      }
+    },
+    {
+      "id": "switcho-observed-magis-wave-power-dual",
+      "providerKey": "magis",
+      "provider": "Magis Energia",
+      "nome": "Magis Energia Wave Power Luce e Gas",
+      "tipo": "variabile",
+      "fornitura": "dual",
+      "durataMesi": null,
+      "luce": {
+        "prezzoVariabile": 0,
+        "formula": {
+          "tipo": "indice_spread",
+          "indice": "pun",
+          "spread": 0.0132
+        },
+        "quotaFissaAnnua": 144
+      },
+      "gas": {
+        "prezzoVariabile": 0,
+        "formula": {
+          "tipo": "indice_spread",
+          "indice": "psv",
+          "spread": 0.089
+        },
+        "quotaFissaAnnua": 180
+      },
+      "spesaStimataMensileSwitcho": 72.8,
+      "promozioni": [
+        {
+          "tipo": "sconto_euro_per_fornitura",
+          "valoreEuroPerFornitura": 60,
+          "valoreEuroDual": 120,
+          "conteggiatoNelCalcolo": false
+        }
+      ],
+      "areraMatch": {
+        "status": "not_found_by_name_in_2026_07_31_import",
+        "aggiornatoIl": "2026-07-31",
+        "nota": "Il catalogo ARERA importato contiene offerte Magis, ma non Wave Power con queste condizioni."
+      }
+    },
+    {
+      "id": "switcho-observed-eon-flexclick-dual",
+      "providerKey": "eon",
+      "provider": "E.ON",
+      "nome": "E.ON FlexClick",
+      "tipo": "variabile",
+      "fornitura": "dual",
+      "durataMesi": null,
+      "luce": {
+        "prezzoVariabile": 0,
+        "formula": {
+          "tipo": "indice_spread",
+          "indice": "pun",
+          "spread": 0.0287
+        },
+        "quotaFissaAnnua": 108
+      },
+      "gas": {
+        "prezzoVariabile": 0,
+        "formula": {
+          "tipo": "indice_spread",
+          "indice": "psv",
+          "spread": 0.08
+        },
+        "quotaFissaAnnua": 108
+      },
+      "spesaStimataMensileSwitcho": 73.1,
+      "promozioni": [
+        {
+          "tipo": "sconto_euro_per_fornitura",
+          "valoreEuroPerFornitura": 27,
+          "valoreEuroDual": 54,
+          "conteggiatoNelCalcolo": false
+        }
+      ],
+      "areraMatch": {
+        "status": "same_name_conditions_mismatch",
+        "aggiornatoIl": "2026-07-31",
+        "codiceLuce": "000362ESVFL01XXZG36T2DFLXD00A000",
+        "codiceGas": "000362GSVML01XXLD06T2DFLXD00A000",
+        "nota": "La componente gas coincide; lo spread luce ARERA corrente è 0,0088 €/kWh, non 0,0287 €/kWh."
+      }
+    },
+    {
+      "id": "switcho-observed-octopus-fissa-dual",
+      "providerKey": "octopus",
+      "provider": "Octopus Energy",
+      "nome": "Octopus Fissa Luce e Gas",
+      "tipo": "fisso",
+      "fornitura": "dual",
+      "durataMesi": 12,
+      "luce": {
+        "prezzoVariabile": 0.1496,
+        "quotaFissaAnnua": 72
+      },
+      "gas": {
+        "prezzoVariabile": 0.63,
+        "quotaFissaAnnua": 84
+      },
+      "spesaStimataMensileSwitcho": 73.6,
+      "promozioni": [],
+      "areraMatch": {
+        "status": "partial_conditions_mismatch",
+        "aggiornatoIl": "2026-07-31",
+        "codiceLuce": "000129ESFML55XXXXXXXXOCTOFIXv155",
+        "codiceGas": "000129GSFML75XXXXXXXXOCTOFIXGv75",
+        "nota": "Luce e quote fisse coincidono; il gas ARERA corrente è 0,65 €/Smc."
+      }
+    },
+    {
+      "id": "switcho-observed-pulsee-per-te-index",
+      "providerKey": "pulsee",
+      "provider": "Pulsee Luce e Gas",
+      "nome": "Pulsee PER TE Index",
+      "tipo": "variabile",
+      "fornitura": "dual",
+      "durataMesi": null,
+      "luce": {
+        "prezzoVariabile": 0,
+        "formula": {
+          "tipo": "indice_spread",
+          "indice": "pun",
+          "spread": 0
+        },
+        "quotaFissaAnnua": 144
+      },
+      "gas": {
+        "prezzoVariabile": 0,
+        "formula": {
+          "tipo": "indice_spread",
+          "indice": "psv",
+          "spread": 0.042
+        },
+        "quotaFissaAnnua": 144
+      },
+      "spesaStimataMensileSwitcho": 77.0,
+      "promozioni": [],
+      "areraMatch": {
+        "status": "exact_components",
+        "aggiornatoIl": "2026-07-31",
+        "codiceLuce": "040505ESVFL07XXPULSEEPUM89032607",
+        "codiceGas": "040505GSVML07XXPULSEEPGA88622607"
+      }
+    },
+    {
+      "id": "switcho-observed-eni-fixa-time-casa",
+      "providerKey": "eni",
+      "provider": "Eni Plenitude",
+      "nome": "Eni Plenitude Fixa Time Casa",
+      "tipo": "fisso",
+      "fornitura": "dual",
+      "durataMesi": 12,
+      "luce": {
+        "prezzoVariabile": 0.1375,
+        "quotaFissaAnnua": 144
+      },
+      "gas": {
+        "prezzoVariabile": 0.576,
+        "quotaFissaAnnua": 144
+      },
+      "spesaStimataMensileSwitcho": 79.5,
+      "promozioni": [],
+      "areraMatch": {
+        "status": "exact_components",
+        "aggiornatoIl": "2026-07-31",
+        "codiceLuce": "026160ESFML51XXLFIXATIVBAS130726",
+        "codiceGas": "026160GSFML51XX0GFIXATIBAS130726"
+      }
+    },
+    {
+      "id": "switcho-observed-a2a-smart-casa",
+      "providerKey": "a2a",
+      "provider": "A2A Energia",
+      "nome": "A2A Smart Casa",
+      "tipo": "variabile",
+      "fornitura": "dual",
+      "durataMesi": null,
+      "luce": {
+        "prezzoVariabile": 0,
+        "formula": {
+          "tipo": "indice_spread",
+          "indice": "pun",
+          "spread": 0.025003
+        },
+        "quotaFissaAnnua": 120
+      },
+      "gas": {
+        "prezzoVariabile": 0,
+        "formula": {
+          "tipo": "indice_spread",
+          "indice": "psv",
+          "spread": 0.12
+        },
+        "quotaFissaAnnua": 120
+      },
+      "spesaStimataMensileSwitcho": 80.4,
+      "promozioni": [],
+      "areraMatch": {
+        "status": "components_match_fixed_charge_mismatch",
+        "aggiornatoIl": "2026-07-31",
+        "codiceLuce": "000294ESVML01XXSmartCas260733059",
+        "codiceGas": "000294GSVML01XXSmartCas260733057",
+        "nota": "Gli spread coincidono; il file ARERA corrente riporta quota fissa 114 €/anno per ciascuna fornitura, non 120 €."
+      }
+    }
+  ]
+}

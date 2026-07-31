@@ -164,6 +164,11 @@
             border-radius: 11px;
             background: #ffffff;
         }
+        .optional-provider-panel[hidden] { display: none !important; }
+        .switcho-observed-offer-panel { border-color: #c4b5fd; background: #faf5ff; }
+        .switcho-observed-offer-panel label { color: #6d28d9; }
+        .switcho-observed-offer-panel select { border-color: #8b5cf6; }
+        .switcho-observed-note { display: block; margin-top: 6px; color: #6b21a8; font-size: 10px; line-height: 1.4; }
         .optional-provider-panel label { display: block; margin-bottom: 5px; color: var(--accent); font-size: 11px; font-weight: 800; }
         .optional-provider-panel select {
             width: 100%;
@@ -2625,6 +2630,14 @@
                 <div id="nuova-offerta-auto-hint" role="status" aria-live="polite" style="display:none; margin-top:8px; font-size:12px; color:var(--text-muted); line-height:1.4;"></div>
             </div>
 
+            <div class="optional-provider-panel switcho-observed-offer-panel" id="switcho-observed-offer-panel" hidden>
+                <label for="switcho-observed-offer-select">Quale offerta vuoi confrontare?</label>
+                <select id="switcho-observed-offer-select" aria-describedby="switcho-observed-offer-help">
+                    <option value="" selected>Seleziona un'offerta</option>
+                </select>
+                <small id="switcho-observed-offer-help" class="switcho-observed-note">Offerte osservate su Switcho il 31 luglio 2026. Sono disponibili per il confronto, ma non abilitano ancora un'attivazione o un redirect.</small>
+            </div>
+
             <div class="optional-consumption-card" aria-label="Consumi usati per confrontare l'offerta specifica">
                 <div class="optional-consumption-heading">
                     <div>
@@ -2773,6 +2786,7 @@ let MOTORE_CALCOLO_VERSION = "motore-v6-arera-first-2026-07-03";
 const DATI_CALCOLO_URLS = ["/data/calcolo-parametri.json", "data/calcolo-parametri.json"];
 const DATI_OFFERTE_URLS = ["/data/offerte-proposte.json", "data/offerte-proposte.json"];
 const DATI_ARERA_MENU_URLS = ["/data/offerte-arera-menu.json", "data/offerte-arera-menu.json"];
+const DATI_SWITCHO_OSSERVATE_URLS = ["/data/offerte-switcho-osservate.json", "data/offerte-switcho-osservate.json"];
 const DATI_PROVIDER_BRAND_URLS = ["/data/provider-brand.json", "data/provider-brand.json"];
 let DATI_CALCOLO_META = {
   versioneDati: "fallback-html-2026-06-27-v3",
@@ -2789,6 +2803,13 @@ let DATI_ARERA_MENU_META = {
   fonte: "Archivio ARERA non caricato",
   aggiornatoIl: "2026-06-27",
 };
+let DATI_SWITCHO_OSSERVATE_META = {
+  versioneDati: "switcho-observed-fallback-empty",
+  fonte: "Catalogo osservato Switcho non caricato",
+  osservatoIl: "",
+  routingEnabled: false,
+};
+let OFFERTE_SWITCHO_OSSERVATE = [];
 let DATI_PROVIDER_BRAND_META = {
   versioneDati: "provider-brand-fallback-2026-07-05",
   fonte: "Fallback interno HTML",
@@ -3659,6 +3680,73 @@ async function caricaOfferteProposte() {
     }
   }
 
+  return false;
+}
+
+// OFFERTALOGICA_SWITCHO_OBSERVED_CATALOG_V1_20260731
+// Catalogo separato dalle offerte pubbliche: serve al confronto manuale e
+// non partecipa alla graduatoria finché mancano mapping e landing contrattuali.
+function normalizzaOffertaSwitchoOsservata(offerta, index) {
+  if (!offerta || typeof offerta !== "object") return null;
+  const normalizzata = normalizzaOfferta({
+    ...offerta,
+    id: offerta.id || `switcho-observed-${index + 1}`,
+    link: "#",
+    destinationType: "switcho_observed",
+    destinationStatus: "solo_confronto",
+    descrizione: [
+      offerta.descrizione || "",
+      `Offerta osservata su Switcho il ${offerta.osservatoIl || DATI_SWITCHO_OSSERVATE_META.osservatoIl || "31/07/2026"}.`,
+      Array.isArray(offerta.promozioni) && offerta.promozioni.length
+        ? "Le promozioni sono annotate ma non sottratte automaticamente dal costo annuo finché non ne sono confermati durata e criteri."
+        : "",
+    ].filter(Boolean).join(" "),
+    fonte: offerta.fonte || DATI_SWITCHO_OSSERVATE_META.fonte,
+    aggiornataIl: offerta.osservatoIl || DATI_SWITCHO_OSSERVATE_META.osservatoIl || "",
+  }, index);
+  if (!normalizzata) return null;
+  return {
+    ...normalizzata,
+    providerKey: String(offerta.providerKey || providerValue(offerta.provider)).trim(),
+    durataMesi: Number.isFinite(Number(offerta.durataMesi)) ? Number(offerta.durataMesi) : null,
+    spesaStimataMensileSwitcho: Number.isFinite(Number(offerta.spesaStimataMensileSwitcho)) ? Number(offerta.spesaStimataMensileSwitcho) : null,
+    promozioni: Array.isArray(offerta.promozioni) ? offerta.promozioni : [],
+    areraMatch: offerta.areraMatch && typeof offerta.areraMatch === "object" ? offerta.areraMatch : null,
+    routingEligible: false,
+  };
+}
+
+function applicaDatiOfferteSwitchoOsservate(data) {
+  const offerte = Array.isArray(data) ? data : data?.offerte;
+  if (!Array.isArray(offerte)) return false;
+  DATI_SWITCHO_OSSERVATE_META = {
+    versioneDati: data.versioneDati || DATI_SWITCHO_OSSERVATE_META.versioneDati,
+    fonte: data.fonte || DATI_SWITCHO_OSSERVATE_META.fonte,
+    osservatoIl: data.osservatoIl || DATI_SWITCHO_OSSERVATE_META.osservatoIl,
+    routingEnabled: false,
+  };
+  const pulite = offerte.map((offerta, index) => normalizzaOffertaSwitchoOsservata({
+    ...offerta,
+    osservatoIl: offerta.osservatoIl || DATI_SWITCHO_OSSERVATE_META.osservatoIl,
+    fonte: offerta.fonte || DATI_SWITCHO_OSSERVATE_META.fonte,
+  }, index)).filter(Boolean);
+  if (!pulite.length) return false;
+  OFFERTE_SWITCHO_OSSERVATE = pulite;
+  return true;
+}
+
+async function caricaOfferteSwitchoOsservate() {
+  if (!window.fetch || window.location.protocol === "file:") return false;
+  for (const url of DATI_SWITCHO_OSSERVATE_URLS) {
+    try {
+      const response = await fetch(url, { cache: "no-store" });
+      if (!response.ok) continue;
+      const data = await response.json();
+      if (applicaDatiOfferteSwitchoOsservate(data)) return true;
+    } catch (error) {
+      // Il confronto principale continua senza il catalogo osservato.
+    }
+  }
   return false;
 }
 
@@ -10814,6 +10902,78 @@ function miglioreNuovaOffertaPerFornitore(providerKey, attuale, tipoTariffa, tip
   return preferite.sort((a, b) => costoOffertaSulProfilo(a, attuale) - costoOffertaSulProfilo(b, attuale))[0] || null;
 }
 
+function offertaSwitchoOsservataCoerente(offerta, tipoTariffa, tipoFornitura) {
+  return Boolean(
+    offerta
+    && offerta.tipo === tipoTariffa
+    && offertaCoerenteConFornitura(offerta, tipoFornitura)
+    && offertaCalcolabileConIndici(offerta)
+  );
+}
+
+function offerteSwitchoOsservatePerFornitore(providerKey, tipoTariffa, tipoFornitura) {
+  return OFFERTE_SWITCHO_OSSERVATE
+    .filter((offerta) => offerta.providerKey === providerKey)
+    .filter((offerta) => offertaSwitchoOsservataCoerente(offerta, tipoTariffa, tipoFornitura))
+    .sort((a, b) => (a.spesaStimataMensileSwitcho ?? Number.POSITIVE_INFINITY) - (b.spesaStimataMensileSwitcho ?? Number.POSITIVE_INFINITY));
+}
+
+function nascondiMenuOfferteSwitchoOsservate() {
+  const panel = document.getElementById("switcho-observed-offer-panel");
+  const select = document.getElementById("switcho-observed-offer-select");
+  if (panel) panel.hidden = true;
+  if (select) select.innerHTML = `<option value="" selected>Seleziona un'offerta</option>`;
+}
+
+function aggiornaMenuOfferteSwitchoOsservate() {
+  const panel = document.getElementById("switcho-observed-offer-panel");
+  const select = document.getElementById("switcho-observed-offer-select");
+  const providerKey = leggiValore("nome-fornitore-nuov", "");
+  if (!panel || !select || !providerKey || providerKey === "altro") {
+    nascondiMenuOfferteSwitchoOsservate();
+    return 0;
+  }
+  const tipoTariffa = leggiValore("master-luce-tipo", "fisso");
+  const tipoFornitura = tipoFornituraPerCalcolo();
+  const offerte = offerteSwitchoOsservatePerFornitore(providerKey, tipoTariffa, tipoFornitura);
+  if (!offerte.length) {
+    nascondiMenuOfferteSwitchoOsservate();
+    return 0;
+  }
+  const precedente = select.value;
+  select.innerHTML = `<option value="" selected>Seleziona un'offerta</option>` + offerte.map((offerta) => {
+    const durata = offerta.durataMesi ? ` · ${offerta.durataMesi} mesi` : "";
+    const tipo = offerta.tipo === "variabile" ? "indicizzata" : "fissa";
+    return `<option value="${testoHtmlSicuro(offerta.id)}">${testoHtmlSicuro(offerta.nome)} · ${tipo}${durata}</option>`;
+  }).join("");
+  panel.hidden = false;
+  if (precedente && offerte.some((offerta) => String(offerta.id) === String(precedente))) {
+    select.value = precedente;
+    return offerte.length;
+  }
+  NUOVA_OFFERTA_AUTOMATICA = null;
+  svuotaCampiNuovaOfferta();
+  mostraHintNuovaOfferta(`Abbiamo ${offerte.length === 1 ? "1 offerta" : `${offerte.length} offerte`} osservate su Switcho per ${etichettaFornitoreSelezionato()}. Seleziona quella che vuoi confrontare.`);
+  return offerte.length;
+}
+
+function applicaOffertaSwitchoOsservataSelezionata() {
+  const id = leggiValore("switcho-observed-offer-select", "");
+  if (!id) return false;
+  const offerta = OFFERTE_SWITCHO_OSSERVATE.find((item) => String(item.id) === String(id));
+  if (!offerta) return false;
+  applicaOffertaAlBloccoNuovo(offerta, offerta.providerKey);
+  trackEvent("switcho_observed_offer_selected", {
+    offerId: offerta.id,
+    offerName: offerta.nome,
+    provider: offerta.provider,
+    observedAt: DATI_SWITCHO_OSSERVATE_META.osservatoIl,
+    routingEnabled: false,
+    areraMatchStatus: offerta.areraMatch?.status || "",
+  });
+  return true;
+}
+
 function cancellaNuovaOffertaAutomatica() {
   if (BLOCCO_AUTOFILL_NUOVA_OFFERTA) return;
   NUOVA_OFFERTA_AUTOMATICA = null;
@@ -11253,7 +11413,14 @@ function collegaEventiUX() {
   });
   document.getElementById("nome-fornitore-nuov")?.addEventListener("change", () => {
     apriDettagliNuovaOfferta();
-    aggiornaNuovaOffertaDaFornitore({ force: true });
+    const offerteOsservate = aggiornaMenuOfferteSwitchoOsservate();
+    if (!offerteOsservate) aggiornaNuovaOffertaDaFornitore({ force: true });
+    aggiornaTestoPulsanteConfronto();
+    const risultatiVisibili = document.querySelector(".fornitori-consigliati-section")?.style.display === "block";
+    if (risultatiVisibili) avviaComparazioneDati();
+  });
+  document.getElementById("switcho-observed-offer-select")?.addEventListener("change", () => {
+    applicaOffertaSwitchoOsservataSelezionata();
     aggiornaTestoPulsanteConfronto();
     const risultatiVisibili = document.querySelector(".fornitori-consigliati-section")?.style.display === "block";
     if (risultatiVisibili) avviaComparazioneDati();
@@ -11280,7 +11447,8 @@ function collegaEventiUX() {
     document.getElementById(id)?.addEventListener("change", () => {
       if (BLOCCO_AUTOFILL_NUOVA_OFFERTA) return;
       if (id === "master-tipo-fornitura") applicaAmbitoConfronto(leggiValore("master-tipo-fornitura", "dual"));
-      aggiornaNuovaOffertaDaFornitore();
+      const offerteOsservate = aggiornaMenuOfferteSwitchoOsservate();
+      if (!offerteOsservate) aggiornaNuovaOffertaDaFornitore();
       const risultatiVisibili = document.querySelector(".fornitori-consigliati-section")?.style.display === "block";
       if (risultatiVisibili) avviaComparazioneDati();
     });
@@ -11338,7 +11506,7 @@ function collegaEventiUX() {
   sincronizzaConsumiNuovaOfferta();
   aggiornaTestoPulsanteConfronto();
 
-  Promise.all([caricaDatiCalcolo(), caricaOfferteProposte(), caricaOfferteAreraMenu(), caricaProviderBrand()]).then(() => {
+  Promise.all([caricaDatiCalcolo(), caricaOfferteProposte(), caricaOfferteAreraMenu(), caricaOfferteSwitchoOsservate(), caricaProviderBrand()]).then(() => {
     assicuraSchedeOfferte();
     if (SOCIAL_ENTRY_STATE.active) {
       preparaRisparmioIngressoSocialMobile();
