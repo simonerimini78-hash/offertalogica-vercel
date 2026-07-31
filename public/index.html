@@ -355,6 +355,16 @@
         .lead-primary { background: var(--primary); color: #fff; }
         .lead-secondary { background: #e2e8f0; color: var(--text-color); }
         .lead-status { margin-top: 10px; color: var(--text-muted); font-size: 13px; }
+        .activation-channel-backdrop { position: fixed; inset: 0; z-index: 1002; display: none; align-items: center; justify-content: center; padding: 20px; background: rgba(15,23,42,.58); }
+        .activation-channel-modal { width: min(560px, 100%); background: #fff; border-radius: 14px; border: 1px solid var(--border); padding: 22px; box-shadow: 0 24px 60px rgba(15,23,42,.28); }
+        .activation-channel-modal h3 { font-size: 20px; margin-bottom: 6px; color: var(--text-color); }
+        .activation-channel-modal > p { color: var(--text-muted); font-size: 14px; margin-bottom: 14px; }
+        .activation-channel-options { display: grid; gap: 10px; margin: 14px 0; }
+        .activation-channel-option { width: 100%; display: grid; gap: 3px; padding: 14px; border: 1px solid var(--border); border-radius: 11px; background: #fff; color: var(--text-color); text-align: left; cursor: pointer; }
+        .activation-channel-option:hover { border-color: var(--primary); box-shadow: 0 6px 18px rgba(22,163,74,.10); }
+        .activation-channel-option strong { font-size: 14px; }
+        .activation-channel-option span { color: var(--text-muted); font-size: 12px; line-height: 1.4; }
+        .activation-channel-option.assisted { border-color: #86efac; background: #f0fdf4; }
         .offer-consent-backdrop { position: fixed; inset: 0; z-index: 1001; display: none; align-items: center; justify-content: center; padding: 20px; background: rgba(15,23,42,.58); }
         .offer-consent-modal { width: min(560px, 100%); background: #fff; border-radius: 14px; border: 1px solid var(--border); padding: 22px; box-shadow: 0 24px 60px rgba(15,23,42,.28); }
         .offer-consent-modal h3 { font-size: 20px; margin-bottom: 6px; color: var(--text-color); }
@@ -2884,6 +2894,7 @@ const LEAD_STATE = {
   customerType: "privato",
   businessProfile: null,
   selectedOffer: null,
+  pendingActivationChoice: { offer: null, channels: null },
   partnerConsent: false,
   pdfData: null,
   pdfDocuments: [],
@@ -6356,7 +6367,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
           link.removeAttribute("target");
           link.onclick = (event) => {
             event.preventDefault();
-            apriConsensoOfferta(offerta);
+            avviaPercorsoAttivazioneOfferta(offerta);
           };
         }
         saving.style.color = risparmio ? "var(--primary)" : "var(--danger)";
@@ -7158,7 +7169,101 @@ function configuraPopupConsensoOfferta(richiedeConsenso) {
   if (close) close.innerText = "Annulla";
 }
 
-window.apriConsensoOfferta = function apriConsensoOfferta(offerta) {
+// OFFERTALOGICA_SWITCHO_ACTIVATION_CHOICE_FOUNDATION_V1_20260731
+// La scelta tra attivazione autonoma e assistita viene mostrata soltanto
+// nella graduatoria unificata realmente pronta. Il percorso legacy continua
+// ad aprire direttamente il consenso esistente.
+function canaleAttivazioneDisponibile(canaliAttivazione, canale) {
+  if (canale === "direct") return Boolean(canaliAttivazione?.directAvailable);
+  if (canale === "switcho") {
+    return Boolean(
+      canaliAttivazione?.switchoAvailable
+      && canaliAttivazione?.exactSwitchoMatch
+      && canaliAttivazione?.switchoUrl
+    );
+  }
+  return false;
+}
+
+function chiudiSceltaCanaleAttivazione() {
+  const modal = document.getElementById("activation-channel-backdrop");
+  if (modal) modal.style.display = "none";
+  LEAD_STATE.pendingActivationChoice = { offer: null, channels: null };
+}
+
+function apriSceltaCanaleAttivazione(offerta, canaliAttivazione) {
+  if (!canaleAttivazioneDisponibile(canaliAttivazione, "direct")
+      || !canaleAttivazioneDisponibile(canaliAttivazione, "switcho")) {
+    return false;
+  }
+  LEAD_STATE.pendingActivationChoice = { offer: offerta, channels: canaliAttivazione };
+  const modal = document.getElementById("activation-channel-backdrop");
+  const name = document.getElementById("activation-channel-offer-name");
+  if (name) name.innerText = offerta?.nome || "offerta selezionata";
+  if (modal) modal.style.display = "flex";
+  trackEvent("activation_channel_choice_opened", {
+    offerId: String(offerta?.id || ""),
+    offerName: offerta?.nome || "",
+    provider: offerta?.provider || "",
+    activationRoute: canaliAttivazione?.route || "informational_only",
+  });
+  return true;
+}
+
+function confermaSceltaCanaleAttivazione(canale) {
+  const pending = LEAD_STATE.pendingActivationChoice || {};
+  if (!pending.offer || !canaleAttivazioneDisponibile(pending.channels, canale)) return false;
+  const offerta = pending.offer;
+  const canaliAttivazione = pending.channels;
+  const modal = document.getElementById("activation-channel-backdrop");
+  if (modal) modal.style.display = "none";
+  LEAD_STATE.pendingActivationChoice = { offer: null, channels: null };
+  trackEvent("activation_channel_selected", {
+    offerId: String(offerta?.id || ""),
+    offerName: offerta?.nome || "",
+    provider: offerta?.provider || "",
+    selectedChannel: canale,
+    activationRoute: canaliAttivazione?.route || "informational_only",
+  });
+  window.apriConsensoOfferta(offerta, { activationChannel: canale });
+  return true;
+}
+
+function avviaPercorsoAttivazioneOfferta(offerta) {
+  if (!LEAD_STATE.verified) {
+    window.apriConsensoOfferta(offerta);
+    return "locked";
+  }
+  const context = OFFER_RENDER_CONTEXTS.get(String(offerta?.id || "")) || {};
+  const unifiedActive = context.displayGroup === "unified" && graduatoriaCommercialeUnificataPronta();
+  if (!unifiedActive) {
+    window.apriConsensoOfferta(offerta);
+    return "legacy";
+  }
+  const canaliAttivazione = {
+    route: context.activationRoute || "informational_only",
+    directAvailable: Boolean(context.directAvailable),
+    switchoAvailable: Boolean(context.switchoAvailable),
+    exactSwitchoMatch: Boolean(context.exactSwitchoMatch),
+    switchoReference: context.switchoReference || "",
+    switchoUrl: context.switchoUrl || "",
+  };
+  if (canaliAttivazione.route === "direct_and_switcho") {
+    return apriSceltaCanaleAttivazione(offerta, canaliAttivazione) ? "choice" : "unavailable";
+  }
+  if (canaliAttivazione.route === "switcho" && canaleAttivazioneDisponibile(canaliAttivazione, "switcho")) {
+    window.apriConsensoOfferta(offerta, { activationChannel: "switcho" });
+    return "switcho";
+  }
+  if (canaliAttivazione.route === "direct" && canaleAttivazioneDisponibile(canaliAttivazione, "direct")) {
+    window.apriConsensoOfferta(offerta, { activationChannel: "direct" });
+    return "direct";
+  }
+  window.apriConsensoOfferta(offerta);
+  return "fallback";
+}
+
+window.apriConsensoOfferta = function apriConsensoOfferta(offerta, options = {}) {
   if (!LEAD_STATE.verified) {
     trackEvent("offer_click_locked", {
       offerId: String(offerta?.id || ""),
@@ -7189,6 +7294,9 @@ window.apriConsensoOfferta = function apriConsensoOfferta(offerta) {
   LEAD_STATE.selectedOffer.exactSwitchoMatch = Boolean(LEAD_STATE.selectedOffer.rankingContext?.exactSwitchoMatch);
   LEAD_STATE.selectedOffer.switchoReference = LEAD_STATE.selectedOffer.rankingContext?.switchoReference || "";
   LEAD_STATE.selectedOffer.switchoUrl = LEAD_STATE.selectedOffer.rankingContext?.switchoUrl || "";
+  LEAD_STATE.selectedOffer.activationChannel = options.activationChannel
+    || (LEAD_STATE.selectedOffer.activationRoute === "switcho" ? "switcho" : "")
+    || (LEAD_STATE.selectedOffer.activationRoute === "direct" ? "direct" : "");
 
   const modal = document.getElementById("offer-consent-backdrop");
   const name = document.getElementById("offer-consent-offer-name");
@@ -7203,6 +7311,8 @@ window.apriConsensoOfferta = function apriConsensoOfferta(offerta) {
       const luceProvider = testoHtmlSicuro(componenti?.luce?.providerLabel || "fornitore luce");
       const gasProvider = testoHtmlSicuro(componenti?.gas?.providerLabel || "fornitore gas");
       intro.innerHTML = `Hai scelto <strong id="offer-consent-offer-name">${nomeOfferta}</strong>: luce con <strong>${luceProvider}</strong> e gas con <strong>${gasProvider}</strong>. Per continuare serve una verifica consulenziale, perche si tratta di due forniture separate e potrebbero essere necessari due percorsi di attivazione distinti.<br><br>Le condizioni finali dovranno essere confermate dal consulente o dai fornitori: eventuali costi accessori, servizi aggiuntivi, vincoli o promozioni non rilevati dal calcolatore potrebbero modificare la convenienza stimata.`;
+    } else if (LEAD_STATE.selectedOffer.activationChannel === "switcho") {
+      intro.innerHTML = `Hai scelto <strong id="offer-consent-offer-name">${nomeOfferta}</strong> con assistenza gratuita. Per continuare registreremo la scelta e, quando l'integrazione sarà attiva, ti porteremo al percorso co-branded del partner incaricato di assisterti nell'attivazione.<br><br>Le condizioni finali dovranno essere confermate nel percorso assistito.`;
     } else {
       intro.innerHTML = offertaConRedirectAttivo(LEAD_STATE.selectedOffer)
       ? `Hai scelto <strong id="offer-consent-offer-name">${nomeOfferta}</strong>. Per continuare apriremo il funnel ufficiale del fornitore o del partner commerciale collegato all'offerta.`
@@ -7228,6 +7338,7 @@ window.apriConsensoOfferta = function apriConsensoOfferta(offerta) {
     annualCost: LEAD_STATE.selectedOffer.rankingContext?.annualCost || null,
     annualDelta: LEAD_STATE.selectedOffer.rankingContext?.annualDelta || null,
     activationRoute: LEAD_STATE.selectedOffer.activationRoute || "informational_only",
+    activationChannel: LEAD_STATE.selectedOffer.activationChannel || "",
     directAvailable: Boolean(LEAD_STATE.selectedOffer.directAvailable),
     switchoAvailable: Boolean(LEAD_STATE.selectedOffer.switchoAvailable),
     switchoReference: LEAD_STATE.selectedOffer.switchoReference || "",
@@ -7521,7 +7632,7 @@ let assistanceLastInteractionAt = Date.now();
 let assistanceUserInteracted = false;
 
 function assistenzaModalAperta() {
-  return ["lead-modal-backdrop", "offer-consent-backdrop", "activation-helper-backdrop", "assistance-rescue-backdrop"]
+  return ["lead-modal-backdrop", "activation-channel-backdrop", "offer-consent-backdrop", "activation-helper-backdrop", "assistance-rescue-backdrop"]
     .some((id) => document.getElementById(id)?.style.display === "flex");
 }
 
@@ -7646,6 +7757,7 @@ async function registraRichiestaOfferta() {
     annualCost: offer.rankingContext?.annualCost || null,
     annualDelta: offer.rankingContext?.annualDelta || null,
     activationRoute: offer.activationRoute || "informational_only",
+    activationChannel: offer.activationChannel || "",
     directAvailable: Boolean(offer.directAvailable),
     switchoAvailable: Boolean(offer.switchoAvailable),
     switchoReference: offer.switchoReference || "",
@@ -10276,6 +10388,7 @@ window.azzeraPdfEModulo = function azzeraPdfEModulo() {
   LEAD_STATE.leadId = "";
   LEAD_STATE.leadSource = "manual";
   LEAD_STATE.selectedOffer = null;
+  LEAD_STATE.pendingActivationChoice = { offer: null, channels: null };
   LEAD_STATE.partnerConsent = false;
   LEAD_STATE.activationAssistant = { pendingUrl: "", offer: null };
   LEAD_STATE.businessProfile = null;
@@ -11174,6 +11287,12 @@ function collegaEventiUX() {
   document.getElementById("lead-modal-backdrop")?.addEventListener("click", (event) => {
     if (event.target?.id === "lead-modal-backdrop") chiudiLeadModal();
   });
+  document.getElementById("activation-channel-direct")?.addEventListener("click", () => confermaSceltaCanaleAttivazione("direct"));
+  document.getElementById("activation-channel-switcho")?.addEventListener("click", () => confermaSceltaCanaleAttivazione("switcho"));
+  document.getElementById("activation-channel-close")?.addEventListener("click", chiudiSceltaCanaleAttivazione);
+  document.getElementById("activation-channel-backdrop")?.addEventListener("click", (event) => {
+    if (event.target?.id === "activation-channel-backdrop") chiudiSceltaCanaleAttivazione();
+  });
   document.getElementById("offer-consent-confirm")?.addEventListener("click", confermaConsensoOfferta);
   document.getElementById("offer-consent-close")?.addEventListener("click", chiudiConsensoOfferta);
   document.getElementById("offer-consent-backdrop")?.addEventListener("click", (event) => {
@@ -11645,6 +11764,24 @@ Nessun dato sarà inviato a un fornitore finché non sceglierai un'offerta.</p>
             <button type="button" class="lead-secondary" id="lead-close">Chiudi</button>
         </div>
         <div class="lead-status" id="lead-status"></div>
+    </div>
+</div>
+
+<div class="activation-channel-backdrop" id="activation-channel-backdrop" role="dialog" aria-modal="true" aria-labelledby="activation-channel-title">
+    <div class="activation-channel-modal">
+        <h3 id="activation-channel-title">Come preferisci attivare?</h3>
+        <p>Hai scelto <strong id="activation-channel-offer-name">questa offerta</strong>. Il prezzo confrontato resta lo stesso; cambia il modo in cui completi la richiesta.</p>
+        <div class="activation-channel-options">
+            <button type="button" class="activation-channel-option assisted" id="activation-channel-switcho">
+                <strong>Attiva con assistenza gratuita</strong>
+                <span>Prosegui nel percorso co-branded e fatti accompagnare fino al completamento.</span>
+            </button>
+            <button type="button" class="activation-channel-option" id="activation-channel-direct">
+                <strong>Procedi in autonomia</strong>
+                <span>Vai al sito del fornitore e completa direttamente l'attivazione.</span>
+            </button>
+        </div>
+        <button type="button" class="lead-secondary" id="activation-channel-close">Annulla</button>
     </div>
 </div>
 
