@@ -1,9 +1,10 @@
-const CACHE = "offertalogica-premium-v24";
+const CACHE = "offertalogica-premium-v25";
 const APP_SHELL = [
   "/app.html",
   "/app-bills.js",
   "/app-auth.js",
   "/app-utilities.js",
+  "/app-premium-bills.js",
   "/manifest.webmanifest",
   "/assets/logo-offertalogica-header.png",
   "/assets/logo-offertalogica-icon.png",

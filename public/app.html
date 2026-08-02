@@ -74,6 +74,7 @@
     .app-browser.pdf-mode iframe{background:#edf1ee}
     body.app-browser-open{overflow:hidden;width:100%}
     .update{position:fixed;z-index:70;left:50%;bottom:calc(101px + env(safe-area-inset-bottom));transform:translate(-50%,18px);width:min(calc(100% - 32px),508px);padding:12px 13px;border-radius:17px;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 18px 40px rgba(18,48,68,.25);opacity:0;visibility:hidden;transition:.2s ease}.update.show{opacity:1;visibility:visible;transform:translate(-50%,0)}.update span{font-size:13px;font-weight:750}.update button{border:0;border-radius:11px;background:#fff;color:var(--navy);padding:8px 10px;font-size:12px;font-weight:900}
+    .cloud-bill-card{padding:20px;border:1px solid var(--line);border-radius:var(--r-xl);background:#fff;box-shadow:var(--shadow)}.cloud-bill-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}.cloud-bill-copy{min-width:0}.cloud-bill-copy strong{display:block;font-size:22px;letter-spacing:-.035em}.cloud-bill-copy p{margin:6px 0 0;color:var(--muted);font-size:12.5px;line-height:1.45}.cloud-bill-head .pill{flex:0 0 auto}.cloud-bill-locked{margin-top:17px;padding:16px;border-radius:18px;background:#eef5f0}.cloud-bill-locked[hidden],.cloud-bill-enabled[hidden],.cloud-bill-message[hidden],.cloud-bill-empty[hidden],.cloud-bill-list[hidden],.cloud-bill-no-utilities[hidden],.cloud-bill-upload select[hidden],.cloud-bill-upload button[hidden]{display:none}.cloud-bill-locked strong{display:block;font-size:15px}.cloud-bill-locked p{margin:6px 0 0;color:#526b5d;font-size:12px;line-height:1.45}.cloud-bill-no-utilities{margin-top:16px;padding:16px;border:1px dashed #bfd4c6;border-radius:18px;background:#fbfdfb}.cloud-bill-no-utilities strong{display:block;font-size:14px}.cloud-bill-no-utilities p{margin:6px 0 0;color:var(--muted);font-size:12px;line-height:1.45}.cloud-bill-upload{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:10px;margin-top:17px;padding-top:16px;border-top:1px solid #e7eeea}.cloud-bill-field{display:grid;gap:6px}.cloud-bill-field span{color:#315a43;font-size:10px;font-weight:850;text-transform:uppercase;letter-spacing:.035em}.cloud-bill-field select{width:100%;min-height:47px;padding:10px 11px;border:1px solid #c8ddd0;border-radius:13px;background:#fff;color:var(--navy);font-size:16px;outline:none}.cloud-bill-upload-btn{min-height:47px;padding:0 15px;border:0;border-radius:13px;background:var(--green-dark);color:#fff;font-size:11px;font-weight:900}.cloud-bill-upload-btn:disabled{opacity:.55}.cloud-bill-message{margin-top:13px;padding:12px 13px;border-radius:14px;background:#eef4f8;color:#31576e;font-size:12px;font-weight:750;line-height:1.42}.cloud-bill-message.error{background:#fff0f0;color:#9a2525}.cloud-bill-message.success{background:#e9f8ed;color:#087c39}.cloud-bill-message.info{background:#eef4f8;color:#31576e}.cloud-bill-empty{margin-top:14px;padding:18px;border:1px dashed #bfd4c6;border-radius:18px;background:#fbfdfb;text-align:center}.cloud-bill-empty strong{display:block;font-size:15px}.cloud-bill-empty p{margin:6px 0 0;color:var(--muted);font-size:12px;line-height:1.45}.cloud-bill-list{display:grid;gap:11px;margin-top:14px}.cloud-bill-item{display:grid;grid-template-columns:44px minmax(0,1fr) auto;align-items:center;gap:11px;padding:14px;border:1px solid var(--line);border-radius:19px;background:#fff;box-shadow:var(--soft-shadow)}.cloud-bill-icon{width:44px;height:44px;border-radius:15px;background:#e8f8ed;color:var(--green-dark);display:grid;place-items:center;font-size:10px;font-weight:950}.cloud-bill-copy strong,.cloud-bill-copy span,.cloud-bill-copy small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cloud-bill-copy strong{font-size:13px}.cloud-bill-copy span{margin-top:3px;color:var(--green-dark);font-size:11px;font-weight:850}.cloud-bill-copy small{margin-top:4px;color:var(--muted);font-size:10.5px}.cloud-bill-status{padding:6px 8px;border-radius:999px;background:#eef5f0;color:#315a43;font-size:9px;font-weight:900;white-space:nowrap}.cloud-bill-actions{grid-column:2/-1;display:grid;grid-template-columns:1fr 1fr;gap:8px}.cloud-bill-actions:has(.cloud-bill-btn:only-child){grid-template-columns:1fr}.cloud-bill-btn{min-height:38px;border:1px solid #c9ddd0;border-radius:12px;background:#f5fbf7;color:var(--green-dark);font-size:10px;font-weight:900}.cloud-bill-btn.danger{border-color:#ead1d1;background:#fff7f7;color:#9a2525}
     @keyframes mark-in{from{opacity:0;transform:scale(.86) rotate(-2deg)}to{opacity:1;transform:scale(1) rotate(0)}}@keyframes view-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
     @media(min-width:700px){body{padding:24px}.shell{min-height:calc(100dvh - 48px);border-radius:34px;background:#f8faf8;box-shadow:0 28px 90px rgba(18,48,68,.14)}.nav-wrap{bottom:24px}.nav{border-radius:26px}}
     @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
@@ -97,24 +98,54 @@
         <button id="iosInstallTipClose" class="ios-tip-close" type="button" aria-label="Chiudi suggerimento"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" style="width:15px;height:15px"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
       </div>
       <section class="archive-summary home-summary" aria-label="Riepilogo area Premium">
-        <div class="summary-card"><strong id="homeBillArchiveCount">0</strong><span>Bollette locali</span></div>
+        <div class="summary-card"><strong id="homeCloudBillCount">0</strong><span>Bollette cloud</span></div>
         <div class="summary-card"><strong id="homePlanName">Premium</strong><span id="homePlanStatus">Account da collegare</span></div>
       </section>
       <div class="section-title"><h2>Azioni rapide</h2><span>Scegli come iniziare</span></div>
       <section class="action-grid" aria-label="Azioni principali">
-        <button class="action" type="button" data-open-tab="bill" data-bill-upload-shortcut><div class="action-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7z"/><path d="M14 2v5h5"/><path d="M9 13h6M9 17h6"/></svg></div><strong>Carica bolletta</strong><small>Salva il PDF direttamente nell’archivio locale del dispositivo.</small></button>
+        <button class="action" type="button" data-open-tab="bill"><div class="action-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7z"/><path d="M14 2v5h5"/><path d="M9 13h6M9 17h6"/></svg></div><strong>Carica bolletta</strong><small>Associa un PDF a un’utenza e salvalo nell’archivio cloud Premium.</small></button>
         <button class="action" type="button" data-open-tab="offers"><div class="action-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/><path d="M11 8v6M8 11h6"/></svg></div><strong>Esplora offerte</strong><small>Apri il confronto e consulta luce, gas e dual disponibili oggi.</small></button>
       </section>
       <section class="insight"><div class="insight-head"><strong>Area Premium</strong><span id="homePremiumBadge" class="pill">ACCESSO RICHIESTO</span></div><h3 id="homePremiumTitle">Collega il tuo account</h3><p id="homePremiumCopy">Accedi dalla sezione Profilo. Archivio cloud e controlli professionali saranno disponibili soltanto con un abbonamento attivo.</p><a class="text-link" href="#profile" data-tab-link="profile"><span>Apri il profilo</span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></a></section>
     </section>
 
     <section id="view-bill" class="view" data-view="bill">
-      <div class="page-head section-head"><div class="kicker">Le tue bollette</div><h1>Archivio personale</h1><p>Conserva e consulta i PDF delle bollette direttamente su questo dispositivo.</p></div>
+      <div class="page-head section-head"><div class="kicker">Le tue bollette</div><h1>Archivio personale</h1><p>Associa le bollette alle utenze, conservale nel cloud Premium oppure mantieni una copia soltanto sul dispositivo.</p></div>
+
+
+      <div class="section-title"><h2>Archivio cloud Premium</h2><span id="premiumCloudBillsQuota">Non collegato</span></div>
+      <section id="premiumCloudBillsCard" class="cloud-bill-card" aria-label="Archivio bollette cloud Premium">
+        <div class="cloud-bill-head">
+          <div class="cloud-bill-copy"><strong>Bollette associate alle utenze</strong><p>I PDF vengono salvati nel bucket privato Premium e restano accessibili soltanto al cliente e allo staff autorizzato.</p></div>
+          <span id="premiumCloudBillsStatus" class="pill">ACCESSO</span>
+        </div>
+
+        <div id="premiumCloudBillsLocked" class="cloud-bill-locked">
+          <strong id="premiumCloudBillsLockedTitle">Accedi per usare l’archivio cloud</strong>
+          <p id="premiumCloudBillsLockedCopy">Le bollette cloud richiedono un account e un abbonamento Premium attivo.</p>
+        </div>
+
+        <div id="premiumCloudBillsEnabled" class="cloud-bill-enabled" hidden>
+          <div id="premiumCloudBillsNoUtilities" class="cloud-bill-no-utilities" hidden><strong>Prima aggiungi un’utenza</strong><p>Apri Profilo e registra almeno una fornitura luce, gas o dual.</p></div>
+          <div class="cloud-bill-upload">
+            <label class="cloud-bill-field"><span>Utenza da associare</span><select id="premiumCloudBillUtility" aria-label="Utenza da associare alla bolletta"></select></label>
+            <input id="premiumCloudBillFile" class="file-input" type="file" accept=".pdf,application/pdf">
+            <button id="premiumCloudBillUpload" class="cloud-bill-upload-btn" type="button"><span id="premiumCloudBillUploadLabel">SCEGLI PDF</span></button>
+          </div>
+          <div id="premiumCloudBillMessage" class="cloud-bill-message" role="status" aria-live="polite" hidden></div>
+          <div id="premiumCloudBillEmpty" class="cloud-bill-empty"><strong>Nessuna bolletta nel cloud</strong><p>Il primo PDF caricato comparirà qui con utenza, data e stato del controllo.</p></div>
+          <div id="premiumCloudBillList" class="cloud-bill-list" aria-label="Bollette cloud" hidden></div>
+        </div>
+      </section>
+
+      <div class="archive-note"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><span>Il caricamento cloud archivia il PDF ma non avvia ancora l’analisi IA. Il controllo professionale verrà collegato in una fase successiva.</span></div>
+
+      <div class="section-title"><h2>Archivio locale</h2><span>Solo dispositivo</span></div>
 
       <section class="feature-card gradient-panel">
         <div class="feature-symbol"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7z"/><path d="M14 2v5h5"/><path d="M9 13h6M9 17h6"/></svg></div>
-        <h2>Carica la prima bolletta</h2>
-        <p>Scegli uno o più PDF da File, iCloud Drive o Download. Il caricamento non apre il comparatore e non avvia analisi automatiche.</p>
+        <h2>Archivio locale del dispositivo</h2>
+        <p>Salva facoltativamente una copia locale da File, iCloud Drive o Download. Questi PDF non vengono sincronizzati con l’archivio cloud.</p>
         <input id="billFileInput" class="file-input" type="file" accept=".pdf,application/pdf" multiple>
         <button id="billUploadButton" class="cta" type="button"><span id="billUploadButtonLabel">CARICA BOLLETTA</span></button>
         <div id="billUploadStatus" class="upload-status" role="status" aria-live="polite"><span id="billUploadStatusText"></span></div>
@@ -142,9 +173,9 @@
       <section id="billArchiveList" class="bill-list" aria-label="Bollette archiviate" hidden></section>
 
       <section class="control-card" aria-label="Servizio di controllo bollette">
-        <div class="control-card-head"><strong>Servizio Premium</strong><span class="pill">IN PREPARAZIONE</span></div>
+        <div class="control-card-head"><strong>Servizio Premium</strong><span class="pill">PROSSIMO PASSAGGIO</span></div>
         <h3>Controllo delle bollette</h3>
-        <p>Il backend Premium è predisposto; verifiche e monitoraggio saranno collegati in passaggi tecnici successivi.</p>
+        <p>L’archivio cloud è collegato. Analisi IA, revisione umana e monitoraggio saranno attivati nei passaggi tecnici successivi.</p>
         <div class="control-steps">
           <div class="control-step"><b>1</b><span>Verifica di prezzi e condizioni applicate</span></div>
           <div class="control-step"><b>2</b><span>Segnalazione di anomalie e conguagli</span></div>
@@ -152,7 +183,7 @@
         </div>
       </section>
 
-      <div class="archive-note"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><span>In questa prima versione Premium i PDF restano ancora sul dispositivo. Cloud e controlli dello staff non sono ancora collegati all’interfaccia.</span></div>
+      <div class="archive-note"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><span>Archivio cloud e archivio locale sono separati: eliminare una copia locale non elimina quella Premium e viceversa.</span></div>
     </section>
 
     <section id="view-offers" class="view" data-view="offers">
@@ -274,7 +305,7 @@
       <section class="premium-preview" aria-label="Upgrade OffertaLogica">
         <div class="premium-preview-head"><strong>Servizio Premium</strong><span class="pill">IN SVILUPPO</span></div>
         <h2>Controllo e monitoraggio</h2>
-        <p>Account e backend sono predisposti. Archivio cloud, pagamenti e verifiche verranno attivati soltanto dopo i relativi collaudi.</p>
+        <p>Account, utenze e archivio cloud sono attivi. Pagamenti, analisi IA e verifiche professionali verranno collegati soltanto dopo i relativi collaudi.</p>
         <div class="premium-points"><div class="premium-point">Verifica delle condizioni realmente applicate</div><div class="premium-point">Segnalazione di anomalie e conguagli</div><div class="premium-point">Controllo periodico della convenienza</div></div>
       </section>
 
@@ -286,8 +317,8 @@
         <a class="list-item" href="/"><div class="list-icon"><svg class="icon" viewBox="0 0 24 24"><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg></div><div class="list-copy"><strong>Apri il sito completo</strong><small>Accedi a tutte le sezioni di OffertaLogica.</small></div><svg class="icon chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></a>
       </div>
 
-      <div class="profile-note"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><span>In questa fase i PDF locali non vengono sincronizzati e non sono ancora accessibili allo staff di OffertaLogica.</span></div>
-      <span class="version-badge">APP Premium v0.24</span>
+      <div class="profile-note"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><span>Soltanto i PDF caricati nell’archivio cloud Premium potranno essere sottoposti ai controlli OffertaLogica. I PDF locali restano privati sul dispositivo.</span></div>
+      <span class="version-badge">APP Premium v0.25</span>
     </section>
   </main>
 
@@ -311,6 +342,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="/app-auth.js"></script>
   <script src="/app-utilities.js"></script>
+  <script src="/app-premium-bills.js"></script>
   <script src="/app-bills.js"></script>
   <script>
     (()=>{
@@ -383,11 +415,11 @@
         history.pushState({appBrowser:true},'',location.href);
       };
       globalThis.OffertaLogicaAppBrowser={
-        openPdf(blob,filename){
+        openPdf(blob,filename,options={}){
           if(!(blob instanceof Blob))throw new Error('PDF non disponibile.');
           const pdfBlob=blob.type==='application/pdf'?blob:blob.slice(0,blob.size,'application/pdf');
           const objectUrl=URL.createObjectURL(pdfBlob);
-          openAppBrowser(`${objectUrl}#view=FitH`,filename||'Bolletta.pdf',{pdf:true,objectUrl,subtitle:'Documento locale'});
+          openAppBrowser(`${objectUrl}#view=FitH`,filename||'Bolletta.pdf',{pdf:true,objectUrl,subtitle:options.subtitle||'Documento locale'});
         }
       };
       document.querySelectorAll('[data-app-url]').forEach(link=>link.addEventListener('click',event=>{event.preventDefault();openAppBrowser(link.dataset.appUrl,link.dataset.appTitle)}));
@@ -398,6 +430,7 @@
       globalThis.OffertaLogicaBillArchive?.init();
       globalThis.OffertaLogicaPremiumAuth?.init();
       globalThis.OffertaLogicaPremiumUtilities?.init();
+      globalThis.OffertaLogicaPremiumBills?.init();
 
       let deferredPrompt;const install=document.getElementById('installApp');
       addEventListener('beforeinstallprompt',event=>{event.preventDefault();deferredPrompt=event;install.classList.add('show')});

@@ -318,6 +318,7 @@
     closeForm();
     renderEnabled();
     setMessage("success", wasEditing ? "Utenza aggiornata." : "Utenza aggiunta.");
+    window.dispatchEvent(new CustomEvent("offertalogica:utilities-changed"));
   }
 
   async function handleDelete(id) {
@@ -342,6 +343,7 @@
     if (editingId === id) closeForm();
     renderEnabled();
     setMessage("success", "Utenza eliminata.");
+    window.dispatchEvent(new CustomEvent("offertalogica:utilities-changed"));
   }
 
   async function loadUtilities(user, subscription) {
