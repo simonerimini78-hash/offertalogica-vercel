@@ -73,6 +73,10 @@
     return withStore("readwrite", store => store.delete(id));
   }
 
+  function clearBills() {
+    return withStore("readwrite", store => store.clear());
+  }
+
   function validatePdf(file) {
     if (!file || Number(file.size || 0) <= 0) return "Il file selezionato è vuoto.";
     if (Number(file.size || 0) > MAX_PDF_BYTES) return "Il PDF supera il limite di 20 MB.";
@@ -123,6 +127,9 @@
     const latest = document.getElementById("billArchiveLatest");
     const empty = document.getElementById("billArchiveEmpty");
     const list = document.getElementById("billArchiveList");
+    const profileCount = document.getElementById("profileBillArchiveCount");
+    const clearArchiveButton = document.getElementById("clearBillArchiveButton");
+    const profileDataStatus = document.getElementById("profileDataStatus");
 
     if (!input || !button || !buttonLabel || !status || !statusText || !count || !latest || !empty || !list) return;
 
@@ -152,6 +159,8 @@
 
       count.textContent = String(records.length);
       if (homeCount) homeCount.textContent = String(records.length);
+      if (profileCount) profileCount.textContent = String(records.length);
+      if (clearArchiveButton) clearArchiveButton.disabled = records.length === 0;
       latest.textContent = records.length ? dateLabel(records[0].createdAt) : "—";
       buttonLabel.textContent = records.length ? "AGGIUNGI BOLLETTA" : "CARICA BOLLETTA";
       empty.hidden = records.length > 0;
@@ -204,12 +213,55 @@
       shortcut.addEventListener("click", () => input.click());
     });
 
+    if (clearArchiveButton) {
+      clearArchiveButton.addEventListener("click", async () => {
+        let records;
+        try {
+          records = await listBills();
+        } catch (error) {
+          if (profileDataStatus) {
+            profileDataStatus.hidden = false;
+            profileDataStatus.className = "profile-data-status error";
+            profileDataStatus.textContent = "L’archivio locale non è disponibile.";
+          }
+          return;
+        }
+
+        if (!records.length) return;
+
+        const confirmed = globalThis.confirm(
+          `Eliminare definitivamente ${records.length} ${records.length === 1 ? "bolletta" : "bollette"} da questo dispositivo?`
+        );
+        if (!confirmed) return;
+
+        clearArchiveButton.disabled = true;
+        try {
+          await clearBills();
+          clearStatus();
+          if (profileDataStatus) {
+            profileDataStatus.hidden = false;
+            profileDataStatus.className = "profile-data-status";
+            profileDataStatus.textContent = "Archivio locale eliminato.";
+          }
+          await render();
+        } catch (error) {
+          if (profileDataStatus) {
+            profileDataStatus.hidden = false;
+            profileDataStatus.className = "profile-data-status error";
+            profileDataStatus.textContent = "Non è stato possibile eliminare l’archivio locale.";
+          }
+          clearArchiveButton.disabled = false;
+        }
+      });
+    }
+
     input.addEventListener("change", async () => {
       const files = [...(input.files || [])];
       input.value = "";
       if (!files.length) return;
 
       button.disabled = true;
+      if (profileDataStatus) profileDataStatus.hidden = true;
       let completed = 0;
       let failed = 0;
 
