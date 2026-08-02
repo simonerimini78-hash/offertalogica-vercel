@@ -207,7 +207,7 @@
       </div>
 
       <div class="profile-note"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><span>Nel piano gratuito i PDF restano sul dispositivo. Non vengono sincronizzati e non sono accessibili allo staff di OffertaLogica.</span></div>
-      <span class="version-badge">APP v0.21</span>
+      <span class="version-badge">APP v0.22</span>
     </section>
   </main>
 
@@ -332,9 +332,33 @@
       });
 
       if(!('serviceWorker' in navigator))return;
-      let refreshing=false;const notice=document.getElementById('updateNotice');const apply=document.getElementById('applyUpdate');
-      navigator.serviceWorker.addEventListener('controllerchange',()=>{if(refreshing)return;refreshing=true;location.reload()});
-      addEventListener('load',async()=>{try{const registration=await navigator.serviceWorker.register('/sw.js');const showUpdate=worker=>{notice.classList.add('show');apply.onclick=()=>worker.postMessage({type:'SKIP_WAITING'})};if(registration.waiting)showUpdate(registration.waiting);registration.addEventListener('updatefound',()=>{const worker=registration.installing;if(!worker)return;worker.addEventListener('statechange',()=>{if(worker.state==='installed'&&navigator.serviceWorker.controller)showUpdate(worker)})});registration.update()}catch(error){console.warn('Service worker non disponibile',error)}},{once:true});
+      let refreshing=false;let reloadForAcceptedUpdate=false;
+      const notice=document.getElementById('updateNotice');const apply=document.getElementById('applyUpdate');
+      navigator.serviceWorker.addEventListener('controllerchange',()=>{
+        // Alla prima installazione il service worker prende il controllo senza
+        // ricaricare la pagina. Il reload avviene solo dopo il tap su AGGIORNA.
+        if(!reloadForAcceptedUpdate||refreshing)return;
+        refreshing=true;location.reload();
+      });
+      addEventListener('load',async()=>{try{
+        const registration=await navigator.serviceWorker.register('/sw.js');
+        const showUpdate=worker=>{
+          notice.classList.add('show');
+          apply.onclick=()=>{
+            reloadForAcceptedUpdate=true;
+            apply.disabled=true;
+            worker.postMessage({type:'SKIP_WAITING'});
+          };
+        };
+        if(registration.waiting)showUpdate(registration.waiting);
+        registration.addEventListener('updatefound',()=>{
+          const worker=registration.installing;if(!worker)return;
+          worker.addEventListener('statechange',()=>{
+            if(worker.state==='installed'&&navigator.serviceWorker.controller)showUpdate(worker);
+          });
+        });
+        registration.update();
+      }catch(error){console.warn('Service worker non disponibile',error)}},{once:true});
     })();
   </script>
 </body>

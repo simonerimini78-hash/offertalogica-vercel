@@ -1,4 +1,4 @@
-const CACHE = "offertalogica-app-v21";
+const CACHE = "offertalogica-app-v22";
 const APP_SHELL = [
   "/app.html",
   "/app-bills.js",
