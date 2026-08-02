@@ -5,8 +5,6 @@
   const DB_VERSION = 1;
   const STORE_NAME = "bills";
   const MAX_PDF_BYTES = 20_000_000;
-  const DIRECT_UPLOAD_THRESHOLD_BYTES = 4_000_000;
-  const APP_VERSION = "0.10";
 
   function uid() {
     if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
@@ -19,6 +17,7 @@
         reject(new Error("ARCHIVE_NOT_SUPPORTED"));
         return;
       }
+
       const request = indexedDB.open(DB_NAME, DB_VERSION);
       request.onupgradeneeded = () => {
         const db = request.result;
@@ -38,14 +37,16 @@
       return await new Promise((resolve, reject) => {
         const transaction = db.transaction(STORE_NAME, mode);
         const store = transaction.objectStore(STORE_NAME);
-        let result;
+        let request;
+
         try {
-          result = operation(store);
+          request = operation(store);
         } catch (error) {
           reject(error);
           return;
         }
-        transaction.oncomplete = () => resolve(result?.result);
+
+        transaction.oncomplete = () => resolve(request?.result);
         transaction.onerror = () => reject(transaction.error || new Error("ARCHIVE_TRANSACTION_FAILED"));
         transaction.onabort = () => reject(transaction.error || new Error("ARCHIVE_TRANSACTION_ABORTED"));
       });
@@ -72,112 +73,43 @@
     return withStore("readwrite", store => store.delete(id));
   }
 
-  function validPdf(file) {
+  function validatePdf(file) {
     if (!file || Number(file.size || 0) <= 0) return "Il file selezionato è vuoto.";
     if (Number(file.size || 0) > MAX_PDF_BYTES) return "Il PDF supera il limite di 20 MB.";
+
     const nameLooksPdf = /\.pdf$/i.test(String(file.name || ""));
-    const typeLooksPdf = ["application/pdf", "application/x-pdf", "application/octet-stream", ""].includes(String(file.type || "").toLowerCase());
+    const acceptedTypes = ["application/pdf", "application/x-pdf", "application/octet-stream", ""];
+    const typeLooksPdf = acceptedTypes.includes(String(file.type || "").toLowerCase());
     if (!nameLooksPdf || !typeLooksPdf) return "Seleziona un file PDF valido.";
+
     return "";
-  }
-
-  async function jsonResponse(response) {
-    const contentType = response?.headers?.get?.("content-type") || "";
-    if (!contentType.includes("application/json")) throw new Error("Servizio di analisi non disponibile.");
-    const payload = await response.json();
-    if (!response.ok || !payload?.ok) {
-      const error = new Error(payload?.error || "Analisi della bolletta non riuscita.");
-      error.code = payload?.code || "PDF_ANALYSIS_ERROR";
-      throw error;
-    }
-    return payload;
-  }
-
-  async function analyzePdf(file) {
-    const archiveContext = {
-      source: "offertalogica_app_archive",
-      appVersion: APP_VERSION,
-      localArchive: true,
-    };
-
-    if (Number(file.size || 0) >= DIRECT_UPLOAD_THRESHOLD_BYTES) {
-      const createResponse = await fetch("/api/analyze-pdf", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "create_upload",
-          filename: file.name || "documento.pdf",
-          mimeType: file.type || "application/pdf",
-          fileSize: Number(file.size || 0),
-        }),
-      });
-      const created = await jsonResponse(createResponse);
-      const upload = created.upload || {};
-      if (!upload.uploadUrl || !upload.uploadTicket) throw new Error("Caricamento protetto del PDF non riuscito.");
-
-      const signedBody = new FormData();
-      signedBody.append("file", file, file.name || "documento.pdf");
-      const uploadResponse = await fetch(upload.uploadUrl, { method: "PUT", body: signedBody });
-      if (!uploadResponse.ok) throw new Error("Caricamento protetto del PDF non riuscito.");
-
-      const analyzeResponse = await fetch("/api/analyze-pdf", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "analyze_uploaded_pdf",
-          uploadTicket: upload.uploadTicket,
-          archiveContext,
-        }),
-      });
-      return jsonResponse(analyzeResponse);
-    }
-
-    const formData = new FormData();
-    formData.append("pdf", file, file.name || "documento.pdf");
-    formData.append("archiveContext", JSON.stringify(archiveContext));
-    const response = await fetch("/api/analyze-pdf", { method: "POST", body: formData });
-    return jsonResponse(response);
-  }
-
-  function providerLabel(normalized = {}) {
-    const providers = [normalized.fornitore, normalized.fornitore_luce, normalized.fornitore_gas]
-      .map(value => String(value || "").trim())
-      .filter(Boolean);
-    return [...new Set(providers)].join(" · ") || "Bolletta analizzata";
-  }
-
-  function commodityLabel(normalized = {}) {
-    const commodity = String(normalized.commodity || "").toLowerCase();
-    if (commodity === "dual") return "Luce e gas";
-    if (commodity === "luce" || normalized.consumo_luce_kwh != null) {
-      if (normalized.consumo_gas_smc != null) return "Luce e gas";
-      return "Luce";
-    }
-    if (commodity === "gas" || normalized.consumo_gas_smc != null) return "Gas";
-    return "Utenza da verificare";
-  }
-
-  function consumptionLabel(normalized = {}) {
-    const parts = [];
-    const luce = Number(normalized.consumo_luce_kwh);
-    const gas = Number(normalized.consumo_gas_smc);
-    if (Number.isFinite(luce) && luce > 0) parts.push(`${new Intl.NumberFormat("it-IT", { maximumFractionDigits: 1 }).format(luce)} kWh`);
-    if (Number.isFinite(gas) && gas > 0) parts.push(`${new Intl.NumberFormat("it-IT", { maximumFractionDigits: 1 }).format(gas)} Smc`);
-    return parts.join(" · ") || "Dati estratti dall’IA";
   }
 
   function dateLabel(value) {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return "Data non disponibile";
-    return new Intl.DateTimeFormat("it-IT", { day: "2-digit", month: "short", year: "numeric" }).format(date);
+    return new Intl.DateTimeFormat("it-IT", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    }).format(date);
+  }
+
+  function sizeLabel(bytes) {
+    const value = Number(bytes || 0);
+    if (!Number.isFinite(value) || value <= 0) return "Dimensione non disponibile";
+    if (value < 1_000_000) return `${Math.max(1, Math.round(value / 1_000))} KB`;
+    return `${new Intl.NumberFormat("it-IT", { maximumFractionDigits: 1 }).format(value / 1_000_000)} MB`;
   }
 
   function errorMessage(error) {
-    if (error?.name === "QuotaExceededError") return "Spazio insufficiente per archiviare il PDF su questo dispositivo.";
-    if (error?.message === "ARCHIVE_NOT_SUPPORTED") return "L’archivio locale non è supportato da questo browser.";
-    const direct = String(error?.message || "").trim();
-    if (direct) return direct;
-    return "Non è stato possibile analizzare la bolletta.";
+    if (error?.name === "QuotaExceededError") {
+      return "Spazio insufficiente per archiviare il PDF su questo dispositivo.";
+    }
+    if (error?.message === "ARCHIVE_NOT_SUPPORTED") {
+      return "L’archivio locale non è supportato da questo browser.";
+    }
+    return String(error?.message || "Non è stato possibile archiviare la bolletta.").trim();
   }
 
   function init() {
@@ -190,12 +122,14 @@
     const latest = document.getElementById("billArchiveLatest");
     const empty = document.getElementById("billArchiveEmpty");
     const list = document.getElementById("billArchiveList");
-    if (!input || !button || !status || !statusText || !count || !latest || !empty || !list) return;
+
+    if (!input || !button || !buttonLabel || !status || !statusText || !count || !latest || !empty || !list) return;
 
     const setStatus = (kind, text) => {
       status.className = `upload-status show ${kind || ""}`.trim();
       statusText.textContent = text;
     };
+
     const clearStatus = () => {
       status.className = "upload-status";
       statusText.textContent = "";
@@ -232,34 +166,40 @@
         const copy = document.createElement("div");
         copy.className = "bill-item-copy";
         const title = document.createElement("strong");
-        title.textContent = record.provider || "Bolletta analizzata";
+        title.textContent = record.filename || "Bolletta.pdf";
         const meta = document.createElement("span");
-        meta.textContent = `${record.commodity || "Utenza"} · ${dateLabel(record.createdAt)}`;
+        meta.textContent = `Archiviata · ${dateLabel(record.createdAt)}`;
         const detail = document.createElement("small");
-        detail.textContent = `${record.consumption || "Dati estratti dall’IA"} · ${record.filename}`;
+        detail.textContent = `${sizeLabel(record.fileSize)} · Solo su questo dispositivo`;
         copy.append(title, meta, detail);
 
         const actions = document.createElement("div");
         actions.className = "bill-item-actions";
+
         const pdfButton = document.createElement("button");
         pdfButton.type = "button";
         pdfButton.className = "bill-mini-btn";
         pdfButton.textContent = "PDF";
         pdfButton.dataset.billOpen = record.id;
-        pdfButton.setAttribute("aria-label", `Apri ${record.filename}`);
+        pdfButton.setAttribute("aria-label", `Apri ${record.filename || "la bolletta"}`);
+
         const deleteButton = document.createElement("button");
         deleteButton.type = "button";
         deleteButton.className = "bill-mini-btn danger";
         deleteButton.textContent = "Elimina";
         deleteButton.dataset.billDelete = record.id;
-        actions.append(pdfButton, deleteButton);
 
+        actions.append(pdfButton, deleteButton);
         item.append(icon, copy, actions);
         list.append(item);
       });
     };
 
     button.addEventListener("click", () => input.click());
+
+    document.querySelectorAll("[data-bill-upload-shortcut]").forEach(shortcut => {
+      shortcut.addEventListener("click", () => input.click());
+    });
 
     input.addEventListener("change", async () => {
       const files = [...(input.files || [])];
@@ -269,30 +209,27 @@
       button.disabled = true;
       let completed = 0;
       let failed = 0;
+
       for (let index = 0; index < files.length; index += 1) {
         const file = files[index];
-        const validationError = validPdf(file);
+        const validationError = validatePdf(file);
         if (validationError) {
           failed += 1;
-          setStatus("error", validationError);
+          setStatus("error", `${file?.name || "File"}: ${validationError}`);
           continue;
         }
-        setStatus("loading", `Analisi ${index + 1} di ${files.length}: ${file.name}`);
+
+        setStatus("loading", `Salvataggio ${index + 1} di ${files.length}: ${file.name}`);
+
         try {
-          const payload = await analyzePdf(file);
-          const normalized = payload.normalized || {};
           await saveBill({
             id: uid(),
-            filename: file.name || "documento.pdf",
+            filename: file.name || "bolletta.pdf",
             mimeType: file.type || "application/pdf",
             fileSize: Number(file.size || 0),
             createdAt: new Date().toISOString(),
-            provider: providerLabel(normalized),
-            commodity: commodityLabel(normalized),
-            consumption: consumptionLabel(normalized),
-            analysis: normalized,
             pdfBlob: file.slice(0, file.size, file.type || "application/pdf"),
-            status: "analyzed",
+            status: "archived",
           });
           completed += 1;
           await render();
@@ -301,9 +238,18 @@
           setStatus("error", `${file.name}: ${errorMessage(error)}`);
         }
       }
+
       button.disabled = false;
-      if (completed && !failed) setStatus("success", completed === 1 ? "Bolletta analizzata e aggiunta all’archivio." : `${completed} bollette analizzate e archiviate.`);
-      else if (completed) setStatus("warning", `${completed} bollette archiviate; ${failed} non completate.`);
+
+      if (completed && !failed) {
+        setStatus(
+          "success",
+          completed === 1 ? "Bolletta aggiunta all’archivio locale." : `${completed} bollette aggiunte all’archivio locale.`
+        );
+      } else if (completed) {
+        setStatus("warning", `${completed} bollette archiviate; ${failed} non completate.`);
+      }
+
       await render();
     });
 
@@ -313,6 +259,7 @@
         try {
           const record = await getBill(openButton.dataset.billOpen);
           if (!record?.pdfBlob) throw new Error("PDF non disponibile.");
+
           const url = URL.createObjectURL(record.pdfBlob);
           const anchor = document.createElement("a");
           anchor.href = url;
@@ -330,6 +277,7 @@
 
       const deleteButton = event.target.closest("[data-bill-delete]");
       if (!deleteButton) return;
+
       try {
         await deleteBill(deleteButton.dataset.billDelete);
         clearStatus();
@@ -342,5 +290,5 @@
     render();
   }
 
-  globalThis.OffertaLogicaBillArchive = { init, analyzePdf };
+  globalThis.OffertaLogicaBillArchive = { init };
 })();
