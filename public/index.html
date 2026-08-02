@@ -14,7 +14,9 @@
     <meta property="og:url" content="https://offertalogica.it/">
     <meta name="twitter:card" content="summary">
     <link rel="icon" type="image/png" href="/assets/logo-offertalogica-icon.png">
-    <link rel="apple-touch-icon" href="/assets/logo-offertalogica-icon.png">
+    <link rel="apple-touch-icon" href="/assets/app-icon-192.png">
+    <link rel="manifest" href="/manifest.webmanifest">
+    <meta name="theme-color" content="#16a34a">
     <style>
         :root {
             --bg-color: #f1f5f9;
@@ -164,6 +166,11 @@
             border-radius: 11px;
             background: #ffffff;
         }
+        .optional-provider-panel[hidden] { display: none !important; }
+        .switcho-observed-offer-panel { border-color: #c4b5fd; background: #faf5ff; }
+        .switcho-observed-offer-panel label { color: #6d28d9; }
+        .switcho-observed-offer-panel select { border-color: #8b5cf6; }
+        .switcho-observed-note { display: block; margin-top: 6px; color: #6b21a8; font-size: 10px; line-height: 1.4; }
         .optional-provider-panel label { display: block; margin-bottom: 5px; color: var(--accent); font-size: 11px; font-weight: 800; }
         .optional-provider-panel select {
             width: 100%;
@@ -355,6 +362,16 @@
         .lead-primary { background: var(--primary); color: #fff; }
         .lead-secondary { background: #e2e8f0; color: var(--text-color); }
         .lead-status { margin-top: 10px; color: var(--text-muted); font-size: 13px; }
+        .activation-channel-backdrop { position: fixed; inset: 0; z-index: 1002; display: none; align-items: center; justify-content: center; padding: 20px; background: rgba(15,23,42,.58); }
+        .activation-channel-modal { width: min(560px, 100%); background: #fff; border-radius: 14px; border: 1px solid var(--border); padding: 22px; box-shadow: 0 24px 60px rgba(15,23,42,.28); }
+        .activation-channel-modal h3 { font-size: 20px; margin-bottom: 6px; color: var(--text-color); }
+        .activation-channel-modal > p { color: var(--text-muted); font-size: 14px; margin-bottom: 14px; }
+        .activation-channel-options { display: grid; gap: 10px; margin: 14px 0; }
+        .activation-channel-option { width: 100%; display: grid; gap: 3px; padding: 14px; border: 1px solid var(--border); border-radius: 11px; background: #fff; color: var(--text-color); text-align: left; cursor: pointer; }
+        .activation-channel-option:hover { border-color: var(--primary); box-shadow: 0 6px 18px rgba(22,163,74,.10); }
+        .activation-channel-option strong { font-size: 14px; }
+        .activation-channel-option span { color: var(--text-muted); font-size: 12px; line-height: 1.4; }
+        .activation-channel-option.assisted { border-color: #86efac; background: #f0fdf4; }
         .offer-consent-backdrop { position: fixed; inset: 0; z-index: 1001; display: none; align-items: center; justify-content: center; padding: 20px; background: rgba(15,23,42,.58); }
         .offer-consent-modal { width: min(560px, 100%); background: #fff; border-radius: 14px; border: 1px solid var(--border); padding: 22px; box-shadow: 0 24px 60px rgba(15,23,42,.28); }
         .offer-consent-modal h3 { font-size: 20px; margin-bottom: 6px; color: var(--text-color); }
@@ -2615,6 +2632,14 @@
                 <div id="nuova-offerta-auto-hint" role="status" aria-live="polite" style="display:none; margin-top:8px; font-size:12px; color:var(--text-muted); line-height:1.4;"></div>
             </div>
 
+            <div class="optional-provider-panel switcho-observed-offer-panel" id="switcho-observed-offer-panel" hidden>
+                <label for="switcho-observed-offer-select">Quale offerta vuoi confrontare?</label>
+                <select id="switcho-observed-offer-select" aria-describedby="switcho-observed-offer-help">
+                    <option value="" selected>Seleziona un'offerta</option>
+                </select>
+                <small id="switcho-observed-offer-help" class="switcho-observed-note">Offerte osservate su Switcho il 31 luglio 2026. Sono disponibili per il confronto, ma non abilitano ancora un'attivazione o un redirect.</small>
+            </div>
+
             <div class="optional-consumption-card" aria-label="Consumi usati per confrontare l'offerta specifica">
                 <div class="optional-consumption-heading">
                     <div>
@@ -2763,6 +2788,7 @@ let MOTORE_CALCOLO_VERSION = "motore-v6-arera-first-2026-07-03";
 const DATI_CALCOLO_URLS = ["/data/calcolo-parametri.json", "data/calcolo-parametri.json"];
 const DATI_OFFERTE_URLS = ["/data/offerte-proposte.json", "data/offerte-proposte.json"];
 const DATI_ARERA_MENU_URLS = ["/data/offerte-arera-menu.json", "data/offerte-arera-menu.json"];
+const DATI_SWITCHO_OSSERVATE_URLS = ["/data/offerte-switcho-osservate.json", "data/offerte-switcho-osservate.json"];
 const DATI_PROVIDER_BRAND_URLS = ["/data/provider-brand.json", "data/provider-brand.json"];
 let DATI_CALCOLO_META = {
   versioneDati: "fallback-html-2026-06-27-v3",
@@ -2779,6 +2805,13 @@ let DATI_ARERA_MENU_META = {
   fonte: "Archivio ARERA non caricato",
   aggiornatoIl: "2026-06-27",
 };
+let DATI_SWITCHO_OSSERVATE_META = {
+  versioneDati: "switcho-observed-fallback-empty",
+  fonte: "Catalogo osservato Switcho non caricato",
+  osservatoIl: "",
+  routingEnabled: false,
+};
+let OFFERTE_SWITCHO_OSSERVATE = [];
 let DATI_PROVIDER_BRAND_META = {
   versioneDati: "provider-brand-fallback-2026-07-05",
   fonte: "Fallback interno HTML",
@@ -2884,6 +2917,7 @@ const LEAD_STATE = {
   customerType: "privato",
   businessProfile: null,
   selectedOffer: null,
+  pendingActivationChoice: { offer: null, channels: null },
   partnerConsent: false,
   pdfData: null,
   pdfDocuments: [],
@@ -2912,6 +2946,18 @@ const SOCIAL_ENTRY_STATE = {
   isSocialJourney: false,
   personalizationDismissed: false,
 };
+
+// OFFERTALOGICA_SWITCHO_ROUTING_FOUNDATION_V1_20260731
+// L'integrazione resta disattivata finché non sono disponibili contratto,
+// landing co-branded e catalogo esatto delle offerte gestite da Switcho.
+const SWITCHO_INTEGRATION_CONFIG = Object.freeze({
+  enabled: false,
+  landingUrl: "",
+  catalogVersion: "pending-contract",
+  rankingMode: "legacy_6_plus_3",
+  unifiedOfferLimit: 9,
+  catalog: Object.freeze([]),
+});
 
 const PDF_ARCHIVE_REPLAY_STORAGE_KEY = "offertalogicaPdfArchiveReplay";
 const PDF_PROFILE_STATE = { current: {}, offer: {} };
@@ -3565,6 +3611,17 @@ function normalizzaMonetizzazioneOfferta(monetizzazione) {
   };
 }
 
+function normalizzaSwitchoOfferta(value) {
+  if (!value || typeof value !== "object") return null;
+  return {
+    catalogOfferId: String(value.catalogOfferId || "").trim(),
+    offerCode: String(value.offerCode || "").trim(),
+    providerKey: String(value.providerKey || "").trim(),
+    landingUrl: String(value.landingUrl || "").trim(),
+    active: value.active !== false,
+  };
+}
+
 function normalizzaOfferta(offerta, index) {
   if (!offerta || typeof offerta !== "object") return null;
   const luce = normalizzaVoceOfferta(offerta.luce);
@@ -3588,6 +3645,7 @@ function normalizzaOfferta(offerta, index) {
     componentiSeparate: offerta.componentiSeparate && typeof offerta.componentiSeparate === "object" ? offerta.componentiSeparate : null,
     monetizzazione: normalizzaMonetizzazioneOfferta(offerta.monetizzazione),
     certificazione: offerta.certificazione && typeof offerta.certificazione === "object" ? offerta.certificazione : null,
+    switcho: normalizzaSwitchoOfferta(offerta.switcho),
   };
 }
 
@@ -3624,6 +3682,73 @@ async function caricaOfferteProposte() {
     }
   }
 
+  return false;
+}
+
+// OFFERTALOGICA_SWITCHO_OBSERVED_CATALOG_V1_20260731
+// Catalogo separato dalle offerte pubbliche: serve al confronto manuale e
+// non partecipa alla graduatoria finché mancano mapping e landing contrattuali.
+function normalizzaOffertaSwitchoOsservata(offerta, index) {
+  if (!offerta || typeof offerta !== "object") return null;
+  const normalizzata = normalizzaOfferta({
+    ...offerta,
+    id: offerta.id || `switcho-observed-${index + 1}`,
+    link: "#",
+    destinationType: "switcho_observed",
+    destinationStatus: "solo_confronto",
+    descrizione: [
+      offerta.descrizione || "",
+      `Offerta osservata su Switcho il ${offerta.osservatoIl || DATI_SWITCHO_OSSERVATE_META.osservatoIl || "31/07/2026"}.`,
+      Array.isArray(offerta.promozioni) && offerta.promozioni.length
+        ? "Le promozioni sono annotate ma non sottratte automaticamente dal costo annuo finché non ne sono confermati durata e criteri."
+        : "",
+    ].filter(Boolean).join(" "),
+    fonte: offerta.fonte || DATI_SWITCHO_OSSERVATE_META.fonte,
+    aggiornataIl: offerta.osservatoIl || DATI_SWITCHO_OSSERVATE_META.osservatoIl || "",
+  }, index);
+  if (!normalizzata) return null;
+  return {
+    ...normalizzata,
+    providerKey: String(offerta.providerKey || providerValue(offerta.provider)).trim(),
+    durataMesi: Number.isFinite(Number(offerta.durataMesi)) ? Number(offerta.durataMesi) : null,
+    spesaStimataMensileSwitcho: Number.isFinite(Number(offerta.spesaStimataMensileSwitcho)) ? Number(offerta.spesaStimataMensileSwitcho) : null,
+    promozioni: Array.isArray(offerta.promozioni) ? offerta.promozioni : [],
+    areraMatch: offerta.areraMatch && typeof offerta.areraMatch === "object" ? offerta.areraMatch : null,
+    routingEligible: false,
+  };
+}
+
+function applicaDatiOfferteSwitchoOsservate(data) {
+  const offerte = Array.isArray(data) ? data : data?.offerte;
+  if (!Array.isArray(offerte)) return false;
+  DATI_SWITCHO_OSSERVATE_META = {
+    versioneDati: data.versioneDati || DATI_SWITCHO_OSSERVATE_META.versioneDati,
+    fonte: data.fonte || DATI_SWITCHO_OSSERVATE_META.fonte,
+    osservatoIl: data.osservatoIl || DATI_SWITCHO_OSSERVATE_META.osservatoIl,
+    routingEnabled: false,
+  };
+  const pulite = offerte.map((offerta, index) => normalizzaOffertaSwitchoOsservata({
+    ...offerta,
+    osservatoIl: offerta.osservatoIl || DATI_SWITCHO_OSSERVATE_META.osservatoIl,
+    fonte: offerta.fonte || DATI_SWITCHO_OSSERVATE_META.fonte,
+  }, index)).filter(Boolean);
+  if (!pulite.length) return false;
+  OFFERTE_SWITCHO_OSSERVATE = pulite;
+  return true;
+}
+
+async function caricaOfferteSwitchoOsservate() {
+  if (!window.fetch || window.location.protocol === "file:") return false;
+  for (const url of DATI_SWITCHO_OSSERVATE_URLS) {
+    try {
+      const response = await fetch(url, { cache: "no-store" });
+      if (!response.ok) continue;
+      const data = await response.json();
+      if (applicaDatiOfferteSwitchoOsservate(data)) return true;
+    } catch (error) {
+      // Il confronto principale continua senza il catalogo osservato.
+    }
+  }
   return false;
 }
 
@@ -4769,13 +4894,203 @@ function offertaAttivabileOnline(offerta) {
   return percorsoAffiliatoAttivo && !monetizzazioneEsplicitamenteDisattivata;
 }
 
-function testoAzioneOfferta(offerta, attivabileOnline) {
+function normalizzaIdentificativoCanale(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function identificativiEsattiOfferta(offerta) {
+  const values = [
+    offerta?.switcho?.catalogOfferId,
+    offerta?.switcho?.offerCode,
+    offerta?.certificazione?.codice,
+    ...Object.values(offerta?.certificazione?.codici || {}),
+  ];
+  return new Set(values.map(normalizzaIdentificativoCanale).filter(Boolean));
+}
+
+function identificativiEsattiCatalogoSwitcho(item) {
+  const values = [
+    item?.catalogOfferId,
+    item?.offerCode,
+    item?.areraCode,
+    ...(Array.isArray(item?.offerCodes) ? item.offerCodes : []),
+  ];
+  return new Set(values.map(normalizzaIdentificativoCanale).filter(Boolean));
+}
+
+function trovaCorrispondenzaSwitchoEsatta(offerta, config = SWITCHO_INTEGRATION_CONFIG) {
+  if (!config?.enabled || !Array.isArray(config.catalog) || !config.catalog.length) return null;
+  const offerIdentifiers = identificativiEsattiOfferta(offerta);
+  if (!offerIdentifiers.size) return null;
+  const offerProviderKey = chiaveFornitoreDaNome(offerta?.provider || "");
+
+  return config.catalog.find((item) => {
+    if (!item || item.active === false) return false;
+    const catalogIdentifiers = identificativiEsattiCatalogoSwitcho(item);
+    if (![...catalogIdentifiers].some((identifier) => offerIdentifiers.has(identifier))) return false;
+    const catalogProviderKey = String(item.providerKey || chiaveFornitoreDaNome(item.provider || "")).trim();
+    return !catalogProviderKey || catalogProviderKey === offerProviderKey;
+  }) || null;
+}
+
+function urlSwitchoPerCorrispondenza(match, config = SWITCHO_INTEGRATION_CONFIG) {
+  const value = String(match?.landingUrl || config?.landingUrl || "").trim();
+  if (!value) return "";
+  try {
+    const url = new URL(value, window.location.origin);
+    return url.protocol === "https:" ? url.href : "";
+  } catch {
+    return "";
+  }
+}
+
+function determinaCanaliAttivazione(offerta, config = SWITCHO_INTEGRATION_CONFIG) {
+  const directAvailable = offertaAttivabileOnline(offerta);
+  const switchoMatch = trovaCorrispondenzaSwitchoEsatta(offerta, config);
+  const switchoUrl = urlSwitchoPerCorrispondenza(switchoMatch, config);
+  const switchoAvailable = Boolean(switchoMatch && switchoUrl);
+  const route = directAvailable && switchoAvailable
+    ? "direct_and_switcho"
+    : directAvailable
+      ? "direct"
+      : switchoAvailable
+        ? "switcho"
+        : "informational_only";
+
+  return {
+    directAvailable,
+    switchoAvailable,
+    exactSwitchoMatch: Boolean(switchoMatch),
+    route,
+    switchoUrl,
+    switchoReference: switchoMatch?.catalogOfferId || switchoMatch?.offerCode || switchoMatch?.areraCode || "",
+  };
+}
+
+// OFFERTALOGICA_SWITCHO_UNIFIED_SELECTION_V1_20260731
+// Prepara una graduatoria commerciale unica senza abilitarla nel funnel.
+// La visualizzazione resta legacy finché rankingMode non viene cambiato
+// dopo avere ricevuto landing e catalogo contrattuale verificati.
+function arricchisciCanaliAttivazione(item, config = SWITCHO_INTEGRATION_CONFIG) {
+  const canaliAttivazione = item?.canaliAttivazione || determinaCanaliAttivazione(item?.offerta, config);
+  return { ...item, canaliAttivazione };
+}
+
+function offertaCommercialmenteAttivabile(item, config = SWITCHO_INTEGRATION_CONFIG) {
+  const enriched = arricchisciCanaliAttivazione(item, config);
+  return ["direct", "switcho", "direct_and_switcho"].includes(enriched.canaliAttivazione?.route);
+}
+
+function selezionaOfferteCommercialiUnificate(items, limite = SWITCHO_INTEGRATION_CONFIG.unifiedOfferLimit, config = SWITCHO_INTEGRATION_CONFIG) {
+  const maxItems = Math.max(1, Number.parseInt(limite, 10) || 9);
+  const ids = new Set();
+  const selezionate = [];
+  const ordinate = (Array.isArray(items) ? items : [])
+    .map((item) => arricchisciCanaliAttivazione(item, config))
+    .filter((item) => item?.compatibileRanking !== false && item?.filtroEsatto !== false)
+    .filter((item) => offertaCommercialmenteAttivabile(item, config))
+    .sort((a, b) => (a.costo - b.costo) || (b.differenza - a.differenza));
+
+  ordinate.forEach((item) => {
+    const id = String(item?.offerta?.id || "");
+    if (!id || ids.has(id) || selezionate.length >= maxItems) return;
+    ids.add(id);
+    selezionate.push(item);
+  });
+  return selezionate;
+}
+
+function graduatoriaCommercialeUnificataPronta(config = SWITCHO_INTEGRATION_CONFIG) {
+  if (!config?.enabled || config?.rankingMode !== "unified") return false;
+  if (!Array.isArray(config.catalog) || !config.catalog.some((item) => item && item.active !== false)) return false;
+  return Boolean(urlSwitchoPerCorrispondenza(null, config));
+}
+
+// OFFERTALOGICA_SWITCHO_UNIFIED_RENDERING_V1_20260731
+// Collega la graduatoria unica al rendering soltanto quando configurazione,
+// catalogo e landing sono tutti pronti. In caso contrario restituisce
+// esattamente la composizione legacy 6 + 3.
+function preparaComposizioneOfferteVisibili({
+  offerteCalcolate,
+  ordinateRanking,
+  rankingGlobale,
+  tipoTariffa,
+  tipoFornitura,
+  config = SWITCHO_INTEGRATION_CONFIG,
+}) {
+  const partnerAttivabiliCoerenti = offerteCalcolate
+    .filter((item) => item.attivabileCoerente)
+    .sort((a, b) => (a.costo - b.costo) || (b.differenza - a.differenza));
+
+  const attivabiliPrioritarie = selezionaPartnerAttivabiliPerMenu(
+    partnerAttivabiliCoerenti,
+    NUMERO_OFFERTE_PARTNER_MENU
+  ).map((item, index) => ({
+    ...item,
+    gruppoVisuale: "attivabile",
+    posizioneGruppo: index + 1,
+    posizioneEconomica: rankingGlobale.get(String(item.offerta.id)) || null,
+  }));
+
+  const candidatiConsulente = ordinateRanking
+    .filter((item) => item.compatibileRanking && item.filtroEsatto)
+    .filter((item) => item.offerta?.tipo === tipoTariffa)
+    .filter((item) => offertaCoerenteConFornitura(item.offerta, tipoFornitura));
+
+  const miglioriConConsulente = selezionaConsulentiPerMenu(
+    candidatiConsulente,
+    attivabiliPrioritarie,
+    NUMERO_OFFERTE_CONSULENTE_MENU
+  ).map((item, index) => ({
+    ...item,
+    gruppoVisuale: "top",
+    posizioneGruppo: index + 1,
+  }));
+
+  const unifiedActive = graduatoriaCommercialeUnificataPronta(config);
+  const offerteUnificate = unifiedActive
+    ? selezionaOfferteCommercialiUnificate(
+        offerteCalcolate,
+        config.unifiedOfferLimit,
+        config
+      ).map((item, index) => ({
+        ...item,
+        gruppoVisuale: "unified",
+        posizioneGruppo: index + 1,
+        posizioneEconomica: rankingGlobale.get(String(item.offerta.id)) || index + 1,
+      }))
+    : [];
+
+  return {
+    unifiedActive,
+    attivabiliPrioritarie,
+    miglioriConConsulente,
+    offerteUnificate,
+    visibili: unifiedActive
+      ? offerteUnificate
+      : [...attivabiliPrioritarie, ...miglioriConConsulente],
+  };
+}
+
+// OFFERTALOGICA_SWITCHO_CTA_FOUNDATION_V1_20260731
+// Il testo della CTA cambia soltanto nella graduatoria unificata realmente pronta.
+// Con la configurazione legacy attuale continua a restituire esattamente "Procedi".
+function testoAzioneOfferta(offerta, attivabileOnline, canaliAttivazione = null, unifiedActive = false) {
   if (offertaSeparataMultiFornitore(offerta)) return "Verifica con consulente";
+  if (!unifiedActive) return "Procedi";
+  const route = canaliAttivazione?.route || (attivabileOnline ? "direct" : "informational_only");
+  if (route === "switcho") return "Attiva con assistenza gratuita";
+  if (route === "direct_and_switcho") return "Scegli come attivare";
+  if (route === "direct") return "Attiva online";
   return "Procedi";
 }
 
 function testoBadgeOfferta(item, migliore) {
   if (item.offerta && offertaSeparataMultiFornitore(item.offerta)) return "Abbinamento separato";
+  if (item.gruppoVisuale === "unified" && item.posizioneGruppo === 1) return "Migliore offerta attivabile";
+  if (item.gruppoVisuale === "unified" && item.canaliAttivazione?.route === "direct_and_switcho") return "Attivabile online o con assistenza";
+  if (item.gruppoVisuale === "unified" && item.canaliAttivazione?.route === "switcho") return "Attivabile con assistenza";
+  if (item.gruppoVisuale === "unified") return "Attivabile online";
   if (item.gruppoVisuale === "top" && item.posizioneGruppo === 1) return "Migliore stimata con consulente";
   if (item.gruppoVisuale === "top" && item.posizioneGruppo) return "Verifica con consulente";
   if (item.gruppoVisuale === "top" && item.posizioneEconomica === 1) return "Migliore per i tuoi consumi";
@@ -4789,6 +5104,8 @@ function testoBadgeOfferta(item, migliore) {
 }
 
 function stileBadgeOfferta(item) {
+  if (item.gruppoVisuale === "unified" && item.posizioneGruppo === 1) return "background:#dcfce7; color:#14532d; border-color:#bbf7d0;";
+  if (item.gruppoVisuale === "unified") return "background:#eff6ff; color:#1e40af; border-color:#bfdbfe;";
   if (item.gruppoVisuale === "top" && item.posizioneEconomica === 1) return "background:#dcfce7; color:#14532d; border-color:#bbf7d0;";
   if (item.gruppoVisuale === "top") return "background:#eff6ff; color:#1e40af; border-color:#bfdbfe;";
   if (item.gruppoVisuale === "attivabile") return "background:#ecfdf5; color:#047857; border-color:#a7f3d0;";
@@ -5956,7 +6273,8 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
 
     const compatibileRanking = offertaCompatibileConRanking(offerta, tipoTariffa, tipoFornitura);
     const filtroEsatto = offerta.tipo === tipoTariffa && offertaCoerenteConFornitura(offerta, tipoFornitura);
-    const attivabileOnline = offertaAttivabileOnline(offerta);
+    const canaliAttivazione = determinaCanaliAttivazione(offerta);
+    const attivabileOnline = canaliAttivazione.directAvailable;
     const attivabileCoerente = attivabileOnline && filtroEsatto;
     if (!compatibileRanking && !attivabileCoerente) {
       card.style.setProperty("display", "none", "important");
@@ -5978,6 +6296,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       filtroEsatto,
       attivabileOnline,
       attivabileCoerente,
+      canaliAttivazione,
       alternativeFiltro: !filtroEsatto,
       costo: costoOfferta.totale,
       costoOfferta,
@@ -6001,49 +6320,41 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
   );
 
   // OFFERTALOGICA_ALWAYS_6_PARTNERS_3_CONSULTANT_20260722
-  // Ogni combinazione del menu deve mostrare sei percorsi partner attivi e
-  // tre migliori offerte esatte per costo con consulente.
-  const partnerAttivabiliCoerenti = offerteCalcolate
-    .filter((item) => item.attivabileCoerente)
-    .sort((a, b) => (a.costo - b.costo) || (b.differenza - a.differenza));
-
-  const attivabiliPrioritarie = selezionaPartnerAttivabiliPerMenu(
-    partnerAttivabiliCoerenti,
-    NUMERO_OFFERTE_PARTNER_MENU
-  ).map((item, index) => ({
-    ...item,
-    gruppoVisuale: "attivabile",
-    posizioneGruppo: index + 1,
-    posizioneEconomica: rankingGlobale.get(String(item.offerta.id)) || null,
-  }));
-
-  const candidatiConsulente = ordinateRanking
-    .filter((item) => item.compatibileRanking && item.filtroEsatto)
-    .filter((item) => item.offerta?.tipo === tipoTariffa)
-    .filter((item) => offertaCoerenteConFornitura(item.offerta, tipoFornitura));
-
-  const miglioriConConsulente = selezionaConsulentiPerMenu(
-    candidatiConsulente,
+  // La composizione 6 + 3 resta il fallback obbligatorio finché Switcho non
+  // dispone di configurazione, catalogo e landing verificati.
+  const {
+    unifiedActive,
     attivabiliPrioritarie,
-    NUMERO_OFFERTE_CONSULENTE_MENU
-  ).map((item, index) => ({
-    ...item,
-    gruppoVisuale: "top",
-    posizioneGruppo: index + 1,
-  }));
+    miglioriConConsulente,
+    offerteUnificate,
+    visibili,
+  } = preparaComposizioneOfferteVisibili({
+    offerteCalcolate,
+    ordinateRanking,
+    rankingGlobale,
+    tipoTariffa,
+    tipoFornitura,
+  });
 
-  if (attivabiliPrioritarie.length !== NUMERO_OFFERTE_PARTNER_MENU
-      || miglioriConConsulente.length !== NUMERO_OFFERTE_CONSULENTE_MENU) {
+  if (!unifiedActive && (
+    attivabiliPrioritarie.length !== NUMERO_OFFERTE_PARTNER_MENU
+    || miglioriConConsulente.length !== NUMERO_OFFERTE_CONSULENTE_MENU
+  )) {
     console.warn("[OffertaLogica] Composizione offerte incompleta", {
       filtro: testoFiltroOfferte(tipoTariffa, tipoFornitura),
       partner: attivabiliPrioritarie.length,
       consulente: miglioriConConsulente.length,
     });
   }
-  const visibili = [...attivabiliPrioritarie, ...miglioriConConsulente];
   const idsVisibili = new Set(visibili.map((item) => String(item.offerta.id)));
-  const migliore = ordinateRanking[0] || offerteCalcolate[0] || null;
+  const migliore = visibili[0] || ordinateRanking[0] || offerteCalcolate[0] || null;
   const hasVisibleOffers = visibili.length > 0;
+  const gruppoUnificato = assicuraGruppoOfferte(
+    "offerte-unificate-group",
+    "unified-group",
+    `${offerteUnificate.length} ${offerteUnificate.length === 1 ? "offerta attivabile" : "offerte attivabili"} ordinate per convenienza`,
+    "La posizione dipende dal costo annuo stimato. Il percorso di attivazione può essere online, assistito oppure disponibile in entrambe le modalità."
+  );
   const gruppoPartner = assicuraGruppoOfferte(
     "offerte-partner-online-group",
     "partner-group",
@@ -6058,8 +6369,9 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       ? "Le migliori proposte per costo annuo stimato sul tuo profilo. Richiedono verifica consulenziale o ricontatto prima dell'eventuale attivazione."
       : "Le migliori proposte tra le offerte disponibili nel calcolatore. Richiedono verifica consulenziale o ricontatto."
   );
-  const contenitorePartner = resetGruppoOfferte(gruppoPartner, attivabiliPrioritarie.length > 0);
-  const contenitoreConsulente = resetGruppoOfferte(gruppoConsulente, miglioriConConsulente.length > 0);
+  const contenitoreUnificato = resetGruppoOfferte(gruppoUnificato, unifiedActive && offerteUnificate.length > 0);
+  const contenitorePartner = resetGruppoOfferte(gruppoPartner, !unifiedActive && attivabiliPrioritarie.length > 0);
+  const contenitoreConsulente = resetGruppoOfferte(gruppoConsulente, !unifiedActive && miglioriConConsulente.length > 0);
 
   offerteCalcolate.forEach(({ card, offerta }) => {
     if (!idsVisibili.has(String(offerta.id))) {
@@ -6082,13 +6394,17 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
     if (!hasVisibleOffers) contenitoreSchede?.appendChild(emptyMessage);
   }
 
-  visibili.forEach(({ card, offerta, costo, costoOfferta, differenza, risparmio, saving, ambito, posizioneEconomica, posizioneGruppo, gruppoVisuale, attivabileOnline, compatibileRanking, filtroEsatto, alternativeFiltro }) => {
-      const contenitoreTarget = gruppoVisuale === "attivabile" ? contenitorePartner : contenitoreConsulente;
+  visibili.forEach(({ card, offerta, costo, costoOfferta, differenza, risparmio, saving, ambito, posizioneEconomica, posizioneGruppo, gruppoVisuale, attivabileOnline, canaliAttivazione, compatibileRanking, filtroEsatto, alternativeFiltro }) => {
+      const contenitoreTarget = gruppoVisuale === "unified"
+        ? contenitoreUnificato
+        : gruppoVisuale === "attivabile"
+          ? contenitorePartner
+          : contenitoreConsulente;
       const context = {
         economyRank: posizioneEconomica,
         displayRank: posizioneGruppo,
         displayGroup: gruppoVisuale,
-        isTopEconomic: gruppoVisuale === "top",
+        isTopEconomic: (gruppoVisuale === "top" || gruppoVisuale === "unified") && posizioneGruppo === 1,
         isActiveAffiliate: attivabileOnline,
         matchesSelectedFilter: Boolean(filtroEsatto),
         isFilterAlternative: Boolean(alternativeFiltro),
@@ -6098,21 +6414,29 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
         estimatedCommission: commissionePrevista(offerta),
         network: offerta.monetizzazione?.network || "",
         commercialPriority: offerta.monetizzazione?.prioritaCommerciale || "",
+        activationRoute: canaliAttivazione?.route || "informational_only",
+        directAvailable: Boolean(canaliAttivazione?.directAvailable),
+        switchoAvailable: Boolean(canaliAttivazione?.switchoAvailable),
+        exactSwitchoMatch: Boolean(canaliAttivazione?.exactSwitchoMatch),
+        switchoReference: canaliAttivazione?.switchoReference || "",
+        switchoUrl: canaliAttivazione?.switchoUrl || "",
       };
       OFFER_RENDER_CONTEXTS.set(String(offerta.id), context);
 
       card.style.display = "flex";
-      card.style.borderColor = gruppoVisuale === "top" && posizioneEconomica === 1 ? "var(--primary)" : (gruppoVisuale === "attivabile" ? "#fde68a" : "var(--border)");
-      card.style.boxShadow = gruppoVisuale === "top" && posizioneEconomica === 1 ? "0 0 0 1px rgba(16, 185, 129, 0.18)" : "none";
+      const miglioreNelGruppo = (gruppoVisuale === "top" && posizioneEconomica === 1)
+        || (gruppoVisuale === "unified" && posizioneGruppo === 1);
+      card.style.borderColor = miglioreNelGruppo ? "var(--primary)" : (gruppoVisuale === "attivabile" ? "#fde68a" : "var(--border)");
+      card.style.boxShadow = miglioreNelGruppo ? "0 0 0 1px rgba(16, 185, 129, 0.18)" : "none";
       card.classList.toggle("locked-offer", !LEAD_STATE.verified);
 
       const title = card.querySelector(".partner-title");
       const details = card.querySelector(".partner-details");
       const link = card.querySelector("a");
       const separataMulti = offertaSeparataMultiFornitore(offerta);
-      const badgeText = testoBadgeOfferta({ offerta, posizioneEconomica, posizioneGruppo, gruppoVisuale, costo, compatibileRanking }, migliore);
+      const badgeText = testoBadgeOfferta({ offerta, posizioneEconomica, posizioneGruppo, gruppoVisuale, costo, compatibileRanking, canaliAttivazione }, migliore);
       const tipoPrezzoBadge = offerta?.tipo === "variabile" ? "Prezzo variabile" : "Prezzo fisso";
-      const badge = `<span style="display:inline-block; margin:0 0 6px; padding:3px 8px; border:1px solid; border-radius:999px; font-size:11px; font-weight:800; ${stileBadgeOfferta({ posizioneEconomica, gruppoVisuale })}">${badgeText}</span><span style="display:inline-block; margin:0 0 6px 6px; padding:3px 8px; border:1px solid #bfdbfe; border-radius:999px; background:#eff6ff; color:#1d4ed8; font-size:11px; font-weight:800;">${tipoPrezzoBadge}</span>`;
+      const badge = `<span style="display:inline-block; margin:0 0 6px; padding:3px 8px; border:1px solid; border-radius:999px; font-size:11px; font-weight:800; ${stileBadgeOfferta({ posizioneEconomica, posizioneGruppo, gruppoVisuale })}">${badgeText}</span><span style="display:inline-block; margin:0 0 6px 6px; padding:3px 8px; border:1px solid #bfdbfe; border-radius:999px; background:#eff6ff; color:#1d4ed8; font-size:11px; font-weight:800;">${tipoPrezzoBadge}</span>`;
       const onlineBadge = attivabileOnline && !badgeText.toLowerCase().includes("attivabile")
         ? `<span style="display:inline-block; margin:0 0 6px 6px; padding:3px 8px; border:1px solid #a7f3d0; border-radius:999px; background:#ecfdf5; color:#047857; font-size:11px; font-weight:800;">Attivabile online</span>`
         : "";
@@ -6128,12 +6452,12 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
         aggiornaLogoOfferta(card, offerta, true);
         if (details) details.innerText = dettagliOfferta(offerta);
         if (link) {
-          link.innerText = testoAzioneOfferta(offerta, attivabileOnline);
+          link.innerText = testoAzioneOfferta(offerta, attivabileOnline, canaliAttivazione, unifiedActive);
           link.href = "#";
           link.removeAttribute("target");
           link.onclick = (event) => {
             event.preventDefault();
-            apriConsensoOfferta(offerta);
+            avviaPercorsoAttivazioneOfferta(offerta);
           };
         }
         saving.style.color = risparmio ? "var(--primary)" : "var(--danger)";
@@ -6149,7 +6473,11 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
           </small>
         `;
       } else {
-        if (title) title.innerText = gruppoVisuale === "top" || separataMulti ? "Offerta con consulente" : "Offerta attivabile online";
+        if (title) title.innerText = gruppoVisuale === "unified"
+          ? "Offerta attivabile"
+          : gruppoVisuale === "top" || separataMulti
+            ? "Offerta con consulente"
+            : "Offerta attivabile online";
         aggiornaLogoOfferta(card, offerta, false);
         if (details) details.innerText = "Verifica il cellulare per vedere nome fornitore, dettagli economici e link.";
         if (link) {
@@ -6176,13 +6504,19 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
     });
 
   LEAD_STATE.bestPartnerSaving = Math.max(0, ...attivabiliPrioritarie.map((item) => item.differenza));
-  LEAD_STATE.bestSaving = Math.max(0, ...visibili.map((item) => item.differenza));
+  const bestCommercialSaving = Math.max(0, ...visibili.map((item) => item.differenza));
+  const directVisibleCount = visibili.filter((item) => item.canaliAttivazione?.directAvailable).length;
+  const switchoVisibleCount = visibili.filter((item) => item.canaliAttivazione?.switchoAvailable).length;
+  if (unifiedActive) LEAD_STATE.bestPartnerSaving = bestCommercialSaving;
+  LEAD_STATE.bestSaving = bestCommercialSaving;
   trackEvent("offers_rendered", {
     tipoPrezzo: tipoTariffa,
     tipoFornitura,
+    rankingMode: unifiedActive ? "unified" : "legacy_6_plus_3",
     visibleOffersCount: visibili.length,
-    activePartnerOffersCount: attivabiliPrioritarie.length,
-    consultantOffersCount: miglioriConConsulente.length,
+    activePartnerOffersCount: unifiedActive ? directVisibleCount : attivabiliPrioritarie.length,
+    consultantOffersCount: unifiedActive ? 0 : miglioriConConsulente.length,
+    switchoOffersCount: switchoVisibleCount,
     bestSaving: LEAD_STATE.bestSaving,
     bestPartnerSaving: LEAD_STATE.bestPartnerSaving,
     offerId: String(visibili[0]?.offerta?.id || ""),
@@ -6207,7 +6541,9 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
   }
   if (teaserCopy) {
     teaserCopy.innerText = SOCIAL_ENTRY_STATE.isSocialJourney
-      ? "Stima basata sui consumi medi e sulle offerte partner attivabili disponibili oggi: verifica il numero per visualizzare fornitore, condizioni e percorso ufficiale."
+      ? unifiedActive
+        ? "Stima basata sui consumi medi e sulle offerte attivabili disponibili oggi: verifica il numero per visualizzare fornitore, condizioni e percorso ufficiale."
+        : "Stima basata sui consumi medi e sulle offerte partner attivabili disponibili oggi: verifica il numero per visualizzare fornitore, condizioni e percorso ufficiale."
       : modalitaCalcolo === "media"
         ? "Stima basata sui consumi medi e sull'ultimo riferimento ARERA disponibile: verifica il numero per visualizzare le migliori offerte e quelle attivabili online."
         : "Stima basata sui consumi che hai inserito: verifica il numero per visualizzare le migliori offerte e quelle attivabili online.";
@@ -6923,7 +7259,101 @@ function configuraPopupConsensoOfferta(richiedeConsenso) {
   if (close) close.innerText = "Annulla";
 }
 
-window.apriConsensoOfferta = function apriConsensoOfferta(offerta) {
+// OFFERTALOGICA_SWITCHO_ACTIVATION_CHOICE_FOUNDATION_V1_20260731
+// La scelta tra attivazione autonoma e assistita viene mostrata soltanto
+// nella graduatoria unificata realmente pronta. Il percorso legacy continua
+// ad aprire direttamente il consenso esistente.
+function canaleAttivazioneDisponibile(canaliAttivazione, canale) {
+  if (canale === "direct") return Boolean(canaliAttivazione?.directAvailable);
+  if (canale === "switcho") {
+    return Boolean(
+      canaliAttivazione?.switchoAvailable
+      && canaliAttivazione?.exactSwitchoMatch
+      && canaliAttivazione?.switchoUrl
+    );
+  }
+  return false;
+}
+
+function chiudiSceltaCanaleAttivazione() {
+  const modal = document.getElementById("activation-channel-backdrop");
+  if (modal) modal.style.display = "none";
+  LEAD_STATE.pendingActivationChoice = { offer: null, channels: null };
+}
+
+function apriSceltaCanaleAttivazione(offerta, canaliAttivazione) {
+  if (!canaleAttivazioneDisponibile(canaliAttivazione, "direct")
+      || !canaleAttivazioneDisponibile(canaliAttivazione, "switcho")) {
+    return false;
+  }
+  LEAD_STATE.pendingActivationChoice = { offer: offerta, channels: canaliAttivazione };
+  const modal = document.getElementById("activation-channel-backdrop");
+  const name = document.getElementById("activation-channel-offer-name");
+  if (name) name.innerText = offerta?.nome || "offerta selezionata";
+  if (modal) modal.style.display = "flex";
+  trackEvent("activation_channel_choice_opened", {
+    offerId: String(offerta?.id || ""),
+    offerName: offerta?.nome || "",
+    provider: offerta?.provider || "",
+    activationRoute: canaliAttivazione?.route || "informational_only",
+  });
+  return true;
+}
+
+function confermaSceltaCanaleAttivazione(canale) {
+  const pending = LEAD_STATE.pendingActivationChoice || {};
+  if (!pending.offer || !canaleAttivazioneDisponibile(pending.channels, canale)) return false;
+  const offerta = pending.offer;
+  const canaliAttivazione = pending.channels;
+  const modal = document.getElementById("activation-channel-backdrop");
+  if (modal) modal.style.display = "none";
+  LEAD_STATE.pendingActivationChoice = { offer: null, channels: null };
+  trackEvent("activation_channel_selected", {
+    offerId: String(offerta?.id || ""),
+    offerName: offerta?.nome || "",
+    provider: offerta?.provider || "",
+    selectedChannel: canale,
+    activationRoute: canaliAttivazione?.route || "informational_only",
+  });
+  window.apriConsensoOfferta(offerta, { activationChannel: canale });
+  return true;
+}
+
+function avviaPercorsoAttivazioneOfferta(offerta) {
+  if (!LEAD_STATE.verified) {
+    window.apriConsensoOfferta(offerta);
+    return "locked";
+  }
+  const context = OFFER_RENDER_CONTEXTS.get(String(offerta?.id || "")) || {};
+  const unifiedActive = context.displayGroup === "unified" && graduatoriaCommercialeUnificataPronta();
+  if (!unifiedActive) {
+    window.apriConsensoOfferta(offerta);
+    return "legacy";
+  }
+  const canaliAttivazione = {
+    route: context.activationRoute || "informational_only",
+    directAvailable: Boolean(context.directAvailable),
+    switchoAvailable: Boolean(context.switchoAvailable),
+    exactSwitchoMatch: Boolean(context.exactSwitchoMatch),
+    switchoReference: context.switchoReference || "",
+    switchoUrl: context.switchoUrl || "",
+  };
+  if (canaliAttivazione.route === "direct_and_switcho") {
+    return apriSceltaCanaleAttivazione(offerta, canaliAttivazione) ? "choice" : "unavailable";
+  }
+  if (canaliAttivazione.route === "switcho" && canaleAttivazioneDisponibile(canaliAttivazione, "switcho")) {
+    window.apriConsensoOfferta(offerta, { activationChannel: "switcho" });
+    return "switcho";
+  }
+  if (canaliAttivazione.route === "direct" && canaleAttivazioneDisponibile(canaliAttivazione, "direct")) {
+    window.apriConsensoOfferta(offerta, { activationChannel: "direct" });
+    return "direct";
+  }
+  window.apriConsensoOfferta(offerta);
+  return "fallback";
+}
+
+window.apriConsensoOfferta = function apriConsensoOfferta(offerta, options = {}) {
   if (!LEAD_STATE.verified) {
     trackEvent("offer_click_locked", {
       offerId: String(offerta?.id || ""),
@@ -6948,6 +7378,15 @@ window.apriConsensoOfferta = function apriConsensoOfferta(offerta) {
     componentiSeparate: offerta.componentiSeparate || null,
     rankingContext: OFFER_RENDER_CONTEXTS.get(String(offerta.id)) || null,
   };
+  LEAD_STATE.selectedOffer.activationRoute = LEAD_STATE.selectedOffer.rankingContext?.activationRoute || "informational_only";
+  LEAD_STATE.selectedOffer.directAvailable = Boolean(LEAD_STATE.selectedOffer.rankingContext?.directAvailable);
+  LEAD_STATE.selectedOffer.switchoAvailable = Boolean(LEAD_STATE.selectedOffer.rankingContext?.switchoAvailable);
+  LEAD_STATE.selectedOffer.exactSwitchoMatch = Boolean(LEAD_STATE.selectedOffer.rankingContext?.exactSwitchoMatch);
+  LEAD_STATE.selectedOffer.switchoReference = LEAD_STATE.selectedOffer.rankingContext?.switchoReference || "";
+  LEAD_STATE.selectedOffer.switchoUrl = LEAD_STATE.selectedOffer.rankingContext?.switchoUrl || "";
+  LEAD_STATE.selectedOffer.activationChannel = options.activationChannel
+    || (LEAD_STATE.selectedOffer.activationRoute === "switcho" ? "switcho" : "")
+    || (LEAD_STATE.selectedOffer.activationRoute === "direct" ? "direct" : "");
 
   const modal = document.getElementById("offer-consent-backdrop");
   const name = document.getElementById("offer-consent-offer-name");
@@ -6962,6 +7401,8 @@ window.apriConsensoOfferta = function apriConsensoOfferta(offerta) {
       const luceProvider = testoHtmlSicuro(componenti?.luce?.providerLabel || "fornitore luce");
       const gasProvider = testoHtmlSicuro(componenti?.gas?.providerLabel || "fornitore gas");
       intro.innerHTML = `Hai scelto <strong id="offer-consent-offer-name">${nomeOfferta}</strong>: luce con <strong>${luceProvider}</strong> e gas con <strong>${gasProvider}</strong>. Per continuare serve una verifica consulenziale, perche si tratta di due forniture separate e potrebbero essere necessari due percorsi di attivazione distinti.<br><br>Le condizioni finali dovranno essere confermate dal consulente o dai fornitori: eventuali costi accessori, servizi aggiuntivi, vincoli o promozioni non rilevati dal calcolatore potrebbero modificare la convenienza stimata.`;
+    } else if (LEAD_STATE.selectedOffer.activationChannel === "switcho") {
+      intro.innerHTML = `Hai scelto <strong id="offer-consent-offer-name">${nomeOfferta}</strong> con assistenza gratuita. Per continuare registreremo la scelta e, quando l'integrazione sarà attiva, ti porteremo al percorso co-branded del partner incaricato di assisterti nell'attivazione.<br><br>Le condizioni finali dovranno essere confermate nel percorso assistito.`;
     } else {
       intro.innerHTML = offertaConRedirectAttivo(LEAD_STATE.selectedOffer)
       ? `Hai scelto <strong id="offer-consent-offer-name">${nomeOfferta}</strong>. Per continuare apriremo il funnel ufficiale del fornitore o del partner commerciale collegato all'offerta.`
@@ -6986,6 +7427,11 @@ window.apriConsensoOfferta = function apriConsensoOfferta(offerta) {
     displayRank: LEAD_STATE.selectedOffer.rankingContext?.displayRank || null,
     annualCost: LEAD_STATE.selectedOffer.rankingContext?.annualCost || null,
     annualDelta: LEAD_STATE.selectedOffer.rankingContext?.annualDelta || null,
+    activationRoute: LEAD_STATE.selectedOffer.activationRoute || "informational_only",
+    activationChannel: LEAD_STATE.selectedOffer.activationChannel || "",
+    directAvailable: Boolean(LEAD_STATE.selectedOffer.directAvailable),
+    switchoAvailable: Boolean(LEAD_STATE.selectedOffer.switchoAvailable),
+    switchoReference: LEAD_STATE.selectedOffer.switchoReference || "",
     network: LEAD_STATE.selectedOffer.monetization?.network || "",
     model: LEAD_STATE.selectedOffer.monetization?.modello || LEAD_STATE.selectedOffer.monetization?.model || "",
   });
@@ -7276,7 +7722,7 @@ let assistanceLastInteractionAt = Date.now();
 let assistanceUserInteracted = false;
 
 function assistenzaModalAperta() {
-  return ["lead-modal-backdrop", "offer-consent-backdrop", "activation-helper-backdrop", "assistance-rescue-backdrop"]
+  return ["lead-modal-backdrop", "activation-channel-backdrop", "offer-consent-backdrop", "activation-helper-backdrop", "assistance-rescue-backdrop"]
     .some((id) => document.getElementById(id)?.style.display === "flex");
 }
 
@@ -7378,11 +7824,15 @@ function nascondiEsitiFincheNonConfronti() {
 
 async function registraRichiestaOfferta() {
   const offer = LEAD_STATE.selectedOffer;
-  if (!offer?.link) {
+  const destinazioneRichiestaDisponibile = offer?.activationChannel === "switcho"
+    ? Boolean(offer.switchoAvailable && offer.exactSwitchoMatch && offer.switchoReference && offer.switchoUrl)
+    : Boolean(offer?.link);
+  if (!destinazioneRichiestaDisponibile) {
     trackEvent("offer_request_missing_link", {
       offerId: offer?.id || "",
       offerName: offer?.name || "",
       provider: offer?.provider || "",
+      activationChannel: offer?.activationChannel || "",
     });
     offerConsentStatus("Offerta non disponibile. Riprova dal pulsante dell'offerta.", true);
     return;
@@ -7400,6 +7850,11 @@ async function registraRichiestaOfferta() {
     displayRank: offer.rankingContext?.displayRank || null,
     annualCost: offer.rankingContext?.annualCost || null,
     annualDelta: offer.rankingContext?.annualDelta || null,
+    activationRoute: offer.activationRoute || "informational_only",
+    activationChannel: offer.activationChannel || "",
+    directAvailable: Boolean(offer.directAvailable),
+    switchoAvailable: Boolean(offer.switchoAvailable),
+    switchoReference: offer.switchoReference || "",
     network: offer.monetization?.network || "",
     model: offer.monetization?.modello || offer.monetization?.model || "",
   });
@@ -7449,7 +7904,8 @@ async function registraRichiestaOfferta() {
         destinationStatus: offer.destinationStatus || "",
         redirect: true,
       });
-      if (apriAssistentePrimaDelRedirect(payload.redirectUrl, offer, "partner_redirect")) return;
+      const redirectAssistitoSwitcho = offer.activationChannel === "switcho";
+      if (!redirectAssistitoSwitcho && apriAssistentePrimaDelRedirect(payload.redirectUrl, offer, "partner_redirect")) return;
       window.location.href = payload.redirectUrl;
       return;
     }
@@ -10027,6 +10483,7 @@ window.azzeraPdfEModulo = function azzeraPdfEModulo() {
   LEAD_STATE.leadId = "";
   LEAD_STATE.leadSource = "manual";
   LEAD_STATE.selectedOffer = null;
+  LEAD_STATE.pendingActivationChoice = { offer: null, channels: null };
   LEAD_STATE.partnerConsent = false;
   LEAD_STATE.activationAssistant = { pendingUrl: "", offer: null };
   LEAD_STATE.businessProfile = null;
@@ -10445,6 +10902,78 @@ function miglioreNuovaOffertaPerFornitore(providerKey, attuale, tipoTariffa, tip
   const attivabili = candidate.filter(offertaAttivabileOnline);
   const preferite = attivabili.length ? attivabili : candidate;
   return preferite.sort((a, b) => costoOffertaSulProfilo(a, attuale) - costoOffertaSulProfilo(b, attuale))[0] || null;
+}
+
+function offertaSwitchoOsservataCoerente(offerta, tipoTariffa, tipoFornitura) {
+  return Boolean(
+    offerta
+    && offerta.tipo === tipoTariffa
+    && offertaCoerenteConFornitura(offerta, tipoFornitura)
+    && offertaCalcolabileConIndici(offerta)
+  );
+}
+
+function offerteSwitchoOsservatePerFornitore(providerKey, tipoTariffa, tipoFornitura) {
+  return OFFERTE_SWITCHO_OSSERVATE
+    .filter((offerta) => offerta.providerKey === providerKey)
+    .filter((offerta) => offertaSwitchoOsservataCoerente(offerta, tipoTariffa, tipoFornitura))
+    .sort((a, b) => (a.spesaStimataMensileSwitcho ?? Number.POSITIVE_INFINITY) - (b.spesaStimataMensileSwitcho ?? Number.POSITIVE_INFINITY));
+}
+
+function nascondiMenuOfferteSwitchoOsservate() {
+  const panel = document.getElementById("switcho-observed-offer-panel");
+  const select = document.getElementById("switcho-observed-offer-select");
+  if (panel) panel.hidden = true;
+  if (select) select.innerHTML = `<option value="" selected>Seleziona un'offerta</option>`;
+}
+
+function aggiornaMenuOfferteSwitchoOsservate() {
+  const panel = document.getElementById("switcho-observed-offer-panel");
+  const select = document.getElementById("switcho-observed-offer-select");
+  const providerKey = leggiValore("nome-fornitore-nuov", "");
+  if (!panel || !select || !providerKey || providerKey === "altro") {
+    nascondiMenuOfferteSwitchoOsservate();
+    return 0;
+  }
+  const tipoTariffa = leggiValore("master-luce-tipo", "fisso");
+  const tipoFornitura = tipoFornituraPerCalcolo();
+  const offerte = offerteSwitchoOsservatePerFornitore(providerKey, tipoTariffa, tipoFornitura);
+  if (!offerte.length) {
+    nascondiMenuOfferteSwitchoOsservate();
+    return 0;
+  }
+  const precedente = select.value;
+  select.innerHTML = `<option value="" selected>Seleziona un'offerta</option>` + offerte.map((offerta) => {
+    const durata = offerta.durataMesi ? ` · ${offerta.durataMesi} mesi` : "";
+    const tipo = offerta.tipo === "variabile" ? "indicizzata" : "fissa";
+    return `<option value="${testoHtmlSicuro(offerta.id)}">${testoHtmlSicuro(offerta.nome)} · ${tipo}${durata}</option>`;
+  }).join("");
+  panel.hidden = false;
+  if (precedente && offerte.some((offerta) => String(offerta.id) === String(precedente))) {
+    select.value = precedente;
+    return offerte.length;
+  }
+  NUOVA_OFFERTA_AUTOMATICA = null;
+  svuotaCampiNuovaOfferta();
+  mostraHintNuovaOfferta(`Abbiamo ${offerte.length === 1 ? "1 offerta" : `${offerte.length} offerte`} osservate su Switcho per ${etichettaFornitoreSelezionato()}. Seleziona quella che vuoi confrontare.`);
+  return offerte.length;
+}
+
+function applicaOffertaSwitchoOsservataSelezionata() {
+  const id = leggiValore("switcho-observed-offer-select", "");
+  if (!id) return false;
+  const offerta = OFFERTE_SWITCHO_OSSERVATE.find((item) => String(item.id) === String(id));
+  if (!offerta) return false;
+  applicaOffertaAlBloccoNuovo(offerta, offerta.providerKey);
+  trackEvent("switcho_observed_offer_selected", {
+    offerId: offerta.id,
+    offerName: offerta.nome,
+    provider: offerta.provider,
+    observedAt: DATI_SWITCHO_OSSERVATE_META.osservatoIl,
+    routingEnabled: false,
+    areraMatchStatus: offerta.areraMatch?.status || "",
+  });
+  return true;
 }
 
 function cancellaNuovaOffertaAutomatica() {
@@ -10886,7 +11415,14 @@ function collegaEventiUX() {
   });
   document.getElementById("nome-fornitore-nuov")?.addEventListener("change", () => {
     apriDettagliNuovaOfferta();
-    aggiornaNuovaOffertaDaFornitore({ force: true });
+    const offerteOsservate = aggiornaMenuOfferteSwitchoOsservate();
+    if (!offerteOsservate) aggiornaNuovaOffertaDaFornitore({ force: true });
+    aggiornaTestoPulsanteConfronto();
+    const risultatiVisibili = document.querySelector(".fornitori-consigliati-section")?.style.display === "block";
+    if (risultatiVisibili) avviaComparazioneDati();
+  });
+  document.getElementById("switcho-observed-offer-select")?.addEventListener("change", () => {
+    applicaOffertaSwitchoOsservataSelezionata();
     aggiornaTestoPulsanteConfronto();
     const risultatiVisibili = document.querySelector(".fornitori-consigliati-section")?.style.display === "block";
     if (risultatiVisibili) avviaComparazioneDati();
@@ -10913,7 +11449,8 @@ function collegaEventiUX() {
     document.getElementById(id)?.addEventListener("change", () => {
       if (BLOCCO_AUTOFILL_NUOVA_OFFERTA) return;
       if (id === "master-tipo-fornitura") applicaAmbitoConfronto(leggiValore("master-tipo-fornitura", "dual"));
-      aggiornaNuovaOffertaDaFornitore();
+      const offerteOsservate = aggiornaMenuOfferteSwitchoOsservate();
+      if (!offerteOsservate) aggiornaNuovaOffertaDaFornitore();
       const risultatiVisibili = document.querySelector(".fornitori-consigliati-section")?.style.display === "block";
       if (risultatiVisibili) avviaComparazioneDati();
     });
@@ -10924,6 +11461,12 @@ function collegaEventiUX() {
   document.getElementById("lead-close")?.addEventListener("click", chiudiLeadModal);
   document.getElementById("lead-modal-backdrop")?.addEventListener("click", (event) => {
     if (event.target?.id === "lead-modal-backdrop") chiudiLeadModal();
+  });
+  document.getElementById("activation-channel-direct")?.addEventListener("click", () => confermaSceltaCanaleAttivazione("direct"));
+  document.getElementById("activation-channel-switcho")?.addEventListener("click", () => confermaSceltaCanaleAttivazione("switcho"));
+  document.getElementById("activation-channel-close")?.addEventListener("click", chiudiSceltaCanaleAttivazione);
+  document.getElementById("activation-channel-backdrop")?.addEventListener("click", (event) => {
+    if (event.target?.id === "activation-channel-backdrop") chiudiSceltaCanaleAttivazione();
   });
   document.getElementById("offer-consent-confirm")?.addEventListener("click", confermaConsensoOfferta);
   document.getElementById("offer-consent-close")?.addEventListener("click", chiudiConsensoOfferta);
@@ -10965,7 +11508,7 @@ function collegaEventiUX() {
   sincronizzaConsumiNuovaOfferta();
   aggiornaTestoPulsanteConfronto();
 
-  Promise.all([caricaDatiCalcolo(), caricaOfferteProposte(), caricaOfferteAreraMenu(), caricaProviderBrand()]).then(() => {
+  Promise.all([caricaDatiCalcolo(), caricaOfferteProposte(), caricaOfferteAreraMenu(), caricaOfferteSwitchoOsservate(), caricaProviderBrand()]).then(() => {
     assicuraSchedeOfferte();
     if (SOCIAL_ENTRY_STATE.active) {
       preparaRisparmioIngressoSocialMobile();
@@ -11399,6 +11942,24 @@ Nessun dato sarà inviato a un fornitore finché non sceglierai un'offerta.</p>
     </div>
 </div>
 
+<div class="activation-channel-backdrop" id="activation-channel-backdrop" role="dialog" aria-modal="true" aria-labelledby="activation-channel-title">
+    <div class="activation-channel-modal">
+        <h3 id="activation-channel-title">Come preferisci attivare?</h3>
+        <p>Hai scelto <strong id="activation-channel-offer-name">questa offerta</strong>. Il prezzo confrontato resta lo stesso; cambia il modo in cui completi la richiesta.</p>
+        <div class="activation-channel-options">
+            <button type="button" class="activation-channel-option assisted" id="activation-channel-switcho">
+                <strong>Attiva con assistenza gratuita</strong>
+                <span>Prosegui nel percorso co-branded e fatti accompagnare fino al completamento.</span>
+            </button>
+            <button type="button" class="activation-channel-option" id="activation-channel-direct">
+                <strong>Procedi in autonomia</strong>
+                <span>Vai al sito del fornitore e completa direttamente l'attivazione.</span>
+            </button>
+        </div>
+        <button type="button" class="lead-secondary" id="activation-channel-close">Annulla</button>
+    </div>
+</div>
+
 <div class="offer-consent-backdrop" id="offer-consent-backdrop" role="dialog" aria-modal="true" aria-labelledby="offer-consent-title">
     <div class="offer-consent-modal">
         <h3 id="offer-consent-title">Procedi con l'offerta</h3>
@@ -11592,5 +12153,6 @@ Nessun dato sarà inviato a un fornitore finché non sceglierai un'offerta.</p>
     </script>
     <script type="text/javascript">(function (w,d) {var loader = function () {var s = d.createElement("script"), tag = d.getElementsByTagName("script")[0]; s.src="https://cdn.iubenda.com/iubenda.js"; tag.parentNode.insertBefore(s,tag);}; if(w.addEventListener){w.addEventListener("load", loader, false);}else if(w.attachEvent){w.attachEvent("onload", loader);}else{w.onload = loader;}})(window, document);</script>
 </footer>
+<script>if ('serviceWorker' in navigator) addEventListener('load', function(){ navigator.serviceWorker.register('/sw.js'); });</script>
 </body>
 </html>
