@@ -9,8 +9,8 @@
   <meta name="apple-mobile-web-app-title" content="OffertaLogica">
   <title>OffertaLogica</title>
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="icon" href="/assets/logo-offertalogica-icon.png?v=11">
-  <link rel="apple-touch-icon" sizes="180x180" href="/assets/app-icon-180.png?v=11">
+  <link rel="icon" href="/assets/logo-offertalogica-icon.png?v=12">
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/app-icon-180.png?v=12">
   <style>
     :root{
       --bg:#f4f7f5;--surface:#ffffff;--surface-2:#eef5f0;--text:#123044;--muted:#647985;
@@ -54,6 +54,7 @@
     .bill-list{display:grid;gap:10px;margin-top:14px}.bill-list[hidden]{display:none}.bill-item{display:grid;grid-template-columns:44px minmax(0,1fr) auto;align-items:center;gap:12px;padding:14px;border:1px solid var(--line);border-radius:20px;background:#fff;box-shadow:var(--soft-shadow)}.bill-item-icon{width:44px;height:44px;border-radius:15px;background:var(--surface-2);color:var(--green-dark);display:grid;place-items:center}.bill-item-copy{min-width:0}.bill-item-copy strong,.bill-item-copy span,.bill-item-copy small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.bill-item-copy strong{font-size:14px}.bill-item-copy span{margin-top:3px;color:var(--green-dark);font-size:11px;font-weight:850}.bill-item-copy small{margin-top:4px;color:var(--muted);font-size:11px}.bill-item-actions{display:grid;gap:6px}.bill-mini-btn{min-width:52px;min-height:31px;padding:5px 8px;border:1px solid #c9ddd0;border-radius:11px;background:#f5fbf7;color:var(--green-dark);font-size:10px;font-weight:900}.bill-mini-btn.danger{border-color:#ead1d1;background:#fff7f7;color:#9a2525}
     .secondary{min-height:54px;width:100%;border:1px solid #b8d7c1;border-radius:17px;background:#f5fbf7;color:var(--green-dark);display:flex;align-items:center;justify-content:center;gap:9px;text-decoration:none;font-weight:900}.secondary+.secondary{margin-top:10px}
     .list{display:grid;gap:11px;margin-top:14px}.list-item{display:flex;align-items:center;gap:13px;padding:15px;border:1px solid var(--line);border-radius:20px;background:var(--surface);text-decoration:none;color:var(--text);box-shadow:var(--soft-shadow)}.list-icon{width:44px;height:44px;flex:0 0 auto;border-radius:15px;background:var(--surface-2);color:var(--green-dark);display:grid;place-items:center}.list-copy{min-width:0;flex:1}.list-copy strong{display:block;font-size:15px}.list-copy small{display:block;margin-top:3px;color:var(--muted);font-size:12px;line-height:1.35}.chev{color:#7b8e98}
+    .profile-card{padding:21px;border:1px solid var(--line);border-radius:var(--r-xl);background:var(--surface);box-shadow:var(--shadow)}.profile-card-head{display:flex;align-items:center;gap:14px}.profile-avatar{width:58px;height:58px;flex:0 0 auto;border-radius:20px;background:linear-gradient(145deg,#e6f7eb,#f5fbf6);color:var(--green-dark);display:grid;place-items:center}.profile-avatar .icon{width:28px;height:28px}.profile-card-copy{min-width:0;flex:1}.profile-card-copy small{display:block;color:var(--muted);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em}.profile-card-copy strong{display:block;margin-top:3px;font-size:20px;letter-spacing:-.03em}.profile-card-head .pill{flex:0 0 auto}.profile-card>p{margin:17px 0 0;color:var(--muted);font-size:13px;line-height:1.5}.profile-details{display:grid;margin-top:17px;border-top:1px solid #e7eeea}.profile-row{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:13px 0;border-bottom:1px solid #e7eeea;font-size:12px}.profile-row span{color:var(--muted)}.profile-row strong{text-align:right;font-size:12px}.premium-preview{margin-top:14px;padding:19px;border-radius:24px;background:linear-gradient(145deg,#123044,#1b4963);color:#fff;box-shadow:0 18px 40px rgba(18,48,68,.18)}.premium-preview-head{display:flex;align-items:center;justify-content:space-between;gap:12px}.premium-preview .pill{background:rgba(255,255,255,.13);color:#fff}.premium-preview h2{margin:15px 0 7px;font-size:22px;letter-spacing:-.03em}.premium-preview p{margin:0;color:rgba(255,255,255,.78);font-size:13px;line-height:1.48}.premium-points{display:grid;gap:8px;margin-top:14px}.premium-point{display:flex;align-items:flex-start;gap:9px;font-size:12px;line-height:1.42;color:rgba(255,255,255,.9)}.premium-point:before{content:"";width:7px;height:7px;flex:0 0 auto;margin-top:5px;border-radius:50%;background:var(--lime)}.profile-note{display:flex;gap:10px;align-items:flex-start;margin-top:14px;padding:14px 15px;border-radius:17px;background:#eef7f1;color:#315a43;font-size:12px;line-height:1.42}.profile-note .icon{flex:0 0 auto;width:19px;height:19px;margin-top:1px}
     .nav-wrap{position:fixed;z-index:40;left:50%;bottom:0;transform:translateX(-50%);width:min(540px,100%);padding:8px 12px calc(8px + env(safe-area-inset-bottom));pointer-events:none}
     .nav{display:grid;grid-template-columns:repeat(4,1fr);padding:7px;border:1px solid rgba(18,48,68,.10);border-radius:25px;background:rgba(255,255,255,.82);box-shadow:0 16px 42px rgba(18,48,68,.16);backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);pointer-events:auto}
     .nav button{min-height:59px;border:0;border-radius:18px;background:transparent;color:#6a7e89;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:10px;font-weight:850}.nav button.active{background:#ebf7ef;color:var(--green-dark)}.nav .icon{width:22px;height:22px}
@@ -147,9 +148,40 @@
       <div class="list"><a class="list-item" href="/offerte-luce-gas-aggiornate.html" data-app-url="/offerte-luce-gas-aggiornate.html" data-app-title="Offerte aggiornate"><div class="list-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg></div><div class="list-copy"><strong>Offerte luce</strong><small>Consulta il catalogo energia elettrica.</small></div><svg class="icon chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></a><a class="list-item" href="/offerte-luce-gas-aggiornate.html" data-app-url="/offerte-luce-gas-aggiornate.html" data-app-title="Offerte aggiornate"><div class="list-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22c4 0 7-3 7-7 0-5-4-7-5-12-3 2-8 6-8 12 0 4 2 7 6 7z"/><path d="M10 18c0-2 1-3 3-5 1 2 2 3 2 5a2.5 2.5 0 0 1-5 0z"/></svg></div><div class="list-copy"><strong>Offerte gas</strong><small>Consulta il catalogo gas naturale.</small></div><svg class="icon chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></a></div>
     </section>
 
-    <section id="view-more" class="view" data-view="more">
-      <div class="page-head"><div class="kicker">OffertaLogica</div><h1>Informazioni e assistenza</h1><p>Accesso rapido alle pagine reali già presenti nel progetto.</p></div><span class="version-badge">APP v0.11</span>
-      <div class="list"><a class="list-item" href="/come-funziona.html" data-app-url="/come-funziona.html" data-app-title="Come funziona"><div class="list-icon"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.35 2.35 0 1 1 3.6 2c-.9.6-1.4 1.05-1.4 2.2"/><path d="M12 17h.01"/></svg></div><div class="list-copy"><strong>Come funziona</strong><small>Scopri il percorso di confronto.</small></div><svg class="icon chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></a><a class="list-item" href="/termini-condizioni.html" data-app-url="/termini-condizioni.html" data-app-title="Termini e condizioni"><div class="list-icon"><svg class="icon" viewBox="0 0 24 24"><path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7z"/><path d="M14 2v5h5"/><path d="M9 13h6M9 17h6"/></svg></div><div class="list-copy"><strong>Termini e condizioni</strong><small>Informazioni legali del servizio.</small></div><svg class="icon chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></a><a class="list-item" href="/"><div class="list-icon"><svg class="icon" viewBox="0 0 24 24"><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg></div><div class="list-copy"><strong>Apri il sito completo</strong><small>Accedi a tutte le sezioni di OffertaLogica.</small></div><svg class="icon chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></a></div>
+    <section id="view-profile" class="view" data-view="profile">
+      <div class="page-head"><div class="kicker">Profilo</div><h1>Il tuo spazio OffertaLogica</h1><p>Piano, dati locali e accessi essenziali dell’app.</p></div>
+
+      <section class="profile-card" aria-label="Stato del profilo">
+        <div class="profile-card-head">
+          <div class="profile-avatar"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></div>
+          <div class="profile-card-copy"><small>Profilo locale</small><strong>Piano gratuito</strong></div>
+          <span class="pill">ATTIVO</span>
+        </div>
+        <p>Usa l’archivio locale e il comparatore senza creare un account. Le funzioni di controllo saranno disponibili con il futuro upgrade.</p>
+        <div class="profile-details">
+          <div class="profile-row"><span>Account</span><strong>Non collegato</strong></div>
+          <div class="profile-row"><span>Archivio bollette</span><strong>Su questo dispositivo</strong></div>
+          <div class="profile-row"><span>Controlli OffertaLogica</span><strong>Non inclusi</strong></div>
+        </div>
+      </section>
+
+      <section class="premium-preview" aria-label="Upgrade OffertaLogica">
+        <div class="premium-preview-head"><strong>Upgrade OffertaLogica</strong><span class="pill">PROSSIMAMENTE</span></div>
+        <h2>Controllo e monitoraggio</h2>
+        <p>Il piano a pagamento verrà attivato solo quando archivio cloud, pagamenti e verifiche saranno operativi.</p>
+        <div class="premium-points"><div class="premium-point">Verifica delle condizioni realmente applicate</div><div class="premium-point">Segnalazione di anomalie e conguagli</div><div class="premium-point">Controllo periodico della convenienza</div></div>
+      </section>
+
+      <div class="section-title"><h2>Gestione e assistenza</h2><span>Accessi rapidi</span></div>
+      <div class="list">
+        <a class="list-item" href="#bill" data-tab-link="bill"><div class="list-icon"><svg class="icon" viewBox="0 0 24 24"><path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7z"/><path d="M14 2v5h5"/><path d="M9 13h6M9 17h6"/></svg></div><div class="list-copy"><strong>Gestisci le bollette</strong><small>Apri, scarica o elimina i PDF archiviati.</small></div><svg class="icon chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></a>
+        <a class="list-item" href="/come-funziona.html" data-app-url="/come-funziona.html" data-app-title="Come funziona"><div class="list-icon"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.35 2.35 0 1 1 3.6 2c-.9.6-1.4 1.05-1.4 2.2"/><path d="M12 17h.01"/></svg></div><div class="list-copy"><strong>Come funziona</strong><small>Consulta il percorso e le funzioni disponibili.</small></div><svg class="icon chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></a>
+        <a class="list-item" href="/termini-condizioni.html" data-app-url="/termini-condizioni.html" data-app-title="Termini e condizioni"><div class="list-icon"><svg class="icon" viewBox="0 0 24 24"><path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7z"/><path d="M14 2v5h5"/><path d="M9 13h6M9 17h6"/></svg></div><div class="list-copy"><strong>Privacy e condizioni</strong><small>Leggi le informazioni legali del servizio.</small></div><svg class="icon chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></a>
+        <a class="list-item" href="/"><div class="list-icon"><svg class="icon" viewBox="0 0 24 24"><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg></div><div class="list-copy"><strong>Apri il sito completo</strong><small>Accedi a tutte le sezioni di OffertaLogica.</small></div><svg class="icon chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></a>
+      </div>
+
+      <div class="profile-note"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><span>Nel piano gratuito i PDF restano sul dispositivo. Non vengono sincronizzati e non sono accessibili allo staff di OffertaLogica.</span></div>
+      <span class="version-badge">APP v0.12</span>
     </section>
   </main>
 
@@ -165,7 +197,7 @@
     <button class="active" type="button" data-tab="home" aria-current="page"><svg class="icon" viewBox="0 0 24 24"><path d="m3 11 9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg><span>Home</span></button>
     <button type="button" data-tab="bill"><svg class="icon" viewBox="0 0 24 24"><path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7z"/><path d="M14 2v5h5"/><path d="M9 13h6M9 17h6"/></svg><span>Bollette</span></button>
     <button type="button" data-tab="offers"><svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><span>Confronta</span></button>
-    <button type="button" data-tab="more"><svg class="icon" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1" fill="currentColor" stroke="none"/></svg><span>Altro</span></button>
+    <button type="button" data-tab="profile"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span>Profilo</span></button>
   </nav></div>
 
   <div id="updateNotice" class="update" role="status" aria-live="polite"><span>È disponibile una nuova versione.</span><button id="applyUpdate" type="button">AGGIORNA</button></div>
@@ -191,7 +223,7 @@
       tabs.forEach(tab=>tab.addEventListener('click',()=>openTab(tab.dataset.tab)));
       document.querySelectorAll('[data-open-tab]').forEach(button=>button.addEventListener('click',()=>openTab(button.dataset.openTab)));
       document.querySelectorAll('[data-tab-link]').forEach(link=>link.addEventListener('click',event=>{event.preventDefault();openTab(link.dataset.tabLink)}));
-      const initial=location.hash.slice(1);if(['home','bill','offers','more'].includes(initial))openTab(initial);
+      const initial=location.hash.slice(1);if(['home','bill','offers','profile'].includes(initial))openTab(initial);
 
       const appBrowser=document.getElementById('appBrowser');
       const appBrowserFrame=document.getElementById('appBrowserFrame');
