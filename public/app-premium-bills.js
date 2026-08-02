@@ -6,6 +6,8 @@
   const MAX_FILE_SIZE = 20_000_000;
   const BILL_COLUMNS = "id, user_id, utility_id, commodity, original_file_name, file_size, file_sha256, storage_bucket, storage_path, processing_status, customer_status, created_at";
   const UTILITY_COLUMNS = "id, label, supply_type, expected_bills_per_year, status";
+  const CHECK_COLUMNS = "id, bill_id, user_id, status, outcome, summary, customer_message, started_at, completed_at, created_at, updated_at";
+  const ANOMALY_COLUMNS = "id, bill_id, check_id, category, severity, status, title, description, estimated_impact_eur, created_at";
 
   let client = null;
   let initialized = false;
@@ -15,8 +17,11 @@
   let currentSubscription = null;
   let utilities = [];
   let bills = [];
+  let checks = [];
+  let anomalies = [];
   let yearlyBillCount = 0;
   let busy = false;
+  const expandedBillIds = new Set();
 
   const byId = id => document.getElementById(id);
 
@@ -55,7 +60,8 @@
     if (state.utilitySelect) state.utilitySelect.disabled = busy || !utilities.length;
     if (state.uploadButton) state.uploadButton.disabled = busy || !canUpload();
     if (state.fileInput) state.fileInput.disabled = busy || !utilities.length;
-    if (state.uploadButtonLabel) state.uploadButtonLabel.textContent = busy ? "CARICAMENTO…" : "SCEGLI PDF";
+    if (state.uploadButtonLabel) state.uploadButtonLabel.textContent = busy ? "OPERAZIONE…" : "SCEGLI PDF";
+    state.list?.querySelectorAll("button").forEach(button => { button.disabled = busy; });
     state.card?.setAttribute("aria-busy", busy ? "true" : "false");
   }
 
@@ -84,8 +90,20 @@
     }[value] || "Utenza";
   }
 
-  function statusLabel(bill) {
-    if (bill.processing_status === "uploaded") return "In attesa";
+  function statusLabel(bill, check) {
+    if (check?.status === "pending") return "Da verificare";
+    if (["assigned", "in_review"].includes(check?.status)) return "In controllo";
+    if (check?.status === "more_info_required") return "Integrazione";
+    if (check?.status === "completed") {
+      return {
+        correct: "Corretta",
+        anomaly: "Anomalia",
+        possible_saving: "Risparmio",
+        inconclusive: "Esito incerto"
+      }[check.outcome] || "Completato";
+    }
+    if (check?.status === "canceled") return "Annullato";
+    if (bill.processing_status === "uploaded") return "Archiviata";
     if (["queued", "analyzing", "ready_for_review"].includes(bill.processing_status)) return "In controllo";
     if (bill.customer_status === "correct") return "Corretta";
     if (bill.customer_status === "anomaly_found") return "Anomalia";
@@ -95,12 +113,64 @@
     return "Archiviata";
   }
 
+  function checkTitle(check) {
+    if (!check) return "Controllo non richiesto";
+    if (check.status === "pending") return "Richiesta ricevuta";
+    if (check.status === "assigned") return "Controllo assegnato";
+    if (check.status === "in_review") return "Controllo in corso";
+    if (check.status === "more_info_required") return "Servono informazioni aggiuntive";
+    if (check.status === "canceled") return "Controllo annullato";
+    if (check.status === "completed") {
+      return {
+        correct: "Bolletta corretta",
+        anomaly: "Anomalia rilevata",
+        possible_saving: "Possibile risparmio",
+        inconclusive: "Controllo non conclusivo"
+      }[check.outcome] || "Controllo completato";
+    }
+    return "Stato del controllo";
+  }
+
+  function checkCopy(check) {
+    const staffMessage = String(check?.customer_message || "").trim();
+    if (staffMessage) return staffMessage;
+    if (check?.status === "pending") return "La bolletta è in coda e sarà presa in carico dallo staff autorizzato.";
+    if (check?.status === "assigned") return "La richiesta è stata assegnata a un operatore.";
+    if (check?.status === "in_review") return "Lo staff sta verificando prezzi, condizioni e possibili anomalie.";
+    if (check?.status === "more_info_required") return "Apri le comunicazioni quando disponibili per vedere cosa occorre integrare.";
+    if (check?.status === "completed") {
+      const summary = String(check.summary || "").trim();
+      if (summary) return summary;
+      return "Il controllo è terminato. L’esito è indicato sopra.";
+    }
+    if (check?.status === "canceled") return "La richiesta non è più attiva.";
+    return "Premi Richiedi controllo per inviare questa bolletta alla verifica professionale.";
+  }
+
+  function formatMoney(value) {
+    const amount = Number(value);
+    if (!Number.isFinite(amount)) return "";
+    return new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" }).format(amount);
+  }
+
   function friendlyError(error) {
     const raw = String(error?.message || "").trim();
     const message = raw.toLowerCase();
     if (!message) return "Operazione non riuscita. Riprova.";
     if (message.includes("premium bill limit reached") || message.includes("premium_bill_limit_reached") || message.includes("row-level security")) {
       return "Il caricamento non è autorizzato oppure hai raggiunto il limite annuale del piano.";
+    }
+    if (message.includes("premium_bill_not_requestable")) {
+      return "Questa bolletta non può essere inviata al controllo nello stato attuale.";
+    }
+    if (message.includes("premium_service_access_required") || message.includes("premium_auth_required")) {
+      return "Il controllo richiede un account e un abbonamento attivo.";
+    }
+    if (message.includes("premium_bill_not_found")) {
+      return "La bolletta non è più disponibile nell’archivio cloud.";
+    }
+    if (message.includes("premium_checks_bill_active_uidx")) {
+      return "Il controllo di questa bolletta è già stato richiesto.";
     }
     if (message.includes("duplicate key") || message.includes("premium_bills_user_sha_active_uidx")) {
       return "Questa bolletta risulta già presente nell’archivio cloud.";
@@ -143,6 +213,9 @@
     currentSubscription = null;
     utilities = [];
     bills = [];
+    checks = [];
+    anomalies = [];
+    expandedBillIds.clear();
     yearlyBillCount = 0;
     if (state.locked) state.locked.hidden = false;
     if (state.enabled) state.enabled.hidden = true;
@@ -197,6 +270,59 @@
     renderList();
   }
 
+  function renderCheckDetail(bill, check, billAnomalies) {
+    const detail = document.createElement("section");
+    detail.className = "cloud-check-detail";
+    detail.dataset.cloudCheckDetail = bill.id;
+    detail.hidden = !expandedBillIds.has(bill.id);
+
+    const head = document.createElement("div");
+    head.className = "cloud-check-detail-head";
+    const title = document.createElement("strong");
+    title.textContent = checkTitle(check);
+    const stateBadge = document.createElement("span");
+    stateBadge.className = "cloud-check-detail-badge";
+    stateBadge.textContent = statusLabel(bill, check);
+    head.append(title, stateBadge);
+
+    const copy = document.createElement("p");
+    copy.textContent = checkCopy(check);
+    detail.append(head, copy);
+
+    if (check) {
+      const meta = document.createElement("small");
+      const parts = [`Richiesto il ${formatDate(check.created_at)}`];
+      if (check.started_at) parts.push(`iniziato il ${formatDate(check.started_at)}`);
+      if (check.completed_at) parts.push(`concluso il ${formatDate(check.completed_at)}`);
+      meta.textContent = parts.join(" · ");
+      detail.append(meta);
+    }
+
+    if (billAnomalies.length) {
+      const list = document.createElement("div");
+      list.className = "cloud-anomaly-list";
+      billAnomalies.forEach(anomaly => {
+        const item = document.createElement("div");
+        item.className = "cloud-anomaly-item";
+        const anomalyTitle = document.createElement("strong");
+        anomalyTitle.textContent = anomaly.title || "Anomalia";
+        const anomalyCopy = document.createElement("p");
+        anomalyCopy.textContent = anomaly.description || "Dettaglio disponibile nel controllo.";
+        item.append(anomalyTitle, anomalyCopy);
+        const impact = formatMoney(anomaly.estimated_impact_eur);
+        if (impact) {
+          const impactText = document.createElement("small");
+          impactText.textContent = `Impatto stimato: ${impact}`;
+          item.append(impactText);
+        }
+        list.append(item);
+      });
+      detail.append(list);
+    }
+
+    return detail;
+  }
+
   function renderList() {
     if (!state.list || !state.empty) return;
     state.list.replaceChildren();
@@ -211,10 +337,23 @@
     state.list.hidden = false;
 
     const utilityMap = new Map(utilities.map(utility => [utility.id, utility]));
+    const checkMap = new Map();
+    checks.forEach(check => {
+      if (!checkMap.has(check.bill_id)) checkMap.set(check.bill_id, check);
+    });
+    const anomalyMap = new Map();
+    anomalies.forEach(anomaly => {
+      const group = anomalyMap.get(anomaly.bill_id) || [];
+      group.push(anomaly);
+      anomalyMap.set(anomaly.bill_id, group);
+    });
+
     bills.forEach(bill => {
       const utility = utilityMap.get(bill.utility_id);
+      const check = checkMap.get(bill.id) || null;
+      const billAnomalies = anomalyMap.get(bill.id) || [];
       const article = document.createElement("article");
-      article.className = "cloud-bill-item";
+      article.className = `cloud-bill-item${check ? " has-check" : ""}`;
       article.dataset.cloudBillId = bill.id;
 
       const icon = document.createElement("div");
@@ -234,7 +373,7 @@
 
       const badge = document.createElement("span");
       badge.className = "cloud-bill-status";
-      badge.textContent = statusLabel(bill);
+      badge.textContent = statusLabel(bill, check);
 
       const actions = document.createElement("div");
       actions.className = "cloud-bill-actions";
@@ -245,7 +384,21 @@
       openButton.textContent = "APRI";
       actions.append(openButton);
 
-      if (bill.processing_status === "uploaded") {
+      if (check) {
+        const toggleButton = document.createElement("button");
+        toggleButton.type = "button";
+        toggleButton.className = "cloud-bill-btn primary";
+        toggleButton.dataset.cloudCheckToggle = bill.id;
+        toggleButton.textContent = expandedBillIds.has(bill.id) ? "CHIUDI" : (check.status === "completed" ? "VEDI ESITO" : "VEDI STATO");
+        actions.append(toggleButton);
+      } else if (bill.processing_status === "uploaded") {
+        const requestButton = document.createElement("button");
+        requestButton.type = "button";
+        requestButton.className = "cloud-bill-btn primary";
+        requestButton.dataset.cloudCheckRequest = bill.id;
+        requestButton.textContent = "RICHIEDI CONTROLLO";
+        actions.append(requestButton);
+
         const deleteButton = document.createElement("button");
         deleteButton.type = "button";
         deleteButton.className = "cloud-bill-btn danger";
@@ -255,6 +408,7 @@
       }
 
       article.append(icon, copy, badge, actions);
+      if (check) article.append(renderCheckDetail(bill, check, billAnomalies));
       state.list.append(article);
     });
   }
@@ -343,7 +497,7 @@
           customer_status: "awaiting_review",
           metadata: {
             source: "premium_app",
-            app_version: "0.25"
+            app_version: "0.26"
           }
         })
         .select(BILL_COLUMNS)
@@ -378,6 +532,43 @@
       setMessage("error", friendlyError(error));
     } finally {
       if (state.fileInput) state.fileInput.value = "";
+    }
+  }
+
+  async function requestCheck(id) {
+    const bill = bills.find(item => item.id === id);
+    if (!bill || !client || !currentUser || busy) return;
+    if (checks.some(check => check.bill_id === bill.id && check.status !== "canceled")) {
+      setMessage("info", "Il controllo di questa bolletta è già stato richiesto.");
+      return;
+    }
+    if (bill.processing_status !== "uploaded" || bill.customer_status !== "awaiting_review") {
+      setMessage("error", "Questa bolletta non può essere inviata al controllo nello stato attuale.");
+      return;
+    }
+
+    const confirmed = window.confirm(`Inviare “${bill.original_file_name}” al controllo professionale OffertaLogica? Autorizzi lo staff incaricato ad accedere al PDF esclusivamente per questa verifica. Dopo la presa in carico non potrai eliminarlo dall’app.`);
+    if (!confirmed) return;
+
+    setBusy(true);
+    setMessage("info", "Invio della richiesta di controllo…");
+    const result = await client.rpc("premium_request_check", { p_bill_id: bill.id });
+    if (result.error) {
+      setBusy(false);
+      setMessage("error", friendlyError(result.error));
+      return;
+    }
+
+    try {
+      expandedBillIds.add(bill.id);
+      await loadData(currentUser, currentSubscription);
+      setMessage("success", "Richiesta inviata. La bolletta risulta ora da verificare.");
+      window.dispatchEvent(new CustomEvent("offertalogica:professional-checks-changed", {
+        detail: { billId: bill.id, checkId: result.data }
+      }));
+    } catch (error) {
+      setBusy(false);
+      setMessage("error", `La richiesta è stata registrata, ma lo stato non si è aggiornato: ${friendlyError(error)}`);
     }
   }
 
@@ -450,7 +641,7 @@
 
   async function loadData(user, subscription) {
     const oneYearAgo = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString();
-    const [utilitiesResult, billsResult, countResult] = await Promise.all([
+    const [utilitiesResult, billsResult, countResult, checksResult, anomaliesResult] = await Promise.all([
       client
         .from("premium_utilities")
         .select(UTILITY_COLUMNS)
@@ -469,17 +660,33 @@
         .select("id", { count: "exact", head: true })
         .eq("user_id", user.id)
         .is("deleted_at", null)
-        .gte("created_at", oneYearAgo)
+        .gte("created_at", oneYearAgo),
+      client
+        .from("premium_checks")
+        .select(CHECK_COLUMNS)
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(200),
+      client
+        .from("premium_anomalies")
+        .select(ANOMALY_COLUMNS)
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(300)
     ]);
 
     if (utilitiesResult.error) throw utilitiesResult.error;
     if (billsResult.error) throw billsResult.error;
     if (countResult.error) throw countResult.error;
+    if (checksResult.error) throw checksResult.error;
+    if (anomaliesResult.error) throw anomaliesResult.error;
 
     currentUser = user;
     currentSubscription = subscription;
     utilities = Array.isArray(utilitiesResult.data) ? utilitiesResult.data : [];
     bills = Array.isArray(billsResult.data) ? billsResult.data : [];
+    checks = Array.isArray(checksResult.data) ? checksResult.data : [];
+    anomalies = Array.isArray(anomaliesResult.data) ? anomaliesResult.data : [];
     yearlyBillCount = Number(countResult.count || 0);
     renderEnabled();
   }
@@ -490,6 +697,9 @@
     currentSubscription = null;
     utilities = [];
     bills = [];
+    checks = [];
+    anomalies = [];
+    expandedBillIds.clear();
     yearlyBillCount = 0;
 
     if (!session?.user) {
@@ -598,6 +808,19 @@
       const openButton = event.target.closest("[data-cloud-bill-open]");
       if (openButton) {
         openBill(openButton.dataset.cloudBillOpen);
+        return;
+      }
+      const requestButton = event.target.closest("[data-cloud-check-request]");
+      if (requestButton) {
+        requestCheck(requestButton.dataset.cloudCheckRequest);
+        return;
+      }
+      const toggleButton = event.target.closest("[data-cloud-check-toggle]");
+      if (toggleButton) {
+        const billId = toggleButton.dataset.cloudCheckToggle;
+        if (expandedBillIds.has(billId)) expandedBillIds.delete(billId);
+        else expandedBillIds.add(billId);
+        renderList();
         return;
       }
       const deleteButton = event.target.closest("[data-cloud-bill-delete]");
