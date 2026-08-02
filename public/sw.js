@@ -1,17 +1,31 @@
-const CACHE = "offertalogica-app-v9";
+const CACHE = "offertalogica-app-v10";
 const APP_SHELL = [
   "/app.html",
+  "/app-bills.js",
   "/manifest.webmanifest",
   "/assets/logo-offertalogica-header.png",
   "/assets/logo-offertalogica-icon.png",
   "/assets/app-icon-180.png",
   "/assets/app-icon-192.png",
   "/assets/app-icon-512.png",
-  "/assets/app-icon-1024.png"
+  "/assets/app-icon-1024.png",
+  "/come-funziona.html",
+  "/termini-condizioni.html",
+  "/offerte-luce-gas-aggiornate.html"
 ];
 
 self.addEventListener("install", event => {
-  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(APP_SHELL)));
+  event.waitUntil(
+    caches.open(CACHE).then(cache =>
+      // addAll fails the whole install if a single URL 404s; add one by one
+      // so a missing/renamed page doesn't break the entire app shell cache.
+      Promise.all(
+        APP_SHELL.map(url =>
+          cache.add(url).catch(err => console.warn("Precache saltato:", url, err))
+        )
+      )
+    )
+  );
 });
 
 self.addEventListener("activate", event => {
@@ -26,6 +40,15 @@ self.addEventListener("message", event => {
   if (event.data?.type === "SKIP_WAITING") self.skipWaiting();
 });
 
+async function cachePut(request, response) {
+  try {
+    const cache = await caches.open(CACHE);
+    await cache.put(request, response);
+  } catch (err) {
+    console.warn("Impossibile aggiornare la cache:", request.url, err);
+  }
+}
+
 self.addEventListener("fetch", event => {
   const request = event.request;
   if (request.method !== "GET") return;
@@ -37,7 +60,7 @@ self.addEventListener("fetch", event => {
     event.respondWith(
       fetch(request)
         .then(response => {
-          if (response.ok) caches.open(CACHE).then(cache => cache.put(request, response.clone()));
+          if (response.ok) cachePut(request, response.clone());
           return response;
         })
         .catch(async () => (await caches.match(request)) || caches.match("/app.html"))
@@ -49,7 +72,7 @@ self.addEventListener("fetch", event => {
     event.respondWith(
       caches.match(request).then(cached => {
         const network = fetch(request).then(response => {
-          if (response.ok) caches.open(CACHE).then(cache => cache.put(request, response.clone()));
+          if (response.ok) cachePut(request, response.clone());
           return response;
         }).catch(() => cached);
         return cached || network;
