@@ -106,6 +106,38 @@
     return `${new Intl.NumberFormat("it-IT", { maximumFractionDigits: 1 }).format(value / 1_000_000)} MB`;
   }
 
+  function storageSizeLabel(bytes) {
+    const value = Number(bytes || 0);
+    if (!Number.isFinite(value) || value <= 0) return "0 KB";
+    return sizeLabel(value);
+  }
+
+  async function fingerprintBlob(blob) {
+    if (!blob || typeof blob.arrayBuffer !== "function" || !globalThis.crypto?.subtle) return "";
+    const buffer = await blob.arrayBuffer();
+    const digest = await globalThis.crypto.subtle.digest("SHA-256", buffer);
+    return [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, "0")).join("");
+  }
+
+  async function isDuplicateBill(file, records, fingerprint) {
+    if (!fingerprint) return false;
+
+    const sameSize = records.filter(record => Number(record.fileSize || 0) === Number(file.size || 0));
+    for (const record of sameSize) {
+      let recordFingerprint = String(record.fingerprint || "");
+      if (!recordFingerprint && record.pdfBlob) {
+        recordFingerprint = await fingerprintBlob(record.pdfBlob);
+        if (recordFingerprint) {
+          await saveBill({ ...record, fingerprint: recordFingerprint });
+          record.fingerprint = recordFingerprint;
+        }
+      }
+      if (recordFingerprint && recordFingerprint === fingerprint) return true;
+    }
+
+    return false;
+  }
+
   function errorMessage(error) {
     if (error?.name === "QuotaExceededError") {
       return "Spazio insufficiente per archiviare il PDF su questo dispositivo.";
@@ -128,6 +160,7 @@
     const empty = document.getElementById("billArchiveEmpty");
     const list = document.getElementById("billArchiveList");
     const profileCount = document.getElementById("profileBillArchiveCount");
+    const profileSize = document.getElementById("profileBillArchiveSize");
     const clearArchiveButton = document.getElementById("clearBillArchiveButton");
     const profileDataStatus = document.getElementById("profileDataStatus");
 
@@ -150,6 +183,8 @@
       } catch (error) {
         count.textContent = "—";
         if (homeCount) homeCount.textContent = "—";
+        if (profileCount) profileCount.textContent = "—";
+        if (profileSize) profileSize.textContent = "—";
         latest.textContent = "—";
         empty.hidden = false;
         list.hidden = true;
@@ -160,6 +195,10 @@
       count.textContent = String(records.length);
       if (homeCount) homeCount.textContent = String(records.length);
       if (profileCount) profileCount.textContent = String(records.length);
+      if (profileSize) {
+        const totalBytes = records.reduce((sum, record) => sum + Number(record.fileSize || 0), 0);
+        profileSize.textContent = storageSizeLabel(totalBytes);
+      }
       if (clearArchiveButton) clearArchiveButton.disabled = records.length === 0;
       latest.textContent = records.length ? dateLabel(records[0].createdAt) : "—";
       buttonLabel.textContent = records.length ? "AGGIUNGI BOLLETTA" : "CARICA BOLLETTA";
@@ -264,6 +303,16 @@
       if (profileDataStatus) profileDataStatus.hidden = true;
       let completed = 0;
       let failed = 0;
+      let skipped = 0;
+      let records = [];
+
+      try {
+        records = await listBills();
+      } catch (error) {
+        button.disabled = false;
+        setStatus("error", "L’archivio locale non è disponibile su questo dispositivo.");
+        return;
+      }
 
       for (let index = 0; index < files.length; index += 1) {
         const file = files[index];
@@ -274,18 +323,30 @@
           continue;
         }
 
-        setStatus("loading", `Salvataggio ${index + 1} di ${files.length}: ${file.name}`);
+        setStatus("loading", `Verifica ${index + 1} di ${files.length}: ${file.name}`);
 
         try {
-          await saveBill({
+          const fingerprint = await fingerprintBlob(file);
+          if (await isDuplicateBill(file, records, fingerprint)) {
+            skipped += 1;
+            setStatus("warning", `${file.name}: il PDF è già presente nell’archivio.`);
+            continue;
+          }
+
+          setStatus("loading", `Salvataggio ${index + 1} di ${files.length}: ${file.name}`);
+          const record = {
             id: uid(),
             filename: file.name || "bolletta.pdf",
             mimeType: file.type || "application/pdf",
             fileSize: Number(file.size || 0),
+            sourceLastModified: Number(file.lastModified || 0),
+            fingerprint,
             createdAt: new Date().toISOString(),
             pdfBlob: file.slice(0, file.size, file.type || "application/pdf"),
             status: "archived",
-          });
+          };
+          await saveBill(record);
+          records.unshift(record);
           completed += 1;
           await render();
         } catch (error) {
@@ -296,13 +357,21 @@
 
       button.disabled = false;
 
-      if (completed && !failed) {
+      if (completed && !failed && !skipped) {
         setStatus(
           "success",
           completed === 1 ? "Bolletta aggiunta all’archivio locale." : `${completed} bollette aggiunte all’archivio locale.`
         );
       } else if (completed) {
-        setStatus("warning", `${completed} bollette archiviate; ${failed} non completate.`);
+        const details = [];
+        if (skipped) details.push(`${skipped} già ${skipped === 1 ? "presente" : "presenti"}`);
+        if (failed) details.push(`${failed} non ${failed === 1 ? "completata" : "completate"}`);
+        setStatus("warning", `${completed} ${completed === 1 ? "bolletta archiviata" : "bollette archiviate"}; ${details.join("; ")}.`);
+      } else if (skipped && !failed) {
+        setStatus(
+          "warning",
+          skipped === 1 ? "Il PDF selezionato è già presente nell’archivio." : "I PDF selezionati sono già presenti nell’archivio."
+        );
       }
 
       await render();
