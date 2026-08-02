@@ -9,8 +9,8 @@
   <meta name="apple-mobile-web-app-title" content="OffertaLogica">
   <title>OffertaLogica</title>
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="icon" href="/assets/logo-offertalogica-icon.png?v=14">
-  <link rel="apple-touch-icon" sizes="180x180" href="/assets/app-icon-180.png?v=14">
+  <link rel="icon" href="/assets/logo-offertalogica-icon.png?v=15">
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/app-icon-180.png?v=15">
   <style>
     :root{
       --bg:#f4f7f5;--surface:#ffffff;--surface-2:#eef5f0;--text:#123044;--muted:#647985;
@@ -39,7 +39,7 @@
     .cta{min-height:56px;width:100%;border:0;border-radius:18px;background:#fff;color:var(--navy);display:flex;align-items:center;justify-content:center;gap:10px;text-decoration:none;font-weight:900;box-shadow:0 10px 24px rgba(0,0,0,.13);transition:transform .16s ease}.cta:active{transform:scale(.982)}
     .install{display:none;width:100%;min-height:50px;margin:13px 0 0;border:1px solid #a8dcb8;border-radius:17px;background:#eefaf1;color:#087c39;font-weight:850}.install.show{display:block}
     .ios-tip{display:none;position:relative;align-items:flex-start;gap:11px;margin:13px 0 0;padding:13px 34px 13px 14px;border:1px solid #a8dcb8;border-radius:17px;background:#eefaf1;color:#0f5a35;text-align:left}.ios-tip.show{display:flex}.ios-tip .icon{flex:0 0 auto;width:20px;height:20px;margin-top:1px}.ios-tip p{margin:0;font-size:12.5px;line-height:1.5;font-weight:750}.ios-tip b{font-weight:900}.ios-tip-close{position:absolute;top:8px;right:8px;width:26px;height:26px;border:0;border-radius:9px;background:transparent;color:#5e7467;display:grid;place-items:center}
-    .section-title{display:flex;align-items:end;justify-content:space-between;margin:25px 2px 12px}.section-title h2{margin:0;font-size:20px;letter-spacing:-.025em}.section-title span{color:var(--muted);font-size:12px}
+    .section-title{display:flex;align-items:end;justify-content:space-between;margin:25px 2px 12px}.section-title h2{margin:0;font-size:20px;letter-spacing:-.025em}.section-title span{color:var(--muted);font-size:12px}.home-summary{margin:14px 0 0}.home-summary .summary-card:first-child strong{color:var(--green-dark)}
     .action-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
     .action{min-height:166px;padding:17px;border:1px solid var(--line);border-radius:var(--r-lg);background:var(--surface);box-shadow:var(--soft-shadow);text-decoration:none;color:var(--text);transition:transform .16s ease,border-color .16s ease}.action:active{transform:scale(.982);border-color:#b8d9c1}
     .action-icon{width:52px;height:52px;margin-bottom:20px;border-radius:18px;background:var(--surface-2);color:var(--green-dark);display:grid;place-items:center}.action strong{display:block;margin-bottom:5px;font-size:16px;letter-spacing:-.02em}.action small{display:block;color:var(--muted);font-size:13px;line-height:1.4}
@@ -84,7 +84,7 @@
     <section id="view-home" class="view active" data-view="home">
       <div class="welcome"><h1>La tua energia, più semplice.</h1><p>Confronta le offerte e conserva le bollette in un archivio locale essenziale.</p></div>
       <section class="hero">
-        <div class="status"><span class="status-dot"></span><span>Catalogo OffertaLogica aggiornato</span></div>
+        <div class="status"><span class="status-dot"></span><span>Confronto gratuito disponibile</span></div>
         <h2>Scopri quanto puoi risparmiare</h2>
         <p>Inizia dai consumi medi oppure inserisci i tuoi dati per ottenere un confronto più preciso.</p>
         <a class="cta" href="/?entry=app#main-content" data-app-url="/?entry=app#main-content" data-app-title="Confronta le offerte"><span>INIZIA IL CONFRONTO</span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="m14 7 5 5-5 5"/></svg></a>
@@ -95,12 +95,16 @@
         <p>Per installare l’app: tocca <b>Condividi</b> e poi <b>Aggiungi a Home</b>.</p>
         <button id="iosInstallTipClose" class="ios-tip-close" type="button" aria-label="Chiudi suggerimento"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" style="width:15px;height:15px"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
       </div>
+      <section class="archive-summary home-summary" aria-label="Riepilogo piano gratuito">
+        <div class="summary-card"><strong id="homeBillArchiveCount">0</strong><span>Bollette archiviate</span></div>
+        <div class="summary-card"><strong>Gratuito</strong><span>Piano attivo</span></div>
+      </section>
       <div class="section-title"><h2>Azioni rapide</h2><span>Scegli come iniziare</span></div>
       <section class="action-grid" aria-label="Azioni principali">
         <button class="action" type="button" data-open-tab="bill" data-bill-upload-shortcut><div class="action-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7z"/><path d="M14 2v5h5"/><path d="M9 13h6M9 17h6"/></svg></div><strong>Carica bolletta</strong><small>Salva il PDF direttamente nell’archivio del dispositivo.</small></button>
         <button class="action" type="button" data-open-tab="offers"><div class="action-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/><path d="M11 8v6M8 11h6"/></svg></div><strong>Esplora offerte</strong><small>Consulta luce, gas e dual disponibili oggi.</small></button>
       </section>
-      <section class="insight"><div class="insight-head"><strong>Confronto trasparente</strong><span class="pill">Dati reali</span></div><h3>Niente risparmi inventati</h3><p>L’app usa il catalogo e le funzioni reali di OffertaLogica. Le aree personali saranno attivate solo quando collegate a dati effettivi.</p><a class="text-link" href="/come-funziona.html" data-app-url="/come-funziona.html" data-app-title="Come funziona"><span>Come funziona</span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></a></section>
+      <section class="insight"><div class="insight-head"><strong>Piano gratuito</strong><span class="pill">ATTIVO</span></div><h3>Solo le funzioni essenziali</h3><p>Conserva i PDF sul dispositivo e usa il comparatore quando ti serve. Controlli e monitoraggio saranno disponibili con il futuro upgrade.</p><a class="text-link" href="/come-funziona.html" data-app-url="/come-funziona.html" data-app-title="Come funziona"><span>Come funziona</span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></a></section>
     </section>
 
     <section id="view-bill" class="view" data-view="bill">
@@ -182,7 +186,7 @@
       </div>
 
       <div class="profile-note"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><span>Nel piano gratuito i PDF restano sul dispositivo. Non vengono sincronizzati e non sono accessibili allo staff di OffertaLogica.</span></div>
-      <span class="version-badge">APP v0.14</span>
+      <span class="version-badge">APP v0.15</span>
     </section>
   </main>
 

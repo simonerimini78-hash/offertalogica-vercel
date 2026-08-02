@@ -119,6 +119,7 @@
     const status = document.getElementById("billUploadStatus");
     const statusText = document.getElementById("billUploadStatusText");
     const count = document.getElementById("billArchiveCount");
+    const homeCount = document.getElementById("homeBillArchiveCount");
     const latest = document.getElementById("billArchiveLatest");
     const empty = document.getElementById("billArchiveEmpty");
     const list = document.getElementById("billArchiveList");
@@ -141,6 +142,7 @@
         records = await listBills();
       } catch (error) {
         count.textContent = "—";
+        if (homeCount) homeCount.textContent = "—";
         latest.textContent = "—";
         empty.hidden = false;
         list.hidden = true;
@@ -149,6 +151,7 @@
       }
 
       count.textContent = String(records.length);
+      if (homeCount) homeCount.textContent = String(records.length);
       latest.textContent = records.length ? dateLabel(records[0].createdAt) : "—";
       buttonLabel.textContent = records.length ? "AGGIUNGI BOLLETTA" : "CARICA BOLLETTA";
       empty.hidden = records.length > 0;
