@@ -498,6 +498,7 @@
       }
 
       try {
+        [amountField, yearField, periodField].forEach(field => field?.blur());
         const record = await getBill(form.dataset.billExpenseForm);
         if (!record) throw new Error("Bolletta non disponibile.");
         await saveBill({
@@ -530,7 +531,10 @@
       const cancelButton = event.target.closest("[data-expense-cancel]");
       if (cancelButton) {
         const form = cancelButton.closest("[data-bill-expense-form]");
-        if (form) form.hidden = true;
+        if (form) {
+          form.querySelectorAll("input").forEach(field => field.blur());
+          form.hidden = true;
+        }
         return;
       }
 
