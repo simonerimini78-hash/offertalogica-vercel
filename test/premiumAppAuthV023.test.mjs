@@ -7,7 +7,7 @@ const auth = await readFile(new URL('../public/app-auth.js', import.meta.url), '
 const sw = await readFile(new URL('../public/sw.js', import.meta.url), 'utf8');
 
 test('Premium Auth resta compatibile con la v0.25', () => {
-  assert.match(html, /APP Premium v0\.27/);
+  assert.match(html, /APP Premium v0\.28/);
   assert.match(html, /cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js@2/);
   assert.match(html, /<script src="\/app-auth\.js"><\/script>/);
   assert.match(html, /id="premiumLoginForm"/);
@@ -33,7 +33,7 @@ test('La sessione è persistente e la cache è separata dalla gratuita', () => {
   assert.match(auth, /persistSession:\s*true/);
   assert.match(auth, /autoRefreshToken:\s*true/);
   assert.match(auth, /detectSessionInUrl:\s*true/);
-  assert.match(sw, /offertalogica-premium-v27/);
+  assert.match(sw, /offertalogica-premium-v28/);
   assert.match(sw, /"\/app-auth\.js"/);
   assert.doesNotMatch(sw, /offertalogica-app-v22/);
 });

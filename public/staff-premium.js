@@ -14,6 +14,7 @@
   let selectedId = null;
   let selectedNotes = [];
   let selectedAnomalies = [];
+  let selectedAnalyses = [];
   let busy = false;
   let loadSequence = 0;
 
@@ -157,6 +158,9 @@
     if (message.includes("premium_anomaly_required")) return "Aggiungi almeno un’anomalia prima di completare con questo esito.";
     if (message.includes("premium_check_must_be_claimed")) return "Prendi prima in carico il controllo.";
     if (message.includes("premium_check_not_found")) return "Il controllo non è più disponibile.";
+    if (message.includes("premium_ai_already_running") || message.includes("premium_analysis_already_running")) return "È già in corso una pre-analisi IA per questa bolletta.";
+    if (message.includes("premium_ai_not_configured")) return "La pre-analisi IA non è configurata sul server.";
+    if (message.includes("premium_ai_timeout")) return "La pre-analisi IA ha richiesto troppo tempo. La revisione manuale resta disponibile.";
     if (message.includes("row-level security") || message.includes("permission denied")) return "Operazione non autorizzata dalle regole di sicurezza.";
     if (message.includes("failed to fetch") || message.includes("network")) return "Connessione non disponibile. Controlla la rete e riprova.";
     return raw;
@@ -383,6 +387,135 @@
     container.append(section);
   }
 
+  function analysisStatusLabel(value) {
+    return {
+      queued: "In coda",
+      running: "In esecuzione",
+      completed: "Bozza completa",
+      partial: "Bozza parziale",
+      failed: "Non riuscita"
+    }[value] || value || "—";
+  }
+
+  function formatTechnicalNumber(value, maximumFractionDigits = 6) {
+    const number = Number(value);
+    if (!Number.isFinite(number)) return "—";
+    return new Intl.NumberFormat("it-IT", { maximumFractionDigits }).format(number);
+  }
+
+  function analysisSupplyRows(data = {}) {
+    const rows = [];
+    const adaptive = Array.isArray(data?.adaptive_form?.supplies) ? data.adaptive_form.supplies : [];
+    const findSupply = commodity => adaptive.find(item => item?.commodity === commodity) || {};
+    const add = (commodity, label, consumption, consumptionUnit, price, priceUnit, fixedFee, priceType, index, formula) => {
+      const supply = findSupply(commodity);
+      if (![consumption, price, fixedFee, supply?.provider, data?.[`fornitore_${commodity}`]].some(value => value !== null && value !== undefined && value !== "")) return;
+      rows.push({
+        commodity,
+        label,
+        provider: supply?.provider || data?.[`fornitore_${commodity}`] || data?.fornitore || "—",
+        consumption,
+        consumptionUnit,
+        price,
+        priceUnit,
+        fixedFee,
+        priceType,
+        index,
+        formula,
+        evidence: [supply?.annual_consumption?.evidence, supply?.primary_price?.evidence, supply?.fixed_fee?.evidence].filter(Boolean)
+      });
+    };
+    add("luce", "Luce", data.consumo_luce_kwh, "kWh/anno", data.prezzo_luce_eur_kwh, "€/kWh", data.quota_fissa_vendita_luce_eur_anno, data.tipo_prezzo_luce, data.indice_riferimento_luce, data.formula_prezzo_luce);
+    add("gas", "Gas", data.consumo_gas_smc, "Smc/anno", data.prezzo_gas_eur_smc, "€/Smc", data.quota_fissa_vendita_gas_eur_anno, data.tipo_prezzo_gas, data.indice_riferimento_gas, data.formula_prezzo_gas);
+    return rows;
+  }
+
+  function renderAiAssistance(container, row) {
+    const section = node("section", { className: "section ai-section" });
+    const heading = node("div", { className: "ai-heading" }, [
+      node("div", {}, [
+        node("h3", { text: "Pre-analisi IA assistita" }),
+        node("p", { className: "ai-note", text: "Bozza tecnica riservata allo staff. Non modifica l’esito e non è visibile al cliente." })
+      ])
+    ]);
+    section.append(heading);
+
+    const latest = selectedAnalyses[0] || null;
+    const analysisRunning = latest && ["queued", "running"].includes(latest.status);
+    if (!["completed", "canceled"].includes(row.check.status)) {
+      const button = node("button", {
+        className: "button primary compact",
+        type: "button",
+        text: analysisRunning ? "ANALISI IA IN CORSO" : latest ? "RIPETI PRE-ANALISI IA" : "AVVIA PRE-ANALISI IA"
+      });
+      button.disabled = busy || analysisRunning;
+      button.addEventListener("click", handleRunAiAnalysis);
+      heading.append(node("div", { className: "ai-actions" }, [button]));
+    }
+
+    if (!latest) {
+      section.append(node("div", { className: "timeline-item", text: "Nessuna pre-analisi IA eseguita. Il controllo può comunque essere svolto interamente a mano." }));
+      container.append(section);
+      return;
+    }
+
+    const usage = latest.usage_details || {};
+    const meta = node("div", { className: "info-grid ai-meta" }, [
+      infoCard("Stato IA", analysisStatusLabel(latest.status)),
+      infoCard("Esecuzione", `n. ${latest.run_number || 1} · ${formatDate(latest.completed_at || latest.started_at, true)}`),
+      infoCard("Modello", latest.model || "—"),
+      infoCard("Durata", latest.duration_ms == null ? "—" : `${(Number(latest.duration_ms) / 1000).toFixed(1).replace(".", ",")} s`),
+      infoCard("Token", usage.total_tokens != null ? formatTechnicalNumber(usage.total_tokens, 0) : "—"),
+      infoCard("Costo stimato", latest.estimated_cost_eur == null ? "Tariffe non configurate" : formatMoney(latest.estimated_cost_eur))
+    ]);
+    section.append(meta);
+
+    if (latest.status === "failed") {
+      section.append(node("div", { className: "ai-warning", text: "La pre-analisi non è riuscita. La revisione manuale resta pienamente disponibile." }));
+      container.append(section);
+      return;
+    }
+
+    const data = latest.extracted_data || {};
+    const supplies = analysisSupplyRows(data);
+    if (!supplies.length) {
+      section.append(node("div", { className: "ai-warning", text: "La bozza non contiene dati economici sufficienti. Verifica direttamente il PDF." }));
+    } else {
+      const grid = node("div", { className: "ai-supply-grid" });
+      supplies.forEach(supply => {
+        const card = node("article", { className: "ai-card" }, [
+          node("div", { className: "ai-card-title" }, [node("strong", { text: supply.label }), makeBadge(latest.status, analysisStatusLabel(latest.status))]),
+          node("p", { className: "ai-provider", text: supply.provider }),
+          node("div", { className: "ai-values" }, [
+            infoCard("Consumo annuo", supply.consumption == null ? "—" : `${formatTechnicalNumber(supply.consumption, 3)} ${supply.consumptionUnit}`),
+            infoCard("Prezzo materia", supply.price == null ? "—" : `${formatTechnicalNumber(supply.price, 6)} ${supply.priceUnit}`),
+            infoCard("Quota fissa vendita", supply.fixedFee == null ? "—" : `${formatMoney(supply.fixedFee)}/anno`),
+            infoCard("Tipo prezzo", supply.priceType || "—"),
+            infoCard("Indice", supply.index || "—"),
+            infoCard("Formula", supply.formula || "—")
+          ])
+        ]);
+        if (supply.evidence.length) {
+          card.append(node("details", { className: "ai-evidence" }, [
+            node("summary", { text: "Mostra evidenze individuate" }),
+            ...supply.evidence.map(text => node("p", { text }))
+          ]));
+        }
+        grid.append(card);
+      });
+      section.append(grid);
+    }
+
+    const warnings = Array.isArray(latest.warnings) ? latest.warnings : [];
+    if (warnings.length) {
+      section.append(node("div", { className: "ai-warning" }, [
+        node("strong", { text: "Verifiche richieste" }),
+        ...warnings.slice(0, 8).map(item => node("p", { text: String(item).replaceAll("_", " ") }))
+      ]));
+    }
+    container.append(section);
+  }
+
   function renderWorkflow(container, row) {
     const section = node("section", { className: "section" });
     section.append(node("h3", { text: "Lavorazione" }));
@@ -473,6 +606,7 @@
       infoCard("Documento", `${formatSize(row.bill?.file_size)} · ${formatDate(row.bill?.created_at)}`)
     ]));
 
+    renderAiAssistance(body, row);
     renderWorkflow(body, row);
     renderNotes(body);
     renderAnomalies(body, row);
@@ -484,7 +618,7 @@
 
   async function loadSelectedDetails(row) {
     const sequence = ++loadSequence;
-    const [notesResult, anomaliesResult] = await Promise.all([
+    const [notesResult, anomaliesResult, analysesResult] = await Promise.all([
       client.from("premium_check_notes")
         .select("id, check_id, staff_user_id, note, created_at")
         .eq("check_id", row.check.id)
@@ -492,13 +626,20 @@
       client.from("premium_anomalies")
         .select("id, bill_id, check_id, user_id, category, severity, status, title, description, estimated_impact_eur, created_at")
         .eq("check_id", row.check.id)
-        .order("created_at", { ascending: false })
+        .order("created_at", { ascending: false }),
+      client.from("premium_analysis_runs")
+        .select("id, bill_id, run_number, parser_version, model, status, started_at, completed_at, duration_ms, input_tokens, output_tokens, estimated_cost_eur, extracted_data, warnings, error_code, usage_details, response_ids, created_at")
+        .eq("bill_id", row.bill.id)
+        .order("run_number", { ascending: false })
+        .limit(5)
     ]);
     if (sequence !== loadSequence || selectedId !== row.check.id) return;
     if (notesResult.error) throw notesResult.error;
     if (anomaliesResult.error) throw anomaliesResult.error;
+    if (analysesResult.error) throw analysesResult.error;
     selectedNotes = notesResult.data || [];
     selectedAnomalies = anomaliesResult.data || [];
+    selectedAnalyses = analysesResult.data || [];
     renderDetail(row);
   }
 
@@ -591,6 +732,37 @@
     } finally {
       setBusy(false);
     }
+  }
+
+  async function handleRunAiAnalysis() {
+    const row = selectedRow();
+    if (!row || busy) return;
+    const latest = selectedAnalyses[0] || null;
+    const prompt = latest
+      ? "Ripetere la pre-analisi IA? Verrà conservato lo storico delle esecuzioni e la nuova bozza dovrà essere verificata."
+      : "Avviare la pre-analisi IA della bolletta? La bozza resterà riservata allo staff e non produrrà automaticamente alcun esito per il cliente.";
+    if (!window.confirm(prompt)) return;
+
+    await runAction(async () => {
+      const { data: sessionData, error: sessionError } = await client.auth.getSession();
+      if (sessionError) throw sessionError;
+      const accessToken = sessionData?.session?.access_token;
+      if (!accessToken) throw new Error("premium_auth_required");
+      const response = await fetch("/api/premium-ai-analysis", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: JSON.stringify({ checkId: row.check.id })
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok || !body?.ok) {
+        const error = new Error(body?.error || "Pre-analisi IA non riuscita");
+        error.code = body?.code || "PREMIUM_AI_ERROR";
+        throw error;
+      }
+    }, "Pre-analisi IA completata. Verifica sempre la bozza sul PDF prima di concludere il controllo.");
   }
 
   async function handleClaim() {
@@ -720,6 +892,7 @@
     currentStaff = null;
     rows = [];
     selectedId = null;
+    selectedAnalyses = [];
     clear(state.queue);
     renderEmptyDetail();
 

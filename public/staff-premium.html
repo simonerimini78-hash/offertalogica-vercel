@@ -112,6 +112,25 @@
     .anomaly-actions { margin-top:8px; }
     .status-line { min-height:20px; margin-top:10px; color:var(--muted); font-size:13px; }
     .danger-note { color:var(--danger); font-size:12px; }
+
+    .ai-section { border-top-color:#a7d8c9; }
+    .ai-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; margin-bottom:11px; }
+    .ai-heading h3 { margin-bottom:4px; }
+    .ai-note { margin:0; color:var(--muted); font-size:12px; line-height:1.45; }
+    .ai-actions { flex:0 0 auto; }
+    .ai-meta { margin-top:0; grid-template-columns:repeat(3,minmax(130px,1fr)); }
+    .ai-supply-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:11px; margin-top:12px; }
+    .ai-card { border:1px solid #a7d8c9; border-radius:14px; padding:13px; background:#f3fbf8; }
+    .ai-card-title { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+    .ai-provider { margin:5px 0 10px; color:var(--muted); font-size:12px; }
+    .ai-values { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:7px; }
+    .ai-values .info { background:#fff; }
+    .ai-evidence { margin-top:10px; border-top:1px solid #cde5dc; padding-top:8px; }
+    .ai-evidence summary { cursor:pointer; color:var(--green-dark); font-size:12px; font-weight:800; }
+    .ai-evidence p { margin:7px 0 0; color:#52625c; font-size:12px; line-height:1.45; }
+    .ai-warning { margin-top:11px; border:1px solid #fedf89; border-radius:11px; padding:10px 11px; color:#7a2e0e; background:#fffaeb; font-size:12px; line-height:1.45; }
+    .ai-warning strong { display:block; margin-bottom:4px; }
+    .ai-warning p { margin:3px 0 0; }
     @media (max-width:1100px) {
       .metrics { grid-template-columns:repeat(2,1fr); }
       .workspace { grid-template-columns:1fr; }
@@ -124,9 +143,9 @@
       .metrics { grid-template-columns:1fr 1fr; }
       .metric { padding:13px; }
       .metric strong { font-size:23px; }
-      .filters,.form-grid,.info-grid { grid-template-columns:1fr; }
+      .filters,.form-grid,.info-grid,.ai-meta,.ai-supply-grid,.ai-values { grid-template-columns:1fr; }
       .filters .wide,.form-grid .full { grid-column:auto; }
-      .detail-title { flex-direction:column; }
+      .detail-title,.ai-heading { flex-direction:column; }
       .detail-actions { justify-content:flex-start; }
       .detail-body { padding:14px; }
     }
@@ -139,7 +158,7 @@
       <img src="/assets/logo-offertalogica-icon.png" alt="OffertaLogica">
       <div>
         <h1>Dashboard controlli Premium</h1>
-        <p>Area riservata allo staff autorizzato · v0.27</p>
+        <p>Area riservata allo staff autorizzato · v0.28</p>
       </div>
     </div>
     <div class="top-actions" id="staffTopActions" hidden>

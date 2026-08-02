@@ -9,7 +9,7 @@ const migration = await readFile(new URL('../supabase/premium-checks-v0.26.sql',
 const verify = await readFile(new URL('../supabase/premium-checks-v0.26-verify.sql', import.meta.url), 'utf8');
 
 test('Premium v0.26 attiva la richiesta di controllo senza dichiarare analisi IA attiva', () => {
-  assert.match(html, /APP Premium v0\.27/);
+  assert.match(html, /APP Premium v0\.28/);
   assert.match(html, /FLUSSO ATTIVO/);
   assert.match(html, /Richiedi controllo/);
   assert.match(html, /l’analisi IA non è ancora attiva/);
@@ -75,7 +75,7 @@ test('La verifica controlla RPC, indice, lettura cliente e note interne', () => 
 });
 
 test('Cache e frontend non contengono chiavi segrete', () => {
-  assert.match(sw, /offertalogica-premium-v27/);
+  assert.match(sw, /offertalogica-premium-v28/);
   assert.doesNotMatch(sw, /offertalogica-premium-v25/);
   assert.doesNotMatch(cloudBills, /service_role/i);
   assert.doesNotMatch(cloudBills, /sb_secret_/i);
