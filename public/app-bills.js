@@ -540,15 +540,11 @@
           const record = await getBill(openButton.dataset.billOpen);
           if (!record?.pdfBlob) throw new Error("PDF non disponibile.");
 
-          const url = URL.createObjectURL(record.pdfBlob);
-          const anchor = document.createElement("a");
-          anchor.href = url;
-          anchor.download = record.filename || "bolletta.pdf";
-          anchor.rel = "noopener";
-          document.body.append(anchor);
-          anchor.click();
-          anchor.remove();
-          setTimeout(() => URL.revokeObjectURL(url), 60_000);
+          const viewer = globalThis.OffertaLogicaAppBrowser;
+          if (!viewer || typeof viewer.openPdf !== "function") {
+            throw new Error("Visualizzatore PDF non disponibile.");
+          }
+          viewer.openPdf(record.pdfBlob, record.filename || "Bolletta.pdf");
         } catch (error) {
           setStatus("error", errorMessage(error));
         }
