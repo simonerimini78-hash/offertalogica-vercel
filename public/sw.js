@@ -1,4 +1,4 @@
-const CACHE = "offertalogica-app-v2";
+const CACHE = "offertalogica-app-v6";
 const APP_SHELL = [
   "/app.html",
   "/manifest.webmanifest",
@@ -6,7 +6,8 @@ const APP_SHELL = [
   "/assets/logo-offertalogica-icon.png",
   "/assets/app-icon-180.png",
   "/assets/app-icon-192.png",
-  "/assets/app-icon-512.png"
+  "/assets/app-icon-512.png",
+  "/assets/app-icon-1024.png"
 ];
 
 self.addEventListener("install", event => {
