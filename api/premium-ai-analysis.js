@@ -97,6 +97,10 @@ export function createPremiumAiAnalysisHandler({
           inputPerMillion: backend.pricing.inputPerMillion,
           cachedInputPerMillion: backend.pricing.cachedInputPerMillion,
           outputPerMillion: backend.pricing.outputPerMillion,
+          complete: Boolean(backend.pricing.complete),
+          sources: backend.pricing.sources || {},
+          missing: Array.isArray(backend.pricing.missing) ? backend.pricing.missing : [],
+          modelDefaultApplied: Boolean(backend.pricing.modelDefaultApplied),
         };
         return json(res, 200, {
           ok: true,
@@ -115,7 +119,7 @@ export function createPremiumAiAnalysisHandler({
             model: backend.model,
             maxPdfBytes: backend.maxPdfBytes,
             deadlineMs: backend.deadlineMs,
-            pricing: { ...pricing, complete: Object.values(pricing).every(value => value !== null) },
+            pricing,
             rateLimits: {
               customerAnalysis: { limit: numberOr("RATE_LIMIT_PREMIUM_AI_CUSTOMER_LIMIT", 24), windowSeconds: numberOr("RATE_LIMIT_PREMIUM_AI_CUSTOMER_WINDOW_SECONDS", 3600) },
               staffAnalysis: { limit: numberOr("RATE_LIMIT_PREMIUM_AI_LIMIT", 12), windowSeconds: numberOr("RATE_LIMIT_PREMIUM_AI_WINDOW_SECONDS", 3600) },

@@ -899,6 +899,23 @@
       return;
     }
     const rate = config.rateLimits || {};
+    const pricing = config.pricing || {};
+    const pricingValue = value => {
+      if (value === null || value === undefined || value === "") return "Mancante";
+      const amount = Number(value);
+      return Number.isFinite(amount) ? `${formatNumber(amount, 3)} €/1M` : "Mancante";
+    };
+    const pricingSource = field => {
+      const source = pricing.sources?.[field];
+      if (source === "environment") return "Variabile Vercel";
+      if (source === "model_default") return `Fallback ${config.model || "modello configurato"}`;
+      return "Variabile non ricevuta";
+    };
+    const pricingNote = pricing.complete
+      ? (pricing.modelDefaultApplied
+          ? "Tariffe operative; almeno un valore usa il fallback del modello."
+          : "Tutte le tariffe provengono dalle variabili Vercel.")
+      : `Mancano: ${(pricing.missing || []).join(", ") || "una o più tariffe"}`;
     const complete = Boolean(
       config.supabaseConfigured
       && config.databaseOperational
@@ -907,7 +924,7 @@
       && config.offerHistoryOperational
       && config.persistentRateLimitConfigured
       && config.persistentRateLimitOperational
-      && config.pricing?.complete
+      && pricing.complete
     );
     const overall = byId("systemConfigOverall");
     text(overall, complete ? "PRONTA PER BETA" : "DA COMPLETARE");
@@ -919,7 +936,10 @@
       configCard("OpenAI API", config.openAiConfigured ? "Configurata" : "Mancante", config.model || "—"),
       configCard("Storico offerte ARERA", config.offerHistoryOperational ? "Disponibile" : "Non disponibile", config.offerHistoryOperational ? `${formatNumber(config.offerHistoryOffers || 0)} offerte${config.offerHistoryVersion ? ` · ${config.offerHistoryVersion}` : ""}` : "Riconoscimento offerta provvisorio"),
       configCard("Rate limit persistente", config.persistentRateLimitConfigured && config.persistentRateLimitOperational ? "Operativo" : (config.persistentRateLimitConfigured ? "Errore collegamento" : "Solo memoria"), "Per la beta serve Redis/KV persistente"),
-      configCard("Tariffe IA", config.pricing?.complete ? "Complete" : "Incomplete", "Input, cache e output €/1M token"),
+      configCard("Tariffe IA", pricing.complete ? "Complete" : "Incomplete", pricingNote),
+      configCard("Tariffa input IA", pricingValue(pricing.inputPerMillion), pricingSource("inputPerMillion")),
+      configCard("Tariffa cache IA", pricingValue(pricing.cachedInputPerMillion), pricingSource("cachedInputPerMillion")),
+      configCard("Tariffa output IA", pricingValue(pricing.outputPerMillion), pricingSource("outputPerMillion")),
       configCard("Limite PDF", `${formatNumber(Number(config.maxPdfBytes || 0) / 1_000_000, 1)} MB`),
       configCard("Deadline IA", `${formatNumber(Number(config.deadlineMs || 0) / 1000, 1)} s`),
       configCard("Analisi cliente", `${rate.customerAnalysis?.limit || 0} / ${Math.round(Number(rate.customerAnalysis?.windowSeconds || 0) / 60)} min`),

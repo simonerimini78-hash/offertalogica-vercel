@@ -68,7 +68,8 @@ test("staff mostra configurazione operativa senza esporre segreti", () => {
   assert.match(staffHtml, /id="systemConfigGrid"/);
   assert.match(staff, /action: "config_status"/);
   assert.match(api, /persistentRateLimitConfigured/);
-  assert.match(api, /pricing: \{ \.\.\.pricing, complete:/);
+  assert.match(api, /pricing,/);
+  assert.match(api, /modelDefaultApplied/);
   assert.match(api, /staff\.role !== "admin"/);
   assert.match(backend, /PREMIUM_ADMIN_REQUIRED/);
   assert.doesNotMatch(staff, /sb_secret_/i);
