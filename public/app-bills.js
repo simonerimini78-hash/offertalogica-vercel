@@ -232,7 +232,7 @@
       spendTotal.textContent = euroLabel(totalCents);
 
       if (!withAmount.length) {
-        spendMeta.textContent = "Aggiungi manualmente l’importo a una bolletta per iniziare il totale.";
+        spendMeta.textContent = "Inserisci un importo per aggiornare il totale.";
         return;
       }
 
