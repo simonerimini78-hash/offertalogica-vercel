@@ -4,12 +4,9 @@
     top: 0;
     z-index: 940;
     width: 100%;
-    background: rgba(255, 255, 255, 0.96);
-    border-top: 1px solid #e2e8f0;
-    border-bottom: 1px solid #cbd5e1;
-    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    background: transparent;
+    border: 0;
+    box-shadow: none;
 }
 
 .ol-app-access-inner,
@@ -23,7 +20,8 @@
 .ol-app-access-inner {
     max-width: 1080px;
     margin: 0 auto;
-    padding: 9px 20px;
+    padding: 0 20px 10px;
+    flex-wrap: wrap;
 }
 
 .ol-app-access-footer {
@@ -37,47 +35,49 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 9px 18px;
-    border: 1px solid transparent;
+    padding: 10px 16px;
+    border: 1px solid rgba(148, 163, 184, 0.45);
     border-radius: 10px;
-    color: #ffffff !important;
+    background: #ffffff;
+    color: #334155 !important;
     font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
     font-size: 14px;
     font-weight: 800;
     line-height: 1.2;
     text-align: center;
     text-decoration: none !important;
-    box-shadow: 0 7px 16px rgba(15, 23, 42, 0.12);
-    transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, background 0.15s ease;
 }
 
 .ol-app-access-link:hover {
-    color: #ffffff !important;
+    color: inherit !important;
     text-decoration: none !important;
     transform: translateY(-1px);
-    box-shadow: 0 10px 22px rgba(15, 23, 42, 0.16);
-    filter: brightness(0.97);
+    box-shadow: 0 10px 22px rgba(15, 23, 42, 0.08);
 }
 
 .ol-app-access-link:focus-visible {
-    outline: 3px solid rgba(37, 99, 235, 0.35);
+    outline: 3px solid rgba(37, 99, 235, 0.22);
     outline-offset: 3px;
 }
 
 .ol-app-access-free {
-    background: #16a34a;
-    border-color: #15803d;
+    background: #f0fdf4;
+    color: #14532d !important;
+    border-color: rgba(22, 163, 74, 0.45);
 }
 
 .ol-app-access-premium {
-    background: #1d4ed8;
-    border-color: #1e40af;
+    background: #eff6ff;
+    color: #1d4ed8 !important;
+    border-color: rgba(59, 130, 246, 0.42);
 }
 
 @media (max-width: 560px) {
     .ol-app-access-inner {
         gap: 8px;
-        padding: 8px 12px;
+        padding: 0 12px 10px;
     }
 
     .ol-app-access-inner .ol-app-access-link {
