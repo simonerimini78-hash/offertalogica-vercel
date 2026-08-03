@@ -211,6 +211,7 @@
     if (message.includes("premium_cannot_approve_missing_value")) return "Un campo senza valore IA non può essere approvato: correggilo, segnalo come mancante o non applicabile.";
     if (message.includes("premium_corrected_value_required")) return "Inserisci il valore corretto per tutti i campi marcati come corretti.";
     if (message.includes("premium_analysis_fields_required")) return "Non ci sono campi da validare.";
+    if (message.includes("premium_admin_delete_required")) return "Solo un amministratore può eliminare definitivamente una bolletta.";
     if (message.includes("row-level security") || message.includes("permission denied")) return "Operazione non autorizzata dalle regole di sicurezza.";
     if (message.includes("failed to fetch") || message.includes("network")) return "Connessione non disponibile. Controlla la rete e riprova.";
     return raw;
@@ -903,7 +904,14 @@
     ]);
     const openPdf = node("button", { className: "button secondary compact", type: "button", text: "APRI PDF" });
     openPdf.addEventListener("click", handleOpenPdf);
-    const actions = node("div", { className: "detail-actions" }, [openPdf, makeBadge(row.check.status)]);
+    const detailActions = [openPdf];
+    if (currentStaff?.role === "admin") {
+      const removeBill = node("button", { className: "button danger compact", type: "button", text: "ELIMINA BOLLETTA" });
+      removeBill.addEventListener("click", handleAdminDeleteBill);
+      detailActions.push(removeBill);
+    }
+    detailActions.push(makeBadge(row.check.status));
+    const actions = node("div", { className: "detail-actions" }, detailActions);
     body.append(node("div", { className: "detail-title" }, [titleBlock, actions]));
 
     const assigned = !row.check.assigned_staff_id
@@ -1065,6 +1073,39 @@
     } finally {
       setBusy(false);
     }
+  }
+
+  async function handleAdminDeleteBill() {
+    const row = selectedRow();
+    if (!row?.bill || currentStaff?.role !== "admin" || busy) return;
+    if (row.bill.processing_status === "analyzing") {
+      setPageMessage("error", "Attendi la conclusione dell’analisi IA prima di eliminare la bolletta.");
+      return;
+    }
+
+    const customer = row.profile?.full_name || row.profile?.email || "cliente";
+    const confirmed = window.confirm(
+      `Eliminare definitivamente “${row.bill.original_file_name}” di ${customer}? Verranno rimossi PDF, analisi, controllo, note e anomalie collegate.`
+    );
+    if (!confirmed) return;
+
+    await runAction(async () => {
+      const storageResult = await client.storage.from(BUCKET).remove([row.bill.storage_path]);
+      if (storageResult.error) throw storageResult.error;
+
+      const databaseResult = await client
+        .from("premium_bills")
+        .delete()
+        .eq("id", row.bill.id)
+        .eq("user_id", row.bill.user_id);
+      if (databaseResult.error) throw databaseResult.error;
+
+      selectedId = null;
+      selectedNotes = [];
+      selectedAnomalies = [];
+      selectedAnalyses = [];
+      selectedFieldReviews = [];
+    }, "Bolletta eliminata definitivamente dall’archivio Premium.");
   }
 
   async function handleRunAiAnalysis() {

@@ -9,13 +9,16 @@ const sw = await readFile(new URL('../public/sw.js', import.meta.url), 'utf8');
 const migration = await readFile(new URL('../supabase/premium-bills-v0.25.sql', import.meta.url), 'utf8');
 const verify = await readFile(new URL('../supabase/premium-bills-v0.25-verify.sql', import.meta.url), 'utf8');
 
-test('Premium v0.25 aggiunge archivio cloud senza rimuovere archivio locale', () => {
+test('Premium v0.30.1 usa il cloud come unico archivio visibile nell’app Premium', () => {
   assert.match(html, /APP Premium v0\.30/);
   assert.match(html, /id="premiumCloudBillsCard"/);
   assert.match(html, /id="premiumCloudBillUtility"/);
   assert.match(html, /id="premiumCloudBillFile"/);
   assert.match(html, /id="premiumCloudBillList"/);
-  assert.match(html, /id="billFileInput"/);
+  assert.doesNotMatch(html, /id="billFileInput"/);
+  assert.doesNotMatch(html, /<script src="\/app-bills\.js"><\/script>/);
+  assert.match(html, /id="profileCloudBillCount"/);
+  assert.match(html, /id="profileCloudBillSize"/);
   assert.match(html, /<script src="\/app-premium-bills\.js"><\/script>/);
   assert.match(html, /OffertaLogicaPremiumBills\?\.init\(\)/);
 });
@@ -47,7 +50,8 @@ test('Apertura ed eliminazione usano le API Storage del client autenticato', () 
   assert.match(cloudBills, /\.storage\.from\(BUCKET\)\.remove\(\[bill\.storage_path\]\)/);
   assert.match(cloudBills, /\.from\("premium_bills"\)\s*\.delete\(\)/s);
   assert.match(cloudBills, /function canDeleteBill\(bill, check\)/);
-  assert.match(cloudBills, /!check && \["uploaded", "completed", "failed"\]\.includes\(bill\.processing_status\)/);
+  assert.match(cloudBills, /function hasActiveHumanCheck\(check\)/);
+  assert.match(cloudBills, /!hasActiveHumanCheck\(check\)/);
   assert.match(cloudBills, /window\.confirm/);
 });
 
@@ -71,7 +75,7 @@ test('La migrazione applica quota rolling annuale e duplicati lato database', ()
 });
 
 test('La cache include il modulo cloud ed esclude chiavi segrete', () => {
-  assert.match(sw, /offertalogica-premium-v30/);
+  assert.match(sw, /offertalogica-premium-v301/);
   assert.match(sw, /"\/app-premium-bills\.js"/);
   assert.doesNotMatch(sw, /offertalogica-premium-v24/);
   assert.doesNotMatch(cloudBills, /service_role/i);

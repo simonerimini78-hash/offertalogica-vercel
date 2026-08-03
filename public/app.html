@@ -144,37 +144,6 @@
 
       <div class="archive-note"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><span>Dopo il caricamento l’IA legge automaticamente importo, periodo e dati economici. “Richiedi controllo” compare soltanto quando emerge una possibile anomalia o l’analisi non è conclusiva.</span></div>
 
-      <div class="section-title"><h2>Archivio locale</h2><span>Solo dispositivo</span></div>
-
-      <section class="feature-card gradient-panel">
-        <div class="feature-symbol"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7z"/><path d="M14 2v5h5"/><path d="M9 13h6M9 17h6"/></svg></div>
-        <h2>Archivio locale del dispositivo</h2>
-        <p>Salva facoltativamente una copia locale da File, iCloud Drive o Download. Questi PDF non vengono sincronizzati con l’archivio cloud.</p>
-        <input id="billFileInput" class="file-input" type="file" accept=".pdf,application/pdf" multiple>
-        <button id="billUploadButton" class="cta" type="button"><span id="billUploadButtonLabel">CARICA BOLLETTA</span></button>
-        <div id="billUploadStatus" class="upload-status" role="status" aria-live="polite"><span id="billUploadStatusText"></span></div>
-      </section>
-
-      <div class="archive-summary" aria-label="Riepilogo archivio">
-        <div class="summary-card"><strong id="billArchiveCount">0</strong><span>Bollette archiviate</span></div>
-        <div class="summary-card"><strong id="billArchiveLatest">—</strong><span>Ultimo caricamento</span></div>
-      </div>
-
-      <section class="spend-card" aria-label="Spesa registrata">
-        <div class="spend-card-head">
-          <div class="spend-card-copy"><small>Spesa registrata</small><strong id="billSpendTotal">€ 0,00</strong></div>
-          <select id="billSpendYear" class="spend-year" aria-label="Anno della spesa registrata"></select>
-        </div>
-        <p id="billSpendMeta">Aggiungi manualmente l’importo a una bolletta per iniziare il totale.</p>
-      </section>
-
-      <section id="billArchiveEmpty" class="archive-empty">
-        <div class="feature-symbol"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M5 6l1 15h12l1-15"/><path d="M9 10v7M15 10v7"/></svg></div>
-        <h3>Nessuna bolletta archiviata</h3>
-        <p>Dopo il primo caricamento, qui troverai i PDF ordinati dalla data più recente.</p>
-      </section>
-
-      <section id="billArchiveList" class="bill-list" aria-label="Bollette archiviate" hidden></section>
 
       <section class="control-card" aria-label="Servizio di controllo bollette">
         <div class="control-card-head"><strong>Servizio Premium</strong><span class="pill">FLUSSO ATTIVO</span></div>
@@ -214,7 +183,7 @@
         <p id="profileAccountDescription">Accedi o crea un account per collegare il profilo Premium. Le funzioni cloud restano bloccate finché non esiste un abbonamento attivo.</p>
         <div class="profile-details">
           <div class="profile-row"><span>Account</span><strong id="profileAccountEmail">Non collegato</strong></div>
-          <div class="profile-row"><span>Archivio bollette</span><strong id="profileAccountArchive">Archivio locale</strong></div>
+          <div class="profile-row"><span>Archivio bollette</span><strong id="profileAccountArchive">Cloud non disponibile</strong></div>
           <div class="profile-row"><span>Controlli OffertaLogica</span><strong id="profileAccountControls">Non attivi</strong></div>
         </div>
       </section>
@@ -295,21 +264,20 @@
         </div>
       </section>
 
-      <div class="section-title"><h2>Dati locali</h2><span>Gestione archivio</span></div>
-      <section class="local-data-card" aria-label="Gestione dati locali">
+      <div class="section-title"><h2>Archivio cloud</h2><span>Dati Premium</span></div>
+      <section class="local-data-card" aria-label="Riepilogo archivio cloud Premium">
         <div class="local-data-head">
-          <div class="local-data-copy"><strong>Archivio sul dispositivo</strong><p>Puoi cancellare in una sola volta tutti i PDF salvati nell’app. L’operazione non può essere annullata.</p></div>
-          <span class="local-data-count"><span id="profileBillArchiveCount">0</span> PDF</span>
+          <div class="local-data-copy"><strong>Archivio Premium</strong><p>Numero e spazio dei PDF realmente salvati nel cloud del tuo account.</p></div>
+          <span class="local-data-count"><span id="profileCloudBillCount">0</span> PDF</span>
         </div>
-        <div class="local-data-meta"><span>Spazio occupato</span><strong id="profileBillArchiveSize">0 KB</strong></div>
-        <button id="clearBillArchiveButton" class="danger-action" type="button" disabled>ELIMINA TUTTE LE BOLLETTE</button>
-        <div id="profileDataStatus" class="profile-data-status" role="status" aria-live="polite" hidden></div>
+        <div class="local-data-meta"><span>Spazio cloud occupato</span><strong id="profileCloudBillSize">0 KB</strong></div>
+        <a class="danger-action" href="#bill" data-tab-link="bill" style="text-decoration:none;text-align:center;background:#e8f8ed;color:#087c39">GESTISCI LE BOLLETTE</a>
       </section>
 
       <section class="premium-preview" aria-label="Upgrade OffertaLogica">
         <div class="premium-preview-head"><strong>Servizio Premium</strong><span class="pill">IN SVILUPPO</span></div>
         <h2>Controllo e monitoraggio</h2>
-        <p>Account, utenze, archivio cloud e richiesta di controllo professionale sono attivi. Pagamenti e analisi IA verranno collegati soltanto dopo i relativi collaudi.</p>
+        <p>Account, utenze, archivio cloud e analisi IA automatica sono attivi. Il controllo umano viene proposto soltanto quando emerge un’anomalia o l’analisi non è conclusiva.</p>
         <div class="premium-points"><div class="premium-point">Verifica delle condizioni realmente applicate</div><div class="premium-point">Segnalazione di anomalie e conguagli</div><div class="premium-point">Controllo periodico della convenienza</div></div>
       </section>
 
@@ -321,8 +289,8 @@
         <a class="list-item" href="/"><div class="list-icon"><svg class="icon" viewBox="0 0 24 24"><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg></div><div class="list-copy"><strong>Apri il sito completo</strong><small>Accedi a tutte le sezioni di OffertaLogica.</small></div><svg class="icon chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></a>
       </div>
 
-      <div class="profile-note"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><span>Soltanto i PDF caricati nell’archivio cloud Premium potranno essere sottoposti ai controlli OffertaLogica. I PDF locali restano privati sul dispositivo.</span></div>
-      <span class="version-badge">APP Premium v0.30</span>
+      <div class="profile-note"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><span>I PDF mostrati in questa app appartengono all’archivio cloud Premium. La versione gratuita v0.22 conserva separatamente le eventuali copie locali sul dispositivo.</span></div>
+      <span class="version-badge">APP Premium v0.30.1</span>
     </section>
   </main>
 
@@ -347,7 +315,6 @@
   <script src="/app-auth.js"></script>
   <script src="/app-utilities.js"></script>
   <script src="/app-premium-bills.js"></script>
-  <script src="/app-bills.js"></script>
   <script>
     (()=>{
       const splash=document.getElementById('splash');

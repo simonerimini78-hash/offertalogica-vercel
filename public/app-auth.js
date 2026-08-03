@@ -107,7 +107,7 @@
     setText(state.profileBadge, "ACCESSO");
     setText(state.profileDescription, "Accedi o crea un account per collegare il profilo Premium. Le funzioni cloud restano bloccate finché non esiste un abbonamento attivo.");
     setText(state.profileEmail, "Non collegato");
-    setText(state.profileArchive, "Archivio locale");
+    setText(state.profileArchive, "Cloud non disponibile");
     setText(state.profileControls, "Non attivi");
 
     setText(state.homePlanName, "Premium");
@@ -204,13 +204,13 @@
       setText(state.profileKicker, "Profilo Premium");
       setText(state.profileTitle, displayName || "Account Premium");
       setText(state.profileBadge, subscription.status === "trialing" ? "PROVA" : "ATTIVO");
-      setText(state.profileDescription, "Account collegato e abbonamento valido. Le funzioni cloud saranno abilitate nei prossimi passaggi tecnici.");
+      setText(state.profileDescription, "Account collegato e abbonamento valido. Archivio cloud, analisi automatica e controlli professionali sono attivi.");
       setText(state.profileControls, "Abbonamento attivo");
       setText(state.homePlanName, subscription.status === "trialing" ? "Prova Premium" : "Premium");
       setText(state.homePlanStatus, "Abbonamento attivo");
       setText(state.homePremiumBadge, subscription.status === "trialing" ? "PROVA ATTIVA" : "ATTIVO");
       setText(state.homePremiumTitle, "Account Premium collegato");
-      setText(state.homePremiumCopy, "Il profilo è pronto. Archivio cloud e controlli saranno collegati nei prossimi passaggi.");
+      setText(state.homePremiumCopy, "Archivio cloud e analisi automatica sono attivi. Il controllo umano viene proposto soltanto per anomalie o casi non conclusivi.");
     } else {
       setText(state.profileKicker, "Profilo Premium");
       setText(state.profileTitle, displayName || "Account Premium");
@@ -225,7 +225,7 @@
     }
 
     setText(state.profileEmail, session.user.email || "—");
-    setText(state.profileArchive, serviceActive ? "Cloud in preparazione" : "Solo locale");
+    setText(state.profileArchive, serviceActive ? "Cloud Premium attivo" : "Cloud non attivo");
   }
 
   async function handleLogin(event) {

@@ -75,6 +75,9 @@
     if (message.includes("premium utility limit reached") || message.includes("premium_utility_limit_reached")) {
       return "Hai raggiunto il numero di utenze incluso nel piano.";
     }
+    if (message.includes("premium_bills_utility_owner_fk") || message.includes("violates foreign key constraint")) {
+      return "Questa utenza contiene ancora bollette. Elimina prima le bollette associate oppure conserva l’utenza nello storico.";
+    }
     if (message.includes("row-level security") || message.includes("permission denied")) {
       return "Operazione non autorizzata. Verifica che l’abbonamento sia attivo.";
     }
@@ -324,8 +327,34 @@
   async function handleDelete(id) {
     const utility = utilities.find(item => item.id === id);
     if (!utility || !client || !currentUser) return;
+
+    setMessage("info", "Verifica delle bollette associate…");
+    const linked = await client
+      .from("premium_bills")
+      .select("id", { count: "exact", head: true })
+      .eq("utility_id", id)
+      .eq("user_id", currentUser.id)
+      .is("deleted_at", null);
+
+    if (linked.error) {
+      setMessage("error", friendlyError(linked.error));
+      return;
+    }
+
+    const linkedCount = Number(linked.count || 0);
+    if (linkedCount > 0) {
+      setMessage(
+        "error",
+        `Questa utenza contiene ${linkedCount} ${linkedCount === 1 ? "bolletta" : "bollette"}. Elimina prima le bollette associate; lo storico non viene cancellato automaticamente.`
+      );
+      return;
+    }
+
     const confirmed = window.confirm(`Eliminare l’utenza “${utility.label}”? L’operazione non può essere annullata.`);
-    if (!confirmed) return;
+    if (!confirmed) {
+      setMessage("", "");
+      return;
+    }
 
     setMessage("info", "Eliminazione utenza…");
     const { error } = await client

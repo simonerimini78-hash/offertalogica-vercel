@@ -44,6 +44,8 @@
     empty: null,
     list: null,
     homeCount: null,
+    profileCount: null,
+    profileSize: null,
     spendTotal: null,
     spendMeta: null,
     spendYear: null
@@ -147,8 +149,13 @@
       && ["completed", "failed"].includes(bill.processing_status);
   }
 
+  function hasActiveHumanCheck(check) {
+    return ["pending", "assigned", "in_review", "more_info_required"].includes(check?.status);
+  }
+
   function canDeleteBill(bill, check) {
-    return !check && ["uploaded", "completed", "failed"].includes(bill.processing_status)
+    return !hasActiveHumanCheck(check)
+      && ["uploaded", "completed", "failed"].includes(bill.processing_status)
       && bill.automatic_screening_status !== "running";
   }
 
@@ -263,6 +270,8 @@
     setText(state.statusBadge, badge);
     setText(state.quota, quota);
     setText(state.homeCount, "—");
+    setText(state.profileCount, "0");
+    setText(state.profileSize, "0 KB");
     setMessage("", "");
   }
 
@@ -300,6 +309,8 @@
     setText(state.statusBadge, currentSubscription?.status === "trialing" ? "PROVA" : "ATTIVO");
     setText(state.quota, `${yearlyBillCount} / ${planLimit()}`);
     setText(state.homeCount, String(bills.length));
+    setText(state.profileCount, String(bills.length));
+    setText(state.profileSize, formatSize(bills.reduce((sum, bill) => sum + Number(bill.file_size || 0), 0)));
 
     renderUtilityOptions();
     if (state.noUtilities) state.noUtilities.hidden = utilities.length > 0;
@@ -798,7 +809,10 @@
     if (!bill || !client || !currentUser || busy) return;
     const check = checks.find(item => item.bill_id === bill.id && item.status !== "canceled") || null;
     if (!canDeleteBill(bill, check)) {
-      setMessage("error", "Una bolletta inviata al controllo umano non può essere eliminata dall’app.");
+      const message = hasActiveHumanCheck(check)
+        ? "La bolletta è coinvolta in un controllo umano ancora attivo. Potrai eliminarla dopo la chiusura o l’annullamento del controllo."
+        : "La bolletta non può essere eliminata mentre l’analisi automatica è in corso.";
+      setMessage("error", message);
       return;
     }
 
@@ -828,6 +842,8 @@
     }
 
     bills = bills.filter(item => item.id !== bill.id);
+    checks = checks.filter(item => item.bill_id !== bill.id);
+    anomalies = anomalies.filter(item => item.bill_id !== bill.id);
     const createdAt = new Date(bill.created_at).getTime();
     if (Number.isFinite(createdAt) && createdAt >= Date.now() - 365 * 24 * 60 * 60 * 1000) {
       yearlyBillCount = Math.max(0, yearlyBillCount - 1);
@@ -971,6 +987,8 @@
     state.empty = byId("premiumCloudBillEmpty");
     state.list = byId("premiumCloudBillList");
     state.homeCount = byId("homeCloudBillCount");
+    state.profileCount = byId("profileCloudBillCount");
+    state.profileSize = byId("profileCloudBillSize");
     state.spendTotal = byId("premiumCloudSpendTotal");
     state.spendMeta = byId("premiumCloudSpendMeta");
     state.spendYear = byId("premiumCloudSpendYear");
