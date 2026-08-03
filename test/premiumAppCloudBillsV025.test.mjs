@@ -10,7 +10,7 @@ const migration = await readFile(new URL('../supabase/premium-bills-v0.25.sql', 
 const verify = await readFile(new URL('../supabase/premium-bills-v0.25-verify.sql', import.meta.url), 'utf8');
 
 test('Premium v0.30.2 usa il cloud come unico archivio visibile nell’app Premium', () => {
-  assert.match(html, /APP Premium v0\.(?:30(?:\.\d+)?|31C|32|35)/);
+  assert.match(html, /APP Premium v0\.(?:30(?:\.\d+)?|31C|32|35(?:\.1)?|36)/);
   assert.match(html, /id="premiumCloudBillsCard"/);
   assert.match(html, /id="premiumCloudBillUtility"/);
   assert.match(html, /id="premiumCloudBillFile"/);
@@ -79,7 +79,7 @@ test('La migrazione applica quota rolling annuale e duplicati lato database', ()
 });
 
 test('La cache include il modulo cloud ed esclude chiavi segrete', () => {
-  assert.match(sw, /offertalogica-premium-v(?:302|031c|032|035)/);
+  assert.match(sw, /offertalogica-premium-v(?:302|031c|032|0351?|036)/);
   assert.match(sw, /"\/app-premium-bills\.js"/);
   assert.doesNotMatch(sw, /offertalogica-premium-v24/);
   assert.doesNotMatch(cloudBills, /service_role/i);

@@ -114,6 +114,11 @@ test("v0.30 completa l’analisi cliente, aggiorna la bolletta e non crea contro
     if (target.endsWith("/auth/v1/user")) return jsonResponse({ id: "user-1", email: "cliente@example.it" });
     if (target.includes("/rest/v1/premium_profiles?")) return jsonResponse([{ id: "user-1", account_status: "active" }]);
     if (target.includes("/rest/v1/premium_subscriptions?")) return jsonResponse([{ id: "sub-1", user_id: "user-1", status: "active", current_period_end: "2099-01-01T00:00:00Z", created_at: "2026-01-01T00:00:00Z" }]);
+    if (target.includes("/rest/v1/premium_consents?")) return jsonResponse([
+      { consent_type: "terms", version: "premium-terms-v0.35-2026-08-03", granted: true, revoked_at: null },
+      { consent_type: "privacy", version: "premium-privacy-v0.35-2026-08-03", granted: true, revoked_at: null },
+      { consent_type: "cloud_storage", version: "premium-cloud-ai-v0.35-2026-08-03", granted: true, revoked_at: null },
+    ]);
     if (target.includes("/rest/v1/premium_bills?") && method === "GET") return jsonResponse([{ id: "bill-1", user_id: "user-1", utility_id: "utility-1", contract_id: null, commodity: "electricity", original_file_name: "bolletta.pdf", file_size: 24, storage_bucket: "premium-bills", storage_path: "user-1/bill-1.pdf", processing_status: "uploaded", customer_status: "awaiting_review", automatic_screening_status: "pending", deleted_at: null, created_at: "2026-08-03T06:00:00Z" }]);
     if (target.includes("/rest/v1/premium_contracts?")) return jsonResponse([]);
     if (target.includes("status=in.%28queued%2Crunning%29")) return jsonResponse([]);

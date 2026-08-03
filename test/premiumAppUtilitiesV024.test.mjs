@@ -9,7 +9,7 @@ const migration = await readFile(new URL('../supabase/premium-utilities-v0.24.sq
 const verify = await readFile(new URL('../supabase/premium-utilities-v0.24-verify.sql', import.meta.url), 'utf8');
 
 test('Premium v0.25 aggiunge la gestione utenze senza cambiare la navigazione principale', () => {
-  assert.match(html, /APP Premium v0\.(?:30(?:\.\d+)?|31C|32|35)/);
+  assert.match(html, /APP Premium v0\.(?:30(?:\.\d+)?|31C|32|35(?:\.1)?|36)/);
   assert.match(html, /id="premiumUtilitiesCard"/);
   assert.match(html, /id="premiumUtilityForm"/);
   assert.match(html, /id="premiumUtilityList"/);
@@ -59,7 +59,7 @@ test('La migrazione fa rispettare sul database il limite di utenze del piano', (
 });
 
 test('La cache Premium include il nuovo modulo ed è separata dalla v0.23', () => {
-  assert.match(sw, /offertalogica-premium-v(?:30\d*|031c|032|035)/);
+  assert.match(sw, /offertalogica-premium-v(?:30\d*|031c|032|0351?|036)/);
   assert.match(sw, /"\/app-utilities\.js"/);
   assert.doesNotMatch(sw, /offertalogica-premium-v23/);
   assert.doesNotMatch(sw, /offertalogica-app-v22/);

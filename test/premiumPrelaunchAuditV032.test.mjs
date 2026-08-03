@@ -41,7 +41,7 @@ test("v0.32: inactive mode does not allow paid operations", () => {
 });
 
 test("v0.32: version and cache are aligned", () => {
-  assert.match(html, /APP Premium v0\.(?:32|35)/);
-  assert.match(sw, /offertalogica-premium-v(?:032|035)/);
+  assert.match(html, /APP Premium v0\.(?:32|35(?:\.1)?|36)/);
+  assert.match(sw, /offertalogica-premium-v(?:032|0351?|036)/);
   assert.match(auth, /Archivio in sola gestione/);
 });

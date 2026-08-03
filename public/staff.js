@@ -899,14 +899,26 @@
       return;
     }
     const rate = config.rateLimits || {};
-    const complete = Boolean(config.supabaseConfigured && config.openAiConfigured && config.persistentRateLimitConfigured && config.pricing?.complete);
+    const complete = Boolean(
+      config.supabaseConfigured
+      && config.databaseOperational
+      && config.storageBucketOperational
+      && config.openAiConfigured
+      && config.offerHistoryOperational
+      && config.persistentRateLimitConfigured
+      && config.persistentRateLimitOperational
+      && config.pricing?.complete
+    );
     const overall = byId("systemConfigOverall");
-    text(overall, complete ? "PRONTA" : "DA COMPLETARE");
+    text(overall, complete ? "PRONTA PER BETA" : "DA COMPLETARE");
     overall.className = `badge ${complete ? "ok" : "warn"}`;
     target.append(
       configCard("Supabase backend", config.supabaseConfigured ? "Configurato" : "Mancante"),
+      configCard("Schema e database", config.databaseOperational ? "Operativi" : "Non verificati", "Profili, bollette e controlli"),
+      configCard("Bucket bollette", config.storageBucketOperational ? "Operativo" : "Non disponibile", config.storageBucket || "premium-bills"),
       configCard("OpenAI API", config.openAiConfigured ? "Configurata" : "Mancante", config.model || "—"),
-      configCard("Rate limit persistente", config.persistentRateLimitConfigured ? "Configurato" : "Solo memoria", "Per produzione serve Redis/KV persistente"),
+      configCard("Storico offerte ARERA", config.offerHistoryOperational ? "Disponibile" : "Non disponibile", config.offerHistoryOperational ? `${formatNumber(config.offerHistoryOffers || 0)} offerte${config.offerHistoryVersion ? ` · ${config.offerHistoryVersion}` : ""}` : "Riconoscimento offerta provvisorio"),
+      configCard("Rate limit persistente", config.persistentRateLimitConfigured && config.persistentRateLimitOperational ? "Operativo" : (config.persistentRateLimitConfigured ? "Errore collegamento" : "Solo memoria"), "Per la beta serve Redis/KV persistente"),
       configCard("Tariffe IA", config.pricing?.complete ? "Complete" : "Incomplete", "Input, cache e output €/1M token"),
       configCard("Limite PDF", `${formatNumber(Number(config.maxPdfBytes || 0) / 1_000_000, 1)} MB`),
       configCard("Deadline IA", `${formatNumber(Number(config.deadlineMs || 0) / 1000, 1)} s`),

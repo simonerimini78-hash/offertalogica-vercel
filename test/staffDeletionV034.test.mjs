@@ -15,7 +15,7 @@ test("v0.34 espone cancellazione singola e massiva in tutti i moduli staff", asy
     read("public/staff-premium.js"),
     read("public/staff-pdf.html"),
   ]);
-  assert.match(html, /v0\.34/);
+  assert.match(html, /v0\.(?:34|36)/);
   for (const id of [
     "leadDeleteVisible", "leadReset", "customerDeleteVisible",
     "analyticsDeleteVisible", "analyticsReset", "costDeleteRuns", "costDeleteEvents"

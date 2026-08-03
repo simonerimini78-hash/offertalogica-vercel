@@ -12,6 +12,7 @@
   let currentUser = null;
   let currentSubscription = null;
   let maintenanceMode = false;
+  let operationBlockReason = "";
   let utilities = [];
   let editingId = "";
 
@@ -79,6 +80,9 @@
     if (message.includes("premium_bills_utility_owner_fk") || message.includes("violates foreign key constraint")) {
       return "Questa utenza contiene ancora bollette. Elimina prima le bollette associate oppure conserva l’utenza nello storico.";
     }
+    if (message.includes("premium_legal_acceptance_required")) {
+      return "Accetta le condizioni Premium correnti dalla sezione Profilo prima di continuare.";
+    }
     if (message.includes("row-level security") || message.includes("permission denied")) {
       return "Operazione non autorizzata. Verifica che l’abbonamento sia attivo.";
     }
@@ -99,6 +103,7 @@
   function renderLocked(title, copy, badge = "BLOCCATO", quota = "Non attivo") {
     currentSubscription = null;
     maintenanceMode = false;
+    operationBlockReason = "";
     utilities = [];
     closeForm();
     if (state.locked) state.locked.hidden = false;
@@ -123,12 +128,13 @@
   function renderEnabled() {
     if (state.locked) state.locked.hidden = true;
     if (state.enabled) state.enabled.hidden = false;
-    setText(state.statusBadge, maintenanceMode ? "ARCHIVIO" : (currentSubscription?.status === "trialing" ? "PROVA" : "ATTIVO"));
+    const legalBlocked = maintenanceMode && operationBlockReason === "legal";
+    setText(state.statusBadge, legalBlocked ? "CONDIZIONI" : (maintenanceMode ? "ARCHIVIO" : (currentSubscription?.status === "trialing" ? "PROVA" : "ATTIVO")));
 
     const limit = Math.max(1, Number(currentSubscription?.included_utilities || 1));
     const activeCount = utilities.filter(item => item.status !== "archived").length;
     const canAdd = !maintenanceMode && activeCount < limit;
-    setText(state.quota, maintenanceMode ? "Sola gestione" : `${activeCount} / ${limit}`);
+    setText(state.quota, legalBlocked ? "Accettazione richiesta" : (maintenanceMode ? "Sola gestione" : `${activeCount} / ${limit}`));
     if (state.addButton) {
       state.addButton.disabled = !canAdd;
       state.addButton.hidden = maintenanceMode;
@@ -228,7 +234,9 @@
 
   function openForm(utility = null) {
     if (maintenanceMode) {
-      setMessage("error", "La modifica delle utenze richiede un abbonamento attivo.");
+      setMessage("error", operationBlockReason === "legal"
+        ? "Accetta le condizioni Premium correnti dalla sezione Profilo prima di modificare le utenze."
+        : "La modifica delle utenze richiede un abbonamento attivo.");
       return;
     }
     if (!state.form || !currentUser || !currentSubscription) return;
@@ -282,7 +290,9 @@
   async function handleSubmit(event) {
     event.preventDefault();
     if (maintenanceMode) {
-      setMessage("error", "La modifica delle utenze richiede un abbonamento attivo.");
+      setMessage("error", operationBlockReason === "legal"
+        ? "Accetta le condizioni Premium correnti dalla sezione Profilo prima di modificare le utenze."
+        : "La modifica delle utenze richiede un abbonamento attivo.");
       return;
     }
     if (!client || !currentUser || !currentSubscription) {
@@ -387,7 +397,7 @@
     window.dispatchEvent(new CustomEvent("offertalogica:utilities-changed"));
   }
 
-  async function loadUtilities(user, subscription) {
+  async function loadUtilities(user, subscription, { blockReason = "" } = {}) {
     const result = await client
       .from("premium_utilities")
       .select(UTILITY_COLUMNS)
@@ -399,6 +409,7 @@
     currentUser = user;
     currentSubscription = subscription;
     maintenanceMode = !subscription;
+    operationBlockReason = maintenanceMode ? blockReason : "";
     utilities = Array.isArray(result.data) ? result.data : [];
     renderEnabled();
   }
@@ -408,6 +419,7 @@
     currentUser = session?.user || null;
     currentSubscription = null;
     maintenanceMode = false;
+    operationBlockReason = "";
     utilities = [];
 
     if (!session?.user) {
@@ -417,7 +429,7 @@
 
     renderLoading();
     const userId = session.user.id;
-    const [profileResult, subscriptionResult] = await Promise.all([
+    const [profileResult, subscriptionResult, acceptanceResult] = await Promise.all([
       client
         .from("premium_profiles")
         .select("account_status")
@@ -429,7 +441,8 @@
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(1)
-        .maybeSingle()
+        .maybeSingle(),
+      client.rpc("premium_has_current_acceptances")
     ]);
 
     if (sequence !== syncSequence) return;
@@ -443,6 +456,11 @@
       setMessage("error", friendlyError(subscriptionResult.error));
       return;
     }
+    if (acceptanceResult.error) {
+      renderLocked("Condizioni non verificabili", "Non è stato possibile verificare le accettazioni Premium correnti.", "ERRORE", "—");
+      setMessage("error", friendlyError(acceptanceResult.error));
+      return;
+    }
 
     const profile = profileResult.data;
     const subscription = subscriptionResult.data;
@@ -451,10 +469,16 @@
       return;
     }
     const activeSubscription = subscriptionIsActive(profile, subscription) ? subscription : null;
+    const legalReady = acceptanceResult.data === true;
+    const operationalSubscription = activeSubscription && legalReady ? activeSubscription : null;
 
     try {
-      await loadUtilities(session.user, activeSubscription);
-      if (!activeSubscription) {
+      await loadUtilities(session.user, operationalSubscription, {
+        blockReason: activeSubscription && !legalReady ? "legal" : (!activeSubscription ? "subscription" : ""),
+      });
+      if (activeSubscription && !legalReady) {
+        setMessage("info", "Accetta le condizioni Premium correnti dalla sezione Profilo. Le utenze già presenti restano consultabili ed eliminabili.");
+      } else if (!activeSubscription) {
         setMessage("info", "Abbonamento non attivo: puoi eliminare le utenze dopo aver rimosso le bollette collegate.");
       }
     } catch (error) {

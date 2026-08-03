@@ -6,14 +6,16 @@ import { json, method, readJson, requireAllowedOrigin } from "../lib/http.js";
 import { normalizePdfFileHeader } from "../lib/pdfFileValidation.js";
 import { extractPdfPureAi } from "../lib/pdfPureAiReader.js";
 import { enforceRateLimit } from "../lib/rateLimit.js";
-import { persistentStoreConfigured } from "../lib/store.js";
+import { checkStore, persistentStoreConfigured } from "../lib/store.js";
 import {
   applyPremiumOfferCustomerDecision,
+  checkPremiumOfferHistory,
   matchAndPersistPremiumOffer,
 } from "../lib/premiumOfferMatcher.js";
 import {
   analysisCompletionStatus,
   assertPremiumAiConfigured,
+  checkPremiumBackendReadiness,
   classifyPremiumAutomaticAnalysis,
   createMeteredOpenAiTransport,
   createPremiumAnalysisRun,
@@ -81,6 +83,12 @@ export function createPremiumAiAnalysisHandler({
         if (!backend.supabaseUrl || !backend.serviceKey) throw new Error("premium_supabase_not_configured");
         const { staff } = await verifyPremiumStaff({ config: backend, accessToken, fetchImpl });
         if (staff.role !== "admin") throw new Error("premium_admin_delete_required");
+        const persistentRateLimitConfigured = persistentStoreConfigured();
+        const [backendReadiness, offerHistory, persistentRateLimitOperational] = await Promise.all([
+          checkPremiumBackendReadiness({ config: backend, fetchImpl }),
+          checkPremiumOfferHistory({ env, fetchImpl }),
+          persistentRateLimitConfigured ? checkStore().catch(() => false) : Promise.resolve(false),
+        ]);
         const numberOr = (name, fallback) => {
           const value = Number(env[name]);
           return Number.isFinite(value) && value > 0 ? value : fallback;
@@ -96,7 +104,14 @@ export function createPremiumAiAnalysisHandler({
           configuration: {
             supabaseConfigured: Boolean(backend.supabaseUrl && backend.serviceKey),
             openAiConfigured: Boolean(backend.openAiApiKey),
-            persistentRateLimitConfigured: persistentStoreConfigured(),
+            persistentRateLimitConfigured,
+            persistentRateLimitOperational,
+            databaseOperational: Boolean(backendReadiness.database?.ok),
+            storageBucketOperational: Boolean(backendReadiness.storageBucket?.ok),
+            storageBucket: backendReadiness.storageBucket?.bucket || backend.bucket,
+            offerHistoryOperational: Boolean(offerHistory.ok),
+            offerHistoryOffers: Number(offerHistory.offers || 0),
+            offerHistoryVersion: offerHistory.version || "",
             model: backend.model,
             maxPdfBytes: backend.maxPdfBytes,
             deadlineMs: backend.deadlineMs,

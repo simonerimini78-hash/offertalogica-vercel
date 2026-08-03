@@ -93,8 +93,8 @@ test("v0.31C mostra il contratto della bolletta e usa lo stesso endpoint per la 
   assert.match(bills, /fetch\("\/api\/premium-ai-analysis"/);
   assert.match(api, /body\?\.action === "confirm_offer"/);
   assert.match(api, /applyPremiumOfferCustomerDecision/);
-  assert.match(app, /APP Premium v0\.(?:31C|32|35)/);
-  assert.match(sw, /offertalogica-premium-v(?:031c|032|035)/);
+  assert.match(app, /APP Premium v0\.(?:31C|32|35(?:\.1)?|36)/);
+  assert.match(sw, /offertalogica-premium-v(?:031c|032|0351?|036)/);
 });
 
 test("v0.31C non aggiunge una nuova funzione Vercel", () => {
@@ -246,6 +246,11 @@ test("la conferma API riclassifica la bolletta senza una nuova chiamata OpenAI",
     if (target.endsWith("/auth/v1/user")) return jsonResponse({ id: "user-1" });
     if (target.includes("/rest/v1/premium_profiles?")) return jsonResponse([{ id: "user-1", account_status: "active" }]);
     if (target.includes("/rest/v1/premium_subscriptions?")) return jsonResponse([{ id: "sub-1", status: "active", current_period_end: "2099-01-01T00:00:00Z", created_at: "2026-01-01T00:00:00Z" }]);
+    if (target.includes("/rest/v1/premium_consents?")) return jsonResponse([
+      { consent_type: "terms", version: "premium-terms-v0.35-2026-08-03", granted: true, revoked_at: null },
+      { consent_type: "privacy", version: "premium-privacy-v0.35-2026-08-03", granted: true, revoked_at: null },
+      { consent_type: "cloud_storage", version: "premium-cloud-ai-v0.35-2026-08-03", granted: true, revoked_at: null },
+    ]);
     if (target.includes("/rest/v1/premium_bills?") && method === "PATCH") return new Response(null, { status: 204 });
     if (target.includes("/rest/v1/premium_analysis_runs?") && method === "PATCH") return jsonResponse([{ id: "run-1" }]);
     throw new Error(`Unexpected ${method} ${target}`);

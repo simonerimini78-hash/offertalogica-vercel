@@ -17,6 +17,7 @@
   let currentUser = null;
   let currentSubscription = null;
   let maintenanceMode = false;
+  let operationBlockReason = "";
   let utilities = [];
   let bills = [];
   let contracts = [];
@@ -215,6 +216,9 @@
     if (message.includes("premium_service_access_required") || message.includes("premium_auth_required")) {
       return "Il controllo richiede un account e un abbonamento attivo.";
     }
+    if (message.includes("premium_legal_acceptance_required") || message.includes("PREMIUM_LEGAL_ACCEPTANCE_REQUIRED")) {
+      return "Accetta le condizioni Premium correnti dalla sezione Profilo prima di continuare.";
+    }
     if (message.includes("premium_bill_not_found")) {
       return "La bolletta non è più disponibile nell’archivio cloud.";
     }
@@ -261,6 +265,7 @@
   function renderLocked(title, copy, badge = "BLOCCATO", quota = "Non attivo") {
     currentSubscription = null;
     maintenanceMode = false;
+    operationBlockReason = "";
     utilities = [];
     bills = [];
     contracts = [];
@@ -311,8 +316,9 @@
   function renderEnabled() {
     if (state.locked) state.locked.hidden = true;
     if (state.enabled) state.enabled.hidden = false;
-    setText(state.statusBadge, maintenanceMode ? "ARCHIVIO" : (currentSubscription?.status === "trialing" ? "PROVA" : "ATTIVO"));
-    setText(state.quota, maintenanceMode ? "Sola gestione" : `${yearlyBillCount} / ${planLimit()}`);
+    const legalBlocked = maintenanceMode && operationBlockReason === "legal";
+    setText(state.statusBadge, legalBlocked ? "CONDIZIONI" : (maintenanceMode ? "ARCHIVIO" : (currentSubscription?.status === "trialing" ? "PROVA" : "ATTIVO")));
+    setText(state.quota, legalBlocked ? "Accettazione richiesta" : (maintenanceMode ? "Sola gestione" : `${yearlyBillCount} / ${planLimit()}`));
     setText(state.homeCount, String(bills.length));
     setText(state.profileCount, String(bills.length));
     setText(state.profileSize, formatSize(bills.reduce((sum, bill) => sum + Number(bill.file_size || 0), 0)));
@@ -852,7 +858,7 @@
           customer_status: "awaiting_review",
           metadata: {
             source: "premium_app",
-            app_version: "0.31C",
+            app_version: "0.36",
             automatic_analysis: true
           }
         })
@@ -905,7 +911,9 @@
   async function sendOfferDecision(contractId, billId, decision) {
     if (!client || !currentUser || busy) return;
     if (maintenanceMode) {
-      setMessage("error", "La conferma dell’offerta richiede un abbonamento attivo.");
+      setMessage("error", operationBlockReason === "legal"
+        ? "Accetta le condizioni Premium correnti dalla sezione Profilo prima di confermare l’offerta."
+        : "La conferma dell’offerta richiede un abbonamento attivo.");
       return;
     }
     const contract = contracts.find(item => item.id === contractId);
@@ -966,7 +974,9 @@
 
   async function requestCheck(id) {
     if (maintenanceMode) {
-      setMessage("error", "La richiesta di controllo richiede un abbonamento attivo.");
+      setMessage("error", operationBlockReason === "legal"
+        ? "Accetta le condizioni Premium correnti dalla sezione Profilo prima di richiedere il controllo."
+        : "La richiesta di controllo richiede un abbonamento attivo.");
       return;
     }
     const bill = bills.find(item => item.id === id);
@@ -1137,7 +1147,7 @@
     window.dispatchEvent(new CustomEvent("offertalogica:cloud-bills-changed"));
   }
 
-  async function loadData(user, subscription) {
+  async function loadData(user, subscription, { blockReason = "" } = {}) {
     const oneYearAgo = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString();
     const [utilitiesResult, billsResult, countResult, contractsResult, checksResult, anomaliesResult] = await Promise.all([
       client
@@ -1189,6 +1199,7 @@
     currentUser = user;
     currentSubscription = subscription;
     maintenanceMode = !subscription;
+    operationBlockReason = maintenanceMode ? blockReason : "";
     utilities = Array.isArray(utilitiesResult.data) ? utilitiesResult.data : [];
     bills = Array.isArray(billsResult.data) ? billsResult.data : [];
     contracts = Array.isArray(contractsResult.data) ? contractsResult.data : [];
@@ -1203,6 +1214,7 @@
     currentUser = session?.user || null;
     currentSubscription = null;
     maintenanceMode = false;
+    operationBlockReason = "";
     utilities = [];
     bills = [];
     contracts = [];
@@ -1218,7 +1230,7 @@
 
     renderLoading();
     const userId = session.user.id;
-    const [profileResult, subscriptionResult] = await Promise.all([
+    const [profileResult, subscriptionResult, acceptanceResult] = await Promise.all([
       client
         .from("premium_profiles")
         .select("account_status")
@@ -1230,7 +1242,8 @@
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(1)
-        .maybeSingle()
+        .maybeSingle(),
+      client.rpc("premium_has_current_acceptances")
     ]);
 
     if (sequence !== syncSequence) return;
@@ -1244,6 +1257,11 @@
       setMessage("error", friendlyError(subscriptionResult.error));
       return;
     }
+    if (acceptanceResult.error) {
+      renderLocked("Condizioni non verificabili", "Non è stato possibile verificare le accettazioni Premium correnti.", "ERRORE", "—");
+      setMessage("error", friendlyError(acceptanceResult.error));
+      return;
+    }
 
     const profile = profileResult.data;
     const subscription = subscriptionResult.data;
@@ -1252,10 +1270,16 @@
       return;
     }
     const activeSubscription = subscriptionIsActive(profile, subscription) ? subscription : null;
+    const legalReady = acceptanceResult.data === true;
+    const operationalSubscription = activeSubscription && legalReady ? activeSubscription : null;
 
     try {
-      await loadData(session.user, activeSubscription);
-      if (!activeSubscription) {
+      await loadData(session.user, operationalSubscription, {
+        blockReason: activeSubscription && !legalReady ? "legal" : (!activeSubscription ? "subscription" : ""),
+      });
+      if (activeSubscription && !legalReady) {
+        setMessage("info", "Accetta le condizioni Premium correnti dalla sezione Profilo. Le bollette già presenti restano consultabili ed eliminabili.");
+      } else if (!activeSubscription) {
         setMessage("info", "Abbonamento non attivo: l’archivio resta disponibile in sola gestione. Puoi aprire o eliminare i dati già salvati.");
       }
     } catch (error) {
@@ -1303,7 +1327,9 @@
 
     state.uploadButton?.addEventListener("click", () => {
       if (maintenanceMode) {
-        setMessage("error", "L’abbonamento non è attivo. Puoi consultare o eliminare i dati già archiviati.");
+        setMessage("error", operationBlockReason === "legal"
+          ? "Accetta le condizioni Premium correnti dalla sezione Profilo prima di caricare nuove bollette."
+          : "L’abbonamento non è attivo. Puoi consultare o eliminare i dati già archiviati.");
         return;
       }
       if (!utilities.length) {

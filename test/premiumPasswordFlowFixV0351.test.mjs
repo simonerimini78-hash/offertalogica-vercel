@@ -38,6 +38,6 @@ test("il messaggio fuorviante non compare più e gli errori reali restano distin
 });
 
 test("versione e cache PWA sono aggiornate", () => {
-  assert.match(app, /APP Premium v0\.35\.1/);
-  assert.match(sw, /offertalogica-premium-v0351/);
+  assert.match(app, /APP Premium v0\.(?:35\.1|36)/);
+  assert.match(sw, /offertalogica-premium-v(?:0351|036)/);
 });
