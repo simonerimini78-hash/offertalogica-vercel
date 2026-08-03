@@ -6,6 +6,7 @@ import { json, method, readJson, requireAllowedOrigin } from "../lib/http.js";
 import { normalizePdfFileHeader } from "../lib/pdfFileValidation.js";
 import { extractPdfPureAi } from "../lib/pdfPureAiReader.js";
 import { enforceRateLimit } from "../lib/rateLimit.js";
+import { matchAndPersistPremiumOffer } from "../lib/premiumOfferMatcher.js";
 import {
   analysisCompletionStatus,
   assertPremiumAiConfigured,
@@ -32,10 +33,21 @@ import {
 
 export const config = { maxDuration: 60 };
 
+function offerMatchWarning(offerMatch) {
+  if (!offerMatch) return "";
+  if (offerMatch.status === "existing_verified") return "offerta_attiva_gia_verificata";
+  if (offerMatch.status === "matched" && offerMatch.verified) return "offerta_attiva_identificata_arera";
+  if (["matched", "partial", "ambiguous"].includes(offerMatch.status)) return "offerta_attiva_da_confermare";
+  if (offerMatch.status === "not_found") return "offerta_attiva_non_trovata_nello_storico_arera";
+  if (offerMatch.status === "error") return "ricerca_offerta_arera_non_disponibile";
+  return "";
+}
+
 export function createPremiumAiAnalysisHandler({
   env = process.env,
   fetchImpl = fetch,
   analyzePdf = extractPdfPureAi,
+  matchOffer = matchAndPersistPremiumOffer,
   now = () => Date.now(),
 } = {}) {
   return async function handler(req, res) {
@@ -108,16 +120,33 @@ export function createPremiumAiAnalysisHandler({
         model: backend.model,
         env,
       });
+
+      let offerMatch = null;
+      if (customerMode) {
+        offerMatch = await matchOffer({
+          config: backend,
+          bill,
+          normalized,
+          fetchImpl,
+          env,
+        });
+        if (offerMatch?.contract) contract = offerMatch.contract;
+        if (offerMatch?.publicSummary) normalized._offer_match = offerMatch.publicSummary;
+      }
+
+      const contractForScreening = contract?.verification_status === "verified" ? contract : null;
       const completion = analysisCompletionStatus(normalized);
-      const screening = classifyPremiumAutomaticAnalysis(normalized, { contract });
+      const screening = classifyPremiumAutomaticAnalysis(normalized, { contract: contractForScreening });
       const durationMs = Math.max(0, now() - startedAt);
       const estimatedCostEur = estimatePremiumAiCost(meter.totals, backend.pricing);
       const extractedData = sanitizePremiumAnalysisData(normalized, meter.totals, customerMode ? screening : null);
+      const matchWarning = offerMatchWarning(offerMatch);
       const warnings = [...new Set([
         ...(Array.isArray(normalized?.warnings) ? normalized.warnings : []),
         ...completion.missing.map(field => `campo_essenziale_mancante:${field}`),
         ...(customerMode && screening.status !== "clear" ? ["screening_automatico_da_approfondire"] : []),
-        customerMode ? "analisi_automatica_cliente_v0.30" : "bozza_ia_da_verificare_dallo_staff",
+        ...(matchWarning ? [matchWarning] : []),
+        customerMode ? "analisi_automatica_cliente_v0.31" : "bozza_ia_da_verificare_dallo_staff",
       ])];
       const completedAt = new Date().toISOString();
 
@@ -127,7 +156,7 @@ export function createPremiumAiAnalysisHandler({
         fetchImpl,
         values: {
           status: completion.status,
-          parser_version: normalized?.parser_version || "premium-ai-auto-screening-v0.30",
+          parser_version: normalized?.parser_version || "premium-ai-auto-screening-v0.31",
           model: normalized?.ai?.model || backend.model,
           completed_at: completedAt,
           duration_ms: durationMs,
@@ -154,11 +183,13 @@ export function createPremiumAiAnalysisHandler({
       });
 
       if (customerMode) {
+        const values = premiumBillValuesFromAnalysis(normalized, screening, run.id, completedAt);
+        if (offerMatch?.contract?.id) values.contract_id = offerMatch.contract.id;
         await patchPremiumBill({
           config: backend,
           billId: bill.id,
           fetchImpl,
-          values: premiumBillValuesFromAnalysis(normalized, screening, run.id, completedAt),
+          values,
         });
       } else {
         await patchPremiumBill({
@@ -197,6 +228,7 @@ export function createPremiumAiAnalysisHandler({
           warnings,
         },
         screening: customerMode ? screening : null,
+        offerMatch: customerMode ? offerMatch?.publicSummary || null : null,
       });
     } catch (error) {
       const completedAt = new Date().toISOString();
