@@ -22,7 +22,7 @@ test("v0.33 espone una sola area staff con tutti i moduli operativi", async () =
   const [html, js] = await Promise.all([read("public/staff.html"), read("public/staff.js")]);
   assert.match(html, /Area staff OffertaLogica/);
   assert.match(html, /Accesso staff unico/);
-  assert.match(html, /v0\.33/);
+  assert.match(html, /v0\.(?:33|34)/);
   for (const tab of ["overview", "leads", "checks", "customers", "analytics", "pdf", "costs"]) {
     assert.match(html, new RegExp(`data-staff-tab="${tab}"`));
     assert.match(html, new RegExp(`data-staff-view="${tab}"`));

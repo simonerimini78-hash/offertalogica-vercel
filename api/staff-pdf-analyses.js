@@ -5,6 +5,7 @@ import {
   cleanupExpiredPdfAnalyses,
   createPdfSignedUrl,
   deletePdfAnalysis,
+  deletePdfAnalyses,
   listPdfAnalyses,
   updatePdfAnalysis,
 } from "../lib/pdfArchive.js";
@@ -83,12 +84,43 @@ export default async function handler(req, res) {
 
     const body = bodyObject(req);
     const id = String(body.id || req.query?.id || "").trim();
-    if (!id) return json(res, 400, { ok: false, error: "Analisi PDF mancante" });
+    const ids = Array.isArray(body.ids) ? body.ids : [];
+    const resetAll = body.scope === "all" || String(req.query?.scope || "") === "all";
 
     if (req.method === "DELETE") {
+      const confirmation = String(req.headers["x-staff-confirmation"] || "").trim();
+      if (resetAll) {
+        if (confirmation !== "AZZERA_ARCHIVIO_PDF") {
+          return json(res, 400, { ok: false, error: "Conferma eliminazione non valida" });
+        }
+        let requested = 0;
+        let deleted = 0;
+        for (let batch = 0; batch < 20; batch += 1) {
+          const allRows = await listPdfAnalyses({ limit: 500 });
+          if (!Array.isArray(allRows) || allRows.length === 0) break;
+          const result = await deletePdfAnalyses(allRows.map(row => row.id));
+          requested += result.requested || 0;
+          deleted += result.deleted || 0;
+          if (allRows.length < 500) break;
+        }
+        return json(res, 200, { ok: true, requested, deleted, resetAll: true });
+      }
+      if (ids.length) {
+        if (confirmation !== "ELIMINA_PDF_VISIBILI") {
+          return json(res, 400, { ok: false, error: "Conferma eliminazione non valida" });
+        }
+        const result = await deletePdfAnalyses(ids);
+        return json(res, 200, { ok: true, ...result, resetAll: false });
+      }
+      if (!id) return json(res, 400, { ok: false, error: "Analisi PDF mancante" });
+      if (confirmation && confirmation !== "ELIMINA_PDF") {
+        return json(res, 400, { ok: false, error: "Conferma eliminazione non valida" });
+      }
       const result = await deletePdfAnalysis(id);
       return json(res, result.deleted ? 200 : 404, { ok: Boolean(result.deleted), ...result });
     }
+
+    if (!id) return json(res, 400, { ok: false, error: "Analisi PDF mancante" });
 
     if (req.method !== "PATCH") {
       return json(res, 405, { ok: false, error: "Metodo non consentito" });

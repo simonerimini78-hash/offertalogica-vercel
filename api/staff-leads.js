@@ -3,6 +3,16 @@ import { deleteCustomerLeads, listCustomerLeads } from "../lib/customerDb.js";
 import { del } from "../lib/store.js";
 import { requireStaffSession } from "../lib/staffSessionAuth.js";
 
+
+function bodyObject(req) {
+  if (req.body && typeof req.body === "object") return req.body;
+  try {
+    return JSON.parse(String(req.body || "{}"));
+  } catch {
+    return {};
+  }
+}
+
 function csvEscape(value) {
   return `"${String(value ?? "").replace(/"/g, '""')}"`;
 }
@@ -97,15 +107,18 @@ export default async function handler(req, res) {
     }
     if (!requireAllowedOrigin(req, res)) return;
 
-    const id = String(url.searchParams.get("id") || "").trim();
-    const resetAll = url.searchParams.get("scope") === "all";
-    const expectedConfirmation = resetAll ? "AZZERA_LEAD" : "ELIMINA_LEAD";
+    const body = bodyObject(req);
+    const id = String(url.searchParams.get("id") || body.id || "").trim();
+    const ids = Array.isArray(body.ids) ? body.ids : [];
+    const resetAll = url.searchParams.get("scope") === "all" || body.scope === "all";
+    const bulk = ids.length > 0;
+    const expectedConfirmation = resetAll ? "AZZERA_LEAD" : bulk ? "ELIMINA_LEAD_VISIBILI" : "ELIMINA_LEAD";
     const confirmation = String(req.headers["x-staff-confirmation"] || "").trim();
-    if (confirmation !== expectedConfirmation || (!id && !resetAll)) {
+    if (confirmation !== expectedConfirmation || (!id && !bulk && !resetAll)) {
       return json(res, 400, { ok: false, error: "Conferma eliminazione non valida" });
     }
 
-    const result = await deleteCustomerLeads({ id, all: resetAll });
+    const result = await deleteCustomerLeads({ id, ids, all: resetAll });
     if (result.ok) {
       await Promise.allSettled((result.deletedIds || []).map((leadId) => del(`lead:${leadId}`)));
     }

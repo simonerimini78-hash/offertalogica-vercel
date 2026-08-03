@@ -14,7 +14,7 @@ const docs = await readFile(new URL("../docs/PREMIUM-AI-V0.28.md", import.meta.u
 
 test("Premium v0.28 aggiorna versione e cache senza modificare il ramo gratuito", () => {
   assert.match(app, /APP Premium v0\.(?:30(?:\.\d+)?|31C|32)/);
-  assert.match(html, /Modulo integrato nell’area staff unica · v0\.33/);
+  assert.match(html, /Modulo integrato nell’area staff unica · v0\.(?:33|34)/);
   assert.match(sw, /offertalogica-premium-v(?:30\d*|031c|032)/);
 });
 

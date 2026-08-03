@@ -88,6 +88,8 @@
     if (message.includes("account staff non autorizzato") || message.includes("ruolo staff non autorizzato")) return "L’account non è autorizzato a questo modulo.";
     if (message.includes("sessione staff")) return "La sessione staff non è più valida. Accedi nuovamente.";
     if (message.includes("failed to fetch") || message.includes("network")) return "Connessione non disponibile. Controlla la rete e riprova.";
+    if (message.includes("premium_staff_account_delete_blocked")) return "Un blocco selezionato appartiene a un account staff attivo e non può essere eliminato da questa funzione.";
+    if (message.includes("premium_delete_limit_exceeded")) return "La selezione supera 500 elementi. Riduci il filtro e riprova.";
     if (message.includes("row-level security") || message.includes("permission denied")) return "Operazione non autorizzata dalle regole di sicurezza.";
     return raw;
   }
@@ -150,6 +152,53 @@
     return payload;
   }
 
+  function isAdmin() {
+    return currentStaff?.role === "admin";
+  }
+
+  function uniqueValues(values = []) {
+    return [...new Set((Array.isArray(values) ? values : []).filter(Boolean))];
+  }
+
+  function requireTypedConfirmation(message, keyword = "ELIMINA") {
+    const value = window.prompt(`${message}\n\nScrivi ${keyword} per confermare.`);
+    return value === keyword;
+  }
+
+  async function deletePremiumRecords(resource, ids) {
+    if (!isAdmin()) throw new Error("Operazione riservata agli amministratori.");
+    const cleanIds = uniqueValues(ids);
+    if (!cleanIds.length) throw new Error("Nessun elemento da eliminare.");
+    const { data, error } = await client.rpc("premium_staff_delete_records", {
+      p_resource: resource,
+      p_ids: cleanIds,
+    });
+    if (error) throw error;
+    return data || { deleted_count: cleanIds.length };
+  }
+
+  async function removePremiumStorage(paths = []) {
+    const uniquePaths = uniqueValues(paths.map(value => String(value || "").trim()).filter(Boolean));
+    if (!uniquePaths.length) return { removed: 0 };
+    const { error } = await client.storage.from("premium-bills").remove(uniquePaths);
+    if (error) throw error;
+    return { removed: uniquePaths.length };
+  }
+
+  async function runDestructiveAction(action, successMessage) {
+    if (!isAdmin() || busy) return;
+    setBusy(true);
+    setMessage("info", "Eliminazione in corso…");
+    try {
+      await action();
+      setMessage("success", successMessage);
+    } catch (error) {
+      setMessage("error", friendlyError(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function setTab(name, { updateHash = true, refresh = true } = {}) {
     const target = VALID_TABS.has(name) ? name : "overview";
     activeTab = target;
@@ -189,11 +238,15 @@
     text(byId("navLeadCount"), summary.recentRows || 0);
   }
 
+  function filteredLeadRows() {
+    const query = String(byId("leadSearch")?.value || "").trim().toLowerCase();
+    return cache.leads.filter(lead => !query || leadSearchText(lead).includes(query));
+  }
+
   function renderLeads() {
     const body = byId("leadRows");
     clear(body);
-    const query = String(byId("leadSearch")?.value || "").trim().toLowerCase();
-    const rows = cache.leads.filter(lead => !query || leadSearchText(lead).includes(query));
+    const rows = filteredLeadRows();
     if (!rows.length) {
       body.append(node("tr", {}, [node("td", { text: cache.leads.length ? "Nessun lead corrisponde alla ricerca." : "Nessun lead disponibile.", attrs: { colspan: "8" } })]));
       return;
@@ -272,13 +325,33 @@
         method: "DELETE",
         headers: { "X-Staff-Confirmation": "ELIMINA_LEAD" },
       });
-      await loadLeads({ silent: true });
+      await Promise.allSettled([loadLeads({ silent: true }), loadAnalytics({ silent: true })]);
       setMessage("success", "Lead eliminato.");
     } catch (error) {
       setMessage("error", friendlyError(error));
     } finally {
       setBusy(false);
     }
+  }
+
+  async function deleteVisibleLeads() {
+    if (!isAdmin() || busy) return;
+    const rows = filteredLeadRows();
+    if (!rows.length) {
+      setMessage("error", "Nessun lead visibile da eliminare.");
+      return;
+    }
+    if (!requireTypedConfirmation(`Eliminare definitivamente ${rows.length} lead visibili e gli eventi collegati?`, "ELIMINA")) return;
+    await runDestructiveAction(async () => {
+      const payload = await staffFetch("/api/staff-leads", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json", "X-Staff-Confirmation": "ELIMINA_LEAD_VISIBILI" },
+        body: JSON.stringify({ ids: rows.map(lead => lead.id) }),
+      });
+      await loadLeads({ silent: true });
+      await loadAnalytics({ silent: true });
+      return payload;
+    }, `${rows.length} lead visibili eliminati.`);
   }
 
   async function resetLeads() {
@@ -291,7 +364,7 @@
         method: "DELETE",
         headers: { "X-Staff-Confirmation": "AZZERA_LEAD" },
       });
-      await loadLeads({ silent: true });
+      await Promise.allSettled([loadLeads({ silent: true }), loadAnalytics({ silent: true })]);
       setMessage("success", `Archivio lead azzerato: ${payload.deletedCount || 0} contatti rimossi.`);
     } catch (error) {
       setMessage("error", friendlyError(error));
@@ -356,7 +429,7 @@
     const body = byId("analyticsRows");
     clear(body);
     if (!cache.analytics.length) {
-      body.append(node("tr", {}, [node("td", { text: "Nessun evento disponibile.", attrs: { colspan: "6" } })]));
+      body.append(node("tr", {}, [node("td", { text: "Nessun evento disponibile.", attrs: { colspan: "7" } })]));
       return;
     }
     cache.analytics.slice(0, 200).forEach(event => {
@@ -366,15 +439,61 @@
         event.visibleOffersCount != null ? `${event.visibleOffersCount} offerte` : "",
         event.fileCount != null ? `${event.fileCount} file` : "",
       ].filter(Boolean).join(" · ") || "—";
+      const deleteButton = node("button", { className: "button danger compact", type: "button", text: "Elimina" });
+      deleteButton.hidden = !isAdmin();
+      deleteButton.addEventListener("click", () => deleteAnalyticsEvent(event));
       body.append(node("tr", {}, [
         node("td", {}, [node("strong", { text: formatDate(event.createdAt) }), node("small", { text: `#${event.id}` })]),
         node("td", {}, [badge(event.eventType || "—", "info"), node("small", { text: event.reason || "" })]),
         node("td", {}, [node("strong", { text: event.dataOrigin || event.source || "—" }), node("small", { text: event.page || "" })]),
         node("td", {}, [node("strong", { text: [event.provider, event.offerName].filter(Boolean).join(" · ") || "—" }), node("small", { text: event.destinationStatus || "" })]),
         node("td", { text: values }),
-        node("td", {}, [badge(event.leadId ? "collegato" : "anonimo", event.leadId ? "ok" : "warn"), node("small", { text: event.leadId || "" })])
+        node("td", {}, [badge(event.leadId ? "collegato" : "anonimo", event.leadId ? "ok" : "warn"), node("small", { text: event.leadId || "" })]),
+        node("td", {}, [deleteButton])
       ]));
     });
+  }
+
+  async function deleteAnalyticsEvent(event) {
+    if (!isAdmin() || busy) return;
+    if (!window.confirm(`Eliminare l’evento analytics #${event.id}?`)) return;
+    await runDestructiveAction(async () => {
+      await staffFetch(`/api/staff-analytics?id=${encodeURIComponent(event.id)}`, {
+        method: "DELETE",
+        headers: { "X-Staff-Confirmation": "ELIMINA_EVENTO" },
+      });
+      await loadAnalytics({ silent: true });
+    }, "Evento analytics eliminato.");
+  }
+
+  async function deleteVisibleAnalytics() {
+    if (!isAdmin() || busy) return;
+    const rows = cache.analytics.slice(0, 200);
+    if (!rows.length) {
+      setMessage("error", "Nessun evento analytics visibile da eliminare.");
+      return;
+    }
+    if (!requireTypedConfirmation(`Eliminare definitivamente ${rows.length} eventi analytics visibili?`, "ELIMINA")) return;
+    await runDestructiveAction(async () => {
+      await staffFetch("/api/staff-analytics", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json", "X-Staff-Confirmation": "ELIMINA_ANALYTICS_VISIBILI" },
+        body: JSON.stringify({ ids: rows.map(event => event.id) }),
+      });
+      await loadAnalytics({ silent: true });
+    }, `${rows.length} eventi analytics visibili eliminati.`);
+  }
+
+  async function resetAnalytics() {
+    if (!isAdmin() || busy) return;
+    if (!requireTypedConfirmation("Eliminare definitivamente tutto l’archivio analytics? I lead resteranno presenti.", "AZZERA")) return;
+    await runDestructiveAction(async () => {
+      await staffFetch("/api/staff-analytics?scope=all", {
+        method: "DELETE",
+        headers: { "X-Staff-Confirmation": "AZZERA_ANALYTICS" },
+      });
+      await loadAnalytics({ silent: true });
+    }, "Archivio analytics azzerato.");
   }
 
   async function loadAnalytics({ silent = false } = {}) {
@@ -395,20 +514,75 @@
   function customerSearchText(customer) {
     return [customer.profile.full_name, customer.profile.email, customer.profile.phone,
       ...customer.utilities.flatMap(item => [item.label, item.provider_name, item.pod, item.pdr]),
-      ...customer.contracts.flatMap(item => [item.provider_name, item.offer_name])]
+      ...customer.contracts.flatMap(item => [item.provider_name, item.offer_name]),
+      ...customer.bills.flatMap(item => [item.original_file_name, item.commodity])]
       .filter(Boolean).join(" ").toLowerCase();
+  }
+
+  function filteredCustomers() {
+    const query = String(byId("customerSearch")?.value || "").trim().toLowerCase();
+    const status = String(byId("customerStatus")?.value || "");
+    return cache.customers.filter(customer => {
+      if (query && !customerSearchText(customer).includes(query)) return false;
+      if (status && customer.profile.account_status !== status) return false;
+      return true;
+    });
+  }
+
+  function resourceDeleteButton(label, handler) {
+    const button = node("button", { className: "button danger compact", type: "button", text: label });
+    button.hidden = !isAdmin();
+    button.addEventListener("click", handler);
+    return button;
+  }
+
+  function renderCustomerBill(customer, bill) {
+    const label = bill.original_file_name || `Bolletta ${bill.commodity || ""}`.trim();
+    return node("div", { className: "resource-row" }, [
+      node("div", { className: "resource-row-copy" }, [
+        node("strong", { text: label }),
+        node("small", { text: `${bill.commodity || "—"} · ${formatDate(bill.created_at, false)} · ${bill.processing_status || "—"} · ${bill.customer_status || "—"}` })
+      ]),
+      resourceDeleteButton("Elimina bolletta", () => deleteCustomerBill(customer, bill))
+    ]);
+  }
+
+  function renderCustomerContract(customer, contract) {
+    return node("div", { className: "resource-row" }, [
+      node("div", { className: "resource-row-copy" }, [
+        node("strong", { text: `${contract.provider_name || "Fornitore"} · ${contract.offer_name || "Offerta provvisoria"}` }),
+        node("small", { text: `${contract.pricing_type || "—"} · ${contract.verification_status || "—"} · ${contract.customer_confirmation_status || "—"}` })
+      ]),
+      resourceDeleteButton("Elimina contratto", () => deleteCustomerContract(customer, contract))
+    ]);
+  }
+
+  function renderCustomerUtility(customer, utility) {
+    const bills = customer.bills.filter(item => item.utility_id === utility.id);
+    const contracts = customer.contracts.filter(item => item.utility_id === utility.id);
+    const details = node("div", { className: "resource-list" });
+    if (!bills.length && !contracts.length) {
+      details.append(node("div", { className: "resource-row-copy" }, [node("small", { text: "Nessuna bolletta o contratto collegato." })]));
+    } else {
+      contracts.forEach(contract => details.append(renderCustomerContract(customer, contract)));
+      bills.forEach(bill => details.append(renderCustomerBill(customer, bill)));
+    }
+    return node("article", { className: "resource-card" }, [
+      node("div", { className: "resource-head" }, [
+        node("div", {}, [
+          node("strong", { text: `${utility.label || "Utenza"} · ${utility.provider_name || "fornitore non indicato"}` }),
+          node("small", { text: `${utility.supply_type || "—"} · ${addressLabel(utility.address)}` })
+        ]),
+        resourceDeleteButton("Elimina blocco utenza", () => deleteCustomerUtility(customer, utility))
+      ]),
+      details
+    ]);
   }
 
   function renderCustomers() {
     const target = byId("customerList");
     clear(target);
-    const query = String(byId("customerSearch")?.value || "").trim().toLowerCase();
-    const status = String(byId("customerStatus")?.value || "");
-    const filtered = cache.customers.filter(customer => {
-      if (query && !customerSearchText(customer).includes(query)) return false;
-      if (status && customer.profile.account_status !== status) return false;
-      return true;
-    });
+    const filtered = filteredCustomers();
     text(byId("navCustomerCount"), cache.customers.length);
     if (!filtered.length) {
       target.append(node("div", { className: "empty", text: cache.customers.length ? "Nessun cliente corrisponde ai filtri." : "Nessun profilo Premium disponibile." }));
@@ -420,25 +594,107 @@
       const activeContracts = customer.contracts.filter(item => item.is_current);
       const title = profile.full_name || profile.email || "Cliente Premium";
       const statusKind = profile.account_status === "active" ? "ok" : profile.account_status === "deletion_requested" ? "warn" : "danger";
-      const utilityLines = customer.utilities.length
-        ? customer.utilities.map(utility => `${utility.label || "Utenza"} · ${utility.provider_name || "fornitore non indicato"} · ${addressLabel(utility.address)}`).join("\n")
-        : "Nessuna utenza";
-      const contractLines = activeContracts.length
-        ? activeContracts.map(contract => `${contract.provider_name || "Fornitore"} · ${contract.offer_name || "offerta provvisoria"} · ${contract.verification_status}`).join("\n")
-        : "Nessun contratto corrente";
+      const actions = node("div", { className: "customer-actions" }, [badge(profile.account_status || "—", statusKind)]);
+      if (isAdmin()) actions.append(resourceDeleteButton("Elimina blocco cliente", () => deleteCustomerBlock(customer)));
+
+      const resources = node("div", { className: "customer-resources" });
+      customer.utilities.forEach(utility => resources.append(renderCustomerUtility(customer, utility)));
+      const utilityIds = new Set(customer.utilities.map(item => item.id));
+      const orphanContracts = customer.contracts.filter(item => !utilityIds.has(item.utility_id));
+      const orphanBills = customer.bills.filter(item => !utilityIds.has(item.utility_id));
+      if (orphanContracts.length || orphanBills.length) {
+        const orphanList = node("div", { className: "resource-list" });
+        orphanContracts.forEach(contract => orphanList.append(renderCustomerContract(customer, contract)));
+        orphanBills.forEach(bill => orphanList.append(renderCustomerBill(customer, bill)));
+        resources.append(node("article", { className: "resource-card" }, [
+          node("div", { className: "resource-head" }, [node("div", {}, [node("strong", { text: "Elementi senza utenza corrente" }), node("small", { text: "Record storici o collegamento utenza rimosso." })])]),
+          orphanList
+        ]));
+      }
+      if (!customer.utilities.length && !orphanContracts.length && !orphanBills.length) {
+        resources.append(node("div", { className: "bulk-note", text: "Nessuna utenza, bolletta o contratto collegato." }));
+      }
+
       target.append(node("article", { className: "customer-card" }, [
         node("div", { className: "customer-head" }, [
           node("div", {}, [node("h3", { text: title }), node("p", { text: `${profile.email || "email non indicata"} · ${profile.phone || "telefono non indicato"}` })]),
-          badge(profile.account_status || "—", statusKind)
+          actions
         ]),
         node("div", { className: "customer-meta" }, [
-          node("div", { className: "mini" }, [node("span", { text: "Abbonamento" }), node("strong", { text: subscription ? `${subscription.status} · ${subscription.plan_code}` : currentStaff?.role === "admin" ? "Non presente" : "Visibile agli admin" })]),
-          node("div", { className: "mini" }, [node("span", { text: "Utenze" }), node("strong", { text: customer.utilities.length }), node("small", { text: utilityLines })]),
-          node("div", { className: "mini" }, [node("span", { text: "Contratti correnti" }), node("strong", { text: activeContracts.length }), node("small", { text: contractLines })]),
+          node("div", { className: "mini" }, [node("span", { text: "Abbonamento" }), node("strong", { text: subscription ? `${subscription.status} · ${subscription.plan_code}` : isAdmin() ? "Non presente" : "Visibile agli admin" })]),
+          node("div", { className: "mini" }, [node("span", { text: "Utenze" }), node("strong", { text: customer.utilities.length })]),
+          node("div", { className: "mini" }, [node("span", { text: "Bollette" }), node("strong", { text: customer.bills.length })]),
+          node("div", { className: "mini" }, [node("span", { text: "Contratti correnti" }), node("strong", { text: activeContracts.length })]),
           node("div", { className: "mini" }, [node("span", { text: "Registrazione" }), node("strong", { text: formatDate(profile.created_at, false) }), node("small", { text: profile.id })])
-        ])
+        ]),
+        resources
       ]));
     });
+  }
+
+  async function refreshCustomerDependencies() {
+    await Promise.allSettled([
+      loadCustomers({ silent: true }),
+      loadChecks({ silent: true }),
+      loadCosts({ silent: true }),
+    ]);
+  }
+
+  async function deleteCustomerBill(customer, bill) {
+    if (!isAdmin() || busy) return;
+    if (!window.confirm(`Eliminare la singola bolletta “${bill.original_file_name || bill.id}”? Verranno eliminati anche analisi, controllo, note e anomalie collegati.`)) return;
+    await runDestructiveAction(async () => {
+      await removePremiumStorage([bill.storage_path]);
+      await deletePremiumRecords("bills", [bill.id]);
+      await refreshCustomerDependencies();
+    }, "Bolletta e dati collegati eliminati.");
+  }
+
+  async function deleteCustomerContract(customer, contract) {
+    if (!isAdmin() || busy) return;
+    if (!window.confirm(`Eliminare il contratto “${contract.offer_name || contract.id}”? Le bollette restano presenti ma vengono scollegate dal contratto.`)) return;
+    await runDestructiveAction(async () => {
+      await deletePremiumRecords("contracts", [contract.id]);
+      await loadCustomers({ silent: true });
+    }, "Contratto eliminato.");
+  }
+
+  async function deleteCustomerUtility(customer, utility) {
+    if (!isAdmin() || busy) return;
+    const bills = customer.bills.filter(item => item.utility_id === utility.id);
+    const contracts = customer.contracts.filter(item => item.utility_id === utility.id);
+    if (!requireTypedConfirmation(`Eliminare il blocco utenza “${utility.label || utility.id}”? Saranno rimossi ${bills.length} bollette, ${contracts.length} contratti e tutti i controlli collegati.`, "ELIMINA")) return;
+    await runDestructiveAction(async () => {
+      await removePremiumStorage(bills.map(item => item.storage_path));
+      await deletePremiumRecords("utilities", [utility.id]);
+      await refreshCustomerDependencies();
+    }, "Blocco utenza eliminato.");
+  }
+
+  async function deleteCustomerBlock(customer) {
+    if (!isAdmin() || busy) return;
+    const label = customer.profile.full_name || customer.profile.email || customer.profile.id;
+    if (!requireTypedConfirmation(`Eliminare tutto il blocco Premium di “${label}”? Saranno rimossi profilo Premium, abbonamenti, utenze, bollette, contratti, controlli, analisi e costi collegati. L’account Auth non viene cancellato.`, "ELIMINA")) return;
+    await runDestructiveAction(async () => {
+      await removePremiumStorage(customer.bills.map(item => item.storage_path));
+      await deletePremiumRecords("customers", [customer.profile.id]);
+      await refreshCustomerDependencies();
+    }, "Blocco cliente Premium eliminato.");
+  }
+
+  async function deleteVisibleCustomers() {
+    if (!isAdmin() || busy) return;
+    const customers = filteredCustomers();
+    if (!customers.length) {
+      setMessage("error", "Nessun cliente visibile da eliminare.");
+      return;
+    }
+    if (!requireTypedConfirmation(`Eliminare definitivamente ${customers.length} blocchi cliente visibili con tutte le risorse Premium collegate? Gli account Auth non vengono cancellati.`, "ELIMINA")) return;
+    await runDestructiveAction(async () => {
+      await removePremiumStorage(customers.flatMap(customer => customer.bills.map(item => item.storage_path)));
+      await deletePremiumRecords("customers", customers.map(customer => customer.profile.id));
+      await refreshCustomerDependencies();
+    }, `${customers.length} blocchi cliente eliminati.`);
   }
 
   async function loadCustomers({ silent = false } = {}) {
@@ -451,29 +707,33 @@
     if (profilesResult.error) throw profilesResult.error;
     const profiles = profilesResult.data || [];
     const ids = profiles.map(item => item.id);
-    let utilities = [], contracts = [], subscriptions = [];
+    let utilities = [], contracts = [], bills = [], subscriptions = [];
     if (ids.length) {
       const queries = [
         client.from("premium_utilities").select("id,user_id,label,supply_type,provider_name,pod,pdr,address,status,created_at").in("user_id", ids).order("created_at", { ascending: false }),
         client.from("premium_contracts").select("id,user_id,utility_id,provider_name,offer_name,pricing_type,verification_status,automatic_match_status,automatic_match_confidence,customer_confirmation_status,is_current,updated_at").in("user_id", ids).order("updated_at", { ascending: false }),
+        client.from("premium_bills").select("id,user_id,utility_id,contract_id,commodity,original_file_name,storage_path,file_size,total_amount_eur,processing_status,customer_status,created_at,deleted_at").in("user_id", ids).is("deleted_at", null).order("created_at", { ascending: false }),
       ];
-      if (currentStaff?.role === "admin") {
+      if (isAdmin()) {
         queries.push(client.from("premium_subscriptions").select("id,user_id,status,plan_code,included_utilities,included_bills_per_year,current_period_end,created_at").in("user_id", ids).order("created_at", { ascending: false }));
       }
       const results = await Promise.all(queries);
       if (results[0].error) throw results[0].error;
       if (results[1].error) throw results[1].error;
+      if (results[2].error) throw results[2].error;
       utilities = results[0].data || [];
       contracts = results[1].data || [];
-      if (results[2]) {
-        if (results[2].error) throw results[2].error;
-        subscriptions = results[2].data || [];
+      bills = results[2].data || [];
+      if (results[3]) {
+        if (results[3].error) throw results[3].error;
+        subscriptions = results[3].data || [];
       }
     }
     cache.customers = profiles.map(profile => ({
       profile,
       utilities: utilities.filter(item => item.user_id === profile.id && item.status !== "archived"),
       contracts: contracts.filter(item => item.user_id === profile.id),
+      bills: bills.filter(item => item.user_id === profile.id),
       subscription: subscriptions.find(item => item.user_id === profile.id) || null,
     }));
     renderCustomers();
@@ -500,45 +760,92 @@
     const body = byId("costRunRows");
     clear(body);
     if (!cache.runs.length) {
-      body.append(node("tr", {}, [node("td", { text: "Nessuna analisi IA registrata.", attrs: { colspan: "6" } })]));
+      body.append(node("tr", {}, [node("td", { text: "Nessuna analisi IA registrata.", attrs: { colspan: "7" } })]));
       return;
     }
     cache.runs.slice(0, 100).forEach(run => {
       const tokens = Number(run.input_tokens || 0) + Number(run.output_tokens || 0);
+      const remove = resourceDeleteButton("Elimina", () => deleteCostRun(run));
       body.append(node("tr", {}, [
         node("td", { text: formatDate(run.created_at) }),
         node("td", { text: run.origin || "—" }),
         node("td", {}, [badge(run.status || "—", run.status === "failed" ? "danger" : run.status === "completed" ? "ok" : "warn")]),
         node("td", { text: run.model || "—" }),
         node("td", { text: formatNumber(tokens) }),
-        node("td", { text: run.estimated_cost_eur == null ? "Tariffa non configurata" : formatMoney(run.estimated_cost_eur) })
+        node("td", { text: run.estimated_cost_eur == null ? "Tariffa non configurata" : formatMoney(run.estimated_cost_eur) }),
+        node("td", {}, [remove])
       ]));
     });
   }
 
   function renderCostEvents() {
-    const target = byId("costEvents");
-    clear(target);
-    if (currentStaff?.role !== "admin") {
-      target.append(node("div", { className: "restricted", text: "Il registro economico completo è riservato agli amministratori. I tempi e le analisi IA restano visibili ai revisori." }));
+    const body = byId("costEventRows");
+    clear(body);
+    if (!isAdmin()) {
+      body.append(node("tr", {}, [node("td", { text: "Il registro economico completo è riservato agli amministratori.", attrs: { colspan: "6" } })]));
       return;
     }
     if (!cache.costEvents.length) {
-      target.append(node("div", { className: "empty", text: "Nessun evento di costo registrato." }));
+      body.append(node("tr", {}, [node("td", { text: "Nessun evento di costo registrato.", attrs: { colspan: "6" } })]));
       return;
     }
-    const grouped = new Map();
-    cache.costEvents.forEach(event => {
-      const current = grouped.get(event.event_type) || { count: 0, cost: 0 };
-      current.count += 1;
-      current.cost += Number(event.cost_eur || 0);
-      grouped.set(event.event_type, current);
+    cache.costEvents.slice(0, 250).forEach(event => {
+      const remove = resourceDeleteButton("Elimina", () => deleteCostEvent(event));
+      body.append(node("tr", {}, [
+        node("td", { text: formatDate(event.occurred_at) }),
+        node("td", { text: event.event_type || "—" }),
+        node("td", { text: event.provider || "—" }),
+        node("td", { text: `${formatNumber(event.quantity, 3)} ${event.unit || "event"}` }),
+        node("td", { text: formatMoney(event.cost_eur) }),
+        node("td", {}, [remove])
+      ]));
     });
-    const list = node("div", { className: "rank-list" });
-    [...grouped.entries()].sort((a, b) => b[1].cost - a[1].cost).forEach(([type, values]) => {
-      list.append(node("div", { className: "rank-row" }, [node("strong", { text: `${type} · ${values.count} eventi` }), node("span", { text: formatMoney(values.cost) })]));
-    });
-    target.append(list);
+  }
+
+  async function deleteCostRun(run) {
+    if (!isAdmin() || busy) return;
+    if (!window.confirm(`Eliminare l’analisi IA ${run.id}? Il costo collegato verrà rimosso e la bolletta tornerà da analizzare se questa era l’analisi corrente.`)) return;
+    await runDestructiveAction(async () => {
+      await deletePremiumRecords("analysis_runs", [run.id]);
+      await Promise.allSettled([loadCosts({ silent: true }), loadCustomers({ silent: true }), loadChecks({ silent: true })]);
+    }, "Analisi IA eliminata.");
+  }
+
+  async function deleteVisibleCostRuns() {
+    if (!isAdmin() || busy) return;
+    const rows = cache.runs.slice(0, 100);
+    if (!rows.length) {
+      setMessage("error", "Nessuna analisi IA visibile da eliminare.");
+      return;
+    }
+    if (!requireTypedConfirmation(`Eliminare ${rows.length} analisi IA visibili e i costi collegati?`, "ELIMINA")) return;
+    await runDestructiveAction(async () => {
+      await deletePremiumRecords("analysis_runs", rows.map(run => run.id));
+      await Promise.allSettled([loadCosts({ silent: true }), loadCustomers({ silent: true }), loadChecks({ silent: true })]);
+    }, `${rows.length} analisi IA eliminate.`);
+  }
+
+  async function deleteCostEvent(event) {
+    if (!isAdmin() || busy) return;
+    if (!window.confirm(`Eliminare l’evento di costo “${event.event_type || event.id}”?`)) return;
+    await runDestructiveAction(async () => {
+      await deletePremiumRecords("cost_events", [event.id]);
+      await loadCosts({ silent: true });
+    }, "Evento di costo eliminato.");
+  }
+
+  async function deleteVisibleCostEvents() {
+    if (!isAdmin() || busy) return;
+    const rows = cache.costEvents.slice(0, 250);
+    if (!rows.length) {
+      setMessage("error", "Nessun evento di costo visibile da eliminare.");
+      return;
+    }
+    if (!requireTypedConfirmation(`Eliminare ${rows.length} eventi di costo visibili?`, "ELIMINA")) return;
+    await runDestructiveAction(async () => {
+      await deletePremiumRecords("cost_events", rows.map(event => event.id));
+      await loadCosts({ silent: true });
+    }, `${rows.length} eventi di costo eliminati.`);
   }
 
   async function loadCosts({ silent = false } = {}) {
@@ -644,8 +951,10 @@
     }
     currentStaff = result.data;
     text(byId("staffIdentity"), `${roleLabel(currentStaff.role)} · ${session.user.email || "account staff"}`);
-    byId("leadCsv").hidden = currentStaff.role !== "admin";
-    byId("leadReset").hidden = currentStaff.role !== "admin";
+    [
+      "leadCsv", "leadDeleteVisible", "leadReset", "customerDeleteVisible",
+      "analyticsDeleteVisible", "analyticsReset", "costDeleteRuns", "costDeleteEvents"
+    ].forEach(id => { if (byId(id)) byId(id).hidden = !isAdmin(); });
     setView("app");
     activeTab = VALID_TABS.has(location.hash.slice(1)) ? location.hash.slice(1) : "overview";
     setTab(activeTab, { updateHash: false, refresh: false });
@@ -697,13 +1006,19 @@
     byId("leadSearch").addEventListener("input", renderLeads);
     byId("leadLimit").addEventListener("change", () => loadLeads().catch(error => setMessage("error", friendlyError(error))));
     byId("leadCsv").addEventListener("click", downloadLeadCsv);
+    byId("leadDeleteVisible").addEventListener("click", deleteVisibleLeads);
     byId("leadReset").addEventListener("click", resetLeads);
+    byId("customerDeleteVisible").addEventListener("click", deleteVisibleCustomers);
     byId("customerRefresh").addEventListener("click", () => loadCustomers().catch(error => setMessage("error", friendlyError(error))));
     byId("customerSearch").addEventListener("input", renderCustomers);
     byId("customerStatus").addEventListener("change", renderCustomers);
     byId("customerLimit").addEventListener("change", () => loadCustomers().catch(error => setMessage("error", friendlyError(error))));
     byId("analyticsRefresh").addEventListener("click", () => loadAnalytics().catch(error => setMessage("error", friendlyError(error))));
+    byId("analyticsDeleteVisible").addEventListener("click", deleteVisibleAnalytics);
+    byId("analyticsReset").addEventListener("click", resetAnalytics);
     byId("costRefresh").addEventListener("click", () => loadCosts().catch(error => setMessage("error", friendlyError(error))));
+    byId("costDeleteRuns").addEventListener("click", deleteVisibleCostRuns);
+    byId("costDeleteEvents").addEventListener("click", deleteVisibleCostEvents);
     window.addEventListener("hashchange", () => setTab(location.hash.slice(1), { updateHash: false }));
   }
 

@@ -250,6 +250,21 @@
     document.body.setAttribute("aria-busy", busy ? "true" : "false");
   }
 
+  function isAdmin() {
+    return currentStaff?.role === "admin";
+  }
+
+  async function deletePremiumRecords(resource, ids) {
+    const cleanIds = [...new Set((Array.isArray(ids) ? ids : []).filter(Boolean))];
+    if (!isAdmin() || !cleanIds.length) throw new Error("premium_admin_delete_required");
+    const { data, error } = await client.rpc("premium_staff_delete_records", {
+      p_resource: resource,
+      p_ids: cleanIds,
+    });
+    if (error) throw error;
+    return data;
+  }
+
   function renderMetrics() {
     const today = new Date();
     const todayKey = `${today.getFullYear()}-${today.getMonth()}-${today.getDate()}`;
@@ -905,10 +920,12 @@
     const openPdf = node("button", { className: "button secondary compact", type: "button", text: "APRI PDF" });
     openPdf.addEventListener("click", handleOpenPdf);
     const detailActions = [openPdf];
-    if (currentStaff?.role === "admin") {
-      const removeBill = node("button", { className: "button danger compact", type: "button", text: "ELIMINA BOLLETTA" });
+    if (isAdmin()) {
+      const removeCheck = node("button", { className: "button danger compact", type: "button", text: "ELIMINA SOLO CONTROLLO" });
+      removeCheck.addEventListener("click", handleAdminDeleteCheck);
+      const removeBill = node("button", { className: "button danger compact", type: "button", text: "ELIMINA BOLLETTA E BLOCCO" });
       removeBill.addEventListener("click", handleAdminDeleteBill);
-      detailActions.push(removeBill);
+      detailActions.push(removeCheck, removeBill);
     }
     detailActions.push(makeBadge(row.check.status));
     const actions = node("div", { className: "detail-actions" }, detailActions);
@@ -1075,6 +1092,40 @@
     }
   }
 
+  async function handleAdminDeleteCheck() {
+    const row = selectedRow();
+    if (!row?.check || !isAdmin() || busy) return;
+    if (!window.confirm(`Eliminare soltanto il controllo “${row.check.id}”? La bolletta e l’analisi IA restano archiviate.`)) return;
+
+    await runAction(async () => {
+      await deletePremiumRecords("checks", [row.check.id]);
+      selectedId = null;
+      selectedNotes = [];
+      selectedAnomalies = [];
+      selectedAnalyses = [];
+      selectedFieldReviews = [];
+    }, "Controllo eliminato. La bolletta resta disponibile nell’archivio cliente.");
+  }
+
+  async function handleAdminDeleteVisibleChecks() {
+    if (!isAdmin() || busy) return;
+    const visible = filteredRows();
+    if (!visible.length) {
+      setPageMessage("error", "Nessun controllo visibile da eliminare.");
+      return;
+    }
+    const confirmation = window.prompt(`Eliminare ${visible.length} controlli visibili? Le bollette restano archiviate. Scrivi ELIMINA per confermare.`);
+    if (confirmation !== "ELIMINA") return;
+    await runAction(async () => {
+      await deletePremiumRecords("checks", visible.map(row => row.check.id));
+      selectedId = null;
+      selectedNotes = [];
+      selectedAnomalies = [];
+      selectedAnalyses = [];
+      selectedFieldReviews = [];
+    }, `${visible.length} controlli eliminati.`);
+  }
+
   async function handleAdminDeleteBill() {
     const row = selectedRow();
     if (!row?.bill || currentStaff?.role !== "admin" || busy) return;
@@ -1093,12 +1144,7 @@
       const storageResult = await client.storage.from(BUCKET).remove([row.bill.storage_path]);
       if (storageResult.error) throw storageResult.error;
 
-      const databaseResult = await client
-        .from("premium_bills")
-        .delete()
-        .eq("id", row.bill.id)
-        .eq("user_id", row.bill.user_id);
-      if (databaseResult.error) throw databaseResult.error;
+      await deletePremiumRecords("bills", [row.bill.id]);
 
       selectedId = null;
       selectedNotes = [];
@@ -1332,6 +1378,7 @@
 
     currentStaff = data;
     setText(state.staffIdentity, `${roleLabel(data.role)} · ${session.user.email || "account staff"}`);
+    if (state.deleteVisibleChecks) state.deleteVisibleChecks.hidden = !isAdmin();
     setView("dashboard");
     try {
       await loadQueue({ keepSelection: false });
@@ -1393,6 +1440,7 @@
     state.assignmentFilter = byId("queueAssignment");
     state.queue = byId("staffQueue");
     state.detail = byId("staffDetail");
+    state.deleteVisibleChecks = byId("staffDeleteVisibleChecks");
   }
 
   async function init() {
@@ -1416,6 +1464,7 @@
     state.logout.addEventListener("click", logout);
     state.deniedLogout.addEventListener("click", logout);
     state.refresh.addEventListener("click", () => loadQueue({ keepSelection: true }).catch(error => setPageMessage("error", friendlyError(error))));
+    state.deleteVisibleChecks?.addEventListener("click", handleAdminDeleteVisibleChecks);
     [state.search, state.statusFilter, state.assignmentFilter].forEach(control => control.addEventListener("input", renderQueue));
 
     client.auth.onAuthStateChange((_event, session) => {

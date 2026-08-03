@@ -27,7 +27,7 @@
     .layout { display:grid; grid-template-columns:minmax(300px,390px) minmax(0,1fr); gap:18px; padding:18px; max-width:1600px; margin:auto; }
     .panel { background:var(--card); border:1px solid var(--line); border-radius:12px; min-width:0; box-shadow:0 8px 24px rgba(16,24,40,.05); }
     .filters { padding:14px; border-bottom:1px solid var(--line); display:grid; grid-template-columns:1fr 1fr; gap:9px; }
-    .filters input { grid-column:1/-1; }
+    .filters input { grid-column:1/-1; }.filters .bulk-actions{grid-column:1/-1;display:flex;gap:7px;flex-wrap:wrap}
     input,select,textarea { width:100%; border:1px solid var(--line); border-radius:8px; padding:9px 10px; background:#fff; color:var(--text); }
     .list { max-height:calc(100vh - 190px); overflow:auto; padding:8px; }
     .item { width:100%; text-align:left; border:1px solid transparent; border-radius:10px; padding:11px; background:#fff; cursor:pointer; margin-bottom:6px; }
@@ -78,8 +78,9 @@
       <input id="provider-filter" placeholder="Filtra per fornitore">
       <select id="status-filter"><option value="">Tutti gli esiti</option><option value="complete">Completa</option><option value="partial">Parziale</option><option value="unrecognized">Non riconosciuta</option><option value="failed">Fallita</option></select>
       <select id="review-filter"><option value="">Tutte le revisioni</option><option value="pending">Da verificare</option><option value="reviewed">Verificata</option><option value="test_case">Caso di test</option><option value="discarded">Scartata</option></select>
+      <div class="bulk-actions" id="pdfBulkActions" hidden><button class="btn danger" id="delete-visible-pdf" type="button">Elimina visibili</button><button class="btn danger" id="delete-all-pdf" type="button">Azzera archivio</button></div>
     </div>
-    <div class="list" id="analysis-list"><div class="empty">Inserisci il token staff nell’URL.</div></div>
+    <div class="list" id="analysis-list"><div class="empty">Caricamento archivio…</div></div>
   </section>
   <section class="panel detail" id="detail"><div class="empty">Seleziona un’analisi PDF.</div></section>
 </main>
@@ -134,6 +135,8 @@ async function ensureStaffSession() {
   const member = await staffClient.from("premium_staff_members").select("user_id,role,active").eq("user_id", session.user.id).maybeSingle();
   if (member.error || !member.data?.active || !["reviewer", "admin"].includes(member.data.role)) throw new Error("Account staff non autorizzato");
   currentStaff = member.data;
+  const bulkActions = document.getElementById("pdfBulkActions");
+  if (bulkActions) bulkActions.hidden = currentStaff.role !== "admin";
   return session.access_token;
 }
 async function api(path, options={}) {
@@ -198,7 +201,7 @@ function renderDetail(item) {
   if(!item)return;
   const n=item.normalized_data||{}; const confirmed=item.confirmed_data||{}; const diagnostics=item.diagnostics||[];
   document.getElementById("detail").innerHTML=`
-    <div class="detail-head"><div><h2>${esc(item.original_file_name)}</h2><div class="meta">${esc(item.parser_version)} · hash ${esc((item.file_sha256||'').slice(0,12))}… · scadenza ${item.expires_at?esc(new Date(item.expires_at).toLocaleDateString('it-IT')):'—'}</div></div><div class="actions"><button class="btn" id="replay-analysis">Prova questi dati nel calcolatore</button><button class="btn primary" id="open-pdf">Apri PDF originale</button>${currentStaff?.role==="admin"?`<button class="btn danger" id="delete-analysis">Elimina</button>`:""}</div></div>
+    <div class="detail-head"><div><h2>${esc(item.original_file_name)}</h2><div class="meta">${esc(item.parser_version)} · hash ${esc((item.file_sha256||'').slice(0,12))}… · scadenza ${item.expires_at?esc(new Date(item.expires_at).toLocaleDateString('it-IT')):'—'}</div></div><div class="actions"><button class="btn" id="replay-analysis">Prova questi dati nel calcolatore</button><button class="btn primary" id="open-pdf">Apri PDF originale</button>${currentStaff?.role==="admin"?`<button class="btn danger" id="delete-analysis">Elimina singola</button><button class="btn danger" id="delete-pdf-block">Elimina blocco PDF</button>`:""}</div></div>
     <div class="summary"><div><span>Esito</span><strong>${esc(item.status)}</strong></div><div><span>Revisione</span><strong>${esc(item.review_status)}</strong></div><div><span>Fornitore</span><strong>${esc(item.provider||'—')}</strong></div><div><span>Prove sullo stesso PDF</span><strong>${esc(analyses.filter(row=>row.file_sha256&&row.file_sha256===item.file_sha256).length||1)}</strong></div></div>
     ${item.error_message?`<h3>Errore</h3><pre>${esc(item.error_code)}\n${esc(item.error_message)}</pre>`:''}
     ${renderValidationSummary(n)}
@@ -212,6 +215,7 @@ function renderDetail(item) {
   document.getElementById("replay-analysis").addEventListener("click",()=>replayAnalysis(item));
   document.getElementById("open-pdf").addEventListener("click",()=>openPdf(item.id));
   document.getElementById("delete-analysis")?.addEventListener("click",()=>deleteAnalysis(item.id));
+  document.getElementById("delete-pdf-block")?.addEventListener("click",()=>deletePdfBlock(item));
   document.getElementById("save-review").addEventListener("click",()=>saveReview(item));
   document.getElementById("show-ai-raw").addEventListener("click",()=>{const pre=document.getElementById("ai-raw-json");pre.hidden=!pre.hidden;});
   document.getElementById("show-normalized-json").addEventListener("click",()=>{const pre=document.getElementById("normalized-json");pre.hidden=!pre.hidden;});
@@ -245,12 +249,43 @@ function replayAnalysis(item) {
 }
 
 async function openPdf(id) { const tab=window.open("about:blank","_blank"); if(tab)tab.opener=null; showStatus("Creo un collegamento protetto…"); try{const p=await api(`/api/staff-pdf-analyses?action=file&id=${encodeURIComponent(id)}`);if(tab)tab.location.href=p.signedUrl;else showStatus("Il browser ha bloccato la nuova scheda. Consenti i popup e riprova.",true);if(tab)showStatus("PDF aperto con link temporaneo.");}catch(error){if(tab)tab.close();showStatus(error.message,true);} }
-async function deleteAnalysis(id) { if(!confirm("Eliminare questa analisi? Il PDF originale viene rimosso se non è condiviso da altri test."))return; try{await api("/api/staff-pdf-analyses",{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({id})});selectedId="";document.getElementById("detail").innerHTML='<div class="empty">Analisi eliminata.</div>';await loadAnalyses();}catch(error){showStatus(error.message,true);} }
+async function deletePdfRows(ids, confirmationHeader, successMessage) {
+  const cleanIds=[...new Set((ids||[]).filter(Boolean))];
+  if(!cleanIds.length)return;
+  await api("/api/staff-pdf-analyses",{method:"DELETE",headers:{"Content-Type":"application/json","X-Staff-Confirmation":confirmationHeader},body:JSON.stringify({ids:cleanIds})});
+  selectedId="";
+  document.getElementById("detail").innerHTML=`<div class="empty">${esc(successMessage)}</div>`;
+  await loadAnalyses();
+}
+async function deleteAnalysis(id) {
+  if(!confirm("Eliminare questa singola analisi? Il PDF originale viene rimosso se non è condiviso da altri test."))return;
+  try{await api("/api/staff-pdf-analyses",{method:"DELETE",headers:{"Content-Type":"application/json","X-Staff-Confirmation":"ELIMINA_PDF"},body:JSON.stringify({id})});selectedId="";document.getElementById("detail").innerHTML='<div class="empty">Analisi eliminata.</div>';await loadAnalyses();}catch(error){showStatus(error.message,true);}
+}
+async function deletePdfBlock(item) {
+  const block=analyses.filter(row=>row.file_sha256&&row.file_sha256===item.file_sha256);
+  const confirmation=prompt(`Eliminare tutto il blocco PDF con ${block.length} analisi collegate? Scrivi ELIMINA per confermare.`);
+  if(confirmation!=="ELIMINA")return;
+  try{await deletePdfRows(block.map(row=>row.id),"ELIMINA_PDF_VISIBILI","Blocco PDF eliminato.");}catch(error){showStatus(error.message,true);}
+}
+async function deleteVisiblePdf() {
+  if(currentStaff?.role!=="admin"||!analyses.length)return;
+  const confirmation=prompt(`Eliminare le ${analyses.length} analisi attualmente visibili? Scrivi ELIMINA per confermare.`);
+  if(confirmation!=="ELIMINA")return;
+  try{await deletePdfRows(analyses.map(row=>row.id),"ELIMINA_PDF_VISIBILI","Analisi visibili eliminate.");}catch(error){showStatus(error.message,true);}
+}
+async function deleteAllPdf() {
+  if(currentStaff?.role!=="admin")return;
+  const confirmation=prompt("Eliminare tutto l’archivio diagnostico PDF? Scrivi AZZERA per confermare.");
+  if(confirmation!=="AZZERA")return;
+  try{await api("/api/staff-pdf-analyses?scope=all",{method:"DELETE",headers:{"Content-Type":"application/json","X-Staff-Confirmation":"AZZERA_ARCHIVIO_PDF"},body:JSON.stringify({scope:"all"})});selectedId="";document.getElementById("detail").innerHTML='<div class="empty">Archivio PDF azzerato.</div>';await loadAnalyses();}catch(error){showStatus(error.message,true);}
+}
 document.getElementById("refresh").addEventListener("click",loadAnalyses);
 document.getElementById("status-filter").addEventListener("change",loadAnalyses);
 document.getElementById("review-filter").addEventListener("change",loadAnalyses);
 let timer;document.getElementById("provider-filter").addEventListener("input",()=>{clearTimeout(timer);timer=setTimeout(loadAnalyses,350);});
 document.getElementById("open-calculator").addEventListener("click",()=>{window.top.location.href="/";});
+document.getElementById("delete-visible-pdf").addEventListener("click",deleteVisiblePdf);
+document.getElementById("delete-all-pdf").addEventListener("click",deleteAllPdf);
 loadAnalyses();
 </script>
 </body>
