@@ -14,6 +14,8 @@
   let authSubscription = null;
   let recoveryMode = false;
   let currentSession = null;
+  let accountLoadSequence = 0;
+  let passwordUpdateInProgress = false;
 
   const byId = id => document.getElementById(id);
 
@@ -71,6 +73,10 @@
 
   function setText(element, value) {
     if (element) element.textContent = value == null ? "" : String(value);
+  }
+
+  function wait(milliseconds) {
+    return new Promise(resolve => window.setTimeout(resolve, milliseconds));
   }
 
   function formatDate(value) {
@@ -167,6 +173,7 @@
   }
 
   function renderSignedOut() {
+    accountLoadSequence += 1;
     currentSession = null;
     if (state.authSignedOut) state.authSignedOut.hidden = false;
     if (state.authSignedIn) state.authSignedIn.hidden = true;
@@ -197,7 +204,7 @@
     setText(state.accountName, "Caricamento profilo…");
     setText(state.accountPlan, "Verifica in corso");
     setText(state.accountExpiry, "—");
-    setText(state.accountStatus, "Verifica in corso");
+    setText(state.accountStatus, "Aggiornamento in corso");
     setText(state.profileKicker, "Profilo Premium");
     setText(state.profileTitle, "Verifica account…");
     setText(state.profileBadge, "ATTENDI");
@@ -242,15 +249,7 @@
     if (state.deletionCancelButton) state.deletionCancelButton.hidden = !requested;
   }
 
-  async function loadAccount(session) {
-    if (!client || !session?.user) {
-      renderSignedOut();
-      return;
-    }
-
-    renderLoading(session);
-
-    const userId = session.user.id;
+  async function fetchAccountData(userId) {
     const [profileResult, subscriptionResult, consentsResult] = await Promise.all([
       client
         .from("premium_profiles")
@@ -272,14 +271,54 @@
         .order("recorded_at", { ascending: false })
         .limit(50)
     ]);
+    return { profileResult, subscriptionResult, consentsResult };
+  }
 
-    if (profileResult.error) {
-      setMessage("error", "Account autenticato, ma il profilo Premium non è accessibile.");
+  async function loadAccount(session, { retry = true } = {}) {
+    const sequence = ++accountLoadSequence;
+    if (!client || !session?.user) {
+      renderSignedOut();
+      return false;
     }
 
+    renderLoading(session);
+
+    const userId = session.user.id;
+    let results = await fetchAccountData(userId);
+    let hasError = Boolean(
+      results.profileResult.error ||
+      results.subscriptionResult.error ||
+      results.consentsResult.error
+    );
+
+    if (hasError && retry) {
+      setMessage("info", "Aggiornamento account in corso…");
+      await wait(500);
+      if (sequence !== accountLoadSequence) return false;
+      results = await fetchAccountData(userId);
+      hasError = Boolean(
+        results.profileResult.error ||
+        results.subscriptionResult.error ||
+        results.consentsResult.error
+      );
+    }
+
+    if (sequence !== accountLoadSequence) return false;
+    if (hasError) {
+      setText(state.accountStatus, "Aggiornamento non riuscito");
+      setText(state.profileKicker, "Profilo Premium");
+      setText(state.profileTitle, "Dati temporaneamente non disponibili");
+      setText(state.profileBadge, "RIPROVA");
+      setText(state.profileDescription, "Non è stato possibile aggiornare i dati dell’account. Ricarica la pagina o riprova tra poco.");
+      setText(state.profileControls, "In attesa di aggiornamento");
+      setMessage("error", "Non è stato possibile aggiornare i dati dell’account. Riprova.");
+      return false;
+    }
+
+    const { profileResult, subscriptionResult, consentsResult } = results;
     const profile = profileResult.data;
-    const subscription = subscriptionResult.error ? null : subscriptionResult.data;
-    const acceptanceStatus = acceptanceMap(consentsResult.error ? [] : consentsResult.data);
+    const subscription = subscriptionResult.data;
+    const acceptanceStatus = acceptanceMap(consentsResult.data);
     const legalReady = acceptancesComplete(acceptanceStatus);
     const serviceActive = Boolean(
       profile?.account_status === "active" &&
@@ -362,6 +401,7 @@
 
     setText(state.profileEmail, session.user.email || "—");
     setText(state.profileArchive, serviceActive ? "Cloud Premium attivo" : (profile ? "Archivio in sola gestione" : "Cloud non attivo"));
+    return true;
   }
 
   async function handleLogin(event) {
@@ -516,16 +556,32 @@
       return;
     }
     setBusy(form, true);
+    passwordUpdateInProgress = true;
     setMessage("info", "Aggiornamento password…");
     const { error } = await client.auth.updateUser({ password });
-    setBusy(form, false);
     if (error) {
+      passwordUpdateInProgress = false;
+      setBusy(form, false);
       setMessage("error", friendlyError(error));
       return;
     }
+
+    setMessage("info", "Aggiornamento account in corso…");
+    const { data: sessionData, error: sessionError } = await client.auth.getSession();
+    const refreshed = !sessionError && sessionData?.session
+      ? await loadAccount(sessionData.session, { retry: true })
+      : false;
+    passwordUpdateInProgress = false;
+    setBusy(form, false);
+
+    if (!refreshed) {
+      if (sessionError) setMessage("error", friendlyError(sessionError));
+      return;
+    }
+
     form.reset();
     form.hidden = true;
-    setMessage("success", "Password aggiornata.");
+    setMessage("success", "Password aggiornata correttamente.");
   }
 
   async function handleLegalAcceptance() {
@@ -708,7 +764,9 @@
           return;
         }
         if (event === "SIGNED_OUT") renderSignedOut();
-        else if (["INITIAL_SESSION", "SIGNED_IN", "TOKEN_REFRESHED", "USER_UPDATED"].includes(event)) loadAccount(session);
+        else if (passwordUpdateInProgress && ["TOKEN_REFRESHED", "USER_UPDATED"].includes(event)) {
+          currentSession = session || currentSession;
+        } else if (["INITIAL_SESSION", "SIGNED_IN", "TOKEN_REFRESHED", "USER_UPDATED"].includes(event)) loadAccount(session);
       }, 0);
     });
 
