@@ -1,22 +1,7 @@
 import { json, method, requireAllowedOrigin } from "../lib/http.js";
 import { deleteCustomerLeads, listCustomerLeads } from "../lib/customerDb.js";
 import { del } from "../lib/store.js";
-
-function requestToken(req) {
-  const auth = String(req.headers.authorization || "");
-  if (auth.toLowerCase().startsWith("bearer ")) return auth.slice(7).trim();
-  const url = new URL(req.url || "/api/staff-leads", `https://${req.headers.host || "offertalogica.it"}`);
-  return String(url.searchParams.get("token") || "").trim();
-}
-
-function isAuthorized(req) {
-  const token = requestToken(req);
-  const healthToken = String(process.env.HEALTHCHECK_TOKEN || "").trim();
-  const staffToken = String(process.env.STAFF_PREVIEW_TOKEN || "").trim();
-  if (healthToken && token === healthToken) return "health";
-  if (staffToken && token === staffToken) return "staff";
-  return "";
-}
+import { requireStaffSession } from "../lib/staffSessionAuth.js";
 
 function csvEscape(value) {
   return `"${String(value ?? "").replace(/"/g, '""')}"`;
@@ -99,12 +84,17 @@ function toCsv(leads) {
 
 export default async function handler(req, res) {
   if (!method(req, res, ["GET", "DELETE"])) return;
-  const authorizedBy = isAuthorized(req);
-  if (!authorizedBy) return json(res, 404, { ok: false, error: "Not found" });
+  const identity = await requireStaffSession(req, res, {
+    roles: ["admin"],
+  });
+  if (!identity) return;
+  const authorizedBy = identity.authorizedBy;
 
   const url = new URL(req.url || "/api/staff-leads", `https://${req.headers.host || "offertalogica.it"}`);
   if (req.method === "DELETE") {
-    if (authorizedBy !== "staff") return json(res, 403, { ok: false, error: "Operazione riservata al token staff" });
+    if (authorizedBy !== "supabase" || identity.staff.role !== "admin") {
+      return json(res, 403, { ok: false, error: "Operazione riservata agli amministratori" });
+    }
     if (!requireAllowedOrigin(req, res)) return;
 
     const id = String(url.searchParams.get("id") || "").trim();

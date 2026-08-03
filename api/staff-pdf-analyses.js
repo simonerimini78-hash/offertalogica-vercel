@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
-import { json, method } from "../lib/http.js";
-import { requireStaffToken } from "../lib/staffAuth.js";
+import { json, method, requireAllowedOrigin } from "../lib/http.js";
+import { requireStaffSession } from "../lib/staffSessionAuth.js";
 import {
   cleanupExpiredPdfAnalyses,
   createPdfSignedUrl,
@@ -52,7 +52,11 @@ export default async function handler(req, res) {
     }
   }
 
-  if (!requireStaffToken(req, res)) return;
+  const identity = await requireStaffSession(req, res, {
+    roles: req.method === "DELETE" ? ["admin"] : ["reviewer", "admin"],
+  });
+  if (!identity) return;
+  if (["PATCH", "DELETE"].includes(req.method) && !requireAllowedOrigin(req, res)) return;
 
   try {
     if (action === "file") {

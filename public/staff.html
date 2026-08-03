@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <meta name="theme-color" content="#063f36">
+  <title>Area staff unica - OffertaLogica</title>
+  <style>
+    :root {
+      --bg:#f3f6f4; --card:#fff; --text:#10231f; --muted:#66756f; --line:#d8e3de;
+      --green:#087a60; --green-dark:#064c3e; --green-soft:#edf9f5; --lime:#b8e62e;
+      --blue:#175cd3; --blue-soft:#eff8ff; --danger:#b42318; --danger-soft:#fef3f2;
+      --warn:#b54708; --warn-soft:#fffaeb; --ok:#027a48; --ok-soft:#ecfdf3;
+      --shadow:0 12px 34px rgba(16,35,31,.08);
+    }
+    *{box-sizing:border-box} html,body{min-height:100%;margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    button,input,select,textarea{font:inherit} button{cursor:pointer} [hidden]{display:none!important}
+    .topbar{position:sticky;top:0;z-index:30;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 18px;color:#fff;background:linear-gradient(120deg,var(--green-dark),var(--green) 68%,#70ad27);box-shadow:0 7px 24px rgba(6,76,62,.2)}
+    .brand{display:flex;align-items:center;gap:12px;min-width:0}.brand img{width:42px;height:42px;border-radius:11px;background:#fff;padding:5px}.brand h1{margin:0;font-size:19px}.brand p{margin:3px 0 0;color:rgba(255,255,255,.78);font-size:12px}
+    .top-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}.staff-chip{border:1px solid rgba(255,255,255,.3);border-radius:999px;padding:7px 10px;background:rgba(255,255,255,.12);font-size:12px;font-weight:800}
+    .button{border:0;border-radius:10px;padding:10px 13px;font-weight:800;color:var(--text);background:#e7eeeb}.button:disabled{cursor:not-allowed;opacity:.55}.button.primary{color:#fff;background:var(--green)}.button.light{color:#fff;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.12)}.button.secondary{color:#15345d;background:#e9f0f8}.button.danger{color:var(--danger);background:#fee4e2}.button.compact{padding:8px 10px;font-size:12px}
+    .auth-shell{display:grid;place-items:center;min-height:calc(100vh - 67px);padding:28px 16px}.auth-card{width:min(470px,100%);padding:26px;border:1px solid var(--line);border-radius:22px;background:var(--card);box-shadow:var(--shadow)}.auth-card h2{margin:0 0 8px;font-size:26px}.auth-card p{margin:0 0 20px;color:var(--muted);line-height:1.5}
+    .field{display:grid;gap:6px;margin-bottom:13px}.field label{font-size:12px;font-weight:800;color:#42534c}input,select,textarea{width:100%;min-height:42px;border:1px solid #cbd8d2;border-radius:9px;padding:9px 11px;color:var(--text);background:#fff;outline:none}input:focus,select:focus,textarea:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(8,122,96,.1)}
+    .message{margin:12px 0 0;border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.4}.message.info{color:var(--blue);background:var(--blue-soft)}.message.error{color:var(--danger);background:var(--danger-soft)}.message.success{color:var(--ok);background:var(--ok-soft)}
+    .app-shell{display:grid;grid-template-columns:230px minmax(0,1fr);min-height:calc(100vh - 67px)}
+    .sidebar{position:sticky;top:67px;height:calc(100vh - 67px);overflow:auto;border-right:1px solid var(--line);padding:14px;background:#fff}.nav-title{padding:6px 10px 9px;color:var(--muted);font-size:11px;font-weight:850;text-transform:uppercase;letter-spacing:.06em}.nav{display:grid;gap:5px}.nav button{display:flex;align-items:center;gap:9px;width:100%;border:0;border-radius:10px;padding:10px 11px;color:#344840;background:transparent;text-align:left;font-weight:750}.nav button:hover,.nav button.active{color:var(--green-dark);background:var(--green-soft)}.nav button span:last-child{margin-left:auto;border-radius:999px;padding:2px 6px;color:var(--muted);background:#eef2f0;font-size:10px}.side-note{margin-top:18px;border:1px solid var(--line);border-radius:12px;padding:11px;color:var(--muted);background:#fbfdfc;font-size:11px;line-height:1.45}
+    .main{min-width:0;padding:20px}.view{display:none;max-width:1680px;margin:0 auto}.view.active{display:block}.view-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:15px}.view-head h2{margin:0;font-size:24px}.view-head p{margin:5px 0 0;color:var(--muted);font-size:13px;line-height:1.45}.view-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+    .metrics{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:11px;margin-bottom:15px}.metric{min-width:0;border:1px solid var(--line);border-radius:15px;padding:15px;background:var(--card);box-shadow:0 6px 20px rgba(16,35,31,.04)}.metric span{display:block;color:var(--muted);font-size:11px;font-weight:800}.metric strong{display:block;margin-top:5px;font-size:25px;line-height:1.05;overflow-wrap:anywhere}.metric small{display:block;margin-top:5px;color:var(--muted);font-size:10px}
+    .grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.panel{min-width:0;border:1px solid var(--line);border-radius:16px;background:var(--card);box-shadow:var(--shadow);overflow:hidden}.panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 15px;border-bottom:1px solid var(--line)}.panel-head h3{margin:0;font-size:16px}.panel-head small{color:var(--muted)}.panel-body{padding:15px}.empty{display:grid;place-items:center;min-height:170px;padding:24px;color:var(--muted);text-align:center;line-height:1.5}
+    .toolbar{display:grid;grid-template-columns:minmax(200px,1fr) 150px auto;gap:8px;padding:12px;border-bottom:1px solid var(--line);background:#fbfdfc}.toolbar.four{grid-template-columns:minmax(200px,1fr) 130px 130px auto}.toolbar button{min-height:42px}
+    .table-wrap{overflow:auto}.data-table{width:100%;border-collapse:collapse;min-width:980px}.data-table th,.data-table td{padding:10px;border-bottom:1px solid #e7eeeb;text-align:left;vertical-align:top;font-size:12px}.data-table th{position:sticky;top:0;z-index:2;color:#42534c;background:#f8fbf9;font-size:11px}.data-table td strong{display:block}.data-table td small{display:block;margin-top:3px;color:var(--muted);line-height:1.35}.row-actions{display:flex;gap:5px;flex-wrap:wrap}
+    .badge{display:inline-flex;align-items:center;border-radius:999px;padding:4px 7px;font-size:10px;font-weight:850;background:#eef2f1}.badge.ok{color:var(--ok);background:var(--ok-soft)}.badge.warn{color:var(--warn);background:var(--warn-soft)}.badge.info{color:var(--blue);background:var(--blue-soft)}.badge.danger{color:var(--danger);background:var(--danger-soft)}
+    .funnel{display:grid;grid-template-columns:repeat(6,minmax(110px,1fr));gap:8px}.funnel-step{border:1px solid var(--line);border-radius:11px;padding:10px;background:#fbfdfc}.funnel-step strong{display:block;font-size:20px;color:var(--green-dark)}.funnel-step span{display:block;margin-top:3px;color:var(--muted);font-size:10px}.rank-list{display:grid;gap:7px}.rank-row{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid var(--line);border-radius:10px;padding:9px 10px;background:#fbfdfc}.rank-row strong{font-size:12px}.rank-row span{color:var(--green-dark);font-weight:850}
+    .customer-list{display:grid;gap:9px}.customer-card{border:1px solid var(--line);border-radius:13px;padding:12px;background:#fff}.customer-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.customer-head h3{margin:0;font-size:15px}.customer-head p{margin:3px 0 0;color:var(--muted);font-size:11px}.customer-meta{display:grid;grid-template-columns:repeat(4,minmax(110px,1fr));gap:7px;margin-top:10px}.mini{border:1px solid #e5ece9;border-radius:9px;padding:8px;background:#fbfdfc}.mini span{display:block;color:var(--muted);font-size:10px}.mini strong{display:block;margin-top:3px;font-size:12px;overflow-wrap:anywhere}
+    .module-frame{width:100%;height:calc(100vh - 128px);min-height:680px;border:1px solid var(--line);border-radius:16px;background:#fff;box-shadow:var(--shadow)}
+    .restricted{border:1px solid #fedf89;border-radius:13px;padding:14px;color:#7a2e0e;background:#fffaeb;line-height:1.5}
+    .version{margin-top:18px;color:var(--muted);font-size:11px;text-align:right}
+    @media(max-width:1100px){.app-shell{grid-template-columns:1fr}.sidebar{position:sticky;top:67px;z-index:20;width:100%;height:auto;overflow-x:auto;border-right:0;border-bottom:1px solid var(--line);padding:8px}.nav-title,.side-note{display:none}.nav{display:flex;min-width:max-content}.nav button{width:auto;white-space:nowrap}.main{padding:14px}.metrics{grid-template-columns:repeat(2,1fr)}.grid-3{grid-template-columns:1fr 1fr}.funnel{grid-template-columns:repeat(3,1fr)}.module-frame{height:calc(100vh - 150px)}}
+    @media(max-width:680px){.topbar{position:static;align-items:flex-start;flex-direction:column;padding:12px}.top-actions{width:100%;justify-content:flex-start}.app-shell{min-height:0}.sidebar{top:0}.main{padding:10px}.view-head{flex-direction:column}.view-actions{justify-content:flex-start}.metrics,.grid-2,.grid-3{grid-template-columns:1fr 1fr}.toolbar,.toolbar.four{grid-template-columns:1fr}.funnel{grid-template-columns:1fr 1fr}.customer-meta{grid-template-columns:1fr 1fr}.module-frame{height:calc(100vh - 120px);min-height:600px}.brand p{display:none}}
+  </style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <img src="/assets/logo-offertalogica-icon.png" alt="OffertaLogica">
+    <div><h1>Area staff OffertaLogica</h1><p>Unico accesso per operatività, clienti, dati e controllo costi · v0.33</p></div>
+  </div>
+  <div class="top-actions" id="staffTopActions" hidden>
+    <span class="staff-chip" id="staffIdentity">Staff</span>
+    <button class="button light compact" id="staffRefresh" type="button">Aggiorna</button>
+    <button class="button light compact" id="staffLogout" type="button">Esci</button>
+  </div>
+</header>
+
+<section class="auth-shell" id="staffAuthView">
+  <form class="auth-card" id="staffLoginForm" novalidate>
+    <h2>Accesso staff unico</h2>
+    <p>Usa l’account Supabase autorizzato. La stessa sessione apre tutti i moduli senza token manuali.</p>
+    <div class="field"><label for="staffEmail">Email</label><input id="staffEmail" name="email" type="email" autocomplete="username" required></div>
+    <div class="field"><label for="staffPassword">Password</label><input id="staffPassword" name="password" type="password" autocomplete="current-password" minlength="8" required></div>
+    <button class="button primary" type="submit">ACCEDI ALL’AREA STAFF</button>
+    <div class="message" id="staffAuthMessage" hidden role="status"></div>
+  </form>
+</section>
+
+<section class="auth-shell" id="staffDeniedView" hidden>
+  <div class="auth-card"><h2>Accesso non autorizzato</h2><p>L’account è autenticato ma non risulta attivo come revisore o amministratore.</p><button class="button danger" id="staffDeniedLogout" type="button">DISCONNETTI ACCOUNT</button></div>
+</section>
+
+<div class="app-shell" id="staffApp" hidden>
+  <aside class="sidebar">
+    <div class="nav-title">Area operativa</div>
+    <nav class="nav" aria-label="Moduli staff">
+      <button type="button" data-staff-tab="overview" class="active">Riepilogo</button>
+      <button type="button" data-staff-tab="leads">Lead e attivazioni <span id="navLeadCount">0</span></button>
+      <button type="button" data-staff-tab="checks">Controlli Premium <span id="navCheckCount">0</span></button>
+      <button type="button" data-staff-tab="customers">Clienti e utenze <span id="navCustomerCount">0</span></button>
+      <button type="button" data-staff-tab="analytics">Analytics</button>
+      <button type="button" data-staff-tab="pdf">Diagnostica PDF</button>
+      <button type="button" data-staff-tab="costs">Costi e tempi</button>
+    </nav>
+    <div class="side-note">I PDF Premium sono accessibili allo staff soltanto dopo una richiesta di controllo del cliente. L’archivio diagnostico del lettore resta separato e serve ai test tecnici.</div>
+  </aside>
+
+  <main class="main">
+    <div class="message" id="staffPageMessage" hidden role="status"></div>
+
+    <section class="view active" data-staff-view="overview">
+      <div class="view-head"><div><h2>Riepilogo operativo</h2><p>Situazione corrente di acquisizione, Premium e costi di lavorazione.</p></div></div>
+      <div class="metrics">
+        <article class="metric"><span>Lead recenti</span><strong id="overviewLeads">—</strong><small id="overviewLeadsMeta">Customer DB</small></article>
+        <article class="metric"><span>Controlli aperti</span><strong id="overviewChecks">—</strong><small>Richieste non concluse</small></article>
+        <article class="metric"><span>Clienti Premium</span><strong id="overviewCustomers">—</strong><small>Profili registrati</small></article>
+        <article class="metric"><span>Costo IA registrato</span><strong id="overviewAiCost">—</strong><small>Analisi con tariffa configurata</small></article>
+      </div>
+      <div class="grid-2">
+        <section class="panel"><div class="panel-head"><h3>Attività da gestire</h3></div><div class="panel-body" id="overviewTasks"><div class="empty">Caricamento…</div></div></section>
+        <section class="panel"><div class="panel-head"><h3>Funnel essenziale</h3></div><div class="panel-body"><div class="funnel" id="overviewFunnel"></div></div></section>
+      </div>
+      <div class="version">Area staff unica v0.33</div>
+    </section>
+
+    <section class="view" data-staff-view="leads">
+      <div class="view-head"><div><h2>Lead e attivazioni</h2><p>Contatti verificati, offerta scelta, consensi e stato economico. I click non sono conteggiati come vendite.</p></div><div class="view-actions"><button class="button secondary" id="leadCsv" type="button">Scarica CSV</button><button class="button danger" id="leadReset" type="button">Azzera lead</button></div></div>
+      <div id="leadRestricted" class="restricted" hidden>Questo modulo contiene dati di contatto ed è riservato agli amministratori.</div>
+      <div id="leadContent">
+        <div class="metrics"><article class="metric"><span>Contatti</span><strong id="leadMetricTotal">0</strong></article><article class="metric"><span>OTP verificati</span><strong id="leadMetricVerified">0</strong></article><article class="metric"><span>Offerta scelta</span><strong id="leadMetricOffers">0</strong></article><article class="metric"><span>Entrate confermate</span><strong id="leadMetricRevenue">€ 0</strong></article></div>
+        <section class="panel"><div class="toolbar"><input id="leadSearch" type="search" placeholder="Cerca nome, email, telefono, fornitore"><select id="leadLimit"><option value="50">50 righe</option><option value="100">100 righe</option><option value="200">200 righe</option></select><button class="button primary" id="leadRefresh" type="button">Aggiorna</button></div><div class="table-wrap"><table class="data-table"><thead><tr><th>Data</th><th>Cliente</th><th>Contatti</th><th>Origine</th><th>Offerta scelta</th><th>Consensi</th><th>Monetizzazione</th><th>Azioni</th></tr></thead><tbody id="leadRows"></tbody></table></div></section>
+      </div>
+    </section>
+
+    <section class="view" data-staff-view="checks">
+      <div class="view-head"><div><h2>Controlli Premium</h2><p>Coda, PDF autorizzati, pre-analisi IA, validazione, anomalie ed esito al cliente.</p></div></div>
+      <iframe class="module-frame" id="checksFrame" title="Controlli Premium" data-src="/staff-premium.html?embedded=1"></iframe>
+    </section>
+
+    <section class="view" data-staff-view="customers">
+      <div class="view-head"><div><h2>Clienti e utenze</h2><p>Profili Premium, stato account, utenze e contratti correnti.</p></div></div>
+      <section class="panel"><div class="toolbar four"><input id="customerSearch" type="search" placeholder="Cerca cliente, email, utenza o fornitore"><select id="customerStatus"><option value="">Tutti gli account</option><option value="active">Attivi</option><option value="suspended">Sospesi</option><option value="deletion_requested">Cancellazione richiesta</option><option value="deleted">Eliminati</option></select><select id="customerLimit"><option value="100">100 profili</option><option value="250">250 profili</option><option value="500">500 profili</option></select><button class="button primary" id="customerRefresh" type="button">Aggiorna</button></div><div class="panel-body"><div class="customer-list" id="customerList"><div class="empty">Caricamento…</div></div></div></section>
+    </section>
+
+    <section class="view" data-staff-view="analytics">
+      <div class="view-head"><div><h2>Analytics e funnel</h2><p>Eventi del percorso: lettura PDF, confronto, OTP, click, redirect e richieste assistite.</p></div></div>
+      <div class="metrics"><article class="metric"><span>Eventi recenti</span><strong id="analyticsEvents">0</strong></article><article class="metric"><span>Sessioni</span><strong id="analyticsSessions">0</strong></article><article class="metric"><span>Lead collegati</span><strong id="analyticsLinkedLeads">0</strong></article><article class="metric"><span>Conversione OTP</span><strong id="analyticsOtpRate">—</strong></article></div>
+      <section class="panel"><div class="panel-head"><h3>Funnel operativo</h3><button class="button secondary compact" id="analyticsRefresh" type="button">Aggiorna</button></div><div class="panel-body"><div class="funnel" id="analyticsFunnel"></div></div></section>
+      <div class="grid-2" style="margin-top:14px"><section class="panel"><div class="panel-head"><h3>Provider più cliccati</h3></div><div class="panel-body"><div class="rank-list" id="analyticsProviders"></div></div></section><section class="panel"><div class="panel-head"><h3>Offerte più cliccate</h3></div><div class="panel-body"><div class="rank-list" id="analyticsOffers"></div></div></section></div>
+      <section class="panel" style="margin-top:14px"><div class="table-wrap"><table class="data-table"><thead><tr><th>Data</th><th>Evento</th><th>Origine</th><th>Offerta</th><th>Valori</th><th>Lead</th></tr></thead><tbody id="analyticsRows"></tbody></table></div></section>
+    </section>
+
+    <section class="view" data-staff-view="pdf">
+      <div class="view-head"><div><h2>Diagnostica PDF</h2><p>Archivio tecnico del lettore gratuito: evidenze, correzioni e casi di regressione. Non è l’archivio delle bollette Premium.</p></div></div>
+      <iframe class="module-frame" id="pdfFrame" title="Archivio diagnostico PDF" data-src="/staff-pdf.html?embedded=1"></iframe>
+    </section>
+
+    <section class="view" data-staff-view="costs">
+      <div class="view-head"><div><h2>Costi IA e tempi staff</h2><p>Misure reali necessarie prima di fissare il prezzo del servizio.</p></div><div class="view-actions"><button class="button secondary" id="costRefresh" type="button">Aggiorna</button></div></div>
+      <div class="metrics"><article class="metric"><span>Analisi IA</span><strong id="costRuns">0</strong></article><article class="metric"><span>Token totali</span><strong id="costTokens">0</strong></article><article class="metric"><span>Costo IA stimato</span><strong id="costAi">—</strong></article><article class="metric"><span>Tempo umano</span><strong id="costHuman">0 min</strong></article></div>
+      <div class="grid-2"><section class="panel"><div class="panel-head"><h3>Ultime analisi IA</h3></div><div class="table-wrap"><table class="data-table"><thead><tr><th>Data</th><th>Origine</th><th>Stato</th><th>Modello</th><th>Token</th><th>Costo</th></tr></thead><tbody id="costRunRows"></tbody></table></div></section><section class="panel"><div class="panel-head"><h3>Registro costi</h3></div><div class="panel-body" id="costEvents"><div class="empty">Caricamento…</div></div></section></div>
+    </section>
+  </main>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/staff.js"></script>
+</body>
+</html>

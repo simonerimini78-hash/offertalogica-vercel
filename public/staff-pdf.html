@@ -5,6 +5,13 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <title>Archivio PDF staff - OffertaLogica</title>
+  <script>
+    (() => {
+      const embedded = new URLSearchParams(location.search).get("embedded") === "1";
+      if (embedded) document.documentElement.classList.add("embedded");
+      else location.replace("/staff.html#pdf");
+    })();
+  </script>
   <style>
     :root { --bg:#f3f6fb; --card:#fff; --text:#172033; --muted:#667085; --line:#d8deea; --primary:#0f766e; --danger:#b42318; --warn:#b54708; --ok:#027a48; }
     * { box-sizing:border-box; }
@@ -53,6 +60,9 @@
     .actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
     .status { margin-top:10px; color:var(--muted); font-size:13px; min-height:20px; }
     pre { white-space:pre-wrap; word-break:break-word; background:#101828; color:#f9fafb; padding:12px; border-radius:9px; max-height:320px; overflow:auto; font-size:12px; }
+    html.embedded header { display:none; }
+    html.embedded .layout { max-width:none; padding:10px; }
+    html.embedded .list { max-height:calc(100vh - 105px); }
     @media (max-width:960px) { .layout{grid-template-columns:1fr}.list{max-height:360px}.summary{grid-template-columns:repeat(2,1fr)}.edit-grid{grid-template-columns:repeat(2,1fr)} }
     @media (max-width:600px) { header{align-items:flex-start;flex-direction:column}.layout{padding:10px}.detail{padding:13px}.summary,.edit-grid,.review-grid{grid-template-columns:1fr}.detail-head{flex-direction:column}.filters{grid-template-columns:1fr}.filters input{grid-column:auto} }
   </style>
@@ -73,6 +83,7 @@
   </section>
   <section class="panel detail" id="detail"><div class="empty">Seleziona un’analisi PDF.</div></section>
 </main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const DISPLAY_FIELDS = [
   "fornitore","fornitore_luce","fornitore_gas","kind","commodity","customer_type","intestatario","codice_fiscale","codice_cliente","codice_cliente_luce","codice_cliente_gas","indirizzo_fornitura",
@@ -100,17 +111,38 @@ const LABELS = {
   decorrenza_condizioni_economiche_luce:"Decorrenza luce",scadenza_condizioni_economiche_luce:"Scadenza luce",struttura_prezzo_luce:"Struttura luce",periodicita_aggiornamento_indice_luce:"Aggiornamento indice luce",formula_prezzo_luce:"Formula luce",onere_recesso_anticipato_luce:"Recesso luce",codice_condizioni_economiche_luce:"Codice condizioni luce",altre_caratteristiche_offerta_luce:"Caratteristiche luce",
   decorrenza_condizioni_economiche_gas:"Decorrenza gas",scadenza_condizioni_economiche_gas:"Scadenza gas",struttura_prezzo_gas:"Struttura gas",periodicita_aggiornamento_indice_gas:"Aggiornamento indice gas",formula_prezzo_gas:"Formula gas",onere_recesso_anticipato_gas:"Recesso gas",codice_condizioni_economiche_gas:"Codice condizioni gas",altre_caratteristiche_offerta_gas:"Caratteristiche gas"
 };
-let token = new URLSearchParams(location.hash.replace(/^#/, "")).get("token") || new URLSearchParams(location.search).get("token") || "";
+const SUPABASE_URL = "https://kzxdamhfmzaxonpkytcf.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_poz1xBKiXceLCFV3u_tPIg_5_-ycHcl";
+const STORAGE_KEY = "offertalogica-premium-staff-auth";
+let staffClient = null;
+let currentStaff = null;
 let analyses = [];
 let selectedId = "";
 const esc = (value) => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
 const fmt = (value) => value === null || value === undefined || value === "" ? "—" : typeof value === "object" ? JSON.stringify(value) : String(value);
-function api(path, options={}) {
-  return fetch(path, { ...options, headers:{"x-staff-token":token,...(options.headers||{})} }).then(async response => {
-    const payload = await response.json().catch(()=>({}));
-    if (!response.ok || !payload.ok) throw new Error(payload.error || "Errore API");
-    return payload;
-  });
+async function ensureStaffSession() {
+  if (!window.supabase?.createClient) throw new Error("Collegamento Supabase non disponibile");
+  if (!staffClient) {
+    staffClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+      auth: { storageKey: STORAGE_KEY, persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
+    });
+  }
+  const { data, error } = await staffClient.auth.getSession();
+  if (error) throw error;
+  const session = data?.session;
+  if (!session?.access_token || !session.user?.id) throw new Error("Sessione staff non disponibile");
+  const member = await staffClient.from("premium_staff_members").select("user_id,role,active").eq("user_id", session.user.id).maybeSingle();
+  if (member.error || !member.data?.active || !["reviewer", "admin"].includes(member.data.role)) throw new Error("Account staff non autorizzato");
+  currentStaff = member.data;
+  return session.access_token;
+}
+async function api(path, options={}) {
+  const accessToken = await ensureStaffSession();
+  const headers = { Authorization:`Bearer ${accessToken}`,...(options.headers||{}) };
+  const response = await fetch(path, { ...options, headers });
+  const payload = await response.json().catch(()=>({}));
+  if (!response.ok || !payload.ok) throw new Error(payload.error || "Errore API");
+  return payload;
 }
 function showStatus(message, error=false) { const el=document.getElementById("detail-status"); if(el){el.textContent=message;el.style.color=error?"var(--danger)":"var(--muted)";} }
 function archiveUrl() {
@@ -121,9 +153,8 @@ function archiveUrl() {
 }
 async function loadAnalyses() {
   const list=document.getElementById("analysis-list");
-  if(!token){list.innerHTML='<div class="empty">Apri la pagina con <code>#token=TOKEN_STAFF</code>.</div>';return;}
   list.innerHTML='<div class="empty">Caricamento…</div>';
-  try { const payload=await api(archiveUrl()); analyses=payload.analyses||[]; renderList(); if(selectedId){const row=analyses.find(x=>x.id===selectedId); if(row)renderDetail(row);} }
+  try { await ensureStaffSession(); const payload=await api(archiveUrl()); analyses=payload.analyses||[]; renderList(); if(selectedId){const row=analyses.find(x=>x.id===selectedId); if(row)renderDetail(row);} }
   catch(error){list.innerHTML=`<div class="empty">${esc(error.message)}</div>`;}
 }
 function renderList() {
@@ -167,7 +198,7 @@ function renderDetail(item) {
   if(!item)return;
   const n=item.normalized_data||{}; const confirmed=item.confirmed_data||{}; const diagnostics=item.diagnostics||[];
   document.getElementById("detail").innerHTML=`
-    <div class="detail-head"><div><h2>${esc(item.original_file_name)}</h2><div class="meta">${esc(item.parser_version)} · hash ${esc((item.file_sha256||'').slice(0,12))}… · scadenza ${item.expires_at?esc(new Date(item.expires_at).toLocaleDateString('it-IT')):'—'}</div></div><div class="actions"><button class="btn" id="replay-analysis">Prova questi dati nel calcolatore</button><button class="btn primary" id="open-pdf">Apri PDF originale</button><button class="btn danger" id="delete-analysis">Elimina</button></div></div>
+    <div class="detail-head"><div><h2>${esc(item.original_file_name)}</h2><div class="meta">${esc(item.parser_version)} · hash ${esc((item.file_sha256||'').slice(0,12))}… · scadenza ${item.expires_at?esc(new Date(item.expires_at).toLocaleDateString('it-IT')):'—'}</div></div><div class="actions"><button class="btn" id="replay-analysis">Prova questi dati nel calcolatore</button><button class="btn primary" id="open-pdf">Apri PDF originale</button>${currentStaff?.role==="admin"?`<button class="btn danger" id="delete-analysis">Elimina</button>`:""}</div></div>
     <div class="summary"><div><span>Esito</span><strong>${esc(item.status)}</strong></div><div><span>Revisione</span><strong>${esc(item.review_status)}</strong></div><div><span>Fornitore</span><strong>${esc(item.provider||'—')}</strong></div><div><span>Prove sullo stesso PDF</span><strong>${esc(analyses.filter(row=>row.file_sha256&&row.file_sha256===item.file_sha256).length||1)}</strong></div></div>
     ${item.error_message?`<h3>Errore</h3><pre>${esc(item.error_code)}\n${esc(item.error_message)}</pre>`:''}
     ${renderValidationSummary(n)}
@@ -180,7 +211,7 @@ function renderDetail(item) {
   document.getElementById("review-status").value=item.review_status||"pending";
   document.getElementById("replay-analysis").addEventListener("click",()=>replayAnalysis(item));
   document.getElementById("open-pdf").addEventListener("click",()=>openPdf(item.id));
-  document.getElementById("delete-analysis").addEventListener("click",()=>deleteAnalysis(item.id));
+  document.getElementById("delete-analysis")?.addEventListener("click",()=>deleteAnalysis(item.id));
   document.getElementById("save-review").addEventListener("click",()=>saveReview(item));
   document.getElementById("show-ai-raw").addEventListener("click",()=>{const pre=document.getElementById("ai-raw-json");pre.hidden=!pre.hidden;});
   document.getElementById("show-normalized-json").addEventListener("click",()=>{const pre=document.getElementById("normalized-json");pre.hidden=!pre.hidden;});
@@ -207,7 +238,7 @@ function replayAnalysis(item) {
   };
   try {
     sessionStorage.setItem("offertalogicaPdfArchiveReplay", JSON.stringify(payload));
-    location.href = `/?pdfReplay=1#staff=${encodeURIComponent(token)}`;
+    window.top.location.href = "/?pdfReplay=1";
   } catch (error) {
     showStatus("Impossibile preparare la prova senza nuova lettura: " + error.message, true);
   }
@@ -219,7 +250,7 @@ document.getElementById("refresh").addEventListener("click",loadAnalyses);
 document.getElementById("status-filter").addEventListener("change",loadAnalyses);
 document.getElementById("review-filter").addEventListener("change",loadAnalyses);
 let timer;document.getElementById("provider-filter").addEventListener("input",()=>{clearTimeout(timer);timer=setTimeout(loadAnalyses,350);});
-document.getElementById("open-calculator").addEventListener("click",()=>{location.href=`/#staff=${encodeURIComponent(token)}`;});
+document.getElementById("open-calculator").addEventListener("click",()=>{window.top.location.href="/";});
 loadAnalyses();
 </script>
 </body>
