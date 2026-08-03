@@ -1,0 +1,109 @@
+/* Accessi rapidi alle app OffertaLogica. */
+.ol-app-access-bar {
+    position: sticky;
+    top: 0;
+    z-index: 940;
+    width: 100%;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+}
+
+.ol-app-access-inner,
+.ol-app-access-footer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.ol-app-access-inner {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 0 20px 10px;
+    flex-wrap: wrap;
+}
+
+.ol-app-access-footer {
+    flex-wrap: wrap;
+    margin: 0 auto 20px;
+    padding: 0 12px;
+}
+
+.ol-app-access-link {
+    min-height: 42px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 16px;
+    border: 1px solid rgba(148, 163, 184, 0.45);
+    border-radius: 10px;
+    background: #ffffff;
+    color: #334155 !important;
+    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 14px;
+    font-weight: 800;
+    line-height: 1.2;
+    text-align: center;
+    text-decoration: none !important;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.ol-app-access-link:hover {
+    color: inherit !important;
+    text-decoration: none !important;
+    transform: translateY(-1px);
+    box-shadow: 0 10px 22px rgba(15, 23, 42, 0.08);
+}
+
+.ol-app-access-link:focus-visible {
+    outline: 3px solid rgba(37, 99, 235, 0.22);
+    outline-offset: 3px;
+}
+
+.ol-app-access-free {
+    background: #f0fdf4;
+    color: #14532d !important;
+    border-color: rgba(22, 163, 74, 0.45);
+}
+
+.ol-app-access-premium {
+    background: #eff6ff;
+    color: #1d4ed8 !important;
+    border-color: rgba(59, 130, 246, 0.42);
+}
+
+@media (max-width: 560px) {
+    .ol-app-access-inner {
+        gap: 8px;
+        padding: 0 12px 10px;
+    }
+
+    .ol-app-access-inner .ol-app-access-link {
+        flex: 1 1 0;
+        min-width: 0;
+        min-height: 40px;
+        padding: 8px 9px;
+        font-size: 13px;
+    }
+
+    .ol-app-access-footer {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        max-width: 420px;
+    }
+
+    .ol-app-access-footer .ol-app-access-link {
+        min-width: 0;
+        padding: 9px 8px;
+        font-size: 13px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ol-app-access-link {
+        transition: none;
+    }
+}
