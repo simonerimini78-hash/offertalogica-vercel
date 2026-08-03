@@ -1,0 +1,22 @@
+OFFERTALOGICA - CORREZIONE STORICO ARERA v0.31A1
+
+Questa versione corregge il pacchetto precedente: lo storico viene generato dal Mac,
+all'interno dello stesso flusso che pubblica i JSON ARERA su GitHub.
+
+NON modifica GitHub Actions.
+NON modifica launchd.
+NON esegue automaticamente il push durante l'installazione.
+
+File installati nella cartella locale v59:
+- scripts/pubblica-arera-github.sh
+- scripts/update-arera-history.py
+
+Il nuovo flusso è:
+1. il Mac completa l'aggiornamento ARERA del giorno;
+2. pubblica-arera-github.sh aggiorna la copia Git locale;
+3. genera/aggiorna lo storico progressivo;
+4. copia su main i due JSON correnti e i due JSON storici;
+5. crea un solo commit e fa push.
+
+Lo storico conserva le offerte scomparse con active=false.
+Le offerte variabili non generano una nuova versione ogni giorno solo perché cambia PUN/PSV.

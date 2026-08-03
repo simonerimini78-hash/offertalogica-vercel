@@ -139,23 +139,27 @@ def snapshot_from_row(field: str, row: dict[str, Any], current_payload: dict[str
 
 
 def snapshot_signature(snapshot: dict[str, Any]) -> str:
+    price_type = clean_text(snapshot.get("priceType"), 40).lower()
     relevant = {
         key: snapshot.get(key)
         for key in (
             "validFrom",
             "validTo",
             "priceType",
-            "price",
             "annualFixedFee",
             "durationMonths",
             "priceQuality",
             "indexName",
-            "indexValueAtCapture",
             "spreadEstimate",
             "electricityOfferCode",
             "gasOfferCode",
         )
     }
+    # Nelle offerte variabili il prezzo e il valore dell'indice cambiano ogni giorno:
+    # non rappresentano una nuova versione contrattuale. Per le offerte fisse il prezzo
+    # è invece una condizione da versionare.
+    if price_type != "variabile":
+        relevant["price"] = snapshot.get("price")
     return hashlib.sha256(
         json.dumps(relevant, ensure_ascii=False, sort_keys=True).encode("utf-8")
     ).hexdigest()
@@ -295,7 +299,7 @@ def parse_args() -> argparse.Namespace:
         "--package-root",
         type=Path,
         default=Path(__file__).resolve().parents[1],
-        help="Radice del repository.",
+        help="Radice del progetto locale ARERA.",
     )
     return parser.parse_args()
 
