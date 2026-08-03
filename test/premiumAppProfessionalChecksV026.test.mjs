@@ -9,7 +9,7 @@ const migration = await readFile(new URL('../supabase/premium-checks-v0.26.sql',
 const verify = await readFile(new URL('../supabase/premium-checks-v0.26-verify.sql', import.meta.url), 'utf8');
 
 test('Premium v0.30 mantiene la richiesta umana soltanto dopo lo screening automatico', () => {
-  assert.match(html, /APP Premium v0\.(?:30(?:\.\d+)?|31C|32)/);
+  assert.match(html, /APP Premium v0\.(?:30(?:\.\d+)?|31C|32|35)/);
   assert.match(html, /FLUSSO ATTIVO/);
   assert.match(html, /Richiedi controllo/);
   assert.match(html, /Ogni bolletta viene analizzata dall’IA/);
@@ -78,7 +78,7 @@ test('La verifica controlla RPC, indice, lettura cliente e note interne', () => 
 });
 
 test('Cache e frontend non contengono chiavi segrete', () => {
-  assert.match(sw, /offertalogica-premium-v(?:30\d*|031c|032)/);
+  assert.match(sw, /offertalogica-premium-v(?:30\d*|031c|032|035)/);
   assert.doesNotMatch(sw, /offertalogica-premium-v25/);
   assert.doesNotMatch(cloudBills, /service_role/i);
   assert.doesNotMatch(cloudBills, /sb_secret_/i);

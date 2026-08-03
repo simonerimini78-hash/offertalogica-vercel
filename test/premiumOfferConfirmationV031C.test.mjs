@@ -93,8 +93,8 @@ test("v0.31C mostra il contratto della bolletta e usa lo stesso endpoint per la 
   assert.match(bills, /fetch\("\/api\/premium-ai-analysis"/);
   assert.match(api, /body\?\.action === "confirm_offer"/);
   assert.match(api, /applyPremiumOfferCustomerDecision/);
-  assert.match(app, /APP Premium v0\.(?:31C|32)/);
-  assert.match(sw, /offertalogica-premium-v(?:031c|032)/);
+  assert.match(app, /APP Premium v0\.(?:31C|32|35)/);
+  assert.match(sw, /offertalogica-premium-v(?:031c|032|035)/);
 });
 
 test("v0.31C non aggiunge una nuova funzione Vercel", () => {

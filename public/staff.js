@@ -24,6 +24,7 @@
     runs: [],
     costEvents: [],
     costSummary: {},
+    systemConfig: null,
   };
 
   const byId = id => document.getElementById(id);
@@ -90,6 +91,9 @@
     if (message.includes("failed to fetch") || message.includes("network")) return "Connessione non disponibile. Controlla la rete e riprova.";
     if (message.includes("premium_staff_account_delete_blocked")) return "Un blocco selezionato appartiene a un account staff attivo e non può essere eliminato da questa funzione.";
     if (message.includes("premium_delete_limit_exceeded")) return "La selezione supera 500 elementi. Riduci il filtro e riprova.";
+    if (message.includes("premium_account_deletion_not_requested")) return "L’account non ha una richiesta di cancellazione attiva.";
+    if (message.includes("premium_account_storage_not_empty")) return "I PDF dell’account non sono stati rimossi dal bucket. Riprova dopo la cancellazione dei file.";
+    if (message.includes("premium_account_delete_confirmation_required")) return "Conferma di cancellazione account non valida.";
     if (message.includes("row-level security") || message.includes("permission denied")) return "Operazione non autorizzata dalle regole di sicurezza.";
     return raw;
   }
@@ -595,7 +599,10 @@
       const title = profile.full_name || profile.email || "Cliente Premium";
       const statusKind = profile.account_status === "active" ? "ok" : profile.account_status === "deletion_requested" ? "warn" : "danger";
       const actions = node("div", { className: "customer-actions" }, [badge(profile.account_status || "—", statusKind)]);
-      if (isAdmin()) actions.append(resourceDeleteButton("Elimina blocco cliente", () => deleteCustomerBlock(customer)));
+      if (isAdmin()) {
+        if (profile.account_status === "deletion_requested") actions.append(resourceDeleteButton("Elimina account completo", () => completeAccountDeletion(customer)));
+        actions.append(resourceDeleteButton("Elimina blocco cliente", () => deleteCustomerBlock(customer)));
+      }
 
       const resources = node("div", { className: "customer-resources" });
       customer.utilities.forEach(utility => resources.append(renderCustomerUtility(customer, utility)));
@@ -620,6 +627,7 @@
           node("div", {}, [node("h3", { text: title }), node("p", { text: `${profile.email || "email non indicata"} · ${profile.phone || "telefono non indicato"}` })]),
           actions
         ]),
+        ...(profile.account_status === "deletion_requested" ? [node("div", { className: "request-note", text: `Cancellazione richiesta${profile.deletion_requested_at ? ` il ${formatDate(profile.deletion_requested_at)}` : ""}${profile.deletion_request_reason ? ` · Motivo: ${profile.deletion_request_reason}` : ""}` })] : []),
         node("div", { className: "customer-meta" }, [
           node("div", { className: "mini" }, [node("span", { text: "Abbonamento" }), node("strong", { text: subscription ? `${subscription.status} · ${subscription.plan_code}` : isAdmin() ? "Non presente" : "Visibile agli admin" })]),
           node("div", { className: "mini" }, [node("span", { text: "Utenze" }), node("strong", { text: customer.utilities.length })]),
@@ -682,6 +690,26 @@
     }, "Blocco cliente Premium eliminato.");
   }
 
+  async function completeAccountDeletion(customer) {
+    if (!isAdmin() || busy) return;
+    const profile = customer.profile;
+    const label = profile.full_name || profile.email || profile.id;
+    if (profile.account_status !== "deletion_requested") {
+      setMessage("error", "L’account non ha una richiesta di cancellazione attiva.");
+      return;
+    }
+    if (!requireTypedConfirmation(`Eliminare definitivamente account Auth, credenziali e tutti i dati Premium di “${label}”?`, "CANCELLA ACCOUNT")) return;
+    await runDestructiveAction(async () => {
+      await removePremiumStorage(customer.bills.map(item => item.storage_path));
+      const { error } = await client.rpc("premium_staff_complete_account_deletion", {
+        p_user_id: profile.id,
+        p_confirmation: "CANCELLA_ACCOUNT",
+      });
+      if (error) throw error;
+      await refreshCustomerDependencies();
+    }, "Account e dati Premium eliminati definitivamente.");
+  }
+
   async function deleteVisibleCustomers() {
     if (!isAdmin() || busy) return;
     const customers = filteredCustomers();
@@ -701,7 +729,7 @@
     if (!silent) setMessage("info", "Aggiornamento clienti e utenze…");
     const limit = Math.max(1, Math.min(500, Number(byId("customerLimit")?.value || 250)));
     const profilesResult = await client.from("premium_profiles")
-      .select("id,full_name,email,phone,account_status,created_at,updated_at")
+      .select("id,full_name,email,phone,account_status,deletion_requested_at,deletion_request_reason,created_at,updated_at")
       .order("created_at", { ascending: false })
       .limit(limit);
     if (profilesResult.error) throw profilesResult.error;
@@ -848,6 +876,61 @@
     }, `${rows.length} eventi di costo eliminati.`);
   }
 
+  function configCard(label, value, note = "") {
+    return node("div", { className: "config-card" }, [
+      node("span", { text: label }),
+      node("strong", { text: value }),
+      note ? node("small", { text: note }) : null,
+    ]);
+  }
+
+  function renderSystemConfig() {
+    const target = byId("systemConfigGrid");
+    clear(target);
+    if (!isAdmin()) {
+      byId("systemConfigPanel").hidden = true;
+      return;
+    }
+    byId("systemConfigPanel").hidden = false;
+    const config = cache.systemConfig;
+    if (!config) {
+      target.append(node("div", { className: "empty", text: "Configurazione non disponibile." }));
+      text(byId("systemConfigOverall"), "NON DISPONIBILE");
+      return;
+    }
+    const rate = config.rateLimits || {};
+    const complete = Boolean(config.supabaseConfigured && config.openAiConfigured && config.persistentRateLimitConfigured && config.pricing?.complete);
+    const overall = byId("systemConfigOverall");
+    text(overall, complete ? "PRONTA" : "DA COMPLETARE");
+    overall.className = `badge ${complete ? "ok" : "warn"}`;
+    target.append(
+      configCard("Supabase backend", config.supabaseConfigured ? "Configurato" : "Mancante"),
+      configCard("OpenAI API", config.openAiConfigured ? "Configurata" : "Mancante", config.model || "—"),
+      configCard("Rate limit persistente", config.persistentRateLimitConfigured ? "Configurato" : "Solo memoria", "Per produzione serve Redis/KV persistente"),
+      configCard("Tariffe IA", config.pricing?.complete ? "Complete" : "Incomplete", "Input, cache e output €/1M token"),
+      configCard("Limite PDF", `${formatNumber(Number(config.maxPdfBytes || 0) / 1_000_000, 1)} MB`),
+      configCard("Deadline IA", `${formatNumber(Number(config.deadlineMs || 0) / 1000, 1)} s`),
+      configCard("Analisi cliente", `${rate.customerAnalysis?.limit || 0} / ${Math.round(Number(rate.customerAnalysis?.windowSeconds || 0) / 60)} min`),
+      configCard("Analisi staff", `${rate.staffAnalysis?.limit || 0} / ${Math.round(Number(rate.staffAnalysis?.windowSeconds || 0) / 60)} min`),
+      configCard("Conferme offerta", `${rate.offerConfirmation?.limit || 0} / ${Math.round(Number(rate.offerConfirmation?.windowSeconds || 0) / 60)} min`)
+    );
+  }
+
+  async function loadSystemConfig() {
+    if (!isAdmin()) {
+      cache.systemConfig = null;
+      renderSystemConfig();
+      return;
+    }
+    const payload = await staffFetch("/api/premium-ai-analysis", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "config_status" }),
+    });
+    cache.systemConfig = payload.configuration || null;
+    renderSystemConfig();
+  }
+
   async function loadCosts({ silent = false } = {}) {
     if (!silent) setMessage("info", "Aggiornamento costi e tempi…");
     const [runsResult, checksResult] = await Promise.all([
@@ -863,6 +946,10 @@
       const eventsResult = await client.from("premium_cost_events").select("id,event_type,provider,quantity,unit,cost_eur,occurred_at").order("occurred_at", { ascending: false }).limit(1000);
       if (eventsResult.error) throw eventsResult.error;
       cache.costEvents = eventsResult.data || [];
+      await loadSystemConfig().catch(() => { cache.systemConfig = null; renderSystemConfig(); });
+    } else {
+      cache.systemConfig = null;
+      renderSystemConfig();
     }
     const tokens = cache.runs.reduce((sum, run) => sum + Number(run.input_tokens || 0) + Number(run.output_tokens || 0), 0);
     const aiCostValues = cache.runs.map(run => Number(run.estimated_cost_eur)).filter(Number.isFinite);

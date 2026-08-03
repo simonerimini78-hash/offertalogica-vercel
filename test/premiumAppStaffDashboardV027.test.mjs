@@ -17,8 +17,8 @@ test('Premium v0.27 aggiunge una dashboard staff separata e non pubblica', () =>
   assert.match(html, /id="staffDashboard"/);
   assert.match(html, /<script src="\/staff-premium\.js"><\/script>/);
   assert.doesNotMatch(html, /Crea account/i);
-  assert.match(app, /APP Premium v0\.(?:30(?:\.\d+)?|31C|32)/);
-  assert.match(sw, /offertalogica-premium-v(?:30\d*|031c|032)/);
+  assert.match(app, /APP Premium v0\.(?:30(?:\.\d+)?|31C|32|35)/);
+  assert.match(sw, /offertalogica-premium-v(?:30\d*|031c|032|035)/);
 });
 
 test('Il client staff verifica il ruolo e usa una sessione separata', () => {

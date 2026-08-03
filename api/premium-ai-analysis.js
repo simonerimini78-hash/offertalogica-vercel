@@ -6,6 +6,7 @@ import { json, method, readJson, requireAllowedOrigin } from "../lib/http.js";
 import { normalizePdfFileHeader } from "../lib/pdfFileValidation.js";
 import { extractPdfPureAi } from "../lib/pdfPureAiReader.js";
 import { enforceRateLimit } from "../lib/rateLimit.js";
+import { persistentStoreConfigured } from "../lib/store.js";
 import {
   applyPremiumOfferCustomerDecision,
   matchAndPersistPremiumOffer,
@@ -75,6 +76,39 @@ export function createPremiumAiAnalysisHandler({
         : body?.action === "reject_offer"
           ? "reject"
           : "";
+
+      if (body?.action === "config_status") {
+        if (!backend.supabaseUrl || !backend.serviceKey) throw new Error("premium_supabase_not_configured");
+        const { staff } = await verifyPremiumStaff({ config: backend, accessToken, fetchImpl });
+        if (staff.role !== "admin") throw new Error("premium_admin_delete_required");
+        const numberOr = (name, fallback) => {
+          const value = Number(env[name]);
+          return Number.isFinite(value) && value > 0 ? value : fallback;
+        };
+        const pricing = {
+          inputPerMillion: backend.pricing.inputPerMillion,
+          cachedInputPerMillion: backend.pricing.cachedInputPerMillion,
+          outputPerMillion: backend.pricing.outputPerMillion,
+        };
+        return json(res, 200, {
+          ok: true,
+          mode: "config_status",
+          configuration: {
+            supabaseConfigured: Boolean(backend.supabaseUrl && backend.serviceKey),
+            openAiConfigured: Boolean(backend.openAiApiKey),
+            persistentRateLimitConfigured: persistentStoreConfigured(),
+            model: backend.model,
+            maxPdfBytes: backend.maxPdfBytes,
+            deadlineMs: backend.deadlineMs,
+            pricing: { ...pricing, complete: Object.values(pricing).every(value => value !== null) },
+            rateLimits: {
+              customerAnalysis: { limit: numberOr("RATE_LIMIT_PREMIUM_AI_CUSTOMER_LIMIT", 24), windowSeconds: numberOr("RATE_LIMIT_PREMIUM_AI_CUSTOMER_WINDOW_SECONDS", 3600) },
+              staffAnalysis: { limit: numberOr("RATE_LIMIT_PREMIUM_AI_LIMIT", 12), windowSeconds: numberOr("RATE_LIMIT_PREMIUM_AI_WINDOW_SECONDS", 3600) },
+              offerConfirmation: { limit: numberOr("RATE_LIMIT_PREMIUM_OFFER_CONFIRM_LIMIT", 30), windowSeconds: numberOr("RATE_LIMIT_PREMIUM_OFFER_CONFIRM_WINDOW_SECONDS", 3600) },
+            },
+          },
+        });
+      }
 
       if (offerDecision) {
         if (!backend.supabaseUrl || !backend.serviceKey) throw new Error("premium_supabase_not_configured");
