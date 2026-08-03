@@ -9,7 +9,7 @@ const sw = await readFile(new URL('../public/sw.js', import.meta.url), 'utf8');
 const migration = await readFile(new URL('../supabase/premium-bills-v0.25.sql', import.meta.url), 'utf8');
 const verify = await readFile(new URL('../supabase/premium-bills-v0.25-verify.sql', import.meta.url), 'utf8');
 
-test('Premium v0.30.1 usa il cloud come unico archivio visibile nell’app Premium', () => {
+test('Premium v0.30.2 usa il cloud come unico archivio visibile nell’app Premium', () => {
   assert.match(html, /APP Premium v0\.30/);
   assert.match(html, /id="premiumCloudBillsCard"/);
   assert.match(html, /id="premiumCloudBillUtility"/);
@@ -52,6 +52,10 @@ test('Apertura ed eliminazione usano le API Storage del client autenticato', () 
   assert.match(cloudBills, /function canDeleteBill\(bill, check\)/);
   assert.match(cloudBills, /function hasActiveHumanCheck\(check\)/);
   assert.match(cloudBills, /!hasActiveHumanCheck\(check\)/);
+  const deleteUiPosition = cloudBills.indexOf("      if (canDeleteBill(bill, check)) {");
+  const articleAppendPosition = cloudBills.indexOf("      article.append(icon, copy, badge, actions);");
+  assert.ok(deleteUiPosition >= 0 && deleteUiPosition < articleAppendPosition,
+    "Il comando elimina deve essere renderizzato anche dopo un controllo completato");
   assert.match(cloudBills, /window\.confirm/);
 });
 
@@ -75,7 +79,7 @@ test('La migrazione applica quota rolling annuale e duplicati lato database', ()
 });
 
 test('La cache include il modulo cloud ed esclude chiavi segrete', () => {
-  assert.match(sw, /offertalogica-premium-v301/);
+  assert.match(sw, /offertalogica-premium-v302/);
   assert.match(sw, /"\/app-premium-bills\.js"/);
   assert.doesNotMatch(sw, /offertalogica-premium-v24/);
   assert.doesNotMatch(cloudBills, /service_role/i);

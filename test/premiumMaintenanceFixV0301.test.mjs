@@ -62,7 +62,7 @@ test("v0.30.1 mantiene la richiesta di verifica quando la scadenza è entro 30 g
 });
 
 test("l’app Premium mostra numero e spazio del cloud e non il vecchio archivio locale", () => {
-  assert.match(app, /APP Premium v0\.30\.1/);
+  assert.match(app, /APP Premium v0\.30\.2/);
   assert.match(app, /id="profileCloudBillCount"/);
   assert.match(app, /id="profileCloudBillSize"/);
   assert.doesNotMatch(app, /id="profileBillArchiveCount"/);
@@ -70,7 +70,7 @@ test("l’app Premium mostra numero e spazio del cloud e non il vecchio archivio
   assert.doesNotMatch(app, /<script src="\/app-bills\.js"><\/script>/);
   assert.match(bills, /state\.profileCount = byId\("profileCloudBillCount"\)/);
   assert.match(bills, /bills\.reduce\(\(sum, bill\) => sum \+ Number\(bill\.file_size \|\| 0\), 0\)/);
-  assert.match(sw, /offertalogica-premium-v301/);
+  assert.match(sw, /offertalogica-premium-v302/);
   assert.doesNotMatch(sw, /"\/app-bills\.js"/);
 });
 
@@ -84,6 +84,11 @@ test("l’eliminazione utenza controlla prima le bollette collegate", () => {
 test("cliente e admin possono eliminare solo secondo ruoli e stato del controllo", () => {
   assert.match(bills, /hasActiveHumanCheck/);
   assert.match(bills, /\["pending", "assigned", "in_review", "more_info_required"\]/);
+  const checkBranchEnd = bills.indexOf("      if (canDeleteBill(bill, check)) {");
+  const automaticBranchStart = bills.indexOf("      if (check) {");
+  const articleAppend = bills.indexOf("      article.append(icon, copy, badge, actions);");
+  assert.ok(automaticBranchStart >= 0 && checkBranchEnd > automaticBranchStart && checkBranchEnd < articleAppend,
+    "Il pulsante elimina deve essere valutato anche quando esiste un controllo concluso");
   assert.match(staff, /ELIMINA BOLLETTA/);
   assert.match(staff, /currentStaff\?\.role === "admin"/);
   assert.match(migration, /premium_bills_admin_delete/);

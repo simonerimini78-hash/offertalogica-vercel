@@ -544,14 +544,15 @@
           retryButton.textContent = "RIPROVA ANALISI";
           actions.append(retryButton);
         }
-        if (canDeleteBill(bill, check)) {
-          const deleteButton = document.createElement("button");
-          deleteButton.type = "button";
-          deleteButton.className = "cloud-bill-btn danger";
-          deleteButton.dataset.cloudBillDelete = bill.id;
-          deleteButton.textContent = "ELIMINA";
-          actions.append(deleteButton);
-        }
+      }
+
+      if (canDeleteBill(bill, check)) {
+        const deleteButton = document.createElement("button");
+        deleteButton.type = "button";
+        deleteButton.className = "cloud-bill-btn danger";
+        deleteButton.dataset.cloudBillDelete = bill.id;
+        deleteButton.textContent = "ELIMINA";
+        actions.append(deleteButton);
       }
 
       article.append(icon, copy, badge, actions);
@@ -645,7 +646,7 @@
           customer_status: "awaiting_review",
           metadata: {
             source: "premium_app",
-            app_version: "0.30",
+            app_version: "0.30.2",
             automatic_analysis: true
           }
         })
