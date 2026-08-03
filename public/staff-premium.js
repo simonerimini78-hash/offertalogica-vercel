@@ -15,6 +15,9 @@
   let selectedNotes = [];
   let selectedAnomalies = [];
   let selectedAnalyses = [];
+  let selectedFieldReviews = [];
+  const validationStartedAtByRun = new Map();
+  const AI_VALIDATION = window.OffertaLogicaPremiumAiValidation || null;
   let busy = false;
   let loadSequence = 0;
 
@@ -156,11 +159,15 @@
     if (message.includes("premium_invalid_check_transition")) return "Il cambio di stato non è consentito.";
     if (message.includes("premium_customer_message_required")) return "Inserisci il messaggio destinato al cliente.";
     if (message.includes("premium_anomaly_required")) return "Aggiungi almeno un’anomalia prima di completare con questo esito.";
-    if (message.includes("premium_check_must_be_claimed")) return "Prendi prima in carico il controllo.";
+    if (message.includes("premium_check_must_be_claimed")) return "Prendi prima in carico il controllo per continuare.";
     if (message.includes("premium_check_not_found")) return "Il controllo non è più disponibile.";
     if (message.includes("premium_ai_already_running") || message.includes("premium_analysis_already_running")) return "È già in corso una pre-analisi IA per questa bolletta.";
     if (message.includes("premium_ai_not_configured")) return "La pre-analisi IA non è configurata sul server.";
     if (message.includes("premium_ai_timeout")) return "La pre-analisi IA ha richiesto troppo tempo. La revisione manuale resta disponibile.";
+    if (message.includes("premium_analysis_not_reviewable")) return "Questa esecuzione IA non è ancora validabile.";
+    if (message.includes("premium_cannot_approve_missing_value")) return "Un campo senza valore IA non può essere approvato: correggilo, segnalo come mancante o non applicabile.";
+    if (message.includes("premium_corrected_value_required")) return "Inserisci il valore corretto per tutti i campi marcati come corretti.";
+    if (message.includes("premium_analysis_fields_required")) return "Non ci sono campi da validare.";
     if (message.includes("row-level security") || message.includes("permission denied")) return "Operazione non autorizzata dalle regole di sicurezza.";
     if (message.includes("failed to fetch") || message.includes("network")) return "Connessione non disponibile. Controlla la rete e riprova.";
     return raw;
@@ -430,6 +437,132 @@
     return rows;
   }
 
+  function validationStatusLabel(value) {
+    return value === "validated" ? "Validata dallo staff" : "Da validare";
+  }
+
+  function reviewValue(review) {
+    if (!review || review.reviewed_value === undefined) return null;
+    return review.reviewed_value;
+  }
+
+  function createCorrectedControl(definition, value) {
+    if (definition.type === "commodity") {
+      const control = node("select", { name: `corrected_${definition.key}` }, [
+        option("", "Seleziona"),
+        option("luce", "Luce"),
+        option("gas", "Gas"),
+        option("dual", "Luce e gas"),
+        option("unknown", "Non definita")
+      ]);
+      if (value !== null && value !== undefined) control.value = String(value);
+      return control;
+    }
+    const control = node("input", {
+      name: `corrected_${definition.key}`,
+      type: definition.type === "number" ? "text" : "text",
+      placeholder: definition.type === "number" ? "Valore verificato" : "Dato verificato",
+      attrs: definition.type === "number" ? { inputmode: "decimal" } : {}
+    });
+    if (value !== null && value !== undefined) control.value = String(value).replace(".", ",");
+    return control;
+  }
+
+  function validationMetricsCards(metrics = {}) {
+    const applicable = Number(metrics.applicable_fields || 0);
+    const agreement = Number(metrics.accuracy_pct || 0);
+    const correctionRate = Number(metrics.correction_rate_pct || 0);
+    return node("div", { className: "info-grid validation-metrics" }, [
+      infoCard("Campi applicabili", applicable || "—"),
+      infoCard("Confermati", metrics.approved_fields ?? "—"),
+      infoCard("Corretti", metrics.corrected_fields ?? "—"),
+      infoCard("Mancanti", metrics.missing_fields ?? "—"),
+      infoCard("Accordo IA/staff", applicable ? `${formatTechnicalNumber(agreement, 2)}%` : "—"),
+      infoCard("Tasso correzione", applicable ? `${formatTechnicalNumber(correctionRate, 2)}%` : "—")
+    ]);
+  }
+
+  function renderAiValidation(section, row, latest, data) {
+    if (!AI_VALIDATION || !["completed", "partial"].includes(latest.status)) return;
+
+    const definitions = AI_VALIDATION.fieldsForAnalysis(data, row.bill?.commodity);
+    if (!definitions.length) return;
+
+    if (!validationStartedAtByRun.has(latest.id)) validationStartedAtByRun.set(latest.id, Date.now());
+    const reviewMap = new Map(selectedFieldReviews.map(review => [review.field_key, review]));
+    const wrapper = node("div", { className: "validation-block" });
+    wrapper.append(node("div", { className: "validation-heading" }, [
+      node("div", {}, [
+        node("h4", { text: "Validazione umana della bozza" }),
+        node("p", { text: "Confronta ogni dato con il PDF. La metrica misura l’accordo sui campi verificati, non una precisione generale del modello." })
+      ]),
+      makeBadge(latest.review_status === "validated" ? "completed" : "pending", validationStatusLabel(latest.review_status))
+    ]));
+
+    if (latest.review_status === "validated") {
+      wrapper.append(validationMetricsCards(latest.validation_metrics || {}));
+      const validatedAt = latest.validated_at ? formatDate(latest.validated_at, true) : "—";
+      wrapper.append(node("p", { className: "validation-audit", text: `Ultima validazione: ${validatedAt} · Tempo registrato ${Math.round(Number(latest.validation_seconds || 0) / 60)} min` }));
+    }
+
+    const form = node("form", { className: "validation-form", attrs: { novalidate: "" } });
+    const controls = [];
+    const list = node("div", { className: "validation-list" });
+
+    definitions.forEach(definition => {
+      const aiValue = AI_VALIDATION.aiValueForField(data, definition.key);
+      const existing = reviewMap.get(definition.key) || null;
+      const decision = node("select", { name: `decision_${definition.key}` }, [
+        option("approved", "Confermato"),
+        option("corrected", "Corretto"),
+        option("missing", "Dato mancante"),
+        option("not_applicable", "Non applicabile")
+      ]);
+      decision.value = existing?.decision || AI_VALIDATION.defaultDecision(aiValue);
+      const corrected = createCorrectedControl(definition, existing?.decision === "corrected" ? reviewValue(existing) : null);
+      const note = node("input", { name: `note_${definition.key}`, type: "text", placeholder: "Nota facoltativa" });
+      note.value = existing?.note || "";
+      const sync = () => {
+        corrected.disabled = decision.value !== "corrected";
+        corrected.required = decision.value === "corrected";
+      };
+      decision.addEventListener("change", sync);
+      sync();
+
+      list.append(node("article", { className: "validation-row" }, [
+        node("div", { className: "validation-field" }, [
+          node("strong", { text: definition.label }),
+          node("small", { text: definition.key })
+        ]),
+        node("div", { className: "validation-ai-value" }, [
+          node("span", { text: "Valore IA" }),
+          node("strong", { text: AI_VALIDATION.formatValue(aiValue, definition) })
+        ]),
+        node("div", { className: "validation-control" }, [decision, corrected, note])
+      ]));
+      controls.push({ definition, aiValue, decision, corrected, note });
+    });
+
+    const overallNote = node("textarea", { name: "validation_note", placeholder: "Nota generale sulla qualità della pre-analisi" });
+    overallNote.value = latest.validation_note || "";
+    const canValidate = row.check.status !== "pending" && Boolean(row.check.assigned_staff_id);
+    const save = node("button", {
+      className: "button primary",
+      type: "submit",
+      text: latest.review_status === "validated" ? "AGGIORNA VALIDAZIONE" : "SALVA VALIDAZIONE"
+    });
+    save.disabled = !canValidate;
+    form.append(
+      list,
+      node("div", { className: "field validation-note" }, [node("label", { text: "Nota generale" }), overallNote]),
+      !canValidate ? node("p", { className: "danger-note", text: "Prendi in carico il controllo prima di validare la bozza IA." }) : null,
+      node("div", { className: "form-actions" }, [save])
+    );
+    form.addEventListener("submit", event => handleValidateAiAnalysis(event, latest, controls, overallNote));
+    wrapper.append(form);
+    section.append(wrapper);
+  }
+
   function renderAiAssistance(container, row) {
     const section = node("section", { className: "section ai-section" });
     const heading = node("div", { className: "ai-heading" }, [
@@ -513,6 +646,7 @@
         ...warnings.slice(0, 8).map(item => node("p", { text: String(item).replaceAll("_", " ") }))
       ]));
     }
+    renderAiValidation(section, row, latest, data);
     container.append(section);
   }
 
@@ -628,7 +762,7 @@
         .eq("check_id", row.check.id)
         .order("created_at", { ascending: false }),
       client.from("premium_analysis_runs")
-        .select("id, bill_id, run_number, parser_version, model, status, started_at, completed_at, duration_ms, input_tokens, output_tokens, estimated_cost_eur, extracted_data, warnings, error_code, usage_details, response_ids, created_at")
+        .select("id, bill_id, run_number, parser_version, model, status, started_at, completed_at, duration_ms, input_tokens, output_tokens, estimated_cost_eur, extracted_data, warnings, error_code, usage_details, response_ids, review_status, validated_by_staff_id, validated_at, validation_seconds, validation_note, validation_metrics, validated_data, created_at")
         .eq("bill_id", row.bill.id)
         .order("run_number", { ascending: false })
         .limit(5)
@@ -640,6 +774,17 @@
     selectedNotes = notesResult.data || [];
     selectedAnomalies = anomaliesResult.data || [];
     selectedAnalyses = analysesResult.data || [];
+    selectedFieldReviews = [];
+    const latestRun = selectedAnalyses[0] || null;
+    if (latestRun) {
+      const { data: reviews, error: reviewsError } = await client.from("premium_analysis_field_reviews")
+        .select("id, analysis_run_id, field_key, commodity, ai_value, reviewed_value, decision, note, staff_user_id, created_at, updated_at")
+        .eq("analysis_run_id", latestRun.id)
+        .order("field_key", { ascending: true });
+      if (sequence !== loadSequence || selectedId !== row.check.id) return;
+      if (reviewsError) throw reviewsError;
+      selectedFieldReviews = reviews || [];
+    }
     renderDetail(row);
   }
 
@@ -763,6 +908,46 @@
         throw error;
       }
     }, "Pre-analisi IA completata. Verifica sempre la bozza sul PDF prima di concludere il controllo.");
+  }
+
+  async function handleValidateAiAnalysis(event, latest, controls, overallNote) {
+    event.preventDefault();
+    if (!AI_VALIDATION || !latest || busy) return;
+    const fields = [];
+    try {
+      controls.forEach(control => {
+        const decision = String(control.decision.value || "");
+        const reviewedValue = decision === "corrected"
+          ? AI_VALIDATION.parseReviewedValue(control.corrected.value, control.definition)
+          : null;
+        fields.push({
+          field_key: control.definition.key,
+          decision,
+          reviewed_value: reviewedValue,
+          note: String(control.note.value || "").trim()
+        });
+      });
+    } catch (error) {
+      setPageMessage("error", friendlyError(error));
+      return;
+    }
+
+    const preview = AI_VALIDATION.calculateMetrics(fields);
+    const confirmation = `Salvare la validazione? Campi confermati: ${preview.approved_fields}; corretti: ${preview.corrected_fields}; mancanti: ${preview.missing_fields}.`;
+    if (!window.confirm(confirmation)) return;
+    const startedAt = validationStartedAtByRun.get(latest.id) || Date.now();
+    const reviewSeconds = Math.max(1, Math.min(86400, Math.round((Date.now() - startedAt) / 1000)));
+
+    await runAction(async () => {
+      const { error } = await client.rpc("premium_staff_validate_analysis", {
+        p_analysis_run_id: latest.id,
+        p_fields: fields,
+        p_review_seconds: reviewSeconds,
+        p_validation_note: String(overallNote.value || "").trim()
+      });
+      if (error) throw error;
+      validationStartedAtByRun.set(latest.id, Date.now());
+    }, "Validazione IA salvata. I dati restano riservati allo staff e non modificano l’esito del cliente.");
   }
 
   async function handleClaim() {
@@ -893,6 +1078,7 @@
     rows = [];
     selectedId = null;
     selectedAnalyses = [];
+    selectedFieldReviews = [];
     clear(state.queue);
     renderEmptyDetail();
 
