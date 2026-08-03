@@ -17,7 +17,10 @@
   let selectedAnalyses = [];
   let selectedFieldReviews = [];
   const validationStartedAtByRun = new Map();
+  const VALIDATION_DRAFT_PREFIX = "offertalogica-premium-validation-draft-v1:";
+  const VALIDATION_DRAFT_TTL_MS = 24 * 60 * 60 * 1000;
   const AI_VALIDATION = window.OffertaLogicaPremiumAiValidation || null;
+  let validationTimerId = null;
   let busy = false;
   let loadSequence = 0;
 
@@ -291,6 +294,7 @@
   }
 
   function renderEmptyDetail(message = "Seleziona una richiesta dalla coda.") {
+    stopValidationTimer();
     clear(state.detail);
     state.detail.append(node("div", { className: "detail-empty", text: message }));
   }
@@ -441,6 +445,105 @@
     return value === "validated" ? "Validata dallo staff" : "Da validare";
   }
 
+  function formatDurationSeconds(value) {
+    const total = Math.max(0, Math.round(Number(value || 0)));
+    if (total < 60) return `${total} s`;
+    const hours = Math.floor(total / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    const seconds = total % 60;
+    if (hours) return `${hours} h ${minutes} min ${seconds} s`;
+    return `${minutes} min ${seconds} s`;
+  }
+
+  function validationDraftKey(runId) {
+    const staffId = currentSession?.user?.id || "staff";
+    return `${VALIDATION_DRAFT_PREFIX}${staffId}:${runId}`;
+  }
+
+  function clearValidationDraft(runId) {
+    if (!runId) return;
+    try {
+      localStorage.removeItem(validationDraftKey(runId));
+    } catch (_) {
+      // Il salvataggio locale è un supporto di continuità, non deve bloccare la validazione.
+    }
+  }
+
+  function loadValidationDraft(runId, validatedAt = "") {
+    if (!runId) return null;
+    try {
+      const raw = localStorage.getItem(validationDraftKey(runId));
+      if (!raw) return null;
+      const draft = JSON.parse(raw);
+      const updatedAt = Date.parse(draft?.updated_at || "");
+      const validatedAtMs = Date.parse(validatedAt || "");
+      const isExpired = !Number.isFinite(updatedAt) || Date.now() - updatedAt > VALIDATION_DRAFT_TTL_MS;
+      const isOlderThanServer = Number.isFinite(validatedAtMs) && updatedAt <= validatedAtMs;
+      if (draft?.run_id !== runId || isExpired || isOlderThanServer) {
+        clearValidationDraft(runId);
+        return null;
+      }
+      return draft;
+    } catch (_) {
+      clearValidationDraft(runId);
+      return null;
+    }
+  }
+
+  function stopValidationTimer() {
+    if (validationTimerId !== null) {
+      window.clearInterval(validationTimerId);
+      validationTimerId = null;
+    }
+  }
+
+  function updateValidationTimer(element, startedAt) {
+    if (!element || !startedAt) return;
+    const seconds = Math.max(0, Math.round((Date.now() - startedAt) / 1000));
+    setText(element, `Tempo di validazione in corso: ${formatDurationSeconds(seconds)}`);
+  }
+
+  function startValidationTimer(runId, startedAt, element) {
+    stopValidationTimer();
+    if (!runId || !startedAt || !element) return;
+    validationStartedAtByRun.set(runId, startedAt);
+    updateValidationTimer(element, startedAt);
+    validationTimerId = window.setInterval(() => updateValidationTimer(element, startedAt), 1000);
+  }
+
+  function ensureValidationStarted(runId, timerElement) {
+    let startedAt = validationStartedAtByRun.get(runId);
+    if (!startedAt) {
+      startedAt = Date.now();
+      startValidationTimer(runId, startedAt, timerElement);
+    }
+    return startedAt;
+  }
+
+  function saveValidationDraft(latest, controls, overallNote, timerElement, draftStatus) {
+    const startedAt = ensureValidationStarted(latest.id, timerElement);
+    const fields = Object.fromEntries(controls.map(control => [control.definition.key, {
+      decision: String(control.decision.value || ""),
+      reviewed_value: String(control.corrected.value || ""),
+      note: String(control.note.value || "")
+    }]));
+    const draft = {
+      version: 1,
+      run_id: latest.id,
+      staff_user_id: currentSession?.user?.id || null,
+      started_at: startedAt,
+      updated_at: new Date().toISOString(),
+      fields,
+      validation_note: String(overallNote.value || "")
+    };
+    try {
+      localStorage.setItem(validationDraftKey(latest.id), JSON.stringify(draft));
+      setText(draftStatus, "Bozza locale salvata automaticamente su questo dispositivo.");
+    } catch (_) {
+      setText(draftStatus, "Salvataggio automatico locale non disponibile: usa Salva validazione prima di uscire.");
+    }
+  }
+
   function reviewValue(review) {
     if (!review || review.reviewed_value === undefined) return null;
     return review.reviewed_value;
@@ -488,7 +591,14 @@
     const definitions = AI_VALIDATION.fieldsForAnalysis(data, row.bill?.commodity);
     if (!definitions.length) return;
 
-    if (!validationStartedAtByRun.has(latest.id)) validationStartedAtByRun.set(latest.id, Date.now());
+    const draft = loadValidationDraft(latest.id, latest.validated_at);
+    const draftFields = draft?.fields && typeof draft.fields === "object" ? draft.fields : {};
+    if (Number.isFinite(Number(draft?.started_at))) {
+      validationStartedAtByRun.set(latest.id, Number(draft.started_at));
+    } else {
+      validationStartedAtByRun.delete(latest.id);
+    }
+
     const reviewMap = new Map(selectedFieldReviews.map(review => [review.field_key, review]));
     const wrapper = node("div", { className: "validation-block" });
     wrapper.append(node("div", { className: "validation-heading" }, [
@@ -502,7 +612,7 @@
     if (latest.review_status === "validated") {
       wrapper.append(validationMetricsCards(latest.validation_metrics || {}));
       const validatedAt = latest.validated_at ? formatDate(latest.validated_at, true) : "—";
-      wrapper.append(node("p", { className: "validation-audit", text: `Ultima validazione: ${validatedAt} · Tempo registrato ${Math.round(Number(latest.validation_seconds || 0) / 60)} min` }));
+      wrapper.append(node("p", { className: "validation-audit", text: `Ultima validazione: ${validatedAt} · Tempo registrato ${formatDurationSeconds(latest.validation_seconds)}` }));
     }
 
     const form = node("form", { className: "validation-form", attrs: { novalidate: "" } });
@@ -512,16 +622,22 @@
     definitions.forEach(definition => {
       const aiValue = AI_VALIDATION.aiValueForField(data, definition.key);
       const existing = reviewMap.get(definition.key) || null;
+      const draftField = draftFields[definition.key] || null;
       const decision = node("select", { name: `decision_${definition.key}` }, [
         option("approved", "Confermato"),
         option("corrected", "Corretto"),
         option("missing", "Dato mancante"),
         option("not_applicable", "Non applicabile")
       ]);
-      decision.value = existing?.decision || AI_VALIDATION.defaultDecision(aiValue);
-      const corrected = createCorrectedControl(definition, existing?.decision === "corrected" ? reviewValue(existing) : null);
+      decision.value = draftField?.decision || existing?.decision || AI_VALIDATION.defaultDecision(aiValue);
+      const correctedValue = draftField?.decision === "corrected"
+        ? draftField.reviewed_value
+        : existing?.decision === "corrected"
+          ? reviewValue(existing)
+          : null;
+      const corrected = createCorrectedControl(definition, correctedValue);
       const note = node("input", { name: `note_${definition.key}`, type: "text", placeholder: "Nota facoltativa" });
-      note.value = existing?.note || "";
+      note.value = draftField?.note ?? existing?.note ?? "";
       const sync = () => {
         corrected.disabled = decision.value !== "corrected";
         corrected.required = decision.value === "corrected";
@@ -544,7 +660,7 @@
     });
 
     const overallNote = node("textarea", { name: "validation_note", placeholder: "Nota generale sulla qualità della pre-analisi" });
-    overallNote.value = latest.validation_note || "";
+    overallNote.value = draft?.validation_note ?? latest.validation_note ?? "";
     const canValidate = row.check.status !== "pending" && Boolean(row.check.assigned_staff_id);
     const save = node("button", {
       className: "button primary",
@@ -552,15 +668,43 @@
       text: latest.review_status === "validated" ? "AGGIORNA VALIDAZIONE" : "SALVA VALIDAZIONE"
     });
     save.disabled = !canValidate;
+
+    const timer = node("p", {
+      className: "validation-timer",
+      text: draft?.started_at
+        ? "Ripristino del tempo della bozza…"
+        : "Il tempo di validazione parte alla prima modifica."
+    });
+    const draftStatus = node("p", {
+      className: "validation-draft-status",
+      text: draft
+        ? "Bozza locale ripristinata. Le modifiche non salvate sono state recuperate."
+        : "Le modifiche vengono salvate automaticamente come bozza su questo dispositivo."
+    });
+
+    const persistDraft = () => saveValidationDraft(latest, controls, overallNote, timer, draftStatus);
+    controls.forEach(control => {
+      control.decision.addEventListener("change", persistDraft);
+      control.corrected.addEventListener("input", persistDraft);
+      control.note.addEventListener("input", persistDraft);
+    });
+    overallNote.addEventListener("input", persistDraft);
+
     form.append(
       list,
       node("div", { className: "field validation-note" }, [node("label", { text: "Nota generale" }), overallNote]),
-      !canValidate ? node("p", { className: "danger-note", text: "Prendi in carico il controllo prima di validare la bozza IA." }) : null,
-      node("div", { className: "form-actions" }, [save])
+      timer,
+      draftStatus
     );
+    if (!canValidate) {
+      form.append(node("p", { className: "danger-note", text: "Prendi in carico il controllo prima di validare la bozza IA." }));
+    }
+    form.append(node("div", { className: "form-actions" }, [save]));
     form.addEventListener("submit", event => handleValidateAiAnalysis(event, latest, controls, overallNote));
     wrapper.append(form);
     section.append(wrapper);
+
+    if (draft?.started_at) startValidationTimer(latest.id, Number(draft.started_at), timer);
   }
 
   function renderAiAssistance(container, row) {
@@ -708,6 +852,7 @@
   }
 
   function renderDetail(row) {
+    stopValidationTimer();
     clear(state.detail);
     const body = node("div", { className: "detail-body" });
     const customerName = row.profile?.full_name || "Cliente Premium";
@@ -946,7 +1091,9 @@
         p_validation_note: String(overallNote.value || "").trim()
       });
       if (error) throw error;
-      validationStartedAtByRun.set(latest.id, Date.now());
+      clearValidationDraft(latest.id);
+      validationStartedAtByRun.delete(latest.id);
+      stopValidationTimer();
     }, "Validazione IA salvata. I dati restano riservati allo staff e non modificano l’esito del cliente.");
   }
 
@@ -1079,6 +1226,7 @@
     selectedId = null;
     selectedAnalyses = [];
     selectedFieldReviews = [];
+    stopValidationTimer();
     clear(state.queue);
     renderEmptyDetail();
 

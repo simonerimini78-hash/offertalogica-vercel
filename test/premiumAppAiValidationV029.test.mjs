@@ -11,10 +11,10 @@ const migration = await readFile(new URL("../supabase/premium-ai-validation-v0.2
 const verify = await readFile(new URL("../supabase/premium-ai-validation-v0.29-verify.sql", import.meta.url), "utf8");
 const docs = await readFile(new URL("../docs/PREMIUM-AI-VALIDATION-V0.29.md", import.meta.url), "utf8");
 
-test("Premium v0.29 aggiorna versione e cache", () => {
-  assert.match(app, /APP Premium v0\.29/);
-  assert.match(html, /Area riservata allo staff autorizzato · v0\.29/);
-  assert.match(sw, /offertalogica-premium-v29/);
+test("Premium v0.29.1 aggiorna versione e cache", () => {
+  assert.match(app, /APP Premium v0\.29\.1/);
+  assert.match(html, /Area riservata allo staff autorizzato · v0\.29\.1/);
+  assert.match(sw, /offertalogica-premium-v291/);
   assert.match(html, /<script src="\/premium-ai-validation\.js"><\/script>/);
 });
 

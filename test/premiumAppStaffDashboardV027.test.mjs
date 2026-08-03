@@ -12,13 +12,13 @@ const verify = await readFile(new URL('../supabase/premium-staff-v0.27-verify.sq
 test('Premium v0.27 aggiunge una dashboard staff separata e non pubblica', () => {
   assert.match(html, /Dashboard controlli Premium/);
   assert.match(html, /noindex,nofollow,noarchive/);
-  assert.match(html, /Area riservata allo staff autorizzato · v0\.29/);
+  assert.match(html, /Area riservata allo staff autorizzato · v0\.29\.1/);
   assert.match(html, /id="staffLoginForm"/);
   assert.match(html, /id="staffDashboard"/);
   assert.match(html, /<script src="\/staff-premium\.js"><\/script>/);
   assert.doesNotMatch(html, /Crea account/i);
-  assert.match(app, /APP Premium v0\.29/);
-  assert.match(sw, /offertalogica-premium-v29/);
+  assert.match(app, /APP Premium v0\.29\.1/);
+  assert.match(sw, /offertalogica-premium-v291/);
 });
 
 test('Il client staff verifica il ruolo e usa una sessione separata', () => {

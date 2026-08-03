@@ -10,7 +10,7 @@ const migration = await readFile(new URL('../supabase/premium-bills-v0.25.sql', 
 const verify = await readFile(new URL('../supabase/premium-bills-v0.25-verify.sql', import.meta.url), 'utf8');
 
 test('Premium v0.25 aggiunge archivio cloud senza rimuovere archivio locale', () => {
-  assert.match(html, /APP Premium v0\.29/);
+  assert.match(html, /APP Premium v0\.29\.1/);
   assert.match(html, /id="premiumCloudBillsCard"/);
   assert.match(html, /id="premiumCloudBillUtility"/);
   assert.match(html, /id="premiumCloudBillFile"/);
@@ -70,7 +70,7 @@ test('La migrazione applica quota rolling annuale e duplicati lato database', ()
 });
 
 test('La cache include il modulo cloud ed esclude chiavi segrete', () => {
-  assert.match(sw, /offertalogica-premium-v29/);
+  assert.match(sw, /offertalogica-premium-v291/);
   assert.match(sw, /"\/app-premium-bills\.js"/);
   assert.doesNotMatch(sw, /offertalogica-premium-v24/);
   assert.doesNotMatch(cloudBills, /service_role/i);
