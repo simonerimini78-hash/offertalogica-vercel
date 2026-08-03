@@ -26,6 +26,8 @@
     changePasswordForm: null,
     authSignedOut: null,
     authSignedIn: null,
+    authCard: null,
+    profileSummary: null,
     authMessage: null,
     resendWrap: null,
     accountEmail: null,
@@ -73,6 +75,11 @@
 
   function setText(element, value) {
     if (element) element.textContent = value == null ? "" : String(value);
+  }
+
+  function showAccountPanels({ signedIn = false } = {}) {
+    if (state.profileSummary) state.profileSummary.hidden = !signedIn;
+    if (state.authCard) state.authCard.hidden = signedIn;
   }
 
   function wait(milliseconds) {
@@ -155,6 +162,7 @@
 
   function showRecoveryMode() {
     recoveryMode = true;
+    showAccountPanels({ signedIn: false });
     if (state.authSignedOut) state.authSignedOut.hidden = false;
     if (state.authSignedIn) state.authSignedIn.hidden = true;
     document.querySelector(".auth-tabs")?.setAttribute("hidden", "");
@@ -174,6 +182,7 @@
 
   function renderSignedOut() {
     accountLoadSequence += 1;
+    showAccountPanels({ signedIn: false });
     currentSession = null;
     if (state.authSignedOut) state.authSignedOut.hidden = false;
     if (state.authSignedIn) state.authSignedIn.hidden = true;
@@ -198,6 +207,7 @@
 
   function renderLoading(session) {
     currentSession = session || null;
+    showAccountPanels({ signedIn: true });
     if (state.authSignedOut) state.authSignedOut.hidden = true;
     if (state.authSignedIn) state.authSignedIn.hidden = false;
     setText(state.accountEmail, session?.user?.email || "Account collegato");
@@ -274,6 +284,19 @@
     return { profileResult, subscriptionResult, consentsResult };
   }
 
+  async function activateBetaTrialIfEligible(profile, subscription, acceptanceStatus) {
+    if (!profile || profile.account_status !== "active" || subscription || !acceptancesComplete(acceptanceStatus)) return false;
+    const { error } = await client.rpc("premium_activate_beta_trial");
+    if (error) {
+      const message = String(error.message || error || "").toLowerCase();
+      if (!message.includes("premium_activate_beta_trial") && !message.includes("function") && !message.includes("schema cache")) {
+        setMessage("error", friendlyError(error));
+      }
+      return false;
+    }
+    return true;
+  }
+
   async function loadAccount(session, { retry = true } = {}) {
     const sequence = ++accountLoadSequence;
     if (!client || !session?.user) {
@@ -315,10 +338,25 @@
       return false;
     }
 
-    const { profileResult, subscriptionResult, consentsResult } = results;
-    const profile = profileResult.data;
-    const subscription = subscriptionResult.data;
-    const acceptanceStatus = acceptanceMap(consentsResult.data);
+    let { profileResult, subscriptionResult, consentsResult } = results;
+    let profile = profileResult.data;
+    let subscription = subscriptionResult.data;
+    let acceptanceStatus = acceptanceMap(consentsResult.data);
+
+    if (await activateBetaTrialIfEligible(profile, subscription, acceptanceStatus)) {
+      results = await fetchAccountData(userId);
+      if (sequence !== accountLoadSequence) return false;
+      if (results.profileResult.error || results.subscriptionResult.error || results.consentsResult.error) {
+        setMessage("error", "Accesso beta attivato, ma i dati dell’account non sono ancora disponibili. Ricarica la pagina.");
+        return false;
+      }
+      ({ profileResult, subscriptionResult, consentsResult } = results);
+      profile = profileResult.data;
+      subscription = subscriptionResult.data;
+      acceptanceStatus = acceptanceMap(consentsResult.data);
+      window.dispatchEvent(new CustomEvent("offertalogica:premium-access-changed"));
+    }
+
     const legalReady = acceptancesComplete(acceptanceStatus);
     const serviceActive = Boolean(
       profile?.account_status === "active" &&
@@ -686,6 +724,8 @@
     state.changePasswordForm = byId("premiumChangePasswordForm");
     state.authSignedOut = byId("premiumAuthSignedOut");
     state.authSignedIn = byId("premiumAuthSignedIn");
+    state.authCard = byId("premiumAuthCard");
+    state.profileSummary = byId("premiumProfileSummary");
     state.authMessage = byId("premiumAuthMessage");
     state.resendWrap = byId("premiumResendWrap");
     state.accountEmail = byId("premiumAccountEmail");

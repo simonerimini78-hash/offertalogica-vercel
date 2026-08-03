@@ -413,6 +413,21 @@
     renderEnabled();
   }
 
+  async function activateBetaTrialIfEligible(profile, subscription, legalReady) {
+    if (!profile || profile.account_status !== "active" || subscription || !legalReady) return subscription;
+    const { error } = await client.rpc("premium_activate_beta_trial");
+    if (error) return subscription;
+    const refreshed = await client
+      .from("premium_subscriptions")
+      .select("status, current_period_end, included_utilities, created_at")
+      .eq("user_id", currentUser.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (refreshed.error) return subscription;
+    return refreshed.data || subscription;
+  }
+
   async function syncSession(session) {
     const sequence = ++syncSequence;
     currentUser = session?.user || null;
@@ -462,13 +477,15 @@
     }
 
     const profile = profileResult.data;
-    const subscription = subscriptionResult.data;
+    let subscription = subscriptionResult.data;
     if (!profile) {
       renderLocked("Profilo Premium non abilitato", "L’account email è valido, ma non risulta associato al servizio Premium.", "DA VERIFICARE", "Non disponibile");
       return;
     }
-    const activeSubscription = subscriptionIsActive(profile, subscription) ? subscription : null;
     const legalReady = acceptanceResult.data === true;
+    subscription = await activateBetaTrialIfEligible(profile, subscription, legalReady);
+    if (sequence !== syncSequence) return;
+    const activeSubscription = subscriptionIsActive(profile, subscription) ? subscription : null;
     const operationalSubscription = activeSubscription && legalReady ? activeSubscription : null;
 
     try {
