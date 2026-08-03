@@ -59,6 +59,7 @@
     .review-grid { display:grid; grid-template-columns:220px 1fr; gap:10px; margin-top:14px; }
     .actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
     .status { margin-top:10px; color:var(--muted); font-size:13px; min-height:20px; }
+    .archive-status { margin:0 14px 12px; min-height:0; }
     pre { white-space:pre-wrap; word-break:break-word; background:#101828; color:#f9fafb; padding:12px; border-radius:9px; max-height:320px; overflow:auto; font-size:12px; }
     html.embedded header { display:none; }
     html.embedded .layout { max-width:none; padding:10px; }
@@ -80,6 +81,7 @@
       <select id="review-filter"><option value="">Tutte le revisioni</option><option value="pending">Da verificare</option><option value="reviewed">Verificata</option><option value="test_case">Caso di test</option><option value="discarded">Scartata</option></select>
       <div class="bulk-actions" id="pdfBulkActions" hidden><button class="btn danger" id="delete-visible-pdf" type="button">Elimina visibili</button><button class="btn danger" id="delete-all-pdf" type="button">Azzera archivio</button></div>
     </div>
+    <div id="archive-status" class="status archive-status" role="status" aria-live="polite"></div>
     <div class="list" id="analysis-list"><div class="empty">Caricamento archivio…</div></div>
   </section>
   <section class="panel detail" id="detail"><div class="empty">Seleziona un’analisi PDF.</div></section>
@@ -147,7 +149,10 @@ async function api(path, options={}) {
   if (!response.ok || !payload.ok) throw new Error(payload.error || "Errore API");
   return payload;
 }
-function showStatus(message, error=false) { const el=document.getElementById("detail-status"); if(el){el.textContent=message;el.style.color=error?"var(--danger)":"var(--muted)";} }
+function showStatus(message, error=false) {
+  [document.getElementById("archive-status"),document.getElementById("detail-status")].filter(Boolean).forEach(el=>{el.textContent=message||"";el.style.color=error?"var(--danger)":"var(--muted)";});
+}
+function confirmStaffAction(options={}) { const handler=window.top?.OffertaLogicaStaffConfirm; return typeof handler==="function"?handler(options):Promise.resolve(false); }
 function archiveUrl() {
   const params=new URLSearchParams({limit:"200"});
   const status=document.getElementById("status-filter").value; const provider=document.getElementById("provider-filter").value.trim(); const reviewStatus=document.getElementById("review-filter").value;
@@ -258,26 +263,24 @@ async function deletePdfRows(ids, confirmationHeader, successMessage) {
   await loadAnalyses();
 }
 async function deleteAnalysis(id) {
-  if(!confirm("Eliminare questa singola analisi? Il PDF originale viene rimosso se non è condiviso da altri test."))return;
+  if(!(await confirmStaffAction({title:"Elimina analisi",message:"Eliminare questa analisi? Il PDF viene rimosso se non è usato da altri test.",confirmLabel:"ELIMINA"})))return;
   try{await api("/api/staff-pdf-analyses",{method:"DELETE",headers:{"Content-Type":"application/json","X-Staff-Confirmation":"ELIMINA_PDF"},body:JSON.stringify({id})});selectedId="";document.getElementById("detail").innerHTML='<div class="empty">Analisi eliminata.</div>';await loadAnalyses();}catch(error){showStatus(error.message,true);}
 }
 async function deletePdfBlock(item) {
   const block=analyses.filter(row=>row.file_sha256&&row.file_sha256===item.file_sha256);
-  const confirmation=prompt(`Eliminare tutto il blocco PDF con ${block.length} analisi collegate? Scrivi ELIMINA per confermare.`);
-  if(confirmation!=="ELIMINA")return;
+  if(!(await confirmStaffAction({title:"Elimina blocco PDF",message:`Eliminare ${block.length} analisi collegate allo stesso PDF?`,keyword:"ELIMINA",confirmLabel:"ELIMINA"})))return;
   try{await deletePdfRows(block.map(row=>row.id),"ELIMINA_PDF_VISIBILI","Blocco PDF eliminato.");}catch(error){showStatus(error.message,true);}
 }
 async function deleteVisiblePdf() {
   if(currentStaff?.role!=="admin"||!analyses.length)return;
-  const confirmation=prompt(`Eliminare le ${analyses.length} analisi attualmente visibili? Scrivi ELIMINA per confermare.`);
-  if(confirmation!=="ELIMINA")return;
+  if(!(await confirmStaffAction({title:"Elimina analisi visibili",message:`Eliminare ${analyses.length} analisi visibili?`,keyword:"ELIMINA",confirmLabel:"ELIMINA"})))return;
   try{await deletePdfRows(analyses.map(row=>row.id),"ELIMINA_PDF_VISIBILI","Analisi visibili eliminate.");}catch(error){showStatus(error.message,true);}
 }
 async function deleteAllPdf() {
   if(currentStaff?.role!=="admin")return;
-  const confirmation=prompt("Eliminare tutto l’archivio diagnostico PDF? Scrivi AZZERA per confermare.");
-  if(confirmation!=="AZZERA")return;
-  try{await api("/api/staff-pdf-analyses?scope=all",{method:"DELETE",headers:{"Content-Type":"application/json","X-Staff-Confirmation":"AZZERA_ARCHIVIO_PDF"},body:JSON.stringify({scope:"all"})});selectedId="";document.getElementById("detail").innerHTML='<div class="empty">Archivio PDF azzerato.</div>';await loadAnalyses();}catch(error){showStatus(error.message,true);}
+  if(!(await confirmStaffAction({title:"Azzera archivio PDF",message:"Eliminare definitivamente tutto l’archivio diagnostico PDF?",keyword:"AZZERA",confirmLabel:"AZZERA"})))return;
+  showStatus("Eliminazione archivio in corso…");
+  try{const result=await api("/api/staff-pdf-analyses?scope=all",{method:"DELETE",headers:{"Content-Type":"application/json","X-Staff-Confirmation":"AZZERA_ARCHIVIO_PDF"},body:JSON.stringify({scope:"all"})});selectedId="";document.getElementById("detail").innerHTML='<div class="empty">Archivio PDF azzerato.</div>';await loadAnalyses();showStatus(`${Number(result.deleted||0)} analisi eliminate.`);}catch(error){showStatus(error.message,true);}
 }
 document.getElementById("refresh").addEventListener("click",loadAnalyses);
 document.getElementById("status-filter").addEventListener("change",loadAnalyses);

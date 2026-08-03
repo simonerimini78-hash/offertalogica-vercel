@@ -184,7 +184,7 @@
     setText(state.profileKicker, "Area Premium");
     setText(state.profileTitle, "Account non collegato");
     setText(state.profileBadge, "ACCESSO");
-    setText(state.profileDescription, "Accedi o crea un account per collegare il profilo Premium. Le funzioni cloud restano bloccate finché non esiste un abbonamento attivo.");
+    setText(state.profileDescription, "Accedi o crea un account.");
     setText(state.profileEmail, "Non collegato");
     setText(state.profileArchive, "Cloud non disponibile");
     setText(state.profileControls, "Non attivi");
@@ -193,7 +193,7 @@
     setText(state.homePlanStatus, "Account da collegare");
     setText(state.homePremiumBadge, "ACCESSO RICHIESTO");
     setText(state.homePremiumTitle, "Collega il tuo account");
-    setText(state.homePremiumCopy, "Accedi dalla sezione Profilo. Archivio cloud e controlli professionali saranno disponibili soltanto con un abbonamento attivo.");
+    setText(state.homePremiumCopy, "Accedi dal Profilo per usare il servizio Premium.");
   }
 
   function renderLoading(session) {
@@ -229,8 +229,8 @@
     const complete = acceptancesComplete(acceptanceStatus);
     state.legalPanel.hidden = !profile;
     setText(state.legalStatus, complete
-      ? "Termini, informativa e trattamento cloud/IA risultano accettati nella versione corrente."
-      : "Per usare le funzioni operative Premium devi accettare le condizioni correnti. I dati già presenti restano consultabili e cancellabili.");
+      ? "Condizioni e informativa accettate."
+      : "Accetta le condizioni correnti per continuare. I dati già salvati restano disponibili.");
     if (state.legalAcceptButton) {
       state.legalAcceptButton.hidden = complete || profile?.account_status !== "active";
       state.legalAcceptButton.disabled = profile?.account_status !== "active";
@@ -244,7 +244,7 @@
     const requested = profile?.account_status === "deletion_requested";
     setText(state.deletionStatus, requested
       ? `Richiesta registrata${profile.deletion_requested_at ? ` il ${formatDate(profile.deletion_requested_at)}` : ""}. Un amministratore dovrà completare la cancellazione dell’account e dei dati.`
-      : "Puoi richiedere la cancellazione completa dell’account. La richiesta non elimina immediatamente i dati e può essere annullata finché non viene completata dallo staff.");
+      : "Puoi richiedere la cancellazione dell’account e annullarla finché non viene completata.");
     if (state.deletionRequestButton) state.deletionRequestButton.hidden = requested;
     if (state.deletionCancelButton) state.deletionCancelButton.hidden = !requested;
   }
@@ -309,7 +309,7 @@
       setText(state.profileKicker, "Profilo Premium");
       setText(state.profileTitle, "Dati temporaneamente non disponibili");
       setText(state.profileBadge, "RIPROVA");
-      setText(state.profileDescription, "Non è stato possibile aggiornare i dati dell’account. Ricarica la pagina o riprova tra poco.");
+      setText(state.profileDescription, "Impossibile aggiornare l’account. Ricarica la pagina.");
       setText(state.profileControls, "In attesa di aggiornamento");
       setMessage("error", "Non è stato possibile aggiornare i dati dell’account. Riprova.");
       return false;
@@ -346,7 +346,7 @@
       setText(state.profileKicker, "Account collegato");
       setText(state.profileTitle, "Profilo Premium non abilitato");
       setText(state.profileBadge, "DA VERIFICARE");
-      setText(state.profileDescription, "L’accesso email è valido, ma questo account non risulta registrato come profilo Premium.");
+      setText(state.profileDescription, "Questo account non è abilitato al servizio Premium.");
       setText(state.profileControls, "Non disponibili");
       setText(state.homePlanName, "Premium");
       setText(state.homePlanStatus, "Profilo da abilitare");
@@ -357,46 +357,46 @@
       setText(state.profileKicker, "Profilo Premium");
       setText(state.profileTitle, displayName || "Account Premium");
       setText(state.profileBadge, "CANCELLAZIONE");
-      setText(state.profileDescription, "La cancellazione completa dell’account è stata richiesta. Puoi ancora consultare o rimuovere i dati archiviati finché lo staff non completa l’operazione.");
+      setText(state.profileDescription, "Cancellazione richiesta. Puoi ancora consultare o eliminare i dati salvati.");
       setText(state.profileControls, "Nuove operazioni bloccate");
       setText(state.homePlanName, "Premium");
       setText(state.homePlanStatus, "Cancellazione richiesta");
       setText(state.homePremiumBadge, "IN ATTESA");
       setText(state.homePremiumTitle, "Richiesta di cancellazione registrata");
-      setText(state.homePremiumCopy, "Le nuove operazioni sono bloccate. I dati già archiviati restano consultabili e cancellabili fino al completamento della richiesta.");
+      setText(state.homePremiumCopy, "Nuove operazioni bloccate. I dati salvati restano disponibili.");
     } else if (!legalReady) {
       setText(state.profileKicker, "Profilo Premium");
       setText(state.profileTitle, displayName || "Account Premium");
       setText(state.profileBadge, "ACCETTAZIONE");
-      setText(state.profileDescription, "L’account è collegato. Completa l’accettazione delle condizioni Premium correnti per attivare le funzioni operative.");
+      setText(state.profileDescription, "Accetta le condizioni correnti per continuare.");
       setText(state.profileControls, "Accettazione richiesta");
       setText(state.homePlanName, "Premium");
       setText(state.homePlanStatus, "Condizioni da accettare");
       setText(state.homePremiumBadge, "AZIONE RICHIESTA");
       setText(state.homePremiumTitle, "Completa le condizioni Premium");
-      setText(state.homePremiumCopy, "Apri il profilo e registra l’accettazione delle condizioni correnti prima di caricare nuove bollette.");
+      setText(state.homePremiumCopy, "Accetta le condizioni dal Profilo prima di caricare nuove bollette.");
     } else if (serviceActive) {
       setText(state.profileKicker, "Profilo Premium");
       setText(state.profileTitle, displayName || "Account Premium");
       setText(state.profileBadge, subscription.status === "trialing" ? "PROVA" : "ATTIVO");
-      setText(state.profileDescription, "Account collegato, condizioni correnti accettate e abbonamento valido. Archivio cloud, analisi automatica e controlli professionali sono attivi.");
+      setText(state.profileDescription, "Servizio Premium attivo.");
       setText(state.profileControls, "Abbonamento attivo");
       setText(state.homePlanName, subscription.status === "trialing" ? "Prova Premium" : "Premium");
       setText(state.homePlanStatus, "Abbonamento attivo");
       setText(state.homePremiumBadge, subscription.status === "trialing" ? "PROVA ATTIVA" : "ATTIVO");
       setText(state.homePremiumTitle, "Account Premium collegato");
-      setText(state.homePremiumCopy, "Archivio cloud e analisi automatica sono attivi. Il controllo umano viene proposto soltanto per anomalie o casi non conclusivi.");
+      setText(state.homePremiumCopy, "Servizio attivo. La verifica dello staff è disponibile solo per anomalie o dati incerti.");
     } else {
       setText(state.profileKicker, "Profilo Premium");
       setText(state.profileTitle, displayName || "Account Premium");
       setText(state.profileBadge, "NON ATTIVO");
-      setText(state.profileDescription, "L’account è collegato. Le funzioni operative richiedono un abbonamento attivo; i dati già archiviati restano consultabili e cancellabili.");
+      setText(state.profileDescription, "Abbonamento non attivo. I dati salvati restano disponibili.");
       setText(state.profileControls, "Sola gestione dati");
       setText(state.homePlanName, "Premium");
       setText(state.homePlanStatus, "Abbonamento non attivo");
       setText(state.homePremiumBadge, "NON ATTIVO");
       setText(state.homePremiumTitle, "Account creato");
-      setText(state.homePremiumCopy, "Il profilo è collegato. Senza abbonamento puoi gestire o eliminare i dati già archiviati, ma non caricare nuove bollette o richiedere controlli.");
+      setText(state.homePremiumCopy, "Abbonamento non attivo. Puoi gestire i dati già salvati.");
     }
 
     setText(state.profileEmail, session.user.email || "—");

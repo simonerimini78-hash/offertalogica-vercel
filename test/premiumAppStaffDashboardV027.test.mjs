@@ -58,7 +58,8 @@ test('La lavorazione staff usa RPC atomiche per presa in carico, stato, note, an
   assert.match(staff, /COMPLETA CONTROLLO/);
   assert.match(staff, /Messaggio conclusivo al cliente/);
   assert.match(staff, /Minuti di revisione/);
-  assert.match(staff, /window\.confirm/);
+  assert.match(staff, /confirmStaffAction/);
+  assert.doesNotMatch(staff, /window\.(?:confirm|prompt)/);
 });
 
 test('Il PDF privato è leggibile soltanto da reviewer e admin autorizzati', () => {

@@ -23,7 +23,7 @@ test("La dashboard mantiene la riesecuzione IA manuale dello staff con JWT perso
   assert.match(staff, /\/api\/premium-ai-analysis/);
   assert.match(staff, /Authorization: `Bearer \$\{accessToken\}`/);
   assert.match(staff, /client\.auth\.getSession\(\)/);
-  assert.match(staff, /window\.confirm\(prompt\)/);
+  assert.match(staff, /confirmStaffAction\(\{ title: "Avvia analisi"/);
   assert.doesNotMatch(staff, /OPENAI_API_KEY|SUPABASE_SERVICE_ROLE_KEY|sb_secret_/);
 });
 

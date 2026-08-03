@@ -25,6 +25,11 @@
   let loadSequence = 0;
 
   const byId = id => document.getElementById(id);
+
+  function confirmStaffAction(options = {}) {
+    const handler = window.top?.OffertaLogicaStaffConfirm;
+    return typeof handler === "function" ? handler(options) : Promise.resolve(false);
+  }
   const state = {};
 
   function setText(element, value) {
@@ -153,10 +158,10 @@
 
   function automaticScreeningLabel(value) {
     return {
-      clear: "Nessuna anomalia automatica",
-      review_recommended: "Possibile anomalia",
-      inconclusive: "Analisi non conclusiva",
-      failed: "Analisi non completata",
+      clear: "Verde · Regolare",
+      review_recommended: "Rosso · Anomalia importante",
+      inconclusive: "Giallo · Avviso",
+      failed: "Giallo · Documento da ricaricare",
       running: "Analisi in corso",
       pending: "Analisi in attesa",
       not_run: "Analisi non eseguita"
@@ -170,7 +175,7 @@
     section.append(node("div", { className: "section-head" }, [
       node("div", {}, [
         node("h3", { text: "Screening automatico cliente" }),
-        node("p", { text: "Motivi che hanno reso disponibile la richiesta di controllo umano." })
+        node("p", { text: status === "review_recommended" ? "Anomalia rossa inviata dal cliente allo staff." : "Avviso automatico senza intervento dello staff." })
       ]),
       makeBadge(status === "clear" ? "completed" : "pending", automaticScreeningLabel(status))
     ]));
@@ -1095,7 +1100,7 @@
   async function handleAdminDeleteCheck() {
     const row = selectedRow();
     if (!row?.check || !isAdmin() || busy) return;
-    if (!window.confirm(`Eliminare soltanto il controllo “${row.check.id}”? La bolletta e l’analisi IA restano archiviate.`)) return;
+    if (!(await confirmStaffAction({ title: "Elimina controllo", message: `Eliminare il controllo “${row.check.id}”? La bolletta resta archiviata.`, confirmLabel: "ELIMINA" }))) return;
 
     await runAction(async () => {
       await deletePremiumRecords("checks", [row.check.id]);
@@ -1114,8 +1119,7 @@
       setPageMessage("error", "Nessun controllo visibile da eliminare.");
       return;
     }
-    const confirmation = window.prompt(`Eliminare ${visible.length} controlli visibili? Le bollette restano archiviate. Scrivi ELIMINA per confermare.`);
-    if (confirmation !== "ELIMINA") return;
+    if (!(await confirmStaffAction({ title: "Elimina controlli", message: `Eliminare ${visible.length} controlli visibili? Le bollette resteranno archiviate.`, keyword: "ELIMINA", confirmLabel: "ELIMINA" }))) return;
     await runAction(async () => {
       await deletePremiumRecords("checks", visible.map(row => row.check.id));
       selectedId = null;
@@ -1135,10 +1139,12 @@
     }
 
     const customer = row.profile?.full_name || row.profile?.email || "cliente";
-    const confirmed = window.confirm(
-      `Eliminare definitivamente “${row.bill.original_file_name}” di ${customer}? Verranno rimossi PDF, analisi, controllo, note e anomalie collegate.`
-    );
-    if (!confirmed) return;
+    if (!(await confirmStaffAction({
+      title: "Elimina bolletta",
+      message: `Eliminare definitivamente “${row.bill.original_file_name}” di ${customer} e tutti i dati collegati?`,
+      keyword: "ELIMINA",
+      confirmLabel: "ELIMINA"
+    }))) return;
 
     await runAction(async () => {
       const storageResult = await client.storage.from(BUCKET).remove([row.bill.storage_path]);
@@ -1161,7 +1167,7 @@
     const prompt = latest
       ? "Ripetere la pre-analisi IA? Verrà conservato lo storico delle esecuzioni e la nuova bozza dovrà essere verificata."
       : "Avviare la pre-analisi IA della bolletta? La bozza resterà riservata allo staff e non produrrà automaticamente alcun esito per il cliente.";
-    if (!window.confirm(prompt)) return;
+    if (!(await confirmStaffAction({ title: "Avvia analisi", message: prompt, confirmLabel: "CONTINUA" }))) return;
 
     await runAction(async () => {
       const { data: sessionData, error: sessionError } = await client.auth.getSession();
@@ -1209,7 +1215,7 @@
 
     const preview = AI_VALIDATION.calculateMetrics(fields);
     const confirmation = `Salvare la validazione? Campi confermati: ${preview.approved_fields}; corretti: ${preview.corrected_fields}; mancanti: ${preview.missing_fields}.`;
-    if (!window.confirm(confirmation)) return;
+    if (!(await confirmStaffAction({ title: "Salva validazione", message: confirmation, confirmLabel: "SALVA" }))) return;
     const startedAt = validationStartedAtByRun.get(latest.id) || Date.now();
     const reviewSeconds = Math.max(1, Math.min(86400, Math.round((Date.now() - startedAt) / 1000)));
 
@@ -1295,7 +1301,7 @@
   }
 
   async function handleDeleteAnomaly(anomalyId) {
-    if (!window.confirm("Rimuovere questa anomalia dal controllo?")) return;
+    if (!(await confirmStaffAction({ title: "Rimuovi anomalia", message: "Rimuovere questa anomalia dal controllo?", confirmLabel: "RIMUOVI" }))) return;
     await runAction(async () => {
       const { error } = await client.rpc("premium_staff_delete_anomaly", { p_anomaly_id: anomalyId });
       if (error) throw error;
@@ -1313,7 +1319,7 @@
       setPageMessage("error", "Inserisci la sintesi tecnica e il messaggio conclusivo per il cliente.");
       return;
     }
-    if (!window.confirm("Confermi la chiusura del controllo? L’esito sarà visibile al cliente.")) return;
+    if (!(await confirmStaffAction({ title: "Chiudi controllo", message: "L’esito sarà visibile al cliente.", confirmLabel: "CHIUDI" }))) return;
     await runAction(async () => {
       const { error } = await client.rpc("premium_staff_complete_check", {
         p_check_id: row.check.id,

@@ -7,8 +7,7 @@ const auth = await readFile(new URL("../public/app-auth.js", import.meta.url), "
 const sw = await readFile(new URL("../public/sw.js", import.meta.url), "utf8");
 
 test("v0.35.1 usa una descrizione chiara nella sezione cambio password", () => {
-  assert.match(app, /Scegli una nuova password per proteggere il tuo account/);
-  assert.match(app, /potrai reimpostarla dalla schermata di accesso/);
+  assert.match(app, /Aggiorna la password del tuo account/);
   assert.doesNotMatch(app, /Aggiorna la password dell.account autenticato/);
 });
 

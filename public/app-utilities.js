@@ -193,7 +193,6 @@
       if (address) details.append(buildDetail("Indirizzo", address));
       if (utility.pod) details.append(buildDetail("POD", utility.pod));
       if (utility.pdr) details.append(buildDetail("PDR", utility.pdr));
-      details.append(buildDetail("Bollettazione prevista", `${utility.expected_bills_per_year || 12} bollette/anno`));
 
       const actions = document.createElement("div");
       actions.className = "utility-item-actions";

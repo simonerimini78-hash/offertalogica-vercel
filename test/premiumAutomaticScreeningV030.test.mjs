@@ -32,10 +32,11 @@ test("v0.30 classifica come regolare una bolletta completa senza segnali", () =>
   assert.equal(result.status, "clear");
   assert.equal(result.customerStatus, "correct");
   assert.deepEqual(result.reasons, []);
-  assert.match(result.summary, /non sono emerse anomalie/i);
+  assert.equal(result.trafficLight, "green");
+  assert.match(result.summary, /nessuna anomalia/i);
 });
 
-test("v0.30 invia alle eccezioni un alert esplicito del documento", () => {
+test("v0.36.3 lascia giallo un conguaglio non classificato come importante", () => {
   const result = classifyPremiumAutomaticAnalysis(completeLight({
     document_alerts: [{
       code: "conguaglio",
@@ -44,8 +45,9 @@ test("v0.30 invia alle eccezioni un alert esplicito del documento", () => {
       severity: "medium",
     }],
   }));
-  assert.equal(result.status, "review_recommended");
-  assert.equal(result.customerStatus, "anomaly_found");
+  assert.equal(result.status, "inconclusive");
+  assert.equal(result.trafficLight, "yellow");
+  assert.equal(result.staffReviewAllowed, false);
   assert.ok(result.reasons.some(item => item.code === "documento_conguaglio"));
 });
 
@@ -83,9 +85,10 @@ test("v0.30 aggiorna archivio e mantiene i dati grezzi fuori dalla risposta clie
   assert.equal(values.processing_status, "completed");
   assert.equal(values.automatic_screening_status, "clear");
   const sanitized = sanitizePremiumAnalysisData(normalized, { totalTokens: 100 }, screening);
-  assert.equal(sanitized._premium_analysis.review_policy, "exceptions_only");
+  assert.equal(sanitized._premium_analysis.review_policy, "red_only_customer_requested");
   assert.equal(sanitized._premium_analysis.customer_visible, false);
   assert.equal(sanitized._premium_analysis.staff_review_required, false);
+  assert.equal(sanitized._premium_analysis.automatic_screening.traffic_light, "green");
 });
 
 import { Readable } from "node:stream";
@@ -144,6 +147,12 @@ test("v0.30 completa l’analisi cliente, aggiorna la bolletta e non crea contro
       await transport({ request: { model: "model-test" }, apiKey: "openai-test", attempt: 1, profile: "automatic" });
       return completeLight({ parser_version: "reader-v030", ai: { model: "model-test" }, warnings: [] });
     },
+    matchOffer: async () => ({
+      status: "existing_verified",
+      verified: true,
+      contract: null,
+      publicSummary: { status: "existing_verified", verified: true },
+    }),
   });
   const req = Readable.from([Buffer.from(JSON.stringify({ billId: "bill-1" }))]);
   req.method = "POST";

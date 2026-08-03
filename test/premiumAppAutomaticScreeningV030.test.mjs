@@ -10,6 +10,7 @@ const backend = await readFile(new URL("../lib/premiumAiBackend.js", import.meta
 const reader = await readFile(new URL("../lib/pdfPureAiReader.js", import.meta.url), "utf8");
 const migration = await readFile(new URL("../supabase/premium-auto-screening-v0.30.sql", import.meta.url), "utf8");
 const verify = await readFile(new URL("../supabase/premium-auto-screening-v0.30-verify.sql", import.meta.url), "utf8");
+const trafficLightMigration = await readFile(new URL("../supabase/premium-traffic-light-v0.36.3.sql", import.meta.url), "utf8");
 const apiFiles = (await readdir(new URL("../api/", import.meta.url))).filter(name => name.endsWith(".js"));
 
 test("l’upload cliente avvia automaticamente l’endpoint esistente con billId", () => {
@@ -21,12 +22,16 @@ test("l’upload cliente avvia automaticamente l’endpoint esistente con billId
   assert.match(api, /loadPremiumCustomerBill/);
 });
 
-test("il pulsante di controllo umano compare soltanto per eccezioni", () => {
+test("il pulsante di controllo umano compare soltanto per il rosso confermato", () => {
   assert.match(bills, /function canRequestCheck\(bill, check\)/);
-  assert.match(bills, /\["review_recommended", "inconclusive", "failed"\]\.includes\(bill\.automatic_screening_status\)/);
+  assert.match(bills, /bill\.automatic_screening_status === "review_recommended"/);
+  assert.match(bills, /bill\.customer_status === "anomaly_found"/);
+  assert.match(bills, /bill\.processing_status === "completed"/);
   assert.match(bills, /if \(canRequestCheck\(bill, check\)\)/);
-  assert.match(migration, /v_screening_status not in \('review_recommended', 'inconclusive', 'failed'\)/);
-  assert.match(migration, /premium_bill_not_requestable/);
+  assert.match(trafficLightMigration, /v_screening_status <> 'review_recommended'/);
+  assert.match(trafficLightMigration, /v_processing_status <> 'completed'/);
+  assert.match(trafficLightMigration, /v_customer_status <> 'anomaly_found'/);
+  assert.match(trafficLightMigration, /premium_bill_not_requestable/);
 });
 
 test("l’archivio mostra importo, periodo e totale annuale aggiornati dall’IA", () => {

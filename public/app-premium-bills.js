@@ -126,31 +126,45 @@
     }[value] || "Utenza";
   }
 
+  function trafficLight(bill, check) {
+    if (check?.status && !["completed", "canceled"].includes(check.status)) return "red";
+    if (check?.status === "completed") {
+      if (check.outcome === "anomaly") return "red";
+      if (["possible_saving", "inconclusive"].includes(check.outcome)) return "yellow";
+      if (check.outcome === "correct") return "green";
+    }
+    if (bill.automatic_screening_status === "review_recommended") return "red";
+    if (["inconclusive", "failed"].includes(bill.automatic_screening_status)) return "yellow";
+    if (bill.automatic_screening_status === "clear") return "green";
+    return "neutral";
+  }
+
   function statusLabel(bill, check) {
-    if (check?.status === "pending") return "Da verificare";
-    if (["assigned", "in_review"].includes(check?.status)) return "In controllo";
+    if (check?.status === "pending") return "Verifica richiesta";
+    if (["assigned", "in_review"].includes(check?.status)) return "Verifica in corso";
     if (check?.status === "more_info_required") return "Integrazione";
     if (check?.status === "completed") {
       return {
-        correct: "Corretta",
-        anomaly: "Anomalia",
-        possible_saving: "Risparmio",
-        inconclusive: "Esito incerto"
+        correct: "Verde · Regolare",
+        anomaly: "Rosso · Anomalia",
+        possible_saving: "Giallo · Avviso",
+        inconclusive: "Giallo · Avviso"
       }[check.outcome] || "Completato";
     }
     if (check?.status === "canceled") return "Annullato";
-    if (["pending", "running"].includes(bill.automatic_screening_status) || ["queued", "analyzing"].includes(bill.processing_status)) return "Analisi IA";
-    if (bill.automatic_screening_status === "clear") return "Controllata";
-    if (bill.automatic_screening_status === "review_recommended") return "Possibile anomalia";
-    if (["inconclusive", "failed"].includes(bill.automatic_screening_status)) return "Da approfondire";
-    if (bill.processing_status === "failed") return "Analisi non riuscita";
+    if (["pending", "running"].includes(bill.automatic_screening_status) || ["queued", "analyzing"].includes(bill.processing_status)) return "Analisi in corso";
+    if (bill.automatic_screening_status === "clear") return "Verde · Regolare";
+    if (bill.automatic_screening_status === "review_recommended") return "Rosso · Anomalia";
+    if (["inconclusive", "failed"].includes(bill.automatic_screening_status)) return "Giallo · Avviso";
+    if (bill.processing_status === "failed") return "Giallo · Avviso";
     return "Archiviata";
   }
 
   function canRequestCheck(bill, check) {
     if (maintenanceMode || check) return false;
-    return ["review_recommended", "inconclusive", "failed"].includes(bill.automatic_screening_status)
-      && ["completed", "failed"].includes(bill.processing_status);
+    return bill.automatic_screening_status === "review_recommended"
+      && bill.customer_status === "anomaly_found"
+      && bill.processing_status === "completed";
   }
 
   function hasActiveHumanCheck(check) {
@@ -194,7 +208,7 @@
       return "Il controllo è terminato. L’esito è indicato sopra.";
     }
     if (check?.status === "canceled") return "La richiesta non è più attiva.";
-    return "Il controllo umano è disponibile soltanto quando l’analisi automatica rileva un elemento da approfondire.";
+    return "La verifica dello staff è disponibile soltanto per le anomalie rosse e dopo la tua richiesta.";
   }
 
   function friendlyError(error) {
@@ -205,7 +219,7 @@
       return "Il caricamento non è autorizzato oppure hai raggiunto il limite annuale del piano.";
     }
     if (message.includes("premium_bill_not_requestable")) {
-      return "Questa bolletta non può essere inviata al controllo nello stato attuale.";
+      return "La verifica dello staff è disponibile soltanto per le anomalie rosse.";
     }
     if (message.includes("premium_bill_not_auto_analyzable")) {
       return "La bolletta non è nello stato corretto per l’analisi automatica.";
@@ -535,26 +549,18 @@
       card.append(actions);
     }
 
-    if (contract.automatic_match_catalog_version) {
-      const meta = document.createElement("small");
-      meta.className = "cloud-offer-meta";
-      const confidence = Number(contract.automatic_match_confidence);
-      const confidenceText = Number.isFinite(confidence) && confidence > 0 ? ` · affidabilità ${Math.round(confidence)}%` : "";
-      meta.textContent = `Storico ARERA ${contract.automatic_match_catalog_version}${confidenceText}`;
-      card.append(meta);
-    }
     return card;
   }
 
   function automaticTitle(bill) {
     return ({
-      clear: "Nessuna anomalia rilevata",
-      review_recommended: "Possibile anomalia rilevata",
-      inconclusive: "Analisi non conclusiva",
-      failed: "Analisi automatica non completata",
-      running: "Analisi automatica in corso",
-      pending: "Analisi automatica in attesa"
-    })[bill.automatic_screening_status] || "Analisi automatica";
+      clear: "Tutto regolare",
+      review_recommended: "Anomalia importante",
+      inconclusive: "Avviso",
+      failed: "Documento da ricaricare",
+      running: "Analisi in corso",
+      pending: "Analisi in attesa"
+    })[bill.automatic_screening_status] || "Analisi";
   }
 
   function renderAutomaticDetail(bill) {
@@ -567,12 +573,12 @@
     const title = document.createElement("strong");
     title.textContent = automaticTitle(bill);
     const badge = document.createElement("span");
-    badge.className = "cloud-check-detail-badge";
+    badge.className = `cloud-check-detail-badge ${trafficLight(bill, null)}`;
     badge.textContent = statusLabel(bill, null);
     head.append(title, badge);
     const copy = document.createElement("p");
     copy.textContent = bill.automatic_screening_summary || (bill.automatic_screening_status === "running"
-      ? "L’IA sta leggendo importo, periodo e dati economici della bolletta."
+      ? "Analisi della bolletta in corso."
       : "Il risultato automatico sarà disponibile al termine dell’analisi.");
     detail.append(head, copy);
     const contract = contractForBill(bill);
@@ -587,7 +593,8 @@
         const reasonTitle = document.createElement("strong");
         reasonTitle.textContent = reason.title || "Elemento da approfondire";
         const description = document.createElement("p");
-        description.textContent = reason.description || "È consigliato un controllo umano.";
+        description.textContent = reason.description || "Consulta il dettaglio dell’avviso.";
+        item.classList.add(reason.trafficLight === "red" ? "red" : "yellow");
         item.append(reasonTitle, description);
         list.append(item);
       });
@@ -612,7 +619,7 @@
     const title = document.createElement("strong");
     title.textContent = checkTitle(check);
     const stateBadge = document.createElement("span");
-    stateBadge.className = "cloud-check-detail-badge";
+    stateBadge.className = `cloud-check-detail-badge ${trafficLight(bill, check)}`;
     stateBadge.textContent = statusLabel(bill, check);
     head.append(title, stateBadge);
 
@@ -712,7 +719,7 @@
       }
 
       const badge = document.createElement("span");
-      badge.className = "cloud-bill-status";
+      badge.className = `cloud-bill-status ${trafficLight(bill, check)}`;
       badge.textContent = statusLabel(bill, check);
 
       const actions = document.createElement("div");
@@ -858,7 +865,7 @@
           customer_status: "awaiting_review",
           metadata: {
             source: "premium_app",
-            app_version: "0.36",
+            app_version: "0.36.3",
             automatic_analysis: true
           }
         })
@@ -887,7 +894,7 @@
       bills = [insertResult.data, ...bills];
       yearlyBillCount += 1;
       renderEnabled();
-      setMessage("info", "Bolletta salvata. Analisi IA automatica in corso: importo, periodo e dati economici saranno aggiornati nell’archivio.");
+      setMessage("info", "Bolletta salvata. Analisi in corso.");
       window.dispatchEvent(new CustomEvent("offertalogica:cloud-bills-changed"));
       await runAutomaticAnalysis(billId, { announce: true });
     } catch (error) {
@@ -986,7 +993,7 @@
       return;
     }
     if (!canRequestCheck(bill, null)) {
-      setMessage("error", "Il controllo umano è disponibile soltanto per anomalie possibili o analisi non conclusive.");
+      setMessage("error", "La verifica dello staff è disponibile soltanto per le anomalie rosse.");
       return;
     }
 
@@ -1023,7 +1030,7 @@
     bill.automatic_screening_status = "running";
     bill.processing_status = "analyzing";
     renderEnabled();
-    if (announce) setMessage("info", "Analisi IA automatica in corso. Puoi continuare a usare l’app; il risultato verrà aggiornato nell’archivio.");
+    if (announce) setMessage("info", "Analisi in corso. Puoi continuare a usare l’app.");
     try {
       const { data: sessionData, error: sessionError } = await client.auth.getSession();
       if (sessionError) throw sessionError;
@@ -1048,7 +1055,7 @@
       window.dispatchEvent(new CustomEvent("offertalogica:automatic-analysis-completed", { detail: { billId: id, screening: body.screening } }));
     } catch (error) {
       await loadData(currentUser, currentSubscription).catch(() => {});
-      setMessage("error", `${friendlyError(error)} Puoi richiedere il controllo umano dalla bolletta.`);
+      setMessage("error", `${friendlyError(error)} Riprova oppure carica un PDF più leggibile.`);
     } finally {
       analysisInFlightIds.delete(id);
       renderEnabled();

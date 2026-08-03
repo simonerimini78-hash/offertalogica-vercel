@@ -65,7 +65,7 @@ test("Il trasporto OpenAI misura tutte le chiamate Responses senza esporre chiav
   assert.equal(meter.totals.responseIds[0], "resp_test");
 });
 
-test("La bozza IA elimina il contenuto grezzo e resta esplicitamente soggetta a revisione", () => {
+test("La bozza IA elimina il contenuto grezzo e non richiede staff senza un rosso", () => {
   const sanitized = sanitizePremiumAnalysisData({
     recognized: true,
     commodity: "luce",
@@ -80,7 +80,7 @@ test("La bozza IA elimina il contenuto grezzo e resta esplicitamente soggetta a 
   }, { inputTokens: 10, outputTokens: 5, totalTokens: 15, calls: [] });
   assert.equal(sanitized._reader_trace.raw_ai, undefined);
   assert.equal(sanitized._reader_trace.primary_raw_ai, undefined);
-  assert.equal(sanitized._premium_analysis.staff_review_required, true);
+  assert.equal(sanitized._premium_analysis.staff_review_required, false);
   assert.equal(sanitized._premium_analysis.customer_visible, false);
 });
 

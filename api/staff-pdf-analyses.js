@@ -133,7 +133,11 @@ export default async function handler(req, res) {
       staffNotes: body.staffNotes,
     });
     return json(res, 200, { ok: true, analysis: updated });
-  } catch {
-    return json(res, 500, { ok: false, error: "Archivio PDF non disponibile" });
+  } catch (error) {
+    console.error("[staff-pdf-archive-error]", String(error?.message || error || "unknown_error"));
+    return json(res, 500, {
+      ok: false,
+      error: req.method === "DELETE" ? "Eliminazione archivio PDF non riuscita" : "Archivio PDF non disponibile",
+    });
   }
 }

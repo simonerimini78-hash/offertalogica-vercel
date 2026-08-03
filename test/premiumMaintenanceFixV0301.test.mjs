@@ -33,7 +33,7 @@ function completeLight(overrides = {}) {
   };
 }
 
-test("v0.30.1 non trasforma in anomalia una scadenza oltre 30 giorni", () => {
+test("v0.36.3 ignora una scadenza oltre 90 giorni", () => {
   const result = classifyPremiumAutomaticAnalysis(completeLight({
     scadenza_condizioni_economiche_luce: "2027-01-31",
     document_alerts: [{
@@ -47,7 +47,7 @@ test("v0.30.1 non trasforma in anomalia una scadenza oltre 30 giorni", () => {
   assert.deepEqual(result.reasons, []);
 });
 
-test("v0.30.1 mantiene la richiesta di verifica quando la scadenza è entro 30 giorni", () => {
+test("v0.36.3 mostra un avviso giallo quando la scadenza è entro 90 giorni", () => {
   const result = classifyPremiumAutomaticAnalysis(completeLight({
     scadenza_condizioni_economiche_luce: "2026-08-25",
     document_alerts: [{
@@ -57,7 +57,9 @@ test("v0.30.1 mantiene la richiesta di verifica quando la scadenza è entro 30 g
       severity: "medium",
     }],
   }), { now: new Date("2026-08-03T08:00:00Z") });
-  assert.equal(result.status, "review_recommended");
+  assert.equal(result.status, "inconclusive");
+  assert.equal(result.trafficLight, "yellow");
+  assert.equal(result.staffReviewAllowed, false);
   assert.ok(result.reasons.some(item => item.code === "documento_scadenza_condizioni"));
 });
 
@@ -101,5 +103,5 @@ test("cliente e admin possono eliminare solo secondo ruoli e stato del controllo
 });
 
 test("il prompt e il filtro deterministico usano la soglia di 30 giorni", () => {
-  assert.match(reader, /al massimo 30 giorni/);
+  assert.match(reader, /al massimo 30 giorni/); // Il prompt resta prudente; la classificazione applica la finestra v0.36.3.
 });

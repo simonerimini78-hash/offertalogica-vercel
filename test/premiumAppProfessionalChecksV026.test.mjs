@@ -7,15 +7,15 @@ const cloudBills = await readFile(new URL('../public/app-premium-bills.js', impo
 const sw = await readFile(new URL('../public/sw.js', import.meta.url), 'utf8');
 const migration = await readFile(new URL('../supabase/premium-checks-v0.26.sql', import.meta.url), 'utf8');
 const verify = await readFile(new URL('../supabase/premium-checks-v0.26-verify.sql', import.meta.url), 'utf8');
+const trafficMigration = await readFile(new URL('../supabase/premium-traffic-light-v0.36.3.sql', import.meta.url), 'utf8');
+const trafficVerify = await readFile(new URL('../supabase/premium-traffic-light-v0.36.3-verify.sql', import.meta.url), 'utf8');
 
-test('Premium v0.30 mantiene la richiesta umana soltanto dopo lo screening automatico', () => {
-  assert.match(html, /APP Premium v0\.(?:30(?:\.\d+)?|31C|32|35(?:\.1)?|36)/);
-  assert.match(html, /FLUSSO ATTIVO/);
-  assert.match(html, /Richiedi controllo/);
-  assert.match(html, /Ogni bolletta viene analizzata dall’IA/);
-  assert.match(html, /soltanto per anomalie o dati incerti/);
+test('Premium v0.36.3 limita la richiesta umana alle anomalie rosse', () => {
+  assert.match(html, /APP Premium v0\.36\.3/);
+  assert.match(html, /La verifica dello staff è disponibile solo per le anomalie rosse/);
+  assert.doesNotMatch(html, /FLUSSO ATTIVO|Ogni bolletta viene analizzata dall’IA/);
   assert.match(cloudBills, /function canRequestCheck\(bill, check\)/);
-  assert.match(cloudBills, /review_recommended.*inconclusive.*failed/s);
+  assert.match(cloudBills, /automatic_screening_status === \"review_recommended\"/);
   assert.match(cloudBills, /data-cloud-check-request/);
   assert.match(cloudBills, /RICHIEDI CONTROLLO/);
   assert.match(cloudBills, /window\.confirm/);
@@ -36,7 +36,7 @@ test('Gli stati cliente coprono presa in carico, integrazione ed esiti', () => {
   for (const value of ['pending', 'assigned', 'in_review', 'more_info_required', 'completed']) {
     assert.match(cloudBills, new RegExp(value));
   }
-  for (const label of ['Da verificare', 'In controllo', 'Integrazione', 'Corretta', 'Anomalia', 'Risparmio']) {
+  for (const label of ['Verifica richiesta', 'Verifica in corso', 'Integrazione', 'Verde · Regolare', 'Rosso · Anomalia', 'Giallo · Avviso']) {
     assert.match(cloudBills, new RegExp(label));
   }
   assert.match(cloudBills, /estimated_impact_eur/);
@@ -77,8 +77,18 @@ test('La verifica controlla RPC, indice, lettura cliente e note interne', () => 
   }
 });
 
+
+test('La regola server accetta soltanto il rosso', () => {
+  assert.match(trafficMigration, /v_screening_status <> 'review_recommended'/);
+  assert.match(trafficMigration, /v_processing_status <> 'completed'/);
+  assert.match(trafficMigration, /v_customer_status <> 'anomaly_found'/);
+  assert.doesNotMatch(trafficMigration, /'inconclusive', 'failed'/);
+  assert.match(trafficMigration, /premium-traffic-light-v0\.36\.3/);
+  assert.match(trafficVerify, /legacy_yellow_staff_rule_still_present/);
+});
+
 test('Cache e frontend non contengono chiavi segrete', () => {
-  assert.match(sw, /offertalogica-premium-v(?:30\d*|031c|032|0351?|036)/);
+  assert.match(sw, /offertalogica-premium-v0363/);
   assert.doesNotMatch(sw, /offertalogica-premium-v25/);
   assert.doesNotMatch(cloudBills, /service_role/i);
   assert.doesNotMatch(cloudBills, /sb_secret_/i);

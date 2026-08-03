@@ -29,6 +29,53 @@
 
   const byId = id => document.getElementById(id);
 
+  function confirmAction({ title = "Conferma operazione", message = "", keyword = "", confirmLabel = "CONFERMA" } = {}) {
+    const layer = byId("staffConfirmLayer");
+    if (!layer) return Promise.resolve(false);
+    const normalizedKeyword = String(keyword || "").trim().toUpperCase();
+    const input = byId("staffConfirmKeyword");
+    const keywordWrap = byId("staffConfirmKeywordWrap");
+    const error = byId("staffConfirmError");
+    text(byId("staffConfirmTitle"), title);
+    text(byId("staffConfirmMessage"), message);
+    text(byId("staffConfirmKeywordLabel"), normalizedKeyword);
+    text(byId("staffConfirmAccept"), confirmLabel);
+    keywordWrap.hidden = !normalizedKeyword;
+    input.value = "";
+    error.textContent = "";
+    layer.hidden = false;
+
+    return new Promise(resolve => {
+      let settled = false;
+      const finish = result => {
+        if (settled) return;
+        settled = true;
+        layer.hidden = true;
+        document.removeEventListener("keydown", onKeydown);
+        resolve(Boolean(result));
+      };
+      const validate = () => {
+        if (normalizedKeyword && input.value.trim().toUpperCase() !== normalizedKeyword) {
+          error.textContent = `Scrivi ${normalizedKeyword} per continuare.`;
+          input.focus();
+          return;
+        }
+        finish(true);
+      };
+      const onKeydown = event => {
+        if (event.key === "Escape") finish(false);
+        if (event.key === "Enter" && (!normalizedKeyword || document.activeElement === input)) validate();
+      };
+      byId("staffConfirmCancel").onclick = () => finish(false);
+      byId("staffConfirmAccept").onclick = validate;
+      layer.onclick = event => { if (event.target === layer) finish(false); };
+      document.addEventListener("keydown", onKeydown);
+      window.setTimeout(() => (normalizedKeyword ? input : byId("staffConfirmAccept"))?.focus(), 0);
+    });
+  }
+
+  window.OffertaLogicaStaffConfirm = confirmAction;
+
   function text(element, value) {
     if (element) element.textContent = value == null ? "" : String(value);
   }
@@ -165,8 +212,7 @@
   }
 
   function requireTypedConfirmation(message, keyword = "ELIMINA") {
-    const value = window.prompt(`${message}\n\nScrivi ${keyword} per confermare.`);
-    return value === keyword;
+    return confirmAction({ title: "Conferma eliminazione", message, keyword, confirmLabel: "ELIMINA" });
   }
 
   async function deletePremiumRecords(resource, ids) {
@@ -322,7 +368,7 @@
 
   async function deleteLead(lead) {
     if (currentStaff?.role !== "admin" || busy) return;
-    if (!window.confirm(`Eliminare definitivamente il contatto “${lead.name || lead.id}”?`)) return;
+    if (!(await confirmAction({ title: "Elimina contatto", message: `Eliminare definitivamente “${lead.name || lead.id}”?`, confirmLabel: "ELIMINA" }))) return;
     setBusy(true);
     try {
       await staffFetch(`/api/staff-leads?id=${encodeURIComponent(lead.id)}`, {
@@ -345,7 +391,7 @@
       setMessage("error", "Nessun lead visibile da eliminare.");
       return;
     }
-    if (!requireTypedConfirmation(`Eliminare definitivamente ${rows.length} lead visibili e gli eventi collegati?`, "ELIMINA")) return;
+    if (!(await requireTypedConfirmation(`Eliminare definitivamente ${rows.length} lead visibili e gli eventi collegati?`, "ELIMINA"))) return;
     await runDestructiveAction(async () => {
       const payload = await staffFetch("/api/staff-leads", {
         method: "DELETE",
@@ -360,8 +406,7 @@
 
   async function resetLeads() {
     if (currentStaff?.role !== "admin" || busy) return;
-    const confirmation = window.prompt("Elimina tutti i contatti e gli eventi collegati. Scrivi AZZERA per continuare.");
-    if (confirmation !== "AZZERA") return;
+    if (!(await confirmAction({ title: "Azzera archivio lead", message: "Eliminare tutti i contatti e gli eventi collegati?", keyword: "AZZERA", confirmLabel: "AZZERA" }))) return;
     setBusy(true);
     try {
       const payload = await staffFetch("/api/staff-leads?scope=all", {
@@ -460,7 +505,7 @@
 
   async function deleteAnalyticsEvent(event) {
     if (!isAdmin() || busy) return;
-    if (!window.confirm(`Eliminare l’evento analytics #${event.id}?`)) return;
+    if (!(await confirmAction({ title: "Elimina evento", message: `Eliminare l’evento analytics #${event.id}?`, confirmLabel: "ELIMINA" }))) return;
     await runDestructiveAction(async () => {
       await staffFetch(`/api/staff-analytics?id=${encodeURIComponent(event.id)}`, {
         method: "DELETE",
@@ -477,7 +522,7 @@
       setMessage("error", "Nessun evento analytics visibile da eliminare.");
       return;
     }
-    if (!requireTypedConfirmation(`Eliminare definitivamente ${rows.length} eventi analytics visibili?`, "ELIMINA")) return;
+    if (!(await requireTypedConfirmation(`Eliminare definitivamente ${rows.length} eventi analytics visibili?`, "ELIMINA"))) return;
     await runDestructiveAction(async () => {
       await staffFetch("/api/staff-analytics", {
         method: "DELETE",
@@ -490,7 +535,7 @@
 
   async function resetAnalytics() {
     if (!isAdmin() || busy) return;
-    if (!requireTypedConfirmation("Eliminare definitivamente tutto l’archivio analytics? I lead resteranno presenti.", "AZZERA")) return;
+    if (!(await requireTypedConfirmation("Eliminare definitivamente tutto l’archivio analytics? I lead resteranno presenti.", "AZZERA"))) return;
     await runDestructiveAction(async () => {
       await staffFetch("/api/staff-analytics?scope=all", {
         method: "DELETE",
@@ -650,7 +695,7 @@
 
   async function deleteCustomerBill(customer, bill) {
     if (!isAdmin() || busy) return;
-    if (!window.confirm(`Eliminare la singola bolletta “${bill.original_file_name || bill.id}”? Verranno eliminati anche analisi, controllo, note e anomalie collegati.`)) return;
+    if (!(await confirmAction({ title: "Elimina bolletta", message: `Eliminare “${bill.original_file_name || bill.id}” e tutti i dati collegati?`, confirmLabel: "ELIMINA" }))) return;
     await runDestructiveAction(async () => {
       await removePremiumStorage([bill.storage_path]);
       await deletePremiumRecords("bills", [bill.id]);
@@ -660,7 +705,7 @@
 
   async function deleteCustomerContract(customer, contract) {
     if (!isAdmin() || busy) return;
-    if (!window.confirm(`Eliminare il contratto “${contract.offer_name || contract.id}”? Le bollette restano presenti ma vengono scollegate dal contratto.`)) return;
+    if (!(await confirmAction({ title: "Elimina contratto", message: `Eliminare “${contract.offer_name || contract.id}”? Le bollette resteranno presenti.`, confirmLabel: "ELIMINA" }))) return;
     await runDestructiveAction(async () => {
       await deletePremiumRecords("contracts", [contract.id]);
       await loadCustomers({ silent: true });
@@ -671,7 +716,7 @@
     if (!isAdmin() || busy) return;
     const bills = customer.bills.filter(item => item.utility_id === utility.id);
     const contracts = customer.contracts.filter(item => item.utility_id === utility.id);
-    if (!requireTypedConfirmation(`Eliminare il blocco utenza “${utility.label || utility.id}”? Saranno rimossi ${bills.length} bollette, ${contracts.length} contratti e tutti i controlli collegati.`, "ELIMINA")) return;
+    if (!(await requireTypedConfirmation(`Eliminare il blocco utenza “${utility.label || utility.id}”? Saranno rimossi ${bills.length} bollette, ${contracts.length} contratti e tutti i controlli collegati.`, "ELIMINA"))) return;
     await runDestructiveAction(async () => {
       await removePremiumStorage(bills.map(item => item.storage_path));
       await deletePremiumRecords("utilities", [utility.id]);
@@ -682,7 +727,7 @@
   async function deleteCustomerBlock(customer) {
     if (!isAdmin() || busy) return;
     const label = customer.profile.full_name || customer.profile.email || customer.profile.id;
-    if (!requireTypedConfirmation(`Eliminare tutto il blocco Premium di “${label}”? Saranno rimossi profilo Premium, abbonamenti, utenze, bollette, contratti, controlli, analisi e costi collegati. L’account Auth non viene cancellato.`, "ELIMINA")) return;
+    if (!(await requireTypedConfirmation(`Eliminare tutto il blocco Premium di “${label}”? Saranno rimossi profilo Premium, abbonamenti, utenze, bollette, contratti, controlli, analisi e costi collegati. L’account Auth non viene cancellato.`, "ELIMINA"))) return;
     await runDestructiveAction(async () => {
       await removePremiumStorage(customer.bills.map(item => item.storage_path));
       await deletePremiumRecords("customers", [customer.profile.id]);
@@ -698,7 +743,7 @@
       setMessage("error", "L’account non ha una richiesta di cancellazione attiva.");
       return;
     }
-    if (!requireTypedConfirmation(`Eliminare definitivamente account Auth, credenziali e tutti i dati Premium di “${label}”?`, "CANCELLA ACCOUNT")) return;
+    if (!(await requireTypedConfirmation(`Eliminare definitivamente account Auth, credenziali e tutti i dati Premium di “${label}”?`, "CANCELLA ACCOUNT"))) return;
     await runDestructiveAction(async () => {
       await removePremiumStorage(customer.bills.map(item => item.storage_path));
       const { error } = await client.rpc("premium_staff_complete_account_deletion", {
@@ -717,7 +762,7 @@
       setMessage("error", "Nessun cliente visibile da eliminare.");
       return;
     }
-    if (!requireTypedConfirmation(`Eliminare definitivamente ${customers.length} blocchi cliente visibili con tutte le risorse Premium collegate? Gli account Auth non vengono cancellati.`, "ELIMINA")) return;
+    if (!(await requireTypedConfirmation(`Eliminare definitivamente ${customers.length} blocchi cliente visibili con tutte le risorse Premium collegate? Gli account Auth non vengono cancellati.`, "ELIMINA"))) return;
     await runDestructiveAction(async () => {
       await removePremiumStorage(customers.flatMap(customer => customer.bills.map(item => item.storage_path)));
       await deletePremiumRecords("customers", customers.map(customer => customer.profile.id));
@@ -832,7 +877,7 @@
 
   async function deleteCostRun(run) {
     if (!isAdmin() || busy) return;
-    if (!window.confirm(`Eliminare l’analisi IA ${run.id}? Il costo collegato verrà rimosso e la bolletta tornerà da analizzare se questa era l’analisi corrente.`)) return;
+    if (!(await confirmAction({ title: "Elimina analisi", message: `Eliminare l’analisi ${run.id} e il costo collegato?`, confirmLabel: "ELIMINA" }))) return;
     await runDestructiveAction(async () => {
       await deletePremiumRecords("analysis_runs", [run.id]);
       await Promise.allSettled([loadCosts({ silent: true }), loadCustomers({ silent: true }), loadChecks({ silent: true })]);
@@ -846,7 +891,7 @@
       setMessage("error", "Nessuna analisi IA visibile da eliminare.");
       return;
     }
-    if (!requireTypedConfirmation(`Eliminare ${rows.length} analisi IA visibili e i costi collegati?`, "ELIMINA")) return;
+    if (!(await requireTypedConfirmation(`Eliminare ${rows.length} analisi IA visibili e i costi collegati?`, "ELIMINA"))) return;
     await runDestructiveAction(async () => {
       await deletePremiumRecords("analysis_runs", rows.map(run => run.id));
       await Promise.allSettled([loadCosts({ silent: true }), loadCustomers({ silent: true }), loadChecks({ silent: true })]);
@@ -855,7 +900,7 @@
 
   async function deleteCostEvent(event) {
     if (!isAdmin() || busy) return;
-    if (!window.confirm(`Eliminare l’evento di costo “${event.event_type || event.id}”?`)) return;
+    if (!(await confirmAction({ title: "Elimina costo", message: `Eliminare l’evento “${event.event_type || event.id}”?`, confirmLabel: "ELIMINA" }))) return;
     await runDestructiveAction(async () => {
       await deletePremiumRecords("cost_events", [event.id]);
       await loadCosts({ silent: true });
@@ -869,7 +914,7 @@
       setMessage("error", "Nessun evento di costo visibile da eliminare.");
       return;
     }
-    if (!requireTypedConfirmation(`Eliminare ${rows.length} eventi di costo visibili?`, "ELIMINA")) return;
+    if (!(await requireTypedConfirmation(`Eliminare ${rows.length} eventi di costo visibili?`, "ELIMINA"))) return;
     await runDestructiveAction(async () => {
       await deletePremiumRecords("cost_events", rows.map(event => event.id));
       await loadCosts({ silent: true });
