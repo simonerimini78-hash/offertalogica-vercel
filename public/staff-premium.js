@@ -151,6 +151,46 @@
     }[value] || value || "—";
   }
 
+  function automaticScreeningLabel(value) {
+    return {
+      clear: "Nessuna anomalia automatica",
+      review_recommended: "Possibile anomalia",
+      inconclusive: "Analisi non conclusiva",
+      failed: "Analisi non completata",
+      running: "Analisi in corso",
+      pending: "Analisi in attesa",
+      not_run: "Analisi non eseguita"
+    }[value] || "Non disponibile";
+  }
+
+  function renderAutomaticScreening(container, row) {
+    const status = row.bill?.automatic_screening_status;
+    if (!status || status === "not_run") return;
+    const section = node("section", { className: "section" });
+    section.append(node("div", { className: "section-head" }, [
+      node("div", {}, [
+        node("h3", { text: "Screening automatico cliente" }),
+        node("p", { text: "Motivi che hanno reso disponibile la richiesta di controllo umano." })
+      ]),
+      makeBadge(status === "clear" ? "completed" : "pending", automaticScreeningLabel(status))
+    ]));
+    const summary = String(row.bill?.automatic_screening_summary || "").trim();
+    if (summary) section.append(node("p", { className: "section-copy", text: summary }));
+    const reasons = Array.isArray(row.bill?.automatic_screening_reasons) ? row.bill.automatic_screening_reasons : [];
+    if (reasons.length) {
+      const list = node("div", { className: "timeline" });
+      reasons.forEach(reason => {
+        list.append(node("article", { className: "timeline-item" }, [
+          node("strong", { text: reason.title || "Elemento da approfondire" }),
+          node("p", { text: reason.description || "Verifica richiesta." }),
+          node("small", { text: `${reason.source || "automatico"} · ${reason.severity || "medium"}` })
+        ]));
+      });
+      section.append(list);
+    }
+    container.append(section);
+  }
+
   function friendlyError(error) {
     const raw = String(error?.message || error || "").trim();
     const message = raw.toLowerCase();
@@ -882,9 +922,12 @@
       infoCard("Utenza", `${row.utility?.label || "—"} · ${supplyLabel(row.bill?.commodity)}`),
       infoCard("Fornitore", row.utility?.provider_name || "—"),
       infoCard("Indirizzo", address || "—"),
-      infoCard("Documento", `${formatSize(row.bill?.file_size)} · ${formatDate(row.bill?.created_at)}`)
+      infoCard("Documento", `${formatSize(row.bill?.file_size)} · ${formatDate(row.bill?.created_at)}`),
+      infoCard("Importo", Number.isFinite(Number(row.bill?.total_amount_eur)) ? formatMoney(row.bill.total_amount_eur) : "—"),
+      infoCard("Screening IA", automaticScreeningLabel(row.bill?.automatic_screening_status))
     ]));
 
+    renderAutomaticScreening(body, row);
     renderAiAssistance(body, row);
     renderWorkflow(body, row);
     renderNotes(body);
@@ -907,7 +950,7 @@
         .eq("check_id", row.check.id)
         .order("created_at", { ascending: false }),
       client.from("premium_analysis_runs")
-        .select("id, bill_id, run_number, parser_version, model, status, started_at, completed_at, duration_ms, input_tokens, output_tokens, estimated_cost_eur, extracted_data, warnings, error_code, usage_details, response_ids, review_status, validated_by_staff_id, validated_at, validation_seconds, validation_note, validation_metrics, validated_data, created_at")
+        .select("id, bill_id, run_number, parser_version, model, status, started_at, completed_at, duration_ms, input_tokens, output_tokens, estimated_cost_eur, extracted_data, warnings, error_code, usage_details, response_ids, origin, requested_by_user_id, automatic_classification, automatic_summary, automatic_reasons, review_status, validated_by_staff_id, validated_at, validation_seconds, validation_note, validation_metrics, validated_data, created_at")
         .eq("bill_id", row.bill.id)
         .order("run_number", { ascending: false })
         .limit(5)
@@ -971,7 +1014,7 @@
     const checkRows = checks || [];
     const billMap = await fetchMap(
       "premium_bills",
-      "id, user_id, utility_id, commodity, original_file_name, file_size, storage_bucket, storage_path, processing_status, customer_status, created_at",
+      "id, user_id, utility_id, commodity, billing_period_start, billing_period_end, issue_date, due_date, total_amount_eur, original_file_name, file_size, storage_bucket, storage_path, processing_status, customer_status, automatic_screening_status, automatic_screening_summary, automatic_screening_reasons, automatic_screened_at, automatic_analysis_run_id, created_at",
       checkRows.map(item => item.bill_id)
     );
     const bills = [...billMap.values()];

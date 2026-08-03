@@ -13,12 +13,12 @@ const verify = await readFile(new URL("../supabase/premium-ai-v0.28-verify.sql",
 const docs = await readFile(new URL("../docs/PREMIUM-AI-V0.28.md", import.meta.url), "utf8");
 
 test("Premium v0.28 aggiorna versione e cache senza modificare il ramo gratuito", () => {
-  assert.match(app, /APP Premium v0\.29\.1/);
-  assert.match(html, /Area riservata allo staff autorizzato · v0\.29\.1/);
-  assert.match(sw, /offertalogica-premium-v291/);
+  assert.match(app, /APP Premium v0\.30/);
+  assert.match(html, /Area riservata allo staff autorizzato · v0\.30/);
+  assert.match(sw, /offertalogica-premium-v30/);
 });
 
-test("La dashboard avvia l’IA solo su richiesta staff con JWT personale", () => {
+test("La dashboard mantiene la riesecuzione IA manuale dello staff con JWT personale", () => {
   assert.match(staff, /AVVIA PRE-ANALISI IA/);
   assert.match(staff, /\/api\/premium-ai-analysis/);
   assert.match(staff, /Authorization: `Bearer \$\{accessToken\}`/);

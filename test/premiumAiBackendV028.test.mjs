@@ -132,6 +132,7 @@ test("L’handler completo crea la bozza, registra audit e non pubblica un esito
     if (String(url).includes("/rest/v1/premium_staff_members?")) return jsonResponse([{ user_id: "staff-1", role: "admin", active: true }]);
     if (String(url).includes("/rest/v1/premium_checks?")) return jsonResponse([{ id: "check-1", bill_id: "bill-1", user_id: "user-1", status: "in_review", outcome: "pending" }]);
     if (String(url).includes("/rest/v1/premium_bills?") && method === "GET") return jsonResponse([{ id: "bill-1", user_id: "user-1", utility_id: "utility-1", commodity: "electricity", original_file_name: "bolletta.pdf", file_size: 24, storage_bucket: "premium-bills", storage_path: "user-1/bill-1.pdf", processing_status: "ready_for_review", customer_status: "in_review", deleted_at: null }]);
+    if (String(url).includes("/rest/v1/premium_contracts?")) return jsonResponse([]);
     if (String(url).includes("status=in.%28queued%2Crunning%29")) return jsonResponse([]);
     if (String(url).includes("order=run_number.desc")) return jsonResponse([]);
     if (String(url).endsWith("/rest/v1/premium_analysis_runs") && method === "POST") return jsonResponse([{ id: "run-1", run_number: 1 }], 201);

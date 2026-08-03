@@ -8,11 +8,14 @@ const sw = await readFile(new URL('../public/sw.js', import.meta.url), 'utf8');
 const migration = await readFile(new URL('../supabase/premium-checks-v0.26.sql', import.meta.url), 'utf8');
 const verify = await readFile(new URL('../supabase/premium-checks-v0.26-verify.sql', import.meta.url), 'utf8');
 
-test('Premium v0.26 attiva la richiesta di controllo senza dichiarare analisi IA attiva', () => {
-  assert.match(html, /APP Premium v0\.29\.1/);
+test('Premium v0.30 mantiene la richiesta umana soltanto dopo lo screening automatico', () => {
+  assert.match(html, /APP Premium v0\.30/);
   assert.match(html, /FLUSSO ATTIVO/);
   assert.match(html, /Richiedi controllo/);
-  assert.match(html, /l’analisi IA non è ancora attiva/);
+  assert.match(html, /Ogni bolletta viene analizzata dall’IA/);
+  assert.match(html, /soltanto per anomalie o dati incerti/);
+  assert.match(cloudBills, /function canRequestCheck\(bill, check\)/);
+  assert.match(cloudBills, /review_recommended.*inconclusive.*failed/s);
   assert.match(cloudBills, /data-cloud-check-request/);
   assert.match(cloudBills, /RICHIEDI CONTROLLO/);
   assert.match(cloudBills, /window\.confirm/);
@@ -75,7 +78,7 @@ test('La verifica controlla RPC, indice, lettura cliente e note interne', () => 
 });
 
 test('Cache e frontend non contengono chiavi segrete', () => {
-  assert.match(sw, /offertalogica-premium-v291/);
+  assert.match(sw, /offertalogica-premium-v30/);
   assert.doesNotMatch(sw, /offertalogica-premium-v25/);
   assert.doesNotMatch(cloudBills, /service_role/i);
   assert.doesNotMatch(cloudBills, /sb_secret_/i);

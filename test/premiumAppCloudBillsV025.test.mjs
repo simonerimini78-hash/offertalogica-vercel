@@ -10,7 +10,7 @@ const migration = await readFile(new URL('../supabase/premium-bills-v0.25.sql', 
 const verify = await readFile(new URL('../supabase/premium-bills-v0.25-verify.sql', import.meta.url), 'utf8');
 
 test('Premium v0.25 aggiunge archivio cloud senza rimuovere archivio locale', () => {
-  assert.match(html, /APP Premium v0\.29\.1/);
+  assert.match(html, /APP Premium v0\.30/);
   assert.match(html, /id="premiumCloudBillsCard"/);
   assert.match(html, /id="premiumCloudBillUtility"/);
   assert.match(html, /id="premiumCloudBillFile"/);
@@ -46,7 +46,8 @@ test('Apertura ed eliminazione usano le API Storage del client autenticato', () 
   assert.match(cloudBills, /Documento cloud Premium/);
   assert.match(cloudBills, /\.storage\.from\(BUCKET\)\.remove\(\[bill\.storage_path\]\)/);
   assert.match(cloudBills, /\.from\("premium_bills"\)\s*\.delete\(\)/s);
-  assert.match(cloudBills, /bill\.processing_status !== "uploaded"/);
+  assert.match(cloudBills, /function canDeleteBill\(bill, check\)/);
+  assert.match(cloudBills, /!check && \["uploaded", "completed", "failed"\]\.includes\(bill\.processing_status\)/);
   assert.match(cloudBills, /window\.confirm/);
 });
 
@@ -70,7 +71,7 @@ test('La migrazione applica quota rolling annuale e duplicati lato database', ()
 });
 
 test('La cache include il modulo cloud ed esclude chiavi segrete', () => {
-  assert.match(sw, /offertalogica-premium-v291/);
+  assert.match(sw, /offertalogica-premium-v30/);
   assert.match(sw, /"\/app-premium-bills\.js"/);
   assert.doesNotMatch(sw, /offertalogica-premium-v24/);
   assert.doesNotMatch(cloudBills, /service_role/i);

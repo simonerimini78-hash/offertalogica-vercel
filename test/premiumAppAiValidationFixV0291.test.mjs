@@ -27,7 +27,7 @@ test("v0.29.1 mostra un timer leggibile e mantiene il tempo della bozza", () => 
 });
 
 test("v0.29.1 aggiorna indicatori e cache", () => {
-  assert.match(app, /APP Premium v0\.29\.1/);
-  assert.match(html, /Area riservata allo staff autorizzato · v0\.29\.1/);
-  assert.match(sw, /offertalogica-premium-v291/);
+  assert.match(app, /APP Premium v0\.30/);
+  assert.match(html, /Area riservata allo staff autorizzato · v0\.30/);
+  assert.match(sw, /offertalogica-premium-v30/);
 });

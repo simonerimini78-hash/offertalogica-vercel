@@ -191,7 +191,7 @@ test("seconda lettura mirata recupera il prezzo medio vendita omesso nella prima
     });
 
     assert.equal(calls.length, 2);
-    assert.equal(calls[0].profile, "ia_libera_compact_form_v3_1");
+    assert.equal(calls[0].profile, "ia_libera_compact_form_v3_2");
     assert.equal(calls[1].profile, "ia_libera_essential_recovery_v1");
     assert.match(calls[0].request.input[0].content[0].text, /Scontrino dell’energia/);
     assert.match(calls[1].request.input[1].content[1].text, /electricity: unit_price/);

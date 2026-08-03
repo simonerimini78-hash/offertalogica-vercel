@@ -4,7 +4,7 @@
   const ACTIVE_SUBSCRIPTION_STATUSES = new Set(["trialing", "active"]);
   const BUCKET = "premium-bills";
   const MAX_FILE_SIZE = 20_000_000;
-  const BILL_COLUMNS = "id, user_id, utility_id, commodity, original_file_name, file_size, file_sha256, storage_bucket, storage_path, processing_status, customer_status, created_at";
+  const BILL_COLUMNS = "id, user_id, utility_id, commodity, billing_period_start, billing_period_end, issue_date, due_date, total_amount_eur, original_file_name, file_size, file_sha256, storage_bucket, storage_path, processing_status, customer_status, automatic_screening_status, automatic_screening_summary, automatic_screening_reasons, automatic_screened_at, automatic_analysis_run_id, created_at";
   const UTILITY_COLUMNS = "id, label, supply_type, expected_bills_per_year, status";
   const CHECK_COLUMNS = "id, bill_id, user_id, status, outcome, summary, customer_message, started_at, completed_at, created_at, updated_at";
   const ANOMALY_COLUMNS = "id, bill_id, check_id, category, severity, status, title, description, estimated_impact_eur, created_at";
@@ -22,6 +22,8 @@
   let yearlyBillCount = 0;
   let busy = false;
   const expandedBillIds = new Set();
+  const analysisInFlightIds = new Set();
+  let pollTimer = null;
 
   const byId = id => document.getElementById(id);
 
@@ -41,7 +43,10 @@
     message: null,
     empty: null,
     list: null,
-    homeCount: null
+    homeCount: null,
+    spendTotal: null,
+    spendMeta: null,
+    spendYear: null
   };
 
   function setText(element, value) {
@@ -82,6 +87,31 @@
     return `${(value / 1_000_000).toFixed(value >= 10_000_000 ? 0 : 1).replace(".", ",")} MB`;
   }
 
+  function formatMoney(value) {
+    const amount = Number(value);
+    if (!Number.isFinite(amount)) return "—";
+    return new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" }).format(amount);
+  }
+
+  function validDate(value) {
+    if (!value) return null;
+    const date = new Date(`${value}T12:00:00`);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  function billReferenceDate(bill) {
+    return validDate(bill.billing_period_end) || validDate(bill.issue_date) || new Date(bill.created_at);
+  }
+
+  function formatPeriod(bill) {
+    const start = validDate(bill.billing_period_start);
+    const end = validDate(bill.billing_period_end);
+    if (start && end) return `${formatDate(start)} – ${formatDate(end)}`;
+    if (end) return `fino al ${formatDate(end)}`;
+    if (start) return `dal ${formatDate(start)}`;
+    return "Periodo non letto";
+  }
+
   function supplyLabel(value) {
     return {
       electricity: "Luce",
@@ -103,14 +133,23 @@
       }[check.outcome] || "Completato";
     }
     if (check?.status === "canceled") return "Annullato";
-    if (bill.processing_status === "uploaded") return "Archiviata";
-    if (["queued", "analyzing", "ready_for_review"].includes(bill.processing_status)) return "In controllo";
-    if (bill.customer_status === "correct") return "Corretta";
-    if (bill.customer_status === "anomaly_found") return "Anomalia";
-    if (bill.customer_status === "saving_opportunity") return "Risparmio";
-    if (bill.customer_status === "more_info_required") return "Integrazione";
-    if (bill.processing_status === "failed" || bill.customer_status === "failed") return "Errore";
+    if (["pending", "running"].includes(bill.automatic_screening_status) || ["queued", "analyzing"].includes(bill.processing_status)) return "Analisi IA";
+    if (bill.automatic_screening_status === "clear") return "Controllata";
+    if (bill.automatic_screening_status === "review_recommended") return "Possibile anomalia";
+    if (["inconclusive", "failed"].includes(bill.automatic_screening_status)) return "Da approfondire";
+    if (bill.processing_status === "failed") return "Analisi non riuscita";
     return "Archiviata";
+  }
+
+  function canRequestCheck(bill, check) {
+    if (check) return false;
+    return ["review_recommended", "inconclusive", "failed"].includes(bill.automatic_screening_status)
+      && ["completed", "failed"].includes(bill.processing_status);
+  }
+
+  function canDeleteBill(bill, check) {
+    return !check && ["uploaded", "completed", "failed"].includes(bill.processing_status)
+      && bill.automatic_screening_status !== "running";
   }
 
   function checkTitle(check) {
@@ -144,13 +183,7 @@
       return "Il controllo è terminato. L’esito è indicato sopra.";
     }
     if (check?.status === "canceled") return "La richiesta non è più attiva.";
-    return "Premi Richiedi controllo per inviare questa bolletta alla verifica professionale.";
-  }
-
-  function formatMoney(value) {
-    const amount = Number(value);
-    if (!Number.isFinite(amount)) return "";
-    return new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" }).format(amount);
+    return "Il controllo umano è disponibile soltanto quando l’analisi automatica rileva un elemento da approfondire.";
   }
 
   function friendlyError(error) {
@@ -162,6 +195,12 @@
     }
     if (message.includes("premium_bill_not_requestable")) {
       return "Questa bolletta non può essere inviata al controllo nello stato attuale.";
+    }
+    if (message.includes("premium_bill_not_auto_analyzable")) {
+      return "La bolletta non è nello stato corretto per l’analisi automatica.";
+    }
+    if (message.includes("premium_ai_already_running")) {
+      return "L’analisi automatica è già in corso.";
     }
     if (message.includes("premium_service_access_required") || message.includes("premium_auth_required")) {
       return "Il controllo richiede un account e un abbonamento attivo.";
@@ -267,7 +306,84 @@
     if (state.utilitySelect) state.utilitySelect.hidden = utilities.length === 0;
     if (state.uploadButton) state.uploadButton.hidden = utilities.length === 0;
     setBusy(false);
+    renderCloudSpend();
     renderList();
+    scheduleAutomaticWork();
+  }
+
+  function renderCloudSpend() {
+    if (!state.spendTotal || !state.spendMeta || !state.spendYear) return;
+    const availableYears = [...new Set(bills.map(bill => billReferenceDate(bill)?.getFullYear()).filter(Number.isFinite))].sort((a, b) => b - a);
+    const current = Number(state.spendYear.value);
+    state.spendYear.replaceChildren();
+    if (!availableYears.length) availableYears.push(new Date().getFullYear());
+    availableYears.forEach(year => {
+      const option = document.createElement("option");
+      option.value = String(year);
+      option.textContent = String(year);
+      state.spendYear.append(option);
+    });
+    state.spendYear.value = availableYears.includes(current) ? String(current) : String(availableYears[0]);
+    const year = Number(state.spendYear.value);
+    const included = bills.filter(bill => billReferenceDate(bill)?.getFullYear() === year && Number.isFinite(Number(bill.total_amount_eur)));
+    const total = included.reduce((sum, bill) => sum + Number(bill.total_amount_eur || 0), 0);
+    setText(state.spendTotal, formatMoney(total));
+    setText(state.spendMeta, included.length
+      ? `${included.length} ${included.length === 1 ? "bolletta inclusa" : "bollette incluse"} nel totale automatico.`
+      : "Nessun importo automatico disponibile per questo anno.");
+  }
+
+  function automaticTitle(bill) {
+    return ({
+      clear: "Nessuna anomalia rilevata",
+      review_recommended: "Possibile anomalia rilevata",
+      inconclusive: "Analisi non conclusiva",
+      failed: "Analisi automatica non completata",
+      running: "Analisi automatica in corso",
+      pending: "Analisi automatica in attesa"
+    })[bill.automatic_screening_status] || "Analisi automatica";
+  }
+
+  function renderAutomaticDetail(bill) {
+    const detail = document.createElement("section");
+    detail.className = "cloud-check-detail automatic";
+    detail.dataset.cloudAutomaticDetail = bill.id;
+    detail.hidden = !expandedBillIds.has(bill.id);
+    const head = document.createElement("div");
+    head.className = "cloud-check-detail-head";
+    const title = document.createElement("strong");
+    title.textContent = automaticTitle(bill);
+    const badge = document.createElement("span");
+    badge.className = "cloud-check-detail-badge";
+    badge.textContent = statusLabel(bill, null);
+    head.append(title, badge);
+    const copy = document.createElement("p");
+    copy.textContent = bill.automatic_screening_summary || (bill.automatic_screening_status === "running"
+      ? "L’IA sta leggendo importo, periodo e dati economici della bolletta."
+      : "Il risultato automatico sarà disponibile al termine dell’analisi.");
+    detail.append(head, copy);
+    const reasons = Array.isArray(bill.automatic_screening_reasons) ? bill.automatic_screening_reasons : [];
+    if (reasons.length) {
+      const list = document.createElement("div");
+      list.className = "cloud-anomaly-list";
+      reasons.forEach(reason => {
+        const item = document.createElement("div");
+        item.className = "cloud-anomaly-item";
+        const reasonTitle = document.createElement("strong");
+        reasonTitle.textContent = reason.title || "Elemento da approfondire";
+        const description = document.createElement("p");
+        description.textContent = reason.description || "È consigliato un controllo umano.";
+        item.append(reasonTitle, description);
+        list.append(item);
+      });
+      detail.append(list);
+    }
+    if (bill.automatic_screened_at) {
+      const meta = document.createElement("small");
+      meta.textContent = `Analisi automatica del ${formatDate(bill.automatic_screened_at)}`;
+      detail.append(meta);
+    }
+    return detail;
   }
 
   function renderCheckDetail(bill, check, billAnomalies) {
@@ -309,10 +425,10 @@
         const anomalyCopy = document.createElement("p");
         anomalyCopy.textContent = anomaly.description || "Dettaglio disponibile nel controllo.";
         item.append(anomalyTitle, anomalyCopy);
-        const impact = formatMoney(anomaly.estimated_impact_eur);
-        if (impact) {
+        const impactValue = Number(anomaly.estimated_impact_eur);
+        if (Number.isFinite(impactValue)) {
           const impactText = document.createElement("small");
-          impactText.textContent = `Impatto stimato: ${impact}`;
+          impactText.textContent = `Impatto stimato: ${formatMoney(impactValue)}`;
           item.append(impactText);
         }
         list.append(item);
@@ -368,7 +484,8 @@
       const utilityName = document.createElement("span");
       utilityName.textContent = utility?.label || "Utenza";
       const meta = document.createElement("small");
-      meta.textContent = `${formatDate(bill.created_at)} · ${formatSize(bill.file_size)}`;
+      const amount = Number.isFinite(Number(bill.total_amount_eur)) ? formatMoney(bill.total_amount_eur) : "Importo in lettura";
+      meta.textContent = `${formatPeriod(bill)} · ${amount} · ${formatSize(bill.file_size)}`;
       copy.append(title, utilityName, meta);
 
       const badge = document.createElement("span");
@@ -391,24 +508,44 @@
         toggleButton.dataset.cloudCheckToggle = bill.id;
         toggleButton.textContent = expandedBillIds.has(bill.id) ? "CHIUDI" : (check.status === "completed" ? "VEDI ESITO" : "VEDI STATO");
         actions.append(toggleButton);
-      } else if (bill.processing_status === "uploaded") {
-        const requestButton = document.createElement("button");
-        requestButton.type = "button";
-        requestButton.className = "cloud-bill-btn primary";
-        requestButton.dataset.cloudCheckRequest = bill.id;
-        requestButton.textContent = "RICHIEDI CONTROLLO";
-        actions.append(requestButton);
-
-        const deleteButton = document.createElement("button");
-        deleteButton.type = "button";
-        deleteButton.className = "cloud-bill-btn danger";
-        deleteButton.dataset.cloudBillDelete = bill.id;
-        deleteButton.textContent = "ELIMINA";
-        actions.append(deleteButton);
+      } else {
+        if (!["not_run"].includes(bill.automatic_screening_status)) {
+          const toggleButton = document.createElement("button");
+          toggleButton.type = "button";
+          toggleButton.className = "cloud-bill-btn";
+          toggleButton.dataset.cloudAutomaticToggle = bill.id;
+          toggleButton.textContent = expandedBillIds.has(bill.id) ? "CHIUDI" : "VEDI ANALISI";
+          actions.append(toggleButton);
+        }
+        if (canRequestCheck(bill, check)) {
+          const requestButton = document.createElement("button");
+          requestButton.type = "button";
+          requestButton.className = "cloud-bill-btn primary";
+          requestButton.dataset.cloudCheckRequest = bill.id;
+          requestButton.textContent = "RICHIEDI CONTROLLO";
+          actions.append(requestButton);
+        }
+        if (bill.automatic_screening_status === "failed") {
+          const retryButton = document.createElement("button");
+          retryButton.type = "button";
+          retryButton.className = "cloud-bill-btn";
+          retryButton.dataset.cloudAnalysisRetry = bill.id;
+          retryButton.textContent = "RIPROVA ANALISI";
+          actions.append(retryButton);
+        }
+        if (canDeleteBill(bill, check)) {
+          const deleteButton = document.createElement("button");
+          deleteButton.type = "button";
+          deleteButton.className = "cloud-bill-btn danger";
+          deleteButton.dataset.cloudBillDelete = bill.id;
+          deleteButton.textContent = "ELIMINA";
+          actions.append(deleteButton);
+        }
       }
 
       article.append(icon, copy, badge, actions);
       if (check) article.append(renderCheckDetail(bill, check, billAnomalies));
+      else if (bill.automatic_screening_status !== "not_run") article.append(renderAutomaticDetail(bill));
       state.list.append(article);
     });
   }
@@ -497,7 +634,8 @@
           customer_status: "awaiting_review",
           metadata: {
             source: "premium_app",
-            app_version: "0.26"
+            app_version: "0.30",
+            automatic_analysis: true
           }
         })
         .select(BILL_COLUMNS)
@@ -525,8 +663,9 @@
       bills = [insertResult.data, ...bills];
       yearlyBillCount += 1;
       renderEnabled();
-      setMessage("success", "Bolletta salvata nel cloud e associata all’utenza.");
+      setMessage("info", "Bolletta salvata. Analisi IA automatica in corso: importo, periodo e dati economici saranno aggiornati nell’archivio.");
       window.dispatchEvent(new CustomEvent("offertalogica:cloud-bills-changed"));
+      await runAutomaticAnalysis(billId, { announce: true });
     } catch (error) {
       setBusy(false);
       setMessage("error", friendlyError(error));
@@ -542,8 +681,8 @@
       setMessage("info", "Il controllo di questa bolletta è già stato richiesto.");
       return;
     }
-    if (bill.processing_status !== "uploaded" || bill.customer_status !== "awaiting_review") {
-      setMessage("error", "Questa bolletta non può essere inviata al controllo nello stato attuale.");
+    if (!canRequestCheck(bill, null)) {
+      setMessage("error", "Il controllo umano è disponibile soltanto per anomalie possibili o analisi non conclusive.");
       return;
     }
 
@@ -569,6 +708,64 @@
     } catch (error) {
       setBusy(false);
       setMessage("error", `La richiesta è stata registrata, ma lo stato non si è aggiornato: ${friendlyError(error)}`);
+    }
+  }
+
+  async function runAutomaticAnalysis(id, { announce = false } = {}) {
+    const bill = bills.find(item => item.id === id);
+    if (!bill || !client || !currentUser || analysisInFlightIds.has(id)) return;
+    analysisInFlightIds.add(id);
+    bill.automatic_screening_status = "running";
+    bill.processing_status = "analyzing";
+    renderEnabled();
+    if (announce) setMessage("info", "Analisi IA automatica in corso. Puoi continuare a usare l’app; il risultato verrà aggiornato nell’archivio.");
+    try {
+      const { data: sessionData, error: sessionError } = await client.auth.getSession();
+      if (sessionError) throw sessionError;
+      const accessToken = sessionData?.session?.access_token;
+      if (!accessToken) throw new Error("premium_auth_required");
+      const response = await fetch("/api/premium-ai-analysis", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: JSON.stringify({ billId: id })
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok || !body?.ok) throw new Error(body?.error || body?.code || "Analisi automatica non riuscita");
+      await loadData(currentUser, currentSubscription);
+      const updated = bills.find(item => item.id === id);
+      if (announce || updated?.automatic_screening_status !== "clear") {
+        setMessage(updated?.automatic_screening_status === "clear" ? "success" : "info",
+          updated?.automatic_screening_summary || "Analisi automatica completata.");
+      }
+      window.dispatchEvent(new CustomEvent("offertalogica:automatic-analysis-completed", { detail: { billId: id, screening: body.screening } }));
+    } catch (error) {
+      await loadData(currentUser, currentSubscription).catch(() => {});
+      setMessage("error", `${friendlyError(error)} Puoi richiedere il controllo umano dalla bolletta.`);
+    } finally {
+      analysisInFlightIds.delete(id);
+      renderEnabled();
+    }
+  }
+
+  function scheduleAutomaticWork() {
+    if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
+    const recentPending = bills.find(bill =>
+      bill.automatic_screening_status === "pending"
+      && bill.processing_status === "uploaded"
+      && Date.now() - new Date(bill.created_at).getTime() < 24 * 60 * 60 * 1000
+      && !analysisInFlightIds.has(bill.id)
+    );
+    if (recentPending) {
+      window.setTimeout(() => runAutomaticAnalysis(recentPending.id), 100);
+      return;
+    }
+    if (bills.some(bill => bill.processing_status === "analyzing" || bill.automatic_screening_status === "running")) {
+      pollTimer = window.setTimeout(async () => {
+        try { await loadData(currentUser, currentSubscription); } catch {}
+      }, 5000);
     }
   }
 
@@ -599,8 +796,9 @@
   async function deleteBill(id) {
     const bill = bills.find(item => item.id === id);
     if (!bill || !client || !currentUser || busy) return;
-    if (bill.processing_status !== "uploaded") {
-      setMessage("error", "Una bolletta già presa in carico non può essere eliminata dall’app.");
+    const check = checks.find(item => item.bill_id === bill.id && item.status !== "canceled") || null;
+    if (!canDeleteBill(bill, check)) {
+      setMessage("error", "Una bolletta inviata al controllo umano non può essere eliminata dall’app.");
       return;
     }
 
@@ -773,6 +971,9 @@
     state.empty = byId("premiumCloudBillEmpty");
     state.list = byId("premiumCloudBillList");
     state.homeCount = byId("homeCloudBillCount");
+    state.spendTotal = byId("premiumCloudSpendTotal");
+    state.spendMeta = byId("premiumCloudSpendMeta");
+    state.spendYear = byId("premiumCloudSpendYear");
   }
 
   function init() {
@@ -804,6 +1005,8 @@
       if (file) uploadFile(file);
     });
 
+    state.spendYear?.addEventListener("change", renderCloudSpend);
+
     state.list?.addEventListener("click", event => {
       const openButton = event.target.closest("[data-cloud-bill-open]");
       if (openButton) {
@@ -821,6 +1024,19 @@
         if (expandedBillIds.has(billId)) expandedBillIds.delete(billId);
         else expandedBillIds.add(billId);
         renderList();
+        return;
+      }
+      const automaticToggle = event.target.closest("[data-cloud-automatic-toggle]");
+      if (automaticToggle) {
+        const billId = automaticToggle.dataset.cloudAutomaticToggle;
+        if (expandedBillIds.has(billId)) expandedBillIds.delete(billId);
+        else expandedBillIds.add(billId);
+        renderList();
+        return;
+      }
+      const retryButton = event.target.closest("[data-cloud-analysis-retry]");
+      if (retryButton) {
+        runAutomaticAnalysis(retryButton.dataset.cloudAnalysisRetry, { announce: true });
         return;
       }
       const deleteButton = event.target.closest("[data-cloud-bill-delete]");
@@ -846,6 +1062,7 @@
 
     window.addEventListener("pagehide", () => {
       authSubscription?.data?.subscription?.unsubscribe?.();
+      if (pollTimer) clearTimeout(pollTimer);
     }, { once: true });
   }
 

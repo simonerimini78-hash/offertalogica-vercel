@@ -9,19 +9,24 @@ import { enforceRateLimit } from "../lib/rateLimit.js";
 import {
   analysisCompletionStatus,
   assertPremiumAiConfigured,
+  classifyPremiumAutomaticAnalysis,
   createMeteredOpenAiTransport,
   createPremiumAnalysisRun,
   createUsageMeter,
   downloadPremiumBill,
   estimatePremiumAiCost,
   insertPremiumAiCostEvent,
+  loadPremiumBillContract,
   loadPremiumCheckAndBill,
+  loadPremiumCustomerBill,
   patchPremiumAnalysisRun,
   patchPremiumBill,
   premiumAiConfig,
+  premiumBillValuesFromAnalysis,
   publicPremiumAiError,
   readBearerToken,
   sanitizePremiumAnalysisData,
+  verifyPremiumCustomer,
   verifyPremiumStaff,
 } from "../lib/premiumAiBackend.js";
 
@@ -42,22 +47,50 @@ export function createPremiumAiAnalysisHandler({
     let run = null;
     let bill = null;
     let check = null;
+    let customerMode = false;
     let temporaryFilePath = "";
 
     try {
       assertPremiumAiConfigured(backend);
-      const accessToken = readBearerToken(req);
-      const { user } = await verifyPremiumStaff({ config: backend, accessToken, fetchImpl });
-      if (!(await enforceRateLimit(req, res, {
-        label: "premium-ai-analysis",
-        identifier: user.id,
-        limit: Number(env.RATE_LIMIT_PREMIUM_AI_LIMIT || 12),
-        windowSeconds: Number(env.RATE_LIMIT_PREMIUM_AI_WINDOW_SECONDS || 3600),
-      }))) return;
-
       const body = await readJson(req);
-      ({ check, bill } = await loadPremiumCheckAndBill({ config: backend, checkId: body.checkId, fetchImpl }));
-      run = await createPremiumAnalysisRun({ config: backend, check, bill, staffUserId: user.id, fetchImpl });
+      customerMode = Boolean(body?.billId) && !body?.checkId;
+      const accessToken = readBearerToken(req);
+      let actorUserId = null;
+      let contract = null;
+
+      if (customerMode) {
+        const { user } = await verifyPremiumCustomer({ config: backend, accessToken, fetchImpl });
+        actorUserId = user.id;
+        if (!(await enforceRateLimit(req, res, {
+          label: "premium-ai-customer-analysis",
+          identifier: user.id,
+          limit: Number(env.RATE_LIMIT_PREMIUM_AI_CUSTOMER_LIMIT || 24),
+          windowSeconds: Number(env.RATE_LIMIT_PREMIUM_AI_CUSTOMER_WINDOW_SECONDS || 3600),
+        }))) return;
+        bill = await loadPremiumCustomerBill({ config: backend, billId: body.billId, userId: user.id, fetchImpl });
+        contract = await loadPremiumBillContract({ config: backend, bill, fetchImpl });
+      } else {
+        const { user } = await verifyPremiumStaff({ config: backend, accessToken, fetchImpl });
+        actorUserId = user.id;
+        if (!(await enforceRateLimit(req, res, {
+          label: "premium-ai-analysis",
+          identifier: user.id,
+          limit: Number(env.RATE_LIMIT_PREMIUM_AI_LIMIT || 12),
+          windowSeconds: Number(env.RATE_LIMIT_PREMIUM_AI_WINDOW_SECONDS || 3600),
+        }))) return;
+        ({ check, bill } = await loadPremiumCheckAndBill({ config: backend, checkId: body.checkId, fetchImpl }));
+        contract = await loadPremiumBillContract({ config: backend, bill, fetchImpl });
+      }
+
+      run = await createPremiumAnalysisRun({
+        config: backend,
+        check,
+        bill,
+        staffUserId: customerMode ? null : actorUserId,
+        requestedByUserId: customerMode ? actorUserId : null,
+        origin: customerMode ? "customer_upload" : "staff_manual",
+        fetchImpl,
+      });
 
       temporaryFilePath = path.join(os.tmpdir(), `offertalogica-premium-ai-${crypto.randomUUID()}.pdf`);
       await downloadPremiumBill({ config: backend, bill, destinationPath: temporaryFilePath, fetchImpl });
@@ -76,14 +109,17 @@ export function createPremiumAiAnalysisHandler({
         env,
       });
       const completion = analysisCompletionStatus(normalized);
+      const screening = classifyPremiumAutomaticAnalysis(normalized, { contract });
       const durationMs = Math.max(0, now() - startedAt);
       const estimatedCostEur = estimatePremiumAiCost(meter.totals, backend.pricing);
-      const extractedData = sanitizePremiumAnalysisData(normalized, meter.totals);
+      const extractedData = sanitizePremiumAnalysisData(normalized, meter.totals, customerMode ? screening : null);
       const warnings = [...new Set([
         ...(Array.isArray(normalized?.warnings) ? normalized.warnings : []),
         ...completion.missing.map(field => `campo_essenziale_mancante:${field}`),
-        "bozza_ia_da_verificare_dallo_staff",
+        ...(customerMode && screening.status !== "clear" ? ["screening_automatico_da_approfondire"] : []),
+        customerMode ? "analisi_automatica_cliente_v0.30" : "bozza_ia_da_verificare_dallo_staff",
       ])];
+      const completedAt = new Date().toISOString();
 
       await patchPremiumAnalysisRun({
         config: backend,
@@ -91,9 +127,9 @@ export function createPremiumAiAnalysisHandler({
         fetchImpl,
         values: {
           status: completion.status,
-          parser_version: normalized?.parser_version || "premium-ai-assisted-v0.28",
+          parser_version: normalized?.parser_version || "premium-ai-auto-screening-v0.30",
           model: normalized?.ai?.model || backend.model,
-          completed_at: new Date().toISOString(),
+          completed_at: completedAt,
           duration_ms: durationMs,
           input_tokens: meter.totals.inputTokens,
           output_tokens: meter.totals.outputTokens,
@@ -109,29 +145,44 @@ export function createPremiumAiAnalysisHandler({
             calls: meter.totals.calls,
           },
           response_ids: meter.totals.responseIds,
+          automatic_classification: customerMode ? screening.status : "not_applicable",
+          automatic_summary: customerMode ? screening.summary : "",
+          automatic_reasons: customerMode ? screening.reasons : [],
           error_code: "",
           error_message: "",
         },
       });
-      await patchPremiumBill({
-        config: backend,
-        billId: bill.id,
-        fetchImpl,
-        values: { processing_status: "ready_for_review", updated_at: new Date().toISOString() },
-      });
+
+      if (customerMode) {
+        await patchPremiumBill({
+          config: backend,
+          billId: bill.id,
+          fetchImpl,
+          values: premiumBillValuesFromAnalysis(normalized, screening, run.id, completedAt),
+        });
+      } else {
+        await patchPremiumBill({
+          config: backend,
+          billId: bill.id,
+          fetchImpl,
+          values: { processing_status: "ready_for_review", updated_at: completedAt },
+        });
+      }
+
       await insertPremiumAiCostEvent({
         config: backend,
         bill,
         check,
-        run,
+        run: { ...run, origin: customerMode ? "customer_upload" : "staff_manual" },
         usage: meter.totals,
         estimatedCostEur,
         model: normalized?.ai?.model || backend.model,
         fetchImpl,
-      });
+      }).catch(() => null);
 
       return json(res, 200, {
         ok: true,
+        mode: customerMode ? "customer_upload" : "staff_manual",
         run: {
           id: run.id,
           runNumber: run.run_number,
@@ -142,11 +193,13 @@ export function createPremiumAiAnalysisHandler({
           totalTokens: meter.totals.totalTokens,
           estimatedCostEur,
           pricingConfigured: estimatedCostEur !== null,
-          extractedData,
+          extractedData: customerMode ? undefined : extractedData,
           warnings,
         },
+        screening: customerMode ? screening : null,
       });
     } catch (error) {
+      const completedAt = new Date().toISOString();
       if (run?.id) {
         const durationMs = Math.max(0, now() - startedAt);
         await patchPremiumAnalysisRun({
@@ -155,8 +208,17 @@ export function createPremiumAiAnalysisHandler({
           fetchImpl,
           values: {
             status: "failed",
-            completed_at: new Date().toISOString(),
+            completed_at: completedAt,
             duration_ms: durationMs,
+            automatic_classification: customerMode ? "failed" : "not_applicable",
+            automatic_summary: customerMode ? "L’analisi automatica non è stata completata." : "",
+            automatic_reasons: customerMode ? [{
+              code: "analisi_automatica_fallita",
+              title: "Analisi non completata",
+              description: "La bolletta richiede un approfondimento manuale.",
+              severity: "medium",
+              source: "technical",
+            }] : [],
             error_code: String(error?.message || "premium_ai_error").split(":")[0].slice(0, 120),
             error_message: String(error?.message || "Analisi IA non riuscita").slice(0, 500),
           },
@@ -167,7 +229,23 @@ export function createPremiumAiAnalysisHandler({
           config: backend,
           billId: bill.id,
           fetchImpl,
-          values: { processing_status: "ready_for_review", updated_at: new Date().toISOString() },
+          values: customerMode
+            ? {
+                processing_status: "failed",
+                customer_status: "more_info_required",
+                automatic_screening_status: "failed",
+                automatic_screening_summary: "L’analisi automatica non è stata completata.",
+                automatic_screening_reasons: [{
+                  code: "analisi_automatica_fallita",
+                  title: "Analisi non completata",
+                  description: "Puoi richiedere il controllo umano della bolletta.",
+                  severity: "medium",
+                  source: "technical",
+                }],
+                automatic_screened_at: completedAt,
+                updated_at: completedAt,
+              }
+            : { processing_status: "ready_for_review", updated_at: completedAt },
         }).catch(() => {});
       }
       const safe = publicPremiumAiError(error);

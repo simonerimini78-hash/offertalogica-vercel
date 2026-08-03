@@ -19,7 +19,7 @@ function document(commodity = 'gas') {
 }
 
 test('versione e richiesta usano il contratto compatto senza dati aggiuntivi', async () => {
-  assert.equal(PDF_PURE_AI_READER_VERSION, 'pure-ai-native-pdf-v2.0.2-ia-libera-compact-form');
+  assert.equal(PDF_PURE_AI_READER_VERSION, 'pure-ai-native-pdf-v2.0.3-premium-auto-screening');
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ia-compact-'));
   const filePath = path.join(dir, 'bolletta.pdf');
   await fs.writeFile(filePath, '%PDF-test');
@@ -28,11 +28,12 @@ test('versione e richiesta usano il contratto compatto senza dati aggiuntivi', a
   const item = schema.properties.supplies.items.properties.fields.items;
   assert.equal(request.max_output_tokens, 4500);
   assert.deepEqual(schema.required, ['document', 'supplies']);
+  assert.deepEqual(schema.properties.document.required, ['kind', 'commodity', 'customer_type', 'page_count', 'billing_period_start', 'billing_period_end', 'issue_date', 'due_date', 'total_amount_eur', 'alerts']);
   assert.equal(schema.properties.additional_data, undefined);
   assert.equal(item.properties.evidence, undefined);
   assert.equal(item.properties.confidence, undefined);
   assert.equal(schema.properties.supplies.items.properties.fields.maxItems, 22);
-  assert.ok(JSON.stringify(schema).length < 2200);
+  assert.ok(JSON.stringify(schema).length < 3000);
   await fs.rm(dir, { recursive: true, force: true });
 });
 
