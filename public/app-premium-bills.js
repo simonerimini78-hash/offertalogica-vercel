@@ -4,8 +4,9 @@
   const ACTIVE_SUBSCRIPTION_STATUSES = new Set(["trialing", "active"]);
   const BUCKET = "premium-bills";
   const MAX_FILE_SIZE = 20_000_000;
-  const BILL_COLUMNS = "id, user_id, utility_id, commodity, billing_period_start, billing_period_end, issue_date, due_date, total_amount_eur, original_file_name, file_size, file_sha256, storage_bucket, storage_path, processing_status, customer_status, automatic_screening_status, automatic_screening_summary, automatic_screening_reasons, automatic_screened_at, automatic_analysis_run_id, created_at";
+  const BILL_COLUMNS = "id, user_id, utility_id, contract_id, commodity, billing_period_start, billing_period_end, issue_date, due_date, total_amount_eur, original_file_name, file_size, file_sha256, storage_bucket, storage_path, processing_status, customer_status, automatic_screening_status, automatic_screening_summary, automatic_screening_reasons, automatic_screened_at, automatic_analysis_run_id, created_at";
   const UTILITY_COLUMNS = "id, label, supply_type, expected_bills_per_year, status";
+  const CONTRACT_COLUMNS = "id, user_id, utility_id, provider_name, offer_name, pricing_type, contract_start, contract_end, fixed_price_expiry, electricity_price_eur_kwh, gas_price_eur_smc, electricity_fixed_fee_eur_year, gas_fixed_fee_eur_year, source, verification_status, is_current, arera_offer_code_electricity, arera_offer_code_gas, electricity_index_name, gas_index_name, electricity_spread_eur_kwh, gas_spread_eur_smc, electricity_formula, gas_formula, automatic_match_status, automatic_match_confidence, automatic_match_method, automatic_match_candidates, automatic_matched_at, automatic_match_catalog_version, customer_confirmation_status, customer_confirmed_at, customer_rejected_at, customer_selected_candidates, customer_confirmation_version, created_at, updated_at";
   const CHECK_COLUMNS = "id, bill_id, user_id, status, outcome, summary, customer_message, started_at, completed_at, created_at, updated_at";
   const ANOMALY_COLUMNS = "id, bill_id, check_id, category, severity, status, title, description, estimated_impact_eur, created_at";
 
@@ -17,6 +18,7 @@
   let currentSubscription = null;
   let utilities = [];
   let bills = [];
+  let contracts = [];
   let checks = [];
   let anomalies = [];
   let yearlyBillCount = 0;
@@ -68,7 +70,7 @@
     if (state.uploadButton) state.uploadButton.disabled = busy || !canUpload();
     if (state.fileInput) state.fileInput.disabled = busy || !utilities.length;
     if (state.uploadButtonLabel) state.uploadButtonLabel.textContent = busy ? "OPERAZIONE…" : "SCEGLI PDF";
-    state.list?.querySelectorAll("button").forEach(button => { button.disabled = busy; });
+    state.list?.querySelectorAll("button, select").forEach(control => { control.disabled = busy; });
     state.card?.setAttribute("aria-busy", busy ? "true" : "false");
   }
 
@@ -259,6 +261,7 @@
     currentSubscription = null;
     utilities = [];
     bills = [];
+    contracts = [];
     checks = [];
     anomalies = [];
     expandedBillIds.clear();
@@ -344,6 +347,196 @@
       : "Nessun importo automatico disponibile per questo anno.");
   }
 
+  function priceTypeLabel(value) {
+    return ({ fixed: "Prezzo fisso", indexed: "Prezzo indicizzato", mixed: "Prezzo misto", unknown: "Tipo non definito" })[value] || "Tipo non definito";
+  }
+
+  function formatUnitPrice(value, unit) {
+    const amount = Number(value);
+    if (!Number.isFinite(amount)) return "—";
+    return `${amount.toFixed(6).replace(/0+$/, "").replace(/\.$/, "").replace(".", ",")} ${unit}`;
+  }
+
+  function contractForBill(bill) {
+    if (!bill?.contract_id) return null;
+    return contracts.find(contract => contract.id === bill.contract_id) || null;
+  }
+
+  function offerBadge(contract) {
+    if (contract?.customer_confirmation_status === "confirmed") return "CONFERMATA";
+    if (contract?.customer_confirmation_status === "rejected" || contract?.verification_status === "rejected") return "NON CONFERMATA";
+    if (contract?.verification_status === "verified") return "IDENTIFICATA";
+    if (contract?.customer_confirmation_status === "pending") return "DA CONFERMARE";
+    return "PROVVISORIA";
+  }
+
+  function offerIntro(contract) {
+    if (contract?.customer_confirmation_status === "confirmed") {
+      return "Hai confermato questa corrispondenza. Le condizioni registrate vengono usate anche per ricontrollare la bolletta senza una nuova lettura IA.";
+    }
+    if (contract?.verification_status === "verified") {
+      return "L’offerta è stata identificata automaticamente nello storico ARERA con corrispondenza sufficientemente affidabile.";
+    }
+    if (contract?.customer_confirmation_status === "rejected" || contract?.verification_status === "rejected") {
+      return "Hai indicato che la proposta non corrisponde alla tua offerta. La scheda resta esclusa dai controlli contrattuali automatici.";
+    }
+    if (contract?.customer_confirmation_status === "pending") {
+      return "Il sistema ha trovato una o più offerte compatibili. Serve soltanto riconoscere quella corretta oppure indicare che non è presente.";
+    }
+    return "La scheda è stata ricostruita dalla bolletta, ma non è stata verificata nello storico ARERA.";
+  }
+
+  function candidateGroups(contract) {
+    return (Array.isArray(contract?.automatic_match_candidates) ? contract.automatic_match_candidates : [])
+      .filter(group => group && ["luce", "gas"].includes(group.commodity))
+      .map(group => ({
+        commodity: group.commodity,
+        candidates: (Array.isArray(group.candidates) ? group.candidates : []).filter(Boolean)
+      }));
+  }
+
+  function candidateText(candidate) {
+    const parts = [candidate.offerName || "Offerta senza nome"];
+    if (candidate.providerName) parts.push(candidate.providerName);
+    if (candidate.priceType === "fisso" && Number.isFinite(Number(candidate.price))) {
+      parts.push(formatUnitPrice(candidate.price, candidate.commodity === "gas" ? "€/Smc" : "€/kWh"));
+    } else if (candidate.priceType === "variabile") {
+      const index = candidate.indexName || (candidate.commodity === "gas" ? "PSV" : "PUN");
+      const spread = Number(candidate.spreadEstimate);
+      parts.push(Number.isFinite(spread) ? `${index} + ${formatUnitPrice(spread, candidate.commodity === "gas" ? "€/Smc" : "€/kWh")}` : index);
+    }
+    if (Number.isFinite(Number(candidate.annualFixedFee))) parts.push(`${formatMoney(candidate.annualFixedFee)}/anno`);
+    return parts.join(" · ");
+  }
+
+  function offerRows(contract) {
+    const rows = [];
+    if (contract.provider_name) rows.push(["Fornitore", contract.provider_name]);
+    if (contract.offer_name) rows.push(["Offerta", contract.offer_name]);
+    rows.push(["Struttura", priceTypeLabel(contract.pricing_type)]);
+    if (contract.arera_offer_code_electricity) rows.push(["Codice luce", contract.arera_offer_code_electricity]);
+    if (contract.arera_offer_code_gas) rows.push(["Codice gas", contract.arera_offer_code_gas]);
+    if (Number.isFinite(Number(contract.electricity_price_eur_kwh))) rows.push(["Prezzo luce", formatUnitPrice(contract.electricity_price_eur_kwh, "€/kWh")]);
+    if (Number.isFinite(Number(contract.gas_price_eur_smc))) rows.push(["Prezzo gas", formatUnitPrice(contract.gas_price_eur_smc, "€/Smc")]);
+    if (contract.electricity_index_name) {
+      const spread = Number(contract.electricity_spread_eur_kwh);
+      rows.push(["Formula luce", Number.isFinite(spread) ? `${contract.electricity_index_name} + ${formatUnitPrice(spread, "€/kWh")}` : contract.electricity_index_name]);
+    }
+    if (contract.gas_index_name) {
+      const spread = Number(contract.gas_spread_eur_smc);
+      rows.push(["Formula gas", Number.isFinite(spread) ? `${contract.gas_index_name} + ${formatUnitPrice(spread, "€/Smc")}` : contract.gas_index_name]);
+    }
+    if (Number.isFinite(Number(contract.electricity_fixed_fee_eur_year))) rows.push(["Quota fissa luce", `${formatMoney(contract.electricity_fixed_fee_eur_year)}/anno`]);
+    if (Number.isFinite(Number(contract.gas_fixed_fee_eur_year))) rows.push(["Quota fissa gas", `${formatMoney(contract.gas_fixed_fee_eur_year)}/anno`]);
+    if (contract.fixed_price_expiry) rows.push(["Scadenza condizioni", formatDate(contract.fixed_price_expiry)]);
+    return rows;
+  }
+
+  function canConfirmOffer(contract) {
+    const groups = candidateGroups(contract);
+    return contract?.customer_confirmation_status === "pending"
+      && contract?.verification_status === "needs_review"
+      && groups.length > 0
+      && groups.every(group => group.candidates.length > 0);
+  }
+
+  function renderOfferCard(bill, contract, { allowActions = true } = {}) {
+    const card = document.createElement("section");
+    card.className = "cloud-offer-card";
+    card.dataset.cloudOfferContract = contract.id;
+
+    const head = document.createElement("div");
+    head.className = "cloud-offer-head";
+    const title = document.createElement("div");
+    const eyebrow = document.createElement("small");
+    eyebrow.textContent = "OFFERTA ATTIVA";
+    const strong = document.createElement("strong");
+    strong.textContent = contract.offer_name || contract.provider_name || "Offerta ricostruita";
+    title.append(eyebrow, strong);
+    const badge = document.createElement("span");
+    badge.className = "cloud-offer-badge";
+    badge.textContent = offerBadge(contract);
+    head.append(title, badge);
+
+    const intro = document.createElement("p");
+    intro.textContent = offerIntro(contract);
+    card.append(head, intro);
+
+    const rows = offerRows(contract);
+    if (rows.length) {
+      const grid = document.createElement("div");
+      grid.className = "cloud-offer-grid";
+      rows.forEach(([label, value]) => {
+        const row = document.createElement("div");
+        row.className = "cloud-offer-row";
+        const key = document.createElement("span");
+        key.textContent = label;
+        const text = document.createElement("strong");
+        text.textContent = value;
+        row.append(key, text);
+        grid.append(row);
+      });
+      card.append(grid);
+    }
+
+    if (allowActions && canConfirmOffer(contract)) {
+      const groups = candidateGroups(contract);
+      const candidates = document.createElement("div");
+      candidates.className = "cloud-offer-candidates";
+      groups.forEach(group => {
+        const field = document.createElement("label");
+        field.className = "cloud-offer-field";
+        const fieldLabel = document.createElement("span");
+        fieldLabel.textContent = group.commodity === "gas" ? "Offerta gas" : "Offerta luce";
+        const select = document.createElement("select");
+        select.dataset.offerCandidateSelect = contract.id;
+        select.dataset.offerCandidateCommodity = group.commodity;
+        select.setAttribute("aria-label", fieldLabel.textContent);
+        const placeholder = document.createElement("option");
+        placeholder.value = "";
+        placeholder.textContent = "Seleziona l’offerta che riconosci";
+        select.append(placeholder);
+        group.candidates.forEach((candidate, index) => {
+          const option = document.createElement("option");
+          option.value = candidate.key || "";
+          option.textContent = candidateText(candidate);
+          if (contract.automatic_match_status === "matched" && index === 0) option.selected = true;
+          select.append(option);
+        });
+        field.append(fieldLabel, select);
+        candidates.append(field);
+      });
+      card.append(candidates);
+
+      const actions = document.createElement("div");
+      actions.className = "cloud-offer-actions";
+      const confirmButton = document.createElement("button");
+      confirmButton.type = "button";
+      confirmButton.className = "cloud-bill-btn primary";
+      confirmButton.dataset.offerConfirm = contract.id;
+      confirmButton.dataset.offerBill = bill.id;
+      confirmButton.textContent = "CONFERMA OFFERTA";
+      const rejectButton = document.createElement("button");
+      rejectButton.type = "button";
+      rejectButton.className = "cloud-bill-btn";
+      rejectButton.dataset.offerReject = contract.id;
+      rejectButton.dataset.offerBill = bill.id;
+      rejectButton.textContent = "NON È QUESTA";
+      actions.append(confirmButton, rejectButton);
+      card.append(actions);
+    }
+
+    if (contract.automatic_match_catalog_version) {
+      const meta = document.createElement("small");
+      meta.className = "cloud-offer-meta";
+      const confidence = Number(contract.automatic_match_confidence);
+      const confidenceText = Number.isFinite(confidence) && confidence > 0 ? ` · affidabilità ${Math.round(confidence)}%` : "";
+      meta.textContent = `Storico ARERA ${contract.automatic_match_catalog_version}${confidenceText}`;
+      card.append(meta);
+    }
+    return card;
+  }
+
   function automaticTitle(bill) {
     return ({
       clear: "Nessuna anomalia rilevata",
@@ -373,6 +566,8 @@
       ? "L’IA sta leggendo importo, periodo e dati economici della bolletta."
       : "Il risultato automatico sarà disponibile al termine dell’analisi.");
     detail.append(head, copy);
+    const contract = contractForBill(bill);
+    if (contract) detail.append(renderOfferCard(bill, contract));
     const reasons = Array.isArray(bill.automatic_screening_reasons) ? bill.automatic_screening_reasons : [];
     if (reasons.length) {
       const list = document.createElement("div");
@@ -415,6 +610,8 @@
     const copy = document.createElement("p");
     copy.textContent = checkCopy(check);
     detail.append(head, copy);
+    const contract = contractForBill(bill);
+    if (contract) detail.append(renderOfferCard(bill, contract, { allowActions: false }));
 
     if (check) {
       const meta = document.createElement("small");
@@ -478,6 +675,7 @@
     bills.forEach(bill => {
       const utility = utilityMap.get(bill.utility_id);
       const check = checkMap.get(bill.id) || null;
+      const contract = contractForBill(bill);
       const billAnomalies = anomalyMap.get(bill.id) || [];
       const article = document.createElement("article");
       article.className = `cloud-bill-item${check ? " has-check" : ""}`;
@@ -498,6 +696,11 @@
       const amount = Number.isFinite(Number(bill.total_amount_eur)) ? formatMoney(bill.total_amount_eur) : "Importo in lettura";
       meta.textContent = `${formatPeriod(bill)} · ${amount} · ${formatSize(bill.file_size)}`;
       copy.append(title, utilityName, meta);
+      if (contract) {
+        const offerMeta = document.createElement("small");
+        offerMeta.textContent = `Offerta: ${contract.offer_name || contract.provider_name || "provvisoria"} · ${offerBadge(contract).toLowerCase()}`;
+        copy.append(offerMeta);
+      }
 
       const badge = document.createElement("span");
       badge.className = "cloud-bill-status";
@@ -646,7 +849,7 @@
           customer_status: "awaiting_review",
           metadata: {
             source: "premium_app",
-            app_version: "0.30.2",
+            app_version: "0.31C",
             automatic_analysis: true
           }
         })
@@ -683,6 +886,74 @@
       setMessage("error", friendlyError(error));
     } finally {
       if (state.fileInput) state.fileInput.value = "";
+    }
+  }
+
+  function selectedOfferCandidates(contractId) {
+    const selects = [...state.list.querySelectorAll("[data-offer-candidate-select]")]
+      .filter(select => select.dataset.offerCandidateSelect === contractId);
+    if (!selects.length) throw new Error("Le offerte compatibili non sono disponibili.");
+    return selects.map(select => {
+      if (!select.value) throw new Error("Seleziona l’offerta che riconosci prima di confermare.");
+      return { commodity: select.dataset.offerCandidateCommodity, key: select.value };
+    });
+  }
+
+  async function sendOfferDecision(contractId, billId, decision) {
+    if (!client || !currentUser || busy) return;
+    const contract = contracts.find(item => item.id === contractId);
+    if (!contract || contract.customer_confirmation_status !== "pending") {
+      setMessage("error", "Questa proposta non è più in attesa di conferma.");
+      return;
+    }
+
+    let selections = [];
+    if (decision === "confirm") {
+      try { selections = selectedOfferCandidates(contractId); }
+      catch (error) { setMessage("error", friendlyError(error)); return; }
+    } else {
+      const confirmed = window.confirm("Confermi che la proposta mostrata non corrisponde alla tua offerta attiva?");
+      if (!confirmed) return;
+    }
+
+    setBusy(true);
+    setMessage("info", decision === "confirm" ? "Registrazione e nuovo controllo delle condizioni…" : "Registrazione della mancata corrispondenza…");
+    try {
+      const { data: sessionData, error: sessionError } = await client.auth.getSession();
+      if (sessionError) throw sessionError;
+      const accessToken = sessionData?.session?.access_token;
+      if (!accessToken) throw new Error("premium_auth_required");
+      const response = await fetch("/api/premium-ai-analysis", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: JSON.stringify({
+          action: decision === "confirm" ? "confirm_offer" : "reject_offer",
+          contractId,
+          billId,
+          selections
+        })
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok || !body?.ok) throw new Error(body?.error || body?.code || "Conferma non riuscita");
+      expandedBillIds.add(billId);
+      await loadData(currentUser, currentSubscription);
+      if (decision === "confirm") {
+        const kind = body?.screening?.status === "clear" ? "success" : "info";
+        setMessage(kind, body?.screening?.summary || "Offerta confermata e condizioni registrate.");
+      } else {
+        setMessage("success", "Proposta esclusa. La scheda resta provvisoria e non viene usata per i controlli contrattuali.");
+      }
+      window.dispatchEvent(new CustomEvent("offertalogica:offer-confirmation-changed", {
+        detail: { billId, contractId, decision, screening: body?.screening || null }
+      }));
+    } catch (error) {
+      setMessage("error", friendlyError(error));
+    } finally {
+      setBusy(false);
+      renderEnabled();
     }
   }
 
@@ -856,7 +1127,7 @@
 
   async function loadData(user, subscription) {
     const oneYearAgo = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString();
-    const [utilitiesResult, billsResult, countResult, checksResult, anomaliesResult] = await Promise.all([
+    const [utilitiesResult, billsResult, countResult, contractsResult, checksResult, anomaliesResult] = await Promise.all([
       client
         .from("premium_utilities")
         .select(UTILITY_COLUMNS)
@@ -877,6 +1148,12 @@
         .is("deleted_at", null)
         .gte("created_at", oneYearAgo),
       client
+        .from("premium_contracts")
+        .select(CONTRACT_COLUMNS)
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(100),
+      client
         .from("premium_checks")
         .select(CHECK_COLUMNS)
         .eq("user_id", user.id)
@@ -893,6 +1170,7 @@
     if (utilitiesResult.error) throw utilitiesResult.error;
     if (billsResult.error) throw billsResult.error;
     if (countResult.error) throw countResult.error;
+    if (contractsResult.error) throw contractsResult.error;
     if (checksResult.error) throw checksResult.error;
     if (anomaliesResult.error) throw anomaliesResult.error;
 
@@ -900,6 +1178,7 @@
     currentSubscription = subscription;
     utilities = Array.isArray(utilitiesResult.data) ? utilitiesResult.data : [];
     bills = Array.isArray(billsResult.data) ? billsResult.data : [];
+    contracts = Array.isArray(contractsResult.data) ? contractsResult.data : [];
     checks = Array.isArray(checksResult.data) ? checksResult.data : [];
     anomalies = Array.isArray(anomaliesResult.data) ? anomaliesResult.data : [];
     yearlyBillCount = Number(countResult.count || 0);
@@ -912,6 +1191,7 @@
     currentSubscription = null;
     utilities = [];
     bills = [];
+    contracts = [];
     checks = [];
     anomalies = [];
     expandedBillIds.clear();
@@ -1051,6 +1331,16 @@
         if (expandedBillIds.has(billId)) expandedBillIds.delete(billId);
         else expandedBillIds.add(billId);
         renderList();
+        return;
+      }
+      const offerConfirmButton = event.target.closest("[data-offer-confirm]");
+      if (offerConfirmButton) {
+        sendOfferDecision(offerConfirmButton.dataset.offerConfirm, offerConfirmButton.dataset.offerBill, "confirm");
+        return;
+      }
+      const offerRejectButton = event.target.closest("[data-offer-reject]");
+      if (offerRejectButton) {
+        sendOfferDecision(offerRejectButton.dataset.offerReject, offerRejectButton.dataset.offerBill, "reject");
         return;
       }
       const retryButton = event.target.closest("[data-cloud-analysis-retry]");

@@ -6,7 +6,10 @@ import { json, method, readJson, requireAllowedOrigin } from "../lib/http.js";
 import { normalizePdfFileHeader } from "../lib/pdfFileValidation.js";
 import { extractPdfPureAi } from "../lib/pdfPureAiReader.js";
 import { enforceRateLimit } from "../lib/rateLimit.js";
-import { matchAndPersistPremiumOffer } from "../lib/premiumOfferMatcher.js";
+import {
+  applyPremiumOfferCustomerDecision,
+  matchAndPersistPremiumOffer,
+} from "../lib/premiumOfferMatcher.js";
 import {
   analysisCompletionStatus,
   assertPremiumAiConfigured,
@@ -38,6 +41,7 @@ function offerMatchWarning(offerMatch) {
   if (offerMatch.status === "existing_verified") return "offerta_attiva_gia_verificata";
   if (offerMatch.status === "matched" && offerMatch.verified) return "offerta_attiva_identificata_arera";
   if (["matched", "partial", "ambiguous"].includes(offerMatch.status)) return "offerta_attiva_da_confermare";
+  if (offerMatch.status === "customer_rejected") return "offerta_attiva_esclusa_dal_cliente";
   if (offerMatch.status === "not_found") return "offerta_attiva_non_trovata_nello_storico_arera";
   if (offerMatch.status === "error") return "ricerca_offerta_arera_non_disponibile";
   return "";
@@ -48,6 +52,7 @@ export function createPremiumAiAnalysisHandler({
   fetchImpl = fetch,
   analyzePdf = extractPdfPureAi,
   matchOffer = matchAndPersistPremiumOffer,
+  decideOffer = applyPremiumOfferCustomerDecision,
   now = () => Date.now(),
 } = {}) {
   return async function handler(req, res) {
@@ -63,10 +68,83 @@ export function createPremiumAiAnalysisHandler({
     let temporaryFilePath = "";
 
     try {
-      assertPremiumAiConfigured(backend);
       const body = await readJson(req);
-      customerMode = Boolean(body?.billId) && !body?.checkId;
       const accessToken = readBearerToken(req);
+      const offerDecision = body?.action === "confirm_offer"
+        ? "confirm"
+        : body?.action === "reject_offer"
+          ? "reject"
+          : "";
+
+      if (offerDecision) {
+        if (!backend.supabaseUrl || !backend.serviceKey) throw new Error("premium_supabase_not_configured");
+        const { user } = await verifyPremiumCustomer({ config: backend, accessToken, fetchImpl });
+        if (!(await enforceRateLimit(req, res, {
+          label: "premium-offer-confirmation",
+          identifier: user.id,
+          limit: Number(env.RATE_LIMIT_PREMIUM_OFFER_CONFIRM_LIMIT || 30),
+          windowSeconds: Number(env.RATE_LIMIT_PREMIUM_OFFER_CONFIRM_WINDOW_SECONDS || 3600),
+        }))) return;
+
+        const decisionResult = await decideOffer({
+          config: backend,
+          userId: user.id,
+          contractId: body?.contractId,
+          billId: body?.billId,
+          decision: offerDecision,
+          selections: body?.selections,
+          fetchImpl,
+        });
+
+        let screening = null;
+        if (offerDecision === "confirm" && decisionResult.normalized && decisionResult.run?.id) {
+          screening = classifyPremiumAutomaticAnalysis(decisionResult.normalized, {
+            contract: decisionResult.contract,
+          });
+          const completedAt = new Date().toISOString();
+          await patchPremiumBill({
+            config: backend,
+            billId: decisionResult.bill.id,
+            fetchImpl,
+            values: {
+              ...premiumBillValuesFromAnalysis(
+                decisionResult.normalized,
+                screening,
+                decisionResult.run.id,
+                completedAt,
+              ),
+              contract_id: decisionResult.contract.id,
+            },
+          });
+          await patchPremiumAnalysisRun({
+            config: backend,
+            runId: decisionResult.run.id,
+            fetchImpl,
+            values: {
+              automatic_classification: screening.status,
+              automatic_summary: screening.summary,
+              automatic_reasons: screening.reasons,
+            },
+          });
+        }
+
+        return json(res, 200, {
+          ok: true,
+          mode: "offer_confirmation",
+          decision: offerDecision,
+          contract: {
+            id: decisionResult.contract?.id || null,
+            verificationStatus: decisionResult.contract?.verification_status || null,
+            confirmationStatus: decisionResult.contract?.customer_confirmation_status || null,
+            providerName: decisionResult.contract?.provider_name || "",
+            offerName: decisionResult.contract?.offer_name || "",
+          },
+          screening,
+        });
+      }
+
+      assertPremiumAiConfigured(backend);
+      customerMode = Boolean(body?.billId) && !body?.checkId;
       let actorUserId = null;
       let contract = null;
 
