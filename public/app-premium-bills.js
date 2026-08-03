@@ -16,6 +16,7 @@
   let syncSequence = 0;
   let currentUser = null;
   let currentSubscription = null;
+  let maintenanceMode = false;
   let utilities = [];
   let bills = [];
   let contracts = [];
@@ -66,9 +67,9 @@
 
   function setBusy(value) {
     busy = Boolean(value);
-    if (state.utilitySelect) state.utilitySelect.disabled = busy || !utilities.length;
+    if (state.utilitySelect) state.utilitySelect.disabled = busy || maintenanceMode || !utilities.length;
     if (state.uploadButton) state.uploadButton.disabled = busy || !canUpload();
-    if (state.fileInput) state.fileInput.disabled = busy || !utilities.length;
+    if (state.fileInput) state.fileInput.disabled = busy || maintenanceMode || !utilities.length;
     if (state.uploadButtonLabel) state.uploadButtonLabel.textContent = busy ? "OPERAZIONE…" : "SCEGLI PDF";
     state.list?.querySelectorAll("button, select").forEach(control => { control.disabled = busy; });
     state.card?.setAttribute("aria-busy", busy ? "true" : "false");
@@ -146,7 +147,7 @@
   }
 
   function canRequestCheck(bill, check) {
-    if (check) return false;
+    if (maintenanceMode || check) return false;
     return ["review_recommended", "inconclusive", "failed"].includes(bill.automatic_screening_status)
       && ["completed", "failed"].includes(bill.processing_status);
   }
@@ -254,11 +255,12 @@
   }
 
   function canUpload() {
-    return Boolean(currentUser && currentSubscription && utilities.length && yearlyBillCount < planLimit() && !busy);
+    return Boolean(!maintenanceMode && currentUser && currentSubscription && utilities.length && yearlyBillCount < planLimit() && !busy);
   }
 
   function renderLocked(title, copy, badge = "BLOCCATO", quota = "Non attivo") {
     currentSubscription = null;
+    maintenanceMode = false;
     utilities = [];
     bills = [];
     contracts = [];
@@ -309,20 +311,21 @@
   function renderEnabled() {
     if (state.locked) state.locked.hidden = true;
     if (state.enabled) state.enabled.hidden = false;
-    setText(state.statusBadge, currentSubscription?.status === "trialing" ? "PROVA" : "ATTIVO");
-    setText(state.quota, `${yearlyBillCount} / ${planLimit()}`);
+    setText(state.statusBadge, maintenanceMode ? "ARCHIVIO" : (currentSubscription?.status === "trialing" ? "PROVA" : "ATTIVO"));
+    setText(state.quota, maintenanceMode ? "Sola gestione" : `${yearlyBillCount} / ${planLimit()}`);
     setText(state.homeCount, String(bills.length));
     setText(state.profileCount, String(bills.length));
     setText(state.profileSize, formatSize(bills.reduce((sum, bill) => sum + Number(bill.file_size || 0), 0)));
 
     renderUtilityOptions();
-    if (state.noUtilities) state.noUtilities.hidden = utilities.length > 0;
-    if (state.utilitySelect) state.utilitySelect.hidden = utilities.length === 0;
-    if (state.uploadButton) state.uploadButton.hidden = utilities.length === 0;
+    if (state.noUtilities) state.noUtilities.hidden = maintenanceMode || utilities.length > 0;
+    if (state.utilitySelect) state.utilitySelect.hidden = maintenanceMode || utilities.length === 0;
+    if (state.uploadButton) state.uploadButton.hidden = maintenanceMode || utilities.length === 0;
     setBusy(false);
     renderCloudSpend();
     renderList();
-    scheduleAutomaticWork();
+    if (!maintenanceMode) scheduleAutomaticWork();
+    else if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
   }
 
   function renderCloudSpend() {
@@ -567,7 +570,7 @@
       : "Il risultato automatico sarà disponibile al termine dell’analisi.");
     detail.append(head, copy);
     const contract = contractForBill(bill);
-    if (contract) detail.append(renderOfferCard(bill, contract));
+    if (contract) detail.append(renderOfferCard(bill, contract, { allowActions: !maintenanceMode }));
     const reasons = Array.isArray(bill.automatic_screening_reasons) ? bill.automatic_screening_reasons : [];
     if (reasons.length) {
       const list = document.createElement("div");
@@ -739,7 +742,7 @@
           requestButton.textContent = "RICHIEDI CONTROLLO";
           actions.append(requestButton);
         }
-        if (bill.automatic_screening_status === "failed") {
+        if (!maintenanceMode && bill.automatic_screening_status === "failed") {
           const retryButton = document.createElement("button");
           retryButton.type = "button";
           retryButton.className = "cloud-bill-btn";
@@ -901,6 +904,10 @@
 
   async function sendOfferDecision(contractId, billId, decision) {
     if (!client || !currentUser || busy) return;
+    if (maintenanceMode) {
+      setMessage("error", "La conferma dell’offerta richiede un abbonamento attivo.");
+      return;
+    }
     const contract = contracts.find(item => item.id === contractId);
     if (!contract || contract.customer_confirmation_status !== "pending") {
       setMessage("error", "Questa proposta non è più in attesa di conferma.");
@@ -958,6 +965,10 @@
   }
 
   async function requestCheck(id) {
+    if (maintenanceMode) {
+      setMessage("error", "La richiesta di controllo richiede un abbonamento attivo.");
+      return;
+    }
     const bill = bills.find(item => item.id === id);
     if (!bill || !client || !currentUser || busy) return;
     if (checks.some(check => check.bill_id === bill.id && check.status !== "canceled")) {
@@ -995,6 +1006,7 @@
   }
 
   async function runAutomaticAnalysis(id, { announce = false } = {}) {
+    if (maintenanceMode) return;
     const bill = bills.find(item => item.id === id);
     if (!bill || !client || !currentUser || analysisInFlightIds.has(id)) return;
     analysisInFlightIds.add(id);
@@ -1176,6 +1188,7 @@
 
     currentUser = user;
     currentSubscription = subscription;
+    maintenanceMode = !subscription;
     utilities = Array.isArray(utilitiesResult.data) ? utilitiesResult.data : [];
     bills = Array.isArray(billsResult.data) ? billsResult.data : [];
     contracts = Array.isArray(contractsResult.data) ? contractsResult.data : [];
@@ -1189,6 +1202,7 @@
     const sequence = ++syncSequence;
     currentUser = session?.user || null;
     currentSubscription = null;
+    maintenanceMode = false;
     utilities = [];
     bills = [];
     contracts = [];
@@ -1237,13 +1251,13 @@
       renderLocked("Profilo Premium non abilitato", "L’account email è valido, ma non risulta associato al servizio Premium.", "DA VERIFICARE", "Non disponibile");
       return;
     }
-    if (!subscriptionIsActive(profile, subscription)) {
-      renderLocked("Abbonamento necessario", "Archivio cloud e associazione alle utenze richiedono una prova o un abbonamento attivo.", "NON ATTIVO", "Non attivo");
-      return;
-    }
+    const activeSubscription = subscriptionIsActive(profile, subscription) ? subscription : null;
 
     try {
-      await loadData(session.user, subscription);
+      await loadData(session.user, activeSubscription);
+      if (!activeSubscription) {
+        setMessage("info", "Abbonamento non attivo: l’archivio resta disponibile in sola gestione. Puoi aprire o eliminare i dati già salvati.");
+      }
     } catch (error) {
       if (sequence !== syncSequence) return;
       renderLocked("Archivio cloud non disponibile", "Il profilo è attivo, ma non è stato possibile caricare le bollette.", "ERRORE", "—");
@@ -1288,6 +1302,10 @@
     }
 
     state.uploadButton?.addEventListener("click", () => {
+      if (maintenanceMode) {
+        setMessage("error", "L’abbonamento non è attivo. Puoi consultare o eliminare i dati già archiviati.");
+        return;
+      }
       if (!utilities.length) {
         setMessage("error", "Aggiungi prima un’utenza dalla sezione Profilo.");
         return;

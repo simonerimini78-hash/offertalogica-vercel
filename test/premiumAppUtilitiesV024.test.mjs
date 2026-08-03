@@ -9,7 +9,7 @@ const migration = await readFile(new URL('../supabase/premium-utilities-v0.24.sq
 const verify = await readFile(new URL('../supabase/premium-utilities-v0.24-verify.sql', import.meta.url), 'utf8');
 
 test('Premium v0.25 aggiunge la gestione utenze senza cambiare la navigazione principale', () => {
-  assert.match(html, /APP Premium v0\.(?:30(?:\.\d+)?|31C)/);
+  assert.match(html, /APP Premium v0\.(?:30(?:\.\d+)?|31C|32)/);
   assert.match(html, /id="premiumUtilitiesCard"/);
   assert.match(html, /id="premiumUtilityForm"/);
   assert.match(html, /id="premiumUtilityList"/);
@@ -18,11 +18,13 @@ test('Premium v0.25 aggiunge la gestione utenze senza cambiare la navigazione pr
   assert.equal((html.match(/data-tab="/g) || []).length, 4);
 });
 
-test('Le utenze sono disponibili solo con profilo e abbonamento valido', () => {
+test('Le utenze restano consultabili in sola gestione, mentre le modifiche richiedono un abbonamento valido', () => {
   assert.match(utilities, /profile\?\.account_status !== "active"/);
   assert.match(utilities, /ACTIVE_SUBSCRIPTION_STATUSES\.has\(subscription\.status\)/);
   assert.match(utilities, /current_period_end/);
-  assert.match(utilities, /Abbonamento necessario/);
+  assert.match(utilities, /maintenanceMode = !subscription/);
+  assert.match(utilities, /La modifica delle utenze richiede un abbonamento attivo/);
+  assert.match(utilities, /Sola gestione/);
 });
 
 test('Il modulo gestisce creazione, modifica, eliminazione e tipi luce gas dual', () => {
@@ -57,7 +59,7 @@ test('La migrazione fa rispettare sul database il limite di utenze del piano', (
 });
 
 test('La cache Premium include il nuovo modulo ed è separata dalla v0.23', () => {
-  assert.match(sw, /offertalogica-premium-v(?:30\d*|031c)/);
+  assert.match(sw, /offertalogica-premium-v(?:30\d*|031c|032)/);
   assert.match(sw, /"\/app-utilities\.js"/);
   assert.doesNotMatch(sw, /offertalogica-premium-v23/);
   assert.doesNotMatch(sw, /offertalogica-app-v22/);

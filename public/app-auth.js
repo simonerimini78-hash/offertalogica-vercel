@@ -215,17 +215,17 @@
       setText(state.profileKicker, "Profilo Premium");
       setText(state.profileTitle, displayName || "Account Premium");
       setText(state.profileBadge, "NON ATTIVO");
-      setText(state.profileDescription, "L’account è collegato. Nessun abbonamento attivo risulta associato al profilo.");
-      setText(state.profileControls, "Abbonamento richiesto");
+      setText(state.profileDescription, "L’account è collegato. Le funzioni operative richiedono un abbonamento attivo; i dati già archiviati restano consultabili e cancellabili.");
+      setText(state.profileControls, "Sola gestione dati");
       setText(state.homePlanName, "Premium");
       setText(state.homePlanStatus, "Abbonamento non attivo");
       setText(state.homePremiumBadge, "NON ATTIVO");
       setText(state.homePremiumTitle, "Account creato");
-      setText(state.homePremiumCopy, "Il profilo è collegato, ma archivio cloud e controlli restano bloccati finché non viene attivato un abbonamento.");
+      setText(state.homePremiumCopy, "Il profilo è collegato. Senza abbonamento puoi gestire o eliminare i dati già archiviati, ma non caricare nuove bollette o richiedere controlli.");
     }
 
     setText(state.profileEmail, session.user.email || "—");
-    setText(state.profileArchive, serviceActive ? "Cloud Premium attivo" : "Cloud non attivo");
+    setText(state.profileArchive, serviceActive ? "Cloud Premium attivo" : (profile ? "Archivio in sola gestione" : "Cloud non attivo"));
   }
 
   async function handleLogin(event) {

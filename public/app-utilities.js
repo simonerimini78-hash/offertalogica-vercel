@@ -11,6 +11,7 @@
   let syncSequence = 0;
   let currentUser = null;
   let currentSubscription = null;
+  let maintenanceMode = false;
   let utilities = [];
   let editingId = "";
 
@@ -97,6 +98,7 @@
 
   function renderLocked(title, copy, badge = "BLOCCATO", quota = "Non attivo") {
     currentSubscription = null;
+    maintenanceMode = false;
     utilities = [];
     closeForm();
     if (state.locked) state.locked.hidden = false;
@@ -121,14 +123,15 @@
   function renderEnabled() {
     if (state.locked) state.locked.hidden = true;
     if (state.enabled) state.enabled.hidden = false;
-    setText(state.statusBadge, currentSubscription?.status === "trialing" ? "PROVA" : "ATTIVO");
+    setText(state.statusBadge, maintenanceMode ? "ARCHIVIO" : (currentSubscription?.status === "trialing" ? "PROVA" : "ATTIVO"));
 
     const limit = Math.max(1, Number(currentSubscription?.included_utilities || 1));
     const activeCount = utilities.filter(item => item.status !== "archived").length;
-    const canAdd = activeCount < limit;
-    setText(state.quota, `${activeCount} / ${limit}`);
+    const canAdd = !maintenanceMode && activeCount < limit;
+    setText(state.quota, maintenanceMode ? "Sola gestione" : `${activeCount} / ${limit}`);
     if (state.addButton) {
       state.addButton.disabled = !canAdd;
+      state.addButton.hidden = maintenanceMode;
       state.addButton.textContent = canAdd ? "AGGIUNGI UTENZA" : "LIMITE UTENZE RAGGIUNTO";
     }
 
@@ -198,7 +201,8 @@
       remove.className = "utility-mini-btn danger";
       remove.dataset.utilityDelete = utility.id;
       remove.textContent = "ELIMINA";
-      actions.append(edit, remove);
+      if (!maintenanceMode) actions.append(edit);
+      actions.append(remove);
 
       article.append(head, details, actions);
       state.list.append(article);
@@ -223,6 +227,10 @@
   }
 
   function openForm(utility = null) {
+    if (maintenanceMode) {
+      setMessage("error", "La modifica delle utenze richiede un abbonamento attivo.");
+      return;
+    }
     if (!state.form || !currentUser || !currentSubscription) return;
     const limit = Math.max(1, Number(currentSubscription.included_utilities || 1));
     if (!utility && utilities.length >= limit) {
@@ -273,6 +281,10 @@
 
   async function handleSubmit(event) {
     event.preventDefault();
+    if (maintenanceMode) {
+      setMessage("error", "La modifica delle utenze richiede un abbonamento attivo.");
+      return;
+    }
     if (!client || !currentUser || !currentSubscription) {
       setMessage("error", "L’area utenze non è disponibile.");
       return;
@@ -386,6 +398,7 @@
     if (result.error) throw result.error;
     currentUser = user;
     currentSubscription = subscription;
+    maintenanceMode = !subscription;
     utilities = Array.isArray(result.data) ? result.data : [];
     renderEnabled();
   }
@@ -394,6 +407,7 @@
     const sequence = ++syncSequence;
     currentUser = session?.user || null;
     currentSubscription = null;
+    maintenanceMode = false;
     utilities = [];
 
     if (!session?.user) {
@@ -436,13 +450,13 @@
       renderLocked("Profilo Premium non abilitato", "L’account email è valido, ma non risulta associato al servizio Premium.", "DA VERIFICARE", "Non disponibile");
       return;
     }
-    if (!subscriptionIsActive(profile, subscription)) {
-      renderLocked("Abbonamento necessario", "Le utenze possono essere create e gestite soltanto con un periodo di prova o un abbonamento attivo.", "NON ATTIVO", "Non attivo");
-      return;
-    }
+    const activeSubscription = subscriptionIsActive(profile, subscription) ? subscription : null;
 
     try {
-      await loadUtilities(session.user, subscription);
+      await loadUtilities(session.user, activeSubscription);
+      if (!activeSubscription) {
+        setMessage("info", "Abbonamento non attivo: puoi eliminare le utenze dopo aver rimosso le bollette collegate.");
+      }
     } catch (error) {
       if (sequence !== syncSequence) return;
       renderLocked("Utenze non disponibili", "Il profilo è attivo, ma non è stato possibile caricare le utenze.", "ERRORE", "—");

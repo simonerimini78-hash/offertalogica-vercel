@@ -13,9 +13,9 @@ const verify = await readFile(new URL("../supabase/premium-ai-v0.28-verify.sql",
 const docs = await readFile(new URL("../docs/PREMIUM-AI-V0.28.md", import.meta.url), "utf8");
 
 test("Premium v0.28 aggiorna versione e cache senza modificare il ramo gratuito", () => {
-  assert.match(app, /APP Premium v0\.(?:30(?:\.\d+)?|31C)/);
+  assert.match(app, /APP Premium v0\.(?:30(?:\.\d+)?|31C|32)/);
   assert.match(html, /Area riservata allo staff autorizzato · v0\.30/);
-  assert.match(sw, /offertalogica-premium-v(?:30\d*|031c)/);
+  assert.match(sw, /offertalogica-premium-v(?:30\d*|031c|032)/);
 });
 
 test("La dashboard mantiene la riesecuzione IA manuale dello staff con JWT personale", () => {
