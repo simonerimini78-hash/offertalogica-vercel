@@ -97,6 +97,13 @@
     }).format(date);
   }
 
+  function trialDaysRemaining(subscription) {
+    if (subscription?.status !== "trialing" || subscription?.plan_code !== "premium-beta" || !subscription.current_period_end) return null;
+    const end = new Date(subscription.current_period_end);
+    if (Number.isNaN(end.getTime())) return null;
+    return Math.max(0, Math.ceil((end.getTime() - Date.now()) / 86_400_000));
+  }
+
   function authReturnUrl(kind = "confirm") {
     const url = new URL(window.location.href);
     url.search = "";
@@ -224,7 +231,7 @@
     if (!subscription) return "Nessun abbonamento";
     const labels = {
       pending: "In attesa",
-      trialing: "Periodo di prova",
+      trialing: "Prova gratuita di 30 giorni",
       active: "Attivo",
       past_due: "Pagamento da regolarizzare",
       paused: "In pausa",
@@ -268,7 +275,7 @@
         .maybeSingle(),
       client
         .from("premium_subscriptions")
-        .select("status, plan_code, current_period_end, included_utilities, included_bills_per_year, created_at")
+        .select("status, plan_code, current_period_start, current_period_end, included_utilities, included_bills_per_year, created_at")
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(1)
@@ -414,16 +421,24 @@
       setText(state.homePremiumTitle, "Completa le condizioni Premium");
       setText(state.homePremiumCopy, "Accetta le condizioni dal Profilo prima di caricare nuove bollette.");
     } else if (serviceActive) {
+      const trialDays = trialDaysRemaining(subscription);
+      const isBetaTrial = subscription.status === "trialing" && subscription.plan_code === "premium-beta";
       setText(state.profileKicker, "Profilo Premium");
       setText(state.profileTitle, displayName || "Account Premium");
-      setText(state.profileBadge, subscription.status === "trialing" ? "PROVA" : "ATTIVO");
-      setText(state.profileDescription, "Servizio Premium attivo.");
-      setText(state.profileControls, "Abbonamento attivo");
-      setText(state.homePlanName, subscription.status === "trialing" ? "Prova Premium" : "Premium");
-      setText(state.homePlanStatus, "Abbonamento attivo");
-      setText(state.homePremiumBadge, subscription.status === "trialing" ? "PROVA ATTIVA" : "ATTIVO");
-      setText(state.homePremiumTitle, "Account Premium collegato");
-      setText(state.homePremiumCopy, "Servizio attivo. La verifica dello staff è disponibile solo per anomalie o dati incerti.");
+      setText(state.profileBadge, isBetaTrial ? "PROVA" : "ATTIVO");
+      setText(state.profileDescription, isBetaTrial
+        ? `Prova gratuita attiva${trialDays == null ? "" : `. ${trialDays} ${trialDays === 1 ? "giorno rimanente" : "giorni rimanenti"}.`}`
+        : "Servizio Premium attivo.");
+      setText(state.profileControls, isBetaTrial ? "4 bollette · 1 controllo staff" : "Abbonamento attivo");
+      setText(state.homePlanName, isBetaTrial ? "Prova Premium" : "Premium");
+      setText(state.homePlanStatus, isBetaTrial && trialDays != null
+        ? `${trialDays} ${trialDays === 1 ? "giorno rimanente" : "giorni rimanenti"}`
+        : "Abbonamento attivo");
+      setText(state.homePremiumBadge, isBetaTrial ? "PROVA ATTIVA" : "ATTIVO");
+      setText(state.homePremiumTitle, isBetaTrial ? "Prova Premium attiva" : "Account Premium collegato");
+      setText(state.homePremiumCopy, isBetaTrial
+        ? "Fino a 4 bollette e una verifica staff per un’anomalia rossa. Nessuna carta e nessun addebito automatico."
+        : "Servizio attivo. La verifica dello staff è disponibile solo per anomalie rosse.");
     } else {
       setText(state.profileKicker, "Profilo Premium");
       setText(state.profileTitle, displayName || "Account Premium");

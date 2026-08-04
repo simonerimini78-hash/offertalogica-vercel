@@ -62,6 +62,19 @@
     return String(value || "").trim().toUpperCase().replace(/\s+/g, "");
   }
 
+  function normalizeAddress(value) {
+    return String(value || "").trim().toLocaleLowerCase("it-IT").replace(/[^a-z0-9à-öø-ÿ]+/g, "");
+  }
+
+  function isBetaTrial() {
+    return currentSubscription?.status === "trialing" && currentSubscription?.plan_code === "premium-beta";
+  }
+
+  function trialHomeAddress(excludeId = "") {
+    const utility = utilities.find(item => item.id !== excludeId && item.status !== "archived" && normalizeAddress(item.address?.formatted));
+    return String(utility?.address?.formatted || "").trim();
+  }
+
   function supplyLabel(value) {
     return {
       electricity: "Luce",
@@ -84,7 +97,9 @@
       return "Accetta le condizioni Premium correnti dalla sezione Profilo prima di continuare.";
     }
     if (message.includes("row-level security") || message.includes("permission denied")) {
-      return "Operazione non autorizzata. Verifica che l’abbonamento sia attivo.";
+      return isBetaTrial()
+        ? "Durante la prova puoi registrare al massimo due utenze della stessa abitazione. Usa lo stesso indirizzo di fornitura."
+        : "Operazione non autorizzata. Verifica che l’abbonamento sia attivo.";
     }
     if (message.includes("failed to fetch") || message.includes("network")) {
       return "Connessione non disponibile. Controlla la rete e riprova.";
@@ -134,7 +149,9 @@
     const limit = Math.max(1, Number(currentSubscription?.included_utilities || 1));
     const activeCount = utilities.filter(item => item.status !== "archived").length;
     const canAdd = !maintenanceMode && activeCount < limit;
-    setText(state.quota, legalBlocked ? "Accettazione richiesta" : (maintenanceMode ? "Sola gestione" : `${activeCount} / ${limit}`));
+    setText(state.quota, legalBlocked
+      ? "Accettazione richiesta"
+      : (maintenanceMode ? "Sola gestione" : (isBetaTrial() ? `${activeCount} / ${limit} · una abitazione` : `${activeCount} / ${limit}`)));
     if (state.addButton) {
       state.addButton.disabled = !canAdd;
       state.addButton.hidden = maintenanceMode;
@@ -272,6 +289,13 @@
 
     if (label.length < 2) throw new Error("Inserisci un nome riconoscibile per l’utenza.");
     if (!VALID_SUPPLY_TYPES.has(supplyType)) throw new Error("Seleziona una tipologia valida.");
+    if (isBetaTrial()) {
+      if (!address) throw new Error("Durante la prova inserisci l’indirizzo dell’abitazione collegata alle utenze.");
+      const homeAddress = trialHomeAddress(editingId);
+      if (homeAddress && normalizeAddress(homeAddress) !== normalizeAddress(address)) {
+        throw new Error("Durante la prova le utenze luce e gas devono riferirsi alla stessa abitazione e usare lo stesso indirizzo.");
+      }
+    }
 
     return {
       user_id: currentUser.id,
@@ -419,7 +443,7 @@
     if (error) return subscription;
     const refreshed = await client
       .from("premium_subscriptions")
-      .select("status, current_period_end, included_utilities, created_at")
+      .select("status, plan_code, current_period_start, current_period_end, included_utilities, created_at")
       .eq("user_id", currentUser.id)
       .order("created_at", { ascending: false })
       .limit(1)
@@ -451,7 +475,7 @@
         .maybeSingle(),
       client
         .from("premium_subscriptions")
-        .select("status, current_period_end, included_utilities, created_at")
+        .select("status, plan_code, current_period_start, current_period_end, included_utilities, created_at")
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(1)

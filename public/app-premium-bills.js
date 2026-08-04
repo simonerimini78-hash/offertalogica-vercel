@@ -23,7 +23,7 @@
   let contracts = [];
   let checks = [];
   let anomalies = [];
-  let yearlyBillCount = 0;
+  let periodBillCount = 0;
   let busy = false;
   const expandedBillIds = new Set();
   const analysisInFlightIds = new Set();
@@ -72,7 +72,9 @@
     if (state.uploadButton) state.uploadButton.disabled = busy || !canUpload();
     if (state.fileInput) state.fileInput.disabled = busy || maintenanceMode || !utilities.length;
     if (state.uploadButtonLabel) state.uploadButtonLabel.textContent = busy ? "OPERAZIONE…" : "SCEGLI PDF";
-    state.list?.querySelectorAll("button, select").forEach(control => { control.disabled = busy; });
+    state.list?.querySelectorAll("button, select").forEach(control => {
+      control.disabled = Boolean(busy) || control.dataset.permanentDisabled === "true";
+    });
     state.card?.setAttribute("aria-busy", busy ? "true" : "false");
   }
 
@@ -160,11 +162,36 @@
     return "Archiviata";
   }
 
-  function canRequestCheck(bill, check) {
+  function isBetaTrial() {
+    return currentSubscription?.status === "trialing" && currentSubscription?.plan_code === "premium-beta";
+  }
+
+  function currentPeriodStartTime() {
+    const start = new Date(currentSubscription?.current_period_start || 0).getTime();
+    return Number.isFinite(start) && start > 0 ? start : Date.now() - 365 * 24 * 60 * 60 * 1000;
+  }
+
+  function trialStaffCheckUsed() {
+    if (!isBetaTrial()) return false;
+    const start = currentPeriodStartTime();
+    const end = new Date(currentSubscription?.current_period_end || 0).getTime();
+    return checks.some(check => {
+      const created = new Date(check.created_at).getTime();
+      return Number.isFinite(created)
+        && created >= start
+        && (!Number.isFinite(end) || end <= 0 || created < end);
+    });
+  }
+
+  function isRedCheckRequestable(bill, check) {
     if (maintenanceMode || check) return false;
     return bill.automatic_screening_status === "review_recommended"
       && bill.customer_status === "anomaly_found"
       && bill.processing_status === "completed";
+  }
+
+  function canRequestCheck(bill, check) {
+    return isRedCheckRequestable(bill, check) && !trialStaffCheckUsed();
   }
 
   function hasActiveHumanCheck(check) {
@@ -216,7 +243,12 @@
     const message = raw.toLowerCase();
     if (!message) return "Operazione non riuscita. Riprova.";
     if (message.includes("premium bill limit reached") || message.includes("premium_bill_limit_reached") || message.includes("row-level security")) {
-      return "Il caricamento non è autorizzato oppure hai raggiunto il limite annuale del piano.";
+      return isBetaTrial()
+        ? "Hai raggiunto il limite di 4 bollette incluse nella prova gratuita."
+        : "Il caricamento non è autorizzato oppure hai raggiunto il limite del piano.";
+    }
+    if (message.includes("premium_trial_staff_limit_reached")) {
+      return "La verifica staff inclusa nella prova è già stata utilizzata.";
     }
     if (message.includes("premium_bill_not_requestable")) {
       return "La verifica dello staff è disponibile soltanto per le anomalie rosse.";
@@ -269,11 +301,12 @@
   }
 
   function planLimit() {
-    return Math.max(1, Number(currentSubscription?.included_bills_per_year || 12));
+    const fallback = isBetaTrial() ? 4 : 12;
+    return Math.max(1, Number(currentSubscription?.included_bills_per_year || fallback));
   }
 
   function canUpload() {
-    return Boolean(!maintenanceMode && currentUser && currentSubscription && utilities.length && yearlyBillCount < planLimit() && !busy);
+    return Boolean(!maintenanceMode && currentUser && currentSubscription && utilities.length && periodBillCount < planLimit() && !busy);
   }
 
   function renderLocked(title, copy, badge = "BLOCCATO", quota = "Non attivo") {
@@ -286,7 +319,7 @@
     checks = [];
     anomalies = [];
     expandedBillIds.clear();
-    yearlyBillCount = 0;
+    periodBillCount = 0;
     if (state.locked) state.locked.hidden = false;
     if (state.enabled) state.enabled.hidden = true;
     setText(state.lockedTitle, title);
@@ -332,7 +365,9 @@
     if (state.enabled) state.enabled.hidden = false;
     const legalBlocked = maintenanceMode && operationBlockReason === "legal";
     setText(state.statusBadge, legalBlocked ? "CONDIZIONI" : (maintenanceMode ? "ARCHIVIO" : (currentSubscription?.status === "trialing" ? "PROVA" : "ATTIVO")));
-    setText(state.quota, legalBlocked ? "Accettazione richiesta" : (maintenanceMode ? "Sola gestione" : `${yearlyBillCount} / ${planLimit()}`));
+    setText(state.quota, legalBlocked
+      ? "Accettazione richiesta"
+      : (maintenanceMode ? "Sola gestione" : (isBetaTrial() ? `${periodBillCount} / ${planLimit()} bollette prova` : `${periodBillCount} / ${planLimit()}`)));
     setText(state.homeCount, String(bills.length));
     setText(state.profileCount, String(bills.length));
     setText(state.profileSize, formatSize(bills.reduce((sum, bill) => sum + Number(bill.file_size || 0), 0)));
@@ -754,6 +789,14 @@
           requestButton.dataset.cloudCheckRequest = bill.id;
           requestButton.textContent = "RICHIEDI CONTROLLO";
           actions.append(requestButton);
+        } else if (isRedCheckRequestable(bill, check) && trialStaffCheckUsed()) {
+          const usedButton = document.createElement("button");
+          usedButton.type = "button";
+          usedButton.className = "cloud-bill-btn";
+          usedButton.dataset.permanentDisabled = "true";
+          usedButton.disabled = true;
+          usedButton.textContent = "CONTROLLO PROVA GIÀ USATO";
+          actions.append(usedButton);
         }
         if (!maintenanceMode && bill.automatic_screening_status === "failed") {
           const retryButton = document.createElement("button");
@@ -865,7 +908,7 @@
           customer_status: "awaiting_review",
           metadata: {
             source: "premium_app",
-            app_version: "0.36.4",
+            app_version: "0.36.5",
             automatic_analysis: true
           }
         })
@@ -892,7 +935,7 @@
       }
 
       bills = [insertResult.data, ...bills];
-      yearlyBillCount += 1;
+      periodBillCount += 1;
       renderEnabled();
       setMessage("info", "Bolletta salvata. Analisi in corso.");
       window.dispatchEvent(new CustomEvent("offertalogica:cloud-bills-changed"));
@@ -990,6 +1033,10 @@
     if (!bill || !client || !currentUser || busy) return;
     if (checks.some(check => check.bill_id === bill.id && check.status !== "canceled")) {
       setMessage("info", "Il controllo di questa bolletta è già stato richiesto.");
+      return;
+    }
+    if (trialStaffCheckUsed()) {
+      setMessage("error", "La verifica staff inclusa nella prova è già stata utilizzata.");
       return;
     }
     if (!canRequestCheck(bill, null)) {
@@ -1146,8 +1193,8 @@
     checks = checks.filter(item => item.bill_id !== bill.id);
     anomalies = anomalies.filter(item => item.bill_id !== bill.id);
     const createdAt = new Date(bill.created_at).getTime();
-    if (Number.isFinite(createdAt) && createdAt >= Date.now() - 365 * 24 * 60 * 60 * 1000) {
-      yearlyBillCount = Math.max(0, yearlyBillCount - 1);
+    if (Number.isFinite(createdAt) && createdAt >= currentPeriodStartTime()) {
+      periodBillCount = Math.max(0, periodBillCount - 1);
     }
     renderEnabled();
     setMessage("success", "Bolletta eliminata dall’archivio cloud.");
@@ -1155,7 +1202,9 @@
   }
 
   async function loadData(user, subscription, { blockReason = "" } = {}) {
-    const oneYearAgo = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString();
+    const countStart = subscription?.current_period_start
+      ? new Date(subscription.current_period_start).toISOString()
+      : new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString();
     const [utilitiesResult, billsResult, countResult, contractsResult, checksResult, anomaliesResult] = await Promise.all([
       client
         .from("premium_utilities")
@@ -1175,7 +1224,7 @@
         .select("id", { count: "exact", head: true })
         .eq("user_id", user.id)
         .is("deleted_at", null)
-        .gte("created_at", oneYearAgo),
+        .gte("created_at", countStart),
       client
         .from("premium_contracts")
         .select(CONTRACT_COLUMNS)
@@ -1212,7 +1261,7 @@
     contracts = Array.isArray(contractsResult.data) ? contractsResult.data : [];
     checks = Array.isArray(checksResult.data) ? checksResult.data : [];
     anomalies = Array.isArray(anomaliesResult.data) ? anomaliesResult.data : [];
-    yearlyBillCount = Number(countResult.count || 0);
+    periodBillCount = Number(countResult.count || 0);
     renderEnabled();
   }
 
@@ -1228,7 +1277,7 @@
     checks = [];
     anomalies = [];
     expandedBillIds.clear();
-    yearlyBillCount = 0;
+    periodBillCount = 0;
 
     if (!session?.user) {
       renderLocked("Accedi per usare l’archivio cloud", "Le bollette cloud sono disponibili soltanto con account e abbonamento Premium.", "ACCESSO", "Non collegato");
@@ -1245,7 +1294,7 @@
         .maybeSingle(),
       client
         .from("premium_subscriptions")
-        .select("status, current_period_end, included_bills_per_year, created_at")
+        .select("status, plan_code, current_period_start, current_period_end, included_bills_per_year, created_at")
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(1)
@@ -1343,8 +1392,10 @@
         setMessage("error", "Aggiungi prima un’utenza dalla sezione Profilo.");
         return;
       }
-      if (yearlyBillCount >= planLimit()) {
-        setMessage("error", "Hai raggiunto il numero di bollette incluso negli ultimi 12 mesi.");
+      if (periodBillCount >= planLimit()) {
+        setMessage("error", isBetaTrial()
+          ? "Hai raggiunto il limite di 4 bollette incluse nella prova gratuita."
+          : "Hai raggiunto il numero di bollette incluso nel piano.");
         return;
       }
       state.fileInput?.click();
