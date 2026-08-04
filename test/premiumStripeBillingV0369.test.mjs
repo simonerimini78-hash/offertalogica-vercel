@@ -180,8 +180,8 @@ test("database, Edge Function e interfaccia sono collegati senza nuove API Verce
   assert.match(auth, /create_portal/);
   assert.match(auth, /set_cancel_at_period_end/);
   assert.match(auth, /\["active", "past_due", "paused", "canceled"\]/);
-  assert.match(app, /APP Premium v0\.36\.9/);
-  assert.match(sw, /offertalogica-premium-v0369/);
+  assert.match(app, /APP Premium v0\.36\.10/);
+  assert.match(sw, /offertalogica-premium-v03610/);
   const apiFiles = (await readdir(new URL("../api/", import.meta.url))).filter(name => name.endsWith(".js"));
   assert.equal(apiFiles.length, 12);
 });

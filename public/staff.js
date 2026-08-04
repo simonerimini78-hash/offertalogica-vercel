@@ -13,6 +13,7 @@
   let activeTab = "overview";
   let busy = false;
   let authSubscription = null;
+  let complimentaryCustomer = null;
 
   const cache = {
     leads: [],
@@ -141,6 +142,11 @@
     if (message.includes("premium_account_deletion_not_requested")) return "L’account non ha una richiesta di cancellazione attiva.";
     if (message.includes("premium_account_storage_not_empty")) return "I PDF dell’account non sono stati rimossi dal bucket. Riprova dopo la cancellazione dei file.";
     if (message.includes("premium_account_delete_confirmation_required")) return "Conferma di cancellazione account non valida.";
+    if (message.includes("premium_admin_required")) return "Questa funzione è riservata agli amministratori.";
+    if (message.includes("premium_complimentary_profile_not_active")) return "Il profilo cliente non è attivo.";
+    if (message.includes("premium_complimentary_duration_invalid")) return "Durata dell’omaggio non valida.";
+    if (message.includes("premium_complimentary_paid_subscription_conflict")) return "Il cliente ha già un abbonamento Stripe attivo o da regolarizzare. L’omaggio non può sostituirlo.";
+    if (message.includes("premium_complimentary_active_subscription_not_found")) return "Non risulta un Premium omaggio attivo da revocare.";
     if (message.includes("row-level security") || message.includes("permission denied")) return "Operazione non autorizzata dalle regole di sicurezza.";
     return raw;
   }
@@ -578,6 +584,142 @@
     });
   }
 
+  function complimentaryIsActive(subscription) {
+    if (!subscription || subscription.plan_code !== "premium-complimentary" || subscription.status !== "active") return false;
+    if (!subscription.current_period_end) return true;
+    const end = new Date(subscription.current_period_end);
+    return !Number.isNaN(end.getTime()) && end > new Date();
+  }
+
+  function paidSubscriptionConflicts(subscription) {
+    return Boolean(subscription?.provider === "stripe"
+      && subscription?.provider_subscription_id
+      && ["trialing", "active", "past_due", "paused"].includes(subscription.status));
+  }
+
+  function subscriptionSummary(subscription) {
+    if (!subscription) return isAdmin() ? "Non presente" : "Visibile agli admin";
+    if (subscription.plan_code === "premium-complimentary") {
+      if (complimentaryIsActive(subscription)) {
+        return subscription.current_period_end
+          ? `Premium omaggio · fino al ${formatDate(subscription.current_period_end, false)}`
+          : "Premium omaggio · senza scadenza";
+      }
+      return "Premium omaggio · terminato";
+    }
+    return `${subscription.status} · ${subscription.plan_code}`;
+  }
+
+  function setComplimentaryStatus(kind, message) {
+    const element = byId("staffComplimentaryStatus");
+    if (!element) return;
+    element.className = `complimentary-status${kind ? ` ${kind}` : ""}`;
+    element.textContent = message || "";
+    element.hidden = !message;
+  }
+
+  function setComplimentaryBusy(value) {
+    ["staffComplimentaryCancel", "staffComplimentaryRevoke", "staffComplimentaryApply"].forEach(id => {
+      const element = byId(id);
+      if (element) element.disabled = Boolean(value);
+    });
+    const form = byId("staffComplimentaryForm");
+    form?.querySelectorAll("select, textarea").forEach(element => { element.disabled = Boolean(value); });
+  }
+
+  function closeComplimentary() {
+    if (busy) return;
+    const layer = byId("staffComplimentaryLayer");
+    if (layer) layer.hidden = true;
+    complimentaryCustomer = null;
+    setComplimentaryStatus("", "");
+  }
+
+  function openComplimentary(customer) {
+    if (!isAdmin() || !customer) return;
+    complimentaryCustomer = customer;
+    const subscription = customer.subscription;
+    const active = complimentaryIsActive(subscription);
+    const label = customer.profile.full_name || customer.profile.email || customer.profile.id;
+    text(byId("staffComplimentaryTarget"), `${label} · ${customer.profile.email || "email non indicata"}`);
+    text(byId("staffComplimentaryCurrent"), active
+      ? (subscription.current_period_end
+        ? `Premium omaggio attivo fino al ${formatDate(subscription.current_period_end, false)}. Nessun rinnovo automatico.`
+        : "Premium omaggio attivo senza scadenza. Nessun rinnovo automatico.")
+      : (paidSubscriptionConflicts(subscription)
+        ? "Il cliente ha un abbonamento Stripe attivo o da regolarizzare. Non può essere sostituito da un omaggio."
+        : "Nessun piano Premium omaggio attivo."));
+    const form = byId("staffComplimentaryForm");
+    if (form) {
+      form.elements.duration.value = "12_months";
+      form.elements.reason.value = subscription?.complimentary_reason || "";
+    }
+    const apply = byId("staffComplimentaryApply");
+    const revoke = byId("staffComplimentaryRevoke");
+    if (apply) {
+      apply.textContent = active ? "PROROGA O MODIFICA" : "CONCEDI PREMIUM";
+      apply.disabled = paidSubscriptionConflicts(subscription);
+    }
+    if (revoke) revoke.hidden = !active;
+    setComplimentaryStatus("", "");
+    const layer = byId("staffComplimentaryLayer");
+    if (layer) layer.hidden = false;
+    form?.elements.duration?.focus();
+  }
+
+  async function applyComplimentary() {
+    if (!isAdmin() || !complimentaryCustomer || busy) return;
+    const form = byId("staffComplimentaryForm");
+    const duration = String(form?.elements.duration?.value || "");
+    const reason = String(form?.elements.reason?.value || "").trim();
+    setComplimentaryBusy(true);
+    setComplimentaryStatus("info", "Salvataggio del Premium omaggio…");
+    try {
+      const { error } = await client.rpc("premium_admin_set_complimentary", {
+        p_user_id: complimentaryCustomer.profile.id,
+        p_duration_code: duration,
+        p_reason: reason,
+      });
+      if (error) throw error;
+      const label = complimentaryCustomer.profile.full_name || complimentaryCustomer.profile.email || "Cliente";
+      await loadCustomers({ silent: true });
+      closeComplimentary();
+      setMessage("success", `Premium omaggio attivato per ${label}.`);
+    } catch (error) {
+      setComplimentaryStatus("error", friendlyError(error));
+    } finally {
+      setComplimentaryBusy(false);
+    }
+  }
+
+  async function revokeComplimentary() {
+    if (!isAdmin() || !complimentaryCustomer || busy) return;
+    const label = complimentaryCustomer.profile.full_name || complimentaryCustomer.profile.email || "cliente";
+    const confirmed = await confirmAction({
+      title: "Revoca Premium omaggio",
+      message: `Revocare il Premium omaggio di ${label}? L’archivio passerà in sola lettura per 90 giorni.`,
+      confirmLabel: "REVOCA"
+    });
+    if (!confirmed) return;
+    const reason = String(byId("staffComplimentaryForm")?.elements.reason?.value || "").trim();
+    setComplimentaryBusy(true);
+    setComplimentaryStatus("info", "Revoca in corso…");
+    try {
+      const { error } = await client.rpc("premium_admin_revoke_complimentary", {
+        p_user_id: complimentaryCustomer.profile.id,
+        p_reason: reason,
+      });
+      if (error) throw error;
+      await loadCustomers({ silent: true });
+      closeComplimentary();
+      setMessage("success", `Premium omaggio revocato per ${label}.`);
+    } catch (error) {
+      setComplimentaryStatus("error", friendlyError(error));
+    } finally {
+      setComplimentaryBusy(false);
+    }
+  }
+
   function resourceDeleteButton(label, handler) {
     const button = node("button", { className: "button danger compact", type: "button", text: label });
     button.hidden = !isAdmin();
@@ -644,7 +786,19 @@
       const title = profile.full_name || profile.email || "Cliente Premium";
       const statusKind = profile.account_status === "active" ? "ok" : profile.account_status === "deletion_requested" ? "warn" : "danger";
       const actions = node("div", { className: "customer-actions" }, [badge(profile.account_status || "—", statusKind)]);
+      if (subscription?.plan_code === "premium-complimentary") {
+        actions.append(badge(complimentaryIsActive(subscription) ? "Premium omaggio" : "Omaggio terminato", complimentaryIsActive(subscription) ? "ok" : "warn"));
+      }
       if (isAdmin()) {
+        const complimentaryButton = node("button", {
+          className: "button secondary compact",
+          type: "button",
+          text: complimentaryIsActive(subscription) ? "GESTISCI OMAGGIO" : "REGALA PREMIUM"
+        });
+        complimentaryButton.disabled = paidSubscriptionConflicts(subscription);
+        complimentaryButton.title = complimentaryButton.disabled ? "Abbonamento Stripe attivo o da regolarizzare" : "";
+        complimentaryButton.addEventListener("click", () => openComplimentary(customer));
+        actions.append(complimentaryButton);
         if (profile.account_status === "deletion_requested") actions.append(resourceDeleteButton("Elimina account completo", () => completeAccountDeletion(customer)));
         actions.append(resourceDeleteButton("Elimina blocco cliente", () => deleteCustomerBlock(customer)));
       }
@@ -674,7 +828,7 @@
         ]),
         ...(profile.account_status === "deletion_requested" ? [node("div", { className: "request-note", text: `Cancellazione richiesta${profile.deletion_requested_at ? ` il ${formatDate(profile.deletion_requested_at)}` : ""}${profile.deletion_request_reason ? ` · Motivo: ${profile.deletion_request_reason}` : ""}` })] : []),
         node("div", { className: "customer-meta" }, [
-          node("div", { className: "mini" }, [node("span", { text: "Abbonamento" }), node("strong", { text: subscription ? `${subscription.status} · ${subscription.plan_code}` : isAdmin() ? "Non presente" : "Visibile agli admin" })]),
+          node("div", { className: "mini" }, [node("span", { text: "Abbonamento" }), node("strong", { text: subscriptionSummary(subscription) })]),
           node("div", { className: "mini" }, [node("span", { text: "Utenze" }), node("strong", { text: customer.utilities.length })]),
           node("div", { className: "mini" }, [node("span", { text: "Bollette" }), node("strong", { text: customer.bills.length })]),
           node("div", { className: "mini" }, [node("span", { text: "Contratti correnti" }), node("strong", { text: activeContracts.length })]),
@@ -788,7 +942,7 @@
         client.from("premium_bills").select("id,user_id,utility_id,contract_id,commodity,original_file_name,storage_path,file_size,total_amount_eur,processing_status,customer_status,created_at,deleted_at").in("user_id", ids).is("deleted_at", null).order("created_at", { ascending: false }),
       ];
       if (isAdmin()) {
-        queries.push(client.from("premium_subscriptions").select("id,user_id,status,plan_code,included_utilities,included_bills_per_year,current_period_end,created_at").in("user_id", ids).order("created_at", { ascending: false }));
+        queries.push(client.from("premium_subscriptions").select("id,user_id,status,plan_code,provider,provider_subscription_id,included_utilities,included_bills_per_year,current_period_start,current_period_end,archive_access_until,cancel_at_period_end,complimentary_granted_at,complimentary_reason,complimentary_revoked_at,created_at").in("user_id", ids).order("created_at", { ascending: false }));
       }
       const results = await Promise.all(queries);
       if (results[0].error) throw results[0].error;
@@ -1177,6 +1331,11 @@
     byId("customerSearch").addEventListener("input", renderCustomers);
     byId("customerStatus").addEventListener("change", renderCustomers);
     byId("customerLimit").addEventListener("change", () => loadCustomers().catch(error => setMessage("error", friendlyError(error))));
+    byId("staffComplimentaryCancel").addEventListener("click", closeComplimentary);
+    byId("staffComplimentaryApply").addEventListener("click", applyComplimentary);
+    byId("staffComplimentaryRevoke").addEventListener("click", revokeComplimentary);
+    byId("staffComplimentaryLayer").addEventListener("click", event => { if (event.target === byId("staffComplimentaryLayer")) closeComplimentary(); });
+    document.addEventListener("keydown", event => { if (event.key === "Escape" && !byId("staffComplimentaryLayer")?.hidden) closeComplimentary(); });
     byId("analyticsRefresh").addEventListener("click", () => loadAnalytics().catch(error => setMessage("error", friendlyError(error))));
     byId("analyticsDeleteVisible").addEventListener("click", deleteVisibleAnalytics);
     byId("analyticsReset").addEventListener("click", resetAnalytics);

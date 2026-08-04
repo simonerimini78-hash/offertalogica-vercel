@@ -392,6 +392,9 @@
 
   function subscriptionLabel(subscription) {
     if (!subscription) return "Nessun abbonamento";
+    if (subscription.plan_code === "premium-complimentary") {
+      return subscription.status === "active" ? "Premium omaggio" : "Premium omaggio scaduto";
+    }
     const labels = {
       pending: "In attesa",
       trialing: "Prova gratuita di 30 giorni",
@@ -442,7 +445,9 @@
 
     const period = subscription.current_period_start && subscription.current_period_end
       ? `${start} – ${end}`
-      : (subscription.current_period_end ? `Fino al ${end}` : "—");
+      : (subscription.current_period_end
+        ? `Fino al ${end}`
+        : (subscription.plan_code === "premium-complimentary" && subscription.current_period_start ? `Dal ${start} · senza scadenza` : "—"));
     setText(state.subscriptionPeriod, period);
 
     if (subscription.status === "trialing" && subscription.plan_code === "premium-beta") {
@@ -453,6 +458,21 @@
       setText(state.subscriptionNextPrice, annualFirst);
       setText(state.subscriptionRenewal, "Nessuna conversione automatica");
       setText(state.subscriptionActionCopy, `Alla scadenza non verrà effettuato alcun addebito. L’eventuale acquisto sarà una scelta separata; dal rinnovo successivo il prezzo sarà ${annualRenewal}.`);
+      return;
+    }
+
+    if (subscription.status === "active" && subscription.plan_code === "premium-complimentary") {
+      const unlimited = !subscription.current_period_end;
+      setText(state.subscriptionBadge, "OMAGGIO");
+      setText(state.subscriptionStatus, unlimited
+        ? "Premium offerto da OffertaLogica senza scadenza."
+        : `Premium offerto da OffertaLogica fino al ${end}.`);
+      setText(state.subscriptionCurrentPrice, "0 € · offerto da OffertaLogica");
+      setText(state.subscriptionNextPrice, "Nessun pagamento previsto");
+      setText(state.subscriptionRenewal, "Nessun rinnovo automatico");
+      setText(state.subscriptionActionCopy, unlimited
+        ? "Il piano resta attivo finché OffertaLogica non lo revoca."
+        : "Alla scadenza non verrà effettuato alcun addebito. L’eventuale acquisto sarà sempre una scelta separata.");
       return;
     }
 
@@ -470,12 +490,17 @@
     }
 
     if (subscription.status === "expired") {
-      setText(state.subscriptionBadge, "PROVA TERMINATA");
-      setText(state.subscriptionStatus, "La prova gratuita è terminata e non è stato effettuato alcun addebito.");
+      const complimentary = subscription.plan_code === "premium-complimentary";
+      setText(state.subscriptionBadge, complimentary ? "OMAGGIO TERMINATO" : "PROVA TERMINATA");
+      setText(state.subscriptionStatus, complimentary
+        ? "Il periodo Premium offerto da OffertaLogica è terminato."
+        : "La prova gratuita è terminata e non è stato effettuato alcun addebito.");
       setText(state.subscriptionCurrentPrice, "0 €");
       setText(state.subscriptionNextPrice, annualFirst);
       setText(state.subscriptionRenewal, "Non attivo");
-      setText(state.subscriptionActionCopy, `L’archivio resta disponibile secondo il periodo di conservazione indicato. Dal secondo anno il prezzo previsto è ${annualRenewal}.`);
+      setText(state.subscriptionActionCopy, complimentary
+        ? "L’archivio resta disponibile secondo il periodo di conservazione indicato. L’eventuale acquisto sarà una scelta separata."
+        : `L’archivio resta disponibile secondo il periodo di conservazione indicato. Dal secondo anno il prezzo previsto è ${annualRenewal}.`);
       return;
     }
 
@@ -527,7 +552,7 @@
         .maybeSingle(),
       client
         .from("premium_subscriptions")
-        .select("status, plan_code, provider, provider_customer_id, provider_subscription_id, current_period_start, current_period_end, archive_access_until, data_purged_at, included_utilities, included_bills_per_year, cancel_at_period_end, first_paid_at, intro_price_redeemed_at, latest_amount_paid_cents, latest_currency, latest_payment_at, created_at")
+        .select("status, plan_code, provider, provider_customer_id, provider_subscription_id, current_period_start, current_period_end, archive_access_until, data_purged_at, included_utilities, included_bills_per_year, cancel_at_period_end, first_paid_at, intro_price_redeemed_at, latest_amount_paid_cents, latest_currency, latest_payment_at, complimentary_granted_at, complimentary_reason, complimentary_revoked_at, created_at")
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(1)
@@ -682,22 +707,28 @@
     } else if (serviceActive) {
       const trialDays = trialDaysRemaining(subscription);
       const isBetaTrial = subscription.status === "trialing" && subscription.plan_code === "premium-beta";
+      const isComplimentary = subscription.status === "active" && subscription.plan_code === "premium-complimentary";
+      const complimentaryEnd = subscription.current_period_end ? formatDate(subscription.current_period_end) : "";
       setText(state.profileKicker, "Profilo Premium");
       setText(state.profileTitle, displayName || "Account Premium");
-      setText(state.profileBadge, isBetaTrial ? "PROVA" : "ATTIVO");
+      setText(state.profileBadge, isBetaTrial ? "PROVA" : (isComplimentary ? "OMAGGIO" : "ATTIVO"));
       setText(state.profileDescription, isBetaTrial
         ? `Prova gratuita attiva${trialDays == null ? "" : `. ${trialDays} ${trialDays === 1 ? "giorno rimanente" : "giorni rimanenti"}.`}`
-        : "Servizio Premium attivo.");
-      setText(state.profileControls, isBetaTrial ? "4 bollette · 1 controllo staff" : "Abbonamento attivo");
-      setText(state.homePlanName, isBetaTrial ? "Prova Premium" : "Premium");
+        : (isComplimentary
+          ? (complimentaryEnd ? `Premium offerto da OffertaLogica fino al ${complimentaryEnd}.` : "Premium offerto da OffertaLogica senza scadenza.")
+          : "Servizio Premium attivo."));
+      setText(state.profileControls, isBetaTrial ? "4 bollette · 1 controllo staff" : (isComplimentary ? "Premium completo · nessun pagamento" : "Abbonamento attivo"));
+      setText(state.homePlanName, isBetaTrial ? "Prova Premium" : (isComplimentary ? "Premium omaggio" : "Premium"));
       setText(state.homePlanStatus, isBetaTrial && trialDays != null
         ? `${trialDays} ${trialDays === 1 ? "giorno rimanente" : "giorni rimanenti"}`
-        : "Abbonamento attivo");
-      setText(state.homePremiumBadge, isBetaTrial ? "PROVA ATTIVA" : "ATTIVO");
-      setText(state.homePremiumTitle, isBetaTrial ? "Prova Premium attiva" : "Account Premium collegato");
+        : (isComplimentary ? (complimentaryEnd ? `Attivo fino al ${complimentaryEnd}` : "Senza scadenza") : "Abbonamento attivo"));
+      setText(state.homePremiumBadge, isBetaTrial ? "PROVA ATTIVA" : (isComplimentary ? "OMAGGIO" : "ATTIVO"));
+      setText(state.homePremiumTitle, isBetaTrial ? "Prova Premium attiva" : (isComplimentary ? "Premium offerto da OffertaLogica" : "Account Premium collegato"));
       setText(state.homePremiumCopy, isBetaTrial
         ? "Fino a 4 bollette e una verifica staff per un’anomalia rossa. Nessuna carta e nessun addebito automatico."
-        : "Servizio attivo. La verifica dello staff è disponibile solo per anomalie rosse.");
+        : (isComplimentary
+          ? "Tutte le funzioni Premium sono attive senza pagamento e senza rinnovo automatico."
+          : "Servizio attivo. La verifica dello staff è disponibile solo per anomalie rosse."));
     } else if (archiveAvailable) {
       const archiveDate = formatDate(subscription.archive_access_until);
       const remainingCopy = archiveDays == null

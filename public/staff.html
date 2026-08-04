@@ -37,7 +37,7 @@
     .restricted{border:1px solid #fedf89;border-radius:13px;padding:14px;color:#7a2e0e;background:#fffaeb;line-height:1.5}
     .version{margin-top:18px;color:var(--muted);font-size:11px;text-align:right}
 
-    .confirm-layer{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:18px;background:rgba(9,30,25,.58);backdrop-filter:blur(3px)}
+    .confirm-layer{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:18px;background:rgba(9,30,25,.58);backdrop-filter:blur(3px)}.complimentary-layer{position:fixed;inset:0;z-index:990;display:grid;place-items:center;padding:18px;background:rgba(9,30,25,.62);backdrop-filter:blur(4px)}.complimentary-card{width:min(520px,100%);max-height:88vh;overflow:auto;border:1px solid var(--line);border-radius:20px;padding:20px;background:#fff;box-shadow:0 28px 70px rgba(9,30,25,.28)}.complimentary-card h2{margin:0;font-size:22px}.complimentary-target{margin:6px 0 0;color:var(--muted);font-size:12px;line-height:1.45}.complimentary-current{margin:14px 0;padding:11px 12px;border:1px solid #dfe9e5;border-radius:11px;background:#f7fbf9;color:#315a43;font-size:12px;line-height:1.45}.complimentary-form{display:grid;gap:12px}.complimentary-form label{display:grid;gap:6px;color:#42534c;font-size:12px;font-weight:800}.complimentary-form textarea{min-height:82px}.complimentary-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}.complimentary-actions .button{flex:1 1 145px}.complimentary-status{margin-top:11px;border-radius:10px;padding:10px 11px;font-size:12px;line-height:1.4}.complimentary-status.info{color:#175cd3;background:#eff8ff}.complimentary-status.error{color:var(--danger);background:#fef3f2}.complimentary-status.success{color:var(--ok);background:#ecfdf3}
     .confirm-card{width:min(460px,100%);border:1px solid var(--line);border-radius:18px;padding:20px;background:#fff;box-shadow:0 24px 70px rgba(9,30,25,.28)}
     .confirm-card h2{margin:0;font-size:21px}.confirm-card p{margin:10px 0 0;color:var(--muted);line-height:1.5}.confirm-keyword{margin-top:14px}.confirm-keyword label{display:block;margin-bottom:6px;color:#42534c;font-size:12px;font-weight:800}.confirm-keyword strong{color:var(--danger)}
     .confirm-error{min-height:18px;margin-top:7px;color:var(--danger);font-size:12px}.confirm-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
@@ -104,7 +104,7 @@
         <section class="panel"><div class="panel-head"><h3>Attività da gestire</h3></div><div class="panel-body" id="overviewTasks"><div class="empty">Caricamento…</div></div></section>
         <section class="panel"><div class="panel-head"><h3>Funnel essenziale</h3></div><div class="panel-body"><div class="funnel" id="overviewFunnel"></div></div></section>
       </div>
-      <div class="version">Area staff unica v0.36.3</div>
+      <div class="version">Area staff unica v0.36.10</div>
     </section>
 
     <section class="view" data-staff-view="leads">
@@ -160,6 +160,33 @@
     <div class="confirm-actions">
       <button id="staffConfirmCancel" class="button" type="button">ANNULLA</button>
       <button id="staffConfirmAccept" class="button danger" type="button">CONFERMA</button>
+    </div>
+  </div>
+</div>
+<div id="staffComplimentaryLayer" class="complimentary-layer" role="dialog" aria-modal="true" aria-labelledby="staffComplimentaryTitle" hidden>
+  <div class="complimentary-card">
+    <h2 id="staffComplimentaryTitle">Premium omaggio</h2>
+    <p id="staffComplimentaryTarget" class="complimentary-target">Seleziona un cliente.</p>
+    <div id="staffComplimentaryCurrent" class="complimentary-current">Nessun piano omaggio attivo.</div>
+    <form id="staffComplimentaryForm" class="complimentary-form" novalidate>
+      <label>Durata
+        <select name="duration" required>
+          <option value="1_month">1 mese</option>
+          <option value="3_months">3 mesi</option>
+          <option value="6_months">6 mesi</option>
+          <option value="12_months" selected>12 mesi</option>
+          <option value="unlimited">Senza scadenza</option>
+        </select>
+      </label>
+      <label>Motivo interno
+        <textarea name="reason" maxlength="500" placeholder="Esempio: account personale, omaggio famiglia, collaborazione"></textarea>
+      </label>
+    </form>
+    <div id="staffComplimentaryStatus" class="complimentary-status" hidden role="status"></div>
+    <div class="complimentary-actions">
+      <button id="staffComplimentaryCancel" class="button" type="button">ANNULLA</button>
+      <button id="staffComplimentaryRevoke" class="button danger" type="button" hidden>REVOCA OMAGGIO</button>
+      <button id="staffComplimentaryApply" class="button primary" type="button">CONCEDI PREMIUM</button>
     </div>
   </div>
 </div>
