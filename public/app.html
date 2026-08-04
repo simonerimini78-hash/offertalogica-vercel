@@ -79,7 +79,16 @@
     @keyframes mark-in{from{opacity:0;transform:scale(.86) rotate(-2deg)}to{opacity:1;transform:scale(1) rotate(0)}}@keyframes view-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
     @media(min-width:700px){body{padding:24px}.shell{min-height:calc(100dvh - 48px);border-radius:34px;background:#f8faf8;box-shadow:0 28px 90px rgba(18,48,68,.14)}.nav-wrap{bottom:24px}.nav{border-radius:26px}}
     @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
-  </style>
+  
+    .subscription-panel{border-color:#d7e5dc;background:linear-gradient(180deg,#ffffff,#f8fbf9)}
+    .subscription-grid{display:grid;gap:0;margin-top:14px;border-top:1px solid #e4ece7}
+    .subscription-row{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:12px 0;border-bottom:1px solid #e4ece7;font-size:12px;line-height:1.4}
+    .subscription-row span{color:var(--muted)}
+    .subscription-row strong{max-width:62%;text-align:right;color:#173b2b;font-size:12px}
+    .subscription-commercial{margin-top:14px;padding:14px 15px;border-radius:17px;background:#eef7f1;color:#315a43;font-size:12px;line-height:1.48}
+    .subscription-commercial strong{display:block;margin-bottom:4px;color:#173b2b;font-size:13px}
+    .subscription-footnote{margin:11px 0 0;color:var(--muted);font-size:11px;line-height:1.45}
+</style>
 </head>
 <body>
   <div id="splash" class="splash" aria-hidden="true"><div class="splash-inner"><div class="splash-mark"><img src="/assets/logo-offertalogica-icon.png" alt=""></div><p>Confronta · Scegli · Risparmia</p></div></div>
@@ -220,10 +229,24 @@
       <div id="premiumAuthMessage" class="auth-message" role="status" aria-live="polite" hidden></div>
 
       <section id="premiumLegalPanel" class="account-manage" hidden aria-label="Condizioni Premium">
-        <div class="account-manage-head"><strong>Condizioni e informativa</strong><span>VERSIONE v0.36.6</span></div>
+        <div class="account-manage-head"><strong>Condizioni e informativa</strong><span>VERSIONE v0.36.7</span></div>
         <p id="premiumLegalStatus">Verifica delle accettazioni in corso.</p>
         <div class="legal-links"><a href="/termini-condizioni.html#premium" data-app-url="/termini-condizioni.html#premium" data-app-title="Termini Premium">Termini Premium</a><a href="/privacy-premium.html" data-app-url="/privacy-premium.html" data-app-title="Informativa Premium">Informativa Premium</a></div>
         <div class="account-manage-actions"><button id="premiumLegalAccept" type="button">ACCETTA CONDIZIONI CORRENTI</button></div>
+      </section>
+
+      <section id="premiumSubscriptionPanel" class="account-manage subscription-panel" hidden aria-label="Abbonamento Premium">
+        <div class="account-manage-head"><strong>Abbonamento</strong><span id="premiumSubscriptionBadge">STATO</span></div>
+        <p id="premiumSubscriptionStatus">Verifica dell’abbonamento in corso.</p>
+        <div class="subscription-grid">
+          <div class="subscription-row"><span>Periodo</span><strong id="premiumSubscriptionPeriod">—</strong></div>
+          <div class="subscription-row"><span>Prezzo attuale</span><strong id="premiumSubscriptionCurrentPrice">—</strong></div>
+          <div class="subscription-row"><span>Passaggio al piano pagato</span><strong id="premiumSubscriptionNextPrice">—</strong></div>
+          <div class="subscription-row"><span>Rinnovo</span><strong id="premiumSubscriptionRenewal">—</strong></div>
+        </div>
+        <div class="subscription-commercial"><strong>OffertaLogica Premium Casa</strong><span>49,90 € IVA inclusa per il primo anno. Dal secondo anno 59,88 € all’anno IVA inclusa, equivalenti a 4,99 € al mese, con addebito annuale unico.</span></div>
+        <p id="premiumSubscriptionActionCopy" class="subscription-footnote">La prova gratuita non richiede carta e non si trasforma automaticamente in abbonamento.</p>
+        <div class="legal-links"><a href="/termini-condizioni.html#premium" data-app-url="/termini-condizioni.html#premium" data-app-title="Condizioni commerciali Premium">Condizioni commerciali</a></div>
       </section>
 
       <section id="premiumPasswordPanel" class="account-manage" hidden aria-label="Sicurezza account">
@@ -292,6 +315,7 @@
         <h2>Controllo e monitoraggio</h2>
         <div class="premium-points"><div class="premium-point">Verifica delle condizioni realmente applicate</div><div class="premium-point">Segnalazione di anomalie e conguagli</div><div class="premium-point">Controllo periodico della convenienza</div></div>
         <p class="auth-hint">Alla fine della prova l’archivio resta consultabile, scaricabile e cancellabile per 90 giorni, senza nuovi caricamenti o analisi.</p>
+        <p class="auth-hint"><strong>Dopo la prova:</strong> 49,90 € IVA inclusa per i primi 12 mesi; dal rinnovo successivo 59,88 € all’anno. Nessuna attivazione automatica.</p>
       </section>
 
       <div class="section-title"><h2>Gestione e assistenza</h2></div>
@@ -302,7 +326,7 @@
         <a class="list-item" href="/"><div class="list-icon"><svg class="icon" viewBox="0 0 24 24"><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg></div><div class="list-copy"><strong>Apri il sito completo</strong></div><svg class="icon chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></a>
       </div>
 
-      <span class="version-badge">APP Premium v0.36.6</span>
+      <span class="version-badge">APP Premium v0.36.7</span>
     </section>
   </main>
 

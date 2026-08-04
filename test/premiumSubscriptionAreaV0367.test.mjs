@@ -1,0 +1,68 @@
+import assert from "node:assert/strict";
+import { readdir, readFile } from "node:fs/promises";
+import test from "node:test";
+
+const app = await readFile(new URL("../public/app.html", import.meta.url), "utf8");
+const auth = await readFile(new URL("../public/app-auth.js", import.meta.url), "utf8");
+const backend = await readFile(new URL("../lib/premiumAiBackend.js", import.meta.url), "utf8");
+const terms = await readFile(new URL("../public/termini-condizioni.html", import.meta.url), "utf8");
+const migration = await readFile(new URL("../supabase/premium-commercial-terms-v0.36.7.sql", import.meta.url), "utf8");
+const verify = await readFile(new URL("../supabase/premium-commercial-terms-v0.36.7-verify.sql", import.meta.url), "utf8");
+const sw = await readFile(new URL("../public/sw.js", import.meta.url), "utf8");
+const bills = await readFile(new URL("../public/app-premium-bills.js", import.meta.url), "utf8");
+
+const TERMS_VERSION = "premium-terms-v0.36.7-2026-08-04";
+const PRIVACY_VERSION = "premium-privacy-v0.36.6-2026-08-04";
+const CLOUD_VERSION = "premium-cloud-ai-v0.36.6-2026-08-04";
+
+test("v0.36.7 aggiunge un’area Abbonamento senza checkout fittizio", () => {
+  for (const id of [
+    "premiumSubscriptionPanel",
+    "premiumSubscriptionBadge",
+    "premiumSubscriptionStatus",
+    "premiumSubscriptionPeriod",
+    "premiumSubscriptionCurrentPrice",
+    "premiumSubscriptionNextPrice",
+    "premiumSubscriptionRenewal",
+    "premiumSubscriptionActionCopy",
+  ]) assert.match(app, new RegExp(`id="${id}"`));
+  assert.match(auth, /renderSubscriptionPanel/);
+  assert.match(auth, /Nessuna conversione automatica/);
+  assert.match(auth, /cancel_at_period_end/);
+  assert.doesNotMatch(app, /id="premiumCheckout"/);
+  assert.doesNotMatch(auth, /createCheckoutSession|checkout\.sessions|stripe/i);
+});
+
+test("prezzi e rinnovo corrispondono alla formula commerciale approvata", () => {
+  for (const source of [app, terms]) {
+    assert.match(source, /49,90 € IVA inclusa/);
+    assert.match(source, /59,88 €[^\n<]*all’anno/);
+    assert.match(source, /4,99 € al mese/);
+  }
+  assert.match(terms, /rinnovo è annuale e automatico/i);
+  assert.match(terms, /giorno precedente la data di rinnovo/i);
+  assert.match(terms, /rimborso integrale entro 14 giorni/i);
+  assert.match(terms, /La prova gratuita non si trasforma automaticamente in abbonamento/);
+});
+
+test("la nuova versione dei Termini è applicata in app, backend e database", () => {
+  for (const source of [auth, backend, migration, verify, terms]) assert.match(source, new RegExp(TERMS_VERSION));
+  for (const version of [PRIVACY_VERSION, CLOUD_VERSION]) {
+    assert.match(auth, new RegExp(version));
+    assert.match(backend, new RegExp(version));
+    assert.match(migration, new RegExp(version));
+  }
+  assert.match(migration, /create or replace function public\.premium_has_current_acceptances/);
+  assert.match(migration, /create or replace function public\.premium_accept_current_terms/);
+  assert.match(migration, /create or replace function public\.premium_handle_new_user/);
+  assert.match(verify, /premium_commercial_terms_v0\.36\.7_ok/);
+});
+
+test("versione PWA e limite delle funzioni Vercel restano coerenti", async () => {
+  assert.match(app, /APP Premium v0\.36\.7/);
+  assert.match(app, /VERSIONE v0\.36\.7/);
+  assert.match(sw, /offertalogica-premium-v0367/);
+  assert.match(bills, /app_version: "0\.36\.7"/);
+  const apiFiles = (await readdir(new URL("../api/", import.meta.url))).filter(name => name.endsWith(".js"));
+  assert.equal(apiFiles.length, 12);
+});

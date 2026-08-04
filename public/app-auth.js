@@ -5,7 +5,7 @@
   const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_poz1xBKiXceLCFV3u_tPIg_5_-ycHcl";
   const STORAGE_KEY = "offertalogica-premium-auth";
   const PENDING_EMAIL_KEY = "offertalogica-premium-pending-email";
-  const TERMS_VERSION = "premium-terms-v0.36.6-2026-08-04";
+  const TERMS_VERSION = "premium-terms-v0.36.7-2026-08-04";
   const PRIVACY_VERSION = "premium-privacy-v0.36.6-2026-08-04";
   const CLOUD_VERSION = "premium-cloud-ai-v0.36.6-2026-08-04";
 
@@ -50,6 +50,14 @@
     legalPanel: null,
     legalStatus: null,
     legalAcceptButton: null,
+    subscriptionPanel: null,
+    subscriptionBadge: null,
+    subscriptionStatus: null,
+    subscriptionPeriod: null,
+    subscriptionCurrentPrice: null,
+    subscriptionNextPrice: null,
+    subscriptionRenewal: null,
+    subscriptionActionCopy: null,
     deletionPanel: null,
     deletionStatus: null,
     deletionRequestButton: null,
@@ -223,6 +231,7 @@
     if (state.authSignedOut) state.authSignedOut.hidden = false;
     if (state.authSignedIn) state.authSignedIn.hidden = true;
     if (state.legalPanel) state.legalPanel.hidden = true;
+    if (state.subscriptionPanel) state.subscriptionPanel.hidden = true;
     if (state.passwordPanel) state.passwordPanel.hidden = true;
     if (state.deletionPanel) state.deletionPanel.hidden = true;
 
@@ -284,6 +293,94 @@
     state.legalPanel.classList.toggle("complete", complete);
   }
 
+  function renderSubscriptionPanel(profile, subscription) {
+    if (!state.subscriptionPanel) return;
+    state.subscriptionPanel.hidden = !profile;
+    if (!profile) return;
+
+    const start = formatDate(subscription?.current_period_start);
+    const end = formatDate(subscription?.current_period_end);
+    const annualFirst = "49,90 € IVA inclusa per 12 mesi";
+    const annualRenewal = "59,88 € IVA inclusa all’anno";
+
+    if (!subscription) {
+      setText(state.subscriptionBadge, "NON ATTIVO");
+      setText(state.subscriptionStatus, "Non risulta un piano Premium associato all’account.");
+      setText(state.subscriptionPeriod, "—");
+      setText(state.subscriptionCurrentPrice, "Nessun addebito");
+      setText(state.subscriptionNextPrice, annualFirst);
+      setText(state.subscriptionRenewal, "Non attivo");
+      setText(state.subscriptionActionCopy, "Nessun pagamento o rinnovo è stato attivato.");
+      return;
+    }
+
+    const period = subscription.current_period_start && subscription.current_period_end
+      ? `${start} – ${end}`
+      : (subscription.current_period_end ? `Fino al ${end}` : "—");
+    setText(state.subscriptionPeriod, period);
+
+    if (subscription.status === "trialing" && subscription.plan_code === "premium-beta") {
+      const days = trialDaysRemaining(subscription);
+      setText(state.subscriptionBadge, "PROVA");
+      setText(state.subscriptionStatus, `Prova gratuita attiva${days == null ? "" : `: ${days} ${days === 1 ? "giorno rimanente" : "giorni rimanenti"}`}.`);
+      setText(state.subscriptionCurrentPrice, "0 € · nessuna carta richiesta");
+      setText(state.subscriptionNextPrice, annualFirst);
+      setText(state.subscriptionRenewal, "Nessuna conversione automatica");
+      setText(state.subscriptionActionCopy, `Alla scadenza non verrà effettuato alcun addebito. L’eventuale acquisto sarà una scelta separata; dal rinnovo successivo il prezzo sarà ${annualRenewal}.`);
+      return;
+    }
+
+    if (subscription.status === "active") {
+      const renewalOff = Boolean(subscription.cancel_at_period_end);
+      setText(state.subscriptionBadge, renewalOff ? "RINNOVO DISATTIVATO" : "ATTIVO");
+      setText(state.subscriptionStatus, renewalOff
+        ? `Premium resta attivo fino al ${end}; alla scadenza non verrà effettuato un nuovo addebito.`
+        : "Abbonamento Premium annuale attivo.");
+      setText(state.subscriptionCurrentPrice, "Piano annuale Premium");
+      setText(state.subscriptionNextPrice, annualRenewal);
+      setText(state.subscriptionRenewal, renewalOff ? `Disattivato · servizio fino al ${end}` : `Automatico annuale · prossima scadenza ${end}`);
+      setText(state.subscriptionActionCopy, "La gestione del rinnovo, il recesso e le conferme di pagamento saranno collegate al provider di pagamento prima dell’apertura commerciale.");
+      return;
+    }
+
+    if (subscription.status === "expired") {
+      setText(state.subscriptionBadge, "PROVA TERMINATA");
+      setText(state.subscriptionStatus, "La prova gratuita è terminata e non è stato effettuato alcun addebito.");
+      setText(state.subscriptionCurrentPrice, "0 €");
+      setText(state.subscriptionNextPrice, annualFirst);
+      setText(state.subscriptionRenewal, "Non attivo");
+      setText(state.subscriptionActionCopy, `L’archivio resta disponibile secondo il periodo di conservazione indicato. Dal secondo anno il prezzo previsto è ${annualRenewal}.`);
+      return;
+    }
+
+    if (subscription.status === "canceled") {
+      setText(state.subscriptionBadge, "ANNULLATO");
+      setText(state.subscriptionStatus, "L’abbonamento non si rinnoverà.");
+      setText(state.subscriptionCurrentPrice, "Periodo già pagato");
+      setText(state.subscriptionNextPrice, "Nessun nuovo addebito");
+      setText(state.subscriptionRenewal, "Disattivato");
+      setText(state.subscriptionActionCopy, subscription.current_period_end ? `Il servizio resta disponibile fino al ${end}.` : "Il servizio non è attivo.");
+      return;
+    }
+
+    if (subscription.status === "past_due") {
+      setText(state.subscriptionBadge, "PAGAMENTO");
+      setText(state.subscriptionStatus, "Il pagamento richiede una verifica.");
+      setText(state.subscriptionCurrentPrice, "Da regolarizzare");
+      setText(state.subscriptionNextPrice, annualRenewal);
+      setText(state.subscriptionRenewal, "Sospeso fino alla regolarizzazione");
+      setText(state.subscriptionActionCopy, "La gestione operativa sarà collegata al provider di pagamento prima dell’apertura commerciale.");
+      return;
+    }
+
+    setText(state.subscriptionBadge, "NON ATTIVO");
+    setText(state.subscriptionStatus, subscriptionLabel(subscription));
+    setText(state.subscriptionCurrentPrice, "Nessun nuovo addebito");
+    setText(state.subscriptionNextPrice, annualFirst);
+    setText(state.subscriptionRenewal, "Non attivo");
+    setText(state.subscriptionActionCopy, "La prova gratuita non si trasforma automaticamente in abbonamento.");
+  }
+
   function renderDeletionPanel(profile) {
     if (!state.deletionPanel) return;
     state.deletionPanel.hidden = !profile;
@@ -304,7 +401,7 @@
         .maybeSingle(),
       client
         .from("premium_subscriptions")
-        .select("status, plan_code, current_period_start, current_period_end, archive_access_until, data_purged_at, included_utilities, included_bills_per_year, created_at")
+        .select("status, plan_code, provider, current_period_start, current_period_end, archive_access_until, data_purged_at, included_utilities, included_bills_per_year, cancel_at_period_end, created_at")
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(1)
@@ -417,6 +514,7 @@
     setText(state.accountStatus, accountStatusLabel(profile?.account_status));
 
     renderLegalPanel(profile, acceptanceStatus);
+    renderSubscriptionPanel(profile, subscription);
     renderDeletionPanel(profile);
 
     if (!profile) {
@@ -818,6 +916,14 @@
     state.legalPanel = byId("premiumLegalPanel");
     state.legalStatus = byId("premiumLegalStatus");
     state.legalAcceptButton = byId("premiumLegalAccept");
+    state.subscriptionPanel = byId("premiumSubscriptionPanel");
+    state.subscriptionBadge = byId("premiumSubscriptionBadge");
+    state.subscriptionStatus = byId("premiumSubscriptionStatus");
+    state.subscriptionPeriod = byId("premiumSubscriptionPeriod");
+    state.subscriptionCurrentPrice = byId("premiumSubscriptionCurrentPrice");
+    state.subscriptionNextPrice = byId("premiumSubscriptionNextPrice");
+    state.subscriptionRenewal = byId("premiumSubscriptionRenewal");
+    state.subscriptionActionCopy = byId("premiumSubscriptionActionCopy");
     state.deletionPanel = byId("premiumDeletionPanel");
     state.deletionStatus = byId("premiumDeletionStatus");
     state.deletionRequestButton = byId("premiumDeletionRequest");
