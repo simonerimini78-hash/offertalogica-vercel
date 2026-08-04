@@ -59,10 +59,10 @@ test("la nuova versione dei Termini è applicata in app, backend e database", ()
 });
 
 test("versione PWA e limite delle funzioni Vercel restano coerenti", async () => {
-  assert.match(app, /APP Premium v0\.36\.7/);
+  assert.match(app, /APP Premium v0\.36\.8/);
   assert.match(app, /VERSIONE v0\.36\.7/);
-  assert.match(sw, /offertalogica-premium-v0367/);
-  assert.match(bills, /app_version: "0\.36\.7"/);
+  assert.match(sw, /offertalogica-premium-v0368/);
+  assert.match(bills, /app_version: "0\.36\.8"/);
   const apiFiles = (await readdir(new URL("../api/", import.meta.url))).filter(name => name.endsWith(".js"));
   assert.equal(apiFiles.length, 12);
 });

@@ -1,0 +1,2 @@
+[functions.premium-trial-cleanup]
+verify_jwt = false
