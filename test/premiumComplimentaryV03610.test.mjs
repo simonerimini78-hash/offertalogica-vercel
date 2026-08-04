@@ -59,10 +59,10 @@ test("v0.36.10 aggiunge la gestione omaggi all’area clienti staff", () => {
   assert.match(staffJs, /GESTISCI OMAGGIO/);
   assert.match(staffJs, /premium_admin_set_complimentary/);
   assert.match(staffJs, /premium_admin_revoke_complimentary/);
-  assert.match(staffJs, /L’archivio passerà in sola lettura per 90 giorni/);
+  assert.match(staffJs, /verranno ripristinati i giorni residui/);
 });
 
 test("v0.36.10 aggiorna versione applicativa e cache PWA", () => {
-  assert.match(app, /APP Premium v0\.36\.12/);
-  assert.match(sw, /offertalogica-premium-v03612/);
+  assert.match(app, /APP Premium v0\.36\.13/);
+  assert.match(sw, /offertalogica-premium-v03613/);
 });

@@ -418,8 +418,8 @@
     const total = included.reduce((sum, bill) => sum + Number(bill.total_amount_eur || 0), 0);
     setText(state.spendTotal, formatMoney(total));
     setText(state.spendMeta, included.length
-      ? `${included.length} ${included.length === 1 ? "bolletta inclusa" : "bollette incluse"} nel totale automatico.`
-      : "Nessun importo automatico disponibile per questo anno.");
+      ? `${included.length === 1 ? "Importo di 1 bolletta archiviata" : `Somma degli importi di ${included.length} bollette archiviate`} nel ${year}.`
+      : `Nessuna bolletta con importo disponibile nel ${year}.`);
   }
 
   function priceTypeLabel(value) {

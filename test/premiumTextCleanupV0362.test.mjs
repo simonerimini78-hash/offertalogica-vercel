@@ -23,9 +23,9 @@ test("v0.36.3 riduce i testi cliente alle informazioni operative", () => {
   assert.doesNotMatch(app, /bucket privato|Supabase Auth|FLUSSO ATTIVO|Ogni bolletta viene analizzata dall’IA|versione gratuita v0\.22/);
   assert.doesNotMatch(bills, /Storico ARERA .*affidabilità/);
   assert.match(auth, /Servizio Premium attivo/);
-  assert.match(app, /APP Premium v0\.36\.12/);
+  assert.match(app, /APP Premium v0\.36\.13/);
   assert.match(bills, /app_version: "0\.36\.11"/);
-  assert.match(sw, /offertalogica-premium-v03612/);
+  assert.match(sw, /offertalogica-premium-v03613/);
 });
 
 test("le conferme staff non mostrano più il nome tecnico della Preview", () => {

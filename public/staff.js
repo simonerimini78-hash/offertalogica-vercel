@@ -697,7 +697,7 @@
     const label = complimentaryCustomer.profile.full_name || complimentaryCustomer.profile.email || "cliente";
     const confirmed = await confirmAction({
       title: "Revoca Premium omaggio",
-      message: `Revocare il Premium omaggio di ${label}? L’archivio passerà in sola lettura per 90 giorni.`,
+      message: `Revocare il Premium omaggio di ${label}? Se prima dell’omaggio era disponibile una prova ancora valida, verranno ripristinati i giorni residui. Altrimenti l’archivio passerà in sola lettura per 90 giorni.`,
       confirmLabel: "REVOCA"
     });
     if (!confirmed) return;
@@ -705,14 +705,16 @@
     setComplimentaryBusy(true);
     setComplimentaryStatus("info", "Revoca in corso…");
     try {
-      const { error } = await client.rpc("premium_admin_revoke_complimentary", {
+      const { data, error } = await client.rpc("premium_admin_revoke_complimentary", {
         p_user_id: complimentaryCustomer.profile.id,
         p_reason: reason,
       });
       if (error) throw error;
       await loadCustomers({ silent: true });
       closeComplimentary();
-      setMessage("success", `Premium omaggio revocato per ${label}.`);
+      setMessage("success", data?.restored_trial
+        ? `Premium omaggio revocato per ${label}. La prova gratuita residua è stata ripristinata.`
+        : `Premium omaggio revocato per ${label}. L’archivio è ora in sola lettura.`);
     } catch (error) {
       setComplimentaryStatus("error", friendlyError(error));
     } finally {
