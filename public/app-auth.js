@@ -8,6 +8,7 @@
   const TERMS_VERSION = "premium-terms-v0.36.7-2026-08-04";
   const PRIVACY_VERSION = "premium-privacy-v0.36.6-2026-08-04";
   const CLOUD_VERSION = "premium-cloud-ai-v0.36.6-2026-08-04";
+  const BILLING_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/premium-billing`;
 
   let client = null;
   let initialized = false;
@@ -16,6 +17,9 @@
   let currentSession = null;
   let accountLoadSequence = 0;
   let passwordUpdateInProgress = false;
+  let billingAvailability = { enabled: false, provider: "stripe", missing: [] };
+  let billingConfirmAction = null;
+  let billingReturnHandled = false;
 
   const byId = id => document.getElementById(id);
 
@@ -58,6 +62,16 @@
     subscriptionNextPrice: null,
     subscriptionRenewal: null,
     subscriptionActionCopy: null,
+    subscriptionPurchaseButton: null,
+    subscriptionManageButton: null,
+    subscriptionCancelButton: null,
+    subscriptionResumeButton: null,
+    billingMessage: null,
+    billingConfirm: null,
+    billingConfirmTitle: null,
+    billingConfirmCopy: null,
+    billingConfirmBack: null,
+    billingConfirmApply: null,
     deletionPanel: null,
     deletionStatus: null,
     deletionRequestButton: null,
@@ -85,6 +99,105 @@
     if (element) element.textContent = value == null ? "" : String(value);
   }
 
+  function setBillingMessage(kind, message) {
+    if (!state.billingMessage) return;
+    state.billingMessage.className = `billing-inline-message${kind === "error" ? " error" : ""}`;
+    state.billingMessage.textContent = message || "";
+    state.billingMessage.hidden = !message;
+  }
+
+  function billingErrorMessage(error) {
+    const message = String(error?.message || error || "").toLowerCase();
+    if (message.includes("premium_billing_not_enabled")) return "Il pagamento è ancora in configurazione.";
+    if (message.includes("premium_legal_acceptance_required")) return "Accetta prima le condizioni commerciali correnti.";
+    if (message.includes("premium_subscription_already_active")) return "L’abbonamento risulta già attivo.";
+    if (message.includes("premium_billing_customer_missing")) return "Il profilo di pagamento non è ancora disponibile.";
+    if (message.includes("authentication")) return "La sessione è scaduta. Accedi nuovamente.";
+    if (message.includes("stripe:")) return "Stripe non ha completato l’operazione. Riprova tra poco.";
+    return "Operazione di pagamento non completata. Riprova.";
+  }
+
+  async function billingRequest(action, payload = {}) {
+    if (!client) throw new Error("authentication_required");
+    const { data, error } = await client.auth.getSession();
+    if (error || !data?.session?.access_token) throw new Error("authentication_required");
+    const response = await fetch(BILLING_FUNCTION_URL, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${data.session.access_token}`
+      },
+      body: JSON.stringify({ action, ...payload })
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || result?.ok === false) throw new Error(result?.error || `billing_http_${response.status}`);
+    return result;
+  }
+
+  async function loadBillingAvailability() {
+    try {
+      const result = await billingRequest("status");
+      billingAvailability = {
+        enabled: Boolean(result.enabled),
+        provider: result.provider || "stripe",
+        missing: Array.isArray(result.missing) ? result.missing : []
+      };
+    } catch {
+      billingAvailability = { enabled: false, provider: "stripe", missing: ["EDGE_FUNCTION"] };
+    }
+    return billingAvailability;
+  }
+
+  function hideBillingConfirmation() {
+    billingConfirmAction = null;
+    if (state.billingConfirm) state.billingConfirm.hidden = true;
+  }
+
+  function showBillingConfirmation(action) {
+    billingConfirmAction = action;
+    if (!state.billingConfirm) return;
+    const cancel = action === "cancel";
+    setText(state.billingConfirmTitle, cancel ? "Disattiva rinnovo automatico" : "Riattiva rinnovo automatico");
+    setText(state.billingConfirmCopy, cancel
+      ? "Premium resterà attivo fino alla scadenza del periodo già pagato. Non verrà effettuato il prossimo addebito annuale."
+      : "Il rinnovo annuale verrà riattivato al prezzo previsto per la prossima scadenza.");
+    setText(state.billingConfirmApply, cancel ? "DISATTIVA RINNOVO" : "RIATTIVA RINNOVO");
+    state.billingConfirmApply?.classList.toggle("danger", cancel);
+    state.billingConfirm.hidden = false;
+    state.billingConfirmApply?.focus();
+  }
+
+  function renderBillingActions(subscription) {
+    const configured = Boolean(billingAvailability?.enabled);
+    const status = subscription?.status || "";
+    const paidProvider = subscription?.provider === "stripe" && Boolean(subscription?.provider_customer_id);
+    const paidHistory = Boolean(subscription?.first_paid_at || subscription?.provider_subscription_id);
+    const canPurchase = ["trialing", "expired", "canceled", "pending"].includes(status);
+    const introUsed = Boolean(subscription?.first_paid_at || subscription?.intro_price_redeemed_at);
+
+    if (state.subscriptionPurchaseButton) {
+      state.subscriptionPurchaseButton.hidden = !canPurchase;
+      state.subscriptionPurchaseButton.disabled = !configured;
+      state.subscriptionPurchaseButton.textContent = introUsed
+        ? "RIATTIVA PREMIUM PER 59,88 €"
+        : "ACQUISTA PREMIUM PER 49,90 €";
+      state.subscriptionPurchaseButton.title = configured ? "" : "Pagamento Stripe non ancora attivato";
+    }
+    if (state.subscriptionManageButton) {
+      state.subscriptionManageButton.hidden = !(paidProvider && paidHistory && ["active", "past_due", "paused", "canceled"].includes(status));
+      state.subscriptionManageButton.disabled = !configured;
+    }
+    if (state.subscriptionCancelButton) {
+      state.subscriptionCancelButton.hidden = !(status === "active" && paidProvider && !subscription.cancel_at_period_end);
+      state.subscriptionCancelButton.disabled = !configured;
+    }
+    if (state.subscriptionResumeButton) {
+      state.subscriptionResumeButton.hidden = !(status === "active" && paidProvider && subscription.cancel_at_period_end);
+      state.subscriptionResumeButton.disabled = !configured;
+    }
+    hideBillingConfirmation();
+  }
+
   function showAccountPanels({ signedIn = false } = {}) {
     if (state.profileSummary) state.profileSummary.hidden = !signedIn;
     if (state.authCard) state.authCard.hidden = signedIn;
@@ -103,6 +216,16 @@
       month: "2-digit",
       year: "numeric"
     }).format(date);
+  }
+
+  function formatMoneyCents(value, currency = "eur") {
+    const cents = Number(value);
+    if (!Number.isFinite(cents)) return "";
+    try {
+      return new Intl.NumberFormat("it-IT", { style: "currency", currency: String(currency || "eur").toUpperCase() }).format(cents / 100);
+    } catch {
+      return `${(cents / 100).toFixed(2).replace(".", ",")} €`;
+    }
   }
 
   function trialDaysRemaining(subscription) {
@@ -234,6 +357,8 @@
     if (state.subscriptionPanel) state.subscriptionPanel.hidden = true;
     if (state.passwordPanel) state.passwordPanel.hidden = true;
     if (state.deletionPanel) state.deletionPanel.hidden = true;
+    setBillingMessage("", "");
+    hideBillingConfirmation();
 
     setText(state.profileKicker, "Area Premium");
     setText(state.profileTitle, "Account non collegato");
@@ -297,6 +422,7 @@
     if (!state.subscriptionPanel) return;
     state.subscriptionPanel.hidden = !profile;
     if (!profile) return;
+    renderBillingActions(subscription);
 
     const start = formatDate(subscription?.current_period_start);
     const end = formatDate(subscription?.current_period_end);
@@ -336,10 +462,10 @@
       setText(state.subscriptionStatus, renewalOff
         ? `Premium resta attivo fino al ${end}; alla scadenza non verrà effettuato un nuovo addebito.`
         : "Abbonamento Premium annuale attivo.");
-      setText(state.subscriptionCurrentPrice, "Piano annuale Premium");
+      setText(state.subscriptionCurrentPrice, formatMoneyCents(subscription.latest_amount_paid_cents, subscription.latest_currency) || "Piano annuale Premium");
       setText(state.subscriptionNextPrice, annualRenewal);
       setText(state.subscriptionRenewal, renewalOff ? `Disattivato · servizio fino al ${end}` : `Automatico annuale · prossima scadenza ${end}`);
-      setText(state.subscriptionActionCopy, "La gestione del rinnovo, il recesso e le conferme di pagamento saranno collegate al provider di pagamento prima dell’apertura commerciale.");
+      setText(state.subscriptionActionCopy, "Puoi gestire il metodo di pagamento e disattivare o riattivare il rinnovo annuale direttamente da questa sezione.");
       return;
     }
 
@@ -369,7 +495,7 @@
       setText(state.subscriptionCurrentPrice, "Da regolarizzare");
       setText(state.subscriptionNextPrice, annualRenewal);
       setText(state.subscriptionRenewal, "Sospeso fino alla regolarizzazione");
-      setText(state.subscriptionActionCopy, "La gestione operativa sarà collegata al provider di pagamento prima dell’apertura commerciale.");
+      setText(state.subscriptionActionCopy, "Apri la gestione del pagamento per aggiornare il metodo utilizzato e regolarizzare l’abbonamento.");
       return;
     }
 
@@ -401,7 +527,7 @@
         .maybeSingle(),
       client
         .from("premium_subscriptions")
-        .select("status, plan_code, provider, current_period_start, current_period_end, archive_access_until, data_purged_at, included_utilities, included_bills_per_year, cancel_at_period_end, created_at")
+        .select("status, plan_code, provider, provider_customer_id, provider_subscription_id, current_period_start, current_period_end, archive_access_until, data_purged_at, included_utilities, included_bills_per_year, cancel_at_period_end, first_paid_at, intro_price_redeemed_at, latest_amount_paid_cents, latest_currency, latest_payment_at, created_at")
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(1)
@@ -445,6 +571,8 @@
     } catch (error) {
       setMessage("info", "Lo stato della prova non è stato aggiornato. Ricarica la pagina se la scadenza non risulta corretta.");
     }
+    if (sequence !== accountLoadSequence) return false;
+    await loadBillingAvailability();
     if (sequence !== accountLoadSequence) return false;
     let results = await fetchAccountData(userId);
     let hasError = Boolean(
@@ -516,6 +644,7 @@
     renderLegalPanel(profile, acceptanceStatus);
     renderSubscriptionPanel(profile, subscription);
     renderDeletionPanel(profile);
+    handleBillingReturn();
 
     if (!profile) {
       setText(state.profileKicker, "Account collegato");
@@ -885,6 +1014,78 @@
     setMessage("success", "Account disconnesso.");
   }
 
+  async function handlePurchasePremium() {
+    if (!state.subscriptionPurchaseButton || state.subscriptionPurchaseButton.disabled) return;
+    state.subscriptionPurchaseButton.disabled = true;
+    setBillingMessage("", "Preparazione del pagamento sicuro…");
+    try {
+      const result = await billingRequest("create_checkout");
+      if (!result?.url) throw new Error("checkout_url_missing");
+      window.location.assign(result.url);
+    } catch (error) {
+      setBillingMessage("error", billingErrorMessage(error));
+      state.subscriptionPurchaseButton.disabled = !billingAvailability.enabled;
+    }
+  }
+
+  async function handleManageBilling() {
+    if (!state.subscriptionManageButton || state.subscriptionManageButton.disabled) return;
+    state.subscriptionManageButton.disabled = true;
+    setBillingMessage("", "Apertura della gestione pagamenti…");
+    try {
+      const result = await billingRequest("create_portal");
+      if (!result?.url) throw new Error("portal_url_missing");
+      window.location.assign(result.url);
+    } catch (error) {
+      setBillingMessage("error", billingErrorMessage(error));
+      state.subscriptionManageButton.disabled = !billingAvailability.enabled;
+    }
+  }
+
+  async function applyBillingConfirmation() {
+    if (!billingConfirmAction || !state.billingConfirmApply) return;
+    const cancel = billingConfirmAction === "cancel";
+    state.billingConfirmApply.disabled = true;
+    state.billingConfirmBack.disabled = true;
+    setBillingMessage("", cancel ? "Disattivazione del rinnovo…" : "Riattivazione del rinnovo…");
+    try {
+      await billingRequest("set_cancel_at_period_end", { value: cancel });
+      hideBillingConfirmation();
+      setBillingMessage("", cancel
+        ? "Rinnovo disattivato. Premium resterà attivo fino alla scadenza del periodo pagato."
+        : "Rinnovo annuale riattivato.");
+      if (currentSession) await loadAccount(currentSession, { retry: false });
+      window.dispatchEvent(new CustomEvent("offertalogica:premium-access-changed"));
+    } catch (error) {
+      setBillingMessage("error", billingErrorMessage(error));
+    } finally {
+      state.billingConfirmApply.disabled = false;
+      state.billingConfirmBack.disabled = false;
+    }
+  }
+
+  function handleBillingReturn() {
+    if (billingReturnHandled) return;
+    const url = new URL(window.location.href);
+    const result = url.searchParams.get("billing");
+    if (!result) return;
+    billingReturnHandled = true;
+    url.searchParams.delete("billing");
+    url.searchParams.delete("session_id");
+    window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash || "#profile"}`);
+    if (result === "success") {
+      setBillingMessage("", "Pagamento completato. Lo stato dell’abbonamento viene aggiornato tramite Stripe.");
+      let attempts = 0;
+      const refresh = window.setInterval(() => {
+        attempts += 1;
+        if (currentSession) loadAccount(currentSession, { retry: false });
+        if (attempts >= 3) window.clearInterval(refresh);
+      }, 1800);
+    } else if (result === "cancel") {
+      setBillingMessage("", "Pagamento annullato. Non è stato effettuato alcun addebito.");
+    }
+  }
+
   function collectElements() {
     state.loginForm = byId("premiumLoginForm");
     state.signupForm = byId("premiumSignupForm");
@@ -924,6 +1125,16 @@
     state.subscriptionNextPrice = byId("premiumSubscriptionNextPrice");
     state.subscriptionRenewal = byId("premiumSubscriptionRenewal");
     state.subscriptionActionCopy = byId("premiumSubscriptionActionCopy");
+    state.subscriptionPurchaseButton = byId("premiumSubscriptionPurchase");
+    state.subscriptionManageButton = byId("premiumSubscriptionManage");
+    state.subscriptionCancelButton = byId("premiumSubscriptionCancel");
+    state.subscriptionResumeButton = byId("premiumSubscriptionResume");
+    state.billingMessage = byId("premiumBillingMessage");
+    state.billingConfirm = byId("premiumBillingConfirm");
+    state.billingConfirmTitle = byId("premiumBillingConfirmTitle");
+    state.billingConfirmCopy = byId("premiumBillingConfirmCopy");
+    state.billingConfirmBack = byId("premiumBillingConfirmBack");
+    state.billingConfirmApply = byId("premiumBillingConfirmApply");
     state.deletionPanel = byId("premiumDeletionPanel");
     state.deletionStatus = byId("premiumDeletionStatus");
     state.deletionRequestButton = byId("premiumDeletionRequest");
@@ -964,6 +1175,12 @@
     byId("premiumResendConfirmation")?.addEventListener("click", handleResend);
     byId("premiumSignOut")?.addEventListener("click", handleSignOut);
     state.legalAcceptButton?.addEventListener("click", handleLegalAcceptance);
+    state.subscriptionPurchaseButton?.addEventListener("click", handlePurchasePremium);
+    state.subscriptionManageButton?.addEventListener("click", handleManageBilling);
+    state.subscriptionCancelButton?.addEventListener("click", () => showBillingConfirmation("cancel"));
+    state.subscriptionResumeButton?.addEventListener("click", () => showBillingConfirmation("resume"));
+    state.billingConfirmBack?.addEventListener("click", hideBillingConfirmation);
+    state.billingConfirmApply?.addEventListener("click", applyBillingConfirmation);
     state.deletionRequestButton?.addEventListener("click", handleDeletionRequest);
     state.deletionCancelButton?.addEventListener("click", handleDeletionCancel);
     state.passwordToggle?.addEventListener("click", () => {

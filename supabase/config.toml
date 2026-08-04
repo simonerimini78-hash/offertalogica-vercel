@@ -1,2 +1,5 @@
 [functions.premium-trial-cleanup]
 verify_jwt = false
+
+[functions.premium-billing]
+verify_jwt = false

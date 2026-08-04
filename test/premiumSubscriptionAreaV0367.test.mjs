@@ -15,7 +15,7 @@ const TERMS_VERSION = "premium-terms-v0.36.7-2026-08-04";
 const PRIVACY_VERSION = "premium-privacy-v0.36.6-2026-08-04";
 const CLOUD_VERSION = "premium-cloud-ai-v0.36.6-2026-08-04";
 
-test("v0.36.7 aggiunge un’area Abbonamento senza checkout fittizio", () => {
+test("l’area Abbonamento resta coerente con il checkout Stripe controllato", () => {
   for (const id of [
     "premiumSubscriptionPanel",
     "premiumSubscriptionBadge",
@@ -29,8 +29,10 @@ test("v0.36.7 aggiunge un’area Abbonamento senza checkout fittizio", () => {
   assert.match(auth, /renderSubscriptionPanel/);
   assert.match(auth, /Nessuna conversione automatica/);
   assert.match(auth, /cancel_at_period_end/);
-  assert.doesNotMatch(app, /id="premiumCheckout"/);
-  assert.doesNotMatch(auth, /createCheckoutSession|checkout\.sessions|stripe/i);
+  assert.match(app, /id="premiumSubscriptionPurchase"/);
+  assert.match(app, /ACQUISTA PREMIUM PER 49,90 €/);
+  assert.match(auth, /premium-billing/);
+  assert.match(auth, /create_checkout/);
 });
 
 test("prezzi e rinnovo corrispondono alla formula commerciale approvata", () => {
@@ -59,10 +61,10 @@ test("la nuova versione dei Termini è applicata in app, backend e database", ()
 });
 
 test("versione PWA e limite delle funzioni Vercel restano coerenti", async () => {
-  assert.match(app, /APP Premium v0\.36\.8/);
+  assert.match(app, /APP Premium v0\.36\.9/);
   assert.match(app, /VERSIONE v0\.36\.7/);
-  assert.match(sw, /offertalogica-premium-v0368/);
-  assert.match(bills, /app_version: "0\.36\.8"/);
+  assert.match(sw, /offertalogica-premium-v0369/);
+  assert.match(bills, /app_version: "0\.36\.9"/);
   const apiFiles = (await readdir(new URL("../api/", import.meta.url))).filter(name => name.endsWith(".js"));
   assert.equal(apiFiles.length, 12);
 });
