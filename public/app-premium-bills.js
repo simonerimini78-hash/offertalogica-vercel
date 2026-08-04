@@ -242,10 +242,16 @@
     const raw = String(error?.message || "").trim();
     const message = raw.toLowerCase();
     if (!message) return "Operazione non riuscita. Riprova.";
-    if (message.includes("premium bill limit reached") || message.includes("premium_bill_limit_reached") || message.includes("row-level security")) {
+    if (message.includes("premium_trial_bill_limit_reached") || message.includes("premium bill limit reached") || message.includes("premium_bill_limit_reached") || message.includes("row-level security")) {
       return isBetaTrial()
-        ? "Hai raggiunto il limite di 4 bollette incluse nella prova gratuita."
+        ? "Hai già caricato le 4 bollette complessive incluse nella prova gratuita. Eliminare un documento non libera un nuovo caricamento."
         : "Il caricamento non è autorizzato oppure hai raggiunto il limite del piano.";
+    }
+    if (message.includes("premium_bill_storage_missing")) {
+      return "Il PDF non risulta salvato nel cloud. Il caricamento è stato annullato senza consumare la quota della prova.";
+    }
+    if (message.includes("premium_reserve_trial_bill_upload") || message.includes("premium_mark_bill_upload_complete") || message.includes("premium_trial_bill_usage_count")) {
+      return "L’aggiornamento del limite della prova non è ancora installato nel database.";
     }
     if (message.includes("premium_trial_staff_limit_reached")) {
       return "La verifica staff inclusa nella prova è già stata utilizzata.";
@@ -384,7 +390,7 @@
       ? "Accettazione richiesta"
       : (maintenanceMode
         ? (operationBlockReason === "archive" ? `Sola lettura fino al ${formatDate(currentSubscription?.archive_access_until)}` : "Sola gestione")
-        : (isBetaTrial() ? `${periodBillCount} / ${planLimit()} bollette prova` : `${periodBillCount} / ${planLimit()}`)));
+        : (isBetaTrial() ? `${periodBillCount} / ${planLimit()} bollette complessive della prova` : `${periodBillCount} / ${planLimit()}`)));
     setText(state.homeCount, String(bills.length));
     setText(state.profileCount, String(bills.length));
     setText(state.profileSize, formatSize(bills.reduce((sum, bill) => sum + Number(bill.file_size || 0), 0)));
@@ -909,6 +915,16 @@
 
       const billId = createUuid();
       storagePath = `${currentUser.id}/${billId}/${Date.now()}-${safeFileName(file.name)}`;
+
+      const reservationResult = await client.rpc("premium_reserve_trial_bill_upload", { p_bill_id: billId });
+      if (reservationResult.error) throw reservationResult.error;
+
+      const releaseReservation = async () => {
+        try {
+          await client.rpc("premium_release_trial_bill_upload", { p_bill_id: billId });
+        } catch {}
+      };
+
       const insertResult = await client
         .from("premium_bills")
         .insert({
@@ -925,13 +941,17 @@
           customer_status: "awaiting_review",
           metadata: {
             source: "premium_app",
-            app_version: "0.36.11",
-            automatic_analysis: true
+            app_version: "0.36.15",
+            automatic_analysis: true,
+            upload_complete: false
           }
         })
         .select(BILL_COLUMNS)
         .single();
-      if (insertResult.error) throw insertResult.error;
+      if (insertResult.error) {
+        await releaseReservation();
+        throw insertResult.error;
+      }
 
       const uploadResult = await client.storage
         .from(BUCKET)
@@ -948,7 +968,29 @@
           .delete()
           .eq("id", billId)
           .eq("user_id", currentUser.id);
+        await releaseReservation();
         throw uploadResult.error;
+      }
+
+      const commitResult = await client.rpc("premium_mark_bill_upload_complete", { p_bill_id: billId });
+      if (commitResult.error) {
+        const confirmationResult = await client
+          .from("premium_bills")
+          .select("metadata")
+          .eq("id", billId)
+          .eq("user_id", currentUser.id)
+          .maybeSingle();
+        const uploadWasCommitted = confirmationResult.data?.metadata?.upload_complete === true;
+        if (!uploadWasCommitted) {
+          await client.storage.from(BUCKET).remove([storagePath]);
+          await client
+            .from("premium_bills")
+            .delete()
+            .eq("id", billId)
+            .eq("user_id", currentUser.id);
+          await releaseReservation();
+          throw commitResult.error;
+        }
       }
 
       bills = [insertResult.data, ...bills];
@@ -1210,7 +1252,7 @@
     checks = checks.filter(item => item.bill_id !== bill.id);
     anomalies = anomalies.filter(item => item.bill_id !== bill.id);
     const createdAt = new Date(bill.created_at).getTime();
-    if (Number.isFinite(createdAt) && createdAt >= currentPeriodStartTime()) {
+    if (!isBetaTrial() && Number.isFinite(createdAt) && createdAt >= currentPeriodStartTime()) {
       periodBillCount = Math.max(0, periodBillCount - 1);
     }
     renderEnabled();
@@ -1222,7 +1264,7 @@
     const countStart = subscription?.current_period_start
       ? new Date(subscription.current_period_start).toISOString()
       : new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString();
-    const [utilitiesResult, billsResult, countResult, contractsResult, checksResult, anomaliesResult] = await Promise.all([
+    const [utilitiesResult, billsResult, countResult, trialUsageResult, contractsResult, checksResult, anomaliesResult] = await Promise.all([
       client
         .from("premium_utilities")
         .select(UTILITY_COLUMNS)
@@ -1242,6 +1284,7 @@
         .eq("user_id", user.id)
         .is("deleted_at", null)
         .gte("created_at", countStart),
+      client.rpc("premium_trial_bill_usage_count"),
       client
         .from("premium_contracts")
         .select(CONTRACT_COLUMNS)
@@ -1265,6 +1308,13 @@
     if (utilitiesResult.error) throw utilitiesResult.error;
     if (billsResult.error) throw billsResult.error;
     if (countResult.error) throw countResult.error;
+    if (trialUsageResult.error) {
+      const usageMessage = String(trialUsageResult.error.message || trialUsageResult.error || "").toLowerCase();
+      const missingUsageFunction = usageMessage.includes("premium_trial_bill_usage_count")
+        || usageMessage.includes("schema cache")
+        || usageMessage.includes("could not find the function");
+      if (!missingUsageFunction) throw trialUsageResult.error;
+    }
     if (contractsResult.error) throw contractsResult.error;
     if (checksResult.error) throw checksResult.error;
     if (anomaliesResult.error) throw anomaliesResult.error;
@@ -1278,7 +1328,9 @@
     contracts = Array.isArray(contractsResult.data) ? contractsResult.data : [];
     checks = Array.isArray(checksResult.data) ? checksResult.data : [];
     anomalies = Array.isArray(anomaliesResult.data) ? anomaliesResult.data : [];
-    periodBillCount = Number(countResult.count || 0);
+    periodBillCount = isBetaTrial()
+      ? Number(trialUsageResult.data ?? countResult.count ?? 0)
+      : Number(countResult.count || 0);
     renderEnabled();
   }
 
@@ -1423,7 +1475,7 @@
       }
       if (periodBillCount >= planLimit()) {
         setMessage("error", isBetaTrial()
-          ? "Hai raggiunto il limite di 4 bollette incluse nella prova gratuita."
+          ? "Hai già caricato le 4 bollette complessive incluse nella prova gratuita. Eliminare un documento non libera un nuovo caricamento."
           : "Hai raggiunto il numero di bollette incluso nel piano.");
         return;
       }

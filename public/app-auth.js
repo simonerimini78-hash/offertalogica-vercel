@@ -725,7 +725,7 @@
       setText(state.homePremiumBadge, isBetaTrial ? "PROVA ATTIVA" : (isComplimentary ? "OMAGGIO" : "ATTIVO"));
       setText(state.homePremiumTitle, isBetaTrial ? "Prova Premium attiva" : (isComplimentary ? "Premium offerto da OffertaLogica" : "Account Premium collegato"));
       setText(state.homePremiumCopy, isBetaTrial
-        ? "Fino a 4 bollette e una verifica staff per un’anomalia rossa. Nessuna carta e nessun addebito automatico."
+        ? "Fino a 4 bollette complessivamente caricate e una verifica staff per un’anomalia rossa. Eliminare una bolletta non libera un nuovo caricamento. Nessuna carta e nessun addebito automatico."
         : (isComplimentary
           ? "Tutte le funzioni Premium sono attive senza pagamento e senza rinnovo automatico."
           : "Servizio attivo. La verifica dello staff è disponibile solo per anomalie rosse."));

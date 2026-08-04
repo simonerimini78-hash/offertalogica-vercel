@@ -24,8 +24,8 @@ test("il limite bollette usa il periodo corrente e non gli ultimi 12 mesi", () =
   assert.match(migration, /bill\.created_at >= coalesce\(\(select count_start from active_subscription\), now\(\)\)/);
   assert.doesNotMatch(migration, /bill\.created_at >= now\(\) - interval '1 year'/);
   assert.match(bills, /current_period_start/);
-  assert.match(bills, /bollette prova/);
-  assert.match(bills, /limite di 4 bollette incluse nella prova gratuita/);
+  assert.match(bills, /bollette complessive della prova/);
+  assert.match(bills, /4 bollette complessive incluse nella prova gratuita/);
 });
 
 test("una sola verifica staff è applicata esclusivamente al trial beta", () => {
@@ -60,5 +60,5 @@ test("l’interfaccia espone chiaramente i limiti senza carta", () => {
 test("verifica SQL, dominio Premium e versione sono aggiornati", () => {
   assert.match(verify, /premium_trial_limits_v0\.36\.5_ok/);
   assert.match(env, /https:\/\/premium\.offertalogica\.it/);
-  assert.match(app, /APP Premium v0\.36\.14/);
+  assert.match(app, /APP Premium v0\.36\.15/);
 });
