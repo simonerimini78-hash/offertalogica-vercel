@@ -44,6 +44,12 @@ Risultato atteso:
 
 `premium_trial_bill_lifetime_limit_v0.36.15_ok`
 
+### Correzione del verificatore
+
+La prima versione del file di verifica cercava la forma testuale esatta `premium_can_add_bill(utility_id, id)`. PostgreSQL può salvare la stessa policy qualificando gli argomenti con il nome della tabella; in quel caso il database era correttamente configurato ma il controllo restituiva `incomplete`.
+
+Il verificatore aggiornato controlla la presenza di `premium_can_add_bill` nella policy senza dipendere dalla formattazione prodotta da PostgreSQL. Questa correzione non modifica la migrazione, i dati o il limite cumulativo già installato.
+
 ## Collaudo reale
 
 1. creare o usare un account prova successivo alla migrazione;

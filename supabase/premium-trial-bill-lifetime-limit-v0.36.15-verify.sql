@@ -23,7 +23,7 @@ select case
      where schemaname = 'public'
        and tablename = 'premium_bills'
        and policyname = 'premium_bills_owner_insert'
-       and with_check like '%premium_can_add_bill(utility_id, id)%'
+       and coalesce(with_check, '') ilike '%premium_can_add_bill%'
    )
   then 'premium_trial_bill_lifetime_limit_v0.36.15_ok'
   else 'premium_trial_bill_lifetime_limit_v0.36.15_incomplete'

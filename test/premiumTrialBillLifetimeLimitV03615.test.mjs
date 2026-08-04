@@ -82,6 +82,11 @@ test("interfaccia e condizioni dichiarano la regola senza ambiguità", () => {
   assert.match(terms, /un massimo di quattro bollette complessive/);
 });
 
+test("il verificatore riconosce la policy anche quando PostgreSQL qualifica gli argomenti", () => {
+  assert.match(verify, /coalesce\(with_check, ''\) ilike '%premium_can_add_bill%'/i);
+  assert.doesNotMatch(verify, /with_check like '%premium_can_add_bill\(utility_id, id\)%'/i);
+});
+
 test("v0.36.15 include verifica SQL e aggiorna app staff e cache", () => {
   assert.match(verify, /premium_trial_bill_lifetime_limit_v0\.36\.15_ok/);
   assert.match(app, /APP Premium v0\.36\.15/);
