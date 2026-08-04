@@ -20,9 +20,9 @@ const envExample = await readFile(new URL("../.env.example", import.meta.url), "
 const sw = await readFile(new URL("../public/sw.js", import.meta.url), "utf8");
 
 const currentConsents = [
-  { consent_type: "terms", version: "premium-terms-v0.35-2026-08-03", granted: true, revoked_at: null },
-  { consent_type: "privacy", version: "premium-privacy-v0.35-2026-08-03", granted: true, revoked_at: null },
-  { consent_type: "cloud_storage", version: "premium-cloud-ai-v0.35-2026-08-03", granted: true, revoked_at: null },
+  { consent_type: "terms", version: "premium-terms-v0.36.6-2026-08-04", granted: true, revoked_at: null },
+  { consent_type: "privacy", version: "premium-privacy-v0.36.6-2026-08-04", granted: true, revoked_at: null },
+  { consent_type: "cloud_storage", version: "premium-cloud-ai-v0.36.6-2026-08-04", granted: true, revoked_at: null },
 ];
 
 function jsonResponse(body, status = 200) {
@@ -32,12 +32,12 @@ function jsonResponse(body, status = 200) {
   });
 }
 
-test("v0.36.5 presenta la prova di 30 giorni e aggiorna la cache PWA", () => {
+test("v0.36.6 mantiene la prova di 30 giorni e aggiorna la cache PWA", () => {
   assert.match(app, /PROVA 30 GIORNI/);
   assert.doesNotMatch(app, /IN SVILUPPO/);
-  assert.match(app, /APP Premium v0\.36\.5/);
-  assert.match(sw, /offertalogica-premium-v0365/);
-  assert.match(bills, /app_version: "0\.36\.5"/);
+  assert.match(app, /APP Premium v0\.36\.6/);
+  assert.match(sw, /offertalogica-premium-v0366/);
+  assert.match(bills, /app_version: "0\.36\.6"/);
 });
 
 test("utenze e bollette verificano le accettazioni correnti prima delle operazioni", () => {

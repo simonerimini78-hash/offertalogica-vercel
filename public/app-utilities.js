@@ -115,6 +115,27 @@
     return !Number.isNaN(end.getTime()) && end > new Date();
   }
 
+  function archiveIsAvailable(profile, subscription) {
+    if (!profile || !["active", "deletion_requested"].includes(profile.account_status)) return false;
+    if (!subscription || subscription.data_purged_at || !subscription.archive_access_until) return false;
+    const end = new Date(subscription.archive_access_until);
+    return !Number.isNaN(end.getTime()) && end > new Date();
+  }
+
+  function formatDate(value) {
+    const date = new Date(value || 0);
+    if (Number.isNaN(date.getTime())) return "—";
+    return new Intl.DateTimeFormat("it-IT", { day: "2-digit", month: "2-digit", year: "numeric" }).format(date);
+  }
+
+  async function refreshTrialLifecycle() {
+    const { error } = await client.rpc("premium_refresh_trial_lifecycle");
+    if (!error) return;
+    const message = String(error.message || error || "").toLowerCase();
+    if (message.includes("premium_refresh_trial_lifecycle") || message.includes("schema cache") || message.includes("function")) return;
+    throw error;
+  }
+
   function renderLocked(title, copy, badge = "BLOCCATO", quota = "Non attivo") {
     currentSubscription = null;
     maintenanceMode = false;
@@ -151,7 +172,9 @@
     const canAdd = !maintenanceMode && activeCount < limit;
     setText(state.quota, legalBlocked
       ? "Accettazione richiesta"
-      : (maintenanceMode ? "Sola gestione" : (isBetaTrial() ? `${activeCount} / ${limit} · una abitazione` : `${activeCount} / ${limit}`)));
+      : (maintenanceMode
+        ? (operationBlockReason === "archive" ? `Sola lettura fino al ${formatDate(currentSubscription?.archive_access_until)}` : "Sola gestione")
+        : (isBetaTrial() ? `${activeCount} / ${limit} · una abitazione` : `${activeCount} / ${limit}`)));
     if (state.addButton) {
       state.addButton.disabled = !canAdd;
       state.addButton.hidden = maintenanceMode;
@@ -420,7 +443,7 @@
     window.dispatchEvent(new CustomEvent("offertalogica:utilities-changed"));
   }
 
-  async function loadUtilities(user, subscription, { blockReason = "" } = {}) {
+  async function loadUtilities(user, subscription, { blockReason = "", readOnly = false } = {}) {
     const result = await client
       .from("premium_utilities")
       .select(UTILITY_COLUMNS)
@@ -431,7 +454,7 @@
     if (result.error) throw result.error;
     currentUser = user;
     currentSubscription = subscription;
-    maintenanceMode = !subscription;
+    maintenanceMode = readOnly || !subscription;
     operationBlockReason = maintenanceMode ? blockReason : "";
     utilities = Array.isArray(result.data) ? result.data : [];
     renderEnabled();
@@ -443,7 +466,7 @@
     if (error) return subscription;
     const refreshed = await client
       .from("premium_subscriptions")
-      .select("status, plan_code, current_period_start, current_period_end, included_utilities, created_at")
+      .select("status, plan_code, current_period_start, current_period_end, archive_access_until, data_purged_at, included_utilities, created_at")
       .eq("user_id", currentUser.id)
       .order("created_at", { ascending: false })
       .limit(1)
@@ -467,6 +490,12 @@
 
     renderLoading();
     const userId = session.user.id;
+    try {
+      await refreshTrialLifecycle();
+    } catch (error) {
+      setMessage("info", "Lo stato della prova non è stato aggiornato. Ricarica la pagina se la scadenza non risulta corretta.");
+    }
+    if (sequence !== syncSequence) return;
     const [profileResult, subscriptionResult, acceptanceResult] = await Promise.all([
       client
         .from("premium_profiles")
@@ -475,7 +504,7 @@
         .maybeSingle(),
       client
         .from("premium_subscriptions")
-        .select("status, plan_code, current_period_start, current_period_end, included_utilities, created_at")
+        .select("status, plan_code, current_period_start, current_period_end, archive_access_until, data_purged_at, included_utilities, created_at")
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(1)
@@ -510,16 +539,22 @@
     subscription = await activateBetaTrialIfEligible(profile, subscription, legalReady);
     if (sequence !== syncSequence) return;
     const activeSubscription = subscriptionIsActive(profile, subscription) ? subscription : null;
+    const archiveSubscription = !activeSubscription && archiveIsAvailable(profile, subscription) ? subscription : null;
+    const dataSubscription = activeSubscription || archiveSubscription;
     const operationalSubscription = activeSubscription && legalReady ? activeSubscription : null;
+    const blockReason = activeSubscription && !legalReady ? "legal" : (archiveSubscription ? "archive" : (!activeSubscription ? "subscription" : ""));
 
     try {
-      await loadUtilities(session.user, operationalSubscription, {
-        blockReason: activeSubscription && !legalReady ? "legal" : (!activeSubscription ? "subscription" : ""),
+      await loadUtilities(session.user, operationalSubscription || dataSubscription, {
+        blockReason,
+        readOnly: !operationalSubscription,
       });
       if (activeSubscription && !legalReady) {
         setMessage("info", "Accetta le condizioni Premium correnti dalla sezione Profilo. Le utenze già presenti restano consultabili ed eliminabili.");
+      } else if (archiveSubscription) {
+        setMessage("info", `Prova terminata: utenze disponibili in sola lettura fino al ${formatDate(subscription.archive_access_until)}. Puoi eliminarle dopo aver rimosso le bollette collegate.`);
       } else if (!activeSubscription) {
-        setMessage("info", "Abbonamento non attivo: puoi eliminare le utenze dopo aver rimosso le bollette collegate.");
+        setMessage("info", "Il periodo di accesso all’archivio Premium è terminato.");
       }
     } catch (error) {
       if (sequence !== syncSequence) return;

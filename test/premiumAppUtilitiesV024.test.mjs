@@ -22,9 +22,9 @@ test('Le utenze restano consultabili in sola gestione, mentre le modifiche richi
   assert.match(utilities, /profile\?\.account_status !== "active"/);
   assert.match(utilities, /ACTIVE_SUBSCRIPTION_STATUSES\.has\(subscription\.status\)/);
   assert.match(utilities, /current_period_end/);
-  assert.match(utilities, /maintenanceMode = !subscription/);
+  assert.match(utilities, /maintenanceMode = readOnly \|\| !subscription/);
   assert.match(utilities, /La modifica delle utenze richiede un abbonamento attivo/);
-  assert.match(utilities, /Sola gestione/);
+  assert.match(utilities, /Sola lettura fino al/);
 });
 
 test('Il modulo gestisce creazione, modifica, eliminazione e tipi luce gas dual', () => {

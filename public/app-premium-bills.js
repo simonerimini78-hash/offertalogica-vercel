@@ -300,6 +300,21 @@
     return !Number.isNaN(end.getTime()) && end > new Date();
   }
 
+  function archiveIsAvailable(profile, subscription) {
+    if (!profile || !["active", "deletion_requested"].includes(profile.account_status)) return false;
+    if (!subscription || subscription.data_purged_at || !subscription.archive_access_until) return false;
+    const end = new Date(subscription.archive_access_until);
+    return !Number.isNaN(end.getTime()) && end > new Date();
+  }
+
+  async function refreshTrialLifecycle() {
+    const { error } = await client.rpc("premium_refresh_trial_lifecycle");
+    if (!error) return;
+    const message = String(error.message || error || "").toLowerCase();
+    if (message.includes("premium_refresh_trial_lifecycle") || message.includes("schema cache") || message.includes("function")) return;
+    throw error;
+  }
+
   function planLimit() {
     const fallback = isBetaTrial() ? 4 : 12;
     return Math.max(1, Number(currentSubscription?.included_bills_per_year || fallback));
@@ -367,7 +382,9 @@
     setText(state.statusBadge, legalBlocked ? "CONDIZIONI" : (maintenanceMode ? "ARCHIVIO" : (currentSubscription?.status === "trialing" ? "PROVA" : "ATTIVO")));
     setText(state.quota, legalBlocked
       ? "Accettazione richiesta"
-      : (maintenanceMode ? "Sola gestione" : (isBetaTrial() ? `${periodBillCount} / ${planLimit()} bollette prova` : `${periodBillCount} / ${planLimit()}`)));
+      : (maintenanceMode
+        ? (operationBlockReason === "archive" ? `Sola lettura fino al ${formatDate(currentSubscription?.archive_access_until)}` : "Sola gestione")
+        : (isBetaTrial() ? `${periodBillCount} / ${planLimit()} bollette prova` : `${periodBillCount} / ${planLimit()}`)));
     setText(state.homeCount, String(bills.length));
     setText(state.profileCount, String(bills.length));
     setText(state.profileSize, formatSize(bills.reduce((sum, bill) => sum + Number(bill.file_size || 0), 0)));
@@ -908,7 +925,7 @@
           customer_status: "awaiting_review",
           metadata: {
             source: "premium_app",
-            app_version: "0.36.5",
+            app_version: "0.36.6",
             automatic_analysis: true
           }
         })
@@ -1201,7 +1218,7 @@
     window.dispatchEvent(new CustomEvent("offertalogica:cloud-bills-changed"));
   }
 
-  async function loadData(user, subscription, { blockReason = "" } = {}) {
+  async function loadData(user, subscription, { blockReason = "", readOnly = false } = {}) {
     const countStart = subscription?.current_period_start
       ? new Date(subscription.current_period_start).toISOString()
       : new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString();
@@ -1254,7 +1271,7 @@
 
     currentUser = user;
     currentSubscription = subscription;
-    maintenanceMode = !subscription;
+    maintenanceMode = readOnly || !subscription;
     operationBlockReason = maintenanceMode ? blockReason : "";
     utilities = Array.isArray(utilitiesResult.data) ? utilitiesResult.data : [];
     bills = Array.isArray(billsResult.data) ? billsResult.data : [];
@@ -1286,6 +1303,12 @@
 
     renderLoading();
     const userId = session.user.id;
+    try {
+      await refreshTrialLifecycle();
+    } catch (error) {
+      setMessage("info", "Lo stato della prova non è stato aggiornato. Ricarica la pagina se la scadenza non risulta corretta.");
+    }
+    if (sequence !== syncSequence) return;
     const [profileResult, subscriptionResult, acceptanceResult] = await Promise.all([
       client
         .from("premium_profiles")
@@ -1294,7 +1317,7 @@
         .maybeSingle(),
       client
         .from("premium_subscriptions")
-        .select("status, plan_code, current_period_start, current_period_end, included_bills_per_year, created_at")
+        .select("status, plan_code, current_period_start, current_period_end, archive_access_until, data_purged_at, included_bills_per_year, created_at")
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(1)
@@ -1326,17 +1349,23 @@
       return;
     }
     const activeSubscription = subscriptionIsActive(profile, subscription) ? subscription : null;
+    const archiveSubscription = !activeSubscription && archiveIsAvailable(profile, subscription) ? subscription : null;
+    const dataSubscription = activeSubscription || archiveSubscription;
     const legalReady = acceptanceResult.data === true;
     const operationalSubscription = activeSubscription && legalReady ? activeSubscription : null;
+    const blockReason = activeSubscription && !legalReady ? "legal" : (archiveSubscription ? "archive" : (!activeSubscription ? "subscription" : ""));
 
     try {
-      await loadData(session.user, operationalSubscription, {
-        blockReason: activeSubscription && !legalReady ? "legal" : (!activeSubscription ? "subscription" : ""),
+      await loadData(session.user, operationalSubscription || dataSubscription, {
+        blockReason,
+        readOnly: !operationalSubscription,
       });
       if (activeSubscription && !legalReady) {
         setMessage("info", "Accetta le condizioni Premium correnti dalla sezione Profilo. Le bollette già presenti restano consultabili ed eliminabili.");
+      } else if (archiveSubscription) {
+        setMessage("info", `Prova terminata: archivio in sola lettura fino al ${formatDate(subscription.archive_access_until)}. Puoi aprire, scaricare o eliminare i documenti già salvati.`);
       } else if (!activeSubscription) {
-        setMessage("info", "Abbonamento non attivo: l’archivio resta disponibile in sola gestione. Puoi aprire o eliminare i dati già salvati.");
+        setMessage("info", "Il periodo di accesso all’archivio Premium è terminato.");
       }
     } catch (error) {
       if (sequence !== syncSequence) return;

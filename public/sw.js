@@ -1,4 +1,4 @@
-const CACHE = "offertalogica-premium-v0365";
+const CACHE = "offertalogica-premium-v0366";
 const APP_SHELL = [
   "/app.html",
   "/app-auth.js",

@@ -26,11 +26,11 @@ test("v0.32: expired subscriptions keep owner read and delete access", () => {
 test("v0.32: customer UI enters maintenance mode without active subscription", () => {
   assert.match(bills, /let maintenanceMode = false/);
   assert.match(bills, /maintenanceMode \? "ARCHIVIO"/);
-  assert.match(bills, /l’archivio resta disponibile in sola gestione/);
+  assert.match(bills, /archivio in sola lettura fino al/);
   assert.match(bills, /if \(!maintenanceMode\) scheduleAutomaticWork/);
   assert.match(utilities, /let maintenanceMode = false/);
   assert.match(utilities, /state\.addButton\.hidden = maintenanceMode/);
-  assert.match(utilities, /puoi eliminare le utenze/);
+  assert.match(utilities, /Puoi eliminarle dopo aver rimosso le bollette collegate/);
 });
 
 test("v0.32: inactive mode does not allow paid operations", () => {
@@ -43,5 +43,5 @@ test("v0.32: inactive mode does not allow paid operations", () => {
 test("v0.32: version and cache are aligned", () => {
   assert.match(html, /APP Premium v0\.(?:32|35(?:\.1)?|36)/);
   assert.match(sw, /offertalogica-premium-v(?:032|0351?|036)/);
-  assert.match(auth, /Archivio in sola gestione/);
+  assert.match(auth, /Sola lettura fino al/);
 });

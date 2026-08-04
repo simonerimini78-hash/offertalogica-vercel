@@ -5,9 +5,9 @@
   const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_poz1xBKiXceLCFV3u_tPIg_5_-ycHcl";
   const STORAGE_KEY = "offertalogica-premium-auth";
   const PENDING_EMAIL_KEY = "offertalogica-premium-pending-email";
-  const TERMS_VERSION = "premium-terms-v0.35-2026-08-03";
-  const PRIVACY_VERSION = "premium-privacy-v0.35-2026-08-03";
-  const CLOUD_VERSION = "premium-cloud-ai-v0.35-2026-08-03";
+  const TERMS_VERSION = "premium-terms-v0.36.6-2026-08-04";
+  const PRIVACY_VERSION = "premium-privacy-v0.36.6-2026-08-04";
+  const CLOUD_VERSION = "premium-cloud-ai-v0.36.6-2026-08-04";
 
   let client = null;
   let initialized = false;
@@ -102,6 +102,35 @@
     const end = new Date(subscription.current_period_end);
     if (Number.isNaN(end.getTime())) return null;
     return Math.max(0, Math.ceil((end.getTime() - Date.now()) / 86_400_000));
+  }
+
+  function archiveDaysRemaining(subscription) {
+    if (!subscription?.archive_access_until || subscription?.data_purged_at) return null;
+    const end = new Date(subscription.archive_access_until);
+    if (Number.isNaN(end.getTime())) return null;
+    return Math.max(0, Math.ceil((end.getTime() - Date.now()) / 86_400_000));
+  }
+
+  function subscriptionPeriodIsActive(subscription) {
+    if (!subscription || !["trialing", "active"].includes(subscription.status)) return false;
+    if (!subscription.current_period_end) return true;
+    const end = new Date(subscription.current_period_end);
+    return !Number.isNaN(end.getTime()) && end > new Date();
+  }
+
+  function archiveIsAvailable(profile, subscription) {
+    if (!profile || !["active", "deletion_requested"].includes(profile.account_status)) return false;
+    if (!subscription || subscription.data_purged_at || !subscription.archive_access_until) return false;
+    const end = new Date(subscription.archive_access_until);
+    return !Number.isNaN(end.getTime()) && end > new Date();
+  }
+
+  async function refreshTrialLifecycle() {
+    const { error } = await client.rpc("premium_refresh_trial_lifecycle");
+    if (!error) return true;
+    const message = String(error.message || error || "").toLowerCase();
+    if (message.includes("premium_refresh_trial_lifecycle") || message.includes("schema cache") || message.includes("function")) return false;
+    throw error;
   }
 
   function authReturnUrl(kind = "confirm") {
@@ -275,7 +304,7 @@
         .maybeSingle(),
       client
         .from("premium_subscriptions")
-        .select("status, plan_code, current_period_start, current_period_end, included_utilities, included_bills_per_year, created_at")
+        .select("status, plan_code, current_period_start, current_period_end, archive_access_until, data_purged_at, included_utilities, included_bills_per_year, created_at")
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(1)
@@ -314,6 +343,12 @@
     renderLoading(session);
 
     const userId = session.user.id;
+    try {
+      await refreshTrialLifecycle();
+    } catch (error) {
+      setMessage("info", "Lo stato della prova non è stato aggiornato. Ricarica la pagina se la scadenza non risulta corretta.");
+    }
+    if (sequence !== accountLoadSequence) return false;
     let results = await fetchAccountData(userId);
     let hasError = Boolean(
       results.profileResult.error ||
@@ -365,13 +400,10 @@
     }
 
     const legalReady = acceptancesComplete(acceptanceStatus);
-    const serviceActive = Boolean(
-      profile?.account_status === "active" &&
-      legalReady &&
-      subscription &&
-      ["trialing", "active"].includes(subscription.status) &&
-      (!subscription.current_period_end || new Date(subscription.current_period_end) > new Date())
-    );
+    const periodActive = subscriptionPeriodIsActive(subscription);
+    const serviceActive = Boolean(profile?.account_status === "active" && legalReady && periodActive);
+    const archiveAvailable = archiveIsAvailable(profile, subscription) && !periodActive;
+    const archiveDays = archiveDaysRemaining(subscription);
 
     if (state.authSignedOut) state.authSignedOut.hidden = true;
     if (state.authSignedIn) state.authSignedIn.hidden = false;
@@ -381,7 +413,7 @@
     setText(state.accountEmail, session.user.email || "—");
     setText(state.accountName, displayName || "Nome non indicato");
     setText(state.accountPlan, subscriptionLabel(subscription));
-    setText(state.accountExpiry, subscription?.current_period_end ? formatDate(subscription.current_period_end) : "—");
+    setText(state.accountExpiry, archiveAvailable ? formatDate(subscription.archive_access_until) : (subscription?.current_period_end ? formatDate(subscription.current_period_end) : "—"));
     setText(state.accountStatus, accountStatusLabel(profile?.account_status));
 
     renderLegalPanel(profile, acceptanceStatus);
@@ -409,7 +441,7 @@
       setText(state.homePremiumBadge, "IN ATTESA");
       setText(state.homePremiumTitle, "Richiesta di cancellazione registrata");
       setText(state.homePremiumCopy, "Nuove operazioni bloccate. I dati salvati restano disponibili.");
-    } else if (!legalReady) {
+    } else if (periodActive && !legalReady) {
       setText(state.profileKicker, "Profilo Premium");
       setText(state.profileTitle, displayName || "Account Premium");
       setText(state.profileBadge, "ACCETTAZIONE");
@@ -439,21 +471,44 @@
       setText(state.homePremiumCopy, isBetaTrial
         ? "Fino a 4 bollette e una verifica staff per un’anomalia rossa. Nessuna carta e nessun addebito automatico."
         : "Servizio attivo. La verifica dello staff è disponibile solo per anomalie rosse.");
+    } else if (archiveAvailable) {
+      const archiveDate = formatDate(subscription.archive_access_until);
+      const remainingCopy = archiveDays == null
+        ? ""
+        : ` Mancano ${archiveDays} ${archiveDays === 1 ? "giorno" : "giorni"} al termine della conservazione.`;
+      setText(state.profileKicker, "Archivio Premium");
+      setText(state.profileTitle, displayName || "Account Premium");
+      setText(state.profileBadge, archiveDays != null && archiveDays <= 7 ? "SCADENZA" : "SOLA LETTURA");
+      setText(state.profileDescription, `Prova terminata. I dati restano disponibili fino al ${archiveDate}.${remainingCopy}`);
+      setText(state.profileControls, "Apertura, download e cancellazione");
+      setText(state.homePlanName, "Archivio Premium");
+      setText(state.homePlanStatus, archiveDays == null ? `Disponibile fino al ${archiveDate}` : `${archiveDays} ${archiveDays === 1 ? "giorno" : "giorni"} disponibili`);
+      setText(state.homePremiumBadge, archiveDays != null && archiveDays <= 7 ? "IN SCADENZA" : "SOLA LETTURA");
+      setText(state.homePremiumTitle, "Prova Premium terminata");
+      setText(state.homePremiumCopy, `Puoi aprire, scaricare o eliminare i documenti fino al ${archiveDate}. Nuovi caricamenti e analisi sono bloccati.`);
     } else {
+      const purged = Boolean(subscription?.data_purged_at);
+      const retentionEnded = Boolean(subscription?.archive_access_until && new Date(subscription.archive_access_until) <= new Date());
       setText(state.profileKicker, "Profilo Premium");
       setText(state.profileTitle, displayName || "Account Premium");
-      setText(state.profileBadge, "NON ATTIVO");
-      setText(state.profileDescription, "Abbonamento non attivo. I dati salvati restano disponibili.");
-      setText(state.profileControls, "Sola gestione dati");
+      setText(state.profileBadge, purged ? "DATI ELIMINATI" : "NON ATTIVO");
+      setText(state.profileDescription, purged
+        ? "I documenti e i dati operativi Premium sono stati eliminati. L’account resta disponibile."
+        : (retentionEnded ? "Il periodo di accesso all’archivio è terminato." : "Abbonamento non attivo."));
+      setText(state.profileControls, purged ? "Nessun dato Premium archiviato" : "Nuove operazioni bloccate");
       setText(state.homePlanName, "Premium");
-      setText(state.homePlanStatus, "Abbonamento non attivo");
+      setText(state.homePlanStatus, purged ? "Dati eliminati" : "Non attivo");
       setText(state.homePremiumBadge, "NON ATTIVO");
-      setText(state.homePremiumTitle, "Account creato");
-      setText(state.homePremiumCopy, "Abbonamento non attivo. Puoi gestire i dati già salvati.");
+      setText(state.homePremiumTitle, purged ? "Archivio Premium eliminato" : "Account creato");
+      setText(state.homePremiumCopy, purged
+        ? "Non risultano documenti Premium conservati."
+        : (retentionEnded ? "Il periodo di conservazione dell’archivio è terminato." : "Il servizio Premium non è attivo."));
     }
 
     setText(state.profileEmail, session.user.email || "—");
-    setText(state.profileArchive, serviceActive ? "Cloud Premium attivo" : (profile ? "Archivio in sola gestione" : "Cloud non attivo"));
+    setText(state.profileArchive, serviceActive
+      ? "Cloud Premium attivo"
+      : (archiveAvailable ? `Sola lettura fino al ${formatDate(subscription.archive_access_until)}` : (profile ? "Cloud non disponibile" : "Cloud non attivo")));
     return true;
   }
 
