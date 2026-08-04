@@ -14,7 +14,7 @@ const sw = await readFile(new URL("../public/sw.js", import.meta.url), "utf8");
   assert.match(app, /id="premiumInfoOpen"/);
   assert.match(app, /id="premiumInfoLayer"[^>]*hidden/);
   assert.match(app, /aria-haspopup="dialog"/);
-  assert.match(app, /Prova, condizioni e prezzi/);
+  assert.match(app, /Confronta prova gratuita e piano completo/);
   assert.match(app, /premiumInfoLayer\.hidden=false/);
   assert.match(app, /event\.key==='Escape'/);
   assert.doesNotMatch(app, /<div class="premium-preview-head"><strong>Servizio Premium/);
@@ -63,6 +63,6 @@ test("v0.36.10 aggiunge la gestione omaggi all’area clienti staff", () => {
 });
 
 test("v0.36.10 aggiorna versione applicativa e cache PWA", () => {
-  assert.match(app, /APP Premium v0\.36\.10/);
-  assert.match(sw, /offertalogica-premium-v03610/);
+  assert.match(app, /APP Premium v0\.36\.11/);
+  assert.match(sw, /offertalogica-premium-v03611/);
 });
