@@ -605,9 +605,52 @@
           ? `Premium omaggio · fino al ${formatDate(subscription.current_period_end, false)}`
           : "Premium omaggio · senza scadenza";
       }
-      return "Premium omaggio · terminato";
+      return subscription.complimentary_revoked_at
+        ? `Premium omaggio revocato · sola lettura${subscription.archive_access_until ? ` fino al ${formatDate(subscription.archive_access_until, false)}` : ""}`
+        : `Premium omaggio scaduto · sola lettura${subscription.archive_access_until ? ` fino al ${formatDate(subscription.archive_access_until, false)}` : ""}`;
+    }
+    if (subscription.plan_code === "premium-beta") {
+      if (subscription.status === "trialing") {
+        return `${subscription.complimentary_revoked_at ? "Prova gratuita ripristinata" : "Prova gratuita"}${subscription.current_period_end ? ` · fino al ${formatDate(subscription.current_period_end, false)}` : ""}`;
+      }
+      if (subscription.status === "expired") {
+        return `Prova terminata · sola lettura${subscription.archive_access_until ? ` fino al ${formatDate(subscription.archive_access_until, false)}` : ""}`;
+      }
+    }
+    if (subscription.plan_code === "premium-casa-annual") {
+      if (subscription.status === "active") return "Premium annuale attivo";
+      if (subscription.status === "past_due") return "Premium annuale · pagamento da verificare";
+      if (subscription.status === "canceled") return "Premium annuale · rinnovo disattivato";
     }
     return `${subscription.status} · ${subscription.plan_code}`;
+  }
+
+  function subscriptionBadgeDescriptor(subscription) {
+    if (!subscription) return null;
+    if (subscription.plan_code === "premium-complimentary") {
+      if (complimentaryIsActive(subscription)) return { label: "Premium omaggio", kind: "ok" };
+      return {
+        label: subscription.complimentary_revoked_at
+          ? "Omaggio revocato · sola lettura"
+          : "Omaggio scaduto · sola lettura",
+        kind: "warn",
+      };
+    }
+    if (subscription.plan_code === "premium-beta") {
+      if (subscription.status === "trialing") {
+        return {
+          label: subscription.complimentary_revoked_at ? "Prova ripristinata" : "Prova gratuita",
+          kind: "ok",
+        };
+      }
+      if (subscription.status === "expired") return { label: "Prova terminata · sola lettura", kind: "warn" };
+    }
+    if (subscription.plan_code === "premium-casa-annual") {
+      if (subscription.status === "active") return { label: "Premium attivo", kind: "ok" };
+      if (subscription.status === "past_due") return { label: "Pagamento da verificare", kind: "danger" };
+      if (subscription.status === "canceled") return { label: "Rinnovo disattivato", kind: "warn" };
+    }
+    return null;
   }
 
   function setComplimentaryStatus(kind, message) {
@@ -788,9 +831,8 @@
       const title = profile.full_name || profile.email || "Cliente Premium";
       const statusKind = profile.account_status === "active" ? "ok" : profile.account_status === "deletion_requested" ? "warn" : "danger";
       const actions = node("div", { className: "customer-actions" }, [badge(profile.account_status || "—", statusKind)]);
-      if (subscription?.plan_code === "premium-complimentary") {
-        actions.append(badge(complimentaryIsActive(subscription) ? "Premium omaggio" : "Omaggio terminato", complimentaryIsActive(subscription) ? "ok" : "warn"));
-      }
+      const planBadge = subscriptionBadgeDescriptor(subscription);
+      if (planBadge) actions.append(badge(planBadge.label, planBadge.kind));
       if (isAdmin()) {
         const complimentaryButton = node("button", {
           className: "button secondary compact",

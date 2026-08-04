@@ -59,7 +59,7 @@ test("v0.36.13 aggiorna il messaggio staff in base al risultato reale", () => {
 
 test("v0.36.13 include migrazione verificabile e aggiorna app staff e cache", () => {
   assert.match(verify, /premium_complimentary_trial_restore_v0\.36\.13_ok/);
-  assert.match(app, /APP Premium v0\.36\.13/);
-  assert.match(staffHtml, /Area staff unica v0\.36\.13/);
-  assert.match(sw, /offertalogica-premium-v03613/);
+  assert.match(app, /APP Premium v0\.36\.14/);
+  assert.match(staffHtml, /Area staff unica v0\.36\.14/);
+  assert.match(sw, /offertalogica-premium-v03614/);
 });
