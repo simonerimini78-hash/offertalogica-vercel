@@ -37,7 +37,8 @@ test('Il modulo gestisce creazione, modifica, eliminazione e tipi luce gas dual'
   assert.match(utilities, /gas/);
   assert.match(utilities, /dual/);
   assert.match(utilities, /expected_bills_per_year: 12/);
-  assert.match(utilities, /window\.confirm/);
+  assert.match(utilities, /OffertaLogicaPremiumDialog\?\.confirm/);
+  assert.doesNotMatch(utilities, /window\.confirm/);
 });
 
 test('I dati utente sono renderizzati con nodi testuali e non con HTML dinamico', () => {

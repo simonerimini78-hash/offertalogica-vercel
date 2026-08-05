@@ -979,7 +979,11 @@
 
   async function handleLegalAcceptance() {
     if (!client || !currentSession?.user) return;
-    const confirmed = window.confirm("Confermi di aver letto e accettato i Termini Premium, l’Informativa Premium e il trattamento cloud/IA necessario all’erogazione del servizio?");
+    const confirmed = await globalThis.OffertaLogicaPremiumDialog?.confirm({
+      title: "Accetta le condizioni Premium",
+      message: "Confermi di aver letto e accettato i Termini Premium, l’Informativa Premium e il trattamento cloud/IA necessario all’erogazione del servizio?",
+      confirmLabel: "ACCETTA",
+    });
     if (!confirmed) return;
     if (state.legalAcceptButton) state.legalAcceptButton.disabled = true;
     setMessage("info", "Registrazione delle accettazioni…");
@@ -1003,9 +1007,19 @@
 
   async function handleDeletionRequest() {
     if (!client || !currentSession?.user) return;
-    const confirmation = window.prompt("La richiesta bloccherà nuove operazioni Premium. Scrivi CANCELLA per registrarla.");
-    if (confirmation !== "CANCELLA") return;
-    const reason = window.prompt("Motivo facoltativo della richiesta (massimo 500 caratteri):") || "";
+    const deletionForm = await globalThis.OffertaLogicaPremiumDialog?.form({
+      title: "Richiedi la cancellazione dell’account",
+      message: "La richiesta bloccherà nuove operazioni Premium. I dati seguiranno i tempi di conservazione indicati nell’informativa.",
+      keyword: "CANCELLA",
+      keywordLabel: "Scrivi CANCELLA per confermare",
+      inputLabel: "Motivo facoltativo",
+      inputPlaceholder: "Massimo 500 caratteri",
+      inputMaxLength: 500,
+      confirmLabel: "REGISTRA RICHIESTA",
+      danger: true,
+    });
+    if (!deletionForm?.confirmed) return;
+    const reason = deletionForm.value || "";
     if (state.deletionRequestButton) state.deletionRequestButton.disabled = true;
     setMessage("info", "Registrazione richiesta di cancellazione…");
     const { error } = await client.rpc("premium_request_account_deletion", { p_reason: reason.slice(0, 500) });
@@ -1020,7 +1034,12 @@
 
   async function handleDeletionCancel() {
     if (!client || !currentSession?.user) return;
-    if (!window.confirm("Annullare la richiesta di cancellazione dell’account?")) return;
+    const confirmed = await globalThis.OffertaLogicaPremiumDialog?.confirm({
+      title: "Annulla la richiesta",
+      message: "Annullare la richiesta di cancellazione dell’account?",
+      confirmLabel: "ANNULLA RICHIESTA",
+    });
+    if (!confirmed) return;
     if (state.deletionCancelButton) state.deletionCancelButton.disabled = true;
     setMessage("info", "Annullamento richiesta…");
     const { error } = await client.rpc("premium_cancel_account_deletion_request");

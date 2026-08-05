@@ -4,7 +4,7 @@
   const ACTIVE_SUBSCRIPTION_STATUSES = new Set(["trialing", "active"]);
   const BUCKET = "premium-bills";
   const MAX_FILE_SIZE = 20_000_000;
-  const BILL_COLUMNS = "id, user_id, utility_id, contract_id, commodity, billing_period_start, billing_period_end, issue_date, due_date, total_amount_eur, original_file_name, file_size, file_sha256, storage_bucket, storage_path, processing_status, customer_status, automatic_screening_status, automatic_screening_summary, automatic_screening_reasons, automatic_screened_at, automatic_analysis_run_id, created_at";
+  const BILL_COLUMNS = "id, user_id, utility_id, contract_id, commodity, billing_period_start, billing_period_end, issue_date, due_date, total_amount_eur, original_file_name, file_size, file_sha256, storage_bucket, storage_path, processing_status, customer_status, automatic_screening_status, automatic_screening_summary, automatic_screening_reasons, automatic_screened_at, automatic_analysis_run_id, customer_analysis_data, created_at";
   const UTILITY_COLUMNS = "id, label, supply_type, expected_bills_per_year, status";
   const CONTRACT_COLUMNS = "id, user_id, utility_id, provider_name, offer_name, pricing_type, contract_start, contract_end, fixed_price_expiry, electricity_price_eur_kwh, gas_price_eur_smc, electricity_fixed_fee_eur_year, gas_fixed_fee_eur_year, source, verification_status, is_current, arera_offer_code_electricity, arera_offer_code_gas, electricity_index_name, gas_index_name, electricity_spread_eur_kwh, gas_spread_eur_smc, electricity_formula, gas_formula, automatic_match_status, automatic_match_confidence, automatic_match_method, automatic_match_candidates, automatic_matched_at, automatic_match_catalog_version, customer_confirmation_status, customer_confirmed_at, customer_rejected_at, customer_selected_candidates, customer_confirmation_version, created_at, updated_at";
   const CHECK_COLUMNS = "id, bill_id, user_id, status, outcome, summary, customer_message, started_at, completed_at, created_at, updated_at";
@@ -28,6 +28,8 @@
   const expandedBillIds = new Set();
   const analysisInFlightIds = new Set();
   let pollTimer = null;
+  let checkConfirmationResolve = null;
+  let checkConfirmationPreviousFocus = null;
 
   const byId = id => document.getElementById(id);
 
@@ -52,7 +54,11 @@
     profileSize: null,
     spendTotal: null,
     spendMeta: null,
-    spendYear: null
+    spendYear: null,
+    checkConfirmLayer: null,
+    checkConfirmFile: null,
+    checkConfirmCancel: null,
+    checkConfirmAccept: null
   };
 
   function setText(element, value) {
@@ -610,6 +616,137 @@
     return card;
   }
 
+  function hasAnalysisValue(value) {
+    return value !== null && value !== undefined && !(typeof value === "string" && value.trim() === "");
+  }
+
+  function analysisDataForBill(bill) {
+    return bill?.customer_analysis_data && typeof bill.customer_analysis_data === "object"
+      ? bill.customer_analysis_data
+      : {};
+  }
+
+  function formatDecimal(value, maximumFractionDigits = 6) {
+    const number = Number(value);
+    if (!Number.isFinite(number)) return "—";
+    return new Intl.NumberFormat("it-IT", { maximumFractionDigits }).format(number);
+  }
+
+  function appendAnalysisRow(container, label, value) {
+    if (!hasAnalysisValue(value)) return false;
+    const row = document.createElement("div");
+    row.className = "cloud-analysis-row";
+    const key = document.createElement("span");
+    key.textContent = label;
+    const text = document.createElement("strong");
+    text.textContent = String(value);
+    row.append(key, text);
+    container.append(row);
+    return true;
+  }
+
+  function renderCustomerAnalysisData(bill) {
+    const data = analysisDataForBill(bill);
+    const section = document.createElement("section");
+    section.className = "cloud-analysis-data";
+    const title = document.createElement("strong");
+    title.className = "cloud-analysis-title";
+    title.textContent = "Dati letti dalla bolletta";
+    const intro = document.createElement("p");
+    intro.textContent = "Sono mostrati soltanto i dati utili trovati nel PDF. I campi non disponibili non vengono visualizzati.";
+    section.append(title, intro);
+
+    const general = document.createElement("div");
+    general.className = "cloud-analysis-grid general";
+    let generalRows = 0;
+    const provider = data.fornitore || data.fornitore_luce || data.fornitore_gas;
+    const offer = data.nome_offerta_luce || data.nome_offerta_gas;
+    generalRows += appendAnalysisRow(general, "Fornitore", provider) ? 1 : 0;
+    generalRows += appendAnalysisRow(general, "Offerta", offer) ? 1 : 0;
+    const periodStart = data.billing_period_start || bill.billing_period_start;
+    const periodEnd = data.billing_period_end || bill.billing_period_end;
+    generalRows += appendAnalysisRow(general, "Periodo", (periodStart || periodEnd) ? formatPeriod({ billing_period_start: periodStart, billing_period_end: periodEnd }) : null) ? 1 : 0;
+    const issueDate = data.issue_date || bill.issue_date;
+    const dueDate = data.due_date || bill.due_date;
+    generalRows += appendAnalysisRow(general, "Emissione", issueDate ? formatDate(issueDate) : null) ? 1 : 0;
+    generalRows += appendAnalysisRow(general, "Scadenza", dueDate ? formatDate(dueDate) : null) ? 1 : 0;
+    const total = hasAnalysisValue(data.total_amount_eur) ? data.total_amount_eur : bill.total_amount_eur;
+    generalRows += appendAnalysisRow(general, "Importo", Number.isFinite(Number(total)) ? formatMoney(total) : null) ? 1 : 0;
+    if (generalRows) section.append(general);
+
+    const supplies = document.createElement("div");
+    supplies.className = "cloud-analysis-supplies";
+    let supplyCards = 0;
+    const addSupply = (commodity, label) => {
+      const isLight = commodity === "luce";
+      const signals = isLight
+        ? [data.pod, data.consumo_luce_kwh, data.prezzo_luce_eur_kwh, data.quota_fissa_vendita_luce_eur_anno, data.tipo_prezzo_luce, data.formula_prezzo_luce]
+        : [data.pdr, data.consumo_gas_smc, data.prezzo_gas_eur_smc, data.quota_fissa_vendita_gas_eur_anno, data.tipo_prezzo_gas, data.formula_prezzo_gas];
+      if (!signals.some(hasAnalysisValue)) return;
+      const card = document.createElement("article");
+      card.className = "cloud-analysis-card";
+      const heading = document.createElement("strong");
+      heading.textContent = label;
+      card.append(heading);
+      const grid = document.createElement("div");
+      grid.className = "cloud-analysis-grid";
+      if (isLight) {
+        appendAnalysisRow(grid, "POD", data.pod);
+        appendAnalysisRow(grid, "Consumo annuo", hasAnalysisValue(data.consumo_luce_kwh) ? `${formatDecimal(data.consumo_luce_kwh, 3)} kWh` : null);
+        appendAnalysisRow(grid, "Prezzo materia", hasAnalysisValue(data.prezzo_luce_eur_kwh) ? `${formatDecimal(data.prezzo_luce_eur_kwh)} €/kWh` : null);
+        appendAnalysisRow(grid, "Quota fissa", hasAnalysisValue(data.quota_fissa_vendita_luce_eur_anno) ? `${formatMoney(data.quota_fissa_vendita_luce_eur_anno)}/anno` : null);
+        appendAnalysisRow(grid, "Tipo prezzo", data.tipo_prezzo_luce);
+        appendAnalysisRow(grid, "Indice", data.indice_riferimento_luce);
+        appendAnalysisRow(grid, "Formula", data.formula_prezzo_luce);
+        appendAnalysisRow(grid, "Scadenza condizioni", data.scadenza_condizioni_economiche_luce ? formatDate(data.scadenza_condizioni_economiche_luce) : null);
+      } else {
+        appendAnalysisRow(grid, "PDR", data.pdr);
+        appendAnalysisRow(grid, "Consumo annuo", hasAnalysisValue(data.consumo_gas_smc) ? `${formatDecimal(data.consumo_gas_smc, 3)} Smc` : null);
+        appendAnalysisRow(grid, "Prezzo materia", hasAnalysisValue(data.prezzo_gas_eur_smc) ? `${formatDecimal(data.prezzo_gas_eur_smc)} €/Smc` : null);
+        appendAnalysisRow(grid, "Quota fissa", hasAnalysisValue(data.quota_fissa_vendita_gas_eur_anno) ? `${formatMoney(data.quota_fissa_vendita_gas_eur_anno)}/anno` : null);
+        appendAnalysisRow(grid, "Tipo prezzo", data.tipo_prezzo_gas);
+        appendAnalysisRow(grid, "Indice", data.indice_riferimento_gas);
+        appendAnalysisRow(grid, "Formula", data.formula_prezzo_gas);
+        appendAnalysisRow(grid, "Scadenza condizioni", data.scadenza_condizioni_economiche_gas ? formatDate(data.scadenza_condizioni_economiche_gas) : null);
+      }
+      card.append(grid);
+      supplies.append(card);
+      supplyCards += 1;
+    };
+    addSupply("luce", "Luce");
+    addSupply("gas", "Gas");
+    if (supplyCards) section.append(supplies);
+
+    if (!generalRows && !supplyCards) {
+      const empty = document.createElement("p");
+      empty.className = "cloud-analysis-empty";
+      empty.textContent = "I dati tecnici non sono ancora disponibili in questa scheda. L’esito automatico resta comunque visibile sopra.";
+      section.append(empty);
+    }
+    return section;
+  }
+
+  function closeCheckConfirmation(confirmed = false) {
+    if (state.checkConfirmLayer) state.checkConfirmLayer.hidden = true;
+    document.body.classList.remove("check-confirm-open");
+    const resolve = checkConfirmationResolve;
+    checkConfirmationResolve = null;
+    if (checkConfirmationPreviousFocus?.focus) checkConfirmationPreviousFocus.focus();
+    checkConfirmationPreviousFocus = null;
+    if (resolve) resolve(Boolean(confirmed));
+  }
+
+  function confirmProfessionalCheck(bill) {
+    if (!state.checkConfirmLayer) return Promise.resolve(false);
+    if (checkConfirmationResolve) closeCheckConfirmation(false);
+    checkConfirmationPreviousFocus = document.activeElement;
+    setText(state.checkConfirmFile, bill?.original_file_name || "Bolletta.pdf");
+    state.checkConfirmLayer.hidden = false;
+    document.body.classList.add("check-confirm-open");
+    window.setTimeout(() => state.checkConfirmAccept?.focus(), 0);
+    return new Promise(resolve => { checkConfirmationResolve = resolve; });
+  }
+
   function automaticTitle(bill) {
     return ({
       clear: "Tutto regolare",
@@ -638,7 +775,7 @@
     copy.textContent = bill.automatic_screening_summary || (bill.automatic_screening_status === "running"
       ? "Analisi della bolletta in corso."
       : "Il risultato automatico sarà disponibile al termine dell’analisi.");
-    detail.append(head, copy);
+    detail.append(head, copy, renderCustomerAnalysisData(bill));
     const contract = contractForBill(bill);
     if (contract) detail.append(renderOfferCard(bill, contract, { allowActions: !maintenanceMode }));
     const reasons = Array.isArray(bill.automatic_screening_reasons) ? bill.automatic_screening_reasons : [];
@@ -941,7 +1078,7 @@
           customer_status: "awaiting_review",
           metadata: {
             source: "premium_app",
-            app_version: "0.36.16",
+            app_version: "0.36.17",
             automatic_analysis: true,
             upload_complete: false
           }
@@ -1036,7 +1173,11 @@
       try { selections = selectedOfferCandidates(contractId); }
       catch (error) { setMessage("error", friendlyError(error)); return; }
     } else {
-      const confirmed = window.confirm("Confermi che la proposta mostrata non corrisponde alla tua offerta attiva?");
+      const confirmed = await globalThis.OffertaLogicaPremiumDialog?.confirm({
+        title: "Offerta non riconosciuta",
+        message: "Confermi che la proposta mostrata non corrisponde alla tua offerta attiva?",
+        confirmLabel: "CONFERMA",
+      });
       if (!confirmed) return;
     }
 
@@ -1103,7 +1244,7 @@
       return;
     }
 
-    const confirmed = window.confirm(`Inviare “${bill.original_file_name}” al controllo professionale OffertaLogica? Autorizzi lo staff incaricato ad accedere al PDF esclusivamente per questa verifica. Dopo la presa in carico non potrai eliminarlo dall’app.`);
+    const confirmed = await confirmProfessionalCheck(bill);
     if (!confirmed) return;
 
     setBusy(true);
@@ -1223,7 +1364,12 @@
       return;
     }
 
-    const confirmed = window.confirm(`Eliminare definitivamente “${bill.original_file_name}” dall’archivio cloud?`);
+    const confirmed = await globalThis.OffertaLogicaPremiumDialog?.confirm({
+      title: "Elimina bolletta",
+      message: `Eliminare definitivamente “${bill.original_file_name}” dall’archivio cloud?`,
+      confirmLabel: "ELIMINA BOLLETTA",
+      danger: true,
+    });
     if (!confirmed) return;
 
     setBusy(true);
@@ -1448,6 +1594,10 @@
     state.spendTotal = byId("premiumCloudSpendTotal");
     state.spendMeta = byId("premiumCloudSpendMeta");
     state.spendYear = byId("premiumCloudSpendYear");
+    state.checkConfirmLayer = byId("premiumCheckConfirmLayer");
+    state.checkConfirmFile = byId("premiumCheckConfirmFile");
+    state.checkConfirmCancel = byId("premiumCheckConfirmCancel");
+    state.checkConfirmAccept = byId("premiumCheckConfirmAccept");
   }
 
   function init() {
@@ -1488,6 +1638,14 @@
     });
 
     state.spendYear?.addEventListener("change", renderCloudSpend);
+    state.checkConfirmCancel?.addEventListener("click", () => closeCheckConfirmation(false));
+    state.checkConfirmAccept?.addEventListener("click", () => closeCheckConfirmation(true));
+    state.checkConfirmLayer?.addEventListener("click", event => {
+      if (event.target === state.checkConfirmLayer) closeCheckConfirmation(false);
+    });
+    document.addEventListener("keydown", event => {
+      if (event.key === "Escape" && state.checkConfirmLayer && !state.checkConfirmLayer.hidden) closeCheckConfirmation(false);
+    });
 
     state.list?.addEventListener("click", event => {
       const openButton = event.target.closest("[data-cloud-bill-open]");
@@ -1555,6 +1713,7 @@
     window.addEventListener("pagehide", () => {
       authSubscription?.data?.subscription?.unsubscribe?.();
       if (pollTimer) clearTimeout(pollTimer);
+      closeCheckConfirmation(false);
     }, { once: true });
   }
 

@@ -56,7 +56,8 @@ test('Apertura ed eliminazione usano le API Storage del client autenticato', () 
   const articleAppendPosition = cloudBills.indexOf("      article.append(icon, copy, badge, actions);");
   assert.ok(deleteUiPosition >= 0 && deleteUiPosition < articleAppendPosition,
     "Il comando elimina deve essere renderizzato anche dopo un controllo completato");
-  assert.match(cloudBills, /window\.confirm/);
+  assert.match(cloudBills, /OffertaLogicaPremiumDialog\?\.confirm/);
+  assert.doesNotMatch(cloudBills, /window\.confirm/);
 });
 
 test('Le modifiche utenze aggiornano il selettore cloud senza ricaricare la pagina', () => {

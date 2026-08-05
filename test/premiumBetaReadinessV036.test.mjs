@@ -35,9 +35,9 @@ function jsonResponse(body, status = 200) {
 test("v0.36.6 mantiene la prova di 30 giorni e aggiorna la cache PWA", () => {
   assert.match(app, /Prova gratuita di 30 giorni/);
   assert.doesNotMatch(app, /IN SVILUPPO/);
-  assert.match(app, /APP Premium v0\.36\.16/);
-  assert.match(sw, /offertalogica-premium-v03616/);
-  assert.match(bills, /app_version: "0\.36\.16"/);
+  assert.match(app, /APP Premium v0\.36\.17/);
+  assert.match(sw, /offertalogica-premium-v03617/);
+  assert.match(bills, /app_version: "0\.36\.17"/);
 });
 
 test("utenze e bollette verificano le accettazioni correnti prima delle operazioni", () => {

@@ -366,9 +366,12 @@
 
         if (!records.length) return;
 
-        const confirmed = globalThis.confirm(
-          `Eliminare definitivamente ${records.length} ${records.length === 1 ? "bolletta" : "bollette"} da questo dispositivo?`
-        );
+        const confirmed = await globalThis.OffertaLogicaPremiumDialog?.confirm({
+          title: "Elimina archivio locale",
+          message: `Eliminare definitivamente ${records.length} ${records.length === 1 ? "bolletta" : "bollette"} da questo dispositivo?`,
+          confirmLabel: "ELIMINA ARCHIVIO",
+          danger: true,
+        });
         if (!confirmed) return;
 
         clearArchiveButton.disabled = true;

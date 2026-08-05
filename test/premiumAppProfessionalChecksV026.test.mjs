@@ -11,15 +11,16 @@ const trafficMigration = await readFile(new URL('../supabase/premium-traffic-lig
 const trafficVerify = await readFile(new URL('../supabase/premium-traffic-light-v0.36.3-verify.sql', import.meta.url), 'utf8');
 
 test('Premium v0.36.3 limita la richiesta umana alle anomalie rosse', () => {
-  assert.match(html, /APP Premium v0\.36\.16/);
+  assert.match(html, /APP Premium v0\.36\.17/);
   assert.match(html, /La verifica dello staff è disponibile solo per le anomalie rosse/);
   assert.doesNotMatch(html, /FLUSSO ATTIVO|Ogni bolletta viene analizzata dall’IA/);
   assert.match(cloudBills, /function canRequestCheck\(bill, check\)/);
   assert.match(cloudBills, /automatic_screening_status === \"review_recommended\"/);
   assert.match(cloudBills, /data-cloud-check-request/);
   assert.match(cloudBills, /RICHIEDI CONTROLLO/);
-  assert.match(cloudBills, /window\.confirm/);
-  assert.match(cloudBills, /Autorizzi lo staff incaricato/);
+  assert.match(cloudBills, /confirmProfessionalCheck/);
+  assert.doesNotMatch(cloudBills, /window\.confirm/);
+  assert.match(html, /Autorizzi esclusivamente lo staff incaricato/);
 });
 
 test('Il client richiede il controllo tramite RPC atomica e ricarica lo stato reale', () => {
@@ -88,7 +89,7 @@ test('La regola server accetta soltanto il rosso', () => {
 });
 
 test('Cache e frontend non contengono chiavi segrete', () => {
-  assert.match(sw, /offertalogica-premium-v03616/);
+  assert.match(sw, /offertalogica-premium-v03617/);
   assert.doesNotMatch(sw, /offertalogica-premium-v25/);
   assert.doesNotMatch(cloudBills, /service_role/i);
   assert.doesNotMatch(cloudBills, /sb_secret_/i);

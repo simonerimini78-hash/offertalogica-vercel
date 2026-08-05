@@ -700,8 +700,10 @@
       const note = node("input", { name: `note_${definition.key}`, type: "text", placeholder: "Nota facoltativa" });
       note.value = draftField?.note ?? existing?.note ?? "";
       const sync = () => {
-        corrected.disabled = decision.value !== "corrected";
-        corrected.required = decision.value === "corrected";
+        const isCorrected = decision.value === "corrected";
+        corrected.disabled = !isCorrected;
+        corrected.required = isCorrected;
+        corrected.hidden = !isCorrected;
       };
       decision.addEventListener("change", sync);
       sync();
@@ -772,8 +774,8 @@
     const section = node("section", { className: "section ai-section" });
     const heading = node("div", { className: "ai-heading" }, [
       node("div", {}, [
-        node("h3", { text: "Pre-analisi IA assistita" }),
-        node("p", { className: "ai-note", text: "Bozza tecnica riservata allo staff. Non modifica l’esito e non è visibile al cliente." })
+        node("h3", { text: "Dati letti dalla bolletta" }),
+        node("p", { className: "ai-note", text: "Riepilogo operativo dei dati utili estratti dal PDF. I dettagli tecnici restano separati." })
       ])
     ]);
     section.append(heading);
@@ -784,7 +786,7 @@
       const button = node("button", {
         className: "button primary compact",
         type: "button",
-        text: analysisRunning ? "ANALISI IA IN CORSO" : latest ? "RIPETI PRE-ANALISI IA" : "AVVIA PRE-ANALISI IA"
+        text: analysisRunning ? "ANALISI IA IN CORSO" : latest ? "RIPETI LETTURA" : "AVVIA LETTURA"
       });
       button.disabled = busy || analysisRunning;
       button.addEventListener("click", handleRunAiAnalysis);
@@ -792,32 +794,23 @@
     }
 
     if (!latest) {
-      section.append(node("div", { className: "timeline-item", text: "Nessuna pre-analisi IA eseguita. Il controllo può comunque essere svolto interamente a mano." }));
+      section.append(node("div", { className: "timeline-item", text: "Nessuna lettura disponibile. Puoi aprire il PDF oppure avviare la lettura automatica." }));
       container.append(section);
       return;
     }
-
-    const usage = latest.usage_details || {};
-    const meta = node("div", { className: "info-grid ai-meta" }, [
-      infoCard("Stato IA", analysisStatusLabel(latest.status)),
-      infoCard("Esecuzione", `n. ${latest.run_number || 1} · ${formatDate(latest.completed_at || latest.started_at, true)}`),
-      infoCard("Modello", latest.model || "—"),
-      infoCard("Durata", latest.duration_ms == null ? "—" : `${(Number(latest.duration_ms) / 1000).toFixed(1).replace(".", ",")} s`),
-      infoCard("Token", usage.total_tokens != null ? formatTechnicalNumber(usage.total_tokens, 0) : "—"),
-      infoCard("Costo stimato", latest.estimated_cost_eur == null ? "Tariffe non configurate" : formatMoney(latest.estimated_cost_eur))
-    ]);
-    section.append(meta);
 
     if (latest.status === "failed") {
-      section.append(node("div", { className: "ai-warning", text: "La pre-analisi non è riuscita. La revisione manuale resta pienamente disponibile." }));
+      section.append(node("div", { className: "ai-warning", text: "La lettura automatica non è riuscita. Apri il PDF e svolgi la verifica manualmente oppure riprova." }));
       container.append(section);
       return;
     }
 
-    const data = latest.extracted_data || {};
+    const data = latest.review_status === "validated" && latest.validated_data && Object.keys(latest.validated_data).length
+      ? latest.validated_data
+      : latest.extracted_data || {};
     const supplies = analysisSupplyRows(data);
     if (!supplies.length) {
-      section.append(node("div", { className: "ai-warning", text: "La bozza non contiene dati economici sufficienti. Verifica direttamente il PDF." }));
+      section.append(node("div", { className: "ai-warning", text: "La lettura non contiene dati economici sufficienti. Verifica direttamente il PDF." }));
     } else {
       const grid = node("div", { className: "ai-supply-grid" });
       supplies.forEach(supply => {
@@ -827,31 +820,43 @@
           node("div", { className: "ai-values" }, [
             infoCard("Consumo annuo", supply.consumption == null ? "—" : `${formatTechnicalNumber(supply.consumption, 3)} ${supply.consumptionUnit}`),
             infoCard("Prezzo materia", supply.price == null ? "—" : `${formatTechnicalNumber(supply.price, 6)} ${supply.priceUnit}`),
-            infoCard("Quota fissa vendita", supply.fixedFee == null ? "—" : `${formatMoney(supply.fixedFee)}/anno`),
+            infoCard("Quota fissa", supply.fixedFee == null ? "—" : `${formatMoney(supply.fixedFee)}/anno`),
             infoCard("Tipo prezzo", supply.priceType || "—"),
             infoCard("Indice", supply.index || "—"),
             infoCard("Formula", supply.formula || "—")
           ])
         ]);
-        if (supply.evidence.length) {
-          card.append(node("details", { className: "ai-evidence" }, [
-            node("summary", { text: "Mostra evidenze individuate" }),
-            ...supply.evidence.map(text => node("p", { text }))
-          ]));
-        }
         grid.append(card);
       });
       section.append(grid);
     }
 
+    const technical = node("details", { className: "ai-technical" });
+    const technicalSummary = node("summary", {}, [
+      node("span", { text: "Dettagli tecnici IA e validazione" }),
+      makeBadge(latest.review_status === "validated" ? "completed" : "pending", validationStatusLabel(latest.review_status))
+    ]);
+    technical.append(technicalSummary);
+
+    const usage = latest.usage_details || {};
+    technical.append(node("div", { className: "info-grid ai-meta" }, [
+      infoCard("Stato IA", analysisStatusLabel(latest.status)),
+      infoCard("Esecuzione", `n. ${latest.run_number || 1} · ${formatDate(latest.completed_at || latest.started_at, true)}`),
+      infoCard("Modello", latest.model || "—"),
+      infoCard("Durata", latest.duration_ms == null ? "—" : `${(Number(latest.duration_ms) / 1000).toFixed(1).replace(".", ",")} s`),
+      infoCard("Token", usage.total_tokens != null ? formatTechnicalNumber(usage.total_tokens, 0) : "—"),
+      infoCard("Costo stimato", latest.estimated_cost_eur == null ? "Tariffe non configurate" : formatMoney(latest.estimated_cost_eur))
+    ]));
+
     const warnings = Array.isArray(latest.warnings) ? latest.warnings : [];
     if (warnings.length) {
-      section.append(node("div", { className: "ai-warning" }, [
+      technical.append(node("div", { className: "ai-warning" }, [
         node("strong", { text: "Verifiche richieste" }),
         ...warnings.slice(0, 8).map(item => node("p", { text: String(item).replaceAll("_", " ") }))
       ]));
     }
-    renderAiValidation(section, row, latest, data);
+    renderAiValidation(technical, row, latest, data);
+    section.append(technical);
     container.append(section);
   }
 
@@ -958,10 +963,11 @@
     ]));
 
     renderAutomaticScreening(body, row);
+    if (row.check.status === "pending") renderWorkflow(body, row);
     renderAiAssistance(body, row);
-    renderWorkflow(body, row);
-    renderNotes(body);
     renderAnomalies(body, row);
+    if (row.check.status !== "pending") renderWorkflow(body, row);
+    renderNotes(body);
     const status = node("div", { className: "status-line", attrs: { role: "status" } });
     status.id = "staffDetailStatus";
     body.append(status);

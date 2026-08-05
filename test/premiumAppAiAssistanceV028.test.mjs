@@ -14,12 +14,12 @@ const docs = await readFile(new URL("../docs/PREMIUM-AI-V0.28.md", import.meta.u
 
 test("Premium v0.28 aggiorna versione e cache senza modificare il ramo gratuito", () => {
   assert.match(app, /APP Premium v0\.(?:30(?:\.\d+)?|31C|32|35(?:\.1)?|36)/);
-  assert.match(html, /Modulo integrato nell’area staff unica · v0\.(?:33|34)/);
+  assert.match(html, /Modulo integrato nell’area staff unica · v0\.(?:33|34|36\.17)/);
   assert.match(sw, /offertalogica-premium-v(?:30\d*|031c|032|0351?|036)/);
 });
 
 test("La dashboard mantiene la riesecuzione IA manuale dello staff con JWT personale", () => {
-  assert.match(staff, /AVVIA PRE-ANALISI IA/);
+  assert.match(staff, /AVVIA LETTURA/);
   assert.match(staff, /\/api\/premium-ai-analysis/);
   assert.match(staff, /Authorization: `Bearer \$\{accessToken\}`/);
   assert.match(staff, /client\.auth\.getSession\(\)/);
@@ -28,8 +28,8 @@ test("La dashboard mantiene la riesecuzione IA manuale dello staff con JWT perso
 });
 
 test("La bozza IA è riservata allo staff e non conclude automaticamente il controllo", () => {
-  assert.match(staff, /Bozza tecnica riservata allo staff/);
-  assert.match(staff, /Non modifica l’esito e non è visibile al cliente/);
+  assert.match(staff, /Dettagli tecnici IA e validazione/);
+  assert.match(staff, /La bozza resterà riservata allo staff e non produrrà automaticamente alcun esito per il cliente/);
   assert.match(staff, /premium_analysis_runs/);
   assert.doesNotMatch(api, /premium_staff_complete_check/);
   assert.doesNotMatch(api, /customer_message/);

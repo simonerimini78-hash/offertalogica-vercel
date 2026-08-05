@@ -130,6 +130,14 @@
     .ai-card { border:1px solid #a7d8c9; border-radius:14px; padding:13px; background:#f3fbf8; }
     .ai-card-title { display:flex; align-items:center; justify-content:space-between; gap:10px; }
     .ai-provider { margin:5px 0 10px; color:var(--muted); font-size:12px; }
+    .ai-technical { margin-top:13px; border:1px solid #d8e5df; border-radius:13px; background:#fff; overflow:hidden; }
+    .ai-technical > summary { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px 13px; color:var(--green-dark); font-size:12px; font-weight:850; cursor:pointer; list-style:none; }
+    .ai-technical > summary::-webkit-details-marker { display:none; }
+    .ai-technical > summary::after { content:"+"; margin-left:auto; font-size:18px; line-height:1; }
+    .ai-technical[open] > summary::after { content:"−"; }
+    .ai-technical[open] > summary { border-bottom:1px solid #e2ebe7; }
+    .ai-technical > .info-grid,.ai-technical > .ai-warning,.ai-technical > .validation-block { margin-left:12px; margin-right:12px; }
+    .ai-technical > .info-grid { margin-top:12px; }
     .ai-values { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:7px; }
     .ai-values .info { background:#fff; }
     .ai-evidence { margin-top:10px; border-top:1px solid #cde5dc; padding-top:8px; }
@@ -147,10 +155,10 @@
     .validation-audit { margin:8px 0 0; color:var(--muted); font-size:12px; }
     .validation-form { margin-top:12px; }
     .validation-list { display:grid; gap:8px; }
-    .validation-row { display:grid; grid-template-columns:minmax(150px,.8fr) minmax(170px,1fr) minmax(250px,1.35fr); gap:10px; align-items:start; border:1px solid #d8e8e2; border-radius:12px; padding:11px; background:#fff; }
+    .validation-row { display:grid; grid-template-columns:minmax(170px,.8fr) minmax(190px,1.2fr); gap:10px; align-items:start; border:1px solid #d8e8e2; border-radius:12px; padding:11px; background:#fff; }
     .validation-field strong,.validation-ai-value strong { display:block; font-size:13px; overflow-wrap:anywhere; }
     .validation-field small,.validation-ai-value span { display:block; margin-top:4px; color:var(--muted); font-size:11px; }
-    .validation-control { display:grid; grid-template-columns:minmax(125px,.8fr) minmax(130px,1fr) minmax(130px,1fr); gap:7px; }
+    .validation-control { grid-column:1/-1; display:grid; grid-template-columns:minmax(150px,.65fr) minmax(180px,.8fr) minmax(220px,1.2fr); gap:7px; align-items:center; }
     .validation-control input,.validation-control select { min-height:38px; padding:8px 9px; font-size:12px; }
     .validation-control :disabled { color:#7a8883; background:#f1f4f3; }
     .validation-note { margin-top:12px; }
@@ -191,7 +199,7 @@
       <img src="/assets/logo-offertalogica-icon.png" alt="OffertaLogica">
       <div>
         <h1>Dashboard controlli Premium</h1>
-        <p>Modulo integrato nell’area staff unica · v0.34</p>
+        <p>Modulo integrato nell’area staff unica · v0.36.17</p>
       </div>
     </div>
     <div class="top-actions" id="staffTopActions" hidden>

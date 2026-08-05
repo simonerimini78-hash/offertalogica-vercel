@@ -418,7 +418,12 @@
       return;
     }
 
-    const confirmed = window.confirm(`Eliminare l’utenza “${utility.label}”? L’operazione non può essere annullata.`);
+    const confirmed = await globalThis.OffertaLogicaPremiumDialog?.confirm({
+      title: "Elimina utenza",
+      message: `Eliminare l’utenza “${utility.label}”? L’operazione non può essere annullata.`,
+      confirmLabel: "ELIMINA UTENZA",
+      danger: true,
+    });
     if (!confirmed) {
       setMessage("", "");
       return;
