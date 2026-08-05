@@ -30,17 +30,18 @@ test("l’area Abbonamento resta coerente con il checkout Stripe controllato", (
   assert.match(auth, /Nessuna conversione automatica/);
   assert.match(auth, /cancel_at_period_end/);
   assert.match(app, /id="premiumSubscriptionPurchase"/);
-  assert.match(app, /ACQUISTA PREMIUM PER 49,90 €/);
+  assert.match(app, /ATTIVA PREMIUM · 4,16 €\/MESE\*/);
   assert.match(auth, /premium-billing/);
   assert.match(auth, /create_checkout/);
 });
 
 test("prezzi e rinnovo corrispondono alla formula commerciale approvata", () => {
-  for (const source of [app, terms]) {
-    assert.match(source, /49,90 € IVA inclusa/);
-    assert.match(source, /59,88 €[^\n<]*all’anno/);
-    assert.match(source, /4,99 € al mese/);
-  }
+  assert.match(app, /4,16 €/);
+  assert.match(app, /Pagamento annuale unico di 49,90 € IVA inclusa/);
+  assert.match(app, /4,99 €\/mese, addebitati 59,88 €/);
+  assert.match(terms, /49,90 € IVA inclusa/);
+  assert.match(terms, /59,88 €[^\n<]*all’anno/);
+  assert.match(terms, /4,99 € al mese/);
   assert.match(terms, /rinnovo è annuale e automatico/i);
   assert.match(terms, /giorno precedente la data di rinnovo/i);
   assert.match(terms, /rimborso integrale entro 14 giorni/i);
@@ -61,10 +62,10 @@ test("la nuova versione dei Termini è applicata in app, backend e database", ()
 });
 
 test("versione PWA e limite delle funzioni Vercel restano coerenti", async () => {
-  assert.match(app, /APP Premium v0\.36\.17/);
-  assert.match(app, /VERSIONE v0\.36\.7/);
-  assert.match(sw, /offertalogica-premium-v03617/);
-  assert.match(bills, /app_version: "0\.36\.17"/);
+  assert.match(app, /APP Premium v0\.36\.18/);
+  assert.match(app, /Versione condizioni correnti: v0\.36\.7/);
+  assert.match(sw, /offertalogica-premium-v03618/);
+  assert.match(bills, /app_version: "0\.36\.18"/);
   const apiFiles = (await readdir(new URL("../api/", import.meta.url))).filter(name => name.endsWith(".js"));
   assert.equal(apiFiles.length, 12);
 });

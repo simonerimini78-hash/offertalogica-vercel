@@ -107,6 +107,32 @@
     return new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" }).format(amount);
   }
 
+  function finiteBillAmount(value) {
+    if (value === null || value === undefined) return null;
+    if (typeof value === "string" && value.trim() === "") return null;
+    const amount = Number(value);
+    return Number.isFinite(amount) ? amount : null;
+  }
+
+  function analysisIsPending(bill) {
+    return ["pending", "running"].includes(bill?.automatic_screening_status)
+      || ["queued", "analyzing"].includes(bill?.processing_status);
+  }
+
+  function automaticStatusCopy(bill) {
+    const status = bill?.automatic_screening_status;
+    if (status === "clear") return "Bolletta verificata. Non sono state rilevate anomalie.";
+    if (status === "running") return "Analisi della bolletta in corso. Il risultato comparirà appena disponibile.";
+    if (status === "pending") return "La bolletta è in attesa di analisi.";
+    const summary = String(bill?.automatic_screening_summary || "").trim();
+    if (summary) return summary;
+    return ({
+      review_recommended: "È stata rilevata un’anomalia importante. Puoi richiedere il controllo professionale.",
+      inconclusive: "Analisi completata con un avviso. Controlla le informazioni indicate.",
+      failed: "Analisi non completata. Riprova oppure carica un PDF più leggibile."
+    })[status] || "Il risultato automatico sarà disponibile al termine dell’analisi.";
+  }
+
   function validDate(value) {
     if (!value) return null;
     const date = new Date(`${value}T12:00:00`);
@@ -426,11 +452,27 @@
     });
     state.spendYear.value = availableYears.includes(current) ? String(current) : String(availableYears[0]);
     const year = Number(state.spendYear.value);
-    const included = bills.filter(bill => billReferenceDate(bill)?.getFullYear() === year && Number.isFinite(Number(bill.total_amount_eur)));
-    const total = included.reduce((sum, bill) => sum + Number(bill.total_amount_eur || 0), 0);
-    setText(state.spendTotal, formatMoney(total));
-    setText(state.spendMeta, included.length
-      ? `${included.length === 1 ? "Importo di 1 bolletta archiviata" : `Somma degli importi di ${included.length} bollette archiviate`} nel ${year}.`
+    const yearBills = bills.filter(bill => billReferenceDate(bill)?.getFullYear() === year);
+    const included = yearBills
+      .map(bill => ({ bill, amount: finiteBillAmount(bill.total_amount_eur) }))
+      .filter(item => item.amount !== null);
+    const pendingCount = yearBills.filter(bill => finiteBillAmount(bill.total_amount_eur) === null && analysisIsPending(bill)).length;
+    const total = included.reduce((sum, item) => sum + item.amount, 0);
+
+    if (included.length) {
+      setText(state.spendTotal, formatMoney(total));
+      const base = included.length === 1
+        ? `Importo di 1 bolletta archiviata nel ${year}.`
+        : `Somma degli importi di ${included.length} bollette archiviate nel ${year}.`;
+      setText(state.spendMeta, pendingCount
+        ? `${base} ${pendingCount} ${pendingCount === 1 ? "bolletta è ancora in analisi" : "bollette sono ancora in analisi"}.`
+        : base);
+      return;
+    }
+
+    setText(state.spendTotal, pendingCount ? "In lettura" : "—");
+    setText(state.spendMeta, pendingCount
+      ? `${pendingCount === 1 ? "L’importo della bolletta è" : `Gli importi di ${pendingCount} bollette sono`} ancora in lettura nel ${year}.`
       : `Nessuna bolletta con importo disponibile nel ${year}.`);
   }
 
@@ -671,7 +713,8 @@
     generalRows += appendAnalysisRow(general, "Emissione", issueDate ? formatDate(issueDate) : null) ? 1 : 0;
     generalRows += appendAnalysisRow(general, "Scadenza", dueDate ? formatDate(dueDate) : null) ? 1 : 0;
     const total = hasAnalysisValue(data.total_amount_eur) ? data.total_amount_eur : bill.total_amount_eur;
-    generalRows += appendAnalysisRow(general, "Importo", Number.isFinite(Number(total)) ? formatMoney(total) : null) ? 1 : 0;
+    const totalAmount = finiteBillAmount(total);
+    generalRows += appendAnalysisRow(general, "Importo", totalAmount !== null ? formatMoney(totalAmount) : null) ? 1 : 0;
     if (generalRows) section.append(general);
 
     const supplies = document.createElement("div");
@@ -717,12 +760,7 @@
     addSupply("gas", "Gas");
     if (supplyCards) section.append(supplies);
 
-    if (!generalRows && !supplyCards) {
-      const empty = document.createElement("p");
-      empty.className = "cloud-analysis-empty";
-      empty.textContent = "I dati tecnici non sono ancora disponibili in questa scheda. L’esito automatico resta comunque visibile sopra.";
-      section.append(empty);
-    }
+    if (!generalRows && !supplyCards) return null;
     return section;
   }
 
@@ -772,10 +810,12 @@
     badge.textContent = statusLabel(bill, null);
     head.append(title, badge);
     const copy = document.createElement("p");
-    copy.textContent = bill.automatic_screening_summary || (bill.automatic_screening_status === "running"
-      ? "Analisi della bolletta in corso."
-      : "Il risultato automatico sarà disponibile al termine dell’analisi.");
-    detail.append(head, copy, renderCustomerAnalysisData(bill));
+    copy.textContent = automaticStatusCopy(bill);
+    detail.append(head, copy);
+    if (!analysisIsPending(bill)) {
+      const analysisData = renderCustomerAnalysisData(bill);
+      if (analysisData) detail.append(analysisData);
+    }
     const contract = contractForBill(bill);
     if (contract) detail.append(renderOfferCard(bill, contract, { allowActions: !maintenanceMode }));
     const reasons = Array.isArray(bill.automatic_screening_reasons) ? bill.automatic_screening_reasons : [];
@@ -904,7 +944,10 @@
       const utilityName = document.createElement("span");
       utilityName.textContent = utility?.label || "Utenza";
       const meta = document.createElement("small");
-      const amount = Number.isFinite(Number(bill.total_amount_eur)) ? formatMoney(bill.total_amount_eur) : "Importo in lettura";
+      const numericAmount = finiteBillAmount(bill.total_amount_eur);
+      const amount = numericAmount !== null
+        ? formatMoney(numericAmount)
+        : (analysisIsPending(bill) ? "Importo in lettura" : "Importo non disponibile");
       meta.textContent = `${formatPeriod(bill)} · ${amount} · ${formatSize(bill.file_size)}`;
       copy.append(title, utilityName, meta);
       if (contract) {
@@ -1078,7 +1121,7 @@
           customer_status: "awaiting_review",
           metadata: {
             source: "premium_app",
-            app_version: "0.36.17",
+            app_version: "0.36.18",
             automatic_analysis: true,
             upload_complete: false
           }

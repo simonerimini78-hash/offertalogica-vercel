@@ -54,7 +54,7 @@ test("v0.36.12 include una verifica installabile", () => {
 });
 
 test("v0.36.12 aggiorna versione app staff e cache", () => {
-  assert.match(app, /APP Premium v0\.36\.17/);
-  assert.match(staff, /Area staff unica v0\.36\.17/);
-  assert.match(sw, /offertalogica-premium-v03617/);
+  assert.match(app, /APP Premium v0\.36\.18/);
+  assert.match(staff, /Area staff unica v0\.36\.18/);
+  assert.match(sw, /offertalogica-premium-v03618/);
 });

@@ -86,14 +86,24 @@
     .subscription-row{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:12px 0;border-bottom:1px solid #e4ece7;font-size:12px;line-height:1.4}
     .subscription-row span{color:var(--muted)}
     .subscription-row strong{max-width:62%;text-align:right;color:#173b2b;font-size:12px}
-    .subscription-commercial{margin-top:14px;padding:14px 15px;border-radius:17px;background:#eef7f1;color:#315a43;font-size:12px;line-height:1.48}
-    .subscription-commercial strong{display:block;margin-bottom:4px;color:#173b2b;font-size:13px}
+    .subscription-commercial{margin-top:14px;padding:16px;border:1px solid #d8eadf;border-radius:19px;background:linear-gradient(145deg,#f3faf5,#e8f5ec);color:#315a43}
+    .subscription-commercial>strong{display:block;color:#173b2b;font-size:13px}
+    .subscription-price-main{display:flex;align-items:flex-end;gap:5px;margin-top:8px;color:#087f3a;font-weight:950;letter-spacing:-.04em}
+    .subscription-price-main b{font-size:31px;line-height:1}
+    .subscription-price-main span{padding-bottom:3px;font-size:13px;letter-spacing:-.01em}
+    .subscription-price-period{display:block;margin-top:4px;color:#315a43;font-size:11px;font-weight:850}
+    .subscription-price-note{display:block;margin-top:9px;color:#52675b;font-size:11px;line-height:1.48}
+    .legal-document-version{display:block;margin-top:8px;color:var(--muted);font-size:10px}
     .subscription-footnote{margin:11px 0 0;color:var(--muted);font-size:11px;line-height:1.45}
     .subscription-actions{margin-top:14px;display:flex;flex-wrap:wrap;gap:9px}
     .subscription-actions button{flex:1 1 180px;min-height:44px}
     .subscription-actions .primary{background:#173b2b;color:#fff;border-color:#173b2b}
     .subscription-actions .danger{background:#fff7f7;color:#9f1d1d;border-color:#efb7b7}
     .subscription-actions button[disabled]{opacity:.56;cursor:not-allowed}
+    .premium-plan-price.monthly{display:flex;flex-wrap:wrap;align-items:flex-end;gap:5px}
+    .premium-plan-price.monthly .price-number{font-size:38px;line-height:.95;letter-spacing:-.055em}
+    .premium-plan-price.monthly .price-unit{padding-bottom:4px;font-size:13px;letter-spacing:-.01em}
+    .premium-plan-price.monthly small{display:block;width:100%;margin-top:7px}
     .billing-inline-message{margin:10px 0 0;padding:10px 12px;border-radius:12px;background:#f5f8f6;color:#315a43;font-size:11px;line-height:1.45}
     .billing-inline-message.error{background:#fff4f4;color:#9f1d1d}
     .billing-confirm{margin-top:12px;padding:14px;border:1px solid #d7e5dc;border-radius:16px;background:#fff}
@@ -157,7 +167,7 @@
           </div>
           <div id="premiumCloudBillMessage" class="cloud-bill-message" role="status" aria-live="polite" hidden></div>
           <div class="cloud-spend-card" aria-label="Totale importi delle bollette archiviate">
-            <div class="cloud-spend-copy"><small>Totale importi delle bollette</small><strong id="premiumCloudSpendTotal">€ 0,00</strong><p id="premiumCloudSpendMeta">In attesa di analisi.</p></div>
+            <div class="cloud-spend-copy"><small>Totale importi delle bollette</small><strong id="premiumCloudSpendTotal">In lettura</strong><p id="premiumCloudSpendMeta">In attesa di analisi.</p></div>
             <select id="premiumCloudSpendYear" class="cloud-spend-year" aria-label="Anno del totale delle bollette"></select>
           </div>
           <div id="premiumCloudBillEmpty" class="cloud-bill-empty"><strong>Nessuna bolletta caricata</strong></div>
@@ -242,9 +252,9 @@
       <div id="premiumAuthMessage" class="auth-message" role="status" aria-live="polite" hidden></div>
 
       <section id="premiumLegalPanel" class="account-manage" hidden aria-label="Condizioni Premium">
-        <div class="account-manage-head"><strong>Condizioni e informativa</strong><span>VERSIONE v0.36.7</span></div>
+        <div class="account-manage-head"><strong>Condizioni e informativa</strong><span>APP v0.36.18</span></div>
         <p id="premiumLegalStatus">Verifica delle accettazioni in corso.</p>
-        <div class="legal-links"><a href="/termini-condizioni.html#premium" data-app-url="/termini-condizioni.html#premium" data-app-title="Termini Premium">Termini Premium</a><a href="/privacy-premium.html" data-app-url="/privacy-premium.html" data-app-title="Informativa Premium">Informativa Premium</a></div>
+        <div class="legal-links"><a href="/termini-condizioni.html#premium" data-app-url="/termini-condizioni.html#premium" data-app-title="Termini Premium">Termini Premium</a><a href="/privacy-premium.html" data-app-url="/privacy-premium.html" data-app-title="Informativa Premium">Informativa Premium</a></div><small class="legal-document-version">Versione condizioni correnti: v0.36.7</small>
         <div class="account-manage-actions"><button id="premiumLegalAccept" type="button">ACCETTA CONDIZIONI CORRENTI</button></div>
       </section>
 
@@ -257,10 +267,10 @@
           <div class="subscription-row"><span>Passaggio al piano pagato</span><strong id="premiumSubscriptionNextPrice">—</strong></div>
           <div class="subscription-row"><span>Rinnovo</span><strong id="premiumSubscriptionRenewal">—</strong></div>
         </div>
-        <div class="subscription-commercial"><strong>OffertaLogica Premium Casa</strong><span>49,90 € IVA inclusa per il primo anno. Dal secondo anno 59,88 € all’anno IVA inclusa, equivalenti a 4,99 € al mese, con addebito annuale unico.</span></div>
+        <div class="subscription-commercial"><strong>OffertaLogica Premium Casa</strong><div class="subscription-price-main"><b>4,16 €</b><span>/mese*</span></div><span class="subscription-price-period">per i primi 12 mesi</span><span class="subscription-price-note">*Equivalente mensile. Pagamento annuale unico di 49,90 € IVA inclusa. Dal secondo anno 4,99 €/mese, addebitati 59,88 € una volta all’anno.</span></div>
         <p id="premiumSubscriptionActionCopy" class="subscription-footnote">La prova gratuita non richiede carta e non si trasforma automaticamente in abbonamento.</p>
         <div class="subscription-actions">
-          <button id="premiumSubscriptionPurchase" class="primary" type="button" hidden>ACQUISTA PREMIUM PER 49,90 €</button>
+          <button id="premiumSubscriptionPurchase" class="primary" type="button" hidden>ATTIVA PREMIUM · 4,16 €/MESE*</button>
           <button id="premiumSubscriptionManage" type="button" hidden>GESTISCI PAGAMENTO</button>
           <button id="premiumSubscriptionCancel" class="danger" type="button" hidden>DISATTIVA RINNOVO</button>
           <button id="premiumSubscriptionResume" type="button" hidden>RIATTIVA RINNOVO</button>
@@ -350,7 +360,7 @@
         <a class="list-item" href="/"><div class="list-icon"><svg class="icon" viewBox="0 0 24 24"><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg></div><div class="list-copy"><strong>Apri il sito completo</strong></div><svg class="icon chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></a>
       </div>
 
-      <span class="version-badge">APP Premium v0.36.17</span>
+      <span class="version-badge">APP Premium v0.36.18</span>
     </section>
   </main>
 
@@ -381,7 +391,7 @@
           <span class="premium-plan-badge">Piano completo</span>
           <span class="premium-plan-kicker">Premium Casa</span>
           <h3>Protezione continuativa</h3>
-          <strong class="premium-plan-price">49,90 €<small>IVA inclusa · primi 12 mesi</small></strong>
+          <strong class="premium-plan-price monthly"><span class="price-number">4,16 €</span><span class="price-unit">/mese*</span><small>per i primi 12 mesi</small></strong>
           <p class="premium-plan-intro">Dopo l’acquisto restano attive tutte le funzioni Premium, senza i limiti della prova.</p>
           <div class="premium-points">
             <div class="premium-point">Bollette senza il limite di 4 della prova</div>
@@ -390,7 +400,7 @@
             <div class="premium-point">Analisi, monitoraggio, anomalie e scadenze</div>
             <div class="premium-point">Richiesta di verifica staff in presenza di anomalie rosse</div>
           </div>
-          <div class="premium-renewal"><strong>Dal secondo anno: 59,88 € all’anno IVA inclusa</strong><br>Equivalenti a 4,99 € al mese, con pagamento annuale. Il rinnovo può essere disattivato fino al giorno precedente la scadenza.</div>
+          <div class="premium-renewal"><strong>*Pagamento annuale unico di 49,90 € IVA inclusa.</strong><br>Dal secondo anno 4,99 €/mese, addebitati 59,88 € una volta all’anno. Il rinnovo può essere disattivato fino al giorno precedente la scadenza.</div>
         </section>
       </div>
       <section class="premium-info-section">
