@@ -568,6 +568,19 @@
     return { profileResult, subscriptionResult, consentsResult };
   }
 
+  async function ensureCurrentUserPremiumProfile(profile) {
+    if (profile) return false;
+    const { error } = await client.rpc("premium_ensure_current_user_profile");
+    if (error) {
+      const message = String(error.message || error || "").toLowerCase();
+      if (!message.includes("premium_ensure_current_user_profile") && !message.includes("function") && !message.includes("schema cache")) {
+        setMessage("error", friendlyError(error));
+      }
+      return false;
+    }
+    return true;
+  }
+
   async function activateBetaTrialIfEligible(profile, subscription, acceptanceStatus) {
     if (!profile || profile.account_status !== "active" || subscription || !acceptancesComplete(acceptanceStatus)) return false;
     const { error } = await client.rpc("premium_activate_beta_trial");
@@ -634,6 +647,20 @@
     let profile = profileResult.data;
     let subscription = subscriptionResult.data;
     let acceptanceStatus = acceptanceMap(consentsResult.data);
+
+    if (await ensureCurrentUserPremiumProfile(profile)) {
+      results = await fetchAccountData(userId);
+      if (sequence !== accountLoadSequence) return false;
+      if (results.profileResult.error || results.subscriptionResult.error || results.consentsResult.error) {
+        setMessage("error", "Profilo Premium associato, ma i dati dell’account non sono ancora disponibili. Ricarica la pagina.");
+        return false;
+      }
+      ({ profileResult, subscriptionResult, consentsResult } = results);
+      profile = profileResult.data;
+      subscription = subscriptionResult.data;
+      acceptanceStatus = acceptanceMap(consentsResult.data);
+      window.dispatchEvent(new CustomEvent("offertalogica:premium-access-changed"));
+    }
 
     if (await activateBetaTrialIfEligible(profile, subscription, acceptanceStatus)) {
       results = await fetchAccountData(userId);
