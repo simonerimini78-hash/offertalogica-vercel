@@ -111,6 +111,67 @@
     .billing-confirm p{margin:6px 0 12px;color:var(--muted);font-size:12px;line-height:1.45}
     .billing-confirm-actions{display:flex;flex-wrap:wrap;gap:8px}
     .billing-confirm-actions button{flex:1 1 140px;min-height:42px}
+
+
+    /* v0.36.20 — Liquid Glass: solo trattamento visivo, layout e palette invariati. */
+    @supports ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+      html{background:#edf4ef}
+      body{
+        background:
+          radial-gradient(circle at 88% 3%,rgba(132,209,38,.16),transparent 31%),
+          radial-gradient(circle at 7% 28%,rgba(24,168,75,.11),transparent 34%),
+          linear-gradient(180deg,#f6faf7 0%,#edf4ef 100%);
+      }
+      body:before{content:"";position:fixed;z-index:-1;inset:0;pointer-events:none;background:linear-gradient(125deg,rgba(255,255,255,.55),transparent 38%,rgba(255,255,255,.18) 62%,transparent);opacity:.78}
+      .shell{position:relative;isolation:isolate}
+      .round-btn,.insight,.summary-card,.feature-card,.auth-card,.account-manage,.local-data-card,.utility-card,.utility-item,.cloud-bill-card,.cloud-bill-item,.cloud-check-detail,.cloud-analysis-data,.cloud-offer-card,.archive-empty,.subscription-panel,.premium-info-dialog,.action-dialog-card,.check-confirm-card{
+        border-color:rgba(255,255,255,.82);
+        background:linear-gradient(145deg,rgba(255,255,255,.88),rgba(244,250,246,.66));
+        box-shadow:inset 0 1px 0 rgba(255,255,255,.96),inset 0 -1px 0 rgba(8,127,58,.07),0 16px 38px rgba(18,48,68,.10);
+        backdrop-filter:blur(22px) saturate(145%);
+        -webkit-backdrop-filter:blur(22px) saturate(145%);
+      }
+      .hero,.action,.gradient-panel,.spend-card,.profile-card,.premium-plan-paid{
+        border:1px solid rgba(255,255,255,.46);
+        background:linear-gradient(145deg,rgba(8,127,58,.97) 0%,rgba(24,168,75,.90) 56%,rgba(115,201,40,.84) 100%);
+        box-shadow:inset 0 1px 0 rgba(255,255,255,.58),inset 0 -1px 0 rgba(4,91,42,.22),0 20px 48px rgba(24,168,75,.24);
+        backdrop-filter:blur(18px) saturate(148%);
+        -webkit-backdrop-filter:blur(18px) saturate(148%);
+      }
+      .hero:before,.profile-card:before,.gradient-panel:before,.action:before{background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.34),rgba(255,255,255,.08) 55%,transparent 72%)}
+      .profile-avatar,.action-icon,.gradient-panel .feature-symbol,.status,.profile-card .pill,.premium-plan-badge,.spend-year{
+        border:1px solid rgba(255,255,255,.38);
+        background:linear-gradient(145deg,rgba(255,255,255,.25),rgba(255,255,255,.10));
+        box-shadow:inset 0 1px 0 rgba(255,255,255,.50),0 8px 20px rgba(5,95,43,.14);
+        backdrop-filter:blur(14px) saturate(145%);
+        -webkit-backdrop-filter:blur(14px) saturate(145%);
+      }
+      .cta,.profile-card-session .auth-signout,.subscription-actions button,.account-manage-actions button,.cloud-bill-btn,.utility-mini-btn{
+        box-shadow:inset 0 1px 0 rgba(255,255,255,.78),0 9px 22px rgba(18,48,68,.09);
+      }
+      .nav{
+        border-color:rgba(255,255,255,.90);
+        background:linear-gradient(145deg,rgba(255,255,255,.82),rgba(240,248,243,.64));
+        box-shadow:inset 0 1px 0 rgba(255,255,255,.98),0 18px 46px rgba(18,48,68,.17);
+        backdrop-filter:blur(28px) saturate(170%);
+        -webkit-backdrop-filter:blur(28px) saturate(170%);
+      }
+      .nav button.active{border:1px solid rgba(255,255,255,.72);background:linear-gradient(145deg,rgba(232,248,237,.88),rgba(214,241,222,.58));box-shadow:inset 0 1px 0 rgba(255,255,255,.92),0 7px 17px rgba(24,168,75,.10)}
+      .account-manage-head span,.version-badge,.pill,.local-data-count,.cloud-bill-status,.cloud-check-detail-badge,.utility-type{
+        border:1px solid rgba(255,255,255,.72);
+        box-shadow:inset 0 1px 0 rgba(255,255,255,.86);
+        backdrop-filter:blur(12px);
+        -webkit-backdrop-filter:blur(12px);
+      }
+      .auth-field input,.action-dialog-field input,.action-dialog-field textarea,.cloud-offer-field select,.cloud-spend-year,.cloud-bill-field select,.utility-field input,.utility-field select{
+        border-color:rgba(255,255,255,.90);
+        background:rgba(255,255,255,.76);
+        box-shadow:inset 0 1px 0 rgba(255,255,255,.95),0 6px 15px rgba(18,48,68,.06);
+        backdrop-filter:blur(12px);
+        -webkit-backdrop-filter:blur(12px);
+      }
+      .update{border:1px solid rgba(255,255,255,.32);background:rgba(18,48,68,.88);backdrop-filter:blur(20px) saturate(150%);-webkit-backdrop-filter:blur(20px) saturate(150%)}
+    }
 </style>
 </head>
 <body>
@@ -252,9 +313,9 @@
       <div id="premiumAuthMessage" class="auth-message" role="status" aria-live="polite" hidden></div>
 
       <section id="premiumLegalPanel" class="account-manage" hidden aria-label="Condizioni Premium">
-        <div class="account-manage-head"><strong>Condizioni e informativa</strong><span>APP v0.36.19</span></div>
+        <div class="account-manage-head"><strong>Condizioni e informativa</strong><span>APP v0.36.20</span></div>
         <p id="premiumLegalStatus">Verifica delle accettazioni in corso.</p>
-        <div class="legal-links"><a href="/termini-condizioni.html#premium" data-app-url="/termini-condizioni.html#premium" data-app-title="Termini Premium">Termini Premium</a><a href="/privacy-premium.html" data-app-url="/privacy-premium.html" data-app-title="Informativa Premium">Informativa Premium</a></div><small class="legal-document-version">Versione condizioni correnti: v0.36.7</small>
+        <div class="legal-links"><a href="/termini-condizioni.html#premium" data-app-url="/termini-condizioni.html#premium" data-app-title="Termini Premium">Termini Premium</a><a href="/privacy-premium.html" data-app-url="/privacy-premium.html" data-app-title="Informativa Premium">Informativa Premium</a></div><small class="legal-document-version">Versione condizioni correnti: v0.36.20</small>
         <div class="account-manage-actions"><button id="premiumLegalAccept" type="button">ACCETTA CONDIZIONI CORRENTI</button></div>
       </section>
 
@@ -267,10 +328,10 @@
           <div class="subscription-row"><span>Passaggio al piano pagato</span><strong id="premiumSubscriptionNextPrice">—</strong></div>
           <div class="subscription-row"><span>Rinnovo</span><strong id="premiumSubscriptionRenewal">—</strong></div>
         </div>
-        <div class="subscription-commercial"><strong>OffertaLogica Premium Casa</strong><div class="subscription-price-main"><b>4,16 €</b><span>/mese*</span></div><span class="subscription-price-period">per i primi 12 mesi</span><span class="subscription-price-note">*Equivalente mensile. Pagamento annuale unico di 49,90 € IVA inclusa. Dal secondo anno 4,99 €/mese, addebitati 59,88 € una volta all’anno.</span></div>
+        <div class="subscription-commercial"><strong>OffertaLogica Premium Casa</strong><div class="subscription-price-main"><b>3,99 €</b><span>/mese*</span></div><span class="subscription-price-period">per i primi 12 mesi</span><span class="subscription-price-note">*Equivalente mensile. Pagamento annuale unico di 47,88 € IVA inclusa. Dal secondo anno 4,99 €/mese, addebitati 59,88 € una volta all’anno.</span></div>
         <p id="premiumSubscriptionActionCopy" class="subscription-footnote">La prova gratuita non richiede carta e non si trasforma automaticamente in abbonamento.</p>
         <div class="subscription-actions">
-          <button id="premiumSubscriptionPurchase" class="primary" type="button" hidden>ATTIVA PREMIUM · 4,16 €/MESE*</button>
+          <button id="premiumSubscriptionPurchase" class="primary" type="button" hidden>ATTIVA PREMIUM · 3,99 €/MESE*</button>
           <button id="premiumSubscriptionManage" type="button" hidden>GESTISCI PAGAMENTO</button>
           <button id="premiumSubscriptionCancel" class="danger" type="button" hidden>DISATTIVA RINNOVO</button>
           <button id="premiumSubscriptionResume" type="button" hidden>RIATTIVA RINNOVO</button>
@@ -360,7 +421,7 @@
         <a class="list-item" href="/"><div class="list-icon"><svg class="icon" viewBox="0 0 24 24"><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg></div><div class="list-copy"><strong>Apri il sito completo</strong></div><svg class="icon chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></a>
       </div>
 
-      <span class="version-badge">APP Premium v0.36.19</span>
+      <span class="version-badge">APP Premium v0.36.20</span>
     </section>
   </main>
 
@@ -391,7 +452,7 @@
           <span class="premium-plan-badge">Piano completo</span>
           <span class="premium-plan-kicker">Premium Casa</span>
           <h3>Protezione continuativa</h3>
-          <strong class="premium-plan-price monthly"><span class="price-number">4,16 €</span><span class="price-unit">/mese*</span><small>per i primi 12 mesi</small></strong>
+          <strong class="premium-plan-price monthly"><span class="price-number">3,99 €</span><span class="price-unit">/mese*</span><small>per i primi 12 mesi</small></strong>
           <p class="premium-plan-intro">Dopo l’acquisto restano attive tutte le funzioni Premium, senza i limiti della prova.</p>
           <div class="premium-points">
             <div class="premium-point">Bollette senza il limite di 4 della prova</div>
@@ -400,7 +461,7 @@
             <div class="premium-point">Analisi, monitoraggio, anomalie e scadenze</div>
             <div class="premium-point">Richiesta di verifica staff in presenza di anomalie rosse</div>
           </div>
-          <div class="premium-renewal"><strong>*Pagamento annuale unico di 49,90 € IVA inclusa.</strong><br>Dal secondo anno 4,99 €/mese, addebitati 59,88 € una volta all’anno. Il rinnovo può essere disattivato fino al giorno precedente la scadenza.</div>
+          <div class="premium-renewal"><strong>*Pagamento annuale unico di 47,88 € IVA inclusa.</strong><br>Dal secondo anno 4,99 €/mese, addebitati 59,88 € una volta all’anno. Il rinnovo può essere disattivato fino al giorno precedente la scadenza.</div>
         </section>
       </div>
       <section class="premium-info-section">
@@ -450,7 +511,7 @@
     <button type="button" data-tab="profile"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span>Profilo</span></button>
   </nav></div>
 
-  <div id="updateNotice" class="update" role="status" aria-live="polite"><span>È disponibile una nuova versione. La sessione resta attiva.</span><button id="applyUpdate" type="button">AGGIORNA</button></div>
+  <div id="updateNotice" class="update" role="status" aria-live="polite"><span id="updateNoticeText">Aggiornamento disponibile. Installazione automatica in corso…</span></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="/app-dialog.js"></script>
@@ -584,32 +645,49 @@
       });
 
       if(!('serviceWorker' in navigator))return;
-      let refreshing=false;let reloadForAcceptedUpdate=false;
-      const notice=document.getElementById('updateNotice');const apply=document.getElementById('applyUpdate');
-      navigator.serviceWorker.addEventListener('controllerchange',()=>{
-        // Alla prima installazione il service worker prende il controllo senza
-        // ricaricare la pagina. Il reload avviene solo dopo il tap su AGGIORNA.
-        if(!reloadForAcceptedUpdate||refreshing)return;
-        refreshing=true;location.reload();
-      });
+      let refreshing=false;let activationRequested=false;let registration=null;let pendingWorker=null;
+      let updateCheckInFlight=null;let updateTimer=null;let retryTimer=null;let lastInteractionAt=Date.now();
+      const notice=document.getElementById('updateNotice');const noticeText=document.getElementById('updateNoticeText');
+      const editableTarget=target=>target instanceof Element&&Boolean(target.closest('input,textarea,select,[contenteditable="true"]'));
+      const markInteraction=event=>{if(editableTarget(event.target)||event.type==='submit'||event.type==='click')lastInteractionAt=Date.now()};
+      document.addEventListener('input',markInteraction,true);document.addEventListener('change',markInteraction,true);document.addEventListener('submit',markInteraction,true);document.addEventListener('click',markInteraction,true);
+      const hasSelectedFile=()=>[...document.querySelectorAll('input[type="file"]')].some(input=>input.files&&input.files.length>0);
+      const isSafeToReload=()=>{
+        const active=document.activeElement;
+        if(document.querySelector('[aria-busy="true"],[data-update-busy="true"]'))return false;
+        if(document.body.classList.contains('action-dialog-open')||document.body.classList.contains('check-confirm-open')||document.body.classList.contains('premium-info-open')||document.body.classList.contains('app-browser-open'))return false;
+        if(active&&editableTarget(active))return false;
+        if(hasSelectedFile())return false;
+        return Date.now()-lastInteractionAt>4000;
+      };
+      const setUpdateNotice=(message,show=true)=>{if(noticeText)noticeText.textContent=message;if(notice)notice.classList.toggle('show',show)};
+      const tryActivateUpdate=()=>{
+        if(!pendingWorker||activationRequested)return;
+        if(!isSafeToReload()){
+          setUpdateNotice('Nuova versione pronta. Aggiornamento automatico appena termina l’operazione in corso.');
+          clearTimeout(retryTimer);retryTimer=setTimeout(tryActivateUpdate,2500);return;
+        }
+        activationRequested=true;setUpdateNotice('Aggiornamento automatico in corso…');
+        pendingWorker.postMessage({type:'SKIP_WAITING'});
+        setTimeout(()=>{if(!refreshing)location.reload()},10000);
+      };
+      const queueUpdate=worker=>{if(!worker)return;pendingWorker=worker;tryActivateUpdate()};
+      const watchInstallingWorker=worker=>{if(!worker)return;worker.addEventListener('statechange',()=>{if(worker.state==='installed'&&navigator.serviceWorker.controller)queueUpdate(worker)})};
+      const checkForUpdate=()=>{
+        if(!registration||document.visibilityState==='hidden')return Promise.resolve();
+        if(updateCheckInFlight)return updateCheckInFlight;
+        updateCheckInFlight=registration.update().catch(error=>console.warn('Controllo aggiornamento non disponibile',error)).finally(()=>{updateCheckInFlight=null});
+        return updateCheckInFlight;
+      };
+      navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!activationRequested||refreshing)return;refreshing=true;location.reload()});
+      addEventListener('offertalogica:update-state',tryActivateUpdate);addEventListener('focus',checkForUpdate);addEventListener('online',checkForUpdate);
+      document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){checkForUpdate();tryActivateUpdate()}});
+      addEventListener('pagehide',()=>{if(updateTimer)clearInterval(updateTimer);if(retryTimer)clearTimeout(retryTimer)});
       addEventListener('load',async()=>{try{
-        const registration=await navigator.serviceWorker.register('/sw.js');
-        const showUpdate=worker=>{
-          notice.classList.add('show');
-          apply.onclick=()=>{
-            reloadForAcceptedUpdate=true;
-            apply.disabled=true;
-            worker.postMessage({type:'SKIP_WAITING'});
-          };
-        };
-        if(registration.waiting)showUpdate(registration.waiting);
-        registration.addEventListener('updatefound',()=>{
-          const worker=registration.installing;if(!worker)return;
-          worker.addEventListener('statechange',()=>{
-            if(worker.state==='installed'&&navigator.serviceWorker.controller)showUpdate(worker);
-          });
-        });
-        registration.update();
+        registration=await navigator.serviceWorker.register('/sw.js');
+        if(registration.waiting)queueUpdate(registration.waiting);
+        registration.addEventListener('updatefound',()=>watchInstallingWorker(registration.installing));
+        await checkForUpdate();updateTimer=setInterval(checkForUpdate,30000);
       }catch(error){console.warn('Service worker non disponibile',error)}},{once:true});
     })();
   </script>

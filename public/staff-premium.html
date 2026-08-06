@@ -199,7 +199,7 @@
       <img src="/assets/logo-offertalogica-icon.png" alt="OffertaLogica">
       <div>
         <h1>Dashboard controlli Premium</h1>
-        <p>Modulo integrato nell’area staff unica · v0.36.19</p>
+        <p>Modulo integrato nell’area staff unica · v0.36.20</p>
       </div>
     </div>
     <div class="top-actions" id="staffTopActions" hidden>
@@ -281,5 +281,21 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/premium-ai-validation.js"></script>
 <script src="/staff-premium.js"></script>
+<script>
+  (()=>{
+    const dirtyForms=new Set();
+    const sync=()=>{
+      for(const form of [...dirtyForms])if(!form.isConnected)dirtyForms.delete(form);
+      document.body.dataset.updateDirty=dirtyForms.size?'true':'false';
+      try{parent.postMessage({type:'offertalogica:staff-update-state',dirty:dirtyForms.size>0,busy:document.body.getAttribute('aria-busy')==='true'},location.origin)}catch{}
+    };
+    const editableForm=target=>target instanceof Element?target.closest('form:not(#staffLoginForm)'):null;
+    const mark=event=>{const form=editableForm(event.target);if(!form)return;dirtyForms.add(form);sync()};
+    document.addEventListener('input',mark,true);document.addEventListener('change',mark,true);
+    const observer=new MutationObserver(sync);
+    observer.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['aria-busy']});
+    addEventListener('pagehide',()=>observer.disconnect(),{once:true});
+  })();
+</script>
 </body>
 </html>

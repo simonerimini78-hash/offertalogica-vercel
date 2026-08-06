@@ -5,7 +5,7 @@
   const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_poz1xBKiXceLCFV3u_tPIg_5_-ycHcl";
   const STORAGE_KEY = "offertalogica-premium-auth";
   const PENDING_EMAIL_KEY = "offertalogica-premium-pending-email";
-  const TERMS_VERSION = "premium-terms-v0.36.7-2026-08-04";
+  const TERMS_VERSION = "premium-terms-v0.36.20-2026-08-06";
   const PRIVACY_VERSION = "premium-privacy-v0.36.6-2026-08-04";
   const CLOUD_VERSION = "premium-cloud-ai-v0.36.6-2026-08-04";
   const BILLING_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/premium-billing`;
@@ -180,7 +180,7 @@
       state.subscriptionPurchaseButton.disabled = !configured;
       state.subscriptionPurchaseButton.textContent = introUsed
         ? "RIATTIVA PREMIUM · 4,99 €/MESE*"
-        : "ATTIVA PREMIUM · 4,16 €/MESE*";
+        : "ATTIVA PREMIUM · 3,99 €/MESE*";
       state.subscriptionPurchaseButton.title = configured ? "" : "Pagamento Stripe non ancora attivato";
     }
     if (state.subscriptionManageButton) {
@@ -429,7 +429,7 @@
 
     const start = formatDate(subscription?.current_period_start);
     const end = formatDate(subscription?.current_period_end);
-    const annualFirst = "4,16 €/mese* · addebito annuale 49,90 €";
+    const annualFirst = "3,99 €/mese* · addebito annuale 47,88 €";
     const annualRenewal = "4,99 €/mese* · addebito annuale 59,88 €";
 
     if (!subscription) {

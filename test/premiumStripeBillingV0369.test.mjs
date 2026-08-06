@@ -36,22 +36,22 @@ async function stripeSignature(payload, secret, timestamp) {
   return [...new Uint8Array(bytes)].map(byte => byte.toString(16).padStart(2, "0")).join("");
 }
 
-test("v0.36.9 usa 59,88 euro annuali con sconto iniziale di 9,98 euro", () => {
-  assert.equal(PREMIUM_FIRST_YEAR_AMOUNT_CENTS, 4990);
+test("formula corrente usa 59,88 euro annuali con sconto iniziale di 12,00 euro", () => {
+  assert.equal(PREMIUM_FIRST_YEAR_AMOUNT_CENTS, 4788);
   assert.equal(PREMIUM_RENEWAL_AMOUNT_CENTS, 5988);
-  assert.equal(PREMIUM_RENEWAL_AMOUNT_CENTS - PREMIUM_FIRST_YEAR_AMOUNT_CENTS, 998);
+  assert.equal(PREMIUM_RENEWAL_AMOUNT_CENTS - PREMIUM_FIRST_YEAR_AMOUNT_CENTS, 1200);
   const params = buildCheckoutParameters({
     customerId: "cus_test",
     userId: "user-test",
     priceId: "price_5988",
-    couponId: "coupon_998_once",
+    couponId: "coupon_1200_once",
     successUrl: "https://premium.offertalogica.it/app.html?billing=success",
     cancelUrl: "https://premium.offertalogica.it/app.html?billing=cancel",
     automaticTax: true,
   });
   assert.equal(params.get("mode"), "subscription");
   assert.equal(params.get("line_items[0][price]"), "price_5988");
-  assert.equal(params.get("discounts[0][coupon]"), "coupon_998_once");
+  assert.equal(params.get("discounts[0][coupon]"), "coupon_1200_once");
   assert.equal(params.get("automatic_tax[enabled]"), "true");
 });
 
@@ -118,7 +118,7 @@ test("prezzo e coupon Stripe devono corrispondere alla formula commerciale", () 
     coupon: {
       id: "coupon_intro",
       valid: true,
-      amount_off: 998,
+      amount_off: 1200,
       currency: "eur",
       duration: "once",
       applies_to: { products: ["prod_premium"] },
@@ -180,8 +180,8 @@ test("database, Edge Function e interfaccia sono collegati senza nuove API Verce
   assert.match(auth, /create_portal/);
   assert.match(auth, /set_cancel_at_period_end/);
   assert.match(auth, /\["active", "past_due", "paused", "canceled"\]/);
-  assert.match(app, /APP Premium v0\.36\.19/);
-  assert.match(sw, /offertalogica-premium-v03619/);
+  assert.match(app, /APP Premium v0\.36\.20/);
+  assert.match(sw, /offertalogica-premium-v03620/);
   const apiFiles = (await readdir(new URL("../api/", import.meta.url))).filter(name => name.endsWith(".js"));
   assert.equal(apiFiles.length, 12);
 });

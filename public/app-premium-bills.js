@@ -72,6 +72,12 @@
     state.message.hidden = !message;
   }
 
+  function syncUpdateBusyState() {
+    const updateBusy = busy || analysisInFlightIds.size > 0;
+    state.card?.setAttribute("data-update-busy", updateBusy ? "true" : "false");
+    window.dispatchEvent(new CustomEvent("offertalogica:update-state", { detail: { busy: updateBusy } }));
+  }
+
   function setBusy(value) {
     busy = Boolean(value);
     if (state.utilitySelect) state.utilitySelect.disabled = busy || maintenanceMode || !utilities.length;
@@ -82,6 +88,7 @@
       control.disabled = Boolean(busy) || control.dataset.permanentDisabled === "true";
     });
     state.card?.setAttribute("aria-busy", busy ? "true" : "false");
+    syncUpdateBusyState();
   }
 
   function formatDate(value) {
@@ -1121,7 +1128,7 @@
           customer_status: "awaiting_review",
           metadata: {
             source: "premium_app",
-            app_version: "0.36.19",
+            app_version: "0.36.20",
             automatic_analysis: true,
             upload_complete: false
           }
@@ -1317,6 +1324,7 @@
     const bill = bills.find(item => item.id === id);
     if (!bill || !client || !currentUser || analysisInFlightIds.has(id)) return;
     analysisInFlightIds.add(id);
+    syncUpdateBusyState();
     bill.automatic_screening_status = "running";
     bill.processing_status = "analyzing";
     renderEnabled();
@@ -1348,6 +1356,7 @@
       setMessage("error", `${friendlyError(error)} Riprova oppure carica un PDF più leggibile.`);
     } finally {
       analysisInFlightIds.delete(id);
+      syncUpdateBusyState();
       renderEnabled();
     }
   }

@@ -19,7 +19,7 @@ import {
 } from "../_shared/premium-billing-core.mjs";
 
 const CURRENT_ACCEPTANCES = [
-  ["terms", "premium-terms-v0.36.7-2026-08-04"],
+  ["terms", "premium-terms-v0.36.20-2026-08-06"],
   ["privacy", "premium-privacy-v0.36.6-2026-08-04"],
   ["cloud_storage", "premium-cloud-ai-v0.36.6-2026-08-04"],
 ];

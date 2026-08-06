@@ -51,7 +51,7 @@
 <header class="topbar">
   <div class="brand">
     <img src="/assets/logo-offertalogica-icon.png" alt="OffertaLogica">
-    <div><h1>Area staff OffertaLogica</h1><p>Unico accesso per operatività, clienti, dati e controllo costi · v0.36.19</p></div>
+    <div><h1>Area staff OffertaLogica</h1><p>Unico accesso per operatività, clienti, dati e controllo costi · v0.36.20</p></div>
   </div>
   <div class="top-actions" id="staffTopActions" hidden>
     <span class="staff-chip" id="staffIdentity">Staff</span>
@@ -105,7 +105,7 @@
         <section class="panel"><div class="panel-head"><h3>Attività da gestire</h3></div><div class="panel-body" id="overviewTasks"><div class="empty">Caricamento…</div></div></section>
         <section class="panel"><div class="panel-head"><h3>Funnel essenziale</h3></div><div class="panel-body"><div class="funnel" id="overviewFunnel"></div></div></section>
       </div>
-      <div class="version">Area staff unica v0.36.19</div>
+      <div class="version">Area staff unica v0.36.20</div>
     </section>
 
     <section class="view" data-staff-view="leads">
@@ -191,46 +191,71 @@
     </div>
   </div>
 </div>
-<div id="staffUpdateNotice" class="staff-update" role="status" aria-live="polite"><span>È disponibile una nuova versione. Aggiorna senza uscire dall’account.</span><button id="staffApplyUpdate" type="button">AGGIORNA</button></div>
+<div id="staffUpdateNotice" class="staff-update" role="status" aria-live="polite"><span id="staffUpdateNoticeText">Aggiornamento disponibile. Installazione automatica in corso…</span></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/staff.js"></script>
 <script>
   (()=>{
     if(!('serviceWorker' in navigator))return;
-    let refreshing=false;
-    let reloadForAcceptedUpdate=false;
-    const notice=document.getElementById('staffUpdateNotice');
-    const apply=document.getElementById('staffApplyUpdate');
-    const showUpdate=worker=>{
-      if(!worker||!notice||!apply)return;
-      notice.classList.add('show');
-      apply.onclick=()=>{
-        reloadForAcceptedUpdate=true;
-        apply.disabled=true;
-        apply.textContent='AGGIORNAMENTO…';
-        worker.postMessage({type:'SKIP_WAITING'});
-      };
-    };
-    navigator.serviceWorker.addEventListener('controllerchange',()=>{
-      if(!reloadForAcceptedUpdate||refreshing)return;
-      refreshing=true;
-      location.reload();
+    let refreshing=false;let activationRequested=false;let registration=null;let pendingWorker=null;
+    let updateCheckInFlight=null;let updateTimer=null;let retryTimer=null;let dirty=false;let saveAttempted=false;let lastInteractionAt=Date.now();
+    const notice=document.getElementById('staffUpdateNotice');const noticeText=document.getElementById('staffUpdateNoticeText');
+    const editableTarget=target=>target instanceof Element&&Boolean(target.closest('input,textarea,select,[contenteditable="true"]'));
+    const unsavedTarget=target=>target instanceof Element&&Boolean(target.closest('#staffComplimentaryForm input,#staffComplimentaryForm textarea,#staffComplimentaryForm select'));
+    const markDirty=event=>{if(unsavedTarget(event.target)){dirty=true;lastInteractionAt=Date.now()}};
+    document.addEventListener('input',markDirty,true);document.addEventListener('change',markDirty,true);
+    document.addEventListener('submit',()=>{saveAttempted=true;lastInteractionAt=Date.now()},true);
+    document.addEventListener('click',event=>{const button=event.target instanceof Element?event.target.closest('button,input[type="submit"]'):null;if(!button)return;lastInteractionAt=Date.now();if(/SALVA|AGGIORNA|CONCEDI|REVOCA|CONFERMA|APPLICA|CHIUDI|ELIMINA/i.test(button.textContent||button.value||''))saveAttempted=true},true);
+    const busyObserver=new MutationObserver(()=>{
+      if(document.body.getAttribute('aria-busy')!=='true'&&saveAttempted){dirty=false;saveAttempted=false;window.dispatchEvent(new Event('offertalogica:update-state'))}
     });
+    busyObserver.observe(document.body,{attributes:true,attributeFilter:['aria-busy']});
+    const embeddedModuleUnsafe=()=>[...document.querySelectorAll('iframe.module-frame')].some(frame=>{
+      try{
+        const doc=frame.contentDocument;if(!doc)return false;
+        if(doc.body?.getAttribute('aria-busy')==='true'||doc.body?.dataset.updateDirty==='true')return true;
+        if(doc.querySelector('[role="dialog"]:not([hidden])'))return true;
+        return document.activeElement===frame&&editableTarget(doc.activeElement);
+      }catch{return false}
+    });
+    const isSafeToReload=()=>{
+      const active=document.activeElement;
+      if(document.body.getAttribute('aria-busy')==='true'||document.querySelector('[aria-busy="true"]'))return false;
+      if(dirty||embeddedModuleUnsafe())return false;
+      if(document.querySelector('[role="dialog"]:not([hidden])'))return false;
+      if(active&&editableTarget(active))return false;
+      return Date.now()-lastInteractionAt>4000;
+    };
+    const setUpdateNotice=(message,show=true)=>{if(noticeText)noticeText.textContent=message;if(notice)notice.classList.toggle('show',show)};
+    const tryActivateUpdate=()=>{
+      if(!pendingWorker||activationRequested)return;
+      if(!isSafeToReload()){
+        setUpdateNotice(dirty?'Nuova versione pronta. Verrà applicata automaticamente dopo il salvataggio.':'Nuova versione pronta. Aggiornamento automatico appena termina l’operazione in corso.');
+        clearTimeout(retryTimer);retryTimer=setTimeout(tryActivateUpdate,2500);return;
+      }
+      activationRequested=true;setUpdateNotice('Aggiornamento automatico in corso…');
+      pendingWorker.postMessage({type:'SKIP_WAITING'});
+      setTimeout(()=>{if(!refreshing)location.reload()},10000);
+    };
+    const queueUpdate=worker=>{if(!worker)return;pendingWorker=worker;tryActivateUpdate()};
+    const watchInstallingWorker=worker=>{if(!worker)return;worker.addEventListener('statechange',()=>{if(worker.state==='installed'&&navigator.serviceWorker.controller)queueUpdate(worker)})};
+    const checkForUpdate=()=>{
+      if(!registration||document.visibilityState==='hidden')return Promise.resolve();
+      if(updateCheckInFlight)return updateCheckInFlight;
+      updateCheckInFlight=registration.update().catch(error=>console.warn('Controllo aggiornamento Area staff non disponibile',error)).finally(()=>{updateCheckInFlight=null});
+      return updateCheckInFlight;
+    };
+    navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!activationRequested||refreshing)return;refreshing=true;location.reload()});
+    addEventListener('offertalogica:update-state',tryActivateUpdate);addEventListener('focus',checkForUpdate);addEventListener('online',checkForUpdate);
+    document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){checkForUpdate();tryActivateUpdate()}});
+    addEventListener('pagehide',()=>{busyObserver.disconnect();if(updateTimer)clearInterval(updateTimer);if(retryTimer)clearTimeout(retryTimer)});
     addEventListener('load',async()=>{
       try{
-        const registration=await navigator.serviceWorker.register('/sw.js');
-        if(registration.waiting)showUpdate(registration.waiting);
-        registration.addEventListener('updatefound',()=>{
-          const worker=registration.installing;
-          if(!worker)return;
-          worker.addEventListener('statechange',()=>{
-            if(worker.state==='installed'&&navigator.serviceWorker.controller)showUpdate(worker);
-          });
-        });
-        await registration.update();
-      }catch(error){
-        console.warn('Aggiornamento Area staff non disponibile',error);
-      }
+        registration=await navigator.serviceWorker.register('/sw.js');
+        if(registration.waiting)queueUpdate(registration.waiting);
+        registration.addEventListener('updatefound',()=>watchInstallingWorker(registration.installing));
+        await checkForUpdate();updateTimer=setInterval(checkForUpdate,30000);
+      }catch(error){console.warn('Aggiornamento Area staff non disponibile',error)}
     },{once:true});
   })();
 </script>

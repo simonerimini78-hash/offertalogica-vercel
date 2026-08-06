@@ -247,7 +247,7 @@ test("la conferma API riclassifica la bolletta senza una nuova chiamata OpenAI",
     if (target.includes("/rest/v1/premium_profiles?")) return jsonResponse([{ id: "user-1", account_status: "active" }]);
     if (target.includes("/rest/v1/premium_subscriptions?")) return jsonResponse([{ id: "sub-1", status: "active", current_period_end: "2099-01-01T00:00:00Z", created_at: "2026-01-01T00:00:00Z" }]);
     if (target.includes("/rest/v1/premium_consents?")) return jsonResponse([
-      { consent_type: "terms", version: "premium-terms-v0.36.7-2026-08-04", granted: true, revoked_at: null },
+      { consent_type: "terms", version: "premium-terms-v0.36.20-2026-08-06", granted: true, revoked_at: null },
       { consent_type: "privacy", version: "premium-privacy-v0.36.6-2026-08-04", granted: true, revoked_at: null },
       { consent_type: "cloud_storage", version: "premium-cloud-ai-v0.36.6-2026-08-04", granted: true, revoked_at: null },
     ]);

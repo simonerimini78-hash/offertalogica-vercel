@@ -66,26 +66,26 @@ test("un esito verde comunica esplicitamente che la bolletta è regolare", () =>
   assert.match(bills, /if \(!generalRows && !supplyCards\) return null/);
 });
 
-test("la versione applicativa è aggiornata senza alterare la versione legale", () => {
-  assert.match(app, /APP v0\.36\.19/);
-  assert.match(app, /APP Premium v0\.36\.19/);
-  assert.match(app, /Versione condizioni correnti: v0\.36\.7/);
-  assert.match(auth, /premium-terms-v0\.36\.7-2026-08-04/);
-  assert.match(bills, /app_version: "0\.36\.19"/);
-  assert.match(staff, /v0\.36\.19/);
-  assert.match(staffPremium, /v0\.36\.19/);
-  assert.match(sw, /offertalogica-premium-v03619/);
+test("versione applicativa e termini commerciali sono aggiornati insieme", () => {
+  assert.match(app, /APP v0\.36\.20/);
+  assert.match(app, /APP Premium v0\.36\.20/);
+  assert.match(app, /Versione condizioni correnti: v0\.36\.20/);
+  assert.match(auth, /premium-terms-v0\.36\.20-2026-08-06/);
+  assert.match(bills, /app_version: "0\.36\.20"/);
+  assert.match(staff, /v0\.36\.20/);
+  assert.match(staffPremium, /v0\.36\.20/);
+  assert.match(sw, /offertalogica-premium-v03620/);
 });
 
 test("il prezzo mensile è principale e l’addebito annuale resta esplicito", () => {
   const accountStart = app.indexOf('<div class="subscription-commercial">');
   const accountEnd = app.indexOf('<p id="premiumSubscriptionActionCopy"', accountStart);
   const accountCard = app.slice(accountStart, accountEnd);
-  assert.ok(accountCard.indexOf("4,16 €") >= 0);
-  assert.ok(accountCard.indexOf("4,16 €") < accountCard.indexOf("49,90 €"));
-  assert.match(accountCard, /Pagamento annuale unico di 49,90 € IVA inclusa/);
+  assert.ok(accountCard.indexOf("3,99 €") >= 0);
+  assert.ok(accountCard.indexOf("3,99 €") < accountCard.indexOf("47,88 €"));
+  assert.match(accountCard, /Pagamento annuale unico di 47,88 € IVA inclusa/);
   assert.match(accountCard, /Dal secondo anno 4,99 €\/mese, addebitati 59,88 €/);
-  assert.match(auth, /ATTIVA PREMIUM · 4,16 €\/MESE\*/);
+  assert.match(auth, /ATTIVA PREMIUM · 3,99 €\/MESE\*/);
   assert.match(auth, /RIATTIVA PREMIUM · 4,99 €\/MESE\*/);
   assert.match(app, /premium-plan-price monthly/);
 });

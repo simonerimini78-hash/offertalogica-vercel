@@ -60,5 +60,5 @@ test("l’interfaccia espone chiaramente i limiti senza carta", () => {
 test("verifica SQL, dominio Premium e versione sono aggiornati", () => {
   assert.match(verify, /premium_trial_limits_v0\.36\.5_ok/);
   assert.match(env, /https:\/\/premium\.offertalogica\.it/);
-  assert.match(app, /APP Premium v0\.36\.19/);
+  assert.match(app, /APP Premium v0\.36\.20/);
 });
