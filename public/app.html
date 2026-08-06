@@ -188,6 +188,111 @@
       }
       .update{border:1px solid rgba(255,255,255,.50);background:rgba(18,48,68,.82);backdrop-filter:blur(26px) saturate(180%);-webkit-backdrop-filter:blur(26px) saturate(180%)}
     }
+
+
+    /* v0.36.23 — fondo argento e vetro leggibile, mantenendo struttura e colori del marchio. */
+    .auth-submit,.premium-info-action,.utility-add,.utility-save,.bill-expense-save,
+    .cloud-bill-upload-btn,.subscription-actions .primary,#premiumLegalAccept,
+    #premiumSubscriptionPurchase,#premiumSubscriptionResume,.cloud-bill-btn.primary,
+    .action-dialog-actions .primary:not(.danger),.check-confirm-actions .primary{
+      border:1px solid rgba(255,255,255,.76);
+      background:
+        linear-gradient(118deg,rgba(255,255,255,.32),transparent 31%,rgba(255,255,255,.12) 56%,transparent 76%),
+        linear-gradient(135deg,#075f31 0%,#16a34a 54%,#82cf2b 100%);
+      color:#fff;
+      box-shadow:inset 0 1.5px 0 rgba(255,255,255,.76),inset 0 -1px 0 rgba(3,76,35,.30),0 13px 28px rgba(8,127,58,.25);
+      text-shadow:0 1px 1px rgba(3,64,31,.22);
+    }
+    .auth-submit:active,.premium-info-action:active,.utility-add:active,.utility-save:active,.bill-expense-save:active,
+    .cloud-bill-upload-btn:active,.subscription-actions .primary:active,#premiumLegalAccept:active,
+    #premiumSubscriptionPurchase:active,#premiumSubscriptionResume:active,.cloud-bill-btn.primary:active,
+    .action-dialog-actions .primary:not(.danger):active,.check-confirm-actions .primary:active{transform:translateY(1px);filter:saturate(1.06)}
+
+    @supports ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+      html{background:#d7ddda}
+      body{
+        background:
+          linear-gradient(126deg,rgba(255,255,255,.82),transparent 29%,rgba(255,255,255,.24) 54%,transparent 76%),
+          radial-gradient(circle at 92% 4%,rgba(255,255,255,.92),transparent 31%),
+          radial-gradient(circle at 8% 84%,rgba(171,183,178,.24),transparent 38%),
+          linear-gradient(155deg,#eef2f0 0%,#d1d8d5 50%,#f3f5f4 100%);
+        background-attachment:fixed;
+      }
+      body:before{
+        background:linear-gradient(118deg,transparent 12%,rgba(255,255,255,.86) 28%,transparent 43%,rgba(255,255,255,.22) 61%,transparent 75%);
+        filter:blur(5px);opacity:.94;
+      }
+      body:after{
+        left:-20%;right:-20%;bottom:-28%;height:58%;
+        background:radial-gradient(ellipse at center,rgba(156,170,164,.20),rgba(255,255,255,.12) 39%,transparent 70%);
+        filter:blur(24px);
+      }
+      .shell{
+        position:relative;isolation:isolate;
+        border:1px solid rgba(255,255,255,.98);
+        background:linear-gradient(145deg,rgba(255,255,255,.56),rgba(235,240,238,.25));
+        box-shadow:inset 0 1.5px 0 rgba(255,255,255,1),inset 0 -1px 0 rgba(94,112,104,.08),0 28px 72px rgba(18,48,68,.16);
+        backdrop-filter:blur(34px) saturate(145%);
+        -webkit-backdrop-filter:blur(34px) saturate(145%);
+      }
+      .shell:before{
+        left:-64px;right:-64px;top:86px;height:420px;
+        background:linear-gradient(138deg,rgba(255,255,255,.38),rgba(170,183,177,.15) 50%,rgba(255,255,255,.32));
+        filter:blur(38px);opacity:.76;
+      }
+      .brand img{width:198px;max-width:58vw}
+      .round-btn{border-width:1.5px;box-shadow:inset 0 1.5px 0 rgba(255,255,255,1),0 12px 27px rgba(18,48,68,.13)}
+      .page-head h1{font-size:clamp(36px,9.5vw,46px);line-height:1.01;letter-spacing:-.052em}
+      .page-head .kicker{font-size:13px;letter-spacing:.055em}
+      .round-btn,.insight,.summary-card,.feature-card,.auth-card,.account-manage,.local-data-card,
+      .utility-card,.utility-item,.cloud-bill-card,.cloud-bill-item,.cloud-check-detail,.cloud-analysis-data,
+      .cloud-offer-card,.archive-empty,.subscription-panel,.premium-info-dialog,.action-dialog-card,.check-confirm-card{
+        border-color:rgba(255,255,255,.98);
+        background:linear-gradient(145deg,rgba(255,255,255,.62),rgba(229,235,232,.29));
+        box-shadow:inset 0 1.5px 0 rgba(255,255,255,1),inset 0 -1px 0 rgba(92,110,102,.10),0 18px 38px rgba(18,48,68,.13),0 3px 8px rgba(18,48,68,.06);
+        backdrop-filter:blur(32px) saturate(142%);
+        -webkit-backdrop-filter:blur(32px) saturate(142%);
+      }
+      .account-manage,.subscription-panel,.auth-card,.feature-card,.summary-card,.insight{border-width:1.5px;border-radius:28px}
+      .profile-card{
+        padding:24px;
+        border:2px solid rgba(255,255,255,.90);
+        border-radius:34px;
+        background:
+          linear-gradient(122deg,rgba(255,255,255,.34),transparent 27%,rgba(255,255,255,.08) 52%,rgba(255,255,255,.18) 100%),
+          radial-gradient(circle at 92% 4%,rgba(255,255,255,.27),transparent 27%),
+          linear-gradient(145deg,#087b39 0%,#0ea046 48%,#7dcd2b 100%);
+        box-shadow:inset 0 2px 0 rgba(255,255,255,.90),inset 0 -2px 0 rgba(3,72,34,.24),0 26px 58px rgba(8,127,58,.30),0 6px 16px rgba(4,91,42,.17);
+      }
+      .profile-card:before{width:280px;height:280px;right:-118px;top:-144px;background:radial-gradient(circle at 34% 28%,rgba(255,255,255,.62),rgba(255,255,255,.12) 48%,transparent 72%)}
+      .profile-card:after{inset:3px;background:linear-gradient(121deg,rgba(255,255,255,.62),transparent 24%,rgba(255,255,255,.12) 54%,transparent 76%);opacity:.95}
+      .profile-avatar{width:68px;height:68px;border-radius:24px;box-shadow:inset 0 2px 0 rgba(255,255,255,.96),inset 0 -1px 0 rgba(255,255,255,.18),0 14px 28px rgba(3,78,36,.22)}
+      .profile-avatar .icon{width:32px;height:32px}
+      .profile-card-copy small{font-size:12px}.profile-card-copy strong{font-size:24px}.profile-card>p{font-size:15px;line-height:1.5}
+      .profile-row{padding:16px 0;font-size:14px}.profile-row strong{font-size:14px}.profile-row span{color:rgba(255,255,255,.84)}
+      .profile-card-session .auth-signout{
+        min-height:54px;border:1.5px solid rgba(255,255,255,.90);
+        background:linear-gradient(145deg,rgba(255,255,255,.34),rgba(255,255,255,.13));
+        box-shadow:inset 0 1.5px 0 rgba(255,255,255,.82),0 12px 28px rgba(3,74,34,.19);
+        color:#fff;
+      }
+      .nav{
+        border-width:1.5px;border-color:rgba(255,255,255,1);
+        background:linear-gradient(145deg,rgba(255,255,255,.68),rgba(221,228,225,.32));
+        box-shadow:inset 0 1.5px 0 rgba(255,255,255,1),inset 0 -1px 0 rgba(92,110,102,.09),0 22px 52px rgba(18,48,68,.22);
+        backdrop-filter:blur(36px) saturate(150%);-webkit-backdrop-filter:blur(36px) saturate(150%);
+      }
+      .nav button.active{background:linear-gradient(145deg,rgba(233,250,239,.94),rgba(190,232,203,.50));box-shadow:inset 0 1.5px 0 rgba(255,255,255,1),0 10px 24px rgba(24,168,75,.18)}
+      .auth-submit{min-height:54px;border-radius:17px}
+    }
+    @media(max-width:699px){
+      @supports ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+        body{padding:8px}
+        .shell{min-height:calc(100dvh - 16px);border-radius:32px;padding-left:16px;padding-right:16px}
+        .nav-wrap{width:calc(100% - 16px);bottom:8px;padding-left:12px;padding-right:12px}
+      }
+    }
+
 </style>
 </head>
 <body>
@@ -329,7 +434,7 @@
       <div id="premiumAuthMessage" class="auth-message" role="status" aria-live="polite" hidden></div>
 
       <section id="premiumLegalPanel" class="account-manage" hidden aria-label="Condizioni Premium">
-        <div class="account-manage-head"><strong>Condizioni e informativa</strong><span>APP v0.36.22</span></div>
+        <div class="account-manage-head"><strong>Condizioni e informativa</strong><span>APP v0.36.23</span></div>
         <p id="premiumLegalStatus">Verifica delle accettazioni in corso.</p>
         <div class="legal-links"><a href="/termini-condizioni.html#premium" data-app-url="/termini-condizioni.html#premium" data-app-title="Termini Premium">Termini Premium</a><a href="/privacy-premium.html" data-app-url="/privacy-premium.html" data-app-title="Informativa Premium">Informativa Premium</a></div><small class="legal-document-version">Versione condizioni correnti: v0.36.22</small>
         <div class="account-manage-actions"><button id="premiumLegalAccept" type="button">ACCETTA CONDIZIONI CORRENTI</button></div>
@@ -437,7 +542,7 @@
         <a class="list-item" href="/"><div class="list-icon"><svg class="icon" viewBox="0 0 24 24"><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg></div><div class="list-copy"><strong>Apri il sito completo</strong></div><svg class="icon chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></a>
       </div>
 
-      <span class="version-badge">APP Premium v0.36.22</span>
+      <span class="version-badge">APP Premium v0.36.23</span>
     </section>
   </main>
 
@@ -661,7 +766,7 @@
       });
 
       if(!('serviceWorker' in navigator))return;
-      const CURRENT_RELEASE="0.36.22";
+      const CURRENT_RELEASE="0.36.23";
       let refreshing=false;let activationRequested=false;let registration=null;let pendingWorker=null;let manifestReloadPending=false;let controlledAtStart=Boolean(navigator.serviceWorker.controller);
       const boundRegistrations=new WeakSet();
       let updateCheckInFlight=null;let updateTimer=null;let retryTimer=null;let lastInteractionAt=Date.now();
@@ -687,8 +792,12 @@
           scheduleRetry();return;
         }
         activationRequested=true;setUpdateNotice('Aggiornamento automatico in corso…');
-        if(pendingWorker)pendingWorker.postMessage({type:'SKIP_WAITING'});
-        else location.reload();
+        if(pendingWorker){
+          const worker=pendingWorker;
+          const reloadWhenActive=()=>{if(worker.state==='activated'&&!refreshing){refreshing=true;location.reload()}};
+          worker.addEventListener('statechange',reloadWhenActive);reloadWhenActive();
+          worker.postMessage({type:'SKIP_WAITING'});
+        }else location.reload();
         setTimeout(()=>{if(!refreshing)location.reload()},10000);
       };
       const queueUpdate=worker=>{if(!worker)return;pendingWorker=worker;manifestReloadPending=false;tryApplyUpdate()};
@@ -703,8 +812,18 @@
         if(reg.installing)watchInstallingWorker(reg.installing);
         if(!boundRegistrations.has(reg)){boundRegistrations.add(reg);reg.addEventListener('updatefound',()=>watchInstallingWorker(reg.installing))}
       };
+      const APP_WORKER_SCOPE='/app.html';
+      const retireLegacyRootWorker=async()=>{
+        const rootScope=new URL('/',location.origin).href;
+        const registrations=await navigator.serviceWorker.getRegistrations();
+        await Promise.all(registrations.filter(reg=>{
+          if(reg.scope!==rootScope)return false;
+          return [reg.installing,reg.waiting,reg.active].filter(Boolean).some(worker=>{try{return new URL(worker.scriptURL).pathname==='/sw.js'}catch{return false}});
+        }).map(reg=>reg.unregister()));
+      };
       const registerRelease=async version=>{
-        const reg=await navigator.serviceWorker.register(`/sw.js?v=${encodeURIComponent(version)}`,{scope:'/',updateViaCache:'none'});
+        await retireLegacyRootWorker();
+        const reg=await navigator.serviceWorker.register(`/sw.js?v=${encodeURIComponent(version)}`,{scope:APP_WORKER_SCOPE,updateViaCache:'none'});
         bindRegistration(reg);await reg.update();
         if(reg.waiting)queueUpdate(reg.waiting);
         return reg;

@@ -1,4 +1,4 @@
-const CACHE = "offertalogica-premium-v03622";
+const CACHE = "offertalogica-premium-v03623";
 const APP_SHELL = [
   "/app.html",
   "/app-dialog.js",
@@ -16,11 +16,6 @@ const APP_SHELL = [
   "/termini-condizioni.html",
   "/privacy-premium.html",
   "/offerte-luce-gas-aggiornate.html",
-  "/staff.html",
-  "/staff.js",
-  "/staff-premium.html",
-  "/staff-premium.js",
-  "/staff-pdf.html",
   "/premium-ai-validation.js"
 ];
 

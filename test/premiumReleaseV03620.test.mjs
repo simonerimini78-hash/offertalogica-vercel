@@ -24,10 +24,11 @@ test("formula commerciale corrente: 3,99 al mese il primo anno e 4,99 dal second
   for (const source of [auth, terms, migration, edge]) assert.match(source, /premium-terms-v0\.36\.22-2026-08-06/);
 });
 
-test("Liquid Glass v0.36.22 è visibile e mantiene logo, layout e palette OffertaLogica", async () => {
+test("Liquid Glass argento v0.36.23 è visibile e mantiene logo, layout e palette OffertaLogica", async () => {
   const app = await read("public/app.html");
-  assert.match(app, /v0\.36\.22 — Liquid Glass marcato/);
-  assert.match(app, /backdrop-filter:blur\(32px\) saturate\(190%\)/);
+  assert.match(app, /v0\.36\.23 — fondo argento/);
+  assert.match(app, /linear-gradient\(155deg,#eef2f0 0%,#d1d8d5 50%,#f3f5f4 100%\)/);
+  assert.match(app, /backdrop-filter:blur\(32px\) saturate\(142%\)/);
   assert.match(app, /logo-offertalogica-header\.png/);
   assert.match(app, /--green:#18a84b/);
   assert.match(app, /--green-dark:#087f3a/);
@@ -37,7 +38,7 @@ test("Liquid Glass v0.36.22 è visibile e mantiene logo, layout e palette Offert
   assert.match(app, /grid-template-columns:repeat\(4,1fr\)/);
 });
 
-test("la release v0.36.22 resta entro 12 funzioni Vercel", async () => {
+test("la release v0.36.23 resta entro 12 funzioni Vercel", async () => {
   const apiFiles = (await readdir(new URL("../api/", import.meta.url))).filter(name => name.endsWith(".js"));
   assert.equal(apiFiles.length, 12);
 });
