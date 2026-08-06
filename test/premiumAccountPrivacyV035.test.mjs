@@ -35,7 +35,7 @@ test("la registrazione richiede accettazioni non preselezionate e versionate", (
     "premium-cloud-ai-v0.35-2026-08-03",
   ]) assert.match(migration, new RegExp(version));
   for (const version of [
-    "premium-terms-v0.36.20-2026-08-06",
+    "premium-terms-v0.36.22-2026-08-06",
     "premium-privacy-v0.36.6-2026-08-04",
     "premium-cloud-ai-v0.36.6-2026-08-04",
   ]) assert.match(auth, new RegExp(version));
@@ -86,9 +86,9 @@ test("informativa e termini descrivono archivio Premium, IA, accesso staff e can
   assert.match(privacy, /cancellazione completa/i);
   assert.match(terms, /id="premium"/);
   assert.match(terms, /area Premium separata/i);
-  assert.match(sw, /offertalogica-premium-v03621/);
+  assert.match(sw, /offertalogica-premium-v03622/);
   assert.match(sw, /privacy-premium\.html/);
-  assert.match(app, /APP Premium v0\.36\.21/);
+  assert.match(app, /APP Premium v0\.36\.22/);
 });
 
 test("la verifica SQL copre funzioni, permessi e vincoli di cancellazione", () => {

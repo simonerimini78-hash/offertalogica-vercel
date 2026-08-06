@@ -5,7 +5,7 @@
   const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_poz1xBKiXceLCFV3u_tPIg_5_-ycHcl";
   const STORAGE_KEY = "offertalogica-premium-auth";
   const PENDING_EMAIL_KEY = "offertalogica-premium-pending-email";
-  const TERMS_VERSION = "premium-terms-v0.36.20-2026-08-06";
+  const TERMS_VERSION = "premium-terms-v0.36.22-2026-08-06";
   const PRIVACY_VERSION = "premium-privacy-v0.36.6-2026-08-04";
   const CLOUD_VERSION = "premium-cloud-ai-v0.36.6-2026-08-04";
   const BILLING_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/premium-billing`;
@@ -744,7 +744,7 @@
         : (isComplimentary
           ? (complimentaryEnd ? `Premium offerto da OffertaLogica fino al ${complimentaryEnd}.` : "Premium offerto da OffertaLogica senza scadenza.")
           : "Servizio Premium attivo."));
-      setText(state.profileControls, isBetaTrial ? "4 bollette · 1 controllo staff" : (isComplimentary ? "Premium completo · nessun pagamento" : "Abbonamento attivo"));
+      setText(state.profileControls, isBetaTrial ? "4 bollette · 1 controllo staff" : (isComplimentary ? "2 abitazioni · 60 bollette/anno · nessun pagamento" : "2 abitazioni · 60 bollette/anno"));
       setText(state.homePlanName, isBetaTrial ? "Prova Premium" : (isComplimentary ? "Premium omaggio" : "Premium"));
       setText(state.homePlanStatus, isBetaTrial && trialDays != null
         ? `${trialDays} ${trialDays === 1 ? "giorno rimanente" : "giorni rimanenti"}`

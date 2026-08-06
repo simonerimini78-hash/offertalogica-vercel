@@ -6,12 +6,12 @@ const app = await readFile(new URL("../public/app.html", import.meta.url), "utf8
 const auth = await readFile(new URL("../public/app-auth.js", import.meta.url), "utf8");
 const backend = await readFile(new URL("../lib/premiumAiBackend.js", import.meta.url), "utf8");
 const terms = await readFile(new URL("../public/termini-condizioni.html", import.meta.url), "utf8");
-const migration = await readFile(new URL("../supabase/premium-commercial-terms-v0.36.20.sql", import.meta.url), "utf8");
-const verify = await readFile(new URL("../supabase/premium-commercial-terms-v0.36.20-verify.sql", import.meta.url), "utf8");
+const migration = await readFile(new URL("../supabase/premium-home-bill-limits-terms-v0.36.22.sql", import.meta.url), "utf8");
+const verify = await readFile(new URL("../supabase/premium-home-bill-limits-terms-v0.36.22-verify.sql", import.meta.url), "utf8");
 const sw = await readFile(new URL("../public/sw.js", import.meta.url), "utf8");
 const bills = await readFile(new URL("../public/app-premium-bills.js", import.meta.url), "utf8");
 
-const TERMS_VERSION = "premium-terms-v0.36.20-2026-08-06";
+const TERMS_VERSION = "premium-terms-v0.36.22-2026-08-06";
 const PRIVACY_VERSION = "premium-privacy-v0.36.6-2026-08-04";
 const CLOUD_VERSION = "premium-cloud-ai-v0.36.6-2026-08-04";
 
@@ -58,14 +58,14 @@ test("la nuova versione dei Termini è applicata in app, backend e database", ()
   assert.match(migration, /create or replace function public\.premium_has_current_acceptances/);
   assert.match(migration, /create or replace function public\.premium_accept_current_terms/);
   assert.match(migration, /create or replace function public\.premium_handle_new_user/);
-  assert.match(verify, /premium_commercial_terms_v0_36_20_ok/);
+  assert.match(verify, /premium_home_bill_limits_terms_v0.36.22_ok/);
 });
 
 test("versione PWA e limite delle funzioni Vercel restano coerenti", async () => {
-  assert.match(app, /APP Premium v0\.36\.21/);
-  assert.match(app, /Versione condizioni correnti: v0\.36\.20/);
-  assert.match(sw, /offertalogica-premium-v03621/);
-  assert.match(bills, /app_version: "0\.36\.21"/);
+  assert.match(app, /APP Premium v0\.36\.22/);
+  assert.match(app, /Versione condizioni correnti: v0\.36\.22/);
+  assert.match(sw, /offertalogica-premium-v03622/);
+  assert.match(bills, /app_version: "0\.36\.22"/);
   const apiFiles = (await readdir(new URL("../api/", import.meta.url))).filter(name => name.endsWith(".js"));
   assert.equal(apiFiles.length, 12);
 });

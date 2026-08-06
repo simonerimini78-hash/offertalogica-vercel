@@ -12,7 +12,7 @@ const verify = await readFile(new URL('../supabase/premium-staff-v0.27-verify.sq
 test('Premium v0.27 aggiunge una dashboard staff separata e non pubblica', () => {
   assert.match(html, /Dashboard controlli Premium/);
   assert.match(html, /noindex,nofollow,noarchive/);
-  assert.match(html, /Modulo integrato nell’area staff unica · v0\.(?:33|34|36\.21)/);
+  assert.match(html, /Modulo integrato nell’area staff unica · v0\.(?:33|34|36\.22)/);
   assert.match(html, /id="staffLoginForm"/);
   assert.match(html, /id="staffDashboard"/);
   assert.match(html, /<script src="\/staff-premium\.js"><\/script>/);

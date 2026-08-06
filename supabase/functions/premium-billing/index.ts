@@ -19,7 +19,7 @@ import {
 } from "../_shared/premium-billing-core.mjs";
 
 const CURRENT_ACCEPTANCES = [
-  ["terms", "premium-terms-v0.36.20-2026-08-06"],
+  ["terms", "premium-terms-v0.36.22-2026-08-06"],
   ["privacy", "premium-privacy-v0.36.6-2026-08-04"],
   ["cloud_storage", "premium-cloud-ai-v0.36.6-2026-08-04"],
 ];
@@ -215,8 +215,8 @@ async function syncStripeSubscription(admin: any, stripeSubscription: any, userI
     provider_subscription_id: stripeSubscription.id || row.provider_subscription_id,
     status: preserveTrial ? row.status : mappedStatus,
     plan_code: preserveTrial ? row.plan_code : "premium-casa-annual",
-    included_utilities: preserveTrial ? row.included_utilities : 2,
-    included_bills_per_year: preserveTrial ? row.included_bills_per_year : 1200,
+    included_utilities: preserveTrial ? row.included_utilities : 4,
+    included_bills_per_year: preserveTrial ? row.included_bills_per_year : 60,
     current_period_start: preserveTrial ? row.current_period_start : (period.start || row.current_period_start),
     current_period_end: preserveTrial ? row.current_period_end : (period.end || row.current_period_end),
     cancel_at_period_end: Boolean(stripeSubscription?.cancel_at_period_end),

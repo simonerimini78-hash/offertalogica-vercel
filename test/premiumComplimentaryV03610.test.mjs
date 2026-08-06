@@ -25,7 +25,7 @@ test("v0.36.10 mostra correttamente il piano omaggio nell’app", () => {
   assert.match(auth, /Premium offerto da OffertaLogica/);
   assert.match(auth, /0 € · offerto da OffertaLogica/);
   assert.match(auth, /Nessun rinnovo automatico/);
-  assert.match(auth, /Premium completo · nessun pagamento/);
+  assert.match(auth, /2 abitazioni · 60 bollette\/anno · nessun pagamento/);
 });
 
 test("v0.36.10 consente soltanto agli amministratori di concedere e revocare omaggi", () => {
@@ -63,6 +63,6 @@ test("v0.36.10 aggiunge la gestione omaggi all’area clienti staff", () => {
 });
 
 test("v0.36.10 aggiorna versione applicativa e cache PWA", () => {
-  assert.match(app, /APP Premium v0\.36\.21/);
-  assert.match(sw, /offertalogica-premium-v03621/);
+  assert.match(app, /APP Premium v0\.36\.22/);
+  assert.match(sw, /offertalogica-premium-v03622/);
 });

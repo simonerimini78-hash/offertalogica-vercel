@@ -75,6 +75,17 @@
     return String(utility?.address?.formatted || "").trim();
   }
 
+  function activeHomeKeys(excludeId = "") {
+    return new Set(utilities
+      .filter(item => item.id !== excludeId && item.status !== "archived")
+      .map(item => normalizeAddress(item.address?.formatted))
+      .filter(Boolean));
+  }
+
+  function activeHomeCount() {
+    return activeHomeKeys().size;
+  }
+
   function supplyLabel(value) {
     return {
       electricity: "Luce",
@@ -174,7 +185,7 @@
       ? "Accettazione richiesta"
       : (maintenanceMode
         ? (operationBlockReason === "archive" ? `Sola lettura fino al ${formatDate(currentSubscription?.archive_access_until)}` : "Sola gestione")
-        : (isBetaTrial() ? `${activeCount} / ${limit} · una abitazione` : `${activeCount} / ${limit}`)));
+        : (isBetaTrial() ? `${activeCount} / ${limit} forniture · 1 abitazione` : `${activeCount} / ${limit} forniture · ${activeHomeCount()} / 2 abitazioni`)));
     if (state.addButton) {
       state.addButton.disabled = !canAdd;
       state.addButton.hidden = maintenanceMode;
@@ -312,12 +323,17 @@
 
     if (label.length < 2) throw new Error("Inserisci un nome riconoscibile per l’utenza.");
     if (!VALID_SUPPLY_TYPES.has(supplyType)) throw new Error("Seleziona una tipologia valida.");
+    if (isBetaTrial() && !address) throw new Error("Durante la prova inserisci l’indirizzo dell’abitazione collegata alle utenze.");
+    if (!isBetaTrial() && !address) throw new Error("Inserisci l’indirizzo dell’abitazione collegata alla fornitura.");
     if (isBetaTrial()) {
-      if (!address) throw new Error("Durante la prova inserisci l’indirizzo dell’abitazione collegata alle utenze.");
       const homeAddress = trialHomeAddress(editingId);
       if (homeAddress && normalizeAddress(homeAddress) !== normalizeAddress(address)) {
         throw new Error("Durante la prova le utenze luce e gas devono riferirsi alla stessa abitazione e usare lo stesso indirizzo.");
       }
+    } else {
+      const homes = activeHomeKeys(editingId);
+      homes.add(normalizeAddress(address));
+      if (homes.size > 2) throw new Error("Il piano Premium include al massimo due abitazioni. Usa l’indirizzo di una delle abitazioni già registrate.");
     }
 
     return {

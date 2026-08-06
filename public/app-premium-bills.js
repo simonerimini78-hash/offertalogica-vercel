@@ -284,7 +284,7 @@
     if (message.includes("premium_trial_bill_limit_reached") || message.includes("premium bill limit reached") || message.includes("premium_bill_limit_reached") || message.includes("row-level security")) {
       return isBetaTrial()
         ? "Hai già caricato le 4 bollette complessive incluse nella prova gratuita. Eliminare un documento non libera un nuovo caricamento."
-        : "Il caricamento non è autorizzato oppure hai raggiunto il limite del piano.";
+        : "Hai raggiunto il limite Premium di 60 bollette nel periodo annuale oppure 30 bollette per una delle abitazioni.";
     }
     if (message.includes("premium_bill_storage_missing")) {
       return "Il PDF non risulta salvato nel cloud. Il caricamento è stato annullato senza consumare la quota della prova.";
@@ -361,8 +361,20 @@
   }
 
   function planLimit() {
-    const fallback = isBetaTrial() ? 4 : 12;
+    const fallback = isBetaTrial() ? 4 : 60;
     return Math.max(1, Number(currentSubscription?.included_bills_per_year || fallback));
+  }
+
+  function annualCountStart(subscription) {
+    const start = new Date(subscription?.current_period_start || subscription?.created_at || Date.now());
+    if (Number.isNaN(start.getTime())) return new Date(Date.now() - 365 * 24 * 60 * 60 * 1000);
+    if (subscription?.current_period_end) return start;
+    const now = new Date();
+    const anniversary = new Date(start);
+    anniversary.setFullYear(now.getFullYear());
+    if (anniversary > now) anniversary.setFullYear(now.getFullYear() - 1);
+    if (anniversary < start) return start;
+    return anniversary;
   }
 
   function canUpload() {
@@ -429,7 +441,7 @@
       ? "Accettazione richiesta"
       : (maintenanceMode
         ? (operationBlockReason === "archive" ? `Sola lettura fino al ${formatDate(currentSubscription?.archive_access_until)}` : "Sola gestione")
-        : (isBetaTrial() ? `${periodBillCount} / ${planLimit()} bollette complessive della prova` : `${periodBillCount} / ${planLimit()}`)));
+        : (isBetaTrial() ? `${periodBillCount} / ${planLimit()} bollette complessive della prova` : `${periodBillCount} / ${planLimit()} bollette del periodo annuale`)));
     setText(state.homeCount, String(bills.length));
     setText(state.profileCount, String(bills.length));
     setText(state.profileSize, formatSize(bills.reduce((sum, bill) => sum + Number(bill.file_size || 0), 0)));
@@ -1128,7 +1140,7 @@
           customer_status: "awaiting_review",
           metadata: {
             source: "premium_app",
-            app_version: "0.36.21",
+            app_version: "0.36.22",
             automatic_analysis: true,
             upload_complete: false
           }
@@ -1459,9 +1471,7 @@
   }
 
   async function loadData(user, subscription, { blockReason = "", readOnly = false } = {}) {
-    const countStart = subscription?.current_period_start
-      ? new Date(subscription.current_period_start).toISOString()
-      : new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString();
+    const countStart = annualCountStart(subscription).toISOString();
     const [utilitiesResult, billsResult, countResult, trialUsageResult, contractsResult, checksResult, anomaliesResult] = await Promise.all([
       client
         .from("premium_utilities")
@@ -1678,7 +1688,7 @@
       if (periodBillCount >= planLimit()) {
         setMessage("error", isBetaTrial()
           ? "Hai già caricato le 4 bollette complessive incluse nella prova gratuita. Eliminare un documento non libera un nuovo caricamento."
-          : "Hai raggiunto il numero di bollette incluso nel piano.");
+          : "Hai raggiunto il limite Premium di 60 bollette nel periodo annuale. L’archivio resta consultabile.");
         return;
       }
       state.fileInput?.click();

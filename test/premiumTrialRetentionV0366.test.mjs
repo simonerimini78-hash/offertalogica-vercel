@@ -68,7 +68,7 @@ test("documenti e accettazioni descrivono la prova e i 90 giorni", () => {
     "premium-cloud-ai-v0.36.6-2026-08-04",
   ]) assert.match(migration, new RegExp(version));
   for (const version of [
-    "premium-terms-v0.36.20-2026-08-06",
+    "premium-terms-v0.36.22-2026-08-06",
     "premium-privacy-v0.36.6-2026-08-04",
     "premium-cloud-ai-v0.36.6-2026-08-04",
   ]) {
@@ -84,11 +84,11 @@ test("documenti e accettazioni descrivono la prova e i 90 giorni", () => {
 });
 
 test("versione applicativa e limite Vercel restano coerenti", async () => {
-  assert.match(app, /APP Premium v0\.36\.21/);
-  assert.match(app, /Versione condizioni correnti: v0\.36\.20/);
+  assert.match(app, /APP Premium v0\.36\.22/);
+  assert.match(app, /Versione condizioni correnti: v0\.36\.22/);
   assert.match(app, /archivio resta consultabile, scaricabile e cancellabile per 90 giorni/);
-  assert.match(sw, /offertalogica-premium-v03621/);
-  assert.match(bills, /app_version: "0\.36\.21"/);
+  assert.match(sw, /offertalogica-premium-v03622/);
+  assert.match(bills, /app_version: "0\.36\.22"/);
   const apiFiles = (await readdir(new URL("../api/", import.meta.url))).filter(name => name.endsWith(".js"));
   assert.equal(apiFiles.length, 12);
 });

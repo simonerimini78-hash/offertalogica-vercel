@@ -30,7 +30,7 @@ test("la diagnostica omaggio e prova è esclusivamente di lettura", () => {
 });
 
 test("v0.36.14 aggiorna app staff e cache PWA", () => {
-  assert.match(app, /APP Premium v0\.36\.21/);
-  assert.match(staffHtml, /Area staff unica v0\.36\.21/);
-  assert.match(sw, /offertalogica-premium-v03621/);
+  assert.match(app, /APP Premium v0\.36\.22/);
+  assert.match(staffHtml, /Area staff unica v0\.36\.22/);
+  assert.match(sw, /offertalogica-premium-v03622/);
 });
