@@ -36,6 +36,7 @@
     .module-frame{width:100%;height:calc(100vh - 128px);min-height:680px;border:1px solid var(--line);border-radius:16px;background:#fff;box-shadow:var(--shadow)}
     .restricted{border:1px solid #fedf89;border-radius:13px;padding:14px;color:#7a2e0e;background:#fffaeb;line-height:1.5}
     .version{margin-top:18px;color:var(--muted);font-size:11px;text-align:right}
+    .staff-update{position:fixed;z-index:1200;left:50%;bottom:22px;transform:translate(-50%,18px);width:min(calc(100% - 32px),560px);padding:12px 13px;border-radius:16px;background:#102f45;color:#fff;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 18px 42px rgba(16,47,69,.28);opacity:0;visibility:hidden;transition:.2s ease}.staff-update.show{opacity:1;visibility:visible;transform:translate(-50%,0)}.staff-update span{font-size:13px;font-weight:750;line-height:1.35}.staff-update button{flex:0 0 auto;border:0;border-radius:10px;padding:9px 11px;color:#102f45;background:#fff;font-size:12px;font-weight:900}.staff-update button:disabled{opacity:.7}
 
     .confirm-layer{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:18px;background:rgba(9,30,25,.58);backdrop-filter:blur(3px)}.complimentary-layer{position:fixed;inset:0;z-index:990;display:grid;place-items:center;padding:18px;background:rgba(9,30,25,.62);backdrop-filter:blur(4px)}.complimentary-card{width:min(520px,100%);max-height:88vh;overflow:auto;border:1px solid var(--line);border-radius:20px;padding:20px;background:#fff;box-shadow:0 28px 70px rgba(9,30,25,.28)}.complimentary-card h2{margin:0;font-size:22px}.complimentary-target{margin:6px 0 0;color:var(--muted);font-size:12px;line-height:1.45}.complimentary-current{margin:14px 0;padding:11px 12px;border:1px solid #dfe9e5;border-radius:11px;background:#f7fbf9;color:#315a43;font-size:12px;line-height:1.45}.complimentary-form{display:grid;gap:12px}.complimentary-form label{display:grid;gap:6px;color:#42534c;font-size:12px;font-weight:800}.complimentary-form textarea{min-height:82px}.complimentary-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}.complimentary-actions .button{flex:1 1 145px}.complimentary-status{margin-top:11px;border-radius:10px;padding:10px 11px;font-size:12px;line-height:1.4}.complimentary-status.info{color:#175cd3;background:#eff8ff}.complimentary-status.error{color:var(--danger);background:#fef3f2}.complimentary-status.success{color:var(--ok);background:#ecfdf3}
     .confirm-card{width:min(460px,100%);border:1px solid var(--line);border-radius:18px;padding:20px;background:#fff;box-shadow:0 24px 70px rgba(9,30,25,.28)}
@@ -50,7 +51,7 @@
 <header class="topbar">
   <div class="brand">
     <img src="/assets/logo-offertalogica-icon.png" alt="OffertaLogica">
-    <div><h1>Area staff OffertaLogica</h1><p>Unico accesso per operatività, clienti, dati e controllo costi · v0.36.18</p></div>
+    <div><h1>Area staff OffertaLogica</h1><p>Unico accesso per operatività, clienti, dati e controllo costi · v0.36.19</p></div>
   </div>
   <div class="top-actions" id="staffTopActions" hidden>
     <span class="staff-chip" id="staffIdentity">Staff</span>
@@ -104,7 +105,7 @@
         <section class="panel"><div class="panel-head"><h3>Attività da gestire</h3></div><div class="panel-body" id="overviewTasks"><div class="empty">Caricamento…</div></div></section>
         <section class="panel"><div class="panel-head"><h3>Funnel essenziale</h3></div><div class="panel-body"><div class="funnel" id="overviewFunnel"></div></div></section>
       </div>
-      <div class="version">Area staff unica v0.36.18</div>
+      <div class="version">Area staff unica v0.36.19</div>
     </section>
 
     <section class="view" data-staff-view="leads">
@@ -190,7 +191,48 @@
     </div>
   </div>
 </div>
+<div id="staffUpdateNotice" class="staff-update" role="status" aria-live="polite"><span>È disponibile una nuova versione. Aggiorna senza uscire dall’account.</span><button id="staffApplyUpdate" type="button">AGGIORNA</button></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/staff.js"></script>
+<script>
+  (()=>{
+    if(!('serviceWorker' in navigator))return;
+    let refreshing=false;
+    let reloadForAcceptedUpdate=false;
+    const notice=document.getElementById('staffUpdateNotice');
+    const apply=document.getElementById('staffApplyUpdate');
+    const showUpdate=worker=>{
+      if(!worker||!notice||!apply)return;
+      notice.classList.add('show');
+      apply.onclick=()=>{
+        reloadForAcceptedUpdate=true;
+        apply.disabled=true;
+        apply.textContent='AGGIORNAMENTO…';
+        worker.postMessage({type:'SKIP_WAITING'});
+      };
+    };
+    navigator.serviceWorker.addEventListener('controllerchange',()=>{
+      if(!reloadForAcceptedUpdate||refreshing)return;
+      refreshing=true;
+      location.reload();
+    });
+    addEventListener('load',async()=>{
+      try{
+        const registration=await navigator.serviceWorker.register('/sw.js');
+        if(registration.waiting)showUpdate(registration.waiting);
+        registration.addEventListener('updatefound',()=>{
+          const worker=registration.installing;
+          if(!worker)return;
+          worker.addEventListener('statechange',()=>{
+            if(worker.state==='installed'&&navigator.serviceWorker.controller)showUpdate(worker);
+          });
+        });
+        await registration.update();
+      }catch(error){
+        console.warn('Aggiornamento Area staff non disponibile',error);
+      }
+    },{once:true});
+  })();
+</script>
 </body>
 </html>

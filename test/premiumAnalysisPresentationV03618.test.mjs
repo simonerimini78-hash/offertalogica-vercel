@@ -67,14 +67,14 @@ test("un esito verde comunica esplicitamente che la bolletta è regolare", () =>
 });
 
 test("la versione applicativa è aggiornata senza alterare la versione legale", () => {
-  assert.match(app, /APP v0\.36\.18/);
-  assert.match(app, /APP Premium v0\.36\.18/);
+  assert.match(app, /APP v0\.36\.19/);
+  assert.match(app, /APP Premium v0\.36\.19/);
   assert.match(app, /Versione condizioni correnti: v0\.36\.7/);
   assert.match(auth, /premium-terms-v0\.36\.7-2026-08-04/);
-  assert.match(bills, /app_version: "0\.36\.18"/);
-  assert.match(staff, /v0\.36\.18/);
-  assert.match(staffPremium, /v0\.36\.18/);
-  assert.match(sw, /offertalogica-premium-v03618/);
+  assert.match(bills, /app_version: "0\.36\.19"/);
+  assert.match(staff, /v0\.36\.19/);
+  assert.match(staffPremium, /v0\.36\.19/);
+  assert.match(sw, /offertalogica-premium-v03619/);
 });
 
 test("il prezzo mensile è principale e l’addebito annuale resta esplicito", () => {

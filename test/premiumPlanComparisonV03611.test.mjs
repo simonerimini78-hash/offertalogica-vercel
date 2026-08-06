@@ -25,8 +25,8 @@ test("v0.36.11 mostra prezzo iniziale e rinnovo del piano pagato", () => {
   assert.match(app, /49,90 €/);
   assert.match(app, /59,88 € una volta all’anno/);
   assert.match(app, /4,99 €\/mese/);
-  assert.match(app, /APP Premium v0\.36\.18/);
-  assert.match(sw, /offertalogica-premium-v03618/);
+  assert.match(app, /APP Premium v0\.36\.19/);
+  assert.match(sw, /offertalogica-premium-v03619/);
 });
 
 test("v0.36.11 mantiene il confronto responsive", () => {

@@ -1,4 +1,4 @@
-const CACHE = "offertalogica-premium-v03618";
+const CACHE = "offertalogica-premium-v03619";
 const APP_SHELL = [
   "/app.html",
   "/app-dialog.js",
@@ -15,7 +15,13 @@ const APP_SHELL = [
   "/come-funziona.html",
   "/termini-condizioni.html",
   "/privacy-premium.html",
-  "/offerte-luce-gas-aggiornate.html"
+  "/offerte-luce-gas-aggiornate.html",
+  "/staff.html",
+  "/staff.js",
+  "/staff-premium.html",
+  "/staff-premium.js",
+  "/staff-pdf.html",
+  "/premium-ai-validation.js"
 ];
 
 self.addEventListener("install", event => {

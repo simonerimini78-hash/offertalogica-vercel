@@ -112,6 +112,82 @@ test("non usa il consumo del periodo e blocca il confronto quando un dato essenz
   assert.ok(normalized.data_contract.readiness.confronto.gas.missing.includes("prezzo_gas_eur_smc"));
 });
 
+
+test("Dolomiti reale: accetta mc come consumo annuo gas senza confonderlo con un prezzo", () => {
+  const normalized = normalizePureAiOutput({
+    document: document("gas"),
+    supplies: [{
+      commodity: "gas",
+      provider: "Dolomiti Energia Mercato SpA",
+      offer_name: "GAS ITALY CASA_R",
+      offer_code: null,
+      fields: [
+        row("annual_consumption", "Consumo annuo (mc)", 1883, "mc", {
+          valueText: "1.883",
+          period: "year",
+          page: 1,
+          evidence: "Consumo annuo (mc) 1.883 1883 mc",
+        }),
+        row("unit_price", "Prezzo medio unitario spesa per vendita gas naturale", 0.687459, "€/Smc", {
+          page: 2,
+          evidence: "Prezzo medio unitario spesa per vendita gas naturale 0,687459 €/Smc",
+        }),
+        row("fixed_fee", "Quota fissa vendita gas naturale", 12, "€/mese", {
+          period: "month",
+          page: 3,
+          evidence: "Quota fissa vendita gas naturale 12,00 €/mese",
+        }),
+      ],
+    }],
+  });
+
+  assert.equal(normalized.consumo_gas_smc, 1883);
+  assert.equal(normalized.prezzo_gas_eur_smc, 0.687459);
+  assert.equal(normalized.quota_fissa_vendita_gas_eur_anno, 144);
+  assert.equal(normalized.data_contract.readiness.confronto.gas.status, "completo");
+});
+
+test("mc resta escluso quando indica il consumo del solo periodo fatturato", () => {
+  const normalized = normalizePureAiOutput({
+    document: document("gas"),
+    supplies: [{
+      commodity: "gas",
+      provider: "Test",
+      offer_name: null,
+      offer_code: null,
+      fields: [
+        row("annual_consumption", "Consumi fatturati", 74.147122, "mc", {
+          period: "month",
+          evidence: "Periodo oggetto di fatturazione dal 01.03.2026 al 31.03.2026 consumo totale fatturato del periodo 74,147122 mc",
+        }),
+      ],
+    }],
+  });
+
+  assert.equal(normalized.consumo_gas_smc, undefined);
+  assert.ok(normalized.data_contract.readiness.confronto.gas.missing.includes("consumo_gas_smc"));
+});
+
+test("un importo espresso in euro per mc non viene mai usato come consumo gas", () => {
+  const normalized = normalizePureAiOutput({
+    document: document("gas"),
+    supplies: [{
+      commodity: "gas",
+      provider: "Test",
+      offer_name: null,
+      offer_code: null,
+      fields: [
+        row("annual_consumption", "Consumo annuo", 0.960322, "€/mc", {
+          period: "year",
+          evidence: "Tariffa acquedotto 0,960322 €/mc",
+        }),
+      ],
+    }],
+  });
+
+  assert.equal(normalized.consumo_gas_smc, undefined);
+});
+
 import { mkdtemp, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";

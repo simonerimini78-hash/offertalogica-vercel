@@ -84,11 +84,11 @@ test("documenti e accettazioni descrivono la prova e i 90 giorni", () => {
 });
 
 test("versione applicativa e limite Vercel restano coerenti", async () => {
-  assert.match(app, /APP Premium v0\.36\.18/);
+  assert.match(app, /APP Premium v0\.36\.19/);
   assert.match(app, /Versione condizioni correnti: v0\.36\.7/);
   assert.match(app, /archivio resta consultabile, scaricabile e cancellabile per 90 giorni/);
-  assert.match(sw, /offertalogica-premium-v03618/);
-  assert.match(bills, /app_version: "0\.36\.18"/);
+  assert.match(sw, /offertalogica-premium-v03619/);
+  assert.match(bills, /app_version: "0\.36\.19"/);
   const apiFiles = (await readdir(new URL("../api/", import.meta.url))).filter(name => name.endsWith(".js"));
   assert.equal(apiFiles.length, 12);
 });
