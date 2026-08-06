@@ -1350,7 +1350,7 @@
           customer_status: "awaiting_review",
           metadata: {
             source: "premium_app",
-            app_version: "0.36.26",
+            app_version: "0.36.27",
             automatic_analysis: true,
             upload_complete: false
           }

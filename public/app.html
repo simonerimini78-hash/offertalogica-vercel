@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#f4f7f5">
+  <meta name="theme-color" content="#e3e9e7">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="OffertaLogica">
-  <meta name="offertalogica-app-version" content="APP v0.36.26">
+  <meta name="offertalogica-app-version" content="APP v0.36.27">
   <title>OffertaLogica Premium</title>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/assets/logo-offertalogica-icon.png?v=19">
@@ -294,6 +294,106 @@
       }
     }
 
+
+    /* v0.36.27 — fondo argento, vetro smeraldo e Home decisionale. */
+    :root{
+      --bg:#e3e9e7;--surface:#f7faf9;--surface-2:#eaf2ee;--text:#0d2d3d;--muted:#5e7480;
+      --green:#12a45a;--green-dark:#076b40;--lime:#a8e63f;--navy:#0d2d3d;--line:rgba(255,255,255,.92);
+      --emerald-950:#04482e;--emerald-900:#055d38;--emerald-700:#07834a;--emerald-500:#16ad5f;--emerald-300:#68d983;--emerald-lime:#a9e83e;
+      --silver-glass:linear-gradient(145deg,rgba(255,255,255,.76),rgba(218,227,224,.38));
+      --emerald-glass:linear-gradient(132deg,rgba(255,255,255,.42),transparent 25%,rgba(255,255,255,.10) 55%,transparent 76%),radial-gradient(circle at 91% 7%,rgba(226,255,203,.42),transparent 27%),linear-gradient(145deg,var(--emerald-900) 0%,var(--emerald-700) 46%,var(--emerald-500) 75%,var(--emerald-lime) 118%);
+      --shadow:0 22px 50px rgba(13,45,61,.14);--soft-shadow:0 12px 30px rgba(13,45,61,.10);
+    }
+    html{background:#cfd8d5}
+    body{
+      background:
+        linear-gradient(126deg,rgba(255,255,255,.93),transparent 28%,rgba(255,255,255,.30) 53%,transparent 76%),
+        radial-gradient(circle at 92% 3%,rgba(255,255,255,.96),transparent 30%),
+        radial-gradient(circle at 3% 92%,rgba(160,176,169,.25),transparent 38%),
+        linear-gradient(155deg,#f7f9f8 0%,#d5ddda 49%,#f3f6f5 100%);
+      background-attachment:fixed;
+    }
+    body:before{background:linear-gradient(117deg,transparent 13%,rgba(255,255,255,.94) 29%,transparent 44%,rgba(255,255,255,.30) 61%,transparent 75%);filter:blur(4px);opacity:.92}
+    body:after{background:radial-gradient(ellipse at center,rgba(135,153,145,.20),rgba(255,255,255,.12) 42%,transparent 72%)}
+    .shell{
+      border:1.5px solid rgba(255,255,255,.98);
+      background:linear-gradient(145deg,rgba(255,255,255,.66),rgba(218,227,224,.29));
+      box-shadow:inset 0 2px 0 rgba(255,255,255,1),inset 0 -1px 0 rgba(74,95,86,.10),0 30px 78px rgba(13,45,61,.17);
+      backdrop-filter:blur(34px) saturate(145%);-webkit-backdrop-filter:blur(34px) saturate(145%);
+    }
+    .shell:before{background:linear-gradient(138deg,rgba(255,255,255,.48),rgba(153,171,163,.12) 52%,rgba(255,255,255,.38));opacity:.72}
+    .topbar{height:98px;align-items:center}
+    .brand{
+      position:relative;isolation:isolate;display:flex;align-items:center;padding:9px 12px;border:1.5px solid rgba(255,255,255,.98);border-radius:24px;
+      background:linear-gradient(145deg,rgba(255,255,255,.76),rgba(218,227,224,.33));
+      box-shadow:inset 0 1.5px 0 rgba(255,255,255,1),inset 0 -1px 0 rgba(73,94,84,.08),0 14px 31px rgba(13,45,61,.12);
+      backdrop-filter:blur(25px) saturate(155%);-webkit-backdrop-filter:blur(25px) saturate(155%);
+    }
+    .brand:after{content:"";position:absolute;pointer-events:none;inset:1px;border-radius:inherit;background:linear-gradient(121deg,rgba(255,255,255,.72),transparent 31%,rgba(255,255,255,.18) 58%,transparent 76%);z-index:-1}
+    .brand img{width:190px;max-width:55vw;filter:saturate(1.16) contrast(1.04) drop-shadow(0 5px 10px rgba(8,87,46,.12))}
+    .round-btn{border:1.5px solid rgba(255,255,255,.98);border-radius:17px;background:var(--silver-glass);box-shadow:inset 0 1.5px 0 #fff,0 12px 28px rgba(13,45,61,.13)}
+    .header-greeting{color:var(--emerald-700);font-size:12px;font-weight:900}
+    .welcome{margin:25px 4px 20px}.welcome h1{font-size:clamp(36px,10vw,49px);line-height:.99;color:var(--navy);text-wrap:balance}.welcome p{max-width:470px;margin-top:13px;font-size:16px;line-height:1.48;color:#4f6673}
+    .home-welcome{margin-bottom:18px}
+    .visually-hidden{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+
+    .home-premium-strip{
+      position:relative;isolation:isolate;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:13px;margin:0 0 18px;padding:15px 16px;
+      border:1.5px solid rgba(255,255,255,.98);border-radius:25px;background:var(--silver-glass);
+      box-shadow:inset 0 1.5px 0 #fff,inset 0 -1px 0 rgba(68,91,80,.09),0 17px 38px rgba(13,45,61,.13);
+      backdrop-filter:blur(28px) saturate(150%);-webkit-backdrop-filter:blur(28px) saturate(150%);overflow:hidden;
+    }
+    .home-premium-strip:before{content:"";position:absolute;pointer-events:none;inset:1px;border-radius:inherit;background:linear-gradient(120deg,rgba(255,255,255,.82),transparent 30%,rgba(255,255,255,.17) 56%,transparent 75%);z-index:-1}
+    .home-premium-icon{width:48px;height:48px;border:1px solid rgba(255,255,255,.98);border-radius:17px;display:grid;place-items:center;color:var(--emerald-700);background:linear-gradient(145deg,rgba(239,255,244,.96),rgba(192,235,205,.54));box-shadow:inset 0 1.5px 0 #fff,0 10px 22px rgba(7,131,74,.15)}
+    .home-premium-icon .icon{width:25px;height:25px;stroke-width:2}
+    .home-premium-copy{min-width:0}.home-premium-heading{display:flex;align-items:center;gap:9px;flex-wrap:wrap}.home-premium-label{color:var(--emerald-700);font-size:10px;font-weight:950;letter-spacing:.075em;text-transform:uppercase}.home-premium-title{display:block;margin-top:3px;font-size:16px;letter-spacing:-.02em}.home-premium-copy p{margin:3px 0 0;color:#55707b;font-size:12px;line-height:1.42}
+    .home-premium-link{display:flex;align-items:center;gap:6px;min-height:43px;padding:0 10px 0 13px;border:1px solid rgba(255,255,255,.96);border-radius:15px;background:linear-gradient(145deg,rgba(239,255,244,.90),rgba(198,237,209,.47));color:var(--emerald-700);font-size:11px;font-weight:950;text-decoration:none;white-space:nowrap;box-shadow:inset 0 1px 0 #fff,0 8px 18px rgba(7,131,74,.12)}
+    .home-premium-link .icon{width:18px;height:18px}
+
+    .home-action-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+    .home-action{
+      min-height:190px;padding:19px;border:1.5px solid rgba(255,255,255,.88);border-radius:28px;background:var(--emerald-glass);
+      box-shadow:inset 0 2px 0 rgba(255,255,255,.86),inset 0 -2px 0 rgba(3,72,43,.25),0 22px 46px rgba(7,107,64,.25),0 5px 13px rgba(4,72,45,.15);
+      backdrop-filter:blur(25px) saturate(185%);-webkit-backdrop-filter:blur(25px) saturate(185%);color:#fff;
+    }
+    .home-action:before{width:190px;height:190px;right:-86px;top:-105px;background:radial-gradient(circle at 33% 31%,rgba(255,255,255,.62),rgba(255,255,255,.12) 46%,transparent 72%)}
+    .home-action:after{content:"";position:absolute;pointer-events:none;inset:2px;border-radius:inherit;background:linear-gradient(122deg,rgba(255,255,255,.48),transparent 26%,rgba(255,255,255,.10) 53%,transparent 74%);z-index:-1;opacity:.95}
+    .home-action .action-icon{width:62px;height:62px;margin-bottom:18px;border:1.5px solid rgba(255,255,255,.84);border-radius:21px;background:linear-gradient(145deg,rgba(255,255,255,.39),rgba(255,255,255,.11));box-shadow:inset 0 1.5px 0 rgba(255,255,255,.94),0 12px 26px rgba(3,74,43,.21)}
+    .home-action .action-icon .icon{width:30px;height:30px;stroke-width:1.85}.home-action strong{min-height:auto;margin:0 42px 7px 0;font-size:19px;line-height:1.12}.home-action small{min-height:43px;margin-right:30px;color:rgba(255,255,255,.92);font-size:13px;line-height:1.35}
+    .home-action-meta{display:inline-flex;align-items:center;gap:3px;margin-top:auto;padding:6px 9px;border:1px solid rgba(255,255,255,.28);border-radius:999px;background:rgba(4,72,45,.20);color:rgba(255,255,255,.90);font-size:9px;font-weight:850}.home-action-meta b{font-size:10px;color:#fff}
+    .home-action-arrow{position:absolute;right:16px;bottom:16px;width:38px;height:38px;border:1px solid rgba(255,255,255,.74);border-radius:50%;display:grid;place-items:center;background:linear-gradient(145deg,rgba(255,255,255,.34),rgba(255,255,255,.12));box-shadow:inset 0 1px 0 rgba(255,255,255,.85),0 9px 20px rgba(3,72,43,.18)}
+    .home-action-arrow .icon{width:19px;height:19px}
+
+    .hero,.gradient-panel,.spend-card,.profile-card,.premium-plan-paid{
+      background:var(--emerald-glass);border-color:rgba(255,255,255,.88);
+      box-shadow:inset 0 2px 0 rgba(255,255,255,.86),inset 0 -2px 0 rgba(3,72,43,.25),0 24px 52px rgba(7,107,64,.26),0 5px 14px rgba(4,72,45,.15);
+    }
+    .profile-card{background:var(--emerald-glass)}
+    .premium-preview{background:var(--emerald-glass);border:1.5px solid rgba(255,255,255,.86);box-shadow:inset 0 1.5px 0 rgba(255,255,255,.82),0 16px 34px rgba(7,107,64,.22)}
+    .round-btn,.insight,.summary-card,.feature-card,.auth-card,.account-manage,.local-data-card,.utility-card,.utility-item,.cloud-bill-card,.cloud-bill-item,.cloud-check-detail,.cloud-analysis-data,.cloud-offer-card,.archive-empty,.subscription-panel,.premium-info-dialog,.action-dialog-card,.check-confirm-card,.list-item,.cloud-spend-card,.utility-locked,.utility-form,.cloud-bill-locked,.cloud-bill-no-utilities,.cloud-bill-empty{
+      border-color:rgba(255,255,255,.98);background:var(--silver-glass);box-shadow:inset 0 1.5px 0 #fff,inset 0 -1px 0 rgba(67,89,79,.09),0 17px 37px rgba(13,45,61,.12);backdrop-filter:blur(27px) saturate(145%);-webkit-backdrop-filter:blur(27px) saturate(145%);
+    }
+    .feature-symbol,.list-icon,.cloud-bill-icon,.profile-avatar,.action-icon,.gradient-panel .feature-symbol{
+      border:1px solid rgba(255,255,255,.96);background:linear-gradient(145deg,rgba(238,255,244,.95),rgba(184,234,199,.51));color:var(--emerald-700);box-shadow:inset 0 1.5px 0 #fff,0 10px 23px rgba(7,131,74,.14);
+    }
+    .profile-avatar,.gradient-panel .feature-symbol{color:#fff;background:linear-gradient(145deg,rgba(255,255,255,.38),rgba(255,255,255,.12))}
+    .pill,.version-badge,.local-data-count,.utility-type,.cloud-bill-status:not(.yellow):not(.red),.cloud-check-detail-badge:not(.yellow):not(.red){border:1px solid rgba(255,255,255,.93);background:linear-gradient(145deg,rgba(235,255,241,.94),rgba(188,232,201,.48));color:var(--emerald-700);box-shadow:inset 0 1px 0 #fff,0 6px 15px rgba(7,131,74,.10)}
+    .auth-submit,.premium-info-action,.utility-add,.utility-save,.bill-expense-save,.cloud-bill-upload-btn,.subscription-actions .primary,#premiumLegalAccept,#premiumSubscriptionPurchase,#premiumSubscriptionResume,.cloud-bill-btn.primary,.action-dialog-actions .primary:not(.danger),.check-confirm-actions .primary{
+      background:linear-gradient(128deg,rgba(255,255,255,.29),transparent 31%,rgba(255,255,255,.09) 58%,transparent 76%),linear-gradient(135deg,var(--emerald-900) 0%,var(--emerald-500) 66%,var(--emerald-lime) 125%);border-color:rgba(255,255,255,.82);box-shadow:inset 0 1.5px 0 rgba(255,255,255,.79),inset 0 -1px 0 rgba(3,72,43,.28),0 13px 28px rgba(7,107,64,.25);color:#fff;
+    }
+    .cta{border:1px solid rgba(255,255,255,.92);background:linear-gradient(145deg,rgba(255,255,255,.88),rgba(228,241,233,.62));color:var(--emerald-700);box-shadow:inset 0 1.5px 0 #fff,0 12px 27px rgba(3,72,43,.16)}
+    .nav{border:1.5px solid rgba(255,255,255,1);background:var(--silver-glass);box-shadow:inset 0 1.5px 0 #fff,inset 0 -1px 0 rgba(67,89,79,.08),0 22px 52px rgba(13,45,61,.20);backdrop-filter:blur(34px) saturate(150%);-webkit-backdrop-filter:blur(34px) saturate(150%)}
+    .nav button.active{border:1px solid rgba(255,255,255,.98);background:linear-gradient(145deg,rgba(234,255,240,.96),rgba(174,230,191,.55));color:var(--emerald-700);box-shadow:inset 0 1.5px 0 #fff,0 10px 24px rgba(7,131,74,.16)}
+    .page-head h1{color:var(--navy)}.page-head .kicker,.section-head .kicker{color:var(--emerald-700)}.section-head .kicker:after{background:linear-gradient(90deg,rgba(7,131,74,.38),rgba(7,131,74,.04))}
+    .list-item:active,.home-premium-link:active{transform:scale(.99)}
+
+    @media(max-width:430px){
+      .shell{padding-left:13px;padding-right:13px}.topbar{height:91px}.brand{padding:8px 10px;border-radius:21px}.brand img{width:170px;max-width:52vw}.welcome{margin-top:20px}.welcome h1{font-size:clamp(34px,10.5vw,43px)}.welcome p{font-size:14.5px}
+      .home-premium-strip{grid-template-columns:auto minmax(0,1fr);padding:14px}.home-premium-link{grid-column:1/-1;justify-content:center;margin-top:1px}.home-premium-heading{align-items:flex-start}.home-premium-heading .pill{font-size:9px}
+      .home-action-grid{gap:11px}.home-action{min-height:177px;padding:16px;border-radius:25px}.home-action .action-icon{width:56px;height:56px;margin-bottom:15px;border-radius:19px}.home-action strong{margin-right:27px;font-size:17px}.home-action small{font-size:12px;margin-right:22px}.home-action-arrow{right:13px;bottom:13px;width:35px;height:35px}
+    }
+    @media(max-width:355px){.home-action-grid{grid-template-columns:1fr}.home-action{min-height:165px}.home-action strong{font-size:19px}.brand img{width:155px}.header-greeting{font-size:10px}}
+
 </style>
 </head>
 <body>
@@ -306,23 +406,48 @@
     </header>
 
     <section id="view-home" class="view active" data-view="home">
-      <div class="welcome"><h1>La tua energia, più semplice.</h1><p>Carica le bollette e tieni sotto controllo costi e scadenze.</p></div>
+      <div class="welcome home-welcome"><h1>La tua energia, più semplice.</h1><p>Gestisci bollette e utenze, calcola il risparmio e confronta le offerte aggiornate.</p></div>
       <button id="installApp" class="install" type="button">Installa OffertaLogica sul telefono</button>
       <div id="iosInstallTip" class="ios-tip" role="status">
         <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12"/><path d="m8 7 4-4 4 4"/><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>
         <p>Per installare l’app: tocca <b>Condividi</b> e poi <b>Aggiungi a Home</b>.</p>
         <button id="iosInstallTipClose" class="ios-tip-close" type="button" aria-label="Chiudi suggerimento"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" style="width:15px;height:15px"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
       </div>
-      <section class="archive-summary home-summary" aria-label="Riepilogo area Premium">
-        <div class="summary-card"><strong id="homeCloudBillCount">0</strong><span>Bollette cloud</span></div>
-        <div class="summary-card"><strong id="homePlanName">Premium</strong><span id="homePlanStatus">Account da collegare</span></div>
+
+      <section class="home-premium-strip" aria-label="Stato Area Premium">
+        <div class="home-premium-icon" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><path d="m3 7 4 4 5-7 5 7 4-4-2 11H5L3 7Z"/><path d="M5 21h14"/></svg></div>
+        <div class="home-premium-copy">
+          <div class="home-premium-heading"><span class="home-premium-label">Area Premium</span><span id="homePremiumBadge" class="pill">ACCESSO RICHIESTO</span></div>
+          <strong id="homePremiumTitle" class="home-premium-title">Collega il tuo account</strong>
+          <p id="homePremiumCopy">Accedi dal Profilo per usare il servizio Premium.</p>
+          <span class="visually-hidden"><span id="homePlanName">Premium</span> · <span id="homePlanStatus">Account da collegare</span></span>
+        </div>
+        <a class="home-premium-link" href="#profile" data-tab-link="profile"><span>Apri il profilo</span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></a>
       </section>
-      <div class="section-title"><h2>Azioni rapide</h2></div>
-      <section class="action-grid" aria-label="Azioni principali">
-        <button class="action" type="button" data-open-tab="bill"><div class="action-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7z"/><path d="M14 2v5h5"/><path d="M9 13h6M9 17h6"/></svg></div><strong>Carica bolletta</strong></button>
-        <button class="action" type="button" data-open-tab="offers"><div class="action-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/><path d="M11 8v6M8 11h6"/></svg></div><strong>Esplora offerte</strong></button>
+
+      <section class="home-action-grid" aria-label="Cosa puoi fare nell’app">
+        <button class="action home-action" type="button" data-open-tab="bill">
+          <div class="action-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7z"/><path d="M14 2v5h5"/><path d="M9 13h6M9 17h6"/></svg></div>
+          <strong>Le tue bollette</strong><small>Carica, consulta e controlla.</small>
+          <span class="home-action-meta"><b id="homeCloudBillCount">0</b> bollette</span>
+          <span class="home-action-arrow" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></span>
+        </button>
+        <button class="action home-action" type="button" data-open-tab="profile" data-scroll-target="premiumUtilitiesCard">
+          <div class="action-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 11 9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg></div>
+          <strong>Le tue utenze</strong><small>Organizza abitazioni, luce e gas.</small>
+          <span class="home-action-arrow" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></span>
+        </button>
+        <a class="action home-action" href="/?entry=app#main-content" data-app-url="/?entry=app#main-content" data-app-title="Calcola il risparmio">
+          <div class="action-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9"/><path d="M10 19V5"/><path d="M16 19v-8"/><path d="M22 19V3"/><path d="M2 19h22"/></svg></div>
+          <strong>Calcola il risparmio</strong><small>Analizza consumi e costi.</small>
+          <span class="home-action-arrow" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></span>
+        </a>
+        <a class="action home-action" href="/offerte-luce-gas-aggiornate.html" data-app-url="/offerte-luce-gas-aggiornate.html" data-app-title="Offerte aggiornate">
+          <div class="action-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.6 13.4 11 23l-9-9V2h12l8 8-1.4 3.4Z"/><circle cx="8.5" cy="8.5" r="1.5"/></svg></div>
+          <strong>Offerte aggiornate</strong><small>Confronta le migliori di oggi.</small>
+          <span class="home-action-arrow" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></span>
+        </a>
       </section>
-      <section class="insight"><div class="insight-head"><strong>Area Premium</strong><span id="homePremiumBadge" class="pill">ACCESSO RICHIESTO</span></div><h3 id="homePremiumTitle">Collega il tuo account</h3><p id="homePremiumCopy">Accedi dal Profilo per usare il servizio Premium.</p><a class="text-link" href="#profile" data-tab-link="profile"><span>Apri il profilo</span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></a></section>
     </section>
 
     <section id="view-bill" class="view" data-view="bill">
@@ -543,7 +668,7 @@
         <a class="list-item" href="/"><div class="list-icon"><svg class="icon" viewBox="0 0 24 24"><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg></div><div class="list-copy"><strong>Apri il sito completo</strong></div><svg class="icon chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></a>
       </div>
 
-      <span class="version-badge">APP Premium v0.36.26</span>
+      <span class="version-badge">APP Premium v0.36.27</span>
     </section>
   </main>
 
@@ -679,7 +804,11 @@
         history.replaceState(null,'','#'+name);scrollTo({top:0,behavior:'smooth'});
       };
       tabs.forEach(tab=>tab.addEventListener('click',()=>openTab(tab.dataset.tab)));
-      document.querySelectorAll('[data-open-tab]').forEach(button=>button.addEventListener('click',()=>openTab(button.dataset.openTab)));
+      document.querySelectorAll('[data-open-tab]').forEach(button=>button.addEventListener('click',()=>{
+        openTab(button.dataset.openTab);
+        const targetId=button.dataset.scrollTarget;if(!targetId)return;
+        requestAnimationFrame(()=>requestAnimationFrame(()=>document.getElementById(targetId)?.scrollIntoView({behavior:'smooth',block:'start'})));
+      }));
       document.querySelectorAll('[data-tab-link]').forEach(link=>link.addEventListener('click',event=>{event.preventDefault();openTab(link.dataset.tabLink)}));
       const initial=location.hash.slice(1);if(['home','bill','offers','profile'].includes(initial))openTab(initial);
       addEventListener('offertalogica:legal-acceptance-required',event=>{
@@ -776,7 +905,7 @@
       });
 
       if(!('serviceWorker' in navigator))return;
-      const CURRENT_RELEASE="0.36.26";
+      const CURRENT_RELEASE="0.36.27";
       let refreshing=false;let activationRequested=false;let registration=null;let pendingWorker=null;let manifestReloadPending=false;let controlledAtStart=Boolean(navigator.serviceWorker.controller);
       const boundRegistrations=new WeakSet();
       let updateCheckInFlight=null;let updateTimer=null;let retryTimer=null;let lastInteractionAt=Date.now();

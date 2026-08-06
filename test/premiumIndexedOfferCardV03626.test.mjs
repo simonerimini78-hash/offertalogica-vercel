@@ -99,11 +99,11 @@ test("un prezzo contrattuale esplicito prevale sul prezzo applicato letto dalla 
   assert.equal(values["Prezzo gas applicato"], undefined);
 });
 
-test("la release v0.36.26 è allineata tra app, staff, manifest e cache", () => {
-  assert.match(appSource, /APP Premium v0\.36\.26/);
-  assert.match(staffSource, /Area staff unica v0\.36\.26/);
-  assert.match(staffPremiumSource, /v0\.36\.26/);
-  assert.match(billsSource, /app_version: "0\.36\.26"/);
-  assert.match(swSource, /offertalogica-premium-v03626/);
-  assert.equal(manifest.version, "0.36.26");
+test("la release v0.36.27 è allineata tra app, staff, manifest e cache", () => {
+  assert.match(appSource, /APP Premium v0\.36\.27/);
+  assert.match(staffSource, /Area staff unica v0\.36\.27/);
+  assert.match(staffPremiumSource, /v0\.36\.27/);
+  assert.match(billsSource, /app_version: "0\.36\.27"/);
+  assert.match(swSource, /offertalogica-premium-v03627/);
+  assert.equal(manifest.version, "0.36.27");
 });

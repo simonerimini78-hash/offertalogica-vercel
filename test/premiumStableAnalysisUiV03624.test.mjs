@@ -24,10 +24,10 @@ test("durante l'analisi i pulsanti restano stabili", () => {
   assert.match(premiumBills, /if \(!refreshedFromServer\) renderEnabled\(\);\s*else scheduleAutomaticWork\(\);/);
 });
 
-test("la release 0.36.26 è allineata tra app, staff, manifest e cache", () => {
-  assert.match(app, /APP Premium v0\.36\.26/);
-  assert.match(staff, /Area staff unica v0\.36\.26/);
-  assert.match(premiumBills, /app_version: "0\.36\.26"/);
-  assert.match(sw, /offertalogica-premium-v03626/);
-  assert.equal(manifest.version, "0.36.26");
+test("la release 0.36.27 è allineata tra app, staff, manifest e cache", () => {
+  assert.match(app, /APP Premium v0\.36\.27/);
+  assert.match(staff, /Area staff unica v0\.36\.27/);
+  assert.match(premiumBills, /app_version: "0\.36\.27"/);
+  assert.match(sw, /offertalogica-premium-v03627/);
+  assert.equal(manifest.version, "0.36.27");
 });
