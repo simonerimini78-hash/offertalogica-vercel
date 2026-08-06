@@ -42,19 +42,19 @@ test("app attende operazioni e staff protegge modifiche non salvate", async () =
   assert.match(staff, /document\.body\.getAttribute\('aria-busy'\)/);
 });
 
-test("il service worker v0.36.23 è limitato alla sola app", async () => {
+test("il service worker v0.36.24 è limitato alla sola app", async () => {
   const sw=await read("public/sw.js");
-  assert.match(sw,/offertalogica-premium-v03623/);
+  assert.match(sw,/offertalogica-premium-v03624/);
   assert.match(sw,/new Request\(url, \{ cache: "reload" \}\)/);
   for (const asset of ["/staff.html","/staff.js","/staff-premium.html","/staff-premium.js","/staff-pdf.html"]) assert.ok(!sw.includes(`"${asset}"`),`asset staff ancora nella cache app: ${asset}`);
   assert.ok(sw.includes('"/premium-ai-validation.js"'));
 });
 
-test("etichette applicative allineate alla v0.36.23", async () => {
+test("etichette applicative allineate alla v0.36.24", async () => {
   const [app,staff,staffPremium,bills]=await Promise.all([read("public/app.html"),read("public/staff.html"),read("public/staff-premium.html"),read("public/app-premium-bills.js")]);
-  assert.match(app,/APP v0\.36\.23/);
-  assert.match(app,/APP Premium v0\.36\.23/);
-  assert.match(staff,/v0\.36\.23/);
-  assert.match(staffPremium,/v0\.36\.23/);
-  assert.match(bills,/app_version:\s*"0\.36\.23"/);
+  assert.match(app,/APP v0\.36\.24/);
+  assert.match(app,/APP Premium v0\.36\.24/);
+  assert.match(staff,/v0\.36\.24/);
+  assert.match(staffPremium,/v0\.36\.24/);
+  assert.match(bills,/app_version:\s*"0\.36\.24"/);
 });

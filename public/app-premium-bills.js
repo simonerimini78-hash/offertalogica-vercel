@@ -4,6 +4,7 @@
   const ACTIVE_SUBSCRIPTION_STATUSES = new Set(["trialing", "active"]);
   const BUCKET = "premium-bills";
   const MAX_FILE_SIZE = 20_000_000;
+  const ANALYSIS_POLL_MS = 5000;
   const BILL_COLUMNS = "id, user_id, utility_id, contract_id, commodity, billing_period_start, billing_period_end, issue_date, due_date, total_amount_eur, original_file_name, file_size, file_sha256, storage_bucket, storage_path, processing_status, customer_status, automatic_screening_status, automatic_screening_summary, automatic_screening_reasons, automatic_screened_at, automatic_analysis_run_id, customer_analysis_data, created_at";
   const UTILITY_COLUMNS = "id, label, supply_type, expected_bills_per_year, status";
   const CONTRACT_COLUMNS = "id, user_id, utility_id, provider_name, offer_name, pricing_type, contract_start, contract_end, fixed_price_expiry, electricity_price_eur_kwh, gas_price_eur_smc, electricity_fixed_fee_eur_year, gas_fixed_fee_eur_year, source, verification_status, is_current, arera_offer_code_electricity, arera_offer_code_gas, electricity_index_name, gas_index_name, electricity_spread_eur_kwh, gas_spread_eur_smc, electricity_formula, gas_formula, automatic_match_status, automatic_match_confidence, automatic_match_method, automatic_match_candidates, automatic_matched_at, automatic_match_catalog_version, customer_confirmation_status, customer_confirmed_at, customer_rejected_at, customer_selected_candidates, customer_confirmation_version, created_at, updated_at";
@@ -124,6 +125,19 @@
   function analysisIsPending(bill) {
     return ["pending", "running"].includes(bill?.automatic_screening_status)
       || ["queued", "analyzing"].includes(bill?.processing_status);
+  }
+
+  function analysisStateFingerprint(bill) {
+    return JSON.stringify({
+      processing_status: bill?.processing_status || "",
+      automatic_screening_status: bill?.automatic_screening_status || "",
+      automatic_screening_summary: bill?.automatic_screening_summary || "",
+      automatic_screening_reasons: Array.isArray(bill?.automatic_screening_reasons) ? bill.automatic_screening_reasons : [],
+      automatic_screened_at: bill?.automatic_screened_at || "",
+      automatic_analysis_run_id: bill?.automatic_analysis_run_id || "",
+      customer_analysis_data: bill?.customer_analysis_data || null,
+      total_amount_eur: finiteBillAmount(bill?.total_amount_eur)
+    });
   }
 
   function automaticStatusCopy(bill) {
@@ -996,7 +1010,15 @@
         toggleButton.textContent = expandedBillIds.has(bill.id) ? "CHIUDI" : (check.status === "completed" ? "VEDI ESITO" : "VEDI STATO");
         actions.append(toggleButton);
       } else {
-        if (!["not_run"].includes(bill.automatic_screening_status)) {
+        if (analysisIsPending(bill)) {
+          const pendingButton = document.createElement("button");
+          pendingButton.type = "button";
+          pendingButton.className = "cloud-bill-btn";
+          pendingButton.dataset.permanentDisabled = "true";
+          pendingButton.disabled = true;
+          pendingButton.textContent = "ANALISI IN CORSO";
+          actions.append(pendingButton);
+        } else if (!["not_run"].includes(bill.automatic_screening_status)) {
           const toggleButton = document.createElement("button");
           toggleButton.type = "button";
           toggleButton.className = "cloud-bill-btn";
@@ -1140,7 +1162,7 @@
           customer_status: "awaiting_review",
           metadata: {
             source: "premium_app",
-            app_version: "0.36.23",
+            app_version: "0.36.24",
             automatic_analysis: true,
             upload_complete: false
           }
@@ -1194,7 +1216,6 @@
 
       bills = [insertResult.data, ...bills];
       periodBillCount += 1;
-      renderEnabled();
       setMessage("info", "Bolletta salvata. Analisi in corso.");
       window.dispatchEvent(new CustomEvent("offertalogica:cloud-bills-changed"));
       await runAutomaticAnalysis(billId, { announce: true });
@@ -1341,6 +1362,8 @@
     bill.processing_status = "analyzing";
     renderEnabled();
     if (announce) setMessage("info", "Analisi in corso. Puoi continuare a usare l’app.");
+
+    let refreshedFromServer = false;
     try {
       const { data: sessionData, error: sessionError } = await client.auth.getSession();
       if (sessionError) throw sessionError;
@@ -1357,6 +1380,7 @@
       const body = await response.json().catch(() => ({}));
       if (!response.ok || !body?.ok) throw new Error(body?.error || body?.code || "Analisi automatica non riuscita");
       await loadData(currentUser, currentSubscription);
+      refreshedFromServer = true;
       const updated = bills.find(item => item.id === id);
       if (announce || updated?.automatic_screening_status !== "clear") {
         setMessage(updated?.automatic_screening_status === "clear" ? "success" : "info",
@@ -1364,13 +1388,44 @@
       }
       window.dispatchEvent(new CustomEvent("offertalogica:automatic-analysis-completed", { detail: { billId: id, screening: body.screening } }));
     } catch (error) {
-      await loadData(currentUser, currentSubscription).catch(() => {});
+      try {
+        await loadData(currentUser, currentSubscription);
+        refreshedFromServer = true;
+      } catch {}
       setMessage("error", `${friendlyError(error)} Riprova oppure carica un PDF più leggibile.`);
     } finally {
       analysisInFlightIds.delete(id);
       syncUpdateBusyState();
-      renderEnabled();
+      if (!refreshedFromServer) renderEnabled();
+      else scheduleAutomaticWork();
     }
+  }
+
+  async function refreshPendingAnalyses() {
+    if (!client || !currentUser) return;
+    const pendingIds = bills
+      .filter(bill => analysisIsPending(bill) && !analysisInFlightIds.has(bill.id))
+      .map(bill => bill.id);
+    if (!pendingIds.length) return;
+
+    const result = await client
+      .from("premium_bills")
+      .select(BILL_COLUMNS)
+      .eq("user_id", currentUser.id)
+      .in("id", pendingIds);
+    if (result.error) throw result.error;
+
+    const refreshed = new Map((Array.isArray(result.data) ? result.data : []).map(bill => [bill.id, bill]));
+    let changed = false;
+    bills = bills.map(bill => {
+      const updated = refreshed.get(bill.id);
+      if (!updated) return bill;
+      if (analysisStateFingerprint(updated) !== analysisStateFingerprint(bill)) changed = true;
+      return updated;
+    });
+
+    if (changed) renderEnabled();
+    else scheduleAutomaticWork();
   }
 
   function scheduleAutomaticWork() {
@@ -1385,10 +1440,18 @@
       window.setTimeout(() => runAutomaticAnalysis(recentPending.id), 100);
       return;
     }
-    if (bills.some(bill => bill.processing_status === "analyzing" || bill.automatic_screening_status === "running")) {
+    const serverPending = bills.some(bill =>
+      analysisIsPending(bill) && !analysisInFlightIds.has(bill.id)
+    );
+    if (serverPending) {
       pollTimer = window.setTimeout(async () => {
-        try { await loadData(currentUser, currentSubscription); } catch {}
-      }, 5000);
+        pollTimer = null;
+        try {
+          await refreshPendingAnalyses();
+        } catch {
+          scheduleAutomaticWork();
+        }
+      }, ANALYSIS_POLL_MS);
     }
   }
 
