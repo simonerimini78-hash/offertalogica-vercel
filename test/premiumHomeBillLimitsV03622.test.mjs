@@ -35,7 +35,7 @@ test("prova gratuita resta a una abitazione e quattro bollette", async () => {
 
 test("Liquid Glass argento e testi piano sono più leggibili senza cambiare layout", async () => {
   const app=await read("public/app.html");
-  assert.match(app,/v0\.36\.25 — fondo argento/);
+  assert.match(app,/v0\.36\.26 — fondo argento/);
   assert.match(app,/linear-gradient\(155deg,#eef2f0 0%,#d1d8d5 50%,#f3f5f4 100%\)/);
   assert.match(app,/linear-gradient\(145deg,#087b39 0%,#0ea046 48%,#7dcd2b 100%\)/);
   assert.match(app,/premium-plan-card \.premium-point\{[^}]*font-size:13px/);
@@ -45,8 +45,8 @@ test("Liquid Glass argento e testi piano sono più leggibili senza cambiare layo
 
 test("app automatica e staff manuale usano il manifest anti-cache", async () => {
   const [app,staff,manifest,sw]=await Promise.all([read("public/app.html"),read("public/staff.html"),read("public/version.json"),read("public/sw.js")]);
-  assert.equal(JSON.parse(manifest).version,"0.36.25");
-  assert.match(sw,/offertalogica-premium-v03625/);
+  assert.equal(JSON.parse(manifest).version,"0.36.26");
+  assert.match(sw,/offertalogica-premium-v03626/);
   assert.match(app,/setInterval\(checkForUpdate,30000\)/);
   assert.match(app,/worker\.postMessage\(\{type:'SKIP_WAITING'\}\)/);
   assert.match(staff,/id="staffApplyUpdate"/);
@@ -54,7 +54,7 @@ test("app automatica e staff manuale usano il manifest anti-cache", async () => 
   assert.match(staff,/Aggiorna quando hai terminato il lavoro/);
 });
 
-test("v0.36.25 resta entro 12 funzioni Vercel", async () => {
+test("v0.36.26 resta entro 12 funzioni Vercel", async () => {
   const api=(await readdir(new URL("../api/",import.meta.url))).filter(name=>name.endsWith(".js"));
   assert.equal(api.length,12);
 });

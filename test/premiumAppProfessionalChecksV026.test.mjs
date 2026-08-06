@@ -11,7 +11,7 @@ const trafficMigration = await readFile(new URL('../supabase/premium-traffic-lig
 const trafficVerify = await readFile(new URL('../supabase/premium-traffic-light-v0.36.3-verify.sql', import.meta.url), 'utf8');
 
 test('Premium v0.36.3 limita la richiesta umana alle anomalie rosse', () => {
-  assert.match(html, /APP Premium v0\.36\.25/);
+  assert.match(html, /APP Premium v0\.36\.26/);
   assert.match(html, /La verifica dello staff è disponibile solo per le anomalie rosse/);
   assert.doesNotMatch(html, /FLUSSO ATTIVO|Ogni bolletta viene analizzata dall’IA/);
   assert.match(cloudBills, /function canRequestCheck\(bill, check\)/);
@@ -89,7 +89,7 @@ test('La regola server accetta soltanto il rosso', () => {
 });
 
 test('Cache e frontend non contengono chiavi segrete', () => {
-  assert.match(sw, /offertalogica-premium-v03625/);
+  assert.match(sw, /offertalogica-premium-v03626/);
   assert.doesNotMatch(sw, /offertalogica-premium-v25/);
   assert.doesNotMatch(cloudBills, /service_role/i);
   assert.doesNotMatch(cloudBills, /sb_secret_/i);

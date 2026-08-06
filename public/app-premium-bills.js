@@ -556,9 +556,16 @@
     return ({ fixed: "Prezzo fisso", indexed: "Prezzo indicizzato", mixed: "Prezzo misto", unknown: "Tipo non definito" })[value] || "Tipo non definito";
   }
 
-  function formatUnitPrice(value, unit) {
+  function finiteNumberOrNull(value) {
+    if (value === null || value === undefined) return null;
+    if (typeof value === "string" && value.trim() === "") return null;
     const amount = Number(value);
-    if (!Number.isFinite(amount)) return "—";
+    return Number.isFinite(amount) ? amount : null;
+  }
+
+  function formatUnitPrice(value, unit) {
+    const amount = finiteNumberOrNull(value);
+    if (amount === null) return "—";
     return `${amount.toFixed(6).replace(/0+$/, "").replace(/\.$/, "").replace(".", ",")} ${unit}`;
   }
 
@@ -603,36 +610,61 @@
   function candidateText(candidate) {
     const parts = [candidate.offerName || "Offerta senza nome"];
     if (candidate.providerName) parts.push(candidate.providerName);
-    if (candidate.priceType === "fisso" && Number.isFinite(Number(candidate.price))) {
-      parts.push(formatUnitPrice(candidate.price, candidate.commodity === "gas" ? "€/Smc" : "€/kWh"));
+    const candidatePrice = finiteNumberOrNull(candidate.price);
+    if (candidate.priceType === "fisso" && candidatePrice !== null) {
+      parts.push(formatUnitPrice(candidatePrice, candidate.commodity === "gas" ? "€/Smc" : "€/kWh"));
     } else if (candidate.priceType === "variabile") {
       const index = candidate.indexName || (candidate.commodity === "gas" ? "PSV" : "PUN");
-      const spread = Number(candidate.spreadEstimate);
-      parts.push(Number.isFinite(spread) ? `${index} + ${formatUnitPrice(spread, candidate.commodity === "gas" ? "€/Smc" : "€/kWh")}` : index);
+      const spread = finiteNumberOrNull(candidate.spreadEstimate);
+      parts.push(spread !== null ? `${index} + ${formatUnitPrice(spread, candidate.commodity === "gas" ? "€/Smc" : "€/kWh")}` : index);
     }
-    if (Number.isFinite(Number(candidate.annualFixedFee))) parts.push(`${formatMoney(candidate.annualFixedFee)}/anno`);
+    const annualFixedFee = finiteNumberOrNull(candidate.annualFixedFee);
+    if (annualFixedFee !== null) parts.push(`${formatMoney(annualFixedFee)}/anno`);
     return parts.join(" · ");
   }
 
-  function offerRows(contract) {
+  function offerRows(contract, bill) {
     const rows = [];
+    const analysis = analysisDataForBill(bill);
     if (contract.provider_name) rows.push(["Fornitore", contract.provider_name]);
     if (contract.offer_name) rows.push(["Offerta", contract.offer_name]);
     rows.push(["Struttura", priceTypeLabel(contract.pricing_type)]);
     if (contract.arera_offer_code_electricity) rows.push(["Codice luce", contract.arera_offer_code_electricity]);
     if (contract.arera_offer_code_gas) rows.push(["Codice gas", contract.arera_offer_code_gas]);
-    if (Number.isFinite(Number(contract.electricity_price_eur_kwh))) rows.push(["Prezzo luce", formatUnitPrice(contract.electricity_price_eur_kwh, "€/kWh")]);
-    if (Number.isFinite(Number(contract.gas_price_eur_smc))) rows.push(["Prezzo gas", formatUnitPrice(contract.gas_price_eur_smc, "€/Smc")]);
-    if (contract.electricity_index_name) {
-      const spread = Number(contract.electricity_spread_eur_kwh);
-      rows.push(["Formula luce", Number.isFinite(spread) ? `${contract.electricity_index_name} + ${formatUnitPrice(spread, "€/kWh")}` : contract.electricity_index_name]);
+
+    const electricityContractPrice = finiteNumberOrNull(contract.electricity_price_eur_kwh);
+    const gasContractPrice = finiteNumberOrNull(contract.gas_price_eur_smc);
+    const electricityAppliedPrice = finiteNumberOrNull(analysis.prezzo_luce_eur_kwh);
+    const gasAppliedPrice = finiteNumberOrNull(analysis.prezzo_gas_eur_smc);
+
+    if (electricityContractPrice !== null) {
+      rows.push(["Prezzo luce", formatUnitPrice(electricityContractPrice, "€/kWh")]);
+    } else if (electricityAppliedPrice !== null) {
+      rows.push(["Prezzo luce applicato", formatUnitPrice(electricityAppliedPrice, "€/kWh")]);
     }
-    if (contract.gas_index_name) {
-      const spread = Number(contract.gas_spread_eur_smc);
-      rows.push(["Formula gas", Number.isFinite(spread) ? `${contract.gas_index_name} + ${formatUnitPrice(spread, "€/Smc")}` : contract.gas_index_name]);
+    if (gasContractPrice !== null) {
+      rows.push(["Prezzo gas", formatUnitPrice(gasContractPrice, "€/Smc")]);
+    } else if (gasAppliedPrice !== null) {
+      rows.push(["Prezzo gas applicato", formatUnitPrice(gasAppliedPrice, "€/Smc")]);
     }
-    if (Number.isFinite(Number(contract.electricity_fixed_fee_eur_year))) rows.push(["Quota fissa luce", `${formatMoney(contract.electricity_fixed_fee_eur_year)}/anno`]);
-    if (Number.isFinite(Number(contract.gas_fixed_fee_eur_year))) rows.push(["Quota fissa gas", `${formatMoney(contract.gas_fixed_fee_eur_year)}/anno`]);
+
+    if (contract.electricity_formula) {
+      rows.push(["Formula luce", contract.electricity_formula]);
+    } else if (contract.electricity_index_name) {
+      const spread = finiteNumberOrNull(contract.electricity_spread_eur_kwh);
+      rows.push(["Formula luce", spread !== null ? `${contract.electricity_index_name} + ${formatUnitPrice(spread, "€/kWh")}` : contract.electricity_index_name]);
+    }
+    if (contract.gas_formula) {
+      rows.push(["Formula gas", contract.gas_formula]);
+    } else if (contract.gas_index_name) {
+      const spread = finiteNumberOrNull(contract.gas_spread_eur_smc);
+      rows.push(["Formula gas", spread !== null ? `${contract.gas_index_name} + ${formatUnitPrice(spread, "€/Smc")}` : contract.gas_index_name]);
+    }
+
+    const electricityFixedFee = finiteNumberOrNull(contract.electricity_fixed_fee_eur_year);
+    const gasFixedFee = finiteNumberOrNull(contract.gas_fixed_fee_eur_year);
+    if (electricityFixedFee !== null) rows.push(["Quota fissa luce", `${formatMoney(electricityFixedFee)}/anno`]);
+    if (gasFixedFee !== null) rows.push(["Quota fissa gas", `${formatMoney(gasFixedFee)}/anno`]);
     if (contract.fixed_price_expiry) rows.push(["Scadenza condizioni", formatDate(contract.fixed_price_expiry)]);
     return rows;
   }
@@ -667,7 +699,7 @@
     intro.textContent = offerIntro(contract);
     card.append(head, intro);
 
-    const rows = offerRows(contract);
+    const rows = offerRows(contract, bill);
     if (rows.length) {
       const grid = document.createElement("div");
       grid.className = "cloud-offer-grid";
@@ -1318,7 +1350,7 @@
           customer_status: "awaiting_review",
           metadata: {
             source: "premium_app",
-            app_version: "0.36.25",
+            app_version: "0.36.26",
             automatic_analysis: true,
             upload_complete: false
           }

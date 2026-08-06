@@ -119,10 +119,10 @@ test("l'area staff mostra prima i dati, separa i dettagli tecnici e mette le ano
 });
 
 test("app, staff e cache sono allineati alla release corrente", () => {
-  assert.match(app, /APP Premium v0\.36\.25/);
-  assert.match(premiumBills, /app_version: "0\.36\.25"/);
-  assert.match(staffHtml, /Area staff unica v0\.36\.25/);
-  assert.match(staffHtml, /controllo costi · v0\.36\.25/);
-  assert.match(sw, /offertalogica-premium-v03625/);
+  assert.match(app, /APP Premium v0\.36\.26/);
+  assert.match(premiumBills, /app_version: "0\.36\.26"/);
+  assert.match(staffHtml, /Area staff unica v0\.36\.26/);
+  assert.match(staffHtml, /controllo costi · v0\.36\.26/);
+  assert.match(sw, /offertalogica-premium-v03626/);
   assert.match(sw, /"\/app-dialog\.js"/);
 });
