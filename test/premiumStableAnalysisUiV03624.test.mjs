@@ -16,16 +16,18 @@ test("l'analisi locale non avvia il polling che ricostruiva la lista ogni cinque
 });
 
 test("durante l'analisi i pulsanti restano stabili", () => {
-  assert.match(premiumBills, /pendingButton\.textContent = "ANALISI IN CORSO"/);
-  assert.match(premiumBills, /pendingButton\.dataset\.permanentDisabled = "true"/);
+  assert.match(premiumBills, /button\.textContent = "ANALISI IN CORSO"/);
+  assert.match(premiumBills, /button\.dataset\.permanentDisabled = "true"/);
   assert.match(premiumBills, /openButton\.textContent = "APRI"/);
+  assert.match(premiumBills, /const sameRows = existingIds\.length === currentIds\.length/);
+  assert.match(premiumBills, /updateBillArticle\(/);
   assert.match(premiumBills, /if \(!refreshedFromServer\) renderEnabled\(\);\s*else scheduleAutomaticWork\(\);/);
 });
 
-test("la release 0.36.24 è allineata tra app, staff, manifest e cache", () => {
-  assert.match(app, /APP Premium v0\.36\.24/);
-  assert.match(staff, /Area staff unica v0\.36\.24/);
-  assert.match(premiumBills, /app_version: "0\.36\.24"/);
-  assert.match(sw, /offertalogica-premium-v03624/);
-  assert.equal(manifest.version, "0.36.24");
+test("la release 0.36.25 è allineata tra app, staff, manifest e cache", () => {
+  assert.match(app, /APP Premium v0\.36\.25/);
+  assert.match(staff, /Area staff unica v0\.36\.25/);
+  assert.match(premiumBills, /app_version: "0\.36\.25"/);
+  assert.match(sw, /offertalogica-premium-v03625/);
+  assert.equal(manifest.version, "0.36.25");
 });

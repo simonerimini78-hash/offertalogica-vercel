@@ -5,7 +5,8 @@
   const BUCKET = "premium-bills";
   const MAX_FILE_SIZE = 20_000_000;
   const ANALYSIS_POLL_MS = 5000;
-  const BILL_COLUMNS = "id, user_id, utility_id, contract_id, commodity, billing_period_start, billing_period_end, issue_date, due_date, total_amount_eur, original_file_name, file_size, file_sha256, storage_bucket, storage_path, processing_status, customer_status, automatic_screening_status, automatic_screening_summary, automatic_screening_reasons, automatic_screened_at, automatic_analysis_run_id, customer_analysis_data, created_at";
+  const ANALYSIS_STALE_MS = 90000;
+  const BILL_COLUMNS = "id, user_id, utility_id, contract_id, commodity, billing_period_start, billing_period_end, issue_date, due_date, total_amount_eur, original_file_name, file_size, file_sha256, storage_bucket, storage_path, processing_status, customer_status, automatic_screening_status, automatic_screening_summary, automatic_screening_reasons, automatic_screened_at, automatic_analysis_run_id, customer_analysis_data, created_at, updated_at";
   const UTILITY_COLUMNS = "id, label, supply_type, expected_bills_per_year, status";
   const CONTRACT_COLUMNS = "id, user_id, utility_id, provider_name, offer_name, pricing_type, contract_start, contract_end, fixed_price_expiry, electricity_price_eur_kwh, gas_price_eur_smc, electricity_fixed_fee_eur_year, gas_fixed_fee_eur_year, source, verification_status, is_current, arera_offer_code_electricity, arera_offer_code_gas, electricity_index_name, gas_index_name, electricity_spread_eur_kwh, gas_spread_eur_smc, electricity_formula, gas_formula, automatic_match_status, automatic_match_confidence, automatic_match_method, automatic_match_candidates, automatic_matched_at, automatic_match_catalog_version, customer_confirmation_status, customer_confirmed_at, customer_rejected_at, customer_selected_candidates, customer_confirmation_version, created_at, updated_at";
   const CHECK_COLUMNS = "id, bill_id, user_id, status, outcome, summary, customer_message, started_at, completed_at, created_at, updated_at";
@@ -28,6 +29,7 @@
   let busy = false;
   const expandedBillIds = new Set();
   const analysisInFlightIds = new Set();
+  const analysisAttemptFailures = new Set();
   let pollTimer = null;
   let checkConfirmationResolve = null;
   let checkConfirmationPreviousFocus = null;
@@ -122,9 +124,42 @@
     return Number.isFinite(amount) ? amount : null;
   }
 
-  function analysisIsPending(bill) {
-    return ["pending", "running"].includes(bill?.automatic_screening_status)
+  function analysisIsServerRunning(bill) {
+    return bill?.automatic_screening_status === "running"
       || ["queued", "analyzing"].includes(bill?.processing_status);
+  }
+
+  function analysisIsReadyToStart(bill) {
+    return ["pending", "not_run", ""].includes(String(bill?.automatic_screening_status || ""))
+      && ["uploaded", "ready_for_review", ""].includes(String(bill?.processing_status || ""));
+  }
+
+  function analysisStatusTime(bill) {
+    const value = bill?.updated_at || bill?.automatic_screened_at || bill?.created_at;
+    const timestamp = new Date(value || 0).getTime();
+    return Number.isFinite(timestamp) ? timestamp : 0;
+  }
+
+  function analysisIsStale(bill) {
+    if (!analysisIsServerRunning(bill)) return false;
+    const timestamp = analysisStatusTime(bill);
+    return timestamp > 0 && Date.now() - timestamp >= ANALYSIS_STALE_MS;
+  }
+
+  function analysisIsPending(bill) {
+    const running = bill?.automatic_screening_status === "running"
+      || ["queued", "analyzing"].includes(bill?.processing_status);
+    if (!running) return false;
+    const value = bill?.updated_at || bill?.automatic_screened_at || bill?.created_at;
+    const timestamp = new Date(value || 0).getTime();
+    return !(Number.isFinite(timestamp) && timestamp > 0 && Date.now() - timestamp >= 90000);
+  }
+
+  function analysisNeedsRetry(bill) {
+    return analysisAttemptFailures.has(bill?.id)
+      || analysisIsStale(bill)
+      || bill?.automatic_screening_status === "failed"
+      || bill?.processing_status === "failed";
   }
 
   function analysisStateFingerprint(bill) {
@@ -136,15 +171,18 @@
       automatic_screened_at: bill?.automatic_screened_at || "",
       automatic_analysis_run_id: bill?.automatic_analysis_run_id || "",
       customer_analysis_data: bill?.customer_analysis_data || null,
-      total_amount_eur: finiteBillAmount(bill?.total_amount_eur)
+      total_amount_eur: finiteBillAmount(bill?.total_amount_eur),
+      updated_at: bill?.updated_at || "",
+      ui_state: analysisIsStale(bill) ? "stale" : (analysisAttemptFailures.has(bill?.id) ? "retry" : "")
     });
   }
 
   function automaticStatusCopy(bill) {
     const status = bill?.automatic_screening_status;
     if (status === "clear") return "Bolletta verificata. Non sono state rilevate anomalie.";
+    if (analysisIsStale(bill)) return "L’analisi si è interrotta. Premi RIPROVA ANALISI per avviarla di nuovo.";
     if (status === "running") return "Analisi della bolletta in corso. Il risultato comparirà appena disponibile.";
-    if (status === "pending") return "La bolletta è in attesa di analisi.";
+    if (status === "pending") return "La bolletta è pronta per l’analisi.";
     const summary = String(bill?.automatic_screening_summary || "").trim();
     if (summary) return summary;
     return ({
@@ -189,7 +227,7 @@
       if (check.outcome === "correct") return "green";
     }
     if (bill.automatic_screening_status === "review_recommended") return "red";
-    if (["inconclusive", "failed"].includes(bill.automatic_screening_status)) return "yellow";
+    if (analysisIsStale(bill) || ["inconclusive", "failed"].includes(bill.automatic_screening_status)) return "yellow";
     if (bill.automatic_screening_status === "clear") return "green";
     return "neutral";
   }
@@ -207,7 +245,9 @@
       }[check.outcome] || "Completato";
     }
     if (check?.status === "canceled") return "Annullato";
-    if (["pending", "running"].includes(bill.automatic_screening_status) || ["queued", "analyzing"].includes(bill.processing_status)) return "Analisi in corso";
+    if (analysisIsStale(bill)) return "Analisi interrotta";
+    if (analysisIsPending(bill)) return "Analisi in corso";
+    if (analysisIsReadyToStart(bill)) return analysisAttemptFailures.has(bill.id) ? "Analisi da riprovare" : "Da analizzare";
     if (bill.automatic_screening_status === "clear") return "Verde · Regolare";
     if (bill.automatic_screening_status === "review_recommended") return "Rosso · Anomalia";
     if (["inconclusive", "failed"].includes(bill.automatic_screening_status)) return "Giallo · Avviso";
@@ -405,6 +445,9 @@
     checks = [];
     anomalies = [];
     expandedBillIds.clear();
+    analysisAttemptFailures.clear();
+    analysisInFlightIds.clear();
+    if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
     periodBillCount = 0;
     if (state.locked) state.locked.hidden = false;
     if (state.enabled) state.enabled.hidden = true;
@@ -464,9 +507,9 @@
     if (state.noUtilities) state.noUtilities.hidden = maintenanceMode || utilities.length > 0;
     if (state.utilitySelect) state.utilitySelect.hidden = maintenanceMode || utilities.length === 0;
     if (state.uploadButton) state.uploadButton.hidden = maintenanceMode || utilities.length === 0;
-    setBusy(false);
     renderCloudSpend();
     renderList();
+    setBusy(busy);
     if (!maintenanceMode) scheduleAutomaticWork();
     else if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
   }
@@ -931,19 +974,196 @@
     return detail;
   }
 
-  function renderList() {
-    if (!state.list || !state.empty) return;
-    state.list.replaceChildren();
+  function clearButtonAction(button) {
+    if (!button) return;
+    [
+      "cloudCheckToggle",
+      "cloudAnalysisRetry",
+      "cloudAutomaticToggle",
+      "cloudCheckRequest",
+      "cloudBillDelete"
+    ].forEach(key => { delete button.dataset[key]; });
+    delete button.dataset.permanentDisabled;
+  }
 
-    if (!bills.length) {
-      state.empty.hidden = false;
-      state.list.hidden = true;
-      return;
+  function configureAnalysisButton(button, bill) {
+    if (!button) return;
+    clearButtonAction(button);
+    button.hidden = false;
+    button.className = "cloud-bill-btn";
+    if (analysisIsPending(bill)) {
+      button.dataset.permanentDisabled = "true";
+      button.disabled = true;
+      button.textContent = "ANALISI IN CORSO";
+    } else if (analysisNeedsRetry(bill)) {
+      button.dataset.cloudAnalysisRetry = bill.id;
+      button.disabled = Boolean(busy);
+      button.textContent = "RIPROVA ANALISI";
+    } else if (analysisIsReadyToStart(bill)) {
+      button.dataset.cloudAnalysisRetry = bill.id;
+      button.disabled = Boolean(busy);
+      button.textContent = "AVVIA ANALISI";
+    } else {
+      button.dataset.cloudAutomaticToggle = bill.id;
+      button.disabled = Boolean(busy);
+      button.textContent = expandedBillIds.has(bill.id) ? "CHIUDI" : "VEDI ANALISI";
+    }
+  }
+
+  function configureRequestButton(button, bill, check) {
+    if (!button) return;
+    clearButtonAction(button);
+    button.className = "cloud-bill-btn primary";
+    if (canRequestCheck(bill, check)) {
+      button.hidden = false;
+      button.dataset.cloudCheckRequest = bill.id;
+      button.disabled = Boolean(busy);
+      button.textContent = "RICHIEDI CONTROLLO";
+    } else if (isRedCheckRequestable(bill, check) && trialStaffCheckUsed()) {
+      button.hidden = false;
+      button.className = "cloud-bill-btn";
+      button.dataset.permanentDisabled = "true";
+      button.disabled = true;
+      button.textContent = "CONTROLLO PROVA GIÀ USATO";
+    } else {
+      button.hidden = true;
+      button.dataset.permanentDisabled = "true";
+      button.disabled = true;
+      button.textContent = "RICHIEDI CONTROLLO";
+    }
+  }
+
+  function configureDeleteButton(button, bill, check) {
+    if (!button) return;
+    clearButtonAction(button);
+    button.className = "cloud-bill-btn danger";
+    button.textContent = "ELIMINA";
+    const allowed = canDeleteBill(bill, check);
+    button.hidden = false;
+    if (allowed) {
+      button.dataset.cloudBillDelete = bill.id;
+      button.disabled = Boolean(busy);
+    } else {
+      button.dataset.permanentDisabled = "true";
+      button.disabled = true;
+    }
+  }
+
+  function replaceBillDetail(article, bill, check, billAnomalies) {
+    article.querySelectorAll("[data-cloud-check-detail], [data-cloud-automatic-detail]").forEach(detail => detail.remove());
+    if (check) article.append(renderCheckDetail(bill, check, billAnomalies));
+    else if (bill.automatic_screening_status !== "not_run") article.append(renderAutomaticDetail(bill));
+  }
+
+  function updateBillArticle(article, bill, utility, check, billAnomalies) {
+    article.className = `cloud-bill-item${check ? " has-check" : ""}`;
+    article.dataset.cloudBillId = bill.id;
+    article.dataset.hasCheck = check ? "true" : "false";
+
+    setText(article.querySelector('[data-bill-role="title"]'), bill.original_file_name || "Bolletta.pdf");
+    setText(article.querySelector('[data-bill-role="utility"]'), utility?.label || "Utenza");
+    const numericAmount = finiteBillAmount(bill.total_amount_eur);
+    const amount = numericAmount !== null
+      ? formatMoney(numericAmount)
+      : (analysisIsPending(bill) ? "Importo in lettura" : "Importo non disponibile");
+    setText(article.querySelector('[data-bill-role="meta"]'), `${formatPeriod(bill)} · ${amount} · ${formatSize(bill.file_size)}`);
+
+    const contract = contractForBill(bill);
+    const offerMeta = article.querySelector('[data-bill-role="offer"]');
+    if (offerMeta) {
+      offerMeta.hidden = !contract;
+      offerMeta.textContent = contract
+        ? `Offerta: ${contract.offer_name || contract.provider_name || "provvisoria"} · ${offerBadge(contract).toLowerCase()}`
+        : "";
     }
 
-    state.empty.hidden = true;
-    state.list.hidden = false;
+    const badge = article.querySelector('[data-bill-role="status"]');
+    if (badge) {
+      badge.className = `cloud-bill-status ${trafficLight(bill, check)}`;
+      badge.textContent = statusLabel(bill, check);
+    }
 
+    const analysisButton = article.querySelector('[data-bill-role="analysis"]');
+    const checkButton = article.querySelector('[data-bill-role="check"]');
+    const requestButton = article.querySelector('[data-bill-role="request"]');
+    if (check) {
+      if (analysisButton) analysisButton.hidden = true;
+      if (requestButton) requestButton.hidden = true;
+      if (checkButton) {
+        clearButtonAction(checkButton);
+        checkButton.hidden = false;
+        checkButton.className = "cloud-bill-btn primary";
+        checkButton.dataset.cloudCheckToggle = bill.id;
+        checkButton.disabled = Boolean(busy);
+        checkButton.textContent = expandedBillIds.has(bill.id) ? "CHIUDI" : (check.status === "completed" ? "VEDI ESITO" : "VEDI STATO");
+      }
+    } else {
+      if (checkButton) checkButton.hidden = true;
+      configureAnalysisButton(analysisButton, bill);
+      configureRequestButton(requestButton, bill, check);
+    }
+    configureDeleteButton(article.querySelector('[data-bill-role="delete"]'), bill, check);
+    replaceBillDetail(article, bill, check, billAnomalies);
+    article.dataset.analysisFingerprint = analysisStateFingerprint(bill);
+  }
+
+  function createBillArticle(bill, utility, check, billAnomalies) {
+    const article = document.createElement("article");
+    article.dataset.cloudBillId = bill.id;
+
+    const icon = document.createElement("div");
+    icon.className = "cloud-bill-icon";
+    icon.setAttribute("aria-hidden", "true");
+    icon.textContent = "PDF";
+
+    const copy = document.createElement("div");
+    copy.className = "cloud-bill-copy";
+    const title = document.createElement("strong");
+    title.dataset.billRole = "title";
+    const utilityName = document.createElement("span");
+    utilityName.dataset.billRole = "utility";
+    const meta = document.createElement("small");
+    meta.dataset.billRole = "meta";
+    const offerMeta = document.createElement("small");
+    offerMeta.dataset.billRole = "offer";
+    copy.append(title, utilityName, meta, offerMeta);
+
+    const badge = document.createElement("span");
+    badge.dataset.billRole = "status";
+
+    const actions = document.createElement("div");
+    actions.className = "cloud-bill-actions";
+
+    const openButton = document.createElement("button");
+    openButton.type = "button";
+    openButton.className = "cloud-bill-btn";
+    openButton.dataset.cloudBillOpen = bill.id;
+    openButton.dataset.billRole = "open";
+    openButton.textContent = "APRI";
+
+    const analysisButton = document.createElement("button");
+    analysisButton.type = "button";
+    analysisButton.dataset.billRole = "analysis";
+
+    const checkButton = document.createElement("button");
+    checkButton.type = "button";
+    checkButton.dataset.billRole = "check";
+
+    const requestButton = document.createElement("button");
+    requestButton.type = "button";
+    requestButton.dataset.billRole = "request";
+
+    const deleteButton = document.createElement("button");
+    deleteButton.type = "button";
+    deleteButton.dataset.billRole = "delete";
+
+    actions.append(openButton, analysisButton, checkButton, requestButton, deleteButton);
+    article.append(icon, copy, badge, actions);
+    updateBillArticle(article, bill, utility, check, billAnomalies);
+    return article;
+  }
+
+  function billRenderMaps() {
     const utilityMap = new Map(utilities.map(utility => [utility.id, utility]));
     const checkMap = new Map();
     checks.forEach(check => {
@@ -955,116 +1175,52 @@
       group.push(anomaly);
       anomalyMap.set(anomaly.bill_id, group);
     });
+    return { utilityMap, checkMap, anomalyMap };
+  }
 
-    bills.forEach(bill => {
-      const utility = utilityMap.get(bill.utility_id);
+  function renderList() {
+    if (!state.list || !state.empty) return;
+
+    if (!bills.length) {
+      state.list.replaceChildren();
+      state.empty.hidden = false;
+      state.list.hidden = true;
+      return;
+    }
+
+    state.empty.hidden = true;
+    state.list.hidden = false;
+    const { utilityMap, checkMap, anomalyMap } = billRenderMaps();
+    const existingArticles = [...state.list.querySelectorAll(":scope > [data-cloud-bill-id]")];
+    const existingIds = existingArticles.map(article => article.dataset.cloudBillId);
+    const currentIds = bills.map(bill => bill.id);
+    const sameRows = existingIds.length === currentIds.length
+      && existingIds.every((id, index) => id === currentIds[index]);
+
+    if (!sameRows) {
+      const fragment = document.createDocumentFragment();
+      bills.forEach(bill => {
+        fragment.append(createBillArticle(
+          bill,
+          utilityMap.get(bill.utility_id),
+          checkMap.get(bill.id) || null,
+          anomalyMap.get(bill.id) || []
+        ));
+      });
+      state.list.replaceChildren(fragment);
+      return;
+    }
+
+    bills.forEach((bill, index) => {
+      const article = existingArticles[index];
       const check = checkMap.get(bill.id) || null;
-      const contract = contractForBill(bill);
-      const billAnomalies = anomalyMap.get(bill.id) || [];
-      const article = document.createElement("article");
-      article.className = `cloud-bill-item${check ? " has-check" : ""}`;
-      article.dataset.cloudBillId = bill.id;
-
-      const icon = document.createElement("div");
-      icon.className = "cloud-bill-icon";
-      icon.setAttribute("aria-hidden", "true");
-      icon.textContent = "PDF";
-
-      const copy = document.createElement("div");
-      copy.className = "cloud-bill-copy";
-      const title = document.createElement("strong");
-      title.textContent = bill.original_file_name || "Bolletta.pdf";
-      const utilityName = document.createElement("span");
-      utilityName.textContent = utility?.label || "Utenza";
-      const meta = document.createElement("small");
-      const numericAmount = finiteBillAmount(bill.total_amount_eur);
-      const amount = numericAmount !== null
-        ? formatMoney(numericAmount)
-        : (analysisIsPending(bill) ? "Importo in lettura" : "Importo non disponibile");
-      meta.textContent = `${formatPeriod(bill)} · ${amount} · ${formatSize(bill.file_size)}`;
-      copy.append(title, utilityName, meta);
-      if (contract) {
-        const offerMeta = document.createElement("small");
-        offerMeta.textContent = `Offerta: ${contract.offer_name || contract.provider_name || "provvisoria"} · ${offerBadge(contract).toLowerCase()}`;
-        copy.append(offerMeta);
-      }
-
-      const badge = document.createElement("span");
-      badge.className = `cloud-bill-status ${trafficLight(bill, check)}`;
-      badge.textContent = statusLabel(bill, check);
-
-      const actions = document.createElement("div");
-      actions.className = "cloud-bill-actions";
-      const openButton = document.createElement("button");
-      openButton.type = "button";
-      openButton.className = "cloud-bill-btn";
-      openButton.dataset.cloudBillOpen = bill.id;
-      openButton.textContent = "APRI";
-      actions.append(openButton);
-
-      if (check) {
-        const toggleButton = document.createElement("button");
-        toggleButton.type = "button";
-        toggleButton.className = "cloud-bill-btn primary";
-        toggleButton.dataset.cloudCheckToggle = bill.id;
-        toggleButton.textContent = expandedBillIds.has(bill.id) ? "CHIUDI" : (check.status === "completed" ? "VEDI ESITO" : "VEDI STATO");
-        actions.append(toggleButton);
-      } else {
-        if (analysisIsPending(bill)) {
-          const pendingButton = document.createElement("button");
-          pendingButton.type = "button";
-          pendingButton.className = "cloud-bill-btn";
-          pendingButton.dataset.permanentDisabled = "true";
-          pendingButton.disabled = true;
-          pendingButton.textContent = "ANALISI IN CORSO";
-          actions.append(pendingButton);
-        } else if (!["not_run"].includes(bill.automatic_screening_status)) {
-          const toggleButton = document.createElement("button");
-          toggleButton.type = "button";
-          toggleButton.className = "cloud-bill-btn";
-          toggleButton.dataset.cloudAutomaticToggle = bill.id;
-          toggleButton.textContent = expandedBillIds.has(bill.id) ? "CHIUDI" : "VEDI ANALISI";
-          actions.append(toggleButton);
-        }
-        if (canRequestCheck(bill, check)) {
-          const requestButton = document.createElement("button");
-          requestButton.type = "button";
-          requestButton.className = "cloud-bill-btn primary";
-          requestButton.dataset.cloudCheckRequest = bill.id;
-          requestButton.textContent = "RICHIEDI CONTROLLO";
-          actions.append(requestButton);
-        } else if (isRedCheckRequestable(bill, check) && trialStaffCheckUsed()) {
-          const usedButton = document.createElement("button");
-          usedButton.type = "button";
-          usedButton.className = "cloud-bill-btn";
-          usedButton.dataset.permanentDisabled = "true";
-          usedButton.disabled = true;
-          usedButton.textContent = "CONTROLLO PROVA GIÀ USATO";
-          actions.append(usedButton);
-        }
-        if (!maintenanceMode && bill.automatic_screening_status === "failed") {
-          const retryButton = document.createElement("button");
-          retryButton.type = "button";
-          retryButton.className = "cloud-bill-btn";
-          retryButton.dataset.cloudAnalysisRetry = bill.id;
-          retryButton.textContent = "RIPROVA ANALISI";
-          actions.append(retryButton);
-        }
-      }
-
-      if (canDeleteBill(bill, check)) {
-        const deleteButton = document.createElement("button");
-        deleteButton.type = "button";
-        deleteButton.className = "cloud-bill-btn danger";
-        deleteButton.dataset.cloudBillDelete = bill.id;
-        deleteButton.textContent = "ELIMINA";
-        actions.append(deleteButton);
-      }
-
-      article.append(icon, copy, badge, actions);
-      if (check) article.append(renderCheckDetail(bill, check, billAnomalies));
-      else if (bill.automatic_screening_status !== "not_run") article.append(renderAutomaticDetail(bill));
-      state.list.append(article);
+      updateBillArticle(
+        article,
+        bill,
+        utilityMap.get(bill.utility_id),
+        check,
+        anomalyMap.get(bill.id) || []
+      );
     });
   }
 
@@ -1162,7 +1318,7 @@
           customer_status: "awaiting_review",
           metadata: {
             source: "premium_app",
-            app_version: "0.36.24",
+            app_version: "0.36.25",
             automatic_analysis: true,
             upload_complete: false
           }
@@ -1216,6 +1372,7 @@
 
       bills = [insertResult.data, ...bills];
       periodBillCount += 1;
+      setBusy(false);
       setMessage("info", "Bolletta salvata. Analisi in corso.");
       window.dispatchEvent(new CustomEvent("offertalogica:cloud-bills-changed"));
       await runAutomaticAnalysis(billId, { announce: true });
@@ -1223,6 +1380,7 @@
       setBusy(false);
       setMessage("error", friendlyError(error));
     } finally {
+      setBusy(false);
       if (state.fileInput) state.fileInput.value = "";
     }
   }
@@ -1356,10 +1514,12 @@
     if (maintenanceMode) return;
     const bill = bills.find(item => item.id === id);
     if (!bill || !client || !currentUser || analysisInFlightIds.has(id)) return;
+    analysisAttemptFailures.delete(id);
     analysisInFlightIds.add(id);
     syncUpdateBusyState();
     bill.automatic_screening_status = "running";
     bill.processing_status = "analyzing";
+    bill.updated_at = new Date().toISOString();
     renderEnabled();
     if (announce) setMessage("info", "Analisi in corso. Puoi continuare a usare l’app.");
 
@@ -1379,6 +1539,7 @@
       });
       const body = await response.json().catch(() => ({}));
       if (!response.ok || !body?.ok) throw new Error(body?.error || body?.code || "Analisi automatica non riuscita");
+      analysisAttemptFailures.delete(id);
       await loadData(currentUser, currentSubscription);
       refreshedFromServer = true;
       const updated = bills.find(item => item.id === id);
@@ -1388,6 +1549,7 @@
       }
       window.dispatchEvent(new CustomEvent("offertalogica:automatic-analysis-completed", { detail: { billId: id, screening: body.screening } }));
     } catch (error) {
+      analysisAttemptFailures.add(id);
       try {
         await loadData(currentUser, currentSubscription);
         refreshedFromServer = true;
@@ -1403,6 +1565,10 @@
 
   async function refreshPendingAnalyses() {
     if (!client || !currentUser) return;
+    if (bills.some(bill => analysisIsStale(bill) && !analysisInFlightIds.has(bill.id))) {
+      renderEnabled();
+      return;
+    }
     const pendingIds = bills
       .filter(bill => analysisIsPending(bill) && !analysisInFlightIds.has(bill.id))
       .map(bill => bill.id);
@@ -1430,16 +1596,6 @@
 
   function scheduleAutomaticWork() {
     if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
-    const recentPending = bills.find(bill =>
-      bill.automatic_screening_status === "pending"
-      && bill.processing_status === "uploaded"
-      && Date.now() - new Date(bill.created_at).getTime() < 24 * 60 * 60 * 1000
-      && !analysisInFlightIds.has(bill.id)
-    );
-    if (recentPending) {
-      window.setTimeout(() => runAutomaticAnalysis(recentPending.id), 100);
-      return;
-    }
     const serverPending = bills.some(bill =>
       analysisIsPending(bill) && !analysisInFlightIds.has(bill.id)
     );
@@ -1522,6 +1678,8 @@
     }
 
     bills = bills.filter(item => item.id !== bill.id);
+    analysisAttemptFailures.delete(bill.id);
+    analysisInFlightIds.delete(bill.id);
     checks = checks.filter(item => item.bill_id !== bill.id);
     anomalies = anomalies.filter(item => item.bill_id !== bill.id);
     const createdAt = new Date(bill.created_at).getTime();
@@ -1617,6 +1775,9 @@
     checks = [];
     anomalies = [];
     expandedBillIds.clear();
+    analysisAttemptFailures.clear();
+    analysisInFlightIds.clear();
+    if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
     periodBillCount = 0;
 
     if (!session?.user) {

@@ -86,11 +86,9 @@ test("l’eliminazione utenza controlla prima le bollette collegate", () => {
 test("cliente e admin possono eliminare solo secondo ruoli e stato del controllo", () => {
   assert.match(bills, /hasActiveHumanCheck/);
   assert.match(bills, /\["pending", "assigned", "in_review", "more_info_required"\]/);
-  const checkBranchEnd = bills.indexOf("      if (canDeleteBill(bill, check)) {");
-  const automaticBranchStart = bills.indexOf("      if (check) {");
-  const articleAppend = bills.indexOf("      article.append(icon, copy, badge, actions);");
-  assert.ok(automaticBranchStart >= 0 && checkBranchEnd > automaticBranchStart && checkBranchEnd < articleAppend,
-    "Il pulsante elimina deve essere valutato anche quando esiste un controllo concluso");
+  assert.match(bills, /function configureDeleteButton\(button, bill, check\)/);
+  assert.match(bills, /const allowed = canDeleteBill\(bill, check\)/);
+  assert.match(bills, /configureDeleteButton\(article\.querySelector\('\[data-bill-role="delete"\]'\), bill, check\)/);
   assert.match(staff, /ELIMINA BOLLETTA/);
   assert.match(staff, /currentStaff\?\.role === "admin"/);
   assert.match(migration, /premium_bills_admin_delete/);

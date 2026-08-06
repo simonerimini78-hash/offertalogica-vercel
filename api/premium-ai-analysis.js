@@ -232,6 +232,7 @@ export function createPremiumAiAnalysisHandler({
         staffUserId: customerMode ? null : actorUserId,
         requestedByUserId: customerMode ? actorUserId : null,
         origin: customerMode ? "customer_upload" : "staff_manual",
+        staleAfterMs: Math.max(90000, Number(backend.deadlineMs || 0) + 30000),
         fetchImpl,
       });
 
@@ -363,6 +364,8 @@ export function createPremiumAiAnalysisHandler({
       });
     } catch (error) {
       const completedAt = new Date().toISOString();
+      const errorMessage = String(error?.message || error || "");
+      const analysisAlreadyRunning = /premium_analysis_already_running|premium_analysis_runs_one_active/.test(errorMessage);
       if (run?.id) {
         const durationMs = Math.max(0, now() - startedAt);
         await patchPremiumAnalysisRun({
@@ -387,7 +390,7 @@ export function createPremiumAiAnalysisHandler({
           },
         }).catch(() => {});
       }
-      if (bill?.id) {
+      if (bill?.id && !analysisAlreadyRunning) {
         await patchPremiumBill({
           config: backend,
           billId: bill.id,

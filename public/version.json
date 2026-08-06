@@ -1,4 +1,5 @@
 {
-  "version": "0.36.24",
-  "cache": "offertalogica-premium-v03624"
+  "version": "0.36.25",
+  "channel": "production",
+  "cache": "offertalogica-premium-v03625"
 }

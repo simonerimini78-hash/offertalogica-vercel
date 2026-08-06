@@ -20,6 +20,7 @@
   let billingAvailability = { enabled: false, provider: "stripe", missing: [] };
   let billingConfirmAction = null;
   let billingReturnHandled = false;
+  let legalRedirectPerformed = false;
 
   const byId = id => document.getElementById(id);
 
@@ -351,6 +352,7 @@
     accountLoadSequence += 1;
     showAccountPanels({ signedIn: false });
     currentSession = null;
+    legalRedirectPerformed = false;
     if (state.authSignedOut) state.authSignedOut.hidden = false;
     if (state.authSignedIn) state.authSignedIn.hidden = true;
     if (state.legalPanel) state.legalPanel.hidden = true;
@@ -410,15 +412,22 @@
   function renderLegalPanel(profile, acceptanceStatus) {
     if (!state.legalPanel) return;
     const complete = acceptancesComplete(acceptanceStatus);
-    state.legalPanel.hidden = !profile;
+    const canAccept = Boolean(profile && profile.account_status === "active");
+    state.legalPanel.hidden = !profile || complete;
     setText(state.legalStatus, complete
       ? "Condizioni e informativa accettate."
       : "Accetta le condizioni correnti per continuare. I dati già salvati restano disponibili.");
     if (state.legalAcceptButton) {
-      state.legalAcceptButton.hidden = complete || profile?.account_status !== "active";
-      state.legalAcceptButton.disabled = profile?.account_status !== "active";
+      state.legalAcceptButton.hidden = complete || !canAccept;
+      state.legalAcceptButton.disabled = !canAccept;
     }
     state.legalPanel.classList.toggle("complete", complete);
+    if (!complete && canAccept && !legalRedirectPerformed) {
+      legalRedirectPerformed = true;
+      window.dispatchEvent(new CustomEvent("offertalogica:legal-acceptance-required", {
+        detail: { panelId: "premiumLegalPanel", versions: `${TERMS_VERSION}|${PRIVACY_VERSION}|${CLOUD_VERSION}` }
+      }));
+    }
   }
 
   function renderSubscriptionPanel(profile, subscription) {
@@ -1001,6 +1010,7 @@
       setMessage("error", friendlyError(error));
       return;
     }
+    if (state.legalPanel) state.legalPanel.hidden = true;
     setMessage("success", "Condizioni Premium registrate.");
     window.setTimeout(() => window.location.reload(), 500);
   }

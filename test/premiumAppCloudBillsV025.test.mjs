@@ -52,10 +52,9 @@ test('Apertura ed eliminazione usano le API Storage del client autenticato', () 
   assert.match(cloudBills, /function canDeleteBill\(bill, check\)/);
   assert.match(cloudBills, /function hasActiveHumanCheck\(check\)/);
   assert.match(cloudBills, /!hasActiveHumanCheck\(check\)/);
-  const deleteUiPosition = cloudBills.indexOf("      if (canDeleteBill(bill, check)) {");
-  const articleAppendPosition = cloudBills.indexOf("      article.append(icon, copy, badge, actions);");
-  assert.ok(deleteUiPosition >= 0 && deleteUiPosition < articleAppendPosition,
-    "Il comando elimina deve essere renderizzato anche dopo un controllo completato");
+  assert.match(cloudBills, /function configureDeleteButton\(button, bill, check\)/);
+  assert.match(cloudBills, /const allowed = canDeleteBill\(bill, check\)/);
+  assert.match(cloudBills, /actions\.append\(openButton, analysisButton, checkButton, requestButton, deleteButton\)/);
   assert.match(cloudBills, /OffertaLogicaPremiumDialog\?\.confirm/);
   assert.doesNotMatch(cloudBills, /window\.confirm/);
 });
