@@ -728,6 +728,7 @@
       await loadCustomers({ silent: true });
       closeComplimentary();
       setMessage("success", `Premium omaggio attivato per ${label}.`);
+      window.dispatchEvent(new Event("offertalogica:staff-save-complete"));
     } catch (error) {
       setComplimentaryStatus("error", friendlyError(error));
     } finally {
@@ -758,6 +759,7 @@
       setMessage("success", data?.restored_trial
         ? `Premium omaggio revocato per ${label}. La prova gratuita residua è stata ripristinata.`
         : `Premium omaggio revocato per ${label}. L’archivio è ora in sola lettura.`);
+      window.dispatchEvent(new Event("offertalogica:staff-save-complete"));
     } catch (error) {
       setComplimentaryStatus("error", friendlyError(error));
     } finally {

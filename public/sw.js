@@ -1,4 +1,4 @@
-const CACHE = "offertalogica-premium-v03620";
+const CACHE = "offertalogica-premium-v03621";
 const APP_SHELL = [
   "/app.html",
   "/app-dialog.js",
@@ -31,7 +31,7 @@ self.addEventListener("install", event => {
       // so a missing/renamed page doesn't break the entire app shell cache.
       Promise.all(
         APP_SHELL.map(url =>
-          cache.add(url).catch(err => console.warn("Precache saltato:", url, err))
+          cache.add(new Request(url, { cache: "reload" })).catch(err => console.warn("Precache saltato:", url, err))
         )
       )
     )

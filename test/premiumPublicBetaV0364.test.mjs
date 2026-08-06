@@ -40,6 +40,6 @@ test("account e utenze tentano l’attivazione beta prima di bloccare le operazi
 });
 
 test("versione e cache PWA sono aggiornate", () => {
-  assert.match(app, /APP Premium v0\.36\.20/);
-  assert.match(sw, /offertalogica-premium-v03620/);
+  assert.match(app, /APP Premium v0\.36\.21/);
+  assert.match(sw, /offertalogica-premium-v03621/);
 });

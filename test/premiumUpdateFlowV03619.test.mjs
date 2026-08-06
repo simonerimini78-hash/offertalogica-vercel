@@ -13,11 +13,17 @@ test("app e staff controllano periodicamente e applicano automaticamente gli agg
   ]);
 
   assert.match(app, /setInterval\(checkForUpdate,30000\)/);
+  assert.match(app, /fetch\(`\/version\.json\?t=\$\{Date\.now\(\)\}`/);
+  assert.match(app, /updateViaCache:'none'/);
+  assert.match(app, /sw\.js\?v=/);
   assert.match(staff, /setInterval\(checkForUpdate,30000\)/);
+  assert.match(staff, /fetch\(`\/version\.json\?t=\$\{Date\.now\(\)\}`/);
+  assert.match(staff, /updateViaCache:'none'/);
+  assert.match(staff, /staff-save-complete/);
   assert.match(app, /pendingWorker\.postMessage\(\{type:'SKIP_WAITING'\}\)/);
   assert.match(staff, /pendingWorker\.postMessage\(\{type:'SKIP_WAITING'\}\)/);
-  assert.match(app, /tryActivateUpdate/);
-  assert.match(staff, /tryActivateUpdate/);
+  assert.match(app, /tryApplyUpdate/);
+  assert.match(staff, /tryApplyUpdate/);
   assert.doesNotMatch(app, /id="applyUpdate"/);
   assert.doesNotMatch(staff, /id="staffApplyUpdate"/);
   assert.match(appAuth, /persistSession:\s*true/);
@@ -42,9 +48,10 @@ test("l’aggiornamento automatico attende operazioni, analisi e modifiche staff
   assert.match(staff, /document\.body\.getAttribute\('aria-busy'\)/);
 });
 
-test("il service worker v0.36.20 aggiorna anche i moduli staff", async () => {
+test("il service worker v0.36.21 aggiorna anche i moduli staff", async () => {
   const sw = await read("public/sw.js");
-  assert.match(sw, /offertalogica-premium-v03620/);
+  assert.match(sw, /offertalogica-premium-v03621/);
+  assert.match(sw, /new Request\(url, \{ cache: "reload" \}\)/);
   for (const asset of [
     "/staff.html",
     "/staff.js",
@@ -55,16 +62,16 @@ test("il service worker v0.36.20 aggiorna anche i moduli staff", async () => {
   ]) assert.ok(sw.includes(`"${asset}"`), `asset staff mancante dalla cache: ${asset}`);
 });
 
-test("etichette applicative allineate alla v0.36.20", async () => {
+test("etichette applicative allineate alla v0.36.21", async () => {
   const [app, staff, staffPremium, bills] = await Promise.all([
     read("public/app.html"),
     read("public/staff.html"),
     read("public/staff-premium.html"),
     read("public/app-premium-bills.js"),
   ]);
-  assert.match(app, /APP v0\.36\.20/);
-  assert.match(app, /APP Premium v0\.36\.20/);
-  assert.match(staff, /v0\.36\.20/);
-  assert.match(staffPremium, /v0\.36\.20/);
-  assert.match(bills, /app_version:\s*"0\.36\.20"/);
+  assert.match(app, /APP v0\.36\.21/);
+  assert.match(app, /APP Premium v0\.36\.21/);
+  assert.match(staff, /v0\.36\.21/);
+  assert.match(staffPremium, /v0\.36\.21/);
+  assert.match(bills, /app_version:\s*"0\.36\.21"/);
 });

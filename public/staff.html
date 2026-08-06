@@ -51,7 +51,7 @@
 <header class="topbar">
   <div class="brand">
     <img src="/assets/logo-offertalogica-icon.png" alt="OffertaLogica">
-    <div><h1>Area staff OffertaLogica</h1><p>Unico accesso per operatività, clienti, dati e controllo costi · v0.36.20</p></div>
+    <div><h1>Area staff OffertaLogica</h1><p>Unico accesso per operatività, clienti, dati e controllo costi · v0.36.21</p></div>
   </div>
   <div class="top-actions" id="staffTopActions" hidden>
     <span class="staff-chip" id="staffIdentity">Staff</span>
@@ -105,7 +105,7 @@
         <section class="panel"><div class="panel-head"><h3>Attività da gestire</h3></div><div class="panel-body" id="overviewTasks"><div class="empty">Caricamento…</div></div></section>
         <section class="panel"><div class="panel-head"><h3>Funnel essenziale</h3></div><div class="panel-body"><div class="funnel" id="overviewFunnel"></div></div></section>
       </div>
-      <div class="version">Area staff unica v0.36.20</div>
+      <div class="version">Area staff unica v0.36.21</div>
     </section>
 
     <section class="view" data-staff-view="leads">
@@ -197,27 +197,29 @@
 <script>
   (()=>{
     if(!('serviceWorker' in navigator))return;
-    let refreshing=false;let activationRequested=false;let registration=null;let pendingWorker=null;
-    let updateCheckInFlight=null;let updateTimer=null;let retryTimer=null;let dirty=false;let saveAttempted=false;let lastInteractionAt=Date.now();
+    const CURRENT_RELEASE="0.36.21";
+    let refreshing=false;let activationRequested=false;let registration=null;let pendingWorker=null;let manifestReloadPending=false;let controlledAtStart=Boolean(navigator.serviceWorker.controller);
+    const boundRegistrations=new WeakSet();
+    let updateCheckInFlight=null;let updateTimer=null;let retryTimer=null;let dirty=false;let lastInteractionAt=Date.now();
+    const frameStates=new Map();
     const notice=document.getElementById('staffUpdateNotice');const noticeText=document.getElementById('staffUpdateNoticeText');
     const editableTarget=target=>target instanceof Element&&Boolean(target.closest('input,textarea,select,[contenteditable="true"]'));
     const unsavedTarget=target=>target instanceof Element&&Boolean(target.closest('#staffComplimentaryForm input,#staffComplimentaryForm textarea,#staffComplimentaryForm select'));
     const markDirty=event=>{if(unsavedTarget(event.target)){dirty=true;lastInteractionAt=Date.now()}};
     document.addEventListener('input',markDirty,true);document.addEventListener('change',markDirty,true);
-    document.addEventListener('submit',()=>{saveAttempted=true;lastInteractionAt=Date.now()},true);
-    document.addEventListener('click',event=>{const button=event.target instanceof Element?event.target.closest('button,input[type="submit"]'):null;if(!button)return;lastInteractionAt=Date.now();if(/SALVA|AGGIORNA|CONCEDI|REVOCA|CONFERMA|APPLICA|CHIUDI|ELIMINA/i.test(button.textContent||button.value||''))saveAttempted=true},true);
-    const busyObserver=new MutationObserver(()=>{
-      if(document.body.getAttribute('aria-busy')!=='true'&&saveAttempted){dirty=false;saveAttempted=false;window.dispatchEvent(new Event('offertalogica:update-state'))}
+    document.addEventListener('click',event=>{if(event.target instanceof Element&&event.target.closest('button,input[type="submit"]'))lastInteractionAt=Date.now()},true);
+    addEventListener('offertalogica:staff-save-complete',()=>{dirty=false;window.dispatchEvent(new Event('offertalogica:update-state'))});
+    addEventListener('message',event=>{
+      if(event.origin!==location.origin||event.data?.type!=='offertalogica:staff-update-state')return;
+      frameStates.set(event.source,{dirty:Boolean(event.data.dirty),busy:Boolean(event.data.busy)});
+      window.dispatchEvent(new Event('offertalogica:update-state'));
     });
-    busyObserver.observe(document.body,{attributes:true,attributeFilter:['aria-busy']});
-    const embeddedModuleUnsafe=()=>[...document.querySelectorAll('iframe.module-frame')].some(frame=>{
-      try{
-        const doc=frame.contentDocument;if(!doc)return false;
-        if(doc.body?.getAttribute('aria-busy')==='true'||doc.body?.dataset.updateDirty==='true')return true;
-        if(doc.querySelector('[role="dialog"]:not([hidden])'))return true;
-        return document.activeElement===frame&&editableTarget(doc.activeElement);
-      }catch{return false}
-    });
+    const embeddedModuleUnsafe=()=>{
+      if([...frameStates.values()].some(state=>state.dirty||state.busy))return true;
+      return [...document.querySelectorAll('iframe.module-frame')].some(frame=>{
+        try{const doc=frame.contentDocument;if(!doc)return false;return doc.body?.getAttribute('aria-busy')==='true'||doc.body?.dataset.updateDirty==='true'||Boolean(doc.querySelector('[role="dialog"]:not([hidden])'))}catch{return false}
+      });
+    };
     const isSafeToReload=()=>{
       const active=document.activeElement;
       if(document.body.getAttribute('aria-busy')==='true'||document.querySelector('[aria-busy="true"]'))return false;
@@ -227,36 +229,33 @@
       return Date.now()-lastInteractionAt>4000;
     };
     const setUpdateNotice=(message,show=true)=>{if(noticeText)noticeText.textContent=message;if(notice)notice.classList.toggle('show',show)};
-    const tryActivateUpdate=()=>{
-      if(!pendingWorker||activationRequested)return;
+    const scheduleRetry=()=>{clearTimeout(retryTimer);retryTimer=setTimeout(tryApplyUpdate,2500)};
+    const tryApplyUpdate=()=>{
+      if(activationRequested||(!pendingWorker&&!manifestReloadPending))return;
       if(!isSafeToReload()){
-        setUpdateNotice(dirty?'Nuova versione pronta. Verrà applicata automaticamente dopo il salvataggio.':'Nuova versione pronta. Aggiornamento automatico appena termina l’operazione in corso.');
-        clearTimeout(retryTimer);retryTimer=setTimeout(tryActivateUpdate,2500);return;
+        setUpdateNotice(dirty||embeddedModuleUnsafe()?'Nuova versione pronta. Verrà applicata automaticamente dopo il salvataggio.':'Nuova versione pronta. Aggiornamento automatico appena termina l’operazione in corso.');
+        scheduleRetry();return;
       }
       activationRequested=true;setUpdateNotice('Aggiornamento automatico in corso…');
-      pendingWorker.postMessage({type:'SKIP_WAITING'});
+      if(pendingWorker)pendingWorker.postMessage({type:'SKIP_WAITING'});else location.reload();
       setTimeout(()=>{if(!refreshing)location.reload()},10000);
     };
-    const queueUpdate=worker=>{if(!worker)return;pendingWorker=worker;tryActivateUpdate()};
-    const watchInstallingWorker=worker=>{if(!worker)return;worker.addEventListener('statechange',()=>{if(worker.state==='installed'&&navigator.serviceWorker.controller)queueUpdate(worker)})};
+    const queueUpdate=worker=>{if(!worker)return;pendingWorker=worker;manifestReloadPending=false;tryApplyUpdate()};
+    const watchInstallingWorker=worker=>{if(!worker)return;const inspect=()=>{if(worker.state==='installed'&&navigator.serviceWorker.controller)queueUpdate(worker)};inspect();worker.addEventListener('statechange',inspect)};
+    const bindRegistration=reg=>{registration=reg;if(reg.waiting)queueUpdate(reg.waiting);if(reg.installing)watchInstallingWorker(reg.installing);if(!boundRegistrations.has(reg)){boundRegistrations.add(reg);reg.addEventListener('updatefound',()=>watchInstallingWorker(reg.installing))}};
+    const registerRelease=async version=>{const reg=await navigator.serviceWorker.register(`/sw.js?v=${encodeURIComponent(version)}`,{scope:'/',updateViaCache:'none'});bindRegistration(reg);await reg.update();if(reg.waiting)queueUpdate(reg.waiting);return reg};
+    const fetchLatestRelease=async()=>{const response=await fetch(`/version.json?t=${Date.now()}`,{cache:'no-store',headers:{'Cache-Control':'no-cache'}});if(!response.ok)throw new Error(`Versione non disponibile: ${response.status}`);const payload=await response.json();return String(payload?.version||'').trim()};
     const checkForUpdate=()=>{
-      if(!registration||document.visibilityState==='hidden')return Promise.resolve();
+      if(document.visibilityState==='hidden')return Promise.resolve();
       if(updateCheckInFlight)return updateCheckInFlight;
-      updateCheckInFlight=registration.update().catch(error=>console.warn('Controllo aggiornamento Area staff non disponibile',error)).finally(()=>{updateCheckInFlight=null});
+      updateCheckInFlight=(async()=>{const latest=await fetchLatestRelease();if(latest&&latest!==CURRENT_RELEASE){setUpdateNotice('Nuova versione rilevata. Preparazione aggiornamento automatico…');await registerRelease(latest);if(!registration?.waiting&&!registration?.installing){manifestReloadPending=true;tryApplyUpdate()}}else if(registration){await registration.update()}})().catch(error=>console.warn('Controllo aggiornamento Area staff non disponibile',error)).finally(()=>{updateCheckInFlight=null});
       return updateCheckInFlight;
     };
-    navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!activationRequested||refreshing)return;refreshing=true;location.reload()});
-    addEventListener('offertalogica:update-state',tryActivateUpdate);addEventListener('focus',checkForUpdate);addEventListener('online',checkForUpdate);
-    document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){checkForUpdate();tryActivateUpdate()}});
-    addEventListener('pagehide',()=>{busyObserver.disconnect();if(updateTimer)clearInterval(updateTimer);if(retryTimer)clearTimeout(retryTimer)});
-    addEventListener('load',async()=>{
-      try{
-        registration=await navigator.serviceWorker.register('/sw.js');
-        if(registration.waiting)queueUpdate(registration.waiting);
-        registration.addEventListener('updatefound',()=>watchInstallingWorker(registration.installing));
-        await checkForUpdate();updateTimer=setInterval(checkForUpdate,30000);
-      }catch(error){console.warn('Aggiornamento Area staff non disponibile',error)}
-    },{once:true});
+    navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!controlledAtStart&&!activationRequested&&!manifestReloadPending){controlledAtStart=true;return}if(refreshing)return;refreshing=true;location.reload()});
+    addEventListener('offertalogica:update-state',tryApplyUpdate);addEventListener('focus',checkForUpdate);addEventListener('online',checkForUpdate);
+    document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){checkForUpdate();tryApplyUpdate()}});
+    addEventListener('pagehide',()=>{if(updateTimer)clearInterval(updateTimer);if(retryTimer)clearTimeout(retryTimer)});
+    addEventListener('load',async()=>{try{await registerRelease(CURRENT_RELEASE);await checkForUpdate();updateTimer=setInterval(checkForUpdate,30000)}catch(error){console.warn('Aggiornamento Area staff non disponibile',error)}},{once:true});
   })();
 </script>
 </body>
