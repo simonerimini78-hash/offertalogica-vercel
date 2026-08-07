@@ -13,7 +13,7 @@ const pdfApi = await readFile(new URL("../api/staff-pdf-analyses.js", import.met
 const sw = await readFile(new URL("../public/sw.js", import.meta.url), "utf8");
 
 test("v0.36.3 riduce i testi cliente alle informazioni operative", () => {
-  assert.match(app, /Gestisci bollette e utenze, calcola il risparmio e confronta le offerte aggiornate/);
+  assert.match(app, /Bollette, utenze, risparmio e offerte sempre aggiornate/);
   assert.match(app, /La verifica dello staff è disponibile solo per le anomalie rosse/);
   for (const item of [
     "Verifica delle condizioni realmente applicate",
@@ -23,9 +23,9 @@ test("v0.36.3 riduce i testi cliente alle informazioni operative", () => {
   assert.doesNotMatch(app, /bucket privato|Supabase Auth|FLUSSO ATTIVO|Ogni bolletta viene analizzata dall’IA|versione gratuita v0\.22/);
   assert.doesNotMatch(bills, /Storico ARERA .*affidabilità/);
   assert.match(auth, /Servizio Premium attivo/);
-  assert.match(app, /APP Premium v0\.36\.28/);
-  assert.match(bills, /app_version: "0\.36\.28"/);
-  assert.match(sw, /offertalogica-premium-v03628/);
+  assert.match(app, /APP Premium v0\.36\.29/);
+  assert.match(bills, /app_version: "0\.36\.29"/);
+  assert.match(sw, /offertalogica-premium-v03629/);
 });
 
 test("le conferme staff non mostrano più il nome tecnico della Preview", () => {

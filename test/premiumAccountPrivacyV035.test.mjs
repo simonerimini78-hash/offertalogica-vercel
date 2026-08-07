@@ -86,9 +86,9 @@ test("informativa e termini descrivono archivio Premium, IA, accesso staff e can
   assert.match(privacy, /cancellazione completa/i);
   assert.match(terms, /id="premium"/);
   assert.match(terms, /area Premium separata/i);
-  assert.match(sw, /offertalogica-premium-v03628/);
+  assert.match(sw, /offertalogica-premium-v03629/);
   assert.match(sw, /privacy-premium\.html/);
-  assert.match(app, /APP Premium v0\.36\.28/);
+  assert.match(app, /APP Premium v0\.36\.29/);
 });
 
 test("la verifica SQL copre funzioni, permessi e vincoli di cancellazione", () => {

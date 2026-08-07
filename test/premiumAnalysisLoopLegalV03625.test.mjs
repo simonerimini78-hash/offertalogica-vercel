@@ -15,7 +15,7 @@ function jsonResponse(body, status = 200) {
   });
 }
 
-test("v0.36.28 non rilancia automaticamente in loop una bolletta pending dopo un errore", () => {
+test("v0.36.29 non rilancia automaticamente in loop una bolletta pending dopo un errore", () => {
   assert.doesNotMatch(premiumBills, /const recentPending[\s\S]*?runAutomaticAnalysis\(recentPending\.id\)/);
   assert.match(premiumBills, /const analysisAttemptFailures = new Set\(\)/);
   assert.match(premiumBills, /analysisAttemptFailures\.add\(id\)/);
@@ -23,7 +23,7 @@ test("v0.36.28 non rilancia automaticamente in loop una bolletta pending dopo un
   assert.match(premiumBills, /button\.textContent = "AVVIA ANALISI"/);
 });
 
-test("v0.36.28 mantiene i comandi stabili e distingue analisi in corso da analisi interrotta", () => {
+test("v0.36.29 mantiene i comandi stabili e distingue analisi in corso da analisi interrotta", () => {
   assert.match(premiumBills, /const ANALYSIS_STALE_MS = 90000/);
   assert.match(premiumBills, /button\.textContent = "ANALISI IN CORSO"/);
   assert.match(premiumBills, /return "Analisi interrotta"/);

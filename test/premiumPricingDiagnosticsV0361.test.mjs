@@ -57,7 +57,7 @@ test("la diagnostica staff mostra valori e fonte per ogni tariffa", () => {
   assert.match(staff, /pricing\.missing/);
   assert.match(api, /sources: backend\.pricing\.sources/);
   assert.match(api, /missing: Array\.isArray\(backend\.pricing\.missing\)/);
-  assert.match(staffHtml, /v0\.36\.28/);
+  assert.match(staffHtml, /v0\.36\.29/);
 });
 
 test("v0.36.1 non aggiunge funzioni Vercel", async () => {

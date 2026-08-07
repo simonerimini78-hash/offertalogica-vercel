@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="OffertaLogica">
-  <meta name="offertalogica-app-version" content="APP v0.36.28">
+  <meta name="offertalogica-app-version" content="APP v0.36.29">
   <title>OffertaLogica Premium</title>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/assets/logo-offertalogica-icon.png?v=19">
@@ -293,7 +293,7 @@
     }
 
 
-    /* v0.36.28 — fondo argento, logo libero, icone argento e Home decisionale. */
+    /* v0.36.29 — fondo argento, logo libero, icone argento e sistema visivo unificato. */
     :root{
       --bg:#e3e9e7;--surface:#f7faf9;--surface-2:#eaf2ee;--text:#0d2d3d;--muted:#5e7480;
       --green:#12a45a;--green-dark:#076b40;--lime:#a8e63f;--navy:#0d2d3d;--line:rgba(255,255,255,.92);
@@ -389,6 +389,120 @@
     }
     @media(max-width:355px){.home-action-grid{grid-template-columns:1fr}.home-action{min-height:165px}.home-action strong{font-size:19px}.brand img{width:155px}.header-greeting{font-size:10px}}
 
+
+    /* v0.36.29 — sistema visivo unificato: Home simmetrica e pagine cliente coerenti. */
+    :root{
+      --glass-radius:26px;
+      --glass-border:rgba(255,255,255,.98);
+      --silver-panel:linear-gradient(145deg,rgba(255,255,255,.82),rgba(215,226,221,.42));
+      --silver-icon:linear-gradient(145deg,rgba(255,255,255,.54),rgba(145,164,156,.26));
+      --emerald-panel:linear-gradient(128deg,rgba(255,255,255,.34),transparent 28%,rgba(255,255,255,.09) 57%,transparent 77%),radial-gradient(circle at 91% 7%,rgba(218,255,178,.31),transparent 29%),linear-gradient(145deg,#045836 0%,#087d48 44%,#1cab59 76%,#9bdf39 122%);
+    }
+
+    /* Intestazione ordinata: logo originale, leggermente più basso, senza contenitore. */
+    .topbar{height:108px;padding-top:9px;align-items:center}
+    .brand{transform:translateY(5px)}
+    .brand img{width:190px;max-width:58vw}
+    .top-actions{transform:translateY(4px)}
+
+    /* Home: promessa compatta, centrata e leggibile su una sola riga. */
+    .home-welcome{margin:14px 0 20px;text-align:center}
+    .home-welcome h1{
+      margin:0 auto;font-size:clamp(23px,6.7vw,31px);line-height:1.08;letter-spacing:-.042em;
+      white-space:nowrap;text-wrap:nowrap;text-align:center;
+    }
+    .home-welcome p{
+      margin:8px auto 0;max-width:none;color:#516a75;font-size:clamp(10.8px,2.85vw,13.4px);
+      line-height:1.35;letter-spacing:-.012em;white-space:nowrap;text-align:center;
+    }
+    .home-premium-strip{margin-bottom:16px}
+    .home-action-grid{align-items:stretch;grid-auto-rows:1fr}
+    .home-action{height:auto}
+
+    /* Testate delle pagine: stessa gerarchia e simmetria della Home. */
+    .section-head{padding:19px 4px 18px;text-align:center}
+    .section-head .kicker{display:flex;align-items:center;justify-content:center;gap:11px;font-size:10px;letter-spacing:.09em}
+    .section-head .kicker:before,.section-head .kicker:after{
+      content:"";display:block;flex:1;max-width:86px;height:1px;
+      background:linear-gradient(90deg,rgba(7,131,74,.04),rgba(7,131,74,.42));
+    }
+    .section-head .kicker:after{background:linear-gradient(90deg,rgba(7,131,74,.42),rgba(7,131,74,.04))}
+    .section-head h1{margin:8px 0 7px;font-size:clamp(27px,7.5vw,34px);line-height:1.05;letter-spacing:-.04em;text-align:center}
+    .section-head p{margin:0 auto;max-width:380px;font-size:13px;line-height:1.42;text-align:center}
+    .section-title{align-items:center;margin:22px 2px 11px}
+    .section-title h2{font-size:18px;line-height:1.2}
+    .section-title span{font-size:11px;text-align:right}
+
+    /* Un solo linguaggio argento/smeraldo per tutte le viste cliente. */
+    .hero,.gradient-panel,.spend-card,.profile-card,.premium-plan-paid,.control-card,.premium-preview{
+      background:var(--emerald-panel);border:1.5px solid rgba(255,255,255,.90);border-radius:var(--glass-radius);
+      box-shadow:inset 0 2px 0 rgba(255,255,255,.88),inset 0 -2px 0 rgba(3,72,43,.24),0 22px 48px rgba(7,107,64,.24),0 5px 13px rgba(4,72,45,.14);
+      backdrop-filter:blur(25px) saturate(175%);-webkit-backdrop-filter:blur(25px) saturate(175%);
+    }
+    .insight,.summary-card,.feature-card,.auth-card,.account-manage,.local-data-card,.utility-card,.utility-item,.cloud-bill-card,.cloud-bill-item,.cloud-check-detail,.cloud-analysis-data,.cloud-offer-card,.archive-empty,.subscription-panel,.premium-info-dialog,.action-dialog-card,.check-confirm-card,.list-item,.cloud-spend-card,.utility-locked,.utility-form,.cloud-bill-locked,.cloud-bill-no-utilities,.cloud-bill-empty{
+      border:1.5px solid var(--glass-border);border-radius:var(--glass-radius);background:var(--silver-panel);
+      box-shadow:inset 0 1.5px 0 #fff,inset 0 -1px 0 rgba(67,89,79,.08),0 16px 34px rgba(13,45,61,.11);
+      backdrop-filter:blur(28px) saturate(145%);-webkit-backdrop-filter:blur(28px) saturate(145%);
+    }
+
+    /* Icone argento sulle superfici verdi, verde smeraldo sulle superfici argento. */
+    .home-action .action-icon,.hero .feature-symbol,.gradient-panel .feature-symbol,.profile-card .profile-avatar{
+      border:1.5px solid rgba(255,255,255,.96);border-radius:50%;background:var(--silver-icon);color:#f5f8f7;
+      box-shadow:inset 0 1.5px 0 rgba(255,255,255,.98),inset 0 -1px 0 rgba(53,75,67,.28),0 12px 26px rgba(3,74,43,.23);
+    }
+    .home-action .action-icon .icon,.hero .feature-symbol .icon,.gradient-panel .feature-symbol .icon,.profile-card .profile-avatar .icon{
+      color:#f5f8f7;filter:drop-shadow(0 1px 1px rgba(22,44,36,.30));
+    }
+    .feature-card:not(.gradient-panel) .feature-symbol,.list-icon,.cloud-bill-icon{
+      border-radius:50%;background:linear-gradient(145deg,rgba(247,251,249,.98),rgba(198,211,205,.56));color:var(--emerald-700);
+    }
+
+    /* Bollette: moduli e righe allineati, comandi con misure coerenti. */
+    #view-bill .cloud-bill-card{padding:18px}
+    #view-bill .cloud-bill-head{align-items:center}
+    #view-bill .cloud-bill-copy strong{font-size:15px;line-height:1.25}
+    #view-bill .cloud-bill-copy p{margin-top:4px;font-size:11.5px;line-height:1.42}
+    #view-bill .cloud-bill-upload{gap:10px}
+    #view-bill .cloud-bill-upload-btn,#view-bill .cloud-bill-btn,#view-bill .bill-mini-btn{border-radius:15px}
+    #view-bill .cloud-bill-item{border-radius:23px}
+    #view-bill .archive-note{border:1px solid rgba(255,255,255,.94);background:var(--silver-panel);box-shadow:inset 0 1px 0 #fff,0 10px 24px rgba(13,45,61,.08)}
+
+    /* Confronta: due azioni distinte ma visivamente coordinate. */
+    #view-offers .hero{padding:22px;text-align:center}
+    #view-offers .hero .status{margin:0 auto}
+    #view-offers .hero h2{margin:17px auto 8px;font-size:clamp(27px,7.5vw,35px)}
+    #view-offers .hero p{margin:0 auto 20px;max-width:360px}
+    #view-offers .feature-card{margin-top:14px!important;padding:22px;text-align:center}
+    #view-offers .feature-card .feature-symbol{margin:0 auto}
+    #view-offers .feature-card h2{margin-top:17px;font-size:23px}
+    #view-offers .cta{min-height:52px;border-radius:16px}
+
+    /* Profilo: sezioni regolari e leggibili, senza cambiare i flussi. */
+    #view-profile .profile-card{padding:20px}
+    #view-profile .profile-card-head{align-items:center}
+    #view-profile .profile-row{min-height:48px;padding:12px 0}
+    #view-profile .auth-card,#view-profile .account-manage,#view-profile .utility-card,#view-profile .local-data-card{padding:18px}
+    #view-profile .account-manage-head,#view-profile .utility-card-head,#view-profile .local-data-head{align-items:center}
+    #view-profile .auth-tabs{border-radius:16px}
+    #view-profile .auth-tabs button,#view-profile .auth-submit,#view-profile .auth-secondary,#view-profile .account-manage-actions button,#view-profile .utility-add,#view-profile .utility-save,#view-profile .utility-cancel{min-height:46px;border-radius:15px}
+    #view-profile .list{display:grid;gap:10px}
+    #view-profile .list-item{border-radius:20px}
+
+    /* Barra inferiore: stessa geometria in ogni pagina. */
+    .nav{border-radius:26px}
+    .nav button{border-radius:19px}
+
+    @media(max-width:430px){
+      .topbar{height:102px;padding-top:8px}.brand{transform:translateY(5px)}.brand img{width:170px;max-width:55vw}.top-actions{transform:translateY(4px)}
+      .home-welcome{margin:10px 0 18px}.home-welcome h1{font-size:clamp(22px,6.35vw,27px)}.home-welcome p{font-size:clamp(10.2px,2.7vw,11.8px)}
+      .section-head{padding-top:16px}.section-head h1{font-size:clamp(25px,7.2vw,31px)}
+      .home-action{min-height:176px}
+    }
+    @media(max-width:355px){
+      .home-welcome h1{font-size:21px}.home-welcome p{font-size:9.8px;letter-spacing:-.018em}
+      .section-head h1{font-size:24px}
+    }
+
 </style>
 </head>
 <body>
@@ -401,7 +515,7 @@
     </header>
 
     <section id="view-home" class="view active" data-view="home">
-      <div class="welcome home-welcome"><h1>La tua energia, più semplice.</h1><p>Gestisci bollette e utenze, calcola il risparmio e confronta le offerte aggiornate.</p></div>
+      <div class="welcome home-welcome"><h1>La tua energia, più semplice.</h1><p>Bollette, utenze, risparmio e offerte sempre aggiornate.</p></div>
       <section class="home-premium-strip" aria-label="Stato Area Premium">
         <div class="home-premium-icon" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><path d="m3 7 4 4 5-7 5 7 4-4-2 11H5L3 7Z"/><path d="M5 21h14"/></svg></div>
         <div class="home-premium-copy">
@@ -656,7 +770,7 @@
         <a class="list-item" href="/"><div class="list-icon"><svg class="icon" viewBox="0 0 24 24"><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg></div><div class="list-copy"><strong>Apri il sito completo</strong></div><svg class="icon chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></a>
       </div>
 
-      <span class="version-badge">APP Premium v0.36.28</span>
+      <span class="version-badge">APP Premium v0.36.29</span>
     </section>
   </main>
 
@@ -876,7 +990,7 @@
       globalThis.OffertaLogicaPremiumBills?.init();
 
       if(!('serviceWorker' in navigator))return;
-      const CURRENT_RELEASE="0.36.28";
+      const CURRENT_RELEASE="0.36.29";
       let refreshing=false;let activationRequested=false;let registration=null;let pendingWorker=null;let manifestReloadPending=false;let controlledAtStart=Boolean(navigator.serviceWorker.controller);
       const boundRegistrations=new WeakSet();
       let updateCheckInFlight=null;let updateTimer=null;let retryTimer=null;let lastInteractionAt=Date.now();

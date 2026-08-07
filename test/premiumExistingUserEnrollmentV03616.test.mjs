@@ -32,10 +32,10 @@ test("l'app recupera il profilo mancante prima di mostrare il blocco Premium", (
 });
 
 test("app, staff e cache sono allineati alla v0.36.16", () => {
-  assert.match(app, /APP Premium v0\.36\.28/);
-  assert.match(bills, /app_version: "0\.36\.28"/);
-  assert.match(staffHtml, /controllo costi · v0\.36\.28/);
-  assert.match(staffHtml, /Area staff unica v0\.36\.28/);
+  assert.match(app, /APP Premium v0\.36\.29/);
+  assert.match(bills, /app_version: "0\.36\.29"/);
+  assert.match(staffHtml, /controllo costi · v0\.36\.29/);
+  assert.match(staffHtml, /Area staff unica v0\.36\.29/);
   assert.doesNotMatch(staffHtml, /controllo costi · v0\.36\.3/);
-  assert.match(sw, /offertalogica-premium-v03628/);
+  assert.match(sw, /offertalogica-premium-v03629/);
 });

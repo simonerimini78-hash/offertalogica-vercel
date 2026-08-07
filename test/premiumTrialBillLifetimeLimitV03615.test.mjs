@@ -66,7 +66,7 @@ test("il client prenota prima dell insert e conferma solo dopo il salvataggio St
   assert.match(bills, /premium_release_trial_bill_upload/);
   assert.match(bills, /upload_complete: false/);
   assert.match(bills, /uploadWasCommitted/);
-  assert.match(bills, /app_version: "0\.36\.28"/);
+  assert.match(bills, /app_version: "0\.36\.29"/);
 });
 
 test("eliminare una bolletta non riduce il contatore della prova", () => {
@@ -89,7 +89,7 @@ test("il verificatore riconosce la policy anche quando PostgreSQL qualifica gli 
 
 test("v0.36.15 include verifica SQL e aggiorna app staff e cache", () => {
   assert.match(verify, /premium_trial_bill_lifetime_limit_v0\.36\.15_ok/);
-  assert.match(app, /APP Premium v0\.36\.28/);
-  assert.match(staff, /Area staff unica v0\.36\.28/);
-  assert.match(sw, /offertalogica-premium-v03628/);
+  assert.match(app, /APP Premium v0\.36\.29/);
+  assert.match(staff, /Area staff unica v0\.36\.29/);
+  assert.match(sw, /offertalogica-premium-v03629/);
 });

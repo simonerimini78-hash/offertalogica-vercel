@@ -28,6 +28,6 @@ test("v0.29.1 mostra un timer leggibile e mantiene il tempo della bozza", () => 
 
 test("v0.29.1 aggiorna indicatori e cache", () => {
   assert.match(app, /APP Premium v0\.(?:30(?:\.\d+)?|31C|32|35(?:\.1)?|36)/);
-  assert.match(html, /Modulo integrato nell’area staff unica · v0\.(?:33|34|36\.(?:22|23|24|25|26|27|28))/);
+  assert.match(html, /Modulo integrato nell’area staff unica · v0\.(?:33|34|36\.(?:22|23|24|25|26|27|28|29))/);
   assert.match(sw, /offertalogica-premium-v(?:30\d*|031c|032|0351?|036)/);
 });
