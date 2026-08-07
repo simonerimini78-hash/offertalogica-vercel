@@ -63,6 +63,6 @@ test("v0.36.10 aggiunge la gestione omaggi all’area clienti staff", () => {
 });
 
 test("v0.36.10 aggiorna versione applicativa e cache PWA", () => {
-  assert.match(app, /APP Premium v0\.36\.27/);
-  assert.match(sw, /offertalogica-premium-v03627/);
+  assert.match(app, /APP Premium v0\.36\.28/);
+  assert.match(sw, /offertalogica-premium-v03628/);
 });

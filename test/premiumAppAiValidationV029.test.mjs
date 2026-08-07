@@ -13,7 +13,7 @@ const docs = await readFile(new URL("../docs/PREMIUM-AI-VALIDATION-V0.29.md", im
 
 test("Premium v0.30 aggiorna versione e cache", () => {
   assert.match(app, /APP Premium v0\.(?:30(?:\.\d+)?|31C|32|35(?:\.1)?|36)/);
-  assert.match(html, /Modulo integrato nell’area staff unica · v0\.(?:33|34|36\.(?:22|23|24|25|26|27))/);
+  assert.match(html, /Modulo integrato nell’area staff unica · v0\.(?:33|34|36\.(?:22|23|24|25|26|27|28))/);
   assert.match(sw, /offertalogica-premium-v(?:30\d*|031c|032|0351?|036)/);
   assert.match(html, /<script src="\/premium-ai-validation\.js"><\/script>/);
 });
