@@ -21,6 +21,7 @@
   let billingConfirmAction = null;
   let billingReturnHandled = false;
   let legalRedirectPerformed = false;
+  let upgradeCheckoutStarted = false;
 
   const byId = id => document.getElementById(id);
 
@@ -79,6 +80,7 @@
     deletionCancelButton: null,
     passwordPanel: null,
     passwordToggle: null,
+    signupHint: null,
   };
 
   function setMessage(kind, message) {
@@ -265,10 +267,34 @@
     throw error;
   }
 
+  function upgradeRequested() {
+    try {
+      return new URL(window.location.href).searchParams.get("upgrade") === "1";
+    } catch {
+      return false;
+    }
+  }
+
+  function clearUpgradeQuery() {
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has("upgrade")) return;
+    url.searchParams.delete("upgrade");
+    window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash || "#profile"}`);
+  }
+
+  function focusSubscriptionPanel() {
+    window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+      if (!state.subscriptionPanel || state.subscriptionPanel.hidden) return;
+      state.subscriptionPanel.scrollIntoView({ behavior: "smooth", block: "center" });
+    }));
+  }
+
   function authReturnUrl(kind = "confirm") {
     const url = new URL(window.location.href);
+    const keepUpgrade = url.searchParams.get("upgrade") === "1";
     url.search = "";
     url.searchParams.set("auth", kind);
+    if (keepUpgrade) url.searchParams.set("upgrade", "1");
     url.hash = "profile";
     return url.toString();
   }
@@ -375,6 +401,13 @@
     setText(state.homePremiumBadge, "ACCESSO RICHIESTO");
     setText(state.homePremiumTitle, "Collega il tuo account");
     setText(state.homePremiumCopy, "Accedi dal Profilo per usare il servizio Premium.");
+
+    if (upgradeRequested()) {
+      setText(state.signupHint, "Stai attivando Premium: dopo la conferma dell’account passerai al pagamento sicuro di 47,88 € per i primi 12 mesi. Dal secondo anno 59,88 €/anno.");
+      setMessage("info", "Attivazione Premium: accedi se hai già un account oppure creane uno. Dopo l’accesso apriremo automaticamente il pagamento sicuro.");
+    } else {
+      setText(state.signupHint, "La prova dura 30 giorni e include fino a 4 bollette complessivamente caricate, 2 utenze della stessa abitazione e una verifica staff per un’anomalia rossa. Nessuna carta e nessun addebito automatico.");
+    }
   }
 
   function renderLoading(session) {
@@ -603,6 +636,65 @@
     return true;
   }
 
+  async function maybeContinueUpgrade(profile, subscription, acceptanceStatus) {
+    if (!upgradeRequested() || upgradeCheckoutStarted) return false;
+
+    if (!profile || profile.account_status !== "active") {
+      setMessage("info", "Completa il collegamento dell’account Premium per continuare con l’attivazione.");
+      return false;
+    }
+
+    if (!acceptancesComplete(acceptanceStatus)) {
+      setBillingMessage("", "Accetta le condizioni correnti per continuare con l’attivazione Premium.");
+      return false;
+    }
+
+    if (subscription?.status === "active") {
+      clearUpgradeQuery();
+      setBillingMessage("", subscription.plan_code === "premium-complimentary"
+        ? "Premium è già attivo sul tuo account senza pagamento."
+        : "Premium è già attivo sul tuo account. Non è necessario effettuare un nuovo acquisto.");
+      focusSubscriptionPanel();
+      return false;
+    }
+
+    if (subscription?.status === "past_due" || subscription?.status === "paused") {
+      clearUpgradeQuery();
+      setBillingMessage("error", "Il tuo account Premium richiede la gestione del pagamento esistente prima di una nuova attivazione.");
+      focusSubscriptionPanel();
+      return false;
+    }
+
+    const purchasable = Boolean(subscription && ["trialing", "expired", "canceled", "pending"].includes(subscription.status));
+    if (!purchasable) {
+      setBillingMessage("", "Preparazione dell’attivazione Premium in corso…");
+      focusSubscriptionPanel();
+      return false;
+    }
+
+    if (!billingAvailability.enabled) {
+      setBillingMessage("error", "Il pagamento Premium non è disponibile in questo momento. Riprova tra poco.");
+      focusSubscriptionPanel();
+      return false;
+    }
+
+    upgradeCheckoutStarted = true;
+    if (state.subscriptionPurchaseButton) state.subscriptionPurchaseButton.disabled = true;
+    setBillingMessage("", "Apertura del pagamento sicuro Premium…");
+    focusSubscriptionPanel();
+    try {
+      const result = await billingRequest("create_checkout");
+      if (!result?.url) throw new Error("checkout_url_missing");
+      window.location.assign(result.url);
+      return true;
+    } catch (error) {
+      upgradeCheckoutStarted = false;
+      setBillingMessage("error", billingErrorMessage(error));
+      if (state.subscriptionPurchaseButton) state.subscriptionPurchaseButton.disabled = !billingAvailability.enabled;
+      return false;
+    }
+  }
+
   async function loadAccount(session, { retry = true } = {}) {
     const sequence = ++accountLoadSequence;
     if (!client || !session?.user) {
@@ -803,6 +895,7 @@
     setText(state.profileArchive, serviceActive
       ? "Cloud Premium attivo"
       : (archiveAvailable ? `Sola lettura fino al ${formatDate(subscription.archive_access_until)}` : (profile ? "Cloud non disponibile" : "Cloud non attivo")));
+    await maybeContinueUpgrade(profile, subscription, acceptanceStatus);
     return true;
   }
 
@@ -1228,6 +1321,7 @@
     state.deletionCancelButton = byId("premiumDeletionCancel");
     state.passwordPanel = byId("premiumPasswordPanel");
     state.passwordToggle = byId("premiumPasswordToggle");
+    state.signupHint = byId("premiumSignupHint");
   }
 
   function init() {
