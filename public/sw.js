@@ -3,6 +3,7 @@ const CACHE = "offertalogica-premium-v03629";
 const APP_SHELL = [
   "/app.html",
   "/app-dialog.js",
+  "/app-install.js",
   "/app-auth.js",
   "/app-utilities.js",
   "/app-premium-bills.js",

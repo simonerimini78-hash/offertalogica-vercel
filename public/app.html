@@ -503,6 +503,12 @@
       .section-head h1{font-size:24px}
     }
 
+
+    .install-entry{margin:0 0 14px;padding:18px;border:1.5px solid rgba(255,255,255,.98);border-radius:24px;background:var(--silver-panel);box-shadow:inset 0 1.5px 0 #fff,0 14px 32px rgba(13,45,61,.11);backdrop-filter:blur(24px) saturate(145%);-webkit-backdrop-filter:blur(24px) saturate(145%)}
+    .install-entry[hidden]{display:none!important}.install-entry-head{display:flex;align-items:center;justify-content:space-between;gap:12px}.install-entry-head strong{font-size:17px;letter-spacing:-.02em}.install-entry p{margin:10px 0 14px;color:var(--muted);font-size:13px;line-height:1.5}
+    .install-entry-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}.install-entry-primary,.install-entry-secondary{min-height:46px;border-radius:15px;font-size:12px;font-weight:900}.install-entry-primary{border:0;background:linear-gradient(145deg,#087f3a 0%,#18a84b 56%,#73c928 100%);color:#fff}.install-entry-primary[hidden]{display:none!important}.install-entry-secondary{border:1px solid #cbd9d2;background:rgba(255,255,255,.78);color:var(--navy)}
+    @media(max-width:390px){.install-entry-actions{grid-template-columns:1fr}}
+
 </style>
 </head>
 <body>
@@ -513,6 +519,15 @@
       <a class="brand" href="#home" data-tab-link="home" aria-label="OffertaLogica"><img src="/assets/logo-offertalogica-header.png" alt="OffertaLogica"></a>
       <div class="top-actions"><div class="top-actions-row"><a class="round-btn" href="/come-funziona.html" data-app-url="/come-funziona.html" data-app-title="Come funziona" aria-label="Aiuto"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.35 2.35 0 1 1 3.6 2c-.9.6-1.4 1.05-1.4 2.2"/><path d="M12 17h.01"/></svg></a></div><div id="greeting" class="header-greeting">Buongiorno</div></div>
     </header>
+
+    <section id="installEntryPanel" class="install-entry" aria-labelledby="installEntryTitle" hidden>
+      <div class="install-entry-head"><strong id="installEntryTitle">Installa OffertaLogica Premium</strong><span class="pill">APP</span></div>
+      <p id="installEntryText">Installa l’app sul dispositivo per aprirla come un’app normale.</p>
+      <div class="install-entry-actions">
+        <button id="installEntryButton" class="install-entry-primary" type="button" hidden>INSTALLA APP</button>
+        <button id="installEntryContinue" class="install-entry-secondary" type="button">CONTINUA NEL BROWSER</button>
+      </div>
+    </section>
 
     <section id="view-home" class="view active" data-view="home">
       <div class="welcome home-welcome"><h1>La tua energia, più semplice.</h1><p>Bollette, utenze, risparmio e offerte sempre aggiornate.</p></div>
@@ -864,6 +879,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="/app-dialog.js"></script>
+  <script src="/app-install.js"></script>
   <script src="/app-auth.js"></script>
   <script src="/app-utilities.js"></script>
   <script src="/app-premium-bills.js"></script>
