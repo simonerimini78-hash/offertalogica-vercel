@@ -5,7 +5,7 @@
   const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_poz1xBKiXceLCFV3u_tPIg_5_-ycHcl";
   const STORAGE_KEY = "offertalogica-premium-staff-auth";
   const ALLOWED_ROLES = new Set(["reviewer", "admin"]);
-  const VALID_TABS = new Set(["overview", "leads", "checks", "customers", "analytics", "pdf", "costs"]);
+  const VALID_TABS = new Set(["overview", "cases", "leads", "checks", "customers", "analytics", "pdf", "costs"]);
 
   let client = null;
   let currentSession = null;
@@ -22,6 +22,7 @@
     analyticsSummary: {},
     customers: [],
     checks: [],
+    cases: [],
     runs: [],
     costEvents: [],
     costSummary: {},
@@ -1016,7 +1017,7 @@
 
   async function loadChecks({ silent = false } = {}) {
     const result = await client.from("premium_checks")
-      .select("id,status,outcome,human_seconds,created_at,completed_at")
+      .select("id,user_id,bill_id,status,outcome,human_seconds,created_at,completed_at")
       .order("created_at", { ascending: false })
       .limit(500);
     if (result.error) throw result.error;
@@ -1027,6 +1028,178 @@
       const frame = byId("checksFrame");
       if (frame?.contentWindow) frame.contentWindow.location.reload();
     }
+  }
+
+  function casePriorityDescriptor(priority) {
+    if (priority === "high") return { label: "ALTA", kind: "danger" };
+    if (priority === "medium") return { label: "MEDIA", kind: "warn" };
+    return { label: "BASSA", kind: "info" };
+  }
+
+  function caseTypeLabel(type) {
+    return ({
+      bill_check: "Verifica bolletta",
+      account_deletion: "Cancellazione account",
+      payment: "Pagamento",
+      ai_failure: "Analisi IA",
+    })[type] || "Altra pratica";
+  }
+
+  function customerByUserId(userId) {
+    return cache.customers.find(customer => customer.profile?.id === userId) || null;
+  }
+
+  function customerCaseLabel(userId) {
+    const customer = customerByUserId(userId);
+    const profile = customer?.profile || {};
+    return {
+      name: profile.full_name || profile.email || "Cliente Premium",
+      email: profile.email || "",
+    };
+  }
+
+  function buildOperationalCases() {
+    const cases = [];
+
+    cache.checks.forEach(check => {
+      if (["completed", "canceled"].includes(check.status)) return;
+      const customer = customerCaseLabel(check.user_id);
+      const priority = check.status === "more_info_required" ? "medium" : (check.status === "pending" ? "medium" : "low");
+      cases.push({
+        id: `check:${check.id}`,
+        type: "bill_check",
+        priority,
+        userId: check.user_id || "",
+        customer,
+        status: check.status || "pending",
+        createdAt: check.created_at,
+        detail: check.status === "more_info_required" ? "In attesa di integrazione cliente" : "Verifica bolletta non conclusa",
+        targetTab: "checks",
+      });
+    });
+
+    cache.customers.forEach(customer => {
+      const profile = customer.profile || {};
+      if (profile.account_status === "deletion_requested") {
+        cases.push({
+          id: `deletion:${profile.id}`,
+          type: "account_deletion",
+          priority: "high",
+          userId: profile.id,
+          customer: { name: profile.full_name || profile.email || "Cliente Premium", email: profile.email || "" },
+          status: "deletion_requested",
+          createdAt: profile.deletion_requested_at || profile.updated_at || profile.created_at,
+          detail: profile.deletion_request_reason || "Richiesta di cancellazione account e dati",
+          targetTab: "customers",
+        });
+      }
+      const subscription = customer.subscription;
+      if (subscription && ["past_due", "paused"].includes(subscription.status)) {
+        cases.push({
+          id: `payment:${subscription.id}`,
+          type: "payment",
+          priority: "high",
+          userId: profile.id,
+          customer: { name: profile.full_name || profile.email || "Cliente Premium", email: profile.email || "" },
+          status: subscription.status,
+          createdAt: subscription.current_period_end || subscription.created_at,
+          detail: subscription.status === "past_due" ? "Pagamento Premium da verificare" : "Abbonamento Premium sospeso",
+          targetTab: "customers",
+        });
+      }
+    });
+
+    cache.runs.forEach(run => {
+      if (run.status !== "failed") return;
+      const customer = customerCaseLabel(run.user_id);
+      cases.push({
+        id: `analysis:${run.id}`,
+        type: "ai_failure",
+        priority: "medium",
+        userId: run.user_id || "",
+        customer,
+        status: "failed",
+        createdAt: run.created_at,
+        detail: run.error_code ? `Errore IA: ${run.error_code}` : "Analisi IA non completata",
+        targetTab: "costs",
+      });
+    });
+
+    cache.cases = cases.sort((a, b) => {
+      const rank = { high: 0, medium: 1, low: 2 };
+      const priorityDiff = (rank[a.priority] ?? 9) - (rank[b.priority] ?? 9);
+      if (priorityDiff) return priorityDiff;
+      return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+    });
+    return cache.cases;
+  }
+
+  function filteredCases() {
+    const query = String(byId("caseSearch")?.value || "").trim().toLowerCase();
+    const type = String(byId("caseType")?.value || "");
+    const priority = String(byId("casePriority")?.value || "");
+    return cache.cases.filter(item => {
+      if (type && item.type !== type) return false;
+      if (priority && item.priority !== priority) return false;
+      if (!query) return true;
+      const haystack = [item.customer?.name, item.customer?.email, caseTypeLabel(item.type), item.status, item.detail]
+        .filter(Boolean).join(" ").toLowerCase();
+      return haystack.includes(query);
+    });
+  }
+
+  function openOperationalCase(item) {
+    if (!item) return;
+    if (item.targetTab === "customers" && item.customer?.email) {
+      const search = byId("customerSearch");
+      if (search) search.value = item.customer.email;
+    }
+    setTab(item.targetTab || "overview");
+  }
+
+  function renderCases() {
+    buildOperationalCases();
+    const rows = filteredCases();
+    text(byId("navCaseCount"), cache.cases.length);
+    text(byId("caseMetricTotal"), cache.cases.length);
+    text(byId("caseMetricHigh"), cache.cases.filter(item => item.priority === "high").length);
+    text(byId("caseMetricCustomers"), new Set(cache.cases.map(item => item.userId).filter(Boolean)).size);
+    text(byId("caseMetricTypes"), new Set(cache.cases.map(item => item.type)).size);
+    const body = byId("caseRows");
+    if (!body) return;
+    clear(body);
+    if (!rows.length) {
+      body.append(node("tr", {}, [node("td", { text: cache.cases.length ? "Nessuna pratica corrisponde ai filtri." : "Nessuna pratica aperta rilevata.", attrs: { colspan: "7" } })]));
+      return;
+    }
+    rows.forEach(item => {
+      const descriptor = casePriorityDescriptor(item.priority);
+      const action = node("button", { className: "button secondary compact", type: "button", text: "APRI" });
+      action.addEventListener("click", () => openOperationalCase(item));
+      body.append(node("tr", {}, [
+        node("td", {}, [badge(descriptor.label, descriptor.kind)]),
+        node("td", {}, [node("strong", { text: caseTypeLabel(item.type) })]),
+        node("td", {}, [node("strong", { text: item.customer?.name || "Cliente Premium" }), node("small", { text: item.customer?.email || item.userId || "—" })]),
+        node("td", {}, [badge(item.status || "—", item.priority === "high" ? "danger" : item.priority === "medium" ? "warn" : "info")]),
+        node("td", { text: formatDate(item.createdAt) }),
+        node("td", { text: item.detail || "—" }),
+        node("td", {}, [action]),
+      ]));
+    });
+  }
+
+  async function loadCases({ silent = false } = {}) {
+    if (!silent) setMessage("info", "Aggiornamento pratiche…");
+    const results = await Promise.allSettled([
+      loadChecks({ silent: true }),
+      loadCustomers({ silent: true }),
+      loadCosts({ silent: true }),
+    ]);
+    renderCases();
+    const failures = results.filter(result => result.status === "rejected");
+    if (!silent) setMessage(failures.length ? "info" : "success", failures.length
+      ? `Pratiche aggiornate parzialmente: ${failures.length} sorgente/i non disponibili.`
+      : "Pratiche aggiornate.");
   }
 
   function renderCostRuns() {
@@ -1211,8 +1384,8 @@
   async function loadCosts({ silent = false } = {}) {
     if (!silent) setMessage("info", "Aggiornamento costi e tempi…");
     const [runsResult, checksResult] = await Promise.all([
-      client.from("premium_analysis_runs").select("id,status,model,origin,input_tokens,output_tokens,estimated_cost_eur,duration_ms,created_at").order("created_at", { ascending: false }).limit(500),
-      client.from("premium_checks").select("id,status,human_seconds,completed_at,created_at").order("created_at", { ascending: false }).limit(500),
+      client.from("premium_analysis_runs").select("id,user_id,bill_id,status,model,origin,error_code,input_tokens,output_tokens,estimated_cost_eur,duration_ms,created_at").order("created_at", { ascending: false }).limit(500),
+      client.from("premium_checks").select("id,user_id,bill_id,status,outcome,human_seconds,completed_at,created_at").order("created_at", { ascending: false }).limit(500),
     ]);
     if (runsResult.error) throw runsResult.error;
     if (checksResult.error) throw checksResult.error;
@@ -1244,27 +1417,34 @@
 
   function renderOverview() {
     const leadSummary = cache.leadSummary || {};
-    const openChecks = cache.checks.filter(item => !["completed", "canceled"].includes(item.status)).length;
+    buildOperationalCases();
     text(byId("overviewLeads"), currentStaff?.role === "admin" ? leadSummary.recentRows || 0 : "Riservato");
     text(byId("overviewLeadsMeta"), currentStaff?.role === "admin" ? `${leadSummary.verifiedRows || 0} verificati OTP` : "Solo amministratori");
-    text(byId("overviewChecks"), openChecks);
+    text(byId("overviewCases"), cache.cases.length);
     text(byId("overviewCustomers"), cache.customers.length);
     text(byId("overviewAiCost"), cache.costSummary.pricedRuns ? formatMoney(cache.costSummary.aiCost) : "Tariffe non configurate");
+    text(byId("navCaseCount"), cache.cases.length);
 
     const target = byId("overviewTasks");
     clear(target);
-    const tasks = [
-      [cache.checks.filter(item => item.status === "pending").length, "controlli da assegnare", "checks"],
-      [cache.checks.filter(item => item.status === "more_info_required").length, "richieste in attesa di integrazione", "checks"],
-      [cache.customers.filter(item => item.profile.account_status === "deletion_requested").length, "richieste di cancellazione account", "customers"],
+    const grouped = [
+      ["account_deletion", "cancellazioni account", "customers"],
+      ["payment", "pagamenti da verificare", "customers"],
+      ["bill_check", "verifiche bollette aperte", "checks"],
+      ["ai_failure", "analisi IA fallite", "costs"],
     ];
-    if (currentStaff?.role === "admin") tasks.push([leadSummary.withSelectedOffer || 0, "lead con offerta scelta", "leads"]);
     const list = node("div", { className: "rank-list" });
-    tasks.forEach(([count, label, tab]) => {
+    grouped.forEach(([type, label, tab]) => {
+      const count = cache.cases.filter(item => item.type === type).length;
       const button = node("button", { className: "rank-row", type: "button" }, [node("strong", { text: label }), node("span", { text: count })]);
-      button.addEventListener("click", () => setTab(tab));
+      button.addEventListener("click", () => count ? setTab("cases") : setTab(tab));
       list.append(button);
     });
+    if (currentStaff?.role === "admin") {
+      const leadButton = node("button", { className: "rank-row", type: "button" }, [node("strong", { text: "lead con offerta scelta" }), node("span", { text: leadSummary.withSelectedOffer || 0 })]);
+      leadButton.addEventListener("click", () => setTab("leads"));
+      list.append(leadButton);
+    }
     target.append(list);
     renderFunnel(byId("overviewFunnel"), cache.analyticsSummary.funnel || {}, true);
   }
@@ -1286,6 +1466,7 @@
   async function refreshTab(tab, { silent = false } = {}) {
     if (!currentStaff || busy) return;
     if (tab === "overview") return loadOverview({ silent });
+    if (tab === "cases") return loadCases({ silent });
     if (tab === "leads") return loadLeads({ silent });
     if (tab === "checks") return loadChecks({ silent });
     if (tab === "customers") return loadCustomers({ silent });
@@ -1366,6 +1547,11 @@
     byId("staffDeniedLogout").addEventListener("click", logout);
     byId("staffRefresh").addEventListener("click", () => refreshTab(activeTab).catch(error => setMessage("error", friendlyError(error))));
     document.querySelectorAll("[data-staff-tab]").forEach(button => button.addEventListener("click", () => setTab(button.dataset.staffTab)));
+    byId("caseRefresh").addEventListener("click", () => loadCases().catch(error => setMessage("error", friendlyError(error))));
+    byId("caseSearch").addEventListener("input", renderCases);
+    byId("caseType").addEventListener("change", renderCases);
+    byId("casePriority").addEventListener("change", renderCases);
+    byId("caseApplyFilters").addEventListener("click", renderCases);
     byId("leadRefresh").addEventListener("click", () => loadLeads().catch(error => setMessage("error", friendlyError(error))));
     byId("leadSearch").addEventListener("input", renderLeads);
     byId("leadLimit").addEventListener("change", () => loadLeads().catch(error => setMessage("error", friendlyError(error))));

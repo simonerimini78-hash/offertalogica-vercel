@@ -80,8 +80,9 @@
     <div class="nav-title">Area operativa</div>
     <nav class="nav" aria-label="Moduli staff">
       <button type="button" data-staff-tab="overview" class="active">Riepilogo</button>
+      <button type="button" data-staff-tab="cases">Pratiche <span id="navCaseCount">0</span></button>
       <button type="button" data-staff-tab="leads">Lead e attivazioni <span id="navLeadCount">0</span></button>
-      <button type="button" data-staff-tab="checks">Controlli Premium <span id="navCheckCount">0</span></button>
+      <button type="button" data-staff-tab="checks">Verifiche bollette <span id="navCheckCount">0</span></button>
       <button type="button" data-staff-tab="customers">Clienti e utenze <span id="navCustomerCount">0</span></button>
       <button type="button" data-staff-tab="analytics">Analytics</button>
       <button type="button" data-staff-tab="pdf">Diagnostica PDF</button>
@@ -97,15 +98,25 @@
       <div class="view-head"><div><h2>Riepilogo operativo</h2><p>Situazione corrente di acquisizione, Premium e costi di lavorazione.</p></div></div>
       <div class="metrics">
         <article class="metric"><span>Lead recenti</span><strong id="overviewLeads">—</strong><small id="overviewLeadsMeta">Customer DB</small></article>
-        <article class="metric"><span>Controlli aperti</span><strong id="overviewChecks">—</strong><small>Richieste non concluse</small></article>
+        <article class="metric"><span>Pratiche aperte</span><strong id="overviewCases">—</strong><small>Problemi che richiedono attenzione</small></article>
         <article class="metric"><span>Clienti Premium</span><strong id="overviewCustomers">—</strong><small>Profili registrati</small></article>
         <article class="metric"><span>Costo IA registrato</span><strong id="overviewAiCost">—</strong><small>Analisi con tariffa configurata</small></article>
       </div>
       <div class="grid-2">
-        <section class="panel"><div class="panel-head"><h3>Attività da gestire</h3></div><div class="panel-body" id="overviewTasks"><div class="empty">Caricamento…</div></div></section>
+        <section class="panel"><div class="panel-head"><h3>Pratiche da gestire</h3><small>Raggruppate da tutti i moduli operativi</small></div><div class="panel-body" id="overviewTasks"><div class="empty">Caricamento…</div></div></section>
         <section class="panel"><div class="panel-head"><h3>Funnel essenziale</h3></div><div class="panel-body"><div class="funnel" id="overviewFunnel"></div></div></section>
       </div>
       <div class="version">Area staff unica v0.36.29</div>
+    </section>
+
+    <section class="view" data-staff-view="cases">
+      <div class="view-head"><div><h2>Pratiche operative</h2><p>Un solo punto di ingresso per le problematiche già rilevate dai moduli Premium: verifiche bollette, cancellazioni account, pagamenti da controllare e analisi IA fallite.</p></div><div class="view-actions"><button class="button secondary" id="caseRefresh" type="button">Aggiorna</button></div></div>
+      <div class="metrics"><article class="metric"><span>Pratiche aperte</span><strong id="caseMetricTotal">0</strong></article><article class="metric"><span>Alta priorità</span><strong id="caseMetricHigh">0</strong></article><article class="metric"><span>Clienti coinvolti</span><strong id="caseMetricCustomers">0</strong></article><article class="metric"><span>Tipologie attive</span><strong id="caseMetricTypes">0</strong></article></div>
+      <section class="panel">
+        <div class="toolbar four"><input id="caseSearch" type="search" placeholder="Cerca cliente, email, tipo o stato"><select id="caseType"><option value="">Tutte le tipologie</option><option value="bill_check">Verifica bolletta</option><option value="account_deletion">Cancellazione account</option><option value="payment">Pagamento</option><option value="ai_failure">Analisi IA</option></select><select id="casePriority"><option value="">Tutte le priorità</option><option value="high">Alta</option><option value="medium">Media</option><option value="low">Bassa</option></select><button class="button primary" id="caseApplyFilters" type="button">Filtra</button></div>
+        <div class="table-wrap"><table class="data-table"><thead><tr><th>Priorità</th><th>Tipo</th><th>Cliente</th><th>Stato</th><th>Data</th><th>Dettaglio</th><th>Azione</th></tr></thead><tbody id="caseRows"></tbody></table></div>
+      </section>
+      <div class="side-note" style="margin-top:14px">Questa prima fase unifica le problematiche che il sistema sa già rilevare senza cambiare database, API o flussi cliente. Le richieste di assistenza generiche verranno aggiunte come fase successiva.</div>
     </section>
 
     <section class="view" data-staff-view="leads">
@@ -118,7 +129,7 @@
     </section>
 
     <section class="view" data-staff-view="checks">
-      <div class="view-head"><div><h2>Controlli Premium</h2><p>Coda, PDF autorizzati, pre-analisi IA, validazione, anomalie ed esito al cliente.</p></div></div>
+      <div class="view-head"><div><h2>Verifiche bollette</h2><p>Coda specialistica per PDF autorizzati, pre-analisi IA, validazione, anomalie ed esito al cliente.</p></div></div>
       <iframe class="module-frame" id="checksFrame" title="Controlli Premium" data-src="/staff-premium.html?embedded=1"></iframe>
     </section>
 
