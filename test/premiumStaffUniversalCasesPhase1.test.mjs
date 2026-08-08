@@ -33,11 +33,11 @@ test("fase 1 aggrega soltanto segnali già esistenti: bollette, cancellazioni, p
   assert.doesNotMatch(js, /premium_support_cases/);
 });
 
-test("fase 1 non introduce nuove API, migrazioni o operazioni distruttive per le Pratiche", async () => {
+test("fase 1 resta senza una nuova API o tabella dedicata alle Pratiche anche dopo le estensioni successive", async () => {
   const { html, js } = await source();
   assert.match(html, /senza cambiare database, API o flussi cliente/);
-  const casesBlock = js.slice(js.indexOf("function casePriorityDescriptor"), js.indexOf("function renderCostRuns"));
-  assert.ok(casesBlock.length > 0);
-  assert.doesNotMatch(casesBlock, /\.insert\(|\.update\(|\.delete\(|staffFetch\(/);
-  assert.match(casesBlock, /setTab\(item\.targetTab/);
+  assert.doesNotMatch(js, /premium_support_cases/);
+  assert.doesNotMatch(js, /staffFetch\(["'`]\/api\/support/);
+  assert.match(js, /client\.from\("premium_checks"\)/);
+  assert.match(js, /client\.from\("premium_communications"\)/);
 });

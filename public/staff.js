@@ -1042,24 +1042,6 @@
     if (!silent && activeTab === "cases") renderCases();
   }
 
-  async function resolveSupportRequest(item) {
-    if (!item?.communicationId || busy) return;
-    const button = document.querySelector(`[data-support-resolve="${item.communicationId}"]`);
-    if (button) button.disabled = true;
-    try {
-      const { error } = await client.from("premium_communications")
-        .update({ read_at: new Date().toISOString() })
-        .eq("id", item.communicationId)
-        .eq("direction", "user_to_staff");
-      if (error) throw error;
-      await loadSupportRequests({ silent: true });
-      renderCases();
-      setMessage("success", "Richiesta assistenza segnata come gestita.");
-    } catch (error) {
-      if (button) button.disabled = false;
-      setMessage("error", friendlyError(error));
-    }
-  }
 
   function casePriorityDescriptor(priority) {
     if (priority === "high") return { label: "ALTA", kind: "danger" };
@@ -1073,7 +1055,7 @@
       account_deletion: "Cancellazione account",
       payment: "Pagamento",
       ai_failure: "Analisi IA",
-      support_request: "Richiesta assistenza",
+      support_request: "Assistenza rossa",
     })[type] || "Altra pratica";
   }
 
@@ -1092,9 +1074,6 @@
 
   function supportSubject(subject = "") {
     const raw = String(subject || "").trim();
-    const match = raw.match(/^\[support:([a-z_]+)\]\s*(.*)$/i);
-    const category = match?.[1]?.toLowerCase() || "other";
-    const fallback = match?.[2]?.trim() || raw || "Richiesta assistenza";
     const labels = {
       account: "Account e accesso",
       payment: "Abbonamento e pagamento",
@@ -1103,13 +1082,212 @@
       installation: "Installazione e aggiornamento app",
       other: "Altro",
     };
-    return { category, label: labels[category] || fallback || "Altro" };
+    const red = raw.match(/^\[support:red:([a-z_]+):([a-z0-9-]+)\]\s*(.*)$/i);
+    if (red) {
+      const category = red[1].toLowerCase();
+      return {
+        raw,
+        severity: "red",
+        category,
+        caseId: red[2],
+        label: labels[category] || red[3].trim() || "Assistenza",
+      };
+    }
+    const legacy = raw.match(/^\[support:([a-z_]+)\]\s*(.*)$/i);
+    const category = legacy?.[1]?.toLowerCase() || "other";
+    const fallback = legacy?.[2]?.trim() || raw || "Richiesta assistenza";
+    return { raw, severity: "legacy", category, caseId: "legacy", label: labels[category] || fallback || "Altro" };
   }
 
-  function supportPriority(category) {
-    if (["account", "payment"].includes(category)) return "high";
-    if (["utilities", "bills", "other"].includes(category)) return "medium";
+  function supportPriority(subject) {
+    if (subject?.severity === "red") return "high";
+    if (["account", "payment"].includes(subject?.category)) return "high";
+    if (["utilities", "bills", "other"].includes(subject?.category)) return "medium";
     return "low";
+  }
+
+  function supportDetail(body = "") {
+    const raw = String(body || "").trim();
+    const match = raw.match(/Descrizione cliente:\s*([\s\S]*)$/i);
+    return (match?.[1] || raw || "Nessun dettaglio").trim();
+  }
+
+  function injectSupportDialogStyles() {
+    if (byId("staffSupportDialogStyles")) return;
+    const style = document.createElement("style");
+    style.id = "staffSupportDialogStyles";
+    style.textContent = `
+      .support-dialog-layer{position:fixed;inset:0;z-index:1450;display:grid;place-items:center;padding:18px;background:rgba(10,31,27,.66);backdrop-filter:blur(5px)}
+      .support-dialog-layer[hidden]{display:none}.support-dialog{width:min(720px,100%);max-height:min(90vh,820px);overflow:auto;border:1px solid var(--line);border-radius:20px;padding:18px;background:#fff;box-shadow:0 30px 80px rgba(10,31,27,.30)}
+      .support-dialog-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.support-dialog-head h3{margin:0;font-size:20px}.support-dialog-head p{margin:4px 0 0;color:var(--muted);font-size:11px}.support-dialog-close{border:0;border-radius:10px;width:38px;height:38px;background:#eef2f0;color:#344840;font-size:20px}
+      .support-dialog-meta{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}.support-thread{display:grid;gap:8px;margin-top:14px;padding:12px;border:1px solid #e0e9e5;border-radius:14px;background:#f8fbf9;max-height:360px;overflow:auto}
+      .support-thread-message{max-width:88%;padding:10px 11px;border-radius:13px;font-size:12px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}.support-thread-message.user{justify-self:start;background:#fff0f0;color:#612b2b;border-bottom-left-radius:4px}.support-thread-message.staff{justify-self:end;background:#eaf4ff;color:#15345d;border-bottom-right-radius:4px}.support-thread-message small{display:block;margin-top:4px;opacity:.68;font-size:9px}
+      .support-dialog-form{display:grid;gap:8px;margin-top:13px}.support-dialog-form textarea{min-height:92px;resize:vertical}.support-dialog-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:13px}.support-dialog-actions .button{flex:1 1 150px}.support-dialog-note{margin-top:9px;color:var(--muted);font-size:10px;line-height:1.4}
+      @media(max-width:620px){.support-dialog-layer{align-items:end;padding:8px}.support-dialog{border-radius:18px 18px 10px 10px}.support-dialog-actions{display:grid}.support-dialog-actions .button{width:100%}}
+    `;
+    document.head.append(style);
+  }
+
+  let activeSupportCase = null;
+
+  function ensureSupportDialog() {
+    let layer = byId("staffSupportDialogLayer");
+    if (layer) return layer;
+    injectSupportDialogStyles();
+    layer = node("div", { className: "support-dialog-layer", attrs: { id: "staffSupportDialogLayer", role: "dialog", "aria-modal": "true", "aria-labelledby": "staffSupportDialogTitle", hidden: "" } });
+    const dialog = node("section", { className: "support-dialog" });
+    const head = node("div", { className: "support-dialog-head" }, [
+      node("div", {}, [node("h3", { text: "Pratica assistenza", attrs: { id: "staffSupportDialogTitle" } }), node("p", { text: "Conversazione cliente ↔ staff" , attrs: { id: "staffSupportDialogCustomer" } })]),
+      node("button", { className: "support-dialog-close", type: "button", text: "×", attrs: { id: "staffSupportDialogClose", "aria-label": "Chiudi" } }),
+    ]);
+    const meta = node("div", { className: "support-dialog-meta", attrs: { id: "staffSupportDialogMeta" } });
+    const thread = node("div", { className: "support-thread", attrs: { id: "staffSupportThread" } });
+    const form = node("form", { className: "support-dialog-form", attrs: { id: "staffSupportReplyForm" } }, [
+      node("textarea", { attrs: { id: "staffSupportReply", maxlength: "1500", placeholder: "Scrivi la risposta al cliente…", required: "" } }),
+      node("button", { className: "button primary", type: "submit", text: "INVIA RISPOSTA" }),
+    ]);
+    const actions = node("div", { className: "support-dialog-actions" }, [
+      node("button", { className: "button secondary", type: "button", text: "VEDI CLIENTE", attrs: { id: "staffSupportViewCustomer" } }),
+      node("button", { className: "button danger", type: "button", text: "CHIUDI PRATICA", attrs: { id: "staffSupportCloseCase" } }),
+    ]);
+    const note = node("div", { className: "support-dialog-note", text: "Chiudere la pratica la rimuove dalla coda aperta ma non elimina la conversazione dal database." });
+    dialog.append(head, meta, thread, form, actions, note);
+    layer.append(dialog);
+    document.body.append(layer);
+    byId("staffSupportDialogClose").addEventListener("click", closeSupportDialog);
+    layer.addEventListener("click", event => { if (event.target === layer) closeSupportDialog(); });
+    byId("staffSupportReplyForm").addEventListener("submit", sendSupportReply);
+    byId("staffSupportViewCustomer").addEventListener("click", viewSupportCustomer);
+    byId("staffSupportCloseCase").addEventListener("click", closeSupportCase);
+    return layer;
+  }
+
+  function closeSupportDialog() {
+    const layer = byId("staffSupportDialogLayer");
+    if (layer) layer.hidden = true;
+    activeSupportCase = null;
+  }
+
+  function renderSupportThread(messages = []) {
+    const thread = byId("staffSupportThread");
+    if (!thread) return;
+    clear(thread);
+    if (!messages.length) {
+      thread.append(node("div", { className: "empty", text: "Nessun messaggio disponibile." }));
+      return;
+    }
+    messages.forEach(message => {
+      const isStaff = message.direction === "staff_to_user";
+      const item = node("div", { className: `support-thread-message ${isStaff ? "staff" : "user"}` }, [
+        node("div", { text: message.body || "—" }),
+        node("small", { text: `${isStaff ? "Staff" : "Cliente"} · ${formatDate(message.created_at)}` }),
+      ]);
+      thread.append(item);
+    });
+    thread.scrollTop = thread.scrollHeight;
+  }
+
+  async function loadSupportThread(item) {
+    const parsed = supportSubject(item.supportSubjectRaw || "");
+    const result = await client.from("premium_communications")
+      .select("id,user_id,direction,subject,body,read_at,created_at")
+      .eq("user_id", item.userId)
+      .order("created_at", { ascending: true })
+      .limit(250);
+    if (result.error) throw result.error;
+    return (result.data || []).filter(message => {
+      const subject = supportSubject(message.subject);
+      if (parsed.severity === "red") return subject.severity === "red" && subject.caseId === parsed.caseId && subject.category === parsed.category;
+      return message.subject === item.supportSubjectRaw;
+    });
+  }
+
+  async function openSupportCase(item) {
+    if (!item?.userId) return;
+    const layer = ensureSupportDialog();
+    activeSupportCase = item;
+    text(byId("staffSupportDialogCustomer"), `${item.customer?.name || "Cliente Premium"}${item.customer?.email ? ` · ${item.customer.email}` : ""}`);
+    const meta = byId("staffSupportDialogMeta");
+    clear(meta);
+    meta.append(badge("ROSSO", "danger"), badge(item.supportLabel || "Assistenza", "info"), badge(formatDate(item.createdAt), ""));
+    clear(byId("staffSupportThread"));
+    byId("staffSupportThread").append(node("div", { className: "empty", text: "Caricamento conversazione…" }));
+    byId("staffSupportReply").value = "";
+    layer.hidden = false;
+    try {
+      const messages = await loadSupportThread(item);
+      renderSupportThread(messages);
+      window.setTimeout(() => byId("staffSupportReply")?.focus(), 0);
+    } catch (error) {
+      renderSupportThread([]);
+      setMessage("error", friendlyError(error));
+    }
+  }
+
+  async function sendSupportReply(event) {
+    event.preventDefault();
+    if (!activeSupportCase || busy) return;
+    const textarea = byId("staffSupportReply");
+    const body = String(textarea?.value || "").trim();
+    if (body.length < 2) {
+      setMessage("error", "Scrivi la risposta al cliente.");
+      textarea?.focus();
+      return;
+    }
+    const submit = event.currentTarget.querySelector('button[type="submit"]');
+    if (submit) submit.disabled = true;
+    try {
+      const { error } = await client.from("premium_communications").insert({
+        user_id: activeSupportCase.userId,
+        direction: "staff_to_user",
+        channel: "in_app",
+        subject: activeSupportCase.supportSubjectRaw,
+        body: body.slice(0, 1500),
+        created_by_staff_id: currentSession.user.id,
+      });
+      if (error) throw error;
+      textarea.value = "";
+      renderSupportThread(await loadSupportThread(activeSupportCase));
+      setMessage("success", "Risposta inviata al cliente. La pratica resta aperta finché non la chiudi.");
+    } catch (error) {
+      setMessage("error", friendlyError(error));
+    } finally {
+      if (submit) submit.disabled = false;
+    }
+  }
+
+  function viewSupportCustomer() {
+    if (!activeSupportCase) return;
+    const email = activeSupportCase.customer?.email || "";
+    closeSupportDialog();
+    if (email && byId("customerSearch")) byId("customerSearch").value = email;
+    setTab("customers");
+  }
+
+  async function closeSupportCase() {
+    if (!activeSupportCase || busy) return;
+    const confirmed = await confirmAction({
+      title: "Chiudere la pratica?",
+      message: "La conversazione resta registrata, ma la pratica scomparirà dalla coda delle pratiche aperte.",
+      confirmLabel: "CHIUDI PRATICA",
+    });
+    if (!confirmed) return;
+    try {
+      let query = client.from("premium_communications")
+        .update({ read_at: new Date().toISOString() })
+        .eq("user_id", activeSupportCase.userId)
+        .eq("direction", "user_to_staff")
+        .eq("subject", activeSupportCase.supportSubjectRaw)
+        .is("read_at", null);
+      const { error } = await query;
+      if (error) throw error;
+      closeSupportDialog();
+      await loadSupportRequests({ silent: true });
+      renderCases();
+      setMessage("success", "Pratica chiusa. La conversazione resta nello storico comunicazioni.");
+    } catch (error) {
+      setMessage("error", friendlyError(error));
+    }
   }
 
   function buildOperationalCases() {
@@ -1179,23 +1357,32 @@
       });
     });
 
+    const seenSupportCases = new Set();
     cache.communications.forEach(communication => {
       if (communication.direction !== "user_to_staff" || communication.read_at) return;
       const subject = supportSubject(communication.subject);
+      const caseKey = subject.severity === "red"
+        ? `${communication.user_id}:red:${subject.category}:${subject.caseId}`
+        : `legacy:${communication.id}`;
+      if (seenSupportCases.has(caseKey)) return;
+      seenSupportCases.add(caseKey);
       const customer = customerCaseLabel(communication.user_id);
-      const body = String(communication.body || "").trim();
+      const detail = supportDetail(communication.body);
       cases.push({
         id: `support:${communication.id}`,
         type: "support_request",
-        priority: supportPriority(subject.category),
+        priority: supportPriority(subject),
         userId: communication.user_id || "",
         customer,
-        status: "nuova",
+        status: subject.severity === "red" ? "rosso" : "nuova",
         createdAt: communication.created_at,
-        detail: `${subject.label}: ${body || "Nessun dettaglio"}`,
-        targetTab: "customers",
+        detail: `${subject.label}: ${detail || "Nessun dettaglio"}`,
         communicationId: communication.id,
         supportCategory: subject.category,
+        supportCaseId: subject.caseId,
+        supportSeverity: subject.severity,
+        supportLabel: subject.label,
+        supportSubjectRaw: subject.raw,
       });
     });
 
@@ -1224,6 +1411,10 @@
 
   function openOperationalCase(item) {
     if (!item) return;
+    if (item.type === "support_request") {
+      openSupportCase(item).catch(error => setMessage("error", friendlyError(error)));
+      return;
+    }
     if (item.targetTab === "customers" && item.customer?.email) {
       const search = byId("customerSearch");
       if (search) search.value = item.customer.email;
@@ -1248,19 +1439,9 @@
     }
     rows.forEach(item => {
       const descriptor = casePriorityDescriptor(item.priority);
-      const action = node("button", { className: "button secondary compact", type: "button", text: "APRI" });
+      const action = node("button", { className: "button secondary compact", type: "button", text: item.type === "support_request" ? "GESTISCI" : "APRI" });
       action.addEventListener("click", () => openOperationalCase(item));
       const actions = node("div", { className: "row-actions" }, [action]);
-      if (item.type === "support_request" && item.communicationId) {
-        const resolve = node("button", {
-          className: "button primary compact",
-          type: "button",
-          text: "GESTITA",
-          attrs: { "data-support-resolve": item.communicationId },
-        });
-        resolve.addEventListener("click", () => resolveSupportRequest(item));
-        actions.append(resolve);
-      }
       body.append(node("tr", {}, [
         node("td", {}, [badge(descriptor.label, descriptor.kind)]),
         node("td", {}, [node("strong", { text: caseTypeLabel(item.type) })]),

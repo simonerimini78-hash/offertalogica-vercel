@@ -16,25 +16,26 @@ test("fase 2: l'app Premium espone la richiesta assistenza senza cambiare naviga
   assert.match(html, /OffertaLogicaPremiumSupport\?\.init\(\)/);
 });
 
-test("fase 2: la richiesta usa premium_communications esistente e resta user_to_staff", () => {
+test("fase 2: premium_communications resta il canale cliente-staff, ora aperto soltanto dopo escalation rossa", () => {
   const js = read("public/app-support.js");
   assert.match(js, /\.from\("premium_communications"\)\.insert\(/);
   assert.match(js, /direction:\s*"user_to_staff"/);
   assert.match(js, /channel:\s*"in_app"/);
   assert.match(js, /created_by_user_id:\s*session\.user\.id/);
-  assert.match(js, /`\[support:\$\{category\}\]/);
+  assert.match(js, /`\[support:red:\$\{category\}:\$\{caseId\}\]/);
   assert.doesNotMatch(js, /fetch\(["'`]\/api\//);
   assert.doesNotMatch(js, /premium_support_cases/);
 });
 
-test("fase 2: lo staff porta le comunicazioni non gestite dentro Pratiche", () => {
+test("fase 2: lo staff porta le comunicazioni non gestite dentro Pratiche e la fase 3 le rende conversazioni", () => {
   const js = read("public/staff.js");
   const html = read("public/staff.html");
   assert.match(js, /\.from\("premium_communications"\)/);
   assert.match(js, /\.eq\("direction",\s*"user_to_staff"\)/);
   assert.match(js, /communication\.read_at/);
   assert.match(js, /type:\s*"support_request"/);
-  assert.match(js, /data-support-resolve/);
+  assert.match(js, /direction:\s*"staff_to_user"/);
+  assert.match(js, /CHIUDI PRATICA/);
   assert.match(js, /\.update\(\{\s*read_at:\s*new Date\(\)\.toISOString\(\)\s*\}\)/);
   assert.match(html, /option value="support_request">Richiesta assistenza/);
 });
