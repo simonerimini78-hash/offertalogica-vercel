@@ -22,6 +22,7 @@
     analyticsSummary: {},
     customers: [],
     checks: [],
+    communications: [],
     cases: [],
     runs: [],
     costEvents: [],
@@ -1030,6 +1031,36 @@
     }
   }
 
+  async function loadSupportRequests({ silent = false } = {}) {
+    const result = await client.from("premium_communications")
+      .select("id,user_id,direction,channel,subject,body,read_at,created_at")
+      .eq("direction", "user_to_staff")
+      .order("created_at", { ascending: false })
+      .limit(500);
+    if (result.error) throw result.error;
+    cache.communications = result.data || [];
+    if (!silent && activeTab === "cases") renderCases();
+  }
+
+  async function resolveSupportRequest(item) {
+    if (!item?.communicationId || busy) return;
+    const button = document.querySelector(`[data-support-resolve="${item.communicationId}"]`);
+    if (button) button.disabled = true;
+    try {
+      const { error } = await client.from("premium_communications")
+        .update({ read_at: new Date().toISOString() })
+        .eq("id", item.communicationId)
+        .eq("direction", "user_to_staff");
+      if (error) throw error;
+      await loadSupportRequests({ silent: true });
+      renderCases();
+      setMessage("success", "Richiesta assistenza segnata come gestita.");
+    } catch (error) {
+      if (button) button.disabled = false;
+      setMessage("error", friendlyError(error));
+    }
+  }
+
   function casePriorityDescriptor(priority) {
     if (priority === "high") return { label: "ALTA", kind: "danger" };
     if (priority === "medium") return { label: "MEDIA", kind: "warn" };
@@ -1042,6 +1073,7 @@
       account_deletion: "Cancellazione account",
       payment: "Pagamento",
       ai_failure: "Analisi IA",
+      support_request: "Richiesta assistenza",
     })[type] || "Altra pratica";
   }
 
@@ -1056,6 +1088,28 @@
       name: profile.full_name || profile.email || "Cliente Premium",
       email: profile.email || "",
     };
+  }
+
+  function supportSubject(subject = "") {
+    const raw = String(subject || "").trim();
+    const match = raw.match(/^\[support:([a-z_]+)\]\s*(.*)$/i);
+    const category = match?.[1]?.toLowerCase() || "other";
+    const fallback = match?.[2]?.trim() || raw || "Richiesta assistenza";
+    const labels = {
+      account: "Account e accesso",
+      payment: "Abbonamento e pagamento",
+      utilities: "Utenze",
+      bills: "Bollette e analisi",
+      installation: "Installazione e aggiornamento app",
+      other: "Altro",
+    };
+    return { category, label: labels[category] || fallback || "Altro" };
+  }
+
+  function supportPriority(category) {
+    if (["account", "payment"].includes(category)) return "high";
+    if (["utilities", "bills", "other"].includes(category)) return "medium";
+    return "low";
   }
 
   function buildOperationalCases() {
@@ -1125,6 +1179,26 @@
       });
     });
 
+    cache.communications.forEach(communication => {
+      if (communication.direction !== "user_to_staff" || communication.read_at) return;
+      const subject = supportSubject(communication.subject);
+      const customer = customerCaseLabel(communication.user_id);
+      const body = String(communication.body || "").trim();
+      cases.push({
+        id: `support:${communication.id}`,
+        type: "support_request",
+        priority: supportPriority(subject.category),
+        userId: communication.user_id || "",
+        customer,
+        status: "nuova",
+        createdAt: communication.created_at,
+        detail: `${subject.label}: ${body || "Nessun dettaglio"}`,
+        targetTab: "customers",
+        communicationId: communication.id,
+        supportCategory: subject.category,
+      });
+    });
+
     cache.cases = cases.sort((a, b) => {
       const rank = { high: 0, medium: 1, low: 2 };
       const priorityDiff = (rank[a.priority] ?? 9) - (rank[b.priority] ?? 9);
@@ -1176,6 +1250,17 @@
       const descriptor = casePriorityDescriptor(item.priority);
       const action = node("button", { className: "button secondary compact", type: "button", text: "APRI" });
       action.addEventListener("click", () => openOperationalCase(item));
+      const actions = node("div", { className: "row-actions" }, [action]);
+      if (item.type === "support_request" && item.communicationId) {
+        const resolve = node("button", {
+          className: "button primary compact",
+          type: "button",
+          text: "GESTITA",
+          attrs: { "data-support-resolve": item.communicationId },
+        });
+        resolve.addEventListener("click", () => resolveSupportRequest(item));
+        actions.append(resolve);
+      }
       body.append(node("tr", {}, [
         node("td", {}, [badge(descriptor.label, descriptor.kind)]),
         node("td", {}, [node("strong", { text: caseTypeLabel(item.type) })]),
@@ -1183,7 +1268,7 @@
         node("td", {}, [badge(item.status || "—", item.priority === "high" ? "danger" : item.priority === "medium" ? "warn" : "info")]),
         node("td", { text: formatDate(item.createdAt) }),
         node("td", { text: item.detail || "—" }),
-        node("td", {}, [action]),
+        node("td", {}, [actions]),
       ]));
     });
   }
@@ -1194,6 +1279,7 @@
       loadChecks({ silent: true }),
       loadCustomers({ silent: true }),
       loadCosts({ silent: true }),
+      loadSupportRequests({ silent: true }),
     ]);
     renderCases();
     const failures = results.filter(result => result.status === "rejected");
@@ -1428,6 +1514,7 @@
     const target = byId("overviewTasks");
     clear(target);
     const grouped = [
+      ["support_request", "richieste assistenza", "cases"],
       ["account_deletion", "cancellazioni account", "customers"],
       ["payment", "pagamenti da verificare", "customers"],
       ["bill_check", "verifiche bollette aperte", "checks"],
@@ -1451,7 +1538,7 @@
 
   async function loadOverview({ silent = false } = {}) {
     if (!silent) setMessage("info", "Aggiornamento riepilogo…");
-    const tasks = [loadChecks({ silent: true }), loadCustomers({ silent: true }), loadAnalytics({ silent: true }), loadCosts({ silent: true })];
+    const tasks = [loadChecks({ silent: true }), loadCustomers({ silent: true }), loadAnalytics({ silent: true }), loadCosts({ silent: true }), loadSupportRequests({ silent: true })];
     if (currentStaff?.role === "admin") tasks.push(loadLeads({ silent: true }));
     const results = await Promise.allSettled(tasks);
     const failures = results.filter(result => result.status === "rejected");
