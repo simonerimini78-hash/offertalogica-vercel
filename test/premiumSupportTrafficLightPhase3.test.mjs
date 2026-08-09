@@ -55,6 +55,6 @@ test("fase 3: APRI non porta più direttamente al cliente per l'assistenza rossa
 
 test("fase 3: cache PWA aggiornata senza cambiare versione commerciale", () => {
   const sw = read("public/sw.js");
-  assert.match(sw, /offertalogica-premium-v03629-support3/);
+  assert.match(sw, /offertalogica-premium-v03629-support(?:3|4-delete)/);
   assert.match(sw, /"\/app-support\.js"/);
 });

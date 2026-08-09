@@ -1148,9 +1148,10 @@
     ]);
     const actions = node("div", { className: "support-dialog-actions" }, [
       node("button", { className: "button secondary", type: "button", text: "VEDI CLIENTE", attrs: { id: "staffSupportViewCustomer" } }),
-      node("button", { className: "button danger", type: "button", text: "CHIUDI PRATICA", attrs: { id: "staffSupportCloseCase" } }),
+      node("button", { className: "button secondary", type: "button", text: "CHIUDI PRATICA", attrs: { id: "staffSupportCloseCase" } }),
+      node("button", { className: "button danger", type: "button", text: "ELIMINA PRATICA", attrs: { id: "staffSupportDeleteCase" } }),
     ]);
-    const note = node("div", { className: "support-dialog-note", text: "Chiudere la pratica la rimuove dalla coda aperta ma non elimina la conversazione dal database." });
+    const note = node("div", { className: "support-dialog-note", text: "CHIUDI conserva la conversazione. ELIMINA cancella definitivamente tutti i messaggi della pratica." });
     dialog.append(head, meta, thread, form, actions, note);
     layer.append(dialog);
     document.body.append(layer);
@@ -1159,6 +1160,7 @@
     byId("staffSupportReplyForm").addEventListener("submit", sendSupportReply);
     byId("staffSupportViewCustomer").addEventListener("click", viewSupportCustomer);
     byId("staffSupportCloseCase").addEventListener("click", closeSupportCase);
+    byId("staffSupportDeleteCase").addEventListener("click", deleteSupportCase);
     return layer;
   }
 
@@ -1237,6 +1239,14 @@
     const submit = event.currentTarget.querySelector('button[type="submit"]');
     if (submit) submit.disabled = true;
     try {
+      const liveMessages = await loadSupportThread(activeSupportCase);
+      if (!liveMessages.length) {
+        closeSupportDialog();
+        await loadSupportRequests({ silent: true });
+        renderCases();
+        setMessage("error", "La pratica non esiste più: potrebbe essere stata eliminata dal cliente.");
+        return;
+      }
       const { error } = await client.from("premium_communications").insert({
         user_id: activeSupportCase.userId,
         direction: "staff_to_user",
@@ -1285,6 +1295,30 @@
       await loadSupportRequests({ silent: true });
       renderCases();
       setMessage("success", "Pratica chiusa. La conversazione resta nello storico comunicazioni.");
+    } catch (error) {
+      setMessage("error", friendlyError(error));
+    }
+  }
+
+  async function deleteSupportCase() {
+    if (!activeSupportCase || busy) return;
+    const confirmed = await confirmAction({
+      title: "Eliminare definitivamente la pratica?",
+      message: "Verranno cancellati tutti i messaggi di questa richiesta, sia del cliente sia dello staff. L’operazione non è reversibile.",
+      confirmLabel: "ELIMINA PRATICA",
+    });
+    if (!confirmed) return;
+    try {
+      const target = activeSupportCase;
+      const { error } = await client.from("premium_communications")
+        .delete()
+        .eq("user_id", target.userId)
+        .eq("subject", target.supportSubjectRaw);
+      if (error) throw error;
+      closeSupportDialog();
+      await loadSupportRequests({ silent: true });
+      renderCases();
+      setMessage("success", "Pratica eliminata definitivamente.");
     } catch (error) {
       setMessage("error", friendlyError(error));
     }

@@ -255,7 +255,45 @@
     } else {
       setStatus("", "Pratica in verifica. Attendi una risposta dello staff; non è possibile aprire richieste duplicate.");
     }
+    addOption("ELIMINA RICHIESTA", deleteCurrentCase, { danger: true });
     markStaffMessagesRead(messages);
+  }
+
+  async function confirmDeleteRequest() {
+    const dialog = globalThis.OffertaLogicaPremiumDialog;
+    if (dialog?.confirm) {
+      return dialog.confirm({
+        title: "Eliminare la richiesta?",
+        message: "La richiesta e tutta la conversazione con lo staff verranno eliminate definitivamente. Se è ancora aperta, verrà annullata.",
+        confirmLabel: "ELIMINA",
+        cancelLabel: "ANNULLA",
+        danger: true,
+      });
+    }
+    return globalThis.confirm?.("Eliminare definitivamente questa richiesta e tutta la conversazione?") ?? false;
+  }
+
+  async function deleteCurrentCase() {
+    if (!currentCase) return;
+    if (!(await confirmDeleteRequest())) return;
+    const buttons = byId("premiumSupportOptions")?.querySelectorAll("button") || [];
+    buttons.forEach(button => { button.disabled = true; });
+    setStatus("", "Eliminazione richiesta…");
+    try {
+      const { supabase, session } = await sessionInfo();
+      const { error } = await supabase.from("premium_communications")
+        .delete()
+        .eq("user_id", session.user.id)
+        .eq("subject", currentCase.subject);
+      if (error) throw error;
+      currentCase = null;
+      currentCaseMessages = [];
+      renderMain();
+      setStatus("success", "Richiesta eliminata. Non è più presente nella coda dello staff.");
+    } catch (error) {
+      setStatus("error", friendlyError(error));
+      buttons.forEach(button => { button.disabled = false; });
+    }
   }
 
   function renderMain() {
@@ -514,6 +552,12 @@
     }
     form.querySelectorAll("button,textarea").forEach(element => { element.disabled = true; });
     try {
+      const live = await loadSupportCommunications();
+      if (!live.openCase || live.openCase.caseId !== currentCase.caseId) {
+        renderMain();
+        setStatus("error", "La pratica non è più aperta: potrebbe essere stata chiusa o eliminata dallo staff.");
+        return;
+      }
       const { supabase, session } = await sessionInfo();
       const { error } = await supabase.from("premium_communications").insert({
         user_id: session.user.id,
