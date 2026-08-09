@@ -7,6 +7,7 @@
   const ALLOWED_ROLES = new Set(["reviewer", "admin"]);
   const VALID_TABS = new Set(["overview", "cases", "leads", "checks", "customers", "analytics", "pdf", "costs"]);
   const PREMIUM_APP_URL = "https://premium.offertalogica.it/app.html";
+  const PREMIUM_STAFF_BILLING_URL = `${SUPABASE_URL}/functions/v1/premium-staff-billing`;
 
   let client = null;
   let currentSession = null;
@@ -146,6 +147,10 @@
     if (message.includes("premium_account_storage_not_empty")) return "I PDF dell’account non sono stati rimossi dal bucket. Riprova dopo la cancellazione dei file.";
     if (message.includes("premium_account_delete_confirmation_required")) return "Conferma di cancellazione account non valida.";
     if (message.includes("premium_admin_required")) return "Questa funzione è riservata agli amministratori.";
+    if (message.includes("stripe_subscription_not_linked") || message.includes("premium_subscription_missing")) return "Questo cliente non ha un abbonamento Stripe collegato da sincronizzare.";
+    if (message.includes("stripe_subscription_mismatch") || message.includes("stripe_customer_mismatch") || message.includes("stripe_user_mismatch")) return "I riferimenti Stripe non corrispondono al cliente. Nessun aggiornamento è stato eseguito.";
+    if (message.includes("stripe_read_failed")) return "Stripe non ha restituito lo stato dell’abbonamento. Riprova tra poco.";
+    if (message.includes("stripe_secret_key_missing")) return "La chiave Stripe del backend non è configurata.";
     if (message.includes("premium_complimentary_profile_not_active")) return "Il profilo cliente non è attivo.";
     if (message.includes("premium_complimentary_duration_invalid")) return "Durata dell’omaggio non valida.";
     if (message.includes("premium_complimentary_paid_subscription_conflict")) return "Il cliente ha già un abbonamento Stripe attivo o da regolarizzare. L’omaggio non può sostituirlo.";
@@ -823,6 +828,47 @@
     ]);
   }
 
+  function premiumPaymentStatusLabel(status) {
+    if (status === "active") return "attivo";
+    if (status === "past_due") return "pagamento da regolarizzare";
+    if (status === "paused") return "in pausa";
+    if (status === "canceled") return "cancellato";
+    if (status === "pending") return "in attesa";
+    return status || "non disponibile";
+  }
+
+  async function syncCustomerStripeSubscription(customer) {
+    if (!isAdmin() || busy) return;
+    const subscription = customer?.subscription;
+    if (subscription?.provider !== "stripe" || !subscription?.provider_subscription_id) {
+      setMessage("error", "Questo cliente non ha un abbonamento Stripe collegato da sincronizzare.");
+      return;
+    }
+    setBusy(true);
+    setMessage("info", "Lettura dello stato direttamente da Stripe…");
+    try {
+      const result = await staffFetch(PREMIUM_STAFF_BILLING_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "sync_subscription", user_id: customer.profile.id }),
+      });
+      await loadCases({ silent: true });
+      const before = premiumPaymentStatusLabel(result?.before?.status);
+      const after = premiumPaymentStatusLabel(result?.after?.status);
+      if (["past_due", "paused"].includes(result?.after?.status)) {
+        setMessage("info", `Stripe conferma: ${after}. Il cliente deve regolarizzare il pagamento dal Portale Premium. Nessuno sblocco manuale eseguito.`);
+      } else if (result?.changed) {
+        setMessage("success", `Stato Stripe riallineato: ${before} → ${after}.`);
+      } else {
+        setMessage("success", `Stato già allineato a Stripe: ${after}.`);
+      }
+    } catch (error) {
+      setMessage("error", friendlyError(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function renderCustomers() {
     const target = byId("customerList");
     clear(target);
@@ -841,6 +887,12 @@
       const actions = node("div", { className: "customer-actions" }, [badge(profile.account_status || "—", statusKind)]);
       const planBadge = subscriptionBadgeDescriptor(subscription);
       if (planBadge) actions.append(badge(planBadge.label, planBadge.kind));
+      if (isAdmin() && subscription?.provider === "stripe" && subscription?.provider_subscription_id) {
+        const stripeSyncButton = node("button", { className: "button secondary compact", type: "button", text: "AGGIORNA DA STRIPE" });
+        stripeSyncButton.title = "Rilegge lo stato da Stripe e aggiorna solo i dati locali. Non effettua addebiti e non modifica l’abbonamento su Stripe.";
+        stripeSyncButton.addEventListener("click", () => syncCustomerStripeSubscription(customer));
+        actions.append(stripeSyncButton);
+      }
       if (isAdmin()) {
         const complimentaryButton = node("button", {
           className: "button secondary compact",
