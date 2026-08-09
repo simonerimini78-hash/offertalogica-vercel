@@ -506,8 +506,9 @@
 
     .install-entry{margin:0 0 14px;padding:18px;border:1.5px solid rgba(255,255,255,.98);border-radius:24px;background:var(--silver-panel);box-shadow:inset 0 1.5px 0 #fff,0 14px 32px rgba(13,45,61,.11);backdrop-filter:blur(24px) saturate(145%);-webkit-backdrop-filter:blur(24px) saturate(145%)}
     .install-entry[hidden]{display:none!important}.install-entry-head{display:flex;align-items:center;justify-content:space-between;gap:12px}.install-entry-head strong{font-size:17px;letter-spacing:-.02em}.install-entry p{margin:10px 0 14px;color:var(--muted);font-size:13px;line-height:1.5}
-    .install-entry-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}.install-entry-primary,.install-entry-secondary{min-height:46px;border-radius:15px;font-size:12px;font-weight:900}.install-entry-primary{border:0;background:linear-gradient(145deg,#087f3a 0%,#18a84b 56%,#73c928 100%);color:#fff}.install-entry-primary[hidden]{display:none!important}.install-entry-secondary{border:1px solid #cbd9d2;background:rgba(255,255,255,.78);color:var(--navy)}
-    @media(max-width:390px){.install-entry-actions{grid-template-columns:1fr}}
+    .install-entry-actions{display:grid;grid-template-columns:1fr;gap:10px}.install-entry-primary,.install-entry-secondary{border-radius:16px;font-weight:950}.install-entry-primary{width:100%;min-height:62px;border:0;background:linear-gradient(145deg,#087f3a 0%,#18a84b 56%,#73c928 100%);color:#fff;font-size:14px;letter-spacing:.045em;box-shadow:0 16px 34px rgba(24,168,75,.30);transform-origin:center}.install-entry:not([hidden]) .install-entry-primary{animation:install-entry-attention 1.1s ease-in-out 3}.install-entry-secondary{justify-self:center;width:min(78%,290px);min-height:43px;border:1px solid #cbd9d2;background:rgba(255,255,255,.72);color:var(--navy);font-size:11px}.install-entry-primary:active{transform:scale(.982)}
+    @keyframes install-entry-attention{0%,100%{transform:scale(1);box-shadow:0 16px 34px rgba(24,168,75,.30),0 0 0 0 rgba(24,168,75,.18)}50%{transform:scale(1.018);box-shadow:0 18px 38px rgba(24,168,75,.38),0 0 0 8px rgba(24,168,75,.10)}}
+    @media(prefers-reduced-motion:reduce){.install-entry:not([hidden]) .install-entry-primary{animation:none}}
 
 </style>
 </head>
@@ -524,7 +525,7 @@
       <div class="install-entry-head"><strong id="installEntryTitle">Installa OffertaLogica Premium</strong><span class="pill">APP</span></div>
       <p id="installEntryText">Installa l’app sul dispositivo per aprirla come un’app normale.</p>
       <div class="install-entry-actions">
-        <button id="installEntryButton" class="install-entry-primary" type="button" hidden>INSTALLA APP</button>
+        <button id="installEntryButton" class="install-entry-primary" type="button">INSTALLA APP</button>
         <button id="installEntryContinue" class="install-entry-secondary" type="button">CONTINUA NEL BROWSER</button>
       </div>
     </section>
