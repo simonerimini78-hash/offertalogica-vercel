@@ -1,7 +1,8 @@
-const CACHE = "offertalogica-premium-v03629-support5-account";
+const CACHE = "offertalogica-premium-v03629-support5-install-focus";
 const APP_SHELL = [
   "/app.html",
   "/app-dialog.js",
+  "/app-install.js",
   "/app-auth.js",
   "/app-support.js",
   "/app-utilities.js",

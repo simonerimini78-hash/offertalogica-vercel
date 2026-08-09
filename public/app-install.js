@@ -28,14 +28,20 @@
     if (isMac && isSafari) {
       return "Su Safari per Mac: usa Condividi → Aggiungi al Dock oppure File → Aggiungi al Dock.";
     }
-    return "Premi INSTALLA APP. Se il browser non mostra la finestra, usa il suo menu e scegli “Installa app” o “Aggiungi alla schermata Home”.";
+    return "Il browser non ha aperto la finestra automatica. Apri il menu del browser e scegli “Installa app” o “Aggiungi alla schermata Home”.";
+  };
+
+  const initialCopy = () => {
+    if (isIos || (isMac && isSafari)) return instructions();
+    return "Installa l’app sul dispositivo. Premi il pulsante verde qui sotto.";
   };
 
   if (requested) {
     if (isStandalone) cleanInstallParam();
     else {
       panel.hidden = false;
-      copy.textContent = instructions();
+      button.hidden = false;
+      copy.textContent = initialCopy();
     }
   }
 
@@ -61,7 +67,7 @@
       panel.hidden = true;
       cleanInstallParam();
     } else {
-      button.hidden = true;
+      button.hidden = false;
       copy.textContent = instructions();
     }
   });
