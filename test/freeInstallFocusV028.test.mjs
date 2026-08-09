@@ -58,3 +58,11 @@ test('free v0.29: deep link mostra prima INSTALLA APP e non la guida', () => {
 test('free v0.29: service worker forza la nuova shell', () => {
   assert.match(sw, /offertalogica-app-v29-install-simple/);
 });
+
+
+test('free v0.29: versione tecnica e badge Profilo sono allineati', () => {
+  assert.match(html, /offertalogica-app-version" content="APP v0\.29"/);
+  assert.match(html, /<span class="version-badge">APP v0\.29<\/span>/);
+  assert.doesNotMatch(html, /<span class="version-badge">APP v0\.28<\/span>/);
+  assert.match(sw, /offertalogica-app-v29-install-simple-badge-fix/);
+});
