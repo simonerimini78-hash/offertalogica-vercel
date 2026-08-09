@@ -1,6 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const ADMIN_STAFF_ROLES = new Set(["admin", "owner"]);
 
 function resolveAdminKey() {
   const legacyServiceRole = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim();
@@ -115,7 +116,7 @@ async function authenticatedAdmin(request: Request, admin: any) {
     .maybeSingle();
   if (staffError) throw new Error(`premium_staff_lookup:${compactError(staffError)}`);
   if (!staff) throw new Error("premium_staff_required");
-  if (staff.role !== "admin") throw new Error("premium_admin_required");
+  if (!ADMIN_STAFF_ROLES.has(String(staff.role || "").toLowerCase())) throw new Error("premium_admin_required");
   return data.user;
 }
 
