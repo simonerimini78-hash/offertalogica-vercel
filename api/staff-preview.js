@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { json, method, readJson, requireAllowedOrigin } from "../lib/http.js";
 import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
+import { requireStaffSession } from "../lib/staffSessionAuth.js";
 
 function safeEqual(left, right) {
   const a = Buffer.from(String(left || ""));
@@ -19,6 +20,17 @@ export default async function handler(req, res) {
 
   try {
     const body = await readJson(req);
+    const action = String(body.action || "").trim().toLowerCase();
+
+    if (action === "issue") {
+      const identity = await requireStaffSession(req, res, { roles: ["reviewer", "admin"] });
+      if (!identity) return;
+      return json(res, 200, {
+        ok: true,
+        url: `https://offertalogica.it/#staff=${encodeURIComponent(expectedToken)}`,
+      });
+    }
+
     const token = String(body.token || "").trim();
     if (!safeEqual(token, expectedToken)) {
       return json(res, 403, { ok: false, error: "Token staff non valido" });

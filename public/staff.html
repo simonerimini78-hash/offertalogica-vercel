@@ -89,6 +89,7 @@
       <div class="nav-group-label">Analisi</div>
       <button type="button" data-staff-tab="analytics">Statistiche</button>
       <div class="nav-group-label">Strumenti tecnici</div>
+      <button type="button" id="staffSitePreview">Verifica sito e funnel</button>
       <button type="button" data-staff-tab="pdf">Diagnostica PDF</button>
       <button type="button" data-staff-tab="costs">Costi IA e configurazione</button>
     </nav>
@@ -209,6 +210,45 @@
 <div id="staffUpdateNotice" class="staff-update" role="status" aria-live="polite"><span id="staffUpdateNoticeText">Nuova versione disponibile.</span><button id="staffApplyUpdate" type="button" hidden>AGGIORNA</button></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/staff.js"></script>
+<script>
+  (()=>{
+    const previewButton=document.getElementById('staffSitePreview');
+    const pageMessage=document.getElementById('staffPageMessage');
+    const STORAGE_KEY='offertalogica-premium-staff-auth';
+    const setPreviewMessage=(kind,message)=>{if(!pageMessage)return;pageMessage.className=`message${kind?` ${kind}`:''}`;pageMessage.textContent=message||'';pageMessage.hidden=!message};
+    const storedAccessToken=()=>{
+      try{
+        const raw=localStorage.getItem(STORAGE_KEY);
+        if(!raw)return '';
+        const parsed=JSON.parse(raw);
+        return String(parsed?.access_token||parsed?.session?.access_token||parsed?.currentSession?.access_token||'').trim();
+      }catch{return ''}
+    };
+    previewButton?.addEventListener('click',async()=>{
+      if(previewButton.disabled)return;
+      const popup=window.open('about:blank','_blank');
+      if(!popup){setPreviewMessage('error','Il browser ha bloccato la nuova scheda. Consenti i popup per l’Area Staff e riprova.');return}
+      previewButton.disabled=true;
+      setPreviewMessage('info','Apertura della modalità di verifica sito…');
+      try{
+        const accessToken=storedAccessToken();
+        if(!accessToken)throw new Error('Sessione staff non disponibile. Esci e accedi nuovamente.');
+        const response=await fetch('/api/staff-preview',{
+          method:'POST',
+          headers:{'Content-Type':'application/json','Authorization':`Bearer ${accessToken}`},
+          body:JSON.stringify({action:'issue'})
+        });
+        const payload=await response.json().catch(()=>({}));
+        if(!response.ok||!payload.ok||!payload.url)throw new Error(payload.error||`Errore HTTP ${response.status}`);
+        popup.location.replace(payload.url);
+        setPreviewMessage('success','Modalità di verifica aperta in una nuova scheda. Lead e webhook reali restano disattivati dalla modalità Staff.');
+      }catch(error){
+        try{popup.close()}catch{}
+        setPreviewMessage('error',String(error?.message||error||'Apertura modalità Staff non riuscita.'));
+      }finally{previewButton.disabled=false}
+    });
+  })();
+</script>
 <script>
   (()=>{
     const CURRENT_RELEASE="0.36.29";
