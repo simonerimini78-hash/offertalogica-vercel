@@ -1,5 +1,6 @@
 import { json, method, requireAllowedOrigin } from "../lib/http.js";
 import { deleteCustomerAnalytics, listCustomerAnalytics } from "../lib/customerDb.js";
+import { isStaffAdminRole } from "../lib/staffRoles.js";
 import { requireStaffSession } from "../lib/staffSessionAuth.js";
 
 function bodyObject(req) {
@@ -22,7 +23,7 @@ export default async function handler(req, res) {
 
   const url = new URL(req.url || "/api/staff-analytics", `https://${req.headers.host || "offertalogica.it"}`);
   if (req.method === "DELETE") {
-    if (authorizedBy !== "supabase" || identity.staff.role !== "admin") {
+    if (authorizedBy !== "supabase" || !isStaffAdminRole(identity.staff.role)) {
       return json(res, 403, { ok: false, error: "Operazione riservata agli amministratori" });
     }
     if (!requireAllowedOrigin(req, res)) return;
