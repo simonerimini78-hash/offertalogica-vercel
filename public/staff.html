@@ -88,6 +88,8 @@
       <button type="button" data-staff-tab="leads">Lead e attivazioni <span id="navLeadCount">0</span></button>
       <div class="nav-group-label">Analisi</div>
       <button type="button" data-staff-tab="analytics">Statistiche</button>
+      <div class="nav-group-label" id="staffManagementGroup" hidden>Gestione</div>
+      <button type="button" id="staffCollaboratorsTab" data-staff-tab="collaborators" hidden>Collaboratori <span id="navCollaboratorCount">0</span></button>
       <div class="nav-group-label">Strumenti tecnici</div>
       <button type="button" id="staffSitePreview">Verifica sito e funnel</button>
       <button type="button" data-staff-tab="pdf">Diagnostica PDF</button>
@@ -141,6 +143,20 @@
     <section class="view" data-staff-view="customers">
       <div class="view-head"><div><h2>Clienti e utenze</h2><p>Profili Premium, bollette, utenze e contratti. Ogni elemento può essere eliminato singolarmente oppure come blocco collegato.</p></div><div class="view-actions"><button class="button danger" id="customerDeleteVisible" type="button">Elimina clienti visibili</button></div></div>
       <section class="panel"><div class="toolbar four"><input id="customerSearch" type="search" placeholder="Cerca cliente, email, utenza o fornitore"><select id="customerStatus"><option value="">Tutti gli account</option><option value="active">Attivi</option><option value="suspended">Sospesi</option><option value="deletion_requested">Cancellazione richiesta</option><option value="deleted">Eliminati</option></select><select id="customerLimit"><option value="100">100 profili</option><option value="250">250 profili</option><option value="500">500 profili</option></select><button class="button primary" id="customerRefresh" type="button">Aggiorna</button></div><div class="panel-body"><div class="customer-list" id="customerList"><div class="empty">Caricamento…</div></div></div></section>
+    </section>
+
+    <section class="view" data-staff-view="collaborators">
+      <div class="view-head"><div><h2>Collaboratori</h2><p>Elenco degli account Staff autorizzati e del loro ruolo reale. In questa prima fase la gestione è in sola lettura.</p></div><div class="view-actions"><button class="button secondary" id="collaboratorRefresh" type="button">Aggiorna</button></div></div>
+      <div id="collaboratorRestricted" class="restricted" hidden>Questo modulo è riservato al Proprietario.</div>
+      <section class="panel" id="collaboratorContent">
+        <div class="metrics">
+          <article class="metric"><span>Collaboratori totali</span><strong id="collaboratorMetricTotal">0</strong></article>
+          <article class="metric"><span>Attivi</span><strong id="collaboratorMetricActive">0</strong></article>
+          <article class="metric"><span>Amministratori</span><strong id="collaboratorMetricAdmins">0</strong></article>
+          <article class="metric"><span>Tecnici</span><strong id="collaboratorMetricTechnicians">0</strong></article>
+        </div>
+        <div class="table-wrap"><table class="data-table"><thead><tr><th>Account</th><th>Ruolo</th><th>Stato</th><th>Creato</th><th>Aggiornato</th></tr></thead><tbody id="collaboratorRows"></tbody></table></div>
+      </section>
     </section>
 
     <section class="view" data-staff-view="analytics">

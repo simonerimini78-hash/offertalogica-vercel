@@ -5,7 +5,7 @@
   const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_poz1xBKiXceLCFV3u_tPIg_5_-ycHcl";
   const STORAGE_KEY = "offertalogica-premium-staff-auth";
   const ALLOWED_ROLES = new Set(["reviewer", "technician", "admin", "owner"]);
-  const VALID_TABS = new Set(["overview", "cases", "leads", "checks", "customers", "analytics", "pdf", "costs"]);
+  const VALID_TABS = new Set(["overview", "cases", "leads", "checks", "customers", "analytics", "collaborators", "pdf", "costs"]);
   const PREMIUM_APP_URL = "https://premium.offertalogica.it/app.html";
   const PREMIUM_STAFF_BILLING_URL = `${SUPABASE_URL}/functions/v1/premium-staff-billing`;
 
@@ -30,6 +30,7 @@
     costEvents: [],
     costSummary: {},
     systemConfig: null,
+    collaborators: [],
   };
 
   const byId = id => document.getElementById(id);
@@ -229,6 +230,10 @@
     return ["admin", "owner"].includes(String(currentStaff?.role || "").trim().toLowerCase());
   }
 
+  function isOwner() {
+    return String(currentStaff?.role || "").trim().toLowerCase() === "owner";
+  }
+
   function uniqueValues(values = []) {
     return [...new Set((Array.isArray(values) ? values : []).filter(Boolean))];
   }
@@ -272,7 +277,8 @@
   }
 
   function setTab(name, { updateHash = true, refresh = true } = {}) {
-    const target = VALID_TABS.has(name) ? name : "overview";
+    const requested = VALID_TABS.has(name) ? name : "overview";
+    const target = requested === "collaborators" && !isOwner() ? "overview" : requested;
     activeTab = target;
     document.querySelectorAll("[data-staff-tab]").forEach(button => button.classList.toggle("active", button.dataset.staffTab === target));
     document.querySelectorAll("[data-staff-view]").forEach(view => view.classList.toggle("active", view.dataset.staffView === target));
@@ -1898,6 +1904,63 @@
     );
   }
 
+  function collaboratorRoleDescriptor(role) {
+    const normalized = String(role || "").trim().toLowerCase();
+    if (normalized === "owner") return { label: "Proprietario", kind: "ok" };
+    if (normalized === "admin") return { label: "Amministratore", kind: "info" };
+    if (normalized === "technician") return { label: "Tecnico", kind: "warn" };
+    if (normalized === "reviewer") return { label: "Revisore legacy", kind: "warn" };
+    if (normalized === "support") return { label: "Supporto legacy", kind: "" };
+    return { label: role || "Staff", kind: "" };
+  }
+
+  function renderCollaborators() {
+    const restricted = !isOwner();
+    const restrictedBox = byId("collaboratorRestricted");
+    const content = byId("collaboratorContent");
+    if (restrictedBox) restrictedBox.hidden = !restricted;
+    if (content) content.hidden = restricted;
+    if (restricted) return;
+
+    const rows = Array.isArray(cache.collaborators) ? cache.collaborators : [];
+    text(byId("navCollaboratorCount"), rows.length);
+    text(byId("collaboratorMetricTotal"), rows.length);
+    text(byId("collaboratorMetricActive"), rows.filter(item => item.active).length);
+    text(byId("collaboratorMetricAdmins"), rows.filter(item => item.role === "admin").length);
+    text(byId("collaboratorMetricTechnicians"), rows.filter(item => item.role === "technician").length);
+
+    const body = byId("collaboratorRows");
+    clear(body);
+    if (!rows.length) {
+      body.append(node("tr", {}, [node("td", { text: "Nessun collaboratore Staff disponibile.", attrs: { colspan: "5" } })]));
+      return;
+    }
+    rows.forEach(item => {
+      const descriptor = collaboratorRoleDescriptor(item.role);
+      body.append(node("tr", {}, [
+        node("td", {}, [node("strong", { text: item.email || item.user_id || "Account Staff" }), node("small", { text: item.user_id || "" })]),
+        node("td", {}, [badge(descriptor.label, descriptor.kind)]),
+        node("td", {}, [badge(item.active ? "Attivo" : "Disattivato", item.active ? "ok" : "danger")]),
+        node("td", { text: formatDate(item.created_at) }),
+        node("td", { text: formatDate(item.updated_at) }),
+      ]));
+    });
+  }
+
+  async function loadCollaborators({ silent = false } = {}) {
+    if (!isOwner()) {
+      cache.collaborators = [];
+      renderCollaborators();
+      return;
+    }
+    if (!silent) setMessage("info", "Aggiornamento collaboratori…");
+    const { data, error } = await client.rpc("premium_owner_list_staff");
+    if (error) throw error;
+    cache.collaborators = Array.isArray(data) ? data : [];
+    renderCollaborators();
+    if (!silent) setMessage("success", "Collaboratori aggiornati.");
+  }
+
   async function loadSystemConfig() {
     if (!isAdmin()) {
       cache.systemConfig = null;
@@ -2004,6 +2067,7 @@
     if (tab === "checks") return loadChecks({ silent });
     if (tab === "customers") return loadCustomers({ silent });
     if (tab === "analytics") return loadAnalytics({ silent });
+    if (tab === "collaborators") return loadCollaborators({ silent });
     if (tab === "costs") return loadCosts({ silent });
     if (tab === "pdf") {
       ensureFrame("pdfFrame");
@@ -2029,12 +2093,16 @@
     }
     currentStaff = result.data;
     text(byId("staffIdentity"), `${roleLabel(currentStaff.role)} · ${session.user.email || "account staff"}`);
+    const ownerOnlyVisible = isOwner();
+    if (byId("staffManagementGroup")) byId("staffManagementGroup").hidden = !ownerOnlyVisible;
+    if (byId("staffCollaboratorsTab")) byId("staffCollaboratorsTab").hidden = !ownerOnlyVisible;
     [
       "leadCsv", "leadDeleteVisible", "leadReset", "customerDeleteVisible",
       "analyticsDeleteVisible", "analyticsReset", "costDeleteRuns", "costDeleteEvents"
     ].forEach(id => { if (byId(id)) byId(id).hidden = !isAdmin(); });
     setView("app");
     activeTab = VALID_TABS.has(location.hash.slice(1)) ? location.hash.slice(1) : "overview";
+    if (activeTab === "collaborators" && !isOwner()) activeTab = "overview";
     setTab(activeTab, { updateHash: false, refresh: false });
     try {
       await loadOverview({ silent: true });
@@ -2102,6 +2170,7 @@
     byId("staffComplimentaryLayer").addEventListener("click", event => { if (event.target === byId("staffComplimentaryLayer")) closeComplimentary(); });
     document.addEventListener("keydown", event => { if (event.key === "Escape" && !byId("staffComplimentaryLayer")?.hidden) closeComplimentary(); });
     byId("analyticsRefresh").addEventListener("click", () => loadAnalytics().catch(error => setMessage("error", friendlyError(error))));
+    byId("collaboratorRefresh").addEventListener("click", () => loadCollaborators().catch(error => setMessage("error", friendlyError(error))));
     byId("analyticsDeleteVisible").addEventListener("click", deleteVisibleAnalytics);
     byId("analyticsReset").addEventListener("click", resetAnalytics);
     byId("costRefresh").addEventListener("click", () => loadCosts().catch(error => setMessage("error", friendlyError(error))));
