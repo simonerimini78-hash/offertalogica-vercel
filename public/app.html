@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="OffertaLogica">
-  <meta name="offertalogica-app-version" content="APP v0.28">
+  <meta name="offertalogica-app-version" content="APP v0.29">
   <title>OffertaLogica</title>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/assets/logo-offertalogica-icon.png?v=19">
@@ -113,7 +113,7 @@
     .bill-item{border-radius:22px}.bill-item-icon{border:1px solid rgba(255,255,255,.96);border-radius:50%;background:linear-gradient(145deg,rgba(247,251,249,.98),rgba(198,211,205,.56));color:var(--emerald-700);box-shadow:inset 0 1.5px 0 #fff,0 8px 18px rgba(7,131,74,.12)}.bill-expense-form{border-radius:18px}.bill-expense-form input,.bill-mini-btn,.bill-expense-cancel{border-color:rgba(255,255,255,.98);background:rgba(255,255,255,.70);box-shadow:inset 0 1px 0 #fff,0 7px 16px rgba(13,45,61,.07)}.bill-expense-save{border:1px solid rgba(255,255,255,.82);background:linear-gradient(128deg,rgba(255,255,255,.29),transparent 31%,rgba(255,255,255,.09) 58%,transparent 76%),linear-gradient(135deg,var(--emerald-900) 0%,var(--emerald-500) 66%,var(--emerald-lime) 125%);color:#fff;box-shadow:inset 0 1.5px 0 rgba(255,255,255,.79),inset 0 -1px 0 rgba(3,72,43,.28),0 13px 28px rgba(7,107,64,.25)}
     .update{border:1px solid rgba(255,255,255,.50);background:rgba(13,45,61,.82);backdrop-filter:blur(26px) saturate(180%);-webkit-backdrop-filter:blur(26px) saturate(180%)}
     .cta{border:1px solid rgba(255,255,255,.92);background:linear-gradient(145deg,rgba(255,255,255,.88),rgba(228,241,233,.62));color:var(--emerald-700);box-shadow:inset 0 1.5px 0 #fff,0 12px 27px rgba(3,72,43,.16)}
-    .install,.ios-tip{border:1.5px solid rgba(255,255,255,.98);background:var(--silver-panel);color:var(--emerald-700);box-shadow:inset 0 1.5px 0 #fff,0 12px 27px rgba(13,45,61,.10);backdrop-filter:blur(24px) saturate(145%);-webkit-backdrop-filter:blur(24px) saturate(145%)}.install{min-height:48px;margin:0 0 14px;border-radius:17px}.ios-tip{margin:0 0 14px;border-radius:18px}.ios-tip-close{color:var(--muted)}
+    .ios-tip{border:1.5px solid rgba(255,255,255,.98);background:var(--silver-panel);color:var(--emerald-700);box-shadow:inset 0 1.5px 0 #fff,0 12px 27px rgba(13,45,61,.10);backdrop-filter:blur(24px) saturate(145%);-webkit-backdrop-filter:blur(24px) saturate(145%)}.install{min-height:62px;margin:0 0 14px;border:1px solid rgba(255,255,255,.82);border-radius:19px;background:linear-gradient(145deg,#087f3a 0%,#18a84b 56%,#73c928 100%);color:#fff;box-shadow:0 16px 34px rgba(24,168,75,.30)}.ios-tip{margin:0 0 14px;border-radius:18px}.ios-tip-close{color:var(--muted)}
     #view-bill .archive-note{border:1px solid rgba(255,255,255,.94);background:var(--silver-panel);box-shadow:inset 0 1px 0 #fff,0 10px 24px rgba(13,45,61,.08)}
     #view-offers .hero{padding:22px;text-align:center}#view-offers .hero .status{margin:0 auto}#view-offers .hero h2{margin:17px auto 8px;font-size:clamp(27px,7.5vw,35px)}#view-offers .hero p{margin:0 auto 20px;max-width:360px}#view-offers .feature-card{margin-top:14px!important;padding:22px;text-align:center}#view-offers .feature-card .feature-symbol{margin:0 auto}#view-offers .feature-card h2{margin-top:17px;font-size:23px}#view-offers .cta{min-height:52px;border-radius:16px}
     #view-profile .profile-card{padding:20px}#view-profile .profile-card-head{align-items:center}#view-profile .profile-row{min-height:48px;padding:12px 0}#view-profile .local-data-card{padding:18px}#view-profile .local-data-head{align-items:center}#view-profile .list{display:grid;gap:10px}#view-profile .list-item{border-radius:20px}
@@ -390,46 +390,60 @@
       let deferredPrompt;const install=document.getElementById('installApp');
       const installTip=document.getElementById('iosInstallTip');
       const installHelpText=document.getElementById('installHelpText');
-      const isIos=/iphone|ipad|ipod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
-      const isMac=!isIos&&/Macintosh|Mac OS X/i.test(navigator.userAgent);
-      const isSafari=/Safari/i.test(navigator.userAgent)&&!/Chrome|Chromium|CriOS|Edg|OPR|FxiOS/i.test(navigator.userAgent);
+      const ua=navigator.userAgent||'';
+      const isIos=/iphone|ipad|ipod/i.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+      const isAndroid=/Android/i.test(ua);
+      const isSamsungInternet=/SamsungBrowser/i.test(ua);
+      const isEdge=/EdgA|EdgiOS|Edg\//i.test(ua);
+      const isChrome=/Chrome|CriOS/i.test(ua)&&!isSamsungInternet&&!isEdge;
+      const isMac=!isIos&&/Macintosh|Mac OS X/i.test(ua);
+      const isSafari=/Safari/i.test(ua)&&!/Chrome|Chromium|CriOS|Edg|OPR|FxiOS|SamsungBrowser/i.test(ua);
       const isStandalone=window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
       const cleanInstallParam=()=>{
         if(!installRequested)return;
         const url=new URL(location.href);url.searchParams.delete('install');
         history.replaceState(history.state,'',`${url.pathname}${url.search}${url.hash}`);
       };
+      const keepInstallLabel=()=>{install.textContent='INSTALLA APP'};
       const instructionText=()=>{
-        if(isIos)return 'Su iPhone/iPad: apri la pagina in <b>Safari</b>, tocca <b>Condividi</b> → <b>Aggiungi alla schermata Home</b>, attiva <b>Apri come app web</b> e poi tocca <b>Aggiungi</b>.';
-        if(isMac&&isSafari)return 'Su Safari per Mac: usa <b>Condividi → Aggiungi al Dock</b> oppure <b>File → Aggiungi al Dock</b>.';
-        return 'Se non compare la finestra di installazione, apri il menu del browser e scegli <b>Installa app</b> o <b>Aggiungi alla schermata Home</b>.';
+        if(isIos)return 'Manca solo un ultimo passaggio: 1. Apri questa pagina in <b>Safari</b>. 2. Tocca <b>Condividi ⬆︎</b>. 3. Tocca <b>Aggiungi alla schermata Home</b>. 4. Attiva <b>Apri come app web</b> e tocca <b>Aggiungi</b>.';
+        if(isMac&&isSafari)return 'Manca solo un ultimo passaggio: 1. In Safari clicca <b>Condividi ⬆︎</b> nella barra in alto. 2. Clicca <b>Aggiungi al Dock</b>. 3. Clicca <b>Aggiungi</b>.';
+        if(isSamsungInternet)return 'Manca solo un ultimo passaggio: 1. In Samsung Internet tocca <b>☰</b> (tre linee) in basso a destra. 2. Tocca <b>+ Aggiungi pagina a</b>. 3. Tocca <b>Schermata Home</b> e poi <b>Aggiungi</b>.';
+        if(isAndroid&&isChrome)return 'Manca solo un ultimo passaggio: 1. Tocca <b>⋮</b> a destra della barra degli indirizzi. 2. Tocca <b>Installa e crea scorciatoia</b>. 3. Tocca <b>Installa</b>. Se vedi <b>Aggiungi a schermata Home</b>, scegli quella voce e poi <b>Installa</b>.';
+        if(isAndroid&&isEdge)return 'Manca solo un ultimo passaggio: 1. Tocca il menu <b>⋯</b> di Edge. 2. Cerca <b>Installa app</b> o <b>Aggiungi al telefono</b>. 3. Tocca la voce e conferma <b>Installa</b>.';
+        if(isEdge)return 'Manca solo un ultimo passaggio: 1. Apri il menu <b>⋯</b> in alto a destra. 2. Scegli <b>Altri strumenti → Applicazioni</b>. 3. Scegli <b>Installa questo sito come app</b> e conferma.';
+        if(isChrome)return 'Manca solo un ultimo passaggio: 1. Apri il menu <b>⋮</b> in alto a destra. 2. Scegli <b>Trasmetti, salva e condividi</b>. 3. Scegli <b>Installa questa pagina come app</b> e conferma.';
+        return 'Per installarla nel modo più semplice, apri questa pagina con <b>Chrome</b> o <b>Edge</b> e premi di nuovo <b>INSTALLA APP</b>.';
       };
       const showInstallHelp=()=>{
+        keepInstallLabel();
         installHelpText.innerHTML=instructionText();
         installTip.classList.add('show');
       };
       addEventListener('beforeinstallprompt',event=>{
-        event.preventDefault();deferredPrompt=event;install.classList.add('show');
-        if(installRequested&&!isIos)installTip.classList.remove('show');
+        event.preventDefault();deferredPrompt=event;keepInstallLabel();install.classList.add('show');
+        if(installRequested)installTip.classList.remove('show');
       });
       install.addEventListener('click',async()=>{
+        keepInstallLabel();
         if(deferredPrompt){
           deferredPrompt.prompt();
           const choice=await deferredPrompt.userChoice;
           deferredPrompt=null;
           if(choice?.outcome==='accepted'){install.classList.remove('show');installTip.classList.remove('show');cleanInstallParam()}
-          else install.classList.add('show');
+          else{install.classList.add('show');showInstallHelp()}
           return;
         }
         showInstallHelp();
       });
       addEventListener('appinstalled',()=>{install.classList.remove('show');installTip.classList.remove('show');cleanInstallParam()});
 
-      // Safari/iOS non espone beforeinstallprompt: il deep-link dal sito forza
-      // le istruzioni anche se l'utente le aveva chiuse in precedenza.
+      // Dal sito l'utente vede prima una sola azione chiara: INSTALLA APP.
+      // Le istruzioni compaiono solo dopo il click se il browser non offre
+      // direttamente la finestra di installazione.
       if(!isStandalone){
         if(installRequested)install.classList.add('show');
-        if((isIos&&(installRequested||!localStorage.getItem('iosInstallTipDismissed')))||(isMac&&isSafari&&installRequested))showInstallHelp();
+        else if(isIos&&!localStorage.getItem('iosInstallTipDismissed'))showInstallHelp();
       }else cleanInstallParam();
       document.getElementById('iosInstallTipClose').addEventListener('click',()=>{
         installTip.classList.remove('show');
