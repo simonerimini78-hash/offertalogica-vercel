@@ -7,11 +7,16 @@
   if (!panel || !button || !continueButton || !copy) return;
 
   let deferredPrompt = null;
-  const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+  const ua = navigator.userAgent || "";
+  const isIos = /iphone|ipad|ipod/i.test(ua) ||
     (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-  const isMac = !isIos && /Macintosh|Mac OS X/i.test(navigator.userAgent);
-  const isSafari = /Safari/i.test(navigator.userAgent) &&
-    !/Chrome|Chromium|CriOS|Edg|OPR|FxiOS/i.test(navigator.userAgent);
+  const isAndroid = /Android/i.test(ua);
+  const isSamsungInternet = /SamsungBrowser/i.test(ua);
+  const isEdge = /EdgA|EdgiOS|Edg\//i.test(ua);
+  const isChrome = /Chrome|CriOS/i.test(ua) && !isSamsungInternet && !isEdge;
+  const isMac = !isIos && /Macintosh|Mac OS X/i.test(ua);
+  const isSafari = /Safari/i.test(ua) &&
+    !/Chrome|Chromium|CriOS|Edg|OPR|FxiOS|SamsungBrowser/i.test(ua);
   const isStandalone = window.matchMedia("(display-mode: standalone)").matches ||
     navigator.standalone === true;
 
@@ -21,25 +26,34 @@
     history.replaceState(history.state, "", `${url.pathname}${url.search}${url.hash}`);
   };
 
+  const setPrimaryLabel = () => {
+    button.textContent = "INSTALLA APP";
+    button.dataset.installMode = deferredPrompt ? "install" : "guided";
+  };
+
+  const initialCopy = () =>
+    "Premi INSTALLA APP. Se il dispositivo chiede conferma, scegli Installa.";
+
   const instructions = () => {
     if (isIos) {
-      return "Su iPhone/iPad: apri la pagina in Safari, tocca Condividi, scegli Aggiungi alla schermata Home, attiva “Apri come app web” e poi tocca Aggiungi.";
+      return "Manca solo un ultimo passaggio: 1. Apri questa pagina in Safari. 2. Tocca Condividi ⬆︎. 3. Tocca “Aggiungi alla schermata Home”. 4. Attiva “Apri come app web” e tocca “Aggiungi”.";
     }
     if (isMac && isSafari) {
-      return "Su Safari per Mac: usa Condividi → Aggiungi al Dock oppure File → Aggiungi al Dock.";
+      return "Manca solo un ultimo passaggio: 1. In Safari clicca Condividi ⬆︎ nella barra in alto. 2. Clicca “Aggiungi al Dock”. 3. Clicca “Aggiungi”.";
     }
-    return "Il browser non ha aperto la finestra automatica. Apri il menu del browser e scegli “Installa app” o “Aggiungi alla schermata Home”.";
-  };
-
-  const setPrimaryMode = mode => {
-    const canInstall = mode === "install";
-    button.textContent = canInstall ? "INSTALLA APP" : "COME INSTALLARE";
-    button.dataset.installMode = canInstall ? "install" : "help";
-  };
-
-  const initialCopy = () => {
-    if (isIos || (isMac && isSafari)) return instructions();
-    return "Se il browser supporta l’installazione diretta, il pulsante diventerà INSTALLA APP. Altrimenti mostra i passaggi da seguire.";
+    if (isSamsungInternet) {
+      return "Manca solo un ultimo passaggio: 1. In Samsung Internet cerca in alto l’icona per installare l’app. 2. Toccala. 3. Conferma “Installa” nella schermata App.";
+    }
+    if (isAndroid && isChrome) {
+      return "Manca solo un ultimo passaggio: 1. Tocca ⋮ a destra della barra degli indirizzi. 2. Tocca “Aggiungi a schermata Home”. 3. Tocca “Installa”.";
+    }
+    if (isEdge) {
+      return "Manca solo un ultimo passaggio: 1. Apri il menu ⋯ in alto a destra. 2. Scegli “Altri strumenti” → “Applicazioni”. 3. Scegli “Installa questo sito come app” e conferma.";
+    }
+    if (isChrome) {
+      return "Manca solo un ultimo passaggio: 1. Apri il menu ⋮ in alto a destra. 2. Scegli “Trasmetti, salva e condividi”. 3. Scegli “Installa questa pagina come app” e conferma.";
+    }
+    return "Per installarla nel modo più semplice, apri questa pagina con Chrome o Edge e premi di nuovo INSTALLA APP.";
   };
 
   if (requested) {
@@ -47,7 +61,7 @@
     else {
       panel.hidden = false;
       button.hidden = false;
-      setPrimaryMode("help");
+      setPrimaryLabel();
       copy.textContent = initialCopy();
     }
   }
@@ -55,31 +69,33 @@
   window.addEventListener("beforeinstallprompt", event => {
     event.preventDefault();
     deferredPrompt = event;
+    setPrimaryLabel();
     if (requested && !isStandalone) {
       panel.hidden = false;
       button.hidden = false;
-      setPrimaryMode("install");
-      copy.textContent = "L’app è pronta per essere installata su questo dispositivo.";
+      copy.textContent = "L’app è pronta. Premi INSTALLA APP e conferma l’installazione.";
     }
   });
 
   button.addEventListener("click", async () => {
     if (!deferredPrompt) {
-      setPrimaryMode("help");
+      setPrimaryLabel();
       copy.textContent = instructions();
       return;
     }
+
     deferredPrompt.prompt();
     const choice = await deferredPrompt.userChoice;
     deferredPrompt = null;
+
     if (choice?.outcome === "accepted") {
       panel.hidden = true;
       cleanInstallParam();
-    } else {
-      button.hidden = false;
-      setPrimaryMode("help");
-      copy.textContent = instructions();
+      return;
     }
+
+    setPrimaryLabel();
+    copy.textContent = instructions();
   });
 
   continueButton.addEventListener("click", () => {

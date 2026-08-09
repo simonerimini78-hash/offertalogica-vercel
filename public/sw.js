@@ -1,4 +1,4 @@
-const CACHE = "offertalogica-premium-v03629-support5-install-dynamic";
+const CACHE = "offertalogica-premium-v03629-support5-install-simple";
 const APP_SHELL = [
   "/app.html",
   "/app-dialog.js",

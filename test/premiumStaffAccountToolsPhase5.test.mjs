@@ -69,5 +69,5 @@ test("fase 5: SQL espone solo snapshot operativo allo staff e non password", () 
 
 test("fase 5: service worker cambia cache per distribuire il pacchetto", () => {
   const sw = read("public/sw.js");
-  assert.match(sw, /offertalogica-premium-v03629-support5-(?:account|install-(?:focus|dynamic))/);
+  assert.match(sw, /offertalogica-premium-v03629-support5-(?:account|install-(?:focus|dynamic|simple))/);
 });

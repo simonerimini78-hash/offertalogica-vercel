@@ -41,6 +41,6 @@ test("hotfix: le cancellazioni verificano l'effettiva eliminazione", () => {
 
 test("hotfix: service worker distribuisce i nuovi script", () => {
   const sw = read("public/sw.js");
-  assert.match(sw, /offertalogica-premium-v03629-support(?:4-fix1|5-(?:account|install-(?:focus|dynamic)))/);
+  assert.match(sw, /offertalogica-premium-v03629-support(?:4-fix1|5-(?:account|install-(?:focus|dynamic|simple)))/);
   assert.match(sw, /"\/app-support\.js"/);
 });
