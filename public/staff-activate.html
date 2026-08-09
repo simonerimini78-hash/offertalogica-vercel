@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <meta name="theme-color" content="#063f36">
+  <title>Attivazione Staff - OffertaLogica</title>
+  <style>
+    :root{--bg:#f3f6f4;--card:#fff;--text:#10231f;--muted:#66756f;--line:#d8e3de;--green:#087a60;--green-dark:#064c3e;--green-soft:#edf9f5;--danger:#b42318;--danger-soft:#fef3f2;--ok:#027a48;--ok-soft:#ecfdf3;--blue:#175cd3;--blue-soft:#eff8ff;--shadow:0 18px 50px rgba(16,35,31,.12)}
+    *{box-sizing:border-box}html,body{min-height:100%;margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}button,input{font:inherit}.topbar{padding:15px 20px;color:#fff;background:linear-gradient(120deg,var(--green-dark),var(--green) 68%,#70ad27);box-shadow:0 7px 24px rgba(6,76,62,.2)}.brand{max-width:760px;margin:auto;font-weight:900;letter-spacing:-.01em}.shell{display:grid;place-items:center;min-height:calc(100vh - 54px);padding:28px 16px}.card{width:min(480px,100%);border:1px solid var(--line);border-radius:22px;padding:26px;background:var(--card);box-shadow:var(--shadow)}h1{margin:0 0 8px;font-size:27px}p{margin:0 0 18px;color:var(--muted);line-height:1.5}.identity{margin-bottom:16px;border:1px solid #d9e8e2;border-radius:12px;padding:11px 12px;background:#f8fcfa;font-size:12px;line-height:1.5}.field{display:grid;gap:6px;margin-bottom:13px}.field label{font-size:12px;font-weight:800;color:#42534c}input{width:100%;min-height:44px;border:1px solid #cbd8d2;border-radius:10px;padding:10px 11px;color:var(--text);background:#fff;outline:none}input:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(8,122,96,.1)}button{width:100%;min-height:44px;border:0;border-radius:10px;padding:10px 13px;color:#fff;background:var(--green);font-weight:900;cursor:pointer}button:disabled{opacity:.55;cursor:not-allowed}.message{margin-top:13px;border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.45}.message.info{color:var(--blue);background:var(--blue-soft)}.message.error{color:var(--danger);background:var(--danger-soft)}.message.success{color:var(--ok);background:var(--ok-soft)}.foot{margin-top:15px;color:var(--muted);font-size:11px;line-height:1.45}
+  </style>
+</head>
+<body>
+  <header class="topbar"><div class="brand">OffertaLogica · Attivazione Staff</div></header>
+  <main class="shell">
+    <section class="card">
+      <h1>Imposta la password Staff</h1>
+      <p>Questa pagina serve esclusivamente ad attivare un account collaboratore OffertaLogica.</p>
+      <div id="activationIdentity" class="identity" hidden></div>
+      <form id="activationForm" hidden novalidate>
+        <div class="field"><label for="activationPassword">Nuova password</label><input id="activationPassword" name="password" type="password" autocomplete="new-password" minlength="8" required></div>
+        <div class="field"><label for="activationPasswordConfirm">Ripeti password</label><input id="activationPasswordConfirm" name="confirm_password" type="password" autocomplete="new-password" minlength="8" required></div>
+        <button type="submit">ATTIVA ACCOUNT STAFF</button>
+      </form>
+      <div id="activationMessage" class="message info" role="status">Verifica del link di invito…</div>
+      <div class="foot">Se il link è scaduto o non valido, chiedi al Proprietario un nuovo invito.</div>
+    </section>
+  </main>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    (() => {
+      "use strict";
+      const SUPABASE_URL = "https://kzxdamhfmzaxonpkytcf.supabase.co";
+      const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_poz1xBKiXceLCFV3u_tPIg_5_-ycHcl";
+      const STORAGE_KEY = "offertalogica-staff-activation";
+      const ALLOWED_ROLES = new Set(["admin", "technician"]);
+      const form = document.getElementById("activationForm");
+      const message = document.getElementById("activationMessage");
+      const identity = document.getElementById("activationIdentity");
+      let client = null;
+      let validatedUserId = "";
+      let validationInFlight = false;
+
+      const roleLabel = role => role === "admin" ? "Amministratore" : role === "technician" ? "Tecnico" : "Staff";
+      const setMessage = (kind, text) => {
+        message.className = `message ${kind || "info"}`;
+        message.textContent = text || "";
+      };
+      const cleanUrl = () => {
+        if (location.hash || location.search) history.replaceState({}, "", location.pathname);
+      };
+      async function validateSession(session) {
+        if (validationInFlight || !session?.user?.id) return;
+        validationInFlight = true;
+        try {
+          const { data, error } = await client.from("premium_staff_members")
+            .select("user_id,role,active")
+            .eq("user_id", session.user.id)
+            .maybeSingle();
+          if (error) throw error;
+          if (!data?.active || !ALLOWED_ROLES.has(String(data.role || "").toLowerCase())) {
+            await client.auth.signOut().catch(() => {});
+            form.hidden = true;
+            identity.hidden = true;
+            setMessage("error", "Questo invito non corrisponde a un collaboratore Staff attivo.");
+            return;
+          }
+          validatedUserId = session.user.id;
+          identity.textContent = `${session.user.email || "Account Staff"} · ${roleLabel(String(data.role || "").toLowerCase())}`;
+          identity.hidden = false;
+          form.hidden = false;
+          cleanUrl();
+          setMessage("info", "Link verificato. Imposta una password di almeno 8 caratteri.");
+          form.elements.password?.focus();
+        } catch {
+          form.hidden = true;
+          identity.hidden = true;
+          setMessage("error", "Impossibile verificare l’invito Staff. Il link potrebbe essere scaduto o non valido.");
+        } finally {
+          validationInFlight = false;
+        }
+      }
+
+      form.addEventListener("submit", async event => {
+        event.preventDefault();
+        if (!validatedUserId) return;
+        const password = String(form.elements.password?.value || "");
+        const confirmPassword = String(form.elements.confirm_password?.value || "");
+        if (password.length < 8) {
+          setMessage("error", "La password deve contenere almeno 8 caratteri.");
+          return;
+        }
+        if (password !== confirmPassword) {
+          setMessage("error", "Le due password non coincidono.");
+          return;
+        }
+        form.querySelectorAll("button,input").forEach(element => { element.disabled = true; });
+        setMessage("info", "Attivazione account in corso…");
+        const { error } = await client.auth.updateUser({ password });
+        if (error) {
+          form.querySelectorAll("button,input").forEach(element => { element.disabled = false; });
+          setMessage("error", String(error.message || error || "Aggiornamento password non riuscito."));
+          return;
+        }
+        await client.auth.signOut().catch(() => {});
+        form.hidden = true;
+        setMessage("success", "Account Staff attivato. Ora puoi accedere con email e nuova password.");
+        window.setTimeout(() => window.location.replace("/staff.html"), 900);
+      });
+
+      if (!window.supabase?.createClient) {
+        setMessage("error", "Collegamento a Supabase non disponibile.");
+        return;
+      }
+      client = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+        auth: { storageKey: STORAGE_KEY, persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: "implicit" }
+      });
+      client.auth.onAuthStateChange((event, session) => {
+        if (["INITIAL_SESSION", "SIGNED_IN", "TOKEN_REFRESHED", "USER_UPDATED"].includes(event)) {
+          window.setTimeout(() => validateSession(session), 0);
+        }
+      });
+      client.auth.getSession().then(({ data, error }) => {
+        if (error) {
+          setMessage("error", "Link di invito non valido o scaduto.");
+          return;
+        }
+        if (data?.session) validateSession(data.session);
+        else window.setTimeout(() => {
+          if (!validatedUserId) setMessage("error", "Link di invito non valido o scaduto.");
+        }, 1200);
+      });
+    })();
+  </script>
+</body>
+</html>

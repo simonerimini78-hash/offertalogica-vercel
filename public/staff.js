@@ -8,6 +8,7 @@
   const VALID_TABS = new Set(["overview", "cases", "leads", "checks", "customers", "analytics", "collaborators", "pdf", "costs"]);
   const PREMIUM_APP_URL = "https://premium.offertalogica.it/app.html";
   const PREMIUM_STAFF_BILLING_URL = `${SUPABASE_URL}/functions/v1/premium-staff-billing`;
+  const PREMIUM_STAFF_INVITE_URL = `${SUPABASE_URL}/functions/v1/premium-staff-invite`;
 
   let client = null;
   let currentSession = null;
@@ -170,6 +171,11 @@
     if (message.includes("premium_staff_role_invalid")) return "Ruolo collaboratore non valido.";
     if (message.includes("premium_staff_member_not_found")) return "Collaboratore non trovato.";
     if (message.includes("premium_staff_update_failed")) return "Aggiornamento collaboratore non riuscito.";
+    if (message.includes("premium_staff_auth_user_exists")) return "Esiste già un account Auth con questa email. Usa “Aggiungi esistente”.";
+    if (message.includes("premium_staff_invite_redirect_invalid")) return "Origine Staff non valida per il link di invito.";
+    if (message.includes("premium_staff_invite_failed")) return "Supabase non ha inviato l’invito. Controlla configurazione email e Redirect URLs.";
+    if (message.includes("premium_staff_membership_create_failed")) return "Invito annullato: non è stato possibile creare il ruolo Staff.";
+    if (message.includes("supabase_admin_configuration_missing")) return "La funzione inviti Staff non ha le credenziali backend Supabase.";
     if (message.includes("rate limit") || message.includes("too many requests")) return "Troppe email richieste in poco tempo. Attendi qualche minuto e riprova.";
     if (message.includes("row-level security") || message.includes("permission denied")) return "Operazione non autorizzata dalle regole di sicurezza.";
     return raw;
@@ -1951,6 +1957,49 @@
     }
   }
 
+  async function inviteCollaborator() {
+    if (!isOwner() || busy) return;
+    const form = byId("collaboratorAddForm");
+    const email = String(form?.elements?.email?.value || "").trim().toLowerCase();
+    const role = String(form?.elements?.role?.value || "technician").trim().toLowerCase();
+    if (!email) {
+      setMessage("error", "Inserisci l’email del nuovo collaboratore.");
+      return;
+    }
+    if (!(await confirmAction({
+      title: "Invita nuovo collaboratore",
+      message: `Inviare a ${email} un invito Staff come ${roleLabel(role)}?`,
+      confirmLabel: "INVIA INVITO",
+    }))) return;
+    setBusy(true);
+    try {
+      const token = await accessToken();
+      const response = await fetch(PREMIUM_STAFF_INVITE_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          action: "invite",
+          email,
+          role,
+          redirect_origin: window.location.origin,
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `Errore HTTP ${response.status}`);
+      form?.reset();
+      if (form?.elements?.role) form.elements.role.value = "technician";
+      await loadCollaborators({ silent: true });
+      setMessage("success", `Invito inviato a ${email}. Il collaboratore deve aprire l’email e impostare la password.`);
+    } catch (error) {
+      setMessage("error", friendlyError(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function saveCollaboratorRole(item, role) {
     if (!isOwner() || busy || item?.role === "owner") return;
     const nextRole = collaboratorEditableRole(role);
@@ -2282,6 +2331,7 @@
     byId("analyticsRefresh").addEventListener("click", () => loadAnalytics().catch(error => setMessage("error", friendlyError(error))));
     byId("collaboratorRefresh").addEventListener("click", () => loadCollaborators().catch(error => setMessage("error", friendlyError(error))));
     byId("collaboratorAddForm").addEventListener("submit", addCollaborator);
+    byId("collaboratorInvite").addEventListener("click", inviteCollaborator);
     byId("analyticsDeleteVisible").addEventListener("click", deleteVisibleAnalytics);
     byId("analyticsReset").addEventListener("click", resetAnalytics);
     byId("costRefresh").addEventListener("click", () => loadCosts().catch(error => setMessage("error", friendlyError(error))));
