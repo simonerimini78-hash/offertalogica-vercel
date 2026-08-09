@@ -6,6 +6,7 @@
   const STORAGE_KEY = "offertalogica-premium-staff-auth";
   const ALLOWED_ROLES = new Set(["reviewer", "admin"]);
   const VALID_TABS = new Set(["overview", "cases", "leads", "checks", "customers", "analytics", "pdf", "costs"]);
+  const PREMIUM_APP_URL = "https://premium.offertalogica.it/app.html";
 
   let client = null;
   let currentSession = null;
@@ -149,6 +150,9 @@
     if (message.includes("premium_complimentary_duration_invalid")) return "Durata dell’omaggio non valida.";
     if (message.includes("premium_complimentary_paid_subscription_conflict")) return "Il cliente ha già un abbonamento Stripe attivo o da regolarizzare. L’omaggio non può sostituirlo.";
     if (message.includes("premium_complimentary_active_subscription_not_found")) return "Non risulta un Premium omaggio attivo da revocare.";
+    if (message.includes("premium_account_not_found")) return "Account Auth non trovato per questo cliente.";
+    if (message.includes("premium_staff_required")) return "Questa verifica è riservata allo staff autorizzato.";
+    if (message.includes("rate limit") || message.includes("too many requests")) return "Troppe email richieste in poco tempo. Attendi qualche minuto e riprova.";
     if (message.includes("row-level security") || message.includes("permission denied")) return "Operazione non autorizzata dalle regole di sicurezza.";
     return raw;
   }
@@ -1124,12 +1128,14 @@
       .support-dialog-meta{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}.support-thread{display:grid;gap:8px;margin-top:14px;padding:12px;border:1px solid #e0e9e5;border-radius:14px;background:#f8fbf9;max-height:360px;overflow:auto}
       .support-thread-message{max-width:88%;padding:10px 11px;border-radius:13px;font-size:12px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}.support-thread-message.user{justify-self:start;background:#fff0f0;color:#612b2b;border-bottom-left-radius:4px}.support-thread-message.staff{justify-self:end;background:#eaf4ff;color:#15345d;border-bottom-right-radius:4px}.support-thread-message small{display:block;margin-top:4px;opacity:.68;font-size:9px}
       .support-dialog-form{display:grid;gap:8px;margin-top:13px}.support-dialog-form textarea{min-height:92px;resize:vertical}.support-dialog-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:13px}.support-dialog-actions .button{flex:1 1 150px}.support-dialog-note{margin-top:9px;color:var(--muted);font-size:10px;line-height:1.4}
-      @media(max-width:620px){.support-dialog-layer{align-items:end;padding:8px}.support-dialog{border-radius:18px 18px 10px 10px}.support-dialog-actions{display:grid}.support-dialog-actions .button{width:100%}}
+      .support-account-tools{margin-top:14px;padding:13px;border:1px solid #dce9e3;border-radius:14px;background:#f8fbf9}.support-account-tools[hidden]{display:none}.support-account-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.support-account-head strong{font-size:13px}.support-account-head small{display:block;margin-top:3px;color:var(--muted);font-size:10px;line-height:1.35}.support-account-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:10px}.support-account-mini{padding:8px 9px;border:1px solid #e1ebe6;border-radius:10px;background:#fff}.support-account-mini span{display:block;color:var(--muted);font-size:9px;font-weight:800;text-transform:uppercase}.support-account-mini strong{display:block;margin-top:3px;font-size:11px;overflow-wrap:anywhere}.support-account-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.support-account-actions .button{flex:1 1 155px}.support-account-status{margin-top:9px;padding:9px 10px;border-radius:10px;background:#eef4f8;color:#31576e;font-size:10.5px;line-height:1.4}.support-account-status.warn{background:#fff8e5;color:#7a5712}.support-account-status.ok{background:#e9f8ed;color:#087c39}.support-account-status.error{background:#fff0f0;color:#9a2525}.support-account-status[hidden]{display:none}
+      @media(max-width:620px){.support-dialog-layer{align-items:end;padding:8px}.support-dialog{border-radius:18px 18px 10px 10px}.support-dialog-actions,.support-account-grid{display:grid}.support-dialog-actions .button,.support-account-actions .button{width:100%}}
     `;
     document.head.append(style);
   }
 
   let activeSupportCase = null;
+  let activeSupportAccountSnapshot = null;
 
   function ensureSupportDialog() {
     let layer = byId("staffSupportDialogLayer");
@@ -1142,6 +1148,28 @@
       node("button", { className: "support-dialog-close", type: "button", text: "×", attrs: { id: "staffSupportDialogClose", "aria-label": "Chiudi" } }),
     ]);
     const meta = node("div", { className: "support-dialog-meta", attrs: { id: "staffSupportDialogMeta" } });
+    const accountTools = node("section", { className: "support-account-tools", attrs: { id: "staffSupportAccountTools", hidden: "" } }, [
+      node("div", { className: "support-account-head" }, [
+        node("div", {}, [
+          node("strong", { text: "Strumenti account" }),
+          node("small", { text: "Verifica lo stato Auth e invia le email necessarie senza conoscere la password del cliente." }),
+        ]),
+        node("button", { className: "button secondary compact", type: "button", text: "AGGIORNA", attrs: { id: "staffSupportAccountRefresh" } }),
+      ]),
+      node("div", { className: "support-account-grid" }, [
+        node("div", { className: "support-account-mini" }, [node("span", { text: "Email Auth" }), node("strong", { text: "—", attrs: { id: "staffSupportAuthEmail" } })]),
+        node("div", { className: "support-account-mini" }, [node("span", { text: "Email confermata" }), node("strong", { text: "—", attrs: { id: "staffSupportEmailConfirmed" } })]),
+        node("div", { className: "support-account-mini" }, [node("span", { text: "Profilo Premium" }), node("strong", { text: "—", attrs: { id: "staffSupportProfileStatus" } })]),
+        node("div", { className: "support-account-mini" }, [node("span", { text: "Abbonamento" }), node("strong", { text: "—", attrs: { id: "staffSupportSubscriptionStatus" } })]),
+        node("div", { className: "support-account-mini" }, [node("span", { text: "Ultimo accesso" }), node("strong", { text: "—", attrs: { id: "staffSupportLastSignIn" } })]),
+        node("div", { className: "support-account-mini" }, [node("span", { text: "Account creato" }), node("strong", { text: "—", attrs: { id: "staffSupportAuthCreated" } })]),
+      ]),
+      node("div", { className: "support-account-actions" }, [
+        node("button", { className: "button secondary", type: "button", text: "INVIA CONFERMA ACCOUNT", attrs: { id: "staffSupportResendConfirmation" } }),
+        node("button", { className: "button primary", type: "button", text: "INVIA RECUPERO PASSWORD", attrs: { id: "staffSupportSendRecovery" } }),
+      ]),
+      node("div", { className: "support-account-status", attrs: { id: "staffSupportAccountStatus", hidden: "" } }),
+    ]);
     const thread = node("div", { className: "support-thread", attrs: { id: "staffSupportThread" } });
     const form = node("form", { className: "support-dialog-form", attrs: { id: "staffSupportReplyForm" } }, [
       node("textarea", { attrs: { id: "staffSupportReply", maxlength: "1500", placeholder: "Scrivi la risposta al cliente…", required: "" } }),
@@ -1153,7 +1181,7 @@
       node("button", { className: "button danger", type: "button", text: "ELIMINA PRATICA", attrs: { id: "staffSupportDeleteCase" } }),
     ]);
     const note = node("div", { className: "support-dialog-note", text: "CHIUDI conserva la conversazione. ELIMINA cancella definitivamente tutti i messaggi della pratica." });
-    dialog.append(head, meta, thread, form, actions, note);
+    dialog.append(head, meta, accountTools, thread, form, actions, note);
     layer.append(dialog);
     document.body.append(layer);
     byId("staffSupportDialogClose").addEventListener("click", closeSupportDialog);
@@ -1162,6 +1190,9 @@
     byId("staffSupportViewCustomer").addEventListener("click", viewSupportCustomer);
     byId("staffSupportCloseCase").addEventListener("click", closeSupportCase);
     byId("staffSupportDeleteCase").addEventListener("click", deleteSupportCase);
+    byId("staffSupportAccountRefresh").addEventListener("click", () => loadSupportAccountSnapshot().catch(error => setSupportAccountStatus("error", friendlyError(error))));
+    byId("staffSupportResendConfirmation").addEventListener("click", sendSupportConfirmationEmail);
+    byId("staffSupportSendRecovery").addEventListener("click", sendSupportPasswordRecoveryEmail);
     return layer;
   }
 
@@ -1169,6 +1200,138 @@
     const layer = byId("staffSupportDialogLayer");
     if (layer) layer.hidden = true;
     activeSupportCase = null;
+    activeSupportAccountSnapshot = null;
+    if (byId("staffSupportAccountTools")) byId("staffSupportAccountTools").hidden = true;
+    setSupportAccountStatus("", "");
+  }
+
+  function setSupportAccountStatus(kind, message) {
+    const target = byId("staffSupportAccountStatus");
+    if (!target) return;
+    target.className = `support-account-status${kind ? ` ${kind}` : ""}`;
+    target.textContent = message || "";
+    target.hidden = !message;
+  }
+
+  function setSupportAccountField(id, value) {
+    text(byId(id), value == null || value === "" ? "—" : value);
+  }
+
+  function supportAccountEmail() {
+    return String(activeSupportAccountSnapshot?.email || activeSupportCase?.customer?.email || "").trim().toLowerCase();
+  }
+
+  async function loadSupportAccountSnapshot({ silent = false } = {}) {
+    const panel = byId("staffSupportAccountTools");
+    if (!panel) return null;
+    const accountCase = activeSupportCase?.supportCategory === "account";
+    panel.hidden = !accountCase;
+    activeSupportAccountSnapshot = null;
+    if (!accountCase) return null;
+
+    if (!silent) setSupportAccountStatus("", "Verifica dello stato account…");
+    const { data, error } = await client.rpc("premium_staff_account_support_snapshot", {
+      p_user_id: activeSupportCase.userId,
+    });
+    if (error) throw error;
+    const snapshot = data || {};
+    activeSupportAccountSnapshot = snapshot;
+
+    setSupportAccountField("staffSupportAuthEmail", snapshot.email);
+    setSupportAccountField("staffSupportEmailConfirmed", snapshot.email_confirmed ? "Sì" : "No");
+    setSupportAccountField("staffSupportProfileStatus", snapshot.profile_status || "Profilo non trovato");
+    setSupportAccountField("staffSupportSubscriptionStatus", snapshot.subscription_status
+      ? `${snapshot.subscription_status}${snapshot.subscription_plan ? ` · ${snapshot.subscription_plan}` : ""}`
+      : "Nessun piano");
+    setSupportAccountField("staffSupportLastSignIn", snapshot.last_sign_in_at ? formatDate(snapshot.last_sign_in_at) : "Mai");
+    setSupportAccountField("staffSupportAuthCreated", snapshot.auth_created_at ? formatDate(snapshot.auth_created_at) : "—");
+
+    const confirmButton = byId("staffSupportResendConfirmation");
+    const recoveryButton = byId("staffSupportSendRecovery");
+    if (confirmButton) {
+      confirmButton.hidden = Boolean(snapshot.email_confirmed);
+      confirmButton.disabled = !snapshot.email || Boolean(snapshot.email_confirmed);
+    }
+    if (recoveryButton) recoveryButton.disabled = !snapshot.email;
+
+    if (!snapshot.email_confirmed) {
+      setSupportAccountStatus("warn", "L’email non risulta confermata. Invia una nuova conferma account e ricorda al cliente di controllare anche Spam/Posta indesiderata.");
+    } else if (snapshot.profile_status && snapshot.profile_status !== "active") {
+      setSupportAccountStatus("warn", `Email confermata, ma il profilo Premium risulta “${snapshot.profile_status}”. Verifica la scheda cliente prima di chiudere la pratica.`);
+    } else {
+      setSupportAccountStatus("ok", "Email confermata e profilo attivo. Se il cliente non riesce ad accedere, invia un nuovo link di recupero password.");
+    }
+    return snapshot;
+  }
+
+  async function appendSupportActionMessage(body) {
+    if (!activeSupportCase || !body) return;
+    const { error } = await client.from("premium_communications").insert({
+      user_id: activeSupportCase.userId,
+      direction: "staff_to_user",
+      channel: "in_app",
+      subject: activeSupportCase.supportSubjectRaw,
+      body: String(body).slice(0, 1500),
+      created_by_staff_id: currentSession.user.id,
+    });
+    if (error) throw error;
+    renderSupportThread(await loadSupportThread(activeSupportCase));
+  }
+
+  async function sendSupportConfirmationEmail() {
+    if (!activeSupportCase || activeSupportCase.supportCategory !== "account") return;
+    try {
+      const snapshot = activeSupportAccountSnapshot || await loadSupportAccountSnapshot({ silent: true });
+      const email = String(snapshot?.email || "").trim().toLowerCase();
+      if (!email) throw new Error("Email account non disponibile.");
+      if (snapshot?.email_confirmed) {
+        setSupportAccountStatus("ok", "L’email risulta già confermata. Non serve inviare un’altra conferma account.");
+        return;
+      }
+      const confirmed = await confirmAction({
+        title: "Inviare una nuova conferma account?",
+        message: `Inviare una nuova email di conferma a ${email}?`,
+        confirmLabel: "INVIA EMAIL",
+      });
+      if (!confirmed) return;
+      setSupportAccountStatus("", "Invio email di conferma…");
+      const { error } = await client.auth.resend({
+        type: "signup",
+        email,
+        options: {
+          emailRedirectTo: `${PREMIUM_APP_URL}?auth=confirm#profile`,
+        },
+      });
+      if (error) throw error;
+      await appendSupportActionMessage("Ho inviato una nuova email di conferma account. Controlla la Posta in arrivo e anche Spam/Posta indesiderata.");
+      setSupportAccountStatus("ok", "Email di conferma inviata. Attendi che il cliente confermi l’indirizzo, poi aggiorna lo stato account.");
+    } catch (error) {
+      setSupportAccountStatus("error", friendlyError(error));
+    }
+  }
+
+  async function sendSupportPasswordRecoveryEmail() {
+    if (!activeSupportCase || activeSupportCase.supportCategory !== "account") return;
+    try {
+      const snapshot = activeSupportAccountSnapshot || await loadSupportAccountSnapshot({ silent: true });
+      const email = String(snapshot?.email || "").trim().toLowerCase();
+      if (!email) throw new Error("Email account non disponibile.");
+      const confirmed = await confirmAction({
+        title: "Inviare recupero password?",
+        message: `Inviare un nuovo link di recupero password a ${email}? Lo staff non vedrà e non imposterà la password del cliente.`,
+        confirmLabel: "INVIA LINK",
+      });
+      if (!confirmed) return;
+      setSupportAccountStatus("", "Invio link di recupero password…");
+      const { error } = await client.auth.resetPasswordForEmail(email, {
+        redirectTo: `${PREMIUM_APP_URL}?auth=recovery#profile`,
+      });
+      if (error) throw error;
+      await appendSupportActionMessage("Ho inviato un nuovo link per reimpostare la password. Controlla la Posta in arrivo e anche Spam/Posta indesiderata.");
+      setSupportAccountStatus("ok", "Link di recupero password inviato. Attendi la prova del cliente; se riesce ad accedere puoi chiudere la pratica.");
+    } catch (error) {
+      setSupportAccountStatus("error", friendlyError(error));
+    }
   }
 
   function renderSupportThread(messages = []) {
@@ -1216,10 +1379,16 @@
     clear(byId("staffSupportThread"));
     byId("staffSupportThread").append(node("div", { className: "empty", text: "Caricamento conversazione…" }));
     byId("staffSupportReply").value = "";
+    activeSupportAccountSnapshot = null;
+    if (byId("staffSupportAccountTools")) byId("staffSupportAccountTools").hidden = item.supportCategory !== "account";
+    setSupportAccountStatus("", "");
     layer.hidden = false;
     try {
       const messages = await loadSupportThread(item);
       renderSupportThread(messages);
+      if (item.supportCategory === "account") {
+        loadSupportAccountSnapshot().catch(error => setSupportAccountStatus("error", friendlyError(error)));
+      }
       window.setTimeout(() => byId("staffSupportReply")?.focus(), 0);
     } catch (error) {
       renderSupportThread([]);

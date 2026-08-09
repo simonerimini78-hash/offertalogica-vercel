@@ -341,6 +341,7 @@
   }
 
   function yellowStep(message, retryHandler, redAllowed = true) {
+    setStatus("", "");
     setTraffic("yellow", "GIALLO · TENTATIVO AUTOMATICO");
     clearOptions();
     addBubble("bot", message);
@@ -353,6 +354,7 @@
   }
 
   function handleCategory(category) {
+    setStatus("", "");
     currentCategory = category;
     currentPath = [CATEGORIES[category]];
     addBubble("user", CATEGORIES[category]);
@@ -360,7 +362,7 @@
 
     if (category === "account") {
       setTraffic("green", "VERDE · GUIDA");
-      addBubble("bot", "Se sei dentro l’app l’account è attivo. Posso portarti direttamente alla gestione della password oppure verificare un problema persistente di accesso.");
+      addBubble("bot", "Se stai usando l’app con il tuo profilo aperto, questa sessione è attiva. Posso portarti alla gestione della password oppure verificare un problema persistente di accesso.");
       addOption("Cambiare password", () => {
         recordPath("Cambio password");
         solvedAutomatically("Apri Sicurezza account e usa CAMBIA PASSWORD. Non serve lo staff.");
@@ -368,7 +370,7 @@
       });
       addOption("Accesso o sessione continua a dare errore", () => {
         recordPath("Errore accesso/sessione");
-        yellowStep("Prima prova a uscire e rientrare oppure usa il recupero password dalla schermata di accesso. Se il problema continua e impedisce l’uso dell’account, può diventare una pratica rossa.", () => scrollToId("premiumPasswordPanel"), true);
+        yellowStep("Se questa sessione funziona, prova prima a cambiare password da Sicurezza account. Dopo il salvataggio esci e prova un nuovo accesso. Se il nuovo accesso continua a fallire, posso aprire una pratica rossa.", () => scrollToId("premiumPasswordPanel", "premiumPasswordToggle"), true);
       });
       return;
     }
@@ -473,6 +475,11 @@
     byId("premiumSupportEscalationForm").hidden = false;
     byId("premiumSupportEscalationForm").elements.message.value = "";
     byId("premiumSupportEscalationForm").elements.message.focus();
+  }
+
+  function isSessionError(error) {
+    const message = String(error?.message || error || "").toLowerCase();
+    return message.includes("jwt") || message.includes("session") || message.includes("auth");
   }
 
   function friendlyError(error) {
@@ -594,7 +601,11 @@
       else renderMain();
     } catch (error) {
       renderMain();
-      setStatus("error", friendlyError(error));
+      if (isSessionError(error)) {
+        setStatus("", "Puoi usare la guida automatica. Per aprire o leggere una pratica dello staff sarà necessario accedere nuovamente.");
+      } else {
+        setStatus("error", friendlyError(error));
+      }
     }
   }
 
