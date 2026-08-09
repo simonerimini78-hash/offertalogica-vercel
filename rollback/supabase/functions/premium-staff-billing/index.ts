@@ -116,40 +116,8 @@ async function authenticatedAdmin(request: Request, admin: any) {
     .maybeSingle();
   if (staffError) throw new Error(`premium_staff_lookup:${compactError(staffError)}`);
   if (!staff) throw new Error("premium_staff_required");
-  const role = String(staff.role || "").toLowerCase();
-  if (!ADMIN_STAFF_ROLES.has(role)) throw new Error("premium_admin_required");
-  return { user: data.user, staff: { ...staff, role } };
-}
-
-async function writeAudit(
-  admin: any,
-  identity: any,
-  {
-    action,
-    targetUserId,
-    result = "success",
-    reason = "",
-    metadata = {},
-  }: {
-    action: string;
-    targetUserId: string;
-    result?: "success" | "error" | "denied";
-    reason?: string;
-    metadata?: Record<string, unknown>;
-  },
-) {
-  const { error } = await admin.rpc("premium_staff_audit_insert", {
-    p_staff_user_id: identity.user.id,
-    p_staff_role: identity.staff.role,
-    p_action: action,
-    p_target_type: "premium_subscription",
-    p_target_id: targetUserId,
-    p_result: result,
-    p_reason: reason,
-    p_metadata: metadata,
-    p_source: "edge:premium-staff-billing",
-  });
-  if (error) throw new Error(`premium_staff_audit_failed:${compactError(error)}`);
+  if (!ADMIN_STAFF_ROLES.has(String(staff.role || "").toLowerCase())) throw new Error("premium_admin_required");
+  return data.user;
 }
 
 async function getStripeSubscription(subscriptionId: string) {
@@ -256,57 +224,21 @@ Deno.serve(async request => {
     return jsonResponse({ ok: false, error: "invalid_json" }, 400);
   }
 
-  let identity: any = null;
-  let userId = "";
-
   try {
-    identity = await authenticatedAdmin(request, admin);
+    await authenticatedAdmin(request, admin);
     const action = String(payload.action || "");
     if (action !== "sync_subscription") return jsonResponse({ ok: false, error: "unknown_action" }, 400);
-    userId = String(payload.user_id || "").trim();
+    const userId = String(payload.user_id || "").trim();
     if (!UUID_RE.test(userId)) return jsonResponse({ ok: false, error: "invalid_user_id" }, 400);
-
-    await writeAudit(admin, identity, {
-      action: "stripe_subscription_sync_requested",
-      targetUserId: userId,
-      metadata: { requested_action: action },
-    });
-
     const result = await syncSubscription(admin, userId);
-
-    await writeAudit(admin, identity, {
-      action: "stripe_subscription_synced",
-      targetUserId: userId,
-      metadata: {
-        changed: result.changed,
-        stripe_status: result.stripe_status,
-        before: result.before,
-        after: result.after,
-      },
-    });
-
     return jsonResponse({ ok: true, ...result });
   } catch (error) {
     const message = compactError(error);
-
-    if (identity?.user?.id && UUID_RE.test(userId) && !message.includes("premium_staff_audit_failed")) {
-      try {
-        await writeAudit(admin, identity, {
-          action: "stripe_subscription_sync_failed",
-          targetUserId: userId,
-          result: "error",
-          reason: message,
-        });
-      } catch (auditError) {
-        console.error("premium-staff-billing-audit", compactError(auditError));
-      }
-    }
-
     const status = message.includes("authentication") ? 401
       : message.includes("premium_staff_required") || message.includes("premium_admin_required") ? 403
       : message.includes("premium_subscription_missing") ? 404
       : message.includes("stripe_read_failed") ? 502
-      : message.includes("configuration_missing") || message.includes("secret_key_missing") || message.includes("premium_staff_audit_failed") ? 500
+      : message.includes("configuration_missing") || message.includes("secret_key_missing") ? 500
       : 409;
     console.error("premium-staff-billing", message);
     return jsonResponse({ ok: false, error: message }, status);
