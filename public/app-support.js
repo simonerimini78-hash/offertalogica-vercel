@@ -255,6 +255,7 @@
     } else {
       setStatus("", "Pratica in verifica. Attendi una risposta dello staff; non è possibile aprire richieste duplicate.");
     }
+    addOption("CONTINUA CON ASSISTENZA AUTOMATICA", () => renderMain(), { secondary: true });
     addOption("ELIMINA RICHIESTA", deleteCurrentCase, { danger: true });
     markStaffMessagesRead(messages);
   }
@@ -281,11 +282,13 @@
     setStatus("", "Eliminazione richiesta…");
     try {
       const { supabase, session } = await sessionInfo();
-      const { error } = await supabase.from("premium_communications")
+      const { data: deletedRows, error } = await supabase.from("premium_communications")
         .delete()
         .eq("user_id", session.user.id)
-        .eq("subject", currentCase.subject);
+        .eq("subject", currentCase.subject)
+        .select("id");
       if (error) throw error;
+      if (!deletedRows?.length) throw new Error("support_delete_no_rows");
       currentCase = null;
       currentCaseMessages = [];
       renderMain();
@@ -621,10 +624,6 @@
     byId("premiumSupportOpen")?.addEventListener("click", openPanel);
     byId("premiumSupportClose")?.addEventListener("click", closePanel);
     byId("premiumSupportRestart")?.addEventListener("click", () => {
-      if (currentCase) {
-        setStatus("", "La pratica rossa è ancora aperta: non è possibile crearne un’altra finché non viene chiusa dallo staff.");
-        return;
-      }
       renderMain();
     });
     byId("premiumSupportEscalationForm")?.addEventListener("submit", submitEscalation);

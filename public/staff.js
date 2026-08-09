@@ -1118,6 +1118,7 @@
     style.id = "staffSupportDialogStyles";
     style.textContent = `
       .support-dialog-layer{position:fixed;inset:0;z-index:1450;display:grid;place-items:center;padding:18px;background:rgba(10,31,27,.66);backdrop-filter:blur(5px)}
+      .confirm-layer{z-index:1650!important}
       .support-dialog-layer[hidden]{display:none}.support-dialog{width:min(720px,100%);max-height:min(90vh,820px);overflow:auto;border:1px solid var(--line);border-radius:20px;padding:18px;background:#fff;box-shadow:0 30px 80px rgba(10,31,27,.30)}
       .support-dialog-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.support-dialog-head h3{margin:0;font-size:20px}.support-dialog-head p{margin:4px 0 0;color:var(--muted);font-size:11px}.support-dialog-close{border:0;border-radius:10px;width:38px;height:38px;background:#eef2f0;color:#344840;font-size:20px}
       .support-dialog-meta{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}.support-thread{display:grid;gap:8px;margin-top:14px;padding:12px;border:1px solid #e0e9e5;border-radius:14px;background:#f8fbf9;max-height:360px;overflow:auto}
@@ -1288,9 +1289,11 @@
         .eq("user_id", activeSupportCase.userId)
         .eq("direction", "user_to_staff")
         .eq("subject", activeSupportCase.supportSubjectRaw)
-        .is("read_at", null);
-      const { error } = await query;
+        .is("read_at", null)
+        .select("id");
+      const { data: closedRows, error } = await query;
       if (error) throw error;
+      if (!closedRows?.length) throw new Error("La pratica non risulta più aperta. Aggiorna l’elenco e riprova.");
       closeSupportDialog();
       await loadSupportRequests({ silent: true });
       renderCases();
@@ -1310,11 +1313,13 @@
     if (!confirmed) return;
     try {
       const target = activeSupportCase;
-      const { error } = await client.from("premium_communications")
+      const { data: deletedRows, error } = await client.from("premium_communications")
         .delete()
         .eq("user_id", target.userId)
-        .eq("subject", target.supportSubjectRaw);
+        .eq("subject", target.supportSubjectRaw)
+        .select("id");
       if (error) throw error;
+      if (!deletedRows?.length) throw new Error("La pratica non esiste più o è già stata eliminata.");
       closeSupportDialog();
       await loadSupportRequests({ silent: true });
       renderCases();
