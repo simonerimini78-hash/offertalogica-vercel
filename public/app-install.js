@@ -31,9 +31,15 @@
     return "Il browser non ha aperto la finestra automatica. Apri il menu del browser e scegli “Installa app” o “Aggiungi alla schermata Home”.";
   };
 
+  const setPrimaryMode = mode => {
+    const canInstall = mode === "install";
+    button.textContent = canInstall ? "INSTALLA APP" : "COME INSTALLARE";
+    button.dataset.installMode = canInstall ? "install" : "help";
+  };
+
   const initialCopy = () => {
     if (isIos || (isMac && isSafari)) return instructions();
-    return "Installa l’app sul dispositivo. Premi il pulsante verde qui sotto.";
+    return "Se il browser supporta l’installazione diretta, il pulsante diventerà INSTALLA APP. Altrimenti mostra i passaggi da seguire.";
   };
 
   if (requested) {
@@ -41,6 +47,7 @@
     else {
       panel.hidden = false;
       button.hidden = false;
+      setPrimaryMode("help");
       copy.textContent = initialCopy();
     }
   }
@@ -51,12 +58,14 @@
     if (requested && !isStandalone) {
       panel.hidden = false;
       button.hidden = false;
+      setPrimaryMode("install");
       copy.textContent = "L’app è pronta per essere installata su questo dispositivo.";
     }
   });
 
   button.addEventListener("click", async () => {
     if (!deferredPrompt) {
+      setPrimaryMode("help");
       copy.textContent = instructions();
       return;
     }
@@ -68,6 +77,7 @@
       cleanInstallParam();
     } else {
       button.hidden = false;
+      setPrimaryMode("help");
       copy.textContent = instructions();
     }
   });

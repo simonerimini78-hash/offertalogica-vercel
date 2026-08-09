@@ -54,6 +54,6 @@ test("fase 4: la migrazione abilita DELETE ma limita il cliente alle sole comuni
 
 test("fase 4: il service worker forza la distribuzione del nuovo supporto", () => {
   const sw = read("public/sw.js");
-  assert.match(sw, /offertalogica-premium-v03629-support(?:4-(?:delete|fix1)|5-(?:account|install-focus))/);
+  assert.match(sw, /offertalogica-premium-v03629-support(?:4-(?:delete|fix1)|5-(?:account|install-(?:focus|dynamic)))/);
   assert.match(sw, /"\/app-support\.js"/);
 });

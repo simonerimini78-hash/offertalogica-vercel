@@ -23,15 +23,15 @@ test('premium install: INSTALLA APP e visivamente dominante', () => {
 test('premium install: niente istruzione che cita un pulsante nascosto', () => {
   assert.doesNotMatch(install, /Premi INSTALLA APP\. Se il browser non mostra la finestra/);
   assert.match(install, /Il browser non ha aperto la finestra automatica/);
-  assert.match(install, /Premi il pulsante verde qui sotto/);
+  assert.match(install, /button\.textContent = canInstall \? "INSTALLA APP" : "COME INSTALLARE"/);
 });
 
 test('premium install: se il prompt viene rifiutato il pulsante resta disponibile', () => {
-  assert.match(install, /else \{\s*button\.hidden = false;\s*copy\.textContent = instructions\(\);/);
+  assert.match(install, /else \{\s*button\.hidden = false;\s*setPrimaryMode\("help"\);\s*copy\.textContent = instructions\(\);/);
 });
 
 test('premium install: service worker distribuisce la nuova logica', () => {
-  assert.match(sw, /offertalogica-premium-v03629-(?:support5-)?install-focus/);
+  assert.match(sw, /offertalogica-premium-v03629-(?:support5-)?install-(?:focus|dynamic)/);
   assert.match(sw, /"\/app-install\.js"/);
 });
 
@@ -39,5 +39,5 @@ test('staff-universale: il ripristino installazione conserva supporto e avviso s
   assert.match(html, /id="premiumSupportPanel"/);
   assert.match(html, /Spam\/Posta indesiderata/);
   assert.match(html, /<script src="\/app-install\.js"><\/script>/);
-  assert.match(sw, /offertalogica-premium-v03629-support5-install-focus/);
+  assert.match(sw, /offertalogica-premium-v03629-support5-install-(?:focus|dynamic)/);
 });
