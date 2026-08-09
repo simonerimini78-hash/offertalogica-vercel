@@ -4,7 +4,7 @@
   const SUPABASE_URL = "https://kzxdamhfmzaxonpkytcf.supabase.co";
   const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_poz1xBKiXceLCFV3u_tPIg_5_-ycHcl";
   const STORAGE_KEY = "offertalogica-premium-staff-auth";
-  const ALLOWED_ROLES = new Set(["reviewer", "admin"]);
+  const ALLOWED_ROLES = new Set(["reviewer", "technician", "admin", "owner"]);
   const VALID_TABS = new Set(["overview", "cases", "leads", "checks", "customers", "analytics", "pdf", "costs"]);
   const PREMIUM_APP_URL = "https://premium.offertalogica.it/app.html";
   const PREMIUM_STAFF_BILLING_URL = `${SUPABASE_URL}/functions/v1/premium-staff-billing`;
@@ -129,7 +129,12 @@
   }
 
   function roleLabel(role) {
-    return role === "admin" ? "Amministratore" : "Revisore";
+    return {
+      owner: "Proprietario",
+      admin: "Amministratore",
+      technician: "Tecnico",
+      reviewer: "Revisore",
+    }[String(role || "").trim().toLowerCase()] || "Staff";
   }
 
   function friendlyError(error) {
@@ -221,7 +226,7 @@
   }
 
   function isAdmin() {
-    return currentStaff?.role === "admin";
+    return ["admin", "owner"].includes(String(currentStaff?.role || "").trim().toLowerCase());
   }
 
   function uniqueValues(values = []) {
@@ -346,7 +351,7 @@
   }
 
   async function loadLeads({ silent = false } = {}) {
-    const restricted = currentStaff?.role !== "admin";
+    const restricted = !isAdmin();
     byId("leadRestricted").hidden = !restricted;
     byId("leadContent").hidden = restricted;
     if (restricted) {
@@ -384,7 +389,7 @@
   }
 
   async function deleteLead(lead) {
-    if (currentStaff?.role !== "admin" || busy) return;
+    if (!isAdmin() || busy) return;
     if (!(await confirmAction({ title: "Elimina contatto", message: `Eliminare definitivamente “${lead.name || lead.id}”?`, confirmLabel: "ELIMINA" }))) return;
     setBusy(true);
     try {
@@ -422,7 +427,7 @@
   }
 
   async function resetLeads() {
-    if (currentStaff?.role !== "admin" || busy) return;
+    if (!isAdmin() || busy) return;
     if (!(await confirmAction({ title: "Azzera archivio lead", message: "Eliminare tutti i contatti e gli eventi collegati?", keyword: "AZZERA", confirmLabel: "AZZERA" }))) return;
     setBusy(true);
     try {
@@ -440,7 +445,7 @@
   }
 
   async function downloadLeadCsv() {
-    if (currentStaff?.role !== "admin") return;
+    if (!isAdmin()) return;
     try {
       const limit = byId("leadLimit")?.value || "200";
       const blob = await staffFetch(`/api/staff-leads?limit=${encodeURIComponent(limit)}&format=csv`, { expectBlob: true });
@@ -1919,7 +1924,7 @@
     cache.runs = runsResult.data || [];
     cache.checks = checksResult.data || cache.checks;
     cache.costEvents = [];
-    if (currentStaff?.role === "admin") {
+    if (isAdmin()) {
       const eventsResult = await client.from("premium_cost_events").select("id,event_type,provider,quantity,unit,cost_eur,occurred_at").order("occurred_at", { ascending: false }).limit(1000);
       if (eventsResult.error) throw eventsResult.error;
       cache.costEvents = eventsResult.data || [];
@@ -1945,8 +1950,8 @@
   function renderOverview() {
     const leadSummary = cache.leadSummary || {};
     buildOperationalCases();
-    text(byId("overviewLeads"), currentStaff?.role === "admin" ? leadSummary.recentRows || 0 : "Riservato");
-    text(byId("overviewLeadsMeta"), currentStaff?.role === "admin" ? `${leadSummary.verifiedRows || 0} verificati OTP` : "Solo amministratori");
+    text(byId("overviewLeads"), isAdmin() ? leadSummary.recentRows || 0 : "Riservato");
+    text(byId("overviewLeadsMeta"), isAdmin() ? `${leadSummary.verifiedRows || 0} verificati OTP` : "Solo amministratori");
     text(byId("overviewCases"), cache.cases.length);
     text(byId("overviewCustomers"), cache.customers.length);
     text(byId("overviewAiCost"), cache.costSummary.pricedRuns ? formatMoney(cache.costSummary.aiCost) : "Tariffe non configurate");
@@ -1968,7 +1973,7 @@
       button.addEventListener("click", () => count ? setTab("cases") : setTab(tab));
       list.append(button);
     });
-    if (currentStaff?.role === "admin") {
+    if (isAdmin()) {
       const leadButton = node("button", { className: "rank-row", type: "button" }, [node("strong", { text: "lead con offerta scelta" }), node("span", { text: leadSummary.withSelectedOffer || 0 })]);
       leadButton.addEventListener("click", () => setTab("leads"));
       list.append(leadButton);
@@ -1980,7 +1985,7 @@
   async function loadOverview({ silent = false } = {}) {
     if (!silent) setMessage("info", "Aggiornamento riepilogo…");
     const tasks = [loadChecks({ silent: true }), loadCustomers({ silent: true }), loadAnalytics({ silent: true }), loadCosts({ silent: true }), loadSupportRequests({ silent: true })];
-    if (currentStaff?.role === "admin") tasks.push(loadLeads({ silent: true }));
+    if (isAdmin()) tasks.push(loadLeads({ silent: true }));
     const results = await Promise.allSettled(tasks);
     const failures = results.filter(result => result.status === "rejected");
     renderOverview();

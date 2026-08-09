@@ -5,7 +5,7 @@
   const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_poz1xBKiXceLCFV3u_tPIg_5_-ycHcl";
   const STORAGE_KEY = "offertalogica-premium-staff-auth";
   const BUCKET = "premium-bills";
-  const MANAGER_ROLES = new Set(["reviewer", "admin"]);
+  const MANAGER_ROLES = new Set(["reviewer", "technician", "admin", "owner"]);
 
   let client = null;
   let currentSession = null;
@@ -130,7 +130,12 @@
   }
 
   function roleLabel(value) {
-    return value === "admin" ? "Amministratore" : value === "reviewer" ? "Revisore" : "Staff";
+    return {
+      owner: "Proprietario",
+      admin: "Amministratore",
+      technician: "Tecnico",
+      reviewer: "Revisore",
+    }[String(value || "").trim().toLowerCase()] || "Staff";
   }
 
   function categoryLabel(value) {
@@ -256,7 +261,7 @@
   }
 
   function isAdmin() {
-    return currentStaff?.role === "admin";
+    return ["admin", "owner"].includes(String(currentStaff?.role || "").trim().toLowerCase());
   }
 
   async function deletePremiumRecords(resource, ids) {
@@ -1138,7 +1143,7 @@
 
   async function handleAdminDeleteBill() {
     const row = selectedRow();
-    if (!row?.bill || currentStaff?.role !== "admin" || busy) return;
+    if (!row?.bill || !isAdmin() || busy) return;
     if (row.bill.processing_status === "analyzing") {
       setPageMessage("error", "Attendi la conclusione dell’analisi IA prima di eliminare la bolletta.");
       return;

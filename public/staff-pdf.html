@@ -119,6 +119,8 @@ const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_poz1xBKiXceLCFV3u_tPIg_5_-ycHcl
 const STORAGE_KEY = "offertalogica-premium-staff-auth";
 let staffClient = null;
 let currentStaff = null;
+const ALLOWED_STAFF_ROLES = new Set(["reviewer", "technician", "admin", "owner"]);
+const isAdminRole = (role) => ["admin", "owner"].includes(String(role || "").trim().toLowerCase());
 let analyses = [];
 let selectedId = "";
 const esc = (value) => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
@@ -135,10 +137,10 @@ async function ensureStaffSession() {
   const session = data?.session;
   if (!session?.access_token || !session.user?.id) throw new Error("Sessione staff non disponibile");
   const member = await staffClient.from("premium_staff_members").select("user_id,role,active").eq("user_id", session.user.id).maybeSingle();
-  if (member.error || !member.data?.active || !["reviewer", "admin"].includes(member.data.role)) throw new Error("Account staff non autorizzato");
+  if (member.error || !member.data?.active || !ALLOWED_STAFF_ROLES.has(member.data.role)) throw new Error("Account staff non autorizzato");
   currentStaff = member.data;
   const bulkActions = document.getElementById("pdfBulkActions");
-  if (bulkActions) bulkActions.hidden = currentStaff.role !== "admin";
+  if (bulkActions) bulkActions.hidden = !isAdminRole(currentStaff.role);
   return session.access_token;
 }
 async function api(path, options={}) {
@@ -206,7 +208,7 @@ function renderDetail(item) {
   if(!item)return;
   const n=item.normalized_data||{}; const confirmed=item.confirmed_data||{}; const diagnostics=item.diagnostics||[];
   document.getElementById("detail").innerHTML=`
-    <div class="detail-head"><div><h2>${esc(item.original_file_name)}</h2><div class="meta">${esc(item.parser_version)} · hash ${esc((item.file_sha256||'').slice(0,12))}… · scadenza ${item.expires_at?esc(new Date(item.expires_at).toLocaleDateString('it-IT')):'—'}</div></div><div class="actions"><button class="btn" id="replay-analysis">Prova questi dati nel calcolatore</button><button class="btn primary" id="open-pdf">Apri PDF originale</button>${currentStaff?.role==="admin"?`<button class="btn danger" id="delete-analysis">Elimina singola</button><button class="btn danger" id="delete-pdf-block">Elimina blocco PDF</button>`:""}</div></div>
+    <div class="detail-head"><div><h2>${esc(item.original_file_name)}</h2><div class="meta">${esc(item.parser_version)} · hash ${esc((item.file_sha256||'').slice(0,12))}… · scadenza ${item.expires_at?esc(new Date(item.expires_at).toLocaleDateString('it-IT')):'—'}</div></div><div class="actions"><button class="btn" id="replay-analysis">Prova questi dati nel calcolatore</button><button class="btn primary" id="open-pdf">Apri PDF originale</button>${isAdminRole(currentStaff?.role)?`<button class="btn danger" id="delete-analysis">Elimina singola</button><button class="btn danger" id="delete-pdf-block">Elimina blocco PDF</button>`:""}</div></div>
     <div class="summary"><div><span>Esito</span><strong>${esc(item.status)}</strong></div><div><span>Revisione</span><strong>${esc(item.review_status)}</strong></div><div><span>Fornitore</span><strong>${esc(item.provider||'—')}</strong></div><div><span>Prove sullo stesso PDF</span><strong>${esc(analyses.filter(row=>row.file_sha256&&row.file_sha256===item.file_sha256).length||1)}</strong></div></div>
     ${item.error_message?`<h3>Errore</h3><pre>${esc(item.error_code)}\n${esc(item.error_message)}</pre>`:''}
     ${renderValidationSummary(n)}
@@ -272,12 +274,12 @@ async function deletePdfBlock(item) {
   try{await deletePdfRows(block.map(row=>row.id),"ELIMINA_PDF_VISIBILI","Blocco PDF eliminato.");}catch(error){showStatus(error.message,true);}
 }
 async function deleteVisiblePdf() {
-  if(currentStaff?.role!=="admin"||!analyses.length)return;
+  if(!isAdminRole(currentStaff?.role)||!analyses.length)return;
   if(!(await confirmStaffAction({title:"Elimina analisi visibili",message:`Eliminare ${analyses.length} analisi visibili?`,keyword:"ELIMINA",confirmLabel:"ELIMINA"})))return;
   try{await deletePdfRows(analyses.map(row=>row.id),"ELIMINA_PDF_VISIBILI","Analisi visibili eliminate.");}catch(error){showStatus(error.message,true);}
 }
 async function deleteAllPdf() {
-  if(currentStaff?.role!=="admin")return;
+  if(!isAdminRole(currentStaff?.role))return;
   if(!(await confirmStaffAction({title:"Azzera archivio PDF",message:"Eliminare definitivamente tutto l’archivio diagnostico PDF?",keyword:"AZZERA",confirmLabel:"AZZERA"})))return;
   showStatus("Eliminazione archivio in corso…");
   try{const result=await api("/api/staff-pdf-analyses?scope=all",{method:"DELETE",headers:{"Content-Type":"application/json","X-Staff-Confirmation":"AZZERA_ARCHIVIO_PDF"},body:JSON.stringify({scope:"all"})});selectedId="";document.getElementById("detail").innerHTML='<div class="empty">Archivio PDF azzerato.</div>';await loadAnalyses();showStatus(`${Number(result.deleted||0)} analisi eliminate.`);}catch(error){showStatus(error.message,true);}

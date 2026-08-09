@@ -6,6 +6,7 @@ import { json, method, readJson, requireAllowedOrigin } from "../lib/http.js";
 import { normalizePdfFileHeader } from "../lib/pdfFileValidation.js";
 import { extractPdfPureAi } from "../lib/pdfPureAiReader.js";
 import { enforceRateLimit } from "../lib/rateLimit.js";
+import { isStaffAdminRole } from "../lib/staffRoles.js";
 import { checkStore, persistentStoreConfigured } from "../lib/store.js";
 import {
   applyPremiumOfferCustomerDecision,
@@ -82,7 +83,7 @@ export function createPremiumAiAnalysisHandler({
       if (body?.action === "config_status") {
         if (!backend.supabaseUrl || !backend.serviceKey) throw new Error("premium_supabase_not_configured");
         const { staff } = await verifyPremiumStaff({ config: backend, accessToken, fetchImpl });
-        if (staff.role !== "admin") throw new Error("premium_admin_delete_required");
+        if (!isStaffAdminRole(staff.role)) throw new Error("premium_admin_delete_required");
         const persistentRateLimitConfigured = persistentStoreConfigured();
         const [backendReadiness, offerHistory, persistentRateLimitOperational] = await Promise.all([
           checkPremiumBackendReadiness({ config: backend, fetchImpl }),
