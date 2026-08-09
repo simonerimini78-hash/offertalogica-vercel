@@ -163,6 +163,13 @@
     if (message.includes("premium_complimentary_active_subscription_not_found")) return "Non risulta un Premium omaggio attivo da revocare.";
     if (message.includes("premium_account_not_found")) return "Account Auth non trovato per questo cliente.";
     if (message.includes("premium_staff_required")) return "Questa verifica è riservata allo staff autorizzato.";
+    if (message.includes("premium_owner_required")) return "Questa funzione è riservata al Proprietario.";
+    if (message.includes("premium_owner_protected")) return "Il Proprietario è protetto e non può essere modificato.";
+    if (message.includes("premium_staff_auth_user_not_found")) return "Nessun account Auth trovato con questa email.";
+    if (message.includes("premium_staff_email_invalid")) return "Inserisci un indirizzo email valido.";
+    if (message.includes("premium_staff_role_invalid")) return "Ruolo collaboratore non valido.";
+    if (message.includes("premium_staff_member_not_found")) return "Collaboratore non trovato.";
+    if (message.includes("premium_staff_update_failed")) return "Aggiornamento collaboratore non riuscito.";
     if (message.includes("rate limit") || message.includes("too many requests")) return "Troppe email richieste in poco tempo. Attendi qualche minuto e riprova.";
     if (message.includes("row-level security") || message.includes("permission denied")) return "Operazione non autorizzata dalle regole di sicurezza.";
     return raw;
@@ -1914,6 +1921,89 @@
     return { label: role || "Staff", kind: "" };
   }
 
+  function collaboratorEditableRole(role) {
+    const normalized = String(role || "").trim().toLowerCase();
+    return ["admin", "technician"].includes(normalized) ? normalized : "technician";
+  }
+
+  async function addCollaborator(event) {
+    event?.preventDefault?.();
+    if (!isOwner() || busy) return;
+    const form = byId("collaboratorAddForm");
+    const email = String(form?.elements?.email?.value || "").trim().toLowerCase();
+    const role = String(form?.elements?.role?.value || "technician").trim().toLowerCase();
+    if (!email) {
+      setMessage("error", "Inserisci l’email dell’account Auth da aggiungere.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const { error } = await client.rpc("premium_owner_add_staff", { p_email: email, p_role: role });
+      if (error) throw error;
+      form?.reset();
+      if (form?.elements?.role) form.elements.role.value = "technician";
+      await loadCollaborators({ silent: true });
+      setMessage("success", `${email} aggiunto come ${roleLabel(role)}.`);
+    } catch (error) {
+      setMessage("error", friendlyError(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveCollaboratorRole(item, role) {
+    if (!isOwner() || busy || item?.role === "owner") return;
+    const nextRole = collaboratorEditableRole(role);
+    if (!(await confirmAction({
+      title: "Modifica ruolo collaboratore",
+      message: `Impostare ${item.email || item.user_id} come ${roleLabel(nextRole)}?`,
+      confirmLabel: "SALVA RUOLO",
+    }))) return;
+    setBusy(true);
+    try {
+      const { error } = await client.rpc("premium_owner_update_staff", {
+        p_user_id: item.user_id,
+        p_role: nextRole,
+        p_active: Boolean(item.active),
+      });
+      if (error) throw error;
+      await loadCollaborators({ silent: true });
+      setMessage("success", "Ruolo collaboratore aggiornato.");
+    } catch (error) {
+      setMessage("error", friendlyError(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function toggleCollaboratorActive(item) {
+    if (!isOwner() || busy || item?.role === "owner") return;
+    const nextActive = !Boolean(item.active);
+    const nextRole = collaboratorEditableRole(item.role);
+    if (!(await confirmAction({
+      title: nextActive ? "Riattiva collaboratore" : "Disattiva collaboratore",
+      message: nextActive
+        ? `Riattivare l’accesso Staff per ${item.email || item.user_id}?`
+        : `Disattivare l’accesso Staff per ${item.email || item.user_id}?`,
+      confirmLabel: nextActive ? "RIATTIVA" : "DISATTIVA",
+    }))) return;
+    setBusy(true);
+    try {
+      const { error } = await client.rpc("premium_owner_update_staff", {
+        p_user_id: item.user_id,
+        p_role: nextRole,
+        p_active: nextActive,
+      });
+      if (error) throw error;
+      await loadCollaborators({ silent: true });
+      setMessage("success", nextActive ? "Collaboratore riattivato." : "Collaboratore disattivato.");
+    } catch (error) {
+      setMessage("error", friendlyError(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function renderCollaborators() {
     const restricted = !isOwner();
     const restrictedBox = byId("collaboratorRestricted");
@@ -1932,17 +2022,37 @@
     const body = byId("collaboratorRows");
     clear(body);
     if (!rows.length) {
-      body.append(node("tr", {}, [node("td", { text: "Nessun collaboratore Staff disponibile.", attrs: { colspan: "5" } })]));
+      body.append(node("tr", {}, [node("td", { text: "Nessun collaboratore Staff disponibile.", attrs: { colspan: "6" } })]));
       return;
     }
     rows.forEach(item => {
       const descriptor = collaboratorRoleDescriptor(item.role);
+      let actions;
+      if (item.role === "owner") {
+        actions = node("div", { className: "row-actions" }, [badge("Protetto", "ok")]);
+      } else {
+        const roleSelect = node("select", { attrs: { "aria-label": `Ruolo ${item.email || item.user_id}` } }, [
+          node("option", { value: "technician", text: "Tecnico" }),
+          node("option", { value: "admin", text: "Amministratore" }),
+        ]);
+        roleSelect.value = collaboratorEditableRole(item.role);
+        const saveRole = node("button", { className: "button secondary compact", type: "button", text: "Salva ruolo" });
+        saveRole.addEventListener("click", () => saveCollaboratorRole(item, roleSelect.value));
+        const toggleActive = node("button", {
+          className: `button ${item.active ? "danger" : "primary"} compact`,
+          type: "button",
+          text: item.active ? "Disattiva" : "Riattiva",
+        });
+        toggleActive.addEventListener("click", () => toggleCollaboratorActive(item));
+        actions = node("div", { className: "row-actions" }, [roleSelect, saveRole, toggleActive]);
+      }
       body.append(node("tr", {}, [
         node("td", {}, [node("strong", { text: item.email || item.user_id || "Account Staff" }), node("small", { text: item.user_id || "" })]),
         node("td", {}, [badge(descriptor.label, descriptor.kind)]),
         node("td", {}, [badge(item.active ? "Attivo" : "Disattivato", item.active ? "ok" : "danger")]),
         node("td", { text: formatDate(item.created_at) }),
         node("td", { text: formatDate(item.updated_at) }),
+        node("td", {}, [actions]),
       ]));
     });
   }
@@ -2171,6 +2281,7 @@
     document.addEventListener("keydown", event => { if (event.key === "Escape" && !byId("staffComplimentaryLayer")?.hidden) closeComplimentary(); });
     byId("analyticsRefresh").addEventListener("click", () => loadAnalytics().catch(error => setMessage("error", friendlyError(error))));
     byId("collaboratorRefresh").addEventListener("click", () => loadCollaborators().catch(error => setMessage("error", friendlyError(error))));
+    byId("collaboratorAddForm").addEventListener("submit", addCollaborator);
     byId("analyticsDeleteVisible").addEventListener("click", deleteVisibleAnalytics);
     byId("analyticsReset").addEventListener("click", resetAnalytics);
     byId("costRefresh").addEventListener("click", () => loadCosts().catch(error => setMessage("error", friendlyError(error))));
