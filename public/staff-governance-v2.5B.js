@@ -596,6 +596,353 @@
     }, { once: true });
   }
 
+
+  // Staff v2.6B — Dashboard Owner.
+  // UI read-only costruita sopra la RPC aggregata v2.6A. Nessuna nuova API,
+  // nessuna query diretta alle tabelle operative e nessuna metrica ricostruita nel browser.
+  let ownerDashboardRequest = null;
+  let ownerDashboardActive = false;
+
+  function injectOwnerDashboardStyles() {
+    if (byId("staffOwnerDashboardStyles")) return;
+    const style = document.createElement("style");
+    style.id = "staffOwnerDashboardStyles";
+    style.textContent = `
+      .owner-dashboard-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:15px}
+      .owner-dashboard-head h2{margin:0;font-size:26px;letter-spacing:-.025em}.owner-dashboard-head p{margin:5px 0 0;color:var(--muted);font-size:13px;line-height:1.45}
+      .owner-dashboard-status{display:inline-flex;align-items:center;min-height:32px;border:1px solid #d8e3de;border-radius:999px;padding:6px 10px;color:var(--muted);background:#fff;font-size:10px;font-weight:800;white-space:nowrap}
+      .owner-dashboard-status.error{border-color:#fecdca;color:var(--danger);background:var(--danger-soft)}
+      .owner-dashboard-status.success{border-color:#abefc6;color:var(--ok);background:var(--ok-soft)}
+      .owner-dashboard-sections{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+      .owner-dashboard-list{display:grid;gap:7px}.owner-dashboard-row{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid #e2ebe7;border-radius:10px;padding:9px 10px;background:#fbfdfc}
+      .owner-dashboard-row span{color:#42534c;font-size:11px}.owner-dashboard-row strong{color:var(--green-dark);font-size:13px;text-align:right}
+      .owner-dashboard-note{margin-top:14px;border:1px solid #dce9e3;border-radius:12px;padding:11px 12px;color:var(--muted);background:#f8fbf9;font-size:10px;line-height:1.5}
+      .owner-dashboard-note strong{color:#344840}
+      @media(max-width:900px){.owner-dashboard-sections{grid-template-columns:1fr}}
+      @media(max-width:680px){.owner-dashboard-head{flex-direction:column}.owner-dashboard-status{white-space:normal}}
+    `;
+    document.head.append(style);
+  }
+
+  function ownerFormatNumber(value, digits = 0) {
+    const number = Number(value);
+    if (!Number.isFinite(number)) return "0";
+    return new Intl.NumberFormat("it-IT", { maximumFractionDigits: digits }).format(number);
+  }
+
+  function ownerFormatMoney(value) {
+    const number = Number(value);
+    if (!Number.isFinite(number)) return "€ 0,00";
+    return new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" }).format(number);
+  }
+
+  function ownerFormatDuration(seconds) {
+    const value = Math.max(0, Number(seconds) || 0);
+    if (value >= 3600) return `${ownerFormatNumber(value / 3600, 1)} h`;
+    return `${ownerFormatNumber(Math.round(value / 60))} min`;
+  }
+
+  function ownerFormatDate(value) {
+    if (!value) return "—";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "—";
+    return new Intl.DateTimeFormat("it-IT", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(date);
+  }
+
+  function ensureOwnerDashboardUi() {
+    if (byId("staffOwnerDashboardView")) return;
+
+    injectOwnerDashboardStyles();
+
+    const nav = document.querySelector("#staffApp .nav");
+    const main = document.querySelector("#staffApp .main");
+    if (!nav || !main) return;
+
+    const button = document.createElement("button");
+    button.id = "staffOwnerDashboardTab";
+    button.type = "button";
+    button.hidden = true;
+    button.textContent = "Dashboard Owner";
+    button.setAttribute("aria-controls", "staffOwnerDashboardView");
+
+    const collaboratorsTab = byId("staffCollaboratorsTab");
+    if (collaboratorsTab?.parentElement === nav) collaboratorsTab.insertAdjacentElement("afterend", button);
+    else nav.append(button);
+
+    const view = document.createElement("section");
+    view.id = "staffOwnerDashboardView";
+    view.className = "view";
+    view.setAttribute("aria-labelledby", "staffOwnerDashboardTitle");
+    view.innerHTML = `
+      <div class="owner-dashboard-head">
+        <div>
+          <span class="control-kicker">Solo Proprietario</span>
+          <h2 id="staffOwnerDashboardTitle">Dashboard Owner</h2>
+          <p>Numeri globali Premium e Staff calcolati lato database. Nessun dato personale e nessuna stima di entrate non supportata.</p>
+        </div>
+        <span class="owner-dashboard-status" id="staffOwnerDashboardStatus">Da aggiornare</span>
+      </div>
+
+      <div class="metrics">
+        <article class="metric priority"><span>Clienti Premium attivi</span><strong id="ownerCustomersActive">—</strong><small id="ownerCustomersTotal">Totale profili —</small></article>
+        <article class="metric priority"><span>Premium paganti attivi</span><strong id="ownerPaidActive">—</strong><small id="ownerPaidAttention">Da verificare —</small></article>
+        <article class="metric"><span>Prove gratuite attive</span><strong id="ownerTrialActive">—</strong><small id="ownerCustomersNew7">Nuovi clienti 7 gg —</small></article>
+        <article class="metric"><span>Premium omaggio attivi</span><strong id="ownerComplimentaryActive">—</strong><small id="ownerComplimentaryUnlimited">Senza scadenza —</small></article>
+      </div>
+
+      <div class="metrics">
+        <article class="metric"><span>Nuovi clienti · 30 giorni</span><strong id="ownerCustomersNew30">—</strong><small>Crescita profili Premium</small></article>
+        <article class="metric"><span>Bollette caricate · 30 giorni</span><strong id="ownerBillsNew30">—</strong><small id="ownerBillsTotal">Archivio attuale —</small></article>
+        <article class="metric priority"><span>Verifiche aperte</span><strong id="ownerChecksOpen">—</strong><small id="ownerChecksCompleted30">Concluse 30 gg —</small></article>
+        <article class="metric priority"><span>Anomalie aperte</span><strong id="ownerAnomaliesOpen">—</strong><small id="ownerAnomaliesCritical">Alte/critiche —</small></article>
+      </div>
+
+      <div class="owner-dashboard-sections">
+        <section class="panel">
+          <div class="panel-head"><div><h3>Abbonamenti</h3><small>Stato dell’ultimo piano registrato per cliente</small></div></div>
+          <div class="panel-body"><div class="owner-dashboard-list">
+            <div class="owner-dashboard-row"><span>Pagamenti da verificare</span><strong id="ownerSubPaidAttention">—</strong></div>
+            <div class="owner-dashboard-row"><span>Rinnovo disattivato a fine periodo</span><strong id="ownerSubCancelAtEnd">—</strong></div>
+            <div class="owner-dashboard-row"><span>Archivio in sola lettura</span><strong id="ownerSubReadOnly">—</strong></div>
+            <div class="owner-dashboard-row"><span>Omaggi senza scadenza</span><strong id="ownerSubUnlimited">—</strong></div>
+          </div></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head"><div><h3>Operatività</h3><small>Carico corrente e risultati degli ultimi 30 giorni</small></div></div>
+          <div class="panel-body"><div class="owner-dashboard-list">
+            <div class="owner-dashboard-row"><span>Verifiche concluse · 30 gg</span><strong id="ownerOpsChecksCompleted">—</strong></div>
+            <div class="owner-dashboard-row"><span>Esito anomalia · 30 gg</span><strong id="ownerOpsChecksAnomaly">—</strong></div>
+            <div class="owner-dashboard-row"><span>Possibile risparmio · 30 gg</span><strong id="ownerOpsSaving">—</strong></div>
+            <div class="owner-dashboard-row"><span>Messaggi assistenza non letti</span><strong id="ownerOpsSupportUnread">—</strong></div>
+            <div class="owner-dashboard-row"><span>Bollette con elaborazione fallita</span><strong id="ownerOpsBillsFailed">—</strong></div>
+          </div></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head"><div><h3>Costi e carico · 30 giorni</h3><small>Solo valori già registrati o stimati dal sistema</small></div></div>
+          <div class="panel-body"><div class="owner-dashboard-list">
+            <div class="owner-dashboard-row"><span>Analisi IA</span><strong id="ownerCostRuns">—</strong></div>
+            <div class="owner-dashboard-row"><span>Analisi IA fallite</span><strong id="ownerCostFailed">—</strong></div>
+            <div class="owner-dashboard-row"><span>Token IA</span><strong id="ownerCostTokens">—</strong></div>
+            <div class="owner-dashboard-row"><span>Costo IA stimato registrato</span><strong id="ownerCostAi">—</strong></div>
+            <div class="owner-dashboard-row"><span>Costi registrati complessivi</span><strong id="ownerCostRecorded">—</strong></div>
+            <div class="owner-dashboard-row"><span>Tempo umano registrato</span><strong id="ownerCostHuman">—</strong></div>
+          </div></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head"><div><h3>Governance Staff</h3><small>Ruoli, omaggi e Audit</small></div></div>
+          <div class="panel-body"><div class="owner-dashboard-list">
+            <div class="owner-dashboard-row"><span>Collaboratori Staff attivi</span><strong id="ownerGovStaffActive">—</strong></div>
+            <div class="owner-dashboard-row"><span>Amministratori attivi</span><strong id="ownerGovAdmins">—</strong></div>
+            <div class="owner-dashboard-row"><span>Tecnici attivi</span><strong id="ownerGovTechnicians">—</strong></div>
+            <div class="owner-dashboard-row"><span>Admin autorizzati agli omaggi</span><strong id="ownerGovGiftAdmins">—</strong></div>
+            <div class="owner-dashboard-row"><span>Eventi Audit · 30 gg</span><strong id="ownerGovAuditEvents">—</strong></div>
+            <div class="owner-dashboard-row"><span>Errori Audit · 30 gg</span><strong id="ownerGovAuditErrors">—</strong></div>
+            <div class="owner-dashboard-row"><span>Operazioni negate · 30 gg</span><strong id="ownerGovAuditDenied">—</strong></div>
+          </div></div>
+        </section>
+      </div>
+
+      <div class="owner-dashboard-note">
+        <strong>Perimetro economico:</strong> questa dashboard non ricostruisce fatturato, MRR o valore degli omaggi. Mostra solo costi e conteggi supportati dai dati già registrati. Le metriche “paganti” richiedono un collegamento Stripe reale nell’ultimo abbonamento del cliente.
+      </div>
+      <div class="version">Control Center · Dashboard Owner v2.6B</div>
+    `;
+    main.append(view);
+
+    button.addEventListener("click", openOwnerDashboard);
+    document.querySelectorAll("[data-staff-tab]").forEach(tab => {
+      tab.addEventListener("click", () => closeOwnerDashboard());
+    });
+    byId("staffRefresh")?.addEventListener("click", () => {
+      if (ownerDashboardActive) loadOwnerDashboard({ silent: true });
+    });
+    window.addEventListener("hashchange", () => closeOwnerDashboard());
+
+    const staffApp = byId("staffApp");
+    if (staffApp) {
+      new MutationObserver(() => {
+        if (staffApp.hidden) closeOwnerDashboard();
+        refreshCurrentGovernance({ silent: true })
+          .then(syncOwnerDashboardVisibility)
+          .catch(() => syncOwnerDashboardVisibility());
+      }).observe(staffApp, { attributes: true, attributeFilter: ["hidden"] });
+    }
+
+    const identity = byId("staffIdentity");
+    if (identity) {
+      new MutationObserver(() => {
+        refreshCurrentGovernance({ silent: true })
+          .then(syncOwnerDashboardVisibility)
+          .catch(() => syncOwnerDashboardVisibility());
+      }).observe(identity, { childList: true, characterData: true, subtree: true });
+    }
+  }
+
+  function syncOwnerDashboardVisibility() {
+    const button = byId("staffOwnerDashboardTab");
+    const view = byId("staffOwnerDashboardView");
+    if (!button || !view) return;
+    const visible = currentRole === "owner" && !byId("staffApp")?.hidden;
+    button.hidden = !visible;
+    if (!visible) closeOwnerDashboard();
+  }
+
+  function openOwnerDashboard() {
+    if (currentRole !== "owner") {
+      syncOwnerDashboardVisibility();
+      return;
+    }
+    const button = byId("staffOwnerDashboardTab");
+    const view = byId("staffOwnerDashboardView");
+    if (!button || !view) return;
+
+    ownerDashboardActive = true;
+    document.querySelectorAll("[data-staff-tab]").forEach(tab => tab.classList.remove("active"));
+    document.querySelectorAll("[data-staff-view]").forEach(item => item.classList.remove("active"));
+    button.classList.add("active");
+    view.classList.add("active");
+    setPageMessage("", "");
+    loadOwnerDashboard({ silent: false });
+  }
+
+  function closeOwnerDashboard() {
+    ownerDashboardActive = false;
+    byId("staffOwnerDashboardTab")?.classList.remove("active");
+    byId("staffOwnerDashboardView")?.classList.remove("active");
+  }
+
+  function setOwnerDashboardStatus(kind, message) {
+    const target = byId("staffOwnerDashboardStatus");
+    if (!target) return;
+    target.className = `owner-dashboard-status${kind ? ` ${kind}` : ""}`;
+    target.textContent = message || "";
+  }
+
+  function setOwnerDashboardValue(id, value) {
+    const target = byId(id);
+    if (target) target.textContent = value;
+  }
+
+  function renderOwnerDashboard(metrics) {
+    const customers = metrics?.customers || {};
+    const subscriptions = metrics?.subscriptions || {};
+    const operations = metrics?.operations || {};
+    const costs = metrics?.costs || {};
+    const staff = metrics?.staff || {};
+    const governance = metrics?.governance || {};
+
+    setOwnerDashboardValue("ownerCustomersActive", ownerFormatNumber(customers.active));
+    setOwnerDashboardValue("ownerCustomersTotal", `Totale profili ${ownerFormatNumber(customers.total)}`);
+    setOwnerDashboardValue("ownerPaidActive", ownerFormatNumber(subscriptions.paid_active));
+    setOwnerDashboardValue("ownerPaidAttention", `Da verificare ${ownerFormatNumber(subscriptions.paid_attention)}`);
+    setOwnerDashboardValue("ownerTrialActive", ownerFormatNumber(subscriptions.trial_active));
+    setOwnerDashboardValue("ownerCustomersNew7", `Nuovi clienti 7 gg ${ownerFormatNumber(customers.new_7d)}`);
+    setOwnerDashboardValue("ownerComplimentaryActive", ownerFormatNumber(subscriptions.complimentary_active));
+    setOwnerDashboardValue("ownerComplimentaryUnlimited", `Senza scadenza ${ownerFormatNumber(subscriptions.complimentary_unlimited)}`);
+
+    setOwnerDashboardValue("ownerCustomersNew30", ownerFormatNumber(customers.new_30d));
+    setOwnerDashboardValue("ownerBillsNew30", ownerFormatNumber(operations.bills_new_30d));
+    setOwnerDashboardValue("ownerBillsTotal", `Archivio attuale ${ownerFormatNumber(operations.bills_total)}`);
+    setOwnerDashboardValue("ownerChecksOpen", ownerFormatNumber(operations.checks_open));
+    setOwnerDashboardValue("ownerChecksCompleted30", `Concluse 30 gg ${ownerFormatNumber(operations.checks_completed_30d)}`);
+    setOwnerDashboardValue("ownerAnomaliesOpen", ownerFormatNumber(operations.anomalies_open));
+    setOwnerDashboardValue("ownerAnomaliesCritical", `Alte/critiche ${ownerFormatNumber(operations.anomalies_high_critical_open)}`);
+
+    setOwnerDashboardValue("ownerSubPaidAttention", ownerFormatNumber(subscriptions.paid_attention));
+    setOwnerDashboardValue("ownerSubCancelAtEnd", ownerFormatNumber(subscriptions.cancel_at_period_end));
+    setOwnerDashboardValue("ownerSubReadOnly", ownerFormatNumber(subscriptions.read_only_archive));
+    setOwnerDashboardValue("ownerSubUnlimited", ownerFormatNumber(subscriptions.complimentary_unlimited));
+
+    setOwnerDashboardValue("ownerOpsChecksCompleted", ownerFormatNumber(operations.checks_completed_30d));
+    setOwnerDashboardValue("ownerOpsChecksAnomaly", ownerFormatNumber(operations.checks_anomaly_30d));
+    setOwnerDashboardValue("ownerOpsSaving", ownerFormatNumber(operations.checks_possible_saving_30d));
+    setOwnerDashboardValue("ownerOpsSupportUnread", ownerFormatNumber(operations.support_unread_messages));
+    setOwnerDashboardValue("ownerOpsBillsFailed", ownerFormatNumber(operations.bills_failed_current));
+
+    setOwnerDashboardValue("ownerCostRuns", ownerFormatNumber(costs.ai_runs_30d));
+    setOwnerDashboardValue("ownerCostFailed", ownerFormatNumber(costs.ai_failed_30d));
+    setOwnerDashboardValue("ownerCostTokens", ownerFormatNumber(costs.ai_tokens_30d));
+    setOwnerDashboardValue("ownerCostAi", ownerFormatMoney(costs.ai_estimated_cost_eur_30d));
+    setOwnerDashboardValue("ownerCostRecorded", ownerFormatMoney(costs.recorded_cost_eur_30d));
+    setOwnerDashboardValue("ownerCostHuman", ownerFormatDuration(costs.human_seconds_30d));
+
+    setOwnerDashboardValue("ownerGovStaffActive", ownerFormatNumber(staff.active_total));
+    setOwnerDashboardValue("ownerGovAdmins", ownerFormatNumber(staff.admins_active));
+    setOwnerDashboardValue("ownerGovTechnicians", ownerFormatNumber(staff.technicians_active));
+    setOwnerDashboardValue("ownerGovGiftAdmins", ownerFormatNumber(staff.admins_complimentary_authorized));
+    setOwnerDashboardValue("ownerGovAuditEvents", ownerFormatNumber(governance.audit_events_30d));
+    setOwnerDashboardValue("ownerGovAuditErrors", ownerFormatNumber(governance.audit_errors_30d));
+    setOwnerDashboardValue("ownerGovAuditDenied", ownerFormatNumber(governance.audit_denied_30d));
+
+    setOwnerDashboardStatus(
+      "success",
+      `Aggiornata ${ownerFormatDate(metrics?.generated_at)} · finestra ${ownerFormatNumber(metrics?.window_days || 30)} giorni`,
+    );
+  }
+
+  async function loadOwnerDashboard({ silent = false } = {}) {
+    if (currentRole !== "owner") return;
+    if (ownerDashboardRequest) return ownerDashboardRequest;
+
+    if (!silent) setOwnerDashboardStatus("", "Aggiornamento…");
+
+    ownerDashboardRequest = (async () => {
+      try {
+        const payload = await rpc("premium_owner_dashboard_metrics");
+        const metrics = Array.isArray(payload) ? payload[0] : payload;
+        if (!metrics || typeof metrics !== "object") throw new Error("premium_owner_dashboard_payload_invalid");
+        renderOwnerDashboard(metrics);
+      } catch (error) {
+        const raw = String(error?.message || error || "");
+        const message = raw.toLowerCase().includes("premium_owner_required")
+          ? "Dashboard riservata al Proprietario."
+          : (raw || "Dashboard Owner non disponibile.");
+        setOwnerDashboardStatus("error", message);
+      }
+    })().finally(() => {
+      ownerDashboardRequest = null;
+    });
+
+    return ownerDashboardRequest;
+  }
+
+  function initOwnerDashboard() {
+    ensureOwnerDashboardUi();
+    syncOwnerDashboardVisibility();
+
+    const refreshAndSync = () => {
+      refreshCurrentGovernance({ silent: true })
+        .then(() => {
+          syncOwnerDashboardVisibility();
+          if (ownerDashboardActive && currentRole === "owner") loadOwnerDashboard({ silent: true });
+        })
+        .catch(() => syncOwnerDashboardVisibility());
+    };
+
+    window.setTimeout(refreshAndSync, 50);
+    window.setTimeout(refreshAndSync, 650);
+    window.addEventListener("focus", refreshAndSync);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") refreshAndSync();
+    });
+  }
+
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initOwnerDashboard, { once: true });
+  } else {
+    initOwnerDashboard();
+  }
+
   function init() {
     bindGuardEvents();
     bindObservers();
