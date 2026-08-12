@@ -1018,4 +1018,757 @@
   } else {
     init();
   }
+
+  // Staff v2.8B — matrice permessi nel Control Center.
+  // Questa fase usa esclusivamente le RPC autorevoli V2.8A per decidere cosa
+  // mostrare nel browser. L'enforcement server-side delle singole azioni
+  // operative viene completato in V2.8C.
+  const V28B_TAB_PERMISSION = Object.freeze({
+    overview: "view_control",
+    cases: "view_cases",
+    customers: "view_customers",
+    checks: "view_checks",
+    leads: "view_leads",
+    analytics: "view_analytics",
+    collaborators: "manage_collaborators",
+    pdf: "view_pdf_diagnostics",
+    costs: "view_ai_costs",
+  });
+  const V28B_SPECIAL_BUTTON_PERMISSION = Object.freeze({
+    staffSitePreview: "view_site_preview",
+  });
+
+  let v28bRole = "";
+  let v28bPolicyReady = false;
+  let v28bPolicyRequest = null;
+  let v28bEffectivePermissions = new Map();
+  let v28bMatrixRequest = null;
+  let v28bMatrixByUser = new Map();
+  let v28bRenderScheduled = false;
+  let v28bNavigationGuard = false;
+  let v28bPermissionDialogState = null;
+
+  function v28bAllowed(permissionKey) {
+    const key = String(permissionKey || "").trim();
+    const role = String(v28bRole || currentRole || "").trim().toLowerCase();
+    if (!key) return false;
+    if (role === "owner") return true;
+    if (!v28bPolicyReady) return false;
+    return v28bEffectivePermissions.get(key) === true;
+  }
+
+  function v28bRoleLabel(role) {
+    return {
+      owner: "Proprietario",
+      admin: "Amministratore",
+      technician: "Tecnico",
+      reviewer: "Revisore legacy",
+      support: "Supporto legacy",
+    }[String(role || "").trim().toLowerCase()] || "Staff";
+  }
+
+  function v28bInjectStyles() {
+    if (byId("staffPermissionsV28BStyles")) return;
+    const style = document.createElement("style");
+    style.id = "staffPermissionsV28BStyles";
+    style.textContent = `
+      .v28b-no-access{border:1px solid #d8e3de;border-radius:16px;padding:22px;background:#fff;box-shadow:var(--shadow)}
+      .v28b-no-access h2{margin:0 0 7px;font-size:22px}.v28b-no-access p{margin:0;color:var(--muted);font-size:13px;line-height:1.5}
+      .v28b-access-dialog .complimentary-card{width:min(760px,100%)}
+      .v28b-access-summary{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:12px 0;padding:11px 12px;border:1px solid #dfe9e5;border-radius:11px;background:#f7fbf9}
+      .v28b-access-summary strong{font-size:13px}.v28b-access-summary span{color:var(--muted);font-size:11px}
+      .v28b-permission-list{display:grid;gap:12px;max-height:46vh;overflow:auto;padding-right:3px}
+      .v28b-permission-group{border:1px solid #e2ebe7;border-radius:12px;overflow:hidden;background:#fff}
+      .v28b-permission-group h3{margin:0;padding:10px 12px;border-bottom:1px solid #e7eeeb;background:#f8fbf9;font-size:12px}
+      .v28b-permission-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:10px 12px;border-top:1px solid #eef3f1}
+      .v28b-permission-row:first-of-type{border-top:0}
+      .v28b-permission-copy{min-width:0}.v28b-permission-copy strong{display:block;font-size:12px}.v28b-permission-copy small{display:block;margin-top:3px;color:var(--muted);font-size:10px;line-height:1.35}
+      .v28b-switch{display:flex;align-items:center;gap:7px;flex:0 0 auto;color:#42534c;font-size:11px;font-weight:800}
+      .v28b-switch input{width:18px;min-height:18px;height:18px;margin:0}
+      .v28b-readonly-note{margin:12px 0 0;border:1px solid #dfe9e5;border-radius:10px;padding:10px 11px;color:#52635c;background:#fbfdfc;font-size:11px;line-height:1.45}
+      @media(max-width:680px){.v28b-permission-row{align-items:flex-start;flex-direction:column}.v28b-switch{width:100%;justify-content:space-between}}
+    `;
+    document.head.append(style);
+  }
+
+  function v28bEnsureNoAccessView() {
+    let view = byId("staffV28BNoAccess");
+    if (view) return view;
+    const main = document.querySelector("#staffApp .main");
+    if (!main) return null;
+    view = document.createElement("section");
+    view.id = "staffV28BNoAccess";
+    view.className = "v28b-no-access";
+    view.hidden = true;
+    view.innerHTML = `
+      <h2 id="staffV28BNoAccessTitle">Nessun modulo assegnato</h2>
+      <p id="staffV28BNoAccessText">Il tuo account Staff è attivo, ma il Proprietario non ha ancora assegnato moduli operativi. Quando i permessi verranno aggiornati, questa pagina si adeguerà automaticamente.</p>
+    `;
+    main.prepend(view);
+    return view;
+  }
+
+  function v28bSetNoAccessMessage(policyUnavailable = false) {
+    const title = byId("staffV28BNoAccessTitle");
+    const text = byId("staffV28BNoAccessText");
+    if (title) title.textContent = policyUnavailable ? "Permessi Staff non disponibili" : "Nessun modulo assegnato";
+    if (text) {
+      text.textContent = policyUnavailable
+        ? "Per sicurezza nessun modulo viene aperto finché la matrice dei permessi non è disponibile. Riprova con Aggiorna o accedi nuovamente."
+        : "Il tuo account Staff è attivo, ma il Proprietario non ha ancora assegnato moduli operativi. Quando i permessi verranno aggiornati, questa pagina si adeguerà automaticamente.";
+    }
+  }
+
+  function v28bFailClosedUi() {
+    document.querySelectorAll("[data-staff-tab]").forEach(button => {
+      const permission = V28B_TAB_PERMISSION[String(button.dataset.staffTab || "")];
+      if (permission) button.hidden = true;
+    });
+    document.querySelectorAll("[data-staff-view]").forEach(view => {
+      const permission = V28B_TAB_PERMISSION[String(view.dataset.staffView || "")];
+      if (permission) view.hidden = true;
+    });
+    Object.keys(V28B_SPECIAL_BUTTON_PERMISSION).forEach(id => {
+      const button = byId(id);
+      if (button) button.hidden = true;
+    });
+    v28bSyncGroupLabels();
+  }
+
+  function v28bVisibleStandardTabs() {
+    return [...document.querySelectorAll("[data-staff-tab]")]
+      .filter(button => {
+        const permission = V28B_TAB_PERMISSION[button.dataset.staffTab];
+        return permission && !button.hidden && v28bAllowed(permission);
+      });
+  }
+
+  function v28bSyncGroupLabels() {
+    const nav = document.querySelector("#staffApp .nav");
+    if (!nav) return;
+    const children = [...nav.children];
+    children.forEach((child, index) => {
+      if (!child.classList?.contains("nav-group-label")) return;
+      let hasVisibleButton = false;
+      for (let cursor = index + 1; cursor < children.length; cursor += 1) {
+        const sibling = children[cursor];
+        if (sibling.classList?.contains("nav-group-label")) break;
+        if (sibling instanceof HTMLButtonElement && !sibling.hidden) {
+          hasVisibleButton = true;
+          break;
+        }
+      }
+      child.hidden = !hasVisibleButton;
+    });
+  }
+
+  function v28bApplyModuleVisibility() {
+    if (byId("staffApp")?.hidden) return;
+
+    const role = String(v28bRole || currentRole || "").trim().toLowerCase();
+    if (!role) return;
+
+    document.querySelectorAll("[data-staff-tab]").forEach(button => {
+      const tab = String(button.dataset.staffTab || "");
+      const permission = V28B_TAB_PERMISSION[tab];
+      if (!permission) return;
+      button.hidden = !v28bAllowed(permission);
+      button.dataset.v28bPermission = permission;
+    });
+
+    document.querySelectorAll("[data-staff-view]").forEach(view => {
+      const tab = String(view.dataset.staffView || "");
+      const permission = V28B_TAB_PERMISSION[tab];
+      if (!permission) return;
+      const allowed = v28bAllowed(permission);
+      view.hidden = !allowed;
+      view.dataset.v28bPermission = permission;
+    });
+
+    Object.entries(V28B_SPECIAL_BUTTON_PERMISSION).forEach(([id, permission]) => {
+      const button = byId(id);
+      if (!button) return;
+      button.hidden = !v28bAllowed(permission);
+      button.dataset.v28bPermission = permission;
+    });
+
+    v28bSyncGroupLabels();
+    v28bEnforceCurrentModule();
+  }
+
+  function v28bEnforceCurrentModule() {
+    if (v28bNavigationGuard || byId("staffApp")?.hidden) return;
+    const role = String(v28bRole || currentRole || "").trim().toLowerCase();
+    if (!role) return;
+
+    const requested = String(location.hash || "").replace(/^#/, "") || "overview";
+    const requestedPermission = V28B_TAB_PERMISSION[requested];
+    if (!requestedPermission || v28bAllowed(requestedPermission)) {
+      const noAccess = byId("staffV28BNoAccess");
+      if (noAccess) noAccess.hidden = true;
+      return;
+    }
+
+    const allowedTabs = v28bVisibleStandardTabs();
+    const noAccess = v28bEnsureNoAccessView();
+
+    if (!allowedTabs.length) {
+      document.querySelectorAll("[data-staff-view]").forEach(view => view.classList.remove("active"));
+      document.querySelectorAll("[data-staff-tab]").forEach(button => button.classList.remove("active"));
+      if (noAccess) {
+        v28bSetNoAccessMessage(!v28bPolicyReady);
+        noAccess.hidden = false;
+      }
+      if (location.hash) history.replaceState(null, "", location.pathname + location.search);
+      return;
+    }
+
+    if (noAccess) noAccess.hidden = true;
+    const target = allowedTabs[0];
+    v28bNavigationGuard = true;
+    try {
+      target.click();
+    } finally {
+      queueMicrotask(() => { v28bNavigationGuard = false; });
+    }
+  }
+
+  async function v28bRefreshEffectivePermissions({ silent = true } = {}) {
+    if (!storedAccessToken()) {
+      v28bRole = "";
+      v28bPolicyReady = false;
+      v28bEffectivePermissions = new Map();
+      return;
+    }
+    if (v28bPolicyRequest) return v28bPolicyRequest;
+
+    v28bPolicyRequest = (async () => {
+      try {
+        const payload = await rpc("premium_staff_effective_permissions");
+        const snapshot = Array.isArray(payload) ? payload[0] : payload;
+        const role = String(snapshot?.role || currentRole || "").trim().toLowerCase();
+        const permissions = snapshot?.permissions && typeof snapshot.permissions === "object"
+          ? snapshot.permissions
+          : {};
+
+        v28bRole = role;
+        v28bEffectivePermissions = new Map(
+          Object.entries(permissions).map(([key, value]) => [String(key), value === true]),
+        );
+        v28bPolicyReady = Boolean(role);
+        v28bApplyModuleVisibility();
+
+        if (role === "owner") {
+          await v28bRefreshMatrix({ silent: true });
+        } else {
+          v28bMatrixByUser = new Map();
+          v28bRemoveAccessControls();
+        }
+      } catch (error) {
+        v28bRole = String(currentRole || "").trim().toLowerCase();
+        v28bPolicyReady = v28bRole === "owner";
+        v28bEffectivePermissions = new Map();
+        v28bApplyModuleVisibility();
+        if (!silent && v28bRole !== "owner") {
+          setPageMessage("error", "Permessi Staff non disponibili. Nessun modulo è stato aperto.");
+        } else if (v28bRole !== "owner") {
+          console.warn("Staff v2.8B permessi effettivi non disponibili", error);
+        }
+      }
+    })().finally(() => {
+      v28bPolicyRequest = null;
+    });
+
+    return v28bPolicyRequest;
+  }
+
+  function v28bRemoveAccessControls() {
+    document.querySelectorAll('[data-v28b-access-control="true"]').forEach(element => element.remove());
+  }
+
+  function v28bGroupMatrixRows(rows) {
+    const grouped = new Map();
+    (Array.isArray(rows) ? rows : []).forEach(item => {
+      const userId = String(item.staff_user_id || "");
+      if (!userId) return;
+      if (!grouped.has(userId)) grouped.set(userId, []);
+      grouped.get(userId).push(item);
+    });
+    return grouped;
+  }
+
+  function v28bConfigurableRows(userId) {
+    return (v28bMatrixByUser.get(String(userId || "")) || [])
+      .filter(item => item.configurable === true);
+  }
+
+  function v28bEnsureMatrixNote() {
+    const content = byId("collaboratorContent");
+    if (!content || content.querySelector('[data-v28b-matrix-note="true"]')) return;
+    const note = document.createElement("div");
+    note.className = "side-note";
+    note.style.margin = "0 12px 12px";
+    note.dataset.v28bMatrixNote = "true";
+    note.textContent = "Accessi Control Center: il Proprietario vede sempre tutto; ogni Amministratore parte senza moduli e riceve soltanto i permessi che assegni qui; Tecnici e Revisori legacy hanno un profilo tecnico fisso limitato a Bollette e verifiche e Diagnostica PDF.";
+    const metrics = content.querySelector(".metrics");
+    if (metrics) content.insertBefore(note, metrics);
+    else content.append(note);
+  }
+
+  function v28bRenderAccessControls() {
+    if (String(v28bRole || currentRole || "").trim().toLowerCase() !== "owner") {
+      v28bRemoveAccessControls();
+      return;
+    }
+
+    v28bEnsureMatrixNote();
+    const body = byId("collaboratorRows");
+    if (!body) return;
+
+    body.querySelectorAll("tr").forEach(row => {
+      row.querySelectorAll('[data-v28b-access-control="true"]').forEach(element => element.remove());
+      const userId = collaboratorUserId(row);
+      if (!userId) return;
+
+      const matrixRows = v28bMatrixByUser.get(userId) || [];
+      if (!matrixRows.length) return;
+      const sample = matrixRows[0];
+      const role = String(sample.staff_role || "").trim().toLowerCase();
+      const active = Boolean(sample.staff_active);
+
+      const actionCell = row.querySelector("td:last-child");
+      const actions = actionCell?.querySelector(".row-actions") || actionCell;
+      if (!actions) return;
+
+      const badgeElement = permissionBadge("", "");
+      badgeElement.dataset.v28bAccessControl = "true";
+      badgeElement.removeAttribute("data-v25b-permission");
+
+      if (role === "owner") {
+        badgeElement.textContent = "Accesso: completo";
+        badgeElement.className = "badge ok";
+        actions.append(badgeElement);
+        return;
+      }
+
+      if (role === "admin") {
+        if (!active) {
+          badgeElement.textContent = "Accessi: sospesi";
+          badgeElement.className = "badge warn";
+          actions.append(badgeElement);
+          return;
+        }
+        const configurable = matrixRows.filter(item => item.configurable === true);
+        const allowedCount = configurable.filter(item => item.effective_allowed === true).length;
+        badgeElement.textContent = `Permessi: ${allowedCount}/${configurable.length}`;
+        badgeElement.className = `badge ${allowedCount ? "info" : "warn"}`;
+        actions.append(badgeElement);
+
+        const manage = permissionButton("Gestisci accessi", "secondary", event => {
+          event.preventDefault();
+          event.stopPropagation();
+          v28bOpenAccessDialog(userId);
+        });
+        manage.dataset.v28bAccessControl = "true";
+        manage.removeAttribute("data-v25b-permission");
+        actions.append(manage);
+        return;
+      }
+
+      if (["technician", "reviewer"].includes(role)) {
+        badgeElement.textContent = "Accesso: tecnico fisso";
+        badgeElement.className = "badge info";
+        actions.append(badgeElement);
+        return;
+      }
+
+      badgeElement.textContent = "Accesso: nessun modulo";
+      badgeElement.className = "badge";
+      actions.append(badgeElement);
+    });
+  }
+
+  async function v28bRefreshMatrix({ silent = true } = {}) {
+    if (String(v28bRole || currentRole || "").trim().toLowerCase() !== "owner") return;
+    if (v28bMatrixRequest) return v28bMatrixRequest;
+
+    v28bMatrixRequest = (async () => {
+      try {
+        const rows = await rpc("premium_owner_list_staff_permission_matrix");
+        v28bMatrixByUser = v28bGroupMatrixRows(rows);
+        v28bRenderAccessControls();
+      } catch (error) {
+        v28bMatrixByUser = new Map();
+        v28bRemoveAccessControls();
+        if (!silent) setPageMessage("error", friendlyGovernanceError(error));
+        else console.warn("Staff v2.8B matrice Owner non disponibile", error);
+      }
+    })().finally(() => {
+      v28bMatrixRequest = null;
+    });
+
+    return v28bMatrixRequest;
+  }
+
+  function v28bScheduleMatrixRender() {
+    if (v28bRenderScheduled || String(v28bRole || currentRole || "").trim().toLowerCase() !== "owner") return;
+    v28bRenderScheduled = true;
+    queueMicrotask(() => {
+      v28bRenderScheduled = false;
+      v28bRefreshMatrix({ silent: true });
+    });
+  }
+
+  function v28bPermissionDescription(permissionKey) {
+    return {
+      view_control: "Vista riepilogativa del Control Center.",
+      view_cases: "Accesso alle pratiche operative e alle richieste cliente.",
+      view_customers: "Accesso ai profili Premium, utenze e contratti.",
+      view_checks: "Visualizzazione della coda bollette e verifiche.",
+      view_leads: "Accesso a lead, contatti e attivazioni.",
+      view_analytics: "Accesso alle statistiche e al funnel.",
+      view_site_preview: "Apertura della modalità Staff di verifica del sito.",
+      view_pdf_diagnostics: "Accesso all’archivio diagnostico PDF.",
+      view_ai_costs: "Accesso ai costi IA e alla configurazione tecnica.",
+      manage_checks: "Operazioni sulle verifiche bollette. Saranno protette lato backend in V2.8C.",
+      manage_customers: "Operazioni di gestione dei clienti. Saranno protette lato backend in V2.8C.",
+      manage_billing: "Operazioni pagamenti e Stripe. Saranno protette lato backend in V2.8C.",
+      manage_ai_configuration: "Modifica della configurazione IA. Sarà protetta lato backend in V2.8C.",
+      delete_records: "Eliminazioni critiche. Saranno protette lato backend in V2.8C.",
+    }[String(permissionKey || "")] || "Permesso operativo del Control Center.";
+  }
+
+  function v28bEnsureAccessDialog() {
+    let layer = byId("staffAccessPermissionLayer");
+    if (layer) return layer;
+
+    v28bInjectStyles();
+    layer = document.createElement("div");
+    layer.id = "staffAccessPermissionLayer";
+    layer.className = "complimentary-layer v28b-access-dialog";
+    layer.hidden = true;
+    layer.setAttribute("role", "dialog");
+    layer.setAttribute("aria-modal", "true");
+    layer.setAttribute("aria-labelledby", "staffAccessPermissionTitle");
+
+    const card = document.createElement("div");
+    card.className = "complimentary-card";
+    card.innerHTML = `
+      <h2 id="staffAccessPermissionTitle">Permessi Amministratore</h2>
+      <p id="staffAccessPermissionTarget" class="complimentary-target"></p>
+      <div class="v28b-access-summary">
+        <div><strong>Accessi delegati dal Proprietario</strong><span id="staffAccessPermissionCount"></span></div>
+        <span class="badge ok">Owner sempre completo</span>
+      </div>
+      <div id="staffAccessPermissionList" class="v28b-permission-list"></div>
+      <div id="staffAccessComplimentaryNote" class="v28b-readonly-note"></div>
+      <form id="staffAccessPermissionForm" class="complimentary-form" novalidate>
+        <label>Motivazione obbligatoria per le modifiche
+          <textarea id="staffAccessPermissionReason" name="reason" maxlength="500" required placeholder="Esempio: accessi necessari per gestione amministrativa"></textarea>
+        </label>
+      </form>
+      <div id="staffAccessPermissionStatus" class="complimentary-status" hidden role="status"></div>
+      <div class="complimentary-actions">
+        <button id="staffAccessPermissionCancel" class="button" type="button">ANNULLA</button>
+        <button id="staffAccessPermissionApply" class="button primary" type="button">SALVA PERMESSI</button>
+      </div>
+    `;
+    layer.append(card);
+    document.body.append(layer);
+
+    byId("staffAccessPermissionCancel")?.addEventListener("click", v28bCloseAccessDialog);
+    byId("staffAccessPermissionApply")?.addEventListener("click", v28bSaveAccessDialog);
+    layer.addEventListener("click", event => {
+      if (event.target === layer) v28bCloseAccessDialog();
+    });
+
+    return layer;
+  }
+
+  function v28bSetAccessDialogStatus(kind, message) {
+    const target = byId("staffAccessPermissionStatus");
+    if (!target) return;
+    target.className = `complimentary-status${kind ? ` ${kind}` : ""}`;
+    target.textContent = message || "";
+    target.hidden = !message;
+  }
+
+  function v28bSetAccessDialogBusy(value) {
+    const busyState = Boolean(value);
+    byId("staffAccessPermissionCancel") && (byId("staffAccessPermissionCancel").disabled = busyState);
+    byId("staffAccessPermissionApply") && (byId("staffAccessPermissionApply").disabled = busyState);
+    byId("staffAccessPermissionReason") && (byId("staffAccessPermissionReason").disabled = busyState);
+    byId("staffAccessPermissionList")?.querySelectorAll("input[type='checkbox']").forEach(input => {
+      input.disabled = busyState;
+    });
+  }
+
+  function v28bOpenAccessDialog(userId) {
+    if (String(v28bRole || currentRole || "").trim().toLowerCase() !== "owner") return;
+    const rows = v28bMatrixByUser.get(String(userId || "")) || [];
+    const sample = rows[0];
+    if (!sample || String(sample.staff_role || "").trim().toLowerCase() !== "admin" || !sample.staff_active) return;
+
+    const configurableRows = rows.filter(item => item.configurable === true);
+    v28bPermissionDialogState = {
+      staffUserId: String(sample.staff_user_id || ""),
+      email: String(sample.staff_email || sample.staff_user_id || "Amministratore"),
+      original: new Map(
+        configurableRows.map(item => [String(item.permission_key), item.effective_allowed === true]),
+      ),
+    };
+
+    v28bEnsureAccessDialog();
+    byId("staffAccessPermissionTarget").textContent =
+      `${v28bPermissionDialogState.email} · ${v28bRoleLabel(sample.staff_role)}`;
+
+    const list = byId("staffAccessPermissionList");
+    list.replaceChildren();
+
+    const categories = new Map();
+    configurableRows.forEach(item => {
+      const category = String(item.permission_category || "Altro");
+      if (!categories.has(category)) categories.set(category, []);
+      categories.get(category).push(item);
+    });
+
+    categories.forEach((items, category) => {
+      const group = document.createElement("section");
+      group.className = "v28b-permission-group";
+      const heading = document.createElement("h3");
+      heading.textContent = category;
+      group.append(heading);
+
+      items.forEach(item => {
+        const row = document.createElement("label");
+        row.className = "v28b-permission-row";
+
+        const copy = document.createElement("span");
+        copy.className = "v28b-permission-copy";
+        const strong = document.createElement("strong");
+        strong.textContent = String(item.permission_label || item.permission_key || "Permesso");
+        const small = document.createElement("small");
+        small.textContent = v28bPermissionDescription(item.permission_key);
+        copy.append(strong, small);
+
+        const control = document.createElement("span");
+        control.className = "v28b-switch";
+        const input = document.createElement("input");
+        input.type = "checkbox";
+        input.checked = item.effective_allowed === true;
+        input.dataset.permissionKey = String(item.permission_key || "");
+        const labelText = document.createElement("span");
+        labelText.textContent = input.checked ? "Consentito" : "Negato";
+        input.addEventListener("change", () => {
+          labelText.textContent = input.checked ? "Consentito" : "Negato";
+          v28bUpdateAccessDialogCount();
+        });
+        control.append(input, labelText);
+        row.append(copy, control);
+        group.append(row);
+      });
+      list.append(group);
+    });
+
+    const complimentary = rows.find(item => item.permission_key === "manage_complimentary");
+    const complimentaryNote = byId("staffAccessComplimentaryNote");
+    complimentaryNote.textContent = complimentary?.effective_allowed
+      ? "Premium omaggio: autorizzato tramite la governance dedicata V2.5A. Per modificarlo usa “Revoca omaggi” nella riga del collaboratore."
+      : "Premium omaggio: non autorizzato. Questo permesso resta separato dalla matrice e si gestisce con “Autorizza omaggi” nella riga del collaboratore.";
+
+    const reason = byId("staffAccessPermissionReason");
+    if (reason) reason.value = "";
+    v28bSetAccessDialogStatus("", "");
+    v28bSetAccessDialogBusy(false);
+    v28bUpdateAccessDialogCount();
+    byId("staffAccessPermissionLayer").hidden = false;
+  }
+
+  function v28bUpdateAccessDialogCount() {
+    const inputs = [...(byId("staffAccessPermissionList")?.querySelectorAll("input[type='checkbox']") || [])];
+    const allowed = inputs.filter(input => input.checked).length;
+    const changed = v28bPermissionDialogState
+      ? inputs.filter(input =>
+          v28bPermissionDialogState.original.get(String(input.dataset.permissionKey || "")) !== input.checked
+        ).length
+      : 0;
+    const target = byId("staffAccessPermissionCount");
+    if (target) target.textContent = `Consentiti ${allowed}/${inputs.length} · modifiche ${changed}`;
+  }
+
+  function v28bCloseAccessDialog() {
+    const layer = byId("staffAccessPermissionLayer");
+    if (layer) layer.hidden = true;
+    v28bPermissionDialogState = null;
+    v28bSetAccessDialogStatus("", "");
+    v28bSetAccessDialogBusy(false);
+  }
+
+  async function v28bSaveAccessDialog() {
+    if (String(v28bRole || currentRole || "").trim().toLowerCase() !== "owner" || !v28bPermissionDialogState) return;
+
+    const inputs = [...(byId("staffAccessPermissionList")?.querySelectorAll("input[type='checkbox']") || [])];
+    const changes = inputs
+      .map(input => ({
+        permissionKey: String(input.dataset.permissionKey || ""),
+        allowed: input.checked === true,
+        previous: v28bPermissionDialogState.original.get(String(input.dataset.permissionKey || "")) === true,
+      }))
+      .filter(item => item.permissionKey && item.allowed !== item.previous);
+
+    if (!changes.length) {
+      v28bCloseAccessDialog();
+      setPageMessage("info", "Nessuna modifica ai permessi.");
+      return;
+    }
+
+    const reason = String(byId("staffAccessPermissionReason")?.value || "").trim();
+    if (!reason) {
+      v28bSetAccessDialogStatus("error", "Inserisci una motivazione prima di salvare.");
+      byId("staffAccessPermissionReason")?.focus();
+      return;
+    }
+
+    v28bSetAccessDialogBusy(true);
+    v28bSetAccessDialogStatus("info", `Salvataggio di ${changes.length} modifica/e…`);
+
+    const completed = [];
+    try {
+      for (const change of changes) {
+        await rpc("premium_owner_set_staff_permission", {
+          p_user_id: v28bPermissionDialogState.staffUserId,
+          p_permission_key: change.permissionKey,
+          p_allowed: change.allowed,
+          p_reason: reason,
+        });
+        completed.push(change.permissionKey);
+      }
+
+      const label = v28bPermissionDialogState.email;
+      v28bCloseAccessDialog();
+      await v28bRefreshMatrix({ silent: true });
+      setPageMessage("success", `Permessi aggiornati per ${label}. Modifiche applicate: ${completed.length}.`);
+      window.dispatchEvent(new Event("offertalogica:staff-save-complete"));
+    } catch (error) {
+      v28bSetAccessDialogStatus(
+        "error",
+        completed.length
+          ? `Aggiornamento parziale: ${completed.length} modifica/e salvata/e. ${friendlyGovernanceError(error)} Aggiorna la matrice prima di riprovare.`
+          : friendlyGovernanceError(error),
+      );
+      await v28bRefreshMatrix({ silent: true }).catch(() => {});
+      v28bSetAccessDialogBusy(false);
+    }
+  }
+
+  function v28bBindGuards() {
+    document.addEventListener("click", event => {
+      const button = event.target instanceof Element ? event.target.closest("button") : null;
+      if (!(button instanceof HTMLButtonElement)) return;
+
+      const tab = String(button.dataset.staffTab || "");
+      const tabPermission = V28B_TAB_PERMISSION[tab];
+      const specialPermission = V28B_SPECIAL_BUTTON_PERMISSION[button.id];
+      const permission = tabPermission || specialPermission;
+      if (!permission || v28bAllowed(permission)) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      setPageMessage("error", "Questo modulo non è assegnato al tuo account Staff.");
+      v28bEnforceCurrentModule();
+    }, true);
+
+    document.addEventListener("keydown", event => {
+      if (event.key !== "Escape") return;
+      const layer = byId("staffAccessPermissionLayer");
+      if (layer && !layer.hidden) v28bCloseAccessDialog();
+    });
+  }
+
+  function v28bBindObservers() {
+    const collaboratorRows = byId("collaboratorRows");
+    if (collaboratorRows) {
+      new MutationObserver(() => v28bScheduleMatrixRender())
+        .observe(collaboratorRows, { childList: true });
+    }
+
+    const nav = document.querySelector("#staffApp .nav");
+    if (nav) {
+      new MutationObserver(() => {
+        v28bApplyModuleVisibility();
+        if (String(v28bRole || currentRole || "").trim().toLowerCase() === "owner") {
+          v28bRenderAccessControls();
+        }
+      }).observe(nav, { childList: true, subtree: false });
+    }
+
+    const views = document.querySelector("#staffApp .main");
+    if (views) {
+      new MutationObserver(() => {
+        if (v28bPolicyReady || String(v28bRole || currentRole || "").trim().toLowerCase() === "owner") {
+          v28bApplyModuleVisibility();
+        }
+      }).observe(views, { childList: true, subtree: false });
+    }
+
+    const identity = byId("staffIdentity");
+    if (identity) {
+      new MutationObserver(() => {
+        v28bRefreshEffectivePermissions({ silent: true });
+      }).observe(identity, { childList: true, characterData: true, subtree: true });
+    }
+
+    const staffApp = byId("staffApp");
+    if (staffApp) {
+      new MutationObserver(() => {
+        if (staffApp.hidden) {
+          v28bRole = "";
+          v28bPolicyReady = false;
+          v28bEffectivePermissions = new Map();
+          v28bMatrixByUser = new Map();
+          v28bRemoveAccessControls();
+          return;
+        }
+        v28bRole = "";
+        v28bPolicyReady = false;
+        v28bEffectivePermissions = new Map();
+        v28bFailClosedUi();
+        v28bRefreshEffectivePermissions({ silent: true });
+      }).observe(staffApp, { attributes: true, attributeFilter: ["hidden"] });
+    }
+
+    window.addEventListener("hashchange", () => {
+      queueMicrotask(() => {
+        v28bApplyModuleVisibility();
+        v28bEnforceCurrentModule();
+      });
+    });
+  }
+
+  function v28bInit() {
+    v28bInjectStyles();
+    v28bEnsureNoAccessView();
+    v28bBindGuards();
+    v28bBindObservers();
+
+    const refresh = () => {
+      if (!byId("staffApp")?.hidden) v28bRefreshEffectivePermissions({ silent: true });
+    };
+
+    window.setTimeout(refresh, 25);
+    window.setTimeout(refresh, 350);
+    window.setTimeout(refresh, 900);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") refresh();
+    });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", v28bInit, { once: true });
+  } else {
+    v28bInit();
+  }
+
 })();
