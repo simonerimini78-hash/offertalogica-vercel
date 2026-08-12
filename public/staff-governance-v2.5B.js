@@ -23,6 +23,41 @@
 
   const byId = id => document.getElementById(id);
 
+  // Staff v2.8C1.1 — stabilita visiva al bootstrap/rientro dal Laboratorio.
+  // staff.js rende visibile il Control Center appena valida la sessione; la policy
+  // V2.8 arriva poco dopo dal backend. Manteniamo il contenuto non visibile fino
+  // al primo allineamento autorevole, evitando menu/moduli che appaiono e spariscono.
+  const V28B_STABILITY_CLASS = "v28b-policy-stabilizing";
+  let v28bInitialUiStable = false;
+  let v28bStabilityRequest = null;
+  let v28bStabilityFallbackTimer = null;
+
+  function v28bInstallStabilityGate() {
+    if (!byId("staffV28BStabilityStyles")) {
+      const style = document.createElement("style");
+      style.id = "staffV28BStabilityStyles";
+      style.textContent = `
+        html.${V28B_STABILITY_CLASS} #staffApp:not([hidden]),
+        html.${V28B_STABILITY_CLASS} #staffTopActions:not([hidden]){visibility:hidden!important}
+      `;
+      document.head.append(style);
+    }
+    document.documentElement.classList.add(V28B_STABILITY_CLASS);
+  }
+
+  function v28bReleaseStabilityGate() {
+    if (v28bInitialUiStable) return;
+    v28bInitialUiStable = true;
+    if (v28bStabilityFallbackTimer) {
+      clearTimeout(v28bStabilityFallbackTimer);
+      v28bStabilityFallbackTimer = null;
+    }
+    document.documentElement.classList.remove(V28B_STABILITY_CLASS);
+  }
+
+  // Installato durante il parsing, prima che staff.js possa rendere visibile #staffApp.
+  v28bInstallStabilityGate();
+
   function storedAccessToken() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -157,7 +192,7 @@
 
         if (currentRole === "owner") {
           ensureGovernanceNote();
-          await refreshPermissionControls({ silent: true });
+          refreshPermissionControls({ silent: true }).catch(() => {});
         } else {
           permissionsByUser = new Map();
           removePermissionControls();
@@ -988,8 +1023,6 @@
         });
     };
 
-    window.setTimeout(refreshAndSync, 50);
-    window.setTimeout(refreshAndSync, 650);
     window.addEventListener("focus", refreshAndSync);
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") refreshAndSync();
@@ -1009,8 +1042,6 @@
     startPeriodicRefresh();
     applyCustomerButtonPolicy();
     applyDurationPolicy();
-    window.setTimeout(() => refreshCurrentGovernance({ silent: true }), 0);
-    window.setTimeout(() => refreshCurrentGovernance({ silent: true }), 500);
   }
 
   if (document.readyState === "loading") {
@@ -1266,7 +1297,7 @@
         v28bApplyModuleVisibility();
 
         if (role === "owner") {
-          await v28bRefreshMatrix({ silent: true });
+          v28bRefreshMatrix({ silent: true }).catch(() => {});
         } else {
           v28bMatrixByUser = new Map();
           v28bRemoveAccessControls();
@@ -1287,6 +1318,71 @@
     });
 
     return v28bPolicyRequest;
+  }
+
+  async function v28bStabilizeInitialUi() {
+    if (v28bInitialUiStable || byId("staffApp")?.hidden) return;
+    if (v28bStabilityRequest) return v28bStabilityRequest;
+
+    v28bStabilityRequest = (async () => {
+      // I due snapshot servono entrambi prima del primo paint stabile:
+      // currentRole governa Dashboard/Laboratorio, V2.8 governa i moduli.
+      await Promise.allSettled([
+        refreshCurrentGovernance({ silent: true }),
+        v28bRefreshEffectivePermissions({ silent: true }),
+      ]);
+
+      const role = String(v28bRole || currentRole || "").trim().toLowerCase();
+      if (!role) {
+        v28bFailClosedUi();
+        const noAccess = v28bEnsureNoAccessView();
+        if (noAccess) {
+          v28bSetNoAccessMessage(true);
+          noAccess.hidden = false;
+        }
+      } else {
+        syncOwnerDashboardVisibility();
+        syncOwnerLabVisibility();
+        v28bApplyModuleVisibility();
+        v28bEnforceCurrentModule();
+      }
+
+      if (role === "owner") {
+        // Non blocca il paint: riguarda solo le righe della pagina Collaboratori.
+        v28b1RefreshActivationStatuses({ silent: true });
+      }
+
+      v28bReleaseStabilityGate();
+    })().finally(() => {
+      v28bStabilityRequest = null;
+    });
+
+    return v28bStabilityRequest;
+  }
+
+  function v28bArmStabilityFallback() {
+    if (v28bInitialUiStable || v28bStabilityFallbackTimer) return;
+    v28bStabilityFallbackTimer = window.setTimeout(() => {
+      v28bStabilityFallbackTimer = null;
+      if (v28bInitialUiStable || byId("staffApp")?.hidden) return;
+
+      const role = String(v28bRole || currentRole || "").trim().toLowerCase();
+      if (role === "owner") {
+        // Owner resta sempre full anche se una lettura accessoria tarda.
+        v28bApplyModuleVisibility();
+        syncOwnerDashboardVisibility();
+        syncOwnerLabVisibility();
+      } else if (!v28bPolicyReady) {
+        // Per tutti gli altri ruoli il fallback resta fail-closed.
+        v28bFailClosedUi();
+        const noAccess = v28bEnsureNoAccessView();
+        if (noAccess) {
+          v28bSetNoAccessMessage(true);
+          noAccess.hidden = false;
+        }
+      }
+      v28bReleaseStabilityGate();
+    }, 4000);
   }
 
   function v28bRemoveAccessControls() {
@@ -1924,6 +2020,8 @@
     if (staffApp) {
       new MutationObserver(() => {
         if (staffApp.hidden) {
+          v28bInitialUiStable = false;
+          v28bInstallStabilityGate();
           v28bRole = "";
           v28bPolicyReady = false;
           v28bEffectivePermissions = new Map();
@@ -1937,7 +2035,8 @@
         v28bPolicyReady = false;
         v28bEffectivePermissions = new Map();
         v28bFailClosedUi();
-        v28bRefreshEffectivePermissions({ silent: true });
+        v28bArmStabilityFallback();
+        v28bStabilizeInitialUi();
       }).observe(staffApp, { attributes: true, attributeFilter: ["hidden"] });
     }
 
@@ -1965,9 +2064,10 @@
       }
     };
 
-    window.setTimeout(refresh, 25);
-    window.setTimeout(refresh, 350);
-    window.setTimeout(refresh, 900);
+    if (!byId("staffApp")?.hidden) {
+      v28bArmStabilityFallback();
+      v28bStabilizeInitialUi();
+    }
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") refresh();
