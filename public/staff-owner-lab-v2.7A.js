@@ -14,6 +14,90 @@
   const nowIso = () => new Date().toISOString();
   const demoId = prefix => `${prefix}-${Math.random().toString(36).slice(2, 9)}`;
 
+  const DEMO_ACTORS = Object.freeze({
+    technician:{ id:"technician", name:"Tecnico demo", role:"Tecnico" },
+    admin:{ id:"admin", name:"Amministratore demo", role:"Amministratore" },
+    owner:{ id:"owner", name:"Proprietario", role:"Owner" }
+  });
+
+  function demoActor() {
+    return DEMO_ACTORS[byId("labActor")?.value] || DEMO_ACTORS.technician;
+  }
+
+  function eventTime(minutesAgo = 0) {
+    return new Date(Date.now() - Math.max(0, Number(minutesAgo) || 0) * 60_000).toISOString();
+  }
+
+  function pushTimeline(scenario, {
+    title,
+    detail = "",
+    actor = demoActor(),
+    kind = "info",
+    at = nowIso(),
+  }) {
+    if (!Array.isArray(scenario.timeline)) scenario.timeline = [];
+    scenario.timeline.push({
+      id: demoId("timeline"),
+      at,
+      actor_name: actor?.name || "Sistema",
+      actor_role: actor?.role || "Sistema",
+      title,
+      detail,
+      kind,
+    });
+  }
+
+  function buildInitialTimeline(scenario) {
+    const events = [];
+    const add = (minutesAgo, actor, title, detail = "", kind = "info") => {
+      events.push({
+        id:demoId("timeline"),
+        at:eventTime(minutesAgo),
+        actor_name:actor.name,
+        actor_role:actor.role,
+        title,
+        detail,
+        kind
+      });
+    };
+    const system = { name:"Controllo automatico", role:"Sistema" };
+    const technician = DEMO_ACTORS.technician;
+
+    add(55, system, "Pratica generata", `Ricevuta ${scenario.bill.original_file_name}.`, "info");
+    add(53, system, screeningLabel(scenario.bill.automatic_screening_status), scenario.bill.automatic_screening_summary || "", scenario.signal === "red" ? "danger" : scenario.signal === "yellow" ? "warn" : "info");
+
+    if (scenario.analysis?.status === "failed") {
+      add(51, system, "Lettura IA non riuscita", "Documento non sufficientemente leggibile.", "warn");
+    } else if (scenario.analysis) {
+      add(51, system, scenario.analysis.status === "partial" ? "Lettura IA parziale" : "Lettura IA completata", "Bozza dati disponibile allo staff.", scenario.analysis.status === "partial" ? "warn" : "info");
+    }
+
+    if (scenario.check.status !== "pending") {
+      add(47, technician, "Pratica presa in carico", "Il controllo è stato assegnato al tecnico.", "info");
+    }
+
+    (scenario.anomalies || []).slice().reverse().forEach((anomaly, index) => {
+      add(42 - index * 3, technician, `Anomalia registrata · ${categoryLabel(anomaly.category)}`, anomaly.title, anomaly.severity === "critical" || anomaly.severity === "high" ? "danger" : "warn");
+    });
+
+    if (scenario.analysis?.review_status === "validated") {
+      const corrected = Number(scenario.analysis?.validation_metrics?.corrected_fields || 0);
+      add(24, technician, "Validazione IA completata", corrected ? `${corrected} dato/i corretto/i manualmente.` : "Dati IA confermati dallo staff.", corrected ? "warn" : "info");
+    }
+
+    if (scenario.check.status === "more_info_required") {
+      add(18, technician, "Richiesta integrazione al cliente", scenario.check.customer_message || "Richiesti ulteriori elementi.", "warn");
+    } else if (scenario.check.status === "in_review") {
+      add(18, technician, "Controllo in lavorazione", scenario.check.customer_message || "Verifica tecnica in corso.", "info");
+    }
+
+    if (scenario.check.status === "completed") {
+      add(6, technician, `Pratica conclusa · ${outcomeLabel(scenario.check.outcome)}`, scenario.check.customer_message || scenario.check.summary || "Controllo concluso.", scenario.check.outcome === "anomaly" ? "danger" : scenario.check.outcome === "possible_saving" ? "warn" : "info");
+    }
+
+    return events.sort((a,b) => new Date(a.at) - new Date(b.at));
+  }
+
   function formatDate(value, includeTime = false) {
     if (!value) return "—";
     const date = new Date(value);
@@ -307,7 +391,11 @@
         })
       })
     ];
-    return list.map(item => ({ ...item, original: clone(item) }));
+    return list.map(item => {
+      item.timeline = buildInitialTimeline(item);
+      const snapshot = clone(item);
+      return { ...item, original: snapshot };
+    });
   }
 
   function signalKind(signal) {
@@ -541,13 +629,20 @@
         const title = String(form.elements.title.value || "").trim();
         if (!title) return;
         const impactRaw = String(form.elements.impact.value || "").replace(",", ".").trim();
-        scenario.anomalies.unshift({
+        const anomaly = {
           id:demoId("anomaly"),
           category:form.elements.category.value,
           severity:form.elements.severity.value,
           title,
           description:String(form.elements.description.value || "").trim(),
           estimated_impact_eur:impactRaw === "" ? null : Number(impactRaw)
+        };
+        scenario.anomalies.unshift(anomaly);
+        pushTimeline(scenario, {
+          actor:demoActor(),
+          title:`Anomalia registrata · ${categoryLabel(anomaly.category)}`,
+          detail:anomaly.title,
+          kind:["high","critical"].includes(anomaly.severity) ? "danger" : "warn"
         });
         form.reset();
         renderDetail(scenario);
@@ -565,8 +660,15 @@
     if (scenario.check.status === "pending") {
       const claim = node("button", "button primary", "PRENDI IN CARICO"); claim.type = "button";
       claim.addEventListener("click", () => {
+        const actor = demoActor();
         scenario.check.status = "assigned";
-        scenario.check.assigned = "Owner demo";
+        scenario.check.assigned = `${actor.name} · ${actor.role}`;
+        pushTimeline(scenario, {
+          actor,
+          title:"Pratica presa in carico",
+          detail:"L'operatore ha assunto la responsabilità del controllo.",
+          kind:"info"
+        });
         renderAll(scenario);
       });
       actions.append(claim);
@@ -576,8 +678,30 @@
       [["in_review","IN CONTROLLO"],["more_info_required","RICHIEDI INTEGRAZIONE"],["canceled","ANNULLA"]].forEach(([status,label]) => {
         const button = node("button", "button secondary", label); button.type = "button";
         button.addEventListener("click", () => {
+          const actor = demoActor();
           scenario.check.status = status;
-          if (status === "more_info_required") scenario.check.customer_message = "Per completare il controllo servono ulteriori informazioni.";
+          let detail = "";
+          let kind = "info";
+          if (status === "more_info_required") {
+            scenario.check.customer_message = "Per completare il controllo servono ulteriori informazioni.";
+            detail = scenario.check.customer_message;
+            kind = "warn";
+          } else if (status === "in_review") {
+            detail = "L'operatore ha avviato la verifica tecnica.";
+          } else if (status === "canceled") {
+            detail = "La pratica è stata annullata nella simulazione.";
+            kind = "warn";
+          }
+          pushTimeline(scenario, {
+            actor,
+            title:status === "more_info_required"
+              ? "Richiesta integrazione al cliente"
+              : status === "in_review"
+                ? "Controllo portato in lavorazione"
+                : "Pratica annullata",
+            detail,
+            kind
+          });
           renderAll(scenario);
         });
         actions.append(button);
@@ -611,6 +735,13 @@
         scenario.check.customer_message = String(form.elements.message.value || "");
         scenario.check.human_seconds = Math.max(0, Number(form.elements.minutes.value || 0) * 60);
         scenario.check.completed_at = nowIso();
+        const actor = demoActor();
+        pushTimeline(scenario, {
+          actor,
+          title:`Pratica conclusa · ${outcomeLabel(outcome)}`,
+          detail:scenario.check.customer_message || scenario.check.summary,
+          kind:outcome === "anomaly" ? "danger" : outcome === "possible_saving" ? "warn" : "info"
+        });
         renderAll(scenario);
       });
       section.append(form);
@@ -635,6 +766,43 @@
     });
     section.append(node("div", "form-actions", ""), reset);
     section.append(node("div", "demo-note", "Tutte le azioni di questa sezione modificano soltanto lo scenario in memoria. Nessuna RPC, tabella, Storage, email o API viene chiamata."));
+    container.append(section);
+  }
+
+
+  function renderPracticeTimeline(container, scenario) {
+    const section = node("section", "section");
+    const head = node("div", "section-head");
+    const copy = node("div");
+    copy.append(
+      node("h3", "", "Timeline operativa della pratica"),
+      node("p", "", "Chi ha fatto cosa e in quale ordine. In V2.7B questa cronologia è esclusivamente simulata.")
+    );
+    head.append(copy, badge(`${(scenario.timeline || []).length} eventi`, "info"));
+    section.append(head);
+
+    const timeline = node("div", "practice-timeline");
+    const events = [...(scenario.timeline || [])].sort((a,b) => new Date(a.at) - new Date(b.at));
+    events.forEach(event => {
+      const item = node("article", `practice-event ${event.kind || "info"}`);
+      const date = new Date(event.at);
+      const time = Number.isNaN(date.getTime())
+        ? "—"
+        : new Intl.DateTimeFormat("it-IT", { hour:"2-digit", minute:"2-digit" }).format(date);
+      const timeEl = node("div", "practice-event-time", time);
+      const rail = node("div", "practice-event-rail");
+      rail.append(node("span", "practice-event-dot"));
+      const body = node("div", "practice-event-copy");
+      body.append(
+        node("strong", "", event.title || "Evento"),
+        node("span", "", `${event.actor_name || "Sistema"} · ${event.actor_role || "Sistema"}`)
+      );
+      if (event.detail) body.append(node("p", "", event.detail));
+      item.append(timeEl, rail, body);
+      timeline.append(item);
+    });
+    section.append(timeline);
+    section.append(node("div", "demo-note", "La timeline reale non verrà ricostruita per supposizione: nella fase successiva registreremo gli eventi operativi nel database al momento in cui avvengono."));
     container.append(section);
   }
 
@@ -683,6 +851,7 @@
     renderAi(body, scenario);
     renderAnomalies(body, scenario);
     renderWorkflow(body, scenario);
+    renderPracticeTimeline(body, scenario);
     renderNotes(body, scenario);
     body.append(node("div", "status-line", "Laboratorio Owner · dati esclusivamente dimostrativi"));
     target.append(body);
@@ -744,6 +913,10 @@
     byId("labOpenStaff").addEventListener("click", () => { location.href = "/staff.html"; });
     byId("scenarioSearch").addEventListener("input", renderQueue);
     byId("scenarioSignal").addEventListener("change", renderQueue);
+    byId("labActor").addEventListener("change", () => {
+      const scenario = scenarios.find(item => item.id === selectedId);
+      if (scenario) renderDetail(scenario);
+    });
     verifyOwner().catch(error => {
       byId("labAccessText").textContent = `Errore laboratorio: ${String(error?.message || error)}`;
       byId("labOpenStaff").hidden = false;

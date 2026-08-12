@@ -36,6 +36,17 @@
       border-radius:16px;padding:13px 14px;background:#f3fbf8}
     .lab-banner strong{display:block;color:var(--green-dark);font-size:13px}.lab-banner p{margin:4px 0 0;color:#52635c;font-size:12px;line-height:1.45}
     .lab-pill{flex:0 0 auto;border-radius:999px;padding:6px 9px;color:var(--green-dark);background:#dff5ec;font-size:10px;font-weight:900}
+    .lab-tools{display:flex;align-items:flex-end;justify-content:flex-end;gap:8px;flex-wrap:wrap}.lab-actor{display:grid;gap:4px;min-width:190px}
+    .lab-actor label{color:#52635c;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.08em}.lab-actor select{min-height:34px;padding:6px 8px;background:#fff}
+    .practice-timeline{display:grid;gap:0;margin-top:4px}.practice-event{position:relative;display:grid;grid-template-columns:72px 16px minmax(0,1fr);gap:8px;padding:0 0 14px}
+    .practice-event:last-child{padding-bottom:0}.practice-event-time{padding-top:2px;color:var(--muted);font-size:10px;font-weight:800;text-align:right}
+    .practice-event-rail{position:relative}.practice-event-rail::before{content:"";position:absolute;left:7px;top:8px;bottom:-14px;width:2px;background:#dbe6e1}
+    .practice-event:last-child .practice-event-rail::before{display:none}.practice-event-dot{position:absolute;left:3px;top:4px;width:10px;height:10px;border:2px solid #fff;border-radius:50%;background:var(--green);box-shadow:0 0 0 1px #9bcaba}
+    .practice-event.warn .practice-event-dot{background:#f79009;box-shadow:0 0 0 1px #f5c06b}.practice-event.danger .practice-event-dot{background:#d92d20;box-shadow:0 0 0 1px #f0a39d}
+    .practice-event.info .practice-event-dot{background:#2e90fa;box-shadow:0 0 0 1px #9ac8f5}.practice-event-copy{min-width:0;border:1px solid #e2ebe7;border-radius:10px;padding:9px 10px;background:#fbfdfc}
+    .practice-event-copy strong{display:block;font-size:12px}.practice-event-copy span{display:block;margin-top:2px;color:var(--green-dark);font-size:10px;font-weight:850}
+    .practice-event-copy p{margin:5px 0 0;color:#52635c;font-size:11px;line-height:1.4}
+
     .metrics{display:grid;grid-template-columns:repeat(4,minmax(145px,1fr));gap:10px;margin-bottom:14px}
     .metric{border:1px solid var(--line);border-radius:14px;padding:13px;background:#fff}.metric span{display:block;color:var(--muted);font-size:11px;font-weight:800}
     .metric strong{display:block;margin-top:4px;font-size:24px}.workspace{display:grid;grid-template-columns:minmax(320px,410px) minmax(0,1fr);gap:14px;align-items:start}
@@ -70,7 +81,7 @@
     .form-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}.demo-note{margin-top:8px;border:1px solid #fedf89;border-radius:10px;padding:9px;color:#7a2e0e;background:#fffaeb;font-size:11px;line-height:1.45}
     .status-line{margin-top:10px;color:var(--muted);font-size:11px}.empty{display:grid;place-items:center;min-height:350px;padding:24px;color:var(--muted);text-align:center}
     @media(max-width:1100px){.workspace{grid-template-columns:1fr}.queue{max-height:460px;min-height:260px}.info-grid{grid-template-columns:repeat(3,minmax(110px,1fr))}}
-    @media(max-width:720px){.topbar{position:static;align-items:flex-start;flex-direction:column}.metrics{grid-template-columns:1fr 1fr}.filters,.ai-grid,.workflow-grid,.info-grid,.validation-row{grid-template-columns:1fr}.field.full{grid-column:auto}.detail-title,.lab-banner{flex-direction:column}.detail-actions{justify-content:flex-start}}
+    @media(max-width:720px){.topbar{position:static;align-items:flex-start;flex-direction:column}.metrics{grid-template-columns:1fr 1fr}.filters,.ai-grid,.workflow-grid,.info-grid,.validation-row{grid-template-columns:1fr}.field.full{grid-column:auto}.detail-title,.lab-banner{flex-direction:column}.detail-actions{justify-content:flex-start}.lab-tools{width:100%;justify-content:flex-start}.practice-event{grid-template-columns:58px 14px minmax(0,1fr)}}
   </style>
 </head>
 <body>
@@ -100,7 +111,17 @@
         <strong>SIMULAZIONE LOCALE — nessun dato cliente viene scritto</strong>
         <p>Gli scenari servono a verificare chiarezza, priorità e flusso operativo. Le modifiche effettuate qui restano soltanto nella memoria di questa pagina e spariscono al ricaricamento.</p>
       </div>
-      <span class="lab-pill">SOLO OWNER</span>
+      <div class="lab-tools">
+        <div class="lab-actor">
+          <label for="labActor">Operatore simulato</label>
+          <select id="labActor">
+            <option value="technician">Tecnico demo</option>
+            <option value="admin">Amministratore demo</option>
+            <option value="owner">Proprietario</option>
+          </select>
+        </div>
+        <span class="lab-pill">SOLO OWNER</span>
+      </div>
     </div>
 
     <div class="metrics">

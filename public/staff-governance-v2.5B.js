@@ -772,8 +772,14 @@
       new MutationObserver(() => {
         if (staffApp.hidden) closeOwnerDashboard();
         refreshCurrentGovernance({ silent: true })
-          .then(syncOwnerDashboardVisibility)
-          .catch(() => syncOwnerDashboardVisibility());
+          .then(() => {
+            syncOwnerDashboardVisibility();
+            syncOwnerLabVisibility();
+          })
+          .catch(() => {
+            syncOwnerDashboardVisibility();
+            syncOwnerLabVisibility();
+          });
       }).observe(staffApp, { attributes: true, attributeFilter: ["hidden"] });
     }
 
@@ -781,8 +787,14 @@
     if (identity) {
       new MutationObserver(() => {
         refreshCurrentGovernance({ silent: true })
-          .then(syncOwnerDashboardVisibility)
-          .catch(() => syncOwnerDashboardVisibility());
+          .then(() => {
+            syncOwnerDashboardVisibility();
+            syncOwnerLabVisibility();
+          })
+          .catch(() => {
+            syncOwnerDashboardVisibility();
+            syncOwnerLabVisibility();
+          });
       }).observe(identity, { childList: true, characterData: true, subtree: true });
     }
   }
@@ -915,17 +927,65 @@
     return ownerDashboardRequest;
   }
 
+
+  // Staff v2.7B — accesso al Laboratorio Owner dal Control Center.
+  // Il Laboratorio resta una pagina isolata e read-only verso Supabase.
+  function ensureOwnerLabNav() {
+    if (byId("staffOwnerLabTab")) return;
+
+    const nav = document.querySelector("#staffApp .nav");
+    if (!nav) return;
+
+    const button = document.createElement("button");
+    button.id = "staffOwnerLabTab";
+    button.type = "button";
+    button.hidden = true;
+    button.textContent = "Laboratorio Owner";
+    button.setAttribute("aria-label", "Apri il Laboratorio Owner");
+
+    const dashboardButton = byId("staffOwnerDashboardTab");
+    const collaboratorsTab = byId("staffCollaboratorsTab");
+    const anchor = dashboardButton?.parentElement === nav
+      ? dashboardButton
+      : collaboratorsTab?.parentElement === nav
+        ? collaboratorsTab
+        : null;
+
+    if (anchor) anchor.insertAdjacentElement("afterend", button);
+    else nav.append(button);
+
+    button.addEventListener("click", () => {
+      if (currentRole !== "owner") {
+        syncOwnerLabVisibility();
+        return;
+      }
+      window.location.href = "/staff-owner-lab.html";
+    });
+  }
+
+  function syncOwnerLabVisibility() {
+    const button = byId("staffOwnerLabTab");
+    if (!button) return;
+    button.hidden = !(currentRole === "owner" && !byId("staffApp")?.hidden);
+  }
+
   function initOwnerDashboard() {
     ensureOwnerDashboardUi();
+    ensureOwnerLabNav();
     syncOwnerDashboardVisibility();
+    syncOwnerLabVisibility();
 
     const refreshAndSync = () => {
       refreshCurrentGovernance({ silent: true })
         .then(() => {
           syncOwnerDashboardVisibility();
+          syncOwnerLabVisibility();
           if (ownerDashboardActive && currentRole === "owner") loadOwnerDashboard({ silent: true });
         })
-        .catch(() => syncOwnerDashboardVisibility());
+        .catch(() => {
+          syncOwnerDashboardVisibility();
+          syncOwnerLabVisibility();
+        });
     };
 
     window.setTimeout(refreshAndSync, 50);
