@@ -16,7 +16,10 @@
   let activeTab = "overview";
   let busy = false;
   let authSubscription = null;
+  let staffVerificationRequest = null;
+  let staffContextKey = "";
   let complimentaryCustomer = null;
+  let includeRemovedCollaborators = false;
 
   const cache = {
     leads: [],
@@ -84,7 +87,9 @@
   window.OffertaLogicaStaffConfirm = confirmAction;
 
   function text(element, value) {
-    if (element) element.textContent = value == null ? "" : String(value);
+    if (!element) return;
+    const next = value == null ? "" : String(value);
+    if (element.textContent !== next) element.textContent = next;
   }
 
   function clear(element) {
@@ -170,6 +175,9 @@
     if (message.includes("premium_staff_email_invalid")) return "Inserisci un indirizzo email valido.";
     if (message.includes("premium_staff_role_invalid")) return "Ruolo collaboratore non valido.";
     if (message.includes("premium_staff_member_not_found")) return "Collaboratore non trovato.";
+    if (message.includes("premium_staff_remove_reason_required")) return "Impossibile rimuovere il collaboratore senza una motivazione.";
+    if (message.includes("premium_staff_already_removed")) return "Il collaboratore risulta già rimosso.";
+    if (message.includes("premium_staff_not_removed")) return "Il collaboratore non risulta rimosso.";
     if (message.includes("premium_staff_update_failed")) return "Aggiornamento collaboratore non riuscito.";
     if (message.includes("premium_staff_auth_user_exists")) return "Esiste già un account Auth con questa email. Usa “Aggiungi esistente”.";
     if (message.includes("premium_staff_invite_redirect_invalid")) return "Origine Staff non valida per il link di invito.";
@@ -206,11 +214,15 @@
     });
   }
 
+  function setHidden(element, hidden) {
+    if (element && element.hidden !== Boolean(hidden)) element.hidden = Boolean(hidden);
+  }
+
   function setView(mode) {
-    byId("staffAuthView").hidden = mode !== "auth";
-    byId("staffDeniedView").hidden = mode !== "denied";
-    byId("staffApp").hidden = mode !== "app";
-    byId("staffTopActions").hidden = mode !== "app";
+    setHidden(byId("staffAuthView"), mode !== "auth");
+    setHidden(byId("staffDeniedView"), mode !== "denied");
+    setHidden(byId("staffApp"), mode !== "app");
+    setHidden(byId("staffTopActions"), mode !== "app");
   }
 
   async function accessToken() {
@@ -2053,6 +2065,76 @@
     }
   }
 
+  async function removeCollaborator(item) {
+    if (!isOwner() || busy || item?.role === "owner" || item?.removed_at) return;
+    const pendingInvite = String(item.activation_status || "") === "invited_pending";
+    const label = item.email || item.user_id || "collaboratore";
+    const confirmed = await confirmAction({
+      title: pendingInvite ? "Annulla invito" : "Rimuovi collaboratore",
+      message: pendingInvite
+        ? `Annullare l’invito Staff inviato a ${label}? L’account non avrà accesso al Control Center.`
+        : `Rimuovere ${label} dal Control Center? Lo storico delle operazioni resterà conservato.`,
+      keyword: pendingInvite ? "ANNULLA" : "RIMUOVI",
+      confirmLabel: pendingInvite ? "ANNULLA INVITO" : "RIMUOVI",
+    });
+    if (!confirmed) return;
+    setBusy(true);
+    try {
+      const { error } = await client.rpc("premium_owner_remove_staff", {
+        p_user_id: item.user_id,
+        p_reason: pendingInvite
+          ? "Invito annullato dal Proprietario prima dell’attivazione"
+          : "Accesso Staff rimosso dal Proprietario nel Control Center",
+      });
+      if (error) throw error;
+      await loadCollaborators({ silent: true });
+      setMessage("success", pendingInvite ? "Invito annullato." : "Collaboratore rimosso. Lo storico resta conservato.");
+      window.dispatchEvent(new Event("offertalogica:staff-save-complete"));
+    } catch (error) {
+      setMessage("error", friendlyError(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function restoreCollaborator(item) {
+    if (!isOwner() || busy || item?.role === "owner" || !item?.removed_at) return;
+    const role = collaboratorEditableRole(item.role);
+    const label = item.email || item.user_id || "collaboratore";
+    const confirmed = await confirmAction({
+      title: "Ripristina collaboratore",
+      message: `Ripristinare ${label} come ${roleLabel(role)}? Per un Amministratore i permessi specifici dovranno essere assegnati nuovamente.`,
+      confirmLabel: "RIPRISTINA",
+    });
+    if (!confirmed) return;
+    setBusy(true);
+    try {
+      const { error } = await client.rpc("premium_owner_restore_staff", {
+        p_user_id: item.user_id,
+        p_role: role,
+        p_reason: "Collaboratore ripristinato dal Proprietario nel Control Center",
+      });
+      if (error) throw error;
+      await loadCollaborators({ silent: true });
+      setMessage("success", "Collaboratore ripristinato.");
+      window.dispatchEvent(new Event("offertalogica:staff-save-complete"));
+    } catch (error) {
+      setMessage("error", friendlyError(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function collaboratorStatusNode(item) {
+    if (item?.removed_at) return badge("Rimosso", "danger");
+    if (!item?.active) return badge("Disattivato", "danger");
+    const activationStatus = String(item?.activation_status || "");
+    if (activationStatus === "invited_pending") return badge("Invito inviato", "warn");
+    if (activationStatus === "email_unconfirmed") return badge("Email non confermata", "warn");
+    if (activationStatus === "auth_missing") return badge("Account non disponibile", "danger");
+    return badge("Attivo", "ok");
+  }
+
   function renderCollaborators() {
     const restricted = !isOwner();
     const restrictedBox = byId("collaboratorRestricted");
@@ -2062,11 +2144,13 @@
     if (restricted) return;
 
     const rows = Array.isArray(cache.collaborators) ? cache.collaborators : [];
-    text(byId("navCollaboratorCount"), rows.length);
-    text(byId("collaboratorMetricTotal"), rows.length);
-    text(byId("collaboratorMetricActive"), rows.filter(item => item.active).length);
-    text(byId("collaboratorMetricAdmins"), rows.filter(item => item.role === "admin").length);
-    text(byId("collaboratorMetricTechnicians"), rows.filter(item => item.role === "technician").length);
+    const currentRows = rows.filter(item => !item.removed_at);
+    text(byId("navCollaboratorCount"), currentRows.length);
+    text(byId("collaboratorMetricTotal"), currentRows.length);
+    text(byId("collaboratorMetricActive"), currentRows.filter(item => item.active).length);
+    text(byId("collaboratorMetricAdmins"), currentRows.filter(item => item.role === "admin").length);
+    text(byId("collaboratorMetricTechnicians"), currentRows.filter(item => item.role === "technician").length);
+    text(byId("collaboratorShowRemoved"), includeRemovedCollaborators ? "Nascondi rimossi" : "Mostra rimossi");
 
     const body = byId("collaboratorRows");
     clear(body);
@@ -2079,6 +2163,10 @@
       let actions;
       if (item.role === "owner") {
         actions = node("div", { className: "row-actions" }, [badge("Protetto", "ok")]);
+      } else if (item.removed_at) {
+        const restore = node("button", { className: "button primary compact", type: "button", text: "Ripristina" });
+        restore.addEventListener("click", () => restoreCollaborator(item));
+        actions = node("div", { className: "row-actions" }, [restore]);
       } else {
         const roleSelect = node("select", { attrs: { "aria-label": `Ruolo ${item.email || item.user_id}` } }, [
           node("option", { value: "technician", text: "Tecnico" }),
@@ -2093,16 +2181,25 @@
           text: item.active ? "Disattiva" : "Riattiva",
         });
         toggleActive.addEventListener("click", () => toggleCollaboratorActive(item));
-        actions = node("div", { className: "row-actions" }, [roleSelect, saveRole, toggleActive]);
+        const pendingInvite = String(item.activation_status || "") === "invited_pending";
+        const remove = node("button", {
+          className: "button danger compact",
+          type: "button",
+          text: pendingInvite ? "Annulla invito" : "Rimuovi",
+        });
+        remove.addEventListener("click", () => removeCollaborator(item));
+        actions = node("div", { className: "row-actions" }, [roleSelect, saveRole, toggleActive, remove]);
       }
-      body.append(node("tr", {}, [
+      const row = node("tr", {}, [
         node("td", {}, [node("strong", { text: item.email || item.user_id || "Account Staff" }), node("small", { text: item.user_id || "" })]),
         node("td", {}, [badge(descriptor.label, descriptor.kind)]),
-        node("td", {}, [badge(item.active ? "Attivo" : "Disattivato", item.active ? "ok" : "danger")]),
+        node("td", {}, [collaboratorStatusNode(item)]),
         node("td", { text: formatDate(item.created_at) }),
-        node("td", { text: formatDate(item.updated_at) }),
+        node("td", { text: item.removed_at ? formatDate(item.removed_at) : formatDate(item.updated_at) }),
         node("td", {}, [actions]),
-      ]));
+      ]);
+      row.dataset.staffRemoved = item.removed_at ? "true" : "false";
+      body.append(row);
     });
   }
 
@@ -2113,7 +2210,9 @@
       return;
     }
     if (!silent) setMessage("info", "Aggiornamento collaboratori…");
-    const { data, error } = await client.rpc("premium_owner_list_staff");
+    const { data, error } = await client.rpc("premium_owner_list_staff_v2", {
+      p_include_removed: includeRemovedCollaborators,
+    });
     if (error) throw error;
     cache.collaborators = Array.isArray(data) ? data : [];
     renderCollaborators();
@@ -2234,41 +2333,115 @@
     }
   }
 
-  async function verifyStaff(session) {
+  function staffContextDescriptor(session, staff) {
+    const userId = String(session?.user?.id || "");
+    const email = String(session?.user?.email || "").trim().toLowerCase();
+    const role = String(staff?.role || "").trim().toLowerCase();
+    const active = staff?.active === true ? "1" : "0";
+    return `${userId}|${email}|${role}|${active}`;
+  }
+
+  function dispatchStaffContextChanged(session, staff) {
+    window.dispatchEvent(new CustomEvent("offertalogica:staff-context-changed", {
+      detail: {
+        userId: String(session?.user?.id || ""),
+        email: String(session?.user?.email || ""),
+        role: String(staff?.role || ""),
+        active: staff?.active === true,
+      },
+    }));
+  }
+
+  async function verifyStaff(session, { refreshOverview = true } = {}) {
     currentSession = session;
-    currentStaff = null;
+
     if (!session?.user) {
+      const hadContext = Boolean(currentStaff || staffContextKey);
+      currentStaff = null;
+      staffContextKey = "";
       setView("auth");
       setAuthMessage("", "");
+      if (hadContext) dispatchStaffContextChanged(null, null);
       return;
     }
-    const result = await client.from("premium_staff_members")
-      .select("user_id,role,active")
-      .eq("user_id", session.user.id)
-      .maybeSingle();
-    if (result.error || !result.data?.active || !ALLOWED_ROLES.has(result.data.role)) {
-      setView("denied");
-      return;
-    }
-    currentStaff = result.data;
-    text(byId("staffIdentity"), `${roleLabel(currentStaff.role)} · ${session.user.email || "account staff"}`);
-    const ownerOnlyVisible = isOwner();
-    if (byId("staffManagementGroup")) byId("staffManagementGroup").hidden = !ownerOnlyVisible;
-    if (byId("staffCollaboratorsTab")) byId("staffCollaboratorsTab").hidden = !ownerOnlyVisible;
-    [
-      "leadCsv", "leadDeleteVisible", "leadReset", "customerDeleteVisible",
-      "analyticsDeleteVisible", "analyticsReset", "costDeleteRuns", "costDeleteEvents"
-    ].forEach(id => { if (byId(id)) byId(id).hidden = !isAdmin(); });
-    setView("app");
-    activeTab = VALID_TABS.has(location.hash.slice(1)) ? location.hash.slice(1) : "overview";
-    if (activeTab === "collaborators" && !isOwner()) activeTab = "overview";
-    setTab(activeTab, { updateHash: false, refresh: false });
-    try {
-      await loadOverview({ silent: true });
-      renderOverview();
-    } catch (error) {
-      setMessage("error", friendlyError(error));
-    }
+
+    if (staffVerificationRequest) return staffVerificationRequest;
+
+    staffVerificationRequest = (async () => {
+      const result = await client.from("premium_staff_members")
+        .select("user_id,role,active")
+        .eq("user_id", session.user.id)
+        .maybeSingle();
+
+      if (result.error || !result.data?.active || !ALLOWED_ROLES.has(result.data.role)) {
+        const deniedKey = `denied|${session.user.id}`;
+        const changed = staffContextKey !== deniedKey || currentStaff !== null;
+        currentStaff = null;
+        staffContextKey = deniedKey;
+        setView("denied");
+        if (changed) dispatchStaffContextChanged(session, null);
+        return;
+      }
+
+      const nextStaff = result.data;
+      const nextKey = staffContextDescriptor(session, nextStaff);
+      const contextChanged = staffContextKey !== nextKey;
+      const appAlreadyVisible = byId("staffApp")?.hidden === false;
+
+      currentStaff = nextStaff;
+      currentSession = session;
+
+      // TOKEN_REFRESHED / SIGNED_IN ripetuti e sessioni identiche non devono
+      // riscrivere il DOM, cambiare tab o ricaricare i dati del Control Center.
+      if (!contextChanged && appAlreadyVisible) return;
+
+      staffContextKey = nextKey;
+      text(byId("staffIdentity"), `${roleLabel(currentStaff.role)} · ${session.user.email || "account staff"}`);
+
+      const ownerOnlyVisible = isOwner();
+      setHidden(byId("staffManagementGroup"), !ownerOnlyVisible);
+      setHidden(byId("staffCollaboratorsTab"), !ownerOnlyVisible);
+      [
+        "leadCsv", "leadDeleteVisible", "leadReset", "customerDeleteVisible",
+        "analyticsDeleteVisible", "analyticsReset", "costDeleteRuns", "costDeleteEvents"
+      ].forEach(id => setHidden(byId(id), !isAdmin()));
+
+      setView("app");
+      const requestedTab = VALID_TABS.has(location.hash.slice(1)) ? location.hash.slice(1) : "overview";
+      const nextTab = requestedTab === "collaborators" && !isOwner() ? "overview" : requestedTab;
+      if (activeTab !== nextTab || contextChanged || !appAlreadyVisible) {
+        activeTab = nextTab;
+        setTab(activeTab, { updateHash: false, refresh: false });
+      }
+
+      if (refreshOverview && (contextChanged || !appAlreadyVisible)) {
+        try {
+          await loadOverview({ silent: true });
+          renderOverview();
+        } catch (error) {
+          setMessage("error", friendlyError(error));
+        }
+      }
+
+      if (contextChanged) dispatchStaffContextChanged(session, currentStaff);
+    })().finally(() => {
+      staffVerificationRequest = null;
+    });
+
+    return staffVerificationRequest;
+  }
+
+  function handleAuthStateChange(event, session) {
+    currentSession = session;
+
+    // Supabase può emettere SIGNED_IN/TOKEN_REFRESHED anche con lo stesso utente.
+    // Verifichiamo comunque la membership, ma l'operazione è idempotente e
+    // non ridisegna nulla se identità/ruolo/stato sono invariati.
+    const refreshOverview = !["TOKEN_REFRESHED", "INITIAL_SESSION"].includes(String(event || ""));
+    window.setTimeout(() => verifyStaff(session, { refreshOverview }).catch(error => {
+      setView("auth");
+      setAuthMessage("error", friendlyError(error));
+    }), 0);
   }
 
   async function handleLogin(event) {
@@ -2330,6 +2503,10 @@
     document.addEventListener("keydown", event => { if (event.key === "Escape" && !byId("staffComplimentaryLayer")?.hidden) closeComplimentary(); });
     byId("analyticsRefresh").addEventListener("click", () => loadAnalytics().catch(error => setMessage("error", friendlyError(error))));
     byId("collaboratorRefresh").addEventListener("click", () => loadCollaborators().catch(error => setMessage("error", friendlyError(error))));
+    byId("collaboratorShowRemoved").addEventListener("click", () => {
+      includeRemovedCollaborators = !includeRemovedCollaborators;
+      loadCollaborators().catch(error => setMessage("error", friendlyError(error)));
+    });
     byId("collaboratorAddForm").addEventListener("submit", addCollaborator);
     byId("collaboratorInvite").addEventListener("click", inviteCollaborator);
     byId("analyticsDeleteVisible").addEventListener("click", deleteVisibleAnalytics);
@@ -2350,12 +2527,6 @@
       auth: { storageKey: STORAGE_KEY, persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
     });
     bindEvents();
-    authSubscription = client.auth.onAuthStateChange((_event, session) => {
-      window.setTimeout(() => verifyStaff(session).catch(error => {
-        setView("auth");
-        setAuthMessage("error", friendlyError(error));
-      }), 0);
-    });
     const { data, error } = await client.auth.getSession();
     if (error) {
       setView("auth");
@@ -2363,6 +2534,7 @@
       return;
     }
     await verifyStaff(data.session);
+    authSubscription = client.auth.onAuthStateChange(handleAuthStateChange);
     window.addEventListener("pagehide", () => authSubscription?.data?.subscription?.unsubscribe?.(), { once: true });
   }
 

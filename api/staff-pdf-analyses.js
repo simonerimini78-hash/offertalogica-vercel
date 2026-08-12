@@ -55,6 +55,9 @@ export default async function handler(req, res) {
 
   const identity = await requireStaffSession(req, res, {
     roles: req.method === "DELETE" ? ["admin"] : ["reviewer", "admin"],
+    permissions: req.method === "DELETE"
+      ? ["view_pdf_diagnostics", "delete_records"]
+      : ["view_pdf_diagnostics"],
   });
   if (!identity) return;
   if (["PATCH", "DELETE"].includes(req.method) && !requireAllowedOrigin(req, res)) return;

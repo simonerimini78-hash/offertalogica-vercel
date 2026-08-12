@@ -146,7 +146,7 @@
     </section>
 
     <section class="view" data-staff-view="collaborators">
-      <div class="view-head"><div><h2>Collaboratori</h2><p>Gestisci gli account Staff autorizzati. Il Proprietario è protetto e non può essere modificato da questo modulo.</p></div><div class="view-actions"><button class="button secondary" id="collaboratorRefresh" type="button">Aggiorna</button></div></div>
+      <div class="view-head"><div><h2>Collaboratori</h2><p>Gestisci collaboratori, ruoli, accessi e stato degli inviti.</p></div><div class="view-actions"><button class="button secondary" id="collaboratorShowRemoved" type="button">Mostra rimossi</button><button class="button secondary" id="collaboratorRefresh" type="button">Aggiorna</button></div></div>
       <div id="collaboratorRestricted" class="restricted" hidden>Questo modulo è riservato al Proprietario.</div>
       <section class="panel" id="collaboratorContent">
         <form class="toolbar four" id="collaboratorAddForm" novalidate>
@@ -155,7 +155,6 @@
           <button class="button secondary" type="submit">Aggiungi collaboratore esistente</button>
           <button class="button primary" id="collaboratorInvite" type="button">Invita nuovo</button>
         </form>
-        <div class="panel-body" style="padding-top:10px"><div class="side-note" style="margin-top:0">“Aggiungi collaboratore esistente” abilita un account già presente in Supabase Auth. “Invita nuovo” crea un nuovo account Staff e invia l’email per impostare la password. Il ruolo può essere Amministratore o Tecnico.</div></div>
         <div class="metrics">
           <article class="metric"><span>Collaboratori totali</span><strong id="collaboratorMetricTotal">0</strong></article>
           <article class="metric"><span>Attivi</span><strong id="collaboratorMetricActive">0</strong></article>

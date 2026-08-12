@@ -272,6 +272,7 @@
 
     body.querySelectorAll("tr").forEach(row => {
       row.querySelectorAll('[data-v25b-permission="true"]').forEach(element => element.remove());
+      if (row.dataset.staffRemoved === "true") return;
       const userId = collaboratorUserId(row);
       if (!userId) return;
 
@@ -616,11 +617,6 @@
       }).observe(staffApp, { attributes: true, attributeFilter: ["hidden"] });
     }
 
-    const identity = byId("staffIdentity");
-    if (identity) {
-      new MutationObserver(() => refreshCurrentGovernance({ silent: true }))
-        .observe(identity, { childList: true, characterData: true, subtree: true });
-    }
   }
 
   function startPeriodicRefresh() {
@@ -823,20 +819,6 @@
       }).observe(staffApp, { attributes: true, attributeFilter: ["hidden"] });
     }
 
-    const identity = byId("staffIdentity");
-    if (identity) {
-      new MutationObserver(() => {
-        refreshCurrentGovernance({ silent: true })
-          .then(() => {
-            syncOwnerDashboardVisibility();
-            syncOwnerLabVisibility();
-          })
-          .catch(() => {
-            syncOwnerDashboardVisibility();
-            syncOwnerLabVisibility();
-          });
-      }).observe(identity, { childList: true, characterData: true, subtree: true });
-    }
   }
 
   function syncOwnerDashboardVisibility() {
@@ -1110,7 +1092,31 @@
     return v28bResumeRequest;
   }
 
+  let v28bStaffContextRequest = null;
+
+  async function v28bHandleStaffContextChanged() {
+    if (v28bStaffContextRequest) return v28bStaffContextRequest;
+    v28bStaffContextRequest = (async () => {
+      await Promise.allSettled([
+        refreshCurrentGovernance({ silent: true }),
+        v28bRefreshEffectivePermissions({ silent: true }),
+      ]);
+      syncOwnerDashboardVisibility();
+      syncOwnerLabVisibility();
+      if (!byId("staffApp")?.hidden) {
+        v28bApplyModuleVisibility();
+        v28bEnforceCurrentModule();
+      }
+    })().finally(() => {
+      v28bStaffContextRequest = null;
+    });
+    return v28bStaffContextRequest;
+  }
+
   function v28bBindResumeRefresh() {
+    window.addEventListener("offertalogica:staff-context-changed", () => {
+      v28bHandleStaffContextChanged().catch(() => {});
+    });
     window.addEventListener("focus", v28bScheduleResumeRefresh);
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") v28bScheduleResumeRefresh();
@@ -1488,6 +1494,7 @@
 
     body.querySelectorAll("tr").forEach(row => {
       row.querySelectorAll('[data-v28b-access-control="true"]').forEach(element => element.remove());
+      if (row.dataset.staffRemoved === "true") return;
       const userId = collaboratorUserId(row);
       if (!userId) return;
 
@@ -1537,7 +1544,7 @@
       }
 
       if (["technician", "reviewer"].includes(role)) {
-        badgeElement.textContent = "Accesso: tecnico fisso";
+        badgeElement.textContent = "Profilo tecnico";
         badgeElement.className = "badge info";
         actions.append(badgeElement);
         return;
@@ -1619,8 +1626,7 @@
       <h2 id="staffAccessPermissionTitle">Permessi Amministratore</h2>
       <p id="staffAccessPermissionTarget" class="complimentary-target"></p>
       <div class="v28b-access-summary">
-        <div><strong>Accessi delegati dal Proprietario</strong><span id="staffAccessPermissionCount"></span></div>
-        <span class="badge ok">Owner sempre completo</span>
+        <div><strong>Accessi dell’Amministratore</strong><span id="staffAccessPermissionCount"></span></div>
       </div>
       <div id="staffAccessPermissionList" class="v28b-permission-list"></div>
       <div id="staffAccessComplimentaryNote" class="v28b-readonly-note"></div>
@@ -1735,8 +1741,8 @@
     const complimentary = rows.find(item => item.permission_key === "manage_complimentary");
     const complimentaryNote = byId("staffAccessComplimentaryNote");
     complimentaryNote.textContent = complimentary?.effective_allowed
-      ? "Premium omaggio: autorizzato tramite la governance dedicata V2.5A. Per modificarlo usa “Revoca omaggi” nella riga del collaboratore."
-      : "Premium omaggio: non autorizzato. Questo permesso resta separato dalla matrice e si gestisce con “Autorizza omaggi” nella riga del collaboratore.";
+      ? "Premium omaggio: autorizzato. Puoi modificarlo dalla riga del collaboratore."
+      : "Premium omaggio: non autorizzato. Puoi abilitarlo dalla riga del collaboratore.";
 
     const reason = byId("staffAccessPermissionReason");
     if (reason) reason.value = "";
@@ -1845,6 +1851,7 @@
     if (!body) return;
 
     body.querySelectorAll("tr").forEach(row => {
+      if (row.dataset.staffRemoved === "true") return;
       const userId = collaboratorUserId(row);
       if (!userId) return;
       const activation = v28b1ActivationRow(userId);
@@ -1876,8 +1883,8 @@
 
       if (activationStatus === "auth_missing") {
         statusCell.replaceChildren(
-          permissionBadge("Auth non trovato", "danger"),
-          v28b1Small("Verifica l’account Supabase Auth"),
+          permissionBadge("Account non disponibile", "danger"),
+          v28b1Small("Verifica l’account"),
         );
       }
     });
@@ -1980,7 +1987,7 @@
       } else {
         setPageMessage(
           "success",
-          `Invito inviato a ${pending.email}. Il Tecnico userà automaticamente il profilo tecnico fisso.`,
+          `Invito inviato a ${pending.email}. Il Tecnico potrà accedere con i permessi previsti per il suo ruolo.`,
         );
       }
     } catch (error) {
@@ -2067,12 +2074,6 @@
       }).observe(views, { childList: true, subtree: false });
     }
 
-    const identity = byId("staffIdentity");
-    if (identity) {
-      new MutationObserver(() => {
-        v28bRefreshEffectivePermissions({ silent: true });
-      }).observe(identity, { childList: true, characterData: true, subtree: true });
-    }
 
     const staffApp = byId("staffApp");
     if (staffApp) {

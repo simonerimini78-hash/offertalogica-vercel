@@ -98,6 +98,10 @@ export default async function handler(req, res) {
   if (!method(req, res, ["GET", "DELETE"])) return;
   const identity = await requireStaffSession(req, res, {
     roles: ["admin"],
+    permissions: req.method === "DELETE"
+      ? ["view_leads", "delete_records"]
+      : ["view_leads", "view_control"],
+    permissionMode: req.method === "DELETE" ? "all" : "any",
   });
   if (!identity) return;
   const authorizedBy = identity.authorizedBy;

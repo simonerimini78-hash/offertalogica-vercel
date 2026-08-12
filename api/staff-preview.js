@@ -23,7 +23,10 @@ export default async function handler(req, res) {
     const action = String(body.action || "").trim().toLowerCase();
 
     if (action === "issue") {
-      const identity = await requireStaffSession(req, res, { roles: ["reviewer", "admin"] });
+      const identity = await requireStaffSession(req, res, {
+        roles: ["reviewer", "admin"],
+        permissions: ["view_site_preview"],
+      });
       if (!identity) return;
       return json(res, 200, {
         ok: true,

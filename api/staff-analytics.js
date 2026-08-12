@@ -17,6 +17,10 @@ export default async function handler(req, res) {
   if (!method(req, res, ["GET", "DELETE"])) return;
   const identity = await requireStaffSession(req, res, {
     roles: req.method === "DELETE" ? ["admin"] : ["reviewer", "admin"],
+    permissions: req.method === "DELETE"
+      ? ["view_analytics", "delete_records"]
+      : ["view_analytics", "view_control"],
+    permissionMode: req.method === "DELETE" ? "all" : "any",
     allowHealth: req.method === "GET",
   });
   if (!identity) return;

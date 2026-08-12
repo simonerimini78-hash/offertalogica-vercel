@@ -6,7 +6,6 @@ import { json, method, readJson, requireAllowedOrigin } from "../lib/http.js";
 import { normalizePdfFileHeader } from "../lib/pdfFileValidation.js";
 import { extractPdfPureAi } from "../lib/pdfPureAiReader.js";
 import { enforceRateLimit } from "../lib/rateLimit.js";
-import { isStaffAdminRole } from "../lib/staffRoles.js";
 import { checkStore, persistentStoreConfigured } from "../lib/store.js";
 import {
   applyPremiumOfferCustomerDecision,
@@ -37,6 +36,7 @@ import {
   verifyPremiumCustomer,
   verifyPremiumStaff,
 } from "../lib/premiumAiBackend.js";
+import { staffPermissionAllowed } from "../lib/staffSessionAuth.js";
 
 export const config = { maxDuration: 60 };
 
@@ -82,8 +82,13 @@ export function createPremiumAiAnalysisHandler({
 
       if (body?.action === "config_status") {
         if (!backend.supabaseUrl || !backend.serviceKey) throw new Error("premium_supabase_not_configured");
-        const { staff } = await verifyPremiumStaff({ config: backend, accessToken, fetchImpl });
-        if (!isStaffAdminRole(staff.role)) throw new Error("premium_admin_delete_required");
+        await verifyPremiumStaff({ config: backend, accessToken, fetchImpl });
+        if (!(await staffPermissionAllowed({
+          config: backend,
+          accessToken,
+          permission: "view_ai_costs",
+          fetchImpl,
+        }))) throw new Error("premium_staff_permission_required:view_ai_costs");
         const persistentRateLimitConfigured = persistentStoreConfigured();
         const [backendReadiness, offerHistory, persistentRateLimitOperational] = await Promise.all([
           checkPremiumBackendReadiness({ config: backend, fetchImpl }),
@@ -215,6 +220,12 @@ export function createPremiumAiAnalysisHandler({
         contract = await loadPremiumBillContract({ config: backend, bill, fetchImpl });
       } else {
         const { user } = await verifyPremiumStaff({ config: backend, accessToken, fetchImpl });
+        if (!(await staffPermissionAllowed({
+          config: backend,
+          accessToken,
+          permission: "manage_checks",
+          fetchImpl,
+        }))) throw new Error("premium_staff_permission_required:manage_checks");
         actorUserId = user.id;
         if (!(await enforceRateLimit(req, res, {
           label: "premium-ai-analysis",

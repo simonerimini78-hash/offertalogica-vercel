@@ -121,6 +121,28 @@ async function authenticatedAdmin(request: Request, admin: any) {
   return { user: data.user, staff: { ...staff, role } };
 }
 
+async function staffPermissionAllowed(
+  request: Request,
+  permission: string,
+  supabaseUrl: string,
+  adminKey: string,
+) {
+  const token = (request.headers.get("authorization") || "").replace(/^Bearer\s+/i, "").trim();
+  if (!token) return false;
+  const response = await fetch(`${supabaseUrl}/rest/v1/rpc/premium_staff_permission_allowed`, {
+    method: "POST",
+    headers: {
+      apikey: adminKey,
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ p_permission_key: permission }),
+  });
+  if (!response.ok) throw new Error(`premium_staff_permission_check_failed:${response.status}`);
+  const payload = await response.json().catch(() => false);
+  return payload === true || payload?.allowed === true;
+}
+
 async function writeAudit(
   admin: any,
   identity: any,
@@ -263,6 +285,9 @@ Deno.serve(async request => {
     identity = await authenticatedAdmin(request, admin);
     const action = String(payload.action || "");
     if (action !== "sync_subscription") return jsonResponse({ ok: false, error: "unknown_action" }, 400);
+    if (!(await staffPermissionAllowed(request, "manage_billing", supabaseUrl, adminKey))) {
+      return jsonResponse({ ok: false, error: "premium_staff_permission_required:manage_billing" }, 403);
+    }
     userId = String(payload.user_id || "").trim();
     if (!UUID_RE.test(userId)) return jsonResponse({ ok: false, error: "invalid_user_id" }, 400);
 
