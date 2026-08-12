@@ -1048,6 +1048,13 @@
   let v28bNavigationGuard = false;
   let v28bPermissionDialogState = null;
 
+  // Staff v2.8B1 — stato reale inviti + apertura automatica permessi Admin.
+  let v28b1ActivationRequest = null;
+  let v28b1ActivationByUser = new Map();
+  let v28b1PendingInvite = null;
+  let v28b1InviteMessageObserver = null;
+  let v28b1InviteActionInFlight = false;
+
   function v28bAllowed(permissionKey) {
     const key = String(permissionKey || "").trim();
     const role = String(v28bRole || currentRole || "").trim().toLowerCase();
@@ -1397,6 +1404,7 @@
         const rows = await rpc("premium_owner_list_staff_permission_matrix");
         v28bMatrixByUser = v28bGroupMatrixRows(rows);
         v28bRenderAccessControls();
+        v28b1RenderActivationStatuses();
       } catch (error) {
         v28bMatrixByUser = new Map();
         v28bRemoveAccessControls();
@@ -1661,6 +1669,195 @@
     }
   }
 
+  function v28b1ActivationRow(userId) {
+    return v28b1ActivationByUser.get(String(userId || "")) || null;
+  }
+
+  function v28b1Small(textValue) {
+    const element = document.createElement("small");
+    element.textContent = String(textValue || "");
+    return element;
+  }
+
+  function v28b1DefaultStatusCell(statusCell, active) {
+    if (!statusCell) return;
+    statusCell.replaceChildren(permissionBadge(active ? "Attivo" : "Disattivato", active ? "ok" : "danger"));
+  }
+
+  function v28b1RenderActivationStatuses() {
+    if (String(v28bRole || currentRole || "").trim().toLowerCase() !== "owner") return;
+
+    const body = byId("collaboratorRows");
+    if (!body) return;
+
+    body.querySelectorAll("tr").forEach(row => {
+      const userId = collaboratorUserId(row);
+      if (!userId) return;
+      const activation = v28b1ActivationRow(userId);
+      if (!activation) return;
+
+      const statusCell = row.children?.[2];
+      if (!statusCell) return;
+
+      const active = activation.staff_active === true;
+      v28b1DefaultStatusCell(statusCell, active);
+      if (!active) return;
+
+      const activationStatus = String(activation.activation_status || "");
+      if (activationStatus === "invited_pending") {
+        statusCell.replaceChildren(
+          permissionBadge("Invito inviato", "warn"),
+          v28b1Small("In attesa di attivazione"),
+        );
+        return;
+      }
+
+      if (activationStatus === "email_unconfirmed") {
+        statusCell.replaceChildren(
+          permissionBadge("Email non confermata", "warn"),
+          v28b1Small("Account Auth non ancora confermato"),
+        );
+        return;
+      }
+
+      if (activationStatus === "auth_missing") {
+        statusCell.replaceChildren(
+          permissionBadge("Auth non trovato", "danger"),
+          v28b1Small("Verifica l’account Supabase Auth"),
+        );
+      }
+    });
+  }
+
+  async function v28b1RefreshActivationStatuses({ silent = true } = {}) {
+    if (String(v28bRole || currentRole || "").trim().toLowerCase() !== "owner") {
+      v28b1ActivationByUser = new Map();
+      return;
+    }
+    if (v28b1ActivationRequest) return v28b1ActivationRequest;
+
+    v28b1ActivationRequest = (async () => {
+      try {
+        const rows = await rpc("premium_owner_list_staff_activation_status");
+        const next = new Map();
+        (Array.isArray(rows) ? rows : []).forEach(item => {
+          const userId = String(item.staff_user_id || "");
+          if (userId) next.set(userId, item);
+        });
+        v28b1ActivationByUser = next;
+        v28b1RenderActivationStatuses();
+      } catch (error) {
+        v28b1ActivationByUser = new Map();
+        if (!silent) setPageMessage("error", friendlyGovernanceError(error));
+        else console.warn("Staff v2.8B1 stato inviti non disponibile", error);
+      }
+    })().finally(() => {
+      v28b1ActivationRequest = null;
+    });
+
+    return v28b1ActivationRequest;
+  }
+
+  function v28b1CaptureInviteRequest(event) {
+    const button = event.target instanceof Element ? event.target.closest("#collaboratorInvite") : null;
+    if (!(button instanceof HTMLButtonElement)) return;
+
+    const form = byId("collaboratorAddForm");
+    const email = String(form?.elements?.email?.value || "").trim().toLowerCase();
+    const role = String(form?.elements?.role?.value || "technician").trim().toLowerCase();
+    if (!email || !["admin", "technician"].includes(role)) {
+      v28b1PendingInvite = null;
+      return;
+    }
+
+    v28b1PendingInvite = {
+      email,
+      role,
+      capturedAt: Date.now(),
+    };
+  }
+
+  function v28b1FindActivationByEmail(email) {
+    const expected = String(email || "").trim().toLowerCase();
+    if (!expected) return null;
+    return [...v28b1ActivationByUser.values()].find(item =>
+      String(item.staff_email || "").trim().toLowerCase() === expected
+    ) || null;
+  }
+
+  async function v28b1HandleInviteSuccess() {
+    if (v28b1InviteActionInFlight || !v28b1PendingInvite) return;
+
+    const pending = v28b1PendingInvite;
+    const messageTarget = byId("staffPageMessage");
+    const message = String(messageTarget?.textContent || "").trim();
+    const isSuccess = messageTarget?.classList?.contains("success") === true;
+    const expectedPrefix = `Invito inviato a ${pending.email}.`;
+
+    // Scade rapidamente: un vecchio click/cancel non deve agganciarsi a un invito futuro.
+    if (Date.now() - Number(pending.capturedAt || 0) > 120000) {
+      v28b1PendingInvite = null;
+      return;
+    }
+
+    if (!isSuccess || !message.startsWith(expectedPrefix)) return;
+
+    v28b1InviteActionInFlight = true;
+    v28b1PendingInvite = null;
+
+    try {
+      await Promise.all([
+        v28b1RefreshActivationStatuses({ silent: false }),
+        v28bRefreshMatrix({ silent: false }),
+      ]);
+
+      const activation = v28b1FindActivationByEmail(pending.email);
+      const userId = String(activation?.staff_user_id || "");
+
+      if (pending.role === "admin") {
+        if (!UUID_RE.test(userId)) {
+          throw new Error("Nuovo Amministratore creato, ma il suo identificativo Staff non è ancora disponibile. Premi Aggiorna e usa Gestisci accessi.");
+        }
+        await v28bOpenAccessDialog(userId);
+        setPageMessage(
+          "success",
+          `Invito inviato a ${pending.email}. Imposta ora i permessi dell’Amministratore; l’account resta in attesa finché non accetta l’invito.`,
+        );
+      } else {
+        setPageMessage(
+          "success",
+          `Invito inviato a ${pending.email}. Il Tecnico userà automaticamente il profilo tecnico fisso.`,
+        );
+      }
+    } catch (error) {
+      setPageMessage(
+        "error",
+        `Invito inviato, ma non è stato possibile aprire automaticamente i permessi. ${friendlyGovernanceError(error)}`,
+      );
+    } finally {
+      v28b1InviteActionInFlight = false;
+      v28b1RenderActivationStatuses();
+    }
+  }
+
+  function v28b1BindInviteFlow() {
+    document.addEventListener("click", v28b1CaptureInviteRequest, true);
+
+    const pageMessage = byId("staffPageMessage");
+    if (pageMessage && !v28b1InviteMessageObserver) {
+      v28b1InviteMessageObserver = new MutationObserver(() => {
+        queueMicrotask(() => v28b1HandleInviteSuccess());
+      });
+      v28b1InviteMessageObserver.observe(pageMessage, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+        attributes: true,
+        attributeFilter: ["class", "hidden"],
+      });
+    }
+  }
+
   function v28bBindGuards() {
     document.addEventListener("click", event => {
       const button = event.target instanceof Element ? event.target.closest("button") : null;
@@ -1689,8 +1886,12 @@
   function v28bBindObservers() {
     const collaboratorRows = byId("collaboratorRows");
     if (collaboratorRows) {
-      new MutationObserver(() => v28bScheduleMatrixRender())
-        .observe(collaboratorRows, { childList: true });
+      new MutationObserver(() => {
+        v28bScheduleMatrixRender();
+        if (String(v28bRole || currentRole || "").trim().toLowerCase() === "owner") {
+          v28b1RefreshActivationStatuses({ silent: true });
+        }
+      }).observe(collaboratorRows, { childList: true });
     }
 
     const nav = document.querySelector("#staffApp .nav");
@@ -1727,6 +1928,8 @@
           v28bPolicyReady = false;
           v28bEffectivePermissions = new Map();
           v28bMatrixByUser = new Map();
+          v28b1ActivationByUser = new Map();
+          v28b1PendingInvite = null;
           v28bRemoveAccessControls();
           return;
         }
@@ -1751,9 +1954,15 @@
     v28bEnsureNoAccessView();
     v28bBindGuards();
     v28bBindObservers();
+    v28b1BindInviteFlow();
 
     const refresh = () => {
-      if (!byId("staffApp")?.hidden) v28bRefreshEffectivePermissions({ silent: true });
+      if (!byId("staffApp")?.hidden) {
+        v28bRefreshEffectivePermissions({ silent: true });
+        if (String(v28bRole || currentRole || "").trim().toLowerCase() === "owner") {
+          v28b1RefreshActivationStatuses({ silent: true });
+        }
+      }
     };
 
     window.setTimeout(refresh, 25);
