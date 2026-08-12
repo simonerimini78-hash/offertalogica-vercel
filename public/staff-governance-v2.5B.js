@@ -168,7 +168,7 @@
     if (!owner && duration.value === "unlimited") duration.value = "12_months";
   }
 
-  async function refreshCurrentGovernance({ silent = true } = {}) {
+  async function refreshCurrentGovernance({ silent = true, background = false } = {}) {
     if (capabilityRequest) return capabilityRequest;
     capabilityRequest = (async () => {
       if (!storedAccessToken()) {
@@ -179,25 +179,48 @@
         return;
       }
 
+      const previousRole = currentRole;
+      const previousComplimentary = canManageComplimentary;
+      const previousReady = governanceReady;
+
       try {
         const [role, allowed] = await Promise.all([
           rpc("premium_staff_raw_role"),
           rpc("premium_staff_can_manage_complimentary"),
         ]);
-        currentRole = String(role || "").trim().toLowerCase();
-        canManageComplimentary = allowed === true;
+        const nextRole = String(role || "").trim().toLowerCase();
+        const nextComplimentary = allowed === true;
+        const governanceChanged =
+          !previousReady
+          || previousRole !== nextRole
+          || previousComplimentary !== nextComplimentary;
+
+        currentRole = nextRole;
+        canManageComplimentary = nextComplimentary;
         governanceReady = Boolean(currentRole);
-        applyCustomerButtonPolicy();
-        applyDurationPolicy();
+
+        // Un rientro nella scheda non deve riscrivere il DOM se la governance e' invariata.
+        if (!background || governanceChanged) {
+          applyCustomerButtonPolicy();
+          applyDurationPolicy();
+        }
 
         if (currentRole === "owner") {
           ensureGovernanceNote();
-          refreshPermissionControls({ silent: true }).catch(() => {});
-        } else {
+          if (!background) refreshPermissionControls({ silent: true }).catch(() => {});
+        } else if (!background || governanceChanged) {
           permissionsByUser = new Map();
           removePermissionControls();
         }
       } catch (error) {
+        // Dopo un bootstrap valido, un errore di rete transitorio al ritorno nella
+        // scheda non deve cancellare il last-known-good e far sparire/riapparire il menu.
+        if (background && v28bInitialUiStable && previousReady && previousRole) {
+          if (!silent) setPageMessage("error", friendlyGovernanceError(error));
+          else console.warn("Staff v2.5B refresh governance non disponibile; UI invariata", error);
+          return;
+        }
+
         currentRole = "";
         canManageComplimentary = false;
         governanceReady = false;
@@ -329,16 +352,8 @@
   }
 
   function ensureGovernanceNote() {
-    const content = byId("collaboratorContent");
-    if (!content || content.querySelector('[data-v25b-governance-note="true"]')) return;
-    const note = document.createElement("div");
-    note.className = "side-note";
-    note.style.margin = "0 12px 12px";
-    note.dataset.v25bGovernanceNote = "true";
-    note.textContent = "Premium omaggio: il Proprietario è sempre autorizzato; un Amministratore può operare solo dopo autorizzazione esplicita; Tecnici e altri ruoli non possono concedere omaggi. La durata senza scadenza resta esclusiva del Proprietario.";
-    const metrics = content.querySelector(".metrics");
-    if (metrics) content.insertBefore(note, metrics);
-    else content.append(note);
+    // V2.8C1.2: nessuna descrizione della governance interna nella pagina Collaboratori.
+    document.querySelector('[data-v25b-governance-note="true"]')?.remove();
   }
 
   function ensurePermissionDialog() {
@@ -612,19 +627,9 @@
     if (refreshTimer) clearInterval(refreshTimer);
     refreshTimer = window.setInterval(() => {
       if (document.visibilityState === "visible" && !byId("staffApp")?.hidden) {
-        refreshCurrentGovernance({ silent: true });
+        refreshCurrentGovernance({ silent: true, background: true });
       }
     }, 30000);
-
-    window.addEventListener("focus", () => {
-      if (!byId("staffApp")?.hidden) refreshCurrentGovernance({ silent: true });
-    });
-
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible" && !byId("staffApp")?.hidden) {
-        refreshCurrentGovernance({ silent: true });
-      }
-    });
 
     window.addEventListener("pagehide", () => {
       if (refreshTimer) clearInterval(refreshTimer);
@@ -1009,24 +1014,6 @@
     ensureOwnerLabNav();
     syncOwnerDashboardVisibility();
     syncOwnerLabVisibility();
-
-    const refreshAndSync = () => {
-      refreshCurrentGovernance({ silent: true })
-        .then(() => {
-          syncOwnerDashboardVisibility();
-          syncOwnerLabVisibility();
-          if (ownerDashboardActive && currentRole === "owner") loadOwnerDashboard({ silent: true });
-        })
-        .catch(() => {
-          syncOwnerDashboardVisibility();
-          syncOwnerLabVisibility();
-        });
-    };
-
-    window.addEventListener("focus", refreshAndSync);
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") refreshAndSync();
-    });
   }
 
 
@@ -1085,6 +1072,58 @@
   let v28b1PendingInvite = null;
   let v28b1InviteMessageObserver = null;
   let v28b1InviteActionInFlight = false;
+
+  // Staff v2.8C1.2 — un solo refresh al ritorno nella scheda.
+  // focus + visibilitychange possono arrivare quasi insieme: li accorpiamo e
+  // aggiorniamo il DOM soltanto se ruolo/permessi sono davvero cambiati.
+  let v28bResumeTimer = null;
+  let v28bResumeRequest = null;
+
+  function v28bScheduleResumeRefresh() {
+    if (document.visibilityState !== "visible" || byId("staffApp")?.hidden) return;
+    if (v28bResumeTimer) clearTimeout(v28bResumeTimer);
+    v28bResumeTimer = window.setTimeout(() => {
+      v28bResumeTimer = null;
+      v28bRunResumeRefresh();
+    }, 140);
+  }
+
+  async function v28bRunResumeRefresh() {
+    if (v28bResumeRequest || document.visibilityState !== "visible" || byId("staffApp")?.hidden) {
+      return v28bResumeRequest;
+    }
+
+    const roleBefore = String(currentRole || "").trim().toLowerCase();
+    v28bResumeRequest = Promise.allSettled([
+      refreshCurrentGovernance({ silent: true, background: true }),
+      v28bRefreshEffectivePermissions({ silent: true, background: true }),
+    ]).then(() => {
+      const roleAfter = String(currentRole || "").trim().toLowerCase();
+      if (roleAfter !== roleBefore) {
+        syncOwnerDashboardVisibility();
+        syncOwnerLabVisibility();
+      }
+    }).finally(() => {
+      v28bResumeRequest = null;
+    });
+
+    return v28bResumeRequest;
+  }
+
+  function v28bBindResumeRefresh() {
+    window.addEventListener("focus", v28bScheduleResumeRefresh);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") v28bScheduleResumeRefresh();
+      else if (v28bResumeTimer) {
+        clearTimeout(v28bResumeTimer);
+        v28bResumeTimer = null;
+      }
+    });
+    window.addEventListener("pagehide", () => {
+      if (v28bResumeTimer) clearTimeout(v28bResumeTimer);
+      v28bResumeTimer = null;
+    }, { once: true });
+  }
 
   function v28bAllowed(permissionKey) {
     const key = String(permissionKey || "").trim();
@@ -1271,7 +1310,15 @@
     }
   }
 
-  async function v28bRefreshEffectivePermissions({ silent = true } = {}) {
+  function v28bPermissionMapsEqual(left, right) {
+    if (!(left instanceof Map) || !(right instanceof Map) || left.size !== right.size) return false;
+    for (const [key, value] of left.entries()) {
+      if (right.get(key) !== value) return false;
+    }
+    return true;
+  }
+
+  async function v28bRefreshEffectivePermissions({ silent = true, background = false } = {}) {
     if (!storedAccessToken()) {
       v28bRole = "";
       v28bPolicyReady = false;
@@ -1279,6 +1326,10 @@
       return;
     }
     if (v28bPolicyRequest) return v28bPolicyRequest;
+
+    const previousRole = v28bRole;
+    const previousReady = v28bPolicyReady;
+    const previousPermissions = new Map(v28bEffectivePermissions);
 
     v28bPolicyRequest = (async () => {
       try {
@@ -1288,21 +1339,36 @@
         const permissions = snapshot?.permissions && typeof snapshot.permissions === "object"
           ? snapshot.permissions
           : {};
-
-        v28bRole = role;
-        v28bEffectivePermissions = new Map(
+        const nextPermissions = new Map(
           Object.entries(permissions).map(([key, value]) => [String(key), value === true]),
         );
+        const policyChanged =
+          !previousReady
+          || previousRole !== role
+          || !v28bPermissionMapsEqual(previousPermissions, nextPermissions);
+
+        v28bRole = role;
+        v28bEffectivePermissions = nextPermissions;
         v28bPolicyReady = Boolean(role);
-        v28bApplyModuleVisibility();
+
+        // Sul semplice ritorno alla scheda non riscriviamo hidden/class se nulla e' cambiato.
+        if (!background || policyChanged) v28bApplyModuleVisibility();
 
         if (role === "owner") {
-          v28bRefreshMatrix({ silent: true }).catch(() => {});
-        } else {
+          if (!background) v28bRefreshMatrix({ silent: true }).catch(() => {});
+        } else if (!background || policyChanged) {
           v28bMatrixByUser = new Map();
           v28bRemoveAccessControls();
         }
       } catch (error) {
+        // Con una policy gia' valida manteniamo il last-known-good durante un
+        // errore transitorio di resume. L'enforcement backend resta autorevole.
+        if (background && v28bInitialUiStable && previousReady && previousRole) {
+          if (!silent) setPageMessage("error", "Permessi Staff non aggiornabili al momento. La vista corrente resta invariata.");
+          else console.warn("Staff v2.8B refresh permessi non disponibile; UI invariata", error);
+          return;
+        }
+
         v28bRole = String(currentRole || "").trim().toLowerCase();
         v28bPolicyReady = v28bRole === "owner";
         v28bEffectivePermissions = new Map();
@@ -1406,16 +1472,8 @@
   }
 
   function v28bEnsureMatrixNote() {
-    const content = byId("collaboratorContent");
-    if (!content || content.querySelector('[data-v28b-matrix-note="true"]')) return;
-    const note = document.createElement("div");
-    note.className = "side-note";
-    note.style.margin = "0 12px 12px";
-    note.dataset.v28bMatrixNote = "true";
-    note.textContent = "Accessi Control Center: il Proprietario vede sempre tutto; ogni Amministratore parte senza moduli e riceve soltanto i permessi che assegni qui; Tecnici e Revisori legacy hanno un profilo tecnico fisso limitato a Bollette e verifiche e Diagnostica PDF.";
-    const metrics = content.querySelector(".metrics");
-    if (metrics) content.insertBefore(note, metrics);
-    else content.append(note);
+    // V2.8C1.2: la pagina Collaboratori mostra controlli e stati, non note tecniche interne.
+    document.querySelector('[data-v28b-matrix-note="true"]')?.remove();
   }
 
   function v28bRenderAccessControls() {
@@ -1534,11 +1592,11 @@
       view_site_preview: "Apertura della modalità Staff di verifica del sito.",
       view_pdf_diagnostics: "Accesso all’archivio diagnostico PDF.",
       view_ai_costs: "Accesso ai costi IA e alla configurazione tecnica.",
-      manage_checks: "Operazioni sulle verifiche bollette. Saranno protette lato backend in V2.8C.",
-      manage_customers: "Operazioni di gestione dei clienti. Saranno protette lato backend in V2.8C.",
-      manage_billing: "Operazioni pagamenti e Stripe. Saranno protette lato backend in V2.8C.",
-      manage_ai_configuration: "Modifica della configurazione IA. Sarà protetta lato backend in V2.8C.",
-      delete_records: "Eliminazioni critiche. Saranno protette lato backend in V2.8C.",
+      manage_checks: "Gestione operativa delle verifiche bollette.",
+      manage_customers: "Gestione operativa dei clienti e delle relative informazioni.",
+      manage_billing: "Gestione delle operazioni di pagamento autorizzate.",
+      manage_ai_configuration: "Modifica della configurazione IA.",
+      delete_records: "Esecuzione delle eliminazioni critiche autorizzate.",
     }[String(permissionKey || "")] || "Permesso operativo del Control Center.";
   }
 
@@ -2054,24 +2112,12 @@
     v28bBindGuards();
     v28bBindObservers();
     v28b1BindInviteFlow();
-
-    const refresh = () => {
-      if (!byId("staffApp")?.hidden) {
-        v28bRefreshEffectivePermissions({ silent: true });
-        if (String(v28bRole || currentRole || "").trim().toLowerCase() === "owner") {
-          v28b1RefreshActivationStatuses({ silent: true });
-        }
-      }
-    };
+    v28bBindResumeRefresh();
 
     if (!byId("staffApp")?.hidden) {
       v28bArmStabilityFallback();
       v28bStabilizeInitialUi();
     }
-    window.addEventListener("focus", refresh);
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") refresh();
-    });
   }
 
   if (document.readyState === "loading") {
