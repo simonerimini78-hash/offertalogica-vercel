@@ -1,4 +1,4 @@
-const CACHE = "offertalogica-app-v29-install-simple-badge-fix";
+const CACHE = "offertalogica-app-v29-install-simple-badge-fix-paid-upgrade-only";
 const APP_SHELL = [
   "/app.html",
   "/app-bills.js",
