@@ -20,6 +20,7 @@
   let staffContextKey = "";
   let complimentaryCustomer = null;
   let includeRemovedCollaborators = false;
+  let collaboratorsLoaded = false;
 
   const cache = {
     leads: [],
@@ -2205,6 +2206,7 @@
 
   async function loadCollaborators({ silent = false } = {}) {
     if (!isOwner()) {
+      collaboratorsLoaded = false;
       cache.collaborators = [];
       renderCollaborators();
       return;
@@ -2215,7 +2217,11 @@
     });
     if (error) throw error;
     cache.collaborators = Array.isArray(data) ? data : [];
+    collaboratorsLoaded = true;
     renderCollaborators();
+    window.dispatchEvent(new CustomEvent("offertalogica:collaborators-refreshed", {
+      detail: { includeRemoved: includeRemovedCollaborators },
+    }));
     if (!silent) setMessage("success", "Collaboratori aggiornati.");
   }
 
@@ -2307,6 +2313,7 @@
     if (!silent) setMessage("info", "Aggiornamento riepilogo…");
     const tasks = [loadChecks({ silent: true }), loadCustomers({ silent: true }), loadAnalytics({ silent: true }), loadCosts({ silent: true }), loadSupportRequests({ silent: true })];
     if (isAdmin()) tasks.push(loadLeads({ silent: true }));
+    if (isOwner()) tasks.push(loadCollaborators({ silent: true }));
     const results = await Promise.allSettled(tasks);
     const failures = results.filter(result => result.status === "rejected");
     renderOverview();
@@ -2325,7 +2332,10 @@
     if (tab === "checks") return loadChecks({ silent });
     if (tab === "customers") return loadCustomers({ silent });
     if (tab === "analytics") return loadAnalytics({ silent });
-    if (tab === "collaborators") return loadCollaborators({ silent });
+    if (tab === "collaborators") {
+      if (silent && collaboratorsLoaded) return;
+      return loadCollaborators({ silent });
+    }
     if (tab === "costs") return loadCosts({ silent });
     if (tab === "pdf") {
       ensureFrame("pdfFrame");
@@ -2359,6 +2369,7 @@
       const hadContext = Boolean(currentStaff || staffContextKey);
       currentStaff = null;
       staffContextKey = "";
+      collaboratorsLoaded = false;
       setView("auth");
       setAuthMessage("", "");
       if (hadContext) dispatchStaffContextChanged(null, null);
@@ -2388,6 +2399,7 @@
       const contextChanged = staffContextKey !== nextKey;
       const appAlreadyVisible = byId("staffApp")?.hidden === false;
 
+      if (contextChanged) collaboratorsLoaded = false;
       currentStaff = nextStaff;
       currentSession = session;
 

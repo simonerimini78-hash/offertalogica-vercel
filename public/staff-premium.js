@@ -23,6 +23,9 @@
   let validationTimerId = null;
   let busy = false;
   let loadSequence = 0;
+  let staffVerificationRequest = null;
+  let staffContextKey = "";
+  let queueLoaded = false;
 
   const byId = id => document.getElementById(id);
 
@@ -1083,6 +1086,7 @@
     setPageMessage("", "");
     if (selectedId) await selectCheck(selectedId);
     else renderEmptyDetail();
+    queueLoaded = true;
   }
 
   async function refreshAfterAction(message) {
@@ -1366,44 +1370,97 @@
     }
   }
 
-  async function verifyStaff(session) {
-    currentSession = session;
-    currentStaff = null;
+  function staffContextDescriptor(session, staff) {
+    const userId = String(session?.user?.id || "");
+    const email = String(session?.user?.email || "").trim().toLowerCase();
+    const role = String(staff?.role || "").trim().toLowerCase();
+    const active = staff?.active === true ? "1" : "0";
+    return `${userId}|${email}|${role}|${active}`;
+  }
+
+  function resetOperationalState() {
     rows = [];
     selectedId = null;
+    selectedNotes = [];
+    selectedAnomalies = [];
     selectedAnalyses = [];
     selectedFieldReviews = [];
+    queueLoaded = false;
     stopValidationTimer();
     clear(state.queue);
     renderEmptyDetail();
+  }
+
+  async function verifyStaff(session) {
+    currentSession = session;
 
     if (!session?.user) {
+      const hadContext = Boolean(currentStaff || staffContextKey);
+      currentStaff = null;
+      staffContextKey = "";
+      if (hadContext) resetOperationalState();
       setView("auth");
       setAuthMessage("", "");
       return;
     }
 
-    const { data, error } = await client.from("premium_staff_members")
-      .select("user_id, role, active")
-      .eq("user_id", session.user.id)
-      .maybeSingle();
+    if (staffVerificationRequest) return staffVerificationRequest;
 
-    if (error || !data?.active || !MANAGER_ROLES.has(data.role)) {
-      setView("denied");
-      return;
-    }
+    staffVerificationRequest = (async () => {
+      const { data, error } = await client.from("premium_staff_members")
+        .select("user_id, role, active")
+        .eq("user_id", session.user.id)
+        .maybeSingle();
 
-    currentStaff = data;
-    setText(state.staffIdentity, `${roleLabel(data.role)} · ${session.user.email || "account staff"}`);
-    if (state.deleteVisibleChecks) state.deleteVisibleChecks.hidden = !isAdmin();
-    setView("dashboard");
-    try {
-      await loadQueue({ keepSelection: false });
-    } catch (loadError) {
-      setPageMessage("error", friendlyError(loadError));
-      clear(state.queue);
-      state.queue.append(node("div", { className: "queue-empty", text: "Impossibile caricare la coda controlli." }));
-    }
+      if (error || !data?.active || !MANAGER_ROLES.has(data.role)) {
+        const deniedKey = `denied|${session.user.id}`;
+        const changed = staffContextKey !== deniedKey || currentStaff !== null;
+        currentStaff = null;
+        staffContextKey = deniedKey;
+        if (changed) resetOperationalState();
+        setView("denied");
+        return;
+      }
+
+      const nextKey = staffContextDescriptor(session, data);
+      const contextChanged = staffContextKey !== nextKey;
+      const dashboardVisible = state.dashboard?.hidden === false;
+
+      currentStaff = data;
+      currentSession = session;
+
+      // TOKEN_REFRESHED / SIGNED_IN ripetuti con lo stesso account non devono
+      // svuotare e ricostruire coda e dettaglio.
+      if (!contextChanged && dashboardVisible && queueLoaded) return;
+
+      if (contextChanged) {
+        staffContextKey = nextKey;
+        resetOperationalState();
+      } else if (!staffContextKey) {
+        staffContextKey = nextKey;
+      }
+
+      setText(state.staffIdentity, `${roleLabel(data.role)} · ${session.user.email || "account staff"}`);
+      if (state.deleteVisibleChecks) state.deleteVisibleChecks.hidden = !isAdmin();
+
+      // Al primo ingresso carichiamo il modulo mentre e' ancora nascosto e lo
+      // mostriamo solo quando la coda ha una struttura stabile.
+      if (!queueLoaded) {
+        try {
+          await loadQueue({ keepSelection: false });
+        } catch (loadError) {
+          setPageMessage("error", friendlyError(loadError));
+          clear(state.queue);
+          state.queue.append(node("div", { className: "queue-empty", text: "Impossibile caricare la coda controlli." }));
+        }
+      }
+
+      setView("dashboard");
+    })().finally(() => {
+      staffVerificationRequest = null;
+    });
+
+    return staffVerificationRequest;
   }
 
   async function handleLogin(event) {

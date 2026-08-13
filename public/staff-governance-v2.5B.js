@@ -590,7 +590,9 @@
 
     const collaboratorRows = byId("collaboratorRows");
     if (collaboratorRows) {
-      new MutationObserver(() => schedulePermissionRefresh())
+      // Le righe base vengono ricostruite da staff.js. Applichiamo subito i
+      // controlli gia' in memoria nello stesso ciclo DOM, senza nuove RPC.
+      new MutationObserver(() => renderPermissionControls())
         .observe(collaboratorRows, { childList: true });
     }
 
@@ -2047,13 +2049,26 @@
   function v28bBindObservers() {
     const collaboratorRows = byId("collaboratorRows");
     if (collaboratorRows) {
+      // Nessuna lettura di rete in risposta alla mutazione delle righe:
+      // stato invito e matrice gia' caricati vengono applicati prima del paint.
       new MutationObserver(() => {
-        v28bScheduleMatrixRender();
-        if (String(v28bRole || currentRole || "").trim().toLowerCase() === "owner") {
-          v28b1RefreshActivationStatuses({ silent: true });
-        }
+        v28bRenderAccessControls();
+        v28b1RenderActivationStatuses();
       }).observe(collaboratorRows, { childList: true });
     }
+
+    window.addEventListener("offertalogica:collaborators-refreshed", () => {
+      if (String(v28bRole || currentRole || "").trim().toLowerCase() !== "owner") return;
+      Promise.allSettled([
+        refreshPermissionControls({ silent: true }),
+        v28bRefreshMatrix({ silent: true }),
+        v28b1RefreshActivationStatuses({ silent: true }),
+      ]).then(() => {
+        renderPermissionControls();
+        v28bRenderAccessControls();
+        v28b1RenderActivationStatuses();
+      });
+    });
 
     const nav = document.querySelector("#staffApp .nav");
     if (nav) {
