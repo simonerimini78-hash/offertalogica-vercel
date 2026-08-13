@@ -207,17 +207,45 @@
     const messages = (data || []).map(message => ({ ...message, parsed: parseSupportSubject(message.subject) })).filter(message => message.parsed);
     const openUserMessages = messages.filter(message => message.direction === "user_to_staff" && !message.read_at && message.parsed.severity === "red");
     const open = openUserMessages.length ? openUserMessages[0] : null;
-    if (!open) return { supabase, session, openCase: null, messages: [] };
-    const caseMessages = messages.filter(message => message.parsed.caseId === open.parsed.caseId && message.parsed.category === open.parsed.category);
+    if (open) {
+      const caseMessages = messages.filter(message => message.parsed.caseId === open.parsed.caseId && message.parsed.category === open.parsed.category);
+      return {
+        supabase,
+        session,
+        openCase: {
+          id: open.id,
+          caseId: open.parsed.caseId,
+          category: open.parsed.category,
+          subject: open.subject,
+          createdAt: open.created_at,
+          closed: false,
+        },
+        messages: caseMessages,
+      };
+    }
+
+    const unreadClosedStaffMessages = messages.filter(message =>
+      message.direction === "staff_to_user" &&
+      !message.read_at &&
+      message.parsed.severity === "red"
+    );
+    const closedReply = unreadClosedStaffMessages.length ? unreadClosedStaffMessages[unreadClosedStaffMessages.length - 1] : null;
+    if (!closedReply) return { supabase, session, openCase: null, messages: [] };
+
+    const caseMessages = messages.filter(message =>
+      message.parsed.caseId === closedReply.parsed.caseId &&
+      message.parsed.category === closedReply.parsed.category
+    );
     return {
       supabase,
       session,
       openCase: {
-        id: open.id,
-        caseId: open.parsed.caseId,
-        category: open.parsed.category,
-        subject: open.subject,
-        createdAt: open.created_at,
+        id: closedReply.id,
+        caseId: closedReply.parsed.caseId,
+        category: closedReply.parsed.category,
+        subject: closedReply.subject,
+        createdAt: closedReply.created_at,
+        closed: true,
       },
       messages: caseMessages,
     };
@@ -238,18 +266,23 @@
     currentCase = openCase;
     currentCaseMessages = messages;
     currentCategory = openCase.category;
+    const isClosed = openCase.closed === true;
     clearOptions();
     byId("premiumSupportEscalationForm").hidden = true;
     byId("premiumSupportReplyForm").hidden = true;
     byId("premiumSupportChat").replaceChildren();
-    setTraffic("red", "ROSSO · STAFF");
-    addBubble("bot", "Questa pratica è già stata inoltrata allo staff. Non verrà creata una seconda richiesta.");
+    setTraffic(isClosed ? "green" : "red", isClosed ? "CHIUSA · STAFF" : "ROSSO · STAFF");
+    addBubble("bot", isClosed
+      ? "Pratica chiusa dallo Staff. La conversazione resta disponibile per consultare la risposta ricevuta."
+      : "Questa pratica è già stata inoltrata allo staff. Non verrà creata una seconda richiesta.");
     messages.forEach(message => {
       if (message.direction === "staff_to_user") addBubble("staff", message.body, `Staff · ${formatTime(message.created_at)}`);
       else if (message.direction === "user_to_staff") addBubble("user", message.body, formatTime(message.created_at));
     });
     const latest = messages[messages.length - 1];
-    if (latest?.direction === "staff_to_user") {
+    if (isClosed) {
+      setStatus("success", "Pratica chiusa dallo Staff. Se il problema persiste, apri una nuova richiesta: questa pratica non può essere riaperta.");
+    } else if (latest?.direction === "staff_to_user") {
       byId("premiumSupportReplyForm").hidden = false;
       setStatus("", "Lo staff ha risposto. Puoi inviare una sola risposta alla volta; dopo l’invio attendi il prossimo messaggio.");
     } else {
@@ -552,6 +585,10 @@
   async function submitReply(event) {
     event.preventDefault();
     if (!currentCase) return;
+    if (currentCase.closed) {
+      setStatus("error", "La pratica è già chiusa. Se il problema persiste, apri una nuova richiesta.");
+      return;
+    }
     const now = Date.now();
     if (now - lastSubmitAt < SUBMIT_COOLDOWN_MS) return;
     const form = event.currentTarget;
@@ -568,7 +605,7 @@
     form.querySelectorAll("button,textarea").forEach(element => { element.disabled = true; });
     try {
       const live = await loadSupportCommunications();
-      if (!live.openCase || live.openCase.caseId !== currentCase.caseId) {
+      if (!live.openCase || live.openCase.closed || live.openCase.caseId !== currentCase.caseId) {
         renderMain();
         setStatus("error", "La pratica non è più aperta: potrebbe essere stata chiusa o eliminata dallo staff.");
         return;
