@@ -1,10 +1,11 @@
 // upgrade-flow-hotfix-v03629-1
-const CACHE = "offertalogica-premium-v03629-install-simple";
+const CACHE = "offertalogica-premium-v03629-install-simple-support-a1";
 const APP_SHELL = [
   "/app.html",
   "/app-dialog.js",
   "/app-install.js",
   "/app-auth.js",
+  "/app-support.js",
   "/app-utilities.js",
   "/app-premium-bills.js",
   "/manifest.webmanifest",
