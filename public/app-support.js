@@ -48,8 +48,8 @@
       .support-bubble small{display:block;margin-top:5px;opacity:.72;font-size:9px}
       .support-options{display:grid;gap:8px;margin-top:12px}.support-option{min-height:44px;width:100%;padding:10px 12px;border:1px solid #c8ddd0;border-radius:13px;background:#f8fcf9;color:var(--green-dark);text-align:left;font-size:11px;font-weight:900}
       .support-option.secondary{background:#fff;color:#315a43}.support-option.danger{border-color:#efc1c1;background:#fff7f7;color:#9a2525}.support-option[disabled]{opacity:.55;cursor:not-allowed}
-      .support-escalation{display:grid;gap:9px;margin-top:12px;padding:12px;border:1px solid #efc1c1;border-radius:14px;background:#fffafa}.support-escalation[hidden]{display:none}.support-escalation label{display:grid;gap:6px;color:#7b3333;font-size:10px;font-weight:900;text-transform:uppercase}.support-escalation textarea{width:100%;min-height:96px;padding:10px 11px;border:1px solid #e1bcbc;border-radius:12px;background:#fff;color:var(--navy);font:inherit;resize:vertical}
-      .support-reply{display:grid;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid #e3ebe6}.support-reply[hidden]{display:none}.support-reply textarea{width:100%;min-height:76px;padding:10px 11px;border:1px solid #c8ddd0;border-radius:12px;background:#fff;color:var(--navy);font:inherit;resize:vertical}
+      .support-escalation{display:grid;gap:9px;margin-top:12px;padding:12px;border:1px solid #efc1c1;border-radius:14px;background:#fffafa}.support-escalation[hidden]{display:none}.support-escalation label{display:grid;gap:6px;color:#7b3333;font-size:10px;font-weight:900;text-transform:uppercase}.support-escalation textarea{width:100%;min-height:96px;padding:10px 11px;border:1px solid #e1bcbc;border-radius:12px;background:#fff;color:var(--navy);font-family:inherit;font-size:16px;line-height:1.4;resize:vertical}
+      .support-reply{display:grid;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid #e3ebe6}.support-reply[hidden]{display:none}.support-reply textarea{width:100%;min-height:76px;padding:10px 11px;border:1px solid #c8ddd0;border-radius:12px;background:#fff;color:var(--navy);font-family:inherit;font-size:16px;line-height:1.4;resize:vertical}
       .support-status{margin-top:10px;padding:10px 11px;border-radius:12px;background:#eef4f8;color:#31576e;font-size:11px;line-height:1.45}.support-status[hidden]{display:none}.support-status.error{background:#fff0f0;color:#9a2525}.support-status.success{background:#e9f8ed;color:#087c39}
       .support-footer-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.support-footer-actions button{flex:1 1 130px;min-height:42px;border:1px solid #c8ddd0;border-radius:13px;background:#fff;color:#315a43;font-size:11px;font-weight:900}
     `;
@@ -270,11 +270,13 @@
       else if (message.direction === "user_to_staff") addBubble("user", message.body, formatTime(message.created_at));
     });
     const latest = messages[messages.length - 1];
-    if (isClosed) {
-      setStatus("success", "Pratica chiusa dallo Staff. Puoi rileggere tutti i messaggi; se il problema persiste, apri una nuova richiesta.");
-    } else if (latest?.direction === "staff_to_user") {
+    if (latest?.direction === "staff_to_user") {
       byId("premiumSupportReplyForm").hidden = false;
-      setStatus("", "Lo staff ha risposto. Puoi inviare una sola risposta alla volta; dopo l’invio attendi il prossimo messaggio.");
+      setStatus(isClosed ? "success" : "", isClosed
+        ? "Lo staff ha scritto nella pratica chiusa. Puoi rispondere qui: la tua risposta riaprirà automaticamente la pratica."
+        : "Lo staff ha risposto. Puoi inviare una sola risposta alla volta; dopo l’invio attendi il prossimo messaggio.");
+    } else if (isClosed) {
+      setStatus("success", "Pratica chiusa dallo Staff. La conversazione resta disponibile finché non viene eliminata.");
     } else {
       setStatus("", "Pratica in verifica. Attendi una risposta dello staff; non è possibile aprire richieste duplicate.");
     }
@@ -575,10 +577,6 @@
   async function submitReply(event) {
     event.preventDefault();
     if (!currentCase) return;
-    if (currentCase.closed) {
-      setStatus("error", "La pratica è già chiusa. Se il problema persiste, apri una nuova richiesta.");
-      return;
-    }
     const now = Date.now();
     if (now - lastSubmitAt < SUBMIT_COOLDOWN_MS) return;
     const form = event.currentTarget;
@@ -595,9 +593,15 @@
     form.querySelectorAll("button,textarea").forEach(element => { element.disabled = true; });
     try {
       const live = await loadSupportCommunications();
-      if (!live.openCase || live.openCase.closed || live.openCase.caseId !== currentCase.caseId) {
+      if (!live.openCase || live.openCase.caseId !== currentCase.caseId) {
         renderMain();
-        setStatus("error", "La pratica non è più aperta: potrebbe essere stata chiusa o eliminata dallo staff.");
+        setStatus("error", "La conversazione non è più disponibile: potrebbe essere stata eliminata.");
+        return;
+      }
+      const liveLatest = live.messages[live.messages.length - 1];
+      if (!liveLatest || liveLatest.direction !== "staff_to_user") {
+        renderOpenCase(live.openCase, live.messages);
+        setStatus("error", "È già presente una tua risposta in attesa. Attendi il prossimo messaggio dello staff.");
         return;
       }
       const { supabase, session } = await sessionInfo();

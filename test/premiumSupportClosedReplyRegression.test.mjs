@@ -73,12 +73,13 @@ test('pratica chiusa: dopo la lettura resta nello storico e non sparisce', async
   assert.ok(result.openCase); assert.equal(result.openCase.closed, true); assert.equal(result.messages.length, 2);
 });
 
-test('pratica chiusa: UI non espone Rispondi al cliente', async () => {
+test('pratica chiusa: se l ultimo messaggio e Staff il cliente puo rispondere e riaprire la pratica', async () => {
   const { hooks, elements } = buildHarness([userClosed, staffUnread]);
   const result = await hooks.loadSupportCommunications();
   hooks.renderOpenCase(result.openCase, result.messages);
-  assert.equal(elements.get('premiumSupportReplyForm').hidden, true);
+  assert.equal(elements.get('premiumSupportReplyForm').hidden, false);
   assert.equal(elements.get('premiumSupportTraffic').textContent, 'CHIUSA · STAFF');
+  assert.match(elements.get('premiumSupportStatus').textContent, /riaprirà automaticamente la pratica/);
 });
 
 test('aggiorna messaggi: una nuova risposta Staff compare senza uscire dal pannello', async () => {
@@ -100,7 +101,38 @@ test('pratica aperta: resta prioritaria rispetto allo storico chiuso', async () 
   assert.equal(result.openCase.caseId,'case-999'); assert.equal(result.openCase.closed,false);
 });
 
+
+test('chat: una risposta cliente sulla pratica chiusa la riapre automaticamente', async () => {
+  const staffRead = { ...staffUnread, read_at:'2026-08-13T16:10:00Z' };
+  const clientReply = { id:'u2', user_id:'user-1', direction:'user_to_staff', subject, body:'Risposta cliente', read_at:null, created_at:'2026-08-13T16:30:00Z' };
+  const { hooks, elements } = buildHarness([userClosed, staffRead, clientReply]);
+  const result = await hooks.loadSupportCommunications();
+  assert.ok(result.openCase);
+  assert.equal(result.openCase.closed, false);
+  assert.equal(result.messages.at(-1).direction, 'user_to_staff');
+  hooks.renderOpenCase(result.openCase, result.messages);
+  assert.equal(elements.get('premiumSupportTraffic').textContent, 'ROSSO · STAFF');
+  assert.equal(elements.get('premiumSupportReplyForm').hidden, true);
+});
+
 test('service worker forza il refresh del modulo supporto definitivo', () => {
   const sw=fs.readFileSync(new URL('../public/sw.js',import.meta.url),'utf8');
-  assert.match(sw,/closed-history-refresh/); assert.match(sw,/"\/app-support\.js"/);
+  assert.match(sw,/chat-turns-mobile-focus/); assert.match(sw,/"\/app-support\.js"/);
+});
+
+
+test('chat: submitReply non blocca una pratica solo perche e chiusa', () => {
+  const start = source.indexOf('async function submitReply(event)');
+  const end = source.indexOf('async function refreshSupportMessages()', start);
+  const block = source.slice(start, end);
+  assert.ok(start >= 0 && end > start);
+  assert.doesNotMatch(block, /if \(currentCase\.closed\)/);
+  assert.doesNotMatch(block, /live\.openCase\.closed/);
+  assert.match(block, /liveLatest\.direction !== "staff_to_user"/);
+});
+
+test('mobile: i campi chat hanno font 16px e non disabilitano lo zoom utente', () => {
+  assert.match(source, /\.support-escalation textarea\{[^}]*font-size:16px/);
+  assert.match(source, /\.support-reply textarea\{[^}]*font-size:16px/);
+  assert.doesNotMatch(source, /maximum-scale|user-scalable/);
 });
