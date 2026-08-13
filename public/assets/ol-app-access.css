@@ -107,3 +107,17 @@
         transition: none;
     }
 }
+
+/*
+ * iOS Safari ingrandisce automaticamente la pagina quando riceve focus
+ * un controllo di testo con font inferiore a 16px. Manteniamo lo zoom
+ * manuale accessibile e portiamo soltanto i controlli mobili alla soglia
+ * che evita il focus-zoom automatico.
+ */
+@media (max-width: 700px) {
+    input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="hidden"]),
+    select,
+    textarea {
+        font-size: 16px !important;
+    }
+}
