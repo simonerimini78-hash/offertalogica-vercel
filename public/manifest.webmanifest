@@ -1,6 +1,6 @@
 {
-  "name": "OffertaLogica",
-  "short_name": "OffertaLogica",
+  "name": "OffertaLogica Premium",
+  "short_name": "OffertaLogica Premium",
   "description": "Confronta offerte luce e gas e analizza la bolletta con OffertaLogica.",
   "id": "/app.html",
   "start_url": "/app.html",

@@ -1,5 +1,5 @@
 // upgrade-flow-hotfix-v03629-1
-const CACHE = "offertalogica-premium-v03629-install-simple-support-a3-refund-chat-turns-mobile-focus";
+const CACHE = "offertalogica-premium-v03629-install-simple-support-a3-refund-chat-turns-mobile-focus-identity-name";
 const APP_SHELL = [
   "/app.html",
   "/app-dialog.js",
