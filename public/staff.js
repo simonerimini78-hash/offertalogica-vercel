@@ -1127,7 +1127,6 @@
   async function loadSupportRequests({ silent = false } = {}) {
     const result = await client.from("premium_communications")
       .select("id,user_id,direction,channel,subject,body,read_at,created_at")
-      .eq("direction", "user_to_staff")
       .order("created_at", { ascending: false })
       .limit(500);
     if (result.error) throw result.error;
@@ -1464,7 +1463,12 @@
     text(byId("staffSupportDialogCustomer"), `${item.customer?.name || "Cliente Premium"}${item.customer?.email ? ` · ${item.customer.email}` : ""}`);
     const meta = byId("staffSupportDialogMeta");
     clear(meta);
-    meta.append(badge("ROSSO", "danger"), badge(item.supportLabel || "Assistenza", "info"), badge(formatDate(item.createdAt), ""));
+    meta.append(badge(item.closed ? "CHIUSA" : "ROSSO", item.closed ? "ok" : "danger"), badge(item.supportLabel || "Assistenza", "info"), badge(formatDate(item.createdAt), ""));
+    const closeButton = byId("staffSupportCloseCase");
+    if (closeButton) {
+      closeButton.disabled = Boolean(item.closed);
+      closeButton.textContent = item.closed ? "PRATICA CHIUSA" : "CHIUDI PRATICA";
+    }
     clear(byId("staffSupportThread"));
     byId("staffSupportThread").append(node("div", { className: "empty", text: "Caricamento conversazione…" }));
     byId("staffSupportReply").value = "";
@@ -1517,7 +1521,11 @@
       if (error) throw error;
       textarea.value = "";
       renderSupportThread(await loadSupportThread(activeSupportCase));
-      setMessage("success", "Risposta inviata al cliente. La pratica resta aperta finché non la chiudi.");
+      await loadSupportRequests({ silent: true });
+      renderCases();
+      setMessage("success", activeSupportCase.closed
+        ? "Messaggio inviato al cliente. La pratica resta chiusa e disponibile nello storico."
+        : "Risposta inviata al cliente. La pratica resta aperta finché non la chiudi.");
     } catch (error) {
       setMessage("error", friendlyError(error));
     } finally {
@@ -1535,6 +1543,10 @@
 
   async function closeSupportCase() {
     if (!activeSupportCase || busy) return;
+    if (activeSupportCase.closed) {
+      setMessage("info", "La pratica è già chiusa. Puoi continuare a inviare messaggi oppure eliminarla definitivamente.");
+      return;
+    }
     try {
       const beforeConfirmMessages = await loadSupportThread(activeSupportCase);
       const beforeConfirmLatest = beforeConfirmMessages[beforeConfirmMessages.length - 1];
@@ -1548,7 +1560,7 @@
 
       const confirmed = await confirmAction({
         title: "Chiudere la pratica?",
-        message: "La conversazione resta registrata, ma la pratica scomparirà dalla coda delle pratiche aperte.",
+        message: "La pratica uscirà dai conteggi delle attività aperte, ma resterà nell’elenco e la conversazione continuerà a essere disponibile.",
         confirmLabel: "CHIUDI PRATICA",
       });
       if (!confirmed) return;
@@ -1584,7 +1596,7 @@
       closeSupportDialog();
       await loadSupportRequests({ silent: true });
       renderCases();
-      setMessage("success", "Pratica chiusa. La conversazione resta nello storico comunicazioni.");
+      setMessage("success", "Pratica chiusa. Resta nell’elenco e puoi continuare a inviare messaggi.");
     } catch (error) {
       setMessage("error", friendlyError(error));
     }
@@ -1683,27 +1695,36 @@
       });
     });
 
-    const seenSupportCases = new Set();
+    const supportGroups = new Map();
     cache.communications.forEach(communication => {
-      if (communication.direction !== "user_to_staff" || communication.read_at) return;
       const subject = supportSubject(communication.subject);
       const caseKey = subject.severity === "red"
         ? `${communication.user_id}:red:${subject.category}:${subject.caseId}`
-        : `legacy:${communication.id}`;
-      if (seenSupportCases.has(caseKey)) return;
-      seenSupportCases.add(caseKey);
-      const customer = customerCaseLabel(communication.user_id);
-      const detail = supportDetail(communication.body);
+        : `${communication.user_id}:legacy:${subject.raw}`;
+      if (!supportGroups.has(caseKey)) supportGroups.set(caseKey, { subject, messages: [] });
+      supportGroups.get(caseKey).messages.push(communication);
+    });
+
+    supportGroups.forEach(({ subject, messages }) => {
+      const ordered = messages.slice().sort((a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime());
+      const userMessages = ordered.filter(message => message.direction === "user_to_staff");
+      if (!userMessages.length) return;
+      const latestUser = userMessages[userMessages.length - 1];
+      const latestMessage = ordered[ordered.length - 1] || latestUser;
+      const closed = !userMessages.some(message => !message.read_at);
+      const customer = customerCaseLabel(latestUser.user_id);
+      const detail = supportDetail(latestUser.body);
       cases.push({
-        id: `support:${communication.id}`,
+        id: `support:${latestUser.id}`,
         type: "support_request",
-        priority: supportPriority(subject),
-        userId: communication.user_id || "",
+        priority: closed ? "low" : supportPriority(subject),
+        userId: latestUser.user_id || "",
         customer,
-        status: subject.severity === "red" ? "rosso" : "nuova",
-        createdAt: communication.created_at,
+        status: closed ? "chiusa" : "aperta",
+        closed,
+        createdAt: latestMessage.created_at || latestUser.created_at,
         detail: `${subject.label}: ${detail || "Nessun dettaglio"}`,
-        communicationId: communication.id,
+        communicationId: latestUser.id,
         supportCategory: subject.category,
         supportCaseId: subject.caseId,
         supportSeverity: subject.severity,
@@ -1751,16 +1772,17 @@
   function renderCases() {
     buildOperationalCases();
     const rows = filteredCases();
-    text(byId("navCaseCount"), cache.cases.length);
-    text(byId("caseMetricTotal"), cache.cases.length);
-    text(byId("caseMetricHigh"), cache.cases.filter(item => item.priority === "high").length);
-    text(byId("caseMetricCustomers"), new Set(cache.cases.map(item => item.userId).filter(Boolean)).size);
-    text(byId("caseMetricTypes"), new Set(cache.cases.map(item => item.type)).size);
+    const activeCases = cache.cases.filter(item => !item.closed);
+    text(byId("navCaseCount"), activeCases.length);
+    text(byId("caseMetricTotal"), activeCases.length);
+    text(byId("caseMetricHigh"), activeCases.filter(item => item.priority === "high").length);
+    text(byId("caseMetricCustomers"), new Set(activeCases.map(item => item.userId).filter(Boolean)).size);
+    text(byId("caseMetricTypes"), new Set(activeCases.map(item => item.type)).size);
     const body = byId("caseRows");
     if (!body) return;
     clear(body);
     if (!rows.length) {
-      body.append(node("tr", {}, [node("td", { text: cache.cases.length ? "Nessuna pratica corrisponde ai filtri." : "Nessuna pratica aperta rilevata.", attrs: { colspan: "7" } })]));
+      body.append(node("tr", {}, [node("td", { text: cache.cases.length ? "Nessuna pratica corrisponde ai filtri." : "Nessuna pratica disponibile.", attrs: { colspan: "7" } })]));
       return;
     }
     rows.forEach(item => {
@@ -1768,11 +1790,12 @@
       const action = node("button", { className: "button secondary compact", type: "button", text: item.type === "support_request" ? "GESTISCI" : "APRI" });
       action.addEventListener("click", () => openOperationalCase(item));
       const actions = node("div", { className: "row-actions" }, [action]);
+      const statusKind = item.closed ? "ok" : item.priority === "high" ? "danger" : item.priority === "medium" ? "warn" : "info";
       body.append(node("tr", {}, [
         node("td", {}, [badge(descriptor.label, descriptor.kind)]),
         node("td", {}, [node("strong", { text: caseTypeLabel(item.type) })]),
         node("td", {}, [node("strong", { text: item.customer?.name || "Cliente Premium" }), node("small", { text: item.customer?.email || item.userId || "—" })]),
-        node("td", {}, [badge(item.status || "—", item.priority === "high" ? "danger" : item.priority === "medium" ? "warn" : "info")]),
+        node("td", {}, [badge(item.status || "—", statusKind)]),
         node("td", { text: formatDate(item.createdAt) }),
         node("td", { text: item.detail || "—" }),
         node("td", {}, [actions]),
