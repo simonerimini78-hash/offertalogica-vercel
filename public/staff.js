@@ -1535,21 +1535,50 @@
 
   async function closeSupportCase() {
     if (!activeSupportCase || busy) return;
-    const confirmed = await confirmAction({
-      title: "Chiudere la pratica?",
-      message: "La conversazione resta registrata, ma la pratica scomparirà dalla coda delle pratiche aperte.",
-      confirmLabel: "CHIUDI PRATICA",
-    });
-    if (!confirmed) return;
     try {
-      let query = client.from("premium_communications")
+      const beforeConfirmMessages = await loadSupportThread(activeSupportCase);
+      const beforeConfirmLatest = beforeConfirmMessages[beforeConfirmMessages.length - 1];
+      if (!beforeConfirmLatest) {
+        throw new Error("La pratica non contiene più messaggi. Aggiorna l’elenco e riprova.");
+      }
+      if (beforeConfirmLatest.direction !== "staff_to_user") {
+        setMessage("error", "Non puoi chiudere la pratica: l’ultimo messaggio è del cliente. Invia prima una risposta Staff.");
+        return;
+      }
+
+      const confirmed = await confirmAction({
+        title: "Chiudere la pratica?",
+        message: "La conversazione resta registrata, ma la pratica scomparirà dalla coda delle pratiche aperte.",
+        confirmLabel: "CHIUDI PRATICA",
+      });
+      if (!confirmed) return;
+
+      // Ricontrolla dopo la conferma: il cliente potrebbe avere risposto mentre il dialog era aperto.
+      const liveMessages = await loadSupportThread(activeSupportCase);
+      const latest = liveMessages[liveMessages.length - 1];
+      if (!latest) {
+        throw new Error("La pratica non contiene più messaggi. Aggiorna l’elenco e riprova.");
+      }
+      if (latest.direction !== "staff_to_user") {
+        setMessage("error", "Pratica non chiusa: nel frattempo è arrivato un nuovo messaggio del cliente. Rispondi prima di chiudere.");
+        return;
+      }
+
+      const openUserMessageIds = liveMessages
+        .filter(message => message.direction === "user_to_staff" && !message.read_at)
+        .map(message => message.id)
+        .filter(Boolean);
+      if (!openUserMessageIds.length) {
+        throw new Error("La pratica non risulta più aperta. Aggiorna l’elenco e riprova.");
+      }
+
+      const { data: closedRows, error } = await client.from("premium_communications")
         .update({ read_at: new Date().toISOString() })
         .eq("user_id", activeSupportCase.userId)
         .eq("direction", "user_to_staff")
-        .eq("subject", activeSupportCase.supportSubjectRaw)
+        .in("id", openUserMessageIds)
         .is("read_at", null)
         .select("id");
-      const { data: closedRows, error } = await query;
       if (error) throw error;
       if (!closedRows?.length) throw new Error("La pratica non risulta più aperta. Aggiorna l’elenco e riprova.");
       closeSupportDialog();
