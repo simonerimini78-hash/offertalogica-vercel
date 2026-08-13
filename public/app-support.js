@@ -390,6 +390,11 @@
           window.setTimeout(() => byId("premiumSubscriptionManage")?.click(), 450);
         }, true);
       });
+      addOption("Richiedi recesso/rimborso primo acquisto", () => {
+        recordPath("Recesso/rimborso primo acquisto entro 14 giorni");
+        addBubble("bot", "Questa richiesta è prevista esclusivamente per il primo acquisto Premium e deve essere inviata entro 14 giorni dalla conclusione del contratto.");
+        prepareEscalation("Richiesta recesso/rimborso primo acquisto entro 14 giorni");
+      }, { danger: true });
       addOption("Addebito che non riconosco", () => {
         recordPath("Addebito non riconosciuto");
         prepareEscalation("Possibile problema economico rilevante: addebito non riconosciuto");
