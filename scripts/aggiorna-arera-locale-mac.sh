@@ -286,6 +286,8 @@ print(
 print(f"[ARERA-LOCALE] Staging validato: {staging_path.relative_to(root)}")
 PY
 
+python3 "$ROOT_DIR/scripts/update-sitemap-lastmod.py" --root "$ROOT_DIR"
+
 rm -f \
   "$DOWNLOAD_DIR"/PO_Offerte_E_MLIBERO_*.xml \
   "$DOWNLOAD_DIR"/PO_Offerte_G_MLIBERO_*.xml \
@@ -298,3 +300,4 @@ log "File aggiornati:"
 log "- data/offerte-arera-menu.json"
 log "- public/data/offerte-arera-menu.json"
 log "- data/arera-update-report.json"
+log "- public/sitemap.xml"
