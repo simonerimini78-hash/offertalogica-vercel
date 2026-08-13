@@ -116,13 +116,16 @@
     status.hidden = true;
 
     const footer = make("div", "support-footer-actions");
+    const refresh = make("button", "", "AGGIORNA MESSAGGI");
+    refresh.type = "button";
+    refresh.id = "premiumSupportRefresh";
     const restart = make("button", "", "RICOMINCIA");
     restart.type = "button";
     restart.id = "premiumSupportRestart";
     const close = make("button", "", "CHIUDI");
     close.type = "button";
     close.id = "premiumSupportClose";
-    footer.append(restart, close);
+    footer.append(refresh, restart, close);
 
     panel.append(head, chat, options, escalation, reply, status, footer);
   }
@@ -196,6 +199,16 @@
     return { supabase, session: data.session };
   }
 
+  function sameSupportCase(message, anchor) {
+    if (!message?.parsed || !anchor?.parsed) return false;
+    if (anchor.parsed.severity === "red") {
+      return message.parsed.severity === "red" &&
+        message.parsed.caseId === anchor.parsed.caseId &&
+        message.parsed.category === anchor.parsed.category;
+    }
+    return message.subject === anchor.subject;
+  }
+
   async function loadSupportCommunications() {
     const { supabase, session } = await sessionInfo();
     const { data, error } = await supabase.from("premium_communications")
@@ -206,46 +219,23 @@
     if (error) throw error;
     const messages = (data || []).map(message => ({ ...message, parsed: parseSupportSubject(message.subject) })).filter(message => message.parsed);
     const openUserMessages = messages.filter(message => message.direction === "user_to_staff" && !message.read_at && message.parsed.severity === "red");
-    const open = openUserMessages.length ? openUserMessages[0] : null;
-    if (open) {
-      const caseMessages = messages.filter(message => message.parsed.caseId === open.parsed.caseId && message.parsed.category === open.parsed.category);
-      return {
-        supabase,
-        session,
-        openCase: {
-          id: open.id,
-          caseId: open.parsed.caseId,
-          category: open.parsed.category,
-          subject: open.subject,
-          createdAt: open.created_at,
-          closed: false,
-        },
-        messages: caseMessages,
-      };
-    }
+    const anchor = openUserMessages.length
+      ? openUserMessages[openUserMessages.length - 1]
+      : (messages.length ? messages[messages.length - 1] : null);
+    if (!anchor) return { supabase, session, openCase: null, messages: [] };
 
-    const unreadClosedStaffMessages = messages.filter(message =>
-      message.direction === "staff_to_user" &&
-      !message.read_at &&
-      message.parsed.severity === "red"
-    );
-    const closedReply = unreadClosedStaffMessages.length ? unreadClosedStaffMessages[unreadClosedStaffMessages.length - 1] : null;
-    if (!closedReply) return { supabase, session, openCase: null, messages: [] };
-
-    const caseMessages = messages.filter(message =>
-      message.parsed.caseId === closedReply.parsed.caseId &&
-      message.parsed.category === closedReply.parsed.category
-    );
+    const caseMessages = messages.filter(message => sameSupportCase(message, anchor));
+    const closed = !caseMessages.some(message => message.direction === "user_to_staff" && !message.read_at);
     return {
       supabase,
       session,
       openCase: {
-        id: closedReply.id,
-        caseId: closedReply.parsed.caseId,
-        category: closedReply.parsed.category,
-        subject: closedReply.subject,
-        createdAt: closedReply.created_at,
-        closed: true,
+        id: anchor.id,
+        caseId: anchor.parsed.caseId,
+        category: anchor.parsed.category,
+        subject: anchor.subject,
+        createdAt: anchor.created_at,
+        closed,
       },
       messages: caseMessages,
     };
@@ -273,7 +263,7 @@
     byId("premiumSupportChat").replaceChildren();
     setTraffic(isClosed ? "green" : "red", isClosed ? "CHIUSA · STAFF" : "ROSSO · STAFF");
     addBubble("bot", isClosed
-      ? "Pratica chiusa dallo Staff. La conversazione resta disponibile per consultare la risposta ricevuta."
+      ? "Pratica chiusa dallo Staff. La conversazione resta nello storico finché non scegli di eliminarla."
       : "Questa pratica è già stata inoltrata allo staff. Non verrà creata una seconda richiesta.");
     messages.forEach(message => {
       if (message.direction === "staff_to_user") addBubble("staff", message.body, `Staff · ${formatTime(message.created_at)}`);
@@ -281,7 +271,7 @@
     });
     const latest = messages[messages.length - 1];
     if (isClosed) {
-      setStatus("success", "Pratica chiusa dallo Staff. Se il problema persiste, apri una nuova richiesta: questa pratica non può essere riaperta.");
+      setStatus("success", "Pratica chiusa dallo Staff. Puoi rileggere tutti i messaggi; se il problema persiste, apri una nuova richiesta.");
     } else if (latest?.direction === "staff_to_user") {
       byId("premiumSupportReplyForm").hidden = false;
       setStatus("", "Lo staff ha risposto. Puoi inviare una sola risposta alla volta; dopo l’invio attendi il prossimo messaggio.");
@@ -631,6 +621,28 @@
     }
   }
 
+  async function refreshSupportMessages() {
+    const refresh = byId("premiumSupportRefresh");
+    if (refresh) refresh.disabled = true;
+    try {
+      const existing = await loadSupportCommunications();
+      if (existing.openCase) {
+        renderOpenCase(existing.openCase, existing.messages);
+      } else {
+        renderMain();
+        setStatus("", "Nessuna conversazione Staff disponibile.");
+      }
+    } catch (error) {
+      if (isSessionError(error)) {
+        setStatus("", "Per aggiornare i messaggi dello staff è necessario accedere nuovamente.");
+      } else {
+        setStatus("error", friendlyError(error));
+      }
+    } finally {
+      if (refresh) refresh.disabled = false;
+    }
+  }
+
   async function openPanel() {
     const panel = byId("premiumSupportPanel");
     if (!panel) return;
@@ -676,6 +688,7 @@
     updateLauncherCopy();
     byId("premiumSupportOpen")?.addEventListener("click", openPanel);
     byId("premiumSupportClose")?.addEventListener("click", closePanel);
+    byId("premiumSupportRefresh")?.addEventListener("click", refreshSupportMessages);
     byId("premiumSupportRestart")?.addEventListener("click", () => {
       renderMain();
     });
