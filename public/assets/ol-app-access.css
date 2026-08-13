@@ -121,3 +121,17 @@
         font-size: 16px !important;
     }
 }
+
+
+/*
+ * D2 mobile offerte: il selettore desktop
+ * .partner-vertical-card:not(.locked-offer) ha specificita maggiore della
+ * regola mobile .partner-vertical-card e mantiene quindi la seconda colonna
+ * min-width 180px. Su schermi stretti questa colonna comprime il testo della
+ * scheda. Forziamo il layout mobile gia previsto a una sola colonna.
+ */
+@media (max-width: 700px) {
+    .partner-vertical-card {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+}
