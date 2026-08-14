@@ -54,14 +54,14 @@ test("landing V1: bootstrap diretto, social e Google convergono sulla stessa lan
   assert.equal(requestedFor("", "#previewToken=test").requested, false);
 });
 
-test("landing V1: mostra subito risparmio e due percorsi senza CTA intermedia", () => {
+test("landing V1.2: mostra subito risparmio e due percorsi senza CTA intermedia", () => {
   assert.match(html, /id="social-entry-saving-value"/);
   assert.match(html, /Oggi potresti risparmiare fino a/);
   assert.match(html, /Come preferisci procedere\?/);
   assert.match(html, /id="landing-self-service"[^>]*disabled/);
-  assert.match(html, /<strong>Confronto da solo<\/strong>/);
+  assert.match(html, /<strong>Faccio da solo<\/strong>/);
   assert.match(html, /id="landing-assisted"[^>]*disabled/);
-  assert.match(html, /<strong>Preferisco essere seguito<\/strong>/);
+  assert.match(html, /<strong>Voglio essere seguito<\/strong>/);
   assert.doesNotMatch(html, /id="social-entry-cta"/);
 
   const prepare = between(html, "function preparaRisparmioIngressoSocialMobile", "function urlCalcolatoreDaLanding");
@@ -95,7 +95,7 @@ test("landing V1: il percorso assistito non inventa il link Switcho", () => {
   assert.match(html, /const SWITCHO_LANDING_URL = "";/);
   const assisted = between(html, "function apriPercorsoAssistitoDaLanding", "function tracciaAccessoAppLanding");
   assert.match(assisted, /destinationStatus: destinationReady \? "ready" : "pending_url"/);
-  assert.match(assisted, /Percorso assistito predisposto: manca solo il collegamento definitivo alla pagina Switcho\./);
+  assert.match(assisted, /Il percorso assistito è in preparazione e sarà disponibile appena completato il collegamento\./);
   assert.match(assisted, /if \(!destinationReady\)/);
   assert.match(assisted, /window\.location\.assign\(SWITCHO_LANDING_URL\)/);
 });
@@ -110,30 +110,42 @@ test("landing V1: tracking riusa track-event e usa i campi gia supportati", () =
   assert.doesNotMatch(html, /fetch\("\/api\/landing/);
 });
 
-test("landing V1.1: usa la palette ufficiale di app e sito e resta responsive", () => {
-  const css = between(html, "/* OFFERTALOGICA_LANDING_GLASS_V1_20260814 */", ".offers-personalize-prompt {");
+test("landing V1.2: usa palette OffertaLogica, vetro piu evidente e resta responsive", () => {
+  const css = between(html, "/* OFFERTALOGICA_LANDING_GLASS_V1_2_20260814 */", ".offers-personalize-prompt {");
   assert.match(css, /#123044/);
   assert.match(css, /#f4f7f5/);
   assert.match(css, /#087f3a/);
   assert.match(css, /#18a84b/);
-  assert.match(css, /#73c928/);
+  assert.match(css, /rgba\(115, 201, 40, \.76\)/);
+  assert.match(css, /#e3e9e7/);
   assert.match(css, /rgba\(132, 209, 38/);
-  assert.match(css, /background: linear-gradient\(145deg,#087f3a 0%,#18a84b 56%,#73c928 100%\)/);
+  assert.match(css, /rgba\(5, 93, 56, \.96\)/);
   assert.match(css, /filter: saturate\(1\.08\) brightness\(1\.02\)/);
-  assert.match(css, /backdrop-filter: blur\(24px\)/);
+  assert.match(css, /backdrop-filter: blur\(32px\) saturate\(138%\)/);
+  assert.match(css, /backdrop-filter: blur\(20px\) saturate\(136%\)/);
   assert.match(css, /@media \(max-width: 720px\)/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
 });
 
-test("landing V1.1: i pulsanti app riusano le classi originali del sito", () => {
+test("landing V1.2: i due percorsi sono strutturalmente simmetrici e usano testo argento", () => {
+  const css = between(html, "/* OFFERTALOGICA_LANDING_GLASS_V1_2_20260814 */", ".offers-personalize-prompt {");
+  assert.match(css, /\.social-entry-actions \{[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);[\s\S]*grid-auto-rows: 1fr;[\s\S]*align-items: stretch;/);
+  assert.match(css, /\.social-entry-route \{[\s\S]*height: 100%;[\s\S]*min-height: 118px;[\s\S]*grid-template-rows: minmax\(46px, auto\) 1fr;/);
+  assert.match(css, /\.social-entry-route strong \{[\s\S]*color: #e3e9e7;/);
+  assert.match(css, /\.social-entry-route span \{[\s\S]*color: rgba\(227,233,231,\.86\);/);
+  assert.match(css, /@media \(max-width: 720px\)[\s\S]*grid-auto-rows: 1fr;[\s\S]*min-height: 108px;/);
+});
+
+test("landing V1.2: i pulsanti app riusano le classi originali del sito", () => {
   assert.match(html, /class="social-entry-app-link ol-app-access-link ol-app-access-free"/);
   assert.match(html, /class="social-entry-app-link ol-app-access-link ol-app-access-premium"/);
 });
 
-test("landing V1: mantiene accessi app e informativa sul partner", () => {
+test("landing V1.2: mantiene gli accessi app e non espone la nota partner nella landing", () => {
   assert.match(html, /https:\/\/app\.offertalogica\.it\/app\.html\?install=1/);
   assert.match(html, /https:\/\/premium\.offertalogica\.it\/app\.html\?install=1/);
-  assert.match(html, /Il percorso assistito sarà gestito dal partner Switcho\./);
+  assert.doesNotMatch(html, /class="social-entry-partner-note"/);
+  assert.doesNotMatch(html, /Il percorso assistito sarà gestito dal partner Switcho\./);
 });
 
 test("offerte: propone ancora la bolletta senza bloccare la stima media", () => {
