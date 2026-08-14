@@ -111,7 +111,7 @@ test("landing V1: tracking riusa track-event e usa i campi gia supportati", () =
 });
 
 test("landing V1.3: usa palette OffertaLogica, vetro piu evidente e resta responsive", () => {
-  const css = between(html, "/* OFFERTALOGICA_LANDING_GLASS_V1_4_20260814 */", ".offers-personalize-prompt {");
+  const css = between(html, "/* OFFERTALOGICA_LANDING_GLASS_V1_7_20260814 */", ".offers-personalize-prompt {");
   assert.match(css, /#123044/);
   assert.match(css, /#f4f7f5/);
   assert.match(css, /#087f3a/);
@@ -132,12 +132,12 @@ test("landing V1.3: usa palette OffertaLogica, vetro piu evidente e resta respon
 test("landing V1.3: disclaimer e compatto e uniforme", () => {
   assert.match(html, /class="social-entry-disclaimer">Stima basata sui consumi medi di una famiglia e sulle offerte attivabili disponibili oggi\. Il risparmio reale dipende dai tuoi consumi e dalla tariffa attuale\.<\/p>/);
   assert.doesNotMatch(html, /class="social-entry-copy-small"/);
-  const css = between(html, "/* OFFERTALOGICA_LANDING_GLASS_V1_4_20260814 */", ".offers-personalize-prompt {");
+  const css = between(html, "/* OFFERTALOGICA_LANDING_GLASS_V1_7_20260814 */", ".offers-personalize-prompt {");
   assert.match(css, /\.social-entry-disclaimer \{[\s\S]*font-size: clamp\(11\.5px, 1\.7vw, 13px\);[\s\S]*font-weight: 500;/);
 });
 
 test("landing V1.3: i due percorsi sono strutturalmente simmetrici, centrati e usano testo argento", () => {
-  const css = between(html, "/* OFFERTALOGICA_LANDING_GLASS_V1_4_20260814 */", ".offers-personalize-prompt {");
+  const css = between(html, "/* OFFERTALOGICA_LANDING_GLASS_V1_7_20260814 */", ".offers-personalize-prompt {");
   assert.match(css, /\.social-entry-actions \{[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);[\s\S]*grid-auto-rows: 1fr;[\s\S]*align-items: stretch;/);
   assert.match(css, /\.social-entry-route \{[\s\S]*height: 100%;[\s\S]*min-height: 118px;[\s\S]*grid-template-rows: minmax\(30px, auto\) minmax\(38px, auto\);/);
   assert.match(css, /\.social-entry-route \{[\s\S]*justify-items: center;[\s\S]*text-align: center;/);
@@ -186,24 +186,29 @@ test("landing V1.4: include il footer informativo completo del sito", () => {
 });
 
 test("landing V1.4: mantiene visibili i contenitori Iubenda e oscura il calcolatore sottostante", () => {
-  const css = between(html, "/* OFFERTALOGICA_LANDING_GLASS_V1_4_20260814 */", ".offers-personalize-prompt {");
+  const css = between(html, "/* OFFERTALOGICA_LANDING_GLASS_V1_7_20260814 */", ".offers-personalize-prompt {");
   assert.match(css, /body > :not\(\.social-mobile-entry\):not\(script\):not\(\[id\*="iubenda"\]\):not\(\[class\*="iubenda"\]\):not\(\[id\^="_iub"\]\):not\(\[class\*="_iub"\]\)/);
 });
 
 
 
-test("landing V1.6: Privacy e Cookie usano link diretti e non il modal Iubenda dentro l'overlay", () => {
+test("landing V1.7: Privacy e Cookie tornano al modal Iubenda standard sopra la landing", () => {
   const landing = between(html, '<section class="social-mobile-entry"', '<aside class="mobile-pdf-status"');
   const privacy = landing.match(/<a href="https:\/\/www\.iubenda\.com\/privacy-policy\/36565194"[^>]*>Privacy Policy<\/a>/)?.[0] || "";
   const cookie = landing.match(/<a href="https:\/\/www\.iubenda\.com\/privacy-policy\/36565194\/cookie-policy"[^>]*>Cookie Policy<\/a>/)?.[0] || "";
   for (const anchor of [privacy, cookie]) {
     assert.ok(anchor, "link policy landing non trovato");
-    assert.match(anchor, /target="_blank"/);
-    assert.match(anchor, /rel="noopener noreferrer"/);
-    assert.doesNotMatch(anchor, /iubenda-embed/);
-    assert.doesNotMatch(anchor, /data-iub-z-index/);
-    assert.doesNotMatch(anchor, /data-iub-overflow/);
+    assert.match(anchor, /class="iubenda-white iubenda-noiframe iubenda-embed"/);
+    assert.doesNotMatch(anchor, /target="_blank"/);
+    assert.doesNotMatch(anchor, /rel="noopener noreferrer"/);
   }
+
+  const css = between(html, "/* OFFERTALOGICA_LANDING_GLASS_V1_7_20260814 */", ".offers-personalize-prompt {");
+  const landingZ = Number(css.match(/html\.social-entry-requested \.social-mobile-entry \{[\s\S]*?z-index: (\d+);/)?.[1]);
+  assert.equal(landingZ, 9000);
+  assert.ok(landingZ < 10000, "la landing deve restare sotto al modal Iubenda standard (z-index 10000)");
+  assert.match(css, /\.iubenda-tp-btn\.iubenda-cs-preferences-link \{ visibility: hidden !important; \}/);
+
   const originalFooter = html.slice(html.lastIndexOf('<footer style="text-align: center;'));
   assert.match(originalFooter, /class="iubenda-white iubenda-noiframe iubenda-embed"[^>]*>Privacy Policy<\/a>/);
   assert.match(originalFooter, /class="iubenda-white iubenda-noiframe iubenda-embed"[^>]*>Cookie Policy<\/a>/);

@@ -1930,16 +1930,17 @@
             .mobile-pdf-primary { animation: none !important; }
         }
 
-        /* OFFERTALOGICA_LANDING_GLASS_V1_4_20260814 */
+        /* OFFERTALOGICA_LANDING_GLASS_V1_7_20260814 */
         .social-mobile-entry { display: none; }
         html.social-entry-requested,
         html.social-entry-requested body { min-height: 100%; overflow: hidden; }
         html.social-entry-requested body { padding: 0; background: #f4f7f5; }
         html.social-entry-requested body > :not(.social-mobile-entry):not(script):not([id*="iubenda"]):not([class*="iubenda"]):not([id^="_iub"]):not([class*="_iub"]) { display: none !important; }
+        html.social-entry-requested .iubenda-tp-btn.iubenda-cs-preferences-link { visibility: hidden !important; }
         html.social-entry-requested .social-mobile-entry {
             position: fixed;
             inset: 0;
-            z-index: 12000;
+            z-index: 9000;
             display: flex;
             align-items: flex-start;
             justify-content: center;
@@ -2440,8 +2441,8 @@
                 <a href="/termini-condizioni.html">Termini e condizioni</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
                 <a href="/casa-smart.html">Casa smart</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
                 <a href="/internet-casa.html">Internet casa</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
-                <a href="https://www.iubenda.com/privacy-policy/36565194" target="_blank" rel="noopener noreferrer">Privacy Policy</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
-                <a href="https://www.iubenda.com/privacy-policy/36565194/cookie-policy" target="_blank" rel="noopener noreferrer">Cookie Policy</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
+                <a href="https://www.iubenda.com/privacy-policy/36565194" class="iubenda-white iubenda-noiframe iubenda-embed">Privacy Policy</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
+                <a href="https://www.iubenda.com/privacy-policy/36565194/cookie-policy" class="iubenda-white iubenda-noiframe iubenda-embed">Cookie Policy</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
                 <button type="button" onclick="apriPreferenzeCookie(event)">Modifica preferenze cookie</button>
             </nav>
         </footer>
