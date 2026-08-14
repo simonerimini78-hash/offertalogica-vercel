@@ -54,14 +54,14 @@ test("landing V1: bootstrap diretto, social e Google convergono sulla stessa lan
   assert.equal(requestedFor("", "#previewToken=test").requested, false);
 });
 
-test("landing V1.2: mostra subito risparmio e due percorsi senza CTA intermedia", () => {
+test("landing V1.3: mostra subito risparmio e due percorsi senza CTA intermedia", () => {
   assert.match(html, /id="social-entry-saving-value"/);
   assert.match(html, /Oggi potresti risparmiare fino a/);
-  assert.match(html, /Come preferisci procedere\?/);
+  assert.match(html, /Come vuoi procedere\?/);
   assert.match(html, /id="landing-self-service"[^>]*disabled/);
-  assert.match(html, /<strong>Faccio da solo<\/strong>/);
+  assert.match(html, /<strong>Confronto in autonomia<\/strong>/);
   assert.match(html, /id="landing-assisted"[^>]*disabled/);
-  assert.match(html, /<strong>Voglio essere seguito<\/strong>/);
+  assert.match(html, /<strong>Preferisco essere guidato<\/strong>/);
   assert.doesNotMatch(html, /id="social-entry-cta"/);
 
   const prepare = between(html, "function preparaRisparmioIngressoSocialMobile", "function urlCalcolatoreDaLanding");
@@ -110,8 +110,8 @@ test("landing V1: tracking riusa track-event e usa i campi gia supportati", () =
   assert.doesNotMatch(html, /fetch\("\/api\/landing/);
 });
 
-test("landing V1.2: usa palette OffertaLogica, vetro piu evidente e resta responsive", () => {
-  const css = between(html, "/* OFFERTALOGICA_LANDING_GLASS_V1_2_20260814 */", ".offers-personalize-prompt {");
+test("landing V1.3: usa palette OffertaLogica, vetro piu evidente e resta responsive", () => {
+  const css = between(html, "/* OFFERTALOGICA_LANDING_GLASS_V1_3_20260814 */", ".offers-personalize-prompt {");
   assert.match(css, /#123044/);
   assert.match(css, /#f4f7f5/);
   assert.match(css, /#087f3a/);
@@ -125,23 +125,33 @@ test("landing V1.2: usa palette OffertaLogica, vetro piu evidente e resta respon
   assert.match(css, /backdrop-filter: blur\(20px\) saturate\(136%\)/);
   assert.match(css, /@media \(max-width: 720px\)/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
+  assert.match(css, /\.social-entry-saving \{[\s\S]*width: min\(100%, 610px\);[\s\S]*border-radius: 30px;[\s\S]*backdrop-filter: blur\(26px\) saturate\(145%\)/);
+  assert.match(css, /\.social-entry-saving strong \{[\s\S]*linear-gradient\(135deg, #087f3a 0%, #18a84b 58%, #73c928 108%\)/);
 });
 
-test("landing V1.2: i due percorsi sono strutturalmente simmetrici e usano testo argento", () => {
-  const css = between(html, "/* OFFERTALOGICA_LANDING_GLASS_V1_2_20260814 */", ".offers-personalize-prompt {");
+test("landing V1.3: disclaimer e compatto e uniforme", () => {
+  assert.match(html, /class="social-entry-disclaimer">Stima basata sui consumi medi di una famiglia e sulle offerte attivabili disponibili oggi\. Il risparmio reale dipende dai tuoi consumi e dalla tariffa attuale\.<\/p>/);
+  assert.doesNotMatch(html, /class="social-entry-copy-small"/);
+  const css = between(html, "/* OFFERTALOGICA_LANDING_GLASS_V1_3_20260814 */", ".offers-personalize-prompt {");
+  assert.match(css, /\.social-entry-disclaimer \{[\s\S]*font-size: clamp\(11\.5px, 1\.7vw, 13px\);[\s\S]*font-weight: 500;/);
+});
+
+test("landing V1.3: i due percorsi sono strutturalmente simmetrici, centrati e usano testo argento", () => {
+  const css = between(html, "/* OFFERTALOGICA_LANDING_GLASS_V1_3_20260814 */", ".offers-personalize-prompt {");
   assert.match(css, /\.social-entry-actions \{[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);[\s\S]*grid-auto-rows: 1fr;[\s\S]*align-items: stretch;/);
-  assert.match(css, /\.social-entry-route \{[\s\S]*height: 100%;[\s\S]*min-height: 118px;[\s\S]*grid-template-rows: minmax\(46px, auto\) 1fr;/);
-  assert.match(css, /\.social-entry-route strong \{[\s\S]*color: #e3e9e7;/);
-  assert.match(css, /\.social-entry-route span \{[\s\S]*color: rgba\(227,233,231,\.86\);/);
+  assert.match(css, /\.social-entry-route \{[\s\S]*height: 100%;[\s\S]*min-height: 118px;[\s\S]*grid-template-rows: minmax\(30px, auto\) minmax\(38px, auto\);/);
+  assert.match(css, /\.social-entry-route \{[\s\S]*justify-items: center;[\s\S]*text-align: center;/);
+  assert.match(css, /\.social-entry-route strong \{[\s\S]*justify-content: center;[\s\S]*color: #e3e9e7;[\s\S]*text-transform: none;/);
+  assert.match(css, /\.social-entry-route span \{[\s\S]*justify-content: center;[\s\S]*color: rgba\(227,233,231,\.86\);/);
   assert.match(css, /@media \(max-width: 720px\)[\s\S]*grid-auto-rows: 1fr;[\s\S]*min-height: 108px;/);
 });
 
-test("landing V1.2: i pulsanti app riusano le classi originali del sito", () => {
+test("landing V1.3: i pulsanti app riusano le classi originali del sito", () => {
   assert.match(html, /class="social-entry-app-link ol-app-access-link ol-app-access-free"/);
   assert.match(html, /class="social-entry-app-link ol-app-access-link ol-app-access-premium"/);
 });
 
-test("landing V1.2: mantiene gli accessi app e non espone la nota partner nella landing", () => {
+test("landing V1.3: mantiene gli accessi app e non espone la nota partner nella landing", () => {
   assert.match(html, /https:\/\/app\.offertalogica\.it\/app\.html\?install=1/);
   assert.match(html, /https:\/\/premium\.offertalogica\.it\/app\.html\?install=1/);
   assert.doesNotMatch(html, /class="social-entry-partner-note"/);
