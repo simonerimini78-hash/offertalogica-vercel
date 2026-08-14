@@ -111,7 +111,7 @@ test("landing V1: tracking riusa track-event e usa i campi gia supportati", () =
 });
 
 test("landing V1.3: usa palette OffertaLogica, vetro piu evidente e resta responsive", () => {
-  const css = between(html, "/* OFFERTALOGICA_LANDING_GLASS_V1_3_20260814 */", ".offers-personalize-prompt {");
+  const css = between(html, "/* OFFERTALOGICA_LANDING_GLASS_V1_4_20260814 */", ".offers-personalize-prompt {");
   assert.match(css, /#123044/);
   assert.match(css, /#f4f7f5/);
   assert.match(css, /#087f3a/);
@@ -132,12 +132,12 @@ test("landing V1.3: usa palette OffertaLogica, vetro piu evidente e resta respon
 test("landing V1.3: disclaimer e compatto e uniforme", () => {
   assert.match(html, /class="social-entry-disclaimer">Stima basata sui consumi medi di una famiglia e sulle offerte attivabili disponibili oggi\. Il risparmio reale dipende dai tuoi consumi e dalla tariffa attuale\.<\/p>/);
   assert.doesNotMatch(html, /class="social-entry-copy-small"/);
-  const css = between(html, "/* OFFERTALOGICA_LANDING_GLASS_V1_3_20260814 */", ".offers-personalize-prompt {");
+  const css = between(html, "/* OFFERTALOGICA_LANDING_GLASS_V1_4_20260814 */", ".offers-personalize-prompt {");
   assert.match(css, /\.social-entry-disclaimer \{[\s\S]*font-size: clamp\(11\.5px, 1\.7vw, 13px\);[\s\S]*font-weight: 500;/);
 });
 
 test("landing V1.3: i due percorsi sono strutturalmente simmetrici, centrati e usano testo argento", () => {
-  const css = between(html, "/* OFFERTALOGICA_LANDING_GLASS_V1_3_20260814 */", ".offers-personalize-prompt {");
+  const css = between(html, "/* OFFERTALOGICA_LANDING_GLASS_V1_4_20260814 */", ".offers-personalize-prompt {");
   assert.match(css, /\.social-entry-actions \{[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);[\s\S]*grid-auto-rows: 1fr;[\s\S]*align-items: stretch;/);
   assert.match(css, /\.social-entry-route \{[\s\S]*height: 100%;[\s\S]*min-height: 118px;[\s\S]*grid-template-rows: minmax\(30px, auto\) minmax\(38px, auto\);/);
   assert.match(css, /\.social-entry-route \{[\s\S]*justify-items: center;[\s\S]*text-align: center;/);
@@ -165,3 +165,28 @@ test("offerte: propone ancora la bolletta senza bloccare la stima media", () => 
   assert.match(html, /modalitaCalcolo === "media"/);
   assert.match(html, /vaiAlCaricatoreScheda\(\{ source: "offers_personalization" \}\)/);
 });
+
+test("landing V1.4: include il footer informativo completo del sito", () => {
+  assert.match(html, /class="social-entry-footer"/);
+  assert.match(html, /&copy; 2026 OffertaLogica\.it - Calcolatore Energetico/);
+  assert.match(html, /Analisi indipendente e trasparente delle offerte Luce e Gas per privati e aziende\./);
+  assert.match(html, /Le stime sono informative e non sostituiscono scheda sintetica, condizioni economiche e contratto del fornitore\./);
+  for (const href of [
+    "/come-funziona.html",
+    "/offerte-luce-gas-aggiornate.html",
+    "/partner.html",
+    "/termini-condizioni.html",
+    "/casa-smart.html",
+    "/internet-casa.html",
+  ]) assert.match(html, new RegExp(`href="${href.replaceAll("/", "\\/").replaceAll(".", "\\.")}"`));
+  assert.match(html, /privacy-policy\/36565194"[^>]*>Privacy Policy<\/a>/);
+  assert.match(html, /privacy-policy\/36565194\/cookie-policy"[^>]*>Cookie Policy<\/a>/);
+  assert.match(html, /onclick="apriPreferenzeCookie\(event\)">Modifica preferenze cookie<\/button>/);
+  assert.match(html, /function apriPreferenzeCookie\(event\)/);
+});
+
+test("landing V1.4: mantiene visibili i contenitori Iubenda e oscura il calcolatore sottostante", () => {
+  const css = between(html, "/* OFFERTALOGICA_LANDING_GLASS_V1_4_20260814 */", ".offers-personalize-prompt {");
+  assert.match(css, /body > :not\(\.social-mobile-entry\):not\(script\):not\(\[id\*="iubenda"\]\):not\(\[class\*="iubenda"\]\):not\(\[id\^="_iub"\]\):not\(\[class\*="_iub"\]\)/);
+});
+

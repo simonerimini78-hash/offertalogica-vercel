@@ -1930,12 +1930,12 @@
             .mobile-pdf-primary { animation: none !important; }
         }
 
-        /* OFFERTALOGICA_LANDING_GLASS_V1_3_20260814 */
+        /* OFFERTALOGICA_LANDING_GLASS_V1_4_20260814 */
         .social-mobile-entry { display: none; }
         html.social-entry-requested,
         html.social-entry-requested body { min-height: 100%; overflow: hidden; }
         html.social-entry-requested body { padding: 0; background: #f4f7f5; }
-        html.social-entry-requested body > :not(.social-mobile-entry):not(script) { display: none !important; }
+        html.social-entry-requested body > :not(.social-mobile-entry):not(script):not([id*="iubenda"]):not([class*="iubenda"]):not([id^="_iub"]):not([class*="_iub"]) { display: none !important; }
         html.social-entry-requested .social-mobile-entry {
             position: fixed;
             inset: 0;
@@ -2235,6 +2235,52 @@
             min-height: 44px;
             font-size: 13px;
         }
+        .social-entry-footer {
+            width: 100%;
+            margin-top: 2px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(18, 48, 68, .10);
+            color: #647985;
+            font-size: 11.5px;
+            line-height: 1.45;
+            text-align: center;
+        }
+        .social-entry-footer p { margin: 0; }
+        .social-entry-footer-brand {
+            color: #123044;
+            font-weight: 850;
+        }
+        .social-entry-footer-copy { margin-top: 4px !important; }
+        .social-entry-footer-disclaimer {
+            max-width: 720px;
+            margin: 4px auto 0 !important;
+            color: #647985;
+            font-size: 11px;
+        }
+        .social-entry-footer-links {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 4px 8px;
+            margin-top: 9px;
+        }
+        .social-entry-footer-links a,
+        .social-entry-footer-links button {
+            border: 0;
+            padding: 2px 0;
+            background: transparent;
+            color: #526b75 !important;
+            font: inherit;
+            font-weight: 650;
+            text-decoration: none !important;
+            cursor: pointer;
+        }
+        .social-entry-footer-links a:hover,
+        .social-entry-footer-links button:hover { color: #087f3a !important; text-decoration: underline !important; }
+        .social-entry-footer-links a:focus-visible,
+        .social-entry-footer-links button:focus-visible { outline: 3px solid rgba(24,168,75,.18); outline-offset: 2px; border-radius: 4px; }
+        .social-entry-footer-separator { color: rgba(100,121,133,.60); user-select: none; }
         @media (max-width: 720px) {
             html.social-entry-requested .social-mobile-entry {
                 padding: max(18px, calc(env(safe-area-inset-top) + 10px)) 12px max(18px, env(safe-area-inset-bottom));
@@ -2383,6 +2429,22 @@
             <a class="social-entry-app-link ol-app-access-link ol-app-access-free" id="landing-free-app" href="https://app.offertalogica.it/app.html?install=1">Scarica app gratuita</a>
             <a class="social-entry-app-link ol-app-access-link ol-app-access-premium" id="landing-premium-app" href="https://premium.offertalogica.it/app.html?install=1">Scarica app Premium</a>
         </nav>
+        <footer class="social-entry-footer">
+            <p class="social-entry-footer-brand">&copy; 2026 OffertaLogica.it - Calcolatore Energetico</p>
+            <p class="social-entry-footer-copy">Analisi indipendente e trasparente delle offerte Luce e Gas per privati e aziende.</p>
+            <p class="social-entry-footer-disclaimer">Le stime sono informative e non sostituiscono scheda sintetica, condizioni economiche e contratto del fornitore.</p>
+            <nav class="social-entry-footer-links" aria-label="Informazioni e privacy">
+                <a href="/come-funziona.html">Come funziona</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
+                <a href="/offerte-luce-gas-aggiornate.html">Offerte aggiornate</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
+                <a href="/partner.html">Partner</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
+                <a href="/termini-condizioni.html">Termini e condizioni</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
+                <a href="/casa-smart.html">Casa smart</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
+                <a href="/internet-casa.html">Internet casa</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
+                <a href="https://www.iubenda.com/privacy-policy/36565194" class="iubenda-white iubenda-noiframe iubenda-embed">Privacy Policy</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
+                <a href="https://www.iubenda.com/privacy-policy/36565194/cookie-policy" class="iubenda-white iubenda-noiframe iubenda-embed">Cookie Policy</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
+                <button type="button" onclick="apriPreferenzeCookie(event)">Modifica preferenze cookie</button>
+            </nav>
+        </footer>
     </div>
 </section>
 
