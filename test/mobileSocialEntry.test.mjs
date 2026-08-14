@@ -110,17 +110,24 @@ test("landing V1: tracking riusa track-event e usa i campi gia supportati", () =
   assert.doesNotMatch(html, /fetch\("\/api\/landing/);
 });
 
-test("landing V1: applica il sistema Glass OffertaLogica e resta responsive", () => {
+test("landing V1.1: usa la palette ufficiale di app e sito e resta responsive", () => {
   const css = between(html, "/* OFFERTALOGICA_LANDING_GLASS_V1_20260814 */", ".offers-personalize-prompt {");
-  assert.match(css, /#0d2d3d/);
-  assert.match(css, /#e3e9e7/);
-  assert.match(css, /#055d38/);
-  assert.match(css, /#07834a/);
-  assert.match(css, /#16ad5f/);
-  assert.match(css, /rgba\(169, 232, 62/);
+  assert.match(css, /#123044/);
+  assert.match(css, /#f4f7f5/);
+  assert.match(css, /#087f3a/);
+  assert.match(css, /#18a84b/);
+  assert.match(css, /#73c928/);
+  assert.match(css, /rgba\(132, 209, 38/);
+  assert.match(css, /background: linear-gradient\(145deg,#087f3a 0%,#18a84b 56%,#73c928 100%\)/);
+  assert.match(css, /filter: saturate\(1\.08\) brightness\(1\.02\)/);
   assert.match(css, /backdrop-filter: blur\(24px\)/);
   assert.match(css, /@media \(max-width: 720px\)/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
+});
+
+test("landing V1.1: i pulsanti app riusano le classi originali del sito", () => {
+  assert.match(html, /class="social-entry-app-link ol-app-access-link ol-app-access-free"/);
+  assert.match(html, /class="social-entry-app-link ol-app-access-link ol-app-access-premium"/);
 });
 
 test("landing V1: mantiene accessi app e informativa sul partner", () => {

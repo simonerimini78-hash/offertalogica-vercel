@@ -1934,7 +1934,7 @@
         .social-mobile-entry { display: none; }
         html.social-entry-requested,
         html.social-entry-requested body { min-height: 100%; overflow: hidden; }
-        html.social-entry-requested body { padding: 0; background: #e3e9e7; }
+        html.social-entry-requested body { padding: 0; background: #f4f7f5; }
         html.social-entry-requested body > :not(.social-mobile-entry):not(script) { display: none !important; }
         html.social-entry-requested .social-mobile-entry {
             position: fixed;
@@ -1947,10 +1947,10 @@
             padding: max(24px, calc(env(safe-area-inset-top) + 12px)) clamp(14px, 3vw, 30px) max(24px, env(safe-area-inset-bottom));
             overflow-y: auto;
             background:
-                radial-gradient(circle at 18% 12%, rgba(169, 232, 62, .24), transparent 30%),
-                radial-gradient(circle at 82% 26%, rgba(22, 173, 95, .20), transparent 34%),
-                radial-gradient(circle at 48% 92%, rgba(5, 93, 56, .12), transparent 36%),
-                linear-gradient(145deg, #eef3f1 0%, #e3e9e7 52%, #f8fbfa 100%);
+                radial-gradient(circle at 18% 12%, rgba(132, 209, 38, .18), transparent 30%),
+                radial-gradient(circle at 82% 26%, rgba(24, 168, 75, .16), transparent 34%),
+                radial-gradient(circle at 48% 92%, rgba(8, 127, 58, .10), transparent 36%),
+                linear-gradient(145deg, #f4f7f5 0%, #eef5f0 52%, #ffffff 100%);
         }
         .social-entry-card {
             position: relative;
@@ -1965,9 +1965,9 @@
             border: 1px solid rgba(255, 255, 255, .82);
             border-radius: clamp(26px, 4vw, 38px);
             background:
-                linear-gradient(160deg, rgba(255, 255, 255, .78) 0%, rgba(255, 255, 255, .44) 46%, rgba(227, 233, 231, .58) 100%);
+                linear-gradient(160deg, rgba(255, 255, 255, .82) 0%, rgba(255, 255, 255, .52) 46%, rgba(238, 245, 240, .66) 100%);
             box-shadow:
-                0 28px 68px rgba(13, 45, 61, .16),
+                0 28px 68px rgba(18, 48, 68, .16),
                 inset 0 1px 0 rgba(255, 255, 255, .92);
             -webkit-backdrop-filter: blur(24px) saturate(126%);
             backdrop-filter: blur(24px) saturate(126%);
@@ -1982,7 +1982,7 @@
             left: -90px;
             top: -82px;
             border-radius: 999px;
-            background: linear-gradient(135deg, rgba(7, 131, 74, .30), rgba(169, 232, 62, .18));
+            background: linear-gradient(145deg, rgba(8, 127, 58, .28), rgba(132, 209, 38, .18));
             filter: blur(22px);
             pointer-events: none;
         }
@@ -1990,7 +1990,7 @@
             width: min(70vw, 310px);
             height: auto;
             margin-bottom: 2px;
-            filter: drop-shadow(0 11px 24px rgba(13, 45, 61, .10));
+            filter: drop-shadow(0 11px 24px rgba(18, 48, 68, .10));
         }
         .social-entry-eyebrow {
             display: inline-flex;
@@ -1998,10 +1998,10 @@
             justify-content: center;
             margin: 0;
             padding: 8px 14px;
-            border: 1px solid rgba(22, 173, 95, .28);
+            border: 1px solid rgba(24, 168, 75, .28);
             border-radius: 999px;
             background: rgba(255, 255, 255, .52);
-            color: #07834a;
+            color: #087f3a;
             font-size: 12px;
             font-weight: 900;
             letter-spacing: .05em;
@@ -2011,7 +2011,7 @@
         .social-entry-title {
             max-width: 650px;
             margin: 0;
-            color: #0d2d3d;
+            color: #123044;
             font-size: clamp(30px, 5vw, 48px);
             line-height: 1.06;
             letter-spacing: -.04em;
@@ -2024,15 +2024,15 @@
             margin: 0;
         }
         .social-entry-saving strong {
-            color: #16ad5f;
+            color: #18a84b;
             font-size: clamp(66px, 12vw, 104px);
             line-height: .96;
             letter-spacing: -.06em;
             font-variant-numeric: tabular-nums;
-            text-shadow: 0 12px 28px rgba(22, 173, 95, .16);
+            text-shadow: 0 12px 28px rgba(24, 168, 75, .16);
         }
         .social-entry-saving span {
-            color: #0d2d3d;
+            color: #123044;
             font-size: clamp(20px, 3.8vw, 28px);
             line-height: 1.12;
             font-weight: 850;
@@ -2043,25 +2043,25 @@
             letter-spacing: -.02em;
             text-shadow: none;
         }
-        .social-entry-saving.is-loading span { color: #6b7e83; font-size: 16px; font-weight: 750; }
+        .social-entry-saving.is-loading span { color: #647985; font-size: 16px; font-weight: 750; }
         .social-entry-copy {
             max-width: 610px;
             margin: 0;
-            color: #4c646b;
+            color: #647985;
             font-size: clamp(14px, 2vw, 16px);
             line-height: 1.5;
         }
         .social-entry-copy-small {
             max-width: 610px;
             margin: -7px 0 0;
-            color: #667b81;
+            color: #647985;
             font-size: 12px;
             line-height: 1.4;
             font-weight: 650;
         }
         .social-entry-choice-title {
             margin: 3px 0 -3px;
-            color: #0d2d3d;
+            color: #123044;
             font-size: clamp(20px, 3vw, 26px);
             line-height: 1.15;
             letter-spacing: -.025em;
@@ -2073,27 +2073,39 @@
             gap: 12px;
         }
         .social-entry-route {
+            position: relative;
+            isolation: isolate;
+            overflow: hidden;
             width: 100%;
             min-height: 96px;
             display: grid;
             align-content: center;
             gap: 5px;
-            border: 1px solid rgba(255, 255, 255, .86);
-            border-radius: 22px;
+            border: 0;
+            border-radius: 24px;
             padding: 16px 18px;
-            background:
-                linear-gradient(145deg, rgba(255, 255, 255, .76), rgba(235, 243, 239, .56));
-            color: #0d2d3d;
+            background: linear-gradient(145deg,#087f3a 0%,#18a84b 56%,#73c928 100%);
+            color: #ffffff;
             text-align: left;
             cursor: pointer;
-            box-shadow:
-                0 14px 30px rgba(13, 45, 61, .10),
-                inset 0 1px 0 rgba(255, 255, 255, .94);
-            transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease, background .18s ease;
+            box-shadow: 0 16px 34px rgba(24,168,75,.20);
+            transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
+        }
+        .social-entry-route::before {
+            content: "";
+            position: absolute;
+            z-index: -1;
+            width: 120px;
+            height: 120px;
+            right: -55px;
+            top: -62px;
+            border-radius: 999px;
+            background: rgba(255,255,255,.12);
+            pointer-events: none;
         }
         .social-entry-route strong {
             display: block;
-            color: #055d38;
+            color: #ffffff;
             font-size: clamp(17px, 2.2vw, 20px);
             line-height: 1.16;
             font-weight: 950;
@@ -2102,24 +2114,24 @@
         }
         .social-entry-route span {
             display: block;
-            color: #4c646b;
+            color: rgba(255,255,255,.88);
             font-size: 13px;
             line-height: 1.35;
             font-weight: 700;
         }
         .social-entry-route:hover:not(:disabled),
         .social-entry-route:focus-visible:not(:disabled) {
-            transform: translateY(-2px);
-            border-color: rgba(22, 173, 95, .46);
-            background: linear-gradient(145deg, rgba(255,255,255,.88), rgba(226, 244, 233, .74));
-            box-shadow: 0 18px 36px rgba(5, 93, 56, .15), inset 0 1px 0 rgba(255,255,255,.98);
+            transform: translateY(-1px);
+            filter: saturate(1.08) brightness(1.02);
+            box-shadow: 0 20px 42px rgba(22,163,74,.30), inset 0 1px 0 rgba(255,255,255,.22);
         }
-        .social-entry-route:focus-visible { outline: 4px solid rgba(22, 173, 95, .20); outline-offset: 3px; }
+        .social-entry-route:active:not(:disabled) { transform: scale(.982); }
+        .social-entry-route:focus-visible { outline: 4px solid rgba(24,168,75,.22); outline-offset: 3px; }
         .social-entry-route:disabled { cursor: wait; opacity: .62; }
         .social-entry-partner-note {
             max-width: 680px;
             margin: -2px 0 0;
-            color: #657a80;
+            color: #647985;
             font-size: 12px;
             line-height: 1.4;
         }
@@ -2127,10 +2139,10 @@
             width: 100%;
             margin: -2px 0 0;
             padding: 10px 12px;
-            border: 1px solid rgba(7, 131, 74, .22);
+            border: 1px solid rgba(8, 127, 58, .22);
             border-radius: 14px;
-            background: rgba(240, 253, 244, .70);
-            color: #055d38;
+            background: rgba(232, 248, 237, .84);
+            color: #087c39;
             font-size: 13px;
             line-height: 1.4;
             font-weight: 750;
@@ -2143,26 +2155,13 @@
             gap: 9px;
             margin-top: 2px;
             padding-top: 14px;
-            border-top: 1px solid rgba(13, 45, 61, .10);
+            border-top: 1px solid rgba(18, 48, 68, .10);
         }
         .social-entry-app-link {
+            width: 100%;
             min-height: 44px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            border: 1px solid rgba(255, 255, 255, .82);
-            border-radius: 15px;
-            padding: 10px 12px;
-            background: rgba(255, 255, 255, .48);
-            color: #0d2d3d !important;
             font-size: 13px;
-            line-height: 1.2;
-            font-weight: 850;
-            text-decoration: none !important;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,.88);
         }
-        .social-entry-app-link:hover { border-color: rgba(22, 173, 95, .34); background: rgba(255,255,255,.72); }
-        .social-entry-app-link:focus-visible { outline: 3px solid rgba(22,173,95,.20); outline-offset: 3px; }
         @media (max-width: 720px) {
             html.social-entry-requested .social-mobile-entry {
                 padding: max(18px, calc(env(safe-area-inset-top) + 10px)) 12px max(18px, env(safe-area-inset-bottom));
@@ -2310,8 +2309,8 @@
         <p class="social-entry-partner-note">Il percorso assistito sarà gestito dal partner Switcho.</p>
         <p class="social-entry-status" id="landing-assisted-status" role="status" tabindex="-1" hidden></p>
         <nav class="social-entry-apps" aria-label="App OffertaLogica">
-            <a class="social-entry-app-link" id="landing-free-app" href="https://app.offertalogica.it/app.html?install=1">Scarica app gratuita</a>
-            <a class="social-entry-app-link" id="landing-premium-app" href="https://premium.offertalogica.it/app.html?install=1">Scarica app Premium</a>
+            <a class="social-entry-app-link ol-app-access-link ol-app-access-free" id="landing-free-app" href="https://app.offertalogica.it/app.html?install=1">Scarica app gratuita</a>
+            <a class="social-entry-app-link ol-app-access-link ol-app-access-premium" id="landing-premium-app" href="https://premium.offertalogica.it/app.html?install=1">Scarica app Premium</a>
         </nav>
     </div>
 </section>
