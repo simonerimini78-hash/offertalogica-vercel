@@ -192,18 +192,19 @@ test("landing V1.4: mantiene visibili i contenitori Iubenda e oscura il calcolat
 
 
 
-test("landing V1.5: i modali Iubenda restano sopra la landing e non alterano l'overflow host", () => {
+test("landing V1.6: Privacy e Cookie usano link diretti e non il modal Iubenda dentro l'overlay", () => {
   const landing = between(html, '<section class="social-mobile-entry"', '<aside class="mobile-pdf-status"');
   const privacy = landing.match(/<a href="https:\/\/www\.iubenda\.com\/privacy-policy\/36565194"[^>]*>Privacy Policy<\/a>/)?.[0] || "";
   const cookie = landing.match(/<a href="https:\/\/www\.iubenda\.com\/privacy-policy\/36565194\/cookie-policy"[^>]*>Cookie Policy<\/a>/)?.[0] || "";
   for (const anchor of [privacy, cookie]) {
-    assert.ok(anchor, "link Iubenda landing non trovato");
-    assert.match(anchor, /class="iubenda-white iubenda-noiframe iubenda-embed"/);
-    assert.match(anchor, /data-iub-z-index="20000"/);
-    assert.match(anchor, /data-iub-overflow="false"/);
+    assert.ok(anchor, "link policy landing non trovato");
+    assert.match(anchor, /target="_blank"/);
+    assert.match(anchor, /rel="noopener noreferrer"/);
+    assert.doesNotMatch(anchor, /iubenda-embed/);
+    assert.doesNotMatch(anchor, /data-iub-z-index/);
+    assert.doesNotMatch(anchor, /data-iub-overflow/);
   }
-  const css = between(html, "/* OFFERTALOGICA_LANDING_GLASS_V1_4_20260814 */", ".offers-personalize-prompt {");
-  const landingZ = Number(css.match(/\.social-mobile-entry \{[\s\S]*?z-index:\s*(\d+)/)?.[1] || 0);
-  assert.ok(landingZ > 0, "z-index landing non trovato");
-  assert.ok(20000 > landingZ, `modal Iubenda deve stare sopra la landing (${landingZ})`);
+  const originalFooter = html.slice(html.lastIndexOf('<footer style="text-align: center;'));
+  assert.match(originalFooter, /class="iubenda-white iubenda-noiframe iubenda-embed"[^>]*>Privacy Policy<\/a>/);
+  assert.match(originalFooter, /class="iubenda-white iubenda-noiframe iubenda-embed"[^>]*>Cookie Policy<\/a>/);
 });
