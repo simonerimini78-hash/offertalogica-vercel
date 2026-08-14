@@ -1930,11 +1930,11 @@
             .mobile-pdf-primary { animation: none !important; }
         }
 
-        /* OFFERTALOGICA_SOCIAL_ENTRY_MOBILE_V1_20260730 */
+        /* OFFERTALOGICA_LANDING_GLASS_V1_20260814 */
         .social-mobile-entry { display: none; }
         html.social-entry-requested,
         html.social-entry-requested body { min-height: 100%; overflow: hidden; }
-        html.social-entry-requested body { padding: 0; background: #f7fbf7; }
+        html.social-entry-requested body { padding: 0; background: #e3e9e7; }
         html.social-entry-requested body > :not(.social-mobile-entry):not(script) { display: none !important; }
         html.social-entry-requested .social-mobile-entry {
             position: fixed;
@@ -1944,115 +1944,258 @@
             align-items: flex-start;
             justify-content: center;
             min-height: 100dvh;
-            padding: max(32px, calc(env(safe-area-inset-top) + 12px)) 18px max(22px, env(safe-area-inset-bottom));
+            padding: max(24px, calc(env(safe-area-inset-top) + 12px)) clamp(14px, 3vw, 30px) max(24px, env(safe-area-inset-bottom));
             overflow-y: auto;
             background:
-                radial-gradient(circle at 50% 12%, rgba(126, 211, 33, .16), transparent 31%),
-                radial-gradient(circle at 12% 82%, rgba(22, 163, 74, .10), transparent 29%),
-                linear-gradient(180deg, #ffffff 0%, #f7fbf7 100%);
+                radial-gradient(circle at 18% 12%, rgba(169, 232, 62, .24), transparent 30%),
+                radial-gradient(circle at 82% 26%, rgba(22, 173, 95, .20), transparent 34%),
+                radial-gradient(circle at 48% 92%, rgba(5, 93, 56, .12), transparent 36%),
+                linear-gradient(145deg, #eef3f1 0%, #e3e9e7 52%, #f8fbfa 100%);
         }
         .social-entry-card {
-            width: min(100%, 480px);
+            position: relative;
+            isolation: isolate;
+            overflow: hidden;
+            width: min(100%, 860px);
             display: grid;
             justify-items: center;
-            gap: 15px;
-            padding: 4px 4px 12px;
-            text-align: center;
+            gap: clamp(12px, 2vw, 18px);
             margin-block: auto;
+            padding: clamp(22px, 4vw, 38px);
+            border: 1px solid rgba(255, 255, 255, .82);
+            border-radius: clamp(26px, 4vw, 38px);
+            background:
+                linear-gradient(160deg, rgba(255, 255, 255, .78) 0%, rgba(255, 255, 255, .44) 46%, rgba(227, 233, 231, .58) 100%);
+            box-shadow:
+                0 28px 68px rgba(13, 45, 61, .16),
+                inset 0 1px 0 rgba(255, 255, 255, .92);
+            -webkit-backdrop-filter: blur(24px) saturate(126%);
+            backdrop-filter: blur(24px) saturate(126%);
+            text-align: center;
+        }
+        .social-entry-card::before {
+            content: "";
+            position: absolute;
+            z-index: -1;
+            width: 360px;
+            height: 180px;
+            left: -90px;
+            top: -82px;
+            border-radius: 999px;
+            background: linear-gradient(135deg, rgba(7, 131, 74, .30), rgba(169, 232, 62, .18));
+            filter: blur(22px);
+            pointer-events: none;
         }
         .social-entry-logo {
-            width: min(78vw, 300px);
+            width: min(70vw, 310px);
             height: auto;
-            margin-bottom: 6px;
-            filter: drop-shadow(0 10px 24px rgba(15, 23, 42, .08));
+            margin-bottom: 2px;
+            filter: drop-shadow(0 11px 24px rgba(13, 45, 61, .10));
         }
         .social-entry-eyebrow {
             display: inline-flex;
             align-items: center;
-            gap: 7px;
+            justify-content: center;
             margin: 0;
-            padding: 7px 12px;
-            border: 1px solid #bbf7d0;
+            padding: 8px 14px;
+            border: 1px solid rgba(22, 173, 95, .28);
             border-radius: 999px;
-            background: rgba(240, 253, 244, .92);
-            color: #15803d;
+            background: rgba(255, 255, 255, .52);
+            color: #07834a;
             font-size: 12px;
             font-weight: 900;
-            letter-spacing: .035em;
+            letter-spacing: .05em;
             text-transform: uppercase;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, .86);
         }
         .social-entry-title {
-            max-width: 420px;
+            max-width: 650px;
             margin: 0;
-            color: #0f172a;
-            font-size: clamp(28px, 8.3vw, 42px);
-            line-height: 1.08;
-            letter-spacing: -.035em;
+            color: #0d2d3d;
+            font-size: clamp(30px, 5vw, 48px);
+            line-height: 1.06;
+            letter-spacing: -.04em;
         }
         .social-entry-saving {
             display: grid;
             justify-items: center;
-            gap: 1px;
-            min-height: 119px;
-            margin: 2px 0 0;
+            gap: 3px;
+            min-height: 112px;
+            margin: 0;
         }
         .social-entry-saving strong {
-            color: #20b52f;
-            font-size: clamp(62px, 19vw, 94px);
-            line-height: .98;
-            letter-spacing: -.055em;
+            color: #16ad5f;
+            font-size: clamp(66px, 12vw, 104px);
+            line-height: .96;
+            letter-spacing: -.06em;
             font-variant-numeric: tabular-nums;
-            text-shadow: 0 9px 24px rgba(32, 181, 47, .15);
+            text-shadow: 0 12px 28px rgba(22, 173, 95, .16);
         }
         .social-entry-saving span {
-            color: #0f172a;
-            font-size: clamp(22px, 6.1vw, 30px);
-            line-height: 1.1;
-            font-weight: 800;
+            color: #0d2d3d;
+            font-size: clamp(20px, 3.8vw, 28px);
+            line-height: 1.12;
+            font-weight: 850;
         }
         .social-entry-saving.is-loading strong {
-            color: #64748b;
-            font-size: clamp(25px, 7vw, 34px);
+            color: #5f747a;
+            font-size: clamp(24px, 4.5vw, 34px);
             letter-spacing: -.02em;
             text-shadow: none;
         }
-        .social-entry-saving.is-loading span { color: #64748b; font-size: 16px; font-weight: 700; }
+        .social-entry-saving.is-loading span { color: #6b7e83; font-size: 16px; font-weight: 750; }
         .social-entry-copy {
-            max-width: 410px;
+            max-width: 610px;
             margin: 0;
-            color: #475569;
-            font-size: 15px;
-            line-height: 1.48;
+            color: #4c646b;
+            font-size: clamp(14px, 2vw, 16px);
+            line-height: 1.5;
         }
-        .social-entry-cta {
+        .social-entry-copy-small {
+            max-width: 610px;
+            margin: -7px 0 0;
+            color: #667b81;
+            font-size: 12px;
+            line-height: 1.4;
+            font-weight: 650;
+        }
+        .social-entry-choice-title {
+            margin: 3px 0 -3px;
+            color: #0d2d3d;
+            font-size: clamp(20px, 3vw, 26px);
+            line-height: 1.15;
+            letter-spacing: -.025em;
+        }
+        .social-entry-actions {
             width: 100%;
-            min-height: 66px;
-            margin-top: 8px;
-            border: 0;
-            border-radius: 18px;
-            padding: 15px 20px;
-            background: var(--logo-green-gradient);
-            color: #ffffff;
-            font-size: 21px;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+        .social-entry-route {
+            width: 100%;
+            min-height: 96px;
+            display: grid;
+            align-content: center;
+            gap: 5px;
+            border: 1px solid rgba(255, 255, 255, .86);
+            border-radius: 22px;
+            padding: 16px 18px;
+            background:
+                linear-gradient(145deg, rgba(255, 255, 255, .76), rgba(235, 243, 239, .56));
+            color: #0d2d3d;
+            text-align: left;
+            cursor: pointer;
+            box-shadow:
+                0 14px 30px rgba(13, 45, 61, .10),
+                inset 0 1px 0 rgba(255, 255, 255, .94);
+            transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease, background .18s ease;
+        }
+        .social-entry-route strong {
+            display: block;
+            color: #055d38;
+            font-size: clamp(17px, 2.2vw, 20px);
+            line-height: 1.16;
             font-weight: 950;
             letter-spacing: -.015em;
-            cursor: pointer;
-            box-shadow: 0 15px 34px rgba(22, 163, 74, .28), 0 0 0 0 rgba(126, 211, 33, .32);
-            animation: social-entry-pulse 1.9s ease-in-out infinite;
+            text-transform: uppercase;
         }
-        .social-entry-cta:hover { transform: translateY(-1px); }
-        .social-entry-cta:focus-visible { outline: 4px solid rgba(37, 99, 235, .25); outline-offset: 4px; }
-        .social-entry-cta:disabled {
-            cursor: wait;
-            opacity: .72;
-            animation: none;
-            box-shadow: 0 10px 24px rgba(22, 163, 74, .14);
+        .social-entry-route span {
+            display: block;
+            color: #4c646b;
+            font-size: 13px;
+            line-height: 1.35;
+            font-weight: 700;
         }
-        .social-entry-note { margin: -3px 0 0; color: #64748b; font-size: 12px; font-weight: 700; }
-        @keyframes social-entry-pulse {
-            0%, 100% { transform: scale(1); box-shadow: 0 15px 34px rgba(22, 163, 74, .28), 0 0 0 0 rgba(126, 211, 33, .30); }
-            50% { transform: scale(1.025); box-shadow: 0 18px 42px rgba(22, 163, 74, .34), 0 0 0 13px rgba(126, 211, 33, 0); }
+        .social-entry-route:hover:not(:disabled),
+        .social-entry-route:focus-visible:not(:disabled) {
+            transform: translateY(-2px);
+            border-color: rgba(22, 173, 95, .46);
+            background: linear-gradient(145deg, rgba(255,255,255,.88), rgba(226, 244, 233, .74));
+            box-shadow: 0 18px 36px rgba(5, 93, 56, .15), inset 0 1px 0 rgba(255,255,255,.98);
         }
+        .social-entry-route:focus-visible { outline: 4px solid rgba(22, 173, 95, .20); outline-offset: 3px; }
+        .social-entry-route:disabled { cursor: wait; opacity: .62; }
+        .social-entry-partner-note {
+            max-width: 680px;
+            margin: -2px 0 0;
+            color: #657a80;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        .social-entry-status {
+            width: 100%;
+            margin: -2px 0 0;
+            padding: 10px 12px;
+            border: 1px solid rgba(7, 131, 74, .22);
+            border-radius: 14px;
+            background: rgba(240, 253, 244, .70);
+            color: #055d38;
+            font-size: 13px;
+            line-height: 1.4;
+            font-weight: 750;
+        }
+        .social-entry-status[hidden] { display: none !important; }
+        .social-entry-apps {
+            width: 100%;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 9px;
+            margin-top: 2px;
+            padding-top: 14px;
+            border-top: 1px solid rgba(13, 45, 61, .10);
+        }
+        .social-entry-app-link {
+            min-height: 44px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(255, 255, 255, .82);
+            border-radius: 15px;
+            padding: 10px 12px;
+            background: rgba(255, 255, 255, .48);
+            color: #0d2d3d !important;
+            font-size: 13px;
+            line-height: 1.2;
+            font-weight: 850;
+            text-decoration: none !important;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.88);
+        }
+        .social-entry-app-link:hover { border-color: rgba(22, 173, 95, .34); background: rgba(255,255,255,.72); }
+        .social-entry-app-link:focus-visible { outline: 3px solid rgba(22,173,95,.20); outline-offset: 3px; }
+        @media (max-width: 720px) {
+            html.social-entry-requested .social-mobile-entry {
+                padding: max(18px, calc(env(safe-area-inset-top) + 10px)) 12px max(18px, env(safe-area-inset-bottom));
+            }
+            .social-entry-card {
+                width: min(100%, 520px);
+                gap: 11px;
+                padding: 19px 15px 18px;
+                border-radius: 28px;
+            }
+            .social-entry-logo { width: min(66vw, 250px); }
+            .social-entry-title { font-size: clamp(27px, 8.1vw, 38px); }
+            .social-entry-saving { min-height: 94px; }
+            .social-entry-saving strong { font-size: clamp(58px, 18vw, 86px); }
+            .social-entry-saving span { font-size: clamp(18px, 5.3vw, 24px); }
+            .social-entry-actions { grid-template-columns: 1fr; gap: 9px; }
+            .social-entry-route { min-height: 76px; padding: 13px 15px; border-radius: 19px; }
+            .social-entry-route strong { font-size: 17px; }
+            .social-entry-route span { font-size: 12.5px; }
+        }
+        @media (max-width: 380px) {
+            .social-entry-card { padding-inline: 12px; }
+            .social-entry-logo { width: min(62vw, 220px); }
+            .social-entry-eyebrow { font-size: 10.5px; padding: 7px 10px; }
+            .social-entry-copy { font-size: 13.5px; }
+            .social-entry-apps { grid-template-columns: 1fr; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .social-entry-route { transition: none; }
+            .social-entry-route:hover:not(:disabled),
+            .social-entry-route:focus-visible:not(:disabled) { transform: none; }
+        }
+
         .offers-personalize-prompt {
             margin: 0 0 18px;
             padding: 15px;
@@ -2127,15 +2270,15 @@
 (function () {
     try {
         const params = new URLSearchParams(window.location.search || "");
-        const source = String(params.get("utm_source") || params.get("source") || "").toLowerCase();
-        const entry = String(params.get("entry") || "").toLowerCase();
-        const explicitSocial = params.get("social") === "1" || ["social", "instagram", "reel", "linkinbio"].includes(entry);
-        const socialSource = ["instagram", "ig", "reel", "linkinbio", "social"].some((token) => source.includes(token));
-        const mobile = window.matchMedia("(max-width: 768px)").matches;
-        const requested = Boolean(window.__OFFERTALOGICA_SOCIAL_ENTRY_FORCE__) || (mobile && (explicitSocial || socialSource));
+        const hashParams = new URLSearchParams(String(window.location.hash || "").replace(/^#/, ""));
+        const staffPreview = ["staff", "staffToken", "previewToken"].some((key) => params.has(key) || hashParams.has(key));
+        const calculatorBypass = params.get("landing") === "0" || String(params.get("entry") || "").toLowerCase() === "calculator";
+        const requested = !staffPreview && (Boolean(window.__OFFERTALOGICA_LANDING_FORCE__) || !calculatorBypass);
+        window.__OFFERTALOGICA_LANDING_REQUESTED__ = requested;
         window.__OFFERTALOGICA_SOCIAL_ENTRY_REQUESTED__ = requested;
         if (requested) document.documentElement.classList.add("social-entry-requested");
     } catch {
+        window.__OFFERTALOGICA_LANDING_REQUESTED__ = false;
         window.__OFFERTALOGICA_SOCIAL_ENTRY_REQUESTED__ = false;
     }
 })();
@@ -2151,9 +2294,25 @@
             <strong id="social-entry-saving-value">Aggiorniamo le offerte di oggi</strong>
             <span id="social-entry-saving-period">attendi qualche istante</span>
         </div>
-        <p class="social-entry-copy">Stima basata sui consumi medi di una famiglia e sulle migliori offerte attivabili disponibili oggi.</p>
-        <button type="button" class="social-entry-cta" id="social-entry-cta" disabled>Scopri l'offerta</button>
-        <p class="social-entry-note">Senza bolletta e senza inserire consumi.</p>
+        <p class="social-entry-copy">Stima basata sui consumi medi di una famiglia e sulle offerte attivabili disponibili oggi.</p>
+        <p class="social-entry-copy-small">Il risparmio reale dipende dai tuoi consumi e dalla tariffa attuale.</p>
+        <h2 class="social-entry-choice-title">Come preferisci procedere?</h2>
+        <div class="social-entry-actions" aria-label="Scegli come procedere">
+            <button type="button" class="social-entry-route" id="landing-self-service" disabled>
+                <strong>Confronto da solo</strong>
+                <span>Voglio confrontare le offerte e scegliere in autonomia.</span>
+            </button>
+            <button type="button" class="social-entry-route" id="landing-assisted" disabled>
+                <strong>Preferisco essere seguito</strong>
+                <span>Voglio essere accompagnato nella scelta e nel cambio di offerta.</span>
+            </button>
+        </div>
+        <p class="social-entry-partner-note">Il percorso assistito sarà gestito dal partner Switcho.</p>
+        <p class="social-entry-status" id="landing-assisted-status" role="status" tabindex="-1" hidden></p>
+        <nav class="social-entry-apps" aria-label="App OffertaLogica">
+            <a class="social-entry-app-link" id="landing-free-app" href="https://app.offertalogica.it/app.html?install=1">Scarica app gratuita</a>
+            <a class="social-entry-app-link" id="landing-premium-app" href="https://premium.offertalogica.it/app.html?install=1">Scarica app Premium</a>
+        </nav>
     </div>
 </section>
 
@@ -10698,16 +10857,37 @@ function formattaRisparmioSocial(value) {
   return `${new Intl.NumberFormat("it-IT", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount)} €`;
 }
 
+const SWITCHO_LANDING_URL = "";
+
+function sorgenteIngressoLanding() {
+  const params = new URLSearchParams(window.location.search || "");
+  const explicit = String(params.get("utm_source") || params.get("source") || "").trim().toLowerCase();
+  if (explicit) return explicit.slice(0, 80);
+  try {
+    const referrer = document.referrer ? new URL(document.referrer) : null;
+    if (referrer?.hostname && referrer.hostname !== window.location.hostname) return referrer.hostname.slice(0, 80);
+  } catch {
+    // Il referrer è solo informativo: non deve mai bloccare la landing.
+  }
+  return "direct";
+}
+
 function inizializzaIngressoSocialMobile() {
   if (!SOCIAL_ENTRY_STATE.requested) return false;
   SOCIAL_ENTRY_STATE.active = true;
   SOCIAL_ENTRY_STATE.isSocialJourney = true;
   document.documentElement.classList.add("social-entry-requested");
   document.body.classList.add("social-entry-active");
-  trackEvent("social_entry_viewed", {
-    source: new URLSearchParams(window.location.search || "").get("utm_source") || "social_link",
+  trackEvent("landing_view", {
+    source: sorgenteIngressoLanding(),
   });
   return true;
+}
+
+function impostaLandingPronta() {
+  document.getElementById("landing-self-service")?.removeAttribute("disabled");
+  document.getElementById("landing-assisted")?.removeAttribute("disabled");
+  SOCIAL_ENTRY_STATE.ready = true;
 }
 
 function preparaRisparmioIngressoSocialMobile() {
@@ -10715,22 +10895,21 @@ function preparaRisparmioIngressoSocialMobile() {
   const value = document.getElementById("social-entry-saving-value");
   const period = document.getElementById("social-entry-saving-period");
   const savingBox = document.getElementById("social-entry-saving");
-  const cta = document.getElementById("social-entry-cta");
   const btnMedi = document.getElementById("btn-attiva-medi");
 
   try {
     btnMedi?.click();
-    LEAD_STATE.dataOrigin = "social_average_profile";
+    LEAD_STATE.dataOrigin = "landing_average_profile";
     window.avviaComparazioneDati?.();
     const saving = Number(LEAD_STATE.bestPartnerSaving || 0);
     const formatted = formattaRisparmioSocial(saving);
     if (value) value.textContent = formatted || "Offerte aggiornate";
     if (period) period.textContent = formatted ? "all'anno su luce e gas" : "scopri la proposta attivabile più conveniente di oggi";
     savingBox?.classList.remove("is-loading");
-    if (cta) cta.disabled = false;
-    SOCIAL_ENTRY_STATE.ready = true;
-    trackEvent("social_entry_saving_ready", {
-      bestPartnerSaving: saving,
+    impostaLandingPronta();
+    trackEvent("landing_saving_ready", {
+      bestSaving: saving,
+      source: sorgenteIngressoLanding(),
       dataOrigin: LEAD_STATE.dataOrigin,
     });
     return true;
@@ -10738,31 +10917,65 @@ function preparaRisparmioIngressoSocialMobile() {
     if (value) value.textContent = "Offerte aggiornate";
     if (period) period.textContent = "scopri la proposta disponibile oggi";
     savingBox?.classList.remove("is-loading");
-    if (cta) cta.disabled = false;
-    SOCIAL_ENTRY_STATE.ready = true;
-    trackEvent("social_entry_saving_fallback", { message: String(error?.message || error || "") });
+    impostaLandingPronta();
+    trackEvent("landing_saving_fallback", {
+      source: sorgenteIngressoLanding(),
+      reason: String(error?.message || error || "").slice(0, 100),
+    });
     return false;
   }
 }
 
-function apriOfferteDaIngressoSocial() {
-  if (!SOCIAL_ENTRY_STATE.ready) return;
-  SOCIAL_ENTRY_STATE.active = false;
-  attivaFocusOfferteMobile();
-  document.documentElement.classList.remove("social-entry-requested");
-  document.body.classList.remove("social-entry-active");
-  const entry = document.getElementById("social-mobile-entry");
-  if (entry) entry.hidden = true;
-  const target = document.getElementById("lead-teaser") || document.querySelector(".fornitori-consigliati-section");
-  window.requestAnimationFrame(() => {
-    target?.scrollIntoView({ behavior: "smooth", block: "start" });
-    if (target) {
-      target.setAttribute("tabindex", "-1");
-      window.setTimeout(() => target.focus({ preventScroll: true }), 450);
-    }
+function urlCalcolatoreDaLanding() {
+  const current = new URLSearchParams(window.location.search || "");
+  const target = new URL("/index.html", window.location.origin);
+  target.searchParams.set("landing", "0");
+  target.searchParams.set("from", "landing");
+  ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term", "source"].forEach((key) => {
+    const value = current.get(key);
+    if (value) target.searchParams.set(key, value);
   });
-  trackEvent("social_entry_offer_clicked", {
-    bestPartnerSaving: LEAD_STATE.bestPartnerSaving,
+  return target.toString();
+}
+
+function apriCalcolatoreDaLanding() {
+  if (!SOCIAL_ENTRY_STATE.ready) return;
+  trackEvent("landing_self_service_click", {
+    bestSaving: Number(LEAD_STATE.bestPartnerSaving || 0),
+    source: sorgenteIngressoLanding(),
+    destinationType: "calculator",
+    redirect: true,
+  });
+  window.location.assign(urlCalcolatoreDaLanding());
+}
+
+function apriPercorsoAssistitoDaLanding() {
+  if (!SOCIAL_ENTRY_STATE.ready) return;
+  const status = document.getElementById("landing-assisted-status");
+  const destinationReady = Boolean(SWITCHO_LANDING_URL);
+  trackEvent("landing_assisted_click", {
+    bestSaving: Number(LEAD_STATE.bestPartnerSaving || 0),
+    source: sorgenteIngressoLanding(),
+    destinationType: "switcho",
+    destinationStatus: destinationReady ? "ready" : "pending_url",
+    redirect: destinationReady,
+  });
+  if (!destinationReady) {
+    if (status) {
+      status.hidden = false;
+      status.textContent = "Percorso assistito predisposto: manca solo il collegamento definitivo alla pagina Switcho.";
+      status.focus?.({ preventScroll: true });
+    }
+    return;
+  }
+  window.location.assign(SWITCHO_LANDING_URL);
+}
+
+function tracciaAccessoAppLanding(tipo) {
+  trackEvent(tipo === "premium" ? "landing_premium_app_click" : "landing_free_app_click", {
+    source: sorgenteIngressoLanding(),
+    destinationType: tipo === "premium" ? "premium_app" : "free_app",
+    redirect: true,
   });
 }
 
@@ -10836,7 +11049,10 @@ function collegaEventiUX() {
     const toggle = document.getElementById("mobile-optional-offer-toggle");
     impostaOffertaFacoltativaMobileAperta(toggle?.getAttribute("aria-expanded") !== "true", { focus: false });
   });
-  document.getElementById("social-entry-cta")?.addEventListener("click", apriOfferteDaIngressoSocial);
+  document.getElementById("landing-self-service")?.addEventListener("click", apriCalcolatoreDaLanding);
+  document.getElementById("landing-assisted")?.addEventListener("click", apriPercorsoAssistitoDaLanding);
+  document.getElementById("landing-free-app")?.addEventListener("click", () => tracciaAccessoAppLanding("free"));
+  document.getElementById("landing-premium-app")?.addEventListener("click", () => tracciaAccessoAppLanding("premium"));
   document.getElementById("offers-upload-bill")?.addEventListener("click", caricaBollettaDaOfferte);
   document.getElementById("offers-keep-average")?.addEventListener("click", continuaConStimaMedia);
   document.getElementById("pdf-static-input")?.addEventListener("change", (event) => {

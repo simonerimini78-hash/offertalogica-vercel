@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import vm from "node:vm";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const html = fs.readFileSync(path.join(here, "..", "public", "index.html"), "utf8");
@@ -15,27 +16,62 @@ function between(source, start, end) {
   return source.slice(startIndex, endIndex);
 }
 
-test("ingresso social: si attiva soltanto con segnale esplicito e su mobile", () => {
+test("landing V1: e universale e la provenienza cambia solo il tracciamento", () => {
   const bootstrap = between(html, "const params = new URLSearchParams", "})();\n</script>");
-  assert.match(bootstrap, /params\.get\("social"\) === "1"/);
-  assert.match(bootstrap, /utm_source/);
-  assert.match(bootstrap, /max-width: 768px/);
-  assert.match(bootstrap, /explicitSocial \|\| socialSource/);
+  assert.match(bootstrap, /calculatorBypass = params\.get\("landing"\) === "0"/);
+  assert.match(bootstrap, /staffPreview/);
+  assert.match(bootstrap, /const requested = !staffPreview/);
+  assert.match(bootstrap, /__OFFERTALOGICA_LANDING_REQUESTED__/);
+  assert.doesNotMatch(bootstrap, /max-width: 768px/);
+  assert.doesNotMatch(bootstrap, /explicitSocial \|\| socialSource/);
+
+  const source = between(html, "function sorgenteIngressoLanding", "function inizializzaIngressoSocialMobile");
+  assert.match(source, /utm_source/);
+  assert.match(source, /document\.referrer/);
+  assert.match(source, /return "direct"/);
 });
 
-test("ingresso social: la cifra e visibile subito e la CTA non introduce un calcolo aggiuntivo", () => {
+test("landing V1: bootstrap diretto, social e Google convergono sulla stessa landing; bypass e staff no", () => {
+  const bootstrap = between(html, "(function () {\n    try {\n        const params = new URLSearchParams", "})();\n</script>") + "})();";
+
+  function requestedFor(search = "", hash = "") {
+    const classes = new Set();
+    const context = {
+      URLSearchParams,
+      window: { location: { search, hash } },
+      document: { documentElement: { classList: { add: (value) => classes.add(value) } } },
+    };
+    vm.runInNewContext(bootstrap, context);
+    return { requested: context.window.__OFFERTALOGICA_LANDING_REQUESTED__, classes };
+  }
+
+  assert.equal(requestedFor("").requested, true);
+  assert.equal(requestedFor("?utm_source=instagram").requested, true);
+  assert.equal(requestedFor("?utm_source=facebook").requested, true);
+  assert.equal(requestedFor("?utm_source=google").requested, true);
+  assert.equal(requestedFor("?landing=0").requested, false);
+  assert.equal(requestedFor("?staffToken=test").requested, false);
+  assert.equal(requestedFor("", "#previewToken=test").requested, false);
+});
+
+test("landing V1: mostra subito risparmio e due percorsi senza CTA intermedia", () => {
   assert.match(html, /id="social-entry-saving-value"/);
   assert.match(html, /Oggi potresti risparmiare fino a/);
-  assert.match(html, /id="social-entry-cta"[^>]*>Scopri l'offerta</);
-  assert.match(html, /Senza bolletta e senza inserire consumi/);
+  assert.match(html, /Come preferisci procedere\?/);
+  assert.match(html, /id="landing-self-service"[^>]*disabled/);
+  assert.match(html, /<strong>Confronto da solo<\/strong>/);
+  assert.match(html, /id="landing-assisted"[^>]*disabled/);
+  assert.match(html, /<strong>Preferisco essere seguito<\/strong>/);
+  assert.doesNotMatch(html, /id="social-entry-cta"/);
 
-  const prepare = between(html, "function preparaRisparmioIngressoSocialMobile", "function apriOfferteDaIngressoSocial");
+  const prepare = between(html, "function preparaRisparmioIngressoSocialMobile", "function urlCalcolatoreDaLanding");
   assert.match(prepare, /btnMedi\?\.click\(\)/);
   assert.match(prepare, /window\.avviaComparazioneDati\?\.\(\)/);
   assert.match(prepare, /LEAD_STATE\.bestPartnerSaving/);
+  assert.match(prepare, /impostaLandingPronta\(\)/);
 });
 
-test("ingresso social: usa solo il miglior risparmio delle offerte partner attivabili", () => {
+test("landing V1: il risparmio resta quello delle offerte partner attivabili", () => {
   assert.match(
     html,
     /LEAD_STATE\.bestPartnerSaving = Math\.max\(0, \.\.\.attivabiliPrioritarie\.map\(\(item\) => item\.differenza\)\)/,
@@ -45,29 +81,58 @@ test("ingresso social: usa solo il miglior risparmio delle offerte partner attiv
   assert.match(teaser, /LEAD_STATE\.bestSaving/);
 });
 
-test("ingresso social: il pulsante usa il gradiente, il pulse e rispetta reduced motion", () => {
-  assert.match(html, /\.social-entry-cta[\s\S]*background: var\(--logo-green-gradient\)/);
-  assert.match(html, /animation: social-entry-pulse/);
-  assert.match(html, /@keyframes social-entry-pulse/);
-  assert.match(html, /prefers-reduced-motion: reduce/);
+test("landing V1: il percorso autonomo riapre il calcolatore esistente e conserva UTM", () => {
+  const block = between(html, "function urlCalcolatoreDaLanding", "function apriPercorsoAssistitoDaLanding");
+  assert.match(block, /new URL\("\/index\.html", window\.location\.origin\)/);
+  assert.match(block, /target\.searchParams\.set\("landing", "0"\)/);
+  assert.match(block, /target\.searchParams\.set\("from", "landing"\)/);
+  assert.match(block, /utm_source/);
+  assert.match(block, /window\.location\.assign\(urlCalcolatoreDaLanding\(\)\)/);
+  assert.match(block, /landing_self_service_click/);
 });
 
-test("ingresso social: su viewport bassi non taglia il logo in alto", () => {
-  assert.match(html, /html\.social-entry-requested \.social-mobile-entry[\s\S]*align-items: flex-start/);
-  assert.match(html, /padding: max\(32px, calc\(env\(safe-area-inset-top\) \+ 12px\)\)/);
-  assert.match(html, /\.social-entry-card[\s\S]*margin-block: auto/);
+test("landing V1: il percorso assistito non inventa il link Switcho", () => {
+  assert.match(html, /const SWITCHO_LANDING_URL = "";/);
+  const assisted = between(html, "function apriPercorsoAssistitoDaLanding", "function tracciaAccessoAppLanding");
+  assert.match(assisted, /destinationStatus: destinationReady \? "ready" : "pending_url"/);
+  assert.match(assisted, /Percorso assistito predisposto: manca solo il collegamento definitivo alla pagina Switcho\./);
+  assert.match(assisted, /if \(!destinationReady\)/);
+  assert.match(assisted, /window\.location\.assign\(SWITCHO_LANDING_URL\)/);
 });
 
-test("offerte: propone la bolletta senza bloccare la stima media", () => {
+test("landing V1: tracking riusa track-event e usa i campi gia supportati", () => {
+  assert.match(html, /trackEvent\("landing_view"/);
+  assert.match(html, /trackEvent\("landing_saving_ready"/);
+  assert.match(html, /trackEvent\("landing_self_service_click"/);
+  assert.match(html, /trackEvent\("landing_assisted_click"/);
+  assert.match(html, /"landing_premium_app_click" : "landing_free_app_click"/);
+  assert.match(html, /bestSaving: saving/);
+  assert.doesNotMatch(html, /fetch\("\/api\/landing/);
+});
+
+test("landing V1: applica il sistema Glass OffertaLogica e resta responsive", () => {
+  const css = between(html, "/* OFFERTALOGICA_LANDING_GLASS_V1_20260814 */", ".offers-personalize-prompt {");
+  assert.match(css, /#0d2d3d/);
+  assert.match(css, /#e3e9e7/);
+  assert.match(css, /#055d38/);
+  assert.match(css, /#07834a/);
+  assert.match(css, /#16ad5f/);
+  assert.match(css, /rgba\(169, 232, 62/);
+  assert.match(css, /backdrop-filter: blur\(24px\)/);
+  assert.match(css, /@media \(max-width: 720px\)/);
+  assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
+});
+
+test("landing V1: mantiene accessi app e informativa sul partner", () => {
+  assert.match(html, /https:\/\/app\.offertalogica\.it\/app\.html\?install=1/);
+  assert.match(html, /https:\/\/premium\.offertalogica\.it\/app\.html\?install=1/);
+  assert.match(html, /Il percorso assistito sarà gestito dal partner Switcho\./);
+});
+
+test("offerte: propone ancora la bolletta senza bloccare la stima media", () => {
   assert.match(html, /id="offers-personalize-prompt" hidden/);
-  assert.match(html, /id="offers-upload-bill">Carica la bolletta</);
-  assert.match(html, /id="offers-keep-average">Continua con la stima media</);
+  assert.match(html, /id="offers-upload-bill">Carica la bolletta/);
+  assert.match(html, /id="offers-keep-average">Continua con la stima media/);
   assert.match(html, /modalitaCalcolo === "media"/);
   assert.match(html, /vaiAlCaricatoreScheda\(\{ source: "offers_personalization" \}\)/);
-});
-
-test("percorso normale: la landing resta nascosta senza classe social-entry-requested", () => {
-  assert.match(html, /\.social-mobile-entry \{ display: none; \}/);
-  assert.match(html, /html\.social-entry-requested \.social-mobile-entry/);
-  assert.match(html, /document\.documentElement\.classList\.remove\("social-entry-requested"\)/);
 });
