@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <meta name="theme-color" content="#063f36">
+  <title>Verifica MFA Staff - OffertaLogica</title>
+  <style>
+    :root{
+      --bg:#f3f6f4;--card:#fff;--text:#10231f;--muted:#66756f;--line:#d8e3de;
+      --green:#087a60;--green-dark:#064c3e;--green-soft:#edf9f5;
+      --danger:#b42318;--danger-soft:#fef3f2;--blue:#175cd3;--blue-soft:#eff8ff;
+      --ok:#027a48;--ok-soft:#ecfdf3;--shadow:0 16px 46px rgba(16,35,31,.10)
+    }
+    *{box-sizing:border-box}
+    html,body{min-height:100%;margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    button,input{font:inherit}
+    button{cursor:pointer}
+    [hidden]{display:none!important}
+    .topbar{display:flex;align-items:center;gap:12px;padding:13px 18px;color:#fff;background:linear-gradient(120deg,var(--green-dark),var(--green) 68%,#70ad27);box-shadow:0 7px 24px rgba(6,76,62,.2)}
+    .topbar img{width:42px;height:42px;border-radius:11px;background:#fff;padding:5px}
+    .topbar h1{margin:0;font-size:19px}
+    .topbar p{margin:3px 0 0;color:rgba(255,255,255,.78);font-size:12px}
+    main{display:grid;place-items:center;min-height:calc(100vh - 68px);padding:28px 16px}
+    .card{width:min(500px,100%);padding:26px;border:1px solid var(--line);border-radius:22px;background:var(--card);box-shadow:var(--shadow)}
+    h2{margin:0 0 8px;font-size:26px}
+    p{margin:0 0 18px;color:var(--muted);line-height:1.5}
+    .field{display:grid;gap:6px;margin-bottom:13px}
+    .field label{font-size:12px;font-weight:800;color:#42534c}
+    input{width:100%;min-height:44px;border:1px solid #cbd8d2;border-radius:9px;padding:9px 11px;color:var(--text);background:#fff;outline:none}
+    input:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(8,122,96,.1)}
+    .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+    .button{border:0;border-radius:10px;padding:10px 13px;font-weight:800;color:var(--text);background:#e7eeeb}
+    .button.primary{color:#fff;background:var(--green)}
+    .button.danger{color:var(--danger);background:#fee4e2}
+    .button:disabled{cursor:not-allowed;opacity:.55}
+    .message{margin:12px 0 0;border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.4}
+    .message.info{color:var(--blue);background:var(--blue-soft)}
+    .message.error{color:var(--danger);background:var(--danger-soft)}
+    .message.success{color:var(--ok);background:var(--ok-soft)}
+    .qr-wrap{display:grid;place-items:center;margin:16px 0;padding:16px;border:1px solid var(--line);border-radius:16px;background:#fbfdfc}
+    .qr-wrap img{display:block;width:min(260px,80vw);height:auto;background:#fff}
+    .secret{margin:10px 0 0;padding:10px;border:1px dashed #b8c9c1;border-radius:9px;background:#f8fbf9;color:#344840;font:600 12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;overflow-wrap:anywhere;user-select:all}
+    .note{margin-top:14px;border:1px solid var(--line);border-radius:12px;padding:11px;color:var(--muted);background:#fbfdfc;font-size:11px;line-height:1.45}
+    .identity{display:inline-flex;margin-bottom:14px;border:1px solid #cfe3db;border-radius:999px;padding:5px 9px;color:var(--green-dark);background:var(--green-soft);font-size:11px;font-weight:850}
+  </style>
+</head>
+<body>
+<header class="topbar">
+  <img src="/assets/logo-offertalogica-icon.png" alt="OffertaLogica">
+  <div>
+    <h1>Verifica sicurezza Staff</h1>
+    <p>Autenticazione a due fattori · TOTP</p>
+  </div>
+</header>
+
+<main>
+  <section class="card" id="loginView">
+    <h2>Accesso Staff</h2>
+    <p>Inserisci le credenziali Staff. Dopo la password verrà richiesta la verifica con l’app autenticatore.</p>
+    <form id="loginForm" novalidate>
+      <div class="field">
+        <label for="email">Email</label>
+        <input id="email" name="email" type="email" autocomplete="username" required>
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" minlength="8" required>
+      </div>
+      <button class="button primary" type="submit">CONTINUA</button>
+    </form>
+    <div class="message" id="loginMessage" hidden role="status"></div>
+  </section>
+
+  <section class="card" id="challengeView" hidden>
+    <div class="identity" id="challengeIdentity">Staff</div>
+    <h2>Codice autenticatore</h2>
+    <p>Apri la tua app di autenticazione e inserisci il codice a 6 cifre.</p>
+    <form id="challengeForm" novalidate>
+      <div class="field">
+        <label for="challengeCode">Codice TOTP</label>
+        <input id="challengeCode" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required>
+      </div>
+      <div class="actions">
+        <button class="button primary" type="submit">VERIFICA E ACCEDI</button>
+        <button class="button danger" id="challengeLogout" type="button">ESCI</button>
+      </div>
+    </form>
+    <div class="message" id="challengeMessage" hidden role="status"></div>
+  </section>
+
+  <section class="card" id="enrollView" hidden>
+    <div class="identity" id="enrollIdentity">Staff</div>
+    <h2>Attiva l’autenticazione a due fattori</h2>
+    <p>Scansiona il QR code con un’app autenticatore. In alternativa puoi inserire manualmente la chiave mostrata sotto.</p>
+    <div class="qr-wrap">
+      <img id="enrollQr" alt="QR code per configurare l’autenticazione a due fattori">
+      <div class="secret" id="enrollSecret"></div>
+    </div>
+    <form id="enrollForm" novalidate>
+      <div class="field">
+        <label for="enrollCode">Codice generato dall’app</label>
+        <input id="enrollCode" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required>
+      </div>
+      <div class="actions">
+        <button class="button primary" type="submit">ATTIVA E ACCEDI</button>
+        <button class="button danger" id="enrollCancel" type="button">ANNULLA</button>
+      </div>
+    </form>
+    <div class="message" id="enrollMessage" hidden role="status"></div>
+    <div class="note">Conserva l’accesso all’app autenticatore. La rimozione o sostituzione del secondo fattore dovrà essere gestita con una procedura Staff autorizzata.</div>
+  </section>
+
+  <section class="card" id="deniedView" hidden>
+    <h2>Accesso non autorizzato</h2>
+    <p>L’account è autenticato, ma non risulta un account Staff attivo di OffertaLogica.</p>
+    <button class="button danger" id="deniedLogout" type="button">DISCONNETTI ACCOUNT</button>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(() => {
+  "use strict";
+
+  const SUPABASE_URL = "https://kzxdamhfmzaxonpkytcf.supabase.co";
+  const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_poz1xBKiXceLCFV3u_tPIg_5_-ycHcl";
+  const STORAGE_KEY = "offertalogica-premium-staff-auth";
+  const ALLOWED_ROLES = new Set(["reviewer", "technician", "admin", "owner"]);
+  const STAFF_DESTINATION = "/staff.html";
+
+  let client = null;
+  let activeFactorId = "";
+  let pendingEnrollmentFactorId = "";
+  let busy = false;
+
+  const byId = id => document.getElementById(id);
+
+  function show(view) {
+    ["loginView", "challengeView", "enrollView", "deniedView"].forEach(id => {
+      const target = byId(id);
+      if (target) target.hidden = id !== view;
+    });
+  }
+
+  function setMessage(id, kind, message) {
+    const target = byId(id);
+    if (!target) return;
+    target.className = `message${kind ? ` ${kind}` : ""}`;
+    target.textContent = message || "";
+    target.hidden = !message;
+  }
+
+  function setBusy(value) {
+    busy = Boolean(value);
+    document.querySelectorAll("button,input").forEach(element => {
+      element.disabled = busy;
+    });
+    document.body.setAttribute("aria-busy", busy ? "true" : "false");
+  }
+
+  function codeValue(form) {
+    return String(form?.elements?.code?.value || "").replace(/\D/g, "").slice(0, 6);
+  }
+
+  function friendlyError(error) {
+    const raw = String(error?.message || error || "").trim();
+    const message = raw.toLowerCase();
+    if (!message) return "Operazione non riuscita.";
+    if (message.includes("invalid login credentials")) return "Email o password non corrette.";
+    if (message.includes("email not confirmed")) return "L’indirizzo email non è stato confermato.";
+    if (message.includes("challenge") || message.includes("invalid totp") || message.includes("invalid code") || message.includes("verification")) {
+      return "Codice non valido o scaduto. Inserisci il nuovo codice mostrato dall’app autenticatore.";
+    }
+    if (message.includes("factor") && message.includes("already")) return "Esiste già un fattore di autenticazione configurato.";
+    if (message.includes("rate limit") || message.includes("too many")) return "Troppe richieste. Attendi qualche minuto e riprova.";
+    if (message.includes("failed to fetch") || message.includes("network")) return "Connessione non disponibile. Controlla la rete e riprova.";
+    return raw;
+  }
+
+  async function currentSession() {
+    const { data, error } = await client.auth.getSession();
+    if (error) throw error;
+    return data?.session || null;
+  }
+
+  async function staffMembership(session) {
+    if (!session?.user?.id) return null;
+    const { data, error } = await client
+      .from("premium_staff_members")
+      .select("user_id,role,active")
+      .eq("user_id", session.user.id)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data?.active || !ALLOWED_ROLES.has(String(data.role || "").toLowerCase())) return null;
+    return data;
+  }
+
+  function identityLabel(session, staff) {
+    const role = {
+      owner: "Proprietario",
+      admin: "Amministratore",
+      technician: "Tecnico",
+      reviewer: "Revisore",
+    }[String(staff?.role || "").toLowerCase()] || "Staff";
+    return `${role} · ${session?.user?.email || "account staff"}`;
+  }
+
+  async function aal() {
+    const { data, error } = await client.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (error) throw error;
+    return data || {};
+  }
+
+  async function verifiedTotpFactors() {
+    const { data, error } = await client.auth.mfa.listFactors();
+    if (error) throw error;
+    const totp = Array.isArray(data?.totp) ? data.totp : [];
+    return totp.filter(factor => String(factor?.status || "verified").toLowerCase() === "verified");
+  }
+
+  async function waitForAal2() {
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      const level = await aal();
+      if (level.currentLevel === "aal2") return true;
+      await new Promise(resolve => setTimeout(resolve, 150));
+    }
+    return false;
+  }
+
+  async function finishMfa() {
+    if (!(await waitForAal2())) {
+      throw new Error("La sessione non è stata promossa ad AAL2. Riprova la verifica.");
+    }
+    location.replace(STAFF_DESTINATION);
+  }
+
+  async function prepareEnrollment(session, staff) {
+    const { data, error } = await client.auth.mfa.enroll({
+      factorType: "totp",
+      friendlyName: "OffertaLogica Staff",
+    });
+    if (error) throw error;
+    pendingEnrollmentFactorId = String(data?.id || "");
+    if (!pendingEnrollmentFactorId || !data?.totp?.qr_code) {
+      throw new Error("Configurazione MFA non disponibile.");
+    }
+    byId("enrollQr").src = data.totp.qr_code;
+    byId("enrollSecret").textContent = String(data.totp.secret || "");
+    byId("enrollIdentity").textContent = identityLabel(session, staff);
+    byId("enrollCode").value = "";
+    setMessage("enrollMessage", "", "");
+    show("enrollView");
+    byId("enrollCode").focus();
+  }
+
+  async function routeAuthenticatedSession(session) {
+    if (!session?.user) {
+      show("loginView");
+      return;
+    }
+
+    const staff = await staffMembership(session);
+    if (!staff) {
+      show("deniedView");
+      return;
+    }
+
+    const level = await aal();
+    if (level.currentLevel === "aal2") {
+      location.replace(STAFF_DESTINATION);
+      return;
+    }
+
+    const factors = await verifiedTotpFactors();
+    if (level.nextLevel === "aal2" && factors.length) {
+      activeFactorId = String(factors[0].id || "");
+      if (!activeFactorId) throw new Error("Fattore MFA non disponibile.");
+      byId("challengeIdentity").textContent = identityLabel(session, staff);
+      byId("challengeCode").value = "";
+      setMessage("challengeMessage", "", "");
+      show("challengeView");
+      byId("challengeCode").focus();
+      return;
+    }
+
+    await prepareEnrollment(session, staff);
+  }
+
+  async function handleLogin(event) {
+    event.preventDefault();
+    if (busy) return;
+    const form = event.currentTarget;
+    const email = String(form.elements.email?.value || "").trim().toLowerCase();
+    const password = String(form.elements.password?.value || "");
+    if (!email || password.length < 8) {
+      setMessage("loginMessage", "error", "Inserisci email e password Staff valide.");
+      return;
+    }
+
+    setBusy(true);
+    setMessage("loginMessage", "info", "Verifica credenziali…");
+    try {
+      const { data, error } = await client.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      form.reset();
+      setMessage("loginMessage", "", "");
+      await routeAuthenticatedSession(data?.session || await currentSession());
+    } catch (error) {
+      setMessage("loginMessage", "error", friendlyError(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleChallenge(event) {
+    event.preventDefault();
+    if (busy) return;
+    const code = codeValue(event.currentTarget);
+    if (!/^\d{6}$/.test(code) || !activeFactorId) {
+      setMessage("challengeMessage", "error", "Inserisci il codice a 6 cifre dell’app autenticatore.");
+      return;
+    }
+
+    setBusy(true);
+    setMessage("challengeMessage", "info", "Verifica secondo fattore…");
+    try {
+      const { error } = await client.auth.mfa.challengeAndVerify({
+        factorId: activeFactorId,
+        code,
+      });
+      if (error) throw error;
+      setMessage("challengeMessage", "success", "Verifica completata.");
+      await finishMfa();
+    } catch (error) {
+      event.currentTarget.elements.code.value = "";
+      setMessage("challengeMessage", "error", friendlyError(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleEnrollment(event) {
+    event.preventDefault();
+    if (busy) return;
+    const code = codeValue(event.currentTarget);
+    if (!/^\d{6}$/.test(code) || !pendingEnrollmentFactorId) {
+      setMessage("enrollMessage", "error", "Inserisci il codice a 6 cifre generato dall’app autenticatore.");
+      return;
+    }
+
+    setBusy(true);
+    setMessage("enrollMessage", "info", "Attivazione secondo fattore…");
+    try {
+      const challenge = await client.auth.mfa.challenge({ factorId: pendingEnrollmentFactorId });
+      if (challenge.error) throw challenge.error;
+      const challengeId = String(challenge.data?.id || "");
+      if (!challengeId) throw new Error("Challenge MFA non disponibile.");
+
+      const verify = await client.auth.mfa.verify({
+        factorId: pendingEnrollmentFactorId,
+        challengeId,
+        code,
+      });
+      if (verify.error) throw verify.error;
+
+      pendingEnrollmentFactorId = "";
+      setMessage("enrollMessage", "success", "Autenticazione a due fattori attivata.");
+      await finishMfa();
+    } catch (error) {
+      event.currentTarget.elements.code.value = "";
+      setMessage("enrollMessage", "error", friendlyError(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function logout() {
+    if (!client || busy) return;
+    setBusy(true);
+    try {
+      await client.auth.signOut();
+    } finally {
+      pendingEnrollmentFactorId = "";
+      activeFactorId = "";
+      show("loginView");
+      setBusy(false);
+    }
+  }
+
+  async function cancelEnrollment() {
+    if (!client || busy) return;
+    setBusy(true);
+    try {
+      if (pendingEnrollmentFactorId) {
+        await client.auth.mfa.unenroll({ factorId: pendingEnrollmentFactorId }).catch(() => {});
+      }
+      await client.auth.signOut();
+    } finally {
+      pendingEnrollmentFactorId = "";
+      show("loginView");
+      setBusy(false);
+    }
+  }
+
+  function bind() {
+    byId("loginForm").addEventListener("submit", handleLogin);
+    byId("challengeForm").addEventListener("submit", handleChallenge);
+    byId("enrollForm").addEventListener("submit", handleEnrollment);
+    byId("challengeLogout").addEventListener("click", logout);
+    byId("enrollCancel").addEventListener("click", cancelEnrollment);
+    byId("deniedLogout").addEventListener("click", logout);
+
+    ["challengeCode", "enrollCode"].forEach(id => {
+      byId(id).addEventListener("input", event => {
+        event.target.value = String(event.target.value || "").replace(/\D/g, "").slice(0, 6);
+      });
+    });
+  }
+
+  async function init() {
+    if (!window.supabase?.createClient) {
+      setMessage("loginMessage", "error", "Il collegamento a Supabase non è disponibile.");
+      show("loginView");
+      return;
+    }
+
+    client = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+      auth: {
+        storageKey: STORAGE_KEY,
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: false,
+      },
+    });
+    bind();
+
+    try {
+      const session = await currentSession();
+      if (session?.user) {
+        await routeAuthenticatedSession(session);
+      } else {
+        show("loginView");
+      }
+    } catch (error) {
+      setMessage("loginMessage", "error", friendlyError(error));
+      show("loginView");
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    init().catch(error => {
+      setMessage("loginMessage", "error", friendlyError(error));
+      show("loginView");
+    });
+  });
+})();
+</script>
+</body>
+</html>
