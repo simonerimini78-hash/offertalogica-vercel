@@ -1,7 +1,7 @@
 import { json, method, readJson, requireAllowedOrigin } from "../lib/http.js";
 import { createOtp, hashOtp, otpExpiresAt, otpTtlSeconds, sendOtpSms } from "../lib/otp.js";
 import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
-import { getJson, setJson } from "../lib/store.js";
+import { del, getJson, setJson } from "../lib/store.js";
 
 function positiveInteger(value, fallback, { min = 1, max = 86400 } = {}) {
   const parsed = Number(value);
@@ -19,6 +19,8 @@ function secondsSince(value) {
   return Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
 }
 
+const ALLOWED_OTP_PROVIDERS = new Set(["aruba-sms", "twilio-verify", "twilio", "demo"]);
+
 export default async function handler(req, res) {
   if (!method(req, res, ["POST"])) return;
   if (!requireAllowedOrigin(req, res)) return;
@@ -26,6 +28,8 @@ export default async function handler(req, res) {
     label: "send-otp-ip",
     ...rateLimitConfig("SEND_OTP_IP", 12, 3600),
   }))) return;
+
+  let otpKey = "";
 
   try {
     const { leadId } = await readJson(req);
@@ -51,7 +55,8 @@ export default async function handler(req, res) {
       ...rateLimitConfig("SEND_OTP_PHONE", 5, 3600),
     }))) return;
 
-    const existingOtp = await getJson(`otp:${normalizedLeadId}`);
+    otpKey = `otp:${normalizedLeadId}`;
+    const existingOtp = await getJson(otpKey);
     const cooldownSeconds = resendCooldownSeconds();
     const elapsedSeconds = secondsSince(existingOtp?.createdAt);
     if (elapsedSeconds < cooldownSeconds) {
@@ -72,11 +77,42 @@ export default async function handler(req, res) {
       expiresAt: otpExpiresAt(),
       createdAt: new Date().toISOString(),
     };
-    await setJson(`otp:${normalizedLeadId}`, otp, otpTtlSeconds());
-    const sent = await sendOtpSms(lead.phone, code);
 
-    if (sent.provider === "demo" && process.env.NODE_ENV === "production") {
-      throw new Error("Modalita OTP demo non consentita in produzione");
+    // Registriamo prima la richiesta per rendere effettivo il cooldown anche
+    // mentre il provider SMS sta elaborando l'invio.
+    await setJson(otpKey, otp, otpTtlSeconds());
+
+    let sent;
+    try {
+      sent = await sendOtpSms(lead.phone, code);
+
+      const provider = String(sent?.provider || "").trim();
+      if (!ALLOWED_OTP_PROVIDERS.has(provider)) {
+        throw new Error("Provider OTP non riconosciuto");
+      }
+      if (provider === "demo" && process.env.NODE_ENV === "production") {
+        throw new Error("Modalita OTP demo non consentita in produzione");
+      }
+
+      // La verifica deve conoscere il provider realmente usato. In particolare
+      // Twilio Verify genera il proprio codice e deve essere verificato via API,
+      // non confrontando l'hash del codice locale.
+      await setJson(
+        otpKey,
+        {
+          ...otp,
+          provider,
+        },
+        otpTtlSeconds(),
+      );
+    } catch (sendError) {
+      // Non lasciare un OTP utilizzabile/cooldown orfano se l'invio non riesce.
+      try {
+        await del(otpKey);
+      } catch {
+        // Manteniamo l'errore originale del provider.
+      }
+      throw sendError;
     }
 
     json(res, 200, {
