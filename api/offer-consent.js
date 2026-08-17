@@ -1,4 +1,4 @@
-import { json, method, readJson, requireAllowedOrigin } from "../lib/http.js";
+import { json, method, readJson, requireAllowedBrowserOrigin } from "../lib/http.js";
 import { persistLeadSnapshot } from "../lib/customerDb.js";
 import { notifyLeadVerified } from "../lib/notify.js";
 import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
@@ -211,7 +211,7 @@ function validateSelectedOffer(offer, config = switchoServerConfig()) {
 
 export default async function handler(req, res) {
   if (!method(req, res, ["POST"])) return;
-  if (!requireAllowedOrigin(req, res)) return;
+  if (!requireAllowedBrowserOrigin(req, res)) return;
   if (!(await enforceRateLimit(req, res, { label: "offer-consent", ...rateLimitConfig("OFFER_CONSENT", 60) }))) return;
 
   try {
