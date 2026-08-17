@@ -1,4 +1,4 @@
-import { json, method, readJson, requireAllowedOrigin } from "../lib/http.js";
+import { json, method, readJson, requireAllowedBrowserOrigin } from "../lib/http.js";
 import { createOtp, hashOtp, otpExpiresAt, otpTtlSeconds, sendOtpSms } from "../lib/otp.js";
 import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
 import { del, getJson, setJson } from "../lib/store.js";
@@ -23,7 +23,7 @@ const ALLOWED_OTP_PROVIDERS = new Set(["aruba-sms", "twilio-verify", "twilio", "
 
 export default async function handler(req, res) {
   if (!method(req, res, ["POST"])) return;
-  if (!requireAllowedOrigin(req, res)) return;
+  if (!requireAllowedBrowserOrigin(req, res)) return;
   if (!(await enforceRateLimit(req, res, {
     label: "send-otp-ip",
     ...rateLimitConfig("SEND_OTP_IP", 12, 3600),
