@@ -16,6 +16,46 @@ function booleanOrNull(value) {
   return null;
 }
 
+function requestHeader(req, name, max = 500) {
+  const normalized = String(name || "").trim().toLowerCase();
+  const value = req?.headers?.[normalized];
+  if (Array.isArray(value)) return text(value.join(" "), max);
+  return text(value, max);
+}
+
+function classifyTrafficAgent(req) {
+  const userAgent = requestHeader(req, "user-agent");
+  const clientHints = requestHeader(req, "sec-ch-ua");
+  const purpose = [
+    requestHeader(req, "purpose", 80),
+    requestHeader(req, "sec-purpose", 80),
+    requestHeader(req, "x-purpose", 80),
+  ].filter(Boolean).join(" ");
+  const signature = `${userAgent} ${clientHints} ${purpose}`.trim();
+
+  if (!signature) {
+    return { trafficAgent: "unknown", trafficReason: "missing_client_signature" };
+  }
+
+  const knownBot = /(?:\bbot\b|crawler|spider|slurp|googlebot|google-inspectiontool|inspectiontool|bingbot|duckduckbot|baiduspider|yandexbot|applebot|petalbot|facebookexternalhit|twitterbot|linkedinbot|semrushbot|ahrefsbot|mj12bot|dotbot|uptimerobot|pingdom|chrome-lighthouse|pagespeed|gtmetrix)/i;
+  if (knownBot.test(signature)) {
+    return { trafficAgent: "known_bot", trafficReason: "crawler_signature" };
+  }
+
+  const automation = /(?:headlesschrome|phantomjs|selenium|playwright|puppeteer|electron|curl\/|wget\/|python-requests|python-urllib|httpclient|postmanruntime|insomnia)/i;
+  if (automation.test(signature)) {
+    return { trafficAgent: "automation", trafficReason: "automation_signature" };
+  }
+
+  const standardBrowser = /mozilla\//i.test(userAgent)
+    && /(?:chrome|crios|safari|firefox|fxios|edg|opr)\//i.test(userAgent);
+  if (standardBrowser) {
+    return { trafficAgent: "browser", trafficReason: "standard_browser_signature" };
+  }
+
+  return { trafficAgent: "unknown", trafficReason: "unclassified_client_signature" };
+}
+
 function sanitizePayload(payload = {}) {
   const input = payload && typeof payload === "object" && !Array.isArray(payload) ? payload : {};
   return {
@@ -70,6 +110,7 @@ export default async function handler(req, res) {
     }
 
     const payload = sanitizePayload(body.payload);
+    const traffic = classifyTrafficAgent(req);
     const result = await persistAnalyticsEvent({
       eventType,
       leadId: text(body.leadId, 90),
@@ -80,6 +121,7 @@ export default async function handler(req, res) {
       source: text(body.source || payload.source, 80),
       payload: {
         ...payload,
+        ...traffic,
         ipHashSource: clientIp(req) ? "server_seen" : "",
       },
     });
