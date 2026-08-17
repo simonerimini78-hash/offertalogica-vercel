@@ -7,7 +7,6 @@
   const TIMELINE_RPC = "premium_staff_list_check_timeline";
   const TIMELINE_LIMIT = 250;
 
-  let client = null;
   let observer = null;
   let scheduled = false;
   let requestSequence = 0;
@@ -146,6 +145,52 @@
 
   function currentDetailBody() {
     return document.querySelector("#staffDetail .detail-body");
+  }
+
+  function storedAccessToken() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return "";
+      const parsed = JSON.parse(raw);
+      return String(
+        parsed?.access_token
+        || parsed?.session?.access_token
+        || parsed?.currentSession?.access_token
+        || ""
+      ).trim();
+    } catch {
+      return "";
+    }
+  }
+
+  async function rpc(name, params = {}) {
+    const token = storedAccessToken();
+    if (!token) throw new Error("staff_timeline_session_required");
+
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${encodeURIComponent(name)}`, {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_PUBLISHABLE_KEY,
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(params),
+      cache: "no-store"
+    });
+
+    const contentType = response.headers.get("content-type") || "";
+    const payload = contentType.includes("application/json")
+      ? await response.json().catch(() => null)
+      : await response.text().catch(() => "");
+
+    if (!response.ok) {
+      const detail = typeof payload === "object" && payload
+        ? payload.message || payload.error || payload.details || payload.code
+        : payload;
+      throw new Error(String(detail || `staff_timeline_http_${response.status}`));
+    }
+
+    return payload;
   }
 
   function actorText(event) {
@@ -370,15 +415,10 @@
 
   async function loadTimeline(checkId, section, sequence) {
     try {
-      const { data: sessionResult, error: sessionError } = await client.auth.getSession();
-      if (sessionError) throw sessionError;
-      if (!sessionResult?.session?.user) return;
-
-      const { data, error } = await client.rpc(TIMELINE_RPC, {
+      const data = await rpc(TIMELINE_RPC, {
         p_check_id: checkId,
         p_limit: TIMELINE_LIMIT
       });
-      if (error) throw error;
 
       if (sequence !== requestSequence) return;
       if (activeCheckId() !== checkId) return;
@@ -458,17 +498,7 @@
   }
 
   function init() {
-    if (!window.supabase?.createClient) return;
-
     injectStyles();
-    client = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-      auth: {
-        storageKey: STORAGE_KEY,
-        persistSession: true,
-        autoRefreshToken: false,
-        detectSessionInUrl: false
-      }
-    });
 
     const detail = document.getElementById("staffDetail");
     const queue = document.getElementById("staffQueue");
