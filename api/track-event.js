@@ -2,6 +2,72 @@ import { clientIp, json, method, readJson, requireAllowedOrigin } from "../lib/h
 import { persistAnalyticsEvent } from "../lib/customerDb.js";
 import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
 
+// Security Step 7A — only analytics events actually used by OffertaLogica
+// may enter the public analytics endpoint. Unknown/custom event names are
+// rejected instead of being written to lead_events.
+const ALLOWED_EVENT_TYPES = new Set([
+  "customer_segment_selected",
+  "business_calculation_incomplete",
+  "business_calculation_completed",
+  "business_lead_modal_requested",
+  "comparison_incomplete_data",
+  "comparison_started",
+  "comparison_missing_current_price",
+  "comparison_completed",
+  "offers_rendered",
+  "offers_unlocked",
+  "offers_bill_prompt_dismissed",
+  "offers_bill_prompt_clicked",
+  "lead_modal_opened",
+  "lead_modal_closed",
+  "lead_form_invalid",
+  "lead_created_client",
+  "otp_request_started",
+  "otp_sent",
+  "otp_failed",
+  "otp_failed_preview_fallback",
+  "otp_verify_missing_code",
+  "otp_verify_started",
+  "otp_verified",
+  "otp_verify_failed",
+  "activation_channel_choice_opened",
+  "activation_channel_selected",
+  "activation_data_copied",
+  "activation_assistant_opened",
+  "offer_click_locked",
+  "offer_consent_opened",
+  "offer_partner_consent_missing",
+  "offer_partner_consent_confirmed",
+  "offer_request_missing_link",
+  "offer_request_started",
+  "offer_request_recorded",
+  "offer_request_failed",
+  "offer_redirect",
+  "partner_funnel_opened",
+  "assistance_prompt_shown",
+  "assistance_prompt_closed",
+  "assistance_guide_opened",
+  "assistance_callback_started",
+  "assistance_callback_verified",
+  "pdf_no_file_selected",
+  "pdf_analysis_started",
+  "pdf_analysis_completed",
+  "pdf_data_confirmed",
+  "pdf_autofill_preview_opened",
+  "pdf_autofill_preview_confirmed",
+  "pdf_reset",
+  "switcho_observed_offer_selected",
+  "social_entry_viewed",
+  "social_entry_saving_ready",
+  "social_entry_saving_fallback",
+  "social_entry_offer_clicked",
+
+  // Landing analytics already consumed by the Staff dashboard.
+  "landing_view",
+  "landing_self_service_click",
+  "landing_assisted_click",
+]);
+
 function text(value, max = 120) {
   return String(value || "").trim().slice(0, max);
 }
@@ -104,8 +170,9 @@ export default async function handler(req, res) {
   try {
     const body = await readJson(req);
     const eventType = text(body.eventType || body.type, 80);
-    if (!/^[a-z0-9_:-]{2,80}$/i.test(eventType)) {
-      json(res, 400, { ok: false, error: "Evento non valido" });
+
+    if (!/^[a-z0-9_:-]{2,80}$/i.test(eventType) || !ALLOWED_EVENT_TYPES.has(eventType)) {
+      json(res, 400, { ok: false, error: "Evento non autorizzato" });
       return;
     }
 
