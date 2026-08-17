@@ -18,6 +18,7 @@
   let authSubscription = null;
   let staffVerificationRequest = null;
   let staffContextKey = "";
+  let mfaRedirectInProgress = false;
   let complimentaryCustomer = null;
   let includeRemovedCollaborators = false;
   let collaboratorsLoaded = false;
@@ -2414,6 +2415,26 @@
     }));
   }
 
+  async function requireStaffMfa() {
+    if (mfaRedirectInProgress) return false;
+
+    const { data, error } = await client.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (error) throw error;
+    if (data?.currentLevel === "aal2") return true;
+
+    // La membership Staff è valida, ma la sessione non ha ancora completato
+    // il secondo fattore. Non mostriamo il Control Center: instradiamo al
+    // flusso TOTP che condivide la stessa sessione Supabase.
+    mfaRedirectInProgress = true;
+    currentStaff = null;
+    staffContextKey = "";
+    collaboratorsLoaded = false;
+    setView("auth");
+    setAuthMessage("info", "Verifica di sicurezza richiesta…");
+    window.location.replace("/staff-mfa.html");
+    return false;
+  }
+
   async function verifyStaff(session, { refreshOverview = true } = {}) {
     currentSession = session;
 
@@ -2445,6 +2466,8 @@
         if (changed) dispatchStaffContextChanged(session, null);
         return;
       }
+
+      if (!(await requireStaffMfa())) return;
 
       const nextStaff = result.data;
       const nextKey = staffContextDescriptor(session, nextStaff);
