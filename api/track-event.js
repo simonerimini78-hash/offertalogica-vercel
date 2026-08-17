@@ -216,10 +216,44 @@ async function validateAnalyticsIntegrity(eventType, body, payload) {
       return { ok: false, status: 409, error: "Nome offerta analytics non coerente con il lead" };
     }
 
-    return { ok: true, integrity: "verified_offer", leadId };
+    return {
+      ok: true,
+      integrity: "verified_offer",
+      leadId,
+      payload: authoritativeOfferAnalyticsPayload(payload, lead),
+    };
   }
 
   return { ok: true, integrity: "verified_lead", leadId };
+}
+
+function authoritativeOfferAnalyticsPayload(payload, lead) {
+  const selectedOffer = lead?.selectedOffer && typeof lead.selectedOffer === "object"
+    ? lead.selectedOffer
+    : {};
+  const ranking = selectedOffer?.rankingContext && typeof selectedOffer.rankingContext === "object"
+    ? selectedOffer.rankingContext
+    : {};
+  const monetization = lead?.monetization && typeof lead.monetization === "object"
+    ? lead.monetization
+    : {};
+
+  return {
+    ...payload,
+    offerId: text(selectedOffer.id, 90),
+    offerName: text(selectedOffer.name, 160),
+    provider: text(selectedOffer.provider, 100),
+    destinationType: text(selectedOffer.destinationType, 60),
+    destinationStatus: text(selectedOffer.destinationStatus, 60),
+    displayGroup: text(ranking.displayGroup, 60),
+    economyRank: numberOrNull(ranking.economyRank),
+    displayRank: numberOrNull(ranking.displayRank),
+    annualCost: numberOrNull(ranking.annualCost),
+    annualDelta: numberOrNull(ranking.annualDelta),
+    network: text(monetization.network || selectedOffer?.monetization?.network, 80),
+    model: text(monetization.model || selectedOffer?.monetization?.model, 80),
+    redirect: monetization.status === "ready_to_redirect",
+  };
 }
 
 function requireAnalyticsBrowserOrigin(req, res) {
@@ -252,6 +286,8 @@ export default async function handler(req, res) {
       return;
     }
 
+    const trustedPayload = integrity.payload || payload;
+
     if (VERIFIED_LEAD_EVENT_TYPES.has(eventType)) {
       if (!(await enforceRateLimit(req, res, {
         label: "track-event-verified-lead",
@@ -265,12 +301,12 @@ export default async function handler(req, res) {
       eventType,
       leadId: integrity.leadId,
       sessionId: text(body.sessionId, 90),
-      page: text(body.page || payload.page, 220),
-      customerType: text(body.customerType || payload.customerType, 40),
-      dataOrigin: text(body.dataOrigin || payload.dataOrigin, 60),
-      source: text(body.source || payload.source, 80),
+      page: text(body.page || trustedPayload.page, 220),
+      customerType: text(body.customerType || trustedPayload.customerType, 40),
+      dataOrigin: text(body.dataOrigin || trustedPayload.dataOrigin, 60),
+      source: text(body.source || trustedPayload.source, 80),
       payload: {
-        ...payload,
+        ...trustedPayload,
         ...traffic,
         eventIntegrity: integrity.integrity,
         ipHashSource: clientIp(req) ? "server_seen" : "",
@@ -290,3 +326,8 @@ export default async function handler(req, res) {
     json(res, 200, { ok: true, stored: false, skipped: true });
   }
 }
+
+export {
+  authoritativeOfferAnalyticsPayload,
+  sanitizePayload,
+};
