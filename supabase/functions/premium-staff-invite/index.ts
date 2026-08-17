@@ -56,12 +56,32 @@ function allowedRedirectOrigin(value: unknown) {
   }
 }
 
+function jwtAal(token: string) {
+  const parts = String(token || "").split(".");
+  if (parts.length !== 3 || !parts[1]) return "";
+  try {
+    const normalized = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized + "=".repeat((4 - (normalized.length % 4)) % 4);
+    const payload = JSON.parse(atob(padded));
+    return String(payload?.aal || "").trim().toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
 async function authenticatedOwner(request: Request, admin: any) {
   const header = request.headers.get("authorization") || "";
   const token = header.replace(/^Bearer\s+/i, "").trim();
   if (!token) throw new Error("authentication_required");
+
+  // Prima Supabase valida realmente il bearer token.
   const { data, error } = await admin.auth.getUser(token);
   if (error || !data?.user?.id) throw new Error("authentication_invalid");
+
+  // Solo dopo la validazione del token consideriamo autorevole il claim AAL.
+  // Password sola / claim mancante / token legacy => fail closed.
+  if (jwtAal(token) !== "aal2") throw new Error("staff_mfa_required");
+
   const { data: staff, error: staffError } = await admin
     .from("premium_staff_members")
     .select("user_id,role,active")
@@ -148,9 +168,13 @@ Deno.serve(async request => {
   } catch (error) {
     const message = compactError(error);
     const status = message.includes("authentication") ? 401
-      : message.includes("premium_staff_required") || message.includes("premium_owner_required") ? 403
+      : message.includes("staff_mfa_required")
+        || message.includes("premium_staff_required")
+        || message.includes("premium_owner_required") ? 403
       : message.includes("premium_staff_auth_user_exists") ? 409
-      : message.includes("premium_staff_email_invalid") || message.includes("premium_staff_role_invalid") || message.includes("premium_staff_invite_redirect_invalid") ? 400
+      : message.includes("premium_staff_email_invalid")
+        || message.includes("premium_staff_role_invalid")
+        || message.includes("premium_staff_invite_redirect_invalid") ? 400
       : message.includes("configuration_missing") ? 500
       : 409;
     console.error("premium-staff-invite", message);
