@@ -222,9 +222,18 @@ async function validateAnalyticsIntegrity(eventType, body, payload) {
   return { ok: true, integrity: "verified_lead", leadId };
 }
 
+function requireAnalyticsBrowserOrigin(req, res) {
+  const origin = String(req?.headers?.origin || "").trim();
+  if (!origin) {
+    json(res, 403, { ok: false, error: "Origine analytics richiesta" });
+    return false;
+  }
+  return requireAllowedOrigin(req, res);
+}
+
 export default async function handler(req, res) {
   if (!method(req, res, ["POST"])) return;
-  if (!requireAllowedOrigin(req, res)) return;
+  if (!requireAnalyticsBrowserOrigin(req, res)) return;
   if (!(await enforceRateLimit(req, res, { label: "track-event", ...rateLimitConfig("TRACK_EVENT", 240, 3600) }))) return;
 
   try {
