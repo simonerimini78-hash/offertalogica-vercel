@@ -1,6 +1,7 @@
 import { clientIp, json, method, readJson, requireAllowedOrigin } from "../lib/http.js";
 import { persistAnalyticsEvent } from "../lib/customerDb.js";
 import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
+import { getJson } from "../lib/store.js";
 
 // Security Step 7A — only analytics events actually used by OffertaLogica
 // may enter the public analytics endpoint. Unknown/custom event names are
@@ -66,6 +67,26 @@ const ALLOWED_EVENT_TYPES = new Set([
   "landing_view",
   "landing_self_service_click",
   "landing_assisted_click",
+]);
+
+// These events describe security- or revenue-relevant funnel stages. They are
+// accepted only when the submitted lead exists server-side and has completed OTP.
+const VERIFIED_LEAD_EVENT_TYPES = new Set([
+  "otp_verified",
+  "offers_unlocked",
+  "offer_consent_opened",
+  "offer_partner_consent_confirmed",
+  "offer_request_started",
+  "offer_request_recorded",
+  "offer_redirect",
+  "assistance_callback_verified",
+]);
+
+// At these stages /api/offer-consent has already written the authoritative
+// selected offer into the server-side lead. Cross-check client analytics against it.
+const SERVER_OFFER_MATCH_EVENT_TYPES = new Set([
+  "offer_request_recorded",
+  "offer_redirect",
 ]);
 
 function text(value, max = 120) {
@@ -162,6 +183,45 @@ function sanitizePayload(payload = {}) {
   };
 }
 
+async function validateAnalyticsIntegrity(eventType, body, payload) {
+  if (!VERIFIED_LEAD_EVENT_TYPES.has(eventType)) {
+    return { ok: true, integrity: "public_event", leadId: text(body.leadId, 90) };
+  }
+
+  const leadId = text(body.leadId, 90);
+  if (!leadId) {
+    return { ok: false, status: 400, error: "Lead verificato richiesto" };
+  }
+
+  const lead = await getJson(`lead:${leadId}`);
+  if (!lead || lead.status !== "verified") {
+    return { ok: false, status: 403, error: "Evento non associato a un lead verificato" };
+  }
+
+  if (SERVER_OFFER_MATCH_EVENT_TYPES.has(eventType)) {
+    const selectedOffer = lead.selectedOffer && typeof lead.selectedOffer === "object"
+      ? lead.selectedOffer
+      : {};
+    const submittedOfferId = text(payload.offerId, 90);
+    const submittedProvider = text(payload.provider, 100);
+    const submittedOfferName = text(payload.offerName, 160);
+
+    if (!selectedOffer.id || !submittedOfferId || String(selectedOffer.id) !== submittedOfferId) {
+      return { ok: false, status: 409, error: "Offerta analytics non coerente con il lead" };
+    }
+    if (submittedProvider && selectedOffer.provider && String(selectedOffer.provider) !== submittedProvider) {
+      return { ok: false, status: 409, error: "Fornitore analytics non coerente con il lead" };
+    }
+    if (submittedOfferName && selectedOffer.name && String(selectedOffer.name) !== submittedOfferName) {
+      return { ok: false, status: 409, error: "Nome offerta analytics non coerente con il lead" };
+    }
+
+    return { ok: true, integrity: "verified_offer", leadId };
+  }
+
+  return { ok: true, integrity: "verified_lead", leadId };
+}
+
 export default async function handler(req, res) {
   if (!method(req, res, ["POST"])) return;
   if (!requireAllowedOrigin(req, res)) return;
@@ -177,10 +237,24 @@ export default async function handler(req, res) {
     }
 
     const payload = sanitizePayload(body.payload);
+    const integrity = await validateAnalyticsIntegrity(eventType, body, payload);
+    if (!integrity.ok) {
+      json(res, integrity.status || 400, { ok: false, error: integrity.error || "Evento non autorizzato" });
+      return;
+    }
+
+    if (VERIFIED_LEAD_EVENT_TYPES.has(eventType)) {
+      if (!(await enforceRateLimit(req, res, {
+        label: "track-event-verified-lead",
+        identifier: integrity.leadId,
+        ...rateLimitConfig("TRACK_EVENT_VERIFIED_LEAD", 30, 3600),
+      }))) return;
+    }
+
     const traffic = classifyTrafficAgent(req);
     const result = await persistAnalyticsEvent({
       eventType,
-      leadId: text(body.leadId, 90),
+      leadId: integrity.leadId,
       sessionId: text(body.sessionId, 90),
       page: text(body.page || payload.page, 220),
       customerType: text(body.customerType || payload.customerType, 40),
@@ -189,6 +263,7 @@ export default async function handler(req, res) {
       payload: {
         ...payload,
         ...traffic,
+        eventIntegrity: integrity.integrity,
         ipHashSource: clientIp(req) ? "server_seen" : "",
       },
     });
