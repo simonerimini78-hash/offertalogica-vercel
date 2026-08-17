@@ -3,7 +3,7 @@ import { clientIp, json, method, readJson, requireAllowedOrigin } from "../lib/h
 import { persistLeadSnapshot } from "../lib/customerDb.js";
 import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
 import { setJson } from "../lib/store.js";
-import { sanitizeLead } from "../lib/validation.js";
+import { sanitizeLead, sanitizeLeadCalculation } from "../lib/validation.js";
 
 export default async function handler(req, res) {
   if (!method(req, res, ["POST"])) return;
@@ -13,6 +13,7 @@ export default async function handler(req, res) {
   try {
     const body = await readJson(req);
     const lead = sanitizeLead(body);
+    const calculation = sanitizeLeadCalculation(body.calculation);
     const id = createId();
     const retentionDays = Number(process.env.LEAD_RETENTION_DAYS || 30);
     const createdAt = new Date().toISOString();
@@ -22,7 +23,7 @@ export default async function handler(req, res) {
       id,
       ...lead,
       status: "pending_otp",
-      calculation: body.calculation || null,
+      calculation,
       consents: {
         service: lead.consentService,
         marketing: lead.consentMarketing,
@@ -33,8 +34,8 @@ export default async function handler(req, res) {
           version: privacyVersion,
           clientAcceptedAt: String(clientProof.acceptedAt || "").slice(0, 40),
           source: String(clientProof.source || "unknown").slice(0, 40),
-          dataOrigin: String(clientProof.dataOrigin || body.calculation?.dataOrigin || "unknown").slice(0, 60),
-          pdfDocumentCount: Number(clientProof.pdfDocumentCount || body.calculation?.comparisonProfile?.pdfDocumentCount || 0),
+          dataOrigin: String(clientProof.dataOrigin || calculation?.dataOrigin || "unknown").slice(0, 60),
+          pdfDocumentCount: Number(clientProof.pdfDocumentCount || calculation?.comparisonProfile?.pdfDocumentCount || 0),
           internalImprovement: Boolean(clientProof.internalImprovement),
           page: String(clientProof.page || "").slice(0, 180),
           serverReceivedAt: createdAt,
