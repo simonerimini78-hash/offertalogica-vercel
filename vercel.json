@@ -8,6 +8,13 @@
       "maxDuration": 30
     }
   },
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "/staff.html",
+      "permanent": false
+    }
+  ],
   "headers": [
     {
       "source": "/sw.js",
