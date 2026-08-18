@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { requireAllowedOrigin } from "../lib/http.js";
+import { requireAllowedBrowserOrigin, requireAllowedOrigin } from "../lib/http.js";
 
 function responseRecorder() {
   return {
@@ -20,6 +20,33 @@ test("accetta richieste senza header Origin", () => {
   const res = responseRecorder();
   assert.equal(requireAllowedOrigin({ headers: {} }, res), true);
   assert.equal(res.statusCode, 200);
+});
+
+test("il controllo browser rifiuta richieste senza header Origin", () => {
+  const res = responseRecorder();
+  assert.equal(requireAllowedBrowserOrigin({ headers: {} }, res), false);
+  assert.equal(res.statusCode, 403);
+  assert.deepEqual(JSON.parse(res.body), {
+    ok: false,
+    error: "Origine richiesta non autorizzata",
+  });
+});
+
+test("il controllo browser accetta una POST same-origin di produzione", () => {
+  const res = responseRecorder();
+  assert.equal(
+    requireAllowedBrowserOrigin(request("https://offertalogica.it", "offertalogica.it"), res),
+    true,
+  );
+});
+
+test("il controllo browser accetta una Preview Vercel same-origin", () => {
+  const preview = "offertalogica-vercel-step10c1-team.vercel.app";
+  const res = responseRecorder();
+  assert.equal(
+    requireAllowedBrowserOrigin(request(`https://${preview}`, preview), res),
+    true,
+  );
 });
 
 test("accetta il dominio di produzione configurato", () => {
