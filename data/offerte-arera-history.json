@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "version": "arera-history-2026-08-18",
-  "updatedAt": "2026-08-18",
-  "sourceCatalogVersion": "arera-menu-2026-08-18",
+  "version": "arera-history-2026-08-19",
+  "updatedAt": "2026-08-19",
+  "sourceCatalogVersion": "arera-menu-2026-08-19",
   "source": "Portale Offerte ARERA/Acquirente Unico Open Data. Le offerte variabili sono stimate con indice corrente del motore quando ARERA espone solo lo spread.",
   "offers": [
     {
@@ -16,7 +16,7 @@
       "offerName": "A2A Bonus 10 Gas",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -47,7 +47,7 @@
       "offerName": "A2A Click - GAS",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -79,7 +79,7 @@
       "customerType": "",
       "firstSeen": "2026-08-03",
       "lastSeen": "2026-08-18",
-      "active": true,
+      "active": false,
       "versions": [
         {
           "catalogDate": "2026-08-03",
@@ -124,7 +124,7 @@
       "offerName": "A2A Easy Gas",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -155,7 +155,7 @@
       "offerName": "A2A Full Gas",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -186,7 +186,7 @@
       "offerName": "A2A Ready 12 Gas",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -217,7 +217,7 @@
       "offerName": "A2A Start Gas",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -248,7 +248,7 @@
       "offerName": "Esclusiva2a - Gas",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -279,7 +279,7 @@
       "offerName": "Smart Casa Gas",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -310,7 +310,7 @@
       "offerName": "Smart Casa Gas",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -341,7 +341,7 @@
       "offerName": "Smart Casa+ Gas",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -372,7 +372,7 @@
       "offerName": "Smart Casa+ Gas",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -403,7 +403,7 @@
       "offerName": "A2A Bonus 10 Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -434,7 +434,7 @@
       "offerName": "A2A Bonus 10 Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -465,12 +465,27 @@
       "offerName": "A2A Click Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-05",
-      "active": false,
+      "lastSeen": "2026-08-19",
+      "active": true,
       "versions": [
         {
           "catalogDate": "2026-08-03",
           "validFrom": "30/07/2026_00:00:00",
+          "validTo": "31/08/2026_23:59:59",
+          "priceType": "fisso",
+          "price": 0.13085,
+          "annualFixedFee": 102.0,
+          "durationMonths": null,
+          "priceQuality": "media_fasce",
+          "url": "https://www.a2a.it/casa/a2a-click",
+          "source": "Portale Offerte ARERA/Acquirente Unico Open Data - codice 000294ESFFL01XXA2AClick260733034",
+          "indexName": null,
+          "indexValueAtCapture": null,
+          "spreadEstimate": null
+        },
+        {
+          "catalogDate": "2026-08-19",
+          "validFrom": "19/08/2026_00:00:00",
           "validTo": "31/08/2026_23:59:59",
           "priceType": "fisso",
           "price": 0.13085,
@@ -496,7 +511,7 @@
       "offerName": "A2A Click Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -528,7 +543,7 @@
       "customerType": "",
       "firstSeen": "2026-08-03",
       "lastSeen": "2026-08-18",
-      "active": true,
+      "active": false,
       "versions": [
         {
           "catalogDate": "2026-08-03",
@@ -573,12 +588,27 @@
       "offerName": "A2A Click Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-05",
-      "active": false,
+      "lastSeen": "2026-08-19",
+      "active": true,
       "versions": [
         {
           "catalogDate": "2026-08-03",
           "validFrom": "30/07/2026_00:00:00",
+          "validTo": "31/08/2026_23:59:59",
+          "priceType": "fisso",
+          "price": 0.13,
+          "annualFixedFee": 102.0,
+          "durationMonths": null,
+          "priceQuality": "puntuale",
+          "url": "https://www.a2a.it/casa/a2a-click",
+          "source": "Portale Offerte ARERA/Acquirente Unico Open Data - codice 000294ESFML01XXA2AClick260733034",
+          "indexName": null,
+          "indexValueAtCapture": null,
+          "spreadEstimate": null
+        },
+        {
+          "catalogDate": "2026-08-19",
+          "validFrom": "19/08/2026_00:00:00",
           "validTo": "31/08/2026_23:59:59",
           "priceType": "fisso",
           "price": 0.13,
@@ -604,7 +634,7 @@
       "offerName": "A2A Click Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -636,7 +666,7 @@
       "customerType": "",
       "firstSeen": "2026-08-03",
       "lastSeen": "2026-08-18",
-      "active": true,
+      "active": false,
       "versions": [
         {
           "catalogDate": "2026-08-03",
@@ -681,7 +711,7 @@
       "offerName": "A2A Easy Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -712,7 +742,7 @@
       "offerName": "A2A Easy Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -743,7 +773,7 @@
       "offerName": "A2A Full Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -774,7 +804,7 @@
       "offerName": "A2A Full Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -805,7 +835,7 @@
       "offerName": "A2A Ready 12 Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -836,7 +866,7 @@
       "offerName": "A2A Ready 12 Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -867,7 +897,7 @@
       "offerName": "A2A Start Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -898,7 +928,7 @@
       "offerName": "A2A Start Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -929,7 +959,7 @@
       "offerName": "Esclusiva2a Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -960,7 +990,7 @@
       "offerName": "Esclusiva2a Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -1022,7 +1052,7 @@
       "offerName": "NeN Dieci Luce",
       "customerType": "",
       "firstSeen": "2026-08-05",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -1053,7 +1083,7 @@
       "offerName": "Smart Casa Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -1084,7 +1114,7 @@
       "offerName": "Smart Casa Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -1115,7 +1145,7 @@
       "offerName": "Smart Casa Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -1146,7 +1176,7 @@
       "offerName": "Smart Casa Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -1177,7 +1207,7 @@
       "offerName": "Smart Casa+ Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -1208,7 +1238,7 @@
       "offerName": "Smart Casa+ Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -1239,7 +1269,7 @@
       "offerName": "Smart Casa+ Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -1270,7 +1300,7 @@
       "offerName": "Smart Casa+ Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -1332,7 +1362,7 @@
       "offerName": "Acea Energia Fix",
       "customerType": "",
       "firstSeen": "2026-08-04",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -1363,7 +1393,7 @@
       "offerName": "Acea Energia Flex Casa",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -1394,7 +1424,7 @@
       "offerName": "Acea Energia Sprint",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -1425,7 +1455,7 @@
       "offerName": "Acea Energia Sprint Web",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -1456,7 +1486,7 @@
       "offerName": "Acea Energia Trend 12",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -1487,7 +1517,7 @@
       "offerName": "Acea Energia Trend 24",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -1518,7 +1548,7 @@
       "offerName": "ACEA GAS SOLUZIONE SEMPLICE 02_26",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -1580,7 +1610,7 @@
       "offerName": "Acea Energia Fix",
       "customerType": "",
       "firstSeen": "2026-08-04",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -1642,7 +1672,7 @@
       "offerName": "Acea Energia Fix",
       "customerType": "",
       "firstSeen": "2026-08-04",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -1673,7 +1703,7 @@
       "offerName": "Acea Energia Flex Casa",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -1704,7 +1734,7 @@
       "offerName": "Acea Energia Flex Casa",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -1735,7 +1765,7 @@
       "offerName": "Acea Energia Sprint",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -1766,7 +1796,7 @@
       "offerName": "Acea Energia Sprint",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -1797,7 +1827,7 @@
       "offerName": "Acea Energia Sprint Web",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -1828,7 +1858,7 @@
       "offerName": "Acea Energia Sprint Web",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -1859,7 +1889,7 @@
       "offerName": "Acea Energia Trend 12",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -1890,7 +1920,7 @@
       "offerName": "Acea Energia Trend 12",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -1921,7 +1951,7 @@
       "offerName": "Acea Energia Trend 24",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -1952,7 +1982,7 @@
       "offerName": "Acea Energia Trend 24",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -1983,7 +2013,7 @@
       "offerName": "LUCE CASA INTELLIGENTE",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -2014,7 +2044,7 @@
       "offerName": "LUCE COMMUNITY",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -2045,7 +2075,7 @@
       "offerName": "LUCE OVER 75 26_01",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -2076,7 +2106,7 @@
       "offerName": "LUCE SECONDE CASE",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -2107,7 +2137,7 @@
       "offerName": "Alperia Gas Free",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -2153,7 +2183,7 @@
       "offerName": "Alperia Gas Home Digital",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -2199,7 +2229,7 @@
       "offerName": "Alperia Gas Home Promo",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -2245,7 +2275,7 @@
       "offerName": "Alperia Gas Home Pure",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -2291,7 +2321,7 @@
       "offerName": "Alperia Gas Home Standard",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -2337,7 +2367,7 @@
       "offerName": "Alperia Gas Home Start",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -2414,7 +2444,7 @@
       "offerName": "Alperia Gas Smile Clear",
       "customerType": "",
       "firstSeen": "2026-08-11",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -2445,7 +2475,7 @@
       "offerName": "Alperia Gas Smile Start",
       "customerType": "",
       "firstSeen": "2026-08-11",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -2476,7 +2506,7 @@
       "offerName": "Alperia Direct Alto Adige",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -2522,7 +2552,7 @@
       "offerName": "Alperia Direct Energy",
       "customerType": "",
       "firstSeen": "2026-08-12",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -2553,7 +2583,7 @@
       "offerName": "Alperia Free",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -2599,7 +2629,7 @@
       "offerName": "Alperia Free Welcome",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -2645,7 +2675,7 @@
       "offerName": "Alperia Home Clear",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -2691,7 +2721,7 @@
       "offerName": "Alperia Home Digital",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -2737,7 +2767,7 @@
       "offerName": "Alperia Home Plus",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -2783,7 +2813,7 @@
       "offerName": "Alperia Home Pro",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -2829,7 +2859,7 @@
       "offerName": "Alperia Home Pure",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -2875,7 +2905,7 @@
       "offerName": "Alperia Home Standard",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -2921,7 +2951,7 @@
       "offerName": "Alperia Home Start",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -2998,7 +3028,7 @@
       "offerName": "Alperia Smile Clear",
       "customerType": "",
       "firstSeen": "2026-08-11",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -3060,7 +3090,7 @@
       "offerName": "Alperia Smile Easy Summer",
       "customerType": "",
       "firstSeen": "2026-08-11",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -3122,7 +3152,7 @@
       "offerName": "Alperia Smile Safety",
       "customerType": "",
       "firstSeen": "2026-08-11",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -3184,7 +3214,7 @@
       "offerName": "Alperia Smile Standard",
       "customerType": "",
       "firstSeen": "2026-08-11",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -3215,7 +3245,7 @@
       "offerName": "Alperia TerzoTempo",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -3292,7 +3322,7 @@
       "offerName": "FIX STORE GAS SCONTO 15%",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -3447,7 +3477,7 @@
       "offerName": "GAS NATURALE FIX SEGUGIO",
       "customerType": "",
       "firstSeen": "2026-08-05",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -3478,7 +3508,7 @@
       "offerName": "GAS NATURALE FLEX SEGUGIO",
       "customerType": "",
       "firstSeen": "2026-08-05",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -3509,7 +3539,7 @@
       "offerName": "MOVE GAS FISSA WEB",
       "customerType": "",
       "firstSeen": "2026-08-05",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -3540,7 +3570,7 @@
       "offerName": "MOVE GAS FLEX WEB",
       "customerType": "",
       "firstSeen": "2026-08-05",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -3602,7 +3632,7 @@
       "offerName": "FIX STORE LUCE SCONTO 15%",
       "customerType": "",
       "firstSeen": "2026-08-05",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -3664,7 +3694,7 @@
       "offerName": "FLEX STORE LUCE SCONTO 50%",
       "customerType": "",
       "firstSeen": "2026-08-05",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -3695,7 +3725,7 @@
       "offerName": "LUCE DINAMICA VACANZE 3 FASCE",
       "customerType": "",
       "firstSeen": "2026-08-05",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -3819,7 +3849,7 @@
       "offerName": "LUCE FIX MONO SEGUGIO",
       "customerType": "",
       "firstSeen": "2026-08-05",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -3912,7 +3942,7 @@
       "offerName": "LUCE FLEX 40",
       "customerType": "",
       "firstSeen": "2026-08-05",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -4036,7 +4066,7 @@
       "offerName": "LUCE FLEX SEGUGIO",
       "customerType": "",
       "firstSeen": "2026-08-05",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -4098,7 +4128,7 @@
       "offerName": "MOVE LUCE FISSA WEB",
       "customerType": "",
       "firstSeen": "2026-08-05",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -4129,7 +4159,7 @@
       "offerName": "MOVE LUCE FLEX WEB",
       "customerType": "",
       "firstSeen": "2026-08-05",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -4191,7 +4221,7 @@
       "offerName": "Scegli Dinamico GAS 2",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -4253,7 +4283,7 @@
       "offerName": "Scegli Dinamico GAS 2.0",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -4315,7 +4345,7 @@
       "offerName": "Scegli Dinamico Gas Light",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -4377,7 +4407,7 @@
       "offerName": "Scegli Sereno GAS 2.0",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -4439,7 +4469,7 @@
       "offerName": "Scegli Sereno GAS 2.0 Light",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -4501,7 +4531,7 @@
       "offerName": "Scegli Dinamico 2.0",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -4563,7 +4593,7 @@
       "offerName": "Scegli Dinamico 3Fasce 2.0",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -4625,7 +4655,7 @@
       "offerName": "Scegli Dinamico 6",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -4687,7 +4717,7 @@
       "offerName": "Scegli Dinamico Light",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -4749,7 +4779,7 @@
       "offerName": "Scegli Dinamico Plus",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -4811,7 +4841,7 @@
       "offerName": "Scegli Sereno 2.0 36 Mesi Giorno 3Fasce",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -4873,7 +4903,7 @@
       "offerName": "Scegli Sereno 2.0 Giorno 3Fasce",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -4935,7 +4965,7 @@
       "offerName": "Scegli Sereno 2.0 Light Giorno 3Fasce",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -4997,7 +5027,7 @@
       "offerName": "Scegli Sereno Long 2.0 3Fasce",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -5059,7 +5089,7 @@
       "offerName": "DOLOMITI FISSO GAS 12",
       "customerType": "",
       "firstSeen": "2026-08-05",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -5121,7 +5151,7 @@
       "offerName": "DOLOMITI FISSO GAS 12 WEB",
       "customerType": "",
       "firstSeen": "2026-08-05",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -5183,7 +5213,7 @@
       "offerName": "DOLOMITI FISSO GAS 36",
       "customerType": "",
       "firstSeen": "2026-08-05",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -5245,7 +5275,7 @@
       "offerName": "DOLOMITI FISSO GAS 36 WEB",
       "customerType": "",
       "firstSeen": "2026-08-05",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -5276,7 +5306,7 @@
       "offerName": "DOLOMITI FLEX 24 GAS",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -5307,7 +5337,7 @@
       "offerName": "DOLOMITI SINERGIKA GAS",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -5369,7 +5399,7 @@
       "offerName": "DOLOMITI FISSO LUCE 12",
       "customerType": "",
       "firstSeen": "2026-08-05",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -5431,7 +5461,7 @@
       "offerName": "DOLOMITI FISSO LUCE 12 WEB",
       "customerType": "",
       "firstSeen": "2026-08-05",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -5493,7 +5523,7 @@
       "offerName": "DOLOMITI FISSO LUCE 120",
       "customerType": "",
       "firstSeen": "2026-08-05",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -5555,7 +5585,7 @@
       "offerName": "DOLOMITI FISSO LUCE 36",
       "customerType": "",
       "firstSeen": "2026-08-05",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -5617,7 +5647,7 @@
       "offerName": "DOLOMITI FISSO LUCE 36 BIORARIA",
       "customerType": "",
       "firstSeen": "2026-08-05",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -5679,7 +5709,7 @@
       "offerName": "DOLOMITI FISSO LUCE 36 BIORARIA WEB",
       "customerType": "",
       "firstSeen": "2026-08-05",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -5741,7 +5771,7 @@
       "offerName": "DOLOMITI FISSO LUCE 36 WEB",
       "customerType": "",
       "firstSeen": "2026-08-05",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -5772,7 +5802,7 @@
       "offerName": "DOLOMITI FLEX 24 LUCE",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -5803,7 +5833,7 @@
       "offerName": "DOLOMITI FLEX LUCE MOBILITY",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -5834,7 +5864,7 @@
       "offerName": "DOLOMITI SINERGIKA LUCE",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -5865,7 +5895,7 @@
       "offerName": "ENERGIA CASA PRIMIERO",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -5896,7 +5926,7 @@
       "offerName": "ENERGIA CASA TRENTINO",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -5927,7 +5957,7 @@
       "offerName": "E.CO GAS ACQUA GOLD",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -5958,7 +5988,7 @@
       "offerName": "E.CO GAS ACQUA GOLD LINK",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -5989,7 +6019,7 @@
       "offerName": "E.CO GAS ACQUA PREMIUM",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -6020,7 +6050,7 @@
       "offerName": "E.CO GAS ACQUA PREMIUM LINK",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -6051,7 +6081,7 @@
       "offerName": "E.CO GAS ACQUA SPECIAL",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -6082,7 +6112,7 @@
       "offerName": "E.CO GAS ACQUA SPECIAL LINK",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -6113,7 +6143,7 @@
       "offerName": "E.CO Gas CasaFissa",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -6144,7 +6174,7 @@
       "offerName": "E.CO Gas CasaFissa LINK",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -6175,7 +6205,7 @@
       "offerName": "E.CO Gas Equilibrio Gold",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -6206,7 +6236,7 @@
       "offerName": "E.CO Gas Equilibrio Gold LINK",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -6237,7 +6267,7 @@
       "offerName": "E.CO Gas Equilibrio Premium",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -6268,7 +6298,7 @@
       "offerName": "E.CO Gas Equilibrio Premium LINK",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -6299,7 +6329,7 @@
       "offerName": "E.CO Gas Equilibrio Special",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -6330,7 +6360,7 @@
       "offerName": "E.CO Gas Equilibrio Special LINK",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -6361,7 +6391,7 @@
       "offerName": "E.CO Gas Essenza Gold",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -6392,7 +6422,7 @@
       "offerName": "E.CO Gas Essenza Gold LINK",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -6423,7 +6453,7 @@
       "offerName": "E.CO Gas Essenza Premium",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -6454,7 +6484,7 @@
       "offerName": "E.CO Gas Essenza Premium LINK",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -6485,7 +6515,7 @@
       "offerName": "E.CO Gas Essenza Special",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -6516,7 +6546,7 @@
       "offerName": "E.CO Gas Essenza Special LINK",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -6547,7 +6577,7 @@
       "offerName": "E.CO GAS FIX PER LGL",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -6578,7 +6608,7 @@
       "offerName": "E.CO GAS FIX PER LGL BUS",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -6609,7 +6639,7 @@
       "offerName": "E.CO GAS FIX PER LGL BUS LINK",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -6640,7 +6670,7 @@
       "offerName": "E.CO GAS FIX PER LGL LINK",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -6671,7 +6701,7 @@
       "offerName": "E.CO GAS PER LGL BUS 1",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -6702,7 +6732,7 @@
       "offerName": "E.CO GAS PER LGL BUS 2",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -6733,7 +6763,7 @@
       "offerName": "E.CO GAS PER LGL BUS LINK 1",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -6764,7 +6794,7 @@
       "offerName": "E.CO GAS PER LGL BUS LINK 2",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -6795,7 +6825,7 @@
       "offerName": "E.CO Gas Prezzo Chiaro BUS",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -6826,7 +6856,7 @@
       "offerName": "E.CO Gas Prezzo Chiaro BUS LINK",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -6857,7 +6887,7 @@
       "offerName": "E.CO Gas Prezzo Garantito",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -6888,7 +6918,7 @@
       "offerName": "E.CO Gas Prezzo Garantito LINK",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -6919,7 +6949,7 @@
       "offerName": "E.CO Gas Prezzo Protetto",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -6950,7 +6980,7 @@
       "offerName": "E.CO Gas Prezzo Protetto LINK",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -6981,7 +7011,7 @@
       "offerName": "E.CO Gas Prezzo Relax BUS",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -7012,7 +7042,7 @@
       "offerName": "E.CO Gas Prezzo Relax BUS LINK",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -7043,7 +7073,7 @@
       "offerName": "E.CO Gas Prezzo Sicuro",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -7074,7 +7104,7 @@
       "offerName": "E.CO Gas Prezzo Sicuro LINK",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -7105,7 +7135,7 @@
       "offerName": "E.CO GAS SOLE GOLD",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -7136,7 +7166,7 @@
       "offerName": "E.CO GAS SOLE GOLD LINK",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -7167,7 +7197,7 @@
       "offerName": "E.CO GAS SOLE PREMIUM",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -7198,7 +7228,7 @@
       "offerName": "E.CO GAS SOLE PREMIUM LINK",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -7229,7 +7259,7 @@
       "offerName": "E.CO GAS SOLE SPECIAL",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -7260,7 +7290,7 @@
       "offerName": "E.CO GAS SOLE SPECIAL LINK",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -7291,7 +7321,7 @@
       "offerName": "E.CO Gas Sostanza Gold",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -7322,7 +7352,7 @@
       "offerName": "E.CO Gas Sostanza Gold LINK",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -7353,7 +7383,7 @@
       "offerName": "E.CO Gas Sostanza Premium",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -7384,7 +7414,7 @@
       "offerName": "E.CO Gas Sostanza Premium LINK",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -7415,7 +7445,7 @@
       "offerName": "E.CO Gas Sostanza Special",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -7446,7 +7476,7 @@
       "offerName": "E.CO Gas Sostanza Special LINK",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -7477,7 +7507,7 @@
       "offerName": "E.CO GAS VENTO GOLD",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -7508,7 +7538,7 @@
       "offerName": "E.CO GAS VENTO GOLD LINK",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -7539,7 +7569,7 @@
       "offerName": "E.CO GAS VENTO PREMIUM",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -7570,7 +7600,7 @@
       "offerName": "E.CO GAS VENTO PREMIUM LINK",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -7601,7 +7631,7 @@
       "offerName": "E.CO GAS VENTO SPECIAL",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -7632,7 +7662,7 @@
       "offerName": "E.CO GAS VENTO SPECIAL LINK",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -7663,7 +7693,7 @@
       "offerName": "E.CO GAS ZERO GOLD",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -7694,7 +7724,7 @@
       "offerName": "E.CO GAS ZERO GOLD LINK",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -7725,7 +7755,7 @@
       "offerName": "E.CO GAS ZERO PREMIUM",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -7756,7 +7786,7 @@
       "offerName": "E.CO GAS ZERO PREMIUM LINK",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -7787,7 +7817,7 @@
       "offerName": "E.CO GAS ZERO SPECIAL",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -7818,7 +7848,7 @@
       "offerName": "E.CO GAS ZERO SPECIAL LINK",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -7849,7 +7879,7 @@
       "offerName": "ECO GAS INDEX PSV 10",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -7880,7 +7910,7 @@
       "offerName": "ECO GAS INDEX PSV 20",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -7911,7 +7941,7 @@
       "offerName": "ECO GAS INDEX PSV 30",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -7942,7 +7972,7 @@
       "offerName": "ECO GREEN HOME GAS 2604",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -7973,7 +8003,7 @@
       "offerName": "ENERCOM AGILE ECO GAS",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -8004,7 +8034,7 @@
       "offerName": "ENERCOM FIX ECO GAS",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -8035,7 +8065,7 @@
       "offerName": "ENERCOM SUPER AGILE ECO GAS",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -8066,7 +8096,7 @@
       "offerName": "ENERGY CASA SPARK MIX_2024",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -8097,7 +8127,7 @@
       "offerName": "FUTURA CASA ECO 1",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -8128,7 +8158,7 @@
       "offerName": "FUTURA CASA ECO 2",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -8159,7 +8189,7 @@
       "offerName": "FUTURA CASA ECO 3",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -8190,7 +8220,7 @@
       "offerName": "Gas PMI Spread Eco",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -8221,7 +8251,7 @@
       "offerName": "miaDinamica Eco Sconto",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -8267,7 +8297,7 @@
       "offerName": "miaDinamica Eco Sconto",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -8313,7 +8343,7 @@
       "offerName": "miaDinamica Eco Sconto",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -8359,7 +8389,7 @@
       "offerName": "miaDinamica Eco Sconto",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -8405,7 +8435,7 @@
       "offerName": "miaDinamica Eco Sconto Pmi",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -8451,7 +8481,7 @@
       "offerName": "miaDinamica Eco Sconto Pmi",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -8497,7 +8527,7 @@
       "offerName": "TUA ENERGIA ECO RELAX",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -8528,7 +8558,7 @@
       "offerName": "E.CO LUCE ACQUA GOLD",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -8559,7 +8589,7 @@
       "offerName": "E.CO LUCE ACQUA GOLD LINK",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -8590,7 +8620,7 @@
       "offerName": "E.CO LUCE ACQUA PREMIUM",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -8621,7 +8651,7 @@
       "offerName": "E.CO LUCE ACQUA PREMIUM LINK",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -8652,7 +8682,7 @@
       "offerName": "E.CO LUCE ACQUA SPECIAL",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -8683,7 +8713,7 @@
       "offerName": "E.CO LUCE ACQUA SPECIAL LINK",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -8714,7 +8744,7 @@
       "offerName": "E.CO Luce CasaFissa",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -8745,7 +8775,7 @@
       "offerName": "E.CO Luce CasaFissa Link",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -8776,7 +8806,7 @@
       "offerName": "E.CO Luce CasaFissa x2",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -8807,7 +8837,7 @@
       "offerName": "E.CO Luce CasaFissa x2 LINK",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -8838,7 +8868,7 @@
       "offerName": "E.CO LUCE CONDOMINI GOLD",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -8869,7 +8899,7 @@
       "offerName": "E.CO LUCE CONDOMINI PREMIUM",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -8900,7 +8930,7 @@
       "offerName": "E.CO Luce Equilibrio Gold",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -8931,7 +8961,7 @@
       "offerName": "E.CO Luce Equilibrio Gold LINK",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -8962,7 +8992,7 @@
       "offerName": "E.CO Luce Equilibrio Premium",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -8993,7 +9023,7 @@
       "offerName": "E.CO Luce Equilibrio Premium LINK",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -9024,7 +9054,7 @@
       "offerName": "E.CO Luce Equilibrio Special",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -9055,7 +9085,7 @@
       "offerName": "E.CO Luce Equilibrio Special LINK",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -9086,7 +9116,7 @@
       "offerName": "E.CO Luce Essenza Gold",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -9117,7 +9147,7 @@
       "offerName": "E.CO Luce Essenza Gold LINK",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -9148,7 +9178,7 @@
       "offerName": "E.CO Luce Essenza Premium",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -9179,7 +9209,7 @@
       "offerName": "E.CO Luce Essenza Premium LINK",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -9210,7 +9240,7 @@
       "offerName": "E.CO Luce Essenza Special",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -9241,7 +9271,7 @@
       "offerName": "E.CO Luce Essenza Special LINK",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -9272,7 +9302,7 @@
       "offerName": "E.CO LUCE FIX PER LGL",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -9303,7 +9333,7 @@
       "offerName": "E.CO LUCE FIX PER LGL BUS",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -9334,7 +9364,7 @@
       "offerName": "E.CO LUCE FIX PER LGL BUS LINK",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -9365,7 +9395,7 @@
       "offerName": "E.CO LUCE FIX PER LGL LINK",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -9396,7 +9426,7 @@
       "offerName": "E.CO Luce Prezzo Chiaro BUS",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -9427,7 +9457,7 @@
       "offerName": "E.CO Luce Prezzo Chiaro BUS LINK",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -9458,7 +9488,7 @@
       "offerName": "E.CO Luce Prezzo Garantito",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -9489,7 +9519,7 @@
       "offerName": "E.CO Luce Prezzo Garantito Link",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -9520,7 +9550,7 @@
       "offerName": "E.CO Luce Prezzo Garantito x2",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -9551,7 +9581,7 @@
       "offerName": "E.CO Luce Prezzo Garantito x2 LINK",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -9582,7 +9612,7 @@
       "offerName": "E.CO Luce Prezzo Protetto",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -9613,7 +9643,7 @@
       "offerName": "E.CO Luce Prezzo Protetto Link",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -9644,7 +9674,7 @@
       "offerName": "E.CO Luce Prezzo Protetto x2",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -9675,7 +9705,7 @@
       "offerName": "E.CO Luce Prezzo Protetto x2 LINK",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -9706,7 +9736,7 @@
       "offerName": "E.CO Luce Prezzo Relax BUS",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -9737,7 +9767,7 @@
       "offerName": "E.CO Luce Prezzo Relax BUS LINK",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -9768,7 +9798,7 @@
       "offerName": "E.CO Luce Prezzo Sicuro",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -9799,7 +9829,7 @@
       "offerName": "E.CO Luce Prezzo Sicuro Link",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -9830,7 +9860,7 @@
       "offerName": "E.CO Luce Prezzo Sicuro x2",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -9861,7 +9891,7 @@
       "offerName": "E.CO Luce Prezzo Sicuro x2 LINK",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -9892,7 +9922,7 @@
       "offerName": "E.CO LUCE SOLE GOLD",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -9923,7 +9953,7 @@
       "offerName": "E.CO LUCE SOLE GOLD LINK",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -9954,7 +9984,7 @@
       "offerName": "E.CO LUCE SOLE PREMIUM",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -9985,7 +10015,7 @@
       "offerName": "E.CO LUCE SOLE PREMIUM LINK",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -10016,7 +10046,7 @@
       "offerName": "E.CO LUCE SOLE SPECIAL",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -10047,7 +10077,7 @@
       "offerName": "E.CO LUCE SOLE SPECIAL LINK",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -10078,7 +10108,7 @@
       "offerName": "E.CO Luce Sostanza Gold",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -10109,7 +10139,7 @@
       "offerName": "E.CO Luce Sostanza Gold LINK",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -10140,7 +10170,7 @@
       "offerName": "E.CO Luce Sostanza Premium",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -10171,7 +10201,7 @@
       "offerName": "E.CO Luce Sostanza Premium LINK",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -10202,7 +10232,7 @@
       "offerName": "E.CO Luce Sostanza Special",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -10233,7 +10263,7 @@
       "offerName": "E.CO Luce Sostanza Special LINK",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -10264,7 +10294,7 @@
       "offerName": "E.CO LUCE VENTO GOLD",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -10295,7 +10325,7 @@
       "offerName": "E.CO LUCE VENTO GOLD LINK",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -10326,7 +10356,7 @@
       "offerName": "E.CO LUCE VENTO PREMIUM",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -10357,7 +10387,7 @@
       "offerName": "E.CO LUCE VENTO PREMIUM LINK",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -10388,7 +10418,7 @@
       "offerName": "E.CO LUCE VENTO SPECIAL",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -10419,7 +10449,7 @@
       "offerName": "E.CO LUCE VENTO SPECIAL LINK",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -10450,7 +10480,7 @@
       "offerName": "E.CO LUCE ZERO GOLD",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -10481,7 +10511,7 @@
       "offerName": "E.CO LUCE ZERO GOLD LINK",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -10512,7 +10542,7 @@
       "offerName": "E.CO LUCE ZERO PREMIUM",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -10543,7 +10573,7 @@
       "offerName": "E.CO LUCE ZERO PREMIUM LINK",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -10574,7 +10604,7 @@
       "offerName": "E.CO LUCE ZERO SPECIAL",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -10605,7 +10635,7 @@
       "offerName": "E.CO LUCE ZERO SPECIAL LINK",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -10636,7 +10666,7 @@
       "offerName": "ECO EE DOMESTIC GOLD",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -10667,7 +10697,7 @@
       "offerName": "ECO EE DOMESTIC GOLD ON",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -10698,7 +10728,7 @@
       "offerName": "ECO EE DOMESTIC SILVER",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -10729,7 +10759,7 @@
       "offerName": "ECO GREEN HOME POWER 2604 FASCE",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -10760,7 +10790,7 @@
       "offerName": "ECO GREEN HOME POWER 2604 MONO",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -10791,7 +10821,7 @@
       "offerName": "ECO LIGHT HOME POWER 2604 MONO",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -10822,7 +10852,7 @@
       "offerName": "ECO LIGHT POWER AU COVV 2604 FASCE",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -10853,7 +10883,7 @@
       "offerName": "ECO LIGHT POWER AU COVV 2604 MONO",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -10884,7 +10914,7 @@
       "offerName": "ENERCOM AGILE ECO LUCE F1-F2-F3",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -10915,7 +10945,7 @@
       "offerName": "ENERCOM AGILE ECO LUCE H24",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -10946,7 +10976,7 @@
       "offerName": "ENERCOM SUPER AGILE ECO LUCE (TRI-ORARIA)",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -10977,7 +11007,7 @@
       "offerName": "ENERGY CASA LIGHT MIX_2",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -11008,7 +11038,7 @@
       "offerName": "Flow LUCE Mono",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -11039,7 +11069,7 @@
       "offerName": "Flow LUCE Mono",
       "customerType": "",
       "firstSeen": "2026-08-04",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -11070,7 +11100,7 @@
       "offerName": "Flow LUCE Special",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -11101,7 +11131,7 @@
       "offerName": "Flow LUCE Special",
       "customerType": "",
       "firstSeen": "2026-08-04",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -11163,7 +11193,7 @@
       "offerName": "E.ON Flex Gas",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -11225,7 +11255,7 @@
       "offerName": "E.ON Flex Gas Protetta",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -11287,7 +11317,7 @@
       "offerName": "E.ON FlexClick Gas - PROMO",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -11349,7 +11379,7 @@
       "offerName": "E.ON FreeComfort Gas Protetta",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -11380,7 +11410,7 @@
       "offerName": "E.ON Gas - Amico new",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -11442,7 +11472,7 @@
       "offerName": "E.ON Gas Click",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -11504,7 +11534,7 @@
       "offerName": "E.ON Gas Insieme",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -11566,7 +11596,7 @@
       "offerName": "E.ON Gas Premia",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -11628,7 +11658,7 @@
       "offerName": "E.ON Gas Protetta Per 24",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -11659,7 +11689,7 @@
       "offerName": "E.ON Gas Tua",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -11721,7 +11751,7 @@
       "offerName": "E.ON GasClick - Amico new",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -11752,7 +11782,7 @@
       "offerName": "E.ON GasVerde Protetta",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -11814,7 +11844,7 @@
       "offerName": "E.ON Flex Luce",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -11876,7 +11906,7 @@
       "offerName": "E.ON Flex Luce Casa",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -11938,7 +11968,7 @@
       "offerName": "E.ON Flex Luce Per 24",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -12000,7 +12030,7 @@
       "offerName": "E.ON FlexClick Luce - PROMO",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -12062,7 +12092,7 @@
       "offerName": "E.ON FreeComfort Luce Casa",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -12093,7 +12123,7 @@
       "offerName": "E.ON Luce - Amico new",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -12155,7 +12185,7 @@
       "offerName": "E.ON Luce Casa Per 24",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -12217,7 +12247,7 @@
       "offerName": "E.ON Luce Casa Per 24 Bioraria",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -12279,7 +12309,7 @@
       "offerName": "E.ON Luce Chiara Click",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -12341,7 +12371,7 @@
       "offerName": "E.ON Luce Drive Smarty",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -12403,7 +12433,7 @@
       "offerName": "E.ON Luce Insieme",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -12465,7 +12495,7 @@
       "offerName": "E.ON Luce Premia",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -12527,7 +12557,7 @@
       "offerName": "E.ON Luce Solar Dream",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -12589,7 +12619,7 @@
       "offerName": "E.ON Luce Solar Dream Amico",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -12620,7 +12650,7 @@
       "offerName": "E.ON Luce Tua",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -12651,7 +12681,7 @@
       "offerName": "E.ON Luce Tua Bioraria",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -12713,7 +12743,7 @@
       "offerName": "E.ON Luce Tua Per 24",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -12775,7 +12805,7 @@
       "offerName": "E.ON Luce Tua Per 24 Bioraria",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -12837,7 +12867,7 @@
       "offerName": "E.ON LuceClick - Amico new",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -12899,7 +12929,7 @@
       "offerName": "E.ON LuceClick biorariaVerde",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -12961,7 +12991,7 @@
       "offerName": "E.ON LuceClickVerde",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -12992,7 +13022,7 @@
       "offerName": "E.ON LuceVerde Casa",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -13023,7 +13053,7 @@
       "offerName": "E.ON LuceVerde Casa Bioraria",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -13054,7 +13084,7 @@
       "offerName": "E.ON Ore Per Te",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -13116,7 +13146,7 @@
       "offerName": "E.ON Ore Per Te Click",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -13147,7 +13177,7 @@
       "offerName": "Edison Dynamic Gas",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -13193,7 +13223,7 @@
       "offerName": "Edison EasyFix Gas",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -13239,7 +13269,7 @@
       "offerName": "Edison Superflex Gas",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -13285,7 +13315,7 @@
       "offerName": "Edison Sweet Gas",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -13331,7 +13361,7 @@
       "offerName": "Edison Web Gas",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -13377,7 +13407,7 @@
       "offerName": "Edison 5xTe Luce km0",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -13423,7 +13453,7 @@
       "offerName": "Edison 5xTe Luce km0",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -13469,7 +13499,7 @@
       "offerName": "Edison Dynamic Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -13515,7 +13545,7 @@
       "offerName": "Edison Dynamic Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -13561,7 +13591,7 @@
       "offerName": "Edison EasyFix Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -13607,7 +13637,7 @@
       "offerName": "Edison EasyFix Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -13653,7 +13683,7 @@
       "offerName": "Edison Superflex Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -13699,7 +13729,7 @@
       "offerName": "Edison Superflex Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -13745,7 +13775,7 @@
       "offerName": "Edison Sweet Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -13791,7 +13821,7 @@
       "offerName": "Edison Sweet Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -13837,7 +13867,7 @@
       "offerName": "Edison Web Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -13883,7 +13913,7 @@
       "offerName": "Edison Web Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -13929,7 +13959,7 @@
       "offerName": "Edison World Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -13975,7 +14005,7 @@
       "offerName": "Edison World Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -14021,7 +14051,7 @@
       "offerName": "Edison World Luce Plus",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -14067,7 +14097,7 @@
       "offerName": "Edison World Luce Plus",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -14113,7 +14143,7 @@
       "offerName": "ENEL FIX GAS",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -14144,7 +14174,7 @@
       "offerName": "Enel Fix WOW Gas",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -14175,7 +14205,7 @@
       "offerName": "Enel FixWeb Gas",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -14206,7 +14236,7 @@
       "offerName": "Enel Flash Gas",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -14237,7 +14267,7 @@
       "offerName": "Enel Flex Control Gas",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -14268,7 +14298,7 @@
       "offerName": "ENEL MOVE GAS",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -14299,7 +14329,7 @@
       "offerName": "Enel Digital Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -14330,7 +14360,7 @@
       "offerName": "Enel Drive Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -14361,7 +14391,7 @@
       "offerName": "Enel Fix Web Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -14392,7 +14422,7 @@
       "offerName": "Enel Fix Wow Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -14423,7 +14453,7 @@
       "offerName": "Enel Flash Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -14454,7 +14484,7 @@
       "offerName": "Enel Flex Control Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -14485,7 +14515,7 @@
       "offerName": "Enel Mese Light Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -14516,7 +14546,7 @@
       "offerName": "ENEL MOVE LUCE",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -14547,7 +14577,7 @@
       "offerName": "Enel Night Free",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -14578,7 +14608,7 @@
       "offerName": "Enel Seconda Casa Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -14609,7 +14639,7 @@
       "offerName": "ALCHIMIA GAS",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -14640,7 +14670,7 @@
       "offerName": "ALCHIMIA GAS",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -14671,7 +14701,7 @@
       "offerName": "ARMONIA GAS",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -14702,7 +14732,7 @@
       "offerName": "ARMONIA GAS",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -14733,7 +14763,7 @@
       "offerName": "ARMONIA GAS",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -14764,7 +14794,7 @@
       "offerName": "ARMONIA GAS",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -14795,7 +14825,7 @@
       "offerName": "ARMONIA GAS 24",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -14826,7 +14856,7 @@
       "offerName": "EQUA GAS",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -14857,7 +14887,7 @@
       "offerName": "ALCHIMIA LUCE (TRIORARIA)",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -14888,7 +14918,7 @@
       "offerName": "ALCHIMIA LUCE H24",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -14919,7 +14949,7 @@
       "offerName": "ALCHIMIA LUCE H24",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -14950,7 +14980,7 @@
       "offerName": "ARMONIA LUCE (TRIORARIA)",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -14981,7 +15011,7 @@
       "offerName": "ARMONIA LUCE (TRIORARIA)",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -15012,7 +15042,7 @@
       "offerName": "ARMONIA LUCE (TRIORARIA)",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -15043,7 +15073,7 @@
       "offerName": "ARMONIA LUCE (TRIORARIA)",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -15074,7 +15104,7 @@
       "offerName": "ARMONIA LUCE 24",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -15105,7 +15135,7 @@
       "offerName": "EQUA LUCE",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -15167,7 +15197,7 @@
       "offerName": "Benvenuto in ENGIE",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -15260,7 +15290,7 @@
       "offerName": "Energia PuntoFisso - 12 mesi",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -15291,7 +15321,7 @@
       "offerName": "Energia PuntoFisso - 12 mesi",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -15353,7 +15383,7 @@
       "offerName": "Energia VedoChiaro",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -15415,7 +15445,7 @@
       "offerName": "Energia VedoChiaro SMILE",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -15477,7 +15507,7 @@
       "offerName": "Benvenuto in ENGIE",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -15539,7 +15569,7 @@
       "offerName": "Energia PuntoFisso - 12 mesi",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -15601,7 +15631,7 @@
       "offerName": "Energia PuntoFisso - 12 mesi",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -15663,7 +15693,7 @@
       "offerName": "Energia VedoChiaro",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -15725,7 +15755,7 @@
       "offerName": "Energia VedoChiaro",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -15787,7 +15817,7 @@
       "offerName": "Energia VedoChiaro SMILE",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -15849,7 +15879,7 @@
       "offerName": "Resti e Risparmi Luce",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -15911,7 +15941,7 @@
       "offerName": "Taaanta Energia",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -15973,7 +16003,7 @@
       "offerName": "Taaanta Energia Sera e Relax",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -16004,7 +16034,7 @@
       "offerName": "Fixa Time 24 Gas",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -16035,7 +16065,7 @@
       "offerName": "Fixa Time 24 Smart Gas",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -16066,7 +16096,7 @@
       "offerName": "Fixa Time Gas",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -16097,7 +16127,7 @@
       "offerName": "Trend Casa Gas",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -16128,7 +16158,7 @@
       "offerName": "Trend Casa NoPensieri Gas",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -16159,7 +16189,7 @@
       "offerName": "UNION CLICK GAS",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -16221,7 +16251,7 @@
       "offerName": "VIVIclear Lucegas Flex",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -16252,7 +16282,7 @@
       "offerName": "Fixa Time",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -16283,7 +16313,7 @@
       "offerName": "Fixa Time 24 Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -16314,7 +16344,7 @@
       "offerName": "Fixa Time 24 Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -16345,7 +16375,7 @@
       "offerName": "Fixa Time 24 Smart Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -16376,7 +16406,7 @@
       "offerName": "Fixa Time 24 Smart Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -16407,7 +16437,7 @@
       "offerName": "Fixa Time Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -16438,7 +16468,7 @@
       "offerName": "Flexi Pertinenze",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -16469,7 +16499,7 @@
       "offerName": "Flexi Pertinenze Bioraria",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -16500,7 +16530,7 @@
       "offerName": "Smart Green Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -16531,7 +16561,7 @@
       "offerName": "Smart Green Luce Free",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -16562,7 +16592,7 @@
       "offerName": "Trend Casa Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -16593,7 +16623,7 @@
       "offerName": "Trend Casa Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -16624,7 +16654,7 @@
       "offerName": "Trend Casa Luce Plus",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -16655,7 +16685,7 @@
       "offerName": "Trend Casa Luce Plus",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -16686,7 +16716,7 @@
       "offerName": "Trend Casa NoPensieri Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -16717,7 +16747,7 @@
       "offerName": "Trend Casa NoPensieri Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -16748,7 +16778,7 @@
       "offerName": "UNION GREEN CLICK LUCE",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -16779,7 +16809,7 @@
       "offerName": "PiuControllo Active Casa Gas_Caso A",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -16810,7 +16840,7 @@
       "offerName": "PiuControllo Active Casa Gas_Caso B",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -16841,7 +16871,7 @@
       "offerName": "PiuControllo Active Easy Casa Gas",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -16872,7 +16902,7 @@
       "offerName": "PiuControllo Active Special Casa Gas",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -16903,7 +16933,7 @@
       "offerName": "PiuControllo Active Casa Luce_Caso A",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -16934,7 +16964,7 @@
       "offerName": "PiuControllo Active Casa Luce_Caso A",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -16965,7 +16995,7 @@
       "offerName": "PiuControllo Active Casa Luce_Caso B",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -16996,7 +17026,7 @@
       "offerName": "PiuControllo Active Casa Luce_Caso B",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -17027,7 +17057,7 @@
       "offerName": "PiuControllo Active Easy Casa EE",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -17058,7 +17088,7 @@
       "offerName": "PiuControllo Active Easy Casa EE",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -17089,7 +17119,7 @@
       "offerName": "PiuControllo Active Special Casa Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -17120,7 +17150,7 @@
       "offerName": "PiuControllo Active Special Casa Luce",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -17151,7 +17181,7 @@
       "offerName": "PiuControllo FLAT Casa Luce 24",
       "customerType": "",
       "firstSeen": "2026-08-05",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -17213,7 +17243,7 @@
       "offerName": "PiuControllo FLAT Casa Luce 24",
       "customerType": "",
       "firstSeen": "2026-08-05",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -17275,7 +17305,7 @@
       "offerName": "PiuControllo FLAT Casa Luce SL",
       "customerType": "",
       "firstSeen": "2026-08-05",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -17337,7 +17367,7 @@
       "offerName": "PiuControllo FLAT Casa Luce SL",
       "customerType": "",
       "firstSeen": "2026-08-05",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -17430,7 +17460,7 @@
       "offerName": "PiuControllo Flat Dom EE_24",
       "customerType": "",
       "firstSeen": "2026-08-05",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -17492,7 +17522,7 @@
       "offerName": "PiuControllo Flat Dom EE_24",
       "customerType": "",
       "firstSeen": "2026-08-05",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -17554,7 +17584,7 @@
       "offerName": "PiuControllo Flat Dom EE_SL",
       "customerType": "",
       "firstSeen": "2026-08-05",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -17616,7 +17646,7 @@
       "offerName": "PiuControllo Flat Dom EE_SL",
       "customerType": "",
       "firstSeen": "2026-08-05",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -17678,7 +17708,7 @@
       "offerName": "PiuControllo Flat Easy Casa EE_24",
       "customerType": "",
       "firstSeen": "2026-08-05",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -17740,7 +17770,7 @@
       "offerName": "PiuControllo Flat Easy Casa EE_24",
       "customerType": "",
       "firstSeen": "2026-08-05",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -17802,7 +17832,7 @@
       "offerName": "PiuControllo Flat Special Casa Luce 24",
       "customerType": "",
       "firstSeen": "2026-08-05",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -17864,7 +17894,7 @@
       "offerName": "PiuControllo Flat Special Casa Luce 24",
       "customerType": "",
       "firstSeen": "2026-08-05",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -17926,7 +17956,7 @@
       "offerName": "A Modo Tuo Fix Gas 36",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -17988,7 +18018,7 @@
       "offerName": "A Modo Tuo Gas",
       "customerType": "",
       "firstSeen": "2026-08-11",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -18050,7 +18080,7 @@
       "offerName": "Caldaia Serena Gas",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -18112,7 +18142,7 @@
       "offerName": "Energia Amica Fix Gas 36",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -18189,7 +18219,7 @@
       "offerName": "Energia Amica Flex Gas",
       "customerType": "",
       "firstSeen": "2026-08-11",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -18251,7 +18281,7 @@
       "offerName": "Energia Lunga Gas",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -18313,7 +18343,7 @@
       "offerName": "Energia Lunga Gas Easy",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -18375,7 +18405,7 @@
       "offerName": "Energia Lunga Gas Special",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -18437,7 +18467,7 @@
       "offerName": "Energia Lunghissima Gas",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -18499,7 +18529,7 @@
       "offerName": "Gas Flex",
       "customerType": "",
       "firstSeen": "2026-08-11",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -18561,7 +18591,7 @@
       "offerName": "Gas Happy Home Fix 36",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -18638,7 +18668,7 @@
       "offerName": "Gas Happy Home Flex",
       "customerType": "",
       "firstSeen": "2026-08-11",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -18669,7 +18699,7 @@
       "offerName": "GAS PMI SPREAD - SPECIAL EX ILLUMIA",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -18746,7 +18776,7 @@
       "offerName": "Gas Premium Flex",
       "customerType": "",
       "firstSeen": "2026-08-11",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -18808,7 +18838,7 @@
       "offerName": "Gas Zero Pensieri",
       "customerType": "",
       "firstSeen": "2026-08-11",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -18870,7 +18900,7 @@
       "offerName": "Gas Zero Pensieri Fix 36",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -18947,7 +18977,7 @@
       "offerName": "Illumia Sicurinsieme Gas",
       "customerType": "",
       "firstSeen": "2026-08-11",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -19024,7 +19054,7 @@
       "offerName": "Illumia Smart Flex Gas",
       "customerType": "",
       "firstSeen": "2026-08-11",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -19086,7 +19116,7 @@
       "offerName": "Over Blindato Gas 36",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -19117,7 +19147,7 @@
       "offerName": "Over Limpido Gas",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -19194,7 +19224,7 @@
       "offerName": "Under Blindato Gas 36",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -19225,7 +19255,7 @@
       "offerName": "Under Limpido Gas",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -19271,7 +19301,7 @@
       "offerName": "Efficace",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -19317,7 +19347,7 @@
       "offerName": "Efficace",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -19409,7 +19439,7 @@
       "offerName": "Energia Amica Flex",
       "customerType": "",
       "firstSeen": "2026-08-11",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -19486,7 +19516,7 @@
       "offerName": "Energia Amica Flex",
       "customerType": "",
       "firstSeen": "2026-08-11",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -19548,7 +19578,7 @@
       "offerName": "Energia Lunga Luce",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -19610,7 +19640,7 @@
       "offerName": "Energia Lunga Luce",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -19672,7 +19702,7 @@
       "offerName": "Energia Lunga Luce Easy",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -19734,7 +19764,7 @@
       "offerName": "Energia Lunga Luce Easy",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -19796,7 +19826,7 @@
       "offerName": "Energia Lunga Luce Special",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -19858,7 +19888,7 @@
       "offerName": "Energia Lunga Luce Special",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -19920,7 +19950,7 @@
       "offerName": "Energia Lunga Luce Web",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -19982,7 +20012,7 @@
       "offerName": "Energia Lunga Luce Web",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -20044,7 +20074,7 @@
       "offerName": "Energia Lunghissima Luce",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -20106,7 +20136,7 @@
       "offerName": "Energia Lunghissima Luce",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -20183,7 +20213,7 @@
       "offerName": "Luce Flex",
       "customerType": "",
       "firstSeen": "2026-08-11",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -20260,7 +20290,7 @@
       "offerName": "Luce Flex",
       "customerType": "",
       "firstSeen": "2026-08-11",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -20337,7 +20367,7 @@
       "offerName": "Luce Premium Flex",
       "customerType": "",
       "firstSeen": "2026-08-11",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -20414,7 +20444,7 @@
       "offerName": "Luce Premium Flex",
       "customerType": "",
       "firstSeen": "2026-08-11",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -20445,7 +20475,7 @@
       "offerName": "Over 50 Autentico Non Orario",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -20491,7 +20521,7 @@
       "offerName": "Over 50 Autentico Non Orario",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -20568,7 +20598,7 @@
       "offerName": "Over 50 Super Tenace 36",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -20630,7 +20660,7 @@
       "offerName": "Over 50 Super Tenace 36",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -20723,7 +20753,7 @@
       "offerName": "Prezzo Garantito Luce 36",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -20754,7 +20784,7 @@
       "offerName": "Prezzo Garantito Luce 36",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -20847,7 +20877,7 @@
       "offerName": "Prezzo Garantito Luce 36",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -20878,7 +20908,7 @@
       "offerName": "Prezzo Garantito Luce 36",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -20909,7 +20939,7 @@
       "offerName": "Under Autentico",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -20955,7 +20985,7 @@
       "offerName": "Under Autentico",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -21032,7 +21062,7 @@
       "offerName": "Under Super Tenace 36",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -21094,7 +21124,7 @@
       "offerName": "Under Super Tenace 36",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -21156,7 +21186,7 @@
       "offerName": "Under Tenace 12",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -21218,7 +21248,7 @@
       "offerName": "Under Tenace 12",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -21249,7 +21279,7 @@
       "offerName": "IREN 10 PER TRE GAS VARIABILE PSV 2023",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -21280,7 +21310,7 @@
       "offerName": "IREN GAS FACILE FLEX TOP",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -21311,7 +21341,7 @@
       "offerName": "IREN LARGE GAS VARIABILE PSV",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -21373,7 +21403,7 @@
       "offerName": "IREN NO STRESS GAS",
       "customerType": "",
       "firstSeen": "2026-08-05",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -21435,7 +21465,7 @@
       "offerName": "IREN PREZZO FISSO EXTRA SMALL LUMINEA GAS",
       "customerType": "",
       "firstSeen": "2026-08-05",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -21497,7 +21527,7 @@
       "offerName": "IREN PREZZO FISSO ULTRA GAS",
       "customerType": "",
       "firstSeen": "2026-08-05",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -21559,7 +21589,7 @@
       "offerName": "IREN PRIMA SCELTA GAS",
       "customerType": "",
       "firstSeen": "2026-08-04",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -21621,7 +21651,7 @@
       "offerName": "IREN PRIMA SCELTA LIGHT GAS",
       "customerType": "",
       "firstSeen": "2026-08-04",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -21683,7 +21713,7 @@
       "offerName": "IREN PRONTO GAS FISSA",
       "customerType": "",
       "firstSeen": "2026-08-05",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -21745,7 +21775,7 @@
       "offerName": "IREN QUICK GAS WEB TOP",
       "customerType": "",
       "firstSeen": "2026-08-05",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -21807,7 +21837,7 @@
       "offerName": "IREN REVOLUTION SPESE PROTETTE GAS PREZZO FISSO",
       "customerType": "",
       "firstSeen": "2026-08-05",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -21838,7 +21868,7 @@
       "offerName": "IREN REVOLUTION SPESE PROTETTE GAS VARIABILE",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -21869,7 +21899,7 @@
       "offerName": "IREN SMALL GAS VARIABILE PSV MENSILE",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -21900,7 +21930,7 @@
       "offerName": "IREN SOTTOCASA GAS VARIABILE NEW",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -21962,7 +21992,7 @@
       "offerName": "IREN SOTTOCASA SPECIAL GAS",
       "customerType": "",
       "firstSeen": "2026-08-04",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -21993,7 +22023,7 @@
       "offerName": "IREN STAY GAS PREZZO VARIABILE CONNETTIVITA'",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -22024,7 +22054,7 @@
       "offerName": "IREN SUPERSCONTO 100 RCA GAS SELF VARIABILE",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -22055,7 +22085,7 @@
       "offerName": "IREN UNIVERSO GAS VARIABILE PSV",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -22117,7 +22147,7 @@
       "offerName": "IREN WEB SELF GAS PREZZO FISSO",
       "customerType": "",
       "firstSeen": "2026-08-05",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -22179,7 +22209,7 @@
       "offerName": "SEV IREN BONUS 100 GAS",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -22241,7 +22271,7 @@
       "offerName": "SEV IREN GAS CONNETTIVITA",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -22303,7 +22333,7 @@
       "offerName": "SEV IREN LARGE GAS",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -22365,7 +22395,7 @@
       "offerName": "SEV IREN QUICK GAS",
       "customerType": "",
       "firstSeen": "2026-08-05",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -22427,7 +22457,7 @@
       "offerName": "SEV IREN REVOLUTION SPESE PROTETTE GAS VARIABILE",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -22489,7 +22519,7 @@
       "offerName": "SEV IREN SMALL GAS MENSILE",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -22520,7 +22550,7 @@
       "offerName": "IREN 10 PER TRE LUCE VARIABILE",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -22582,7 +22612,7 @@
       "offerName": "IREN DAY PREZZO FISSO LUCE",
       "customerType": "",
       "firstSeen": "2026-08-04",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -22613,7 +22643,7 @@
       "offerName": "IREN EXTRA SMALL LUCE VARIABILE",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -22644,7 +22674,7 @@
       "offerName": "IREN LARGE LUCE VARIABILE",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -22706,7 +22736,7 @@
       "offerName": "IREN PREZZO FISSO EXTRA SMALL LUMINEA LUCE",
       "customerType": "",
       "firstSeen": "2026-08-04",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -22768,7 +22798,7 @@
       "offerName": "IREN PREZZO FISSO ULTRA LUCE",
       "customerType": "",
       "firstSeen": "2026-08-04",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -22830,7 +22860,7 @@
       "offerName": "IREN PRIMA SCELTA LIGHT LUCE",
       "customerType": "",
       "firstSeen": "2026-08-04",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -22892,7 +22922,7 @@
       "offerName": "IREN PRIMA SCELTA LUCE FISSA",
       "customerType": "",
       "firstSeen": "2026-08-04",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -22954,7 +22984,7 @@
       "offerName": "IREN PRONTO FISSA LUCE",
       "customerType": "",
       "firstSeen": "2026-08-04",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -23016,7 +23046,7 @@
       "offerName": "IREN QUICK LUCE WEB TOP",
       "customerType": "",
       "firstSeen": "2026-08-04",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -23078,7 +23108,7 @@
       "offerName": "IREN REVOLUTION SALUTE PREZZO FISSO LUCE",
       "customerType": "",
       "firstSeen": "2026-08-04",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -23109,7 +23139,7 @@
       "offerName": "IREN REVOLUTION SALUTE VARIABILE LUCE",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -23140,7 +23170,7 @@
       "offerName": "IREN SMALL LUCE VARIABILE",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -23202,7 +23232,7 @@
       "offerName": "IREN SMART NO STRESS LUCE VERDE",
       "customerType": "",
       "firstSeen": "2026-08-04",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -23264,7 +23294,7 @@
       "offerName": "IREN SOTTOCASA LUCE SPECIAL",
       "customerType": "",
       "firstSeen": "2026-08-04",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -23295,7 +23325,7 @@
       "offerName": "IREN SOTTOCASA LUCE VARIABILE NEW",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -23357,7 +23387,7 @@
       "offerName": "IREN STAY LUCE PREZZO FISSO CONNETTIVITA'",
       "customerType": "",
       "firstSeen": "2026-08-04",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -23419,7 +23449,7 @@
       "offerName": "IREN STAY TECH LUCE PREZZO FISSO",
       "customerType": "",
       "firstSeen": "2026-08-04",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -23450,7 +23480,7 @@
       "offerName": "IREN SUPERSCONTO 100 RCA LUCE SELF",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -23481,7 +23511,7 @@
       "offerName": "IREN UNIVERSO LUCE VARIABILE",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -23543,7 +23573,7 @@
       "offerName": "IREN WEB SELF LUCE PREZZO FISSO",
       "customerType": "",
       "firstSeen": "2026-08-04",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -23605,7 +23635,7 @@
       "offerName": "SEV IREN BONUS 100 LUCE",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -23667,7 +23697,7 @@
       "offerName": "SEV IREN FISSO 12 SUMMER EDITION LUCE",
       "customerType": "",
       "firstSeen": "2026-08-05",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -23729,7 +23759,7 @@
       "offerName": "SEV IREN LARGE LUCE",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -23791,7 +23821,7 @@
       "offerName": "SEV IREN LUCE CONNETTIVITA",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -23853,7 +23883,7 @@
       "offerName": "SEV IREN LUCE PERTINENZE",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -23915,7 +23945,7 @@
       "offerName": "SEV IREN MEDIUM LUCE",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -23977,7 +24007,7 @@
       "offerName": "SEV IREN QUICK LUCE",
       "customerType": "",
       "firstSeen": "2026-08-05",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -24039,7 +24069,7 @@
       "offerName": "SEV IREN REVOLUTION SALUTE LUCE VARIABILE",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -24101,7 +24131,7 @@
       "offerName": "SEV IREN SMALL LUCE MENSILE",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -24163,7 +24193,7 @@
       "offerName": "SEV IREN X VULNERABILI STG",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -24194,7 +24224,7 @@
       "offerName": "MIA GAS",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -24287,7 +24317,7 @@
       "offerName": "MIA GAS FIX PLUS",
       "customerType": "",
       "firstSeen": "2026-08-17",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -24380,7 +24410,7 @@
       "offerName": "MIA GAS FIX PRO",
       "customerType": "",
       "firstSeen": "2026-08-17",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -24473,7 +24503,7 @@
       "offerName": "MIA GAS FIX SMART",
       "customerType": "",
       "firstSeen": "2026-08-17",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -24566,7 +24596,7 @@
       "offerName": "MIA GAS FIX WEB",
       "customerType": "",
       "firstSeen": "2026-08-17",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -24597,7 +24627,7 @@
       "offerName": "MIA GAS PLUS",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -24628,7 +24658,7 @@
       "offerName": "MIA GAS PRO",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -24659,7 +24689,7 @@
       "offerName": "MIA LUCE",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -24752,7 +24782,7 @@
       "offerName": "MIA LUCE FIX PLUS",
       "customerType": "",
       "firstSeen": "2026-08-17",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -24845,7 +24875,7 @@
       "offerName": "MIA LUCE FIX PRO",
       "customerType": "",
       "firstSeen": "2026-08-17",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -24938,7 +24968,7 @@
       "offerName": "MIA LUCE FIX SMART",
       "customerType": "",
       "firstSeen": "2026-08-17",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -25031,7 +25061,7 @@
       "offerName": "MIA LUCE FIX WEB",
       "customerType": "",
       "firstSeen": "2026-08-17",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -25062,7 +25092,7 @@
       "offerName": "MIA LUCE PLUS",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -25093,7 +25123,7 @@
       "offerName": "MIA LUCE PRO",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -25186,7 +25216,7 @@
       "offerName": "PROXIMA FIX LUCE",
       "customerType": "",
       "firstSeen": "2026-08-17",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -25279,7 +25309,7 @@
       "offerName": "PROXIMA FIX PLUS LUCE",
       "customerType": "",
       "firstSeen": "2026-08-17",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -25372,7 +25402,7 @@
       "offerName": "PROXIMA FIX SMART LUCE",
       "customerType": "",
       "firstSeen": "2026-08-17",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -25434,7 +25464,7 @@
       "offerName": "Due Gas",
       "customerType": "",
       "firstSeen": "2026-08-05",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -25496,7 +25526,7 @@
       "offerName": "NeN Gas",
       "customerType": "",
       "firstSeen": "2026-08-05",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -25558,7 +25588,7 @@
       "offerName": "Surf Gas",
       "customerType": "",
       "firstSeen": "2026-08-05",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -25620,7 +25650,7 @@
       "offerName": "Due Luce",
       "customerType": "",
       "firstSeen": "2026-08-05",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -25682,7 +25712,7 @@
       "offerName": "NeN Luce",
       "customerType": "",
       "firstSeen": "2026-08-05",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -25744,7 +25774,7 @@
       "offerName": "Surf Luce",
       "customerType": "",
       "firstSeen": "2026-08-05",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -25930,7 +25960,7 @@
       "offerName": "Octopus Fissa 12M Gas",
       "customerType": "",
       "firstSeen": "2026-08-18",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -25961,7 +25991,7 @@
       "offerName": "Octopus Flex Gas",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -25992,7 +26022,7 @@
       "offerName": "Octopus Flex Gas",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -26023,7 +26053,7 @@
       "offerName": "Octopus Flex Gas",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -26054,7 +26084,7 @@
       "offerName": "Octopus Flex Gas",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -26240,7 +26270,7 @@
       "offerName": "Octopus Fissa 12M",
       "customerType": "",
       "firstSeen": "2026-08-18",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -26271,7 +26301,7 @@
       "offerName": "Octopus Flex",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -26302,7 +26332,7 @@
       "offerName": "Octopus Flex",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -26333,7 +26363,7 @@
       "offerName": "Octopus Flex",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -26364,7 +26394,7 @@
       "offerName": "Octopus Flex",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -26426,7 +26456,7 @@
       "offerName": "Octopus Flex Mono",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -26457,7 +26487,7 @@
       "offerName": "Optima Solution",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -26488,7 +26518,7 @@
       "offerName": "Optima Solution",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -26550,7 +26580,7 @@
       "offerName": "Poste Energia Gas",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -26612,7 +26642,7 @@
       "offerName": "Poste Energia Luce",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -26674,7 +26704,7 @@
       "offerName": "Easy Gas Fix",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -26736,7 +26766,7 @@
       "offerName": "Easy Gas Fix 36 mesi",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -26798,7 +26828,7 @@
       "offerName": "Easy Gas Index",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -26860,7 +26890,7 @@
       "offerName": "Partner Gas Fix",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -26922,7 +26952,7 @@
       "offerName": "Partner Gas Fix 36 mesi",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -26984,7 +27014,7 @@
       "offerName": "Partner Gas Fix Plus",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -27046,7 +27076,7 @@
       "offerName": "Partner Gas Fix Plus 36 mesi",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -27108,7 +27138,7 @@
       "offerName": "Partner Gas Index",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -27170,7 +27200,7 @@
       "offerName": "Partner Gas Index Plus",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -27232,7 +27262,7 @@
       "offerName": "Pulsee Gas PER TE Index",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -27294,7 +27324,7 @@
       "offerName": "Pulsee Gas RELAX Fix",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -27356,7 +27386,7 @@
       "offerName": "Pulsee Gas Semplice Fix",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -27418,7 +27448,7 @@
       "offerName": "Pulsee Gas Semplice Index",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -27480,7 +27510,7 @@
       "offerName": "Pulsee Limit.e DUAL - Gas",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -27542,7 +27572,7 @@
       "offerName": "Pulsee Lounge Gas Index",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -27604,7 +27634,7 @@
       "offerName": "Pulsee Luce e Gas PER TE Index - G",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -27666,7 +27696,7 @@
       "offerName": "Pulsee Luce e Gas RELAX Fix - G",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -27728,7 +27758,7 @@
       "offerName": "Pulsee Luce e Gas RELAX Fix - G 36 mesi",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -27790,7 +27820,7 @@
       "offerName": "Pulsee Luce e Gas Semplice Fix - G",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -27852,7 +27882,7 @@
       "offerName": "Pulsee Luce e Gas Semplice Index - G",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -27914,7 +27944,7 @@
       "offerName": "Smart Gas Fix",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -27976,7 +28006,7 @@
       "offerName": "Smart Gas Fix 36 mesi",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -28038,7 +28068,7 @@
       "offerName": "Smart Gas Index",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -28100,7 +28130,7 @@
       "offerName": "Value Gas Fix",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -28162,7 +28192,7 @@
       "offerName": "Value Gas Fix 36 mesi",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -28224,7 +28254,7 @@
       "offerName": "Value Gas Index",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -28286,7 +28316,7 @@
       "offerName": "Easy Luce Fix 36 mesi 3Fasce",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -28348,7 +28378,7 @@
       "offerName": "Easy Luce Fix 36 mesi Unico",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -28410,7 +28440,7 @@
       "offerName": "Easy Luce Fix 3Fasce",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -28472,7 +28502,7 @@
       "offerName": "Easy Luce Fix Unico",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -28534,7 +28564,7 @@
       "offerName": "Easy Luce Index",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -28596,7 +28626,7 @@
       "offerName": "Easy Luce Limit.e",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -28658,7 +28688,7 @@
       "offerName": "Partner Luce Fix",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -28720,7 +28750,7 @@
       "offerName": "Partner Luce Fix 36 mesi",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -28782,7 +28812,7 @@
       "offerName": "Partner Luce Fix Plus",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -28844,7 +28874,7 @@
       "offerName": "Partner Luce Fix Plus 36 mesi",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -28906,7 +28936,7 @@
       "offerName": "Partner Luce Index",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -28968,7 +28998,7 @@
       "offerName": "Partner Luce Index Plus",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -29030,7 +29060,7 @@
       "offerName": "Pulsee Limit.e DUAL - Luce",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -29092,7 +29122,7 @@
       "offerName": "Pulsee Lounge Luce Index",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -29154,7 +29184,7 @@
       "offerName": "Pulsee Luce e Gas PER TE Index - P",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -29216,7 +29246,7 @@
       "offerName": "Pulsee Luce e Gas RELAX Fix - P",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -29278,7 +29308,7 @@
       "offerName": "Pulsee Luce e Gas RELAX Fix - P 36 mesi",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -29340,7 +29370,7 @@
       "offerName": "Pulsee Luce e Gas Semplice Fix - P",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -29402,7 +29432,7 @@
       "offerName": "Pulsee Luce e Gas Semplice Index - P",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -29464,7 +29494,7 @@
       "offerName": "Pulsee Luce Limit.e",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -29526,7 +29556,7 @@
       "offerName": "Pulsee Luce PER TE Index",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -29588,7 +29618,7 @@
       "offerName": "Pulsee Luce RELAX Fix",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -29650,7 +29680,7 @@
       "offerName": "Pulsee Luce RELAX Fix 36 mesi",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -29712,7 +29742,7 @@
       "offerName": "Pulsee Luce Semplice Fix",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -29774,7 +29804,7 @@
       "offerName": "Pulsee Luce Semplice Index",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -29836,7 +29866,7 @@
       "offerName": "Smart Luce Fix 36 mesi 3Fasce",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -29898,7 +29928,7 @@
       "offerName": "Smart Luce Fix 36 mesi Unico",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -29960,7 +29990,7 @@
       "offerName": "Smart Luce Fix 3Fasce",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -30022,7 +30052,7 @@
       "offerName": "Smart Luce Fix Unico",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -30084,7 +30114,7 @@
       "offerName": "Smart Luce Index",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -30146,7 +30176,7 @@
       "offerName": "Value Luce Fix 36 mesi 3Fasce",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -30208,7 +30238,7 @@
       "offerName": "Value Luce Fix 36 mesi Unico",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -30270,7 +30300,7 @@
       "offerName": "Value Luce Fix 3Fasce",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -30332,7 +30362,7 @@
       "offerName": "Value Luce Fix Unico",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -30394,7 +30424,7 @@
       "offerName": "Value Luce Index",
       "customerType": "",
       "firstSeen": "2026-08-06",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -30425,7 +30455,7 @@
       "offerName": "SINERGY GAS FIX 07TOP",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -30456,7 +30486,7 @@
       "offerName": "SINERGY LUCE FIX 07TOP",
       "customerType": "",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -30518,7 +30548,7 @@
       "offerName": "Next Energy Smart Gas",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -30580,7 +30610,7 @@
       "offerName": "Next Energy Smart Gas",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -30642,7 +30672,7 @@
       "offerName": "NEXT ENERGY SUNLIGHT GAS",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -30704,7 +30734,7 @@
       "offerName": "NEXT ENERGY SUNLIGHT GAS",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -30766,7 +30796,7 @@
       "offerName": "Next Energy Hybrid",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -30828,7 +30858,7 @@
       "offerName": "Next Energy Hybrid",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -30890,7 +30920,7 @@
       "offerName": "VIVIattivo Gas",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -30952,7 +30982,7 @@
       "offerName": "VIVIattivo LuceGas",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -31014,7 +31044,7 @@
       "offerName": "VIVIconsapevole Flex LuceGas",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -31076,7 +31106,7 @@
       "offerName": "VIVIconsapevole Gas Flex",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -31293,7 +31323,7 @@
       "offerName": "VIVIweb Allday Flex Gas",
       "customerType": "",
       "firstSeen": "2026-08-14",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -31386,7 +31416,7 @@
       "offerName": "VIVIweb Allday Flex Lucegas",
       "customerType": "",
       "firstSeen": "2026-08-14",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -31479,7 +31509,7 @@
       "offerName": "VIVIweb Allday Flex24 Gas",
       "customerType": "",
       "firstSeen": "2026-08-14",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -31572,7 +31602,7 @@
       "offerName": "VIVIweb Allday Flex24 Lucegas",
       "customerType": "",
       "firstSeen": "2026-08-14",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -31634,7 +31664,7 @@
       "offerName": "VIVIattivo Luce",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -31696,7 +31726,7 @@
       "offerName": "VIVIattivo LuceGas",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -31758,7 +31788,7 @@
       "offerName": "VIVIconsapevole Flex Luce",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -31820,7 +31850,7 @@
       "offerName": "VIVIconsapevole Flex LuceGas",
       "customerType": "",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -32037,7 +32067,7 @@
       "offerName": "VIVIweb Allday Flex Luce",
       "customerType": "",
       "firstSeen": "2026-08-14",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -32130,7 +32160,7 @@
       "offerName": "VIVIweb Allday Flex Lucegas",
       "customerType": "",
       "firstSeen": "2026-08-14",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -32223,7 +32253,7 @@
       "offerName": "VIVIweb Allday Flex24 Luce",
       "customerType": "",
       "firstSeen": "2026-08-14",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -32316,7 +32346,7 @@
       "offerName": "VIVIweb Allday Flex24 Lucegas",
       "customerType": "",
       "firstSeen": "2026-08-14",
-      "lastSeen": "2026-08-18",
+      "lastSeen": "2026-08-19",
       "active": true,
       "versions": [
         {
@@ -32339,9 +32369,9 @@
   ],
   "statistics": {
     "totalOffers": 1011,
-    "activeOffers": 680,
-    "inactiveOffers": 331,
-    "totalVersions": 1077,
-    "currentCatalogRecords": 680
+    "activeOffers": 679,
+    "inactiveOffers": 332,
+    "totalVersions": 1079,
+    "currentCatalogRecords": 679
   }
 }
