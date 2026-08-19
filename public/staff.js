@@ -28,6 +28,7 @@
     leadSummary: {},
     analytics: [],
     analyticsSummary: {},
+    landingPath: null,
     customers: [],
     checks: [],
     communications: [],
@@ -519,6 +520,69 @@
     rows.forEach(item => target.append(node("div", { className: "rank-row" }, [node("strong", { text: item.key }), node("span", { text: item.count })])));
   }
 
+  function ensureLandingTrafficMetrics() {
+    let target = byId("landingTrafficMetrics");
+    if (target) return target;
+
+    const anchor = byId("landingPathSelections")?.closest(".landing-path-metrics");
+    if (!anchor) return null;
+
+    const selectionCard = byId("landingPathSelections")?.closest(".metric");
+    if (selectionCard) {
+      text(selectionCard.querySelector("span"), "Scelte probabili persone");
+      text(selectionCard.querySelector("small"), "Click sui due percorsi classificati come probabile persona");
+    }
+
+    target = node("div", {
+      className: "metrics landing-path-traffic-metrics",
+      attrs: { id: "landingTrafficMetrics", "aria-label": "Classificazione impressioni landing" },
+    }, [
+      node("article", { className: "metric priority" }, [
+        node("span", { text: "Probabili persone" }),
+        node("strong", { text: "—", attrs: { id: "landingTrafficProbable" } }),
+        node("small", { text: "Browser standard con interazione esplicita" }),
+      ]),
+      node("article", { className: "metric technical" }, [
+        node("span", { text: "Automazioni / bot" }),
+        node("strong", { text: "—", attrs: { id: "landingTrafficSuspicious" } }),
+        node("small", { text: "—", attrs: { id: "landingTrafficSuspiciousDetail" } }),
+      ]),
+      node("article", { className: "metric technical" }, [
+        node("span", { text: "Non determinabili" }),
+        node("strong", { text: "—", attrs: { id: "landingTrafficUndetermined" } }),
+        node("small", { text: "Firma o comportamento non sufficienti" }),
+      ]),
+      node("article", { className: "metric" }, [
+        node("span", { text: "Quota probabili persone" }),
+        node("strong", { text: "—", attrs: { id: "landingTrafficProbableShare" } }),
+        node("small", { text: "Sul totale delle impressioni landing" }),
+      ]),
+    ]);
+    anchor.insertAdjacentElement("afterend", target);
+    return target;
+  }
+
+  function renderLandingTraffic() {
+    if (!ensureLandingTrafficMetrics()) return;
+    const landing = cache.landingPath;
+    const traffic = landing?.traffic || {};
+    const available = Boolean(landing?.ok && landing?.configured !== false);
+    const probable = Number(traffic.probablePersonViews);
+    const knownBot = Number(traffic.knownBotViews);
+    const automation = Number(traffic.automationViews);
+    const suspicious = Number(traffic.suspiciousViews);
+    const undetermined = Number(traffic.undeterminedViews);
+    const probableShare = traffic.probablePersonShare == null ? null : Number(traffic.probablePersonShare);
+
+    text(byId("landingTrafficProbable"), available && Number.isFinite(probable) ? formatNumber(probable) : "—");
+    text(byId("landingTrafficSuspicious"), available && Number.isFinite(suspicious) ? formatNumber(suspicious) : "—");
+    text(byId("landingTrafficUndetermined"), available && Number.isFinite(undetermined) ? formatNumber(undetermined) : "—");
+    text(byId("landingTrafficProbableShare"), available && Number.isFinite(probableShare) ? `${formatNumber(probableShare, 1)}%` : "—");
+    text(byId("landingTrafficSuspiciousDetail"), available
+      ? `Bot ${formatNumber(knownBot)} · automazioni ${formatNumber(automation)}`
+      : "Classificazione non disponibile");
+  }
+
   function renderAnalytics() {
     const summary = cache.analyticsSummary || {};
     const funnel = summary.funnel || {};
@@ -529,6 +593,7 @@
     renderFunnel(byId("analyticsFunnel"), funnel);
     renderRankList(byId("analyticsProviders"), summary.topProviders || [], "Nessun provider cliccato");
     renderRankList(byId("analyticsOffers"), summary.topOffers || [], "Nessuna offerta cliccata");
+    renderLandingTraffic();
 
     const body = byId("analyticsRows");
     clear(body);
@@ -602,9 +667,11 @@
 
   async function loadAnalytics({ silent = false } = {}) {
     if (!silent) setMessage("info", "Aggiornamento analytics…");
-    const payload = await staffFetch("/api/staff-analytics?limit=200");
+    const landingRange = String(byId("landingPathRange")?.value || "30d");
+    const payload = await staffFetch(`/api/staff-analytics?limit=200&landingRange=${encodeURIComponent(landingRange)}`);
     cache.analytics = Array.isArray(payload.events) ? payload.events : [];
     cache.analyticsSummary = payload.summary || {};
+    cache.landingPath = payload.landingPath || null;
     renderAnalytics();
     renderFunnel(byId("overviewFunnel"), cache.analyticsSummary.funnel || {}, true);
     if (!silent) setMessage("success", "Analytics aggiornati.");
@@ -2589,6 +2656,7 @@
     byId("staffComplimentaryLayer").addEventListener("click", event => { if (event.target === byId("staffComplimentaryLayer")) closeComplimentary(); });
     document.addEventListener("keydown", event => { if (event.key === "Escape" && !byId("staffComplimentaryLayer")?.hidden) closeComplimentary(); });
     byId("analyticsRefresh").addEventListener("click", () => loadAnalytics().catch(error => setMessage("error", friendlyError(error))));
+    byId("landingPathRange")?.addEventListener("change", () => loadAnalytics({ silent: true }).catch(error => setMessage("error", friendlyError(error))));
     byId("collaboratorRefresh").addEventListener("click", () => loadCollaborators().catch(error => setMessage("error", friendlyError(error))));
     byId("collaboratorShowRemoved").addEventListener("click", () => {
       includeRemovedCollaborators = !includeRemovedCollaborators;

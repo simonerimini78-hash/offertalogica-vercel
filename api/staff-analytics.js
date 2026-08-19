@@ -44,19 +44,6 @@ function customerDbIsLegacyJwtKey(key) {
   return String(key || "").split(".").length === 3;
 }
 
-function landingAnalyticsHeaders() {
-  const headers = {
-    apikey: CUSTOMER_DB_SUPABASE_SERVICE_ROLE_KEY,
-    Accept: "application/json",
-    Prefer: "count=exact",
-    Range: "0-0",
-  };
-  if (customerDbIsLegacyJwtKey(CUSTOMER_DB_SUPABASE_SERVICE_ROLE_KEY)) {
-    headers.Authorization = `Bearer ${CUSTOMER_DB_SUPABASE_SERVICE_ROLE_KEY}`;
-  }
-  return headers;
-}
-
 function customerDbReadHeaders() {
   const headers = {
     apikey: CUSTOMER_DB_SUPABASE_SERVICE_ROLE_KEY,
@@ -78,34 +65,144 @@ function landingRangeFrom(range) {
   return days ? new Date(Date.now() - days * 86400000).toISOString() : null;
 }
 
-function parseExactCount(response) {
-  const contentRange = String(response.headers.get("content-range") || "");
-  const total = Number(contentRange.split("/").pop());
-  if (!Number.isSafeInteger(total) || total < 0) {
-    throw new Error("Customer DB landing analytics count missing");
-  }
-  return total;
-}
-
-async function countLandingEvent(eventType, from) {
-  const query = new URLSearchParams({
-    select: "id",
-    event_type: `eq.${eventType}`,
-  });
-  if (from) query.set("created_at", `gte.${from}`);
-  const response = await fetch(
-    `${customerDbBaseUrl()}/rest/v1/${CUSTOMER_DB_EVENTS_TABLE}?${query.toString()}`,
-    { method: "GET", headers: landingAnalyticsHeaders() },
-  );
-  if (!response.ok) {
-    throw new Error(`Customer DB landing analytics error ${response.status}`);
-  }
-  return parseExactCount(response);
-}
+const LANDING_SIGNAL_EVENT_TYPES = new Set([
+  ...Object.values(LANDING_PATH_EVENTS),
+  ...HUMAN_INTERACTION_EVENTS,
+]);
+const LANDING_SIGNAL_PAGE_SIZE = 1000;
+const LANDING_SIGNAL_MAX_ROWS = 20000;
 
 function percentage(part, total) {
   if (!total) return null;
   return Math.round((part / total) * 1000) / 10;
+}
+
+function landingSignalEvent(row = {}) {
+  const payload = row?.payload && typeof row.payload === "object" ? row.payload : {};
+  return {
+    id: String(row?.id || ""),
+    eventType: String(row?.event_type || row?.eventType || ""),
+    sessionId: String(payload.sessionId || row?.sessionId || ""),
+    trafficAgent: String(payload.trafficAgent || row?.trafficAgent || ""),
+    trafficReason: String(payload.trafficReason || row?.trafficReason || ""),
+  };
+}
+
+export function classifyLandingPathRows(rows = []) {
+  const events = (Array.isArray(rows) ? rows : [])
+    .map(landingSignalEvent)
+    .filter((event) => event.eventType && LANDING_SIGNAL_EVENT_TYPES.has(event.eventType));
+
+  const groups = new Map();
+  events.forEach((event) => {
+    const key = event.sessionId ? `session:${event.sessionId}` : `event:${event.id}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(event);
+  });
+
+  const eventVisitorType = new Map();
+  groups.forEach((group) => {
+    const visitor = visitorDescriptor(group);
+    group.forEach((event) => eventVisitorType.set(event, visitor.type));
+  });
+
+  const viewCounts = {
+    probable_person: 0,
+    known_bot: 0,
+    automation: 0,
+    undetermined: 0,
+  };
+  const selectionCounts = {
+    probable_person: { selfService: 0, assisted: 0 },
+    known_bot: { selfService: 0, assisted: 0 },
+    automation: { selfService: 0, assisted: 0 },
+    undetermined: { selfService: 0, assisted: 0 },
+  };
+
+  events.forEach((event) => {
+    const visitorType = eventVisitorType.get(event) || "undetermined";
+    if (event.eventType === LANDING_PATH_EVENTS.view) {
+      viewCounts[visitorType] = (viewCounts[visitorType] || 0) + 1;
+      return;
+    }
+    if (event.eventType === LANDING_PATH_EVENTS.selfService) {
+      selectionCounts[visitorType].selfService += 1;
+      return;
+    }
+    if (event.eventType === LANDING_PATH_EVENTS.assisted) {
+      selectionCounts[visitorType].assisted += 1;
+    }
+  });
+
+  const views = Object.values(viewCounts).reduce((sum, value) => sum + Number(value || 0), 0);
+  const probablePersonViews = viewCounts.probable_person;
+  const knownBotViews = viewCounts.known_bot;
+  const automationViews = viewCounts.automation;
+  const suspiciousViews = knownBotViews + automationViews;
+  const undeterminedViews = viewCounts.undetermined;
+
+  const selfServiceClicks = selectionCounts.probable_person.selfService;
+  const assistedClicks = selectionCounts.probable_person.assisted;
+  const totalSelections = selfServiceClicks + assistedClicks;
+  const rawSelfServiceClicks = Object.values(selectionCounts)
+    .reduce((sum, value) => sum + value.selfService, 0);
+  const rawAssistedClicks = Object.values(selectionCounts)
+    .reduce((sum, value) => sum + value.assisted, 0);
+
+  return {
+    views,
+    totalSelections,
+    selfServiceClicks,
+    assistedClicks,
+    selfServiceShare: percentage(selfServiceClicks, totalSelections),
+    assistedShare: percentage(assistedClicks, totalSelections),
+    rawTotalSelections: rawSelfServiceClicks + rawAssistedClicks,
+    rawSelfServiceClicks,
+    rawAssistedClicks,
+    traffic: {
+      probablePersonViews,
+      knownBotViews,
+      automationViews,
+      suspiciousViews,
+      undeterminedViews,
+      probablePersonShare: percentage(probablePersonViews, views),
+    },
+  };
+}
+
+async function fetchLandingSignalPage(from, offset, limit = LANDING_SIGNAL_PAGE_SIZE) {
+  const query = new URLSearchParams({
+    select: "id,event_type,created_at,payload",
+    event_type: `in.(${[...LANDING_SIGNAL_EVENT_TYPES].join(",")})`,
+    order: "created_at.asc",
+    limit: String(limit),
+    offset: String(offset),
+  });
+  if (from) query.set("created_at", `gte.${from}`);
+  const response = await fetch(
+    `${customerDbBaseUrl()}/rest/v1/${CUSTOMER_DB_EVENTS_TABLE}?${query.toString()}`,
+    { method: "GET", headers: customerDbReadHeaders() },
+  );
+  if (!response.ok) {
+    throw new Error(`Customer DB landing analytics error ${response.status}`);
+  }
+  const rows = await response.json();
+  return Array.isArray(rows) ? rows : [];
+}
+
+async function loadLandingSignalRows(from) {
+  const rows = [];
+  for (let offset = 0; offset < LANDING_SIGNAL_MAX_ROWS; offset += LANDING_SIGNAL_PAGE_SIZE) {
+    const page = await fetchLandingSignalPage(from, offset);
+    rows.push(...page);
+    if (page.length < LANDING_SIGNAL_PAGE_SIZE) return rows;
+  }
+
+  const overflow = await fetchLandingSignalPage(from, LANDING_SIGNAL_MAX_ROWS, 1);
+  if (overflow.length) {
+    throw new Error("Volume statistiche landing oltre il limite di lettura sicura");
+  }
+  return rows;
 }
 
 async function loadLandingPathAnalytics(rangeValue) {
@@ -123,27 +220,28 @@ async function loadLandingPathAnalytics(rangeValue) {
       assistedClicks: 0,
       selfServiceShare: null,
       assistedShare: null,
+      rawTotalSelections: 0,
+      rawSelfServiceClicks: 0,
+      rawAssistedClicks: 0,
+      traffic: {
+        probablePersonViews: 0,
+        knownBotViews: 0,
+        automationViews: 0,
+        suspiciousViews: 0,
+        undeterminedViews: 0,
+        probablePersonShare: null,
+      },
     };
   }
 
   try {
-    const [views, selfServiceClicks, assistedClicks] = await Promise.all([
-      countLandingEvent(LANDING_PATH_EVENTS.view, from),
-      countLandingEvent(LANDING_PATH_EVENTS.selfService, from),
-      countLandingEvent(LANDING_PATH_EVENTS.assisted, from),
-    ]);
-    const totalSelections = selfServiceClicks + assistedClicks;
+    const rows = await loadLandingSignalRows(from);
     return {
       ok: true,
       configured: true,
       range,
       from,
-      views,
-      totalSelections,
-      selfServiceClicks,
-      assistedClicks,
-      selfServiceShare: percentage(selfServiceClicks, totalSelections),
-      assistedShare: percentage(assistedClicks, totalSelections),
+      ...classifyLandingPathRows(rows),
     };
   } catch (error) {
     return {
