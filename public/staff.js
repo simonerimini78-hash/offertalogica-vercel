@@ -1194,7 +1194,7 @@
 
   async function loadSupportRequests({ silent = false } = {}) {
     const result = await client.from("premium_communications")
-      .select("id,user_id,direction,channel,subject,body,read_at,created_at")
+      .select("id,user_id,direction,channel,subject,body,read_at,resolved_at,created_at")
       .order("created_at", { ascending: false })
       .limit(500);
     if (result.error) throw result.error;
@@ -1512,7 +1512,7 @@
   async function loadSupportThread(item) {
     const parsed = supportSubject(item.supportSubjectRaw || "");
     const result = await client.from("premium_communications")
-      .select("id,user_id,direction,subject,body,read_at,created_at")
+      .select("id,user_id,direction,subject,body,read_at,resolved_at,created_at")
       .eq("user_id", item.userId)
       .order("created_at", { ascending: true })
       .limit(250);
@@ -1645,7 +1645,7 @@
       }
 
       const openUserMessageIds = liveMessages
-        .filter(message => message.direction === "user_to_staff" && !message.read_at)
+        .filter(message => message.direction === "user_to_staff" && !message.resolved_at)
         .map(message => message.id)
         .filter(Boolean);
       if (!openUserMessageIds.length) {
@@ -1653,11 +1653,11 @@
       }
 
       const { data: closedRows, error } = await client.from("premium_communications")
-        .update({ read_at: new Date().toISOString() })
+        .update({ resolved_at: new Date().toISOString() })
         .eq("user_id", activeSupportCase.userId)
         .eq("direction", "user_to_staff")
         .in("id", openUserMessageIds)
-        .is("read_at", null)
+        .is("resolved_at", null)
         .select("id");
       if (error) throw error;
       if (!closedRows?.length) throw new Error("La pratica non risulta più aperta. Aggiorna l’elenco e riprova.");
@@ -1779,7 +1779,7 @@
       if (!userMessages.length) return;
       const latestUser = userMessages[userMessages.length - 1];
       const latestMessage = ordered[ordered.length - 1] || latestUser;
-      const closed = !userMessages.some(message => !message.read_at);
+      const closed = !userMessages.some(message => !message.resolved_at);
       const customer = customerCaseLabel(latestUser.user_id);
       const detail = supportDetail(latestUser.body);
       cases.push({

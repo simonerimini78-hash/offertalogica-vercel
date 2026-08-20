@@ -1,4 +1,4 @@
-const CACHE = "offertalogica-premium-v03629-support5-install-simple-phase6-stripe-sync";
+const CACHE = "offertalogica-premium-v03630-support-resolution";
 const APP_SHELL = [
   "/app.html",
   "/app-dialog.js",
