@@ -12,7 +12,7 @@ test("hotfix: una pratica rossa aperta non blocca l'assistenza automatica", () =
   assert.doesNotMatch(restart, /if \(currentCase\)/);
 });
 
-test("hotfix: resta impossibile creare una seconda pratica rossa", () => {
+test("hotfix: resta impossibile creare una seconda pratica rossa attiva", () => {
   const js = read("public/app-support.js");
   assert.match(js, /const existing = await loadSupportCommunications\(\)/);
   assert.match(js, /if \(existing\.openCase\)[\s\S]{0,180}renderOpenCase\(existing\.openCase, existing\.messages\)/);
@@ -26,9 +26,9 @@ test("hotfix: la conferma staff è sopra il dialog della pratica", () => {
   assert.ok(confirm > support, `z-index conferma ${confirm} deve essere > dialog ${support}`);
 });
 
-test("hotfix: la chiusura staff verifica che almeno una riga sia stata chiusa", () => {
+test("hotfix: la chiusura staff risolve almeno una riga senza toccare read_at", () => {
   const js = read("public/staff.js");
-  assert.match(js, /update\(\{ read_at: new Date\(\)\.toISOString\(\) \}\)[\s\S]{0,300}\.select\("id"\)/);
+  assert.match(js, /update\(\{ resolved_at: new Date\(\)\.toISOString\(\) \}\)[\s\S]{0,300}\.select\("id"\)/);
   assert.match(js, /if \(!closedRows\?\.length\) throw new Error/);
 });
 
@@ -39,8 +39,8 @@ test("hotfix: le cancellazioni verificano l'effettiva eliminazione", () => {
   assert.match(staff, /\.delete\(\)[\s\S]{0,220}\.select\("id"\)[\s\S]{0,130}!deletedRows\?\.length/);
 });
 
-test("hotfix: service worker distribuisce i nuovi script", () => {
+test("hotfix: service worker distribuisce la versione support-resolution", () => {
   const sw = read("public/sw.js");
-  assert.match(sw, /offertalogica-premium-v03629-support(?:4-fix1|5-(?:account|install-(?:focus|dynamic|simple)))/);
+  assert.match(sw, /offertalogica-premium-v03630-support-resolution/);
   assert.match(sw, /"\/app-support\.js"/);
 });

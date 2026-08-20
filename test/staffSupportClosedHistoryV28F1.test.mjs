@@ -19,16 +19,18 @@ const open = sliceBetween('async function openSupportCase(item)', 'async functio
 const send = sliceBetween('async function sendSupportReply(event)', 'function viewSupportCustomer');
 const close = sliceBetween('async function closeSupportCase()', 'async function deleteSupportCase');
 
-test('Staff: carica anche i messaggi staff per mantenere e ordinare le pratiche chiuse', () => {
+test('Staff: carica anche i messaggi staff e il nuovo stato resolved_at', () => {
   assert.doesNotMatch(load, /\.eq\("direction", "user_to_staff"\)/);
   assert.match(load, /premium_communications/);
+  assert.match(load, /resolved_at/);
 });
 
-test('Staff: le pratiche supporto chiuse restano in elenco con stato chiusa', () => {
+test('Staff: le pratiche supporto chiuse restano in elenco e usano resolved_at', () => {
   assert.match(build, /const supportGroups = new Map\(\)/);
-  assert.match(build, /const closed = !userMessages\.some\(message => !message\.read_at\)/);
+  assert.match(build, /const closed = !userMessages\.some\(message => !message\.resolved_at\)/);
   assert.match(build, /status: closed \? "chiusa" : "aperta"/);
   assert.match(build, /closed,/);
+  assert.doesNotMatch(build, /const closed = !userMessages\.some\(message => !message\.read_at\)/);
 });
 
 test('Staff: i contatori operativi escludono le pratiche chiuse ma la tabella usa cache.cases', () => {
@@ -37,15 +39,16 @@ test('Staff: i contatori operativi escludono le pratiche chiuse ma la tabella us
   assert.match(render, /caseMetricTotal"\), activeCases\.length/);
 });
 
-test('Staff: una pratica chiusa può essere riaperta nel dialog e ricevere altri messaggi', () => {
+test('Staff: una pratica chiusa può restare nel dialog e ricevere altri messaggi', () => {
   assert.match(open, /item\.closed \? "CHIUSA" : "ROSSO"/);
   assert.match(open, /closeButton\.disabled = Boolean\(item\.closed\)/);
   assert.doesNotMatch(send, /if \(activeSupportCase\.closed\) return/);
   assert.match(send, /Messaggio inviato al cliente\. La pratica resta chiusa/);
 });
 
-test('Staff: CHIUDI distingue chiusura da eliminazione e blocca la doppia chiusura', () => {
+test('Staff: CHIUDI distingue risoluzione da eliminazione e blocca la doppia chiusura', () => {
   assert.match(close, /if \(activeSupportCase\.closed\)/);
   assert.match(close, /restare nell’elenco|resterà nell’elenco/);
+  assert.match(close, /resolved_at/);
   assert.doesNotMatch(close, /\.delete\(\)/);
 });

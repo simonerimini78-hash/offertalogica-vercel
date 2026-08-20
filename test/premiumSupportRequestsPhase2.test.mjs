@@ -16,7 +16,7 @@ test("fase 2: l'app Premium espone la richiesta assistenza senza cambiare naviga
   assert.match(html, /OffertaLogicaPremiumSupport\?\.init\(\)/);
 });
 
-test("fase 2: premium_communications resta il canale cliente-staff, ora aperto soltanto dopo escalation rossa", () => {
+test("fase 2: premium_communications resta il canale cliente-staff, senza nuova tabella pratiche", () => {
   const js = read("public/app-support.js");
   assert.match(js, /\.from\("premium_communications"\)\.insert\(/);
   assert.match(js, /direction:\s*"user_to_staff"/);
@@ -27,29 +27,28 @@ test("fase 2: premium_communications resta il canale cliente-staff, ora aperto s
   assert.doesNotMatch(js, /premium_support_cases/);
 });
 
-test("fase 2: lo staff porta le comunicazioni non gestite dentro Pratiche e la fase 3 le rende conversazioni", () => {
+test("fase 2: lo staff separa risoluzione pratica e lettura messaggi", () => {
   const js = read("public/staff.js");
   const html = read("public/staff.html");
   assert.match(js, /\.from\("premium_communications"\)/);
-  assert.match(js, /\.eq\("direction",\s*"user_to_staff"\)/);
-  assert.match(js, /communication\.read_at/);
+  assert.match(js, /resolved_at/);
   assert.match(js, /type:\s*"support_request"/);
   assert.match(js, /direction:\s*"staff_to_user"/);
   assert.match(js, /CHIUDI PRATICA/);
-  assert.match(js, /\.update\(\{\s*read_at:\s*new Date\(\)\.toISOString\(\)\s*\}\)/);
+  assert.match(js, /\.update\(\{\s*resolved_at:\s*new Date\(\)\.toISOString\(\)\s*\}\)/);
   assert.match(html, /option value="support_request">Richiesta assistenza/);
 });
 
-test("fase 2: lo schema già presente consente comunicazioni cliente-staff", () => {
-  const sql = read("supabase/premium-schema-v0.2.sql");
-  assert.match(sql, /create table if not exists public\.premium_communications/);
-  assert.match(sql, /direction text not null check \(direction in \('user_to_staff', 'staff_to_user', 'system_to_user'\)\)/);
-  assert.match(sql, /premium_communications_owner_insert/);
+test("fase 2: la migrazione aggiunge resolved_at e protegge l'inserimento cliente", () => {
+  const sql = read("supabase/premium-support-resolution-v0.36.30.sql");
+  assert.match(sql, /add column if not exists resolved_at timestamptz/);
+  assert.match(sql, /resolved_at = read_at/);
+  assert.match(sql, /read_at = null/);
   assert.match(sql, /direction = 'user_to_staff'/);
-  assert.match(sql, /premium_communications_staff_all/);
+  assert.match(sql, /and resolved_at is null/);
 });
 
-test("fase 2: il service worker conosce il nuovo modulo assistenza", () => {
+test("fase 2: il service worker conosce il modulo assistenza", () => {
   const sw = read("public/sw.js");
   assert.match(sw, /"\/app-support\.js"/);
 });

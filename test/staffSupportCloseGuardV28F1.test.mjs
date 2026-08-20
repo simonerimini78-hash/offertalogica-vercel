@@ -29,15 +29,18 @@ test("Staff: la chiusura ricontrolla il thread dopo la conferma", () => {
   assert.ok(liveGuard > liveReload, "manca il secondo blocco sul messaggio cliente");
 });
 
-test("Staff: chiude soltanto i messaggi cliente già osservati", () => {
-  assert.match(closeCase, /const openUserMessageIds = liveMessages[\s\S]*?\.filter\(message => message\.direction === "user_to_staff" && !message\.read_at\)[\s\S]*?\.map\(message => message\.id\)/);
+test("Staff: chiude soltanto i messaggi cliente ancora non risolti", () => {
+  assert.match(closeCase, /const openUserMessageIds = liveMessages[\s\S]*?\.filter\(message => message\.direction === "user_to_staff" && !message\.resolved_at\)[\s\S]*?\.map\(message => message\.id\)/);
   assert.match(closeCase, /\.in\("id", openUserMessageIds\)/);
+  assert.match(closeCase, /update\(\{ resolved_at: new Date\(\)\.toISOString\(\) \}\)/);
+  assert.match(closeCase, /\.is\("resolved_at", null\)/);
+  assert.doesNotMatch(closeCase, /update\(\{ read_at:/);
 });
 
 test("Staff: un messaggio cliente arrivato mentre si conferma non viene chiuso in massa", () => {
   const updateStart = closeCase.indexOf('client.from("premium_communications")');
   const updateSlice = closeCase.slice(updateStart);
-  assert.doesNotMatch(updateSlice, /\.eq\("subject", activeSupportCase\.supportSubjectRaw\)[\s\S]*?\.is\("read_at", null\)/);
+  assert.doesNotMatch(updateSlice, /\.eq\("subject", activeSupportCase\.supportSubjectRaw\)[\s\S]*?\.is\("resolved_at", null\)/);
 });
 
 test("Staff: i messaggi di errore spiegano perché la pratica resta aperta", () => {
