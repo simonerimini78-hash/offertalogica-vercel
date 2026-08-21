@@ -597,7 +597,7 @@
   }
 
   function offerBadge(contract) {
-    if (contract?.customer_confirmation_status === "confirmed") return "CONFERMATA";
+    if (contract?.customer_confirmation_status === "confirmed") return "DICHIARATA";
     if (contract?.customer_confirmation_status === "rejected" || contract?.verification_status === "rejected") return "NON CONFERMATA";
     if (contract?.verification_status === "verified") return "IDENTIFICATA";
     if (contract?.customer_confirmation_status === "pending") return "DA CONFERMARE";
@@ -606,7 +606,7 @@
 
   function offerIntro(contract) {
     if (contract?.customer_confirmation_status === "confirmed") {
-      return "Hai confermato questa corrispondenza. Le condizioni registrate vengono usate anche per ricontrollare la bolletta senza una nuova lettura IA.";
+      return "Questa corrispondenza è stata confermata dal cliente, ma non costituisce una verifica tecnica delle condizioni economiche e non può generare da sola un codice rosso.";
     }
     if (contract?.verification_status === "verified") {
       return "L’offerta è stata identificata automaticamente nello storico ARERA con corrispondenza sufficientemente affidabile.";

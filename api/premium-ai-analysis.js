@@ -18,6 +18,12 @@ import {
   verifyPremiumRedPdf,
 } from "../lib/premiumRedVerifier.js";
 import {
+  premiumBillScopedOfferSummary,
+  premiumContractForAutomaticComparison,
+  premiumOfferContractCanBindBill,
+  premiumOfferMatchVerifiedForBill,
+} from "../lib/premiumOfferReferenceTrust.js";
+import {
   analysisCompletionStatus,
   assertPremiumAiConfigured,
   checkPremiumBackendReadiness,
@@ -297,7 +303,7 @@ export function createPremiumAiAnalysisHandler({
             reasons: snapshot.bill.automatic_screening_reasons,
             firstAnalysis: snapshot.firstRun?.extracted_data || {},
             firstAnalysisRunId: snapshot.bill.automatic_analysis_run_id || null,
-            contract: contract?.verification_status === "verified" ? contract : null,
+            contract: premiumContractForAutomaticComparison(contract, snapshot.firstRun?.extracted_data || {}),
             apiKey: backend.openAiApiKey,
             model: backend.model,
             transport,
@@ -495,16 +501,19 @@ export function createPremiumAiAnalysisHandler({
           env,
         });
         if (offerMatch?.contract) contract = offerMatch.contract;
-        if (offerMatch?.publicSummary) normalized._offer_match = offerMatch.publicSummary;
+        const scopedOfferSummary = premiumBillScopedOfferSummary(offerMatch);
+        if (scopedOfferSummary) normalized._offer_match = scopedOfferSummary;
       }
 
-      const contractForScreening = contract?.verification_status === "verified" ? contract : null;
+      const contractForScreening = customerMode
+        ? (premiumOfferMatchVerifiedForBill(offerMatch) ? premiumContractForAutomaticComparison(contract, normalized) : null)
+        : premiumContractForAutomaticComparison(contract, normalized);
       const completion = analysisCompletionStatus(normalized);
       const screening = classifyPremiumAutomaticAnalysis(normalized, { contract: contractForScreening });
       const durationMs = Math.max(0, now() - startedAt);
       const estimatedCostEur = estimatePremiumAiCost(meter.totals, backend.pricing);
       const extractedData = sanitizePremiumAnalysisData(normalized, meter.totals, customerMode ? screening : null);
-      const matchWarning = offerMatchWarning(offerMatch);
+      const matchWarning = offerMatchWarning(normalized._offer_match || offerMatch);
       const warnings = [...new Set([
         ...(Array.isArray(normalized?.warnings) ? normalized.warnings : []),
         ...completion.missing.map(field => `campo_essenziale_mancante:${field}`),
@@ -551,7 +560,7 @@ export function createPremiumAiAnalysisHandler({
           ...premiumBillValuesFromAnalysis(normalized, screening, run.id, completedAt),
           ...resetRedVerificationValues(),
         };
-        if (offerMatch?.contract?.id) values.contract_id = offerMatch.contract.id;
+        if (premiumOfferContractCanBindBill(offerMatch)) values.contract_id = offerMatch.contract.id;
         await patchPremiumBill({
           config: backend,
           billId: bill.id,

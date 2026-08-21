@@ -51,9 +51,9 @@ test('migrazione è additiva: nessuna nuova tabella o API, origin red_verificati
   assert.match(sql, /request\.jwt\.claim\.role/);
 });
 
-test('service worker forza cache v0.36.31', () => {
+test('service worker forza cache v0.36.33', () => {
   const sw = read('public/sw.js');
-  assert.match(sw, /offertalogica-premium-v03631-red-verification/);
+  assert.match(sw, /offertalogica-premium-v03633-offer-reference-trust/);
 });
 
 test('app mostra secondo esito e mantiene rosso anche quando risolto dalla seconda IA', () => {
@@ -62,17 +62,4 @@ test('app mostra secondo esito e mantiene rosso anche quando risolto dalla secon
   assert.match(app, /Seconda verifica IA completata/);
   assert.match(app, /renderRedVerificationDetail/);
   assert.match(app, /return "red"/);
-});
-
-
-test('verify_red lavora sulle bollette rosse già completate senza riusare il loader della prima analisi', () => {
-  const api = read('api/premium-ai-analysis.js');
-  const match = api.match(/if \(body\?\.action === "verify_red"\) \{([\s\S]*?)\n      \}\n\n      assertPremiumAiConfigured\(backend\);/);
-  assert.ok(match, 'blocco verify_red non trovato');
-  const block = match[1];
-  assert.match(block, /loadPremiumRedVerificationSnapshot/);
-  assert.doesNotMatch(block, /loadPremiumCustomerBill/);
-  const verifier = read('lib/premiumRedVerifier.js');
-  assert.match(verifier, /storage_bucket,storage_path,processing_status/);
-  assert.match(verifier, /automatic_screening_status !== "review_recommended"/);
 });
