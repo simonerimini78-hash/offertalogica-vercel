@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 const read = name => readFile(new URL(`../${name}`, import.meta.url), "utf8");
 
-test("app aggiorna automaticamente e staff applica solo tramite pulsante", async () => {
+test("app e staff aggiornano automaticamente quando è sicuro", async () => {
   const [app, staff, appAuth, staffJs] = await Promise.all([
     read("public/app.html"), read("public/staff.html"), read("public/app-auth.js"), read("public/staff.js"),
   ]);
@@ -23,7 +23,8 @@ test("app aggiorna automaticamente e staff applica solo tramite pulsante", async
   assert.match(staff, /retireLegacyRootWorker/);
   assert.match(staff, /location\.replace\(target\.href\)/);
   assert.doesNotMatch(staff, /navigator\.serviceWorker\.register/);
-  assert.match(staff, /Aggiorna quando hai terminato il lavoro/);
+  assert.match(staff, /if\(isSafeToReload\(\)\)await performUpdate\(\);else showReady\(\)/);
+  assert.match(staff, /performUpdate/);
   assert.match(appAuth, /persistSession:\s*true/);
   assert.match(staffJs, /persistSession:\s*true/);
   assert.doesNotMatch(app, /auth\.signOut\(\).*SKIP_WAITING/s);
@@ -38,7 +39,8 @@ test("app attende operazioni e staff protegge modifiche non salvate", async () =
   assert.match(bills, /data-update-busy/);
   assert.match(bills, /analysisInFlightIds\.size > 0/);
   assert.match(staff, /let dirty=false/);
-  assert.match(staff, /Salva o chiudi l’operazione in corso/);
+  assert.match(staff, /Salva o chiudi il lavoro in corso/);
+  assert.match(staff, /embeddedModuleUnsafe/);
   assert.match(staff, /document\.body\.getAttribute\('aria-busy'\)/);
 });
 
@@ -50,11 +52,12 @@ test("il service worker v0.36.29 è limitato alla sola app", async () => {
   assert.ok(sw.includes('"/premium-ai-validation.js"'));
 });
 
-test("etichette applicative allineate alla v0.36.29", async () => {
+test("Staff usa release 0.36.42 senza cambiare la versione applicativa Premium", async () => {
   const [app,staff,staffPremium,bills]=await Promise.all([read("public/app.html"),read("public/staff.html"),read("public/staff-premium.html"),read("public/app-premium-bills.js")]);
   assert.match(app,/APP v0\.36\.29/);
   assert.match(app,/APP Premium v0\.36\.29/);
-  assert.match(staff,/v0\.36\.29/);
+  assert.match(staff,/v0\.36\.42/);
+  assert.match(staff,/CURRENT_RELEASE="0\.36\.42"/);
   assert.match(staffPremium,/v0\.36\.29/);
   assert.match(bills,/app_version:\s*"0\.36\.29"/);
 });

@@ -56,6 +56,58 @@ import { staffPermissionAllowed } from "../lib/staffSessionAuth.js";
 
 export const config = { maxDuration: 60 };
 
+const PREMIUM_COST_PRICING_VERSION = "premium-eur-v0.36.42";
+const PREMIUM_WEB_SEARCH_RATE_ENV = "PREMIUM_AI_WEB_SEARCH_EUR_PER_1K_RUNS";
+
+function verifiedEurPricing(pricing = {}) {
+  const sources = pricing?.sources || {};
+  return pricing?.complete === true
+    && ["inputPerMillion", "cachedInputPerMillion", "outputPerMillion"]
+      .every(field => sources[field] === "environment");
+}
+
+function configuredNonNegative(env, name) {
+  const raw = String(env?.[name] ?? "").trim();
+  if (!raw) return null;
+  const value = Number(raw);
+  return Number.isFinite(value) && value >= 0 ? value : null;
+}
+
+function instrumentWebSearchMeter(meter) {
+  if (!meter?.totals || typeof meter.capture !== "function") return meter;
+  meter.totals.webSearchCalls = Number(meter.totals.webSearchCalls || 0);
+  const capture = meter.capture.bind(meter);
+  meter.capture = (body, context = {}) => {
+    capture(body, context);
+    const calls = Array.isArray(body?.output)
+      ? body.output.filter(item => item?.type === "web_search_call").length
+      : 0;
+    meter.totals.webSearchCalls += calls;
+  };
+  return meter;
+}
+
+function verifiedPremiumAiCost(meter, backend, env) {
+  const pricingVerified = verifiedEurPricing(backend?.pricing);
+  const webSearchCalls = Math.max(0, Number(meter?.totals?.webSearchCalls || 0));
+  const webSearchRate = configuredNonNegative(env, PREMIUM_WEB_SEARCH_RATE_ENV);
+  if (!pricingVerified || (webSearchCalls > 0 && webSearchRate === null)) {
+    return { estimatedCostEur: null, pricingVerified: false, webSearchCalls, webSearchCostEur: null, webSearchRateEurPer1k: webSearchRate };
+  }
+  const tokenCost = estimatePremiumAiCost(meter.totals, backend.pricing);
+  if (tokenCost === null) {
+    return { estimatedCostEur: null, pricingVerified: false, webSearchCalls, webSearchCostEur: null, webSearchRateEurPer1k: webSearchRate };
+  }
+  const webSearchCostEur = webSearchCalls > 0 ? (webSearchCalls * webSearchRate) / 1000 : 0;
+  return {
+    estimatedCostEur: Number((tokenCost + webSearchCostEur).toFixed(6)),
+    pricingVerified: true,
+    webSearchCalls,
+    webSearchCostEur: Number(webSearchCostEur.toFixed(6)),
+    webSearchRateEurPer1k: webSearchRate,
+  };
+}
+
 function resetRedVerificationValues() {
   return {
     red_verification_state: "not_run",
@@ -141,13 +193,21 @@ export function createPremiumAiAnalysisHandler({
           const value = Number(env[name]);
           return Number.isFinite(value) && value > 0 ? value : fallback;
         };
+        const webSearchPerThousand = configuredNonNegative(env, PREMIUM_WEB_SEARCH_RATE_ENV);
+        const tokenPricingVerifiedEur = verifiedEurPricing(backend.pricing);
         const pricing = {
           inputPerMillion: backend.pricing.inputPerMillion,
           cachedInputPerMillion: backend.pricing.cachedInputPerMillion,
           outputPerMillion: backend.pricing.outputPerMillion,
-          complete: Boolean(backend.pricing.complete),
+          webSearchPerThousand,
+          complete: tokenPricingVerifiedEur && webSearchPerThousand !== null,
+          tokenPricingVerifiedEur,
           sources: backend.pricing.sources || {},
-          missing: Array.isArray(backend.pricing.missing) ? backend.pricing.missing : [],
+          missing: [
+            ...(Array.isArray(backend.pricing.missing) ? backend.pricing.missing : []),
+            ...(!tokenPricingVerifiedEur ? ["Tariffe token EUR esplicite"] : []),
+            ...(webSearchPerThousand === null ? [PREMIUM_WEB_SEARCH_RATE_ENV] : []),
+          ],
           modelDefaultApplied: Boolean(backend.pricing.modelDefaultApplied),
         };
         return json(res, 200, {
@@ -402,7 +462,7 @@ export function createPremiumAiAnalysisHandler({
           const header = await normalizePdfFileHeader(temporaryFilePath);
           if (!header.valid) throw new Error("premium_bill_download_not_pdf");
 
-          const meter = createUsageMeter();
+          const meter = instrumentWebSearchMeter(createUsageMeter());
           const transport = createMeteredOpenAiTransport({ meter, fetchImpl });
           const verified = await verifyRedPdf({
             filePath: temporaryFilePath,
@@ -461,7 +521,8 @@ export function createPremiumAiAnalysisHandler({
             }
           }
           const durationMs = Math.max(0, now() - startedAt);
-          const estimatedCostEur = estimatePremiumAiCost(meter.totals, backend.pricing);
+          const costResult = verifiedPremiumAiCost(meter, backend, env);
+          const estimatedCostEur = costResult.estimatedCostEur;
           const state = verification.decision === "resolved_ai"
             ? "resolved_ai"
             : verification.decision === "quick_verify"
@@ -492,6 +553,12 @@ export function createPremiumAiAnalysisHandler({
                 reasoning_tokens: meter.totals.reasoningTokens,
                 total_tokens: meter.totals.totalTokens,
                 calls: meter.totals.calls,
+                pricing_verified_eur: costResult.pricingVerified,
+                pricing_version: costResult.pricingVerified ? PREMIUM_COST_PRICING_VERSION : null,
+                pricing_sources: backend.pricing?.sources || {},
+                web_search_calls: costResult.webSearchCalls,
+                web_search_cost_eur: costResult.webSearchCostEur,
+                web_search_rate_eur_per_1k: costResult.webSearchRateEurPer1k,
               },
               response_ids: verified.responseId ? [verified.responseId] : [],
               automatic_classification: "not_applicable",
@@ -636,7 +703,7 @@ export function createPremiumAiAnalysisHandler({
       const header = await normalizePdfFileHeader(temporaryFilePath);
       if (!header.valid) throw new Error("premium_bill_download_not_pdf");
 
-      const meter = createUsageMeter();
+      const meter = instrumentWebSearchMeter(createUsageMeter());
       const transport = createMeteredOpenAiTransport({ meter, fetchImpl });
       const normalized = await analyzePdf({
         filePath: temporaryFilePath,
@@ -668,7 +735,8 @@ export function createPremiumAiAnalysisHandler({
       const completion = analysisCompletionStatus(normalized);
       const screening = classifyPremiumAutomaticAnalysis(normalized, { contract: contractForScreening });
       const durationMs = Math.max(0, now() - startedAt);
-      const estimatedCostEur = estimatePremiumAiCost(meter.totals, backend.pricing);
+      const costResult = verifiedPremiumAiCost(meter, backend, env);
+      const estimatedCostEur = costResult.estimatedCostEur;
       const extractedData = sanitizePremiumAnalysisData(normalized, meter.totals, customerMode ? screening : null);
       const matchWarning = offerMatchWarning(normalized._offer_match || offerMatch);
       const warnings = [...new Set([
@@ -702,6 +770,12 @@ export function createPremiumAiAnalysisHandler({
             reasoning_tokens: meter.totals.reasoningTokens,
             total_tokens: meter.totals.totalTokens,
             calls: meter.totals.calls,
+            pricing_verified_eur: costResult.pricingVerified,
+            pricing_version: costResult.pricingVerified ? PREMIUM_COST_PRICING_VERSION : null,
+            pricing_sources: backend.pricing?.sources || {},
+            web_search_calls: costResult.webSearchCalls,
+            web_search_cost_eur: costResult.webSearchCostEur,
+            web_search_rate_eur_per_1k: costResult.webSearchRateEurPer1k,
           },
           response_ids: meter.totals.responseIds,
           automatic_classification: customerMode ? screening.status : "not_applicable",

@@ -7,7 +7,7 @@ const api = await readFile(new URL("../api/premium-ai-analysis.js", import.meta.
 const staff = await readFile(new URL("../public/staff.js", import.meta.url), "utf8");
 const staffHtml = await readFile(new URL("../public/staff.html", import.meta.url), "utf8");
 
-test("v0.36.1 usa il listino GPT-4.1 come fallback operativo", () => {
+test("il backend legacy espone ancora il listino modello solo come diagnostica", () => {
   const pricing = resolvePremiumAiPricing({}, "gpt-4.1-2025-04-14");
   assert.equal(pricing.complete, true);
   assert.equal(pricing.inputPerMillion, 2);
@@ -52,16 +52,27 @@ test("la diagnostica staff mostra valori e fonte per ogni tariffa", () => {
   for (const label of ["Tariffa input IA", "Tariffa cache IA", "Tariffa output IA"]) {
     assert.match(staff, new RegExp(label));
   }
-  assert.match(staff, /Variabile Vercel/);
-  assert.match(staff, /Fallback/);
+  assert.match(staff, /Variabile Vercel EUR/);
+  assert.match(staff, /Fallback modello escluso dai costi EUR/);
+  assert.match(staff, /Tariffa ricerca web IA/);
   assert.match(staff, /pricing\.missing/);
   assert.match(api, /sources: backend\.pricing\.sources/);
-  assert.match(api, /missing: Array\.isArray\(backend\.pricing\.missing\)/);
-  assert.match(staffHtml, /v0\.36\.29/);
+  assert.match(api, /verifiedEurPricing/);
+  assert.match(api, /PREMIUM_AI_WEB_SEARCH_EUR_PER_1K_RUNS/);
+  assert.match(api, /pricing_verified_eur/);
+  assert.match(staffHtml, /v0\.36\.42/);
 });
 
 test("v0.36.1 non aggiunge funzioni Vercel", async () => {
   const files = (await readdir(new URL("../api/", import.meta.url))).filter(name => name.endsWith(".js"));
   assert.equal(files.length, 12);
   assert.ok(!files.includes("health.js"));
+});
+
+
+test("v0.36.42 non contabilizza fallback modello come EUR e include le web search solo con tariffa esplicita", () => {
+  assert.match(api, /every\(field => sources\[field\] === "environment"\)/);
+  assert.match(api, /webSearchCalls > 0 && webSearchRate === null/);
+  assert.match(api, /webSearchCalls \* webSearchRate/);
+  assert.match(api, /premium-eur-v0\.36\.42/);
 });

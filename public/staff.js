@@ -9,6 +9,8 @@
   const PREMIUM_APP_URL = "https://premium.offertalogica.it/app.html";
   const PREMIUM_STAFF_BILLING_URL = `${SUPABASE_URL}/functions/v1/premium-staff-billing`;
   const PREMIUM_STAFF_INVITE_URL = `${SUPABASE_URL}/functions/v1/premium-staff-invite`;
+  const HUMAN_COST_EUR_PER_HOUR = 30;
+  const VERIFIED_COST_PRICING_VERSION = "premium-eur-v0.36.42";
 
   let client = null;
   let currentSession = null;
@@ -1920,6 +1922,22 @@
       : "Pratiche aggiornate.");
   }
 
+  function runHasVerifiedEurPricing(run) {
+    const usage = run?.usage_details && typeof run.usage_details === "object" ? run.usage_details : {};
+    return usage.pricing_verified_eur === true && usage.pricing_version === VERIFIED_COST_PRICING_VERSION;
+  }
+
+  function verifiedRunCost(run) {
+    if (!runHasVerifiedEurPricing(run)) return null;
+    const amount = Number(run?.estimated_cost_eur);
+    return Number.isFinite(amount) && amount >= 0 ? amount : null;
+  }
+
+  function humanCostEur(seconds) {
+    const value = Number(seconds || 0);
+    return Number.isFinite(value) && value > 0 ? (value / 3600) * HUMAN_COST_EUR_PER_HOUR : 0;
+  }
+
   function renderCostRuns() {
     const body = byId("costRunRows");
     clear(body);
@@ -1936,7 +1954,9 @@
         node("td", {}, [badge(run.status || "—", run.status === "failed" ? "danger" : run.status === "completed" ? "ok" : "warn")]),
         node("td", { text: run.model || "—" }),
         node("td", { text: formatNumber(tokens) }),
-        node("td", { text: run.estimated_cost_eur == null ? "Tariffa non configurata" : formatMoney(run.estimated_cost_eur) }),
+        node("td", { text: verifiedRunCost(run) != null
+          ? formatMoney(verifiedRunCost(run))
+          : run.estimated_cost_eur == null ? "Tariffa EUR non configurata" : "Storico non verificato" }),
         node("td", {}, [remove])
       ]));
     });
@@ -1953,14 +1973,16 @@
       body.append(node("tr", {}, [node("td", { text: "Nessun evento di costo registrato.", attrs: { colspan: "6" } })]));
       return;
     }
+    const verifiedRunIds = new Set(cache.runs.filter(runHasVerifiedEurPricing).map(run => run.id));
     cache.costEvents.slice(0, 250).forEach(event => {
       const remove = resourceDeleteButton("Elimina", () => deleteCostEvent(event));
+      const aiVerified = event.event_type !== "ai_analysis" || verifiedRunIds.has(event.analysis_run_id);
       body.append(node("tr", {}, [
         node("td", { text: formatDate(event.occurred_at) }),
         node("td", { text: event.event_type || "—" }),
         node("td", { text: event.provider || "—" }),
         node("td", { text: `${formatNumber(event.quantity, 3)} ${event.unit || "event"}` }),
-        node("td", { text: formatMoney(event.cost_eur) }),
+        node("td", { text: aiVerified ? formatMoney(event.cost_eur) : "Storico non verificato" }),
         node("td", {}, [remove])
       ]));
     });
@@ -2036,22 +2058,21 @@
     }
     const rate = config.rateLimits || {};
     const pricing = config.pricing || {};
-    const pricingValue = value => {
+    const pricingValue = (value, field, unit = "€/1M") => {
+      if (field && pricing.sources?.[field] === "model_default") return "Da configurare in EUR";
       if (value === null || value === undefined || value === "") return "Mancante";
       const amount = Number(value);
-      return Number.isFinite(amount) ? `${formatNumber(amount, 3)} €/1M` : "Mancante";
+      return Number.isFinite(amount) ? `${formatNumber(amount, 4)} ${unit}` : "Mancante";
     };
     const pricingSource = field => {
       const source = pricing.sources?.[field];
-      if (source === "environment") return "Variabile Vercel";
-      if (source === "model_default") return `Fallback ${config.model || "modello configurato"}`;
+      if (source === "environment") return "Variabile Vercel EUR";
+      if (source === "model_default") return "Fallback modello escluso dai costi EUR";
       return "Variabile non ricevuta";
     };
     const pricingNote = pricing.complete
-      ? (pricing.modelDefaultApplied
-          ? "Tariffe operative; almeno un valore usa il fallback del modello."
-          : "Tutte le tariffe provengono dalle variabili Vercel.")
-      : `Mancano: ${(pricing.missing || []).join(", ") || "una o più tariffe"}`;
+      ? "Tariffe EUR esplicite: token e ricerca web sono contabilizzabili."
+      : `Da configurare: ${(pricing.missing || []).join(", ") || "una o più tariffe EUR"}. I fallback del modello non vengono contabilizzati come euro.`;
     const complete = Boolean(
       config.supabaseConfigured
       && config.databaseOperational
@@ -2073,9 +2094,10 @@
       configCard("Storico offerte ARERA", config.offerHistoryOperational ? "Disponibile" : "Non disponibile", config.offerHistoryOperational ? `${formatNumber(config.offerHistoryOffers || 0)} offerte${config.offerHistoryVersion ? ` · ${config.offerHistoryVersion}` : ""}` : "Riconoscimento offerta provvisorio"),
       configCard("Rate limit persistente", config.persistentRateLimitConfigured && config.persistentRateLimitOperational ? "Operativo" : (config.persistentRateLimitConfigured ? "Errore collegamento" : "Solo memoria"), "Per la beta serve Redis/KV persistente"),
       configCard("Tariffe IA", pricing.complete ? "Complete" : "Incomplete", pricingNote),
-      configCard("Tariffa input IA", pricingValue(pricing.inputPerMillion), pricingSource("inputPerMillion")),
-      configCard("Tariffa cache IA", pricingValue(pricing.cachedInputPerMillion), pricingSource("cachedInputPerMillion")),
-      configCard("Tariffa output IA", pricingValue(pricing.outputPerMillion), pricingSource("outputPerMillion")),
+      configCard("Tariffa input IA", pricingValue(pricing.inputPerMillion, "inputPerMillion"), pricingSource("inputPerMillion")),
+      configCard("Tariffa cache IA", pricingValue(pricing.cachedInputPerMillion, "cachedInputPerMillion"), pricingSource("cachedInputPerMillion")),
+      configCard("Tariffa output IA", pricingValue(pricing.outputPerMillion, "outputPerMillion"), pricingSource("outputPerMillion")),
+      configCard("Tariffa ricerca web IA", pricingValue(pricing.webSearchPerThousand, null, "€/1.000 ricerche"), pricing.webSearchPerThousand == null ? "Variabile non ricevuta" : "Variabile Vercel EUR"),
       configCard("Limite PDF", `${formatNumber(Number(config.maxPdfBytes || 0) / 1_000_000, 1)} MB`),
       configCard("Deadline IA", `${formatNumber(Number(config.deadlineMs || 0) / 1000, 1)} s`),
       configCard("Analisi cliente", `${rate.customerAnalysis?.limit || 0} / ${Math.round(Number(rate.customerAnalysis?.windowSeconds || 0) / 60)} min`),
@@ -2397,7 +2419,7 @@
   async function loadCosts({ silent = false } = {}) {
     if (!silent) setMessage("info", "Aggiornamento costi e tempi…");
     const [runsResult, checksResult] = await Promise.all([
-      client.from("premium_analysis_runs").select("id,user_id,bill_id,status,model,origin,error_code,input_tokens,output_tokens,estimated_cost_eur,duration_ms,created_at").order("created_at", { ascending: false }).limit(500),
+      client.from("premium_analysis_runs").select("id,user_id,bill_id,status,model,origin,error_code,input_tokens,output_tokens,estimated_cost_eur,duration_ms,usage_details,created_at").order("created_at", { ascending: false }).limit(500),
       client.from("premium_checks").select("id,user_id,bill_id,status,outcome,human_seconds,completed_at,created_at").order("created_at", { ascending: false }).limit(500),
     ]);
     if (runsResult.error) throw runsResult.error;
@@ -2406,7 +2428,7 @@
     cache.checks = checksResult.data || cache.checks;
     cache.costEvents = [];
     if (isAdmin()) {
-      const eventsResult = await client.from("premium_cost_events").select("id,event_type,provider,quantity,unit,cost_eur,occurred_at").order("occurred_at", { ascending: false }).limit(1000);
+      const eventsResult = await client.from("premium_cost_events").select("id,analysis_run_id,bill_id,event_type,provider,quantity,unit,cost_eur,currency,metadata,occurred_at").order("occurred_at", { ascending: false }).limit(1000);
       if (eventsResult.error) throw eventsResult.error;
       cache.costEvents = eventsResult.data || [];
       await loadSystemConfig().catch(() => { cache.systemConfig = null; renderSystemConfig(); });
@@ -2415,14 +2437,18 @@
       renderSystemConfig();
     }
     const tokens = cache.runs.reduce((sum, run) => sum + Number(run.input_tokens || 0) + Number(run.output_tokens || 0), 0);
-    const aiCostValues = cache.runs.map(run => Number(run.estimated_cost_eur)).filter(Number.isFinite);
-    const aiCost = aiCostValues.reduce((sum, value) => sum + value, 0);
+    const verifiedCostRuns = cache.runs.map(run => ({ run, cost: verifiedRunCost(run) })).filter(item => item.cost != null);
+    const aiCost = verifiedCostRuns.reduce((sum, item) => sum + item.cost, 0);
     const humanSeconds = cache.checks.reduce((sum, check) => sum + Number(check.human_seconds || 0), 0);
-    cache.costSummary = { runs: cache.runs.length, tokens, aiCost, pricedRuns: aiCostValues.length, humanSeconds };
+    const humanCost = humanCostEur(humanSeconds);
+    cache.costSummary = { runs: cache.runs.length, tokens, aiCost, pricedRuns: verifiedCostRuns.length, humanSeconds, humanCost };
     text(byId("costRuns"), cache.runs.length);
     text(byId("costTokens"), formatNumber(tokens));
-    text(byId("costAi"), aiCostValues.length ? formatMoney(aiCost) : "Tariffe non configurate");
-    text(byId("costHuman"), humanSeconds >= 3600 ? `${formatNumber(humanSeconds / 3600, 1)} h` : `${Math.round(humanSeconds / 60)} min`);
+    text(byId("costAi"), verifiedCostRuns.length ? formatMoney(aiCost) : "Tariffe EUR non configurate");
+    const humanDuration = humanSeconds >= 3600 ? `${formatNumber(humanSeconds / 3600, 1)} h` : `${Math.round(humanSeconds / 60)} min`;
+    text(byId("costHuman"), `${humanDuration} · ${formatMoney(humanCost)}`);
+    const humanMetric = byId("costHuman")?.closest(".metric");
+    if (humanMetric) text(humanMetric.querySelector("span"), `Tempo / costo umano · ${HUMAN_COST_EUR_PER_HOUR} €/h`);
     renderCostRuns();
     renderCostEvents();
     if (!silent) setMessage("success", "Costi e tempi aggiornati.");

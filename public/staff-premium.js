@@ -6,10 +6,14 @@
   const STORAGE_KEY = "offertalogica-premium-staff-auth";
   const BUCKET = "premium-bills";
   const RED_VERIFIER_VERSION = "premium-red-verifier-v0.36.37";
-  const CONTROL_CENTER_VERSION = "premium-control-center-v0.36.41";
+  const CONTROL_CENTER_VERSION = "premium-control-center-v0.36.42";
   const CONTROL_METRICS_DAYS = 30;
   const CONTROL_METRICS_LIMIT = 5000;
   const CONTROL_COST_CHUNK = 200;
+  const HUMAN_COST_EUR_PER_HOUR = 30;
+  const ACTIVE_WORK_IDLE_MS = 5 * 60 * 1000;
+  const ACTIVE_WORK_STORAGE_PREFIX = "offertalogica-staff-active-work-v1:";
+  const VERIFIED_COST_PRICING_VERSION = "premium-eur-v0.36.42";
   const MANAGER_ROLES = new Set(["reviewer", "technician", "admin", "owner"]);
 
   let client = null;
@@ -35,6 +39,12 @@
   let controlMetrics = null;
   let controlMetricGrids = [];
   const routeFilterOptions = new Map();
+  let updateDirty = false;
+  let activeWorkCheckId = null;
+  let activeWorkSeconds = 0;
+  let activeWorkLastTick = Date.now();
+  let activeWorkLastInteraction = Date.now();
+  let activeWorkTimerId = null;
 
   const byId = id => document.getElementById(id);
 
@@ -262,6 +272,95 @@
     state.topActions.hidden = view !== "dashboard";
   }
 
+  function publishUpdateState() {
+    document.body.dataset.updateDirty = updateDirty ? "true" : "false";
+    try {
+      window.parent?.postMessage({
+        type: "offertalogica:staff-update-state",
+        dirty: updateDirty,
+        busy,
+      }, location.origin);
+    } catch (_) {}
+  }
+
+  function setUpdateDirty(value) {
+    updateDirty = Boolean(value);
+    publishUpdateState();
+  }
+
+  function activeWorkStorageKey(checkId) {
+    const staffId = currentSession?.user?.id || "staff";
+    return `${ACTIVE_WORK_STORAGE_PREFIX}${staffId}:${checkId}`;
+  }
+
+  function readActiveWorkSeconds(checkId) {
+    if (!checkId) return 0;
+    try {
+      const value = Number(sessionStorage.getItem(activeWorkStorageKey(checkId)) || 0);
+      return Number.isFinite(value) && value > 0 ? Math.min(86400, Math.round(value)) : 0;
+    } catch (_) { return 0; }
+  }
+
+  function persistActiveWorkSeconds() {
+    if (!activeWorkCheckId) return;
+    try { sessionStorage.setItem(activeWorkStorageKey(activeWorkCheckId), String(Math.min(86400, Math.round(activeWorkSeconds)))); } catch (_) {}
+  }
+
+  function activeWorkEligible(row) {
+    return Boolean(row?.check?.id
+      && row.check.assigned_staff_id === currentSession?.user?.id
+      && ["assigned", "in_review"].includes(String(row.check.status || "")));
+  }
+
+  function activeWorkTick(nowMs = Date.now()) {
+    if (!activeWorkCheckId) { activeWorkLastTick = nowMs; return; }
+    const row = rows.find(item => item.check.id === activeWorkCheckId);
+    const elapsedMs = Math.max(0, Math.min(5000, Number(nowMs) - Number(activeWorkLastTick || nowMs)));
+    const active = activeWorkEligible(row)
+      && document.visibilityState !== "hidden"
+      && Number(nowMs) - Number(activeWorkLastInteraction || 0) <= ACTIVE_WORK_IDLE_MS;
+    if (active && elapsedMs > 0) {
+      activeWorkSeconds = Math.min(86400, activeWorkSeconds + elapsedMs / 1000);
+      persistActiveWorkSeconds();
+    }
+    activeWorkLastTick = nowMs;
+  }
+
+  function touchActiveWork() {
+    const now = Date.now();
+    activeWorkTick(now);
+    activeWorkLastInteraction = now;
+  }
+
+  function selectActiveWork(row) {
+    activeWorkTick();
+    persistActiveWorkSeconds();
+    activeWorkCheckId = row?.check?.id || null;
+    activeWorkSeconds = activeWorkCheckId ? readActiveWorkSeconds(activeWorkCheckId) : 0;
+    activeWorkLastTick = Date.now();
+    activeWorkLastInteraction = Date.now();
+  }
+
+  function clearActiveWork(checkId = activeWorkCheckId) {
+    if (!checkId) return;
+    if (checkId === activeWorkCheckId) activeWorkTick();
+    try { sessionStorage.removeItem(activeWorkStorageKey(checkId)); } catch (_) {}
+    if (checkId === activeWorkCheckId) {
+      activeWorkCheckId = null;
+      activeWorkSeconds = 0;
+      activeWorkLastTick = Date.now();
+    }
+  }
+
+  function currentActiveHumanSeconds(row) {
+    if (!row?.check?.id) return 0;
+    if (activeWorkCheckId === row.check.id) {
+      activeWorkTick();
+      return Math.min(86400, Math.round(activeWorkSeconds));
+    }
+    return readActiveWorkSeconds(row.check.id);
+  }
+
   function setBusy(value) {
     busy = Boolean(value);
     document.querySelectorAll("button, input, select, textarea").forEach(element => {
@@ -272,6 +371,7 @@
       }
     });
     document.body.setAttribute("aria-busy", busy ? "true" : "false");
+    publishUpdateState();
   }
 
   function isAdmin() {
@@ -410,7 +510,7 @@
       metricNode(`Minuti umani · ${CONTROL_METRICS_DAYS} gg`, `${humanPrefix}${controlMetrics.humanMinutes}`),
       metricNode(`Costo IA / caso · ${costCoverage}`, controlMetrics.averageAiCost == null ? "—" : formatCompactEuro(controlMetrics.averageAiCost)),
       metricNode("Costo IA totale", controlMetrics.totalAiCost == null ? "—" : formatCompactEuro(controlMetrics.totalAiCost)),
-      metricNode("Costo umano stimato · tariffa non configurata", "—"),
+      metricNode(`Costo umano stimato · ${HUMAN_COST_EUR_PER_HOUR} €/h`, formatCompactEuro(controlMetrics.humanCost)),
     ]);
 
     baseGrid.after(panorama, efficiency);
@@ -487,7 +587,7 @@
           .order("automatic_screened_at", { ascending: false })
           .limit(CONTROL_METRICS_LIMIT),
         client.from("premium_checks")
-          .select("id, human_seconds, completed_at")
+          .select("id, bill_id, human_seconds, completed_at")
           .eq("status", "completed")
           .gte("completed_at", since)
           .order("completed_at", { ascending: false })
@@ -498,13 +598,15 @@
       if (humanResult.error) throw humanResult.error;
 
       const redBills = redResult.data || [];
-      const humanChecks = humanResult.data || [];
       const redIds = redBills.map(item => item.id).filter(Boolean);
+      const redIdSet = new Set(redIds);
+      const humanChecksAll = humanResult.data || [];
+      const humanChecks = humanChecksAll.filter(item => redIdSet.has(item.bill_id));
       const costRows = [];
       for (let offset = 0; offset < redIds.length; offset += CONTROL_COST_CHUNK) {
         const ids = redIds.slice(offset, offset + CONTROL_COST_CHUNK);
         const { data, error } = await client.from("premium_analysis_runs")
-          .select("bill_id, estimated_cost_eur")
+          .select("bill_id, estimated_cost_eur, usage_details")
           .in("bill_id", ids)
           .not("estimated_cost_eur", "is", null)
           .limit(CONTROL_METRICS_LIMIT);
@@ -515,8 +617,10 @@
 
       const costByBill = new Map();
       costRows.forEach(item => {
+        const usage = item.usage_details && typeof item.usage_details === "object" ? item.usage_details : {};
         const amount = Number(item.estimated_cost_eur);
-        if (!item.bill_id || !Number.isFinite(amount) || amount < 0) return;
+        const verified = usage.pricing_verified_eur === true && usage.pricing_version === VERIFIED_COST_PRICING_VERSION;
+        if (!verified || !item.bill_id || !Number.isFinite(amount) || amount < 0) return;
         costByBill.set(item.bill_id, (costByBill.get(item.bill_id) || 0) + amount);
       });
       const totalAiCost = [...costByBill.values()].reduce((sum, value) => sum + value, 0);
@@ -534,11 +638,12 @@
         staffNeeded: states.filter(value => ["staff_required", "inconclusive", "failed"].includes(value)).length,
         secondAiNotRun: states.filter(value => value === "not_run").length,
         humanMinutes: Math.round(humanSeconds / 60),
+        humanCost: Number(((humanSeconds / 3600) * HUMAN_COST_EUR_PER_HOUR).toFixed(2)),
         totalAiCost: costCovered ? totalAiCost : null,
         averageAiCost: costCovered ? totalAiCost / costCovered : null,
         costCovered,
         redTruncated: redBills.length >= CONTROL_METRICS_LIMIT,
-        humanTruncated: humanChecks.length >= CONTROL_METRICS_LIMIT,
+        humanTruncated: humanChecksAll.length >= CONTROL_METRICS_LIMIT,
       };
     } catch (_error) {
       if (sequence === loadSequence) controlMetrics = { unavailable: true };
@@ -1429,7 +1534,7 @@
       appendField(completeGrid, "Messaggio conclusivo al cliente", finalMessage, true);
       completeForm.append(
         completeGrid,
-        node("p", { className: "section-copy", text: "Se lasci vuoto il tempo, viene calcolato automaticamente dalla presa in carico alla chiusura. Puoi inserirlo manualmente solo per correggerlo." }),
+        node("p", { className: "section-copy", text: "Se lasci vuoto il tempo, viene conteggiato automaticamente solo mentre lavori attivamente su questa pratica. Dopo 5 minuti senza attività il conteggio si mette in pausa. Puoi inserirlo manualmente solo per correggerlo." }),
         node("p", { className: "danger-note", text: "Per Anomalia o Possibile risparmio deve essere registrato almeno un elemento nella sezione Anomalie." }),
         node("div", { className: "form-actions" }, [node("button", { className: "button primary", type: "submit", text: "COMPLETA CONTROLLO" })])
       );
@@ -1448,6 +1553,8 @@
 
   function renderDetail(row) {
     stopValidationTimer();
+    selectActiveWork(row);
+    setUpdateDirty(false);
     clear(state.detail);
     const body = node("div", { className: "detail-body" });
     const customerName = row.profile?.full_name || "Cliente Premium";
@@ -1898,12 +2005,8 @@
     }, "Anomalia rimossa.");
   }
 
-  function automaticHumanSeconds(row, nowMs = Date.now()) {
-    const startedMs = new Date(row?.check?.started_at || "").getTime();
-    if (!Number.isFinite(startedMs)) return 0;
-    const elapsed = Math.round((Number(nowMs) - startedMs) / 1000);
-    if (!Number.isFinite(elapsed) || elapsed <= 0) return 0;
-    return Math.min(86400, elapsed);
+  function automaticHumanSeconds(row) {
+    return currentActiveHumanSeconds(row);
   }
 
   function resolvedHumanSeconds(row, manualMinutesValue) {
@@ -1938,6 +2041,7 @@
         p_human_seconds: humanSeconds
       });
       if (error) throw error;
+      clearActiveWork(row.check.id);
     }, "Controllo completato e pubblicato al cliente.");
   }
 
@@ -1984,6 +2088,8 @@
     controlMetrics = null;
     clearControlMetricGrids();
     stopValidationTimer();
+    selectActiveWork(null);
+    setUpdateDirty(false);
     clear(state.queue);
     renderEmptyDetail();
   }
@@ -2139,6 +2245,22 @@
     state.refresh.addEventListener("click", () => loadQueue({ keepSelection: true }).catch(error => setPageMessage("error", friendlyError(error))));
     state.deleteVisibleChecks?.addEventListener("click", handleAdminDeleteVisibleChecks);
     [state.search, state.statusFilter, state.assignmentFilter].forEach(control => control.addEventListener("input", renderQueue));
+    const markWorking = event => {
+      if (event.target instanceof Element && event.target.closest("#staffDetail input,#staffDetail textarea,#staffDetail select,[contenteditable=\"true\"]")) {
+        setUpdateDirty(true);
+      }
+      touchActiveWork();
+    };
+    ["pointerdown", "keydown", "input", "change"].forEach(type => document.addEventListener(type, markWorking, true));
+    document.addEventListener("visibilitychange", () => { activeWorkTick(); activeWorkLastTick = Date.now(); });
+    window.addEventListener("blur", () => activeWorkTick());
+    activeWorkTimerId = window.setInterval(() => activeWorkTick(), 1000);
+    window.addEventListener("pagehide", () => {
+      activeWorkTick();
+      persistActiveWorkSeconds();
+      if (activeWorkTimerId !== null) window.clearInterval(activeWorkTimerId);
+    }, { once: true });
+    publishUpdateState();
 
     client.auth.onAuthStateChange((_event, session) => {
       window.setTimeout(() => verifyStaff(session).catch(error => {

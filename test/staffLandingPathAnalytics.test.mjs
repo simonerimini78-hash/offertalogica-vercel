@@ -128,3 +128,12 @@ test("La GET analytics mantiene autorizzazioni, cancellazione e risposta landing
   assert.match(api, /AZZERA_ANALYTICS/);
   assert.match(api, /ELIMINA_ANALYTICS_VISIBILI/);
 });
+
+
+test("Il funnel operativo esclude bot e automazioni e conserva il grezzo per audit", () => {
+  assert.match(api, /const probableEvents = events\.filter\(\(event\) => event\.visitorType === "probable_person"\)/);
+  assert.match(api, /funnel: funnelFromProbablePeople\(probableEvents\)/);
+  assert.match(api, /rawFunnel: result\.summary\?\.funnel/);
+  assert.match(api, /uniqueSessions: probableSessions\.size/);
+  assert.match(api, /linkedLeads: probableLeads\.size/);
+});

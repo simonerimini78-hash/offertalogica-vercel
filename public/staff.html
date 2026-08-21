@@ -52,7 +52,7 @@
 <header class="topbar">
   <div class="brand">
     <img src="/assets/logo-offertalogica-icon.png" alt="OffertaLogica">
-    <div><h1>Control Center OffertaLogica</h1><p>Centro operativo per clienti, pratiche, verifiche e dati · v0.36.29</p></div>
+    <div><h1>Control Center OffertaLogica</h1><p>Centro operativo per clienti, pratiche, verifiche e dati · v0.36.42</p></div>
   </div>
   <div class="top-actions" id="staffTopActions" hidden>
     <span class="staff-chip" id="staffIdentity">Staff</span>
@@ -114,7 +114,7 @@
         <section class="panel"><div class="panel-head"><h3>Priorità operative</h3><small>Pratiche raccolte dai moduli operativi</small></div><div class="panel-body" id="overviewTasks"><div class="empty">Caricamento…</div></div></section>
         <section class="panel"><div class="panel-head"><h3>Acquisizione e conversione</h3><small>Funnel essenziale</small></div><div class="panel-body"><div class="funnel" id="overviewFunnel"></div></div></section>
       </div>
-      <div class="version">Control Center Staff v0.36.29</div>
+      <div class="version">Control Center Staff v0.36.42</div>
     </section>
 
     <section class="view" data-staff-view="cases">
@@ -347,7 +347,7 @@
 </script>
 <script>
   (()=>{
-    const CURRENT_RELEASE="0.36.29";
+    const CURRENT_RELEASE="0.36.42";
     let latestRelease="";let updateCheckInFlight=null;let updateTimer=null;let dirty=false;
     const frameStates=new Map();
     const notice=document.getElementById('staffUpdateNotice');const noticeText=document.getElementById('staffUpdateNoticeText');const applyButton=document.getElementById('staffApplyUpdate');
@@ -363,8 +363,9 @@
     const showReady=()=>{setUpdateNotice('Nuova versione disponibile. Aggiorna quando hai terminato il lavoro.');if(applyButton){applyButton.hidden=false;applyButton.disabled=false}};
     const fetchLatestRelease=async()=>{const response=await fetch(`/version.json?t=${Date.now()}`,{cache:'no-store',headers:{'Cache-Control':'no-cache'}});if(!response.ok)throw new Error(`Versione non disponibile: ${response.status}`);const payload=await response.json();return String(payload?.version||'').trim()};
     const retireLegacyRootWorker=async()=>{if(!('serviceWorker' in navigator))return;const rootScope=new URL('/',location.origin).href;const registrations=await navigator.serviceWorker.getRegistrations();await Promise.all(registrations.filter(reg=>reg.scope===rootScope&&[reg.installing,reg.waiting,reg.active].filter(Boolean).some(worker=>{try{return new URL(worker.scriptURL).pathname==='/sw.js'}catch{return false}})).map(reg=>reg.unregister()))};
-    const checkForUpdate=()=>{if(document.visibilityState==='hidden')return Promise.resolve();if(updateCheckInFlight)return updateCheckInFlight;updateCheckInFlight=(async()=>{const latest=await fetchLatestRelease();if(latest&&latest!==CURRENT_RELEASE){latestRelease=latest;showReady()}else{latestRelease="";setUpdateNotice('',false);if(applyButton){applyButton.hidden=true;applyButton.disabled=false}}})().catch(error=>console.warn('Controllo aggiornamento Area staff non disponibile',error)).finally(()=>{updateCheckInFlight=null});return updateCheckInFlight};
-    const applyUpdate=async()=>{if(!latestRelease)return;if(!isSafeToReload()){setUpdateNotice('Salva o chiudi l’operazione in corso, poi premi di nuovo AGGIORNA.');return}if(applyButton)applyButton.disabled=true;setUpdateNotice('Aggiornamento in corso…');await retireLegacyRootWorker();const target=new URL(location.href);target.searchParams.set('release',latestRelease);target.searchParams.set('t',String(Date.now()));location.replace(target.href)};
+    const performUpdate=async()=>{if(!latestRelease)return;if(applyButton)applyButton.disabled=true;setUpdateNotice('Aggiornamento in corso…');await retireLegacyRootWorker();const target=new URL(location.href);target.searchParams.set('release',latestRelease);target.searchParams.set('t',String(Date.now()));location.replace(target.href)};
+    const applyUpdate=async()=>{if(!latestRelease)return;if(!isSafeToReload()){setUpdateNotice('È disponibile una nuova versione. Salva o chiudi il lavoro in corso, poi premi AGGIORNA.');showReady();return}await performUpdate()};
+    const checkForUpdate=()=>{if(document.visibilityState==='hidden')return Promise.resolve();if(updateCheckInFlight)return updateCheckInFlight;updateCheckInFlight=(async()=>{const latest=await fetchLatestRelease();if(latest&&latest!==CURRENT_RELEASE){latestRelease=latest;if(isSafeToReload())await performUpdate();else showReady()}else{latestRelease="";setUpdateNotice('',false);if(applyButton){applyButton.hidden=true;applyButton.disabled=false}}})().catch(error=>console.warn('Controllo aggiornamento Area staff non disponibile',error)).finally(()=>{updateCheckInFlight=null});return updateCheckInFlight};
     applyButton?.addEventListener('click',applyUpdate);
     addEventListener('focus',checkForUpdate);addEventListener('online',checkForUpdate);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkForUpdate()});addEventListener('pagehide',()=>{if(updateTimer)clearInterval(updateTimer)});
     addEventListener('load',async()=>{await checkForUpdate();updateTimer=setInterval(checkForUpdate,30000)},{once:true});

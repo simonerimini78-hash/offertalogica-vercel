@@ -6,7 +6,7 @@ const uiPromise = fs.readFile(new URL('../public/staff-premium.js', import.meta.
 
 test('FASE 2B usa le priorità reali della seconda IA nella coda Staff', async () => {
   const ui = await uiPromise;
-  assert.match(ui, /CONTROL_CENTER_VERSION = "premium-control-center-v0\.36\.41"/);
+  assert.match(ui, /CONTROL_CENTER_VERSION = "premium-control-center-v0\.36\.42"/);
   assert.match(ui, /staff_required", "inconclusive", "failed"/);
   assert.match(ui, /verificationState === "quick_verify"/);
   assert.match(ui, /verificationState === "resolved_ai"/);
@@ -29,13 +29,15 @@ test('FASE 2B separa metriche globali IA dalla coda umana autorizzata', async ()
   assert.match(ui, /Staff necessario/);
 });
 
-test('metriche FASE 2B usano human_seconds e costi reali senza inventare costo umano', async () => {
+test('metriche FASE 2B.2 usano stesso perimetro rosso e costo umano a 30 euro ora', async () => {
   const ui = await uiPromise;
-  assert.match(ui, /human_seconds, completed_at/);
-  assert.match(ui, /estimated_cost_eur/);
+  assert.match(ui, /id, bill_id, human_seconds, completed_at/);
+  assert.match(ui, /humanChecksAll\.filter\(item => redIdSet\.has\(item\.bill_id\)\)/);
+  assert.match(ui, /HUMAN_COST_EUR_PER_HOUR = 30/);
+  assert.match(ui, /humanCost: Number\(\(\(humanSeconds \/ 3600\) \* HUMAN_COST_EUR_PER_HOUR\)/);
   assert.match(ui, /Costo IA \/ caso/);
-  assert.match(ui, /Costo umano stimato · tariffa non configurata/);
-  assert.doesNotMatch(ui, /HUMAN_HOURLY_RATE|costo_orario|hourlyRate/);
+  assert.match(ui, /pricing_verified_eur === true/);
+  assert.match(ui, /premium-eur-v0\.36\.42/);
 });
 
 test('pratica storica completata non invita più a eseguire una seconda IA impossibile', async () => {
@@ -66,13 +68,15 @@ test('FASE 2B.1 rende esplicite le rosse senza seconda IA', async () => {
   assert.match(ui, /secondAiNotRun: states\.filter\(value => value === "not_run"\)\.length/);
 });
 
-test('FASE 2B.1 registra automaticamente il tempo umano dalla presa in carico', async () => {
+test('FASE 2B.2 misura tempo umano attivo e sospende il conteggio dopo inattività', async () => {
   const ui = await uiPromise;
-  assert.match(ui, /function automaticHumanSeconds\(row, nowMs = Date\.now\(\)\)/);
-  assert.match(ui, /row\?\.check\?\.started_at/);
+  assert.match(ui, /ACTIVE_WORK_IDLE_MS = 5 \* 60 \* 1000/);
+  assert.match(ui, /function automaticHumanSeconds\(row\)/);
+  assert.match(ui, /return currentActiveHumanSeconds\(row\)/);
+  assert.doesNotMatch(ui, /row\?\.check\?\.started_at/);
+  assert.match(ui, /sessionStorage\.setItem\(activeWorkStorageKey/);
+  assert.match(ui, /document\.visibilityState !== "hidden"/);
   assert.match(ui, /function resolvedHumanSeconds\(row, manualMinutesValue\)/);
-  assert.match(ui, /placeholder: "Automatico"/);
-  assert.match(ui, /Minuti revisione \(opzionale\)/);
   assert.match(ui, /p_human_seconds: humanSeconds/);
-  assert.doesNotMatch(ui, /value: "0", attrs: \{ min: "0", max: "1440"/);
+  assert.match(ui, /Dopo 5 minuti senza attività il conteggio si mette in pausa/);
 });

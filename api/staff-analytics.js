@@ -301,6 +301,40 @@ function topEntries(map, limit = 8) {
     .slice(0, limit);
 }
 
+function funnelFromProbablePeople(events = []) {
+  const funnel = {
+    pdfStarted: 0,
+    pdfCompleted: 0,
+    comparisons: 0,
+    offersRendered: 0,
+    leadModalOpened: 0,
+    otpSent: 0,
+    otpVerified: 0,
+    offersUnlocked: 0,
+    offerConsentOpened: 0,
+    partnerConsentConfirmed: 0,
+    redirects: 0,
+    consultantRequests: 0,
+    failedRequests: 0,
+  };
+  events.forEach((event) => {
+    if (event.eventType === "pdf_analysis_started") funnel.pdfStarted += 1;
+    if (event.eventType === "pdf_analysis_completed") funnel.pdfCompleted += 1;
+    if (event.eventType === "comparison_completed") funnel.comparisons += 1;
+    if (event.eventType === "offers_rendered") funnel.offersRendered += 1;
+    if (event.eventType === "lead_modal_opened") funnel.leadModalOpened += 1;
+    if (event.eventType === "otp_sent") funnel.otpSent += 1;
+    if (event.eventType === "otp_verified") funnel.otpVerified += 1;
+    if (event.eventType === "offers_unlocked") funnel.offersUnlocked += 1;
+    if (event.eventType === "offer_consent_opened") funnel.offerConsentOpened += 1;
+    if (event.eventType === "offer_partner_consent_confirmed") funnel.partnerConsentConfirmed += 1;
+    if (event.eventType === "offer_redirect") funnel.redirects += 1;
+    if (event.eventType === "offer_request_recorded") funnel.consultantRequests += 1;
+    if (event.eventType === "offer_request_failed") funnel.failedRequests += 1;
+  });
+  return funnel;
+}
+
 function visitorDescriptor(events) {
   const agents = new Set(events.map((event) => event.trafficAgent).filter(Boolean));
   if (agents.has("known_bot")) {
@@ -360,9 +394,12 @@ function enhanceAnalyticsForStaff(result, trafficSignals = new Map()) {
     });
   });
 
+  const probableEvents = events.filter((event) => event.visitorType === "probable_person");
+  const probableSessions = new Set(probableEvents.map((event) => event.sessionId).filter(Boolean));
+  const probableLeads = new Set(probableEvents.map((event) => event.leadId).filter(Boolean));
   const byProvider = {};
   const byOffer = {};
-  events.forEach((event) => {
+  probableEvents.forEach((event) => {
     if (event.eventType !== "offer_consent_opened") return;
     if (event.provider) increment(byProvider, event.provider);
     if (event.offerName) increment(byOffer, `${event.provider || "Fornitore"} - ${event.offerName}`);
@@ -373,6 +410,13 @@ function enhanceAnalyticsForStaff(result, trafficSignals = new Map()) {
     events,
     summary: {
       ...(result.summary || {}),
+      rawFunnel: result.summary?.funnel || {},
+      rawUniqueSessions: Number(result.summary?.uniqueSessions || 0),
+      rawLinkedLeads: Number(result.summary?.linkedLeads || 0),
+      funnel: funnelFromProbablePeople(probableEvents),
+      uniqueSessions: probableSessions.size,
+      linkedLeads: probableLeads.size,
+      probablePersonEvents: probableEvents.length,
       topProviders: topEntries(byProvider),
       topOffers: topEntries(byOffer),
       visitorSessions: visitorCounts,
