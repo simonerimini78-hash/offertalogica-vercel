@@ -48,15 +48,25 @@ test("un modello sconosciuto indica esattamente le variabili mancanti", () => {
   ]);
 });
 
-test("la diagnostica staff mostra valori e fonte per ogni tariffa", () => {
+test("la diagnostica App mantiene compatibilità e i nuovi costi usano il cambio BCE automatico", () => {
   for (const label of ["Tariffa input IA", "Tariffa cache IA", "Tariffa output IA"]) {
     assert.match(staff, new RegExp(label));
   }
   assert.match(staff, /Variabile Vercel/);
   assert.match(staff, /Fallback/);
   assert.match(staff, /pricing\.missing/);
-  assert.match(api, /sources: backend\.pricing\.sources/);
-  assert.match(api, /missing: Array\.isArray\(backend\.pricing\.missing\)/);
+  assert.match(api, /PREMIUM_COST_PRICING_VERSION = "premium-ecb-eur-v0\.36\.43"/);
+  assert.match(api, /eurofxref-daily\.xml/);
+  assert.match(api, /inputPerMillion: 2/);
+  assert.match(api, /cachedInputPerMillion: 0\.5/);
+  assert.match(api, /outputPerMillion: 8/);
+  assert.match(api, /PREMIUM_WEB_SEARCH_USD_PER_1K_RUNS = 10/);
+  assert.match(api, /const usdToEur = 1 \/ usdQuote/);
+  assert.match(api, /automaticEurPricing/);
+  assert.match(api, /pricing_mode: "openai_usd_x_ecb"/);
+  assert.match(api, /ecb_reference_date/);
+  assert.match(api, /usd_to_eur_rate/);
+  assert.doesNotMatch(api, /PREMIUM_AI_WEB_SEARCH_EUR_PER_1K_RUNS/);
   assert.match(staffHtml, /v0\.36\.29/);
 });
 

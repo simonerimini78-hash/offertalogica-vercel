@@ -55,21 +55,116 @@ import {
 
 export const config = { maxDuration: 60 };
 
-const PREMIUM_COST_PRICING_VERSION = "premium-eur-v0.36.42";
-const PREMIUM_WEB_SEARCH_RATE_ENV = "PREMIUM_AI_WEB_SEARCH_EUR_PER_1K_RUNS";
+const PREMIUM_COST_PRICING_VERSION = "premium-ecb-eur-v0.36.43";
+const PREMIUM_ECB_DAILY_FX_URL = "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml";
+const PREMIUM_ECB_CACHE_MS = 6 * 60 * 60 * 1000;
+const PREMIUM_WEB_SEARCH_USD_PER_1K_RUNS = 10;
+const PREMIUM_OPENAI_USD_PRICING = Object.freeze({
+  "gpt-4.1": Object.freeze({
+    inputPerMillion: 2,
+    cachedInputPerMillion: 0.5,
+    outputPerMillion: 8,
+  }),
+  "gpt-4.1-2025-04-14": Object.freeze({
+    inputPerMillion: 2,
+    cachedInputPerMillion: 0.5,
+    outputPerMillion: 8,
+  }),
+});
+let premiumEcbFxCache = null;
 
-function verifiedEurPricing(pricing = {}) {
-  const sources = pricing?.sources || {};
-  return pricing?.complete === true
-    && ["inputPerMillion", "cachedInputPerMillion", "outputPerMillion"]
-      .every(field => sources[field] === "environment");
+function configuredOpenAiUsdPricing(model = "") {
+  return PREMIUM_OPENAI_USD_PRICING[String(model || "").trim().toLowerCase()] || null;
 }
 
-function configuredNonNegative(env, name) {
-  const raw = String(env?.[name] ?? "").trim();
-  if (!raw) return null;
-  const value = Number(raw);
-  return Number.isFinite(value) && value >= 0 ? value : null;
+function ecbXmlRate(xml = "") {
+  const date = String(xml).match(/<Cube\s+time=["']([^"']+)["']\s*>/i)?.[1] || "";
+  const usdQuote = Number(String(xml).match(/<Cube\s+currency=["']USD["']\s+rate=["']([^"']+)["']/i)?.[1]);
+  if (!date || !Number.isFinite(usdQuote) || usdQuote <= 0) return null;
+  const usdToEur = 1 / usdQuote;
+  if (!Number.isFinite(usdToEur) || usdToEur <= 0) return null;
+  return { referenceDate: date, eurToUsd: usdQuote, usdToEur };
+}
+
+async function latestEcbUsdToEur(fetchImpl = fetch, nowMs = Date.now()) {
+  const cached = premiumEcbFxCache;
+  if (cached && Number(nowMs) - cached.fetchedAtMs < PREMIUM_ECB_CACHE_MS) {
+    return { ...cached, stale: false, cacheHit: true };
+  }
+  const controller = typeof AbortController === "function" ? new AbortController() : null;
+  const timeoutId = setTimeout(() => controller?.abort(), 4000);
+  try {
+    const response = await fetchImpl(PREMIUM_ECB_DAILY_FX_URL, {
+      method: "GET",
+      headers: { Accept: "application/xml,text/xml;q=0.9,*/*;q=0.1" },
+      signal: controller?.signal,
+    });
+    if (!response?.ok) throw new Error(`ecb_fx_http_${response?.status || 0}`);
+    const parsed = ecbXmlRate(await response.text());
+    if (!parsed) throw new Error("ecb_fx_invalid_payload");
+    premiumEcbFxCache = {
+      ...parsed,
+      fetchedAtMs: Number(nowMs),
+      source: "ecb_reference_rate",
+    };
+    return { ...premiumEcbFxCache, stale: false, cacheHit: false };
+  } catch (error) {
+    if (cached) return { ...cached, stale: true, cacheHit: true, errorCode: String(error?.message || "ecb_fx_unavailable") };
+    return null;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+function convertedEurRate(usdRate, usdToEur) {
+  const value = Number(usdRate) * Number(usdToEur);
+  return Number.isFinite(value) && value >= 0 ? Number(value.toFixed(8)) : null;
+}
+
+async function automaticEurPricing(model, fetchImpl = fetch, nowMs = Date.now()) {
+  const usd = configuredOpenAiUsdPricing(model);
+  const fx = await latestEcbUsdToEur(fetchImpl, nowMs);
+  if (!usd || !fx) {
+    return {
+      inputPerMillion: null,
+      cachedInputPerMillion: null,
+      outputPerMillion: null,
+      webSearchPerThousand: null,
+      complete: false,
+      sources: {},
+      missing: [
+        ...(!usd ? [`Listino USD non censito per ${String(model || "modello sconosciuto")}`] : []),
+        ...(!fx ? ["Cambio BCE USD/EUR non disponibile"] : []),
+      ],
+      modelDefaultApplied: false,
+      automation: "openai_usd_x_ecb",
+      fx: fx || null,
+      usd: usd ? { ...usd, webSearchPerThousand: PREMIUM_WEB_SEARCH_USD_PER_1K_RUNS } : null,
+    };
+  }
+  const pricing = {
+    inputPerMillion: convertedEurRate(usd.inputPerMillion, fx.usdToEur),
+    cachedInputPerMillion: convertedEurRate(usd.cachedInputPerMillion, fx.usdToEur),
+    outputPerMillion: convertedEurRate(usd.outputPerMillion, fx.usdToEur),
+    webSearchPerThousand: convertedEurRate(PREMIUM_WEB_SEARCH_USD_PER_1K_RUNS, fx.usdToEur),
+  };
+  const complete = Object.values(pricing).every(value => Number.isFinite(value) && value >= 0);
+  return {
+    ...pricing,
+    complete,
+    tokenPricingVerifiedEur: complete,
+    sources: {
+      inputPerMillion: "openai_usd_x_ecb",
+      cachedInputPerMillion: "openai_usd_x_ecb",
+      outputPerMillion: "openai_usd_x_ecb",
+      webSearchPerThousand: "openai_usd_x_ecb",
+    },
+    missing: complete ? [] : ["Conversione automatica USD/EUR incompleta"],
+    modelDefaultApplied: false,
+    automation: "openai_usd_x_ecb",
+    fx,
+    usd: { ...usd, webSearchPerThousand: PREMIUM_WEB_SEARCH_USD_PER_1K_RUNS },
+  };
 }
 
 function instrumentWebSearchMeter(meter) {
@@ -86,24 +181,56 @@ function instrumentWebSearchMeter(meter) {
   return meter;
 }
 
-function verifiedPremiumAiCost(meter, backend, env) {
-  const pricingVerified = verifiedEurPricing(backend?.pricing);
+async function verifiedPremiumAiCost(meter, backend, fetchImpl, nowMs) {
+  const pricing = await automaticEurPricing(backend?.model, fetchImpl, nowMs);
   const webSearchCalls = Math.max(0, Number(meter?.totals?.webSearchCalls || 0));
-  const webSearchRate = configuredNonNegative(env, PREMIUM_WEB_SEARCH_RATE_ENV);
-  if (!pricingVerified || (webSearchCalls > 0 && webSearchRate === null)) {
-    return { estimatedCostEur: null, pricingVerified: false, webSearchCalls, webSearchCostEur: null, webSearchRateEurPer1k: webSearchRate };
+  if (!pricing.complete) {
+    return {
+      estimatedCostEur: null,
+      pricingVerified: false,
+      pricingSources: pricing.sources || {},
+      webSearchCalls,
+      webSearchCostEur: null,
+      webSearchRateEurPer1k: pricing.webSearchPerThousand,
+      webSearchRateUsdPer1k: pricing.usd?.webSearchPerThousand ?? PREMIUM_WEB_SEARCH_USD_PER_1K_RUNS,
+      tokenRatesUsd: pricing.usd || null,
+      usdToEurRate: pricing.fx?.usdToEur ?? null,
+      eurToUsdRate: pricing.fx?.eurToUsd ?? null,
+      ecbReferenceDate: pricing.fx?.referenceDate || null,
+      ecbRateStale: Boolean(pricing.fx?.stale),
+    };
   }
-  const tokenCost = estimatePremiumAiCost(meter.totals, backend.pricing);
+  const tokenCost = estimatePremiumAiCost(meter.totals, pricing);
   if (tokenCost === null) {
-    return { estimatedCostEur: null, pricingVerified: false, webSearchCalls, webSearchCostEur: null, webSearchRateEurPer1k: webSearchRate };
+    return {
+      estimatedCostEur: null,
+      pricingVerified: false,
+      pricingSources: pricing.sources || {},
+      webSearchCalls,
+      webSearchCostEur: null,
+      webSearchRateEurPer1k: pricing.webSearchPerThousand,
+      webSearchRateUsdPer1k: pricing.usd?.webSearchPerThousand ?? PREMIUM_WEB_SEARCH_USD_PER_1K_RUNS,
+      tokenRatesUsd: pricing.usd || null,
+      usdToEurRate: pricing.fx?.usdToEur ?? null,
+      eurToUsdRate: pricing.fx?.eurToUsd ?? null,
+      ecbReferenceDate: pricing.fx?.referenceDate || null,
+      ecbRateStale: Boolean(pricing.fx?.stale),
+    };
   }
-  const webSearchCostEur = webSearchCalls > 0 ? (webSearchCalls * webSearchRate) / 1000 : 0;
+  const webSearchCostEur = webSearchCalls > 0 ? (webSearchCalls * pricing.webSearchPerThousand) / 1000 : 0;
   return {
     estimatedCostEur: Number((tokenCost + webSearchCostEur).toFixed(6)),
     pricingVerified: true,
+    pricingSources: pricing.sources || {},
     webSearchCalls,
     webSearchCostEur: Number(webSearchCostEur.toFixed(6)),
-    webSearchRateEurPer1k: webSearchRate,
+    webSearchRateEurPer1k: pricing.webSearchPerThousand,
+    webSearchRateUsdPer1k: pricing.usd.webSearchPerThousand,
+    tokenRatesUsd: pricing.usd,
+    usdToEurRate: pricing.fx.usdToEur,
+    eurToUsdRate: pricing.fx.eurToUsd,
+    ecbReferenceDate: pricing.fx.referenceDate,
+    ecbRateStale: Boolean(pricing.fx.stale),
   };
 }
 
@@ -187,23 +314,7 @@ export function createPremiumAiAnalysisHandler({
           const value = Number(env[name]);
           return Number.isFinite(value) && value > 0 ? value : fallback;
         };
-        const webSearchPerThousand = configuredNonNegative(env, PREMIUM_WEB_SEARCH_RATE_ENV);
-        const tokenPricingVerifiedEur = verifiedEurPricing(backend.pricing);
-        const pricing = {
-          inputPerMillion: backend.pricing.inputPerMillion,
-          cachedInputPerMillion: backend.pricing.cachedInputPerMillion,
-          outputPerMillion: backend.pricing.outputPerMillion,
-          webSearchPerThousand,
-          complete: tokenPricingVerifiedEur && webSearchPerThousand !== null,
-          tokenPricingVerifiedEur,
-          sources: backend.pricing.sources || {},
-          missing: [
-            ...(Array.isArray(backend.pricing.missing) ? backend.pricing.missing : []),
-            ...(!tokenPricingVerifiedEur ? ["Tariffe token EUR esplicite"] : []),
-            ...(webSearchPerThousand === null ? [PREMIUM_WEB_SEARCH_RATE_ENV] : []),
-          ],
-          modelDefaultApplied: Boolean(backend.pricing.modelDefaultApplied),
-        };
+        const pricing = await automaticEurPricing(backend.model, fetchImpl, now());
         return json(res, 200, {
           ok: true,
           mode: "config_status",
@@ -481,7 +592,7 @@ export function createPremiumAiAnalysisHandler({
             }
           }
           const durationMs = Math.max(0, now() - startedAt);
-          const costResult = verifiedPremiumAiCost(meter, backend, env);
+          const costResult = await verifiedPremiumAiCost(meter, backend, fetchImpl, now());
           const estimatedCostEur = costResult.estimatedCostEur;
           const state = verification.decision === "resolved_ai"
             ? "resolved_ai"
@@ -515,7 +626,14 @@ export function createPremiumAiAnalysisHandler({
                 calls: meter.totals.calls,
                 pricing_verified_eur: costResult.pricingVerified,
                 pricing_version: costResult.pricingVerified ? PREMIUM_COST_PRICING_VERSION : null,
-                pricing_sources: backend.pricing?.sources || {},
+                pricing_sources: costResult.pricingSources || {},
+                pricing_mode: "openai_usd_x_ecb",
+                usd_to_eur_rate: costResult.usdToEurRate,
+                eur_to_usd_rate: costResult.eurToUsdRate,
+                ecb_reference_date: costResult.ecbReferenceDate,
+                ecb_rate_stale: costResult.ecbRateStale,
+                token_rates_usd_per_million: costResult.tokenRatesUsd,
+                web_search_rate_usd_per_1k: costResult.webSearchRateUsdPer1k,
                 web_search_calls: costResult.webSearchCalls,
                 web_search_cost_eur: costResult.webSearchCostEur,
                 web_search_rate_eur_per_1k: costResult.webSearchRateEurPer1k,
@@ -697,7 +815,7 @@ export function createPremiumAiAnalysisHandler({
       const completion = analysisCompletionStatus(normalized);
       const screening = classifyPremiumAutomaticAnalysis(normalized, { contract: contractForScreening });
       const durationMs = Math.max(0, now() - startedAt);
-      const costResult = verifiedPremiumAiCost(meter, backend, env);
+      const costResult = await verifiedPremiumAiCost(meter, backend, fetchImpl, now());
       const estimatedCostEur = costResult.estimatedCostEur;
       const extractedData = sanitizePremiumAnalysisData(normalized, meter.totals, customerMode ? screening : null);
       const matchWarning = offerMatchWarning(normalized._offer_match || offerMatch);
@@ -734,7 +852,14 @@ export function createPremiumAiAnalysisHandler({
             calls: meter.totals.calls,
             pricing_verified_eur: costResult.pricingVerified,
             pricing_version: costResult.pricingVerified ? PREMIUM_COST_PRICING_VERSION : null,
-            pricing_sources: backend.pricing?.sources || {},
+            pricing_sources: costResult.pricingSources || {},
+            pricing_mode: "openai_usd_x_ecb",
+            usd_to_eur_rate: costResult.usdToEurRate,
+            eur_to_usd_rate: costResult.eurToUsdRate,
+            ecb_reference_date: costResult.ecbReferenceDate,
+            ecb_rate_stale: costResult.ecbRateStale,
+            token_rates_usd_per_million: costResult.tokenRatesUsd,
+            web_search_rate_usd_per_1k: costResult.webSearchRateUsdPer1k,
             web_search_calls: costResult.webSearchCalls,
             web_search_cost_eur: costResult.webSearchCostEur,
             web_search_rate_eur_per_1k: costResult.webSearchRateEurPer1k,
