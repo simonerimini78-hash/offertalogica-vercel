@@ -220,6 +220,8 @@
     if (message.includes("premium_ai_already_running") || message.includes("premium_analysis_already_running")) return "È già in corso una pre-analisi IA per questa bolletta.";
     if (message.includes("premium_ai_not_configured")) return "La pre-analisi IA non è configurata sul server.";
     if (message.includes("premium_ai_timeout")) return "La pre-analisi IA ha richiesto troppo tempo. La revisione manuale resta disponibile.";
+    if (message.includes("premium_red_verification_not_requestable")) return "La seconda verifica IA è disponibile solo per una bolletta classificata rossa.";
+    if (message.includes("premium_red_snapshot")) return "Non è stato possibile recuperare i dati della seconda verifica IA.";
     if (message.includes("premium_analysis_not_reviewable")) return "Questa esecuzione IA non è ancora validabile.";
     if (message.includes("premium_cannot_approve_missing_value")) return "Un campo senza valore IA non può essere approvato: correggilo, segnalo come mancante o non applicabile.";
     if (message.includes("premium_corrected_value_required")) return "Inserisci il valore corretto per tutti i campi marcati come corretti.";
@@ -778,6 +780,100 @@
     if (draft?.started_at) startValidationTimer(latest.id, Number(draft.started_at), timer);
   }
 
+  function redVerificationLabel(value) {
+    return {
+      not_run: "Non eseguita",
+      running: "In corso",
+      resolved_ai: "Risolta dall’IA",
+      quick_verify: "Verifica rapida",
+      staff_required: "Staff necessario",
+      inconclusive: "Non conclusiva",
+      failed: "Non riuscita"
+    }[value] || value || "Non eseguita";
+  }
+
+  function redVerificationBadgeState(value) {
+    if (value === "resolved_ai") return "completed";
+    if (["quick_verify", "running"].includes(value)) return "assigned";
+    if (["staff_required", "inconclusive", "failed"].includes(value)) return "anomaly";
+    return "pending";
+  }
+
+  function renderRedVerification(container, row) {
+    if (row.bill?.automatic_screening_status !== "review_recommended") return;
+    const stateValue = String(row.bill?.red_verification_state || "not_run");
+    const result = row.bill?.red_verification_result && typeof row.bill.red_verification_result === "object"
+      ? row.bill.red_verification_result
+      : {};
+    const section = node("section", { className: "section ai-section" });
+    const heading = node("div", { className: "ai-heading" }, [
+      node("div", {}, [
+        node("h3", { text: "Seconda verifica IA" }),
+        node("p", { className: "ai-note", text: "Controllo indipendente del rosso sul PDF già archiviato. Non crea una nuova pratica e non sostituisce la decisione Staff su un controllo già aperto." })
+      ]),
+      makeBadge(redVerificationBadgeState(stateValue), redVerificationLabel(stateValue))
+    ]);
+    section.append(heading);
+
+    if (!["completed", "canceled"].includes(row.check.status) && ["not_run", "failed"].includes(stateValue)) {
+      const button = node("button", {
+        className: "button primary compact",
+        type: "button",
+        text: stateValue === "failed" ? "RIPROVA SECONDA VERIFICA IA" : "AVVIA SECONDA VERIFICA IA"
+      });
+      button.disabled = busy;
+      button.addEventListener("click", handleRunRedVerification);
+      heading.append(node("div", { className: "ai-actions" }, [button]));
+    }
+
+    if (stateValue === "not_run") {
+      section.append(node("div", { className: "timeline-item", text: "Questa pratica è precedente alla seconda verifica IA. Puoi eseguirla ora sulla stessa bolletta." }));
+      container.append(section);
+      return;
+    }
+    if (stateValue === "running") {
+      section.append(node("div", { className: "timeline-item", text: "Seconda verifica IA in corso. Attendi il completamento prima di concludere la pratica." }));
+      container.append(section);
+      return;
+    }
+
+    section.append(node("div", { className: "info-grid ai-meta" }, [
+      infoCard("Instradamento", result.route || "—"),
+      infoCard("Decisione IA", result.decision || "—"),
+      infoCard("Esito verifica", result.verification_result || "—"),
+      infoCard("Confidenza dichiarata", result.confidence || "—")
+    ]));
+
+    const issue = String(result.issue || "").trim();
+    if (issue) section.append(node("div", { className: "timeline-item" }, [node("strong", { text: "Problema verificato" }), node("p", { text: issue })]));
+    const evidence = Array.isArray(result.evidence) ? result.evidence : [];
+    if (evidence.length) {
+      const list = node("div", { className: "timeline" });
+      evidence.forEach(item => list.append(node("article", { className: "timeline-item" }, [
+        node("strong", { text: item.page ? `Evidenza · pagina ${item.page}` : "Evidenza" }),
+        node("p", { text: item.fact || "—" })
+      ])));
+      section.append(list);
+    }
+    const missing = Array.isArray(result.missing_data) ? result.missing_data.filter(Boolean) : [];
+    if (missing.length) section.append(node("div", { className: "ai-warning" }, [
+      node("strong", { text: "Dati mancanti" }),
+      ...missing.map(item => node("p", { text: item }))
+    ]));
+    if (result.escalation_reason) section.append(node("div", { className: "ai-warning" }, [
+      node("strong", { text: "Motivo dell’escalation" }),
+      node("p", { text: result.escalation_reason })
+    ]));
+    if (result.customer_reply) section.append(node("div", { className: "timeline-item" }, [
+      node("strong", { text: "Risposta proposta al cliente" }),
+      node("p", { text: result.customer_reply })
+    ]));
+    if (stateValue === "resolved_ai") {
+      section.append(node("p", { className: "ai-note", text: "L’IA ritiene il caso risolvibile autonomamente. Poiché questa pratica era già aperta, resta comunque allo Staff la chiusura finale del controllo." }));
+    }
+    container.append(section);
+  }
+
   function renderAiAssistance(container, row) {
     const section = node("section", { className: "section ai-section" });
     const heading = node("div", { className: "ai-heading" }, [
@@ -971,6 +1067,7 @@
     ]));
 
     renderAutomaticScreening(body, row);
+    renderRedVerification(body, row);
     if (row.check.status === "pending") renderWorkflow(body, row);
     renderAiAssistance(body, row);
     renderAnomalies(body, row);
@@ -996,6 +1093,7 @@
       client.from("premium_analysis_runs")
         .select("id, bill_id, run_number, parser_version, model, status, started_at, completed_at, duration_ms, input_tokens, output_tokens, estimated_cost_eur, extracted_data, warnings, error_code, usage_details, response_ids, origin, requested_by_user_id, automatic_classification, automatic_summary, automatic_reasons, review_status, validated_by_staff_id, validated_at, validation_seconds, validation_note, validation_metrics, validated_data, created_at")
         .eq("bill_id", row.bill.id)
+        .neq("origin", "red_verification")
         .order("run_number", { ascending: false })
         .limit(5)
     ]);
@@ -1058,7 +1156,7 @@
     const checkRows = checks || [];
     const billMap = await fetchMap(
       "premium_bills",
-      "id, user_id, utility_id, commodity, billing_period_start, billing_period_end, issue_date, due_date, total_amount_eur, original_file_name, file_size, storage_bucket, storage_path, processing_status, customer_status, automatic_screening_status, automatic_screening_summary, automatic_screening_reasons, automatic_screened_at, automatic_analysis_run_id, created_at",
+      "id, user_id, utility_id, commodity, billing_period_start, billing_period_end, issue_date, due_date, total_amount_eur, original_file_name, file_size, storage_bucket, storage_path, processing_status, customer_status, automatic_screening_status, automatic_screening_summary, automatic_screening_reasons, automatic_screened_at, automatic_analysis_run_id, red_verification_state, red_verification_result, red_verification_run_id, red_verified_at, created_at",
       checkRows.map(item => item.bill_id)
     );
     const bills = [...billMap.values()];
@@ -1173,6 +1271,46 @@
       selectedAnalyses = [];
       selectedFieldReviews = [];
     }, "Bolletta eliminata definitivamente dall’archivio Premium.");
+  }
+
+  async function handleRunRedVerification() {
+    const row = selectedRow();
+    if (!row || busy) return;
+    if (row.bill?.automatic_screening_status !== "review_recommended") {
+      setPageMessage("error", "La seconda verifica IA è disponibile soltanto sulle anomalie rosse.");
+      return;
+    }
+    const currentState = String(row.bill?.red_verification_state || "not_run");
+    if (!["not_run", "failed"].includes(currentState)) {
+      setPageMessage("info", "La seconda verifica IA è già stata eseguita per questa versione dell’analisi.");
+      return;
+    }
+    if (!(await confirmStaffAction({
+      title: "Avvia seconda verifica IA",
+      message: "L’IA rileggerà il PDF per verificare in modo indipendente i motivi del codice rosso. La pratica esistente non verrà duplicata né chiusa automaticamente.",
+      confirmLabel: "AVVIA VERIFICA"
+    }))) return;
+
+    await runAction(async () => {
+      const { data: sessionData, error: sessionError } = await client.auth.getSession();
+      if (sessionError) throw sessionError;
+      const accessToken = sessionData?.session?.access_token;
+      if (!accessToken) throw new Error("premium_auth_required");
+      const response = await fetch("/api/premium-ai-analysis", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: JSON.stringify({ action: "verify_red", checkId: row.check.id })
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok || !body?.ok) {
+        const error = new Error(body?.error || "Seconda verifica IA non riuscita");
+        error.code = body?.code || "PREMIUM_RED_VERIFICATION_ERROR";
+        throw error;
+      }
+    }, "Seconda verifica IA completata. Controlla il risultato nella pratica prima di concludere la lavorazione.");
   }
 
   async function handleRunAiAnalysis() {
