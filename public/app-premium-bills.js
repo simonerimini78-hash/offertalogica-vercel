@@ -6,7 +6,7 @@
   const MAX_FILE_SIZE = 20_000_000;
   const ANALYSIS_POLL_MS = 5000;
   const ANALYSIS_STALE_MS = 90000;
-  const BILL_COLUMNS = "id, user_id, utility_id, contract_id, commodity, billing_period_start, billing_period_end, issue_date, due_date, total_amount_eur, original_file_name, file_size, file_sha256, storage_bucket, storage_path, processing_status, customer_status, automatic_screening_status, automatic_screening_summary, automatic_screening_reasons, automatic_screened_at, automatic_analysis_run_id, customer_analysis_data, created_at, updated_at";
+  const BILL_COLUMNS = "id, user_id, utility_id, contract_id, commodity, billing_period_start, billing_period_end, issue_date, due_date, total_amount_eur, original_file_name, file_size, file_sha256, storage_bucket, storage_path, processing_status, customer_status, automatic_screening_status, automatic_screening_summary, automatic_screening_reasons, automatic_screened_at, automatic_analysis_run_id, customer_analysis_data, red_verification_state, red_verification_result, red_verification_run_id, red_verified_at, created_at, updated_at";
   const UTILITY_COLUMNS = "id, label, supply_type, expected_bills_per_year, status";
   const CONTRACT_COLUMNS = "id, user_id, utility_id, provider_name, offer_name, pricing_type, contract_start, contract_end, fixed_price_expiry, electricity_price_eur_kwh, gas_price_eur_smc, electricity_fixed_fee_eur_year, gas_fixed_fee_eur_year, source, verification_status, is_current, arera_offer_code_electricity, arera_offer_code_gas, electricity_index_name, gas_index_name, electricity_spread_eur_kwh, gas_spread_eur_smc, electricity_formula, gas_formula, automatic_match_status, automatic_match_confidence, automatic_match_method, automatic_match_candidates, automatic_matched_at, automatic_match_catalog_version, customer_confirmation_status, customer_confirmed_at, customer_rejected_at, customer_selected_candidates, customer_confirmation_version, created_at, updated_at";
   const CHECK_COLUMNS = "id, bill_id, user_id, status, outcome, summary, customer_message, started_at, completed_at, created_at, updated_at";
@@ -171,13 +171,32 @@
       automatic_screened_at: bill?.automatic_screened_at || "",
       automatic_analysis_run_id: bill?.automatic_analysis_run_id || "",
       customer_analysis_data: bill?.customer_analysis_data || null,
+      red_verification_state: bill?.red_verification_state || "not_run",
+      red_verification_result: bill?.red_verification_result || {},
+      red_verification_run_id: bill?.red_verification_run_id || "",
+      red_verified_at: bill?.red_verified_at || "",
       total_amount_eur: finiteBillAmount(bill?.total_amount_eur),
       updated_at: bill?.updated_at || "",
       ui_state: analysisIsStale(bill) ? "stale" : (analysisAttemptFailures.has(bill?.id) ? "retry" : "")
     });
   }
 
+  function redVerificationResult(bill) {
+    return bill?.red_verification_result && typeof bill.red_verification_result === "object"
+      ? bill.red_verification_result
+      : {};
+  }
+
+  function redVerificationResolvedByAi(bill) {
+    return bill?.red_verification_state === "resolved_ai"
+      && redVerificationResult(bill).decision === "resolved_ai";
+  }
+
   function automaticStatusCopy(bill) {
+    const redVerification = redVerificationResult(bill);
+    if (redVerificationResolvedByAi(bill)) {
+      return String(redVerification.customer_reply || "Seconda verifica IA completata. Il caso non richiede un controllo umano.").trim();
+    }
     const status = bill?.automatic_screening_status;
     if (status === "clear") return "Bolletta verificata. Non sono state rilevate anomalie.";
     if (analysisIsStale(bill)) return "L’analisi si è interrotta. Premi RIPROVA ANALISI per avviarla di nuovo.";
@@ -249,6 +268,7 @@
     if (analysisIsPending(bill)) return "Analisi in corso";
     if (analysisIsReadyToStart(bill)) return analysisAttemptFailures.has(bill.id) ? "Analisi da riprovare" : "Da analizzare";
     if (bill.automatic_screening_status === "clear") return "Verde · Regolare";
+    if (redVerificationResolvedByAi(bill)) return "Rosso · Verificata IA";
     if (bill.automatic_screening_status === "review_recommended") return "Rosso · Anomalia";
     if (["inconclusive", "failed"].includes(bill.automatic_screening_status)) return "Giallo · Avviso";
     if (bill.processing_status === "failed") return "Giallo · Avviso";
@@ -284,7 +304,9 @@
   }
 
   function canRequestCheck(bill, check) {
-    return isRedCheckRequestable(bill, check) && !trialStaffCheckUsed();
+    return isRedCheckRequestable(bill, check)
+      && !redVerificationResolvedByAi(bill)
+      && !trialStaffCheckUsed();
   }
 
   function hasActiveHumanCheck(check) {
@@ -904,6 +926,34 @@
     })[bill.automatic_screening_status] || "Analisi";
   }
 
+  function renderRedVerificationDetail(bill) {
+    const state = String(bill?.red_verification_state || "not_run");
+    if (["not_run", "running", "failed"].includes(state)) return null;
+    const result = redVerificationResult(bill);
+    if (!result?.decision) return null;
+    const box = document.createElement("div");
+    box.className = "cloud-anomaly-item";
+    box.classList.add(state === "resolved_ai" ? "yellow" : "red");
+    const title = document.createElement("strong");
+    title.textContent = state === "resolved_ai"
+      ? "Seconda verifica IA completata"
+      : state === "quick_verify"
+        ? "Pre-verifica IA completata"
+        : "Seconda verifica IA: serve approfondimento";
+    const copy = document.createElement("p");
+    copy.textContent = state === "resolved_ai"
+      ? String(result.customer_reply || "Il caso è stato verificato automaticamente.")
+      : String(result.escalation_reason || "Il controllo automatico non è sufficiente per chiudere il caso senza verifica umana.");
+    box.append(title, copy);
+    const evidence = Array.isArray(result.evidence) ? result.evidence : [];
+    if (evidence.length) {
+      const meta = document.createElement("small");
+      meta.textContent = evidence.slice(0, 3).map(item => `${item.page ? `p.${item.page} · ` : ""}${item.fact || ""}`).filter(Boolean).join(" | ");
+      if (meta.textContent) box.append(meta);
+    }
+    return box;
+  }
+
   function renderAutomaticDetail(bill) {
     const detail = document.createElement("section");
     detail.className = "cloud-check-detail automatic";
@@ -920,6 +970,8 @@
     const copy = document.createElement("p");
     copy.textContent = automaticStatusCopy(bill);
     detail.append(head, copy);
+    const redVerificationDetail = renderRedVerificationDetail(bill);
+    if (redVerificationDetail) detail.append(redVerificationDetail);
     if (!analysisIsPending(bill)) {
       const analysisData = renderCustomerAnalysisData(bill);
       if (analysisData) detail.append(analysisData);
@@ -1521,7 +1573,44 @@
     if (!confirmed) return;
 
     setBusy(true);
-    setMessage("info", "Invio della richiesta di controllo…");
+    let redVerification = null;
+    try {
+      setMessage("info", "Seconda verifica IA dell’anomalia in corso…");
+      const { data: sessionData, error: sessionError } = await client.auth.getSession();
+      if (sessionError) throw sessionError;
+      const accessToken = sessionData?.session?.access_token;
+      if (!accessToken) throw new Error("premium_auth_required");
+      const response = await fetch("/api/premium-ai-analysis", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: JSON.stringify({ action: "verify_red", billId: bill.id })
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok || !body?.ok) throw new Error(body?.error || body?.code || "Seconda verifica IA non riuscita");
+      redVerification = body.verification || null;
+      if (redVerification?.decision === "resolved_ai") {
+        expandedBillIds.add(bill.id);
+        await loadData(currentUser, currentSubscription);
+        setMessage("success", redVerification.customer_reply || "Seconda verifica IA completata. Non serve il controllo umano.");
+        window.dispatchEvent(new CustomEvent("offertalogica:red-verification-completed", {
+          detail: { billId: bill.id, verification: redVerification }
+        }));
+        setBusy(false);
+        renderEnabled();
+        return;
+      }
+    } catch (error) {
+      // Se la seconda IA non conclude, non bloccare il diritto al controllo umano.
+      redVerification = null;
+      setMessage("info", "La seconda verifica automatica non ha chiuso il caso. Invio allo staff…");
+    }
+
+    setMessage("info", redVerification?.decision === "quick_verify"
+      ? "Pre-verifica IA completata. Invio per verifica rapida…"
+      : "Invio della richiesta di controllo allo staff…");
     const result = await client.rpc("premium_request_check", { p_bill_id: bill.id });
     if (result.error) {
       setBusy(false);
@@ -1532,13 +1621,17 @@
     try {
       expandedBillIds.add(bill.id);
       await loadData(currentUser, currentSubscription);
-      setMessage("success", "Richiesta inviata. La bolletta risulta ora da verificare.");
+      setMessage("success", redVerification?.decision === "quick_verify"
+        ? "Pre-verifica IA completata. Richiesta inviata per verifica rapida."
+        : "Richiesta inviata. La pre-verifica IA è stata salvata sulla bolletta.");
       window.dispatchEvent(new CustomEvent("offertalogica:professional-checks-changed", {
-        detail: { billId: bill.id, checkId: result.data }
+        detail: { billId: bill.id, checkId: result.data, redVerification }
       }));
     } catch (error) {
       setBusy(false);
       setMessage("error", `La richiesta è stata registrata, ma lo stato non si è aggiornato: ${friendlyError(error)}`);
+    } finally {
+      setBusy(false);
     }
   }
 

@@ -1,5 +1,5 @@
-// support-resolution-read-ack-v03630
-const CACHE = "offertalogica-premium-v03630-support-resolution-read-ack";
+// red-verification-v03631
+const CACHE = "offertalogica-premium-v03631-red-verification";
 const APP_SHELL = [
   "/app.html",
   "/app-dialog.js",

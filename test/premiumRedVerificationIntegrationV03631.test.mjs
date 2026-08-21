@@ -1,0 +1,65 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const read = rel => fs.readFileSync(path.join(root, rel), 'utf8');
+
+test('API riusa premium-ai-analysis e crea un run red_verification separato', () => {
+  const api = read('api/premium-ai-analysis.js');
+  assert.match(api, /body\?\.action === "verify_red"/);
+  assert.match(api, /origin: "red_verification"/);
+  assert.match(api, /verifyPremiumCustomer/);
+  assert.match(api, /downloadPremiumBill/);
+  assert.match(api, /insertPremiumAiCostEvent/);
+  assert.doesNotMatch(api, /\/api\/premium-ai-red/);
+});
+
+test('client esegue la seconda IA prima di premium_request_check e non crea check se resolved_ai', () => {
+  const app = read('public/app-premium-bills.js');
+  const fn = app.slice(app.indexOf('async function requestCheck('), app.indexOf('async function runAutomaticAnalysis('));
+  const verifyIndex = fn.indexOf('action: "verify_red"');
+  const rpcIndex = fn.indexOf('premium_request_check');
+  assert.ok(verifyIndex >= 0, 'verify_red assente');
+  assert.ok(rpcIndex > verifyIndex, 'RPC umana deve avvenire dopo seconda IA');
+  const resolvedIndex = fn.indexOf('redVerification?.decision === "resolved_ai"');
+  const resolvedReturn = fn.indexOf('return;', resolvedIndex);
+  assert.ok(resolvedIndex >= 0 && resolvedReturn > resolvedIndex && resolvedReturn < rpcIndex, 'resolved_ai deve uscire prima della RPC Staff');
+});
+
+test('stato seconda verifica è persistito sulla bolletta e invalida risultati vecchi dopo nuova prima analisi', () => {
+  const api = read('api/premium-ai-analysis.js');
+  const app = read('public/app-premium-bills.js');
+  for (const field of ['red_verification_state','red_verification_result','red_verification_run_id','red_verified_at']) {
+    assert.match(api, new RegExp(field));
+    assert.match(app, new RegExp(field));
+  }
+  assert.match(api, /resetRedVerificationValues\(\)/);
+});
+
+test('migrazione è additiva: nessuna nuova tabella o API, origin red_verification e guardia scritture client', () => {
+  const sql = read('supabase/premium-red-verification-v0.36.31.sql');
+  assert.doesNotMatch(sql, /create\s+table/i);
+  assert.match(sql, /add column if not exists red_verification_state/i);
+  assert.match(sql, /add column if not exists red_verification_result/i);
+  assert.match(sql, /add column if not exists red_verification_run_id/i);
+  assert.match(sql, /add column if not exists red_verified_at/i);
+  assert.match(sql, /'red_verification'/);
+  assert.match(sql, /premium_guard_red_verification_client_write/);
+  assert.match(sql, /request\.jwt\.claim\.role/);
+});
+
+test('service worker forza cache v0.36.31', () => {
+  const sw = read('public/sw.js');
+  assert.match(sw, /offertalogica-premium-v03631-red-verification/);
+});
+
+test('app mostra secondo esito e mantiene rosso anche quando risolto dalla seconda IA', () => {
+  const app = read('public/app-premium-bills.js');
+  assert.match(app, /Rosso · Verificata IA/);
+  assert.match(app, /Seconda verifica IA completata/);
+  assert.match(app, /renderRedVerificationDetail/);
+  assert.match(app, /return "red"/);
+});

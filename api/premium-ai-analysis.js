@@ -13,6 +13,11 @@ import {
   matchAndPersistPremiumOffer,
 } from "../lib/premiumOfferMatcher.js";
 import {
+  PREMIUM_RED_VERIFIER_VERSION,
+  loadPremiumRedVerificationSnapshot,
+  verifyPremiumRedPdf,
+} from "../lib/premiumRedVerifier.js";
+import {
   analysisCompletionStatus,
   assertPremiumAiConfigured,
   checkPremiumBackendReadiness,
@@ -39,6 +44,30 @@ import {
 
 export const config = { maxDuration: 60 };
 
+function resetRedVerificationValues() {
+  return {
+    red_verification_state: "not_run",
+    red_verification_result: {},
+    red_verification_run_id: null,
+    red_verified_at: null,
+  };
+}
+
+function publicRedVerification(result = {}) {
+  return {
+    route: result.route || "staff_required",
+    decision: result.decision || "staff_required",
+    issue: result.issue || "",
+    evidence: Array.isArray(result.evidence) ? result.evidence : [],
+    verification_result: result.verification_result || "inconclusive",
+    confidence: result.confidence || "low",
+    can_resolve_alone: result.can_resolve_alone || "no",
+    customer_reply: result.customer_reply || "",
+    escalation_reason: result.escalation_reason || "",
+    missing_data: Array.isArray(result.missing_data) ? result.missing_data : [],
+  };
+}
+
 function offerMatchWarning(offerMatch) {
   if (!offerMatch) return "";
   if (offerMatch.status === "existing_verified") return "offerta_attiva_gia_verificata";
@@ -56,6 +85,7 @@ export function createPremiumAiAnalysisHandler({
   analyzePdf = extractPdfPureAi,
   matchOffer = matchAndPersistPremiumOffer,
   decideOffer = applyPremiumOfferCustomerDecision,
+  verifyRedPdf = verifyPremiumRedPdf,
   now = () => Date.now(),
 } = {}) {
   return async function handler(req, res) {
@@ -166,6 +196,7 @@ export function createPremiumAiAnalysisHandler({
                 decisionResult.run.id,
                 completedAt,
               ),
+              ...resetRedVerificationValues(),
               contract_id: decisionResult.contract.id,
             },
           });
@@ -194,6 +225,206 @@ export function createPremiumAiAnalysisHandler({
           },
           screening,
         });
+      }
+
+      if (body?.action === "verify_red") {
+        assertPremiumAiConfigured(backend);
+        try {
+          const { user } = await verifyPremiumCustomer({ config: backend, accessToken, fetchImpl });
+          if (!(await enforceRateLimit(req, res, {
+            label: "premium-ai-red-verification",
+            identifier: user.id,
+            limit: Number(env.RATE_LIMIT_PREMIUM_AI_RED_LIMIT || 12),
+            windowSeconds: Number(env.RATE_LIMIT_PREMIUM_AI_RED_WINDOW_SECONDS || 3600),
+          }))) return;
+
+          bill = await loadPremiumCustomerBill({ config: backend, billId: body.billId, userId: user.id, fetchImpl });
+          const snapshot = await loadPremiumRedVerificationSnapshot({
+            config: backend,
+            billId: bill.id,
+            userId: user.id,
+            fetchImpl,
+          });
+          const cachedResult = snapshot.bill.red_verification_result && typeof snapshot.bill.red_verification_result === "object"
+            ? snapshot.bill.red_verification_result
+            : {};
+          const cachedState = String(snapshot.bill.red_verification_state || "not_run");
+          const reusable = ["resolved_ai", "quick_verify", "staff_required", "inconclusive"].includes(cachedState)
+            && cachedResult.first_analysis_run_id
+            && cachedResult.first_analysis_run_id === snapshot.bill.automatic_analysis_run_id;
+          if (reusable) {
+            return json(res, 200, {
+              ok: true,
+              mode: "red_verification",
+              reused: true,
+              verification: publicRedVerification(cachedResult),
+            });
+          }
+
+          const contract = await loadPremiumBillContract({ config: backend, bill, fetchImpl });
+          run = await createPremiumAnalysisRun({
+            config: backend,
+            bill,
+            requestedByUserId: user.id,
+            origin: "red_verification",
+            staleAfterMs: Math.max(90000, Number(backend.deadlineMs || 0) + 30000),
+            fetchImpl,
+          });
+          await patchPremiumBill({
+            config: backend,
+            billId: bill.id,
+            fetchImpl,
+            values: {
+              red_verification_state: "running",
+              red_verification_result: {},
+              red_verification_run_id: run.id,
+              red_verified_at: null,
+              updated_at: new Date().toISOString(),
+            },
+          });
+
+          temporaryFilePath = path.join(os.tmpdir(), `offertalogica-premium-red-${crypto.randomUUID()}.pdf`);
+          await downloadPremiumBill({ config: backend, bill, destinationPath: temporaryFilePath, fetchImpl });
+          const header = await normalizePdfFileHeader(temporaryFilePath);
+          if (!header.valid) throw new Error("premium_bill_download_not_pdf");
+
+          const meter = createUsageMeter();
+          const transport = createMeteredOpenAiTransport({ meter, fetchImpl });
+          const verified = await verifyRedPdf({
+            filePath: temporaryFilePath,
+            filename: bill.original_file_name || "bolletta.pdf",
+            reasons: snapshot.bill.automatic_screening_reasons,
+            firstAnalysis: snapshot.firstRun?.extracted_data || {},
+            firstAnalysisRunId: snapshot.bill.automatic_analysis_run_id || null,
+            contract: contract?.verification_status === "verified" ? contract : null,
+            apiKey: backend.openAiApiKey,
+            model: backend.model,
+            transport,
+            fetchImpl,
+            deadlineAt: startedAt + backend.deadlineMs,
+            env,
+          });
+          const verification = verified.result;
+          const completedAt = new Date().toISOString();
+          const durationMs = Math.max(0, now() - startedAt);
+          const estimatedCostEur = estimatePremiumAiCost(meter.totals, backend.pricing);
+          const state = verification.decision === "resolved_ai"
+            ? "resolved_ai"
+            : verification.decision === "quick_verify"
+              ? "quick_verify"
+              : verification.decision === "inconclusive"
+                ? "inconclusive"
+                : "staff_required";
+
+          await patchPremiumAnalysisRun({
+            config: backend,
+            runId: run.id,
+            fetchImpl,
+            values: {
+              status: "completed",
+              parser_version: PREMIUM_RED_VERIFIER_VERSION,
+              model: backend.model,
+              completed_at: completedAt,
+              duration_ms: durationMs,
+              input_tokens: meter.totals.inputTokens,
+              output_tokens: meter.totals.outputTokens,
+              estimated_cost_eur: estimatedCostEur,
+              extracted_data: { _red_verification: verification },
+              warnings: state === "resolved_ai" ? [] : ["seconda_verifica_ia_da_escalare"],
+              usage_details: {
+                input_tokens: meter.totals.inputTokens,
+                cached_input_tokens: meter.totals.cachedInputTokens,
+                output_tokens: meter.totals.outputTokens,
+                reasoning_tokens: meter.totals.reasoningTokens,
+                total_tokens: meter.totals.totalTokens,
+                calls: meter.totals.calls,
+              },
+              response_ids: verified.responseId ? [verified.responseId] : [],
+              automatic_classification: "not_applicable",
+              automatic_summary: "",
+              automatic_reasons: [],
+              error_code: "",
+              error_message: "",
+            },
+          });
+          await patchPremiumBill({
+            config: backend,
+            billId: bill.id,
+            fetchImpl,
+            values: {
+              processing_status: "completed",
+              red_verification_state: state,
+              red_verification_result: verification,
+              red_verification_run_id: run.id,
+              red_verified_at: completedAt,
+              updated_at: completedAt,
+            },
+          });
+          await insertPremiumAiCostEvent({
+            config: backend,
+            bill,
+            check: null,
+            run: { ...run, origin: "red_verification" },
+            usage: meter.totals,
+            estimatedCostEur,
+            model: backend.model,
+            fetchImpl,
+          }).catch(() => null);
+
+          return json(res, 200, {
+            ok: true,
+            mode: "red_verification",
+            reused: false,
+            verification: publicRedVerification(verification),
+          });
+        } catch (redError) {
+          const completedAt = new Date().toISOString();
+          if (run?.id) {
+            await patchPremiumAnalysisRun({
+              config: backend,
+              runId: run.id,
+              fetchImpl,
+              values: {
+                status: "failed",
+                completed_at: completedAt,
+                duration_ms: Math.max(0, now() - startedAt),
+                automatic_classification: "not_applicable",
+                error_code: String(redError?.message || "premium_red_verification_error").split(":")[0].slice(0, 120),
+                error_message: String(redError?.message || "Seconda verifica IA non riuscita").slice(0, 500),
+              },
+            }).catch(() => {});
+          }
+          if (bill?.id) {
+            await patchPremiumBill({
+              config: backend,
+              billId: bill.id,
+              fetchImpl,
+              values: {
+                processing_status: "completed",
+                red_verification_state: "failed",
+                red_verification_result: {
+                  version: PREMIUM_RED_VERIFIER_VERSION,
+                  decision: "staff_required",
+                  route: "staff_required",
+                  issue: "Seconda verifica IA non completata",
+                  evidence: [],
+                  verification_result: "inconclusive",
+                  confidence: "low",
+                  can_resolve_alone: "no",
+                  customer_reply: "",
+                  escalation_reason: "La seconda verifica automatica non è stata completata.",
+                  missing_data: [],
+                  first_analysis_run_id: null,
+                },
+                red_verification_run_id: run?.id || null,
+                red_verified_at: completedAt,
+                updated_at: completedAt,
+              },
+            }).catch(() => {});
+          }
+          const safe = publicPremiumAiError(redError);
+          return json(res, safe.status, { ok: false, code: safe.code, error: safe.error });
+        }
       }
 
       assertPremiumAiConfigured(backend);
@@ -315,7 +546,10 @@ export function createPremiumAiAnalysisHandler({
       });
 
       if (customerMode) {
-        const values = premiumBillValuesFromAnalysis(normalized, screening, run.id, completedAt);
+        const values = {
+          ...premiumBillValuesFromAnalysis(normalized, screening, run.id, completedAt),
+          ...resetRedVerificationValues(),
+        };
         if (offerMatch?.contract?.id) values.contract_id = offerMatch.contract.id;
         await patchPremiumBill({
           config: backend,
@@ -397,6 +631,7 @@ export function createPremiumAiAnalysisHandler({
           fetchImpl,
           values: customerMode
             ? {
+                ...resetRedVerificationValues(),
                 processing_status: "failed",
                 customer_status: "more_info_required",
                 automatic_screening_status: "failed",
