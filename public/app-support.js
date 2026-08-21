@@ -209,33 +209,41 @@
     return message.subject === anchor.subject;
   }
 
-  async function loadSupportCommunications() {
+  async function loadSupportCommunications({ caseId = "", category = "" } = {}) {
     const { supabase, session } = await sessionInfo();
     const { data, error } = await supabase.from("premium_communications")
-      .select("id,user_id,direction,subject,body,read_at,created_at")
+      .select("id,user_id,direction,subject,body,read_at,resolved_at,created_at")
       .eq("user_id", session.user.id)
       .order("created_at", { ascending: true })
       .limit(250);
     if (error) throw error;
     const messages = (data || []).map(message => ({ ...message, parsed: parseSupportSubject(message.subject) })).filter(message => message.parsed);
-    const openUserMessages = messages.filter(message => message.direction === "user_to_staff" && !message.read_at && message.parsed.severity === "red");
-    const anchor = openUserMessages.length
-      ? openUserMessages[openUserMessages.length - 1]
-      : (messages.length ? messages[messages.length - 1] : null);
+    const redMessages = messages.filter(message => message.parsed.severity === "red");
+    const preferredMessage = caseId
+      ? redMessages.find(message => message.parsed.caseId === caseId && (!category || message.parsed.category === category))
+      : null;
+    const activeMessage = redMessages.slice().reverse().find(message =>
+      (message.direction === "user_to_staff" && !message.resolved_at)
+      || (message.direction === "staff_to_user" && !message.read_at)
+    );
+    const anchor = preferredMessage || activeMessage;
     if (!anchor) return { supabase, session, openCase: null, messages: [] };
 
     const caseMessages = messages.filter(message => sameSupportCase(message, anchor));
-    const closed = !caseMessages.some(message => message.direction === "user_to_staff" && !message.read_at);
+    const firstUser = caseMessages.find(message => message.direction === "user_to_staff") || anchor;
+    const unresolved = caseMessages.some(message => message.direction === "user_to_staff" && !message.resolved_at);
+    const unreadStaff = caseMessages.some(message => message.direction === "staff_to_user" && !message.read_at);
     return {
       supabase,
       session,
       openCase: {
-        id: anchor.id,
+        id: firstUser.id,
         caseId: anchor.parsed.caseId,
         category: anchor.parsed.category,
-        subject: anchor.subject,
-        createdAt: anchor.created_at,
-        closed,
+        subject: firstUser.subject,
+        createdAt: firstUser.created_at,
+        closed: !unresolved,
+        waitingForRead: !unresolved && unreadStaff,
       },
       messages: caseMessages,
     };
@@ -560,7 +568,7 @@
         subject,
         body: payload.slice(0, 1500),
         created_by_user_id: session.user.id,
-      }).select("id,user_id,direction,subject,body,read_at,created_at").single();
+      }).select("id,user_id,direction,subject,body,read_at,resolved_at,created_at").single();
       if (error) throw error;
       lastSubmitAt = Date.now();
       byId("premiumSupportEscalationForm").hidden = true;
@@ -592,7 +600,7 @@
     }
     form.querySelectorAll("button,textarea").forEach(element => { element.disabled = true; });
     try {
-      const live = await loadSupportCommunications();
+      const live = await loadSupportCommunications({ caseId: currentCase.caseId, category: currentCase.category });
       if (!live.openCase || live.openCase.caseId !== currentCase.caseId) {
         renderMain();
         setStatus("error", "La conversazione non è più disponibile: potrebbe essere stata eliminata.");
