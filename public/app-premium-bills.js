@@ -780,9 +780,6 @@
       declaredOfferField("Fine condizioni", "contract_end", contract.contract_end || "", { type: "date" }),
       declaredOfferField("Scadenza prezzo fisso", "fixed_price_expiry", contract.fixed_price_expiry || "", { type: "date" }),
     );
-    const note = document.createElement("p");
-    note.textContent = "I dati modificati restano dichiarati dal cliente finché non vengono verificati tecnicamente dall’IA o dallo Staff.";
-    editor.append(note);
     const actions = document.createElement("div");
     actions.className = "cloud-offer-actions";
     const save = document.createElement("button");
