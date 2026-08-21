@@ -1,5 +1,5 @@
-// staff-check-sync-v03636
-const CACHE = "offertalogica-premium-v03636-staff-check-sync";
+// offer-resolution-v03637
+const CACHE = "offertalogica-premium-v03637-offer-resolution";
 const APP_SHELL = [
   "/app.html",
   "/app-dialog.js",

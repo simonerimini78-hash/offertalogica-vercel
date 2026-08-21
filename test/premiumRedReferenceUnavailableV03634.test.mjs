@@ -20,7 +20,7 @@ const raw = overrides => ({
 });
 
 test('v0.36.34: senza riferimento affidabile i rossi contrattuali non sono presentati come anomalie della bolletta', () => {
-  assert.equal(PREMIUM_RED_VERIFIER_VERSION, 'premium-red-verifier-v0.36.34');
+  assert.equal(PREMIUM_RED_VERIFIER_VERSION, 'premium-red-verifier-v0.36.37');
   const routeInfo = routePremiumRedReasons([
     reason('fornitore_diverso_dal_contratto'),
     reason('prezzo_gas_diverso_dal_contratto'),

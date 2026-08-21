@@ -713,6 +713,83 @@
       && groups.every(group => group.candidates.length > 0);
   }
 
+  function declaredOfferEditable(contract, bill) {
+    if (!contract || !bill || !["electricity", "gas"].includes(bill.commodity)) return false;
+    if (contract.customer_confirmation_status === "confirmed") return true;
+    return contract.verification_status !== "verified" && !["rejected"].includes(contract.customer_confirmation_status);
+  }
+
+  function declaredOfferField(label, name, value = "", { type = "text", step = "any" } = {}) {
+    const field = document.createElement("label");
+    field.className = "cloud-offer-field";
+    const caption = document.createElement("span");
+    caption.textContent = label;
+    const input = document.createElement("input");
+    input.name = name;
+    input.type = type;
+    if (type === "number") input.step = step;
+    input.value = value ?? "";
+    field.append(caption, input);
+    return field;
+  }
+
+  function renderDeclaredOfferEditor(bill, contract) {
+    const editor = document.createElement("form");
+    editor.className = "cloud-offer-candidates";
+    editor.dataset.offerEditForm = contract.id;
+    editor.dataset.offerBill = bill.id;
+    editor.hidden = true;
+    const gas = bill.commodity === "gas";
+    const code = gas ? contract.arera_offer_code_gas : contract.arera_offer_code_electricity;
+    const price = gas ? contract.gas_price_eur_smc : contract.electricity_price_eur_kwh;
+    const fixedFee = gas ? contract.gas_fixed_fee_eur_year : contract.electricity_fixed_fee_eur_year;
+    const indexName = gas ? contract.gas_index_name : contract.electricity_index_name;
+    const spread = gas ? contract.gas_spread_eur_smc : contract.electricity_spread_eur_kwh;
+    const formula = gas ? contract.gas_formula : contract.electricity_formula;
+    editor.append(
+      declaredOfferField("Fornitore", "provider_name", contract.provider_name),
+      declaredOfferField("Nome offerta", "offer_name", contract.offer_name),
+      declaredOfferField("Codice offerta", "offer_code", code),
+    );
+    const priceTypeField = document.createElement("label");
+    priceTypeField.className = "cloud-offer-field";
+    const priceTypeLabel = document.createElement("span");
+    priceTypeLabel.textContent = "Struttura";
+    const priceTypeSelect = document.createElement("select");
+    priceTypeSelect.name = "pricing_type";
+    [["fixed", "Fisso"], ["indexed", "Indicizzato"], ["mixed", "Misto"], ["unknown", "Non definito"]].forEach(([value, text]) => {
+      const option = document.createElement("option");
+      option.value = value; option.textContent = text; option.selected = contract.pricing_type === value;
+      priceTypeSelect.append(option);
+    });
+    priceTypeField.append(priceTypeLabel, priceTypeSelect);
+    editor.append(
+      priceTypeField,
+      declaredOfferField(gas ? "Prezzo dichiarato €/Smc" : "Prezzo dichiarato €/kWh", "unit_price", price, { type: "number", step: "0.000001" }),
+      declaredOfferField("Quota fissa €/anno", "annual_fixed_fee", fixedFee, { type: "number", step: "0.01" }),
+      declaredOfferField("Indice", "index_name", indexName),
+      declaredOfferField(gas ? "Spread €/Smc" : "Spread €/kWh", "spread", spread, { type: "number", step: "0.000001" }),
+      declaredOfferField("Formula", "formula", formula),
+      declaredOfferField("Inizio condizioni", "contract_start", contract.contract_start || "", { type: "date" }),
+      declaredOfferField("Fine condizioni", "contract_end", contract.contract_end || "", { type: "date" }),
+      declaredOfferField("Scadenza prezzo fisso", "fixed_price_expiry", contract.fixed_price_expiry || "", { type: "date" }),
+    );
+    const note = document.createElement("p");
+    note.textContent = "I dati modificati restano dichiarati dal cliente finché non vengono verificati tecnicamente dall’IA o dallo Staff.";
+    editor.append(note);
+    const actions = document.createElement("div");
+    actions.className = "cloud-offer-actions";
+    const save = document.createElement("button");
+    save.type = "submit"; save.className = "cloud-bill-btn primary"; save.textContent = "SALVA DATI OFFERTA";
+    const cancel = document.createElement("button");
+    cancel.type = "button"; cancel.className = "cloud-bill-btn"; cancel.textContent = "ANNULLA";
+    cancel.addEventListener("click", () => { editor.hidden = true; });
+    actions.append(save, cancel);
+    editor.append(actions);
+    editor.addEventListener("submit", event => sendDeclaredOfferUpdate(event, bill, contract));
+    return editor;
+  }
+
   function renderOfferCard(bill, contract, { allowActions = true } = {}) {
     const card = document.createElement("section");
     card.className = "cloud-offer-card";
@@ -797,6 +874,19 @@
       rejectButton.textContent = "NON È QUESTA";
       actions.append(confirmButton, rejectButton);
       card.append(actions);
+    }
+
+    if (allowActions && declaredOfferEditable(contract, bill)) {
+      const actions = document.createElement("div");
+      actions.className = "cloud-offer-actions";
+      const editButton = document.createElement("button");
+      editButton.type = "button";
+      editButton.className = "cloud-bill-btn";
+      editButton.textContent = "MODIFICA DATI OFFERTA";
+      const editor = renderDeclaredOfferEditor(bill, contract);
+      editButton.addEventListener("click", () => { editor.hidden = !editor.hidden; });
+      actions.append(editButton);
+      card.append(actions, editor);
     }
 
     return card;
@@ -1036,7 +1126,7 @@
     copy.textContent = checkCopy(check);
     detail.append(head, copy);
     const contract = contractForBill(bill);
-    if (contract) detail.append(renderOfferCard(bill, contract, { allowActions: false }));
+    if (contract) detail.append(renderOfferCard(bill, contract, { allowActions: !maintenanceMode && ["completed", "canceled"].includes(check?.status) }));
 
     if (check) {
       const meta = document.createElement("small");
@@ -1480,6 +1570,68 @@
     } finally {
       setBusy(false);
       if (state.fileInput) state.fileInput.value = "";
+    }
+  }
+
+  async function sendDeclaredOfferUpdate(event, bill, contract) {
+    event.preventDefault();
+    if (!client || !currentUser || busy || !bill?.id || !contract?.id) return;
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    const providerName = String(data.get("provider_name") || "").trim();
+    const offerName = String(data.get("offer_name") || "").trim();
+    if (!providerName || !offerName) {
+      setMessage("error", "Inserisci almeno fornitore e nome dell’offerta.");
+      return;
+    }
+    const numberOrNull = name => {
+      const raw = String(data.get(name) || "").trim();
+      if (!raw) return null;
+      const value = Number(raw.replace(",", "."));
+      return Number.isFinite(value) ? value : null;
+    };
+    const offer = {
+      provider_name: providerName,
+      offer_name: offerName,
+      offer_code: String(data.get("offer_code") || "").trim(),
+      pricing_type: String(data.get("pricing_type") || "unknown"),
+      unit_price: numberOrNull("unit_price"),
+      annual_fixed_fee: numberOrNull("annual_fixed_fee"),
+      index_name: String(data.get("index_name") || "").trim(),
+      spread: numberOrNull("spread"),
+      formula: String(data.get("formula") || "").trim(),
+      contract_start: String(data.get("contract_start") || "").trim() || null,
+      contract_end: String(data.get("contract_end") || "").trim() || null,
+      fixed_price_expiry: String(data.get("fixed_price_expiry") || "").trim() || null,
+    };
+    setBusy(true);
+    setMessage("info", "Aggiornamento dell’offerta dichiarata…");
+    try {
+      const { data: sessionData, error: sessionError } = await client.auth.getSession();
+      if (sessionError) throw sessionError;
+      const accessToken = sessionData?.session?.access_token;
+      if (!accessToken) throw new Error("premium_auth_required");
+      const response = await fetch("/api/premium-ai-analysis", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ action: "update_declared_offer", billId: bill.id, contractId: contract.id, offer }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok || !body?.ok) throw new Error(body?.error || body?.code || "Aggiornamento offerta non riuscito");
+      expandedBillIds.add(bill.id);
+      await loadData(currentUser, currentSubscription);
+      const updatedBill = bills.find(item => item.id === bill.id);
+      if (automaticRedVerificationEligible(updatedBill)) {
+        await runAutomaticRedVerification(bill.id);
+      } else {
+        setMessage("success", "Dati dell’offerta aggiornati. Restano dichiarati finché non vengono verificati tecnicamente.");
+      }
+      window.dispatchEvent(new CustomEvent("offertalogica:declared-offer-updated", { detail: { billId: bill.id, contractId: contract.id } }));
+    } catch (error) {
+      setMessage("error", friendlyError(error));
+    } finally {
+      setBusy(false);
+      renderEnabled();
     }
   }
 

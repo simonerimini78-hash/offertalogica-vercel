@@ -13,8 +13,13 @@ import {
   matchAndPersistPremiumOffer,
 } from "../lib/premiumOfferMatcher.js";
 import {
+  persistPremiumVerifiedOffer,
+  updatePremiumDeclaredOffer,
+} from "../lib/premiumOfferResolution.js";
+import {
   PREMIUM_RED_VERIFIER_VERSION,
   loadPremiumRedVerificationSnapshot,
+  routePremiumRedReasons,
   verifyPremiumRedPdf,
 } from "../lib/premiumRedVerifier.js";
 import {
@@ -71,6 +76,7 @@ function publicRedVerification(result = {}) {
     customer_reply: result.customer_reply || "",
     escalation_reason: result.escalation_reason || "",
     missing_data: Array.isArray(result.missing_data) ? result.missing_data : [],
+    offer_resolution: result.offer_resolution && typeof result.offer_resolution === "object" ? result.offer_resolution : { status: "none", candidates: [] },
   };
 }
 
@@ -161,6 +167,42 @@ export function createPremiumAiAnalysisHandler({
               staffAnalysis: { limit: numberOr("RATE_LIMIT_PREMIUM_AI_LIMIT", 12), windowSeconds: numberOr("RATE_LIMIT_PREMIUM_AI_WINDOW_SECONDS", 3600) },
               offerConfirmation: { limit: numberOr("RATE_LIMIT_PREMIUM_OFFER_CONFIRM_LIMIT", 30), windowSeconds: numberOr("RATE_LIMIT_PREMIUM_OFFER_CONFIRM_WINDOW_SECONDS", 3600) },
             },
+          },
+        });
+      }
+
+      if (body?.action === "update_declared_offer") {
+        if (!backend.supabaseUrl || !backend.serviceKey) throw new Error("premium_supabase_not_configured");
+        const { user } = await verifyPremiumCustomer({ config: backend, accessToken, fetchImpl });
+        if (!(await enforceRateLimit(req, res, {
+          label: "premium-offer-confirmation",
+          identifier: user.id,
+          limit: Number(env.RATE_LIMIT_PREMIUM_OFFER_CONFIRM_LIMIT || 30),
+          windowSeconds: Number(env.RATE_LIMIT_PREMIUM_OFFER_CONFIRM_WINDOW_SECONDS || 3600),
+        }))) return;
+        const updated = await updatePremiumDeclaredOffer({
+          config: backend,
+          userId: user.id,
+          billId: body?.billId,
+          contractId: body?.contractId,
+          values: body?.offer || {},
+          fetchImpl,
+        });
+        await patchPremiumBill({
+          config: backend,
+          billId: updated.bill.id,
+          fetchImpl,
+          values: { ...resetRedVerificationValues(), contract_id: updated.contract.id, updated_at: new Date().toISOString() },
+        });
+        return json(res, 200, {
+          ok: true,
+          mode: "declared_offer_update",
+          contract: {
+            id: updated.contract.id,
+            verificationStatus: updated.contract.verification_status,
+            confirmationStatus: updated.contract.customer_confirmation_status,
+            providerName: updated.contract.provider_name,
+            offerName: updated.contract.offer_name,
           },
         });
       }
@@ -272,6 +314,7 @@ export function createPremiumAiAnalysisHandler({
           }
 
           const contract = await loadPremiumBillContract({ config: backend, bill, fetchImpl });
+          const trustedContract = premiumContractForAutomaticComparison(contract, snapshot.firstRun?.extracted_data || {});
           run = await createPremiumAnalysisRun({
             config: backend,
             bill,
@@ -306,7 +349,8 @@ export function createPremiumAiAnalysisHandler({
             reasons: snapshot.bill.automatic_screening_reasons,
             firstAnalysis: snapshot.firstRun?.extracted_data || {},
             firstAnalysisRunId: snapshot.bill.automatic_analysis_run_id || null,
-            contract: premiumContractForAutomaticComparison(contract, snapshot.firstRun?.extracted_data || {}),
+            contract: trustedContract,
+            declaredContract: trustedContract ? null : contract,
             apiKey: backend.openAiApiKey,
             model: backend.model,
             transport,
@@ -314,8 +358,68 @@ export function createPremiumAiAnalysisHandler({
             deadlineAt: startedAt + backend.deadlineMs,
             env,
           });
-          const verification = verified.result;
+          let verification = verified.result;
           const completedAt = new Date().toISOString();
+          let resolvedOfferContract = null;
+          let resolvedOfferScreening = null;
+          const verifiedOffer = verification?.offer_resolution?.status === "verified"
+            ? verification.offer_resolution.selected
+            : null;
+          if (verifiedOffer?.auto_verifiable && snapshot.firstRun?.extracted_data) {
+            const persisted = await persistPremiumVerifiedOffer({
+              config: backend,
+              bill,
+              offer: verifiedOffer,
+              actor: "ai",
+              fetchImpl,
+              now: completedAt,
+            });
+            resolvedOfferContract = persisted.contract;
+            const normalizedForResolvedOffer = {
+              ...snapshot.firstRun.extracted_data,
+              _offer_match: { status: "matched", verified: true },
+            };
+            resolvedOfferScreening = classifyPremiumAutomaticAnalysis(normalizedForResolvedOffer, {
+              contract: premiumContractForAutomaticComparison(resolvedOfferContract, normalizedForResolvedOffer),
+            });
+            await patchPremiumAnalysisRun({
+              config: backend,
+              runId: snapshot.firstRun.id,
+              fetchImpl,
+              values: {
+                automatic_classification: resolvedOfferScreening.status,
+                automatic_summary: resolvedOfferScreening.summary,
+                automatic_reasons: resolvedOfferScreening.reasons,
+              },
+            });
+            if (resolvedOfferScreening.status !== "review_recommended") {
+              verification = {
+                ...verification,
+                decision: "resolved_ai",
+                can_resolve_alone: "yes",
+                resolved_screening_status: resolvedOfferScreening.status,
+                customer_reply: resolvedOfferScreening.status === "clear"
+                  ? `La bolletta è coerente con l’offerta ${resolvedOfferContract.offer_name || "verificata"} identificata per il periodo del documento. Non risultano anomalie contrattuali.`
+                  : `Il riferimento dell’offerta è stato verificato e il precedente codice rosso contrattuale non è confermato. Rimane soltanto l’avviso indicato nell’analisi.`,
+                escalation_reason: "",
+                missing_data: [],
+              };
+            } else {
+              const rerouted = routePremiumRedReasons(resolvedOfferScreening.reasons);
+              verification = {
+                ...verification,
+                route: rerouted.route,
+                reason_codes: rerouted.codes,
+                decision: rerouted.route === "staff_required" ? "staff_required" : "quick_verify",
+                verification_result: "inconclusive",
+                can_resolve_alone: "no",
+                issue: "Offerta verificata; resta un’anomalia da controllare",
+                customer_reply: "",
+                escalation_reason: "L’offerta di riferimento è stata verificata, ma il nuovo confronto mantiene un’anomalia rossa. È necessaria una verifica prima di comunicare l’esito al cliente.",
+                missing_data: [],
+              };
+            }
+          }
           const durationMs = Math.max(0, now() - startedAt);
           const estimatedCostEur = estimatePremiumAiCost(meter.totals, backend.pricing);
           const state = verification.decision === "resolved_ai"
@@ -357,19 +461,31 @@ export function createPremiumAiAnalysisHandler({
               error_message: "",
             },
           });
-          await patchPremiumBill({
-            config: backend,
-            billId: bill.id,
-            fetchImpl,
-            values: {
-              processing_status: "completed",
+          const finalBillValues = {
+            processing_status: "completed",
+            red_verification_state: state,
+            red_verification_result: verification,
+            red_verification_run_id: run.id,
+            red_verified_at: completedAt,
+            updated_at: completedAt,
+          };
+          if (resolvedOfferContract?.id) finalBillValues.contract_id = resolvedOfferContract.id;
+          if (resolvedOfferScreening && snapshot.firstRun?.extracted_data) {
+            Object.assign(finalBillValues, premiumBillValuesFromAnalysis(
+              { ...snapshot.firstRun.extracted_data, _offer_match: { status: "matched", verified: true } },
+              resolvedOfferScreening,
+              snapshot.firstRun.id,
+              completedAt,
+            ));
+            Object.assign(finalBillValues, {
               red_verification_state: state,
               red_verification_result: verification,
               red_verification_run_id: run.id,
               red_verified_at: completedAt,
-              updated_at: completedAt,
-            },
-          });
+              contract_id: resolvedOfferContract.id,
+            });
+          }
+          await patchPremiumBill({ config: backend, billId: bill.id, fetchImpl, values: finalBillValues });
           await insertPremiumAiCostEvent({
             config: backend,
             bill,
