@@ -70,8 +70,8 @@ test('la UI distingue dichiarazione cliente da verifica tecnica', async () => {
   assert.doesNotMatch(ui, /Le condizioni registrate vengono usate anche per ricontrollare la bolletta/);
 });
 
-test('v0.36.33 invalida la vecchia seconda verifica e aggiorna la cache PWA', async () => {
-  assert.equal(PREMIUM_RED_VERIFIER_VERSION, 'premium-red-verifier-v0.36.33');
+test('v0.36.34 invalida la vecchia seconda verifica e aggiorna la cache PWA', async () => {
+  assert.equal(PREMIUM_RED_VERIFIER_VERSION, 'premium-red-verifier-v0.36.34');
   const sw = await fs.readFile(new URL('../public/sw.js', import.meta.url), 'utf8');
   assert.match(sw, /offertalogica-premium-v03633-offer-reference-trust/);
 });
