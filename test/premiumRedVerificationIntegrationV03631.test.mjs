@@ -63,3 +63,16 @@ test('app mostra secondo esito e mantiene rosso anche quando risolto dalla secon
   assert.match(app, /renderRedVerificationDetail/);
   assert.match(app, /return "red"/);
 });
+
+
+test('verify_red lavora sulle bollette rosse già completate senza riusare il loader della prima analisi', () => {
+  const api = read('api/premium-ai-analysis.js');
+  const match = api.match(/if \(body\?\.action === "verify_red"\) \{([\s\S]*?)\n      \}\n\n      assertPremiumAiConfigured\(backend\);/);
+  assert.ok(match, 'blocco verify_red non trovato');
+  const block = match[1];
+  assert.match(block, /loadPremiumRedVerificationSnapshot/);
+  assert.doesNotMatch(block, /loadPremiumCustomerBill/);
+  const verifier = read('lib/premiumRedVerifier.js');
+  assert.match(verifier, /storage_bucket,storage_path,processing_status/);
+  assert.match(verifier, /automatic_screening_status !== "review_recommended"/);
+});

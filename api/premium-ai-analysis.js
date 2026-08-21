@@ -238,13 +238,13 @@ export function createPremiumAiAnalysisHandler({
             windowSeconds: Number(env.RATE_LIMIT_PREMIUM_AI_RED_WINDOW_SECONDS || 3600),
           }))) return;
 
-          bill = await loadPremiumCustomerBill({ config: backend, billId: body.billId, userId: user.id, fetchImpl });
           const snapshot = await loadPremiumRedVerificationSnapshot({
             config: backend,
-            billId: bill.id,
+            billId: body.billId,
             userId: user.id,
             fetchImpl,
           });
+          bill = snapshot.bill;
           const cachedResult = snapshot.bill.red_verification_result && typeof snapshot.bill.red_verification_result === "object"
             ? snapshot.bill.red_verification_result
             : {};
