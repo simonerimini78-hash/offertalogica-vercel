@@ -5,6 +5,7 @@
   const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_poz1xBKiXceLCFV3u_tPIg_5_-ycHcl";
   const STORAGE_KEY = "offertalogica-premium-staff-auth";
   const BUCKET = "premium-bills";
+  const RED_VERIFIER_VERSION = "premium-red-verifier-v0.36.32";
   const MANAGER_ROLES = new Set(["reviewer", "technician", "admin", "owner"]);
 
   let client = null;
@@ -805,6 +806,8 @@
     const result = row.bill?.red_verification_result && typeof row.bill.red_verification_result === "object"
       ? row.bill.red_verification_result
       : {};
+    const resultVersion = String(result.version || "");
+    const staleVerification = Boolean(resultVersion && resultVersion !== RED_VERIFIER_VERSION);
     const section = node("section", { className: "section ai-section" });
     const heading = node("div", { className: "ai-heading" }, [
       node("div", {}, [
@@ -815,17 +818,23 @@
     ]);
     section.append(heading);
 
-    if (!["completed", "canceled"].includes(row.check.status) && ["not_run", "failed"].includes(stateValue)) {
+    if (!["completed", "canceled"].includes(row.check.status) && (["not_run", "failed"].includes(stateValue) || staleVerification)) {
       const button = node("button", {
         className: "button primary compact",
         type: "button",
-        text: stateValue === "failed" ? "RIPROVA SECONDA VERIFICA IA" : "AVVIA SECONDA VERIFICA IA"
+        text: staleVerification ? "RICALCOLA SECONDA VERIFICA IA" : stateValue === "failed" ? "RIPROVA SECONDA VERIFICA IA" : "AVVIA SECONDA VERIFICA IA"
       });
       button.disabled = busy;
       button.addEventListener("click", handleRunRedVerification);
       heading.append(node("div", { className: "ai-actions" }, [button]));
     }
 
+    if (staleVerification) {
+      section.append(node("div", { className: "ai-warning" }, [
+        node("strong", { text: "Verifica IA da aggiornare" }),
+        node("p", { text: "Questo risultato è stato prodotto con una versione precedente del router. Ricalcolalo prima di concludere la pratica." })
+      ]));
+    }
     if (stateValue === "not_run") {
       section.append(node("div", { className: "timeline-item", text: "Questa pratica è precedente alla seconda verifica IA. Puoi eseguirla ora sulla stessa bolletta." }));
       container.append(section);
@@ -1281,13 +1290,19 @@
       return;
     }
     const currentState = String(row.bill?.red_verification_state || "not_run");
-    if (!["not_run", "failed"].includes(currentState)) {
+    const currentResult = row.bill?.red_verification_result && typeof row.bill.red_verification_result === "object"
+      ? row.bill.red_verification_result
+      : {};
+    const staleVerification = Boolean(currentResult.version && currentResult.version !== RED_VERIFIER_VERSION);
+    if (!["not_run", "failed"].includes(currentState) && !staleVerification) {
       setPageMessage("info", "La seconda verifica IA è già stata eseguita per questa versione dell’analisi.");
       return;
     }
     if (!(await confirmStaffAction({
-      title: "Avvia seconda verifica IA",
-      message: "L’IA rileggerà il PDF per verificare in modo indipendente i motivi del codice rosso. La pratica esistente non verrà duplicata né chiusa automaticamente.",
+      title: staleVerification ? "Ricalcola seconda verifica IA" : "Avvia seconda verifica IA",
+      message: staleVerification
+        ? "Il risultato precedente usa una versione superata del router. L’IA rileggerà il PDF con le regole aggiornate senza duplicare o chiudere la pratica."
+        : "L’IA rileggerà il PDF per verificare in modo indipendente i motivi del codice rosso. La pratica esistente non verrà duplicata né chiusa automaticamente.",
       confirmLabel: "AVVIA VERIFICA"
     }))) return;
 

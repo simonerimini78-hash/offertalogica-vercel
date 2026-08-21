@@ -61,3 +61,17 @@ test('resolved_ai non chiude automaticamente una pratica preesistente', () => {
   assert.match(ui, /Poiché questa pratica era già aperta, resta comunque allo Staff la chiusura finale/);
   assert.doesNotMatch(ui, /premium_staff_complete_check[^\n]*resolved_ai/);
 });
+
+
+test('router v0.36.32 ignora i gialli e permette di ricalcolare risultati precedenti', () => {
+  const verifier = read('lib/premiumRedVerifier.js');
+  const api = read('api/premium-ai-analysis.js');
+  const ui = read('public/staff-premium.js');
+  assert.match(verifier, /premium-red-verifier-v0\.36\.32/);
+  assert.match(verifier, /trafficLight === "red"/);
+  assert.match(verifier, /first_red_reasons: reasonContext\(redRoutingReasons\(reasons\)\)/);
+  assert.match(verifier, /necessaria una verifica Staff per risolvere il disaccordo/);
+  assert.match(api, /cachedResult\.version === PREMIUM_RED_VERIFIER_VERSION/);
+  assert.match(ui, /RICALCOLA SECONDA VERIFICA IA/);
+  assert.match(ui, /RED_VERIFIER_VERSION = "premium-red-verifier-v0\.36\.32"/);
+});
