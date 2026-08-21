@@ -636,7 +636,7 @@
     const control = node("input", {
       name: `corrected_${definition.key}`,
       type: definition.type === "number" ? "text" : "text",
-      placeholder: definition.type === "number" ? "Valore verificato" : "Dato verificato",
+      placeholder: definition.type === "number" ? "Valore corretto" : "Dato corretto",
       attrs: definition.type === "number" ? { inputmode: "decimal" } : {}
     });
     if (value !== null && value !== undefined) control.value = String(value).replace(".", ",");
@@ -882,9 +882,9 @@
       wrapper.append(node("p", { text: `${row.contract.offer_name || "Offerta senza nome"} · ${row.contract.provider_name || "fornitore non indicato"} · ${state}` }));
     }
     if (resolution?.status === "verified" && resolution.selected) {
-      wrapper.append(node("p", { text: `IA: corrispondenza deterministica verificata · ${offerCandidateSummary(resolution.selected)}` }));
+      wrapper.append(node("p", { text: `IA: offerta identificata con certezza · ${offerCandidateSummary(resolution.selected)}` }));
       if (resolution.selected.normalization_method === "pcs_normalized" && Number.isFinite(Number(resolution.selected.normalized_expected_price))) {
-        wrapper.append(node("p", { text: `Gas normalizzato con PCS: prezzo atteso in bolletta ${Number(resolution.selected.normalized_expected_price).toFixed(6)} €/Smc.` }));
+        wrapper.append(node("p", { text: `Prezzo gas compatibile dopo adeguamento PCS: ${Number(resolution.selected.normalized_expected_price).toFixed(6)} €/Smc attesi in bolletta.` }));
       }
     } else if (candidates.length) {
       wrapper.append(node("p", { text: "L’IA ha trovato possibili corrispondenze, ma non possiede tutte le prove necessarie per modificare automaticamente l’offerta." }));
@@ -985,31 +985,24 @@
       return;
     }
 
-    section.append(node("div", { className: "info-grid ai-meta" }, [
-      infoCard("Instradamento", result.route || "—"),
-      infoCard("Decisione IA", result.decision || "—"),
-      infoCard("Esito verifica", result.verification_result || "—"),
-      infoCard("Confidenza dichiarata", result.confidence || "—")
-    ]));
-
     const issue = String(result.issue || "").trim();
-    if (issue) section.append(node("div", { className: "timeline-item" }, [node("strong", { text: "Esito della verifica" }), node("p", { text: issue })]));
+    if (issue) section.append(node("div", { className: "timeline-item" }, [node("strong", { text: "Conclusione IA" }), node("p", { text: issue })]));
     const evidence = Array.isArray(result.evidence) ? result.evidence : [];
     if (evidence.length) {
       const list = node("div", { className: "timeline" });
       evidence.forEach(item => list.append(node("article", { className: "timeline-item" }, [
-        node("strong", { text: item.page ? `Evidenza · pagina ${item.page}` : "Evidenza" }),
+        node("strong", { text: item.page ? `Elemento trovato nel PDF · pagina ${item.page}` : "Elemento trovato nel PDF" }),
         node("p", { text: humanVerificationEvidence(item.fact) || "—" })
       ])));
       section.append(list);
     }
     const missing = Array.isArray(result.missing_data) ? result.missing_data.filter(Boolean) : [];
     if (missing.length) section.append(node("div", { className: "ai-warning" }, [
-      node("strong", { text: "Dati mancanti" }),
+      node("strong", { text: "Cosa manca per decidere" }),
       ...missing.map(item => node("p", { text: item }))
     ]));
     if (result.escalation_reason) section.append(node("div", { className: "ai-warning" }, [
-      node("strong", { text: "Motivo dell’escalation" }),
+      node("strong", { text: "Perché serve lo Staff" }),
       node("p", { text: result.escalation_reason })
     ]));
     if (result.customer_reply) section.append(node("div", { className: "timeline-item" }, [

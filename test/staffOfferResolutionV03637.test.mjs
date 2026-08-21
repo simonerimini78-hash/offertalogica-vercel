@@ -28,8 +28,16 @@ test('Staff UI mostra proposte IA, validazione manuale e testo umano', async () 
   assert.match(ui, /USA E VALIDA QUESTA OFFERTA/);
   assert.match(ui, /CORREGGI \/ VALIDA OFFERTA/);
   assert.match(ui, /action: "staff_validate_offer"/);
-  assert.match(ui, /Esito della verifica/);
+  assert.match(ui, /Conclusione IA/);
   assert.match(ui, /Non è disponibile un riferimento contrattuale verificato associabile a questa bolletta/);
+  assert.doesNotMatch(ui, /infoCard\("Instradamento"/);
+  assert.doesNotMatch(ui, /infoCard\("Decisione IA"/);
+  assert.doesNotMatch(ui, /infoCard\("Esito verifica"/);
+  assert.doesNotMatch(ui, /infoCard\("Confidenza dichiarata"/);
+  assert.match(ui, /Elemento trovato nel PDF/);
+  assert.match(ui, /Cosa manca per decidere/);
+  assert.match(ui, /Perché serve lo Staff/);
+  assert.doesNotMatch(ui, /Valore verificato|Dato verificato/);
 });
 
 test('Staff usa la stessa premium-ai-analysis: nessuna nuova API o SQL', async () => {
