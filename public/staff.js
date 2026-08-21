@@ -1292,6 +1292,19 @@
 
   let activeSupportCase = null;
   let activeSupportAccountSnapshot = null;
+  let supportReplyInFlight = false;
+
+  function setSupportReplyInFlight(value) {
+    supportReplyInFlight = Boolean(value);
+    const replyForm = byId("staffSupportReplyForm");
+    replyForm?.querySelectorAll("button,textarea").forEach(element => { element.disabled = supportReplyInFlight; });
+    const closeButton = byId("staffSupportCloseCase");
+    if (closeButton) closeButton.disabled = supportReplyInFlight || Boolean(activeSupportCase?.closed);
+    const deleteButton = byId("staffSupportDeleteCase");
+    if (deleteButton) deleteButton.disabled = supportReplyInFlight;
+    const dialogClose = byId("staffSupportDialogClose");
+    if (dialogClose) dialogClose.disabled = supportReplyInFlight;
+  }
 
   function ensureSupportDialog() {
     let layer = byId("staffSupportDialogLayer");
@@ -1353,6 +1366,10 @@
   }
 
   function closeSupportDialog() {
+    if (supportReplyInFlight) {
+      setMessage("info", "Attendi la conferma dell’invio della risposta prima di chiudere la pratica.");
+      return;
+    }
     const layer = byId("staffSupportDialogLayer");
     if (layer) layer.hidden = true;
     activeSupportCase = null;
@@ -1559,7 +1576,8 @@
 
   async function sendSupportReply(event) {
     event.preventDefault();
-    if (!activeSupportCase || busy) return;
+    const target = activeSupportCase;
+    if (!target || busy || supportReplyInFlight) return;
     const textarea = byId("staffSupportReply");
     const body = String(textarea?.value || "").trim();
     if (body.length < 2) {
@@ -1567,37 +1585,41 @@
       textarea?.focus();
       return;
     }
-    const submit = event.currentTarget.querySelector('button[type="submit"]');
-    if (submit) submit.disabled = true;
+    setSupportReplyInFlight(true);
     try {
-      const liveMessages = await loadSupportThread(activeSupportCase);
+      const liveMessages = await loadSupportThread(target);
       if (!liveMessages.length) {
+        setSupportReplyInFlight(false);
         closeSupportDialog();
         await loadSupportRequests({ silent: true });
         renderCases();
         setMessage("error", "La pratica non esiste più: potrebbe essere stata eliminata dal cliente.");
         return;
       }
-      const { error } = await client.from("premium_communications").insert({
-        user_id: activeSupportCase.userId,
+      const { data: insertedMessage, error } = await client.from("premium_communications").insert({
+        user_id: target.userId,
         direction: "staff_to_user",
         channel: "in_app",
-        subject: activeSupportCase.supportSubjectRaw,
+        subject: target.supportSubjectRaw,
         body: body.slice(0, 1500),
         created_by_staff_id: currentSession.user.id,
-      });
+      }).select("id").single();
       if (error) throw error;
+      const verifiedMessages = await loadSupportThread(target);
+      if (!insertedMessage?.id || !verifiedMessages.some(message => message.id === insertedMessage.id)) {
+        throw new Error("La risposta non è stata confermata dal database. Riprova prima di chiudere la pratica.");
+      }
       textarea.value = "";
-      renderSupportThread(await loadSupportThread(activeSupportCase));
+      renderSupportThread(verifiedMessages);
       await loadSupportRequests({ silent: true });
       renderCases();
-      setMessage("success", activeSupportCase.closed
+      setMessage("success", target.closed
         ? "Messaggio inviato al cliente. La pratica resta chiusa e disponibile nello storico."
-        : "Risposta inviata al cliente. La pratica resta aperta finché non la chiudi.");
+        : "Risposta inviata e confermata. Ora puoi chiudere la pratica.");
     } catch (error) {
       setMessage("error", friendlyError(error));
     } finally {
-      if (submit) submit.disabled = false;
+      setSupportReplyInFlight(false);
     }
   }
 
@@ -1611,6 +1633,10 @@
 
   async function closeSupportCase() {
     if (!activeSupportCase || busy) return;
+    if (supportReplyInFlight) {
+      setMessage("info", "Attendi la conferma dell’invio della risposta prima di chiudere la pratica.");
+      return;
+    }
     if (activeSupportCase.closed) {
       setMessage("info", "La pratica è già chiusa. Puoi continuare a inviare messaggi oppure eliminarla definitivamente.");
       return;
@@ -1632,6 +1658,10 @@
         confirmLabel: "CHIUDI PRATICA",
       });
       if (!confirmed) return;
+      if (supportReplyInFlight) {
+        setMessage("error", "Pratica non chiusa: è ancora in corso l’invio di una risposta Staff.");
+        return;
+      }
 
       // Ricontrolla dopo la conferma: il cliente potrebbe avere risposto mentre il dialog era aperto.
       const liveMessages = await loadSupportThread(activeSupportCase);
@@ -1672,6 +1702,10 @@
 
   async function deleteSupportCase() {
     if (!activeSupportCase || busy) return;
+    if (supportReplyInFlight) {
+      setMessage("info", "Attendi la conferma dell’invio della risposta prima di eliminare la pratica.");
+      return;
+    }
     const confirmed = await confirmAction({
       title: "Eliminare definitivamente la pratica?",
       message: "Verranno cancellati tutti i messaggi di questa richiesta, sia del cliente sia dello staff. L’operazione non è reversibile.",
