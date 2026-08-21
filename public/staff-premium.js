@@ -6,6 +6,10 @@
   const STORAGE_KEY = "offertalogica-premium-staff-auth";
   const BUCKET = "premium-bills";
   const RED_VERIFIER_VERSION = "premium-red-verifier-v0.36.37";
+  const CONTROL_CENTER_VERSION = "premium-control-center-v0.36.40";
+  const CONTROL_METRICS_DAYS = 30;
+  const CONTROL_METRICS_LIMIT = 5000;
+  const CONTROL_COST_CHUNK = 200;
   const MANAGER_ROLES = new Set(["reviewer", "technician", "admin", "owner"]);
 
   let client = null;
@@ -27,6 +31,10 @@
   let staffVerificationRequest = null;
   let staffContextKey = "";
   let queueLoaded = false;
+  let canViewControlMetrics = false;
+  let controlMetrics = null;
+  let controlMetricGrids = [];
+  const routeFilterOptions = new Map();
 
   const byId = id => document.getElementById(id);
 
@@ -281,6 +289,260 @@
     return data;
   }
 
+  function isOpenCheck(row) {
+    return !["completed", "canceled"].includes(String(row?.check?.status || ""));
+  }
+
+  function redWorkstream(row) {
+    if (!isOpenCheck(row)) return { key: "completed", label: "Completato", priority: 90 };
+    if (row?.check?.status === "more_info_required") {
+      return { key: "waiting_customer", label: "In attesa integrazione", priority: 40 };
+    }
+    if (row?.bill?.automatic_screening_status !== "review_recommended") {
+      return { key: "standard", label: "Controllo Staff", priority: 50 };
+    }
+
+    const result = row?.bill?.red_verification_result && typeof row.bill.red_verification_result === "object"
+      ? row.bill.red_verification_result
+      : {};
+    const resultVersion = String(result.version || "");
+    if (resultVersion && resultVersion !== RED_VERIFIER_VERSION) {
+      return { key: "second_ai_pending", label: "Seconda IA da aggiornare", priority: 30 };
+    }
+
+    const verificationState = String(row?.bill?.red_verification_state || "not_run");
+    if (["staff_required", "inconclusive", "failed"].includes(verificationState)) {
+      return { key: "staff_required", label: "Staff necessario", priority: 0 };
+    }
+    if (verificationState === "quick_verify") {
+      return { key: "quick_verify", label: "Verifica rapida", priority: 10 };
+    }
+    if (verificationState === "resolved_ai") {
+      return { key: "ai_resolved", label: "IA risolta · da chiudere", priority: 20 };
+    }
+    if (verificationState === "running") {
+      return { key: "second_ai_pending", label: "Seconda IA in corso", priority: 30 };
+    }
+    if (verificationState === "not_run") {
+      return { key: "second_ai_pending", label: "Seconda IA da eseguire", priority: 30 };
+    }
+    return { key: "standard", label: "Controllo Staff", priority: 50 };
+  }
+
+  function routeBadgeState(key) {
+    return ({
+      staff_required: "pending",
+      quick_verify: "assigned",
+      ai_resolved: "completed",
+      second_ai_pending: "more_info_required",
+      waiting_customer: "more_info_required",
+    })[key] || "";
+  }
+
+  function routeCount(key) {
+    return rows.filter(row => isOpenCheck(row) && redWorkstream(row).key === key).length;
+  }
+
+  function sortOperationalRows(items) {
+    return [...items].sort((left, right) => {
+      const leftRoute = redWorkstream(left);
+      const rightRoute = redWorkstream(right);
+      if (leftRoute.priority !== rightRoute.priority) return leftRoute.priority - rightRoute.priority;
+      const leftTime = new Date(left.check?.created_at || 0).getTime() || 0;
+      const rightTime = new Date(right.check?.created_at || 0).getTime() || 0;
+      if (isOpenCheck(left) && isOpenCheck(right)) return leftTime - rightTime;
+      return rightTime - leftTime;
+    });
+  }
+
+  function setMetricLabel(target, label) {
+    const card = target?.closest?.(".metric");
+    setText(card?.querySelector("span"), label);
+  }
+
+  function percentOf(part, total) {
+    if (!Number.isFinite(Number(total)) || Number(total) <= 0) return "—";
+    return `${Math.round((Number(part || 0) / Number(total)) * 100)}%`;
+  }
+
+  function formatCompactEuro(value) {
+    const amount = Number(value);
+    if (!Number.isFinite(amount)) return "—";
+    return new Intl.NumberFormat("it-IT", {
+      style: "currency",
+      currency: "EUR",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 4,
+    }).format(amount);
+  }
+
+  function metricNode(label, value) {
+    return node("article", { className: "metric" }, [
+      node("span", { text: label }),
+      node("strong", { text: value }),
+    ]);
+  }
+
+  function clearControlMetricGrids() {
+    controlMetricGrids.forEach(element => element.remove());
+    controlMetricGrids = [];
+  }
+
+  function renderControlCenterMetrics() {
+    clearControlMetricGrids();
+    if (!canViewControlMetrics || !controlMetrics || controlMetrics.unavailable) return;
+    const baseGrid = state.metricPending?.closest?.(".metrics");
+    if (!baseGrid?.parentNode) return;
+
+    const total = controlMetrics.redTotal;
+    const countPrefix = controlMetrics.redTruncated ? "≥" : "";
+    const panorama = node("div", { className: "metrics", attrs: { "aria-label": `Panorama IA ultimi ${CONTROL_METRICS_DAYS} giorni` } }, [
+      metricNode(`Rosse · ${CONTROL_METRICS_DAYS} gg`, `${countPrefix}${total}`),
+      metricNode("Risolte IA", controlMetrics.redTruncated ? `${controlMetrics.resolvedAi} · —` : `${controlMetrics.resolvedAi} · ${percentOf(controlMetrics.resolvedAi, total)}`),
+      metricNode("IA + verifica", controlMetrics.redTruncated ? `${controlMetrics.quickVerify} · —` : `${controlMetrics.quickVerify} · ${percentOf(controlMetrics.quickVerify, total)}`),
+      metricNode("Staff necessario", controlMetrics.redTruncated ? `${controlMetrics.staffNeeded} · —` : `${controlMetrics.staffNeeded} · ${percentOf(controlMetrics.staffNeeded, total)}`),
+    ]);
+
+    const humanPrefix = controlMetrics.humanTruncated ? "≥" : "";
+    const costCoverage = `${controlMetrics.costCovered}/${total}`;
+    const efficiency = node("div", { className: "metrics", attrs: { "aria-label": `Efficienza ultimi ${CONTROL_METRICS_DAYS} giorni` } }, [
+      metricNode(`Minuti umani · ${CONTROL_METRICS_DAYS} gg`, `${humanPrefix}${controlMetrics.humanMinutes}`),
+      metricNode(`Costo IA / caso · ${costCoverage}`, controlMetrics.averageAiCost == null ? "—" : formatCompactEuro(controlMetrics.averageAiCost)),
+      metricNode("Costo IA totale", controlMetrics.totalAiCost == null ? "—" : formatCompactEuro(controlMetrics.totalAiCost)),
+      metricNode("Costo umano stimato · tariffa non configurata", "—"),
+    ]);
+
+    baseGrid.after(panorama, efficiency);
+    controlMetricGrids = [panorama, efficiency];
+  }
+
+  function ensureRouteFilters() {
+    if (!state.statusFilter || state.statusFilter.querySelector('optgroup[data-control-routes="true"]')) return;
+    const group = node("optgroup", { attrs: { label: "Priorità IA", "data-control-routes": "true" } });
+    [
+      ["staff_required", "Staff necessario"],
+      ["quick_verify", "Verifica rapida"],
+      ["ai_resolved", "IA risolta · da chiudere"],
+      ["second_ai_pending", "Seconda IA da eseguire"],
+    ].forEach(([key, label]) => {
+      const item = option(`route:${key}`, label);
+      routeFilterOptions.set(key, item);
+      group.append(item);
+    });
+    state.statusFilter.append(group);
+  }
+
+  function updateRouteFilterLabels() {
+    const labels = {
+      staff_required: "Staff necessario",
+      quick_verify: "Verifica rapida",
+      ai_resolved: "IA risolta · da chiudere",
+      second_ai_pending: "Seconda IA da eseguire",
+    };
+    Object.entries(labels).forEach(([key, label]) => {
+      const item = routeFilterOptions.get(key);
+      if (item) item.textContent = `${label} (${routeCount(key)})`;
+    });
+  }
+
+  function renderOperationalGuidance(container, row) {
+    if (!isOpenCheck(row)) return;
+    const route = redWorkstream(row);
+    const copy = ({
+      staff_required: "La seconda IA non può chiudere il caso in autonomia. Controlla PDF, evidenze e riferimento offerta prima di decidere.",
+      quick_verify: "Verifica rapida: controlla gli elementi indicati dalla seconda IA e il riferimento offerta. Se sono coerenti, puoi concludere il controllo.",
+      ai_resolved: "La seconda IA ha risolto il rosso. Questa pratica era già stata richiesta dal cliente: controlla il riepilogo e pubblica la chiusura finale.",
+      second_ai_pending: "Esegui o aggiorna la seconda verifica IA prima della decisione Staff, salvo necessità urgente di controllo manuale.",
+      waiting_customer: "Il controllo è in attesa dell’integrazione richiesta al cliente.",
+    })[route.key];
+    if (!copy) return;
+    container.append(node("div", { className: "ai-warning" }, [
+      node("strong", { text: route.label }),
+      node("p", { text: copy }),
+    ]));
+  }
+
+  async function loadControlCenterPermission() {
+    const { data, error } = await client.rpc("premium_staff_permission_allowed", {
+      p_permission_key: "view_control",
+    });
+    canViewControlMetrics = !error && data === true;
+    if (!canViewControlMetrics) controlMetrics = null;
+  }
+
+  async function loadControlCenterMetrics(sequence) {
+    if (!canViewControlMetrics) {
+      controlMetrics = null;
+      return;
+    }
+    const since = new Date(Date.now() - CONTROL_METRICS_DAYS * 24 * 60 * 60 * 1000).toISOString();
+    try {
+      const [redResult, humanResult] = await Promise.all([
+        client.from("premium_bills")
+          .select("id, red_verification_state, automatic_screened_at")
+          .eq("automatic_screening_status", "review_recommended")
+          .gte("automatic_screened_at", since)
+          .is("deleted_at", null)
+          .order("automatic_screened_at", { ascending: false })
+          .limit(CONTROL_METRICS_LIMIT),
+        client.from("premium_checks")
+          .select("id, human_seconds, completed_at")
+          .eq("status", "completed")
+          .gte("completed_at", since)
+          .order("completed_at", { ascending: false })
+          .limit(CONTROL_METRICS_LIMIT),
+      ]);
+      if (sequence !== loadSequence) return;
+      if (redResult.error) throw redResult.error;
+      if (humanResult.error) throw humanResult.error;
+
+      const redBills = redResult.data || [];
+      const humanChecks = humanResult.data || [];
+      const redIds = redBills.map(item => item.id).filter(Boolean);
+      const costRows = [];
+      for (let offset = 0; offset < redIds.length; offset += CONTROL_COST_CHUNK) {
+        const ids = redIds.slice(offset, offset + CONTROL_COST_CHUNK);
+        const { data, error } = await client.from("premium_analysis_runs")
+          .select("bill_id, estimated_cost_eur")
+          .in("bill_id", ids)
+          .not("estimated_cost_eur", "is", null)
+          .limit(CONTROL_METRICS_LIMIT);
+        if (sequence !== loadSequence) return;
+        if (error) throw error;
+        costRows.push(...(data || []));
+      }
+
+      const costByBill = new Map();
+      costRows.forEach(item => {
+        const amount = Number(item.estimated_cost_eur);
+        if (!item.bill_id || !Number.isFinite(amount) || amount < 0) return;
+        costByBill.set(item.bill_id, (costByBill.get(item.bill_id) || 0) + amount);
+      });
+      const totalAiCost = [...costByBill.values()].reduce((sum, value) => sum + value, 0);
+      const costCovered = costByBill.size;
+      const humanSeconds = humanChecks.reduce((sum, item) => {
+        const seconds = Number(item.human_seconds || 0);
+        return sum + (Number.isFinite(seconds) && seconds > 0 ? seconds : 0);
+      }, 0);
+      const states = redBills.map(item => String(item.red_verification_state || "not_run"));
+
+      controlMetrics = {
+        redTotal: redBills.length,
+        resolvedAi: states.filter(value => value === "resolved_ai").length,
+        quickVerify: states.filter(value => value === "quick_verify").length,
+        staffNeeded: states.filter(value => ["staff_required", "inconclusive", "failed"].includes(value)).length,
+        humanMinutes: Math.round(humanSeconds / 60),
+        totalAiCost: costCovered ? totalAiCost : null,
+        averageAiCost: costCovered ? totalAiCost / costCovered : null,
+        costCovered,
+        redTruncated: redBills.length >= CONTROL_METRICS_LIMIT,
+        humanTruncated: humanChecks.length >= CONTROL_METRICS_LIMIT,
+      };
+    } catch (_error) {
+      if (sequence === loadSequence) controlMetrics = { unavailable: true };
+    }
+  }
+
   function renderMetrics() {
     const today = new Date();
     const todayKey = `${today.getFullYear()}-${today.getMonth()}-${today.getDate()}`;
@@ -289,10 +551,16 @@
       const date = new Date(row.check.completed_at);
       return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}` === todayKey;
     }).length;
-    setText(state.metricPending, rows.filter(row => row.check.status === "pending").length);
-    setText(state.metricWorking, rows.filter(row => ["assigned", "in_review"].includes(row.check.status)).length);
-    setText(state.metricInfo, rows.filter(row => row.check.status === "more_info_required").length);
+    const openRows = rows.filter(isOpenCheck);
+    setMetricLabel(state.metricPending, "Pratiche aperte");
+    setMetricLabel(state.metricWorking, "Verifica rapida");
+    setMetricLabel(state.metricInfo, "Staff necessario");
+    setText(state.metricPending, openRows.length);
+    setText(state.metricWorking, openRows.filter(row => redWorkstream(row).key === "quick_verify").length);
+    setText(state.metricInfo, openRows.filter(row => redWorkstream(row).key === "staff_required").length);
     setText(state.metricCompletedToday, completedToday);
+    updateRouteFilterLabels();
+    renderControlCenterMetrics();
   }
 
   function searchableText(row) {
@@ -312,7 +580,9 @@
     const assignment = String(state.assignmentFilter?.value || "");
     return rows.filter(row => {
       if (query && !searchableText(row).includes(query)) return false;
-      if (status && row.check.status !== status) return false;
+      if (status.startsWith("route:")) {
+        if (redWorkstream(row).key !== status.slice(6)) return false;
+      } else if (status && row.check.status !== status) return false;
       if (assignment === "unassigned" && row.check.assigned_staff_id) return false;
       if (assignment === "mine" && row.check.assigned_staff_id !== currentSession?.user?.id) return false;
       if (assignment === "other" && (!row.check.assigned_staff_id || row.check.assigned_staff_id === currentSession?.user?.id)) return false;
@@ -325,7 +595,7 @@
   }
 
   function renderQueue() {
-    const filtered = filteredRows();
+    const filtered = sortOperationalRows(filteredRows());
     clear(state.queue);
     setText(state.queueCount, `${filtered.length} ${filtered.length === 1 ? "richiesta" : "richieste"}`);
 
@@ -351,9 +621,12 @@
       ]);
       const top = node("div", { className: "queue-top" }, [title, makeBadge(row.check.status)]);
       const meta = node("div", { className: "queue-meta", text: `${supplyLabel(row.bill?.commodity)} · Richiesta ${formatDate(row.check.created_at, true)}` });
-      const badges = node("div", { className: "badges" }, [
-        makeBadge(row.check.outcome === "pending" ? "" : row.check.outcome, assignedLabel)
-      ]);
+      const route = redWorkstream(row);
+      const routeBadges = [makeBadge(row.check.outcome === "pending" ? "" : row.check.outcome, assignedLabel)];
+      if (isOpenCheck(row) && !["standard", "waiting_customer"].includes(route.key)) {
+        routeBadges.push(makeBadge(routeBadgeState(route.key), route.label));
+      }
+      const badges = node("div", { className: "badges" }, routeBadges);
       const button = node("button", {
         className: `queue-item${row.check.id === selectedId ? " active" : ""}`,
         type: "button",
@@ -975,7 +1248,10 @@
       ]));
     }
     if (stateValue === "not_run") {
-      section.append(node("div", { className: "timeline-item", text: "Questa pratica è precedente alla seconda verifica IA. Puoi eseguirla ora sulla stessa bolletta." }));
+      const historicalCopy = ["completed", "canceled"].includes(row.check.status)
+        ? "Questa pratica è precedente alla seconda verifica IA, che non è stata eseguita su questo controllo."
+        : "Questa pratica è precedente alla seconda verifica IA. Puoi eseguirla ora sulla stessa bolletta.";
+      section.append(node("div", { className: "timeline-item", text: historicalCopy }));
       container.append(section);
       return;
     }
@@ -1208,6 +1484,7 @@
       infoCard("Screening IA", automaticScreeningLabel(row.bill?.automatic_screening_status))
     ]));
 
+    renderOperationalGuidance(body, row);
     renderAutomaticScreening(body, row);
     renderRedVerification(body, row);
     if (row.check.status === "pending") renderWorkflow(body, row);
@@ -1319,6 +1596,9 @@
         profile: profileMap.get(check.user_id) || null
       };
     }).filter(row => row.bill);
+
+    await loadControlCenterMetrics(sequence);
+    if (sequence !== loadSequence) return;
 
     if (!keepSelection || !rows.some(row => row.check.id === selectedId)) {
       selectedId = rows[0]?.check.id || null;
@@ -1674,6 +1954,9 @@
     selectedAnalyses = [];
     selectedFieldReviews = [];
     queueLoaded = false;
+    canViewControlMetrics = false;
+    controlMetrics = null;
+    clearControlMetricGrids();
     stopValidationTimer();
     clear(state.queue);
     renderEmptyDetail();
@@ -1730,6 +2013,7 @@
 
       setText(state.staffIdentity, `${roleLabel(data.role)} · ${session.user.email || "account staff"}`);
       if (state.deleteVisibleChecks) state.deleteVisibleChecks.hidden = !isAdmin();
+      await loadControlCenterPermission();
 
       // Al primo ingresso carichiamo il modulo mentre e' ancora nascosto e lo
       // mostriamo solo quando la coda ha una struttura stabile.
@@ -1807,6 +2091,7 @@
 
   async function init() {
     bindState();
+    ensureRouteFilters();
     if (!window.supabase?.createClient) {
       setView("auth");
       setAuthMessage("error", "Il collegamento al servizio di autenticazione non è disponibile.");
