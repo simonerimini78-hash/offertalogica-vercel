@@ -1,5 +1,5 @@
-// offer-resolution-v03637
-const CACHE = "offertalogica-premium-v03637-offer-resolution";
+// offer-resolution-ux-v03638
+const CACHE = "offertalogica-premium-v03638-offer-resolution-ux";
 const APP_SHELL = [
   "/app.html",
   "/app-dialog.js",

@@ -733,12 +733,18 @@
     return field;
   }
 
+  function setDeclaredOfferEditorOpen(editor, open) {
+    if (!editor) return;
+    editor.hidden = !open;
+    editor.style.display = open ? "grid" : "none";
+  }
+
   function renderDeclaredOfferEditor(bill, contract) {
     const editor = document.createElement("form");
     editor.className = "cloud-offer-candidates";
     editor.dataset.offerEditForm = contract.id;
     editor.dataset.offerBill = bill.id;
-    editor.hidden = true;
+    setDeclaredOfferEditorOpen(editor, false);
     const gas = bill.commodity === "gas";
     const code = gas ? contract.arera_offer_code_gas : contract.arera_offer_code_electricity;
     const price = gas ? contract.gas_price_eur_smc : contract.electricity_price_eur_kwh;
@@ -783,7 +789,7 @@
     save.type = "submit"; save.className = "cloud-bill-btn primary"; save.textContent = "SALVA DATI OFFERTA";
     const cancel = document.createElement("button");
     cancel.type = "button"; cancel.className = "cloud-bill-btn"; cancel.textContent = "ANNULLA";
-    cancel.addEventListener("click", () => { editor.hidden = true; });
+    cancel.addEventListener("click", () => { setDeclaredOfferEditorOpen(editor, false); });
     actions.append(save, cancel);
     editor.append(actions);
     editor.addEventListener("submit", event => sendDeclaredOfferUpdate(event, bill, contract));
@@ -884,7 +890,7 @@
       editButton.className = "cloud-bill-btn";
       editButton.textContent = "MODIFICA DATI OFFERTA";
       const editor = renderDeclaredOfferEditor(bill, contract);
-      editButton.addEventListener("click", () => { editor.hidden = !editor.hidden; });
+      editButton.addEventListener("click", () => { setDeclaredOfferEditorOpen(editor, editor.hidden); });
       actions.append(editButton);
       card.append(actions, editor);
     }

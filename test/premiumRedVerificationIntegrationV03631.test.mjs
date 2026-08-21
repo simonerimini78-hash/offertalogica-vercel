@@ -51,9 +51,9 @@ test('migrazione è additiva: nessuna nuova tabella o API, origin red_verificati
   assert.match(sql, /request\.jwt\.claim\.role/);
 });
 
-test('service worker forza cache v0.36.37', () => {
+test('service worker forza cache v0.36.38', () => {
   const sw = read('public/sw.js');
-  assert.match(sw, /offertalogica-premium-v03637-offer-resolution/);
+  assert.match(sw, /offertalogica-premium-v03638-offer-resolution-ux/);
 });
 
 test('app mostra secondo esito e mantiene rosso anche quando risolto dalla seconda IA', () => {
@@ -105,4 +105,14 @@ test('app sincronizza automaticamente esito e messaggio dei controlli Staff atti
   assert.match(app, /window\.addEventListener\("focus", resumeAutomaticWork\)/);
   assert.match(app, /scheduleAutomaticWork\(0\)/);
   assert.doesNotMatch(app, /setInterval\(/);
+});
+
+
+test('editor offerta dichiarata resta chiuso finche il cliente non lo apre', () => {
+  const app = read('public/app-premium-bills.js');
+  assert.match(app, /function setDeclaredOfferEditorOpen\(editor, open\)/);
+  assert.match(app, /editor\.style\.display = open \? "grid" : "none"/);
+  assert.match(app, /setDeclaredOfferEditorOpen\(editor, false\)/);
+  assert.match(app, /MODIFICA DATI OFFERTA/);
+  assert.match(app, /setDeclaredOfferEditorOpen\(editor, editor\.hidden\)/);
 });
