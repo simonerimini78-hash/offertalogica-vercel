@@ -10,7 +10,7 @@
   const PREMIUM_STAFF_BILLING_URL = `${SUPABASE_URL}/functions/v1/premium-staff-billing`;
   const PREMIUM_STAFF_INVITE_URL = `${SUPABASE_URL}/functions/v1/premium-staff-invite`;
   const HUMAN_COST_EUR_PER_HOUR = 30;
-  const VERIFIED_COST_PRICING_VERSION = "premium-eur-v0.36.42";
+  const VERIFIED_COST_PRICING_VERSIONS = new Set(["premium-eur-v0.36.42", "premium-ecb-eur-v0.36.43"]);
 
   let client = null;
   let currentSession = null;
@@ -794,6 +794,7 @@
     if (layer) layer.hidden = true;
     complimentaryCustomer = null;
     setComplimentaryStatus("", "");
+    window.dispatchEvent(new Event("offertalogica:staff-save-complete"));
   }
 
   function openComplimentary(customer) {
@@ -1378,6 +1379,7 @@
     activeSupportAccountSnapshot = null;
     if (byId("staffSupportAccountTools")) byId("staffSupportAccountTools").hidden = true;
     setSupportAccountStatus("", "");
+    window.dispatchEvent(new Event("offertalogica:staff-save-complete"));
   }
 
   function setSupportAccountStatus(kind, message) {
@@ -1612,6 +1614,7 @@
         throw new Error("La risposta non è stata confermata dal database. Riprova prima di chiudere la pratica.");
       }
       textarea.value = "";
+      window.dispatchEvent(new Event("offertalogica:staff-save-complete"));
       renderSupportThread(verifiedMessages);
       await loadSupportRequests({ silent: true });
       renderCases();
@@ -1924,7 +1927,7 @@
 
   function runHasVerifiedEurPricing(run) {
     const usage = run?.usage_details && typeof run.usage_details === "object" ? run.usage_details : {};
-    return usage.pricing_verified_eur === true && usage.pricing_version === VERIFIED_COST_PRICING_VERSION;
+    return usage.pricing_verified_eur === true && VERIFIED_COST_PRICING_VERSIONS.has(usage.pricing_version);
   }
 
   function verifiedRunCost(run) {
@@ -2059,20 +2062,27 @@
     const rate = config.rateLimits || {};
     const pricing = config.pricing || {};
     const pricingValue = (value, field, unit = "€/1M") => {
-      if (field && pricing.sources?.[field] === "model_default") return "Da configurare in EUR";
       if (value === null || value === undefined || value === "") return "Mancante";
       const amount = Number(value);
       return Number.isFinite(amount) ? `${formatNumber(amount, 4)} ${unit}` : "Mancante";
     };
     const pricingSource = field => {
       const source = pricing.sources?.[field];
-      if (source === "environment") return "Variabile Vercel EUR";
-      if (source === "model_default") return "Fallback modello escluso dai costi EUR";
-      return "Variabile non ricevuta";
+      if (source === "openai_usd_x_ecb") return "Listino OpenAI USD × cambio BCE";
+      if (source === "environment") return "Tariffa EUR legacy da Vercel";
+      if (source === "model_default") return "Fallback legacy escluso dai nuovi costi";
+      return "Fonte non disponibile";
     };
+    const fx = pricing.fx || {};
+    const fxDate = fx.referenceDate ? formatDate(`${fx.referenceDate}T12:00:00Z`, false) : "—";
+    const fxRate = Number(fx.usdToEur);
+    const fxLabel = Number.isFinite(fxRate) ? `1 USD = ${formatNumber(fxRate, 6)} €` : "Non disponibile";
+    const fxNote = fx.referenceDate
+      ? `BCE · ${fxDate}${fx.stale ? " · ultimo cambio valido in cache" : " · aggiornamento automatico"}`
+      : "Cambio BCE non disponibile";
     const pricingNote = pricing.complete
-      ? "Tariffe EUR esplicite: token e ricerca web sono contabilizzabili."
-      : `Da configurare: ${(pricing.missing || []).join(", ") || "una o più tariffe EUR"}. I fallback del modello non vengono contabilizzati come euro.`;
+      ? `Listino OpenAI in USD convertito automaticamente con il cambio BCE (${fxLabel}).`
+      : `Costo automatico non disponibile: ${(pricing.missing || []).join(", ") || "listino o cambio mancanti"}.`;
     const complete = Boolean(
       config.supabaseConfigured
       && config.databaseOperational
@@ -2093,11 +2103,12 @@
       configCard("OpenAI API", config.openAiConfigured ? "Configurata" : "Mancante", config.model || "—"),
       configCard("Storico offerte ARERA", config.offerHistoryOperational ? "Disponibile" : "Non disponibile", config.offerHistoryOperational ? `${formatNumber(config.offerHistoryOffers || 0)} offerte${config.offerHistoryVersion ? ` · ${config.offerHistoryVersion}` : ""}` : "Riconoscimento offerta provvisorio"),
       configCard("Rate limit persistente", config.persistentRateLimitConfigured && config.persistentRateLimitOperational ? "Operativo" : (config.persistentRateLimitConfigured ? "Errore collegamento" : "Solo memoria"), "Per la beta serve Redis/KV persistente"),
-      configCard("Tariffe IA", pricing.complete ? "Complete" : "Incomplete", pricingNote),
+      configCard("Tariffe IA", pricing.complete ? "Automatiche" : "Non disponibili", pricingNote),
+      configCard("Cambio USD → EUR", fxLabel, fxNote),
       configCard("Tariffa input IA", pricingValue(pricing.inputPerMillion, "inputPerMillion"), pricingSource("inputPerMillion")),
       configCard("Tariffa cache IA", pricingValue(pricing.cachedInputPerMillion, "cachedInputPerMillion"), pricingSource("cachedInputPerMillion")),
       configCard("Tariffa output IA", pricingValue(pricing.outputPerMillion, "outputPerMillion"), pricingSource("outputPerMillion")),
-      configCard("Tariffa ricerca web IA", pricingValue(pricing.webSearchPerThousand, null, "€/1.000 ricerche"), pricing.webSearchPerThousand == null ? "Variabile non ricevuta" : "Variabile Vercel EUR"),
+      configCard("Tariffa ricerca web IA", pricingValue(pricing.webSearchPerThousand, "webSearchPerThousand", "€/1.000 ricerche"), pricingSource("webSearchPerThousand")),
       configCard("Limite PDF", `${formatNumber(Number(config.maxPdfBytes || 0) / 1_000_000, 1)} MB`),
       configCard("Deadline IA", `${formatNumber(Number(config.deadlineMs || 0) / 1000, 1)} s`),
       configCard("Analisi cliente", `${rate.customerAnalysis?.limit || 0} / ${Math.round(Number(rate.customerAnalysis?.windowSeconds || 0) / 60)} min`),
@@ -2137,6 +2148,7 @@
       if (error) throw error;
       form?.reset();
       if (form?.elements?.role) form.elements.role.value = "technician";
+      window.dispatchEvent(new Event("offertalogica:staff-save-complete"));
       await loadCollaborators({ silent: true });
       setMessage("success", `${email} aggiunto come ${roleLabel(role)}.`);
     } catch (error) {
@@ -2180,6 +2192,7 @@
       if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `Errore HTTP ${response.status}`);
       form?.reset();
       if (form?.elements?.role) form.elements.role.value = "technician";
+      window.dispatchEvent(new Event("offertalogica:staff-save-complete"));
       await loadCollaborators({ silent: true });
       setMessage("success", `Invito inviato a ${email}. Il collaboratore deve aprire l’email e impostare la password.`);
     } catch (error) {
@@ -2444,11 +2457,16 @@
     cache.costSummary = { runs: cache.runs.length, tokens, aiCost, pricedRuns: verifiedCostRuns.length, humanSeconds, humanCost };
     text(byId("costRuns"), cache.runs.length);
     text(byId("costTokens"), formatNumber(tokens));
-    text(byId("costAi"), verifiedCostRuns.length ? formatMoney(aiCost) : "Tariffe EUR non configurate");
+    text(byId("costAi"), verifiedCostRuns.length
+      ? formatMoney(aiCost)
+      : cache.runs.length ? "Storico non verificato" : formatMoney(0));
     const humanDuration = humanSeconds >= 3600 ? `${formatNumber(humanSeconds / 3600, 1)} h` : `${Math.round(humanSeconds / 60)} min`;
     text(byId("costHuman"), `${humanDuration} · ${formatMoney(humanCost)}`);
     const humanMetric = byId("costHuman")?.closest(".metric");
-    if (humanMetric) text(humanMetric.querySelector("span"), `Tempo / costo umano · ${HUMAN_COST_EUR_PER_HOUR} €/h`);
+    if (humanMetric) {
+      text(humanMetric.querySelector("span"), "Tempo / costo operatore");
+      text(humanMetric.querySelector("small"), `Tariffa standard: ${HUMAN_COST_EUR_PER_HOUR} €/h`);
+    }
     renderCostRuns();
     renderCostEvents();
     if (!silent) setMessage("success", "Costi e tempi aggiornati.");
@@ -2461,7 +2479,9 @@
     text(byId("overviewLeadsMeta"), isAdmin() ? `${leadSummary.verifiedRows || 0} verificati OTP` : "Solo amministratori");
     text(byId("overviewCases"), cache.cases.length);
     text(byId("overviewCustomers"), cache.customers.length);
-    text(byId("overviewAiCost"), cache.costSummary.pricedRuns ? formatMoney(cache.costSummary.aiCost) : "Tariffe non configurate");
+    text(byId("overviewAiCost"), cache.costSummary.pricedRuns
+      ? formatMoney(cache.costSummary.aiCost)
+      : cache.costSummary.runs ? "Storico non verificato" : formatMoney(0));
     text(byId("navCaseCount"), cache.cases.length);
 
     const target = byId("overviewTasks");

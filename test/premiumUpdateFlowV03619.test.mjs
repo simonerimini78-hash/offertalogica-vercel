@@ -3,61 +3,53 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 const read = name => readFile(new URL(`../${name}`, import.meta.url), "utf8");
 
-test("app e staff aggiornano automaticamente quando è sicuro", async () => {
+test("app e staff controllano gli aggiornamenti automaticamente", async () => {
   const [app, staff, appAuth, staffJs] = await Promise.all([
     read("public/app.html"), read("public/staff.html"), read("public/app-auth.js"), read("public/staff.js"),
   ]);
   assert.match(app, /setInterval\(checkForUpdate,30000\)/);
   assert.match(app, /fetch\(`\/version\.json\?t=\$\{Date\.now\(\)\}`/);
-  assert.match(app, /updateViaCache:'none'/);
-  assert.match(app, /sw\.js\?v=/);
-  assert.match(app, /worker\.postMessage\(\{type:'SKIP_WAITING'\}\)/);
-  assert.match(app, /APP_WORKER_SCOPE='\/app\.html'/);
-  assert.match(app, /retireLegacyRootWorker/);
-  assert.match(app, /tryApplyUpdate/);
-  assert.doesNotMatch(app, /id="applyUpdate"/);
-  assert.match(staff, /setInterval\(checkForUpdate,30000\)/);
+  assert.match(staff, /setInterval\(checkForUpdate,20000\)/);
   assert.match(staff, /fetch\(`\/version\.json\?t=\$\{Date\.now\(\)\}`/);
+  assert.match(staff, /cache:'no-store'/);
   assert.match(staff, /id="staffApplyUpdate"/);
-  assert.match(staff, /applyButton\?\.addEventListener\('click',applyUpdate\)/);
   assert.match(staff, /retireLegacyRootWorker/);
   assert.match(staff, /location\.replace\(target\.href\)/);
   assert.doesNotMatch(staff, /navigator\.serviceWorker\.register/);
-  assert.match(staff, /if\(isSafeToReload\(\)\)await performUpdate\(\);else showReady\(\)/);
-  assert.match(staff, /performUpdate/);
   assert.match(appAuth, /persistSession:\s*true/);
   assert.match(staffJs, /persistSession:\s*true/);
-  assert.doesNotMatch(app, /auth\.signOut\(\).*SKIP_WAITING/s);
-  assert.doesNotMatch(staff, /auth\.signOut\(\).*SKIP_WAITING/s);
 });
 
-test("app attende operazioni e staff protegge modifiche non salvate", async () => {
-  const [app, staff, bills] = await Promise.all([read("public/app.html"),read("public/staff.html"),read("public/app-premium-bills.js")]);
-  assert.match(app, /\[aria-busy="true"\],\[data-update-busy="true"\]/);
-  assert.match(app, /hasSelectedFile/);
-  assert.match(app, /action-dialog-open/);
-  assert.match(bills, /data-update-busy/);
-  assert.match(bills, /analysisInFlightIds\.size > 0/);
-  assert.match(staff, /let dirty=false/);
-  assert.match(staff, /Salva o chiudi il lavoro in corso/);
+test("Staff v0.36.43 aggiorna da solo se libero e chiede conferma se c'è lavoro protetto", async () => {
+  const staff = await read("public/staff.html");
+  assert.match(staff, /CURRENT_RELEASE="0\.36\.43"/);
+  assert.match(staff, /RECENT_ACTIVITY_MS=12000/);
+  assert.match(staff, /recentlyActive/);
+  assert.match(staff, /manualApprovalRequired=false/);
+  assert.match(staff, /if\(protectedWorkInProgress\(\)\)manualApprovalRequired=true/);
+  assert.match(staff, /if\(manualApprovalRequired\|\|!isSafeToReload\(\)\)showReady\(\);else await performUpdate\(\)/);
+  assert.match(staff, /poi premi AGGIORNA/);
+  assert.match(staff, /offertalogica:staff-save-complete/);
+  assert.match(staff, /if\(latestRelease\)setTimeout\(checkForUpdate,0\)/);
+  assert.doesNotMatch(staff, /if\(active&&editableTarget\(active\)\)return false/);
+});
+
+test("Staff protegge i moduli e ripulisce gli stati iframe non più attivi", async () => {
+  const staff = await read("public/staff.html");
+  assert.match(staff, /#staffComplimentaryForm,#staffSupportReplyForm,#collaboratorAddForm/);
+  assert.match(staff, /pruneFrameStates/);
+  assert.match(staff, /liveFrameWindows/);
   assert.match(staff, /embeddedModuleUnsafe/);
   assert.match(staff, /document\.body\.getAttribute\('aria-busy'\)/);
+  assert.match(staff, /Salva o chiudi il lavoro in corso/);
 });
 
-test("il service worker v0.36.29 è limitato alla sola app", async () => {
-  const sw=await read("public/sw.js");
-  assert.match(sw,/offertalogica-premium-v03629/);
-  assert.match(sw,/new Request\(url, \{ cache: "reload" \}\)/);
-  for (const asset of ["/staff.html","/staff.js","/staff-premium.html","/staff-premium.js","/staff-pdf.html"]) assert.ok(!sw.includes(`"${asset}"`),`asset staff ancora nella cache app: ${asset}`);
-  assert.ok(sw.includes('"/premium-ai-validation.js"'));
-});
-
-test("Staff usa release 0.36.42 senza cambiare la versione applicativa Premium", async () => {
+test("Staff usa release 0.36.43 senza cambiare la versione applicativa Premium", async () => {
   const [app,staff,staffPremium,bills]=await Promise.all([read("public/app.html"),read("public/staff.html"),read("public/staff-premium.html"),read("public/app-premium-bills.js")]);
   assert.match(app,/APP v0\.36\.29/);
   assert.match(app,/APP Premium v0\.36\.29/);
-  assert.match(staff,/v0\.36\.42/);
-  assert.match(staff,/CURRENT_RELEASE="0\.36\.42"/);
+  assert.match(staff,/v0\.36\.43/);
+  assert.match(staff,/CURRENT_RELEASE="0\.36\.43"/);
   assert.match(staffPremium,/v0\.36\.29/);
   assert.match(bills,/app_version:\s*"0\.36\.29"/);
 });

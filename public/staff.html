@@ -52,7 +52,7 @@
 <header class="topbar">
   <div class="brand">
     <img src="/assets/logo-offertalogica-icon.png" alt="OffertaLogica">
-    <div><h1>Control Center OffertaLogica</h1><p>Centro operativo per clienti, pratiche, verifiche e dati · v0.36.42</p></div>
+    <div><h1>Control Center OffertaLogica</h1><p>Centro operativo per clienti, pratiche, verifiche e dati · v0.36.43</p></div>
   </div>
   <div class="top-actions" id="staffTopActions" hidden>
     <span class="staff-chip" id="staffIdentity">Staff</span>
@@ -114,7 +114,7 @@
         <section class="panel"><div class="panel-head"><h3>Priorità operative</h3><small>Pratiche raccolte dai moduli operativi</small></div><div class="panel-body" id="overviewTasks"><div class="empty">Caricamento…</div></div></section>
         <section class="panel"><div class="panel-head"><h3>Acquisizione e conversione</h3><small>Funnel essenziale</small></div><div class="panel-body"><div class="funnel" id="overviewFunnel"></div></div></section>
       </div>
-      <div class="version">Control Center Staff v0.36.42</div>
+      <div class="version">Control Center Staff v0.36.43</div>
     </section>
 
     <section class="view" data-staff-view="cases">
@@ -197,7 +197,7 @@
 
     <section class="view" data-staff-view="costs">
       <div class="view-head"><div><h2>Costi IA e configurazione</h2><p>Monitoraggio tecnico di analisi, costi, tempi staff e configurazione operativa.</p></div><div class="view-actions"><button class="button secondary" id="costRefresh" type="button">Aggiorna</button><button class="button danger" id="costDeleteRuns" type="button">Elimina analisi visibili</button><button class="button danger" id="costDeleteEvents" type="button">Elimina costi visibili</button></div></div>
-      <div class="metrics"><article class="metric"><span>Analisi IA</span><strong id="costRuns">0</strong></article><article class="metric"><span>Token totali</span><strong id="costTokens">0</strong></article><article class="metric"><span>Costo IA stimato</span><strong id="costAi">—</strong></article><article class="metric"><span>Tempo umano</span><strong id="costHuman">0 min</strong></article></div>
+      <div class="metrics"><article class="metric"><span>Analisi IA</span><strong id="costRuns">0</strong></article><article class="metric"><span>Token totali</span><strong id="costTokens">0</strong></article><article class="metric"><span>Costo IA stimato</span><strong id="costAi">0,00 €</strong></article><article class="metric"><span>Tempo / costo operatore</span><strong id="costHuman">0 min · 0,00 €</strong><small>Tariffa standard: 30 €/h</small></article></div>
       <section class="panel" id="systemConfigPanel"><div class="panel-head"><div><h3>Configurazione operativa</h3><small>Controlli automatici di database, storage, IA, storico ARERA, costi e rate limit senza mostrare chiavi o segreti.</small></div><span id="systemConfigOverall" class="badge warn">DA VERIFICARE</span></div><div id="systemConfigGrid" class="config-grid"><div class="empty">Disponibile agli amministratori.</div></div></section>
       <div class="grid-2"><section class="panel"><div class="panel-head"><h3>Ultime analisi IA</h3></div><div class="table-wrap"><table class="data-table"><thead><tr><th>Data</th><th>Origine</th><th>Stato</th><th>Modello</th><th>Token</th><th>Costo</th><th>Azioni</th></tr></thead><tbody id="costRunRows"></tbody></table></div></section><section class="panel"><div class="panel-head"><h3>Registro costi</h3></div><div class="table-wrap"><table class="data-table"><thead><tr><th>Data</th><th>Tipo</th><th>Fornitore</th><th>Quantità</th><th>Costo</th><th>Azioni</th></tr></thead><tbody id="costEventRows"></tbody></table></div></section></div>
     </section>
@@ -347,28 +347,35 @@
 </script>
 <script>
   (()=>{
-    const CURRENT_RELEASE="0.36.42";
-    let latestRelease="";let updateCheckInFlight=null;let updateTimer=null;let dirty=false;
+    const CURRENT_RELEASE="0.36.43";
+    const RECENT_ACTIVITY_MS=12000;
+    let latestRelease="";let updateCheckInFlight=null;let updateTimer=null;let dirty=false;let lastUserActivityAt=0;let manualApprovalRequired=false;
     const frameStates=new Map();
     const notice=document.getElementById('staffUpdateNotice');const noticeText=document.getElementById('staffUpdateNoticeText');const applyButton=document.getElementById('staffApplyUpdate');
     const editableTarget=target=>target instanceof Element&&Boolean(target.closest('input,textarea,select,[contenteditable="true"]'));
-    const unsavedTarget=target=>target instanceof Element&&Boolean(target.closest('#staffComplimentaryForm input,#staffComplimentaryForm textarea,#staffComplimentaryForm select'));
-    const markDirty=event=>{if(unsavedTarget(event.target))dirty=true};
+    const unsavedTarget=target=>target instanceof Element&&Boolean(target.closest('#staffComplimentaryForm,#staffSupportReplyForm,#collaboratorAddForm'));
+    const noteActivity=event=>{if(event.type==='pointerdown'||editableTarget(event.target))lastUserActivityAt=Date.now()};
+    const markDirty=event=>{noteActivity(event);if(unsavedTarget(event.target))dirty=true};
+    document.addEventListener('pointerdown',noteActivity,true);document.addEventListener('keydown',noteActivity,true);
     document.addEventListener('input',markDirty,true);document.addEventListener('change',markDirty,true);
-    addEventListener('offertalogica:staff-save-complete',()=>{dirty=false});
-    addEventListener('message',event=>{if(event.origin!==location.origin||event.data?.type!=='offertalogica:staff-update-state')return;frameStates.set(event.source,{dirty:Boolean(event.data.dirty),busy:Boolean(event.data.busy)})});
-    const embeddedModuleUnsafe=()=>[...frameStates.values()].some(state=>state.dirty||state.busy)||[...document.querySelectorAll('iframe.module-frame')].some(frame=>{try{const doc=frame.contentDocument;if(!doc)return false;return doc.body?.getAttribute('aria-busy')==='true'||doc.body?.dataset.updateDirty==='true'||Boolean(doc.querySelector('[role="dialog"]:not([hidden])'))}catch{return false}});
-    const isSafeToReload=()=>{const active=document.activeElement;if(document.body.getAttribute('aria-busy')==='true'||document.querySelector('[aria-busy="true"]'))return false;if(dirty||embeddedModuleUnsafe())return false;if(document.querySelector('[role="dialog"]:not([hidden])'))return false;if(active&&editableTarget(active))return false;return true};
+    const liveFrameWindows=()=>new Set([...document.querySelectorAll('iframe.module-frame')].map(frame=>frame.contentWindow).filter(Boolean));
+    const pruneFrameStates=()=>{const live=liveFrameWindows();for(const source of frameStates.keys())if(!live.has(source))frameStates.delete(source)};
+    const embeddedModuleUnsafe=()=>{pruneFrameStates();return[...frameStates.values()].some(state=>state.dirty||state.busy)||[...document.querySelectorAll('iframe.module-frame')].some(frame=>{try{const doc=frame.contentDocument;if(!doc)return false;return doc.body?.getAttribute('aria-busy')==='true'||doc.body?.dataset.updateDirty==='true'||Boolean(doc.querySelector('[role="dialog"]:not([hidden])'))}catch{return false}})};
+    const recentlyActive=()=>Date.now()-lastUserActivityAt<RECENT_ACTIVITY_MS;
+    const protectedWorkInProgress=()=>{if(document.body.getAttribute('aria-busy')==='true'||document.querySelector('[aria-busy="true"]'))return true;if(dirty||embeddedModuleUnsafe())return true;if(document.querySelector('[role="dialog"]:not([hidden])'))return true;return false};
+    const isSafeToReload=()=>!protectedWorkInProgress()&&!recentlyActive();
     const setUpdateNotice=(message,show=true)=>{if(noticeText)noticeText.textContent=message;if(notice)notice.classList.toggle('show',show)};
-    const showReady=()=>{setUpdateNotice('Nuova versione disponibile. Aggiorna quando hai terminato il lavoro.');if(applyButton){applyButton.hidden=false;applyButton.disabled=false}};
+    const showReady=()=>{const message=manualApprovalRequired?'Nuova versione disponibile. Salva o chiudi il lavoro in corso, poi premi AGGIORNA.':'Nuova versione disponibile. Attendo che termini l’attività in corso, poi aggiorno automaticamente.';setUpdateNotice(message);if(applyButton){applyButton.hidden=false;applyButton.disabled=false}};
     const fetchLatestRelease=async()=>{const response=await fetch(`/version.json?t=${Date.now()}`,{cache:'no-store',headers:{'Cache-Control':'no-cache'}});if(!response.ok)throw new Error(`Versione non disponibile: ${response.status}`);const payload=await response.json();return String(payload?.version||'').trim()};
     const retireLegacyRootWorker=async()=>{if(!('serviceWorker' in navigator))return;const rootScope=new URL('/',location.origin).href;const registrations=await navigator.serviceWorker.getRegistrations();await Promise.all(registrations.filter(reg=>reg.scope===rootScope&&[reg.installing,reg.waiting,reg.active].filter(Boolean).some(worker=>{try{return new URL(worker.scriptURL).pathname==='/sw.js'}catch{return false}})).map(reg=>reg.unregister()))};
     const performUpdate=async()=>{if(!latestRelease)return;if(applyButton)applyButton.disabled=true;setUpdateNotice('Aggiornamento in corso…');await retireLegacyRootWorker();const target=new URL(location.href);target.searchParams.set('release',latestRelease);target.searchParams.set('t',String(Date.now()));location.replace(target.href)};
-    const applyUpdate=async()=>{if(!latestRelease)return;if(!isSafeToReload()){setUpdateNotice('È disponibile una nuova versione. Salva o chiudi il lavoro in corso, poi premi AGGIORNA.');showReady();return}await performUpdate()};
-    const checkForUpdate=()=>{if(document.visibilityState==='hidden')return Promise.resolve();if(updateCheckInFlight)return updateCheckInFlight;updateCheckInFlight=(async()=>{const latest=await fetchLatestRelease();if(latest&&latest!==CURRENT_RELEASE){latestRelease=latest;if(isSafeToReload())await performUpdate();else showReady()}else{latestRelease="";setUpdateNotice('',false);if(applyButton){applyButton.hidden=true;applyButton.disabled=false}}})().catch(error=>console.warn('Controllo aggiornamento Area staff non disponibile',error)).finally(()=>{updateCheckInFlight=null});return updateCheckInFlight};
+    const applyUpdate=async()=>{if(!latestRelease)return;if(!isSafeToReload()){showReady();return}await performUpdate()};
+    const checkForUpdate=()=>{if(document.visibilityState==='hidden')return Promise.resolve();if(updateCheckInFlight)return updateCheckInFlight;updateCheckInFlight=(async()=>{const latest=await fetchLatestRelease();if(latest&&latest!==CURRENT_RELEASE){latestRelease=latest;if(protectedWorkInProgress())manualApprovalRequired=true;if(manualApprovalRequired||!isSafeToReload())showReady();else await performUpdate()}else{latestRelease="";manualApprovalRequired=false;setUpdateNotice('',false);if(applyButton){applyButton.hidden=true;applyButton.disabled=false}}})().catch(error=>console.warn('Controllo aggiornamento Area staff non disponibile',error)).finally(()=>{updateCheckInFlight=null});return updateCheckInFlight};
+    addEventListener('offertalogica:staff-save-complete',()=>{dirty=false;if(latestRelease)setTimeout(checkForUpdate,0)});
+    addEventListener('message',event=>{if(event.origin!==location.origin||event.data?.type!=='offertalogica:staff-update-state')return;frameStates.set(event.source,{dirty:Boolean(event.data.dirty),busy:Boolean(event.data.busy)});if(latestRelease&&!event.data.dirty&&!event.data.busy)setTimeout(checkForUpdate,0)});
     applyButton?.addEventListener('click',applyUpdate);
     addEventListener('focus',checkForUpdate);addEventListener('online',checkForUpdate);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkForUpdate()});addEventListener('pagehide',()=>{if(updateTimer)clearInterval(updateTimer)});
-    addEventListener('load',async()=>{await checkForUpdate();updateTimer=setInterval(checkForUpdate,30000)},{once:true});
+    addEventListener('load',async()=>{await checkForUpdate();updateTimer=setInterval(checkForUpdate,20000)},{once:true});
   })();
 </script>
 </body>
