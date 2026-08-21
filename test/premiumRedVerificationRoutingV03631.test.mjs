@@ -10,7 +10,7 @@ import {
   verifyPremiumRedPdf,
 } from '../lib/premiumRedVerifier.js';
 
-const reason = code => ({ code, title: code, description: 'test', severity: 'high', source: 'test' });
+const reason = (code, extra = {}) => ({ code, title: code, description: 'test', severity: 'high', source: 'test', ...extra });
 const verified = overrides => ({
   issue: 'Prezzo diverso dal contratto',
   evidence: [{ page: 2, fact: 'Prezzo vendita 0,20 €/kWh' }],
@@ -56,6 +56,28 @@ test('routing FASE2: penali, documento_altro e codici sconosciuti richiedono Sta
   for (const code of ['documento_penale', 'documento_altro', 'nuovo_codice_non_classificato']) {
     assert.equal(routePremiumRedReasons([reason(code)]).route, 'staff_required', code);
   }
+});
+
+
+test('gli avvisi gialli persistiti insieme ai rossi non influenzano il routing', () => {
+  const route = routePremiumRedReasons([
+    reason('fornitore_diverso_dal_contratto', { trafficLight: 'red' }),
+    reason('prezzo_gas_diverso_dal_contratto', { trafficLight: 'red' }),
+    reason('offerta_da_confermare', { trafficLight: 'yellow', severity: 'medium', source: 'offer_match' }),
+  ]);
+  assert.equal(route.route, 'ai_verify');
+  assert.deepEqual(route.codes.sort(), ['fornitore_diverso_dal_contratto', 'prezzo_gas_diverso_dal_contratto'].sort());
+});
+
+test('disaccordo not_confirmed forza un motivo di escalation coerente', () => {
+  const routeInfo = routePremiumRedReasons([reason('fornitore_diverso_dal_contratto', { trafficLight: 'red' })]);
+  const result = normalizePremiumRedVerification(verified({
+    verification_result: 'not_confirmed',
+    escalation_reason: 'Non è necessaria escalation.',
+  }), { routeInfo });
+  assert.equal(result.decision, 'inconclusive');
+  assert.match(result.escalation_reason, /necessaria una verifica Staff/i);
+  assert.doesNotMatch(result.escalation_reason, /non è necessaria escalation/i);
 });
 
 test('routing misto usa priorità staff_required > ai_verify > auto_ai', () => {
@@ -113,6 +135,12 @@ test('la confidence è categoriale e non introduce una soglia numerica nascosta'
   assert.equal(low.decision, 'resolved_ai');
 });
 
+
+test('cache della seconda verifica è riusata solo con la stessa versione del router', async () => {
+  const api = await fs.readFile(new URL('../api/premium-ai-analysis.js', import.meta.url), 'utf8');
+  assert.match(api, /cachedResult\.version === PREMIUM_RED_VERIFIER_VERSION/);
+});
+
 test('seconda verifica usa direttamente il PDF e JSON schema strutturato', async () => {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ol-red-verify-'));
   const pdf = path.join(dir, 'test.pdf');
@@ -130,7 +158,10 @@ test('seconda verifica usa direttamente il PDF e JSON schema strutturato', async
     const output = await verifyPremiumRedPdf({
       filePath: pdf,
       filename: 'test.pdf',
-      reasons: [reason('prezzo_luce_diverso_dal_contratto')],
+      reasons: [
+        reason('prezzo_luce_diverso_dal_contratto', { trafficLight: 'red' }),
+        reason('offerta_da_confermare', { trafficLight: 'yellow', severity: 'medium', source: 'offer_match' }),
+      ],
       firstAnalysis: { prezzo_luce_eur_kwh: 0.2, codice_fiscale: 'NON_DEVE_ESSERE_INVIATO' },
       firstAnalysisRunId: 'run-first',
       contract: { verification_status: 'verified', electricity_price_eur_kwh: 0.18 },
@@ -146,6 +177,8 @@ test('seconda verifica usa direttamente il PDF e JSON schema strutturato', async
     assert.match(requestSeen.input[1].content[0].file_data, /^data:application\/pdf;base64,/);
     const context = requestSeen.input[1].content[1].text;
     assert.match(context, /prezzo_luce_eur_kwh/);
+    assert.match(context, /prezzo_luce_diverso_dal_contratto/);
+    assert.doesNotMatch(context, /offerta_da_confermare/);
     assert.doesNotMatch(context, /NON_DEVE_ESSERE_INVIATO/);
   } finally {
     await fs.rm(dir, { recursive: true, force: true });

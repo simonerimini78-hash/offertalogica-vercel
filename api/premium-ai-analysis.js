@@ -250,6 +250,7 @@ export function createPremiumAiAnalysisHandler({
             : {};
           const cachedState = String(snapshot.bill.red_verification_state || "not_run");
           const reusable = ["resolved_ai", "quick_verify", "staff_required", "inconclusive"].includes(cachedState)
+            && cachedResult.version === PREMIUM_RED_VERIFIER_VERSION
             && cachedResult.first_analysis_run_id
             && cachedResult.first_analysis_run_id === snapshot.bill.automatic_analysis_run_id;
           if (reusable) {
