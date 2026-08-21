@@ -29,6 +29,7 @@
   let busy = false;
   const expandedBillIds = new Set();
   const analysisInFlightIds = new Set();
+  const redVerificationInFlightIds = new Set();
   const analysisAttemptFailures = new Set();
   let pollTimer = null;
   let checkConfirmationResolve = null;
@@ -76,7 +77,7 @@
   }
 
   function syncUpdateBusyState() {
-    const updateBusy = busy || analysisInFlightIds.size > 0;
+    const updateBusy = busy || analysisInFlightIds.size > 0 || redVerificationInFlightIds.size > 0;
     state.card?.setAttribute("data-update-busy", updateBusy ? "true" : "false");
     window.dispatchEvent(new CustomEvent("offertalogica:update-state", { detail: { busy: updateBusy } }));
   }
@@ -305,6 +306,7 @@
 
   function canRequestCheck(bill, check) {
     return isRedCheckRequestable(bill, check)
+      && !redVerificationInFlightIds.has(bill.id)
       && !redVerificationResolvedByAi(bill)
       && !trialStaffCheckUsed();
   }
@@ -1531,8 +1533,13 @@
       expandedBillIds.add(billId);
       await loadData(currentUser, currentSubscription);
       if (decision === "confirm") {
-        const kind = body?.screening?.status === "clear" ? "success" : "info";
-        setMessage(kind, body?.screening?.summary || "Offerta confermata e condizioni registrate.");
+        const updatedBill = bills.find(item => item.id === billId);
+        if (automaticRedVerificationEligible(updatedBill)) {
+          await runAutomaticRedVerification(billId);
+        } else {
+          const kind = body?.screening?.status === "clear" ? "success" : "info";
+          setMessage(kind, body?.screening?.summary || "Offerta confermata e condizioni registrate.");
+        }
       } else {
         setMessage("success", "Proposta esclusa. La scheda resta provvisoria e non viene usata per i controlli contrattuali.");
       }
@@ -1543,6 +1550,61 @@
       setMessage("error", friendlyError(error));
     } finally {
       setBusy(false);
+      renderEnabled();
+    }
+  }
+
+  function automaticRedVerificationEligible(bill) {
+    if (!bill || maintenanceMode) return false;
+    if (bill.automatic_screening_status !== "review_recommended") return false;
+    if (bill.customer_status !== "anomaly_found" || bill.processing_status !== "completed") return false;
+    if (String(bill.red_verification_state || "not_run") !== "not_run") return false;
+    if (checks.some(check => check.bill_id === bill.id && check.status !== "canceled")) return false;
+    return !redVerificationInFlightIds.has(bill.id);
+  }
+
+  async function runAutomaticRedVerification(id) {
+    const bill = bills.find(item => item.id === id);
+    if (!automaticRedVerificationEligible(bill) || !client || !currentUser) return null;
+
+    redVerificationInFlightIds.add(id);
+    syncUpdateBusyState();
+    setMessage("info", "Anomalia rilevata. Seconda verifica IA in corso…");
+    try {
+      const { data: sessionData, error: sessionError } = await client.auth.getSession();
+      if (sessionError) throw sessionError;
+      const accessToken = sessionData?.session?.access_token;
+      if (!accessToken) throw new Error("premium_auth_required");
+      const response = await fetch("/api/premium-ai-analysis", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: JSON.stringify({ action: "verify_red", billId: bill.id })
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok || !body?.ok) throw new Error(body?.error || body?.code || "Seconda verifica IA non riuscita");
+
+      const verification = body.verification || null;
+      expandedBillIds.add(bill.id);
+      await loadData(currentUser, currentSubscription);
+      if (verification?.decision === "resolved_ai") {
+        setMessage("success", verification.customer_reply || "Seconda verifica IA completata. Non serve il controllo umano.");
+      } else {
+        setMessage("info", "Seconda verifica IA completata. Il caso richiede un approfondimento prima di un esito definitivo.");
+      }
+      window.dispatchEvent(new CustomEvent("offertalogica:red-verification-completed", {
+        detail: { billId: bill.id, verification, automatic: true }
+      }));
+      return verification;
+    } catch (error) {
+      try { await loadData(currentUser, currentSubscription); } catch {}
+      setMessage("info", "Analisi della bolletta completata. La seconda verifica IA non si è conclusa; il controllo professionale resta disponibile.");
+      return null;
+    } finally {
+      redVerificationInFlightIds.delete(id);
+      syncUpdateBusyState();
       renderEnabled();
     }
   }
@@ -1668,7 +1730,9 @@
       await loadData(currentUser, currentSubscription);
       refreshedFromServer = true;
       const updated = bills.find(item => item.id === id);
-      if (announce || updated?.automatic_screening_status !== "clear") {
+      if (automaticRedVerificationEligible(updated)) {
+        await runAutomaticRedVerification(id);
+      } else if (announce || updated?.automatic_screening_status !== "clear") {
         setMessage(updated?.automatic_screening_status === "clear" ? "success" : "info",
           updated?.automatic_screening_summary || "Analisi automatica completata.");
       }

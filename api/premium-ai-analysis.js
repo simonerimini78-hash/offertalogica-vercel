@@ -188,7 +188,10 @@ export function createPremiumAiAnalysisHandler({
         let screening = null;
         if (offerDecision === "confirm" && decisionResult.normalized && decisionResult.run?.id) {
           screening = classifyPremiumAutomaticAnalysis(decisionResult.normalized, {
-            contract: decisionResult.contract,
+            contract: premiumContractForAutomaticComparison(
+              decisionResult.contract,
+              decisionResult.normalized,
+            ),
           });
           const completedAt = new Date().toISOString();
           await patchPremiumBill({

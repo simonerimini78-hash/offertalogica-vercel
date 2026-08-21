@@ -1,5 +1,5 @@
-// offer-reference-trust-v03633
-const CACHE = "offertalogica-premium-v03633-offer-reference-trust";
+// automatic-red-verification-v03635
+const CACHE = "offertalogica-premium-v03635-automatic-red-verification";
 const APP_SHELL = [
   "/app.html",
   "/app-dialog.js",

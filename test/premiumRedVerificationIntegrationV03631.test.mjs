@@ -51,9 +51,9 @@ test('migrazione è additiva: nessuna nuova tabella o API, origin red_verificati
   assert.match(sql, /request\.jwt\.claim\.role/);
 });
 
-test('service worker forza cache v0.36.33', () => {
+test('service worker forza cache v0.36.35', () => {
   const sw = read('public/sw.js');
-  assert.match(sw, /offertalogica-premium-v03633-offer-reference-trust/);
+  assert.match(sw, /offertalogica-premium-v03635-automatic-red-verification/);
 });
 
 test('app mostra secondo esito e mantiene rosso anche quando risolto dalla seconda IA', () => {
@@ -62,4 +62,32 @@ test('app mostra secondo esito e mantiene rosso anche quando risolto dalla secon
   assert.match(app, /Seconda verifica IA completata/);
   assert.match(app, /renderRedVerificationDetail/);
   assert.match(app, /return "red"/);
+});
+
+
+test('nuove bollette rosse avviano automaticamente la seconda IA senza creare consenso Staff', () => {
+  const app = read('public/app-premium-bills.js');
+  const analysisFn = app.slice(app.indexOf('async function runAutomaticAnalysis('), app.indexOf('async function refreshPendingAnalyses('));
+  assert.match(analysisFn, /automaticRedVerificationEligible\(updated\)/);
+  assert.match(analysisFn, /await runAutomaticRedVerification\(id\)/);
+
+  const autoFn = app.slice(app.indexOf('async function runAutomaticRedVerification('), app.indexOf('async function requestCheck('));
+  assert.match(autoFn, /action: "verify_red"/);
+  assert.doesNotMatch(autoFn, /premium_request_check/);
+  assert.doesNotMatch(autoFn, /confirmProfessionalCheck/);
+  assert.doesNotMatch(autoFn, /trialStaffCheckUsed/);
+  assert.match(autoFn, /verification\?\.decision === "resolved_ai"/);
+  assert.match(autoFn, /customer_reply/);
+  assert.match(app, /!redVerificationInFlightIds\.has\(bill\.id\)/);
+});
+
+test('confirm_offer non usa piu una conferma cliente come contratto tecnico per generare rossi', () => {
+  const api = read('api/premium-ai-analysis.js');
+  const app = read('public/app-premium-bills.js');
+  const confirmStart = api.indexOf('if (offerDecision)');
+  const redStart = api.indexOf('if (body?.action === "verify_red")');
+  const confirmFlow = api.slice(confirmStart, redStart);
+  assert.match(confirmFlow, /premiumContractForAutomaticComparison\(\s*decisionResult\.contract,\s*decisionResult\.normalized/);
+  assert.doesNotMatch(confirmFlow, /contract:\s*decisionResult\.contract\s*[,}]/);
+  assert.match(app, /decision === "confirm"[\s\S]*automaticRedVerificationEligible\(updatedBill\)[\s\S]*runAutomaticRedVerification\(billId\)/);
 });
