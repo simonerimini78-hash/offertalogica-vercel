@@ -5,7 +5,7 @@
   const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_poz1xBKiXceLCFV3u_tPIg_5_-ycHcl";
   const STORAGE_KEY = "offertalogica-premium-staff-auth";
   const BUCKET = "premium-bills";
-  const RED_VERIFIER_VERSION = "premium-red-verifier-v0.36.32";
+  const RED_VERIFIER_VERSION = "premium-red-verifier-v0.36.33";
   const MANAGER_ROLES = new Set(["reviewer", "technician", "admin", "owner"]);
 
   let client = null;
