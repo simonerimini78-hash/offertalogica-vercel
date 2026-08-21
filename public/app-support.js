@@ -288,9 +288,11 @@
     } else {
       setStatus("", "Pratica in verifica. Attendi una risposta dello staff; non è possibile aprire richieste duplicate.");
     }
-    addOption("CONTINUA CON ASSISTENZA AUTOMATICA", () => renderMain(), { secondary: true });
+    addOption("CONTINUA CON ASSISTENZA AUTOMATICA", async () => {
+      await markStaffMessagesRead(currentCaseMessages);
+      renderMain();
+    }, { secondary: true });
     addOption("ELIMINA RICHIESTA", deleteCurrentCase, { danger: true });
-    markStaffMessagesRead(messages);
   }
 
   async function confirmDeleteRequest() {
@@ -612,6 +614,7 @@
         setStatus("error", "È già presente una tua risposta in attesa. Attendi il prossimo messaggio dello staff.");
         return;
       }
+      await markStaffMessagesRead(live.messages);
       const { supabase, session } = await sessionInfo();
       const { error } = await supabase.from("premium_communications").insert({
         user_id: session.user.id,
@@ -678,6 +681,7 @@
   function closePanel() {
     const panel = byId("premiumSupportPanel");
     if (!panel) return;
+    if (currentCaseMessages.length) void markStaffMessagesRead(currentCaseMessages);
     panel.hidden = true;
     setStatus("", "");
     byId("premiumSupportOpen")?.focus();
@@ -701,7 +705,8 @@
     byId("premiumSupportOpen")?.addEventListener("click", openPanel);
     byId("premiumSupportClose")?.addEventListener("click", closePanel);
     byId("premiumSupportRefresh")?.addEventListener("click", refreshSupportMessages);
-    byId("premiumSupportRestart")?.addEventListener("click", () => {
+    byId("premiumSupportRestart")?.addEventListener("click", async () => {
+      if (currentCaseMessages.length) await markStaffMessagesRead(currentCaseMessages);
       renderMain();
     });
     byId("premiumSupportEscalationForm")?.addEventListener("submit", submitEscalation);
