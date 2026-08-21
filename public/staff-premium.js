@@ -6,7 +6,7 @@
   const STORAGE_KEY = "offertalogica-premium-staff-auth";
   const BUCKET = "premium-bills";
   const RED_VERIFIER_VERSION = "premium-red-verifier-v0.36.37";
-  const CONTROL_CENTER_VERSION = "premium-control-center-v0.36.40";
+  const CONTROL_CENTER_VERSION = "premium-control-center-v0.36.41";
   const CONTROL_METRICS_DAYS = 30;
   const CONTROL_METRICS_LIMIT = 5000;
   const CONTROL_COST_CHUNK = 200;
@@ -401,6 +401,7 @@
       metricNode("Risolte IA", controlMetrics.redTruncated ? `${controlMetrics.resolvedAi} · —` : `${controlMetrics.resolvedAi} · ${percentOf(controlMetrics.resolvedAi, total)}`),
       metricNode("IA + verifica", controlMetrics.redTruncated ? `${controlMetrics.quickVerify} · —` : `${controlMetrics.quickVerify} · ${percentOf(controlMetrics.quickVerify, total)}`),
       metricNode("Staff necessario", controlMetrics.redTruncated ? `${controlMetrics.staffNeeded} · —` : `${controlMetrics.staffNeeded} · ${percentOf(controlMetrics.staffNeeded, total)}`),
+      metricNode("Seconda IA non eseguita", controlMetrics.redTruncated ? `${controlMetrics.secondAiNotRun} · —` : `${controlMetrics.secondAiNotRun} · ${percentOf(controlMetrics.secondAiNotRun, total)}`),
     ]);
 
     const humanPrefix = controlMetrics.humanTruncated ? "≥" : "";
@@ -531,6 +532,7 @@
         resolvedAi: states.filter(value => value === "resolved_ai").length,
         quickVerify: states.filter(value => value === "quick_verify").length,
         staffNeeded: states.filter(value => ["staff_required", "inconclusive", "failed"].includes(value)).length,
+        secondAiNotRun: states.filter(value => value === "not_run").length,
         humanMinutes: Math.round(humanSeconds / 60),
         totalAiCost: costCovered ? totalAiCost : null,
         averageAiCost: costCovered ? totalAiCost / costCovered : null,
@@ -1418,14 +1420,19 @@
         option("possible_saving", "Possibile risparmio"),
         option("inconclusive", "Esito non conclusivo")
       ]);
-      const minutes = node("input", { name: "minutes", type: "number", value: "0", attrs: { min: "0", max: "1440", step: "1" } });
+      const minutes = node("input", { name: "minutes", type: "number", placeholder: "Automatico", attrs: { min: "0", max: "1440", step: "1" } });
       const summary = node("textarea", { name: "summary", placeholder: "Sintesi tecnica del controllo" });
       const finalMessage = node("textarea", { name: "customer_message", placeholder: "Esito chiaro e completo visibile all’abbonato" });
       appendField(completeGrid, "Esito", outcome);
-      appendField(completeGrid, "Minuti di revisione", minutes);
+      appendField(completeGrid, "Minuti revisione (opzionale)", minutes);
       appendField(completeGrid, "Sintesi tecnica", summary, true);
       appendField(completeGrid, "Messaggio conclusivo al cliente", finalMessage, true);
-      completeForm.append(completeGrid, node("p", { className: "danger-note", text: "Per Anomalia o Possibile risparmio deve essere registrato almeno un elemento nella sezione Anomalie." }), node("div", { className: "form-actions" }, [node("button", { className: "button primary", type: "submit", text: "COMPLETA CONTROLLO" })]));
+      completeForm.append(
+        completeGrid,
+        node("p", { className: "section-copy", text: "Se lasci vuoto il tempo, viene calcolato automaticamente dalla presa in carico alla chiusura. Puoi inserirlo manualmente solo per correggerlo." }),
+        node("p", { className: "danger-note", text: "Per Anomalia o Possibile risparmio deve essere registrato almeno un elemento nella sezione Anomalie." }),
+        node("div", { className: "form-actions" }, [node("button", { className: "button primary", type: "submit", text: "COMPLETA CONTROLLO" })])
+      );
       completeForm.addEventListener("submit", event => handleComplete(event, { outcome, minutes, summary, finalMessage }));
       section.append(completeForm);
       }
@@ -1891,13 +1898,32 @@
     }, "Anomalia rimossa.");
   }
 
+  function automaticHumanSeconds(row, nowMs = Date.now()) {
+    const startedMs = new Date(row?.check?.started_at || "").getTime();
+    if (!Number.isFinite(startedMs)) return 0;
+    const elapsed = Math.round((Number(nowMs) - startedMs) / 1000);
+    if (!Number.isFinite(elapsed) || elapsed <= 0) return 0;
+    return Math.min(86400, elapsed);
+  }
+
+  function resolvedHumanSeconds(row, manualMinutesValue) {
+    const raw = String(manualMinutesValue ?? "").trim();
+    if (raw !== "") {
+      const manualMinutes = Number(raw);
+      if (Number.isFinite(manualMinutes) && manualMinutes >= 0) {
+        return Math.min(86400, Math.round(manualMinutes * 60));
+      }
+    }
+    return automaticHumanSeconds(row);
+  }
+
   async function handleComplete(event, controls) {
     event.preventDefault();
     const row = selectedRow();
     if (!row) return;
     const summary = String(controls.summary.value || "").trim();
     const customerMessage = String(controls.finalMessage.value || "").trim();
-    const minutes = Math.max(0, Math.round(Number(controls.minutes.value || 0)));
+    const humanSeconds = resolvedHumanSeconds(row, controls.minutes.value);
     if (!summary || !customerMessage) {
       setPageMessage("error", "Inserisci la sintesi tecnica e il messaggio conclusivo per il cliente.");
       return;
@@ -1909,7 +1935,7 @@
         p_outcome: controls.outcome.value,
         p_summary: summary,
         p_customer_message: customerMessage,
-        p_human_seconds: Math.min(86400, minutes * 60)
+        p_human_seconds: humanSeconds
       });
       if (error) throw error;
     }, "Controllo completato e pubblicato al cliente.");

@@ -6,7 +6,7 @@ const uiPromise = fs.readFile(new URL('../public/staff-premium.js', import.meta.
 
 test('FASE 2B usa le priorità reali della seconda IA nella coda Staff', async () => {
   const ui = await uiPromise;
-  assert.match(ui, /CONTROL_CENTER_VERSION = "premium-control-center-v0\.36\.40"/);
+  assert.match(ui, /CONTROL_CENTER_VERSION = "premium-control-center-v0\.36\.41"/);
   assert.match(ui, /staff_required", "inconclusive", "failed"/);
   assert.match(ui, /verificationState === "quick_verify"/);
   assert.match(ui, /verificationState === "resolved_ai"/);
@@ -57,4 +57,22 @@ test('FASE 2B resta nel frontend Staff e non introduce nuove API o SQL', async (
   assert.match(ui, /client\.from\("premium_bills"\)/);
   assert.match(ui, /client\.from\("premium_analysis_runs"\)/);
   assert.doesNotMatch(ui, /\/api\/staff-control-center|\/api\/premium-control-center/);
+});
+
+
+test('FASE 2B.1 rende esplicite le rosse senza seconda IA', async () => {
+  const ui = await uiPromise;
+  assert.match(ui, /Seconda IA non eseguita/);
+  assert.match(ui, /secondAiNotRun: states\.filter\(value => value === "not_run"\)\.length/);
+});
+
+test('FASE 2B.1 registra automaticamente il tempo umano dalla presa in carico', async () => {
+  const ui = await uiPromise;
+  assert.match(ui, /function automaticHumanSeconds\(row, nowMs = Date\.now\(\)\)/);
+  assert.match(ui, /row\?\.check\?\.started_at/);
+  assert.match(ui, /function resolvedHumanSeconds\(row, manualMinutesValue\)/);
+  assert.match(ui, /placeholder: "Automatico"/);
+  assert.match(ui, /Minuti revisione \(opzionale\)/);
+  assert.match(ui, /p_human_seconds: humanSeconds/);
+  assert.doesNotMatch(ui, /value: "0", attrs: \{ min: "0", max: "1440"/);
 });
