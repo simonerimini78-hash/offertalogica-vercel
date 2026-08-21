@@ -1,5 +1,5 @@
-// automatic-red-verification-v03635
-const CACHE = "offertalogica-premium-v03635-automatic-red-verification";
+// staff-check-sync-v03636
+const CACHE = "offertalogica-premium-v03636-staff-check-sync";
 const APP_SHELL = [
   "/app.html",
   "/app-dialog.js",

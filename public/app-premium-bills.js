@@ -315,6 +315,18 @@
     return ["pending", "assigned", "in_review", "more_info_required"].includes(check?.status);
   }
 
+  function checkStateFingerprint(check) {
+    return JSON.stringify({
+      status: check?.status || "",
+      outcome: check?.outcome || "",
+      summary: check?.summary || "",
+      customer_message: check?.customer_message || "",
+      started_at: check?.started_at || "",
+      completed_at: check?.completed_at || "",
+      updated_at: check?.updated_at || "",
+    });
+  }
+
   function canDeleteBill(bill, check) {
     return !hasActiveHumanCheck(check)
       && ["uploaded", "completed", "failed"].includes(bill.processing_status)
@@ -1780,23 +1792,47 @@
     });
 
     if (changed) renderEnabled();
-    else scheduleAutomaticWork();
   }
 
-  function scheduleAutomaticWork() {
+  async function refreshActiveChecks() {
+    if (!client || !currentUser) return;
+    const activeIds = checks.filter(hasActiveHumanCheck).map(check => check.id);
+    if (!activeIds.length) return;
+
+    const result = await client
+      .from("premium_checks")
+      .select(CHECK_COLUMNS)
+      .eq("user_id", currentUser.id)
+      .in("id", activeIds);
+    if (result.error) throw result.error;
+
+    const refreshed = new Map((Array.isArray(result.data) ? result.data : []).map(check => [check.id, check]));
+    let changed = false;
+    checks = checks.map(check => {
+      const updated = refreshed.get(check.id);
+      if (!updated) return check;
+      if (checkStateFingerprint(updated) !== checkStateFingerprint(check)) changed = true;
+      return updated;
+    });
+
+    if (changed) renderEnabled();
+  }
+
+  function scheduleAutomaticWork(delayMs = ANALYSIS_POLL_MS) {
     if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
     const serverPending = bills.some(bill =>
       analysisIsPending(bill) && !analysisInFlightIds.has(bill.id)
     );
-    if (serverPending) {
+    const staffCheckPending = checks.some(hasActiveHumanCheck);
+    if (serverPending || staffCheckPending) {
       pollTimer = window.setTimeout(async () => {
         pollTimer = null;
         try {
-          await refreshPendingAnalyses();
-        } catch {
-          scheduleAutomaticWork();
-        }
-      }, ANALYSIS_POLL_MS);
+          if (serverPending) await refreshPendingAnalyses();
+          if (checks.some(hasActiveHumanCheck)) await refreshActiveChecks();
+        } catch {}
+        scheduleAutomaticWork();
+      }, Math.max(0, Number(delayMs) || 0));
     }
   }
 
@@ -2184,6 +2220,13 @@
     window.addEventListener("offertalogica:utilities-changed", () => {
       client.auth.getSession().then(({ data }) => syncSession(data.session));
     });
+
+    const resumeAutomaticWork = () => {
+      if (document.visibilityState === "hidden") return;
+      scheduleAutomaticWork(0);
+    };
+    document.addEventListener("visibilitychange", resumeAutomaticWork);
+    window.addEventListener("focus", resumeAutomaticWork);
 
     window.addEventListener("pagehide", () => {
       authSubscription?.data?.subscription?.unsubscribe?.();

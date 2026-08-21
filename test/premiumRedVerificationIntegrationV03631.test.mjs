@@ -51,9 +51,9 @@ test('migrazione è additiva: nessuna nuova tabella o API, origin red_verificati
   assert.match(sql, /request\.jwt\.claim\.role/);
 });
 
-test('service worker forza cache v0.36.35', () => {
+test('service worker forza cache v0.36.36', () => {
   const sw = read('public/sw.js');
-  assert.match(sw, /offertalogica-premium-v03635-automatic-red-verification/);
+  assert.match(sw, /offertalogica-premium-v03636-staff-check-sync/);
 });
 
 test('app mostra secondo esito e mantiene rosso anche quando risolto dalla seconda IA', () => {
@@ -90,4 +90,19 @@ test('confirm_offer non usa piu una conferma cliente come contratto tecnico per 
   assert.match(confirmFlow, /premiumContractForAutomaticComparison\(\s*decisionResult\.contract,\s*decisionResult\.normalized/);
   assert.doesNotMatch(confirmFlow, /contract:\s*decisionResult\.contract\s*[,}]/);
   assert.match(app, /decision === "confirm"[\s\S]*automaticRedVerificationEligible\(updatedBill\)[\s\S]*runAutomaticRedVerification\(billId\)/);
+});
+
+
+test('app sincronizza automaticamente esito e messaggio dei controlli Staff attivi', () => {
+  const app = read('public/app-premium-bills.js');
+  assert.match(app, /function hasActiveHumanCheck\(check\)/);
+  assert.match(app, /async function refreshActiveChecks\(\)/);
+  assert.match(app, /\.from\("premium_checks"\)[\s\S]*?\.select\(CHECK_COLUMNS\)[\s\S]*?\.in\("id", activeIds\)/);
+  assert.match(app, /const staffCheckPending = checks\.some\(hasActiveHumanCheck\)/);
+  assert.match(app, /const staffMessage = String\(check\?\.customer_message \|\| ""\)\.trim\(\)/);
+  assert.match(app, /if \(staffMessage\) return staffMessage/);
+  assert.match(app, /document\.addEventListener\("visibilitychange", resumeAutomaticWork\)/);
+  assert.match(app, /window\.addEventListener\("focus", resumeAutomaticWork\)/);
+  assert.match(app, /scheduleAutomaticWork\(0\)/);
+  assert.doesNotMatch(app, /setInterval\(/);
 });
