@@ -35,8 +35,8 @@ test('API Staff usa riferimento bolletta-scoped e non collega un contratto corre
 });
 
 test('Staff riconosce la v0.36.32 come risultato da ricalcolare', async () => {
-  assert.equal(PREMIUM_RED_VERIFIER_VERSION, 'premium-red-verifier-v0.36.33');
+  assert.equal(PREMIUM_RED_VERIFIER_VERSION, 'premium-red-verifier-v0.36.34');
   const ui = await fs.readFile(new URL('../public/staff-premium.js', import.meta.url), 'utf8');
-  assert.match(ui, /RED_VERIFIER_VERSION = "premium-red-verifier-v0.36.33"/);
+  assert.match(ui, /RED_VERIFIER_VERSION = "premium-red-verifier-v0.36.34"/);
   assert.match(ui, /RICALCOLA SECONDA VERIFICA IA/);
 });
