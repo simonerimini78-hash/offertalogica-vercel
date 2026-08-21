@@ -13,8 +13,13 @@ import {
   matchAndPersistPremiumOffer,
 } from "../lib/premiumOfferMatcher.js";
 import {
+  persistPremiumVerifiedOffer,
+  staffOfferPayload,
+} from "../lib/premiumOfferResolution.js";
+import {
   PREMIUM_RED_VERIFIER_VERSION,
   loadPremiumRedVerificationSnapshot,
+  routePremiumRedReasons,
   verifyPremiumRedPdf,
 } from "../lib/premiumRedVerifier.js";
 import {
@@ -72,6 +77,7 @@ function publicRedVerification(result = {}) {
     customer_reply: result.customer_reply || "",
     escalation_reason: result.escalation_reason || "",
     missing_data: Array.isArray(result.missing_data) ? result.missing_data : [],
+    offer_resolution: result.offer_resolution && typeof result.offer_resolution === "object" ? result.offer_resolution : { status: "none", candidates: [] },
   };
 }
 
@@ -239,6 +245,67 @@ export function createPremiumAiAnalysisHandler({
         });
       }
 
+      if (body?.action === "staff_validate_offer") {
+        if (!backend.supabaseUrl || !backend.serviceKey) throw new Error("premium_supabase_not_configured");
+        const { user } = await verifyPremiumStaff({ config: backend, accessToken, fetchImpl });
+        if (!(await staffPermissionAllowed({ config: backend, accessToken, permission: "manage_checks", fetchImpl }))) {
+          throw new Error("premium_staff_permission_required:manage_checks");
+        }
+        if (!(await enforceRateLimit(req, res, {
+          label: "premium-offer-validation-staff",
+          identifier: user.id,
+          limit: Number(env.RATE_LIMIT_PREMIUM_OFFER_CONFIRM_LIMIT || 30),
+          windowSeconds: Number(env.RATE_LIMIT_PREMIUM_OFFER_CONFIRM_WINDOW_SECONDS || 3600),
+        }))) return;
+        ({ check, bill } = await loadPremiumCheckAndBill({ config: backend, checkId: body?.checkId, fetchImpl }));
+        const snapshot = await loadPremiumRedVerificationSnapshot({
+          config: backend, billId: bill.id, userId: check.user_id, fetchImpl,
+        });
+        const commodity = bill.commodity === "electricity" ? "electricity" : bill.commodity === "gas" ? "gas" : null;
+        if (!commodity) throw new Error("premium_offer_commodity_invalid");
+        const offer = staffOfferPayload(body?.offer || {}, commodity);
+        const completedAt = new Date().toISOString();
+        const persisted = await persistPremiumVerifiedOffer({
+          config: backend, bill: snapshot.bill, offer, actor: "staff", fetchImpl, now: completedAt,
+        });
+        const normalized = snapshot.firstRun?.extracted_data || null;
+        let screening = null;
+        if (normalized && snapshot.firstRun?.id) {
+          const normalizedWithOffer = { ...normalized, _offer_match: { status: "matched", verified: true } };
+          screening = classifyPremiumAutomaticAnalysis(normalizedWithOffer, {
+            contract: premiumContractForAutomaticComparison(persisted.contract, normalizedWithOffer),
+          });
+          await patchPremiumAnalysisRun({
+            config: backend, runId: snapshot.firstRun.id, fetchImpl,
+            values: { automatic_classification: screening.status, automatic_summary: screening.summary, automatic_reasons: screening.reasons },
+          });
+          const existingVerification = snapshot.bill.red_verification_result && typeof snapshot.bill.red_verification_result === "object"
+            ? snapshot.bill.red_verification_result : {};
+          const offerResolution = {
+            ...(existingVerification.offer_resolution && typeof existingVerification.offer_resolution === "object" ? existingVerification.offer_resolution : {}),
+            status: "staff_verified",
+            selected: { ...offer, staff_verified: true },
+          };
+          await patchPremiumBill({
+            config: backend, billId: bill.id, fetchImpl,
+            values: {
+              ...premiumBillValuesFromAnalysis(normalizedWithOffer, screening, snapshot.firstRun.id, completedAt),
+              contract_id: persisted.contract.id,
+              red_verification_state: snapshot.bill.red_verification_state,
+              red_verification_result: { ...existingVerification, offer_resolution: offerResolution },
+              red_verification_run_id: snapshot.bill.red_verification_run_id,
+              red_verified_at: snapshot.bill.red_verified_at,
+            },
+          });
+        } else {
+          await patchPremiumBill({ config: backend, billId: bill.id, fetchImpl, values: { contract_id: persisted.contract.id, updated_at: completedAt } });
+        }
+        return json(res, 200, {
+          ok: true, mode: "staff_offer_validation", screening,
+          contract: { id: persisted.contract.id, providerName: persisted.contract.provider_name, offerName: persisted.contract.offer_name, verificationStatus: persisted.contract.verification_status },
+        });
+      }
+
       if (body?.action === "verify_red") {
         assertPremiumAiConfigured(backend);
         try {
@@ -306,6 +373,7 @@ export function createPremiumAiAnalysisHandler({
           }
 
           const contract = await loadPremiumBillContract({ config: backend, bill, fetchImpl });
+          const trustedContract = premiumContractForAutomaticComparison(contract, snapshot.firstRun?.extracted_data || {});
           run = await createPremiumAnalysisRun({
             config: backend,
             check: staffMode ? check : null,
@@ -342,7 +410,8 @@ export function createPremiumAiAnalysisHandler({
             reasons: snapshot.bill.automatic_screening_reasons,
             firstAnalysis: snapshot.firstRun?.extracted_data || {},
             firstAnalysisRunId: snapshot.bill.automatic_analysis_run_id || null,
-            contract: premiumContractForAutomaticComparison(contract, snapshot.firstRun?.extracted_data || {}),
+            contract: trustedContract,
+            declaredContract: trustedContract ? null : contract,
             apiKey: backend.openAiApiKey,
             model: backend.model,
             transport,
@@ -350,8 +419,47 @@ export function createPremiumAiAnalysisHandler({
             deadlineAt: startedAt + backend.deadlineMs,
             env,
           });
-          const verification = verified.result;
+          let verification = verified.result;
           const completedAt = new Date().toISOString();
+          let resolvedOfferContract = null;
+          let resolvedOfferScreening = null;
+          const verifiedOffer = verification?.offer_resolution?.status === "verified"
+            ? verification.offer_resolution.selected : null;
+          if (verifiedOffer?.auto_verifiable && snapshot.firstRun?.extracted_data) {
+            const persisted = await persistPremiumVerifiedOffer({
+              config: backend, bill, offer: verifiedOffer, actor: "ai", fetchImpl, now: completedAt,
+            });
+            resolvedOfferContract = persisted.contract;
+            const normalizedForResolvedOffer = { ...snapshot.firstRun.extracted_data, _offer_match: { status: "matched", verified: true } };
+            resolvedOfferScreening = classifyPremiumAutomaticAnalysis(normalizedForResolvedOffer, {
+              contract: premiumContractForAutomaticComparison(resolvedOfferContract, normalizedForResolvedOffer),
+            });
+            await patchPremiumAnalysisRun({
+              config: backend, runId: snapshot.firstRun.id, fetchImpl,
+              values: { automatic_classification: resolvedOfferScreening.status, automatic_summary: resolvedOfferScreening.summary, automatic_reasons: resolvedOfferScreening.reasons },
+            });
+            if (resolvedOfferScreening.status !== "review_recommended") {
+              verification = {
+                ...verification, decision: "resolved_ai", can_resolve_alone: "yes",
+                resolved_screening_status: resolvedOfferScreening.status,
+                customer_reply: resolvedOfferScreening.status === "clear"
+                  ? `La bolletta è coerente con l’offerta ${resolvedOfferContract.offer_name || "verificata"} identificata per il periodo del documento. Non risultano anomalie contrattuali.`
+                  : `Il riferimento dell’offerta è stato verificato e il precedente codice rosso contrattuale non è confermato. Rimane soltanto l’avviso indicato nell’analisi.`,
+                escalation_reason: "", missing_data: [],
+              };
+            } else {
+              const rerouted = routePremiumRedReasons(resolvedOfferScreening.reasons);
+              verification = {
+                ...verification, route: rerouted.route, reason_codes: rerouted.codes,
+                decision: rerouted.route === "staff_required" ? "staff_required" : "quick_verify",
+                verification_result: "inconclusive", can_resolve_alone: "no",
+                issue: "Offerta verificata; resta un’anomalia da controllare",
+                customer_reply: "",
+                escalation_reason: "L’offerta di riferimento è stata verificata, ma il nuovo confronto mantiene un’anomalia rossa. È necessaria una verifica prima di comunicare l’esito al cliente.",
+                missing_data: [],
+              };
+            }
+          }
           const durationMs = Math.max(0, now() - startedAt);
           const estimatedCostEur = estimatePremiumAiCost(meter.totals, backend.pricing);
           const state = verification.decision === "resolved_ai"
@@ -393,19 +501,22 @@ export function createPremiumAiAnalysisHandler({
               error_message: "",
             },
           });
-          await patchPremiumBill({
-            config: backend,
-            billId: bill.id,
-            fetchImpl,
-            values: {
-              processing_status: "completed",
-              red_verification_state: state,
-              red_verification_result: verification,
-              red_verification_run_id: run.id,
-              red_verified_at: completedAt,
-              updated_at: completedAt,
-            },
-          });
+          const finalBillValues = {
+            processing_status: "completed", red_verification_state: state, red_verification_result: verification,
+            red_verification_run_id: run.id, red_verified_at: completedAt, updated_at: completedAt,
+          };
+          if (resolvedOfferContract?.id) finalBillValues.contract_id = resolvedOfferContract.id;
+          if (resolvedOfferScreening && snapshot.firstRun?.extracted_data) {
+            Object.assign(finalBillValues, premiumBillValuesFromAnalysis(
+              { ...snapshot.firstRun.extracted_data, _offer_match: { status: "matched", verified: true } },
+              resolvedOfferScreening, snapshot.firstRun.id, completedAt,
+            ));
+            Object.assign(finalBillValues, {
+              red_verification_state: state, red_verification_result: verification, red_verification_run_id: run.id,
+              red_verified_at: completedAt, contract_id: resolvedOfferContract.id,
+            });
+          }
+          await patchPremiumBill({ config: backend, billId: bill.id, fetchImpl, values: finalBillValues });
           await insertPremiumAiCostEvent({
             config: backend,
             bill,

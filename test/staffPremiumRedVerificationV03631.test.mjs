@@ -63,15 +63,15 @@ test('resolved_ai non chiude automaticamente una pratica preesistente', () => {
 });
 
 
-test('router v0.36.34 mantiene il filtro dei gialli e permette di ricalcolare risultati precedenti', () => {
+test('router v0.36.37 mantiene il filtro dei gialli e permette di ricalcolare risultati precedenti', () => {
   const verifier = read('lib/premiumRedVerifier.js');
   const api = read('api/premium-ai-analysis.js');
   const ui = read('public/staff-premium.js');
-  assert.match(verifier, /premium-red-verifier-v0\.36\.34/);
+  assert.match(verifier, /premium-red-verifier-v0\.36\.37/);
   assert.match(verifier, /trafficLight === "red"/);
   assert.match(verifier, /first_red_reasons: reasonContext\(redRoutingReasons\(reasons\)\)/);
   assert.match(verifier, /necessaria una verifica Staff per risolvere il disaccordo/);
   assert.match(api, /cachedResult\.version === PREMIUM_RED_VERIFIER_VERSION/);
   assert.match(ui, /RICALCOLA SECONDA VERIFICA IA/);
-  assert.match(ui, /RED_VERIFIER_VERSION = "premium-red-verifier-v0\.36\.34"/);
+  assert.match(ui, /RED_VERIFIER_VERSION = "premium-red-verifier-v0\.36\.37"/);
 });

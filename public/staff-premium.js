@@ -5,7 +5,7 @@
   const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_poz1xBKiXceLCFV3u_tPIg_5_-ycHcl";
   const STORAGE_KEY = "offertalogica-premium-staff-auth";
   const BUCKET = "premium-bills";
-  const RED_VERIFIER_VERSION = "premium-red-verifier-v0.36.34";
+  const RED_VERIFIER_VERSION = "premium-red-verifier-v0.36.37";
   const MANAGER_ROLES = new Set(["reviewer", "technician", "admin", "owner"]);
 
   let client = null;
@@ -800,6 +800,145 @@
     return "pending";
   }
 
+  function humanVerificationEvidence(value) {
+    const text = String(value || "").trim();
+    if (/trusted_contract_available|verified_contract_context/i.test(text)) {
+      return "Non è disponibile un riferimento contrattuale verificato associabile a questa bolletta.";
+    }
+    return text;
+  }
+
+  function offerCandidateSummary(candidate) {
+    const parts = [candidate.offer_name || "Offerta senza nome", candidate.provider_name].filter(Boolean);
+    if (candidate.offer_code) parts.push(`cod. ${candidate.offer_code}`);
+    if (Number.isFinite(Number(candidate.unit_price))) parts.push(`${Number(candidate.unit_price).toFixed(6).replace(/0+$/, "").replace(/\.$/, "")} ${candidate.commodity === "gas" ? "€/Smc" : "€/kWh"}`);
+    if (candidate.valid_from && candidate.valid_to) parts.push(`${formatDate(candidate.valid_from)}–${formatDate(candidate.valid_to)}`);
+    return parts.join(" · ");
+  }
+
+  function offerCandidateMissingChecks(candidate) {
+    const checks = candidate?.checks || {};
+    const labels = {
+      provider_match: "fornitore", identity_match: "identità offerta", period_match: "periodo", pricing_type_match: "struttura prezzo",
+      price_or_formula_match: "prezzo/formula", fixed_fee_match: "quota fissa", search_source_used: "fonte usata", authoritative_source: "fonte regolatoria",
+    };
+    return Object.entries(labels).filter(([key]) => checks[key] === false).map(([, label]) => label);
+  }
+
+  function offerFromStaffForm(form, row) {
+    const data = new FormData(form);
+    const numberOrNull = name => {
+      const raw = String(data.get(name) || "").trim();
+      if (!raw) return null;
+      const value = Number(raw.replace(",", "."));
+      return Number.isFinite(value) ? value : null;
+    };
+    return {
+      commodity: row.bill.commodity,
+      provider_name: String(data.get("provider_name") || "").trim(),
+      offer_name: String(data.get("offer_name") || "").trim(),
+      offer_code: String(data.get("offer_code") || "").trim(),
+      pricing_type: String(data.get("pricing_type") || "unknown"),
+      unit_price: numberOrNull("unit_price"),
+      annual_fixed_fee: numberOrNull("annual_fixed_fee"),
+      index_name: String(data.get("index_name") || "").trim(),
+      spread: numberOrNull("spread"),
+      formula: String(data.get("formula") || "").trim(),
+      valid_from: String(data.get("valid_from") || "").trim() || null,
+      valid_to: String(data.get("valid_to") || "").trim() || null,
+      source_url: String(data.get("source_url") || "").trim(),
+      source_title: "Validazione Staff",
+      reference_pcs_gj_smc: numberOrNull("reference_pcs_gj_smc"),
+    };
+  }
+
+  async function handleValidateOffer(offer) {
+    const row = selectedRow();
+    if (!row || busy || ["completed", "canceled"].includes(row.check.status)) return;
+    if (!offer?.provider_name || !offer?.offer_name) { setPageMessage("error", "Inserisci almeno fornitore e nome offerta."); return; }
+    await runAction(async () => {
+      const { data: sessionData, error: sessionError } = await client.auth.getSession();
+      if (sessionError) throw sessionError;
+      const accessToken = sessionData?.session?.access_token;
+      if (!accessToken) throw new Error("premium_auth_required");
+      const response = await fetch("/api/premium-ai-analysis", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ action: "staff_validate_offer", checkId: row.check.id, offer }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok || !body?.ok) throw new Error(body?.error || body?.code || "Validazione offerta non riuscita");
+    }, "Offerta corretta e validata. Il confronto della bolletta è stato aggiornato.");
+  }
+
+  function renderOfferResolution(section, row, result) {
+    const resolution = result?.offer_resolution && typeof result.offer_resolution === "object" ? result.offer_resolution : null;
+    const candidates = Array.isArray(resolution?.candidates) ? resolution.candidates : [];
+    if (!resolution && !row.contract) return;
+    const wrapper = node("div", { className: "ai-warning" });
+    wrapper.append(node("strong", { text: "Riferimento offerta" }));
+    if (row.contract) {
+      const state = row.contract.verification_status === "verified" ? "verificata" : row.contract.customer_confirmation_status === "confirmed" ? "dichiarata dal cliente" : "non verificata";
+      wrapper.append(node("p", { text: `${row.contract.offer_name || "Offerta senza nome"} · ${row.contract.provider_name || "fornitore non indicato"} · ${state}` }));
+    }
+    if (resolution?.status === "verified" && resolution.selected) {
+      wrapper.append(node("p", { text: `IA: corrispondenza deterministica verificata · ${offerCandidateSummary(resolution.selected)}` }));
+      if (resolution.selected.normalization_method === "pcs_normalized" && Number.isFinite(Number(resolution.selected.normalized_expected_price))) {
+        wrapper.append(node("p", { text: `Gas normalizzato con PCS: prezzo atteso in bolletta ${Number(resolution.selected.normalized_expected_price).toFixed(6)} €/Smc.` }));
+      }
+    } else if (candidates.length) {
+      wrapper.append(node("p", { text: "L’IA ha trovato possibili corrispondenze, ma non possiede tutte le prove necessarie per modificare automaticamente l’offerta." }));
+      const list = node("div", { className: "timeline" });
+      candidates.slice(0, 5).forEach(candidate => {
+        const item = node("article", { className: "timeline-item" });
+        item.append(node("strong", { text: offerCandidateSummary(candidate) }));
+        const missing = offerCandidateMissingChecks(candidate);
+        item.append(node("p", { text: missing.length ? `Da verificare: ${missing.join(", ")}.` : "Corrispondenza da validare dallo Staff." }));
+        if (candidate.source_url) item.append(node("small", { text: candidate.source_url }));
+        if (!["completed", "canceled"].includes(row.check.status)) {
+          const use = node("button", { className: "button primary compact", type: "button", text: "USA E VALIDA QUESTA OFFERTA" });
+          use.addEventListener("click", () => handleValidateOffer(candidate));
+          item.append(use);
+        }
+        list.append(item);
+      });
+      wrapper.append(list);
+    }
+
+    if (!["completed", "canceled"].includes(row.check.status) && ["electricity", "gas"].includes(row.bill.commodity)) {
+      const candidate = candidates[0] || resolution?.selected || {};
+      const contract = row.contract || {};
+      const gas = row.bill.commodity === "gas";
+      const form = node("form", { attrs: { novalidate: "" } });
+      const grid = node("div", { className: "form-grid" });
+      const input = (label, name, value = "", attrs = {}) => node("div", { className: "field" }, [
+        node("label", { text: label }), node("input", { name, value: value ?? "", attrs }),
+      ]);
+      const provider = candidate.provider_name || contract.provider_name || row.utility?.provider_name || "";
+      const offerName = candidate.offer_name || contract.offer_name || "";
+      const offerCode = candidate.offer_code || (gas ? contract.arera_offer_code_gas : contract.arera_offer_code_electricity) || "";
+      const unitPrice = candidate.unit_price ?? (gas ? contract.gas_price_eur_smc : contract.electricity_price_eur_kwh) ?? "";
+      const fixedFee = candidate.annual_fixed_fee ?? (gas ? contract.gas_fixed_fee_eur_year : contract.electricity_fixed_fee_eur_year) ?? "";
+      const indexName = candidate.index_name || (gas ? contract.gas_index_name : contract.electricity_index_name) || "";
+      const spread = candidate.spread ?? (gas ? contract.gas_spread_eur_smc : contract.electricity_spread_eur_kwh) ?? "";
+      const formula = candidate.formula || (gas ? contract.gas_formula : contract.electricity_formula) || "";
+      grid.append(input("Fornitore", "provider_name", provider), input("Nome offerta", "offer_name", offerName), input("Codice offerta", "offer_code", offerCode));
+      const pricingField = node("div", { className: "field" }, [node("label", { text: "Struttura" })]);
+      const pricing = node("select", { name: "pricing_type" }, [
+        option("fixed", "Fisso"), option("indexed", "Indicizzato"), option("mixed", "Misto"), option("unknown", "Non definito")
+      ]);
+      pricing.value = candidate.pricing_type || contract.pricing_type || "unknown";
+      pricingField.append(pricing);
+      grid.append(pricingField, input(gas ? "Prezzo €/Smc" : "Prezzo €/kWh", "unit_price", unitPrice, { type: "number", step: "0.000001" }), input("Quota fissa €/anno", "annual_fixed_fee", fixedFee, { type: "number", step: "0.01" }), input("Indice", "index_name", indexName), input(gas ? "Spread €/Smc" : "Spread €/kWh", "spread", spread, { type: "number", step: "0.000001" }), input("Formula", "formula", formula), input("Valida dal", "valid_from", candidate.valid_from || contract.contract_start || "", { type: "date" }), input("Valida al", "valid_to", candidate.valid_to || contract.contract_end || "", { type: "date" }), input("Fonte", "source_url", candidate.source_url || ""));
+      if (gas) grid.append(input("PCS di riferimento GJ/Smc", "reference_pcs_gj_smc", candidate.reference_pcs_gj_smc ?? 0.03852, { type: "number", step: "0.000001" }));
+      const save = node("button", { className: "button secondary compact", type: "submit", text: "CORREGGI / VALIDA OFFERTA" });
+      form.append(node("p", { className: "ai-note", text: "Usa questo modulo solo quando il PDF o una fonte affidabile consentono di stabilire il riferimento corretto." }), grid, node("div", { className: "form-actions" }, [save]));
+      form.addEventListener("submit", event => { event.preventDefault(); handleValidateOffer(offerFromStaffForm(form, row)); });
+      wrapper.append(form);
+    }
+    section.append(wrapper);
+  }
+
   function renderRedVerification(container, row) {
     if (row.bill?.automatic_screening_status !== "review_recommended") return;
     const stateValue = String(row.bill?.red_verification_state || "not_run");
@@ -854,13 +993,13 @@
     ]));
 
     const issue = String(result.issue || "").trim();
-    if (issue) section.append(node("div", { className: "timeline-item" }, [node("strong", { text: "Problema verificato" }), node("p", { text: issue })]));
+    if (issue) section.append(node("div", { className: "timeline-item" }, [node("strong", { text: "Esito della verifica" }), node("p", { text: issue })]));
     const evidence = Array.isArray(result.evidence) ? result.evidence : [];
     if (evidence.length) {
       const list = node("div", { className: "timeline" });
       evidence.forEach(item => list.append(node("article", { className: "timeline-item" }, [
         node("strong", { text: item.page ? `Evidenza · pagina ${item.page}` : "Evidenza" }),
-        node("p", { text: item.fact || "—" })
+        node("p", { text: humanVerificationEvidence(item.fact) || "—" })
       ])));
       section.append(list);
     }
@@ -877,6 +1016,7 @@
       node("strong", { text: "Risposta proposta al cliente" }),
       node("p", { text: result.customer_reply })
     ]));
+    renderOfferResolution(section, row, result);
     if (stateValue === "resolved_ai") {
       section.append(node("p", { className: "ai-note", text: "L’IA ritiene il caso risolvibile autonomamente. Poiché questa pratica era già aperta, resta comunque allo Staff la chiusura finale del controllo." }));
     }
@@ -1165,13 +1305,14 @@
     const checkRows = checks || [];
     const billMap = await fetchMap(
       "premium_bills",
-      "id, user_id, utility_id, commodity, billing_period_start, billing_period_end, issue_date, due_date, total_amount_eur, original_file_name, file_size, storage_bucket, storage_path, processing_status, customer_status, automatic_screening_status, automatic_screening_summary, automatic_screening_reasons, automatic_screened_at, automatic_analysis_run_id, red_verification_state, red_verification_result, red_verification_run_id, red_verified_at, created_at",
+      "id, user_id, utility_id, contract_id, commodity, billing_period_start, billing_period_end, issue_date, due_date, total_amount_eur, original_file_name, file_size, storage_bucket, storage_path, processing_status, customer_status, automatic_screening_status, automatic_screening_summary, automatic_screening_reasons, automatic_screened_at, automatic_analysis_run_id, red_verification_state, red_verification_result, red_verification_run_id, red_verified_at, created_at",
       checkRows.map(item => item.bill_id)
     );
     const bills = [...billMap.values()];
-    const [utilityMap, profileMap] = await Promise.all([
+    const [utilityMap, profileMap, contractMap] = await Promise.all([
       fetchMap("premium_utilities", "id, user_id, label, supply_type, provider_name, pod, pdr, address", bills.map(item => item.utility_id)),
-      fetchMap("premium_profiles", "id, full_name, email, phone, account_status", checkRows.map(item => item.user_id))
+      fetchMap("premium_profiles", "id, full_name, email, phone, account_status", checkRows.map(item => item.user_id)),
+      fetchMap("premium_contracts", "id, user_id, utility_id, provider_name, offer_name, pricing_type, contract_start, contract_end, fixed_price_expiry, electricity_price_eur_kwh, gas_price_eur_smc, electricity_fixed_fee_eur_year, gas_fixed_fee_eur_year, source, verification_status, is_current, arera_offer_code_electricity, arera_offer_code_gas, electricity_index_name, gas_index_name, electricity_spread_eur_kwh, gas_spread_eur_smc, electricity_formula, gas_formula, automatic_match_method, customer_confirmation_status", bills.map(item => item.contract_id))
     ]);
     if (sequence !== loadSequence) return;
 
@@ -1181,6 +1322,7 @@
         check,
         bill,
         utility: bill ? utilityMap.get(bill.utility_id) || null : null,
+        contract: bill?.contract_id ? contractMap.get(bill.contract_id) || null : null,
         profile: profileMap.get(check.user_id) || null
       };
     }).filter(row => row.bill);
