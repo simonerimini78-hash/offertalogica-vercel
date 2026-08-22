@@ -110,6 +110,27 @@ test('prima bolletta del nuovo fornitore alimenta lo storico reale ma non viene 
   assert.equal(buildPremiumComparisonProfile(), null);
 });
 
+test('gas: il consumo del periodo alimenta lo storico in Smc e non viene chiamato annuo', () => {
+  const bill = completeBill({
+    id: 'gas-july', commodity: 'gas', date: '2026-07-31', utilityId: 'gas-casa',
+    data: {
+      fornitore_gas: 'Gas Spa',
+      consumo_periodo_gas_smc: 15.28,
+      prezzo_gas_eur_smc: 0.5,
+      quota_fissa_vendita_gas_eur_anno: 96,
+      tipo_prezzo_gas: 'fisso',
+    },
+  });
+  bill.billing_period_start = '2026-07-01';
+  const { buildPremiumComparisonProfile, comparisonConsumptionForUtility } = loadComparisonHarness({ bills: [bill] });
+  const history = comparisonConsumptionForUtility('gas-casa', 'gas');
+  assert.equal(history.source, 'history_partial');
+  assert.equal(history.periodTotal, 15.28);
+  assert.equal(history.coverageDays, 31);
+  assert.equal(history.value, null);
+  assert.equal(buildPremiumComparisonProfile(), null);
+});
+
 test('somma periodi non sovrapposti della stessa utenza anche con cambio fornitore', () => {
   const bills = [
     completeBill({
@@ -355,8 +376,8 @@ test('prefill usa il percorso già esistente dell’app e aggiorna la CTA solo q
   assert.doesNotMatch(app, /history_annualized/);
 });
 
-test('service worker forza il rilascio della cache dello storico consumi reali v0.36.45', () => {
+test('service worker forza il rilascio della cache della linea gas v0.36.46', () => {
   const sw = read('public/sw.js');
-  assert.match(sw, /offertalogica-premium-v03645-real-consumption-history/);
+  assert.match(sw, /offertalogica-premium-v03646-gas-units-pcs/);
   assert.match(sw, /"\/app-premium-bills\.js"/);
 });

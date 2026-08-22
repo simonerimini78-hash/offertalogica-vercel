@@ -19,7 +19,7 @@ function document(commodity = 'gas') {
 }
 
 test('versione e richiesta usano il contratto compatto senza dati aggiuntivi', async () => {
-  assert.equal(PDF_PURE_AI_READER_VERSION, 'pure-ai-native-pdf-v2.0.8-consumption-history-guard');
+  assert.equal(PDF_PURE_AI_READER_VERSION, 'pure-ai-native-pdf-v2.0.9-gas-units-pcs');
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ia-compact-'));
   const filePath = path.join(dir, 'bolletta.pdf');
   await fs.writeFile(filePath, '%PDF-test');
@@ -37,6 +37,7 @@ test('versione e richiesta usano il contratto compatto senza dati aggiuntivi', a
   assert.ok(item.properties.purpose.enum.includes('conditions_start'));
   assert.ok(item.properties.purpose.enum.includes('conditions_end'));
   assert.match(request.input[0].content[0].text, /period_consumption/);
+  assert.match(request.input[0].content[0].text, /coefficiente correttivo C/);
   assert.match(request.input[0].content[0].text, /non usare il periodo di fatturazione/);
   assert.match(request.input[0].content[0].text, /non cercare né restituire dati personali, POD, PDR/);
   assert.ok(JSON.stringify(schema).length < 3200);
@@ -313,6 +314,130 @@ test('luce: separa materia e sconto da C.DISP.D. per il confronto', () => {
   assert.equal(normalized.precisione_confronto_luce, 'completa');
   assert.deepEqual(normalized.motivi_precisione_confronto_luce, []);
   assert.equal(normalized.normalizzazione_prezzo_luce.excluded.ancillary.length, 1);
+});
+
+test('gas: scarta il falso annuo identico al consumo di un periodo breve', () => {
+  const normalized = normalizePureAiOutput({
+    document: { ...document('gas'), billing_period_start: '2026-07-01', billing_period_end: '2026-07-31' },
+    supplies: [{ commodity: 'gas', provider: 'Gas Test', offer_name: 'Gas Casa', offer_code: null, fields: [
+      row('annual_consumption', 'Consumo annuo', 15.28, '15,28', 'Smc', 'year', 'none', 2),
+      row('period_consumption', 'Consumo fatturato nel periodo', 15.28, '15,28', 'Smc', 'none', 'none', 2),
+      row('unit_price', 'Materia prima gas', 0.5, '0,5', '€/Smc', 'none', 'none', 2),
+      row('fixed_fee', 'Quota fissa vendita', 8, '8', '€/mese', 'month', 'none', 2),
+    ]}],
+  });
+  assert.equal(normalized.consumo_gas_smc, undefined);
+  assert.equal(normalized.consumo_periodo_gas_smc, 15.28);
+});
+
+test('gas: conserva un vero consumo annuo diverso dal consumo del periodo', () => {
+  const normalized = normalizePureAiOutput({
+    document: { ...document('gas'), billing_period_start: '2026-07-01', billing_period_end: '2026-07-31' },
+    supplies: [{ commodity: 'gas', provider: 'Gas Test', offer_name: 'Gas Casa', offer_code: null, fields: [
+      row('annual_consumption', 'Consumo annuo ultimi 12 mesi', 740, '740', 'Smc', 'year', 'none', 2),
+      row('period_consumption', 'Consumo fatturato nel periodo', 15.28, '15,28', 'Smc', 'none', 'none', 2),
+      row('unit_price', 'Materia prima gas', 0.5, '0,5', '€/Smc', 'none', 'none', 2),
+      row('fixed_fee', 'Quota fissa vendita', 8, '8', '€/mese', 'month', 'none', 2),
+    ]}],
+  });
+  assert.equal(normalized.consumo_gas_smc, 740);
+  assert.equal(normalized.consumo_periodo_gas_smc, 15.28);
+});
+
+test('gas: consumo del periodo già in Smc resta invariato e non diventa annuo', () => {
+  const normalized = normalizePureAiOutput({
+    document: { ...document('gas'), billing_period_start: '2026-07-01', billing_period_end: '2026-07-31' },
+    supplies: [{ commodity: 'gas', provider: 'Gas Test', offer_name: 'Gas Casa', offer_code: null, fields: [
+      row('period_consumption', 'Consumo fatturato nel periodo', 15.28, '15,28', 'Smc', 'none', 'none', 2),
+      row('unit_price', 'Materia prima gas', 0.5, '0,5', '€/Smc', 'none', 'none', 2),
+      row('fixed_fee', 'Quota fissa vendita', 8, '8', '€/mese', 'month', 'none', 2),
+    ]}],
+  });
+  assert.equal(normalized.consumo_gas_smc, undefined);
+  assert.equal(normalized.consumo_periodo_gas_smc, 15.28);
+  assert.equal(normalized.consumo_periodo_gas_mc, undefined);
+});
+
+test('gas: converte mc in Smc usando soltanto il coefficiente correttivo C', () => {
+  const normalized = normalizePureAiOutput({
+    document: { ...document('gas'), billing_period_start: '2026-07-01', billing_period_end: '2026-07-31' },
+    supplies: [{ commodity: 'gas', provider: 'Gas Test', offer_name: 'Gas Casa', offer_code: null, fields: [
+      row('period_consumption', 'Consumo misurato nel periodo', 15, '15', 'mc', 'none', 'none', 2),
+      row('multiplier', 'Coefficiente correttivo C', 1.018, '1,018', null, 'none', 'none', 2),
+      row('unit_price', 'Materia prima gas', 0.5, '0,5', '€/Smc', 'none', 'none', 2),
+      row('price_component', 'Materia prima gas', 0.5, '0,5', '€/Smc', 'none', 'none', 2),
+      row('fixed_fee', 'Quota fissa vendita', 8, '8', '€/mese', 'month', 'none', 2),
+    ]}],
+  });
+  assert.equal(normalized.consumo_periodo_gas_mc, 15);
+  assert.equal(normalized.coefficiente_conversione_gas_c, 1.018);
+  assert.equal(normalized.consumo_periodo_gas_smc, 15.27);
+  assert.equal(normalized.moltiplicatore_indice_gas, undefined);
+  assert.equal(normalized.prezzo_gas_eur_smc, 0.5);
+  assert.equal(normalized.precisione_confronto_gas, 'completa');
+});
+
+test('gas: un consumo in mc senza coefficiente C non viene spacciato per Smc', () => {
+  const normalized = normalizePureAiOutput({
+    document: { ...document('gas'), billing_period_start: '2026-07-01', billing_period_end: '2026-07-31' },
+    supplies: [{ commodity: 'gas', provider: 'Gas Test', offer_name: 'Gas Casa', offer_code: null, fields: [
+      row('period_consumption', 'Consumo misurato nel periodo', 15, '15', 'mc', 'none', 'none', 2),
+      row('unit_price', 'Materia prima gas', 0.5, '0,5', '€/Smc', 'none', 'none', 2),
+      row('fixed_fee', 'Quota fissa vendita', 8, '8', '€/mese', 'month', 'none', 2),
+    ]}],
+  });
+  assert.equal(normalized.consumo_periodo_gas_mc, 15);
+  assert.equal(normalized.consumo_periodo_gas_smc, undefined);
+  assert.equal(normalized.coefficiente_conversione_gas_c, undefined);
+});
+
+test('gas: il coefficiente C non viene usato come moltiplicatore della formula prezzo', () => {
+  const normalized = normalizePureAiOutput({
+    document: document('gas'),
+    supplies: [{ commodity: 'gas', provider: 'Gas Test', offer_name: 'Gas Casa', offer_code: null, fields: [
+      row('annual_consumption', 'Consumo annuo', 1000, '1000', 'Smc', 'year', 'none', 1),
+      row('unit_price', 'Materia prima gas', 0.5, '0,5', '€/Smc', 'none', 'none', 2),
+      row('price_component', 'Materia prima gas', 0.5, '0,5', '€/Smc', 'none', 'none', 2),
+      row('multiplier', 'Coefficiente C conversione mc in Smc', 1.03, '1,03', null, 'none', 'none', 2),
+      row('formula', 'Formula prezzo', null, 'Materia prima gas; coefficiente C usato per convertire i consumi', null, 'none', 'none', 2),
+      row('fixed_fee', 'Quota fissa vendita', 10, '10', '€/mese', 'month', 'none', 2),
+    ]}],
+  });
+  assert.equal(normalized.prezzo_gas_eur_smc, 0.5);
+  assert.equal(normalized.coefficiente_conversione_gas_c, 1.03);
+  assert.equal(normalized.moltiplicatore_indice_gas, undefined);
+  assert.equal(normalized.normalizzazione_prezzo_gas.factor, null);
+});
+
+test('recupero gas: se il periodo è in mc recupera anche C e salva lo storico in Smc', async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ia-gas-mc-recovery-'));
+  const filePath = path.join(dir, 'bolletta.pdf');
+  await fs.writeFile(filePath, '%PDF-test');
+  let calls = 0;
+  const primary = {
+    document: { ...document('gas'), billing_period_start: '2026-07-01', billing_period_end: '2026-07-31' },
+    supplies: [{ commodity: 'gas', provider: 'Gas Test', offer_name: 'Gas Casa', offer_code: null, fields: [
+      row('unit_price', 'Materia prima gas', 0.5, '0,5', '€/Smc', 'none', 'none', 2),
+      row('fixed_fee', 'Quota fissa vendita', 8, '8', '€/mese', 'month', 'none', 2),
+    ]}],
+  };
+  const recovery = {
+    document: { ...document('gas'), billing_period_start: '2026-07-01', billing_period_end: '2026-07-31' },
+    supplies: [{ commodity: 'gas', provider: null, offer_name: null, offer_code: null, fields: [
+      row('period_consumption', 'Consumo misurato nel periodo', 15, '15', 'mc', 'none', 'none', 2),
+      row('multiplier', 'Coefficiente correttivo C', 1.018, '1,018', null, 'none', 'none', 2),
+    ]}],
+  };
+  const normalized = await extractPdfPureAi({
+    filePath,
+    apiKey: 'test',
+    transport: async () => ({ id: `resp-${++calls}`, output_text: JSON.stringify(calls === 1 ? primary : recovery) }),
+  });
+  assert.equal(calls, 2);
+  assert.equal(normalized.consumo_periodo_gas_mc, 15);
+  assert.equal(normalized.coefficiente_conversione_gas_c, 1.018);
+  assert.equal(normalized.consumo_periodo_gas_smc, 15.27);
+  await fs.rm(dir, { recursive: true, force: true });
 });
 
 test('gas: normalizza un fattore PCS quando la relazione aritmetica è verificabile', () => {

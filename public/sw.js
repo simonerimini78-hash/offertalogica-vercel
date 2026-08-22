@@ -1,5 +1,5 @@
-// premium-real-consumption-history-v03645
-const CACHE = "offertalogica-premium-v03645-real-consumption-history";
+// premium-gas-units-pcs-v03646
+const CACHE = "offertalogica-premium-v03646-gas-units-pcs";
 const APP_SHELL = [
   "/app.html",
   "/app-dialog.js",
