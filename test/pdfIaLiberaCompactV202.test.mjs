@@ -19,7 +19,7 @@ function document(commodity = 'gas') {
 }
 
 test('versione e richiesta usano il contratto compatto senza dati aggiuntivi', async () => {
-  assert.equal(PDF_PURE_AI_READER_VERSION, 'pure-ai-native-pdf-v2.0.10-gas-history-price-recovery');
+  assert.equal(PDF_PURE_AI_READER_VERSION, 'pure-ai-native-pdf-v2.0.11-light-period-guard');
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ia-compact-'));
   const filePath = path.join(dir, 'bolletta.pdf');
   await fs.writeFile(filePath, '%PDF-test');
@@ -101,6 +101,46 @@ test('anche con etichetta annua scarta il duplicato identico al consumo del mese
   assert.equal(normalized.consumo_luce_kwh, undefined);
   assert.equal(normalized.consumo_periodo_luce_kwh, 924.39);
   assert.ok(!normalized.ai.filled_fields.includes('consumo_luce_kwh'));
+});
+
+test('luce a fasce: non ricrea come annuo il totale del solo periodo fatturato', () => {
+  const normalized = normalizePureAiOutput({
+    document: {
+      ...document('electricity'),
+      billing_period_start: '2026-07-01',
+      billing_period_end: '2026-07-31',
+    },
+    supplies: [{ commodity: 'electricity', provider: 'E.ON Energia', offer_name: 'Luce Insieme', offer_code: null, fields: [
+      row('period_consumption', 'Consumo totale fatturato nel periodo', 924.39, '924,39', 'kWh', 'none', 'none', 2),
+      row('band_consumption', 'Consumo F1', 300, '300', 'kWh', 'none', 'f1', 2),
+      row('band_consumption', 'Consumo F23', 624.39, '624,39', 'kWh', 'none', 'f23', 2),
+      row('unit_price', 'Materia energia', 0.104148, '0,104148', '€/kWh', 'none', 'none', 2),
+      row('fixed_fee', 'Quota fissa vendita', 109.08, '109,08', '€/anno', 'year', 'none', 2),
+    ]}],
+  });
+  assert.equal(normalized.consumo_periodo_luce_kwh, 924.39);
+  assert.equal(normalized.consumo_luce_kwh, undefined);
+  assert.ok(!normalized.ai.filled_fields.includes('consumo_luce_kwh'));
+});
+
+test('luce a fasce: mantiene la somma annua quando è distinta dal consumo del periodo', () => {
+  const normalized = normalizePureAiOutput({
+    document: {
+      ...document('electricity'),
+      billing_period_start: '2026-07-01',
+      billing_period_end: '2026-07-31',
+    },
+    supplies: [{ commodity: 'electricity', provider: 'Test', offer_name: 'Test', offer_code: null, fields: [
+      row('period_consumption', 'Consumo totale fatturato nel periodo', 924.39, '924,39', 'kWh', 'none', 'none', 2),
+      row('band_consumption', 'Consumo annuo F1', 1000, '1000', 'kWh', 'year', 'f1', 2),
+      row('band_consumption', 'Consumo annuo F23', 1400, '1400', 'kWh', 'year', 'f23', 2),
+      row('unit_price', 'Materia energia', 0.12, '0,12', '€/kWh', 'none', 'none', 2),
+      row('fixed_fee', 'Quota fissa vendita', 100, '100', '€/anno', 'year', 'none', 2),
+    ]}],
+  });
+  assert.equal(normalized.consumo_periodo_luce_kwh, 924.39);
+  assert.equal(normalized.consumo_luce_kwh, 2400);
+  assert.ok(normalized.ai.filled_fields.includes('consumo_luce_kwh'));
 });
 
 test('mantiene il consumo annuo quando il documento lo dichiara esplicitamente', () => {

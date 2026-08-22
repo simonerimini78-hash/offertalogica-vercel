@@ -8385,6 +8385,33 @@ function classificaLottoPdf(results) {
   };
 }
 
+function pdfDocumentCommodities(doc) {
+  const commodity = String(doc?.commodity || "").toLowerCase();
+  if (commodity === "dual") return ["luce", "gas"];
+  if (commodity === "luce" || commodity === "gas") return [commodity];
+  return [];
+}
+
+function aggiornaSlotBollettaCorrente(existingDocuments, incomingDocuments) {
+  const existing = Array.isArray(existingDocuments) ? existingDocuments : [];
+  const incoming = Array.isArray(incomingDocuments) ? incomingDocuments : [];
+  if (!incoming.length) return [...existing];
+
+  const incomingCommodities = new Set(incoming.flatMap(pdfDocumentCommodities));
+  if (!incomingCommodities.size) return [...incoming];
+
+  // La nuova lettura sostituisce solo la stessa commodity. Luce e gas già letti
+  // restano insieme quando appartengono allo stesso cliente/utenza.
+  const retained = existing.filter((doc) =>
+    !pdfDocumentCommodities(doc).some((commodity) => incomingCommodities.has(commodity))
+  );
+  const candidate = [...retained, ...incoming];
+
+  // Non fondere mai documenti incompatibili: in quel caso resta valida la semantica
+  // storica di nuova lettura e il nuovo lotto diventa da solo la fornitura corrente.
+  return analyzePdfDocumentIsolation(candidate).blocked ? [...incoming] : candidate;
+}
+
 function pdfFileFingerprint(file) {
   return [file?.name || "", Number(file?.size || 0), Number(file?.lastModified || 0)].join("::");
 }
@@ -8653,7 +8680,7 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
   // Un lotto puo contenere bolletta e scheda: vengono divise nei rispettivi slot
   // invece di essere rifiutate o fuse nello stesso documento.
   if (validCurrent.length) {
-    PDF_DOCUMENT_SLOTS.current = [...validCurrent];
+    PDF_DOCUMENT_SLOTS.current = aggiornaSlotBollettaCorrente(PDF_DOCUMENT_SLOTS.current, validCurrent);
     activeSlot = "current";
   }
   if (validOffer.length) {
