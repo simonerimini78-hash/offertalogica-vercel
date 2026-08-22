@@ -131,6 +131,25 @@ test('gas: il consumo del periodo alimenta lo storico in Smc e non viene chiamat
   assert.equal(buildPremiumComparisonProfile(), null);
 });
 
+test('gas: un quasi duplicato annuo 15,28 vs periodo 15,29 viene trattato come storico parziale', () => {
+  const bill = completeBill({
+    id: 'gas-eon-july', commodity: 'gas', date: '2026-07-31', utilityId: 'gas-casa',
+    data: {
+      consumo_gas_smc: 15.28,
+      consumo_periodo_gas_smc: 15.29,
+      prezzo_gas_eur_smc: 0.474,
+      quota_fissa_vendita_gas_eur_anno: 108,
+    },
+  });
+  bill.billing_period_start = '2026-07-01';
+  const { buildPremiumComparisonProfile, comparisonConsumptionForUtility } = loadComparisonHarness({ bills: [bill] });
+  const history = comparisonConsumptionForUtility('gas-casa', 'gas');
+  assert.equal(history.source, 'history_partial');
+  assert.equal(history.periodTotal, 15.29);
+  assert.equal(history.value, null);
+  assert.equal(buildPremiumComparisonProfile(), null);
+});
+
 test('somma periodi non sovrapposti della stessa utenza anche con cambio fornitore', () => {
   const bills = [
     completeBill({
@@ -376,8 +395,8 @@ test('prefill usa il percorso già esistente dell’app e aggiorna la CTA solo q
   assert.doesNotMatch(app, /history_annualized/);
 });
 
-test('service worker forza il rilascio della cache della linea gas v0.36.46', () => {
+test('service worker forza il rilascio della cache della linea gas v0.36.47', () => {
   const sw = read('public/sw.js');
-  assert.match(sw, /offertalogica-premium-v03646-gas-units-pcs/);
+  assert.match(sw, /offertalogica-premium-v03647-gas-history-price-recovery/);
   assert.match(sw, /"\/app-premium-bills\.js"/);
 });

@@ -962,7 +962,7 @@
     const a = finiteNumberOrNull(left);
     const b = finiteNumberOrNull(right);
     if (!(a > 0) || !(b > 0)) return false;
-    return Math.abs(a - b) <= Math.max(0.001, Math.abs(b) * 0.000001);
+    return Math.abs(a - b) <= Math.max(0.02, Math.abs(b) * 0.001);
   }
 
   function comparisonDeclaredAnnualForBill(bill, commodity) {
@@ -1433,7 +1433,8 @@
         const annualGas = comparisonDeclaredAnnualForBill(bill, "gas");
         appendAnalysisRow(grid, "Consumo annuo", annualGas > 0 ? `${formatDecimal(annualGas, 3)} Smc` : null);
         appendAnalysisRow(grid, "Consumo periodo", hasAnalysisValue(data.consumo_periodo_gas_smc) ? `${formatDecimal(data.consumo_periodo_gas_smc, 3)} Smc` : null);
-        appendAnalysisRow(grid, "Prezzo materia", hasAnalysisValue(data.prezzo_gas_eur_smc) ? `${formatDecimal(data.prezzo_gas_eur_smc)} €/Smc` : null);
+        const gasPriceLabel = comparisonPrecisionLimitedForBill(bill, "gas") ? "Prezzo letto · da verificare" : "Prezzo materia";
+        appendAnalysisRow(grid, gasPriceLabel, hasAnalysisValue(data.prezzo_gas_eur_smc) ? `${formatDecimal(data.prezzo_gas_eur_smc)} €/Smc` : null);
         appendAnalysisRow(grid, "Quota fissa", hasAnalysisValue(data.quota_fissa_vendita_gas_eur_anno) ? `${formatMoney(data.quota_fissa_vendita_gas_eur_anno)}/anno` : null);
         appendAnalysisRow(grid, "Tipo prezzo", data.tipo_prezzo_gas);
         appendAnalysisRow(grid, "Indice", data.indice_riferimento_gas);

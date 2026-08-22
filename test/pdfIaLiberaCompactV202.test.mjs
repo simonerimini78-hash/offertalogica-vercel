@@ -19,7 +19,7 @@ function document(commodity = 'gas') {
 }
 
 test('versione e richiesta usano il contratto compatto senza dati aggiuntivi', async () => {
-  assert.equal(PDF_PURE_AI_READER_VERSION, 'pure-ai-native-pdf-v2.0.9-gas-units-pcs');
+  assert.equal(PDF_PURE_AI_READER_VERSION, 'pure-ai-native-pdf-v2.0.10-gas-history-price-recovery');
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ia-compact-'));
   const filePath = path.join(dir, 'bolletta.pdf');
   await fs.writeFile(filePath, '%PDF-test');
@@ -316,6 +316,20 @@ test('luce: separa materia e sconto da C.DISP.D. per il confronto', () => {
   assert.equal(normalized.normalizzazione_prezzo_luce.excluded.ancillary.length, 1);
 });
 
+test('gas: scarta come falso annuo anche il quasi duplicato 15,28 vs 15,29 Smc del mese', () => {
+  const normalized = normalizePureAiOutput({
+    document: { ...document('gas'), billing_period_start: '2026-07-01', billing_period_end: '2026-07-31' },
+    supplies: [{ commodity: 'gas', provider: 'E.ON Energia', offer_name: 'E.ON Gas Insieme', offer_code: null, fields: [
+      row('annual_consumption', 'Consumo annuo', 15.28, '15,28', 'Smc', 'year', 'none', 2),
+      row('period_consumption', 'Consumo fatturato nel periodo', 15.29, '15,29', 'Smc', 'none', 'none', 2),
+      row('unit_price', 'Materia prima gas', 0.5, '0,5', '€/Smc', 'none', 'none', 2),
+      row('fixed_fee', 'Quota fissa vendita', 9, '9', '€/mese', 'month', 'none', 2),
+    ]}],
+  });
+  assert.equal(normalized.consumo_gas_smc, undefined);
+  assert.equal(normalized.consumo_periodo_gas_smc, 15.29);
+});
+
 test('gas: scarta il falso annuo identico al consumo di un periodo breve', () => {
   const normalized = normalizePureAiOutput({
     document: { ...document('gas'), billing_period_start: '2026-07-01', billing_period_end: '2026-07-31' },
@@ -437,6 +451,49 @@ test('recupero gas: se il periodo è in mc recupera anche C e salva lo storico i
   assert.equal(normalized.consumo_periodo_gas_mc, 15);
   assert.equal(normalized.coefficiente_conversione_gas_c, 1.018);
   assert.equal(normalized.consumo_periodo_gas_smc, 15.27);
+  await fs.rm(dir, { recursive: true, force: true });
+});
+
+test('gas: se il primo prezzo è aggregato recupera componenti e ricostruisce la materia senza usare gli oneri', async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ia-gas-price-recovery-'));
+  const filePath = path.join(dir, 'bolletta.pdf');
+  await fs.writeFile(filePath, '%PDF-test');
+  let calls = 0;
+  const primary = {
+    document: { ...document('gas'), billing_period_start: '2026-07-01', billing_period_end: '2026-07-31' },
+    supplies: [{ commodity: 'gas', provider: 'E.ON Energia', offer_name: 'E.ON Gas Insieme', offer_code: null, fields: [
+      row('annual_consumption', 'Consumo annuo', 15.28, '15,28', 'Smc', 'year', 'none', 2),
+      row('period_consumption', 'Consumo fatturato nel periodo', 15.29, '15,29', 'Smc', 'none', 'none', 2),
+      row('unit_price', 'Corrispettivo consumo gas', 0.750215, '0,750215', '€/Smc', 'none', 'none', 2),
+      row('formula', 'Formula', null, 'Prezzo all’ingrosso + spread', null, 'none', 'none', 2),
+      row('fixed_fee', 'Quota fissa vendita', 9, '9', '€/mese', 'month', 'none', 2),
+    ]}],
+  };
+  const recovery = {
+    document: { ...document('gas'), billing_period_start: '2026-07-01', billing_period_end: '2026-07-31' },
+    supplies: [{ commodity: 'gas', provider: null, offer_name: null, offer_code: null, fields: [
+      row('period_consumption', 'Consumo fatturato nel periodo', 15.29, '15,29', 'Smc', 'none', 'none', 2),
+      row('price_component', 'Prezzo all’ingrosso gas', 0.43, '0,43', '€/Smc', 'none', 'none', 3),
+      row('spread', 'Spread commerciale', 0.044, '0,044', '€/Smc', 'none', 'none', 3),
+      row('formula', 'Formula', null, 'Prezzo all’ingrosso + spread', null, 'none', 'none', 3),
+    ]}],
+  };
+  const normalized = await extractPdfPureAi({
+    filePath,
+    apiKey: 'test',
+    transport: async ({ profile }) => {
+      calls += 1;
+      return { id: `resp-${calls}`, output_text: JSON.stringify(profile.includes('recovery') ? recovery : primary) };
+    },
+  });
+  assert.equal(calls, 2);
+  assert.equal(normalized.consumo_gas_smc, undefined);
+  assert.equal(normalized.consumo_periodo_gas_smc, 15.29);
+  assert.equal(normalized.prezzo_vendita_bolletta_gas_eur_smc, 0.750215);
+  assert.equal(normalized.prezzo_gas_eur_smc, 0.474);
+  assert.equal(normalized.normalizzazione_prezzo_gas.source, 'componenti_deterministiche');
+  assert.deepEqual(normalized.ai.price_recovery_requested, ['gas']);
+  assert.equal(normalized.ai.recovery_attempted, true);
   await fs.rm(dir, { recursive: true, force: true });
 });
 

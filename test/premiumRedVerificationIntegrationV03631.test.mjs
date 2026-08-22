@@ -51,9 +51,9 @@ test('migrazione è additiva: nessuna nuova tabella o API, origin red_verificati
   assert.match(sql, /request\.jwt\.claim\.role/);
 });
 
-test('service worker forza cache v0.36.46', () => {
+test('service worker forza cache v0.36.47', () => {
   const sw = read('public/sw.js');
-  assert.match(sw, /offertalogica-premium-v03646-gas-units-pcs/);
+  assert.match(sw, /offertalogica-premium-v03647-gas-history-price-recovery/);
 });
 
 test('app mostra secondo esito e mantiene rosso anche quando risolto dalla seconda IA', () => {
