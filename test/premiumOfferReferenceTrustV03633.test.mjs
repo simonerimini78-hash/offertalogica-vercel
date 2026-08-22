@@ -73,5 +73,5 @@ test('la UI distingue dichiarazione cliente da verifica tecnica', async () => {
 test('v0.36.47 mantiene verificatore v0.36.37 e aggiorna cache PWA', async () => {
   assert.equal(PREMIUM_RED_VERIFIER_VERSION, 'premium-red-verifier-v0.36.37');
   const sw = await fs.readFile(new URL('../public/sw.js', import.meta.url), 'utf8');
-  assert.match(sw, /offertalogica-premium-v03648-bills-ux-archive/);
+  assert.match(sw, /offertalogica-premium-v03649-bills-archive-by-commodity/);
 });

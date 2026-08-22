@@ -6,7 +6,6 @@
   const MAX_FILE_SIZE = 20_000_000;
   const ANALYSIS_POLL_MS = 5000;
   const ANALYSIS_STALE_MS = 90000;
-  const RECENT_BILL_OVERVIEW_LIMIT = 4;
   const BILL_COLUMNS = "id, user_id, utility_id, contract_id, commodity, billing_period_start, billing_period_end, issue_date, due_date, total_amount_eur, original_file_name, file_size, file_sha256, storage_bucket, storage_path, processing_status, customer_status, automatic_screening_status, automatic_screening_summary, automatic_screening_reasons, automatic_screened_at, automatic_analysis_run_id, customer_analysis_data, red_verification_state, red_verification_result, red_verification_run_id, red_verified_at, created_at, updated_at";
   const UTILITY_COLUMNS = "id, label, supply_type, expected_bills_per_year, status";
   const CONTRACT_COLUMNS = "id, user_id, utility_id, provider_name, offer_name, pricing_type, contract_start, contract_end, fixed_price_expiry, electricity_price_eur_kwh, gas_price_eur_smc, electricity_fixed_fee_eur_year, gas_fixed_fee_eur_year, source, verification_status, is_current, arera_offer_code_electricity, arera_offer_code_gas, electricity_index_name, gas_index_name, electricity_spread_eur_kwh, gas_spread_eur_smc, electricity_formula, gas_formula, automatic_match_status, automatic_match_confidence, automatic_match_method, automatic_match_candidates, automatic_matched_at, automatic_match_catalog_version, customer_confirmation_status, customer_confirmed_at, customer_rejected_at, customer_selected_candidates, customer_confirmation_version, created_at, updated_at";
@@ -38,7 +37,7 @@
   let utilityHistoryRenderQueued = false;
   let checkConfirmationResolve = null;
   let checkConfirmationPreviousFocus = null;
-  let billsArchiveOpen = false;
+  let billsArchiveOpen = { electricity: false, gas: false };
 
   const byId = id => document.getElementById(id);
 
@@ -60,7 +59,7 @@
     list: null,
     archiveToolbar: null,
     archiveMeta: null,
-    archiveToggle: null,
+    archiveToggles: { electricity: null, gas: null },
     homeCount: null,
     profileCount: null,
     profileSize: null,
@@ -95,7 +94,7 @@
     if (state.utilitySelect) state.utilitySelect.disabled = busy || maintenanceMode || !utilities.length;
     if (state.uploadButton) state.uploadButton.disabled = busy || !canUpload();
     if (state.fileInput) state.fileInput.disabled = busy || maintenanceMode || !utilities.length;
-    if (state.archiveToggle) state.archiveToggle.disabled = busy;
+    Object.values(state.archiveToggles || {}).forEach(toggle => { if (toggle) toggle.disabled = busy; });
     if (state.uploadButtonLabel) state.uploadButtonLabel.textContent = busy ? "OPERAZIONE…" : "SCEGLI PDF";
     state.list?.querySelectorAll("button, select").forEach(control => {
       control.disabled = Boolean(busy) || control.dataset.permanentDisabled === "true";
@@ -556,7 +555,7 @@
     operationBlockReason = "";
     utilities = [];
     bills = [];
-    billsArchiveOpen = false;
+    billsArchiveOpen = { electricity: false, gas: false };
     contracts = [];
     checks = [];
     anomalies = [];
@@ -1922,53 +1921,82 @@
   }
 
   function ensureBillsUxStyles() {
-    if (document.getElementById("premiumBillsUxV03648")) return;
+    if (document.getElementById("premiumBillsUxV03649")) return;
     const style = document.createElement("style");
-    style.id = "premiumBillsUxV03648";
+    style.id = "premiumBillsUxV03649";
     style.textContent = `
       .cloud-bill-archive-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;padding:12px 13px;border:1px solid #d7e8dc;border-radius:16px;background:#f7fbf8}
       .cloud-bill-archive-copy{min-width:0}.cloud-bill-archive-copy strong{display:block;font-size:12px;color:#173b2b}.cloud-bill-archive-copy small{display:block;margin-top:3px;color:#6b7d73;font-size:9.5px;line-height:1.35}
-      .cloud-bill-archive-toggle{flex:0 0 auto;min-height:38px;padding:0 11px;border:1px solid #b8d7c1;border-radius:12px;background:#fff;color:#087f3a;font-size:9.5px;font-weight:900}.cloud-bill-archive-toggle[hidden]{display:none}
+      .cloud-bill-archive-actions{display:flex;align-items:center;justify-content:flex-end;gap:7px;flex-wrap:wrap}.cloud-bill-archive-toggle{flex:0 0 auto;min-height:38px;padding:0 11px;border:1px solid #b8d7c1;border-radius:12px;background:#fff;color:#087f3a;font-size:9.5px;font-weight:900}.cloud-bill-archive-toggle[hidden]{display:none}
       .cloud-info-list{display:grid;gap:7px;margin-top:10px}.cloud-info-item{padding:10px 11px;border:1px solid #d8e7de;border-radius:12px;background:#f5f9f6}.cloud-info-item strong{display:block;color:#315a43;font-size:10.5px}.cloud-info-item p{margin:4px 0 0;color:#687a70;font-size:10px;line-height:1.42}
+      @media(max-width:430px){.cloud-bill-archive-toolbar{align-items:flex-start;flex-direction:column}.cloud-bill-archive-actions{width:100%;justify-content:flex-start}}
     `;
     document.head?.append(style);
   }
 
+  function billArchiveCommodity(bill) {
+    const data = analysisDataForBill(bill);
+    const declared = String(data.commodity || bill?.commodity || "").trim().toLowerCase();
+    if (["electricity", "luce"].includes(declared)) return "electricity";
+    if (declared === "gas") return "gas";
+    const hasLight = [data.consumo_luce_kwh, data.consumo_periodo_luce_kwh, data.prezzo_luce_eur_kwh, data.pod].some(hasAnalysisValue);
+    const hasGas = [data.consumo_gas_smc, data.consumo_periodo_gas_smc, data.prezzo_gas_eur_smc, data.pdr].some(hasAnalysisValue);
+    if (hasLight && !hasGas) return "electricity";
+    if (hasGas && !hasLight) return "gas";
+    return "other";
+  }
+
+  function billNeedsImmediateOverviewVisibility(bill, checkByBillId) {
+    const check = checkByBillId.get(bill?.id);
+    return hasActiveHumanCheck(check)
+      || analysisIsPending(bill)
+      || analysisIsStale(bill)
+      || bill?.automatic_screening_status === "review_recommended"
+      || bill?.automatic_screening_status === "failed"
+      || bill?.processing_status === "failed";
+  }
+
   function recentBillsForOverview(sourceBills = bills) {
     const source = Array.isArray(sourceBills) ? sourceBills : [];
-    const selected = [];
     const selectedIds = new Set();
-    const seenUtilities = new Set();
+    const latestBySupply = new Map();
     const checkByBillId = new Map();
     checks.forEach(check => {
       if (!checkByBillId.has(check.bill_id)) checkByBillId.set(check.bill_id, check);
     });
-    const needsImmediateVisibility = bill => {
-      const check = checkByBillId.get(bill?.id);
-      return hasActiveHumanCheck(check)
-        || analysisIsPending(bill)
-        || analysisIsStale(bill)
-        || bill?.automatic_screening_status === "review_recommended"
-        || bill?.automatic_screening_status === "failed"
-        || bill?.processing_status === "failed";
-    };
-    source.filter(needsImmediateVisibility).forEach(bill => {
-      if (!selectedIds.has(bill.id)) {
-        selected.push(bill);
+    source.forEach(bill => {
+      if (billNeedsImmediateOverviewVisibility(bill, checkByBillId)) selectedIds.add(bill.id);
+      const commodity = billArchiveCommodity(bill);
+      if (!["electricity", "gas"].includes(commodity)) {
         selectedIds.add(bill.id);
+        return;
       }
+      const key = `${String(bill?.utility_id || "utenza")}:${commodity}`;
+      const current = latestBySupply.get(key);
+      if (!current || comparisonBillTime(bill) > comparisonBillTime(current)) latestBySupply.set(key, bill);
     });
-    for (const bill of source) {
-      const key = String(bill?.utility_id || bill?.commodity || bill?.id || "");
-      if (seenUtilities.has(key)) continue;
-      seenUtilities.add(key);
-      if (!selectedIds.has(bill.id)) {
-        selected.push(bill);
-        selectedIds.add(bill.id);
-      }
-      if (selected.length >= RECENT_BILL_OVERVIEW_LIMIT && seenUtilities.size >= Math.min(utilities.length || RECENT_BILL_OVERVIEW_LIMIT, RECENT_BILL_OVERVIEW_LIMIT)) break;
+    latestBySupply.forEach(bill => selectedIds.add(bill.id));
+    return source.filter(bill => selectedIds.has(bill.id));
+  }
+
+  function archivedBillsByCommodity(recentBills, sourceBills = bills) {
+    const recentIds = new Set((Array.isArray(recentBills) ? recentBills : []).map(bill => bill.id));
+    const buckets = { electricity: [], gas: [] };
+    (Array.isArray(sourceBills) ? sourceBills : []).forEach(bill => {
+      if (recentIds.has(bill.id)) return;
+      const commodity = billArchiveCommodity(bill);
+      if (buckets[commodity]) buckets[commodity].push(bill);
+    });
+    return buckets;
+  }
+
+  function visibleBillsForOverview(recentBills, archived) {
+    const visibleIds = new Set((Array.isArray(recentBills) ? recentBills : []).map(bill => bill.id));
+    for (const commodity of ["electricity", "gas"]) {
+      if (!billsArchiveOpen[commodity]) continue;
+      (archived?.[commodity] || []).forEach(bill => visibleIds.add(bill.id));
     }
-    return selected.length ? selected : source.slice(0, RECENT_BILL_OVERVIEW_LIMIT);
+    return bills.filter(bill => visibleIds.has(bill.id));
   }
 
   function ensureBillsArchiveControls() {
@@ -1981,40 +2009,54 @@
       copy.className = "cloud-bill-archive-copy";
       const title = document.createElement("strong");
       title.dataset.archiveRole = "title";
+      title.textContent = "Ultime bollette";
       const meta = document.createElement("small");
       meta.dataset.archiveRole = "meta";
       copy.append(title, meta);
-      const toggle = document.createElement("button");
-      toggle.type = "button";
-      toggle.className = "cloud-bill-archive-toggle";
-      toggle.setAttribute("aria-controls", state.list.id || "premiumCloudBillList");
-      toggle.addEventListener("click", () => {
-        billsArchiveOpen = !billsArchiveOpen;
-        renderList();
-      });
-      toolbar.append(copy, toggle);
+      const actions = document.createElement("div");
+      actions.className = "cloud-bill-archive-actions";
+      for (const [commodity, label] of [["electricity", "LUCE"], ["gas", "GAS"]]) {
+        const toggle = document.createElement("button");
+        toggle.type = "button";
+        toggle.className = "cloud-bill-archive-toggle";
+        toggle.dataset.archiveCommodity = commodity;
+        toggle.setAttribute("aria-controls", state.list.id || "premiumCloudBillList");
+        toggle.addEventListener("click", () => {
+          billsArchiveOpen[commodity] = !billsArchiveOpen[commodity];
+          renderList();
+        });
+        toggle.textContent = `ARCHIVIO ${label}`;
+        actions.append(toggle);
+        state.archiveToggles[commodity] = toggle;
+      }
+      toolbar.append(copy, actions);
       state.list.before(toolbar);
       state.archiveToolbar = toolbar;
       state.archiveMeta = meta;
-      state.archiveToggle = toggle;
     }
   }
 
-  function updateBillsArchiveControls(recentBills) {
+  function updateBillsArchiveControls(recentBills, archived) {
     ensureBillsArchiveControls();
     if (!state.archiveToolbar) return;
-    const archivedCount = Math.max(0, bills.length - recentBills.length);
-    if (archivedCount === 0) billsArchiveOpen = false;
-    const title = state.archiveToolbar.querySelector('[data-archive-role="title"]');
-    setText(title, billsArchiveOpen ? "Archivio bollette" : "Ultime bollette");
-    setText(state.archiveMeta, billsArchiveOpen
-      ? `${bills.length} document${bills.length === 1 ? "o" : "i"} disponibili`
-      : `${recentBills.length} recent${recentBills.length === 1 ? "e" : "i"}${archivedCount ? ` · ${archivedCount} in archivio` : ""}`);
-    if (state.archiveToggle) {
-      state.archiveToggle.hidden = archivedCount === 0;
-      state.archiveToggle.textContent = billsArchiveOpen ? "CHIUDI ARCHIVIO" : `ARCHIVIO (${archivedCount})`;
-      state.archiveToggle.setAttribute("aria-expanded", billsArchiveOpen ? "true" : "false");
-      state.archiveToggle.disabled = Boolean(busy);
+    const electricityCount = archived.electricity.length;
+    const gasCount = archived.gas.length;
+    if (electricityCount === 0) billsArchiveOpen.electricity = false;
+    if (gasCount === 0) billsArchiveOpen.gas = false;
+    const openLabels = [];
+    if (billsArchiveOpen.electricity) openLabels.push("luce");
+    if (billsArchiveOpen.gas) openLabels.push("gas");
+    const archivedTotal = electricityCount + gasCount;
+    setText(state.archiveMeta, openLabels.length
+      ? `Archivio ${openLabels.join(" e ")} aperto · le bollette più recenti restano visibili`
+      : `${recentBills.length} recent${recentBills.length === 1 ? "e" : "i"}${archivedTotal ? ` · ${archivedTotal} precedent${archivedTotal === 1 ? "e" : "i"} in archivio` : " · nessuna bolletta precedente"}`);
+    for (const [commodity, label, count] of [["electricity", "LUCE", electricityCount], ["gas", "GAS", gasCount]]) {
+      const toggle = state.archiveToggles?.[commodity];
+      if (!toggle) continue;
+      toggle.hidden = count === 0;
+      toggle.textContent = billsArchiveOpen[commodity] ? `CHIUDI ${label}` : `ARCHIVIO ${label} (${count})`;
+      toggle.setAttribute("aria-expanded", billsArchiveOpen[commodity] ? "true" : "false");
+      toggle.disabled = Boolean(busy);
     }
   }
 
@@ -2032,9 +2074,10 @@
     state.empty.hidden = true;
     state.list.hidden = false;
     const recentBills = recentBillsForOverview();
-    updateBillsArchiveControls(recentBills);
+    const archived = archivedBillsByCommodity(recentBills);
+    updateBillsArchiveControls(recentBills, archived);
     if (state.archiveToolbar) state.archiveToolbar.hidden = false;
-    const visibleBills = billsArchiveOpen ? bills : recentBills;
+    const visibleBills = visibleBillsForOverview(recentBills, archived);
     const { utilityMap, checkMap, anomalyMap } = billRenderMaps();
     const existingArticles = [...state.list.querySelectorAll(":scope > [data-cloud-bill-id]")];
     const existingIds = existingArticles.map(article => article.dataset.cloudBillId);
@@ -2788,7 +2831,7 @@
     operationBlockReason = maintenanceMode ? blockReason : "";
     utilities = Array.isArray(utilitiesResult.data) ? utilitiesResult.data : [];
     bills = Array.isArray(billsResult.data) ? billsResult.data : [];
-    billsArchiveOpen = false;
+    billsArchiveOpen = { electricity: false, gas: false };
     contracts = Array.isArray(contractsResult.data) ? contractsResult.data : [];
     checks = Array.isArray(checksResult.data) ? checksResult.data : [];
     anomalies = Array.isArray(anomaliesResult.data) ? anomaliesResult.data : [];
@@ -2911,7 +2954,7 @@
     state.list = byId("premiumCloudBillList");
     state.archiveToolbar = null;
     state.archiveMeta = null;
-    state.archiveToggle = null;
+    state.archiveToggles = { electricity: null, gas: null };
     state.homeCount = byId("homeCloudBillCount");
     state.profileCount = byId("profileCloudBillCount");
     state.profileSize = byId("profileCloudBillSize");

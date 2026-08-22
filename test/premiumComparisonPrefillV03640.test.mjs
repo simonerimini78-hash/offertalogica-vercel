@@ -17,7 +17,7 @@ function loadComparisonHarness({ bills = [], contracts = [], utilities = [], che
     .replace('let checks = [];', 'let checks = globalThis.__TEST_CHECKS__;')
     .replace(
       'globalThis.OffertaLogicaPremiumBills = Object.freeze({ init });',
-      'globalThis.OffertaLogicaPremiumBills = Object.freeze({ init, __test: { buildPremiumComparisonProfile, applyPremiumComparisonProfile, comparisonConsumptionForUtility, automaticReasonKind, automaticReasonPresentation, automaticDisplayTrafficLight, automaticStatusCopy, recentBillsForOverview } });',
+      'globalThis.OffertaLogicaPremiumBills = Object.freeze({ init, __test: { buildPremiumComparisonProfile, applyPremiumComparisonProfile, comparisonConsumptionForUtility, automaticReasonKind, automaticReasonPresentation, automaticDisplayTrafficLight, automaticStatusCopy, billArchiveCommodity, recentBillsForOverview, archivedBillsByCommodity } });',
     );
   const context = {
     __TEST_BILLS__: bills,
@@ -401,19 +401,52 @@ test('precisione economica limitata resta un vero giallo con testo comprensibile
   assert.doesNotMatch(automaticReasonPresentation(reason).description, /precisione_confronto_gas/);
 });
 
-test('vista Bollette mostra una recente per utenza e tiene visibili i casi che richiedono attenzione', () => {
+test('vista Bollette mantiene ultima luce e ultimo gas della stessa utenza e separa i due archivi', () => {
   const bills = [
-    { id: 'u1-new', utility_id: 'u1', processing_status: 'completed', automatic_screening_status: 'clear' },
-    { id: 'u1-old-red', utility_id: 'u1', processing_status: 'completed', automatic_screening_status: 'review_recommended' },
-    { id: 'u2-new', utility_id: 'u2', processing_status: 'completed', automatic_screening_status: 'clear' },
-    { id: 'u2-old', utility_id: 'u2', processing_status: 'completed', automatic_screening_status: 'clear' },
-    { id: 'u3-new', utility_id: 'u3', processing_status: 'completed', automatic_screening_status: 'clear' },
+    { id: 'gas-new', utility_id: 'u1', commodity: 'gas', processing_status: 'completed', automatic_screening_status: 'clear' },
+    { id: 'luce-new', utility_id: 'u1', commodity: 'electricity', processing_status: 'completed', automatic_screening_status: 'clear' },
+    { id: 'gas-old', utility_id: 'u1', commodity: 'gas', processing_status: 'completed', automatic_screening_status: 'clear' },
+    { id: 'luce-old', utility_id: 'u1', commodity: 'electricity', processing_status: 'completed', automatic_screening_status: 'clear' },
   ];
-  const utilities = [{ id: 'u1' }, { id: 'u2' }, { id: 'u3' }];
-  const { recentBillsForOverview } = loadComparisonHarness({ bills, utilities });
-  const recent = recentBillsForOverview(bills).map(item => item.id);
-  assert.deepEqual(Array.from(recent), ['u1-old-red', 'u1-new', 'u2-new', 'u3-new']);
-  assert.equal(recent.includes('u2-old'), false);
+  const utilities = [{ id: 'u1', supply_type: 'dual' }];
+  const { recentBillsForOverview, archivedBillsByCommodity } = loadComparisonHarness({ bills, utilities });
+  const recentBills = recentBillsForOverview(bills);
+  const recent = recentBills.map(item => item.id);
+  assert.deepEqual(Array.from(recent), ['gas-new', 'luce-new']);
+  const archived = archivedBillsByCommodity(recentBills, bills);
+  assert.deepEqual(Array.from(archived.electricity, item => item.id), ['luce-old']);
+  assert.deepEqual(Array.from(archived.gas, item => item.id), ['gas-old']);
+});
+
+test('ultima bolletta significa periodo più recente anche se una vecchia viene caricata dopo', () => {
+  const bills = [
+    { id: 'luce-old-uploaded-later', utility_id: 'u1', commodity: 'electricity', billing_period_end: '2026-07-31', created_at: '2026-09-02T10:00:00Z', processing_status: 'completed', automatic_screening_status: 'clear' },
+    { id: 'luce-actual-new', utility_id: 'u1', commodity: 'electricity', billing_period_end: '2026-08-31', created_at: '2026-09-01T10:00:00Z', processing_status: 'completed', automatic_screening_status: 'clear' },
+  ];
+  const { recentBillsForOverview, archivedBillsByCommodity } = loadComparisonHarness({ bills, utilities: [{ id: 'u1' }] });
+  const recentBills = recentBillsForOverview(bills);
+  assert.deepEqual(Array.from(recentBills, item => item.id), ['luce-actual-new']);
+  assert.deepEqual(Array.from(archivedBillsByCommodity(recentBills, bills).electricity, item => item.id), ['luce-old-uploaded-later']);
+});
+
+test('un vecchio caso rosso resta visibile fuori dall’archivio della propria commodity', () => {
+  const bills = [
+    { id: 'luce-new', utility_id: 'u1', commodity: 'electricity', processing_status: 'completed', automatic_screening_status: 'clear' },
+    { id: 'luce-old-red', utility_id: 'u1', commodity: 'electricity', processing_status: 'completed', automatic_screening_status: 'review_recommended' },
+    { id: 'luce-old-ok', utility_id: 'u1', commodity: 'electricity', processing_status: 'completed', automatic_screening_status: 'clear' },
+  ];
+  const { recentBillsForOverview, archivedBillsByCommodity } = loadComparisonHarness({ bills, utilities: [{ id: 'u1' }] });
+  const recentBills = recentBillsForOverview(bills);
+  assert.deepEqual(Array.from(recentBills, item => item.id), ['luce-new', 'luce-old-red']);
+  assert.deepEqual(Array.from(archivedBillsByCommodity(recentBills, bills).electricity, item => item.id), ['luce-old-ok']);
+});
+
+test('una bolletta caricata su utenza dual viene assegnata all’archivio in base ai dati letti', () => {
+  const gasBill = { id: 'dual-gas', commodity: 'dual', customer_analysis_data: { consumo_periodo_gas_smc: 15.29 } };
+  const lightBill = { id: 'dual-luce', commodity: 'dual', customer_analysis_data: { consumo_periodo_luce_kwh: 924.39 } };
+  const { billArchiveCommodity } = loadComparisonHarness({ bills: [gasBill, lightBill] });
+  assert.equal(billArchiveCommodity(gasBill), 'gas');
+  assert.equal(billArchiveCommodity(lightBill), 'electricity');
 });
 
 test('trasferimento è solo in memoria, non usa POD/PDR/indirizzo e non mette dati nell’URL', () => {
@@ -441,8 +474,8 @@ test('prefill usa il percorso già esistente dell’app e aggiorna la CTA solo q
   assert.doesNotMatch(app, /history_annualized/);
 });
 
-test('service worker forza il rilascio della cache UX bollette v0.36.48', () => {
+test('service worker forza il rilascio della cache archivio luce gas v0.36.49', () => {
   const sw = read('public/sw.js');
-  assert.match(sw, /offertalogica-premium-v03648-bills-ux-archive/);
+  assert.match(sw, /offertalogica-premium-v03649-bills-archive-by-commodity/);
   assert.match(sw, /"\/app-premium-bills\.js"/);
 });

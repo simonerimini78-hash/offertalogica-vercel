@@ -1,5 +1,5 @@
-// premium-bills-ux-archive-v03648
-const CACHE = "offertalogica-premium-v03648-bills-ux-archive";
+// premium-bills-archive-by-commodity-v03649
+const CACHE = "offertalogica-premium-v03649-bills-archive-by-commodity";
 const APP_SHELL = [
   "/app.html",
   "/app-dialog.js",
