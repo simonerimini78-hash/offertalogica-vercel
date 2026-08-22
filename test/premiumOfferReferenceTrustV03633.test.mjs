@@ -70,8 +70,8 @@ test('la UI distingue dichiarazione cliente da verifica tecnica', async () => {
   assert.doesNotMatch(ui, /Le condizioni registrate vengono usate anche per ricontrollare la bolletta/);
 });
 
-test('v0.36.39 mantiene verificatore v0.36.37 e aggiorna cache PWA', async () => {
+test('v0.36.40 mantiene verificatore v0.36.37 e aggiorna cache PWA', async () => {
   assert.equal(PREMIUM_RED_VERIFIER_VERSION, 'premium-red-verifier-v0.36.37');
   const sw = await fs.readFile(new URL('../public/sw.js', import.meta.url), 'utf8');
-  assert.match(sw, /offertalogica-premium-v03639-offer-resolution-ux/);
+  assert.match(sw, /offertalogica-premium-v03640-comparison-prefill/);
 });

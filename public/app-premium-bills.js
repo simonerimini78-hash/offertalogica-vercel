@@ -32,6 +32,7 @@
   const redVerificationInFlightIds = new Set();
   const analysisAttemptFailures = new Set();
   let pollTimer = null;
+  let pendingComparisonPrefill = null;
   let checkConfirmationResolve = null;
   let checkConfirmationPreviousFocus = null;
 
@@ -494,6 +495,7 @@
     setText(state.homeCount, "—");
     setText(state.profileCount, "0");
     setText(state.profileSize, "0 KB");
+    renderComparisonAvailability();
     setMessage("", "");
   }
 
@@ -545,6 +547,7 @@
     if (state.uploadButton) state.uploadButton.hidden = maintenanceMode || utilities.length === 0;
     renderCloudSpend();
     renderList();
+    renderComparisonAvailability();
     setBusy(busy);
     if (!maintenanceMode) scheduleAutomaticWork();
     else if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
@@ -903,6 +906,186 @@
     return bill?.customer_analysis_data && typeof bill.customer_analysis_data === "object"
       ? bill.customer_analysis_data
       : {};
+  }
+
+  function comparisonBillTime(bill) {
+    const reference = billReferenceDate(bill);
+    const referenceTime = reference instanceof Date ? reference.getTime() : 0;
+    if (Number.isFinite(referenceTime) && referenceTime > 0) return referenceTime;
+    const created = new Date(bill?.created_at || 0).getTime();
+    return Number.isFinite(created) ? created : 0;
+  }
+
+  function comparisonSupplyFromBill(bill, commodity) {
+    if (!bill || bill.processing_status !== "completed") return null;
+    const isLight = commodity === "luce";
+    const allowedBillCommodities = isLight ? ["electricity", "dual"] : ["gas", "dual"];
+    if (!allowedBillCommodities.includes(bill.commodity)) return null;
+    const data = analysisDataForBill(bill);
+    const consumption = finiteNumberOrNull(data[isLight ? "consumo_luce_kwh" : "consumo_gas_smc"]);
+    const price = finiteNumberOrNull(data[isLight ? "prezzo_luce_eur_kwh" : "prezzo_gas_eur_smc"]);
+    const fixedFee = finiteNumberOrNull(data[isLight ? "quota_fissa_vendita_luce_eur_anno" : "quota_fissa_vendita_gas_eur_anno"]);
+    if (!(consumption > 0) || !(price > 0) || fixedFee === null) return null;
+    const contract = contractForBill(bill);
+    const provider = String(
+      data[isLight ? "fornitore_luce" : "fornitore_gas"]
+      || data.fornitore
+      || contract?.provider_name
+      || ""
+    ).trim();
+    const rawPriceType = String(data[isLight ? "tipo_prezzo_luce" : "tipo_prezzo_gas"] || "").trim().toLowerCase();
+    const priceType = ["fisso", "variabile"].includes(rawPriceType) ? rawPriceType : null;
+    const committedPowerKw = isLight && finiteNumberOrNull(data.potenza_impegnata_kw) > 0
+      ? finiteNumberOrNull(data.potenza_impegnata_kw)
+      : null;
+    return {
+      commodity,
+      billId: bill.id,
+      utilityId: bill.utility_id || null,
+      contractId: bill.contract_id || null,
+      sourceDate: billReferenceDate(bill)?.toISOString?.().slice(0, 10) || null,
+      consumption,
+      price,
+      fixedFee,
+      provider,
+      priceType,
+      committedPowerKw,
+    };
+  }
+
+  function latestComparisonSupply(commodity) {
+    return bills
+      .map(bill => ({ bill, supply: comparisonSupplyFromBill(bill, commodity) }))
+      .filter(item => item.supply)
+      .sort((left, right) => comparisonBillTime(right.bill) - comparisonBillTime(left.bill))[0]?.supply || null;
+  }
+
+  function buildPremiumComparisonProfile() {
+    const luce = latestComparisonSupply("luce");
+    const gas = latestComparisonSupply("gas");
+    if (!luce && !gas) return null;
+    const sameBill = Boolean(luce && gas && luce.billId === gas.billId);
+    const sameContract = Boolean(luce && gas && luce.contractId && luce.contractId === gas.contractId);
+    const priceTypes = [luce?.priceType, gas?.priceType].filter(Boolean);
+    const priceType = priceTypes.length && new Set(priceTypes).size === 1 ? priceTypes[0] : null;
+    return {
+      version: "premium-comparison-prefill-v1",
+      luce,
+      gas,
+      priceType,
+      supplyMode: luce && gas ? (sameBill || sameContract ? "dual" : "separate") : luce ? "luce" : "gas",
+    };
+  }
+
+  function comparisonSourceCopy(profile) {
+    const parts = [];
+    if (profile?.luce) parts.push(`luce ${profile.luce.sourceDate ? formatDate(profile.luce.sourceDate) : ""}`.trim());
+    if (profile?.gas) parts.push(`gas ${profile.gas.sourceDate ? formatDate(profile.gas.sourceDate) : ""}`.trim());
+    return parts.join(" · ");
+  }
+
+  function renderComparisonAvailability() {
+    const profile = buildPremiumComparisonProfile();
+    const copy = document.querySelector('#view-offers .hero > p');
+    const label = document.querySelector('#view-offers .hero .cta span');
+    if (copy) copy.textContent = profile
+      ? "Useremo automaticamente consumi e costi dell’ultima bolletta analizzata disponibile."
+      : "Usa i consumi medi oppure inserisci i tuoi dati.";
+    if (label) label.textContent = profile ? "CONFRONTA CON I MIEI CONSUMI" : "INIZIA IL CONFRONTO";
+  }
+
+  function dispatchFieldEvent(element, type) {
+    if (!element) return;
+    const EventConstructor = element.ownerDocument?.defaultView?.Event || Event;
+    element.dispatchEvent(new EventConstructor(type, { bubbles: true }));
+  }
+
+  function setComparisonField(doc, id, value, eventType = "input") {
+    const field = doc.getElementById(id);
+    if (!field || value === null || value === undefined || value === "") return false;
+    field.value = String(value);
+    dispatchFieldEvent(field, eventType);
+    return true;
+  }
+
+  function applyPremiumComparisonProfile(frame, profile) {
+    if (!frame || !profile) return false;
+    let doc;
+    let frameUrl;
+    try {
+      doc = frame.contentDocument;
+      frameUrl = new URL(frame.contentWindow.location.href);
+    } catch {
+      return false;
+    }
+    if (!doc || frameUrl.origin !== location.origin || !["/", "/index.html"].includes(frameUrl.pathname)) return false;
+    const precise = doc.getElementById("btn-attiva-precisi");
+    precise?.click();
+
+    const mode = doc.getElementById("master-tipo-fornitura");
+    if (mode && [...mode.options].some(option => option.value === profile.supplyMode)) {
+      mode.value = profile.supplyMode;
+      dispatchFieldEvent(mode, "change");
+    }
+    const priceType = doc.getElementById("master-luce-tipo");
+    if (profile.priceType && priceType && [...priceType.options].some(option => option.value === profile.priceType)) {
+      priceType.value = profile.priceType;
+      dispatchFieldEvent(priceType, "change");
+    }
+    const power = doc.getElementById("master-luce-potenza");
+    if (profile.luce?.committedPowerKw && power && [...power.options].some(option => Number(option.value) === Number(profile.luce.committedPowerKw))) {
+      power.value = String(profile.luce.committedPowerKw);
+      dispatchFieldEvent(power, "change");
+    }
+
+    let applied = 0;
+    const applySupply = (supply, commodity) => {
+      if (!supply) return;
+      const light = commodity === "luce";
+      const prefix = light ? "luce" : "gas";
+      const providerField = light ? "nome-fornitore-att" : "nome-fornitore-gas-att";
+      if (supply.provider) setComparisonField(doc, providerField, supply.provider);
+      if (setComparisonField(doc, `in-${prefix}-cons-att`, supply.consumption)) applied += 1;
+      setComparisonField(doc, `in-${prefix}-cons-nuov`, supply.consumption);
+      if (setComparisonField(doc, `in-${prefix}-prezzo-att`, supply.price)) applied += 1;
+      const unit = doc.getElementById(`in-${prefix}-fisso-att-unita`);
+      if (unit && [...unit.options].some(option => option.value === "anno")) {
+        unit.value = "anno";
+        dispatchFieldEvent(unit, "change");
+      }
+      if (setComparisonField(doc, `in-${prefix}-fisso-att`, supply.fixedFee)) applied += 1;
+    };
+    applySupply(profile.luce, "luce");
+    applySupply(profile.gas, "gas");
+
+    if (applied < 3 * Number(Boolean(profile.luce)) + 3 * Number(Boolean(profile.gas))) return false;
+    const subtitle = document.getElementById("appBrowserSubtitle");
+    if (subtitle) {
+      const sources = comparisonSourceCopy(profile);
+      subtitle.textContent = sources ? `Dati Premium inseriti · ${sources}` : "Dati Premium inseriti automaticamente";
+    }
+    return true;
+  }
+
+  function preparePremiumComparisonPrefill(event) {
+    const link = event.target instanceof Element ? event.target.closest('[data-app-url="/?entry=app#main-content"]') : null;
+    if (!link) return;
+    pendingComparisonPrefill = buildPremiumComparisonProfile();
+  }
+
+  function applyPendingComparisonPrefill() {
+    if (!pendingComparisonPrefill) return;
+    const frame = document.getElementById("appBrowserFrame");
+    if (!frame) return;
+    let isCalculator = false;
+    try {
+      const url = new URL(frame.contentWindow.location.href);
+      isCalculator = url.origin === location.origin && ["/", "/index.html"].includes(url.pathname);
+    } catch {}
+    if (!isCalculator) return;
+    const profile = pendingComparisonPrefill;
+    pendingComparisonPrefill = null;
+    applyPremiumComparisonProfile(frame, profile);
   }
 
   function formatDecimal(value, maximumFractionDigits = 6) {
@@ -2271,6 +2454,9 @@
     initialized = true;
     collectElements();
     if (!state.card) return;
+    document.addEventListener("click", preparePremiumComparisonPrefill, true);
+    document.getElementById("appBrowserFrame")?.addEventListener("load", applyPendingComparisonPrefill);
+    renderComparisonAvailability();
 
     client = globalThis.OffertaLogicaPremiumAuth?.getClient?.() || null;
     if (!client) {
@@ -2384,6 +2570,7 @@
     window.addEventListener("focus", resumeAutomaticWork);
 
     window.addEventListener("pagehide", () => {
+      document.removeEventListener("click", preparePremiumComparisonPrefill, true);
       authSubscription?.data?.subscription?.unsubscribe?.();
       if (pollTimer) clearTimeout(pollTimer);
       closeCheckConfirmation(false);

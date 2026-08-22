@@ -1,5 +1,5 @@
-// offer-resolution-ux-v03639
-const CACHE = "offertalogica-premium-v03639-offer-resolution-ux";
+// premium-comparison-prefill-v03640
+const CACHE = "offertalogica-premium-v03640-comparison-prefill";
 const APP_SHELL = [
   "/app.html",
   "/app-dialog.js",
