@@ -19,7 +19,7 @@ function document(commodity = 'gas') {
 }
 
 test('versione e richiesta usano il contratto compatto senza dati aggiuntivi', async () => {
-  assert.equal(PDF_PURE_AI_READER_VERSION, 'pure-ai-native-pdf-v2.0.3-premium-auto-screening');
+  assert.equal(PDF_PURE_AI_READER_VERSION, 'pure-ai-native-pdf-v2.0.4-premium-contract-dates');
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ia-compact-'));
   const filePath = path.join(dir, 'bolletta.pdf');
   await fs.writeFile(filePath, '%PDF-test');
@@ -32,9 +32,63 @@ test('versione e richiesta usano il contratto compatto senza dati aggiuntivi', a
   assert.equal(schema.properties.additional_data, undefined);
   assert.equal(item.properties.evidence, undefined);
   assert.equal(item.properties.confidence, undefined);
-  assert.equal(schema.properties.supplies.items.properties.fields.maxItems, 22);
-  assert.ok(JSON.stringify(schema).length < 3000);
+  assert.equal(schema.properties.supplies.items.properties.fields.maxItems, 24);
+  assert.ok(item.properties.purpose.enum.includes('conditions_start'));
+  assert.ok(item.properties.purpose.enum.includes('conditions_end'));
+  assert.match(request.input[0].content[0].text, /non usare il periodo di fatturazione/);
+  assert.match(request.input[0].content[0].text, /non cercare né restituire dati personali, POD, PDR/);
+  assert.ok(JSON.stringify(schema).length < 3200);
   await fs.rm(dir, { recursive: true, force: true });
+});
+
+
+test('decorrenza e scadenza condizioni economiche vengono salvate solo come date esplicite della fornitura', () => {
+  const normalized = normalizePureAiOutput({
+    document: {
+      ...document('dual'),
+      billing_period_start: '2026-07-01',
+      billing_period_end: '2026-07-31',
+      issue_date: '2026-08-05',
+      due_date: '2026-08-25',
+    },
+    supplies: [
+      { commodity: 'electricity', provider: 'Test Luce', offer_name: 'Offerta Luce', offer_code: 'L1', fields: [
+        row('annual_consumption', 'Consumo annuo', 2400, '2400', 'kWh', 'year', 'none', 1),
+        row('unit_price', 'Materia energia', 0.14, '0,14', '€/kWh', 'none', 'none', 2),
+        row('fixed_fee', 'Quota fissa vendita', 10, '10', '€/mese', 'month', 'none', 2),
+        row('conditions_start', 'Decorrenza condizioni economiche', null, '2026-07-01', null, 'none', 'none', 3),
+        row('conditions_end', 'Scadenza condizioni economiche', null, '2027-06-30', null, 'none', 'none', 3),
+      ]},
+      { commodity: 'gas', provider: 'Test Gas', offer_name: 'Offerta Gas', offer_code: 'G1', fields: [
+        row('annual_consumption', 'Consumo annuo', 900, '900', 'Smc', 'year', 'none', 4),
+        row('unit_price', 'Materia gas', 0.5, '0,5', '€/Smc', 'none', 'none', 4),
+        row('fixed_fee', 'Quota fissa vendita', 12, '12', '€/mese', 'month', 'none', 4),
+        row('conditions_start', 'Decorrenza condizioni economiche', null, '2026-06-15', null, 'none', 'none', 5),
+        row('conditions_end', 'Scadenza condizioni economiche', null, '2027-06-14', null, 'none', 'none', 5),
+      ]},
+    ],
+  });
+
+  assert.equal(normalized.decorrenza_condizioni_economiche_luce, '2026-07-01');
+  assert.equal(normalized.scadenza_condizioni_economiche_luce, '2027-06-30');
+  assert.equal(normalized.decorrenza_condizioni_economiche_gas, '2026-06-15');
+  assert.equal(normalized.scadenza_condizioni_economiche_gas, '2027-06-14');
+  assert.notEqual(normalized.scadenza_condizioni_economiche_luce, normalized.due_date);
+});
+
+test('date condizioni non valide non vengono trasformate in date contrattuali', () => {
+  const normalized = normalizePureAiOutput({
+    document: document('gas'),
+    supplies: [{ commodity: 'gas', provider: 'Test', offer_name: 'Test', offer_code: null, fields: [
+      row('annual_consumption', 'Consumo annuo', 900, '900', 'Smc', 'year', 'none', 1),
+      row('unit_price', 'Materia gas', 0.5, '0,5', '€/Smc', 'none', 'none', 2),
+      row('fixed_fee', 'Quota fissa vendita', 10, '10', '€/mese', 'month', 'none', 2),
+      row('conditions_start', 'Decorrenza condizioni economiche', null, '01/07/2026', null, 'none', 'none', 3),
+      row('conditions_end', 'Scadenza condizioni economiche', null, '12 mesi', null, 'none', 'none', 3),
+    ]}],
+  });
+  assert.equal(normalized.decorrenza_condizioni_economiche_gas, undefined);
+  assert.equal(normalized.scadenza_condizioni_economiche_gas, undefined);
 });
 
 test('Dolomiti conserva prezzo totale, componenti, formula e quota fissa', () => {
