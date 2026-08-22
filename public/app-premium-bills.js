@@ -916,6 +916,16 @@
     return Number.isFinite(created) ? created : 0;
   }
 
+  function comparisonPrecisionLimitedForBill(bill, commodity) {
+    const suffix = commodity === "luce" ? "luce" : "gas";
+    const expectedCodes = new Set([
+      `comparison_precision_limited_${suffix}`,
+      `coerenza_comparison_precision_limited_${suffix}`,
+    ]);
+    const reasons = Array.isArray(bill?.automatic_screening_reasons) ? bill.automatic_screening_reasons : [];
+    return reasons.some(reason => expectedCodes.has(String(reason?.code || "").trim().toLowerCase()));
+  }
+
   function comparisonSupplyFromBill(bill, commodity) {
     if (!bill || bill.processing_status !== "completed") return null;
     const isLight = commodity === "luce";
@@ -950,6 +960,7 @@
       provider,
       priceType,
       committedPowerKw,
+      precisionLimited: comparisonPrecisionLimitedForBill(bill, commodity),
     };
   }
 
@@ -969,10 +980,11 @@
     const priceTypes = [luce?.priceType, gas?.priceType].filter(Boolean);
     const priceType = priceTypes.length && new Set(priceTypes).size === 1 ? priceTypes[0] : null;
     return {
-      version: "premium-comparison-prefill-v1",
+      version: "premium-comparison-prefill-v2-normalized-price",
       luce,
       gas,
       priceType,
+      precisionLimited: Boolean(luce?.precisionLimited || gas?.precisionLimited),
       supplyMode: luce && gas ? (sameBill || sameContract ? "dual" : "separate") : luce ? "luce" : "gas",
     };
   }
@@ -1006,6 +1018,38 @@
     field.value = String(value);
     dispatchFieldEvent(field, eventType);
     return true;
+  }
+
+  function comparisonPrecisionNoticeText(profile) {
+    const commodities = [];
+    if (profile?.luce?.precisionLimited) commodities.push("luce");
+    if (profile?.gas?.precisionLimited) commodities.push("gas");
+    if (!commodities.length) return "";
+    const scope = commodities.length === 2 ? "di luce e gas" : `della fornitura ${commodities[0]}`;
+    return `La bolletta non espone tutti gli elementi necessari per ricostruire con precisione la formula economica ${scope}. Il confronto resta disponibile, ma può essere meno preciso.`;
+  }
+
+  function renderComparisonPrecisionNotice(doc, profile) {
+    const currentBlock = doc?.getElementById?.("blocco-attuale");
+    if (!currentBlock) return null;
+    let notice = doc.getElementById("premium-comparison-precision-notice");
+    const text = comparisonPrecisionNoticeText(profile);
+    if (!text) {
+      notice?.remove?.();
+      return currentBlock;
+    }
+    if (!notice) {
+      notice = doc.createElement?.("div");
+      if (!notice) return currentBlock;
+      notice.id = "premium-comparison-precision-notice";
+      notice.setAttribute?.("role", "status");
+      notice.style.cssText = "margin:0 0 16px;padding:12px 14px;border:1px solid #f59e0b;border-radius:10px;background:#fffbeb;color:#92400e;font-size:12px;line-height:1.45;font-weight:650;";
+      const intro = currentBlock.querySelector?.(".compare-card-intro");
+      if (intro?.after) intro.after(notice);
+      else currentBlock.prepend?.(notice);
+    }
+    notice.textContent = text;
+    return currentBlock;
   }
 
   function applyPremiumComparisonProfile(frame, profile) {
@@ -1059,10 +1103,13 @@
     applySupply(profile.gas, "gas");
 
     if (applied < 3 * Number(Boolean(profile.luce)) + 3 * Number(Boolean(profile.gas))) return false;
+    const currentBlock = renderComparisonPrecisionNotice(doc, profile);
+    currentBlock?.scrollIntoView?.({ behavior: "auto", block: "start" });
     const subtitle = document.getElementById("appBrowserSubtitle");
     if (subtitle) {
       const sources = comparisonSourceCopy(profile);
-      subtitle.textContent = sources ? `Dati Premium inseriti · ${sources}` : "Dati Premium inseriti automaticamente";
+      const precision = profile.precisionLimited ? " · precisione limitata" : "";
+      subtitle.textContent = sources ? `Dati Premium inseriti · ${sources}${precision}` : `Dati Premium inseriti automaticamente${precision}`;
     }
     return true;
   }

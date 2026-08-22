@@ -19,7 +19,7 @@ function document(commodity = 'gas') {
 }
 
 test('versione e richiesta usano il contratto compatto senza dati aggiuntivi', async () => {
-  assert.equal(PDF_PURE_AI_READER_VERSION, 'pure-ai-native-pdf-v2.0.4-premium-contract-dates');
+  assert.equal(PDF_PURE_AI_READER_VERSION, 'pure-ai-native-pdf-v2.0.5-comparison-normalization');
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ia-compact-'));
   const filePath = path.join(dir, 'bolletta.pdf');
   await fs.writeFile(filePath, '%PDF-test');
@@ -178,6 +178,79 @@ test('replay del formato v2.0.0 resta leggibile', () => {
   assert.equal(normalized.consumo_gas_smc, 900);
   assert.equal(normalized.prezzo_gas_eur_smc, 0.5);
   assert.equal(normalized.quota_fissa_vendita_gas_eur_anno, 108);
+});
+
+
+
+test('luce: separa materia e sconto da C.DISP.D. per il confronto', () => {
+  const normalized = normalizePureAiOutput({
+    document: document('electricity'),
+    supplies: [{ commodity: 'electricity', provider: 'E.ON Energia', offer_name: 'Luce Insieme', offer_code: null, fields: [
+      row('annual_consumption', 'Consumo annuo', 2700, '2700', 'kWh', 'year', 'none', 1),
+      row('unit_price', 'Spesa per la vendita di energia elettrica', 0.142611, '0,142611', '€/kWh', 'none', 'none', 2),
+      row('price_component', 'Corrispettivo consumo energia (luglio)', 0.115720, '0,115720', '€/kWh', 'none', 'none', 2),
+      row('price_component', 'Corrispettivo C.DISP.D. (luglio)', 0.038463, '0,038463', '€/kWh', 'none', 'none', 2),
+      row('price_component', 'Sconto Luce Insieme (luglio)', -0.011572, '-0,011572', '€/kWh', 'none', 'none', 2),
+      row('formula', 'Formula vendita energia elettrica per la quota consumi', null, 'Corrispettivo consumo energia + Corrispettivo Cdispd + Sconto Luce Insieme', null, 'none', 'none', 2),
+      row('fixed_fee', 'Quota fissa vendita', 10, '10', '€/mese', 'month', 'none', 2),
+    ]}],
+  });
+  assert.equal(normalized.prezzo_vendita_bolletta_luce_eur_kwh, 0.142611);
+  assert.equal(normalized.prezzo_luce_eur_kwh, 0.104148);
+  assert.equal(normalized.precisione_confronto_luce, 'completa');
+  assert.deepEqual(normalized.motivi_precisione_confronto_luce, []);
+  assert.equal(normalized.normalizzazione_prezzo_luce.excluded.ancillary.length, 1);
+});
+
+test('gas: normalizza un fattore PCS quando la relazione aritmetica è verificabile', () => {
+  const normalized = normalizePureAiOutput({
+    document: document('gas'),
+    supplies: [{ commodity: 'gas', provider: 'Gas Test', offer_name: 'PSV Casa', offer_code: null, fields: [
+      row('annual_consumption', 'Consumo annuo', 1000, '1000', 'Smc', 'year', 'none', 1),
+      row('unit_price', 'Spesa per la vendita di gas naturale', 0.565, '0,565', '€/Smc', 'none', 'none', 2),
+      row('price_component', 'Materia prima gas adeguata al PCS', 0.515, '0,515', '€/Smc', 'none', 'none', 2),
+      row('spread', 'Spread', 0.05, '0,05', '€/Smc', 'none', 'none', 2),
+      row('multiplier', 'Coefficiente PCS', 1.03, '1,03', null, 'none', 'none', 2),
+      row('formula', 'Formula', null, 'PSV × coefficiente PCS + spread', null, 'none', 'none', 2),
+      row('fixed_fee', 'Quota fissa vendita', 10, '10', '€/mese', 'month', 'none', 2),
+    ]}],
+  });
+  assert.equal(normalized.prezzo_vendita_bolletta_gas_eur_smc, 0.565);
+  assert.equal(normalized.prezzo_gas_eur_smc, 0.55);
+  assert.equal(normalized.precisione_confronto_gas, 'completa');
+  assert.equal(normalized.normalizzazione_prezzo_gas.factorMode, 'base_after_normalization_factor');
+});
+
+test('materia presente ma sconto citato senza valore mantiene il prezzo e avvisa sulla precisione', () => {
+  const normalized = normalizePureAiOutput({
+    document: document('electricity'),
+    supplies: [{ commodity: 'electricity', provider: 'Test', offer_name: 'Test', offer_code: null, fields: [
+      row('annual_consumption', 'Consumo annuo', 2000, '2000', 'kWh', 'year', 'none', 1),
+      row('unit_price', 'Spesa per la vendita di energia elettrica', 0.15, '0,15', '€/kWh', 'none', 'none', 2),
+      row('price_component', 'Materia energia', 0.12, '0,12', '€/kWh', 'none', 'none', 2),
+      row('formula', 'Formula', null, 'Materia energia - sconto commerciale', null, 'none', 'none', 2),
+      row('fixed_fee', 'Quota fissa vendita', 10, '10', '€/mese', 'month', 'none', 2),
+    ]}],
+  });
+  assert.equal(normalized.prezzo_luce_eur_kwh, 0.12);
+  assert.equal(normalized.precisione_confronto_luce, 'limitata');
+  assert.ok(normalized.motivi_precisione_confronto_luce.includes('sconto_citato_non_quantificato'));
+});
+
+test('formula non scomponibile mantiene il confronto ma lo marca a precisione limitata', () => {
+  const normalized = normalizePureAiOutput({
+    document: document('electricity'),
+    supplies: [{ commodity: 'electricity', provider: 'Test', offer_name: 'Test', offer_code: null, fields: [
+      row('annual_consumption', 'Consumo annuo', 2000, '2000', 'kWh', 'year', 'none', 1),
+      row('unit_price', 'Spesa per la vendita di energia elettrica', 0.18, '0,18', '€/kWh', 'none', 'none', 2),
+      row('formula', 'Formula', null, 'Materia energia + C.DISP.D. - sconto', null, 'none', 'none', 2),
+      row('fixed_fee', 'Quota fissa vendita', 10, '10', '€/mese', 'month', 'none', 2),
+    ]}],
+  });
+  assert.equal(normalized.prezzo_luce_eur_kwh, 0.18);
+  assert.equal(normalized.precisione_confronto_luce, 'limitata');
+  assert.ok(normalized.motivi_precisione_confronto_luce.includes('formula_e_componenti_insufficienti'));
+  assert.ok(normalized.validation_issues.some((issue) => issue.code === 'comparison_precision_limited_luce'));
 });
 
 test('risposta incompleta non avvia un secondo tentativo nascosto', async () => {

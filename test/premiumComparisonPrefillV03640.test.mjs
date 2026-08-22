@@ -31,7 +31,7 @@ function loadComparisonHarness({ bills = [], contracts = [], parentDocument = nu
   return context.OffertaLogicaPremiumBills.__test;
 }
 
-function completeBill({ id, commodity, date, data, contractId = null, utilityId = 'u1' }) {
+function completeBill({ id, commodity, date, data, contractId = null, utilityId = 'u1', reasons = [] }) {
   return {
     id,
     commodity,
@@ -42,6 +42,7 @@ function completeBill({ id, commodity, date, data, contractId = null, utilityId 
     issue_date: date,
     created_at: `${date}T12:00:00Z`,
     customer_analysis_data: data,
+    automatic_screening_reasons: reasons,
   };
 }
 
@@ -79,6 +80,7 @@ test('seleziona l’ultima bolletta completata che possiede tutti e tre i dati e
   assert.equal(profile.gas.consumption, 890);
   assert.equal(profile.priceType, 'variabile');
   assert.equal(profile.luce.committedPowerKw, 4.5);
+  assert.equal(profile.precisionLimited, false);
   assert.equal(profile.supplyMode, 'separate');
 });
 
@@ -126,9 +128,20 @@ function fakeField(doc, { options = null } = {}) {
 
 test('applica i dati al comparatore esistente senza avviare automaticamente il calcolo', () => {
   const fields = new Map();
+  const created = [];
+  const intro = { after(element) { created.push(element); fields.set(element.id, element); } };
+  const currentBlock = {
+    scrollCalls: [],
+    querySelector(selector) { return selector === '.compare-card-intro' ? intro : null; },
+    prepend(element) { created.push(element); fields.set(element.id, element); },
+    scrollIntoView(options) { this.scrollCalls.push(options); },
+  };
   const childDoc = {
     defaultView: { Event: FakeEvent },
-    getElementById(id) { return fields.get(id) || null; },
+    getElementById(id) { return id === 'blocco-attuale' ? currentBlock : fields.get(id) || null; },
+    createElement() {
+      return { id: '', textContent: '', style: { cssText: '' }, setAttribute() {}, remove() { this.removed = true; } };
+    },
   };
   const precise = { clicks: 0, click() { this.clicks += 1; } };
   fields.set('btn-attiva-precisi', precise);
@@ -153,8 +166,9 @@ test('applica i dati al comparatore esistente senza avviare automaticamente il c
   const profile = {
     supplyMode: 'separate',
     priceType: 'variabile',
-    luce: { consumption: 2850, price: 0.14321, fixedFee: 108, sourceDate: '2026-07-31', provider: 'Luce Spa', committedPowerKw: 4.5 },
-    gas: { consumption: 890, price: 0.5123, fixedFee: 96, sourceDate: '2026-08-10', provider: 'Gas Spa' },
+    precisionLimited: true,
+    luce: { consumption: 2850, price: 0.104148, fixedFee: 108, sourceDate: '2026-07-31', provider: 'Luce Spa', committedPowerKw: 4.5, precisionLimited: true },
+    gas: { consumption: 890, price: 0.5123, fixedFee: 96, sourceDate: '2026-08-10', provider: 'Gas Spa', precisionLimited: false },
   };
   assert.equal(applyPremiumComparisonProfile(frame, profile), true);
   assert.equal(precise.clicks, 1);
@@ -165,7 +179,7 @@ test('applica i dati al comparatore esistente senza avviare automaticamente il c
   assert.equal(fields.get('nome-fornitore-gas-att').value, 'Gas Spa');
   assert.equal(fields.get('in-luce-cons-att').value, '2850');
   assert.equal(fields.get('in-luce-cons-nuov').value, '2850');
-  assert.equal(fields.get('in-luce-prezzo-att').value, '0.14321');
+  assert.equal(fields.get('in-luce-prezzo-att').value, '0.104148');
   assert.equal(fields.get('in-luce-fisso-att').value, '108');
   assert.equal(fields.get('in-luce-fisso-att-unita').value, 'anno');
   assert.equal(fields.get('in-gas-cons-att').value, '890');
@@ -174,6 +188,32 @@ test('applica i dati al comparatore esistente senza avviare automaticamente il c
   assert.equal(fields.get('in-gas-fisso-att').value, '96');
   assert.equal(fields.get('in-gas-fisso-att-unita').value, 'anno');
   assert.match(subtitle.textContent, /Dati Premium inseriti/);
+  assert.match(subtitle.textContent, /precisione limitata/);
+  assert.equal(currentBlock.scrollCalls.length, 1);
+  assert.equal(currentBlock.scrollCalls[0].block, 'start');
+  const notice = fields.get('premium-comparison-precision-notice');
+  assert.ok(notice);
+  assert.match(notice.textContent, /può essere meno preciso/);
+});
+
+test('precisione limitata deriva dagli avvisi automatici della bolletta per luce e gas', () => {
+  const bills = [
+    completeBill({
+      id: 'l', commodity: 'electricity', date: '2026-08-21',
+      reasons: [{ code: 'coerenza_comparison_precision_limited_luce' }],
+      data: { consumo_luce_kwh: 2500, prezzo_luce_eur_kwh: 0.18, quota_fissa_vendita_luce_eur_anno: 100 },
+    }),
+    completeBill({
+      id: 'g', commodity: 'gas', date: '2026-08-21', utilityId: 'u2',
+      reasons: [],
+      data: { consumo_gas_smc: 700, prezzo_gas_eur_smc: 0.55, quota_fissa_vendita_gas_eur_anno: 90 },
+    }),
+  ];
+  const { buildPremiumComparisonProfile } = loadComparisonHarness({ bills });
+  const profile = buildPremiumComparisonProfile();
+  assert.equal(profile.luce.precisionLimited, true);
+  assert.equal(profile.gas.precisionLimited, false);
+  assert.equal(profile.precisionLimited, true);
 });
 
 test('trasferimento è solo in memoria, non usa POD/PDR/indirizzo e non mette dati nell’URL', () => {
@@ -197,8 +237,8 @@ test('prefill usa il percorso già esistente dell’app e aggiorna la CTA solo q
   assert.match(app, /INIZIA IL CONFRONTO/);
 });
 
-test('service worker forza il rilascio della cache del prefill v0.36.40', () => {
+test('service worker forza il rilascio della cache della normalizzazione v0.36.41', () => {
   const sw = read('public/sw.js');
-  assert.match(sw, /offertalogica-premium-v03640-comparison-prefill/);
+  assert.match(sw, /offertalogica-premium-v03641-comparison-normalization/);
   assert.match(sw, /"\/app-premium-bills\.js"/);
 });

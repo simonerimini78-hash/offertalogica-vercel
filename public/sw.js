@@ -1,5 +1,5 @@
-// premium-comparison-prefill-v03640
-const CACHE = "offertalogica-premium-v03640-comparison-prefill";
+// premium-comparison-normalization-v03641
+const CACHE = "offertalogica-premium-v03641-comparison-normalization";
 const APP_SHELL = [
   "/app.html",
   "/app-dialog.js",
