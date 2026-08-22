@@ -51,9 +51,9 @@ test('migrazione è additiva: nessuna nuova tabella o API, origin red_verificati
   assert.match(sql, /request\.jwt\.claim\.role/);
 });
 
-test('service worker forza cache v0.36.42', () => {
+test('service worker forza cache v0.36.45', () => {
   const sw = read('public/sw.js');
-  assert.match(sw, /offertalogica-premium-v03642-consumption-history/);
+  assert.match(sw, /offertalogica-premium-v03645-real-consumption-history/);
 });
 
 test('app mostra secondo esito e mantiene rosso anche quando risolto dalla seconda IA', () => {
@@ -128,7 +128,9 @@ test('storico consumi conserva il periodo e distingue offerta letta da catalogo 
   assert.match(api, /offerta_letta_non_verificata_catalogo/);
   assert.match(api, /Storico consumi in costruzione/);
   assert.match(app, /comparisonConsumptionForUtility/);
-  assert.match(app, /history_annualized/);
+  assert.match(app, /history_partial/);
+  assert.match(app, /history_12m/);
+  assert.doesNotMatch(app, /history_annualized/);
   assert.match(app, /comparisonIntervalsOverlap/);
   assert.match(sql, /premium_sync_customer_period_consumption/);
   assert.doesNotMatch(sql, /create\s+table/i);

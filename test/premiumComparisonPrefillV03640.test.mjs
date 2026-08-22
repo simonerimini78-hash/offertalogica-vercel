@@ -15,7 +15,7 @@ function loadComparisonHarness({ bills = [], contracts = [], parentDocument = nu
     .replace('let contracts = [];', 'let contracts = globalThis.__TEST_CONTRACTS__;')
     .replace(
       'globalThis.OffertaLogicaPremiumBills = Object.freeze({ init });',
-      'globalThis.OffertaLogicaPremiumBills = Object.freeze({ init, __test: { buildPremiumComparisonProfile, applyPremiumComparisonProfile } });',
+      'globalThis.OffertaLogicaPremiumBills = Object.freeze({ init, __test: { buildPremiumComparisonProfile, applyPremiumComparisonProfile, comparisonConsumptionForUtility } });',
     );
   const context = {
     __TEST_BILLS__: bills,
@@ -86,7 +86,7 @@ test('usa il prezzo dell’ultima bolletta economicamente completa e il consumo 
 });
 
 
-test('prima bolletta del nuovo fornitore usa il consumo del periodo e mantiene la luce nel confronto', () => {
+test('prima bolletta del nuovo fornitore alimenta lo storico reale ma non viene annualizzata', () => {
   const bills = [
     completeBill({
       id: 'eon-july', commodity: 'electricity', date: '2026-07-31', utilityId: 'luce-casa',
@@ -100,16 +100,14 @@ test('prima bolletta del nuovo fornitore usa il consumo del periodo e mantiene l
     }),
   ];
   bills[0].billing_period_start = '2026-07-01';
-  const { buildPremiumComparisonProfile } = loadComparisonHarness({ bills });
-  const profile = buildPremiumComparisonProfile();
-  assert.ok(profile.luce);
-  assert.equal(profile.luce.billId, 'eon-july');
-  assert.equal(profile.luce.consumptionSource, 'history_annualized');
-  assert.equal(profile.luce.consumptionCoverageDays, 31);
-  assert.equal(profile.luce.consumptionBillCount, 1);
-  assert.equal(profile.luce.consumption, Number((924.39 * 365 / 31).toFixed(6)));
-  assert.equal(profile.luce.consumptionPrecisionLimited, true);
-  assert.equal(profile.precisionLimited, true);
+  const { buildPremiumComparisonProfile, comparisonConsumptionForUtility } = loadComparisonHarness({ bills });
+  const history = comparisonConsumptionForUtility('luce-casa', 'luce');
+  assert.equal(history.source, 'history_partial');
+  assert.equal(history.coverageDays, 31);
+  assert.equal(history.billCount, 1);
+  assert.equal(history.periodTotal, 924.39);
+  assert.equal(history.value, null);
+  assert.equal(buildPremiumComparisonProfile(), null);
 });
 
 test('somma periodi non sovrapposti della stessa utenza anche con cambio fornitore', () => {
@@ -125,13 +123,13 @@ test('somma periodi non sovrapposti della stessa utenza anche con cambio fornito
   ];
   bills[0].billing_period_start = '2026-06-01';
   bills[1].billing_period_start = '2026-07-01';
-  const { buildPremiumComparisonProfile } = loadComparisonHarness({ bills });
-  const profile = buildPremiumComparisonProfile();
-  assert.equal(profile.luce.billId, 'eon-july');
-  assert.equal(profile.luce.provider, 'E.ON Energia');
-  assert.equal(profile.luce.consumptionBillCount, 2);
-  assert.equal(profile.luce.consumptionCoverageDays, 61);
-  assert.equal(profile.luce.consumption, Number((700 * 365 / 61).toFixed(6)));
+  const { buildPremiumComparisonProfile, comparisonConsumptionForUtility } = loadComparisonHarness({ bills });
+  const history = comparisonConsumptionForUtility('luce-casa', 'luce');
+  assert.equal(history.billCount, 2);
+  assert.equal(history.coverageDays, 61);
+  assert.equal(history.periodTotal, 700);
+  assert.equal(history.value, null);
+  assert.equal(buildPremiumComparisonProfile(), null);
 });
 
 test('periodi sovrapposti non vengono contati due volte nello storico consumi', () => {
@@ -141,10 +139,61 @@ test('periodi sovrapposti non vengono contati due volte nello storico consumi', 
   ];
   bills[0].billing_period_start = '2026-07-01';
   bills[1].billing_period_start = '2026-07-15';
-  const { buildPremiumComparisonProfile } = loadComparisonHarness({ bills });
+  const { comparisonConsumptionForUtility } = loadComparisonHarness({ bills });
+  const history = comparisonConsumptionForUtility('u1', 'luce');
+  assert.equal(history.billCount, 1);
+  assert.equal(history.coverageDays, 31);
+  assert.equal(history.periodTotal, 310);
+});
+
+test('lo storico diventa consumo reale degli ultimi 12 mesi senza annualizzazione', () => {
+  const bills = [];
+  const starts = [
+    ['2026-07-01','2026-07-31',900], ['2026-08-01','2026-08-31',800],
+    ['2026-09-01','2026-09-30',700], ['2026-10-01','2026-10-31',650],
+    ['2026-11-01','2026-11-30',600], ['2026-12-01','2026-12-31',700],
+    ['2027-01-01','2027-01-31',850], ['2027-02-01','2027-02-28',750],
+    ['2027-03-01','2027-03-31',700], ['2027-04-01','2027-04-30',650],
+    ['2027-05-01','2027-05-31',600], ['2027-06-01','2027-06-30',700],
+  ];
+  for (const [start, end, value] of starts) {
+    const bill = completeBill({
+      id: end, commodity: 'electricity', date: end, utilityId: 'luce-casa',
+      data: { consumo_periodo_luce_kwh: value, prezzo_luce_eur_kwh: 0.11, quota_fissa_vendita_luce_eur_anno: 100 },
+    });
+    bill.billing_period_start = start;
+    bills.push(bill);
+  }
+  const { buildPremiumComparisonProfile, comparisonConsumptionForUtility } = loadComparisonHarness({ bills });
+  const history = comparisonConsumptionForUtility('luce-casa', 'luce');
+  const expected = starts.reduce((sum, item) => sum + item[2], 0);
+  assert.equal(history.source, 'history_12m');
+  assert.equal(history.coverageDays, 365);
+  assert.equal(history.billCount, 12);
+  assert.equal(history.value, expected);
+  assert.equal(history.periodTotal, expected);
   const profile = buildPremiumComparisonProfile();
-  assert.equal(profile.luce.consumptionBillCount, 1);
-  assert.equal(profile.luce.consumptionCoverageDays, 31);
+  assert.equal(profile.luce.consumption, expected);
+  assert.equal(profile.luce.consumptionPrecisionLimited, false);
+});
+
+test('un falso annuale uguale al consumo del singolo periodo non abilita il confronto', () => {
+  const bill = completeBill({
+    id: 'eon-july', commodity: 'electricity', date: '2026-07-31', utilityId: 'luce-casa',
+    data: {
+      consumo_luce_kwh: 924.39,
+      consumo_periodo_luce_kwh: 924.39,
+      prezzo_luce_eur_kwh: 0.104148,
+      quota_fissa_vendita_luce_eur_anno: 109.08,
+    },
+  });
+  bill.billing_period_start = '2026-07-01';
+  const { buildPremiumComparisonProfile, comparisonConsumptionForUtility } = loadComparisonHarness({ bills: [bill] });
+  const history = comparisonConsumptionForUtility('luce-casa', 'luce');
+  assert.equal(history.source, 'history_partial');
+  assert.equal(history.periodTotal, 924.39);
+  assert.equal(history.value, null);
+  assert.equal(buildPremiumComparisonProfile(), null);
 });
 
 test('quota fissa zero è valida e dual è assunto solo per stessa bolletta o stesso contratto', () => {
@@ -300,10 +349,14 @@ test('prefill usa il percorso già esistente dell’app e aggiorna la CTA solo q
   assert.match(app, /addEventListener\("click", preparePremiumComparisonPrefill, true\)/);
   assert.match(app, /CONFRONTA CON I MIEI CONSUMI/);
   assert.match(app, /INIZIA IL CONFRONTO/);
+  assert.match(app, /premiumUtilityList/);
+  assert.match(app, /Storico consumi/);
+  assert.match(app, /Consumo ultimi 12 mesi/);
+  assert.doesNotMatch(app, /history_annualized/);
 });
 
-test('service worker forza il rilascio della cache dello storico consumi v0.36.42', () => {
+test('service worker forza il rilascio della cache dello storico consumi reali v0.36.45', () => {
   const sw = read('public/sw.js');
-  assert.match(sw, /offertalogica-premium-v03642-consumption-history/);
+  assert.match(sw, /offertalogica-premium-v03645-real-consumption-history/);
   assert.match(sw, /"\/app-premium-bills\.js"/);
 });

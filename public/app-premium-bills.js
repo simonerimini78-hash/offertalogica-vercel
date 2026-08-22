@@ -33,6 +33,8 @@
   const analysisAttemptFailures = new Set();
   let pollTimer = null;
   let pendingComparisonPrefill = null;
+  let utilityHistoryObserver = null;
+  let utilityHistoryRenderQueued = false;
   let checkConfirmationResolve = null;
   let checkConfirmationPreviousFocus = null;
 
@@ -548,6 +550,7 @@
     renderCloudSpend();
     renderList();
     renderComparisonAvailability();
+    queueUtilityConsumptionHistoryRender();
     setBusy(busy);
     if (!maintenanceMode) scheduleAutomaticWork();
     else if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
@@ -955,10 +958,27 @@
     return left.start <= right.end && right.start <= left.end;
   }
 
+  function comparisonSameConsumption(left, right) {
+    const a = finiteNumberOrNull(left);
+    const b = finiteNumberOrNull(right);
+    if (!(a > 0) || !(b > 0)) return false;
+    return Math.abs(a - b) <= Math.max(0.001, Math.abs(b) * 0.000001);
+  }
+
+  function comparisonDeclaredAnnualForBill(bill, commodity) {
+    const isLight = commodity === "luce";
+    const data = analysisDataForBill(bill);
+    const annual = finiteNumberOrNull(data[isLight ? "consumo_luce_kwh" : "consumo_gas_smc"]);
+    if (!(annual > 0)) return null;
+    const period = finiteNumberOrNull(data[isLight ? "consumo_periodo_luce_kwh" : "consumo_periodo_gas_smc"]);
+    const interval = comparisonBillingInterval(bill);
+    if (period > 0 && interval?.days < 330 && comparisonSameConsumption(annual, period)) return null;
+    return annual;
+  }
+
   function comparisonConsumptionForUtility(utilityId, commodity, referenceTime = Date.now()) {
     if (!utilityId) return null;
     const isLight = commodity === "luce";
-    const annualField = isLight ? "consumo_luce_kwh" : "consumo_gas_smc";
     const periodField = isLight ? "consumo_periodo_luce_kwh" : "consumo_periodo_gas_smc";
     const utilityBills = bills
       .filter(bill => bill?.utility_id === utilityId && comparisonBillSupportsCommodity(bill, commodity))
@@ -966,13 +986,13 @@
 
     const maxAnnualAgeMs = 400 * 86_400_000;
     const declared = utilityBills.find(bill => {
-      const value = finiteNumberOrNull(analysisDataForBill(bill)[annualField]);
+      const value = comparisonDeclaredAnnualForBill(bill, commodity);
       if (!(value > 0)) return false;
       const sourceTime = comparisonBillTime(bill);
       return !Number.isFinite(referenceTime) || !sourceTime || Math.abs(referenceTime - sourceTime) <= maxAnnualAgeMs;
     });
     if (declared) {
-      const value = finiteNumberOrNull(analysisDataForBill(declared)[annualField]);
+      const value = comparisonDeclaredAnnualForBill(declared, commodity);
       return {
         value,
         source: "declared_annual",
@@ -981,6 +1001,7 @@
         billCount: 1,
         sourceBillId: declared.id,
         sourceDate: billReferenceDate(declared)?.toISOString?.().slice(0, 10) || null,
+        periodTotal: null,
       };
     }
 
@@ -1003,20 +1024,19 @@
       selected.push(candidate);
     }
     const coverageDays = selected.reduce((sum, item) => sum + item.interval.days, 0);
-    if (coverageDays < 20) return null;
     const total = selected.reduce((sum, item) => sum + item.value, 0);
-    if (!(total > 0)) return null;
-    const annualized = Number((total * 365 / coverageDays).toFixed(6));
+    if (!(total > 0) || !(coverageDays > 0)) return null;
+    const periodTotal = Number(total.toFixed(6));
     const nearTwelveMonths = coverageDays >= 350;
     return {
-      value: annualized,
-      source: nearTwelveMonths ? "history_12m" : "history_annualized",
+      value: nearTwelveMonths ? periodTotal : null,
+      source: nearTwelveMonths ? "history_12m" : "history_partial",
       precisionLimited: !nearTwelveMonths,
       coverageDays,
       billCount: selected.length,
       sourceBillId: selected[0]?.bill?.id || null,
       sourceDate: selected[0]?.interval?.endIso || null,
-      periodTotal: Number(total.toFixed(6)),
+      periodTotal,
     };
   }
 
@@ -1080,7 +1100,7 @@
     const priceTypes = [luce?.priceType, gas?.priceType].filter(Boolean);
     const priceType = priceTypes.length && new Set(priceTypes).size === 1 ? priceTypes[0] : null;
     return {
-      version: "premium-comparison-prefill-v3-consumption-history",
+      version: "premium-comparison-prefill-v4-real-consumption-history",
       luce,
       gas,
       priceType,
@@ -1094,6 +1114,93 @@
     if (profile?.luce) parts.push(`luce ${profile.luce.sourceDate ? formatDate(profile.luce.sourceDate) : ""}`.trim());
     if (profile?.gas) parts.push(`gas ${profile.gas.sourceDate ? formatDate(profile.gas.sourceDate) : ""}`.trim());
     return parts.join(" · ");
+  }
+
+  function utilityHistoryValue(profile) {
+    if (!profile) return null;
+    if (profile.source === "declared_annual" || profile.source === "history_12m") return profile.value;
+    return profile.periodTotal;
+  }
+
+  function utilityHistoryLabel(utility, commodity, profile) {
+    const commodityLabel = commodity === "luce" ? "luce" : "gas";
+    const suffix = utility?.supply_type === "dual" ? ` ${commodityLabel}` : "";
+    const base = profile?.source === "declared_annual"
+      ? "Consumo annuo"
+      : profile?.source === "history_12m"
+        ? "Consumo ultimi 12 mesi"
+        : "Storico consumi";
+    return `${base}${suffix}`;
+  }
+
+  function utilityHistoryText(profile, commodity) {
+    const value = utilityHistoryValue(profile);
+    if (!(value > 0)) return "";
+    const unit = commodity === "luce" ? "kWh" : "Smc";
+    if (profile.source === "declared_annual") return `${formatDecimal(value, 3)} ${unit}`;
+    const days = Number(profile.coverageDays || 0);
+    const count = Number(profile.billCount || 0);
+    const periods = count === 1 ? "1 periodo" : `${count} periodi`;
+    return `${formatDecimal(value, 3)} ${unit}${days > 0 ? ` · ${days} giorni` : ""}${count > 0 ? ` · ${periods}` : ""}`;
+  }
+
+  function renderUtilityConsumptionHistory() {
+    const list = document.getElementById("premiumUtilityList");
+    if (!list) return;
+    const articles = [...list.querySelectorAll("[data-utility-id]")];
+    for (const utility of utilities) {
+      const article = articles.find(item => item.dataset?.utilityId === utility.id);
+      const details = article?.querySelector?.(".utility-item-details");
+      if (!details) continue;
+      const commodities = utility.supply_type === "dual"
+        ? ["luce", "gas"]
+        : utility.supply_type === "gas"
+          ? ["gas"]
+          : ["luce"];
+      for (const commodity of commodities) {
+        const profile = comparisonConsumptionForUtility(utility.id, commodity);
+        const value = utilityHistoryValue(profile);
+        const key = `premium-${commodity}`;
+        let row = details.querySelector?.(`[data-utility-consumption-history="${key}"]`) || null;
+        if (!(value > 0)) {
+          row?.remove?.();
+          continue;
+        }
+        if (!row) {
+          row = document.createElement("div");
+          row.className = "utility-item-detail";
+          row.dataset.utilityConsumptionHistory = key;
+          const label = document.createElement("span");
+          const text = document.createElement("strong");
+          row.append(label, text);
+          details.append(row);
+        }
+        const [label, text] = row.children;
+        if (label) label.textContent = utilityHistoryLabel(utility, commodity, profile);
+        if (text) text.textContent = utilityHistoryText(profile, commodity);
+      }
+    }
+  }
+
+  function queueUtilityConsumptionHistoryRender() {
+    if (utilityHistoryRenderQueued) return;
+    utilityHistoryRenderQueued = true;
+    const schedule = globalThis.requestAnimationFrame || (callback => setTimeout(callback, 0));
+    schedule(() => {
+      utilityHistoryRenderQueued = false;
+      renderUtilityConsumptionHistory();
+    });
+  }
+
+  function startUtilityConsumptionHistoryObserver() {
+    const list = document.getElementById("premiumUtilityList");
+    if (!list || utilityHistoryObserver || typeof MutationObserver !== "function") {
+      queueUtilityConsumptionHistoryRender();
+      return;
+    }
+    utilityHistoryObserver = new MutationObserver(() => queueUtilityConsumptionHistoryRender());
+    utilityHistoryObserver.observe(list, { childList: true, subtree: true });
+    queueUtilityConsumptionHistoryRender();
   }
 
   function renderComparisonAvailability() {
@@ -1129,7 +1236,7 @@
         const days = Number(supply.consumptionCoverageDays || 0);
         const count = Number(supply.consumptionBillCount || 0);
         const periods = count === 1 ? "1 periodo disponibile" : `${count} periodi disponibili`;
-        notices.push(`Il consumo annuo ${label} è stimato dai consumi di ${periods}${days > 0 ? ` (${days} giorni coperti)` : ""}. Lo storico si aggiornerà con le prossime bollette.`);
+        notices.push(`Lo storico consumi ${label} copre ${periods}${days > 0 ? ` (${days} giorni)` : ""} e non costituisce ancora un consumo annuo completo.`);
       }
       if (supply.pricePrecisionLimited) {
         notices.push(`La bolletta ${label} non espone tutti gli elementi necessari per ricostruire con precisione la formula economica.`);
@@ -1312,7 +1419,8 @@
       grid.className = "cloud-analysis-grid";
       if (isLight) {
         appendAnalysisRow(grid, "POD", data.pod);
-        appendAnalysisRow(grid, "Consumo annuo", hasAnalysisValue(data.consumo_luce_kwh) ? `${formatDecimal(data.consumo_luce_kwh, 3)} kWh` : null);
+        const annualLight = comparisonDeclaredAnnualForBill(bill, "luce");
+        appendAnalysisRow(grid, "Consumo annuo", annualLight > 0 ? `${formatDecimal(annualLight, 3)} kWh` : null);
         appendAnalysisRow(grid, "Consumo periodo", hasAnalysisValue(data.consumo_periodo_luce_kwh) ? `${formatDecimal(data.consumo_periodo_luce_kwh, 3)} kWh` : null);
         appendAnalysisRow(grid, "Prezzo materia", hasAnalysisValue(data.prezzo_luce_eur_kwh) ? `${formatDecimal(data.prezzo_luce_eur_kwh)} €/kWh` : null);
         appendAnalysisRow(grid, "Quota fissa", hasAnalysisValue(data.quota_fissa_vendita_luce_eur_anno) ? `${formatMoney(data.quota_fissa_vendita_luce_eur_anno)}/anno` : null);
@@ -1322,7 +1430,8 @@
         appendAnalysisRow(grid, "Scadenza condizioni", data.scadenza_condizioni_economiche_luce ? formatDate(data.scadenza_condizioni_economiche_luce) : null);
       } else {
         appendAnalysisRow(grid, "PDR", data.pdr);
-        appendAnalysisRow(grid, "Consumo annuo", hasAnalysisValue(data.consumo_gas_smc) ? `${formatDecimal(data.consumo_gas_smc, 3)} Smc` : null);
+        const annualGas = comparisonDeclaredAnnualForBill(bill, "gas");
+        appendAnalysisRow(grid, "Consumo annuo", annualGas > 0 ? `${formatDecimal(annualGas, 3)} Smc` : null);
         appendAnalysisRow(grid, "Consumo periodo", hasAnalysisValue(data.consumo_periodo_gas_smc) ? `${formatDecimal(data.consumo_periodo_gas_smc, 3)} Smc` : null);
         appendAnalysisRow(grid, "Prezzo materia", hasAnalysisValue(data.prezzo_gas_eur_smc) ? `${formatDecimal(data.prezzo_gas_eur_smc)} €/Smc` : null);
         appendAnalysisRow(grid, "Quota fissa", hasAnalysisValue(data.quota_fissa_vendita_gas_eur_anno) ? `${formatMoney(data.quota_fissa_vendita_gas_eur_anno)}/anno` : null);
@@ -2616,6 +2725,7 @@
     document.addEventListener("click", preparePremiumComparisonPrefill, true);
     document.getElementById("appBrowserFrame")?.addEventListener("load", applyPendingComparisonPrefill);
     renderComparisonAvailability();
+    startUtilityConsumptionHistoryObserver();
 
     client = globalThis.OffertaLogicaPremiumAuth?.getClient?.() || null;
     if (!client) {
@@ -2732,6 +2842,8 @@
       document.removeEventListener("click", preparePremiumComparisonPrefill, true);
       authSubscription?.data?.subscription?.unsubscribe?.();
       if (pollTimer) clearTimeout(pollTimer);
+      utilityHistoryObserver?.disconnect?.();
+      utilityHistoryObserver = null;
       closeCheckConfirmation(false);
     }, { once: true });
   }
