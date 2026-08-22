@@ -391,13 +391,13 @@ test('note informative non trasformano la bolletta in un falso giallo', () => {
   assert.equal(automaticReasonPresentation(bill.automatic_screening_reasons[1]).hideWhenOfferCard, true);
 });
 
-test('precisione economica limitata resta un vero giallo con testo comprensibile', () => {
+test('precisione economica limitata resta una nota informativa e non un falso giallo', () => {
   const reason = { code: 'comparison_precision_limited_gas', severity: 'review', trafficLight: 'yellow' };
   const bill = { id: 'price-review', processing_status: 'completed', automatic_screening_status: 'inconclusive', automatic_screening_reasons: [reason] };
   const { automaticReasonKind, automaticReasonPresentation, automaticDisplayTrafficLight } = loadComparisonHarness({ bills: [bill] });
-  assert.equal(automaticReasonKind(reason), 'attention');
-  assert.equal(automaticDisplayTrafficLight(bill), 'yellow');
-  assert.equal(automaticReasonPresentation(reason).title, 'Prezzo gas da verificare');
+  assert.equal(automaticReasonKind(reason), 'info');
+  assert.equal(automaticDisplayTrafficLight(bill), 'green');
+  assert.equal(automaticReasonPresentation(reason).title, 'Nota sul confronto gas');
   assert.doesNotMatch(automaticReasonPresentation(reason).description, /precisione_confronto_gas/);
 });
 
@@ -474,8 +474,8 @@ test('prefill usa il percorso già esistente dell’app e aggiorna la CTA solo q
   assert.doesNotMatch(app, /history_annualized/);
 });
 
-test('service worker forza il rilascio della cache archivio luce gas v0.36.49', () => {
+test('service worker forza il rilascio della cache informativa v0.36.51', () => {
   const sw = read('public/sw.js');
-  assert.match(sw, /offertalogica-premium-v03649-bills-archive-by-commodity/);
+  assert.match(sw, /offertalogica-premium-v03651-analysis-info-ux/);
   assert.match(sw, /"\/app-premium-bills\.js"/);
 });

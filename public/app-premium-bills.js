@@ -210,7 +210,7 @@
     const severity = String(reason?.severity || "").trim().toLowerCase();
     const light = String(reason?.trafficLight || "").trim().toLowerCase();
     if (code.startsWith("storico_consumi_") || code === "offerta_letta_non_verificata_catalogo") return "info";
-    if (code.startsWith("comparison_precision_limited_") || code.startsWith("coerenza_comparison_precision_limited_")) return "attention";
+    if (code.startsWith("comparison_precision_limited_") || code.startsWith("coerenza_comparison_precision_limited_")) return "info";
     if (light === "red" || severity === "high") return "critical";
     if (light === "yellow" || severity === "medium") return "attention";
     return "info";
@@ -237,9 +237,9 @@
     if (code.startsWith("comparison_precision_limited_") || code.startsWith("coerenza_comparison_precision_limited_")) {
       const commodity = code.includes("gas") ? "gas" : "luce";
       return {
-        title: `Prezzo ${commodity} da verificare`,
-        description: `La composizione del prezzo ${commodity} non è ricostruibile con certezza completa. Il confronto resta disponibile, ma il valore va controllato prima di considerare definitivo il risultato.`,
-        kind: "attention",
+        title: `Nota sul confronto ${commodity}`,
+        description: `La bolletta ${commodity} è stata analizzata correttamente, ma non espone tutti gli elementi necessari per ricostruire con precisione completa la formula economica. Il confronto resta disponibile come indicazione.`,
+        kind: "info",
       };
     }
     return {
@@ -1319,7 +1319,7 @@
       }
     }
     if (!notices.length) return "";
-    return `${notices.join(" ")} Il confronto resta disponibile, ma può essere meno preciso.`;
+    return `Nota sul confronto. ${notices.join(" ")} Il confronto resta disponibile come indicazione e può essere meno preciso.`;
   }
 
   function renderComparisonPrecisionNotice(doc, profile) {
@@ -1336,7 +1336,7 @@
       if (!notice) return currentBlock;
       notice.id = "premium-comparison-precision-notice";
       notice.setAttribute?.("role", "status");
-      notice.style.cssText = "margin:0 0 16px;padding:12px 14px;border:1px solid #f59e0b;border-radius:10px;background:#fffbeb;color:#92400e;font-size:12px;line-height:1.45;font-weight:650;";
+      notice.style.cssText = "margin:0 0 16px;padding:12px 14px;border:1px solid #d8e7de;border-radius:10px;background:#f5f9f6;color:#315a43;font-size:12px;line-height:1.45;font-weight:650;";
       const intro = currentBlock.querySelector?.(".compare-card-intro");
       if (intro?.after) intro.after(notice);
       else currentBlock.prepend?.(notice);
@@ -1509,7 +1509,7 @@
         const annualGas = comparisonDeclaredAnnualForBill(bill, "gas");
         appendAnalysisRow(grid, "Consumo annuo", annualGas > 0 ? `${formatDecimal(annualGas, 3)} Smc` : null);
         appendAnalysisRow(grid, "Consumo periodo", hasAnalysisValue(data.consumo_periodo_gas_smc) ? `${formatDecimal(data.consumo_periodo_gas_smc, 3)} Smc` : null);
-        const gasPriceLabel = comparisonPrecisionLimitedForBill(bill, "gas") ? "Prezzo letto · da verificare" : "Prezzo materia";
+        const gasPriceLabel = comparisonPrecisionLimitedForBill(bill, "gas") ? "Prezzo letto · confronto indicativo" : "Prezzo materia";
         appendAnalysisRow(grid, gasPriceLabel, hasAnalysisValue(data.prezzo_gas_eur_smc) ? `${formatDecimal(data.prezzo_gas_eur_smc)} €/Smc` : null);
         appendAnalysisRow(grid, "Quota fissa", hasAnalysisValue(data.quota_fissa_vendita_gas_eur_anno) ? `${formatMoney(data.quota_fissa_vendita_gas_eur_anno)}/anno` : null);
         appendAnalysisRow(grid, "Tipo prezzo", data.tipo_prezzo_gas);

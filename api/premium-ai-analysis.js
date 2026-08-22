@@ -274,6 +274,18 @@ function refineCustomerScreening(screening = {}, normalized = {}) {
         trafficLight: "neutral",
       };
     }
+    if (code.startsWith("comparison_precision_limited_") || code.startsWith("coerenza_comparison_precision_limited_")) {
+      const commodity = code.includes("gas") ? "gas" : "luce";
+      return {
+        ...reason,
+        title: `Nota sul confronto ${commodity}`,
+        description: `La bolletta ${commodity} è stata analizzata, ma non espone tutti gli elementi necessari per ricostruire con precisione completa la formula economica. Il confronto resta disponibile come indicazione.`,
+        severity: "low",
+        source: "comparison_precision",
+        trafficLight: "neutral",
+        suggestedAction: null,
+      };
+    }
     const periodField = code === "campo_mancante_consumo_luce_kwh"
       ? "consumo_periodo_luce_kwh"
       : code === "campo_mancante_consumo_gas_smc"
@@ -300,7 +312,13 @@ function refineCustomerScreening(screening = {}, normalized = {}) {
     "storico_consumi_luce_in_costruzione",
     "storico_consumi_gas_in_costruzione",
   ]);
-  const actionableReasons = reasons.filter(reason => !informationalCodes.has(String(reason?.code || "").trim()));
+  const isInformationalReason = (reason) => {
+    const code = String(reason?.code || "").trim();
+    return informationalCodes.has(code)
+      || code.startsWith("comparison_precision_limited_")
+      || code.startsWith("coerenza_comparison_precision_limited_");
+  };
+  const actionableReasons = reasons.filter(reason => !isInformationalReason(reason));
   if (screening?.status === "inconclusive" && reasons.length && actionableReasons.length === 0) {
     return {
       ...screening,
