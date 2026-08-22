@@ -19,7 +19,7 @@ function document(commodity = 'gas') {
 }
 
 test('versione e richiesta usano il contratto compatto senza dati aggiuntivi', async () => {
-  assert.equal(PDF_PURE_AI_READER_VERSION, 'pure-ai-native-pdf-v2.0.5-comparison-normalization');
+  assert.equal(PDF_PURE_AI_READER_VERSION, 'pure-ai-native-pdf-v2.0.6-consumption-history');
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ia-compact-'));
   const filePath = path.join(dir, 'bolletta.pdf');
   await fs.writeFile(filePath, '%PDF-test');
@@ -33,14 +33,70 @@ test('versione e richiesta usano il contratto compatto senza dati aggiuntivi', a
   assert.equal(item.properties.evidence, undefined);
   assert.equal(item.properties.confidence, undefined);
   assert.equal(schema.properties.supplies.items.properties.fields.maxItems, 24);
+  assert.ok(item.properties.purpose.enum.includes('period_consumption'));
   assert.ok(item.properties.purpose.enum.includes('conditions_start'));
   assert.ok(item.properties.purpose.enum.includes('conditions_end'));
+  assert.match(request.input[0].content[0].text, /period_consumption/);
   assert.match(request.input[0].content[0].text, /non usare il periodo di fatturazione/);
   assert.match(request.input[0].content[0].text, /non cercare né restituire dati personali, POD, PDR/);
   assert.ok(JSON.stringify(schema).length < 3200);
   await fs.rm(dir, { recursive: true, force: true });
 });
 
+
+
+test('prima bolletta: conserva il consumo del periodo senza trasformarlo in consumo annuo', () => {
+  const normalized = normalizePureAiOutput({
+    document: {
+      ...document('electricity'),
+      billing_period_start: '2026-07-01',
+      billing_period_end: '2026-07-31',
+    },
+    supplies: [{ commodity: 'electricity', provider: 'E.ON Energia', offer_name: 'Luce Insieme', offer_code: null, fields: [
+      row('period_consumption', 'Consumo totale fatturato nel periodo', 924.39, '924,39', 'kWh', 'none', 'none', 2),
+      row('unit_price', 'Spesa per la vendita di energia elettrica', 0.142614, '0,142614', '€/kWh', 'none', 'none', 2),
+      row('fixed_fee', 'Quota fissa vendita', 9.09, '9,09', '€/mese', 'month', 'none', 2),
+    ]}],
+  });
+  assert.equal(normalized.consumo_luce_kwh, undefined);
+  assert.equal(normalized.consumo_periodo_luce_kwh, 924.39);
+  assert.equal(normalized.adaptive_form.supplies[0].period_consumption.value, 924.39);
+});
+
+test('recupero mirato conserva il consumo del periodo quando il consumo annuo non esiste', async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ia-period-recovery-'));
+  const filePath = path.join(dir, 'bolletta.pdf');
+  await fs.writeFile(filePath, '%PDF-test');
+  let calls = 0;
+  const primary = {
+    document: { ...document('electricity'), billing_period_start: '2026-07-01', billing_period_end: '2026-07-31' },
+    supplies: [{ commodity: 'electricity', provider: 'E.ON Energia', offer_name: 'Luce Insieme', offer_code: null, fields: [
+      row('unit_price', 'Spesa per la vendita di energia elettrica', 0.142614, '0,142614', '€/kWh', 'none', 'none', 2),
+      row('fixed_fee', 'Quota fissa vendita', 9.09, '9,09', '€/mese', 'month', 'none', 2),
+    ]}],
+  };
+  const recovery = {
+    document: { ...document('electricity'), billing_period_start: '2026-07-01', billing_period_end: '2026-07-31' },
+    supplies: [{ commodity: 'electricity', provider: null, offer_name: null, offer_code: null, fields: [
+      row('period_consumption', 'Consumo totale fatturato nel periodo', 924.39, '924,39', 'kWh', 'none', 'none', 2),
+    ]}],
+  };
+  const normalized = await extractPdfPureAi({
+    filePath,
+    apiKey: 'test',
+    transport: async () => {
+      calls += 1;
+      const payload = calls === 1 ? primary : recovery;
+      return { id: `resp-${calls}`, output_text: JSON.stringify(payload) };
+    },
+  });
+  assert.equal(calls, 2);
+  assert.equal(normalized.consumo_luce_kwh, undefined);
+  assert.equal(normalized.consumo_periodo_luce_kwh, 924.39);
+  assert.equal(normalized.ai.recovery_attempted, true);
+  assert.match(String(normalized.ai.recovered_from), /essential_recovery/);
+  await fs.rm(dir, { recursive: true, force: true });
+});
 
 test('decorrenza e scadenza condizioni economiche vengono salvate solo come date esplicite della fornitura', () => {
   const normalized = normalizePureAiOutput({

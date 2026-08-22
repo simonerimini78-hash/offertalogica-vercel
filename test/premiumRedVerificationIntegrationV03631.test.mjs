@@ -51,9 +51,9 @@ test('migrazione è additiva: nessuna nuova tabella o API, origin red_verificati
   assert.match(sql, /request\.jwt\.claim\.role/);
 });
 
-test('service worker forza cache v0.36.41', () => {
+test('service worker forza cache v0.36.42', () => {
   const sw = read('public/sw.js');
-  assert.match(sw, /offertalogica-premium-v03641-comparison-normalization/);
+  assert.match(sw, /offertalogica-premium-v03642-consumption-history/);
 });
 
 test('app mostra secondo esito e mantiene rosso anche quando risolto dalla seconda IA', () => {
@@ -115,4 +115,23 @@ test('editor offerta dichiarata resta chiuso finche il cliente non lo apre', () 
   assert.match(app, /setDeclaredOfferEditorOpen\(editor, false\)/);
   assert.match(app, /MODIFICA DATI OFFERTA/);
   assert.match(app, /setDeclaredOfferEditorOpen\(editor, editor\.hidden\)/);
+});
+
+
+test('storico consumi conserva il periodo e distingue offerta letta da catalogo non verificato', () => {
+  const api = read('api/premium-ai-analysis.js');
+  const app = read('public/app-premium-bills.js');
+  const sql = read('supabase/premium-consumption-history-v0.36.42.sql');
+  assert.match(api, /premiumBillValuesWithPeriodConsumption/);
+  assert.match(api, /consumo_periodo_luce_kwh/);
+  assert.match(api, /consumo_periodo_gas_smc/);
+  assert.match(api, /offerta_letta_non_verificata_catalogo/);
+  assert.match(api, /Storico consumi in costruzione/);
+  assert.match(app, /comparisonConsumptionForUtility/);
+  assert.match(app, /history_annualized/);
+  assert.match(app, /comparisonIntervalsOverlap/);
+  assert.match(sql, /premium_sync_customer_period_consumption/);
+  assert.doesNotMatch(sql, /create\s+table/i);
+  assert.match(sql, /consumo_periodo_luce_kwh/);
+  assert.match(sql, /consumo_periodo_gas_smc/);
 });

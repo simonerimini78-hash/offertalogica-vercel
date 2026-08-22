@@ -1,5 +1,5 @@
-// premium-comparison-normalization-v03641
-const CACHE = "offertalogica-premium-v03641-comparison-normalization";
+// premium-consumption-history-v03642
+const CACHE = "offertalogica-premium-v03642-consumption-history";
 const APP_SHELL = [
   "/app.html",
   "/app-dialog.js",

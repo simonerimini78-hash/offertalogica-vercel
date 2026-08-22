@@ -46,7 +46,7 @@ function completeBill({ id, commodity, date, data, contractId = null, utilityId 
   };
 }
 
-test('seleziona l’ultima bolletta completata che possiede tutti e tre i dati economici', () => {
+test('usa il prezzo dell’ultima bolletta economicamente completa e il consumo annuo più recente della stessa utenza', () => {
   const bills = [
     completeBill({
       id: 'luce-new-incomplete', commodity: 'electricity', date: '2026-08-15',
@@ -73,8 +73,9 @@ test('seleziona l’ultima bolletta completata che possiede tutti e tre i dati e
   const { buildPremiumComparisonProfile } = loadComparisonHarness({ bills });
   const profile = buildPremiumComparisonProfile();
   assert.equal(profile.luce.billId, 'luce-valid');
-  assert.equal(profile.luce.consumption, 2850);
+  assert.equal(profile.luce.consumption, 3100);
   assert.equal(profile.luce.price, 0.14321);
+  assert.equal(profile.luce.consumptionSource, 'declared_annual');
   assert.equal(profile.luce.fixedFee, 108);
   assert.equal(profile.gas.billId, 'gas-valid');
   assert.equal(profile.gas.consumption, 890);
@@ -82,6 +83,68 @@ test('seleziona l’ultima bolletta completata che possiede tutti e tre i dati e
   assert.equal(profile.luce.committedPowerKw, 4.5);
   assert.equal(profile.precisionLimited, false);
   assert.equal(profile.supplyMode, 'separate');
+});
+
+
+test('prima bolletta del nuovo fornitore usa il consumo del periodo e mantiene la luce nel confronto', () => {
+  const bills = [
+    completeBill({
+      id: 'eon-july', commodity: 'electricity', date: '2026-07-31', utilityId: 'luce-casa',
+      data: {
+        fornitore_luce: 'E.ON Energia S.p.A.',
+        consumo_periodo_luce_kwh: 924.39,
+        prezzo_luce_eur_kwh: 0.104148,
+        quota_fissa_vendita_luce_eur_anno: 109.08,
+        tipo_prezzo_luce: 'fisso',
+      },
+    }),
+  ];
+  bills[0].billing_period_start = '2026-07-01';
+  const { buildPremiumComparisonProfile } = loadComparisonHarness({ bills });
+  const profile = buildPremiumComparisonProfile();
+  assert.ok(profile.luce);
+  assert.equal(profile.luce.billId, 'eon-july');
+  assert.equal(profile.luce.consumptionSource, 'history_annualized');
+  assert.equal(profile.luce.consumptionCoverageDays, 31);
+  assert.equal(profile.luce.consumptionBillCount, 1);
+  assert.equal(profile.luce.consumption, Number((924.39 * 365 / 31).toFixed(6)));
+  assert.equal(profile.luce.consumptionPrecisionLimited, true);
+  assert.equal(profile.precisionLimited, true);
+});
+
+test('somma periodi non sovrapposti della stessa utenza anche con cambio fornitore', () => {
+  const bills = [
+    completeBill({
+      id: 'old-june', commodity: 'electricity', date: '2026-06-30', utilityId: 'luce-casa',
+      data: { fornitore_luce: 'Vecchio Fornitore', consumo_periodo_luce_kwh: 300, prezzo_luce_eur_kwh: 0.15, quota_fissa_vendita_luce_eur_anno: 100 },
+    }),
+    completeBill({
+      id: 'eon-july', commodity: 'electricity', date: '2026-07-31', utilityId: 'luce-casa',
+      data: { fornitore_luce: 'E.ON Energia', consumo_periodo_luce_kwh: 400, prezzo_luce_eur_kwh: 0.104148, quota_fissa_vendita_luce_eur_anno: 109.08 },
+    }),
+  ];
+  bills[0].billing_period_start = '2026-06-01';
+  bills[1].billing_period_start = '2026-07-01';
+  const { buildPremiumComparisonProfile } = loadComparisonHarness({ bills });
+  const profile = buildPremiumComparisonProfile();
+  assert.equal(profile.luce.billId, 'eon-july');
+  assert.equal(profile.luce.provider, 'E.ON Energia');
+  assert.equal(profile.luce.consumptionBillCount, 2);
+  assert.equal(profile.luce.consumptionCoverageDays, 61);
+  assert.equal(profile.luce.consumption, Number((700 * 365 / 61).toFixed(6)));
+});
+
+test('periodi sovrapposti non vengono contati due volte nello storico consumi', () => {
+  const bills = [
+    completeBill({ id: 'full-july', commodity: 'electricity', date: '2026-07-31', utilityId: 'u1', data: { consumo_periodo_luce_kwh: 310, prezzo_luce_eur_kwh: 0.14, quota_fissa_vendita_luce_eur_anno: 100 } }),
+    completeBill({ id: 'overlap', commodity: 'electricity', date: '2026-07-31', utilityId: 'u1', data: { consumo_periodo_luce_kwh: 150, prezzo_luce_eur_kwh: 0.14, quota_fissa_vendita_luce_eur_anno: 100 } }),
+  ];
+  bills[0].billing_period_start = '2026-07-01';
+  bills[1].billing_period_start = '2026-07-15';
+  const { buildPremiumComparisonProfile } = loadComparisonHarness({ bills });
+  const profile = buildPremiumComparisonProfile();
+  assert.equal(profile.luce.consumptionBillCount, 1);
+  assert.equal(profile.luce.consumptionCoverageDays, 31);
 });
 
 test('quota fissa zero è valida e dual è assunto solo per stessa bolletta o stesso contratto', () => {
@@ -167,8 +230,8 @@ test('applica i dati al comparatore esistente senza avviare automaticamente il c
     supplyMode: 'separate',
     priceType: 'variabile',
     precisionLimited: true,
-    luce: { consumption: 2850, price: 0.104148, fixedFee: 108, sourceDate: '2026-07-31', provider: 'Luce Spa', committedPowerKw: 4.5, precisionLimited: true },
-    gas: { consumption: 890, price: 0.5123, fixedFee: 96, sourceDate: '2026-08-10', provider: 'Gas Spa', precisionLimited: false },
+    luce: { consumption: 2850, price: 0.104148, fixedFee: 108, sourceDate: '2026-07-31', provider: 'Luce Spa', committedPowerKw: 4.5, pricePrecisionLimited: true, consumptionPrecisionLimited: false, precisionLimited: true },
+    gas: { consumption: 890, price: 0.5123, fixedFee: 96, sourceDate: '2026-08-10', provider: 'Gas Spa', pricePrecisionLimited: false, consumptionPrecisionLimited: false, precisionLimited: false },
   };
   assert.equal(applyPremiumComparisonProfile(frame, profile), true);
   assert.equal(precise.clicks, 1);
@@ -211,7 +274,9 @@ test('precisione limitata deriva dagli avvisi automatici della bolletta per luce
   ];
   const { buildPremiumComparisonProfile } = loadComparisonHarness({ bills });
   const profile = buildPremiumComparisonProfile();
+  assert.equal(profile.luce.pricePrecisionLimited, true);
   assert.equal(profile.luce.precisionLimited, true);
+  assert.equal(profile.gas.pricePrecisionLimited, false);
   assert.equal(profile.gas.precisionLimited, false);
   assert.equal(profile.precisionLimited, true);
 });
@@ -237,8 +302,8 @@ test('prefill usa il percorso già esistente dell’app e aggiorna la CTA solo q
   assert.match(app, /INIZIA IL CONFRONTO/);
 });
 
-test('service worker forza il rilascio della cache della normalizzazione v0.36.41', () => {
+test('service worker forza il rilascio della cache dello storico consumi v0.36.42', () => {
   const sw = read('public/sw.js');
-  assert.match(sw, /offertalogica-premium-v03641-comparison-normalization/);
+  assert.match(sw, /offertalogica-premium-v03642-consumption-history/);
   assert.match(sw, /"\/app-premium-bills\.js"/);
 });

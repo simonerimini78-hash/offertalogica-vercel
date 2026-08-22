@@ -916,6 +916,11 @@
     return Number.isFinite(created) ? created : 0;
   }
 
+  function comparisonBillSupportsCommodity(bill, commodity) {
+    const allowed = commodity === "luce" ? ["electricity", "dual"] : ["gas", "dual"];
+    return Boolean(bill && bill.processing_status === "completed" && allowed.includes(bill.commodity));
+  }
+
   function comparisonPrecisionLimitedForBill(bill, commodity) {
     const suffix = commodity === "luce" ? "luce" : "gas";
     const expectedCodes = new Set([
@@ -926,16 +931,104 @@
     return reasons.some(reason => expectedCodes.has(String(reason?.code || "").trim().toLowerCase()));
   }
 
-  function comparisonSupplyFromBill(bill, commodity) {
-    if (!bill || bill.processing_status !== "completed") return null;
-    const isLight = commodity === "luce";
-    const allowedBillCommodities = isLight ? ["electricity", "dual"] : ["gas", "dual"];
-    if (!allowedBillCommodities.includes(bill.commodity)) return null;
+  function comparisonIsoDay(value) {
+    const text = String(value || "").trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return null;
+    const [year, month, day] = text.split("-").map(Number);
+    const time = Date.UTC(year, month - 1, day);
+    const date = new Date(time);
+    return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
+      ? { text, time }
+      : null;
+  }
+
+  function comparisonBillingInterval(bill) {
     const data = analysisDataForBill(bill);
-    const consumption = finiteNumberOrNull(data[isLight ? "consumo_luce_kwh" : "consumo_gas_smc"]);
+    const start = comparisonIsoDay(data.billing_period_start || bill?.billing_period_start);
+    const end = comparisonIsoDay(data.billing_period_end || bill?.billing_period_end);
+    if (!start || !end || end.time < start.time) return null;
+    const days = Math.floor((end.time - start.time) / 86_400_000) + 1;
+    return days > 0 && days <= 370 ? { start: start.time, end: end.time, startIso: start.text, endIso: end.text, days } : null;
+  }
+
+  function comparisonIntervalsOverlap(left, right) {
+    return left.start <= right.end && right.start <= left.end;
+  }
+
+  function comparisonConsumptionForUtility(utilityId, commodity, referenceTime = Date.now()) {
+    if (!utilityId) return null;
+    const isLight = commodity === "luce";
+    const annualField = isLight ? "consumo_luce_kwh" : "consumo_gas_smc";
+    const periodField = isLight ? "consumo_periodo_luce_kwh" : "consumo_periodo_gas_smc";
+    const utilityBills = bills
+      .filter(bill => bill?.utility_id === utilityId && comparisonBillSupportsCommodity(bill, commodity))
+      .sort((left, right) => comparisonBillTime(right) - comparisonBillTime(left));
+
+    const maxAnnualAgeMs = 400 * 86_400_000;
+    const declared = utilityBills.find(bill => {
+      const value = finiteNumberOrNull(analysisDataForBill(bill)[annualField]);
+      if (!(value > 0)) return false;
+      const sourceTime = comparisonBillTime(bill);
+      return !Number.isFinite(referenceTime) || !sourceTime || Math.abs(referenceTime - sourceTime) <= maxAnnualAgeMs;
+    });
+    if (declared) {
+      const value = finiteNumberOrNull(analysisDataForBill(declared)[annualField]);
+      return {
+        value,
+        source: "declared_annual",
+        precisionLimited: false,
+        coverageDays: 365,
+        billCount: 1,
+        sourceBillId: declared.id,
+        sourceDate: billReferenceDate(declared)?.toISOString?.().slice(0, 10) || null,
+      };
+    }
+
+    const candidates = utilityBills
+      .map(bill => ({
+        bill,
+        value: finiteNumberOrNull(analysisDataForBill(bill)[periodField]),
+        interval: comparisonBillingInterval(bill),
+      }))
+      .filter(item => item.value > 0 && item.interval)
+      .sort((left, right) => right.interval.end - left.interval.end || left.interval.start - right.interval.start);
+    if (!candidates.length) return null;
+
+    const latestEnd = candidates[0].interval.end;
+    const horizonStart = latestEnd - 364 * 86_400_000;
+    const selected = [];
+    for (const candidate of candidates) {
+      if (candidate.interval.end < horizonStart || candidate.interval.start < horizonStart) continue;
+      if (selected.some(item => comparisonIntervalsOverlap(item.interval, candidate.interval))) continue;
+      selected.push(candidate);
+    }
+    const coverageDays = selected.reduce((sum, item) => sum + item.interval.days, 0);
+    if (coverageDays < 20) return null;
+    const total = selected.reduce((sum, item) => sum + item.value, 0);
+    if (!(total > 0)) return null;
+    const annualized = Number((total * 365 / coverageDays).toFixed(6));
+    const nearTwelveMonths = coverageDays >= 350;
+    return {
+      value: annualized,
+      source: nearTwelveMonths ? "history_12m" : "history_annualized",
+      precisionLimited: !nearTwelveMonths,
+      coverageDays,
+      billCount: selected.length,
+      sourceBillId: selected[0]?.bill?.id || null,
+      sourceDate: selected[0]?.interval?.endIso || null,
+      periodTotal: Number(total.toFixed(6)),
+    };
+  }
+
+  function comparisonSupplyFromBill(bill, commodity) {
+    if (!comparisonBillSupportsCommodity(bill, commodity)) return null;
+    const isLight = commodity === "luce";
+    const data = analysisDataForBill(bill);
     const price = finiteNumberOrNull(data[isLight ? "prezzo_luce_eur_kwh" : "prezzo_gas_eur_smc"]);
     const fixedFee = finiteNumberOrNull(data[isLight ? "quota_fissa_vendita_luce_eur_anno" : "quota_fissa_vendita_gas_eur_anno"]);
-    if (!(consumption > 0) || !(price > 0) || fixedFee === null) return null;
+    if (!(price > 0) || fixedFee === null) return null;
+    const consumptionProfile = comparisonConsumptionForUtility(bill.utility_id, commodity, comparisonBillTime(bill));
+    if (!(consumptionProfile?.value > 0)) return null;
     const contract = contractForBill(bill);
     const provider = String(
       data[isLight ? "fornitore_luce" : "fornitore_gas"]
@@ -948,19 +1041,26 @@
     const committedPowerKw = isLight && finiteNumberOrNull(data.potenza_impegnata_kw) > 0
       ? finiteNumberOrNull(data.potenza_impegnata_kw)
       : null;
+    const pricePrecisionLimited = comparisonPrecisionLimitedForBill(bill, commodity);
     return {
       commodity,
       billId: bill.id,
       utilityId: bill.utility_id || null,
       contractId: bill.contract_id || null,
       sourceDate: billReferenceDate(bill)?.toISOString?.().slice(0, 10) || null,
-      consumption,
+      consumption: consumptionProfile.value,
+      consumptionSource: consumptionProfile.source,
+      consumptionCoverageDays: consumptionProfile.coverageDays,
+      consumptionBillCount: consumptionProfile.billCount,
+      consumptionSourceBillId: consumptionProfile.sourceBillId,
+      consumptionPrecisionLimited: consumptionProfile.precisionLimited,
       price,
       fixedFee,
       provider,
       priceType,
       committedPowerKw,
-      precisionLimited: comparisonPrecisionLimitedForBill(bill, commodity),
+      pricePrecisionLimited,
+      precisionLimited: Boolean(pricePrecisionLimited || consumptionProfile.precisionLimited),
     };
   }
 
@@ -980,7 +1080,7 @@
     const priceTypes = [luce?.priceType, gas?.priceType].filter(Boolean);
     const priceType = priceTypes.length && new Set(priceTypes).size === 1 ? priceTypes[0] : null;
     return {
-      version: "premium-comparison-prefill-v2-normalized-price",
+      version: "premium-comparison-prefill-v3-consumption-history",
       luce,
       gas,
       priceType,
@@ -1001,7 +1101,7 @@
     const copy = document.querySelector('#view-offers .hero > p');
     const label = document.querySelector('#view-offers .hero .cta span');
     if (copy) copy.textContent = profile
-      ? "Useremo automaticamente consumi e costi dell’ultima bolletta analizzata disponibile."
+      ? "Useremo automaticamente i consumi disponibili della stessa utenza e i costi dell’ultima bolletta analizzata."
       : "Usa i consumi medi oppure inserisci i tuoi dati.";
     if (label) label.textContent = profile ? "CONFRONTA CON I MIEI CONSUMI" : "INIZIA IL CONFRONTO";
   }
@@ -1021,12 +1121,22 @@
   }
 
   function comparisonPrecisionNoticeText(profile) {
-    const commodities = [];
-    if (profile?.luce?.precisionLimited) commodities.push("luce");
-    if (profile?.gas?.precisionLimited) commodities.push("gas");
-    if (!commodities.length) return "";
-    const scope = commodities.length === 2 ? "di luce e gas" : `della fornitura ${commodities[0]}`;
-    return `La bolletta non espone tutti gli elementi necessari per ricostruire con precisione la formula economica ${scope}. Il confronto resta disponibile, ma può essere meno preciso.`;
+    const notices = [];
+    for (const [commodity, label] of [["luce", "luce"], ["gas", "gas"]]) {
+      const supply = profile?.[commodity];
+      if (!supply) continue;
+      if (supply.consumptionPrecisionLimited) {
+        const days = Number(supply.consumptionCoverageDays || 0);
+        const count = Number(supply.consumptionBillCount || 0);
+        const periods = count === 1 ? "1 periodo disponibile" : `${count} periodi disponibili`;
+        notices.push(`Il consumo annuo ${label} è stimato dai consumi di ${periods}${days > 0 ? ` (${days} giorni coperti)` : ""}. Lo storico si aggiornerà con le prossime bollette.`);
+      }
+      if (supply.pricePrecisionLimited) {
+        notices.push(`La bolletta ${label} non espone tutti gli elementi necessari per ricostruire con precisione la formula economica.`);
+      }
+    }
+    if (!notices.length) return "";
+    return `${notices.join(" ")} Il confronto resta disponibile, ma può essere meno preciso.`;
   }
 
   function renderComparisonPrecisionNotice(doc, profile) {
@@ -1190,8 +1300,8 @@
     const addSupply = (commodity, label) => {
       const isLight = commodity === "luce";
       const signals = isLight
-        ? [data.pod, data.consumo_luce_kwh, data.prezzo_luce_eur_kwh, data.quota_fissa_vendita_luce_eur_anno, data.tipo_prezzo_luce, data.formula_prezzo_luce]
-        : [data.pdr, data.consumo_gas_smc, data.prezzo_gas_eur_smc, data.quota_fissa_vendita_gas_eur_anno, data.tipo_prezzo_gas, data.formula_prezzo_gas];
+        ? [data.pod, data.consumo_luce_kwh, data.consumo_periodo_luce_kwh, data.prezzo_luce_eur_kwh, data.quota_fissa_vendita_luce_eur_anno, data.tipo_prezzo_luce, data.formula_prezzo_luce]
+        : [data.pdr, data.consumo_gas_smc, data.consumo_periodo_gas_smc, data.prezzo_gas_eur_smc, data.quota_fissa_vendita_gas_eur_anno, data.tipo_prezzo_gas, data.formula_prezzo_gas];
       if (!signals.some(hasAnalysisValue)) return;
       const card = document.createElement("article");
       card.className = "cloud-analysis-card";
@@ -1203,6 +1313,7 @@
       if (isLight) {
         appendAnalysisRow(grid, "POD", data.pod);
         appendAnalysisRow(grid, "Consumo annuo", hasAnalysisValue(data.consumo_luce_kwh) ? `${formatDecimal(data.consumo_luce_kwh, 3)} kWh` : null);
+        appendAnalysisRow(grid, "Consumo periodo", hasAnalysisValue(data.consumo_periodo_luce_kwh) ? `${formatDecimal(data.consumo_periodo_luce_kwh, 3)} kWh` : null);
         appendAnalysisRow(grid, "Prezzo materia", hasAnalysisValue(data.prezzo_luce_eur_kwh) ? `${formatDecimal(data.prezzo_luce_eur_kwh)} €/kWh` : null);
         appendAnalysisRow(grid, "Quota fissa", hasAnalysisValue(data.quota_fissa_vendita_luce_eur_anno) ? `${formatMoney(data.quota_fissa_vendita_luce_eur_anno)}/anno` : null);
         appendAnalysisRow(grid, "Tipo prezzo", data.tipo_prezzo_luce);
@@ -1212,6 +1323,7 @@
       } else {
         appendAnalysisRow(grid, "PDR", data.pdr);
         appendAnalysisRow(grid, "Consumo annuo", hasAnalysisValue(data.consumo_gas_smc) ? `${formatDecimal(data.consumo_gas_smc, 3)} Smc` : null);
+        appendAnalysisRow(grid, "Consumo periodo", hasAnalysisValue(data.consumo_periodo_gas_smc) ? `${formatDecimal(data.consumo_periodo_gas_smc, 3)} Smc` : null);
         appendAnalysisRow(grid, "Prezzo materia", hasAnalysisValue(data.prezzo_gas_eur_smc) ? `${formatDecimal(data.prezzo_gas_eur_smc)} €/Smc` : null);
         appendAnalysisRow(grid, "Quota fissa", hasAnalysisValue(data.quota_fissa_vendita_gas_eur_anno) ? `${formatMoney(data.quota_fissa_vendita_gas_eur_anno)}/anno` : null);
         appendAnalysisRow(grid, "Tipo prezzo", data.tipo_prezzo_gas);

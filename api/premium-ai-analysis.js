@@ -234,6 +234,70 @@ async function verifiedPremiumAiCost(meter, backend, fetchImpl, nowMs) {
   };
 }
 
+function finiteAnalysisNumber(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function premiumBillValuesWithPeriodConsumption(normalized, screening, runId, completedAt) {
+  const values = premiumBillValuesFromAnalysis(normalized, screening, runId, completedAt);
+  const customer = values.customer_analysis_data && typeof values.customer_analysis_data === "object"
+    ? { ...values.customer_analysis_data }
+    : {};
+  for (const field of ["consumo_periodo_luce_kwh", "consumo_periodo_gas_smc"]) {
+    const value = finiteAnalysisNumber(normalized?.[field]);
+    if (value !== null && value > 0) customer[field] = value;
+  }
+  values.customer_analysis_data = customer;
+  return values;
+}
+
+function customerOfferIdentityRead(normalized = {}) {
+  return Boolean(
+    String(normalized?.nome_offerta_luce || normalized?.nome_offerta_gas || "").trim()
+    || String(normalized?.codice_offerta_luce || normalized?.codice_offerta_gas || "").trim()
+  );
+}
+
+function refineCustomerScreening(screening = {}, normalized = {}) {
+  const reasons = (Array.isArray(screening?.reasons) ? screening.reasons : []).map((reason) => {
+    const code = String(reason?.code || "").trim();
+    if (code === "offerta_non_riconosciuta" && customerOfferIdentityRead(normalized)) {
+      return {
+        ...reason,
+        code: "offerta_letta_non_verificata_catalogo",
+        title: "Offerta letta dalla bolletta",
+        description: "L’offerta è stata letta dalla bolletta, ma la specifica versione economica non è stata verificata nel catalogo disponibile.",
+        severity: "low",
+        source: "offer_match",
+        trafficLight: "yellow",
+      };
+    }
+    const periodField = code === "campo_mancante_consumo_luce_kwh"
+      ? "consumo_periodo_luce_kwh"
+      : code === "campo_mancante_consumo_gas_smc"
+        ? "consumo_periodo_gas_smc"
+        : "";
+    const periodValue = periodField ? finiteAnalysisNumber(normalized?.[periodField]) : null;
+    if (periodValue !== null && periodValue > 0) {
+      const commodity = periodField.includes("luce") ? "luce" : "gas";
+      return {
+        ...reason,
+        code: `storico_consumi_${commodity}_in_costruzione`,
+        title: "Storico consumi in costruzione",
+        description: `La bolletta riporta il consumo del periodo, ma non un consumo annuo ${commodity}. OffertaLogica userà progressivamente le bollette della stessa utenza per ricostruire gli ultimi 12 mesi.`,
+        severity: "low",
+        source: "consumption_history",
+        trafficLight: "yellow",
+        suggestedAction: null,
+      };
+    }
+    return reason;
+  });
+  return { ...screening, reasons };
+}
+
 function resetRedVerificationValues() {
   return {
     red_verification_state: "not_run",
@@ -400,19 +464,22 @@ export function createPremiumAiAnalysisHandler({
 
         let screening = null;
         if (offerDecision === "confirm" && decisionResult.normalized && decisionResult.run?.id) {
-          screening = classifyPremiumAutomaticAnalysis(decisionResult.normalized, {
-            contract: premiumContractForAutomaticComparison(
-              decisionResult.contract,
-              decisionResult.normalized,
-            ),
-          });
+          screening = refineCustomerScreening(
+            classifyPremiumAutomaticAnalysis(decisionResult.normalized, {
+              contract: premiumContractForAutomaticComparison(
+                decisionResult.contract,
+                decisionResult.normalized,
+              ),
+            }),
+            decisionResult.normalized,
+          );
           const completedAt = new Date().toISOString();
           await patchPremiumBill({
             config: backend,
             billId: decisionResult.bill.id,
             fetchImpl,
             values: {
-              ...premiumBillValuesFromAnalysis(
+              ...premiumBillValuesWithPeriodConsumption(
                 decisionResult.normalized,
                 screening,
                 decisionResult.run.id,
@@ -550,9 +617,12 @@ export function createPremiumAiAnalysisHandler({
               ...snapshot.firstRun.extracted_data,
               _offer_match: { status: "matched", verified: true },
             };
-            resolvedOfferScreening = classifyPremiumAutomaticAnalysis(normalizedForResolvedOffer, {
-              contract: premiumContractForAutomaticComparison(resolvedOfferContract, normalizedForResolvedOffer),
-            });
+            resolvedOfferScreening = refineCustomerScreening(
+              classifyPremiumAutomaticAnalysis(normalizedForResolvedOffer, {
+                contract: premiumContractForAutomaticComparison(resolvedOfferContract, normalizedForResolvedOffer),
+              }),
+              normalizedForResolvedOffer,
+            );
             await patchPremiumAnalysisRun({
               config: backend,
               runId: snapshot.firstRun.id,
@@ -656,7 +726,7 @@ export function createPremiumAiAnalysisHandler({
           };
           if (resolvedOfferContract?.id) finalBillValues.contract_id = resolvedOfferContract.id;
           if (resolvedOfferScreening && snapshot.firstRun?.extracted_data) {
-            Object.assign(finalBillValues, premiumBillValuesFromAnalysis(
+            Object.assign(finalBillValues, premiumBillValuesWithPeriodConsumption(
               { ...snapshot.firstRun.extracted_data, _offer_match: { status: "matched", verified: true } },
               resolvedOfferScreening,
               snapshot.firstRun.id,
@@ -813,7 +883,10 @@ export function createPremiumAiAnalysisHandler({
         ? (premiumOfferMatchVerifiedForBill(offerMatch) ? premiumContractForAutomaticComparison(contract, normalized) : null)
         : premiumContractForAutomaticComparison(contract, normalized);
       const completion = analysisCompletionStatus(normalized);
-      const screening = classifyPremiumAutomaticAnalysis(normalized, { contract: contractForScreening });
+      const screening = refineCustomerScreening(
+        classifyPremiumAutomaticAnalysis(normalized, { contract: contractForScreening }),
+        normalized,
+      );
       const durationMs = Math.max(0, now() - startedAt);
       const costResult = await verifiedPremiumAiCost(meter, backend, fetchImpl, now());
       const estimatedCostEur = costResult.estimatedCostEur;
@@ -875,7 +948,7 @@ export function createPremiumAiAnalysisHandler({
 
       if (customerMode) {
         const values = {
-          ...premiumBillValuesFromAnalysis(normalized, screening, run.id, completedAt),
+          ...premiumBillValuesWithPeriodConsumption(normalized, screening, run.id, completedAt),
           ...resetRedVerificationValues(),
         };
         if (premiumOfferContractCanBindBill(offerMatch)) values.contract_id = offerMatch.contract.id;
