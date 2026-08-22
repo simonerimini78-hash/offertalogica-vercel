@@ -271,7 +271,7 @@ function refineCustomerScreening(screening = {}, normalized = {}) {
         description: "L’offerta è stata letta dalla bolletta, ma la specifica versione economica non è stata verificata nel catalogo disponibile.",
         severity: "low",
         source: "offer_match",
-        trafficLight: "yellow",
+        trafficLight: "neutral",
       };
     }
     const periodField = code === "campo_mancante_consumo_luce_kwh"
@@ -289,12 +289,29 @@ function refineCustomerScreening(screening = {}, normalized = {}) {
         description: `La bolletta riporta il consumo del periodo, ma non un consumo annuo ${commodity}. OffertaLogica userà progressivamente le bollette della stessa utenza per ricostruire gli ultimi 12 mesi.`,
         severity: "low",
         source: "consumption_history",
-        trafficLight: "yellow",
+        trafficLight: "neutral",
         suggestedAction: null,
       };
     }
     return reason;
   });
+  const informationalCodes = new Set([
+    "offerta_letta_non_verificata_catalogo",
+    "storico_consumi_luce_in_costruzione",
+    "storico_consumi_gas_in_costruzione",
+  ]);
+  const actionableReasons = reasons.filter(reason => !informationalCodes.has(String(reason?.code || "").trim()));
+  if (screening?.status === "inconclusive" && reasons.length && actionableReasons.length === 0) {
+    return {
+      ...screening,
+      status: "clear",
+      trafficLight: "green",
+      staffReviewAllowed: false,
+      customerStatus: "correct",
+      summary: "Controllo completato: nessuna anomalia rilevata.",
+      reasons,
+    };
+  }
   return { ...screening, reasons };
 }
 

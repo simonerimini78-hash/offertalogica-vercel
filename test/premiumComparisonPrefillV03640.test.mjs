@@ -8,18 +8,22 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = rel => fs.readFileSync(path.join(root, rel), 'utf8');
 
-function loadComparisonHarness({ bills = [], contracts = [], parentDocument = null } = {}) {
+function loadComparisonHarness({ bills = [], contracts = [], utilities = [], checks = [], parentDocument = null } = {}) {
   let source = read('public/app-premium-bills.js');
   source = source
     .replace('let bills = [];', 'let bills = globalThis.__TEST_BILLS__;')
     .replace('let contracts = [];', 'let contracts = globalThis.__TEST_CONTRACTS__;')
+    .replace('let utilities = [];', 'let utilities = globalThis.__TEST_UTILITIES__;')
+    .replace('let checks = [];', 'let checks = globalThis.__TEST_CHECKS__;')
     .replace(
       'globalThis.OffertaLogicaPremiumBills = Object.freeze({ init });',
-      'globalThis.OffertaLogicaPremiumBills = Object.freeze({ init, __test: { buildPremiumComparisonProfile, applyPremiumComparisonProfile, comparisonConsumptionForUtility } });',
+      'globalThis.OffertaLogicaPremiumBills = Object.freeze({ init, __test: { buildPremiumComparisonProfile, applyPremiumComparisonProfile, comparisonConsumptionForUtility, automaticReasonKind, automaticReasonPresentation, automaticDisplayTrafficLight, automaticStatusCopy, recentBillsForOverview } });',
     );
   const context = {
     __TEST_BILLS__: bills,
     __TEST_CONTRACTS__: contracts,
+    __TEST_UTILITIES__: utilities,
+    __TEST_CHECKS__: checks,
     document: parentDocument || { getElementById: () => null, querySelector: () => null },
     location: { origin: 'https://app.offertalogica.it' },
     URL,
@@ -370,6 +374,48 @@ test('precisione limitata deriva dagli avvisi automatici della bolletta per luce
   assert.equal(profile.precisionLimited, true);
 });
 
+test('note informative non trasformano la bolletta in un falso giallo', () => {
+  const bill = {
+    id: 'info-only', processing_status: 'completed', automatic_screening_status: 'inconclusive',
+    automatic_screening_reasons: [
+      { code: 'storico_consumi_gas_in_costruzione', severity: 'low', trafficLight: 'yellow' },
+      { code: 'offerta_letta_non_verificata_catalogo', severity: 'low', trafficLight: 'yellow' },
+    ],
+  };
+  const { automaticReasonKind, automaticReasonPresentation, automaticDisplayTrafficLight, automaticStatusCopy } = loadComparisonHarness({ bills: [bill] });
+  bill.automatic_screening_summary = 'Controllo completato con un avviso.';
+  assert.equal(automaticReasonKind(bill.automatic_screening_reasons[0]), 'info');
+  assert.equal(automaticReasonKind(bill.automatic_screening_reasons[1]), 'info');
+  assert.equal(automaticDisplayTrafficLight(bill), 'green');
+  assert.doesNotMatch(automaticStatusCopy(bill), /avviso/i);
+  assert.equal(automaticReasonPresentation(bill.automatic_screening_reasons[1]).hideWhenOfferCard, true);
+});
+
+test('precisione economica limitata resta un vero giallo con testo comprensibile', () => {
+  const reason = { code: 'comparison_precision_limited_gas', severity: 'review', trafficLight: 'yellow' };
+  const bill = { id: 'price-review', processing_status: 'completed', automatic_screening_status: 'inconclusive', automatic_screening_reasons: [reason] };
+  const { automaticReasonKind, automaticReasonPresentation, automaticDisplayTrafficLight } = loadComparisonHarness({ bills: [bill] });
+  assert.equal(automaticReasonKind(reason), 'attention');
+  assert.equal(automaticDisplayTrafficLight(bill), 'yellow');
+  assert.equal(automaticReasonPresentation(reason).title, 'Prezzo gas da verificare');
+  assert.doesNotMatch(automaticReasonPresentation(reason).description, /precisione_confronto_gas/);
+});
+
+test('vista Bollette mostra una recente per utenza e tiene visibili i casi che richiedono attenzione', () => {
+  const bills = [
+    { id: 'u1-new', utility_id: 'u1', processing_status: 'completed', automatic_screening_status: 'clear' },
+    { id: 'u1-old-red', utility_id: 'u1', processing_status: 'completed', automatic_screening_status: 'review_recommended' },
+    { id: 'u2-new', utility_id: 'u2', processing_status: 'completed', automatic_screening_status: 'clear' },
+    { id: 'u2-old', utility_id: 'u2', processing_status: 'completed', automatic_screening_status: 'clear' },
+    { id: 'u3-new', utility_id: 'u3', processing_status: 'completed', automatic_screening_status: 'clear' },
+  ];
+  const utilities = [{ id: 'u1' }, { id: 'u2' }, { id: 'u3' }];
+  const { recentBillsForOverview } = loadComparisonHarness({ bills, utilities });
+  const recent = recentBillsForOverview(bills).map(item => item.id);
+  assert.deepEqual(Array.from(recent), ['u1-old-red', 'u1-new', 'u2-new', 'u3-new']);
+  assert.equal(recent.includes('u2-old'), false);
+});
+
 test('trasferimento è solo in memoria, non usa POD/PDR/indirizzo e non mette dati nell’URL', () => {
   const app = read('public/app-premium-bills.js');
   const start = app.indexOf('let pendingComparisonPrefill = null');
@@ -395,8 +441,8 @@ test('prefill usa il percorso già esistente dell’app e aggiorna la CTA solo q
   assert.doesNotMatch(app, /history_annualized/);
 });
 
-test('service worker forza il rilascio della cache della linea gas v0.36.47', () => {
+test('service worker forza il rilascio della cache UX bollette v0.36.48', () => {
   const sw = read('public/sw.js');
-  assert.match(sw, /offertalogica-premium-v03647-gas-history-price-recovery/);
+  assert.match(sw, /offertalogica-premium-v03648-bills-ux-archive/);
   assert.match(sw, /"\/app-premium-bills\.js"/);
 });

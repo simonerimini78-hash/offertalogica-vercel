@@ -51,9 +51,9 @@ test('migrazione è additiva: nessuna nuova tabella o API, origin red_verificati
   assert.match(sql, /request\.jwt\.claim\.role/);
 });
 
-test('service worker forza cache v0.36.47', () => {
+test('service worker forza cache UX bollette v0.36.48', () => {
   const sw = read('public/sw.js');
-  assert.match(sw, /offertalogica-premium-v03647-gas-history-price-recovery/);
+  assert.match(sw, /offertalogica-premium-v03648-bills-ux-archive/);
 });
 
 test('app mostra secondo esito e mantiene rosso anche quando risolto dalla seconda IA', () => {
@@ -127,6 +127,11 @@ test('storico consumi conserva il periodo e distingue offerta letta da catalogo 
   assert.match(api, /consumo_periodo_gas_smc/);
   assert.match(api, /offerta_letta_non_verificata_catalogo/);
   assert.match(api, /Storico consumi in costruzione/);
+  assert.match(api, /trafficLight: "neutral"/);
+  assert.match(api, /const informationalCodes = new Set/);
+  assert.match(api, /actionableReasons\.length === 0/);
+  assert.match(api, /status: "clear"/);
+  assert.match(api, /summary: "Controllo completato: nessuna anomalia rilevata\."/);
   assert.match(app, /comparisonConsumptionForUtility/);
   assert.match(app, /history_partial/);
   assert.match(app, /history_12m/);

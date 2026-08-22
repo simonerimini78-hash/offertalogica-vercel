@@ -6,6 +6,7 @@
   const MAX_FILE_SIZE = 20_000_000;
   const ANALYSIS_POLL_MS = 5000;
   const ANALYSIS_STALE_MS = 90000;
+  const RECENT_BILL_OVERVIEW_LIMIT = 4;
   const BILL_COLUMNS = "id, user_id, utility_id, contract_id, commodity, billing_period_start, billing_period_end, issue_date, due_date, total_amount_eur, original_file_name, file_size, file_sha256, storage_bucket, storage_path, processing_status, customer_status, automatic_screening_status, automatic_screening_summary, automatic_screening_reasons, automatic_screened_at, automatic_analysis_run_id, customer_analysis_data, red_verification_state, red_verification_result, red_verification_run_id, red_verified_at, created_at, updated_at";
   const UTILITY_COLUMNS = "id, label, supply_type, expected_bills_per_year, status";
   const CONTRACT_COLUMNS = "id, user_id, utility_id, provider_name, offer_name, pricing_type, contract_start, contract_end, fixed_price_expiry, electricity_price_eur_kwh, gas_price_eur_smc, electricity_fixed_fee_eur_year, gas_fixed_fee_eur_year, source, verification_status, is_current, arera_offer_code_electricity, arera_offer_code_gas, electricity_index_name, gas_index_name, electricity_spread_eur_kwh, gas_spread_eur_smc, electricity_formula, gas_formula, automatic_match_status, automatic_match_confidence, automatic_match_method, automatic_match_candidates, automatic_matched_at, automatic_match_catalog_version, customer_confirmation_status, customer_confirmed_at, customer_rejected_at, customer_selected_candidates, customer_confirmation_version, created_at, updated_at";
@@ -37,6 +38,7 @@
   let utilityHistoryRenderQueued = false;
   let checkConfirmationResolve = null;
   let checkConfirmationPreviousFocus = null;
+  let billsArchiveOpen = false;
 
   const byId = id => document.getElementById(id);
 
@@ -56,6 +58,9 @@
     message: null,
     empty: null,
     list: null,
+    archiveToolbar: null,
+    archiveMeta: null,
+    archiveToggle: null,
     homeCount: null,
     profileCount: null,
     profileSize: null,
@@ -90,6 +95,7 @@
     if (state.utilitySelect) state.utilitySelect.disabled = busy || maintenanceMode || !utilities.length;
     if (state.uploadButton) state.uploadButton.disabled = busy || !canUpload();
     if (state.fileInput) state.fileInput.disabled = busy || maintenanceMode || !utilities.length;
+    if (state.archiveToggle) state.archiveToggle.disabled = busy;
     if (state.uploadButtonLabel) state.uploadButtonLabel.textContent = busy ? "OPERAZIONE…" : "SCEGLI PDF";
     state.list?.querySelectorAll("button, select").forEach(control => {
       control.disabled = Boolean(busy) || control.dataset.permanentDisabled === "true";
@@ -196,6 +202,76 @@
       && redVerificationResult(bill).decision === "resolved_ai";
   }
 
+  function automaticReasonCode(reason) {
+    return String(reason?.code || "").trim().toLowerCase();
+  }
+
+  function automaticReasonKind(reason) {
+    const code = automaticReasonCode(reason);
+    const severity = String(reason?.severity || "").trim().toLowerCase();
+    const light = String(reason?.trafficLight || "").trim().toLowerCase();
+    if (code.startsWith("storico_consumi_") || code === "offerta_letta_non_verificata_catalogo") return "info";
+    if (code.startsWith("comparison_precision_limited_") || code.startsWith("coerenza_comparison_precision_limited_")) return "attention";
+    if (light === "red" || severity === "high") return "critical";
+    if (light === "yellow" || severity === "medium") return "attention";
+    return "info";
+  }
+
+  function automaticReasonPresentation(reason) {
+    const code = automaticReasonCode(reason);
+    if (code.startsWith("storico_consumi_")) {
+      const commodity = code.includes("gas") ? "gas" : "luce";
+      return {
+        title: "Storico consumi",
+        description: `Lo storico ${commodity} è in costruzione e si aggiornerà automaticamente con le prossime bollette della stessa utenza.`,
+        kind: "info",
+      };
+    }
+    if (code === "offerta_letta_non_verificata_catalogo") {
+      return {
+        title: "Versione offerta",
+        description: "Offerta letta dalla bolletta; la specifica versione economica non è stata verificata nel catalogo disponibile.",
+        kind: "info",
+        hideWhenOfferCard: true,
+      };
+    }
+    if (code.startsWith("comparison_precision_limited_") || code.startsWith("coerenza_comparison_precision_limited_")) {
+      const commodity = code.includes("gas") ? "gas" : "luce";
+      return {
+        title: `Prezzo ${commodity} da verificare`,
+        description: `La composizione del prezzo ${commodity} non è ricostruibile con certezza completa. Il confronto resta disponibile, ma il valore va controllato prima di considerare definitivo il risultato.`,
+        kind: "attention",
+      };
+    }
+    return {
+      title: reason?.title || "Elemento da verificare",
+      description: reason?.description || "Controlla questa informazione prima di considerare definitiva l’analisi.",
+      kind: automaticReasonKind(reason),
+    };
+  }
+
+  function automaticReasonBuckets(bill) {
+    const reasons = Array.isArray(bill?.automatic_screening_reasons) ? bill.automatic_screening_reasons : [];
+    return reasons.reduce((groups, reason) => {
+      const kind = automaticReasonKind(reason);
+      groups[kind].push(reason);
+      return groups;
+    }, { info: [], attention: [], critical: [] });
+  }
+
+  function automaticDisplayTrafficLight(bill) {
+    if (bill?.automatic_screening_status === "review_recommended") return "red";
+    if (analysisIsStale(bill) || bill?.automatic_screening_status === "failed" || bill?.processing_status === "failed") return "yellow";
+    if (bill?.automatic_screening_status === "clear") return "green";
+    if (bill?.automatic_screening_status === "inconclusive") {
+      const groups = automaticReasonBuckets(bill);
+      if (groups.critical.length) return "red";
+      if (groups.attention.length) return "yellow";
+      return "green";
+    }
+    return "neutral";
+  }
+
   function automaticStatusCopy(bill) {
     const redVerification = redVerificationResult(bill);
     if (redVerificationResolvedByAi(bill)) {
@@ -207,10 +283,13 @@
     if (status === "running") return "Analisi della bolletta in corso. Il risultato comparirà appena disponibile.";
     if (status === "pending") return "La bolletta è pronta per l’analisi.";
     const summary = String(bill?.automatic_screening_summary || "").trim();
-    if (summary) return summary;
+    const infoOnlyInconclusive = status === "inconclusive" && automaticDisplayTrafficLight(bill) === "green";
+    if (summary && !infoOnlyInconclusive) return summary;
     return ({
       review_recommended: "È stata rilevata un’anomalia importante. Puoi richiedere il controllo professionale.",
-      inconclusive: "Analisi completata con un avviso. Controlla le informazioni indicate.",
+      inconclusive: automaticDisplayTrafficLight(bill) === "green"
+        ? "Analisi completata. Non sono state rilevate anomalie; alcune informazioni di contesto sono riportate nel dettaglio."
+        : "Analisi completata con un dato da verificare prima di considerare definitivo il confronto.",
       failed: "Analisi non completata. Riprova oppure carica un PDF più leggibile."
     })[status] || "Il risultato automatico sarà disponibile al termine dell’analisi.";
   }
@@ -249,10 +328,7 @@
       if (["possible_saving", "inconclusive"].includes(check.outcome)) return "yellow";
       if (check.outcome === "correct") return "green";
     }
-    if (bill.automatic_screening_status === "review_recommended") return "red";
-    if (analysisIsStale(bill) || ["inconclusive", "failed"].includes(bill.automatic_screening_status)) return "yellow";
-    if (bill.automatic_screening_status === "clear") return "green";
-    return "neutral";
+    return automaticDisplayTrafficLight(bill);
   }
 
   function statusLabel(bill, check) {
@@ -274,8 +350,8 @@
     if (bill.automatic_screening_status === "clear") return "Verde · Regolare";
     if (redVerificationResolvedByAi(bill)) return "Rosso · Verificata IA";
     if (bill.automatic_screening_status === "review_recommended") return "Rosso · Anomalia";
-    if (["inconclusive", "failed"].includes(bill.automatic_screening_status)) return "Giallo · Avviso";
-    if (bill.processing_status === "failed") return "Giallo · Avviso";
+    if (bill.automatic_screening_status === "inconclusive") return automaticDisplayTrafficLight(bill) === "green" ? "Verde · Regolare" : "Giallo · Da verificare";
+    if (bill.automatic_screening_status === "failed" || bill.processing_status === "failed") return "Giallo · Da verificare";
     return "Archiviata";
   }
 
@@ -480,6 +556,7 @@
     operationBlockReason = "";
     utilities = [];
     bills = [];
+    billsArchiveOpen = false;
     contracts = [];
     checks = [];
     anomalies = [];
@@ -1475,10 +1552,12 @@
   }
 
   function automaticTitle(bill) {
+    if (bill?.automatic_screening_status === "inconclusive") {
+      return automaticDisplayTrafficLight(bill) === "green" ? "Analisi completata" : "Dato da verificare";
+    }
     return ({
       clear: "Tutto regolare",
       review_recommended: "Anomalia importante",
-      inconclusive: "Avviso",
       failed: "Documento da ricaricare",
       running: "Analisi in corso",
       pending: "Analisi in attesa"
@@ -1538,17 +1617,38 @@
     const contract = contractForBill(bill);
     if (contract) detail.append(renderOfferCard(bill, contract, { allowActions: !maintenanceMode }));
     const reasons = Array.isArray(bill.automatic_screening_reasons) ? bill.automatic_screening_reasons : [];
-    if (reasons.length) {
+    const contractAlreadyShown = Boolean(contract);
+    const warningReasons = reasons.filter(reason => ["attention", "critical"].includes(automaticReasonKind(reason)));
+    if (warningReasons.length) {
       const list = document.createElement("div");
       list.className = "cloud-anomaly-list";
-      reasons.forEach(reason => {
+      warningReasons.forEach(reason => {
+        const presentation = automaticReasonPresentation(reason);
         const item = document.createElement("div");
         item.className = "cloud-anomaly-item";
         const reasonTitle = document.createElement("strong");
-        reasonTitle.textContent = reason.title || "Elemento da approfondire";
+        reasonTitle.textContent = presentation.title;
         const description = document.createElement("p");
-        description.textContent = reason.description || "Consulta il dettaglio dell’avviso.";
-        item.classList.add(reason.trafficLight === "red" ? "red" : "yellow");
+        description.textContent = presentation.description;
+        item.classList.add(presentation.kind === "critical" ? "red" : "yellow");
+        item.append(reasonTitle, description);
+        list.append(item);
+      });
+      detail.append(list);
+    }
+    const infoReasons = reasons.filter(reason => automaticReasonKind(reason) === "info");
+    const visibleInfoReasons = infoReasons.filter(reason => !(automaticReasonPresentation(reason).hideWhenOfferCard && contractAlreadyShown));
+    if (visibleInfoReasons.length) {
+      const list = document.createElement("div");
+      list.className = "cloud-info-list";
+      visibleInfoReasons.forEach(reason => {
+        const presentation = automaticReasonPresentation(reason);
+        const item = document.createElement("div");
+        item.className = "cloud-info-item";
+        const reasonTitle = document.createElement("strong");
+        reasonTitle.textContent = presentation.title;
+        const description = document.createElement("p");
+        description.textContent = presentation.description;
         item.append(reasonTitle, description);
         list.append(item);
       });
@@ -1821,6 +1921,103 @@
     return { utilityMap, checkMap, anomalyMap };
   }
 
+  function ensureBillsUxStyles() {
+    if (document.getElementById("premiumBillsUxV03648")) return;
+    const style = document.createElement("style");
+    style.id = "premiumBillsUxV03648";
+    style.textContent = `
+      .cloud-bill-archive-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;padding:12px 13px;border:1px solid #d7e8dc;border-radius:16px;background:#f7fbf8}
+      .cloud-bill-archive-copy{min-width:0}.cloud-bill-archive-copy strong{display:block;font-size:12px;color:#173b2b}.cloud-bill-archive-copy small{display:block;margin-top:3px;color:#6b7d73;font-size:9.5px;line-height:1.35}
+      .cloud-bill-archive-toggle{flex:0 0 auto;min-height:38px;padding:0 11px;border:1px solid #b8d7c1;border-radius:12px;background:#fff;color:#087f3a;font-size:9.5px;font-weight:900}.cloud-bill-archive-toggle[hidden]{display:none}
+      .cloud-info-list{display:grid;gap:7px;margin-top:10px}.cloud-info-item{padding:10px 11px;border:1px solid #d8e7de;border-radius:12px;background:#f5f9f6}.cloud-info-item strong{display:block;color:#315a43;font-size:10.5px}.cloud-info-item p{margin:4px 0 0;color:#687a70;font-size:10px;line-height:1.42}
+    `;
+    document.head?.append(style);
+  }
+
+  function recentBillsForOverview(sourceBills = bills) {
+    const source = Array.isArray(sourceBills) ? sourceBills : [];
+    const selected = [];
+    const selectedIds = new Set();
+    const seenUtilities = new Set();
+    const checkByBillId = new Map();
+    checks.forEach(check => {
+      if (!checkByBillId.has(check.bill_id)) checkByBillId.set(check.bill_id, check);
+    });
+    const needsImmediateVisibility = bill => {
+      const check = checkByBillId.get(bill?.id);
+      return hasActiveHumanCheck(check)
+        || analysisIsPending(bill)
+        || analysisIsStale(bill)
+        || bill?.automatic_screening_status === "review_recommended"
+        || bill?.automatic_screening_status === "failed"
+        || bill?.processing_status === "failed";
+    };
+    source.filter(needsImmediateVisibility).forEach(bill => {
+      if (!selectedIds.has(bill.id)) {
+        selected.push(bill);
+        selectedIds.add(bill.id);
+      }
+    });
+    for (const bill of source) {
+      const key = String(bill?.utility_id || bill?.commodity || bill?.id || "");
+      if (seenUtilities.has(key)) continue;
+      seenUtilities.add(key);
+      if (!selectedIds.has(bill.id)) {
+        selected.push(bill);
+        selectedIds.add(bill.id);
+      }
+      if (selected.length >= RECENT_BILL_OVERVIEW_LIMIT && seenUtilities.size >= Math.min(utilities.length || RECENT_BILL_OVERVIEW_LIMIT, RECENT_BILL_OVERVIEW_LIMIT)) break;
+    }
+    return selected.length ? selected : source.slice(0, RECENT_BILL_OVERVIEW_LIMIT);
+  }
+
+  function ensureBillsArchiveControls() {
+    if (!state.list) return;
+    ensureBillsUxStyles();
+    if (!state.archiveToolbar) {
+      const toolbar = document.createElement("div");
+      toolbar.className = "cloud-bill-archive-toolbar";
+      const copy = document.createElement("div");
+      copy.className = "cloud-bill-archive-copy";
+      const title = document.createElement("strong");
+      title.dataset.archiveRole = "title";
+      const meta = document.createElement("small");
+      meta.dataset.archiveRole = "meta";
+      copy.append(title, meta);
+      const toggle = document.createElement("button");
+      toggle.type = "button";
+      toggle.className = "cloud-bill-archive-toggle";
+      toggle.setAttribute("aria-controls", state.list.id || "premiumCloudBillList");
+      toggle.addEventListener("click", () => {
+        billsArchiveOpen = !billsArchiveOpen;
+        renderList();
+      });
+      toolbar.append(copy, toggle);
+      state.list.before(toolbar);
+      state.archiveToolbar = toolbar;
+      state.archiveMeta = meta;
+      state.archiveToggle = toggle;
+    }
+  }
+
+  function updateBillsArchiveControls(recentBills) {
+    ensureBillsArchiveControls();
+    if (!state.archiveToolbar) return;
+    const archivedCount = Math.max(0, bills.length - recentBills.length);
+    if (archivedCount === 0) billsArchiveOpen = false;
+    const title = state.archiveToolbar.querySelector('[data-archive-role="title"]');
+    setText(title, billsArchiveOpen ? "Archivio bollette" : "Ultime bollette");
+    setText(state.archiveMeta, billsArchiveOpen
+      ? `${bills.length} document${bills.length === 1 ? "o" : "i"} disponibili`
+      : `${recentBills.length} recent${recentBills.length === 1 ? "e" : "i"}${archivedCount ? ` · ${archivedCount} in archivio` : ""}`);
+    if (state.archiveToggle) {
+      state.archiveToggle.hidden = archivedCount === 0;
+      state.archiveToggle.textContent = billsArchiveOpen ? "CHIUDI ARCHIVIO" : `ARCHIVIO (${archivedCount})`;
+      state.archiveToggle.setAttribute("aria-expanded", billsArchiveOpen ? "true" : "false");
+      state.archiveToggle.disabled = Boolean(busy);
+    }
+  }
+
   function renderList() {
     if (!state.list || !state.empty) return;
 
@@ -1828,21 +2025,26 @@
       state.list.replaceChildren();
       state.empty.hidden = false;
       state.list.hidden = true;
+      if (state.archiveToolbar) state.archiveToolbar.hidden = true;
       return;
     }
 
     state.empty.hidden = true;
     state.list.hidden = false;
+    const recentBills = recentBillsForOverview();
+    updateBillsArchiveControls(recentBills);
+    if (state.archiveToolbar) state.archiveToolbar.hidden = false;
+    const visibleBills = billsArchiveOpen ? bills : recentBills;
     const { utilityMap, checkMap, anomalyMap } = billRenderMaps();
     const existingArticles = [...state.list.querySelectorAll(":scope > [data-cloud-bill-id]")];
     const existingIds = existingArticles.map(article => article.dataset.cloudBillId);
-    const currentIds = bills.map(bill => bill.id);
+    const currentIds = visibleBills.map(bill => bill.id);
     const sameRows = existingIds.length === currentIds.length
       && existingIds.every((id, index) => id === currentIds[index]);
 
     if (!sameRows) {
       const fragment = document.createDocumentFragment();
-      bills.forEach(bill => {
+      visibleBills.forEach(bill => {
         fragment.append(createBillArticle(
           bill,
           utilityMap.get(bill.utility_id),
@@ -1854,7 +2056,7 @@
       return;
     }
 
-    bills.forEach((bill, index) => {
+    visibleBills.forEach((bill, index) => {
       const article = existingArticles[index];
       const check = checkMap.get(bill.id) || null;
       updateBillArticle(
@@ -2586,6 +2788,7 @@
     operationBlockReason = maintenanceMode ? blockReason : "";
     utilities = Array.isArray(utilitiesResult.data) ? utilitiesResult.data : [];
     bills = Array.isArray(billsResult.data) ? billsResult.data : [];
+    billsArchiveOpen = false;
     contracts = Array.isArray(contractsResult.data) ? contractsResult.data : [];
     checks = Array.isArray(checksResult.data) ? checksResult.data : [];
     anomalies = Array.isArray(anomaliesResult.data) ? anomaliesResult.data : [];
@@ -2706,6 +2909,9 @@
     state.message = byId("premiumCloudBillMessage");
     state.empty = byId("premiumCloudBillEmpty");
     state.list = byId("premiumCloudBillList");
+    state.archiveToolbar = null;
+    state.archiveMeta = null;
+    state.archiveToggle = null;
     state.homeCount = byId("homeCloudBillCount");
     state.profileCount = byId("profileCloudBillCount");
     state.profileSize = byId("profileCloudBillSize");

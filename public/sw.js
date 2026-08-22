@@ -1,5 +1,5 @@
-// premium-gas-history-price-recovery-v03647
-const CACHE = "offertalogica-premium-v03647-gas-history-price-recovery";
+// premium-bills-ux-archive-v03648
+const CACHE = "offertalogica-premium-v03648-bills-ux-archive";
 const APP_SHELL = [
   "/app.html",
   "/app-dialog.js",
