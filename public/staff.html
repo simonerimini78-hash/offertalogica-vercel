@@ -52,7 +52,7 @@
 <header class="topbar">
   <div class="brand">
     <img src="/assets/logo-offertalogica-icon.png" alt="OffertaLogica">
-    <div><h1>Control Center OffertaLogica</h1><p>Centro operativo per clienti, pratiche, verifiche e dati · v0.36.62</p></div>
+    <div><h1>Control Center OffertaLogica</h1><p>Centro operativo per clienti, pratiche, verifiche e dati · v0.36.63</p></div>
   </div>
   <div class="top-actions" id="staffTopActions" hidden>
     <span class="staff-chip" id="staffIdentity">Staff</span>
@@ -115,7 +115,7 @@
         <section class="panel"><div class="panel-head"><h3>Priorità operative</h3><small>Pratiche raccolte dai moduli operativi</small></div><div class="panel-body" id="overviewTasks"><div class="empty">Caricamento…</div></div></section>
         <section class="panel"><div class="panel-head"><h3>Acquisizione e conversione</h3><small>Funnel essenziale</small></div><div class="panel-body"><div class="funnel" id="overviewFunnel"></div></div></section>
       </div>
-      <div class="version">Control Center Staff v0.36.62</div>
+      <div class="version">Control Center Staff v0.36.63</div>
     </section>
 
     <section class="view" data-staff-view="cases">
@@ -253,7 +253,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/staff.js"></script>
 <script src="/staff-governance-v2.5B.js"></script>
-<script defer src="/staff-economics.js?v=0.36.62"></script>
+<script defer src="/staff-economics.js?v=0.36.63"></script>
 <script>
   (()=>{
     const STORAGE_KEY='offertalogica-premium-staff-auth';
@@ -351,7 +351,7 @@
 </script>
 <script>
   (()=>{
-    const CURRENT_RELEASE="0.36.62";
+    const CURRENT_RELEASE="0.36.63";
     const PRODUCTION_ORIGIN="https://staff.offertalogica.it";
     const isVercelStaffDeployment=()=>location.hostname.endsWith(".vercel.app")&&location.hostname.toLowerCase().startsWith("offertalogica-staff");
     const redirectDeploymentToProduction=()=>{if(!isVercelStaffDeployment())return false;const target=new URL(`${location.pathname}${location.search}${location.hash}`,PRODUCTION_ORIGIN);if(target.href===location.href)return false;location.replace(target.href);return true};

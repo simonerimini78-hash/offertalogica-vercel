@@ -10,7 +10,7 @@ const SIGNED_TOKEN_TTL_SECONDS = 4 * 60 * 60;
 function safeEqual(left, right) {
   const a = Buffer.from(String(left || ""));
   const b = Buffer.from(String(right || ""));
-  if (a.length !== b.length) return false;
+  if (a.length === 0 || a.length !== b.length) return false;
   return crypto.timingSafeEqual(a, b);
 }
 
@@ -37,6 +37,41 @@ function issueSignedPreviewToken() {
     .update(`${SIGNED_TOKEN_VERSION}.${payload}`)
     .digest("base64url");
   return `${SIGNED_TOKEN_VERSION}.${payload}.${signature}`;
+}
+
+function signedPreviewTokenValid(token) {
+  const secret = previewSigningSecret();
+  if (!secret) return false;
+
+  const [version, payload, signature, extra] = String(token || "").split(".");
+  if (extra !== undefined || version !== SIGNED_TOKEN_VERSION || !payload || !signature) return false;
+
+  const expectedSignature = crypto
+    .createHmac("sha256", secret)
+    .update(`${version}.${payload}`)
+    .digest("base64url");
+  if (!safeEqual(signature, expectedSignature)) return false;
+
+  try {
+    const data = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
+    const now = Math.floor(Date.now() / 1000);
+    const issuedAt = Number(data?.iat || 0);
+    const expiresAt = Number(data?.exp || 0);
+    return data?.scope === SIGNED_TOKEN_SCOPE
+      && Number.isFinite(issuedAt)
+      && Number.isFinite(expiresAt)
+      && issuedAt <= now + 60
+      && expiresAt > now
+      && expiresAt - issuedAt <= SIGNED_TOKEN_TTL_SECONDS;
+  } catch {
+    return false;
+  }
+}
+
+function previewTokenValid(token) {
+  const expectedToken = String(process.env.STAFF_PREVIEW_TOKEN || "").trim();
+  if (expectedToken && safeEqual(token, expectedToken)) return true;
+  return signedPreviewTokenValid(token);
 }
 
 export default async function handler(req, res) {
@@ -71,17 +106,21 @@ export default async function handler(req, res) {
       });
     }
 
+    if (action && action !== "verify") {
+      return json(res, 400, { ok: false, error: "Azione staff non valida" });
+    }
+
     const token = String(body.token || "").trim();
-    if (!expectedToken || !safeEqual(token, expectedToken)) {
+    if (!previewTokenValid(token)) {
       return json(res, 403, { ok: false, error: "Token staff non valido" });
     }
 
-    json(res, 200, {
+    return json(res, 200, {
       ok: true,
       mode: "staff",
       activatedAt: new Date().toISOString(),
     });
   } catch {
-    json(res, 400, { ok: false, error: "Richiesta staff non valida" });
+    return json(res, 400, { ok: false, error: "Richiesta staff non valida" });
   }
 }
