@@ -11,6 +11,7 @@
   const PREMIUM_STAFF_INVITE_URL = `${SUPABASE_URL}/functions/v1/premium-staff-invite`;
   const HUMAN_COST_EUR_PER_HOUR = 30;
   const VERIFIED_COST_PRICING_VERSIONS = new Set(["premium-eur-v0.36.42", "premium-ecb-eur-v0.36.43"]);
+  const COST_METRICS_PAGE_SIZE = 1000;
 
   let client = null;
   let currentSession = null;
@@ -2429,16 +2430,33 @@
     renderSystemConfig();
   }
 
+  async function loadAllCostMetricRows(table, selectColumns) {
+    const rows = [];
+    let from = 0;
+    while (true) {
+      const { data, error } = await client
+        .from(table)
+        .select(selectColumns)
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .range(from, from + COST_METRICS_PAGE_SIZE - 1);
+      if (error) throw error;
+      const page = Array.isArray(data) ? data : [];
+      rows.push(...page);
+      if (page.length < COST_METRICS_PAGE_SIZE) break;
+      from += COST_METRICS_PAGE_SIZE;
+    }
+    return rows;
+  }
+
   async function loadCosts({ silent = false } = {}) {
     if (!silent) setMessage("info", "Aggiornamento costi e tempi…");
-    const [runsResult, checksResult] = await Promise.all([
-      client.from("premium_analysis_runs").select("id,user_id,bill_id,status,model,origin,error_code,input_tokens,output_tokens,estimated_cost_eur,duration_ms,usage_details,created_at").order("created_at", { ascending: false }).limit(500),
-      client.from("premium_checks").select("id,user_id,bill_id,status,outcome,human_seconds,completed_at,created_at").order("created_at", { ascending: false }).limit(500),
+    const [runs, checks] = await Promise.all([
+      loadAllCostMetricRows("premium_analysis_runs", "id,user_id,bill_id,status,model,origin,error_code,input_tokens,output_tokens,estimated_cost_eur,duration_ms,usage_details,created_at"),
+      loadAllCostMetricRows("premium_checks", "id,user_id,bill_id,status,outcome,human_seconds,completed_at,created_at"),
     ]);
-    if (runsResult.error) throw runsResult.error;
-    if (checksResult.error) throw checksResult.error;
-    cache.runs = runsResult.data || [];
-    cache.checks = checksResult.data || cache.checks;
+    cache.runs = runs;
+    cache.checks = checks;
     cache.costEvents = [];
     if (isAdmin()) {
       const eventsResult = await client.from("premium_cost_events").select("id,analysis_run_id,bill_id,event_type,provider,quantity,unit,cost_eur,currency,metadata,occurred_at").order("occurred_at", { ascending: false }).limit(1000);
@@ -2452,14 +2470,32 @@
     const tokens = cache.runs.reduce((sum, run) => sum + Number(run.input_tokens || 0) + Number(run.output_tokens || 0), 0);
     const verifiedCostRuns = cache.runs.map(run => ({ run, cost: verifiedRunCost(run) })).filter(item => item.cost != null);
     const aiCost = verifiedCostRuns.reduce((sum, item) => sum + item.cost, 0);
+    const pricedCustomers = new Set(verifiedCostRuns.map(item => String(item.run?.user_id || "").trim()).filter(Boolean));
+    const averageAiCostPerAnalysis = verifiedCostRuns.length ? aiCost / verifiedCostRuns.length : 0;
+    const averageAiCostPerCustomer = pricedCustomers.size ? aiCost / pricedCustomers.size : 0;
     const humanSeconds = cache.checks.reduce((sum, check) => sum + Number(check.human_seconds || 0), 0);
     const humanCost = humanCostEur(humanSeconds);
-    cache.costSummary = { runs: cache.runs.length, tokens, aiCost, pricedRuns: verifiedCostRuns.length, humanSeconds, humanCost };
+    cache.costSummary = {
+      runs: cache.runs.length, tokens, aiCost, pricedRuns: verifiedCostRuns.length,
+      pricedCustomers: pricedCustomers.size, averageAiCostPerAnalysis, averageAiCostPerCustomer,
+      humanSeconds, humanCost,
+    };
     text(byId("costRuns"), cache.runs.length);
     text(byId("costTokens"), formatNumber(tokens));
     text(byId("costAi"), verifiedCostRuns.length
       ? formatMoney(aiCost)
       : cache.runs.length ? "Storico non verificato" : formatMoney(0));
+    text(byId("costAiCoverage"), cache.runs.length
+      ? `${formatNumber(verifiedCostRuns.length)} / ${formatNumber(cache.runs.length)} analisi con costo verificato`
+      : "Nessuna analisi registrata");
+    text(byId("costAverageAnalysis"), verifiedCostRuns.length ? formatMoney(averageAiCostPerAnalysis) : formatMoney(0));
+    text(byId("costAverageAnalysisMeta"), verifiedCostRuns.length
+      ? `Su ${formatNumber(verifiedCostRuns.length)} analisi contabilizzate`
+      : "Nessuna analisi contabilizzata");
+    text(byId("costAverageCustomer"), pricedCustomers.size ? formatMoney(averageAiCostPerCustomer) : formatMoney(0));
+    text(byId("costAverageCustomerMeta"), pricedCustomers.size
+      ? `Su ${formatNumber(pricedCustomers.size)} clienti con costi IA`
+      : "Nessun cliente contabilizzato");
     const humanDuration = humanSeconds >= 3600 ? `${formatNumber(humanSeconds / 3600, 1)} h` : `${Math.round(humanSeconds / 60)} min`;
     text(byId("costHuman"), `${humanDuration} · ${formatMoney(humanCost)}`);
     const humanMetric = byId("costHuman")?.closest(".metric");
