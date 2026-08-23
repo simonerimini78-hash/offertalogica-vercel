@@ -1,0 +1,31 @@
+*** Begin Patch
+*** Update File: api/send-otp.js
+@@
+ import { createOtp, hashOtp, otpExpiresAt, otpTtlSeconds, sendOtpSms } from "../lib/otp.js";
++import { recordRatedCost } from "../lib/economicLedger.js";
+ import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
+@@
+       if (provider === "demo" && process.env.NODE_ENV === "production") {
+         throw new Error("Modalita OTP demo non consentita in produzione");
+       }
++
++      if (sent?.sent === true && provider !== "demo") {
++        const rateKey = {
++          "aruba-sms": "sms_aruba_net_eur",
++          "twilio-verify": "sms_twilio_verify_net_eur",
++          "twilio": "sms_twilio_net_eur",
++        }[provider] || `sms_${provider}_net_eur`;
++        await recordRatedCost({
++          rateKey,
++          category: "sms_otp",
++          sourceSystem: provider,
++          sourceEventId: `otp:${normalizedLeadId}:${otp.createdAt}`,
++          quantity: 1,
++          unit: "sms",
++          occurredAt: new Date(otp.createdAt),
++          metadata: { lead_id: normalizedLeadId, provider },
++        }).catch(error => console.error("economic-sms-cost", error));
++      }
+
+       // La verifica deve conoscere il provider realmente usato.
+*** End Patch

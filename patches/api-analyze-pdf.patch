@@ -1,0 +1,34 @@
+*** Begin Patch
+*** Update File: api/analyze-pdf.js
+@@
+ import { extractPdfPureAi } from "../lib/pdfPureAiReader.js";
++import { recordPublicPdfOpenAiResponses } from "../lib/economicLedger.js";
+@@
+   let analysisStage = "request_received";
++  const economicAiResponses = [];
++  let economicAiRecorded = false;
++  const recordEconomicAi = async () => {
++    if (economicAiRecorded || !economicAiResponses.length) return;
++    economicAiRecorded = true;
++    await recordPublicPdfOpenAiResponses(economicAiResponses, {
++      occurredAt: new Date(),
++    }).catch(error => console.error("public-pdf-economic-cost", error));
++  };
+@@
+     const normalized = await extractPdfPureAi({
+       filePath: temporaryFilePath,
+       filename: fileMetadata.originalFilename,
+       deadlineAt: analysisDeadlineAt,
++      onUsage: event => economicAiResponses.push(event),
+     });
+@@
+     const archive = canArchive
+       ? await archivePdfAnalysis({
+@@
+       : { stored: false, reason: "insufficient_time_budget" };
++    await recordEconomicAi();
+@@
+   } catch (error) {
++    await recordEconomicAi();
+     const elapsedMs = Date.now() - requestStartedAt;
+*** End Patch

@@ -1,0 +1,11 @@
+*** Begin Patch
+*** Update File: public/staff.html
+@@
+-    const CURRENT_RELEASE="0.36.56";
++    const CURRENT_RELEASE="0.36.57";
+@@
+ </script>
++<script defer src="/staff-economics.js"></script>
+ </body>
+ </html>
+*** End Patch

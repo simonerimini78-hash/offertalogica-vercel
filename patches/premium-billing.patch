@@ -1,0 +1,27 @@
+*** Begin Patch
+*** Update File: supabase/functions/premium-billing/index.ts
+@@
+ import {
+@@
+ } from "../_shared/premium-billing-core.mjs";
++import {
++  recordStripeInvoiceEconomics,
++  recordStripeRefundEconomics,
++} from "../_shared/premium-economics.mjs";
+@@
+       const { error } = await admin.from("premium_subscriptions").update(update).eq("id", synced.id);
+       if (error) throw new Error(`invoice_paid_store:${compactBillingError(error.message || error)}`);
++      await recordStripeInvoiceEconomics(admin, object, synced.user_id, paidAt);
+       return;
+     }
+@@
+     case "invoice.payment_failed": {
+@@
+       return;
+     }
++    case "charge.refunded":
++      await recordStripeRefundEconomics(admin, object);
++      return;
+     default:
+       return;
+*** End Patch

@@ -1,0 +1,23 @@
+*** Begin Patch
+*** Update File: lib/pdfPureAiReader.js
+@@
+ export async function extractPdfPureAi({
+   filePath,
+   filename = "documento.pdf",
+   deadlineAt = null,
+   transport = defaultTransport,
+   fileUploadTransport = defaultFileUploadTransport,
+   fileDeleteTransport = defaultFileDeleteTransport,
++  onUsage = null,
+   apiKey = process.env.OPENAI_API_KEY,
+@@
+       const raw = await Promise.race([transport({ request, apiKey, signal: controller.signal, attempt: 1, profile: REQUEST_PROFILE }), timeoutPromise]);
+       const body = await transportBody(raw);
++      try { onUsage?.({ body, model, profile: REQUEST_PROFILE, attempt: 1 }); } catch {}
+       if (body?.status === "incomplete") throw new Error(`openai_incomplete:${body?.incomplete_details?.reason || "unknown"}`);
+@@
+             const recoveryRaw = await Promise.race([transport({ request: recoveryRequest, apiKey, signal: recoveryController.signal, attempt: 2, profile: ESSENTIAL_RECOVERY_PROFILE }), recoveryTimeout]);
+             const recoveryBody = await transportBody(recoveryRaw);
++            try { onUsage?.({ body: recoveryBody, model, profile: ESSENTIAL_RECOVERY_PROFILE, attempt: 2 }); } catch {}
+             openaiAttempts = 2;
+*** End Patch
