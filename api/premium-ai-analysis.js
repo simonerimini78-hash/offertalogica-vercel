@@ -46,6 +46,7 @@ import {
   patchPremiumBill,
   premiumAiConfig,
   premiumBillValuesFromAnalysis,
+  reconcilePremiumAiCostEvents,
   publicPremiumAiError,
   readBearerToken,
   sanitizePremiumAnalysisData,
@@ -56,6 +57,7 @@ import {
 export const config = { maxDuration: 60 };
 
 const PREMIUM_COST_PRICING_VERSION = "premium-ecb-eur-v0.36.43";
+const PREMIUM_AI_ACCOUNTING_VERSION = "premium-ai-accounting-v0.36.52";
 const PREMIUM_ECB_DAILY_FX_URL = "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml";
 const PREMIUM_ECB_CACHE_MS = 6 * 60 * 60 * 1000;
 const PREMIUM_WEB_SEARCH_USD_PER_1K_RUNS = 10;
@@ -181,26 +183,25 @@ function instrumentWebSearchMeter(meter) {
   return meter;
 }
 
-async function verifiedPremiumAiCost(meter, backend, fetchImpl, nowMs) {
-  const pricing = await automaticEurPricing(backend?.model, fetchImpl, nowMs);
+function verifiedPremiumAiCostFromPricing(meter, pricing = {}) {
   const webSearchCalls = Math.max(0, Number(meter?.totals?.webSearchCalls || 0));
-  if (!pricing.complete) {
+  if (!pricing?.complete) {
     return {
       estimatedCostEur: null,
       pricingVerified: false,
-      pricingSources: pricing.sources || {},
+      pricingSources: pricing?.sources || {},
       webSearchCalls,
       webSearchCostEur: null,
-      webSearchRateEurPer1k: pricing.webSearchPerThousand,
-      webSearchRateUsdPer1k: pricing.usd?.webSearchPerThousand ?? PREMIUM_WEB_SEARCH_USD_PER_1K_RUNS,
-      tokenRatesUsd: pricing.usd || null,
-      usdToEurRate: pricing.fx?.usdToEur ?? null,
-      eurToUsdRate: pricing.fx?.eurToUsd ?? null,
-      ecbReferenceDate: pricing.fx?.referenceDate || null,
-      ecbRateStale: Boolean(pricing.fx?.stale),
+      webSearchRateEurPer1k: pricing?.webSearchPerThousand ?? null,
+      webSearchRateUsdPer1k: pricing?.usd?.webSearchPerThousand ?? PREMIUM_WEB_SEARCH_USD_PER_1K_RUNS,
+      tokenRatesUsd: pricing?.usd || null,
+      usdToEurRate: pricing?.fx?.usdToEur ?? null,
+      eurToUsdRate: pricing?.fx?.eurToUsd ?? null,
+      ecbReferenceDate: pricing?.fx?.referenceDate || null,
+      ecbRateStale: Boolean(pricing?.fx?.stale),
     };
   }
-  const tokenCost = estimatePremiumAiCost(meter.totals, pricing);
+  const tokenCost = estimatePremiumAiCost(meter?.totals || {}, pricing);
   if (tokenCost === null) {
     return {
       estimatedCostEur: null,
@@ -232,6 +233,85 @@ async function verifiedPremiumAiCost(meter, backend, fetchImpl, nowMs) {
     ecbReferenceDate: pricing.fx.referenceDate,
     ecbRateStale: Boolean(pricing.fx.stale),
   };
+}
+
+async function requireVerifiedPremiumPricing(backend, fetchImpl, nowMs) {
+  const pricing = await automaticEurPricing(backend?.model, fetchImpl, nowMs);
+  if (!pricing?.complete) {
+    const details = Array.isArray(pricing?.missing) ? pricing.missing.join(",") : "pricing_incomplete";
+    throw new Error(`premium_ai_pricing_unavailable:${details}`);
+  }
+  return pricing;
+}
+
+function premiumAiUsageDetails(meter, costResult, nowMs = Date.now()) {
+  return {
+    input_tokens: Number(meter?.totals?.inputTokens || 0),
+    cached_input_tokens: Number(meter?.totals?.cachedInputTokens || 0),
+    output_tokens: Number(meter?.totals?.outputTokens || 0),
+    reasoning_tokens: Number(meter?.totals?.reasoningTokens || 0),
+    total_tokens: Number(meter?.totals?.totalTokens || 0),
+    calls: Array.isArray(meter?.totals?.calls) ? meter.totals.calls : [],
+    pricing_verified_eur: costResult.pricingVerified,
+    pricing_version: costResult.pricingVerified ? PREMIUM_COST_PRICING_VERSION : null,
+    pricing_sources: costResult.pricingSources || {},
+    pricing_mode: "openai_usd_x_ecb",
+    usd_to_eur_rate: costResult.usdToEurRate,
+    eur_to_usd_rate: costResult.eurToUsdRate,
+    ecb_reference_date: costResult.ecbReferenceDate,
+    ecb_rate_stale: costResult.ecbRateStale,
+    token_rates_usd_per_million: costResult.tokenRatesUsd,
+    web_search_rate_usd_per_1k: costResult.webSearchRateUsdPer1k,
+    web_search_calls: costResult.webSearchCalls,
+    web_search_cost_eur: costResult.webSearchCostEur,
+    web_search_rate_eur_per_1k: costResult.webSearchRateEurPer1k,
+    accounting_version: PREMIUM_AI_ACCOUNTING_VERSION,
+    cost_checkpointed_at: new Date(nowMs).toISOString(),
+  };
+}
+
+function premiumAiAccountingSnapshot(meter, pricingSnapshot, nowMs = Date.now()) {
+  const costResult = verifiedPremiumAiCostFromPricing(meter, pricingSnapshot);
+  if (!costResult.pricingVerified || costResult.estimatedCostEur === null) {
+    throw new Error("premium_ai_cost_required");
+  }
+  return {
+    costResult,
+    estimatedCostEur: costResult.estimatedCostEur,
+    usageDetails: premiumAiUsageDetails(meter, costResult, nowMs),
+  };
+}
+
+async function checkpointPremiumAiRunCost({ backend, run, meter, pricingSnapshot, fetchImpl, nowMs }) {
+  if (!run?.id) throw new Error("premium_ai_cost_context_invalid");
+  const accounting = premiumAiAccountingSnapshot(meter, pricingSnapshot, nowMs);
+  await patchPremiumAnalysisRun({
+    config: backend,
+    runId: run.id,
+    fetchImpl,
+    values: {
+      input_tokens: Number(meter?.totals?.inputTokens || 0),
+      output_tokens: Number(meter?.totals?.outputTokens || 0),
+      estimated_cost_eur: accounting.estimatedCostEur,
+      usage_details: accounting.usageDetails,
+      response_ids: Array.isArray(meter?.totals?.responseIds) ? meter.totals.responseIds : [],
+    },
+  });
+  return accounting;
+}
+
+async function syncPremiumAiCostEvent({ backend, bill, check, run, meter, accounting, model, fetchImpl }) {
+  await insertPremiumAiCostEvent({
+    config: backend,
+    bill,
+    check,
+    run,
+    usage: meter?.totals || {},
+    estimatedCostEur: accounting.estimatedCostEur,
+    model,
+    pricingMetadata: accounting.usageDetails,
+    fetchImpl,
+  });
 }
 
 function finiteAnalysisNumber(value) {
@@ -389,6 +469,8 @@ export function createPremiumAiAnalysisHandler({
     let check = null;
     let customerMode = false;
     let temporaryFilePath = "";
+    let meter = null;
+    let pricingSnapshot = null;
 
     try {
       const body = await readJson(req);
@@ -404,10 +486,13 @@ export function createPremiumAiAnalysisHandler({
         const { staff } = await verifyPremiumStaff({ config: backend, accessToken, fetchImpl });
         if (staff.role !== "admin") throw new Error("premium_admin_delete_required");
         const persistentRateLimitConfigured = persistentStoreConfigured();
-        const [backendReadiness, offerHistory, persistentRateLimitOperational] = await Promise.all([
+        const [backendReadiness, offerHistory, persistentRateLimitOperational, costReconciliation] = await Promise.all([
           checkPremiumBackendReadiness({ config: backend, fetchImpl }),
           checkPremiumOfferHistory({ env, fetchImpl }),
           persistentRateLimitConfigured ? checkStore().catch(() => false) : Promise.resolve(false),
+          reconcilePremiumAiCostEvents({ config: backend, limit: 250, fetchImpl }).catch(error => ({
+            error: String(error?.message || "premium_ai_cost_reconciliation_failed").slice(0, 180),
+          })),
         ]);
         const numberOr = (name, fallback) => {
           const value = Number(env[name]);
@@ -432,6 +517,7 @@ export function createPremiumAiAnalysisHandler({
             maxPdfBytes: backend.maxPdfBytes,
             deadlineMs: backend.deadlineMs,
             pricing,
+            costReconciliation,
             rateLimits: {
               customerAnalysis: { limit: numberOr("RATE_LIMIT_PREMIUM_AI_CUSTOMER_LIMIT", 24), windowSeconds: numberOr("RATE_LIMIT_PREMIUM_AI_CUSTOMER_WINDOW_SECONDS", 3600) },
               staffAnalysis: { limit: numberOr("RATE_LIMIT_PREMIUM_AI_LIMIT", 12), windowSeconds: numberOr("RATE_LIMIT_PREMIUM_AI_WINDOW_SECONDS", 3600) },
@@ -588,6 +674,7 @@ export function createPremiumAiAnalysisHandler({
 
           const contract = await loadPremiumBillContract({ config: backend, bill, fetchImpl });
           const trustedContract = premiumContractForAutomaticComparison(contract, snapshot.firstRun?.extracted_data || {});
+          pricingSnapshot = await requireVerifiedPremiumPricing(backend, fetchImpl, now());
           run = await createPremiumAnalysisRun({
             config: backend,
             bill,
@@ -596,6 +683,7 @@ export function createPremiumAiAnalysisHandler({
             staleAfterMs: Math.max(90000, Number(backend.deadlineMs || 0) + 30000),
             fetchImpl,
           });
+          meter = instrumentWebSearchMeter(createUsageMeter());
           await patchPremiumBill({
             config: backend,
             billId: bill.id,
@@ -614,8 +702,20 @@ export function createPremiumAiAnalysisHandler({
           const header = await normalizePdfFileHeader(temporaryFilePath);
           if (!header.valid) throw new Error("premium_bill_download_not_pdf");
 
-          const meter = instrumentWebSearchMeter(createUsageMeter());
-          const transport = createMeteredOpenAiTransport({ meter, fetchImpl });
+          const transport = createMeteredOpenAiTransport({
+            meter,
+            fetchImpl,
+            onUsage: async () => {
+              await checkpointPremiumAiRunCost({
+                backend,
+                run,
+                meter,
+                pricingSnapshot,
+                fetchImpl,
+                nowMs: now(),
+              });
+            },
+          });
           const verified = await verifyRedPdf({
             filePath: temporaryFilePath,
             filename: bill.original_file_name || "bolletta.pdf",
@@ -697,8 +797,10 @@ export function createPremiumAiAnalysisHandler({
             }
           }
           const durationMs = Math.max(0, now() - startedAt);
-          const costResult = await verifiedPremiumAiCost(meter, backend, fetchImpl, now());
-          const estimatedCostEur = costResult.estimatedCostEur;
+          const accounting = premiumAiAccountingSnapshot(meter, pricingSnapshot, now());
+          const costResult = accounting.costResult;
+          const estimatedCostEur = accounting.estimatedCostEur;
+          const usageDetails = accounting.usageDetails;
           const state = verification.decision === "resolved_ai"
             ? "resolved_ai"
             : verification.decision === "quick_verify"
@@ -722,27 +824,7 @@ export function createPremiumAiAnalysisHandler({
               estimated_cost_eur: estimatedCostEur,
               extracted_data: { _red_verification: verification },
               warnings: state === "resolved_ai" ? [] : ["seconda_verifica_ia_da_escalare"],
-              usage_details: {
-                input_tokens: meter.totals.inputTokens,
-                cached_input_tokens: meter.totals.cachedInputTokens,
-                output_tokens: meter.totals.outputTokens,
-                reasoning_tokens: meter.totals.reasoningTokens,
-                total_tokens: meter.totals.totalTokens,
-                calls: meter.totals.calls,
-                pricing_verified_eur: costResult.pricingVerified,
-                pricing_version: costResult.pricingVerified ? PREMIUM_COST_PRICING_VERSION : null,
-                pricing_sources: costResult.pricingSources || {},
-                pricing_mode: "openai_usd_x_ecb",
-                usd_to_eur_rate: costResult.usdToEurRate,
-                eur_to_usd_rate: costResult.eurToUsdRate,
-                ecb_reference_date: costResult.ecbReferenceDate,
-                ecb_rate_stale: costResult.ecbRateStale,
-                token_rates_usd_per_million: costResult.tokenRatesUsd,
-                web_search_rate_usd_per_1k: costResult.webSearchRateUsdPer1k,
-                web_search_calls: costResult.webSearchCalls,
-                web_search_cost_eur: costResult.webSearchCostEur,
-                web_search_rate_eur_per_1k: costResult.webSearchRateEurPer1k,
-              },
+              usage_details: usageDetails,
               response_ids: verified.responseId ? [verified.responseId] : [],
               automatic_classification: "not_applicable",
               automatic_summary: "",
@@ -776,16 +858,18 @@ export function createPremiumAiAnalysisHandler({
             });
           }
           await patchPremiumBill({ config: backend, billId: bill.id, fetchImpl, values: finalBillValues });
-          await insertPremiumAiCostEvent({
-            config: backend,
+          await syncPremiumAiCostEvent({
+            backend,
             bill,
             check: null,
             run: { ...run, origin: "red_verification" },
-            usage: meter.totals,
-            estimatedCostEur,
+            meter,
+            accounting,
             model: backend.model,
             fetchImpl,
-          }).catch(() => null);
+          }).catch(error => {
+            console.error("premium_ai_cost_event_pending", run?.id || "", String(error?.message || error));
+          });
 
           return json(res, 200, {
             ok: true,
@@ -795,6 +879,11 @@ export function createPremiumAiAnalysisHandler({
           });
         } catch (redError) {
           const completedAt = new Date().toISOString();
+          let failedAccounting = null;
+          if (run?.id && meter && pricingSnapshot?.complete) {
+            try { failedAccounting = premiumAiAccountingSnapshot(meter, pricingSnapshot, now()); }
+            catch (accountingError) { console.error("premium_ai_failed_cost_unavailable", run.id, String(accountingError?.message || accountingError)); }
+          }
           if (run?.id) {
             await patchPremiumAnalysisRun({
               config: backend,
@@ -804,11 +893,32 @@ export function createPremiumAiAnalysisHandler({
                 status: "failed",
                 completed_at: completedAt,
                 duration_ms: Math.max(0, now() - startedAt),
+                ...(failedAccounting ? {
+                  input_tokens: Number(meter?.totals?.inputTokens || 0),
+                  output_tokens: Number(meter?.totals?.outputTokens || 0),
+                  estimated_cost_eur: failedAccounting.estimatedCostEur,
+                  usage_details: failedAccounting.usageDetails,
+                  response_ids: Array.isArray(meter?.totals?.responseIds) ? meter.totals.responseIds : [],
+                } : {}),
                 automatic_classification: "not_applicable",
                 error_code: String(redError?.message || "premium_red_verification_error").split(":")[0].slice(0, 120),
                 error_message: String(redError?.message || "Seconda verifica IA non riuscita").slice(0, 500),
               },
             }).catch(() => {});
+            if (failedAccounting && bill?.id) {
+              await syncPremiumAiCostEvent({
+                backend,
+                bill,
+                check: null,
+                run: { ...run, origin: "red_verification" },
+                meter,
+                accounting: failedAccounting,
+                model: backend.model,
+                fetchImpl,
+              }).catch(error => {
+                console.error("premium_ai_cost_event_pending", run.id, String(error?.message || error));
+              });
+            }
           }
           if (bill?.id) {
             await patchPremiumBill({
@@ -872,6 +982,7 @@ export function createPremiumAiAnalysisHandler({
         contract = await loadPremiumBillContract({ config: backend, bill, fetchImpl });
       }
 
+      pricingSnapshot = await requireVerifiedPremiumPricing(backend, fetchImpl, now());
       run = await createPremiumAnalysisRun({
         config: backend,
         check,
@@ -882,14 +993,27 @@ export function createPremiumAiAnalysisHandler({
         staleAfterMs: Math.max(90000, Number(backend.deadlineMs || 0) + 30000),
         fetchImpl,
       });
+      meter = instrumentWebSearchMeter(createUsageMeter());
 
       temporaryFilePath = path.join(os.tmpdir(), `offertalogica-premium-ai-${crypto.randomUUID()}.pdf`);
       await downloadPremiumBill({ config: backend, bill, destinationPath: temporaryFilePath, fetchImpl });
       const header = await normalizePdfFileHeader(temporaryFilePath);
       if (!header.valid) throw new Error("premium_bill_download_not_pdf");
 
-      const meter = instrumentWebSearchMeter(createUsageMeter());
-      const transport = createMeteredOpenAiTransport({ meter, fetchImpl });
+      const transport = createMeteredOpenAiTransport({
+        meter,
+        fetchImpl,
+        onUsage: async () => {
+          await checkpointPremiumAiRunCost({
+            backend,
+            run,
+            meter,
+            pricingSnapshot,
+            fetchImpl,
+            nowMs: now(),
+          });
+        },
+      });
       const normalized = await analyzePdf({
         filePath: temporaryFilePath,
         filename: bill.original_file_name || "bolletta.pdf",
@@ -923,8 +1047,10 @@ export function createPremiumAiAnalysisHandler({
         normalized,
       );
       const durationMs = Math.max(0, now() - startedAt);
-      const costResult = await verifiedPremiumAiCost(meter, backend, fetchImpl, now());
-      const estimatedCostEur = costResult.estimatedCostEur;
+      const accounting = premiumAiAccountingSnapshot(meter, pricingSnapshot, now());
+      const costResult = accounting.costResult;
+      const estimatedCostEur = accounting.estimatedCostEur;
+      const usageDetails = accounting.usageDetails;
       const extractedData = sanitizePremiumAnalysisData(normalized, meter.totals, customerMode ? screening : null);
       const matchWarning = offerMatchWarning(normalized._offer_match || offerMatch);
       const warnings = [...new Set([
@@ -951,27 +1077,7 @@ export function createPremiumAiAnalysisHandler({
           estimated_cost_eur: estimatedCostEur,
           extracted_data: extractedData,
           warnings,
-          usage_details: {
-            input_tokens: meter.totals.inputTokens,
-            cached_input_tokens: meter.totals.cachedInputTokens,
-            output_tokens: meter.totals.outputTokens,
-            reasoning_tokens: meter.totals.reasoningTokens,
-            total_tokens: meter.totals.totalTokens,
-            calls: meter.totals.calls,
-            pricing_verified_eur: costResult.pricingVerified,
-            pricing_version: costResult.pricingVerified ? PREMIUM_COST_PRICING_VERSION : null,
-            pricing_sources: costResult.pricingSources || {},
-            pricing_mode: "openai_usd_x_ecb",
-            usd_to_eur_rate: costResult.usdToEurRate,
-            eur_to_usd_rate: costResult.eurToUsdRate,
-            ecb_reference_date: costResult.ecbReferenceDate,
-            ecb_rate_stale: costResult.ecbRateStale,
-            token_rates_usd_per_million: costResult.tokenRatesUsd,
-            web_search_rate_usd_per_1k: costResult.webSearchRateUsdPer1k,
-            web_search_calls: costResult.webSearchCalls,
-            web_search_cost_eur: costResult.webSearchCostEur,
-            web_search_rate_eur_per_1k: costResult.webSearchRateEurPer1k,
-          },
+          usage_details: usageDetails,
           response_ids: meter.totals.responseIds,
           automatic_classification: customerMode ? screening.status : "not_applicable",
           automatic_summary: customerMode ? screening.summary : "",
@@ -1002,16 +1108,18 @@ export function createPremiumAiAnalysisHandler({
         });
       }
 
-      await insertPremiumAiCostEvent({
-        config: backend,
+      await syncPremiumAiCostEvent({
+        backend,
         bill,
         check,
         run: { ...run, origin: customerMode ? "customer_upload" : "staff_manual" },
-        usage: meter.totals,
-        estimatedCostEur,
+        meter,
+        accounting,
         model: normalized?.ai?.model || backend.model,
         fetchImpl,
-      }).catch(() => null);
+      }).catch(error => {
+        console.error("premium_ai_cost_event_pending", run?.id || "", String(error?.message || error));
+      });
 
       return json(res, 200, {
         ok: true,
@@ -1035,6 +1143,11 @@ export function createPremiumAiAnalysisHandler({
     } catch (error) {
       const completedAt = new Date().toISOString();
       const errorMessage = String(error?.message || error || "");
+      let failedAccounting = null;
+      if (run?.id && meter && pricingSnapshot?.complete) {
+        try { failedAccounting = premiumAiAccountingSnapshot(meter, pricingSnapshot, now()); }
+        catch (accountingError) { console.error("premium_ai_failed_cost_unavailable", run.id, String(accountingError?.message || accountingError)); }
+      }
       const analysisAlreadyRunning = /premium_analysis_already_running|premium_analysis_runs_one_active/.test(errorMessage);
       if (run?.id) {
         const durationMs = Math.max(0, now() - startedAt);
@@ -1046,6 +1159,13 @@ export function createPremiumAiAnalysisHandler({
             status: "failed",
             completed_at: completedAt,
             duration_ms: durationMs,
+            ...(failedAccounting ? {
+              input_tokens: Number(meter?.totals?.inputTokens || 0),
+              output_tokens: Number(meter?.totals?.outputTokens || 0),
+              estimated_cost_eur: failedAccounting.estimatedCostEur,
+              usage_details: failedAccounting.usageDetails,
+              response_ids: Array.isArray(meter?.totals?.responseIds) ? meter.totals.responseIds : [],
+            } : {}),
             automatic_classification: customerMode ? "failed" : "not_applicable",
             automatic_summary: customerMode ? "Analisi non completata. Riprova o carica un PDF più leggibile." : "",
             automatic_reasons: customerMode ? [{
@@ -1059,6 +1179,20 @@ export function createPremiumAiAnalysisHandler({
             error_message: String(error?.message || "Analisi IA non riuscita").slice(0, 500),
           },
         }).catch(() => {});
+        if (failedAccounting && bill?.id) {
+          await syncPremiumAiCostEvent({
+            backend,
+            bill,
+            check,
+            run: { ...run, origin: customerMode ? "customer_upload" : "staff_manual" },
+            meter,
+            accounting: failedAccounting,
+            model: backend.model,
+            fetchImpl,
+          }).catch(costError => {
+            console.error("premium_ai_cost_event_pending", run.id, String(costError?.message || costError));
+          });
+        }
       }
       if (bill?.id && !analysisAlreadyRunning) {
         await patchPremiumBill({
