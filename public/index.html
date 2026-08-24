@@ -749,6 +749,18 @@
             font-size: 13.5px !important;
             line-height: 1.4;
         }
+        .offers-ranking-explainer {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid rgba(148, 163, 184, .30);
+            border-radius: 12px;
+            background: #f8fafc;
+            color: #475569;
+            font-size: 12.5px;
+            font-weight: 650;
+            line-height: 1.45;
+            text-align: center;
+        }
         .offer-result-group {
             display: none;
             padding: 18px;
@@ -5152,7 +5164,7 @@ function offertaAttivabileOnline(offerta) {
 
 function testoAzioneOfferta(offerta, attivabileOnline) {
   if (offertaSeparataMultiFornitore(offerta)) return "Verifica con consulente";
-  return "Procedi";
+  return "Vedi come procedere";
 }
 
 function testoBadgeOfferta(item, migliore) {
@@ -5161,10 +5173,7 @@ function testoBadgeOfferta(item, migliore) {
   if (item.gruppoVisuale === "top" && item.posizioneGruppo) return "Verifica con consulente";
   if (item.gruppoVisuale === "top" && item.posizioneEconomica === 1) return "Migliore per i tuoi consumi";
   if (item.gruppoVisuale === "top") return "Offerta conveniente stimata";
-  if (item.gruppoVisuale === "attivabile" && item.posizioneEconomica === 1) return "Migliore partner attivabile";
-  if (item.gruppoVisuale === "attivabile" && item.posizioneEconomica) return "Partner attivabile online";
-  if (item.gruppoVisuale === "attivabile" && item.compatibileRanking) return "Partner attivabile online";
-  if (item.gruppoVisuale === "attivabile") return "Alternativa attivabile";
+  if (item.gruppoVisuale === "attivabile") return "Attivabile online";
   const scarto = item.costo - (migliore?.costo || item.costo);
   return scarto <= 50 ? "Miglior compromesso attivabile" : "Attivabile online";
 }
@@ -6428,16 +6437,16 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
   const gruppoPartner = assicuraGruppoOfferte(
     "offerte-partner-online-group",
     "partner-group",
-    `${attivabiliPrioritarie.length} ${attivabiliPrioritarie.length === 1 ? "offerta partner attivabile online" : "offerte partner attivabili online"}`,
-    "Le proposte partner attivabili online e coerenti con il filtro selezionato."
+    "Offerte con attivazione online disponibile",
+    "Il badge di attivazione indica il percorso disponibile per procedere con la singola offerta."
   );
   const gruppoConsulente = assicuraGruppoOfferte(
     "offerte-consulente-group",
     "consultant-group",
-    "3 migliori offerte per costo con consulente",
+    "Offerte più convenienti per costo annuo stimato",
     OFFERTE_ARERA_MENU.length
-      ? "Le migliori proposte per costo annuo stimato sul tuo profilo. Richiedono verifica consulenziale o ricontatto prima dell'eventuale attivazione."
-      : "Le migliori proposte tra le offerte disponibili nel calcolatore. Richiedono verifica consulenziale o ricontatto."
+      ? "Ordinate in base al costo annuo stimato sul tuo profilo. Per procedere può essere necessaria una verifica."
+      : "Ordinate in base al costo annuo stimato tra le offerte disponibili nel calcolatore. Per procedere può essere necessaria una verifica."
   );
   const contenitorePartner = resetGruppoOfferte(gruppoPartner, attivabiliPrioritarie.length > 0);
   const contenitoreConsulente = resetGruppoOfferte(gruppoConsulente, miglioriConConsulente.length > 0);
@@ -11481,6 +11490,7 @@ if (document.readyState === "loading") {
         <button type="button" class="offers-personalize-continue" id="offers-keep-average">Continua con la stima media</button>
     </div>
 </div>
+<div class="offers-ranking-explainer">Il costo annuo stimato mostra il risultato economico del confronto. I badge di attivazione indicano come puoi procedere con la singola offerta.</div>
 <div class="vertical-cards-container" style="display: flex; flex-direction: column; gap: 15px;">
         
         <!-- Offerta Consigliata 1: E.ON -->
@@ -11888,7 +11898,7 @@ I tuoi dati non vengono inviati a fornitori o partner finché non scegli di proc
 
 <div class="offer-consent-backdrop" id="offer-consent-backdrop" role="dialog" aria-modal="true" aria-labelledby="offer-consent-title">
     <div class="offer-consent-modal">
-        <h3 id="offer-consent-title">Procedi con l'offerta</h3>
+        <h3 id="offer-consent-title">Come procedere con l'offerta</h3>
         <p id="offer-consent-intro">Hai scelto <strong id="offer-consent-offer-name">questa offerta</strong>. Per continuare dobbiamo trasmettere i tuoi dati al fornitore o a un partner commerciale incaricato di gestire la richiesta.</p>
         <label class="lead-consent required" id="offer-consent-label">
             <input id="offer-consent-checkbox" type="checkbox">
