@@ -3,7 +3,7 @@
   "version": "arera-history-2026-08-24",
   "updatedAt": "2026-08-24",
   "sourceCatalogVersion": "arera-menu-2026-08-24",
-  "source": "Portale Offerte ARERA/Acquirente Unico Open Data. Le offerte variabili sono stimate con indice corrente del motore quando ARERA espone solo lo spread.",
+  "source": "Portale Offerte ARERA/Acquirente Unico Open Data. Le offerte variabili sono stimate con gli indici mensili verificati in data/calcolo-parametri.json quando ARERA espone solo lo spread.",
   "offers": [
     {
       "key": "gas:000294GSVML01XXBON10GAS260730003",
@@ -3294,6 +3294,21 @@
           "indexName": "PSV",
           "indexValueAtCapture": 0.50441905,
           "spreadEstimate": 0.18200001
+        },
+        {
+          "catalogDate": "2026-08-24",
+          "validFrom": "04/06/2026_00:00:00",
+          "validTo": "30/09/2026_23:59:59",
+          "priceType": "variabile",
+          "price": 0.788612,
+          "annualFixedFee": 120.0,
+          "durationMonths": 24,
+          "priceQuality": "indice_piu_spread_semantico",
+          "url": "www.aceaenergia.it/elenco-offerte",
+          "source": "Portale Offerte ARERA/Acquirente Unico Open Data - codice 000774GSVML01XXRT4D4028000000000",
+          "indexName": "PSV",
+          "indexValueAtCapture": 0.606612,
+          "spreadEstimate": 0.182
         }
       ]
     },
@@ -3325,6 +3340,21 @@
           "indexName": "PSV",
           "indexValueAtCapture": 0.50441905,
           "spreadEstimate": 0.19000001
+        },
+        {
+          "catalogDate": "2026-08-24",
+          "validFrom": "15/05/2026_18:00:00",
+          "validTo": "31/01/2027_23:59:59",
+          "priceType": "variabile",
+          "price": 0.796612,
+          "annualFixedFee": 168.0,
+          "durationMonths": -1,
+          "priceQuality": "indice_piu_spread_semantico",
+          "url": "https://www.aceapinerolese-energia.it/gas-business-smart/",
+          "source": "Portale Offerte ARERA/Acquirente Unico Open Data - codice 000694GSVML01XXSOLUZIONEGAS0226C",
+          "indexName": "PSV",
+          "indexValueAtCapture": 0.606612,
+          "spreadEstimate": 0.19
         }
       ]
     },
@@ -3371,6 +3401,21 @@
           "indexName": "PSV",
           "indexValueAtCapture": 0.50441905,
           "spreadEstimate": 0.19000001
+        },
+        {
+          "catalogDate": "2026-08-24",
+          "validFrom": "15/05/2026_18:00:00",
+          "validTo": "31/01/2027_23:59:59",
+          "priceType": "variabile",
+          "price": 0.796612,
+          "annualFixedFee": 144.0,
+          "durationMonths": -1,
+          "priceQuality": "indice_piu_spread_semantico",
+          "url": "https://www.aceapinerolese-energia.it/gas-casa-soluzione-semplice/",
+          "source": "Portale Offerte ARERA/Acquirente Unico Open Data - codice 000694GSVML01XXSOLUZIONEGAS0226D",
+          "indexName": "PSV",
+          "indexValueAtCapture": 0.606612,
+          "spreadEstimate": 0.19
         }
       ]
     },
@@ -3402,6 +3447,21 @@
           "indexName": "PSV",
           "indexValueAtCapture": 0.50441905,
           "spreadEstimate": 0.19000001
+        },
+        {
+          "catalogDate": "2026-08-24",
+          "validFrom": "15/05/2026_18:00:00",
+          "validTo": "31/01/2027_23:59:59",
+          "priceType": "variabile",
+          "price": 0.796612,
+          "annualFixedFee": 168.0,
+          "durationMonths": -1,
+          "priceQuality": "indice_piu_spread_semantico",
+          "url": "https://www.aceapinerolese-energia.it/gas-business-smart/",
+          "source": "Portale Offerte ARERA/Acquirente Unico Open Data - codice 000694GSVML01XXSOLUZIONEGAS0226A",
+          "indexName": "PSV",
+          "indexValueAtCapture": 0.606612,
+          "spreadEstimate": 0.19
         }
       ]
     },
@@ -29464,6 +29524,21 @@
           "indexName": "PSV",
           "indexValueAtCapture": 0.50441905,
           "spreadEstimate": 0.19000001
+        },
+        {
+          "catalogDate": "2026-08-24",
+          "validFrom": "11/08/2026_00:00:00",
+          "validTo": "10/09/2026_23:59:59",
+          "priceType": "variabile",
+          "price": 0.796612,
+          "annualFixedFee": 144.0,
+          "durationMonths": -1,
+          "priceQuality": "indice_piu_spread_semantico",
+          "url": "https://www.illumia.it/casa/luce/offerte-illumia-generalizzate/?p=null",
+          "source": "Portale Offerte ARERA/Acquirente Unico Open Data - codice 000155GSVML06XXZZZZ03929Z260811G",
+          "indexName": "PSV",
+          "indexValueAtCapture": 0.606612,
+          "spreadEstimate": 0.19
         }
       ]
     },
@@ -29695,6 +29770,21 @@
           "indexName": "PSV",
           "indexValueAtCapture": 0.50441905,
           "spreadEstimate": 0.44000001
+        },
+        {
+          "catalogDate": "2026-08-24",
+          "validFrom": "11/08/2026_00:00:00",
+          "validTo": "10/09/2026_23:59:59",
+          "priceType": "variabile",
+          "price": 1.046612,
+          "annualFixedFee": 192.0,
+          "durationMonths": -1,
+          "priceQuality": "indice_piu_spread_semantico",
+          "url": "https://www.illumia.it/casa/luce/offerte-illumia-generalizzate/?p=null",
+          "source": "Portale Offerte ARERA/Acquirente Unico Open Data - codice 000155GSVML19XXZZZZ03485Z260811G",
+          "indexName": "PSV",
+          "indexValueAtCapture": 0.606612,
+          "spreadEstimate": 0.44
         }
       ]
     },
@@ -29925,6 +30015,21 @@
           "indexName": "PSV",
           "indexValueAtCapture": 0.50441905,
           "spreadEstimate": 0.05900001
+        },
+        {
+          "catalogDate": "2026-08-24",
+          "validFrom": "05/08/2026_13:00:00",
+          "validTo": "10/09/2026_23:59:59",
+          "priceType": "variabile",
+          "price": 0.665612,
+          "annualFixedFee": 118.8,
+          "durationMonths": -1,
+          "priceQuality": "indice_piu_spread_semantico",
+          "url": "https://www.illumia.it/casa/luce/offerte-illumia-generalizzate/?p=null",
+          "source": "Portale Offerte ARERA/Acquirente Unico Open Data - codice 000155GSVML16XXZZZZ03526Z260711G",
+          "indexName": "PSV",
+          "indexValueAtCapture": 0.606612,
+          "spreadEstimate": 0.059
         }
       ]
     },
@@ -42387,6 +42492,21 @@
           "indexName": "PSV",
           "indexValueAtCapture": 0.50441905,
           "spreadEstimate": 0.19200001
+        },
+        {
+          "catalogDate": "2026-08-24",
+          "validFrom": "06/08/2026_12:00:00",
+          "validTo": "02/09/2026_11:59:59",
+          "priceType": "variabile",
+          "price": 0.798612,
+          "annualFixedFee": 168.0,
+          "durationMonths": -1,
+          "priceQuality": "indice_piu_spread_semantico",
+          "url": "https://pulsee.it/offerte-casa-luce-gas",
+          "source": "Portale Offerte ARERA/Acquirente Unico Open Data - codice 040505GSVML08XXPULSEEPGA98742608",
+          "indexName": "PSV",
+          "indexValueAtCapture": 0.606612,
+          "spreadEstimate": 0.192
         }
       ]
     },
@@ -47003,6 +47123,21 @@
           "indexName": "PSV",
           "indexValueAtCapture": 0.50441905,
           "spreadEstimate": 0.05900001
+        },
+        {
+          "catalogDate": "2026-08-24",
+          "validFrom": "14/08/2026_00:00:00",
+          "validTo": "27/08/2026_23:59:59",
+          "priceType": "variabile",
+          "price": 0.665612,
+          "annualFixedFee": 114.0,
+          "durationMonths": 12,
+          "priceQuality": "indice_piu_spread_semantico",
+          "url": "https://www.vivienergia.it/casa/viviweb-allday-gas",
+          "source": "Portale Offerte ARERA/Acquirente Unico Open Data - codice 000652GSVML43XXVWEBALLDAYG140826",
+          "indexName": "PSV",
+          "indexValueAtCapture": 0.606612,
+          "spreadEstimate": 0.059
         }
       ]
     },
@@ -47111,6 +47246,21 @@
           "indexName": "PSV",
           "indexValueAtCapture": 0.50441905,
           "spreadEstimate": 0.05900001
+        },
+        {
+          "catalogDate": "2026-08-24",
+          "validFrom": "14/08/2026_00:00:00",
+          "validTo": "27/08/2026_23:59:59",
+          "priceType": "variabile",
+          "price": 0.665612,
+          "annualFixedFee": 114.0,
+          "durationMonths": 12,
+          "priceQuality": "indice_piu_spread_semantico",
+          "url": "https://www.vivienergia.it/casa/viviweb-allday-lucegas",
+          "source": "Portale Offerte ARERA/Acquirente Unico Open Data - codice 000652GSVML43XXVWEBALLDAYD140826",
+          "indexName": "PSV",
+          "indexValueAtCapture": 0.606612,
+          "spreadEstimate": 0.059
         }
       ]
     },
@@ -47219,6 +47369,21 @@
           "indexName": "PSV",
           "indexValueAtCapture": 0.50441905,
           "spreadEstimate": 0.05900001
+        },
+        {
+          "catalogDate": "2026-08-24",
+          "validFrom": "14/08/2026_00:00:00",
+          "validTo": "27/08/2026_23:59:59",
+          "priceType": "variabile",
+          "price": 0.665612,
+          "annualFixedFee": 114.0,
+          "durationMonths": 24,
+          "priceQuality": "indice_piu_spread_semantico",
+          "url": "https://www.vivienergia.it/casa/viviweb-allday-gas",
+          "source": "Portale Offerte ARERA/Acquirente Unico Open Data - codice 000652GSVML07XXVWEBALLDABG140826",
+          "indexName": "PSV",
+          "indexValueAtCapture": 0.606612,
+          "spreadEstimate": 0.059
         }
       ]
     },
@@ -47327,6 +47492,21 @@
           "indexName": "PSV",
           "indexValueAtCapture": 0.50441905,
           "spreadEstimate": 0.05900001
+        },
+        {
+          "catalogDate": "2026-08-24",
+          "validFrom": "14/08/2026_00:00:00",
+          "validTo": "27/08/2026_23:59:59",
+          "priceType": "variabile",
+          "price": 0.665612,
+          "annualFixedFee": 114.0,
+          "durationMonths": 24,
+          "priceQuality": "indice_piu_spread_semantico",
+          "url": "https://www.vivienergia.it/casa/viviweb-allday-lucegas",
+          "source": "Portale Offerte ARERA/Acquirente Unico Open Data - codice 000652GSVML07XXVWEBALLDABD140826",
+          "indexName": "PSV",
+          "indexValueAtCapture": 0.606612,
+          "spreadEstimate": 0.059
         }
       ]
     },
@@ -48447,7 +48627,7 @@
     "totalOffers": 1260,
     "activeOffers": 753,
     "inactiveOffers": 507,
-    "totalVersions": 1881,
+    "totalVersions": 1893,
     "currentCatalogRecords": 753
   }
 }
