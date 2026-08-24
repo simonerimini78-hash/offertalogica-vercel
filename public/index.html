@@ -3993,12 +3993,14 @@ function normalizzaRigaAreraDual(riga) {
 
 function sincronizzaIndiciMercatoConCatalogoArera() {
   const indici = DATI_ARERA_MENU_META.indiciUsati;
+  const dettagli = DATI_ARERA_MENU_META.indiciUsatiDettaglio;
   if (!indici || typeof indici !== "object") return false;
   let aggiornato = false;
-  ["pun", "psv"].forEach((chiave) => {
+  ["pun", "psv", "psbg"].forEach((chiave) => {
     const valore = Number(indici[chiave]);
     if (!Number.isFinite(valore) || valore <= 0 || !INDICI_MERCATO[chiave]) return;
-    INDICI_MERCATO[chiave] = { ...INDICI_MERCATO[chiave], valore };
+    const dettaglio = dettagli && typeof dettagli[chiave] === "object" ? dettagli[chiave] : {};
+    INDICI_MERCATO[chiave] = { ...INDICI_MERCATO[chiave], ...dettaglio, valore };
     aggiornato = true;
   });
   return aggiornato;
@@ -4021,6 +4023,7 @@ function applicaDatiAreraMenu(data) {
     fonte: data.fonte || DATI_ARERA_MENU_META.fonte,
     aggiornatoIl: data.aggiornatoIl || DATI_ARERA_MENU_META.aggiornatoIl,
     indiciUsati: data.indiciUsati || DATI_ARERA_MENU_META.indiciUsati || null,
+    indiciUsatiDettaglio: data.indiciUsatiDettaglio || DATI_ARERA_MENU_META.indiciUsatiDettaglio || null,
   };
   OFFERTE_ARERA_MENU = pulite;
   OFFERTE_ARERA_DUAL = dualPulite;
