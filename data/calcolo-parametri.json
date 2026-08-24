@@ -1,7 +1,7 @@
 {
-  "versioneDati": "parametri-calcolo-2026-07-27-pun-2026-06",
-  "fonte": "Configurazione OffertaLogica aggiornabile; PUN acquisito dalla pubblicazione mensile ufficiale GME del mese precedente.",
-  "aggiornatoIl": "2026-07-27",
+  "versioneDati": "parametri-calcolo-2026-08-24-indici-2026-07",
+  "fonte": "Configurazione OffertaLogica aggiornabile; indici mensili verificati sul mese ufficiale più recente disponibile.",
+  "aggiornatoIl": "2026-08-24",
   "parametriCalcolo": {
     "perditeReteLuceVariabile": 1.102,
     "profiloMedio": {
@@ -51,31 +51,45 @@
   "indiciMercato": {
     "pun": {
       "label": "PUN Index GME",
-      "valore": 0.1325,
+      "valore": 0.15704,
       "unita": "eur_kwh",
-      "periodo": "2026-06",
-      "periodoLabel": "Giugno 2026",
-      "valoreOriginale": 132.5,
+      "periodo": "2026-07",
+      "periodoLabel": "Luglio 2026",
+      "valoreOriginale": 157.04,
       "unitaOriginale": "eur_mwh",
       "fonte": "Gestore dei Mercati Energetici (GME)",
-      "urlFonte": "https://gme.mercatoelettrico.org/Home/AvvisieComunicati/AvvisieComunicatiME?id=7595",
-      "urlDocumento": "https://gme.mercatoelettrico.org/Portals/0/Documents/it-IT//202606_Dati_di_sintesi_mensile.pdf",
-      "pubblicatoIl": "2026-07-14",
-      "acquisitoIl": "2026-07-27",
+      "urlFonte": "https://gme.mercatoelettrico.org/it-it/Home/Pubblicazioni/Indici-GME/PUNIndexGme",
+      "urlDocumento": "https://gme.mercatoelettrico.org/Portals/0/Documents/it-IT/20260803PrezzomedioperfasceLuglio2026.pdf",
+      "pubblicatoIl": "2026-08-03",
+      "acquisitoIl": "2026-08-24",
       "stato": "ufficiale",
-      "note": "PUN Index GME medio Giugno 2026: 132.500000 eur/MWh, convertito in 0.132500000 eur/kWh."
+      "note": "PUN Index GME medio luglio 2026: 157,04 €/MWh, convertito in 0,157040 €/kWh."
     },
     "psv": {
-      "label": "PSV",
-      "valore": 0.504419055,
+      "label": "PSV DA / CMEM,m",
+      "valore": 0.606612,
       "unita": "eur_smc",
-      "note": "Valore operativo gas usato per rendere calcolabili le offerte indicizzate PSV nel confronto; allineato al riferimento gas gia presente nel motore e da sostituire con il PSV medio ufficiale del periodo al prossimo aggiornamento dati."
+      "periodo": "2026-07",
+      "periodoLabel": "Luglio 2026",
+      "valoreOriginale": 56.6927,
+      "unitaOriginale": "eur_mwh",
+      "fonte": "ARERA - media mensile PSV day-ahead",
+      "urlFonte": "https://www.arera.it/area-operatori/prezzi-e-tariffe/valore-cmemm-vulnerabili",
+      "pubblicatoIl": "2026-08-04",
+      "acquisitoIl": "2026-08-24",
+      "stato": "ufficiale",
+      "note": "Media mensile PSV day-ahead luglio 2026: 0,606612 €/Smc (56,6927 €/MWh secondo ARERA)."
     },
     "psbg": {
-      "label": "PSBG",
-      "valore": 0.504419055,
+      "label": "PSBG / PSbil buy G",
+      "valore": 0.617052,
       "unita": "eur_smc",
-      "note": "Prezzo medio mensile GME gas/prezzo sbilanciamento maggio 2026: 47,1419677419 eur/MWh, convertito in eur/Smc con PCS 38,52 MJ/Smc indicato nella scheda E.CO."
+      "periodo": "2026-07",
+      "periodoLabel": "Luglio 2026",
+      "fonte": "GME - dati funzionali alla determinazione del prezzo di sbilanciamento",
+      "acquisitoIl": "2026-08-24",
+      "stato": "verificato",
+      "note": "Media mensile PSbil buy G luglio 2026: 0,617052 €/Smc; indice usato dai contratti che indicano PSBG/PSbil."
     }
   }
 }
