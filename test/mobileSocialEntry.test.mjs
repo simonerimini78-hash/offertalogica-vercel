@@ -266,3 +266,11 @@ test("blocco02: risultati usano formattazione italiana senza cambiare i valori d
   assert.match(html, /Confronto trasparente delle offerte luce e gas per privati\. Analisi preliminare dedicata alle aziende\./);
   assert.doesNotMatch(html, /Analisi indipendente e trasparente delle offerte Luce e Gas per privati e aziende\./);
 });
+
+
+test("blocco02: CTA principali leggibili anche su mobile", () => {
+  assert.match(html, /\.choice-card strong \{[\s\S]*font-size: 23px;/);
+  assert.match(html, /\.choice-card span \{[\s\S]*font-size: 15\.5px;/);
+  assert.match(html, /\.pdf-lead-panel h3 \{[\s\S]*font-size: 28px;/);
+  assert.match(html, /@media \(max-width: 700px\)[\s\S]*\.choice-card strong \{[\s\S]*font-size: 21px;[\s\S]*\.pdf-lead-panel h3 \{[\s\S]*font-size: 24px;[\s\S]*\.segment-switch button \{[\s\S]*font-size: 19px;/);
+});
