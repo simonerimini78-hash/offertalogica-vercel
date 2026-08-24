@@ -338,6 +338,36 @@
         .comparison-scope-hidden { display: none !important; }
         .pdf-profile-indicator { display: inline-flex; margin: 6px 0 0; padding: 5px 9px; border-radius: 999px; background: #eff6ff; color: #1d4ed8; font-size: 12px; font-weight: 800; }
         @media (max-width: 680px) { .current-provider-grid { grid-template-columns: 1fr; } .pdf-decision-backdrop, .pdf-autofill-backdrop { padding: 10px; align-items: flex-end; } .pdf-decision-modal, .pdf-autofill-modal { max-height: 92dvh; border-radius: 14px 14px 0 0; } .pdf-autofill-row { grid-template-columns: 1fr; gap: 8px; } .pdf-autofill-actions { display: grid; grid-template-columns: 1fr; } }
+        @media (max-width: 680px) {
+            .lead-modal-backdrop,
+            .offer-consent-backdrop {
+                padding: 10px;
+                align-items: flex-end;
+            }
+            .lead-modal,
+            .offer-consent-modal {
+                width: 100%;
+                max-height: 92dvh;
+                overflow: auto;
+                border-radius: 14px 14px 0 0;
+                padding: 18px 16px max(18px, env(safe-area-inset-bottom));
+            }
+            .lead-form-grid input {
+                font-size: 16px;
+            }
+            .lead-consent {
+                font-size: 13px;
+            }
+            .lead-actions {
+                display: grid;
+                grid-template-columns: 1fr;
+            }
+            .lead-actions button {
+                width: 100%;
+                min-height: 48px;
+                font-size: 15px;
+            }
+        }
         .lead-form-grid { display: grid; gap: 10px; }
         .lead-field { display: grid; gap: 5px; color: var(--text-color); font-size: 12px; font-weight: 800; }
         .lead-field input { width: 100%; }
@@ -409,7 +439,12 @@
         .business-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
         .business-section { border: 1px solid var(--border); border-radius: 10px; padding: 14px; background: #f8fafc; }
         .business-section h4 { margin: 0 0 10px; color: var(--accent); font-size: 15px; }
-        .business-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; align-items: center; }
+        .business-actions { display: grid; gap: 8px; margin-top: 16px; }
+        .business-action-buttons { display: flex; gap: 10px; flex-wrap: wrap; align-items: stretch; }
+        .business-action-buttons > button { min-height: 44px; padding: 11px 18px; border-radius: 8px; font-size: 14px; font-weight: 800; cursor: pointer; }
+        .business-secondary-action { border: 1px solid #cbd5e1; background: #ffffff; color: #334155; }
+        .business-secondary-action:hover { border-color: #94a3b8; background: #f8fafc; }
+        .business-action-note { margin: 0; color: var(--text-muted); font-size: 12px; line-height: 1.4; }
         .business-result { display: none; margin-top: 16px; border: 1px solid #bbf7d0; background: #f0fdf4; color: #14532d; border-radius: 10px; padding: 16px; }
         .business-result strong { display: block; font-size: 20px; margin-bottom: 6px; }
         .business-result p { margin: 0 0 10px; color: #166534; font-size: 14px; }
@@ -500,11 +535,11 @@
         .segment-switch button {
             min-height: 102px;
             padding: 20px 22px;
-            font-size: 19px;
+            font-size: 20px;
             line-height: 1.25;
             font-weight: 900;
         }
-        .segment-switch button span { font-size: 14px; line-height: 1.38; margin-top: 8px; max-width: 360px; }
+        .segment-switch button span { font-size: 15px; line-height: 1.38; margin-top: 8px; max-width: 360px; }
         .choice-grid {
             gap: 16px;
         }
@@ -519,13 +554,13 @@
             text-align: center;
         }
         .choice-card strong {
-            font-size: 21px;
+            font-size: 23px;
             line-height: 1.18;
             margin-bottom: 8px;
             font-weight: 900;
         }
         .choice-card span {
-            font-size: 14.5px;
+            font-size: 15.5px;
             line-height: 1.42;
             max-width: 420px;
             font-weight: 700;
@@ -536,7 +571,7 @@
             padding: 26px 24px;
         }
         .pdf-lead-panel h3 {
-            font-size: 26px;
+            font-size: 28px;
             line-height: 1.2;
             margin-bottom: 10px;
             font-weight: 900;
@@ -743,6 +778,18 @@
         .offers-list-heading > div:last-child {
             font-size: 13.5px !important;
             line-height: 1.4;
+        }
+        .offers-ranking-explainer {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid rgba(148, 163, 184, .30);
+            border-radius: 12px;
+            background: #f8fafc;
+            color: #475569;
+            font-size: 12.5px;
+            font-weight: 650;
+            line-height: 1.45;
+            text-align: center;
         }
         .offer-result-group {
             display: none;
@@ -1219,11 +1266,24 @@
                 padding: 22px 20px;
             }
             .choice-card strong {
-                font-size: 19px;
+                font-size: 21px;
+            }
+            .choice-card span {
+                font-size: 15.5px;
+            }
+            .pdf-lead-panel h3 {
+                font-size: 24px;
+            }
+            .offers-personalize-actions button {
+                min-height: 62px;
+                font-size: 18px;
             }
             .segment-switch button {
                 min-height: 92px;
-                font-size: 18px;
+                font-size: 19px;
+            }
+            .segment-switch button span {
+                font-size: 14.5px;
             }
             .fornitori-consigliati-section {
                 padding: 20px 14px !important;
@@ -2083,7 +2143,7 @@
             -webkit-background-clip: text;
             background-clip: text;
             -webkit-text-fill-color: transparent;
-            font-size: clamp(66px, 12vw, 104px);
+            font-size: clamp(60px, 10.8vw, 94px);
             line-height: .96;
             letter-spacing: -.06em;
             font-variant-numeric: tabular-nums;
@@ -2112,6 +2172,33 @@
             line-height: 1.45;
             font-weight: 500;
         }
+        .social-entry-proof {
+            width: 100%;
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 8px;
+            margin: -2px 0 0;
+            align-items: stretch;
+        }
+        .social-entry-proof span {
+            display: flex;
+            width: 100%;
+            min-width: 0;
+            align-items: center;
+            justify-content: center;
+            min-height: 34px;
+            padding: 7px 9px;
+            border: 1px solid rgba(24, 168, 75, .22);
+            border-radius: 999px;
+            background: rgba(255, 255, 255, .46);
+            color: #315564;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, .86);
+            -webkit-backdrop-filter: blur(18px) saturate(135%);
+            backdrop-filter: blur(18px) saturate(135%);
+            font-size: 11.5px;
+            line-height: 1.2;
+            font-weight: 800;
+        }
         .social-entry-choice-title {
             margin: 3px 0 -3px;
             color: #123044;
@@ -2133,16 +2220,16 @@
             overflow: hidden;
             width: 100%;
             height: 100%;
-            min-height: 118px;
+            min-height: 110px;
             display: grid;
-            grid-template-rows: minmax(30px, auto) minmax(38px, auto);
+            grid-template-rows: minmax(28px, auto) minmax(34px, auto);
             align-content: center;
             align-items: center;
             justify-items: center;
             gap: 7px;
             border: 1px solid rgba(227, 233, 231, .62);
             border-radius: 24px;
-            padding: 19px 20px;
+            padding: 16px 18px;
             background: linear-gradient(145deg, rgba(5, 93, 56, .96) 0%, rgba(8, 127, 58, .94) 38%, rgba(24, 168, 75, .90) 72%, rgba(115, 201, 40, .76) 112%);
             color: #e3e9e7;
             text-align: center;
@@ -2295,10 +2382,10 @@
             .social-entry-logo { width: min(66vw, 250px); }
             .social-entry-title { font-size: clamp(27px, 8.1vw, 38px); }
             .social-entry-saving { min-height: 118px; padding: 15px 18px 17px; border-radius: 24px; }
-            .social-entry-saving strong { font-size: clamp(58px, 18vw, 86px); }
+            .social-entry-saving strong { font-size: clamp(52px, 16.2vw, 78px); }
             .social-entry-saving span { font-size: clamp(18px, 5.3vw, 24px); }
             .social-entry-actions { grid-template-columns: 1fr; grid-auto-rows: 1fr; gap: 9px; }
-            .social-entry-route { min-height: 108px; grid-template-rows: minmax(28px, auto) minmax(36px, auto); padding: 15px 16px; border-radius: 20px; }
+            .social-entry-route { min-height: 102px; grid-template-rows: minmax(27px, auto) minmax(33px, auto); padding: 13px 15px; border-radius: 20px; }
             .social-entry-route strong { font-size: 17px; }
             .social-entry-route span { font-size: 12.5px; }
         }
@@ -2328,12 +2415,14 @@
         .offers-personalize-prompt p { margin: 0 0 12px; color: #475569; font-size: 13px; line-height: 1.45; }
         .offers-personalize-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
         .offers-personalize-actions button {
-            min-height: 45px;
-            border-radius: 9px;
-            padding: 9px 11px;
-            font-size: 12px;
+            min-height: 56px;
+            border-radius: 12px;
+            padding: 11px 16px;
+            font-size: 17px;
+            line-height: 1.2;
             font-weight: 900;
             cursor: pointer;
+            text-align: center;
         }
         .offers-personalize-upload { border: 0; background: var(--logo-green-gradient); color: #fff; }
         .offers-personalize-continue { border: 1px solid #cbd5e1; background: #fff; color: #334155; }
@@ -2408,17 +2497,22 @@
     <div class="social-entry-card">
         <img class="social-entry-logo" src="/assets/logo-offertalogica-header.png" alt="OffertaLogica.it - Confronta, scegli, risparmia">
         <p class="social-entry-eyebrow">Offerte luce e gas aggiornate</p>
-        <h1 class="social-entry-title" id="social-entry-title">Oggi potresti risparmiare fino a</h1>
+        <h1 class="social-entry-title" id="social-entry-title">Confronta le offerte luce e gas sui tuoi consumi</h1>
         <div class="social-entry-saving is-loading" id="social-entry-saving" role="status">
             <strong id="social-entry-saving-value">Aggiorniamo le offerte di oggi</strong>
             <span id="social-entry-saving-period">attendi qualche istante</span>
         </div>
-        <p class="social-entry-disclaimer">Stima basata sui consumi medi di una famiglia e sulle offerte attivabili disponibili oggi. Il risparmio reale dipende dai tuoi consumi e dalla tariffa attuale.</p>
+        <p class="social-entry-disclaimer">La cifra mostrata è un esempio calcolato su un profilo medio. Il confronto reale usa i tuoi consumi e la tua tariffa attuale.</p>
+        <div class="social-entry-proof" aria-label="Come calcoliamo il confronto">
+            <span>Catalogo ufficiale ARERA</span>
+            <span>Indici di mercato aggiornati</span>
+            <span>Confronto del costo reale</span>
+        </div>
         <h2 class="social-entry-choice-title">Come vuoi procedere?</h2>
         <div class="social-entry-actions" aria-label="Scegli come procedere">
             <button type="button" class="social-entry-route" id="landing-self-service" disabled>
                 <strong>Confronto in autonomia</strong>
-                <span>Confronto le offerte e scelgo in autonomia.</span>
+                <span>Inserisco i miei consumi oppure parto da un profilo medio e confronto le offerte.</span>
             </button>
             <button type="button" class="social-entry-route" id="landing-assisted" disabled>
                 <strong>Preferisco essere guidato</strong>
@@ -2432,7 +2526,7 @@
         </nav>
         <footer class="social-entry-footer">
             <p class="social-entry-footer-brand">&copy; 2026 OffertaLogica.it - Calcolatore Energetico</p>
-            <p class="social-entry-footer-copy">Analisi indipendente e trasparente delle offerte Luce e Gas per privati e aziende.</p>
+            <p class="social-entry-footer-copy">Confronto trasparente delle offerte luce e gas per privati. Analisi preliminare dedicata alle aziende.</p>
             <p class="social-entry-footer-disclaimer">Le stime sono informative e non sostituiscono scheda sintetica, condizioni economiche e contratto del fornitore.</p>
             <nav class="social-entry-footer-links" aria-label="Informazioni e privacy">
                 <a href="/come-funziona.html">Come funziona</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
@@ -2490,7 +2584,7 @@
 
     <div class="business-panel" id="business-panel">
         <h3>Analisi aziendale luce e gas</h3>
-        <p>Per le aziende il confronto dipende da potenza, fasce orarie e profilo di consumo. Qui stimiamo il margine e raccogliamo i dati per una verifica consulenziale.</p>
+        <p>Per le aziende il confronto dipende da potenza, fasce orarie e profilo di consumo. Qui raccogliamo i dati per un'analisi preliminare e una verifica consulenziale.</p>
 
         <div class="business-grid">
             <div class="business-section">
@@ -2594,15 +2688,17 @@
         </div>
 
         <div class="business-actions">
-            <button type="button" class="btn-action" onclick="calcolaBusiness()">Calcola margine business</button>
-            <button type="button" class="lead-secondary" onclick="apriLeadBusiness()">Richiedi analisi aziendale</button>
-            <span class="upload-note">Per offerte business reali useremo il lead verificato e la bolletta caricata.</span>
+            <div class="business-action-buttons">
+                <button type="button" class="btn-action" onclick="calcolaBusiness()">Avvia analisi business</button>
+                <button type="button" class="business-secondary-action" onclick="apriLeadBusiness()">Richiedi un contatto aziendale</button>
+            </div>
+            <p class="business-action-note">Puoi iniziare dall'analisi preliminare oppure richiedere direttamente un contatto.</p>
         </div>
         <div class="business-error" id="business-error"></div>
         <div class="business-result" id="business-result">
-            <strong id="business-saving">Margine stimato in elaborazione</strong>
+            <strong id="business-saving">Analisi preliminare in elaborazione</strong>
             <p id="business-copy"></p>
-            <button type="button" class="btn-action" onclick="apriLeadBusiness()">Sblocca analisi aziendale</button>
+            <button type="button" class="btn-action" onclick="apriLeadBusiness()">Prosegui con la richiesta</button>
         </div>
     </div>
 
@@ -3158,7 +3254,7 @@ let PARAMETRI_CALCOLO = {
 };
 let PERDITE_RETE_LUCE_VARIABILE = PARAMETRI_CALCOLO.perditeReteLuceVariabile;
 const TESTO_METODOLOGIA_CONSUMI_REALI = "I risparmi stimati sono calcolati sui consumi che hai inserito o confermato dalla bolletta. Applichiamo le condizioni economiche delle offerte allo stesso profilo di consumo, separando quota variabile e quota fissa.";
-const TESTO_METODOLOGIA_MEDIA_ARERA = "Quando non conosci i tuoi consumi, la comparazione viene fatta su consumi medi e sull'ultimo riferimento ARERA disponibile. Questa base omogenea serve a stimare il risparmio potenziale tra le diverse proposte.";
+const TESTO_METODOLOGIA_MEDIA_ARERA = "Quando non conosci i tuoi consumi, la comparazione viene fatta su consumi medi usando il catalogo ARERA e gli indici di mercato disponibili. Questa base omogenea serve a stimare il risparmio potenziale tra le diverse proposte.";
 
 let INDICI_MERCATO = {
   pun: {
@@ -4484,9 +4580,16 @@ function quotaFissaAnnuaDaCampo(inputId, unitaId) {
   return leggiValore(unitaId, "anno") === "mese" ? valore * 12 : valore;
 }
 
-function euro(value) {
+function numeroItaliano(value, cifre = 2) {
   const amount = numeroSicuro(value, 0);
-  return `${amount.toFixed(2)} €`;
+  return new Intl.NumberFormat("it-IT", {
+    minimumFractionDigits: cifre,
+    maximumFractionDigits: cifre,
+  }).format(amount);
+}
+
+function euro(value) {
+  return `${numeroItaliano(value, 2)} €`;
 }
 
 function componentiRegolateDisponibili() {
@@ -5039,9 +5142,9 @@ function prezzoOffertaTesto(voce, commodity) {
   if (!voce) return commodity === "luce" ? "Luce non inclusa" : "Gas non incluso";
   const unita = commodity === "luce" ? "€/kWh" : "€/Smc";
   if (voce.formula?.tipo === "indice_spread") {
-    return `${voce.formula.indice.toUpperCase()} + ${voce.formula.spread.toFixed(4)} ${unita}`;
+    return `${voce.formula.indice.toUpperCase()} + ${numeroItaliano(voce.formula.spread, 4)} ${unita}`;
   }
-  return `${voce.prezzoVariabile.toFixed(4)} ${unita}`;
+  return `${numeroItaliano(voce.prezzoVariabile, 4)} ${unita}`;
 }
 
 function componentiSeparateOfferta(offerta) {
@@ -5113,7 +5216,7 @@ function offertaAttivabileOnline(offerta) {
 
 function testoAzioneOfferta(offerta, attivabileOnline) {
   if (offertaSeparataMultiFornitore(offerta)) return "Verifica con consulente";
-  return "Procedi";
+  return "Vedi come procedere";
 }
 
 function testoBadgeOfferta(item, migliore) {
@@ -5122,10 +5225,7 @@ function testoBadgeOfferta(item, migliore) {
   if (item.gruppoVisuale === "top" && item.posizioneGruppo) return "Verifica con consulente";
   if (item.gruppoVisuale === "top" && item.posizioneEconomica === 1) return "Migliore per i tuoi consumi";
   if (item.gruppoVisuale === "top") return "Offerta conveniente stimata";
-  if (item.gruppoVisuale === "attivabile" && item.posizioneEconomica === 1) return "Migliore partner attivabile";
-  if (item.gruppoVisuale === "attivabile" && item.posizioneEconomica) return "Partner attivabile online";
-  if (item.gruppoVisuale === "attivabile" && item.compatibileRanking) return "Partner attivabile online";
-  if (item.gruppoVisuale === "attivabile") return "Alternativa attivabile";
+  if (item.gruppoVisuale === "attivabile") return "Attivabile online";
   const scarto = item.costo - (migliore?.costo || item.costo);
   return scarto <= 50 ? "Miglior compromesso attivabile" : "Attivabile online";
 }
@@ -6389,16 +6489,16 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
   const gruppoPartner = assicuraGruppoOfferte(
     "offerte-partner-online-group",
     "partner-group",
-    `${attivabiliPrioritarie.length} ${attivabiliPrioritarie.length === 1 ? "offerta partner attivabile online" : "offerte partner attivabili online"}`,
-    "Le proposte partner attivabili online e coerenti con il filtro selezionato."
+    "Offerte con attivazione online disponibile",
+    "Qui trovi le offerte per cui è disponibile un percorso di attivazione online."
   );
   const gruppoConsulente = assicuraGruppoOfferte(
     "offerte-consulente-group",
     "consultant-group",
-    "3 migliori offerte per costo con consulente",
+    "Offerte più convenienti per costo annuo stimato",
     OFFERTE_ARERA_MENU.length
-      ? "Le migliori proposte per costo annuo stimato sul tuo profilo. Richiedono verifica consulenziale o ricontatto prima dell'eventuale attivazione."
-      : "Le migliori proposte tra le offerte disponibili nel calcolatore. Richiedono verifica consulenziale o ricontatto."
+      ? "Ordinate in base al costo annuo stimato sul tuo profilo. Per procedere può essere necessaria una verifica."
+      : "Ordinate in base al costo annuo stimato tra le offerte disponibili nel calcolatore. Per procedere può essere necessaria una verifica."
   );
   const contenitorePartner = resetGruppoOfferte(gruppoPartner, attivabiliPrioritarie.length > 0);
   const contenitoreConsulente = resetGruppoOfferte(gruppoConsulente, miglioriConConsulente.length > 0);
@@ -6493,7 +6593,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       } else {
         if (title) title.innerText = gruppoVisuale === "top" || separataMulti ? "Offerta con consulente" : "Offerta attivabile online";
         aggiornaLogoOfferta(card, offerta, false);
-        if (details) details.innerText = "Verifica il cellulare per vedere nome fornitore, dettagli economici e link.";
+        if (details) details.innerText = "Verifica il numero per vedere nome fornitore, dettagli economici e percorso.";
         if (link) {
           link.innerText = "Verifica";
           link.href = "#";
@@ -6510,7 +6610,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
             <span class="offer-saving-line"><span>Risparmio stimato</span><strong>Disponibile dopo verifica</strong></span>
           </span>
           <small style="display:block; margin-top:3px; color:var(--text-muted); font-weight:600;">
-            Verifica il numero per vedere importi, prezzo, fornitore e percorso ufficiale.
+            Verifica il numero per vedere importi, prezzo, fornitore e percorso.
           </small>
         `;
       }
@@ -6551,8 +6651,8 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
     teaserCopy.innerText = SOCIAL_ENTRY_STATE.isSocialJourney
       ? "Stima basata sui consumi medi e sulle offerte partner attivabili disponibili oggi: verifica il numero per visualizzare fornitore, condizioni e percorso ufficiale."
       : modalitaCalcolo === "media"
-        ? "Stima basata sui consumi medi e sull'ultimo riferimento ARERA disponibile: verifica il numero per visualizzare le migliori offerte e quelle attivabili online."
-        : "Stima basata sui consumi che hai inserito: verifica il numero per visualizzare le migliori offerte e quelle attivabili online.";
+        ? "Stima basata sui consumi medi, sul catalogo ARERA e sugli indici di mercato disponibili: verifica il numero per visualizzare il confronto completo."
+        : "Stima basata sui consumi che hai inserito: verifica il numero per visualizzare il confronto completo.";
   }
   aggiornaPromptBollettaDopoOfferte();
 }
@@ -6960,26 +7060,39 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
     mostraCampoOtp(false);
   }
   const isAssistance = source === "assistance_callback";
+  const isBusiness = source === "business";
   if (sendBtn) {
     sendBtn.style.display = "inline-block";
     sendBtn.innerText = "Invia il codice di verifica";
   }
   if (verifyBtn) {
     verifyBtn.style.display = "none";
-    verifyBtn.innerText = isAssistance ? "Verifica e richiedi il ricontatto" : "Verifica e mostra le offerte";
+    verifyBtn.innerText = isAssistance
+      ? "Verifica e richiedi il ricontatto"
+      : isBusiness
+        ? "Verifica e prosegui con la richiesta"
+        : "Verifica e mostra le offerte";
   }
   if (title) {
-    title.innerText = isAssistance ? "Richiedi assistenza" : "Verifica il numero e visualizza il confronto";
+    title.innerText = isAssistance
+      ? "Richiedi assistenza"
+      : isBusiness
+        ? "Verifica il numero per proseguire con la richiesta aziendale"
+        : "Verifica il numero per vedere il confronto completo";
   }
   if (copy) {
     copy.innerText = isAssistance
       ? "Inserisci i tuoi dati e verifica il numero. OffertaLogica potrà ricontattarti per aiutarti a completare il confronto."
-      : "Inserisci i tuoi dati per ricevere il codice di verifica.\nNessun dato sarà inviato a un fornitore finché non sceglierai un'offerta.";
+      : isBusiness
+        ? "Il codice SMS serve a verificare il numero.\nI tuoi dati non vengono inviati a consulenti o partner senza la relativa autorizzazione."
+        : "Il codice SMS serve a verificare il numero.\nI tuoi dati non vengono inviati a fornitori o partner finché non scegli di procedere con un'offerta.";
   }
   if (serviceCopy) {
     serviceCopy.innerHTML = isAssistance
       ? `<strong>Richiedo di essere ricontattato da OffertaLogica per ricevere assistenza sul confronto.</strong> Dichiaro di aver letto l'<a href="https://www.iubenda.com/privacy-policy/36565194" target="_blank" rel="noopener">informativa privacy</a>.<span class="lead-consent-detail">Useremo i dati solo per verificare la richiesta e fornirti l'assistenza richiesta.</span>`
-      : `<strong>Richiedo la comparazione personalizzata e il ricontatto necessario alla gestione della mia richiesta.</strong> Dichiaro di aver letto l'<a href="https://www.iubenda.com/privacy-policy/36565194" target="_blank" rel="noopener">informativa privacy</a>.<span class="lead-consent-detail">Useremo i dati inseriti o caricati per elaborare il confronto e gestire la tua richiesta.</span>`;
+      : isBusiness
+        ? `<strong>Richiedo l'analisi preliminare e il ricontatto necessario alla gestione della mia richiesta.</strong> Dichiaro di aver letto l'<a href="https://www.iubenda.com/privacy-policy/36565194" target="_blank" rel="noopener">informativa privacy</a>.<span class="lead-consent-detail">Useremo i dati inseriti o caricati per preparare l'analisi preliminare e gestire la tua richiesta.</span>`
+        : `<strong>Richiedo la comparazione personalizzata e il ricontatto necessario alla gestione della mia richiesta.</strong> Dichiaro di aver letto l'<a href="https://www.iubenda.com/privacy-policy/36565194" target="_blank" rel="noopener">informativa privacy</a>.<span class="lead-consent-detail">Useremo i dati inseriti o caricati per elaborare il confronto e gestire la tua richiesta.</span>`;
   }
   if (partnerLabel) partnerLabel.style.display = isAssistance ? "none" : "flex";
   const serviceCheckbox = document.getElementById("lead-consenso-servizio");
@@ -6989,7 +7102,9 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
   if (privacySummary) {
     privacySummary.innerText = isAssistance
       ? "La verifica serve a confermare il numero sul quale desideri essere ricontattato. Questa richiesta non autorizza l'invio dei dati a un fornitore."
-      : "Il primo punto è necessario per elaborare e mostrarti il confronto. Il secondo potrà essere autorizzato anche successivamente, quando sceglierai un'offerta.";
+      : isBusiness
+        ? "L'SMS serve solo a confermare il numero e proseguire con la richiesta aziendale. L'invio dei dati a consulenti o partner resta separato e facoltativo."
+        : "L'SMS serve solo a confermare il numero e sbloccare il confronto. L'invio dei dati a fornitori o partner resta separato e facoltativo fino alla scelta di un'offerta.";
   }
   if (partnerCopy && !isAssistance) {
     if (source === "business") {
@@ -11117,7 +11232,7 @@ function preparaRisparmioIngressoSocialMobile() {
     const saving = Number(LEAD_STATE.bestPartnerSaving || 0);
     const formatted = formattaRisparmioSocial(saving);
     if (value) value.textContent = formatted || "Offerte aggiornate";
-    if (period) period.textContent = formatted ? "all'anno su luce e gas" : "scopri la proposta attivabile più conveniente di oggi";
+    if (period) period.textContent = formatted ? "all'anno · esempio su profilo medio" : "confronta le offerte sui tuoi consumi";
     savingBox?.classList.remove("is-loading");
     impostaLandingPronta();
     trackEvent("landing_saving_ready", {
@@ -11128,7 +11243,7 @@ function preparaRisparmioIngressoSocialMobile() {
     return true;
   } catch (error) {
     if (value) value.textContent = "Offerte aggiornate";
-    if (period) period.textContent = "scopri la proposta disponibile oggi";
+    if (period) period.textContent = "confronta le offerte sui tuoi consumi";
     savingBox?.classList.remove("is-loading");
     impostaLandingPronta();
     trackEvent("landing_saving_fallback", {
@@ -11416,7 +11531,7 @@ if (document.readyState === "loading") {
 <div class="fornitori-consigliati-section">
 <div class="lead-teaser" id="lead-teaser">
     <strong id="lead-teaser-title">Abbiamo trovato offerte più convenienti.</strong>
-    <p id="lead-teaser-copy">La stima usa consumi medi e l'ultimo riferimento ARERA disponibile: verifica il numero per visualizzare le migliori offerte e quelle attivabili online.</p>
+    <p id="lead-teaser-copy">La stima usa consumi medi, catalogo ARERA e indici di mercato disponibili: verifica il numero per visualizzare il confronto completo.</p>
     <button type="button" onclick="apriLeadModal('teaser')">Verifica e visualizza le offerte</button>
 </div>
 <div class="offers-personalize-prompt" id="offers-personalize-prompt" hidden>
@@ -11427,6 +11542,7 @@ if (document.readyState === "loading") {
         <button type="button" class="offers-personalize-continue" id="offers-keep-average">Continua con la stima media</button>
     </div>
 </div>
+<div class="offers-ranking-explainer">Il costo annuo stimato mostra il risultato economico del confronto. I badge di attivazione indicano come puoi procedere con la singola offerta.</div>
 <div class="vertical-cards-container" style="display: flex; flex-direction: column; gap: 15px;">
         
         <!-- Offerta Consigliata 1: E.ON -->
@@ -11805,9 +11921,9 @@ if (document.readyState === "loading") {
 
 <div class="lead-modal-backdrop" id="lead-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="lead-modal-title">
     <div class="lead-modal">
-        <h3 id="lead-modal-title">Verifica il numero e visualizza il confronto</h3>
-        <p id="lead-modal-copy">Inserisci i tuoi dati per ricevere il codice di verifica.
-Nessun dato sarà inviato a un fornitore finché non sceglierai un'offerta.</p>
+        <h3 id="lead-modal-title">Verifica il numero per vedere il confronto completo</h3>
+        <p id="lead-modal-copy">Il codice SMS serve a verificare il numero.
+I tuoi dati non vengono inviati a fornitori o partner finché non scegli di procedere con un'offerta.</p>
         <div class="lead-form-grid">
             <label class="lead-field" for="lead-nome"><span>Nome e cognome</span><input id="lead-nome" type="text" autocomplete="name" placeholder="Mario Rossi"></label>
             <label class="lead-field" for="lead-telefono"><span>Cellulare</span><input id="lead-telefono" type="tel" autocomplete="tel" inputmode="tel" placeholder="333 1234567"></label>
@@ -11820,7 +11936,7 @@ Nessun dato sarà inviato a un fornitore finché non sceglierai un'offerta.</p>
                 <input id="lead-consenso-partner" type="checkbox">
                 <span id="lead-partner-copy" class="lead-consent-copy"><strong>Facoltativo</strong> - autorizzo OffertaLogica a trasmettere i miei dati al fornitore o partner dell'offerta che sceglierò, per essere ricontattato esclusivamente in merito a quella proposta.</span>
             </label>
-            <div class="lead-privacy-note" id="lead-privacy-summary">Il primo punto è necessario per elaborare e mostrarti il confronto. Il secondo potrà essere autorizzato anche successivamente, quando sceglierai un'offerta.</div>
+            <div class="lead-privacy-note" id="lead-privacy-summary">L'SMS serve solo a confermare il numero e sbloccare il confronto. L'invio dei dati a fornitori o partner resta separato e facoltativo fino alla scelta di un'offerta.</div>
             <label class="lead-field" id="lead-otp-field" for="lead-otp" style="display:none;"><span>Codice ricevuto via SMS</span><input id="lead-otp" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" placeholder="000000"></label>
         </div>
         <div class="lead-actions">
@@ -11834,7 +11950,7 @@ Nessun dato sarà inviato a un fornitore finché non sceglierai un'offerta.</p>
 
 <div class="offer-consent-backdrop" id="offer-consent-backdrop" role="dialog" aria-modal="true" aria-labelledby="offer-consent-title">
     <div class="offer-consent-modal">
-        <h3 id="offer-consent-title">Procedi con l'offerta</h3>
+        <h3 id="offer-consent-title">Come procedere con l'offerta</h3>
         <p id="offer-consent-intro">Hai scelto <strong id="offer-consent-offer-name">questa offerta</strong>. Per continuare dobbiamo trasmettere i tuoi dati al fornitore o a un partner commerciale incaricato di gestire la richiesta.</p>
         <label class="lead-consent required" id="offer-consent-label">
             <input id="offer-consent-checkbox" type="checkbox">
@@ -11941,7 +12057,7 @@ Nessun dato sarà inviato a un fornitore finché non sceglierai un'offerta.</p>
                 scrollToTarget(".pdf-lead-panel");
                 break;
             case "media":
-                setMessage("Useremo un profilo medio e l'ultimo riferimento ARERA disponibile. E' utile per una prima stima, poi puoi raffinare con la bolletta.");
+                setMessage("Useremo un profilo medio, il catalogo ARERA e gli indici di mercato disponibili. È utile per una prima stima, poi puoi raffinare con la bolletta.");
                 activateButton("btn-attiva-medi");
                 scrollToTarget("#btn-attiva-medi");
                 break;
@@ -11998,7 +12114,7 @@ Nessun dato sarà inviato a un fornitore finché non sceglierai un'offerta.</p>
     <p style="margin-bottom: 8px; font-weight: bold;">&copy; 2026 OffertaLogica.it - Calcolatore Energetico</p>
     
     <p style="margin-bottom: 15px; color: #999;">
-        Analisi indipendente e trasparente delle offerte Luce e Gas per privati e aziende.
+        Confronto trasparente delle offerte luce e gas per privati. Analisi preliminare dedicata alle aziende.
     </p>
     <p style="margin: -5px auto 15px; color: #777; max-width: 780px; font-size: 12px; line-height: 1.45;">
         Le stime sono informative e non sostituiscono scheda sintetica, condizioni economiche e contratto del fornitore.
