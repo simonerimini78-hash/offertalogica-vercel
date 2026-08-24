@@ -3977,6 +3977,19 @@ function normalizzaRigaAreraDual(riga) {
   };
 }
 
+function sincronizzaIndiciMercatoConCatalogoArera() {
+  const indici = DATI_ARERA_MENU_META.indiciUsati;
+  if (!indici || typeof indici !== "object") return false;
+  let aggiornato = false;
+  ["pun", "psv"].forEach((chiave) => {
+    const valore = Number(indici[chiave]);
+    if (!Number.isFinite(valore) || valore <= 0 || !INDICI_MERCATO[chiave]) return;
+    INDICI_MERCATO[chiave] = { ...INDICI_MERCATO[chiave], valore };
+    aggiornato = true;
+  });
+  return aggiornato;
+}
+
 function applicaDatiAreraMenu(data) {
   const offerte = Array.isArray(data) ? data : data?.offerte;
   if (!Array.isArray(offerte)) return false;
@@ -4120,8 +4133,9 @@ function calcolaVoceEnergia({ consumo = 0, prezzoVariabile = 0, formula, consumi
   const fattorePerdite = commodity === "luce" && tipoVoce === "variabile" && !moltiplicatoreEsplicito ? PERDITE_RETE_LUCE_VARIABILE : 1;
   const prezzoCalcolo = risolviPrezzoVariabile({ prezzoVariabile, formula });
   const materiaFasce = commodity === "luce" ? calcolaMateriaPerFasce(consumiFasce, prezziFasce) : null;
-  const consumoFatturato = materiaFasce?.consumoFatturato ?? consumoProfilo * fattorePerdite;
-  const quotaMateria = materiaFasce?.quotaMateria ?? consumoFatturato * prezzoCalcolo;
+  const consumoFatturatoBase = materiaFasce?.consumoFatturato ?? consumoProfilo;
+  const consumoFatturato = consumoFatturatoBase * fattorePerdite;
+  const quotaMateria = materiaFasce ? materiaFasce.quotaMateria * fattorePerdite : consumoFatturato * prezzoCalcolo;
   const quotaFissaVendita = numeroSicuro(quotaFissaAnnua, 0);
   const quotaTecnicaProfilo = Math.max(0, numeroSicuro(quoteUniversaliAnnue, 0));
   const regolate = componentiRegolate || componentiRegolateVuote();
@@ -11344,6 +11358,7 @@ function collegaEventiUX() {
   aggiornaTestoPulsanteConfronto();
 
   Promise.all([caricaDatiCalcolo(), caricaOfferteProposte(), caricaOfferteAreraMenu(), caricaProviderBrand()]).then(() => {
+    sincronizzaIndiciMercatoConCatalogoArera();
     assicuraSchedeOfferte();
     if (SOCIAL_ENTRY_STATE.active) {
       preparaRisparmioIngressoSocialMobile();
