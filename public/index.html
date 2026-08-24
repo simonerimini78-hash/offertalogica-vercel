@@ -338,6 +338,36 @@
         .comparison-scope-hidden { display: none !important; }
         .pdf-profile-indicator { display: inline-flex; margin: 6px 0 0; padding: 5px 9px; border-radius: 999px; background: #eff6ff; color: #1d4ed8; font-size: 12px; font-weight: 800; }
         @media (max-width: 680px) { .current-provider-grid { grid-template-columns: 1fr; } .pdf-decision-backdrop, .pdf-autofill-backdrop { padding: 10px; align-items: flex-end; } .pdf-decision-modal, .pdf-autofill-modal { max-height: 92dvh; border-radius: 14px 14px 0 0; } .pdf-autofill-row { grid-template-columns: 1fr; gap: 8px; } .pdf-autofill-actions { display: grid; grid-template-columns: 1fr; } }
+        @media (max-width: 680px) {
+            .lead-modal-backdrop,
+            .offer-consent-backdrop {
+                padding: 10px;
+                align-items: flex-end;
+            }
+            .lead-modal,
+            .offer-consent-modal {
+                width: 100%;
+                max-height: 92dvh;
+                overflow: auto;
+                border-radius: 14px 14px 0 0;
+                padding: 18px 16px max(18px, env(safe-area-inset-bottom));
+            }
+            .lead-form-grid input {
+                font-size: 16px;
+            }
+            .lead-consent {
+                font-size: 13px;
+            }
+            .lead-actions {
+                display: grid;
+                grid-template-columns: 1fr;
+            }
+            .lead-actions button {
+                width: 100%;
+                min-height: 48px;
+                font-size: 15px;
+            }
+        }
         .lead-form-grid { display: grid; gap: 10px; }
         .lead-field { display: grid; gap: 5px; color: var(--text-color); font-size: 12px; font-weight: 800; }
         .lead-field input { width: 100%; }
@@ -1243,6 +1273,10 @@
             }
             .pdf-lead-panel h3 {
                 font-size: 24px;
+            }
+            .offers-personalize-actions button {
+                min-height: 62px;
+                font-size: 18px;
             }
             .segment-switch button {
                 min-height: 92px;
@@ -2381,12 +2415,14 @@
         .offers-personalize-prompt p { margin: 0 0 12px; color: #475569; font-size: 13px; line-height: 1.45; }
         .offers-personalize-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
         .offers-personalize-actions button {
-            min-height: 45px;
-            border-radius: 9px;
-            padding: 9px 11px;
-            font-size: 12px;
+            min-height: 56px;
+            border-radius: 12px;
+            padding: 11px 16px;
+            font-size: 17px;
+            line-height: 1.2;
             font-weight: 900;
             cursor: pointer;
+            text-align: center;
         }
         .offers-personalize-upload { border: 0; background: var(--logo-green-gradient); color: #fff; }
         .offers-personalize-continue { border: 1px solid #cbd5e1; background: #fff; color: #334155; }

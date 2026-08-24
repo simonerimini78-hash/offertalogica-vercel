@@ -274,3 +274,13 @@ test("blocco02: CTA principali leggibili anche su mobile", () => {
   assert.match(html, /\.pdf-lead-panel h3 \{[\s\S]*font-size: 28px;/);
   assert.match(html, /@media \(max-width: 700px\)[\s\S]*\.choice-card strong \{[\s\S]*font-size: 21px;[\s\S]*\.pdf-lead-panel h3 \{[\s\S]*font-size: 24px;[\s\S]*\.segment-switch button \{[\s\S]*font-size: 19px;/);
 });
+
+
+test("blocco02: CTA offerte e modali restano leggibili su mobile", () => {
+  assert.match(html, /\.offers-personalize-actions button \{[\s\S]*min-height: 56px;[\s\S]*font-size: 17px;/);
+  assert.match(html, /@media \(max-width: 700px\)[\s\S]*\.offers-personalize-actions button \{[\s\S]*min-height: 62px;[\s\S]*font-size: 18px;/);
+  assert.match(html, /@media \(max-width: 680px\) \{[\s\S]*\.lead-modal-backdrop,[\s\S]*\.offer-consent-backdrop[\s\S]*align-items: flex-end;/);
+  assert.match(html, /\.lead-modal,[\s\S]*\.offer-consent-modal \{[\s\S]*max-height: 92dvh;[\s\S]*overflow: auto;[\s\S]*border-radius: 14px 14px 0 0;/);
+  assert.match(html, /\.lead-form-grid input \{[\s\S]*font-size: 16px;/);
+  assert.match(html, /\.lead-actions button \{[\s\S]*min-height: 48px;[\s\S]*font-size: 15px;/);
+});
