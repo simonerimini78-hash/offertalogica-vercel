@@ -4725,14 +4725,25 @@ function leggiProfiloComparazione() {
   };
 }
 
+function indiceMercatoDaProfiloPdf(index, commodity) {
+  const normalized = String(index || "").toLowerCase();
+  if (!normalized) return "";
+  if (commodity === "luce") return normalized.includes("pun") ? "pun" : "";
+  if (commodity === "gas") {
+    if (normalized.includes("psbg")) return "psbg";
+    if (normalized.includes("psv")) return "psv";
+  }
+  return "";
+}
+
 function formulaDaProfiloPdf(scope, commodity) {
   const profile = PDF_PROFILE_STATE[scope] || {};
   const suffix = commodity === "luce" ? "luce" : "gas";
   const index = profile[`indice_riferimento_${suffix}`];
   const multiplier = Number(profile[`moltiplicatore_indice_${suffix}`]);
   const spread = Number(profile[`spread_${suffix}_${commodity === "luce" ? "eur_kwh" : "eur_smc"}`]);
-  if (!index) return undefined;
-  const indice = String(index).toLowerCase().includes("psv") ? "psv" : "pun";
+  const indice = indiceMercatoDaProfiloPdf(index, commodity);
+  if (!indice) return undefined;
   if (Number.isFinite(multiplier)) return { tipo: "indice_moltiplicatore_spread", indice, moltiplicatore: multiplier, moltiplicatoreEsplicito: true, spread: Number.isFinite(spread) ? spread : 0 };
   return { tipo: "indice_spread", indice, spread: Number.isFinite(spread) ? spread : 0 };
 }
