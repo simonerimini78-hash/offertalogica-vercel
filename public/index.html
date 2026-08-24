@@ -409,7 +409,12 @@
         .business-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
         .business-section { border: 1px solid var(--border); border-radius: 10px; padding: 14px; background: #f8fafc; }
         .business-section h4 { margin: 0 0 10px; color: var(--accent); font-size: 15px; }
-        .business-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; align-items: center; }
+        .business-actions { display: grid; gap: 8px; margin-top: 16px; }
+        .business-action-buttons { display: flex; gap: 10px; flex-wrap: wrap; align-items: stretch; }
+        .business-action-buttons > button { min-height: 44px; padding: 11px 18px; border-radius: 8px; font-size: 14px; font-weight: 800; cursor: pointer; }
+        .business-secondary-action { border: 1px solid #cbd5e1; background: #ffffff; color: #334155; }
+        .business-secondary-action:hover { border-color: #94a3b8; background: #f8fafc; }
+        .business-action-note { margin: 0; color: var(--text-muted); font-size: 12px; line-height: 1.4; }
         .business-result { display: none; margin-top: 16px; border: 1px solid #bbf7d0; background: #f0fdf4; color: #14532d; border-radius: 10px; padding: 16px; }
         .business-result strong { display: block; font-size: 20px; margin-bottom: 6px; }
         .business-result p { margin: 0 0 10px; color: #166534; font-size: 14px; }
@@ -2626,15 +2631,17 @@
         </div>
 
         <div class="business-actions">
-            <button type="button" class="btn-action" onclick="calcolaBusiness()">Avvia analisi business</button>
-            <button type="button" class="lead-secondary" onclick="apriLeadBusiness()">Richiedi analisi aziendale</button>
-            <span class="upload-note">Per offerte business reali useremo il lead verificato e la bolletta caricata.</span>
+            <div class="business-action-buttons">
+                <button type="button" class="btn-action" onclick="calcolaBusiness()">Avvia analisi business</button>
+                <button type="button" class="business-secondary-action" onclick="apriLeadBusiness()">Richiedi un contatto aziendale</button>
+            </div>
+            <p class="business-action-note">Puoi iniziare dall'analisi preliminare oppure richiedere direttamente un contatto.</p>
         </div>
         <div class="business-error" id="business-error"></div>
         <div class="business-result" id="business-result">
             <strong id="business-saving">Analisi preliminare in elaborazione</strong>
             <p id="business-copy"></p>
-            <button type="button" class="btn-action" onclick="apriLeadBusiness()">Sblocca analisi aziendale</button>
+            <button type="button" class="btn-action" onclick="apriLeadBusiness()">Prosegui con la richiesta</button>
         </div>
     </div>
 
@@ -7021,7 +7028,7 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
   if (privacySummary) {
     privacySummary.innerText = isAssistance
       ? "La verifica serve a confermare il numero sul quale desideri essere ricontattato. Questa richiesta non autorizza l'invio dei dati a un fornitore."
-      : "La verifica SMS serve a confermare il numero e sbloccare il confronto. L'autorizzazione a trasmettere i dati a un fornitore o partner resta separata e facoltativa fino alla scelta di un'offerta.";
+      : "L'SMS serve solo a confermare il numero e sbloccare il confronto. L'invio dei dati a fornitori o partner resta separato e facoltativo fino alla scelta di un'offerta.";
   }
   if (partnerCopy && !isAssistance) {
     if (source === "business") {
@@ -11852,7 +11859,7 @@ I tuoi dati non vengono inviati a fornitori o partner finché non scegli di proc
                 <input id="lead-consenso-partner" type="checkbox">
                 <span id="lead-partner-copy" class="lead-consent-copy"><strong>Facoltativo</strong> - autorizzo OffertaLogica a trasmettere i miei dati al fornitore o partner dell'offerta che sceglierò, per essere ricontattato esclusivamente in merito a quella proposta.</span>
             </label>
-            <div class="lead-privacy-note" id="lead-privacy-summary">La verifica SMS serve a confermare il numero e sbloccare il confronto. L'autorizzazione a trasmettere i dati a un fornitore o partner resta separata e facoltativa fino alla scelta di un'offerta.</div>
+            <div class="lead-privacy-note" id="lead-privacy-summary">L'SMS serve solo a confermare il numero e sbloccare il confronto. L'invio dei dati a fornitori o partner resta separato e facoltativo fino alla scelta di un'offerta.</div>
             <label class="lead-field" id="lead-otp-field" for="lead-otp" style="display:none;"><span>Codice ricevuto via SMS</span><input id="lead-otp" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" placeholder="000000"></label>
         </div>
         <div class="lead-actions">

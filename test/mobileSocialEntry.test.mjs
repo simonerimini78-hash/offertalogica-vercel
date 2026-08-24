@@ -220,11 +220,16 @@ test("landing V1.7: Privacy e Cookie tornano al modal Iubenda standard sopra la 
 test("blocco 02: OTP, fonti e business comunicano il servizio reale senza cambiare il flusso", () => {
   assert.match(html, /Verifica il numero per vedere il confronto completo/);
   assert.match(html, /I tuoi dati non vengono inviati a fornitori o partner finché non scegli di procedere con un'offerta\./);
-  assert.match(html, /La verifica SMS serve a confermare il numero e sbloccare il confronto\./);
-  assert.match(html, /L'autorizzazione a trasmettere i dati a un fornitore o partner resta separata e facoltativa fino alla scelta di un'offerta\./);
+  assert.match(html, /L'SMS serve solo a confermare il numero e sbloccare il confronto\./);
+  assert.match(html, /L'invio dei dati a fornitori o partner resta separato e facoltativo fino alla scelta di un'offerta\./);
   assert.match(html, /catalogo ARERA e gli indici di mercato disponibili/);
   assert.match(html, />Avvia analisi business<\/button>/);
+  assert.match(html, />Richiedi un contatto aziendale<\/button>/);
+  assert.match(html, /Puoi iniziare dall'analisi preliminare oppure richiedere direttamente un contatto\./);
+  assert.match(html, />Prosegui con la richiesta<\/button>/);
   assert.match(html, />Analisi preliminare in elaborazione<\/strong>/);
+  assert.doesNotMatch(html, />Richiedi analisi aziendale<\/button>/);
+  assert.doesNotMatch(html, />Sblocca analisi aziendale<\/button>/);
   assert.doesNotMatch(html, /Calcola margine business/);
   assert.doesNotMatch(html, /Margine stimato in elaborazione/);
   assert.doesNotMatch(html, /Qui stimiamo il margine/);
