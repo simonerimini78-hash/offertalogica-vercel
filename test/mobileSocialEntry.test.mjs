@@ -59,8 +59,8 @@ test("landing V1.3: mostra subito risparmio e due percorsi senza CTA intermedia"
   assert.match(html, /Confronta le offerte luce e gas sui tuoi consumi/);
   assert.match(html, /Come vuoi procedere\?/);
   assert.match(html, /Catalogo ufficiale ARERA/);
-  assert.match(html, /Ultimi indici di mercato disponibili/);
-  assert.match(html, /Prezzo energia \+ quota fissa/);
+  assert.match(html, /Indici di mercato aggiornati/);
+  assert.match(html, /Confronto del costo reale/);
   assert.match(html, /id="landing-self-service"[^>]*disabled/);
   assert.match(html, /<strong>Confronto in autonomia<\/strong>/);
   assert.match(html, /id="landing-assisted"[^>]*disabled/);
@@ -142,11 +142,11 @@ test("landing V1.3: disclaimer e compatto e uniforme", () => {
 test("landing V1.3: i due percorsi sono strutturalmente simmetrici, centrati e usano testo argento", () => {
   const css = between(html, "/* OFFERTALOGICA_LANDING_GLASS_V1_7_20260814 */", ".offers-personalize-prompt {");
   assert.match(css, /\.social-entry-actions \{[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);[\s\S]*grid-auto-rows: 1fr;[\s\S]*align-items: stretch;/);
-  assert.match(css, /\.social-entry-route \{[\s\S]*height: 100%;[\s\S]*min-height: 118px;[\s\S]*grid-template-rows: minmax\(30px, auto\) minmax\(38px, auto\);/);
+  assert.match(css, /\.social-entry-route \{[\s\S]*height: 100%;[\s\S]*min-height: 110px;[\s\S]*grid-template-rows: minmax\(28px, auto\) minmax\(34px, auto\);/);
   assert.match(css, /\.social-entry-route \{[\s\S]*justify-items: center;[\s\S]*text-align: center;/);
   assert.match(css, /\.social-entry-route strong \{[\s\S]*justify-content: center;[\s\S]*color: #e3e9e7;[\s\S]*text-transform: none;/);
   assert.match(css, /\.social-entry-route span \{[\s\S]*justify-content: center;[\s\S]*color: rgba\(227,233,231,\.86\);/);
-  assert.match(css, /@media \(max-width: 720px\)[\s\S]*grid-auto-rows: 1fr;[\s\S]*min-height: 108px;/);
+  assert.match(css, /@media \(max-width: 720px\)[\s\S]*grid-auto-rows: 1fr;[\s\S]*min-height: 102px;/);
 });
 
 test("landing V1.3: i pulsanti app riusano le classi originali del sito", () => {
@@ -215,4 +215,17 @@ test("landing V1.7: Privacy e Cookie tornano al modal Iubenda standard sopra la 
   const originalFooter = html.slice(html.lastIndexOf('<footer style="text-align: center;'));
   assert.match(originalFooter, /class="iubenda-white iubenda-noiframe iubenda-embed"[^>]*>Privacy Policy<\/a>/);
   assert.match(originalFooter, /class="iubenda-white iubenda-noiframe iubenda-embed"[^>]*>Cookie Policy<\/a>/);
+});
+
+test("blocco 02: OTP, fonti e business comunicano il servizio reale senza cambiare il flusso", () => {
+  assert.match(html, /Verifica il numero per vedere il confronto completo/);
+  assert.match(html, /I tuoi dati non vengono inviati a fornitori o partner finché non scegli di procedere con un'offerta\./);
+  assert.match(html, /La verifica SMS serve a confermare il numero e sbloccare il confronto\./);
+  assert.match(html, /L'autorizzazione a trasmettere i dati a un fornitore o partner resta separata e facoltativa fino alla scelta di un'offerta\./);
+  assert.match(html, /catalogo ARERA e gli indici di mercato disponibili/);
+  assert.match(html, />Avvia analisi business<\/button>/);
+  assert.match(html, />Analisi preliminare in elaborazione<\/strong>/);
+  assert.doesNotMatch(html, /Calcola margine business/);
+  assert.doesNotMatch(html, /Margine stimato in elaborazione/);
+  assert.doesNotMatch(html, /Qui stimiamo il margine/);
 });

@@ -2522,7 +2522,7 @@
 
     <div class="business-panel" id="business-panel">
         <h3>Analisi aziendale luce e gas</h3>
-        <p>Per le aziende il confronto dipende da potenza, fasce orarie e profilo di consumo. Qui stimiamo il margine e raccogliamo i dati per una verifica consulenziale.</p>
+        <p>Per le aziende il confronto dipende da potenza, fasce orarie e profilo di consumo. Qui raccogliamo i dati per un'analisi preliminare e una verifica consulenziale.</p>
 
         <div class="business-grid">
             <div class="business-section">
@@ -2626,13 +2626,13 @@
         </div>
 
         <div class="business-actions">
-            <button type="button" class="btn-action" onclick="calcolaBusiness()">Calcola margine business</button>
+            <button type="button" class="btn-action" onclick="calcolaBusiness()">Avvia analisi business</button>
             <button type="button" class="lead-secondary" onclick="apriLeadBusiness()">Richiedi analisi aziendale</button>
             <span class="upload-note">Per offerte business reali useremo il lead verificato e la bolletta caricata.</span>
         </div>
         <div class="business-error" id="business-error"></div>
         <div class="business-result" id="business-result">
-            <strong id="business-saving">Margine stimato in elaborazione</strong>
+            <strong id="business-saving">Analisi preliminare in elaborazione</strong>
             <p id="business-copy"></p>
             <button type="button" class="btn-action" onclick="apriLeadBusiness()">Sblocca analisi aziendale</button>
         </div>
@@ -3190,7 +3190,7 @@ let PARAMETRI_CALCOLO = {
 };
 let PERDITE_RETE_LUCE_VARIABILE = PARAMETRI_CALCOLO.perditeReteLuceVariabile;
 const TESTO_METODOLOGIA_CONSUMI_REALI = "I risparmi stimati sono calcolati sui consumi che hai inserito o confermato dalla bolletta. Applichiamo le condizioni economiche delle offerte allo stesso profilo di consumo, separando quota variabile e quota fissa.";
-const TESTO_METODOLOGIA_MEDIA_ARERA = "Quando non conosci i tuoi consumi, la comparazione viene fatta su consumi medi e sull'ultimo riferimento ARERA disponibile. Questa base omogenea serve a stimare il risparmio potenziale tra le diverse proposte.";
+const TESTO_METODOLOGIA_MEDIA_ARERA = "Quando non conosci i tuoi consumi, la comparazione viene fatta su consumi medi usando il catalogo ARERA e gli indici di mercato disponibili. Questa base omogenea serve a stimare il risparmio potenziale tra le diverse proposte.";
 
 let INDICI_MERCATO = {
   pun: {
@@ -6525,7 +6525,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       } else {
         if (title) title.innerText = gruppoVisuale === "top" || separataMulti ? "Offerta con consulente" : "Offerta attivabile online";
         aggiornaLogoOfferta(card, offerta, false);
-        if (details) details.innerText = "Verifica il cellulare per vedere nome fornitore, dettagli economici e link.";
+        if (details) details.innerText = "Verifica il numero per vedere nome fornitore, dettagli economici e percorso.";
         if (link) {
           link.innerText = "Verifica";
           link.href = "#";
@@ -6542,7 +6542,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
             <span class="offer-saving-line"><span>Risparmio stimato</span><strong>Disponibile dopo verifica</strong></span>
           </span>
           <small style="display:block; margin-top:3px; color:var(--text-muted); font-weight:600;">
-            Verifica il numero per vedere importi, prezzo, fornitore e percorso ufficiale.
+            Verifica il numero per vedere importi, prezzo, fornitore e percorso.
           </small>
         `;
       }
@@ -6583,8 +6583,8 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
     teaserCopy.innerText = SOCIAL_ENTRY_STATE.isSocialJourney
       ? "Stima basata sui consumi medi e sulle offerte partner attivabili disponibili oggi: verifica il numero per visualizzare fornitore, condizioni e percorso ufficiale."
       : modalitaCalcolo === "media"
-        ? "Stima basata sui consumi medi e sull'ultimo riferimento ARERA disponibile: verifica il numero per visualizzare le migliori offerte e quelle attivabili online."
-        : "Stima basata sui consumi che hai inserito: verifica il numero per visualizzare le migliori offerte e quelle attivabili online.";
+        ? "Stima basata sui consumi medi, sul catalogo ARERA e sugli indici di mercato disponibili: verifica il numero per visualizzare il confronto completo."
+        : "Stima basata sui consumi che hai inserito: verifica il numero per visualizzare il confronto completo.";
   }
   aggiornaPromptBollettaDopoOfferte();
 }
@@ -7001,12 +7001,12 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
     verifyBtn.innerText = isAssistance ? "Verifica e richiedi il ricontatto" : "Verifica e mostra le offerte";
   }
   if (title) {
-    title.innerText = isAssistance ? "Richiedi assistenza" : "Verifica il numero e visualizza il confronto";
+    title.innerText = isAssistance ? "Richiedi assistenza" : "Verifica il numero per vedere il confronto completo";
   }
   if (copy) {
     copy.innerText = isAssistance
       ? "Inserisci i tuoi dati e verifica il numero. OffertaLogica potrà ricontattarti per aiutarti a completare il confronto."
-      : "Inserisci i tuoi dati per ricevere il codice di verifica.\nNessun dato sarà inviato a un fornitore finché non sceglierai un'offerta.";
+      : "Il codice SMS serve a verificare il numero.\nI tuoi dati non vengono inviati a fornitori o partner finché non scegli di procedere con un'offerta.";
   }
   if (serviceCopy) {
     serviceCopy.innerHTML = isAssistance
@@ -7021,7 +7021,7 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
   if (privacySummary) {
     privacySummary.innerText = isAssistance
       ? "La verifica serve a confermare il numero sul quale desideri essere ricontattato. Questa richiesta non autorizza l'invio dei dati a un fornitore."
-      : "Il primo punto è necessario per elaborare e mostrarti il confronto. Il secondo potrà essere autorizzato anche successivamente, quando sceglierai un'offerta.";
+      : "La verifica SMS serve a confermare il numero e sbloccare il confronto. L'autorizzazione a trasmettere i dati a un fornitore o partner resta separata e facoltativa fino alla scelta di un'offerta.";
   }
   if (partnerCopy && !isAssistance) {
     if (source === "business") {
@@ -11448,7 +11448,7 @@ if (document.readyState === "loading") {
 <div class="fornitori-consigliati-section">
 <div class="lead-teaser" id="lead-teaser">
     <strong id="lead-teaser-title">Abbiamo trovato offerte più convenienti.</strong>
-    <p id="lead-teaser-copy">La stima usa consumi medi e l'ultimo riferimento ARERA disponibile: verifica il numero per visualizzare le migliori offerte e quelle attivabili online.</p>
+    <p id="lead-teaser-copy">La stima usa consumi medi, catalogo ARERA e indici di mercato disponibili: verifica il numero per visualizzare il confronto completo.</p>
     <button type="button" onclick="apriLeadModal('teaser')">Verifica e visualizza le offerte</button>
 </div>
 <div class="offers-personalize-prompt" id="offers-personalize-prompt" hidden>
@@ -11837,9 +11837,9 @@ if (document.readyState === "loading") {
 
 <div class="lead-modal-backdrop" id="lead-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="lead-modal-title">
     <div class="lead-modal">
-        <h3 id="lead-modal-title">Verifica il numero e visualizza il confronto</h3>
-        <p id="lead-modal-copy">Inserisci i tuoi dati per ricevere il codice di verifica.
-Nessun dato sarà inviato a un fornitore finché non sceglierai un'offerta.</p>
+        <h3 id="lead-modal-title">Verifica il numero per vedere il confronto completo</h3>
+        <p id="lead-modal-copy">Il codice SMS serve a verificare il numero.
+I tuoi dati non vengono inviati a fornitori o partner finché non scegli di procedere con un'offerta.</p>
         <div class="lead-form-grid">
             <label class="lead-field" for="lead-nome"><span>Nome e cognome</span><input id="lead-nome" type="text" autocomplete="name" placeholder="Mario Rossi"></label>
             <label class="lead-field" for="lead-telefono"><span>Cellulare</span><input id="lead-telefono" type="tel" autocomplete="tel" inputmode="tel" placeholder="333 1234567"></label>
@@ -11852,7 +11852,7 @@ Nessun dato sarà inviato a un fornitore finché non sceglierai un'offerta.</p>
                 <input id="lead-consenso-partner" type="checkbox">
                 <span id="lead-partner-copy" class="lead-consent-copy"><strong>Facoltativo</strong> - autorizzo OffertaLogica a trasmettere i miei dati al fornitore o partner dell'offerta che sceglierò, per essere ricontattato esclusivamente in merito a quella proposta.</span>
             </label>
-            <div class="lead-privacy-note" id="lead-privacy-summary">Il primo punto è necessario per elaborare e mostrarti il confronto. Il secondo potrà essere autorizzato anche successivamente, quando sceglierai un'offerta.</div>
+            <div class="lead-privacy-note" id="lead-privacy-summary">La verifica SMS serve a confermare il numero e sbloccare il confronto. L'autorizzazione a trasmettere i dati a un fornitore o partner resta separata e facoltativa fino alla scelta di un'offerta.</div>
             <label class="lead-field" id="lead-otp-field" for="lead-otp" style="display:none;"><span>Codice ricevuto via SMS</span><input id="lead-otp" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" placeholder="000000"></label>
         </div>
         <div class="lead-actions">
@@ -11973,7 +11973,7 @@ Nessun dato sarà inviato a un fornitore finché non sceglierai un'offerta.</p>
                 scrollToTarget(".pdf-lead-panel");
                 break;
             case "media":
-                setMessage("Useremo un profilo medio e l'ultimo riferimento ARERA disponibile. E' utile per una prima stima, poi puoi raffinare con la bolletta.");
+                setMessage("Useremo un profilo medio, il catalogo ARERA e gli indici di mercato disponibili. È utile per una prima stima, poi puoi raffinare con la bolletta.");
                 activateButton("btn-attiva-medi");
                 scrollToTarget("#btn-attiva-medi");
                 break;
