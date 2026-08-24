@@ -56,8 +56,11 @@ test("landing V1: bootstrap diretto, social e Google convergono sulla stessa lan
 
 test("landing V1.3: mostra subito risparmio e due percorsi senza CTA intermedia", () => {
   assert.match(html, /id="social-entry-saving-value"/);
-  assert.match(html, /Oggi potresti risparmiare fino a/);
+  assert.match(html, /Confronta le offerte luce e gas sui tuoi consumi/);
   assert.match(html, /Come vuoi procedere\?/);
+  assert.match(html, /Catalogo ufficiale ARERA/);
+  assert.match(html, /Ultimi indici di mercato disponibili/);
+  assert.match(html, /Prezzo energia \+ quota fissa/);
   assert.match(html, /id="landing-self-service"[^>]*disabled/);
   assert.match(html, /<strong>Confronto in autonomia<\/strong>/);
   assert.match(html, /id="landing-assisted"[^>]*disabled/);
@@ -130,7 +133,7 @@ test("landing V1.3: usa palette OffertaLogica, vetro piu evidente e resta respon
 });
 
 test("landing V1.3: disclaimer e compatto e uniforme", () => {
-  assert.match(html, /class="social-entry-disclaimer">Stima basata sui consumi medi di una famiglia e sulle offerte attivabili disponibili oggi\. Il risparmio reale dipende dai tuoi consumi e dalla tariffa attuale\.<\/p>/);
+  assert.match(html, /class="social-entry-disclaimer">La cifra mostrata è un esempio calcolato su un profilo medio\. Il confronto reale usa i tuoi consumi e la tua tariffa attuale\.<\/p>/);
   assert.doesNotMatch(html, /class="social-entry-copy-small"/);
   const css = between(html, "/* OFFERTALOGICA_LANDING_GLASS_V1_7_20260814 */", ".offers-personalize-prompt {");
   assert.match(css, /\.social-entry-disclaimer \{[\s\S]*font-size: clamp\(11\.5px, 1\.7vw, 13px\);[\s\S]*font-weight: 500;/);
@@ -169,7 +172,7 @@ test("offerte: propone ancora la bolletta senza bloccare la stima media", () => 
 test("landing V1.4: include il footer informativo completo del sito", () => {
   assert.match(html, /class="social-entry-footer"/);
   assert.match(html, /&copy; 2026 OffertaLogica\.it - Calcolatore Energetico/);
-  assert.match(html, /Analisi indipendente e trasparente delle offerte Luce e Gas per privati e aziende\./);
+  assert.match(html, /Confronto trasparente delle offerte luce e gas per privati\. Analisi preliminare dedicata alle aziende\./);
   assert.match(html, /Le stime sono informative e non sostituiscono scheda sintetica, condizioni economiche e contratto del fornitore\./);
   for (const href of [
     "/come-funziona.html",
