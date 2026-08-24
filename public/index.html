@@ -4535,9 +4535,16 @@ function quotaFissaAnnuaDaCampo(inputId, unitaId) {
   return leggiValore(unitaId, "anno") === "mese" ? valore * 12 : valore;
 }
 
-function euro(value) {
+function numeroItaliano(value, cifre = 2) {
   const amount = numeroSicuro(value, 0);
-  return `${amount.toFixed(2)} €`;
+  return new Intl.NumberFormat("it-IT", {
+    minimumFractionDigits: cifre,
+    maximumFractionDigits: cifre,
+  }).format(amount);
+}
+
+function euro(value) {
+  return `${numeroItaliano(value, 2)} €`;
 }
 
 function componentiRegolateDisponibili() {
@@ -5090,9 +5097,9 @@ function prezzoOffertaTesto(voce, commodity) {
   if (!voce) return commodity === "luce" ? "Luce non inclusa" : "Gas non incluso";
   const unita = commodity === "luce" ? "€/kWh" : "€/Smc";
   if (voce.formula?.tipo === "indice_spread") {
-    return `${voce.formula.indice.toUpperCase()} + ${voce.formula.spread.toFixed(4)} ${unita}`;
+    return `${voce.formula.indice.toUpperCase()} + ${numeroItaliano(voce.formula.spread, 4)} ${unita}`;
   }
-  return `${voce.prezzoVariabile.toFixed(4)} ${unita}`;
+  return `${numeroItaliano(voce.prezzoVariabile, 4)} ${unita}`;
 }
 
 function componentiSeparateOfferta(offerta) {
@@ -12062,7 +12069,7 @@ I tuoi dati non vengono inviati a fornitori o partner finché non scegli di proc
     <p style="margin-bottom: 8px; font-weight: bold;">&copy; 2026 OffertaLogica.it - Calcolatore Energetico</p>
     
     <p style="margin-bottom: 15px; color: #999;">
-        Analisi indipendente e trasparente delle offerte Luce e Gas per privati e aziende.
+        Confronto trasparente delle offerte luce e gas per privati. Analisi preliminare dedicata alle aziende.
     </p>
     <p style="margin: -5px auto 15px; color: #777; max-width: 780px; font-size: 12px; line-height: 1.45;">
         Le stime sono informative e non sostituiscono scheda sintetica, condizioni economiche e contratto del fornitore.

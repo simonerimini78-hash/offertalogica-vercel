@@ -255,3 +255,14 @@ test("blocco 02: risultati separano convenienza economica e percorso di attivazi
   assert.doesNotMatch(html, /Partner attivabile online/);
   assert.doesNotMatch(html, /3 migliori offerte per costo con consulente/);
 });
+
+
+test("blocco02: risultati usano formattazione italiana senza cambiare i valori di calcolo", () => {
+  assert.match(html, /function numeroItaliano\(value, cifre = 2\)/);
+  assert.match(html, /new Intl\.NumberFormat\("it-IT"/);
+  assert.match(html, /function euro\(value\) \{[\s\S]*numeroItaliano\(value, 2\)/);
+  assert.match(html, /numeroItaliano\(voce\.formula\.spread, 4\)/);
+  assert.match(html, /numeroItaliano\(voce\.prezzoVariabile, 4\)/);
+  assert.match(html, /Confronto trasparente delle offerte luce e gas per privati\. Analisi preliminare dedicata alle aziende\./);
+  assert.doesNotMatch(html, /Analisi indipendente e trasparente delle offerte Luce e Gas per privati e aziende\./);
+});
