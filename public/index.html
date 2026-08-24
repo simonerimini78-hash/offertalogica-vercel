@@ -6999,26 +6999,39 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
     mostraCampoOtp(false);
   }
   const isAssistance = source === "assistance_callback";
+  const isBusiness = source === "business";
   if (sendBtn) {
     sendBtn.style.display = "inline-block";
     sendBtn.innerText = "Invia il codice di verifica";
   }
   if (verifyBtn) {
     verifyBtn.style.display = "none";
-    verifyBtn.innerText = isAssistance ? "Verifica e richiedi il ricontatto" : "Verifica e mostra le offerte";
+    verifyBtn.innerText = isAssistance
+      ? "Verifica e richiedi il ricontatto"
+      : isBusiness
+        ? "Verifica e prosegui con la richiesta"
+        : "Verifica e mostra le offerte";
   }
   if (title) {
-    title.innerText = isAssistance ? "Richiedi assistenza" : "Verifica il numero per vedere il confronto completo";
+    title.innerText = isAssistance
+      ? "Richiedi assistenza"
+      : isBusiness
+        ? "Verifica il numero per proseguire con la richiesta aziendale"
+        : "Verifica il numero per vedere il confronto completo";
   }
   if (copy) {
     copy.innerText = isAssistance
       ? "Inserisci i tuoi dati e verifica il numero. OffertaLogica potrà ricontattarti per aiutarti a completare il confronto."
-      : "Il codice SMS serve a verificare il numero.\nI tuoi dati non vengono inviati a fornitori o partner finché non scegli di procedere con un'offerta.";
+      : isBusiness
+        ? "Il codice SMS serve a verificare il numero.\nI tuoi dati non vengono inviati a consulenti o partner senza la relativa autorizzazione."
+        : "Il codice SMS serve a verificare il numero.\nI tuoi dati non vengono inviati a fornitori o partner finché non scegli di procedere con un'offerta.";
   }
   if (serviceCopy) {
     serviceCopy.innerHTML = isAssistance
       ? `<strong>Richiedo di essere ricontattato da OffertaLogica per ricevere assistenza sul confronto.</strong> Dichiaro di aver letto l'<a href="https://www.iubenda.com/privacy-policy/36565194" target="_blank" rel="noopener">informativa privacy</a>.<span class="lead-consent-detail">Useremo i dati solo per verificare la richiesta e fornirti l'assistenza richiesta.</span>`
-      : `<strong>Richiedo la comparazione personalizzata e il ricontatto necessario alla gestione della mia richiesta.</strong> Dichiaro di aver letto l'<a href="https://www.iubenda.com/privacy-policy/36565194" target="_blank" rel="noopener">informativa privacy</a>.<span class="lead-consent-detail">Useremo i dati inseriti o caricati per elaborare il confronto e gestire la tua richiesta.</span>`;
+      : isBusiness
+        ? `<strong>Richiedo l'analisi preliminare e il ricontatto necessario alla gestione della mia richiesta.</strong> Dichiaro di aver letto l'<a href="https://www.iubenda.com/privacy-policy/36565194" target="_blank" rel="noopener">informativa privacy</a>.<span class="lead-consent-detail">Useremo i dati inseriti o caricati per preparare l'analisi preliminare e gestire la tua richiesta.</span>`
+        : `<strong>Richiedo la comparazione personalizzata e il ricontatto necessario alla gestione della mia richiesta.</strong> Dichiaro di aver letto l'<a href="https://www.iubenda.com/privacy-policy/36565194" target="_blank" rel="noopener">informativa privacy</a>.<span class="lead-consent-detail">Useremo i dati inseriti o caricati per elaborare il confronto e gestire la tua richiesta.</span>`;
   }
   if (partnerLabel) partnerLabel.style.display = isAssistance ? "none" : "flex";
   const serviceCheckbox = document.getElementById("lead-consenso-servizio");
@@ -7028,7 +7041,9 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
   if (privacySummary) {
     privacySummary.innerText = isAssistance
       ? "La verifica serve a confermare il numero sul quale desideri essere ricontattato. Questa richiesta non autorizza l'invio dei dati a un fornitore."
-      : "L'SMS serve solo a confermare il numero e sbloccare il confronto. L'invio dei dati a fornitori o partner resta separato e facoltativo fino alla scelta di un'offerta.";
+      : isBusiness
+        ? "L'SMS serve solo a confermare il numero e proseguire con la richiesta aziendale. L'invio dei dati a consulenti o partner resta separato e facoltativo."
+        : "L'SMS serve solo a confermare il numero e sbloccare il confronto. L'invio dei dati a fornitori o partner resta separato e facoltativo fino alla scelta di un'offerta.";
   }
   if (partnerCopy && !isAssistance) {
     if (source === "business") {

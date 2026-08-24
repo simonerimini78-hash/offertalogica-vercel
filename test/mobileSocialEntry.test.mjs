@@ -222,6 +222,12 @@ test("blocco 02: OTP, fonti e business comunicano il servizio reale senza cambia
   assert.match(html, /I tuoi dati non vengono inviati a fornitori o partner finché non scegli di procedere con un'offerta\./);
   assert.match(html, /L'SMS serve solo a confermare il numero e sbloccare il confronto\./);
   assert.match(html, /L'invio dei dati a fornitori o partner resta separato e facoltativo fino alla scelta di un'offerta\./);
+  assert.match(html, /const isBusiness = source === "business"/);
+  assert.match(html, /Verifica il numero per proseguire con la richiesta aziendale/);
+  assert.match(html, /Verifica e prosegui con la richiesta/);
+  assert.match(html, /Richiedo l'analisi preliminare e il ricontatto necessario alla gestione della mia richiesta\./);
+  assert.match(html, /L'SMS serve solo a confermare il numero e proseguire con la richiesta aziendale\./);
+  assert.match(html, /L'invio dei dati a consulenti o partner resta separato e facoltativo\./);
   assert.match(html, /catalogo ARERA e gli indici di mercato disponibili/);
   assert.match(html, />Avvia analisi business<\/button>/);
   assert.match(html, />Richiedi un contatto aziendale<\/button>/);
