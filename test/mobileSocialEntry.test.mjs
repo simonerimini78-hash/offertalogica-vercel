@@ -245,7 +245,7 @@ test("blocco 02: OTP, fonti e business comunicano il servizio reale senza cambia
 test("blocco 02: risultati separano convenienza economica e percorso di attivazione", () => {
   assert.match(html, /Il costo annuo stimato mostra il risultato economico del confronto\. I badge di attivazione indicano come puoi procedere con la singola offerta\./);
   assert.match(html, /Offerte con attivazione online disponibile/);
-  assert.match(html, /Il badge di attivazione indica il percorso disponibile per procedere con la singola offerta\./);
+  assert.match(html, /Qui trovi le offerte per cui è disponibile un percorso di attivazione online\./);
   assert.match(html, /Offerte più convenienti per costo annuo stimato/);
   assert.match(html, /Ordinate in base al costo annuo stimato sul tuo profilo\. Per procedere può essere necessaria una verifica\./);
   assert.match(html, /return "Vedi come procedere";/);
