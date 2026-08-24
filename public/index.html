@@ -2793,6 +2793,13 @@
                 <div class="column-energy" id="current-luce-column">
                     <h4>⚡ LUCE</h4>
                     <div class="input-group">
+                        <label for="in-luce-tipo-att">Tipo prezzo attuale luce</label>
+                        <select id="in-luce-tipo-att">
+                            <option value="fisso" selected>Prezzo fisso</option>
+                            <option value="variabile">Prezzo variabile / indicizzato</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
                         <label>Quanta luce usi in un anno? (kWh)</label>
                         <input type="number" id="in-luce-cons-att" placeholder="Es. 2700">
                     </div>
@@ -2817,6 +2824,13 @@
                 
                 <div class="column-energy" id="current-gas-column">
                     <h4>🔥 GAS</h4>
+                    <div class="input-group">
+                        <label for="in-gas-tipo-att">Tipo prezzo attuale gas</label>
+                        <select id="in-gas-tipo-att">
+                            <option value="fisso" selected>Prezzo fisso</option>
+                            <option value="variabile">Prezzo variabile / indicizzato</option>
+                        </select>
+                    </div>
                     <div class="input-group">
                         <label>Quanto gas usi in un anno? (Smc)</label>
                         <input type="number" id="in-gas-cons-att" placeholder="Es. 1000">
@@ -3979,12 +3993,14 @@ function normalizzaRigaAreraDual(riga) {
 
 function sincronizzaIndiciMercatoConCatalogoArera() {
   const indici = DATI_ARERA_MENU_META.indiciUsati;
+  const dettagli = DATI_ARERA_MENU_META.indiciUsatiDettaglio;
   if (!indici || typeof indici !== "object") return false;
   let aggiornato = false;
-  ["pun", "psv"].forEach((chiave) => {
+  ["pun", "psv", "psbg"].forEach((chiave) => {
     const valore = Number(indici[chiave]);
     if (!Number.isFinite(valore) || valore <= 0 || !INDICI_MERCATO[chiave]) return;
-    INDICI_MERCATO[chiave] = { ...INDICI_MERCATO[chiave], valore };
+    const dettaglio = dettagli && typeof dettagli[chiave] === "object" ? dettagli[chiave] : {};
+    INDICI_MERCATO[chiave] = { ...INDICI_MERCATO[chiave], ...dettaglio, valore };
     aggiornato = true;
   });
   return aggiornato;
@@ -4007,6 +4023,7 @@ function applicaDatiAreraMenu(data) {
     fonte: data.fonte || DATI_ARERA_MENU_META.fonte,
     aggiornatoIl: data.aggiornatoIl || DATI_ARERA_MENU_META.aggiornatoIl,
     indiciUsati: data.indiciUsati || DATI_ARERA_MENU_META.indiciUsati || null,
+    indiciUsatiDettaglio: data.indiciUsatiDettaglio || DATI_ARERA_MENU_META.indiciUsatiDettaglio || null,
   };
   OFFERTE_ARERA_MENU = pulite;
   OFFERTE_ARERA_DUAL = dualPulite;
@@ -4151,14 +4168,16 @@ function calcolaVoceEnergia({ consumo = 0, prezzoVariabile = 0, formula, consumi
 }
 
 function calcolaOfferta(offerta, tipoTariffa) {
+  const luceInput = offerta?.luce || scenarioVuoto();
+  const gasInput = offerta?.gas || scenarioVuoto();
   const luce = calcolaVoceEnergia({
-    ...(offerta?.luce || scenarioVuoto()),
-    tipoTariffa,
+    ...luceInput,
+    tipoTariffa: luceInput.tipoTariffa || tipoTariffa,
     commodity: "luce",
   });
   const gas = calcolaVoceEnergia({
-    ...(offerta?.gas || scenarioVuoto()),
-    tipoTariffa,
+    ...gasInput,
+    tipoTariffa: gasInput.tipoTariffa || tipoTariffa,
     commodity: "gas",
   });
 
@@ -4725,14 +4744,25 @@ function leggiProfiloComparazione() {
   };
 }
 
+function indiceMercatoDaProfiloPdf(index, commodity) {
+  const normalized = String(index || "").toLowerCase();
+  if (!normalized) return "";
+  if (commodity === "luce") return normalized.includes("pun") ? "pun" : "";
+  if (commodity === "gas") {
+    if (normalized.includes("psbg")) return "psbg";
+    if (normalized.includes("psv")) return "psv";
+  }
+  return "";
+}
+
 function formulaDaProfiloPdf(scope, commodity) {
   const profile = PDF_PROFILE_STATE[scope] || {};
   const suffix = commodity === "luce" ? "luce" : "gas";
   const index = profile[`indice_riferimento_${suffix}`];
   const multiplier = Number(profile[`moltiplicatore_indice_${suffix}`]);
   const spread = Number(profile[`spread_${suffix}_${commodity === "luce" ? "eur_kwh" : "eur_smc"}`]);
-  if (!index) return undefined;
-  const indice = String(index).toLowerCase().includes("psv") ? "psv" : "pun";
+  const indice = indiceMercatoDaProfiloPdf(index, commodity);
+  if (!indice) return undefined;
   if (Number.isFinite(multiplier)) return { tipo: "indice_moltiplicatore_spread", indice, moltiplicatore: multiplier, moltiplicatoreEsplicito: true, spread: Number.isFinite(spread) ? spread : 0 };
   return { tipo: "indice_spread", indice, spread: Number.isFinite(spread) ? spread : 0 };
 }
@@ -4761,6 +4791,7 @@ function leggiOffertaAttuale() {
     providerGas: leggiValore("nome-fornitore-gas-att", ""),
     luce: usaLuce ? {
       consumo: leggiNumero("in-luce-cons-att", leggiNumero("master-luce-consumo", 0)),
+      tipoTariffa: leggiValore("in-luce-tipo-att", PARAMETRI_CALCOLO.profiloMedio.tipoPrezzo),
       prezzoVariabile: leggiNumero("in-luce-prezzo-att"),
       consumiFasce: fasceDaProfiloPdf("current", "consumo_luce"),
       prezziFasce: fasceDaProfiloPdf("current", "prezzo_luce"),
@@ -4771,6 +4802,7 @@ function leggiOffertaAttuale() {
     } : scenarioVuoto(),
     gas: usaGas ? {
       consumo: leggiNumero("in-gas-cons-att", leggiNumero("master-gas-consumo", 0)),
+      tipoTariffa: leggiValore("in-gas-tipo-att", PARAMETRI_CALCOLO.profiloMedio.tipoPrezzo),
       prezzoVariabile: leggiNumero("in-gas-prezzo-att"),
       formula: formulaDaProfiloPdf("current", "gas"),
       quotaFissaAnnua: quotaFissaAnnuaDaCampo("in-gas-fisso-att", "in-gas-fisso-att-unita"),
@@ -4788,6 +4820,7 @@ function leggiNuovaOfferta(attuale) {
   return {
     luce: usaLuce ? {
       consumo: attuale.luce.consumo,
+      tipoTariffa: PDF_PROFILE_STATE.offer.tipo_prezzo_luce || NUOVA_OFFERTA_AUTOMATICA?.offerta?.tipo || leggiValore("master-luce-tipo", "fisso"),
       prezzoVariabile: leggiNumero("in-luce-prezzo-nuov"),
       // OFFERTALOGICA_OFFER_SHEET_SINGLE_PRICE_20260728
       // La scheda non contiene consumi propri: usa il prezzo isolato derivato da
@@ -4802,6 +4835,7 @@ function leggiNuovaOfferta(attuale) {
     } : scenarioVuoto(),
     gas: usaGas ? {
       consumo: attuale.gas.consumo,
+      tipoTariffa: PDF_PROFILE_STATE.offer.tipo_prezzo_gas || NUOVA_OFFERTA_AUTOMATICA?.offerta?.tipo || leggiValore("master-luce-tipo", "fisso"),
       prezzoVariabile: leggiNumero("in-gas-prezzo-nuov"),
       formula: formulaDaProfiloPdf("offer", "gas") || fonteAuto?.gas?.formula,
       quotaFissaAnnua: quotaFissaAnnuaDaCampo("in-gas-fisso-nuov", "in-gas-fisso-nuov-unita"),
@@ -9479,6 +9513,8 @@ function buildPdfAutofillSpecs(data, customerType = "privato") {
   const gasPriceType = pdfPreviewAutofillValue(data, "tipo_prezzo_gas");
   if (["fisso", "variabile"].includes(lucePriceType) && (gasPriceType === undefined || gasPriceType === lucePriceType)) add("tipo_prezzo_luce", gasPriceType === lucePriceType ? "Tipo prezzo luce e gas" : "Tipo prezzo luce", ["master-luce-tipo"]);
   else if (["fisso", "variabile"].includes(gasPriceType) && lucePriceType === undefined) add("tipo_prezzo_gas", "Tipo prezzo gas", ["master-luce-tipo"]);
+  if (["fisso", "variabile"].includes(lucePriceType)) add("tipo_prezzo_luce", "Tipo prezzo luce attuale", ["in-luce-tipo-att"]);
+  if (["fisso", "variabile"].includes(gasPriceType)) add("tipo_prezzo_gas", "Tipo prezzo gas attuale", ["in-gas-tipo-att"]);
   addProfile("tipo_prezzo_luce", "Tipo prezzo luce attuale", "pdf-current-tipo-prezzo-luce", "current");
   addProfile("tipo_prezzo_gas", "Tipo prezzo gas attuale", "pdf-current-tipo-prezzo-gas", "current");
   addProfile("consumo_luce_f1_kwh", "Consumo F1 attuale", "pdf-current-consumo-luce-f1", "current");
@@ -10891,6 +10927,8 @@ function applicaDatiPdfAlModulo(data) {
     setField("master-luce-tipo", PARAMETRI_CALCOLO.profiloMedio.tipoPrezzo);
     setField("master-tipo-fornitura", PARAMETRI_CALCOLO.profiloMedio.tipoFornitura);
     setField("master-gas-regione", PARAMETRI_CALCOLO.profiloMedio.regioneGas);
+    setField("in-luce-tipo-att", PARAMETRI_CALCOLO.profiloMedio.tipoPrezzo);
+    setField("in-gas-tipo-att", PARAMETRI_CALCOLO.profiloMedio.tipoPrezzo);
     setField("in-luce-cons-att", PARAMETRI_CALCOLO.profiloMedio.luceConsumoKwh);
     setField("in-luce-prezzo-att", PARAMETRI_CALCOLO.profiloMedio.prezzoLuceEurKwh.toFixed(4));
     impostaQuotaFissaAnnua("in-luce-fisso-att", "in-luce-fisso-att-unita", PARAMETRI_CALCOLO.profiloMedio.quotaFissaLuceAnnua);
@@ -11578,6 +11616,8 @@ if (document.readyState === "loading") {
 
               // C. AUTOCOMPILA TUTTI I CAMPI NUMERICI INFERIORI (Valori stimati stabili)
               // Fornitura Attuale
+              if(document.getElementById("in-luce-tipo-att")) document.getElementById("in-luce-tipo-att").value = PARAMETRI_CALCOLO.profiloMedio.tipoPrezzo;
+              if(document.getElementById("in-gas-tipo-att")) document.getElementById("in-gas-tipo-att").value = PARAMETRI_CALCOLO.profiloMedio.tipoPrezzo;
               if(document.getElementById("in-luce-cons-att")) document.getElementById("in-luce-cons-att").value = String(PARAMETRI_CALCOLO.profiloMedio.luceConsumoKwh);
               if(document.getElementById("in-luce-prezzo-att")) document.getElementById("in-luce-prezzo-att").value = PARAMETRI_CALCOLO.profiloMedio.prezzoLuceEurKwh.toFixed(4);
               impostaQuotaFissaAnnua("in-luce-fisso-att", "in-luce-fisso-att-unita", PARAMETRI_CALCOLO.profiloMedio.quotaFissaLuceAnnua);
