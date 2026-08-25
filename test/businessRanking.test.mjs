@@ -36,6 +36,7 @@ function extractFunction(name) {
 function buildBusinessContext({ business = [], dualBusiness = [] } = {}) {
   const names = [
     "calcolaCostoVenditaBusiness",
+    "offertaBusinessCompatibileGenerica",
     "creaCandidatoBusinessSingolo",
     "creaCandidatoBusinessDual",
     "creaCandidatoBusinessSeparato",
@@ -138,6 +139,46 @@ test("battaglia 01: per luce+gas confronta dual ufficiali e forniture separate",
   assert.equal(ranked[0].provider, "L1 + G1");
   assert.equal(ranked[0].costo, 1700);
   assert.equal(ranked[0].differenza, 1800);
+});
+
+
+test("battaglia 01 v2: il ranking business generico esclude offerte esplicitamente riservate ai condomini", () => {
+  const condominio = {
+    ...gas("condominio", 0.01, 1),
+    providerLabel: "ENEL ENERGIA",
+    nome: "Enel Condominio gas",
+    url: "https://example.test/business/offerte-gas-condomini",
+  };
+  const context = buildBusinessContext({
+    business: [condominio, gas("generica", 0.50, 100)],
+  });
+  const gasOnly = { ...profile, consumoLuceKwh: null, costoAttualeLuce: null, costoAttuale: 1000 };
+  const ranked = context.rankBusiness(gasOnly, 9);
+  assert.deepEqual(Array.from(ranked, (item) => item.provider), ["GENERICA"]);
+});
+
+test("battaglia 01 v2: anche una dual con componente condominio resta fuori dal ranking generico", () => {
+  const dualCondominio = {
+    providerKey: "dualcondo",
+    providerLabel: "DUAL CONDO",
+    fornitore: "DUAL CONDO",
+    fornitura: "dual",
+    customerType: "business",
+    tipo: "fisso",
+    nome: "Dual Business",
+    codice: "D-CONDO",
+    codiceOffertaLuce: "DL-CONDO",
+    codiceOffertaGas: "DG-CONDO",
+    fonte: "ARERA test",
+    luce: luce("dualcondo", 0.01, 1),
+    gas: { ...gas("dualcondo", 0.01, 1), nome: "Gas Stabile Condominio" },
+  };
+  const context = buildBusinessContext({
+    business: [luce("l1", 0.10, 100), gas("g1", 0.50, 100)],
+    dualBusiness: [dualCondominio],
+  });
+  const ranked = context.rankBusiness(profile, 9);
+  assert.ok(ranked.every((item) => item.provider !== "DUAL CONDO"));
 });
 
 test("battaglia 01: il tipo di attività non altera il ranking economico", () => {

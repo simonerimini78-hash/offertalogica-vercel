@@ -4796,8 +4796,18 @@ function descriviAmbitoBusiness(candidato) {
   return candidato?.ambito === "gas" ? "Gas" : "Luce";
 }
 
+function offertaBusinessCompatibileGenerica(riga) {
+  if (!riga || riga.customerType !== "business") return false;
+  const testo = [
+    riga.nome, riga.url,
+    riga.luce?.nome, riga.luce?.url,
+    riga.gas?.nome, riga.gas?.url,
+  ].filter(Boolean).join(" ");
+  return !/\bcondomin(?:io|i|iale|iali)\b/i.test(testo);
+}
+
 function creaCandidatoBusinessSingolo(riga, profile) {
-  if (!riga || riga.customerType !== "business") return null;
+  if (!offertaBusinessCompatibileGenerica(riga)) return null;
   const commodity = riga.commodity === "gas" ? "gas" : "luce";
   const consumo = commodity === "luce" ? profile.consumoLuceKwh : profile.consumoGasSmc;
   const costoAttuale = commodity === "luce" ? profile.costoAttualeLuce : profile.costoAttualeGas;
@@ -4819,7 +4829,7 @@ function creaCandidatoBusinessSingolo(riga, profile) {
 }
 
 function creaCandidatoBusinessDual(riga, profile) {
-  if (!riga || riga.customerType !== "business" || riga.fornitura !== "dual") return null;
+  if (!offertaBusinessCompatibileGenerica(riga) || riga.fornitura !== "dual") return null;
   const costoLuce = calcolaCostoVenditaBusiness(profile.consumoLuceKwh, riga.luce?.prezzo, riga.luce?.quotaFissaAnnua);
   const costoGas = calcolaCostoVenditaBusiness(profile.consumoGasSmc, riga.gas?.prezzo, riga.gas?.quotaFissaAnnua);
   if (![costoLuce, costoGas, profile.costoAttuale].every(Number.isFinite)) return null;
