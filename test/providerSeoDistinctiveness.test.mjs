@@ -62,11 +62,11 @@ test("blocco03: filtro ARERA invariato e variabile template rinominata", () => {
 });
 
 
-test("blocco03: sitemap aggiorna solo le sei pagine fornitore modificate", () => {
+test("blocco03: sitemap mantiene aggiornati i lastmod delle sei pagine fornitore", () => {
   const sitemap = fs.readFileSync(path.join(root, "public", "sitemap.xml"), "utf8");
   for (const key of Object.keys(providers)) {
     const block = new RegExp(`<loc>https://offertalogica\\.it/fornitori/${key}\\.html</loc>\\s*<lastmod>2026-08-25</lastmod>`);
     assert.match(sitemap, block);
   }
-  assert.match(sitemap, /<loc>https:\/\/offertalogica\.it\/<\/loc>\s*<lastmod>2026-08-16<\/lastmod>/);
+  assert.match(sitemap, /<loc>https:\/\/offertalogica\.it\/<\/loc>\s*<lastmod>2026-08-25<\/lastmod>/);
 });

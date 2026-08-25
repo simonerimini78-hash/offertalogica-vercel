@@ -42,14 +42,14 @@ test('guida bolletta: ebook e immagini locali esistono', () => {
   for (const name of images) { const p = path.join(publicDir,'assets','guida-bolletta',name); assert.ok(fs.existsSync(p), `${name} assente`); assert.ok(fs.statSync(p).size > 10_000, `${name} sembra vuota`); }
 });
 
-test('guida bolletta: sitemap contiene solo le 15 URL indicizzabili e lastmod significativo', () => {
+test('guida bolletta: sitemap contiene solo le 16 URL indicizzabili e lastmod significativo', () => {
   const locs = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
-  assert.equal(locs.length, 15);
-  assert.equal(new Set(locs).size, 15);
+  assert.equal(locs.length, 16);
+  assert.equal(new Set(locs).size, 16);
   assert.ok(locs.includes(canonicalUrl));
   assert.ok(!locs.includes('https://offertalogica.it/casa-smart.html'));
   assert.ok(!locs.includes('https://offertalogica.it/internet-casa.html'));
-  assert.match(sitemap, /<loc>https:\/\/offertalogica\.it\/<\/loc><lastmod>2026-08-16<\/lastmod>/);
+  assert.match(sitemap, /<loc>https:\/\/offertalogica\.it\/<\/loc><lastmod>2026-08-25<\/lastmod>/);
   assert.match(sitemap, /<loc>https:\/\/offertalogica\.it\/come-leggere-bolletta-luce-gas\.html<\/loc><lastmod>2026-08-25<\/lastmod>/);
 });
 
