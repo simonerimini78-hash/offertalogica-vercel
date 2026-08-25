@@ -2729,7 +2729,7 @@
         <h3>Carica bolletta o scheda sintetica</h3>
         <div id="pdf-upload-context-notice" class="pdf-context-notice" role="status" aria-live="polite" hidden>
             <span class="pdf-context-icon" aria-hidden="true">↓</span>
-            <span><strong>Sei nel punto giusto.</strong> Seleziona qui il PDF della scheda sintetica, poi premi <strong>Analizza PDF</strong>.</span>
+            <span><strong>Sei nel punto giusto.</strong> Seleziona la bolletta o la scheda sintetica, poi premi <strong>Analizza PDF</strong>.</span>
         </div>
         <div class="upload-drop" id="pdf-upload-drop">
             <div class="pdf-file-picker">
@@ -2740,10 +2740,11 @@
             <div id="pdf-selected-files" class="pdf-selected-files" aria-live="polite" hidden></div>
             <button type="button" class="btn-action" onclick="preparaConfermaPdf()">Analizza PDF</button>
             <button type="button" class="lead-secondary" onclick="azzeraPdfEModulo()">Rimuovi tutti i PDF e ricomincia</button>
-            <div class="upload-note">Ogni nuova analisi sostituisce i dati letti dalla precedente. Puoi selezionare insieme più PDF appartenenti alla stessa fornitura.</div>
+            <div class="upload-note">Puoi aggiungere in momenti diversi la bolletta luce e la bolletta gas: se sono compatibili restano insieme. Una nuova lettura della stessa fornitura aggiorna quella precedente. La bolletta attuale e l'eventuale scheda di una nuova offerta restano separate.</div>
+            <div class="upload-note"><strong>Controllo finale:</strong> il PDF serve a compilare i dati utili al confronto. Verifica i valori letti prima di procedere; il caricamento non avvia alcun cambio di fornitore.</div>
             <div class="pdf-review-static" id="pdf-review-static" tabindex="-1" role="status" aria-live="polite">
                 <strong id="pdf-review-title">Lettura PDF</strong>
-                <p id="pdf-review-copy">Seleziona uno o più PDF e premi “Analizza PDF”. I dati saranno inseriti direttamente nel modulo.</p>
+                <p id="pdf-review-copy">Seleziona uno o più PDF e premi “Analizza PDF”. Dopo la lettura controlla i dati inseriti prima di avviare il confronto.</p>
             </div>
         </div>
     </div>
@@ -8222,7 +8223,6 @@ function aggiornaStatoPdfMobileDopoAnalisi({ files = [], validCurrent = [], vali
   if (validCurrent.length) {
     const data = datiBollettaCorrentePdf() || LEAD_STATE.pdfData || {};
     const scope = ambitoConfrontoAttivo();
-    const mancanti = campiMancanti(configurazioniPdfDaControllare(data, false));
     if (["pending_gas", "pending_luce"].includes(scope)) {
       mostraStatoPdfMobile({
         mode: "ready",
@@ -8235,6 +8235,33 @@ function aggiornaStatoPdfMobileDopoAnalisi({ files = [], validCurrent = [], vali
       });
       return;
     }
+    if (LEAD_STATE.customerType === "business") {
+      const businessProfile = leggiProfiloBusiness();
+      if (!businessProfile.datiCompleti) {
+        const count = businessProfile.campiMancanti.length;
+        mostraStatoPdfMobile({
+          mode: "warning",
+          title: count === 1 ? "Manca 1 dato aziendale" : `Mancano ${count} dati aziendali`,
+          copy: `Completa nel profilo aziendale: ${businessProfile.campiMancanti.join(", ")}.`,
+          filename,
+          primaryLabel: count === 1 ? "Completa il dato" : "Completa i dati",
+          secondaryLabel: "Controlla il profilo",
+          primaryAction: "business_missing",
+        });
+        return;
+      }
+      mostraStatoPdfMobile({
+        mode: "ready",
+        title: "Bolletta aziendale letta",
+        copy: "I dati necessari sono stati inseriti. Puoi confrontare le offerte business oppure controllare il profilo aziendale.",
+        filename,
+        primaryLabel: "Confronta offerte business",
+        secondaryLabel: "Controlla i dati",
+        primaryAction: "business_compare",
+      });
+      return;
+    }
+    const mancanti = campiMancanti(configurazioniPdfDaControllare(data, false));
     if (mancanti.length) {
       const count = mancanti.length;
       mostraStatoPdfMobile({
@@ -8303,6 +8330,20 @@ function portaAlTeaserOfferteMobile() {
 
 function gestisciAzionePrimariaPdfMobile() {
   const action = MOBILE_PDF_STATUS_STATE.primaryAction;
+  if (action === "business_compare") {
+    nascondiStatoPdfMobile();
+    const profile = window.calcolaBusiness?.();
+    const target = profile
+      ? document.getElementById("business-result")
+      : document.getElementById("business-error") || document.getElementById("business-panel");
+    portaElementoInVista(target || document.getElementById("business-panel"), { block: "start", focus: false, delay: 40 });
+    return;
+  }
+  if (action === "business_missing") {
+    nascondiStatoPdfMobile();
+    portaElementoInVista(document.getElementById("business-panel"), { block: "start", focus: false, delay: 40 });
+    return;
+  }
   if (action === "compare") {
     nascondiStatoPdfMobile();
     attivaFocusOfferteMobile();
@@ -8328,10 +8369,14 @@ function gestisciAzionePrimariaPdfMobile() {
 }
 
 function controllaDatiDaStatoPdfMobile() {
-  const target = MOBILE_PDF_STATUS_STATE.primaryAction === "offer_review"
+  const action = MOBILE_PDF_STATUS_STATE.primaryAction;
+  const businessReview = ["business_compare", "business_missing"].includes(action) || LEAD_STATE.customerType === "business";
+  const target = action === "offer_review"
     ? document.getElementById("blocco-nuovo")
-    : document.getElementById("pdf-data-review-guidance") || document.getElementById("blocco-attuale");
-  if (MOBILE_PDF_STATUS_STATE.primaryAction === "offer_review") espandiOffertaFacoltativaMobile();
+    : businessReview
+      ? document.getElementById("business-panel")
+      : document.getElementById("pdf-data-review-guidance") || document.getElementById("blocco-attuale");
+  if (action === "offer_review") espandiOffertaFacoltativaMobile();
   nascondiStatoPdfMobile();
   portaElementoInVista(target, { block: "start", focus: false, delay: 40 });
 }
