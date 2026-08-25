@@ -2482,7 +2482,8 @@
     try {
         const params = new URLSearchParams(window.location.search || "");
         const hashParams = new URLSearchParams(String(window.location.hash || "").replace(/^#/, ""));
-        const staffPreview = ["staff", "staffToken", "previewToken"].some((key) => params.has(key) || hashParams.has(key));
+        const staffSessionActive = sessionStorage.getItem("offertalogicaStaffMode") === "true";
+        const staffPreview = staffSessionActive || ["staff", "staffToken", "previewToken"].some((key) => params.has(key) || hashParams.has(key));
         const calculatorBypass = params.get("landing") === "0" || String(params.get("entry") || "").toLowerCase() === "calculator";
         const requested = !staffPreview && (Boolean(window.__OFFERTALOGICA_LANDING_FORCE__) || !calculatorBypass);
         window.__OFFERTALOGICA_LANDING_REQUESTED__ = requested;
@@ -5224,21 +5225,15 @@ function testoAzioneOfferta(offerta, attivabileOnline) {
 }
 
 function testoBadgeOfferta(item, migliore) {
-  if (item.offerta && offertaSeparataMultiFornitore(item.offerta)) return "Abbinamento separato";
-  if (item.gruppoVisuale === "top" && item.posizioneGruppo === 1) return "Migliore stimata con consulente";
-  if (item.gruppoVisuale === "top" && item.posizioneGruppo) return "Verifica con consulente";
-  if (item.gruppoVisuale === "top" && item.posizioneEconomica === 1) return "Migliore per i tuoi consumi";
-  if (item.gruppoVisuale === "top") return "Offerta conveniente stimata";
-  if (item.gruppoVisuale === "attivabile") return "Attivabile online";
+  if (item.posizioneEconomica === 1) return "Migliore per i tuoi consumi";
+  if (item.posizioneEconomica) return `Posizione economica ${item.posizioneEconomica}`;
   const scarto = item.costo - (migliore?.costo || item.costo);
-  return scarto <= 50 ? "Miglior compromesso attivabile" : "Attivabile online";
+  return scarto <= 50 ? "Tra le offerte più convenienti" : "Offerta confrontata";
 }
 
 function stileBadgeOfferta(item) {
-  if (item.gruppoVisuale === "top" && item.posizioneEconomica === 1) return "background:#dcfce7; color:#14532d; border-color:#bbf7d0;";
-  if (item.gruppoVisuale === "top") return "background:#eff6ff; color:#1e40af; border-color:#bfdbfe;";
-  if (item.gruppoVisuale === "attivabile") return "background:#ecfdf5; color:#047857; border-color:#a7f3d0;";
-  return "background:#fef3c7; color:#92400e; border-color:#fde68a;";
+  if (item.posizioneEconomica === 1) return "background:#dcfce7; color:#14532d; border-color:#bbf7d0;";
+  return "background:#eff6ff; color:#1e40af; border-color:#bfdbfe;";
 }
 
 function commissionePrevista(offerta) {
@@ -6313,60 +6308,14 @@ function costruisciOfferteRanking(attuale, tipoTariffa, tipoFornitura) {
   return unisciOfferteCandidati(daArera, partnerDirette);
 }
 
-function chiaveGruppoPartner(item) {
-  // Il confronto corrente ha gia un solo tipo prezzo e un solo ambito:
-  // per impedire doppioni fra i due gruppi basta la chiave del fornitore reale.
-  return chiaveProviderOfferta(item?.offerta);
-}
+// BLOCCO04_RANKING_ECONOMICO_UNICO_20260825
+const NUMERO_OFFERTE_RANKING_MENU = 9;
 
-function offertaCommercialeDiretta(item) {
-  return !String(item?.offerta?.id || "").startsWith("arera-");
-}
-
-function preferisciPartnerAttivabile(nuovo, corrente) {
-  if (!corrente) return true;
-  const deltaCosto = nuovo.costo - corrente.costo;
-  if (Math.abs(deltaCosto) > 0.01) return deltaCosto < 0;
-  return offertaCommercialeDiretta(nuovo) && !offertaCommercialeDiretta(corrente);
-}
-
-function deduplicaPartnerAttivabili(items) {
-  const bestByProvider = new Map();
-  items.forEach((item) => {
-    const key = chiaveGruppoPartner(item);
-    const current = bestByProvider.get(key);
-    if (preferisciPartnerAttivabile(item, current)) bestByProvider.set(key, item);
-  });
-  return [...bestByProvider.values()];
-}
-
-// OFFERTALOGICA_ALWAYS_6_PARTNERS_3_CONSULTANT_20260722
-const NUMERO_OFFERTE_PARTNER_MENU = 6;
-const NUMERO_OFFERTE_CONSULENTE_MENU = 3;
-
-function selezionaPartnerAttivabiliPerMenu(items, limite = NUMERO_OFFERTE_PARTNER_MENU) {
-  const ordinate = [...items]
-    .sort((a, b) => (a.costo - b.costo) || (b.differenza - a.differenza));
-  const prioritaProvider = deduplicaPartnerAttivabili(ordinate)
-    .sort((a, b) => (a.costo - b.costo) || (b.differenza - a.differenza));
-  const selezionate = [];
-  const ids = new Set();
-  const add = (item) => {
-    const id = String(item?.offerta?.id || "");
-    if (!id || ids.has(id) || selezionate.length >= limite) return;
-    ids.add(id);
-    selezionate.push(item);
-  };
-  prioritaProvider.forEach(add);
-  ordinate.forEach(add);
-  return selezionate.slice(0, limite);
-}
-
-function selezionaConsulentiPerMenu(items, partnerVisibili, limite = NUMERO_OFFERTE_CONSULENTE_MENU) {
-  const idsPartner = new Set(partnerVisibili.map((item) => String(item?.offerta?.id || "")));
-  return items
-    .filter((item) => !item.attivabileOnline)
-    .filter((item) => !idsPartner.has(String(item?.offerta?.id || "")))
+function selezionaRankingEconomicoPerMenu(items, limite = NUMERO_OFFERTE_RANKING_MENU) {
+  return [...items]
+    .sort((a, b) => (a.posizioneEconomica - b.posizioneEconomica)
+      || (b.differenza - a.differenza)
+      || (a.costo - b.costo))
     .slice(0, limite);
 }
 
@@ -6440,72 +6389,36 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
     .sort((a, b) => (b.differenza - a.differenza) || (a.costo - b.costo))
     .map((item, index) => ({ ...item, posizioneEconomica: index + 1 }));
 
-  const rankingGlobale = new Map(
-    [...offerteCalcolate]
-      .sort((a, b) => (b.differenza - a.differenza) || (a.costo - b.costo))
-      .map((item, index) => [String(item.offerta.id), index + 1])
-  );
-
-  // OFFERTALOGICA_ALWAYS_6_PARTNERS_3_CONSULTANT_20260722
-  // Ogni combinazione del menu deve mostrare sei percorsi partner attivi e
-  // tre migliori offerte esatte per costo con consulente.
-  const partnerAttivabiliCoerenti = offerteCalcolate
-    .filter((item) => item.attivabileCoerente)
-    .sort((a, b) => (a.costo - b.costo) || (b.differenza - a.differenza));
-
-  const attivabiliPrioritarie = selezionaPartnerAttivabiliPerMenu(
-    partnerAttivabiliCoerenti,
-    NUMERO_OFFERTE_PARTNER_MENU
+  // BLOCCO04_RANKING_ECONOMICO_UNICO_20260825
+  // La convenienza economica decide quali offerte sono visibili e in quale ordine.
+  // La modalita di attivazione resta un attributo della singola offerta e non
+  // influenza l'ingresso nel ranking.
+  const visibili = selezionaRankingEconomicoPerMenu(
+    ordinateRanking,
+    NUMERO_OFFERTE_RANKING_MENU
   ).map((item, index) => ({
     ...item,
-    gruppoVisuale: "attivabile",
-    posizioneGruppo: index + 1,
-    posizioneEconomica: rankingGlobale.get(String(item.offerta.id)) || null,
-  }));
-
-  const candidatiConsulente = ordinateRanking
-    .filter((item) => item.compatibileRanking && item.filtroEsatto)
-    .filter((item) => item.offerta?.tipo === tipoTariffa)
-    .filter((item) => offertaCoerenteConFornitura(item.offerta, tipoFornitura));
-
-  const miglioriConConsulente = selezionaConsulentiPerMenu(
-    candidatiConsulente,
-    attivabiliPrioritarie,
-    NUMERO_OFFERTE_CONSULENTE_MENU
-  ).map((item, index) => ({
-    ...item,
-    gruppoVisuale: "top",
+    gruppoVisuale: "ranking",
     posizioneGruppo: index + 1,
   }));
-
-  if (attivabiliPrioritarie.length !== NUMERO_OFFERTE_PARTNER_MENU
-      || miglioriConConsulente.length !== NUMERO_OFFERTE_CONSULENTE_MENU) {
-    console.warn("[OffertaLogica] Composizione offerte incompleta", {
-      filtro: testoFiltroOfferte(tipoTariffa, tipoFornitura),
-      partner: attivabiliPrioritarie.length,
-      consulente: miglioriConConsulente.length,
-    });
-  }
-  const visibili = [...attivabiliPrioritarie, ...miglioriConConsulente];
+  const attivabiliVisibili = visibili.filter((item) => item.attivabileOnline);
+  const assistiteVisibili = visibili.filter((item) => !item.attivabileOnline);
   const idsVisibili = new Set(visibili.map((item) => String(item.offerta.id)));
-  const migliore = ordinateRanking[0] || offerteCalcolate[0] || null;
+  const migliore = visibili[0] || ordinateRanking[0] || offerteCalcolate[0] || null;
   const hasVisibleOffers = visibili.length > 0;
-  const gruppoPartner = assicuraGruppoOfferte(
-    "offerte-partner-online-group",
-    "partner-group",
-    "Offerte con attivazione online disponibile",
-    "Qui trovi le offerte per cui è disponibile un percorso di attivazione online."
-  );
-  const gruppoConsulente = assicuraGruppoOfferte(
-    "offerte-consulente-group",
-    "consultant-group",
+
+  ["offerte-partner-online-group", "offerte-consulente-group"].forEach((id) => {
+    document.getElementById(id)?.remove();
+  });
+  const gruppoRanking = assicuraGruppoOfferte(
+    "offerte-ranking-group",
+    "ranking-group",
     "Offerte più convenienti per costo annuo stimato",
     OFFERTE_ARERA_MENU.length
-      ? "Ordinate in base al costo annuo stimato sul tuo profilo. Per procedere può essere necessaria una verifica."
-      : "Ordinate in base al costo annuo stimato tra le offerte disponibili nel calcolatore. Per procedere può essere necessaria una verifica."
+      ? "Ordinate esclusivamente in base al costo annuo stimato sul tuo profilo. Il badge di percorso indica come puoi procedere con ciascuna offerta."
+      : "Ordinate esclusivamente in base al costo annuo stimato tra le offerte disponibili. Il badge di percorso indica come puoi procedere con ciascuna offerta."
   );
-  const contenitorePartner = resetGruppoOfferte(gruppoPartner, attivabiliPrioritarie.length > 0);
-  const contenitoreConsulente = resetGruppoOfferte(gruppoConsulente, miglioriConConsulente.length > 0);
+  const contenitoreRanking = resetGruppoOfferte(gruppoRanking, hasVisibleOffers);
 
   offerteCalcolate.forEach(({ card, offerta }) => {
     if (!idsVisibili.has(String(offerta.id))) {
@@ -6529,12 +6442,12 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
   }
 
   visibili.forEach(({ card, offerta, costo, costoOfferta, differenza, risparmio, saving, ambito, posizioneEconomica, posizioneGruppo, gruppoVisuale, attivabileOnline, compatibileRanking, filtroEsatto, alternativeFiltro }) => {
-      const contenitoreTarget = gruppoVisuale === "attivabile" ? contenitorePartner : contenitoreConsulente;
+      const contenitoreTarget = contenitoreRanking;
       const context = {
         economyRank: posizioneEconomica,
         displayRank: posizioneGruppo,
         displayGroup: gruppoVisuale,
-        isTopEconomic: gruppoVisuale === "top",
+        isTopEconomic: posizioneEconomica === 1,
         isActiveAffiliate: attivabileOnline,
         matchesSelectedFilter: Boolean(filtroEsatto),
         isFilterAlternative: Boolean(alternativeFiltro),
@@ -6548,8 +6461,8 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       OFFER_RENDER_CONTEXTS.set(String(offerta.id), context);
 
       card.style.display = "flex";
-      card.style.borderColor = gruppoVisuale === "top" && posizioneEconomica === 1 ? "var(--primary)" : (gruppoVisuale === "attivabile" ? "#fde68a" : "var(--border)");
-      card.style.boxShadow = gruppoVisuale === "top" && posizioneEconomica === 1 ? "0 0 0 1px rgba(16, 185, 129, 0.18)" : "none";
+      card.style.borderColor = posizioneEconomica === 1 ? "var(--primary)" : "var(--border)";
+      card.style.boxShadow = posizioneEconomica === 1 ? "0 0 0 1px rgba(16, 185, 129, 0.18)" : "none";
       card.classList.toggle("locked-offer", !LEAD_STATE.verified);
 
       const title = card.querySelector(".partner-title");
@@ -6559,10 +6472,13 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       const badgeText = testoBadgeOfferta({ offerta, posizioneEconomica, posizioneGruppo, gruppoVisuale, costo, compatibileRanking }, migliore);
       const tipoPrezzoBadge = offerta?.tipo === "variabile" ? "Prezzo variabile" : "Prezzo fisso";
       const badge = `<span style="display:inline-block; margin:0 0 6px; padding:3px 8px; border:1px solid; border-radius:999px; font-size:11px; font-weight:800; ${stileBadgeOfferta({ posizioneEconomica, gruppoVisuale })}">${badgeText}</span><span style="display:inline-block; margin:0 0 6px 6px; padding:3px 8px; border:1px solid #bfdbfe; border-radius:999px; background:#eff6ff; color:#1d4ed8; font-size:11px; font-weight:800;">${tipoPrezzoBadge}</span>`;
-      const onlineBadge = attivabileOnline && !badgeText.toLowerCase().includes("attivabile")
-        ? `<span style="display:inline-block; margin:0 0 6px 6px; padding:3px 8px; border:1px solid #a7f3d0; border-radius:999px; background:#ecfdf5; color:#047857; font-size:11px; font-weight:800;">Attivabile online</span>`
-        : "";
-      const alternativeNote = alternativeFiltro && gruppoVisuale !== "attivabile"
+      const percorsoBadgeText = attivabileOnline
+        ? "Attivabile online"
+        : (separataMulti ? "Verifica con consulente" : "Percorso da verificare");
+      const percorsoBadge = attivabileOnline
+        ? `<span style="display:inline-block; margin:0 0 6px 6px; padding:3px 8px; border:1px solid #a7f3d0; border-radius:999px; background:#ecfdf5; color:#047857; font-size:11px; font-weight:800;">${percorsoBadgeText}</span>`
+        : `<span style="display:inline-block; margin:0 0 6px 6px; padding:3px 8px; border:1px solid #cbd5e1; border-radius:999px; background:#f8fafc; color:#475569; font-size:11px; font-weight:800;">${percorsoBadgeText}</span>`;
+      const alternativeNote = alternativeFiltro
         ? `<small style="display:block; margin-top:3px; color:#92400e; font-weight:700;">${tipoTariffa === "variabile" && offerta.tipo === "variabile" ? "Offerta variabile" : "Alternativa"} ${descriviTipoOfferta(offerta)} mostrata anche se il filtro selezionato e ${testoFiltroOfferte(tipoTariffa, tipoFornitura)}.</small>`
         : "";
       const costoStimatoLabel = `Costo stimato ${ambito}`;
@@ -6584,7 +6500,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
         }
         saving.style.color = risparmio ? "var(--primary)" : "var(--danger)";
         saving.innerHTML = `
-          ${badge}${onlineBadge}
+          ${badge}${percorsoBadge}
           <span class="offer-metrics">
             <span class="offer-cost-line"><span>${costoStimatoLabel}</span><strong>${euro(costo)} / anno</strong></span>
             <span class="${savingLineClass}"><span>${risparmioLabel}</span><strong>${euro(Math.abs(differenza))} / anno</strong></span>
@@ -6595,7 +6511,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
           </small>
         `;
       } else {
-        if (title) title.innerText = gruppoVisuale === "top" || separataMulti ? "Offerta con consulente" : "Offerta attivabile online";
+        if (title) title.innerText = "Offerta confrontata";
         aggiornaLogoOfferta(card, offerta, false);
         if (details) details.innerText = "Verifica il numero per vedere nome fornitore, dettagli economici e percorso.";
         if (link) {
@@ -6608,7 +6524,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
         }
         saving.style.color = "var(--text-muted)";
         saving.innerHTML = `
-          ${badge}${onlineBadge}
+          ${badge}${percorsoBadge}
           <span class="offer-metrics">
             <span class="offer-cost-line"><span>Costo stimato</span><strong>Disponibile dopo verifica</strong></span>
             <span class="offer-saving-line"><span>Risparmio stimato</span><strong>Disponibile dopo verifica</strong></span>
@@ -6621,14 +6537,15 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       contenitoreTarget?.appendChild(card);
     });
 
-  LEAD_STATE.bestPartnerSaving = Math.max(0, ...attivabiliPrioritarie.map((item) => item.differenza));
+  LEAD_STATE.bestPartnerSaving = Math.max(0, ...attivabiliVisibili.map((item) => item.differenza));
   LEAD_STATE.bestSaving = Math.max(0, ...visibili.map((item) => item.differenza));
   trackEvent("offers_rendered", {
     tipoPrezzo: tipoTariffa,
     tipoFornitura,
     visibleOffersCount: visibili.length,
-    activePartnerOffersCount: attivabiliPrioritarie.length,
-    consultantOffersCount: miglioriConConsulente.length,
+    activePartnerOffersCount: attivabiliVisibili.length,
+    consultantOffersCount: assistiteVisibili.length,
+    rankingOffersCount: visibili.length,
     bestSaving: LEAD_STATE.bestSaving,
     bestPartnerSaving: LEAD_STATE.bestPartnerSaving,
     offerId: String(visibili[0]?.offerta?.id || ""),
