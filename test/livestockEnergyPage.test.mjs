@@ -39,7 +39,7 @@ test('la pillar collega la pagina allevamenti una sola volta', () => {
   assert.match(agriculture, /Approfondisci i costi energetici negli allevamenti/);
 });
 
-test('non viene anticipata con link la futura pagina avicola', () => {
-  assert.doesNotMatch(livestock, /href="\/energia-allevamento-avicolo\.html"/i);
+test('la pagina allevamenti collega la specializzazione avicola, mentre la pillar mantiene la gerarchia', () => {
+  assert.match(livestock, /href="\/energia-allevamento-avicolo\.html"/i);
   assert.doesNotMatch(agriculture, /href="\/energia-allevamento-avicolo\.html"/i);
 });

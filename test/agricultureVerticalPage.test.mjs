@@ -25,7 +25,7 @@ test('CTA porta al calcolatore business esistente senza inventare deep-link', ()
   assert.ok(rootLinks.length >= 2);
 });
 
-test('la seconda pagina del verticale è collegata, mentre la pagina avicola futura non è anticipata', () => {
+test('la pillar collega il livello allevamenti senza saltare direttamente alla specializzazione avicola', () => {
   assert.match(agriculture, /href="\/costi-energetici-allevamenti\.html"/i);
   assert.doesNotMatch(agriculture, /href="\/energia-allevamento-avicolo\.html"/i);
 });
