@@ -14,3 +14,31 @@ test("blocco03 3E: Article e Breadcrumb presenti",()=>{for(const slug of Object.
 test("blocco03 3E: pagine collegate al nucleo OffertaLogica",()=>{for(const slug of Object.keys(pages)){const html=read(slug);assert.match(html,/href="\/come-leggere-bolletta-luce-gas\.html"/);assert.match(html,/href="\/\?landing=0&amp;from=seo-guide"/);}});
 test("blocco03 3E: sitemap include le tre nuove URL ed esclude i thin content",()=>{const s=fs.readFileSync(path.join(root,"public","sitemap.xml"),"utf8");for(const slug of Object.keys(pages)){assert.match(s,new RegExp(`<loc>https://offertalogica\\.it/${slug}\\.html</loc><lastmod>2026-08-25</lastmod>`));}assert.doesNotMatch(s,/casa-smart\.html/);assert.doesNotMatch(s,/internet-casa\.html/);const locs=[...s.matchAll(/<loc>([^<]+)<\/loc>/g)];assert.equal(locs.length,15);});
 test("blocco03 3E: i tre intenti restano distinti",()=>{const texts=Object.fromEntries(Object.keys(pages).map(k=>[k,read(k).toLowerCase()]));assert.ok(texts["prezzo-fisso-o-variabile-luce-gas"].includes("prezzo fisso"));assert.ok(texts["pun-psv-spread-luce-gas"].includes("pun index gme"));assert.ok(texts["come-cambiare-fornitore-luce-gas"].includes("switching"));});
+
+test("blocco03 3E.2: guida e offerte espongono link contestuali alle tre long-tail",()=>{
+  const guide=fs.readFileSync(path.join(root,"public","come-leggere-bolletta-luce-gas.html"),"utf8");
+  const offers=fs.readFileSync(path.join(root,"public","offerte-luce-gas-aggiornate.html"),"utf8");
+  for(const slug of Object.keys(pages)){
+    const href=`href="/${slug}.html"`;
+    assert.ok(guide.includes(href),`link ${slug} assente dalla guida`);
+    assert.ok(offers.includes(href),`link ${slug} assente da offerte aggiornate`);
+  }
+  assert.match(guide,/id="approfondimenti"/);
+  assert.match(offers,/id="approfondimenti"/);
+});
+
+test("blocco03 3E.2: footer trust coerente sulle due pagine pilastro modificate",()=>{
+  for(const html of [
+    fs.readFileSync(path.join(root,"public","come-leggere-bolletta-luce-gas.html"),"utf8"),
+    fs.readFileSync(path.join(root,"public","offerte-luce-gas-aggiornate.html"),"utf8")
+  ]){
+    assert.doesNotMatch(html,/Analisi indipendente e trasparente/i);
+    assert.match(html,/Confronto trasparente delle offerte luce e gas per privati\. Analisi preliminare dedicata alle aziende\./);
+  }
+});
+
+test("blocco03 3E.2: sitemap aggiorna i lastmod delle due pagine pilastro realmente modificate",()=>{
+  const s=fs.readFileSync(path.join(root,"public","sitemap.xml"),"utf8");
+  assert.match(s,/<loc>https:\/\/offertalogica\.it\/come-leggere-bolletta-luce-gas\.html<\/loc><lastmod>2026-08-25<\/lastmod>/);
+  assert.match(s,/<loc>https:\/\/offertalogica\.it\/offerte-luce-gas-aggiornate\.html<\/loc><lastmod>2026-08-25<\/lastmod>/);
+});

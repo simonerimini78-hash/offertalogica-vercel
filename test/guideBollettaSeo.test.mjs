@@ -50,7 +50,7 @@ test('guida bolletta: sitemap contiene solo le 15 URL indicizzabili e lastmod si
   assert.ok(!locs.includes('https://offertalogica.it/casa-smart.html'));
   assert.ok(!locs.includes('https://offertalogica.it/internet-casa.html'));
   assert.match(sitemap, /<loc>https:\/\/offertalogica\.it\/<\/loc><lastmod>2026-08-16<\/lastmod>/);
-  assert.match(sitemap, /<loc>https:\/\/offertalogica\.it\/come-leggere-bolletta-luce-gas\.html<\/loc><lastmod>2026-08-16<\/lastmod>/);
+  assert.match(sitemap, /<loc>https:\/\/offertalogica\.it\/come-leggere-bolletta-luce-gas\.html<\/loc><lastmod>2026-08-25<\/lastmod>/);
 });
 
 test('guida bolletta: Home e pagine pilastro espongono link HTML crawlable', () => {
@@ -64,5 +64,5 @@ test('guida bolletta: il PDF scaricabile non compete come URL indicizzabile', ()
 });
 
 test('guida bolletta: dati strutturati Article e BreadcrumbList sono presenti', () => {
-  assert.match(guideHtml, /"@type": "Article"/); assert.match(guideHtml, /"@type": "BreadcrumbList"/); assert.match(guideHtml, /"datePublished": "2026-08-16"/); assert.match(guideHtml, /"publisher"/);
+  assert.match(guideHtml, /"@type": "Article"/); assert.match(guideHtml, /"@type": "BreadcrumbList"/); assert.match(guideHtml, /"datePublished": "2026-08-16"/); assert.match(guideHtml, /"dateModified": "2026-08-25"/); assert.match(guideHtml, /"publisher"/);
 });
