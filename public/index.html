@@ -2482,7 +2482,8 @@
     try {
         const params = new URLSearchParams(window.location.search || "");
         const hashParams = new URLSearchParams(String(window.location.hash || "").replace(/^#/, ""));
-        const staffPreview = ["staff", "staffToken", "previewToken"].some((key) => params.has(key) || hashParams.has(key));
+        const staffSessionActive = sessionStorage.getItem("offertalogicaStaffMode") === "true";
+        const staffPreview = staffSessionActive || ["staff", "staffToken", "previewToken"].some((key) => params.has(key) || hashParams.has(key));
         const calculatorBypass = params.get("landing") === "0" || String(params.get("entry") || "").toLowerCase() === "calculator";
         const requested = !staffPreview && (Boolean(window.__OFFERTALOGICA_LANDING_FORCE__) || !calculatorBypass);
         window.__OFFERTALOGICA_LANDING_REQUESTED__ = requested;

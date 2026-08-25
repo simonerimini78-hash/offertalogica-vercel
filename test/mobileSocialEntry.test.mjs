@@ -34,11 +34,14 @@ test("landing V1: e universale e la provenienza cambia solo il tracciamento", ()
 test("landing V1: bootstrap diretto, social e Google convergono sulla stessa landing; bypass e staff no", () => {
   const bootstrap = between(html, "(function () {\n    try {\n        const params = new URLSearchParams", "})();\n</script>") + "})();";
 
-  function requestedFor(search = "", hash = "") {
+  function requestedFor(search = "", hash = "", { staffSession = false } = {}) {
     const classes = new Set();
     const context = {
       URLSearchParams,
       window: { location: { search, hash } },
+      sessionStorage: {
+        getItem: (key) => key === "offertalogicaStaffMode" && staffSession ? "true" : null,
+      },
       document: { documentElement: { classList: { add: (value) => classes.add(value) } } },
     };
     vm.runInNewContext(bootstrap, context);
@@ -52,6 +55,7 @@ test("landing V1: bootstrap diretto, social e Google convergono sulla stessa lan
   assert.equal(requestedFor("?landing=0").requested, false);
   assert.equal(requestedFor("?staffToken=test").requested, false);
   assert.equal(requestedFor("", "#previewToken=test").requested, false);
+  assert.equal(requestedFor("", "", { staffSession: true }).requested, false);
 });
 
 test("landing V1.3: mostra subito risparmio e due percorsi senza CTA intermedia", () => {
