@@ -1996,6 +1996,9 @@
         html.social-entry-requested body { min-height: 100%; overflow: hidden; }
         html.social-entry-requested body { padding: 0; background: #f4f7f5; }
         html.social-entry-requested body > :not(.social-mobile-entry):not(script):not([id*="iubenda"]):not([class*="iubenda"]):not([id^="_iub"]):not([class*="_iub"]) { display: none !important; }
+        html.social-entry-requested body > .staff-mode-banner { display: flex !important; z-index: 9101; }
+        html.social-entry-requested body > .staff-preview-panel { display: block !important; z-index: 9100; }
+        html.social-entry-requested body > .staff-preview-panel[hidden] { display: none !important; }
         html.social-entry-requested .iubenda-tp-btn.iubenda-cs-preferences-link { visibility: hidden !important; }
         html.social-entry-requested .social-mobile-entry {
             position: fixed;
@@ -2601,6 +2604,7 @@
                     <label for="business-attivita">Tipo attivita</label>
                     <select id="business-attivita">
                         <option value="">Seleziona...</option>
+                        <option value="agricoltura">Agricoltura / Allevamento</option>
                         <option value="negozio">Negozio / Retail</option>
                         <option value="ufficio">Ufficio / Studio</option>
                         <option value="ristorazione">Bar / Ristorante</option>
@@ -6878,6 +6882,11 @@ function apriAnteprimaConsensoOffertaStaff() {
   window.apriConsensoOfferta?.(offer);
 }
 
+function apriHomeStaff() {
+  chiudiPannelloAnteprimeStaff();
+  window.location.assign("/");
+}
+
 function apriArchivioPdfStaff() {
   const token = sessionStorage.getItem(STAFF_MODE_TOKEN_STORAGE_KEY) || "";
   if (!token) {
@@ -6899,6 +6908,7 @@ function creaPannelloAnteprimeStaff() {
     <h3>Anteprime modalità staff</h3>
     <p>Apri gli stessi popup e passaggi della pagina pubblica. Lead, consensi e webhook restano disattivati; l’archivio PDF di test è separato.</p>
     <div class="staff-preview-grid">
+      <button type="button" id="staff-preview-home">Home</button>
       <button type="button" id="staff-preview-otp">Verifica offerte</button>
       <button type="button" id="staff-preview-help">Aiuto difficoltà</button>
       <button type="button" id="staff-preview-callback">Richiesta ricontatto</button>
@@ -6911,6 +6921,7 @@ function creaPannelloAnteprimeStaff() {
     <div class="staff-preview-status" id="staff-preview-status" aria-live="polite"></div>
   `;
   document.body.appendChild(panel);
+  document.getElementById("staff-preview-home")?.addEventListener("click", apriHomeStaff);
   document.getElementById("staff-preview-otp")?.addEventListener("click", apriAnteprimaOtpStaff);
   document.getElementById("staff-preview-help")?.addEventListener("click", apriAnteprimaAiutoStaff);
   document.getElementById("staff-preview-callback")?.addEventListener("click", apriAnteprimaRicontattoStaff);
