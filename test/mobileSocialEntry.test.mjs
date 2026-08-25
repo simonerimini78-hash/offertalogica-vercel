@@ -78,10 +78,10 @@ test("landing V1.3: mostra subito risparmio e due percorsi senza CTA intermedia"
   assert.match(prepare, /impostaLandingPronta\(\)/);
 });
 
-test("landing V1: il risparmio resta quello delle offerte partner attivabili", () => {
+test("landing V1: il risparmio partner resta separato dal ranking economico", () => {
   assert.match(
     html,
-    /LEAD_STATE\.bestPartnerSaving = Math\.max\(0, \.\.\.attivabiliPrioritarie\.map\(\(item\) => item\.differenza\)\)/,
+    /LEAD_STATE\.bestPartnerSaving = Math\.max\(0, \.\.\.attivabiliVisibili\.map\(\(item\) => item\.differenza\)\)/,
   );
   const teaser = between(html, "const teaserSaving = SOCIAL_ENTRY_STATE.isSocialJourney", "aggiornaPromptBollettaDopoOfferte();");
   assert.match(teaser, /LEAD_STATE\.bestPartnerSaving/);
@@ -246,17 +246,19 @@ test("blocco 02: OTP, fonti e business comunicano il servizio reale senza cambia
 });
 
 
-test("blocco 02: risultati separano convenienza economica e percorso di attivazione", () => {
+test("blocco 04: risultati separano ranking economico e percorso di attivazione", () => {
   assert.match(html, /Il costo annuo stimato mostra il risultato economico del confronto\. I badge di attivazione indicano come puoi procedere con la singola offerta\./);
-  assert.match(html, /Offerte con attivazione online disponibile/);
-  assert.match(html, /Qui trovi le offerte per cui è disponibile un percorso di attivazione online\./);
   assert.match(html, /Offerte più convenienti per costo annuo stimato/);
-  assert.match(html, /Ordinate in base al costo annuo stimato sul tuo profilo\. Per procedere può essere necessaria una verifica\./);
+  assert.match(html, /Ordinate esclusivamente in base al costo annuo stimato sul tuo profilo\. Il badge di percorso indica come puoi procedere con ciascuna offerta\./);
+  assert.match(html, /id, classe, titolo, testo/);
+  assert.match(html, /"offerte-ranking-group"/);
+  assert.match(html, /Posizione economica/);
+  assert.match(html, /Percorso da verificare/);
+  assert.match(html, /Attivabile online/);
   assert.match(html, /return "Vedi come procedere";/);
-  assert.match(html, /if \(item\.gruppoVisuale === "attivabile"\) return "Attivabile online";/);
   assert.match(html, /id="offer-consent-title">Come procedere con l'offerta<\/h3>/);
-  assert.doesNotMatch(html, /Migliore partner attivabile/);
-  assert.doesNotMatch(html, /Partner attivabile online/);
+  assert.doesNotMatch(html, /Offerte con attivazione online disponibile/);
+  assert.doesNotMatch(html, /Qui trovi le offerte per cui è disponibile un percorso di attivazione online\./);
   assert.doesNotMatch(html, /3 migliori offerte per costo con consulente/);
 });
 
