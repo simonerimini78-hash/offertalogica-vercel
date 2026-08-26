@@ -4,7 +4,7 @@
   const SUPABASE_URL = "https://kzxdamhfmzaxonpkytcf.supabase.co";
   const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_poz1xBKiXceLCFV3u_tPIg_5_-ycHcl";
   const STORAGE_KEY = "offertalogica-premium-staff-auth";
-  const MANAGEMENT_RELEASE = "0.36.68";
+  const MANAGEMENT_RELEASE = "0.36.69";
   const DAYS = [7, 30, 90, 365];
   let loading = false;
   let currentDays = 30;
@@ -153,7 +153,7 @@
             ${DAYS.map(day => `<option value="${day}" ${day === currentDays ? "selected" : ""}>Ultimi ${day} giorni</option>`).join("")}
           </select>
           <button class="button secondary" id="economicRefresh" type="button">Aggiorna</button>
-          <button class="button danger" id="economicResetBaseline" type="button">IMPOSTA PUNTO ZERO</button>
+          <button class="button secondary" id="economicResetBaseline" type="button" disabled>VERIFICA PUNTO ZERO</button>
         </div>
       </div>
       <div class="economic-page">
@@ -236,14 +236,25 @@
 
   function renderBaselineInfo(data) {
     const target = byId("economicBaselineInfo");
+    const button = byId("economicResetBaseline");
+    const baselineAt = data?.baseline_at || null;
+    if (button) {
+      button.classList.toggle("danger", !baselineAt);
+      button.classList.toggle("secondary", Boolean(baselineAt));
+      button.disabled = Boolean(baselineAt);
+      button.textContent = baselineAt ? "PUNTO ZERO IMPOSTATO" : "IMPOSTA PUNTO ZERO";
+      button.title = baselineAt
+        ? `Punto zero fissato il ${date(baselineAt)}. Per integrità gestionale non può essere spostato dal Control Center.`
+        : "Imposta il punto zero una sola volta. Dopo l'impostazione resterà bloccato.";
+    }
     if (!target) return;
-    if (!data?.baseline_at) {
+    if (!baselineAt) {
       target.hidden = true;
       target.textContent = "";
       return;
     }
     target.hidden = false;
-    target.textContent = `Punto zero gestionale: ${date(data.baseline_at)}. I dati precedenti restano archiviati, ma sono esclusi dai conteggi ufficiali successivi al punto zero.`;
+    target.textContent = `Punto zero gestionale definitivo: ${date(baselineAt)}. I dati precedenti restano archiviati, ma sono esclusi dai conteggi ufficiali successivi al punto zero. Il punto zero non può essere spostato dal Control Center.`;
   }
 
   function renderKpis(data) {
@@ -360,6 +371,14 @@
   function clearEconomicData() {
     const baselineInfo = byId("economicBaselineInfo");
     if (baselineInfo) { baselineInfo.hidden = true; baselineInfo.textContent = ""; }
+    const baselineButton = byId("economicResetBaseline");
+    if (baselineButton) {
+      baselineButton.disabled = true;
+      baselineButton.classList.remove("danger");
+      baselineButton.classList.add("secondary");
+      baselineButton.textContent = "VERIFICA PUNTO ZERO";
+      baselineButton.title = "Stato del punto zero non verificabile finché il cruscotto non viene caricato.";
+    }
     const kpis = byId("economicKpis");
     if (kpis) kpis.innerHTML = `<div class="economic-empty">Dati non disponibili.</div>`;
     if (byId("economicRevenueBreakdown")) byId("economicRevenueBreakdown").innerHTML = "";
@@ -400,6 +419,11 @@
 
   async function resetEconomicBaseline() {
     if (loading) return;
+    if (snapshot?.baseline_at) {
+      renderBaselineInfo(snapshot);
+      setStatus("ok", `Punto zero gestionale già fissato: ${date(snapshot.baseline_at)}. Non può essere spostato dal Control Center.`);
+      return;
+    }
     const confirmed = window.confirm(
       "Impostare da questo momento il PUNTO ZERO gestionale?\n\n" +
       "I dati storici NON verranno cancellati. Le prove precedenti resteranno archiviate ma saranno escluse dai conteggi ufficiali che useranno il punto zero. " +
@@ -424,7 +448,10 @@
       setStatus("error", String(error?.message || error || "Impossibile impostare il punto zero gestionale."));
       loading = false;
     } finally {
-      if (button) button.disabled = false;
+      if (button) {
+        if (snapshot?.baseline_at) renderBaselineInfo(snapshot);
+        else button.disabled = false;
+      }
     }
   }
 
