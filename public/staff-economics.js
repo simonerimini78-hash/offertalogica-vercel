@@ -92,6 +92,7 @@
       .economic-page{display:grid;gap:14px}
       .economic-toolbar{display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap}
       .economic-toolbar select{width:auto;min-width:150px}
+      .economic-baseline-info{border:1px solid #d7e4de;border-radius:10px;padding:8px 10px;color:#51625c;background:#fbfdfc;font-size:11px;line-height:1.4}
       .economic-status{border-radius:11px;padding:10px 12px;font-size:12px;line-height:1.45}
       .economic-status.info{color:var(--blue);background:var(--blue-soft)}
       .economic-status.ok{color:var(--ok);background:var(--ok-soft)}
@@ -151,9 +152,11 @@
             ${DAYS.map(day => `<option value="${day}" ${day === currentDays ? "selected" : ""}>Ultimi ${day} giorni</option>`).join("")}
           </select>
           <button class="button secondary" id="economicRefresh" type="button">Aggiorna</button>
+          <button class="button danger" id="economicResetBaseline" type="button">AZZERA CONTEGGI</button>
         </div>
       </div>
       <div class="economic-page">
+        <div id="economicBaselineInfo" class="economic-baseline-info" hidden></div>
         <div id="economicStatus" class="economic-status" hidden></div>
         <section class="panel">
           <div class="panel-head"><div><h3>Quadro generale</h3><small>Valori economici del periodo selezionato</small></div></div>
@@ -219,6 +222,7 @@
     `;
     byId("economicDays")?.addEventListener("change", event => { currentDays = Number(event.target.value) || 30; refresh(); });
     byId("economicRefresh")?.addEventListener("click", refresh);
+    byId("economicResetBaseline")?.addEventListener("click", resetEconomicBaseline);
     byId("economicManualForm")?.addEventListener("submit", saveManualEntry);
     byId("economicNewRateForm")?.addEventListener("submit", saveNewRate);
     installed = true;
@@ -227,6 +231,18 @@
 
   function breakdownRow(label, value, note, source = "") {
     return `<div class="economic-breakdown-row"><div><strong>${esc(label)}</strong>${note ? `<small>${esc(note)}</small>` : ""}${source ? `<small><span class="economic-source">${esc(source)}</span></small>` : ""}</div><b>${esc(money(value))}</b></div>`;
+  }
+
+  function renderBaselineInfo(data) {
+    const target = byId("economicBaselineInfo");
+    if (!target) return;
+    if (!data?.baseline_at) {
+      target.hidden = true;
+      target.textContent = "";
+      return;
+    }
+    target.hidden = false;
+    target.textContent = `Ultimo azzeramento conteggi: ${date(data.baseline_at)}. I dati precedenti restano archiviati ma non entrano nei conteggi quando la baseline limita il periodo selezionato.`;
   }
 
   function renderKpis(data) {
@@ -341,6 +357,8 @@
   }
 
   function clearEconomicData() {
+    const baselineInfo = byId("economicBaselineInfo");
+    if (baselineInfo) { baselineInfo.hidden = true; baselineInfo.textContent = ""; }
     const kpis = byId("economicKpis");
     if (kpis) kpis.innerHTML = `<div class="economic-empty">Dati non disponibili.</div>`;
     if (byId("economicRevenueBreakdown")) byId("economicRevenueBreakdown").innerHTML = "";
@@ -356,6 +374,7 @@
     try {
       const data = await rpc("premium_owner_economic_dashboard", { p_days: currentDays });
       snapshot = data || {};
+      renderBaselineInfo(snapshot);
       renderKpis(snapshot);
       renderBreakdowns(snapshot);
       renderRates(Array.isArray(snapshot.rates) ? snapshot.rates : []);
@@ -375,6 +394,36 @@
       }
     } finally {
       loading = false;
+    }
+  }
+
+  async function resetEconomicBaseline() {
+    if (loading) return;
+    const confirmed = window.confirm(
+      "Azzerare i conteggi economici da questo momento?\n\n" +
+      "I dati storici NON verranno cancellati dal database, ma le prove precedenti non entreranno più nei conteggi del Cruscotto. " +
+      "Tariffe e parametri restano invariati."
+    );
+    if (!confirmed) return;
+
+    const button = byId("economicResetBaseline");
+    loading = true;
+    if (button) button.disabled = true;
+    setStatus("info", "Azzeramento conteggi economici…");
+    try {
+      const result = await rpc("premium_owner_reset_economic_baseline");
+      window.dispatchEvent(new Event("offertalogica:staff-save-complete"));
+      loading = false;
+      await refresh();
+      const baselineAt = result?.baseline_at || snapshot?.baseline_at;
+      setStatus("ok", baselineAt
+        ? `Conteggi azzerati. Nuova baseline: ${date(baselineAt)}. Lo storico non è stato cancellato.`
+        : "Conteggi azzerati. Lo storico non è stato cancellato.");
+    } catch (error) {
+      setStatus("error", String(error?.message || error || "Impossibile azzerare i conteggi."));
+      loading = false;
+    } finally {
+      if (button) button.disabled = false;
     }
   }
 
