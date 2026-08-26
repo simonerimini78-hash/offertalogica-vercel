@@ -4916,6 +4916,25 @@ function chiaveProfiloBusiness(profile) {
   ]);
 }
 
+function testoCoperturaBusiness(profile, rankingCount) {
+  if (!OFFERTE_ARERA_BUSINESS.length && !OFFERTE_ARERA_DUAL_BUSINESS.length) return "";
+  const hasLuce = Number.isFinite(profile?.consumoLuceKwh) && Number.isFinite(profile?.costoAttualeLuce);
+  const hasGas = Number.isFinite(profile?.consumoGasSmc) && Number.isFinite(profile?.costoAttualeGas);
+  const singolePertinenti = OFFERTE_ARERA_BUSINESS
+    .filter((riga) => offertaBusinessCompatibileGenerica(riga))
+    .filter((riga) => (hasLuce && riga.commodity === "luce") || (hasGas && riga.commodity === "gas"))
+    .map((riga) => creaCandidatoBusinessSingolo(riga, profile))
+    .filter(Boolean).length;
+  const dualPertinenti = hasLuce && hasGas
+    ? OFFERTE_ARERA_DUAL_BUSINESS.map((riga) => creaCandidatoBusinessDual(riga, profile)).filter(Boolean).length
+    : 0;
+  const totaleCatalogo = OFFERTE_ARERA_BUSINESS.length + OFFERTE_ARERA_DUAL_BUSINESS.length;
+  const pertinenti = singolePertinenti + dualPertinenti;
+  const data = formattaDataCatalogoCopertura(DATI_ARERA_MENU_META.aggiornatoIl);
+  const aggiornamento = data ? ` aggiornato al ${data}` : "";
+  return `Catalogo business${aggiornamento} · ${totaleCatalogo} offerte monitorate · ${pertinenti} offerte pertinenti alle forniture indicate · ${Math.max(0, Number(rankingCount) || 0)} risultati mostrati.`;
+}
+
 function renderRankingBusiness(profile, ranking) {
   const container = document.getElementById("business-ranking");
   if (!container) return;
@@ -4928,7 +4947,10 @@ function renderRankingBusiness(profile, ranking) {
   container.hidden = false;
   const note = document.createElement("p");
   note.className = "business-ranking-note";
-  note.textContent = "Ranking economico sul profilo aziendale: confronta componente energia/gas e quota fissa di vendita. Rete, oneri, imposte e IVA non sono inclusi nella stima.";
+  const copertura = testoCoperturaBusiness(profile, ranking.length);
+  note.textContent = copertura
+    ? `${copertura} Ranking economico sul profilo aziendale: confronta componente energia/gas e quota fissa di vendita. Rete, oneri, imposte e IVA non sono inclusi nella stima.`
+    : "Ranking economico sul profilo aziendale: confronta componente energia/gas e quota fissa di vendita. Rete, oneri, imposte e IVA non sono inclusi nella stima.";
   container.appendChild(note);
 
   const list = document.createElement("div");
@@ -6574,6 +6596,29 @@ function selezionaRankingEconomicoPerMenu(items, limite = NUMERO_OFFERTE_RANKING
     .slice(0, limite);
 }
 
+function formattaDataCatalogoCopertura(value) {
+  const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return match ? `${match[3]}/${match[2]}/${match[1]}` : "";
+}
+
+function testoCoperturaConsumer(classificate, mostrate) {
+  const fallback = "Il costo annuo stimato mostra il risultato economico del confronto. I badge di attivazione indicano come puoi procedere con la singola offerta.";
+  if (!OFFERTE_ARERA_MENU.length) return fallback;
+
+  const data = formattaDataCatalogoCopertura(DATI_ARERA_MENU_META.aggiornatoIl);
+  const aggiornamento = data ? ` aggiornato al ${data}` : "";
+  const totaleCatalogo = OFFERTE_ARERA_MENU.length + OFFERTE_ARERA_DUAL.length;
+  const numeroClassificate = Math.max(0, Number(classificate) || 0);
+  const numeroMostrate = Math.max(0, Number(mostrate) || 0);
+  return `Catalogo di confronto${aggiornamento} · ${totaleCatalogo} offerte monitorate · ${numeroClassificate} soluzioni compatibili classificate · ${numeroMostrate} mostrate. Ordinamento esclusivamente economico; il percorso di attivazione non modifica la posizione.`;
+}
+
+function aggiornaCoperturaConsumer(classificate, mostrate) {
+  const elemento = document.getElementById("offers-ranking-explainer");
+  if (!elemento) return;
+  elemento.textContent = testoCoperturaConsumer(classificate, mostrate);
+}
+
 function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitura) {
   const offerteCandidati = costruisciOfferteRanking(attuale, tipoTariffa, tipoFornitura);
   assicuraSchedeOfferte(offerteCandidati);
@@ -6661,6 +6706,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
   const idsVisibili = new Set(visibili.map((item) => String(item.offerta.id)));
   const migliore = visibili[0] || ordinateRanking[0] || offerteCalcolate[0] || null;
   const hasVisibleOffers = visibili.length > 0;
+  aggiornaCoperturaConsumer(ordinateRanking.length, visibili.length);
 
   ["offerte-partner-online-group", "offerte-consulente-group"].forEach((id) => {
     document.getElementById(id)?.remove();
@@ -11769,7 +11815,7 @@ if (document.readyState === "loading") {
         <button type="button" class="offers-personalize-continue" id="offers-keep-average">Continua con la stima media</button>
     </div>
 </div>
-<div class="offers-ranking-explainer">Il costo annuo stimato mostra il risultato economico del confronto. I badge di attivazione indicano come puoi procedere con la singola offerta.</div>
+<div class="offers-ranking-explainer" id="offers-ranking-explainer">Il costo annuo stimato mostra il risultato economico del confronto. I badge di attivazione indicano come puoi procedere con la singola offerta.</div>
 <div class="vertical-cards-container" style="display: flex; flex-direction: column; gap: 15px;">
         
         <!-- Offerta Consigliata 1: E.ON -->
