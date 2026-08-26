@@ -457,6 +457,14 @@
         .business-ranking-list { display: grid; gap: 8px; }
         .business-ranking-card { display: grid; grid-template-columns: auto minmax(0,1fr) auto; gap: 10px; align-items: center; padding: 11px 12px; border: 1px solid #dbe7df; border-radius: 10px; background: #ffffff; }
         .business-ranking-position { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 999px; background: #dcfce7; color: #166534; font-size: 12px; font-weight: 900; }
+        .business-ranking-main { min-width: 0; display: flex; align-items: center; gap: 10px; }
+        .business-ranking-logo { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; }
+        .business-ranking-logo .provider-logo-shell { width: 82px; height: 40px; border-color: #e2e8f0; box-shadow: none; }
+        .business-ranking-logo .provider-logo { width: 66px; height: 27px; }
+        .business-ranking-logo .provider-logo-split { width: 136px; height: 40px; gap: 4px; border: 0; box-shadow: none; }
+        .business-ranking-logo .provider-logo-split-item { width: 58px; height: 40px; flex-basis: 58px; padding: 4px; box-shadow: none; }
+        .business-ranking-logo .provider-logo-split-img { width: 48px; height: 20px; }
+        .business-ranking-logo .provider-logo-split-label { font-size: 7px; }
         .business-ranking-meta { min-width: 0; }
         .business-ranking-meta strong { display: block; margin: 0; color: #123044; font-size: 14px; line-height: 1.25; }
         .business-ranking-meta small { display: block; margin-top: 2px; color: #64748b; font-size: 11px; line-height: 1.35; }
@@ -467,6 +475,12 @@
         .business-ranking-economics small.is-negative { color: #9a3412; }
         @media (max-width: 620px) {
             .business-ranking-card { grid-template-columns: auto minmax(0,1fr); }
+            .business-ranking-main { align-items: flex-start; }
+            .business-ranking-logo .provider-logo-shell { width: 72px; height: 36px; }
+            .business-ranking-logo .provider-logo { width: 58px; height: 24px; }
+            .business-ranking-logo .provider-logo-split { width: 120px; height: 36px; }
+            .business-ranking-logo .provider-logo-split-item { width: 50px; height: 36px; flex-basis: 50px; }
+            .business-ranking-logo .provider-logo-split-img { width: 42px; height: 18px; }
             .business-ranking-economics { grid-column: 2; text-align: left; white-space: normal; }
         }
         .business-error { color: var(--danger); font-size: 13px; margin-top: 10px; display: none; }
@@ -4982,6 +4996,17 @@ function renderRankingBusiness(profile, ranking) {
     position.className = "business-ranking-position";
     position.textContent = String(item.posizioneEconomica);
 
+    const main = document.createElement("div");
+    main.className = "business-ranking-main";
+    const logoHtml = htmlLogoBusiness(item);
+    if (logoHtml) {
+      const logo = document.createElement("span");
+      logo.className = "business-ranking-logo";
+      logo.setAttribute("aria-hidden", "true");
+      logo.innerHTML = logoHtml;
+      main.appendChild(logo);
+    }
+
     const meta = document.createElement("div");
     meta.className = "business-ranking-meta";
     const title = document.createElement("strong");
@@ -4990,6 +5015,7 @@ function renderRankingBusiness(profile, ranking) {
     const tipo = item.tipo === "variabile" ? "Prezzo variabile" : item.tipo === "misto" ? "Prezzi misti" : "Prezzo fisso";
     detail.textContent = `${item.nome} · ${tipo} · ${descriviAmbitoBusiness(item)}`;
     meta.append(title, detail);
+    main.appendChild(meta);
 
     const economics = document.createElement("div");
     economics.className = "business-ranking-economics";
@@ -5007,7 +5033,7 @@ function renderRankingBusiness(profile, ranking) {
     }
     economics.append(costLabel, cost, difference);
 
-    card.append(position, meta, economics);
+    card.append(position, main, economics);
     list.appendChild(card);
   });
   container.appendChild(list);
@@ -5623,6 +5649,50 @@ function htmlLogoOffertaSeparata(offerta) {
       ${htmlLogoMiniComponente(luceBrand, "luce")}
       <span class="provider-logo-split-plus" aria-hidden="true">+</span>
       ${htmlLogoMiniComponente(gasBrand, "gas")}
+    </span>
+  `;
+}
+
+function htmlLogoBusiness(item) {
+  const providerLabels = String(item?.provider || "")
+    .split(/\s+\+\s+/)
+    .map((label) => label.trim())
+    .filter(Boolean);
+  if (!providerLabels.length) return "";
+
+  const brands = providerLabels.map((label) => brandDaRiferimento("", label));
+  const brandsConLogo = brands.filter((brand) => brand?.logo);
+  if (!brandsConLogo.length) return "";
+
+  const chiavi = [...new Set(brandsConLogo.map((brand) => brand.key || brand.label).filter(Boolean))];
+  if (brandsConLogo.length === 1 || chiavi.length === 1) {
+    const brand = brandsConLogo[0];
+    const label = testoHtmlSicuro(brand.label || providerLabels[0] || "Fornitore");
+    const shellClass = brand.logoShell === "dark" ? "provider-logo-shell is-logo-on-dark" : "provider-logo-shell";
+    return `
+      <span class="${shellClass}" title="${label}">
+        <img class="provider-logo" src="${testoHtmlSicuro(brand.logo)}" alt="${label}" loading="lazy">
+      </span>
+    `;
+  }
+
+  if (brands.length >= 2 && brands[0]?.logo && brands[1]?.logo) {
+    const title = testoHtmlSicuro(`${brands[0].label || providerLabels[0]} + ${brands[1].label || providerLabels[1]}`);
+    return `
+      <span class="provider-logo-shell provider-logo-split" title="${title}">
+        ${htmlLogoMiniComponente(brands[0], "luce")}
+        <span class="provider-logo-split-plus" aria-hidden="true">+</span>
+        ${htmlLogoMiniComponente(brands[1], "gas")}
+      </span>
+    `;
+  }
+
+  const brand = brandsConLogo[0];
+  const label = testoHtmlSicuro(brand.label || providerLabels[0] || "Fornitore");
+  const shellClass = brand.logoShell === "dark" ? "provider-logo-shell is-logo-on-dark" : "provider-logo-shell";
+  return `
+    <span class="${shellClass}" title="${label}">
+      <img class="provider-logo" src="${testoHtmlSicuro(brand.logo)}" alt="${label}" loading="lazy">
     </span>
   `;
 }

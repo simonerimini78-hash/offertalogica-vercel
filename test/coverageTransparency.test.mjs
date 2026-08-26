@@ -152,6 +152,47 @@ test("battaglia 03 v2: il ranking business chiarisce costo annuo e differenza ri
   assert.doesNotMatch(html, /Migliore differenza stimata/);
 });
 
+test("battaglia 03 v3: il ranking business riusa i loghi fornitori senza alterare i dati economici", () => {
+  assert.match(html, /function htmlLogoBusiness\(item\)/);
+  assert.match(html, /const logoHtml = htmlLogoBusiness\(item\);/);
+  assert.match(html, /className = "business-ranking-logo"/);
+  assert.match(html, /business-ranking-logo \.provider-logo-shell/);
+
+  const context = loadFunctions(
+    ["brandDaRiferimento", "htmlLogoMiniComponente", "htmlLogoBusiness"],
+    {
+      testoHtmlSicuro(value) { return String(value || ""); },
+      PROVIDER_BRANDS: {
+        enel: { label: "Enel", logo: "/assets/providers/enel.png" },
+        edison: { label: "Edison", logo: "/assets/providers/edison-user.png" },
+      },
+      chiaveFornitoreDaNome(name) {
+        const value = String(name || "").toLowerCase();
+        if (value.includes("enel")) return "enel";
+        if (value.includes("edison")) return "edison";
+        return "";
+      },
+      String,
+      Set,
+    },
+  );
+
+  const single = context.htmlLogoBusiness({ provider: "Enel" });
+  assert.match(single, /provider-logo/);
+  assert.match(single, /\/assets\/providers\/enel\.png/);
+
+  const separate = context.htmlLogoBusiness({ provider: "Enel + Edison", separate: true });
+  assert.match(separate, /provider-logo-split/);
+  assert.match(separate, /enel\.png/);
+  assert.match(separate, /edison-user\.png/);
+
+  const missing = context.htmlLogoBusiness({ provider: "Fornitore senza logo" });
+  assert.equal(missing, "");
+
+  const ranking = extractFunction("selezionaRankingBusiness");
+  assert.doesNotMatch(ranking, /logo|PROVIDER_BRANDS|htmlLogoBusiness/);
+});
+
 test("battaglia 03: la trasparenza non introduce fetch, API o criteri commerciali nel ranking", () => {
   const consumer = extractFunction("aggiornaCoperturaConsumer");
   const business = extractFunction("testoCoperturaBusiness");
