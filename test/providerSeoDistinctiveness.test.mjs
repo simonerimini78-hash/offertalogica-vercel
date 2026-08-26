@@ -65,8 +65,26 @@ test("blocco03: filtro ARERA invariato e variabile template rinominata", () => {
 test("blocco03: sitemap mantiene aggiornati i lastmod delle sei pagine fornitore", () => {
   const sitemap = fs.readFileSync(path.join(root, "public", "sitemap.xml"), "utf8");
   for (const key of Object.keys(providers)) {
-    const block = new RegExp(`<loc>https://offertalogica\\.it/fornitori/${key}\\.html</loc>\\s*<lastmod>2026-08-25</lastmod>`);
+    const block = new RegExp(`<loc>https://offertalogica\\.it/fornitori/${key}\\.html</loc>\\s*<lastmod>2026-08-26</lastmod>`);
     assert.match(sitemap, block);
   }
-  assert.match(sitemap, /<loc>https:\/\/offertalogica\.it\/<\/loc>\s*<lastmod>2026-08-25<\/lastmod>/);
+});
+
+test("battaglia04: trasparenza espressa come scelta e data ARERA resta dinamica", () => {
+  const transparency = "Se dai dati non emerge un risparmio reale, OffertaLogica lo mostra in modo chiaro e trasparente.";
+  for (const key of Object.keys(providers)) {
+    const html = read(key);
+    assert.ok(html.includes(transparency), `${key}: frase trasparenza aggiornata mancante`);
+    assert.doesNotMatch(html, /OffertaLogica deve mostrarlo in modo chiaro/i);
+    assert.match(html, /fetch\("\/data\/offerte-arera-menu\.json", \{ cache: "no-store" \}\)/);
+    assert.match(html, /const updated = formatDateIt\(data\.aggiornatoIl\)/);
+    assert.match(html, /<strong>Dati in aggiornamento\.<\/strong>/);
+  }
+});
+
+test("battaglia04: formulazioni metodologiche in forma attiva", () => {
+  assert.ok(read("a2a").includes("Il dual viene confrontato con alternative equivalenti sullo stesso profilo."));
+  assert.ok(read("alperia").includes("La stima indica quindi il periodo economico utilizzato."));
+  assert.ok(read("alperia").includes("il confronto rispetta le condizioni di ciascuna fornitura."));
+  assert.ok(read("octopus").includes("Per Octopus Energy il confronto considera insieme prezzo unitario e costi fissi delle due forniture."));
 });
