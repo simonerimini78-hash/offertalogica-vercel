@@ -4,12 +4,13 @@
   const SUPABASE_URL = "https://kzxdamhfmzaxonpkytcf.supabase.co";
   const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_poz1xBKiXceLCFV3u_tPIg_5_-ycHcl";
   const STORAGE_KEY = "offertalogica-premium-staff-auth";
-  const MANAGEMENT_RELEASE = "0.36.69";
+  const MANAGEMENT_RELEASE = "0.36.70";
   const DAYS = [7, 30, 90, 365];
   let loading = false;
   let currentDays = 30;
   let snapshot = null;
   let installed = false;
+  let ownerVisibilityObserver = null;
 
   const byId = id => document.getElementById(id);
   const esc = value => String(value ?? "")
@@ -144,12 +145,12 @@
     view.innerHTML = `
       <div class="view-head">
         <div>
-          <span class="control-kicker">Controllo economico</span>
-          <h2>Cruscotto economico</h2>
-          <p>Ricavi, costi reali e stimati, risultato, margine, tariffe versionate e movimenti manuali. Le modifiche non riscrivono lo storico.</p>
+          <span class="control-kicker">Gestione economica</span>
+          <h2>Contabilità e tariffe</h2>
+          <p>Registro economico, tariffe versionate, costi ricorrenti e movimenti manuali. Il Gestionale resta il riferimento ufficiale per i report mensili.</p>
         </div>
         <div class="economic-toolbar">
-          <select id="economicDays" aria-label="Periodo cruscotto economico">
+          <select id="economicDays" aria-label="Periodo contabilità e tariffe">
             ${DAYS.map(day => `<option value="${day}" ${day === currentDays ? "selected" : ""}>Ultimi ${day} giorni</option>`).join("")}
           </select>
           <button class="button secondary" id="economicRefresh" type="button">Aggiorna</button>
@@ -161,7 +162,7 @@
         <div id="economicStatus" class="economic-status" hidden></div>
         <section class="panel">
           <div class="panel-head"><div><h3>Quadro generale</h3><small>Valori economici del periodo selezionato</small></div></div>
-          <div class="panel-body"><div class="economic-kpis" id="economicKpis"><div class="economic-empty">Apri il cruscotto per caricare i dati.</div></div></div>
+          <div class="panel-body"><div class="economic-kpis" id="economicKpis"><div class="economic-empty">Apri la contabilità per caricare i dati.</div></div></div>
         </section>
         <div class="economic-section-grid">
           <section class="panel">
@@ -390,7 +391,7 @@
   async function refresh() {
     if (loading || !ensureMarkup()) return;
     loading = true;
-    setStatus("info", "Aggiornamento cruscotto economico…");
+    setStatus("info", "Aggiornamento contabilità e tariffe…");
     try {
       const data = await rpc("premium_owner_economic_dashboard", { p_days: currentDays });
       snapshot = data || {};
@@ -545,7 +546,22 @@
     }
   }
 
+  function syncEconomicsOwnerVisibility() {
+    const tab = byId("staffEconomicsTab");
+    const group = byId("staffManagementGroup");
+    if (!tab || !group) return false;
+    const ownerVisible = !group.hidden;
+    tab.hidden = !ownerVisible;
+    if (!ownerVisible) {
+      tab.classList.remove("active");
+      document.querySelector('[data-staff-view="economics"]')?.classList.remove("active");
+      if (location.hash === "#economics") history.replaceState(null, "", "#overview");
+    }
+    return ownerVisible;
+  }
+
   function openEconomics({ updateHash = true } = {}) {
+    if (!syncEconomicsOwnerVisibility()) return;
     if (!ensureMarkup()) return;
     document.querySelectorAll("[data-staff-tab]").forEach(button => button.classList.remove("active"));
     byId("staffEconomicsTab")?.classList.add("active");
@@ -568,16 +584,30 @@
   }
 
   function bindNavigation() {
+    const group = byId("staffManagementGroup");
+    if (group) {
+      ownerVisibilityObserver?.disconnect();
+      ownerVisibilityObserver = new MutationObserver(syncEconomicsOwnerVisibility);
+      ownerVisibilityObserver.observe(group, { attributes: true, attributeFilter: ["hidden"] });
+    }
+    syncEconomicsOwnerVisibility();
     byId("staffEconomicsTab")?.addEventListener("click", () => openEconomics());
     document.addEventListener("click", event => {
       if (event.target instanceof Element && event.target.closest("[data-staff-tab]")) byId("staffEconomicsTab")?.classList.remove("active");
     });
-    window.addEventListener("hashchange", () => { if (location.hash === "#economics") openEconomics({ updateHash: false }); });
-    window.addEventListener("offertalogica:staff-context-changed", () => { if (location.hash === "#economics") refresh(); });
+    window.addEventListener("hashchange", () => {
+      if (location.hash === "#economics") openEconomics({ updateHash: false });
+    });
+    window.addEventListener("offertalogica:staff-context-changed", () => {
+      const ownerVisible = syncEconomicsOwnerVisibility();
+      if (ownerVisible && location.hash === "#economics") refresh();
+    });
     window.addEventListener("load", () => {
       ensureMarkup();
-      if (location.hash === "#economics") window.setTimeout(() => openEconomics({ updateHash: false }), 0);
+      const ownerVisible = syncEconomicsOwnerVisibility();
+      if (ownerVisible && location.hash === "#economics") window.setTimeout(() => openEconomics({ updateHash: false }), 0);
     }, { once: true });
+    window.addEventListener("pagehide", () => ownerVisibilityObserver?.disconnect(), { once: true });
   }
 
   loadManagementFoundation();

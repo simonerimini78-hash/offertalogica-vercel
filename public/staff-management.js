@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const RELEASE = "0.36.69";
+  const RELEASE = "0.36.70";
   const TIME_ZONE = "Europe/Rome";
   const STORAGE_KEY = "offertalogica-premium-staff-auth";
   const VIEW_ID = "staffManagementMonthlyView";

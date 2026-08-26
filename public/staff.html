@@ -43,6 +43,10 @@
     .confirm-card{width:min(460px,100%);border:1px solid var(--line);border-radius:18px;padding:20px;background:#fff;box-shadow:0 24px 70px rgba(9,30,25,.28)}
     .confirm-card h2{margin:0;font-size:21px}.confirm-card p{margin:10px 0 0;color:var(--muted);line-height:1.5}.confirm-keyword{margin-top:14px}.confirm-keyword label{display:block;margin-bottom:6px;color:#42534c;font-size:12px;font-weight:800}.confirm-keyword strong{color:var(--danger)}
     .confirm-error{min-height:18px;margin-top:7px;color:var(--danger);font-size:12px}.confirm-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+    /* P5 governance: gli archivi usati per diagnostica/report restano consultabili ma non distruttivi dalla UI. */
+    #analyticsDeleteVisible,#analyticsReset,#costDeleteRuns,#costDeleteEvents{display:none!important}
+    [data-staff-view="analytics"] .data-table th:last-child,[data-staff-view="analytics"] .data-table td:last-child{display:none!important}
+    [data-staff-view="costs"] .data-table th:last-child,[data-staff-view="costs"] .data-table td:last-child{display:none!important}
     @media(max-width:1100px){.app-shell{grid-template-columns:1fr}.sidebar{position:sticky;top:67px;z-index:20;width:100%;height:auto;overflow-x:auto;border-right:0;border-bottom:1px solid var(--line);padding:8px}.nav-title,.nav-group-label,.side-note{display:none}.nav{display:flex;min-width:max-content}.nav button{width:auto;white-space:nowrap}.nav button:hover{transform:none}.main{padding:14px}.metrics{grid-template-columns:repeat(2,1fr)}.grid-3{grid-template-columns:1fr 1fr}.funnel{grid-template-columns:repeat(3,1fr)}.module-frame{height:calc(100vh - 150px)}}
     .config-grid{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:8px;padding:14px}.config-card{border:1px solid var(--line);border-radius:11px;padding:11px;background:#fbfdfc}.config-card span{display:block;color:var(--muted);font-size:10px;font-weight:750}.config-card strong{display:block;margin-top:4px;font-size:13px;overflow-wrap:anywhere}.config-card small{display:block;margin-top:4px;color:var(--muted);font-size:10px;line-height:1.35}.request-note{margin-top:9px;padding:9px 10px;border:1px solid #fedf89;border-radius:10px;background:#fffaeb;color:#7a2e0e;font-size:11px;line-height:1.45}
     @media(max-width:680px){.topbar{position:static;align-items:flex-start;flex-direction:column;padding:12px}.top-actions{width:100%;justify-content:flex-start}.app-shell{min-height:0}.sidebar{top:0}.main{padding:10px}.view-head{flex-direction:column}.view-actions{justify-content:flex-start}.metrics,.grid-2,.grid-3{grid-template-columns:1fr 1fr}.toolbar,.toolbar.four{grid-template-columns:1fr}.funnel{grid-template-columns:1fr 1fr}.customer-meta{grid-template-columns:1fr 1fr}.config-grid{grid-template-columns:1fr 1fr}.module-frame{height:calc(100vh - 120px);min-height:600px}.brand p{display:none}.landing-path-panel .panel-head{align-items:flex-start;flex-direction:column}.landing-path-range{width:100%}.landing-path-compare{grid-template-columns:1fr}}
@@ -52,7 +56,7 @@
 <header class="topbar">
   <div class="brand">
     <img src="/assets/logo-offertalogica-icon.png" alt="OffertaLogica">
-    <div><h1>Control Center OffertaLogica</h1><p>Centro operativo per clienti, pratiche, verifiche e dati · v0.36.69</p></div>
+    <div><h1>Control Center OffertaLogica</h1><p>Centro operativo per clienti, pratiche, verifiche e dati · v0.36.70</p></div>
   </div>
   <div class="top-actions" id="staffTopActions" hidden>
     <span class="staff-chip" id="staffIdentity">Staff</span>
@@ -88,14 +92,14 @@
       <div class="nav-group-label">Commerciale</div>
       <button type="button" data-staff-tab="leads">Lead e attivazioni <span id="navLeadCount">0</span></button>
       <div class="nav-group-label">Analisi</div>
-      <button type="button" data-staff-tab="analytics">Statistiche</button>
+      <button type="button" data-staff-tab="analytics">Funnel e traffico</button>
       <div class="nav-group-label" id="staffManagementGroup" hidden>Gestione</div>
       <button type="button" id="staffCollaboratorsTab" data-staff-tab="collaborators" hidden>Collaboratori <span id="navCollaboratorCount">0</span></button>
+      <button type="button" id="staffEconomicsTab" hidden>Contabilità e tariffe</button>
       <div class="nav-group-label">Strumenti tecnici</div>
       <button type="button" id="staffSitePreview">Verifica sito e funnel</button>
       <button type="button" data-staff-tab="pdf">Diagnostica PDF</button>
-      <button type="button" data-staff-tab="costs">Costi IA e configurazione</button>
-      <button type="button" id="staffEconomicsTab">Cruscotto economico</button>
+      <button type="button" data-staff-tab="costs">Diagnostica IA e configurazione</button>
     </nav>
     <div class="side-note">I PDF Premium sono accessibili allo staff soltanto dopo una richiesta di controllo del cliente. L’archivio diagnostico del lettore resta separato e serve ai test tecnici.</div>
   </aside>
@@ -115,7 +119,7 @@
         <section class="panel"><div class="panel-head"><h3>Priorità operative</h3><small>Pratiche raccolte dai moduli operativi</small></div><div class="panel-body" id="overviewTasks"><div class="empty">Caricamento…</div></div></section>
         <section class="panel"><div class="panel-head"><h3>Acquisizione e conversione</h3><small>Funnel essenziale</small></div><div class="panel-body"><div class="funnel" id="overviewFunnel"></div></div></section>
       </div>
-      <div class="version">Control Center Staff v0.36.69</div>
+      <div class="version">Control Center Staff v0.36.70</div>
     </section>
 
     <section class="view" data-staff-view="cases">
@@ -168,7 +172,7 @@
     </section>
 
     <section class="view" data-staff-view="analytics">
-      <div class="view-head"><div><h2>Statistiche</h2><p>Eventi e funnel del percorso: lettura PDF, confronto, OTP, click, redirect e richieste assistite.</p></div><div class="view-actions"><button class="button danger" id="analyticsDeleteVisible" type="button">Elimina eventi visibili</button><button class="button danger" id="analyticsReset" type="button">Azzera analytics</button></div></div>
+      <div class="view-head"><div><h2>Funnel e traffico</h2><p>Diagnostica del percorso: lettura PDF, confronto, OTP, click, redirect, richieste assistite e qualità del traffico. Lo storico analytics resta conservato.</p></div><div class="view-actions"><button class="button danger" id="analyticsDeleteVisible" type="button" aria-hidden="true" tabindex="-1">Elimina eventi visibili</button><button class="button danger" id="analyticsReset" type="button" aria-hidden="true" tabindex="-1">Azzera analytics</button></div></div>
       <div class="metrics"><article class="metric"><span>Eventi recenti</span><strong id="analyticsEvents">0</strong></article><article class="metric"><span>Sessioni</span><strong id="analyticsSessions">0</strong></article><article class="metric"><span>Lead collegati</span><strong id="analyticsLinkedLeads">0</strong></article><article class="metric"><span>Conversione OTP</span><strong id="analyticsOtpRate">—</strong></article></div>
       <section class="panel"><div class="panel-head"><h3>Funnel operativo</h3><button class="button secondary compact" id="analyticsRefresh" type="button">Aggiorna</button></div><div class="panel-body"><div class="funnel" id="analyticsFunnel"></div></div></section>
       <section class="panel landing-path-panel" id="landingPathPanel">
@@ -197,7 +201,7 @@
     </section>
 
     <section class="view" data-staff-view="costs">
-      <div class="view-head"><div><h2>Costi IA e configurazione</h2><p>Monitoraggio tecnico di analisi, costi, tempi staff e configurazione operativa.</p></div><div class="view-actions"><button class="button secondary" id="costRefresh" type="button">Aggiorna</button><button class="button danger" id="costDeleteRuns" type="button">Elimina analisi visibili</button><button class="button danger" id="costDeleteEvents" type="button">Elimina costi visibili</button></div></div>
+      <div class="view-head"><div><h2>Diagnostica IA e configurazione</h2><p>Controllo tecnico di analisi, token, copertura dei costi verificati, tempi Staff e configurazione operativa. Lo storico tecnico resta conservato.</p></div><div class="view-actions"><button class="button secondary" id="costRefresh" type="button">Aggiorna</button><button class="button danger" id="costDeleteRuns" type="button" aria-hidden="true" tabindex="-1">Elimina analisi visibili</button><button class="button danger" id="costDeleteEvents" type="button" aria-hidden="true" tabindex="-1">Elimina costi visibili</button></div></div>
       <div class="metrics cost-metrics"><article class="metric"><span>Analisi IA</span><strong id="costRuns">0</strong></article><article class="metric"><span>Token totali</span><strong id="costTokens">0</strong></article><article class="metric"><span>Costo IA totale</span><strong id="costAi">0,00 €</strong><small id="costAiCoverage">Nessuna analisi registrata</small></article><article class="metric"><span>Costo medio / analisi</span><strong id="costAverageAnalysis">0,00 €</strong><small id="costAverageAnalysisMeta">Nessuna analisi contabilizzata</small></article><article class="metric"><span>Costo medio / cliente</span><strong id="costAverageCustomer">0,00 €</strong><small id="costAverageCustomerMeta">Nessun cliente contabilizzato</small></article><article class="metric"><span>Tempo / costo operatore</span><strong id="costHuman">0 min · 0,00 €</strong><small>Tariffa standard: 30 €/h</small></article></div>
       <section class="panel" id="systemConfigPanel"><div class="panel-head"><div><h3>Configurazione operativa</h3><small>Controlli automatici di database, storage, IA, storico ARERA, costi e rate limit senza mostrare chiavi o segreti.</small></div><span id="systemConfigOverall" class="badge warn">DA VERIFICARE</span></div><div id="systemConfigGrid" class="config-grid"><div class="empty">Disponibile agli amministratori.</div></div></section>
       <div class="grid-2"><section class="panel"><div class="panel-head"><h3>Ultime analisi IA</h3></div><div class="table-wrap"><table class="data-table"><thead><tr><th>Data</th><th>Origine</th><th>Stato</th><th>Modello</th><th>Token</th><th>Costo</th><th>Azioni</th></tr></thead><tbody id="costRunRows"></tbody></table></div></section><section class="panel"><div class="panel-head"><h3>Registro costi</h3></div><div class="table-wrap"><table class="data-table"><thead><tr><th>Data</th><th>Tipo</th><th>Fornitore</th><th>Quantità</th><th>Costo</th><th>Azioni</th></tr></thead><tbody id="costEventRows"></tbody></table></div></section></div>
@@ -253,7 +257,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/staff.js"></script>
 <script src="/staff-governance-v2.5B.js"></script>
-<script defer src="/staff-economics.js?v=0.36.69"></script>
+<script defer src="/staff-economics.js?v=0.36.70"></script>
 <script>
   (()=>{
     const STORAGE_KEY='offertalogica-premium-staff-auth';
@@ -351,7 +355,7 @@
 </script>
 <script>
   (()=>{
-    const CURRENT_RELEASE="0.36.69";
+    const CURRENT_RELEASE="0.36.70";
     const PRODUCTION_ORIGIN="https://staff.offertalogica.it";
     const isVercelStaffDeployment=()=>location.hostname.endsWith(".vercel.app")&&location.hostname.toLowerCase().startsWith("offertalogica-staff");
     const redirectDeploymentToProduction=()=>{if(!isVercelStaffDeployment())return false;const target=new URL(`${location.pathname}${location.search}${location.hash}`,PRODUCTION_ORIGIN);if(target.href===location.href)return false;location.replace(target.href);return true};
