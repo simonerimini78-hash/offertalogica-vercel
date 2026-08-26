@@ -80,10 +80,31 @@
         
         .columns-subgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
         .column-energy h4 { font-size: 13px; color: var(--accent); margin-bottom: 10px; text-align: left; text-transform: uppercase; letter-spacing: 0.5px; }
-        .adaptive-price-details { display: none; margin-top: 12px; padding: 12px; border: 1px solid #bfdbfe; border-radius: 10px; background: #f8fbff; }
+        .adaptive-price-details { display: none; margin-top: 12px; }
         .adaptive-price-details.is-visible { display: block; }
-        .adaptive-price-details > strong { display: block; margin-bottom: 3px; color: #1d4ed8; font-size: 11px; }
-        .adaptive-price-details > small { display: block; margin-bottom: 9px; color: var(--text-muted); font-size: 9.5px; line-height: 1.35; }
+        .adaptive-price-toggle {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 9px 10px;
+            border: 1px solid #bfdbfe;
+            border-radius: 9px;
+            background: #eff6ff;
+            color: #1d4ed8;
+            font-size: 11px;
+            font-weight: 800;
+            text-align: left;
+            cursor: pointer;
+        }
+        .adaptive-price-toggle:hover { border-color: #60a5fa; background: #dbeafe; }
+        .adaptive-price-toggle:focus-visible { outline: 3px solid rgba(37,99,235,.22); outline-offset: 2px; }
+        .adaptive-price-toggle-icon { flex: 0 0 auto; font-size: 15px; line-height: 1; transition: transform .18s ease; }
+        .adaptive-price-toggle[aria-expanded="true"] .adaptive-price-toggle-icon { transform: rotate(180deg); }
+        .adaptive-price-details-body { margin-top: 8px; padding: 12px; border: 1px solid #bfdbfe; border-radius: 10px; background: #f8fbff; }
+        .adaptive-price-details-body[hidden] { display: none !important; }
+        .adaptive-price-details-body > small { display: block; margin-bottom: 9px; color: var(--text-muted); font-size: 9.5px; line-height: 1.35; }
         .adaptive-price-list { display: grid; gap: 7px; }
         .adaptive-price-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(105px, .7fr); gap: 8px; align-items: center; }
         .adaptive-price-row label { min-width: 0; color: #334155; font-size: 10px; font-weight: 750; line-height: 1.25; }
@@ -1836,6 +1857,8 @@
             font-size: 11px;
             line-height: 1.45;
         }
+        .pdf-contract-persistent[hidden] { display: none !important; }
+        .pdf-contract-persistent .pdf-contract-check { margin: 14px 0 0; }
         .pdf-review-static.pdf-confirm-attention {
             animation: pdfConfirmAttention 2.8s ease;
         }
@@ -2757,6 +2780,7 @@
                 <div class="upload-note">Se carichi una bolletta business dal box PDF, proveremo a leggere consumi e fornitore. La verifica finale resta consulenziale.</div>
             </div>
         </div>
+        <div id="pdf-contract-control-business" class="pdf-contract-persistent" hidden aria-live="polite"></div>
 
         <div class="business-actions">
             <div class="business-action-buttons">
@@ -3023,6 +3047,7 @@
                     <div class="adaptive-price-details" id="adaptive-current-gas" aria-live="polite"></div>
                 </div>
             </div>
+            <div id="pdf-contract-control-current" class="pdf-contract-persistent" hidden aria-live="polite"></div>
         </div> <div class="manual-block offerta-inserita optional-offer-card supply-compare-card" id="blocco-nuovo">
             <div class="compare-card-header optional-offer-header">
                 <h3 class="compare-card-title optional-offer-title"><span class="compare-card-icon optional-title-icon" aria-hidden="true">📊</span><span>Confronta un'offerta o un fornitore specifico</span></h3>
@@ -4719,6 +4744,7 @@ function selezionaSegmentoCliente(tipo) {
   const results = document.getElementById("results-area");
   if (results) results.style.display = "none";
   aggiornaIndicatoreProfiloPdf();
+  aggiornaControlloContrattoPersistente();
 }
 
 function businessPdfDataRows(data) {
@@ -8623,8 +8649,20 @@ function resetModuloPrimaDiNuovaLetturaPdf() {
   ].forEach(clearField);
   ["in-luce-fisso-att-unita", "in-gas-fisso-att-unita", "in-luce-fisso-nuov-unita", "in-gas-fisso-nuov-unita"].forEach((id) => setField(id, "mese"));
   svuotaDettagliAdattiviPdf();
+  aggiornaControlloContrattoPersistente();
   pulisciSegnalazioniDatiMancanti();
   nascondiEsitiFincheNonConfronti();
+}
+
+function toggleDettagliEconomiciPdf(button) {
+  const panel = button?.closest?.(".adaptive-price-details");
+  const body = panel?.querySelector?.(".adaptive-price-details-body");
+  if (!button || !body) return;
+  const willOpen = body.hidden;
+  body.hidden = !willOpen;
+  button.setAttribute("aria-expanded", willOpen ? "true" : "false");
+  const label = button.querySelector(".adaptive-price-toggle-label");
+  if (label) label.innerText = willOpen ? "Nascondi voci economiche" : "Vedi voci economiche";
 }
 
 function valoreAdattivoPdf(entry) {
@@ -8678,7 +8716,8 @@ function renderDettagliAdattiviFornitura(supply, targetId) {
     box.classList.remove("is-visible");
     return;
   }
-  box.innerHTML = `<strong>Voci economiche presenti nel documento</strong><small>I valori sono riportati come compaiono nel documento. Restano modificabili e servono a verificare il prezzo principale.</small><div class="adaptive-price-list">${rows.join("")}</div>`;
+  const bodyId = `${targetId}-body`;
+  box.innerHTML = `<button type="button" class="adaptive-price-toggle" aria-expanded="false" aria-controls="${bodyId}" onclick="toggleDettagliEconomiciPdf(this)"><span class="adaptive-price-toggle-label">Vedi voci economiche</span><span class="adaptive-price-toggle-icon" aria-hidden="true">⌄</span></button><div class="adaptive-price-details-body" id="${bodyId}" hidden><small>Valori economici letti dal documento. Restano modificabili e servono a verificare il prezzo principale.</small><div class="adaptive-price-list">${rows.join("")}</div></div>`;
   box.classList.add("is-visible");
 }
 
@@ -8724,6 +8763,7 @@ function applicaRisultatoPdfDirettamente(results) {
   if (LEAD_STATE.customerType === "business") {
     applicaDatiPdfAlBusiness(data);
     renderModuloAdattivoPdf(data);
+    aggiornaControlloContrattoPersistente();
     aggiornaAssistenteAttivazioneVisibilita();
     if (panel) panel.style.display = "none";
     portaElementoInVista(document.getElementById("business-panel"), { block: "start" });
@@ -8738,6 +8778,7 @@ function applicaRisultatoPdfDirettamente(results) {
   modalitaCalcolo = "manuale";
   applicaDatiPdfAlModulo(data);
   renderModuloAdattivoPdf(data);
+  aggiornaControlloContrattoPersistente();
   accompagnaAllaRevisioneDatiPdf(data);
   nascondiEsitiFincheNonConfronti();
   aggiornaAssistenteAttivazioneVisibilita();
@@ -8931,6 +8972,7 @@ function ricostruisciModuloDaSlotPdf(activeSlot = PDF_ACTIVE_SLOT) {
   const fallbackSlot = offer ? "offer" : current ? "current" : null;
   sincronizzaStatoDocumentiPdf(activeSlot && PDF_DOCUMENT_SLOTS[activeSlot]?.length ? activeSlot : fallbackSlot);
   LEAD_STATE.dataOrigin = (current || offer) ? "pdf_upload" : "manual_input";
+  aggiornaControlloContrattoPersistente();
   return { appliedCurrent, appliedOffer };
 }
 
@@ -10499,6 +10541,23 @@ function renderPdfContractControl(merged) {
   `;
 }
 
+function aggiornaControlloContrattoPersistente() {
+  const currentTarget = document.getElementById("pdf-contract-control-current");
+  const businessTarget = document.getElementById("pdf-contract-control-business");
+  [currentTarget, businessTarget].forEach((target) => {
+    if (!target) return;
+    target.hidden = true;
+    target.innerHTML = "";
+  });
+
+  const currentData = typeof datiBollettaCorrentePdf === "function" ? datiBollettaCorrentePdf() : null;
+  if (!currentData) return;
+  const target = LEAD_STATE.customerType === "business" ? businessTarget : currentTarget;
+  if (!target) return;
+  target.innerHTML = renderPdfContractControl(currentData);
+  target.hidden = false;
+}
+
 const PDF_READINESS_FIELD_LABELS = Object.freeze({
   fornitore: "fornitore",
   intestatario: "intestatario",
@@ -10934,11 +10993,9 @@ function renderPdfSummary(documents, merged) {
   ].filter(Boolean).join(" | ");
 
   const ocrReviewTargets = Number(merged.data_contract?.autofill_plan?.review_target_count || 0);
-  const contractControl = renderPdfContractControl(merged);
   return `
     <span>Documenti analizzati:</span>
     <ul style="margin:6px 0 10px 18px;">${rows}</ul>
-    ${contractControl}
     <span><strong>Dati letti:</strong> ${mergedRows || "nessun dato sufficientemente affidabile; completa il modulo manualmente."}<br><small>Nel modulo saranno inseriti soltanto i campi completi ammessi dal contratto dati, dopo la tua conferma.${ocrReviewTargets ? " I dati OCR compariranno nell’anteprima deselezionati e dovrai sceglierli esplicitamente." : ""}</small></span>
   `;
 }
@@ -10979,6 +11036,7 @@ window.azzeraPdfEModulo = function azzeraPdfEModulo() {
   pulisciGuidePercorsoPdf();
   pulisciSegnalazioniDatiMancanti();
   svuotaDettagliAdattiviPdf();
+  aggiornaControlloContrattoPersistente();
   const input = document.getElementById("pdf-static-input");
   const panel = document.getElementById("pdf-review-static");
   const copy = document.getElementById("pdf-review-copy");
