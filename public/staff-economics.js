@@ -4,7 +4,7 @@
   const SUPABASE_URL = "https://kzxdamhfmzaxonpkytcf.supabase.co";
   const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_poz1xBKiXceLCFV3u_tPIg_5_-ycHcl";
   const STORAGE_KEY = "offertalogica-premium-staff-auth";
-  const MANAGEMENT_RELEASE = "0.36.67";
+  const MANAGEMENT_RELEASE = "0.36.68";
   const DAYS = [7, 30, 90, 365];
   let loading = false;
   let currentDays = 30;
