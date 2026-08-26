@@ -451,18 +451,36 @@
         .business-ranking { display: grid; gap: 9px; margin: 14px 0; }
         .business-ranking[hidden] { display: none !important; }
         .business-ranking-note { margin: 0; padding: 10px 12px; border: 1px solid #d1fae5; border-radius: 9px; background: #ffffff; color: #315564; font-size: 12px; line-height: 1.45; }
+        .business-ranking-note-line { display: block; }
+        .business-ranking-note-guide { display: block; margin-top: 7px; color: #123044; }
+        .business-ranking-note-scope { display: block; margin-top: 5px; color: #475569; }
         .business-ranking-list { display: grid; gap: 8px; }
         .business-ranking-card { display: grid; grid-template-columns: auto minmax(0,1fr) auto; gap: 10px; align-items: center; padding: 11px 12px; border: 1px solid #dbe7df; border-radius: 10px; background: #ffffff; }
         .business-ranking-position { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 999px; background: #dcfce7; color: #166534; font-size: 12px; font-weight: 900; }
+        .business-ranking-main { min-width: 0; display: flex; align-items: center; gap: 10px; }
+        .business-ranking-logo { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; }
+        .business-ranking-logo .provider-logo-shell { width: 82px; height: 40px; border-color: #e2e8f0; box-shadow: none; }
+        .business-ranking-logo .provider-logo { width: 66px; height: 27px; }
+        .business-ranking-logo .provider-logo-split { width: 136px; height: 40px; gap: 4px; border: 0; box-shadow: none; }
+        .business-ranking-logo .provider-logo-split-item { width: 58px; height: 40px; flex-basis: 58px; padding: 4px; box-shadow: none; }
+        .business-ranking-logo .provider-logo-split-img { width: 48px; height: 20px; }
+        .business-ranking-logo .provider-logo-split-label { font-size: 7px; }
         .business-ranking-meta { min-width: 0; }
         .business-ranking-meta strong { display: block; margin: 0; color: #123044; font-size: 14px; line-height: 1.25; }
         .business-ranking-meta small { display: block; margin-top: 2px; color: #64748b; font-size: 11px; line-height: 1.35; }
         .business-ranking-economics { text-align: right; white-space: nowrap; }
+        .business-ranking-cost-label { display: block; margin-bottom: 2px; color: #64748b; font-size: 10px; font-weight: 800; line-height: 1.2; }
         .business-ranking-economics strong { display: block; margin: 0; color: #123044; font-size: 14px; }
-        .business-ranking-economics small { display: block; margin-top: 2px; color: #166534; font-size: 11px; }
+        .business-ranking-economics small { display: block; margin-top: 3px; color: #166534; font-size: 11px; }
         .business-ranking-economics small.is-negative { color: #9a3412; }
         @media (max-width: 620px) {
             .business-ranking-card { grid-template-columns: auto minmax(0,1fr); }
+            .business-ranking-main { align-items: flex-start; }
+            .business-ranking-logo .provider-logo-shell { width: 72px; height: 36px; }
+            .business-ranking-logo .provider-logo { width: 58px; height: 24px; }
+            .business-ranking-logo .provider-logo-split { width: 120px; height: 36px; }
+            .business-ranking-logo .provider-logo-split-item { width: 50px; height: 36px; flex-basis: 50px; }
+            .business-ranking-logo .provider-logo-split-img { width: 42px; height: 18px; }
             .business-ranking-economics { grid-column: 2; text-align: left; white-space: normal; }
         }
         .business-error { color: var(--danger); font-size: 13px; margin-top: 10px; display: none; }
@@ -4916,6 +4934,25 @@ function chiaveProfiloBusiness(profile) {
   ]);
 }
 
+function testoCoperturaBusiness(profile, rankingCount) {
+  if (!OFFERTE_ARERA_BUSINESS.length && !OFFERTE_ARERA_DUAL_BUSINESS.length) return "";
+  const hasLuce = Number.isFinite(profile?.consumoLuceKwh) && Number.isFinite(profile?.costoAttualeLuce);
+  const hasGas = Number.isFinite(profile?.consumoGasSmc) && Number.isFinite(profile?.costoAttualeGas);
+  const singolePertinenti = OFFERTE_ARERA_BUSINESS
+    .filter((riga) => offertaBusinessCompatibileGenerica(riga))
+    .filter((riga) => (hasLuce && riga.commodity === "luce") || (hasGas && riga.commodity === "gas"))
+    .map((riga) => creaCandidatoBusinessSingolo(riga, profile))
+    .filter(Boolean).length;
+  const dualPertinenti = hasLuce && hasGas
+    ? OFFERTE_ARERA_DUAL_BUSINESS.map((riga) => creaCandidatoBusinessDual(riga, profile)).filter(Boolean).length
+    : 0;
+  const totaleCatalogo = OFFERTE_ARERA_BUSINESS.length + OFFERTE_ARERA_DUAL_BUSINESS.length;
+  const pertinenti = singolePertinenti + dualPertinenti;
+  const data = formattaDataCatalogoCopertura(DATI_ARERA_MENU_META.aggiornatoIl);
+  const aggiornamento = data ? ` aggiornato al ${data}` : "";
+  return `Catalogo business${aggiornamento} · ${totaleCatalogo} offerte monitorate · ${pertinenti} offerte pertinenti alle forniture indicate · ${Math.max(0, Number(rankingCount) || 0)} risultati mostrati.`;
+}
+
 function renderRankingBusiness(profile, ranking) {
   const container = document.getElementById("business-ranking");
   if (!container) return;
@@ -4928,7 +4965,25 @@ function renderRankingBusiness(profile, ranking) {
   container.hidden = false;
   const note = document.createElement("p");
   note.className = "business-ranking-note";
-  note.textContent = "Ranking economico sul profilo aziendale: confronta componente energia/gas e quota fissa di vendita. Rete, oneri, imposte e IVA non sono inclusi nella stima.";
+  const copertura = testoCoperturaBusiness(profile, ranking.length);
+  if (copertura) {
+    const coverageLine = document.createElement("span");
+    coverageLine.className = "business-ranking-note-line";
+    coverageLine.textContent = copertura;
+    note.appendChild(coverageLine);
+  }
+  const guideLine = document.createElement("span");
+  guideLine.className = "business-ranking-note-guide";
+  const guideTitle = document.createElement("strong");
+  guideTitle.textContent = "Come leggere i risultati: ";
+  guideLine.append(
+    guideTitle,
+    document.createTextNode("l'importo grande è il costo annuo stimato dell'offerta; la riga verde o rossa mostra il risparmio o il costo superiore rispetto alla fornitura attuale.")
+  );
+  const scopeLine = document.createElement("span");
+  scopeLine.className = "business-ranking-note-scope";
+  scopeLine.textContent = "Risultati basati su offerte business ARERA compatibili con il profilo aziendale inserito. La stima considera componente energia/gas e quota fissa di vendita. Rete, oneri, imposte e IVA non sono inclusi nella stima.";
+  note.append(guideLine, scopeLine);
   container.appendChild(note);
 
   const list = document.createElement("div");
@@ -4941,6 +4996,17 @@ function renderRankingBusiness(profile, ranking) {
     position.className = "business-ranking-position";
     position.textContent = String(item.posizioneEconomica);
 
+    const main = document.createElement("div");
+    main.className = "business-ranking-main";
+    const logoHtml = htmlLogoBusiness(item);
+    if (logoHtml) {
+      const logo = document.createElement("span");
+      logo.className = "business-ranking-logo";
+      logo.setAttribute("aria-hidden", "true");
+      logo.innerHTML = logoHtml;
+      main.appendChild(logo);
+    }
+
     const meta = document.createElement("div");
     meta.className = "business-ranking-meta";
     const title = document.createElement("strong");
@@ -4949,21 +5015,25 @@ function renderRankingBusiness(profile, ranking) {
     const tipo = item.tipo === "variabile" ? "Prezzo variabile" : item.tipo === "misto" ? "Prezzi misti" : "Prezzo fisso";
     detail.textContent = `${item.nome} · ${tipo} · ${descriviAmbitoBusiness(item)}`;
     meta.append(title, detail);
+    main.appendChild(meta);
 
     const economics = document.createElement("div");
     economics.className = "business-ranking-economics";
+    const costLabel = document.createElement("span");
+    costLabel.className = "business-ranking-cost-label";
+    costLabel.textContent = "Costo annuo stimato dell'offerta";
     const cost = document.createElement("strong");
     cost.textContent = `${euro(item.costo)} / anno`;
     const difference = document.createElement("small");
     if (item.differenza >= 0) {
-      difference.textContent = `Differenza favorevole ${euro(item.differenza)}`;
+      difference.textContent = `Risparmio stimato rispetto all'attuale: ${euro(item.differenza)} / anno`;
     } else {
       difference.className = "is-negative";
-      difference.textContent = `Costo superiore ${euro(Math.abs(item.differenza))}`;
+      difference.textContent = `Costo superiore all'attuale di ${euro(Math.abs(item.differenza))} / anno`;
     }
-    economics.append(cost, difference);
+    economics.append(costLabel, cost, difference);
 
-    card.append(position, meta, economics);
+    card.append(position, main, economics);
     list.appendChild(card);
   });
   container.appendChild(list);
@@ -5011,12 +5081,12 @@ window.calcolaBusiness = function calcolaBusiness() {
   if (migliore) {
     if (saving) {
       saving.innerText = migliore.differenza >= 0
-        ? `Migliore differenza stimata: ${euro(migliore.differenza)} / anno`
-        : `Migliore proposta trovata: ${euro(migliore.costo)} / anno`;
+        ? `Miglior risparmio stimato: ${euro(migliore.differenza)} / anno`
+        : `Miglior costo annuo stimato trovato: ${euro(migliore.costo)} / anno`;
     }
     if (copy) {
       copy.innerText = migliore.differenza >= 0
-        ? "Il ranking usa soltanto le offerte business ARERA compatibili con le forniture indicate e le ordina per costo annuo stimato della componente di vendita."
+        ? "Le offerte mostrate sono offerte business ARERA compatibili con le forniture indicate e sono ordinate per costo annuo stimato della componente di vendita."
         : "Nel catalogo business attuale non emerge una proposta con componente di vendita inferiore ai dati inseriti. Puoi comunque verificare condizioni e dettagli con assistenza.";
     }
   } else {
@@ -5579,6 +5649,50 @@ function htmlLogoOffertaSeparata(offerta) {
       ${htmlLogoMiniComponente(luceBrand, "luce")}
       <span class="provider-logo-split-plus" aria-hidden="true">+</span>
       ${htmlLogoMiniComponente(gasBrand, "gas")}
+    </span>
+  `;
+}
+
+function htmlLogoBusiness(item) {
+  const providerLabels = String(item?.provider || "")
+    .split(/\s+\+\s+/)
+    .map((label) => label.trim())
+    .filter(Boolean);
+  if (!providerLabels.length) return "";
+
+  const brands = providerLabels.map((label) => brandDaRiferimento("", label));
+  const brandsConLogo = brands.filter((brand) => brand?.logo);
+  if (!brandsConLogo.length) return "";
+
+  const chiavi = [...new Set(brandsConLogo.map((brand) => brand.key || brand.label).filter(Boolean))];
+  if (brandsConLogo.length === 1 || chiavi.length === 1) {
+    const brand = brandsConLogo[0];
+    const label = testoHtmlSicuro(brand.label || providerLabels[0] || "Fornitore");
+    const shellClass = brand.logoShell === "dark" ? "provider-logo-shell is-logo-on-dark" : "provider-logo-shell";
+    return `
+      <span class="${shellClass}" title="${label}">
+        <img class="provider-logo" src="${testoHtmlSicuro(brand.logo)}" alt="${label}" loading="lazy">
+      </span>
+    `;
+  }
+
+  if (brands.length >= 2 && brands[0]?.logo && brands[1]?.logo) {
+    const title = testoHtmlSicuro(`${brands[0].label || providerLabels[0]} + ${brands[1].label || providerLabels[1]}`);
+    return `
+      <span class="provider-logo-shell provider-logo-split" title="${title}">
+        ${htmlLogoMiniComponente(brands[0], "luce")}
+        <span class="provider-logo-split-plus" aria-hidden="true">+</span>
+        ${htmlLogoMiniComponente(brands[1], "gas")}
+      </span>
+    `;
+  }
+
+  const brand = brandsConLogo[0];
+  const label = testoHtmlSicuro(brand.label || providerLabels[0] || "Fornitore");
+  const shellClass = brand.logoShell === "dark" ? "provider-logo-shell is-logo-on-dark" : "provider-logo-shell";
+  return `
+    <span class="${shellClass}" title="${label}">
+      <img class="provider-logo" src="${testoHtmlSicuro(brand.logo)}" alt="${label}" loading="lazy">
     </span>
   `;
 }
@@ -6574,6 +6688,29 @@ function selezionaRankingEconomicoPerMenu(items, limite = NUMERO_OFFERTE_RANKING
     .slice(0, limite);
 }
 
+function formattaDataCatalogoCopertura(value) {
+  const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return match ? `${match[3]}/${match[2]}/${match[1]}` : "";
+}
+
+function testoCoperturaConsumer(classificate, mostrate) {
+  const fallback = "Il costo annuo stimato mostra il risultato economico del confronto. I badge di attivazione indicano come puoi procedere con la singola offerta.";
+  if (!OFFERTE_ARERA_MENU.length) return fallback;
+
+  const data = formattaDataCatalogoCopertura(DATI_ARERA_MENU_META.aggiornatoIl);
+  const aggiornamento = data ? ` aggiornato al ${data}` : "";
+  const totaleCatalogo = OFFERTE_ARERA_MENU.length + OFFERTE_ARERA_DUAL.length;
+  const numeroClassificate = Math.max(0, Number(classificate) || 0);
+  const numeroMostrate = Math.max(0, Number(mostrate) || 0);
+  return `Catalogo di confronto${aggiornamento} · ${totaleCatalogo} offerte monitorate · ${numeroClassificate} soluzioni compatibili classificate · ${numeroMostrate} mostrate. Ordinamento esclusivamente economico; il percorso di attivazione non modifica la posizione.`;
+}
+
+function aggiornaCoperturaConsumer(classificate, mostrate) {
+  const elemento = document.getElementById("offers-ranking-explainer");
+  if (!elemento) return;
+  elemento.textContent = testoCoperturaConsumer(classificate, mostrate);
+}
+
 function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitura) {
   const offerteCandidati = costruisciOfferteRanking(attuale, tipoTariffa, tipoFornitura);
   assicuraSchedeOfferte(offerteCandidati);
@@ -6661,6 +6798,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
   const idsVisibili = new Set(visibili.map((item) => String(item.offerta.id)));
   const migliore = visibili[0] || ordinateRanking[0] || offerteCalcolate[0] || null;
   const hasVisibleOffers = visibili.length > 0;
+  aggiornaCoperturaConsumer(ordinateRanking.length, visibili.length);
 
   ["offerte-partner-online-group", "offerte-consulente-group"].forEach((id) => {
     document.getElementById(id)?.remove();
@@ -11769,7 +11907,7 @@ if (document.readyState === "loading") {
         <button type="button" class="offers-personalize-continue" id="offers-keep-average">Continua con la stima media</button>
     </div>
 </div>
-<div class="offers-ranking-explainer">Il costo annuo stimato mostra il risultato economico del confronto. I badge di attivazione indicano come puoi procedere con la singola offerta.</div>
+<div class="offers-ranking-explainer" id="offers-ranking-explainer">Il costo annuo stimato mostra il risultato economico del confronto. I badge di attivazione indicano come puoi procedere con la singola offerta.</div>
 <div class="vertical-cards-container" style="display: flex; flex-direction: column; gap: 15px;">
         
         <!-- Offerta Consigliata 1: E.ON -->
