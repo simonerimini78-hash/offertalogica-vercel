@@ -4,6 +4,7 @@
   const SUPABASE_URL = "https://kzxdamhfmzaxonpkytcf.supabase.co";
   const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_poz1xBKiXceLCFV3u_tPIg_5_-ycHcl";
   const STORAGE_KEY = "offertalogica-premium-staff-auth";
+  const MANAGEMENT_RELEASE = "0.36.67";
   const DAYS = [7, 30, 90, 365];
   let loading = false;
   let currentDays = 30;
@@ -152,7 +153,7 @@
             ${DAYS.map(day => `<option value="${day}" ${day === currentDays ? "selected" : ""}>Ultimi ${day} giorni</option>`).join("")}
           </select>
           <button class="button secondary" id="economicRefresh" type="button">Aggiorna</button>
-          <button class="button danger" id="economicResetBaseline" type="button">AZZERA CONTEGGI</button>
+          <button class="button danger" id="economicResetBaseline" type="button">IMPOSTA PUNTO ZERO</button>
         </div>
       </div>
       <div class="economic-page">
@@ -242,7 +243,7 @@
       return;
     }
     target.hidden = false;
-    target.textContent = `Ultimo azzeramento conteggi: ${date(data.baseline_at)}. I dati precedenti restano archiviati ma non entrano nei conteggi quando la baseline limita il periodo selezionato.`;
+    target.textContent = `Punto zero gestionale: ${date(data.baseline_at)}. I dati precedenti restano archiviati, ma sono esclusi dai conteggi ufficiali successivi al punto zero.`;
   }
 
   function renderKpis(data) {
@@ -400,8 +401,8 @@
   async function resetEconomicBaseline() {
     if (loading) return;
     const confirmed = window.confirm(
-      "Azzerare i conteggi economici da questo momento?\n\n" +
-      "I dati storici NON verranno cancellati dal database, ma le prove precedenti non entreranno più nei conteggi del Cruscotto. " +
+      "Impostare da questo momento il PUNTO ZERO gestionale?\n\n" +
+      "I dati storici NON verranno cancellati. Le prove precedenti resteranno archiviate ma saranno escluse dai conteggi ufficiali che useranno il punto zero. " +
       "Tariffe e parametri restano invariati."
     );
     if (!confirmed) return;
@@ -409,18 +410,18 @@
     const button = byId("economicResetBaseline");
     loading = true;
     if (button) button.disabled = true;
-    setStatus("info", "Azzeramento conteggi economici…");
+    setStatus("info", "Impostazione punto zero gestionale…");
     try {
-      const result = await rpc("premium_owner_reset_economic_baseline");
+      const result = await rpc("staff_owner_set_management_baseline");
       window.dispatchEvent(new Event("offertalogica:staff-save-complete"));
       loading = false;
       await refresh();
       const baselineAt = result?.baseline_at || snapshot?.baseline_at;
       setStatus("ok", baselineAt
-        ? `Conteggi azzerati. Nuova baseline: ${date(baselineAt)}. Lo storico non è stato cancellato.`
-        : "Conteggi azzerati. Lo storico non è stato cancellato.");
+        ? `Punto zero gestionale impostato: ${date(baselineAt)}. Lo storico non è stato cancellato.`
+        : "Punto zero gestionale impostato. Lo storico non è stato cancellato.");
     } catch (error) {
-      setStatus("error", String(error?.message || error || "Impossibile azzerare i conteggi."));
+      setStatus("error", String(error?.message || error || "Impossibile impostare il punto zero gestionale."));
       loading = false;
     } finally {
       if (button) button.disabled = false;
@@ -528,6 +529,17 @@
     refresh();
   }
 
+  function loadManagementFoundation() {
+    if (window.OffertaLogicaStaffManagement?.release === MANAGEMENT_RELEASE) return;
+    if (document.querySelector(`script[data-staff-management-release="${MANAGEMENT_RELEASE}"]`)) return;
+    const script = document.createElement("script");
+    script.src = `/staff-management.js?v=${encodeURIComponent(MANAGEMENT_RELEASE)}`;
+    script.defer = true;
+    script.dataset.staffManagementRelease = MANAGEMENT_RELEASE;
+    script.addEventListener("error", () => console.warn("Fondazioni gestionali Staff non disponibili."));
+    document.head.append(script);
+  }
+
   function bindNavigation() {
     byId("staffEconomicsTab")?.addEventListener("click", () => openEconomics());
     document.addEventListener("click", event => {
@@ -541,5 +553,6 @@
     }, { once: true });
   }
 
+  loadManagementFoundation();
   bindNavigation();
 })();
