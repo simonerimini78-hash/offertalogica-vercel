@@ -451,6 +451,9 @@
         .business-ranking { display: grid; gap: 9px; margin: 14px 0; }
         .business-ranking[hidden] { display: none !important; }
         .business-ranking-note { margin: 0; padding: 10px 12px; border: 1px solid #d1fae5; border-radius: 9px; background: #ffffff; color: #315564; font-size: 12px; line-height: 1.45; }
+        .business-ranking-note-line { display: block; }
+        .business-ranking-note-guide { display: block; margin-top: 7px; color: #123044; }
+        .business-ranking-note-scope { display: block; margin-top: 5px; color: #475569; }
         .business-ranking-list { display: grid; gap: 8px; }
         .business-ranking-card { display: grid; grid-template-columns: auto minmax(0,1fr) auto; gap: 10px; align-items: center; padding: 11px 12px; border: 1px solid #dbe7df; border-radius: 10px; background: #ffffff; }
         .business-ranking-position { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 999px; background: #dcfce7; color: #166534; font-size: 12px; font-weight: 900; }
@@ -458,8 +461,9 @@
         .business-ranking-meta strong { display: block; margin: 0; color: #123044; font-size: 14px; line-height: 1.25; }
         .business-ranking-meta small { display: block; margin-top: 2px; color: #64748b; font-size: 11px; line-height: 1.35; }
         .business-ranking-economics { text-align: right; white-space: nowrap; }
+        .business-ranking-cost-label { display: block; margin-bottom: 2px; color: #64748b; font-size: 10px; font-weight: 800; line-height: 1.2; }
         .business-ranking-economics strong { display: block; margin: 0; color: #123044; font-size: 14px; }
-        .business-ranking-economics small { display: block; margin-top: 2px; color: #166534; font-size: 11px; }
+        .business-ranking-economics small { display: block; margin-top: 3px; color: #166534; font-size: 11px; }
         .business-ranking-economics small.is-negative { color: #9a3412; }
         @media (max-width: 620px) {
             .business-ranking-card { grid-template-columns: auto minmax(0,1fr); }
@@ -4948,9 +4952,24 @@ function renderRankingBusiness(profile, ranking) {
   const note = document.createElement("p");
   note.className = "business-ranking-note";
   const copertura = testoCoperturaBusiness(profile, ranking.length);
-  note.textContent = copertura
-    ? `${copertura} Ranking economico sul profilo aziendale: confronta componente energia/gas e quota fissa di vendita. Rete, oneri, imposte e IVA non sono inclusi nella stima.`
-    : "Ranking economico sul profilo aziendale: confronta componente energia/gas e quota fissa di vendita. Rete, oneri, imposte e IVA non sono inclusi nella stima.";
+  if (copertura) {
+    const coverageLine = document.createElement("span");
+    coverageLine.className = "business-ranking-note-line";
+    coverageLine.textContent = copertura;
+    note.appendChild(coverageLine);
+  }
+  const guideLine = document.createElement("span");
+  guideLine.className = "business-ranking-note-guide";
+  const guideTitle = document.createElement("strong");
+  guideTitle.textContent = "Come leggere i risultati: ";
+  guideLine.append(
+    guideTitle,
+    document.createTextNode("l'importo grande è il costo annuo stimato dell'offerta; la riga verde o rossa mostra il risparmio o il costo superiore rispetto alla fornitura attuale.")
+  );
+  const scopeLine = document.createElement("span");
+  scopeLine.className = "business-ranking-note-scope";
+  scopeLine.textContent = "Risultati basati su offerte business ARERA compatibili con il profilo aziendale inserito. La stima considera componente energia/gas e quota fissa di vendita. Rete, oneri, imposte e IVA non sono inclusi nella stima.";
+  note.append(guideLine, scopeLine);
   container.appendChild(note);
 
   const list = document.createElement("div");
@@ -4974,16 +4993,19 @@ function renderRankingBusiness(profile, ranking) {
 
     const economics = document.createElement("div");
     economics.className = "business-ranking-economics";
+    const costLabel = document.createElement("span");
+    costLabel.className = "business-ranking-cost-label";
+    costLabel.textContent = "Costo annuo stimato dell'offerta";
     const cost = document.createElement("strong");
     cost.textContent = `${euro(item.costo)} / anno`;
     const difference = document.createElement("small");
     if (item.differenza >= 0) {
-      difference.textContent = `Differenza favorevole ${euro(item.differenza)}`;
+      difference.textContent = `Risparmio stimato rispetto all'attuale: ${euro(item.differenza)} / anno`;
     } else {
       difference.className = "is-negative";
-      difference.textContent = `Costo superiore ${euro(Math.abs(item.differenza))}`;
+      difference.textContent = `Costo superiore all'attuale di ${euro(Math.abs(item.differenza))} / anno`;
     }
-    economics.append(cost, difference);
+    economics.append(costLabel, cost, difference);
 
     card.append(position, meta, economics);
     list.appendChild(card);
@@ -5033,12 +5055,12 @@ window.calcolaBusiness = function calcolaBusiness() {
   if (migliore) {
     if (saving) {
       saving.innerText = migliore.differenza >= 0
-        ? `Migliore differenza stimata: ${euro(migliore.differenza)} / anno`
-        : `Migliore proposta trovata: ${euro(migliore.costo)} / anno`;
+        ? `Miglior risparmio stimato: ${euro(migliore.differenza)} / anno`
+        : `Miglior costo annuo stimato trovato: ${euro(migliore.costo)} / anno`;
     }
     if (copy) {
       copy.innerText = migliore.differenza >= 0
-        ? "Il ranking usa soltanto le offerte business ARERA compatibili con le forniture indicate e le ordina per costo annuo stimato della componente di vendita."
+        ? "Le offerte mostrate sono offerte business ARERA compatibili con le forniture indicate e sono ordinate per costo annuo stimato della componente di vendita."
         : "Nel catalogo business attuale non emerge una proposta con componente di vendita inferiore ai dati inseriti. Puoi comunque verificare condizioni e dettagli con assistenza.";
     }
   } else {

@@ -140,6 +140,18 @@ test("battaglia 03: il business distingue catalogo monitorato, offerte pertinent
   assert.doesNotMatch(text, /Condominio/);
 });
 
+
+test("battaglia 03 v2: il ranking business chiarisce costo annuo e differenza rispetto all'attuale", () => {
+  assert.match(html, /Costo annuo stimato dell'offerta/);
+  assert.match(html, /Risparmio stimato rispetto all'attuale:/);
+  assert.match(html, /Costo superiore all'attuale di/);
+  assert.match(html, /Miglior risparmio stimato:/);
+  assert.match(html, /Come leggere i risultati:/);
+  assert.match(html, /Risultati basati su offerte business ARERA compatibili con il profilo aziendale inserito/);
+  assert.doesNotMatch(html, /Differenza favorevole/);
+  assert.doesNotMatch(html, /Migliore differenza stimata/);
+});
+
 test("battaglia 03: la trasparenza non introduce fetch, API o criteri commerciali nel ranking", () => {
   const consumer = extractFunction("aggiornaCoperturaConsumer");
   const business = extractFunction("testoCoperturaBusiness");
