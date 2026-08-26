@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import formidable from "formidable";
 import { json, method, requireAllowedOrigin } from "../lib/http.js";
-import { extractPdfPureAi } from "../lib/pdfPureAiReader.js";
+import { extractPdfPureAi, PDF_PURE_AI_DEFAULT_MODEL } from "../lib/pdfPureAiReader.js";
 import { normalizePdfFileHeader } from "../lib/pdfFileValidation.js";
 import {
   archivePdfAnalysis,
@@ -15,6 +15,7 @@ import {
 } from "../lib/pdfArchive.js";
 import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
 import { classifyPdfAnalysisError, pdfAnalysisDiagnosticLog } from "../lib/pdfAnalysisDiagnostics.js";
+import { createSitePdfUsageMeter, recordSitePdfAiEconomicEvent } from "../lib/sitePdfAiEconomics.js";
 
 export const config = {
   api: { bodyParser: false },
@@ -148,6 +149,36 @@ export default async function handler(req, res) {
     ? Math.max(24_000, Math.min(52_000, configuredDeadlineMs))
     : 52_000;
   const analysisDeadlineAt = Date.now() + analysisDeadlineMs;
+  const aiAccountingEventId = crypto.randomUUID();
+  const aiAccountingOccurredAt = new Date(requestStartedAt).toISOString();
+  const aiModel = process.env.PDF_AI_PRIMARY_MODEL || PDF_PURE_AI_DEFAULT_MODEL;
+  const aiUsageMeter = createSitePdfUsageMeter();
+  let aiAccountingRecorded = false;
+
+  async function recordAiEconomicCost({ outcome, normalized = null, error = null } = {}) {
+    if (aiAccountingRecorded || aiUsageMeter.totals.calls.length === 0) return;
+    aiAccountingRecorded = true;
+    try {
+      await recordSitePdfAiEconomicEvent({
+        eventId: aiAccountingEventId,
+        usage: aiUsageMeter.totals,
+        model: aiModel,
+        customerType: normalized?.customer_type || archiveContext?.customerType,
+        outcome,
+        ingressMode,
+        analysisStage,
+        elapsedMs: Date.now() - requestStartedAt,
+        errorCode: error ? String(error?.code || error?.name || error?.message || "pdf_analysis_error").slice(0, 120) : "",
+        occurredAt: aiAccountingOccurredAt,
+      });
+    } catch (accountingError) {
+      console.error("[site-pdf-ai-accounting-error]", JSON.stringify({
+        event: "site_pdf_ai_accounting_failed",
+        stage: analysisStage,
+        message: String(accountingError?.message || accountingError || "accounting_error").slice(0, 300),
+      }));
+    }
+  }
 
   try {
     const contentType = String(req.headers?.["content-type"] || "").toLowerCase();
@@ -204,6 +235,8 @@ export default async function handler(req, res) {
       filePath: temporaryFilePath,
       filename: fileMetadata.originalFilename,
       deadlineAt: analysisDeadlineAt,
+      transport: aiUsageMeter.transport,
+      model: aiModel,
     });
     normalized.ai = {
       ...(normalized.ai || {}),
@@ -212,6 +245,7 @@ export default async function handler(req, res) {
       pdf_header_normalized: Boolean(pdfHeader.sanitized),
       leading_bytes_removed: Number(pdfHeader.bytesRemoved || 0),
     };
+    await recordAiEconomicCost({ outcome: "success", normalized });
     analysisStage = "archive_success";
     const canArchive = analysisDeadlineAt - Date.now() >= 7_000;
     const archive = canArchive
@@ -229,6 +263,7 @@ export default async function handler(req, res) {
   } catch (error) {
     const elapsedMs = Date.now() - requestStartedAt;
     const remainingMs = analysisDeadlineAt - Date.now();
+    await recordAiEconomicCost({ outcome: "failed", error });
     let archive = { stored: false, reason: "not_attempted" };
     if (validPdf && temporaryFilePath && fileMetadata && remainingMs >= 7_000) {
       try {
