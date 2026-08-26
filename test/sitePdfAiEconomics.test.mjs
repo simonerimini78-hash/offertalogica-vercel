@@ -99,7 +99,7 @@ test("distingue costo sostenuto, stimato e non prezzato in base al cambio dispon
   assert.equal(unpriced.amount_gross_eur, null);
 });
 
-test("registra nel ledger usando solo il cambio BCE gia verificato da Premium", async () => {
+test("preferisce nel ledger il cambio BCE gia verificato da Premium", async () => {
   const calls = [];
   const now = Date.parse("2026-08-26T12:00:00Z");
   const fetchImpl = async (url, init = {}) => {
@@ -142,6 +142,52 @@ test("registra nel ledger usando solo il cambio BCE gia verificato da Premium", 
   assert.equal(inserted.category, "site_pdf_ai_business");
   assert.equal(inserted.status, "incurred");
   assert.equal(inserted.metadata.fx_source, "premium_verified_ecb_snapshot");
+  assert.ok(inserted.amount_gross_eur > 0);
+});
+
+test("usa il cambio BCE diretto quando non esistono ancora analisi Premium con cambio verificato", async () => {
+  const calls = [];
+  const now = Date.parse("2026-08-26T12:00:00Z");
+  const fetchImpl = async (url, init = {}) => {
+    const target = String(url);
+    calls.push({ url: target, init });
+    if (target.includes("premium_analysis_runs")) {
+      return new Response(JSON.stringify([]), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    if (target.includes("ecb.europa.eu")) {
+      return new Response("<gesmes:Envelope><Cube><Cube time='2026-08-26'><Cube currency='USD' rate='1.17'/></Cube></Cube></gesmes:Envelope>", {
+        status: 200,
+        headers: { "content-type": "application/xml" },
+      });
+    }
+    return new Response("", { status: 201 });
+  };
+  const result = await recordSitePdfAiEconomicEvent({
+    eventId: "evt-direct-ecb",
+    usage: {
+      inputTokens: 1000,
+      cachedInputTokens: 0,
+      outputTokens: 250,
+      reasoningTokens: 0,
+      totalTokens: 1250,
+      calls: [{ responseId: "resp-direct-ecb" }],
+      responseIds: ["resp-direct-ecb"],
+    },
+    model: "gpt-4.1-2025-04-14",
+    customerType: "privato",
+    env: { SUPABASE_URL: "https://fallback.supabase.co", SUPABASE_SERVICE_ROLE_KEY: "service-test" },
+    fetchImpl,
+    nowMs: now,
+  });
+  assert.equal(result.stored, true);
+  assert.equal(result.status, "incurred");
+  assert.equal(calls.length, 3);
+  assert.match(calls[1].url, /ecb\.europa\.eu/);
+  const inserted = JSON.parse(calls[2].init.body);
+  assert.equal(inserted.category, "site_pdf_ai_consumer");
+  assert.equal(inserted.status, "incurred");
+  assert.equal(inserted.metadata.fx_source, "ecb_reference_rate_direct");
+  assert.equal(inserted.metadata.fx_reference_date, "2026-08-26");
   assert.ok(inserted.amount_gross_eur > 0);
 });
 
