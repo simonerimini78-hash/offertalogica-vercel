@@ -15,6 +15,7 @@
     .replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;").replaceAll("'", "&#039;");
   const money = value => {
+    if (value === null || value === undefined || value === "") return "—";
     const parsed = Number(value);
     return Number.isFinite(parsed)
       ? new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" }).format(parsed)
@@ -245,6 +246,14 @@
     target.innerHTML = cards.map(([label, value, meta, priority]) => `<article class="economic-kpi${priority ? " priority" : ""}"><span>${esc(label)}</span><strong>${esc(value)}</strong><small>${esc(meta)}</small></article>`).join("");
   }
 
+  function siteAiNote(runs, failed, unpriced, estimated) {
+    const parts = [`${number(runs, 0)} analisi`];
+    if (Number(failed || 0) > 0) parts.push(`${number(failed, 0)} fallite`);
+    if (Number(unpriced || 0) > 0) parts.push(`${number(unpriced, 0)} senza prezzo`);
+    if (Number(estimated || 0) > 0) parts.push(`${money(estimated)} stimati`);
+    return parts.join(" · ");
+  }
+
   function renderBreakdowns(data) {
     const kpi = data?.kpi || {};
     const b = data?.breakdown || {};
@@ -258,14 +267,27 @@
       breakdownRow("Commissioni forniture ancora attese", leadPotentialOnly, "Potenziale non incluso nei ricavi reali", "automatico"),
       breakdownRow("Altri ricavi attesi/stimati", manualExpected, "Movimenti economici attesi inseriti nel registro", "manuale/automatico"),
     ].join("");
-    if (costs) costs.innerHTML = [
-      breakdownRow("Analisi IA Premium", b.premium_ai_cost_eur, `${number(b.premium_ai_runs, 0)} analisi · ${number(b.premium_ai_failed, 0)} fallite`, "automatico"),
-      breakdownRow("Tempo operatore", b.human_cost_eur, `${number(Number(b.human_seconds || 0) / 3600, 2)} ore valorizzate con tariffa storica`, "automatico"),
-      breakdownRow("Altri costi già registrati", b.legacy_recorded_cost_eur, "Eventi di costo esistenti non duplicati", "automatico"),
-      breakdownRow("Costi reali nel registro economico", b.ledger_cost_real_eur, "Costi manuali/automatici sostenuti o confermati", "registro"),
-      breakdownRow("Costi stimati nel registro", b.ledger_cost_estimated_eur, "Stime non ancora trasformate in costo reale", "registro"),
-      breakdownRow("Costi ricorrenti stimati", b.scheduled_cost_estimated_eur, "Prorata di tariffe mensili/annuali attive", "tariffe"),
-    ].join("");
+    if (costs) {
+      const rows = [
+        breakdownRow("Analisi IA Premium", b.premium_ai_cost_eur, `${number(b.premium_ai_runs, 0)} analisi · ${number(b.premium_ai_failed, 0)} fallite`, "automatico"),
+        breakdownRow("Analisi IA sito — Privati", b.site_pdf_ai_consumer_cost_real_eur,
+          siteAiNote(b.site_pdf_ai_consumer_runs, b.site_pdf_ai_consumer_failed, b.site_pdf_ai_consumer_unpriced, b.site_pdf_ai_consumer_cost_estimated_eur), "automatico"),
+        breakdownRow("Analisi IA sito — Business", b.site_pdf_ai_business_cost_real_eur,
+          siteAiNote(b.site_pdf_ai_business_runs, b.site_pdf_ai_business_failed, b.site_pdf_ai_business_unpriced, b.site_pdf_ai_business_cost_estimated_eur), "automatico"),
+      ];
+      if (Number(b.site_pdf_ai_unknown_runs || 0) > 0) {
+        rows.push(breakdownRow("Analisi IA sito — Tipo non determinato", b.site_pdf_ai_unknown_cost_real_eur,
+          siteAiNote(b.site_pdf_ai_unknown_runs, b.site_pdf_ai_unknown_failed, b.site_pdf_ai_unknown_unpriced, b.site_pdf_ai_unknown_cost_estimated_eur), "automatico"));
+      }
+      rows.push(
+        breakdownRow("Tempo operatore", b.human_cost_eur, `${number(Number(b.human_seconds || 0) / 3600, 2)} ore valorizzate con tariffa storica`, "automatico"),
+        breakdownRow("Altri costi già registrati", b.legacy_recorded_cost_eur, "Eventi di costo esistenti non duplicati", "automatico"),
+        breakdownRow("Altri costi reali nel registro economico", b.ledger_cost_real_other_eur, "Esclude le analisi IA del sito mostrate sopra", "registro"),
+        breakdownRow("Altri costi stimati nel registro", b.ledger_cost_estimated_other_eur, "Esclude le analisi IA del sito mostrate sopra", "registro"),
+        breakdownRow("Costi ricorrenti stimati", b.scheduled_cost_estimated_eur, "Prorata di tariffe mensili/annuali attive", "tariffe"),
+      );
+      costs.innerHTML = rows.join("");
+    }
   }
 
   function rateValueLabel(rate) {
