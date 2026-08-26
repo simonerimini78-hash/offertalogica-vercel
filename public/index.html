@@ -1806,6 +1806,36 @@
         .pdf-review-static {
             scroll-margin-top: 24px;
         }
+        .pdf-contract-check {
+            margin: 12px 0 10px;
+            padding: 12px 13px;
+            border: 1px solid #cbd5e1;
+            border-radius: 9px;
+            background: #f8fafc;
+            color: #334155;
+        }
+        .pdf-contract-check-title {
+            margin-bottom: 6px;
+            color: #0f172a;
+            font-size: 13px;
+            font-weight: 850;
+        }
+        .pdf-contract-check ul {
+            margin: 0 0 7px 18px;
+            padding: 0;
+        }
+        .pdf-contract-check li {
+            margin: 3px 0;
+            color: #334155;
+            font-size: 12px;
+            line-height: 1.45;
+        }
+        .pdf-contract-check small {
+            display: block;
+            color: #64748b;
+            font-size: 11px;
+            line-height: 1.45;
+        }
         .pdf-review-static.pdf-confirm-attention {
             animation: pdfConfirmAttention 2.8s ease;
         }
@@ -10411,6 +10441,64 @@ function formatPdfValidityLine(commodityLabel, validFrom, validTo) {
   return "";
 }
 
+function parsePdfContractIsoDate(value) {
+  const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null;
+  return date;
+}
+
+function pdfContractDateDistanceLabel(value, now = new Date()) {
+  const target = parsePdfContractIsoDate(value);
+  if (!target) return "";
+  const todayUtc = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  const diffDays = Math.round((target.getTime() - todayUtc) / 86400000);
+  if (diffDays === 0) return "oggi";
+  if (diffDays > 0) return `tra ${diffDays} ${diffDays === 1 ? "giorno" : "giorni"}`;
+  const elapsed = Math.abs(diffDays);
+  return `trascorsa da ${elapsed} ${elapsed === 1 ? "giorno" : "giorni"}`;
+}
+
+function pdfContractCheckRow(label, value) {
+  if (!value) return `<li>${testoHtmlSicuro(label)}: non rilevata nel documento.</li>`;
+  const formatted = formatPdfContractDate(value);
+  const distance = pdfContractDateDistanceLabel(value);
+  return `<li>${testoHtmlSicuro(label)}: ${testoHtmlSicuro(formatted)}${distance ? ` (${testoHtmlSicuro(distance)})` : ""}.</li>`;
+}
+
+function renderPdfContractControl(merged) {
+  const commodity = merged?.commodity || "unknown";
+  const hasLuce = commodity === "luce" || commodity === "dual";
+  const hasGas = commodity === "gas" || commodity === "dual";
+  const rows = [];
+
+  if (hasLuce) {
+    const conditionEnd = merged.scadenza_condizioni_economiche_luce || (commodity === "luce" ? merged.scadenza_condizioni_economiche : "");
+    rows.push(pdfContractCheckRow("Scadenza condizioni economiche luce", conditionEnd));
+    rows.push(pdfContractCheckRow("Scadenza contratto luce", merged.scadenza_contratto_luce));
+  }
+  if (hasGas) {
+    const conditionEnd = merged.scadenza_condizioni_economiche_gas || (commodity === "gas" ? merged.scadenza_condizioni_economiche : "");
+    rows.push(pdfContractCheckRow("Scadenza condizioni economiche gas", conditionEnd));
+    rows.push(pdfContractCheckRow("Scadenza contratto gas", merged.scadenza_contratto_gas));
+  }
+  if (!rows.length) {
+    rows.push(pdfContractCheckRow("Scadenza condizioni economiche", merged?.scadenza_condizioni_economiche));
+  }
+
+  return `
+    <div class="pdf-contract-check" aria-label="Controllo contratto e condizioni economiche">
+      <div class="pdf-contract-check-title">Controllo contratto e condizioni economiche</div>
+      <ul>${rows.join("")}</ul>
+      <small>La scadenza delle condizioni economiche non indica da sola la cessazione del contratto e non prova un rinnovo automatico. Se la data non è presente nel documento, OffertaLogica non la stima: verifica sempre le condizioni contrattuali del fornitore.</small>
+    </div>
+  `;
+}
+
 const PDF_READINESS_FIELD_LABELS = Object.freeze({
   fornitore: "fornitore",
   intestatario: "intestatario",
@@ -10846,9 +10934,11 @@ function renderPdfSummary(documents, merged) {
   ].filter(Boolean).join(" | ");
 
   const ocrReviewTargets = Number(merged.data_contract?.autofill_plan?.review_target_count || 0);
+  const contractControl = renderPdfContractControl(merged);
   return `
     <span>Documenti analizzati:</span>
     <ul style="margin:6px 0 10px 18px;">${rows}</ul>
+    ${contractControl}
     <span><strong>Dati letti:</strong> ${mergedRows || "nessun dato sufficientemente affidabile; completa il modulo manualmente."}<br><small>Nel modulo saranno inseriti soltanto i campi completi ammessi dal contratto dati, dopo la tua conferma.${ocrReviewTargets ? " I dati OCR compariranno nell’anteprima deselezionati e dovrai sceglierli esplicitamente." : ""}</small></span>
   `;
 }
