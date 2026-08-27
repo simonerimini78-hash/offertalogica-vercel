@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const RELEASE = "0.36.74";
+  const RELEASE = "0.36.75";
   if (window.OffertaLogicaStaffManagement?.release === RELEASE) return;
 
   const TIME_ZONE = "Europe/Rome";
@@ -800,13 +800,22 @@
       protectedBadge.className = "badge ok";
       protectedBadge.textContent = "Protetto";
       actions.append(protectedBadge);
-    } else if (person?.removed_at) {
-      const restore = document.createElement("button");
-      restore.type = "button";
-      restore.className = "button primary compact";
-      restore.textContent = "Ripristina";
-      restore.addEventListener("click", () => void runPersonnelOwnerAction(person, "restore"));
-      actions.append(restore);
+    } else if (!person?.active) {
+      if (person?.removed_at) {
+        const restore = document.createElement("button");
+        restore.type = "button";
+        restore.className = "button primary compact";
+        restore.textContent = "Ripristina";
+        restore.addEventListener("click", () => void runPersonnelOwnerAction(person, "restore"));
+        actions.append(restore);
+      }
+      const purge = document.createElement("button");
+      purge.type = "button";
+      purge.className = "button danger compact";
+      purge.textContent = "Elimina definitivamente";
+      purge.title = "Il database consente l’eliminazione solo se il collaboratore è già rimosso e senza attività storica reale";
+      purge.addEventListener("click", () => void runPersonnelOwnerAction(person, "purge"));
+      actions.append(purge);
     } else if (person?.active) {
       const remove = document.createElement("button");
       remove.type = "button";

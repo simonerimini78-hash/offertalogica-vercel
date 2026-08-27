@@ -184,6 +184,9 @@
     if (message.includes("premium_staff_remove_reason_required")) return "Impossibile rimuovere il collaboratore senza una motivazione.";
     if (message.includes("premium_staff_already_removed")) return "Il collaboratore risulta già rimosso.";
     if (message.includes("premium_staff_not_removed")) return "Il collaboratore non risulta rimosso.";
+    if (message.includes("premium_staff_purge_confirmation_required")) return "Conferma di eliminazione definitiva non valida.";
+    if (message.includes("premium_staff_purge_requires_removed")) return "Prima di eliminarlo definitivamente, il collaboratore deve risultare già rimosso.";
+    if (message.includes("premium_staff_history_present")) return "Eliminazione definitiva bloccata: il collaboratore ha attività storica reale. Può restare rimosso, ma il suo storico non può essere cancellato.";
     if (message.includes("premium_staff_update_failed")) return "Aggiornamento collaboratore non riuscito.";
     if (message.includes("premium_staff_auth_user_exists")) return "Esiste già un account Auth con questa email. Usa “Aggiungi esistente”.";
     if (message.includes("premium_staff_invite_redirect_invalid")) return "Origine Staff non valida per il link di invito.";
@@ -2240,6 +2243,36 @@
     }
   }
 
+  async function purgeCollaborator(item) {
+    if (!isOwner() || busy || item?.role === "owner" || !item?.removed_at) return false;
+    const label = item.email || item.user_id || "collaboratore";
+    const confirmed = await confirmAction({
+      title: "Elimina definitivamente collaboratore",
+      message: `Eliminare definitivamente ${label} dall’elenco Staff? Questa azione è ammessa solo per collaboratori già rimossi e senza attività storica reale. L’account Auth resta conservato ma non avrà alcun accesso Staff.`,
+      keyword: "ELIMINA DEFINITIVAMENTE",
+      confirmLabel: "ELIMINA DEFINITIVAMENTE",
+    });
+    if (!confirmed) return false;
+    setBusy(true);
+    try {
+      const { error } = await client.rpc("premium_owner_purge_removed_staff", {
+        p_user_id: item.user_id,
+        p_confirmation: "ELIMINA DEFINITIVAMENTE",
+        p_reason: "Profilo Staff di prova eliminato definitivamente dal Proprietario",
+      });
+      if (error) throw error;
+      await loadCollaborators({ silent: true });
+      setMessage("success", `${label} eliminato definitivamente dallo Staff. Account Auth conservato, accesso Staff assente.`);
+      window.dispatchEvent(new Event("offertalogica:staff-save-complete"));
+      return true;
+    } catch (error) {
+      setMessage("error", friendlyError(error));
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function restoreCollaborator(item) {
     if (!isOwner() || busy || item?.role === "owner" || !item?.removed_at) return false;
     const role = collaboratorEditableRole(item.role);
@@ -2311,7 +2344,14 @@
       } else if (item.removed_at) {
         const restore = node("button", { className: "button primary compact", type: "button", text: "Ripristina" });
         restore.addEventListener("click", () => restoreCollaborator(item));
-        actions = node("div", { className: "row-actions" }, [restore]);
+        const purge = node("button", {
+          className: "button danger compact",
+          type: "button",
+          text: "Elimina definitivamente",
+          attrs: { title: "Disponibile solo se non esiste attività storica reale" },
+        });
+        purge.addEventListener("click", () => purgeCollaborator(item));
+        actions = node("div", { className: "row-actions" }, [restore, purge]);
       } else {
         const roleSelect = node("select", { attrs: { "aria-label": `Ruolo ${item.email || item.user_id}` } }, [
           node("option", { value: "technician", text: "Tecnico" }),
@@ -2424,10 +2464,21 @@
     }
   }
 
+  async function purgeCollaboratorFromManagement(userId) {
+    try {
+      const item = await collaboratorActionTarget(userId, { includeRemoved: true });
+      return await purgeCollaborator(item);
+    } catch (error) {
+      setMessage("error", friendlyError(error));
+      return false;
+    }
+  }
+
   window.OffertaLogicaStaffCollaboratorActions = Object.freeze({
     focus: focusCollaboratorFromManagement,
     remove: removeCollaboratorFromManagement,
     restore: restoreCollaboratorFromManagement,
+    purge: purgeCollaboratorFromManagement,
   });
 
   async function loadSystemConfig() {
