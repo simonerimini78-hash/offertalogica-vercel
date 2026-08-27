@@ -55,7 +55,7 @@
 <header class="topbar">
   <div class="brand">
     <img src="/assets/logo-offertalogica-icon.png" alt="OffertaLogica">
-    <div><h1>Control Center OffertaLogica</h1><p>Centro operativo per clienti, pratiche, verifiche e dati · v0.36.78</p></div>
+    <div><h1>Control Center OffertaLogica</h1><p>Centro operativo per clienti, pratiche, verifiche e dati · v0.36.79</p></div>
   </div>
   <div class="top-actions" id="staffTopActions" hidden>
     <span class="staff-chip" id="staffIdentity">Staff</span>
@@ -118,7 +118,7 @@
         <section class="panel"><div class="panel-head"><h3>Priorità operative</h3><small>Pratiche raccolte dai moduli operativi</small></div><div class="panel-body" id="overviewTasks"><div class="empty">Caricamento…</div></div></section>
         <section class="panel"><div class="panel-head"><h3>Acquisizione e conversione</h3><small>Funnel essenziale</small></div><div class="panel-body"><div class="funnel" id="overviewFunnel"></div></div></section>
       </div>
-      <div class="version">Control Center Staff v0.36.78</div>
+      <div class="version">Control Center Staff v0.36.79</div>
     </section>
 
     <section class="view" data-staff-view="cases">
@@ -254,10 +254,10 @@
 </div>
 <div id="staffUpdateNotice" class="staff-update" role="status" aria-live="polite"><span id="staffUpdateNoticeText">Nuova versione disponibile.</span><button id="staffApplyUpdate" type="button" hidden>AGGIORNA</button></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="/staff.js?v=0.36.78"></script>
+<script src="/staff.js?v=0.36.79"></script>
 <script src="/staff-governance-v2.5B.js"></script>
-<script defer src="/staff-management.js?v=0.36.78"></script>
-<script defer src="/staff-economics.js?v=0.36.78"></script>
+<script defer src="/staff-management.js?v=0.36.79"></script>
+<script defer src="/staff-economics.js?v=0.36.79"></script>
 <script>
   (()=>{
     const STORAGE_KEY='offertalogica-premium-staff-auth';
@@ -355,14 +355,18 @@
 </script>
 <script>
   (()=>{
-    const CURRENT_RELEASE="0.36.78";
+    const CURRENT_RELEASE="0.36.79";
     const PRODUCTION_ORIGIN="https://staff.offertalogica.it";
     const isVercelStaffDeployment=()=>location.hostname.endsWith(".vercel.app")&&location.hostname.toLowerCase().startsWith("offertalogica-staff");
     const redirectDeploymentToProduction=()=>{if(!isVercelStaffDeployment())return false;const target=new URL(`${location.pathname}${location.search}${location.hash}`,PRODUCTION_ORIGIN);if(target.href===location.href)return false;location.replace(target.href);return true};
     if(redirectDeploymentToProduction())return;
     const VERSION_CHECK_TIMEOUT_MS=7000;
     const VERSION_CHECK_INTERVAL_MS=20000;
-    let latestRelease="";let updateCheckInFlight=null;let updateTimer=null;let dirty=false;
+    const VERSION_WATCHDOG_INTERVAL_MS=30000;
+    const VERSION_STALE_AFTER_MS=65000;
+    const VERSION_FAILURE_NOTICE_AFTER=3;
+    let latestRelease="";let updateCheckInFlight=null;let updateTimer=null;let watchdogTimer=null;let dirty=false;
+    let lastSuccessfulVersionCheckAt=0;let consecutiveVersionFailures=0;
     const frameStates=new Map();
     const notice=document.getElementById('staffUpdateNotice');const noticeText=document.getElementById('staffUpdateNoticeText');const applyButton=document.getElementById('staffApplyUpdate');
     const unsavedTarget=target=>target instanceof Element&&Boolean(target.closest('#staffComplimentaryForm,#staffSupportReplyForm,#collaboratorAddForm'));
@@ -373,7 +377,9 @@
     const embeddedModuleUnsafe=()=>{pruneFrameStates();return[...frameStates.values()].some(state=>state.dirty||state.busy)||[...document.querySelectorAll('iframe.module-frame')].some(frame=>{try{const doc=frame.contentDocument;if(!doc)return false;return doc.body?.getAttribute('aria-busy')==='true'||doc.body?.dataset.updateDirty==='true'||Boolean(doc.querySelector('[role="dialog"]:not([hidden])'))}catch{return false}})};
     const protectedWorkInProgress=()=>{if(document.body.getAttribute('aria-busy')==='true'||document.querySelector('[aria-busy="true"]'))return true;if(dirty||embeddedModuleUnsafe())return true;if(document.querySelector('[role="dialog"]:not([hidden])'))return true;return false};
     const setUpdateNotice=(message,show=true)=>{if(noticeText)noticeText.textContent=message;if(notice)notice.classList.toggle('show',show)};
-    const showReady=()=>{setUpdateNotice('Nuova versione disponibile. Salva o chiudi ciò che stai facendo, poi premi AGGIORNA.');if(applyButton){applyButton.hidden=false;applyButton.disabled=false}};
+    const resetUpdateButton=()=>{if(applyButton){applyButton.textContent='AGGIORNA';applyButton.hidden=true;applyButton.disabled=false}};
+    const showReady=()=>{setUpdateNotice('Nuova versione disponibile. Salva o chiudi ciò che stai facendo, poi premi AGGIORNA.');if(applyButton){applyButton.textContent='AGGIORNA';applyButton.hidden=false;applyButton.disabled=false}};
+    const showVersionCheckFailure=()=>{setUpdateNotice('Controllo aggiornamenti temporaneamente non disponibile. Premi RIPROVA.');if(applyButton){applyButton.textContent='RIPROVA';applyButton.hidden=false;applyButton.disabled=false}};
     const releaseParts=value=>String(value||'').trim().split('.').map(part=>Number.parseInt(part,10));
     const isNewerRelease=(candidate,current)=>{const next=releaseParts(candidate);const now=releaseParts(current);const length=Math.max(next.length,now.length);for(let index=0;index<length;index+=1){const a=Number.isFinite(next[index])?next[index]:0;const b=Number.isFinite(now[index])?now[index]:0;if(a>b)return true;if(a<b)return false}return false};
     let versionChannelReady=null;
@@ -383,15 +389,18 @@
     const fetchLatestRelease=async()=>{await prepareVersionChannel();const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),VERSION_CHECK_TIMEOUT_MS);try{const target=new URL('/version.json',location.origin);target.searchParams.set('release_check',CURRENT_RELEASE);target.searchParams.set('t',String(Date.now()));const response=await fetch(target.href,{cache:'no-store',headers:{'Cache-Control':'no-cache, no-store, max-age=0','Pragma':'no-cache'},signal:controller.signal});if(!response.ok)throw new Error(`Versione non disponibile: ${response.status}`);const payload=await response.json();return String(payload?.version||'').trim()}finally{clearTimeout(timeout)}};
     const performUpdate=async()=>{if(!latestRelease)return;if(applyButton)applyButton.disabled=true;setUpdateNotice('Aggiornamento in corso…');await prepareVersionChannel();const target=new URL(location.href);target.searchParams.set('release',latestRelease);target.searchParams.set('t',String(Date.now()));location.replace(target.href)};
     const applyUpdate=async()=>{if(!latestRelease)return;if(protectedWorkInProgress()){showReady();return}await performUpdate()};
-    const checkForUpdate=()=>{if(document.visibilityState==='hidden')return Promise.resolve();if(updateCheckInFlight)return updateCheckInFlight;updateCheckInFlight=(async()=>{const latest=await fetchLatestRelease();if(latest&&isNewerRelease(latest,CURRENT_RELEASE)){latestRelease=latest;showReady()}else{latestRelease="";setUpdateNotice('',false);if(applyButton){applyButton.hidden=true;applyButton.disabled=false}}})().catch(error=>{if(error?.name!=='AbortError')console.warn('Controllo aggiornamento Area staff non disponibile',error)}).finally(()=>{updateCheckInFlight=null});return updateCheckInFlight};
-    const stopUpdateChecks=()=>{if(updateTimer){clearInterval(updateTimer);updateTimer=null}};
-    const startUpdateChecks=()=>{if(!updateTimer)updateTimer=setInterval(()=>{void checkForUpdate()},VERSION_CHECK_INTERVAL_MS);void checkForUpdate()};
+    const checkForUpdate=()=>{if(document.visibilityState==='hidden')return Promise.resolve();if(updateCheckInFlight)return updateCheckInFlight;updateCheckInFlight=(async()=>{const latest=await fetchLatestRelease();lastSuccessfulVersionCheckAt=Date.now();consecutiveVersionFailures=0;if(latest&&isNewerRelease(latest,CURRENT_RELEASE)){latestRelease=latest;showReady()}else{latestRelease="";setUpdateNotice('',false);resetUpdateButton()}})().catch(error=>{consecutiveVersionFailures+=1;if(error?.name!=='AbortError')console.warn('Controllo aggiornamento Area staff non disponibile',error);if(consecutiveVersionFailures>=VERSION_FAILURE_NOTICE_AFTER)showVersionCheckFailure()}).finally(()=>{updateCheckInFlight=null});return updateCheckInFlight};
+    const watchdogUpdateChecks=()=>{if(document.visibilityState==='hidden')return;if(!updateTimer)startUpdateChecks();if(!lastSuccessfulVersionCheckAt||Date.now()-lastSuccessfulVersionCheckAt>VERSION_STALE_AFTER_MS)void checkForUpdate()};
+    const stopUpdateChecks=()=>{if(updateTimer){clearInterval(updateTimer);updateTimer=null}if(watchdogTimer){clearInterval(watchdogTimer);watchdogTimer=null}};
+    const startUpdateChecks=()=>{if(!updateTimer)updateTimer=setInterval(()=>{void checkForUpdate()},VERSION_CHECK_INTERVAL_MS);if(!watchdogTimer)watchdogTimer=setInterval(watchdogUpdateChecks,VERSION_WATCHDOG_INTERVAL_MS);void checkForUpdate()};
     const resumeUpdateChecks=()=>{if(document.visibilityState!=='hidden')startUpdateChecks()};
+    const updateButtonAction=async()=>{if(latestRelease){await applyUpdate();return}if(applyButton)applyButton.disabled=true;setUpdateNotice('Controllo aggiornamenti in corso…');consecutiveVersionFailures=0;await checkForUpdate();if(!latestRelease){if(consecutiveVersionFailures>0)showVersionCheckFailure();else resetUpdateButton()}};
     addEventListener('offertalogica:staff-save-complete',()=>{dirty=false;if(latestRelease)showReady();else resumeUpdateChecks()});
     addEventListener('message',event=>{if(event.origin!==location.origin||event.data?.type!=='offertalogica:staff-update-state')return;frameStates.set(event.source,{dirty:Boolean(event.data.dirty),busy:Boolean(event.data.busy)});if(latestRelease&&!event.data.dirty&&!event.data.busy)showReady()});
-    applyButton?.addEventListener('click',applyUpdate);
+    applyButton?.addEventListener('click',updateButtonAction);
     addEventListener('focus',resumeUpdateChecks);addEventListener('online',resumeUpdateChecks);addEventListener('pageshow',resumeUpdateChecks);addEventListener('pagehide',stopUpdateChecks);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')resumeUpdateChecks();else stopUpdateChecks()});
-    window.OffertaLogicaStaffUpdate=Object.freeze({currentRelease:CURRENT_RELEASE,check:checkForUpdate});
+    if('serviceWorker' in navigator)navigator.serviceWorker.addEventListener('controllerchange',resumeUpdateChecks);
+    window.OffertaLogicaStaffUpdate=Object.freeze({currentRelease:CURRENT_RELEASE,check:checkForUpdate,status:()=>Object.freeze({currentRelease:CURRENT_RELEASE,latestRelease,lastSuccessfulVersionCheckAt,consecutiveVersionFailures,polling:Boolean(updateTimer),watchdog:Boolean(watchdogTimer)})});
     void prepareVersionChannel().finally(startUpdateChecks);
   })();
 </script>
