@@ -401,13 +401,27 @@
         tr.append(td);
       });
       const actionTd = document.createElement("td");
+      const actions = document.createElement("div");
+      actions.className = "row-actions";
+      const exclude = document.createElement("button");
+      exclude.className = "button secondary compact";
+      exclude.type = "button";
+      exclude.textContent = "ESCLUDI DAI CALCOLI";
+      exclude.title = "Conserva il movimento originale ma lo esclude dal Gestionale e dai KPI ufficiali";
+      exclude.addEventListener("click", async () => {
+        const api = window.OffertaLogicaStaffDataControl;
+        if (!api) { setStatus("warn", "Controllo dati Owner non disponibile. Aggiorna la pagina."); return; }
+        const ok = await api.exclude("economic_entry", entry.id, `Movimento ${entry.category || entry.id}`);
+        if (ok) setStatus("ok", "Movimento conservato ma escluso dai calcoli gestionali. Puoi riattivarlo da Gestionale → Dati sorgente.");
+      });
       const button = document.createElement("button");
       button.className = "button secondary compact";
       button.type = "button";
       button.textContent = "RETTIFICA";
       button.title = "Crea una rettifica senza cancellare lo storico";
       button.addEventListener("click", () => prepareEconomicRectification(entry));
-      actionTd.append(button);
+      actions.append(exclude, button);
+      actionTd.append(actions);
       tr.append(actionTd);
       return tr;
     }));

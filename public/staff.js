@@ -177,6 +177,9 @@
     if (message.includes("premium_staff_required")) return "Questa verifica è riservata allo staff autorizzato.";
     if (message.includes("premium_owner_required")) return "Questa funzione è riservata al Proprietario.";
     if (message.includes("premium_owner_protected")) return "Il Proprietario è protetto e non può essere modificato.";
+    if (message.includes("staff_reporting_source_type_invalid") || message.includes("staff_reporting_source_id_invalid")) return "Riferimento del dato sorgente non valido.";
+    if (message.includes("staff_reporting_exclusion_reason_required")) return "Serve una motivazione per escludere il dato dai calcoli.";
+    if (message.includes("staff_management_month_invalid")) return "Mese gestionale non valido.";
     if (message.includes("premium_staff_auth_user_not_found")) return "Nessun account Auth trovato con questa email.";
     if (message.includes("premium_staff_email_invalid")) return "Inserisci un indirizzo email valido.";
     if (message.includes("premium_staff_role_invalid")) return "Ruolo collaboratore non valido.";
@@ -287,6 +290,67 @@
     if (error) throw error;
     return data || { deleted_count: cleanIds.length };
   }
+
+  async function listManagementSourceData(month) {
+    if (!isOwner()) throw new Error("premium_owner_required");
+    const normalizedMonth = String(month || "").trim();
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(normalizedMonth)) throw new Error("staff_management_month_invalid");
+    const { data, error } = await client.rpc("premium_owner_management_source_data", { p_month: normalizedMonth });
+    if (error) throw error;
+    return data || { ok: true, month: normalizedMonth, rows: [] };
+  }
+
+  async function setReportingExclusion(sourceType, sourceId, excluded, label = "dato") {
+    if (!isOwner() || busy) return false;
+    const type = String(sourceType || "").trim();
+    const id = String(sourceId || "").trim();
+    if (!type || !id) return false;
+    const isExclusion = Boolean(excluded);
+    const confirmed = await confirmAction(isExclusion ? {
+      title: "Escludi dai calcoli e dalle statistiche",
+      message: `Escludere “${label || id}” dal Gestionale? Il record resterà nel database e nell’audit, ma non contribuirà più ai KPI ufficiali.`,
+      keyword: "ESCLUDI",
+      confirmLabel: "ESCLUDI",
+    } : {
+      title: "Riattiva nei calcoli",
+      message: `Riammettere “${label || id}” nei calcoli e nelle statistiche ufficiali?`,
+      confirmLabel: "RIATTIVA",
+    });
+    if (!confirmed) return false;
+    setBusy(true);
+    try {
+      const { error } = await client.rpc("premium_owner_set_reporting_exclusion", {
+        p_source_type: type,
+        p_source_id: id,
+        p_excluded: isExclusion,
+        p_reason: isExclusion ? "Dato escluso dai calcoli/statistiche dal Proprietario nel Control Center" : "",
+      });
+      if (error) throw error;
+      setMessage("success", isExclusion ? "Dato escluso dai calcoli e dalle statistiche. Il record originale resta conservato." : "Dato riammesso nei calcoli e nelle statistiche.");
+      window.dispatchEvent(new Event("offertalogica:staff-save-complete"));
+      window.dispatchEvent(new CustomEvent("offertalogica:management-source-changed", { detail: { sourceType: type, sourceId: id, excluded: isExclusion } }));
+      return true;
+    } catch (error) {
+      setMessage("error", friendlyError(error));
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function reportingExclusionButton(sourceType, sourceId, label = "dato") {
+    if (!isOwner() || !sourceId) return null;
+    const button = node("button", { className: "button secondary compact", type: "button", text: "Escludi dai calcoli" });
+    button.title = "Conserva il record ma lo esclude dai KPI e dalle statistiche ufficiali";
+    button.addEventListener("click", () => void setReportingExclusion(sourceType, sourceId, true, label));
+    return button;
+  }
+
+  window.OffertaLogicaStaffDataControl = Object.freeze({
+    list: listManagementSourceData,
+    exclude: (sourceType, sourceId, label) => setReportingExclusion(sourceType, sourceId, true, label),
+    restore: (sourceType, sourceId, label) => setReportingExclusion(sourceType, sourceId, false, label),
+  });
 
   async function removePremiumStorage(paths = []) {
     const uniquePaths = uniqueValues(paths.map(value => String(value || "").trim()).filter(Boolean));
@@ -873,12 +937,16 @@
 
   function renderCustomerBill(customer, bill) {
     const label = bill.original_file_name || `Bolletta ${bill.commodity || ""}`.trim();
+    const actions = node("div", { className: "row-actions" }, [
+      reportingExclusionButton("premium_bill", bill.id, label),
+      resourceDeleteButton("Elimina bolletta", () => deleteCustomerBill(customer, bill)),
+    ]);
     return node("div", { className: "resource-row" }, [
       node("div", { className: "resource-row-copy" }, [
         node("strong", { text: label }),
         node("small", { text: `${bill.commodity || "—"} · ${formatDate(bill.created_at, false)} · ${bill.processing_status || "—"} · ${bill.customer_status || "—"}` })
       ]),
-      resourceDeleteButton("Elimina bolletta", () => deleteCustomerBill(customer, bill))
+      actions
     ]);
   }
 
@@ -1875,6 +1943,11 @@
       const action = node("button", { className: "button secondary compact", type: "button", text: item.type === "support_request" ? "GESTISCI" : "APRI" });
       action.addEventListener("click", () => openOperationalCase(item));
       const actions = node("div", { className: "row-actions" }, [action]);
+      if (item.type === "bill_check" && item.id?.startsWith("check:")) {
+        const checkId = item.id.slice("check:".length);
+        const exclude = reportingExclusionButton("premium_check", checkId, `Verifica ${checkId}`);
+        if (exclude) actions.append(exclude);
+      }
       const statusKind = item.closed ? "ok" : item.priority === "high" ? "danger" : item.priority === "medium" ? "warn" : "info";
       body.append(node("tr", {}, [
         node("td", {}, [badge(descriptor.label, descriptor.kind)]),
@@ -1929,6 +2002,8 @@
     cache.runs.slice(0, 100).forEach(run => {
       const tokens = Number(run.input_tokens || 0) + Number(run.output_tokens || 0);
       const remove = resourceDeleteButton("Elimina", () => deleteCostRun(run));
+      const exclude = reportingExclusionButton("premium_analysis_run", run.id, `Analisi ${run.id}`);
+      const actions = node("div", { className: "row-actions" }, [exclude, remove]);
       body.append(node("tr", {}, [
         node("td", { text: formatDate(run.created_at) }),
         node("td", { text: run.origin || "—" }),
@@ -1938,7 +2013,7 @@
         node("td", { text: verifiedRunCost(run) != null
           ? formatMoney(verifiedRunCost(run))
           : run.estimated_cost_eur == null ? "Tariffa EUR non configurata" : "Storico non verificato" }),
-        node("td", {}, [remove])
+        node("td", {}, [actions])
       ]));
     });
   }
@@ -1957,6 +2032,8 @@
     const verifiedRunIds = new Set(cache.runs.filter(runHasVerifiedEurPricing).map(run => run.id));
     cache.costEvents.slice(0, 250).forEach(event => {
       const remove = resourceDeleteButton("Elimina", () => deleteCostEvent(event));
+      const exclude = reportingExclusionButton("cost_event", event.id, `Costo ${event.event_type || event.id}`);
+      const actions = node("div", { className: "row-actions" }, [exclude, remove]);
       const aiVerified = event.event_type !== "ai_analysis" || verifiedRunIds.has(event.analysis_run_id);
       body.append(node("tr", {}, [
         node("td", { text: formatDate(event.occurred_at) }),
@@ -1964,7 +2041,7 @@
         node("td", { text: event.provider || "—" }),
         node("td", { text: `${formatNumber(event.quantity, 3)} ${event.unit || "event"}` }),
         node("td", { text: aiVerified ? formatMoney(event.cost_eur) : "Storico non verificato" }),
-        node("td", {}, [remove])
+        node("td", {}, [actions])
       ]));
     });
   }

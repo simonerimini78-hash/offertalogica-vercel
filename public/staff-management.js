@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const RELEASE = "0.36.76";
+  const RELEASE = "0.36.77";
   if (window.OffertaLogicaStaffManagement?.release === RELEASE) return;
 
   const TIME_ZONE = "Europe/Rome";
@@ -50,6 +50,10 @@
 
   let managementLoading = false;
   let managementSnapshot = null;
+  let managementSourceData = null;
+  let managementSourceLoading = false;
+  let managementSourceOpen = false;
+  let managementSourceState = { search: "", type: "all", status: "all", page: 1, pageSize: 25 };
   let ownerObserver = null;
   let currentSubview = storedSubview();
   let personnelState = {
@@ -275,12 +279,13 @@
       .management-toolbar input,.management-toolbar select{min-height:38px;padding:7px 9px;font-size:12px}.management-pagination{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;color:var(--muted);font-size:11px;background:#fbfdfc}.management-pagination>div{display:flex;align-items:center;gap:7px}.management-pagination button{min-width:84px}
       .management-signal{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;border:1px solid var(--line);border-radius:13px;padding:12px;background:#fff}.management-signal strong{display:block;font-size:12px}.management-signal small{display:block;margin-top:4px;color:var(--muted);line-height:1.4}.management-signal b{font-size:16px;color:var(--green-dark);white-space:nowrap}
       .management-signal-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+      .management-source-panel{margin:0 0 14px}.management-source-toolbar{display:grid;grid-template-columns:minmax(190px,1fr) 190px 170px 105px;gap:8px;padding:12px;border-bottom:1px solid var(--line);background:#fbfdfc}.management-source-toolbar input,.management-source-toolbar select{min-height:38px;padding:7px 9px;font-size:12px}.management-source-table{min-width:1280px}.management-source-table td,.management-source-table th{white-space:nowrap}.management-source-table td:nth-child(3){white-space:normal;min-width:210px}.management-source-table td:nth-child(4){white-space:normal;min-width:260px}.management-source-actions{display:flex;gap:5px;flex-wrap:wrap}.management-source-banner{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:11px 12px;border-bottom:1px solid var(--line);background:#f7fbf9;color:#52635c;font-size:11px;line-height:1.45}.management-source-banner strong{color:var(--green-dark)}
       .p7-collaborator-toolbar{display:grid;grid-template-columns:minmax(190px,1fr) 150px 150px 165px 105px;gap:8px;padding:12px;border:1px solid var(--line);border-bottom:0;border-radius:12px 12px 0 0;background:#fbfdfc}
       .p7-collaborator-toolbar input,.p7-collaborator-toolbar select{min-height:38px;padding:7px 9px;font-size:12px}
       .p7-collaborator-pagination{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border:1px solid var(--line);border-top:0;border-radius:0 0 12px 12px;color:var(--muted);background:#fbfdfc;font-size:11px}.p7-collaborator-pagination>div{display:flex;gap:7px}
-      @media (max-width:1200px){.management-grid.six{grid-template-columns:repeat(3,minmax(140px,1fr))}.management-toolbar,.p7-collaborator-toolbar{grid-template-columns:repeat(2,minmax(150px,1fr))}.management-signal-list{grid-template-columns:1fr}}
+      @media (max-width:1200px){.management-grid.six{grid-template-columns:repeat(3,minmax(140px,1fr))}.management-toolbar,.management-source-toolbar,.p7-collaborator-toolbar{grid-template-columns:repeat(2,minmax(150px,1fr))}.management-signal-list{grid-template-columns:1fr}}
       @media (max-width:850px){.management-period-bar{align-items:stretch;flex-direction:column}.management-period-controls{justify-content:flex-start}.management-grid,.management-grid.six{grid-template-columns:repeat(2,minmax(130px,1fr))}}
-      @media (max-width:560px){.management-grid,.management-grid.six{grid-template-columns:1fr}.management-toolbar,.p7-collaborator-toolbar{grid-template-columns:1fr}.management-pagination,.p7-collaborator-pagination{align-items:flex-start;flex-direction:column}}
+      @media (max-width:560px){.management-grid,.management-grid.six{grid-template-columns:1fr}.management-toolbar,.management-source-toolbar,.p7-collaborator-toolbar{grid-template-columns:1fr}.management-pagination,.p7-collaborator-pagination{align-items:flex-start;flex-direction:column}}
     `;
     document.head.append(style);
   }
@@ -307,6 +312,7 @@
         </div>
         <div class="view-actions">
           <button class="button secondary" id="managementOpenOperational" type="button" hidden>Apri modulo operativo</button>
+          <button class="button secondary" id="managementSourceToggle" type="button">Dati sorgente</button>
           <button class="button secondary" id="managementExportCsv" type="button">Esporta CSV</button>
         </div>
       </div>
@@ -326,6 +332,27 @@
         ${SUBVIEWS.map(([id, label]) => `<button type="button" data-management-subview="${id}">${label}</button>`).join("")}
       </nav>
       <div id="managementStatus" class="management-status info" hidden></div>
+      <section class="panel management-source-panel" id="managementSourcePanel" hidden>
+        <div class="panel-head">
+          <div><h3>Dati sorgente del mese</h3><small>Record che alimentano il Gestionale. Sono visibili anche prima del punto zero; puoi escluderli dai KPI senza cancellarli.</small></div>
+          <button class="button secondary compact" id="managementSourceClose" type="button">Chiudi</button>
+        </div>
+        <div class="management-source-banner">
+          <div><strong>Sito / Lead / Funnel</strong><br>I dati Customer DB restano gestiti nelle pagine operative, dove ogni lead ed evento ha già il pulsante Elimina. Qui sotto sono elencate le sorgenti Premium, economiche e Staff che alimentano direttamente il report mensile.</div>
+          <div class="management-source-actions"><button class="button secondary compact" id="managementSourceOpenLeads" type="button">Lead e attivazioni</button><button class="button secondary compact" id="managementSourceOpenAnalytics" type="button">Funnel e traffico</button></div>
+        </div>
+        <div class="management-source-toolbar">
+          <input id="managementSourceSearch" type="search" placeholder="Cerca ID, dettaglio, stato…" aria-label="Cerca dati sorgente">
+          <select id="managementSourceType" aria-label="Filtra fonte"><option value="all">Tutte le fonti</option></select>
+          <select id="managementSourceStatus" aria-label="Filtra uso"><option value="all">Tutti</option><option value="included">Inclusi nei calcoli</option><option value="excluded">Esclusi</option><option value="prebaseline">Pre-punto-zero</option></select>
+          <select id="managementSourcePageSize" aria-label="Righe per pagina"><option>25</option><option>50</option><option>100</option></select>
+        </div>
+        <div class="table-wrap"><table class="data-table management-source-table">
+          <thead><tr><th>Data</th><th>Fonte</th><th>Riferimento</th><th>Dettaglio</th><th>Valore / stato</th><th>Uso ufficiale</th><th>Azioni</th></tr></thead>
+          <tbody id="managementSourceRows"><tr><td colspan="7">Apri o aggiorna i dati sorgente.</td></tr></tbody>
+        </table></div>
+        <div class="management-pagination"><span id="managementSourcePageInfo">0 risultati</span><div><button class="button secondary compact" id="managementSourcePrev" type="button">Precedente</button><button class="button secondary compact" id="managementSourceNext" type="button">Successiva</button></div></div>
+      </section>
 
       <div class="management-page" data-management-page="summary">
         <div class="management-grid" id="managementSummaryFinance"></div>
@@ -988,6 +1015,143 @@
     }
   }
 
+  const MANAGEMENT_SOURCE_LABELS = Object.freeze({
+    premium_bill: "Bolletta Premium",
+    premium_analysis_run: "Analisi IA Premium",
+    premium_check: "Verifica Premium",
+    economic_entry: "Movimento economico",
+    payment_event: "Evento pagamento",
+    cost_event: "Costo tecnico",
+    check_note: "Nota Staff",
+    communication: "Comunicazione Staff",
+    economic_rate_version: "Tariffa / ricorrente",
+  });
+
+  function sourceRoute(sourceType) {
+    if (sourceType === "premium_bill") return "customers";
+    if (sourceType === "premium_check" || sourceType === "check_note") return "checks";
+    if (sourceType === "communication") return "cases";
+    if (sourceType === "premium_analysis_run" || sourceType === "cost_event") return "costs";
+    if (["economic_entry", "payment_event", "economic_rate_version"].includes(sourceType)) return "economics";
+    return "overview";
+  }
+
+  function openSourceOperational(sourceType) {
+    const route = sourceRoute(sourceType);
+    managementSourceOpen = false;
+    byId("managementSourcePanel")?.setAttribute("hidden", "");
+    if (route === "economics") byId("staffEconomicsTab")?.click();
+    else document.querySelector(`[data-staff-tab="${route}"]`)?.click();
+  }
+
+  function sourceSearchText(row) {
+    return [row.source_type, row.source_label, row.source_id, row.reference, row.detail, row.status, row.exclusion_reason]
+      .filter(Boolean).join(" ").toLowerCase();
+  }
+
+  function filteredSourceRows() {
+    const rows = Array.isArray(managementSourceData?.rows) ? managementSourceData.rows : [];
+    const search = managementSourceState.search.trim().toLowerCase();
+    return rows.filter(row => {
+      if (search && !sourceSearchText(row).includes(search)) return false;
+      if (managementSourceState.type !== "all" && row.source_type !== managementSourceState.type) return false;
+      if (managementSourceState.status === "included" && (row.excluded || !row.official_eligible)) return false;
+      if (managementSourceState.status === "excluded" && !row.excluded) return false;
+      if (managementSourceState.status === "prebaseline" && row.official_eligible) return false;
+      return true;
+    });
+  }
+
+  function syncSourceTypeOptions() {
+    const select = byId("managementSourceType");
+    if (!select) return;
+    const current = managementSourceState.type;
+    const types = [...new Set((managementSourceData?.rows || []).map(row => row.source_type).filter(Boolean))].sort();
+    select.replaceChildren(new Option("Tutte le fonti", "all"), ...types.map(type => new Option(MANAGEMENT_SOURCE_LABELS[type] || type, type)));
+    select.value = types.includes(current) ? current : "all";
+    managementSourceState.type = select.value;
+  }
+
+  function renderManagementSources() {
+    syncSourceTypeOptions();
+    const rows = filteredSourceRows();
+    const totalPages = Math.max(1, Math.ceil(rows.length / managementSourceState.pageSize));
+    managementSourceState.page = Math.max(1, Math.min(managementSourceState.page, totalPages));
+    const from = (managementSourceState.page - 1) * managementSourceState.pageSize;
+    const pageRows = rows.slice(from, from + managementSourceState.pageSize);
+    const target = byId("managementSourceRows");
+    if (target) {
+      if (!pageRows.length) {
+        const tr = document.createElement("tr");
+        const td = document.createElement("td"); td.colSpan = 7; td.textContent = managementSourceLoading ? "Caricamento dati sorgente…" : "Nessun dato sorgente corrisponde ai filtri."; tr.append(td); target.replaceChildren(tr);
+      } else {
+        target.replaceChildren(...pageRows.map(row => {
+          const tr = document.createElement("tr");
+          const amount = row.amount_eur == null ? "" : money(row.amount_eur);
+          const state = row.excluded ? "Escluso dai KPI" : row.official_eligible ? "Incluso" : "Pre-punto-zero";
+          const detail = [row.detail, row.exclusion_reason ? `Motivo esclusione: ${row.exclusion_reason}` : ""].filter(Boolean).join(" · ");
+          const actions = document.createElement("div"); actions.className = "management-source-actions";
+          const toggle = document.createElement("button"); toggle.type = "button"; toggle.className = `button ${row.excluded ? "primary" : "secondary"} compact`; toggle.textContent = row.excluded ? "Riattiva" : "Escludi dai calcoli";
+          toggle.addEventListener("click", async () => {
+            const api = window.OffertaLogicaStaffDataControl;
+            if (!api) return setManagementStatus("error", "Controllo dati Owner non disponibile. Aggiorna la pagina.");
+            const label = row.reference || row.source_id;
+            const ok = row.excluded ? await api.restore(row.source_type, row.source_id, label) : await api.exclude(row.source_type, row.source_id, label);
+            if (ok) { await refreshManagementSources(); await refreshManagementReport(); }
+          });
+          const open = document.createElement("button"); open.type = "button"; open.className = "button secondary compact"; open.textContent = "Apri modulo"; open.addEventListener("click", () => openSourceOperational(row.source_type));
+          actions.append(toggle, open);
+          tr.append(
+            rowCell(dateTime(row.event_at)),
+            rowCell(MANAGEMENT_SOURCE_LABELS[row.source_type] || row.source_label || row.source_type),
+            rowCell(row.reference || row.source_id, row.source_id),
+            rowCell(detail || "—"),
+            rowCell([amount, row.status].filter(Boolean).join(" · ") || "—"),
+            rowCell(state, row.excluded ? "Il record resta conservato" : row.official_eligible ? "Contribuisce al Gestionale" : "Visibile, ma fuori dai conteggi ufficiali"),
+            (() => { const td=document.createElement("td"); td.append(actions); return td; })(),
+          );
+          return tr;
+        }));
+      }
+    }
+    const info = byId("managementSourcePageInfo");
+    if (info) {
+      const start = rows.length ? from + 1 : 0; const end = Math.min(from + managementSourceState.pageSize, rows.length);
+      info.textContent = `${number(rows.length)} risultati · ${number(start)}–${number(end)} · pagina ${managementSourceState.page}/${totalPages}`;
+    }
+    if (byId("managementSourcePrev")) byId("managementSourcePrev").disabled = managementSourceState.page <= 1;
+    if (byId("managementSourceNext")) byId("managementSourceNext").disabled = managementSourceState.page >= totalPages;
+  }
+
+  async function refreshManagementSources() {
+    if (managementSourceLoading) return;
+    const month = normalizeMonthKey(byId("managementMonth")?.value) || storedMonth();
+    const api = window.OffertaLogicaStaffDataControl;
+    if (!api) { setManagementStatus("error", "Controllo dati Owner non disponibile. Aggiorna la pagina."); return; }
+    managementSourceLoading = true;
+    renderManagementSources();
+    try {
+      managementSourceData = await api.list(month);
+      renderManagementSources();
+    } catch (error) {
+      managementSourceData = { rows: [] };
+      renderManagementSources();
+      setManagementStatus("error", String(error?.message || error || "Dati sorgente non disponibili."));
+    } finally {
+      managementSourceLoading = false;
+      renderManagementSources();
+    }
+  }
+
+  function toggleManagementSources(force = null) {
+    managementSourceOpen = force == null ? !managementSourceOpen : Boolean(force);
+    const panel = byId("managementSourcePanel");
+    if (panel) panel.hidden = !managementSourceOpen;
+    const button = byId("managementSourceToggle");
+    if (button) button.textContent = managementSourceOpen ? "Nascondi dati sorgente" : "Dati sorgente";
+    if (managementSourceOpen) void refreshManagementSources();
+  }
+
   function renderManagement(snapshot) {
     managementSnapshot = snapshot;
     renderPeriod(snapshot);
@@ -1026,6 +1190,7 @@
       const payload = await response.json().catch(() => ({}));
       if (!response.ok || payload?.ok !== true) throw new Error(payload?.error || `Errore HTTP ${response.status}`);
       renderManagement(payload);
+      if (managementSourceOpen) void refreshManagementSources();
       setManagementStatus("success", `Gestionale aggiornato · ${monthLabel(payload.month)} · dati verificati alle ${dateTime(payload.checkedAt)}.`);
     } catch (error) {
       setManagementStatus("error", String(error?.message || error || "Gestionale mensile non disponibile."));
@@ -1055,6 +1220,16 @@
     byId("managementRefresh")?.addEventListener("click", () => void refreshManagementReport());
     byId("managementExportCsv")?.addEventListener("click", exportCurrentManagementView);
     byId("managementOpenOperational")?.addEventListener("click", openOperationalModule);
+    byId("managementSourceToggle")?.addEventListener("click", () => toggleManagementSources());
+    byId("managementSourceClose")?.addEventListener("click", () => toggleManagementSources(false));
+    byId("managementSourceOpenLeads")?.addEventListener("click", () => document.querySelector('[data-staff-tab="leads"]')?.click());
+    byId("managementSourceOpenAnalytics")?.addEventListener("click", () => document.querySelector('[data-staff-tab="analytics"]')?.click());
+    byId("managementSourceSearch")?.addEventListener("input", event => { managementSourceState.search=String(event.target.value||""); managementSourceState.page=1; renderManagementSources(); });
+    byId("managementSourceType")?.addEventListener("change", event => { managementSourceState.type=String(event.target.value||"all"); managementSourceState.page=1; renderManagementSources(); });
+    byId("managementSourceStatus")?.addEventListener("change", event => { managementSourceState.status=String(event.target.value||"all"); managementSourceState.page=1; renderManagementSources(); });
+    byId("managementSourcePageSize")?.addEventListener("change", event => { const value=Number(event.target.value); managementSourceState.pageSize=PAGE_SIZES.includes(value)?value:25; managementSourceState.page=1; renderManagementSources(); });
+    byId("managementSourcePrev")?.addEventListener("click", () => { managementSourceState.page=Math.max(1,managementSourceState.page-1); renderManagementSources(); });
+    byId("managementSourceNext")?.addEventListener("click", () => { managementSourceState.page+=1; renderManagementSources(); });
     byId("managementCurrentMonth")?.addEventListener("click", () => {
       if (month) month.value = currentMonthKey();
       storeMonth(currentMonthKey());
@@ -1099,6 +1274,7 @@
       personnelState.page += 1;
       if (managementSnapshot) renderPersonnel(managementSnapshot);
     });
+    window.addEventListener("offertalogica:management-source-changed", () => { if (managementSourceOpen) void refreshManagementSources(); });
   }
 
   function closeManagementView(updateHash = false) {
