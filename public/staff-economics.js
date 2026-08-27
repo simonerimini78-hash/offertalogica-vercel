@@ -4,7 +4,7 @@
   const SUPABASE_URL = "https://kzxdamhfmzaxonpkytcf.supabase.co";
   const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_poz1xBKiXceLCFV3u_tPIg_5_-ycHcl";
   const STORAGE_KEY = "offertalogica-premium-staff-auth";
-  const MANAGEMENT_RELEASE = "0.36.70";
+  const MANAGEMENT_RELEASE = "0.36.71";
   const DAYS = [7, 30, 90, 365];
   let loading = false;
   let currentDays = 30;
@@ -154,7 +154,6 @@
             ${DAYS.map(day => `<option value="${day}" ${day === currentDays ? "selected" : ""}>Ultimi ${day} giorni</option>`).join("")}
           </select>
           <button class="button secondary" id="economicRefresh" type="button">Aggiorna</button>
-          <button class="button secondary" id="economicResetBaseline" type="button" disabled>VERIFICA PUNTO ZERO</button>
         </div>
       </div>
       <div class="economic-page">
@@ -224,7 +223,6 @@
     `;
     byId("economicDays")?.addEventListener("change", event => { currentDays = Number(event.target.value) || 30; refresh(); });
     byId("economicRefresh")?.addEventListener("click", refresh);
-    byId("economicResetBaseline")?.addEventListener("click", resetEconomicBaseline);
     byId("economicManualForm")?.addEventListener("submit", saveManualEntry);
     byId("economicNewRateForm")?.addEventListener("submit", saveNewRate);
     installed = true;
@@ -237,17 +235,7 @@
 
   function renderBaselineInfo(data) {
     const target = byId("economicBaselineInfo");
-    const button = byId("economicResetBaseline");
     const baselineAt = data?.baseline_at || null;
-    if (button) {
-      button.classList.toggle("danger", !baselineAt);
-      button.classList.toggle("secondary", Boolean(baselineAt));
-      button.disabled = Boolean(baselineAt);
-      button.textContent = baselineAt ? "PUNTO ZERO IMPOSTATO" : "IMPOSTA PUNTO ZERO";
-      button.title = baselineAt
-        ? `Punto zero fissato il ${date(baselineAt)}. Per integrità gestionale non può essere spostato dal Control Center.`
-        : "Imposta il punto zero una sola volta. Dopo l'impostazione resterà bloccato.";
-    }
     if (!target) return;
     if (!baselineAt) {
       target.hidden = true;
@@ -372,14 +360,6 @@
   function clearEconomicData() {
     const baselineInfo = byId("economicBaselineInfo");
     if (baselineInfo) { baselineInfo.hidden = true; baselineInfo.textContent = ""; }
-    const baselineButton = byId("economicResetBaseline");
-    if (baselineButton) {
-      baselineButton.disabled = true;
-      baselineButton.classList.remove("danger");
-      baselineButton.classList.add("secondary");
-      baselineButton.textContent = "VERIFICA PUNTO ZERO";
-      baselineButton.title = "Stato del punto zero non verificabile finché il cruscotto non viene caricato.";
-    }
     const kpis = byId("economicKpis");
     if (kpis) kpis.innerHTML = `<div class="economic-empty">Dati non disponibili.</div>`;
     if (byId("economicRevenueBreakdown")) byId("economicRevenueBreakdown").innerHTML = "";
@@ -418,43 +398,7 @@
     }
   }
 
-  async function resetEconomicBaseline() {
-    if (loading) return;
-    if (snapshot?.baseline_at) {
-      renderBaselineInfo(snapshot);
-      setStatus("ok", `Punto zero gestionale già fissato: ${date(snapshot.baseline_at)}. Non può essere spostato dal Control Center.`);
-      return;
-    }
-    const confirmed = window.confirm(
-      "Impostare da questo momento il PUNTO ZERO gestionale?\n\n" +
-      "I dati storici NON verranno cancellati. Le prove precedenti resteranno archiviate ma saranno escluse dai conteggi ufficiali che useranno il punto zero. " +
-      "Tariffe e parametri restano invariati."
-    );
-    if (!confirmed) return;
 
-    const button = byId("economicResetBaseline");
-    loading = true;
-    if (button) button.disabled = true;
-    setStatus("info", "Impostazione punto zero gestionale…");
-    try {
-      const result = await rpc("staff_owner_set_management_baseline");
-      window.dispatchEvent(new Event("offertalogica:staff-save-complete"));
-      loading = false;
-      await refresh();
-      const baselineAt = result?.baseline_at || snapshot?.baseline_at;
-      setStatus("ok", baselineAt
-        ? `Punto zero gestionale impostato: ${date(baselineAt)}. Lo storico non è stato cancellato.`
-        : "Punto zero gestionale impostato. Lo storico non è stato cancellato.");
-    } catch (error) {
-      setStatus("error", String(error?.message || error || "Impossibile impostare il punto zero gestionale."));
-      loading = false;
-    } finally {
-      if (button) {
-        if (snapshot?.baseline_at) renderBaselineInfo(snapshot);
-        else button.disabled = false;
-      }
-    }
-  }
 
   async function saveRate(event) {
     event.preventDefault();

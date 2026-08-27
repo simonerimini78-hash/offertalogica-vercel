@@ -638,35 +638,9 @@
     }, "Evento analytics eliminato.");
   }
 
-  async function deleteVisibleAnalytics() {
-    if (!isAdmin() || busy) return;
-    const rows = cache.analytics.slice(0, 200);
-    if (!rows.length) {
-      setMessage("error", "Nessun evento analytics visibile da eliminare.");
-      return;
-    }
-    if (!(await requireTypedConfirmation(`Eliminare definitivamente ${rows.length} eventi analytics visibili?`, "ELIMINA"))) return;
-    await runDestructiveAction(async () => {
-      await staffFetch("/api/staff-analytics", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json", "X-Staff-Confirmation": "ELIMINA_ANALYTICS_VISIBILI" },
-        body: JSON.stringify({ ids: rows.map(event => event.id) }),
-      });
-      await loadAnalytics({ silent: true });
-    }, `${rows.length} eventi analytics visibili eliminati.`);
-  }
 
-  async function resetAnalytics() {
-    if (!isAdmin() || busy) return;
-    if (!(await requireTypedConfirmation("Eliminare definitivamente tutto l’archivio analytics? I lead resteranno presenti.", "AZZERA"))) return;
-    await runDestructiveAction(async () => {
-      await staffFetch("/api/staff-analytics?scope=all", {
-        method: "DELETE",
-        headers: { "X-Staff-Confirmation": "AZZERA_ANALYTICS" },
-      });
-      await loadAnalytics({ silent: true });
-    }, "Archivio analytics azzerato.");
-  }
+
+
 
   async function loadAnalytics({ silent = false } = {}) {
     if (!silent) setMessage("info", "Aggiornamento analytics…");
@@ -2001,19 +1975,7 @@
     }, "Analisi IA eliminata.");
   }
 
-  async function deleteVisibleCostRuns() {
-    if (!isAdmin() || busy) return;
-    const rows = cache.runs.slice(0, 100);
-    if (!rows.length) {
-      setMessage("error", "Nessuna analisi IA visibile da eliminare.");
-      return;
-    }
-    if (!(await requireTypedConfirmation(`Eliminare ${rows.length} analisi IA visibili e i costi collegati?`, "ELIMINA"))) return;
-    await runDestructiveAction(async () => {
-      await deletePremiumRecords("analysis_runs", rows.map(run => run.id));
-      await Promise.allSettled([loadCosts({ silent: true }), loadCustomers({ silent: true }), loadChecks({ silent: true })]);
-    }, `${rows.length} analisi IA eliminate.`);
-  }
+
 
   async function deleteCostEvent(event) {
     if (!isAdmin() || busy) return;
@@ -2024,19 +1986,7 @@
     }, "Evento di costo eliminato.");
   }
 
-  async function deleteVisibleCostEvents() {
-    if (!isAdmin() || busy) return;
-    const rows = cache.costEvents.slice(0, 250);
-    if (!rows.length) {
-      setMessage("error", "Nessun evento di costo visibile da eliminare.");
-      return;
-    }
-    if (!(await requireTypedConfirmation(`Eliminare ${rows.length} eventi di costo visibili?`, "ELIMINA"))) return;
-    await runDestructiveAction(async () => {
-      await deletePremiumRecords("cost_events", rows.map(event => event.id));
-      await loadCosts({ silent: true });
-    }, `${rows.length} eventi di costo eliminati.`);
-  }
+
 
   function configCard(label, value, note = "") {
     return node("div", { className: "config-card" }, [
@@ -2672,8 +2622,7 @@
       setHidden(byId("staffManagementGroup"), !ownerOnlyVisible);
       setHidden(byId("staffCollaboratorsTab"), !ownerOnlyVisible);
       [
-        "leadCsv", "leadDeleteVisible", "leadReset", "customerDeleteVisible",
-        "analyticsDeleteVisible", "analyticsReset", "costDeleteRuns", "costDeleteEvents"
+        "leadCsv", "leadDeleteVisible", "leadReset", "customerDeleteVisible"
       ].forEach(id => setHidden(byId(id), !isAdmin()));
 
       setView("app");
@@ -2780,11 +2729,7 @@
     });
     byId("collaboratorAddForm").addEventListener("submit", addCollaborator);
     byId("collaboratorInvite").addEventListener("click", inviteCollaborator);
-    byId("analyticsDeleteVisible").addEventListener("click", deleteVisibleAnalytics);
-    byId("analyticsReset").addEventListener("click", resetAnalytics);
     byId("costRefresh").addEventListener("click", () => loadCosts().catch(error => setMessage("error", friendlyError(error))));
-    byId("costDeleteRuns").addEventListener("click", deleteVisibleCostRuns);
-    byId("costDeleteEvents").addEventListener("click", deleteVisibleCostEvents);
     window.addEventListener("hashchange", () => setTab(location.hash.slice(1), { updateHash: false }));
   }
 

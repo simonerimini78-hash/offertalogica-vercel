@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const RELEASE = "0.36.70";
+  const RELEASE = "0.36.71";
   const TIME_ZONE = "Europe/Rome";
   const STORAGE_KEY = "offertalogica-premium-staff-auth";
   const VIEW_ID = "staffManagementMonthlyView";
@@ -238,7 +238,7 @@
       </section>
 
       <section class="panel management-section">
-        <div class="panel-head"><div><h3>Prodotti e segmenti</h3><small>La struttura include già Premium Business, che resta non attivo finché il prodotto non verrà costruito.</small></div></div>
+        <div class="panel-head"><div><h3>Prodotti e segmenti</h3><small>La struttura include già Premium Business, che resta non attivo finché non verrà attivato nel catalogo gestionale.</small></div></div>
         <div class="table-wrap"><table class="data-table management-table"><thead><tr><th>Prodotto</th><th>PDF / bollette</th><th>Analisi</th><th>Fallite</th><th>Confronti</th><th>Lead</th><th>OTP verificati</th><th>Ricavi confermati</th><th>Costo IA</th><th>Lavoro Staff</th></tr></thead><tbody id="managementSegmentRows"></tbody></table></div>
       </section>
 

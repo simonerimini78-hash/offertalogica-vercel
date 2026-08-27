@@ -23,7 +23,7 @@
 
   const byId = id => document.getElementById(id);
 
-  // Staff v2.8C1.1 — stabilita visiva al bootstrap/rientro dal Laboratorio.
+  // Staff v2.8C1.1 — stabilita visiva al bootstrap e al rientro nella scheda.
   // staff.js rende visibile il Control Center appena valida la sessione; la policy
   // V2.8 arriva poco dopo dal backend. Manteniamo il contenuto non visibile fino
   // al primo allineamento autorevole, evitando menu/moduli che appaiono e spariscono.
@@ -812,11 +812,9 @@
         refreshCurrentGovernance({ silent: true })
           .then(() => {
             syncOwnerDashboardVisibility();
-            syncOwnerLabVisibility();
           })
           .catch(() => {
             syncOwnerDashboardVisibility();
-            syncOwnerLabVisibility();
           });
       }).observe(staffApp, { attributes: true, attributeFilter: ["hidden"] });
     }
@@ -952,54 +950,10 @@
   }
 
 
-  // Staff v2.7B — accesso al Laboratorio Owner dal Control Center.
-  // Il Laboratorio resta una pagina isolata e read-only verso Supabase.
-  function ensureOwnerLabNav() {
-    if (byId("staffOwnerLabTab")) return;
-
-    const nav = document.querySelector("#staffApp .nav");
-    if (!nav) return;
-
-    const button = document.createElement("button");
-    button.id = "staffOwnerLabTab";
-    button.type = "button";
-    button.hidden = true;
-    button.textContent = "Laboratorio Owner";
-    button.setAttribute("aria-label", "Apri il Laboratorio Owner");
-
-    const dashboardButton = byId("staffOwnerDashboardTab");
-    const collaboratorsTab = byId("staffCollaboratorsTab");
-    const anchor = dashboardButton?.parentElement === nav
-      ? dashboardButton
-      : collaboratorsTab?.parentElement === nav
-        ? collaboratorsTab
-        : null;
-
-    if (anchor) anchor.insertAdjacentElement("afterend", button);
-    else nav.append(button);
-
-    button.addEventListener("click", () => {
-      if (currentRole !== "owner") {
-        syncOwnerLabVisibility();
-        return;
-      }
-      window.location.href = "/staff-owner-lab.html";
-    });
-  }
-
-  function syncOwnerLabVisibility() {
-    const button = byId("staffOwnerLabTab");
-    if (!button) return;
-    button.hidden = !(currentRole === "owner" && !byId("staffApp")?.hidden);
-  }
-
   function initOwnerDashboard() {
     ensureOwnerDashboardUi();
-    ensureOwnerLabNav();
     syncOwnerDashboardVisibility();
-    syncOwnerLabVisibility();
   }
-
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", initOwnerDashboard, { once: true });
@@ -1085,7 +1039,6 @@
       const roleAfter = String(currentRole || "").trim().toLowerCase();
       if (roleAfter !== roleBefore) {
         syncOwnerDashboardVisibility();
-        syncOwnerLabVisibility();
       }
     }).finally(() => {
       v28bResumeRequest = null;
@@ -1104,7 +1057,6 @@
         v28bRefreshEffectivePermissions({ silent: true }),
       ]);
       syncOwnerDashboardVisibility();
-      syncOwnerLabVisibility();
       if (!byId("staffApp")?.hidden) {
         v28bApplyModuleVisibility();
         v28bEnforceCurrentModule();
@@ -1400,7 +1352,7 @@
 
     v28bStabilityRequest = (async () => {
       // I due snapshot servono entrambi prima del primo paint stabile:
-      // currentRole governa Dashboard/Laboratorio, V2.8 governa i moduli.
+      // currentRole governa la Dashboard Owner, V2.8 governa i moduli.
       await Promise.allSettled([
         refreshCurrentGovernance({ silent: true }),
         v28bRefreshEffectivePermissions({ silent: true }),
@@ -1416,7 +1368,6 @@
         }
       } else {
         syncOwnerDashboardVisibility();
-        syncOwnerLabVisibility();
         v28bApplyModuleVisibility();
         v28bEnforceCurrentModule();
       }
@@ -1445,7 +1396,6 @@
         // Owner resta sempre full anche se una lettura accessoria tarda.
         v28bApplyModuleVisibility();
         syncOwnerDashboardVisibility();
-        syncOwnerLabVisibility();
       } else if (!v28bPolicyReady) {
         // Per tutti gli altri ruoli il fallback resta fail-closed.
         v28bFailClosedUi();
