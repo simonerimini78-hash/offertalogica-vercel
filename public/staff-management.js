@@ -1,11 +1,30 @@
 (() => {
   "use strict";
 
-  const RELEASE = "0.36.71";
+  const RELEASE = "0.36.72";
+  const P6_LOADER_COMPAT_RELEASE = "0.36.71";
+  if (window.OffertaLogicaStaffManagement?.release === RELEASE) return;
+
+  // P6 carica ancora il Gestionale anche da staff-economics.js.
+  // Marchiamo lo script esplicito come già presente per impedire il doppio caricamento;
+  // la release pubblica e il modulo restano 0.36.72.
+  if (document.currentScript) document.currentScript.dataset.staffManagementRelease = P6_LOADER_COMPAT_RELEASE;
+
   const TIME_ZONE = "Europe/Rome";
   const STORAGE_KEY = "offertalogica-premium-staff-auth";
+  const MONTH_STORAGE_KEY = "offertalogica-staff-management-month";
+  const VIEW_STORAGE_KEY = "offertalogica-staff-management-view";
   const VIEW_ID = "staffManagementMonthlyView";
   const TAB_ID = "staffManagementMonthlyTab";
+  const PAGE_SIZES = Object.freeze([25, 50, 100]);
+  const SUBVIEWS = Object.freeze([
+    ["summary", "Riepilogo"],
+    ["economy", "Economia"],
+    ["commercial", "Commerciale"],
+    ["premium", "Premium"],
+    ["personnel", "Personale"],
+    ["quality", "Qualità dati"],
+  ]);
   const PRODUCT_CATALOG = Object.freeze({
     site_free_consumer: Object.freeze({ channel: "site", customerSegment: "consumer", productFamily: "site_free", enabled: true }),
     site_free_business: Object.freeze({ channel: "site", customerSegment: "business", productFamily: "site_free", enabled: true }),
@@ -38,6 +57,30 @@
   let managementLoading = false;
   let managementSnapshot = null;
   let ownerObserver = null;
+  let currentSubview = storedSubview();
+  let personnelState = {
+    search: "",
+    role: "all",
+    status: "all",
+    sort: "activity_desc",
+    page: 1,
+    pageSize: 25,
+  };
+  let collaboratorPagerInstalled = false;
+  let collaboratorApplying = false;
+  let collaboratorObserver = null;
+  let collaboratorState = {
+    search: "",
+    role: "all",
+    status: "all",
+    sort: "email_asc",
+    page: 1,
+    pageSize: 25,
+  };
+
+  function byId(id) {
+    return document.getElementById(id);
+  }
 
   function currentMonthKey(value = new Date()) {
     const parts = monthFormatter.formatToParts(value);
@@ -48,8 +91,33 @@
 
   function normalizeMonthKey(value) {
     const key = String(value || "").trim();
-    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(key)) return "";
-    return key;
+    return /^\d{4}-(0[1-9]|1[0-2])$/.test(key) ? key : "";
+  }
+
+  function storedMonth() {
+    try {
+      const month = normalizeMonthKey(localStorage.getItem(MONTH_STORAGE_KEY));
+      return month && month <= currentMonthKey() ? month : currentMonthKey();
+    } catch {
+      return currentMonthKey();
+    }
+  }
+
+  function storeMonth(month) {
+    try { localStorage.setItem(MONTH_STORAGE_KEY, month); } catch {}
+  }
+
+  function storedSubview() {
+    try {
+      const candidate = String(localStorage.getItem(VIEW_STORAGE_KEY) || "").trim();
+      return SUBVIEWS.some(([id]) => id === candidate) ? candidate : "summary";
+    } catch {
+      return "summary";
+    }
+  }
+
+  function storeSubview(value) {
+    try { localStorage.setItem(VIEW_STORAGE_KEY, value); } catch {}
   }
 
   function monthPeriod(monthKey = currentMonthKey()) {
@@ -62,7 +130,6 @@
     if (explicitProduct && PRODUCT_CATALOG[explicitProduct]) {
       return Object.freeze({ productCode: explicitProduct, ...PRODUCT_CATALOG[explicitProduct] });
     }
-
     const channel = String(input.channel || "").trim().toLowerCase();
     const customerSegment = String(input.customerSegment || input.customer_segment || "").trim().toLowerCase();
     if (channel === "site" && customerSegment === "business") return Object.freeze({ productCode: "site_free_business", ...PRODUCT_CATALOG.site_free_business });
@@ -70,60 +137,6 @@
     if (channel === "premium" && customerSegment === "business") return Object.freeze({ productCode: "premium_business", ...PRODUCT_CATALOG.premium_business });
     if (channel === "premium") return Object.freeze({ productCode: "premium_casa", ...PRODUCT_CATALOG.premium_casa });
     return Object.freeze({ productCode: "", channel: channel || "unknown", customerSegment: customerSegment || "unknown", productFamily: "unknown", enabled: false });
-  }
-
-  function syncVisibleRelease() {
-    document.querySelectorAll(".brand p,.version").forEach(element => {
-      const current = String(element.textContent || "");
-      if (/v\d+\.\d+\.\d+/.test(current)) element.textContent = current.replace(/v\d+\.\d+\.\d+/g, `v${RELEASE}`);
-    });
-  }
-
-  async function remoteRelease() {
-    const response = await fetch(`/version.json?t=${Date.now()}`, {
-      cache: "no-store",
-      headers: { "Cache-Control": "no-cache" },
-    });
-    if (!response.ok) return "";
-    const payload = await response.json().catch(() => ({}));
-    return String(payload?.version || "").trim();
-  }
-
-  function guardLegacyReleaseNotice() {
-    const notice = document.getElementById("staffUpdateNotice");
-    const button = document.getElementById("staffApplyUpdate");
-    if (!notice) return;
-
-    let checking = false;
-    const reconcile = async () => {
-      if (checking || !notice.classList.contains("show")) return;
-      checking = true;
-      try {
-        const latest = await remoteRelease();
-        // staff.html conserva il primo CURRENT_RELEASE statico. La guardia nasconde
-        // esclusivamente il falso avviso quando version.json coincide con questo modulo.
-        if (latest && latest === RELEASE) {
-          notice.classList.remove("show");
-          if (button) {
-            button.hidden = true;
-            button.disabled = false;
-          }
-        }
-      } catch {
-        // In caso di dubbio l'avviso esistente resta visibile.
-      } finally {
-        checking = false;
-      }
-    };
-
-    const observer = new MutationObserver(() => { void reconcile(); });
-    observer.observe(notice, { attributes: true, attributeFilter: ["class"] });
-    window.addEventListener("pagehide", () => observer.disconnect(), { once: true });
-    void reconcile();
-  }
-
-  function byId(id) {
-    return document.getElementById(id);
   }
 
   function numeric(value) {
@@ -148,9 +161,10 @@
   function duration(seconds) {
     const total = Math.max(0, Math.round(numeric(seconds)));
     if (total < 60) return `${total} sec`;
-    const minutes = Math.floor(total / 60);
-    const remainder = total % 60;
-    return remainder ? `${minutes} min ${remainder} sec` : `${minutes} min`;
+    const hours = Math.floor(total / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    if (hours) return minutes ? `${hours} h ${minutes} min` : `${hours} h`;
+    return `${minutes} min`;
   }
 
   function dateTime(value) {
@@ -185,42 +199,122 @@
     }
   }
 
+  function roleLabel(role) {
+    return {
+      owner: "Proprietario",
+      admin: "Amministratore",
+      technician: "Tecnico",
+      reviewer: "Revisore",
+      support: "Supporto",
+    }[String(role || "").toLowerCase()] || "Staff";
+  }
+
+  function syncVisibleRelease() {
+    document.querySelectorAll(".brand p,.version").forEach(element => {
+      const current = String(element.textContent || "");
+      if (/v\d+\.\d+\.\d+/.test(current)) element.textContent = current.replace(/v\d+\.\d+\.\d+/g, `v${RELEASE}`);
+    });
+  }
+
+  async function remoteRelease() {
+    const response = await fetch(`/version.json?t=${Date.now()}`, {
+      cache: "no-store",
+      headers: { "Cache-Control": "no-cache" },
+    });
+    if (!response.ok) return "";
+    const payload = await response.json().catch(() => ({}));
+    return String(payload?.version || "").trim();
+  }
+
+  function guardLegacyReleaseNotice() {
+    const notice = byId("staffUpdateNotice");
+    const button = byId("staffApplyUpdate");
+    if (!notice) return;
+    let checking = false;
+    const reconcile = async () => {
+      if (checking || !notice.classList.contains("show")) return;
+      checking = true;
+      try {
+        const latest = await remoteRelease();
+        if (latest && latest === RELEASE) {
+          notice.classList.remove("show");
+          if (button) {
+            button.hidden = true;
+            button.disabled = false;
+          }
+        }
+      } catch {
+        // L'avviso esistente resta visibile se la release non è verificabile.
+      } finally {
+        checking = false;
+      }
+    };
+    const observer = new MutationObserver(() => { void reconcile(); });
+    observer.observe(notice, { attributes: true, attributeFilter: ["class"] });
+    window.addEventListener("pagehide", () => observer.disconnect(), { once: true });
+    void reconcile();
+  }
+
   function injectStyles() {
-    if (byId("staffManagementMonthlyStyles")) return;
+    if (byId("staffManagementMonthlyStyles")) byId("staffManagementMonthlyStyles").remove();
     const style = document.createElement("style");
     style.id = "staffManagementMonthlyStyles";
     style.textContent = `
-      .management-period-bar{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin-bottom:15px;border:1px solid var(--line);border-radius:16px;padding:13px 14px;background:#fff;box-shadow:0 6px 20px rgba(16,35,31,.04)}
+      .management-period-bar{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin-bottom:12px;border:1px solid var(--line);border-radius:16px;padding:13px 14px;background:#fff;box-shadow:0 6px 20px rgba(16,35,31,.04)}
       .management-period-copy{min-width:0}.management-period-copy strong{display:block;font-size:14px}.management-period-copy small{display:block;margin-top:4px;color:var(--muted);line-height:1.4}
       .management-period-controls{display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap;justify-content:flex-end}.management-period-controls label{display:grid;gap:4px;color:var(--muted);font-size:10px;font-weight:850}.management-period-controls input{width:165px;min-height:38px;padding:7px 9px}
-      .management-grid{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:11px;margin-bottom:15px}.management-grid.six{grid-template-columns:repeat(6,minmax(130px,1fr))}.management-grid.costs{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
-      .management-card{border:1px solid var(--line);border-radius:15px;padding:14px;background:#fff;box-shadow:0 5px 18px rgba(16,35,31,.035)}.management-card.primary{border-color:#cde2da;background:linear-gradient(180deg,#fff,#f8fcfa)}.management-card span{display:block;color:var(--muted);font-size:10px;font-weight:850}.management-card strong{display:block;margin-top:5px;font-size:23px;line-height:1.05;overflow-wrap:anywhere}.management-card.primary strong{color:var(--green-dark)}.management-card small{display:block;margin-top:5px;color:var(--muted);font-size:10px;line-height:1.35}
+      .management-subnav{display:flex;gap:7px;flex-wrap:wrap;margin:0 0 14px;padding:7px;border:1px solid var(--line);border-radius:14px;background:#f8fbf9}
+      .management-subnav button{border:0;border-radius:9px;padding:9px 11px;color:#496058;background:transparent;font-size:12px;font-weight:850}
+      .management-subnav button:hover,.management-subnav button.active{color:var(--green-dark);background:#fff;box-shadow:0 3px 10px rgba(16,35,31,.06)}
+      .management-page{display:none}.management-page.active{display:block}
+      .management-grid{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:11px;margin-bottom:14px}.management-grid.six{grid-template-columns:repeat(6,minmax(130px,1fr))}.management-grid.costs{grid-template-columns:repeat(auto-fit,minmax(175px,1fr))}
+      .management-card{border:1px solid var(--line);border-radius:15px;padding:14px;background:#fff;box-shadow:0 5px 18px rgba(16,35,31,.035)}.management-card.primary{border-color:#cde2da;background:linear-gradient(180deg,#fff,#f8fcfa)}.management-card.warning{border-color:#fedf89;background:#fffcf2}.management-card.danger{border-color:#fecdca;background:#fff8f7}
+      .management-card span{display:block;color:var(--muted);font-size:10px;font-weight:850}.management-card strong{display:block;margin-top:5px;font-size:23px;line-height:1.05;overflow-wrap:anywhere}.management-card.primary strong{color:var(--green-dark)}.management-card small{display:block;margin-top:5px;color:var(--muted);font-size:10px;line-height:1.35}
       .management-delta.positive{color:var(--ok)}.management-delta.negative{color:var(--danger)}.management-delta.neutral{color:var(--muted)}
-      .management-section{margin-top:14px}.management-section .panel-head>div>small{display:block;margin-top:3px;line-height:1.35}.management-table{min-width:1120px}.management-table td,.management-table th{white-space:nowrap}.management-table td:first-child,.management-table th:first-child{white-space:normal;min-width:190px}
+      .management-section{margin-top:14px}.management-section:first-child{margin-top:0}.management-section .panel-head>div>small{display:block;margin-top:3px;line-height:1.35}
+      .management-table{min-width:1060px}.management-table td,.management-table th{white-space:nowrap}.management-table td:first-child,.management-table th:first-child{white-space:normal;min-width:190px}
       .management-status{margin-bottom:13px;border-radius:11px;padding:10px 12px;font-size:12px;line-height:1.45}.management-status.info{color:var(--blue);background:var(--blue-soft)}.management-status.error{color:var(--danger);background:var(--danger-soft)}.management-status.success{color:var(--ok);background:var(--ok-soft)}
-      .management-note-list{display:grid;gap:7px;margin:0;padding:0;list-style:none}.management-note-list li{border:1px solid #e2ebe7;border-radius:10px;padding:9px 10px;color:#52635c;background:#fbfdfc;font-size:11px;line-height:1.45}
-      .management-inline-badges{display:flex;gap:6px;flex-wrap:wrap}.management-empty{color:var(--muted);font-size:12px}
-      @media (max-width:1200px){.management-grid.six{grid-template-columns:repeat(3,minmax(140px,1fr))}}
+      .management-note-list{display:grid;gap:7px;margin:0;padding:0;list-style:none}.management-note-list li{border:1px solid #e2ebe7;border-radius:10px;padding:10px 11px;color:#52635c;background:#fbfdfc;font-size:11px;line-height:1.45}.management-note-list li.actionable{border-color:#fedf89;background:#fffcf2;color:#7a2e0e}
+      .management-empty{color:var(--muted);font-size:12px}.management-toolbar{display:grid;grid-template-columns:minmax(190px,1fr) 155px 155px 175px 105px;gap:8px;padding:12px;border-bottom:1px solid var(--line);background:#fbfdfc}
+      .management-toolbar input,.management-toolbar select{min-height:38px;padding:7px 9px;font-size:12px}.management-pagination{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;color:var(--muted);font-size:11px;background:#fbfdfc}.management-pagination>div{display:flex;align-items:center;gap:7px}.management-pagination button{min-width:84px}
+      .management-signal{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;border:1px solid var(--line);border-radius:13px;padding:12px;background:#fff}.management-signal strong{display:block;font-size:12px}.management-signal small{display:block;margin-top:4px;color:var(--muted);line-height:1.4}.management-signal b{font-size:16px;color:var(--green-dark);white-space:nowrap}
+      .management-signal-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+      .p7-collaborator-toolbar{display:grid;grid-template-columns:minmax(190px,1fr) 150px 150px 165px 105px;gap:8px;padding:12px;border:1px solid var(--line);border-bottom:0;border-radius:12px 12px 0 0;background:#fbfdfc}
+      .p7-collaborator-toolbar input,.p7-collaborator-toolbar select{min-height:38px;padding:7px 9px;font-size:12px}
+      .p7-collaborator-pagination{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border:1px solid var(--line);border-top:0;border-radius:0 0 12px 12px;color:var(--muted);background:#fbfdfc;font-size:11px}.p7-collaborator-pagination>div{display:flex;gap:7px}
+      @media (max-width:1200px){.management-grid.six{grid-template-columns:repeat(3,minmax(140px,1fr))}.management-toolbar,.p7-collaborator-toolbar{grid-template-columns:repeat(2,minmax(150px,1fr))}.management-signal-list{grid-template-columns:1fr}}
       @media (max-width:850px){.management-period-bar{align-items:stretch;flex-direction:column}.management-period-controls{justify-content:flex-start}.management-grid,.management-grid.six{grid-template-columns:repeat(2,minmax(130px,1fr))}}
-      @media (max-width:520px){.management-grid,.management-grid.six{grid-template-columns:1fr}}
+      @media (max-width:560px){.management-grid,.management-grid.six{grid-template-columns:1fr}.management-toolbar,.p7-collaborator-toolbar{grid-template-columns:1fr}.management-pagination,.p7-collaborator-pagination{align-items:flex-start;flex-direction:column}}
     `;
     document.head.append(style);
   }
 
   function createManagementView() {
-    if (byId(VIEW_ID)) return byId(VIEW_ID);
+    const existing = byId(VIEW_ID);
+    if (existing) existing.remove();
+    const oldTab = byId(TAB_ID);
+    if (oldTab) oldTab.remove();
+
     const main = document.querySelector("#staffApp .main");
     if (!main) return null;
+
     const section = document.createElement("section");
     section.className = "view";
     section.id = VIEW_ID;
     section.setAttribute("aria-label", "Gestionale mensile");
     section.innerHTML = `
       <div class="view-head">
-        <div><span class="control-kicker">Gestionale mensile</span><h2>Analisi mensile</h2><p>Economia, attività, Premium e lavoro Staff nello stesso mese civile. I dati precedenti al punto zero restano archiviati ma non entrano nei conteggi ufficiali.</p></div>
+        <div>
+          <span class="control-kicker">Gestionale mensile</span>
+          <h2>Gestionale</h2>
+          <p>Report ufficiale per mese civile Europe/Rome. Tutte le viste condividono lo stesso periodo, punto zero e fonti dati.</p>
+        </div>
       </div>
       <div class="management-period-bar">
-        <div class="management-period-copy"><strong id="managementPeriodTitle">Periodo gestionale</strong><small id="managementPeriodMeta">Seleziona un mese. Tutte le sezioni useranno lo stesso intervallo.</small></div>
+        <div class="management-period-copy">
+          <strong id="managementPeriodTitle">Periodo gestionale</strong>
+          <small id="managementPeriodMeta">Tutte le viste useranno lo stesso intervallo.</small>
+        </div>
         <div class="management-period-controls">
           <button class="button secondary compact" id="managementPreviousMonth" type="button">Mese precedente</button>
           <button class="button secondary compact" id="managementCurrentMonth" type="button">Mese corrente</button>
@@ -228,42 +322,93 @@
           <button class="button primary compact" id="managementRefresh" type="button">Aggiorna</button>
         </div>
       </div>
+      <nav class="management-subnav" id="managementSubviewNav" aria-label="Sezioni Gestionale">
+        ${SUBVIEWS.map(([id, label]) => `<button type="button" data-management-subview="${id}">${label}</button>`).join("")}
+      </nav>
       <div id="managementStatus" class="management-status info" hidden></div>
 
-      <div class="management-grid" id="managementFinanceKpis"></div>
+      <div class="management-page" data-management-page="summary">
+        <div class="management-grid" id="managementSummaryFinance"></div>
+        <div class="management-grid six" id="managementSummarySignals"></div>
+        <section class="panel management-section">
+          <div class="panel-head"><div><h3>Segnali del mese</h3><small>Solo indicatori decisionali; i dettagli restano nelle viste dedicate.</small></div></div>
+          <div class="panel-body"><div class="management-signal-list" id="managementDecisionSignals"></div></div>
+        </section>
+      </div>
 
-      <section class="panel management-section">
-        <div class="panel-head"><div><h3>Attività del mese</h3><small>Sito e Premium letti nello stesso intervallo gestionale.</small></div></div>
-        <div class="panel-body"><div class="management-grid six" id="managementActivityKpis" style="margin-bottom:0"></div></div>
-      </section>
+      <div class="management-page" data-management-page="economy">
+        <div class="management-grid" id="managementEconomyFinance"></div>
+        <section class="panel management-section">
+          <div class="panel-head"><div><h3>Costi e componenti economiche</h3><small>Ricavi confermati separati da commissioni attese e movimenti ancora senza prezzo.</small></div></div>
+          <div class="panel-body"><div class="management-grid costs" id="managementCostKpis" style="margin-bottom:0"></div></div>
+        </section>
+      </div>
 
-      <section class="panel management-section">
-        <div class="panel-head"><div><h3>Prodotti e segmenti</h3><small>La struttura include già Premium Business, che resta non attivo finché non verrà attivato nel catalogo gestionale.</small></div></div>
-        <div class="table-wrap"><table class="data-table management-table"><thead><tr><th>Prodotto</th><th>PDF / bollette</th><th>Analisi</th><th>Fallite</th><th>Confronti</th><th>Lead</th><th>OTP verificati</th><th>Ricavi confermati</th><th>Costo IA</th><th>Lavoro Staff</th></tr></thead><tbody id="managementSegmentRows"></tbody></table></div>
-      </section>
+      <div class="management-page" data-management-page="commercial">
+        <div class="management-grid six" id="managementCommercialKpis"></div>
+        <section class="panel management-section">
+          <div class="panel-head"><div><h3>Privati / Business</h3><small>Funnel commerciale del sito nel mese selezionato, distinto per segmento quando il dato è disponibile.</small></div></div>
+          <div class="table-wrap"><table class="data-table management-table">
+            <thead><tr><th>Segmento</th><th>Analisi PDF</th><th>Documenti noti</th><th>Confronti</th><th>Lead</th><th>OTP inviati</th><th>OTP verificati</th><th>Offerte sbloccate</th><th>Redirect</th><th>Richieste consulente</th></tr></thead>
+            <tbody id="managementCommercialRows"></tbody>
+          </table></div>
+        </section>
+      </div>
 
-      <section class="panel management-section">
-        <div class="panel-head"><div><h3>Economia</h3><small>Costi registrati o calcolati da tariffe versionate; nessuna commissione lead attesa viene trattata come ricavo confermato.</small></div></div>
-        <div class="panel-body"><div class="management-grid costs" id="managementCostKpis" style="margin-bottom:0"></div></div>
-      </section>
+      <div class="management-page" data-management-page="premium">
+        <div class="management-grid six" id="managementPremiumKpis"></div>
+        <section class="panel management-section">
+          <div class="panel-head"><div><h3>Casa / Business</h3><small>Premium Business resta predisposto ma non viene trattato come attivo finché il catalogo gestionale non lo abilita realmente.</small></div></div>
+          <div class="table-wrap"><table class="data-table management-table">
+            <thead><tr><th>Prodotto</th><th>Stato</th><th>Bollette</th><th>Analisi</th><th>Fallite</th><th>Ricavi confermati</th><th>Costo IA</th><th>Lavoro Staff</th></tr></thead>
+            <tbody id="managementPremiumRows"></tbody>
+          </table></div>
+        </section>
+      </div>
 
-      <section class="panel management-section">
-        <div class="panel-head"><div><h3>Premium</h3><small>Attività e pagamenti con timestamp certo nel mese selezionato.</small></div></div>
-        <div class="panel-body"><div class="management-grid six" id="managementPremiumKpis" style="margin-bottom:0"></div></div>
-      </section>
+      <div class="management-page" data-management-page="personnel">
+        <div class="management-grid" id="managementPersonnelSummary"></div>
+        <section class="panel management-section">
+          <div class="panel-head"><div><h3>Persone e lavoro</h3><small>Storico conservato anche per collaboratori rimossi. Ricerca, filtri, ordinamento e paginazione evitano liste infinite.</small></div></div>
+          <div class="management-toolbar">
+            <input id="managementPersonnelSearch" type="search" placeholder="Cerca email o account" aria-label="Cerca personale">
+            <select id="managementPersonnelRole" aria-label="Filtra ruolo">
+              <option value="all">Tutti i ruoli</option><option value="owner">Proprietario</option><option value="admin">Amministratore</option><option value="technician">Tecnico</option><option value="reviewer">Revisore</option>
+            </select>
+            <select id="managementPersonnelStatus" aria-label="Filtra stato">
+              <option value="all">Tutti gli stati</option><option value="active">Attivi</option><option value="removed">Rimossi / non attivi</option>
+            </select>
+            <select id="managementPersonnelSort" aria-label="Ordina personale">
+              <option value="activity_desc">Più attività</option><option value="cost_desc">Costo lavoro</option><option value="time_desc">Tempo lavoro</option><option value="email_asc">Email A–Z</option><option value="role_asc">Ruolo</option>
+            </select>
+            <select id="managementPersonnelPageSize" aria-label="Righe per pagina">
+              ${PAGE_SIZES.map(size => `<option value="${size}" ${size === 25 ? "selected" : ""}>${size} / pag.</option>`).join("")}
+            </select>
+          </div>
+          <div class="table-wrap"><table class="data-table management-table">
+            <thead><tr><th>Persona</th><th>Ruolo</th><th>Stato</th><th>Operazioni</th><th>Controlli</th><th>Note</th><th>Comunicazioni</th><th>Tempo</th><th>Costo lavoro</th><th>Casa</th><th>Business</th></tr></thead>
+            <tbody id="managementPersonnelRows"></tbody>
+          </table></div>
+          <div class="management-pagination">
+            <span id="managementPersonnelPageInfo">0 risultati</span>
+            <div><button class="button secondary compact" id="managementPersonnelPrev" type="button">Precedente</button><button class="button secondary compact" id="managementPersonnelNext" type="button">Successiva</button></div>
+          </div>
+        </section>
+      </div>
 
-      <section class="panel management-section">
-        <div class="panel-head"><div><h3>Persone e lavoro</h3><small>I collaboratori rimossi restano nello storico e le attività già attribuite non vengono cancellate.</small></div></div>
-        <div class="table-wrap"><table class="data-table management-table"><thead><tr><th>Persona</th><th>Ruolo</th><th>Stato</th><th>Operazioni</th><th>Controlli</th><th>Note</th><th>Comunicazioni</th><th>Tempo</th><th>Costo lavoro</th><th>Casa</th><th>Business</th></tr></thead><tbody id="managementPersonnelRows"></tbody></table></div>
-      </section>
+      <div class="management-page" data-management-page="quality">
+        <div class="management-grid" id="managementQualityKpis"></div>
+        <section class="panel management-section">
+          <div class="panel-head"><div><h3>Qualità e criteri dei dati</h3><small>Anomalie e limiti che impediscono di interpretare come certi dati mancanti o non storicizzabili.</small></div></div>
+          <div class="panel-body"><ul class="management-note-list" id="managementQualityNotes"></ul></div>
+        </section>
+      </div>
 
-      <section class="panel management-section">
-        <div class="panel-head"><div><h3>Qualità e criteri dei dati</h3><small>Segnalazioni che impediscono di interpretare come certi dati non storicizzabili.</small></div></div>
-        <div class="panel-body"><ul class="management-note-list" id="managementQualityNotes"></ul></div>
-      </section>
       <div class="version">Gestionale Staff v${RELEASE}</div>
     `;
     main.append(section);
+    createManagementTab();
+    selectSubview(currentSubview);
     return section;
   }
 
@@ -284,6 +429,14 @@
     return button;
   }
 
+  function selectSubview(id) {
+    const next = SUBVIEWS.some(([key]) => key === id) ? id : "summary";
+    currentSubview = next;
+    storeSubview(next);
+    document.querySelectorAll("[data-management-page]").forEach(page => page.classList.toggle("active", page.dataset.managementPage === next));
+    document.querySelectorAll("[data-management-subview]").forEach(button => button.classList.toggle("active", button.dataset.managementSubview === next));
+  }
+
   function setManagementStatus(kind, message) {
     const element = byId("managementStatus");
     if (!element) return;
@@ -292,53 +445,26 @@
     element.hidden = !message;
   }
 
-  function closeManagementView(updateHash = false) {
-    byId(VIEW_ID)?.classList.remove("active");
-    byId(TAB_ID)?.classList.remove("active");
-    if (updateHash && location.hash === "#management") history.replaceState(null, "", "#overview");
-  }
-
-  function openManagementView() {
-    const view = byId(VIEW_ID) || createManagementView();
-    const tab = byId(TAB_ID) || createManagementTab();
-    if (!view || !tab || tab.hidden) return;
-    document.querySelectorAll("[data-staff-view]").forEach(element => element.classList.remove("active"));
-    document.querySelectorAll("[data-staff-tab]").forEach(element => element.classList.remove("active"));
-    const economics = byId("staffEconomicsView");
-    economics?.classList.remove("active");
-    byId("staffEconomicsTab")?.classList.remove("active");
-    view.classList.add("active");
-    tab.classList.add("active");
-    history.replaceState(null, "", "#management");
-    void refreshManagementReport();
-  }
-
-  function syncOwnerVisibility() {
-    const group = byId("staffManagementGroup");
-    const button = byId(TAB_ID) || createManagementTab();
-    if (!button || !group) return;
-    const visible = !group.hidden;
-    button.hidden = !visible;
-    if (!visible) closeManagementView(true);
-    if (visible && location.hash === "#management") openManagementView();
-  }
-
-  function deltaText(current, previous, formatter = number, suffix = "") {
+  function deltaDescriptor(current, previous, { inverse = false, format = number, points = false } = {}) {
     const currentValue = Number(current);
     const previousValue = Number(previous);
     if (!Number.isFinite(currentValue) || !Number.isFinite(previousValue)) return { text: "Mese precedente: —", className: "neutral" };
     const delta = currentValue - previousValue;
-    const sign = delta > 0 ? "+" : "";
-    const rendered = formatter(Math.abs(delta));
+    const positiveRaw = delta > 0;
+    const negativeRaw = delta < 0;
+    const positive = inverse ? negativeRaw : positiveRaw;
+    const negative = inverse ? positiveRaw : negativeRaw;
+    const sign = delta > 0 ? "+" : delta < 0 ? "−" : "";
+    const rendered = points ? decimalFormatter.format(Math.abs(delta)) : format(Math.abs(delta));
     return {
-      text: `vs mese precedente: ${delta < 0 ? "−" : sign}${rendered}${suffix}`,
-      className: delta > 0 ? "positive" : delta < 0 ? "negative" : "neutral",
+      text: `vs mese precedente: ${sign}${rendered}${points ? " p.p." : ""}`,
+      className: positive ? "positive" : negative ? "negative" : "neutral",
     };
   }
 
-  function card(label, value, meta = "", primary = false) {
+  function card(label, value, meta = "", kind = "") {
     const article = document.createElement("article");
-    article.className = `management-card${primary ? " primary" : ""}`;
+    article.className = `management-card${kind ? ` ${kind}` : ""}`;
     const span = document.createElement("span");
     span.textContent = label;
     const strong = document.createElement("strong");
@@ -352,13 +478,15 @@
     return article;
   }
 
-  function comparativeCard(label, current, previous, formatter, { primary = false, inverse = false, suffix = "", deltaFormatter = formatter } = {}) {
-    const article = card(label, formatter(current), "", primary);
-    const delta = deltaText(current, previous, deltaFormatter, suffix);
+  function comparativeCard(label, current, previous, format, options = {}) {
+    const article = card(label, format(current), "", options.kind || "");
+    const delta = deltaDescriptor(current, previous, {
+      inverse: Boolean(options.inverse),
+      format: options.deltaFormat || format,
+      points: Boolean(options.points),
+    });
     const small = document.createElement("small");
-    const positive = inverse ? delta.className === "negative" : delta.className === "positive";
-    const negative = inverse ? delta.className === "positive" : delta.className === "negative";
-    small.className = `management-delta ${positive ? "positive" : negative ? "negative" : "neutral"}`;
+    small.className = `management-delta ${delta.className}`;
     small.textContent = delta.text;
     article.append(small);
     return article;
@@ -366,12 +494,7 @@
 
   function replaceCards(id, cards) {
     const target = byId(id);
-    if (!target) return;
-    target.replaceChildren(...cards);
-  }
-
-  function productMap(snapshot) {
-    return Object.fromEntries((Array.isArray(snapshot?.products) ? snapshot.products : []).map(product => [product.product_code, product]));
+    if (target) target.replaceChildren(...cards);
   }
 
   function rowCell(value, small = "") {
@@ -387,215 +510,8 @@
     return td;
   }
 
-  function renderFinance(snapshot) {
-    const current = snapshot.current?.finance || {};
-    const previous = snapshot.previous?.finance || {};
-    replaceCards("managementFinanceKpis", [
-      comparativeCard("Ricavi confermati", current.revenue_confirmed_eur, previous.revenue_confirmed_eur, money, { primary: true }),
-      comparativeCard("Costi reali", current.cost_real_eur, previous.cost_real_eur, money, { inverse: true }),
-      comparativeCard("Risultato reale", current.result_real_eur, previous.result_real_eur, money, { primary: true }),
-      comparativeCard("Margine reale", current.margin_real_pct, previous.margin_real_pct, percent, { suffix: " p.p.", deltaFormatter: value => decimalFormatter.format(numeric(value)) }),
-    ]);
-  }
-
-  function renderActivity(snapshot) {
-    const current = snapshot.current?.totals || {};
-    const previous = snapshot.previous?.totals || {};
-    replaceCards("managementActivityKpis", [
-      comparativeCard("Analisi PDF Sito", snapshot.current?.site?.total?.pdf_analyses_started, snapshot.previous?.site?.total?.pdf_analyses_started, number),
-      comparativeCard("Bollette Premium", current.premium_bills, previous.premium_bills, number),
-      comparativeCard("Analisi fallite", current.analysis_failures, previous.analysis_failures, number, { inverse: true }),
-      comparativeCard("Confronti Sito", current.comparisons, previous.comparisons, number),
-      comparativeCard("Lead", current.leads, previous.leads, number),
-      comparativeCard("OTP verificati", current.otp_verified, previous.otp_verified, number),
-      comparativeCard("Offerte sbloccate", current.offers_unlocked, previous.offers_unlocked, number),
-      comparativeCard("Controlli Premium", current.premium_checks, previous.premium_checks, number),
-      comparativeCard("Conversione OTP", snapshot.current?.site?.total?.otp_verification_pct, snapshot.previous?.site?.total?.otp_verification_pct, percent, { suffix: " p.p.", deltaFormatter: value => decimalFormatter.format(numeric(value)) }),
-      comparativeCard("Lead / confronti", snapshot.current?.site?.total?.lead_per_comparison_pct, snapshot.previous?.site?.total?.lead_per_comparison_pct, percent, { suffix: " p.p.", deltaFormatter: value => decimalFormatter.format(numeric(value)) }),
-    ]);
-  }
-
-  function renderSegments(snapshot) {
-    const target = byId("managementSegmentRows");
-    if (!target) return;
-    const products = productMap(snapshot);
-    const current = snapshot.current || {};
-    const site = current.site?.segments || {};
-    const siteAi = current.site_ai || {};
-    const premium = current.premium_segments || {};
-
-    const definitions = [
-      {
-        code: "site_free_consumer",
-        values: site.consumer || {},
-        pdf: numeric(site.consumer?.pdf_documents),
-        analyses: numeric(site.consumer?.pdf_analyses_started),
-        failed: numeric(siteAi.consumer?.failed),
-        comparisons: numeric(site.consumer?.comparisons),
-        leads: numeric(site.consumer?.leads),
-        otp: numeric(site.consumer?.otp_verified),
-        revenue: null,
-        aiCost: numeric(siteAi.consumer?.cost_real_eur) + numeric(siteAi.consumer?.cost_estimated_eur),
-        work: null,
-      },
-      {
-        code: "site_free_business",
-        values: site.business || {},
-        pdf: numeric(site.business?.pdf_documents),
-        analyses: numeric(site.business?.pdf_analyses_started),
-        failed: numeric(siteAi.business?.failed),
-        comparisons: numeric(site.business?.comparisons),
-        leads: numeric(site.business?.leads),
-        otp: numeric(site.business?.otp_verified),
-        revenue: null,
-        aiCost: numeric(siteAi.business?.cost_real_eur) + numeric(siteAi.business?.cost_estimated_eur),
-        work: null,
-      },
-      {
-        code: "premium_casa",
-        values: premium.premium_casa || {},
-        pdf: numeric(premium.premium_casa?.bills),
-        analyses: numeric(premium.premium_casa?.analyses),
-        failed: numeric(premium.premium_casa?.analysis_failed),
-        comparisons: null,
-        leads: null,
-        otp: null,
-        revenue: numeric(premium.premium_casa?.revenue_confirmed_eur),
-        aiCost: numeric(premium.premium_casa?.ai_cost_eur),
-        work: numeric(premium.premium_casa?.human_seconds),
-      },
-      {
-        code: "premium_business",
-        values: premium.premium_business || {},
-        pdf: numeric(premium.premium_business?.bills),
-        analyses: numeric(premium.premium_business?.analyses),
-        failed: numeric(premium.premium_business?.analysis_failed),
-        comparisons: null,
-        leads: null,
-        otp: null,
-        revenue: numeric(premium.premium_business?.revenue_confirmed_eur),
-        aiCost: numeric(premium.premium_business?.ai_cost_eur),
-        work: numeric(premium.premium_business?.human_seconds),
-      },
-    ];
-
-    const rows = definitions.map(definition => {
-      const product = products[definition.code] || { label: definition.code, enabled: definition.code !== "premium_business" };
-      const tr = document.createElement("tr");
-      const status = product.enabled ? "Attivo" : "Predisposto · non attivo";
-      tr.append(
-        rowCell(product.label, status),
-        (() => {
-          if (!definition.code.startsWith("site_")) return rowCell(number(definition.pdf));
-          const unknownCount = numeric(definition.values?.pdf_events_without_document_count);
-          return rowCell(unknownCount > 0 ? "—" : number(definition.pdf), unknownCount > 0 ? `${number(definition.pdf)} documenti noti · ${number(unknownCount)} analisi senza conteggio documenti` : "");
-        })(),
-        rowCell(number(definition.analyses)),
-        rowCell(number(definition.failed)),
-        rowCell(definition.comparisons === null ? "—" : number(definition.comparisons)),
-        rowCell(definition.leads === null ? "—" : number(definition.leads)),
-        rowCell(definition.otp === null ? "—" : number(definition.otp)),
-        rowCell(definition.revenue === null ? "—" : money(definition.revenue), definition.revenue === null ? "Ricavo lead confermato non storicizzato" : ""),
-        rowCell(money(definition.aiCost)),
-        rowCell(definition.work === null ? "—" : duration(definition.work)),
-      );
-      return tr;
-    });
-    target.replaceChildren(...rows);
-  }
-
-  function renderCosts(snapshot) {
-    const current = snapshot.current || {};
-    const costs = current.cost_breakdown || {};
-    const finance = current.finance || {};
-    const commercial = current.commercial || {};
-    const siteConsumer = numeric(costs.site_ai_consumer_real_eur) + numeric(costs.site_ai_consumer_estimated_eur);
-    const siteBusiness = numeric(costs.site_ai_business_real_eur) + numeric(costs.site_ai_business_estimated_eur);
-    const sms = numeric(costs.sms_real_eur) + numeric(costs.sms_estimated_eur);
-    const stripe = numeric(costs.stripe_real_eur) + numeric(costs.stripe_estimated_eur);
-    const infrastructure = numeric(costs.infrastructure_real_eur) + numeric(costs.infrastructure_estimated_eur);
-    const other = numeric(costs.legacy_recorded_eur) + numeric(costs.other_ledger_real_eur) + numeric(costs.other_ledger_estimated_eur);
-    replaceCards("managementCostKpis", [
-      card("IA Premium", money(costs.premium_ai_eur)),
-      card("IA Sito · Privati", money(siteConsumer)),
-      card("IA Sito · Business", money(siteBusiness)),
-      card("SMS", money(sms)),
-      card("Stripe", money(stripe), "Commissioni registrate/stimate"),
-      card("Infrastruttura", money(infrastructure), "Include quote mensili pro-rata"),
-      card("Operatori", money(costs.operator_eur), duration(costs.operator_seconds)),
-      card("Altri costi", money(other)),
-      card("Costo medio IA / analisi", finance.avg_ai_cost_per_analysis_eur == null ? "—" : money(finance.avg_ai_cost_per_analysis_eur)),
-      card("Costo / cliente Premium attivo", finance.premium_cost_per_active_customer_eur == null ? "—" : money(finance.premium_cost_per_active_customer_eur), "Non stimato per utenti Sito anonimi"),
-      card("Commissioni lead attese", money(commercial.expected_lead_commission_eur), "Previsione da eventi datati · non ricavo confermato", true),
-      card("Movimenti senza prezzo", number(finance.unpriced_count), "Da completare prima della chiusura contabile"),
-    ]);
-  }
-
-  function renderPremium(snapshot) {
-    const current = snapshot.current?.totals || {};
-    const previous = snapshot.previous?.totals || {};
-    replaceCards("managementPremiumKpis", [
-      comparativeCard("Clienti con attività/pagamento", current.premium_customers, previous.premium_customers, number),
-      comparativeCard("Nuovi abbonamenti pagati", current.premium_new_paid_subscriptions, previous.premium_new_paid_subscriptions, number),
-      comparativeCard("Cancellazioni", current.premium_cancellations, previous.premium_cancellations, number, { inverse: true }),
-      comparativeCard("Bollette Premium", current.premium_bills, previous.premium_bills, number),
-      comparativeCard("Analisi Premium", snapshot.current?.activity?.premium_analyses, snapshot.previous?.activity?.premium_analyses, number),
-      comparativeCard("Controlli Staff", current.premium_checks, previous.premium_checks, number),
-    ]);
-  }
-
-  function roleLabel(role) {
-    return { owner: "Proprietario", admin: "Amministratore", technician: "Tecnico", reviewer: "Revisore" }[String(role || "").toLowerCase()] || "Staff";
-  }
-
-  function renderPersonnel(snapshot) {
-    const target = byId("managementPersonnelRows");
-    if (!target) return;
-    const personnel = Array.isArray(snapshot.current?.personnel) ? snapshot.current.personnel : [];
-    if (!personnel.length) {
-      const tr = document.createElement("tr");
-      const td = document.createElement("td");
-      td.colSpan = 11;
-      td.className = "management-empty";
-      td.textContent = "Nessuna persona Staff disponibile nel periodo.";
-      tr.append(td);
-      target.replaceChildren(tr);
-      return;
-    }
-    const rows = personnel.map(person => {
-      const tr = document.createElement("tr");
-      const identity = String(person.email || "").trim() || `Account ${String(person.user_id || "").slice(0, 8)}…`;
-      tr.append(
-        rowCell(identity, person.active ? "Storico conservato" : "Account non attivo · storico conservato"),
-        rowCell(roleLabel(person.role)),
-        rowCell(person.active ? "Attivo" : "Rimosso / non attivo"),
-        rowCell(number(person.operations)),
-        rowCell(number(person.checks)),
-        rowCell(number(person.notes)),
-        rowCell(number(person.communications)),
-        rowCell(duration(person.human_seconds)),
-        rowCell(money(person.human_cost_eur)),
-        rowCell(number(person.premium_casa_checks)),
-        rowCell(number(person.premium_business_checks)),
-      );
-      return tr;
-    });
-    target.replaceChildren(...rows);
-  }
-
-  function renderQuality(snapshot) {
-    const target = byId("managementQualityNotes");
-    if (!target) return;
-    const notes = Array.isArray(snapshot.quality_notes) ? [...snapshot.quality_notes] : [];
-    if (snapshot.current?.site?.available === false && snapshot.current?.site?.reason) notes.push(`Dettaglio Customer DB: ${snapshot.current.site.reason}`);
-    if (snapshot.current?.baseline_applied) notes.push("Il punto zero cade dentro il mese selezionato: il mese è conteggiato solo dal punto zero in avanti.");
-    if (snapshot.previous?.empty) notes.push("Il mese precedente è vuoto rispetto al punto zero; il confronto resta a zero senza cancellare lo storico precedente.");
-    const items = (notes.length ? notes : ["Nessuna anomalia di qualità dati rilevata."]).map(note => {
-      const li = document.createElement("li");
-      li.textContent = note;
-      return li;
-    });
-    target.replaceChildren(...items);
+  function productMap(snapshot) {
+    return Object.fromEntries((Array.isArray(snapshot?.products) ? snapshot.products : []).map(product => [product.product_code, product]));
   }
 
   function renderPeriod(snapshot) {
@@ -609,21 +525,320 @@
       const effective = current.empty
         ? "Nessun evento ufficiale nel periodo dopo il punto zero."
         : `Intervallo effettivo: ${dateTime(current.effective_from)} → ${dateTime(current.effective_to)}.`;
-      const baseline = snapshot.baseline_at ? ` Punto zero: ${dateTime(snapshot.baseline_at)}.` : " Punto zero non ancora impostato.";
+      const baseline = snapshot.baseline_at ? ` Punto zero: ${dateTime(snapshot.baseline_at)}.` : " Punto zero non disponibile.";
       meta.textContent = `${effective}${baseline}`;
+    }
+  }
+
+  function renderSummary(snapshot) {
+    const currentFinance = snapshot.current?.finance || {};
+    const previousFinance = snapshot.previous?.finance || {};
+    const current = snapshot.current?.totals || {};
+    const previous = snapshot.previous?.totals || {};
+    const siteCurrent = snapshot.current?.site?.total || {};
+    const sitePrevious = snapshot.previous?.site?.total || {};
+    const personnel = Array.isArray(snapshot.current?.personnel) ? snapshot.current.personnel : [];
+    const activePersonnel = personnel.filter(person => person.active).length;
+    const humanSeconds = personnel.reduce((sum, person) => sum + numeric(person.human_seconds), 0);
+    const unpriced = numeric(currentFinance.unpriced_count);
+
+    replaceCards("managementSummaryFinance", [
+      comparativeCard("Ricavi confermati", currentFinance.revenue_confirmed_eur, previousFinance.revenue_confirmed_eur, money, { kind: "primary" }),
+      comparativeCard("Costi reali", currentFinance.cost_real_eur, previousFinance.cost_real_eur, money, { inverse: true }),
+      comparativeCard("Risultato reale", currentFinance.result_real_eur, previousFinance.result_real_eur, money, { kind: "primary" }),
+      comparativeCard("Margine reale", currentFinance.margin_real_pct, previousFinance.margin_real_pct, percent, { points: true, deltaFormat: value => decimalFormatter.format(numeric(value)) }),
+    ]);
+
+    replaceCards("managementSummarySignals", [
+      comparativeCard("Lead", current.leads, previous.leads, number),
+      comparativeCard("Confronti", current.comparisons, previous.comparisons, number),
+      comparativeCard("Conversione OTP", siteCurrent.otp_verification_pct, sitePrevious.otp_verification_pct, percent, { points: true, deltaFormat: value => decimalFormatter.format(numeric(value)) }),
+      comparativeCard("Nuovi Premium pagati", current.premium_new_paid_subscriptions, previous.premium_new_paid_subscriptions, number),
+      card("Staff attivi nel report", number(activePersonnel), `${duration(humanSeconds)} di lavoro attribuito`),
+      card("Anomalie economiche", number(unpriced), unpriced ? "Movimenti senza prezzo da completare" : "Nessun movimento senza prezzo", unpriced ? "warning" : ""),
+    ]);
+
+    const signals = [
+      ["Commerciale", `${number(current.leads)} lead`, `${number(current.comparisons)} confronti · ${percent(siteCurrent.lead_per_comparison_pct)} lead/confronti`],
+      ["Premium", `${number(current.premium_customers)} clienti`, `${number(current.premium_new_paid_subscriptions)} nuovi pagati · ${number(current.premium_cancellations)} cancellazioni`],
+      ["Operatività", `${number(current.analyses)} analisi`, `${number(current.analysis_failures)} fallite · ${number(current.premium_checks)} controlli Premium`],
+      ["Qualità dati", unpriced ? `${number(unpriced)} da completare` : "Nessuna anomalia economica", `${Array.isArray(snapshot.quality_notes) ? snapshot.quality_notes.length : 0} note metodologiche/qualità`],
+    ];
+    const target = byId("managementDecisionSignals");
+    if (target) {
+      target.replaceChildren(...signals.map(([label, value, meta]) => {
+        const item = document.createElement("div");
+        item.className = "management-signal";
+        const copy = document.createElement("div");
+        const strong = document.createElement("strong");
+        strong.textContent = label;
+        const small = document.createElement("small");
+        small.textContent = meta;
+        copy.append(strong, small);
+        const b = document.createElement("b");
+        b.textContent = value;
+        item.append(copy, b);
+        return item;
+      }));
+    }
+  }
+
+  function renderEconomy(snapshot) {
+    const current = snapshot.current || {};
+    const previous = snapshot.previous || {};
+    const finance = current.finance || {};
+    const previousFinance = previous.finance || {};
+    const costs = current.cost_breakdown || {};
+    const commercial = current.commercial || {};
+    const siteConsumer = numeric(costs.site_ai_consumer_real_eur) + numeric(costs.site_ai_consumer_estimated_eur);
+    const siteBusiness = numeric(costs.site_ai_business_real_eur) + numeric(costs.site_ai_business_estimated_eur);
+    const sms = numeric(costs.sms_real_eur) + numeric(costs.sms_estimated_eur);
+    const stripe = numeric(costs.stripe_real_eur) + numeric(costs.stripe_estimated_eur);
+    const infrastructure = numeric(costs.infrastructure_real_eur) + numeric(costs.infrastructure_estimated_eur);
+    const other = numeric(costs.legacy_recorded_eur) + numeric(costs.other_ledger_real_eur) + numeric(costs.other_ledger_estimated_eur);
+
+    replaceCards("managementEconomyFinance", [
+      comparativeCard("Ricavi confermati", finance.revenue_confirmed_eur, previousFinance.revenue_confirmed_eur, money, { kind: "primary" }),
+      comparativeCard("Costi reali", finance.cost_real_eur, previousFinance.cost_real_eur, money, { inverse: true }),
+      comparativeCard("Risultato reale", finance.result_real_eur, previousFinance.result_real_eur, money, { kind: "primary" }),
+      card("Commissioni lead attese", money(commercial.expected_lead_commission_eur), "Eventi datati · non ricavo confermato"),
+    ]);
+
+    replaceCards("managementCostKpis", [
+      card("IA Premium", money(costs.premium_ai_eur)),
+      card("IA Sito · Privati", money(siteConsumer)),
+      card("IA Sito · Business", money(siteBusiness)),
+      card("SMS", money(sms)),
+      card("Stripe", money(stripe), "Commissioni registrate/stimate"),
+      card("Infrastruttura", money(infrastructure), "Quote mensili pro-rata"),
+      card("Operatori", money(costs.operator_eur), duration(costs.operator_seconds)),
+      card("Altri costi", money(other)),
+      card("Costo medio IA / analisi", finance.avg_ai_cost_per_analysis_eur == null ? "—" : money(finance.avg_ai_cost_per_analysis_eur)),
+      card("Costo / cliente Premium attivo", finance.premium_cost_per_active_customer_eur == null ? "—" : money(finance.premium_cost_per_active_customer_eur)),
+      card("Movimenti senza prezzo", number(finance.unpriced_count), numeric(finance.unpriced_count) ? "Da completare prima della chiusura" : "Nessuna anomalia", numeric(finance.unpriced_count) ? "warning" : ""),
+    ]);
+  }
+
+  function renderCommercial(snapshot) {
+    const current = snapshot.current || {};
+    const previous = snapshot.previous || {};
+    const totals = current.totals || {};
+    const previousTotals = previous.totals || {};
+    const site = current.site?.total || {};
+    const previousSite = previous.site?.total || {};
+
+    replaceCards("managementCommercialKpis", [
+      comparativeCard("Confronti", totals.comparisons, previousTotals.comparisons, number),
+      comparativeCard("Lead", totals.leads, previousTotals.leads, number, { kind: "primary" }),
+      comparativeCard("OTP verificati", totals.otp_verified, previousTotals.otp_verified, number),
+      comparativeCard("Offerte sbloccate", totals.offers_unlocked, previousTotals.offers_unlocked, number),
+      comparativeCard("Conversione OTP", site.otp_verification_pct, previousSite.otp_verification_pct, percent, { points: true, deltaFormat: value => decimalFormatter.format(numeric(value)) }),
+      comparativeCard("Lead / confronti", site.lead_per_comparison_pct, previousSite.lead_per_comparison_pct, percent, { points: true, deltaFormat: value => decimalFormatter.format(numeric(value)) }),
+      card("Redirect offerte", number(totals.offer_redirects)),
+      card("Richieste consulente", number(totals.consultant_requests)),
+      card("Commissioni attese", money(current.commercial?.expected_lead_commission_eur), "Non sono ricavi confermati"),
+    ]);
+
+    const target = byId("managementCommercialRows");
+    if (!target) return;
+    const segments = current.site?.segments || {};
+    const definitions = [
+      ["consumer", "Privati"],
+      ["business", "Business"],
+      ["unknown", "Non classificato"],
+    ];
+    const rows = definitions.map(([key, label]) => {
+      const segment = segments[key] || {};
+      const missingDocuments = numeric(segment.pdf_events_without_document_count);
+      const tr = document.createElement("tr");
+      tr.append(
+        rowCell(label, key === "unknown" ? "Dati senza segmento determinabile" : ""),
+        rowCell(number(segment.pdf_analyses_started)),
+        rowCell(missingDocuments ? "—" : number(segment.pdf_documents), missingDocuments ? `${number(segment.pdf_documents)} noti · ${number(missingDocuments)} analisi senza conteggio documenti` : ""),
+        rowCell(number(segment.comparisons)),
+        rowCell(number(segment.leads)),
+        rowCell(number(segment.otp_sent)),
+        rowCell(number(segment.otp_verified)),
+        rowCell(number(segment.offers_unlocked)),
+        rowCell(number(segment.offer_redirects)),
+        rowCell(number(segment.consultant_requests)),
+      );
+      return tr;
+    });
+    target.replaceChildren(...rows);
+  }
+
+  function renderPremium(snapshot) {
+    const current = snapshot.current || {};
+    const previous = snapshot.previous || {};
+    const totals = current.totals || {};
+    const previousTotals = previous.totals || {};
+    replaceCards("managementPremiumKpis", [
+      comparativeCard("Clienti con attività/pagamento", totals.premium_customers, previousTotals.premium_customers, number),
+      comparativeCard("Nuovi abbonamenti pagati", totals.premium_new_paid_subscriptions, previousTotals.premium_new_paid_subscriptions, number, { kind: "primary" }),
+      comparativeCard("Cancellazioni", totals.premium_cancellations, previousTotals.premium_cancellations, number, { inverse: true }),
+      comparativeCard("Bollette", totals.premium_bills, previousTotals.premium_bills, number),
+      comparativeCard("Analisi", current.activity?.premium_analyses, previous.activity?.premium_analyses, number),
+      comparativeCard("Controlli Staff", totals.premium_checks, previousTotals.premium_checks, number),
+    ]);
+
+    const target = byId("managementPremiumRows");
+    if (!target) return;
+    const products = productMap(snapshot);
+    const segments = current.premium_segments || {};
+    const definitions = [
+      ["premium_casa", "Premium Casa"],
+      ["premium_business", "Premium Business"],
+    ];
+    const rows = definitions.map(([code, fallbackLabel]) => {
+      const product = products[code] || { label: fallbackLabel, enabled: code !== "premium_business" };
+      const values = segments[code] || {};
+      const enabled = Boolean(product.enabled);
+      const tr = document.createElement("tr");
+      tr.append(
+        rowCell(product.label || fallbackLabel),
+        rowCell(enabled ? "Attivo" : "Predisposto · non attivo"),
+        rowCell(number(values.bills)),
+        rowCell(number(values.analyses)),
+        rowCell(number(values.analysis_failed)),
+        rowCell(enabled ? money(values.revenue_confirmed_eur) : money(0)),
+        rowCell(enabled ? money(values.ai_cost_eur) : money(0)),
+        rowCell(enabled ? duration(values.human_seconds) : duration(0)),
+      );
+      return tr;
+    });
+    target.replaceChildren(...rows);
+  }
+
+  function personnelFilteredRows(snapshot) {
+    const raw = Array.isArray(snapshot.current?.personnel) ? [...snapshot.current.personnel] : [];
+    const search = personnelState.search.trim().toLowerCase();
+    const filtered = raw.filter(person => {
+      const role = String(person.role || "").toLowerCase();
+      const active = Boolean(person.active);
+      const identity = `${person.email || ""} ${person.user_id || ""}`.toLowerCase();
+      if (search && !identity.includes(search)) return false;
+      if (personnelState.role !== "all" && role !== personnelState.role) return false;
+      if (personnelState.status === "active" && !active) return false;
+      if (personnelState.status === "removed" && active) return false;
+      return true;
+    });
+    const activity = person => numeric(person.operations) + numeric(person.checks) + numeric(person.notes) + numeric(person.communications);
+    filtered.sort((a, b) => {
+      if (personnelState.sort === "email_asc") return String(a.email || a.user_id || "").localeCompare(String(b.email || b.user_id || ""), "it", { sensitivity: "base" });
+      if (personnelState.sort === "role_asc") return roleLabel(a.role).localeCompare(roleLabel(b.role), "it", { sensitivity: "base" });
+      if (personnelState.sort === "cost_desc") return numeric(b.human_cost_eur) - numeric(a.human_cost_eur);
+      if (personnelState.sort === "time_desc") return numeric(b.human_seconds) - numeric(a.human_seconds);
+      return activity(b) - activity(a);
+    });
+    return filtered;
+  }
+
+  function renderPersonnel(snapshot) {
+    const personnel = Array.isArray(snapshot.current?.personnel) ? snapshot.current.personnel : [];
+    const active = personnel.filter(person => person.active).length;
+    const removed = personnel.length - active;
+    const seconds = personnel.reduce((sum, person) => sum + numeric(person.human_seconds), 0);
+    const cost = personnel.reduce((sum, person) => sum + numeric(person.human_cost_eur), 0);
+    replaceCards("managementPersonnelSummary", [
+      card("Persone nel periodo", number(personnel.length)),
+      card("Attive", number(active)),
+      card("Rimosse / non attive", number(removed), "Storico conservato"),
+      card("Tempo / costo lavoro", `${duration(seconds)} · ${money(cost)}`),
+    ]);
+
+    const rows = personnelFilteredRows(snapshot);
+    const totalPages = Math.max(1, Math.ceil(rows.length / personnelState.pageSize));
+    personnelState.page = Math.max(1, Math.min(personnelState.page, totalPages));
+    const from = (personnelState.page - 1) * personnelState.pageSize;
+    const pageRows = rows.slice(from, from + personnelState.pageSize);
+    const target = byId("managementPersonnelRows");
+    if (target) {
+      if (!pageRows.length) {
+        const tr = document.createElement("tr");
+        const td = document.createElement("td");
+        td.colSpan = 11;
+        td.className = "management-empty";
+        td.textContent = personnel.length ? "Nessuna persona corrisponde ai filtri." : "Nessuna persona Staff disponibile nel periodo.";
+        tr.append(td);
+        target.replaceChildren(tr);
+      } else {
+        target.replaceChildren(...pageRows.map(person => {
+          const tr = document.createElement("tr");
+          const identity = String(person.email || "").trim() || `Account ${String(person.user_id || "").slice(0, 8)}…`;
+          tr.append(
+            rowCell(identity, person.active ? "Storico attribuito" : "Account non attivo · storico conservato"),
+            rowCell(roleLabel(person.role)),
+            rowCell(person.active ? "Attivo" : "Rimosso / non attivo"),
+            rowCell(number(person.operations)),
+            rowCell(number(person.checks)),
+            rowCell(number(person.notes)),
+            rowCell(number(person.communications)),
+            rowCell(duration(person.human_seconds)),
+            rowCell(money(person.human_cost_eur)),
+            rowCell(number(person.premium_casa_checks)),
+            rowCell(number(person.premium_business_checks)),
+          );
+          return tr;
+        }));
+      }
+    }
+    const info = byId("managementPersonnelPageInfo");
+    if (info) {
+      const start = rows.length ? from + 1 : 0;
+      const end = Math.min(from + personnelState.pageSize, rows.length);
+      info.textContent = `${number(rows.length)} risultati · ${number(start)}–${number(end)} · pagina ${personnelState.page}/${totalPages}`;
+    }
+    const prev = byId("managementPersonnelPrev");
+    const next = byId("managementPersonnelNext");
+    if (prev) prev.disabled = personnelState.page <= 1;
+    if (next) next.disabled = personnelState.page >= totalPages;
+  }
+
+  function renderQuality(snapshot) {
+    const current = snapshot.current || {};
+    const finance = current.finance || {};
+    const site = current.site || {};
+    const siteAi = current.site_ai || {};
+    const missingDocs = numeric(site.total?.pdf_events_without_document_count);
+    const unknownSite = numeric(site.segments?.unknown?.events) + numeric(site.segments?.unknown?.leads);
+    const unknownAi = numeric(siteAi.unknown?.runs) + numeric(siteAi.unknown?.failed);
+    const unpriced = numeric(finance.unpriced_count);
+    replaceCards("managementQualityKpis", [
+      card("Movimenti senza prezzo", number(unpriced), unpriced ? "Richiede completamento" : "Nessuno", unpriced ? "warning" : ""),
+      card("Analisi PDF senza n. documenti", number(missingDocs), missingDocs ? "Il gestionale non inventa il conteggio" : "Nessuna", missingDocs ? "warning" : ""),
+      card("Sito non classificato", number(unknownSite), unknownSite ? "Eventi/lead senza segmento" : "Nessuno", unknownSite ? "warning" : ""),
+      card("IA Sito non classificata", number(unknownAi), unknownAi ? "Mapping da verificare" : "Nessuna", unknownAi ? "warning" : ""),
+    ]);
+
+    const notes = Array.isArray(snapshot.quality_notes) ? [...snapshot.quality_notes] : [];
+    if (site.available === false && site.reason) notes.push(`Dettaglio Customer DB: ${site.reason}`);
+    if (current.baseline_applied) notes.push("Il punto zero cade dentro il mese selezionato: il mese è conteggiato solo dal punto zero in avanti.");
+    if (snapshot.previous?.empty) notes.push("Il mese precedente è vuoto rispetto al punto zero; il confronto resta a zero senza cancellare lo storico precedente.");
+    if (unpriced) notes.unshift(`${number(unpriced)} movimenti economici non hanno ancora un prezzo utilizzabile.`);
+    const target = byId("managementQualityNotes");
+    if (target) {
+      const unique = [...new Set(notes.filter(Boolean))];
+      const rendered = unique.length ? unique : ["Nessuna anomalia di qualità dati rilevata."];
+      target.replaceChildren(...rendered.map(note => {
+        const li = document.createElement("li");
+        li.textContent = note;
+        if (/senza prezzo|non hanno|non disponibile|non classific|senza conteggio|anomalia/i.test(note)) li.classList.add("actionable");
+        return li;
+      }));
     }
   }
 
   function renderManagement(snapshot) {
     managementSnapshot = snapshot;
     renderPeriod(snapshot);
-    renderFinance(snapshot);
-    renderActivity(snapshot);
-    renderSegments(snapshot);
-    renderCosts(snapshot);
+    renderSummary(snapshot);
+    renderEconomy(snapshot);
+    renderCommercial(snapshot);
     renderPremium(snapshot);
     renderPersonnel(snapshot);
     renderQuality(snapshot);
+    selectSubview(currentSubview);
   }
 
   async function refreshManagementReport() {
@@ -631,8 +846,9 @@
     const view = byId(VIEW_ID);
     if (!view?.classList.contains("active")) return;
     const input = byId("managementMonth");
-    const selectedMonth = normalizeMonthKey(input?.value) || currentMonthKey();
+    const selectedMonth = normalizeMonthKey(input?.value) || storedMonth();
     if (input) input.value = selectedMonth;
+    storeMonth(selectedMonth);
     const token = storedAccessToken();
     if (!token) {
       setManagementStatus("error", "Sessione Staff non disponibile. Accedi nuovamente.");
@@ -660,28 +876,105 @@
     }
   }
 
+  function resetPersonnelPage() {
+    personnelState.page = 1;
+    if (managementSnapshot) renderPersonnel(managementSnapshot);
+  }
+
   function bindManagementControls() {
     const month = byId("managementMonth");
     if (month) {
-      month.value = currentMonthKey();
+      month.value = storedMonth();
       month.max = currentMonthKey();
-      month.addEventListener("change", () => void refreshManagementReport());
+      month.addEventListener("change", () => {
+        const normalized = normalizeMonthKey(month.value) || currentMonthKey();
+        month.value = normalized;
+        storeMonth(normalized);
+        void refreshManagementReport();
+      });
     }
     byId("managementRefresh")?.addEventListener("click", () => void refreshManagementReport());
     byId("managementCurrentMonth")?.addEventListener("click", () => {
       if (month) month.value = currentMonthKey();
+      storeMonth(currentMonthKey());
       void refreshManagementReport();
     });
     byId("managementPreviousMonth")?.addEventListener("click", () => {
-      if (month) month.value = previousMonth(month.value || currentMonthKey());
+      const value = previousMonth(month?.value || storedMonth());
+      if (month) month.value = value;
+      storeMonth(value);
       void refreshManagementReport();
     });
+    document.querySelectorAll("[data-management-subview]").forEach(button => {
+      button.addEventListener("click", () => selectSubview(button.dataset.managementSubview));
+    });
+
+    byId("managementPersonnelSearch")?.addEventListener("input", event => {
+      personnelState.search = String(event.target.value || "");
+      resetPersonnelPage();
+    });
+    byId("managementPersonnelRole")?.addEventListener("change", event => {
+      personnelState.role = String(event.target.value || "all");
+      resetPersonnelPage();
+    });
+    byId("managementPersonnelStatus")?.addEventListener("change", event => {
+      personnelState.status = String(event.target.value || "all");
+      resetPersonnelPage();
+    });
+    byId("managementPersonnelSort")?.addEventListener("change", event => {
+      personnelState.sort = String(event.target.value || "activity_desc");
+      resetPersonnelPage();
+    });
+    byId("managementPersonnelPageSize")?.addEventListener("change", event => {
+      const value = Number(event.target.value);
+      personnelState.pageSize = PAGE_SIZES.includes(value) ? value : 25;
+      resetPersonnelPage();
+    });
+    byId("managementPersonnelPrev")?.addEventListener("click", () => {
+      personnelState.page = Math.max(1, personnelState.page - 1);
+      if (managementSnapshot) renderPersonnel(managementSnapshot);
+    });
+    byId("managementPersonnelNext")?.addEventListener("click", () => {
+      personnelState.page += 1;
+      if (managementSnapshot) renderPersonnel(managementSnapshot);
+    });
+  }
+
+  function closeManagementView(updateHash = false) {
+    byId(VIEW_ID)?.classList.remove("active");
+    byId(TAB_ID)?.classList.remove("active");
+    if (updateHash && location.hash === "#management") history.replaceState(null, "", "#overview");
+  }
+
+  function openManagementView() {
+    const view = byId(VIEW_ID);
+    const tab = byId(TAB_ID);
+    if (!view || !tab || tab.hidden) return;
+    document.querySelectorAll("[data-staff-view]").forEach(element => element.classList.remove("active"));
+    document.querySelectorAll("[data-staff-tab]").forEach(element => element.classList.remove("active"));
+    byId("staffEconomicsView")?.classList.remove("active");
+    byId("staffEconomicsTab")?.classList.remove("active");
+    view.classList.add("active");
+    tab.classList.add("active");
+    history.replaceState(null, "", "#management");
+    const selected = normalizeMonthKey(byId("managementMonth")?.value) || storedMonth();
+    if (!managementSnapshot || managementSnapshot.month !== selected) void refreshManagementReport();
+  }
+
+  function syncOwnerVisibility() {
+    const group = byId("staffManagementGroup");
+    const button = byId(TAB_ID);
+    if (!button || !group) return;
+    const visible = !group.hidden;
+    button.hidden = !visible;
+    if (!visible) closeManagementView(true);
+    if (visible && location.hash === "#management") openManagementView();
   }
 
   function initManagementUi() {
     injectStyles();
     const view = createManagementView();
-    const tab = createManagementTab();
+    const tab = byId(TAB_ID);
     if (!view || !tab) return;
     bindManagementControls();
     tab.addEventListener("click", openManagementView);
@@ -706,6 +999,188 @@
     syncOwnerVisibility();
   }
 
+  // -----------------------------------------------------------------------
+  // Collaboratori: livello di usabilità scalabile.
+  // Non sostituisce premium_owner_list_staff_v2, non modifica ruoli/permessi
+  // e non altera le azioni Owner già gestite da staff.js/governance.
+  // -----------------------------------------------------------------------
+
+  function collaboratorRows() {
+    return Array.from(byId("collaboratorRows")?.querySelectorAll(":scope > tr") || [])
+      .filter(row => row.querySelectorAll("td").length >= 3);
+  }
+
+  function collaboratorRowData(row) {
+    const cells = row.querySelectorAll("td");
+    const identity = String(cells[0]?.textContent || "").trim();
+    const role = String(cells[1]?.textContent || "").trim();
+    const status = String(cells[2]?.textContent || "").trim();
+    return {
+      identity,
+      role,
+      status,
+      removed: row.dataset.staffRemoved === "true",
+      active: /attivo/i.test(status) && !/disattivato|rimosso|non confermata|invito/i.test(status),
+    };
+  }
+
+  function applyCollaboratorPagination() {
+    if (collaboratorApplying) return;
+    const body = byId("collaboratorRows");
+    const rows = collaboratorRows();
+    if (!rows.length || !body) {
+      const info = byId("p7CollaboratorPageInfo");
+      if (info) info.textContent = "0 risultati";
+      return;
+    }
+    collaboratorApplying = true;
+    collaboratorObserver?.disconnect();
+    try {
+      const search = collaboratorState.search.trim().toLowerCase();
+      const filtered = rows.filter(row => {
+        const data = collaboratorRowData(row);
+        if (search && !data.identity.toLowerCase().includes(search)) return false;
+        if (collaboratorState.role !== "all" && !data.role.toLowerCase().includes(collaboratorState.role)) return false;
+        if (collaboratorState.status === "active" && !data.active) return false;
+        if (collaboratorState.status === "inactive" && (data.active || data.removed)) return false;
+        if (collaboratorState.status === "removed" && !data.removed) return false;
+        return true;
+      });
+
+      filtered.sort((a, b) => {
+        const left = collaboratorRowData(a);
+        const right = collaboratorRowData(b);
+        if (collaboratorState.sort === "role_asc") return left.role.localeCompare(right.role, "it", { sensitivity: "base" }) || left.identity.localeCompare(right.identity, "it", { sensitivity: "base" });
+        if (collaboratorState.sort === "status_asc") return left.status.localeCompare(right.status, "it", { sensitivity: "base" }) || left.identity.localeCompare(right.identity, "it", { sensitivity: "base" });
+        return left.identity.localeCompare(right.identity, "it", { sensitivity: "base" });
+      });
+
+      const unmatched = rows.filter(row => !filtered.includes(row));
+      body.append(...filtered, ...unmatched);
+
+      const totalPages = Math.max(1, Math.ceil(filtered.length / collaboratorState.pageSize));
+      collaboratorState.page = Math.max(1, Math.min(collaboratorState.page, totalPages));
+      const start = (collaboratorState.page - 1) * collaboratorState.pageSize;
+      const visibleSet = new Set(filtered.slice(start, start + collaboratorState.pageSize));
+      rows.forEach(row => { row.hidden = !visibleSet.has(row); });
+
+      const info = byId("p7CollaboratorPageInfo");
+      if (info) {
+        const from = filtered.length ? start + 1 : 0;
+        const to = Math.min(start + collaboratorState.pageSize, filtered.length);
+        info.textContent = `${number(filtered.length)} risultati · ${number(from)}–${number(to)} · pagina ${collaboratorState.page}/${totalPages}`;
+      }
+      const prev = byId("p7CollaboratorPrev");
+      const next = byId("p7CollaboratorNext");
+      if (prev) prev.disabled = collaboratorState.page <= 1;
+      if (next) next.disabled = collaboratorState.page >= totalPages;
+    } finally {
+      if (collaboratorObserver && body) collaboratorObserver.observe(body, { childList: true });
+      queueMicrotask(() => { collaboratorApplying = false; });
+    }
+  }
+
+  function resetCollaboratorPage() {
+    collaboratorState.page = 1;
+    applyCollaboratorPagination();
+  }
+
+  function installCollaboratorScalability() {
+    if (collaboratorPagerInstalled) return;
+    const body = byId("collaboratorRows");
+    const tableWrap = body?.closest(".table-wrap");
+    if (!body || !tableWrap) return;
+
+    collaboratorPagerInstalled = true;
+    const toolbar = document.createElement("div");
+    toolbar.className = "p7-collaborator-toolbar";
+    toolbar.id = "p7CollaboratorToolbar";
+    toolbar.innerHTML = `
+      <input id="p7CollaboratorSearch" type="search" placeholder="Cerca collaboratore" aria-label="Cerca collaboratore">
+      <select id="p7CollaboratorRole" aria-label="Filtra ruolo collaboratore">
+        <option value="all">Tutti i ruoli</option><option value="proprietario">Proprietario</option><option value="amministratore">Amministratore</option><option value="tecnico">Tecnico</option><option value="revisore">Revisore</option>
+      </select>
+      <select id="p7CollaboratorStatus" aria-label="Filtra stato collaboratore">
+        <option value="all">Tutti gli stati caricati</option><option value="active">Attivi</option><option value="inactive">Disattivati / in attesa</option><option value="removed">Rimossi</option>
+      </select>
+      <select id="p7CollaboratorSort" aria-label="Ordina collaboratori">
+        <option value="email_asc">Email A–Z</option><option value="role_asc">Ruolo</option><option value="status_asc">Stato</option>
+      </select>
+      <select id="p7CollaboratorPageSize" aria-label="Collaboratori per pagina">
+        ${PAGE_SIZES.map(size => `<option value="${size}" ${size === 25 ? "selected" : ""}>${size} / pag.</option>`).join("")}
+      </select>
+    `;
+    tableWrap.parentNode.insertBefore(toolbar, tableWrap);
+
+    const pagination = document.createElement("div");
+    pagination.className = "p7-collaborator-pagination";
+    pagination.innerHTML = `<span id="p7CollaboratorPageInfo">0 risultati</span><div><button class="button secondary compact" id="p7CollaboratorPrev" type="button">Precedente</button><button class="button secondary compact" id="p7CollaboratorNext" type="button">Successiva</button></div>`;
+    tableWrap.insertAdjacentElement("afterend", pagination);
+
+    byId("p7CollaboratorSearch")?.addEventListener("input", event => {
+      collaboratorState.search = String(event.target.value || "");
+      resetCollaboratorPage();
+    });
+    byId("p7CollaboratorRole")?.addEventListener("change", event => {
+      collaboratorState.role = String(event.target.value || "all");
+      resetCollaboratorPage();
+    });
+    byId("p7CollaboratorStatus")?.addEventListener("change", event => {
+      collaboratorState.status = String(event.target.value || "all");
+      resetCollaboratorPage();
+    });
+    byId("p7CollaboratorSort")?.addEventListener("change", event => {
+      collaboratorState.sort = String(event.target.value || "email_asc");
+      resetCollaboratorPage();
+    });
+    byId("p7CollaboratorPageSize")?.addEventListener("change", event => {
+      const value = Number(event.target.value);
+      collaboratorState.pageSize = PAGE_SIZES.includes(value) ? value : 25;
+      resetCollaboratorPage();
+    });
+    byId("p7CollaboratorPrev")?.addEventListener("click", () => {
+      collaboratorState.page = Math.max(1, collaboratorState.page - 1);
+      applyCollaboratorPagination();
+    });
+    byId("p7CollaboratorNext")?.addEventListener("click", () => {
+      collaboratorState.page += 1;
+      applyCollaboratorPagination();
+    });
+
+    collaboratorObserver?.disconnect();
+    collaboratorObserver = new MutationObserver(() => {
+      if (!collaboratorApplying) {
+        collaboratorState.page = 1;
+        applyCollaboratorPagination();
+      }
+    });
+    collaboratorObserver.observe(body, { childList: true });
+    window.addEventListener("offertalogica:collaborators-refreshed", () => {
+      collaboratorState.page = 1;
+      applyCollaboratorPagination();
+    });
+    window.addEventListener("pagehide", () => collaboratorObserver?.disconnect(), { once: true });
+    applyCollaboratorPagination();
+  }
+
+  function init() {
+    syncVisibleRelease();
+    guardLegacyReleaseNotice();
+    initManagementUi();
+    installCollaboratorScalability();
+
+    // La sezione Collaboratori può essere già nel DOM ma i dati arrivano dopo.
+    const app = byId("staffApp");
+    if (app) {
+      const observer = new MutationObserver(() => {
+        installCollaboratorScalability();
+        syncVisibleRelease();
+      });
+      observer.observe(app, { childList: true, subtree: true });
+      window.addEventListener("pagehide", () => observer.disconnect(), { once: true });
+    }
+  }
+
   const api = Object.freeze({
     release: RELEASE,
     timeZone: TIME_ZONE,
@@ -716,12 +1191,15 @@
     normalizeDimensions,
     refreshMonthlyReport: refreshManagementReport,
     snapshot: () => managementSnapshot,
+    selectView: selectSubview,
   });
 
   window.OffertaLogicaStaffManagement = api;
-  syncVisibleRelease();
-  guardLegacyReleaseNotice();
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initManagementUi, { once: true });
-  else initManagementUi();
-  window.dispatchEvent(new CustomEvent("offertalogica:staff-management-ready", { detail: { release: RELEASE, timeZone: TIME_ZONE } }));
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once: true });
+  else init();
+
+  window.dispatchEvent(new CustomEvent("offertalogica:staff-management-ready", {
+    detail: { release: RELEASE, timeZone: TIME_ZONE, views: SUBVIEWS.map(([id]) => id) },
+  }));
 })();
