@@ -63,7 +63,7 @@
     if (nameInput) nameInput.placeholder = business ? "Esempio: Azienda Agricola Rossi" : "";
     if (upgradeRequested()) {
       setText(state.signupHint, business
-        ? "Stai creando un account Premium Business. La prova dura 30 giorni; il pagamento Business sarà attivato solo quando sarà configurato il relativo piano commerciale."
+        ? "Stai creando un account Premium Business. La prova dura 30 giorni; dopo la prova potrai scegliere l’abbonamento annuale a 95,88 € per i primi 12 mesi. Dal secondo anno 119,88 €/anno."
         : "Stai attivando Premium: dopo la conferma dell’account passerai al pagamento sicuro di 47,88 € per i primi 12 mesi. Dal secondo anno 59,88 €/anno.");
       return;
     }
@@ -75,11 +75,11 @@
   function renderCommercialIdentity(subscription) {
     const business = subscriptionIsBusiness(subscription);
     setText(state.subscriptionCommercialTitle, business ? "OffertaLogica Premium Business" : "OffertaLogica Premium Casa");
-    setText(state.subscriptionCommercialPrice, business ? "—" : "3,99 €");
-    setText(state.subscriptionCommercialUnit, business ? "" : "/mese*");
-    setText(state.subscriptionCommercialPeriod, business ? "piano Business" : "per i primi 12 mesi");
+    setText(state.subscriptionCommercialPrice, business ? "7,99 €" : "3,99 €");
+    setText(state.subscriptionCommercialUnit, "/mese*");
+    setText(state.subscriptionCommercialPeriod, "per i primi 12 mesi");
     setText(state.subscriptionCommercialNote, business
-      ? "Il prezzo del piano Premium Business sarà mostrato qui quando verrà configurata l’offerta commerciale dedicata. Nessun pagamento Business è attualmente attivabile."
+      ? "*Equivalente mensile. Pagamento annuale unico di 95,88 € IVA inclusa. Dal secondo anno 9,99 €/mese, addebitati 119,88 € una volta all’anno."
       : "*Equivalente mensile. Pagamento annuale unico di 47,88 € IVA inclusa. Dal secondo anno 4,99 €/mese, addebitati 59,88 € una volta all’anno.");
   }
 
@@ -182,7 +182,8 @@
     if (message.includes("premium_legal_acceptance_required")) return "Accetta prima le condizioni commerciali correnti.";
     if (message.includes("premium_subscription_already_active")) return "L’abbonamento risulta già attivo.";
     if (message.includes("premium_billing_customer_missing")) return "Il profilo di pagamento non è ancora disponibile.";
-    if (message.includes("premium_business_billing_not_configured")) return "Il pagamento Premium Business non è ancora configurato.";
+    if (message.includes("premium_business_billing_not_enabled") || message.includes("premium_business_billing_not_configured")) return "Il pagamento Premium Business è temporaneamente non disponibile.";
+    if (message.includes("premium_stripe_plan_segment_mismatch")) return "Il piano di pagamento non corrisponde al tipo di account. Nessun addebito è stato avviato.";
     if (message.includes("authentication")) return "La sessione è scaduta. Accedi nuovamente.";
     if (message.includes("stripe:")) return "Stripe non ha completato l’operazione. Riprova tra poco.";
     return "Operazione di pagamento non completata. Riprova.";
@@ -248,14 +249,14 @@
     const introUsed = Boolean(subscription?.first_paid_at || subscription?.intro_price_redeemed_at);
 
     if (state.subscriptionPurchaseButton) {
-      state.subscriptionPurchaseButton.hidden = business || !canPurchase;
-      state.subscriptionPurchaseButton.disabled = business || !configured;
-      state.subscriptionPurchaseButton.textContent = introUsed
-        ? "RIATTIVA PREMIUM · 4,99 €/MESE*"
-        : "ATTIVA PREMIUM · 3,99 €/MESE*";
-      state.subscriptionPurchaseButton.title = business
-        ? "Pagamento Premium Business non ancora configurato"
-        : (configured ? "" : "Pagamento Stripe non ancora attivato");
+      state.subscriptionPurchaseButton.hidden = !canPurchase;
+      state.subscriptionPurchaseButton.disabled = !configured;
+      state.subscriptionPurchaseButton.textContent = business
+        ? (introUsed ? "RIATTIVA PREMIUM BUSINESS · 9,99 €/MESE*" : "ATTIVA PREMIUM BUSINESS · 7,99 €/MESE*")
+        : (introUsed ? "RIATTIVA PREMIUM · 4,99 €/MESE*" : "ATTIVA PREMIUM · 3,99 €/MESE*");
+      state.subscriptionPurchaseButton.title = configured ? "" : (business
+        ? "Pagamento Premium Business non disponibile"
+        : "Pagamento Stripe non ancora attivato");
     }
     if (state.subscriptionManageButton) {
       state.subscriptionManageButton.hidden = !(paidProvider && paidHistory && ["active", "past_due", "paused", "canceled"].includes(status));
@@ -550,8 +551,8 @@
     const business = subscriptionIsBusiness(subscription);
     const start = formatDate(subscription?.current_period_start);
     const end = formatDate(subscription?.current_period_end);
-    const annualFirst = business ? "Prezzo Business in configurazione" : "3,99 €/mese* · addebito annuale 47,88 €";
-    const annualRenewal = business ? "Prezzo Business in configurazione" : "4,99 €/mese* · addebito annuale 59,88 €";
+    const annualFirst = business ? "7,99 €/mese* · addebito annuale 95,88 €" : "3,99 €/mese* · addebito annuale 47,88 €";
+    const annualRenewal = business ? "9,99 €/mese* · addebito annuale 119,88 €" : "4,99 €/mese* · addebito annuale 59,88 €";
 
     if (!subscription) {
       setText(state.subscriptionBadge, "NON ATTIVO");
@@ -578,9 +579,7 @@
       setText(state.subscriptionCurrentPrice, "0 € · nessuna carta richiesta");
       setText(state.subscriptionNextPrice, annualFirst);
       setText(state.subscriptionRenewal, "Nessuna conversione automatica");
-      setText(state.subscriptionActionCopy, business
-        ? "Alla scadenza non verrà effettuato alcun addebito. L’attivazione a pagamento Premium Business sarà disponibile solo quando verrà configurato il relativo piano commerciale."
-        : `Alla scadenza non verrà effettuato alcun addebito. L’eventuale acquisto sarà una scelta separata; dal rinnovo successivo il prezzo sarà ${annualRenewal}.`);
+      setText(state.subscriptionActionCopy, `Alla scadenza non verrà effettuato alcun addebito. L’eventuale acquisto sarà una scelta separata; dal rinnovo successivo il prezzo sarà ${annualRenewal}.`);
       return;
     }
 
@@ -727,13 +726,6 @@
 
     if (!acceptancesComplete(acceptanceStatus)) {
       setBillingMessage("", "Accetta le condizioni correnti per continuare con l’attivazione Premium.");
-      return false;
-    }
-
-    if (subscriptionIsBusiness(subscription)) {
-      clearUpgradeQuery();
-      setBillingMessage("", "Account Premium Business attivo. Il pagamento Business non è ancora configurato e non verrà avviato alcun checkout.");
-      focusSubscriptionPanel();
       return false;
     }
 
@@ -1298,10 +1290,6 @@
   }
 
   async function handlePurchasePremium() {
-    if (subscriptionIsBusiness(currentSubscription)) {
-      setBillingMessage("", "Il pagamento Premium Business non è ancora configurato.");
-      return;
-    }
     if (!state.subscriptionPurchaseButton || state.subscriptionPurchaseButton.disabled) return;
     state.subscriptionPurchaseButton.disabled = true;
     setBillingMessage("", "Preparazione del pagamento sicuro…");

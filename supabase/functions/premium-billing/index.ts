@@ -24,13 +24,21 @@ const CURRENT_ACCEPTANCES = [
   ["cloud_storage", "premium-cloud-ai-v0.36.6-2026-08-04"],
 ];
 
+const PREMIUM_BUSINESS_FIRST_YEAR_AMOUNT_CENTS = 9588;
+const PREMIUM_BUSINESS_RENEWAL_AMOUNT_CENTS = 11988;
+const PREMIUM_CASA_PLAN_CODE = "premium-casa-annual";
+const PREMIUM_BUSINESS_PLAN_CODE = "premium-business-annual";
+
 function envObject() {
   return {
     STRIPE_SECRET_KEY: Deno.env.get("STRIPE_SECRET_KEY") || "",
     STRIPE_WEBHOOK_SECRET: Deno.env.get("STRIPE_WEBHOOK_SECRET") || "",
     STRIPE_PREMIUM_ANNUAL_PRICE_ID: Deno.env.get("STRIPE_PREMIUM_ANNUAL_PRICE_ID") || "",
     STRIPE_PREMIUM_FIRST_YEAR_COUPON_ID: Deno.env.get("STRIPE_PREMIUM_FIRST_YEAR_COUPON_ID") || "",
+    STRIPE_PREMIUM_BUSINESS_ANNUAL_PRICE_ID: Deno.env.get("STRIPE_PREMIUM_BUSINESS_ANNUAL_PRICE_ID") || "",
+    STRIPE_PREMIUM_BUSINESS_FIRST_YEAR_COUPON_ID: Deno.env.get("STRIPE_PREMIUM_BUSINESS_FIRST_YEAR_COUPON_ID") || "",
     PREMIUM_BILLING_ENABLED: Deno.env.get("PREMIUM_BILLING_ENABLED") || "",
+    PREMIUM_BUSINESS_BILLING_ENABLED: Deno.env.get("PREMIUM_BUSINESS_BILLING_ENABLED") || "",
     STRIPE_BILLING_PORTAL_CONFIGURATION_ID: Deno.env.get("STRIPE_BILLING_PORTAL_CONFIGURATION_ID") || "",
   };
 }
@@ -154,6 +162,46 @@ function isBusinessSubscription(subscription: any) {
     || String(subscription?.product_code || "").trim().toLowerCase() === "premium_business";
 }
 
+function commercialSettingsForSubscription(subscription: any) {
+  const business = isBusinessSubscription(subscription);
+  return {
+    business,
+    planCode: business ? PREMIUM_BUSINESS_PLAN_CODE : PREMIUM_CASA_PLAN_CODE,
+    productCode: business ? "premium_business" : "premium_casa",
+    customerSegment: business ? "business" : "consumer",
+    priceId: business
+      ? Deno.env.get("STRIPE_PREMIUM_BUSINESS_ANNUAL_PRICE_ID")?.trim() || ""
+      : Deno.env.get("STRIPE_PREMIUM_ANNUAL_PRICE_ID")?.trim() || "",
+    couponId: business
+      ? Deno.env.get("STRIPE_PREMIUM_BUSINESS_FIRST_YEAR_COUPON_ID")?.trim() || ""
+      : Deno.env.get("STRIPE_PREMIUM_FIRST_YEAR_COUPON_ID")?.trim() || "",
+    firstYearAmountCents: business ? PREMIUM_BUSINESS_FIRST_YEAR_AMOUNT_CENTS : PREMIUM_FIRST_YEAR_AMOUNT_CENTS,
+    renewalAmountCents: business ? PREMIUM_BUSINESS_RENEWAL_AMOUNT_CENTS : PREMIUM_RENEWAL_AMOUNT_CENTS,
+  };
+}
+
+function businessBillingConfigurationStatus(env: Record<string, string>) {
+  const missing: string[] = [];
+  if (!String(env.STRIPE_SECRET_KEY || "").trim()) missing.push("STRIPE_SECRET_KEY");
+  if (!String(env.STRIPE_WEBHOOK_SECRET || "").trim()) missing.push("STRIPE_WEBHOOK_SECRET");
+  if (!String(env.STRIPE_PREMIUM_BUSINESS_ANNUAL_PRICE_ID || "").trim()) missing.push("STRIPE_PREMIUM_BUSINESS_ANNUAL_PRICE_ID");
+  if (!String(env.STRIPE_PREMIUM_BUSINESS_FIRST_YEAR_COUPON_ID || "").trim()) missing.push("STRIPE_PREMIUM_BUSINESS_FIRST_YEAR_COUPON_ID");
+  if (!String(env.STRIPE_BILLING_PORTAL_CONFIGURATION_ID || "").trim()) missing.push("STRIPE_BILLING_PORTAL_CONFIGURATION_ID");
+  const enabled = normalizeBoolean(env.PREMIUM_BUSINESS_BILLING_ENABLED, false) && missing.length === 0;
+  return { enabled, missing };
+}
+
+function billingConfigurationForSubscription(subscription: any) {
+  return isBusinessSubscription(subscription)
+    ? businessBillingConfigurationStatus(envObject())
+    : billingConfigurationStatus(envObject());
+}
+
+function stripePlanCode(stripeSubscription: any) {
+  const value = String(stripeSubscription?.metadata?.offertalogica_plan || "").trim();
+  return value === PREMIUM_BUSINESS_PLAN_CODE || value === PREMIUM_CASA_PLAN_CODE ? value : "";
+}
+
 async function ensureStripeCustomer(admin: any, user: any, context: any) {
   if (context.subscription?.provider === "stripe" && context.subscription?.provider_customer_id) {
     return context.subscription.provider_customer_id;
@@ -163,6 +211,8 @@ async function ensureStripeCustomer(admin: any, user: any, context: any) {
   if (context.profile?.full_name) parameters.set("name", context.profile.full_name);
   parameters.set("metadata[user_id]", user.id);
   parameters.set("metadata[offertalogica_product]", "premium");
+  parameters.set("metadata[premium_product_code]", isBusinessSubscription(context.subscription) ? "premium_business" : "premium_casa");
+  parameters.set("metadata[customer_segment]", isBusinessSubscription(context.subscription) ? "business" : "consumer");
   const customer = await stripeRequest("/v1/customers", {
     parameters,
     idempotencyKey: `ol-customer-${user.id}`,
@@ -214,13 +264,18 @@ async function syncStripeSubscription(admin: any, stripeSubscription: any, userI
     : String(stripeSubscription?.customer?.id || "");
   const mappedStatus = stripeStatusToPremium(stripeSubscription?.status);
   const preserveTrial = shouldPreserveInternalTrial(row, stripeSubscription?.status);
-  const preserveBusinessProduct = isBusinessSubscription(row);
+  const business = isBusinessSubscription(row);
+  const expectedPlanCode = business ? PREMIUM_BUSINESS_PLAN_CODE : PREMIUM_CASA_PLAN_CODE;
+  const planCodeFromStripe = stripePlanCode(stripeSubscription);
+  if (planCodeFromStripe && planCodeFromStripe !== expectedPlanCode) {
+    throw new Error("premium_stripe_plan_segment_mismatch");
+  }
   const update: Record<string, unknown> = {
     provider: "stripe",
     provider_customer_id: customerId || row.provider_customer_id,
     provider_subscription_id: stripeSubscription.id || row.provider_subscription_id,
     status: preserveTrial ? row.status : mappedStatus,
-    plan_code: preserveTrial ? row.plan_code : "premium-casa-annual",
+    plan_code: preserveTrial ? row.plan_code : expectedPlanCode,
     included_utilities: preserveTrial ? row.included_utilities : 4,
     included_bills_per_year: preserveTrial ? row.included_bills_per_year : 60,
     current_period_start: preserveTrial ? row.current_period_start : (period.start || row.current_period_start),
@@ -230,11 +285,7 @@ async function syncStripeSubscription(admin: any, stripeSubscription: any, userI
     data_purged_at: preserveTrial ? row.data_purged_at : null,
     billing_updated_at: new Date().toISOString(),
   };
-  if (preserveBusinessProduct && !preserveTrial) {
-    update.plan_code = row.plan_code;
-    update.included_utilities = row.included_utilities;
-    update.included_bills_per_year = row.included_bills_per_year;
-  }
+  if (business && !preserveTrial) update.included_utilities = 2;
   const { data, error } = await admin
     .from("premium_subscriptions")
     .update(update)
@@ -265,57 +316,100 @@ async function findOpenCheckout(admin: any, userId: string) {
   return result.data || null;
 }
 
-async function validateStripeCommercialConfiguration({ requireCoupon = true } = {}) {
-  const priceId = Deno.env.get("STRIPE_PREMIUM_ANNUAL_PRICE_ID")?.trim() || "";
-  const couponId = Deno.env.get("STRIPE_PREMIUM_FIRST_YEAR_COUPON_ID")?.trim() || "";
-  const price = await stripeRequest(`/v1/prices/${encodeURIComponent(priceId)}`);
+async function validateStripeCommercialConfiguration(subscription: any, { requireCoupon = true } = {}) {
+  const settings = commercialSettingsForSubscription(subscription);
+  const price = await stripeRequest(`/v1/prices/${encodeURIComponent(settings.priceId)}`);
   const coupon = requireCoupon
-    ? await stripeRequest(`/v1/coupons/${encodeURIComponent(couponId)}`)
+    ? await stripeRequest(`/v1/coupons/${encodeURIComponent(settings.couponId)}`)
     : null;
-  const validation = validateStripeCommercialObjects({
-    price,
-    coupon,
-    requireCoupon,
-    requireInclusiveTax: normalizeBoolean(Deno.env.get("STRIPE_AUTOMATIC_TAX_ENABLED"), false),
-  });
+  let validation;
+  if (!settings.business) {
+    validation = validateStripeCommercialObjects({
+      price,
+      coupon,
+      requireCoupon,
+      requireInclusiveTax: normalizeBoolean(Deno.env.get("STRIPE_AUTOMATIC_TAX_ENABLED"), false),
+    });
+  } else {
+    const errors: string[] = [];
+    const productId = typeof price?.product === "string" ? price.product : String(price?.product?.id || "");
+    if (!price?.id || price.active !== true) errors.push("business_annual_price_inactive");
+    if (Number(price?.unit_amount) !== PREMIUM_BUSINESS_RENEWAL_AMOUNT_CENTS) errors.push("business_annual_price_amount_invalid");
+    if (String(price?.currency || "").toLowerCase() !== PREMIUM_CURRENCY) errors.push("business_annual_price_currency_invalid");
+    if (String(price?.type || "") !== "recurring") errors.push("business_annual_price_not_recurring");
+    if (String(price?.recurring?.interval || "") !== "year" || Number(price?.recurring?.interval_count || 1) !== 1) {
+      errors.push("business_annual_price_interval_invalid");
+    }
+    if (normalizeBoolean(Deno.env.get("STRIPE_AUTOMATIC_TAX_ENABLED"), false) && String(price?.tax_behavior || "") !== "inclusive") {
+      errors.push("business_annual_price_tax_not_inclusive");
+    }
+    if (requireCoupon) {
+      if (!coupon?.id || coupon.valid === false) errors.push("business_intro_coupon_inactive");
+      if (Number(coupon?.amount_off) !== PREMIUM_BUSINESS_RENEWAL_AMOUNT_CENTS - PREMIUM_BUSINESS_FIRST_YEAR_AMOUNT_CENTS) {
+        errors.push("business_intro_coupon_amount_invalid");
+      }
+      if (String(coupon?.currency || "").toLowerCase() !== PREMIUM_CURRENCY) errors.push("business_intro_coupon_currency_invalid");
+      if (String(coupon?.duration || "") !== "once") errors.push("business_intro_coupon_duration_invalid");
+      const couponProducts = Array.isArray(coupon?.applies_to?.products) ? coupon.applies_to.products.map(String) : [];
+      if (!productId || !couponProducts.includes(productId)) errors.push("business_intro_coupon_product_scope_invalid");
+    }
+    validation = { valid: errors.length === 0, errors };
+  }
   if (!validation.valid) throw new Error(`stripe_commercial_configuration_invalid:${validation.errors.join(",")}`);
-  return { price, coupon };
+  return { price, coupon, settings };
 }
 
 async function createCheckout(admin: any, user: any, requestOrigin: string) {
-  const configuration = billingConfigurationStatus(envObject());
-  if (!configuration.enabled) throw new Error("premium_billing_not_enabled");
   const context = await accountContext(admin, user.id);
+  const configuration = billingConfigurationForSubscription(context.subscription);
+  if (!configuration.enabled) {
+    throw new Error(isBusinessSubscription(context.subscription) ? "premium_business_billing_not_enabled" : "premium_billing_not_enabled");
+  }
   if (!(await currentAcceptancesComplete(admin, user.id))) throw new Error("premium_legal_acceptance_required");
   if (!context.subscription?.id) throw new Error("premium_subscription_missing");
-  if (isBusinessSubscription(context.subscription)) throw new Error("premium_business_billing_not_configured");
   if (context.subscription.status === "active" && context.subscription.provider_subscription_id) {
     throw new Error("premium_subscription_already_active");
   }
 
+  const settings = commercialSettingsForSubscription(context.subscription);
   const existing = await findOpenCheckout(admin, user.id);
-  if (existing?.checkout_url) return { url: existing.checkout_url, reused: true };
+  if (existing?.provider_session_id && existing?.checkout_url) {
+    try {
+      const stripeSession = await stripeRequest(`/v1/checkout/sessions/${encodeURIComponent(existing.provider_session_id)}`);
+      if (String(stripeSession?.metadata?.offertalogica_plan || "") === settings.planCode) {
+        return { url: existing.checkout_url, reused: true };
+      }
+    } catch {
+      // Una sessione non recuperabile o riferita all'altro prodotto non viene riutilizzata.
+    }
+  }
 
   const origin = normalizeAppOrigin(requestOrigin, configuredOrigins()) || configuredOrigins()[0];
   if (!origin) throw new Error("premium_app_origin_invalid");
   const firstPurchase = !context.subscription.first_paid_at && !context.subscription.intro_price_redeemed_at;
-  await validateStripeCommercialConfiguration({ requireCoupon: firstPurchase });
+  await validateStripeCommercialConfiguration(context.subscription, { requireCoupon: firstPurchase });
   const customerId = await ensureStripeCustomer(admin, user, context);
-  const couponId = firstPurchase ? Deno.env.get("STRIPE_PREMIUM_FIRST_YEAR_COUPON_ID")?.trim() || "" : "";
+  const couponId = firstPurchase ? settings.couponId : "";
   const successUrl = `${origin}/app.html?billing=success&session_id={CHECKOUT_SESSION_ID}#profile`;
   const cancelUrl = `${origin}/app.html?billing=cancel#profile`;
   const parameters = buildCheckoutParameters({
     customerId,
     userId: user.id,
-    priceId: Deno.env.get("STRIPE_PREMIUM_ANNUAL_PRICE_ID")?.trim() || "",
+    priceId: settings.priceId,
     couponId,
     successUrl,
     cancelUrl,
     automaticTax: normalizeBoolean(Deno.env.get("STRIPE_AUTOMATIC_TAX_ENABLED"), false),
   });
+  parameters.set("metadata[offertalogica_plan]", settings.planCode);
+  parameters.set("subscription_data[metadata][offertalogica_plan]", settings.planCode);
+  parameters.set("metadata[premium_product_code]", settings.productCode);
+  parameters.set("subscription_data[metadata][premium_product_code]", settings.productCode);
+  parameters.set("metadata[customer_segment]", settings.customerSegment);
+  parameters.set("subscription_data[metadata][customer_segment]", settings.customerSegment);
   const session = await stripeRequest("/v1/checkout/sessions", {
     parameters,
-    idempotencyKey: `ol-checkout-${user.id}-${context.subscription.id}-${firstPurchase ? "intro" : "standard"}-${Math.floor(Date.now() / 1_800_000)}`,
+    idempotencyKey: `ol-checkout-${settings.customerSegment}-${user.id}-${context.subscription.id}-${firstPurchase ? "intro" : "standard"}-${Math.floor(Date.now() / 1_800_000)}`,
   });
   const expiresAt = unixToIso(session.expires_at) || new Date(Date.now() + 30 * 60 * 1000).toISOString();
   const { error } = await admin.from("premium_checkout_sessions").insert({
@@ -332,9 +426,11 @@ async function createCheckout(admin: any, user: any, requestOrigin: string) {
 }
 
 async function createPortal(admin: any, user: any, requestOrigin: string) {
-  const configuration = billingConfigurationStatus(envObject());
-  if (!configuration.enabled) throw new Error("premium_billing_not_enabled");
   const context = await accountContext(admin, user.id);
+  const configuration = billingConfigurationForSubscription(context.subscription);
+  if (!configuration.enabled) {
+    throw new Error(isBusinessSubscription(context.subscription) ? "premium_business_billing_not_enabled" : "premium_billing_not_enabled");
+  }
   const customerId = context.subscription?.provider_customer_id;
   if (!customerId) throw new Error("premium_billing_customer_missing");
   const origin = normalizeAppOrigin(requestOrigin, configuredOrigins()) || configuredOrigins()[0];
@@ -551,14 +647,23 @@ Deno.serve(async request => {
     const user = await authenticatedUser(request, admin);
     const action = String(payload.action || "status");
     if (action === "status") {
-      const configuration = billingConfigurationStatus(envObject());
+      const context = await accountContext(admin, user.id);
+      const subscriptionForStatus = context.subscription || {
+        customer_segment: user.user_metadata?.premium_customer_segment,
+        product_code: user.user_metadata?.premium_product_code,
+      };
+      const settings = commercialSettingsForSubscription(subscriptionForStatus);
+      const configuration = billingConfigurationForSubscription(subscriptionForStatus);
       return jsonResponse({
         ok: true,
         provider: "stripe",
         enabled: configuration.enabled,
         missing: configuration.missing,
-        first_year_amount_cents: PREMIUM_FIRST_YEAR_AMOUNT_CENTS,
-        renewal_amount_cents: PREMIUM_RENEWAL_AMOUNT_CENTS,
+        customer_segment: settings.customerSegment,
+        product_code: settings.productCode,
+        plan_code: settings.planCode,
+        first_year_amount_cents: settings.firstYearAmountCents,
+        renewal_amount_cents: settings.renewalAmountCents,
         currency: PREMIUM_CURRENCY,
         automatic_tax_enabled: normalizeBoolean(Deno.env.get("STRIPE_AUTOMATIC_TAX_ENABLED"), false),
       }, 200, origin);
