@@ -55,7 +55,7 @@
 <header class="topbar">
   <div class="brand">
     <img src="/assets/logo-offertalogica-icon.png" alt="OffertaLogica">
-    <div><h1>Control Center OffertaLogica</h1><p>Centro operativo per clienti, pratiche, verifiche e dati · v0.36.77</p></div>
+    <div><h1>Control Center OffertaLogica</h1><p>Centro operativo per clienti, pratiche, verifiche e dati · v0.36.78</p></div>
   </div>
   <div class="top-actions" id="staffTopActions" hidden>
     <span class="staff-chip" id="staffIdentity">Staff</span>
@@ -118,7 +118,7 @@
         <section class="panel"><div class="panel-head"><h3>Priorità operative</h3><small>Pratiche raccolte dai moduli operativi</small></div><div class="panel-body" id="overviewTasks"><div class="empty">Caricamento…</div></div></section>
         <section class="panel"><div class="panel-head"><h3>Acquisizione e conversione</h3><small>Funnel essenziale</small></div><div class="panel-body"><div class="funnel" id="overviewFunnel"></div></div></section>
       </div>
-      <div class="version">Control Center Staff v0.36.77</div>
+      <div class="version">Control Center Staff v0.36.78</div>
     </section>
 
     <section class="view" data-staff-view="cases">
@@ -254,10 +254,10 @@
 </div>
 <div id="staffUpdateNotice" class="staff-update" role="status" aria-live="polite"><span id="staffUpdateNoticeText">Nuova versione disponibile.</span><button id="staffApplyUpdate" type="button" hidden>AGGIORNA</button></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="/staff.js?v=0.36.77"></script>
+<script src="/staff.js?v=0.36.78"></script>
 <script src="/staff-governance-v2.5B.js"></script>
-<script defer src="/staff-management.js?v=0.36.77"></script>
-<script defer src="/staff-economics.js?v=0.36.77"></script>
+<script defer src="/staff-management.js?v=0.36.78"></script>
+<script defer src="/staff-economics.js?v=0.36.78"></script>
 <script>
   (()=>{
     const STORAGE_KEY='offertalogica-premium-staff-auth';
@@ -355,7 +355,7 @@
 </script>
 <script>
   (()=>{
-    const CURRENT_RELEASE="0.36.77";
+    const CURRENT_RELEASE="0.36.78";
     const PRODUCTION_ORIGIN="https://staff.offertalogica.it";
     const isVercelStaffDeployment=()=>location.hostname.endsWith(".vercel.app")&&location.hostname.toLowerCase().startsWith("offertalogica-staff");
     const redirectDeploymentToProduction=()=>{if(!isVercelStaffDeployment())return false;const target=new URL(`${location.pathname}${location.search}${location.hash}`,PRODUCTION_ORIGIN);if(target.href===location.href)return false;location.replace(target.href);return true};
@@ -376,18 +376,23 @@
     const showReady=()=>{setUpdateNotice('Nuova versione disponibile. Salva o chiudi ciò che stai facendo, poi premi AGGIORNA.');if(applyButton){applyButton.hidden=false;applyButton.disabled=false}};
     const releaseParts=value=>String(value||'').trim().split('.').map(part=>Number.parseInt(part,10));
     const isNewerRelease=(candidate,current)=>{const next=releaseParts(candidate);const now=releaseParts(current);const length=Math.max(next.length,now.length);for(let index=0;index<length;index+=1){const a=Number.isFinite(next[index])?next[index]:0;const b=Number.isFinite(now[index])?now[index]:0;if(a>b)return true;if(a<b)return false}return false};
-    const fetchLatestRelease=async()=>{const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),VERSION_CHECK_TIMEOUT_MS);try{const response=await fetch(`/version.json?t=${Date.now()}`,{cache:'no-store',headers:{'Cache-Control':'no-cache','Pragma':'no-cache'},signal:controller.signal});if(!response.ok)throw new Error(`Versione non disponibile: ${response.status}`);const payload=await response.json();return String(payload?.version||'').trim()}finally{clearTimeout(timeout)}};
+    let versionChannelReady=null;
     const retireLegacyRootWorker=async()=>{if(!('serviceWorker' in navigator))return;const rootScope=new URL('/',location.origin).href;const registrations=await navigator.serviceWorker.getRegistrations();await Promise.all(registrations.filter(reg=>reg.scope===rootScope&&[reg.installing,reg.waiting,reg.active].filter(Boolean).some(worker=>{try{return new URL(worker.scriptURL).pathname==='/sw.js'}catch{return false}})).map(reg=>reg.unregister()))};
-    const performUpdate=async()=>{if(!latestRelease)return;if(applyButton)applyButton.disabled=true;setUpdateNotice('Aggiornamento in corso…');await retireLegacyRootWorker();const target=new URL(location.href);target.searchParams.set('release',latestRelease);target.searchParams.set('t',String(Date.now()));location.replace(target.href)};
+    const clearLegacyStaffCacheEntries=async()=>{if(!('caches' in window))return;const names=await caches.keys();await Promise.all(names.map(async name=>{const cache=await caches.open(name);const requests=await cache.keys();await Promise.all(requests.filter(request=>{try{const url=new URL(request.url);return url.origin===location.origin&&['/staff.html','/version.json'].includes(url.pathname)}catch{return false}}).map(request=>cache.delete(request))) }))};
+    const prepareVersionChannel=()=>{if(versionChannelReady)return versionChannelReady;versionChannelReady=Promise.allSettled([retireLegacyRootWorker(),clearLegacyStaffCacheEntries()]).then(()=>undefined);return versionChannelReady};
+    const fetchLatestRelease=async()=>{await prepareVersionChannel();const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),VERSION_CHECK_TIMEOUT_MS);try{const target=new URL('/version.json',location.origin);target.searchParams.set('release_check',CURRENT_RELEASE);target.searchParams.set('t',String(Date.now()));const response=await fetch(target.href,{cache:'no-store',headers:{'Cache-Control':'no-cache, no-store, max-age=0','Pragma':'no-cache'},signal:controller.signal});if(!response.ok)throw new Error(`Versione non disponibile: ${response.status}`);const payload=await response.json();return String(payload?.version||'').trim()}finally{clearTimeout(timeout)}};
+    const performUpdate=async()=>{if(!latestRelease)return;if(applyButton)applyButton.disabled=true;setUpdateNotice('Aggiornamento in corso…');await prepareVersionChannel();const target=new URL(location.href);target.searchParams.set('release',latestRelease);target.searchParams.set('t',String(Date.now()));location.replace(target.href)};
     const applyUpdate=async()=>{if(!latestRelease)return;if(protectedWorkInProgress()){showReady();return}await performUpdate()};
     const checkForUpdate=()=>{if(document.visibilityState==='hidden')return Promise.resolve();if(updateCheckInFlight)return updateCheckInFlight;updateCheckInFlight=(async()=>{const latest=await fetchLatestRelease();if(latest&&isNewerRelease(latest,CURRENT_RELEASE)){latestRelease=latest;showReady()}else{latestRelease="";setUpdateNotice('',false);if(applyButton){applyButton.hidden=true;applyButton.disabled=false}}})().catch(error=>{if(error?.name!=='AbortError')console.warn('Controllo aggiornamento Area staff non disponibile',error)}).finally(()=>{updateCheckInFlight=null});return updateCheckInFlight};
+    const stopUpdateChecks=()=>{if(updateTimer){clearInterval(updateTimer);updateTimer=null}};
     const startUpdateChecks=()=>{if(!updateTimer)updateTimer=setInterval(()=>{void checkForUpdate()},VERSION_CHECK_INTERVAL_MS);void checkForUpdate()};
-    addEventListener('offertalogica:staff-save-complete',()=>{dirty=false;if(latestRelease)showReady();else void checkForUpdate()});
+    const resumeUpdateChecks=()=>{if(document.visibilityState!=='hidden')startUpdateChecks()};
+    addEventListener('offertalogica:staff-save-complete',()=>{dirty=false;if(latestRelease)showReady();else resumeUpdateChecks()});
     addEventListener('message',event=>{if(event.origin!==location.origin||event.data?.type!=='offertalogica:staff-update-state')return;frameStates.set(event.source,{dirty:Boolean(event.data.dirty),busy:Boolean(event.data.busy)});if(latestRelease&&!event.data.dirty&&!event.data.busy)showReady()});
     applyButton?.addEventListener('click',applyUpdate);
-    addEventListener('focus',()=>{void checkForUpdate()});addEventListener('online',()=>{void checkForUpdate()});addEventListener('pageshow',()=>{void checkForUpdate()});document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')void checkForUpdate()});addEventListener('pagehide',()=>{if(updateTimer){clearInterval(updateTimer);updateTimer=null}});
+    addEventListener('focus',resumeUpdateChecks);addEventListener('online',resumeUpdateChecks);addEventListener('pageshow',resumeUpdateChecks);addEventListener('pagehide',stopUpdateChecks);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')resumeUpdateChecks();else stopUpdateChecks()});
     window.OffertaLogicaStaffUpdate=Object.freeze({currentRelease:CURRENT_RELEASE,check:checkForUpdate});
-    startUpdateChecks();
+    void prepareVersionChannel().finally(startUpdateChecks);
   })();
 </script>
 </body>
