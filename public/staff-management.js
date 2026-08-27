@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const RELEASE = "0.36.80";
+  const RELEASE = "0.36.83";
   if (window.OffertaLogicaStaffManagement?.release === RELEASE) return;
 
   const TIME_ZONE = "Europe/Rome";
@@ -205,54 +205,6 @@
       reviewer: "Revisore",
       support: "Supporto",
     }[String(role || "").toLowerCase()] || "Staff";
-  }
-
-  function syncVisibleRelease() {
-    document.querySelectorAll(".brand p,.version").forEach(element => {
-      const current = String(element.textContent || "");
-      if (!/v\d+\.\d+\.\d+/.test(current)) return;
-      const next = current.replace(/v\d+\.\d+\.\d+/g, `v${RELEASE}`);
-      if (next !== current) element.textContent = next;
-    });
-  }
-
-  async function remoteRelease() {
-    const response = await fetch(`/version.json?t=${Date.now()}`, {
-      cache: "no-store",
-      headers: { "Cache-Control": "no-cache" },
-    });
-    if (!response.ok) return "";
-    const payload = await response.json().catch(() => ({}));
-    return String(payload?.version || "").trim();
-  }
-
-  function guardLegacyReleaseNotice() {
-    const notice = byId("staffUpdateNotice");
-    const button = byId("staffApplyUpdate");
-    if (!notice) return;
-    let checking = false;
-    const reconcile = async () => {
-      if (checking || !notice.classList.contains("show")) return;
-      checking = true;
-      try {
-        const latest = await remoteRelease();
-        if (latest && latest === RELEASE) {
-          notice.classList.remove("show");
-          if (button) {
-            button.hidden = true;
-            button.disabled = false;
-          }
-        }
-      } catch {
-        // L'avviso esistente resta visibile se la release non è verificabile.
-      } finally {
-        checking = false;
-      }
-    };
-    const observer = new MutationObserver(() => { void reconcile(); });
-    observer.observe(notice, { attributes: true, attributeFilter: ["class"] });
-    window.addEventListener("pagehide", () => observer.disconnect(), { once: true });
-    void reconcile();
   }
 
   function injectStyles() {
@@ -1510,8 +1462,6 @@
   }
 
   function init() {
-    syncVisibleRelease();
-    guardLegacyReleaseNotice();
     initManagementUi();
     installCollaboratorScalability();
   }
