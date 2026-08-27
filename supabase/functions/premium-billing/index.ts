@@ -149,6 +149,11 @@ async function accountContext(admin: any, userId: string) {
   return { profile: profileResult.data, subscription: subscriptionResult.data };
 }
 
+function isBusinessSubscription(subscription: any) {
+  return String(subscription?.customer_segment || "").trim().toLowerCase() === "business"
+    || String(subscription?.product_code || "").trim().toLowerCase() === "premium_business";
+}
+
 async function ensureStripeCustomer(admin: any, user: any, context: any) {
   if (context.subscription?.provider === "stripe" && context.subscription?.provider_customer_id) {
     return context.subscription.provider_customer_id;
@@ -209,6 +214,7 @@ async function syncStripeSubscription(admin: any, stripeSubscription: any, userI
     : String(stripeSubscription?.customer?.id || "");
   const mappedStatus = stripeStatusToPremium(stripeSubscription?.status);
   const preserveTrial = shouldPreserveInternalTrial(row, stripeSubscription?.status);
+  const preserveBusinessProduct = isBusinessSubscription(row);
   const update: Record<string, unknown> = {
     provider: "stripe",
     provider_customer_id: customerId || row.provider_customer_id,
@@ -224,6 +230,11 @@ async function syncStripeSubscription(admin: any, stripeSubscription: any, userI
     data_purged_at: preserveTrial ? row.data_purged_at : null,
     billing_updated_at: new Date().toISOString(),
   };
+  if (preserveBusinessProduct && !preserveTrial) {
+    update.plan_code = row.plan_code;
+    update.included_utilities = row.included_utilities;
+    update.included_bills_per_year = row.included_bills_per_year;
+  }
   const { data, error } = await admin
     .from("premium_subscriptions")
     .update(update)
@@ -277,6 +288,7 @@ async function createCheckout(admin: any, user: any, requestOrigin: string) {
   const context = await accountContext(admin, user.id);
   if (!(await currentAcceptancesComplete(admin, user.id))) throw new Error("premium_legal_acceptance_required");
   if (!context.subscription?.id) throw new Error("premium_subscription_missing");
+  if (isBusinessSubscription(context.subscription)) throw new Error("premium_business_billing_not_configured");
   if (context.subscription.status === "active" && context.subscription.provider_subscription_id) {
     throw new Error("premium_subscription_already_active");
   }

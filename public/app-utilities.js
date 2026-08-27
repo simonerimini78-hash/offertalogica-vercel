@@ -34,6 +34,11 @@
     supplySelect: null,
     podField: null,
     pdrField: null,
+    homeUtilitiesCopy: null,
+    nameLabel: null,
+    nameInput: null,
+    addressLabel: null,
+    addressInput: null,
     message: null,
     empty: null,
     list: null
@@ -68,6 +73,20 @@
 
   function isBetaTrial() {
     return currentSubscription?.status === "trialing" && currentSubscription?.plan_code === "premium-beta";
+  }
+
+  function isBusinessAccount() {
+    return String(currentSubscription?.customer_segment || "").trim().toLowerCase() === "business"
+      || globalThis.OffertaLogicaPremiumAuth?.isBusiness?.() === true;
+  }
+
+  function renderSegmentCopy() {
+    const business = isBusinessAccount();
+    setText(state.homeUtilitiesCopy, business ? "Organizza sedi e forniture luce e gas." : "Organizza abitazioni, luce e gas.");
+    setText(state.nameLabel, business ? "Nome utenza / sede" : "Nome utenza");
+    setText(state.addressLabel, business ? "Indirizzo sede / fornitura" : "Indirizzo fornitura");
+    if (state.nameInput) state.nameInput.placeholder = business ? "Esempio: Capannone 1" : "Esempio: Casa Rimini";
+    if (state.addressInput) state.addressInput.placeholder = "Obbligatorio durante la prova";
   }
 
   function trialHomeAddress(excludeId = "") {
@@ -109,7 +128,9 @@
     }
     if (message.includes("row-level security") || message.includes("permission denied")) {
       return isBetaTrial()
-        ? "Durante la prova puoi registrare al massimo due utenze della stessa abitazione. Usa lo stesso indirizzo di fornitura."
+        ? (isBusinessAccount()
+          ? "Durante la prova Business puoi registrare al massimo due utenze aziendali."
+          : "Durante la prova puoi registrare al massimo due utenze della stessa abitazione. Usa lo stesso indirizzo di fornitura.")
         : "Operazione non autorizzata. Verifica che l’abbonamento sia attivo.";
     }
     if (message.includes("failed to fetch") || message.includes("network")) {
@@ -175,6 +196,7 @@
   function renderEnabled() {
     if (state.locked) state.locked.hidden = true;
     if (state.enabled) state.enabled.hidden = false;
+    renderSegmentCopy();
     const legalBlocked = maintenanceMode && operationBlockReason === "legal";
     setText(state.statusBadge, legalBlocked ? "CONDIZIONI" : (maintenanceMode ? "ARCHIVIO" : (currentSubscription?.status === "trialing" ? "PROVA" : "ATTIVO")));
 
@@ -185,7 +207,9 @@
       ? "Accettazione richiesta"
       : (maintenanceMode
         ? (operationBlockReason === "archive" ? `Sola lettura fino al ${formatDate(currentSubscription?.archive_access_until)}` : "Sola gestione")
-        : (isBetaTrial() ? `${activeCount} / ${limit} forniture · 1 abitazione` : `${activeCount} / ${limit} forniture · ${activeHomeCount()} / 2 abitazioni`)));
+        : (isBusinessAccount()
+          ? `${activeCount} / ${limit} utenze aziendali`
+          : (isBetaTrial() ? `${activeCount} / ${limit} forniture · 1 abitazione` : `${activeCount} / ${limit} forniture · ${activeHomeCount()} / 2 abitazioni`))));
     if (state.addButton) {
       state.addButton.disabled = !canAdd;
       state.addButton.hidden = maintenanceMode;
@@ -321,11 +345,13 @@
     const pod = supplyType === "gas" ? "" : normalizeCode(form.elements.pod?.value);
     const pdr = supplyType === "electricity" ? "" : normalizeCode(form.elements.pdr?.value);
 
+    const business = isBusinessAccount();
     if (label.length < 2) throw new Error("Inserisci un nome riconoscibile per l’utenza.");
     if (!VALID_SUPPLY_TYPES.has(supplyType)) throw new Error("Seleziona una tipologia valida.");
-    if (isBetaTrial() && !address) throw new Error("Durante la prova inserisci l’indirizzo dell’abitazione collegata alle utenze.");
-    if (!isBetaTrial() && !address) throw new Error("Inserisci l’indirizzo dell’abitazione collegata alla fornitura.");
-    if (isBetaTrial()) {
+    if (!address) throw new Error(business
+      ? "Inserisci l’indirizzo della sede o della fornitura collegata all’utenza."
+      : (isBetaTrial() ? "Durante la prova inserisci l’indirizzo dell’abitazione collegata alle utenze." : "Inserisci l’indirizzo dell’abitazione collegata alla fornitura."));
+    if (isBetaTrial() && !business) {
       const homeAddress = trialHomeAddress(editingId);
       if (homeAddress && normalizeAddress(homeAddress) !== normalizeAddress(address)) {
         throw new Error("Durante la prova le utenze luce e gas devono riferirsi alla stessa abitazione e usare lo stesso indirizzo.");
@@ -333,7 +359,9 @@
     } else {
       const homes = activeHomeKeys(editingId);
       homes.add(normalizeAddress(address));
-      if (homes.size > 2) throw new Error("Il piano Premium include al massimo due abitazioni. Usa l’indirizzo di una delle abitazioni già registrate.");
+      if (homes.size > 2) throw new Error(business
+        ? "Il piano Premium Business include al massimo due sedi/indirizzi di fornitura."
+        : "Il piano Premium include al massimo due abitazioni. Usa l’indirizzo di una delle abitazioni già registrate.");
     }
 
     return {
@@ -487,7 +515,7 @@
     if (error) return subscription;
     const refreshed = await client
       .from("premium_subscriptions")
-      .select("status, plan_code, current_period_start, current_period_end, archive_access_until, data_purged_at, included_utilities, created_at")
+      .select("status, customer_segment, product_code, plan_code, current_period_start, current_period_end, archive_access_until, data_purged_at, included_utilities, created_at")
       .eq("user_id", currentUser.id)
       .order("created_at", { ascending: false })
       .limit(1)
@@ -525,7 +553,7 @@
         .maybeSingle(),
       client
         .from("premium_subscriptions")
-        .select("status, plan_code, current_period_start, current_period_end, archive_access_until, data_purged_at, included_utilities, created_at")
+        .select("status, customer_segment, product_code, plan_code, current_period_start, current_period_end, archive_access_until, data_purged_at, included_utilities, created_at")
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(1)
@@ -600,6 +628,11 @@
     state.supplySelect = byId("premiumUtilityType");
     state.podField = byId("premiumUtilityPodField");
     state.pdrField = byId("premiumUtilityPdrField");
+    state.homeUtilitiesCopy = byId("homeUtilitiesCopy");
+    state.nameLabel = byId("premiumUtilityNameLabel");
+    state.nameInput = byId("premiumUtilityNameInput");
+    state.addressLabel = byId("premiumUtilityAddressLabel");
+    state.addressInput = byId("premiumUtilityAddressInput");
     state.message = byId("premiumUtilityMessage");
     state.empty = byId("premiumUtilityEmpty");
     state.list = byId("premiumUtilityList");

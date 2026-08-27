@@ -31,10 +31,11 @@
   }
 
   function premiumContext() {
-    const customerSegment = normalizeCustomerSegment(currentSubscription?.customer_segment);
+    const metadataSegment = currentSession?.user?.user_metadata?.premium_customer_segment;
+    const customerSegment = normalizeCustomerSegment(currentSubscription?.customer_segment || metadataSegment);
     return Object.freeze({
       customerSegment,
-      productCode: String(currentSubscription?.product_code || (customerSegment === "business" ? "premium_business" : "premium_casa")).trim(),
+      productCode: String(currentSubscription?.product_code || currentSession?.user?.user_metadata?.premium_product_code || (customerSegment === "business" ? "premium_business" : "premium_casa")).trim(),
       planCode: currentSubscription?.plan_code || null,
       isBusiness: customerSegment === "business"
     });
@@ -44,6 +45,42 @@
     window.dispatchEvent(new CustomEvent("offertalogica:premium-access-changed", {
       detail: premiumContext()
     }));
+  }
+
+  function subscriptionIsBusiness(subscription = currentSubscription) {
+    if (subscription?.customer_segment) return normalizeCustomerSegment(subscription.customer_segment) === "business";
+    return normalizeCustomerSegment(currentSession?.user?.user_metadata?.premium_customer_segment) === "business";
+  }
+
+  function signupCustomerSegment() {
+    return normalizeCustomerSegment(state.signupSegment?.value || "consumer");
+  }
+
+  function renderSignupSegmentCopy() {
+    const business = signupCustomerSegment() === "business";
+    setText(state.signupNameLabel, business ? "Nome azienda / attività" : "Nome e cognome");
+    const nameInput = state.signupForm?.elements?.full_name;
+    if (nameInput) nameInput.placeholder = business ? "Esempio: Azienda Agricola Rossi" : "";
+    if (upgradeRequested()) {
+      setText(state.signupHint, business
+        ? "Stai creando un account Premium Business. La prova dura 30 giorni; il pagamento Business sarà attivato solo quando sarà configurato il relativo piano commerciale."
+        : "Stai attivando Premium: dopo la conferma dell’account passerai al pagamento sicuro di 47,88 € per i primi 12 mesi. Dal secondo anno 59,88 €/anno.");
+      return;
+    }
+    setText(state.signupHint, business
+      ? "La prova dura 30 giorni e include fino a 4 bollette complessivamente caricate, 2 utenze aziendali e una verifica staff per un’anomalia rossa. Nessuna carta e nessun addebito automatico."
+      : "La prova dura 30 giorni e include fino a 4 bollette complessivamente caricate, 2 utenze della stessa abitazione e una verifica staff per un’anomalia rossa. Nessuna carta e nessun addebito automatico.");
+  }
+
+  function renderCommercialIdentity(subscription) {
+    const business = subscriptionIsBusiness(subscription);
+    setText(state.subscriptionCommercialTitle, business ? "OffertaLogica Premium Business" : "OffertaLogica Premium Casa");
+    setText(state.subscriptionCommercialPrice, business ? "—" : "3,99 €");
+    setText(state.subscriptionCommercialUnit, business ? "" : "/mese*");
+    setText(state.subscriptionCommercialPeriod, business ? "piano Business" : "per i primi 12 mesi");
+    setText(state.subscriptionCommercialNote, business
+      ? "Il prezzo del piano Premium Business sarà mostrato qui quando verrà configurata l’offerta commerciale dedicata. Nessun pagamento Business è attualmente attivabile."
+      : "*Equivalente mensile. Pagamento annuale unico di 47,88 € IVA inclusa. Dal secondo anno 4,99 €/mese, addebitati 59,88 € una volta all’anno.");
   }
 
   const state = {
@@ -62,6 +99,7 @@
     accountPlan: null,
     accountExpiry: null,
     accountStatus: null,
+    profileType: null,
     profileKicker: null,
     profileTitle: null,
     profileBadge: null,
@@ -85,6 +123,12 @@
     subscriptionNextPrice: null,
     subscriptionRenewal: null,
     subscriptionActionCopy: null,
+    subscriptionCommercial: null,
+    subscriptionCommercialTitle: null,
+    subscriptionCommercialPrice: null,
+    subscriptionCommercialUnit: null,
+    subscriptionCommercialPeriod: null,
+    subscriptionCommercialNote: null,
     subscriptionPurchaseButton: null,
     subscriptionManageButton: null,
     subscriptionCancelButton: null,
@@ -102,6 +146,8 @@
     passwordPanel: null,
     passwordToggle: null,
     signupHint: null,
+    signupSegment: null,
+    signupNameLabel: null,
   };
 
   function setMessage(kind, message) {
@@ -113,7 +159,7 @@
 
   function setBusy(form, busy) {
     if (!form) return;
-    form.querySelectorAll("button, input").forEach(element => {
+    form.querySelectorAll("button, input, select").forEach(element => {
       element.disabled = Boolean(busy);
     });
     form.setAttribute("aria-busy", busy ? "true" : "false");
@@ -136,6 +182,7 @@
     if (message.includes("premium_legal_acceptance_required")) return "Accetta prima le condizioni commerciali correnti.";
     if (message.includes("premium_subscription_already_active")) return "L’abbonamento risulta già attivo.";
     if (message.includes("premium_billing_customer_missing")) return "Il profilo di pagamento non è ancora disponibile.";
+    if (message.includes("premium_business_billing_not_configured")) return "Il pagamento Premium Business non è ancora configurato.";
     if (message.includes("authentication")) return "La sessione è scaduta. Accedi nuovamente.";
     if (message.includes("stripe:")) return "Stripe non ha completato l’operazione. Riprova tra poco.";
     return "Operazione di pagamento non completata. Riprova.";
@@ -194,18 +241,21 @@
   function renderBillingActions(subscription) {
     const configured = Boolean(billingAvailability?.enabled);
     const status = subscription?.status || "";
+    const business = subscriptionIsBusiness(subscription);
     const paidProvider = subscription?.provider === "stripe" && Boolean(subscription?.provider_customer_id);
     const paidHistory = Boolean(subscription?.first_paid_at || subscription?.provider_subscription_id);
     const canPurchase = ["trialing", "expired", "canceled", "pending"].includes(status);
     const introUsed = Boolean(subscription?.first_paid_at || subscription?.intro_price_redeemed_at);
 
     if (state.subscriptionPurchaseButton) {
-      state.subscriptionPurchaseButton.hidden = !canPurchase;
-      state.subscriptionPurchaseButton.disabled = !configured;
+      state.subscriptionPurchaseButton.hidden = business || !canPurchase;
+      state.subscriptionPurchaseButton.disabled = business || !configured;
       state.subscriptionPurchaseButton.textContent = introUsed
         ? "RIATTIVA PREMIUM · 4,99 €/MESE*"
         : "ATTIVA PREMIUM · 3,99 €/MESE*";
-      state.subscriptionPurchaseButton.title = configured ? "" : "Pagamento Stripe non ancora attivato";
+      state.subscriptionPurchaseButton.title = business
+        ? "Pagamento Premium Business non ancora configurato"
+        : (configured ? "" : "Pagamento Stripe non ancora attivato");
     }
     if (state.subscriptionManageButton) {
       state.subscriptionManageButton.hidden = !(paidProvider && paidHistory && ["active", "past_due", "paused", "canceled"].includes(status));
@@ -372,6 +422,7 @@
       button.classList.toggle("active", active);
       button.setAttribute("aria-selected", active ? "true" : "false");
     });
+    if (!login) renderSignupSegmentCopy();
     setMessage("", "");
   }
 
@@ -415,6 +466,7 @@
     setText(state.profileBadge, "ACCESSO");
     setText(state.profileDescription, "Accedi o crea un account.");
     setText(state.profileEmail, "Non collegato");
+    setText(state.profileType, "Non collegato");
     setText(state.profileArchive, "Cloud non disponibile");
     setText(state.profileControls, "Non attivi");
 
@@ -426,11 +478,9 @@
 
     dispatchPremiumAccessChanged();
 
+    renderSignupSegmentCopy();
     if (upgradeRequested()) {
-      setText(state.signupHint, "Stai attivando Premium: dopo la conferma dell’account passerai al pagamento sicuro di 47,88 € per i primi 12 mesi. Dal secondo anno 59,88 €/anno.");
-      setMessage("info", "Attivazione Premium: accedi se hai già un account oppure creane uno. Dopo l’accesso apriremo automaticamente il pagamento sicuro.");
-    } else {
-      setText(state.signupHint, "La prova dura 30 giorni e include fino a 4 bollette complessivamente caricate, 2 utenze della stessa abitazione e una verifica staff per un’anomalia rossa. Nessuna carta e nessun addebito automatico.");
+      setMessage("info", "Attivazione Premium: accedi se hai già un account oppure creane uno. Gli account Business non avviano pagamenti finché il piano Business non è configurato.");
     }
   }
 
@@ -444,6 +494,7 @@
     setText(state.accountPlan, "Verifica in corso");
     setText(state.accountExpiry, "—");
     setText(state.accountStatus, "Aggiornamento in corso");
+    setText(state.profileType, "Verifica in corso");
     setText(state.profileKicker, "Profilo Premium");
     setText(state.profileTitle, "Verifica account…");
     setText(state.profileBadge, "ATTENDI");
@@ -451,8 +502,9 @@
 
   function subscriptionLabel(subscription) {
     if (!subscription) return "Nessun abbonamento";
+    const family = subscriptionIsBusiness(subscription) ? "Premium Business" : "Premium Privato";
     if (subscription.plan_code === "premium-complimentary") {
-      return subscription.status === "active" ? "Premium omaggio" : "Premium omaggio scaduto";
+      return subscription.status === "active" ? `${family} omaggio` : `${family} omaggio scaduto`;
     }
     const labels = {
       pending: "In attesa",
@@ -463,7 +515,8 @@
       canceled: "Annullato",
       expired: "Scaduto"
     };
-    return labels[subscription.status] || subscription.status || "Non attivo";
+    const status = labels[subscription.status] || subscription.status || "Non attivo";
+    return `${family} · ${status}`;
   }
 
   function renderLegalPanel(profile, acceptanceStatus) {
@@ -492,11 +545,13 @@
     state.subscriptionPanel.hidden = !profile;
     if (!profile) return;
     renderBillingActions(subscription);
+    renderCommercialIdentity(subscription);
 
+    const business = subscriptionIsBusiness(subscription);
     const start = formatDate(subscription?.current_period_start);
     const end = formatDate(subscription?.current_period_end);
-    const annualFirst = "3,99 €/mese* · addebito annuale 47,88 €";
-    const annualRenewal = "4,99 €/mese* · addebito annuale 59,88 €";
+    const annualFirst = business ? "Prezzo Business in configurazione" : "3,99 €/mese* · addebito annuale 47,88 €";
+    const annualRenewal = business ? "Prezzo Business in configurazione" : "4,99 €/mese* · addebito annuale 59,88 €";
 
     if (!subscription) {
       setText(state.subscriptionBadge, "NON ATTIVO");
@@ -523,7 +578,9 @@
       setText(state.subscriptionCurrentPrice, "0 € · nessuna carta richiesta");
       setText(state.subscriptionNextPrice, annualFirst);
       setText(state.subscriptionRenewal, "Nessuna conversione automatica");
-      setText(state.subscriptionActionCopy, `Alla scadenza non verrà effettuato alcun addebito. L’eventuale acquisto sarà una scelta separata; dal rinnovo successivo il prezzo sarà ${annualRenewal}.`);
+      setText(state.subscriptionActionCopy, business
+        ? "Alla scadenza non verrà effettuato alcun addebito. L’attivazione a pagamento Premium Business sarà disponibile solo quando verrà configurato il relativo piano commerciale."
+        : `Alla scadenza non verrà effettuato alcun addebito. L’eventuale acquisto sarà una scelta separata; dal rinnovo successivo il prezzo sarà ${annualRenewal}.`);
       return;
     }
 
@@ -673,6 +730,13 @@
       return false;
     }
 
+    if (subscriptionIsBusiness(subscription)) {
+      clearUpgradeQuery();
+      setBillingMessage("", "Account Premium Business attivo. Il pagamento Business non è ancora configurato e non verrà avviato alcun checkout.");
+      focusSubscriptionPanel();
+      return false;
+    }
+
     if (subscription?.status === "active") {
       clearUpgradeQuery();
       setBillingMessage("", subscription.plan_code === "premium-complimentary"
@@ -811,11 +875,13 @@
     if (state.passwordPanel) state.passwordPanel.hidden = false;
 
     const displayName = String(profile?.full_name || session.user.user_metadata?.full_name || "").trim();
+    const businessAccount = subscriptionIsBusiness(subscription);
     setText(state.accountEmail, session.user.email || "—");
     setText(state.accountName, displayName || "Nome non indicato");
     setText(state.accountPlan, subscriptionLabel(subscription));
     setText(state.accountExpiry, archiveAvailable ? formatDate(subscription.archive_access_until) : (subscription?.current_period_end ? formatDate(subscription.current_period_end) : "—"));
     setText(state.accountStatus, accountStatusLabel(profile?.account_status));
+    setText(state.profileType, businessAccount ? "Premium Business" : "Premium Privato");
 
     renderLegalPanel(profile, acceptanceStatus);
     renderSubscriptionPanel(profile, subscription);
@@ -834,8 +900,8 @@
       setText(state.homePremiumTitle, "Profilo non abilitato");
       setText(state.homePremiumCopy, "L’account è collegato, ma non è ancora associato all’area Premium.");
     } else if (profile.account_status === "deletion_requested") {
-      setText(state.profileKicker, "Profilo Premium");
-      setText(state.profileTitle, displayName || "Account Premium");
+      setText(state.profileKicker, businessAccount ? "Profilo Premium Business" : "Profilo Premium");
+      setText(state.profileTitle, displayName || (businessAccount ? "Account Premium Business" : "Account Premium"));
       setText(state.profileBadge, "CANCELLAZIONE");
       setText(state.profileDescription, "Cancellazione richiesta. Puoi ancora consultare o eliminare i dati salvati.");
       setText(state.profileControls, "Nuove operazioni bloccate");
@@ -845,8 +911,8 @@
       setText(state.homePremiumTitle, "Richiesta di cancellazione registrata");
       setText(state.homePremiumCopy, "Nuove operazioni bloccate. I dati salvati restano disponibili.");
     } else if (periodActive && !legalReady) {
-      setText(state.profileKicker, "Profilo Premium");
-      setText(state.profileTitle, displayName || "Account Premium");
+      setText(state.profileKicker, businessAccount ? "Profilo Premium Business" : "Profilo Premium");
+      setText(state.profileTitle, displayName || (businessAccount ? "Account Premium Business" : "Account Premium"));
       setText(state.profileBadge, "ACCETTAZIONE");
       setText(state.profileDescription, "Accetta le condizioni correnti per continuare.");
       setText(state.profileControls, "Accettazione richiesta");
@@ -860,21 +926,27 @@
       const isBetaTrial = subscription.status === "trialing" && subscription.plan_code === "premium-beta";
       const isComplimentary = subscription.status === "active" && subscription.plan_code === "premium-complimentary";
       const complimentaryEnd = subscription.current_period_end ? formatDate(subscription.current_period_end) : "";
-      setText(state.profileKicker, "Profilo Premium");
-      setText(state.profileTitle, displayName || "Account Premium");
+      setText(state.profileKicker, businessAccount ? "Profilo Premium Business" : "Profilo Premium");
+      setText(state.profileTitle, displayName || (businessAccount ? "Account Premium Business" : "Account Premium"));
       setText(state.profileBadge, isBetaTrial ? "PROVA" : (isComplimentary ? "OMAGGIO" : "ATTIVO"));
       setText(state.profileDescription, isBetaTrial
         ? `Prova gratuita attiva${trialDays == null ? "" : `. ${trialDays} ${trialDays === 1 ? "giorno rimanente" : "giorni rimanenti"}.`}`
         : (isComplimentary
           ? (complimentaryEnd ? `Premium offerto da OffertaLogica fino al ${complimentaryEnd}.` : "Premium offerto da OffertaLogica senza scadenza.")
           : "Servizio Premium attivo."));
-      setText(state.profileControls, isBetaTrial ? "4 bollette · 1 controllo staff" : (isComplimentary ? "2 abitazioni · 60 bollette/anno · nessun pagamento" : "2 abitazioni · 60 bollette/anno"));
-      setText(state.homePlanName, isBetaTrial ? "Prova Premium" : (isComplimentary ? "Premium omaggio" : "Premium"));
+      setText(state.profileControls, businessAccount
+        ? (isBetaTrial ? "2 utenze · 4 bollette · 1 controllo staff" : (isComplimentary ? "2 utenze · 60 bollette/anno · nessun pagamento" : "2 utenze · 60 bollette/anno"))
+        : (isBetaTrial ? "4 bollette · 1 controllo staff" : (isComplimentary ? "2 abitazioni · 60 bollette/anno · nessun pagamento" : "2 abitazioni · 60 bollette/anno")));
+      setText(state.homePlanName, businessAccount
+        ? (isBetaTrial ? "Prova Premium Business" : (isComplimentary ? "Premium Business omaggio" : "Premium Business"))
+        : (isBetaTrial ? "Prova Premium" : (isComplimentary ? "Premium omaggio" : "Premium")));
       setText(state.homePlanStatus, isBetaTrial && trialDays != null
         ? `${trialDays} ${trialDays === 1 ? "giorno rimanente" : "giorni rimanenti"}`
         : (isComplimentary ? (complimentaryEnd ? `Attivo fino al ${complimentaryEnd}` : "Senza scadenza") : "Abbonamento attivo"));
       setText(state.homePremiumBadge, isBetaTrial ? "PROVA ATTIVA" : (isComplimentary ? "OMAGGIO" : "ATTIVO"));
-      setText(state.homePremiumTitle, isBetaTrial ? "Prova Premium attiva" : (isComplimentary ? "Premium offerto da OffertaLogica" : "Account Premium collegato"));
+      setText(state.homePremiumTitle, businessAccount
+        ? (isBetaTrial ? "Prova Premium Business attiva" : (isComplimentary ? "Premium Business offerto da OffertaLogica" : "Account Premium Business collegato"))
+        : (isBetaTrial ? "Prova Premium attiva" : (isComplimentary ? "Premium offerto da OffertaLogica" : "Account Premium collegato")));
       setText(state.homePremiumCopy, isBetaTrial
         ? "Fino a 4 bollette complessivamente caricate e una verifica staff per un’anomalia rossa. Eliminare una bolletta non libera un nuovo caricamento. Nessuna carta e nessun addebito automatico."
         : (isComplimentary
@@ -898,8 +970,8 @@
     } else {
       const purged = Boolean(subscription?.data_purged_at);
       const retentionEnded = Boolean(subscription?.archive_access_until && new Date(subscription.archive_access_until) <= new Date());
-      setText(state.profileKicker, "Profilo Premium");
-      setText(state.profileTitle, displayName || "Account Premium");
+      setText(state.profileKicker, businessAccount ? "Profilo Premium Business" : "Profilo Premium");
+      setText(state.profileTitle, displayName || (businessAccount ? "Account Premium Business" : "Account Premium"));
       setText(state.profileBadge, purged ? "DATI ELIMINATI" : "NON ATTIVO");
       setText(state.profileDescription, purged
         ? "I documenti e i dati operativi Premium sono stati eliminati. L’account resta disponibile."
@@ -951,6 +1023,8 @@
   async function handleSignup(event) {
     event.preventDefault();
     const form = event.currentTarget;
+    const customerSegment = normalizeCustomerSegment(form.elements.customer_segment?.value || "consumer");
+    const productCode = customerSegment === "business" ? "premium_business" : "premium_casa";
     const fullName = String(form.elements.full_name?.value || "").trim();
     const email = String(form.elements.email?.value || "").trim().toLowerCase();
     const password = String(form.elements.password?.value || "");
@@ -960,7 +1034,7 @@
     const cloudAccepted = Boolean(form.elements.accept_cloud?.checked);
 
     if (fullName.length < 2) {
-      setMessage("error", "Inserisci nome e cognome.");
+      setMessage("error", customerSegment === "business" ? "Inserisci il nome dell’azienda o dell’attività." : "Inserisci nome e cognome.");
       return;
     }
     if (!email) {
@@ -990,6 +1064,8 @@
         data: {
           offertalogica_product: "premium",
           full_name: fullName,
+          premium_customer_segment: customerSegment,
+          premium_product_code: productCode,
           premium_legal_acceptance: "accepted",
           premium_terms_version: TERMS_VERSION,
           premium_privacy_version: PRIVACY_VERSION,
@@ -1010,12 +1086,15 @@
 
     if (data.session) {
       form.reset();
-      setMessage("success", "Account creato e accesso effettuato.");
+      renderSignupSegmentCopy();
+      setMessage("success", customerSegment === "business" ? "Account Premium Business creato e accesso effettuato." : "Account creato e accesso effettuato.");
       return;
     }
 
     if (state.resendWrap) state.resendWrap.hidden = false;
-    setMessage("success", "Account creato. Apri l’email ricevuta e conferma l’indirizzo prima di accedere.");
+    setMessage("success", customerSegment === "business"
+      ? "Account Premium Business creato. Apri l’email ricevuta e conferma l’indirizzo prima di accedere."
+      : "Account creato. Apri l’email ricevuta e conferma l’indirizzo prima di accedere.");
   }
 
   async function handleForgotPassword() {
@@ -1219,6 +1298,10 @@
   }
 
   async function handlePurchasePremium() {
+    if (subscriptionIsBusiness(currentSubscription)) {
+      setBillingMessage("", "Il pagamento Premium Business non è ancora configurato.");
+      return;
+    }
     if (!state.subscriptionPurchaseButton || state.subscriptionPurchaseButton.disabled) return;
     state.subscriptionPurchaseButton.disabled = true;
     setBillingMessage("", "Preparazione del pagamento sicuro…");
@@ -1306,6 +1389,7 @@
     state.accountPlan = byId("premiumAccountPlan");
     state.accountExpiry = byId("premiumAccountExpiry");
     state.accountStatus = byId("premiumAccountStatus");
+    state.profileType = byId("profileAccountType");
     state.profileKicker = byId("profileAccountKicker");
     state.profileTitle = byId("profileAccountTitle");
     state.profileBadge = byId("profileAccountBadge");
@@ -1329,6 +1413,12 @@
     state.subscriptionNextPrice = byId("premiumSubscriptionNextPrice");
     state.subscriptionRenewal = byId("premiumSubscriptionRenewal");
     state.subscriptionActionCopy = byId("premiumSubscriptionActionCopy");
+    state.subscriptionCommercial = document.querySelector(".subscription-commercial");
+    state.subscriptionCommercialTitle = byId("premiumSubscriptionCommercialTitle");
+    state.subscriptionCommercialPrice = byId("premiumSubscriptionCommercialPrice");
+    state.subscriptionCommercialUnit = byId("premiumSubscriptionCommercialUnit");
+    state.subscriptionCommercialPeriod = byId("premiumSubscriptionCommercialPeriod");
+    state.subscriptionCommercialNote = byId("premiumSubscriptionCommercialNote");
     state.subscriptionPurchaseButton = byId("premiumSubscriptionPurchase");
     state.subscriptionManageButton = byId("premiumSubscriptionManage");
     state.subscriptionCancelButton = byId("premiumSubscriptionCancel");
@@ -1346,6 +1436,8 @@
     state.passwordPanel = byId("premiumPasswordPanel");
     state.passwordToggle = byId("premiumPasswordToggle");
     state.signupHint = byId("premiumSignupHint");
+    state.signupSegment = byId("premiumSignupSegment");
+    state.signupNameLabel = byId("premiumSignupNameLabel");
   }
 
   function init() {
@@ -1374,6 +1466,7 @@
     });
     state.loginForm?.addEventListener("submit", handleLogin);
     state.signupForm?.addEventListener("submit", handleSignup);
+    state.signupSegment?.addEventListener("change", renderSignupSegmentCopy);
     state.recoveryForm?.addEventListener("submit", handleRecoveryPassword);
     state.changePasswordForm?.addEventListener("submit", handleChangePassword);
     byId("premiumForgotPassword")?.addEventListener("click", handleForgotPassword);
