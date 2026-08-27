@@ -320,7 +320,7 @@ async function validateStripeCommercialConfiguration(subscription: any, { requir
   const settings = commercialSettingsForSubscription(subscription);
   const price = await stripeRequest(`/v1/prices/${encodeURIComponent(settings.priceId)}`);
   const coupon = requireCoupon
-    ? await stripeRequest(`/v1/coupons/${encodeURIComponent(settings.couponId)}`)
+    ? await stripeRequest(`/v1/coupons/${encodeURIComponent(settings.couponId)}?expand[]=applies_to`)
     : null;
   let validation;
   if (!settings.business) {
