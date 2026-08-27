@@ -429,6 +429,41 @@
         .business-result { display: none; margin-top: 16px; border: 1px solid #bbf7d0; background: #f0fdf4; color: #14532d; border-radius: 10px; padding: 16px; }
         .business-result strong { display: block; font-size: 20px; margin-bottom: 6px; }
         .business-result p { margin: 0 0 10px; color: #166534; font-size: 14px; }
+        .business-ranking { display: grid; gap: 9px; margin: 14px 0; }
+        .business-ranking[hidden] { display: none !important; }
+        .business-ranking-note { margin: 0; padding: 10px 12px; border: 1px solid #d1fae5; border-radius: 9px; background: #ffffff; color: #315564; font-size: 12px; line-height: 1.45; }
+        .business-ranking-note-line { display: block; }
+        .business-ranking-note-guide { display: block; margin-top: 7px; color: #123044; }
+        .business-ranking-note-scope { display: block; margin-top: 5px; color: #475569; }
+        .business-ranking-list { display: grid; gap: 8px; }
+        .business-ranking-card { display: grid; grid-template-columns: auto minmax(0,1fr) auto; gap: 10px; align-items: center; padding: 11px 12px; border: 1px solid #dbe7df; border-radius: 10px; background: #ffffff; }
+        .business-ranking-position { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 999px; background: #dcfce7; color: #166534; font-size: 12px; font-weight: 900; }
+        .business-ranking-main { min-width: 0; display: flex; align-items: center; gap: 10px; }
+        .business-ranking-logo { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; }
+        .business-ranking-logo .provider-logo-shell { width: 82px; height: 40px; border-color: #e2e8f0; box-shadow: none; }
+        .business-ranking-logo .provider-logo { width: 66px; height: 27px; }
+        .business-ranking-logo .provider-logo-split { width: 136px; height: 40px; gap: 4px; border: 0; box-shadow: none; }
+        .business-ranking-logo .provider-logo-split-item { width: 58px; height: 40px; flex-basis: 58px; padding: 4px; box-shadow: none; }
+        .business-ranking-logo .provider-logo-split-img { width: 48px; height: 20px; }
+        .business-ranking-logo .provider-logo-split-label { font-size: 7px; }
+        .business-ranking-meta { min-width: 0; }
+        .business-ranking-meta strong { display: block; margin: 0; color: #123044; font-size: 14px; line-height: 1.25; }
+        .business-ranking-meta small { display: block; margin-top: 2px; color: #64748b; font-size: 11px; line-height: 1.35; }
+        .business-ranking-economics { text-align: right; white-space: nowrap; }
+        .business-ranking-cost-label { display: block; margin-bottom: 2px; color: #64748b; font-size: 10px; font-weight: 800; line-height: 1.2; }
+        .business-ranking-economics strong { display: block; margin: 0; color: #123044; font-size: 14px; }
+        .business-ranking-economics small { display: block; margin-top: 3px; color: #166534; font-size: 11px; }
+        .business-ranking-economics small.is-negative { color: #9a3412; }
+        @media (max-width: 620px) {
+            .business-ranking-card { grid-template-columns: auto minmax(0,1fr); }
+            .business-ranking-main { align-items: flex-start; }
+            .business-ranking-logo .provider-logo-shell { width: 72px; height: 36px; }
+            .business-ranking-logo .provider-logo { width: 58px; height: 24px; }
+            .business-ranking-logo .provider-logo-split { width: 120px; height: 36px; }
+            .business-ranking-logo .provider-logo-split-item { width: 50px; height: 36px; flex-basis: 50px; }
+            .business-ranking-logo .provider-logo-split-img { width: 42px; height: 18px; }
+            .business-ranking-economics { grid-column: 2; text-align: left; white-space: normal; }
+        }
         .business-error { color: var(--danger); font-size: 13px; margin-top: 10px; display: none; }
 
         @media (max-width: 700px) {
@@ -2325,6 +2360,7 @@
         <div class="business-result" id="business-result">
             <strong id="business-saving">Margine stimato in elaborazione</strong>
             <p id="business-copy"></p>
+            <div class="business-ranking" id="business-ranking" hidden aria-live="polite"></div>
             <button type="button" class="btn-action" onclick="apriLeadBusiness()">Sblocca analisi aziendale</button>
         </div>
     </div>
@@ -3038,6 +3074,8 @@ const STAFF_MODE_OTP = "000000";
 const OFFER_RENDER_CONTEXTS = new Map();
 let OFFERTE_ARERA_MENU = [];
 let OFFERTE_ARERA_DUAL = [];
+let OFFERTE_ARERA_BUSINESS = [];
+let OFFERTE_ARERA_DUAL_BUSINESS = [];
 let NUOVA_OFFERTA_AUTOMATICA = null;
 let BLOCCO_AUTOFILL_NUOVA_OFFERTA = false;
 
@@ -3768,6 +3806,7 @@ function normalizzaRigaAreraMenu(riga) {
     codice: riga.codice || "",
     dataInizio: riga.dataInizio || "",
     dataFine: riga.dataFine || "",
+    customerType: String(riga.customerType || "").trim().toLowerCase(),
     prezzo,
     quotaFissaAnnua,
     url: riga.url || "#",
@@ -3800,6 +3839,7 @@ function normalizzaRigaAreraDual(riga) {
     codiceOffertaGas: codiceGas,
     dataInizio: riga.dataInizio || "",
     dataFine: riga.dataFine || "",
+    customerType: String(riga.customerType || luce.customerType || gas.customerType || "").trim().toLowerCase(),
     url: riga.url || "#",
     fonte: riga.fonte || DATI_ARERA_MENU_META.fonte,
     score: numeroSicuro(riga.score, luce.score + gas.score),
@@ -3808,26 +3848,50 @@ function normalizzaRigaAreraDual(riga) {
   };
 }
 
+function sincronizzaIndiciMercatoConCatalogoArera() {
+  const indici = DATI_ARERA_MENU_META.indiciUsati;
+  const dettagli = DATI_ARERA_MENU_META.indiciUsatiDettaglio;
+  if (!indici || typeof indici !== "object") return false;
+  let aggiornato = false;
+  ["pun", "psv", "psbg"].forEach((chiave) => {
+    const valore = Number(indici[chiave]);
+    if (!Number.isFinite(valore) || valore <= 0 || !INDICI_MERCATO[chiave]) return;
+    const dettaglio = dettagli && typeof dettagli[chiave] === "object" ? dettagli[chiave] : {};
+    INDICI_MERCATO[chiave] = { ...INDICI_MERCATO[chiave], ...dettaglio, valore };
+    aggiornato = true;
+  });
+  return aggiornato;
+}
+
 function applicaDatiAreraMenu(data) {
   const offerte = Array.isArray(data) ? data : data?.offerte;
   if (!Array.isArray(offerte)) return false;
 
   const pulite = offerte
-  .map(normalizzaRigaAreraMenu)
-  .filter((riga) => riga && riga.providerKey !== "axpo");
+    .map(normalizzaRigaAreraMenu)
+    .filter((riga) => riga && riga.providerKey !== "axpo" && riga.customerType !== "business");
   if (!pulite.length) return false;
   const dualPulite = (Array.isArray(data?.offerteDual) ? data.offerteDual : [])
     .map(normalizzaRigaAreraDual)
-    .filter((riga) => riga && riga.providerKey !== "axpo");
+    .filter((riga) => riga && riga.providerKey !== "axpo" && riga.customerType !== "business");
+  const businessPulite = (Array.isArray(data?.offerteBusiness) ? data.offerteBusiness : [])
+    .map(normalizzaRigaAreraMenu)
+    .filter((riga) => riga && riga.providerKey !== "axpo" && riga.customerType === "business");
+  const dualBusinessPulite = (Array.isArray(data?.offerteDualBusiness) ? data.offerteDualBusiness : [])
+    .map(normalizzaRigaAreraDual)
+    .filter((riga) => riga && riga.providerKey !== "axpo" && riga.customerType === "business");
 
   DATI_ARERA_MENU_META = {
     versioneDati: data.versioneDati || data.version || DATI_ARERA_MENU_META.versioneDati,
     fonte: data.fonte || DATI_ARERA_MENU_META.fonte,
     aggiornatoIl: data.aggiornatoIl || DATI_ARERA_MENU_META.aggiornatoIl,
     indiciUsati: data.indiciUsati || DATI_ARERA_MENU_META.indiciUsati || null,
+    indiciUsatiDettaglio: data.indiciUsatiDettaglio || DATI_ARERA_MENU_META.indiciUsatiDettaglio || null,
   };
   OFFERTE_ARERA_MENU = pulite;
   OFFERTE_ARERA_DUAL = dualPulite;
+  OFFERTE_ARERA_BUSINESS = businessPulite;
+  OFFERTE_ARERA_DUAL_BUSINESS = dualBusinessPulite;
   return true;
 }
 
@@ -4357,13 +4421,20 @@ function businessPdfDataRows(data) {
   return rows;
 }
 
+function formattaDataCatalogoCopertura(value) {
+  const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return match ? `${match[3]}/${match[2]}/${match[1]}` : "";
+}
+
 function leggiProfiloBusiness() {
   const numberOrNull = (id) => leggiNumero(id, null);
   const f1 = numberOrNull("business-f1");
   const f2 = numberOrNull("business-f2");
   const f3 = numberOrNull("business-f3");
   const bandValues = [f1, f2, f3].filter((value) => Number.isFinite(value));
-  const consumoFasce = bandValues.length ? bandValues.reduce((sum, value) => sum + value, 0) : null;
+  const fasceComplete = [f1, f2, f3].every((value) => Number.isFinite(value));
+  const fasceParziali = bandValues.length > 0 && !fasceComplete;
+  const consumoFasce = fasceComplete ? bandValues.reduce((sum, value) => sum + value, 0) : null;
   const consumoLuceManuale = numberOrNull("business-kwh");
   const consumoLuce = consumoFasce !== null ? consumoFasce : consumoLuceManuale;
   const consumoGas = numberOrNull("business-smc");
@@ -4376,6 +4447,9 @@ function leggiProfiloBusiness() {
   const hasLuce = [consumoLuce, prezzoLuce, fissoLuce, pdfData.pod, pdfData.fornitore_luce].some((value) => value !== null && value !== undefined && value !== "");
   const hasGas = [consumoGas, prezzoGas, fissoGas, pdfData.pdr, pdfData.fornitore_gas].some((value) => value !== null && value !== undefined && value !== "");
   const campiMancanti = [];
+  if (fasceParziali && !Number.isFinite(consumoLuceManuale)) {
+    campiMancanti.push("F1/F2/F3 complete oppure consumo annuo luce totale");
+  }
   if (hasLuce) {
     if (!Number.isFinite(consumoLuce)) campiMancanti.push("consumo annuo luce");
     if (!Number.isFinite(prezzoLuce)) campiMancanti.push("prezzo vendita luce");
@@ -4416,6 +4490,8 @@ function leggiProfiloBusiness() {
     prezzoGasEurSmc: prezzoGas,
     quotaFissaLuceAnnua: fissoLuce,
     quotaFissaGasAnnua: fissoGas,
+    costoAttualeLuce: attualeLuce,
+    costoAttualeGas: attualeGas,
     costoAttuale,
     costoBenchmark: null,
     risparmioStimato: 0,
@@ -4432,8 +4508,245 @@ function leggiProfiloBusiness() {
     nomeOffertaGas: LEAD_STATE.pdfData?.nome_offerta_gas || null,
     codiceOffertaLuce: LEAD_STATE.pdfData?.codice_offerta_luce || null,
     codiceOffertaGas: LEAD_STATE.pdfData?.codice_offerta_gas || null,
-    metodologia: "Nessun benchmark o valore economico standard inserito: il profilo contiene soltanto dati letti o confermati.",
+    metodologia: "Il confronto business usa esclusivamente componente energia/gas e quota fissa di vendita disponibili nel catalogo ARERA; non stima rete, oneri, imposte o IVA.",
   };
+}
+
+function calcolaCostoVenditaBusiness(consumo, prezzo, quotaFissaAnnua) {
+  const c = Number(consumo);
+  const p = Number(prezzo);
+  const f = Number(quotaFissaAnnua);
+  if (![c, p, f].every(Number.isFinite) || c < 0 || p < 0 || f < 0) return null;
+  return c * p + f;
+}
+
+function descriviAmbitoBusiness(candidato) {
+  if (candidato?.ambito === "dual") return candidato?.separate ? "Luce + gas, forniture separate" : "Luce + gas, offerta dual";
+  return candidato?.ambito === "gas" ? "Gas" : "Luce";
+}
+
+function offertaBusinessCompatibileGenerica(riga) {
+  if (!riga || riga.customerType !== "business") return false;
+  const testo = [
+    riga.nome, riga.url,
+    riga.luce?.nome, riga.luce?.url,
+    riga.gas?.nome, riga.gas?.url,
+  ].filter(Boolean).join(" ");
+  return !/\bcondomin(?:io|i|iale|iali)\b/i.test(testo);
+}
+
+function creaCandidatoBusinessSingolo(riga, profile) {
+  if (!offertaBusinessCompatibileGenerica(riga)) return null;
+  const commodity = riga.commodity === "gas" ? "gas" : "luce";
+  const consumo = commodity === "luce" ? profile.consumoLuceKwh : profile.consumoGasSmc;
+  const costoAttuale = commodity === "luce" ? profile.costoAttualeLuce : profile.costoAttualeGas;
+  const costo = calcolaCostoVenditaBusiness(consumo, riga.prezzo, riga.quotaFissaAnnua);
+  if (!Number.isFinite(costo) || !Number.isFinite(costoAttuale)) return null;
+  return {
+    id: `business-${commodity}-${riga.codice || `${riga.providerKey}-${riga.nome}`}`,
+    ambito: commodity,
+    separate: false,
+    provider: riga.providerLabel || riga.fornitore || "Fornitore",
+    nome: riga.nome || "Offerta business",
+    tipo: riga.tipo || "fisso",
+    costo,
+    costoAttuale,
+    differenza: costoAttuale - costo,
+    fonte: riga.fonte || DATI_ARERA_MENU_META.fonte,
+    codici: [riga.codice].filter(Boolean),
+  };
+}
+
+function creaCandidatoBusinessDual(riga, profile) {
+  if (!offertaBusinessCompatibileGenerica(riga) || riga.fornitura !== "dual") return null;
+  const costoLuce = calcolaCostoVenditaBusiness(profile.consumoLuceKwh, riga.luce?.prezzo, riga.luce?.quotaFissaAnnua);
+  const costoGas = calcolaCostoVenditaBusiness(profile.consumoGasSmc, riga.gas?.prezzo, riga.gas?.quotaFissaAnnua);
+  if (![costoLuce, costoGas, profile.costoAttuale].every(Number.isFinite)) return null;
+  const costo = costoLuce + costoGas;
+  return {
+    id: `business-dual-${riga.codice || `${riga.providerKey}-${riga.nome}`}`,
+    ambito: "dual",
+    separate: false,
+    provider: riga.providerLabel || riga.fornitore || "Fornitore",
+    nome: riga.nome || "Offerta business luce e gas",
+    tipo: riga.tipo || "fisso",
+    costo,
+    costoAttuale: profile.costoAttuale,
+    differenza: profile.costoAttuale - costo,
+    fonte: riga.fonte || DATI_ARERA_MENU_META.fonte,
+    codici: [riga.codiceOffertaLuce, riga.codiceOffertaGas].filter(Boolean),
+  };
+}
+
+function creaCandidatoBusinessSeparato(luce, gas, profile) {
+  if (!luce || !gas) return null;
+  const costo = luce.costo + gas.costo;
+  return {
+    id: `business-separate-${luce.id}-${gas.id}`,
+    ambito: "dual",
+    separate: true,
+    provider: `${luce.provider} + ${gas.provider}`,
+    nome: `${luce.nome} + ${gas.nome}`,
+    tipo: luce.tipo === gas.tipo ? luce.tipo : "misto",
+    costo,
+    costoAttuale: profile.costoAttuale,
+    differenza: profile.costoAttuale - costo,
+    fonte: `${luce.fonte} | ${gas.fonte}`,
+    codici: [...luce.codici, ...gas.codici],
+  };
+}
+
+function selezionaRankingBusiness(candidati, limite = 9) {
+  return [...candidati]
+    .filter((item) => item && Number.isFinite(item.costo) && Number.isFinite(item.differenza))
+    .sort((a, b) => (a.costo - b.costo) || (b.differenza - a.differenza) || String(a.provider).localeCompare(String(b.provider)))
+    .slice(0, limite)
+    .map((item, index) => ({ ...item, posizioneEconomica: index + 1 }));
+}
+
+function costruisciRankingBusiness(profile, limite = 9) {
+  const hasLuce = Number.isFinite(profile?.consumoLuceKwh) && Number.isFinite(profile?.costoAttualeLuce);
+  const hasGas = Number.isFinite(profile?.consumoGasSmc) && Number.isFinite(profile?.costoAttualeGas);
+  if (!hasLuce && !hasGas) return [];
+
+  const luce = hasLuce
+    ? OFFERTE_ARERA_BUSINESS.filter((riga) => riga.commodity === "luce").map((riga) => creaCandidatoBusinessSingolo(riga, profile)).filter(Boolean)
+    : [];
+  const gas = hasGas
+    ? OFFERTE_ARERA_BUSINESS.filter((riga) => riga.commodity === "gas").map((riga) => creaCandidatoBusinessSingolo(riga, profile)).filter(Boolean)
+    : [];
+
+  if (hasLuce && !hasGas) return selezionaRankingBusiness(luce, limite);
+  if (hasGas && !hasLuce) return selezionaRankingBusiness(gas, limite);
+
+  const topLuce = selezionaRankingBusiness(luce, limite);
+  const topGas = selezionaRankingBusiness(gas, limite);
+  const separate = [];
+  topLuce.forEach((luceItem) => {
+    topGas.forEach((gasItem) => {
+      const candidato = creaCandidatoBusinessSeparato(luceItem, gasItem, profile);
+      if (candidato) separate.push(candidato);
+    });
+  });
+  const dual = OFFERTE_ARERA_DUAL_BUSINESS
+    .map((riga) => creaCandidatoBusinessDual(riga, profile))
+    .filter(Boolean);
+
+  return selezionaRankingBusiness([...dual, ...separate], limite);
+}
+
+function chiaveProfiloBusiness(profile) {
+  return JSON.stringify([
+    profile?.consumoLuceKwh, profile?.consumoGasSmc,
+    profile?.prezzoLuceEurKwh, profile?.prezzoGasEurSmc,
+    profile?.quotaFissaLuceAnnua, profile?.quotaFissaGasAnnua,
+    profile?.fasce?.f1, profile?.fasce?.f2, profile?.fasce?.f3,
+  ]);
+}
+
+function testoCoperturaBusiness(profile, rankingCount) {
+  if (!OFFERTE_ARERA_BUSINESS.length && !OFFERTE_ARERA_DUAL_BUSINESS.length) return "";
+  const hasLuce = Number.isFinite(profile?.consumoLuceKwh) && Number.isFinite(profile?.costoAttualeLuce);
+  const hasGas = Number.isFinite(profile?.consumoGasSmc) && Number.isFinite(profile?.costoAttualeGas);
+  const singolePertinenti = OFFERTE_ARERA_BUSINESS
+    .filter((riga) => offertaBusinessCompatibileGenerica(riga))
+    .filter((riga) => (hasLuce && riga.commodity === "luce") || (hasGas && riga.commodity === "gas"))
+    .map((riga) => creaCandidatoBusinessSingolo(riga, profile))
+    .filter(Boolean).length;
+  const dualPertinenti = hasLuce && hasGas
+    ? OFFERTE_ARERA_DUAL_BUSINESS.map((riga) => creaCandidatoBusinessDual(riga, profile)).filter(Boolean).length
+    : 0;
+  const totaleCatalogo = OFFERTE_ARERA_BUSINESS.length + OFFERTE_ARERA_DUAL_BUSINESS.length;
+  const pertinenti = singolePertinenti + dualPertinenti;
+  const data = formattaDataCatalogoCopertura(DATI_ARERA_MENU_META.aggiornatoIl);
+  const aggiornamento = data ? ` aggiornato al ${data}` : "";
+  return `Catalogo business${aggiornamento} · ${totaleCatalogo} offerte monitorate · ${pertinenti} offerte pertinenti alle forniture indicate · ${Math.max(0, Number(rankingCount) || 0)} risultati mostrati.`;
+}
+
+function renderRankingBusiness(profile, ranking) {
+  const container = document.getElementById("business-ranking");
+  if (!container) return;
+  container.innerHTML = "";
+  if (!ranking.length) {
+    container.hidden = true;
+    return;
+  }
+
+  container.hidden = false;
+  const note = document.createElement("p");
+  note.className = "business-ranking-note";
+  const copertura = testoCoperturaBusiness(profile, ranking.length);
+  if (copertura) {
+    const coverageLine = document.createElement("span");
+    coverageLine.className = "business-ranking-note-line";
+    coverageLine.textContent = copertura;
+    note.appendChild(coverageLine);
+  }
+  const guideLine = document.createElement("span");
+  guideLine.className = "business-ranking-note-guide";
+  const guideTitle = document.createElement("strong");
+  guideTitle.textContent = "Come leggere i risultati: ";
+  guideLine.append(
+    guideTitle,
+    document.createTextNode("l'importo grande è il costo annuo stimato dell'offerta; la riga verde o rossa mostra il risparmio o il costo superiore rispetto alla fornitura attuale.")
+  );
+  const scopeLine = document.createElement("span");
+  scopeLine.className = "business-ranking-note-scope";
+  scopeLine.textContent = "Risultati basati su offerte business ARERA compatibili con il profilo aziendale inserito. La stima considera componente energia/gas e quota fissa di vendita. Rete, oneri, imposte e IVA non sono inclusi nella stima.";
+  note.append(guideLine, scopeLine);
+  container.appendChild(note);
+
+  const list = document.createElement("div");
+  list.className = "business-ranking-list";
+  ranking.forEach((item) => {
+    const card = document.createElement("div");
+    card.className = "business-ranking-card";
+
+    const position = document.createElement("span");
+    position.className = "business-ranking-position";
+    position.textContent = String(item.posizioneEconomica);
+
+    const main = document.createElement("div");
+    main.className = "business-ranking-main";
+    const logoHtml = htmlLogoBusiness(item);
+    if (logoHtml) {
+      const logo = document.createElement("span");
+      logo.className = "business-ranking-logo";
+      logo.setAttribute("aria-hidden", "true");
+      logo.innerHTML = logoHtml;
+      main.appendChild(logo);
+    }
+
+    const meta = document.createElement("div");
+    meta.className = "business-ranking-meta";
+    const title = document.createElement("strong");
+    title.textContent = item.provider;
+    const detail = document.createElement("small");
+    const tipo = item.tipo === "variabile" ? "Prezzo variabile" : item.tipo === "misto" ? "Prezzi misti" : "Prezzo fisso";
+    detail.textContent = `${item.nome} · ${tipo} · ${descriviAmbitoBusiness(item)}`;
+    meta.append(title, detail);
+    main.appendChild(meta);
+
+    const economics = document.createElement("div");
+    economics.className = "business-ranking-economics";
+    const costLabel = document.createElement("span");
+    costLabel.className = "business-ranking-cost-label";
+    costLabel.textContent = "Costo annuo stimato dell'offerta";
+    const cost = document.createElement("strong");
+    cost.textContent = `${euro(item.costo)} / anno`;
+    const difference = document.createElement("small");
+    if (item.differenza >= 0) {
+      difference.textContent = `Risparmio stimato rispetto all'attuale: ${euro(item.differenza)} / anno`;
+    } else {
+      difference.className = "is-negative";
+      difference.textContent = `Costo superiore all'attuale di ${euro(Math.abs(item.differenza))} / anno`;
+    }
+    economics.append(costLabel, cost, difference);
+
+    card.append(position, main, economics);
+    list.appendChild(card);
+  });
+  container.appendChild(list);
 }
 
 function mostraBusinessErrore(message) {
@@ -4453,34 +4766,66 @@ window.calcolaBusiness = function calcolaBusiness() {
     trackEvent("business_calculation_incomplete", { missingFields: profile.campiMancanti });
     mostraBusinessErrore(`Dati insufficienti: ${profile.campiMancanti.join(", ")}. Nessun valore standard è stato inserito.`);
     if (result) result.style.display = "none";
+    renderRankingBusiness(profile, []);
     return null;
   }
 
+  const ranking = costruisciRankingBusiness(profile, 9);
+  const migliore = ranking[0] || null;
+  const profiloCalcolato = {
+    ...profile,
+    costoBenchmark: migliore?.costo ?? null,
+    risparmioStimato: migliore?.differenza ?? 0,
+    rankingBusiness: ranking,
+    rankingBusinessProfileKey: chiaveProfiloBusiness(profile),
+  };
+
   LEAD_STATE.customerType = "business";
   LEAD_STATE.dataOrigin = determinaOrigineDatoLead();
-  LEAD_STATE.businessProfile = profile;
-  LEAD_STATE.bestSaving = 0;
+  LEAD_STATE.businessProfile = profiloCalcolato;
+  LEAD_STATE.bestSaving = Math.max(0, Number(profiloCalcolato.risparmioStimato) || 0);
   LEAD_STATE.bestPartnerSaving = 0;
 
   const saving = document.getElementById("business-saving");
   const copy = document.getElementById("business-copy");
-  if (saving) saving.innerText = "Dati completi e pronti per la verifica consulenziale";
-  if (copy) copy.innerText = "Il profilo contiene soltanto dati letti dal PDF o inseriti manualmente. Nessun prezzo, quota o risparmio standard è stato aggiunto.";
+  if (migliore) {
+    if (saving) {
+      saving.innerText = migliore.differenza >= 0
+        ? `Miglior risparmio stimato: ${euro(migliore.differenza)} / anno`
+        : `Miglior costo annuo stimato trovato: ${euro(migliore.costo)} / anno`;
+    }
+    if (copy) {
+      copy.innerText = migliore.differenza >= 0
+        ? "Le offerte mostrate sono offerte business ARERA compatibili con le forniture indicate e sono ordinate per costo annuo stimato della componente di vendita."
+        : "Nel catalogo business attuale non emerge una proposta con componente di vendita inferiore ai dati inseriti. Puoi comunque verificare condizioni e dettagli con assistenza.";
+    }
+  } else {
+    if (saving) saving.innerText = "Profilo business completo";
+    if (copy) copy.innerText = "Il catalogo business non ha prodotto offerte confrontabili per questo profilo. I dati restano disponibili per la verifica consulenziale.";
+  }
+  renderRankingBusiness(profiloCalcolato, ranking);
   if (result) result.style.display = "block";
   trackEvent("business_calculation_completed", {
     customerType: "business",
     dataOrigin: determinaOrigineDatoLead(),
-    bestSaving: 0,
+    bestSaving: LEAD_STATE.bestSaving,
+    rankingOffersCount: ranking.length,
+    businessCatalogOffersCount: OFFERTE_ARERA_BUSINESS.length,
+    businessCatalogDualOffersCount: OFFERTE_ARERA_DUAL_BUSINESS.length,
   });
-  return profile;
+  return profiloCalcolato;
 };
 
 window.apriLeadBusiness = function apriLeadBusiness() {
-  const profile = leggiProfiloBusiness();
+  const profileLetto = leggiProfiloBusiness();
+  const profileCalcolato = LEAD_STATE.businessProfile;
+  const usaCalcolato = profileCalcolato?.rankingBusinessProfileKey
+    && profileCalcolato.rankingBusinessProfileKey === chiaveProfiloBusiness(profileLetto);
+  const profile = usaCalcolato ? profileCalcolato : profileLetto;
   LEAD_STATE.customerType = "business";
   LEAD_STATE.dataOrigin = determinaOrigineDatoLead();
   LEAD_STATE.businessProfile = profile;
-  LEAD_STATE.bestSaving = 0;
+  LEAD_STATE.bestSaving = Math.max(0, Number(profile.risparmioStimato) || 0);
   LEAD_STATE.bestPartnerSaving = 0;
   trackEvent("business_lead_modal_requested", {
     customerType: "business",
@@ -5200,6 +5545,50 @@ function htmlLogoOffertaSeparata(offerta) {
       ${htmlLogoMiniComponente(luceBrand, "luce")}
       <span class="provider-logo-split-plus" aria-hidden="true">+</span>
       ${htmlLogoMiniComponente(gasBrand, "gas")}
+    </span>
+  `;
+}
+
+function htmlLogoBusiness(item) {
+  const providerLabels = String(item?.provider || "")
+    .split(/\s+\+\s+/)
+    .map((label) => label.trim())
+    .filter(Boolean);
+  if (!providerLabels.length) return "";
+
+  const brands = providerLabels.map((label) => brandDaRiferimento("", label));
+  const brandsConLogo = brands.filter((brand) => brand?.logo);
+  if (!brandsConLogo.length) return "";
+
+  const chiavi = [...new Set(brandsConLogo.map((brand) => brand.key || brand.label).filter(Boolean))];
+  if (brandsConLogo.length === 1 || chiavi.length === 1) {
+    const brand = brandsConLogo[0];
+    const label = testoHtmlSicuro(brand.label || providerLabels[0] || "Fornitore");
+    const shellClass = brand.logoShell === "dark" ? "provider-logo-shell is-logo-on-dark" : "provider-logo-shell";
+    return `
+      <span class="${shellClass}" title="${label}">
+        <img class="provider-logo" src="${testoHtmlSicuro(brand.logo)}" alt="${label}" loading="lazy">
+      </span>
+    `;
+  }
+
+  if (brands.length >= 2 && brands[0]?.logo && brands[1]?.logo) {
+    const title = testoHtmlSicuro(`${brands[0].label || providerLabels[0]} + ${brands[1].label || providerLabels[1]}`);
+    return `
+      <span class="provider-logo-shell provider-logo-split" title="${title}">
+        ${htmlLogoMiniComponente(brands[0], "luce")}
+        <span class="provider-logo-split-plus" aria-hidden="true">+</span>
+        ${htmlLogoMiniComponente(brands[1], "gas")}
+      </span>
+    `;
+  }
+
+  const brand = brandsConLogo[0];
+  const label = testoHtmlSicuro(brand.label || providerLabels[0] || "Fornitore");
+  const shellClass = brand.logoShell === "dark" ? "provider-logo-shell is-logo-on-dark" : "provider-logo-shell";
+  return `
+    <span class="${shellClass}" title="${label}">
+      <img class="provider-logo" src="${testoHtmlSicuro(brand.logo)}" alt="${label}" loading="lazy">
     </span>
   `;
 }

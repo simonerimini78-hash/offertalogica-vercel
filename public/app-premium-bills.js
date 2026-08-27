@@ -1016,6 +1016,25 @@
     return Boolean(bill && bill.processing_status === "completed" && allowed.includes(bill.commodity));
   }
 
+  function comparisonBillMatchesSegment(bill) {
+    const segment = premiumOperationContext().customerSegment;
+    const billSegment = String(bill?.customer_segment || "").trim().toLowerCase();
+    if (segment === "business") return billSegment === "business";
+    return !billSegment || billSegment === "consumer";
+  }
+
+  function comparisonContractEndForBill(bill, commodity) {
+    const isLight = commodity === "luce";
+    const data = analysisDataForBill(bill);
+    const contract = contractForBill(bill);
+    return String(
+      data[isLight ? "scadenza_condizioni_economiche_luce" : "scadenza_condizioni_economiche_gas"]
+      || contract?.fixed_price_expiry
+      || contract?.contract_end
+      || ""
+    ).trim() || null;
+  }
+
   function comparisonPrecisionLimitedForBill(bill, commodity) {
     const suffix = commodity === "luce" ? "luce" : "gas";
     const expectedCodes = new Set([
@@ -1068,18 +1087,20 @@
     return annual;
   }
 
-  function comparisonConsumptionForUtility(utilityId, commodity, referenceTime = Date.now()) {
+  function comparisonConsumptionForUtility(utilityId, commodity, referenceTime = Date.now(), options = {}) {
     if (!utilityId) return null;
+    const requireContractEndForDeclared = options.requireContractEndForDeclared === true;
     const isLight = commodity === "luce";
     const periodField = isLight ? "consumo_periodo_luce_kwh" : "consumo_periodo_gas_smc";
     const utilityBills = bills
-      .filter(bill => bill?.utility_id === utilityId && comparisonBillSupportsCommodity(bill, commodity))
+      .filter(bill => bill?.utility_id === utilityId && comparisonBillMatchesSegment(bill) && comparisonBillSupportsCommodity(bill, commodity))
       .sort((left, right) => comparisonBillTime(right) - comparisonBillTime(left));
 
     const maxAnnualAgeMs = 400 * 86_400_000;
     const declared = utilityBills.find(bill => {
       const value = comparisonDeclaredAnnualForBill(bill, commodity);
       if (!(value > 0)) return false;
+      if (requireContractEndForDeclared && !comparisonContractEndForBill(bill, commodity)) return false;
       const sourceTime = comparisonBillTime(bill);
       return !Number.isFinite(referenceTime) || !sourceTime || Math.abs(referenceTime - sourceTime) <= maxAnnualAgeMs;
     });
@@ -1133,13 +1154,20 @@
   }
 
   function comparisonSupplyFromBill(bill, commodity) {
-    if (!comparisonBillSupportsCommodity(bill, commodity)) return null;
+    if (!comparisonBillMatchesSegment(bill) || !comparisonBillSupportsCommodity(bill, commodity)) return null;
     const isLight = commodity === "luce";
     const data = analysisDataForBill(bill);
     const price = finiteNumberOrNull(data[isLight ? "prezzo_luce_eur_kwh" : "prezzo_gas_eur_smc"]);
     const fixedFee = finiteNumberOrNull(data[isLight ? "quota_fissa_vendita_luce_eur_anno" : "quota_fissa_vendita_gas_eur_anno"]);
     if (!(price > 0) || fixedFee === null) return null;
-    const consumptionProfile = comparisonConsumptionForUtility(bill.utility_id, commodity, comparisonBillTime(bill));
+    const operationContext = premiumOperationContext();
+    const contractEndDate = comparisonContractEndForBill(bill, commodity);
+    const consumptionProfile = comparisonConsumptionForUtility(
+      bill.utility_id,
+      commodity,
+      comparisonBillTime(bill),
+      { requireContractEndForDeclared: operationContext.customerSegment === "business" }
+    );
     if (!(consumptionProfile?.value > 0)) return null;
     const contract = contractForBill(bill);
     const provider = String(
@@ -1154,6 +1182,11 @@
       ? finiteNumberOrNull(data.potenza_impegnata_kw)
       : null;
     const pricePrecisionLimited = comparisonPrecisionLimitedForBill(bill, commodity);
+    const annualBands = isLight ? {
+      f1: finiteNumberOrNull(data.consumo_luce_f1_kwh),
+      f2: finiteNumberOrNull(data.consumo_luce_f2_kwh),
+      f3: finiteNumberOrNull(data.consumo_luce_f3_kwh),
+    } : null;
     return {
       commodity,
       billId: bill.id,
@@ -1171,6 +1204,8 @@
       provider,
       priceType,
       committedPowerKw,
+      contractEndDate,
+      annualBands,
       pricePrecisionLimited,
       precisionLimited: Boolean(pricePrecisionLimited || consumptionProfile.precisionLimited),
     };
@@ -1184,6 +1219,7 @@
   }
 
   function buildPremiumComparisonProfile() {
+    const operationContext = premiumOperationContext();
     const luce = latestComparisonSupply("luce");
     const gas = latestComparisonSupply("gas");
     if (!luce && !gas) return null;
@@ -1192,7 +1228,10 @@
     const priceTypes = [luce?.priceType, gas?.priceType].filter(Boolean);
     const priceType = priceTypes.length && new Set(priceTypes).size === 1 ? priceTypes[0] : null;
     return {
-      version: "premium-comparison-prefill-v4-real-consumption-history",
+      version: "premium-comparison-prefill-v5-segment-aware",
+      customerSegment: operationContext.customerSegment,
+      productCode: operationContext.productCode,
+      planCode: operationContext.planCode,
       luce,
       gas,
       priceType,
@@ -1372,6 +1411,51 @@
       return false;
     }
     if (!doc || frameUrl.origin !== location.origin || !["/", "/index.html"].includes(frameUrl.pathname)) return false;
+
+    if (profile.customerSegment === "business") {
+      const businessButton = doc.getElementById("btn-segmento-business");
+      if (typeof frame.contentWindow?.selezionaSegmentoCliente === "function") {
+        frame.contentWindow.selezionaSegmentoCliente("business");
+      } else {
+        businessButton?.click?.();
+      }
+
+      let applied = 0;
+      const applyBusinessSupply = (supply, commodity) => {
+        if (!supply) return;
+        const light = commodity === "luce";
+        if (supply.provider && setComparisonField(doc, light ? "business-fornitore" : "business-fornitore-gas", supply.provider)) applied += 1;
+        if (setComparisonField(doc, light ? "business-kwh" : "business-smc", supply.consumption)) applied += 1;
+        if (setComparisonField(doc, light ? "business-prezzo-luce" : "business-prezzo-gas", supply.price)) applied += 1;
+        if (setComparisonField(doc, light ? "business-fisso-luce" : "business-fisso-gas", supply.fixedFee)) applied += 1;
+        if (light && supply.committedPowerKw) setComparisonField(doc, "business-potenza", supply.committedPowerKw);
+        if (light && supply.annualBands) {
+          const { f1, f2, f3 } = supply.annualBands;
+          if (f1 > 0 && f2 > 0 && f3 > 0) {
+            setComparisonField(doc, "business-f1", f1);
+            setComparisonField(doc, "business-f2", f2);
+            setComparisonField(doc, "business-f3", f3);
+          }
+        }
+      };
+      applyBusinessSupply(profile.luce, "luce");
+      applyBusinessSupply(profile.gas, "gas");
+
+      const required = 4 * Number(Boolean(profile.luce)) + 4 * Number(Boolean(profile.gas));
+      if (applied < required) return false;
+      const calculated = typeof frame.contentWindow?.calcolaBusiness === "function"
+        ? frame.contentWindow.calcolaBusiness()
+        : null;
+      if (!calculated) return false;
+      doc.getElementById("business-result")?.scrollIntoView?.({ behavior: "auto", block: "start" });
+      const subtitle = document.getElementById("appBrowserSubtitle");
+      if (subtitle) {
+        const sources = comparisonSourceCopy(profile);
+        subtitle.textContent = sources ? `Dati Premium Business inseriti · ${sources}` : "Dati Premium Business inseriti automaticamente";
+      }
+      return true;
+    }
+
     const precise = doc.getElementById("btn-attiva-precisi");
     precise?.click();
 

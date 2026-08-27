@@ -1,5 +1,5 @@
-// premium-analysis-info-ux-v03651-business-segment-p2
-const CACHE = "offertalogica-premium-v03651-analysis-info-ux-business-segment-p2";
+// premium-analysis-info-ux-v03651-business-ranking-p3
+const CACHE = "offertalogica-premium-v03651-analysis-info-ux-business-ranking-p3";
 const APP_SHELL = [
   "/app.html",
   "/app-dialog.js",
