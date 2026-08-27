@@ -2207,7 +2207,7 @@
   }
 
   async function removeCollaborator(item) {
-    if (!isOwner() || busy || item?.role === "owner" || item?.removed_at) return;
+    if (!isOwner() || busy || item?.role === "owner" || item?.removed_at) return false;
     const pendingInvite = String(item.activation_status || "") === "invited_pending";
     const label = item.email || item.user_id || "collaboratore";
     const confirmed = await confirmAction({
@@ -2218,7 +2218,7 @@
       keyword: pendingInvite ? "ANNULLA" : "RIMUOVI",
       confirmLabel: pendingInvite ? "ANNULLA INVITO" : "RIMUOVI",
     });
-    if (!confirmed) return;
+    if (!confirmed) return false;
     setBusy(true);
     try {
       const { error } = await client.rpc("premium_owner_remove_staff", {
@@ -2231,15 +2231,17 @@
       await loadCollaborators({ silent: true });
       setMessage("success", pendingInvite ? "Invito annullato." : "Collaboratore rimosso. Lo storico resta conservato.");
       window.dispatchEvent(new Event("offertalogica:staff-save-complete"));
+      return true;
     } catch (error) {
       setMessage("error", friendlyError(error));
+      return false;
     } finally {
       setBusy(false);
     }
   }
 
   async function restoreCollaborator(item) {
-    if (!isOwner() || busy || item?.role === "owner" || !item?.removed_at) return;
+    if (!isOwner() || busy || item?.role === "owner" || !item?.removed_at) return false;
     const role = collaboratorEditableRole(item.role);
     const label = item.email || item.user_id || "collaboratore";
     const confirmed = await confirmAction({
@@ -2247,7 +2249,7 @@
       message: `Ripristinare ${label} come ${roleLabel(role)}? Per un Amministratore i permessi specifici dovranno essere assegnati nuovamente.`,
       confirmLabel: "RIPRISTINA",
     });
-    if (!confirmed) return;
+    if (!confirmed) return false;
     setBusy(true);
     try {
       const { error } = await client.rpc("premium_owner_restore_staff", {
@@ -2259,8 +2261,10 @@
       await loadCollaborators({ silent: true });
       setMessage("success", "Collaboratore ripristinato.");
       window.dispatchEvent(new Event("offertalogica:staff-save-complete"));
+      return true;
     } catch (error) {
       setMessage("error", friendlyError(error));
+      return false;
     } finally {
       setBusy(false);
     }
@@ -2364,6 +2368,67 @@
     }));
     if (!silent) setMessage("success", "Collaboratori aggiornati.");
   }
+
+  async function collaboratorActionTarget(userId, { includeRemoved = false } = {}) {
+    if (!isOwner()) throw new Error("premium_owner_required");
+    const id = String(userId || "").trim();
+    if (!id) throw new Error("premium_staff_member_not_found");
+
+    if (includeRemoved && !includeRemovedCollaborators) {
+      includeRemovedCollaborators = true;
+      await loadCollaborators({ silent: true });
+    } else if (!collaboratorsLoaded) {
+      await loadCollaborators({ silent: true });
+    }
+
+    let item = cache.collaborators.find(row => String(row?.user_id || "") === id) || null;
+    if (!item && !includeRemovedCollaborators) {
+      includeRemovedCollaborators = true;
+      await loadCollaborators({ silent: true });
+      item = cache.collaborators.find(row => String(row?.user_id || "") === id) || null;
+    }
+    if (!item) throw new Error("premium_staff_member_not_found");
+    return item;
+  }
+
+  function focusCollaboratorFromManagement({ userId = "", email = "" } = {}) {
+    if (!isOwner()) return false;
+    setTab("collaborators");
+    const query = String(email || userId || "").trim();
+    window.setTimeout(() => {
+      const search = byId("p7CollaboratorSearch");
+      if (!search || !query) return;
+      search.value = query;
+      search.dispatchEvent(new Event("input", { bubbles: true }));
+    }, 0);
+    return true;
+  }
+
+  async function removeCollaboratorFromManagement(userId) {
+    try {
+      const item = await collaboratorActionTarget(userId, { includeRemoved: false });
+      return await removeCollaborator(item);
+    } catch (error) {
+      setMessage("error", friendlyError(error));
+      return false;
+    }
+  }
+
+  async function restoreCollaboratorFromManagement(userId) {
+    try {
+      const item = await collaboratorActionTarget(userId, { includeRemoved: true });
+      return await restoreCollaborator(item);
+    } catch (error) {
+      setMessage("error", friendlyError(error));
+      return false;
+    }
+  }
+
+  window.OffertaLogicaStaffCollaboratorActions = Object.freeze({
+    focus: focusCollaboratorFromManagement,
+    remove: removeCollaboratorFromManagement,
+    restore: restoreCollaboratorFromManagement,
+  });
 
   async function loadSystemConfig() {
     if (!isAdmin()) {

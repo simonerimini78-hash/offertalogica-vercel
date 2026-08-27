@@ -4,7 +4,6 @@
   const SUPABASE_URL = "https://kzxdamhfmzaxonpkytcf.supabase.co";
   const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_poz1xBKiXceLCFV3u_tPIg_5_-ycHcl";
   const STORAGE_KEY = "offertalogica-premium-staff-auth";
-  const MANAGEMENT_RELEASE = "0.36.71";
   const DAYS = [7, 30, 90, 365];
   let loading = false;
   let currentDays = 30;
@@ -153,6 +152,7 @@
           <select id="economicDays" aria-label="Periodo contabilità e tariffe">
             ${DAYS.map(day => `<option value="${day}" ${day === currentDays ? "selected" : ""}>Ultimi ${day} giorni</option>`).join("")}
           </select>
+          <button class="button secondary" id="economicExport" type="button">Esporta CSV</button>
           <button class="button secondary" id="economicRefresh" type="button">Aggiorna</button>
         </div>
       </div>
@@ -215,7 +215,7 @@
         <section class="panel">
           <div class="panel-head"><div><h3>Registro economico</h3><small>Movimenti automatici e manuali del periodo. Le voci senza prezzo non vengono trasformate in zero.</small></div></div>
           <div class="table-wrap"><table class="economic-table">
-            <thead><tr><th>Data</th><th>Tipo</th><th>Categoria</th><th>Origine</th><th>Stato</th><th>Netto</th><th>IVA</th><th>Lordo</th><th>Nota</th></tr></thead>
+            <thead><tr><th>Data</th><th>Tipo</th><th>Categoria</th><th>Origine</th><th>Stato</th><th>Netto</th><th>IVA</th><th>Lordo</th><th>Nota</th><th>Azioni</th></tr></thead>
             <tbody id="economicEntries"></tbody>
           </table></div>
         </section>
@@ -223,6 +223,7 @@
     `;
     byId("economicDays")?.addEventListener("change", event => { currentDays = Number(event.target.value) || 30; refresh(); });
     byId("economicRefresh")?.addEventListener("click", refresh);
+    byId("economicExport")?.addEventListener("click", exportEconomicCsv);
     byId("economicManualForm")?.addEventListener("submit", saveManualEntry);
     byId("economicNewRateForm")?.addEventListener("submit", saveNewRate);
     installed = true;
@@ -335,26 +336,81 @@
     target.querySelectorAll("form[data-rate-key]").forEach(form => form.addEventListener("submit", saveRate));
   }
 
+  function economicCsvCell(value) {
+    const text = String(value ?? "");
+    return `"${text.replaceAll('"', '""')}"`;
+  }
+
+  function exportEconomicCsv() {
+    const entries = Array.isArray(snapshot?.entries) ? snapshot.entries : [];
+    if (!entries.length) {
+      setStatus("warn", "Nessun movimento economico da esportare nel periodo selezionato.");
+      return;
+    }
+    const rows = [["Data", "Tipo", "Categoria", "Origine", "Stato", "Netto EUR", "IVA EUR", "Lordo EUR", "Nota", "ID"], ...entries.map(entry => [
+      entry.occurred_at || "", entry.direction || "", entry.category || "", entry.source_system || "", entry.status || "", entry.amount_net_eur ?? "", entry.vat_eur ?? "", entry.amount_gross_eur ?? "", entry.notes || "", entry.id || "",
+    ])];
+    const content = "\ufeff" + rows.map(row => row.map(economicCsvCell).join(";")).join("\r\n") + "\r\n";
+    const blob = new Blob([content], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `offertalogica-registro-economico-${currentDays}g.csv`;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function prepareEconomicRectification(entry) {
+    const form = byId("economicManualForm");
+    if (!form) return;
+    form.elements.direction.value = "adjustment";
+    form.elements.status.value = "confirmed";
+    form.elements.category.value = String(entry?.category || "rettifica").slice(0, 80);
+    form.elements.amount.value = "";
+    form.elements.amount_basis.value = "gross";
+    form.elements.vat_rate.value = "";
+    form.elements.currency.value = "EUR";
+    const reference = [entry?.id ? `ID ${entry.id}` : "", entry?.occurred_at ? `del ${date(entry.occurred_at)}` : "", entry?.source_system ? `origine ${entry.source_system}` : ""].filter(Boolean).join(" · ");
+    form.elements.notes.value = `Rettifica del movimento originale${reference ? ` · ${reference}` : ""}. Il movimento storico originale resta conservato.`.slice(0, 600);
+    form.scrollIntoView({ behavior: "smooth", block: "center" });
+    form.elements.amount.focus();
+    setStatus("info", "Rettifica predisposta: inserisci l’importo corretto e salva. Il movimento originale non viene cancellato.");
+  }
+
   function renderEntries(entries = []) {
     const target = byId("economicEntries");
     if (!target) return;
     if (!entries.length) {
-      target.innerHTML = `<tr><td colspan="9">Nessun movimento economico nel periodo.</td></tr>`;
+      target.innerHTML = `<tr><td colspan="10">Nessun movimento economico nel periodo.</td></tr>`;
       return;
     }
-    target.innerHTML = entries.map(entry => `
-      <tr>
-        <td>${esc(date(entry.occurred_at))}</td>
-        <td>${esc(entry.direction)}</td>
-        <td><strong>${esc(entry.category)}</strong></td>
-        <td>${esc(entry.source_system || "—")}</td>
-        <td>${esc(entry.status)}</td>
-        <td>${esc(money(entry.amount_net_eur))}</td>
-        <td>${entry.vat_eur == null ? "—" : esc(money(entry.vat_eur))}${entry.vat_rate == null ? "" : ` <small>(${esc(number(entry.vat_rate, 2))}%)</small>`}</td>
-        <td>${esc(money(entry.amount_gross_eur))}</td>
-        <td>${esc(entry.notes || "")}</td>
-      </tr>
-    `).join("");
+    target.replaceChildren(...entries.map(entry => {
+      const tr = document.createElement("tr");
+      const cells = [
+        date(entry.occurred_at), entry.direction, entry.category, entry.source_system || "—", entry.status,
+        money(entry.amount_net_eur), entry.vat_eur == null ? "—" : `${money(entry.vat_eur)}${entry.vat_rate == null ? "" : ` (${number(entry.vat_rate, 2)}%)`}`,
+        money(entry.amount_gross_eur), entry.notes || "",
+      ];
+      cells.forEach((value, index) => {
+        const td = document.createElement("td");
+        if (index === 2) {
+          const strong = document.createElement("strong"); strong.textContent = String(value || ""); td.append(strong);
+        } else td.textContent = String(value ?? "");
+        tr.append(td);
+      });
+      const actionTd = document.createElement("td");
+      const button = document.createElement("button");
+      button.className = "button secondary compact";
+      button.type = "button";
+      button.textContent = "RETTIFICA";
+      button.title = "Crea una rettifica senza cancellare lo storico";
+      button.addEventListener("click", () => prepareEconomicRectification(entry));
+      actionTd.append(button);
+      tr.append(actionTd);
+      return tr;
+    }));
   }
 
   function clearEconomicData() {
@@ -365,7 +421,7 @@
     if (byId("economicRevenueBreakdown")) byId("economicRevenueBreakdown").innerHTML = "";
     if (byId("economicCostBreakdown")) byId("economicCostBreakdown").innerHTML = "";
     if (byId("economicRates")) byId("economicRates").innerHTML = "";
-    if (byId("economicEntries")) byId("economicEntries").innerHTML = `<tr><td colspan="9">Dati non disponibili.</td></tr>`;
+    if (byId("economicEntries")) byId("economicEntries").innerHTML = `<tr><td colspan="10">Dati non disponibili.</td></tr>`;
   }
 
   async function refresh() {
@@ -516,16 +572,6 @@
     refresh();
   }
 
-  function loadManagementFoundation() {
-    if (window.OffertaLogicaStaffManagement?.release === MANAGEMENT_RELEASE) return;
-    if (document.querySelector(`script[data-staff-management-release="${MANAGEMENT_RELEASE}"]`)) return;
-    const script = document.createElement("script");
-    script.src = `/staff-management.js?v=${encodeURIComponent(MANAGEMENT_RELEASE)}`;
-    script.defer = true;
-    script.dataset.staffManagementRelease = MANAGEMENT_RELEASE;
-    script.addEventListener("error", () => console.warn("Fondazioni gestionali Staff non disponibili."));
-    document.head.append(script);
-  }
 
   function bindNavigation() {
     const group = byId("staffManagementGroup");
@@ -554,6 +600,5 @@
     window.addEventListener("pagehide", () => ownerVisibilityObserver?.disconnect(), { once: true });
   }
 
-  loadManagementFoundation();
   bindNavigation();
 })();

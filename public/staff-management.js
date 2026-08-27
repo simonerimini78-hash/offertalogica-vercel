@@ -1,14 +1,8 @@
 (() => {
   "use strict";
 
-  const RELEASE = "0.36.73";
-  const P6_LOADER_COMPAT_RELEASE = "0.36.71";
+  const RELEASE = "0.36.74";
   if (window.OffertaLogicaStaffManagement?.release === RELEASE) return;
-
-  // P6 carica ancora il Gestionale anche da staff-economics.js.
-  // Marchiamo lo script esplicito come già presente per impedire il doppio caricamento;
-  // la release pubblica e il modulo restano 0.36.72.
-  if (document.currentScript) document.currentScript.dataset.staffManagementRelease = P6_LOADER_COMPAT_RELEASE;
 
   const TIME_ZONE = "Europe/Rome";
   const STORAGE_KEY = "offertalogica-premium-staff-auth";
@@ -311,6 +305,10 @@
           <h2>Gestionale</h2>
           <p>Report ufficiale per mese civile Europe/Rome. Tutte le viste condividono lo stesso periodo, punto zero e fonti dati.</p>
         </div>
+        <div class="view-actions">
+          <button class="button secondary" id="managementOpenOperational" type="button" hidden>Apri modulo operativo</button>
+          <button class="button secondary" id="managementExportCsv" type="button">Esporta CSV</button>
+        </div>
       </div>
       <div class="management-period-bar">
         <div class="management-period-copy">
@@ -388,7 +386,7 @@
             </select>
           </div>
           <div class="table-wrap"><table class="data-table management-table">
-            <thead><tr><th>Persona</th><th>Ruolo</th><th>Stato</th><th>Operazioni</th><th>Controlli</th><th>Note</th><th>Comunicazioni</th><th>Tempo</th><th>Costo lavoro</th><th>Casa</th><th>Business</th></tr></thead>
+            <thead><tr><th>Persona</th><th>Ruolo</th><th>Stato</th><th>Operazioni</th><th>Controlli</th><th>Note</th><th>Comunicazioni</th><th>Tempo</th><th>Costo lavoro</th><th>Casa</th><th>Business</th><th>Azioni</th></tr></thead>
             <tbody id="managementPersonnelRows"></tbody>
           </table></div>
           <div class="management-pagination">
@@ -437,6 +435,7 @@
     storeSubview(next);
     document.querySelectorAll("[data-management-page]").forEach(page => page.classList.toggle("active", page.dataset.managementPage === next));
     document.querySelectorAll("[data-management-subview]").forEach(button => button.classList.toggle("active", button.dataset.managementSubview === next));
+    syncOperationalButton();
   }
 
   function setManagementStatus(kind, message) {
@@ -736,6 +735,154 @@
     return filtered;
   }
 
+  function operationalRoute(view = currentSubview) {
+    return {
+      economy: { label: "Apri Contabilità e tariffe", selector: "#staffEconomicsTab" },
+      commercial: { label: "Apri Lead e attivazioni", selector: '[data-staff-tab="leads"]' },
+      premium: { label: "Apri Clienti e utenze", selector: '[data-staff-tab="customers"]' },
+      personnel: { label: "Apri Collaboratori", selector: "#staffCollaboratorsTab" },
+    }[view] || null;
+  }
+
+  function syncOperationalButton() {
+    const button = byId("managementOpenOperational");
+    if (!button) return;
+    const route = operationalRoute();
+    button.hidden = !route;
+    if (route) button.textContent = route.label;
+  }
+
+  function openOperationalModule() {
+    const route = operationalRoute();
+    if (!route) return;
+    byId("managementStatus")?.setAttribute("hidden", "");
+    document.querySelector(route.selector)?.click();
+  }
+
+  async function runPersonnelOwnerAction(person, action) {
+    const bridge = window.OffertaLogicaStaffCollaboratorActions;
+    if (!bridge || typeof bridge[action] !== "function") {
+      setManagementStatus("error", "Gestione Collaboratori non disponibile. Apri il modulo Collaboratori e riprova.");
+      return;
+    }
+    const userId = String(person?.user_id || "").trim();
+    if (!userId) {
+      setManagementStatus("error", "Identificativo collaboratore non disponibile nel report.");
+      return;
+    }
+    const ok = await bridge[action](userId);
+    if (ok) await refreshManagementReport();
+  }
+
+  function focusPersonnelOwnerAction(person) {
+    const bridge = window.OffertaLogicaStaffCollaboratorActions;
+    if (!bridge?.focus) {
+      document.querySelector("#staffCollaboratorsTab")?.click();
+      return;
+    }
+    bridge.focus({ userId: person?.user_id, email: person?.email });
+  }
+
+  function personnelActionCell(person) {
+    const td = document.createElement("td");
+    const actions = document.createElement("div");
+    actions.className = "row-actions";
+    const manage = document.createElement("button");
+    manage.type = "button";
+    manage.className = "button secondary compact";
+    manage.textContent = "Gestisci";
+    manage.addEventListener("click", () => focusPersonnelOwnerAction(person));
+    actions.append(manage);
+
+    const role = String(person?.role || "").toLowerCase();
+    if (role === "owner") {
+      const protectedBadge = document.createElement("span");
+      protectedBadge.className = "badge ok";
+      protectedBadge.textContent = "Protetto";
+      actions.append(protectedBadge);
+    } else if (person?.removed_at) {
+      const restore = document.createElement("button");
+      restore.type = "button";
+      restore.className = "button primary compact";
+      restore.textContent = "Ripristina";
+      restore.addEventListener("click", () => void runPersonnelOwnerAction(person, "restore"));
+      actions.append(restore);
+    } else if (person?.active) {
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "button danger compact";
+      remove.textContent = "Rimuovi";
+      remove.title = "Rimuove l’accesso Staff conservando lo storico";
+      remove.addEventListener("click", () => void runPersonnelOwnerAction(person, "remove"));
+      actions.append(remove);
+    }
+    td.append(actions);
+    return td;
+  }
+
+  function csvCell(value) {
+    const text = String(value ?? "");
+    return `"${text.replaceAll('"', '""')}"`;
+  }
+
+  function downloadCsv(filename, rows) {
+    const content = "\ufeff" + rows.map(row => row.map(csvCell).join(";")).join("\r\n") + "\r\n";
+    const blob = new Blob([content], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function exportRowsForCurrentView(snapshot) {
+    const current = snapshot?.current || {};
+    if (currentSubview === "personnel") {
+      const rows = Array.isArray(current.personnel) ? current.personnel : [];
+      return [["Persona", "User ID", "Ruolo", "Attivo", "Operazioni", "Controlli", "Note", "Comunicazioni", "Secondi lavoro", "Costo lavoro EUR", "Casa", "Business"], ...rows.map(person => [
+        person.email || "", person.user_id || "", roleLabel(person.role), person.active ? "sì" : "no", numeric(person.operations), numeric(person.checks), numeric(person.notes), numeric(person.communications), numeric(person.human_seconds), numeric(person.human_cost_eur), numeric(person.premium_casa_checks), numeric(person.premium_business_checks),
+      ])];
+    }
+    if (currentSubview === "commercial") {
+      const segments = current.site?.segments || {};
+      return [["Segmento", "Analisi PDF", "Documenti noti", "Analisi senza conteggio documenti", "Confronti", "Lead", "OTP inviati", "OTP verificati", "Offerte sbloccate", "Redirect", "Richieste consulente"], ...[["consumer","Privati"],["business","Business"],["unknown","Non classificato"]].map(([key,label]) => {
+        const x=segments[key] || {};
+        return [label,numeric(x.pdf_analyses_started),numeric(x.pdf_documents),numeric(x.pdf_events_without_document_count),numeric(x.comparisons),numeric(x.leads),numeric(x.otp_sent),numeric(x.otp_verified),numeric(x.offers_unlocked),numeric(x.offer_redirects),numeric(x.consultant_requests)];
+      })];
+    }
+    if (currentSubview === "premium") {
+      const products = productMap(snapshot);
+      const segments = current.premium_segments || {};
+      return [["Prodotto", "Stato", "Bollette", "Analisi", "Fallite", "Ricavi confermati EUR", "Costo IA EUR", "Secondi lavoro Staff"], ...[["premium_casa","Premium Casa"],["premium_business","Premium Business"]].map(([code,label]) => {
+        const product=products[code] || {label,enabled:code!=="premium_business"}; const x=segments[code] || {}; const enabled=Boolean(product.enabled);
+        return [product.label || label,enabled?"attivo":"predisposto non attivo",numeric(x.bills),numeric(x.analyses),numeric(x.analysis_failed),enabled?numeric(x.revenue_confirmed_eur):0,enabled?numeric(x.ai_cost_eur):0,enabled?numeric(x.human_seconds):0];
+      })];
+    }
+    if (currentSubview === "economy") {
+      const f=current.finance || {}; const c=current.cost_breakdown || {}; const commercial=current.commercial || {};
+      return [["Voce","Valore"],["Ricavi confermati EUR",numeric(f.revenue_confirmed_eur)],["Costi reali EUR",numeric(f.cost_real_eur)],["Risultato reale EUR",numeric(f.result_real_eur)],["Margine reale %",numeric(f.margin_real_pct)],["Commissioni lead attese EUR",numeric(commercial.expected_lead_commission_eur)],["Costo IA Premium EUR",numeric(c.premium_ai_eur)],["Costo operatori EUR",numeric(c.operator_eur)],["Secondi operatori",numeric(c.operator_seconds)],["Movimenti senza prezzo",numeric(f.unpriced_count)]];
+    }
+    if (currentSubview === "quality") {
+      const f=current.finance || {}; const site=current.site || {}; const ai=current.site_ai || {};
+      const notes=Array.isArray(snapshot.quality_notes)?snapshot.quality_notes:[];
+      return [["Voce","Valore"],["Movimenti senza prezzo",numeric(f.unpriced_count)],["Analisi PDF senza conteggio documenti",numeric(site.total?.pdf_events_without_document_count)],["Eventi+lead sito non classificati",numeric(site.segments?.unknown?.events)+numeric(site.segments?.unknown?.leads)],["Run+fallimenti IA sito non classificati",numeric(ai.unknown?.runs)+numeric(ai.unknown?.failed)],...notes.map(note=>["Nota qualità",note])];
+    }
+    const f=current.finance || {}; const t=current.totals || {}; const site=current.site?.total || {}; const personnel=Array.isArray(current.personnel)?current.personnel:[];
+    return [["Voce","Valore"],["Ricavi confermati EUR",numeric(f.revenue_confirmed_eur)],["Costi reali EUR",numeric(f.cost_real_eur)],["Risultato reale EUR",numeric(f.result_real_eur)],["Margine reale %",numeric(f.margin_real_pct)],["Lead",numeric(t.leads)],["Confronti",numeric(t.comparisons)],["Conversione OTP %",numeric(site.otp_verification_pct)],["Nuovi Premium pagati",numeric(t.premium_new_paid_subscriptions)],["Staff nel periodo",personnel.length],["Movimenti senza prezzo",numeric(f.unpriced_count)]];
+  }
+
+  function exportCurrentManagementView() {
+    if (!managementSnapshot) {
+      setManagementStatus("error", "Carica prima il Gestionale.");
+      return;
+    }
+    const month = managementSnapshot.month || byId("managementMonth")?.value || currentMonthKey();
+    downloadCsv(`offertalogica-gestionale-${month}-${currentSubview}.csv`, exportRowsForCurrentView(managementSnapshot));
+  }
+
   function renderPersonnel(snapshot) {
     const personnel = Array.isArray(snapshot.current?.personnel) ? snapshot.current.personnel : [];
     const active = personnel.filter(person => person.active).length;
@@ -759,7 +906,7 @@
       if (!pageRows.length) {
         const tr = document.createElement("tr");
         const td = document.createElement("td");
-        td.colSpan = 11;
+        td.colSpan = 12;
         td.className = "management-empty";
         td.textContent = personnel.length ? "Nessuna persona corrisponde ai filtri." : "Nessuna persona Staff disponibile nel periodo.";
         tr.append(td);
@@ -780,6 +927,7 @@
             rowCell(money(person.human_cost_eur)),
             rowCell(number(person.premium_casa_checks)),
             rowCell(number(person.premium_business_checks)),
+            personnelActionCell(person),
           );
           return tr;
         }));
@@ -896,6 +1044,8 @@
       });
     }
     byId("managementRefresh")?.addEventListener("click", () => void refreshManagementReport());
+    byId("managementExportCsv")?.addEventListener("click", exportCurrentManagementView);
+    byId("managementOpenOperational")?.addEventListener("click", openOperationalModule);
     byId("managementCurrentMonth")?.addEventListener("click", () => {
       if (month) month.value = currentMonthKey();
       storeMonth(currentMonthKey());
