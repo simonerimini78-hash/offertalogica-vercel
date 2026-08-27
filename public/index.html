@@ -2824,6 +2824,10 @@ let MOTORE_CALCOLO_VERSION = "motore-v6-arera-first-2026-07-03";
 const DATI_CALCOLO_URLS = ["/data/calcolo-parametri.json", "data/calcolo-parametri.json"];
 const DATI_OFFERTE_URLS = ["/data/offerte-proposte.json", "data/offerte-proposte.json"];
 const DATI_ARERA_MENU_URLS = ["/data/offerte-arera-menu.json", "data/offerte-arera-menu.json"];
+const DATI_ARERA_BUSINESS_CORRENTE_URLS = [
+  "https://offertalogica.it/data/offerte-arera-menu.json",
+  "https://raw.githubusercontent.com/simonerimini78-hash/offertalogica-vercel/main/public/data/offerte-arera-menu.json"
+];
 const DATI_SWITCHO_OSSERVATE_URLS = ["/data/offerte-switcho-osservate.json", "data/offerte-switcho-osservate.json"];
 const DATI_PROVIDER_BRAND_URLS = ["/data/provider-brand.json", "data/provider-brand.json"];
 let DATI_CALCOLO_META = {
@@ -3895,6 +3899,35 @@ function applicaDatiAreraMenu(data) {
   return true;
 }
 
+function applicaSupplementoBusinessArera(data) {
+  const businessPulite = (Array.isArray(data?.offerteBusiness) ? data.offerteBusiness : [])
+    .map(normalizzaRigaAreraMenu)
+    .filter((riga) => riga && riga.providerKey !== "axpo" && riga.customerType === "business");
+  const dualBusinessPulite = (Array.isArray(data?.offerteDualBusiness) ? data.offerteDualBusiness : [])
+    .map(normalizzaRigaAreraDual)
+    .filter((riga) => riga && riga.providerKey !== "axpo" && riga.customerType === "business");
+  if (!businessPulite.length && !dualBusinessPulite.length) return false;
+
+  OFFERTE_ARERA_BUSINESS = businessPulite;
+  OFFERTE_ARERA_DUAL_BUSINESS = dualBusinessPulite;
+  return true;
+}
+
+async function caricaSupplementoBusinessArera() {
+  if (!window.fetch || window.location.protocol === "file:") return false;
+  for (const url of DATI_ARERA_BUSINESS_CORRENTE_URLS) {
+    try {
+      const response = await fetch(url, { cache: "no-store", mode: "cors" });
+      if (!response.ok) continue;
+      const data = await response.json();
+      if (applicaSupplementoBusinessArera(data)) return true;
+    } catch (error) {
+      // Il catalogo Privati locale resta operativo anche se il supplemento Business non è raggiungibile.
+    }
+  }
+  return false;
+}
+
 async function caricaOfferteAreraMenu() {
   if (!window.fetch || window.location.protocol === "file:") return false;
 
@@ -3903,7 +3936,12 @@ async function caricaOfferteAreraMenu() {
       const response = await fetch(url, { cache: "no-store" });
       if (!response.ok) continue;
       const data = await response.json();
-      if (applicaDatiAreraMenu(data)) return true;
+      if (applicaDatiAreraMenu(data)) {
+        if (!OFFERTE_ARERA_BUSINESS.length && !OFFERTE_ARERA_DUAL_BUSINESS.length) {
+          await caricaSupplementoBusinessArera();
+        }
+        return true;
+      }
     } catch (error) {
       // Se l'archivio ARERA non si carica, resta valido il confronto con le offerte pubblicate.
     }
