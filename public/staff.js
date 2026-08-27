@@ -2587,6 +2587,22 @@
     return "";
   }
 
+  function auditCategoryLabel(category) {
+    return ({
+      VIEW: "Visualizzazione",
+      CREATE: "Creazione",
+      MODIFY: "Modifica",
+      "DELETE-RECTIFY": "Eliminazione / Rettifica",
+      EXPORT: "Esportazione",
+      ASSIGN: "Assegnazione",
+    })[String(category || "").trim().toUpperCase()] || String(category || "—");
+  }
+
+  function auditResultLabel(result) {
+    const value = String(result || "").trim().toLowerCase();
+    return ({ success: "Riuscito", error: "Errore", failed: "Fallito", denied: "Negato", blocked: "Bloccato" })[value] || (result || "—");
+  }
+
   function setAuditStatus(message) {
     const target = byId("collaboratorAuditStatus");
     if (!target) return;
@@ -2615,11 +2631,11 @@
       const target = [item?.target_type, item?.target_id].filter(Boolean).join(" · ") || "—";
       body.append(node("tr", {}, [
         node("td", { text: formatDate(item?.event_created_at) }),
-        node("td", {}, [badge(category, auditCategoryKind(category))]),
+        node("td", {}, [badge(auditCategoryLabel(category), auditCategoryKind(category))]),
         node("td", { text: item?.action || "—" }),
         node("td", {}, [node("strong", { text: item?.staff_email || item?.staff_user_id || "Staff" }), node("small", { text: roleLabel(item?.staff_role) })]),
         node("td", { text: target }),
-        node("td", {}, [badge(String(item?.result || "—").toUpperCase(), String(item?.result || "").toLowerCase() === "success" ? "ok" : "warn")]),
+        node("td", {}, [badge(auditResultLabel(item?.result), String(item?.result || "").toLowerCase() === "success" ? "ok" : "warn")]),
         node("td", { text: item?.reason || "—" }),
       ]));
     });
@@ -2664,7 +2680,7 @@
     try {
       await recordExportAudit("audit", { targetId: category, metadata: { category, rows: rows.length } });
       const csvRows = [["Data", "Categoria", "Azione", "Email Staff", "Ruolo", "Risorsa", "ID risorsa", "Esito", "Motivo", "Origine"], ...rows.map(item => [
-        item?.event_created_at || "", auditCategory(item?.action), item?.action || "", item?.staff_email || "", item?.staff_role || "", item?.target_type || "", item?.target_id || "", item?.result || "", item?.reason || "", item?.source || "",
+        item?.event_created_at || "", auditCategoryLabel(auditCategory(item?.action)), item?.action || "", item?.staff_email || "", item?.staff_role || "", item?.target_type || "", item?.target_id || "", auditResultLabel(item?.result), item?.reason || "", item?.source || "",
       ])];
       const cell = value => `"${String(value ?? "").replaceAll('"', '""')}"`;
       const content = "\ufeff" + csvRows.map(row => row.map(cell).join(";")).join("\r\n") + "\r\n";
