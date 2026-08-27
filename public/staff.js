@@ -2801,14 +2801,15 @@
   function renderOverview() {
     const leadSummary = cache.leadSummary || {};
     buildOperationalCases();
+    const activeCases = cache.cases.filter(item => !item.closed);
     text(byId("overviewLeads"), isAdmin() ? leadSummary.recentRows || 0 : "Riservato");
     text(byId("overviewLeadsMeta"), isAdmin() ? `${leadSummary.verifiedRows || 0} verificati OTP` : "Solo amministratori");
-    text(byId("overviewCases"), cache.cases.length);
+    text(byId("overviewCases"), activeCases.length);
     text(byId("overviewCustomers"), cache.customers.length);
     text(byId("overviewAiCost"), cache.costSummary.pricedRuns
       ? formatMoney(cache.costSummary.aiCost)
       : cache.costSummary.runs ? "Storico non verificato" : formatMoney(0));
-    text(byId("navCaseCount"), cache.cases.length);
+    text(byId("navCaseCount"), activeCases.length);
 
     const target = byId("overviewTasks");
     clear(target);
@@ -2821,7 +2822,7 @@
     ];
     const list = node("div", { className: "rank-list" });
     grouped.forEach(([type, label, tab]) => {
-      const count = cache.cases.filter(item => item.type === type).length;
+      const count = activeCases.filter(item => item.type === type).length;
       const button = node("button", { className: "rank-row", type: "button" }, [node("strong", { text: label }), node("span", { text: count })]);
       button.addEventListener("click", () => count ? setTab("cases") : setTab(tab));
       list.append(button);
