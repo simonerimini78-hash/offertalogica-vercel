@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { json, method, requireAllowedOrigin } from "../lib/http.js";
 import { requireStaffSession } from "../lib/staffSessionAuth.js";
+import { writeStaffAudit } from "../lib/staffAudit.js";
 import {
   cleanupExpiredPdfAnalyses,
   createPdfSignedUrl,
@@ -35,6 +36,25 @@ function requireCronSecret(req, res) {
   return true;
 }
 
+async function requireMutationAudit(res, identity, payload) {
+  try {
+    await writeStaffAudit({ identity, ...payload, source: "api:staff-pdf-analyses" });
+    return true;
+  } catch (error) {
+    console.error("[staff-pdf-audit-required]", String(error?.message || error || "unknown_error"));
+    json(res, 503, { ok: false, error: "Audit Staff non disponibile: operazione annullata" });
+    return false;
+  }
+}
+
+async function writeMutationResultAudit(identity, payload) {
+  try {
+    await writeStaffAudit({ identity, ...payload, source: "api:staff-pdf-analyses" });
+  } catch (error) {
+    console.error("[staff-pdf-audit-result]", String(error?.message || error || "unknown_error"));
+  }
+}
+
 export default async function handler(req, res) {
   if (!method(req, res, ["GET", "POST", "PATCH", "DELETE"])) return;
 
@@ -53,11 +73,15 @@ export default async function handler(req, res) {
     }
   }
 
+  const permissions = req.method === "DELETE"
+    ? ["view_pdf_diagnostics", "delete_records"]
+    : req.method === "PATCH"
+      ? ["view_pdf_diagnostics", "manage_checks"]
+      : ["view_pdf_diagnostics"];
+
   const identity = await requireStaffSession(req, res, {
     roles: req.method === "DELETE" ? ["admin"] : ["reviewer", "admin"],
-    permissions: req.method === "DELETE"
-      ? ["view_pdf_diagnostics", "delete_records"]
-      : ["view_pdf_diagnostics"],
+    permissions,
   });
   if (!identity) return;
   if (["PATCH", "DELETE"].includes(req.method) && !requireAllowedOrigin(req, res)) return;
@@ -87,7 +111,7 @@ export default async function handler(req, res) {
 
     const body = bodyObject(req);
     const id = String(body.id || req.query?.id || "").trim();
-    const ids = Array.isArray(body.ids) ? body.ids : [];
+    const ids = Array.isArray(body.ids) ? body.ids.map(value => String(value || "").trim()).filter(Boolean) : [];
     const resetAll = body.scope === "all" || String(req.query?.scope || "") === "all";
 
     if (req.method === "DELETE") {
@@ -96,6 +120,15 @@ export default async function handler(req, res) {
         if (confirmation !== "AZZERA_ARCHIVIO_PDF") {
           return json(res, 400, { ok: false, error: "Conferma eliminazione non valida" });
         }
+        if (!(await requireMutationAudit(res, identity, {
+          action: "pdf_archive_delete_authorized",
+          targetType: "pdf_analysis",
+          targetId: "all",
+          result: "success",
+          reason: "Azzeramento archivio diagnostico PDF autorizzato dal Control Center",
+          metadata: { mode: "reset_all" },
+        }))) return;
+
         let requested = 0;
         let deleted = 0;
         for (let batch = 0; batch < 20; batch += 1) {
@@ -106,20 +139,60 @@ export default async function handler(req, res) {
           deleted += result.deleted || 0;
           if (allRows.length < 500) break;
         }
+        await writeMutationResultAudit(identity, {
+          action: "pdf_archive_deleted",
+          targetType: "pdf_analysis",
+          targetId: "all",
+          result: "success",
+          reason: "Archivio diagnostico PDF azzerato dal Control Center",
+          metadata: { mode: "reset_all", requested, deleted },
+        });
         return json(res, 200, { ok: true, requested, deleted, resetAll: true });
       }
       if (ids.length) {
         if (confirmation !== "ELIMINA_PDF_VISIBILI") {
           return json(res, 400, { ok: false, error: "Conferma eliminazione non valida" });
         }
+        if (!(await requireMutationAudit(res, identity, {
+          action: "pdf_batch_delete_authorized",
+          targetType: "pdf_analysis",
+          targetId: `batch:${ids.length}`,
+          result: "success",
+          reason: "Eliminazione analisi PDF visibili autorizzata dal Control Center",
+          metadata: { mode: "visible_batch", requested: ids.length },
+        }))) return;
         const result = await deletePdfAnalyses(ids);
+        await writeMutationResultAudit(identity, {
+          action: "pdf_batch_deleted",
+          targetType: "pdf_analysis",
+          targetId: `batch:${ids.length}`,
+          result: "success",
+          reason: "Analisi PDF visibili eliminate dal Control Center",
+          metadata: { mode: "visible_batch", requested: result.requested || ids.length, deleted: result.deleted || 0 },
+        });
         return json(res, 200, { ok: true, ...result, resetAll: false });
       }
       if (!id) return json(res, 400, { ok: false, error: "Analisi PDF mancante" });
-      if (confirmation && confirmation !== "ELIMINA_PDF") {
+      if (confirmation !== "ELIMINA_PDF") {
         return json(res, 400, { ok: false, error: "Conferma eliminazione non valida" });
       }
+      if (!(await requireMutationAudit(res, identity, {
+        action: "pdf_analysis_delete_authorized",
+        targetType: "pdf_analysis",
+        targetId: id,
+        result: "success",
+        reason: "Eliminazione analisi PDF autorizzata dal Control Center",
+        metadata: { mode: "single" },
+      }))) return;
       const result = await deletePdfAnalysis(id);
+      await writeMutationResultAudit(identity, {
+        action: "pdf_analysis_deleted",
+        targetType: "pdf_analysis",
+        targetId: id,
+        result: result.deleted ? "success" : "error",
+        reason: result.deleted ? "Analisi PDF eliminata dal Control Center" : "Analisi PDF non trovata durante l’eliminazione",
+        metadata: { mode: "single", deleted: Boolean(result.deleted) },
+      });
       return json(res, result.deleted ? 200 : 404, { ok: Boolean(result.deleted), ...result });
     }
 
@@ -129,11 +202,35 @@ export default async function handler(req, res) {
       return json(res, 405, { ok: false, error: "Metodo non consentito" });
     }
 
+    const changedFields = [
+      ["confirmedData", body.confirmedData],
+      ["correctionSummary", body.correctionSummary],
+      ["reviewStatus", body.reviewStatus],
+      ["staffNotes", body.staffNotes],
+    ].filter(([, value]) => value !== undefined).map(([key]) => key);
+
+    if (!(await requireMutationAudit(res, identity, {
+      action: "pdf_analysis_modify_authorized",
+      targetType: "pdf_analysis",
+      targetId: id,
+      result: "success",
+      reason: "Modifica diagnostica PDF autorizzata dal Control Center",
+      metadata: { changed_fields: changedFields },
+    }))) return;
+
     const updated = await updatePdfAnalysis(id, {
       confirmedData: body.confirmedData,
       correctionSummary: body.correctionSummary,
       reviewStatus: body.reviewStatus,
       staffNotes: body.staffNotes,
+    });
+    await writeMutationResultAudit(identity, {
+      action: "pdf_analysis_modified",
+      targetType: "pdf_analysis",
+      targetId: id,
+      result: "success",
+      reason: "Diagnostica PDF modificata dal Control Center",
+      metadata: { changed_fields: changedFields },
     });
     return json(res, 200, { ok: true, analysis: updated });
   } catch (error) {

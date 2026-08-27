@@ -341,7 +341,7 @@
     return `"${text.replaceAll('"', '""')}"`;
   }
 
-  function exportEconomicCsv() {
+  async function exportEconomicCsv() {
     const entries = Array.isArray(snapshot?.entries) ? snapshot.entries : [];
     if (!entries.length) {
       setStatus("warn", "Nessun movimento economico da esportare nel periodo selezionato.");
@@ -350,6 +350,14 @@
     const rows = [["Data", "Tipo", "Categoria", "Origine", "Stato", "Netto EUR", "IVA EUR", "Lordo EUR", "Nota", "ID"], ...entries.map(entry => [
       entry.occurred_at || "", entry.direction || "", entry.category || "", entry.source_system || "", entry.status || "", entry.amount_net_eur ?? "", entry.vat_eur ?? "", entry.amount_gross_eur ?? "", entry.notes || "", entry.id || "",
     ])];
+    try {
+      const audit = window.OffertaLogicaStaffAudit;
+      if (!audit?.recordExport) throw new Error("Audit Staff non disponibile");
+      await audit.recordExport("economics", { targetId: `${currentDays}d`, metadata: { days: currentDays, rows: entries.length } });
+    } catch (error) {
+      setStatus("error", `Esportazione bloccata: ${String(error?.message || error || "Audit non disponibile")}`);
+      return;
+    }
     const content = "\ufeff" + rows.map(row => row.map(economicCsvCell).join(";")).join("\r\n") + "\r\n";
     const blob = new Blob([content], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -360,6 +368,7 @@
     link.click();
     link.remove();
     URL.revokeObjectURL(url);
+    setStatus("success", "Registro economico esportato e operazione registrata nell’Audit.");
   }
 
   function prepareEconomicRectification(entry) {

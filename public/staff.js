@@ -25,6 +25,7 @@
   let complimentaryCustomer = null;
   let includeRemovedCollaborators = false;
   let collaboratorsLoaded = false;
+  let auditLoaded = false;
 
   const cache = {
     leads: [],
@@ -41,6 +42,7 @@
     costSummary: {},
     systemConfig: null,
     collaborators: [],
+    audit: [],
   };
 
   const byId = id => document.getElementById(id);
@@ -552,6 +554,7 @@
     if (!isAdmin()) return;
     try {
       const limit = byId("leadLimit")?.value || "200";
+      await recordExportAudit("leads", { targetId: limit, metadata: { limit: Number(limit) || 0 } });
       const blob = await staffFetch(`/api/staff-leads?limit=${encodeURIComponent(limit)}&format=csv`, { expectBlob: true });
       const url = URL.createObjectURL(blob);
       const link = node("a", { attrs: { href: url, download: `offertalogica-leads-${new Date().toISOString().slice(0, 10)}.csv` } });
@@ -2468,7 +2471,9 @@
   async function loadCollaborators({ silent = false } = {}) {
     if (!isOwner()) {
       collaboratorsLoaded = false;
+      auditLoaded = false;
       cache.collaborators = [];
+      cache.audit = [];
       renderCollaborators();
       return;
     }
@@ -2483,6 +2488,13 @@
     window.dispatchEvent(new CustomEvent("offertalogica:collaborators-refreshed", {
       detail: { includeRemoved: includeRemovedCollaborators },
     }));
+    if (activeTab === "collaborators") {
+      try {
+        await loadOwnerAudit({ silent: true });
+      } catch (error) {
+        setAuditStatus(`Audit non disponibile: ${friendlyError(error)}`);
+      }
+    }
     if (!silent) setMessage("success", "Collaboratori aggiornati.");
   }
 
@@ -2556,6 +2568,125 @@
     remove: removeCollaboratorFromManagement,
     restore: restoreCollaboratorFromManagement,
     purge: purgeCollaboratorFromManagement,
+  });
+
+  function auditCategory(action) {
+    const value = String(action || "").trim().toLowerCase();
+    if (value.includes("export")) return "EXPORT";
+    if (/delete|deleted|purge|purged|remove|removed|revoke|revoked|cancel|exclude|excluded|rectif|annull/.test(value)) return "DELETE-RECTIFY";
+    if (/permission|role|assign|assigned|access_deactivated|access_reactivated/.test(value)) return "ASSIGN";
+    if (/create|created|add|added|invite|invited|grant|granted/.test(value)) return "CREATE";
+    if (/update|updated|modify|modified|change|changed|edit|edited|restore|restored|extend|extended|reopen|correct/.test(value)) return "MODIFY";
+    return "VIEW";
+  }
+
+  function auditCategoryKind(category) {
+    if (category === "DELETE-RECTIFY") return "danger";
+    if (category === "ASSIGN" || category === "MODIFY") return "warn";
+    if (category === "CREATE" || category === "EXPORT") return "ok";
+    return "";
+  }
+
+  function setAuditStatus(message) {
+    const target = byId("collaboratorAuditStatus");
+    if (!target) return;
+    target.textContent = String(message || "");
+    target.hidden = !message;
+  }
+
+  function auditFilteredRows() {
+    const selected = String(byId("collaboratorAuditCategory")?.value || "ALL").trim().toUpperCase();
+    const rows = Array.isArray(cache.audit) ? cache.audit : [];
+    if (selected === "ALL") return rows;
+    return rows.filter(row => auditCategory(row?.action) === selected);
+  }
+
+  function renderAudit() {
+    const body = byId("collaboratorAuditRows");
+    if (!body) return;
+    clear(body);
+    const rows = auditFilteredRows();
+    if (!rows.length) {
+      body.append(node("tr", {}, [node("td", { text: auditLoaded ? "Nessun evento Audit per il filtro selezionato." : "Audit non ancora caricato.", attrs: { colspan: "7" } })]));
+      return;
+    }
+    rows.forEach(item => {
+      const category = auditCategory(item?.action);
+      const target = [item?.target_type, item?.target_id].filter(Boolean).join(" · ") || "—";
+      body.append(node("tr", {}, [
+        node("td", { text: formatDate(item?.event_created_at) }),
+        node("td", {}, [badge(category, auditCategoryKind(category))]),
+        node("td", { text: item?.action || "—" }),
+        node("td", {}, [node("strong", { text: item?.staff_email || item?.staff_user_id || "Staff" }), node("small", { text: roleLabel(item?.staff_role) })]),
+        node("td", { text: target }),
+        node("td", {}, [badge(String(item?.result || "—").toUpperCase(), String(item?.result || "").toLowerCase() === "success" ? "ok" : "warn")]),
+        node("td", { text: item?.reason || "—" }),
+      ]));
+    });
+  }
+
+  async function loadOwnerAudit({ silent = false } = {}) {
+    if (!isOwner()) {
+      cache.audit = [];
+      auditLoaded = false;
+      renderAudit();
+      return;
+    }
+    if (!silent) setAuditStatus("Aggiornamento Audit…");
+    const { data, error } = await client.rpc("premium_owner_list_audit", { p_limit: 500, p_offset: 0 });
+    if (error) throw error;
+    cache.audit = Array.isArray(data) ? data : [];
+    auditLoaded = true;
+    renderAudit();
+    setAuditStatus(`Ultimi ${cache.audit.length} eventi Audit caricati.`);
+  }
+
+  async function recordExportAudit(scope, { targetId = null, metadata = {} } = {}) {
+    if (!client) throw new Error("premium_staff_audit_unavailable");
+    const { data, error } = await client.rpc("premium_staff_record_export", {
+      p_scope: String(scope || "").trim().toLowerCase(),
+      p_target_id: targetId == null ? null : String(targetId),
+      p_metadata: metadata && typeof metadata === "object" ? metadata : {},
+    });
+    if (error) throw error;
+    return data;
+  }
+
+  async function exportAuditCsv() {
+    if (!isOwner() || busy) return;
+    const rows = auditFilteredRows();
+    if (!rows.length) {
+      setMessage("info", "Nessun evento Audit da esportare con il filtro selezionato.");
+      return;
+    }
+    const category = String(byId("collaboratorAuditCategory")?.value || "ALL");
+    setBusy(true);
+    try {
+      await recordExportAudit("audit", { targetId: category, metadata: { category, rows: rows.length } });
+      const csvRows = [["Data", "Categoria", "Azione", "Email Staff", "Ruolo", "Risorsa", "ID risorsa", "Esito", "Motivo", "Origine"], ...rows.map(item => [
+        item?.event_created_at || "", auditCategory(item?.action), item?.action || "", item?.staff_email || "", item?.staff_role || "", item?.target_type || "", item?.target_id || "", item?.result || "", item?.reason || "", item?.source || "",
+      ])];
+      const cell = value => `"${String(value ?? "").replaceAll('"', '""')}"`;
+      const content = "\ufeff" + csvRows.map(row => row.map(cell).join(";")).join("\r\n") + "\r\n";
+      const blob = new Blob([content], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = node("a", { attrs: { href: url, download: `offertalogica-audit-${new Date().toISOString().slice(0, 10)}.csv` } });
+      document.body.append(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      await loadOwnerAudit({ silent: true });
+      setMessage("success", "Registro Audit esportato e operazione registrata.");
+    } catch (error) {
+      setMessage("error", `Esportazione bloccata: ${friendlyError(error)}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  window.OffertaLogicaStaffAudit = Object.freeze({
+    recordExport: recordExportAudit,
+    refresh: () => loadOwnerAudit({ silent: true }),
   });
 
   async function loadSystemConfig() {
@@ -2755,6 +2886,8 @@
     currentStaff = null;
     staffContextKey = "";
     collaboratorsLoaded = false;
+    auditLoaded = false;
+    cache.audit = [];
     setView("auth");
     setAuthMessage("info", "Verifica di sicurezza richiesta…");
     window.location.replace("/staff-mfa.html");
@@ -2769,6 +2902,8 @@
       currentStaff = null;
       staffContextKey = "";
       collaboratorsLoaded = false;
+      auditLoaded = false;
+      cache.audit = [];
       setView("auth");
       setAuthMessage("", "");
       if (hadContext) dispatchStaffContextChanged(null, null);
@@ -2800,7 +2935,11 @@
       const contextChanged = staffContextKey !== nextKey;
       const appAlreadyVisible = byId("staffApp")?.hidden === false;
 
-      if (contextChanged) collaboratorsLoaded = false;
+      if (contextChanged) {
+        collaboratorsLoaded = false;
+        auditLoaded = false;
+        cache.audit = [];
+      }
       currentStaff = nextStaff;
       currentSession = session;
 
@@ -2922,6 +3061,9 @@
     });
     byId("collaboratorAddForm").addEventListener("submit", addCollaborator);
     byId("collaboratorInvite").addEventListener("click", inviteCollaborator);
+    byId("collaboratorAuditRefresh")?.addEventListener("click", () => loadOwnerAudit().catch(error => setAuditStatus(`Audit non disponibile: ${friendlyError(error)}`)));
+    byId("collaboratorAuditCategory")?.addEventListener("change", renderAudit);
+    byId("collaboratorAuditExport")?.addEventListener("click", () => { void exportAuditCsv(); });
     byId("costRefresh").addEventListener("click", () => loadCosts().catch(error => setMessage("error", friendlyError(error))));
     window.addEventListener("hashchange", () => setTab(location.hash.slice(1), { updateHash: false }));
   }

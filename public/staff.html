@@ -55,7 +55,7 @@
 <header class="topbar">
   <div class="brand">
     <img src="/assets/logo-offertalogica-icon.png" alt="OffertaLogica">
-    <div><h1>Control Center OffertaLogica</h1><p>Centro operativo per clienti, pratiche, verifiche e dati · v0.36.79</p></div>
+    <div><h1>Control Center OffertaLogica</h1><p>Centro operativo per clienti, pratiche, verifiche e dati · v0.36.80</p></div>
   </div>
   <div class="top-actions" id="staffTopActions" hidden>
     <span class="staff-chip" id="staffIdentity">Staff</span>
@@ -118,7 +118,7 @@
         <section class="panel"><div class="panel-head"><h3>Priorità operative</h3><small>Pratiche raccolte dai moduli operativi</small></div><div class="panel-body" id="overviewTasks"><div class="empty">Caricamento…</div></div></section>
         <section class="panel"><div class="panel-head"><h3>Acquisizione e conversione</h3><small>Funnel essenziale</small></div><div class="panel-body"><div class="funnel" id="overviewFunnel"></div></div></section>
       </div>
-      <div class="version">Control Center Staff v0.36.79</div>
+      <div class="version">Control Center Staff v0.36.80</div>
     </section>
 
     <section class="view" data-staff-view="cases">
@@ -167,6 +167,26 @@
           <article class="metric"><span>Tecnici</span><strong id="collaboratorMetricTechnicians">0</strong></article>
         </div>
         <div class="table-wrap"><table class="data-table"><thead><tr><th>Account</th><th>Ruolo</th><th>Stato</th><th>Creato</th><th>Aggiornato</th><th>Azioni</th></tr></thead><tbody id="collaboratorRows"></tbody></table></div>
+        <section class="panel" style="margin-top:14px">
+          <div class="panel-head">
+            <div><h3>Registro Audit</h3><small>Registro Owner delle operazioni Staff. Le azioni sono classificate in VIEW, CREATE, MODIFY, DELETE-RECTIFY, EXPORT e ASSIGN.</small></div>
+            <div class="view-actions">
+              <select id="collaboratorAuditCategory" aria-label="Categoria Audit">
+                <option value="ALL">Tutte le categorie</option>
+                <option value="VIEW">VIEW</option>
+                <option value="CREATE">CREATE</option>
+                <option value="MODIFY">MODIFY</option>
+                <option value="DELETE-RECTIFY">DELETE-RECTIFY</option>
+                <option value="EXPORT">EXPORT</option>
+                <option value="ASSIGN">ASSIGN</option>
+              </select>
+              <button class="button secondary" id="collaboratorAuditExport" type="button">Esporta CSV</button>
+              <button class="button secondary" id="collaboratorAuditRefresh" type="button">Aggiorna Audit</button>
+            </div>
+          </div>
+          <div id="collaboratorAuditStatus" class="empty">Audit non ancora caricato.</div>
+          <div class="table-wrap"><table class="data-table"><thead><tr><th>Data</th><th>Categoria</th><th>Azione</th><th>Collaboratore</th><th>Risorsa</th><th>Esito</th><th>Motivo</th></tr></thead><tbody id="collaboratorAuditRows"></tbody></table></div>
+        </section>
       </section>
     </section>
 
@@ -254,10 +274,10 @@
 </div>
 <div id="staffUpdateNotice" class="staff-update" role="status" aria-live="polite"><span id="staffUpdateNoticeText">Nuova versione disponibile.</span><button id="staffApplyUpdate" type="button" hidden>AGGIORNA</button></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="/staff.js?v=0.36.79"></script>
+<script src="/staff.js?v=0.36.80"></script>
 <script src="/staff-governance-v2.5B.js"></script>
-<script defer src="/staff-management.js?v=0.36.79"></script>
-<script defer src="/staff-economics.js?v=0.36.79"></script>
+<script defer src="/staff-management.js?v=0.36.80"></script>
+<script defer src="/staff-economics.js?v=0.36.80"></script>
 <script>
   (()=>{
     const STORAGE_KEY='offertalogica-premium-staff-auth';
@@ -355,7 +375,7 @@
 </script>
 <script>
   (()=>{
-    const CURRENT_RELEASE="0.36.79";
+    const CURRENT_RELEASE="0.36.80";
     const PRODUCTION_ORIGIN="https://staff.offertalogica.it";
     const isVercelStaffDeployment=()=>location.hostname.endsWith(".vercel.app")&&location.hostname.toLowerCase().startsWith("offertalogica-staff");
     const redirectDeploymentToProduction=()=>{if(!isVercelStaffDeployment())return false;const target=new URL(`${location.pathname}${location.search}${location.hash}`,PRODUCTION_ORIGIN);if(target.href===location.href)return false;location.replace(target.href);return true};

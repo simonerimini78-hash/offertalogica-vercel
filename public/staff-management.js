@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const RELEASE = "0.36.79";
+  const RELEASE = "0.36.80";
   if (window.OffertaLogicaStaffManagement?.release === RELEASE) return;
 
   const TIME_ZONE = "Europe/Rome";
@@ -910,13 +910,22 @@
     return [["Voce","Valore"],["Ricavi confermati EUR",numeric(f.revenue_confirmed_eur)],["Costi reali EUR",numeric(f.cost_real_eur)],["Risultato reale EUR",numeric(f.result_real_eur)],["Margine reale %",numeric(f.margin_real_pct)],["Lead",numeric(t.leads)],["Confronti",numeric(t.comparisons)],["Conversione OTP %",numeric(site.otp_verification_pct)],["Nuovi Premium pagati",numeric(t.premium_new_paid_subscriptions)],["Staff nel periodo",personnel.length],["Movimenti senza prezzo",numeric(f.unpriced_count)]];
   }
 
-  function exportCurrentManagementView() {
+  async function exportCurrentManagementView() {
     if (!managementSnapshot) {
       setManagementStatus("error", "Carica prima il Gestionale.");
       return;
     }
     const month = managementSnapshot.month || byId("managementMonth")?.value || currentMonthKey();
-    downloadCsv(`offertalogica-gestionale-${month}-${currentSubview}.csv`, exportRowsForCurrentView(managementSnapshot));
+    const rows = exportRowsForCurrentView(managementSnapshot);
+    try {
+      const audit = window.OffertaLogicaStaffAudit;
+      if (!audit?.recordExport) throw new Error("Audit Staff non disponibile");
+      await audit.recordExport("management", { targetId: `${month}:${currentSubview}`, metadata: { month, view: currentSubview, rows: Math.max(0, rows.length - 1) } });
+      downloadCsv(`offertalogica-gestionale-${month}-${currentSubview}.csv`, rows);
+      setManagementStatus("success", "CSV esportato e operazione registrata nell’Audit.");
+    } catch (error) {
+      setManagementStatus("error", `Esportazione bloccata: ${String(error?.message || error || "Audit non disponibile")}`);
+    }
   }
 
   function renderPersonnel(snapshot) {
