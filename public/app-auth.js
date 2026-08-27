@@ -15,6 +15,7 @@
   let authSubscription = null;
   let recoveryMode = false;
   let currentSession = null;
+  let currentSubscription = null;
   let accountLoadSequence = 0;
   let passwordUpdateInProgress = false;
   let billingAvailability = { enabled: false, provider: "stripe", missing: [] };
@@ -24,6 +25,26 @@
   let upgradeCheckoutStarted = false;
 
   const byId = id => document.getElementById(id);
+
+  function normalizeCustomerSegment(value) {
+    return String(value || "").trim().toLowerCase() === "business" ? "business" : "consumer";
+  }
+
+  function premiumContext() {
+    const customerSegment = normalizeCustomerSegment(currentSubscription?.customer_segment);
+    return Object.freeze({
+      customerSegment,
+      productCode: String(currentSubscription?.product_code || (customerSegment === "business" ? "premium_business" : "premium_casa")).trim(),
+      planCode: currentSubscription?.plan_code || null,
+      isBusiness: customerSegment === "business"
+    });
+  }
+
+  function dispatchPremiumAccessChanged() {
+    window.dispatchEvent(new CustomEvent("offertalogica:premium-access-changed", {
+      detail: premiumContext()
+    }));
+  }
 
   const state = {
     loginForm: null,
@@ -378,6 +399,7 @@
     accountLoadSequence += 1;
     showAccountPanels({ signedIn: false });
     currentSession = null;
+    currentSubscription = null;
     legalRedirectPerformed = false;
     if (state.authSignedOut) state.authSignedOut.hidden = false;
     if (state.authSignedIn) state.authSignedIn.hidden = true;
@@ -401,6 +423,8 @@
     setText(state.homePremiumBadge, "ACCESSO RICHIESTO");
     setText(state.homePremiumTitle, "Collega il tuo account");
     setText(state.homePremiumCopy, "Accedi dal Profilo per usare il servizio Premium.");
+
+    dispatchPremiumAccessChanged();
 
     if (upgradeRequested()) {
       setText(state.signupHint, "Stai attivando Premium: dopo la conferma dell’account passerai al pagamento sicuro di 47,88 € per i primi 12 mesi. Dal secondo anno 59,88 €/anno.");
@@ -594,7 +618,7 @@
         .maybeSingle(),
       client
         .from("premium_subscriptions")
-        .select("status, plan_code, provider, provider_customer_id, provider_subscription_id, current_period_start, current_period_end, archive_access_until, data_purged_at, included_utilities, included_bills_per_year, cancel_at_period_end, first_paid_at, intro_price_redeemed_at, latest_amount_paid_cents, latest_currency, latest_payment_at, complimentary_granted_at, complimentary_reason, complimentary_revoked_at, created_at")
+        .select("status, customer_segment, product_code, plan_code, provider, provider_customer_id, provider_subscription_id, current_period_start, current_period_end, archive_access_until, data_purged_at, included_utilities, included_bills_per_year, cancel_at_period_end, first_paid_at, intro_price_redeemed_at, latest_amount_paid_cents, latest_currency, latest_payment_at, complimentary_granted_at, complimentary_reason, complimentary_revoked_at, created_at")
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(1)
@@ -760,7 +784,6 @@
       profile = profileResult.data;
       subscription = subscriptionResult.data;
       acceptanceStatus = acceptanceMap(consentsResult.data);
-      window.dispatchEvent(new CustomEvent("offertalogica:premium-access-changed"));
     }
 
     if (await activateBetaTrialIfEligible(profile, subscription, acceptanceStatus)) {
@@ -774,9 +797,9 @@
       profile = profileResult.data;
       subscription = subscriptionResult.data;
       acceptanceStatus = acceptanceMap(consentsResult.data);
-      window.dispatchEvent(new CustomEvent("offertalogica:premium-access-changed"));
     }
 
+    currentSubscription = subscription || null;
     const legalReady = acceptancesComplete(acceptanceStatus);
     const periodActive = subscriptionPeriodIsActive(subscription);
     const serviceActive = Boolean(profile?.account_status === "active" && legalReady && periodActive);
@@ -895,6 +918,7 @@
     setText(state.profileArchive, serviceActive
       ? "Cloud Premium attivo"
       : (archiveAvailable ? `Sola lettura fino al ${formatDate(subscription.archive_access_until)}` : (profile ? "Cloud non disponibile" : "Cloud non attivo")));
+    dispatchPremiumAccessChanged();
     await maybeContinueUpgrade(profile, subscription, acceptanceStatus);
     return true;
   }
@@ -1235,7 +1259,7 @@
         ? "Rinnovo disattivato. Premium resterà attivo fino alla scadenza del periodo pagato."
         : "Rinnovo annuale riattivato.");
       if (currentSession) await loadAccount(currentSession, { retry: false });
-      window.dispatchEvent(new CustomEvent("offertalogica:premium-access-changed"));
+      else dispatchPremiumAccessChanged();
     } catch (error) {
       setBillingMessage("error", billingErrorMessage(error));
     } finally {
@@ -1395,6 +1419,9 @@
   globalThis.OffertaLogicaPremiumAuth = Object.freeze({
     init,
     getClient: () => client,
+    getContext: () => premiumContext(),
+    getCustomerSegment: () => premiumContext().customerSegment,
+    isBusiness: () => premiumContext().isBusiness,
     versions: Object.freeze({ terms: TERMS_VERSION, privacy: PRIVACY_VERSION, cloud: CLOUD_VERSION })
   });
 })();
