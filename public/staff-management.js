@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const RELEASE = "0.36.72";
+  const RELEASE = "0.36.73";
   const P6_LOADER_COMPAT_RELEASE = "0.36.71";
   if (window.OffertaLogicaStaffManagement?.release === RELEASE) return;
 
@@ -212,7 +212,9 @@
   function syncVisibleRelease() {
     document.querySelectorAll(".brand p,.version").forEach(element => {
       const current = String(element.textContent || "");
-      if (/v\d+\.\d+\.\d+/.test(current)) element.textContent = current.replace(/v\d+\.\d+\.\d+/g, `v${RELEASE}`);
+      if (!/v\d+\.\d+\.\d+/.test(current)) return;
+      const next = current.replace(/v\d+\.\d+\.\d+/g, `v${RELEASE}`);
+      if (next !== current) element.textContent = next;
     });
   }
 
@@ -1168,17 +1170,6 @@
     guardLegacyReleaseNotice();
     initManagementUi();
     installCollaboratorScalability();
-
-    // La sezione Collaboratori può essere già nel DOM ma i dati arrivano dopo.
-    const app = byId("staffApp");
-    if (app) {
-      const observer = new MutationObserver(() => {
-        installCollaboratorScalability();
-        syncVisibleRelease();
-      });
-      observer.observe(app, { childList: true, subtree: true });
-      window.addEventListener("pagehide", () => observer.disconnect(), { once: true });
-    }
   }
 
   const api = Object.freeze({
