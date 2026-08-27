@@ -6,7 +6,7 @@
   const MAX_FILE_SIZE = 20_000_000;
   const ANALYSIS_POLL_MS = 5000;
   const ANALYSIS_STALE_MS = 90000;
-  const BILL_COLUMNS = "id, user_id, utility_id, contract_id, commodity, billing_period_start, billing_period_end, issue_date, due_date, total_amount_eur, original_file_name, file_size, file_sha256, storage_bucket, storage_path, processing_status, customer_status, automatic_screening_status, automatic_screening_summary, automatic_screening_reasons, automatic_screened_at, automatic_analysis_run_id, customer_analysis_data, red_verification_state, red_verification_result, red_verification_run_id, red_verified_at, created_at, updated_at";
+  const BILL_COLUMNS = "id, user_id, utility_id, contract_id, commodity, customer_segment, product_code, plan_code_snapshot, billing_period_start, billing_period_end, issue_date, due_date, total_amount_eur, original_file_name, file_size, file_sha256, storage_bucket, storage_path, processing_status, customer_status, automatic_screening_status, automatic_screening_summary, automatic_screening_reasons, automatic_screened_at, automatic_analysis_run_id, customer_analysis_data, red_verification_state, red_verification_result, red_verification_run_id, red_verified_at, created_at, updated_at";
   const UTILITY_COLUMNS = "id, label, supply_type, expected_bills_per_year, status";
   const CONTRACT_COLUMNS = "id, user_id, utility_id, provider_name, offer_name, pricing_type, contract_start, contract_end, fixed_price_expiry, electricity_price_eur_kwh, gas_price_eur_smc, electricity_fixed_fee_eur_year, gas_fixed_fee_eur_year, source, verification_status, is_current, arera_offer_code_electricity, arera_offer_code_gas, electricity_index_name, gas_index_name, electricity_spread_eur_kwh, gas_spread_eur_smc, electricity_formula, gas_formula, automatic_match_status, automatic_match_confidence, automatic_match_method, automatic_match_candidates, automatic_matched_at, automatic_match_catalog_version, customer_confirmation_status, customer_confirmed_at, customer_rejected_at, customer_selected_candidates, customer_confirmation_version, created_at, updated_at";
   const CHECK_COLUMNS = "id, bill_id, user_id, status, outcome, summary, customer_message, started_at, completed_at, created_at, updated_at";
@@ -40,6 +40,22 @@
   let billsArchiveOpen = { electricity: false, gas: false };
 
   const byId = id => document.getElementById(id);
+
+  function premiumOperationContext(subscription = currentSubscription) {
+    const authContext = globalThis.OffertaLogicaPremiumAuth?.getContext?.() || {};
+    const customerSegment = String(subscription?.customer_segment || authContext.customerSegment || "")
+      .trim().toLowerCase() === "business" ? "business" : "consumer";
+    const productCode = String(
+      subscription?.product_code
+      || authContext.productCode
+      || (customerSegment === "business" ? "premium_business" : "premium_casa")
+    ).trim();
+    return {
+      customerSegment,
+      productCode,
+      planCode: subscription?.plan_code || authContext.planCode || null,
+    };
+  }
 
   const state = {
     card: null,
@@ -2190,6 +2206,7 @@
         } catch {}
       };
 
+      const operationContext = premiumOperationContext();
       const insertResult = await client
         .from("premium_bills")
         .insert({
@@ -2197,6 +2214,9 @@
           user_id: currentUser.id,
           utility_id: utility.id,
           commodity: utility.supply_type,
+          customer_segment: operationContext.customerSegment,
+          product_code: operationContext.productCode,
+          plan_code_snapshot: operationContext.planCode,
           original_file_name: file.name,
           file_size: file.size,
           file_sha256: fingerprint,
@@ -2879,7 +2899,7 @@
         .maybeSingle(),
       client
         .from("premium_subscriptions")
-        .select("status, plan_code, current_period_start, current_period_end, archive_access_until, data_purged_at, included_bills_per_year, created_at")
+        .select("status, plan_code, customer_segment, product_code, current_period_start, current_period_end, archive_access_until, data_purged_at, included_bills_per_year, created_at")
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(1)

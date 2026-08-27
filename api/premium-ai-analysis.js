@@ -957,9 +957,11 @@ export function createPremiumAiAnalysisHandler({
       customerMode = Boolean(body?.billId) && !body?.checkId;
       let actorUserId = null;
       let contract = null;
+      let customerSubscription = null;
 
       if (customerMode) {
-        const { user } = await verifyPremiumCustomer({ config: backend, accessToken, fetchImpl });
+        const { user, subscription } = await verifyPremiumCustomer({ config: backend, accessToken, fetchImpl });
+        customerSubscription = subscription;
         actorUserId = user.id;
         if (!(await enforceRateLimit(req, res, {
           label: "premium-ai-customer-analysis",
@@ -967,7 +969,7 @@ export function createPremiumAiAnalysisHandler({
           limit: Number(env.RATE_LIMIT_PREMIUM_AI_CUSTOMER_LIMIT || 24),
           windowSeconds: Number(env.RATE_LIMIT_PREMIUM_AI_CUSTOMER_WINDOW_SECONDS || 3600),
         }))) return;
-        bill = await loadPremiumCustomerBill({ config: backend, billId: body.billId, userId: user.id, fetchImpl });
+        bill = await loadPremiumCustomerBill({ config: backend, billId: body.billId, userId: user.id, subscription, fetchImpl });
         contract = await loadPremiumBillContract({ config: backend, bill, fetchImpl });
       } else {
         const { user } = await verifyPremiumStaff({ config: backend, accessToken, fetchImpl });
@@ -1025,7 +1027,9 @@ export function createPremiumAiAnalysisHandler({
       });
 
       let offerMatch = null;
-      if (customerMode) {
+      const businessCustomerMode = customerMode
+        && String(customerSubscription?.customer_segment || "").trim().toLowerCase() === "business";
+      if (customerMode && !businessCustomerMode) {
         offerMatch = await matchOffer({
           config: backend,
           bill,
@@ -1058,6 +1062,7 @@ export function createPremiumAiAnalysisHandler({
         ...completion.missing.map(field => `campo_essenziale_mancante:${field}`),
         ...(customerMode && screening.status !== "clear" ? ["screening_automatico_da_approfondire"] : []),
         ...(matchWarning ? [matchWarning] : []),
+        ...(businessCustomerMode ? ["premium_business_offer_match_non_eseguito"] : []),
         customerMode ? "analisi_automatica_cliente_v0.31" : "bozza_ia_da_verificare_dallo_staff",
       ])];
       const completedAt = new Date().toISOString();
