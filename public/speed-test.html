@@ -522,6 +522,29 @@
             text-align: center;
         }
         .privacy-note a { color: #087f3a; font-weight: 850; }
+        .privacy-details {
+            max-width: 820px;
+            margin: 14px auto 0;
+            border: 1px solid rgba(18,48,68,.08);
+            border-radius: 14px;
+            background: rgba(255,255,255,.34);
+            color: var(--glass-muted);
+        }
+        .privacy-details summary {
+            cursor: pointer;
+            color: #315564;
+            font-weight: 850;
+            list-style-position: inside;
+        }
+        .privacy-details[open] summary {
+            margin-bottom: 8px;
+        }
+        .privacy-details p {
+            margin: 0;
+        }
+        .privacy-links {
+            margin-top: 6px !important;
+        }
         .legal-note {
             padding: 14px 16px;
             font-size: 13px;
@@ -954,10 +977,17 @@
                 <button id="startButton" class="main-action" type="button" disabled>CARICAMENTO MOTORE…</button>
                 <div id="errorBox" class="error-box" role="alert"></div>
 
-                <p class="privacy-note">
-                    Il test può utilizzare fino a circa 105 MB di traffico. La misurazione avviene direttamente tra il browser e l'infrastruttura Cloudflare; Cloudflare può ricevere dati tecnici della connessione, incluso l'indirizzo IP, e le misurazioni prodotte dal test, secondo la propria informativa.
-                    <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">Informativa Cloudflare</a>.
-                </p>
+                <details class="privacy-note privacy-details">
+                    <summary>Traffico dati e privacy del test</summary>
+                    <p>
+                        Una singola prova OffertaLogica può generare circa 105 MB di traffico dati. Durante il test il browser si collega direttamente all'infrastruttura Cloudflare. Cloudflare dichiara di ricevere l'indirizzo IP, di stimare Paese e città e di identificare l'ASN della rete; può inoltre condividere con partner di misurazione dati di prestazione anonimizzati, senza condividere con tali partner l'indirizzo IP.
+                    </p>
+                    <p class="privacy-links">
+                        <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener noreferrer">Informativa Cloudflare</a>
+                        <span aria-hidden="true">·</span>
+                        <a href="https://www.cloudflare.com/policies/terms/" target="_blank" rel="noopener noreferrer">Termini Cloudflare</a>
+                    </p>
+                </details>
 
                 <div id="resultPanel" class="result-panel">
                     <div class="result-summary">
