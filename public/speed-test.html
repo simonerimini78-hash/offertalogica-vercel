@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <script type="text/javascript" src="https://embeds.iubenda.com/widgets/7a8d1e4e-6d87-44e3-9842-5e8991323410.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex,follow">
+    <title>Speed Test Internet: velocità, Wi-Fi e costo | OffertaLogica</title>
+    <meta name="description" content="Misura download, upload e latenza, interpreta la qualità della connessione e capisci se il problema può dipendere dal Wi-Fi o dalla linea Internet.">
+    <link rel="canonical" href="https://offertalogica.it/speed-test.html">
+    <meta property="og:title" content="Speed Test Internet | OffertaLogica">
+    <meta property="og:description" content="Misura la connessione e interpreta i risultati prima di valutare un cambio operatore.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://offertalogica.it/speed-test.html">
+    <meta name="twitter:card" content="summary">
+    <link rel="icon" type="image/png" href="/assets/logo-offertalogica-icon.png">
+    <link rel="apple-touch-icon" href="/assets/logo-offertalogica-icon.png">
+    <link rel="stylesheet" href="/assets/ol-app-access.css">
+    <style>
+        :root {
+            --bg: #f1f5f9;
+            --surface: #ffffff;
+            --surface-soft: #f8fafc;
+            --text: #0f172a;
+            --muted: #64748b;
+            --border: #cbd5e1;
+            --primary: #16a34a;
+            --primary-dark: #15803d;
+            --accent: #2563eb;
+            --warning: #b45309;
+            --danger: #b91c1c;
+            --shadow: 0 18px 48px rgba(15, 23, 42, .09);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: ui-rounded, "SF Pro Rounded", "Aptos", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            color: var(--text);
+            background: linear-gradient(180deg, #f8fafc 0%, #eef4f8 52%, #f1f5f9 100%);
+            line-height: 1.55;
+        }
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            pointer-events: none;
+            opacity: .34;
+            background-image:
+                linear-gradient(rgba(15,23,42,.035) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(15,23,42,.03) 1px, transparent 1px);
+            background-size: 44px 44px;
+            mask-image: linear-gradient(180deg, rgba(0,0,0,.85), transparent 72%);
+        }
+        button, input, select { font: inherit; }
+        .skip-link { position:absolute; left:-999px; top:12px; background:#fff; color:var(--accent); padding:10px 14px; border-radius:8px; font-weight:800; z-index:2000; }
+        .skip-link:focus { left:12px; }
+        .page-shell { max-width: 1080px; margin: 0 auto; padding: 20px; }
+        header { text-align:center; padding:20px 20px 24px; }
+        .site-logo-link { display:inline-flex; align-items:center; justify-content:center; line-height:0; }
+        .site-logo-main { display:block; width:min(430px,88vw); height:auto; }
+        .top-nav { display:flex; justify-content:center; gap:10px; flex-wrap:wrap; margin:0 0 24px; }
+        .top-nav a { min-height:42px; display:inline-flex; align-items:center; justify-content:center; padding:10px 14px; border:1px solid rgba(148,163,184,.45); border-radius:10px; background:#fff; color:#334155; text-decoration:none; font-weight:800; box-shadow:0 8px 18px rgba(15,23,42,.05); }
+        .top-nav a.active { background:#eff6ff; color:#1d4ed8; border-color:rgba(37,99,235,.36); }
+        .hero { padding: 20px 0 14px; text-align:center; }
+        .eyebrow { display:inline-flex; min-height:30px; align-items:center; padding:6px 10px; border-radius:999px; background:#eff6ff; color:#1d4ed8; font-size:12px; font-weight:900; letter-spacing:.4px; text-transform:uppercase; margin-bottom:14px; }
+        h1 { font-size:clamp(36px,7vw,64px); line-height:1.02; letter-spacing:-.03em; max-width:900px; margin:0 auto; }
+        .hero-copy { color:#475569; font-size:18px; line-height:1.55; max-width:790px; margin:16px auto 0; }
+        .test-card { margin:26px auto 0; max-width:920px; background:#fff; border:1px solid rgba(148,163,184,.42); border-radius:22px; box-shadow:var(--shadow); overflow:hidden; }
+        .test-head { padding:22px 24px 18px; border-bottom:1px solid #e2e8f0; display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
+        .test-head h2 { font-size:24px; line-height:1.15; }
+        .test-head p { color:var(--muted); font-size:14px; margin-top:6px; max-width:650px; }
+        .provider-pill { flex:0 0 auto; padding:7px 10px; border-radius:999px; background:#f1f5f9; color:#475569; font-size:12px; font-weight:900; }
+        .test-body { padding:24px; }
+        .status-row { display:flex; align-items:center; justify-content:center; gap:10px; min-height:28px; color:#475569; font-weight:800; font-size:14px; text-align:center; }
+        .status-dot { width:10px; height:10px; border-radius:50%; background:#94a3b8; box-shadow:0 0 0 5px rgba(148,163,184,.14); }
+        .status-dot.running { background:#2563eb; box-shadow:0 0 0 5px rgba(37,99,235,.14); animation:pulse 1.2s infinite; }
+        .status-dot.done { background:#16a34a; box-shadow:0 0 0 5px rgba(22,163,74,.14); }
+        @keyframes pulse { 50% { transform:scale(.75); opacity:.65; } }
+        .gauge-wrap { display:grid; place-items:center; margin:24px auto 18px; }
+        .gauge { width:min(300px,78vw); aspect-ratio:1; border-radius:50%; display:grid; place-items:center; background:conic-gradient(#2563eb var(--progress,0deg), #e2e8f0 0); position:relative; transition:background .25s ease; }
+        .gauge::before { content:""; position:absolute; inset:18px; background:#fff; border-radius:50%; box-shadow:inset 0 0 0 1px #e2e8f0; }
+        .gauge-content { position:relative; z-index:1; text-align:center; padding:20px; }
+        .gauge-label { display:block; color:#64748b; text-transform:uppercase; font-size:12px; font-weight:900; letter-spacing:.08em; }
+        .gauge-number { display:block; font-size:56px; line-height:1; font-weight:950; letter-spacing:-.04em; margin-top:8px; }
+        .gauge-unit { display:block; color:#64748b; font-size:14px; font-weight:800; margin-top:5px; }
+        .metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin-top:22px; }
+        .metric { padding:16px; border-radius:14px; border:1px solid #e2e8f0; background:#f8fafc; text-align:center; }
+        .metric span { display:block; color:#64748b; font-size:12px; font-weight:900; text-transform:uppercase; letter-spacing:.05em; }
+        .metric strong { display:block; margin-top:6px; font-size:25px; line-height:1; }
+        .metric small { display:block; color:#94a3b8; font-size:11px; margin-top:5px; }
+        .main-action { width:100%; min-height:58px; border:0; border-radius:13px; background:var(--primary); color:#fff; font-weight:950; font-size:18px; cursor:pointer; box-shadow:0 14px 30px rgba(22,163,74,.22); margin-top:22px; }
+        .main-action:hover { background:var(--primary-dark); }
+        .main-action:disabled { cursor:not-allowed; opacity:.55; box-shadow:none; }
+        .privacy-note { margin-top:14px; color:#64748b; font-size:12px; text-align:center; line-height:1.45; }
+        .privacy-note a { color:#475569; font-weight:800; }
+        .result-panel { display:none; margin-top:24px; padding-top:22px; border-top:1px solid #e2e8f0; }
+        .result-panel.visible { display:block; }
+        .result-summary { padding:18px; border-radius:14px; background:#f8fafc; border:1px solid #e2e8f0; }
+        .result-summary h3 { font-size:22px; line-height:1.2; }
+        .result-summary p { color:#475569; margin-top:8px; }
+        .use-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin-top:16px; }
+        .use-card { border:1px solid #e2e8f0; border-radius:13px; padding:14px; background:#fff; }
+        .use-card strong { display:block; font-size:14px; }
+        .use-card span { display:inline-flex; margin-top:8px; min-height:24px; align-items:center; padding:4px 8px; border-radius:999px; font-size:11px; font-weight:900; }
+        .ok { color:#166534; background:#dcfce7; }
+        .mid { color:#92400e; background:#fef3c7; }
+        .bad { color:#991b1b; background:#fee2e2; }
+        .diagnostic-callout { margin-top:16px; border:1px solid #bfdbfe; background:#eff6ff; border-radius:14px; padding:18px; }
+        .diagnostic-callout h3 { color:#1e3a8a; font-size:19px; }
+        .diagnostic-callout p { color:#1d4ed8; margin-top:7px; font-size:14px; }
+        .diagnostic-actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
+        .secondary-button { min-height:44px; padding:10px 14px; border-radius:10px; border:1px solid #bfdbfe; background:#fff; color:#1d4ed8; font-weight:900; cursor:pointer; }
+        .section { margin-top:26px; padding:26px; background:#fff; border:1px solid rgba(148,163,184,.38); border-radius:16px; box-shadow:0 16px 42px rgba(15,23,42,.07); }
+        .section h2 { font-size:28px; line-height:1.15; margin-bottom:10px; }
+        .section-lead { color:#475569; max-width:820px; }
+        .form-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; margin-top:18px; }
+        .field label { display:block; font-size:13px; font-weight:900; color:#334155; margin-bottom:6px; }
+        .field input, .field select { width:100%; min-height:46px; padding:10px 12px; border:1px solid #cbd5e1; border-radius:10px; background:#fff; color:#0f172a; }
+        .field input:focus, .field select:focus { outline:3px solid rgba(37,99,235,.14); border-color:#60a5fa; }
+        .economic-result { margin-top:18px; display:none; }
+        .economic-result.visible { display:block; }
+        .annual-cost { display:flex; justify-content:space-between; gap:14px; align-items:center; border:1px solid #e2e8f0; background:#f8fafc; border-radius:12px; padding:14px 16px; }
+        .annual-cost span { color:#64748b; font-weight:800; }
+        .annual-cost strong { font-size:24px; }
+        .verdict { margin-top:14px; padding:18px; border-radius:14px; border:1px solid #e2e8f0; }
+        .verdict[data-kind="stay"] { background:#f0fdf4; border-color:#bbf7d0; }
+        .verdict[data-kind="wifi"] { background:#eff6ff; border-color:#bfdbfe; }
+        .verdict[data-kind="switch"] { background:#fff7ed; border-color:#fed7aa; }
+        .verdict h3 { font-size:22px; }
+        .verdict p { margin-top:7px; color:#475569; }
+        .switcho-cta { display:none; margin-top:14px; }
+        .switcho-cta.visible { display:block; }
+        .switcho-link { width:100%; min-height:52px; display:inline-flex; align-items:center; justify-content:center; border-radius:11px; background:#16a34a; color:#fff; font-weight:950; text-decoration:none; }
+        .switcho-link[aria-disabled="true"] { background:#cbd5e1; color:#475569; pointer-events:none; }
+        .method-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; margin-top:18px; }
+        .method-card { border:1px solid #e2e8f0; background:#f8fafc; border-radius:13px; padding:17px; }
+        .method-card strong { display:block; font-size:17px; }
+        .method-card p { color:#64748b; font-size:14px; margin-top:7px; }
+        .legal-note { margin-top:18px; padding:14px 16px; border-radius:12px; background:#fffbeb; color:#78350f; border:1px solid #fde68a; font-size:13px; line-height:1.45; }
+        footer { text-align:center; padding:40px 20px; color:#777; border-top:2px solid #f0f0f0; margin-top:50px; font-size:13px; }
+        footer a { color:#555; text-decoration:none; margin:0 10px; }
+        footer a:hover { color:var(--accent); text-decoration:underline; }
+        .footer-privacy-action { background:transparent; border:0; color:#555; text-decoration:none; margin:0 10px; cursor:pointer; font-size:13px; font-weight:600; }
+        .error-box { display:none; margin-top:14px; padding:12px 14px; background:#fef2f2; color:#991b1b; border:1px solid #fecaca; border-radius:10px; font-size:13px; }
+        .error-box.visible { display:block; }
+        @media (max-width:860px) {
+            .metrics, .use-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+            .form-grid, .method-grid { grid-template-columns:1fr; }
+        }
+        @media (max-width:560px) {
+            .page-shell { padding:12px; }
+            header { padding:16px 8px 20px; }
+            .site-logo-main { width:min(350px,94vw); }
+            .hero-copy { font-size:16px; }
+            .test-head { padding:18px; flex-direction:column; }
+            .test-body { padding:18px; }
+            .metrics, .use-grid { grid-template-columns:1fr 1fr; }
+            .metric strong { font-size:21px; }
+            .section { padding:20px 16px; }
+            .top-nav a { width:100%; }
+            .diagnostic-actions { display:grid; grid-template-columns:1fr; }
+            .secondary-button { width:100%; }
+            .annual-cost { align-items:flex-start; flex-direction:column; }
+            footer a, .footer-privacy-action { display:inline-flex; margin:6px 8px; }
+        }
+    </style>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Vai al contenuto principale</a>
+<div class="page-shell">
+    <header>
+        <a class="site-logo-link" href="/" aria-label="Torna al calcolatore OffertaLogica">
+            <img class="site-logo-main" src="/assets/logo-offertalogica-header.png" alt="OffertaLogica.it - Confronta, scegli, risparmia">
+        </a>
+    </header>
+    <section class="ol-app-access-bar" aria-label="Accessi alle app OffertaLogica">
+        <div class="ol-app-access-inner">
+            <a class="ol-app-access-link ol-app-access-free" href="https://app.offertalogica.it/app.html">App gratuita</a>
+            <a class="ol-app-access-link ol-app-access-premium" href="https://premium.offertalogica.it/app.html">Area Premium</a>
+        </div>
+    </section>
+    <nav class="top-nav" aria-label="Navigazione principale">
+        <a href="/">Calcolatore</a>
+        <a href="/come-funziona.html">Come funziona</a>
+        <a href="/casa-smart.html">Casa smart</a>
+        <a href="/internet-casa.html">Internet casa</a>
+        <a href="/speed-test.html" class="active" aria-current="page">Speed Test</a>
+    </nav>
+
+    <main id="main-content">
+        <section class="hero">
+            <span class="eyebrow">Speed Test OffertaLogica</span>
+            <h1>Quanto va davvero la tua connessione?</h1>
+            <p class="hero-copy">Misura download, upload e latenza. Poi OffertaLogica traduce i numeri in uso reale e ti aiuta a capire se il limite può dipendere dal Wi-Fi, dalla linea o dal rapporto tra prestazioni e costo.</p>
+        </section>
+
+        <section class="test-card" aria-labelledby="test-title">
+            <div class="test-head">
+                <div>
+                    <h2 id="test-title">Test della connessione</h2>
+                    <p>Nessuna registrazione. Il traffico di misura va dal tuo browser all'infrastruttura Cloudflare, non passa da una nuova API OffertaLogica.</p>
+                </div>
+                <span class="provider-pill">Motore prototipo: Cloudflare</span>
+            </div>
+            <div class="test-body">
+                <div class="status-row" aria-live="polite">
+                    <span id="statusDot" class="status-dot"></span>
+                    <span id="statusText">Pronto per iniziare</span>
+                </div>
+
+                <div class="gauge-wrap">
+                    <div id="gauge" class="gauge" style="--progress:0deg">
+                        <div class="gauge-content">
+                            <span id="gaugeLabel" class="gauge-label">Download</span>
+                            <strong id="gaugeNumber" class="gauge-number">—</strong>
+                            <span id="gaugeUnit" class="gauge-unit">Mbps</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="metrics" aria-label="Risultati dello Speed Test">
+                    <div class="metric"><span>Download</span><strong id="downloadValue">—</strong><small>Mbps</small></div>
+                    <div class="metric"><span>Upload</span><strong id="uploadValue">—</strong><small>Mbps</small></div>
+                    <div class="metric"><span>Ping</span><strong id="pingValue">—</strong><small>ms</small></div>
+                    <div class="metric"><span>Jitter</span><strong id="jitterValue">—</strong><small>ms</small></div>
+                </div>
+
+                <button id="startButton" class="main-action" type="button">AVVIA SPEED TEST</button>
+                <div id="errorBox" class="error-box" role="alert"></div>
+                <p class="privacy-note">Il test può utilizzare fino a circa 105 MB di traffico. Cloudflare riceve dati tecnici della connessione, incluso l'indirizzo IP, secondo la propria informativa. <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">Informativa Cloudflare</a>.</p>
+
+                <div id="resultPanel" class="result-panel">
+                    <div class="result-summary">
+                        <h3 id="qualityTitle">Risultato</h3>
+                        <p id="qualityText"></p>
+                    </div>
+                    <div id="useGrid" class="use-grid" aria-label="Valutazione per utilizzo reale"></div>
+                    <div id="diagnosticCallout" class="diagnostic-callout" hidden>
+                        <h3>Prima di pensare a cambiare contratto, isoliamo il problema.</h3>
+                        <p>Ripeti il test vicino al router. Se puoi, esegui anche una prova via cavo: il confronto aiuta a distinguere un limite del Wi-Fi da un possibile limite della connessione.</p>
+                        <div class="diagnostic-actions">
+                            <button class="secondary-button" type="button" data-retest="router">Ripeti vicino al router</button>
+                            <button class="secondary-button" type="button" data-retest="cable">Ripeti via cavo</button>
+                        </div>
+                    </div>
+                    <div id="comparisonBox" class="diagnostic-callout" hidden>
+                        <h3 id="comparisonTitle">Confronto tra i test</h3>
+                        <p id="comparisonText"></p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="section" aria-labelledby="cost-title">
+            <h2 id="cost-title">Quanto ti costa questa connessione?</h2>
+            <p class="section-lead">Questi dati sono facoltativi. Servono a mettere insieme prestazioni e costo, senza spingerti a cambiare se la linea è già adeguata.</p>
+            <div class="form-grid">
+                <div class="field">
+                    <label for="monthlyCost">Costo mensile attuale (€)</label>
+                    <input id="monthlyCost" type="number" min="0" step="0.01" inputmode="decimal" placeholder="es. 29,90">
+                </div>
+                <div class="field">
+                    <label for="declaredSpeed">Velocità download dichiarata (Mbps)</label>
+                    <input id="declaredSpeed" type="number" min="0" step="1" inputmode="numeric" placeholder="es. 1000">
+                </div>
+                <div class="field">
+                    <label for="mainUse">Uso principale</label>
+                    <select id="mainUse">
+                        <option value="general">Navigazione e uso generale</option>
+                        <option value="streaming">Streaming</option>
+                        <option value="video">Videochiamate / smart working</option>
+                        <option value="gaming">Gaming online</option>
+                        <option value="multi">Più dispositivi contemporaneamente</option>
+                    </select>
+                </div>
+            </div>
+            <button id="evaluateButton" class="main-action" type="button" disabled>VALUTA PRESTAZIONI E COSTO</button>
+            <div id="economicResult" class="economic-result">
+                <div class="annual-cost"><span>Costo annuo stimato</span><strong id="annualCostValue">—</strong></div>
+                <div id="verdictBox" class="verdict" data-kind="stay">
+                    <h3 id="verdictTitle"></h3>
+                    <p id="verdictText"></p>
+                    <div id="switchoCta" class="switcho-cta">
+                        <a id="switchoLink" class="switcho-link" href="#" aria-disabled="true">Collegamento Switcho da configurare</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="section" aria-labelledby="read-title">
+            <h2 id="read-title">Come leggere lo Speed Test</h2>
+            <p class="section-lead">La velocità massima non è l'unico dato utile. Download, upload e latenza descrivono aspetti diversi della qualità percepita.</p>
+            <div class="method-grid">
+                <div class="method-card"><strong>Download</strong><p>Incide soprattutto su navigazione, streaming, download di file e uso contemporaneo di più dispositivi.</p></div>
+                <div class="method-card"><strong>Upload</strong><p>Conta quando invii file, fai backup cloud, videochiamate o trasmetti contenuti verso Internet.</p></div>
+                <div class="method-card"><strong>Ping e jitter</strong><p>Misurano reattività e stabilità dei tempi di risposta. Sono particolarmente importanti per gaming e comunicazioni in tempo reale.</p></div>
+            </div>
+            <div class="legal-note">Lo Speed Test OffertaLogica è uno strumento informativo e diagnostico. I risultati dipendono da dispositivo, Wi-Fi, rete locale, congestione e condizioni del momento. Non sostituisce gli strumenti certificati previsti da AGCOM per eventuali contestazioni contrattuali.</div>
+        </section>
+    </main>
+</div>
+
+<footer>
+    <div class="ol-app-access-footer" aria-label="Accessi alle app OffertaLogica">
+        <a class="ol-app-access-link ol-app-access-free" href="https://app.offertalogica.it/app.html">App gratuita</a>
+        <a class="ol-app-access-link ol-app-access-premium" href="https://premium.offertalogica.it/app.html">Area Premium</a>
+    </div>
+    <p style="margin-bottom:8px;font-weight:bold;">&copy; 2026 OffertaLogica.it</p>
+    <div style="margin-bottom:20px;">
+        <a href="/">Calcolatore</a> |
+        <a href="/come-funziona.html">Come funziona</a> |
+        <a href="/casa-smart.html">Casa smart</a> |
+        <a href="/internet-casa.html">Internet casa</a> |
+        <a href="/speed-test.html">Speed Test</a> |
+        <a href="/termini-condizioni.html">Termini e condizioni</a> |
+        <a href="https://www.iubenda.com/privacy-policy/36565194" class="iubenda-white iubenda-noiframe iubenda-embed">Privacy Policy</a> |
+        <a href="https://www.iubenda.com/privacy-policy/36565194/cookie-policy" class="iubenda-white iubenda-noiframe iubenda-embed">Cookie Policy</a> |
+        <button type="button" class="footer-privacy-action" onclick="apriPreferenzeCookie(event)">Modifica preferenze cookie</button>
+    </div>
+    <script type="text/javascript">
+        function apriPreferenzeCookie(event) {
+            if (event) event.preventDefault();
+            var officialButton = document.querySelector('.iubenda-tp-btn.iubenda-cs-preferences-link');
+            if (officialButton) { officialButton.click(); return; }
+            window.location.href = 'https://www.iubenda.com/privacy-policy/36565194/cookie-policy';
+        }
+    </script>
+    <script type="text/javascript">(function(w,d){var loader=function(){var s=d.createElement('script'),tag=d.getElementsByTagName('script')[0];s.src='https://cdn.iubenda.com/iubenda.js';tag.parentNode.insertBefore(s,tag);};if(w.addEventListener){w.addEventListener('load',loader,false);}else if(w.attachEvent){w.attachEvent('onload',loader);}else{w.onload=loader;}})(window,document);</script>
+</footer>
+
+<script type="module">
+import SpeedTest from 'https://cdn.jsdelivr.net/npm/@cloudflare/speedtest@1.12.1/+esm';
+
+const SWITCHO_URL = '';
+const MAX_GAUGE_MBPS = 500;
+const measurements = [
+    { type: 'latency', numPackets: 1 },
+    { type: 'download', bytes: 1e5, count: 1, bypassMinDuration: true },
+    { type: 'latency', numPackets: 20 },
+    { type: 'download', bytes: 1e5, count: 5 },
+    { type: 'download', bytes: 1e6, count: 5 },
+    { type: 'upload', bytes: 1e5, count: 5 },
+    { type: 'upload', bytes: 1e6, count: 5 },
+    { type: 'download', bytes: 1e7, count: 2 },
+    { type: 'upload', bytes: 1e7, count: 2 },
+    { type: 'download', bytes: 2.5e7, count: 1 },
+    { type: 'upload', bytes: 2.5e7, count: 1 }
+];
+
+const els = {
+    startButton: document.getElementById('startButton'),
+    statusDot: document.getElementById('statusDot'),
+    statusText: document.getElementById('statusText'),
+    gauge: document.getElementById('gauge'),
+    gaugeLabel: document.getElementById('gaugeLabel'),
+    gaugeNumber: document.getElementById('gaugeNumber'),
+    download: document.getElementById('downloadValue'),
+    upload: document.getElementById('uploadValue'),
+    ping: document.getElementById('pingValue'),
+    jitter: document.getElementById('jitterValue'),
+    resultPanel: document.getElementById('resultPanel'),
+    qualityTitle: document.getElementById('qualityTitle'),
+    qualityText: document.getElementById('qualityText'),
+    useGrid: document.getElementById('useGrid'),
+    diagnosticCallout: document.getElementById('diagnosticCallout'),
+    comparisonBox: document.getElementById('comparisonBox'),
+    comparisonTitle: document.getElementById('comparisonTitle'),
+    comparisonText: document.getElementById('comparisonText'),
+    errorBox: document.getElementById('errorBox'),
+    monthlyCost: document.getElementById('monthlyCost'),
+    declaredSpeed: document.getElementById('declaredSpeed'),
+    mainUse: document.getElementById('mainUse'),
+    evaluateButton: document.getElementById('evaluateButton'),
+    economicResult: document.getElementById('economicResult'),
+    annualCostValue: document.getElementById('annualCostValue'),
+    verdictBox: document.getElementById('verdictBox'),
+    verdictTitle: document.getElementById('verdictTitle'),
+    verdictText: document.getElementById('verdictText'),
+    switchoCta: document.getElementById('switchoCta'),
+    switchoLink: document.getElementById('switchoLink')
+};
+
+let engine = null;
+let latestResult = null;
+let firstResult = null;
+let testContext = 'standard';
+let completedTests = 0;
+
+function emitMetric(eventName, detail = {}) {
+    const event = `ol_speedtest_${eventName}`;
+    window.dispatchEvent(new CustomEvent(event, { detail }));
+    if (Array.isArray(window.dataLayer)) window.dataLayer.push({ event, ...detail });
+}
+
+function finite(value) { return Number.isFinite(Number(value)) ? Number(value) : null; }
+function mbps(bps) { return finite(bps) === null ? null : bps / 1e6; }
+function rounded(value, decimals = 1) {
+    if (value === null || !Number.isFinite(value)) return '—';
+    return value.toLocaleString('it-IT', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+}
+function setGauge(label, value, unit = 'Mbps') {
+    els.gaugeLabel.textContent = label;
+    els.gaugeNumber.textContent = value === null ? '—' : rounded(value, value >= 100 ? 0 : 1);
+    const normalized = value === null ? 0 : Math.min(Math.max(value, 0), MAX_GAUGE_MBPS) / MAX_GAUGE_MBPS;
+    els.gauge.style.setProperty('--progress', `${Math.max(4, normalized * 360)}deg`);
+    document.getElementById('gaugeUnit').textContent = unit;
+}
+function setStatus(text, state = '') {
+    els.statusText.textContent = text;
+    els.statusDot.className = `status-dot${state ? ` ${state}` : ''}`;
+}
+function showError(message) {
+    els.errorBox.textContent = message;
+    els.errorBox.classList.add('visible');
+}
+function clearError() { els.errorBox.classList.remove('visible'); els.errorBox.textContent = ''; }
+
+function readResults(results) {
+    return {
+        download: mbps(results.getDownloadBandwidth()),
+        upload: mbps(results.getUploadBandwidth()),
+        ping: finite(results.getUnloadedLatency()),
+        jitter: finite(results.getUnloadedJitter()),
+        loadedDownPing: finite(results.getDownLoadedLatency()),
+        loadedUpPing: finite(results.getUpLoadedLatency())
+    };
+}
+
+function updateLive(results, type) {
+    const r = readResults(results);
+    if (r.download !== null) els.download.textContent = rounded(r.download);
+    if (r.upload !== null) els.upload.textContent = rounded(r.upload);
+    if (r.ping !== null) els.ping.textContent = rounded(r.ping);
+    if (r.jitter !== null) els.jitter.textContent = rounded(r.jitter);
+    if (type === 'upload' && r.upload !== null) setGauge('Upload', r.upload);
+    else if (r.download !== null) setGauge('Download', r.download);
+    else if (r.ping !== null) setGauge('Ping', r.ping, 'ms');
+}
+
+function qualityForUse(result) {
+    const down = result.download || 0;
+    const up = result.upload || 0;
+    const ping = result.ping ?? 999;
+    return [
+        ['Navigazione', down >= 10 && ping < 150, down >= 5],
+        ['Streaming HD/4K', down >= 25, down >= 10],
+        ['Videochiamate', down >= 10 && up >= 3 && ping < 100, down >= 5 && up >= 1],
+        ['Gaming online', ping < 50 && down >= 15 && up >= 5, ping < 90 && down >= 8 && up >= 2]
+    ].map(([label, good, medium]) => ({ label, level: good ? 'ok' : medium ? 'mid' : 'bad', text: good ? 'Adeguata' : medium ? 'Da verificare' : 'Debole' }));
+}
+
+function renderUses(result) {
+    els.useGrid.innerHTML = qualityForUse(result).map(item => `
+        <div class="use-card"><strong>${item.label}</strong><span class="${item.level}">${item.text}</span></div>
+    `).join('');
+}
+
+function generalQuality(result) {
+    const down = result.download || 0;
+    const up = result.upload || 0;
+    const ping = result.ping ?? 999;
+    if (down >= 100 && up >= 15 && ping < 50) return ['Connessione molto buona', 'Le prestazioni rilevate sono adatte anche a più dispositivi, streaming ad alta qualità e attività sensibili alla latenza.'];
+    if (down >= 30 && up >= 8 && ping < 80) return ['Connessione adeguata', 'Per la maggior parte degli usi domestici le prestazioni rilevate sono buone. Valuta il costo prima di pensare a cambiare.'];
+    if (down >= 10 && up >= 3 && ping < 120) return ['Connessione utilizzabile, ma con margini', 'Le attività quotidiane dovrebbero funzionare, ma streaming, videochiamate o più dispositivi possono risentirne. Conviene fare un secondo test vicino al router.'];
+    return ['Prestazioni deboli', 'Il risultato è basso. Prima di attribuire il problema alla linea, ripeti il test vicino al router e, se possibile, via cavo.'];
+}
+
+function isPoor(result) {
+    return (result.download || 0) < 30 || (result.upload || 0) < 5 || (result.ping ?? 999) >= 100;
+}
+
+function compareTests(first, second, context) {
+    const downGain = first.download > 0 ? (second.download - first.download) / first.download : 0;
+    const pingGain = first.ping > 0 ? (first.ping - second.ping) / first.ping : 0;
+    const meaningful = downGain >= .30 || (second.download - first.download) >= 20 || pingGain >= .30;
+    if (meaningful) {
+        return {
+            kind: 'wifi',
+            title: 'Il secondo test è migliorato nettamente',
+            text: `Il passaggio ${context === 'cable' ? 'al cavo' : 'vicino al router'} ha migliorato in modo evidente il risultato. È un segnale compatibile con un limite della rete Wi-Fi interna più che con la linea Internet.`
+        };
+    }
+    return {
+        kind: 'line',
+        title: 'Il secondo test non cambia molto il quadro',
+        text: `Anche ${context === 'cable' ? 'via cavo' : 'vicino al router'} le prestazioni restano simili. Questo rende meno probabile che il solo Wi-Fi spieghi il risultato e suggerisce di confrontare il dato con la velocità prevista dal contratto.`
+    };
+}
+
+function finishTest(results) {
+    const result = readResults(results);
+    latestResult = result;
+    completedTests += 1;
+    updateLive(results, 'download');
+    setStatus('Test completato', 'done');
+    els.startButton.disabled = false;
+    els.startButton.textContent = 'RIPETI SPEED TEST';
+    els.resultPanel.classList.add('visible');
+    const [title, text] = generalQuality(result);
+    els.qualityTitle.textContent = title;
+    els.qualityText.textContent = text;
+    renderUses(result);
+    els.diagnosticCallout.hidden = !isPoor(result) || completedTests > 1;
+    els.evaluateButton.disabled = false;
+
+    if (!firstResult) {
+        firstResult = { ...result };
+    } else if (testContext !== 'standard') {
+        const comparison = compareTests(firstResult, result, testContext);
+        els.comparisonTitle.textContent = comparison.title;
+        els.comparisonText.textContent = comparison.text;
+        els.comparisonBox.hidden = false;
+        latestResult.comparisonKind = comparison.kind;
+        emitMetric('diagnosis_completed', { diagnosis: comparison.kind, context: testContext });
+    }
+
+    emitMetric('completed', {
+        testNumber: completedTests,
+        context: testContext,
+        downloadMbps: result.download === null ? null : Math.round(result.download),
+        uploadMbps: result.upload === null ? null : Math.round(result.upload),
+        pingMs: result.ping === null ? null : Math.round(result.ping)
+    });
+    testContext = 'standard';
+}
+
+function startTest(context = 'standard') {
+    clearError();
+    testContext = context;
+    els.resultPanel.classList.remove('visible');
+    els.comparisonBox.hidden = true;
+    els.diagnosticCallout.hidden = true;
+    els.startButton.disabled = true;
+    els.startButton.textContent = 'TEST IN CORSO…';
+    els.download.textContent = '—';
+    els.upload.textContent = '—';
+    els.ping.textContent = '—';
+    els.jitter.textContent = '—';
+    setGauge('Download', null);
+    setStatus(context === 'standard' ? 'Misurazione in corso…' : `Secondo test: ${context === 'cable' ? 'via cavo' : 'vicino al router'}…`, 'running');
+    emitMetric('started', { context, testNumber: completedTests + 1 });
+
+    try {
+        engine = new SpeedTest({
+            autoStart: false,
+            measurements,
+            measureDownloadLoadedLatency: true,
+            measureUploadLoadedLatency: true,
+            bandwidthFinishRequestDuration: 850
+        });
+        engine.onResultsChange = ({ type }) => updateLive(engine.results, type);
+        engine.onFinish = results => finishTest(results);
+        engine.onError = error => {
+            setStatus('Test non completato');
+            els.startButton.disabled = false;
+            els.startButton.textContent = 'RIPROVA SPEED TEST';
+            showError(`Non è stato possibile completare il test. Verifica la connessione e riprova. Dettaglio: ${String(error).slice(0,160)}`);
+            emitMetric('error', { context });
+        };
+        engine.play();
+    } catch (error) {
+        setStatus('Motore non disponibile');
+        els.startButton.disabled = false;
+        els.startButton.textContent = 'RIPROVA SPEED TEST';
+        showError('Il motore di test non è stato caricato correttamente. Ricarica la pagina e riprova.');
+        emitMetric('engine_error', { message: String(error).slice(0,120) });
+    }
+}
+
+function useIsAdequate(result, use) {
+    const down = result.download || 0;
+    const up = result.upload || 0;
+    const ping = result.ping ?? 999;
+    if (use === 'streaming') return down >= 25;
+    if (use === 'video') return down >= 10 && up >= 3 && ping < 100;
+    if (use === 'gaming') return down >= 15 && up >= 5 && ping < 60;
+    if (use === 'multi') return down >= 50 && up >= 10;
+    return down >= 10 && ping < 120;
+}
+
+function evaluateEconomics() {
+    if (!latestResult) return;
+    const monthly = finite(els.monthlyCost.value);
+    const declared = finite(els.declaredSpeed.value);
+    const use = els.mainUse.value;
+    const annual = monthly === null ? null : monthly * 12;
+    const deliveredRatio = declared && declared > 0 && latestResult.download !== null ? latestResult.download / declared : null;
+    const adequate = useIsAdequate(latestResult, use);
+    const priceHigh = monthly !== null && monthly >= 35;
+    const performanceWeak = deliveredRatio !== null ? deliveredRatio < .50 : isPoor(latestResult);
+    const wifiLikely = latestResult.comparisonKind === 'wifi';
+
+    els.annualCostValue.textContent = annual === null ? 'Non indicato' : `${annual.toLocaleString('it-IT', { minimumFractionDigits:2, maximumFractionDigits:2 })} €`;
+    els.economicResult.classList.add('visible');
+    els.switchoCta.classList.remove('visible');
+
+    let kind = 'stay';
+    let title = 'RESTA: la connessione appare adeguata';
+    let text = 'Le prestazioni misurate sono coerenti con l’uso indicato. Se anche il prezzo ti soddisfa, non emerge un motivo tecnico per cambiare operatore.';
+
+    if (wifiLikely) {
+        kind = 'wifi';
+        title = 'Prima sistema il Wi-Fi';
+        text = 'Il confronto tra i test indica un miglioramento marcato vicino al router o via cavo. Prima di cambiare contratto conviene intervenire sulla rete domestica: posizione del router, copertura Wi-Fi o collegamento dei dispositivi.';
+    } else if (!adequate || performanceWeak || priceHigh) {
+        kind = 'switch';
+        title = 'Verifica le alternative disponibili';
+        const reasons = [];
+        if (!adequate) reasons.push('le prestazioni non risultano pienamente adeguate all’uso indicato');
+        if (performanceWeak) reasons.push('la velocità misurata è debole rispetto al dato dichiarato o al livello atteso');
+        if (priceHigh) reasons.push('il costo mensile supera la soglia indicativa interna di 35 €');
+        text = `${reasons.join('; ')}. OffertaLogica non sostituisce il comparatore: il passo successivo è verificare copertura e offerte disponibili con il partner Internet.`;
+        els.switchoCta.classList.add('visible');
+        if (SWITCHO_URL) {
+            els.switchoLink.href = SWITCHO_URL;
+            els.switchoLink.removeAttribute('aria-disabled');
+            els.switchoLink.textContent = 'VERIFICA LE ALTERNATIVE INTERNET';
+        }
+    }
+
+    els.verdictBox.dataset.kind = kind;
+    els.verdictTitle.textContent = title;
+    els.verdictText.textContent = text;
+    emitMetric('economics_evaluated', {
+        verdict: kind,
+        annualCost: annual === null ? null : Math.round(annual),
+        declaredSpeed: declared,
+        mainUse: use
+    });
+}
+
+els.startButton.addEventListener('click', () => startTest('standard'));
+document.querySelectorAll('[data-retest]').forEach(button => button.addEventListener('click', () => startTest(button.dataset.retest)));
+els.evaluateButton.addEventListener('click', evaluateEconomics);
+[els.monthlyCost, els.declaredSpeed, els.mainUse].forEach(input => input.addEventListener('change', () => {
+    if (latestResult) emitMetric('economic_input', { field: input.id });
+}));
+els.switchoLink.addEventListener('click', () => {
+    if (SWITCHO_URL) emitMetric('switcho_click', {});
+});
+
+emitMetric('page_view', { page: '/speed-test.html', prototype: true });
+</script>
+</body>
+</html>
