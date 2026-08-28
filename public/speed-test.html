@@ -951,7 +951,7 @@
                     </div>
                 </div>
 
-                <button id="startButton" class="main-action" type="button">AVVIA SPEED TEST</button>
+                <button id="startButton" class="main-action" type="button" disabled>CARICAMENTO MOTORE…</button>
                 <div id="errorBox" class="error-box" role="alert"></div>
 
                 <p class="privacy-note">
@@ -1103,8 +1103,7 @@
 </footer>
 
 <script type="module">
-import SpeedTest from 'https://cdn.jsdelivr.net/npm/@cloudflare/speedtest@1.12.1/+esm';
-
+const SPEEDTEST_MODULE_URL = 'https://cdn.jsdelivr.net/npm/@cloudflare/speedtest@1.12.1/+esm';
 const SWITCHO_URL = '';
 const MAX_GAUGE_MBPS = 500;
 const TEST_TIMEOUT_MS = 90000;
@@ -1156,6 +1155,8 @@ const els = {
     switchoLink: document.getElementById('switchoLink')
 };
 
+let SpeedTestCtor = null;
+let engineLoadPromise = null;
 let engine = null;
 let latestResult = null;
 let firstResult = null;
@@ -1169,6 +1170,49 @@ function emitMetric(eventName, detail = {}) {
     const event = `ol_speedtest_${eventName}`;
     window.dispatchEvent(new CustomEvent(event, { detail }));
     if (Array.isArray(window.dataLayer)) window.dataLayer.push({ event, ...detail });
+}
+
+async function loadSpeedTestEngine({ quiet = false } = {}) {
+    if (SpeedTestCtor) return SpeedTestCtor;
+    if (engineLoadPromise) return engineLoadPromise;
+
+    if (!quiet) {
+        els.startButton.disabled = true;
+        els.startButton.textContent = 'CARICAMENTO MOTORE…';
+        setStatus('Preparazione dello Speed Test…');
+    }
+
+    engineLoadPromise = import(SPEEDTEST_MODULE_URL)
+        .then(module => {
+            const ctor = module && module.default;
+            if (typeof ctor !== 'function') {
+                throw new Error('Modulo Speed Test non valido');
+            }
+
+            SpeedTestCtor = ctor;
+            els.startButton.disabled = false;
+            els.startButton.textContent = 'AVVIA SPEED TEST';
+            setStatus('Pronto per iniziare');
+            clearError();
+            emitMetric('engine_ready', {});
+            return SpeedTestCtor;
+        })
+        .catch(error => {
+            SpeedTestCtor = null;
+            els.startButton.disabled = false;
+            els.startButton.textContent = 'RIPROVA CARICAMENTO';
+            setStatus('Motore non disponibile');
+            showError('Il motore dello Speed Test non è stato caricato. Controlla la connessione e riprova.');
+            emitMetric('engine_load_error', {
+                message: String(error).slice(0, 120)
+            });
+            throw error;
+        })
+        .finally(() => {
+            engineLoadPromise = null;
+        });
+
+    return engineLoadPromise;
 }
 
 function finite(value) {
@@ -1428,12 +1472,18 @@ function finishTest(results, runId, context) {
     testContext = 'standard';
 }
 
-function startTest(context = 'standard') {
+async function startTest(context = 'standard') {
     clearError();
 
     if (!navigator.onLine) {
         setStatus('Connessione assente');
         showError('Il dispositivo risulta offline. Ricollegati a Internet e riprova.');
+        return;
+    }
+
+    try {
+        await loadSpeedTestEngine({ quiet: true });
+    } catch (error) {
         return;
     }
 
@@ -1477,7 +1527,7 @@ function startTest(context = 'standard') {
     });
 
     try {
-        engine = new SpeedTest({
+        engine = new SpeedTestCtor({
             autoStart: false,
             measurements,
             measureDownloadLoadedLatency: true,
@@ -1531,7 +1581,7 @@ function startTest(context = 'standard') {
         els.startButton.textContent = 'RIPROVA SPEED TEST';
 
         showError(
-            'Il motore di test non è stato caricato correttamente. Ricarica la pagina e riprova.'
+            'Lo Speed Test non è riuscito ad avviarsi correttamente. Riprova; se il problema continua, ricarica la pagina.'
         );
 
         emitMetric('engine_error', {
@@ -1611,11 +1661,10 @@ function evaluateEconomics() {
         if (performanceWeak) {
             reasons.push('la velocità misurata è debole rispetto al dato dichiarato o al livello atteso');
         }
-        text = `${reasons.join('; ')}. Il secondo controllo non ha indicato un miglioramento sufficiente della rete domestica. Quando sarà disponibile il collegamento partner, potrai verificare copertura e offerte realmente disponibili senza ricreare un comparatore dentro OffertaLogica.`;
-
-        els.switchoCta.classList.add('visible');
+        text = `${reasons.join('; ')}. Il secondo controllo non ha indicato un miglioramento sufficiente della rete domestica. Il passo successivo è confrontare copertura, condizioni contrattuali e alternative realmente disponibili prima di decidere se cambiare operatore.`;
 
         if (SWITCHO_URL) {
+            els.switchoCta.classList.add('visible');
             els.switchoLink.href = SWITCHO_URL;
             els.switchoLink.removeAttribute('aria-disabled');
             els.switchoLink.textContent = 'VERIFICA LE ALTERNATIVE INTERNET';
@@ -1666,10 +1715,12 @@ window.addEventListener('offline', () => {
 });
 
 window.addEventListener('online', () => {
-    if (!engine || !engine.isRunning) {
-        setStatus('Connessione disponibile');
+    if (!SpeedTestCtor) {
+        loadSpeedTestEngine({ quiet: false }).catch(() => {});
     }
 });
+
+loadSpeedTestEngine({ quiet: false }).catch(() => {});
 
 emitMetric('page_view', {
     page: '/speed-test.html',
