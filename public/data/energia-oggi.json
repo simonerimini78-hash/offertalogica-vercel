@@ -16,7 +16,8 @@
     "fonte": "OffertaLogica - aggiornamento dati energia",
     "origineDato": "Gestore dei Mercati Energetici (GME) - snapshot iniziale verificato",
     "urlFonteOriginale": "https://gme.mercatoelettrico.org/it-it/Home/Esiti/Elettricita/MGP/Statistiche/Rapporti/moduleId/9436/controller/StatRapportiME/action/Download?report=20260828MgpReportGiornaliero.pdf",
-    "stato": "snapshot_iniziale_verificato"
+    "stato": "snapshot_iniziale_verificato",
+    "fonteOriginaleLabel": "GME — snapshot iniziale verificato"
   },
   "gas": {
     "giornaliero": {
@@ -29,7 +30,8 @@
       "origineDato": "Gestore dei Mercati Energetici (GME) - snapshot iniziale verificato",
       "urlFonteOriginale": "https://gme.mercatoelettrico.org/it-it/Home/Pubblicazioni/Indici-GME/IGIndexGmeEsiti",
       "stato": "snapshot_iniziale_verificato",
-      "nota": "IG Index GME resta distinto dal PSV day-ahead mensile."
+      "nota": "IG Index GME resta distinto dal PSV day-ahead mensile.",
+      "fonteOriginaleLabel": "GME — snapshot iniziale verificato"
     },
     "psvMensile": {
       "label": "PSV DA / CMEM,m",
@@ -40,7 +42,8 @@
       "fonte": "OffertaLogica - calcolo-parametri.json",
       "origineDato": "ARERA - media mensile PSV day-ahead",
       "urlFonteOriginale": "https://www.arera.it/area-operatori/prezzi-e-tariffe/valore-cmemm-vulnerabili",
-      "stato": "ufficiale_mensile"
+      "stato": "ufficiale_mensile",
+      "fonteOriginaleLabel": "ARERA — PSV day-ahead mensile"
     }
   }
 }

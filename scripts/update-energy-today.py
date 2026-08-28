@@ -7,13 +7,16 @@ import json
 import re
 import sys
 import urllib.request
-from datetime import date, datetime
+from datetime import date
 from pathlib import Path
 from urllib.parse import urljoin
 
 ARERA_VIGILANZA_URL = "https://www.arera.it/vigilanza-energetica"
 OUTPUT_PATH = Path("public/data/energia-oggi.json")
 PARAMS_PATH = Path("public/data/calcolo-parametri.json")
+PUN_PAGE_PATH = Path("public/pun-oggi.html")
+GAS_PAGE_PATH = Path("public/psv-gas-oggi.html")
+SITEMAP_PATH = Path("public/sitemap.xml")
 USER_AGENT = "OffertaLogica/1.0 (+https://offertalogica.it/)"
 DATE_RE = re.compile(r"\b(\d{2})/(\d{2})/(\d{4})\b")
 NUMBER_RE = re.compile(r"^-?\d+(?:[.,]\d+)?$")
@@ -193,6 +196,7 @@ def load_monthly_psv(params_path: Path) -> dict[str, object]:
         "valoreEurSmc": psv.get("valore"),
         "fonte": "OffertaLogica - calcolo-parametri.json",
         "origineDato": psv.get("fonte"),
+        "fonteOriginaleLabel": "ARERA — PSV day-ahead mensile",
         "urlFonteOriginale": psv.get("urlFonte"),
         "stato": "ufficiale_mensile",
     }
@@ -221,6 +225,7 @@ def build_output(values: dict[str, object], monthly_psv: dict[str, object], bull
             "massimoEurMwh": None,
             "fonte": "OffertaLogica - aggiornamento dati energia",
             "origineDato": "ARERA - Unità di Vigilanza Energetica / PUN Index GME",
+            "fonteOriginaleLabel": "ARERA — Vigilanza Energetica",
             "urlFonteOriginale": bulletin_url,
             "stato": "verificato_da_aggiornamento_offertalogica",
         },
@@ -233,6 +238,7 @@ def build_output(values: dict[str, object], monthly_psv: dict[str, object], bull
                 "variazionePercentuale": ig["variazionePercentuale"],
                 "fonte": "OffertaLogica - aggiornamento dati energia",
                 "origineDato": "ARERA - Unità di Vigilanza Energetica / IG Index GME",
+                "fonteOriginaleLabel": "ARERA — Vigilanza Energetica",
                 "urlFonteOriginale": bulletin_url,
                 "stato": "riferimento_giornaliero_mercato_gas",
                 "nota": "IG Index GME resta distinto dal PSV day-ahead mensile usato nei riferimenti ARERA.",
@@ -242,11 +248,134 @@ def build_output(values: dict[str, object], monthly_psv: dict[str, object], bull
     }
 
 
-def write_json_atomic(path: Path, data: dict[str, object]) -> None:
+def fmt_it(value: object, digits: int, suffix: str = "") -> str:
+    if value is None:
+        return "n.d."
+    number = float(value)
+    text = f"{number:.{digits}f}".replace(".", ",")
+    return text + suffix
+
+
+def date_it(iso: object) -> str:
+    parts = str(iso or "").split("-")
+    return f"{parts[2]}/{parts[1]}/{parts[0]}" if len(parts) == 3 else str(iso or "")
+
+
+def replace_once(text: str, pattern: str, replacement: str, label: str, flags: int = 0) -> str:
+    updated, count = re.subn(pattern, replacement, text, count=1, flags=flags)
+    if count != 1:
+        raise RuntimeError(f"Sincronizzazione HTML fallita ({label}): atteso 1 match, trovati {count}")
+    return updated
+
+
+def set_data_live(html: str, key: str, value: str) -> str:
+    pattern = rf'(<[^>]+data-live=["\']{re.escape(key)}["\'][^>]*>)(.*?)(</[^>]+>)'
+    return replace_once(html, pattern, rf"\g<1>{value}\g<3>", f"data-live={key}", flags=re.S)
+
+
+def render_pun_page(html: str, data: dict[str, object]) -> str:
+    pun = data["pun"]
+    assert isinstance(pun, dict)
+    html = replace_once(html, r'"dateModified":"\d{4}-\d{2}-\d{2}"', f'"dateModified":"{pun["data"]}"', "PUN dateModified")
+    html = set_data_live(html, "date", date_it(pun["data"]))
+    html = set_data_live(html, "value", fmt_it(pun["valoreEurMwh"], 2))
+    html = set_data_live(html, "kwh", fmt_it(pun["valoreEurKwh"], 5, " €/kWh"))
+    html = set_data_live(html, "yesterday", fmt_it(pun.get("ieriEurMwh"), 2, " €/MWh"))
+    variation = pun.get("variazionePercentuale")
+    variation_text = "n.d." if variation is None else ("+" if float(variation) > 0 else "") + fmt_it(variation, 2, "%")
+    html = set_data_live(html, "variation", variation_text)
+    html = set_data_live(html, "minimum", fmt_it(pun.get("minimoEurMwh"), 2, " €/MWh"))
+    html = set_data_live(html, "maximum", fmt_it(pun.get("massimoEurMwh"), 2, " €/MWh"))
+    source_label = str(pun.get("fonteOriginaleLabel") or pun.get("origineDato") or "Fonte originaria")
+    source_url = str(pun.get("urlFonteOriginale") or data.get("urlOrigineAggiornamento") or "")
+    source_html = f'<div class="ol-live-source">Aggiornamento OffertaLogica · origine: <a data-live-source href="{source_url}" target="_blank" rel="noopener">{source_label}</a>.</div>'
+    html = replace_once(html, r'<div class="ol-live-source">.*?</div>', source_html, "PUN fonte", flags=re.S)
+    body_sentence = (
+        f'Un valore giornaliero di {fmt_it(pun["valoreEurMwh"], 2)} €/MWh equivale matematicamente a '
+        f'{fmt_it(pun["valoreEurKwh"], 5)} €/kWh'
+    )
+    html = replace_once(
+        html,
+        r'Un valore giornaliero di [\d.,]+ €/MWh equivale matematicamente a [\d.,]+ €/kWh',
+        body_sentence,
+        "PUN testo esplicativo",
+    )
+    return html
+
+
+def render_gas_page(html: str, data: dict[str, object]) -> str:
+    gas = data["gas"]
+    assert isinstance(gas, dict)
+    daily = gas["giornaliero"]
+    monthly = gas["psvMensile"]
+    assert isinstance(daily, dict) and isinstance(monthly, dict)
+    html = replace_once(html, r'"dateModified":"\d{4}-\d{2}-\d{2}"', f'"dateModified":"{daily["data"]}"', "Gas dateModified")
+    html = set_data_live(html, "date", date_it(daily["data"]))
+    html = set_data_live(html, "igi", fmt_it(daily["valoreEurMwh"], 2, " €/MWh"))
+    html = set_data_live(html, "igi-yesterday", fmt_it(daily.get("ieriEurMwh"), 2, " €/MWh"))
+    variation = daily.get("variazionePercentuale")
+    variation_text = "n.d." if variation is None else ("+" if float(variation) > 0 else "") + fmt_it(variation, 2, "%")
+    html = set_data_live(html, "igi-variation", variation_text)
+    html = set_data_live(html, "psv-month", fmt_it(monthly.get("valoreEurSmc"), 6, " €/Smc"))
+    html = set_data_live(html, "psv-period", str(monthly.get("periodoLabel") or monthly.get("periodo") or "n.d."))
+    daily_label = str(daily.get("fonteOriginaleLabel") or daily.get("origineDato") or "Fonte giornaliera")
+    daily_url = str(daily.get("urlFonteOriginale") or data.get("urlOrigineAggiornamento") or "")
+    monthly_label = str(monthly.get("fonteOriginaleLabel") or monthly.get("origineDato") or "Fonte mensile")
+    monthly_url = str(monthly.get("urlFonteOriginale") or "")
+    source_html = (
+        '<div class="ol-live-source">Aggiornamento OffertaLogica · origine giornaliero: '
+        f'<a data-live-source href="{daily_url}" target="_blank" rel="noopener">{daily_label}</a> · PSV mensile: '
+        f'<a data-month-source href="{monthly_url}" target="_blank" rel="noopener">{monthly_label}</a>.</div>'
+    )
+    html = replace_once(html, r'<div class="ol-live-source">.*?</div>', source_html, "Gas fonti", flags=re.S)
+    html = replace_once(
+        html,
+        r'PSV oggi = [\d.,]+',
+        f'PSV oggi = {fmt_it(daily["valoreEurMwh"], 2)}',
+        "Gas alert valore",
+    )
+    return html
+
+
+def render_sitemap(xml: str, data: dict[str, object]) -> str:
+    pun = data["pun"]
+    gas = data["gas"]
+    assert isinstance(pun, dict) and isinstance(gas, dict) and isinstance(gas.get("giornaliero"), dict)
+    gas_daily = gas["giornaliero"]
+
+    def update_url(source: str, slug: str, lastmod: str) -> str:
+        pattern = rf'(<url><loc>https://offertalogica\.it/{re.escape(slug)}</loc><lastmod>)(\d{{4}}-\d{{2}}-\d{{2}})(</lastmod>)'
+        return replace_once(source, pattern, rf"\g<1>{lastmod}\g<3>", f"sitemap {slug}")
+
+    xml = update_url(xml, "pun-oggi.html", str(pun["data"]))
+    xml = update_url(xml, "psv-gas-oggi.html", str(gas_daily["data"]))
+    return xml
+
+
+def prepare_static_surfaces(data: dict[str, object], pun_path: Path, gas_path: Path, sitemap_path: Path) -> tuple[str, str, str]:
+    pun_html = render_pun_page(pun_path.read_text(encoding="utf-8"), data)
+    gas_html = render_gas_page(gas_path.read_text(encoding="utf-8"), data)
+    sitemap = render_sitemap(sitemap_path.read_text(encoding="utf-8"), data)
+    return pun_html, gas_html, sitemap
+
+
+def write_text_atomic(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_suffix(path.suffix + ".tmp")
-    temporary.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    temporary.write_text(text, encoding="utf-8")
     temporary.replace(path)
+
+
+def write_json_atomic(path: Path, data: dict[str, object]) -> None:
+    write_text_atomic(path, json.dumps(data, ensure_ascii=False, indent=2) + "\n")
+
+
+def write_surfaces(output_path: Path, data: dict[str, object], pun_path: Path, gas_path: Path, sitemap_path: Path) -> None:
+    pun_html, gas_html, sitemap = prepare_static_surfaces(data, pun_path, gas_path, sitemap_path)
+    write_json_atomic(output_path, data)
+    write_text_atomic(pun_path, pun_html)
+    write_text_atomic(gas_path, gas_html)
+    write_text_atomic(sitemap_path, sitemap)
 
 
 def main() -> int:
@@ -255,12 +384,28 @@ def main() -> int:
     parser.add_argument("--pdf-file", default="", help="PDF locale ARERA per test o aggiornamento manuale")
     parser.add_argument("--output", default=str(OUTPUT_PATH))
     parser.add_argument("--params", default=str(PARAMS_PATH))
+    parser.add_argument("--pun-page", default=str(PUN_PAGE_PATH))
+    parser.add_argument("--gas-page", default=str(GAS_PAGE_PATH))
+    parser.add_argument("--sitemap", default=str(SITEMAP_PATH))
+    parser.add_argument("--sync-from-json", action="store_true", help="Sincronizza HTML e sitemap usando il JSON esistente, senza rete")
     args = parser.parse_args()
 
     output_path = Path(args.output)
     params_path = Path(args.params)
+    pun_path = Path(args.pun_page)
+    gas_path = Path(args.gas_page)
+    sitemap_path = Path(args.sitemap)
 
     try:
+        if args.sync_from_json:
+            output = json.loads(output_path.read_text(encoding="utf-8"))
+            pun_html, gas_html, sitemap = prepare_static_surfaces(output, pun_path, gas_path, sitemap_path)
+            write_text_atomic(pun_path, pun_html)
+            write_text_atomic(gas_path, gas_html)
+            write_text_atomic(sitemap_path, sitemap)
+            log("HTML e sitemap sincronizzati dal JSON locale senza accesso alla rete")
+            return 0
+
         bulletin_url = args.bulletin_url
         if args.pdf_file:
             pdf_bytes = Path(args.pdf_file).read_bytes()
@@ -276,12 +421,22 @@ def main() -> int:
         values = extract_market_values(rows)
         monthly_psv = load_monthly_psv(params_path)
         output = build_output(values, monthly_psv, bulletin_url)
+
+        # Prima prepariamo tutte le superfici. Se parsing o rendering falliscono,
+        # nessun file pubblico viene sovrascritto.
+        pun_html, gas_html, sitemap = prepare_static_surfaces(output, pun_path, gas_path, sitemap_path)
         write_json_atomic(output_path, output)
-        log(f"Aggiornato {output_path} con PUN {output['pun']['data']} e IG {output['gas']['giornaliero']['data']}")
+        write_text_atomic(pun_path, pun_html)
+        write_text_atomic(gas_path, gas_html)
+        write_text_atomic(sitemap_path, sitemap)
+        log(
+            f"Aggiornati JSON, pagine e sitemap con PUN {output['pun']['data']} "
+            f"e IG {output['gas']['giornaliero']['data']}"
+        )
         return 0
     except Exception as exc:
         print(f"[ENERGIA] ERRORE: {exc}", file=sys.stderr, flush=True)
-        print("[ENERGIA] Il file esistente non è stato sovrascritto.", file=sys.stderr, flush=True)
+        print("[ENERGIA] I file pubblici esistenti non sono stati sovrascritti.", file=sys.stderr, flush=True)
         return 1
 
 

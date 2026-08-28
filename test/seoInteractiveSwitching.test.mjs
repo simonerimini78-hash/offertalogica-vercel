@@ -38,8 +38,9 @@ test("SEO switching: distingue switching, voltura e subentro senza duplicare fun
   assert.doesNotMatch(html,/fetch\s*\(/);
 });
 
-test("SEO switching: sitemap aggiorna solo il lastmod della pagina modificata",()=>{
+test("SEO switching: sitemap mantiene la pagina e non dipende dai lastmod delle altre URL",()=>{
   assert.match(sitemap,/<loc>https:\/\/offertalogica\.it\/come-cambiare-fornitore-luce-gas\.html<\/loc><lastmod>2026-08-28<\/lastmod>/);
-  assert.match(sitemap,/<loc>https:\/\/offertalogica\.it\/come-leggere-bolletta-luce-gas\.html<\/loc><lastmod>2026-08-25<\/lastmod>/);
-  assert.match(sitemap,/<loc>https:\/\/offertalogica\.it\/offerte-luce-gas-aggiornate\.html<\/loc><lastmod>2026-08-25<\/lastmod>/);
+  assert.equal((sitemap.match(/come-cambiare-fornitore-luce-gas\.html/g)||[]).length,1);
+  assert.equal((sitemap.match(/come-leggere-bolletta-luce-gas\.html/g)||[]).length,1);
+  assert.equal((sitemap.match(/offerte-luce-gas-aggiornate\.html/g)||[]).length,1);
 });
