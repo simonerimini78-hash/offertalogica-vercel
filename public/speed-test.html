@@ -699,7 +699,8 @@
             border-color: rgba(24,168,75,.26);
             background: rgba(232,248,237,.62);
         }
-        .verdict[data-kind="wifi"] {
+        .verdict[data-kind="wifi"],
+        .verdict[data-kind="diagnosis"] {
             border-color: rgba(37,99,235,.20);
             background: rgba(239,246,255,.64);
         }
@@ -853,6 +854,10 @@
                 align-items: flex-start;
                 flex-direction: column;
             }
+            input,
+            select {
+                font-size: 16px;
+            }
             footer a,
             .footer-privacy-action {
                 display: inline-flex;
@@ -910,7 +915,7 @@
             <div class="test-head">
                 <div>
                     <h2 id="test-title">Test della connessione</h2>
-                    <p>Nessuna registrazione. Il traffico di misura va dal tuo browser all'infrastruttura Cloudflare, non passa da una nuova API OffertaLogica.</p>
+                    <p>Nessuna registrazione. Il traffico di misura va dal tuo browser all'infrastruttura Cloudflare, non passa da una nuova API OffertaLogica. Prima di avviare, assicurati di essere collegato alla rete che vuoi realmente verificare.</p>
                 </div>
                 <span class="provider-pill">Motore prototipo: Cloudflare</span>
             </div>
@@ -1095,6 +1100,7 @@ import SpeedTest from 'https://cdn.jsdelivr.net/npm/@cloudflare/speedtest@1.12.1
 
 const SWITCHO_URL = '';
 const MAX_GAUGE_MBPS = 500;
+const TEST_TIMEOUT_MS = 90000;
 
 const measurements = [
     { type: 'latency', numPackets: 1 },
@@ -1148,6 +1154,9 @@ let latestResult = null;
 let firstResult = null;
 let testContext = 'standard';
 let completedTests = 0;
+let activeRunId = 0;
+let testTimeoutId = null;
+let diagnosisCompleted = false;
 
 function emitMetric(eventName, detail = {}) {
     const event = `ol_speedtest_${eventName}`;
@@ -1198,6 +1207,25 @@ function showError(message) {
 function clearError() {
     els.errorBox.classList.remove('visible');
     els.errorBox.textContent = '';
+}
+
+function clearTestTimeout() {
+    if (testTimeoutId) {
+        window.clearTimeout(testTimeoutId);
+        testTimeoutId = null;
+    }
+}
+
+function pauseEngineSafely() {
+    try {
+        if (engine && engine.isRunning) engine.pause();
+    } catch (error) {}
+}
+
+function invalidateActiveRun() {
+    activeRunId += 1;
+    clearTestTimeout();
+    pauseEngineSafely();
 }
 
 function readResults(results) {
@@ -1326,7 +1354,11 @@ function compareTests(first, second, context) {
     };
 }
 
-function finishTest(results) {
+function finishTest(results, runId, context) {
+    if (runId !== activeRunId) return;
+
+    clearTestTimeout();
+
     const result = readResults(results);
 
     latestResult = result;
@@ -1348,20 +1380,23 @@ function finishTest(results) {
     els.diagnosticCallout.hidden = !isPoor(result) || completedTests > 1;
     els.evaluateButton.disabled = false;
 
-    if (!firstResult) {
+    if (context === 'standard') {
         firstResult = { ...result };
-    } else if (testContext !== 'standard') {
-        const comparison = compareTests(firstResult, result, testContext);
+        latestResult.comparisonKind = null;
+        diagnosisCompleted = false;
+    } else if (firstResult) {
+        const comparison = compareTests(firstResult, result, context);
 
         els.comparisonTitle.textContent = comparison.title;
         els.comparisonText.textContent = comparison.text;
         els.comparisonBox.hidden = false;
 
         latestResult.comparisonKind = comparison.kind;
+        diagnosisCompleted = true;
 
         emitMetric('diagnosis_completed', {
             diagnosis: comparison.kind,
-            context: testContext,
+            context,
             firstDownloadMbps: firstResult.download === null ? null : Math.round(firstResult.download),
             secondDownloadMbps: result.download === null ? null : Math.round(result.download),
             firstUploadMbps: firstResult.upload === null ? null : Math.round(firstResult.upload),
@@ -1373,7 +1408,7 @@ function finishTest(results) {
 
     emitMetric('completed', {
         testNumber: completedTests,
-        context: testContext,
+        context,
         downloadMbps: result.download === null ? null : Math.round(result.download),
         uploadMbps: result.upload === null ? null : Math.round(result.upload),
         pingMs: result.ping === null ? null : Math.round(result.ping)
@@ -1385,7 +1420,22 @@ function finishTest(results) {
 function startTest(context = 'standard') {
     clearError();
 
+    if (!navigator.onLine) {
+        setStatus('Connessione assente');
+        showError('Il dispositivo risulta offline. Ricollegati a Internet e riprova.');
+        return;
+    }
+
+    invalidateActiveRun();
+    const runId = activeRunId;
+
     testContext = context;
+
+    if (context === 'standard') {
+        firstResult = null;
+        diagnosisCompleted = false;
+        if (latestResult) latestResult.comparisonKind = null;
+    }
 
     els.resultPanel.classList.remove('visible');
     els.comparisonBox.hidden = true;
@@ -1422,10 +1472,20 @@ function startTest(context = 'standard') {
             bandwidthFinishRequestDuration: 850
         });
 
-        engine.onResultsChange = ({ type }) => updateLive(engine.results, type);
-        engine.onFinish = results => finishTest(results);
+        engine.onResultsChange = ({ type }) => {
+            if (runId !== activeRunId) return;
+            updateLive(engine.results, type);
+        };
+
+        engine.onFinish = results => {
+            if (runId !== activeRunId) return;
+            finishTest(results, runId, context);
+        };
 
         engine.onError = error => {
+            if (runId !== activeRunId) return;
+
+            clearTestTimeout();
             setStatus('Test non completato');
 
             els.startButton.disabled = false;
@@ -1438,8 +1498,20 @@ function startTest(context = 'standard') {
             emitMetric('error', { context });
         };
 
+        testTimeoutId = window.setTimeout(() => {
+            if (runId !== activeRunId) return;
+
+            invalidateActiveRun();
+            setStatus('Test interrotto per timeout');
+            els.startButton.disabled = false;
+            els.startButton.textContent = 'RIPROVA SPEED TEST';
+            showError('Il test sta impiegando troppo tempo ed è stato sospeso. Controlla la connessione e riprova.');
+            emitMetric('timeout', { context });
+        }, TEST_TIMEOUT_MS);
+
         engine.play();
     } catch (error) {
+        clearTestTimeout();
         setStatus('Motore non disponibile');
 
         els.startButton.disabled = false;
@@ -1487,7 +1559,9 @@ function evaluateEconomics() {
             ? deliveredRatio < .50
             : isPoor(latestResult);
 
-    const wifiLikely = latestResult.comparisonKind === 'wifi';
+    const poorFirstPicture = isPoor(latestResult) || !adequate || performanceWeak;
+    const wifiLikely = diagnosisCompleted && latestResult.comparisonKind === 'wifi';
+    const lineIssueLikely = diagnosisCompleted && latestResult.comparisonKind === 'line';
 
     els.annualCostValue.textContent =
         annual === null
@@ -1504,11 +1578,15 @@ function evaluateEconomics() {
     let title = 'RESTA: la connessione appare adeguata';
     let text = 'Le prestazioni misurate sono coerenti con l’uso indicato. Il costo annuo viene mostrato come riferimento, ma non viene giudicato con una soglia inventata: senza un confronto con alternative realmente disponibili non emerge un motivo tecnico per cambiare operatore.';
 
-    if (wifiLikely) {
+    if (poorFirstPicture && !diagnosisCompleted) {
+        kind = 'diagnosis';
+        title = 'Prima completa il controllo Wi-Fi';
+        text = 'Il primo risultato non è abbastanza convincente per suggerire un cambio operatore. Ripeti lo Speed Test vicino al router e, se possibile, via cavo: solo dopo il confronto OffertaLogica distingue tra probabile limite della rete domestica e prestazioni della linea da approfondire.';
+    } else if (wifiLikely) {
         kind = 'wifi';
         title = 'Prima sistema il Wi-Fi';
-        text = 'Il confronto tra i test indica un miglioramento marcato vicino al router o via cavo. Prima di cambiare contratto conviene intervenire sulla rete domestica: posizione del router, copertura Wi-Fi o collegamento dei dispositivi.';
-    } else if (!adequate || performanceWeak) {
+        text = 'Il confronto tra i test indica un miglioramento significativo vicino al router o via cavo. Prima di cambiare contratto conviene intervenire sulla rete domestica: posizione del router, copertura Wi-Fi o collegamento dei dispositivi.';
+    } else if (lineIssueLikely && (!adequate || performanceWeak)) {
         kind = 'switch';
         title = 'Verifica le alternative disponibili';
 
@@ -1520,7 +1598,7 @@ function evaluateEconomics() {
         if (performanceWeak) {
             reasons.push('la velocità misurata è debole rispetto al dato dichiarato o al livello atteso');
         }
-        text = `${reasons.join('; ')}. OffertaLogica non sostituisce il comparatore: il passo successivo è verificare copertura e offerte realmente disponibili con il partner Internet, così da confrontare anche il prezzo su dati concreti.`;
+        text = `${reasons.join('; ')}. Il secondo controllo non ha indicato un miglioramento sufficiente della rete domestica. Quando sarà disponibile il collegamento partner, potrai verificare copertura e offerte realmente disponibili senza ricreare un comparatore dentro OffertaLogica.`;
 
         els.switchoCta.classList.add('visible');
 
@@ -1561,6 +1639,23 @@ els.evaluateButton.addEventListener('click', evaluateEconomics);
 
 els.switchoLink.addEventListener('click', () => {
     if (SWITCHO_URL) emitMetric('switcho_click', {});
+});
+
+window.addEventListener('offline', () => {
+    if (engine && engine.isRunning) {
+        invalidateActiveRun();
+        setStatus('Connessione interrotta');
+        els.startButton.disabled = false;
+        els.startButton.textContent = 'RIPROVA SPEED TEST';
+        showError('La connessione Internet è stata interrotta durante il test.');
+        emitMetric('offline_interruption', {});
+    }
+});
+
+window.addEventListener('online', () => {
+    if (!engine || !engine.isRunning) {
+        setStatus('Connessione disponibile');
+    }
 });
 
 emitMetric('page_view', {
