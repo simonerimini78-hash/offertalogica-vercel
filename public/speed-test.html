@@ -1,0 +1,1766 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <script type="text/javascript" src="https://embeds.iubenda.com/widgets/7a8d1e4e-6d87-44e3-9842-5e8991323410.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="index,follow">
+    <title>Speed Test Internet: velocità, Wi-Fi e costo | OffertaLogica</title>
+    <meta name="description" content="Fai lo Speed Test Internet: misura download, upload, ping e jitter, interpreta la qualità della connessione e verifica se il limite può dipendere dal Wi-Fi o dalla linea.">
+    <link rel="canonical" href="https://offertalogica.it/speed-test.html">
+    <meta property="og:title" content="Speed Test Internet | OffertaLogica">
+    <meta property="og:description" content="Misura la connessione e interpreta i risultati prima di valutare un cambio operatore.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://offertalogica.it/speed-test.html">
+    <meta name="twitter:card" content="summary">
+    <link rel="icon" type="image/png" href="/assets/logo-offertalogica-icon.png">
+    <link rel="apple-touch-icon" href="/assets/logo-offertalogica-icon.png">
+    <link rel="stylesheet" href="/assets/ol-app-access.css">
+    <style>
+        :root {
+            /* Palette reale OffertaLogica, ripresa dal sito principale */
+            --bg-color: #f1f5f9;
+            --card-bg: #ffffff;
+            --text-color: #0f172a;
+            --text-muted: #64748b;
+            --primary: #16a34a;
+            --primary-hover: #15803d;
+            --accent: #2563eb;
+            --border: #cbd5e1;
+            --logo-green-deep: #048a3d;
+            --logo-green: #16a34a;
+            --logo-green-bright: #7ed321;
+            --logo-green-gradient: linear-gradient(135deg, #048a3d 0%, #16a34a 46%, #7ed321 100%);
+
+            /* Fluid Glass OffertaLogica */
+            --glass-text: #123044;
+            --glass-muted: #647985;
+            --glass-border: rgba(227, 233, 231, .78);
+            --glass-bg: linear-gradient(
+                155deg,
+                rgba(255,255,255,.58) 0%,
+                rgba(244,247,245,.40) 48%,
+                rgba(227,233,231,.34) 100%
+            );
+            --glass-bg-strong: linear-gradient(
+                145deg,
+                rgba(255,255,255,.72) 0%,
+                rgba(238,245,240,.54) 58%,
+                rgba(227,233,231,.42) 100%
+            );
+            --glass-shadow:
+                0 30px 72px rgba(18,48,68,.16),
+                inset 0 1px 0 rgba(255,255,255,.92),
+                inset 0 -1px 0 rgba(18,48,68,.06);
+            --glass-shadow-soft:
+                0 18px 44px rgba(18,48,68,.13),
+                0 8px 30px rgba(24,168,75,.09),
+                inset 0 1px 0 rgba(255,255,255,.98),
+                inset 0 -1px 0 rgba(8,127,58,.07);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: ui-rounded, "SF Pro Rounded", "Aptos", "Inter",
+                -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }
+
+        html { scroll-behavior: smooth; }
+        body {
+            min-height: 100vh;
+            color: var(--text-color);
+            line-height: 1.55;
+            background:
+                radial-gradient(circle at 18% 12%, rgba(132,209,38,.18), transparent 30%),
+                radial-gradient(circle at 82% 26%, rgba(24,168,75,.16), transparent 34%),
+                radial-gradient(circle at 48% 92%, rgba(8,127,58,.10), transparent 36%),
+                linear-gradient(145deg, #f4f7f5 0%, #eef5f0 52%, #ffffff 100%);
+            background-attachment: fixed;
+        }
+
+        button, input, select { font: inherit; }
+        button, a { -webkit-tap-highlight-color: transparent; }
+        .skip-link {
+            position: absolute;
+            left: -999px;
+            top: 12px;
+            z-index: 2000;
+            padding: 10px 14px;
+            border-radius: 10px;
+            background: #fff;
+            color: var(--accent);
+            font-weight: 800;
+        }
+        .skip-link:focus { left: 12px; }
+
+        .page-shell {
+            max-width: 1080px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            padding: 20px 20px 22px;
+        }
+        .site-logo-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 0;
+        }
+        .site-logo-main {
+            display: block;
+            width: min(430px, 88vw);
+            height: auto;
+            filter: drop-shadow(0 11px 24px rgba(18,48,68,.10));
+        }
+
+        .top-nav {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 0 0 24px;
+        }
+        .top-nav a {
+            min-height: 42px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 15px;
+            border: 1px solid rgba(227,233,231,.82);
+            border-radius: 14px;
+            background: rgba(255,255,255,.48);
+            color: #315564;
+            text-decoration: none;
+            font-weight: 850;
+            box-shadow:
+                inset 0 1px 0 rgba(255,255,255,.90),
+                0 8px 18px rgba(18,48,68,.06);
+            -webkit-backdrop-filter: blur(18px) saturate(135%);
+            backdrop-filter: blur(18px) saturate(135%);
+            transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+        }
+        .top-nav a:hover {
+            transform: translateY(-1px);
+            border-color: rgba(24,168,75,.28);
+            box-shadow:
+                inset 0 1px 0 rgba(255,255,255,.94),
+                0 12px 24px rgba(18,48,68,.10);
+        }
+        .top-nav a.active {
+            border-color: rgba(24,168,75,.28);
+            background: rgba(255,255,255,.58);
+            color: #087f3a;
+        }
+
+        .hero {
+            position: relative;
+            isolation: isolate;
+            overflow: hidden;
+            padding: clamp(26px, 5vw, 48px);
+            border: 1px solid var(--glass-border);
+            border-radius: clamp(26px, 4vw, 38px);
+            background: var(--glass-bg);
+            box-shadow: var(--glass-shadow);
+            -webkit-backdrop-filter: blur(32px) saturate(138%);
+            backdrop-filter: blur(32px) saturate(138%);
+            text-align: center;
+        }
+        .hero::before {
+            content: "";
+            position: absolute;
+            z-index: -1;
+            width: 390px;
+            height: 220px;
+            left: -100px;
+            top: -96px;
+            border-radius: 999px;
+            background: linear-gradient(
+                145deg,
+                rgba(5,93,56,.30),
+                rgba(24,168,75,.18) 62%,
+                rgba(132,209,38,.12)
+            );
+            filter: blur(26px);
+            pointer-events: none;
+        }
+        .hero::after {
+            content: "";
+            position: absolute;
+            z-index: -1;
+            width: 330px;
+            height: 190px;
+            right: -105px;
+            bottom: -82px;
+            border-radius: 999px;
+            background: linear-gradient(145deg, rgba(255,255,255,.34), rgba(24,168,75,.13));
+            filter: blur(28px);
+            pointer-events: none;
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 32px;
+            padding: 8px 14px;
+            border: 1px solid rgba(24,168,75,.28);
+            border-radius: 999px;
+            background: rgba(255,255,255,.52);
+            color: #087f3a;
+            font-size: 12px;
+            font-weight: 900;
+            letter-spacing: .05em;
+            text-transform: uppercase;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.86);
+            -webkit-backdrop-filter: blur(18px) saturate(135%);
+            backdrop-filter: blur(18px) saturate(135%);
+        }
+
+        h1 {
+            max-width: 830px;
+            margin: 16px auto 0;
+            color: var(--glass-text);
+            font-size: clamp(36px, 7vw, 62px);
+            line-height: 1.02;
+            letter-spacing: -.04em;
+        }
+        .hero-copy {
+            max-width: 790px;
+            margin: 16px auto 0;
+            color: var(--glass-muted);
+            font-size: 18px;
+            line-height: 1.55;
+        }
+
+        .test-card,
+        .section {
+            position: relative;
+            isolation: isolate;
+            overflow: hidden;
+            margin-top: 22px;
+            border: 1px solid var(--glass-border);
+            background: var(--glass-bg);
+            box-shadow: var(--glass-shadow-soft);
+            -webkit-backdrop-filter: blur(26px) saturate(145%);
+            backdrop-filter: blur(26px) saturate(145%);
+        }
+
+        .test-card {
+            border-radius: 30px;
+        }
+        .section {
+            padding: 26px;
+            border-radius: 26px;
+        }
+
+        .test-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 22px 24px 18px;
+            border-bottom: 1px solid rgba(18,48,68,.10);
+        }
+        .test-head h2,
+        .section h2 {
+            color: var(--glass-text);
+            line-height: 1.15;
+            letter-spacing: -.02em;
+        }
+        .test-head h2 { font-size: 24px; }
+        .section h2 { font-size: 28px; }
+        .test-head p,
+        .section-lead {
+            color: var(--glass-muted);
+        }
+        .test-head p {
+            max-width: 650px;
+            margin-top: 6px;
+            font-size: 14px;
+        }
+        .section-lead {
+            max-width: 820px;
+            margin-top: 8px;
+        }
+
+        .provider-pill {
+            flex: 0 0 auto;
+            padding: 7px 10px;
+            border: 1px solid rgba(24,168,75,.22);
+            border-radius: 999px;
+            background: rgba(255,255,255,.46);
+            color: #315564;
+            font-size: 12px;
+            font-weight: 900;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.86);
+            -webkit-backdrop-filter: blur(18px) saturate(135%);
+            backdrop-filter: blur(18px) saturate(135%);
+        }
+
+        .test-body { padding: 24px; }
+
+        .status-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            min-height: 28px;
+            color: #315564;
+            font-size: 14px;
+            font-weight: 850;
+            text-align: center;
+        }
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #94a3b8;
+            box-shadow: 0 0 0 5px rgba(148,163,184,.14);
+        }
+        .status-dot.running {
+            background: var(--logo-green);
+            box-shadow: 0 0 0 5px rgba(22,163,74,.14);
+            animation: pulse 1.2s infinite;
+        }
+        .status-dot.done {
+            background: var(--logo-green);
+            box-shadow: 0 0 0 5px rgba(22,163,74,.14);
+        }
+        @keyframes pulse {
+            50% { transform: scale(.75); opacity: .65; }
+        }
+
+        .speed-layout {
+            display: grid;
+            grid-template-columns: minmax(270px, .8fr) minmax(0, 1.2fr);
+            gap: 20px;
+            align-items: center;
+            margin-top: 18px;
+        }
+
+        .gauge-panel {
+            min-height: 340px;
+            display: grid;
+            place-items: center;
+            padding: 18px;
+            border: 1px solid rgba(227,233,231,.92);
+            border-radius: 28px;
+            background: var(--glass-bg-strong);
+            box-shadow:
+                0 18px 44px rgba(18,48,68,.10),
+                inset 0 1px 0 rgba(255,255,255,.98);
+            -webkit-backdrop-filter: blur(24px) saturate(140%);
+            backdrop-filter: blur(24px) saturate(140%);
+        }
+        .gauge {
+            width: min(300px, 72vw);
+            aspect-ratio: 1;
+            display: grid;
+            place-items: center;
+            border-radius: 50%;
+            position: relative;
+            background:
+                conic-gradient(
+                    from 210deg,
+                    #048a3d 0deg,
+                    #16a34a var(--progress-mid, 0deg),
+                    #7ed321 var(--progress, 0deg),
+                    rgba(227,233,231,.72) var(--progress, 0deg)
+                );
+            box-shadow:
+                0 24px 54px rgba(18,48,68,.12),
+                inset 0 1px 0 rgba(255,255,255,.84);
+        }
+        .gauge::before {
+            content: "";
+            position: absolute;
+            inset: 18px;
+            border-radius: 50%;
+            background:
+                linear-gradient(155deg, rgba(255,255,255,.82), rgba(244,247,245,.64));
+            box-shadow:
+                inset 0 1px 0 rgba(255,255,255,.98),
+                inset 0 -1px 0 rgba(18,48,68,.05);
+            -webkit-backdrop-filter: blur(24px);
+            backdrop-filter: blur(24px);
+        }
+        .gauge-content {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+        }
+        .gauge-label {
+            display: block;
+            color: #647985;
+            font-size: 12px;
+            font-weight: 900;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+        }
+        .gauge-number {
+            display: block;
+            margin-top: 7px;
+            color: var(--glass-text);
+            font-size: 58px;
+            line-height: 1;
+            font-weight: 950;
+            letter-spacing: -.05em;
+            font-variant-numeric: tabular-nums;
+        }
+        .gauge-unit {
+            display: block;
+            margin-top: 5px;
+            color: #647985;
+            font-size: 14px;
+            font-weight: 800;
+        }
+
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0,1fr));
+            gap: 12px;
+        }
+        .metric {
+            min-height: 150px;
+            display: grid;
+            align-content: center;
+            justify-items: center;
+            padding: 17px;
+            border: 1px solid rgba(227,233,231,.92);
+            border-radius: 22px;
+            background: var(--glass-bg-strong);
+            box-shadow:
+                0 12px 28px rgba(18,48,68,.08),
+                inset 0 1px 0 rgba(255,255,255,.98);
+            -webkit-backdrop-filter: blur(22px) saturate(138%);
+            backdrop-filter: blur(22px) saturate(138%);
+            text-align: center;
+        }
+        .metric span {
+            display: block;
+            color: #315564;
+            font-size: 12px;
+            font-weight: 900;
+            letter-spacing: .05em;
+            text-transform: uppercase;
+        }
+        .metric strong {
+            display: block;
+            margin-top: 8px;
+            color: var(--glass-text);
+            font-size: 31px;
+            line-height: 1;
+            font-variant-numeric: tabular-nums;
+        }
+        .metric small {
+            display: block;
+            margin-top: 6px;
+            color: #647985;
+            font-size: 11px;
+        }
+
+        .main-action {
+            width: 100%;
+            min-height: 58px;
+            margin-top: 20px;
+            padding: 13px 18px;
+            border: 1px solid rgba(227,233,231,.62);
+            border-radius: 19px;
+            background: linear-gradient(
+                145deg,
+                rgba(5,93,56,.96) 0%,
+                rgba(8,127,58,.94) 38%,
+                rgba(24,168,75,.90) 72%,
+                rgba(115,201,40,.76) 112%
+            );
+            color: #e3e9e7;
+            font-size: 18px;
+            font-weight: 950;
+            cursor: pointer;
+            box-shadow:
+                0 18px 40px rgba(18,48,68,.22),
+                inset 0 1px 0 rgba(255,255,255,.28),
+                inset 0 -1px 0 rgba(5,93,56,.24);
+            -webkit-backdrop-filter: blur(20px) saturate(136%);
+            backdrop-filter: blur(20px) saturate(136%);
+            transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
+        }
+        .main-action:hover:not(:disabled) {
+            transform: translateY(-1px);
+            filter: saturate(1.08) brightness(1.02);
+            box-shadow:
+                0 20px 42px rgba(22,163,74,.30),
+                inset 0 1px 0 rgba(255,255,255,.22);
+        }
+        .main-action:active:not(:disabled) { transform: scale(.988); }
+        .main-action:disabled {
+            cursor: not-allowed;
+            opacity: .55;
+            box-shadow: none;
+        }
+
+        .privacy-note,
+        .legal-note {
+            margin-top: 14px;
+            border: 1px solid rgba(18,48,68,.10);
+            border-radius: 16px;
+            background: rgba(255,255,255,.42);
+            color: #647985;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.82);
+            -webkit-backdrop-filter: blur(18px) saturate(130%);
+            backdrop-filter: blur(18px) saturate(130%);
+        }
+        .privacy-note {
+            padding: 11px 14px;
+            font-size: 12px;
+            line-height: 1.45;
+            text-align: center;
+        }
+        .privacy-note a { color: #087f3a; font-weight: 850; }
+        .privacy-details {
+            max-width: 820px;
+            margin: 14px auto 0;
+            border: 1px solid rgba(18,48,68,.08);
+            border-radius: 14px;
+            background: rgba(255,255,255,.34);
+            color: var(--glass-muted);
+        }
+        .privacy-details summary {
+            cursor: pointer;
+            color: #315564;
+            font-weight: 850;
+            list-style-position: inside;
+        }
+        .privacy-details[open] summary {
+            margin-bottom: 8px;
+        }
+        .privacy-details p {
+            margin: 0;
+        }
+        .privacy-links {
+            margin-top: 6px !important;
+        }
+        .legal-note {
+            padding: 14px 16px;
+            font-size: 13px;
+            line-height: 1.45;
+        }
+
+        .result-panel {
+            display: none;
+            margin-top: 22px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(18,48,68,.10);
+        }
+        .result-panel.visible { display: block; }
+
+        .result-summary,
+        .diagnostic-callout,
+        .annual-cost,
+        .verdict,
+        .method-card,
+        .use-card {
+            border: 1px solid rgba(227,233,231,.92);
+            background: rgba(255,255,255,.48);
+            box-shadow:
+                0 10px 24px rgba(18,48,68,.07),
+                inset 0 1px 0 rgba(255,255,255,.92);
+            -webkit-backdrop-filter: blur(20px) saturate(135%);
+            backdrop-filter: blur(20px) saturate(135%);
+        }
+
+        .result-summary {
+            padding: 18px;
+            border-radius: 20px;
+        }
+        .result-summary h3 {
+            color: var(--glass-text);
+            font-size: 22px;
+            line-height: 1.2;
+        }
+        .result-summary p {
+            margin-top: 8px;
+            color: #647985;
+        }
+
+        .use-grid {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0,1fr));
+            gap: 12px;
+            margin-top: 16px;
+        }
+        .use-card {
+            min-height: 112px;
+            padding: 14px;
+            border-radius: 18px;
+        }
+        .use-card strong {
+            display: block;
+            color: #315564;
+            font-size: 14px;
+        }
+        .use-card span {
+            display: inline-flex;
+            align-items: center;
+            min-height: 24px;
+            margin-top: 9px;
+            padding: 4px 8px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 900;
+        }
+        .ok { color: #087f3a; background: rgba(232,248,237,.84); }
+        .mid { color: #92400e; background: rgba(254,243,199,.76); }
+        .bad { color: #991b1b; background: rgba(254,226,226,.76); }
+
+        .diagnostic-callout {
+            margin-top: 16px;
+            padding: 18px;
+            border-radius: 20px;
+        }
+        .diagnostic-callout h3 {
+            color: var(--glass-text);
+            font-size: 19px;
+        }
+        .diagnostic-callout p {
+            margin-top: 7px;
+            color: #647985;
+            font-size: 14px;
+        }
+        .diagnostic-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 14px;
+        }
+        .diagnostic-tip {
+            margin-top: 10px !important;
+            color: #647985 !important;
+            font-size: 12px !important;
+            line-height: 1.4;
+        }
+        .secondary-button {
+            min-height: 44px;
+            padding: 10px 14px;
+            border: 1px solid rgba(24,168,75,.26);
+            border-radius: 14px;
+            background: rgba(255,255,255,.52);
+            color: #087f3a;
+            font-weight: 900;
+            cursor: pointer;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.88);
+            -webkit-backdrop-filter: blur(16px);
+            backdrop-filter: blur(16px);
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0,1fr));
+            gap: 14px;
+            margin-top: 18px;
+        }
+        .field label {
+            display: block;
+            margin-bottom: 6px;
+            color: #315564;
+            font-size: 13px;
+            font-weight: 900;
+        }
+        .field input,
+        .field select {
+            width: 100%;
+            min-height: 48px;
+            padding: 10px 12px;
+            border: 1px solid rgba(18,48,68,.14);
+            border-radius: 14px;
+            background: rgba(255,255,255,.58);
+            color: var(--glass-text);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.88);
+            -webkit-backdrop-filter: blur(16px);
+            backdrop-filter: blur(16px);
+        }
+        .field input:focus,
+        .field select:focus {
+            outline: 3px solid rgba(24,168,75,.16);
+            border-color: rgba(24,168,75,.40);
+        }
+
+        .economic-result {
+            display: none;
+            margin-top: 18px;
+        }
+        .economic-result.visible { display: block; }
+        .economic-note {
+            margin: 10px 2px 0;
+            color: #647985;
+            font-size: 12px;
+            line-height: 1.45;
+        }
+
+        .annual-cost {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            padding: 15px 17px;
+            border-radius: 18px;
+        }
+        .annual-cost span {
+            color: #647985;
+            font-weight: 800;
+        }
+        .annual-cost strong {
+            color: var(--glass-text);
+            font-size: 26px;
+        }
+
+        .verdict {
+            margin-top: 14px;
+            padding: 18px;
+            border-radius: 20px;
+        }
+        .verdict[data-kind="stay"] {
+            border-color: rgba(24,168,75,.26);
+            background: rgba(232,248,237,.62);
+        }
+        .verdict[data-kind="wifi"],
+        .verdict[data-kind="diagnosis"] {
+            border-color: rgba(37,99,235,.20);
+            background: rgba(239,246,255,.64);
+        }
+        .verdict[data-kind="switch"] {
+            border-color: rgba(180,83,9,.22);
+            background: rgba(255,247,237,.68);
+        }
+        .verdict h3 {
+            color: var(--glass-text);
+            font-size: 22px;
+        }
+        .verdict p {
+            margin-top: 7px;
+            color: #647985;
+        }
+
+        .switcho-cta {
+            display: none;
+            margin-top: 14px;
+        }
+        .switcho-cta.visible { display: block; }
+        .switcho-link {
+            width: 100%;
+            min-height: 52px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 16px;
+            border-radius: 16px;
+            background: var(--logo-green-gradient);
+            color: #fff;
+            font-weight: 950;
+            text-decoration: none;
+            box-shadow: 0 16px 34px rgba(22,163,74,.22);
+        }
+        .switcho-link[aria-disabled="true"] {
+            background: rgba(203,213,225,.72);
+            color: #64748b;
+            pointer-events: none;
+            box-shadow: none;
+        }
+
+        .method-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0,1fr));
+            gap: 14px;
+            margin-top: 18px;
+        }
+        .method-card {
+            padding: 17px;
+            border-radius: 18px;
+        }
+        .method-card strong {
+            display: block;
+            color: #315564;
+            font-size: 17px;
+        }
+        .method-card p {
+            margin-top: 7px;
+            color: #647985;
+            font-size: 14px;
+        }
+
+        .error-box {
+            display: none;
+            margin-top: 14px;
+            padding: 12px 14px;
+            border: 1px solid rgba(185,28,28,.18);
+            border-radius: 14px;
+            background: rgba(254,242,242,.72);
+            color: #991b1b;
+            font-size: 13px;
+        }
+        .error-box.visible { display: block; }
+
+        footer {
+            max-width: 1080px;
+            margin: 26px auto 0;
+            padding: 28px 20px 40px;
+            border-top: 1px solid rgba(18,48,68,.10);
+            color: #647985;
+            font-size: 13px;
+            text-align: center;
+        }
+        footer a {
+            color: #315564;
+            text-decoration: none;
+            margin: 0 10px;
+        }
+        footer a:hover {
+            color: #087f3a;
+            text-decoration: underline;
+        }
+        .footer-privacy-action {
+            background: transparent;
+            border: 0;
+            color: #315564;
+            text-decoration: none;
+            margin: 0 10px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        @media (max-width: 860px) {
+            .speed-layout { grid-template-columns: 1fr; }
+            .gauge-panel { min-height: auto; }
+            .use-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }
+            .form-grid,
+            .method-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 560px) {
+            .page-shell { padding: 12px; }
+            header { padding: 16px 8px 18px; }
+            .site-logo-main { width: min(350px,94vw); }
+            .top-nav { gap: 8px; }
+            .top-nav a {
+                flex: 1 1 calc(50% - 8px);
+                min-width: 0;
+            }
+            .hero {
+                padding: 24px 16px;
+                border-radius: 28px;
+            }
+            .hero-copy { font-size: 16px; }
+            .test-head {
+                padding: 18px;
+                flex-direction: column;
+            }
+            .test-body { padding: 16px; }
+            .test-card { border-radius: 26px; }
+            .section {
+                padding: 20px 16px;
+                border-radius: 24px;
+            }
+            .metrics { grid-template-columns: 1fr 1fr; }
+            .metric {
+                min-height: 125px;
+                padding: 13px 8px;
+                border-radius: 18px;
+            }
+            .metric strong { font-size: 24px; }
+            .use-grid { grid-template-columns: 1fr 1fr; }
+            .diagnostic-actions {
+                display: grid;
+                grid-template-columns: 1fr;
+            }
+            .secondary-button { width: 100%; }
+            .annual-cost {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+            input,
+            select {
+                font-size: 16px;
+            }
+            footer a,
+            .footer-privacy-action {
+                display: inline-flex;
+                margin: 6px 8px;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .metrics,
+            .use-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                scroll-behavior: auto !important;
+                animation: none !important;
+                transition: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Vai al contenuto principale</a>
+
+<div class="page-shell">
+    <header>
+        <a class="site-logo-link" href="/" aria-label="Torna al calcolatore OffertaLogica">
+            <img class="site-logo-main" src="/assets/logo-offertalogica-header.png" alt="OffertaLogica.it - Confronta, scegli, risparmia">
+        </a>
+    </header>
+
+    <section class="ol-app-access-bar" aria-label="Accessi alle app OffertaLogica">
+        <div class="ol-app-access-inner">
+            <a class="ol-app-access-link ol-app-access-free" href="https://app.offertalogica.it/app.html">App gratuita</a>
+            <a class="ol-app-access-link ol-app-access-premium" href="https://premium.offertalogica.it/app.html">Area Premium</a>
+        </div>
+    </section>
+
+    <nav class="top-nav" aria-label="Navigazione principale">
+        <a href="/">Calcolatore</a>
+        <a href="/come-funziona.html">Come funziona</a>
+        <a href="/casa-smart.html">Casa smart</a>
+        <a href="/internet-casa.html">Internet casa</a>
+        <a href="/speed-test.html" class="active" aria-current="page">Speed Test</a>
+    </nav>
+
+    <main id="main-content">
+        <section class="hero">
+            <span class="eyebrow">Speed Test OffertaLogica</span>
+            <h1>Speed Test Internet: quanto va davvero la tua connessione?</h1>
+            <p class="hero-copy">Misura download, upload e latenza. Poi OffertaLogica traduce i numeri in uso reale e ti aiuta a capire se il limite può dipendere dal Wi-Fi, dalla linea o dal rapporto tra prestazioni e costo.</p>
+        </section>
+
+        <section class="test-card" aria-labelledby="test-title">
+            <div class="test-head">
+                <div>
+                    <h2 id="test-title">Test della connessione</h2>
+                    <p>Nessuna registrazione. Il test misura la velocità della connessione direttamente dal tuo dispositivo. Per un risultato attendibile, assicurati di essere collegato alla rete che vuoi verificare, via Wi-Fi o via cavo.</p>
+                </div>
+                <span class="provider-pill">Misurazione Cloudflare</span>
+            </div>
+
+            <div class="test-body">
+                <div class="status-row" aria-live="polite">
+                    <span id="statusDot" class="status-dot"></span>
+                    <span id="statusText">Pronto per iniziare</span>
+                </div>
+
+                <div class="speed-layout">
+                    <div class="gauge-panel">
+                        <div id="gauge" class="gauge" style="--progress:4deg">
+                            <div class="gauge-content">
+                                <span id="gaugeLabel" class="gauge-label">Download</span>
+                                <strong id="gaugeNumber" class="gauge-number">—</strong>
+                                <span id="gaugeUnit" class="gauge-unit">Mbps</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="metrics" aria-label="Risultati dello Speed Test">
+                        <div class="metric"><span>Download</span><strong id="downloadValue">—</strong><small>Mbps</small></div>
+                        <div class="metric"><span>Upload</span><strong id="uploadValue">—</strong><small>Mbps</small></div>
+                        <div class="metric"><span>Ping</span><strong id="pingValue">—</strong><small>ms</small></div>
+                        <div class="metric"><span>Jitter</span><strong id="jitterValue">—</strong><small>ms</small></div>
+                    </div>
+                </div>
+
+                <button id="startButton" class="main-action" type="button">AVVIA SPEED TEST</button>
+                <div id="errorBox" class="error-box" role="alert"></div>
+
+                <details class="privacy-note privacy-details">
+                    <summary>Traffico dati e privacy del test</summary>
+                    <p>
+                        Una singola prova OffertaLogica può generare circa 105 MB di traffico dati. I componenti necessari allo Speed Test vengono caricati solo quando scegli di avviare la prova. La misurazione utilizza l'infrastruttura Cloudflare e il componente software viene distribuito tramite jsDelivr.
+                    </p>
+                    <p class="privacy-links">
+                        <a href="/privacy-speed-test.html">Informativa privacy Speed Test</a>
+                        <span aria-hidden="true">·</span>
+                        <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener noreferrer">Privacy Cloudflare</a>
+                    </p>
+                </details>
+
+                <div id="resultPanel" class="result-panel">
+                    <div class="result-summary">
+                        <h3 id="qualityTitle">Risultato</h3>
+                        <p id="qualityText"></p>
+                    </div>
+
+                    <div id="useGrid" class="use-grid" aria-label="Valutazione per utilizzo reale"></div>
+
+                    <div id="diagnosticCallout" class="diagnostic-callout" hidden>
+                        <h3>Prima di pensare a cambiare contratto, isoliamo il problema.</h3>
+                        <p>Ripeti il test vicino al router. Se puoi, esegui anche una prova via cavo: il confronto fornisce un'indicazione utile per capire se il limite può essere soprattutto nella rete Wi-Fi domestica oppure se resta anche vicino al router o via cavo.</p>
+                        <div class="diagnostic-actions">
+                            <button class="secondary-button" type="button" data-retest="router">Ripeti vicino al router</button>
+                            <button class="secondary-button" type="button" data-retest="cable">Ripeti via cavo</button>
+                        </div>
+                        <p class="diagnostic-tip">Scegli una sola prova alla volta. Prima spostati vicino al router oppure collega il dispositivo via cavo, poi avvia il secondo test.</p>
+                    </div>
+
+                    <div id="comparisonBox" class="diagnostic-callout" hidden>
+                        <h3 id="comparisonTitle">Confronto tra i test</h3>
+                        <p id="comparisonText"></p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="section" aria-labelledby="cost-title">
+            <h2 id="cost-title">Quanto ti costa questa connessione?</h2>
+            <p class="section-lead">Questi dati sono facoltativi. Servono a mettere insieme prestazioni e costo, senza spingerti a cambiare se la linea è già adeguata.</p>
+
+            <div class="form-grid">
+                <div class="field">
+                    <label for="monthlyCost">Costo mensile attuale (€)</label>
+                    <input id="monthlyCost" type="number" min="0" step="0.01" inputmode="decimal" placeholder="es. 29,90">
+                </div>
+                <div class="field">
+                    <label for="declaredSpeed">Velocità download dichiarata (Mbps)</label>
+                    <input id="declaredSpeed" type="number" min="0" step="1" inputmode="numeric" placeholder="es. 1000">
+                </div>
+                <div class="field">
+                    <label for="mainUse">Uso principale</label>
+                    <select id="mainUse">
+                        <option value="general">Navigazione e uso generale</option>
+                        <option value="streaming">Streaming</option>
+                        <option value="video">Videochiamate / smart working</option>
+                        <option value="gaming">Gaming online</option>
+                        <option value="multi">Più dispositivi contemporaneamente</option>
+                    </select>
+                </div>
+            </div>
+
+            <button id="evaluateButton" class="main-action" type="button" disabled>VALUTA PRESTAZIONI E COSTO</button>
+
+            <div id="economicResult" class="economic-result">
+                <div class="annual-cost">
+                    <span>Costo annuo stimato</span>
+                    <strong id="annualCostValue">—</strong>
+                </div>
+                <p class="economic-note">Il costo viene mostrato come dato di contesto: da solo non determina un consiglio di cambio operatore. Per giudicare la convenienza economica servirà confrontarlo con alternative realmente disponibili.</p>
+
+                <div id="verdictBox" class="verdict" data-kind="stay">
+                    <h3 id="verdictTitle"></h3>
+                    <p id="verdictText"></p>
+                    <div id="switchoCta" class="switcho-cta">
+                        <a id="switchoLink" class="switcho-link" href="#" aria-disabled="true">Collegamento Switcho da configurare</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="section" aria-labelledby="read-title">
+            <h2 id="read-title">Come leggere lo Speed Test</h2>
+            <p class="section-lead">La velocità massima non è l'unico dato utile. Download, upload e latenza descrivono aspetti diversi della qualità percepita.</p>
+
+            <div class="method-grid">
+                <div class="method-card">
+                    <strong>Download</strong>
+                    <p>Incide soprattutto su navigazione, streaming, download di file e uso contemporaneo di più dispositivi.</p>
+                </div>
+                <div class="method-card">
+                    <strong>Upload</strong>
+                    <p>Conta quando invii file, fai backup cloud, videochiamate o trasmetti contenuti verso Internet.</p>
+                </div>
+                <div class="method-card">
+                    <strong>Ping e jitter</strong>
+                    <p>Misurano reattività e stabilità dei tempi di risposta. Sono particolarmente importanti per gaming e comunicazioni in tempo reale.</p>
+                </div>
+            </div>
+
+            <div class="legal-note">
+                Lo Speed Test OffertaLogica è uno strumento informativo e diagnostico. I risultati dipendono da dispositivo, Wi-Fi, rete locale, congestione e condizioni del momento. Non sostituisce gli strumenti certificati previsti da AGCOM per eventuali contestazioni contrattuali.
+            </div>
+        </section>
+    </main>
+</div>
+
+<footer>
+    <div class="ol-app-access-footer" aria-label="Accessi alle app OffertaLogica">
+        <a class="ol-app-access-link ol-app-access-free" href="https://app.offertalogica.it/app.html">App gratuita</a>
+        <a class="ol-app-access-link ol-app-access-premium" href="https://premium.offertalogica.it/app.html">Area Premium</a>
+    </div>
+
+    <p style="margin-bottom:8px;font-weight:bold;">&copy; 2026 OffertaLogica.it</p>
+
+    <div style="margin-bottom:20px;">
+        <a href="/">Calcolatore</a> |
+        <a href="/come-funziona.html">Come funziona</a> |
+        <a href="/casa-smart.html">Casa smart</a> |
+        <a href="/internet-casa.html">Internet casa</a> |
+        <a href="/speed-test.html">Speed Test</a> |
+        <a href="/privacy-speed-test.html">Privacy Speed Test</a> |
+        <a href="/termini-condizioni.html">Termini e condizioni</a> |
+        <a href="https://www.iubenda.com/privacy-policy/36565194" class="iubenda-white iubenda-noiframe iubenda-embed">Privacy Policy</a> |
+        <a href="https://www.iubenda.com/privacy-policy/36565194/cookie-policy" class="iubenda-white iubenda-noiframe iubenda-embed">Cookie Policy</a> |
+        <button type="button" class="footer-privacy-action" onclick="apriPreferenzeCookie(event)">Modifica preferenze cookie</button>
+    </div>
+
+    <script type="text/javascript">
+        function apriPreferenzeCookie(event) {
+            if (event) event.preventDefault();
+            var officialButton = document.querySelector('.iubenda-tp-btn.iubenda-cs-preferences-link');
+            if (officialButton) {
+                officialButton.click();
+                return;
+            }
+            window.location.href = 'https://www.iubenda.com/privacy-policy/36565194/cookie-policy';
+        }
+    </script>
+
+    <script type="text/javascript">
+        (function(w,d){
+            var loader=function(){
+                var s=d.createElement('script'),
+                    tag=d.getElementsByTagName('script')[0];
+                s.src='https://cdn.iubenda.com/iubenda.js';
+                tag.parentNode.insertBefore(s,tag);
+            };
+            if(w.addEventListener){w.addEventListener('load',loader,false);}
+            else if(w.attachEvent){w.attachEvent('onload',loader);}
+            else{w.onload=loader;}
+        })(window,document);
+    </script>
+</footer>
+
+<script type="module">
+const SPEEDTEST_MODULE_URL = 'https://cdn.jsdelivr.net/npm/@cloudflare/speedtest@1.12.1/+esm';
+const SWITCHO_URL = '';
+const MAX_GAUGE_MBPS = 500;
+const TEST_TIMEOUT_MS = 90000;
+
+const measurements = [
+    { type: 'latency', numPackets: 1 },
+    { type: 'download', bytes: 1e5, count: 1, bypassMinDuration: true },
+    { type: 'latency', numPackets: 20 },
+    { type: 'download', bytes: 1e5, count: 5 },
+    { type: 'download', bytes: 1e6, count: 5 },
+    { type: 'upload', bytes: 1e5, count: 5 },
+    { type: 'upload', bytes: 1e6, count: 5 },
+    { type: 'download', bytes: 1e7, count: 2 },
+    { type: 'upload', bytes: 1e7, count: 2 },
+    { type: 'download', bytes: 2.5e7, count: 1 },
+    { type: 'upload', bytes: 2.5e7, count: 1 }
+];
+
+const els = {
+    startButton: document.getElementById('startButton'),
+    statusDot: document.getElementById('statusDot'),
+    statusText: document.getElementById('statusText'),
+    gauge: document.getElementById('gauge'),
+    gaugeLabel: document.getElementById('gaugeLabel'),
+    gaugeNumber: document.getElementById('gaugeNumber'),
+    download: document.getElementById('downloadValue'),
+    upload: document.getElementById('uploadValue'),
+    ping: document.getElementById('pingValue'),
+    jitter: document.getElementById('jitterValue'),
+    resultPanel: document.getElementById('resultPanel'),
+    qualityTitle: document.getElementById('qualityTitle'),
+    qualityText: document.getElementById('qualityText'),
+    useGrid: document.getElementById('useGrid'),
+    diagnosticCallout: document.getElementById('diagnosticCallout'),
+    comparisonBox: document.getElementById('comparisonBox'),
+    comparisonTitle: document.getElementById('comparisonTitle'),
+    comparisonText: document.getElementById('comparisonText'),
+    errorBox: document.getElementById('errorBox'),
+    monthlyCost: document.getElementById('monthlyCost'),
+    declaredSpeed: document.getElementById('declaredSpeed'),
+    mainUse: document.getElementById('mainUse'),
+    evaluateButton: document.getElementById('evaluateButton'),
+    economicResult: document.getElementById('economicResult'),
+    annualCostValue: document.getElementById('annualCostValue'),
+    verdictBox: document.getElementById('verdictBox'),
+    verdictTitle: document.getElementById('verdictTitle'),
+    verdictText: document.getElementById('verdictText'),
+    switchoCta: document.getElementById('switchoCta'),
+    switchoLink: document.getElementById('switchoLink')
+};
+
+let SpeedTestCtor = null;
+let engineLoadPromise = null;
+let engine = null;
+let latestResult = null;
+let firstResult = null;
+let testContext = 'standard';
+let completedTests = 0;
+let activeRunId = 0;
+let testTimeoutId = null;
+let diagnosisCompleted = false;
+
+function emitMetric(eventName, detail = {}) {
+    const event = `ol_speedtest_${eventName}`;
+    window.dispatchEvent(new CustomEvent(event, { detail }));
+    if (Array.isArray(window.dataLayer)) window.dataLayer.push({ event, ...detail });
+}
+
+async function loadSpeedTestEngine({ quiet = false } = {}) {
+    if (SpeedTestCtor) return SpeedTestCtor;
+    if (engineLoadPromise) return engineLoadPromise;
+
+    if (!quiet) {
+        els.startButton.disabled = true;
+        els.startButton.textContent = 'CARICAMENTO MOTORE…';
+        setStatus('Preparazione dello Speed Test…');
+    }
+
+    engineLoadPromise = import(SPEEDTEST_MODULE_URL)
+        .then(module => {
+            const ctor = module && module.default;
+            if (typeof ctor !== 'function') {
+                throw new Error('Modulo Speed Test non valido');
+            }
+
+            SpeedTestCtor = ctor;
+            els.startButton.disabled = false;
+            els.startButton.textContent = 'AVVIA SPEED TEST';
+            setStatus('Pronto per iniziare');
+            clearError();
+            emitMetric('engine_ready', {});
+            return SpeedTestCtor;
+        })
+        .catch(error => {
+            SpeedTestCtor = null;
+            els.startButton.disabled = false;
+            els.startButton.textContent = 'RIPROVA CARICAMENTO';
+            setStatus('Motore non disponibile');
+            showError('Il motore dello Speed Test non è stato caricato. Controlla la connessione e riprova.');
+            emitMetric('engine_load_error', {
+                message: String(error).slice(0, 120)
+            });
+            throw error;
+        })
+        .finally(() => {
+            engineLoadPromise = null;
+        });
+
+    return engineLoadPromise;
+}
+
+function finite(value) {
+    return Number.isFinite(Number(value)) ? Number(value) : null;
+}
+
+function mbps(bps) {
+    return finite(bps) === null ? null : bps / 1e6;
+}
+
+function rounded(value, decimals = 1) {
+    if (value === null || !Number.isFinite(value)) return '—';
+    return value.toLocaleString('it-IT', {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals
+    });
+}
+
+function setGauge(label, value, unit = 'Mbps') {
+    els.gaugeLabel.textContent = label;
+    els.gaugeNumber.textContent = value === null
+        ? '—'
+        : rounded(value, value >= 100 ? 0 : 1);
+
+    const normalized = value === null
+        ? 0
+        : Math.min(Math.max(value, 0), MAX_GAUGE_MBPS) / MAX_GAUGE_MBPS;
+
+    const progressDeg = Math.max(4, normalized * 360);
+    els.gauge.style.setProperty('--progress', `${progressDeg}deg`);
+    els.gauge.style.setProperty('--progress-mid', `${progressDeg * .72}deg`);
+    document.getElementById('gaugeUnit').textContent = unit;
+}
+
+function setStatus(text, state = '') {
+    els.statusText.textContent = text;
+    els.statusDot.className = `status-dot${state ? ` ${state}` : ''}`;
+}
+
+function showError(message) {
+    els.errorBox.textContent = message;
+    els.errorBox.classList.add('visible');
+}
+
+function clearError() {
+    els.errorBox.classList.remove('visible');
+    els.errorBox.textContent = '';
+}
+
+function clearTestTimeout() {
+    if (testTimeoutId) {
+        window.clearTimeout(testTimeoutId);
+        testTimeoutId = null;
+    }
+}
+
+function pauseEngineSafely() {
+    try {
+        if (engine && engine.isRunning) engine.pause();
+    } catch (error) {}
+}
+
+function invalidateActiveRun() {
+    activeRunId += 1;
+    clearTestTimeout();
+    pauseEngineSafely();
+}
+
+function readResults(results) {
+    return {
+        download: mbps(results.getDownloadBandwidth()),
+        upload: mbps(results.getUploadBandwidth()),
+        ping: finite(results.getUnloadedLatency()),
+        jitter: finite(results.getUnloadedJitter()),
+        loadedDownPing: finite(results.getDownLoadedLatency()),
+        loadedUpPing: finite(results.getUpLoadedLatency())
+    };
+}
+
+function updateLive(results, type) {
+    const r = readResults(results);
+
+    if (r.download !== null) els.download.textContent = rounded(r.download);
+    if (r.upload !== null) els.upload.textContent = rounded(r.upload);
+    if (r.ping !== null) els.ping.textContent = rounded(r.ping);
+    if (r.jitter !== null) els.jitter.textContent = rounded(r.jitter);
+
+    if (type === 'upload' && r.upload !== null) setGauge('Upload', r.upload);
+    else if (r.download !== null) setGauge('Download', r.download);
+    else if (r.ping !== null) setGauge('Ping', r.ping, 'ms');
+}
+
+function qualityForUse(result) {
+    const down = result.download || 0;
+    const up = result.upload || 0;
+    const ping = result.ping ?? 999;
+
+    return [
+        ['Navigazione', down >= 10 && ping < 150, down >= 5],
+        ['Streaming HD/4K', down >= 25, down >= 10],
+        ['Videochiamate', down >= 10 && up >= 3 && ping < 100, down >= 5 && up >= 1],
+        ['Gaming online', ping < 50 && down >= 15 && up >= 5, ping < 90 && down >= 8 && up >= 2],
+        ['Più dispositivi', down >= 50 && up >= 10, down >= 25 && up >= 5]
+    ].map(([label, good, medium]) => ({
+        label,
+        level: good ? 'ok' : medium ? 'mid' : 'bad',
+        text: good ? 'Adeguata' : medium ? 'Da verificare' : 'Debole'
+    }));
+}
+
+function renderUses(result) {
+    els.useGrid.innerHTML = qualityForUse(result).map(item => `
+        <div class="use-card">
+            <strong>${item.label}</strong>
+            <span class="${item.level}">${item.text}</span>
+        </div>
+    `).join('');
+}
+
+function generalQuality(result) {
+    const down = result.download || 0;
+    const up = result.upload || 0;
+    const ping = result.ping ?? 999;
+
+    if (down >= 100 && up >= 15 && ping < 50) {
+        return [
+            'Connessione molto buona',
+            'Le prestazioni rilevate sono adatte anche a più dispositivi, streaming ad alta qualità e attività sensibili alla latenza.'
+        ];
+    }
+
+    if (down >= 30 && up >= 8 && ping < 80) {
+        return [
+            'Connessione adeguata',
+            'Per la maggior parte degli usi domestici le prestazioni rilevate sono buone. Valuta il costo prima di pensare a cambiare.'
+        ];
+    }
+
+    if (down >= 10 && up >= 3 && ping < 120) {
+        return [
+            'Connessione utilizzabile, ma con margini',
+            'Le attività quotidiane dovrebbero funzionare, ma streaming, videochiamate o più dispositivi possono risentirne. Conviene fare un secondo test vicino al router.'
+        ];
+    }
+
+    return [
+        'Prestazioni deboli',
+        'Il risultato è basso. Prima di attribuire il problema alla linea, ripeti il test vicino al router e, se possibile, via cavo.'
+    ];
+}
+
+function isPoor(result) {
+    return (result.download || 0) < 30
+        || (result.upload || 0) < 5
+        || (result.ping ?? 999) >= 100;
+}
+
+function compareTests(first, second, context) {
+    const downDelta = (second.download || 0) - (first.download || 0);
+    const upDelta = (second.upload || 0) - (first.upload || 0);
+    const pingDelta = (first.ping || 0) - (second.ping || 0);
+
+    const downGain = first.download > 0 ? downDelta / first.download : 0;
+    const upGain = first.upload > 0 ? upDelta / first.upload : 0;
+    const pingGain = first.ping > 0 ? pingDelta / first.ping : 0;
+
+    const downSignal = downGain >= .35 && downDelta >= 10;
+    const upSignal = upGain >= .35 && upDelta >= 3;
+    const pingSignal = pingGain >= .30 && pingDelta >= 12;
+
+    const coherentSignals = [downSignal, upSignal, pingSignal].filter(Boolean).length;
+
+    const majorSingleImprovement =
+        (downGain >= .70 && downDelta >= 30)
+        || (upGain >= .70 && upDelta >= 8)
+        || (pingGain >= .55 && pingDelta >= 25);
+
+    const meaningful = coherentSignals >= 2 || majorSingleImprovement;
+
+    if (meaningful) {
+        return {
+            kind: 'wifi',
+            title: 'Il secondo test è migliorato in modo significativo',
+            text: `Il passaggio ${context === 'cable' ? 'al cavo' : 'vicino al router'} ha prodotto un miglioramento consistente su più indicatori, o molto marcato su uno di essi. È un indizio compatibile con un limite della rete Wi-Fi o della rete domestica; non è però una diagnosi tecnica definitiva.`
+        };
+    }
+
+    return {
+        kind: 'line',
+        title: 'Il secondo test non modifica abbastanza il risultato',
+        text: `Anche ${context === 'cable' ? 'via cavo' : 'vicino al router'} il quadro non migliora in modo sufficientemente netto. Il solo Wi-Fi spiega quindi meno bene il risultato: confronta ora velocità misurata, velocità prevista dal contratto e condizioni della linea prima di valutare alternative.`
+    };
+}
+
+function finishTest(results, runId, context) {
+    if (runId !== activeRunId) return;
+
+    clearTestTimeout();
+
+    const result = readResults(results);
+
+    latestResult = result;
+    completedTests += 1;
+
+    updateLive(results, 'download');
+    setStatus('Test completato', 'done');
+
+    els.startButton.disabled = false;
+    els.startButton.textContent = 'RIPETI SPEED TEST';
+    els.resultPanel.classList.add('visible');
+
+    if (context === 'standard' && isPoor(result)) {
+        els.startButton.textContent = 'RIPETI TEST STANDARD';
+    }
+
+    const [title, text] = generalQuality(result);
+    els.qualityTitle.textContent = title;
+    els.qualityText.textContent = text;
+
+    renderUses(result);
+
+    els.diagnosticCallout.hidden = context !== 'standard' || !isPoor(result);
+    els.evaluateButton.disabled = false;
+
+    if (context === 'standard') {
+        firstResult = { ...result };
+        latestResult.comparisonKind = null;
+        diagnosisCompleted = false;
+    } else if (firstResult) {
+        const comparison = compareTests(firstResult, result, context);
+
+        els.comparisonTitle.textContent = comparison.title;
+        els.comparisonText.textContent = comparison.text;
+        els.comparisonBox.hidden = false;
+
+        latestResult.comparisonKind = comparison.kind;
+        diagnosisCompleted = true;
+
+        emitMetric('diagnosis_completed', {
+            diagnosis: comparison.kind,
+            context,
+            firstDownloadMbps: firstResult.download === null ? null : Math.round(firstResult.download),
+            secondDownloadMbps: result.download === null ? null : Math.round(result.download),
+            firstUploadMbps: firstResult.upload === null ? null : Math.round(firstResult.upload),
+            secondUploadMbps: result.upload === null ? null : Math.round(result.upload),
+            firstPingMs: firstResult.ping === null ? null : Math.round(firstResult.ping),
+            secondPingMs: result.ping === null ? null : Math.round(result.ping)
+        });
+    }
+
+    emitMetric('completed', {
+        testNumber: completedTests,
+        context,
+        downloadMbps: result.download === null ? null : Math.round(result.download),
+        uploadMbps: result.upload === null ? null : Math.round(result.upload),
+        pingMs: result.ping === null ? null : Math.round(result.ping)
+    });
+
+    testContext = 'standard';
+}
+
+async function startTest(context = 'standard') {
+    clearError();
+
+    if (!navigator.onLine) {
+        setStatus('Connessione assente');
+        showError('Il dispositivo risulta offline. Ricollegati a Internet e riprova.');
+        return;
+    }
+
+    try {
+        await loadSpeedTestEngine({ quiet: false });
+    } catch (error) {
+        return;
+    }
+
+    invalidateActiveRun();
+    const runId = activeRunId;
+
+    testContext = context;
+
+    if (context === 'standard') {
+        firstResult = null;
+        diagnosisCompleted = false;
+        if (latestResult) latestResult.comparisonKind = null;
+    }
+
+    els.resultPanel.classList.remove('visible');
+    els.comparisonBox.hidden = true;
+    els.diagnosticCallout.hidden = true;
+    els.economicResult.classList.remove('visible');
+    els.switchoCta.classList.remove('visible');
+
+    els.startButton.disabled = true;
+    els.startButton.textContent = 'TEST IN CORSO…';
+
+    els.download.textContent = '—';
+    els.upload.textContent = '—';
+    els.ping.textContent = '—';
+    els.jitter.textContent = '—';
+
+    setGauge('Download', null);
+
+    setStatus(
+        context === 'standard'
+            ? 'Misurazione in corso…'
+            : `Secondo test: ${context === 'cable' ? 'via cavo' : 'vicino al router'}…`,
+        'running'
+    );
+
+    emitMetric('started', {
+        context,
+        testNumber: completedTests + 1
+    });
+
+    try {
+        engine = new SpeedTestCtor({
+            autoStart: false,
+            measurements,
+            measureDownloadLoadedLatency: true,
+            measureUploadLoadedLatency: true,
+            bandwidthFinishRequestDuration: 850
+        });
+
+        engine.onResultsChange = ({ type }) => {
+            if (runId !== activeRunId) return;
+            updateLive(engine.results, type);
+        };
+
+        engine.onFinish = results => {
+            if (runId !== activeRunId) return;
+            finishTest(results, runId, context);
+        };
+
+        engine.onError = error => {
+            if (runId !== activeRunId) return;
+
+            invalidateActiveRun();
+            setStatus('Test non completato');
+
+            els.startButton.disabled = false;
+            els.startButton.textContent = 'RIPROVA SPEED TEST';
+
+            showError(
+                `Non è stato possibile completare il test. Verifica la connessione e riprova. Dettaglio: ${String(error).slice(0,160)}`
+            );
+
+            emitMetric('error', { context });
+        };
+
+        testTimeoutId = window.setTimeout(() => {
+            if (runId !== activeRunId) return;
+
+            invalidateActiveRun();
+            setStatus('Test interrotto per timeout');
+            els.startButton.disabled = false;
+            els.startButton.textContent = 'RIPROVA SPEED TEST';
+            showError('Il test sta impiegando troppo tempo ed è stato sospeso. Controlla la connessione e riprova.');
+            emitMetric('timeout', { context });
+        }, TEST_TIMEOUT_MS);
+
+        engine.play();
+    } catch (error) {
+        invalidateActiveRun();
+        setStatus('Motore non disponibile');
+
+        els.startButton.disabled = false;
+        els.startButton.textContent = 'RIPROVA SPEED TEST';
+
+        showError(
+            'Lo Speed Test non è riuscito ad avviarsi correttamente. Riprova; se il problema continua, ricarica la pagina.'
+        );
+
+        emitMetric('engine_error', {
+            message: String(error).slice(0,120)
+        });
+    }
+}
+
+function useIsAdequate(result, use) {
+    const down = result.download || 0;
+    const up = result.upload || 0;
+    const ping = result.ping ?? 999;
+
+    if (use === 'streaming') return down >= 25;
+    if (use === 'video') return down >= 10 && up >= 3 && ping < 100;
+    if (use === 'gaming') return down >= 15 && up >= 5 && ping < 60;
+    if (use === 'multi') return down >= 50 && up >= 10;
+
+    return down >= 10 && ping < 120;
+}
+
+function evaluateEconomics() {
+    if (!latestResult) return;
+
+    const monthly = finite(els.monthlyCost.value);
+    const declared = finite(els.declaredSpeed.value);
+    const use = els.mainUse.value;
+    const annual = monthly === null ? null : monthly * 12;
+
+    const deliveredRatio =
+        declared && declared > 0 && latestResult.download !== null
+            ? latestResult.download / declared
+            : null;
+
+    const adequate = useIsAdequate(latestResult, use);
+    const performanceWeak =
+        deliveredRatio !== null
+            ? deliveredRatio < .50
+            : isPoor(latestResult);
+
+    const poorFirstPicture = isPoor(latestResult) || !adequate || performanceWeak;
+    const wifiLikely = diagnosisCompleted && latestResult.comparisonKind === 'wifi';
+    const lineIssueLikely = diagnosisCompleted && latestResult.comparisonKind === 'line';
+
+    els.annualCostValue.textContent =
+        annual === null
+            ? 'Non indicato'
+            : `${annual.toLocaleString('it-IT', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            })} €`;
+
+    els.economicResult.classList.add('visible');
+    els.switchoCta.classList.remove('visible');
+
+    let kind = 'stay';
+    let title = 'RESTA: la connessione appare adeguata';
+    let text = 'Le prestazioni misurate sono coerenti con l’uso indicato. Il costo annuo viene mostrato come riferimento, ma non viene giudicato con una soglia inventata: senza un confronto con alternative realmente disponibili non emerge un motivo tecnico per cambiare operatore.';
+
+    if (poorFirstPicture && !diagnosisCompleted) {
+        kind = 'diagnosis';
+        title = 'Prima completa il controllo Wi-Fi';
+        text = 'Il primo risultato non è abbastanza convincente per suggerire un cambio operatore. Ripeti lo Speed Test vicino al router e, se possibile, via cavo: solo dopo il confronto OffertaLogica distingue tra probabile limite della rete domestica e prestazioni della linea da approfondire.';
+    } else if (wifiLikely) {
+        kind = 'wifi';
+        title = 'Prima sistema il Wi-Fi';
+        text = 'Il confronto tra i test indica un miglioramento significativo vicino al router o via cavo. Prima di cambiare contratto conviene intervenire sulla rete domestica: posizione del router, copertura Wi-Fi o collegamento dei dispositivi.';
+    } else if (lineIssueLikely && (!adequate || performanceWeak)) {
+        kind = 'switch';
+        title = 'Verifica le alternative disponibili';
+
+        const reasons = [];
+
+        if (!adequate) {
+            reasons.push('le prestazioni non risultano pienamente adeguate all’uso indicato');
+        }
+        if (performanceWeak) {
+            reasons.push('la velocità misurata è debole rispetto al dato dichiarato o al livello atteso');
+        }
+        text = `${reasons.join('; ')}. Il secondo controllo non ha indicato un miglioramento sufficiente della rete domestica. Il passo successivo è confrontare copertura, condizioni contrattuali e alternative realmente disponibili prima di decidere se cambiare operatore.`;
+
+        if (SWITCHO_URL) {
+            els.switchoCta.classList.add('visible');
+            els.switchoLink.href = SWITCHO_URL;
+            els.switchoLink.removeAttribute('aria-disabled');
+            els.switchoLink.textContent = 'VERIFICA LE ALTERNATIVE INTERNET';
+        }
+    }
+
+    els.verdictBox.dataset.kind = kind;
+    els.verdictTitle.textContent = title;
+    els.verdictText.textContent = text;
+
+    emitMetric('economics_evaluated', {
+        verdict: kind,
+        annualCost: annual === null ? null : Math.round(annual),
+        declaredSpeed: declared,
+        mainUse: use
+    });
+}
+
+els.startButton.addEventListener('click', () => startTest('standard'));
+
+document.querySelectorAll('[data-retest]').forEach(button => {
+    button.addEventListener('click', () => startTest(button.dataset.retest));
+});
+
+els.evaluateButton.addEventListener('click', evaluateEconomics);
+
+[els.monthlyCost, els.declaredSpeed, els.mainUse].forEach(input => {
+    input.addEventListener('change', () => {
+        if (latestResult) {
+            emitMetric('economic_input', { field: input.id });
+        }
+    });
+});
+
+els.switchoLink.addEventListener('click', () => {
+    if (SWITCHO_URL) emitMetric('switcho_click', {});
+});
+
+window.addEventListener('offline', () => {
+    if (engine && engine.isRunning) {
+        invalidateActiveRun();
+        setStatus('Connessione interrotta');
+        els.startButton.disabled = false;
+        els.startButton.textContent = 'RIPROVA SPEED TEST';
+        showError('La connessione Internet è stata interrotta durante il test.');
+        emitMetric('offline_interruption', {});
+    }
+});
+
+window.addEventListener('online', () => {
+    if (!engine || !engine.isRunning) {
+        clearError();
+        els.startButton.disabled = false;
+        els.startButton.textContent = 'AVVIA SPEED TEST';
+        setStatus('Pronto per iniziare');
+    }
+});
+
+emitMetric('page_view', {
+    page: '/speed-test.html',
+    prototype: true
+});
+</script>
+
+</body>
+</html>
