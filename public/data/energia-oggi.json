@@ -1,0 +1,42 @@
+{
+  "versione": "energia-oggi-2026-08-28",
+  "aggiornatoIl": "2026-08-28",
+  "nota": "Snapshot verificato per la pubblicazione iniziale delle pagine. I valori giornalieri e mensili restano distinti.",
+  "pun": {
+    "label": "PUN Index GME",
+    "data": "2026-08-28",
+    "valoreEurMwh": 205.52,
+    "valoreEurKwh": 0.20552,
+    "ieriEurMwh": 205.52,
+    "variazionePercentuale": 0.0,
+    "minimoEurMwh": 161.58,
+    "massimoEurMwh": 260.9,
+    "fonte": "Gestore dei Mercati Energetici (GME)",
+    "urlFonte": "https://gme.mercatoelettrico.org/it-it/Home/Esiti/Elettricita/MGP/Statistiche/Rapporti",
+    "urlDocumento": "https://gme.mercatoelettrico.org/it-it/Home/Esiti/Elettricita/MGP/Statistiche/Rapporti/moduleId/9436/controller/StatRapportiME/action/Download?report=20260828MgpReportGiornaliero.pdf",
+    "stato": "ufficiale"
+  },
+  "gas": {
+    "giornaliero": {
+      "label": "IG Index GME",
+      "data": "2026-08-28",
+      "valoreEurMwh": 71.71,
+      "ieriEurMwh": 70.87,
+      "variazionePercentuale": 1.1852688,
+      "fonte": "Gestore dei Mercati Energetici (GME)",
+      "urlFonte": "https://gme.mercatoelettrico.org/it-it/Home/Pubblicazioni/Indici-GME/IGIndexGmeEsiti",
+      "stato": "riferimento_giornaliero_mercato_gas",
+      "nota": "IG Index GME è l'indice giornaliero del mercato gas italiano pubblicato dal GME; non va presentato come media mensile PSV ARERA."
+    },
+    "psvMensile": {
+      "label": "PSV day-ahead / CMEM,m",
+      "periodo": "2026-07",
+      "periodoLabel": "Luglio 2026",
+      "valoreEurMwh": 56.6927,
+      "valoreEurSmc": 0.606612,
+      "fonte": "ARERA - media mensile PSV day-ahead",
+      "urlFonte": "https://www.arera.it/area-operatori/prezzi-e-tariffe/valore-cmemm-vulnerabili",
+      "stato": "ufficiale_mensile"
+    }
+  }
+}
