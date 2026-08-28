@@ -368,7 +368,7 @@
                 conic-gradient(
                     from 210deg,
                     #048a3d 0deg,
-                    #16a34a calc(var(--progress, 0deg) * .72),
+                    #16a34a var(--progress-mid, 0deg),
                     #7ed321 var(--progress, 0deg),
                     rgba(227,233,231,.72) var(--progress, 0deg)
                 );
@@ -921,9 +921,9 @@
             <div class="test-head">
                 <div>
                     <h2 id="test-title">Test della connessione</h2>
-                    <p>Nessuna registrazione. Il traffico di misura va dal tuo browser all'infrastruttura Cloudflare, non passa da una nuova API OffertaLogica. Prima di avviare, assicurati di essere collegato alla rete che vuoi realmente verificare.</p>
+                    <p>Nessuna registrazione. Il test misura la velocità della connessione direttamente dal tuo dispositivo. Per un risultato attendibile, assicurati di essere collegato alla rete che vuoi verificare, via Wi-Fi o via cavo.</p>
                 </div>
-                <span class="provider-pill">Motore prototipo: Cloudflare</span>
+                <span class="provider-pill">Misurazione Cloudflare</span>
             </div>
 
             <div class="test-body">
@@ -1241,7 +1241,9 @@ function setGauge(label, value, unit = 'Mbps') {
         ? 0
         : Math.min(Math.max(value, 0), MAX_GAUGE_MBPS) / MAX_GAUGE_MBPS;
 
-    els.gauge.style.setProperty('--progress', `${Math.max(4, normalized * 360)}deg`);
+    const progressDeg = Math.max(4, normalized * 360);
+    els.gauge.style.setProperty('--progress', `${progressDeg}deg`);
+    els.gauge.style.setProperty('--progress-mid', `${progressDeg * .72}deg`);
     document.getElementById('gaugeUnit').textContent = unit;
 }
 
