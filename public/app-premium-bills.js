@@ -1497,7 +1497,26 @@
 
     if (applied < 3 * Number(Boolean(profile.luce)) + 3 * Number(Boolean(profile.gas))) return false;
     const currentBlock = renderComparisonPrecisionNotice(doc, profile);
-    currentBlock?.scrollIntoView?.({ behavior: "auto", block: "start" });
+
+    // P6: Premium Casa possiede già consumi e condizioni economiche analizzati.
+    // Avvia direttamente il confronto senza chiedere un nuovo passaggio manuale
+    // o un nuovo caricamento della bolletta. Il motore conserva i propri
+    // controlli sui dati mancanti e, se necessario, chiede solo il campo assente.
+    const compare = typeof frame.contentWindow?.avviaComparazioneDati === "function"
+      ? frame.contentWindow.avviaComparazioneDati
+      : null;
+    if (!compare) return false;
+    compare.call(frame.contentWindow);
+
+    const offers = doc.querySelector?.(".fornitori-consigliati-section");
+    const results = doc.getElementById("results-area");
+    const offersVisible = Boolean(
+      offers
+      && frame.contentWindow?.getComputedStyle?.(offers)?.display !== "none"
+    );
+    (offersVisible ? offers : (results || currentBlock))
+      ?.scrollIntoView?.({ behavior: "auto", block: "start" });
+
     const subtitle = document.getElementById("appBrowserSubtitle");
     if (subtitle) {
       const sources = comparisonSourceCopy(profile);
