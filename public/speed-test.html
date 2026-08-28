@@ -567,7 +567,7 @@
 
         .use-grid {
             display: grid;
-            grid-template-columns: repeat(4, minmax(0,1fr));
+            grid-template-columns: repeat(5, minmax(0,1fr));
             gap: 12px;
             margin-top: 16px;
         }
@@ -807,7 +807,7 @@
         @media (max-width: 860px) {
             .speed-layout { grid-template-columns: 1fr; }
             .gauge-panel { min-height: auto; }
-            .use-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+            .use-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }
             .form-grid,
             .method-grid { grid-template-columns: 1fr; }
         }
@@ -958,7 +958,7 @@
 
                     <div id="diagnosticCallout" class="diagnostic-callout" hidden>
                         <h3>Prima di pensare a cambiare contratto, isoliamo il problema.</h3>
-                        <p>Ripeti il test vicino al router. Se puoi, esegui anche una prova via cavo: il confronto aiuta a distinguere un limite del Wi-Fi da un possibile limite della connessione.</p>
+                        <p>Ripeti il test vicino al router. Se puoi, esegui anche una prova via cavo: il confronto fornisce un'indicazione utile per capire se il limite può essere soprattutto nella rete Wi-Fi domestica oppure se resta anche vicino al router o via cavo.</p>
                         <div class="diagnostic-actions">
                             <button class="secondary-button" type="button" data-retest="router">Ripeti vicino al router</button>
                             <button class="secondary-button" type="button" data-retest="cable">Ripeti via cavo</button>
@@ -1233,7 +1233,8 @@ function qualityForUse(result) {
         ['Navigazione', down >= 10 && ping < 150, down >= 5],
         ['Streaming HD/4K', down >= 25, down >= 10],
         ['Videochiamate', down >= 10 && up >= 3 && ping < 100, down >= 5 && up >= 1],
-        ['Gaming online', ping < 50 && down >= 15 && up >= 5, ping < 90 && down >= 8 && up >= 2]
+        ['Gaming online', ping < 50 && down >= 15 && up >= 5, ping < 90 && down >= 8 && up >= 2],
+        ['Più dispositivi', down >= 50 && up >= 10, down >= 25 && up >= 5]
     ].map(([label, good, medium]) => ({
         label,
         level: good ? 'ok' : medium ? 'mid' : 'bad',
@@ -1289,31 +1290,39 @@ function isPoor(result) {
 }
 
 function compareTests(first, second, context) {
-    const downGain = first.download > 0
-        ? (second.download - first.download) / first.download
-        : 0;
+    const downDelta = (second.download || 0) - (first.download || 0);
+    const upDelta = (second.upload || 0) - (first.upload || 0);
+    const pingDelta = (first.ping || 0) - (second.ping || 0);
 
-    const pingGain = first.ping > 0
-        ? (first.ping - second.ping) / first.ping
-        : 0;
+    const downGain = first.download > 0 ? downDelta / first.download : 0;
+    const upGain = first.upload > 0 ? upDelta / first.upload : 0;
+    const pingGain = first.ping > 0 ? pingDelta / first.ping : 0;
 
-    const meaningful =
-        downGain >= .30
-        || (second.download - first.download) >= 20
-        || pingGain >= .30;
+    const downSignal = downGain >= .35 && downDelta >= 10;
+    const upSignal = upGain >= .35 && upDelta >= 3;
+    const pingSignal = pingGain >= .30 && pingDelta >= 12;
+
+    const coherentSignals = [downSignal, upSignal, pingSignal].filter(Boolean).length;
+
+    const majorSingleImprovement =
+        (downGain >= .70 && downDelta >= 30)
+        || (upGain >= .70 && upDelta >= 8)
+        || (pingGain >= .55 && pingDelta >= 25);
+
+    const meaningful = coherentSignals >= 2 || majorSingleImprovement;
 
     if (meaningful) {
         return {
             kind: 'wifi',
-            title: 'Il secondo test è migliorato nettamente',
-            text: `Il passaggio ${context === 'cable' ? 'al cavo' : 'vicino al router'} ha migliorato in modo evidente il risultato. È un segnale compatibile con un limite della rete Wi-Fi interna più che con la linea Internet.`
+            title: 'Il secondo test è migliorato in modo significativo',
+            text: `Il passaggio ${context === 'cable' ? 'al cavo' : 'vicino al router'} ha prodotto un miglioramento consistente su più indicatori, o molto marcato su uno di essi. È un indizio compatibile con un limite della rete Wi-Fi o della rete domestica; non è però una diagnosi tecnica definitiva.`
         };
     }
 
     return {
         kind: 'line',
-        title: 'Il secondo test non cambia molto il quadro',
-        text: `Anche ${context === 'cable' ? 'via cavo' : 'vicino al router'} le prestazioni restano simili. Questo rende meno probabile che il solo Wi-Fi spieghi il risultato e suggerisce di confrontare il dato con la velocità prevista dal contratto.`
+        title: 'Il secondo test non modifica abbastanza il risultato',
+        text: `Anche ${context === 'cable' ? 'via cavo' : 'vicino al router'} il quadro non migliora in modo sufficientemente netto. Il solo Wi-Fi spiega quindi meno bene il risultato: confronta ora velocità misurata, velocità prevista dal contratto e condizioni della linea prima di valutare alternative.`
     };
 }
 
@@ -1352,7 +1361,13 @@ function finishTest(results) {
 
         emitMetric('diagnosis_completed', {
             diagnosis: comparison.kind,
-            context: testContext
+            context: testContext,
+            firstDownloadMbps: firstResult.download === null ? null : Math.round(firstResult.download),
+            secondDownloadMbps: result.download === null ? null : Math.round(result.download),
+            firstUploadMbps: firstResult.upload === null ? null : Math.round(firstResult.upload),
+            secondUploadMbps: result.upload === null ? null : Math.round(result.upload),
+            firstPingMs: firstResult.ping === null ? null : Math.round(firstResult.ping),
+            secondPingMs: result.ping === null ? null : Math.round(result.ping)
         });
     }
 
