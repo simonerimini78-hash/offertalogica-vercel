@@ -200,21 +200,21 @@
                     <strong>Imou IT</strong>
                     <p>Telecamere, videocampanelli, sensori e dispositivi smart per il controllo della casa.</p>
                 </div>
-                <a class="pending-link" href="https://www.awin1.com/cread.php?awinmid=122428&awinaffid=2932723&clickref=offertalogica_casa_smart" target="_blank" rel="sponsored noopener">Vai all'offerta</a>
+                <a class="pending-link" data-affiliate-provider="Imou IT" data-affiliate-network="Awin" data-affiliate-offer="imou_casa_smart" href="https://www.awin1.com/cread.php?awinmid=122428&awinaffid=2932723&clickref=offertalogica_casa_smart" target="_blank" rel="sponsored noopener">Vai all'offerta</a>
             </div>
             <div class="partner-box">
                 <div>
                     <strong>Agriden</strong>
                     <p>Prodotti per casa, giardino e manutenzione domestica. Una proposta complementare per chi vuole migliorare e gestire meglio gli spazi della propria abitazione.</p>
                 </div>
-                <a class="pending-link" href="https://clk.tradedoubler.com/click?p=396073&a=3487966" target="_blank" rel="sponsored noopener">Vai all'offerta</a>
+                <a class="pending-link" data-affiliate-provider="Agriden" data-affiliate-network="Tradedoubler" data-affiliate-offer="agriden" href="https://clk.tradedoubler.com/click?p=396073&a=3487966&epi=offertalogica&epi2=agriden&url=https%3A%2F%2Fwww.agriden.it%2F" target="_blank" rel="sponsored noopener">Vai all'offerta</a>
             </div>
             <div class="partner-box">
                 <div>
                     <strong>Doctor Quality</strong>
                     <p>Prodotti per benessere, comfort e qualita della vita in casa.</p>
                 </div>
-                <a class="pending-link" href="https://clk.tradedoubler.com/click?p=377429&a=3487966" target="_blank" rel="sponsored noopener">Vai all'offerta</a>
+                <a class="pending-link" data-affiliate-provider="Doctor Quality" data-affiliate-network="Tradedoubler" data-affiliate-offer="doctor_quality" href="https://clk.tradedoubler.com/click?p=377429&a=3487966&epi=offertalogica&epi2=doctor_quality&url=https%3A%2F%2Fwww.doctorquality.it%2F" target="_blank" rel="sponsored noopener">Vai all'offerta</a>
             </div>
         </section>
     </main>
@@ -252,6 +252,66 @@
             }
             window.location.href = "https://www.iubenda.com/privacy-policy/36565194/cookie-policy";
         }
+    </script>
+    <script type="text/javascript">
+        (function () {
+            var sessionKey = "offertalogicaAnalyticsSession";
+
+            function affiliateSessionId() {
+                try {
+                    var id = sessionStorage.getItem(sessionKey);
+                    if (!id) {
+                        id = window.crypto && window.crypto.randomUUID
+                            ? window.crypto.randomUUID()
+                            : "ol-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10);
+                        sessionStorage.setItem(sessionKey, id);
+                    }
+                    return id;
+                } catch (error) {
+                    return "";
+                }
+            }
+
+            function trackAffiliateClick(link) {
+                var page = window.location.pathname || "/";
+                var body = JSON.stringify({
+                    eventType: "partner_funnel_opened",
+                    sessionId: affiliateSessionId(),
+                    page: page,
+                    source: "affiliate_direct",
+                    payload: {
+                        page: page,
+                        source: "affiliate_direct",
+                        provider: link.dataset.affiliateProvider || "",
+                        offerName: link.dataset.affiliateOffer || "",
+                        network: link.dataset.affiliateNetwork || "",
+                        redirect: true
+                    }
+                });
+
+                try {
+                    if (navigator.sendBeacon) {
+                        var blob = new Blob([body], { type: "application/json" });
+                        if (navigator.sendBeacon("/api/track-event", blob)) return;
+                    }
+                } catch (error) {}
+
+                try {
+                    fetch("/api/track-event", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: body,
+                        keepalive: true
+                    }).catch(function () {});
+                } catch (error) {}
+            }
+
+            document.querySelectorAll("[data-affiliate-provider]").forEach(function (link) {
+                link.addEventListener("click", function () {
+                    trackAffiliateClick(link);
+                }, { passive: true });
+            });
+        })();
     </script>
     <script type="text/javascript">(function (w,d) {var loader = function () {var s = d.createElement("script"), tag = d.getElementsByTagName("script")[0]; s.src="https://cdn.iubenda.com/iubenda.js"; tag.parentNode.insertBefore(s,tag);}; if(w.addEventListener){w.addEventListener("load", loader, false);}else if(w.attachEvent){w.attachEvent("onload", loader);}else{w.onload = loader;}})(window, document);</script>
 </footer>

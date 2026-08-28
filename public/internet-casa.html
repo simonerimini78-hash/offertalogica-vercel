@@ -210,7 +210,7 @@
                     </div>
                     <div>
                         <h4>ho. Mobile</h4>
-                        <a class="affiliate-link" href="https://clk.tradedoubler.com/click?p=295759&a=3487966&epi=offertalogica&epi2=ho_mobile&url=https%3A%2F%2Fwww.ho-mobile.it%2F" target="_blank" rel="sponsored noopener">Vai all'offerta</a>
+                        <a class="affiliate-link" data-affiliate-provider="ho. Mobile" data-affiliate-network="Tradedoubler" data-affiliate-offer="ho_mobile" href="https://clk.tradedoubler.com/click?p=295759&a=3487966&epi=offertalogica&epi2=ho_mobile&url=https%3A%2F%2Fwww.ho-mobile.it%2F" target="_blank" rel="sponsored noopener">Vai all'offerta</a>
                     </div>
                 </article>
                 <article class="affiliate-card">
@@ -219,7 +219,7 @@
                     </div>
                     <div>
                         <h4>Very Mobile</h4>
-                        <a class="affiliate-link" href="https://clk.tradedoubler.com/click?p=311913&a=3487966&epi=offertalogica&epi2=very_mobile&url=https%3A%2F%2Fverymobile.it%2Fofferte%2Fvery-599-all" target="_blank" rel="sponsored noopener">Vai all'offerta</a>
+                        <a class="affiliate-link" data-affiliate-provider="Very Mobile" data-affiliate-network="Tradedoubler" data-affiliate-offer="very_mobile" href="https://clk.tradedoubler.com/click?p=311913&a=3487966&epi=offertalogica&epi2=very_mobile&url=https%3A%2F%2Fverymobile.it%2Fofferte%2Fvery-599-all" target="_blank" rel="sponsored noopener">Vai all'offerta</a>
                     </div>
                 </article>
             </div>
@@ -259,6 +259,66 @@
             }
             window.location.href = "https://www.iubenda.com/privacy-policy/36565194/cookie-policy";
         }
+    </script>
+    <script type="text/javascript">
+        (function () {
+            var sessionKey = "offertalogicaAnalyticsSession";
+
+            function affiliateSessionId() {
+                try {
+                    var id = sessionStorage.getItem(sessionKey);
+                    if (!id) {
+                        id = window.crypto && window.crypto.randomUUID
+                            ? window.crypto.randomUUID()
+                            : "ol-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10);
+                        sessionStorage.setItem(sessionKey, id);
+                    }
+                    return id;
+                } catch (error) {
+                    return "";
+                }
+            }
+
+            function trackAffiliateClick(link) {
+                var page = window.location.pathname || "/";
+                var body = JSON.stringify({
+                    eventType: "partner_funnel_opened",
+                    sessionId: affiliateSessionId(),
+                    page: page,
+                    source: "affiliate_direct",
+                    payload: {
+                        page: page,
+                        source: "affiliate_direct",
+                        provider: link.dataset.affiliateProvider || "",
+                        offerName: link.dataset.affiliateOffer || "",
+                        network: link.dataset.affiliateNetwork || "",
+                        redirect: true
+                    }
+                });
+
+                try {
+                    if (navigator.sendBeacon) {
+                        var blob = new Blob([body], { type: "application/json" });
+                        if (navigator.sendBeacon("/api/track-event", blob)) return;
+                    }
+                } catch (error) {}
+
+                try {
+                    fetch("/api/track-event", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: body,
+                        keepalive: true
+                    }).catch(function () {});
+                } catch (error) {}
+            }
+
+            document.querySelectorAll("[data-affiliate-provider]").forEach(function (link) {
+                link.addEventListener("click", function () {
+                    trackAffiliateClick(link);
+                }, { passive: true });
+            });
+        })();
     </script>
     <script type="text/javascript">(function (w,d) {var loader = function () {var s = d.createElement("script"), tag = d.getElementsByTagName("script")[0]; s.src="https://cdn.iubenda.com/iubenda.js"; tag.parentNode.insertBefore(s,tag);}; if(w.addEventListener){w.addEventListener("load", loader, false);}else if(w.attachEvent){w.attachEvent("onload", loader);}else{w.onload = loader;}})(window, document);</script>
 </footer>
