@@ -615,6 +615,12 @@
             flex-wrap: wrap;
             margin-top: 14px;
         }
+        .diagnostic-tip {
+            margin-top: 10px !important;
+            color: #647985 !important;
+            font-size: 12px !important;
+            line-height: 1.4;
+        }
         .secondary-button {
             min-height: 44px;
             padding: 10px 14px;
@@ -968,6 +974,7 @@
                             <button class="secondary-button" type="button" data-retest="router">Ripeti vicino al router</button>
                             <button class="secondary-button" type="button" data-retest="cable">Ripeti via cavo</button>
                         </div>
+                        <p class="diagnostic-tip">Scegli una sola prova alla volta. Prima spostati vicino al router oppure collega il dispositivo via cavo, poi avvia il secondo test.</p>
                     </div>
 
                     <div id="comparisonBox" class="diagnostic-callout" hidden>
@@ -1371,13 +1378,17 @@ function finishTest(results, runId, context) {
     els.startButton.textContent = 'RIPETI SPEED TEST';
     els.resultPanel.classList.add('visible');
 
+    if (context === 'standard' && isPoor(result)) {
+        els.startButton.textContent = 'RIPETI TEST STANDARD';
+    }
+
     const [title, text] = generalQuality(result);
     els.qualityTitle.textContent = title;
     els.qualityText.textContent = text;
 
     renderUses(result);
 
-    els.diagnosticCallout.hidden = !isPoor(result) || completedTests > 1;
+    els.diagnosticCallout.hidden = context !== 'standard' || !isPoor(result);
     els.evaluateButton.disabled = false;
 
     if (context === 'standard') {
@@ -1440,6 +1451,8 @@ function startTest(context = 'standard') {
     els.resultPanel.classList.remove('visible');
     els.comparisonBox.hidden = true;
     els.diagnosticCallout.hidden = true;
+    els.economicResult.classList.remove('visible');
+    els.switchoCta.classList.remove('visible');
 
     els.startButton.disabled = true;
     els.startButton.textContent = 'TEST IN CORSO…';
@@ -1485,7 +1498,7 @@ function startTest(context = 'standard') {
         engine.onError = error => {
             if (runId !== activeRunId) return;
 
-            clearTestTimeout();
+            invalidateActiveRun();
             setStatus('Test non completato');
 
             els.startButton.disabled = false;
@@ -1511,7 +1524,7 @@ function startTest(context = 'standard') {
 
         engine.play();
     } catch (error) {
-        clearTestTimeout();
+        invalidateActiveRun();
         setStatus('Motore non disponibile');
 
         els.startButton.disabled = false;
