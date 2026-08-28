@@ -1,0 +1,49 @@
+{
+  "versione": "energia-oggi-2026-08-28",
+  "aggiornatoIl": "2026-08-28",
+  "fonteInterna": "OffertaLogica - aggiornamento dati energia",
+  "origineAggiornamento": "Snapshot verificato prima dell'automazione ARERA",
+  "nota": "Dal Pacchetto 05 questo file è la fonte tecnica locale delle pagine giornaliere. Il processo OffertaLogica lo aggiorna senza duplicare il PSV mensile.",
+  "pun": {
+    "label": "PUN Index GME",
+    "data": "2026-08-28",
+    "valoreEurMwh": 205.52,
+    "valoreEurKwh": 0.20552,
+    "ieriEurMwh": 205.52,
+    "variazionePercentuale": 0.0,
+    "minimoEurMwh": 161.58,
+    "massimoEurMwh": 260.9,
+    "fonte": "OffertaLogica - aggiornamento dati energia",
+    "origineDato": "Gestore dei Mercati Energetici (GME) - snapshot iniziale verificato",
+    "urlFonteOriginale": "https://gme.mercatoelettrico.org/it-it/Home/Esiti/Elettricita/MGP/Statistiche/Rapporti/moduleId/9436/controller/StatRapportiME/action/Download?report=20260828MgpReportGiornaliero.pdf",
+    "stato": "snapshot_iniziale_verificato",
+    "fonteOriginaleLabel": "GME — snapshot iniziale verificato"
+  },
+  "gas": {
+    "giornaliero": {
+      "label": "IG Index GME",
+      "data": "2026-08-28",
+      "valoreEurMwh": 71.71,
+      "ieriEurMwh": 70.87,
+      "variazionePercentuale": 1.1852688,
+      "fonte": "OffertaLogica - aggiornamento dati energia",
+      "origineDato": "Gestore dei Mercati Energetici (GME) - snapshot iniziale verificato",
+      "urlFonteOriginale": "https://gme.mercatoelettrico.org/it-it/Home/Pubblicazioni/Indici-GME/IGIndexGmeEsiti",
+      "stato": "snapshot_iniziale_verificato",
+      "nota": "IG Index GME resta distinto dal PSV day-ahead mensile.",
+      "fonteOriginaleLabel": "GME — snapshot iniziale verificato"
+    },
+    "psvMensile": {
+      "label": "PSV DA / CMEM,m",
+      "periodo": "2026-07",
+      "periodoLabel": "Luglio 2026",
+      "valoreEurMwh": 56.6927,
+      "valoreEurSmc": 0.606612,
+      "fonte": "OffertaLogica - calcolo-parametri.json",
+      "origineDato": "ARERA - media mensile PSV day-ahead",
+      "urlFonteOriginale": "https://www.arera.it/area-operatori/prezzi-e-tariffe/valore-cmemm-vulnerabili",
+      "stato": "ufficiale_mensile",
+      "fonteOriginaleLabel": "ARERA — PSV day-ahead mensile"
+    }
+  }
+}

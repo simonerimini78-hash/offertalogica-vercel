@@ -15,7 +15,7 @@
     <meta property="og:url" content="https://offertalogica.it/come-leggere-bolletta-luce-gas.html">
     <meta property="og:image" content="https://offertalogica.it/assets/guida-bolletta/cover.webp">
     <meta property="article:published_time" content="2026-08-16">
-    <meta property="article:modified_time" content="2026-08-25">
+    <meta property="article:modified_time" content="2026-08-28">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Come leggere la bolletta luce e gas | OffertaLogica">
     <meta name="twitter:description" content="Guida pratica gratuita per capire i dati davvero utili della bolletta luce e gas.">
@@ -23,6 +23,7 @@
     <link rel="icon" type="image/png" href="/assets/logo-offertalogica-icon.png">
     <link rel="apple-touch-icon" href="/assets/logo-offertalogica-icon.png">
     <link rel="stylesheet" href="/assets/ol-app-access.css">
+    <link rel="stylesheet" href="/assets/seo-energy-interactions.css">
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -30,469 +31,53 @@
       "headline": "Come leggere la bolletta luce e gas: guida completa",
       "description": "Guida gratuita OffertaLogica per capire POD, PDR, consumi annui, potenza, fasce orarie, prezzi, quote fisse e condizioni economiche.",
       "datePublished": "2026-08-16",
-      "dateModified": "2026-08-25",
+      "dateModified": "2026-08-28",
       "inLanguage": "it-IT",
       "mainEntityOfPage": "https://offertalogica.it/come-leggere-bolletta-luce-gas.html",
       "image": "https://offertalogica.it/assets/guida-bolletta/cover.webp",
       "author": {"@type": "Organization", "name": "OffertaLogica"},
-      "publisher": {
-        "@type": "Organization",
-        "name": "OffertaLogica",
-        "logo": {"@type": "ImageObject", "url": "https://offertalogica.it/assets/logo-offertalogica-header.png"}
-      }
+      "publisher": {"@type": "Organization", "name": "OffertaLogica", "logo": {"@type": "ImageObject", "url": "https://offertalogica.it/assets/logo-offertalogica-header.png"}}
     }
     </script>
     <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "BreadcrumbList",
-      "itemListElement": [
-        {"@type":"ListItem","position":1,"name":"OffertaLogica","item":"https://offertalogica.it/"},
-        {"@type":"ListItem","position":2,"name":"Guida alla bolletta luce e gas","item":"https://offertalogica.it/come-leggere-bolletta-luce-gas.html"}
-      ]
-    }
+    {"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"OffertaLogica","item":"https://offertalogica.it/"},{"@type":"ListItem","position":2,"name":"Guida alla bolletta luce e gas","item":"https://offertalogica.it/come-leggere-bolletta-luce-gas.html"}]}
     </script>
     <style>
-        :root {
-            --bg: #f1f5f9;
-            --surface: #ffffff;
-            --surface-soft: #f8fafc;
-            --text: #0f172a;
-            --muted: #64748b;
-            --border: #cbd5e1;
-            --primary: #16a34a;
-            --primary-light: #65c932;
-            --primary-dark: #14532d;
-            --accent: #2563eb;
-            --dark: #334155;
-            --warning: #7c2d12;
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        html { scroll-behavior: smooth; }
-        body { font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: var(--text); line-height: 1.65; }
-        img { max-width: 100%; height: auto; }
-        .skip-link { position: absolute; left: -999px; top: 12px; background: #fff; color: var(--accent); padding: 10px 14px; border-radius: 8px; font-weight: 800; z-index: 30; }
-        .skip-link:focus { left: 12px; }
-        .shell { max-width: 1120px; margin: 0 auto; padding: 0 22px; }
-        .topbar { background: #fff; border-bottom: 1px solid var(--border); }
-        .topbar-inner { min-height: 72px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-        .brand { display: inline-flex; align-items: center; flex: 0 0 auto; line-height: 0; text-decoration: none; }
-        .brand img { display: block; width: 176px; max-width: 44vw; }
-        .nav { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
-        .nav a { text-decoration: none; color: var(--dark); font-size: 14px; font-weight: 800; padding: 9px 10px; border-radius: 8px; }
-        .nav a:hover, .nav a[aria-current="page"] { background: #f0fdf4; color: var(--primary-dark); }
-        .hero { padding: 46px 0 28px; }
-        .hero-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(260px, .6fr); gap: 34px; align-items: center; }
-        .eyebrow { display: inline-flex; align-items: center; gap: 7px; color: var(--primary-dark); font-weight: 900; font-size: 13px; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 12px; }
-        h1 { font-size: clamp(36px, 5vw, 58px); line-height: 1.02; letter-spacing: -.02em; margin-bottom: 16px; }
-        .hero p { color: var(--muted); font-size: 18px; max-width: 760px; }
-        .hero-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 22px; }
-        .button { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 46px; border-radius: 10px; padding: 12px 18px; text-decoration: none; font-weight: 900; border: 1px solid transparent; transition: transform .18s ease, box-shadow .18s ease, background-position .25s ease; }
-        .button.primary { color: #fff; background: linear-gradient(135deg, #0f7d33 0%, #23a83f 48%, #79d63b 100%); background-size: 160% 160%; box-shadow: 0 8px 20px rgba(22, 163, 74, .2); }
-        .button.primary::after { content: "→"; transition: transform .18s ease; }
-        .button.primary:hover { transform: translateY(-1px); background-position: 100% 50%; box-shadow: 0 11px 24px rgba(22, 163, 74, .25); }
-        .button.primary:hover::after { transform: translateX(4px); }
-        .button.secondary { color: var(--primary-dark); border-color: #86d6a1; background: linear-gradient(135deg, #fff, #f0fdf4); }
-        .button.secondary:hover { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(15, 23, 42, .08); }
-        .edition { display: inline-flex; margin-top: 17px; padding: 7px 11px; border-radius: 999px; background: #dcfce7; color: var(--primary-dark); font-size: 13px; font-weight: 800; }
-        .cover-card { background: linear-gradient(145deg, #ffffff, #f0fdf4); border: 1px solid #bbf7d0; border-radius: 18px; padding: 18px; box-shadow: 0 15px 35px rgba(15, 23, 42, .09); }
-        .cover-card img { display: block; border-radius: 10px; margin: 0 auto; max-height: 440px; }
-        .trust-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--border); margin: 6px auto 30px; }
-        .trust-item { background: #fff; padding: 16px; min-height: 86px; }
-        .trust-item strong { display: block; color: var(--primary-dark); margin-bottom: 3px; }
-        .trust-item span { color: var(--muted); font-size: 13px; }
-        .layout { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 22px; align-items: start; padding: 8px 0 42px; }
-        .layout > * { min-width: 0; }
-        .toc { position: sticky; top: 18px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
-        .toc strong { display: block; margin-bottom: 8px; }
-        .toc-list { max-height: calc(100vh - 130px); overflow-y: auto; padding-right: 4px; }
-        .toc a { display: block; color: var(--dark); text-decoration: none; font-weight: 700; font-size: 13px; padding: 7px 0; border-top: 1px solid #e2e8f0; }
-        .toc a:first-child { border-top: 0; }
-        .toc a:hover { color: var(--primary-dark); }
-        .content { display: grid; gap: 18px; min-width: 0; }
-        .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 24px; min-width: 0; scroll-margin-top: 20px; }
-        .panel h2 { font-size: clamp(23px, 3vw, 29px); line-height: 1.16; margin-bottom: 10px; color: #0f5132; }
-        .panel h3 { font-size: 18px; margin: 17px 0 7px; }
-        .panel p, .panel li { color: var(--muted); font-size: 15.5px; }
-        .panel p + p { margin-top: 10px; }
-        .panel ul { padding-left: 20px; display: grid; gap: 6px; margin-top: 10px; }
-        .remember { margin-top: 14px; padding: 13px 15px; border-left: 4px solid var(--primary); background: #ecfdf5; color: var(--dark); border-radius: 7px; }
-        .remember strong { color: var(--primary-dark); }
-        .figure { margin-top: 18px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px; }
-        .figure img { display: block; width: 100%; border-radius: 7px; }
-        .figure figcaption { margin-top: 8px; text-align: center; color: #64748b; font-size: 12px; font-style: italic; }
-        .mini-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
-        .mini-card { background: var(--surface-soft); border: 1px solid #e2e8f0; border-radius: 9px; padding: 15px; }
-        .mini-card strong { color: var(--primary-dark); }
-        .quick-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-        .quick-table th, .quick-table td { border: 1px solid #dbe3ea; padding: 10px; text-align: left; font-size: 14px; }
-        .quick-table th { background: #eaf8ef; color: var(--primary-dark); }
-        .sources a { color: #166534; font-weight: 700; }
-        .download-box { display: grid; grid-template-columns: 140px 1fr; gap: 20px; align-items: center; background: linear-gradient(135deg, #ecfdf5, #ffffff); border: 1px solid #86efac; border-radius: 14px; padding: 22px; }
-        .download-box img { width: 140px; border-radius: 8px; box-shadow: 0 10px 22px rgba(15, 23, 42, .12); }
-        .download-box h2 { margin: 0 0 7px; color: var(--text); }
-        .download-box p { color: var(--muted); }
-        .download-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
-        .footer { text-align: center; padding: 38px 20px; color: #777; border-top: 2px solid #e2e8f0; margin-top: 16px; font-size: 13px; background: #fff; }
-        .footer a, .footer button { color: #555; text-decoration: none; margin: 0 8px; }
-        .footer button { background: transparent; border: 0; cursor: pointer; font-size: 13px; font-weight: 700; }
-        .footer a:hover, .footer button:hover { color: var(--accent); text-decoration: underline; }
-        @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .button, .button::after { transition: none !important; } }
-        @media (max-width: 900px) {
-            .topbar-inner { align-items: flex-start; flex-direction: column; padding: 16px 0; }
-            .nav { justify-content: flex-start; }
-            .hero-grid { grid-template-columns: 1fr; }
-            .cover-card { max-width: 420px; }
-            .trust-strip { grid-template-columns: 1fr 1fr; }
-            .layout { grid-template-columns: 1fr; }
-            .toc { position: static; }
-            .toc-list { max-height: none; }
-        }
-        @media (max-width: 580px) {
-            .shell { padding: 0 14px; }
-            .brand img { width: 150px; max-width: 56vw; }
-            .nav a { padding: 7px 7px; }
-            .hero { padding-top: 30px; }
-            .hero-actions .button { width: 100%; }
-            .trust-strip { grid-template-columns: 1fr; }
-            .panel { padding: 18px; }
-            .mini-grid { grid-template-columns: 1fr; }
-            .download-box { grid-template-columns: 1fr; text-align: center; }
-            .download-box img { margin: 0 auto; }
-            .download-actions { justify-content: center; }
-            .download-actions .button { width: 100%; }
-        }
+        :root{--bg:#f1f5f9;--surface:#fff;--surface-soft:#f8fafc;--text:#0f172a;--muted:#64748b;--border:#cbd5e1;--primary:#16a34a;--primary-light:#65c932;--primary-dark:#14532d;--accent:#2563eb;--dark:#334155;--warning:#7c2d12}
+        *{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:"Segoe UI",Tahoma,Geneva,Verdana,sans-serif;background:var(--bg);color:var(--text);line-height:1.65}img{max-width:100%;height:auto}.skip-link{position:absolute;left:-999px;top:12px;background:#fff;color:var(--accent);padding:10px 14px;border-radius:8px;font-weight:800;z-index:30}.skip-link:focus{left:12px}.shell{max-width:1120px;margin:0 auto;padding:0 22px}.topbar{background:#fff;border-bottom:1px solid var(--border)}.topbar-inner{min-height:72px;display:flex;align-items:center;justify-content:space-between;gap:16px}.brand{display:inline-flex;align-items:center;flex:0 0 auto;line-height:0;text-decoration:none}.brand img{display:block;width:176px;max-width:44vw}.nav{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}.nav a{text-decoration:none;color:var(--dark);font-size:14px;font-weight:800;padding:9px 10px;border-radius:8px}.nav a:hover,.nav a[aria-current="page"]{background:#f0fdf4;color:var(--primary-dark)}.hero{padding:46px 0 28px}.hero-grid{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(260px,.6fr);gap:34px;align-items:center}.eyebrow{display:inline-flex;align-items:center;gap:7px;color:var(--primary-dark);font-weight:900;font-size:13px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px}h1{font-size:clamp(36px,5vw,58px);line-height:1.02;letter-spacing:-.02em;margin-bottom:16px}.hero p{color:var(--muted);font-size:18px;max-width:760px}.hero-actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:22px}.button{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:46px;border-radius:10px;padding:12px 18px;text-decoration:none;font-weight:900;border:1px solid transparent;transition:transform .18s ease,box-shadow .18s ease,background-position .25s ease}.button.primary{color:#fff;background:linear-gradient(135deg,#0f7d33 0%,#23a83f 48%,#79d63b 100%);background-size:160% 160%;box-shadow:0 8px 20px rgba(22,163,74,.2)}.button.primary::after{content:"→"}.button.secondary{color:var(--primary-dark);border-color:#86d6a1;background:linear-gradient(135deg,#fff,#f0fdf4)}.edition{display:inline-flex;margin-top:17px;padding:7px 11px;border-radius:999px;background:#dcfce7;color:var(--primary-dark);font-size:13px;font-weight:800}.cover-card{background:linear-gradient(145deg,#fff,#f0fdf4);border:1px solid #bbf7d0;border-radius:18px;padding:18px;box-shadow:0 15px 35px rgba(15,23,42,.09)}.cover-card img{display:block;border-radius:10px;margin:0 auto;max-height:440px}.trust-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--border);margin:6px auto 30px}.trust-item{background:#fff;padding:16px;min-height:86px}.trust-item strong{display:block;color:var(--primary-dark);margin-bottom:3px}.trust-item span{color:var(--muted);font-size:13px}.layout{display:grid;grid-template-columns:280px minmax(0,1fr);gap:22px;align-items:start;padding:8px 0 42px}.layout>*{min-width:0}.toc{position:sticky;top:18px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px}.toc strong{display:block;margin-bottom:8px}.toc-list{max-height:calc(100vh - 130px);overflow-y:auto;padding-right:4px}.toc a{display:block;color:var(--dark);text-decoration:none;font-weight:700;font-size:13px;padding:7px 0;border-top:1px solid #e2e8f0}.toc a:first-child{border-top:0}.toc a:hover{color:var(--primary-dark)}.content{display:grid;gap:18px;min-width:0}.panel{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:24px;min-width:0;scroll-margin-top:20px}.panel h2{font-size:clamp(23px,3vw,29px);line-height:1.16;margin-bottom:10px;color:#0f5132}.panel h3{font-size:18px;margin:17px 0 7px}.panel p,.panel li{color:var(--muted);font-size:15.5px}.panel p+p{margin-top:10px}.panel ul{padding-left:20px;display:grid;gap:6px;margin-top:10px}.remember{margin-top:14px;padding:13px 15px;border-left:4px solid var(--primary);background:#ecfdf5;color:var(--dark);border-radius:7px}.remember strong{color:var(--primary-dark)}.figure{margin-top:18px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px}.figure img{display:block;width:100%;border-radius:7px}.figure figcaption{margin-top:8px;text-align:center;color:#64748b;font-size:12px;font-style:italic}.mini-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}.mini-card{background:var(--surface-soft);border:1px solid #e2e8f0;border-radius:9px;padding:15px}.mini-card strong{color:var(--primary-dark)}.quick-table{width:100%;border-collapse:collapse;margin-top:12px}.quick-table th,.quick-table td{border:1px solid #dbe3ea;padding:10px;text-align:left;font-size:14px}.quick-table th{background:#eaf8ef;color:var(--primary-dark)}.sources a{color:#166534;font-weight:700}.download-box{display:grid;grid-template-columns:140px 1fr;gap:20px;align-items:center;background:linear-gradient(135deg,#ecfdf5,#fff);border:1px solid #86efac;border-radius:14px;padding:22px}.download-box img{width:140px;border-radius:8px;box-shadow:0 10px 22px rgba(15,23,42,.12)}.download-box h2{margin:0 0 7px;color:var(--text)}.download-box p{color:var(--muted)}.download-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}.footer{text-align:center;padding:38px 20px;color:#777;border-top:2px solid #e2e8f0;margin-top:16px;font-size:13px;background:#fff}.footer a,.footer button{color:#555;text-decoration:none;margin:0 8px}.footer button{background:transparent;border:0;cursor:pointer;font-size:13px;font-weight:700}.footer a:hover,.footer button:hover{color:var(--accent);text-decoration:underline}@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.button,.button::after{transition:none!important}}@media(max-width:900px){.topbar-inner{align-items:flex-start;flex-direction:column;padding:16px 0}.nav{justify-content:flex-start}.hero-grid{grid-template-columns:1fr}.cover-card{max-width:420px}.trust-strip{grid-template-columns:1fr 1fr}.layout{grid-template-columns:1fr}.toc{position:static}.toc-list{max-height:none}}@media(max-width:580px){.shell{padding:0 14px}.brand img{width:150px;max-width:56vw}.nav a{padding:7px}.hero{padding-top:30px}.hero-actions .button{width:100%}.trust-strip{grid-template-columns:1fr}.panel{padding:18px}.mini-grid{grid-template-columns:1fr}.download-box{grid-template-columns:1fr;text-align:center}.download-box img{margin:0 auto}.download-actions{justify-content:center}.download-actions .button{width:100%}}
     </style>
 </head>
 <body>
 <a class="skip-link" href="#main-content">Vai al contenuto principale</a>
-<header class="topbar">
-    <div class="shell topbar-inner">
-        <a class="brand" href="/" aria-label="Torna alla Home OffertaLogica">
-            <img src="/assets/logo-offertalogica-header.png" alt="OffertaLogica.it">
-        </a>
-        <nav class="nav" aria-label="Navigazione principale">
-            <a href="/">Calcolatore</a>
-            <a href="/offerte-luce-gas-aggiornate.html">Offerte aggiornate</a>
-            <a href="/come-funziona.html">Come funziona</a>
-            <a href="/come-leggere-bolletta-luce-gas.html" aria-current="page">Guida bolletta</a>
-            <a href="/partner.html">Partner</a>
-            <a href="https://www.iubenda.com/privacy-policy/36565194" class="iubenda-white iubenda-noiframe iubenda-embed">Privacy</a>
-        </nav>
-    </div>
-</header>
+<header class="topbar"><div class="shell topbar-inner"><a class="brand" href="/" aria-label="Torna alla Home OffertaLogica"><img src="/assets/logo-offertalogica-header.png" alt="OffertaLogica.it"></a><nav class="nav" aria-label="Navigazione principale"><a href="/">Calcolatore</a><a href="/offerte-luce-gas-aggiornate.html">Offerte aggiornate</a><a href="/come-funziona.html">Come funziona</a><a href="/come-leggere-bolletta-luce-gas.html" aria-current="page">Guida bolletta</a><a href="/partner.html">Partner</a><a href="https://www.iubenda.com/privacy-policy/36565194" class="iubenda-white iubenda-noiframe iubenda-embed">Privacy</a></nav></div></header>
 <main id="main-content">
-    <section class="hero">
-        <div class="shell hero-grid">
-            <div>
-                <div class="eyebrow">Guida gratuita OffertaLogica</div>
-                <h1>Come leggere la bolletta luce e gas</h1>
-                <p>Una guida pratica per trovare e capire i dati davvero utili: POD, PDR, consumi annuali, potenza impegnata, fasce F1/F2/F3, prezzo dell'energia, quota fissa, offerta attiva e scadenza delle condizioni economiche.</p>
-                <div class="hero-actions">
-                    <a class="button primary" href="/assets/guida-bolletta/Guida-OffertaLogica-bolletta-luce-gas.pdf" download>Scarica gratis l'eBook PDF</a>
-                    <a class="button secondary" href="/?landing=0&amp;from=guide">Apri il calcolatore</a>
-                </div>
-                <div class="edition">Edizione aggiornata alla struttura della bolletta ARERA in vigore dal 1° luglio 2025</div>
-            </div>
-            <div class="cover-card">
-                <img src="/assets/guida-bolletta/cover.webp" width="1055" height="1491" alt="Copertina della guida OffertaLogica alla bolletta luce e gas">
-            </div>
-        </div>
-    </section>
-
-    <div class="shell">
-        <section class="trust-strip" aria-label="Contenuti della guida">
-            <div class="trust-item"><strong>17 capitoli pratici</strong><span>Dalla struttura della bolletta al confronto tra offerte.</span></div>
-            <div class="trust-item"><strong>Fonti istituzionali</strong><span>Contenuti verificati su ARERA e Portale Offerte.</span></div>
-            <div class="trust-item"><strong>Schemi visivi</strong><span>POD, PDR, fasce, prezzi e condizioni spiegati con esempi.</span></div>
-            <div class="trust-item"><strong>PDF gratuito</strong><span>13 pagine da conservare e consultare quando serve.</span></div>
-        </section>
-    </div>
-
-    <div class="shell layout">
-        <aside class="toc" aria-label="Indice della guida">
-            <strong>In questa guida</strong>
-            <div class="toc-list">
-                <a href="#struttura">1. Come è fatta una bolletta</a>
-                <a href="#pod">2. Dove trovare il POD</a>
-                <a href="#pdr">3. Dove trovare il PDR</a>
-                <a href="#consumi-annui">4. Consumi annuali</a>
-                <a href="#letture">5. Letture, stime e ricalcoli</a>
-                <a href="#potenza">6. Potenza impegnata</a>
-                <a href="#fasce">7. F1, F2 e F3</a>
-                <a href="#prezzo">8. Prezzo energia e gas</a>
-                <a href="#quota-fissa">9. Quota fissa</a>
-                <a href="#fisso-indicizzato">10. Fisso o indicizzato</a>
-                <a href="#totale">11. Totale bolletta</a>
-                <a href="#offerta-attiva">12. Offerta realmente attiva</a>
-                <a href="#scadenza">13. Scadenza offerta</a>
-                <a href="#condizioni-cambiate">14. Condizioni cambiate</a>
-                <a href="#dati-confronto">15. Dati per confrontare</a>
-                <a href="#errori">16. Errori da evitare</a>
-                <a href="#usa-offertalogica">17. Usa OffertaLogica</a>
-                <a href="#approfondimenti">Approfondimenti</a>
-            </div>
-        </aside>
-
-        <div class="content">
-            <section class="panel" id="struttura">
-                <h2>1. Come è fatta una bolletta</h2>
-                <p>Dal 1° luglio 2025 la disciplina ARERA prevede una struttura più uniforme della bolletta sintetica. I quattro elementi principali sono il <strong>Frontespizio unificato</strong>, lo <strong>Scontrino dell'energia</strong>, il <strong>Box dell'offerta</strong> e gli <strong>Elementi informativi essenziali</strong>.</p>
-                <p>Il venditore mantiene libertà nella veste grafica, quindi colori e posizione precisa possono cambiare. Quello che conta è riconoscere le informazioni previste e sapere in quale sezione cercarle.</p>
-                <figure class="figure">
-                    <img src="/assets/guida-bolletta/struttura-bolletta.webp" width="1200" height="712" alt="Schema OffertaLogica della nuova bolletta con frontespizio, scontrino dell'energia, box dell'offerta ed elementi informativi" loading="lazy">
-                    <figcaption>Schema didattico basato sulla struttura della nuova bolletta ARERA.</figcaption>
-                </figure>
-            </section>
-
-            <section class="panel" id="pod">
-                <h2>2. Dove trovare il POD</h2>
-                <p>Il <strong>POD</strong>, Punto di Prelievo, identifica in modo certo il punto della fornitura elettrica. È un codice alfanumerico di 14 o 15 caratteri che inizia sempre con <strong>IT</strong> e non cambia quando cambi venditore.</p>
-                <div class="remember"><strong>Da ricordare:</strong> POD = LUCE. Non è il numero cliente e non è il numero della bolletta.</div>
-            </section>
-
-            <section class="panel" id="pdr">
-                <h2>3. Dove trovare il PDR</h2>
-                <p>Il <strong>PDR</strong>, Punto di Riconsegna, identifica in modo univoco il punto della fornitura gas. È composto da 14 numeri e resta associato al punto di riconsegna anche se cambi venditore.</p>
-                <div class="remember"><strong>Da ricordare:</strong> PDR = GAS. Anche il PDR è diverso dal numero cliente e dal numero della fattura.</div>
-                <figure class="figure">
-                    <img src="/assets/guida-bolletta/pod-pdr.webp" width="1200" height="675" alt="Confronto tra codice POD della luce e codice PDR del gas" loading="lazy">
-                    <figcaption>POD e PDR identificano il punto di fornitura, non il cliente o la singola bolletta.</figcaption>
-                </figure>
-            </section>
-
-            <section class="panel" id="consumi-annui">
-                <h2>4. Dove trovare i consumi annuali</h2>
-                <p>Il consumo annuo aggiornato è uno dei dati più importanti per confrontare due offerte. Per la luce è espresso in <strong>kWh</strong>; per il gas in <strong>Smc</strong>. Il dato si riferisce a 12 mesi consecutivi e la bolletta deve indicare il periodo di riferimento.</p>
-                <p>Usare il consumo annuale evita confronti distorti dalla stagionalità: una bolletta di gennaio e una di giugno possono avere consumi molto diversi, soprattutto per il gas.</p>
-                <div class="remember"><strong>Perché è importante:</strong> applicare offerte diverse allo stesso consumo annuo permette un confronto coerente.</div>
-            </section>
-
-            <section class="panel" id="letture">
-                <h2>5. Letture, consumi effettivi, consumi stimati e ricalcoli</h2>
-                <p>Una bolletta può utilizzare dati di origine diversa. Distinguere il tipo di dato aiuta a capire perché l'importo può cambiare.</p>
-                <ul>
-                    <li><strong>Lettura rilevata:</strong> dato del misuratore validato dal distributore.</li>
-                    <li><strong>Autolettura:</strong> dato comunicato dal cliente secondo le regole previste.</li>
-                    <li><strong>Consumi effettivi:</strong> consumi attribuiti sulla base di letture disponibili.</li>
-                    <li><strong>Consumi stimati:</strong> consumi attribuiti sulla base di una stima.</li>
-                    <li><strong>Ricalcolo:</strong> correzione di consumi o corrispettivi già fatturati.</li>
-                </ul>
-                <figure class="figure">
-                    <img src="/assets/guida-bolletta/letture-consumi.webp" width="1200" height="698" alt="Schema su lettura rilevata, autolettura, consumo stimato e ricalcolo" loading="lazy">
-                </figure>
-            </section>
-
-            <section class="panel" id="potenza">
-                <h2>6. Cos'è la potenza impegnata</h2>
-                <p>La potenza impegnata è il livello di potenza, espresso in <strong>kW</strong>, previsto dal contratto e reso disponibile per la fornitura elettrica. Non misura quanta energia consumi: indica quanta potenza puoi utilizzare nello stesso momento.</p>
-                <div class="remember"><strong>kW e kWh non sono la stessa cosa:</strong> kW = potenza disponibile o prelevata; kWh = quantità di energia consumata.</div>
-            </section>
-
-            <section class="panel" id="fasce">
-                <h2>7. F1, F2 e F3: cosa significano</h2>
-                <p>I consumi elettrici possono essere distinti per fasce orarie. La distribuzione conta soprattutto quando il contratto prevede prezzi diversi in base all'orario: due famiglie con lo stesso consumo annuo possono avere risultati differenti se consumano in momenti diversi.</p>
-                <ul>
-                    <li><strong>F1:</strong> lunedì-venerdì, 8:00-19:00, escluse le festività nazionali.</li>
-                    <li><strong>F2:</strong> lunedì-venerdì 7:00-8:00 e 19:00-23:00; sabato 7:00-23:00, escluse le festività nazionali.</li>
-                    <li><strong>F3:</strong> ore notturne, domeniche e festività nazionali secondo la definizione ARERA.</li>
-                </ul>
-                <figure class="figure">
-                    <img src="/assets/guida-bolletta/fasce-f1-f2-f3.webp" width="1200" height="675" alt="Schema delle fasce orarie F1 F2 e F3" loading="lazy">
-                    <figcaption>Schema delle fasce orarie usato nella guida OffertaLogica.</figcaption>
-                </figure>
-            </section>
-
-            <section class="panel" id="prezzo">
-                <h2>8. Dove trovare il prezzo dell'energia e del gas</h2>
-                <p>Il prezzo utile a capire un'offerta non va cercato soltanto nel totale della bolletta. Lo Scontrino dell'energia mostra quantità e prezzi medi che formano gli importi, mentre il Box dell'offerta riepiloga le condizioni economiche dell'offerta sottoscritta.</p>
-                <p>Per l'elettricità i corrispettivi legati ai consumi sono normalmente espressi in <strong>€/kWh</strong>; per il gas in <strong>€/Smc</strong>. Il prezzo unitario pubblicizzato, però, non coincide necessariamente con il costo complessivo della fornitura.</p>
-            </section>
-
-            <section class="panel" id="quota-fissa">
-                <h2>9. Cos'è la quota fissa</h2>
-                <p>Una parte della spesa è dovuta indipendentemente dal consumo. Quando confronti offerte commerciali, la componente fissa prevista dal venditore può cambiare molto il risultato: un prezzo energia più basso può essere accompagnato da un costo fisso più elevato.</p>
-                <div class="remember"><strong>Attenzione:</strong> per confrontare due offerte devi distinguere la quota fissa commerciale prevista dalle condizioni economiche dalle altre componenti regolate presenti in bolletta.</div>
-            </section>
-
-            <section class="panel" id="fisso-indicizzato">
-                <h2>10. Prezzo fisso e prezzo indicizzato</h2>
-                <div class="mini-grid">
-                    <div class="mini-card"><strong>Prezzo fisso</strong><p>La componente energia o gas resta al valore previsto dalle condizioni economiche per il periodo stabilito dall'offerta.</p></div>
-                    <div class="mini-card"><strong>Prezzo indicizzato</strong><p>Il prezzo varia automaticamente in funzione di un indice di riferimento previsto dal contratto, oltre agli eventuali margini previsti.</p></div>
-                </div>
-                <p style="margin-top:12px">Non esiste una scelta migliore in assoluto: vanno valutati livello del prezzo, formula di indicizzazione, eventuale spread, quota fissa, durata e consumi.</p>
-                <figure class="figure">
-                    <img src="/assets/guida-bolletta/prezzo-fisso-indicizzato.webp" width="1200" height="690" alt="Confronto concettuale tra prezzo fisso e prezzo indicizzato" loading="lazy">
-                </figure>
-            </section>
-
-            <section class="panel" id="totale">
-                <h2>11. Come si forma il totale della bolletta</h2>
-                <p>Il totale non dipende solo dal prezzo della materia energia o gas. In termini generali trovi importi riconducibili alla vendita, alla rete e gestione del contatore, agli oneri generali di sistema e alle imposte; per l'elettricità è rilevante anche la quota potenza.</p>
-                <figure class="figure">
-                    <img src="/assets/guida-bolletta/totale-bolletta.webp" width="1200" height="675" alt="Schema delle principali famiglie di costo che formano il totale della bolletta" loading="lazy">
-                </figure>
-            </section>
-
-            <section class="panel" id="offerta-attiva">
-                <h2>12. Come riconoscere l'offerta che hai realmente attiva</h2>
-                <p>Il <strong>Box dell'offerta</strong> è il punto principale da controllare. Qui trovi le informazioni utili a ricostruire l'applicazione dell'offerta sottoscritta nel periodo fatturato.</p>
-                <ul>
-                    <li>Nome e codice dell'offerta commerciale.</li>
-                    <li>Tipologia: prezzo fisso, variabile o altra tipologia.</li>
-                    <li>Tipologia di prezzo: monoraria, per fasce o orario.</li>
-                    <li>Decorrenza e scadenza delle condizioni economiche.</li>
-                    <li>Scadenza del contratto o indicazione di contratto a tempo indeterminato.</li>
-                    <li>Eventuali oneri di recesso anticipato.</li>
-                </ul>
-                <figure class="figure">
-                    <img src="/assets/guida-bolletta/box-offerta.webp" width="1200" height="698" alt="Campi principali da controllare nel Box dell'offerta della bolletta" loading="lazy">
-                </figure>
-            </section>
-
-            <section class="panel" id="scadenza">
-                <h2>13. Dove controllare la scadenza dell'offerta</h2>
-                <p>È importante distinguere la <strong>scadenza delle condizioni economiche</strong> dalla durata del contratto. Un contratto può essere a tempo indeterminato mentre le condizioni economiche hanno una data di scadenza.</p>
-                <div class="remember"><strong>Domanda da farsi:</strong> non solo “quanto pago oggi?”, ma anche “fino a quando valgono queste condizioni economiche?”.</div>
-            </section>
-
-            <section class="panel" id="condizioni-cambiate">
-                <h2>14. Come capire se le condizioni sono cambiate</h2>
-                <p>Un aumento della bolletta non dimostra, da solo, che il venditore abbia modificato il prezzo. Prima devi distinguere tra consumi maggiori, periodo fatturato più lungo, ricalcoli e modifica delle condizioni economiche.</p>
-                <ul>
-                    <li>Controlla il Box dell'offerta della bolletta attuale.</li>
-                    <li>Confrontalo con una bolletta precedente.</li>
-                    <li>Verifica condizioni economiche e scheda sintetica ricevute alla sottoscrizione.</li>
-                    <li>Cerca eventuali comunicazioni del venditore via posta, email, area clienti o app.</li>
-                </ul>
-            </section>
-
-            <section class="panel" id="dati-confronto">
-                <h2>15. Quali dati servono per confrontare correttamente due offerte</h2>
-                <p>Un confronto sensato applica le diverse offerte allo stesso profilo di consumo. I dati più importanti sono:</p>
-                <ul>
-                    <li>Consumo annuo aggiornato in kWh o Smc.</li>
-                    <li>Prezzo o formula della componente energia/gas.</li>
-                    <li>Quota fissa commerciale.</li>
-                    <li>Prezzo fisso o indicizzato.</li>
-                    <li>Ripartizione per fasce, quando rilevante.</li>
-                    <li>Potenza impegnata per l'elettricità.</li>
-                    <li>Durata e scadenza delle condizioni economiche.</li>
-                    <li>Sconti, servizi o altri elementi che incidono sul costo.</li>
-                </ul>
-                <figure class="figure">
-                    <img src="/assets/guida-bolletta/checklist-confronto.webp" width="1200" height="698" alt="Checklist dei dati da raccogliere prima di confrontare due offerte luce e gas" loading="lazy">
-                </figure>
-            </section>
-
-            <section class="panel" id="errori">
-                <h2>16. Gli errori da evitare quando si confrontano le bollette</h2>
-                <ul>
-                    <li><strong>Guardare solo il prezzo per kWh o Smc:</strong> quota fissa e struttura completa possono cambiare il risultato.</li>
-                    <li><strong>Confrontare solo il totale di due bollette:</strong> periodi, consumi, stagionalità e ricalcoli possono essere diversi.</li>
-                    <li><strong>Usare il consumo di un solo mese:</strong> il consumo annuo è normalmente più rappresentativo.</li>
-                    <li><strong>Ignorare consumi stimati e ricalcoli:</strong> una bolletta anomala può dipendere dalla correzione di stime precedenti.</li>
-                    <li><strong>Confondere prezzo fisso con bolletta fissa:</strong> i consumi e altre componenti possono cambiare.</li>
-                    <li><strong>Ignorare la scadenza delle condizioni economiche.</strong></li>
-                    <li><strong>Pensare che esista una sola offerta migliore per tutti:</strong> la convenienza dipende dal profilo di consumo.</li>
-                </ul>
-            </section>
-
-            <section class="panel" id="usa-offertalogica">
-                <h2>17. Come usare OffertaLogica con i dati della bolletta</h2>
-                <p>Una volta individuati i dati principali, puoi utilizzare OffertaLogica inserendo manualmente le informazioni disponibili oppure partendo dal caricamento della bolletta. Prima del confronto è sempre corretto verificare che consumi e condizioni riconosciute corrispondano al documento.</p>
-                <div class="remember"><strong>Il principio di OffertaLogica:</strong> non cercare semplicemente il numero pubblicitario più basso; confronta l'offerta nel suo insieme applicandola ai tuoi consumi.</div>
-                <figure class="figure">
-                    <img src="/assets/guida-bolletta/percorso-offertalogica.webp" width="1200" height="675" alt="Percorso in cinque passaggi per usare i dati della bolletta in OffertaLogica" loading="lazy">
-                </figure>
-                <h3>La bolletta in 2 minuti</h3>
-                <table class="quick-table">
-                    <thead><tr><th>LUCE</th><th>GAS</th></tr></thead>
-                    <tbody>
-                        <tr><td>POD</td><td>PDR</td></tr>
-                        <tr><td>Consumo annuo in kWh</td><td>Consumo annuo in Smc</td></tr>
-                        <tr><td>Potenza impegnata</td><td>Prezzo / formula gas</td></tr>
-                        <tr><td>Prezzo / formula energia</td><td>Quota fissa</td></tr>
-                        <tr><td>Quota fissa</td><td>Prezzo fisso o indicizzato</td></tr>
-                        <tr><td>Prezzo fisso o indicizzato</td><td>Scadenza condizioni economiche</td></tr>
-                        <tr><td>Scadenza condizioni economiche</td><td>Eventuali ricalcoli</td></tr>
-                    </tbody>
-                </table>
-                <div class="hero-actions" style="margin-top:18px">
-                    <a class="button primary" href="/?landing=0&amp;from=guide">Confronta sui tuoi consumi</a>
-                    <a class="button secondary" href="/offerte-luce-gas-aggiornate.html">Vedi le offerte aggiornate</a>
-                    <a class="button secondary" href="/come-funziona.html">Scopri come funziona</a>
-                </div>
-            </section>
-
-            <section class="panel" id="approfondimenti">
-                <h2>Approfondimenti per confrontare meglio le offerte</h2>
-                <p>Dopo aver individuato i dati corretti in bolletta, questi approfondimenti aiutano a leggere le formule commerciali e il passaggio da un'offerta all'altra senza confondere prezzo unitario e costo annuo.</p>
-                <ul>
-                    <li><a href="/prezzo-fisso-o-variabile-luce-gas.html"><strong>Prezzo fisso o variabile luce e gas:</strong> differenze, durata, quote fisse e confronto sui consumi.</a></li>
-                    <li><a href="/pun-psv-spread-luce-gas.html"><strong>PUN, PSV e spread:</strong> come leggere una formula indicizzata e quali elementi entrano nel prezzo.</a></li>
-                    <li><a href="/come-cambiare-fornitore-luce-gas.html"><strong>Come cambiare fornitore luce e gas:</strong> cosa controllare prima del cambio e quali dati servono.</a></li>
-                    <li><a href="/quota-fissa-luce-gas-consumi-bassi.html"><strong>Quota fissa luce e gas:</strong> perché incide di più sui profili con consumi bassi e come confrontarla.</a></li>
-                </ul>
-            </section>
-
-            <section class="panel sources" id="fonti">
-                <h2>Fonti istituzionali</h2>
-                <p>La guida è stata costruita su fonti istituzionali e sulla struttura della bolletta prevista da ARERA. Per i dettagli normativi e le definizioni ufficiali puoi consultare:</p>
-                <ul>
-                    <li><a href="https://www.arera.it/nuova-bolletta" target="_blank" rel="noopener">ARERA - Nuova bolletta luce e gas</a></li>
-                    <li><a href="https://www.arera.it/bolletta/glossario-dei-termini/dettaglio/pod" target="_blank" rel="noopener">ARERA - Glossario POD</a></li>
-                    <li><a href="https://www.arera.it/bolletta/glossario-dei-termini/dettaglio/pdr" target="_blank" rel="noopener">ARERA - Glossario PDR</a></li>
-                    <li><a href="https://www.arera.it/bolletta/glossario-dei-termini/dettaglio/fasce-orarie" target="_blank" rel="noopener">ARERA - Fasce orarie</a></li>
-                    <li><a href="https://www.arera.it/bolletta/glossario-dei-termini/dettaglio/potenza-impegnata" target="_blank" rel="noopener">ARERA - Potenza impegnata</a></li>
-                    <li><a href="https://www.ilportaleofferte.it/" target="_blank" rel="noopener">Portale Offerte - Acquirente Unico</a></li>
-                </ul>
-                <p style="margin-top:12px"><strong>Nota:</strong> la grafica e la posizione esatta dei dati possono cambiare da un venditore all'altro. Per condizioni economiche, durata, formule di prezzo e caratteristiche dell'offerta fanno sempre fede i documenti contrattuali e le comunicazioni ufficiali del venditore.</p>
-            </section>
-
-            <section class="download-box" aria-label="Download guida OffertaLogica">
-                <img src="/assets/guida-bolletta/cover.webp" width="1055" height="1491" alt="Copertina eBook OffertaLogica sulla bolletta luce e gas" loading="lazy">
-                <div>
-                    <h2>Porta con te la guida completa</h2>
-                    <p>Scarica gratuitamente l'eBook OffertaLogica in PDF: 13 pagine con schemi, checklist e spiegazioni pratiche da consultare quando leggi una bolletta.</p>
-                    <div class="download-actions">
-                        <a class="button primary" href="/assets/guida-bolletta/Guida-OffertaLogica-bolletta-luce-gas.pdf" download>Scarica l'eBook PDF</a>
-                        <a class="button secondary" href="/?landing=0&amp;from=guide">Vai a OffertaLogica</a>
-                    </div>
-                </div>
-            </section>
-        </div>
-    </div>
+<section class="hero"><div class="shell hero-grid"><div><div class="eyebrow">Guida gratuita OffertaLogica</div><h1>Come leggere la bolletta luce e gas</h1><p>Una guida pratica per trovare e capire i dati davvero utili: POD, PDR, consumi annuali, potenza impegnata, fasce F1/F2/F3, prezzo dell'energia, quota fissa, offerta attiva e scadenza delle condizioni economiche.</p><div class="hero-actions"><a class="button primary" href="/assets/guida-bolletta/Guida-OffertaLogica-bolletta-luce-gas.pdf" download>Scarica gratis l'eBook PDF</a><a class="button secondary" href="/?landing=0&amp;from=guide">Apri il calcolatore</a></div><div class="edition">Edizione aggiornata alla struttura della bolletta ARERA in vigore dal 1° luglio 2025</div></div><div class="cover-card"><img src="/assets/guida-bolletta/cover.webp" width="1055" height="1491" alt="Copertina della guida OffertaLogica alla bolletta luce e gas"></div></div></section>
+<div class="shell"><section class="trust-strip" aria-label="Contenuti della guida"><div class="trust-item"><strong>17 capitoli pratici</strong><span>Dalla struttura della bolletta al confronto tra offerte.</span></div><div class="trust-item"><strong>Fonti istituzionali</strong><span>Contenuti verificati su ARERA e Portale Offerte.</span></div><div class="trust-item"><strong>Schemi visivi</strong><span>POD, PDR, fasce, prezzi e condizioni spiegati con esempi.</span></div><div class="trust-item"><strong>PDF gratuito</strong><span>13 pagine da conservare e consultare quando serve.</span></div></section></div>
+<div class="shell layout"><aside class="toc" aria-label="Indice della guida"><strong>In questa guida</strong><div class="toc-list"><a href="#struttura">1. Come è fatta una bolletta</a><a href="#pod">2. Dove trovare il POD</a><a href="#pdr">3. Dove trovare il PDR</a><a href="#consumi-annui">4. Consumi annuali</a><a href="#letture">5. Letture, stime e ricalcoli</a><a href="#potenza">6. Potenza impegnata</a><a href="#fasce">7. F1, F2 e F3</a><a href="#prezzo">8. Prezzo energia e gas</a><a href="#quota-fissa">9. Quota fissa</a><a href="#fisso-indicizzato">10. Fisso o indicizzato</a><a href="#totale">11. Totale bolletta</a><a href="#offerta-attiva">12. Offerta realmente attiva</a><a href="#scadenza">13. Scadenza offerta</a><a href="#condizioni-cambiate">14. Condizioni cambiate</a><a href="#dati-confronto">15. Dati per confrontare</a><a href="#errori">16. Errori da evitare</a><a href="#usa-offertalogica">17. Usa OffertaLogica</a><a href="#approfondimenti">Approfondimenti</a></div></aside>
+<div class="content">
+<section class="panel" id="struttura"><h2>1. Come è fatta una bolletta</h2><p>Dal 1° luglio 2025 la disciplina ARERA prevede una struttura più uniforme della bolletta sintetica. I quattro elementi principali sono il <strong>Frontespizio unificato</strong>, lo <strong>Scontrino dell'energia</strong>, il <strong>Box dell'offerta</strong> e gli <strong>Elementi informativi essenziali</strong>.</p><p>Il venditore mantiene libertà nella veste grafica, quindi colori e posizione precisa possono cambiare. Quello che conta è riconoscere le informazioni previste e sapere in quale sezione cercarle.</p><figure class="figure"><img src="/assets/guida-bolletta/struttura-bolletta.webp" width="1200" height="712" alt="Schema OffertaLogica della nuova bolletta con frontespizio, scontrino dell'energia, box dell'offerta ed elementi informativi" loading="lazy"><figcaption>Schema didattico basato sulla struttura della nuova bolletta ARERA.</figcaption></figure></section>
+<section class="panel" id="pod"><h2>2. Dove trovare il POD</h2><p>Il <strong>POD</strong>, Punto di Prelievo, identifica in modo certo il punto della fornitura elettrica. È un codice alfanumerico di 14 o 15 caratteri che inizia sempre con <strong>IT</strong> e non cambia quando cambi venditore.</p><div class="remember"><strong>Da ricordare:</strong> POD = LUCE. Non è il numero cliente e non è il numero della bolletta.</div></section>
+<section class="panel" id="pdr"><h2>3. Dove trovare il PDR</h2><p>Il <strong>PDR</strong>, Punto di Riconsegna, identifica in modo univoco il punto della fornitura gas. È composto da 14 numeri e resta associato al punto di riconsegna anche se cambi venditore.</p><div class="remember"><strong>Da ricordare:</strong> PDR = GAS. Anche il PDR è diverso dal numero cliente e dal numero della fattura.</div><figure class="figure"><img src="/assets/guida-bolletta/pod-pdr.webp" width="1200" height="675" alt="Confronto tra codice POD della luce e codice PDR del gas" loading="lazy"><figcaption>POD e PDR identificano il punto di fornitura, non il cliente o la singola bolletta.</figcaption></figure></section>
+<section class="panel" id="consumi-annui"><h2>4. Dove trovare i consumi annuali</h2><p>Il consumo annuo aggiornato è uno dei dati più importanti per confrontare due offerte. Per la luce è espresso in <strong>kWh</strong>; per il gas in <strong>Smc</strong>. Il dato si riferisce a 12 mesi consecutivi e la bolletta deve indicare il periodo di riferimento.</p><p>Usare il consumo annuale evita confronti distorti dalla stagionalità: una bolletta di gennaio e una di giugno possono avere consumi molto diversi, soprattutto per il gas.</p><div class="remember"><strong>Perché è importante:</strong> applicare offerte diverse allo stesso consumo annuo permette un confronto coerente.</div></section>
+<section class="panel" id="letture"><h2>5. Letture, consumi effettivi, consumi stimati e ricalcoli</h2><p>Una bolletta può utilizzare dati di origine diversa. Distinguere il tipo di dato aiuta a capire perché l'importo può cambiare.</p><ul><li><strong>Lettura rilevata:</strong> dato del misuratore validato dal distributore.</li><li><strong>Autolettura:</strong> dato comunicato dal cliente secondo le regole previste.</li><li><strong>Consumi effettivi:</strong> consumi attribuiti sulla base di letture disponibili.</li><li><strong>Consumi stimati:</strong> consumi attribuiti sulla base di una stima.</li><li><strong>Ricalcolo:</strong> correzione di consumi o corrispettivi già fatturati.</li></ul><figure class="figure"><img src="/assets/guida-bolletta/letture-consumi.webp" width="1200" height="698" alt="Schema su lettura rilevata, autolettura, consumo stimato e ricalcolo" loading="lazy"></figure></section>
+<section class="panel" id="potenza"><h2>6. Cos'è la potenza impegnata</h2><p>La potenza impegnata è il livello di potenza, espresso in <strong>kW</strong>, previsto dal contratto e reso disponibile per la fornitura elettrica. Non misura quanta energia consumi: indica quanta potenza puoi utilizzare nello stesso momento.</p><div class="remember"><strong>kW e kWh non sono la stessa cosa:</strong> kW = potenza disponibile o prelevata; kWh = quantità di energia consumata.</div></section>
+<section class="panel" id="fasce"><h2>7. F1, F2 e F3: cosa significano</h2><p>I consumi elettrici possono essere distinti per fasce orarie. La distribuzione conta soprattutto quando il contratto prevede prezzi diversi in base all'orario: due famiglie con lo stesso consumo annuo possono avere risultati differenti se consumano in momenti diversi.</p><ul><li><strong>F1:</strong> lunedì-venerdì, 8:00-19:00, escluse le festività nazionali.</li><li><strong>F2:</strong> lunedì-venerdì 7:00-8:00 e 19:00-23:00; sabato 7:00-23:00, escluse le festività nazionali.</li><li><strong>F3:</strong> ore notturne, domeniche e festività nazionali secondo la definizione ARERA.</li></ul><figure class="figure"><img src="/assets/guida-bolletta/fasce-f1-f2-f3.webp" width="1200" height="675" alt="Schema delle fasce orarie F1 F2 e F3" loading="lazy"><figcaption>Schema delle fasce orarie usato nella guida OffertaLogica.</figcaption></figure></section>
+<section class="panel" id="prezzo"><h2>8. Dove trovare il prezzo dell'energia e del gas</h2><p>Il prezzo utile a capire un'offerta non va cercato soltanto nel totale della bolletta. Lo Scontrino dell'energia mostra quantità e prezzi medi che formano gli importi, mentre il Box dell'offerta riepiloga le condizioni economiche dell'offerta sottoscritta.</p><p>Per l'elettricità i corrispettivi legati ai consumi sono normalmente espressi in <strong>€/kWh</strong>; per il gas in <strong>€/Smc</strong>. Il prezzo unitario pubblicizzato, però, non coincide necessariamente con il costo complessivo della fornitura.</p><div class="ol-interactive" data-ol-choice aria-labelledby="guide-price-help"><h2 id="guide-price-help">Non vuoi cercare il prezzo a mano?</h2><p>Puoi partire direttamente dal lettore bolletta già presente in OffertaLogica oppure continuare manualmente con questa guida.</p><div class="ol-choice-row"><button class="ol-choice" type="button" data-choice="pdf" aria-pressed="false">Ho la bolletta</button><button class="ol-choice" type="button" data-choice="manuale" aria-pressed="false">Preferisco cercarlo io</button></div><div class="ol-choice-result" data-choice-result="pdf" hidden><p><strong>Usa il lettore esistente:</strong> non creiamo un secondo strumento.</p><div class="ol-choice-actions"><a class="ol-inline-cta" href="/?landing=0&amp;from=guida-prezzo#pdf-upload-panel">Carica la bolletta</a></div></div><div class="ol-choice-result" data-choice-result="manuale" hidden><p>Continua con quota fissa, tipologia di prezzo, offerta attiva e scadenza: insieme ricostruiscono la tariffa meglio di un singolo valore.</p></div></div></section>
+<section class="panel" id="quota-fissa"><h2>9. Cos'è la quota fissa</h2><p>Una parte della spesa è dovuta indipendentemente dal consumo. Quando confronti offerte commerciali, la componente fissa prevista dal venditore può cambiare molto il risultato: un prezzo energia più basso può essere accompagnato da un costo fisso più elevato.</p><div class="remember"><strong>Attenzione:</strong> per confrontare due offerte devi distinguere la quota fissa commerciale prevista dalle condizioni economiche dalle altre componenti regolate presenti in bolletta.</div></section>
+<section class="panel" id="fisso-indicizzato"><h2>10. Prezzo fisso e prezzo indicizzato</h2><div class="mini-grid"><div class="mini-card"><strong>Prezzo fisso</strong><p>La componente energia o gas resta al valore previsto dalle condizioni economiche per il periodo stabilito dall'offerta.</p></div><div class="mini-card"><strong>Prezzo indicizzato</strong><p>Il prezzo varia automaticamente in funzione di un indice di riferimento previsto dal contratto, oltre agli eventuali margini previsti.</p></div></div><p style="margin-top:12px">Non esiste una scelta migliore in assoluto: vanno valutati livello del prezzo, formula di indicizzazione, eventuale spread, quota fissa, durata e consumi.</p><figure class="figure"><img src="/assets/guida-bolletta/prezzo-fisso-indicizzato.webp" width="1200" height="690" alt="Confronto concettuale tra prezzo fisso e prezzo indicizzato" loading="lazy"></figure><div class="ol-interactive" data-ol-choice aria-labelledby="guide-type-help"><h2 id="guide-type-help">Sai già quale tipo di prezzo hai?</h2><p>La risposta serve per collegare la lettura della bolletta al percorso giusto, senza duplicare il calcolatore.</p><div class="ol-choice-row"><button class="ol-choice" type="button" data-choice="fisso" aria-pressed="false">Fisso</button><button class="ol-choice" type="button" data-choice="variabile" aria-pressed="false">Variabile / indicizzato</button><button class="ol-choice" type="button" data-choice="non-so" aria-pressed="false">Non lo so</button></div><div class="ol-choice-result" data-choice-result="fisso" hidden><p>Puoi confrontare il prezzo fisso attuale inserendo i tuoi dati nel calcolatore.</p><div class="ol-choice-actions"><a class="ol-inline-cta" href="/?landing=0&amp;from=guida-fisso">Confronta il mio prezzo</a></div></div><div class="ol-choice-result" data-choice-result="variabile" hidden><p>Controlla indice, spread e quota fissa. Se vuoi approfondire la formula, usa la guida PUN/PSV/spread.</p><div class="ol-choice-actions"><a class="ol-inline-cta" href="/pun-psv-spread-luce-gas.html">Capisci indice e spread</a><a class="ol-inline-cta secondary" href="/?landing=0&amp;from=guida-variabile#pdf-upload-panel">Carica la bolletta</a></div></div><div class="ol-choice-result" data-choice-result="non-so" hidden><p>Il Box dell'offerta dovrebbe indicarlo; in alternativa puoi far partire il percorso dal documento.</p><div class="ol-choice-actions"><a class="ol-inline-cta" href="/?landing=0&amp;from=guida-tipo-nonso#pdf-upload-panel">Carica la bolletta</a></div></div></div></section>
+<section class="panel" id="totale"><h2>11. Come si forma il totale della bolletta</h2><p>Il totale non dipende solo dal prezzo della materia energia o gas. In termini generali trovi importi riconducibili alla vendita, alla rete e gestione del contatore, agli oneri generali di sistema e alle imposte; per l'elettricità è rilevante anche la quota potenza.</p><figure class="figure"><img src="/assets/guida-bolletta/totale-bolletta.webp" width="1200" height="675" alt="Schema delle principali famiglie di costo che formano il totale della bolletta" loading="lazy"></figure></section>
+<section class="panel" id="offerta-attiva"><h2>12. Come riconoscere l'offerta che hai realmente attiva</h2><p>Il <strong>Box dell'offerta</strong> è il punto principale da controllare. Qui trovi le informazioni utili a ricostruire l'applicazione dell'offerta sottoscritta nel periodo fatturato.</p><ul><li>Nome e codice dell'offerta commerciale.</li><li>Tipologia: prezzo fisso, variabile o altra tipologia.</li><li>Tipologia di prezzo: monoraria, per fasce o orario.</li><li>Decorrenza e scadenza delle condizioni economiche.</li><li>Scadenza del contratto o indicazione di contratto a tempo indeterminato.</li><li>Eventuali oneri di recesso anticipato.</li></ul><figure class="figure"><img src="/assets/guida-bolletta/box-offerta.webp" width="1200" height="698" alt="Campi principali da controllare nel Box dell'offerta della bolletta" loading="lazy"></figure></section>
+<section class="panel" id="scadenza"><h2>13. Dove controllare la scadenza dell'offerta</h2><p>È importante distinguere la <strong>scadenza delle condizioni economiche</strong> dalla durata del contratto. Un contratto può essere a tempo indeterminato mentre le condizioni economiche hanno una data di scadenza.</p><div class="remember"><strong>Domanda da farsi:</strong> non solo “quanto pago oggi?”, ma anche “fino a quando valgono queste condizioni economiche?”.</div><div class="ol-interactive" data-ol-choice aria-labelledby="guide-expiry-help"><h2 id="guide-expiry-help">Non trovi la scadenza?</h2><p>Non serve creare una pagina duplicata solo per questa voce: puoi continuare dalla bolletta che hai già.</p><div class="ol-choice-row"><button class="ol-choice" type="button" data-choice="carica" aria-pressed="false">Ho la bolletta</button><button class="ol-choice" type="button" data-choice="continua" aria-pressed="false">Continuo la guida</button></div><div class="ol-choice-result" data-choice-result="carica" hidden><p>Apri direttamente il caricatore già esistente di OffertaLogica.</p><div class="ol-choice-actions"><a class="ol-inline-cta" href="/?landing=0&amp;from=guida-scadenza#pdf-upload-panel">Carica la bolletta</a></div></div><div class="ol-choice-result" data-choice-result="continua" hidden><p>Verifica subito dopo anche eventuali comunicazioni di modifica delle condizioni economiche.</p></div></div></section>
+<section class="panel" id="condizioni-cambiate"><h2>14. Come capire se le condizioni sono cambiate</h2><p>Un aumento della bolletta non dimostra, da solo, che il venditore abbia modificato il prezzo. Prima devi distinguere tra consumi maggiori, periodo fatturato più lungo, ricalcoli e modifica delle condizioni economiche.</p><ul><li>Controlla il Box dell'offerta della bolletta attuale.</li><li>Confrontalo con una bolletta precedente.</li><li>Verifica condizioni economiche e scheda sintetica ricevute alla sottoscrizione.</li><li>Cerca eventuali comunicazioni del venditore via posta, email, area clienti o app.</li></ul></section>
+<section class="panel" id="dati-confronto"><h2>15. Quali dati servono per confrontare correttamente due offerte</h2><p>Un confronto sensato applica le diverse offerte allo stesso profilo di consumo. I dati più importanti sono:</p><ul><li>Consumo annuo aggiornato in kWh o Smc.</li><li>Prezzo o formula della componente energia/gas.</li><li>Quota fissa commerciale.</li><li>Prezzo fisso o indicizzato.</li><li>Ripartizione per fasce, quando rilevante.</li><li>Potenza impegnata per l'elettricità.</li><li>Durata e scadenza delle condizioni economiche.</li><li>Sconti, servizi o altri elementi che incidono sul costo.</li></ul><figure class="figure"><img src="/assets/guida-bolletta/checklist-confronto.webp" width="1200" height="698" alt="Checklist dei dati da raccogliere prima di confrontare due offerte luce e gas" loading="lazy"></figure></section>
+<section class="panel" id="errori"><h2>16. Gli errori da evitare quando si confrontano le bollette</h2><ul><li><strong>Guardare solo il prezzo per kWh o Smc:</strong> quota fissa e struttura completa possono cambiare il risultato.</li><li><strong>Confrontare solo il totale di due bollette:</strong> periodi, consumi, stagionalità e ricalcoli possono essere diversi.</li><li><strong>Usare il consumo di un solo mese:</strong> il consumo annuo è normalmente più rappresentativo.</li><li><strong>Ignorare consumi stimati e ricalcoli:</strong> una bolletta anomala può dipendere dalla correzione di stime precedenti.</li><li><strong>Confondere prezzo fisso con bolletta fissa:</strong> i consumi e altre componenti possono cambiare.</li><li><strong>Ignorare la scadenza delle condizioni economiche.</strong></li><li><strong>Pensare che esista una sola offerta migliore per tutti:</strong> la convenienza dipende dal profilo di consumo.</li></ul></section>
+<section class="panel" id="usa-offertalogica"><h2>17. Come usare OffertaLogica con i dati della bolletta</h2><p>Una volta individuati i dati principali, puoi utilizzare OffertaLogica inserendo manualmente le informazioni disponibili oppure partendo dal caricamento della bolletta. Prima del confronto è sempre corretto verificare che consumi e condizioni riconosciute corrispondano al documento.</p><div class="remember"><strong>Il principio di OffertaLogica:</strong> non cercare semplicemente il numero pubblicitario più basso; confronta l'offerta nel suo insieme applicandola ai tuoi consumi.</div><figure class="figure"><img src="/assets/guida-bolletta/percorso-offertalogica.webp" width="1200" height="675" alt="Percorso in cinque passaggi per usare i dati della bolletta in OffertaLogica" loading="lazy"></figure><h3>La bolletta in 2 minuti</h3><table class="quick-table"><thead><tr><th>LUCE</th><th>GAS</th></tr></thead><tbody><tr><td>POD</td><td>PDR</td></tr><tr><td>Consumo annuo in kWh</td><td>Consumo annuo in Smc</td></tr><tr><td>Potenza impegnata</td><td>Prezzo / formula gas</td></tr><tr><td>Prezzo / formula energia</td><td>Quota fissa</td></tr><tr><td>Quota fissa</td><td>Prezzo fisso o indicizzato</td></tr><tr><td>Prezzo fisso o indicizzato</td><td>Scadenza condizioni economiche</td></tr><tr><td>Scadenza condizioni economiche</td><td>Eventuali ricalcoli</td></tr></tbody></table><div class="hero-actions" style="margin-top:18px"><a class="button primary" href="/?landing=0&amp;from=guide">Confronta sui tuoi consumi</a><a class="button secondary" href="/offerte-luce-gas-aggiornate.html">Vedi le offerte aggiornate</a><a class="button secondary" href="/come-funziona.html">Scopri come funziona</a></div></section>
+<section class="panel" id="approfondimenti"><h2>Approfondimenti per confrontare meglio le offerte</h2><p>Dopo aver individuato i dati corretti in bolletta, questi approfondimenti aiutano a leggere le formule commerciali e il passaggio da un'offerta all'altra senza confondere prezzo unitario e costo annuo.</p><ul><li><a href="/prezzo-fisso-o-variabile-luce-gas.html"><strong>Prezzo fisso o variabile luce e gas:</strong> differenze, durata, quote fisse e confronto sui consumi.</a></li><li><a href="/pun-psv-spread-luce-gas.html"><strong>PUN, PSV e spread:</strong> come leggere una formula indicizzata e quali elementi entrano nel prezzo.</a></li><li><a href="/come-cambiare-fornitore-luce-gas.html"><strong>Come cambiare fornitore luce e gas:</strong> cosa controllare prima del cambio e quali dati servono.</a></li><li><a href="/quota-fissa-luce-gas-consumi-bassi.html"><strong>Quota fissa luce e gas:</strong> perché incide di più sui profili con consumi bassi e come confrontarla.</a></li></ul></section>
+<section class="panel sources" id="fonti"><h2>Fonti istituzionali</h2><p>La guida è stata costruita su fonti istituzionali e sulla struttura della bolletta prevista da ARERA. Per i dettagli normativi e le definizioni ufficiali puoi consultare:</p><ul><li><a href="https://www.arera.it/nuova-bolletta" target="_blank" rel="noopener">ARERA - Nuova bolletta luce e gas</a></li><li><a href="https://www.arera.it/bolletta/glossario-dei-termini/dettaglio/pod" target="_blank" rel="noopener">ARERA - Glossario POD</a></li><li><a href="https://www.arera.it/bolletta/glossario-dei-termini/dettaglio/pdr" target="_blank" rel="noopener">ARERA - Glossario PDR</a></li><li><a href="https://www.arera.it/bolletta/glossario-dei-termini/dettaglio/fasce-orarie" target="_blank" rel="noopener">ARERA - Fasce orarie</a></li><li><a href="https://www.arera.it/bolletta/glossario-dei-termini/dettaglio/potenza-impegnata" target="_blank" rel="noopener">ARERA - Potenza impegnata</a></li><li><a href="https://www.ilportaleofferte.it/" target="_blank" rel="noopener">Portale Offerte - Acquirente Unico</a></li></ul><p style="margin-top:12px"><strong>Nota:</strong> la grafica e la posizione esatta dei dati possono cambiare da un venditore all'altro. Per condizioni economiche, durata, formule di prezzo e caratteristiche dell'offerta fanno sempre fede i documenti contrattuali e le comunicazioni ufficiali del venditore.</p></section>
+<section class="download-box" aria-label="Download guida OffertaLogica"><img src="/assets/guida-bolletta/cover.webp" width="1055" height="1491" alt="Copertina eBook OffertaLogica sulla bolletta luce e gas" loading="lazy"><div><h2>Porta con te la guida completa</h2><p>Scarica gratuitamente l'eBook OffertaLogica in PDF: 13 pagine con schemi, checklist e spiegazioni pratiche da consultare quando leggi una bolletta.</p><div class="download-actions"><a class="button primary" href="/assets/guida-bolletta/Guida-OffertaLogica-bolletta-luce-gas.pdf" download>Scarica l'eBook PDF</a><a class="button secondary" href="/?landing=0&amp;from=guide">Vai a OffertaLogica</a></div></div></section>
+</div></div>
 </main>
-
-<footer class="footer">
-    <div class="ol-app-access-footer" aria-label="Accessi alle app OffertaLogica">
-        <a class="ol-app-access-link ol-app-access-free" href="https://app.offertalogica.it/app.html">App gratuita</a>
-        <a class="ol-app-access-link ol-app-access-premium" href="https://premium.offertalogica.it/app.html">Area Premium</a>
-    </div>
-    <p style="margin-bottom:8px;font-weight:bold">&copy; 2026 OffertaLogica.it - Calcolatore Energetico</p>
-    <p style="margin-bottom:15px;color:#999">Confronto trasparente delle offerte luce e gas per privati. Analisi preliminare dedicata alle aziende.</p>
-    <div>
-        <a href="/">Calcolatore</a> |
-        <a href="/offerte-luce-gas-aggiornate.html">Offerte aggiornate</a> |
-        <a href="/come-funziona.html">Come funziona</a> |
-        <a href="/come-leggere-bolletta-luce-gas.html">Guida bolletta</a> |
-        <a href="/partner.html">Partner</a> |
-        <a href="/termini-condizioni.html">Termini e condizioni</a> |
-        <a href="https://www.iubenda.com/privacy-policy/36565194" class="iubenda-white iubenda-noiframe iubenda-embed">Privacy Policy</a> |
-        <a href="https://www.iubenda.com/privacy-policy/36565194/cookie-policy" class="iubenda-white iubenda-noiframe iubenda-embed">Cookie Policy</a> |
-        <button type="button" onclick="apriPreferenzeCookie(event)">Modifica preferenze cookie</button>
-    </div>
-    <script type="text/javascript">
-        function apriPreferenzeCookie(event) {
-            if (event) event.preventDefault();
-            var officialButton = document.querySelector(".iubenda-tp-btn.iubenda-cs-preferences-link");
-            if (officialButton) { officialButton.click(); return; }
-            window.location.href = "https://www.iubenda.com/privacy-policy/36565194/cookie-policy";
-        }
-    </script>
-    <script type="text/javascript">(function (w,d) {var loader=function(){var s=d.createElement("script"),tag=d.getElementsByTagName("script")[0];s.src="https://cdn.iubenda.com/iubenda.js";tag.parentNode.insertBefore(s,tag);};if(w.addEventListener){w.addEventListener("load",loader,false);}else if(w.attachEvent){w.attachEvent("onload",loader);}else{w.onload=loader;}})(window,document);</script>
-</footer>
+<footer class="footer"><div class="ol-app-access-footer" aria-label="Accessi alle app OffertaLogica"><a class="ol-app-access-link ol-app-access-free" href="https://app.offertalogica.it/app.html">App gratuita</a><a class="ol-app-access-link ol-app-access-premium" href="https://premium.offertalogica.it/app.html">Area Premium</a></div><p style="margin-bottom:8px;font-weight:bold">&copy; 2026 OffertaLogica.it - Calcolatore Energetico</p><p style="margin-bottom:15px;color:#999">Confronto trasparente delle offerte luce e gas per privati. Analisi preliminare dedicata alle aziende.</p><div><a href="/">Calcolatore</a> | <a href="/offerte-luce-gas-aggiornate.html">Offerte aggiornate</a> | <a href="/come-funziona.html">Come funziona</a> | <a href="/come-leggere-bolletta-luce-gas.html">Guida bolletta</a> | <a href="/partner.html">Partner</a> | <a href="/termini-condizioni.html">Termini e condizioni</a> | <a href="https://www.iubenda.com/privacy-policy/36565194" class="iubenda-white iubenda-noiframe iubenda-embed">Privacy Policy</a> | <a href="https://www.iubenda.com/privacy-policy/36565194/cookie-policy" class="iubenda-white iubenda-noiframe iubenda-embed">Cookie Policy</a> | <button type="button" onclick="apriPreferenzeCookie(event)">Modifica preferenze cookie</button></div><script type="text/javascript">function apriPreferenzeCookie(event){if(event)event.preventDefault();var officialButton=document.querySelector('.iubenda-tp-btn.iubenda-cs-preferences-link');if(officialButton){officialButton.click();return;}window.location.href='https://www.iubenda.com/privacy-policy/36565194/cookie-policy';}</script><script type="text/javascript">(function(w,d){var loader=function(){var s=d.createElement('script'),tag=d.getElementsByTagName('script')[0];s.src='https://cdn.iubenda.com/iubenda.js';tag.parentNode.insertBefore(s,tag);};if(w.addEventListener){w.addEventListener('load',loader,false);}else if(w.attachEvent){w.attachEvent('onload',loader);}else{w.onload=loader;}})(window,document);</script></footer>
+<script src="/assets/seo-energy-interactions.js" defer></script>
 </body>
 </html>
