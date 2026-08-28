@@ -666,6 +666,12 @@
             margin-top: 18px;
         }
         .economic-result.visible { display: block; }
+        .economic-note {
+            margin: 10px 2px 0;
+            color: #647985;
+            font-size: 12px;
+            line-height: 1.45;
+        }
 
         .annual-cost {
             display: flex;
@@ -938,7 +944,7 @@
                 <div id="errorBox" class="error-box" role="alert"></div>
 
                 <p class="privacy-note">
-                    Il test può utilizzare fino a circa 105 MB di traffico. Cloudflare riceve dati tecnici della connessione, incluso l'indirizzo IP, secondo la propria informativa.
+                    Il test può utilizzare fino a circa 105 MB di traffico. La misurazione avviene direttamente tra il browser e l'infrastruttura Cloudflare; Cloudflare può ricevere dati tecnici della connessione, incluso l'indirizzo IP, e le misurazioni prodotte dal test, secondo la propria informativa.
                     <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">Informativa Cloudflare</a>.
                 </p>
 
@@ -999,6 +1005,7 @@
                     <span>Costo annuo stimato</span>
                     <strong id="annualCostValue">—</strong>
                 </div>
+                <p class="economic-note">Il costo viene mostrato come dato di contesto: da solo non determina un consiglio di cambio operatore. Per giudicare la convenienza economica servirà confrontarlo con alternative realmente disponibili.</p>
 
                 <div id="verdictBox" class="verdict" data-kind="stay">
                     <h3 id="verdictTitle"></h3>
@@ -1460,7 +1467,6 @@ function evaluateEconomics() {
             : null;
 
     const adequate = useIsAdequate(latestResult, use);
-    const priceHigh = monthly !== null && monthly >= 35;
     const performanceWeak =
         deliveredRatio !== null
             ? deliveredRatio < .50
@@ -1481,13 +1487,13 @@ function evaluateEconomics() {
 
     let kind = 'stay';
     let title = 'RESTA: la connessione appare adeguata';
-    let text = 'Le prestazioni misurate sono coerenti con l’uso indicato. Se anche il prezzo ti soddisfa, non emerge un motivo tecnico per cambiare operatore.';
+    let text = 'Le prestazioni misurate sono coerenti con l’uso indicato. Il costo annuo viene mostrato come riferimento, ma non viene giudicato con una soglia inventata: senza un confronto con alternative realmente disponibili non emerge un motivo tecnico per cambiare operatore.';
 
     if (wifiLikely) {
         kind = 'wifi';
         title = 'Prima sistema il Wi-Fi';
         text = 'Il confronto tra i test indica un miglioramento marcato vicino al router o via cavo. Prima di cambiare contratto conviene intervenire sulla rete domestica: posizione del router, copertura Wi-Fi o collegamento dei dispositivi.';
-    } else if (!adequate || performanceWeak || priceHigh) {
+    } else if (!adequate || performanceWeak) {
         kind = 'switch';
         title = 'Verifica le alternative disponibili';
 
@@ -1499,11 +1505,7 @@ function evaluateEconomics() {
         if (performanceWeak) {
             reasons.push('la velocità misurata è debole rispetto al dato dichiarato o al livello atteso');
         }
-        if (priceHigh) {
-            reasons.push('il costo mensile supera la soglia indicativa interna di 35 €');
-        }
-
-        text = `${reasons.join('; ')}. OffertaLogica non sostituisce il comparatore: il passo successivo è verificare copertura e offerte disponibili con il partner Internet.`;
+        text = `${reasons.join('; ')}. OffertaLogica non sostituisce il comparatore: il passo successivo è verificare copertura e offerte realmente disponibili con il partner Internet, così da confrontare anche il prezzo su dati concreti.`;
 
         els.switchoCta.classList.add('visible');
 
