@@ -974,18 +974,18 @@
                     </div>
                 </div>
 
-                <button id="startButton" class="main-action" type="button" disabled>CARICAMENTO MOTORE…</button>
+                <button id="startButton" class="main-action" type="button">AVVIA SPEED TEST</button>
                 <div id="errorBox" class="error-box" role="alert"></div>
 
                 <details class="privacy-note privacy-details">
                     <summary>Traffico dati e privacy del test</summary>
                     <p>
-                        Una singola prova OffertaLogica può generare circa 105 MB di traffico dati. Durante il test il browser si collega direttamente all'infrastruttura Cloudflare. Cloudflare dichiara di ricevere l'indirizzo IP, di stimare Paese e città e di identificare l'ASN della rete; può inoltre condividere con partner di misurazione dati di prestazione anonimizzati, senza condividere con tali partner l'indirizzo IP.
+                        Una singola prova OffertaLogica può generare circa 105 MB di traffico dati. I componenti necessari allo Speed Test vengono caricati solo quando scegli di avviare la prova. La misurazione utilizza l'infrastruttura Cloudflare e il componente software viene distribuito tramite jsDelivr.
                     </p>
                     <p class="privacy-links">
-                        <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener noreferrer">Informativa Cloudflare</a>
+                        <a href="/privacy-speed-test.html">Informativa privacy Speed Test</a>
                         <span aria-hidden="true">·</span>
-                        <a href="https://www.cloudflare.com/policies/terms/" target="_blank" rel="noopener noreferrer">Termini Cloudflare</a>
+                        <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener noreferrer">Privacy Cloudflare</a>
                     </p>
                 </details>
 
@@ -1099,6 +1099,7 @@
         <a href="/casa-smart.html">Casa smart</a> |
         <a href="/internet-casa.html">Internet casa</a> |
         <a href="/speed-test.html">Speed Test</a> |
+        <a href="/privacy-speed-test.html">Privacy Speed Test</a> |
         <a href="/termini-condizioni.html">Termini e condizioni</a> |
         <a href="https://www.iubenda.com/privacy-policy/36565194" class="iubenda-white iubenda-noiframe iubenda-embed">Privacy Policy</a> |
         <a href="https://www.iubenda.com/privacy-policy/36565194/cookie-policy" class="iubenda-white iubenda-noiframe iubenda-embed">Cookie Policy</a> |
@@ -1514,7 +1515,7 @@ async function startTest(context = 'standard') {
     }
 
     try {
-        await loadSpeedTestEngine({ quiet: true });
+        await loadSpeedTestEngine({ quiet: false });
     } catch (error) {
         return;
     }
@@ -1747,12 +1748,13 @@ window.addEventListener('offline', () => {
 });
 
 window.addEventListener('online', () => {
-    if (!SpeedTestCtor) {
-        loadSpeedTestEngine({ quiet: false }).catch(() => {});
+    if (!engine || !engine.isRunning) {
+        clearError();
+        els.startButton.disabled = false;
+        els.startButton.textContent = 'AVVIA SPEED TEST';
+        setStatus('Pronto per iniziare');
     }
 });
-
-loadSpeedTestEngine({ quiet: false }).catch(() => {});
 
 emitMetric('page_view', {
     page: '/speed-test.html',
