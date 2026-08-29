@@ -78,7 +78,7 @@ FUTURE_COMPONENT_PATTERNS = (
     r"a\s+partire\s+dal\s+\d+.?\s*mese",
     r"dopo\s+\d+\s+mesi",
 )
-UNIT_CODES = {"01": "€/anno", "02": "€/mese", "03": "€/kWh", "04": "€/Smc"}
+UNIT_CODES = {"01": "€/anno", "02": "€/mese", "03": "€/kWh", "04": "€/Smc", "05": "€", "06": "%"}
 BROWSER_HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -422,6 +422,78 @@ def extracted_values(
     return values
 
 
+def extracted_discounts(
+    offer: ET.Element,
+    source_path: Path,
+    code: str,
+    data_inizio: str,
+    data_fine: str,
+) -> list[dict[str, object]]:
+    """Preserve Portale Offerte discounts without changing the base offer price.
+
+    Conditional discounts are deliberately kept as metadata here: whether their
+    condition is satisfied depends on the comparison context (for example the
+    simultaneous activation of a named gas offer) and is resolved by the
+    calculator only when the condition can be matched unambiguously.
+    """
+    discounts: list[dict[str, object]] = []
+    for discount_index, discount in enumerate(offer.findall(".//po:Sconto", NS), start=1):
+        name = node_text(discount, "po:NOME")
+        description = node_text(discount, "po:DESCRIZIONE")
+        typology = node_text(discount, "po:TIPOLOGIA")
+        validity = node_text(discount, "po:VALIDITA")
+        duration_value = parse_float(node_text(discount, "po:DURATA"))
+        duration = int(duration_value) if duration_value is not None else None
+        vat_discount = node_text(discount, "po:IVA_SCONTO")
+        condition = node_text(discount, "po:CONDIZIONE_APPLICAZIONE")
+
+        prices: list[dict[str, object]] = []
+        price_nodes = discount.findall(".//po:PrezziSconto", NS)
+        # Some feed revisions may wrap PREZZO/UNITA_MISURA one level below.
+        # If no PrezziSconto nodes are exposed, inspect the discount itself.
+        if not price_nodes:
+            price_nodes = [discount]
+        for price_index, price_node in enumerate(price_nodes, start=1):
+            value = parse_float(node_text(price_node, "po:PREZZO"))
+            unit = node_text(price_node, "po:UNITA_MISURA")
+            if value is None or value < 0 or unit not in UNIT_CODES:
+                continue
+            period_from = node_text(price_node, "po:DATA_INIZIO")
+            period_to = node_text(price_node, "po:DATA_FINE")
+            prices.append(
+                {
+                    "valore": round(value, 8),
+                    "unitaMisuraCodice": unit,
+                    "unitaMisura": UNIT_CODES.get(unit, f"codice {unit or 'assente'}"),
+                    "periodoValidita": {
+                        "dataInizio": period_from or data_inizio,
+                        "dataFine": period_to or data_fine,
+                    },
+                    "prezzoScontoIndice": price_index,
+                }
+            )
+
+        if not prices:
+            continue
+        discounts.append(
+            {
+                "nome": name or "Sconto",
+                "descrizione": description,
+                "tipologia": typology,
+                "validita": validity,
+                "durataMesi": duration,
+                "ivaSconto": vat_discount,
+                "condizioneApplicazione": condition,
+                "condizionato": condition not in {"", "00"},
+                "prezzi": prices,
+                "sorgente": source_label_for(source_path),
+                "codiceOfferta": code,
+                "scontoIndice": discount_index,
+            }
+        )
+    return discounts
+
+
 def annual_fee(values: list[dict[str, object]]) -> tuple[float | None, list[dict[str, object]]]:
     selected: list[dict[str, object]] = []
     by_component: dict[int, list[dict[str, object]]] = {}
@@ -606,6 +678,7 @@ def parse_offer_file(
         )
         price, quality, price_provenance, price_error = semantic_price(values, commodity, tipo)
         fee, fee_provenance = annual_fee(values)
+        discounts = extracted_discounts(offer, path, code, data_inizio, data_fine)
 
         override_price, override_fee, override_quality, override_provenance, technical_details = apply_verified_override(
             overrides.get(code),
@@ -665,6 +738,7 @@ def parse_offer_file(
                 "qualitaPrezzo": quality,
                 "provenienzaPrezzo": price_provenance,
                 "provenienzaQuotaFissa": fee_provenance,
+                "sconti": discounts,
                 "valoriEstratti": values,
                 "dettagliTecnici": technical_details,
             }

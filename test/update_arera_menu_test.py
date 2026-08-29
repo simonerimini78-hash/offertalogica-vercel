@@ -35,6 +35,26 @@ def component(name: str, values: list[tuple[str, float]], unit: str) -> str:
     return f"<ComponenteImpresa><NOME>{name}</NOME>{intervals}</ComponenteImpresa>"
 
 
+def discount(
+    *,
+    name: str,
+    description: str,
+    value: float,
+    unit: str,
+    typology: str = "03",
+    validity: str = "01",
+    condition: str = "01",
+) -> str:
+    return (
+        f"<Sconto><NOME>{name}</NOME><DESCRIZIONE>{description}</DESCRIZIONE>"
+        f"<TIPOLOGIA>{typology}</TIPOLOGIA><VALIDITA>{validity}</VALIDITA>"
+        f"<DURATA>12</DURATA><IVA_SCONTO>SI</IVA_SCONTO>"
+        f"<CONDIZIONE_APPLICAZIONE>{condition}</CONDIZIONE_APPLICAZIONE>"
+        f"<PrezziSconto><PREZZO>{value}</PREZZO><UNITA_MISURA>{unit}</UNITA_MISURA></PrezziSconto>"
+        f"</Sconto>"
+    )
+
+
 def offer_xml(
     *,
     code: str,
@@ -42,6 +62,7 @@ def offer_xml(
     customer_type: str,
     duration: int,
     components: list[str],
+    discounts: list[str] | None = None,
     piva: str = "01141160992",
     offer_type: str = "01",
 ) -> str:
@@ -64,6 +85,7 @@ def offer_xml(
       <DATA_FINE>20/07/2026_11:59:59</DATA_FINE>
     </ValiditaOfferta>
     {''.join(components)}
+    {''.join(discounts or [])}
   </offerta>
 </ListaOfferteMercatoLibero>
 """
@@ -155,6 +177,43 @@ class UpdateAreraMenuTest(unittest.TestCase):
                 diagnostics,
             )
         return rows, diagnostics
+
+    def test_conditional_sales_discount_is_preserved_without_changing_base_price(self):
+        xml = offer_xml(
+            code="000362DSFML01XXTESTEONLUCE",
+            name="E.ON Luce Insieme",
+            customer_type="01",
+            duration=12,
+            piva="03429130234",
+            components=[
+                component("Prezzo luce", [("00", 0.1097)], "03"),
+                component("Corrispettivo annuo", [("00", 109.107)], "01"),
+            ],
+            discounts=[
+                discount(
+                    name="Sconto Insieme",
+                    description="Sconto sulla componente Energia solo con attivazione E.ON Gas Insieme",
+                    value=10,
+                    unit="06",
+                    typology="03",
+                    validity="01",
+                    condition="01",
+                )
+            ],
+        )
+        rows, diagnostics = self.parse(xml, "luce")
+        self.assertEqual(diagnostics, [])
+        self.assertEqual(len(rows), 1)
+        row = rows[0]
+        self.assertAlmostEqual(row["prezzo"], 0.1097, places=8)
+        self.assertEqual(len(row["sconti"]), 1)
+        promo = row["sconti"][0]
+        self.assertTrue(promo["condizionato"])
+        self.assertEqual(promo["tipologia"], "03")
+        self.assertEqual(promo["validita"], "01")
+        self.assertEqual(promo["condizioneApplicazione"], "01")
+        self.assertEqual(promo["prezzi"][0]["unitaMisuraCodice"], "06")
+        self.assertAlmostEqual(promo["prezzi"][0]["valore"], 10, places=8)
 
     def test_illumia_dual_uses_exact_d_references(self):
         light_code = "000155DSFML04XXZZ05103Z260711E01"
