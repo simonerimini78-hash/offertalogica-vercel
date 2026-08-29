@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const RELEASE = "0.36.83";
+  const RELEASE = "0.36.85";
   if (window.OffertaLogicaStaffManagement?.release === RELEASE) return;
 
   const TIME_ZONE = "Europe/Rome";
@@ -332,6 +332,14 @@
             <tbody id="managementCommercialRows"></tbody>
           </table></div>
         </section>
+        <section class="panel management-section">
+          <div class="panel-head"><div><h3>Strumenti SEO interattivi</h3><small>Uso reale degli strumenti nel mese selezionato. Speed Test è già tracciato; Fotovoltaico e Fotovoltaico Azienda Agricola sono predisposti allo stesso contratto dati.</small></div></div>
+          <div class="table-wrap"><table class="data-table management-table">
+            <thead><tr><th>Strumento</th><th>Stato dati</th><th>Sessioni</th><th>Visite</th><th>Avvii</th><th>Completati</th><th>Completamento</th><th>Diagnosi</th><th>Valutazioni</th><th>CTA</th><th>Errori</th></tr></thead>
+            <tbody id="managementToolRows"></tbody>
+          </table></div>
+          <div class="panel-body"><ul class="management-note-list"><li>L’uso di uno strumento o il click su una CTA non genera automaticamente un ricavo o un costo. La vista Economia continua a contabilizzare solo movimenti economici reali o stime esplicitamente registrate.</li></ul></div>
+        </section>
       </div>
 
       <div class="management-page" data-management-page="premium">
@@ -646,6 +654,37 @@
       return tr;
     });
     target.replaceChildren(...rows);
+
+    const toolTarget = byId("managementToolRows");
+    if (toolTarget) {
+      const tools = current.site?.tools?.items || {};
+      const definitions = [
+        ["speed_test", "Speed Test"],
+        ["fotovoltaico", "Fotovoltaico"],
+        ["fotovoltaico_agricoltura", "Fotovoltaico Azienda Agricola"],
+      ];
+      const toolRows = definitions.map(([code, label]) => {
+        const values = tools[code] || {};
+        const hasData = numeric(values.events) > 0;
+        const evaluations = numeric(values.economics_evaluated);
+        const tr = document.createElement("tr");
+        tr.append(
+          rowCell(label),
+          rowCell(hasData ? "Dati presenti" : "Nessun evento nel mese"),
+          rowCell(number(values.unique_sessions)),
+          rowCell(number(values.views)),
+          rowCell(number(values.started)),
+          rowCell(number(values.completed)),
+          rowCell(values.completion_pct == null ? "—" : percent(values.completion_pct)),
+          rowCell(number(values.diagnoses)),
+          rowCell(number(evaluations)),
+          rowCell(number(values.cta_clicks)),
+          rowCell(number(values.errors)),
+        );
+        return tr;
+      });
+      toolTarget.replaceChildren(...toolRows);
+    }
   }
 
   function renderPremium(snapshot) {

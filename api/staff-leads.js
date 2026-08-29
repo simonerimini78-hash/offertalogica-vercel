@@ -11,6 +11,12 @@ const CUSTOMER_PAGE_SIZE = 1000;
 const CUSTOMER_MAX_ROWS = 20000;
 const BUSINESS_ALIASES = new Set(["business", "azienda", "aziende", "piva", "p.iva", "impresa"]);
 const CONSUMER_ALIASES = new Set(["privato", "consumer", "casa", "domestico", "persona"]);
+const MANAGEMENT_INTERACTIVE_TOOL_EVENT = "interactive_tool_event";
+const MANAGEMENT_TOOL_CODES = Object.freeze([
+  "speed_test",
+  "fotovoltaico",
+  "fotovoltaico_agricoltura",
+]);
 
 function bodyObject(req) {
   if (req.body && typeof req.body === "object") return req.body;
@@ -296,6 +302,88 @@ function roundMoney(value) {
   return Math.round(Number(value || 0) * 100) / 100;
 }
 
+function blankManagementTool() {
+  return {
+    events: 0,
+    views: 0,
+    started: 0,
+    completed: 0,
+    diagnoses: 0,
+    economics_evaluated: 0,
+    cta_clicks: 0,
+    errors: 0,
+    unique_sessions: 0,
+    completion_pct: null,
+  };
+}
+
+function managementToolTrafficIncluded(row = {}) {
+  const payload = managementPayload(row);
+  const agent = String(payload.trafficAgent || "").trim().toLowerCase();
+  return !["known_bot", "automation"].includes(agent);
+}
+
+function summarizeManagementTools(events = []) {
+  const items = Object.fromEntries(MANAGEMENT_TOOL_CODES.map(code => [code, blankManagementTool()]));
+  const sessions = Object.fromEntries(MANAGEMENT_TOOL_CODES.map(code => [code, new Set()]));
+  let filteredTraffic = 0;
+
+  for (const row of Array.isArray(events) ? events : []) {
+    if (managementEventType(row) !== MANAGEMENT_INTERACTIVE_TOOL_EVENT) continue;
+    const payload = managementPayload(row);
+    const code = String(payload.toolCode || "").trim().toLowerCase();
+    if (!Object.prototype.hasOwnProperty.call(items, code)) continue;
+    if (!managementToolTrafficIncluded(row)) {
+      filteredTraffic += 1;
+      continue;
+    }
+
+    const action = String(payload.toolAction || "").trim().toLowerCase();
+    const item = items[code];
+    item.events += 1;
+    if (action === "page_view") item.views += 1;
+    if (action === "started") item.started += 1;
+    if (action === "completed") item.completed += 1;
+    if (action === "diagnosis_completed") item.diagnoses += 1;
+    if (action === "economics_evaluated") item.economics_evaluated += 1;
+    if (action === "cta_clicked") item.cta_clicks += 1;
+    if (action === "error") item.errors += 1;
+
+    const sessionId = String(payload.sessionId || row?.sessionId || "").trim();
+    if (sessionId) sessions[code].add(sessionId);
+  }
+
+  for (const code of MANAGEMENT_TOOL_CODES) {
+    items[code].unique_sessions = sessions[code].size;
+    items[code].completion_pct = managementPercentage(items[code].completed, items[code].started);
+  }
+
+  const total = Object.values(items).reduce((accumulator, item) => {
+    for (const key of ["events", "views", "started", "completed", "diagnoses", "economics_evaluated", "cta_clicks", "errors", "unique_sessions"]) {
+      accumulator[key] += Number(item[key] || 0);
+    }
+    return accumulator;
+  }, {
+    events: 0,
+    views: 0,
+    started: 0,
+    completed: 0,
+    diagnoses: 0,
+    economics_evaluated: 0,
+    cta_clicks: 0,
+    errors: 0,
+    unique_sessions: 0,
+  });
+  total.completion_pct = managementPercentage(total.completed, total.started);
+
+  return {
+    available: true,
+    filtered_traffic: filteredTraffic,
+    items,
+    total,
+  };
+}
+
 function summarizeManagementSitePeriod({ events = [], leads = [] } = {}) {
   const segments = {
     consumer: blankManagementSegment(),
@@ -334,8 +422,9 @@ function summarizeManagementSitePeriod({ events = [], leads = [] } = {}) {
   total.otp_verification_pct = managementPercentage(total.otp_verified, total.otp_sent);
   total.lead_per_comparison_pct = managementPercentage(total.leads, total.comparisons);
   total.pdf_completion_pct = managementPercentage(total.pdf_analyses_completed, total.pdf_analyses_started);
+  const tools = summarizeManagementTools(events);
 
-  return { available: true, segments, total };
+  return { available: true, segments, total, tools };
 }
 
 async function loadManagementSitePeriod(period) {
