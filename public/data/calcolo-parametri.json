@@ -1,16 +1,16 @@
 {
-  "versioneDati": "parametri-calcolo-2026-07-27-pun-2026-06",
-  "fonte": "Configurazione OffertaLogica aggiornabile; PUN acquisito dalla pubblicazione mensile ufficiale GME del mese precedente.",
-  "aggiornatoIl": "2026-07-27",
+  "versioneDati": "parametri-calcolo-2026-08-29-arera-2026-07",
+  "fonte": "ARERA: catalogo Portale Offerte e riferimenti mensili ufficiali PLACET. Nessun prezzo statico usato come indice di confronto.",
+  "aggiornatoIl": "2026-08-29",
   "parametriCalcolo": {
     "perditeReteLuceVariabile": 1.102,
     "profiloMedio": {
       "luceConsumoKwh": 2700,
-      "gasConsumoSmc": 700,
-      "prezzoLuceEurKwh": 0.15,
-      "prezzoGasEurSmc": 0.68,
-      "quotaFissaLuceAnnua": 144,
-      "quotaFissaGasAnnua": 120,
+      "gasConsumoSmc": 1400,
+      "prezzoLuceEurKwh": 0.14342329,
+      "prezzoGasEurSmc": 0.615848,
+      "quotaFissaLuceAnnua": 138.2068,
+      "quotaFissaGasAnnua": 134.812,
       "potenzaKw": "3",
       "regioneGas": "nord-ovest",
       "tipoPrezzo": "fisso",
@@ -46,36 +46,61 @@
         "ivaPercentuale": 0
       }
     },
-    "note": "Stima comparativa annua sulle componenti disponibili. Oneri, imposte e IVA puntuali sono indicati come n.n. quando non stimati nel dettaglio. Le componenti di profilo sono applicate in modo omogeneo a tutti gli scenari."
+    "note": "Stima comparativa annua sulle componenti disponibili. Oneri, imposte e IVA puntuali sono indicati come n.n. quando non stimati nel dettaglio. Le componenti di profilo sono applicate in modo omogeneo a tutti gli scenari.",
+    "profiloMedioFonte": {
+      "fonte": "Portale Offerte ARERA/Acquirente Unico Open Data",
+      "catalogoVersione": "arera-menu-2026-08-29",
+      "catalogoAggiornatoIl": "2026-08-29",
+      "tipoPrezzo": "fisso",
+      "metodoPrezzo": "Media aritmetica dei prezzi unitari e delle quote fisse delle offerte ARERA correnti per clienti privati dello stesso tipo prezzo.",
+      "numeroOfferteLuce": 119,
+      "numeroOfferteGas": 100,
+      "luceConsumoKwh": 2700,
+      "gasConsumoSmc": 1400,
+      "potenzaKw": "3"
+    }
   },
   "indiciMercato": {
     "pun": {
-      "label": "PUN Index GME",
-      "valore": 0.1325,
+      "label": "PUN Index GME / P_ING,M PLACET",
+      "valore": 0.157038,
       "unita": "eur_kwh",
-      "periodo": "2026-06",
-      "periodoLabel": "Giugno 2026",
-      "valoreOriginale": 132.5,
+      "periodo": "2026-07",
+      "periodoLabel": "Luglio 2026",
+      "valoreOriginale": 157.038,
       "unitaOriginale": "eur_mwh",
-      "fonte": "Gestore dei Mercati Energetici (GME)",
-      "urlFonte": "https://gme.mercatoelettrico.org/Home/AvvisieComunicati/AvvisieComunicatiME?id=7595",
-      "urlDocumento": "https://gme.mercatoelettrico.org/Portals/0/Documents/it-IT//202606_Dati_di_sintesi_mensile.pdf",
-      "pubblicatoIl": "2026-07-14",
-      "acquisitoIl": "2026-07-27",
+      "fonte": "ARERA - Offerte PLACET",
+      "urlFonte": "https://www.arera.it/consumatori/offerte-standard-per-i-clienti-finali-placet",
+      "pubblicatoIl": "2026-08-05",
+      "acquisitoIl": "2026-08-29",
       "stato": "ufficiale",
-      "note": "PUN Index GME medio Giugno 2026: 132.500000 eur/MWh, convertito in 0.132500000 eur/kWh."
+      "note": "Media mensile monoraria P_ING,M luglio 2026 pubblicata da ARERA per le offerte PLACET elettriche: 0,157038 €/kWh."
     },
     "psv": {
-      "label": "PSV",
-      "valore": 0.504419055,
+      "label": "PSV DA / P_ING,M PLACET",
+      "valore": 0.606612,
       "unita": "eur_smc",
-      "note": "Valore operativo gas usato per rendere calcolabili le offerte indicizzate PSV nel confronto; allineato al riferimento gas gia presente nel motore e da sostituire con il PSV medio ufficiale del periodo al prossimo aggiornamento dati."
+      "periodo": "2026-07",
+      "periodoLabel": "Luglio 2026",
+      "valoreOriginale": 56.6927,
+      "unitaOriginale": "eur_mwh",
+      "fonte": "ARERA - Offerte PLACET",
+      "urlFonte": "https://www.arera.it/consumatori/offerte-standard-per-i-clienti-finali-placet",
+      "pubblicatoIl": "2026-08-05",
+      "acquisitoIl": "2026-08-29",
+      "stato": "ufficiale",
+      "note": "Media mensile PSV day-ahead luglio 2026 pubblicata da ARERA per le offerte PLACET gas: 0,606612 €/Smc."
     },
     "psbg": {
-      "label": "PSBG",
-      "valore": 0.504419055,
+      "label": "PSBG / PSbil buy G",
+      "valore": 0.617052,
       "unita": "eur_smc",
-      "note": "Prezzo medio mensile GME gas/prezzo sbilanciamento maggio 2026: 47,1419677419 eur/MWh, convertito in eur/Smc con PCS 38,52 MJ/Smc indicato nella scheda E.CO."
+      "periodo": "2026-07",
+      "periodoLabel": "Luglio 2026",
+      "fonte": "GME - dati funzionali alla determinazione del prezzo di sbilanciamento",
+      "acquisitoIl": "2026-08-24",
+      "stato": "verificato",
+      "note": "Media mensile PSbil buy G luglio 2026: 0,617052 €/Smc; indice usato dai contratti che indicano PSBG/PSbil."
     }
   }
 }

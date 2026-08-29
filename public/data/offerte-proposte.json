@@ -1,7 +1,7 @@
 {
-  "versioneDati": "offerte-proposte-2026-07-07-v15-affiliazioni-a2a-octopus",
+  "versioneDati": "offerte-proposte-2026-08-28-v16-link-affiliazioni-certificati",
   "fonte": "Configurazione OffertaLogica con offerte partner attivabili online e offerte consulenziali certificate da Portale Offerte ARERA/AU; Dolomiti Energia aggiunta il 03/07/2026 come proposta con consulente, senza funnel affiliato diretto. A2A e Octopus aggiornati il 07/07/2026 come programmi Tradedoubler accettati.",
-  "aggiornatoIl": "2026-07-07",
+  "aggiornatoIl": "2026-08-28",
   "offerte": [
     {
       "id": 1,
@@ -180,7 +180,7 @@
       "nome": "Octopus Luce e Gas Monoraria",
       "tipo": "fisso",
       "fornitura": "dual",
-      "link": "https://clk.tradedoubler.com/click?p=357545&a=3487966&epi=offertalogica&epi2=octopus_luce_gas_monoraria&url=https%3A%2F%2Foctopusenergy.it%2Fofferta%2Finformazioni-personali",
+      "link": "https://clk.tradedoubler.com/click?p=357545&a=3487966",
       "destinationType": "affiliazione",
       "destinationStatus": "attiva",
       "luce": {
@@ -220,7 +220,7 @@
         "tassoCancellazione": 6,
         "epcMedio": 3.3,
         "prioritaCommerciale": "alta",
-        "note": "Programma Octopus Energy IT accettato. Deeplink Octopus inserito nel click tracker; lead Octopus indicato 45 EUR."
+        "note": "Programma Octopus Energy IT accettato. Deeplinking non autorizzato dal programma: usato il Default click tracker ufficiale; lead Octopus indicato 45 EUR."
       }
     },
     {
@@ -396,7 +396,7 @@
       "nome": "Eni Plenitude Fixa Time 24",
       "tipo": "fisso",
       "fornitura": "dual",
-      "link": "https://clk.tradedoubler.com/click?p=271844&a=3487966&epi=offertalogica&epi2=eni_plenitude_fixa_time_24_config&url=https%3A%2F%2Feniplenitude.com%2Fconfigura-offerta%3F_lg%3D_o.WB.CWEB3EGP.BASE_LFIXA24TIV-GFIXA24TIV%257E_c.power.gas%257E_t.monoraria%257E_p.true%257E_b.digital",
+      "link": "https://clk.tradedoubler.com/click?p=271844&a=3487966&epi=offertalogica&epi2=eni_plenitude_fixa_time_24_config&url=https%3A%2F%2Feniplenitude.com%2Fconfigura-offerta%3F_lg%3D_o.WB.CWEB3EGP.BASE_LFIXA24TIV-GFIXA24TIV~_c.power.gas~_t.monoraria~_p.true~_b.digital",
       "destinationType": "affiliazione",
       "destinationStatus": "attiva",
       "monetizzazione": {
@@ -415,7 +415,7 @@
         "tassoCancellazione": 62,
         "epcMedio": 0.76,
         "prioritaCommerciale": "alta",
-        "note": "Programma Eni Gas e Luce_CPL accettato; deeplink impostato verso configuratore Plenitude Fixa Time 24."
+        "note": "Programma Eni Gas e Luce_CPL accettato; deeplink verificato con il generatore ufficiale Tradedoubler verso il configuratore Plenitude Fixa Time 24."
       },
       "luce": {
         "prezzoVariabile": 0.0987,
@@ -435,7 +435,7 @@
       "nome": "Alperia Smile Easy / Start",
       "tipo": "fisso",
       "fornitura": "dual",
-      "link": "https://www.awin1.com/cread.php?awinmid=17975&awinaffid=2932723&clickref=offertalogica_alperia_fisso&ued=https%3A%2F%2Fwww.alperia.eu%2Ffunnel-energia-e-gas%2F%3Ftoken%3Doff101633_off101609%26culture%3Dit-IT",
+      "link": "https://www.awin1.com/cread.php?awinmid=17975&awinaffid=2932723",
       "destinationType": "affiliazione",
       "destinationStatus": "attiva",
       "luce": {
@@ -474,7 +474,7 @@
         "tassoCancellazione": 0,
         "epcMedio": 0,
         "prioritaCommerciale": "media",
-        "note": "Programma Alperia IT accettato su Awin. Commissione, cookie e cancellazione da completare dai dati programma."
+        "note": "Programma Alperia IT accettato su Awin. Deeplinking non abilitato: usato il tracking link standard ufficiale. Commissione, cookie e cancellazione da completare dai dati programma."
       }
     },
     {
@@ -483,7 +483,7 @@
       "nome": "Alperia Luce e Gas Variabile PUN/PSV",
       "tipo": "variabile",
       "fornitura": "dual",
-      "link": "https://www.awin1.com/cread.php?awinmid=17975&awinaffid=2932723&clickref=offertalogica_alperia_variabile&ued=https%3A%2F%2Fwww.alperia.eu%2Ffunnel-energia-e-gas%2F%3Ftoken%3Doff101536_off101541%26culture%3Dit-IT",
+      "link": "https://www.awin1.com/cread.php?awinmid=17975&awinaffid=2932723",
       "destinationType": "affiliazione",
       "destinationStatus": "attiva",
       "monetizzazione": {
@@ -500,7 +500,7 @@
         "tassoCancellazione": 0,
         "epcMedio": 0,
         "prioritaCommerciale": "media",
-        "note": "Programma Alperia IT accettato su Awin. Offerta variabile online con deeplink al funnel Alperia."
+        "note": "Programma Alperia IT accettato su Awin. Deeplinking non abilitato: usato il tracking link standard ufficiale."
       },
       "luce": {
         "prezzoVariabile": 0.130351258,
