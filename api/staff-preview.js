@@ -35,7 +35,7 @@ export default async function handler(req, res) {
 
       return json(res, 200, {
         ok: true,
-        url: `https://offertalogica.it/?staffHome=1#staff=${encodeURIComponent(expectedToken)}`,
+        url: `https://offertalogica.it/#staff=${encodeURIComponent(expectedToken)}`,
       });
     }
 
