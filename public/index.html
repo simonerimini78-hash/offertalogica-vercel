@@ -11577,10 +11577,10 @@ function applicaDatiPdfAlModulo(data) {
     setField("in-luce-tipo-att", PARAMETRI_CALCOLO.profiloMedio.tipoPrezzo);
     setField("in-gas-tipo-att", PARAMETRI_CALCOLO.profiloMedio.tipoPrezzo);
     setField("in-luce-cons-att", PARAMETRI_CALCOLO.profiloMedio.luceConsumoKwh);
-    setField("in-luce-prezzo-att", PARAMETRI_CALCOLO.profiloMedio.prezzoLuceEurKwh.toFixed(4));
+    setField("in-luce-prezzo-att", String(PARAMETRI_CALCOLO.profiloMedio.prezzoLuceEurKwh));
     impostaQuotaFissaAnnua("in-luce-fisso-att", "in-luce-fisso-att-unita", PARAMETRI_CALCOLO.profiloMedio.quotaFissaLuceAnnua);
     setField("in-gas-cons-att", PARAMETRI_CALCOLO.profiloMedio.gasConsumoSmc);
-    setField("in-gas-prezzo-att", PARAMETRI_CALCOLO.profiloMedio.prezzoGasEurSmc.toFixed(4));
+    setField("in-gas-prezzo-att", String(PARAMETRI_CALCOLO.profiloMedio.prezzoGasEurSmc));
     impostaQuotaFissaAnnua("in-gas-fisso-att", "in-gas-fisso-att-unita", PARAMETRI_CALCOLO.profiloMedio.quotaFissaGasAnnua);
     aggiornaTestoPulsanteConfronto();
     return;
@@ -12269,11 +12269,11 @@ if (document.readyState === "loading") {
               if(document.getElementById("in-luce-tipo-att")) document.getElementById("in-luce-tipo-att").value = PARAMETRI_CALCOLO.profiloMedio.tipoPrezzo;
               if(document.getElementById("in-gas-tipo-att")) document.getElementById("in-gas-tipo-att").value = PARAMETRI_CALCOLO.profiloMedio.tipoPrezzo;
               if(document.getElementById("in-luce-cons-att")) document.getElementById("in-luce-cons-att").value = String(PARAMETRI_CALCOLO.profiloMedio.luceConsumoKwh);
-              if(document.getElementById("in-luce-prezzo-att")) document.getElementById("in-luce-prezzo-att").value = PARAMETRI_CALCOLO.profiloMedio.prezzoLuceEurKwh.toFixed(4);
+              if(document.getElementById("in-luce-prezzo-att")) document.getElementById("in-luce-prezzo-att").value = String(PARAMETRI_CALCOLO.profiloMedio.prezzoLuceEurKwh);
               impostaQuotaFissaAnnua("in-luce-fisso-att", "in-luce-fisso-att-unita", PARAMETRI_CALCOLO.profiloMedio.quotaFissaLuceAnnua);
 
               if(document.getElementById("in-gas-cons-att")) document.getElementById("in-gas-cons-att").value = String(PARAMETRI_CALCOLO.profiloMedio.gasConsumoSmc);
-              if(document.getElementById("in-gas-prezzo-att")) document.getElementById("in-gas-prezzo-att").value = PARAMETRI_CALCOLO.profiloMedio.prezzoGasEurSmc.toFixed(4);
+              if(document.getElementById("in-gas-prezzo-att")) document.getElementById("in-gas-prezzo-att").value = String(PARAMETRI_CALCOLO.profiloMedio.prezzoGasEurSmc);
               impostaQuotaFissaAnnua("in-gas-fisso-att", "in-gas-fisso-att-unita", PARAMETRI_CALCOLO.profiloMedio.quotaFissaGasAnnua);
 
               // Nuova Offerta: resta vuota. Il confronto diretto si mostra solo se l'utente compila o carica una scheda.
