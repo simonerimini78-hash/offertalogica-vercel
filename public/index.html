@@ -14,9 +14,8 @@
     <meta property="og:url" content="https://offertalogica.it/">
     <meta name="twitter:card" content="summary">
     <link rel="icon" type="image/png" href="/assets/logo-offertalogica-icon.png">
-    <link rel="apple-touch-icon" href="/assets/app-icon-192.png?v=6">
-    <link rel="manifest" href="/manifest.webmanifest">
-    <meta name="theme-color" content="#16a34a">
+    <link rel="apple-touch-icon" href="/assets/logo-offertalogica-icon.png">
+    <link rel="stylesheet" href="/assets/ol-app-access.css">
     <style>
         :root {
             --bg-color: #f1f5f9;
@@ -81,10 +80,31 @@
         
         .columns-subgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
         .column-energy h4 { font-size: 13px; color: var(--accent); margin-bottom: 10px; text-align: left; text-transform: uppercase; letter-spacing: 0.5px; }
-        .adaptive-price-details { display: none; margin-top: 12px; padding: 12px; border: 1px solid #bfdbfe; border-radius: 10px; background: #f8fbff; }
+        .adaptive-price-details { display: none; margin-top: 12px; }
         .adaptive-price-details.is-visible { display: block; }
-        .adaptive-price-details > strong { display: block; margin-bottom: 3px; color: #1d4ed8; font-size: 11px; }
-        .adaptive-price-details > small { display: block; margin-bottom: 9px; color: var(--text-muted); font-size: 9.5px; line-height: 1.35; }
+        .adaptive-price-toggle {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 9px 10px;
+            border: 1px solid #bfdbfe;
+            border-radius: 9px;
+            background: #eff6ff;
+            color: #1d4ed8;
+            font-size: 11px;
+            font-weight: 800;
+            text-align: left;
+            cursor: pointer;
+        }
+        .adaptive-price-toggle:hover { border-color: #60a5fa; background: #dbeafe; }
+        .adaptive-price-toggle:focus-visible { outline: 3px solid rgba(37,99,235,.22); outline-offset: 2px; }
+        .adaptive-price-toggle-icon { flex: 0 0 auto; font-size: 15px; line-height: 1; transition: transform .18s ease; }
+        .adaptive-price-toggle[aria-expanded="true"] .adaptive-price-toggle-icon { transform: rotate(180deg); }
+        .adaptive-price-details-body { margin-top: 8px; padding: 12px; border: 1px solid #bfdbfe; border-radius: 10px; background: #f8fbff; }
+        .adaptive-price-details-body[hidden] { display: none !important; }
+        .adaptive-price-details-body > small { display: block; margin-bottom: 9px; color: var(--text-muted); font-size: 9.5px; line-height: 1.35; }
         .adaptive-price-list { display: grid; gap: 7px; }
         .adaptive-price-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(105px, .7fr); gap: 8px; align-items: center; }
         .adaptive-price-row label { min-width: 0; color: #334155; font-size: 10px; font-weight: 750; line-height: 1.25; }
@@ -166,11 +186,6 @@
             border-radius: 11px;
             background: #ffffff;
         }
-        .optional-provider-panel[hidden] { display: none !important; }
-        .switcho-observed-offer-panel { border-color: #c4b5fd; background: #faf5ff; }
-        .switcho-observed-offer-panel label { color: #6d28d9; }
-        .switcho-observed-offer-panel select { border-color: #8b5cf6; }
-        .switcho-observed-note { display: block; margin-top: 6px; color: #6b21a8; font-size: 10px; line-height: 1.4; }
         .optional-provider-panel label { display: block; margin-bottom: 5px; color: var(--accent); font-size: 11px; font-weight: 800; }
         .optional-provider-panel select {
             width: 100%;
@@ -344,6 +359,36 @@
         .comparison-scope-hidden { display: none !important; }
         .pdf-profile-indicator { display: inline-flex; margin: 6px 0 0; padding: 5px 9px; border-radius: 999px; background: #eff6ff; color: #1d4ed8; font-size: 12px; font-weight: 800; }
         @media (max-width: 680px) { .current-provider-grid { grid-template-columns: 1fr; } .pdf-decision-backdrop, .pdf-autofill-backdrop { padding: 10px; align-items: flex-end; } .pdf-decision-modal, .pdf-autofill-modal { max-height: 92dvh; border-radius: 14px 14px 0 0; } .pdf-autofill-row { grid-template-columns: 1fr; gap: 8px; } .pdf-autofill-actions { display: grid; grid-template-columns: 1fr; } }
+        @media (max-width: 680px) {
+            .lead-modal-backdrop,
+            .offer-consent-backdrop {
+                padding: 10px;
+                align-items: flex-end;
+            }
+            .lead-modal,
+            .offer-consent-modal {
+                width: 100%;
+                max-height: 92dvh;
+                overflow: auto;
+                border-radius: 14px 14px 0 0;
+                padding: 18px 16px max(18px, env(safe-area-inset-bottom));
+            }
+            .lead-form-grid input {
+                font-size: 16px;
+            }
+            .lead-consent {
+                font-size: 13px;
+            }
+            .lead-actions {
+                display: grid;
+                grid-template-columns: 1fr;
+            }
+            .lead-actions button {
+                width: 100%;
+                min-height: 48px;
+                font-size: 15px;
+            }
+        }
         .lead-form-grid { display: grid; gap: 10px; }
         .lead-field { display: grid; gap: 5px; color: var(--text-color); font-size: 12px; font-weight: 800; }
         .lead-field input { width: 100%; }
@@ -362,16 +407,6 @@
         .lead-primary { background: var(--primary); color: #fff; }
         .lead-secondary { background: #e2e8f0; color: var(--text-color); }
         .lead-status { margin-top: 10px; color: var(--text-muted); font-size: 13px; }
-        .activation-channel-backdrop { position: fixed; inset: 0; z-index: 1002; display: none; align-items: center; justify-content: center; padding: 20px; background: rgba(15,23,42,.58); }
-        .activation-channel-modal { width: min(560px, 100%); background: #fff; border-radius: 14px; border: 1px solid var(--border); padding: 22px; box-shadow: 0 24px 60px rgba(15,23,42,.28); }
-        .activation-channel-modal h3 { font-size: 20px; margin-bottom: 6px; color: var(--text-color); }
-        .activation-channel-modal > p { color: var(--text-muted); font-size: 14px; margin-bottom: 14px; }
-        .activation-channel-options { display: grid; gap: 10px; margin: 14px 0; }
-        .activation-channel-option { width: 100%; display: grid; gap: 3px; padding: 14px; border: 1px solid var(--border); border-radius: 11px; background: #fff; color: var(--text-color); text-align: left; cursor: pointer; }
-        .activation-channel-option:hover { border-color: var(--primary); box-shadow: 0 6px 18px rgba(22,163,74,.10); }
-        .activation-channel-option strong { font-size: 14px; }
-        .activation-channel-option span { color: var(--text-muted); font-size: 12px; line-height: 1.4; }
-        .activation-channel-option.assisted { border-color: #86efac; background: #f0fdf4; }
         .offer-consent-backdrop { position: fixed; inset: 0; z-index: 1001; display: none; align-items: center; justify-content: center; padding: 20px; background: rgba(15,23,42,.58); }
         .offer-consent-modal { width: min(560px, 100%); background: #fff; border-radius: 14px; border: 1px solid var(--border); padding: 22px; box-shadow: 0 24px 60px rgba(15,23,42,.28); }
         .offer-consent-modal h3 { font-size: 20px; margin-bottom: 6px; color: var(--text-color); }
@@ -425,10 +460,15 @@
         .business-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
         .business-section { border: 1px solid var(--border); border-radius: 10px; padding: 14px; background: #f8fafc; }
         .business-section h4 { margin: 0 0 10px; color: var(--accent); font-size: 15px; }
-        .business-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; align-items: center; }
+        .business-actions { display: grid; gap: 8px; margin-top: 16px; }
+        .business-action-buttons { display: flex; gap: 10px; flex-wrap: wrap; align-items: stretch; }
+        .business-action-buttons > button { min-height: 44px; padding: 11px 18px; border-radius: 8px; font-size: 14px; font-weight: 800; cursor: pointer; }
+        .business-secondary-action { border: 1px solid #cbd5e1; background: #ffffff; color: #334155; }
+        .business-secondary-action:hover { border-color: #94a3b8; background: #f8fafc; }
+        .business-action-note { margin: 0; color: var(--text-muted); font-size: 12px; line-height: 1.4; }
         .business-result { display: none; margin-top: 16px; border: 1px solid #bbf7d0; background: #f0fdf4; color: #14532d; border-radius: 10px; padding: 16px; }
-        .business-result strong { display: block; font-size: 20px; margin-bottom: 6px; }
-        .business-result p { margin: 0 0 10px; color: #166534; font-size: 14px; }
+        .business-result > strong { display: block; font-size: 20px; margin-bottom: 6px; }
+        .business-result > p { margin: 0 0 10px; color: #166534; font-size: 14px; }
         .business-ranking { display: grid; gap: 9px; margin: 14px 0; }
         .business-ranking[hidden] { display: none !important; }
         .business-ranking-note { margin: 0; padding: 10px 12px; border: 1px solid #d1fae5; border-radius: 9px; background: #ffffff; color: #315564; font-size: 12px; line-height: 1.45; }
@@ -551,11 +591,11 @@
         .segment-switch button {
             min-height: 102px;
             padding: 20px 22px;
-            font-size: 19px;
+            font-size: 20px;
             line-height: 1.25;
             font-weight: 900;
         }
-        .segment-switch button span { font-size: 14px; line-height: 1.38; margin-top: 8px; max-width: 360px; }
+        .segment-switch button span { font-size: 15px; line-height: 1.38; margin-top: 8px; max-width: 360px; }
         .choice-grid {
             gap: 16px;
         }
@@ -570,13 +610,13 @@
             text-align: center;
         }
         .choice-card strong {
-            font-size: 21px;
+            font-size: 23px;
             line-height: 1.18;
             margin-bottom: 8px;
             font-weight: 900;
         }
         .choice-card span {
-            font-size: 14.5px;
+            font-size: 15.5px;
             line-height: 1.42;
             max-width: 420px;
             font-weight: 700;
@@ -587,7 +627,7 @@
             padding: 26px 24px;
         }
         .pdf-lead-panel h3 {
-            font-size: 26px;
+            font-size: 28px;
             line-height: 1.2;
             margin-bottom: 10px;
             font-weight: 900;
@@ -794,6 +834,18 @@
         .offers-list-heading > div:last-child {
             font-size: 13.5px !important;
             line-height: 1.4;
+        }
+        .offers-ranking-explainer {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid rgba(148, 163, 184, .30);
+            border-radius: 12px;
+            background: #f8fafc;
+            color: #475569;
+            font-size: 12.5px;
+            font-weight: 650;
+            line-height: 1.45;
+            text-align: center;
         }
         .offer-result-group {
             display: none;
@@ -1270,11 +1322,24 @@
                 padding: 22px 20px;
             }
             .choice-card strong {
-                font-size: 19px;
+                font-size: 21px;
+            }
+            .choice-card span {
+                font-size: 15.5px;
+            }
+            .pdf-lead-panel h3 {
+                font-size: 24px;
+            }
+            .offers-personalize-actions button {
+                min-height: 62px;
+                font-size: 18px;
             }
             .segment-switch button {
                 min-height: 92px;
-                font-size: 18px;
+                font-size: 19px;
+            }
+            .segment-switch button span {
+                font-size: 14.5px;
             }
             .fornitori-consigliati-section {
                 padding: 20px 14px !important;
@@ -1762,6 +1827,38 @@
         .pdf-review-static {
             scroll-margin-top: 24px;
         }
+        .pdf-contract-check {
+            margin: 12px 0 10px;
+            padding: 12px 13px;
+            border: 1px solid #cbd5e1;
+            border-radius: 9px;
+            background: #f8fafc;
+            color: #334155;
+        }
+        .pdf-contract-check-title {
+            margin-bottom: 6px;
+            color: #0f172a;
+            font-size: 13px;
+            font-weight: 850;
+        }
+        .pdf-contract-check ul {
+            margin: 0 0 7px 18px;
+            padding: 0;
+        }
+        .pdf-contract-check li {
+            margin: 3px 0;
+            color: #334155;
+            font-size: 12px;
+            line-height: 1.45;
+        }
+        .pdf-contract-check small {
+            display: block;
+            color: #64748b;
+            font-size: 11px;
+            line-height: 1.45;
+        }
+        .pdf-contract-persistent[hidden] { display: none !important; }
+        .pdf-contract-persistent .pdf-contract-check { margin: 14px 0 0; }
         .pdf-review-static.pdf-confirm-attention {
             animation: pdfConfirmAttention 2.8s ease;
         }
@@ -1981,129 +2078,421 @@
             .mobile-pdf-primary { animation: none !important; }
         }
 
-        /* OFFERTALOGICA_SOCIAL_ENTRY_MOBILE_V1_20260730 */
+        /* OFFERTALOGICA_LANDING_GLASS_V1_7_20260814 */
         .social-mobile-entry { display: none; }
         html.social-entry-requested,
         html.social-entry-requested body { min-height: 100%; overflow: hidden; }
-        html.social-entry-requested body { padding: 0; background: #f7fbf7; }
-        html.social-entry-requested body > :not(.social-mobile-entry):not(script) { display: none !important; }
+        html.social-entry-requested body { padding: 0; background: #f4f7f5; }
+        html.social-entry-requested body > :not(.social-mobile-entry):not(script):not([id*="iubenda"]):not([class*="iubenda"]):not([id^="_iub"]):not([class*="_iub"]) { display: none !important; }
+        html.social-entry-requested body > .staff-mode-banner { display: flex !important; z-index: 9101; }
+        html.social-entry-requested body > .staff-preview-panel { display: block !important; z-index: 9100; }
+        html.social-entry-requested body > .staff-preview-panel[hidden] { display: none !important; }
+        html.social-entry-requested .iubenda-tp-btn.iubenda-cs-preferences-link { visibility: hidden !important; }
         html.social-entry-requested .social-mobile-entry {
             position: fixed;
             inset: 0;
-            z-index: 12000;
+            z-index: 9000;
             display: flex;
             align-items: flex-start;
             justify-content: center;
             min-height: 100dvh;
-            padding: max(32px, calc(env(safe-area-inset-top) + 12px)) 18px max(22px, env(safe-area-inset-bottom));
+            padding: max(24px, calc(env(safe-area-inset-top) + 12px)) clamp(14px, 3vw, 30px) max(24px, env(safe-area-inset-bottom));
             overflow-y: auto;
             background:
-                radial-gradient(circle at 50% 12%, rgba(126, 211, 33, .16), transparent 31%),
-                radial-gradient(circle at 12% 82%, rgba(22, 163, 74, .10), transparent 29%),
-                linear-gradient(180deg, #ffffff 0%, #f7fbf7 100%);
+                radial-gradient(circle at 18% 12%, rgba(132, 209, 38, .18), transparent 30%),
+                radial-gradient(circle at 82% 26%, rgba(24, 168, 75, .16), transparent 34%),
+                radial-gradient(circle at 48% 92%, rgba(8, 127, 58, .10), transparent 36%),
+                linear-gradient(145deg, #f4f7f5 0%, #eef5f0 52%, #ffffff 100%);
         }
         .social-entry-card {
-            width: min(100%, 480px);
+            position: relative;
+            isolation: isolate;
+            overflow: hidden;
+            width: min(100%, 860px);
             display: grid;
             justify-items: center;
-            gap: 15px;
-            padding: 4px 4px 12px;
-            text-align: center;
+            gap: clamp(12px, 2vw, 18px);
             margin-block: auto;
+            padding: clamp(22px, 4vw, 38px);
+            border: 1px solid rgba(227, 233, 231, .78);
+            border-radius: clamp(26px, 4vw, 38px);
+            background:
+                linear-gradient(155deg, rgba(255, 255, 255, .58) 0%, rgba(244, 247, 245, .40) 48%, rgba(227, 233, 231, .34) 100%);
+            box-shadow:
+                0 30px 72px rgba(18, 48, 68, .16),
+                inset 0 1px 0 rgba(255, 255, 255, .92),
+                inset 0 -1px 0 rgba(18, 48, 68, .06);
+            -webkit-backdrop-filter: blur(32px) saturate(138%);
+            backdrop-filter: blur(32px) saturate(138%);
+            text-align: center;
+        }
+        .social-entry-card::before {
+            content: "";
+            position: absolute;
+            z-index: -1;
+            width: 390px;
+            height: 220px;
+            left: -100px;
+            top: -96px;
+            border-radius: 999px;
+            background: linear-gradient(145deg, rgba(5, 93, 56, .30), rgba(24, 168, 75, .18) 62%, rgba(132, 209, 38, .12));
+            filter: blur(26px);
+            pointer-events: none;
+        }
+        .social-entry-card::after {
+            content: "";
+            position: absolute;
+            z-index: -1;
+            width: 330px;
+            height: 190px;
+            right: -105px;
+            bottom: -82px;
+            border-radius: 999px;
+            background: linear-gradient(145deg, rgba(255, 255, 255, .34), rgba(24, 168, 75, .13));
+            filter: blur(28px);
+            pointer-events: none;
         }
         .social-entry-logo {
-            width: min(78vw, 300px);
+            width: min(70vw, 310px);
             height: auto;
-            margin-bottom: 6px;
-            filter: drop-shadow(0 10px 24px rgba(15, 23, 42, .08));
+            margin-bottom: 2px;
+            filter: drop-shadow(0 11px 24px rgba(18, 48, 68, .10));
         }
         .social-entry-eyebrow {
             display: inline-flex;
             align-items: center;
-            gap: 7px;
+            justify-content: center;
             margin: 0;
-            padding: 7px 12px;
-            border: 1px solid #bbf7d0;
+            padding: 8px 14px;
+            border: 1px solid rgba(24, 168, 75, .28);
             border-radius: 999px;
-            background: rgba(240, 253, 244, .92);
-            color: #15803d;
+            background: rgba(255, 255, 255, .52);
+            color: #087f3a;
             font-size: 12px;
             font-weight: 900;
-            letter-spacing: .035em;
+            letter-spacing: .05em;
             text-transform: uppercase;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, .86);
         }
         .social-entry-title {
-            max-width: 420px;
+            max-width: 650px;
             margin: 0;
-            color: #0f172a;
-            font-size: clamp(28px, 8.3vw, 42px);
-            line-height: 1.08;
-            letter-spacing: -.035em;
+            color: #123044;
+            font-size: clamp(30px, 5vw, 48px);
+            line-height: 1.06;
+            letter-spacing: -.04em;
         }
         .social-entry-saving {
+            position: relative;
+            isolation: isolate;
+            overflow: hidden;
+            width: min(100%, 610px);
+            min-height: 132px;
             display: grid;
             justify-items: center;
-            gap: 1px;
-            min-height: 119px;
-            margin: 2px 0 0;
+            align-content: center;
+            gap: 5px;
+            margin: 0;
+            padding: 17px 28px 19px;
+            border: 1px solid rgba(227, 233, 231, .92);
+            border-radius: 30px;
+            background:
+                linear-gradient(145deg, rgba(255,255,255,.72) 0%, rgba(238,245,240,.54) 58%, rgba(227,233,231,.42) 100%);
+            box-shadow:
+                0 18px 44px rgba(18,48,68,.13),
+                0 8px 30px rgba(24,168,75,.09),
+                inset 0 1px 0 rgba(255,255,255,.98),
+                inset 0 -1px 0 rgba(8,127,58,.07);
+            -webkit-backdrop-filter: blur(26px) saturate(145%);
+            backdrop-filter: blur(26px) saturate(145%);
+        }
+        .social-entry-saving::before {
+            content: "";
+            position: absolute;
+            z-index: -1;
+            width: 230px;
+            height: 150px;
+            right: -66px;
+            top: -78px;
+            border-radius: 999px;
+            background: radial-gradient(circle at 35% 40%, rgba(132,209,38,.24), rgba(24,168,75,.12) 52%, transparent 72%);
+            filter: blur(8px);
+            pointer-events: none;
+        }
+        .social-entry-saving::after {
+            content: "";
+            position: absolute;
+            inset: 0 30px auto;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,.96), transparent);
+            opacity: .92;
+            pointer-events: none;
         }
         .social-entry-saving strong {
-            color: #20b52f;
-            font-size: clamp(62px, 19vw, 94px);
-            line-height: .98;
-            letter-spacing: -.055em;
+            color: #18a84b;
+            background: linear-gradient(135deg, #087f3a 0%, #18a84b 58%, #73c928 108%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-size: clamp(60px, 10.8vw, 94px);
+            line-height: .96;
+            letter-spacing: -.06em;
             font-variant-numeric: tabular-nums;
-            text-shadow: 0 9px 24px rgba(32, 181, 47, .15);
+            filter: drop-shadow(0 10px 20px rgba(24,168,75,.13));
         }
         .social-entry-saving span {
-            color: #0f172a;
-            font-size: clamp(22px, 6.1vw, 30px);
-            line-height: 1.1;
-            font-weight: 800;
+            color: #123044;
+            font-size: clamp(20px, 3.8vw, 28px);
+            line-height: 1.12;
+            font-weight: 850;
         }
         .social-entry-saving.is-loading strong {
-            color: #64748b;
-            font-size: clamp(25px, 7vw, 34px);
+            color: #5f747a;
+            background: none;
+            -webkit-text-fill-color: currentColor;
+            font-size: clamp(24px, 4.5vw, 34px);
             letter-spacing: -.02em;
-            text-shadow: none;
+            filter: none;
         }
-        .social-entry-saving.is-loading span { color: #64748b; font-size: 16px; font-weight: 700; }
-        .social-entry-copy {
-            max-width: 410px;
-            margin: 0;
-            color: #475569;
-            font-size: 15px;
-            line-height: 1.48;
+        .social-entry-saving.is-loading span { color: #647985; font-size: 16px; font-weight: 750; }
+        .social-entry-disclaimer {
+            max-width: 650px;
+            margin: -1px 0 1px;
+            color: #647985;
+            font-size: clamp(11.5px, 1.7vw, 13px);
+            line-height: 1.45;
+            font-weight: 500;
         }
-        .social-entry-cta {
+        .social-entry-proof {
             width: 100%;
-            min-height: 66px;
-            margin-top: 8px;
-            border: 0;
-            border-radius: 18px;
-            padding: 15px 20px;
-            background: var(--logo-green-gradient);
-            color: #ffffff;
-            font-size: 21px;
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 8px;
+            margin: -2px 0 0;
+            align-items: stretch;
+        }
+        .social-entry-proof span {
+            display: flex;
+            width: 100%;
+            min-width: 0;
+            align-items: center;
+            justify-content: center;
+            min-height: 34px;
+            padding: 7px 9px;
+            border: 1px solid rgba(24, 168, 75, .22);
+            border-radius: 999px;
+            background: rgba(255, 255, 255, .46);
+            color: #315564;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, .86);
+            -webkit-backdrop-filter: blur(18px) saturate(135%);
+            backdrop-filter: blur(18px) saturate(135%);
+            font-size: 11.5px;
+            line-height: 1.2;
+            font-weight: 800;
+        }
+        .social-entry-choice-title {
+            margin: 3px 0 -3px;
+            color: #123044;
+            font-size: clamp(20px, 3vw, 26px);
+            line-height: 1.15;
+            letter-spacing: -.025em;
+        }
+        .social-entry-actions {
+            width: 100%;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-auto-rows: 1fr;
+            gap: 12px;
+            align-items: stretch;
+        }
+        .social-entry-route {
+            position: relative;
+            isolation: isolate;
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+            min-height: 110px;
+            display: grid;
+            grid-template-rows: minmax(28px, auto) minmax(34px, auto);
+            align-content: center;
+            align-items: center;
+            justify-items: center;
+            gap: 7px;
+            border: 1px solid rgba(227, 233, 231, .62);
+            border-radius: 24px;
+            padding: 16px 18px;
+            background: linear-gradient(145deg, rgba(5, 93, 56, .96) 0%, rgba(8, 127, 58, .94) 38%, rgba(24, 168, 75, .90) 72%, rgba(115, 201, 40, .76) 112%);
+            color: #e3e9e7;
+            text-align: center;
+            cursor: pointer;
+            box-shadow:
+                0 18px 40px rgba(18, 48, 68, .22),
+                inset 0 1px 0 rgba(255, 255, 255, .28),
+                inset 0 -1px 0 rgba(5, 93, 56, .24);
+            -webkit-backdrop-filter: blur(20px) saturate(136%);
+            backdrop-filter: blur(20px) saturate(136%);
+            transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
+        }
+        .social-entry-route::before {
+            content: "";
+            position: absolute;
+            z-index: -1;
+            width: 158px;
+            height: 158px;
+            right: -58px;
+            top: -82px;
+            border-radius: 999px;
+            background: radial-gradient(circle at 35% 35%, rgba(255,255,255,.22), rgba(227,233,231,.08) 58%, transparent 72%);
+            pointer-events: none;
+        }
+        .social-entry-route::after {
+            content: "";
+            position: absolute;
+            inset: 0 18px auto;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,.72), transparent);
+            opacity: .72;
+            pointer-events: none;
+        }
+        .social-entry-route strong {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            align-self: center;
+            width: 100%;
+            color: #e3e9e7;
+            font-size: clamp(17px, 2.2vw, 20px);
+            line-height: 1.16;
             font-weight: 950;
             letter-spacing: -.015em;
+            text-transform: none;
+        }
+        .social-entry-route span {
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            align-self: center;
+            width: 100%;
+            color: rgba(227,233,231,.86);
+            font-size: 13px;
+            line-height: 1.35;
+            font-weight: 700;
+        }
+        .social-entry-route:hover:not(:disabled),
+        .social-entry-route:focus-visible:not(:disabled) {
+            transform: translateY(-1px);
+            filter: saturate(1.08) brightness(1.02);
+            box-shadow: 0 20px 42px rgba(22,163,74,.30), inset 0 1px 0 rgba(255,255,255,.22);
+        }
+        .social-entry-route:active:not(:disabled) { transform: scale(.982); }
+        .social-entry-route:focus-visible { outline: 4px solid rgba(24,168,75,.22); outline-offset: 3px; }
+        .social-entry-route:disabled { cursor: wait; opacity: .62; }
+        .social-entry-status {
+            width: 100%;
+            margin: -2px 0 0;
+            padding: 10px 12px;
+            border: 1px solid rgba(8, 127, 58, .22);
+            border-radius: 14px;
+            background: rgba(232, 248, 237, .84);
+            color: #087c39;
+            font-size: 13px;
+            line-height: 1.4;
+            font-weight: 750;
+        }
+        .social-entry-status[hidden] { display: none !important; }
+        .social-entry-apps {
+            width: 100%;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 9px;
+            margin-top: 2px;
+            padding-top: 14px;
+            border-top: 1px solid rgba(18, 48, 68, .10);
+        }
+        .social-entry-app-link {
+            width: 100%;
+            min-height: 44px;
+            font-size: 13px;
+        }
+        .social-entry-footer {
+            width: 100%;
+            margin-top: 2px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(18, 48, 68, .10);
+            color: #647985;
+            font-size: 11.5px;
+            line-height: 1.45;
+            text-align: center;
+        }
+        .social-entry-footer p { margin: 0; }
+        .social-entry-footer-brand {
+            color: #123044;
+            font-weight: 850;
+        }
+        .social-entry-footer-copy { margin-top: 4px !important; }
+        .social-entry-footer-disclaimer {
+            max-width: 720px;
+            margin: 4px auto 0 !important;
+            color: #647985;
+            font-size: 11px;
+        }
+        .social-entry-footer-links {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 4px 8px;
+            margin-top: 9px;
+        }
+        .social-entry-footer-links a,
+        .social-entry-footer-links button {
+            border: 0;
+            padding: 2px 0;
+            background: transparent;
+            color: #526b75 !important;
+            font: inherit;
+            font-weight: 650;
+            text-decoration: none !important;
             cursor: pointer;
-            box-shadow: 0 15px 34px rgba(22, 163, 74, .28), 0 0 0 0 rgba(126, 211, 33, .32);
-            animation: social-entry-pulse 1.9s ease-in-out infinite;
         }
-        .social-entry-cta:hover { transform: translateY(-1px); }
-        .social-entry-cta:focus-visible { outline: 4px solid rgba(37, 99, 235, .25); outline-offset: 4px; }
-        .social-entry-cta:disabled {
-            cursor: wait;
-            opacity: .72;
-            animation: none;
-            box-shadow: 0 10px 24px rgba(22, 163, 74, .14);
+        .social-entry-footer-links a:hover,
+        .social-entry-footer-links button:hover { color: #087f3a !important; text-decoration: underline !important; }
+        .social-entry-footer-links a:focus-visible,
+        .social-entry-footer-links button:focus-visible { outline: 3px solid rgba(24,168,75,.18); outline-offset: 2px; border-radius: 4px; }
+        .social-entry-footer-separator { color: rgba(100,121,133,.60); user-select: none; }
+        @media (max-width: 720px) {
+            html.social-entry-requested .social-mobile-entry {
+                padding: max(18px, calc(env(safe-area-inset-top) + 10px)) 12px max(18px, env(safe-area-inset-bottom));
+            }
+            .social-entry-card {
+                width: min(100%, 520px);
+                gap: 11px;
+                padding: 19px 15px 18px;
+                border-radius: 28px;
+            }
+            .social-entry-logo { width: min(66vw, 250px); }
+            .social-entry-title { font-size: clamp(27px, 8.1vw, 38px); }
+            .social-entry-saving { min-height: 118px; padding: 15px 18px 17px; border-radius: 24px; }
+            .social-entry-saving strong { font-size: clamp(52px, 16.2vw, 78px); }
+            .social-entry-saving span { font-size: clamp(18px, 5.3vw, 24px); }
+            .social-entry-actions { grid-template-columns: 1fr; grid-auto-rows: 1fr; gap: 9px; }
+            .social-entry-route { min-height: 102px; grid-template-rows: minmax(27px, auto) minmax(33px, auto); padding: 13px 15px; border-radius: 20px; }
+            .social-entry-route strong { font-size: 17px; }
+            .social-entry-route span { font-size: 12.5px; }
         }
-        .social-entry-note { margin: -3px 0 0; color: #64748b; font-size: 12px; font-weight: 700; }
-        @keyframes social-entry-pulse {
-            0%, 100% { transform: scale(1); box-shadow: 0 15px 34px rgba(22, 163, 74, .28), 0 0 0 0 rgba(126, 211, 33, .30); }
-            50% { transform: scale(1.025); box-shadow: 0 18px 42px rgba(22, 163, 74, .34), 0 0 0 13px rgba(126, 211, 33, 0); }
+        @media (max-width: 380px) {
+            .social-entry-card { padding-inline: 12px; }
+            .social-entry-logo { width: min(62vw, 220px); }
+            .social-entry-eyebrow { font-size: 10.5px; padding: 7px 10px; }
+            .social-entry-disclaimer { font-size: 11.5px; }
+            .social-entry-apps { grid-template-columns: 1fr; }
         }
+        @media (prefers-reduced-motion: reduce) {
+            .social-entry-route { transition: none; }
+            .social-entry-route:hover:not(:disabled),
+            .social-entry-route:focus-visible:not(:disabled) { transform: none; }
+        }
+
         .offers-personalize-prompt {
             margin: 0 0 18px;
             padding: 15px;
@@ -2117,19 +2506,21 @@
         .offers-personalize-prompt p { margin: 0 0 12px; color: #475569; font-size: 13px; line-height: 1.45; }
         .offers-personalize-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
         .offers-personalize-actions button {
-            min-height: 45px;
-            border-radius: 9px;
-            padding: 9px 11px;
-            font-size: 12px;
+            min-height: 56px;
+            border-radius: 12px;
+            padding: 11px 16px;
+            font-size: 17px;
+            line-height: 1.2;
             font-weight: 900;
             cursor: pointer;
+            text-align: center;
         }
         .offers-personalize-upload { border: 0; background: var(--logo-green-gradient); color: #fff; }
         .offers-personalize-continue { border: 1px solid #cbd5e1; background: #fff; color: #334155; }
         @media (max-width: 420px) {
             .social-entry-card { gap: 12px; }
             .social-entry-logo { width: min(74vw, 270px); }
-            .social-entry-copy { font-size: 14px; }
+            .social-entry-disclaimer { font-size: 11.5px; }
             .social-entry-cta { min-height: 62px; font-size: 19px; }
             .offers-personalize-actions { grid-template-columns: 1fr; }
         }
@@ -2178,15 +2569,17 @@
 (function () {
     try {
         const params = new URLSearchParams(window.location.search || "");
-        const source = String(params.get("utm_source") || params.get("source") || "").toLowerCase();
-        const entry = String(params.get("entry") || "").toLowerCase();
-        const explicitSocial = params.get("social") === "1" || ["social", "instagram", "reel", "linkinbio"].includes(entry);
-        const socialSource = ["instagram", "ig", "reel", "linkinbio", "social"].some((token) => source.includes(token));
-        const mobile = window.matchMedia("(max-width: 768px)").matches;
-        const requested = Boolean(window.__OFFERTALOGICA_SOCIAL_ENTRY_FORCE__) || (mobile && (explicitSocial || socialSource));
+        const hashParams = new URLSearchParams(String(window.location.hash || "").replace(/^#/, ""));
+        const staffSessionActive = sessionStorage.getItem("offertalogicaStaffMode") === "true";
+        const staffPreview = staffSessionActive || ["staff", "staffToken", "previewToken"].some((key) => params.has(key) || hashParams.has(key));
+        const staffHomeRequested = params.get("staffHome") === "1";
+        const calculatorBypass = params.get("landing") === "0" || String(params.get("entry") || "").toLowerCase() === "calculator";
+        const requested = staffHomeRequested || (!staffPreview && (Boolean(window.__OFFERTALOGICA_LANDING_FORCE__) || !calculatorBypass));
+        window.__OFFERTALOGICA_LANDING_REQUESTED__ = requested;
         window.__OFFERTALOGICA_SOCIAL_ENTRY_REQUESTED__ = requested;
         if (requested) document.documentElement.classList.add("social-entry-requested");
     } catch {
+        window.__OFFERTALOGICA_LANDING_REQUESTED__ = false;
         window.__OFFERTALOGICA_SOCIAL_ENTRY_REQUESTED__ = false;
     }
 })();
@@ -2197,14 +2590,51 @@
     <div class="social-entry-card">
         <img class="social-entry-logo" src="/assets/logo-offertalogica-header.png" alt="OffertaLogica.it - Confronta, scegli, risparmia">
         <p class="social-entry-eyebrow">Offerte luce e gas aggiornate</p>
-        <h1 class="social-entry-title" id="social-entry-title">Oggi potresti risparmiare fino a</h1>
+        <h1 class="social-entry-title" id="social-entry-title">Confronta le offerte luce e gas sui tuoi consumi</h1>
         <div class="social-entry-saving is-loading" id="social-entry-saving" role="status">
             <strong id="social-entry-saving-value">Aggiorniamo le offerte di oggi</strong>
             <span id="social-entry-saving-period">attendi qualche istante</span>
         </div>
-        <p class="social-entry-copy">Stima basata sui consumi medi di una famiglia e sulle migliori offerte attivabili disponibili oggi.</p>
-        <button type="button" class="social-entry-cta" id="social-entry-cta" disabled>Scopri l'offerta</button>
-        <p class="social-entry-note">Senza bolletta e senza inserire consumi.</p>
+        <p class="social-entry-disclaimer">La cifra mostrata è un esempio calcolato su un profilo medio. Il confronto reale usa i tuoi consumi e la tua tariffa attuale.</p>
+        <div class="social-entry-proof" aria-label="Come calcoliamo il confronto">
+            <span>Catalogo ufficiale ARERA</span>
+            <span>Indici di mercato aggiornati</span>
+            <span>Confronto del costo reale</span>
+        </div>
+        <h2 class="social-entry-choice-title">Come vuoi procedere?</h2>
+        <div class="social-entry-actions" aria-label="Scegli come procedere">
+            <button type="button" class="social-entry-route" id="landing-self-service" disabled>
+                <strong>Confronto in autonomia</strong>
+                <span>Inserisco i miei consumi oppure parto da un profilo medio e confronto le offerte.</span>
+            </button>
+            <button type="button" class="social-entry-route" id="landing-assisted" disabled>
+                <strong>Preferisco essere guidato</strong>
+                <span>Un percorso guidato nella scelta e nel cambio offerta.</span>
+            </button>
+        </div>
+        <p class="social-entry-status" id="landing-assisted-status" role="status" tabindex="-1" hidden></p>
+        <nav class="social-entry-apps" aria-label="App OffertaLogica">
+            <a class="social-entry-app-link ol-app-access-link ol-app-access-free" id="landing-free-app" href="https://app.offertalogica.it/app.html?install=1">Scarica app gratuita</a>
+            <a class="social-entry-app-link ol-app-access-link ol-app-access-premium" id="landing-premium-app" href="https://premium.offertalogica.it/app.html?install=1">Scarica app Premium</a>
+        </nav>
+        <footer class="social-entry-footer">
+            <p class="social-entry-footer-brand">&copy; 2026 OffertaLogica.it - Calcolatore Energetico</p>
+            <p class="social-entry-footer-copy">Confronto trasparente delle offerte luce e gas per privati. Analisi preliminare dedicata alle aziende.</p>
+            <p class="social-entry-footer-disclaimer">Le stime sono informative e non sostituiscono scheda sintetica, condizioni economiche e contratto del fornitore.</p>
+            <nav class="social-entry-footer-links" aria-label="Informazioni e privacy">
+                <a href="/come-funziona.html">Come funziona</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
+                <a href="/offerte-luce-gas-aggiornate.html">Offerte aggiornate</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
+                <a href="/fornitori/">Fornitori</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
+                <a href="/come-leggere-bolletta-luce-gas.html">Guida bolletta</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
+                <a href="/partner.html">Partner</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
+                <a href="/termini-condizioni.html">Termini e condizioni</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
+                <a href="/casa-smart.html">Casa smart</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
+                <a href="/internet-casa.html">Internet casa</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
+                <a href="https://www.iubenda.com/privacy-policy/36565194" class="iubenda-white iubenda-noiframe iubenda-embed">Privacy Policy</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
+                <a href="https://www.iubenda.com/privacy-policy/36565194/cookie-policy" class="iubenda-white iubenda-noiframe iubenda-embed">Cookie Policy</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
+                <button type="button" onclick="apriPreferenzeCookie(event)">Modifica preferenze cookie</button>
+            </nav>
+        </footer>
     </div>
 </section>
 
@@ -2248,7 +2678,7 @@
 
     <div class="business-panel" id="business-panel">
         <h3>Analisi aziendale luce e gas</h3>
-        <p>Per le aziende il confronto dipende da potenza, fasce orarie e profilo di consumo. Qui stimiamo il margine e raccogliamo i dati per una verifica consulenziale.</p>
+        <p>Per le aziende il confronto dipende da potenza, fasce orarie e profilo di consumo. Qui raccogliamo i dati per un'analisi preliminare e una verifica consulenziale.</p>
 
         <div class="business-grid">
             <div class="business-section">
@@ -2265,6 +2695,7 @@
                     <label for="business-attivita">Tipo attivita</label>
                     <select id="business-attivita">
                         <option value="">Seleziona...</option>
+                        <option value="agricoltura">Agricoltura / Allevamento</option>
                         <option value="negozio">Negozio / Retail</option>
                         <option value="ufficio">Ufficio / Studio</option>
                         <option value="ristorazione">Bar / Ristorante</option>
@@ -2350,18 +2781,21 @@
                 <div class="upload-note">Se carichi una bolletta business dal box PDF, proveremo a leggere consumi e fornitore. La verifica finale resta consulenziale.</div>
             </div>
         </div>
+        <div id="pdf-contract-control-business" class="pdf-contract-persistent" hidden aria-live="polite"></div>
 
         <div class="business-actions">
-            <button type="button" class="btn-action" onclick="calcolaBusiness()">Calcola margine business</button>
-            <button type="button" class="lead-secondary" onclick="apriLeadBusiness()">Richiedi analisi aziendale</button>
-            <span class="upload-note">Per offerte business reali useremo il lead verificato e la bolletta caricata.</span>
+            <div class="business-action-buttons">
+                <button type="button" class="btn-action" onclick="calcolaBusiness()">Avvia analisi business</button>
+                <button type="button" class="business-secondary-action" onclick="apriLeadBusiness()">Richiedi un contatto aziendale</button>
+            </div>
+            <p class="business-action-note">Puoi iniziare dall'analisi preliminare oppure richiedere direttamente un contatto.</p>
         </div>
         <div class="business-error" id="business-error"></div>
         <div class="business-result" id="business-result">
-            <strong id="business-saving">Margine stimato in elaborazione</strong>
+            <strong id="business-saving">Analisi preliminare in elaborazione</strong>
             <p id="business-copy"></p>
             <div class="business-ranking" id="business-ranking" hidden aria-live="polite"></div>
-            <button type="button" class="btn-action" onclick="apriLeadBusiness()">Sblocca analisi aziendale</button>
+            <button type="button" class="btn-action" onclick="apriLeadBusiness()">Prosegui con la richiesta</button>
         </div>
     </div>
 
@@ -2369,7 +2803,7 @@
         <h3>Carica bolletta o scheda sintetica</h3>
         <div id="pdf-upload-context-notice" class="pdf-context-notice" role="status" aria-live="polite" hidden>
             <span class="pdf-context-icon" aria-hidden="true">↓</span>
-            <span><strong>Sei nel punto giusto.</strong> Seleziona qui il PDF della scheda sintetica, poi premi <strong>Analizza PDF</strong>.</span>
+            <span><strong>Sei nel punto giusto.</strong> Seleziona la bolletta o la scheda sintetica, poi premi <strong>Analizza PDF</strong>.</span>
         </div>
         <div class="upload-drop" id="pdf-upload-drop">
             <div class="pdf-file-picker">
@@ -2380,10 +2814,11 @@
             <div id="pdf-selected-files" class="pdf-selected-files" aria-live="polite" hidden></div>
             <button type="button" class="btn-action" onclick="preparaConfermaPdf()">Analizza PDF</button>
             <button type="button" class="lead-secondary" onclick="azzeraPdfEModulo()">Rimuovi tutti i PDF e ricomincia</button>
-            <div class="upload-note">Ogni nuova analisi sostituisce i dati letti dalla precedente. Puoi selezionare insieme più PDF appartenenti alla stessa fornitura.</div>
+            <div class="upload-note">Puoi aggiungere in momenti diversi la bolletta luce e la bolletta gas: se sono compatibili restano insieme. Una nuova lettura della stessa fornitura aggiorna quella precedente. La bolletta attuale e l'eventuale scheda di una nuova offerta restano separate.</div>
+            <div class="upload-note"><strong>Controllo finale:</strong> il PDF serve a compilare i dati utili al confronto. Verifica i valori letti prima di procedere; il caricamento non avvia alcun cambio di fornitore.</div>
             <div class="pdf-review-static" id="pdf-review-static" tabindex="-1" role="status" aria-live="polite">
                 <strong id="pdf-review-title">Lettura PDF</strong>
-                <p id="pdf-review-copy">Seleziona uno o più PDF e premi “Analizza PDF”. I dati saranno inseriti direttamente nel modulo.</p>
+                <p id="pdf-review-copy">Seleziona uno o più PDF e premi “Analizza PDF”. Dopo la lettura controlla i dati inseriti prima di avviare il confronto.</p>
             </div>
         </div>
     </div>
@@ -2552,6 +2987,13 @@
                 <div class="column-energy" id="current-luce-column">
                     <h4>⚡ LUCE</h4>
                     <div class="input-group">
+                        <label for="in-luce-tipo-att">Tipo prezzo attuale luce</label>
+                        <select id="in-luce-tipo-att">
+                            <option value="fisso" selected>Prezzo fisso</option>
+                            <option value="variabile">Prezzo variabile / indicizzato</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
                         <label>Quanta luce usi in un anno? (kWh)</label>
                         <input type="number" id="in-luce-cons-att" placeholder="Es. 2700">
                     </div>
@@ -2577,6 +3019,13 @@
                 <div class="column-energy" id="current-gas-column">
                     <h4>🔥 GAS</h4>
                     <div class="input-group">
+                        <label for="in-gas-tipo-att">Tipo prezzo attuale gas</label>
+                        <select id="in-gas-tipo-att">
+                            <option value="fisso" selected>Prezzo fisso</option>
+                            <option value="variabile">Prezzo variabile / indicizzato</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
                         <label>Quanto gas usi in un anno? (Smc)</label>
                         <input type="number" id="in-gas-cons-att" placeholder="Es. 1000">
                     </div>
@@ -2599,6 +3048,7 @@
                     <div class="adaptive-price-details" id="adaptive-current-gas" aria-live="polite"></div>
                 </div>
             </div>
+            <div id="pdf-contract-control-current" class="pdf-contract-persistent" hidden aria-live="polite"></div>
         </div> <div class="manual-block offerta-inserita optional-offer-card supply-compare-card" id="blocco-nuovo">
             <div class="compare-card-header optional-offer-header">
                 <h3 class="compare-card-title optional-offer-title"><span class="compare-card-icon optional-title-icon" aria-hidden="true">📊</span><span>Confronta un'offerta o un fornitore specifico</span></h3>
@@ -2666,14 +3116,6 @@
                 </select>
                 <small id="nuova-offerta-menu-help" class="provider-help">Seleziona un fornitore: caricheremo automaticamente la proposta più adatta disponibile nel catalogo.</small>
                 <div id="nuova-offerta-auto-hint" role="status" aria-live="polite" style="display:none; margin-top:8px; font-size:12px; color:var(--text-muted); line-height:1.4;"></div>
-            </div>
-
-            <div class="optional-provider-panel switcho-observed-offer-panel" id="switcho-observed-offer-panel" hidden>
-                <label for="switcho-observed-offer-select">Quale offerta vuoi confrontare?</label>
-                <select id="switcho-observed-offer-select" aria-describedby="switcho-observed-offer-help">
-                    <option value="" selected>Seleziona un'offerta</option>
-                </select>
-                <small id="switcho-observed-offer-help" class="switcho-observed-note">Offerte osservate su Switcho il 31 luglio 2026. Sono disponibili per il confronto, ma non abilitano ancora un'attivazione o un redirect.</small>
             </div>
 
             <div class="optional-consumption-card" aria-label="Consumi usati per confrontare l'offerta specifica">
@@ -2824,12 +3266,8 @@ let MOTORE_CALCOLO_VERSION = "motore-v6-arera-first-2026-07-03";
 const DATI_CALCOLO_URLS = ["/data/calcolo-parametri.json", "data/calcolo-parametri.json"];
 const DATI_OFFERTE_URLS = ["/data/offerte-proposte.json", "data/offerte-proposte.json"];
 const DATI_ARERA_MENU_URLS = ["/data/offerte-arera-menu.json", "data/offerte-arera-menu.json"];
-const DATI_ARERA_BUSINESS_CORRENTE_URLS = [
-  "https://offertalogica.it/data/offerte-arera-menu.json",
-  "https://raw.githubusercontent.com/simonerimini78-hash/offertalogica-vercel/main/public/data/offerte-arera-menu.json"
-];
-const DATI_SWITCHO_OSSERVATE_URLS = ["/data/offerte-switcho-osservate.json", "data/offerte-switcho-osservate.json"];
 const DATI_PROVIDER_BRAND_URLS = ["/data/provider-brand.json", "data/provider-brand.json"];
+let DATI_UFFICIALI_CONFRONTO_PRONTI = false;
 let DATI_CALCOLO_META = {
   versioneDati: "fallback-html-2026-06-27-v3",
   fonte: "Fallback interno HTML",
@@ -2845,13 +3283,6 @@ let DATI_ARERA_MENU_META = {
   fonte: "Archivio ARERA non caricato",
   aggiornatoIl: "2026-06-27",
 };
-let DATI_SWITCHO_OSSERVATE_META = {
-  versioneDati: "switcho-observed-fallback-empty",
-  fonte: "Catalogo osservato Switcho non caricato",
-  osservatoIl: "",
-  routingEnabled: false,
-};
-let OFFERTE_SWITCHO_OSSERVATE = [];
 let DATI_PROVIDER_BRAND_META = {
   versioneDati: "provider-brand-fallback-2026-07-05",
   fonte: "Fallback interno HTML",
@@ -2923,7 +3354,7 @@ let PARAMETRI_CALCOLO = {
 };
 let PERDITE_RETE_LUCE_VARIABILE = PARAMETRI_CALCOLO.perditeReteLuceVariabile;
 const TESTO_METODOLOGIA_CONSUMI_REALI = "I risparmi stimati sono calcolati sui consumi che hai inserito o confermato dalla bolletta. Applichiamo le condizioni economiche delle offerte allo stesso profilo di consumo, separando quota variabile e quota fissa.";
-const TESTO_METODOLOGIA_MEDIA_ARERA = "Quando non conosci i tuoi consumi, la comparazione viene fatta su consumi medi e sull'ultimo riferimento ARERA disponibile. Questa base omogenea serve a stimare il risparmio potenziale tra le diverse proposte.";
+const TESTO_METODOLOGIA_MEDIA_ARERA = "Quando non conosci i tuoi consumi, la comparazione viene fatta su consumi medi usando il catalogo ARERA e gli indici di mercato disponibili. Questa base omogenea serve a stimare il risparmio potenziale tra le diverse proposte.";
 
 let INDICI_MERCATO = {
   pun: {
@@ -2957,7 +3388,6 @@ const LEAD_STATE = {
   customerType: "privato",
   businessProfile: null,
   selectedOffer: null,
-  pendingActivationChoice: { offer: null, channels: null },
   partnerConsent: false,
   pdfData: null,
   pdfDocuments: [],
@@ -2986,18 +3416,6 @@ const SOCIAL_ENTRY_STATE = {
   isSocialJourney: false,
   personalizationDismissed: false,
 };
-
-// OFFERTALOGICA_SWITCHO_ROUTING_FOUNDATION_V1_20260731
-// L'integrazione resta disattivata finché non sono disponibili contratto,
-// landing co-branded e catalogo esatto delle offerte gestite da Switcho.
-const SWITCHO_INTEGRATION_CONFIG = Object.freeze({
-  enabled: false,
-  landingUrl: "",
-  catalogVersion: "pending-contract",
-  rankingMode: "legacy_6_plus_3",
-  unifiedOfferLimit: 9,
-  catalog: Object.freeze([]),
-});
 
 const PDF_ARCHIVE_REPLAY_STORAGE_KEY = "offertalogicaPdfArchiveReplay";
 const PDF_PROFILE_STATE = { current: {}, offer: {} };
@@ -3092,9 +3510,9 @@ const LINK_FORNITORI = {
   eon: "https://clk.tradedoubler.com/click?p=344125&a=3487966&epi=offertalogica&epi2=eon_luce_gas_insieme_funnel&url=https%3A%2F%2Fwww.eon-energia.com%2Fofferta-luce-gas-insieme%2Ffunnel-bundle-new.html",
   eonVariabile: "https://clk.tradedoubler.com/click?p=344125&a=3487966&epi=offertalogica&epi2=eon_variabile_luce_gas_dual&url=https%3A%2F%2Fwww.eon-energia.com%2Fofferta-luce-gas-insieme.html%3FswitchHolder%3Dno%26activeSupply%3Daltro%26where%3Dcasa",
   enel: "https://clk.tradedoubler.com/click?p=348999&a=3487966&epi=offertalogica&epi2=enel_fix_web_funnel&url=https%3A%2F%2Fwww.enel.it%2Fit-it%2Fcommodity-funnel%3Fpart__c%3D%2Fcontent%2Fenel-it%2Fit-it%2Fofferte-luce-gas%2Fenel-fix-web-luce-gas%26zoneid%3Dsito-landing_enel_offerte-card_luce_gas-cta-prospect",
-  eni: "https://clk.tradedoubler.com/click?p=271844&a=3487966&epi=offertalogica&epi2=eni_plenitude_fixa_time_24_config&url=https%3A%2F%2Feniplenitude.com%2Fconfigura-offerta%3F_lg%3D_o.WB.CWEB3EGP.BASE_LFIXA24TIV-GFIXA24TIV%257E_c.power.gas%257E_t.monoraria%257E_p.true%257E_b.digital",
-  plenitude: "https://clk.tradedoubler.com/click?p=271844&a=3487966&epi=offertalogica&epi2=eni_plenitude_fixa_time_24_config&url=https%3A%2F%2Feniplenitude.com%2Fconfigura-offerta%3F_lg%3D_o.WB.CWEB3EGP.BASE_LFIXA24TIV-GFIXA24TIV%257E_c.power.gas%257E_t.monoraria%257E_p.true%257E_b.digital",
-  alperia: "https://www.awin1.com/cread.php?awinmid=17975&awinaffid=2932723&clickref=offertalogica_alperia_fisso&ued=https%3A%2F%2Fwww.alperia.eu%2Ffunnel-energia-e-gas%2F%3Ftoken%3Doff101633_off101609%26culture%3Dit-IT",
+  eni: "https://clk.tradedoubler.com/click?p=271844&a=3487966&epi=offertalogica&epi2=eni_plenitude_fixa_time_24_config&url=https%3A%2F%2Feniplenitude.com%2Fconfigura-offerta%3F_lg%3D_o.WB.CWEB3EGP.BASE_LFIXA24TIV-GFIXA24TIV~_c.power.gas~_t.monoraria~_p.true~_b.digital",
+  plenitude: "https://clk.tradedoubler.com/click?p=271844&a=3487966&epi=offertalogica&epi2=eni_plenitude_fixa_time_24_config&url=https%3A%2F%2Feniplenitude.com%2Fconfigura-offerta%3F_lg%3D_o.WB.CWEB3EGP.BASE_LFIXA24TIV-GFIXA24TIV~_c.power.gas~_t.monoraria~_p.true~_b.digital",
+  alperia: "https://www.awin1.com/cread.php?awinmid=17975&awinaffid=2932723",
   edison: "#",
   default: "#",
 };
@@ -3279,7 +3697,7 @@ let OFFERTE_PROPOSTE = [
     nome: "Octopus Luce e Gas Monoraria",
     tipo: "fisso",
     fornitura: "dual",
-    link: "https://clk.tradedoubler.com/click?p=357545&a=3487966&epi=offertalogica&epi2=octopus_luce_gas_monoraria&url=https%3A%2F%2Foctopusenergy.it%2Fofferta%2Finformazioni-personali",
+    link: "https://clk.tradedoubler.com/click?p=357545&a=3487966",
     destinationType: "affiliazione",
     destinationStatus: "attiva",
     monetizzazione: {
@@ -3293,7 +3711,7 @@ let OFFERTE_PROPOSTE = [
       tassoCancellazione: 6,
       epcMedio: 3.30,
       prioritaCommerciale: "alta",
-      note: "Programma Octopus Energy IT accettato. Deeplink Octopus inserito nel click tracker; lead Octopus indicato 45 EUR."
+      note: "Programma Octopus Energy IT accettato. Deeplinking non autorizzato dal programma: usato il Default click tracker ufficiale; lead Octopus indicato 45 EUR."
     },
     luce: { prezzoVariabile: 0.1199, quotaFissaAnnua: 72 },
     gas: { prezzoVariabile: 0.45, quotaFissaAnnua: 84 },
@@ -3417,7 +3835,7 @@ let OFFERTE_PROPOSTE = [
     nome: "Eni Plenitude Fixa Time 24",
     tipo: "fisso",
     fornitura: "dual",
-    link: "https://clk.tradedoubler.com/click?p=271844&a=3487966&epi=offertalogica&epi2=eni_plenitude_fixa_time_24_config&url=https%3A%2F%2Feniplenitude.com%2Fconfigura-offerta%3F_lg%3D_o.WB.CWEB3EGP.BASE_LFIXA24TIV-GFIXA24TIV%257E_c.power.gas%257E_t.monoraria%257E_p.true%257E_b.digital",
+    link: "https://clk.tradedoubler.com/click?p=271844&a=3487966&epi=offertalogica&epi2=eni_plenitude_fixa_time_24_config&url=https%3A%2F%2Feniplenitude.com%2Fconfigura-offerta%3F_lg%3D_o.WB.CWEB3EGP.BASE_LFIXA24TIV-GFIXA24TIV~_c.power.gas~_t.monoraria~_p.true~_b.digital",
     destinationType: "affiliazione",
     destinationStatus: "attiva",
     luce: { prezzoVariabile: 0.0987, quotaFissaAnnua: 144 },
@@ -3430,7 +3848,7 @@ let OFFERTE_PROPOSTE = [
     nome: "Alperia Smile Easy / Start",
     tipo: "fisso",
     fornitura: "dual",
-    link: "https://www.awin1.com/cread.php?awinmid=17975&awinaffid=2932723&clickref=offertalogica_alperia_fisso&ued=https%3A%2F%2Fwww.alperia.eu%2Ffunnel-energia-e-gas%2F%3Ftoken%3Doff101633_off101609%26culture%3Dit-IT",
+    link: "https://www.awin1.com/cread.php?awinmid=17975&awinaffid=2932723",
     destinationType: "affiliazione",
     destinationStatus: "attiva",
     monetizzazione: {
@@ -3465,7 +3883,7 @@ let OFFERTE_PROPOSTE = [
     nome: "Alperia Luce e Gas Variabile PUN/PSV",
     tipo: "variabile",
     fornitura: "dual",
-    link: "https://www.awin1.com/cread.php?awinmid=17975&awinaffid=2932723&clickref=offertalogica_alperia_variabile&ued=https%3A%2F%2Fwww.alperia.eu%2Ffunnel-energia-e-gas%2F%3Ftoken%3Doff101536_off101541%26culture%3Dit-IT",
+    link: "https://www.awin1.com/cread.php?awinmid=17975&awinaffid=2932723",
     destinationType: "affiliazione",
     destinationStatus: "attiva",
     monetizzazione: {
@@ -3479,7 +3897,7 @@ let OFFERTE_PROPOSTE = [
       tassoCancellazione: 0,
       epcMedio: 0,
       prioritaCommerciale: "media",
-      note: "Programma Alperia IT accettato su Awin. Offerta variabile online con deeplink al funnel Alperia."
+      note: "Programma Alperia IT accettato su Awin. Deeplinking non autorizzato: usato il tracking link standard Awin."
     },
     luce: {
       prezzoVariabile: 0,
@@ -3653,17 +4071,6 @@ function normalizzaMonetizzazioneOfferta(monetizzazione) {
   };
 }
 
-function normalizzaSwitchoOfferta(value) {
-  if (!value || typeof value !== "object") return null;
-  return {
-    catalogOfferId: String(value.catalogOfferId || "").trim(),
-    offerCode: String(value.offerCode || "").trim(),
-    providerKey: String(value.providerKey || "").trim(),
-    landingUrl: String(value.landingUrl || "").trim(),
-    active: value.active !== false,
-  };
-}
-
 function normalizzaOfferta(offerta, index) {
   if (!offerta || typeof offerta !== "object") return null;
   const luce = normalizzaVoceOfferta(offerta.luce);
@@ -3687,7 +4094,6 @@ function normalizzaOfferta(offerta, index) {
     componentiSeparate: offerta.componentiSeparate && typeof offerta.componentiSeparate === "object" ? offerta.componentiSeparate : null,
     monetizzazione: normalizzaMonetizzazioneOfferta(offerta.monetizzazione),
     certificazione: offerta.certificazione && typeof offerta.certificazione === "object" ? offerta.certificazione : null,
-    switcho: normalizzaSwitchoOfferta(offerta.switcho),
   };
 }
 
@@ -3724,73 +4130,6 @@ async function caricaOfferteProposte() {
     }
   }
 
-  return false;
-}
-
-// OFFERTALOGICA_SWITCHO_OBSERVED_CATALOG_V1_20260731
-// Catalogo separato dalle offerte pubbliche: serve al confronto manuale e
-// non partecipa alla graduatoria finché mancano mapping e landing contrattuali.
-function normalizzaOffertaSwitchoOsservata(offerta, index) {
-  if (!offerta || typeof offerta !== "object") return null;
-  const normalizzata = normalizzaOfferta({
-    ...offerta,
-    id: offerta.id || `switcho-observed-${index + 1}`,
-    link: "#",
-    destinationType: "switcho_observed",
-    destinationStatus: "solo_confronto",
-    descrizione: [
-      offerta.descrizione || "",
-      `Offerta osservata su Switcho il ${offerta.osservatoIl || DATI_SWITCHO_OSSERVATE_META.osservatoIl || "31/07/2026"}.`,
-      Array.isArray(offerta.promozioni) && offerta.promozioni.length
-        ? "Le promozioni sono annotate ma non sottratte automaticamente dal costo annuo finché non ne sono confermati durata e criteri."
-        : "",
-    ].filter(Boolean).join(" "),
-    fonte: offerta.fonte || DATI_SWITCHO_OSSERVATE_META.fonte,
-    aggiornataIl: offerta.osservatoIl || DATI_SWITCHO_OSSERVATE_META.osservatoIl || "",
-  }, index);
-  if (!normalizzata) return null;
-  return {
-    ...normalizzata,
-    providerKey: String(offerta.providerKey || providerValue(offerta.provider)).trim(),
-    durataMesi: Number.isFinite(Number(offerta.durataMesi)) ? Number(offerta.durataMesi) : null,
-    spesaStimataMensileSwitcho: Number.isFinite(Number(offerta.spesaStimataMensileSwitcho)) ? Number(offerta.spesaStimataMensileSwitcho) : null,
-    promozioni: Array.isArray(offerta.promozioni) ? offerta.promozioni : [],
-    areraMatch: offerta.areraMatch && typeof offerta.areraMatch === "object" ? offerta.areraMatch : null,
-    routingEligible: false,
-  };
-}
-
-function applicaDatiOfferteSwitchoOsservate(data) {
-  const offerte = Array.isArray(data) ? data : data?.offerte;
-  if (!Array.isArray(offerte)) return false;
-  DATI_SWITCHO_OSSERVATE_META = {
-    versioneDati: data.versioneDati || DATI_SWITCHO_OSSERVATE_META.versioneDati,
-    fonte: data.fonte || DATI_SWITCHO_OSSERVATE_META.fonte,
-    osservatoIl: data.osservatoIl || DATI_SWITCHO_OSSERVATE_META.osservatoIl,
-    routingEnabled: false,
-  };
-  const pulite = offerte.map((offerta, index) => normalizzaOffertaSwitchoOsservata({
-    ...offerta,
-    osservatoIl: offerta.osservatoIl || DATI_SWITCHO_OSSERVATE_META.osservatoIl,
-    fonte: offerta.fonte || DATI_SWITCHO_OSSERVATE_META.fonte,
-  }, index)).filter(Boolean);
-  if (!pulite.length) return false;
-  OFFERTE_SWITCHO_OSSERVATE = pulite;
-  return true;
-}
-
-async function caricaOfferteSwitchoOsservate() {
-  if (!window.fetch || window.location.protocol === "file:") return false;
-  for (const url of DATI_SWITCHO_OSSERVATE_URLS) {
-    try {
-      const response = await fetch(url, { cache: "no-store" });
-      if (!response.ok) continue;
-      const data = await response.json();
-      if (applicaDatiOfferteSwitchoOsservate(data)) return true;
-    } catch (error) {
-      // Il confronto principale continua senza il catalogo osservato.
-    }
-  }
   return false;
 }
 
@@ -3899,35 +4238,6 @@ function applicaDatiAreraMenu(data) {
   return true;
 }
 
-function applicaSupplementoBusinessArera(data) {
-  const businessPulite = (Array.isArray(data?.offerteBusiness) ? data.offerteBusiness : [])
-    .map(normalizzaRigaAreraMenu)
-    .filter((riga) => riga && riga.providerKey !== "axpo" && riga.customerType === "business");
-  const dualBusinessPulite = (Array.isArray(data?.offerteDualBusiness) ? data.offerteDualBusiness : [])
-    .map(normalizzaRigaAreraDual)
-    .filter((riga) => riga && riga.providerKey !== "axpo" && riga.customerType === "business");
-  if (!businessPulite.length && !dualBusinessPulite.length) return false;
-
-  OFFERTE_ARERA_BUSINESS = businessPulite;
-  OFFERTE_ARERA_DUAL_BUSINESS = dualBusinessPulite;
-  return true;
-}
-
-async function caricaSupplementoBusinessArera() {
-  if (!window.fetch || window.location.protocol === "file:") return false;
-  for (const url of DATI_ARERA_BUSINESS_CORRENTE_URLS) {
-    try {
-      const response = await fetch(url, { cache: "no-store", mode: "cors" });
-      if (!response.ok) continue;
-      const data = await response.json();
-      if (applicaSupplementoBusinessArera(data)) return true;
-    } catch (error) {
-      // Il catalogo Privati locale resta operativo anche se il supplemento Business non è raggiungibile.
-    }
-  }
-  return false;
-}
-
 async function caricaOfferteAreraMenu() {
   if (!window.fetch || window.location.protocol === "file:") return false;
 
@@ -3936,12 +4246,7 @@ async function caricaOfferteAreraMenu() {
       const response = await fetch(url, { cache: "no-store" });
       if (!response.ok) continue;
       const data = await response.json();
-      if (applicaDatiAreraMenu(data)) {
-        if (!OFFERTE_ARERA_BUSINESS.length && !OFFERTE_ARERA_DUAL_BUSINESS.length) {
-          await caricaSupplementoBusinessArera();
-        }
-        return true;
-      }
+      if (applicaDatiAreraMenu(data)) return true;
     } catch (error) {
       // Se l'archivio ARERA non si carica, resta valido il confronto con le offerte pubblicate.
     }
@@ -4053,8 +4358,9 @@ function calcolaVoceEnergia({ consumo = 0, prezzoVariabile = 0, formula, consumi
   const fattorePerdite = commodity === "luce" && tipoVoce === "variabile" && !moltiplicatoreEsplicito ? PERDITE_RETE_LUCE_VARIABILE : 1;
   const prezzoCalcolo = risolviPrezzoVariabile({ prezzoVariabile, formula });
   const materiaFasce = commodity === "luce" ? calcolaMateriaPerFasce(consumiFasce, prezziFasce) : null;
-  const consumoFatturato = materiaFasce?.consumoFatturato ?? consumoProfilo * fattorePerdite;
-  const quotaMateria = materiaFasce?.quotaMateria ?? consumoFatturato * prezzoCalcolo;
+  const consumoFatturatoBase = materiaFasce?.consumoFatturato ?? consumoProfilo;
+  const consumoFatturato = consumoFatturatoBase * fattorePerdite;
+  const quotaMateria = materiaFasce ? materiaFasce.quotaMateria * fattorePerdite : consumoFatturato * prezzoCalcolo;
   const quotaFissaVendita = numeroSicuro(quotaFissaAnnua, 0);
   const quotaTecnicaProfilo = Math.max(0, numeroSicuro(quoteUniversaliAnnue, 0));
   const regolate = componentiRegolate || componentiRegolateVuote();
@@ -4070,14 +4376,16 @@ function calcolaVoceEnergia({ consumo = 0, prezzoVariabile = 0, formula, consumi
 }
 
 function calcolaOfferta(offerta, tipoTariffa) {
+  const luceInput = offerta?.luce || scenarioVuoto();
+  const gasInput = offerta?.gas || scenarioVuoto();
   const luce = calcolaVoceEnergia({
-    ...(offerta?.luce || scenarioVuoto()),
-    tipoTariffa,
+    ...luceInput,
+    tipoTariffa: luceInput.tipoTariffa || tipoTariffa,
     commodity: "luce",
   });
   const gas = calcolaVoceEnergia({
-    ...(offerta?.gas || scenarioVuoto()),
-    tipoTariffa,
+    ...gasInput,
+    tipoTariffa: gasInput.tipoTariffa || tipoTariffa,
     commodity: "gas",
   });
 
@@ -4384,9 +4692,16 @@ function quotaFissaAnnuaDaCampo(inputId, unitaId) {
   return leggiValore(unitaId, "anno") === "mese" ? valore * 12 : valore;
 }
 
-function euro(value) {
+function numeroItaliano(value, cifre = 2) {
   const amount = numeroSicuro(value, 0);
-  return `${amount.toFixed(2)} €`;
+  return new Intl.NumberFormat("it-IT", {
+    minimumFractionDigits: cifre,
+    maximumFractionDigits: cifre,
+  }).format(amount);
+}
+
+function euro(value) {
+  return `${numeroItaliano(value, 2)} €`;
 }
 
 function componentiRegolateDisponibili() {
@@ -4431,6 +4746,7 @@ function selezionaSegmentoCliente(tipo) {
   const results = document.getElementById("results-area");
   if (results) results.style.display = "none";
   aggiornaIndicatoreProfiloPdf();
+  aggiornaControlloContrattoPersistente();
 }
 
 function businessPdfDataRows(data) {
@@ -4457,11 +4773,6 @@ function businessPdfDataRows(data) {
   add("Offerta gas", data.nome_offerta_gas);
   add("Codice offerta gas", data.codice_offerta_gas);
   return rows;
-}
-
-function formattaDataCatalogoCopertura(value) {
-  const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
-  return match ? `${match[3]}/${match[2]}/${match[1]}` : "";
 }
 
 function leggiProfiloBusiness() {
@@ -4925,14 +5236,25 @@ function leggiProfiloComparazione() {
   };
 }
 
+function indiceMercatoDaProfiloPdf(index, commodity) {
+  const normalized = String(index || "").toLowerCase();
+  if (!normalized) return "";
+  if (commodity === "luce") return normalized.includes("pun") ? "pun" : "";
+  if (commodity === "gas") {
+    if (normalized.includes("psbg")) return "psbg";
+    if (normalized.includes("psv")) return "psv";
+  }
+  return "";
+}
+
 function formulaDaProfiloPdf(scope, commodity) {
   const profile = PDF_PROFILE_STATE[scope] || {};
   const suffix = commodity === "luce" ? "luce" : "gas";
   const index = profile[`indice_riferimento_${suffix}`];
   const multiplier = Number(profile[`moltiplicatore_indice_${suffix}`]);
   const spread = Number(profile[`spread_${suffix}_${commodity === "luce" ? "eur_kwh" : "eur_smc"}`]);
-  if (!index) return undefined;
-  const indice = String(index).toLowerCase().includes("psv") ? "psv" : "pun";
+  const indice = indiceMercatoDaProfiloPdf(index, commodity);
+  if (!indice) return undefined;
   if (Number.isFinite(multiplier)) return { tipo: "indice_moltiplicatore_spread", indice, moltiplicatore: multiplier, moltiplicatoreEsplicito: true, spread: Number.isFinite(spread) ? spread : 0 };
   return { tipo: "indice_spread", indice, spread: Number.isFinite(spread) ? spread : 0 };
 }
@@ -4961,6 +5283,7 @@ function leggiOffertaAttuale() {
     providerGas: leggiValore("nome-fornitore-gas-att", ""),
     luce: usaLuce ? {
       consumo: leggiNumero("in-luce-cons-att", leggiNumero("master-luce-consumo", 0)),
+      tipoTariffa: leggiValore("in-luce-tipo-att", PARAMETRI_CALCOLO.profiloMedio.tipoPrezzo),
       prezzoVariabile: leggiNumero("in-luce-prezzo-att"),
       consumiFasce: fasceDaProfiloPdf("current", "consumo_luce"),
       prezziFasce: fasceDaProfiloPdf("current", "prezzo_luce"),
@@ -4971,6 +5294,7 @@ function leggiOffertaAttuale() {
     } : scenarioVuoto(),
     gas: usaGas ? {
       consumo: leggiNumero("in-gas-cons-att", leggiNumero("master-gas-consumo", 0)),
+      tipoTariffa: leggiValore("in-gas-tipo-att", PARAMETRI_CALCOLO.profiloMedio.tipoPrezzo),
       prezzoVariabile: leggiNumero("in-gas-prezzo-att"),
       formula: formulaDaProfiloPdf("current", "gas"),
       quotaFissaAnnua: quotaFissaAnnuaDaCampo("in-gas-fisso-att", "in-gas-fisso-att-unita"),
@@ -4988,6 +5312,7 @@ function leggiNuovaOfferta(attuale) {
   return {
     luce: usaLuce ? {
       consumo: attuale.luce.consumo,
+      tipoTariffa: PDF_PROFILE_STATE.offer.tipo_prezzo_luce || NUOVA_OFFERTA_AUTOMATICA?.offerta?.tipo || leggiValore("master-luce-tipo", "fisso"),
       prezzoVariabile: leggiNumero("in-luce-prezzo-nuov"),
       // OFFERTALOGICA_OFFER_SHEET_SINGLE_PRICE_20260728
       // La scheda non contiene consumi propri: usa il prezzo isolato derivato da
@@ -5002,6 +5327,7 @@ function leggiNuovaOfferta(attuale) {
     } : scenarioVuoto(),
     gas: usaGas ? {
       consumo: attuale.gas.consumo,
+      tipoTariffa: PDF_PROFILE_STATE.offer.tipo_prezzo_gas || NUOVA_OFFERTA_AUTOMATICA?.offerta?.tipo || leggiValore("master-luce-tipo", "fisso"),
       prezzoVariabile: leggiNumero("in-gas-prezzo-nuov"),
       formula: formulaDaProfiloPdf("offer", "gas") || fonteAuto?.gas?.formula,
       quotaFissaAnnua: quotaFissaAnnuaDaCampo("in-gas-fisso-nuov", "in-gas-fisso-nuov-unita"),
@@ -5205,9 +5531,9 @@ function prezzoOffertaTesto(voce, commodity) {
   if (!voce) return commodity === "luce" ? "Luce non inclusa" : "Gas non incluso";
   const unita = commodity === "luce" ? "€/kWh" : "€/Smc";
   if (voce.formula?.tipo === "indice_spread") {
-    return `${voce.formula.indice.toUpperCase()} + ${voce.formula.spread.toFixed(4)} ${unita}`;
+    return `${voce.formula.indice.toUpperCase()} + ${numeroItaliano(voce.formula.spread, 4)} ${unita}`;
   }
-  return `${voce.prezzoVariabile.toFixed(4)} ${unita}`;
+  return `${numeroItaliano(voce.prezzoVariabile, 4)} ${unita}`;
 }
 
 function componentiSeparateOfferta(offerta) {
@@ -5277,222 +5603,21 @@ function offertaAttivabileOnline(offerta) {
   return percorsoAffiliatoAttivo && !monetizzazioneEsplicitamenteDisattivata;
 }
 
-function normalizzaIdentificativoCanale(value) {
-  return String(value || "").trim().toLowerCase();
-}
-
-function identificativiEsattiOfferta(offerta) {
-  const values = [
-    offerta?.switcho?.catalogOfferId,
-    offerta?.switcho?.offerCode,
-    offerta?.certificazione?.codice,
-    ...Object.values(offerta?.certificazione?.codici || {}),
-  ];
-  return new Set(values.map(normalizzaIdentificativoCanale).filter(Boolean));
-}
-
-function identificativiEsattiCatalogoSwitcho(item) {
-  const values = [
-    item?.catalogOfferId,
-    item?.offerCode,
-    item?.areraCode,
-    ...(Array.isArray(item?.offerCodes) ? item.offerCodes : []),
-  ];
-  return new Set(values.map(normalizzaIdentificativoCanale).filter(Boolean));
-}
-
-function trovaCorrispondenzaSwitchoEsatta(offerta, config = SWITCHO_INTEGRATION_CONFIG) {
-  if (!config?.enabled || !Array.isArray(config.catalog) || !config.catalog.length) return null;
-  const offerIdentifiers = identificativiEsattiOfferta(offerta);
-  if (!offerIdentifiers.size) return null;
-  const offerProviderKey = chiaveFornitoreDaNome(offerta?.provider || "");
-
-  return config.catalog.find((item) => {
-    if (!item || item.active === false) return false;
-    const catalogIdentifiers = identificativiEsattiCatalogoSwitcho(item);
-    if (![...catalogIdentifiers].some((identifier) => offerIdentifiers.has(identifier))) return false;
-    const catalogProviderKey = String(item.providerKey || chiaveFornitoreDaNome(item.provider || "")).trim();
-    return !catalogProviderKey || catalogProviderKey === offerProviderKey;
-  }) || null;
-}
-
-function urlSwitchoPerCorrispondenza(match, config = SWITCHO_INTEGRATION_CONFIG) {
-  const value = String(match?.landingUrl || config?.landingUrl || "").trim();
-  if (!value) return "";
-  try {
-    const url = new URL(value, window.location.origin);
-    return url.protocol === "https:" ? url.href : "";
-  } catch {
-    return "";
-  }
-}
-
-function determinaCanaliAttivazione(offerta, config = SWITCHO_INTEGRATION_CONFIG) {
-  const directAvailable = offertaAttivabileOnline(offerta);
-  const switchoMatch = trovaCorrispondenzaSwitchoEsatta(offerta, config);
-  const switchoUrl = urlSwitchoPerCorrispondenza(switchoMatch, config);
-  const switchoAvailable = Boolean(switchoMatch && switchoUrl);
-  const route = directAvailable && switchoAvailable
-    ? "direct_and_switcho"
-    : directAvailable
-      ? "direct"
-      : switchoAvailable
-        ? "switcho"
-        : "informational_only";
-
-  return {
-    directAvailable,
-    switchoAvailable,
-    exactSwitchoMatch: Boolean(switchoMatch),
-    route,
-    switchoUrl,
-    switchoReference: switchoMatch?.catalogOfferId || switchoMatch?.offerCode || switchoMatch?.areraCode || "",
-  };
-}
-
-// OFFERTALOGICA_SWITCHO_UNIFIED_SELECTION_V1_20260731
-// Prepara una graduatoria commerciale unica senza abilitarla nel funnel.
-// La visualizzazione resta legacy finché rankingMode non viene cambiato
-// dopo avere ricevuto landing e catalogo contrattuale verificati.
-function arricchisciCanaliAttivazione(item, config = SWITCHO_INTEGRATION_CONFIG) {
-  const canaliAttivazione = item?.canaliAttivazione || determinaCanaliAttivazione(item?.offerta, config);
-  return { ...item, canaliAttivazione };
-}
-
-function offertaCommercialmenteAttivabile(item, config = SWITCHO_INTEGRATION_CONFIG) {
-  const enriched = arricchisciCanaliAttivazione(item, config);
-  return ["direct", "switcho", "direct_and_switcho"].includes(enriched.canaliAttivazione?.route);
-}
-
-function selezionaOfferteCommercialiUnificate(items, limite = SWITCHO_INTEGRATION_CONFIG.unifiedOfferLimit, config = SWITCHO_INTEGRATION_CONFIG) {
-  const maxItems = Math.max(1, Number.parseInt(limite, 10) || 9);
-  const ids = new Set();
-  const selezionate = [];
-  const ordinate = (Array.isArray(items) ? items : [])
-    .map((item) => arricchisciCanaliAttivazione(item, config))
-    .filter((item) => item?.compatibileRanking !== false && item?.filtroEsatto !== false)
-    .filter((item) => offertaCommercialmenteAttivabile(item, config))
-    .sort((a, b) => (a.costo - b.costo) || (b.differenza - a.differenza));
-
-  ordinate.forEach((item) => {
-    const id = String(item?.offerta?.id || "");
-    if (!id || ids.has(id) || selezionate.length >= maxItems) return;
-    ids.add(id);
-    selezionate.push(item);
-  });
-  return selezionate;
-}
-
-function graduatoriaCommercialeUnificataPronta(config = SWITCHO_INTEGRATION_CONFIG) {
-  if (!config?.enabled || config?.rankingMode !== "unified") return false;
-  if (!Array.isArray(config.catalog) || !config.catalog.some((item) => item && item.active !== false)) return false;
-  return Boolean(urlSwitchoPerCorrispondenza(null, config));
-}
-
-// OFFERTALOGICA_SWITCHO_UNIFIED_RENDERING_V1_20260731
-// Collega la graduatoria unica al rendering soltanto quando configurazione,
-// catalogo e landing sono tutti pronti. In caso contrario restituisce
-// esattamente la composizione legacy 6 + 3.
-function preparaComposizioneOfferteVisibili({
-  offerteCalcolate,
-  ordinateRanking,
-  rankingGlobale,
-  tipoTariffa,
-  tipoFornitura,
-  config = SWITCHO_INTEGRATION_CONFIG,
-}) {
-  const partnerAttivabiliCoerenti = offerteCalcolate
-    .filter((item) => item.attivabileCoerente)
-    .sort((a, b) => (a.costo - b.costo) || (b.differenza - a.differenza));
-
-  const attivabiliPrioritarie = selezionaPartnerAttivabiliPerMenu(
-    partnerAttivabiliCoerenti,
-    NUMERO_OFFERTE_PARTNER_MENU
-  ).map((item, index) => ({
-    ...item,
-    gruppoVisuale: "attivabile",
-    posizioneGruppo: index + 1,
-    posizioneEconomica: rankingGlobale.get(String(item.offerta.id)) || null,
-  }));
-
-  const candidatiConsulente = ordinateRanking
-    .filter((item) => item.compatibileRanking && item.filtroEsatto)
-    .filter((item) => item.offerta?.tipo === tipoTariffa)
-    .filter((item) => offertaCoerenteConFornitura(item.offerta, tipoFornitura));
-
-  const miglioriConConsulente = selezionaConsulentiPerMenu(
-    candidatiConsulente,
-    attivabiliPrioritarie,
-    NUMERO_OFFERTE_CONSULENTE_MENU
-  ).map((item, index) => ({
-    ...item,
-    gruppoVisuale: "top",
-    posizioneGruppo: index + 1,
-  }));
-
-  const unifiedActive = graduatoriaCommercialeUnificataPronta(config);
-  const offerteUnificate = unifiedActive
-    ? selezionaOfferteCommercialiUnificate(
-        offerteCalcolate,
-        config.unifiedOfferLimit,
-        config
-      ).map((item, index) => ({
-        ...item,
-        gruppoVisuale: "unified",
-        posizioneGruppo: index + 1,
-        posizioneEconomica: rankingGlobale.get(String(item.offerta.id)) || index + 1,
-      }))
-    : [];
-
-  return {
-    unifiedActive,
-    attivabiliPrioritarie,
-    miglioriConConsulente,
-    offerteUnificate,
-    visibili: unifiedActive
-      ? offerteUnificate
-      : [...attivabiliPrioritarie, ...miglioriConConsulente],
-  };
-}
-
-// OFFERTALOGICA_SWITCHO_CTA_FOUNDATION_V1_20260731
-// Il testo della CTA cambia soltanto nella graduatoria unificata realmente pronta.
-// Con la configurazione legacy attuale continua a restituire esattamente "Procedi".
-function testoAzioneOfferta(offerta, attivabileOnline, canaliAttivazione = null, unifiedActive = false) {
+function testoAzioneOfferta(offerta, attivabileOnline) {
   if (offertaSeparataMultiFornitore(offerta)) return "Verifica con consulente";
-  if (!unifiedActive) return "Procedi";
-  const route = canaliAttivazione?.route || (attivabileOnline ? "direct" : "informational_only");
-  if (route === "switcho") return "Attiva con assistenza gratuita";
-  if (route === "direct_and_switcho") return "Scegli come attivare";
-  if (route === "direct") return "Attiva online";
-  return "Procedi";
+  return "Vedi come procedere";
 }
 
 function testoBadgeOfferta(item, migliore) {
-  if (item.offerta && offertaSeparataMultiFornitore(item.offerta)) return "Abbinamento separato";
-  if (item.gruppoVisuale === "unified" && item.posizioneGruppo === 1) return "Migliore offerta attivabile";
-  if (item.gruppoVisuale === "unified" && item.canaliAttivazione?.route === "direct_and_switcho") return "Attivabile online o con assistenza";
-  if (item.gruppoVisuale === "unified" && item.canaliAttivazione?.route === "switcho") return "Attivabile con assistenza";
-  if (item.gruppoVisuale === "unified") return "Attivabile online";
-  if (item.gruppoVisuale === "top" && item.posizioneGruppo === 1) return "Migliore stimata con consulente";
-  if (item.gruppoVisuale === "top" && item.posizioneGruppo) return "Verifica con consulente";
-  if (item.gruppoVisuale === "top" && item.posizioneEconomica === 1) return "Migliore per i tuoi consumi";
-  if (item.gruppoVisuale === "top") return "Offerta conveniente stimata";
-  if (item.gruppoVisuale === "attivabile" && item.posizioneEconomica === 1) return "Migliore partner attivabile";
-  if (item.gruppoVisuale === "attivabile" && item.posizioneEconomica) return "Partner attivabile online";
-  if (item.gruppoVisuale === "attivabile" && item.compatibileRanking) return "Partner attivabile online";
-  if (item.gruppoVisuale === "attivabile") return "Alternativa attivabile";
+  if (item.posizioneEconomica === 1) return "Migliore per i tuoi consumi";
+  if (item.posizioneEconomica) return `Posizione economica ${item.posizioneEconomica}`;
   const scarto = item.costo - (migliore?.costo || item.costo);
-  return scarto <= 50 ? "Miglior compromesso attivabile" : "Attivabile online";
+  return scarto <= 50 ? "Tra le offerte più convenienti" : "Offerta confrontata";
 }
 
 function stileBadgeOfferta(item) {
-  if (item.gruppoVisuale === "unified" && item.posizioneGruppo === 1) return "background:#dcfce7; color:#14532d; border-color:#bbf7d0;";
-  if (item.gruppoVisuale === "unified") return "background:#eff6ff; color:#1e40af; border-color:#bfdbfe;";
-  if (item.gruppoVisuale === "top" && item.posizioneEconomica === 1) return "background:#dcfce7; color:#14532d; border-color:#bbf7d0;";
-  if (item.gruppoVisuale === "top") return "background:#eff6ff; color:#1e40af; border-color:#bfdbfe;";
-  if (item.gruppoVisuale === "attivabile") return "background:#ecfdf5; color:#047857; border-color:#a7f3d0;";
-  return "background:#fef3c7; color:#92400e; border-color:#fde68a;";
+  if (item.posizioneEconomica === 1) return "background:#dcfce7; color:#14532d; border-color:#bbf7d0;";
+  return "background:#eff6ff; color:#1e40af; border-color:#bfdbfe;";
 }
 
 function commissionePrevista(offerta) {
@@ -6611,61 +6736,38 @@ function costruisciOfferteRanking(attuale, tipoTariffa, tipoFornitura) {
   return unisciOfferteCandidati(daArera, partnerDirette);
 }
 
-function chiaveGruppoPartner(item) {
-  // Il confronto corrente ha gia un solo tipo prezzo e un solo ambito:
-  // per impedire doppioni fra i due gruppi basta la chiave del fornitore reale.
-  return chiaveProviderOfferta(item?.offerta);
-}
+// BLOCCO04_RANKING_ECONOMICO_UNICO_20260825
+const NUMERO_OFFERTE_RANKING_MENU = 9;
 
-function offertaCommercialeDiretta(item) {
-  return !String(item?.offerta?.id || "").startsWith("arera-");
-}
-
-function preferisciPartnerAttivabile(nuovo, corrente) {
-  if (!corrente) return true;
-  const deltaCosto = nuovo.costo - corrente.costo;
-  if (Math.abs(deltaCosto) > 0.01) return deltaCosto < 0;
-  return offertaCommercialeDiretta(nuovo) && !offertaCommercialeDiretta(corrente);
-}
-
-function deduplicaPartnerAttivabili(items) {
-  const bestByProvider = new Map();
-  items.forEach((item) => {
-    const key = chiaveGruppoPartner(item);
-    const current = bestByProvider.get(key);
-    if (preferisciPartnerAttivabile(item, current)) bestByProvider.set(key, item);
-  });
-  return [...bestByProvider.values()];
-}
-
-// OFFERTALOGICA_ALWAYS_6_PARTNERS_3_CONSULTANT_20260722
-const NUMERO_OFFERTE_PARTNER_MENU = 6;
-const NUMERO_OFFERTE_CONSULENTE_MENU = 3;
-
-function selezionaPartnerAttivabiliPerMenu(items, limite = NUMERO_OFFERTE_PARTNER_MENU) {
-  const ordinate = [...items]
-    .sort((a, b) => (a.costo - b.costo) || (b.differenza - a.differenza));
-  const prioritaProvider = deduplicaPartnerAttivabili(ordinate)
-    .sort((a, b) => (a.costo - b.costo) || (b.differenza - a.differenza));
-  const selezionate = [];
-  const ids = new Set();
-  const add = (item) => {
-    const id = String(item?.offerta?.id || "");
-    if (!id || ids.has(id) || selezionate.length >= limite) return;
-    ids.add(id);
-    selezionate.push(item);
-  };
-  prioritaProvider.forEach(add);
-  ordinate.forEach(add);
-  return selezionate.slice(0, limite);
-}
-
-function selezionaConsulentiPerMenu(items, partnerVisibili, limite = NUMERO_OFFERTE_CONSULENTE_MENU) {
-  const idsPartner = new Set(partnerVisibili.map((item) => String(item?.offerta?.id || "")));
-  return items
-    .filter((item) => !item.attivabileOnline)
-    .filter((item) => !idsPartner.has(String(item?.offerta?.id || "")))
+function selezionaRankingEconomicoPerMenu(items, limite = NUMERO_OFFERTE_RANKING_MENU) {
+  return [...items]
+    .sort((a, b) => (a.posizioneEconomica - b.posizioneEconomica)
+      || (b.differenza - a.differenza)
+      || (a.costo - b.costo))
     .slice(0, limite);
+}
+
+function formattaDataCatalogoCopertura(value) {
+  const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return match ? `${match[3]}/${match[2]}/${match[1]}` : "";
+}
+
+function testoCoperturaConsumer(classificate, mostrate) {
+  const fallback = "Il costo annuo stimato mostra il risultato economico del confronto. I badge di attivazione indicano come puoi procedere con la singola offerta.";
+  if (!OFFERTE_ARERA_MENU.length) return fallback;
+
+  const data = formattaDataCatalogoCopertura(DATI_ARERA_MENU_META.aggiornatoIl);
+  const aggiornamento = data ? ` aggiornato al ${data}` : "";
+  const totaleCatalogo = OFFERTE_ARERA_MENU.length + OFFERTE_ARERA_DUAL.length;
+  const numeroClassificate = Math.max(0, Number(classificate) || 0);
+  const numeroMostrate = Math.max(0, Number(mostrate) || 0);
+  return `Catalogo di confronto${aggiornamento} · ${totaleCatalogo} offerte monitorate · ${numeroClassificate} soluzioni compatibili classificate · ${numeroMostrate} mostrate. Ordinamento esclusivamente economico; il percorso di attivazione non modifica la posizione.`;
+}
+
+function aggiornaCoperturaConsumer(classificate, mostrate) {
+  const elemento = document.getElementById("offers-ranking-explainer");
+  if (!elemento) return;
+  elemento.textContent = testoCoperturaConsumer(classificate, mostrate);
 }
 
 function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitura) {
@@ -6700,8 +6802,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
 
     const compatibileRanking = offertaCompatibileConRanking(offerta, tipoTariffa, tipoFornitura);
     const filtroEsatto = offerta.tipo === tipoTariffa && offertaCoerenteConFornitura(offerta, tipoFornitura);
-    const canaliAttivazione = determinaCanaliAttivazione(offerta);
-    const attivabileOnline = canaliAttivazione.directAvailable;
+    const attivabileOnline = offertaAttivabileOnline(offerta);
     const attivabileCoerente = attivabileOnline && filtroEsatto;
     if (!compatibileRanking && !attivabileCoerente) {
       card.style.setProperty("display", "none", "important");
@@ -6723,7 +6824,6 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       filtroEsatto,
       attivabileOnline,
       attivabileCoerente,
-      canaliAttivazione,
       alternativeFiltro: !filtroEsatto,
       costo: costoOfferta.totale,
       costoOfferta,
@@ -6740,65 +6840,37 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
     .sort((a, b) => (b.differenza - a.differenza) || (a.costo - b.costo))
     .map((item, index) => ({ ...item, posizioneEconomica: index + 1 }));
 
-  const rankingGlobale = new Map(
-    [...offerteCalcolate]
-      .sort((a, b) => (b.differenza - a.differenza) || (a.costo - b.costo))
-      .map((item, index) => [String(item.offerta.id), index + 1])
-  );
-
-  // OFFERTALOGICA_ALWAYS_6_PARTNERS_3_CONSULTANT_20260722
-  // La composizione 6 + 3 resta il fallback obbligatorio finché Switcho non
-  // dispone di configurazione, catalogo e landing verificati.
-  const {
-    unifiedActive,
-    attivabiliPrioritarie,
-    miglioriConConsulente,
-    offerteUnificate,
-    visibili,
-  } = preparaComposizioneOfferteVisibili({
-    offerteCalcolate,
+  // BLOCCO04_RANKING_ECONOMICO_UNICO_20260825
+  // La convenienza economica decide quali offerte sono visibili e in quale ordine.
+  // La modalita di attivazione resta un attributo della singola offerta e non
+  // influenza l'ingresso nel ranking.
+  const visibili = selezionaRankingEconomicoPerMenu(
     ordinateRanking,
-    rankingGlobale,
-    tipoTariffa,
-    tipoFornitura,
-  });
-
-  if (!unifiedActive && (
-    attivabiliPrioritarie.length !== NUMERO_OFFERTE_PARTNER_MENU
-    || miglioriConConsulente.length !== NUMERO_OFFERTE_CONSULENTE_MENU
-  )) {
-    console.warn("[OffertaLogica] Composizione offerte incompleta", {
-      filtro: testoFiltroOfferte(tipoTariffa, tipoFornitura),
-      partner: attivabiliPrioritarie.length,
-      consulente: miglioriConConsulente.length,
-    });
-  }
+    NUMERO_OFFERTE_RANKING_MENU
+  ).map((item, index) => ({
+    ...item,
+    gruppoVisuale: "ranking",
+    posizioneGruppo: index + 1,
+  }));
+  const attivabiliVisibili = visibili.filter((item) => item.attivabileOnline);
+  const assistiteVisibili = visibili.filter((item) => !item.attivabileOnline);
   const idsVisibili = new Set(visibili.map((item) => String(item.offerta.id)));
   const migliore = visibili[0] || ordinateRanking[0] || offerteCalcolate[0] || null;
   const hasVisibleOffers = visibili.length > 0;
-  const gruppoUnificato = assicuraGruppoOfferte(
-    "offerte-unificate-group",
-    "unified-group",
-    `${offerteUnificate.length} ${offerteUnificate.length === 1 ? "offerta attivabile" : "offerte attivabili"} ordinate per convenienza`,
-    "La posizione dipende dal costo annuo stimato. Il percorso di attivazione può essere online, assistito oppure disponibile in entrambe le modalità."
-  );
-  const gruppoPartner = assicuraGruppoOfferte(
-    "offerte-partner-online-group",
-    "partner-group",
-    `${attivabiliPrioritarie.length} ${attivabiliPrioritarie.length === 1 ? "offerta partner attivabile online" : "offerte partner attivabili online"}`,
-    "Le proposte partner attivabili online e coerenti con il filtro selezionato."
-  );
-  const gruppoConsulente = assicuraGruppoOfferte(
-    "offerte-consulente-group",
-    "consultant-group",
-    "3 migliori offerte per costo con consulente",
+  aggiornaCoperturaConsumer(ordinateRanking.length, visibili.length);
+
+  ["offerte-partner-online-group", "offerte-consulente-group"].forEach((id) => {
+    document.getElementById(id)?.remove();
+  });
+  const gruppoRanking = assicuraGruppoOfferte(
+    "offerte-ranking-group",
+    "ranking-group",
+    "Offerte più convenienti per costo annuo stimato",
     OFFERTE_ARERA_MENU.length
-      ? "Le migliori proposte per costo annuo stimato sul tuo profilo. Richiedono verifica consulenziale o ricontatto prima dell'eventuale attivazione."
-      : "Le migliori proposte tra le offerte disponibili nel calcolatore. Richiedono verifica consulenziale o ricontatto."
+      ? "Ordinate esclusivamente in base al costo annuo stimato sul tuo profilo. Il badge di percorso indica come puoi procedere con ciascuna offerta."
+      : "Ordinate esclusivamente in base al costo annuo stimato tra le offerte disponibili. Il badge di percorso indica come puoi procedere con ciascuna offerta."
   );
-  const contenitoreUnificato = resetGruppoOfferte(gruppoUnificato, unifiedActive && offerteUnificate.length > 0);
-  const contenitorePartner = resetGruppoOfferte(gruppoPartner, !unifiedActive && attivabiliPrioritarie.length > 0);
-  const contenitoreConsulente = resetGruppoOfferte(gruppoConsulente, !unifiedActive && miglioriConConsulente.length > 0);
+  const contenitoreRanking = resetGruppoOfferte(gruppoRanking, hasVisibleOffers);
 
   offerteCalcolate.forEach(({ card, offerta }) => {
     if (!idsVisibili.has(String(offerta.id))) {
@@ -6821,17 +6893,13 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
     if (!hasVisibleOffers) contenitoreSchede?.appendChild(emptyMessage);
   }
 
-  visibili.forEach(({ card, offerta, costo, costoOfferta, differenza, risparmio, saving, ambito, posizioneEconomica, posizioneGruppo, gruppoVisuale, attivabileOnline, canaliAttivazione, compatibileRanking, filtroEsatto, alternativeFiltro }) => {
-      const contenitoreTarget = gruppoVisuale === "unified"
-        ? contenitoreUnificato
-        : gruppoVisuale === "attivabile"
-          ? contenitorePartner
-          : contenitoreConsulente;
+  visibili.forEach(({ card, offerta, costo, costoOfferta, differenza, risparmio, saving, ambito, posizioneEconomica, posizioneGruppo, gruppoVisuale, attivabileOnline, compatibileRanking, filtroEsatto, alternativeFiltro }) => {
+      const contenitoreTarget = contenitoreRanking;
       const context = {
         economyRank: posizioneEconomica,
         displayRank: posizioneGruppo,
         displayGroup: gruppoVisuale,
-        isTopEconomic: (gruppoVisuale === "top" || gruppoVisuale === "unified") && posizioneGruppo === 1,
+        isTopEconomic: posizioneEconomica === 1,
         isActiveAffiliate: attivabileOnline,
         matchesSelectedFilter: Boolean(filtroEsatto),
         isFilterAlternative: Boolean(alternativeFiltro),
@@ -6841,33 +6909,28 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
         estimatedCommission: commissionePrevista(offerta),
         network: offerta.monetizzazione?.network || "",
         commercialPriority: offerta.monetizzazione?.prioritaCommerciale || "",
-        activationRoute: canaliAttivazione?.route || "informational_only",
-        directAvailable: Boolean(canaliAttivazione?.directAvailable),
-        switchoAvailable: Boolean(canaliAttivazione?.switchoAvailable),
-        exactSwitchoMatch: Boolean(canaliAttivazione?.exactSwitchoMatch),
-        switchoReference: canaliAttivazione?.switchoReference || "",
-        switchoUrl: canaliAttivazione?.switchoUrl || "",
       };
       OFFER_RENDER_CONTEXTS.set(String(offerta.id), context);
 
       card.style.display = "flex";
-      const miglioreNelGruppo = (gruppoVisuale === "top" && posizioneEconomica === 1)
-        || (gruppoVisuale === "unified" && posizioneGruppo === 1);
-      card.style.borderColor = miglioreNelGruppo ? "var(--primary)" : (gruppoVisuale === "attivabile" ? "#fde68a" : "var(--border)");
-      card.style.boxShadow = miglioreNelGruppo ? "0 0 0 1px rgba(16, 185, 129, 0.18)" : "none";
+      card.style.borderColor = posizioneEconomica === 1 ? "var(--primary)" : "var(--border)";
+      card.style.boxShadow = posizioneEconomica === 1 ? "0 0 0 1px rgba(16, 185, 129, 0.18)" : "none";
       card.classList.toggle("locked-offer", !LEAD_STATE.verified);
 
       const title = card.querySelector(".partner-title");
       const details = card.querySelector(".partner-details");
       const link = card.querySelector("a");
       const separataMulti = offertaSeparataMultiFornitore(offerta);
-      const badgeText = testoBadgeOfferta({ offerta, posizioneEconomica, posizioneGruppo, gruppoVisuale, costo, compatibileRanking, canaliAttivazione }, migliore);
+      const badgeText = testoBadgeOfferta({ offerta, posizioneEconomica, posizioneGruppo, gruppoVisuale, costo, compatibileRanking }, migliore);
       const tipoPrezzoBadge = offerta?.tipo === "variabile" ? "Prezzo variabile" : "Prezzo fisso";
-      const badge = `<span style="display:inline-block; margin:0 0 6px; padding:3px 8px; border:1px solid; border-radius:999px; font-size:11px; font-weight:800; ${stileBadgeOfferta({ posizioneEconomica, posizioneGruppo, gruppoVisuale })}">${badgeText}</span><span style="display:inline-block; margin:0 0 6px 6px; padding:3px 8px; border:1px solid #bfdbfe; border-radius:999px; background:#eff6ff; color:#1d4ed8; font-size:11px; font-weight:800;">${tipoPrezzoBadge}</span>`;
-      const onlineBadge = attivabileOnline && !badgeText.toLowerCase().includes("attivabile")
-        ? `<span style="display:inline-block; margin:0 0 6px 6px; padding:3px 8px; border:1px solid #a7f3d0; border-radius:999px; background:#ecfdf5; color:#047857; font-size:11px; font-weight:800;">Attivabile online</span>`
-        : "";
-      const alternativeNote = alternativeFiltro && gruppoVisuale !== "attivabile"
+      const badge = `<span style="display:inline-block; margin:0 0 6px; padding:3px 8px; border:1px solid; border-radius:999px; font-size:11px; font-weight:800; ${stileBadgeOfferta({ posizioneEconomica, gruppoVisuale })}">${badgeText}</span><span style="display:inline-block; margin:0 0 6px 6px; padding:3px 8px; border:1px solid #bfdbfe; border-radius:999px; background:#eff6ff; color:#1d4ed8; font-size:11px; font-weight:800;">${tipoPrezzoBadge}</span>`;
+      const percorsoBadgeText = attivabileOnline
+        ? "Attivabile online"
+        : (separataMulti ? "Verifica con consulente" : "Percorso da verificare");
+      const percorsoBadge = attivabileOnline
+        ? `<span style="display:inline-block; margin:0 0 6px 6px; padding:3px 8px; border:1px solid #a7f3d0; border-radius:999px; background:#ecfdf5; color:#047857; font-size:11px; font-weight:800;">${percorsoBadgeText}</span>`
+        : `<span style="display:inline-block; margin:0 0 6px 6px; padding:3px 8px; border:1px solid #cbd5e1; border-radius:999px; background:#f8fafc; color:#475569; font-size:11px; font-weight:800;">${percorsoBadgeText}</span>`;
+      const alternativeNote = alternativeFiltro
         ? `<small style="display:block; margin-top:3px; color:#92400e; font-weight:700;">${tipoTariffa === "variabile" && offerta.tipo === "variabile" ? "Offerta variabile" : "Alternativa"} ${descriviTipoOfferta(offerta)} mostrata anche se il filtro selezionato e ${testoFiltroOfferte(tipoTariffa, tipoFornitura)}.</small>`
         : "";
       const costoStimatoLabel = `Costo stimato ${ambito}`;
@@ -6879,17 +6942,17 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
         aggiornaLogoOfferta(card, offerta, true);
         if (details) details.innerText = dettagliOfferta(offerta);
         if (link) {
-          link.innerText = testoAzioneOfferta(offerta, attivabileOnline, canaliAttivazione, unifiedActive);
+          link.innerText = testoAzioneOfferta(offerta, attivabileOnline);
           link.href = "#";
           link.removeAttribute("target");
           link.onclick = (event) => {
             event.preventDefault();
-            avviaPercorsoAttivazioneOfferta(offerta);
+            apriConsensoOfferta(offerta);
           };
         }
         saving.style.color = risparmio ? "var(--primary)" : "var(--danger)";
         saving.innerHTML = `
-          ${badge}${onlineBadge}
+          ${badge}${percorsoBadge}
           <span class="offer-metrics">
             <span class="offer-cost-line"><span>${costoStimatoLabel}</span><strong>${euro(costo)} / anno</strong></span>
             <span class="${savingLineClass}"><span>${risparmioLabel}</span><strong>${euro(Math.abs(differenza))} / anno</strong></span>
@@ -6900,13 +6963,9 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
           </small>
         `;
       } else {
-        if (title) title.innerText = gruppoVisuale === "unified"
-          ? "Offerta attivabile"
-          : gruppoVisuale === "top" || separataMulti
-            ? "Offerta con consulente"
-            : "Offerta attivabile online";
+        if (title) title.innerText = "Offerta confrontata";
         aggiornaLogoOfferta(card, offerta, false);
-        if (details) details.innerText = "Verifica il cellulare per vedere nome fornitore, dettagli economici e link.";
+        if (details) details.innerText = "Verifica il numero per vedere nome fornitore, dettagli economici e percorso.";
         if (link) {
           link.innerText = "Verifica";
           link.href = "#";
@@ -6917,33 +6976,28 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
         }
         saving.style.color = "var(--text-muted)";
         saving.innerHTML = `
-          ${badge}${onlineBadge}
+          ${badge}${percorsoBadge}
           <span class="offer-metrics">
             <span class="offer-cost-line"><span>Costo stimato</span><strong>Disponibile dopo verifica</strong></span>
             <span class="offer-saving-line"><span>Risparmio stimato</span><strong>Disponibile dopo verifica</strong></span>
           </span>
           <small style="display:block; margin-top:3px; color:var(--text-muted); font-weight:600;">
-            Verifica il numero per vedere importi, prezzo, fornitore e percorso ufficiale.
+            Verifica il numero per vedere importi, prezzo, fornitore e percorso.
           </small>
         `;
       }
       contenitoreTarget?.appendChild(card);
     });
 
-  LEAD_STATE.bestPartnerSaving = Math.max(0, ...attivabiliPrioritarie.map((item) => item.differenza));
-  const bestCommercialSaving = Math.max(0, ...visibili.map((item) => item.differenza));
-  const directVisibleCount = visibili.filter((item) => item.canaliAttivazione?.directAvailable).length;
-  const switchoVisibleCount = visibili.filter((item) => item.canaliAttivazione?.switchoAvailable).length;
-  if (unifiedActive) LEAD_STATE.bestPartnerSaving = bestCommercialSaving;
-  LEAD_STATE.bestSaving = bestCommercialSaving;
+  LEAD_STATE.bestPartnerSaving = Math.max(0, ...attivabiliVisibili.map((item) => item.differenza));
+  LEAD_STATE.bestSaving = Math.max(0, ...visibili.map((item) => item.differenza));
   trackEvent("offers_rendered", {
     tipoPrezzo: tipoTariffa,
     tipoFornitura,
-    rankingMode: unifiedActive ? "unified" : "legacy_6_plus_3",
     visibleOffersCount: visibili.length,
-    activePartnerOffersCount: unifiedActive ? directVisibleCount : attivabiliPrioritarie.length,
-    consultantOffersCount: unifiedActive ? 0 : miglioriConConsulente.length,
-    switchoOffersCount: switchoVisibleCount,
+    activePartnerOffersCount: attivabiliVisibili.length,
+    consultantOffersCount: assistiteVisibili.length,
+    rankingOffersCount: visibili.length,
     bestSaving: LEAD_STATE.bestSaving,
     bestPartnerSaving: LEAD_STATE.bestPartnerSaving,
     offerId: String(visibili[0]?.offerta?.id || ""),
@@ -6968,12 +7022,10 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
   }
   if (teaserCopy) {
     teaserCopy.innerText = SOCIAL_ENTRY_STATE.isSocialJourney
-      ? unifiedActive
-        ? "Stima basata sui consumi medi e sulle offerte attivabili disponibili oggi: verifica il numero per visualizzare fornitore, condizioni e percorso ufficiale."
-        : "Stima basata sui consumi medi e sulle offerte partner attivabili disponibili oggi: verifica il numero per visualizzare fornitore, condizioni e percorso ufficiale."
+      ? "Stima basata sui consumi medi e sulle offerte partner attivabili disponibili oggi: verifica il numero per visualizzare fornitore, condizioni e percorso ufficiale."
       : modalitaCalcolo === "media"
-        ? "Stima basata sui consumi medi e sull'ultimo riferimento ARERA disponibile: verifica il numero per visualizzare le migliori offerte e quelle attivabili online."
-        : "Stima basata sui consumi che hai inserito: verifica il numero per visualizzare le migliori offerte e quelle attivabili online.";
+        ? "Stima basata sui consumi medi, sul catalogo ARERA e sugli indici di mercato disponibili: verifica il numero per visualizzare il confronto completo."
+        : "Stima basata sui consumi che hai inserito: verifica il numero per visualizzare il confronto completo.";
   }
   aggiornaPromptBollettaDopoOfferte();
 }
@@ -7000,6 +7052,14 @@ function aggiornaConsumiDaMasterSeMedia() {
 }
 
 window.avviaComparazioneDati = function avviaComparazioneDati() {
+  if (!DATI_UFFICIALI_CONFRONTO_PRONTI) {
+    const areaRisultati = document.getElementById("results-area");
+    if (areaRisultati) {
+      areaRisultati.style.display = "flex";
+      areaRisultati.innerHTML = `<div class="verdetto-box warning"><h2>Dati ufficiali in caricamento</h2><p>Il confronto parte solo dopo il caricamento dei dati economici aggiornati. Riprova tra qualche istante.</p></div>`;
+    }
+    return;
+  }
   nascondiGuida("comparison-next-step-guidance");
   aggiornaConsumiDaMasterSeMedia();
   pulisciSegnalazioniDatiMancanti();
@@ -7199,6 +7259,11 @@ function apriAnteprimaConsensoOffertaStaff() {
   window.apriConsensoOfferta?.(offer);
 }
 
+function apriHomeStaff() {
+  chiudiPannelloAnteprimeStaff();
+  window.location.assign("/?staffHome=1");
+}
+
 function apriArchivioPdfStaff() {
   const token = sessionStorage.getItem(STAFF_MODE_TOKEN_STORAGE_KEY) || "";
   if (!token) {
@@ -7220,6 +7285,7 @@ function creaPannelloAnteprimeStaff() {
     <h3>Anteprime modalità staff</h3>
     <p>Apri gli stessi popup e passaggi della pagina pubblica. Lead, consensi e webhook restano disattivati; l’archivio PDF di test è separato.</p>
     <div class="staff-preview-grid">
+      <button type="button" id="staff-preview-home">Home</button>
       <button type="button" id="staff-preview-otp">Verifica offerte</button>
       <button type="button" id="staff-preview-help">Aiuto difficoltà</button>
       <button type="button" id="staff-preview-callback">Richiesta ricontatto</button>
@@ -7232,6 +7298,7 @@ function creaPannelloAnteprimeStaff() {
     <div class="staff-preview-status" id="staff-preview-status" aria-live="polite"></div>
   `;
   document.body.appendChild(panel);
+  document.getElementById("staff-preview-home")?.addEventListener("click", apriHomeStaff);
   document.getElementById("staff-preview-otp")?.addEventListener("click", apriAnteprimaOtpStaff);
   document.getElementById("staff-preview-help")?.addEventListener("click", apriAnteprimaAiutoStaff);
   document.getElementById("staff-preview-callback")?.addEventListener("click", apriAnteprimaRicontattoStaff);
@@ -7381,26 +7448,39 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
     mostraCampoOtp(false);
   }
   const isAssistance = source === "assistance_callback";
+  const isBusiness = source === "business";
   if (sendBtn) {
     sendBtn.style.display = "inline-block";
     sendBtn.innerText = "Invia il codice di verifica";
   }
   if (verifyBtn) {
     verifyBtn.style.display = "none";
-    verifyBtn.innerText = isAssistance ? "Verifica e richiedi il ricontatto" : "Verifica e mostra le offerte";
+    verifyBtn.innerText = isAssistance
+      ? "Verifica e richiedi il ricontatto"
+      : isBusiness
+        ? "Verifica e prosegui con la richiesta"
+        : "Verifica e mostra le offerte";
   }
   if (title) {
-    title.innerText = isAssistance ? "Richiedi assistenza" : "Verifica il numero e visualizza il confronto";
+    title.innerText = isAssistance
+      ? "Richiedi assistenza"
+      : isBusiness
+        ? "Verifica il numero per proseguire con la richiesta aziendale"
+        : "Verifica il numero per vedere il confronto completo";
   }
   if (copy) {
     copy.innerText = isAssistance
       ? "Inserisci i tuoi dati e verifica il numero. OffertaLogica potrà ricontattarti per aiutarti a completare il confronto."
-      : "Inserisci i tuoi dati per ricevere il codice di verifica.\nNessun dato sarà inviato a un fornitore finché non sceglierai un'offerta.";
+      : isBusiness
+        ? "Il codice SMS serve a verificare il numero.\nI tuoi dati non vengono inviati a consulenti o partner senza la relativa autorizzazione."
+        : "Il codice SMS serve a verificare il numero.\nI tuoi dati non vengono inviati a fornitori o partner finché non scegli di procedere con un'offerta.";
   }
   if (serviceCopy) {
     serviceCopy.innerHTML = isAssistance
       ? `<strong>Richiedo di essere ricontattato da OffertaLogica per ricevere assistenza sul confronto.</strong> Dichiaro di aver letto l'<a href="https://www.iubenda.com/privacy-policy/36565194" target="_blank" rel="noopener">informativa privacy</a>.<span class="lead-consent-detail">Useremo i dati solo per verificare la richiesta e fornirti l'assistenza richiesta.</span>`
-      : `<strong>Richiedo la comparazione personalizzata e il ricontatto necessario alla gestione della mia richiesta.</strong> Dichiaro di aver letto l'<a href="https://www.iubenda.com/privacy-policy/36565194" target="_blank" rel="noopener">informativa privacy</a>.<span class="lead-consent-detail">Useremo i dati inseriti o caricati per elaborare il confronto e gestire la tua richiesta.</span>`;
+      : isBusiness
+        ? `<strong>Richiedo l'analisi preliminare e il ricontatto necessario alla gestione della mia richiesta.</strong> Dichiaro di aver letto l'<a href="https://www.iubenda.com/privacy-policy/36565194" target="_blank" rel="noopener">informativa privacy</a>.<span class="lead-consent-detail">Useremo i dati inseriti o caricati per preparare l'analisi preliminare e gestire la tua richiesta.</span>`
+        : `<strong>Richiedo la comparazione personalizzata e il ricontatto necessario alla gestione della mia richiesta.</strong> Dichiaro di aver letto l'<a href="https://www.iubenda.com/privacy-policy/36565194" target="_blank" rel="noopener">informativa privacy</a>.<span class="lead-consent-detail">Useremo i dati inseriti o caricati per elaborare il confronto e gestire la tua richiesta.</span>`;
   }
   if (partnerLabel) partnerLabel.style.display = isAssistance ? "none" : "flex";
   const serviceCheckbox = document.getElementById("lead-consenso-servizio");
@@ -7410,7 +7490,9 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
   if (privacySummary) {
     privacySummary.innerText = isAssistance
       ? "La verifica serve a confermare il numero sul quale desideri essere ricontattato. Questa richiesta non autorizza l'invio dei dati a un fornitore."
-      : "Il primo punto è necessario per elaborare e mostrarti il confronto. Il secondo potrà essere autorizzato anche successivamente, quando sceglierai un'offerta.";
+      : isBusiness
+        ? "L'SMS serve solo a confermare il numero e proseguire con la richiesta aziendale. L'invio dei dati a consulenti o partner resta separato e facoltativo."
+        : "L'SMS serve solo a confermare il numero e sbloccare il confronto. L'invio dei dati a fornitori o partner resta separato e facoltativo fino alla scelta di un'offerta.";
   }
   if (partnerCopy && !isAssistance) {
     if (source === "business") {
@@ -7686,101 +7768,7 @@ function configuraPopupConsensoOfferta(richiedeConsenso) {
   if (close) close.innerText = "Annulla";
 }
 
-// OFFERTALOGICA_SWITCHO_ACTIVATION_CHOICE_FOUNDATION_V1_20260731
-// La scelta tra attivazione autonoma e assistita viene mostrata soltanto
-// nella graduatoria unificata realmente pronta. Il percorso legacy continua
-// ad aprire direttamente il consenso esistente.
-function canaleAttivazioneDisponibile(canaliAttivazione, canale) {
-  if (canale === "direct") return Boolean(canaliAttivazione?.directAvailable);
-  if (canale === "switcho") {
-    return Boolean(
-      canaliAttivazione?.switchoAvailable
-      && canaliAttivazione?.exactSwitchoMatch
-      && canaliAttivazione?.switchoUrl
-    );
-  }
-  return false;
-}
-
-function chiudiSceltaCanaleAttivazione() {
-  const modal = document.getElementById("activation-channel-backdrop");
-  if (modal) modal.style.display = "none";
-  LEAD_STATE.pendingActivationChoice = { offer: null, channels: null };
-}
-
-function apriSceltaCanaleAttivazione(offerta, canaliAttivazione) {
-  if (!canaleAttivazioneDisponibile(canaliAttivazione, "direct")
-      || !canaleAttivazioneDisponibile(canaliAttivazione, "switcho")) {
-    return false;
-  }
-  LEAD_STATE.pendingActivationChoice = { offer: offerta, channels: canaliAttivazione };
-  const modal = document.getElementById("activation-channel-backdrop");
-  const name = document.getElementById("activation-channel-offer-name");
-  if (name) name.innerText = offerta?.nome || "offerta selezionata";
-  if (modal) modal.style.display = "flex";
-  trackEvent("activation_channel_choice_opened", {
-    offerId: String(offerta?.id || ""),
-    offerName: offerta?.nome || "",
-    provider: offerta?.provider || "",
-    activationRoute: canaliAttivazione?.route || "informational_only",
-  });
-  return true;
-}
-
-function confermaSceltaCanaleAttivazione(canale) {
-  const pending = LEAD_STATE.pendingActivationChoice || {};
-  if (!pending.offer || !canaleAttivazioneDisponibile(pending.channels, canale)) return false;
-  const offerta = pending.offer;
-  const canaliAttivazione = pending.channels;
-  const modal = document.getElementById("activation-channel-backdrop");
-  if (modal) modal.style.display = "none";
-  LEAD_STATE.pendingActivationChoice = { offer: null, channels: null };
-  trackEvent("activation_channel_selected", {
-    offerId: String(offerta?.id || ""),
-    offerName: offerta?.nome || "",
-    provider: offerta?.provider || "",
-    selectedChannel: canale,
-    activationRoute: canaliAttivazione?.route || "informational_only",
-  });
-  window.apriConsensoOfferta(offerta, { activationChannel: canale });
-  return true;
-}
-
-function avviaPercorsoAttivazioneOfferta(offerta) {
-  if (!LEAD_STATE.verified) {
-    window.apriConsensoOfferta(offerta);
-    return "locked";
-  }
-  const context = OFFER_RENDER_CONTEXTS.get(String(offerta?.id || "")) || {};
-  const unifiedActive = context.displayGroup === "unified" && graduatoriaCommercialeUnificataPronta();
-  if (!unifiedActive) {
-    window.apriConsensoOfferta(offerta);
-    return "legacy";
-  }
-  const canaliAttivazione = {
-    route: context.activationRoute || "informational_only",
-    directAvailable: Boolean(context.directAvailable),
-    switchoAvailable: Boolean(context.switchoAvailable),
-    exactSwitchoMatch: Boolean(context.exactSwitchoMatch),
-    switchoReference: context.switchoReference || "",
-    switchoUrl: context.switchoUrl || "",
-  };
-  if (canaliAttivazione.route === "direct_and_switcho") {
-    return apriSceltaCanaleAttivazione(offerta, canaliAttivazione) ? "choice" : "unavailable";
-  }
-  if (canaliAttivazione.route === "switcho" && canaleAttivazioneDisponibile(canaliAttivazione, "switcho")) {
-    window.apriConsensoOfferta(offerta, { activationChannel: "switcho" });
-    return "switcho";
-  }
-  if (canaliAttivazione.route === "direct" && canaleAttivazioneDisponibile(canaliAttivazione, "direct")) {
-    window.apriConsensoOfferta(offerta, { activationChannel: "direct" });
-    return "direct";
-  }
-  window.apriConsensoOfferta(offerta);
-  return "fallback";
-}
-
-window.apriConsensoOfferta = function apriConsensoOfferta(offerta, options = {}) {
+window.apriConsensoOfferta = function apriConsensoOfferta(offerta) {
   if (!LEAD_STATE.verified) {
     trackEvent("offer_click_locked", {
       offerId: String(offerta?.id || ""),
@@ -7805,15 +7793,6 @@ window.apriConsensoOfferta = function apriConsensoOfferta(offerta, options = {})
     componentiSeparate: offerta.componentiSeparate || null,
     rankingContext: OFFER_RENDER_CONTEXTS.get(String(offerta.id)) || null,
   };
-  LEAD_STATE.selectedOffer.activationRoute = LEAD_STATE.selectedOffer.rankingContext?.activationRoute || "informational_only";
-  LEAD_STATE.selectedOffer.directAvailable = Boolean(LEAD_STATE.selectedOffer.rankingContext?.directAvailable);
-  LEAD_STATE.selectedOffer.switchoAvailable = Boolean(LEAD_STATE.selectedOffer.rankingContext?.switchoAvailable);
-  LEAD_STATE.selectedOffer.exactSwitchoMatch = Boolean(LEAD_STATE.selectedOffer.rankingContext?.exactSwitchoMatch);
-  LEAD_STATE.selectedOffer.switchoReference = LEAD_STATE.selectedOffer.rankingContext?.switchoReference || "";
-  LEAD_STATE.selectedOffer.switchoUrl = LEAD_STATE.selectedOffer.rankingContext?.switchoUrl || "";
-  LEAD_STATE.selectedOffer.activationChannel = options.activationChannel
-    || (LEAD_STATE.selectedOffer.activationRoute === "switcho" ? "switcho" : "")
-    || (LEAD_STATE.selectedOffer.activationRoute === "direct" ? "direct" : "");
 
   const modal = document.getElementById("offer-consent-backdrop");
   const name = document.getElementById("offer-consent-offer-name");
@@ -7828,8 +7807,6 @@ window.apriConsensoOfferta = function apriConsensoOfferta(offerta, options = {})
       const luceProvider = testoHtmlSicuro(componenti?.luce?.providerLabel || "fornitore luce");
       const gasProvider = testoHtmlSicuro(componenti?.gas?.providerLabel || "fornitore gas");
       intro.innerHTML = `Hai scelto <strong id="offer-consent-offer-name">${nomeOfferta}</strong>: luce con <strong>${luceProvider}</strong> e gas con <strong>${gasProvider}</strong>. Per continuare serve una verifica consulenziale, perche si tratta di due forniture separate e potrebbero essere necessari due percorsi di attivazione distinti.<br><br>Le condizioni finali dovranno essere confermate dal consulente o dai fornitori: eventuali costi accessori, servizi aggiuntivi, vincoli o promozioni non rilevati dal calcolatore potrebbero modificare la convenienza stimata.`;
-    } else if (LEAD_STATE.selectedOffer.activationChannel === "switcho") {
-      intro.innerHTML = `Hai scelto <strong id="offer-consent-offer-name">${nomeOfferta}</strong> con assistenza gratuita. Per continuare registreremo la scelta e, quando l'integrazione sarà attiva, ti porteremo al percorso co-branded del partner incaricato di assisterti nell'attivazione.<br><br>Le condizioni finali dovranno essere confermate nel percorso assistito.`;
     } else {
       intro.innerHTML = offertaConRedirectAttivo(LEAD_STATE.selectedOffer)
       ? `Hai scelto <strong id="offer-consent-offer-name">${nomeOfferta}</strong>. Per continuare apriremo il funnel ufficiale del fornitore o del partner commerciale collegato all'offerta.`
@@ -7854,11 +7831,6 @@ window.apriConsensoOfferta = function apriConsensoOfferta(offerta, options = {})
     displayRank: LEAD_STATE.selectedOffer.rankingContext?.displayRank || null,
     annualCost: LEAD_STATE.selectedOffer.rankingContext?.annualCost || null,
     annualDelta: LEAD_STATE.selectedOffer.rankingContext?.annualDelta || null,
-    activationRoute: LEAD_STATE.selectedOffer.activationRoute || "informational_only",
-    activationChannel: LEAD_STATE.selectedOffer.activationChannel || "",
-    directAvailable: Boolean(LEAD_STATE.selectedOffer.directAvailable),
-    switchoAvailable: Boolean(LEAD_STATE.selectedOffer.switchoAvailable),
-    switchoReference: LEAD_STATE.selectedOffer.switchoReference || "",
     network: LEAD_STATE.selectedOffer.monetization?.network || "",
     model: LEAD_STATE.selectedOffer.monetization?.modello || LEAD_STATE.selectedOffer.monetization?.model || "",
   });
@@ -8149,7 +8121,7 @@ let assistanceLastInteractionAt = Date.now();
 let assistanceUserInteracted = false;
 
 function assistenzaModalAperta() {
-  return ["lead-modal-backdrop", "activation-channel-backdrop", "offer-consent-backdrop", "activation-helper-backdrop", "assistance-rescue-backdrop"]
+  return ["lead-modal-backdrop", "offer-consent-backdrop", "activation-helper-backdrop", "assistance-rescue-backdrop"]
     .some((id) => document.getElementById(id)?.style.display === "flex");
 }
 
@@ -8251,15 +8223,11 @@ function nascondiEsitiFincheNonConfronti() {
 
 async function registraRichiestaOfferta() {
   const offer = LEAD_STATE.selectedOffer;
-  const destinazioneRichiestaDisponibile = offer?.activationChannel === "switcho"
-    ? Boolean(offer.switchoAvailable && offer.exactSwitchoMatch && offer.switchoReference && offer.switchoUrl)
-    : Boolean(offer?.link);
-  if (!destinazioneRichiestaDisponibile) {
+  if (!offer?.link) {
     trackEvent("offer_request_missing_link", {
       offerId: offer?.id || "",
       offerName: offer?.name || "",
       provider: offer?.provider || "",
-      activationChannel: offer?.activationChannel || "",
     });
     offerConsentStatus("Offerta non disponibile. Riprova dal pulsante dell'offerta.", true);
     return;
@@ -8277,11 +8245,6 @@ async function registraRichiestaOfferta() {
     displayRank: offer.rankingContext?.displayRank || null,
     annualCost: offer.rankingContext?.annualCost || null,
     annualDelta: offer.rankingContext?.annualDelta || null,
-    activationRoute: offer.activationRoute || "informational_only",
-    activationChannel: offer.activationChannel || "",
-    directAvailable: Boolean(offer.directAvailable),
-    switchoAvailable: Boolean(offer.switchoAvailable),
-    switchoReference: offer.switchoReference || "",
     network: offer.monetization?.network || "",
     model: offer.monetization?.modello || offer.monetization?.model || "",
   });
@@ -8331,8 +8294,7 @@ async function registraRichiestaOfferta() {
         destinationStatus: offer.destinationStatus || "",
         redirect: true,
       });
-      const redirectAssistitoSwitcho = offer.activationChannel === "switcho";
-      if (!redirectAssistitoSwitcho && apriAssistentePrimaDelRedirect(payload.redirectUrl, offer, "partner_redirect")) return;
+      if (apriAssistentePrimaDelRedirect(payload.redirectUrl, offer, "partner_redirect")) return;
       window.location.href = payload.redirectUrl;
       return;
     }
@@ -8466,7 +8428,6 @@ function aggiornaStatoPdfMobileDopoAnalisi({ files = [], validCurrent = [], vali
   if (validCurrent.length) {
     const data = datiBollettaCorrentePdf() || LEAD_STATE.pdfData || {};
     const scope = ambitoConfrontoAttivo();
-    const mancanti = campiMancanti(configurazioniPdfDaControllare(data, false));
     if (["pending_gas", "pending_luce"].includes(scope)) {
       mostraStatoPdfMobile({
         mode: "ready",
@@ -8479,6 +8440,33 @@ function aggiornaStatoPdfMobileDopoAnalisi({ files = [], validCurrent = [], vali
       });
       return;
     }
+    if (LEAD_STATE.customerType === "business") {
+      const businessProfile = leggiProfiloBusiness();
+      if (!businessProfile.datiCompleti) {
+        const count = businessProfile.campiMancanti.length;
+        mostraStatoPdfMobile({
+          mode: "warning",
+          title: count === 1 ? "Manca 1 dato aziendale" : `Mancano ${count} dati aziendali`,
+          copy: `Completa nel profilo aziendale: ${businessProfile.campiMancanti.join(", ")}.`,
+          filename,
+          primaryLabel: count === 1 ? "Completa il dato" : "Completa i dati",
+          secondaryLabel: "Controlla il profilo",
+          primaryAction: "business_missing",
+        });
+        return;
+      }
+      mostraStatoPdfMobile({
+        mode: "ready",
+        title: "Bolletta aziendale letta",
+        copy: "I dati necessari sono stati inseriti. Puoi confrontare le offerte business oppure controllare il profilo aziendale.",
+        filename,
+        primaryLabel: "Confronta offerte business",
+        secondaryLabel: "Controlla i dati",
+        primaryAction: "business_compare",
+      });
+      return;
+    }
+    const mancanti = campiMancanti(configurazioniPdfDaControllare(data, false));
     if (mancanti.length) {
       const count = mancanti.length;
       mostraStatoPdfMobile({
@@ -8547,6 +8535,20 @@ function portaAlTeaserOfferteMobile() {
 
 function gestisciAzionePrimariaPdfMobile() {
   const action = MOBILE_PDF_STATUS_STATE.primaryAction;
+  if (action === "business_compare") {
+    nascondiStatoPdfMobile();
+    const profile = window.calcolaBusiness?.();
+    const target = profile
+      ? document.getElementById("business-result")
+      : document.getElementById("business-error") || document.getElementById("business-panel");
+    portaElementoInVista(target || document.getElementById("business-panel"), { block: "start", focus: false, delay: 40 });
+    return;
+  }
+  if (action === "business_missing") {
+    nascondiStatoPdfMobile();
+    portaElementoInVista(document.getElementById("business-panel"), { block: "start", focus: false, delay: 40 });
+    return;
+  }
   if (action === "compare") {
     nascondiStatoPdfMobile();
     attivaFocusOfferteMobile();
@@ -8572,10 +8574,14 @@ function gestisciAzionePrimariaPdfMobile() {
 }
 
 function controllaDatiDaStatoPdfMobile() {
-  const target = MOBILE_PDF_STATUS_STATE.primaryAction === "offer_review"
+  const action = MOBILE_PDF_STATUS_STATE.primaryAction;
+  const businessReview = ["business_compare", "business_missing"].includes(action) || LEAD_STATE.customerType === "business";
+  const target = action === "offer_review"
     ? document.getElementById("blocco-nuovo")
-    : document.getElementById("pdf-data-review-guidance") || document.getElementById("blocco-attuale");
-  if (MOBILE_PDF_STATUS_STATE.primaryAction === "offer_review") espandiOffertaFacoltativaMobile();
+    : businessReview
+      ? document.getElementById("business-panel")
+      : document.getElementById("pdf-data-review-guidance") || document.getElementById("blocco-attuale");
+  if (action === "offer_review") espandiOffertaFacoltativaMobile();
   nascondiStatoPdfMobile();
   portaElementoInVista(target, { block: "start", focus: false, delay: 40 });
 }
@@ -8653,8 +8659,20 @@ function resetModuloPrimaDiNuovaLetturaPdf() {
   ].forEach(clearField);
   ["in-luce-fisso-att-unita", "in-gas-fisso-att-unita", "in-luce-fisso-nuov-unita", "in-gas-fisso-nuov-unita"].forEach((id) => setField(id, "mese"));
   svuotaDettagliAdattiviPdf();
+  aggiornaControlloContrattoPersistente();
   pulisciSegnalazioniDatiMancanti();
   nascondiEsitiFincheNonConfronti();
+}
+
+function toggleDettagliEconomiciPdf(button) {
+  const panel = button?.closest?.(".adaptive-price-details");
+  const body = panel?.querySelector?.(".adaptive-price-details-body");
+  if (!button || !body) return;
+  const willOpen = body.hidden;
+  body.hidden = !willOpen;
+  button.setAttribute("aria-expanded", willOpen ? "true" : "false");
+  const label = button.querySelector(".adaptive-price-toggle-label");
+  if (label) label.innerText = willOpen ? "Nascondi voci economiche" : "Vedi voci economiche";
 }
 
 function valoreAdattivoPdf(entry) {
@@ -8708,7 +8726,8 @@ function renderDettagliAdattiviFornitura(supply, targetId) {
     box.classList.remove("is-visible");
     return;
   }
-  box.innerHTML = `<strong>Voci economiche presenti nel documento</strong><small>I valori sono riportati come compaiono nel documento. Restano modificabili e servono a verificare il prezzo principale.</small><div class="adaptive-price-list">${rows.join("")}</div>`;
+  const bodyId = `${targetId}-body`;
+  box.innerHTML = `<button type="button" class="adaptive-price-toggle" aria-expanded="false" aria-controls="${bodyId}" onclick="toggleDettagliEconomiciPdf(this)"><span class="adaptive-price-toggle-label">Vedi voci economiche</span><span class="adaptive-price-toggle-icon" aria-hidden="true">⌄</span></button><div class="adaptive-price-details-body" id="${bodyId}" hidden><small>Valori economici letti dal documento. Restano modificabili e servono a verificare il prezzo principale.</small><div class="adaptive-price-list">${rows.join("")}</div></div>`;
   box.classList.add("is-visible");
 }
 
@@ -8754,6 +8773,7 @@ function applicaRisultatoPdfDirettamente(results) {
   if (LEAD_STATE.customerType === "business") {
     applicaDatiPdfAlBusiness(data);
     renderModuloAdattivoPdf(data);
+    aggiornaControlloContrattoPersistente();
     aggiornaAssistenteAttivazioneVisibilita();
     if (panel) panel.style.display = "none";
     portaElementoInVista(document.getElementById("business-panel"), { block: "start" });
@@ -8768,6 +8788,7 @@ function applicaRisultatoPdfDirettamente(results) {
   modalitaCalcolo = "manuale";
   applicaDatiPdfAlModulo(data);
   renderModuloAdattivoPdf(data);
+  aggiornaControlloContrattoPersistente();
   accompagnaAllaRevisioneDatiPdf(data);
   nascondiEsitiFincheNonConfronti();
   aggiornaAssistenteAttivazioneVisibilita();
@@ -8961,6 +8982,7 @@ function ricostruisciModuloDaSlotPdf(activeSlot = PDF_ACTIVE_SLOT) {
   const fallbackSlot = offer ? "offer" : current ? "current" : null;
   sincronizzaStatoDocumentiPdf(activeSlot && PDF_DOCUMENT_SLOTS[activeSlot]?.length ? activeSlot : fallbackSlot);
   LEAD_STATE.dataOrigin = (current || offer) ? "pdf_upload" : "manual_input";
+  aggiornaControlloContrattoPersistente();
   return { appliedCurrent, appliedOffer };
 }
 
@@ -8972,6 +8994,33 @@ function classificaLottoPdf(results) {
     slot: slots.length === 1 ? slots[0] : null,
     mixed: slots.length > 1,
   };
+}
+
+function pdfDocumentCommodities(doc) {
+  const commodity = String(doc?.commodity || "").toLowerCase();
+  if (commodity === "dual") return ["luce", "gas"];
+  if (commodity === "luce" || commodity === "gas") return [commodity];
+  return [];
+}
+
+function aggiornaSlotBollettaCorrente(existingDocuments, incomingDocuments) {
+  const existing = Array.isArray(existingDocuments) ? existingDocuments : [];
+  const incoming = Array.isArray(incomingDocuments) ? incomingDocuments : [];
+  if (!incoming.length) return [...existing];
+
+  const incomingCommodities = new Set(incoming.flatMap(pdfDocumentCommodities));
+  if (!incomingCommodities.size) return [...incoming];
+
+  // La nuova lettura sostituisce solo la stessa commodity. Luce e gas già letti
+  // restano insieme quando appartengono allo stesso cliente/utenza.
+  const retained = existing.filter((doc) =>
+    !pdfDocumentCommodities(doc).some((commodity) => incomingCommodities.has(commodity))
+  );
+  const candidate = [...retained, ...incoming];
+
+  // Non fondere mai documenti incompatibili: in quel caso resta valida la semantica
+  // storica di nuova lettura e il nuovo lotto diventa da solo la fornitura corrente.
+  return analyzePdfDocumentIsolation(candidate).blocked ? [...incoming] : candidate;
 }
 
 function pdfFileFingerprint(file) {
@@ -9242,7 +9291,7 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
   // Un lotto puo contenere bolletta e scheda: vengono divise nei rispettivi slot
   // invece di essere rifiutate o fuse nello stesso documento.
   if (validCurrent.length) {
-    PDF_DOCUMENT_SLOTS.current = [...validCurrent];
+    PDF_DOCUMENT_SLOTS.current = aggiornaSlotBollettaCorrente(PDF_DOCUMENT_SLOTS.current, validCurrent);
     activeSlot = "current";
   }
   if (validOffer.length) {
@@ -10027,6 +10076,8 @@ function buildPdfAutofillSpecs(data, customerType = "privato") {
   const gasPriceType = pdfPreviewAutofillValue(data, "tipo_prezzo_gas");
   if (["fisso", "variabile"].includes(lucePriceType) && (gasPriceType === undefined || gasPriceType === lucePriceType)) add("tipo_prezzo_luce", gasPriceType === lucePriceType ? "Tipo prezzo luce e gas" : "Tipo prezzo luce", ["master-luce-tipo"]);
   else if (["fisso", "variabile"].includes(gasPriceType) && lucePriceType === undefined) add("tipo_prezzo_gas", "Tipo prezzo gas", ["master-luce-tipo"]);
+  if (["fisso", "variabile"].includes(lucePriceType)) add("tipo_prezzo_luce", "Tipo prezzo luce attuale", ["in-luce-tipo-att"]);
+  if (["fisso", "variabile"].includes(gasPriceType)) add("tipo_prezzo_gas", "Tipo prezzo gas attuale", ["in-gas-tipo-att"]);
   addProfile("tipo_prezzo_luce", "Tipo prezzo luce attuale", "pdf-current-tipo-prezzo-luce", "current");
   addProfile("tipo_prezzo_gas", "Tipo prezzo gas attuale", "pdf-current-tipo-prezzo-gas", "current");
   addProfile("consumo_luce_f1_kwh", "Consumo F1 attuale", "pdf-current-consumo-luce-f1", "current");
@@ -10440,6 +10491,81 @@ function formatPdfValidityLine(commodityLabel, validFrom, validTo) {
   if (from) return `Decorrenza condizioni ${commodityLabel}: ${from}`;
   if (to) return `Scadenza condizioni ${commodityLabel}: ${to}`;
   return "";
+}
+
+function parsePdfContractIsoDate(value) {
+  const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null;
+  return date;
+}
+
+function pdfContractDateDistanceLabel(value, now = new Date()) {
+  const target = parsePdfContractIsoDate(value);
+  if (!target) return "";
+  const todayUtc = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  const diffDays = Math.round((target.getTime() - todayUtc) / 86400000);
+  if (diffDays === 0) return "oggi";
+  if (diffDays > 0) return `tra ${diffDays} ${diffDays === 1 ? "giorno" : "giorni"}`;
+  const elapsed = Math.abs(diffDays);
+  return `trascorsa da ${elapsed} ${elapsed === 1 ? "giorno" : "giorni"}`;
+}
+
+function pdfContractCheckRow(label, value) {
+  if (!value) return `<li>${testoHtmlSicuro(label)}: non rilevata nel documento.</li>`;
+  const formatted = formatPdfContractDate(value);
+  const distance = pdfContractDateDistanceLabel(value);
+  return `<li>${testoHtmlSicuro(label)}: ${testoHtmlSicuro(formatted)}${distance ? ` (${testoHtmlSicuro(distance)})` : ""}.</li>`;
+}
+
+function renderPdfContractControl(merged) {
+  const commodity = merged?.commodity || "unknown";
+  const hasLuce = commodity === "luce" || commodity === "dual";
+  const hasGas = commodity === "gas" || commodity === "dual";
+  const rows = [];
+
+  if (hasLuce) {
+    const conditionEnd = merged.scadenza_condizioni_economiche_luce || (commodity === "luce" ? merged.scadenza_condizioni_economiche : "");
+    rows.push(pdfContractCheckRow("Scadenza condizioni economiche luce", conditionEnd));
+    rows.push(pdfContractCheckRow("Scadenza contratto luce", merged.scadenza_contratto_luce));
+  }
+  if (hasGas) {
+    const conditionEnd = merged.scadenza_condizioni_economiche_gas || (commodity === "gas" ? merged.scadenza_condizioni_economiche : "");
+    rows.push(pdfContractCheckRow("Scadenza condizioni economiche gas", conditionEnd));
+    rows.push(pdfContractCheckRow("Scadenza contratto gas", merged.scadenza_contratto_gas));
+  }
+  if (!rows.length) {
+    rows.push(pdfContractCheckRow("Scadenza condizioni economiche", merged?.scadenza_condizioni_economiche));
+  }
+
+  return `
+    <div class="pdf-contract-check" aria-label="Controllo contratto e condizioni economiche">
+      <div class="pdf-contract-check-title">Controllo contratto e condizioni economiche</div>
+      <ul>${rows.join("")}</ul>
+      <small>La scadenza delle condizioni economiche non indica da sola la cessazione del contratto e non prova un rinnovo automatico. Se la data non è presente nel documento, OffertaLogica non la stima: verifica sempre le condizioni contrattuali del fornitore.</small>
+    </div>
+  `;
+}
+
+function aggiornaControlloContrattoPersistente() {
+  const currentTarget = document.getElementById("pdf-contract-control-current");
+  const businessTarget = document.getElementById("pdf-contract-control-business");
+  [currentTarget, businessTarget].forEach((target) => {
+    if (!target) return;
+    target.hidden = true;
+    target.innerHTML = "";
+  });
+
+  const currentData = typeof datiBollettaCorrentePdf === "function" ? datiBollettaCorrentePdf() : null;
+  if (!currentData) return;
+  const target = LEAD_STATE.customerType === "business" ? businessTarget : currentTarget;
+  if (!target) return;
+  target.innerHTML = renderPdfContractControl(currentData);
+  target.hidden = false;
 }
 
 const PDF_READINESS_FIELD_LABELS = Object.freeze({
@@ -10910,7 +11036,6 @@ window.azzeraPdfEModulo = function azzeraPdfEModulo() {
   LEAD_STATE.leadId = "";
   LEAD_STATE.leadSource = "manual";
   LEAD_STATE.selectedOffer = null;
-  LEAD_STATE.pendingActivationChoice = { offer: null, channels: null };
   LEAD_STATE.partnerConsent = false;
   LEAD_STATE.activationAssistant = { pendingUrl: "", offer: null };
   LEAD_STATE.businessProfile = null;
@@ -10921,6 +11046,7 @@ window.azzeraPdfEModulo = function azzeraPdfEModulo() {
   pulisciGuidePercorsoPdf();
   pulisciSegnalazioniDatiMancanti();
   svuotaDettagliAdattiviPdf();
+  aggiornaControlloContrattoPersistente();
   const input = document.getElementById("pdf-static-input");
   const panel = document.getElementById("pdf-review-static");
   const copy = document.getElementById("pdf-review-copy");
@@ -11319,7 +11445,13 @@ function offerteAreraPerFornitore(providerKey, attuale, tipoFornitura) {
 }
 
 function miglioreNuovaOffertaPerFornitore(providerKey, attuale, tipoTariffa, tipoFornitura) {
-  const pubblicate = OFFERTE_PROPOSTE.filter((offerta) => chiaveFornitoreDaNome(offerta.provider) === providerKey);
+  // Anche nel confronto facoltativo per singolo fornitore, il catalogo commerciale
+  // fornisce solo il percorso. Le condizioni economiche vengono sempre ricostruite
+  // dal catalogo ARERA corrente; nessun prezzo statico partner entra nel calcolo.
+  const pubblicate = OFFERTE_PROPOSTE
+    .filter((offerta) => chiaveFornitoreDaNome(offerta.provider) === providerKey)
+    .map((offerta) => offertaPartnerConPrezziArera(offerta, attuale))
+    .filter(Boolean);
   const arera = offerteAreraPerFornitore(providerKey, attuale, tipoFornitura);
   const candidate = [...pubblicate, ...arera]
     .filter((offerta) => offertaCalcolabileConIndici(offerta))
@@ -11329,78 +11461,6 @@ function miglioreNuovaOffertaPerFornitore(providerKey, attuale, tipoTariffa, tip
   const attivabili = candidate.filter(offertaAttivabileOnline);
   const preferite = attivabili.length ? attivabili : candidate;
   return preferite.sort((a, b) => costoOffertaSulProfilo(a, attuale) - costoOffertaSulProfilo(b, attuale))[0] || null;
-}
-
-function offertaSwitchoOsservataCoerente(offerta, tipoTariffa, tipoFornitura) {
-  return Boolean(
-    offerta
-    && offerta.tipo === tipoTariffa
-    && offertaCoerenteConFornitura(offerta, tipoFornitura)
-    && offertaCalcolabileConIndici(offerta)
-  );
-}
-
-function offerteSwitchoOsservatePerFornitore(providerKey, tipoTariffa, tipoFornitura) {
-  return OFFERTE_SWITCHO_OSSERVATE
-    .filter((offerta) => offerta.providerKey === providerKey)
-    .filter((offerta) => offertaSwitchoOsservataCoerente(offerta, tipoTariffa, tipoFornitura))
-    .sort((a, b) => (a.spesaStimataMensileSwitcho ?? Number.POSITIVE_INFINITY) - (b.spesaStimataMensileSwitcho ?? Number.POSITIVE_INFINITY));
-}
-
-function nascondiMenuOfferteSwitchoOsservate() {
-  const panel = document.getElementById("switcho-observed-offer-panel");
-  const select = document.getElementById("switcho-observed-offer-select");
-  if (panel) panel.hidden = true;
-  if (select) select.innerHTML = `<option value="" selected>Seleziona un'offerta</option>`;
-}
-
-function aggiornaMenuOfferteSwitchoOsservate() {
-  const panel = document.getElementById("switcho-observed-offer-panel");
-  const select = document.getElementById("switcho-observed-offer-select");
-  const providerKey = leggiValore("nome-fornitore-nuov", "");
-  if (!panel || !select || !providerKey || providerKey === "altro") {
-    nascondiMenuOfferteSwitchoOsservate();
-    return 0;
-  }
-  const tipoTariffa = leggiValore("master-luce-tipo", "fisso");
-  const tipoFornitura = tipoFornituraPerCalcolo();
-  const offerte = offerteSwitchoOsservatePerFornitore(providerKey, tipoTariffa, tipoFornitura);
-  if (!offerte.length) {
-    nascondiMenuOfferteSwitchoOsservate();
-    return 0;
-  }
-  const precedente = select.value;
-  select.innerHTML = `<option value="" selected>Seleziona un'offerta</option>` + offerte.map((offerta) => {
-    const durata = offerta.durataMesi ? ` · ${offerta.durataMesi} mesi` : "";
-    const tipo = offerta.tipo === "variabile" ? "indicizzata" : "fissa";
-    return `<option value="${testoHtmlSicuro(offerta.id)}">${testoHtmlSicuro(offerta.nome)} · ${tipo}${durata}</option>`;
-  }).join("");
-  panel.hidden = false;
-  if (precedente && offerte.some((offerta) => String(offerta.id) === String(precedente))) {
-    select.value = precedente;
-    return offerte.length;
-  }
-  NUOVA_OFFERTA_AUTOMATICA = null;
-  svuotaCampiNuovaOfferta();
-  mostraHintNuovaOfferta(`Abbiamo ${offerte.length === 1 ? "1 offerta" : `${offerte.length} offerte`} osservate su Switcho per ${etichettaFornitoreSelezionato()}. Seleziona quella che vuoi confrontare.`);
-  return offerte.length;
-}
-
-function applicaOffertaSwitchoOsservataSelezionata() {
-  const id = leggiValore("switcho-observed-offer-select", "");
-  if (!id) return false;
-  const offerta = OFFERTE_SWITCHO_OSSERVATE.find((item) => String(item.id) === String(id));
-  if (!offerta) return false;
-  applicaOffertaAlBloccoNuovo(offerta, offerta.providerKey);
-  trackEvent("switcho_observed_offer_selected", {
-    offerId: offerta.id,
-    offerName: offerta.nome,
-    provider: offerta.provider,
-    observedAt: DATI_SWITCHO_OSSERVATE_META.osservatoIl,
-    routingEnabled: false,
-    areraMatchStatus: offerta.areraMatch?.status || "",
-  });
-  return true;
 }
 
 function cancellaNuovaOffertaAutomatica() {
@@ -11428,7 +11488,9 @@ function applicaOffertaAlBloccoNuovo(offerta, providerKey) {
   impostaQuotaFissaAnnua("in-gas-fisso-nuov", "in-gas-fisso-nuov-unita", offerta.gas ? offerta.gas.quotaFissaAnnua : "");
 
   BLOCCO_AUTOFILL_NUOVA_OFFERTA = false;
-  const fonte = offerta.destinationType === "arera" ? "dati ARERA disponibili" : "offerte gia inserite nel calcolatore";
+  const fonte = offerta.destinationType === "arera" || offerta?.certificazione?.datiEconomiciDaCatalogoPartner === false
+    ? "dati ARERA disponibili"
+    : "dati inseriti manualmente";
   const tipo = offerta.tipo === "variabile" ? "Prezzo variabile" : "Prezzo fisso";
   const durata = durataOffertaTesto(offerta);
   mostraHintNuovaOfferta(`Offerte disponibili di ${offerta.provider || etichettaFornitoreSelezionato()}\nOfferta selezionata per il confronto: ${offerta.nome}. ${tipo}${durata ? `, ${durata}` : ""}. Fonte: ${fonte}.\nPuoi modificare i valori sotto oppure inserire manualmente una proposta diversa.`);
@@ -11512,6 +11574,8 @@ function applicaDatiPdfAlModulo(data) {
     setField("master-luce-tipo", PARAMETRI_CALCOLO.profiloMedio.tipoPrezzo);
     setField("master-tipo-fornitura", PARAMETRI_CALCOLO.profiloMedio.tipoFornitura);
     setField("master-gas-regione", PARAMETRI_CALCOLO.profiloMedio.regioneGas);
+    setField("in-luce-tipo-att", PARAMETRI_CALCOLO.profiloMedio.tipoPrezzo);
+    setField("in-gas-tipo-att", PARAMETRI_CALCOLO.profiloMedio.tipoPrezzo);
     setField("in-luce-cons-att", PARAMETRI_CALCOLO.profiloMedio.luceConsumoKwh);
     setField("in-luce-prezzo-att", PARAMETRI_CALCOLO.profiloMedio.prezzoLuceEurKwh.toFixed(4));
     impostaQuotaFissaAnnua("in-luce-fisso-att", "in-luce-fisso-att-unita", PARAMETRI_CALCOLO.profiloMedio.quotaFissaLuceAnnua);
@@ -11653,16 +11717,37 @@ function formattaRisparmioSocial(value) {
   return `${new Intl.NumberFormat("it-IT", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount)} €`;
 }
 
+const SWITCHO_LANDING_URL = "";
+
+function sorgenteIngressoLanding() {
+  const params = new URLSearchParams(window.location.search || "");
+  const explicit = String(params.get("utm_source") || params.get("source") || "").trim().toLowerCase();
+  if (explicit) return explicit.slice(0, 80);
+  try {
+    const referrer = document.referrer ? new URL(document.referrer) : null;
+    if (referrer?.hostname && referrer.hostname !== window.location.hostname) return referrer.hostname.slice(0, 80);
+  } catch {
+    // Il referrer è solo informativo: non deve mai bloccare la landing.
+  }
+  return "direct";
+}
+
 function inizializzaIngressoSocialMobile() {
   if (!SOCIAL_ENTRY_STATE.requested) return false;
   SOCIAL_ENTRY_STATE.active = true;
   SOCIAL_ENTRY_STATE.isSocialJourney = true;
   document.documentElement.classList.add("social-entry-requested");
   document.body.classList.add("social-entry-active");
-  trackEvent("social_entry_viewed", {
-    source: new URLSearchParams(window.location.search || "").get("utm_source") || "social_link",
+  trackEvent("landing_view", {
+    source: sorgenteIngressoLanding(),
   });
   return true;
+}
+
+function impostaLandingPronta() {
+  document.getElementById("landing-self-service")?.removeAttribute("disabled");
+  document.getElementById("landing-assisted")?.removeAttribute("disabled");
+  SOCIAL_ENTRY_STATE.ready = true;
 }
 
 function preparaRisparmioIngressoSocialMobile() {
@@ -11670,54 +11755,87 @@ function preparaRisparmioIngressoSocialMobile() {
   const value = document.getElementById("social-entry-saving-value");
   const period = document.getElementById("social-entry-saving-period");
   const savingBox = document.getElementById("social-entry-saving");
-  const cta = document.getElementById("social-entry-cta");
   const btnMedi = document.getElementById("btn-attiva-medi");
 
   try {
     btnMedi?.click();
-    LEAD_STATE.dataOrigin = "social_average_profile";
+    LEAD_STATE.dataOrigin = "landing_average_profile";
     window.avviaComparazioneDati?.();
     const saving = Number(LEAD_STATE.bestPartnerSaving || 0);
     const formatted = formattaRisparmioSocial(saving);
     if (value) value.textContent = formatted || "Offerte aggiornate";
-    if (period) period.textContent = formatted ? "all'anno su luce e gas" : "scopri la proposta attivabile più conveniente di oggi";
+    if (period) period.textContent = formatted ? "all'anno · esempio su profilo medio" : "confronta le offerte sui tuoi consumi";
     savingBox?.classList.remove("is-loading");
-    if (cta) cta.disabled = false;
-    SOCIAL_ENTRY_STATE.ready = true;
-    trackEvent("social_entry_saving_ready", {
-      bestPartnerSaving: saving,
+    impostaLandingPronta();
+    trackEvent("landing_saving_ready", {
+      bestSaving: saving,
+      source: sorgenteIngressoLanding(),
       dataOrigin: LEAD_STATE.dataOrigin,
     });
     return true;
   } catch (error) {
     if (value) value.textContent = "Offerte aggiornate";
-    if (period) period.textContent = "scopri la proposta disponibile oggi";
+    if (period) period.textContent = "confronta le offerte sui tuoi consumi";
     savingBox?.classList.remove("is-loading");
-    if (cta) cta.disabled = false;
-    SOCIAL_ENTRY_STATE.ready = true;
-    trackEvent("social_entry_saving_fallback", { message: String(error?.message || error || "") });
+    impostaLandingPronta();
+    trackEvent("landing_saving_fallback", {
+      source: sorgenteIngressoLanding(),
+      reason: String(error?.message || error || "").slice(0, 100),
+    });
     return false;
   }
 }
 
-function apriOfferteDaIngressoSocial() {
-  if (!SOCIAL_ENTRY_STATE.ready) return;
-  SOCIAL_ENTRY_STATE.active = false;
-  attivaFocusOfferteMobile();
-  document.documentElement.classList.remove("social-entry-requested");
-  document.body.classList.remove("social-entry-active");
-  const entry = document.getElementById("social-mobile-entry");
-  if (entry) entry.hidden = true;
-  const target = document.getElementById("lead-teaser") || document.querySelector(".fornitori-consigliati-section");
-  window.requestAnimationFrame(() => {
-    target?.scrollIntoView({ behavior: "smooth", block: "start" });
-    if (target) {
-      target.setAttribute("tabindex", "-1");
-      window.setTimeout(() => target.focus({ preventScroll: true }), 450);
-    }
+function urlCalcolatoreDaLanding() {
+  const current = new URLSearchParams(window.location.search || "");
+  const target = new URL("/index.html", window.location.origin);
+  target.searchParams.set("landing", "0");
+  target.searchParams.set("from", "landing");
+  ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term", "source"].forEach((key) => {
+    const value = current.get(key);
+    if (value) target.searchParams.set(key, value);
   });
-  trackEvent("social_entry_offer_clicked", {
-    bestPartnerSaving: LEAD_STATE.bestPartnerSaving,
+  return target.toString();
+}
+
+function apriCalcolatoreDaLanding() {
+  if (!SOCIAL_ENTRY_STATE.ready) return;
+  trackEvent("landing_self_service_click", {
+    bestSaving: Number(LEAD_STATE.bestPartnerSaving || 0),
+    source: sorgenteIngressoLanding(),
+    destinationType: "calculator",
+    redirect: true,
+  });
+  window.location.assign(urlCalcolatoreDaLanding());
+}
+
+function apriPercorsoAssistitoDaLanding() {
+  if (!SOCIAL_ENTRY_STATE.ready) return;
+  const status = document.getElementById("landing-assisted-status");
+  const destinationReady = Boolean(SWITCHO_LANDING_URL);
+  trackEvent("landing_assisted_click", {
+    bestSaving: Number(LEAD_STATE.bestPartnerSaving || 0),
+    source: sorgenteIngressoLanding(),
+    destinationType: "switcho",
+    destinationStatus: destinationReady ? "ready" : "pending_url",
+    redirect: destinationReady,
+  });
+  if (!destinationReady) {
+    if (status) {
+      status.hidden = false;
+      status.textContent = "Il percorso assistito è in preparazione e sarà disponibile appena completato il collegamento.";
+      status.focus?.({ preventScroll: true });
+    }
+    return;
+  }
+  window.location.assign(SWITCHO_LANDING_URL);
+}
+
+function tracciaAccessoAppLanding(tipo) {
+  trackEvent(tipo === "premium" ? "landing_premium_app_click" : "landing_free_app_click", {
+    source: sorgenteIngressoLanding(),
+    destinationType: tipo === "premium" ? "premium_app" : "free_app",
+    redirect: true,
   });
 }
 
@@ -11791,7 +11909,10 @@ function collegaEventiUX() {
     const toggle = document.getElementById("mobile-optional-offer-toggle");
     impostaOffertaFacoltativaMobileAperta(toggle?.getAttribute("aria-expanded") !== "true", { focus: false });
   });
-  document.getElementById("social-entry-cta")?.addEventListener("click", apriOfferteDaIngressoSocial);
+  document.getElementById("landing-self-service")?.addEventListener("click", apriCalcolatoreDaLanding);
+  document.getElementById("landing-assisted")?.addEventListener("click", apriPercorsoAssistitoDaLanding);
+  document.getElementById("landing-free-app")?.addEventListener("click", () => tracciaAccessoAppLanding("free"));
+  document.getElementById("landing-premium-app")?.addEventListener("click", () => tracciaAccessoAppLanding("premium"));
   document.getElementById("offers-upload-bill")?.addEventListener("click", caricaBollettaDaOfferte);
   document.getElementById("offers-keep-average")?.addEventListener("click", continuaConStimaMedia);
   document.getElementById("pdf-static-input")?.addEventListener("change", (event) => {
@@ -11842,14 +11963,7 @@ function collegaEventiUX() {
   });
   document.getElementById("nome-fornitore-nuov")?.addEventListener("change", () => {
     apriDettagliNuovaOfferta();
-    const offerteOsservate = aggiornaMenuOfferteSwitchoOsservate();
-    if (!offerteOsservate) aggiornaNuovaOffertaDaFornitore({ force: true });
-    aggiornaTestoPulsanteConfronto();
-    const risultatiVisibili = document.querySelector(".fornitori-consigliati-section")?.style.display === "block";
-    if (risultatiVisibili) avviaComparazioneDati();
-  });
-  document.getElementById("switcho-observed-offer-select")?.addEventListener("change", () => {
-    applicaOffertaSwitchoOsservataSelezionata();
+    aggiornaNuovaOffertaDaFornitore({ force: true });
     aggiornaTestoPulsanteConfronto();
     const risultatiVisibili = document.querySelector(".fornitori-consigliati-section")?.style.display === "block";
     if (risultatiVisibili) avviaComparazioneDati();
@@ -11876,8 +11990,7 @@ function collegaEventiUX() {
     document.getElementById(id)?.addEventListener("change", () => {
       if (BLOCCO_AUTOFILL_NUOVA_OFFERTA) return;
       if (id === "master-tipo-fornitura") applicaAmbitoConfronto(leggiValore("master-tipo-fornitura", "dual"));
-      const offerteOsservate = aggiornaMenuOfferteSwitchoOsservate();
-      if (!offerteOsservate) aggiornaNuovaOffertaDaFornitore();
+      aggiornaNuovaOffertaDaFornitore();
       const risultatiVisibili = document.querySelector(".fornitori-consigliati-section")?.style.display === "block";
       if (risultatiVisibili) avviaComparazioneDati();
     });
@@ -11888,12 +12001,6 @@ function collegaEventiUX() {
   document.getElementById("lead-close")?.addEventListener("click", chiudiLeadModal);
   document.getElementById("lead-modal-backdrop")?.addEventListener("click", (event) => {
     if (event.target?.id === "lead-modal-backdrop") chiudiLeadModal();
-  });
-  document.getElementById("activation-channel-direct")?.addEventListener("click", () => confermaSceltaCanaleAttivazione("direct"));
-  document.getElementById("activation-channel-switcho")?.addEventListener("click", () => confermaSceltaCanaleAttivazione("switcho"));
-  document.getElementById("activation-channel-close")?.addEventListener("click", chiudiSceltaCanaleAttivazione);
-  document.getElementById("activation-channel-backdrop")?.addEventListener("click", (event) => {
-    if (event.target?.id === "activation-channel-backdrop") chiudiSceltaCanaleAttivazione();
   });
   document.getElementById("offer-consent-confirm")?.addEventListener("click", confermaConsensoOfferta);
   document.getElementById("offer-consent-close")?.addEventListener("click", chiudiConsensoOfferta);
@@ -11935,7 +12042,10 @@ function collegaEventiUX() {
   sincronizzaConsumiNuovaOfferta();
   aggiornaTestoPulsanteConfronto();
 
-  Promise.all([caricaDatiCalcolo(), caricaOfferteProposte(), caricaOfferteAreraMenu(), caricaOfferteSwitchoOsservate(), caricaProviderBrand()]).then(() => {
+  Promise.all([caricaDatiCalcolo(), caricaOfferteProposte(), caricaOfferteAreraMenu(), caricaProviderBrand()]).then(([calcoloOk, offerteOk, areraOk]) => {
+    DATI_UFFICIALI_CONFRONTO_PRONTI = Boolean(calcoloOk && offerteOk && areraOk);
+    if (!DATI_UFFICIALI_CONFRONTO_PRONTI) return;
+    sincronizzaIndiciMercatoConCatalogoArera();
     assicuraSchedeOfferte();
     if (SOCIAL_ENTRY_STATE.active) {
       preparaRisparmioIngressoSocialMobile();
@@ -11955,7 +12065,7 @@ if (document.readyState === "loading") {
 <div class="fornitori-consigliati-section">
 <div class="lead-teaser" id="lead-teaser">
     <strong id="lead-teaser-title">Abbiamo trovato offerte più convenienti.</strong>
-    <p id="lead-teaser-copy">La stima usa consumi medi e l'ultimo riferimento ARERA disponibile: verifica il numero per visualizzare le migliori offerte e quelle attivabili online.</p>
+    <p id="lead-teaser-copy">La stima usa consumi medi, catalogo ARERA e indici di mercato disponibili: verifica il numero per visualizzare il confronto completo.</p>
     <button type="button" onclick="apriLeadModal('teaser')">Verifica e visualizza le offerte</button>
 </div>
 <div class="offers-personalize-prompt" id="offers-personalize-prompt" hidden>
@@ -11966,6 +12076,7 @@ if (document.readyState === "loading") {
         <button type="button" class="offers-personalize-continue" id="offers-keep-average">Continua con la stima media</button>
     </div>
 </div>
+<div class="offers-ranking-explainer" id="offers-ranking-explainer">Il costo annuo stimato mostra il risultato economico del confronto. I badge di attivazione indicano come puoi procedere con la singola offerta.</div>
 <div class="vertical-cards-container" style="display: flex; flex-direction: column; gap: 15px;">
         
         <!-- Offerta Consigliata 1: E.ON -->
@@ -12155,6 +12266,8 @@ if (document.readyState === "loading") {
 
               // C. AUTOCOMPILA TUTTI I CAMPI NUMERICI INFERIORI (Valori stimati stabili)
               // Fornitura Attuale
+              if(document.getElementById("in-luce-tipo-att")) document.getElementById("in-luce-tipo-att").value = PARAMETRI_CALCOLO.profiloMedio.tipoPrezzo;
+              if(document.getElementById("in-gas-tipo-att")) document.getElementById("in-gas-tipo-att").value = PARAMETRI_CALCOLO.profiloMedio.tipoPrezzo;
               if(document.getElementById("in-luce-cons-att")) document.getElementById("in-luce-cons-att").value = String(PARAMETRI_CALCOLO.profiloMedio.luceConsumoKwh);
               if(document.getElementById("in-luce-prezzo-att")) document.getElementById("in-luce-prezzo-att").value = PARAMETRI_CALCOLO.profiloMedio.prezzoLuceEurKwh.toFixed(4);
               impostaQuotaFissaAnnua("in-luce-fisso-att", "in-luce-fisso-att-unita", PARAMETRI_CALCOLO.profiloMedio.quotaFissaLuceAnnua);
@@ -12342,9 +12455,9 @@ if (document.readyState === "loading") {
 
 <div class="lead-modal-backdrop" id="lead-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="lead-modal-title">
     <div class="lead-modal">
-        <h3 id="lead-modal-title">Verifica il numero e visualizza il confronto</h3>
-        <p id="lead-modal-copy">Inserisci i tuoi dati per ricevere il codice di verifica.
-Nessun dato sarà inviato a un fornitore finché non sceglierai un'offerta.</p>
+        <h3 id="lead-modal-title">Verifica il numero per vedere il confronto completo</h3>
+        <p id="lead-modal-copy">Il codice SMS serve a verificare il numero.
+I tuoi dati non vengono inviati a fornitori o partner finché non scegli di procedere con un'offerta.</p>
         <div class="lead-form-grid">
             <label class="lead-field" for="lead-nome"><span>Nome e cognome</span><input id="lead-nome" type="text" autocomplete="name" placeholder="Mario Rossi"></label>
             <label class="lead-field" for="lead-telefono"><span>Cellulare</span><input id="lead-telefono" type="tel" autocomplete="tel" inputmode="tel" placeholder="333 1234567"></label>
@@ -12357,7 +12470,7 @@ Nessun dato sarà inviato a un fornitore finché non sceglierai un'offerta.</p>
                 <input id="lead-consenso-partner" type="checkbox">
                 <span id="lead-partner-copy" class="lead-consent-copy"><strong>Facoltativo</strong> - autorizzo OffertaLogica a trasmettere i miei dati al fornitore o partner dell'offerta che sceglierò, per essere ricontattato esclusivamente in merito a quella proposta.</span>
             </label>
-            <div class="lead-privacy-note" id="lead-privacy-summary">Il primo punto è necessario per elaborare e mostrarti il confronto. Il secondo potrà essere autorizzato anche successivamente, quando sceglierai un'offerta.</div>
+            <div class="lead-privacy-note" id="lead-privacy-summary">L'SMS serve solo a confermare il numero e sbloccare il confronto. L'invio dei dati a fornitori o partner resta separato e facoltativo fino alla scelta di un'offerta.</div>
             <label class="lead-field" id="lead-otp-field" for="lead-otp" style="display:none;"><span>Codice ricevuto via SMS</span><input id="lead-otp" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" placeholder="000000"></label>
         </div>
         <div class="lead-actions">
@@ -12369,27 +12482,9 @@ Nessun dato sarà inviato a un fornitore finché non sceglierai un'offerta.</p>
     </div>
 </div>
 
-<div class="activation-channel-backdrop" id="activation-channel-backdrop" role="dialog" aria-modal="true" aria-labelledby="activation-channel-title">
-    <div class="activation-channel-modal">
-        <h3 id="activation-channel-title">Come preferisci attivare?</h3>
-        <p>Hai scelto <strong id="activation-channel-offer-name">questa offerta</strong>. Il prezzo confrontato resta lo stesso; cambia il modo in cui completi la richiesta.</p>
-        <div class="activation-channel-options">
-            <button type="button" class="activation-channel-option assisted" id="activation-channel-switcho">
-                <strong>Attiva con assistenza gratuita</strong>
-                <span>Prosegui nel percorso co-branded e fatti accompagnare fino al completamento.</span>
-            </button>
-            <button type="button" class="activation-channel-option" id="activation-channel-direct">
-                <strong>Procedi in autonomia</strong>
-                <span>Vai al sito del fornitore e completa direttamente l'attivazione.</span>
-            </button>
-        </div>
-        <button type="button" class="lead-secondary" id="activation-channel-close">Annulla</button>
-    </div>
-</div>
-
 <div class="offer-consent-backdrop" id="offer-consent-backdrop" role="dialog" aria-modal="true" aria-labelledby="offer-consent-title">
     <div class="offer-consent-modal">
-        <h3 id="offer-consent-title">Procedi con l'offerta</h3>
+        <h3 id="offer-consent-title">Come procedere con l'offerta</h3>
         <p id="offer-consent-intro">Hai scelto <strong id="offer-consent-offer-name">questa offerta</strong>. Per continuare dobbiamo trasmettere i tuoi dati al fornitore o a un partner commerciale incaricato di gestire la richiesta.</p>
         <label class="lead-consent required" id="offer-consent-label">
             <input id="offer-consent-checkbox" type="checkbox">
@@ -12496,7 +12591,7 @@ Nessun dato sarà inviato a un fornitore finché non sceglierai un'offerta.</p>
                 scrollToTarget(".pdf-lead-panel");
                 break;
             case "media":
-                setMessage("Useremo un profilo medio e l'ultimo riferimento ARERA disponibile. E' utile per una prima stima, poi puoi raffinare con la bolletta.");
+                setMessage("Useremo un profilo medio, il catalogo ARERA e gli indici di mercato disponibili. È utile per una prima stima, poi puoi raffinare con la bolletta.");
                 activateButton("btn-attiva-medi");
                 scrollToTarget("#btn-attiva-medi");
                 break;
@@ -12544,11 +12639,16 @@ Nessun dato sarà inviato a un fornitore finché non sceglierai un'offerta.</p>
 </script>
 
 <footer style="text-align: center; padding: 40px 20px; color: #777; font-family: 'Helvetica', sans-serif; border-top: 2px solid #f0f0f0; margin-top: 50px; font-size: 13px;">
+    <div class="ol-app-access-footer" aria-label="Accessi alle app OffertaLogica">
+        <a class="ol-app-access-link ol-app-access-free" href="https://app.offertalogica.it/app.html?install=1">Scarica app gratuita</a>
+        <a class="ol-app-access-link ol-app-access-premium" href="https://premium.offertalogica.it/app.html?install=1">Scarica app Premium</a>
+    </div>
+
     
     <p style="margin-bottom: 8px; font-weight: bold;">&copy; 2026 OffertaLogica.it - Calcolatore Energetico</p>
     
     <p style="margin-bottom: 15px; color: #999;">
-        Analisi indipendente e trasparente delle offerte Luce e Gas per privati e aziende.
+        Confronto trasparente delle offerte luce e gas per privati. Analisi preliminare dedicata alle aziende.
     </p>
     <p style="margin: -5px auto 15px; color: #777; max-width: 780px; font-size: 12px; line-height: 1.45;">
         Le stime sono informative e non sostituiscono scheda sintetica, condizioni economiche e contratto del fornitore.
@@ -12557,6 +12657,8 @@ Nessun dato sarà inviato a un fornitore finché non sceglierai un'offerta.</p>
     <div style="margin-bottom: 20px;">
         <a href="/come-funziona.html" style="color: #555; text-decoration: none; margin: 0 10px;">Come funziona</a> |
         <a href="/offerte-luce-gas-aggiornate.html" style="color: #555; text-decoration: none; margin: 0 10px;">Offerte aggiornate</a> |
+        <a href="/fornitori/" style="color: #555; text-decoration: none; margin: 0 10px;">Fornitori</a> |
+        <a href="/come-leggere-bolletta-luce-gas.html" style="color: #555; text-decoration: none; margin: 0 10px;">Guida bolletta</a> |
         <a href="/partner.html" style="color: #555; text-decoration: none; margin: 0 10px;">Partner</a> |
         <a href="/termini-condizioni.html" style="color: #555; text-decoration: none; margin: 0 10px;">Termini e condizioni</a> |
         <a href="/casa-smart.html" style="color: #555; text-decoration: none; margin: 0 10px;">Casa smart</a> |
@@ -12580,6 +12682,5 @@ Nessun dato sarà inviato a un fornitore finché non sceglierai un'offerta.</p>
     </script>
     <script type="text/javascript">(function (w,d) {var loader = function () {var s = d.createElement("script"), tag = d.getElementsByTagName("script")[0]; s.src="https://cdn.iubenda.com/iubenda.js"; tag.parentNode.insertBefore(s,tag);}; if(w.addEventListener){w.addEventListener("load", loader, false);}else if(w.attachEvent){w.attachEvent("onload", loader);}else{w.onload = loader;}})(window, document);</script>
 </footer>
-<script>if ('serviceWorker' in navigator) addEventListener('load', function(){ navigator.serviceWorker.register('/sw.js'); });</script>
 </body>
 </html>
