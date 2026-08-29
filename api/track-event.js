@@ -67,6 +67,9 @@ const ALLOWED_EVENT_TYPES = new Set([
   "landing_view",
   "landing_self_service_click",
   "landing_assisted_click",
+
+  // Funnel generico degli strumenti SEO interattivi.
+  "interactive_tool_event",
 ]);
 
 // These events describe security- or revenue-relevant funnel stages. They are
@@ -87,6 +90,22 @@ const VERIFIED_LEAD_EVENT_TYPES = new Set([
 const SERVER_OFFER_MATCH_EVENT_TYPES = new Set([
   "offer_request_recorded",
   "offer_redirect",
+]);
+
+const INTERACTIVE_TOOL_EVENT_TYPE = "interactive_tool_event";
+const ALLOWED_INTERACTIVE_TOOL_CODES = new Set([
+  "speed_test",
+  "fotovoltaico",
+  "fotovoltaico_agricoltura",
+]);
+const ALLOWED_INTERACTIVE_TOOL_ACTIONS = new Set([
+  "page_view",
+  "started",
+  "completed",
+  "diagnosis_completed",
+  "economics_evaluated",
+  "cta_clicked",
+  "error",
 ]);
 
 function text(value, max = 120) {
@@ -179,8 +198,24 @@ function sanitizePayload(payload = {}) {
     model: text(input.model, 80),
     redirect: booleanOrNull(input.redirect),
     demoMode: booleanOrNull(input.demoMode),
+    toolCode: text(input.toolCode, 60).toLowerCase(),
+    toolAction: text(input.toolAction, 60).toLowerCase(),
+    toolOutcome: text(input.toolOutcome, 100).toLowerCase(),
+    toolContext: text(input.toolContext, 80).toLowerCase(),
+    toolVersion: text(input.toolVersion, 40),
     reason: text(input.reason, 100),
   };
+}
+
+function validateInteractiveToolPayload(eventType, payload) {
+  if (eventType !== INTERACTIVE_TOOL_EVENT_TYPE) return { ok: true };
+  if (!ALLOWED_INTERACTIVE_TOOL_CODES.has(payload.toolCode)) {
+    return { ok: false, status: 400, error: "Strumento interattivo non autorizzato" };
+  }
+  if (!ALLOWED_INTERACTIVE_TOOL_ACTIONS.has(payload.toolAction)) {
+    return { ok: false, status: 400, error: "Azione strumento interattivo non autorizzata" };
+  }
+  return { ok: true };
 }
 
 async function validateAnalyticsIntegrity(eventType, body, payload) {
@@ -280,6 +315,11 @@ export default async function handler(req, res) {
     }
 
     const payload = sanitizePayload(body.payload);
+    const toolValidation = validateInteractiveToolPayload(eventType, payload);
+    if (!toolValidation.ok) {
+      json(res, toolValidation.status || 400, { ok: false, error: toolValidation.error || "Evento strumento non autorizzato" });
+      return;
+    }
     const integrity = await validateAnalyticsIntegrity(eventType, body, payload);
     if (!integrity.ok) {
       json(res, integrity.status || 400, { ok: false, error: integrity.error || "Evento non autorizzato" });

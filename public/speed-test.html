@@ -1136,6 +1136,9 @@
 <script type="module">
 const SPEEDTEST_MODULE_URL = 'https://cdn.jsdelivr.net/npm/@cloudflare/speedtest@1.12.1/+esm';
 const SWITCHO_URL = '';
+const TOOL_TRACK_EVENT_URL = '/api/track-event';
+const TOOL_CODE = 'speed_test';
+const TOOL_VERSION = '1.2';
 const MAX_GAUGE_MBPS = 500;
 const TEST_TIMEOUT_MS = 90000;
 
@@ -1197,10 +1200,80 @@ let activeRunId = 0;
 let testTimeoutId = null;
 let diagnosisCompleted = false;
 
+const TOOL_ACTION_MAP = Object.freeze({
+    page_view: 'page_view',
+    started: 'started',
+    completed: 'completed',
+    diagnosis_completed: 'diagnosis_completed',
+    economics_evaluated: 'economics_evaluated',
+    switcho_click: 'cta_clicked',
+    engine_load_error: 'error',
+    error: 'error',
+    timeout: 'error',
+    engine_error: 'error',
+    offline_interruption: 'error'
+});
+
+const TOOL_SESSION_ID = (() => {
+    try {
+        if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+    } catch {}
+    return `speed-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+})();
+
+function staffPreviewSessionActive() {
+    try {
+        return sessionStorage.getItem('offertalogicaStaffMode') === 'true';
+    } catch {
+        return false;
+    }
+}
+
+function toolOutcome(eventName, detail = {}) {
+    if (eventName === 'diagnosis_completed') return String(detail.diagnosis || '').slice(0, 100);
+    if (eventName === 'economics_evaluated') return String(detail.verdict || '').slice(0, 100);
+    if (TOOL_ACTION_MAP[eventName] === 'error') return String(eventName).slice(0, 100);
+    return '';
+}
+
+function persistToolMetric(eventName, detail = {}) {
+    const toolAction = TOOL_ACTION_MAP[eventName];
+    if (!toolAction || staffPreviewSessionActive()) return;
+
+    const payload = {
+        toolCode: TOOL_CODE,
+        toolAction,
+        toolOutcome: toolOutcome(eventName, detail),
+        toolContext: String(detail.context || '').slice(0, 80),
+        toolVersion: TOOL_VERSION,
+        source: 'seo_speed_test',
+        page: window.location.pathname,
+        customerType: 'consumer',
+        dataOrigin: 'speed_test'
+    };
+
+    fetch(TOOL_TRACK_EVENT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            eventType: 'interactive_tool_event',
+            sessionId: TOOL_SESSION_ID,
+            page: window.location.pathname,
+            customerType: 'consumer',
+            dataOrigin: 'speed_test',
+            source: 'seo_speed_test',
+            payload
+        }),
+        credentials: 'same-origin',
+        keepalive: true
+    }).catch(() => {});
+}
+
 function emitMetric(eventName, detail = {}) {
     const event = `ol_speedtest_${eventName}`;
     window.dispatchEvent(new CustomEvent(event, { detail }));
     if (Array.isArray(window.dataLayer)) window.dataLayer.push({ event, ...detail });
+    persistToolMetric(eventName, detail);
 }
 
 async function loadSpeedTestEngine({ quiet = false } = {}) {
