@@ -23,6 +23,7 @@ AXPO_LIGHT = "000099ESFFL07XXAXPOIXFIX89922607"
 AXPO_GAS = "000099GSFML07XXAXPOIXFIX91292607"
 ACEA_LIGHT = "000774ESFML01XXRT4D4028030000000"
 OVERRIDES = MODULE.load_verified_overrides(ROOT)
+MODULE.configure_market_references(ROOT)
 
 
 def component(name: str, values: list[tuple[str, float]], unit: str) -> str:

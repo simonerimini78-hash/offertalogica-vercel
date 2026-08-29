@@ -3267,6 +3267,7 @@ const DATI_CALCOLO_URLS = ["/data/calcolo-parametri.json", "data/calcolo-paramet
 const DATI_OFFERTE_URLS = ["/data/offerte-proposte.json", "data/offerte-proposte.json"];
 const DATI_ARERA_MENU_URLS = ["/data/offerte-arera-menu.json", "data/offerte-arera-menu.json"];
 const DATI_PROVIDER_BRAND_URLS = ["/data/provider-brand.json", "data/provider-brand.json"];
+let DATI_UFFICIALI_CONFRONTO_PRONTI = false;
 let DATI_CALCOLO_META = {
   versioneDati: "fallback-html-2026-06-27-v3",
   fonte: "Fallback interno HTML",
@@ -7051,6 +7052,14 @@ function aggiornaConsumiDaMasterSeMedia() {
 }
 
 window.avviaComparazioneDati = function avviaComparazioneDati() {
+  if (!DATI_UFFICIALI_CONFRONTO_PRONTI) {
+    const areaRisultati = document.getElementById("results-area");
+    if (areaRisultati) {
+      areaRisultati.style.display = "flex";
+      areaRisultati.innerHTML = `<div class="verdetto-box warning"><h2>Dati ufficiali in caricamento</h2><p>Il confronto parte solo dopo il caricamento dei dati economici aggiornati. Riprova tra qualche istante.</p></div>`;
+    }
+    return;
+  }
   nascondiGuida("comparison-next-step-guidance");
   aggiornaConsumiDaMasterSeMedia();
   pulisciSegnalazioniDatiMancanti();
@@ -12025,7 +12034,9 @@ function collegaEventiUX() {
   sincronizzaConsumiNuovaOfferta();
   aggiornaTestoPulsanteConfronto();
 
-  Promise.all([caricaDatiCalcolo(), caricaOfferteProposte(), caricaOfferteAreraMenu(), caricaProviderBrand()]).then(() => {
+  Promise.all([caricaDatiCalcolo(), caricaOfferteProposte(), caricaOfferteAreraMenu(), caricaProviderBrand()]).then(([calcoloOk, offerteOk, areraOk]) => {
+    DATI_UFFICIALI_CONFRONTO_PRONTI = Boolean(calcoloOk && offerteOk && areraOk);
+    if (!DATI_UFFICIALI_CONFRONTO_PRONTI) return;
     sincronizzaIndiciMercatoConCatalogoArera();
     assicuraSchedeOfferte();
     if (SOCIAL_ENTRY_STATE.active) {

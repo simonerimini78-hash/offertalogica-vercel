@@ -66,6 +66,8 @@ function validateAreraCatalog() {
     if (row.tipo === "variabile" && row.qualitaPrezzo === "indice_piu_spread_semantico") {
       assert(Number.isFinite(Number(row.provenienzaPrezzo?.valoreIndice)), `offerta variabile ${row.codice}: indice mancante`);
       assert(Number(row.prezzo) !== Number(row.provenienzaPrezzo?.valore), `offerta variabile ${row.codice}: spread pubblicato come prezzo`);
+      const rebuilt = Number(row.provenienzaPrezzo.valoreIndice) + Number(row.provenienzaPrezzo?.valore || 0);
+      assert(Math.abs(Number(row.prezzo) - rebuilt) < 1e-7, `offerta variabile ${row.codice}: prezzo non coerente con indice ufficiale + spread`);
     }
   }
 
@@ -91,8 +93,22 @@ function validateDataFiles() {
 
   const params = readJson("data/calcolo-parametri.json");
   const offers = readJson("data/offerte-proposte.json");
+  const arera = readJson("data/offerte-arera-menu.json");
 
   assert(params.versioneDati, "calcolo-parametri.json: versioneDati mancante");
+  for (const key of ["pun", "psv"]) {
+    const paramIndex = params.indiciMercato?.[key];
+    const catalogIndex = Number(arera.indiciUsati?.[key]);
+    assert(paramIndex?.stato === "ufficiale", `indice ${key.toUpperCase()}: stato ufficiale mancante`);
+    assert(Number.isFinite(Number(paramIndex?.valore)) && Number(paramIndex.valore) > 0, `indice ${key.toUpperCase()}: valore ufficiale non valido`);
+    assert(catalogIndex === Number(paramIndex.valore), `indice ${key.toUpperCase()}: catalogo ARERA e parametri non sincronizzati`);
+  }
+  const averageProfile = params.parametriCalcolo?.profiloMedio;
+  const averageSource = params.parametriCalcolo?.profiloMedioFonte;
+  assert(averageSource?.fonte?.includes("ARERA"), "profilo medio: fonte ARERA mancante");
+  for (const field of ["prezzoLuceEurKwh", "prezzoGasEurSmc", "quotaFissaLuceAnnua", "quotaFissaGasAnnua"]) {
+    assert(Number.isFinite(Number(averageProfile?.[field])) && Number(averageProfile[field]) > 0, `profilo medio: ${field} non valido`);
+  }
   assert(Number.isFinite(Number(params.parametriCalcolo?.perditeReteLuceVariabile)), "perditeReteLuceVariabile non numerico");
   assert(Number.isFinite(Number(params.parametriCalcolo?.profiloMedio?.luceConsumoKwh)), "profilo medio luce non numerico");
   assert(Number.isFinite(Number(params.parametriCalcolo?.profiloMedio?.gasConsumoSmc)), "profilo medio gas non numerico");

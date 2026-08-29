@@ -21,9 +21,10 @@ from urllib.parse import urljoin
 NS = {"po": "http://www.acquirenteunico.it/schemas/SII_AU/OffertaRetail/01"}
 OPEN_DATA_URL = "https://www.ilportaleofferte.it/portaleOfferte/it/open-data.page"
 SOURCE_LABEL = "Portale Offerte ARERA/Acquirente Unico Open Data"
-PUN_FALLBACK = 0.119351258
-PSV_FALLBACK = 0.504419055
-REFERENCE_CONSUMPTION = {"luce": 2700, "gas": 700}
+PUN_FALLBACK: float | None = None
+PSV_FALLBACK: float | None = None
+REFERENCE_CONSUMPTION = {"luce": 2700, "gas": 1400}
+MARKET_INDEX_DETAILS: dict[str, dict[str, object]] = {}
 PRICE_CHANGE_TOLERANCE = 0.02
 FEE_CHANGE_TOLERANCE = 24.0
 BLOCKED_PRICE_QUALITIES = {
@@ -88,6 +89,58 @@ BROWSER_HEADERS = {
     "Accept-Language": "it-IT,it;q=0.9,en;q=0.8",
     "Cache-Control": "no-cache",
 }
+
+
+
+
+def configure_market_references(root: Path) -> None:
+    """Load official current comparison indices from the canonical parameter file.
+
+    There are deliberately no numeric fallbacks here: if the canonical official
+    reference is missing or invalid, catalog generation stops and preserves the
+    last published dataset.
+    """
+    global PUN_FALLBACK, PSV_FALLBACK, REFERENCE_CONSUMPTION, MARKET_INDEX_DETAILS
+    path = root / "data" / "calcolo-parametri.json"
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    indices = payload.get("indiciMercato")
+    calculation = payload.get("parametriCalcolo")
+    if not isinstance(indices, dict) or not isinstance(calculation, dict):
+        raise RuntimeError("Riferimenti economici canonici mancanti in calcolo-parametri.json")
+
+    details: dict[str, dict[str, object]] = {}
+    values: dict[str, float] = {}
+    for key in ("pun", "psv"):
+        detail = indices.get(key)
+        if not isinstance(detail, dict):
+            raise RuntimeError(f"Indice ufficiale {key.upper()} mancante")
+        try:
+            value = float(detail.get("valore"))
+        except (TypeError, ValueError):
+            raise RuntimeError(f"Indice ufficiale {key.upper()} non numerico")
+        if value <= 0:
+            raise RuntimeError(f"Indice ufficiale {key.upper()} non valido")
+        if str(detail.get("stato") or "").lower() != "ufficiale":
+            raise RuntimeError(f"Indice {key.upper()} non marcato come ufficiale")
+        period = str(detail.get("periodo") or "")
+        if not re.fullmatch(r"20\d{2}-(?:0[1-9]|1[0-2])", period):
+            raise RuntimeError(f"Periodo ufficiale {key.upper()} non valido")
+        values[key] = value
+        details[key] = copy.deepcopy(detail)
+
+    profile = calculation.get("profiloMedio")
+    if isinstance(profile, dict):
+        try:
+            light = float(profile.get("luceConsumoKwh"))
+            gas = float(profile.get("gasConsumoSmc"))
+        except (TypeError, ValueError):
+            light = gas = 0
+        if light > 0 and gas > 0:
+            REFERENCE_CONSUMPTION = {"luce": light, "gas": gas}
+
+    PUN_FALLBACK = values["pun"]
+    PSV_FALLBACK = values["psv"]
+    MARKET_INDEX_DETAILS = details
 
 
 def log_info(message: str) -> None:
@@ -409,6 +462,8 @@ def semantic_price(
             threshold = 0.08 if commodity == "luce" else 0.25
             if selected_value < threshold:
                 index_value = PUN_FALLBACK if commodity == "luce" else PSV_FALLBACK
+                if index_value is None:
+                    return None, "", None, "indice_ufficiale_non_disponibile"
                 provenance["indiceApplicato"] = "PUN" if commodity == "luce" else "PSV"
                 provenance["valoreIndice"] = index_value
                 return (
@@ -428,6 +483,8 @@ def semantic_price(
             provenance = copy.deepcopy(selected)
             provenance["ruolo"] = "spread_corrente_selezionato"
             index_value = PUN_FALLBACK if commodity == "luce" else PSV_FALLBACK
+            if index_value is None:
+                return None, "", None, "indice_ufficiale_non_disponibile"
             provenance["indiceApplicato"] = "PUN" if commodity == "luce" else "PSV"
             provenance["valoreIndice"] = index_value
             return round(index_value + spread, 8), "indice_piu_spread_semantico", provenance, ""
@@ -1311,6 +1368,7 @@ def atomic_publish(root: Path, payload: dict[str, object], report: dict[str, obj
 def build_staging_payload(
     files: dict[str, Path], as_of: datetime, root: Path
 ) -> tuple[dict[str, object], list[dict[str, object]]]:
+    configure_market_references(root)
     overrides = load_verified_overrides(root)
     diagnostics: list[dict[str, object]] = []
     light_rows = dedupe_rows(parse_offer_file(files["E"], "luce", as_of, overrides, diagnostics))
@@ -1326,6 +1384,7 @@ def build_staging_payload(
             "pun": PUN_FALLBACK,
             "psv": PSV_FALLBACK,
         },
+        "indiciUsatiDettaglio": copy.deepcopy(MARKET_INDEX_DETAILS),
         "offerte": [row for row in rows if row.get("customerType") == "privato"],
         "offerteBusiness": [row for row in rows if row.get("customerType") == "business"],
         "offerteDual": [row for row in dual_rows if row.get("customerType") == "privato"],
