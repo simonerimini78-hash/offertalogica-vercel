@@ -2574,7 +2574,7 @@
         const staffPreview = staffSessionActive || ["staff", "staffToken", "previewToken"].some((key) => params.has(key) || hashParams.has(key));
         const staffHomeRequested = params.get("staffHome") === "1";
         const calculatorBypass = params.get("landing") === "0" || String(params.get("entry") || "").toLowerCase() === "calculator";
-        const requested = !staffPreview && (staffHomeRequested || Boolean(window.__OFFERTALOGICA_LANDING_FORCE__) || !calculatorBypass);
+        const requested = staffHomeRequested || (!staffPreview && (Boolean(window.__OFFERTALOGICA_LANDING_FORCE__) || !calculatorBypass));
         window.__OFFERTALOGICA_LANDING_REQUESTED__ = requested;
         window.__OFFERTALOGICA_SOCIAL_ENTRY_REQUESTED__ = requested;
         if (requested) document.documentElement.classList.add("social-entry-requested");
