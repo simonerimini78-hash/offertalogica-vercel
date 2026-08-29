@@ -6241,10 +6241,40 @@ function condizioneScontoAreraCorrispondeAllaControparte(sconto, controparte) {
   const condizione = String(sconto.condizioneApplicazione || "").trim();
   if (!condizione || condizione === "00") return false;
   if (!["01", "02"].includes(String(sconto.validita || "").trim())) return false;
+
+  const condizioneTestuale = /^\d+$/.test(condizione) ? "" : condizione;
+  const testoCondizione = testoFornitoreNormalizzato(
+    `${sconto.nome || ""} ${sconto.descrizione || ""} ${condizioneTestuale}`,
+  );
+  if (!testoCondizione) return false;
+
+  // Se ARERA cita una specifica offerta della commodity opposta, il vincolo
+  // vale esclusivamente per quella riga e non per tutte le offerte del provider.
   const nomeControparte = testoFornitoreNormalizzato(controparte.nome || "");
-  if (!nomeControparte) return false;
-  const testoCondizione = testoFornitoreNormalizzato(`${sconto.nome || ""} ${sconto.descrizione || ""}`);
-  return testoCondizione.includes(nomeControparte);
+  const nomiEspliciti = OFFERTE_ARERA_MENU
+    .filter((riga) => (
+      riga.providerKey === controparte.providerKey
+      && riga.commodity === controparte.commodity
+      && riga.nome
+    ))
+    .map((riga) => testoFornitoreNormalizzato(riga.nome))
+    .filter((nome) => nome && testoCondizione.includes(nome));
+  if (nomiEspliciti.length) return nomiEspliciti.includes(nomeControparte);
+  if (nomeControparte && testoCondizione.includes(nomeControparte)) return true;
+
+  // Se non viene indicato un prodotto preciso, e ammesso il collegamento solo
+  // quando la condizione richiede esplicitamente anche l'altra commodity.
+  const segnaliLegame = [
+    "attiv", "fornitur", "insieme", "congiunt", "contestual", "abbin", "dual", "anche",
+  ];
+  if (!segnaliLegame.some((segnale) => testoCondizione.includes(segnale))) return false;
+  if (controparte.commodity === "gas") {
+    return /\bgas\b|materia prima gas|fornitura gas/.test(testoCondizione);
+  }
+  if (controparte.commodity === "luce") {
+    return /\bluce\b|energia elettrica|elettric/.test(testoCondizione);
+  }
+  return false;
 }
 
 function rigaAreraConScontiCondizionati(riga, controparte) {
@@ -6293,6 +6323,18 @@ function coppiaAreraConScontiCondizionati(luce, gas) {
     luce: rigaAreraConScontiCondizionati(luce, gas),
     gas: rigaAreraConScontiCondizionati(gas, luce),
   };
+}
+
+function coppiaAreraHaLegameCommercialeEsplicito(luce, gas) {
+  if (!luce || !gas) return false;
+  if (luce.providerKey !== gas.providerKey || luce.tipo !== gas.tipo) return false;
+  const luceCollegaGas = (luce.sconti || []).some((sconto) => (
+    condizioneScontoAreraCorrispondeAllaControparte(sconto, gas)
+  ));
+  const gasCollegaLuce = (gas.sconti || []).some((sconto) => (
+    condizioneScontoAreraCorrispondeAllaControparte(sconto, luce)
+  ));
+  return luceCollegaGas || gasCollegaLuce;
 }
 
 function offertaAreraDualConSconti(offerta) {
@@ -6504,40 +6546,55 @@ function offertaPartnerConPrezziArera(offerta, attuale) {
       }, 0);
     }
 
-    // Se il catalogo D non contiene una specifica dual corrente, la card partner
-    // puo essere valorizzata soltanto con due righe E/G correnti dello stesso
-    // venditore e dello stesso tipo prezzo. Il funnel deve confermare le condizioni.
+    // Se manca una dual D, E+G possono essere trattate come proposta congiunta
+    // soltanto quando ARERA contiene un legame commerciale esplicito tramite
+    // sconto/condizione. Mai accoppiamento per semplice coincidenza di provider.
     if (!OFFERTE_ARERA_MENU.length) return null;
     const providerKey = chiaveFornitoreDaNome(offerta.provider);
     if (!providerKey) return null;
-    const luceBase = rigaAreraPartnerCertificata(offerta, "luce", attuale)
-      || miglioreRigaAreraPerProvider(providerKey, "luce", offerta.tipo, attuale);
-    const gasBase = rigaAreraPartnerCertificata(offerta, "gas", attuale)
-      || miglioreRigaAreraPerProvider(providerKey, "gas", offerta.tipo, attuale);
-    if (!luceBase || !gasBase) return null;
-    const coppia = coppiaAreraConScontiCondizionati(luceBase, gasBase);
+    const luci = OFFERTE_ARERA_MENU
+      .filter((riga) => riga.providerKey === providerKey && riga.commodity === "luce" && riga.tipo === offerta.tipo)
+      .filter(rigaAreraIdonea);
+    const gas = OFFERTE_ARERA_MENU
+      .filter((riga) => riga.providerKey === providerKey && riga.commodity === "gas" && riga.tipo === offerta.tipo)
+      .filter(rigaAreraIdonea);
+    const candidateCollegate = [];
+    luci.forEach((luceBase) => {
+      gas.forEach((gasBase) => {
+        if (!coppiaAreraHaLegameCommercialeEsplicito(luceBase, gasBase)) return;
+        const coppia = coppiaAreraConScontiCondizionati(luceBase, gasBase);
+        candidateCollegate.push(coppia);
+      });
+    });
+    const coppia = candidateCollegate.sort((a, b) => {
+      const costoA = costoRigaAreraSuProfilo(a.luce, attuale) + costoRigaAreraSuProfilo(a.gas, attuale);
+      const costoB = costoRigaAreraSuProfilo(b.luce, attuale) + costoRigaAreraSuProfilo(b.gas, attuale);
+      return costoA - costoB;
+    })[0] || null;
+    if (!coppia) return null;
     const luce = coppia.luce;
-    const gas = coppia.gas;
-    const providerLabel = luce.providerLabel || gas.providerLabel || offerta.provider;
-    const codici = `${luce.codice} + ${gas.codice}`;
+    const gasScelta = coppia.gas;
+    const providerLabel = luce.providerLabel || gasScelta.providerLabel || offerta.provider;
+    const codici = `${luce.codice} + ${gasScelta.codice}`;
     return normalizzaOfferta({
       ...offerta,
       provider: providerLabel,
-      nome: `${providerLabel} - ${luce.nome} + ${gas.nome}`,
+      nome: `${providerLabel} - ${luce.nome} + ${gasScelta.nome}`,
       fornitura: "dual",
       luce: voceDaRigaArera(luce),
-      gas: voceDaRigaArera(gas),
-      descrizione: `Stima economica giornaliera composta dalle offerte luce e gas ARERA correnti dello stesso venditore. Il percorso partner e attivo, ma nome e condizioni finali devono essere confermati nel funnel. Codici: ${codici}`,
-      fonte: `${DATI_ARERA_MENU_META.fonte} Cataloghi E+G. Codici: ${codici}`,
+      gas: voceDaRigaArera(gasScelta),
+      descrizione: `Condizioni economiche dai cataloghi ARERA E/G trattate congiuntamente perche una condizione commerciale ARERA collega esplicitamente le due forniture. Codici: ${codici}`,
+      fonte: `${DATI_ARERA_MENU_META.fonte} Cataloghi E+G collegati. Codici: ${codici}`,
       aggiornataIl: DATI_ARERA_MENU_META.aggiornatoIl,
       certificazione: {
         ...(offerta.certificazione || {}),
         codici: {
           ...(offerta?.certificazione?.codici || {}),
+          dual: "",
           luce: luce.codice,
-          gas: gas.codice,
+          gas: gasScelta.codice,
         },
-        catalogoArera: "E+G",
+        catalogoArera: "E+G-collegato",
         composizioneEconomicaGiornaliera: true,
         percorsoPartnerRichiedeConfermaCondizioni: true,
         datiEconomiciDaCatalogoPartner: false,
