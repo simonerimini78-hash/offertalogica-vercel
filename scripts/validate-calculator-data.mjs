@@ -135,6 +135,22 @@ function validateDataFiles() {
   return { params, offers };
 }
 
+
+function validateCanonicalEconomicRouting() {
+  const html = read("public/index.html");
+  const providerFunction = html.match(/function miglioreNuovaOffertaPerFornitore\([\s\S]*?\n}\n/);
+  assert(providerFunction, "routing economico: funzione provider specifico non trovata");
+  assert(providerFunction[0].includes("offertaPartnerConPrezziArera"), "routing economico: il confronto per fornitore usa ancora prezzi partner statici");
+  assert(html.includes("DATI_UFFICIALI_CONFRONTO_PRONTI"), "routing economico: guardia dati ufficiali mancante");
+
+  const workflow = read(".github/workflows/update-arera-menu.yml");
+  assert(!/name:\s*Genera JSON offerte ARERA[\s\S]{0,220}if:\s*github\.event_name\s*==\s*['"]workflow_dispatch['"]/.test(workflow), "workflow ARERA: catalogo ancora limitato all'avvio manuale");
+  assert(workflow.includes("python scripts/update-arera-reference-data.py indices"), "workflow ARERA: sincronizzazione indici ufficiali mancante");
+  assert(workflow.includes("python scripts/update-arera-menu.py"), "workflow ARERA: rigenerazione catalogo mancante");
+  assert(workflow.includes("python scripts/update-arera-reference-data.py benchmark"), "workflow ARERA: aggiornamento benchmark medio mancante");
+  assert(workflow.includes("public/index.html"), "workflow Premium: sincronizzazione motore canonico mancante");
+}
+
 function loadEngineContext() {
   const scripts = validateInlineScripts("public/index.html");
 
@@ -213,6 +229,7 @@ function validateEngine(params, offers) {
 
 try {
   const { params, offers } = validateDataFiles();
+  validateCanonicalEconomicRouting();
   const result = validateEngine(params, offers);
   console.log(JSON.stringify({ ok: true, ...result }, null, 2));
 } catch (error) {

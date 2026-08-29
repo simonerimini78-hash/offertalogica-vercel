@@ -11445,7 +11445,13 @@ function offerteAreraPerFornitore(providerKey, attuale, tipoFornitura) {
 }
 
 function miglioreNuovaOffertaPerFornitore(providerKey, attuale, tipoTariffa, tipoFornitura) {
-  const pubblicate = OFFERTE_PROPOSTE.filter((offerta) => chiaveFornitoreDaNome(offerta.provider) === providerKey);
+  // Anche nel confronto facoltativo per singolo fornitore, il catalogo commerciale
+  // fornisce solo il percorso. Le condizioni economiche vengono sempre ricostruite
+  // dal catalogo ARERA corrente; nessun prezzo statico partner entra nel calcolo.
+  const pubblicate = OFFERTE_PROPOSTE
+    .filter((offerta) => chiaveFornitoreDaNome(offerta.provider) === providerKey)
+    .map((offerta) => offertaPartnerConPrezziArera(offerta, attuale))
+    .filter(Boolean);
   const arera = offerteAreraPerFornitore(providerKey, attuale, tipoFornitura);
   const candidate = [...pubblicate, ...arera]
     .filter((offerta) => offertaCalcolabileConIndici(offerta))
@@ -11482,7 +11488,9 @@ function applicaOffertaAlBloccoNuovo(offerta, providerKey) {
   impostaQuotaFissaAnnua("in-gas-fisso-nuov", "in-gas-fisso-nuov-unita", offerta.gas ? offerta.gas.quotaFissaAnnua : "");
 
   BLOCCO_AUTOFILL_NUOVA_OFFERTA = false;
-  const fonte = offerta.destinationType === "arera" ? "dati ARERA disponibili" : "offerte gia inserite nel calcolatore";
+  const fonte = offerta.destinationType === "arera" || offerta?.certificazione?.datiEconomiciDaCatalogoPartner === false
+    ? "dati ARERA disponibili"
+    : "dati inseriti manualmente";
   const tipo = offerta.tipo === "variabile" ? "Prezzo variabile" : "Prezzo fisso";
   const durata = durataOffertaTesto(offerta);
   mostraHintNuovaOfferta(`Offerte disponibili di ${offerta.provider || etichettaFornitoreSelezionato()}\nOfferta selezionata per il confronto: ${offerta.nome}. ${tipo}${durata ? `, ${durata}` : ""}. Fonte: ${fonte}.\nPuoi modificare i valori sotto oppure inserire manualmente una proposta diversa.`);
