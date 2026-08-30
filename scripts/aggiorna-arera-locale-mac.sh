@@ -415,14 +415,8 @@ print(
 print(f"[ARERA-LOCALE] Staging validato: {staging_path.relative_to(root)}")
 PY
 
-log "Acquisisco dal file ARERA Analisi spesa offerte PO i riferimenti medi ufficiali fisso/variabile."
-RETAIL_REFERENCE_OK=0
-if python3 "$ROOT_DIR/scripts/update-arera-retail-benchmarks.py" --package-root "$ROOT_DIR"; then
-  RETAIL_REFERENCE_OK=1
-  log "Riferimenti medi ARERA aggiornati."
-else
-  log "ATTENZIONE: i riferimenti medi ARERA non sono stati aggiornati. Il catalogo offerte appena pubblicato resta valido e aggiornato; non viene calcolata alcuna media sostitutiva."
-fi
+log "Leggo dagli allegati ARERA la spesa annua media ufficiale delle offerte di mercato libero (fisso/variabile, luce/gas)."
+python3 "$ROOT_DIR/scripts/update-arera-retail-benchmarks.py" --package-root "$ROOT_DIR"
 
 log "Aggiorno e convalido i riferimenti energia giornalieri ARERA/GME."
 ensure_pdf_reader
@@ -439,7 +433,7 @@ log "Eseguo la validazione completa del calcolatore e del contratto dati."
   node scripts/validate-calculator-data.mjs
 )
 
-python3 - "$ROOT_DIR" "$SELECTED_DATE" "$RETAIL_REFERENCE_OK" <<'PY'
+python3 - "$ROOT_DIR" "$SELECTED_DATE" <<'PY'
 from __future__ import annotations
 
 import json
@@ -449,7 +443,6 @@ from pathlib import Path
 
 root = Path(sys.argv[1]).resolve()
 selected_date = sys.argv[2]
-retail_reference_ok = sys.argv[3] == "1"
 today = date.today().isoformat()
 
 def load(relative: str):
@@ -468,7 +461,7 @@ if params != public_params:
     raise RuntimeError("Parametri data/public non identici")
 if catalog.get("aggiornatoIl") != selected_date:
     raise RuntimeError("Data catalogo diversa dalla terna XML selezionata")
-if catalog.get("trasformatoreVersione") != "arera-menu-v6-sconti-durata-indici-generici":
+if catalog.get("trasformatoreVersione") != "arera-menu-v5-sconti-durata-esplicita":
     raise RuntimeError("Catalogo prodotto da un trasformatore diverso da quello MAIN atteso")
 
 all_rows = []
@@ -506,16 +499,15 @@ for source_key, profile_key in (("luceConsumoKwh", "luceConsumoKwh"), ("gasConsu
         raise RuntimeError(f"Profilo consumi non coerente: {source_key}")
 
 retail_reference = ((params.get("parametriCalcolo") or {}).get("riferimentiMercatoLibero") or {})
-if retail_reference_ok:
-    if retail_reference.get("acquisitoIl") != today:
-        raise RuntimeError("Riferimenti medi ARERA non acquisiti oggi")
-    for commodity in ("luce", "gas"):
-        sector = retail_reference.get(commodity) or {}
-        for price_type in ("fisso", "variabile"):
-            item = sector.get(price_type) or {}
-            value = item.get("spesaAnnuaMediaEur")
-            if item.get("stato") != "ufficiale" or not isinstance(value, (int, float)) or value <= 0:
-                raise RuntimeError(f"Riferimento ARERA incompleto: {commodity}/{price_type}")
+if retail_reference.get("acquisitoIl") != today:
+    raise RuntimeError("Riferimenti medi ARERA non acquisiti oggi")
+for commodity in ("luce", "gas"):
+    sector = retail_reference.get(commodity) or {}
+    for price_type in ("fisso", "variabile"):
+        item = sector.get(price_type) or {}
+        value = item.get("spesaAnnuaMediaEur")
+        if item.get("stato") != "ufficiale" or not isinstance(value, (int, float)) or value <= 0:
+            raise RuntimeError(f"Riferimento medio ARERA incompleto: {commodity}/{price_type}")
 if report.get("versioneDati") != catalog.get("versioneDati") or report.get("pubblicazioneAutorizzata") is not True:
     raise RuntimeError("Report ARERA non coerente con il catalogo pubblicato")
 if energy.get("acquisitoIl") != today:
