@@ -4592,11 +4592,22 @@ function testoCitaRiferimentoArera(testo, riferimento) {
 function condizioneNominaFamigliaOpposta(testo, commodityOpposta) {
   const marker = commodityOpposta === "gas" ? "gas" : "luce";
   const normalized = testoAreraNormalizzato(testo);
-  const match = normalized.match(new RegExp("offerta\\s+" + marker + "\\s+([a-z0-9][a-z0-9\\s-]{2,40})"));
+  const pattern = new RegExp(String.raw`offerta\s+(?:[a-z0-9]+\s+){0,8}${marker}\s+([a-z0-9][a-z0-9\s-]{2,64})`);
+  const match = normalized.match(pattern);
   if (!match) return false;
-  const coda = match[1].split(" ").filter(Boolean);
-  const stop = new Set(["e", "con", "in", "per", "da", "di", "del", "della", "contestuale", "contestualmente", "congiunta", "congiuntamente", "attivazione", "sottoscrizione"]);
-  return coda.some((token) => token.length >= 4 && !stop.has(token));
+
+  const descrittoriGenerici = new Set(["naturale", "energia", "elettrica"]);
+  const terminatori = new Set([
+    "e", "con", "in", "per", "da", "di", "del", "della", "dei", "degli", "delle",
+    "clienti", "cliente", "contestuale", "contestualmente", "congiunta", "congiuntamente",
+    "attivazione", "sottoscrizione", "sottoscrivono", "sottoscrive", "attiva", "attivata", "attivare",
+  ]);
+  for (const token of match[1].split(" ").filter(Boolean)) {
+    if (descrittoriGenerici.has(token)) continue;
+    if (terminatori.has(token)) return false;
+    return token.length >= 4;
+  }
+  return false;
 }
 
 function vincoloScontoAreraNonValutabile(testo) {

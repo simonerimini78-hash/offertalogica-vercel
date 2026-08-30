@@ -43,46 +43,88 @@ ensure_pdf_reader() {
 
 sync_main_code() {
   if ! command -v git >/dev/null 2>&1; then
-    log "ERRORE: git non disponibile; impossibile verificare che il trasformatore locale coincida con MAIN."
+    log "ERRORE: git non disponibile; impossibile allineare il trasformatore locale a MAIN."
     return 1
   fi
-  if ! git -C "$ROOT_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-    log "Ambiente senza repository Git: salto il controllo origin/main (modalità pacchetto/test)."
-    return 0
+
+  local repo_dir="$ROOT_DIR"
+  local external_repo=0
+  if ! git -C "$repo_dir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    repo_dir="${ARERA_GITHUB_SYNC_REPO:-$HOME/OffertLogica/offertalogica-github-sync}"
+    external_repo=1
+    if ! git -C "$repo_dir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+      log "ERRORE: la cartella dati non è un repository Git e il clone MAIN non è disponibile in $repo_dir."
+      log "Aggiornamento bloccato: non genero dati con un parser locale non verificato."
+      return 1
+    fi
   fi
 
   local branch local_head remote_head merge_base
-  branch="$(git -C "$ROOT_DIR" rev-parse --abbrev-ref HEAD)"
+  branch="$(git -C "$repo_dir" rev-parse --abbrev-ref HEAD)"
   if [ "$branch" != "main" ]; then
-    log "ERRORE: aggiornamento automatico consentito solo dal branch main; branch corrente: $branch."
+    log "ERRORE: il clone MAIN deve essere sul branch main; branch corrente: $branch."
     return 1
   fi
-  if ! git -C "$ROOT_DIR" diff --quiet || ! git -C "$ROOT_DIR" diff --cached --quiet; then
-    log "ERRORE: working tree non pulito. Nessun aggiornamento dati eseguito per evitare di mescolare codice e dati."
+  if ! git -C "$repo_dir" diff --quiet || ! git -C "$repo_dir" diff --cached --quiet; then
+    log "ERRORE: clone MAIN con modifiche locali. Aggiornamento dati bloccato per evitare codice non pubblicato."
     return 1
   fi
 
-  log "Verifico che il codice locale usato dal Mac coincida con origin/main."
-  git -C "$ROOT_DIR" fetch --quiet origin main
-  local_head="$(git -C "$ROOT_DIR" rev-parse HEAD)"
-  remote_head="$(git -C "$ROOT_DIR" rev-parse origin/main)"
-  if [ "$local_head" = "$remote_head" ]; then
-    log "Codice locale allineato a origin/main: $local_head."
+  log "Verifico il codice MAIN usato dal Mac: $repo_dir."
+  git -C "$repo_dir" fetch --quiet origin main
+  local_head="$(git -C "$repo_dir" rev-parse HEAD)"
+  remote_head="$(git -C "$repo_dir" rev-parse origin/main)"
+  if [ "$local_head" != "$remote_head" ]; then
+    merge_base="$(git -C "$repo_dir" merge-base HEAD origin/main)"
+    if [ "$merge_base" != "$local_head" ]; then
+      log "ERRORE: il clone MAIN è avanti o divergente rispetto a origin/main. Aggiornamento dati bloccato."
+      return 1
+    fi
+    log "Clone MAIN arretrato: eseguo solo un fast-forward a origin/main."
+    git -C "$repo_dir" merge --ff-only --quiet origin/main
+  fi
+
+  if [ "$external_repo" != "1" ]; then
+    log "Codice locale allineato a origin/main: $(git -C "$repo_dir" rev-parse HEAD)."
+    if [ "$SYNC_RESTARTED" != "1" ] && [ "$local_head" != "$remote_head" ]; then
+      log "Codice aggiornato. Riavvio il processo con gli script appena allineati."
+      ARERA_SYNC_RESTARTED=1 exec bash "$ROOT_DIR/scripts/aggiorna-arera-locale-mac.sh" "${ORIGINAL_ARGS[@]}"
+    fi
     return 0
   fi
 
-  merge_base="$(git -C "$ROOT_DIR" merge-base HEAD origin/main)"
-  if [ "$merge_base" != "$local_head" ]; then
-    log "ERRORE: MAIN locale è avanti o divergente rispetto a origin/main. Aggiornamento dati bloccato."
-    return 1
-  fi
+  local changed=0
+  local rel
+  for rel in \
+    scripts/aggiorna-arera-locale-mac.sh \
+    scripts/update-arera-menu.py \
+    scripts/update-arera-reference-data.py \
+    scripts/update-energy-today.py \
+    scripts/validate-calculator-data.mjs
+  do
+    if [ ! -f "$repo_dir/$rel" ]; then
+      log "ERRORE: file MAIN necessario non trovato: $repo_dir/$rel"
+      return 1
+    fi
+    if ! cmp -s "$repo_dir/$rel" "$ROOT_DIR/$rel"; then
+      mkdir -p "$ROOT_DIR/$(dirname "$rel")"
+      cp "$repo_dir/$rel" "$ROOT_DIR/$rel"
+      changed=1
+      log "Codice Mac allineato da MAIN: $rel"
+    fi
+  done
+  chmod +x "$ROOT_DIR/scripts/aggiorna-arera-locale-mac.sh"
 
-  log "MAIN locale arretrato: eseguo solo un fast-forward a origin/main."
-  git -C "$ROOT_DIR" merge --ff-only --quiet origin/main
-  if [ "$SYNC_RESTARTED" != "1" ]; then
-    log "Codice aggiornato. Riavvio il processo con gli script appena allineati."
+  if [ "$changed" = "1" ]; then
+    if [ "$SYNC_RESTARTED" = "1" ]; then
+      log "ERRORE: il codice continua a cambiare dopo il riavvio di sincronizzazione. Aggiornamento bloccato."
+      return 1
+    fi
+    log "Codice del Mac aggiornato dal clone MAIN. Riavvio il processo prima di scaricare ARERA."
     ARERA_SYNC_RESTARTED=1 exec bash "$ROOT_DIR/scripts/aggiorna-arera-locale-mac.sh" "${ORIGINAL_ARGS[@]}"
   fi
+
+  log "Codice della cartella dati già identico al clone MAIN: $(git -C "$repo_dir" rev-parse HEAD)."
 }
 
 backup_outputs() {
