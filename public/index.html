@@ -6575,7 +6575,10 @@ function arricchisciOffertaAreraConCommerciale(offerta, providerKey, tipo, tipoF
 }
 
 function providerKeysArera() {
-  return [...new Set(OFFERTE_ARERA_MENU.map((riga) => riga.providerKey).filter(Boolean))].sort();
+  return [...new Set([
+    ...OFFERTE_ARERA_MENU.map((riga) => riga.providerKey),
+    ...OFFERTE_ARERA_DUAL.map((offerta) => offerta.providerKey),
+  ].filter(Boolean))].sort();
 }
 
 function miglioreRigaAreraPerProvider(providerKey, commodity, tipo, attuale) {
@@ -6616,6 +6619,31 @@ function miglioreCoppiaAreraDualPerProvider(providerKey, tipo, attuale) {
     })[0] || null;
 }
 
+function miglioreComposizioneAreraDualPerProvider(providerKey, tipo, attuale) {
+  const dual = miglioreCoppiaAreraDualPerProvider(providerKey, tipo, attuale);
+  const coppiaEG = miglioreCoppiaAreraEGPerProvider(providerKey, tipo, attuale);
+  const costoDual = dual ? costoDualAreraSuProfilo(dual, attuale) : Number.POSITIVE_INFINITY;
+  const costoEG = coppiaEG ? coppiaEG.costo : Number.POSITIVE_INFINITY;
+
+  if (!dual && !coppiaEG) return null;
+  if (costoDual <= costoEG) {
+    return {
+      sorgente: "D",
+      dual,
+      luce: dual.luce,
+      gas: dual.gas,
+      costo: costoDual,
+    };
+  }
+  return {
+    sorgente: "E+G",
+    dual: null,
+    luce: coppiaEG.luce,
+    gas: coppiaEG.gas,
+    costo: costoEG,
+  };
+}
+
 function rigaAreraDaCodice(codice) {
   const normalized = String(codice || "").trim();
   if (!normalized) return null;
@@ -6623,8 +6651,9 @@ function rigaAreraDaCodice(codice) {
 }
 
 // OFFERTALOGICA_STRICT_ARERA_SOURCE_ROUTING_20260727
-// Una fornitura dual puo usare esclusivamente un record del catalogo D.
-// I cataloghi E e G restano le sole fonti per luce, gas e combinazioni separate.
+// I record D restano offerte dual native. Per il confronto economico, quando esistono
+// due offerte E+G correnti dello stesso venditore, la migliore composizione puo essere
+// confrontata con il record D senza inventare condizioni o prezzi.
 function offertaAreraDualDaCodice(codice) {
   const normalized = String(codice || "").trim();
   if (!normalized) return null;
@@ -6852,11 +6881,13 @@ function offertaAreraRankingProvider(providerKey, tipo, tipoFornitura, attuale) 
   let luce = null;
   let gas = null;
   let dual = null;
+  let composizioneDual = null;
   if (tipoFornitura === "dual") {
-    dual = miglioreCoppiaAreraDualPerProvider(providerKey, tipo, attuale);
-    if (!dual) return null;
-    luce = dual.luce;
-    gas = dual.gas;
+    composizioneDual = miglioreComposizioneAreraDualPerProvider(providerKey, tipo, attuale);
+    if (!composizioneDual) return null;
+    dual = composizioneDual.dual;
+    luce = composizioneDual.luce;
+    gas = composizioneDual.gas;
   } else if (tipoFornitura === "luce") {
     luce = miglioreRigaAreraPerProvider(providerKey, "luce", tipo, attuale);
   } else if (tipoFornitura === "gas") {
@@ -6874,6 +6905,7 @@ function offertaAreraRankingProvider(providerKey, tipo, tipoFornitura, attuale) 
   const codiciArera = dual
     ? `${dual.codice} (${dual.codiceOffertaLuce} + ${dual.codiceOffertaGas})`
     : [luce?.codice, gas?.codice].filter(Boolean).join(" + ");
+  const sorgenteCatalogo = composizioneDual?.sorgente || (dual ? "D" : "E/G");
   const offerta = normalizzaOfferta({
     id: dual?.codice
       ? `arera-dual-${dual.codice}`
@@ -6888,9 +6920,15 @@ function offertaAreraRankingProvider(providerKey, tipo, tipoFornitura, attuale) 
     luce: voceDaRigaArera(luce),
     gas: voceDaRigaArera(gas),
     sconti: normalizzaScontiArera(dual?.sconti),
-    descrizione: `Ranking tecnico da Portale Offerte ARERA/AU. Codici: ${codiciArera}`,
-    fonte: `${DATI_ARERA_MENU_META.fonte} Codici: ${codiciArera}`,
+    descrizione: `Ranking tecnico da Portale Offerte ARERA/AU (${sorgenteCatalogo}). Codici: ${codiciArera}`,
+    fonte: `${DATI_ARERA_MENU_META.fonte} Catalogo ${sorgenteCatalogo}. Codici: ${codiciArera}`,
     aggiornataIl: DATI_ARERA_MENU_META.aggiornatoIl,
+    certificazione: {
+      catalogoArera: sorgenteCatalogo,
+      composizioneEconomicaGiornaliera: sorgenteCatalogo === "E+G",
+      datiEconomiciDaCatalogoPartner: false,
+      dataFonte: DATI_ARERA_MENU_META.aggiornatoIl,
+    },
   }, 0);
 
   return arricchisciOffertaAreraConCommerciale(offerta, providerKey, tipo, tipoFornitura, nomiArera);
@@ -6938,7 +6976,9 @@ function offertaAreraSeparataRanking(luce, gas, tipo) {
 }
 
 function costruisciOfferteAreraRanking(attuale, tipoTariffa, tipoFornitura) {
-  if (!OFFERTE_ARERA_MENU.length) return [];
+  const haCatalogoPerAmbito = OFFERTE_ARERA_MENU.length
+    || (tipoFornitura === "dual" && OFFERTE_ARERA_DUAL.length);
+  if (!haCatalogoPerAmbito) return [];
 
   if (["dual", "luce", "gas"].includes(tipoFornitura)) {
     return providerKeysArera()
@@ -7131,7 +7171,13 @@ function unisciOfferteCandidati(offerteRanking, offertePartner) {
 
 function costruisciOfferteRanking(attuale, tipoTariffa, tipoFornitura) {
   const daArera = costruisciOfferteAreraRanking(attuale, tipoTariffa, tipoFornitura);
-  const partnerDirette = offertePartnerDiretteAttivabili(tipoTariffa, tipoFornitura, attuale);
+
+  // Nel dual ogni provider ARERA viene gia arricchito con l'eventuale percorso
+  // commerciale attivo. Evitiamo che una card partner sostituisca una composizione
+  // E+G economicamente migliore o una vera offerta D migliore dello stesso venditore.
+  const partnerDirette = tipoFornitura === "dual"
+    ? []
+    : offertePartnerDiretteAttivabili(tipoTariffa, tipoFornitura, attuale);
 
   // Il catalogo ARERA giornaliero alimenta sempre la parte economica.
   // Il catalogo partner aggiunge soltanto i percorsi commerciali attivi.
@@ -11845,16 +11891,17 @@ function offertaAreraDaRighe(providerKey, tipo, tipoFornitura, attuale) {
   const righe = OFFERTE_ARERA_MENU.filter((riga) => riga.providerKey === providerKey);
   if (!righe.length) return null;
 
-  const dual = tipoFornitura === "dual"
-    ? miglioreCoppiaAreraDualPerProvider(providerKey, tipo, attuale)
+  const composizioneDual = tipoFornitura === "dual"
+    ? miglioreComposizioneAreraDualPerProvider(providerKey, tipo, attuale)
     : null;
+  const dual = composizioneDual?.dual || null;
   const luce = tipoFornitura === "gas"
     ? null
-    : dual?.luce || miglioreRigaArera(righe, "luce", tipo, attuale);
+    : composizioneDual?.luce || miglioreRigaArera(righe, "luce", tipo, attuale);
   const gas = tipoFornitura === "luce"
     ? null
-    : dual?.gas || miglioreRigaArera(righe, "gas", tipo, attuale);
-  if (tipoFornitura === "dual" && !dual) return null;
+    : composizioneDual?.gas || miglioreRigaArera(righe, "gas", tipo, attuale);
+  if (tipoFornitura === "dual" && !composizioneDual) return null;
   if (tipoFornitura === "dual" && (!luce || !gas)) return null;
   if (tipoFornitura === "separate" && (!luce || !gas)) return null;
   if (!luce && !gas) return null;
@@ -11863,11 +11910,12 @@ function offertaAreraDaRighe(providerKey, tipo, tipoFornitura, attuale) {
   const nome = dual
     ? `${providerLabel} - ${dual.nome}`
     : luce && gas
-    ? `${providerLabel} - migliore abbinamento ARERA con forniture separate`
+    ? `${providerLabel} - ${luce.nome} + ${gas.nome}`
     : `${providerLabel} - ${luce ? luce.nome : gas.nome}`;
   const codici = dual
     ? `${dual.codice} (${dual.codiceOffertaLuce} + ${dual.codiceOffertaGas})`
     : [luce?.codice, gas?.codice].filter(Boolean).join(" + ");
+  const sorgenteCatalogo = composizioneDual?.sorgente || (dual ? "D" : "E/G");
 
   return normalizzaOfferta({
     id: dual?.codice
@@ -11883,8 +11931,8 @@ function offertaAreraDaRighe(providerKey, tipo, tipoFornitura, attuale) {
     luce: voceDaRigaArera(luce),
     gas: voceDaRigaArera(gas),
     sconti: normalizzaScontiArera(dual?.sconti),
-    descrizione: "Compilazione automatica da Portale Offerte ARERA/AU per confronto nel modulo nuova offerta.",
-    fonte: `${DATI_ARERA_MENU_META.fonte} Codici: ${codici}`,
+    descrizione: `Compilazione automatica da Portale Offerte ARERA/AU (${sorgenteCatalogo}) per confronto nel modulo nuova offerta.`,
+    fonte: `${DATI_ARERA_MENU_META.fonte} Catalogo ${sorgenteCatalogo}. Codici: ${codici}`,
     aggiornataIl: DATI_ARERA_MENU_META.aggiornatoIl,
   }, 0);
 }
