@@ -3,7 +3,6 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DOWNLOAD_DIR="$ROOT_DIR/.arera-download"
-ORIGINAL_ARGS=("$@")
 AS_OF="${1:-}"
 SYNC_RESTARTED="${ARERA_SYNC_RESTARTED:-0}"
 SUCCESS=0
@@ -88,7 +87,11 @@ sync_main_code() {
     log "Codice locale allineato a origin/main: $(git -C "$repo_dir" rev-parse HEAD)."
     if [ "$SYNC_RESTARTED" != "1" ] && [ "$local_head" != "$remote_head" ]; then
       log "Codice aggiornato. Riavvio il processo con gli script appena allineati."
-      ARERA_SYNC_RESTARTED=1 exec bash "$ROOT_DIR/scripts/aggiorna-arera-locale-mac.sh" "${ORIGINAL_ARGS[@]}"
+      if [ -n "$AS_OF" ]; then
+        ARERA_SYNC_RESTARTED=1 exec bash "$ROOT_DIR/scripts/aggiorna-arera-locale-mac.sh" "$AS_OF"
+      else
+        ARERA_SYNC_RESTARTED=1 exec bash "$ROOT_DIR/scripts/aggiorna-arera-locale-mac.sh"
+      fi
     fi
     return 0
   fi
@@ -121,7 +124,11 @@ sync_main_code() {
       return 1
     fi
     log "Codice del Mac aggiornato dal clone MAIN. Riavvio il processo prima di scaricare ARERA."
-    ARERA_SYNC_RESTARTED=1 exec bash "$ROOT_DIR/scripts/aggiorna-arera-locale-mac.sh" "${ORIGINAL_ARGS[@]}"
+    if [ -n "$AS_OF" ]; then
+      ARERA_SYNC_RESTARTED=1 exec bash "$ROOT_DIR/scripts/aggiorna-arera-locale-mac.sh" "$AS_OF"
+    else
+      ARERA_SYNC_RESTARTED=1 exec bash "$ROOT_DIR/scripts/aggiorna-arera-locale-mac.sh"
+    fi
   fi
 
   log "Codice della cartella dati già identico al clone MAIN: $(git -C "$repo_dir" rev-parse HEAD)."
