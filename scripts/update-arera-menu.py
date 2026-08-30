@@ -21,8 +21,10 @@ from urllib.parse import urljoin
 NS = {"po": "http://www.acquirenteunico.it/schemas/SII_AU/OffertaRetail/01"}
 OPEN_DATA_URL = "https://www.ilportaleofferte.it/portaleOfferte/it/open-data.page"
 SOURCE_LABEL = "Portale Offerte ARERA/Acquirente Unico Open Data"
+CATALOG_TRANSFORMER_VERSION = "arera-menu-v3-metadata-completi"
 PUN_FALLBACK: float | None = None
 PSV_FALLBACK: float | None = None
+PSBG_FALLBACK: float | None = None
 REFERENCE_CONSUMPTION = {"luce": 2700, "gas": 1400}
 MARKET_INDEX_DETAILS: dict[str, dict[str, object]] = {}
 PRICE_CHANGE_TOLERANCE = 0.02
@@ -100,7 +102,7 @@ def configure_market_references(root: Path) -> None:
     reference is missing or invalid, catalog generation stops and preserves the
     last published dataset.
     """
-    global PUN_FALLBACK, PSV_FALLBACK, REFERENCE_CONSUMPTION, MARKET_INDEX_DETAILS
+    global PUN_FALLBACK, PSV_FALLBACK, PSBG_FALLBACK, REFERENCE_CONSUMPTION, MARKET_INDEX_DETAILS
     path = root / "data" / "calcolo-parametri.json"
     payload = json.loads(path.read_text(encoding="utf-8"))
     indices = payload.get("indiciMercato")
@@ -110,21 +112,23 @@ def configure_market_references(root: Path) -> None:
 
     details: dict[str, dict[str, object]] = {}
     values: dict[str, float] = {}
-    for key in ("pun", "psv"):
+    for key in ("pun", "psv", "psbg"):
         detail = indices.get(key)
         if not isinstance(detail, dict):
-            raise RuntimeError(f"Indice ufficiale {key.upper()} mancante")
+            raise RuntimeError(f"Indice {key.upper()} mancante")
         try:
             value = float(detail.get("valore"))
         except (TypeError, ValueError):
-            raise RuntimeError(f"Indice ufficiale {key.upper()} non numerico")
+            raise RuntimeError(f"Indice {key.upper()} non numerico")
         if value <= 0:
-            raise RuntimeError(f"Indice ufficiale {key.upper()} non valido")
-        if str(detail.get("stato") or "").lower() != "ufficiale":
-            raise RuntimeError(f"Indice {key.upper()} non marcato come ufficiale")
+            raise RuntimeError(f"Indice {key.upper()} non valido")
+        state = str(detail.get("stato") or "").lower()
+        allowed_states = {"ufficiale"} if key in {"pun", "psv"} else {"ufficiale", "verificato"}
+        if state not in allowed_states:
+            raise RuntimeError(f"Indice {key.upper()} con stato non verificato: {state or 'mancante'}")
         period = str(detail.get("periodo") or "")
         if not re.fullmatch(r"20\d{2}-(?:0[1-9]|1[0-2])", period):
-            raise RuntimeError(f"Periodo ufficiale {key.upper()} non valido")
+            raise RuntimeError(f"Periodo {key.upper()} non valido")
         values[key] = value
         details[key] = copy.deepcopy(detail)
 
@@ -140,6 +144,7 @@ def configure_market_references(root: Path) -> None:
 
     PUN_FALLBACK = values["pun"]
     PSV_FALLBACK = values["psv"]
+    PSBG_FALLBACK = values["psbg"]
     MARKET_INDEX_DETAILS = details
 
 
@@ -445,7 +450,8 @@ def extracted_discounts(
         duration_value = parse_float(node_text(discount, "po:DURATA"))
         duration = int(duration_value) if duration_value is not None else None
         vat_discount = node_text(discount, "po:IVA_SCONTO")
-        condition = node_text(discount, "po:CONDIZIONE_APPLICAZIONE")
+        condition = node_text(discount, "po:Condizione/po:CONDIZIONE_APPLICAZIONE") or node_text(discount, "po:CONDIZIONE_APPLICAZIONE")
+        condition_description = node_text(discount, "po:Condizione/po:DESCRIZIONE_CONDIZIONE")
 
         prices: list[dict[str, object]] = []
         price_nodes = discount.findall(".//po:PrezziSconto", NS)
@@ -484,6 +490,7 @@ def extracted_discounts(
                 "durataMesi": duration,
                 "ivaSconto": vat_discount,
                 "condizioneApplicazione": condition,
+                "descrizioneCondizione": condition_description,
                 "condizionato": condition not in {"", "00"},
                 "prezzi": prices,
                 "sorgente": source_label_for(source_path),
@@ -519,8 +526,50 @@ def annual_fee(values: list[dict[str, object]]) -> tuple[float | None, list[dict
     return (round(total, 4), selected) if selected else (None, [])
 
 
+def offer_index_key(offer: ET.Element, commodity: str) -> str | None:
+    """Recognize the market index explicitly named by the ARERA offer.
+
+    Unknown indices are not coerced to PSV/PUN: variable offers fail closed
+    rather than being priced with the wrong reference.
+    """
+    parts: list[str] = []
+    for path in (
+        "po:DettaglioOfferta/po:NOME_OFFERTA",
+        "po:DettaglioOfferta/po:DESCRIZIONE",
+        "po:RiferimentiPrezzoEnergia/po:IDX_PREZZO_ENERGIA",
+    ):
+        value = node_text(offer, path)
+        if value:
+            parts.append(value)
+    for node in offer.findall(".//po:ComponenteImpresa", NS):
+        for path in ("po:NOME", "po:DESCRIZIONE"):
+            value = node_text(node, path)
+            if value:
+                parts.append(value)
+    text = normalize_text(" ".join(parts))
+    if commodity == "luce":
+        # Nel catalogo retail elettrico il riferimento variabile standard è il PUN;
+        # i riferimenti testuali, quando presenti, lo confermano.
+        return "pun"
+    if re.search(r"\bpsbg\b|psbil", text):
+        return "psbg"
+    if re.search(r"\bpsv\b|p_ing|p ing", text):
+        return "psv"
+    # Per il gas il default resta PSV, ma PSBG/PSbil ha precedenza esplicita.
+    return "psv"
+
+
+def market_index_value(index_key: str | None) -> tuple[float | None, str]:
+    mapping = {
+        "pun": (PUN_FALLBACK, "PUN"),
+        "psv": (PSV_FALLBACK, "PSV"),
+        "psbg": (PSBG_FALLBACK, "PSBG"),
+    }
+    return mapping.get(str(index_key or "").lower(), (None, ""))
+
+
 def semantic_price(
-    values: list[dict[str, object]], commodity: str, tipo: str
+    values: list[dict[str, object]], commodity: str, tipo: str, index_key: str | None = None
 ) -> tuple[float | None, str, dict[str, object] | None, str]:
     primary = [item for item in values if item["ruolo"] == "prezzo_principale_candidato"]
     unique_primary = sorted({round(float(item["valore"]), 8) for item in primary})
@@ -533,10 +582,10 @@ def semantic_price(
         if tipo == "variabile":
             threshold = 0.08 if commodity == "luce" else 0.25
             if selected_value < threshold:
-                index_value = PUN_FALLBACK if commodity == "luce" else PSV_FALLBACK
+                index_value, index_label = market_index_value(index_key)
                 if index_value is None:
-                    return None, "", None, "indice_ufficiale_non_disponibile"
-                provenance["indiceApplicato"] = "PUN" if commodity == "luce" else "PSV"
+                    return None, "", None, "indice_offerta_non_riconosciuto_o_non_disponibile"
+                provenance["indiceApplicato"] = index_label
                 provenance["valoreIndice"] = index_value
                 return (
                     round(index_value + selected_value, 8),
@@ -554,10 +603,10 @@ def semantic_price(
             selected = next(item for item in spreads if round(float(item["valore"]), 8) == spread)
             provenance = copy.deepcopy(selected)
             provenance["ruolo"] = "spread_corrente_selezionato"
-            index_value = PUN_FALLBACK if commodity == "luce" else PSV_FALLBACK
+            index_value, index_label = market_index_value(index_key)
             if index_value is None:
-                return None, "", None, "indice_ufficiale_non_disponibile"
-            provenance["indiceApplicato"] = "PUN" if commodity == "luce" else "PSV"
+                return None, "", None, "indice_offerta_non_riconosciuto_o_non_disponibile"
+            provenance["indiceApplicato"] = index_label
             provenance["valoreIndice"] = index_value
             return round(index_value + spread, 8), "indice_piu_spread_semantico", provenance, ""
 
@@ -676,7 +725,8 @@ def parse_offer_file(
             data_fine,
             tipo,
         )
-        price, quality, price_provenance, price_error = semantic_price(values, commodity, tipo)
+        index_key = offer_index_key(offer, commodity) if tipo == "variabile" else None
+        price, quality, price_provenance, price_error = semantic_price(values, commodity, tipo, index_key)
         fee, fee_provenance = annual_fee(values)
         discounts = extracted_discounts(offer, path, code, data_inizio, data_fine)
 
@@ -730,6 +780,7 @@ def parse_offer_file(
                 "tipoClienteCodice": customer_type_code,
                 "tipoOffertaCodice": tipo_raw,
                 "durataMesi": duration,
+                "indiceRiferimento": index_key,
                 "prezzo": price,
                 "quotaFissaAnnua": fee,
                 "url": url or site or "#",
@@ -823,6 +874,7 @@ def parse_dual_file(
         name = node_text(offer, "po:DettaglioOfferta/po:NOME_OFFERTA")
         url = node_text(offer, "po:DettaglioOfferta/po:Contatti/po:URL_OFFERTA")
         site = node_text(offer, "po:DettaglioOfferta/po:Contatti/po:URL_SITO_VENDITORE")
+        discounts = extracted_discounts(offer, path, code, data_inizio, data_fine)
         rows.append(
             {
                 "providerKey": provider_key,
@@ -844,6 +896,7 @@ def parse_dual_file(
                 "url": url or site or "#",
                 "fonte": f"{SOURCE_LABEL} - file D - codice {code}",
                 "score": round(float(light["score"]) + float(gas["score"]), 4),
+                "sconti": discounts,
                 "luce": copy.deepcopy(light),
                 "gas": copy.deepcopy(gas),
             }
@@ -1200,6 +1253,9 @@ def unexpected_dual_changes(candidate: dict[str, object], previous: dict[str, ob
 def public_row(row: dict[str, object]) -> dict[str, object]:
     result = copy.deepcopy(row)
     result.pop("valoriEstratti", None)
+    if "commodity" in result or result.get("fornitura") == "dual":
+        discounts = result.get("sconti")
+        result["sconti"] = discounts if isinstance(discounts, list) else []
     for commodity in ("luce", "gas"):
         if isinstance(result.get(commodity), dict):
             result[commodity] = public_row(result[commodity])
@@ -1439,6 +1495,97 @@ def atomic_publish(root: Path, payload: dict[str, object], report: dict[str, obj
     return targets
 
 
+def xml_local_name(tag: str) -> str:
+    return tag.rsplit("}", 1)[-1] if "}" in tag else tag
+
+
+def source_discount_stats(path: Path, published_codes: set[str]) -> dict[str, object]:
+    """Count discount blocks directly from source XML, independently from parser output."""
+    if not published_codes:
+        return {
+            "blocchiScontoFonte": 0,
+            "blocchiScontoConPrezzoSupportatoFonte": 0,
+            "scontiSupportatiPerCodice": {},
+        }
+    tree = ET.parse(path)
+    raw = 0
+    supported = 0
+    by_code: dict[str, int] = {}
+    for offer in tree.iter():
+        if xml_local_name(str(offer.tag)) != "offerta":
+            continue
+        code = ""
+        for node in offer.iter():
+            if xml_local_name(str(node.tag)) == "COD_OFFERTA" and node.text:
+                code = node.text.strip()
+                break
+        if code not in published_codes:
+            continue
+        for discount in offer.iter():
+            if xml_local_name(str(discount.tag)) != "Sconto":
+                continue
+            raw += 1
+            values: list[float] = []
+            units: list[str] = []
+            for node in discount.iter():
+                name = xml_local_name(str(node.tag))
+                text = (node.text or "").strip()
+                if name == "PREZZO":
+                    value = parse_float(text)
+                    if value is not None and value >= 0:
+                        values.append(value)
+                elif name == "UNITA_MISURA" and text:
+                    units.append(text)
+            if values and any(unit in UNIT_CODES for unit in units):
+                supported += 1
+                by_code[code] = by_code.get(code, 0) + 1
+    return {
+        "blocchiScontoFonte": raw,
+        "blocchiScontoConPrezzoSupportatoFonte": supported,
+        "scontiSupportatiPerCodice": by_code,
+    }
+
+
+def validate_discount_integrity(
+    rows: list[dict[str, object]],
+    source_light: dict[str, object],
+    source_gas: dict[str, object],
+) -> None:
+    expected_by_commodity = {
+        "luce": dict(source_light.get("scontiSupportatiPerCodice") or {}),
+        "gas": dict(source_gas.get("scontiSupportatiPerCodice") or {}),
+    }
+    for row in rows:
+        commodity = str(row.get("commodity") or "")
+        code = str(row.get("codice") or "")
+        discounts = row.get("sconti")
+        if not isinstance(discounts, list):
+            raise RuntimeError(f"Schema sconti mancante per offerta {code}")
+        expected = int(expected_by_commodity.get(commodity, {}).get(code, 0))
+        actual = len(discounts)
+        if actual != expected:
+            raise RuntimeError(
+                "Perdita metadata sconti per offerta "
+                f"{code}: XML={expected}, parser={actual}"
+            )
+
+
+def parsed_discount_stats(rows: list[dict[str, object]]) -> dict[str, int]:
+    offers_with_discounts = 0
+    discounts_total = 0
+    for row in rows:
+        discounts = row.get("sconti")
+        if not isinstance(discounts, list):
+            raise RuntimeError(f"Schema sconti mancante per offerta {row.get('codice')}")
+        if discounts:
+            offers_with_discounts += 1
+            discounts_total += len(discounts)
+    return {
+        "offerteConSconti": offers_with_discounts,
+        "scontiTotali": discounts_total,
+    }
+
+
 def build_staging_payload(
     files: dict[str, Path], as_of: datetime, root: Path
 ) -> tuple[dict[str, object], list[dict[str, object]]]:
@@ -1450,13 +1597,44 @@ def build_staging_payload(
     rows = dedupe_rows(light_rows + gas_rows)
     dual_rows = dedupe_dual_rows(parse_dual_file(files["D"], light_rows, gas_rows, as_of, diagnostics))
 
+    discount_stats = parsed_discount_stats(rows)
+    dual_discount_stats = parsed_discount_stats(dual_rows)
+    source_light = source_discount_stats(files["E"], {str(row.get("codice") or "") for row in light_rows})
+    source_gas = source_discount_stats(files["G"], {str(row.get("codice") or "") for row in gas_rows})
+    source_dual = source_discount_stats(files["D"], {str(row.get("codice") or "") for row in dual_rows})
+    source_supported = (
+        int(source_light["blocchiScontoConPrezzoSupportatoFonte"])
+        + int(source_gas["blocchiScontoConPrezzoSupportatoFonte"])
+        + int(source_dual["blocchiScontoConPrezzoSupportatoFonte"])
+    )
+    validate_discount_integrity(rows, source_light, source_gas)
+    expected_dual = dict(source_dual.get("scontiSupportatiPerCodice") or {})
+    for row in dual_rows:
+        code = str(row.get("codice") or "")
+        discounts = row.get("sconti")
+        if not isinstance(discounts, list):
+            raise RuntimeError(f"Schema sconti dual mancante per offerta {code}")
+        expected = int(expected_dual.get(code, 0))
+        if len(discounts) != expected:
+            raise RuntimeError(
+                f"Perdita metadata sconti dual per offerta {code}: XML={expected}, parser={len(discounts)}"
+            )
+    parsed_total = discount_stats["scontiTotali"] + dual_discount_stats["scontiTotali"]
+    if source_supported != parsed_total:
+        raise RuntimeError(
+            "Perdita metadata sconti nel catalogo: "
+            f"XML={source_supported}, parser={parsed_total}"
+        )
+
     return {
         "versioneDati": f"arera-menu-{as_of.strftime('%Y-%m-%d')}",
+        "trasformatoreVersione": CATALOG_TRANSFORMER_VERSION,
         "fonte": f"{SOURCE_LABEL}. Le offerte variabili sono stimate con indice corrente del motore quando ARERA espone solo lo spread.",
         "aggiornatoIl": as_of.strftime("%Y-%m-%d"),
         "indiciUsati": {
             "pun": PUN_FALLBACK,
             "psv": PSV_FALLBACK,
+            "psbg": PSBG_FALLBACK,
         },
         "indiciUsatiDettaglio": copy.deepcopy(MARKET_INDEX_DETAILS),
         "offerte": [row for row in rows if row.get("customerType") == "privato"],
@@ -1468,6 +1646,13 @@ def build_staging_payload(
             "fileLuce": files["E"].name,
             "fileGas": files["G"].name,
             "fileDual": files["D"].name,
+            **discount_stats,
+            "offerteDualConSconti": dual_discount_stats["offerteConSconti"],
+            "scontiDualTotali": dual_discount_stats["scontiTotali"],
+            "scontiFonteLuce": source_light["blocchiScontoFonte"],
+            "scontiFonteGas": source_gas["blocchiScontoFonte"],
+            "scontiFonteDual": source_dual["blocchiScontoFonte"],
+            "scontiConPrezzoSupportatoFonte": source_supported,
         },
     }, diagnostics
 

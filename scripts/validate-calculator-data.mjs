@@ -58,8 +58,11 @@ function validateAreraCatalog() {
   assert(Array.isArray(arera.offerteDual), "catalogo ARERA: vere offerte dual mancanti");
   assert(arera.offerteDual.length > 0, "catalogo ARERA: nessuna vera offerta dual privata");
 
+  assert(arera.trasformatoreVersione, "catalogo ARERA: versione trasformatore mancante");
+
   for (const row of arera.offerte) {
     assert(row.customerType === "privato", `catalogo privati: offerta ${row.codice} non privata`);
+    assert(Array.isArray(row.sconti), `catalogo ARERA: metadata sconti mancante per ${row.codice}`);
     if (row.providerKey === "eco") {
       assert(String(row.codice || "").startsWith("000742"), `E.CO associata al codice errato ${row.codice}`);
     }
@@ -79,6 +82,8 @@ function validateAreraCatalog() {
     assert(dual.codiceOffertaGas === dual.gas.codice, `offerta ${dual.codice}: riferimento gas non esatto`);
     assert(dual.providerKey === dual.luce.providerKey && dual.providerKey === dual.gas.providerKey, `offerta ${dual.codice}: fornitori mescolati`);
     assert(dual.tipo === dual.luce.tipo && dual.tipo === dual.gas.tipo, `offerta ${dual.codice}: tipi prezzo mescolati`);
+    assert(Array.isArray(dual.luce.sconti), `offerta ${dual.codice}: metadata sconti luce mancante`);
+    assert(Array.isArray(dual.gas.sconti), `offerta ${dual.codice}: metadata sconti gas mancante`);
   }
 
   const illumia = arera.offerteDual.filter((dual) => dual.providerKey === "illum");
@@ -96,16 +101,26 @@ function validateDataFiles() {
   const arera = readJson("data/offerte-arera-menu.json");
 
   assert(params.versioneDati, "calcolo-parametri.json: versioneDati mancante");
-  for (const key of ["pun", "psv"]) {
+  for (const key of ["pun", "psv", "psbg"]) {
     const paramIndex = params.indiciMercato?.[key];
     const catalogIndex = Number(arera.indiciUsati?.[key]);
-    assert(paramIndex?.stato === "ufficiale", `indice ${key.toUpperCase()}: stato ufficiale mancante`);
-    assert(Number.isFinite(Number(paramIndex?.valore)) && Number(paramIndex.valore) > 0, `indice ${key.toUpperCase()}: valore ufficiale non valido`);
+    const allowedStates = key === "psbg" ? ["ufficiale", "verificato"] : ["ufficiale"];
+    assert(allowedStates.includes(String(paramIndex?.stato || "").toLowerCase()), `indice ${key.toUpperCase()}: stato verificato mancante`);
+    assert(Number.isFinite(Number(paramIndex?.valore)) && Number(paramIndex.valore) > 0, `indice ${key.toUpperCase()}: valore verificato non valido`);
     assert(catalogIndex === Number(paramIndex.valore), `indice ${key.toUpperCase()}: catalogo ARERA e parametri non sincronizzati`);
   }
   const averageProfile = params.parametriCalcolo?.profiloMedio;
+  const consumptionSource = params.parametriCalcolo?.profiloConsumiFonte;
+  assert(consumptionSource?.fonte?.includes("ARERA"), "profilo consumi: fonte ARERA mancante");
+  assert(consumptionSource?.urlFonte, "profilo consumi: URL fonte ARERA mancante");
+  assert(String(consumptionSource?.luceConsumoKwh) === String(averageProfile?.luceConsumoKwh), "profilo consumi: luce non coerente con la fonte");
+  assert(String(consumptionSource?.gasConsumoSmc) === String(averageProfile?.gasConsumoSmc), "profilo consumi: gas non coerente con la fonte");
+  assert(String(consumptionSource?.potenzaKw) === String(averageProfile?.potenzaKw), "profilo consumi: potenza non coerente con la fonte");
+
   const averageSource = params.parametriCalcolo?.profiloMedioFonte;
   assert(averageSource?.fonte?.includes("ARERA"), "profilo medio: fonte ARERA mancante");
+  assert(averageSource?.catalogoVersione === arera.versioneDati, "profilo medio: catalogo ARERA non sincronizzato");
+  assert(averageSource?.catalogoAggiornatoIl === arera.aggiornatoIl, "profilo medio: data catalogo ARERA non sincronizzata");
   for (const field of ["prezzoLuceEurKwh", "prezzoGasEurSmc", "quotaFissaLuceAnnua", "quotaFissaGasAnnua"]) {
     assert(Number.isFinite(Number(averageProfile?.[field])) && Number(averageProfile[field]) > 0, `profilo medio: ${field} non valido`);
   }
@@ -143,12 +158,17 @@ function validateCanonicalEconomicRouting() {
   assert(providerFunction[0].includes("offertaPartnerConPrezziArera"), "routing economico: il confronto per fornitore usa ancora prezzi partner statici");
   assert(html.includes("DATI_UFFICIALI_CONFRONTO_PRONTI"), "routing economico: guardia dati ufficiali mancante");
 
+  const localUpdater = read("scripts/aggiorna-arera-locale-mac.sh");
+  assert(localUpdater.includes("update-arera-reference-data.py\" indices"), "pipeline Mac: aggiornamento indici ufficiali mancante");
+  assert(localUpdater.includes("update-arera-menu.py"), "pipeline Mac: generazione catalogo mancante");
+  assert(localUpdater.includes("update-arera-reference-data.py\" benchmark"), "pipeline Mac: benchmark medio mancante");
+  assert(localUpdater.includes("update-energy-today.py"), "pipeline Mac: dati energia giornalieri mancanti");
+  assert(localUpdater.includes("validate-calculator-data.mjs"), "pipeline Mac: validazione finale mancante");
+
   const workflow = read(".github/workflows/update-arera-menu.yml");
-  assert(!/name:\s*Genera JSON offerte ARERA[\s\S]{0,220}if:\s*github\.event_name\s*==\s*['"]workflow_dispatch['"]/.test(workflow), "workflow ARERA: catalogo ancora limitato all'avvio manuale");
-  assert(workflow.includes("python scripts/update-arera-reference-data.py indices"), "workflow ARERA: sincronizzazione indici ufficiali mancante");
-  assert(workflow.includes("python scripts/update-arera-menu.py"), "workflow ARERA: rigenerazione catalogo mancante");
-  assert(workflow.includes("python scripts/update-arera-reference-data.py benchmark"), "workflow ARERA: aggiornamento benchmark medio mancante");
-  assert(workflow.includes("public/index.html"), "workflow Premium: sincronizzazione motore canonico mancante");
+  assert(!workflow.includes("schedule:"), "workflow GitHub: download automatico ARERA ancora schedulato");
+  assert(!workflow.includes("python scripts/update-arera-menu.py"), "workflow GitHub: non deve scaricare/generare ARERA");
+  assert(workflow.includes("npm run validate:calculator"), "workflow GitHub: validazione dati mancante");
 }
 
 function loadEngineContext() {

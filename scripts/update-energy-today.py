@@ -210,6 +210,7 @@ def build_output(values: dict[str, object], monthly_psv: dict[str, object], bull
     return {
         "versione": f"energia-oggi-{updated_at}",
         "aggiornatoIl": updated_at,
+        "acquisitoIl": date.today().isoformat(),
         "fonteInterna": "OffertaLogica - aggiornamento dati energia",
         "origineAggiornamento": "ARERA - Unità di Vigilanza Energetica",
         "urlOrigineAggiornamento": bulletin_url,

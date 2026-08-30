@@ -3,7 +3,12 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DOWNLOAD_DIR="$ROOT_DIR/.arera-download"
+ORIGINAL_ARGS=("$@")
 AS_OF="${1:-}"
+SYNC_RESTARTED="${ARERA_SYNC_RESTARTED:-0}"
+SUCCESS=0
+BACKUP_READY=0
+BACKUP_DIR=""
 DAYS_BACK="${ARERA_DAYS_BACK:-14}"
 MAX_TIME="${ARERA_MAX_TIME:-900}"
 MAX_ATTEMPTS="${ARERA_MAX_ATTEMPTS:-3}"
@@ -19,6 +24,123 @@ mac_date() {
   local base="$1"
   local offset="$2"
   date -j -v-"${offset}"d -f "%Y-%m-%d" "$base" "+%Y-%m-%d"
+}
+
+ensure_pdf_reader() {
+  if python3 -c 'import pdfplumber' >/dev/null 2>&1; then
+    return 0
+  fi
+  log "pdfplumber non presente: installo localmente la dipendenza necessaria al bollettino ARERA."
+  if ! python3 -m pip install --user --disable-pip-version-check --quiet pdfplumber; then
+    log "ERRORE: impossibile installare pdfplumber; aggiornamento annullato."
+    return 1
+  fi
+  if ! python3 -c 'import pdfplumber' >/dev/null 2>&1; then
+    log "ERRORE: pdfplumber non importabile dopo l'installazione; aggiornamento annullato."
+    return 1
+  fi
+}
+
+sync_main_code() {
+  if ! command -v git >/dev/null 2>&1; then
+    log "ERRORE: git non disponibile; impossibile verificare che il trasformatore locale coincida con MAIN."
+    return 1
+  fi
+  if ! git -C "$ROOT_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    log "Ambiente senza repository Git: salto il controllo origin/main (modalità pacchetto/test)."
+    return 0
+  fi
+
+  local branch local_head remote_head merge_base
+  branch="$(git -C "$ROOT_DIR" rev-parse --abbrev-ref HEAD)"
+  if [ "$branch" != "main" ]; then
+    log "ERRORE: aggiornamento automatico consentito solo dal branch main; branch corrente: $branch."
+    return 1
+  fi
+  if ! git -C "$ROOT_DIR" diff --quiet || ! git -C "$ROOT_DIR" diff --cached --quiet; then
+    log "ERRORE: working tree non pulito. Nessun aggiornamento dati eseguito per evitare di mescolare codice e dati."
+    return 1
+  fi
+
+  log "Verifico che il codice locale usato dal Mac coincida con origin/main."
+  git -C "$ROOT_DIR" fetch --quiet origin main
+  local_head="$(git -C "$ROOT_DIR" rev-parse HEAD)"
+  remote_head="$(git -C "$ROOT_DIR" rev-parse origin/main)"
+  if [ "$local_head" = "$remote_head" ]; then
+    log "Codice locale allineato a origin/main: $local_head."
+    return 0
+  fi
+
+  merge_base="$(git -C "$ROOT_DIR" merge-base HEAD origin/main)"
+  if [ "$merge_base" != "$local_head" ]; then
+    log "ERRORE: MAIN locale è avanti o divergente rispetto a origin/main. Aggiornamento dati bloccato."
+    return 1
+  fi
+
+  log "MAIN locale arretrato: eseguo solo un fast-forward a origin/main."
+  git -C "$ROOT_DIR" merge --ff-only --quiet origin/main
+  if [ "$SYNC_RESTARTED" != "1" ]; then
+    log "Codice aggiornato. Riavvio il processo con gli script appena allineati."
+    ARERA_SYNC_RESTARTED=1 exec bash "$ROOT_DIR/scripts/aggiorna-arera-locale-mac.sh" "${ORIGINAL_ARGS[@]}"
+  fi
+}
+
+backup_outputs() {
+  BACKUP_DIR="$STAGING_DIR/rollback"
+  mkdir -p "$BACKUP_DIR"
+  local rel
+  for rel in \
+    data/calcolo-parametri.json \
+    public/data/calcolo-parametri.json \
+    data/offerte-arera-menu.json \
+    public/data/offerte-arera-menu.json \
+    data/arera-update-report.json \
+    public/data/energia-oggi.json \
+    public/pun-oggi.html \
+    public/psv-gas-oggi.html \
+    public/sitemap.xml
+  do
+    mkdir -p "$BACKUP_DIR/$(dirname "$rel")"
+    if [ -f "$ROOT_DIR/$rel" ]; then
+      cp -p "$ROOT_DIR/$rel" "$BACKUP_DIR/$rel"
+    else
+      : > "$BACKUP_DIR/$rel.__missing__"
+    fi
+  done
+  BACKUP_READY=1
+}
+
+restore_outputs() {
+  [ "$BACKUP_READY" = "1" ] || return 0
+  local rel
+  log "Ripristino atomico dei file precedenti: l'aggiornamento non verrà pubblicato parzialmente."
+  for rel in \
+    data/calcolo-parametri.json \
+    public/data/calcolo-parametri.json \
+    data/offerte-arera-menu.json \
+    public/data/offerte-arera-menu.json \
+    data/arera-update-report.json \
+    public/data/energia-oggi.json \
+    public/pun-oggi.html \
+    public/psv-gas-oggi.html \
+    public/sitemap.xml
+  do
+    if [ -f "$BACKUP_DIR/$rel.__missing__" ]; then
+      rm -f "$ROOT_DIR/$rel"
+    elif [ -f "$BACKUP_DIR/$rel" ]; then
+      mkdir -p "$ROOT_DIR/$(dirname "$rel")"
+      cp -p "$BACKUP_DIR/$rel" "$ROOT_DIR/$rel"
+    fi
+  done
+}
+
+cleanup() {
+  local status=$?
+  if [ "$SUCCESS" != "1" ]; then
+    restore_outputs || true
+  fi
+  [ -z "${STAGING_DIR:-}" ] || rm -rf "$STAGING_DIR"
+  return "$status"
 }
 
 validate_xml() {
@@ -183,9 +305,11 @@ if ! [[ "$DAYS_BACK" =~ ^[1-9][0-9]*$ ]]; then
   exit 1
 fi
 
+sync_main_code
+
 mkdir -p "$DOWNLOAD_DIR"
 STAGING_DIR="$(mktemp -d "${TMPDIR:-/tmp}/offertalogica-arera.XXXXXX")"
-trap 'rm -rf "$STAGING_DIR"' EXIT
+trap cleanup EXIT
 
 log "Cartella progetto: $ROOT_DIR"
 log "Data iniziale: $BASE_DATE."
@@ -207,6 +331,11 @@ fi
 E_FILE="$(basename "$E_PATH")"
 G_FILE="$(basename "$G_PATH")"
 D_FILE="$(basename "$D_PATH")"
+
+backup_outputs
+
+log "Rileggo e convalido oggi gli indici ufficiali ARERA usati dal calcolatore."
+python3 "$ROOT_DIR/scripts/update-arera-reference-data.py" indices --package-root "$ROOT_DIR"
 
 log "Genero e valido il JSON OffertaLogica con:"
 log "- luce: $E_FILE"
@@ -286,6 +415,112 @@ print(
 print(f"[ARERA-LOCALE] Staging validato: {staging_path.relative_to(root)}")
 PY
 
+log "Ricalcolo il benchmark medio usando esattamente il catalogo appena generato."
+python3 "$ROOT_DIR/scripts/update-arera-reference-data.py" benchmark --package-root "$ROOT_DIR"
+
+log "Aggiorno e convalido i riferimenti energia giornalieri ARERA/GME."
+ensure_pdf_reader
+python3 "$ROOT_DIR/scripts/update-energy-today.py" \
+  --output "$ROOT_DIR/public/data/energia-oggi.json" \
+  --params "$ROOT_DIR/public/data/calcolo-parametri.json" \
+  --pun-page "$ROOT_DIR/public/pun-oggi.html" \
+  --gas-page "$ROOT_DIR/public/psv-gas-oggi.html" \
+  --sitemap "$ROOT_DIR/public/sitemap.xml"
+
+log "Eseguo la validazione completa del calcolatore e del contratto dati."
+(
+  cd "$ROOT_DIR"
+  node scripts/validate-calculator-data.mjs
+)
+
+python3 - "$ROOT_DIR" "$SELECTED_DATE" <<'PY'
+from __future__ import annotations
+
+import json
+import sys
+from datetime import date
+from pathlib import Path
+
+root = Path(sys.argv[1]).resolve()
+selected_date = sys.argv[2]
+today = date.today().isoformat()
+
+def load(relative: str):
+    return json.loads((root / relative).read_text(encoding="utf-8"))
+
+catalog = load("data/offerte-arera-menu.json")
+public_catalog = load("public/data/offerte-arera-menu.json")
+params = load("data/calcolo-parametri.json")
+public_params = load("public/data/calcolo-parametri.json")
+report = load("data/arera-update-report.json")
+energy = load("public/data/energia-oggi.json")
+
+if catalog != public_catalog:
+    raise RuntimeError("Catalogo data/public non identico")
+if params != public_params:
+    raise RuntimeError("Parametri data/public non identici")
+if catalog.get("aggiornatoIl") != selected_date:
+    raise RuntimeError("Data catalogo diversa dalla terna XML selezionata")
+if catalog.get("trasformatoreVersione") != "arera-menu-v3-metadata-completi":
+    raise RuntimeError("Catalogo prodotto da un trasformatore diverso da quello MAIN atteso")
+
+all_rows = []
+for field in ("offerte", "offerteBusiness"):
+    value = catalog.get(field)
+    if not isinstance(value, list):
+        raise RuntimeError(f"Campo catalogo {field} non valido")
+    all_rows.extend(value)
+for row in all_rows:
+    if not isinstance(row.get("sconti"), list):
+        raise RuntimeError(f"Metadata sconti assente per {row.get('codice')}")
+
+stats = catalog.get("statistiche") or {}
+for field in ("scontiTotali", "offerteConSconti", "scontiConPrezzoSupportatoFonte"):
+    if field not in stats:
+        raise RuntimeError(f"Statistica integrità sconti mancante: {field}")
+
+if params.get("aggiornatoIl") != today:
+    raise RuntimeError("Parametri economici non convalidati nella data di esecuzione")
+for key in ("pun", "psv"):
+    detail = (params.get("indiciMercato") or {}).get(key) or {}
+    if detail.get("acquisitoIl") != today:
+        raise RuntimeError(f"Indice {key.upper()} non riletto/convalidato oggi")
+for key in ("pun", "psv", "psbg"):
+    detail = (params.get("indiciMercato") or {}).get(key) or {}
+    if float((catalog.get("indiciUsati") or {}).get(key)) != float(detail.get("valore")):
+        raise RuntimeError(f"Indice {key.upper()} diverso tra catalogo e parametri")
+
+consumption_source = ((params.get("parametriCalcolo") or {}).get("profiloConsumiFonte") or {})
+profile = ((params.get("parametriCalcolo") or {}).get("profiloMedio") or {})
+if consumption_source.get("acquisitoIl") != today:
+    raise RuntimeError("Profilo consumi ARERA non riletto/convalidato oggi")
+for source_key, profile_key in (("luceConsumoKwh", "luceConsumoKwh"), ("gasConsumoSmc", "gasConsumoSmc"), ("potenzaKw", "potenzaKw")):
+    if str(consumption_source.get(source_key)) != str(profile.get(profile_key)):
+        raise RuntimeError(f"Profilo consumi non coerente: {source_key}")
+
+profile_source = ((params.get("parametriCalcolo") or {}).get("profiloMedioFonte") or {})
+if profile_source.get("catalogoVersione") != catalog.get("versioneDati"):
+    raise RuntimeError("Benchmark medio non calcolato sul catalogo corrente")
+if profile_source.get("catalogoAggiornatoIl") != catalog.get("aggiornatoIl"):
+    raise RuntimeError("Benchmark medio con data catalogo non coerente")
+if report.get("versioneDati") != catalog.get("versioneDati") or report.get("pubblicazioneAutorizzata") is not True:
+    raise RuntimeError("Report ARERA non coerente con il catalogo pubblicato")
+if energy.get("acquisitoIl") != today:
+    raise RuntimeError("Dati energia giornalieri non riletti/convalidati oggi")
+pun_daily = energy.get("pun") or {}
+ig_daily = ((energy.get("gas") or {}).get("giornaliero") or {})
+if not pun_daily.get("data") or not isinstance(pun_daily.get("valoreEurMwh"), (int, float)):
+    raise RuntimeError("PUN Index GME giornaliero mancante dopo l'acquisizione")
+if not ig_daily.get("data") or not isinstance(ig_daily.get("valoreEurMwh"), (int, float)):
+    raise RuntimeError("IG Index GME giornaliero mancante dopo l'acquisizione")
+
+print(
+    "[ARERA-LOCALE] Integrità finale OK: "
+    f"catalogo={catalog.get('versioneDati')}, parametri={params.get('versioneDati')}, "
+    f"sconti={stats.get('scontiTotali')}, acquisizione={today}."
+)
+PY
+
 python3 "$ROOT_DIR/scripts/update-sitemap-lastmod.py" --root "$ROOT_DIR"
 
 rm -f \
@@ -295,9 +530,15 @@ rm -f \
   "$DOWNLOAD_DIR"/*.part
 cp -f "$E_PATH" "$G_PATH" "$D_PATH" "$DOWNLOAD_DIR/"
 
+SUCCESS=1
 log "Aggiornamento completato correttamente con la terna del $SELECTED_DATE."
 log "File aggiornati:"
 log "- data/offerte-arera-menu.json"
 log "- public/data/offerte-arera-menu.json"
 log "- data/arera-update-report.json"
+log "- data/calcolo-parametri.json"
+log "- public/data/calcolo-parametri.json"
+log "- public/data/energia-oggi.json"
+log "- public/pun-oggi.html"
+log "- public/psv-gas-oggi.html"
 log "- public/sitemap.xml"

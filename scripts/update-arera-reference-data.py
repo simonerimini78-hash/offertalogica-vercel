@@ -11,6 +11,7 @@ from html.parser import HTMLParser
 from pathlib import Path
 
 ARERA_PLACET_URL = "https://www.arera.it/consumatori/offerte-standard-per-i-clienti-finali-placet"
+ARERA_PROFILE_URL = "https://www.arera.it/rapporti-e-relazioni/monitoraggio-retail/monitoraggio-retail-offerte-e-prezzi"
 USER_AGENT = "OffertaLogica/1.0 (+https://offertalogica.it/)"
 MONTHS = {
     "gennaio": 1,
@@ -77,6 +78,50 @@ def find_month_value(section: str) -> tuple[str, int, float]:
         raise RuntimeError("Valore mensile ARERA non trovato nella pagina PLACET")
     month_name = match.group(1).lower()
     return month_name, int(match.group(2)), parse_decimal(match.group(3))
+
+
+def parse_arera_standard_profile(page_html: str) -> dict[str, object]:
+    """Legge dal Monitoraggio Retail ARERA il profilo domestico usato nei confronti.
+
+    Il parser non usa i valori di fallback per dichiarare la verifica: se la pagina
+    ufficiale non espone esplicitamente consumi e potenza, l'aggiornamento fallisce.
+    """
+    text = html_to_text(page_html)
+
+    light_match = re.search(
+        r"domestico\s+residente[^.]{0,320}?([0-9]+(?:[.,][0-9]+)?)\s*kW[^.]{0,320}?([0-9]+(?:[.,][0-9]+)?)\s*kWh",
+        text,
+        flags=re.I,
+    )
+    gas_match = re.search(
+        r"settore\s+del\s+gas[^.]{0,420}?domestico[^.]{0,260}?([0-9]+(?:[.,][0-9]+)?)\s*Smc",
+        text,
+        flags=re.I,
+    )
+    if not light_match or not gas_match:
+        raise RuntimeError("Profilo domestico ARERA non riconosciuto nel Monitoraggio Retail")
+
+    def integer_value(raw: str) -> int:
+        normalized = raw.strip()
+        # Nelle pagine italiane il punto separa le migliaia: 2.700 -> 2700.
+        if re.fullmatch(r"\d{1,3}(?:\.\d{3})+", normalized):
+            return int(normalized.replace(".", ""))
+        if re.fullmatch(r"\d{1,3}(?:,\d{3})+", normalized):
+            return int(normalized.replace(",", ""))
+        return int(round(float(normalized.replace(",", "."))))
+
+    power = float(light_match.group(1).replace(",", "."))
+    light = integer_value(light_match.group(2))
+    gas = integer_value(gas_match.group(1))
+    if not 1 <= power <= 15 or not 500 <= light <= 10000 or not 100 <= gas <= 5000:
+        raise RuntimeError(
+            f"Profilo domestico ARERA fuori intervallo plausibile: {power} kW, {light} kWh, {gas} Smc"
+        )
+    return {
+        "luceConsumoKwh": light,
+        "gasConsumoSmc": gas,
+        "potenzaKw": str(int(power)) if power.is_integer() else str(power),
+    }
 
 
 def parse_placet_indices(page_html: str) -> dict[str, dict[str, object]]:
@@ -153,10 +198,17 @@ def write_params(root: Path, payload: dict[str, object]) -> None:
         target.write_text(body, encoding="utf-8")
 
 
-def update_indices(root: Path, page_html: str | None = None) -> dict[str, object]:
+def update_indices(
+    root: Path,
+    page_html: str | None = None,
+    profile_html: str | None = None,
+) -> dict[str, object]:
     params_path = root / "data/calcolo-parametri.json"
     params = read_json(params_path)
     indices = parse_placet_indices(page_html if page_html is not None else fetch_text(ARERA_PLACET_URL))
+    standard_profile = parse_arera_standard_profile(
+        profile_html if profile_html is not None else fetch_text(ARERA_PROFILE_URL)
+    )
 
     market = params.setdefault("indiciMercato", {})
     if not isinstance(market, dict):
@@ -170,19 +222,20 @@ def update_indices(root: Path, page_html: str | None = None) -> dict[str, object
     profile = calculation.setdefault("profiloMedio", {})
     if not isinstance(profile, dict):
         raise RuntimeError("profiloMedio non valido")
-    profile.update(STANDARD_PROFILE)
+    profile.update(standard_profile)
 
     periods = sorted({str(indices["pun"]["periodo"]), str(indices["psv"]["periodo"])})
     params["aggiornatoIl"] = date.today().isoformat()
     params["versioneDati"] = f"parametri-calcolo-{date.today().isoformat()}-arera-{'_'.join(periods)}"
     params["fonte"] = "ARERA: catalogo Portale Offerte e riferimenti mensili ufficiali PLACET. Nessun prezzo statico usato come indice di confronto."
-    calculation["profiloMedioFonte"] = {
-        "fonte": "ARERA",
-        "profiloStandard": "Cliente domestico standard usato come riferimento di comparazione OffertaLogica",
-        "luceConsumoKwh": STANDARD_PROFILE["luceConsumoKwh"],
-        "gasConsumoSmc": STANDARD_PROFILE["gasConsumoSmc"],
-        "potenzaKw": STANDARD_PROFILE["potenzaKw"],
-        "prezzi": "Aggiornati dal catalogo ARERA corrente con il comando benchmark.",
+    calculation["profiloConsumiFonte"] = {
+        "fonte": "ARERA - Monitoraggio Retail - Offerte e prezzi",
+        "urlFonte": ARERA_PROFILE_URL,
+        "acquisitoIl": date.today().isoformat(),
+        "profiloStandard": "Cliente domestico usato da ARERA per il monitoraggio delle offerte",
+        "luceConsumoKwh": standard_profile["luceConsumoKwh"],
+        "gasConsumoSmc": standard_profile["gasConsumoSmc"],
+        "potenzaKw": standard_profile["potenzaKw"],
     }
     write_params(root, params)
     return params

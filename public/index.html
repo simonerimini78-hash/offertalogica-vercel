@@ -4032,11 +4032,38 @@ let OFFERTE_PROPOSTE = [
   },
 ];
 
+function normalizzaScontiArera(sconti) {
+  if (!Array.isArray(sconti)) return [];
+  return sconti.map((sconto) => {
+    if (!sconto || typeof sconto !== "object") return null;
+    const prezzi = Array.isArray(sconto.prezzi)
+      ? sconto.prezzi.map((prezzo) => {
+          const valore = numeroSicuro(prezzo?.valore, NaN);
+          const unita = String(prezzo?.unitaMisuraCodice || "").trim();
+          if (!Number.isFinite(valore) || valore < 0 || !["01", "02", "03", "04", "05", "06"].includes(unita)) return null;
+          return { ...prezzo, valore, unitaMisuraCodice: unita };
+        }).filter(Boolean)
+      : [];
+    if (!prezzi.length) return null;
+    return {
+      ...sconto,
+      nome: String(sconto.nome || "Sconto"),
+      descrizione: String(sconto.descrizione || ""),
+      descrizioneCondizione: String(sconto.descrizioneCondizione || ""),
+      condizioneApplicazione: String(sconto.condizioneApplicazione || ""),
+      condizionato: Boolean(sconto.condizionato),
+      durataMesi: Number.isFinite(Number(sconto.durataMesi)) ? Number(sconto.durataMesi) : null,
+      prezzi,
+    };
+  }).filter(Boolean);
+}
+
 function normalizzaVoceOfferta(voce) {
   if (!voce || typeof voce !== "object") return null;
   const normalized = {
     prezzoVariabile: numeroSicuro(voce.prezzoVariabile, 0),
     quotaFissaAnnua: numeroSicuro(voce.quotaFissaAnnua, 0),
+    sconti: normalizzaScontiArera(voce.sconti),
   };
   if (voce.formula && typeof voce.formula === "object") {
     normalized.formula = {
@@ -4088,6 +4115,7 @@ function normalizzaOfferta(offerta, index) {
     destinationStatus: offerta.destinationStatus || "da_cercare",
     luce,
     gas,
+    sconti: normalizzaScontiArera(offerta.sconti),
     descrizione: offerta.descrizione || "",
     fonte: offerta.fonte || "",
     aggiornataIl: offerta.aggiornataIl || "",
@@ -4156,6 +4184,8 @@ function normalizzaRigaAreraMenu(riga) {
     fonte: riga.fonte || DATI_ARERA_MENU_META.fonte,
     score: numeroSicuro(riga.score, 999),
     qualitaPrezzo: riga.qualitaPrezzo || "",
+    indiceRiferimento: String(riga.indiceRiferimento || riga.provenienzaPrezzo?.indiceApplicato || "").trim().toLowerCase(),
+    sconti: normalizzaScontiArera(riga.sconti),
   };
 }
 
@@ -4186,6 +4216,7 @@ function normalizzaRigaAreraDual(riga) {
     url: riga.url || "#",
     fonte: riga.fonte || DATI_ARERA_MENU_META.fonte,
     score: numeroSicuro(riga.score, luce.score + gas.score),
+    sconti: normalizzaScontiArera(riga.sconti),
     luce,
     gas,
   };
@@ -4375,19 +4406,75 @@ function calcolaVoceEnergia({ consumo = 0, prezzoVariabile = 0, formula, consumi
   return { commodity, consumo: consumoProfilo, consumoFatturato, tipoPrezzo: tipoVoce, modalitaPrezzo: materiaFasce?.modalitaPrezzo || (formula?.tipo || "single_price"), fattorePerdite, prezzoVariabile: prezzoCalcolo, quotaMateria, quotaVariabile: quotaMateria, quotaFissaVendita, quotaTecnicaProfilo, quotaRegolata, quotaRegolataVariabile, quotaRegolataFissa, quotaImposte, quotaIva, quotaFiscale, quotaFissa, totale: imponibile + quotaIva };
 }
 
+function scontoAreraApplicabile(sconto, contesto = {}) {
+  if (!sconto || !Array.isArray(sconto.prezzi) || !sconto.prezzi.length) return false;
+  if (!sconto.condizionato) return true;
+  const testo = `${sconto.nome || ""} ${sconto.descrizione || ""} ${sconto.descrizioneCondizione || ""}`.toLowerCase();
+  const richiedeDual = /dual\s*fuel|dualfuel|contratto\s+dual|offerta\s+dual|luce\s*(?:e|\+)\s*gas|fornitur[ae]\s+congiunt/.test(testo);
+  return richiedeDual && Boolean(contesto.dual);
+}
+
+function unicoPrezzoScontoArera(sconto) {
+  const unici = new Map();
+  for (const prezzo of sconto?.prezzi || []) {
+    const valore = Number(prezzo?.valore);
+    const unita = String(prezzo?.unitaMisuraCodice || "");
+    if (!Number.isFinite(valore) || valore < 0) continue;
+    unici.set(`${unita}:${valore}`, { valore, unita });
+  }
+  return unici.size === 1 ? [...unici.values()][0] : null;
+}
+
+function importoScontoArera(sconti, voceCalcolata, contesto = {}) {
+  let totale = 0;
+  for (const sconto of normalizzaScontiArera(sconti)) {
+    if (!scontoAreraApplicabile(sconto, contesto)) continue;
+    const prezzo = unicoPrezzoScontoArera(sconto);
+    if (!prezzo) continue;
+    let importo = 0;
+    if (prezzo.unita === "06") importo = voceCalcolata.quotaMateria * Math.min(100, prezzo.valore) / 100;
+    else if (prezzo.unita === "03" && contesto.commodity === "luce") importo = voceCalcolata.consumoFatturato * prezzo.valore;
+    else if (prezzo.unita === "04" && contesto.commodity === "gas") importo = voceCalcolata.consumoFatturato * prezzo.valore;
+    else if (prezzo.unita === "01") importo = prezzo.valore;
+    else if (prezzo.unita === "02") {
+      const mesi = Number.isFinite(Number(sconto.durataMesi)) && Number(sconto.durataMesi) > 0 ? Math.min(12, Number(sconto.durataMesi)) : 12;
+      importo = prezzo.valore * mesi;
+    } else if (prezzo.unita === "05") importo = prezzo.valore;
+    if (Number.isFinite(importo) && importo > 0) totale += importo;
+  }
+  return Math.max(0, totale);
+}
+
+function applicaScontiAreraVoce(voceCalcolata, sconti, contesto = {}) {
+  const sconto = Math.min(voceCalcolata.totale, importoScontoArera(sconti, voceCalcolata, contesto));
+  if (!(sconto > 0)) return { ...voceCalcolata, scontoArera: 0 };
+  return { ...voceCalcolata, scontoArera: sconto, totale: Math.max(0, voceCalcolata.totale - sconto) };
+}
+
+function importoScontoDualArera(sconti, luce, gas) {
+  const base = {
+    quotaMateria: luce.quotaMateria + gas.quotaMateria,
+    consumoFatturato: 0,
+    totale: luce.totale + gas.totale,
+  };
+  return Math.min(base.totale, importoScontoArera(sconti, base, { dual: true, commodity: "dual" }));
+}
+
 function calcolaOfferta(offerta, tipoTariffa) {
   const luceInput = offerta?.luce || scenarioVuoto();
   const gasInput = offerta?.gas || scenarioVuoto();
-  const luce = calcolaVoceEnergia({
+  const dual = Boolean(offerta?.luce && offerta?.gas);
+  const luce = applicaScontiAreraVoce(calcolaVoceEnergia({
     ...luceInput,
     tipoTariffa: luceInput.tipoTariffa || tipoTariffa,
     commodity: "luce",
-  });
-  const gas = calcolaVoceEnergia({
+  }), luceInput.sconti, { dual, commodity: "luce" });
+  const gas = applicaScontiAreraVoce(calcolaVoceEnergia({
     ...gasInput,
     tipoTariffa: gasInput.tipoTariffa || tipoTariffa,
     commodity: "gas",
-  });
+  }), gasInput.sconti, { dual, commodity: "gas" });
+  const scontoDualArera = dual ? importoScontoDualArera(offerta?.sconti, luce, gas) : 0;
 
   return {
     luce,
@@ -4400,7 +4487,8 @@ function calcolaOfferta(offerta, tipoTariffa) {
     quotaIva: luce.quotaIva + gas.quotaIva,
     quotaFiscale: luce.quotaFiscale + gas.quotaFiscale,
     quotaFissa: luce.quotaFissa + gas.quotaFissa,
-    totale: luce.totale + gas.totale,
+    scontoArera: numeroSicuro(luce.scontoArera, 0) + numeroSicuro(gas.scontoArera, 0) + scontoDualArera,
+    totale: Math.max(0, luce.totale + gas.totale - scontoDualArera),
   };
 }
 
@@ -4420,6 +4508,7 @@ function calcolaDifferenza(offertaAttuale, offertaConfronto, tipoTariffaAttuale,
       quotaIva: attuale.quotaIva - confronto.quotaIva,
       quotaFiscale: attuale.quotaFiscale - confronto.quotaFiscale,
       quotaFissa: attuale.quotaFissa - confronto.quotaFissa,
+      scontoArera: numeroSicuro(attuale.scontoArera, 0) - numeroSicuro(confronto.scontoArera, 0),
       totale: attuale.totale - confronto.totale,
     },
   };
@@ -4869,6 +4958,14 @@ function calcolaCostoVenditaBusiness(consumo, prezzo, quotaFissaAnnua) {
   return c * p + f;
 }
 
+function costoBusinessRigaArera(riga, consumo, options = {}) {
+  const lordo = calcolaCostoVenditaBusiness(consumo, riga?.prezzo, riga?.quotaFissaAnnua);
+  if (!Number.isFinite(lordo)) return null;
+  const voce = { quotaMateria: Number(consumo) * Number(riga.prezzo), consumoFatturato: Number(consumo), totale: lordo };
+  const sconto = importoScontoArera(riga?.sconti, voce, { dual: Boolean(options.dual), commodity: riga?.commodity });
+  return Math.max(0, lordo - sconto);
+}
+
 function descriviAmbitoBusiness(candidato) {
   if (candidato?.ambito === "dual") return candidato?.separate ? "Luce + gas, forniture separate" : "Luce + gas, offerta dual";
   return candidato?.ambito === "gas" ? "Gas" : "Luce";
@@ -4889,7 +4986,7 @@ function creaCandidatoBusinessSingolo(riga, profile) {
   const commodity = riga.commodity === "gas" ? "gas" : "luce";
   const consumo = commodity === "luce" ? profile.consumoLuceKwh : profile.consumoGasSmc;
   const costoAttuale = commodity === "luce" ? profile.costoAttualeLuce : profile.costoAttualeGas;
-  const costo = calcolaCostoVenditaBusiness(consumo, riga.prezzo, riga.quotaFissaAnnua);
+  const costo = costoBusinessRigaArera(riga, consumo);
   if (!Number.isFinite(costo) || !Number.isFinite(costoAttuale)) return null;
   return {
     id: `business-${commodity}-${riga.codice || `${riga.providerKey}-${riga.nome}`}`,
@@ -4908,10 +5005,13 @@ function creaCandidatoBusinessSingolo(riga, profile) {
 
 function creaCandidatoBusinessDual(riga, profile) {
   if (!offertaBusinessCompatibileGenerica(riga) || riga.fornitura !== "dual") return null;
-  const costoLuce = calcolaCostoVenditaBusiness(profile.consumoLuceKwh, riga.luce?.prezzo, riga.luce?.quotaFissaAnnua);
-  const costoGas = calcolaCostoVenditaBusiness(profile.consumoGasSmc, riga.gas?.prezzo, riga.gas?.quotaFissaAnnua);
+  const costoLuce = costoBusinessRigaArera(riga.luce, profile.consumoLuceKwh, { dual: true });
+  const costoGas = costoBusinessRigaArera(riga.gas, profile.consumoGasSmc, { dual: true });
   if (![costoLuce, costoGas, profile.costoAttuale].every(Number.isFinite)) return null;
-  const costo = costoLuce + costoGas;
+  const lordoDual = costoLuce + costoGas;
+  const voceLuce = { quotaMateria: Number(profile.consumoLuceKwh) * Number(riga.luce?.prezzo || 0), consumoFatturato: Number(profile.consumoLuceKwh), totale: costoLuce };
+  const voceGas = { quotaMateria: Number(profile.consumoGasSmc) * Number(riga.gas?.prezzo || 0), consumoFatturato: Number(profile.consumoGasSmc), totale: costoGas };
+  const costo = Math.max(0, lordoDual - importoScontoDualArera(riga.sconti, voceLuce, voceGas));
   return {
     id: `business-dual-${riga.codice || `${riga.providerKey}-${riga.nome}`}`,
     ambito: "dual",
@@ -5310,6 +5410,7 @@ function leggiNuovaOfferta(attuale) {
   const usaLuce = scope !== "gas";
   const usaGas = ["gas", "dual", "separate"].includes(scope);
   return {
+    sconti: normalizzaScontiArera(fonteAuto?.sconti),
     luce: usaLuce ? {
       consumo: attuale.luce.consumo,
       tipoTariffa: PDF_PROFILE_STATE.offer.tipo_prezzo_luce || NUOVA_OFFERTA_AUTOMATICA?.offerta?.tipo || leggiValore("master-luce-tipo", "fisso"),
@@ -5324,6 +5425,7 @@ function leggiNuovaOfferta(attuale) {
       quotaFissaAnnua: quotaFissaAnnuaDaCampo("in-luce-fisso-nuov", "in-luce-fisso-nuov-unita"),
       quoteUniversaliAnnue: maggiorazioneMaster("luce"),
       componentiRegolate: componentiRegolateMaster("luce"),
+      sconti: normalizzaScontiArera(fonteAuto?.luce?.sconti),
     } : scenarioVuoto(),
     gas: usaGas ? {
       consumo: attuale.gas.consumo,
@@ -5333,6 +5435,7 @@ function leggiNuovaOfferta(attuale) {
       quotaFissaAnnua: quotaFissaAnnuaDaCampo("in-gas-fisso-nuov", "in-gas-fisso-nuov-unita"),
       quoteUniversaliAnnue: maggiorazioneMaster("gas"),
       componentiRegolate: componentiRegolateMaster("gas"),
+      sconti: normalizzaScontiArera(fonteAuto?.gas?.sconti),
     } : scenarioVuoto(),
   };
 }
@@ -5361,6 +5464,7 @@ function offertaPropostaPerCalcolo(offerta, attuale) {
   const usaGas = attuale.gas.consumo > 0 || attuale.gas.prezzoVariabile > 0 || attuale.gas.quotaFissaAnnua > 0;
 
   return {
+    sconti: normalizzaScontiArera(offerta.sconti),
     luce: offerta.luce && usaLuce ? {
       consumo: attuale.luce.consumo,
       prezzoVariabile: offerta.luce.prezzoVariabile,
@@ -5368,6 +5472,7 @@ function offertaPropostaPerCalcolo(offerta, attuale) {
       quotaFissaAnnua: offerta.luce.quotaFissaAnnua,
       quoteUniversaliAnnue: attuale.luce.quoteUniversaliAnnue,
       componentiRegolate: attuale.luce.componentiRegolate,
+      sconti: normalizzaScontiArera(offerta.luce.sconti),
     } : scenarioVuoto(),
     gas: offerta.gas && usaGas ? {
       consumo: attuale.gas.consumo,
@@ -5376,6 +5481,7 @@ function offertaPropostaPerCalcolo(offerta, attuale) {
       quotaFissaAnnua: offerta.gas.quotaFissaAnnua,
       quoteUniversaliAnnue: attuale.gas.quoteUniversaliAnnue,
       componentiRegolate: attuale.gas.componentiRegolate,
+      sconti: normalizzaScontiArera(offerta.gas.sconti),
     } : scenarioVuoto(),
   };
 }
@@ -6211,8 +6317,8 @@ function miglioreCoppiaAreraDualPerProvider(providerKey, tipo, attuale) {
     .filter((offerta) => offerta.providerKey === providerKey && offerta.tipo === tipo)
     .filter((offerta) => rigaAreraIdonea(offerta.luce) && rigaAreraIdonea(offerta.gas))
     .sort((a, b) => {
-      const costoA = costoRigaAreraSuProfilo(a.luce, attuale) + costoRigaAreraSuProfilo(a.gas, attuale);
-      const costoB = costoRigaAreraSuProfilo(b.luce, attuale) + costoRigaAreraSuProfilo(b.gas, attuale);
+      const costoA = costoDualAreraSuProfilo(a, attuale);
+      const costoB = costoDualAreraSuProfilo(b, attuale);
       return costoA - costoB;
     })[0] || null;
 }
@@ -6368,6 +6474,7 @@ function offertaPartnerConPrezziArera(offerta, attuale) {
         fornitura: "dual",
         luce: voceDaRigaArera(dual.luce),
         gas: voceDaRigaArera(dual.gas),
+        sconti: normalizzaScontiArera(dual.sconti),
         descrizione: `Condizioni economiche giornaliere dalla specifica offerta dual ARERA. Il catalogo partner fornisce soltanto il percorso di attivazione. Codici: ${codici}`,
         fonte: `${DATI_ARERA_MENU_META.fonte} Catalogo D. Codici: ${codici}`,
         aggiornataIl: DATI_ARERA_MENU_META.aggiornatoIl,
@@ -11362,9 +11469,9 @@ function costoOffertaSulProfilo(offerta, attuale) {
   return calcolaOfferta(offertaPropostaPerCalcolo(offerta, attuale), offerta.tipo || "fisso").totale;
 }
 
-function costoRigaAreraSuProfilo(riga, attuale) {
+function costoRigaAreraSuProfilo(riga, attuale, options = {}) {
   const base = riga.commodity === "luce" ? attuale.luce : attuale.gas;
-  return calcolaVoceEnergia({
+  const voce = calcolaVoceEnergia({
     consumo: base.consumo,
     prezzoVariabile: riga.prezzo,
     quotaFissaAnnua: riga.quotaFissaAnnua,
@@ -11372,7 +11479,17 @@ function costoRigaAreraSuProfilo(riga, attuale) {
     componentiRegolate: base.componentiRegolate,
     tipoTariffa: riga.tipo,
     commodity: riga.commodity,
-  }).totale;
+  });
+  return applicaScontiAreraVoce(voce, riga.sconti, { dual: Boolean(options.dual), commodity: riga.commodity }).totale;
+}
+
+function costoDualAreraSuProfilo(dual, attuale) {
+  const luce = costoRigaAreraSuProfilo(dual.luce, attuale, { dual: true });
+  const gas = costoRigaAreraSuProfilo(dual.gas, attuale, { dual: true });
+  const voceLuce = calcolaVoceEnergia({ consumo: attuale.luce.consumo, prezzoVariabile: dual.luce.prezzo, quotaFissaAnnua: dual.luce.quotaFissaAnnua, quoteUniversaliAnnue: attuale.luce.quoteUniversaliAnnue, componentiRegolate: attuale.luce.componentiRegolate, tipoTariffa: dual.luce.tipo, commodity: "luce" });
+  const voceGas = calcolaVoceEnergia({ consumo: attuale.gas.consumo, prezzoVariabile: dual.gas.prezzo, quotaFissaAnnua: dual.gas.quotaFissaAnnua, quoteUniversaliAnnue: attuale.gas.quoteUniversaliAnnue, componentiRegolate: attuale.gas.componentiRegolate, tipoTariffa: dual.gas.tipo, commodity: "gas" });
+  const scontoDual = importoScontoDualArera(dual.sconti, voceLuce, voceGas);
+  return Math.max(0, luce + gas - scontoDual);
 }
 
 function miglioreRigaArera(righe, commodity, tipo, attuale) {
@@ -11387,6 +11504,7 @@ function voceDaRigaArera(riga) {
   return {
     prezzoVariabile: riga.prezzo,
     quotaFissaAnnua: riga.quotaFissaAnnua,
+    sconti: normalizzaScontiArera(riga.sconti),
   };
 }
 
