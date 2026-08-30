@@ -105,6 +105,7 @@ sync_main_code() {
     scripts/update-arera-menu.py \
     scripts/update-arera-reference-data.py \
     scripts/update-energy-today.py \
+    scripts/update-sitemap-lastmod.py \
     scripts/validate-calculator-data.mjs
   do
     if [ ! -f "$repo_dir/$rel" ]; then
@@ -147,16 +148,16 @@ ensure_static_surfaces_from_main() {
     public/psv-gas-oggi.html \
     public/sitemap.xml
   do
-    if [ -f "$ROOT_DIR/$rel" ]; then
-      continue
-    fi
     if [ ! -f "$MAIN_REPO_DIR/$rel" ]; then
       log "ERRORE: superficie pubblica necessaria non trovata nel MAIN: $MAIN_REPO_DIR/$rel"
       return 1
     fi
+    if [ -f "$ROOT_DIR/$rel" ] && cmp -s "$MAIN_REPO_DIR/$rel" "$ROOT_DIR/$rel"; then
+      continue
+    fi
     mkdir -p "$ROOT_DIR/$(dirname "$rel")"
     cp "$MAIN_REPO_DIR/$rel" "$ROOT_DIR/$rel"
-    log "Superficie pubblica inizializzata dal MAIN: $rel"
+    log "Superficie pubblica allineata dal MAIN: $rel"
   done
 }
 
