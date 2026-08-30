@@ -21,7 +21,7 @@ from urllib.parse import urljoin
 NS = {"po": "http://www.acquirenteunico.it/schemas/SII_AU/OffertaRetail/01"}
 OPEN_DATA_URL = "https://www.ilportaleofferte.it/portaleOfferte/it/open-data.page"
 SOURCE_LABEL = "Portale Offerte ARERA/Acquirente Unico Open Data"
-CATALOG_TRANSFORMER_VERSION = "arera-menu-v3-metadata-completi"
+CATALOG_TRANSFORMER_VERSION = "arera-menu-v4-sconti-condizioni-complete"
 PUN_FALLBACK: float | None = None
 PSV_FALLBACK: float | None = None
 PSBG_FALLBACK: float | None = None
@@ -447,11 +447,36 @@ def extracted_discounts(
         description = node_text(discount, "po:DESCRIZIONE")
         typology = node_text(discount, "po:TIPOLOGIA")
         validity = node_text(discount, "po:VALIDITA")
-        duration_value = parse_float(node_text(discount, "po:DURATA"))
+        duration_value = parse_float(
+            node_text(discount, "po:PeriodoValidita/po:DURATA")
+            or node_text(discount, "po:DURATA")
+        )
         duration = int(duration_value) if duration_value is not None else None
+        validity_month_value = parse_float(node_text(discount, "po:PeriodoValidita/po:MESE_VALIDITA"))
+        validity_month = int(validity_month_value) if validity_month_value is not None else None
         vat_discount = node_text(discount, "po:IVA_SCONTO")
-        condition = node_text(discount, "po:Condizione/po:CONDIZIONE_APPLICAZIONE") or node_text(discount, "po:CONDIZIONE_APPLICAZIONE")
-        condition_description = node_text(discount, "po:Condizione/po:DESCRIZIONE_CONDIZIONE")
+        component_code = node_text(discount, "po:CODICE_COMPONENTE_FASCIA")
+
+        conditions: list[dict[str, str]] = []
+        for condition_node in discount.findall("po:Condizione", NS):
+            condition_code = node_text(condition_node, "po:CONDIZIONE_APPLICAZIONE")
+            condition_text = node_text(condition_node, "po:DESCRIZIONE_CONDIZIONE")
+            conditions.append(
+                {
+                    "codice": condition_code,
+                    "descrizione": condition_text,
+                }
+            )
+        if not conditions:
+            condition_code = node_text(discount, "po:CONDIZIONE_APPLICAZIONE")
+            condition_text = node_text(discount, "po:DESCRIZIONE_CONDIZIONE")
+            if condition_code or condition_text:
+                conditions.append({"codice": condition_code, "descrizione": condition_text})
+
+        condition = next((item["codice"] for item in conditions if item.get("codice")), "")
+        condition_description = " | ".join(
+            item["descrizione"] for item in conditions if item.get("descrizione")
+        )
 
         prices: list[dict[str, object]] = []
         price_nodes = discount.findall(".//po:PrezziSconto", NS)
@@ -464,11 +489,13 @@ def extracted_discounts(
             unit = node_text(price_node, "po:UNITA_MISURA")
             if value is None or value < 0 or unit not in UNIT_CODES:
                 continue
-            period_from = node_text(price_node, "po:DATA_INIZIO")
-            period_to = node_text(price_node, "po:DATA_FINE")
+            price_typology = node_text(price_node, "po:TIPOLOGIA")
+            period_from = node_text(price_node, "po:VALIDO_DA") or node_text(price_node, "po:DATA_INIZIO")
+            period_to = node_text(price_node, "po:VALIDO_FINO") or node_text(price_node, "po:DATA_FINE")
             prices.append(
                 {
                     "valore": round(value, 8),
+                    "tipologia": price_typology,
                     "unitaMisuraCodice": unit,
                     "unitaMisura": UNIT_CODES.get(unit, f"codice {unit or 'assente'}"),
                     "periodoValidita": {
@@ -488,10 +515,17 @@ def extracted_discounts(
                 "tipologia": typology,
                 "validita": validity,
                 "durataMesi": duration,
+                "meseValidita": validity_month,
                 "ivaSconto": vat_discount,
+                "codiceComponenteFascia": component_code,
                 "condizioneApplicazione": condition,
                 "descrizioneCondizione": condition_description,
-                "condizionato": condition not in {"", "00"},
+                "condizioni": conditions,
+                "condizionato": any(
+                    (bool(str(item.get("codice") or "").strip()) and str(item.get("codice") or "").strip() != "00")
+                    or (not str(item.get("codice") or "").strip() and bool(str(item.get("descrizione") or "").strip()))
+                    for item in conditions
+                ),
                 "prezzi": prices,
                 "sorgente": source_label_for(source_path),
                 "codiceOfferta": code,

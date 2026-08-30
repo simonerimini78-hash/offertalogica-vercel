@@ -4045,17 +4045,45 @@ function normalizzaScontiArera(sconti) {
         }).filter(Boolean)
       : [];
     if (!prezzi.length) return null;
+    const condizioniRaw = Array.isArray(sconto.condizioni) && sconto.condizioni.length
+      ? sconto.condizioni
+      : [{
+          codice: sconto.condizioneApplicazione || "",
+          descrizione: sconto.descrizioneCondizione || "",
+        }];
+    const condizioni = condizioniRaw.map((condizione) => ({
+      codice: String(condizione?.codice || "").trim(),
+      descrizione: String(condizione?.descrizione || "").trim(),
+    })).filter((condizione) => condizione.codice || condizione.descrizione);
+    const condizionato = Boolean(sconto.condizionato) || condizioni.some((condizione) => (
+      (condizione.codice && condizione.codice !== "00") || (!condizione.codice && Boolean(condizione.descrizione))
+    ));
     return {
       ...sconto,
       nome: String(sconto.nome || "Sconto"),
       descrizione: String(sconto.descrizione || ""),
       descrizioneCondizione: String(sconto.descrizioneCondizione || ""),
       condizioneApplicazione: String(sconto.condizioneApplicazione || ""),
-      condizionato: Boolean(sconto.condizionato),
+      condizioni,
+      condizionato,
+      codiceComponenteFascia: String(sconto.codiceComponenteFascia || ""),
       durataMesi: Number.isFinite(Number(sconto.durataMesi)) ? Number(sconto.durataMesi) : null,
+      meseValidita: Number.isFinite(Number(sconto.meseValidita)) ? Number(sconto.meseValidita) : null,
       prezzi,
     };
   }).filter(Boolean);
+}
+
+function normalizzaRiferimentoArera(riferimento) {
+  if (!riferimento || typeof riferimento !== "object") return null;
+  const normalized = {
+    codice: String(riferimento.codice || "").trim(),
+    nome: String(riferimento.nome || "").trim(),
+    providerKey: String(riferimento.providerKey || "").trim(),
+    providerLabel: String(riferimento.providerLabel || riferimento.fornitore || "").trim(),
+    commodity: String(riferimento.commodity || "").trim(),
+  };
+  return Object.values(normalized).some(Boolean) ? normalized : null;
 }
 
 function normalizzaVoceOfferta(voce) {
@@ -4064,6 +4092,7 @@ function normalizzaVoceOfferta(voce) {
     prezzoVariabile: numeroSicuro(voce.prezzoVariabile, 0),
     quotaFissaAnnua: numeroSicuro(voce.quotaFissaAnnua, 0),
     sconti: normalizzaScontiArera(voce.sconti),
+    riferimentoArera: normalizzaRiferimentoArera(voce.riferimentoArera),
   };
   if (voce.formula && typeof voce.formula === "object") {
     normalized.formula = {
@@ -4406,12 +4435,110 @@ function calcolaVoceEnergia({ consumo = 0, prezzoVariabile = 0, formula, consumi
   return { commodity, consumo: consumoProfilo, consumoFatturato, tipoPrezzo: tipoVoce, modalitaPrezzo: materiaFasce?.modalitaPrezzo || (formula?.tipo || "single_price"), fattorePerdite, prezzoVariabile: prezzoCalcolo, quotaMateria, quotaVariabile: quotaMateria, quotaFissaVendita, quotaTecnicaProfilo, quotaRegolata, quotaRegolataVariabile, quotaRegolataFissa, quotaImposte, quotaIva, quotaFiscale, quotaFissa, totale: imponibile + quotaIva };
 }
 
+function testoAreraNormalizzato(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function testoCondizioneScontoArera(sconto) {
+  const condizioni = Array.isArray(sconto?.condizioni) ? sconto.condizioni : [];
+  return testoAreraNormalizzato([
+    sconto?.nome,
+    sconto?.descrizione,
+    sconto?.descrizioneCondizione,
+    ...condizioni.flatMap((condizione) => [condizione?.codice, condizione?.descrizione]),
+  ].filter(Boolean).join(" "));
+}
+
+function variantiNomeRiferimentoArera(riferimento) {
+  const ref = normalizzaRiferimentoArera(riferimento);
+  if (!ref?.nome) return [];
+  const nome = testoAreraNormalizzato(ref.nome);
+  const provider = testoAreraNormalizzato(ref.providerLabel || ref.providerKey);
+  const variants = new Set([nome]);
+  if (provider && nome.includes(provider)) {
+    const senzaProvider = nome.replace(provider, " ").replace(/\s+/g, " ").trim();
+    if (senzaProvider) variants.add(senzaProvider);
+  }
+  for (const value of [...variants]) {
+    const senzaPrefisso = value.replace(/^(?:offerta\s+)?(?:energia\s+)?/, "").trim();
+    if (senzaPrefisso) variants.add(senzaPrefisso);
+  }
+  return [...variants].filter((value) => value.length >= 5);
+}
+
+function tokenDistintiviRiferimentoArera(riferimento) {
+  const ref = normalizzaRiferimentoArera(riferimento);
+  if (!ref?.nome) return [];
+  const providerTokens = new Set(testoAreraNormalizzato(ref.providerLabel || ref.providerKey).split(" ").filter(Boolean));
+  const stop = new Set(["offerta", "energia", "elettrica", "luce", "gas", "naturale", "casa", "clienti", "cliente", "per", "di", "del", "della", "e", "on"]);
+  return [...new Set(testoAreraNormalizzato(ref.nome).split(" ").filter((token) => (
+    token.length >= 4 && !stop.has(token) && !providerTokens.has(token)
+  )))];
+}
+
+function testoCitaRiferimentoArera(testo, riferimento) {
+  const normalized = testoAreraNormalizzato(testo);
+  if (variantiNomeRiferimentoArera(riferimento).some((variant) => normalized.includes(variant))) return true;
+  const distintivi = tokenDistintiviRiferimentoArera(riferimento);
+  return distintivi.length > 0 && distintivi.every((token) => normalized.includes(token));
+}
+
+function condizioneNominaFamigliaOpposta(testo, commodityOpposta) {
+  const marker = commodityOpposta === "gas" ? "gas" : "luce";
+  const normalized = testoAreraNormalizzato(testo);
+  const match = normalized.match(new RegExp("offerta\\s+" + marker + "\\s+([a-z0-9][a-z0-9\\s-]{2,40})"));
+  if (!match) return false;
+  const coda = match[1].split(" ").filter(Boolean);
+  const stop = new Set(["e", "con", "in", "per", "da", "di", "del", "della", "contestuale", "contestualmente", "congiunta", "congiuntamente", "attivazione", "sottoscrizione"]);
+  return coda.some((token) => token.length >= 4 && !stop.has(token));
+}
+
+function vincoloScontoAreraNonValutabile(testo) {
+  return /domiciliazion|addebito|sdd|rid|carta\s+di\s+credito|metodo\s+di\s+pagamento|bolletta\s+digitale|fattura\s+digitale|invio\s+mail|via\s+mail|newsletter|app\b|servizio\s+aggiuntivo|fotovolta|caldaia|assicurazion|polizza|fibra|internet|nuov[oi]\s+client|residenz|isee|dipendent|socio|convenzion/.test(testo);
+}
+
+function condizioneAbbinamentoAreraSoddisfatta(sconto, contesto = {}) {
+  if (!contesto.dual) return false;
+  const testo = testoCondizioneScontoArera(sconto);
+  if (!testo || vincoloScontoAreraNonValutabile(testo)) return false;
+
+  const commodity = String(contesto.commodity || "").toLowerCase();
+  const riferimentoOpposto = commodity === "luce"
+    ? contesto.gasRiferimento
+    : commodity === "gas"
+      ? contesto.luceRiferimento
+      : null;
+
+  const segnaleDualEsplicito = /dual\s*fuel|dualfuel|contratto\s+dual|offerta\s+dual|luce\s+(?:e|gas)|gas\s+(?:e|luce)|fornitur[ae]\s+congiunt|offerta\s+abbinat|attivazion\w*\s+contestual|sottoscr\w*\s+contestual/.test(testo);
+  if (commodity === "dual" && segnaleDualEsplicito) return true;
+
+  if (riferimentoOpposto && testoCitaRiferimentoArera(testo, riferimentoOpposto)) return true;
+
+  const citaGas = /\bgas\b/.test(testo);
+  const citaLuce = /\bluce\b|energia\s+elettrica/.test(testo);
+  const azioneAbbinamento = /attivazion|sottoscr|abbinat|contestual|insieme|congiunt/.test(testo);
+  if (commodity === "luce" && riferimentoOpposto && citaGas && azioneAbbinamento) {
+    if (condizioneNominaFamigliaOpposta(testo, "gas")) return false;
+    return true;
+  }
+  if (commodity === "gas" && riferimentoOpposto && citaLuce && azioneAbbinamento) {
+    if (condizioneNominaFamigliaOpposta(testo, "luce")) return false;
+    return true;
+  }
+  if (commodity === "dual" && (citaGas || citaLuce) && azioneAbbinamento) return true;
+  return false;
+}
+
 function scontoAreraApplicabile(sconto, contesto = {}) {
   if (!sconto || !Array.isArray(sconto.prezzi) || !sconto.prezzi.length) return false;
   if (!sconto.condizionato) return true;
-  const testo = `${sconto.nome || ""} ${sconto.descrizione || ""} ${sconto.descrizioneCondizione || ""}`.toLowerCase();
-  const richiedeDual = /dual\s*fuel|dualfuel|contratto\s+dual|offerta\s+dual|luce\s*(?:e|\+)\s*gas|fornitur[ae]\s+congiunt/.test(testo);
-  return richiedeDual && Boolean(contesto.dual);
+  return condizioneAbbinamentoAreraSoddisfatta(sconto, contesto);
 }
 
 function unicoPrezzoScontoArera(sconto) {
@@ -4425,6 +4552,14 @@ function unicoPrezzoScontoArera(sconto) {
   return unici.size === 1 ? [...unici.values()][0] : null;
 }
 
+function fattoreDurataScontoArera(sconto) {
+  const durata = Number(sconto?.durataMesi);
+  if (Number.isFinite(durata) && durata > 0) return Math.min(12, durata) / 12;
+  const meseSingolo = Number(sconto?.meseValidita);
+  if (Number.isFinite(meseSingolo) && meseSingolo >= 1 && meseSingolo <= 12) return 1 / 12;
+  return 1;
+}
+
 function importoScontoArera(sconti, voceCalcolata, contesto = {}) {
   let totale = 0;
   for (const sconto of normalizzaScontiArera(sconti)) {
@@ -4432,12 +4567,17 @@ function importoScontoArera(sconti, voceCalcolata, contesto = {}) {
     const prezzo = unicoPrezzoScontoArera(sconto);
     if (!prezzo) continue;
     let importo = 0;
-    if (prezzo.unita === "06") importo = voceCalcolata.quotaMateria * Math.min(100, prezzo.valore) / 100;
-    else if (prezzo.unita === "03" && contesto.commodity === "luce") importo = voceCalcolata.consumoFatturato * prezzo.valore;
-    else if (prezzo.unita === "04" && contesto.commodity === "gas") importo = voceCalcolata.consumoFatturato * prezzo.valore;
-    else if (prezzo.unita === "01") importo = prezzo.valore;
+    const fattoreDurata = fattoreDurataScontoArera(sconto);
+    if (prezzo.unita === "06") importo = voceCalcolata.quotaMateria * Math.min(100, prezzo.valore) / 100 * fattoreDurata;
+    else if (prezzo.unita === "03" && contesto.commodity === "luce") importo = voceCalcolata.consumoFatturato * prezzo.valore * fattoreDurata;
+    else if (prezzo.unita === "04" && contesto.commodity === "gas") importo = voceCalcolata.consumoFatturato * prezzo.valore * fattoreDurata;
+    else if (prezzo.unita === "01") importo = prezzo.valore * fattoreDurata;
     else if (prezzo.unita === "02") {
-      const mesi = Number.isFinite(Number(sconto.durataMesi)) && Number(sconto.durataMesi) > 0 ? Math.min(12, Number(sconto.durataMesi)) : 12;
+      const mesi = Number.isFinite(Number(sconto.durataMesi)) && Number(sconto.durataMesi) > 0
+        ? Math.min(12, Number(sconto.durataMesi))
+        : Number.isFinite(Number(sconto.meseValidita)) && Number(sconto.meseValidita) >= 1 && Number(sconto.meseValidita) <= 12
+          ? 1
+          : 12;
       importo = prezzo.valore * mesi;
     } else if (prezzo.unita === "05") importo = prezzo.valore;
     if (Number.isFinite(importo) && importo > 0) totale += importo;
@@ -4451,30 +4591,39 @@ function applicaScontiAreraVoce(voceCalcolata, sconti, contesto = {}) {
   return { ...voceCalcolata, scontoArera: sconto, totale: Math.max(0, voceCalcolata.totale - sconto) };
 }
 
-function importoScontoDualArera(sconti, luce, gas) {
+function importoScontoDualArera(sconti, luce, gas, contesto = {}) {
   const base = {
     quotaMateria: luce.quotaMateria + gas.quotaMateria,
     consumoFatturato: 0,
     totale: luce.totale + gas.totale,
   };
-  return Math.min(base.totale, importoScontoArera(sconti, base, { dual: true, commodity: "dual" }));
+  return Math.min(base.totale, importoScontoArera(sconti, base, {
+    ...contesto,
+    dual: true,
+    commodity: "dual",
+  }));
 }
 
 function calcolaOfferta(offerta, tipoTariffa) {
   const luceInput = offerta?.luce || scenarioVuoto();
   const gasInput = offerta?.gas || scenarioVuoto();
-  const dual = Boolean(offerta?.luce && offerta?.gas);
+  const dual = String(offerta?.fornitura || "").toLowerCase() === "dual";
+  const contestoCoppia = {
+    dual,
+    luceRiferimento: normalizzaRiferimentoArera(luceInput.riferimentoArera),
+    gasRiferimento: normalizzaRiferimentoArera(gasInput.riferimentoArera),
+  };
   const luce = applicaScontiAreraVoce(calcolaVoceEnergia({
     ...luceInput,
     tipoTariffa: luceInput.tipoTariffa || tipoTariffa,
     commodity: "luce",
-  }), luceInput.sconti, { dual, commodity: "luce" });
+  }), luceInput.sconti, { ...contestoCoppia, commodity: "luce" });
   const gas = applicaScontiAreraVoce(calcolaVoceEnergia({
     ...gasInput,
     tipoTariffa: gasInput.tipoTariffa || tipoTariffa,
     commodity: "gas",
-  }), gasInput.sconti, { dual, commodity: "gas" });
-  const scontoDualArera = dual ? importoScontoDualArera(offerta?.sconti, luce, gas) : 0;
+  }), gasInput.sconti, { ...contestoCoppia, commodity: "gas" });
+  const scontoDualArera = dual ? importoScontoDualArera(offerta?.sconti, luce, gas, contestoCoppia) : 0;
 
   return {
     luce,
@@ -5426,6 +5575,7 @@ function leggiNuovaOfferta(attuale) {
       quoteUniversaliAnnue: maggiorazioneMaster("luce"),
       componentiRegolate: componentiRegolateMaster("luce"),
       sconti: normalizzaScontiArera(fonteAuto?.luce?.sconti),
+      riferimentoArera: normalizzaRiferimentoArera(fonteAuto?.luce?.riferimentoArera),
     } : scenarioVuoto(),
     gas: usaGas ? {
       consumo: attuale.gas.consumo,
@@ -5436,6 +5586,7 @@ function leggiNuovaOfferta(attuale) {
       quoteUniversaliAnnue: maggiorazioneMaster("gas"),
       componentiRegolate: componentiRegolateMaster("gas"),
       sconti: normalizzaScontiArera(fonteAuto?.gas?.sconti),
+      riferimentoArera: normalizzaRiferimentoArera(fonteAuto?.gas?.riferimentoArera),
     } : scenarioVuoto(),
   };
 }
@@ -5464,6 +5615,7 @@ function offertaPropostaPerCalcolo(offerta, attuale) {
   const usaGas = attuale.gas.consumo > 0 || attuale.gas.prezzoVariabile > 0 || attuale.gas.quotaFissaAnnua > 0;
 
   return {
+    fornitura: offerta?.fornitura || (offerta?.luce && offerta?.gas ? "separate" : offerta?.luce ? "luce" : "gas"),
     sconti: normalizzaScontiArera(offerta.sconti),
     luce: offerta.luce && usaLuce ? {
       consumo: attuale.luce.consumo,
@@ -5473,6 +5625,7 @@ function offertaPropostaPerCalcolo(offerta, attuale) {
       quoteUniversaliAnnue: attuale.luce.quoteUniversaliAnnue,
       componentiRegolate: attuale.luce.componentiRegolate,
       sconti: normalizzaScontiArera(offerta.luce.sconti),
+      riferimentoArera: normalizzaRiferimentoArera(offerta.luce.riferimentoArera),
     } : scenarioVuoto(),
     gas: offerta.gas && usaGas ? {
       consumo: attuale.gas.consumo,
@@ -5482,6 +5635,7 @@ function offertaPropostaPerCalcolo(offerta, attuale) {
       quoteUniversaliAnnue: attuale.gas.quoteUniversaliAnnue,
       componentiRegolate: attuale.gas.componentiRegolate,
       sconti: normalizzaScontiArera(offerta.gas.sconti),
+      riferimentoArera: normalizzaRiferimentoArera(offerta.gas.riferimentoArera),
     } : scenarioVuoto(),
   };
 }
@@ -6312,6 +6466,26 @@ function miglioreRigaAreraPerProvider(providerKey, commodity, tipo, attuale) {
     .sort((a, b) => (costoRigaAreraSuProfilo(a, attuale) - costoRigaAreraSuProfilo(b, attuale)) || (a.score - b.score))[0] || null;
 }
 
+function miglioreCoppiaAreraEGPerProvider(providerKey, tipo, attuale) {
+  const luci = OFFERTE_ARERA_MENU
+    .filter((riga) => riga.providerKey === providerKey && riga.commodity === "luce" && riga.tipo === tipo)
+    .filter(rigaAreraIdonea);
+  const gas = OFFERTE_ARERA_MENU
+    .filter((riga) => riga.providerKey === providerKey && riga.commodity === "gas" && riga.tipo === tipo)
+    .filter(rigaAreraIdonea);
+  let migliore = null;
+  for (const luce of luci) {
+    for (const gasRiga of gas) {
+      const costo = costoCoppiaAreraEGSuProfilo(luce, gasRiga, attuale);
+      const score = numeroSicuro(luce.score, 999) + numeroSicuro(gasRiga.score, 999);
+      if (!migliore || costo < migliore.costo - 0.000001 || (Math.abs(costo - migliore.costo) <= 0.000001 && score < migliore.score)) {
+        migliore = { luce, gas: gasRiga, costo, score };
+      }
+    }
+  }
+  return migliore;
+}
+
 function miglioreCoppiaAreraDualPerProvider(providerKey, tipo, attuale) {
   return OFFERTE_ARERA_DUAL
     .filter((offerta) => offerta.providerKey === providerKey && offerta.tipo === tipo)
@@ -6499,8 +6673,9 @@ function offertaPartnerConPrezziArera(offerta, attuale) {
     if (!OFFERTE_ARERA_MENU.length) return null;
     const providerKey = chiaveFornitoreDaNome(offerta.provider);
     if (!providerKey) return null;
-    const luce = miglioreRigaAreraPerProvider(providerKey, "luce", offerta.tipo, attuale);
-    const gas = miglioreRigaAreraPerProvider(providerKey, "gas", offerta.tipo, attuale);
+    const coppia = miglioreCoppiaAreraEGPerProvider(providerKey, offerta.tipo, attuale);
+    const luce = coppia?.luce || null;
+    const gas = coppia?.gas || null;
     if (!luce || !gas) return null;
     const providerLabel = luce.providerLabel || gas.providerLabel || offerta.provider;
     const codici = `${luce.codice} + ${gas.codice}`;
@@ -6593,6 +6768,7 @@ function offertaAreraRankingProvider(providerKey, tipo, tipoFornitura, attuale) 
     destinationStatus: "da_contattare",
     luce: voceDaRigaArera(luce),
     gas: voceDaRigaArera(gas),
+    sconti: normalizzaScontiArera(dual?.sconti),
     descrizione: `Ranking tecnico da Portale Offerte ARERA/AU. Codici: ${codiciArera}`,
     fonte: `${DATI_ARERA_MENU_META.fonte} Codici: ${codiciArera}`,
     aggiornataIl: DATI_ARERA_MENU_META.aggiornatoIl,
@@ -11469,9 +11645,9 @@ function costoOffertaSulProfilo(offerta, attuale) {
   return calcolaOfferta(offertaPropostaPerCalcolo(offerta, attuale), offerta.tipo || "fisso").totale;
 }
 
-function costoRigaAreraSuProfilo(riga, attuale, options = {}) {
+function calcolaRigaAreraSuProfilo(riga, attuale) {
   const base = riga.commodity === "luce" ? attuale.luce : attuale.gas;
-  const voce = calcolaVoceEnergia({
+  return calcolaVoceEnergia({
     consumo: base.consumo,
     prezzoVariabile: riga.prezzo,
     quotaFissaAnnua: riga.quotaFissaAnnua,
@@ -11480,16 +11656,41 @@ function costoRigaAreraSuProfilo(riga, attuale, options = {}) {
     tipoTariffa: riga.tipo,
     commodity: riga.commodity,
   });
-  return applicaScontiAreraVoce(voce, riga.sconti, { dual: Boolean(options.dual), commodity: riga.commodity }).totale;
+}
+
+function costoRigaAreraSuProfilo(riga, attuale, options = {}) {
+  const voce = calcolaRigaAreraSuProfilo(riga, attuale);
+  const contesto = {
+    dual: Boolean(options.dual),
+    commodity: riga.commodity,
+    luceRiferimento: normalizzaRiferimentoArera(options.luceRiferimento),
+    gasRiferimento: normalizzaRiferimentoArera(options.gasRiferimento),
+  };
+  return applicaScontiAreraVoce(voce, riga.sconti, contesto).totale;
+}
+
+function costoCoppiaAreraEGSuProfilo(luceRiga, gasRiga, attuale) {
+  const contesto = {
+    dual: true,
+    luceRiferimento: riferimentoAreraDaRiga(luceRiga),
+    gasRiferimento: riferimentoAreraDaRiga(gasRiga),
+  };
+  return costoRigaAreraSuProfilo(luceRiga, attuale, contesto)
+    + costoRigaAreraSuProfilo(gasRiga, attuale, contesto);
 }
 
 function costoDualAreraSuProfilo(dual, attuale) {
-  const luce = costoRigaAreraSuProfilo(dual.luce, attuale, { dual: true });
-  const gas = costoRigaAreraSuProfilo(dual.gas, attuale, { dual: true });
-  const voceLuce = calcolaVoceEnergia({ consumo: attuale.luce.consumo, prezzoVariabile: dual.luce.prezzo, quotaFissaAnnua: dual.luce.quotaFissaAnnua, quoteUniversaliAnnue: attuale.luce.quoteUniversaliAnnue, componentiRegolate: attuale.luce.componentiRegolate, tipoTariffa: dual.luce.tipo, commodity: "luce" });
-  const voceGas = calcolaVoceEnergia({ consumo: attuale.gas.consumo, prezzoVariabile: dual.gas.prezzo, quotaFissaAnnua: dual.gas.quotaFissaAnnua, quoteUniversaliAnnue: attuale.gas.quoteUniversaliAnnue, componentiRegolate: attuale.gas.componentiRegolate, tipoTariffa: dual.gas.tipo, commodity: "gas" });
-  const scontoDual = importoScontoDualArera(dual.sconti, voceLuce, voceGas);
-  return Math.max(0, luce + gas - scontoDual);
+  const contesto = {
+    dual: true,
+    luceRiferimento: riferimentoAreraDaRiga(dual.luce),
+    gasRiferimento: riferimentoAreraDaRiga(dual.gas),
+  };
+  const voceLuce = calcolaRigaAreraSuProfilo(dual.luce, attuale);
+  const voceGas = calcolaRigaAreraSuProfilo(dual.gas, attuale);
+  const luce = applicaScontiAreraVoce(voceLuce, dual.luce.sconti, { ...contesto, commodity: "luce" });
+  const gas = applicaScontiAreraVoce(voceGas, dual.gas.sconti, { ...contesto, commodity: "gas" });
+  const scontoDual = importoScontoDualArera(dual.sconti, luce, gas, contesto);
+  return Math.max(0, luce.totale + gas.totale - scontoDual);
 }
 
 function miglioreRigaArera(righe, commodity, tipo, attuale) {
@@ -11499,12 +11700,24 @@ function miglioreRigaArera(righe, commodity, tipo, attuale) {
     .sort((a, b) => (costoRigaAreraSuProfilo(a, attuale) - costoRigaAreraSuProfilo(b, attuale)) || (a.score - b.score))[0] || null;
 }
 
+function riferimentoAreraDaRiga(riga) {
+  if (!riga) return null;
+  return normalizzaRiferimentoArera({
+    codice: riga.codice,
+    nome: riga.nome,
+    providerKey: riga.providerKey,
+    providerLabel: riga.providerLabel || riga.fornitore,
+    commodity: riga.commodity,
+  });
+}
+
 function voceDaRigaArera(riga) {
   if (!riga) return null;
   return {
     prezzoVariabile: riga.prezzo,
     quotaFissaAnnua: riga.quotaFissaAnnua,
     sconti: normalizzaScontiArera(riga.sconti),
+    riferimentoArera: riferimentoAreraDaRiga(riga),
   };
 }
 
@@ -11550,6 +11763,7 @@ function offertaAreraDaRighe(providerKey, tipo, tipoFornitura, attuale) {
     destinationStatus: "solo_confronto",
     luce: voceDaRigaArera(luce),
     gas: voceDaRigaArera(gas),
+    sconti: normalizzaScontiArera(dual?.sconti),
     descrizione: "Compilazione automatica da Portale Offerte ARERA/AU per confronto nel modulo nuova offerta.",
     fonte: `${DATI_ARERA_MENU_META.fonte} Codici: ${codici}`,
     aggiornataIl: DATI_ARERA_MENU_META.aggiornatoIl,
