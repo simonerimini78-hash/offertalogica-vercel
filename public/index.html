@@ -4760,6 +4760,129 @@ function calcolaOfferta(offerta, tipoTariffa) {
   };
 }
 
+
+function valoreNominalePromozioneArera(sconto) {
+  const prezzo = unicoPrezzoScontoArera(sconto);
+  if (!prezzo) return "";
+  const cifre = Math.abs(prezzo.valore) < 1 ? 4 : 2;
+  const valore = numeroItaliano(prezzo.valore, cifre);
+  if (prezzo.unita === "06") return `${valore}%`;
+  if (prezzo.unita === "03") return `${valore} €/kWh`;
+  if (prezzo.unita === "04") return `${valore} €/Smc`;
+  if (prezzo.unita === "01") return `${valore} €/anno`;
+  if (prezzo.unita === "02") return `${valore} €/mese`;
+  if (prezzo.unita === "05") return `${valore} €`;
+  return "";
+}
+
+function durataPromozioneArera(sconto) {
+  const mesi = Number(sconto?.durataMesi);
+  if (Number.isFinite(mesi) && mesi > 0) return `per ${numeroItaliano(mesi, 0)} mesi`;
+  const giorni = Number(sconto?.durataGiorni);
+  if (Number.isFinite(giorni) && giorni > 0) return `per ${numeroItaliano(giorni, 0)} giorni`;
+  const prezzo = unicoPrezzoScontoArera(sconto);
+  if (prezzo?.unita === "05") return "una tantum";
+  return "";
+}
+
+function condizionePromozioneArera(sconto) {
+  if (!sconto?.condizionato) return "";
+  const testo = String(
+    sconto.descrizioneCondizione
+      || (sconto.condizioni || []).map((condizione) => condizione?.descrizione || "").filter(Boolean).join("; ")
+      || ""
+  ).trim();
+  if (!testo) return "";
+  return testo.length > 180 ? `${testo.slice(0, 177).trim()}…` : testo;
+}
+
+function promozioniApplicateOfferta(offerta, costoOfferta) {
+  const dual = String(offerta?.fornitura || "").toLowerCase() === "dual";
+  const contesto = {
+    dual,
+    luceRiferimento: normalizzaRiferimentoArera(offerta?.luce?.riferimentoArera),
+    gasRiferimento: normalizzaRiferimentoArera(offerta?.gas?.riferimentoArera),
+  };
+  const applicate = [];
+  let dichiarate = 0;
+
+  const raccogliVoce = (ambito, sconti, voceCalcolata, contestoVoce) => {
+    const lista = normalizzaScontiArera(sconti);
+    dichiarate += lista.length;
+    let residuo = Math.max(0, numeroSicuro(voceCalcolata?.scontoArera, 0));
+    if (!(residuo > 0)) return;
+    const base = {
+      ...(voceCalcolata || {}),
+      totale: numeroSicuro(voceCalcolata?.totale, 0) + residuo,
+    };
+    for (const sconto of lista) {
+      if (!(residuo > 0)) break;
+      const teorico = importoScontoArera([sconto], base, contestoVoce);
+      const importo = Math.min(residuo, Math.max(0, teorico));
+      if (!(importo > 0)) continue;
+      applicate.push({ ambito, sconto, importo });
+      residuo = Math.max(0, residuo - importo);
+    }
+  };
+
+  raccogliVoce("Luce", offerta?.luce?.sconti, costoOfferta?.luce, { ...contesto, commodity: "luce" });
+  raccogliVoce("Gas", offerta?.gas?.sconti, costoOfferta?.gas, { ...contesto, commodity: "gas" });
+
+  const scontiDual = normalizzaScontiArera(offerta?.sconti);
+  dichiarate += scontiDual.length;
+  let residuoDual = Math.max(
+    0,
+    numeroSicuro(costoOfferta?.scontoArera, 0)
+      - numeroSicuro(costoOfferta?.luce?.scontoArera, 0)
+      - numeroSicuro(costoOfferta?.gas?.scontoArera, 0)
+  );
+  if (dual && residuoDual > 0) {
+    const baseDual = {
+      quotaMateria: numeroSicuro(costoOfferta?.luce?.quotaMateria, 0) + numeroSicuro(costoOfferta?.gas?.quotaMateria, 0),
+      consumoFatturato: 0,
+      totale: numeroSicuro(costoOfferta?.luce?.totale, 0) + numeroSicuro(costoOfferta?.gas?.totale, 0),
+    };
+    for (const sconto of scontiDual) {
+      if (!(residuoDual > 0)) break;
+      const teorico = importoScontoArera([sconto], baseDual, { ...contesto, commodity: "dual" });
+      const importo = Math.min(residuoDual, Math.max(0, teorico));
+      if (!(importo > 0)) continue;
+      applicate.push({ ambito: "Dual", sconto, importo });
+      residuoDual = Math.max(0, residuoDual - importo);
+    }
+  }
+
+  return {
+    applicate,
+    totaleApplicato: Math.max(0, numeroSicuro(costoOfferta?.scontoArera, 0)),
+    nonIncluse: Math.max(0, dichiarate - applicate.length),
+  };
+}
+
+function htmlPromozioniApplicateOfferta(offerta, costoOfferta) {
+  const riepilogo = promozioniApplicateOfferta(offerta, costoOfferta);
+  const righe = riepilogo.applicate.map(({ ambito, sconto, importo }) => {
+    const nome = testoHtmlSicuro(String(sconto?.nome || "Sconto"));
+    const valore = testoHtmlSicuro(valoreNominalePromozioneArera(sconto));
+    const durata = testoHtmlSicuro(durataPromozioneArera(sconto));
+    const condizione = testoHtmlSicuro(condizionePromozioneArera(sconto));
+    const dettagli = [valore, durata].filter(Boolean).join(" · ");
+    return `<div style="margin-top:3px;"><strong>${ambito} · ${nome}</strong>${dettagli ? `: ${dettagli}` : ""} <span style="white-space:nowrap;">→ −${euro(importo)} sul tuo profilo</span>${condizione ? `<br><span style="color:var(--text-muted);">Condizione: ${condizione}</span>` : ""}</div>`;
+  }).join("");
+
+  const incluse = riepilogo.applicate.length
+    ? `<div style="margin-top:7px; padding:7px 9px; border:1px solid #bbf7d0; border-radius:9px; background:#f0fdf4; color:#166534; font-size:12px; line-height:1.35;">
+        <strong>Promozioni incluse nel costo annuo:</strong>
+        ${righe}
+        <div style="margin-top:4px; font-weight:800;">Totale sconti/bonus considerati: −${euro(riepilogo.totaleApplicato)}</div>
+      </div>`
+    : "";
+  const nonIncluse = riepilogo.nonIncluse > 0
+    ? `<small style="display:block; margin-top:4px; color:var(--text-muted); font-weight:600;">Altre promozioni dichiarate non sono incluse nel costo perché le relative condizioni non risultano soddisfatte o verificabili nel profilo corrente.</small>`
+    : "";
+  return `${incluse}${nonIncluse}`;
+}
+
 function calcolaDifferenza(offertaAttuale, offertaConfronto, tipoTariffaAttuale, tipoTariffaConfronto = tipoTariffaAttuale) {
   const attuale = calcolaOfferta(offertaAttuale, tipoTariffaAttuale);
   const confronto = calcolaOfferta(offertaConfronto, tipoTariffaConfronto);
@@ -7385,6 +7508,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       const risparmioLabel = risparmio ? "Risparmio annuo stimato" : "Costo annuo più alto";
       const risparmioLockedLabel = risparmio ? "Risparmio potenziale stimato" : "Costo stimato superiore";
       const savingLineClass = risparmio ? "offer-saving-line" : "offer-saving-line is-negative";
+      const promozioniHtml = htmlPromozioniApplicateOfferta(offerta, costoOfferta);
       if (LEAD_STATE.verified) {
         if (title) title.innerText = titoloOffertaVisibile(offerta);
         aggiornaLogoOfferta(card, offerta, true);
@@ -7406,6 +7530,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
             <span class="${savingLineClass}"><span>${risparmioLabel}</span><strong>${euro(Math.abs(differenza))} / anno</strong></span>
           </span>
           ${alternativeNote}
+          ${promozioniHtml}
           <small style="display:block; margin-top:3px; color:var(--text-muted); font-weight:600;">
             Materia energia/gas: ${euro(costoOfferta.quotaVariabile)} | Fissa vendita: ${euro(costoOfferta.quotaFissaVendita)} | Potenza/ambito: ${euro(costoOfferta.quotaTecnicaProfilo)} | Oneri, imposte e IVA: ${euroOneriFiscali(costoOfferta.quotaRegolata + costoOfferta.quotaFiscale)}
           </small>
