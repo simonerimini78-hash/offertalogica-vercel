@@ -18,7 +18,6 @@ on:
       - "scripts/update-arera-menu.py"
       - "scripts/update-arera-reference-data.py"
       - "scripts/update-energy-today.py"
-      - "scripts/validate-calculator-data.mjs"
 
 permissions:
   contents: read
@@ -35,27 +34,16 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: npm
-
-      - name: Installa dipendenze Node
-        run: npm ci
-
       - name: Test parser ARERA
         run: python test/update_arera_menu_test.py
 
       - name: Test riferimenti ARERA
         run: python test/update_arera_reference_data_test.py
 
-      - name: Verifica coerenza dati calcolatore
-        run: npm run validate:calculator
-
       - name: Riepilogo
         if: always()
         run: |
           echo "### Verifica dati OffertaLogica" >> "$GITHUB_STEP_SUMMARY"
           echo "- Acquisizione ARERA/GME: eseguita esclusivamente dal Mac" >> "$GITHUB_STEP_SUMMARY"
-          echo "- GitHub: sola validazione dei file già prodotti" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Validazione completa calcolatore: eseguita sul Mac dopo la rigenerazione dei dati" >> "$GITHUB_STEP_SUMMARY"
+          echo "- GitHub: soli test offline del parser e dei riferimenti" >> "$GITHUB_STEP_SUMMARY"
