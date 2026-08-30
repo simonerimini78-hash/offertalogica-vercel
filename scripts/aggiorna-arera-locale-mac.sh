@@ -106,7 +106,11 @@ sync_main_code() {
     scripts/update-arera-reference-data.py \
     scripts/update-energy-today.py \
     scripts/update-sitemap-lastmod.py \
-    scripts/validate-calculator-data.mjs
+    scripts/validate-calculator-data.mjs \
+    public/index.html \
+    data/offerte-proposte.json \
+    public/data/offerte-proposte.json \
+    .github/workflows/update-arera-menu.yml
   do
     if [ ! -f "$repo_dir/$rel" ]; then
       log "ERRORE: file MAIN necessario non trovato: $repo_dir/$rel"

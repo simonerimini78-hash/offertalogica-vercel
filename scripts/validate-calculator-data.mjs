@@ -168,7 +168,9 @@ function validateCanonicalEconomicRouting() {
   const workflow = read(".github/workflows/update-arera-menu.yml");
   assert(!workflow.includes("schedule:"), "workflow GitHub: download automatico ARERA ancora schedulato");
   assert(!workflow.includes("python scripts/update-arera-menu.py"), "workflow GitHub: non deve scaricare/generare ARERA");
-  assert(workflow.includes("npm run validate:calculator"), "workflow GitHub: validazione dati mancante");
+  assert(!workflow.includes("npm run validate:calculator"), "workflow GitHub: la validazione completa deve restare sul Mac");
+  assert(workflow.includes("python test/update_arera_menu_test.py"), "workflow GitHub: test offline parser ARERA mancante");
+  assert(workflow.includes("python test/update_arera_reference_data_test.py"), "workflow GitHub: test offline riferimenti ARERA mancante");
 }
 
 function loadEngineContext() {
