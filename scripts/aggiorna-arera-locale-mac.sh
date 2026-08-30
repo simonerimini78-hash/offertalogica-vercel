@@ -415,8 +415,8 @@ print(
 print(f"[ARERA-LOCALE] Staging validato: {staging_path.relative_to(root)}")
 PY
 
-log "Leggo dagli allegati ARERA la spesa annua media ufficiale delle offerte di mercato libero (fisso/variabile, luce/gas)."
-python3 "$ROOT_DIR/scripts/update-arera-retail-benchmarks.py" --package-root "$ROOT_DIR"
+log "Ricalcolo il benchmark medio usando esattamente il catalogo appena generato."
+python3 "$ROOT_DIR/scripts/update-arera-reference-data.py" benchmark --package-root "$ROOT_DIR"
 
 log "Aggiorno e convalido i riferimenti energia giornalieri ARERA/GME."
 ensure_pdf_reader
@@ -498,16 +498,11 @@ for source_key, profile_key in (("luceConsumoKwh", "luceConsumoKwh"), ("gasConsu
     if str(consumption_source.get(source_key)) != str(profile.get(profile_key)):
         raise RuntimeError(f"Profilo consumi non coerente: {source_key}")
 
-retail_reference = ((params.get("parametriCalcolo") or {}).get("riferimentiMercatoLibero") or {})
-if retail_reference.get("acquisitoIl") != today:
-    raise RuntimeError("Riferimenti medi ARERA non acquisiti oggi")
-for commodity in ("luce", "gas"):
-    sector = retail_reference.get(commodity) or {}
-    for price_type in ("fisso", "variabile"):
-        item = sector.get(price_type) or {}
-        value = item.get("spesaAnnuaMediaEur")
-        if item.get("stato") != "ufficiale" or not isinstance(value, (int, float)) or value <= 0:
-            raise RuntimeError(f"Riferimento medio ARERA incompleto: {commodity}/{price_type}")
+profile_source = ((params.get("parametriCalcolo") or {}).get("profiloMedioFonte") or {})
+if profile_source.get("catalogoVersione") != catalog.get("versioneDati"):
+    raise RuntimeError("Benchmark medio non calcolato sul catalogo corrente")
+if profile_source.get("catalogoAggiornatoIl") != catalog.get("aggiornatoIl"):
+    raise RuntimeError("Benchmark medio con data catalogo non coerente")
 if report.get("versioneDati") != catalog.get("versioneDati") or report.get("pubblicazioneAutorizzata") is not True:
     raise RuntimeError("Report ARERA non coerente con il catalogo pubblicato")
 if energy.get("acquisitoIl") != today:

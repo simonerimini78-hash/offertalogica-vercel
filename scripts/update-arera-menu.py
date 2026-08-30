@@ -21,17 +21,12 @@ from urllib.parse import urljoin
 NS = {"po": "http://www.acquirenteunico.it/schemas/SII_AU/OffertaRetail/01"}
 OPEN_DATA_URL = "https://www.ilportaleofferte.it/portaleOfferte/it/open-data.page"
 SOURCE_LABEL = "Portale Offerte ARERA/Acquirente Unico Open Data"
-CATALOG_TRANSFORMER_VERSION = "arera-menu-v6-sconti-durata-indici-generici"
-MARKET_INDEX_VALUES: dict[str, float] = {}
+CATALOG_TRANSFORMER_VERSION = "arera-menu-v5-sconti-durata-esplicita"
+PUN_FALLBACK: float | None = None
+PSV_FALLBACK: float | None = None
+PSBG_FALLBACK: float | None = None
 REFERENCE_CONSUMPTION = {"luce": 2700, "gas": 1400}
 MARKET_INDEX_DETAILS: dict[str, dict[str, object]] = {}
-DEFAULT_INDEX_ALIASES: dict[str, tuple[str, ...]] = {
-    "pun": ("pun", "pun index", "prezzo unico nazionale"),
-    "psv": ("psv", "p_ing", "p ing", "punto di scambio virtuale"),
-    "ttf": ("ttf", "title transfer facility"),
-    "psbg": ("psbg", "psbil", "prezzo sbilanciamento gas"),
-}
-
 PRICE_CHANGE_TOLERANCE = 0.02
 FEE_CHANGE_TOLERANCE = 24.0
 BLOCKED_PRICE_QUALITIES = {
@@ -101,13 +96,13 @@ BROWSER_HEADERS = {
 
 
 def configure_market_references(root: Path) -> None:
-    """Load verified market indices and the ARERA reference-consumption profile.
+    """Load official current comparison indices from the canonical parameter file.
 
-    The transformer is intentionally data-driven. Every index usable for a
-    variable offer must be present in ``indiciMercato`` and explicitly named by
-    the offer. Unknown indices fail closed instead of being coerced to PUN/PSV.
+    There are deliberately no numeric fallbacks here: if the canonical official
+    reference is missing or invalid, catalog generation stops and preserves the
+    last published dataset.
     """
-    global MARKET_INDEX_VALUES, REFERENCE_CONSUMPTION, MARKET_INDEX_DETAILS
+    global PUN_FALLBACK, PSV_FALLBACK, PSBG_FALLBACK, REFERENCE_CONSUMPTION, MARKET_INDEX_DETAILS
     path = root / "data" / "calcolo-parametri.json"
     payload = json.loads(path.read_text(encoding="utf-8"))
     indices = payload.get("indiciMercato")
@@ -117,38 +112,25 @@ def configure_market_references(root: Path) -> None:
 
     details: dict[str, dict[str, object]] = {}
     values: dict[str, float] = {}
-    for raw_key, raw_detail in indices.items():
-        key = normalize_text(str(raw_key or "")).replace(" ", "_")
-        if not key or not isinstance(raw_detail, dict):
-            continue
+    for key in ("pun", "psv", "psbg"):
+        detail = indices.get(key)
+        if not isinstance(detail, dict):
+            raise RuntimeError(f"Indice {key.upper()} mancante")
         try:
-            value = float(raw_detail.get("valore"))
+            value = float(detail.get("valore"))
         except (TypeError, ValueError):
-            continue
+            raise RuntimeError(f"Indice {key.upper()} non numerico")
         if value <= 0:
-            continue
-        state = normalize_text(str(raw_detail.get("stato") or ""))
-        if state not in {"ufficiale", "verificato"}:
-            continue
-        period = str(raw_detail.get("periodo") or "").strip()
-        if period and not re.fullmatch(r"20\d{2}-(?:0[1-9]|1[0-2])(?:-[0-3]\d)?", period):
-            raise RuntimeError(f"Periodo indice {key.upper()} non valido: {period}")
-        detail = copy.deepcopy(raw_detail)
-        aliases = detail.get("aliases")
-        normalized_aliases: list[str] = []
-        if isinstance(aliases, list):
-            normalized_aliases.extend(normalize_text(str(alias)) for alias in aliases if str(alias).strip())
-        normalized_aliases.extend(DEFAULT_INDEX_ALIASES.get(key, ()))
-        normalized_aliases.extend((key.replace("_", " "), normalize_text(str(detail.get("label") or ""))))
-        detail["aliases"] = sorted({alias for alias in normalized_aliases if alias})
-        details[key] = detail
+            raise RuntimeError(f"Indice {key.upper()} non valido")
+        state = str(detail.get("stato") or "").lower()
+        allowed_states = {"ufficiale"} if key in {"pun", "psv"} else {"ufficiale", "verificato"}
+        if state not in allowed_states:
+            raise RuntimeError(f"Indice {key.upper()} con stato non verificato: {state or 'mancante'}")
+        period = str(detail.get("periodo") or "")
+        if not re.fullmatch(r"20\d{2}-(?:0[1-9]|1[0-2])", period):
+            raise RuntimeError(f"Periodo {key.upper()} non valido")
         values[key] = value
-
-    # PUN and PSV are required by the current retail catalogue; every other
-    # configured index (PSBG, TTF, future indices, ...) is optional and generic.
-    for required in ("pun", "psv"):
-        if required not in values:
-            raise RuntimeError(f"Indice {required.upper()} ufficiale/verificato mancante")
+        details[key] = copy.deepcopy(detail)
 
     profile = calculation.get("profiloMedio")
     if isinstance(profile, dict):
@@ -160,7 +142,9 @@ def configure_market_references(root: Path) -> None:
         if light > 0 and gas > 0:
             REFERENCE_CONSUMPTION = {"luce": light, "gas": gas}
 
-    MARKET_INDEX_VALUES = values
+    PUN_FALLBACK = values["pun"]
+    PSV_FALLBACK = values["psv"]
+    PSBG_FALLBACK = values["psbg"]
     MARKET_INDEX_DETAILS = details
 
 
@@ -737,49 +721,17 @@ def annual_fee(values: list[dict[str, object]]) -> tuple[float | None, list[dict
     return (round(total, 4), selected) if selected else (None, [])
 
 
-def _alias_present(text: str, alias: str) -> bool:
-    alias = normalize_text(alias)
-    if not alias:
-        return False
-    if re.fullmatch(r"[a-z0-9_]+", alias):
-        return re.search(rf"(?<![a-z0-9]){re.escape(alias)}(?![a-z0-9])", text) is not None
-    return alias in text
-
-
-def _configured_index_matches(text: str, commodity: str) -> list[str]:
-    matches: list[str] = []
-    for key, detail in MARKET_INDEX_DETAILS.items():
-        configured_commodity = normalize_text(str(detail.get("commodity") or ""))
-        if configured_commodity and configured_commodity not in {commodity, "dual", "entrambi", "both"}:
-            continue
-        aliases = detail.get("aliases") if isinstance(detail.get("aliases"), list) else []
-        if any(_alias_present(text, str(alias)) for alias in aliases):
-            matches.append(key)
-    return matches
-
-
 def offer_index_key(offer: ET.Element, commodity: str) -> str | None:
-    """Resolve the ARERA index without coercing unknown indices.
+    """Recognize the market index explicitly named by the ARERA offer.
 
-    The Portale Offerte XML uses official IDX_PREZZO_ENERGIA codes:
-    01=PUN, 02=TTF, 03=PSV, 99=Altro.  Code 99 is resolved only when the
-    surrounding offer text explicitly matches a configured index alias (for
-    example PSBG); otherwise it fails closed.
+    Unknown indices are not coerced to PSV/PUN: variable offers fail closed
+    rather than being priced with the wrong reference.
     """
-    raw_index = str(node_text(offer, "po:RiferimentiPrezzoEnergia/po:IDX_PREZZO_ENERGIA") or "").strip()
-    code_map = {"01": "pun", "02": "ttf", "03": "psv"}
-    mapped = code_map.get(raw_index)
-    if mapped:
-        detail = MARKET_INDEX_DETAILS.get(mapped) or {}
-        configured_commodity = normalize_text(str(detail.get("commodity") or ""))
-        if mapped in MARKET_INDEX_VALUES and (not configured_commodity or configured_commodity in {commodity, "dual", "entrambi", "both"}):
-            return mapped
-        return None
-
     parts: list[str] = []
     for path in (
         "po:DettaglioOfferta/po:NOME_OFFERTA",
         "po:DettaglioOfferta/po:DESCRIZIONE",
+        "po:RiferimentiPrezzoEnergia/po:IDX_PREZZO_ENERGIA",
     ):
         value = node_text(offer, path)
         if value:
@@ -789,22 +741,26 @@ def offer_index_key(offer: ET.Element, commodity: str) -> str | None:
             value = node_text(node, path)
             if value:
                 parts.append(value)
-
-    # Some feeds expose a textual index rather than the numeric code. Keep it
-    # in the searchable context, but never treat the generic code 99 as a value.
-    if raw_index and raw_index != "99":
-        parts.append(raw_index)
-    matches = _configured_index_matches(normalize_text(" ".join(parts)), commodity)
-    return matches[0] if len(matches) == 1 else None
+    text = normalize_text(" ".join(parts))
+    if commodity == "luce":
+        # Nel catalogo retail elettrico il riferimento variabile standard è il PUN;
+        # i riferimenti testuali, quando presenti, lo confermano.
+        return "pun"
+    if re.search(r"\bpsbg\b|psbil", text):
+        return "psbg"
+    if re.search(r"\bpsv\b|p_ing|p ing", text):
+        return "psv"
+    # Per il gas il default resta PSV, ma PSBG/PSbil ha precedenza esplicita.
+    return "psv"
 
 
 def market_index_value(index_key: str | None) -> tuple[float | None, str]:
-    key = normalize_text(str(index_key or "")).replace(" ", "_")
-    if not key or key not in MARKET_INDEX_VALUES:
-        return None, ""
-    detail = MARKET_INDEX_DETAILS.get(key) or {}
-    label = str(detail.get("label") or key.upper())
-    return MARKET_INDEX_VALUES[key], label
+    mapping = {
+        "pun": (PUN_FALLBACK, "PUN"),
+        "psv": (PSV_FALLBACK, "PSV"),
+        "psbg": (PSBG_FALLBACK, "PSBG"),
+    }
+    return mapping.get(str(index_key or "").lower(), (None, ""))
 
 
 def semantic_price(
@@ -1884,7 +1840,11 @@ def build_staging_payload(
         "trasformatoreVersione": CATALOG_TRANSFORMER_VERSION,
         "fonte": f"{SOURCE_LABEL}. Le offerte variabili sono stimate con indice corrente del motore quando ARERA espone solo lo spread.",
         "aggiornatoIl": as_of.strftime("%Y-%m-%d"),
-        "indiciUsati": copy.deepcopy(MARKET_INDEX_VALUES),
+        "indiciUsati": {
+            "pun": PUN_FALLBACK,
+            "psv": PSV_FALLBACK,
+            "psbg": PSBG_FALLBACK,
+        },
         "indiciUsatiDettaglio": copy.deepcopy(MARKET_INDEX_DETAILS),
         "offerte": [row for row in rows if row.get("customerType") == "privato"],
         "offerteBusiness": [row for row in rows if row.get("customerType") == "business"],

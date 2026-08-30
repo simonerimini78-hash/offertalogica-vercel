@@ -3320,13 +3320,6 @@ let PARAMETRI_CALCOLO = {
     tipoPrezzo: "fisso",
     tipoFornitura: "dual",
   },
-  riferimentiMercatoLibero: {
-    metrica: "spesa_annua_media_offerte_mercato_libero_disponibili",
-    fonte: "ARERA - Monitoraggio Retail",
-    acquisitoIl: "",
-    luce: { fisso: null, variabile: null },
-    gas: { fisso: null, variabile: null },
-  },
   componentiProfilo: {
     potenzaLuceAnnua: {
       "3": 0,
@@ -3361,7 +3354,7 @@ let PARAMETRI_CALCOLO = {
 };
 let PERDITE_RETE_LUCE_VARIABILE = PARAMETRI_CALCOLO.perditeReteLuceVariabile;
 const TESTO_METODOLOGIA_CONSUMI_REALI = "I risparmi stimati sono calcolati sui consumi che hai inserito o confermato dalla bolletta. Applichiamo le condizioni economiche delle offerte allo stesso profilo di consumo, separando quota variabile e quota fissa.";
-const TESTO_METODOLOGIA_MEDIA_ARERA = "Quando non conosci i tuoi consumi, il riferimento economico è la spesa annua media ufficiale ARERA delle offerte di mercato libero disponibili sul Portale Offerte, distinta tra prezzo fisso e variabile. Le singole offerte sono calcolate sulle condizioni economiche del catalogo ARERA aggiornato.";
+const TESTO_METODOLOGIA_MEDIA_ARERA = "Quando non conosci i tuoi consumi, la comparazione viene fatta su consumi medi usando il catalogo ARERA e gli indici di mercato disponibili. Questa base omogenea serve a stimare il risparmio potenziale tra le diverse proposte.";
 
 let INDICI_MERCATO = {
   pun: {
@@ -4479,40 +4472,6 @@ function scenarioVuoto() {
   return { consumo: 0, prezzoVariabile: 0, quotaFissaAnnua: 0, quoteUniversaliAnnue: 0, componentiRegolate: componentiRegolateVuote() };
 }
 
-function riferimentoMercatoLiberoArera(commodity, tipoPrezzo) {
-  const tipo = tipoPrezzo === "variabile" ? "variabile" : "fisso";
-  const item = PARAMETRI_CALCOLO.riferimentiMercatoLibero?.[commodity]?.[tipo];
-  const value = Number(item?.spesaAnnuaMediaEur);
-  if (!item || String(item.stato || "").toLowerCase() !== "ufficiale" || !Number.isFinite(value) || value <= 0) return null;
-  return { ...item, spesaAnnuaMediaEur: value };
-}
-
-function spesaMediaAreraPerAmbito(tipoPrezzo, tipoFornitura) {
-  const scope = ["luce", "gas", "dual", "separate"].includes(tipoFornitura) ? tipoFornitura : "dual";
-  if (scope === "luce") return riferimentoMercatoLiberoArera("luce", tipoPrezzo)?.spesaAnnuaMediaEur ?? null;
-  if (scope === "gas") return riferimentoMercatoLiberoArera("gas", tipoPrezzo)?.spesaAnnuaMediaEur ?? null;
-  const luce = riferimentoMercatoLiberoArera("luce", tipoPrezzo)?.spesaAnnuaMediaEur;
-  const gas = riferimentoMercatoLiberoArera("gas", tipoPrezzo)?.spesaAnnuaMediaEur;
-  return Number.isFinite(luce) && Number.isFinite(gas) ? luce + gas : null;
-}
-
-function spesaMediaAreraPerOfferta(offerta, tipoPrezzo) {
-  const hasLuce = Boolean(offerta?.luce);
-  const hasGas = Boolean(offerta?.gas);
-  if (hasLuce && hasGas) return spesaMediaAreraPerAmbito(tipoPrezzo, offerta?.fornitura === "dual" ? "dual" : "separate");
-  if (hasLuce) return spesaMediaAreraPerAmbito(tipoPrezzo, "luce");
-  if (hasGas) return spesaMediaAreraPerAmbito(tipoPrezzo, "gas");
-  return null;
-}
-
-function risultatoDaSpesaAnnuaMediaArera(totale) {
-  return {
-    luce: scenarioVuoto(), gas: scenarioVuoto(), quotaVariabile: 0, quotaFissaVendita: 0,
-    quotaTecnicaProfilo: 0, quotaRegolata: 0, quotaImposte: 0, quotaIva: 0, quotaFiscale: 0,
-    quotaFissa: 0, scontoArera: 0, totale: Number(totale), riferimentoMedioArera: true,
-  };
-}
-
 function risolviPrezzoVariabile(voce) {
   const prezzoFallback = numeroSicuro(voce?.prezzoVariabile, 0);
   if (["indice_spread", "indice_moltiplicatore_spread"].includes(voce?.formula?.tipo)) {
@@ -5260,13 +5219,7 @@ function costoBusinessRigaArera(riga, consumo, options = {}) {
   const lordo = calcolaCostoVenditaBusiness(consumo, riga?.prezzo, riga?.quotaFissaAnnua);
   if (!Number.isFinite(lordo)) return null;
   const voce = { quotaMateria: Number(consumo) * Number(riga.prezzo), consumoFatturato: Number(consumo), totale: lordo };
-  const contesto = {
-    dual: Boolean(options.dual),
-    commodity: riga?.commodity,
-    luceRiferimento: normalizzaRiferimentoArera(options.luceRiferimento),
-    gasRiferimento: normalizzaRiferimentoArera(options.gasRiferimento),
-  };
-  const sconto = importoScontoArera(riga?.sconti, voce, contesto);
+  const sconto = importoScontoArera(riga?.sconti, voce, { dual: Boolean(options.dual), commodity: riga?.commodity });
   return Math.max(0, lordo - sconto);
 }
 
@@ -5309,18 +5262,13 @@ function creaCandidatoBusinessSingolo(riga, profile) {
 
 function creaCandidatoBusinessDual(riga, profile) {
   if (!offertaBusinessCompatibileGenerica(riga) || riga.fornitura !== "dual") return null;
-  const contestoDual = {
-    dual: true,
-    luceRiferimento: riferimentoAreraDaRiga(riga.luce),
-    gasRiferimento: riferimentoAreraDaRiga(riga.gas),
-  };
-  const costoLuce = costoBusinessRigaArera(riga.luce, profile.consumoLuceKwh, contestoDual);
-  const costoGas = costoBusinessRigaArera(riga.gas, profile.consumoGasSmc, contestoDual);
+  const costoLuce = costoBusinessRigaArera(riga.luce, profile.consumoLuceKwh, { dual: true });
+  const costoGas = costoBusinessRigaArera(riga.gas, profile.consumoGasSmc, { dual: true });
   if (![costoLuce, costoGas, profile.costoAttuale].every(Number.isFinite)) return null;
   const lordoDual = costoLuce + costoGas;
   const voceLuce = { quotaMateria: Number(profile.consumoLuceKwh) * Number(riga.luce?.prezzo || 0), consumoFatturato: Number(profile.consumoLuceKwh), totale: costoLuce };
   const voceGas = { quotaMateria: Number(profile.consumoGasSmc) * Number(riga.gas?.prezzo || 0), consumoFatturato: Number(profile.consumoGasSmc), totale: costoGas };
-  const costo = Math.max(0, lordoDual - importoScontoDualArera(riga.sconti, voceLuce, voceGas, contestoDual));
+  const costo = Math.max(0, lordoDual - importoScontoDualArera(riga.sconti, voceLuce, voceGas));
   return {
     id: `business-dual-${riga.codice || `${riga.providerKey}-${riga.nome}`}`,
     ambito: "dual",
@@ -7253,15 +7201,8 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
     }
 
     const tipoCalcoloOfferta = offerta.tipo || tipoTariffa;
+    const attualeComparabile = calcolaOfferta(scenarioAttualeComparabile(attuale, offerta), tipoCalcoloOfferta);
     const costoOfferta = calcolaOfferta(offertaPropostaPerCalcolo(offerta, attuale), tipoCalcoloOfferta);
-    let attualeComparabile;
-    if (modalitaCalcolo === "media") {
-      const spesaMediaArera = spesaMediaAreraPerOfferta(offerta, tipoCalcoloOfferta);
-      if (!Number.isFinite(spesaMediaArera)) return;
-      attualeComparabile = risultatoDaSpesaAnnuaMediaArera(spesaMediaArera);
-    } else {
-      attualeComparabile = calcolaOfferta(scenarioAttualeComparabile(attuale, offerta), tipoCalcoloOfferta);
-    }
     const differenza = attualeComparabile.totale - costoOfferta.totale;
     const risparmio = differenza >= 0;
     const ambito = descriviAmbitoConfronto(offerta);
@@ -7474,7 +7415,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
     teaserCopy.innerText = SOCIAL_ENTRY_STATE.isSocialJourney
       ? "Stima basata sui consumi medi e sulle offerte partner attivabili disponibili oggi: verifica il numero per visualizzare fornitore, condizioni e percorso ufficiale."
       : modalitaCalcolo === "media"
-        ? "Stima basata sulla spesa annua media ufficiale ARERA del mercato libero per la struttura di prezzo selezionata: verifica il numero per visualizzare il confronto completo."
+        ? "Stima basata sui consumi medi, sul catalogo ARERA e sugli indici di mercato disponibili: verifica il numero per visualizzare il confronto completo."
         : "Stima basata sui consumi che hai inserito: verifica il numero per visualizzare il confronto completo.";
   }
   aggiornaPromptBollettaDopoOfferte();
@@ -7533,9 +7474,7 @@ window.avviaComparazioneDati = function avviaComparazioneDati() {
     ...leggiProfiloComparazione(),
   });
 
-  const mancantiAttuale = modalitaCalcolo === "media"
-    ? []
-    : campiMancanti(configurazioniPerAmbito(CAMPI_ATTUALI_ESSENZIALI));
+  const mancantiAttuale = campiMancanti(configurazioniPerAmbito(CAMPI_ATTUALI_ESSENZIALI));
   if (mancantiAttuale.length) {
     trackEvent("comparison_missing_current_price", {
       tipoPrezzo: tipoTariffa,
