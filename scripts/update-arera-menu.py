@@ -21,7 +21,7 @@ from urllib.parse import urljoin
 NS = {"po": "http://www.acquirenteunico.it/schemas/SII_AU/OffertaRetail/01"}
 OPEN_DATA_URL = "https://www.ilportaleofferte.it/portaleOfferte/it/open-data.page"
 SOURCE_LABEL = "Portale Offerte ARERA/Acquirente Unico Open Data"
-CATALOG_TRANSFORMER_VERSION = "arera-menu-v4-sconti-condizioni-complete"
+CATALOG_TRANSFORMER_VERSION = "arera-menu-v5-sconti-durata-esplicita"
 PUN_FALLBACK: float | None = None
 PSV_FALLBACK: float | None = None
 PSBG_FALLBACK: float | None = None
@@ -241,6 +241,136 @@ def parse_portale_date(value: str) -> datetime | None:
     return None
 
 
+ITALIAN_DURATION_NUMBERS = {
+    "un": 1,
+    "uno": 1,
+    "una": 1,
+    "primo": 1,
+    "prima": 1,
+    "due": 2,
+    "secondo": 2,
+    "seconda": 2,
+    "tre": 3,
+    "terzo": 3,
+    "terza": 3,
+    "quattro": 4,
+    "quarto": 4,
+    "quarta": 4,
+    "cinque": 5,
+    "quinto": 5,
+    "quinta": 5,
+    "sei": 6,
+    "sesto": 6,
+    "sesta": 6,
+    "sette": 7,
+    "settimo": 7,
+    "settima": 7,
+    "otto": 8,
+    "ottavo": 8,
+    "ottava": 8,
+    "nove": 9,
+    "nono": 9,
+    "nona": 9,
+    "dieci": 10,
+    "decimo": 10,
+    "decima": 10,
+    "undici": 11,
+    "undicesimo": 11,
+    "undicesima": 11,
+    "dodici": 12,
+    "dodicesimo": 12,
+    "dodicesima": 12,
+    "tredici": 13,
+    "tredicesimo": 13,
+    "tredicesima": 13,
+    "quattordici": 14,
+    "quindicesimo": 15,
+    "sedici": 16,
+    "diciassette": 17,
+    "diciotto": 18,
+    "diciannove": 19,
+    "venti": 20,
+    "ventiquattro": 24,
+    "ventiquattresimo": 24,
+    "ventiquattresima": 24,
+    "trenta": 30,
+    "trentasei": 36,
+    "trentaseiesimo": 36,
+    "trentaseiesima": 36,
+    "quarantotto": 48,
+    "sessanta": 60,
+}
+
+
+def duration_number(value: str) -> int | None:
+    token = normalize_text(value).strip(" .,:;°º")
+    if token.isdigit():
+        number = int(token)
+        return number if number > 0 else None
+    return ITALIAN_DURATION_NUMBERS.get(token)
+
+
+def explicit_discount_duration_from_text(*values: str) -> tuple[int | None, int | None, str]:
+    """Infer a discount duration only from explicit, unambiguous wording.
+
+    Returns (months, days, evidence). Deadlines such as "entro sei mesi" are
+    intentionally ignored: they say when a bonus is paid, not how long it applies.
+    """
+    text = normalize_text(" | ".join(str(value or "") for value in values if value))
+    if not text:
+        return None, None, ""
+    number = r"(?:\d{1,3}|" + "|".join(sorted(ITALIAN_DURATION_NUMBERS, key=len, reverse=True)) + r")"
+
+    month_patterns = (
+        rf"(?:per|nei|nelle)\s+(?:i\s+|le\s+)?prim[ei]\s+({number})\s+mes[ei]\b",
+        rf"(?:per|nelle)\s+prim[ei]\s+({number})\s+mensilit[aà]\b",
+        rf"\bdurata\s+(?:di\s+)?({number})\s+mes[ei]\b",
+        rf"\bper\s+({number})\s+mes[ei]\s+(?:di\s+)?fornitura\b",
+        r"\bper\s+il\s+primo\s+mese\b",
+        r"\bun\s+mese\s+di\s+(?:quota|energia|gas|fornitura|sconto|bonus)\b",
+    )
+    for pattern in month_patterns:
+        match = re.search(pattern, text)
+        if not match:
+            continue
+        raw = match.group(1) if match.lastindex else "1"
+        months = duration_number(raw)
+        if months:
+            return months, None, match.group(0)
+
+    range_match = re.search(
+        rf"\bdal\s+({number})\s*(?:°|º)?\s*(?:al|fino\s+al)\s+({number})\s*(?:°|º)?\s*mese\b",
+        text,
+    )
+    if range_match:
+        start_month = duration_number(range_match.group(1))
+        end_month = duration_number(range_match.group(2))
+        if start_month and end_month and end_month >= start_month:
+            return end_month - start_month + 1, None, range_match.group(0)
+
+    day_patterns = (
+        rf"(?:per|nei)\s+(?:i\s+)?primi\s+({number})\s+giorni\b",
+        rf"\bper\s+({number})\s+giorni\s+di\s+fornitura\b",
+    )
+    for pattern in day_patterns:
+        match = re.search(pattern, text)
+        if match:
+            days = duration_number(match.group(1))
+            if days:
+                return None, days, match.group(0)
+
+    year_match = re.search(
+        rf"(?:per|nei)\s+(?:i\s+)?primi\s+({number})\s+ann[oi]\b|\bdurata\s+(?:di\s+)?({number})\s+ann[oi]\b",
+        text,
+    )
+    if year_match:
+        raw = year_match.group(1) or year_match.group(2)
+        years = duration_number(raw)
+        if years:
+            return years * 12, None, year_match.group(0)
+
+    return None, None, ""
+
 def parse_float(value: str) -> float | None:
     if value is None:
         return None
@@ -433,6 +563,7 @@ def extracted_discounts(
     code: str,
     data_inizio: str,
     data_fine: str,
+    offer_duration_months: int | None = None,
 ) -> list[dict[str, object]]:
     """Preserve Portale Offerte discounts without changing the base offer price.
 
@@ -452,6 +583,10 @@ def extracted_discounts(
             or node_text(discount, "po:DURATA")
         )
         duration = int(duration_value) if duration_value is not None else None
+        duration_days = None
+        duration_source = "xml" if duration is not None else ""
+        duration_evidence = ""
+        full_offer_duration = False
         validity_month_value = parse_float(node_text(discount, "po:PeriodoValidita/po:MESE_VALIDITA"))
         validity_month = int(validity_month_value) if validity_month_value is not None else None
         vat_discount = node_text(discount, "po:IVA_SCONTO")
@@ -477,6 +612,27 @@ def extracted_discounts(
         condition_description = " | ".join(
             item["descrizione"] for item in conditions if item.get("descrizione")
         )
+
+        if duration is None:
+            duration, duration_days, duration_evidence = explicit_discount_duration_from_text(
+                name, description, condition_description
+            )
+            if duration is not None or duration_days is not None:
+                duration_source = "testo_sconto_esplicito"
+
+        duration_text = normalize_text(" | ".join(
+            value for value in (name, description, condition_description) if value
+        ))
+        if duration is None and duration_days is None and re.search(
+            r"\b(?:per\s+)?tutta\s+la\s+durata\s+(?:dell['’]?offerta|del\s+contratto|della\s+fornitura)\b"
+            r"|\bper\s+l['’]?intera\s+durata\s+(?:dell['’]?offerta|del\s+contratto|della\s+fornitura)\b",
+            duration_text,
+        ):
+            full_offer_duration = True
+            if offer_duration_months is not None and offer_duration_months > 0:
+                duration = offer_duration_months
+            duration_source = "durata_offerta"
+            duration_evidence = "durata completa dell'offerta"
 
         prices: list[dict[str, object]] = []
         price_nodes = discount.findall(".//po:PrezziSconto", NS)
@@ -515,6 +671,11 @@ def extracted_discounts(
                 "tipologia": typology,
                 "validita": validity,
                 "durataMesi": duration,
+                "durataGiorni": duration_days,
+                "durataFonte": duration_source,
+                "durataEvidenza": duration_evidence,
+                "durataInteraOfferta": full_offer_duration,
+                "durataOffertaMesi": offer_duration_months if offer_duration_months is not None else None,
                 "meseValidita": validity_month,
                 "ivaSconto": vat_discount,
                 "codiceComponenteFascia": component_code,
@@ -762,7 +923,14 @@ def parse_offer_file(
         index_key = offer_index_key(offer, commodity) if tipo == "variabile" else None
         price, quality, price_provenance, price_error = semantic_price(values, commodity, tipo, index_key)
         fee, fee_provenance = annual_fee(values)
-        discounts = extracted_discounts(offer, path, code, data_inizio, data_fine)
+        discounts = extracted_discounts(
+            offer,
+            path,
+            code,
+            data_inizio,
+            data_fine,
+            duration,
+        )
 
         override_price, override_fee, override_quality, override_provenance, technical_details = apply_verified_override(
             overrides.get(code),
@@ -908,7 +1076,14 @@ def parse_dual_file(
         name = node_text(offer, "po:DettaglioOfferta/po:NOME_OFFERTA")
         url = node_text(offer, "po:DettaglioOfferta/po:Contatti/po:URL_OFFERTA")
         site = node_text(offer, "po:DettaglioOfferta/po:Contatti/po:URL_SITO_VENDITORE")
-        discounts = extracted_discounts(offer, path, code, data_inizio, data_fine)
+        discounts = extracted_discounts(
+            offer,
+            path,
+            code,
+            data_inizio,
+            data_fine,
+            duration,
+        )
         rows.append(
             {
                 "providerKey": provider_key,

@@ -4032,7 +4032,87 @@ let OFFERTE_PROPOSTE = [
   },
 ];
 
-function normalizzaScontiArera(sconti) {
+const NUMERI_DURATA_ARERA = Object.freeze({
+  un: 1, uno: 1, una: 1, primo: 1, prima: 1,
+  due: 2, secondo: 2, seconda: 2,
+  tre: 3, terzo: 3, terza: 3,
+  quattro: 4, quarto: 4, quarta: 4,
+  cinque: 5, quinto: 5, quinta: 5,
+  sei: 6, sesto: 6, sesta: 6,
+  sette: 7, settimo: 7, settima: 7,
+  otto: 8, ottavo: 8, ottava: 8,
+  nove: 9, nono: 9, nona: 9,
+  dieci: 10, decimo: 10, decima: 10,
+  undici: 11, undicesimo: 11, undicesima: 11,
+  dodici: 12, dodicesimo: 12, dodicesima: 12,
+  tredici: 13, tredicesimo: 13, tredicesima: 13,
+  quattordici: 14, quindicesimo: 15, sedici: 16, diciassette: 17,
+  diciotto: 18, diciannove: 19, venti: 20,
+  ventiquattro: 24, ventiquattresimo: 24, ventiquattresima: 24,
+  trenta: 30, trentasei: 36, trentaseiesimo: 36, trentaseiesima: 36,
+  quarantotto: 48, sessanta: 60,
+});
+
+function numeroDurataTestoArera(value) {
+  const token = testoAreraNormalizzato(value);
+  if (/^\d{1,3}$/.test(token)) {
+    const number = Number(token);
+    return number > 0 ? number : null;
+  }
+  return NUMERI_DURATA_ARERA[token] || null;
+}
+
+function durataScontoEsplicitaDaTestoArera(sconto) {
+  const testo = testoAreraNormalizzato([
+    sconto?.nome,
+    sconto?.descrizione,
+    sconto?.descrizioneCondizione,
+  ].filter(Boolean).join(" "));
+  if (!testo) return { mesi: null, giorni: null, evidenza: "" };
+
+  const parole = Object.keys(NUMERI_DURATA_ARERA).sort((a, b) => b.length - a.length).join("|");
+  const numero = `(?:\\d{1,3}|${parole})`;
+  const patternsMesi = [
+    new RegExp(`(?:per|nei|nelle)\\s+(?:i\\s+|le\\s+)?primi?\\s+(${numero})\\s+mesi\\b`),
+    new RegExp(`(?:per|nelle)\\s+prime\\s+(${numero})\\s+mensilita\\b`),
+    new RegExp(`\\bdurata\\s+(?:di\\s+)?(${numero})\\s+mesi\\b`),
+    new RegExp(`\\bper\\s+(${numero})\\s+mesi\\s+(?:di\\s+)?fornitura\\b`),
+  ];
+  for (const pattern of patternsMesi) {
+    const match = testo.match(pattern);
+    if (!match) continue;
+    const mesi = numeroDurataTestoArera(match[1]);
+    if (mesi) return { mesi, giorni: null, evidenza: match[0] };
+  }
+  if (/\bper\s+il\s+primo\s+mese\b/.test(testo)) return { mesi: 1, giorni: null, evidenza: "per il primo mese" };
+  if (/\bun\s+mese\s+di\s+(?:quota|energia|gas|fornitura|sconto|bonus)\b/.test(testo)) return { mesi: 1, giorni: null, evidenza: "un mese" };
+
+  const range = testo.match(new RegExp(`\\bdal\\s+(${numero})\\s+(?:al|fino\\s+al)\\s+(${numero})\\s+mese\\b`));
+  if (range) {
+    const da = numeroDurataTestoArera(range[1]);
+    const a = numeroDurataTestoArera(range[2]);
+    if (da && a && a >= da) return { mesi: a - da + 1, giorni: null, evidenza: range[0] };
+  }
+
+  for (const pattern of [
+    new RegExp(`(?:per|nei)\\s+(?:i\\s+)?primi\\s+(${numero})\\s+giorni\\b`),
+    new RegExp(`\\bper\\s+(${numero})\\s+giorni\\s+di\\s+fornitura\\b`),
+  ]) {
+    const match = testo.match(pattern);
+    if (!match) continue;
+    const giorni = numeroDurataTestoArera(match[1]);
+    if (giorni) return { mesi: null, giorni, evidenza: match[0] };
+  }
+
+  const anni = testo.match(new RegExp(`(?:per|nei)\\s+(?:i\\s+)?primi\\s+(${numero})\\s+anni\\b|\\bdurata\\s+(?:di\\s+)?(${numero})\\s+anni\\b`));
+  if (anni) {
+    const valore = numeroDurataTestoArera(anni[1] || anni[2]);
+    if (valore) return { mesi: valore * 12, giorni: null, evidenza: anni[0] };
+  }
+  return { mesi: null, giorni: null, evidenza: "" };
+}
+
+function normalizzaScontiArera(sconti, durataOffertaMesi = null) {
   if (!Array.isArray(sconti)) return [];
   return sconti.map((sconto) => {
     if (!sconto || typeof sconto !== "object") return null;
@@ -4058,6 +4138,19 @@ function normalizzaScontiArera(sconti) {
     const condizionato = Boolean(sconto.condizionato) || condizioni.some((condizione) => (
       (condizione.codice && condizione.codice !== "00") || (!condizione.codice && Boolean(condizione.descrizione))
     ));
+    const durataEsplicita = durataScontoEsplicitaDaTestoArera(sconto);
+    const durataMesiRaw = Number(sconto.durataMesi);
+    const durataGiorniRaw = Number(sconto.durataGiorni);
+    const durataOffertaRaw = Number(sconto.durataOffertaMesi ?? durataOffertaMesi);
+    const testoDurata = testoAreraNormalizzato([
+      sconto?.nome,
+      sconto?.descrizione,
+      sconto?.descrizioneCondizione,
+    ].filter(Boolean).join(" "));
+    const durataInteraOfferta = Boolean(sconto.durataInteraOfferta) || /\b(?:per\s+)?tutta\s+la\s+durata\s+(?:dell\s+offerta|del\s+contratto|della\s+fornitura)\b|\bper\s+l\s+intera\s+durata\s+(?:dell\s+offerta|del\s+contratto|della\s+fornitura)\b/.test(testoDurata);
+    const durataDaOfferta = durataInteraOfferta && Number.isFinite(durataOffertaRaw) && durataOffertaRaw > 0
+      ? durataOffertaRaw
+      : null;
     return {
       ...sconto,
       nome: String(sconto.nome || "Sconto"),
@@ -4067,7 +4160,12 @@ function normalizzaScontiArera(sconti) {
       condizioni,
       condizionato,
       codiceComponenteFascia: String(sconto.codiceComponenteFascia || ""),
-      durataMesi: Number.isFinite(Number(sconto.durataMesi)) ? Number(sconto.durataMesi) : null,
+      durataMesi: Number.isFinite(durataMesiRaw) && durataMesiRaw > 0 ? durataMesiRaw : (durataEsplicita.mesi || durataDaOfferta),
+      durataGiorni: Number.isFinite(durataGiorniRaw) && durataGiorniRaw > 0 ? durataGiorniRaw : durataEsplicita.giorni,
+      durataFonte: String(sconto.durataFonte || (durataEsplicita.mesi || durataEsplicita.giorni ? "testo_sconto_esplicito_frontend" : (durataDaOfferta ? "durata_offerta_frontend" : ""))),
+      durataEvidenza: String(sconto.durataEvidenza || durataEsplicita.evidenza || (durataDaOfferta ? "durata completa dell'offerta" : "")),
+      durataInteraOfferta,
+      durataOffertaMesi: Number.isFinite(durataOffertaRaw) ? durataOffertaRaw : null,
       meseValidita: Number.isFinite(Number(sconto.meseValidita)) ? Number(sconto.meseValidita) : null,
       prezzi,
     };
@@ -4207,6 +4305,7 @@ function normalizzaRigaAreraMenu(riga) {
     dataInizio: riga.dataInizio || "",
     dataFine: riga.dataFine || "",
     customerType: String(riga.customerType || "").trim().toLowerCase(),
+    durataMesi: Number.isFinite(Number(riga.durataMesi)) ? Number(riga.durataMesi) : null,
     prezzo,
     quotaFissaAnnua,
     url: riga.url || "#",
@@ -4214,7 +4313,7 @@ function normalizzaRigaAreraMenu(riga) {
     score: numeroSicuro(riga.score, 999),
     qualitaPrezzo: riga.qualitaPrezzo || "",
     indiceRiferimento: String(riga.indiceRiferimento || riga.provenienzaPrezzo?.indiceApplicato || "").trim().toLowerCase(),
-    sconti: normalizzaScontiArera(riga.sconti),
+    sconti: normalizzaScontiArera(riga.sconti, riga.durataMesi),
   };
 }
 
@@ -4242,10 +4341,11 @@ function normalizzaRigaAreraDual(riga) {
     dataInizio: riga.dataInizio || "",
     dataFine: riga.dataFine || "",
     customerType: String(riga.customerType || luce.customerType || gas.customerType || "").trim().toLowerCase(),
+    durataMesi: Number.isFinite(Number(riga.durataMesi)) ? Number(riga.durataMesi) : null,
     url: riga.url || "#",
     fonte: riga.fonte || DATI_ARERA_MENU_META.fonte,
     score: numeroSicuro(riga.score, luce.score + gas.score),
-    sconti: normalizzaScontiArera(riga.sconti),
+    sconti: normalizzaScontiArera(riga.sconti, riga.durataMesi),
     luce,
     gas,
   };
@@ -4555,6 +4655,10 @@ function unicoPrezzoScontoArera(sconto) {
 function fattoreDurataScontoArera(sconto) {
   const durata = Number(sconto?.durataMesi);
   if (Number.isFinite(durata) && durata > 0) return Math.min(12, durata) / 12;
+  const durataOfferta = Number(sconto?.durataOffertaMesi);
+  if (sconto?.durataInteraOfferta && Number.isFinite(durataOfferta) && durataOfferta > 0) return Math.min(12, durataOfferta) / 12;
+  const giorni = Number(sconto?.durataGiorni);
+  if (Number.isFinite(giorni) && giorni > 0) return Math.min(365, giorni) / 365;
   const meseSingolo = Number(sconto?.meseValidita);
   if (Number.isFinite(meseSingolo) && meseSingolo >= 1 && meseSingolo <= 12) return 1 / 12;
   return 1;
@@ -4575,9 +4679,13 @@ function importoScontoArera(sconti, voceCalcolata, contesto = {}) {
     else if (prezzo.unita === "02") {
       const mesi = Number.isFinite(Number(sconto.durataMesi)) && Number(sconto.durataMesi) > 0
         ? Math.min(12, Number(sconto.durataMesi))
-        : Number.isFinite(Number(sconto.meseValidita)) && Number(sconto.meseValidita) >= 1 && Number(sconto.meseValidita) <= 12
-          ? 1
-          : 12;
+        : sconto.durataInteraOfferta && Number.isFinite(Number(sconto.durataOffertaMesi)) && Number(sconto.durataOffertaMesi) > 0
+          ? Math.min(12, Number(sconto.durataOffertaMesi))
+          : Number.isFinite(Number(sconto.durataGiorni)) && Number(sconto.durataGiorni) > 0
+            ? Math.min(12, Number(sconto.durataGiorni) / (365 / 12))
+            : Number.isFinite(Number(sconto.meseValidita)) && Number(sconto.meseValidita) >= 1 && Number(sconto.meseValidita) <= 12
+              ? 1
+              : 12;
       importo = prezzo.valore * mesi;
     } else if (prezzo.unita === "05") importo = prezzo.valore;
     if (Number.isFinite(importo) && importo > 0) totale += importo;

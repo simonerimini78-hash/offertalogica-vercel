@@ -461,7 +461,7 @@ if params != public_params:
     raise RuntimeError("Parametri data/public non identici")
 if catalog.get("aggiornatoIl") != selected_date:
     raise RuntimeError("Data catalogo diversa dalla terna XML selezionata")
-if catalog.get("trasformatoreVersione") != "arera-menu-v4-sconti-condizioni-complete":
+if catalog.get("trasformatoreVersione") != "arera-menu-v5-sconti-durata-esplicita":
     raise RuntimeError("Catalogo prodotto da un trasformatore diverso da quello MAIN atteso")
 
 all_rows = []
