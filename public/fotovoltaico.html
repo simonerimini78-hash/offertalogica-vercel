@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <script type="text/javascript" src="https://embeds.iubenda.com/widgets/7a8d1e4e-6d87-44e3-9842-5e8991323410.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="index,follow">
+  <title>Calcolo fotovoltaico: produzione, costi e risparmio | OffertaLogica</title>
+  <meta name="description" content="Calcola la produzione stimata di un impianto fotovoltaico in Italia in base a posizione, potenza, orientamento e consumi. Stima superficie, costi e impatto sulla bolletta.">
+  <link rel="canonical" href="https://offertalogica.it/fotovoltaico.html">
+  <meta property="og:title" content="Calcolo fotovoltaico: produzione e impatto sulla bolletta | OffertaLogica">
+  <meta property="og:description" content="Simula gratuitamente produzione, superficie, autoconsumo e prelievo residuo dalla rete.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://offertalogica.it/fotovoltaico.html">
+  <meta name="twitter:card" content="summary">
+  <link rel="icon" type="image/png" href="/assets/logo-offertalogica-icon.png">
+  <link rel="apple-touch-icon" href="/assets/logo-offertalogica-icon.png">
+  <link rel="stylesheet" href="/assets/ol-app-access.css">
+  <link rel="stylesheet" href="/assets/fotovoltaico-tool.css?v=1.0">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@type":"WebApplication","name":"Calcolatore fotovoltaico OffertaLogica","url":"https://offertalogica.it/fotovoltaico.html","applicationCategory":"UtilitiesApplication","operatingSystem":"Web","description":"Simulatore informativo di produzione fotovoltaica, superficie, autoconsumo e impatto sui consumi elettrici."}
+  </script>
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
+    {"@type":"Question","name":"Quanto produce un impianto fotovoltaico in un anno?","acceptedAnswer":{"@type":"Answer","text":"Dipende soprattutto da posizione geografica, potenza installata, orientamento, inclinazione, ombreggiamenti e perdite del sistema. Il simulatore fornisce una stima preliminare per la località selezionata."}},
+    {"@type":"Question","name":"Quanti metri quadrati servono per il fotovoltaico?","acceptedAnswer":{"@type":"Answer","text":"La superficie dipende dai moduli e dalla disposizione. Il simulatore usa un valore tecnico indicativo per trasformare la potenza in superficie richiesta."}},
+    {"@type":"Question","name":"La produzione fotovoltaica coincide con il risparmio in bolletta?","acceptedAnswer":{"@type":"Answer","text":"No. Conta quanta energia prodotta viene autoconsumata mentre l'impianto produce. L'energia non autoconsumata e quella ancora prelevata dalla rete vanno considerate separatamente."}}
+  ]}
+  </script>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Vai al contenuto principale</a>
+<div class="page-shell">
+  <header class="site-header"><a href="/" aria-label="OffertaLogica.it"><img class="site-logo-main" src="/assets/logo-offertalogica-header.png" alt="OffertaLogica.it - Confronta, scegli, risparmia"></a></header>
+  <nav class="top-nav" aria-label="Navigazione principale">
+    <a href="/">Calcolatore</a><a href="/offerte-luce-gas-aggiornate.html">Offerte</a><a href="/speed-test.html">Speed Test</a><a class="active" href="/fotovoltaico.html">Fotovoltaico</a><a href="/come-funziona.html">Come funziona</a>
+  </nav>
+  <main id="main-content">
+    <section class="hero">
+      <p class="eyebrow">Strumento gratuito OffertaLogica</p>
+      <h1>Quanto produrrebbe davvero un impianto fotovoltaico a casa tua?</h1>
+      <p>Parti dalla posizione e dalla potenza dell'impianto. Ottieni una stima di produzione annua e mensile, superficie necessaria, ordine di grandezza dei costi e, se inserisci i consumi, dell'energia che continueresti a comprare dalla rete.</p>
+      <p class="hero-note">Non vendiamo impianti e non raccogliamo richieste di preventivo fotovoltaico. Lo strumento serve a capire i numeri.</p>
+    </section>
+
+    <section class="tool-card" id="ol-pv-tool" data-mode="consumer" aria-labelledby="tool-title">
+      <div class="tool-head"><div><h2 id="tool-title">Calcola la produzione fotovoltaica</h2><p>Usa la posizione del dispositivo oppure seleziona manualmente una regione italiana.</p></div></div>
+      <input id="pv-lat" type="hidden"><input id="pv-lon" type="hidden">
+      <div class="form-grid">
+        <div class="field span-2"><label for="pv-region">Dove si trova l'impianto?</label><div class="location-row"><select id="pv-region"><option value="">Seleziona una regione</option><option>Valle d’Aosta</option><option>Piemonte</option><option>Liguria</option><option>Lombardia</option><option>Trentino-Alto Adige</option><option>Veneto</option><option>Friuli-Venezia Giulia</option><option>Emilia-Romagna</option><option>Toscana</option><option>Umbria</option><option>Marche</option><option>Lazio</option><option>Abruzzo</option><option>Molise</option><option>Campania</option><option>Puglia</option><option>Basilicata</option><option>Calabria</option><option>Sicilia</option><option>Sardegna</option></select><button class="button secondary" id="pv-use-location" type="button">Usa la mia posizione</button></div><small>La posizione serve solo al calcolo nel browser. Se non vuoi condividerla, scegli una regione.</small></div>
+        <div class="field"><label for="pv-power-kw">Potenza impianto (kW)</label><input id="pv-power-kw" type="number" min="1" max="50" step="0.1" value="6"><small>Puoi anche ricavarla dalla superficie disponibile.</small></div>
+        <div class="field"><label for="pv-surface-m2">Superficie disponibile (m², facoltativa)</label><input id="pv-surface-m2" type="number" min="1" step="0.5" placeholder="Es. 35"><button class="button secondary" id="pv-power-from-surface" type="button" style="margin-top:8px;">Stima kW dalla superficie</button></div>
+        <div class="field"><label for="pv-orientation">Orientamento prevalente</label><select id="pv-orientation"><option value="south">Sud</option><option value="southeast">Sud-est</option><option value="southwest">Sud-ovest</option><option value="east">Est</option><option value="west">Ovest</option><option value="flat">Tetto piano / disposizione ottimizzabile</option><option value="north">Nord</option></select></div>
+        <div class="field"><label for="pv-tilt">Inclinazione moduli (°)</label><input id="pv-tilt" type="number" min="0" max="90" step="1" value="30"></div>
+        <div class="field"><label for="pv-consumption-kwh">Consumo annuo luce (kWh, facoltativo)</label><input id="pv-consumption-kwh" type="number" min="1" step="1" placeholder="Es. 3500"><small>Serve per stimare autoconsumo e prelievo residuo.</small></div>
+        <div class="field"><label for="pv-energy-price">Costo energia acquistata (€/kWh, facoltativo)</label><input id="pv-energy-price" type="number" min="0.01" max="2" step="0.001" placeholder="Es. 0,28"><small>Inserisci il tuo valore reale se lo conosci: il simulatore non imposta una tariffa standard.</small></div>
+      </div>
+      <div class="actions"><button class="button primary" id="pv-calc" type="button">Calcola produzione e impatto</button></div>
+      <div class="status" id="pv-status" role="status" aria-live="polite"></div>
+
+      <div class="result-wrap" id="pv-results" hidden tabindex="-1">
+        <p class="result-kicker">Stima per <span id="pv-result-place">la tua zona</span></p>
+        <div class="metrics">
+          <div class="metric"><strong id="pv-result-annual">—</strong><span>Produzione annua stimata</span></div>
+          <div class="metric"><strong id="pv-result-specific">—</strong><span>Produzione specifica</span></div>
+          <div class="metric"><strong id="pv-result-area">—</strong><span>Superficie tecnica indicativa</span></div>
+          <div class="metric"><strong id="pv-result-cost">—</strong><span>Ordine di grandezza del costo impianto</span></div>
+        </div>
+        <div class="impact-grid">
+          <div class="impact"><strong id="pv-result-self">Aggiungi i consumi</strong><span>Autoconsumo stimato</span></div>
+          <div class="impact"><strong id="pv-result-grid">Aggiungi i consumi</strong><span>Energia annua ancora prelevata dalla rete</span></div>
+          <div class="impact"><strong id="pv-result-excess">Aggiungi i consumi</strong><span>Produzione non autoconsumata stimata</span></div>
+          <div class="impact"><strong id="pv-result-coverage">Aggiungi i consumi</strong><span>Quota dei consumi coperta direttamente dal FV</span></div>
+          <div class="impact" id="pv-saving-impact" hidden><strong id="pv-result-savings">—</strong><span>Valore indicativo dell'energia autoconsumata al prezzo inserito</span></div>
+        </div>
+        <p class="method-note" id="pv-surface-check"></p>
+        <div class="chart-wrap"><h3>Produzione stimata mese per mese</h3><div class="monthly-chart" id="pv-monthly-chart" aria-label="Grafico della produzione mensile stimata"></div></div>
+        <p class="method-note">Metodo v1.0: stima preliminare basata su posizione italiana, potenza, orientamento e inclinazione, con coefficienti medi di producibilità. Ombreggiamenti locali, temperatura, qualità dei componenti, degrado, vincoli del tetto e profilo orario reale possono modificare il risultato.</p>
+      </div>
+    </section>
+
+    <section class="cta-card" aria-labelledby="bill-title"><div><h2 id="bill-title">Sai quanto spendi realmente di luce?</h2><p>La produzione è solo una parte del calcolo. Carica una bolletta: OffertaLogica legge consumi e costi e ti aiuta a capire quanto paghi l'energia che continueresti a prelevare dalla rete.</p></div><a class="button primary" data-pv-track="bill_cta_clicked" href="/?source=fotovoltaico#pdf-upload-panel">Analizza la mia bolletta</a></section>
+
+    <section class="content-card"><h2>Come leggere una simulazione fotovoltaica</h2><div class="content-grid"><article class="info-box"><h3>kW e kWh non sono la stessa cosa</h3><p>I kW descrivono la potenza dell'impianto. I kWh indicano quanta energia viene prodotta o consumata nel tempo.</p></article><article class="info-box"><h3>La località cambia la produzione</h3><p>La stessa potenza installata può produrre quantità diverse tra Nord, Centro, Sud e isole per effetto della risorsa solare disponibile.</p></article><article class="info-box"><h3>Autoconsumo ≠ produzione</h3><p>Per la bolletta conta soprattutto quanta energia prodotta viene usata nello stesso momento. La parte restante dei consumi continua ad arrivare dalla rete.</p></article><article class="info-box"><h3>Orientamento e inclinazione</h3><p>Sud e inclinazioni vicine all'ottimo tendono a massimizzare la resa annuale; Est e Ovest possono distribuire la produzione in ore diverse.</p></article><article class="info-box"><h3>Superficie disponibile</h3><p>La superficie serve a verificare se la potenza ipotizzata è plausibile. Ostacoli, distanze e geometria del tetto possono ridurre l'area realmente utilizzabile.</p></article><article class="info-box"><h3>Costi: solo ordine di grandezza</h3><p>Il range economico del simulatore non è un preventivo. Taglia, componenti, struttura, pratiche, cantiere e condizioni reali incidono sul costo finale.</p></article></div></section>
+
+    <section class="content-card"><h2>Fotovoltaico e bolletta: il punto è ciò che continui a comprare dalla rete</h2><p>Un impianto può ridurre i kWh acquistati, ma non elimina automaticamente la fornitura elettrica. Per questo, dopo la simulazione, ha senso verificare anche il prezzo applicato ai consumi residui, la quota fissa e le condizioni economiche della tua offerta.</p><div class="callout"><strong>OffertaLogica non vende fotovoltaico.</strong> Lo strumento serve a portare il calcolo energetico dentro una domanda più semplice: quanto consumi, quanto produci e quanto paghi davvero l'energia che resta da acquistare.</div></section>
+
+    <section class="cta-card"><div><h2>Hai già una bolletta? Usa i dati reali.</h2><p>Con i consumi reali il confronto tra produzione stimata e prelievo dalla rete diventa più utile. Dopo la lettura puoi anche verificare se la tua offerta luce è ancora coerente con il tuo profilo.</p></div><a class="button secondary" data-pv-track="compare_cta_clicked" href="/?source=fotovoltaico">Vai a OffertaLogica</a></section>
+  </main>
+  <footer class="footer"><div>© 2026 OffertaLogica.it · Strumento informativo, non progettazione o preventivo fotovoltaico.</div><nav><a href="/speed-test.html">Speed Test</a><a href="/fotovoltaico-aziende-agricole.html">Fotovoltaico aziende agricole</a><a href="/come-leggere-bolletta-luce-gas.html">Guida bolletta</a><a href="/termini-condizioni.html">Termini</a><a href="https://www.iubenda.com/privacy-policy/36565194">Privacy</a></nav></footer>
+</div>
+<script src="/assets/fotovoltaico-tool.js?v=1.0" defer></script>
+</body>
+</html>

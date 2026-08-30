@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <script type="text/javascript" src="https://embeds.iubenda.com/widgets/7a8d1e4e-6d87-44e3-9842-5e8991323410.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="index,follow">
+  <title>Fotovoltaico aziende agricole: produzione e autoconsumo | OffertaLogica</title>
+  <meta name="description" content="Simula il fotovoltaico su tetti e capannoni agricoli: produzione, superficie, autoconsumo, fasce F1 F2 F3 e prelievo residuo dalla rete usando i dati della bolletta.">
+  <link rel="canonical" href="https://offertalogica.it/fotovoltaico-aziende-agricole.html">
+  <meta property="og:title" content="Fotovoltaico aziende agricole | OffertaLogica Business">
+  <meta property="og:description" content="Stima produzione e autoconsumo su tetti e capannoni partendo dai consumi reali dell'azienda agricola.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://offertalogica.it/fotovoltaico-aziende-agricole.html">
+  <meta name="twitter:card" content="summary">
+  <link rel="icon" type="image/png" href="/assets/logo-offertalogica-icon.png">
+  <link rel="apple-touch-icon" href="/assets/logo-offertalogica-icon.png">
+  <link rel="stylesheet" href="/assets/ol-app-access.css">
+  <link rel="stylesheet" href="/assets/fotovoltaico-tool.css?v=1.0">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@type":"WebApplication","name":"Simulatore fotovoltaico aziende agricole OffertaLogica","url":"https://offertalogica.it/fotovoltaico-aziende-agricole.html","applicationCategory":"BusinessApplication","operatingSystem":"Web","description":"Simulatore informativo per fotovoltaico su tetti e capannoni agricoli basato su posizione, superficie e consumi aziendali."}
+  </script>
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
+    {"@type":"Question","name":"Il simulatore riguarda anche l'agrivoltaico a terra?","acceptedAnswer":{"@type":"Answer","text":"No. Questa prima versione riguarda fotovoltaico su tetti e capannoni. L'agrivoltaico è un tema distinto e non viene dimensionato da questo strumento."}},
+    {"@type":"Question","name":"Perché servono le fasce F1 F2 F3?","acceptedAnswer":{"@type":"Answer","text":"Le fasce aiutano a descrivere quando l'azienda consuma energia. Non equivalgono a un profilo orario, ma possono migliorare una stima preliminare dell'autoconsumo."}},
+    {"@type":"Question","name":"Posso usare i dati già letti dalla bolletta?","acceptedAnswer":{"@type":"Answer","text":"Sì. Dal percorso Business di OffertaLogica è possibile aprire il simulatore passando consumo annuo, fasce, potenza impegnata e prezzo energia già presenti nei campi compilati."}}
+  ]}
+  </script>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Vai al contenuto principale</a>
+<div class="page-shell">
+  <header class="site-header"><a href="/" aria-label="OffertaLogica.it"><img class="site-logo-main" src="/assets/logo-offertalogica-header.png" alt="OffertaLogica.it - Confronta, scegli, risparmia"></a></header>
+  <nav class="top-nav" aria-label="Navigazione principale"><a href="/">Calcolatore</a><a href="/energia-aziende-agricole.html">Energia agricoltura</a><a href="/speed-test.html">Speed Test</a><a href="/fotovoltaico.html">Fotovoltaico casa</a><a class="active" href="/fotovoltaico-aziende-agricole.html">Fotovoltaico Business</a></nav>
+  <main id="main-content">
+    <section class="hero"><p class="eyebrow">OffertaLogica Business · Aziende agricole</p><h1>Quanto può produrre il fotovoltaico sui tetti della tua azienda agricola?</h1><p>Stima potenza installabile, produzione, autoconsumo e prelievo residuo partendo dalla località, dalla superficie di tetti o capannoni e dai consumi reali dell'azienda.</p><p class="hero-note">Questa pagina riguarda fotovoltaico su tetti e capannoni. L'agrivoltaico a terra resta un ambito distinto e non è incluso nel simulatore.</p></section>
+
+    <section class="tool-card" id="ol-pv-tool" data-mode="business" aria-labelledby="tool-title">
+      <div class="tool-head"><div><h2 id="tool-title">Simulatore fotovoltaico azienda agricola</h2><p>Se arrivi dall'analisi bolletta Business, i dati disponibili vengono precompilati automaticamente.</p></div></div>
+      <div class="imported-note" id="pv-imported-note" hidden>Dati energetici importati dal percorso Business OffertaLogica. Controllali e completa solo ciò che manca.</div>
+      <input id="pv-lat" type="hidden"><input id="pv-lon" type="hidden">
+      <div class="form-grid">
+        <div class="field span-2"><label for="pv-region">Località dell'azienda</label><div class="location-row"><select id="pv-region"><option value="">Seleziona una regione</option><option>Valle d’Aosta</option><option>Piemonte</option><option>Liguria</option><option>Lombardia</option><option>Trentino-Alto Adige</option><option>Veneto</option><option>Friuli-Venezia Giulia</option><option>Emilia-Romagna</option><option>Toscana</option><option>Umbria</option><option>Marche</option><option>Lazio</option><option>Abruzzo</option><option>Molise</option><option>Campania</option><option>Puglia</option><option>Basilicata</option><option>Calabria</option><option>Sicilia</option><option>Sardegna</option></select><button class="button secondary" id="pv-use-location" type="button">Usa la mia posizione</button></div></div>
+        <div class="field"><label for="pv-surface-m2">Superficie utile tetti/capannoni (m²)</label><input id="pv-surface-m2" type="number" min="1" step="1" placeholder="Es. 800"><button class="button secondary" id="pv-power-from-surface" type="button" style="margin-top:8px;">Stima kW dalla superficie</button></div>
+        <div class="field"><label for="pv-power-kw">Potenza FV da simulare (kW)</label><input id="pv-power-kw" type="number" min="3" max="1000" step="0.1" value="50"></div>
+        <div class="field"><label for="pv-contract-power">Potenza impegnata della fornitura (kW, facoltativa)</label><input id="pv-contract-power" type="number" min="0" step="0.1" placeholder="Es. 30"><small>Serve come dato descrittivo della fornitura; non limita automaticamente la taglia del FV.</small></div>
+        <div class="field"><label for="pv-consumption-kwh">Consumo annuo luce (kWh)</label><input id="pv-consumption-kwh" type="number" min="1" step="1" placeholder="Es. 120000"></div>
+        <div class="field"><label for="pv-f1">Consumo F1 (kWh, facoltativo)</label><input id="pv-f1" type="number" min="0" step="1" placeholder="Es. 65000"></div>
+        <div class="field"><label for="pv-f2">Consumo F2 (kWh, facoltativo)</label><input id="pv-f2" type="number" min="0" step="1" placeholder="Es. 30000"></div>
+        <div class="field"><label for="pv-f3">Consumo F3 (kWh, facoltativo)</label><input id="pv-f3" type="number" min="0" step="1" placeholder="Es. 25000"></div>
+        <div class="field"><label for="pv-orientation">Orientamento prevalente dei tetti</label><select id="pv-orientation"><option value="south">Sud</option><option value="southeast">Sud-est</option><option value="southwest">Sud-ovest</option><option value="east">Est</option><option value="west">Ovest</option><option value="flat">Tetto piano / disposizione ottimizzabile</option><option value="north">Nord</option></select></div>
+        <div class="field"><label for="pv-tilt">Inclinazione moduli (°)</label><input id="pv-tilt" type="number" min="0" max="90" step="1" value="20"></div>
+        <div class="field span-2"><label for="pv-energy-price">Costo energia acquistata (€/kWh, facoltativo)</label><input id="pv-energy-price" type="number" min="0.01" max="2" step="0.001" placeholder="Usa il valore letto dalla bolletta se disponibile"><small>Viene usato solo per valorizzare l'energia autoconsumata. Quote fisse, oneri, imposte e cessione dell'energia non vengono simulate qui.</small></div>
+      </div>
+      <div class="actions"><button class="button primary" id="pv-calc" type="button">Calcola produzione e autoconsumo</button></div>
+      <div class="status" id="pv-status" role="status" aria-live="polite"></div>
+
+      <div class="result-wrap" id="pv-results" hidden tabindex="-1">
+        <p class="result-kicker">Stima per <span id="pv-result-place">la tua zona</span></p>
+        <div class="metrics"><div class="metric"><strong id="pv-result-annual">—</strong><span>Produzione annua stimata</span></div><div class="metric"><strong id="pv-result-specific">—</strong><span>Produzione specifica</span></div><div class="metric"><strong id="pv-result-area">—</strong><span>Superficie tecnica indicativa</span></div><div class="metric"><strong id="pv-result-cost">—</strong><span>Ordine di grandezza del costo impianto</span></div></div>
+        <div class="impact-grid"><div class="impact"><strong id="pv-result-self">Aggiungi i consumi</strong><span>Autoconsumo stimato</span></div><div class="impact"><strong id="pv-result-grid">Aggiungi i consumi</strong><span>Prelievo residuo stimato dalla rete</span></div><div class="impact"><strong id="pv-result-excess">Aggiungi i consumi</strong><span>Produzione eccedente stimata</span></div><div class="impact"><strong id="pv-result-coverage">Aggiungi i consumi</strong><span>Quota dei consumi coperta direttamente dal FV</span></div><div class="impact" id="pv-saving-impact" hidden><strong id="pv-result-savings">—</strong><span>Valore indicativo dell'energia autoconsumata al prezzo inserito</span></div></div>
+        <p class="method-note" id="pv-surface-check"></p>
+        <div class="chart-wrap"><h3>Produzione stimata mese per mese</h3><div class="monthly-chart" id="pv-monthly-chart" aria-label="Grafico produzione mensile stimata"></div></div>
+        <p class="method-note">Metodo v1.0: stima preliminare basata su posizione, potenza, orientamento e inclinazione. Le fasce F1/F2/F3 vengono usate solo come indicatore del profilo di consumo e non sostituiscono dati quartorari/orari o una diagnosi energetica.</p>
+      </div>
+    </section>
+
+    <section class="content-card"><h2>Tetti e capannoni oggi. Agrivoltaico separato.</h2><p>Il simulatore considera superfici di copertura già destinate all'attività: capannoni, magazzini, stalle, serre o altri edifici solo come superficie disponibile del tetto. Non calcola strutture agrivoltaiche su terreno, distanze colturali, ombreggiamenti agronomici, requisiti autorizzativi o incentivi specifici.</p><div class="callout"><strong>Agrivoltaico futuro:</strong> resterà un ramo dedicato quando ci saranno dati, metodologia e domanda SEO sufficienti per trattarlo senza confonderlo con il fotovoltaico su copertura.</div></section>
+
+    <section class="content-card"><h2>Perché consumo, fasce e autoconsumo contano più della sola produzione</h2><div class="content-grid"><article class="info-box"><h3>Consumo annuo</h3><p>Serve a capire quanta parte della produzione può essere assorbita dall'attività prima di diventare energia eccedente.</p></article><article class="info-box"><h3>F1, F2, F3</h3><p>Le fasce aiutano a descrivere la concentrazione dei consumi. Un'attività con forte assorbimento diurno tende ad avere un potenziale di autoconsumo diverso.</p></article><article class="info-box"><h3>Potenza impegnata</h3><p>Descrive la fornitura elettrica e può essere utile per leggere il profilo aziendale, ma non è da sola il criterio di dimensionamento del fotovoltaico.</p></article></div></section>
+
+    <section class="cta-card"><div><h2>Vuoi usare i dati reali della bolletta aziendale?</h2><p>Apri OffertaLogica Business, seleziona <strong>Azienda / P.IVA</strong> e <strong>Agricoltura / Allevamento</strong>, carica la bolletta e poi riapri questo simulatore con i dati già compilati.</p></div><a class="button primary" data-pv-track="business_bill_cta_clicked" href="/?source=fotovoltaico_agricoltura#pdf-upload-panel">Analizza la bolletta Business</a></section>
+
+    <section class="cta-card"><div><h2>Il fotovoltaico riduce i kWh acquistati. Ma quanto paghi quelli che restano?</h2><p>Dopo la simulazione puoi controllare la componente economica della fornitura e verificare se l'offerta luce aziendale è ancora coerente con il tuo profilo.</p></div><a class="button secondary" data-pv-track="business_compare_cta_clicked" href="/?source=fotovoltaico_agricoltura">Vai al confronto Business</a></section>
+  </main>
+  <footer class="footer"><div>© 2026 OffertaLogica.it · Stima informativa, non diagnosi energetica, progettazione o preventivo.</div><nav><a href="/energia-aziende-agricole.html">Energia aziende agricole</a><a href="/fotovoltaico.html">Fotovoltaico casa</a><a href="/speed-test.html">Speed Test</a><a href="/termini-condizioni.html">Termini</a><a href="https://www.iubenda.com/privacy-policy/36565194">Privacy</a></nav></footer>
+</div>
+<script src="/assets/fotovoltaico-tool.js?v=1.0" defer></script>
+</body>
+</html>
