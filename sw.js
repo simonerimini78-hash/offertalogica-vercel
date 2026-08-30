@@ -1,4 +1,4 @@
-const CACHE = "offertalogica-app-v7";
+const CACHE = "offertalogica-app-v8-main-aligned-update-fix";
 const APP_SHELL = [
   "/app.html",
   "/manifest.webmanifest",
@@ -23,7 +23,9 @@ self.addEventListener("activate", event => {
 });
 
 self.addEventListener("message", event => {
-  if (event.data?.type === "SKIP_WAITING") self.skipWaiting();
+  if (event.data?.type === "SKIP_WAITING") {
+    event.waitUntil(self.skipWaiting());
+  }
 });
 
 self.addEventListener("fetch", event => {

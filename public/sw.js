@@ -1,4 +1,4 @@
-const CACHE = "offertalogica-app-v29-install-simple-badge-fix-paid-upgrade-only";
+const CACHE = "offertalogica-app-v29-install-simple-badge-fix-paid-upgrade-only-main-aligned-update-fix";
 const APP_SHELL = [
   "/app.html",
   "/app-bills.js",
@@ -37,7 +37,9 @@ self.addEventListener("activate", event => {
 });
 
 self.addEventListener("message", event => {
-  if (event.data?.type === "SKIP_WAITING") self.skipWaiting();
+  if (event.data?.type === "SKIP_WAITING") {
+    event.waitUntil(self.skipWaiting());
+  }
 });
 
 async function cachePut(request, response) {
