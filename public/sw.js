@@ -64,6 +64,25 @@ self.addEventListener("fetch", event => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
+  const liveMainPaths = new Set([
+    "/",
+    "/data/calcolo-parametri.json",
+    "/data/offerte-proposte.json",
+    "/data/offerte-arera-menu.json",
+    "/data/provider-brand.json",
+    "/assets/ol-app-access.css",
+    "/come-funziona.html",
+    "/come-leggere-bolletta-luce-gas.html",
+    "/offerte-luce-gas-aggiornate.html",
+    "/partner.html",
+    "/casa-smart.html",
+    "/internet-casa.html"
+  ]);
+  if (liveMainPaths.has(url.pathname) || url.pathname.startsWith("/fornitori/")) {
+    event.respondWith(fetch(request, { cache: "no-store" }));
+    return;
+  }
+
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request)

@@ -10,6 +10,123 @@
   },
   "headers": [
     {
+      "source": "/",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/data/calcolo-parametri.json",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/data/offerte-proposte.json",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/data/offerte-arera-menu.json",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/data/provider-brand.json",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/assets/ol-app-access.css",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/come-funziona.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/come-leggere-bolletta-luce-gas.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/offerte-luce-gas-aggiornate.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/partner.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/casa-smart.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/internet-casa.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/fornitori/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
       "source": "/sw.js",
       "headers": [
         {
@@ -77,6 +194,58 @@
           "value": "camera=(), microphone=(), geolocation=()"
         }
       ]
+    }
+  ],
+  "routes": [
+    {
+      "src": "/",
+      "dest": "https://offertalogica.it/",
+      "transforms": [
+        {
+          "type": "response.headers",
+          "op": "delete",
+          "target": {
+            "key": "x-frame-options"
+          }
+        }
+      ]
+    },
+    {
+      "src": "/data/(calcolo-parametri|offerte-proposte|offerte-arera-menu|provider-brand)\\.json",
+      "dest": "https://offertalogica.it/data/$1.json"
+    },
+    {
+      "src": "/assets/ol-app-access\\.css",
+      "dest": "https://offertalogica.it/assets/ol-app-access.css"
+    },
+    {
+      "src": "/(come-funziona|come-leggere-bolletta-luce-gas|offerte-luce-gas-aggiornate|partner|casa-smart|internet-casa)\\.html",
+      "dest": "https://offertalogica.it/$1.html",
+      "transforms": [
+        {
+          "type": "response.headers",
+          "op": "delete",
+          "target": {
+            "key": "x-frame-options"
+          }
+        }
+      ]
+    },
+    {
+      "src": "/fornitori/(.*)",
+      "dest": "https://offertalogica.it/fornitori/$1",
+      "transforms": [
+        {
+          "type": "response.headers",
+          "op": "delete",
+          "target": {
+            "key": "x-frame-options"
+          }
+        }
+      ]
+    },
+    {
+      "handle": "filesystem"
     }
   ]
 }
