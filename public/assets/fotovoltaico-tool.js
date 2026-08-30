@@ -1,4 +1,4 @@
-const TOOL_VERSION = '1.2';
+const TOOL_VERSION = '1.2.1';
 const TRACK_URL = '/api/track-event';
 const PDF_REPLAY_KEY = 'offertalogicaPdfArchiveReplay';
 const root = document.getElementById('ol-pv-tool');
@@ -45,11 +45,26 @@ function setText(id,value){ const el=$(id); if(el) el.textContent=value; }
 function status(text,type=''){ const el=$('pv-status'); if(!el)return; el.textContent=text; el.className=`status ${type}`.trim(); }
 function billStatus(text,type=''){ const el=$('pv-bill-status'); if(!el)return; el.textContent=text; el.className=`bill-import-status ${type}`.trim(); }
 function isStaffPreview(){ try { return sessionStorage.getItem('offertalogicaStaffMode') === 'true'; } catch { return false; } }
+function normalizedTrackAction(action){
+  const raw=String(action||'').trim().toLowerCase();
+  if(raw==='tool_viewed'||raw==='page_view')return 'page_view';
+  if(raw.includes('failed')||raw.includes('error'))return 'error';
+  if(raw.includes('clicked')||raw.includes('cta'))return 'cta_clicked';
+  if(raw.includes('completed')||raw.includes('resolved')||raw.includes('imported'))return 'completed';
+  return 'started';
+}
+function currentToolCode(){
+  return mode==='business' && $('pv-business-kind')?.value==='agriculture'
+    ? 'fotovoltaico_agricoltura'
+    : 'fotovoltaico';
+}
 function track(action, detail={}) {
   if (isStaffPreview()) return;
+  const rawAction=String(action||'').trim().toLowerCase();
   const customerType = mode === 'business' ? 'business' : 'consumer';
-  const toolCode = mode === 'business' ? 'fotovoltaico_business' : 'fotovoltaico';
-  const payload = { toolCode, toolAction: action, toolOutcome: String(detail.outcome || '').slice(0,100), toolContext: String(detail.context || '').slice(0,80), toolVersion: TOOL_VERSION, source, page: location.pathname, customerType, dataOrigin: source };
+  const toolCode = currentToolCode();
+  const context=[rawAction,String(detail.context||'').trim()].filter(Boolean).join(':').slice(0,80);
+  const payload = { toolCode, toolAction: normalizedTrackAction(rawAction), toolOutcome: String(detail.outcome || '').slice(0,100), toolContext: context, toolVersion: TOOL_VERSION, source, page: location.pathname, customerType, dataOrigin: source };
   fetch(TRACK_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({eventType:'interactive_tool_event',sessionId,page:location.pathname,customerType,dataOrigin:source,source,payload}),credentials:'same-origin',keepalive:true}).catch(()=>{});
 }
 
