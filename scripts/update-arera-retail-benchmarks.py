@@ -6,18 +6,18 @@ import html
 import io
 import json
 import re
-import shutil
 import tempfile
 import urllib.parse
 import urllib.request
 import zipfile
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
+import xml.etree.ElementTree as ET
 
-ELECTRICITY_PAGE = "https://www.arera.it/dati-e-statistiche/dettaglio/analisi-delle-offerte-disponibili-sul-portale-offerte"
-GAS_PAGE = "https://www.arera.it/dati-e-statistiche/dettaglio/analisi-delle-offerte-disponibili-sul-portale-offerte-1"
+ARERA_STATS_PAGE = "https://www.arera.it/dati-e-statistiche?ADMCMD_prev=LIVE&keyword=&orderby=&settore=4"
+ARERA_DETAIL_PAGE = "https://www.arera.it/dati-e-statistiche/dettaglio/analisi-delle-offerte-disponibili-sul-portale-offerte"
 SOURCE_LABEL = "ARERA - Monitoraggio Retail - Analisi delle offerte disponibili sul Portale Offerte"
 METRIC = "spesa_annua_media_offerte_mercato_libero"
 UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/126 Safari/537.36"
@@ -50,12 +50,12 @@ def fetch(url: str) -> bytes:
         return response.read()
 
 
-def discover_attachment_urls(page_url: str) -> list[str]:
-    """Return ZIP attachments linked directly by the official ARERA page.
+def discover_attachment_urls(page_url: str = ARERA_STATS_PAGE) -> list[str]:
+    """Find the official ARERA Excel ZIP containing the Portale Offerte spending analysis.
 
-    This is plain page/attachment retrieval, not an API.  We deliberately avoid
-    depending on a historical filename convention: ARERA can rename the ZIP
-    while keeping the same publication page.
+    ARERA publishes one combined archive for electricity and gas.  We read the
+    normal HTML page and follow the file link directly: no API and no derived
+    market average.
     """
     body = fetch(page_url).decode("utf-8", errors="replace")
     hrefs = re.findall(r'href=["\']([^"\']+)["\']', body, flags=re.I)
@@ -65,21 +65,108 @@ def discover_attachment_urls(page_url: str) -> list[str]:
         if not decoded:
             continue
         absolute = urllib.parse.urljoin(page_url, decoded)
-        path = urllib.parse.urlparse(absolute).path.lower()
-        if not path.endswith(".zip"):
+        parsed = urllib.parse.urlparse(absolute)
+        path = urllib.parse.unquote(parsed.path)
+        lower = path.lower()
+        if not lower.endswith(".zip"):
+            continue
+        if "monitoraggioretail" not in lower:
+            continue
+        if "analisi_spesa_offerte_po" not in lower and "analisi-spesa-offerte-po" not in lower:
             continue
         candidates.append(absolute)
     if not candidates:
-        raise RuntimeError(f"Allegato ZIP ARERA Monitoraggio Retail non trovato in {page_url}")
-    return sorted(set(candidates))
+        raise RuntimeError("ZIP ARERA 'Analisi spesa offerte PO' non trovato nella pagina Dati e statistiche")
+    # The filename carries a publication version; sort descending so the latest
+    # linked archive is tried first when ARERA temporarily exposes more versions.
+    return sorted(set(candidates), reverse=True)
 
 
-def ensure_openpyxl() -> Any:
+def _xlsx_col_index(cell_ref: str) -> int:
+    letters = "".join(ch for ch in cell_ref if ch.isalpha()).upper()
+    value = 0
+    for ch in letters:
+        value = value * 26 + (ord(ch) - 64)
+    return max(0, value - 1)
+
+
+def _xlsx_shared_strings(book: zipfile.ZipFile) -> list[str]:
     try:
-        import openpyxl  # type: ignore
-        return openpyxl
-    except ImportError as exc:
-        raise RuntimeError("Dipendenza openpyxl mancante. Esegui: python3 -m pip install --user openpyxl") from exc
+        root = ET.fromstring(book.read("xl/sharedStrings.xml"))
+    except KeyError:
+        return []
+    ns = {"m": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
+    values: list[str] = []
+    for item in root.findall("m:si", ns):
+        values.append("".join(node.text or "" for node in item.findall(".//m:t", ns)))
+    return values
+
+
+def _xlsx_sheet_targets(book: zipfile.ZipFile) -> list[tuple[str, str]]:
+    main = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+    rel = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+    pkgrel = "http://schemas.openxmlformats.org/package/2006/relationships"
+    workbook = ET.fromstring(book.read("xl/workbook.xml"))
+    relationships = ET.fromstring(book.read("xl/_rels/workbook.xml.rels"))
+    relmap = {node.attrib.get("Id", ""): node.attrib.get("Target", "") for node in relationships.findall(f"{{{pkgrel}}}Relationship")}
+    result: list[tuple[str, str]] = []
+    for sheet in workbook.findall(f".//{{{main}}}sheet"):
+        name = sheet.attrib.get("name", "")
+        rid = sheet.attrib.get(f"{{{rel}}}id", "")
+        target = relmap.get(rid, "")
+        if not target:
+            continue
+        target = target.lstrip("/")
+        if not target.startswith("xl/"):
+            target = "xl/" + target
+        result.append((name, target))
+    return result
+
+
+def _xlsx_matrix(book: zipfile.ZipFile, target: str, shared: list[str]) -> list[list[Any]]:
+    ns = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+    root = ET.fromstring(book.read(target))
+    matrix: list[list[Any]] = []
+    for row_node in root.findall(f".//{{{ns}}}row"):
+        row_values: dict[int, Any] = {}
+        max_col = -1
+        for cell in row_node.findall(f"{{{ns}}}c"):
+            ref = cell.attrib.get("r", "A1")
+            col = _xlsx_col_index(ref)
+            max_col = max(max_col, col)
+            cell_type = cell.attrib.get("t", "")
+            if cell_type == "inlineStr":
+                value = "".join(t.text or "" for t in cell.findall(f".//{{{ns}}}t"))
+            else:
+                v = cell.find(f"{{{ns}}}v")
+                raw = v.text if v is not None else ""
+                if cell_type == "s":
+                    try:
+                        value = shared[int(raw)]
+                    except (ValueError, IndexError):
+                        value = raw
+                elif cell_type in {"str", "e"}:
+                    value = raw
+                else:
+                    try:
+                        value = float(raw)
+                    except (TypeError, ValueError):
+                        value = raw
+            row_values[col] = value
+        if max_col < 0:
+            matrix.append([])
+            continue
+        row = [None] * (max_col + 1)
+        for col, value in row_values.items():
+            row[col] = value
+        matrix.append(row)
+    return matrix
+
+
+def workbook_matrices(path: Path) -> list[tuple[str, list[list[Any]]]]:
+    with zipfile.ZipFile(path) as book:
+        shared = _xlsx_shared_strings(book)
+        return [(name, _xlsx_matrix(book, target, shared)) for name, target in _xlsx_sheet_targets(book)]
 
 
 def parse_period(value: Any) -> date | None:
@@ -87,6 +174,13 @@ def parse_period(value: Any) -> date | None:
         return value.date().replace(day=1)
     if isinstance(value, date):
         return value.replace(day=1)
+    if isinstance(value, (int, float)) and 30000 <= float(value) <= 80000:
+        # Excel serial date (1900 date system). ARERA workbooks may store the
+        # month as a numeric date while displaying it as gen-26/feb-26.
+        try:
+            return (datetime(1899, 12, 30) + timedelta(days=float(value))).date().replace(day=1)
+        except (OverflowError, ValueError):
+            return None
     text = norm(value)
     if not text:
         return None
@@ -196,36 +290,46 @@ def find_period_above(matrix: list[list[Any]], row: int, col: int) -> date | Non
     return None
 
 
+def target_profile_matches(commodity: str, context: str) -> bool:
+    hay = norm(context)
+    if commodity == "luce":
+        has_consumption = any(token in hay for token in ("2700 kwh", "2.700 kwh", "2 700 kwh"))
+        has_power = any(token in hay for token in ("3 kw", "3kw"))
+        return has_consumption and has_power
+    if commodity == "gas":
+        return any(token in hay for token in ("1400 smc", "1.400 smc", "1 400 smc"))
+    return False
+
+
 def points_from_workbook(path: Path) -> list[Point]:
-    openpyxl = ensure_openpyxl()
-    wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
     found: list[Point] = []
-    try:
-        for ws in wb.worksheets:
-            matrix = [list(row) for row in ws.iter_rows(values_only=True)]
-            if not matrix:
-                continue
-            global_head = " ".join(norm(v) for row in matrix[:35] for v in row if v is not None)
-            for r, row in enumerate(matrix):
-                for c, cell in enumerate(row):
-                    label = norm(cell)
-                    if not is_average_market_metric(label):
+    for sheet_name, matrix in workbook_matrices(path):
+        if not matrix:
+            continue
+        # Include enough rows to catch the ARERA client-type description even
+        # when the chart data start lower in the sheet.
+        global_text = " ".join(norm(v) for row in matrix[:120] for v in row if v is not None)
+        for r, row in enumerate(matrix):
+            for c, cell in enumerate(row):
+                label = norm(cell)
+                if not is_average_market_metric(label):
+                    continue
+                nearby = local_text(matrix, r, c, radius_rows=25, radius_cols=14)
+                context = f"{path.name} {sheet_name} {global_text} {nearby}"
+                commodity = infer_commodity(context, path.name, sheet_name)
+                price_type = infer_price_type(nearby) or infer_price_type(f"{sheet_name} {global_text}")
+                if commodity not in {"luce", "gas"} or price_type not in {"fisso", "variabile"}:
+                    continue
+                if not target_profile_matches(commodity, context):
+                    continue
+                for cc in range(c + 1, len(row)):
+                    value = numeric(row[cc])
+                    if value is None or not (50 <= value <= 20000):
                         continue
-                    nearby = local_text(matrix, r, c)
-                    commodity = infer_commodity(f"{global_head} {nearby}", path.name, ws.title)
-                    price_type = infer_price_type(nearby) or infer_price_type(f"{ws.title} {global_head}")
-                    if commodity not in {"luce", "gas"} or price_type not in {"fisso", "variabile"}:
+                    period = find_period_above(matrix, r, cc)
+                    if not period:
                         continue
-                    for cc in range(c + 1, len(row)):
-                        value = numeric(row[cc])
-                        if value is None or not (50 <= value <= 20000):
-                            continue
-                        period = find_period_above(matrix, r, cc)
-                        if not period:
-                            continue
-                        found.append(Point(commodity, price_type, period, round(value, 4), path.name, ws.title, str(cell)))
-    finally:
-        wb.close()
+                    found.append(Point(commodity, price_type, period, round(value, 4), path.name, sheet_name, str(cell)))
     return found
 
 
@@ -273,7 +377,7 @@ def write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
 def update_params(
     root: Path,
     selected: dict[tuple[str, str], Point],
-    attachment_urls: dict[str, str],
+    attachment_url: str,
 ) -> None:
     data_path = root / "data" / "calcolo-parametri.json"
     if not data_path.is_file():
@@ -299,10 +403,9 @@ def update_params(
     reference: dict[str, Any] = {
         "metrica": METRIC,
         "fonte": SOURCE_LABEL,
-        "urlPaginaLuce": ELECTRICITY_PAGE,
-        "urlPaginaGas": GAS_PAGE,
-        "urlAllegatoLuce": attachment_urls.get("luce", ""),
-        "urlAllegatoGas": attachment_urls.get("gas", ""),
+        "urlPagina": ARERA_DETAIL_PAGE,
+        "urlDati": ARERA_STATS_PAGE,
+        "urlAllegato": attachment_url,
         "acquisitoIl": today,
         "nota": (
             "Valori ARERA pubblicati nel Monitoraggio Retail come spesa annua media delle offerte "
@@ -331,8 +434,7 @@ def update_params(
     calculation["riferimentiMercatoLibero"] = reference
     calculation["profiloConsumiFonte"] = {
         "fonte": SOURCE_LABEL,
-        "urlPaginaLuce": ELECTRICITY_PAGE,
-        "urlPaginaGas": GAS_PAGE,
+        "urlPagina": ARERA_DETAIL_PAGE,
         "acquisitoIl": today,
         "luceConsumoKwh": 2700,
         "gasConsumoSmc": 1400,
@@ -342,8 +444,7 @@ def update_params(
     calculation["profiloMedioFonte"] = {
         "tipo": "arera_monitoraggio_retail_ufficiale",
         "fonte": SOURCE_LABEL,
-        "urlAllegatoLuce": attachment_urls.get("luce", ""),
-        "urlAllegatoGas": attachment_urls.get("gas", ""),
+        "urlAllegato": attachment_url,
         "acquisitoIl": today,
         "metrica": METRIC,
         "nota": "Il riferimento medio non viene calcolato dal catalogo OffertaLogica.",
@@ -365,48 +466,30 @@ def main() -> int:
     root = Path(args.package_root).resolve()
 
     required_all = {(c, t) for c in ("luce", "gas") for t in ("fisso", "variabile")}
-    attachment_urls: dict[str, str] = {}
-
     if args.fixture_zip:
-        attachment_bytes = Path(args.fixture_zip).read_bytes()
-        selected = extract_official_points(attachment_bytes, required_all)
-        attachment_urls = {
-            "luce": "fixture://arera-monitoraggio-retail/luce",
-            "gas": "fixture://arera-monitoraggio-retail/gas",
-        }
+        attachment_url = "fixture://arera-monitoraggio-retail/analisi-spesa-offerte-po"
+        selected = extract_official_points(Path(args.fixture_zip).read_bytes(), required_all)
     else:
-        selected: dict[tuple[str, str], Point] = {}
-        for commodity, page_url in (("luce", ELECTRICITY_PAGE), ("gas", GAS_PAGE)):
-            required = {(commodity, "fisso"), (commodity, "variabile")}
-            last_error: Exception | None = None
-            chosen_url = ""
-            sector_points: dict[tuple[str, str], Point] | None = None
-            for candidate in discover_attachment_urls(page_url):
-                try:
-                    parsed = extract_official_points(fetch(candidate), required)
-                except Exception as exc:
-                    last_error = exc
-                    continue
-                sector_points = parsed
-                chosen_url = candidate
-                break
-            if sector_points is None:
-                raise RuntimeError(
-                    f"Nessun allegato ARERA valido per {commodity} contiene i riferimenti fisso/variabile: {last_error}"
-                )
-            selected.update(sector_points)
-            attachment_urls[commodity] = chosen_url
+        selected = None
+        attachment_url = ""
+        last_error: Exception | None = None
+        for candidate in discover_attachment_urls():
+            try:
+                parsed = extract_official_points(fetch(candidate), required_all)
+            except Exception as exc:
+                last_error = exc
+                continue
+            selected = parsed
+            attachment_url = candidate
+            break
+        if selected is None:
+            raise RuntimeError(f"Nessun ZIP ARERA valido 'Analisi spesa offerte PO': {last_error}")
 
-        missing = sorted(required_all - set(selected))
-        if missing:
-            raise RuntimeError("Riferimenti medi ARERA incompleti: " + ", ".join(f"{c}/{t}" for c, t in missing))
-
-    update_params(root, selected, attachment_urls)
+    update_params(root, selected, attachment_url)
     for key in sorted(selected):
         point = selected[key]
         print(f"[ARERA-RETAIL] {point.commodity}/{point.price_type}: {point.value:.2f} EUR/anno ({point.period:%Y-%m})")
-    print(f"[ARERA-RETAIL] Fonte luce: {attachment_urls.get('luce', '')}")
-    print(f"[ARERA-RETAIL] Fonte gas: {attachment_urls.get('gas', '')}")
+    print(f"[ARERA-RETAIL] Fonte: {attachment_url}")
     return 0
 
 

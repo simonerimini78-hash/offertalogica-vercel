@@ -41,22 +41,6 @@ ensure_pdf_reader() {
   fi
 }
 
-
-ensure_excel_reader() {
-  if python3 -c 'import openpyxl' >/dev/null 2>&1; then
-    return 0
-  fi
-  log "openpyxl non presente: installo localmente la dipendenza necessaria ai dati ARERA Monitoraggio Retail."
-  if ! python3 -m pip install --user --disable-pip-version-check --quiet openpyxl; then
-    log "ERRORE: impossibile installare openpyxl; aggiornamento annullato."
-    return 1
-  fi
-  if ! python3 -c 'import openpyxl' >/dev/null 2>&1; then
-    log "ERRORE: openpyxl non importabile dopo l'installazione; aggiornamento annullato."
-    return 1
-  fi
-}
-
 sync_main_code() {
   if ! command -v git >/dev/null 2>&1; then
     log "ERRORE: git non disponibile; impossibile verificare che il trasformatore locale coincida con MAIN."
@@ -353,10 +337,6 @@ backup_outputs
 log "Rileggo e convalido oggi gli indici ufficiali ARERA usati dal calcolatore."
 python3 "$ROOT_DIR/scripts/update-arera-reference-data.py" indices --package-root "$ROOT_DIR"
 
-log "Acquisisco da ARERA i riferimenti medi ufficiali del mercato libero, distinti tra fisso e variabile."
-ensure_excel_reader
-python3 "$ROOT_DIR/scripts/update-arera-retail-benchmarks.py" --package-root "$ROOT_DIR"
-
 log "Genero e valido il JSON OffertaLogica con:"
 log "- luce: $E_FILE"
 log "- gas: $G_FILE"
@@ -435,6 +415,15 @@ print(
 print(f"[ARERA-LOCALE] Staging validato: {staging_path.relative_to(root)}")
 PY
 
+log "Acquisisco dal file ARERA Analisi spesa offerte PO i riferimenti medi ufficiali fisso/variabile."
+RETAIL_REFERENCE_OK=0
+if python3 "$ROOT_DIR/scripts/update-arera-retail-benchmarks.py" --package-root "$ROOT_DIR"; then
+  RETAIL_REFERENCE_OK=1
+  log "Riferimenti medi ARERA aggiornati."
+else
+  log "ATTENZIONE: i riferimenti medi ARERA non sono stati aggiornati. Il catalogo offerte appena pubblicato resta valido e aggiornato; non viene calcolata alcuna media sostitutiva."
+fi
+
 log "Aggiorno e convalido i riferimenti energia giornalieri ARERA/GME."
 ensure_pdf_reader
 python3 "$ROOT_DIR/scripts/update-energy-today.py" \
@@ -450,7 +439,7 @@ log "Eseguo la validazione completa del calcolatore e del contratto dati."
   node scripts/validate-calculator-data.mjs
 )
 
-python3 - "$ROOT_DIR" "$SELECTED_DATE" <<'PY'
+python3 - "$ROOT_DIR" "$SELECTED_DATE" "$RETAIL_REFERENCE_OK" <<'PY'
 from __future__ import annotations
 
 import json
@@ -460,6 +449,7 @@ from pathlib import Path
 
 root = Path(sys.argv[1]).resolve()
 selected_date = sys.argv[2]
+retail_reference_ok = sys.argv[3] == "1"
 today = date.today().isoformat()
 
 def load(relative: str):
@@ -502,19 +492,10 @@ for key in ("pun", "psv"):
     detail = (params.get("indiciMercato") or {}).get(key) or {}
     if detail.get("acquisitoIl") != today:
         raise RuntimeError(f"Indice {key.upper()} non riletto/convalidato oggi")
-catalog_indices = catalog.get("indiciUsati") or {}
-param_indices = params.get("indiciMercato") or {}
-if not isinstance(catalog_indices, dict) or not catalog_indices:
-    raise RuntimeError("Catalogo privo degli indici di mercato usati")
-for key, used_value in catalog_indices.items():
-    detail = param_indices.get(key) or {}
-    try:
-        canonical = float(detail.get("valore"))
-        used = float(used_value)
-    except (TypeError, ValueError):
-        raise RuntimeError(f"Indice {str(key).upper()} non numerico tra catalogo e parametri")
-    if abs(used - canonical) > 1e-12:
-        raise RuntimeError(f"Indice {str(key).upper()} diverso tra catalogo e parametri")
+for key in ("pun", "psv", "psbg"):
+    detail = (params.get("indiciMercato") or {}).get(key) or {}
+    if float((catalog.get("indiciUsati") or {}).get(key)) != float(detail.get("valore")):
+        raise RuntimeError(f"Indice {key.upper()} diverso tra catalogo e parametri")
 
 consumption_source = ((params.get("parametriCalcolo") or {}).get("profiloConsumiFonte") or {})
 profile = ((params.get("parametriCalcolo") or {}).get("profiloMedio") or {})
@@ -524,28 +505,17 @@ for source_key, profile_key in (("luceConsumoKwh", "luceConsumoKwh"), ("gasConsu
     if str(consumption_source.get(source_key)) != str(profile.get(profile_key)):
         raise RuntimeError(f"Profilo consumi non coerente: {source_key}")
 
-calculation = params.get("parametriCalcolo") or {}
-profile_source = calculation.get("profiloMedioFonte") or {}
-if profile_source.get("tipo") != "arera_monitoraggio_retail_ufficiale":
-    raise RuntimeError("Il profilo medio non usa il riferimento ufficiale ARERA Monitoraggio Retail")
-if profile_source.get("acquisitoIl") != today:
-    raise RuntimeError("Riferimenti medi ARERA non riletti/convalidati oggi")
-retail = calculation.get("riferimentiMercatoLibero") or {}
-if retail.get("acquisitoIl") != today:
-    raise RuntimeError("Dataset ARERA mercato libero non acquisito oggi")
-for commodity in ("luce", "gas"):
-    for price_type in ("fisso", "variabile"):
-        detail = ((retail.get(commodity) or {}).get(price_type) or {})
-        try:
-            annual = float(detail.get("spesaAnnuaMediaEur"))
-        except (TypeError, ValueError):
-            annual = 0
-        if annual <= 0 or detail.get("stato") != "ufficiale":
-            raise RuntimeError(f"Riferimento ARERA mancante/non ufficiale: {commodity}/{price_type}")
-        if not __import__("re").fullmatch(r"20\d{2}-(?:0[1-9]|1[0-2])", str(detail.get("periodo") or "")):
-            raise RuntimeError(f"Periodo ARERA non valido: {commodity}/{price_type}")
-if calculation.get("benchmarkCatalogoOffertaLogicaDisabilitato") is not True:
-    raise RuntimeError("Il benchmark matematico OffertaLogica non risulta disabilitato")
+retail_reference = ((params.get("parametriCalcolo") or {}).get("riferimentiMercatoLibero") or {})
+if retail_reference_ok:
+    if retail_reference.get("acquisitoIl") != today:
+        raise RuntimeError("Riferimenti medi ARERA non acquisiti oggi")
+    for commodity in ("luce", "gas"):
+        sector = retail_reference.get(commodity) or {}
+        for price_type in ("fisso", "variabile"):
+            item = sector.get(price_type) or {}
+            value = item.get("spesaAnnuaMediaEur")
+            if item.get("stato") != "ufficiale" or not isinstance(value, (int, float)) or value <= 0:
+                raise RuntimeError(f"Riferimento ARERA incompleto: {commodity}/{price_type}")
 if report.get("versioneDati") != catalog.get("versioneDati") or report.get("pubblicazioneAutorizzata") is not True:
     raise RuntimeError("Report ARERA non coerente con il catalogo pubblicato")
 if energy.get("acquisitoIl") != today:

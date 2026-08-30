@@ -3310,11 +3310,11 @@ let PARAMETRI_CALCOLO = {
   perditeReteLuceVariabile: 1.102,
   profiloMedio: {
     luceConsumoKwh: 2700,
-    gasConsumoSmc: 1400,
-    prezzoLuceEurKwh: null,
-    prezzoGasEurSmc: null,
-    quotaFissaLuceAnnua: null,
-    quotaFissaGasAnnua: null,
+    gasConsumoSmc: 700,
+    prezzoLuceEurKwh: 0.1500,
+    prezzoGasEurSmc: 0.6800,
+    quotaFissaLuceAnnua: 144,
+    quotaFissaGasAnnua: 120,
     potenzaKw: "3",
     regioneGas: "nord-ovest",
     tipoPrezzo: "fisso",
@@ -3322,7 +3322,7 @@ let PARAMETRI_CALCOLO = {
   },
   riferimentiMercatoLibero: {
     metrica: "spesa_annua_media_offerte_mercato_libero",
-    fonte: "Caricamento dati ARERA richiesto",
+    fonte: "ARERA - Monitoraggio Retail",
     acquisitoIl: "",
     luce: { fisso: null, variabile: null },
     gas: { fisso: null, variabile: null },
@@ -3361,7 +3361,7 @@ let PARAMETRI_CALCOLO = {
 };
 let PERDITE_RETE_LUCE_VARIABILE = PARAMETRI_CALCOLO.perditeReteLuceVariabile;
 const TESTO_METODOLOGIA_CONSUMI_REALI = "I risparmi stimati sono calcolati sui consumi che hai inserito o confermato dalla bolletta. Applichiamo le condizioni economiche delle offerte allo stesso profilo di consumo, separando quota variabile e quota fissa.";
-const TESTO_METODOLOGIA_MEDIA_ARERA = "Quando non conosci i tuoi consumi, usiamo i profili tipo ARERA e come costo di riferimento la spesa annua media ufficiale delle offerte di mercato libero disponibili sul Portale Offerte, distinta tra prezzo fisso e variabile. Le singole offerte restano calcolate sulle loro condizioni economiche correnti.";
+const TESTO_METODOLOGIA_MEDIA_ARERA = "Quando non conosci i tuoi consumi, usiamo il profilo tipo ARERA e la spesa annua media ufficiale delle offerte di mercato libero pubblicata da ARERA, distinta tra prezzo fisso e variabile. Le singole offerte continuano a essere calcolate sulle condizioni economiche del catalogo aggiornato.";
 
 let INDICI_MERCATO = {
   pun: {
@@ -3552,22 +3552,10 @@ function riferimentoMercatoLiberoArera(commodity, tipoPrezzo) {
   return { ...item, spesaAnnuaMediaEur: value };
 }
 
-function riferimentoDualMercatoLiberoArera(tipoPrezzo) {
-  const tipo = tipoPrezzo === "variabile" ? "variabile" : "fisso";
-  const item = PARAMETRI_CALCOLO.riferimentiMercatoLibero?.dual?.[tipo];
-  const value = Number(item?.spesaAnnuaMediaEur);
-  if (!item || String(item.stato || "").toLowerCase() !== "ufficiale" || !Number.isFinite(value) || value <= 0) return null;
-  return { ...item, spesaAnnuaMediaEur: value };
-}
-
 function spesaMediaAreraPerAmbito(tipoPrezzo, tipoFornitura) {
   const scope = ["luce", "gas", "dual", "separate"].includes(tipoFornitura) ? tipoFornitura : "dual";
   if (scope === "luce") return riferimentoMercatoLiberoArera("luce", tipoPrezzo)?.spesaAnnuaMediaEur ?? null;
   if (scope === "gas") return riferimentoMercatoLiberoArera("gas", tipoPrezzo)?.spesaAnnuaMediaEur ?? null;
-  if (scope === "dual") {
-    const direct = riferimentoDualMercatoLiberoArera(tipoPrezzo);
-    if (direct) return direct.spesaAnnuaMediaEur;
-  }
   const luce = riferimentoMercatoLiberoArera("luce", tipoPrezzo)?.spesaAnnuaMediaEur;
   const gas = riferimentoMercatoLiberoArera("gas", tipoPrezzo)?.spesaAnnuaMediaEur;
   return Number.isFinite(luce) && Number.isFinite(gas) ? luce + gas : null;
@@ -7283,10 +7271,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
     let attualeComparabile;
     if (modalitaCalcolo === "media") {
       const spesaMediaArera = spesaMediaAreraPerOfferta(offerta, tipoCalcoloOfferta);
-      if (!Number.isFinite(spesaMediaArera)) {
-        card.style.setProperty("display", "none", "important");
-        return;
-      }
+      if (!Number.isFinite(spesaMediaArera)) return;
       attualeComparabile = risultatoDaSpesaAnnuaMediaArera(spesaMediaArera);
     } else {
       attualeComparabile = calcolaOfferta(scenarioAttualeComparabile(attuale, offerta), tipoCalcoloOfferta);
@@ -7503,7 +7488,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
     teaserCopy.innerText = SOCIAL_ENTRY_STATE.isSocialJourney
       ? "Stima basata sui consumi medi e sulle offerte partner attivabili disponibili oggi: verifica il numero per visualizzare fornitore, condizioni e percorso ufficiale."
       : modalitaCalcolo === "media"
-        ? "Stima basata sui profili tipo e sulla spesa annua media ufficiale ARERA del mercato libero per la struttura di prezzo selezionata: verifica il numero per visualizzare il confronto completo."
+        ? "Stima basata sul profilo tipo e sulla spesa annua media ufficiale ARERA del mercato libero per la struttura di prezzo selezionata: verifica il numero per visualizzare il confronto completo."
         : "Stima basata sui consumi che hai inserito: verifica il numero per visualizzare il confronto completo.";
   }
   aggiornaPromptBollettaDopoOfferte();
@@ -7566,9 +7551,8 @@ window.avviaComparazioneDati = function avviaComparazioneDati() {
     const areaRisultati = document.getElementById("results-area");
     if (areaRisultati) {
       areaRisultati.style.display = "flex";
-      areaRisultati.innerHTML = `<div class="verdetto-box warning"><h2>Riferimento ARERA non disponibile</h2><p>La stima con consumi medi richiede il dato ufficiale ARERA di spesa annua media per ${tipoTariffa === "variabile" ? "offerte a prezzo variabile" : "offerte a prezzo fisso"}. Il confronto non usa valori ricostruiti o fallback matematici.</p></div>`;
+      areaRisultati.innerHTML = `<div class="verdetto-box warning"><h2>Riferimento ARERA non disponibile</h2><p>Il confronto con consumi medi richiede la spesa annua media ufficiale ARERA per le offerte ${tipoTariffa === "variabile" ? "a prezzo variabile" : "a prezzo fisso"}. Le offerte del catalogo restano comunque aggiornate e disponibili.</p></div>`;
     }
-    trackEvent("comparison_missing_arera_retail_reference", { tipoPrezzo: tipoTariffa, tipoFornitura });
     return;
   }
 
@@ -12117,11 +12101,11 @@ function applicaDatiPdfAlModulo(data) {
     setField("in-luce-tipo-att", PARAMETRI_CALCOLO.profiloMedio.tipoPrezzo);
     setField("in-gas-tipo-att", PARAMETRI_CALCOLO.profiloMedio.tipoPrezzo);
     setField("in-luce-cons-att", PARAMETRI_CALCOLO.profiloMedio.luceConsumoKwh);
-    setField("in-luce-prezzo-att", "");
-    setField("in-luce-fisso-att", "");
+    setField("in-luce-prezzo-att", String(PARAMETRI_CALCOLO.profiloMedio.prezzoLuceEurKwh));
+    impostaQuotaFissaAnnua("in-luce-fisso-att", "in-luce-fisso-att-unita", PARAMETRI_CALCOLO.profiloMedio.quotaFissaLuceAnnua);
     setField("in-gas-cons-att", PARAMETRI_CALCOLO.profiloMedio.gasConsumoSmc);
-    setField("in-gas-prezzo-att", "");
-    setField("in-gas-fisso-att", "");
+    setField("in-gas-prezzo-att", String(PARAMETRI_CALCOLO.profiloMedio.prezzoGasEurSmc));
+    impostaQuotaFissaAnnua("in-gas-fisso-att", "in-gas-fisso-att-unita", PARAMETRI_CALCOLO.profiloMedio.quotaFissaGasAnnua);
     aggiornaTestoPulsanteConfronto();
     return;
   }
@@ -12809,12 +12793,12 @@ if (document.readyState === "loading") {
               if(document.getElementById("in-luce-tipo-att")) document.getElementById("in-luce-tipo-att").value = PARAMETRI_CALCOLO.profiloMedio.tipoPrezzo;
               if(document.getElementById("in-gas-tipo-att")) document.getElementById("in-gas-tipo-att").value = PARAMETRI_CALCOLO.profiloMedio.tipoPrezzo;
               if(document.getElementById("in-luce-cons-att")) document.getElementById("in-luce-cons-att").value = String(PARAMETRI_CALCOLO.profiloMedio.luceConsumoKwh);
-              if(document.getElementById("in-luce-prezzo-att")) document.getElementById("in-luce-prezzo-att").value = "";
-              if(document.getElementById("in-luce-fisso-att")) document.getElementById("in-luce-fisso-att").value = "";
+              if(document.getElementById("in-luce-prezzo-att")) document.getElementById("in-luce-prezzo-att").value = String(PARAMETRI_CALCOLO.profiloMedio.prezzoLuceEurKwh);
+              impostaQuotaFissaAnnua("in-luce-fisso-att", "in-luce-fisso-att-unita", PARAMETRI_CALCOLO.profiloMedio.quotaFissaLuceAnnua);
 
               if(document.getElementById("in-gas-cons-att")) document.getElementById("in-gas-cons-att").value = String(PARAMETRI_CALCOLO.profiloMedio.gasConsumoSmc);
-              if(document.getElementById("in-gas-prezzo-att")) document.getElementById("in-gas-prezzo-att").value = "";
-              if(document.getElementById("in-gas-fisso-att")) document.getElementById("in-gas-fisso-att").value = "";
+              if(document.getElementById("in-gas-prezzo-att")) document.getElementById("in-gas-prezzo-att").value = String(PARAMETRI_CALCOLO.profiloMedio.prezzoGasEurSmc);
+              impostaQuotaFissaAnnua("in-gas-fisso-att", "in-gas-fisso-att-unita", PARAMETRI_CALCOLO.profiloMedio.quotaFissaGasAnnua);
 
               // Nuova Offerta: resta vuota. Il confronto diretto si mostra solo se l'utente compila o carica una scheda.
               if(document.getElementById("in-luce-cons-nuov")) document.getElementById("in-luce-cons-nuov").value = String(PARAMETRI_CALCOLO.profiloMedio.luceConsumoKwh);
@@ -13131,7 +13115,7 @@ I tuoi dati non vengono inviati a fornitori o partner finché non scegli di proc
                 scrollToTarget(".pdf-lead-panel");
                 break;
             case "media":
-                setMessage("Useremo i profili tipo ARERA e la spesa annua media ufficiale del mercato libero coerente con la scelta prezzo fisso o variabile. Poi puoi raffinare il confronto con la bolletta.");
+                setMessage("Useremo un profilo medio, il catalogo ARERA e gli indici di mercato disponibili. È utile per una prima stima, poi puoi raffinare con la bolletta.");
                 activateButton("btn-attiva-medi");
                 scrollToTarget("#btn-attiva-medi");
                 break;

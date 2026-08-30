@@ -28,6 +28,7 @@ MARKET_INDEX_DETAILS: dict[str, dict[str, object]] = {}
 DEFAULT_INDEX_ALIASES: dict[str, tuple[str, ...]] = {
     "pun": ("pun", "pun index", "prezzo unico nazionale"),
     "psv": ("psv", "p_ing", "p ing", "punto di scambio virtuale"),
+    "ttf": ("ttf", "title transfer facility"),
     "psbg": ("psbg", "psbil", "prezzo sbilanciamento gas"),
 }
 
@@ -758,24 +759,27 @@ def _configured_index_matches(text: str, commodity: str) -> list[str]:
 
 
 def offer_index_key(offer: ET.Element, commodity: str) -> str | None:
-    """Return only an explicitly identifiable configured market index.
+    """Resolve the ARERA index without coercing unknown indices.
 
-    No commodity default exists: an unknown or ambiguous index is not priced.
-    This prevents PSBG/TTF/future indices from silently becoming PSV or PUN.
+    The Portale Offerte XML uses official IDX_PREZZO_ENERGIA codes:
+    01=PUN, 02=TTF, 03=PSV, 99=Altro.  Code 99 is resolved only when the
+    surrounding offer text explicitly matches a configured index alias (for
+    example PSBG); otherwise it fails closed.
     """
-    explicit = normalize_text(node_text(offer, "po:RiferimentiPrezzoEnergia/po:IDX_PREZZO_ENERGIA"))
-    if explicit:
-        explicit_matches = _configured_index_matches(explicit, commodity)
-        if len(explicit_matches) == 1:
-            return explicit_matches[0]
-        if len(explicit_matches) > 1:
-            return None
+    raw_index = str(node_text(offer, "po:RiferimentiPrezzoEnergia/po:IDX_PREZZO_ENERGIA") or "").strip()
+    code_map = {"01": "pun", "02": "ttf", "03": "psv"}
+    mapped = code_map.get(raw_index)
+    if mapped:
+        detail = MARKET_INDEX_DETAILS.get(mapped) or {}
+        configured_commodity = normalize_text(str(detail.get("commodity") or ""))
+        if mapped in MARKET_INDEX_VALUES and (not configured_commodity or configured_commodity in {commodity, "dual", "entrambi", "both"}):
+            return mapped
+        return None
 
     parts: list[str] = []
     for path in (
         "po:DettaglioOfferta/po:NOME_OFFERTA",
         "po:DettaglioOfferta/po:DESCRIZIONE",
-        "po:RiferimentiPrezzoEnergia/po:IDX_PREZZO_ENERGIA",
     ):
         value = node_text(offer, path)
         if value:
@@ -785,6 +789,11 @@ def offer_index_key(offer: ET.Element, commodity: str) -> str | None:
             value = node_text(node, path)
             if value:
                 parts.append(value)
+
+    # Some feeds expose a textual index rather than the numeric code. Keep it
+    # in the searchable context, but never treat the generic code 99 as a value.
+    if raw_index and raw_index != "99":
+        parts.append(raw_index)
     matches = _configured_index_matches(normalize_text(" ".join(parts)), commodity)
     return matches[0] if len(matches) == 1 else None
 
