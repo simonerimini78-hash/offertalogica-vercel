@@ -1,4 +1,4 @@
-const TOOL_VERSION = '1.1';
+const TOOL_VERSION = '1.2';
 const TRACK_URL = '/api/track-event';
 const PDF_REPLAY_KEY = 'offertalogicaPdfArchiveReplay';
 const root = document.getElementById('ol-pv-tool');
@@ -59,16 +59,41 @@ function nearestRegion(lat,lon){
   return best;
 }
 function validCoordinate(value, min, max){ return Number.isFinite(value) && value >= min && value <= max; }
+function cleanText(value){ return String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim(); }
+function normalizeRegionName(value){
+  const raw=cleanText(value); if(!raw)return '';
+  return Object.keys(REGIONS).find((name)=>{ const key=cleanText(name); return raw===key || raw.includes(key) || key.includes(raw); }) || '';
+}
+function setResolvedPlace(lat,lon,label,regionName=''){
+  if(!validCoordinate(lat,35,48)||!validCoordinate(lon,5,20))return false;
+  $('pv-lat').value=Number(lat).toFixed(5); $('pv-lon').value=Number(lon).toFixed(5); $('pv-place-label').value=label||'';
+  const region=normalizeRegionName(regionName)||nearestRegion(lat,lon)?.name||''; if(region && $('pv-region'))$('pv-region').value=region;
+  return true;
+}
 function baseYield(){
   const lat=num('pv-lat'), lon=num('pv-lon');
   const selected=$('pv-region')?.value;
   if(validCoordinate(lat,35,48) && validCoordinate(lon,5,20)){
     const nearest=nearestRegion(lat,lon);
     const geo=clamp(1945-(lat-36.5)*79+(lon-12)*2.5,1150,1900);
-    return {value:geo*.62+nearest.yield*.38,lat,lon,label:nearest.name};
+    return {value:geo*.62+nearest.yield*.38,lat,lon,label:$('pv-place-label')?.value||nearest.name};
   }
   if(selected && REGIONS[selected]) return {value:REGIONS[selected].yield,lat:REGIONS[selected].lat,lon:REGIONS[selected].lon,label:selected};
   return null;
+}
+async function findPlace(){
+  const query=String($('pv-place-search')?.value||'').trim();
+  if(query.length<2){ status('Inserisci un Comune o un CAP.','error'); return; }
+  const button=$('pv-find-place'); if(button)button.disabled=true; status('Ricerca della zona in corso…');
+  try{
+    const url=`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=5&language=it&format=json&countryCode=IT`;
+    const response=await fetch(url,{headers:{'Accept':'application/json'}}); if(!response.ok)throw new Error('lookup_failed');
+    const data=await response.json(); const result=(data?.results||[]).find((item)=>String(item?.country_code||'').toUpperCase()==='IT'&&validCoordinate(Number(item?.latitude),35,48)&&validCoordinate(Number(item?.longitude),5,20));
+    if(!result)throw new Error('not_found');
+    const label=[result.name,result.admin2].filter(Boolean).join(', '); setResolvedPlace(Number(result.latitude),Number(result.longitude),label,result.admin1);
+    status(`Zona trovata: ${label}.`,'ok'); track('place_resolved',{context:label});
+  }catch(error){ status(error?.message==='not_found'?'Comune o CAP non trovato. Prova con la regione.':'Ricerca zona non disponibile. Puoi scegliere la regione.','error'); }
+  finally{ if(button)button.disabled=false; }
 }
 function tiltFactor(lat,tilt){ const optimal=clamp((lat||42.5)-10,24,37); const delta=Math.abs(tilt-optimal); return clamp(1-delta*.0028-delta*delta*.00005,.78,1.01); }
 function costRange(power){
@@ -120,7 +145,7 @@ function updateAgricultureVisibility(){
 
 function compute(){
   const geo=baseYield();
-  if(!geo){ status('Seleziona una regione oppure usa la tua posizione.','error'); return; }
+  if(!geo){ status('Inserisci Comune/CAP, scegli una regione oppure usa la posizione.','error'); return; }
   let power=num('pv-power-kw'); const surface=num('pv-surface-m2');
   if((!power||power<=0)&&surface&&surface>0){ power=surface/(mode==='business'?5:5.2); $('pv-power-kw').value=power.toFixed(1); }
   if(!power||power<=0){ status('Inserisci la potenza dell’impianto oppure una superficie disponibile.','error'); return; }
@@ -143,21 +168,24 @@ function compute(){
     const price=num('pv-energy-price'); if(price&&price>0)savings=selfKwh*price;
   }
   setText('pv-result-place',geo.label); setText('pv-result-annual',`${fmt(annual)} kWh`); setText('pv-result-specific',`${fmt(specific)} kWh/kW`); setText('pv-result-area',`${fmt(areaNeeded,1)} m²`); setText('pv-result-cost',`${euro(costMin)} – ${euro(costMax)}`);
-  setText('pv-result-self',selfKwh===null?'Aggiungi i consumi':`${fmt(selfKwh)} kWh`); setText('pv-result-grid',residual===null?'Aggiungi i consumi':`${fmt(residual)} kWh`); setText('pv-result-excess',excess===null?'Aggiungi i consumi':`${fmt(excess)} kWh`); setText('pv-result-coverage',coverage===null?'Aggiungi i consumi':`${fmt(coverage,1)}%`);
+  setText('pv-result-self',selfKwh===null?'Serve consumo annuo':`${fmt(selfKwh)} kWh`); setText('pv-result-grid',residual===null?'Serve consumo annuo':`${fmt(residual)} kWh`); setText('pv-result-excess',excess===null?'Serve consumo annuo':`${fmt(excess)} kWh`); setText('pv-result-coverage',coverage===null?'Serve consumo annuo':`${fmt(coverage,1)}%`);
+  setText('pv-result-summary',consumption&&consumption>0
+    ? `Con ${fmt(power,1)} kW di fotovoltaico stimiamo circa ${fmt(annual)} kWh prodotti in un anno. Su ${fmt(consumption)} kWh/anno di consumi, circa ${fmt(selfKwh)} kWh potrebbero essere usati direttamente mentre l’impianto produce; resterebbero circa ${fmt(residual)} kWh/anno da acquistare dalla rete.`
+    : `Con ${fmt(power,1)} kW di fotovoltaico stimiamo circa ${fmt(annual)} kWh prodotti in un anno. Per capire l’impatto sulla bolletta serve il consumo annuo: il consumo di una singola bolletta non viene moltiplicato automaticamente per 12.`);
   const savingsBox=$('pv-saving-impact'); if(savingsBox){ savingsBox.hidden=savings===null; if(savings!==null)setText('pv-result-savings',`${euro(savings)} / anno`); }
   const surfaceCheck=$('pv-surface-check'); if(surfaceCheck){ surfaceCheck.textContent=surface&&surface>0?(surface>=areaNeeded?`La superficie indicata è compatibile con circa ${fmt(power,1)} kW nel modello.`:`Per ${fmt(power,1)} kW servirebbero circa ${fmt(areaNeeded-surface,1)} m² in più.`):`Superficie tecnica indicativa: circa ${fmt(areaNeeded,1)} m².`; }
   renderChart(annual,geo.lat); $('pv-results').hidden=false; status(`Stima calcolata per ${geo.label}.`,'ok'); track('calculation_completed',{outcome:`${Math.round(annual)}kwh`,context:`${geo.label}:${mode}`}); $('pv-results').scrollIntoView({behavior:'smooth',block:'start'});
 }
 
 function useLocation(){
-  if(!window.isSecureContext){ status('La posizione richiede una connessione HTTPS. Seleziona la regione manualmente.','error'); return; }
-  if(!navigator.geolocation){ status('Geolocalizzazione non disponibile: scegli una regione.','error'); return; }
+  if(!window.isSecureContext){ status('Il browser consente la posizione solo su HTTPS. Usa Comune/CAP oppure la regione.','error'); return; }
+  if(!navigator.geolocation){ status('Geolocalizzazione non disponibile. Usa Comune/CAP oppure la regione.','error'); return; }
   const button=$('pv-use-location'); if(button)button.disabled=true; status('Richiesta della posizione in corso…'); track('location_requested');
   navigator.geolocation.getCurrentPosition((pos)=>{
-    if(button)button.disabled=false;
-    const lat=Number(pos.coords.latitude),lon=Number(pos.coords.longitude); if(!validCoordinate(lat,35,48)||!validCoordinate(lon,5,20)){ status('La posizione rilevata non sembra essere in Italia: scegli una regione.','error'); return; }
-    $('pv-lat').value=lat.toFixed(5); $('pv-lon').value=lon.toFixed(5); const near=nearestRegion(lat,lon); $('pv-region').value=near.name; status(`Posizione rilevata: ${near.name}.`,'ok'); track('location_resolved',{context:near.name});
-  },(error)=>{ if(button)button.disabled=false; const message=error?.code===1?'Permesso posizione non concesso: scegli una regione.':'Posizione non disponibile: scegli una regione.'; status(message,'error'); },{enableHighAccuracy:false,timeout:12000,maximumAge:900000});
+    if(button)button.disabled=false; const lat=Number(pos.coords.latitude),lon=Number(pos.coords.longitude);
+    if(!setResolvedPlace(lat,lon,nearestRegion(lat,lon)?.name||'',nearestRegion(lat,lon)?.name||'')){ status('La posizione rilevata non sembra essere in Italia. Usa Comune/CAP o regione.','error'); return; }
+    const near=nearestRegion(lat,lon); status(`Posizione rilevata: ${near.name}.`,'ok'); track('location_resolved',{context:near.name});
+  },(error)=>{ if(button)button.disabled=false; const message=error?.code===1?'Il browser sta bloccando la posizione. Puoi abilitarla nelle impostazioni del sito oppure usare Comune/CAP.':'Posizione non disponibile. Usa Comune/CAP oppure la regione.'; status(message,'error'); },{enableHighAccuracy:false,timeout:12000,maximumAge:900000});
 }
 function powerFromSurface(){ const surface=num('pv-surface-m2'); if(!surface||surface<=0){ status('Inserisci prima la superficie disponibile.','error'); return; } const power=surface/(mode==='business'?5:5.2); $('pv-power-kw').value=power.toFixed(1); status(`Potenza preliminare: circa ${fmt(power,1)} kW.`,'ok'); }
 
@@ -173,20 +201,40 @@ async function analyzeBill(file){
   const body=new FormData(); body.append('pdf',file); body.append('archiveContext',JSON.stringify({sessionId,customerType:mode==='business'?'business':'privato'})); return jsonResponse(await fetch('/api/analyze-pdf',{method:'POST',body}));
 }
 function contractValue(data,field){ const entry=data?.data_contract?.fields?.[field]; if(entry?.status==='completo'&&entry?.normalized_value!==undefined)return entry.normalized_value; return data?.[field]; }
+function finiteData(value){ if(value===null||value===undefined||String(value).trim()==='')return null; const number=Number(String(value).replace(',','.')); return Number.isFinite(number)&&number>=0?number:null; }
+function billingDays(data){ const start=Date.parse(`${data?.billing_period_start||''}T00:00:00Z`),end=Date.parse(`${data?.billing_period_end||''}T00:00:00Z`); return Number.isFinite(start)&&Number.isFinite(end)&&end>=start?Math.floor((end-start)/86400000)+1:null; }
+function safeAnnualConsumption(data){
+  const annual=finiteData(data?.consumo_luce_kwh); if(annual===null)return null; const period=finiteData(data?.consumo_periodo_luce_kwh); const days=billingDays(data);
+  if(days&&days<330&&period!==null&&Math.abs(annual-period)<=Math.max(.02,period*.001))return null;
+  if(days&&days<330&&period===null){ const evidence=(data?.diagnostics||[]).filter((item)=>item?.field==='consumo_luce_kwh').map((item)=>`${item?.label||''} ${item?.source_snippet||''} ${item?.evidence||''}`).join(' ').toLowerCase(); if(!/(annuo|annuale|12\s*mesi|ultimi\s*dodici\s*mesi)/i.test(evidence))return null; }
+  return annual;
+}
+function monthLabel(data){
+  const start=data?.billing_period_start,end=data?.billing_period_end; if(!start&&!end)return 'Periodo della bolletta';
+  try{ const a=start?new Date(`${start}T12:00:00Z`):null,b=end?new Date(`${end}T12:00:00Z`):a; const fmtMonth=new Intl.DateTimeFormat('it-IT',{month:'long',year:'numeric',timeZone:'UTC'}); if(a&&b&&a.getUTCFullYear()===b.getUTCFullYear()&&a.getUTCMonth()===b.getUTCMonth())return fmtMonth.format(a).replace(/^./,c=>c.toUpperCase()); const f=new Intl.DateTimeFormat('it-IT',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}); return `${a?f.format(a):''}${a&&b?' – ':''}${b?f.format(b):''}`; }catch{return 'Periodo della bolletta';}
+}
+function billValue(id,value,suffix=''){ const el=$(id); if(!el)return; el.textContent=value===null||value===undefined?'—':`${fmt(Number(value),suffix===' €/kWh'?3:0)}${suffix}`; }
+function renderBillSummary(data){
+  const box=$('pv-bill-summary'); if(!box)return; const period=finiteData(data?.consumo_periodo_luce_kwh),annual=safeAnnualConsumption(data),total=finiteData(data?.total_amount_eur),price=finiteData(data?.prezzo_luce_eur_kwh);
+  setText('pv-bill-period-title',monthLabel(data)); setText('pv-bill-profile',mode==='business'?'Azienda':'Casa');
+  setText('pv-bill-period-consumption',period===null?'Non rilevato':`${fmt(period)} kWh`); setText('pv-bill-total',total===null?'Non rilevato':euro(total)); setText('pv-bill-price',price===null?'Non rilevato':`${fmt(price,3)} €/kWh`); setText('pv-bill-annual',annual===null?'Non presente':`${fmt(annual)} kWh/anno`);
+  setText('pv-bill-annual-note',annual===null?'Questa bolletta non contiene un consumo annuo affidabile. Inseriscilo sotto: non stimiamo 12 mesi partendo dal consumo di questo periodo.':'Il consumo annuo è esplicitamente presente nella bolletta ed è stato inserito nel simulatore.');
+  const f1=annual===null?null:finiteData(data?.consumo_luce_f1_kwh),f2=annual===null?null:finiteData(data?.consumo_luce_f2_kwh),f3=annual===null?null:finiteData(data?.consumo_luce_f3_kwh),power=finiteData(data?.potenza_impegnata_kw); setText('pv-bill-f1',f1===null?'—':`${fmt(f1)} kWh/anno`); setText('pv-bill-f2',f2===null?'—':`${fmt(f2)} kWh/anno`); setText('pv-bill-f3',f3===null?'—':`${fmt(f3)} kWh/anno`); setText('pv-bill-power',power===null?'—':`${fmt(power,1)} kW`); box.hidden=false;
+}
 function applyBillData(payload,file){
   const data=payload?.normalized||{}; const commodity=String(data.commodity||'').toLowerCase(); if(commodity==='gas')throw new Error('Per il simulatore fotovoltaico serve una bolletta luce');
   if(data.customer_type==='business')setMode('business'); else if(data.customer_type==='privato')setMode('consumer');
-  const values={
-    'pv-consumption-kwh':contractValue(data,'consumo_luce_kwh'), 'pv-f1':contractValue(data,'consumo_luce_f1_kwh'), 'pv-f2':contractValue(data,'consumo_luce_f2_kwh'), 'pv-f3':contractValue(data,'consumo_luce_f3_kwh'),
+  const annual=safeAnnualConsumption(data); const values={
     'pv-contract-power':contractValue(data,'potenza_impegnata_kw'), 'pv-energy-price':contractValue(data,'prezzo_luce_eur_kwh')
   };
+  if(annual!==null)values['pv-consumption-kwh']=annual;
+  if(annual!==null){ values['pv-f1']=contractValue(data,'consumo_luce_f1_kwh'); values['pv-f2']=contractValue(data,'consumo_luce_f2_kwh'); values['pv-f3']=contractValue(data,'consumo_luce_f3_kwh'); }
   let imported=0; Object.entries(values).forEach(([id,value])=>{ const target=$(id); const number=Number(value); if(target&&Number.isFinite(number)&&number>=0){ target.value=String(number); imported++; } });
-  if(!num('pv-consumption-kwh')){ const bands=['pv-f1','pv-f2','pv-f3'].map(num); if(bands.every(v=>v!==null&&v>=0))$('pv-consumption-kwh').value=String(bands.reduce((a,b)=>a+b,0)); }
-  if(!imported)throw new Error('La bolletta è stata letta, ma non contiene dati luce utilizzabili automaticamente');
+  renderBillSummary(data);
   billReplayPayload={normalized:data,filename:file?.name||'bolletta.pdf',analysisId:payload?.archive?.analysisId||payload?.analysisId||null};
   try{ sessionStorage.setItem(PDF_REPLAY_KEY,JSON.stringify(billReplayPayload)); }catch{}
   $('pv-imported-note').hidden=false; updateComparisonCta(); setText('pv-next-copy',mode==='business'?'La bolletta aziendale è già stata letta: apri direttamente il confronto Business senza ricaricarla.':'La bolletta è già stata letta: apri direttamente il confronto offerte senza ricaricarla.');
-  billStatus(`Bolletta letta: ${imported} dati energetici inseriti automaticamente.`,'ok'); track('bill_data_imported',{outcome:String(imported),context:mode});
+  billStatus(annual===null?'Bolletta letta. Il consumo del periodo è separato: inserisci il consumo annuo per calcolare l’impatto del fotovoltaico.':`Bolletta letta: ${imported} dati utili inseriti automaticamente.`,'ok'); track('bill_data_imported',{outcome:String(imported),context:annual===null?'period_only':mode});
 }
 async function onBillSelected(event){
   const file=event.target?.files?.[0]; if(!file)return; billStatus('Lettura della bolletta in corso…'); $('pv-bill-file').disabled=true; track('bill_analysis_started');
@@ -204,8 +252,8 @@ function prefillFromQuery(){
   if(q.get('source')==='bolletta'&&imported>0){ $('pv-imported-note').hidden=false; }
 }
 
-$('pv-calc')?.addEventListener('click',compute); $('pv-use-location')?.addEventListener('click',useLocation); $('pv-power-from-surface')?.addEventListener('click',powerFromSurface); $('pv-bill-file')?.addEventListener('change',onBillSelected);
-$('pv-region')?.addEventListener('change',()=>{ $('pv-lat').value=''; $('pv-lon').value=''; }); $('pv-business-kind')?.addEventListener('change',updateAgricultureVisibility);
+$('pv-calc')?.addEventListener('click',compute); $('pv-find-place')?.addEventListener('click',findPlace); $('pv-use-location')?.addEventListener('click',useLocation); $('pv-power-from-surface')?.addEventListener('click',powerFromSurface); $('pv-bill-file')?.addEventListener('change',onBillSelected);
+$('pv-region')?.addEventListener('change',()=>{ $('pv-lat').value=''; $('pv-lon').value=''; $('pv-place-label').value=''; }); $('pv-place-search')?.addEventListener('input',()=>{ $('pv-lat').value=''; $('pv-lon').value=''; $('pv-place-label').value=''; }); $('pv-place-search')?.addEventListener('keydown',(event)=>{ if(event.key==='Enter'){ event.preventDefault(); findPlace(); } }); $('pv-business-kind')?.addEventListener('change',updateAgricultureVisibility);
 document.querySelectorAll('[data-segment]').forEach((el)=>el.addEventListener('click',()=>setMode(el.dataset.segment))); $('pv-compare-cta')?.addEventListener('click',prepareComparison);
 document.querySelectorAll('[data-pv-track]').forEach(el=>el.addEventListener('click',()=>track(el.dataset.pvTrack||'cta_clicked')));
 prefillFromQuery(); updateComparisonCta(); track('tool_viewed');
