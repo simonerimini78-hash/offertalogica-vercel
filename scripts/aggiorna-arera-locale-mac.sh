@@ -8,6 +8,7 @@ SYNC_RESTARTED="${ARERA_SYNC_RESTARTED:-0}"
 SUCCESS=0
 BACKUP_READY=0
 BACKUP_DIR=""
+MAIN_REPO_DIR=""
 DAYS_BACK="${ARERA_DAYS_BACK:-14}"
 MAX_TIME="${ARERA_MAX_TIME:-900}"
 MAX_ATTEMPTS="${ARERA_MAX_ATTEMPTS:-3}"
@@ -69,6 +70,7 @@ sync_main_code() {
     return 1
   fi
 
+  MAIN_REPO_DIR="$repo_dir"
   log "Verifico il codice MAIN usato dal Mac: $repo_dir."
   git -C "$repo_dir" fetch --quiet origin main
   local_head="$(git -C "$repo_dir" rev-parse HEAD)"
@@ -132,6 +134,30 @@ sync_main_code() {
   fi
 
   log "Codice della cartella dati già identico al clone MAIN: $(git -C "$repo_dir" rev-parse HEAD)."
+}
+
+ensure_static_surfaces_from_main() {
+  if [ -z "$MAIN_REPO_DIR" ] || [ "$MAIN_REPO_DIR" = "$ROOT_DIR" ]; then
+    return 0
+  fi
+
+  local rel
+  for rel in \
+    public/pun-oggi.html \
+    public/psv-gas-oggi.html \
+    public/sitemap.xml
+  do
+    if [ -f "$ROOT_DIR/$rel" ]; then
+      continue
+    fi
+    if [ ! -f "$MAIN_REPO_DIR/$rel" ]; then
+      log "ERRORE: superficie pubblica necessaria non trovata nel MAIN: $MAIN_REPO_DIR/$rel"
+      return 1
+    fi
+    mkdir -p "$ROOT_DIR/$(dirname "$rel")"
+    cp "$MAIN_REPO_DIR/$rel" "$ROOT_DIR/$rel"
+    log "Superficie pubblica inizializzata dal MAIN: $rel"
+  done
 }
 
 backup_outputs() {
@@ -382,6 +408,7 @@ G_FILE="$(basename "$G_PATH")"
 D_FILE="$(basename "$D_PATH")"
 
 backup_outputs
+ensure_static_surfaces_from_main
 
 log "Rileggo e convalido oggi gli indici ufficiali ARERA usati dal calcolatore."
 python3 "$ROOT_DIR/scripts/update-arera-reference-data.py" indices --package-root "$ROOT_DIR"
