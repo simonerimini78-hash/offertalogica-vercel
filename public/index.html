@@ -2630,6 +2630,7 @@
                 <a href="/termini-condizioni.html">Termini e condizioni</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
                 <a href="/casa-smart.html">Casa smart</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
                 <a href="/internet-casa.html">Internet casa</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
+                <a href="/fotovoltaico.html">Fotovoltaico</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
                 <a href="https://www.iubenda.com/privacy-policy/36565194" class="iubenda-white iubenda-noiframe iubenda-embed">Privacy Policy</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
                 <a href="https://www.iubenda.com/privacy-policy/36565194/cookie-policy" class="iubenda-white iubenda-noiframe iubenda-embed">Cookie Policy</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
                 <button type="button" onclick="apriPreferenzeCookie(event)">Modifica preferenze cookie</button>
@@ -2786,6 +2787,7 @@
         <div class="business-actions">
             <div class="business-action-buttons">
                 <button type="button" class="btn-action" onclick="calcolaBusiness()">Avvia analisi business</button>
+                <button type="button" class="business-secondary-action" onclick="apriSimulatoreFotovoltaicoBusiness()">Simula fotovoltaico con questi dati</button>
                 <button type="button" class="business-secondary-action" onclick="apriLeadBusiness()">Richiedi un contatto aziendale</button>
             </div>
             <p class="business-action-note">Puoi iniziare dall'analisi preliminare oppure richiedere direttamente un contatto.</p>
@@ -5654,6 +5656,35 @@ window.calcolaBusiness = function calcolaBusiness() {
     businessCatalogDualOffersCount: OFFERTE_ARERA_DUAL_BUSINESS.length,
   });
   return profiloCalcolato;
+};
+
+window.apriSimulatoreFotovoltaicoBusiness = function apriSimulatoreFotovoltaicoBusiness() {
+  const params = new URLSearchParams();
+  const addNumber = (key, id) => {
+    const raw = String(document.getElementById(id)?.value ?? "").trim();
+    if (!raw) return;
+    const value = Number(raw);
+    if (Number.isFinite(value) && value >= 0) params.set(key, String(value));
+  };
+  addNumber("consumo", "business-kwh");
+  addNumber("f1", "business-f1");
+  addNumber("f2", "business-f2");
+  addNumber("f3", "business-f3");
+  addNumber("potenza", "business-potenza");
+  addNumber("prezzo", "business-prezzo-luce");
+  const rawConsumo = String(document.getElementById("business-kwh")?.value ?? "").trim();
+  const rawBands = ["business-f1", "business-f2", "business-f3"].map((id) => String(document.getElementById(id)?.value ?? "").trim());
+  if (!rawConsumo && rawBands.every(Boolean)) {
+    const bands = rawBands.map(Number);
+    if (bands.every((value) => Number.isFinite(value) && value >= 0)) params.set("consumo", String(bands.reduce((sum, value) => sum + value, 0)));
+  }
+  const fromBill = Boolean(datiBollettaCorrentePdf?.());
+  params.set("source", fromBill ? "bolletta" : "business");
+  trackEvent("business_photovoltaic_tool_opened", {
+    customerType: "business",
+    dataOrigin: fromBill ? "pdf" : determinaOrigineDatoLead(),
+  });
+  window.location.href = `/fotovoltaico-aziende-agricole.html?${params.toString()}`;
 };
 
 window.apriLeadBusiness = function apriLeadBusiness() {

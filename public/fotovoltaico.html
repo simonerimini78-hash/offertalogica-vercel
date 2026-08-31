@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <script type="text/javascript" src="https://embeds.iubenda.com/widgets/7a8d1e4e-6d87-44e3-9842-5e8991323410.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="index,follow">
+  <title>Calcolo fotovoltaico casa e aziende | OffertaLogica</title>
+  <meta name="description" content="Stima la produzione fotovoltaica con dati PVGIS della Commissione Europea e confrontala con i tuoi consumi reali. Per casa e aziende, anche da bolletta.">
+  <link rel="canonical" href="https://offertalogica.it/fotovoltaico.html">
+  <meta property="og:title" content="Calcolo fotovoltaico casa e aziende | OffertaLogica">
+  <meta property="og:description" content="Produzione PVGIS, consumi reali e stima dell'energia che continueresti a comprare dalla rete.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://offertalogica.it/fotovoltaico.html">
+  <meta name="twitter:card" content="summary">
+  <link rel="icon" type="image/png" href="/assets/logo-offertalogica-icon.png">
+  <link rel="apple-touch-icon" href="/assets/logo-offertalogica-icon.png">
+  <link rel="stylesheet" href="/assets/ol-app-access.css">
+  <link rel="stylesheet" href="/assets/fotovoltaico-tool.css?v=1.3.0">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@type":"WebApplication","name":"Simulatore fotovoltaico OffertaLogica","url":"https://offertalogica.it/fotovoltaico.html","applicationCategory":"UtilitiesApplication","operatingSystem":"Web","description":"Simulatore informativo per confrontare la produzione fotovoltaica stimata da PVGIS con i consumi elettrici di casa o azienda."}
+  </script>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Vai al contenuto principale</a>
+<div class="page-shell">
+  <header class="site-header"><a href="/" aria-label="OffertaLogica.it"><img class="site-logo-main" src="/assets/logo-offertalogica-header.png" alt="OffertaLogica.it - Confronta, scegli, risparmia"></a></header>
+  <nav class="top-nav" aria-label="Navigazione principale">
+    <a href="/">Calcolatore</a><a href="/offerte-luce-gas-aggiornate.html">Offerte</a><a href="/speed-test.html">Speed Test</a><a class="active" href="/fotovoltaico.html">Fotovoltaico</a><a href="/come-funziona.html">Come funziona</a>
+  </nav>
+
+  <main id="main-content">
+    <section class="hero">
+      <p class="eyebrow">Strumento gratuito OffertaLogica</p>
+      <h1>Quanto può produrre il fotovoltaico dove sei?</h1>
+      <p>Confronta una stima PVGIS con i tuoi consumi. Per casa o azienda.</p>
+      <p class="hero-note">Non vendiamo impianti e non raccogliamo richieste di preventivo fotovoltaico.</p>
+    </section>
+
+    <section class="tool-card" id="ol-pv-tool" data-mode="consumer" aria-labelledby="tool-title">
+      <div class="tool-head"><div><h2 id="tool-title">Calcola produzione e impatto sui consumi</h2><p>Parti dai dati che conosci. Quelli tecnici sono facoltativi.</p></div></div>
+
+      <div class="segment-switch" role="group" aria-label="Tipo di utenza">
+        <button type="button" class="segment-button active" data-segment="consumer" aria-pressed="true">Casa</button>
+        <button type="button" class="segment-button" data-segment="business" aria-pressed="false">Azienda</button>
+      </div>
+
+      <div class="bill-import-card" id="pv-bill-import">
+        <div><strong>Hai la bolletta luce?</strong><span>È il modo più semplice per recuperare i dati che ci servono senza doverli interpretare a mano.</span></div>
+        <label class="button file-button" for="pv-bill-file">Carica bolletta PDF</label>
+        <input id="pv-bill-file" class="visually-hidden-file" type="file" accept="application/pdf">
+      </div>
+      <div class="bill-import-status" id="pv-bill-status" role="status" aria-live="polite"></div>
+
+      <div class="bill-summary" id="pv-bill-summary" hidden>
+        <div class="bill-summary-head"><div><span class="bill-summary-kicker">Bolletta letta</span><strong id="pv-bill-period-title">Periodo rilevato</strong></div><span class="bill-summary-badge" id="pv-bill-profile">Luce</span></div>
+        <div class="bill-summary-grid">
+          <div><span>Consumo del periodo</span><strong id="pv-bill-period-consumption">—</strong></div>
+          <div><span>Totale bolletta</span><strong id="pv-bill-total">—</strong></div>
+          <div><span>Consumo annuo trovato</span><strong id="pv-bill-annual">Non presente</strong></div>
+          <div><span>Profilo fasce</span><strong id="pv-bill-bands">Non presente</strong></div>
+        </div>
+        <p class="bill-summary-note" id="pv-bill-annual-note"></p>
+        <details class="bill-detail"><summary>Vedi F1 / F2 / F3 e potenza</summary><div class="bill-detail-grid"><span>F1 <strong id="pv-bill-f1">—</strong></span><span>F2 <strong id="pv-bill-f2">—</strong></span><span>F3 <strong id="pv-bill-f3">—</strong></span><span>Potenza <strong id="pv-bill-power">—</strong></span></div></details>
+      </div>
+
+      <input id="pv-lat" type="hidden"><input id="pv-lon" type="hidden"><input id="pv-place-label" type="hidden">
+      <div class="form-grid main-fields">
+        <div class="field span-2">
+          <label for="pv-place-search">Comune o CAP</label>
+          <div class="place-row"><input id="pv-place-search" type="text" autocomplete="postal-code" placeholder="Es. Ravenna oppure 48125"><button class="button secondary" id="pv-find-place" type="button">Trova zona</button></div>
+          <small>Serve solo per usare i dati solari della zona. Se la ricerca non funziona puoi scegliere la regione.</small>
+        </div>
+        <div class="field span-2 fallback-field"><label for="pv-region">Oppure scegli la regione</label><select id="pv-region"><option value="">Seleziona una regione</option><option>Valle d’Aosta</option><option>Piemonte</option><option>Liguria</option><option>Lombardia</option><option>Trentino-Alto Adige</option><option>Veneto</option><option>Friuli-Venezia Giulia</option><option>Emilia-Romagna</option><option>Toscana</option><option>Umbria</option><option>Marche</option><option>Lazio</option><option>Abruzzo</option><option>Molise</option><option>Campania</option><option>Puglia</option><option>Basilicata</option><option>Calabria</option><option>Sicilia</option><option>Sardegna</option></select></div>
+
+        <div class="field"><label for="pv-power-kw">Potenza dell’impianto da simulare (kW)</label><input id="pv-power-kw" type="number" min="1" max="1000" step="0.1" placeholder="Es. 6"><small>È solo lo scenario che vuoi provare, non una potenza consigliata. Puoi fare più simulazioni.</small></div>
+        <div class="field"><label for="pv-surface-m2">Oppure superficie disponibile (m²)</label><input id="pv-surface-m2" type="number" min="6" step="1" placeholder="Es. 36"><small>Se lasci vuoti i kW, ricaviamo solo una potenza di scenario dalla superficie con un riferimento ENEA. Non è un dimensionamento tecnico.</small></div>
+        <div class="field span-2"><label for="pv-consumption-kwh">Consumo annuo luce (kWh, facoltativo)</label><input id="pv-consumption-kwh" type="number" min="1" step="1" placeholder="Es. 3500"><small id="pv-consumption-help">Se non lo conosci puoi calcolare comunque la produzione. Se la bolletta contiene un dato annuo affidabile lo inseriamo noi; un singolo mese non viene annualizzato.</small></div>
+
+        <div class="field span-2">
+          <label for="pv-usage-profile">Quando usi più energia? (facoltativo)</label>
+          <select id="pv-usage-profile">
+            <option value="unknown">Non lo so — mostrami solo produzione e bilancio annuo</option>
+            <option value="low">Soprattutto mattina presto e sera</option>
+            <option value="medium">Distribuita tra giorno e sera</option>
+            <option value="high">Soprattutto durante il giorno</option>
+            <option value="continuous">Più o meno tutto il giorno e la notte</option>
+          </select>
+          <small id="pv-profile-help">Se la bolletta contiene F1/F2/F3 usiamo prima quelle proporzioni. Se scegli un profilo semplice, l’ipotesi numerica usata viene dichiarata nel risultato.</small>
+        </div>
+
+        <div class="field business-only" hidden><label for="pv-business-kind">Tipo di azienda</label><select id="pv-business-kind"><option value="generic">Azienda / attività</option><option value="agriculture">Azienda agricola</option></select></div>
+        <div class="field business-only" hidden><label for="pv-contract-power">Potenza impegnata (kW, facoltativa)</label><input id="pv-contract-power" type="number" min="1" max="1000" step="0.1" placeholder="Es. 30"></div>
+        <div class="agriculture-only callout compact-callout" hidden><strong>Azienda agricola:</strong> la simulazione riguarda fotovoltaico su tetti e capannoni. L’agrivoltaico su terreno è un caso diverso.</div>
+      </div>
+
+      <details class="advanced-panel">
+        <summary>Dettagli avanzati — solo se li conosci</summary>
+        <div class="form-grid advanced-grid">
+          <div class="field"><label for="pv-orientation">Orientamento moduli</label><select id="pv-orientation"><option value="auto">Non lo so — usa configurazione ottimale PVGIS</option><option value="0">Sud</option><option value="-45">Sud-est</option><option value="45">Sud-ovest</option><option value="-90">Est</option><option value="90">Ovest</option></select></div>
+          <div class="field"><label for="pv-tilt">Inclinazione moduli (°)</label><input id="pv-tilt" type="number" min="0" max="90" step="1" placeholder="Lascia vuoto se non la sai"><small>Se orientamento o inclinazione sono incompleti, usiamo gli angoli ottimali calcolati da PVGIS.</small></div>
+          <div class="field"><label for="pv-f1">F1 (kWh)</label><input id="pv-f1" type="number" min="0" step="1" placeholder="Facoltativo"></div>
+          <div class="field"><label for="pv-f2">F2 (kWh)</label><input id="pv-f2" type="number" min="0" step="1" placeholder="Facoltativo"></div>
+          <div class="field"><label for="pv-f3">F3 (kWh)</label><input id="pv-f3" type="number" min="0" step="1" placeholder="Facoltativo"></div>
+          <div class="advanced-note">F1/F2/F3 servono solo a ricostruire una distribuzione indicativa dei consumi nelle ore della settimana. Non vengono trattate come una curva oraria reale.</div>
+        </div>
+      </details>
+
+      <div class="actions"><button class="button primary" id="pv-calc" type="button">Calcola con PVGIS</button></div>
+      <div class="status" id="pv-status" role="status" aria-live="polite"></div>
+
+      <div class="result-wrap" id="pv-results" hidden tabindex="-1">
+        <div class="source-line"><span class="source-badge">Produzione: PVGIS 5.3 · Commissione Europea</span><span id="pv-result-source-detail"></span></div>
+        <p class="result-kicker">Stima per <span id="pv-result-place">la tua zona</span></p>
+        <div class="plain-result"><h3>In pratica</h3><p id="pv-result-summary">—</p></div>
+
+        <div class="metrics annual-metrics">
+          <div class="metric"><strong id="pv-result-annual">—</strong><span>Produzione FV stimata / anno</span></div>
+          <div class="metric"><strong id="pv-result-consumption">—</strong><span>Tu consumi / anno</span></div>
+          <div class="metric"><strong id="pv-result-balance">—</strong><span>Bilancio energetico annuo</span></div>
+        </div>
+        <p class="balance-note">Il bilancio annuo confronta solo i totali: anche quando la produzione supera i consumi, puoi continuare a comprare energia dalla rete perché produzione e utilizzo non avvengono sempre nello stesso momento.</p>
+
+        <div id="pv-impact-section" hidden>
+          <h3 class="impact-title">Quando produzione e consumi si incontrano</h3>
+          <div class="metrics impact-metrics">
+            <div class="metric accent-metric"><strong id="pv-result-self">—</strong><span>Usati mentre il FV produce</span></div>
+            <div class="metric"><strong id="pv-result-grid">—</strong><span>Da comprare ancora dalla rete</span></div>
+            <div class="metric"><strong id="pv-result-excess">—</strong><span>Prodotti in altri momenti</span></div>
+          </div>
+          <p class="profile-note" id="pv-profile-note"></p>
+        </div>
+        <div class="profile-missing" id="pv-profile-missing" hidden><strong>Non stimiamo l’autoconsumo senza sapere quando consumi.</strong><span>Puoi caricare una bolletta con F1/F2/F3 oppure scegliere sopra un profilo indicativo. La produzione PVGIS resta valida anche senza questo dato.</span></div>
+
+        <div class="storage-note"><strong>E la batteria?</strong><span>Un accumulo può spostare parte dell’energia prodotta di giorno verso altre ore, ma OffertaLogica non ne propone automaticamente la capacità. Per dimensionarla in modo serio serve un profilo di consumo più dettagliato.</span></div>
+
+        <details class="detail-panel"><summary>Vedi produzione mese per mese</summary><div class="chart-wrap"><div class="monthly-chart" id="pv-monthly-chart" aria-label="Grafico della produzione mensile stimata da PVGIS"></div></div></details>
+        <details class="detail-panel"><summary>Come viene calcolata la stima</summary><div class="method-copy"><p><strong>Produzione:</strong> PVGIS 5.3 del Joint Research Centre della Commissione Europea, con dati solari della località, tecnologia cristallina recente e perdite di sistema del 14%.</p><p><strong>Superficie:</strong> se non inserisci i kW, usiamo solo per creare lo scenario il riferimento ENEA 2026 di circa 18 m² per 3 kWp (circa 6 m²/kWp). Non considera ombre, corridoi, vincoli strutturali o antincendio e non è un dimensionamento.</p><p><strong>Ore di produzione:</strong> il profilo giornaliero medio di irraggiamento PVGIS viene scalato sulla produzione mensile PVGIS.</p><p><strong>Consumi:</strong> se abbiamo F1/F2/F3, usiamo le fasce orarie definite da ARERA e le distribuiamo convenzionalmente nelle rispettive ore di una settimana tipo. Se non abbiamo le fasce, usiamo solo il profilo semplice scelto esplicitamente dall’utente e mostriamo l’ipotesi numerica adottata. Se scegli “Non lo so”, non calcoliamo l’autoconsumo.</p><p><strong>Limiti:</strong> F1/F2/F3 non sono una curva oraria reale; un singolo periodo di bolletta può non rappresentare tutto l’anno. Festivi, ombre locali, layout reale e cambiamenti nelle abitudini dopo l’installazione possono modificare il risultato.</p></div></details>
+      </div>
+    </section>
+
+    <section class="cta-card" id="pv-next-step" aria-labelledby="next-title">
+      <div><h2 id="next-title">Quanto paghi l’energia che continuerai a comprare?</h2><p id="pv-next-copy">Il fotovoltaico riduce i kWh prelevati dalla rete. OffertaLogica può verificare il costo dei kWh che restano.</p></div>
+      <a class="button primary" id="pv-compare-cta" data-pv-track="compare_cta_clicked" href="/?landing=0&amp;source=fotovoltaico">Vai al confronto offerte</a>
+    </section>
+
+    <section class="content-card compact-content"><h2>Tre cose da ricordare</h2><div class="content-grid"><article class="info-box"><h3>Produzione ≠ consumo</h3><p>Conta anche il momento in cui l’energia viene prodotta e utilizzata.</p></article><article class="info-box"><h3>La bolletta aiuta</h3><p>Consumo annuo e fasce migliorano la stima senza chiederti di interpretare dati tecnici.</p></article><article class="info-box"><h3>Restano kWh di rete</h3><p>È su quell’energia residua che ha senso controllare la tua offerta luce.</p></article></div></section>
+  </main>
+
+  <footer class="footer"><div>© 2026 OffertaLogica.it · Simulazione informativa, non progettazione o preventivo fotovoltaico.</div><nav><a href="/speed-test.html">Speed Test</a><a href="/energia-aziende-agricole.html">Energia aziende agricole</a><a href="/come-leggere-bolletta-luce-gas.html">Guida bolletta</a><a href="/termini-condizioni.html">Termini</a><a href="https://www.iubenda.com/privacy-policy/36565194">Privacy</a></nav></footer>
+</div>
+<script src="/assets/fotovoltaico-tool.js?v=1.3.0" defer></script>
+</body>
+</html>
