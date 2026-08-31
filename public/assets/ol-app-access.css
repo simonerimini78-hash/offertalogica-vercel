@@ -135,3 +135,396 @@
         grid-template-columns: minmax(0, 1fr) !important;
     }
 }
+
+/* ================================================================
+ * OFFERTALOGICA — CONSOLIDAMENTO VISIVO FLUID GLASS v1.0.0
+ * Solo presentazione: nessuna regola modifica display funzionali,
+ * ID, form logic, tracking, motore di confronto o aggiornamenti dati.
+ * ================================================================ */
+
+:root {
+    --ol-glass-text: #123044;
+    --ol-glass-muted: #647985;
+    --ol-glass-deep: #087f3a;
+    --ol-glass-green: #18a84b;
+    --ol-glass-lime: #84d126;
+    --ol-glass-border: rgba(227, 233, 231, .86);
+    --ol-glass-border-strong: rgba(148, 163, 184, .28);
+    --ol-glass-surface: linear-gradient(155deg, rgba(255,255,255,.74) 0%, rgba(244,247,245,.58) 52%, rgba(227,233,231,.42) 100%);
+    --ol-glass-surface-strong: linear-gradient(145deg, rgba(255,255,255,.86) 0%, rgba(244,248,245,.72) 58%, rgba(231,239,234,.58) 100%);
+    --ol-glass-shadow: 0 24px 58px rgba(18,48,68,.12), inset 0 1px 0 rgba(255,255,255,.90);
+    --ol-glass-shadow-soft: 0 14px 34px rgba(18,48,68,.09), inset 0 1px 0 rgba(255,255,255,.86);
+}
+
+/* Base comune: stessa atmosfera delle pagine Speed Test / FV / Clima. */
+html {
+    background: #f4f7f5;
+}
+
+body {
+    color: var(--ol-glass-text) !important;
+    font-family: ui-rounded, "SF Pro Rounded", "Aptos", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+    background:
+        radial-gradient(circle at 18% 10%, rgba(132,209,38,.15), transparent 30%),
+        radial-gradient(circle at 82% 26%, rgba(24,168,75,.11), transparent 34%),
+        radial-gradient(circle at 48% 92%, rgba(8,127,58,.07), transparent 36%),
+        linear-gradient(145deg, #f4f7f5 0%, #eef5f0 52%, #ffffff 100%) !important;
+    background-attachment: fixed !important;
+}
+
+/* Header e navigazione: continuita visiva fra aree editoriali e strumenti. */
+.topbar {
+    background: rgba(255,255,255,.58) !important;
+    border-bottom-color: rgba(227,233,231,.78) !important;
+    box-shadow: 0 10px 28px rgba(18,48,68,.05) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(135%);
+    backdrop-filter: blur(24px) saturate(135%);
+}
+
+.nav a,
+.top-nav a {
+    border: 1px solid rgba(227,233,231,.86) !important;
+    border-radius: 14px !important;
+    background: rgba(255,255,255,.52) !important;
+    color: #315564 !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.88), 0 7px 18px rgba(18,48,68,.045) !important;
+    -webkit-backdrop-filter: blur(18px) saturate(135%);
+    backdrop-filter: blur(18px) saturate(135%);
+}
+
+.nav a:hover,
+.top-nav a:hover,
+.nav a[aria-current="page"],
+.top-nav a.active {
+    color: var(--ol-glass-deep) !important;
+    border-color: rgba(24,168,75,.28) !important;
+    background: rgba(255,255,255,.70) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.94), 0 10px 24px rgba(18,48,68,.07) !important;
+}
+
+/* Hero delle pagine classiche. Gli strumenti Fluid Glass hanno gia un hero proprio. */
+.hero > .shell {
+    border: 1px solid var(--ol-glass-border) !important;
+    border-radius: clamp(24px, 4vw, 36px) !important;
+    padding: clamp(24px, 4vw, 42px) !important;
+    background: var(--ol-glass-surface) !important;
+    box-shadow: var(--ol-glass-shadow) !important;
+    -webkit-backdrop-filter: blur(26px) saturate(138%);
+    backdrop-filter: blur(26px) saturate(138%);
+}
+
+.hero > .shell h1,
+.hero h1 {
+    color: var(--ol-glass-text) !important;
+    letter-spacing: -.03em !important;
+}
+
+.eyebrow {
+    color: var(--ol-glass-deep) !important;
+}
+
+.hero > .shell p,
+.hero-copy,
+.section-lead {
+    color: var(--ol-glass-muted) !important;
+}
+
+/* Superfici ricorrenti: cambia solo l'aspetto, non il layout. */
+.panel,
+.toc,
+.mini-card,
+.card,
+.provider-card,
+.related-card,
+.info-box,
+.method-card,
+.process-item,
+.pipeline-row,
+.network-tile,
+.device-tile,
+.business-section,
+.manual-block,
+.partner-box,
+.partner-vertical-card,
+.supply-compare-card,
+.smart-home-teaser,
+.figure,
+.detail-panel,
+.trust-strip,
+.ol-interactive,
+.ol-choice-result,
+.content-card,
+.cta-card {
+    border-color: var(--ol-glass-border) !important;
+    border-radius: 20px !important;
+    background: rgba(255,255,255,.72) !important;
+    box-shadow: var(--ol-glass-shadow-soft) !important;
+    -webkit-backdrop-filter: blur(20px) saturate(135%);
+    backdrop-filter: blur(20px) saturate(135%);
+}
+
+/* I contenitori principali possono essere piu morbidi senza cambiare geometria. */
+.panel,
+.provider-card,
+.ol-interactive,
+.content-card,
+.cta-card {
+    border-radius: 24px !important;
+}
+
+.toc {
+    background: rgba(255,255,255,.66) !important;
+}
+
+.toc a {
+    border-top-color: rgba(148,163,184,.18) !important;
+    color: #315564 !important;
+}
+
+.toc a:hover {
+    color: var(--ol-glass-deep) !important;
+}
+
+/* Callout e messaggi: manteniamo il significato cromatico ma in stile glass. */
+.notice,
+.remember,
+.warning,
+.disclaimer,
+.legal-note,
+.input-guidance,
+.profile-missing,
+.storage-note,
+.diagnostic-callout,
+.pdf-context-notice {
+    border-radius: 16px !important;
+    box-shadow: 0 10px 26px rgba(18,48,68,.06) !important;
+    -webkit-backdrop-filter: blur(16px) saturate(130%);
+    backdrop-filter: blur(16px) saturate(130%);
+}
+
+.notice,
+.remember,
+.input-guidance,
+.profile-missing,
+.storage-note,
+.diagnostic-callout,
+.pdf-context-notice {
+    background: rgba(240,253,244,.76) !important;
+    border-color: rgba(134,239,172,.56) !important;
+}
+
+/* Pulsanti e scelte: stessa forma e profondita in tutto il sito. */
+.button,
+.btn-action,
+.lead-primary,
+.lead-secondary,
+.business-secondary-action,
+.ol-inline-cta,
+.ol-choice,
+.choice-button,
+.segment-switch button,
+.secondary-link {
+    border-radius: 14px !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.32), 0 8px 20px rgba(18,48,68,.07) !important;
+}
+
+.button.primary,
+.btn-action,
+.lead-primary,
+.ol-inline-cta:not(.secondary) {
+    background: linear-gradient(135deg, #087f3a 0%, #18a84b 62%, #67c82f 100%) !important;
+    border-color: rgba(8,127,58,.30) !important;
+    color: #fff !important;
+}
+
+.button.secondary,
+.lead-secondary,
+.business-secondary-action,
+.ol-inline-cta.secondary,
+.ol-choice,
+.choice-button {
+    background: rgba(255,255,255,.70) !important;
+    border-color: rgba(148,163,184,.30) !important;
+    color: #315564 !important;
+}
+
+.button:hover,
+.btn-action:hover,
+.lead-primary:hover,
+.lead-secondary:hover,
+.business-secondary-action:hover,
+.ol-inline-cta:hover,
+.ol-choice:hover,
+.choice-button:hover {
+    transform: translateY(-1px);
+}
+
+/* Form: nessun cambio di nome, valore, stato o comportamento. */
+.input-group input,
+.input-group select,
+.input-group textarea,
+.field input,
+.field select,
+.field textarea,
+.ol-field input,
+.ol-field select,
+.lead-field input,
+.lead-field select,
+.fixed-fee-input,
+input[type="text"],
+input[type="email"],
+input[type="tel"],
+input[type="number"],
+select,
+textarea {
+    border-color: rgba(148,163,184,.42) !important;
+    border-radius: 13px !important;
+    background: rgba(255,255,255,.78) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.90), 0 5px 16px rgba(18,48,68,.04) !important;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    border-color: rgba(24,168,75,.55) !important;
+    box-shadow: 0 0 0 3px rgba(24,168,75,.10), inset 0 1px 0 rgba(255,255,255,.94) !important;
+}
+
+/* Tabelle e dati: superfici leggere, numeri sempre leggibili. */
+.table-wrap {
+    border-color: var(--ol-glass-border) !important;
+    border-radius: 18px !important;
+    background: rgba(255,255,255,.64) !important;
+    box-shadow: var(--ol-glass-shadow-soft) !important;
+    -webkit-backdrop-filter: blur(18px) saturate(130%);
+    backdrop-filter: blur(18px) saturate(130%);
+}
+
+.table-wrap table,
+table {
+    background: rgba(255,255,255,.58) !important;
+}
+
+th {
+    background: rgba(244,247,245,.84) !important;
+    color: #315564 !important;
+}
+
+th,
+td {
+    border-bottom-color: rgba(148,163,184,.18) !important;
+}
+
+/* CTA scure preesistenti: diventano una superficie premium coerente. */
+.cta {
+    border: 1px solid rgba(227,233,231,.28) !important;
+    border-radius: 24px !important;
+    background: linear-gradient(145deg, rgba(18,48,68,.96), rgba(8,92,61,.94)) !important;
+    box-shadow: 0 22px 50px rgba(18,48,68,.18), inset 0 1px 0 rgba(255,255,255,.10) !important;
+}
+
+.cta h2,
+.cta strong {
+    color: #fff !important;
+}
+
+.cta p {
+    color: rgba(240,253,244,.78) !important;
+}
+
+/* Barra App / Premium: elemento comune visibile su quasi tutto il sito. */
+.ol-app-access-inner {
+    padding-top: 10px;
+}
+
+.ol-app-access-link {
+    border-radius: 14px;
+    background: rgba(255,255,255,.66);
+    border-color: rgba(227,233,231,.90);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.94), 0 10px 24px rgba(18,48,68,.07);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+    backdrop-filter: blur(20px) saturate(140%);
+}
+
+.ol-app-access-free {
+    background: rgba(240,253,244,.74);
+    border-color: rgba(24,168,75,.28);
+    color: #087f3a !important;
+}
+
+.ol-app-access-premium {
+    background: rgba(239,246,255,.76);
+    border-color: rgba(59,130,246,.24);
+    color: #1d4ed8 !important;
+}
+
+/* Footer: stessa chiusura visiva su tutte le famiglie di pagina. */
+.footer {
+    border-top-color: rgba(227,233,231,.76) !important;
+    background: rgba(255,255,255,.46) !important;
+    -webkit-backdrop-filter: blur(20px) saturate(130%);
+    backdrop-filter: blur(20px) saturate(130%);
+}
+
+.footer a,
+.footer button {
+    color: #536b78 !important;
+}
+
+.footer a:hover,
+.footer button:hover {
+    color: var(--ol-glass-deep) !important;
+}
+
+/* Accessibilita e motion: nessuna animazione necessaria per capire lo stato. */
+@media (prefers-reduced-motion: reduce) {
+    .button,
+    .btn-action,
+    .lead-primary,
+    .lead-secondary,
+    .business-secondary-action,
+    .ol-inline-cta,
+    .ol-choice,
+    .choice-button,
+    .nav a,
+    .top-nav a {
+        transition: none !important;
+        transform: none !important;
+    }
+}
+
+@media (max-width: 700px) {
+    body {
+        background-attachment: scroll !important;
+    }
+
+    .hero > .shell {
+        border-radius: 24px !important;
+        padding: 22px 18px !important;
+    }
+
+    .panel,
+    .provider-card,
+    .ol-interactive,
+    .content-card,
+    .cta-card,
+    .cta {
+        border-radius: 20px !important;
+    }
+
+    .nav a,
+    .top-nav a {
+        border-radius: 12px !important;
+    }
+}
+
+/* Stati selezionati: restano visivamente distinguibili dopo l'override comune. */
+.ol-choice[aria-pressed="true"],
+.choice-button.active,
+.segment-switch button.active,
+.segment-button.active {
+    background: linear-gradient(135deg, rgba(187,247,208,.72), rgba(220,252,231,.82)) !important;
+    border-color: rgba(74,222,128,.72) !important;
+    color: #166534 !important;
+    box-shadow: 0 0 0 2px rgba(22,163,74,.10), inset 0 1px 0 rgba(255,255,255,.82) !important;
+}
