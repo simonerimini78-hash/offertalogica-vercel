@@ -1,4 +1,4 @@
-const TOOL_VERSION = '1.0.0';
+const TOOL_VERSION = '1.0.1';
 const TRACK_URL = '/api/track-event';
 const TOOL_CODE = 'climatizzazione_pdc';
 const SOURCE = 'seo_climatizzazione_pdc';

@@ -16,7 +16,7 @@
   <link rel="icon" type="image/png" href="/assets/logo-offertalogica-icon.png">
   <link rel="apple-touch-icon" href="/assets/logo-offertalogica-icon.png">
   <link rel="stylesheet" href="/assets/ol-app-access.css">
-  <link rel="stylesheet" href="/assets/climatizzazione-pdc-tool.css?v=1.0.0">
+  <link rel="stylesheet" href="/assets/climatizzazione-pdc-tool.css?v=1.0.1">
   <script type="application/ld+json">
   {
     "@context":"https://schema.org",
@@ -77,6 +77,16 @@
           </button>
         </div>
       </fieldset>
+
+      <aside class="precision-cta" aria-labelledby="precision-title">
+        <div class="precision-copy">
+          <span class="precision-badge">Per un calcolo più preciso</span>
+          <h3 id="precision-title">Hai una bolletta? Meglio partire dai dati reali</h3>
+          <p>Caricando la bolletta OffertaLogica può usare i tuoi consumi e il costo reale dell’energia, invece di basarsi soltanto sui valori inseriti a mano. Dopo il caricamento il percorso prosegue verso il confronto delle offerte attivabili.</p>
+        </div>
+        <a class="button primary precision-button" id="clima-bill-cta" data-clima-track="bill_cta" href="/?landing=0&amp;source=climatizzazione_pdc">Carica la bolletta</a>
+        <p class="precision-or">Oppure continua qui sotto con la stima preliminare.</p>
+      </aside>
 
       <div class="service-switch" id="clima-service-switch" hidden>
         <label for="clima-service">Per il climatizzatore caldo/freddo, cosa vuoi stimare?</label>
@@ -199,20 +209,12 @@
       </div>
     </section>
 
-    <section class="cta-card" aria-labelledby="bill-title">
-      <div>
-        <h2 id="bill-title">Vuoi sapere quanto ti costerebbe con la tua tariffa reale?</h2>
-        <p>Carica la bolletta per usare i tuoi dati energetici nel percorso OffertaLogica.</p>
-      </div>
-      <a class="button primary" id="clima-bill-cta" data-clima-track="bill_cta" href="/?landing=0&amp;source=climatizzazione_pdc">Carica la bolletta</a>
-    </section>
-
     <section class="cta-card secondary-cta" aria-labelledby="compare-title">
       <div>
-        <h2 id="compare-title">Confronta le offerte sulla base dei tuoi consumi</h2>
-        <p>Usa il risultato come riferimento e verifica quanto incide il prezzo dell'energia.</p>
+        <h2 id="compare-title">Confronta le offerte attivabili</h2>
+        <p>Se hai già caricato la bolletta, il percorso OffertaLogica usa i dati reali e prosegue direttamente al confronto. Se non l’hai ancora caricata, usa prima la CTA sopra il calcolo.</p>
       </div>
-      <a class="button secondary" id="clima-compare-cta" data-clima-track="compare_cta" href="/?landing=0&amp;source=climatizzazione_pdc">Confronta le offerte</a>
+      <a class="button secondary" id="clima-compare-cta" data-clima-track="compare_cta" href="/?landing=0&amp;source=climatizzazione_pdc">Vai alle offerte attivabili</a>
     </section>
 
     <section class="content-card compact-content">
@@ -244,6 +246,6 @@
     </nav>
   </footer>
 </div>
-<script src="/assets/climatizzazione-pdc-tool.js?v=1.0.0" defer></script>
+<script src="/assets/climatizzazione-pdc-tool.js?v=1.0.1" defer></script>
 </body>
 </html>
