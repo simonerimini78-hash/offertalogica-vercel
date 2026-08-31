@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const RELEASE = "0.36.86";
+  const RELEASE = "0.36.87";
   if (window.OffertaLogicaStaffManagement?.release === RELEASE) return;
 
   const TIME_ZONE = "Europe/Rome";

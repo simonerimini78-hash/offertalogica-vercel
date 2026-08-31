@@ -6,7 +6,7 @@ import { del } from "../lib/store.js";
 import { requireStaffSession } from "../lib/staffSessionAuth.js";
 import { writeStaffAudit } from "../lib/staffAudit.js";
 
-const MANAGEMENT_RELEASE = "0.36.86";
+const MANAGEMENT_RELEASE = "0.36.87";
 const CUSTOMER_PAGE_SIZE = 1000;
 const CUSTOMER_MAX_ROWS = 20000;
 const BUSINESS_ALIASES = new Set(["business", "azienda", "aziende", "piva", "p.iva", "impresa"]);

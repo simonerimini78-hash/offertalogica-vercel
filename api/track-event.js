@@ -67,6 +67,9 @@ const ALLOWED_EVENT_TYPES = new Set([
   "landing_view",
   "landing_self_service_click",
   "landing_assisted_click",
+
+  // P13 — telemetria strumenti usata dal Gestionale Linee/Strumenti.
+  "interactive_tool_event",
 ]);
 
 // These events describe security- or revenue-relevant funnel stages. They are
@@ -151,6 +154,8 @@ function sanitizePayload(payload = {}) {
     customerType: text(input.customerType, 40),
     dataOrigin: text(input.dataOrigin, 60),
     leadSource: text(input.leadSource, 60),
+    toolCode: text(input.toolCode || input.tool_code, 60),
+    toolAction: text(input.toolAction || input.tool_action, 40),
     tipoPrezzo: text(input.tipoPrezzo, 40),
     tipoFornitura: text(input.tipoFornitura, 40),
     regioneGas: text(input.regioneGas, 80),
