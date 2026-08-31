@@ -12707,6 +12707,16 @@ function collegaEventiUX() {
       preparaRisparmioIngressoSocialMobile();
       return;
     }
+    const replayParams = new URLSearchParams(window.location.search || "");
+    const climatizzazioneReplay = replayParams.get("pdfReplay") === "1"
+      && replayParams.get("source") === "climatizzazione_pdc";
+    if (climatizzazioneReplay) {
+      window.avviaComparazioneDati?.();
+      window.setTimeout(() => {
+        document.querySelector(".fornitori-consigliati-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 120);
+      return;
+    }
     const risultatiVisibili = document.querySelector(".fornitori-consigliati-section")?.style.display === "block";
     if (risultatiVisibili) avviaComparazioneDati();
   });
@@ -12870,7 +12880,7 @@ if (document.readyState === "loading") {
 
 <div class="smart-home-teaser post-offers-teaser">
     <div>
-        <strong>Climatizzazione e pompa di calore</strong>
+        <strong>Climatizzazione e Riscaldamento</strong>
         <p>Stima potenza, consumi e costo di condizionatore, climatizzatore caldo/freddo o pompa di calore, anche partendo dalla tua bolletta.</p>
     </div>
     <a href="/climatizzazione-pompa-di-calore.html">Calcola consumi e costi</a>

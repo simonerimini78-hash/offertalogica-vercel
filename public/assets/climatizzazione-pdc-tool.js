@@ -1,6 +1,8 @@
-const TOOL_VERSION = '1.0.3';
+const TOOL_VERSION = '1.0.4';
 const TRACK_URL = '/api/track-event';
 const ANALYZE_PDF_URL = '/api/analyze-pdf';
+const PDF_DIRECT_UPLOAD_THRESHOLD_BYTES = 4_000_000;
+const PDF_ARCHIVE_REPLAY_STORAGE_KEY = 'offertalogicaPdfArchiveReplay';
 const TOOL_CODE = 'climatizzazione_pdc';
 const SOURCE = 'seo_climatizzazione_pdc';
 
@@ -34,6 +36,7 @@ let mode = 'cooling';
 let hasCalculated = false;
 let billProfile = {provider: '', annualKwh: null, priceKwh: null};
 let billAnalysisBusy = false;
+let billReplayPayload = null;
 
 const sessionId = (() => {
   try { if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID(); } catch {}
@@ -161,10 +164,6 @@ function validateInputs() {
 }
 
 
-function normalizeKey(value) {
-  return String(value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
-}
-
 function parseBillNumber(value) {
   if (typeof value === 'number') return Number.isFinite(value) ? value : null;
   if (typeof value !== 'string') return null;
@@ -176,76 +175,138 @@ function parseBillNumber(value) {
     else raw = raw.replace(/,/g, '');
   } else if (raw.includes(',')) {
     raw = raw.replace(',', '.');
-  } else {
-    const pieces = raw.split('.');
-    if (pieces.length > 2 || (pieces.length === 2 && pieces[1].length === 3 && pieces[0].length >= 1)) {
-      raw = pieces.join('');
-    }
   }
   raw = raw.replace(/[^0-9.+-]/g, '');
   const parsed = Number(raw);
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function walkBillData(node, visit, depth = 0) {
-  if (depth > 8 || node == null) return;
-  if (Array.isArray(node)) {
-    node.forEach((item) => walkBillData(item, visit, depth + 1));
-    return;
-  }
-  if (typeof node !== 'object') return;
+function pdfAnalysisError(payload, fallback = 'Errore analisi PDF') {
+  const error = new Error(payload?.error || fallback);
+  error.code = payload?.code || 'PDF_ANALYSIS_ERROR';
+  error.diagnostic_code = payload?.diagnostic_code || null;
+  error.analysis_stage = payload?.analysis_stage || null;
+  error.ingress_mode = payload?.ingress_mode || null;
+  error.elapsed_ms = Number(payload?.elapsed_ms || 0) || null;
+  return error;
+}
 
-  const labelKey = ['field', 'key', 'name', 'label', 'tipo', 'type'].find((key) => typeof node[key] === 'string');
-  const valueKey = ['value', 'valore', 'amount', 'dato', 'data'].find((key) => node[key] != null && typeof node[key] !== 'object');
-  if (labelKey && valueKey) visit(node[labelKey], node[valueKey]);
+async function pdfJsonResponse(response) {
+  const contentType = response?.headers?.get?.('content-type') || '';
+  if (!contentType.includes('application/json')) throw new Error('api_non_disponibile');
+  const payload = await response.json();
+  if (!response.ok || !payload?.ok) throw pdfAnalysisError(payload);
+  return payload;
+}
 
-  Object.entries(node).forEach(([key, value]) => {
-    if (value == null) return;
-    if (typeof value !== 'object') visit(key, value);
-    walkBillData(value, visit, depth + 1);
-  });
+function pdfContractFieldEntry(data, field) {
+  return data?.data_contract?.fields?.[field] || null;
+}
+
+function pdfSafeAutofillValue(data, field) {
+  const entry = pdfContractFieldEntry(data, field);
+  if (!entry?.autofill?.allowed || entry.status !== 'completo') return undefined;
+  return entry.normalized_value;
+}
+
+function normalizedBillValue(data, field) {
+  const hasContract = Boolean(data?.data_contract?.fields);
+  if (hasContract) return pdfSafeAutofillValue(data, field);
+  const direct = data?.[field];
+  return direct === null || direct === undefined || direct === '' ? undefined : direct;
 }
 
 function extractBillProfile(payload) {
-  const numericCandidates = {annualKwh: [], priceKwh: []};
-  const textCandidates = {provider: []};
-
-  const annualAliases = new Set([
-    'consumoannuoluce', 'consumoannuoenergia', 'consumoannuokwh', 'consumoluceanuo',
-    'consumoluceanuale', 'kwhannui', 'annualkwh', 'annualelectricityconsumption',
-    'electricityannualconsumption', 'annualconsumptionkwh', 'consumoannuo'
-  ]);
-  const priceAliases = new Set([
-    'prezzomedioluce', 'prezzoluce', 'prezzoenergiakwh', 'prezzokwh', 'prezzomedioenergia',
-    'electricityunitprice', 'electricityprice', 'unitpricekwh', 'pricekwh', 'costokwh',
-    'prezzomedioeffettivoluce'
-  ]);
-  const providerAliases = new Set([
-    'fornitoreluce', 'fornitoreenergia', 'providerluce', 'electricityprovider',
-    'venditoreluce', 'fornitore', 'provider', 'venditore'
-  ]);
-
-  walkBillData(payload, (rawKey, rawValue) => {
-    const key = normalizeKey(rawKey);
-    if (annualAliases.has(key)) {
-      const value = parseBillNumber(rawValue);
-      if (value != null && value >= 50 && value <= 1000000) numericCandidates.annualKwh.push(value);
-    }
-    if (priceAliases.has(key)) {
-      const value = parseBillNumber(rawValue);
-      if (value != null && value >= 0.01 && value <= 3) numericCandidates.priceKwh.push(value);
-    }
-    if (providerAliases.has(key) && typeof rawValue === 'string') {
-      const value = rawValue.trim().replace(/\s+/g, ' ').slice(0, 100);
-      if (value && !/^\d/.test(value)) textCandidates.provider.push(value);
-    }
-  });
+  const data = payload?.normalized && typeof payload.normalized === 'object' ? payload.normalized : {};
+  const annualRaw = normalizedBillValue(data, 'consumo_luce_kwh');
+  const priceRaw = normalizedBillValue(data, 'prezzo_luce_eur_kwh');
+  const providerRaw = normalizedBillValue(data, 'fornitore_luce') ?? normalizedBillValue(data, 'fornitore');
+  const annualKwh = parseBillNumber(annualRaw);
+  const priceKwh = parseBillNumber(priceRaw);
+  const provider = typeof providerRaw === 'string' ? providerRaw.trim().replace(/\s+/g, ' ').slice(0, 100) : '';
 
   return {
-    annualKwh: numericCandidates.annualKwh[0] ?? null,
-    priceKwh: numericCandidates.priceKwh[0] ?? null,
-    provider: textCandidates.provider[0] || ''
+    normalized: data,
+    annualKwh: annualKwh != null && annualKwh >= 0 && annualKwh <= 1_000_000 ? annualKwh : null,
+    priceKwh: priceKwh != null && priceKwh >= 0.01 && priceKwh <= 3 ? priceKwh : null,
+    provider
   };
+}
+
+function billArchiveContext() {
+  return {
+    sessionId,
+    staffMode: isStaffPreview(),
+    customerType: 'privato',
+    uploadSequence: 1,
+    source: SOURCE,
+    toolCode: TOOL_CODE
+  };
+}
+
+async function postBillPdf(file) {
+  const archiveContext = billArchiveContext();
+
+  if (Number(file.size || 0) >= PDF_DIRECT_UPLOAD_THRESHOLD_BYTES) {
+    const createResponse = await fetch(ANALYZE_PDF_URL, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        action: 'create_upload',
+        filename: file.name || 'documento.pdf',
+        mimeType: file.type || 'application/pdf',
+        fileSize: Number(file.size || 0)
+      }),
+      credentials: 'same-origin'
+    });
+    const created = await pdfJsonResponse(createResponse);
+    const upload = created.upload || {};
+    if (!upload.uploadUrl || !upload.uploadTicket) throw new Error('Caricamento protetto del PDF non riuscito');
+
+    const signedBody = new FormData();
+    signedBody.append('file', file, file.name || 'documento.pdf');
+    const uploadResponse = await fetch(upload.uploadUrl, {method: 'PUT', body: signedBody});
+    if (!uploadResponse.ok) throw new Error('Caricamento protetto del PDF non riuscito');
+
+    const analyzeResponse = await fetch(ANALYZE_PDF_URL, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        action: 'analyze_uploaded_pdf',
+        uploadTicket: upload.uploadTicket,
+        archiveContext
+      }),
+      credentials: 'same-origin'
+    });
+    return pdfJsonResponse(analyzeResponse);
+  }
+
+  const formData = new FormData();
+  formData.append('pdf', file);
+  formData.append('archiveContext', JSON.stringify(archiveContext));
+  const response = await fetch(ANALYZE_PDF_URL, {
+    method: 'POST',
+    body: formData,
+    credentials: 'same-origin'
+  });
+  return pdfJsonResponse(response);
+}
+
+function pdfErrorPublicMessage(error) {
+  const directMessages = new Set([
+    'PDF troppo grande',
+    'PDF protetto o cifrato',
+    'Il file caricato non è un PDF valido',
+    'PDF mancante o formato non accettato',
+    'Caricamento protetto del PDF non riuscito',
+    'Documento non riconosciuto come bolletta',
+    'Seleziona una bolletta, non una scheda offerta',
+    'Per questo calcolo serve una bolletta luce'
+  ]);
+  if (directMessages.has(error?.message)) return error.message;
+  const diagnostic = error?.diagnostic_code || error?.code;
+  if (diagnostic) return `Lettura non disponibile (${diagnostic})`;
+  return 'Lettura non disponibile';
 }
 
 function setBillReading(active, text = 'Sto leggendo la bolletta…') {
@@ -281,6 +342,32 @@ function persistBillProfile() {
   } catch {}
 }
 
+function persistBillReplay(payload, fileName = '') {
+  const normalized = payload?.normalized && typeof payload.normalized === 'object' ? payload.normalized : null;
+  if (!normalized) return false;
+  billReplayPayload = {
+    filename: fileName || 'bolletta.pdf',
+    analysisId: payload?.archive?.analysisId || payload?.archive?.analysis_id || null,
+    normalized
+  };
+  try {
+    sessionStorage.setItem(PDF_ARCHIVE_REPLAY_STORAGE_KEY, JSON.stringify(billReplayPayload));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function updateCompareDestination() {
+  const link = $('clima-compare-cta');
+  if (!link) return;
+  const target = new URL('/', window.location.origin);
+  target.searchParams.set('landing', '0');
+  target.searchParams.set('source', 'climatizzazione_pdc');
+  if (billReplayPayload?.normalized) target.searchParams.set('pdfReplay', '1');
+  link.href = `${target.pathname}${target.search}`;
+}
+
 function renderBillAutofill(profile, fileName = '') {
   const panel = $('clima-bill-autofill');
   if (!panel) return;
@@ -300,24 +387,6 @@ function renderBillAutofill(profile, fileName = '') {
     : `${fileName ? `${fileName}: ` : ''}la bolletta è stata letta, ma non sono stati trovati valori luce utilizzabili per questi campi.`;
 }
 
-async function postBillPdf(file) {
-  const form = new FormData();
-  form.append('files', file, file.name);
-
-  const response = await fetch(ANALYZE_PDF_URL, {
-    method: 'POST',
-    body: form,
-    credentials: 'same-origin'
-  });
-  const raw = await response.text();
-  let body = {};
-  try { body = raw ? JSON.parse(raw) : {}; } catch { body = {}; }
-
-  if (response.ok && body?.ok !== false) return body;
-  const errorText = String(body?.error || body?.message || '').trim();
-  throw new Error(errorText || `Analisi PDF non riuscita (${response.status})`);
-}
-
 async function analyzeBill(file) {
   if (!file || billAnalysisBusy) return;
   const looksPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
@@ -333,7 +402,17 @@ async function analyzeBill(file) {
   try {
     const response = await postBillPdf(file);
     const profile = extractBillProfile(response);
-    billProfile = profile;
+    const normalized = profile.normalized || {};
+    if (normalized.recognized === false || normalized.kind === 'unknown') {
+      throw new Error('Documento non riconosciuto come bolletta');
+    }
+    if (normalized.kind && normalized.kind !== 'bolletta') {
+      throw new Error('Seleziona una bolletta, non una scheda offerta');
+    }
+    if (normalized.commodity === 'gas') {
+      throw new Error('Per questo calcolo serve una bolletta luce');
+    }
+    billProfile = {provider: profile.provider, annualKwh: profile.annualKwh, priceKwh: profile.priceKwh};
 
     if (profile.annualKwh != null) {
       $('clima-current-consumption').value = String(Math.round(profile.annualKwh));
@@ -346,6 +425,8 @@ async function analyzeBill(file) {
 
     renderBillAutofill(profile, file.name);
     persistBillProfile();
+    persistBillReplay(response, file.name);
+    updateCompareDestination();
 
     const usableCount = Number(profile.annualKwh != null) + Number(profile.priceKwh != null);
     if (usableCount) {
@@ -361,7 +442,7 @@ async function analyzeBill(file) {
       track('bill_analysis_completed', {context: 'autofill:0', outcome: 'no_usable_energy_fields'});
     }
   } catch (error) {
-    const message = error instanceof Error && error.message ? error.message : 'Non è stato possibile leggere la bolletta.';
+    const message = pdfErrorPublicMessage(error);
     status(`${message} Puoi riprovare con un altro PDF o continuare con i dati manuali.`, 'error');
     track('bill_analysis_failed', {context: message.slice(0, 70), outcome: 'failed'});
   } finally {
@@ -633,9 +714,14 @@ $('clima-bill-file')?.addEventListener('change', (event) => {
 });
 
 $('clima-compare-cta')?.addEventListener('click', () => {
-  track('compare_cta', {context: billProfile.annualKwh != null || billProfile.priceKwh != null ? 'bill_profile' : 'manual_profile'});
+  if (billReplayPayload?.normalized) {
+    try { sessionStorage.setItem(PDF_ARCHIVE_REPLAY_STORAGE_KEY, JSON.stringify(billReplayPayload)); } catch {}
+  }
+  updateCompareDestination();
+  track('compare_cta', {context: billReplayPayload?.normalized ? 'bill_replay' : 'manual_profile'});
 });
 
+updateCompareDestination();
 updateEfficiencyFields();
 setMode('cooling', {trackChoice: false});
 track('page_view');
