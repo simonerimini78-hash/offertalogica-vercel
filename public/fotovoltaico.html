@@ -16,7 +16,7 @@
   <link rel="icon" type="image/png" href="/assets/logo-offertalogica-icon.png">
   <link rel="apple-touch-icon" href="/assets/logo-offertalogica-icon.png">
   <link rel="stylesheet" href="/assets/ol-app-access.css">
-  <link rel="stylesheet" href="/assets/fotovoltaico-tool.css?v=1.2.3">
+  <link rel="stylesheet" href="/assets/fotovoltaico-tool.css?v=1.2.4">
   <script type="application/ld+json">
   {"@context":"https://schema.org","@type":"WebApplication","name":"Calcolatore fotovoltaico OffertaLogica","url":"https://offertalogica.it/fotovoltaico.html","applicationCategory":"UtilitiesApplication","operatingSystem":"Web","description":"Simulatore informativo fotovoltaico per casa e aziende con produzione, superficie, autoconsumo e impatto sui consumi elettrici."}
   </script>
@@ -75,24 +75,41 @@
       <div class="imported-note" id="pv-imported-note" hidden>Dati utili della bolletta inseriti nel simulatore. Il consumo del periodo resta separato dal consumo annuo.</div>
 
       <input id="pv-lat" type="hidden"><input id="pv-lon" type="hidden"><input id="pv-place-label" type="hidden">
-      <div class="form-grid">
-        <div class="field span-2"><label for="pv-place-search">Comune o CAP</label><div class="place-row"><input id="pv-place-search" type="text" autocomplete="postal-code" placeholder="Es. Rimini oppure 47921"><button class="button secondary" id="pv-find-place" type="button">Trova zona</button><button class="button secondary" id="pv-use-location" type="button">Usa la mia posizione</button></div><small>Comune/CAP è il metodo consigliato. La posizione del browser è facoltativa.</small></div>
-        <div class="field span-2 fallback-field"><label for="pv-region">Oppure scegli la regione</label><select id="pv-region"><option value="">Seleziona una regione</option><option>Valle d’Aosta</option><option>Piemonte</option><option>Liguria</option><option>Lombardia</option><option>Trentino-Alto Adige</option><option>Veneto</option><option>Friuli-Venezia Giulia</option><option>Emilia-Romagna</option><option>Toscana</option><option>Umbria</option><option>Marche</option><option>Lazio</option><option>Abruzzo</option><option>Molise</option><option>Campania</option><option>Puglia</option><option>Basilicata</option><option>Calabria</option><option>Sicilia</option><option>Sardegna</option></select></div>
+      <div class="form-grid simple-form">
+        <div class="field span-2"><label for="pv-place-search">Dove vuoi simulare l'impianto?</label><div class="place-row"><input id="pv-place-search" type="text" autocomplete="postal-code" placeholder="Comune o CAP, es. Rimini oppure 47921"><button class="button secondary" id="pv-find-place" type="button">Trova zona</button><button class="button secondary" id="pv-use-location" type="button">Usa la mia posizione</button></div><small>Comune o CAP è sufficiente. La posizione del browser è solo un'alternativa.</small></div>
+        <div class="field span-2 fallback-field"><label for="pv-region">Se preferisci, scegli solo la regione</label><select id="pv-region"><option value="">Seleziona una regione</option><option>Valle d’Aosta</option><option>Piemonte</option><option>Liguria</option><option>Lombardia</option><option>Trentino-Alto Adige</option><option>Veneto</option><option>Friuli-Venezia Giulia</option><option>Emilia-Romagna</option><option>Toscana</option><option>Umbria</option><option>Marche</option><option>Lazio</option><option>Abruzzo</option><option>Molise</option><option>Campania</option><option>Puglia</option><option>Basilicata</option><option>Calabria</option><option>Sicilia</option><option>Sardegna</option></select></div>
 
-        <div class="field business-only" hidden><label for="pv-business-kind">Tipo di azienda</label><select id="pv-business-kind"><option value="generic">Azienda / attività</option><option value="agriculture">Azienda agricola</option></select></div>
-        <div class="field business-only" hidden><label for="pv-contract-power">Potenza impegnata (kW, facoltativa)</label><input id="pv-contract-power" type="number" min="1" max="1000" step="0.1" placeholder="Es. 30"></div>
-        <div class="agriculture-only callout compact-callout" hidden><strong>Azienda agricola:</strong> questa simulazione riguarda fotovoltaico su tetti e capannoni. L'agrivoltaico su terreno resta un ambito distinto.</div>
+        <div class="field business-only" hidden><label for="pv-business-kind">Che tipo di azienda è?</label><select id="pv-business-kind"><option value="generic">Azienda / attività</option><option value="agriculture">Azienda agricola</option></select></div>
+        <div class="agriculture-only callout compact-callout" hidden><strong>Azienda agricola:</strong> qui stimiamo fotovoltaico su tetti e capannoni. L'agrivoltaico su terreno è un caso diverso.</div>
 
-        <div class="field"><label for="pv-power-kw">Potenza impianto (kW)</label><input id="pv-power-kw" type="number" min="1" max="1000" step="0.1" value="6"><small>Puoi anche ricavarla dalla superficie disponibile.</small></div>
-        <div class="field"><label for="pv-surface-m2">Superficie disponibile (m², facoltativa)</label><input id="pv-surface-m2" type="number" min="1" step="0.5" placeholder="Es. 35"><button class="button secondary compact-button" id="pv-power-from-surface" type="button">Stima kW dalla superficie</button></div>
-        <div class="field"><label for="pv-orientation">Orientamento prevalente</label><select id="pv-orientation"><option value="south">Sud</option><option value="southeast">Sud-est</option><option value="southwest">Sud-ovest</option><option value="east">Est</option><option value="west">Ovest</option><option value="flat">Tetto piano / disposizione ottimizzabile</option><option value="north">Nord</option></select></div>
-        <div class="field"><label for="pv-tilt">Inclinazione moduli (°)</label><input id="pv-tilt" type="number" min="0" max="90" step="1" value="30"></div>
-        <div class="field"><label for="pv-consumption-kwh">Consumo annuo luce (kWh)</label><input id="pv-consumption-kwh" type="number" min="1" step="1" placeholder="Es. 3500"><small id="pv-consumption-help">Se la bolletta contiene il dato annuo lo inseriamo noi. Il consumo del solo mese/periodo non viene annualizzato.</small></div>
-        <div class="field"><label for="pv-energy-price">Costo energia (€/kWh, facoltativo)</label><input id="pv-energy-price" type="number" min="0.01" max="2" step="0.001" placeholder="Es. 0,28"><small>Se disponibile, usa il valore letto dalla bolletta.</small></div>
+        <div class="field"><label for="pv-power-kw">Potenza dell'impianto da simulare (kW)</label><input id="pv-power-kw" type="number" min="1" max="1000" step="0.1" value="6"><small>Se non la conosci, puoi stimarla dalla superficie del tetto.</small></div>
+        <div class="field"><label for="pv-surface-m2">Superficie utilizzabile (m², se la conosci)</label><input id="pv-surface-m2" type="number" min="1" step="0.5" placeholder="Es. 35"><button class="button secondary compact-button" id="pv-power-from-surface" type="button">Stima la potenza dalla superficie</button></div>
 
-        <div class="field business-only" hidden><label for="pv-f1">Consumo F1 (kWh, facoltativo)</label><input id="pv-f1" type="number" min="0" step="1" placeholder="F1"></div>
-        <div class="field business-only" hidden><label for="pv-f2">Consumo F2 (kWh, facoltativo)</label><input id="pv-f2" type="number" min="0" step="1" placeholder="F2"></div>
-        <div class="field business-only" hidden><label for="pv-f3">Consumo F3 (kWh, facoltativo)</label><input id="pv-f3" type="number" min="0" step="1" placeholder="F3"></div>
+        <div class="field span-2"><label for="pv-consumption-kwh">Quanto consumi in un anno? (kWh)</label><input id="pv-consumption-kwh" type="number" min="1" step="1" placeholder="Es. 3500"><small id="pv-consumption-help">Lo trovi spesso in bolletta come “consumo annuo” o “ultimi 12 mesi”. Se carichi il PDF lo inseriamo automaticamente solo quando il dato è davvero presente.</small></div>
+
+        <div class="field span-2 storage-choice">
+          <label>Vuoi vedere anche cosa cambierebbe con una batteria?</label>
+          <div class="storage-switch" role="group" aria-label="Simulazione accumulo">
+            <button type="button" class="storage-button active" data-storage="none" aria-pressed="true">Senza batteria</button>
+            <button type="button" class="storage-button" data-storage="auto" aria-pressed="false">Con batteria</button>
+          </div>
+          <small id="pv-storage-help">Se scegli “Con batteria”, stimiamo automaticamente una capacità indicativa. Puoi cambiarla nei dettagli avanzati.</small>
+        </div>
+
+        <details class="advanced-form span-2">
+          <summary>Dettagli avanzati <span>facoltativi</span></summary>
+          <p class="advanced-intro">Se non conosci questi dati puoi lasciarli così: il risultato userà ipotesi prudenziali e le dichiarerà come stime.</p>
+          <div class="advanced-grid">
+            <div class="field"><label for="pv-orientation">Orientamento dei pannelli</label><select id="pv-orientation"><option value="unknown" selected>Non lo so — stima prudente</option><option value="south">Sud</option><option value="southeast">Sud-est</option><option value="southwest">Sud-ovest</option><option value="east">Est</option><option value="west">Ovest</option><option value="flat">Tetto piano / disposizione ottimizzabile</option><option value="north">Nord</option></select></div>
+            <div class="field"><label for="pv-tilt">Inclinazione moduli (°, se la conosci)</label><input id="pv-tilt" type="number" min="0" max="90" step="1" placeholder="30"><small>Se vuoto usiamo 30° come riferimento.</small></div>
+            <div class="field"><label for="pv-energy-price">Costo energia (€/kWh, facoltativo)</label><input id="pv-energy-price" type="number" min="0.01" max="2" step="0.001" placeholder="Es. 0,28"><small>Serve solo per stimare il valore economico dell'energia autoconsumata.</small></div>
+            <div class="field storage-only" hidden><label for="pv-battery-kwh">Capacità batteria (kWh, facoltativa)</label><input id="pv-battery-kwh" type="number" min="2" max="500" step="0.5" placeholder="Automatica"><small>Se vuoto la scegliamo noi in modo indicativo in base a impianto e consumi.</small></div>
+            <div class="field business-only" hidden><label for="pv-contract-power">Potenza impegnata (kW, facoltativa)</label><input id="pv-contract-power" type="number" min="1" max="1000" step="0.1" placeholder="Es. 30"></div>
+            <div class="field business-only" hidden><label for="pv-f1">Consumo F1 (kWh, facoltativo)</label><input id="pv-f1" type="number" min="0" step="1" placeholder="F1"></div>
+            <div class="field business-only" hidden><label for="pv-f2">Consumo F2 (kWh, facoltativo)</label><input id="pv-f2" type="number" min="0" step="1" placeholder="F2"></div>
+            <div class="field business-only" hidden><label for="pv-f3">Consumo F3 (kWh, facoltativo)</label><input id="pv-f3" type="number" min="0" step="1" placeholder="F3"></div>
+          </div>
+        </details>
       </div>
 
       <div class="actions"><button class="button primary" id="pv-calc" type="button">Calcola produzione e impatto</button></div>
@@ -100,26 +117,60 @@
 
       <div class="result-wrap" id="pv-results" hidden tabindex="-1">
         <p class="result-kicker">Stima per <span id="pv-result-place">la tua zona</span></p>
-        <div class="plain-result"><h3>In pratica</h3><p id="pv-result-summary">—</p></div>
-        <div class="metrics simple-metrics">
-          <div class="metric"><strong id="pv-result-annual">—</strong><span>Produzione FV stimata / anno</span></div>
-          <div class="metric"><strong id="pv-result-coverage">Serve consumo annuo</strong><span>Consumi coperti direttamente</span></div>
-          <div class="metric"><strong id="pv-result-grid">Serve consumo annuo</strong><span>Da comprare ancora dalla rete</span></div>
+
+        <div class="plain-result">
+          <h3>In pratica</h3>
+          <p id="pv-result-summary">—</p>
+          <div class="balance-badge" id="pv-result-balance" hidden></div>
         </div>
+
+        <div class="metrics overview-metrics">
+          <div class="metric"><strong id="pv-result-annual">—</strong><span>Produzione fotovoltaica stimata / anno</span></div>
+          <div class="metric"><strong id="pv-result-consumption">Non inserito</strong><span>Tuoi consumi / anno</span></div>
+        </div>
+
+        <div class="scenario-grid" id="pv-scenario-grid">
+          <section class="scenario-card">
+            <div class="scenario-head"><span class="scenario-label">Scenario base</span><h3>Senza batteria</h3></div>
+            <div class="scenario-values">
+              <div><strong id="pv-result-self">Serve consumo annuo</strong><span>Usati direttamente mentre il FV produce</span></div>
+              <div><strong id="pv-result-grid">Serve consumo annuo</strong><span>Ancora da comprare dalla rete</span></div>
+              <div><strong id="pv-result-excess">Serve consumo annuo</strong><span>Produzione eccedente in altri momenti</span></div>
+            </div>
+            <p class="scenario-note" id="pv-direct-note">L'autoconsumo dipende da quanto produzione e consumi avvengono nello stesso momento.</p>
+          </section>
+
+          <section class="scenario-card storage-scenario" id="pv-storage-result" hidden>
+            <div class="scenario-head"><span class="scenario-label">Scenario con accumulo</span><h3 id="pv-storage-title">Con batteria</h3></div>
+            <div class="scenario-values">
+              <div><strong id="pv-result-self-storage">—</strong><span>Energia FV usata direttamente o dopo l'accumulo</span></div>
+              <div><strong id="pv-result-grid-storage">—</strong><span>Ancora da comprare dalla rete</span></div>
+              <div><strong id="pv-result-excess-storage">—</strong><span>Produzione eccedente residua</span></div>
+            </div>
+            <p class="scenario-note" id="pv-storage-note">Stima semplificata: la batteria riduce gli sfasamenti tra produzione e consumi, ma non elimina automaticamente tutti i prelievi dalla rete.</p>
+          </section>
+        </div>
+
         <details class="detail-panel">
           <summary>Vedi numeri tecnici</summary>
           <div class="technical-grid">
-            <div><span>Resa</span><strong id="pv-result-specific">—</strong></div><div><span>Superficie</span><strong id="pv-result-area">—</strong></div><div><span>Costo indicativo</span><strong id="pv-result-cost">—</strong></div><div><span>Autoconsumo</span><strong id="pv-result-self">—</strong></div><div><span>Produzione non autoconsumata</span><strong id="pv-result-excess">—</strong></div><div id="pv-saving-impact" hidden><span>Valore energia autoconsumata</span><strong id="pv-result-savings">—</strong></div>
+            <div><span>Copertura diretta senza batteria</span><strong id="pv-result-coverage">—</strong></div>
+            <div><span>Resa</span><strong id="pv-result-specific">—</strong></div>
+            <div><span>Superficie tecnica</span><strong id="pv-result-area">—</strong></div>
+            <div><span>Costo indicativo impianto, senza batteria</span><strong id="pv-result-cost">—</strong></div>
+            <div id="pv-storage-coverage-box" hidden><span>Copertura stimata con batteria</span><strong id="pv-result-coverage-storage">—</strong></div>
+            <div id="pv-saving-impact" hidden><span>Valore energia autoconsumata senza batteria</span><strong id="pv-result-savings">—</strong></div>
           </div>
           <p class="method-note" id="pv-surface-check"></p>
         </details>
+
         <details class="detail-panel">
           <summary>Vedi produzione mese per mese</summary>
           <div class="chart-wrap"><div class="monthly-chart" id="pv-monthly-chart" aria-label="Grafico della produzione mensile stimata"></div></div>
         </details>
         <details class="detail-panel">
           <summary>Come viene calcolata la stima</summary>
-          <p class="method-note">Metodo v1.2: stima preliminare basata su posizione italiana, potenza, orientamento e inclinazione, con coefficienti medi di producibilità. Il consumo del periodo di una bolletta non viene mai trattato come consumo annuo.</p>
+          <p class="method-note">Metodo v1.2.4: stima preliminare. Se non conosci orientamento o inclinazione usiamo ipotesi prudenziali. L'autoconsumo è stimato perché, senza un profilo orario reale, non sappiamo esattamente quando consumi. La batteria è una simulazione indicativa e non un dimensionamento tecnico.</p>
         </details>
       </div>
     </section>
@@ -134,6 +185,6 @@
 
   <footer class="footer"><div>© 2026 OffertaLogica.it · Stima informativa, non progettazione o preventivo fotovoltaico.</div><nav><a href="/speed-test.html">Speed Test</a><a href="/energia-aziende-agricole.html">Energia aziende agricole</a><a href="/come-leggere-bolletta-luce-gas.html">Guida bolletta</a><a href="/termini-condizioni.html">Termini</a><a href="https://www.iubenda.com/privacy-policy/36565194">Privacy</a></nav></footer>
 </div>
-<script src="/assets/fotovoltaico-tool.js?v=1.2.1" defer></script>
+<script src="/assets/fotovoltaico-tool.js?v=1.2.4" defer></script>
 </body>
 </html>

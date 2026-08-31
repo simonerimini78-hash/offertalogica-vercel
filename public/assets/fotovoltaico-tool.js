@@ -1,10 +1,11 @@
-const TOOL_VERSION = '1.2.1';
+const TOOL_VERSION = '1.2.4';
 const TRACK_URL = '/api/track-event';
 const PDF_REPLAY_KEY = 'offertalogicaPdfArchiveReplay';
 const root = document.getElementById('ol-pv-tool');
 if (!root) throw new Error('Fotovoltaico tool root non trovato');
 
 let mode = 'consumer';
+let storageMode = 'none';
 let billReplayPayload = null;
 const source = 'seo_fotovoltaico';
 const sessionId = (() => {
@@ -24,7 +25,7 @@ const REGIONS = {
   'Basilicata': { lat:40.64, lon:15.81, yield:1650 }, 'Calabria': { lat:38.91, lon:16.59, yield:1750 },
   'Sicilia': { lat:38.12, lon:13.36, yield:1810 }, 'Sardegna': { lat:39.22, lon:9.12, yield:1780 }
 };
-const orientationFactor = { south:1, southeast:.96, southwest:.96, east:.88, west:.88, flat:.94, north:.64 };
+const orientationFactor = { unknown:.92, south:1, southeast:.96, southwest:.96, east:.88, west:.88, flat:.94, north:.64 };
 const monthNames = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
 const northDist = [.035,.055,.085,.105,.12,.135,.14,.12,.09,.06,.035,.02];
 const southDist = [.05,.065,.09,.105,.115,.12,.125,.115,.09,.06,.04,.025];
@@ -158,6 +159,40 @@ function updateAgricultureVisibility(){
   document.querySelectorAll('.agriculture-only').forEach((el)=>{ el.hidden=!agriculture; });
 }
 
+function setStorageMode(next){
+  storageMode=next==='auto'?'auto':'none';
+  document.querySelectorAll('[data-storage]').forEach((button)=>{
+    const active=button.dataset.storage===storageMode;
+    button.classList.toggle('active',active);
+    button.setAttribute('aria-pressed',String(active));
+  });
+  document.querySelectorAll('.storage-only').forEach((el)=>{ el.hidden=storageMode!=='auto'; });
+  track('storage_changed',{context:storageMode});
+}
+
+function recommendedBatteryCapacity(consumption,power){
+  const safePower=Math.max(1,Number(power)||1);
+  if(mode==='business'){
+    const raw=consumption&&consumption>0?Math.min(safePower*.9,(consumption/365)*.5):safePower*.75;
+    return clamp(Math.round(raw/5)*5,10,100);
+  }
+  const raw=consumption&&consumption>0?Math.min(safePower*.9,(consumption/365)*.45):safePower*.8;
+  return clamp(Math.round(raw/2.5)*2.5,5,20);
+}
+
+function estimateWithStorage({consumption,annual,selfKwh,batteryKwh}){
+  if(!(consumption>0)&&!(annual>0))return null;
+  const direct=Number(selfKwh)||0;
+  const residual=Math.max(0,consumption-direct);
+  const excess=Math.max(0,annual-direct);
+  const usable=Math.max(0,batteryKwh)*.90;
+  const yearlyShift=usable*(mode==='business'?240:220);
+  const seasonalCap=Math.max(0,Math.min(consumption*(mode==='business'?.93:.90),annual*.95)-direct);
+  const shifted=Math.max(0,Math.min(residual,excess,yearlyShift,seasonalCap));
+  const self=direct+shifted;
+  return {self,residual:Math.max(0,consumption-self),excess:Math.max(0,annual-self),coverage:consumption>0?self/consumption*100:0,shifted};
+}
+
 function compute(){
   const geo=baseYield();
   if(!geo){ status('Inserisci Comune/CAP, scegli una regione oppure usa la posizione.','error'); return; }
@@ -165,31 +200,108 @@ function compute(){
   if((!power||power<=0)&&surface&&surface>0){ power=surface/(mode==='business'?5:5.2); $('pv-power-kw').value=power.toFixed(1); }
   if(!power||power<=0){ status('Inserisci la potenza dell’impianto oppure una superficie disponibile.','error'); return; }
   power=clamp(power,mode==='business'?3:1,mode==='business'?1000:50);
-  const orientation=$('pv-orientation')?.value||'south'; const tilt=clamp(num('pv-tilt')??30,0,90);
-  const specific=geo.value*(orientationFactor[orientation]||1)*tiltFactor(geo.lat,tilt); const annual=power*specific;
-  const areaNeeded=power*(mode==='business'?5:5.2); const [costMin,costMax]=costRange(power); const consumption=num('pv-consumption-kwh');
-  let selfKwh=null,residual=null,excess=null,coverage=null,savings=null;
+
+  const orientation=$('pv-orientation')?.value||'unknown';
+  const tilt=clamp(num('pv-tilt')??30,0,90);
+  const specific=geo.value*(orientationFactor[orientation]||orientationFactor.unknown)*tiltFactor(geo.lat,tilt);
+  const annual=power*specific;
+  const areaNeeded=power*(mode==='business'?5:5.2);
+  const [costMin,costMax]=costRange(power);
+  const consumption=num('pv-consumption-kwh');
+
+  let selfKwh=null,residual=null,excess=null,coverage=null,savings=null,storage=null,batteryKwh=null;
   if(consumption&&consumption>0){
     let selfRate;
     if(mode==='business'){
-      const f1=num('pv-f1'),f2=num('pv-f2'),f3=num('pv-f3'); const complete=[f1,f2,f3].every(v=>v!==null&&v>=0); const bandTotal=complete?f1+f2+f3:0;
-      const dayShare=bandTotal>0?clamp(f1/bandTotal,0,1):.42; const loadRatio=clamp(consumption/annual,0,1.5);
+      const f1=num('pv-f1'),f2=num('pv-f2'),f3=num('pv-f3');
+      const complete=[f1,f2,f3].every(v=>v!==null&&v>=0);
+      const bandTotal=complete?f1+f2+f3:0;
+      const dayShare=bandTotal>0?clamp(f1/bandTotal,0,1):.42;
+      const loadRatio=clamp(consumption/annual,0,1.5);
       const agriculturalBonus=$('pv-business-kind')?.value==='agriculture'?.03:0;
       selfRate=clamp(.28+dayShare*.42+Math.min(1,loadRatio)*.12+agriculturalBonus,.32,.85);
     } else {
-      const loadRatio=clamp(consumption/annual,0,1.5); selfRate=clamp(.25+Math.min(1,loadRatio)*.30,.28,.58);
+      const loadRatio=clamp(consumption/annual,0,1.5);
+      selfRate=clamp(.25+Math.min(1,loadRatio)*.30,.28,.58);
     }
-    selfKwh=Math.min(consumption,annual*selfRate); residual=Math.max(0,consumption-selfKwh); excess=Math.max(0,annual-selfKwh); coverage=selfKwh/consumption*100;
-    const price=num('pv-energy-price'); if(price&&price>0)savings=selfKwh*price;
+    selfKwh=Math.min(consumption,annual*selfRate);
+    residual=Math.max(0,consumption-selfKwh);
+    excess=Math.max(0,annual-selfKwh);
+    coverage=selfKwh/consumption*100;
+
+    const price=num('pv-energy-price');
+    if(price&&price>0)savings=selfKwh*price;
+
+    if(storageMode==='auto'){
+      const customBattery=num('pv-battery-kwh');
+      batteryKwh=customBattery&&customBattery>0?customBattery:recommendedBatteryCapacity(consumption,power);
+      storage=estimateWithStorage({consumption,annual,selfKwh,batteryKwh});
+    }
   }
-  setText('pv-result-place',geo.label); setText('pv-result-annual',`${fmt(annual)} kWh`); setText('pv-result-specific',`${fmt(specific)} kWh/kW`); setText('pv-result-area',`${fmt(areaNeeded,1)} m²`); setText('pv-result-cost',`${euro(costMin)} – ${euro(costMax)}`);
-  setText('pv-result-self',selfKwh===null?'Serve consumo annuo':`${fmt(selfKwh)} kWh`); setText('pv-result-grid',residual===null?'Serve consumo annuo':`${fmt(residual)} kWh`); setText('pv-result-excess',excess===null?'Serve consumo annuo':`${fmt(excess)} kWh`); setText('pv-result-coverage',coverage===null?'Serve consumo annuo':`${fmt(coverage,1)}%`);
+
+  setText('pv-result-place',geo.label);
+  setText('pv-result-annual',`${fmt(annual)} kWh`);
+  setText('pv-result-consumption',consumption&&consumption>0?`${fmt(consumption)} kWh`:'Non inserito');
+  setText('pv-result-specific',`${fmt(specific)} kWh/kW`);
+  setText('pv-result-area',`${fmt(areaNeeded,1)} m²`);
+  setText('pv-result-cost',`${euro(costMin)} – ${euro(costMax)}`);
+  setText('pv-result-self',selfKwh===null?'Serve consumo annuo':`${fmt(selfKwh)} kWh`);
+  setText('pv-result-grid',residual===null?'Serve consumo annuo':`${fmt(residual)} kWh`);
+  setText('pv-result-excess',excess===null?'Serve consumo annuo':`${fmt(excess)} kWh`);
+  setText('pv-result-coverage',coverage===null?'Serve consumo annuo':`${fmt(coverage,1)}%`);
+
+  const balance=$('pv-result-balance');
+  if(balance){
+    if(consumption&&consumption>0){
+      const delta=annual-consumption;
+      balance.hidden=false;
+      balance.textContent=delta>=0
+        ? `Bilancio annuo: il FV produrrebbe circa ${fmt(delta)} kWh in più dei tuoi consumi totali.`
+        : `Bilancio annuo: i consumi supererebbero la produzione FV di circa ${fmt(Math.abs(delta))} kWh.`;
+      balance.classList.toggle('positive',delta>=0);
+    }else{
+      balance.hidden=true;
+    }
+  }
+
   setText('pv-result-summary',consumption&&consumption>0
-    ? `Con ${fmt(power,1)} kW di fotovoltaico stimiamo circa ${fmt(annual)} kWh prodotti in un anno. Su ${fmt(consumption)} kWh/anno di consumi, circa ${fmt(selfKwh)} kWh potrebbero essere usati direttamente mentre l’impianto produce; resterebbero circa ${fmt(residual)} kWh/anno da acquistare dalla rete.`
-    : `Con ${fmt(power,1)} kW di fotovoltaico stimiamo circa ${fmt(annual)} kWh prodotti in un anno. Per capire l’impatto sulla bolletta serve il consumo annuo: il consumo di una singola bolletta non viene moltiplicato automaticamente per 12.`);
-  const savingsBox=$('pv-saving-impact'); if(savingsBox){ savingsBox.hidden=savings===null; if(savings!==null)setText('pv-result-savings',`${euro(savings)} / anno`); }
-  const surfaceCheck=$('pv-surface-check'); if(surfaceCheck){ surfaceCheck.textContent=surface&&surface>0?(surface>=areaNeeded?`La superficie indicata è compatibile con circa ${fmt(power,1)} kW nel modello.`:`Per ${fmt(power,1)} kW servirebbero circa ${fmt(areaNeeded-surface,1)} m² in più.`):`Superficie tecnica indicativa: circa ${fmt(areaNeeded,1)} m².`; }
-  renderChart(annual,geo.lat); $('pv-results').hidden=false; status(`Stima calcolata per ${geo.label}.`,'ok'); track('calculation_completed',{outcome:`${Math.round(annual)}kwh`,context:`${geo.label}:${mode}`}); $('pv-results').scrollIntoView({behavior:'smooth',block:'start'});
+    ? `Produzione e consumi non avvengono sempre nello stesso momento. Per questo, anche se il fotovoltaico produce ${annual>=consumption?'più':'meno'} dei tuoi consumi annuali, senza batteria stimiamo circa ${fmt(selfKwh)} kWh usati direttamente e circa ${fmt(residual)} kWh ancora prelevati dalla rete.${storage?` Con una batteria indicativa da ${fmt(batteryKwh,1)} kWh, il prelievo potrebbe scendere a circa ${fmt(storage.residual)} kWh/anno.`:''}`
+    : `Con ${fmt(power,1)} kW di fotovoltaico stimiamo circa ${fmt(annual)} kWh prodotti in un anno. Inserisci il consumo annuo per capire quanta energia potresti usare direttamente e quanta continuerebbe ad arrivare dalla rete.`);
+
+  const storageBox=$('pv-storage-result');
+  const storageCoverageBox=$('pv-storage-coverage-box');
+  if(storageBox){
+    storageBox.hidden=!storage;
+    if(storage){
+      setText('pv-storage-title',`Con batteria indicativa da ${fmt(batteryKwh,1)} kWh`);
+      setText('pv-result-self-storage',`${fmt(storage.self)} kWh`);
+      setText('pv-result-grid-storage',`${fmt(storage.residual)} kWh`);
+      setText('pv-result-excess-storage',`${fmt(storage.excess)} kWh`);
+      setText('pv-result-coverage-storage',`${fmt(storage.coverage,1)}%`);
+      setText('pv-storage-note',`La batteria sposterebbe indicativamente circa ${fmt(storage.shifted)} kWh/anno da momenti di surplus a momenti di consumo. È una stima semplificata, non un dimensionamento.`);
+    }
+  }
+  if(storageCoverageBox)storageCoverageBox.hidden=!storage;
+
+  const savingsBox=$('pv-saving-impact');
+  if(savingsBox){
+    savingsBox.hidden=savings===null;
+    if(savings!==null)setText('pv-result-savings',`${euro(savings)} / anno`);
+  }
+
+  const surfaceCheck=$('pv-surface-check');
+  if(surfaceCheck){
+    const assumption=orientation==='unknown'?' Orientamento non indicato: abbiamo usato una resa prudenziale.':'';
+    surfaceCheck.textContent=(surface&&surface>0
+      ?(surface>=areaNeeded?`La superficie indicata è compatibile con circa ${fmt(power,1)} kW nel modello.`:`Per ${fmt(power,1)} kW servirebbero circa ${fmt(areaNeeded-surface,1)} m² in più.`)
+      :`Superficie tecnica indicativa: circa ${fmt(areaNeeded,1)} m².`)+assumption;
+  }
+
+  renderChart(annual,geo.lat);
+  $('pv-results').hidden=false;
+  status(`Stima calcolata per ${geo.label}.`,'ok');
+  track('calculation_completed',{outcome:`${Math.round(annual)}kwh`,context:`${geo.label}:${mode}:${storageMode}`});
+  $('pv-results').scrollIntoView({behavior:'smooth',block:'start'});
 }
 
 function useLocation(){
@@ -269,6 +381,8 @@ function prefillFromQuery(){
 
 $('pv-calc')?.addEventListener('click',compute); $('pv-find-place')?.addEventListener('click',findPlace); $('pv-use-location')?.addEventListener('click',useLocation); $('pv-power-from-surface')?.addEventListener('click',powerFromSurface); $('pv-bill-file')?.addEventListener('change',onBillSelected);
 $('pv-region')?.addEventListener('change',()=>{ $('pv-lat').value=''; $('pv-lon').value=''; $('pv-place-label').value=''; }); $('pv-place-search')?.addEventListener('input',()=>{ $('pv-lat').value=''; $('pv-lon').value=''; $('pv-place-label').value=''; }); $('pv-place-search')?.addEventListener('keydown',(event)=>{ if(event.key==='Enter'){ event.preventDefault(); findPlace(); } }); $('pv-business-kind')?.addEventListener('change',updateAgricultureVisibility);
-document.querySelectorAll('[data-segment]').forEach((el)=>el.addEventListener('click',()=>setMode(el.dataset.segment))); $('pv-compare-cta')?.addEventListener('click',prepareComparison);
+document.querySelectorAll('[data-segment]').forEach((el)=>el.addEventListener('click',()=>setMode(el.dataset.segment)));
+document.querySelectorAll('[data-storage]').forEach((el)=>el.addEventListener('click',()=>setStorageMode(el.dataset.storage)));
+$('pv-compare-cta')?.addEventListener('click',prepareComparison);
 document.querySelectorAll('[data-pv-track]').forEach(el=>el.addEventListener('click',()=>track(el.dataset.pvTrack||'cta_clicked')));
-prefillFromQuery(); updateComparisonCta(); track('tool_viewed');
+prefillFromQuery(); setStorageMode('none'); updateComparisonCta(); track('tool_viewed');
