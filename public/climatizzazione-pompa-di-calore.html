@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <script type="text/javascript" src="https://embeds.iubenda.com/widgets/7a8d1e4e-6d87-44e3-9842-5e8991323410.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="index,follow">
+  <title>Quanto consuma un condizionatore o una pompa di calore | OffertaLogica</title>
+  <meta name="description" content="Stima potenza, consumi e costo di condizionatore, climatizzatore caldo/freddo e pompa di calore con un calcolo preliminare trasparente.">
+  <link rel="canonical" href="https://offertalogica.it/climatizzazione-pompa-di-calore.html">
+  <meta property="og:title" content="Consumo condizionatore e pompa di calore | OffertaLogica">
+  <meta property="og:description" content="Una stima rapida di potenza, kWh e costo, con SEER/SCOP o scenari di classe energetica.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://offertalogica.it/climatizzazione-pompa-di-calore.html">
+  <meta name="twitter:card" content="summary">
+  <link rel="icon" type="image/png" href="/assets/logo-offertalogica-icon.png">
+  <link rel="apple-touch-icon" href="/assets/logo-offertalogica-icon.png">
+  <link rel="stylesheet" href="/assets/ol-app-access.css">
+  <link rel="stylesheet" href="/assets/climatizzazione-pdc-tool.css?v=1.0.0">
+  <script type="application/ld+json">
+  {
+    "@context":"https://schema.org",
+    "@type":"WebApplication",
+    "name":"Simulatore climatizzazione e pompa di calore OffertaLogica",
+    "url":"https://offertalogica.it/climatizzazione-pompa-di-calore.html",
+    "applicationCategory":"UtilitiesApplication",
+    "operatingSystem":"Web",
+    "description":"Stima preliminare di potenza, consumo elettrico e costo per condizionatore, climatizzatore caldo/freddo e pompa di calore."
+  }
+  </script>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Vai al contenuto principale</a>
+<div class="page-shell">
+  <header class="site-header">
+    <a href="/" aria-label="OffertaLogica.it">
+      <img class="site-logo-main" src="/assets/logo-offertalogica-header.png" alt="OffertaLogica.it - Confronta, scegli, risparmia">
+    </a>
+  </header>
+
+  <nav class="top-nav" aria-label="Navigazione principale">
+    <a href="/">Calcolatore</a>
+    <a href="/offerte-luce-gas-aggiornate.html">Offerte</a>
+    <a href="/speed-test.html">Speed Test</a>
+    <a href="/fotovoltaico.html">Fotovoltaico</a>
+    <a class="active" href="/climatizzazione-pompa-di-calore.html">Climatizzazione</a>
+    <a href="/come-funziona.html">Come funziona</a>
+  </nav>
+
+  <main id="main-content">
+    <section class="hero">
+      <p class="eyebrow">Strumento gratuito OffertaLogica</p>
+      <h1>Quanto può consumare il tuo climatizzatore?</h1>
+      <p>Stima potenza, kWh e costo per condizionatore, climatizzatore caldo/freddo o pompa di calore.</p>
+      <p class="hero-note">È una stima preliminare: non sostituisce il dimensionamento o il sopralluogo di un tecnico.</p>
+    </section>
+
+    <section class="tool-card" id="ol-clima-tool" data-mode="cooling" aria-labelledby="tool-title">
+      <div class="tool-head">
+        <div>
+          <h2 id="tool-title">Parti da pochi dati</h2>
+          <p>Superficie, altezza e utilizzo. SEER, SCOP e prezzo energia sono facoltativi.</p>
+        </div>
+      </div>
+
+      <fieldset class="choice-panel">
+        <legend>Cosa vuoi valutare?</legend>
+        <div class="choice-grid" role="group" aria-label="Tipo di climatizzazione">
+          <button type="button" class="choice-button active" data-mode="cooling" aria-pressed="true">
+            <strong>Condizionatore</strong><span>Raffrescamento</span>
+          </button>
+          <button type="button" class="choice-button" data-mode="heatcool" aria-pressed="false">
+            <strong>Climatizzatore caldo/freddo</strong><span>Raffrescamento o riscaldamento</span>
+          </button>
+          <button type="button" class="choice-button" data-mode="heatpump" aria-pressed="false">
+            <strong>Pompa di calore</strong><span>Riscaldamento</span>
+          </button>
+        </div>
+      </fieldset>
+
+      <div class="service-switch" id="clima-service-switch" hidden>
+        <label for="clima-service">Per il climatizzatore caldo/freddo, cosa vuoi stimare?</label>
+        <select id="clima-service">
+          <option value="cooling">Raffrescamento</option>
+          <option value="heating">Riscaldamento</option>
+        </select>
+      </div>
+
+      <div class="form-grid main-fields">
+        <div class="field">
+          <label for="clima-area">Superficie da climatizzare (m²)</label>
+          <input id="clima-area" type="number" inputmode="decimal" min="5" max="1000" step="1" value="30">
+        </div>
+        <div class="field">
+          <label for="clima-height">Altezza locale (m)</label>
+          <input id="clima-height" type="number" inputmode="decimal" min="2" max="8" step="0.1" value="2.7">
+        </div>
+        <div class="field">
+          <label for="clima-hours">Ore di utilizzo al giorno</label>
+          <input id="clima-hours" type="number" inputmode="decimal" min="0.5" max="24" step="0.5" value="6">
+        </div>
+        <div class="field">
+          <label for="clima-days">Giorni di utilizzo nella stagione</label>
+          <input id="clima-days" type="number" inputmode="numeric" min="1" max="365" step="1" value="90">
+        </div>
+      </div>
+
+      <details class="advanced-panel">
+        <summary>Efficienza e prezzo — solo se li conosci</summary>
+        <div class="form-grid advanced-grid">
+          <div class="field span-2">
+            <label for="clima-efficiency-source">Dato disponibile</label>
+            <select id="clima-efficiency-source">
+              <option value="unknown">Non conosco SEER/SCOP né classe — mostrami scenari indicativi</option>
+              <option value="class">Conosco la classe energetica</option>
+              <option value="index">Conosco SEER/SCOP</option>
+            </select>
+          </div>
+
+          <div class="field efficiency-class-field" hidden>
+            <label for="clima-class">Classe energetica</label>
+            <select id="clima-class">
+              <option value="A+++">A+++</option>
+              <option value="A++">A++</option>
+              <option value="A+">A+</option>
+              <option value="A" selected>A</option>
+              <option value="B">B</option>
+              <option value="C">C</option>
+              <option value="D">D</option>
+              <option value="E">E</option>
+              <option value="F">F</option>
+              <option value="G">G</option>
+            </select>
+            <small>Riferimento alle classi SEER/SCOP del Regolamento UE 626/2011 per climatizzatori, esclusi apparecchi a singolo/doppio condotto.</small>
+          </div>
+
+          <div class="field efficiency-index-field" hidden>
+            <label for="clima-index"><span id="clima-index-label">SEER</span></label>
+            <input id="clima-index" type="number" inputmode="decimal" min="1" max="20" step="0.1" placeholder="Es. 6,1">
+            <small>Usa il valore riportato sull'etichetta o nella scheda tecnica.</small>
+          </div>
+
+          <div class="field span-2">
+            <label for="clima-price">Prezzo energia (€/kWh, facoltativo)</label>
+            <input id="clima-price" type="number" inputmode="decimal" min="0.01" max="3" step="0.01" placeholder="Es. 0,30">
+            <small>Per un costo personalizzato usa il prezzo effettivo della tua bolletta.</small>
+          </div>
+        </div>
+      </details>
+
+      <div class="actions">
+        <button class="button primary" id="clima-calc" type="button">Calcola la stima</button>
+      </div>
+      <div class="status" id="clima-status" role="status" aria-live="polite"></div>
+
+      <div class="result-wrap" id="clima-results" hidden tabindex="-1">
+        <div class="source-line">
+          <span class="source-badge">Stima preliminare · metodologia ENEA + SEER/SCOP</span>
+          <span id="clima-result-assumption"></span>
+        </div>
+
+        <div class="plain-result">
+          <h3>In pratica</h3>
+          <p id="clima-result-summary">—</p>
+        </div>
+
+        <div class="metrics">
+          <div class="metric accent-metric">
+            <strong id="clima-result-power">—</strong>
+            <span>Potenza indicativa richiesta</span>
+          </div>
+          <div class="metric">
+            <strong id="clima-result-energy">—</strong>
+            <span>Consumo elettrico stimato</span>
+          </div>
+          <div class="metric">
+            <strong id="clima-result-cost">—</strong>
+            <span>Costo stimato della stagione</span>
+          </div>
+        </div>
+
+        <p class="result-note" id="clima-result-note"></p>
+
+        <div class="scenario-wrap" id="clima-scenarios" hidden>
+          <h3>Scenari indicativi per efficienza</h3>
+          <div class="scenario-grid" id="clima-scenario-grid"></div>
+          <p class="scenario-note">Sono scenari, non una previsione della classe del tuo apparecchio. Inserisci classe o SEER/SCOP per restringere la stima.</p>
+        </div>
+
+        <details class="detail-panel">
+          <summary>Come viene calcolata la stima</summary>
+          <div class="method-copy">
+            <p><strong>Potenza:</strong> K × m² × altezza, con K=25 W/m³ per raffrescamento e K=35 W/m³ per riscaldamento.</p>
+            <p><strong>Energia utile:</strong> potenza indicativa × ore/giorno × giorni della stagione. È un modello semplificato equivalente a funzionamento al carico indicato nelle ore inserite.</p>
+            <p><strong>Consumo elettrico:</strong> energia utile ÷ SEER per il freddo o ÷ SCOP per il caldo.</p>
+            <p><strong>Limite:</strong> isolamento, clima locale, esposizione, apporti interni, regolazione e comportamento reale della macchina possono modificare sensibilmente il consumo.</p>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <section class="cta-card" aria-labelledby="bill-title">
+      <div>
+        <h2 id="bill-title">Vuoi sapere quanto ti costerebbe con la tua tariffa reale?</h2>
+        <p>Carica la bolletta per usare i tuoi dati energetici nel percorso OffertaLogica.</p>
+      </div>
+      <a class="button primary" id="clima-bill-cta" data-clima-track="bill_cta" href="/?landing=0&amp;source=climatizzazione_pdc">Carica la bolletta</a>
+    </section>
+
+    <section class="cta-card secondary-cta" aria-labelledby="compare-title">
+      <div>
+        <h2 id="compare-title">Confronta le offerte sulla base dei tuoi consumi</h2>
+        <p>Usa il risultato come riferimento e verifica quanto incide il prezzo dell'energia.</p>
+      </div>
+      <a class="button secondary" id="clima-compare-cta" data-clima-track="compare_cta" href="/?landing=0&amp;source=climatizzazione_pdc">Confronta le offerte</a>
+    </section>
+
+    <section class="content-card compact-content">
+      <h2>Consumo di condizionatore e pompa di calore: cosa conta davvero</h2>
+      <div class="content-grid">
+        <article class="info-box">
+          <h3>Dimensione dell'ambiente</h3>
+          <p>Più volume devi raffrescare o riscaldare, maggiore è la potenza indicativa richiesta.</p>
+        </article>
+        <article class="info-box">
+          <h3>SEER e SCOP</h3>
+          <p>Indicano l'efficienza stagionale: SEER per il raffrescamento, SCOP per il riscaldamento.</p>
+        </article>
+        <article class="info-box">
+          <h3>La bolletta completa il quadro</h3>
+          <p>Il consumo stimato diventa un costo utile solo quando lo moltiplichi per il tuo prezzo reale dell'energia.</p>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div>© 2026 OffertaLogica.it · Stima informativa, non dimensionamento o certificazione tecnica.</div>
+    <nav>
+      <a href="/come-leggere-bolletta-luce-gas.html">Guida bolletta</a>
+      <a href="/fotovoltaico.html">Fotovoltaico</a>
+      <a href="/termini-condizioni.html">Termini</a>
+      <a href="https://www.iubenda.com/privacy-policy/36565194">Privacy</a>
+    </nav>
+  </footer>
+</div>
+<script src="/assets/climatizzazione-pdc-tool.js?v=1.0.0" defer></script>
+</body>
+</html>

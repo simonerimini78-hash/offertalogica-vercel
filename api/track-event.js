@@ -97,6 +97,7 @@ const ALLOWED_INTERACTIVE_TOOL_CODES = new Set([
   "speed_test",
   "fotovoltaico",
   "fotovoltaico_agricoltura",
+  "climatizzazione_pdc",
 ]);
 const ALLOWED_INTERACTIVE_TOOL_ACTIONS = new Set([
   "page_view",
