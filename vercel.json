@@ -51,5 +51,11 @@
         }
       ]
     }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/pv-estimate",
+      "destination": "/api/unlock-offers"
+    }
   ]
 }
