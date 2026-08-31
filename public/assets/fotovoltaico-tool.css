@@ -76,3 +76,35 @@ a{color:inherit}button,input,select{font:inherit}button,a{-webkit-tap-highlight-
   outline-offset:3px;
 }
 
+/* v1.2.3: switch Casa / Azienda più tenue e contenuto */
+.segment-switch{
+  gap:8px;
+  padding:7px;
+  border:1px solid rgba(134,239,172,.62);
+  border-radius:17px;
+  background:rgba(240,253,244,.64);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.92);
+  overflow:hidden;
+}
+.segment-button{
+  min-height:48px;
+  margin:0;
+  border:1px solid rgba(134,239,172,.52);
+  border-radius:11px;
+  background:rgba(255,255,255,.48);
+  color:#2f6f46;
+  box-shadow:none;
+  transform:none;
+}
+.segment-button:hover{
+  background:rgba(220,252,231,.58);
+  border-color:rgba(74,222,128,.58);
+  transform:none;
+}
+.segment-button.active{
+  background:linear-gradient(135deg,rgba(187,247,208,.66) 0%,rgba(220,252,231,.72) 100%);
+  color:#166534;
+  border-color:rgba(74,222,128,.68);
+  box-shadow:0 2px 7px rgba(22,163,74,.09),inset 0 1px 0 rgba(255,255,255,.78);
+}
+
