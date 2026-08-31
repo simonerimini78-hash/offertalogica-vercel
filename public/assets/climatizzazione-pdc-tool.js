@@ -1,4 +1,4 @@
-const TOOL_VERSION = '1.0.4';
+const TOOL_VERSION = '1.0.7';
 const TRACK_URL = '/api/track-event';
 const ANALYZE_PDF_URL = '/api/analyze-pdf';
 const PDF_DIRECT_UPLOAD_THRESHOLD_BYTES = 4_000_000;
@@ -638,7 +638,7 @@ function renderMainResult(input, demand, efficiency, service) {
     ? `Costo calcolato con ${fmt(input.price, 2)} €/kWh. Usa il dato effettivo della bolletta per una stima più personale.`
     : 'Il costo non viene inventato: inserisci il tuo prezzo €/kWh oppure carica la bolletta per usare un dato reale.';
   const heatPumpNote = mode === 'heatpump'
-    ? ' Per una pompa di calore questa stima non dimostra automaticamente un risparmio rispetto a una caldaia: per il confronto economico servono dati reali della bolletta.'
+    ? ' Per una pompa di calore questa stima riguarda il riscaldamento o il raffrescamento degli ambienti e non include l’eventuale produzione di acqua calda sanitaria. Inoltre non dimostra automaticamente un risparmio rispetto a una caldaia: per il confronto economico servono dati reali della bolletta.'
     : '';
   $('clima-result-note').textContent = `${priceNote}${heatPumpNote}`;
   renderBillImpact(input, efficiency);
