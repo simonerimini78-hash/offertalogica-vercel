@@ -6,12 +6,29 @@ import { del } from "../lib/store.js";
 import { requireStaffSession } from "../lib/staffSessionAuth.js";
 import { writeStaffAudit } from "../lib/staffAudit.js";
 
-const MANAGEMENT_RELEASE = "0.36.87";
+const MANAGEMENT_RELEASE = "0.36.88";
 const CUSTOMER_PAGE_SIZE = 1000;
 const CUSTOMER_MAX_ROWS = 20000;
 const BUSINESS_ALIASES = new Set(["business", "azienda", "aziende", "piva", "p.iva", "impresa"]);
 const CONSUMER_ALIASES = new Set(["privato", "consumer", "casa", "domestico", "persona"]);
 const MANAGEMENT_INTERACTIVE_TOOL_EVENT = "interactive_tool_event";
+const MANAGEMENT_NATIVE_TELEMETRY_TOOL_CODES = new Set([
+  "fotovoltaico",
+  "fotovoltaico_agricoltura",
+  "climatizzazione_pdc",
+]);
+const MANAGEMENT_DERIVED_TELEMETRY_TOOL_CODES = new Set([
+  "energia_comparatore",
+]);
+const MANAGEMENT_UNAVAILABLE_TELEMETRY_TOOL_CODES = new Set([
+  "speed_test",
+]);
+const MANAGEMENT_ENERGY_EVENT_ACTIONS = Object.freeze({
+  landing_view: "page_view",
+  comparison_started: "started",
+  comparison_completed: "completed",
+  offer_redirect: "cta_clicked",
+});
 const BUSINESS_DATA_DELETE_MAX_LEADS = 1000;
 const BUSINESS_DATA_DELETE_MAX_EVENTS = 5000;
 const FALLBACK_BUSINESS_CATALOG = Object.freeze({
@@ -454,10 +471,60 @@ function managementEventTool(row = {}, catalog = FALLBACK_BUSINESS_CATALOG) {
   return resolveCatalogTool(catalog, "", payload.page);
 }
 
+function managementToolTelemetryMode(tool = {}) {
+  const code = normalizeCatalogCode(tool?.tool_code);
+  if (MANAGEMENT_NATIVE_TELEMETRY_TOOL_CODES.has(code)) return "native";
+  if (MANAGEMENT_DERIVED_TELEMETRY_TOOL_CODES.has(code)) return "derived";
+  if (MANAGEMENT_UNAVAILABLE_TELEMETRY_TOOL_CODES.has(code)) return "unavailable";
+  return "unknown";
+}
+
+function managementEnergyEventEligible(row = {}) {
+  const payload = managementPayload(row);
+  const page = normalizePagePath(payload.page);
+  const source = normalizeCatalogCode(payload.source || payload.dataOrigin);
+  return page === "/" || ["energia", "comparatore", "calcolatore", "site_free"].includes(source);
+}
+
+function managementBusinessEventAction(row = {}, tool = {}) {
+  const eventType = managementEventType(row);
+  const payload = managementPayload(row);
+  if (eventType === MANAGEMENT_INTERACTIVE_TOOL_EVENT) {
+    return normalizeCatalogCode(payload.toolAction || payload.tool_action);
+  }
+  if (normalizeCatalogCode(tool?.tool_code) === "energia_comparatore" && managementEnergyEventEligible(row)) {
+    return MANAGEMENT_ENERGY_EVENT_ACTIONS[eventType] || "";
+  }
+  return "";
+}
+
+function newerIsoDate(currentValue, candidateValue) {
+  const current = Date.parse(String(currentValue || ""));
+  const candidate = Date.parse(String(candidateValue || ""));
+  if (!Number.isFinite(candidate)) return currentValue || null;
+  if (!Number.isFinite(current) || candidate > current) return new Date(candidate).toISOString();
+  return currentValue || null;
+}
+
+function finalizeToolTelemetry(item = {}) {
+  const mode = String(item.telemetry_mode || "unknown");
+  item.telemetry_status = mode === "unavailable"
+    ? "unavailable"
+    : item.events > 0
+      ? "active"
+      : ["native", "derived"].includes(mode)
+        ? "ready"
+        : "unknown";
+  return item;
+}
+
 function blankBusinessPerformance(meta = {}) {
   return {
     ...meta,
     events: 0,
+    telemetry_mode: "unknown",
+    telemetry_status: "unknown",
+    last_event_at: null,
     views: 0,
     started: 0,
     completed: 0,
@@ -539,27 +606,30 @@ function summarizeBusinessPerformance({ events = [], leads = [], catalog = FALLB
       lead_enabled: Boolean(tool.lead_enabled),
       monetization_enabled: Boolean(tool.monetization_enabled),
       page_path: tool.page_path || "",
+      telemetry_mode: managementToolTelemetryMode(tool),
     });
     toolSessions[code] = new Set();
   }
 
   for (const row of Array.isArray(events) ? events : []) {
-    if (managementEventType(row) !== MANAGEMENT_INTERACTIVE_TOOL_EVENT) continue;
     const tool = managementEventTool(row, catalog);
     const code = normalizeCatalogCode(tool?.tool_code);
     if (!code || !toolItems[code]) continue;
+    const action = managementBusinessEventAction(row, tool);
+    if (!action) continue;
     if (!managementToolTrafficIncluded(row)) {
       filteredTraffic += 1;
       continue;
     }
     const payload = managementPayload(row);
-    const action = normalizeCatalogCode(payload.toolAction || payload.tool_action);
     incrementBusinessEvent(toolItems[code], action);
+    toolItems[code].last_event_at = newerIsoDate(toolItems[code].last_event_at, row?.created_at || row?.createdAt);
     const sessionId = String(payload.sessionId || payload.session_id || "").trim();
     if (sessionId) toolSessions[code].add(sessionId);
     const lineCode = normalizeCatalogCode(tool?.business_line_code);
     if (lineCode && lineItems[lineCode]) {
       incrementBusinessEvent(lineItems[lineCode], action);
+      lineItems[lineCode].last_event_at = newerIsoDate(lineItems[lineCode].last_event_at, row?.created_at || row?.createdAt);
       if (sessionId) lineSessions[lineCode].add(sessionId);
     }
   }
@@ -595,6 +665,7 @@ function summarizeBusinessPerformance({ events = [], leads = [], catalog = FALLB
     item.lead_conversion_pct = managementPercentage(item.leads, item.unique_sessions);
     item.expected_commission_eur = roundMoney(item.expected_commission_eur);
     if (toolEconomics[code]) mergeEconomicPerformance(item, toolEconomics[code]);
+    finalizeToolTelemetry(item);
   }
   for (const [code, item] of Object.entries(lineItems)) {
     item.unique_sessions = lineSessions[code]?.size || 0;

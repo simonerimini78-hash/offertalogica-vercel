@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const RELEASE = "0.36.87";
+  const RELEASE = "0.36.88";
   if (window.OffertaLogicaStaffManagement?.release === RELEASE) return;
 
   const TIME_ZONE = "Europe/Rome";
@@ -353,7 +353,7 @@
             <tbody id="managementToolRows"></tbody>
           </table></div>
           <div class="panel-body"><ul class="management-note-list">
-            <li>Fotovoltaico, Fotovoltaico Azienda Agricola e Pompe di calore / climatizzazione usano lo stesso contratto di tracking. Le future verticali entrano dal catalogo, senza nuove schede principali.</li>
+            <li>Fotovoltaico, Fotovoltaico Azienda Agricola e Pompe di calore / climatizzazione usano il tracking nativo. Energia usa gli eventi di funnel già prodotti dal sito pubblico. Speed Test resta esplicitamente segnalato finché non dispone di telemetria.</li>
             <li>I costi mostrati arrivano dal registro economico ufficiale. I movimenti economici non vengono eliminati con i dati lead: restano rettificabili/escludibili secondo le regole contabili.</li>
             <li>“Contatti verificati” indica lead con verifica completata. La qualificazione commerciale finale resta distinta e non viene inventata dal Gestionale.</li>
           </ul></div>
@@ -627,6 +627,18 @@
 
   function businessStatusLabel(value) {
     return ({ active: "Attiva", paused: "In pausa", archived: "Archiviata", draft: "Bozza" })[String(value || "").toLowerCase()] || "Bozza";
+  }
+
+  function businessTelemetryLabel(values = {}) {
+    const status = String(values?.telemetry_status || "unknown").trim().toLowerCase();
+    if (status === "active") {
+      return values?.last_event_at
+        ? `Telemetria attiva · ultimo evento ${dateTime(values.last_event_at)}`
+        : "Telemetria attiva";
+    }
+    if (status === "ready") return "Telemetria disponibile · nessun evento nel periodo";
+    if (status === "unavailable") return "Telemetria non disponibile dal sito";
+    return "Copertura telemetria da verificare";
   }
 
   function businessCatalog(snapshot = managementSnapshot) {
@@ -909,7 +921,10 @@
           tr.append(
             rowCell(tool.label || code, code),
             rowCell(isCommercial ? (lineLabels[tool.business_line_code] || tool.business_line_code) : "Tecnico", tool.page_path || ""),
-            rowCell(businessStatusLabel(tool.status), `${tool.lead_enabled ? "Lead sì" : "Lead no"} · ${tool.monetization_enabled ? "Monetizzazione sì" : "Monetizzazione no"}`),
+            rowCell(
+              businessStatusLabel(tool.status),
+              `${tool.lead_enabled ? "Lead sì" : "Lead no"} · ${tool.monetization_enabled ? "Monetizzazione sì" : "Monetizzazione no"} · ${businessTelemetryLabel(values)}`,
+            ),
             rowCell(number(values.unique_sessions)),
             rowCell(number(values.views)),
             rowCell(number(values.started)),
