@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const RELEASE = "0.36.85";
+  const RELEASE = "0.36.86";
   if (window.OffertaLogicaStaffManagement?.release === RELEASE) return;
 
   const TIME_ZONE = "Europe/Rome";
@@ -227,6 +227,7 @@
       .management-table{min-width:1060px}.management-table td,.management-table th{white-space:nowrap}.management-table td:first-child,.management-table th:first-child{white-space:normal;min-width:190px}
       .management-status{margin-bottom:13px;border-radius:11px;padding:10px 12px;font-size:12px;line-height:1.45}.management-status.info{color:var(--blue);background:var(--blue-soft)}.management-status.error{color:var(--danger);background:var(--danger-soft)}.management-status.success{color:var(--ok);background:var(--ok-soft)}
       .management-note-list{display:grid;gap:7px;margin:0;padding:0;list-style:none}.management-note-list li{border:1px solid #e2ebe7;border-radius:10px;padding:10px 11px;color:#52635c;background:#fbfdfc;font-size:11px;line-height:1.45}.management-note-list li.actionable{border-color:#fedf89;background:#fffcf2;color:#7a2e0e}
+      .management-business-actions{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.management-business-actions .button{min-height:30px;padding:5px 8px;font-size:10px}.management-business-code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px;color:var(--muted)}.management-business-toolbar{display:flex;gap:8px;flex-wrap:wrap}.management-business-toolbar .button{min-height:34px}.management-table td small{display:block;margin-top:3px;color:var(--muted);font-size:10px;line-height:1.35}
       .management-empty{color:var(--muted);font-size:12px}.management-toolbar{display:grid;grid-template-columns:minmax(190px,1fr) 155px 155px 175px 105px;gap:8px;padding:12px;border-bottom:1px solid var(--line);background:#fbfdfc}
       .management-toolbar input,.management-toolbar select{min-height:38px;padding:7px 9px;font-size:12px}.management-pagination{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;color:var(--muted);font-size:11px;background:#fbfdfc}.management-pagination>div{display:flex;align-items:center;gap:7px}.management-pagination button{min-width:84px}
       .management-signal{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;border:1px solid var(--line);border-radius:13px;padding:12px;background:#fff}.management-signal strong{display:block;font-size:12px}.management-signal small{display:block;margin-top:4px;color:var(--muted);line-height:1.4}.management-signal b{font-size:16px;color:var(--green-dark);white-space:nowrap}
@@ -333,12 +334,29 @@
           </table></div>
         </section>
         <section class="panel management-section">
-          <div class="panel-head"><div><h3>Strumenti SEO interattivi</h3><small>Uso reale degli strumenti nel mese selezionato. Speed Test è già tracciato; Fotovoltaico e Fotovoltaico Azienda Agricola sono predisposti allo stesso contratto dati.</small></div></div>
+          <div class="panel-head">
+            <div><h3>Linee di business</h3><small>Verticali commerciali autonome. Visite, analisi, costi e contatti restano attribuiti alla linea che li ha generati.</small></div>
+            <div class="management-business-toolbar"><button class="button secondary compact" id="managementAddBusinessLine" type="button">Nuova linea</button></div>
+          </div>
           <div class="table-wrap"><table class="data-table management-table">
-            <thead><tr><th>Strumento</th><th>Stato dati</th><th>Sessioni</th><th>Visite</th><th>Avvii</th><th>Completati</th><th>Completamento</th><th>Diagnosi</th><th>Valutazioni</th><th>CTA</th><th>Errori</th></tr></thead>
+            <thead><tr><th>Linea</th><th>Stato</th><th>Sessioni</th><th>Visite</th><th>Analisi</th><th>Costo analisi</th><th>Lead</th><th>Contatti verificati</th><th>Monetizzabili</th><th>Conversione</th><th>Commissioni attese</th><th>Azioni</th></tr></thead>
+            <tbody id="managementBusinessLineRows"></tbody>
+          </table></div>
+        </section>
+        <section class="panel management-section">
+          <div class="panel-head">
+            <div><h3>Strumenti e pagine</h3><small>Ogni pagina/calcolatore è uno strumento associabile a una linea. Il catalogo è estensibile senza aggiungere nuove viste al Gestionale.</small></div>
+            <div class="management-business-toolbar"><button class="button secondary compact" id="managementAddBusinessTool" type="button">Nuovo strumento</button></div>
+          </div>
+          <div class="table-wrap"><table class="data-table management-table">
+            <thead><tr><th>Strumento</th><th>Linea</th><th>Stato</th><th>Sessioni</th><th>Visite</th><th>Avvii</th><th>Completati</th><th>Analisi</th><th>Costo analisi</th><th>Lead</th><th>Verificati</th><th>CTA</th><th>Errori</th><th>Azioni</th></tr></thead>
             <tbody id="managementToolRows"></tbody>
           </table></div>
-          <div class="panel-body"><ul class="management-note-list"><li>L’uso di uno strumento o il click su una CTA non genera automaticamente un ricavo o un costo. La vista Economia continua a contabilizzare solo movimenti economici reali o stime esplicitamente registrate.</li></ul></div>
+          <div class="panel-body"><ul class="management-note-list">
+            <li>Fotovoltaico, Fotovoltaico Azienda Agricola e Pompe di calore / climatizzazione usano lo stesso contratto di tracking. Le future verticali entrano dal catalogo, senza nuove schede principali.</li>
+            <li>I costi mostrati arrivano dal registro economico ufficiale. I movimenti economici non vengono eliminati con i dati lead: restano rettificabili/escludibili secondo le regole contabili.</li>
+            <li>“Contatti verificati” indica lead con verifica completata. La qualificazione commerciale finale resta distinta e non viene inventata dal Gestionale.</li>
+          </ul></div>
         </section>
       </div>
 
@@ -607,6 +625,192 @@
     ]);
   }
 
+  function businessStatusLabel(value) {
+    return ({ active: "Attiva", paused: "In pausa", archived: "Archiviata", draft: "Bozza" })[String(value || "").toLowerCase()] || "Bozza";
+  }
+
+  function businessCatalog(snapshot = managementSnapshot) {
+    return {
+      lines: Array.isArray(snapshot?.business_catalog?.lines) ? snapshot.business_catalog.lines : [],
+      tools: Array.isArray(snapshot?.business_catalog?.tools) ? snapshot.business_catalog.tools : [],
+      fallback: Boolean(snapshot?.business_catalog?.fallback),
+    };
+  }
+
+  function businessActionCell(actions = []) {
+    const td = document.createElement("td");
+    const wrap = document.createElement("div");
+    wrap.className = "management-business-actions";
+    actions.forEach(({ label, action, kind = "secondary", title = "" }) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = `button ${kind} compact`;
+      button.textContent = label;
+      if (title) button.title = title;
+      button.addEventListener("click", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        void action().catch(error => setManagementStatus("error", String(error?.message || error)));
+      });
+      wrap.append(button);
+    });
+    td.append(wrap);
+    return td;
+  }
+
+  async function managementCatalogRequest(payload) {
+    const token = storedAccessToken();
+    if (!token) throw new Error("Sessione Staff non disponibile. Accedi nuovamente.");
+    const response = await fetch("/api/staff-leads?management=1", {
+      method: "POST",
+      cache: "no-store",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(payload || {}),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || result?.ok !== true) throw new Error(result?.error || `Errore HTTP ${response.status}`);
+    return result;
+  }
+
+  async function managementBusinessDataDelete(scope, code, label) {
+    const isLine = scope === "business_line_data";
+    const confirmation = isLine ? "ELIMINA_DATI_LINEA" : "ELIMINA_DATI_STRUMENTO";
+    const typed = window.prompt(
+      `Stai per eliminare definitivamente lead e dati di traffico attribuiti a: ${label || code}.\\n\\nI movimenti economici non verranno cancellati: resteranno nello storico ufficiale.\\n\\nPer continuare digita esattamente: ${confirmation}`,
+      "",
+    );
+    if (typed !== confirmation) return;
+    const token = storedAccessToken();
+    if (!token) throw new Error("Sessione Staff non disponibile. Accedi nuovamente.");
+    const response = await fetch("/api/staff-leads?management=1", {
+      method: "DELETE",
+      cache: "no-store",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        "x-staff-confirmation": confirmation,
+      },
+      body: JSON.stringify({ scope, code }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || result?.ok !== true) throw new Error(result?.error || `Errore HTTP ${response.status}`);
+    setManagementStatus("success", `${label || code}: eliminati ${number(result.deleted_leads)} lead e ${number(result.deleted_standalone_events)} eventi autonomi. I dati economici sono rimasti nello storico.`);
+    await refreshManagementReport();
+  }
+
+  function normalizedBusinessCode(value) {
+    return String(value || "").trim().toLowerCase().replace(/[^a-z0-9_]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 60);
+  }
+
+  function promptBusinessBoolean(label, currentValue = false) {
+    const value = window.prompt(`${label} (true/false)`, currentValue ? "true" : "false");
+    if (value == null) return null;
+    const normalized = String(value).trim().toLowerCase();
+    if (!["true", "false"].includes(normalized)) throw new Error("Inserisci true oppure false.");
+    return normalized === "true";
+  }
+
+  async function editBusinessLine(existing = null) {
+    const current = existing || {};
+    const label = window.prompt("Nome della linea di business", String(current.label || ""));
+    if (label == null || !String(label).trim()) return;
+    const code = current.line_code || window.prompt("Codice stabile della linea (minuscolo, numeri e _)", normalizedBusinessCode(label));
+    if (!code) return;
+    const status = window.prompt("Stato: active, paused, draft oppure archived", String(current.status || "active"));
+    if (status == null) return;
+    const leadEnabled = promptBusinessBoolean("Questa linea può generare nuovi lead?", Boolean(current.lead_enabled));
+    if (leadEnabled == null) return;
+    const monetizationEnabled = promptBusinessBoolean("Questa linea può essere monetizzata?", Boolean(current.monetization_enabled));
+    if (monetizationEnabled == null) return;
+    const sortOrderRaw = window.prompt("Ordine nel Gestionale", String(current.sort_order ?? 100));
+    if (sortOrderRaw == null) return;
+    const notes = window.prompt("Note Owner (facoltative)", String(current.notes || ""));
+    if (notes == null) return;
+    await managementCatalogRequest({
+      action: "upsert_line",
+      line_code: normalizedBusinessCode(code),
+      label: String(label).trim(),
+      status: String(status || "draft").trim().toLowerCase(),
+      lead_enabled: leadEnabled,
+      monetization_enabled: monetizationEnabled,
+      sort_order: Number(sortOrderRaw || 100),
+      notes,
+    });
+    await refreshManagementReport();
+  }
+
+  async function editBusinessTool(existing = null) {
+    const current = existing || {};
+    const catalog = businessCatalog();
+    const label = window.prompt("Nome dello strumento/pagina", String(current.label || ""));
+    if (label == null || !String(label).trim()) return;
+    const code = current.tool_code || window.prompt("Codice stabile dello strumento (minuscolo, numeri e _)", normalizedBusinessCode(label));
+    if (!code) return;
+    const lines = catalog.lines.map(line => `${line.line_code} = ${line.label}`).join("\\n");
+    const lineCode = window.prompt(`Linea di business (vuoto = strumento tecnico)\\n\\n${lines}`, String(current.business_line_code || ""));
+    if (lineCode == null) return;
+    const pagePath = window.prompt("Percorso pagina, es. /eolico.html", String(current.page_path || ""));
+    if (pagePath == null) return;
+    const aliasesRaw = window.prompt("Alias sorgente separati da virgola", Array.isArray(current.source_aliases) ? current.source_aliases.join(", ") : "");
+    if (aliasesRaw == null) return;
+    const status = window.prompt("Stato: active, paused, draft oppure archived", String(current.status || "active"));
+    if (status == null) return;
+    const leadEnabled = lineCode.trim() ? promptBusinessBoolean("Questo strumento può generare nuovi lead?", Boolean(current.lead_enabled)) : false;
+    if (leadEnabled == null) return;
+    const monetizationEnabled = lineCode.trim() ? promptBusinessBoolean("Questo strumento può essere monetizzato?", Boolean(current.monetization_enabled)) : false;
+    if (monetizationEnabled == null) return;
+    const sortOrderRaw = window.prompt("Ordine nel Gestionale", String(current.sort_order ?? 100));
+    if (sortOrderRaw == null) return;
+    const notes = window.prompt("Note Owner (facoltative)", String(current.notes || ""));
+    if (notes == null) return;
+    await managementCatalogRequest({
+      action: "upsert_tool",
+      tool_code: normalizedBusinessCode(code),
+      business_line_code: normalizedBusinessCode(lineCode),
+      label: String(label).trim(),
+      page_path: String(pagePath).trim(),
+      source_aliases: String(aliasesRaw).split(",").map(item => normalizedBusinessCode(item)).filter(Boolean),
+      status: String(status || "draft").trim().toLowerCase(),
+      lead_enabled: leadEnabled,
+      monetization_enabled: monetizationEnabled,
+      sort_order: Number(sortOrderRaw || 100),
+      notes,
+    });
+    await refreshManagementReport();
+  }
+
+  async function setBusinessLineStatus(line, status) {
+    await managementCatalogRequest({ action: "set_line_status", line_code: line.line_code, status });
+    await refreshManagementReport();
+  }
+
+  async function setBusinessToolStatus(tool, status) {
+    await managementCatalogRequest({ action: "set_tool_status", tool_code: tool.tool_code, status });
+    await refreshManagementReport();
+  }
+
+  async function deleteBusinessLine(line, catalog) {
+    const tools = catalog.tools.filter(tool => tool.business_line_code === line.line_code);
+    const confirmation = window.prompt(
+      `${line.label}: eliminazione definitiva della VOCE catalogo.\\n${tools.length} strumenti collegati. I dati lead/eventi non vengono eliminati da questa operazione.\\n\\nDigita ELIMINA_LINEA_BUSINESS`,
+      "",
+    );
+    if (confirmation !== "ELIMINA_LINEA_BUSINESS") return;
+    const deleteTools = tools.length ? window.confirm(`Eliminare dal catalogo anche i ${tools.length} strumenti collegati?`) : false;
+    await managementCatalogRequest({ action: "delete_line", line_code: line.line_code, confirmation, delete_tools: deleteTools });
+    await refreshManagementReport();
+  }
+
+  async function deleteBusinessTool(tool) {
+    const confirmation = window.prompt(
+      `${tool.label}: eliminazione definitiva della VOCE catalogo. I lead/eventi restano presenti finché non usi “Elimina dati”.\\n\\nDigita ELIMINA_STRUMENTO`,
+      "",
+    );
+    if (confirmation !== "ELIMINA_STRUMENTO") return;
+    await managementCatalogRequest({ action: "delete_tool", tool_code: tool.tool_code, confirmation });
+    await refreshManagementReport();
+  }
+
   function renderCommercial(snapshot) {
     const current = snapshot.current || {};
     const previous = snapshot.previous || {};
@@ -655,34 +859,77 @@
     });
     target.replaceChildren(...rows);
 
+    const catalog = businessCatalog(snapshot);
+    const lineTarget = byId("managementBusinessLineRows");
+    if (lineTarget) {
+      const lineItems = current.site?.business_lines?.items || {};
+      const lineRows = [...catalog.lines]
+        .sort((a, b) => numeric(a.sort_order) - numeric(b.sort_order) || String(a.label || "").localeCompare(String(b.label || ""), "it"))
+        .map(line => {
+          const code = String(line.line_code || "");
+          const values = lineItems[code] || {};
+          const tr = document.createElement("tr");
+          const lineTools = catalog.tools.filter(tool => tool.business_line_code === code);
+          tr.append(
+            rowCell(line.label || code, code),
+            rowCell(businessStatusLabel(line.status), `${line.lead_enabled ? "Lead attivi" : "Lead disattivati"} · ${line.monetization_enabled ? "Monetizzazione attiva" : "Monetizzazione disattivata"} · ${lineTools.length} strumenti`),
+            rowCell(number(values.unique_sessions)),
+            rowCell(number(values.views)),
+            rowCell(number(values.analyses), numeric(values.analysis_unpriced) ? `${number(values.analysis_unpriced)} senza prezzo` : ""),
+            rowCell(money(values.analysis_cost_total_eur), numeric(values.analysis_cost_estimated_eur) ? `${money(values.analysis_cost_real_eur)} reali · ${money(values.analysis_cost_estimated_eur)} stimati` : "Costo registrato"),
+            rowCell(number(values.leads)),
+            rowCell(number(values.verified_leads), "Verifica completata"),
+            rowCell(number(values.monetizable_leads), "Consenso partner disponibile"),
+            rowCell(values.lead_conversion_pct == null ? "—" : percent(values.lead_conversion_pct), "Lead / sessioni"),
+            rowCell(money(values.expected_commission_eur), "Non ricavo confermato"),
+            businessActionCell([
+              { label: "Modifica", action: () => editBusinessLine(line) },
+              { label: line.status === "active" ? "Pausa" : "Attiva", action: () => setBusinessLineStatus(line, line.status === "active" ? "paused" : "active") },
+              { label: "Archivia", action: () => setBusinessLineStatus(line, "archived") },
+              { label: "Elimina dati", title: "Elimina lead ed eventi attribuiti, non i movimenti economici", action: () => managementBusinessDataDelete("business_line_data", code, line.label || code) },
+              { label: "Elimina voce", action: () => deleteBusinessLine(line, catalog) },
+            ]),
+          );
+          return tr;
+        });
+      lineTarget.replaceChildren(...lineRows);
+    }
+
     const toolTarget = byId("managementToolRows");
     if (toolTarget) {
       const tools = current.site?.tools?.items || {};
-      const definitions = [
-        ["speed_test", "Speed Test"],
-        ["fotovoltaico", "Fotovoltaico"],
-        ["fotovoltaico_agricoltura", "Fotovoltaico Azienda Agricola"],
-      ];
-      const toolRows = definitions.map(([code, label]) => {
-        const values = tools[code] || {};
-        const hasData = numeric(values.events) > 0;
-        const evaluations = numeric(values.economics_evaluated);
-        const tr = document.createElement("tr");
-        tr.append(
-          rowCell(label),
-          rowCell(hasData ? "Dati presenti" : "Nessun evento nel mese"),
-          rowCell(number(values.unique_sessions)),
-          rowCell(number(values.views)),
-          rowCell(number(values.started)),
-          rowCell(number(values.completed)),
-          rowCell(values.completion_pct == null ? "—" : percent(values.completion_pct)),
-          rowCell(number(values.diagnoses)),
-          rowCell(number(evaluations)),
-          rowCell(number(values.cta_clicks)),
-          rowCell(number(values.errors)),
-        );
-        return tr;
-      });
+      const lineLabels = Object.fromEntries(catalog.lines.map(line => [line.line_code, line.label]));
+      const toolRows = [...catalog.tools]
+        .sort((a, b) => numeric(a.sort_order) - numeric(b.sort_order) || String(a.label || "").localeCompare(String(b.label || ""), "it"))
+        .map(tool => {
+          const code = String(tool.tool_code || "");
+          const values = tools[code] || {};
+          const isCommercial = Boolean(tool.business_line_code);
+          const tr = document.createElement("tr");
+          tr.append(
+            rowCell(tool.label || code, code),
+            rowCell(isCommercial ? (lineLabels[tool.business_line_code] || tool.business_line_code) : "Tecnico", tool.page_path || ""),
+            rowCell(businessStatusLabel(tool.status), `${tool.lead_enabled ? "Lead sì" : "Lead no"} · ${tool.monetization_enabled ? "Monetizzazione sì" : "Monetizzazione no"}`),
+            rowCell(number(values.unique_sessions)),
+            rowCell(number(values.views)),
+            rowCell(number(values.started)),
+            rowCell(number(values.completed), values.completion_pct == null ? "" : `${percent(values.completion_pct)} completamento`),
+            rowCell(number(values.analyses), numeric(values.analysis_unpriced) ? `${number(values.analysis_unpriced)} senza prezzo` : ""),
+            rowCell(money(values.analysis_cost_total_eur), numeric(values.analysis_cost_estimated_eur) ? `${money(values.analysis_cost_real_eur)} reali · ${money(values.analysis_cost_estimated_eur)} stimati` : ""),
+            rowCell(number(values.leads)),
+            rowCell(number(values.verified_leads)),
+            rowCell(number(values.cta_clicks)),
+            rowCell(number(values.errors)),
+            businessActionCell([
+              { label: "Modifica", action: () => editBusinessTool(tool) },
+              { label: tool.status === "active" ? "Pausa" : "Attiva", action: () => setBusinessToolStatus(tool, tool.status === "active" ? "paused" : "active") },
+              { label: "Archivia", action: () => setBusinessToolStatus(tool, "archived") },
+              ...(isCommercial ? [{ label: "Elimina dati", title: "Elimina lead ed eventi attribuiti, non i movimenti economici", action: () => managementBusinessDataDelete("business_tool_data", code, tool.label || code) }] : []),
+              { label: "Elimina voce", action: () => deleteBusinessTool(tool) },
+            ]),
+          );
+          return tr;
+        });
       toolTarget.replaceChildren(...toolRows);
     }
   }
@@ -875,10 +1122,32 @@
     }
     if (currentSubview === "commercial") {
       const segments = current.site?.segments || {};
-      return [["Segmento", "Analisi PDF", "Documenti noti", "Analisi senza conteggio documenti", "Confronti", "Lead", "OTP inviati", "OTP verificati", "Offerte sbloccate", "Redirect", "Richieste consulente"], ...[["consumer","Privati"],["business","Business"],["unknown","Non classificato"]].map(([key,label]) => {
-        const x=segments[key] || {};
-        return [label,numeric(x.pdf_analyses_started),numeric(x.pdf_documents),numeric(x.pdf_events_without_document_count),numeric(x.comparisons),numeric(x.leads),numeric(x.otp_sent),numeric(x.otp_verified),numeric(x.offers_unlocked),numeric(x.offer_redirects),numeric(x.consultant_requests)];
-      })];
+      const catalog = businessCatalog(snapshot);
+      const lines = current.site?.business_lines?.items || {};
+      const tools = current.site?.tools?.items || {};
+      const rows = [
+        ["SEZIONE SEGMENTI"],
+        ["Segmento", "Analisi PDF", "Documenti noti", "Analisi senza conteggio documenti", "Confronti", "Lead", "OTP inviati", "OTP verificati", "Offerte sbloccate", "Redirect", "Richieste consulente"],
+        ...[["consumer","Privati"],["business","Business"],["unknown","Non classificato"]].map(([key,label]) => {
+          const x=segments[key] || {};
+          return [label,numeric(x.pdf_analyses_started),numeric(x.pdf_documents),numeric(x.pdf_events_without_document_count),numeric(x.comparisons),numeric(x.leads),numeric(x.otp_sent),numeric(x.otp_verified),numeric(x.offers_unlocked),numeric(x.offer_redirects),numeric(x.consultant_requests)];
+        }),
+        [],
+        ["SEZIONE LINEE BUSINESS"],
+        ["Linea", "Codice", "Stato", "Sessioni", "Visite", "Analisi", "Costo analisi EUR", "Lead", "Contatti verificati", "Monetizzabili", "Conversione %", "Commissioni attese EUR"],
+        ...catalog.lines.map(line => {
+          const x=lines[line.line_code] || {};
+          return [line.label,line.line_code,line.status,numeric(x.unique_sessions),numeric(x.views),numeric(x.analyses),numeric(x.analysis_cost_total_eur),numeric(x.leads),numeric(x.verified_leads),numeric(x.monetizable_leads),x.lead_conversion_pct == null ? "" : numeric(x.lead_conversion_pct),numeric(x.expected_commission_eur)];
+        }),
+        [],
+        ["SEZIONE STRUMENTI"],
+        ["Strumento", "Codice", "Linea", "Stato", "Sessioni", "Visite", "Avvii", "Completati", "Analisi", "Costo analisi EUR", "Lead", "Contatti verificati", "CTA", "Errori"],
+        ...catalog.tools.map(tool => {
+          const x=tools[tool.tool_code] || {};
+          return [tool.label,tool.tool_code,tool.business_line_code || "",tool.status,numeric(x.unique_sessions),numeric(x.views),numeric(x.started),numeric(x.completed),numeric(x.analyses),numeric(x.analysis_cost_total_eur),numeric(x.leads),numeric(x.verified_leads),numeric(x.cta_clicks),numeric(x.errors)];
+        }),
+      ];
+      return rows;
     }
     if (currentSubview === "premium") {
       const products = productMap(snapshot);
@@ -1218,6 +1487,8 @@
       });
     }
     byId("managementRefresh")?.addEventListener("click", () => void refreshManagementReport());
+    byId("managementAddBusinessLine")?.addEventListener("click", () => void editBusinessLine());
+    byId("managementAddBusinessTool")?.addEventListener("click", () => void editBusinessTool());
     byId("managementExportCsv")?.addEventListener("click", exportCurrentManagementView);
     byId("managementOpenOperational")?.addEventListener("click", openOperationalModule);
     byId("managementSourceToggle")?.addEventListener("click", () => toggleManagementSources());
@@ -1509,6 +1780,7 @@
     release: RELEASE,
     timeZone: TIME_ZONE,
     productCatalog: PRODUCT_CATALOG,
+    businessCatalog: () => businessCatalog(managementSnapshot),
     currentMonthKey,
     normalizeMonthKey,
     monthPeriod,
