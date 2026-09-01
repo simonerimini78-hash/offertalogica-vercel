@@ -3,6 +3,14 @@
 <head>
     <!--Tradedoubler site verification cidd973bbed-1203-458b-841b-ed0a9816a8f2-->
     <script type="text/javascript" src="https://embeds.iubenda.com/widgets/7a8d1e4e-6d87-44e3-9842-5e8991323410.js"></script>
+    <!-- Google tag (gtag.js) - Google Ads: AW-981118984 -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=AW-981118984"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'AW-981118984');
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OffertaLogica | Calcolatore offerte luce e gas</title>
@@ -7858,13 +7866,9 @@ function apriAnteprimaConsensoOffertaStaff() {
   window.apriConsensoOfferta?.(offer);
 }
 
-function apriStrumentoStaff(path) {
-  chiudiPannelloAnteprimeStaff();
-  window.location.assign(path);
-}
-
 function apriHomeStaff() {
-  apriStrumentoStaff("/?staffHome=1");
+  chiudiPannelloAnteprimeStaff();
+  window.location.assign("/?staffHome=1");
 }
 
 function apriArchivioPdfStaff() {
@@ -7888,10 +7892,7 @@ function creaPannelloAnteprimeStaff() {
     <h3>Anteprime modalità staff</h3>
     <p>Apri gli stessi popup e passaggi della pagina pubblica. Lead, consensi e webhook restano disattivati; l’archivio PDF di test è separato.</p>
     <div class="staff-preview-grid">
-      <button type="button" id="staff-preview-home">Energia / Comparatore</button>
-      <button type="button" id="staff-preview-speed">Speed Test</button>
-      <button type="button" id="staff-preview-solar">Fotovoltaico</button>
-      <button type="button" id="staff-preview-climate">Climatizzazione</button>
+      <button type="button" id="staff-preview-home">Home</button>
       <button type="button" id="staff-preview-otp">Verifica offerte</button>
       <button type="button" id="staff-preview-help">Aiuto difficoltà</button>
       <button type="button" id="staff-preview-callback">Richiesta ricontatto</button>
@@ -7905,9 +7906,6 @@ function creaPannelloAnteprimeStaff() {
   `;
   document.body.appendChild(panel);
   document.getElementById("staff-preview-home")?.addEventListener("click", apriHomeStaff);
-  document.getElementById("staff-preview-speed")?.addEventListener("click", () => apriStrumentoStaff("/speed-test.html"));
-  document.getElementById("staff-preview-solar")?.addEventListener("click", () => apriStrumentoStaff("/fotovoltaico.html"));
-  document.getElementById("staff-preview-climate")?.addEventListener("click", () => apriStrumentoStaff("/climatizzazione-pompa-di-calore.html"));
   document.getElementById("staff-preview-otp")?.addEventListener("click", apriAnteprimaOtpStaff);
   document.getElementById("staff-preview-help")?.addEventListener("click", apriAnteprimaAiutoStaff);
   document.getElementById("staff-preview-callback")?.addEventListener("click", apriAnteprimaRicontattoStaff);
