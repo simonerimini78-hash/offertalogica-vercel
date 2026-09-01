@@ -6,7 +6,7 @@ import { del } from "../lib/store.js";
 import { requireStaffSession } from "../lib/staffSessionAuth.js";
 import { writeStaffAudit } from "../lib/staffAudit.js";
 
-const MANAGEMENT_RELEASE = "0.36.88";
+const MANAGEMENT_RELEASE = "0.36.89";
 const CUSTOMER_PAGE_SIZE = 1000;
 const CUSTOMER_MAX_ROWS = 20000;
 const BUSINESS_ALIASES = new Set(["business", "azienda", "aziende", "piva", "p.iva", "impresa"]);
@@ -209,15 +209,22 @@ async function callManagementRpc(accessToken, month) {
 }
 
 function normalizeBusinessCatalog(value) {
-  const lines = Array.isArray(value?.lines) ? value.lines : [];
-  const tools = Array.isArray(value?.tools) ? value.tools : [];
-  if (!lines.length || !tools.length) return { ...FALLBACK_BUSINESS_CATALOG };
+  const validPayload = value && typeof value === "object"
+    && Array.isArray(value.lines)
+    && Array.isArray(value.tools);
+  if (!validPayload) {
+    return {
+      ...FALLBACK_BUSINESS_CATALOG,
+      fallback: true,
+      reason: "catalog_response_invalid",
+    };
+  }
   return {
-    fallback: Boolean(value?.fallback),
-    release: value?.release || "P11",
-    lines,
-    tools,
-    checked_at: value?.checked_at || null,
+    fallback: Boolean(value.fallback),
+    release: value.release || "P12",
+    lines: value.lines,
+    tools: value.tools,
+    checked_at: value.checked_at || null,
   };
 }
 
@@ -808,8 +815,11 @@ function mergeManagementPeriod(period = {}, site = {}) {
   };
 }
 
-function managementQualityNotes(report, currentSite, previousSite) {
+function managementQualityNotes(report, currentSite, previousSite, catalog = {}) {
   const notes = [];
+  if (catalog?.fallback) {
+    notes.push("Catalogo Business in modalità fallback: le letture restano disponibili, ma le cancellazioni dati vengono bloccate finché il catalogo persistente non torna disponibile.");
+  }
   if (report?.baseline_at) {
     notes.push("Il punto zero gestionale è attivo: gli eventi precedenti restano archiviati ma non entrano nei conteggi ufficiali.");
   }
@@ -838,6 +848,7 @@ function managementQualityNotes(report, currentSite, previousSite) {
   if (currentSite?.business_lines?.economics_available === false) {
     notes.push("Dettaglio costi IA per linea/strumento non disponibile: il Gestionale non distribuisce il costo per stima.");
   }
+  notes.push("I costi IA Sito vengono attribuiti a una linea/strumento solo quando la registrazione economica contiene un riferimento verificabile a tool, sorgente o pagina; il Gestionale non ripartisce costi per stima.");
   notes.push("Per verticale, 'Contatti verificati' indica lead con verifica OTP completata; non equivale automaticamente a qualificazione commerciale.");
   notes.push("Le commissioni lead attese derivano solo da dati commerciali realmente registrati. Non vengono trattate come ricavi confermati.");
   notes.push("Il numero di clienti Premium indica clienti con attività o pagamento nel periodo; non ricostruisce retroattivamente uno stato abbonamento non storicizzato.");
@@ -879,7 +890,7 @@ async function handleManagementReport(req, res, identity, url) {
       business_catalog: catalog,
       current,
       previous,
-      quality_notes: managementQualityNotes(report, currentSite, previousSite),
+      quality_notes: managementQualityNotes(report, currentSite, previousSite, catalog),
       authorizedBy: identity.authorizedBy,
       checkedAt: new Date().toISOString(),
     });
@@ -951,17 +962,68 @@ async function handleManagementCatalogMutation(req, res, identity) {
 
 function targetToolCodes(catalog, scope, code) {
   const normalized = normalizeCatalogCode(code);
+  const tools = Array.isArray(catalog?.tools) ? catalog.tools : [];
   if (scope === "business_tool_data") {
-    const tool = resolveCatalogTool(catalog, normalized, "");
+    const tool = tools.find(item => normalizeCatalogCode(item?.tool_code) === normalized);
     return tool ? new Set([normalizeCatalogCode(tool.tool_code)]) : new Set();
   }
   if (scope === "business_line_data") {
-    return new Set((Array.isArray(catalog?.tools) ? catalog.tools : [])
+    return new Set(tools
       .filter(tool => normalizeCatalogCode(tool?.business_line_code) === normalized)
       .map(tool => normalizeCatalogCode(tool?.tool_code))
       .filter(Boolean));
   }
   return new Set();
+}
+
+function destructiveCandidateTools(catalog, candidate = "") {
+  const normalized = normalizeCatalogCode(candidate);
+  if (!normalized) return [];
+  const tools = Array.isArray(catalog?.tools) ? catalog.tools : [];
+  const exact = tools.filter(tool => normalizeCatalogCode(tool?.tool_code) === normalized);
+  if (exact.length) return exact;
+  return tools.filter(tool => (Array.isArray(tool?.source_aliases) ? tool.source_aliases : [])
+    .some(alias => normalizeCatalogCode(alias) === normalized));
+}
+
+function destructivePageTools(catalog, pagePath = "") {
+  const page = normalizePagePath(pagePath);
+  if (!page) return [];
+  return (Array.isArray(catalog?.tools) ? catalog.tools : [])
+    .filter(tool => normalizePagePath(tool?.page_path) === page);
+}
+
+function destructiveAttributionMatches(row = {}, catalog = {}, targetCodes = new Set(), kind = "event") {
+  const candidates = [];
+  let page = "";
+  if (kind === "lead") {
+    const record = row?.record && typeof row.record === "object" ? row.record : {};
+    const attribution = record?.attribution && typeof record.attribution === "object" ? record.attribution : {};
+    const calculation = row?.calculation && typeof row.calculation === "object"
+      ? row.calculation
+      : record?.calculation && typeof record.calculation === "object" ? record.calculation : {};
+    candidates.push(
+      attribution.toolCode, attribution.tool_code, attribution.source,
+      calculation.toolCode, calculation.tool_code, calculation.dataOrigin, row?.source,
+    );
+    page = attribution.pagePath || attribution.page_path || "";
+  } else {
+    const payload = managementPayload(row);
+    candidates.push(payload.toolCode, payload.tool_code, payload.source, payload.dataOrigin);
+    page = payload.page || "";
+  }
+
+  for (const candidate of candidates) {
+    const matches = destructiveCandidateTools(catalog, candidate);
+    if (!matches.length) continue;
+    if (matches.length !== 1) return false;
+    return targetCodes.has(normalizeCatalogCode(matches[0]?.tool_code));
+  }
+
+  const pageMatches = destructivePageTools(catalog, page);
+  if (!pageMatches.length) return false;
+  const possibleCodes = new Set(pageMatches.map(tool => normalizeCatalogCode(tool?.tool_code)).filter(Boolean));
+  return possibleCodes.size > 0 && [...possibleCodes].every(toolCode => targetCodes.has(toolCode));
 }
 
 async function deleteLeadBatches(ids = []) {
@@ -994,6 +1056,12 @@ async function handleBusinessDataDeletion(req, res, identity, body, confirmation
   const accessToken = readBearerToken(req);
   if (!accessToken) return json(res, 401, { ok: false, error: "Sessione Staff richiesta" });
   const catalog = await loadBusinessCatalog(accessToken);
+  if (catalog?.fallback) {
+    return json(res, 503, {
+      ok: false,
+      error: "Catalogo Business persistente non disponibile: eliminazione dati bloccata per sicurezza",
+    });
+  }
   const codes = targetToolCodes(catalog, scope, code);
   if (!codes.size) return json(res, 404, { ok: false, error: "Linea o strumento non trovato nel catalogo" });
 
@@ -1011,12 +1079,12 @@ async function handleBusinessDataDeletion(req, res, identity, body, confirmation
   }
 
   const leadIds = (Array.isArray(leads) ? leads : [])
-    .filter(row => codes.has(normalizeCatalogCode(managementLeadTool(row, catalog)?.tool_code)))
+    .filter(row => destructiveAttributionMatches(row, catalog, codes, "lead"))
     .map(row => String(row.id || "").trim())
     .filter(Boolean);
   const leadIdSet = new Set(leadIds);
   const eventIds = (Array.isArray(events) ? events : [])
-    .filter(row => codes.has(normalizeCatalogCode(managementEventTool(row, catalog)?.tool_code)))
+    .filter(row => destructiveAttributionMatches(row, catalog, codes, "event"))
     .filter(row => !leadIdSet.has(String(row.lead_id || "").trim()))
     .map(row => Number(row.id))
     .filter(value => Number.isSafeInteger(value) && value > 0);

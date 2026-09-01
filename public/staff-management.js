@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const RELEASE = "0.36.88";
+  const RELEASE = "0.36.89";
   if (window.OffertaLogicaStaffManagement?.release === RELEASE) return;
 
   const TIME_ZONE = "Europe/Rome";
@@ -1177,9 +1177,9 @@
       return [["Voce","Valore"],["Ricavi confermati EUR",numeric(f.revenue_confirmed_eur)],["Costi reali EUR",numeric(f.cost_real_eur)],["Risultato reale EUR",numeric(f.result_real_eur)],["Margine reale %",numeric(f.margin_real_pct)],["Commissioni lead attese EUR",numeric(commercial.expected_lead_commission_eur)],["Costo IA Premium EUR",numeric(c.premium_ai_eur)],["Costo operatori EUR",numeric(c.operator_eur)],["Secondi operatori",numeric(c.operator_seconds)],["Movimenti senza prezzo",numeric(f.unpriced_count)]];
     }
     if (currentSubview === "quality") {
-      const f=current.finance || {}; const site=current.site || {}; const ai=current.site_ai || {};
+      const f=current.finance || {}; const site=current.site || {}; const ai=current.site_ai || {}; const business=site.business_lines || {};
       const notes=Array.isArray(snapshot.quality_notes)?snapshot.quality_notes:[];
-      return [["Voce","Valore"],["Movimenti senza prezzo",numeric(f.unpriced_count)],["Analisi PDF senza conteggio documenti",numeric(site.total?.pdf_events_without_document_count)],["Eventi+lead sito non classificati",numeric(site.segments?.unknown?.events)+numeric(site.segments?.unknown?.leads)],["Run+fallimenti IA sito non classificati",numeric(ai.unknown?.runs)+numeric(ai.unknown?.failed)],...notes.map(note=>["Nota qualità",note])];
+      return [["Voce","Valore"],["Catalogo Business",snapshot?.business_catalog?.fallback?"fallback":"persistente"],["Movimenti senza prezzo",numeric(f.unpriced_count)],["Analisi PDF senza conteggio documenti",numeric(site.total?.pdf_events_without_document_count)],["Eventi+lead sito non classificati",numeric(site.segments?.unknown?.events)+numeric(site.segments?.unknown?.leads)],["Run+fallimenti IA sito non classificati",numeric(ai.unknown?.runs)+numeric(ai.unknown?.failed)],["Lead business non attribuiti",numeric(business.unattributed_leads)],["Costi IA business non attribuiti",numeric(business.unattributed_economic_entries)],["Traffico tool filtrato",numeric(business.filtered_traffic)],...notes.map(note=>["Nota qualità",note])];
     }
     const f=current.finance || {}; const t=current.totals || {}; const site=current.site?.total || {}; const personnel=Array.isArray(current.personnel)?current.personnel:[];
     return [["Voce","Valore"],["Ricavi confermati EUR",numeric(f.revenue_confirmed_eur)],["Costi reali EUR",numeric(f.cost_real_eur)],["Risultato reale EUR",numeric(f.result_real_eur)],["Margine reale %",numeric(f.margin_real_pct)],["Lead",numeric(t.leads)],["Confronti",numeric(t.comparisons)],["Conversione OTP %",numeric(site.otp_verification_pct)],["Nuovi Premium pagati",numeric(t.premium_new_paid_subscriptions)],["Staff nel periodo",personnel.length],["Movimenti senza prezzo",numeric(f.unpriced_count)]];
@@ -1274,7 +1274,16 @@
     const unknownSite = numeric(site.segments?.unknown?.events) + numeric(site.segments?.unknown?.leads);
     const unknownAi = numeric(siteAi.unknown?.runs) + numeric(siteAi.unknown?.failed);
     const unpriced = numeric(finance.unpriced_count);
+    const business = site.business_lines || {};
+    const unattributedLeads = numeric(business.unattributed_leads);
+    const unattributedCosts = numeric(business.unattributed_economic_entries);
+    const filteredTraffic = numeric(business.filtered_traffic);
+    const catalogFallback = Boolean(snapshot?.business_catalog?.fallback);
     replaceCards("managementQualityKpis", [
+      card("Catalogo Business", catalogFallback ? "Fallback" : "Persistente", catalogFallback ? "Cancellazioni dati bloccate" : "RPC P12 disponibile", catalogFallback ? "warning" : ""),
+      card("Lead business non attribuiti", number(unattributedLeads), unattributedLeads ? "Fuori dai KPI verticali" : "Nessuno", unattributedLeads ? "warning" : ""),
+      card("Costi IA non attribuiti", number(unattributedCosts), unattributedCosts ? "Nessuna ripartizione stimata" : "Nessuno", unattributedCosts ? "warning" : ""),
+      card("Traffico tool filtrato", number(filteredTraffic), filteredTraffic ? "Bot/automazioni esclusi" : "Nessuno", ""),
       card("Movimenti senza prezzo", number(unpriced), unpriced ? "Richiede completamento" : "Nessuno", unpriced ? "warning" : ""),
       card("Analisi PDF senza n. documenti", number(missingDocs), missingDocs ? "Il gestionale non inventa il conteggio" : "Nessuna", missingDocs ? "warning" : ""),
       card("Sito non classificato", number(unknownSite), unknownSite ? "Eventi/lead senza segmento" : "Nessuno", unknownSite ? "warning" : ""),
