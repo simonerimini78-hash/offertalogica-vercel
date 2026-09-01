@@ -2680,7 +2680,7 @@
 
     <div class="business-panel" id="business-panel">
         <h3>Analisi aziendale luce e gas</h3>
-        <p>Per le aziende il confronto dipende da potenza, fasce orarie e profilo di consumo. Qui raccogliamo i dati per un'analisi preliminare e una verifica consulenziale.</p>
+        <p>Per le aziende il confronto dipende da potenza, fasce orarie e profilo di consumo. OffertaLogica fornisce un'analisi preliminare; per proseguire con supporto e attivazione puoi continuare con il nostro partner Switcho.</p>
 
         <div class="business-grid">
             <div class="business-section">
@@ -2780,7 +2780,7 @@
                     <label for="business-fisso-gas">Quota fissa gas €/anno</label>
                     <input id="business-fisso-gas" type="number" placeholder="Se nota">
                 </div>
-                <div class="upload-note">Se carichi una bolletta business dal box PDF, proveremo a leggere consumi e fornitore. La verifica finale resta consulenziale.</div>
+                <div class="upload-note">Se carichi una bolletta business dal box PDF, proveremo a leggere consumi e fornitore. Per supporto e attivazione potrai poi proseguire con il nostro partner Switcho.</div>
             </div>
         </div>
         <div id="pdf-contract-control-business" class="pdf-contract-persistent" hidden aria-live="polite"></div>
@@ -2789,16 +2789,16 @@
             <div class="business-action-buttons">
                 <button type="button" class="btn-action" onclick="calcolaBusiness()">Avvia analisi business</button>
                 <button type="button" class="business-secondary-action" onclick="apriSimulatoreFotovoltaicoBusiness()">Simula fotovoltaico con questi dati</button>
-                <button type="button" class="business-secondary-action" onclick="apriLeadBusiness()">Richiedi un contatto aziendale</button>
+                <button type="button" class="business-secondary-action" onclick="apriLeadBusiness()">Continua con Switcho</button>
             </div>
-            <p class="business-action-note">Puoi iniziare dall'analisi preliminare oppure richiedere direttamente un contatto.</p>
+            <p class="business-action-note">L'analisi resta su OffertaLogica; per proseguire verrai indirizzato al nostro partner Switcho. I dati inseriti qui non vengono trasferiti automaticamente.</p>
         </div>
         <div class="business-error" id="business-error"></div>
         <div class="business-result" id="business-result">
             <strong id="business-saving">Analisi preliminare in elaborazione</strong>
             <p id="business-copy"></p>
             <div class="business-ranking" id="business-ranking" hidden aria-live="polite"></div>
-            <button type="button" class="btn-action" onclick="apriLeadBusiness()">Prosegui con la richiesta</button>
+            <button type="button" class="btn-action" onclick="apriLeadBusiness()">Continua con Switcho</button>
         </div>
     </div>
 
@@ -5640,11 +5640,11 @@ window.calcolaBusiness = function calcolaBusiness() {
     if (copy) {
       copy.innerText = migliore.differenza >= 0
         ? "Le offerte mostrate sono offerte business ARERA compatibili con le forniture indicate e sono ordinate per costo annuo stimato della componente di vendita."
-        : "Nel catalogo business attuale non emerge una proposta con componente di vendita inferiore ai dati inseriti. Puoi comunque verificare condizioni e dettagli con assistenza.";
+        : "Nel catalogo business attuale non emerge una proposta con componente di vendita inferiore ai dati inseriti. Puoi comunque proseguire con il supporto del nostro partner Switcho.";
     }
   } else {
     if (saving) saving.innerText = "Profilo business completo";
-    if (copy) copy.innerText = "Il catalogo business non ha prodotto offerte confrontabili per questo profilo. I dati restano disponibili per la verifica consulenziale.";
+    if (copy) copy.innerText = "Il catalogo business non ha prodotto offerte confrontabili per questo profilo. Puoi comunque proseguire con il supporto del nostro partner Switcho.";
   }
   renderRankingBusiness(profiloCalcolato, ranking);
   if (result) result.style.display = "block";
@@ -5699,18 +5699,12 @@ window.apriLeadBusiness = function apriLeadBusiness() {
   LEAD_STATE.businessProfile = profile;
   LEAD_STATE.bestSaving = Math.max(0, Number(profile.risparmioStimato) || 0);
   LEAD_STATE.bestPartnerSaving = 0;
-  trackEvent("business_lead_modal_requested", {
+  trackEvent("business_switcho_requested", {
     customerType: "business",
     dataOrigin: determinaOrigineDatoLead(),
     missingFields: profile.campiMancanti,
   });
-  const nome = document.getElementById("lead-nome");
-  const telefono = document.getElementById("lead-telefono");
-  const email = document.getElementById("lead-email");
-  if (nome && !nome.value) nome.value = profile.referente || profile.ragioneSociale || "";
-  if (telefono && !telefono.value) telefono.value = profile.telefono || "";
-  if (email && !email.value) email.value = profile.email || "";
-  apriLeadModal("business");
+  apriLandingSwitcho("business");
 };
 
 function maggiorazioneMaster(commodity) {
@@ -10001,8 +9995,8 @@ window.confermaPdfECalcola = async function confermaPdfECalcola() {
       return;
     }
     if (copy) copy.innerText = Array.isArray(selectedAutofillRows) && selectedAutofillRows.length === 0
-      ? "Bolletta business acquisita e salvata. Nessun campo del modulo è stato modificato. Non è necessario completare il confronto automatico per richiedere la verifica."
-      : "Bolletta business acquisita e salvata. I campi selezionati sono stati inseriti nel modulo. Non è necessario completare il confronto automatico per richiedere la verifica.";
+      ? "Bolletta business acquisita e salvata. Nessun campo del modulo è stato modificato. Puoi completare l'analisi preliminare e poi proseguire con Switcho."
+      : "Bolletta business acquisita e salvata. I campi selezionati sono stati inseriti nel modulo. Puoi completare l'analisi preliminare e poi proseguire con Switcho.";
     portaElementoInVista(document.getElementById("business-panel"), { block: "start" });
     return;
   }
@@ -12385,8 +12379,8 @@ function formattaRisparmioSocial(value) {
   return `${new Intl.NumberFormat("it-IT", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount)} €`;
 }
 
-// v79 — routing trasparente verso il partner Switcho
-const SWITCHO_ROUTING_VERSION = "switcho-v1-2026-09-01";
+// v80 — routing trasparente verso il partner Switcho, incluso percorso Business
+const SWITCHO_ROUTING_VERSION = "switcho-v2-2026-09-01";
 const SWITCHO_LANDING_URL = "https://bit.ly/Switcho-LuceGas-OffertaLogica";
 
 function apriLandingSwitcho(source = "guided", offer = null) {
@@ -13067,7 +13061,7 @@ if (document.readyState === "loading") {
             </button>
             <button type="button" class="guided-assistant-option" data-assistant-action="business">
                 Sono un'azienda o P.IVA
-                <small>Apri il percorso business con verifica consulenziale.</small>
+                <small>Apri il percorso business con analisi preliminare e supporto del partner Switcho.</small>
             </button>
             <button type="button" class="guided-assistant-option" data-assistant-action="offerte">
                 Voglio capire le offerte
@@ -13301,7 +13295,7 @@ I tuoi dati non vengono inviati a fornitori o partner finché non scegli di proc
                 scrollToTarget("#master-blocchi-inferiori");
                 break;
             case "business":
-                setMessage("Per aziende e P.IVA il confronto e preliminare: servono consumi, potenza, fasce e spesso una verifica consulenziale.");
+                setMessage("Per aziende e P.IVA OffertaLogica fornisce un confronto preliminare; per supporto e attivazione puoi poi proseguire con il nostro partner Switcho.");
                 activateButton("btn-segmento-business");
                 scrollToTarget("#business-panel");
                 break;
