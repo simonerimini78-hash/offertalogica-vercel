@@ -58,6 +58,11 @@ const ALLOWED_EVENT_TYPES = new Set([
   "pdf_autofill_preview_confirmed",
   "pdf_reset",
   "switcho_observed_offer_selected",
+  // Switcho v80: eventi già emessi dal frontend pubblico.
+  "switcho_landing_opened",
+  "offer_switcho_redirect",
+  "business_switcho_requested",
+  "assistance_switcho_redirect",
   "social_entry_viewed",
   "social_entry_saving_ready",
   "social_entry_saving_fallback",

@@ -4,6 +4,33 @@ import { staffPreviewTokenValid } from "../lib/staffAuth.js";
 
 const STAFF_PREVIEW_VERIFY_URL = "https://staff.offertalogica.it/api/staff-preview";
 const STAFF_PREVIEW_VERIFY_TIMEOUT_MS = 7000;
+const STAFF_PREVIEW_TARGETS = new Set([
+  "/",
+  "/speed-test.html",
+  "/fotovoltaico.html",
+  "/climatizzazione-pompa-di-calore.html",
+]);
+
+function previewTarget(req) {
+  try {
+    const url = new URL(req.url || "/api/staff-preview", `https://${req.headers.host || "offertalogica.it"}`);
+    const target = String(url.searchParams.get("target") || "/").trim();
+    return STAFF_PREVIEW_TARGETS.has(target) ? target : "/";
+  } catch {
+    return "/";
+  }
+}
+
+function previewBootstrap(res, target) {
+  const safeTarget = JSON.stringify(target);
+  res.statusCode = 200;
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("Referrer-Policy", "no-referrer");
+  res.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive");
+  res.setHeader("Content-Security-Policy", "default-src 'none'; script-src 'unsafe-inline'; connect-src 'self'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'");
+  res.end(`<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Anteprima Staff OffertaLogica</title><style>body{font-family:system-ui,sans-serif;padding:32px;color:#17342c}p{max-width:640px;line-height:1.5}</style></head><body><p id="status">Attivazione modalità Staff…</p><script>(async()=>{const status=document.getElementById("status");const params=new URLSearchParams(location.hash.slice(1));const token=String(params.get("staff")||"").trim();history.replaceState(null,"",location.pathname+location.search);if(!token){status.textContent="Ticket Staff mancante.";return}try{const response=await fetch("/api/staff-preview",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token}),cache:"no-store"});const payload=await response.json();if(!response.ok||payload?.ok!==true)throw new Error(payload?.error||"Ticket non valido");sessionStorage.setItem("offertalogicaStaffMode","true");sessionStorage.setItem("offertalogicaStaffToken",token);location.replace(${safeTarget});}catch(error){status.textContent=String(error?.message||error||"Attivazione Staff non riuscita");}})();</script></body></html>`);
+}
 
 async function verifyWithStaffBackend(token) {
   const controller = new AbortController();
@@ -29,7 +56,11 @@ async function verifyWithStaffBackend(token) {
 }
 
 export default async function handler(req, res) {
-  if (!method(req, res, ["POST"])) return;
+  if (!method(req, res, ["GET", "POST"])) return;
+  if (req.method === "GET") {
+    previewBootstrap(res, previewTarget(req));
+    return;
+  }
   if (!requireAllowedOrigin(req, res)) return;
   if (!(await enforceRateLimit(req, res, { label: "staff-preview", ...rateLimitConfig("STAFF_PREVIEW", 20) }))) return;
 
