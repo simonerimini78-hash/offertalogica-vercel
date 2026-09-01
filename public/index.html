@@ -7858,9 +7858,13 @@ function apriAnteprimaConsensoOffertaStaff() {
   window.apriConsensoOfferta?.(offer);
 }
 
-function apriHomeStaff() {
+function apriStrumentoStaff(path) {
   chiudiPannelloAnteprimeStaff();
-  window.location.assign("/?staffHome=1");
+  window.location.assign(path);
+}
+
+function apriHomeStaff() {
+  apriStrumentoStaff("/?staffHome=1");
 }
 
 function apriArchivioPdfStaff() {
@@ -7884,7 +7888,10 @@ function creaPannelloAnteprimeStaff() {
     <h3>Anteprime modalità staff</h3>
     <p>Apri gli stessi popup e passaggi della pagina pubblica. Lead, consensi e webhook restano disattivati; l’archivio PDF di test è separato.</p>
     <div class="staff-preview-grid">
-      <button type="button" id="staff-preview-home">Home</button>
+      <button type="button" id="staff-preview-home">Energia / Comparatore</button>
+      <button type="button" id="staff-preview-speed">Speed Test</button>
+      <button type="button" id="staff-preview-solar">Fotovoltaico</button>
+      <button type="button" id="staff-preview-climate">Climatizzazione</button>
       <button type="button" id="staff-preview-otp">Verifica offerte</button>
       <button type="button" id="staff-preview-help">Aiuto difficoltà</button>
       <button type="button" id="staff-preview-callback">Richiesta ricontatto</button>
@@ -7898,6 +7905,9 @@ function creaPannelloAnteprimeStaff() {
   `;
   document.body.appendChild(panel);
   document.getElementById("staff-preview-home")?.addEventListener("click", apriHomeStaff);
+  document.getElementById("staff-preview-speed")?.addEventListener("click", () => apriStrumentoStaff("/speed-test.html"));
+  document.getElementById("staff-preview-solar")?.addEventListener("click", () => apriStrumentoStaff("/fotovoltaico.html"));
+  document.getElementById("staff-preview-climate")?.addEventListener("click", () => apriStrumentoStaff("/climatizzazione-pompa-di-calore.html"));
   document.getElementById("staff-preview-otp")?.addEventListener("click", apriAnteprimaOtpStaff);
   document.getElementById("staff-preview-help")?.addEventListener("click", apriAnteprimaAiutoStaff);
   document.getElementById("staff-preview-callback")?.addEventListener("click", apriAnteprimaRicontattoStaff);
