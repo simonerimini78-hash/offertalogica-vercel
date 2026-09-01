@@ -2964,6 +2964,17 @@ const PDF_PROFILE_STATE = { current: {}, offer: {} };
 
 
 const ANALYTICS_SESSION_KEY = "offertalogicaAnalyticsSession";
+const INTERACTIVE_TOOL_CODE = "energia_comparatore";
+
+function trackInteractiveTool(toolAction, payload = {}) {
+  const action = String(toolAction || "").trim().toLowerCase();
+  if (!action) return;
+  trackEvent("interactive_tool_event", {
+    toolCode: INTERACTIVE_TOOL_CODE,
+    toolAction: action,
+    ...payload,
+  });
+}
 
 function trackingApiDisponibile() {
   return window.location.protocol === "https:" || /\.vercel\.app$/i.test(window.location.hostname);
@@ -6595,6 +6606,10 @@ window.avviaComparazioneDati = function avviaComparazioneDati() {
     tipoFornitura,
     ...leggiProfiloComparazione(),
   });
+  trackInteractiveTool("started", {
+    customerType: LEAD_STATE.customerType,
+    dataOrigin: determinaOrigineDatoLead(),
+  });
 
   const mancantiAttuale = campiMancanti(configurazioniPerAmbito(CAMPI_ATTUALI_ESSENZIALI));
   if (mancantiAttuale.length) {
@@ -6638,6 +6653,11 @@ window.avviaComparazioneDati = function avviaComparazioneDati() {
     tipoFornitura,
     hasNewOffer: haNuovaOfferta,
     bestSaving: LEAD_STATE.bestSaving,
+  });
+  trackInteractiveTool("completed", {
+    bestSaving: LEAD_STATE.bestSaving,
+    customerType: LEAD_STATE.customerType,
+    dataOrigin: determinaOrigineDatoLead(),
   });
 };
 
@@ -7834,6 +7854,11 @@ async function registraRichiestaOfferta() {
       provider: offer?.provider || "",
       activationChannel: offer?.activationChannel || "",
     });
+    trackInteractiveTool("error", {
+      reason: "offer_request_missing_link",
+      offerId: offer?.id || "",
+      provider: offer?.provider || "",
+    });
     offerConsentStatus("Offerta non disponibile. Riprova dal pulsante dell'offerta.", true);
     return;
   }
@@ -7857,6 +7882,10 @@ async function registraRichiestaOfferta() {
     switchoReference: offer.switchoReference || "",
     network: offer.monetization?.network || "",
     model: offer.monetization?.modello || offer.monetization?.model || "",
+  });
+  trackInteractiveTool("cta_clicked", {
+    offerId: offer.id || "",
+    provider: offer.provider || "",
   });
 
   if (LEAD_STATE.leadId === STAFF_MODE_LEAD_ID || staffModeAttiva()) {
@@ -7924,6 +7953,11 @@ async function registraRichiestaOfferta() {
       offerName: offer.name || "",
       provider: offer.provider || "",
       reason: "api_error",
+    });
+    trackInteractiveTool("error", {
+      reason: "offer_request_failed",
+      offerId: offer.id || "",
+      provider: offer.provider || "",
     });
     offerConsentStatus(error.message, true);
   }
@@ -11317,6 +11351,7 @@ function caricaBollettaDaOfferte() {
 }
 
 function collegaEventiUX() {
+  trackInteractiveTool("page_view");
   inizializzaIngressoSocialMobile();
   inizializzaOffertaFacoltativaMobile();
   document.addEventListener("input", registraModificaManualePdf, true);
