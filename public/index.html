@@ -8338,6 +8338,13 @@ async function verificaOtp() {
     if (!payload.ok) throw new Error(payload.error || "Codice non corretto");
     leadStatus("Numero verificato. Le offerte sono ora disponibili.");
     trackEvent("otp_verified", { leadSource: LEAD_STATE.leadSource });
+    if (typeof gtag === "function") {
+      gtag("event", "conversion", {
+        send_to: "AW-981118984/hRnfCPun4-scEIjg6tMD",
+        value: 1.0,
+        currency: "EUR"
+      });
+    }
     completaLeadVerificato();
   } catch (error) {
     trackEvent("otp_verify_failed", {
