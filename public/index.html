@@ -2609,7 +2609,7 @@
             </button>
             <button type="button" class="social-entry-route" id="landing-assisted" disabled>
                 <strong>Preferisco essere guidato</strong>
-                <span>Un percorso guidato nella scelta e nel cambio offerta.</span>
+                <span>Continua con il supporto del nostro partner Switcho per scegliere e attivare l'offerta più adatta.</span>
             </button>
         </div>
         <p class="social-entry-status" id="landing-assisted-status" role="status" tabindex="-1" hidden></p>
@@ -6138,7 +6138,7 @@ function offertaAttivabileOnline(offerta) {
 }
 
 function testoAzioneOfferta(offerta, attivabileOnline) {
-  if (offertaSeparataMultiFornitore(offerta)) return "Verifica con consulente";
+  if (!attivabileOnline) return "Continua con Switcho";
   return "Vedi come procedere";
 }
 
@@ -8399,6 +8399,18 @@ window.apriConsensoOfferta = function apriConsensoOfferta(offerta) {
     rankingContext: OFFER_RENDER_CONTEXTS.get(String(offerta.id)) || null,
   };
 
+  if (!offertaAttivabileOnline(offerta)) {
+    trackEvent("offer_switcho_redirect", {
+      offerId: LEAD_STATE.selectedOffer.id,
+      offerName: LEAD_STATE.selectedOffer.name,
+      provider: LEAD_STATE.selectedOffer.provider,
+      destinationType: LEAD_STATE.selectedOffer.destinationType,
+      destinationStatus: LEAD_STATE.selectedOffer.destinationStatus,
+    });
+    apriLandingSwitcho("offer_not_activatable", LEAD_STATE.selectedOffer);
+    return;
+  }
+
   const modal = document.getElementById("offer-consent-backdrop");
   const name = document.getElementById("offer-consent-offer-name");
   const intro = document.getElementById("offer-consent-intro");
@@ -8755,7 +8767,7 @@ function mostraRichiestaAssistenza(reason = "manual", options = {}) {
   title.innerText = success ? "Richiesta ricevuta" : "Ti serve una mano?";
   copy.innerText = success
     ? "Il numero è stato verificato. OffertaLogica potrà ricontattarti per aiutarti a completare il confronto."
-    : "Possiamo guidarti nel punto in cui ti trovi oppure puoi chiedere di essere ricontattato da OffertaLogica.";
+    : "Se vuoi una mano, puoi continuare con il supporto del nostro partner Switcho per scegliere e attivare l'offerta più adatta, oppure restare su OffertaLogica.";
   actions.style.display = success ? "none" : "grid";
   successBox.style.display = success ? "block" : "none";
   backdrop.style.display = "flex";
@@ -8779,9 +8791,9 @@ function chiudiRichiestaAssistenza(source = "close") {
 
 function apriGuidaDaRichiestaAssistenza() {
   const reason = LEAD_STATE.assistance?.reason || "manual";
-  chiudiRichiestaAssistenza("open_guide");
-  window.apriAssistenteGuidato?.("Dimmi cosa vuoi fare: ti porto direttamente nel punto corretto del calcolatore.");
-  trackEvent("assistance_guide_opened", { reason });
+  chiudiRichiestaAssistenza("open_switcho");
+  trackEvent("assistance_switcho_redirect", { reason });
+  apriLandingSwitcho(`assistance_${reason}`);
 }
 
 function richiediRicontattoAssistenza() {
@@ -12373,7 +12385,22 @@ function formattaRisparmioSocial(value) {
   return `${new Intl.NumberFormat("it-IT", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount)} €`;
 }
 
-const SWITCHO_LANDING_URL = "";
+// v79 — routing trasparente verso il partner Switcho
+const SWITCHO_ROUTING_VERSION = "switcho-v1-2026-09-01";
+const SWITCHO_LANDING_URL = "https://bit.ly/Switcho-LuceGas-OffertaLogica";
+
+function apriLandingSwitcho(source = "guided", offer = null) {
+  if (!SWITCHO_LANDING_URL) return false;
+  trackEvent("switcho_landing_opened", {
+    source,
+    routingVersion: SWITCHO_ROUTING_VERSION,
+    offerId: offer?.id || "",
+    offerName: offer?.name || offer?.nome || "",
+    provider: offer?.provider || "",
+  });
+  window.location.assign(SWITCHO_LANDING_URL);
+  return true;
+}
 
 function sorgenteIngressoLanding() {
   const params = new URLSearchParams(window.location.search || "");
@@ -12484,7 +12511,7 @@ function apriPercorsoAssistitoDaLanding() {
     }
     return;
   }
-  window.location.assign(SWITCHO_LANDING_URL);
+  apriLandingSwitcho("landing_assisted");
 }
 
 function tracciaAccessoAppLanding(tipo) {
@@ -13084,10 +13111,10 @@ if (document.readyState === "loading") {
 <div class="assistance-rescue-backdrop" id="assistance-rescue-backdrop" role="dialog" aria-modal="true" aria-labelledby="assistance-rescue-title">
     <div class="assistance-rescue-modal">
         <h3 id="assistance-rescue-title">Ti serve una mano?</h3>
-        <p id="assistance-rescue-copy">Possiamo guidarti nel punto in cui ti trovi oppure puoi chiedere di essere ricontattato da OffertaLogica.</p>
+        <p id="assistance-rescue-copy">Se vuoi una mano, puoi continuare con il supporto del nostro partner Switcho per scegliere e attivare l'offerta più adatta, oppure restare su OffertaLogica.</p>
         <div class="assistance-rescue-actions" id="assistance-rescue-actions">
-            <button type="button" class="is-help" id="assistance-rescue-open-guide">Apri l'assistente</button>
-            <button type="button" class="is-primary" id="assistance-rescue-callback">Richiedi un ricontatto</button>
+            <button type="button" class="is-primary" id="assistance-rescue-open-guide">Continua con Switcho</button>
+            <button type="button" class="is-help" id="assistance-rescue-callback">Richiedi un ricontatto OffertaLogica</button>
             <button type="button" class="is-secondary" id="assistance-rescue-continue">Continua da solo</button>
         </div>
         <div class="assistance-rescue-success" id="assistance-rescue-success">
@@ -13096,7 +13123,7 @@ if (document.readyState === "loading") {
                 <button type="button" class="lead-primary" id="assistance-rescue-success-close">Continua sul calcolatore</button>
             </div>
         </div>
-        <div class="assistance-rescue-note">Il ricontatto riguarda soltanto l'assistenza su OffertaLogica e non autorizza l'invio dei dati a un fornitore.</div>
+        <div class="assistance-rescue-note">Il percorso guidato prosegue su una pagina esterna gestita da Switcho. OffertaLogica non invia automaticamente i tuoi dati a Switcho tramite questo pulsante.</div>
     </div>
 </div>
 
