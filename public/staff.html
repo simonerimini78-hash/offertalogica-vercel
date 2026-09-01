@@ -55,7 +55,7 @@
 <header class="topbar">
   <div class="brand">
     <img src="/assets/logo-offertalogica-icon.png" alt="OffertaLogica">
-    <div><h1>Control Center OffertaLogica</h1><p>Centro operativo per clienti, pratiche, verifiche e dati · v0.36.89</p></div>
+    <div><h1>Control Center OffertaLogica</h1><p>Centro operativo per clienti, pratiche, verifiche e dati · v0.36.90</p></div>
   </div>
   <div class="top-actions" id="staffTopActions" hidden>
     <span class="staff-chip" id="staffIdentity">Staff</span>
@@ -96,7 +96,10 @@
       <button type="button" id="staffCollaboratorsTab" data-staff-tab="collaborators" hidden>Collaboratori <span id="navCollaboratorCount">0</span></button>
       <button type="button" id="staffEconomicsTab" hidden>Contabilità e tariffe</button>
       <div class="nav-group-label">Strumenti tecnici</div>
-      <button type="button" id="staffSitePreview">Verifica sito</button>
+      <button type="button" id="staffSitePreview" data-staff-preview-target="/" data-staff-preview-label="Energia">Verifica Energia</button>
+      <button type="button" data-staff-preview-target="/speed-test.html" data-staff-preview-label="Speed Test">Verifica Speed Test</button>
+      <button type="button" data-staff-preview-target="/fotovoltaico.html" data-staff-preview-label="Fotovoltaico">Verifica Fotovoltaico</button>
+      <button type="button" data-staff-preview-target="/climatizzazione-pompa-di-calore.html" data-staff-preview-label="Climatizzazione">Verifica Climatizzazione</button>
       <button type="button" data-staff-tab="pdf">Diagnostica PDF</button>
       <button type="button" data-staff-tab="costs">Diagnostica IA e configurazione</button>
     </nav>
@@ -118,7 +121,7 @@
         <section class="panel"><div class="panel-head"><h3>Priorità operative</h3><small>Pratiche raccolte dai moduli operativi</small></div><div class="panel-body" id="overviewTasks"><div class="empty">Caricamento…</div></div></section>
         <section class="panel"><div class="panel-head"><h3>Acquisizione e conversione</h3><small>Funnel essenziale</small></div><div class="panel-body"><div class="funnel" id="overviewFunnel"></div></div></section>
       </div>
-      <div class="version">Control Center Staff v0.36.89</div>
+      <div class="version">Control Center Staff v0.36.90</div>
     </section>
 
     <section class="view" data-staff-view="cases">
@@ -276,7 +279,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/staff.js?v=0.36.84"></script>
 <script src="/staff-governance-v2.5B.js"></script>
-<script defer src="/staff-management.js?v=0.36.89"></script>
+<script defer src="/staff-management.js?v=0.36.90"></script>
 <script defer src="/staff-economics.js?v=0.36.80"></script>
 <script>
   (()=>{
@@ -336,7 +339,7 @@
 </script>
 <script>
   (()=>{
-    const previewButton=document.getElementById('staffSitePreview');
+    const previewButtons=[...document.querySelectorAll('[data-staff-preview-target]')];
     const pageMessage=document.getElementById('staffPageMessage');
     const STORAGE_KEY='offertalogica-premium-staff-auth';
     const setPreviewMessage=(kind,message)=>{if(!pageMessage)return;pageMessage.className=`message${kind?` ${kind}`:''}`;pageMessage.textContent=message||'';pageMessage.hidden=!message};
@@ -348,34 +351,38 @@
         return String(parsed?.access_token||parsed?.session?.access_token||parsed?.currentSession?.access_token||'').trim();
       }catch{return ''}
     };
-    previewButton?.addEventListener('click',async()=>{
-      if(previewButton.disabled)return;
+    const setPreviewButtonsDisabled=disabled=>previewButtons.forEach(button=>{button.disabled=Boolean(disabled)});
+    const openPreview=async button=>{
+      if(!button||button.disabled)return;
+      const target=String(button.dataset.staffPreviewTarget||'/').trim()||'/';
+      const label=String(button.dataset.staffPreviewLabel||'sito').trim()||'sito';
       const popup=window.open('about:blank','_blank');
       if(!popup){setPreviewMessage('error','Il browser ha bloccato la nuova scheda. Consenti i popup per l’Area Staff e riprova.');return}
-      previewButton.disabled=true;
-      setPreviewMessage('info','Apertura della modalità di verifica sito…');
+      setPreviewButtonsDisabled(true);
+      setPreviewMessage('info',`Apertura anteprima Staff: ${label}…`);
       try{
         const accessToken=storedAccessToken();
         if(!accessToken)throw new Error('Sessione staff non disponibile. Esci e accedi nuovamente.');
         const response=await fetch('/api/staff-preview',{
           method:'POST',
           headers:{'Content-Type':'application/json','Authorization':`Bearer ${accessToken}`},
-          body:JSON.stringify({action:'issue'})
+          body:JSON.stringify({action:'issue',target})
         });
         const payload=await response.json().catch(()=>({}));
         if(!response.ok||!payload.ok||!payload.url)throw new Error(payload.error||`Errore HTTP ${response.status}`);
         popup.location.replace(payload.url);
-        setPreviewMessage('success','Modalità di verifica aperta in una nuova scheda. Lead e webhook reali restano disattivati dalla modalità Staff.');
+        setPreviewMessage('success',`Anteprima Staff ${label} aperta in una nuova scheda. Lead e webhook reali restano disattivati dalla modalità Staff.`);
       }catch(error){
         try{popup.close()}catch{}
         setPreviewMessage('error',String(error?.message||error||'Apertura modalità Staff non riuscita.'));
-      }finally{previewButton.disabled=false}
-    });
+      }finally{setPreviewButtonsDisabled(false)}
+    };
+    previewButtons.forEach(button=>button.addEventListener('click',()=>void openPreview(button)));
   })();
 </script>
 <script>
   (()=>{
-    const CURRENT_RELEASE="0.36.89";
+    const CURRENT_RELEASE="0.36.90";
     const PRODUCTION_ORIGIN="https://staff.offertalogica.it";
     const isVercelDeployment=()=>location.hostname.toLowerCase().endsWith(".vercel.app");
     const redirectDeploymentToProduction=()=>{if(!isVercelDeployment())return false;const target=new URL(`${location.pathname}${location.search}${location.hash}`,PRODUCTION_ORIGIN);if(target.href===location.href)return false;location.replace(target.href);return true};

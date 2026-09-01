@@ -6,7 +6,7 @@ import { del } from "../lib/store.js";
 import { requireStaffSession } from "../lib/staffSessionAuth.js";
 import { writeStaffAudit } from "../lib/staffAudit.js";
 
-const MANAGEMENT_RELEASE = "0.36.89";
+const MANAGEMENT_RELEASE = "0.36.90";
 const CUSTOMER_PAGE_SIZE = 1000;
 const CUSTOMER_MAX_ROWS = 20000;
 const BUSINESS_ALIASES = new Set(["business", "azienda", "aziende", "piva", "p.iva", "impresa"]);
@@ -29,6 +29,14 @@ const MANAGEMENT_ENERGY_EVENT_ACTIONS = Object.freeze({
   comparison_completed: "completed",
   offer_redirect: "cta_clicked",
 });
+const MANAGEMENT_SWITCHO_CANONICAL_EVENT = "switcho_landing_opened";
+const MANAGEMENT_SWITCHO_FALLBACK_EVENTS = new Set([
+  "landing_assisted_click",
+  "business_switcho_requested",
+  "offer_switcho_redirect",
+  "assistance_switcho_redirect",
+]);
+const MANAGEMENT_SWITCHO_DEDUPE_MS = 15000;
 const BUSINESS_DATA_DELETE_MAX_LEADS = 1000;
 const BUSINESS_DATA_DELETE_MAX_EVENTS = 5000;
 const FALLBACK_BUSINESS_CATALOG = Object.freeze({
@@ -700,6 +708,108 @@ function summarizeBusinessPerformance({ events = [], leads = [], catalog = FALLB
   };
 }
 
+function managementEventDate(row = {}) {
+  const value = Date.parse(String(row?.created_at || row?.createdAt || ""));
+  return Number.isFinite(value) ? value : null;
+}
+
+function managementEventSessionId(row = {}) {
+  const payload = managementPayload(row);
+  return String(payload.sessionId || payload.session_id || "").trim().slice(0, 120);
+}
+
+function managementSwitchoRoute(row = {}) {
+  const type = managementEventType(row);
+  const payload = managementPayload(row);
+  if (type === "business_switcho_requested") return "business";
+  if (type === "offer_switcho_redirect") return "offer_not_activatable";
+  if (type === "assistance_switcho_redirect") return "assistance";
+  if (type === "landing_assisted_click") return "landing_assisted";
+  const source = normalizeCatalogCode(payload.source);
+  if (source === "business") return "business";
+  if (source === "offer_not_activatable") return "offer_not_activatable";
+  if (source === "landing_assisted") return "landing_assisted";
+  if (source.startsWith("assistance_")) return "assistance";
+  return "other";
+}
+
+function managementSwitchoFallbackEligible(row = {}) {
+  const type = managementEventType(row);
+  if (!MANAGEMENT_SWITCHO_FALLBACK_EVENTS.has(type)) return false;
+  if (type !== "landing_assisted_click") return true;
+  const payload = managementPayload(row);
+  return normalizeCatalogCode(payload.destinationType) === "switcho" && payload.redirect !== false;
+}
+
+function switchoCanonicalNear(row, canonicalRows = []) {
+  const sessionId = managementEventSessionId(row);
+  const route = managementSwitchoRoute(row);
+  const at = managementEventDate(row);
+  return canonicalRows.some(candidate => {
+    if (managementSwitchoRoute(candidate) !== route) return false;
+    const candidateSession = managementEventSessionId(candidate);
+    if (sessionId || candidateSession) return Boolean(sessionId && candidateSession && sessionId === candidateSession);
+    const candidateAt = managementEventDate(candidate);
+    return at !== null && candidateAt !== null && Math.abs(candidateAt - at) <= MANAGEMENT_SWITCHO_DEDUPE_MS;
+  });
+}
+
+function summarizeSwitchoJourneys(events = []) {
+  const humanRows = (Array.isArray(events) ? events : []).filter(managementToolTrafficIncluded);
+  const canonicalRows = humanRows.filter(row => managementEventType(row) === MANAGEMENT_SWITCHO_CANONICAL_EVENT);
+  const fallbackRows = humanRows.filter(row => managementSwitchoFallbackEligible(row) && !switchoCanonicalNear(row, canonicalRows));
+  const rows = [...canonicalRows, ...fallbackRows].sort((a, b) => (managementEventDate(a) || 0) - (managementEventDate(b) || 0));
+  const sessions = new Set();
+  const leads = new Set();
+  const routes = {
+    landing_assisted: 0,
+    business: 0,
+    offer_not_activatable: 0,
+    assistance: 0,
+    other: 0,
+  };
+  let lastEventAt = null;
+
+  const recent = rows.map(row => {
+    const payload = managementPayload(row);
+    const route = managementSwitchoRoute(row);
+    const sessionId = managementEventSessionId(row);
+    const leadId = managementLeadId(row);
+    if (sessionId) sessions.add(sessionId);
+    if (leadId) leads.add(leadId);
+    if (Object.prototype.hasOwnProperty.call(routes, route)) routes[route] += 1;
+    else routes.other += 1;
+    lastEventAt = newerIsoDate(lastEventAt, row?.created_at || row?.createdAt);
+    return {
+      created_at: row?.created_at || row?.createdAt || null,
+      route,
+      source: String(payload.source || "").trim().slice(0, 100),
+      page: String(payload.page || "").trim().slice(0, 220),
+      customer_type: normalizeManagementCustomerSegment(payload.customerType ?? payload.customer_type),
+      data_origin: String(payload.dataOrigin || payload.data_origin || "").trim().slice(0, 100),
+      lead_linked: Boolean(leadId),
+      session_present: Boolean(sessionId),
+      offer_id: String(payload.offerId || "").trim().slice(0, 90),
+      offer_name: String(payload.offerName || "").trim().slice(0, 160),
+      provider: String(payload.provider || "").trim().slice(0, 100),
+      fallback: managementEventType(row) !== MANAGEMENT_SWITCHO_CANONICAL_EVENT,
+    };
+  }).reverse().slice(0, 50);
+
+  return {
+    available: true,
+    total: rows.length,
+    unique_sessions: sessions.size,
+    linked_leads: leads.size,
+    without_session: rows.filter(row => !managementEventSessionId(row)).length,
+    canonical_events: canonicalRows.length,
+    fallback_events: fallbackRows.length,
+    last_event_at: lastEventAt,
+    routes,
+    recent,
+  };
+}
+
 function summarizeManagementSitePeriod({ events = [], leads = [], catalog = FALLBACK_BUSINESS_CATALOG, economics = {} } = {}) {
   const segments = {
     consumer: blankManagementSegment(),
@@ -739,8 +849,9 @@ function summarizeManagementSitePeriod({ events = [], leads = [], catalog = FALL
   total.lead_per_comparison_pct = managementPercentage(total.leads, total.comparisons);
   total.pdf_completion_pct = managementPercentage(total.pdf_analyses_completed, total.pdf_analyses_started);
   const performance = summarizeBusinessPerformance({ events, leads, catalog, economics });
+  const switcho = summarizeSwitchoJourneys(events);
 
-  return { available: true, segments, total, ...performance };
+  return { available: true, segments, total, switcho, ...performance };
 }
 
 async function loadManagementSitePeriod(period, catalog, economics) {
@@ -848,6 +959,10 @@ function managementQualityNotes(report, currentSite, previousSite, catalog = {})
   if (currentSite?.business_lines?.economics_available === false) {
     notes.push("Dettaglio costi IA per linea/strumento non disponibile: il Gestionale non distribuisce il costo per stima.");
   }
+  const switchoFallback = Number(currentSite?.switcho?.fallback_events || 0);
+  if (switchoFallback > 0) {
+    notes.push(`${switchoFallback} passaggi Switcho sono ricostruiti da eventi di percorso compatibili e deduplicati; dall'hotfix v80-fix1 il riferimento canonico è switcho_landing_opened.`);
+  }
   notes.push("I costi IA Sito vengono attribuiti a una linea/strumento solo quando la registrazione economica contiene un riferimento verificabile a tool, sorgente o pagina; il Gestionale non ripartisce costi per stima.");
   notes.push("Per verticale, 'Contatti verificati' indica lead con verifica OTP completata; non equivale automaticamente a qualificazione commerciale.");
   notes.push("Le commissioni lead attese derivano solo da dati commerciali realmente registrati. Non vengono trattate come ricavi confermati.");
@@ -919,6 +1034,43 @@ async function handleManagementCatalogMutation(req, res, identity) {
   if (!accessToken) return json(res, 401, { ok: false, error: "Sessione Staff richiesta" });
   const body = bodyObject(req);
   const action = String(body.action || "").trim().toLowerCase();
+
+  if (action === "reset_economic_baseline") {
+    if (String(body.confirmation || "").trim() !== "RINNOVA_PUNTO_ZERO") {
+      return json(res, 400, { ok: false, error: "Conferma rinnovo punto zero non valida" });
+    }
+    try {
+      await writeStaffAudit({
+        identity,
+        action: "economic_baseline_reset_authorized",
+        targetType: "premium_economic_baselines",
+        metadata: { history_deleted: false },
+        source: "api:staff-leads",
+      });
+      const result = await callStaffRpc(accessToken, "premium_owner_reset_economic_baseline", {});
+      await writeStaffAudit({
+        identity,
+        action: "economic_baseline_reset_completed",
+        targetType: "premium_economic_baselines",
+        result: "success",
+        metadata: { baseline_at: result?.baseline_at || null, history_deleted: false },
+        source: "api:staff-leads",
+      }).catch(() => {});
+      return json(res, 200, { ok: true, result, checkedAt: new Date().toISOString() });
+    } catch (error) {
+      await writeStaffAudit({
+        identity,
+        action: "economic_baseline_reset_failed",
+        targetType: "premium_economic_baselines",
+        result: "error",
+        reason: String(error?.message || error),
+        metadata: { history_deleted: false },
+        source: "api:staff-leads",
+      }).catch(() => {});
+      return json(res, 400, { ok: false, error: String(error?.message || error) });
+    }
+  }
+
   const definitions = {
     upsert_line: ["staff_owner_upsert_business_line", {
       p_line_code: body.line_code,

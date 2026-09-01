@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const RELEASE = "0.36.89";
+  const RELEASE = "0.36.90";
   if (window.OffertaLogicaStaffManagement?.release === RELEASE) return;
 
   const TIME_ZONE = "Europe/Rome";
@@ -319,6 +319,13 @@
       <div class="management-page" data-management-page="economy">
         <div class="management-grid" id="managementEconomyFinance"></div>
         <section class="panel management-section">
+          <div class="panel-head">
+            <div><h3>Punto zero gestionale</h3><small id="managementBaselineMeta">Lo storico resta conservato; il rinnovo cambia solo l'inizio dei conteggi ufficiali.</small></div>
+            <div class="management-business-toolbar"><button class="button secondary compact" id="managementResetBaseline" type="button">Rinnova punto zero</button></div>
+          </div>
+          <div class="panel-body"><div class="management-status info" id="managementBaselineStatus" hidden></div></div>
+        </section>
+        <section class="panel management-section">
           <div class="panel-head"><div><h3>Costi e componenti economiche</h3><small>Ricavi confermati separati da commissioni attese e movimenti ancora senza prezzo.</small></div></div>
           <div class="panel-body"><div class="management-grid costs" id="managementCostKpis" style="margin-bottom:0"></div></div>
         </section>
@@ -331,6 +338,14 @@
           <div class="table-wrap"><table class="data-table management-table">
             <thead><tr><th>Segmento</th><th>Analisi PDF</th><th>Documenti noti</th><th>Confronti</th><th>Lead</th><th>OTP inviati</th><th>OTP verificati</th><th>Offerte sbloccate</th><th>Redirect</th><th>Richieste consulente</th></tr></thead>
             <tbody id="managementCommercialRows"></tbody>
+          </table></div>
+        </section>
+        <section class="panel management-section">
+          <div class="panel-head"><div><h3>Destinazione Switcho</h3><small>Tutte le uscite verso Switcho, indipendentemente dal punto del percorso: landing assistita, Business, offerte non attivabili e recupero assistenza.</small></div></div>
+          <div class="panel-body"><div class="management-grid" id="managementSwitchoKpis" style="margin-bottom:12px"></div></div>
+          <div class="table-wrap"><table class="data-table management-table">
+            <thead><tr><th>Data</th><th>Percorso</th><th>Segmento</th><th>Origine</th><th>Offerta / fornitore</th><th>Collegamento</th></tr></thead>
+            <tbody id="managementSwitchoRows"></tbody>
           </table></div>
         </section>
         <section class="panel management-section">
@@ -602,6 +617,10 @@
     const stripe = numeric(costs.stripe_real_eur) + numeric(costs.stripe_estimated_eur);
     const infrastructure = numeric(costs.infrastructure_real_eur) + numeric(costs.infrastructure_estimated_eur);
     const other = numeric(costs.legacy_recorded_eur) + numeric(costs.other_ledger_real_eur) + numeric(costs.other_ledger_estimated_eur);
+    const baselineMeta = byId("managementBaselineMeta");
+    if (baselineMeta) baselineMeta.textContent = snapshot.baseline_at
+      ? `Punto zero attuale: ${dateTime(snapshot.baseline_at)}. Lo storico precedente resta conservato.`
+      : "Punto zero non ancora disponibile. Lo storico resta conservato anche dopo il rinnovo.";
 
     replaceCards("managementEconomyFinance", [
       comparativeCard("Ricavi confermati", finance.revenue_confirmed_eur, previousFinance.revenue_confirmed_eur, money, { kind: "primary" }),
@@ -823,6 +842,65 @@
     await refreshManagementReport();
   }
 
+  function switchoRouteLabel(value) {
+    return ({
+      landing_assisted: "Landing assistita",
+      business: "Business",
+      offer_not_activatable: "Offerta non attivabile online",
+      assistance: "Assistenza / utente bloccato",
+      other: "Altro percorso",
+    })[String(value || "")] || "Altro percorso";
+  }
+
+  function switchoSegmentLabel(value) {
+    return ({ consumer: "Privato", business: "Business", unknown: "Non classificato" })[String(value || "")] || "Non classificato";
+  }
+
+  function renderSwitcho(snapshot) {
+    const current = snapshot.current?.site?.switcho || {};
+    const previous = snapshot.previous?.site?.switcho || {};
+    const routes = current.routes || {};
+    const previousRoutes = previous.routes || {};
+    replaceCards("managementSwitchoKpis", [
+      comparativeCard("Uscite verso Switcho", current.total, previous.total, number, { kind: "primary" }),
+      comparativeCard("Sessioni", current.unique_sessions, previous.unique_sessions, number),
+      comparativeCard("Lead collegati", current.linked_leads, previous.linked_leads, number),
+      card("Ultimo passaggio", current.last_event_at ? dateTime(current.last_event_at) : "—", current.fallback_events ? `${number(current.fallback_events)} eventi compatibili usati come fallback` : "Evento canonico Switcho"),
+      comparativeCard("Landing assistita", routes.landing_assisted, previousRoutes.landing_assisted, number),
+      comparativeCard("Business", routes.business, previousRoutes.business, number),
+      comparativeCard("Offerte non attivabili", routes.offer_not_activatable, previousRoutes.offer_not_activatable, number),
+      comparativeCard("Assistenza / blocco", routes.assistance, previousRoutes.assistance, number),
+    ]);
+
+    const target = byId("managementSwitchoRows");
+    if (!target) return;
+    const rows = Array.isArray(current.recent) ? current.recent.slice(0, 20) : [];
+    if (!rows.length) {
+      const tr = document.createElement("tr");
+      const td = document.createElement("td");
+      td.colSpan = 6;
+      td.textContent = "Nessun passaggio verso Switcho nel periodo selezionato.";
+      tr.append(td);
+      target.replaceChildren(tr);
+      return;
+    }
+    target.replaceChildren(...rows.map(row => {
+      const tr = document.createElement("tr");
+      const origin = [row.source, row.data_origin, row.page].filter(Boolean).join(" · ") || "—";
+      const offer = [row.offer_name, row.provider].filter(Boolean).join(" · ") || "—";
+      const linkState = row.lead_linked ? "Lead collegato" : row.session_present ? "Solo sessione" : "Evento senza sessione";
+      tr.append(
+        rowCell(dateTime(row.created_at), row.fallback ? "Fallback deduplicato" : "Evento Switcho canonico"),
+        rowCell(switchoRouteLabel(row.route)),
+        rowCell(switchoSegmentLabel(row.customer_type)),
+        rowCell(origin),
+        rowCell(offer, row.offer_id || ""),
+        rowCell(linkState),
+      );
+      return tr;
+    }));
+  }
+
   function renderCommercial(snapshot) {
     const current = snapshot.current || {};
     const previous = snapshot.previous || {};
@@ -947,6 +1025,8 @@
         });
       toolTarget.replaceChildren(...toolRows);
     }
+
+    renderSwitcho(snapshot);
   }
 
   function renderPremium(snapshot) {
@@ -1457,6 +1537,40 @@
     selectSubview(currentSubview);
   }
 
+  async function resetManagementBaseline() {
+    const confirmation = window.prompt(
+      "Il nuovo punto zero partirà da questo momento. Lo storico precedente NON viene cancellato.\n\nDigita RINNOVA_PUNTO_ZERO per confermare.",
+      "",
+    );
+    if (confirmation !== "RINNOVA_PUNTO_ZERO") return;
+    const status = byId("managementBaselineStatus");
+    const button = byId("managementResetBaseline");
+    if (button) button.disabled = true;
+    if (status) {
+      status.hidden = false;
+      status.className = "management-status info";
+      status.textContent = "Rinnovo del punto zero in corso…";
+    }
+    try {
+      const result = await managementCatalogRequest({ action: "reset_economic_baseline", confirmation });
+      const baselineAt = result?.result?.baseline_at || null;
+      if (status) {
+        status.className = "management-status success";
+        status.textContent = baselineAt
+          ? `Nuovo punto zero fissato al ${dateTime(baselineAt)}. Lo storico precedente è conservato.`
+          : "Nuovo punto zero fissato. Lo storico precedente è conservato.";
+      }
+      await refreshManagementReport();
+    } catch (error) {
+      if (status) {
+        status.className = "management-status error";
+        status.textContent = String(error?.message || error || "Rinnovo punto zero non riuscito.");
+      }
+    } finally {
+      if (button) button.disabled = false;
+    }
+  }
+
   async function refreshManagementReport() {
     if (managementLoading) return;
     const view = byId(VIEW_ID);
@@ -1511,6 +1625,7 @@
       });
     }
     byId("managementRefresh")?.addEventListener("click", () => void refreshManagementReport());
+    byId("managementResetBaseline")?.addEventListener("click", () => void resetManagementBaseline());
     byId("managementAddBusinessLine")?.addEventListener("click", () => void editBusinessLine());
     byId("managementAddBusinessTool")?.addEventListener("click", () => void editBusinessTool());
     byId("managementExportCsv")?.addEventListener("click", exportCurrentManagementView);

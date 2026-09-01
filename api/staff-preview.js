@@ -2,6 +2,18 @@ import crypto from "node:crypto";
 import { json, method, readJson, requireAllowedOrigin } from "../lib/http.js";
 import { requireStaffSession } from "../lib/staffSessionAuth.js";
 
+const STAFF_PREVIEW_TARGETS = new Set([
+  "/",
+  "/speed-test.html",
+  "/fotovoltaico.html",
+  "/climatizzazione-pompa-di-calore.html",
+]);
+
+function normalizePreviewTarget(value) {
+  const target = String(value || "/").trim();
+  return STAFF_PREVIEW_TARGETS.has(target) ? target : "/";
+}
+
 function safeEqual(left, right) {
   const a = Buffer.from(String(left || ""));
   const b = Buffer.from(String(right || ""));
@@ -33,9 +45,11 @@ export default async function handler(req, res) {
         });
       }
 
+      const target = normalizePreviewTarget(body.target);
       return json(res, 200, {
         ok: true,
-        url: `https://offertalogica.it/#staff=${encodeURIComponent(expectedToken)}`,
+        target,
+        url: `https://offertalogica.it/api/staff-preview?target=${encodeURIComponent(target)}#staff=${encodeURIComponent(expectedToken)}`,
       });
     }
 
