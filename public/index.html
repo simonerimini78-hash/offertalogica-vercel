@@ -7965,6 +7965,21 @@ function apriHomeStaff() {
   window.location.assign("/?staffHome=1");
 }
 
+function apriPaginaAnteprimaStaff(target = "") {
+  const allowedTargets = new Set([
+    "/speed-test.html",
+    "/fotovoltaico.html",
+    "/climatizzazione-pompa-di-calore.html",
+  ]);
+  const safeTarget = String(target || "").trim();
+  if (!allowedTargets.has(safeTarget)) {
+    staffPreviewStatus("Pagina di anteprima non autorizzata.", true);
+    return;
+  }
+  chiudiPannelloAnteprimeStaff();
+  window.location.assign(safeTarget);
+}
+
 function apriArchivioPdfStaff() {
   const token = sessionStorage.getItem(STAFF_MODE_TOKEN_STORAGE_KEY) || "";
   if (!token) {
@@ -7987,6 +8002,9 @@ function creaPannelloAnteprimeStaff() {
     <p>Apri gli stessi popup e passaggi della pagina pubblica. Lead, consensi e webhook restano disattivati; l’archivio PDF di test è separato.</p>
     <div class="staff-preview-grid">
       <button type="button" id="staff-preview-home">Home</button>
+      <button type="button" id="staff-preview-speed-test">Speed Test</button>
+      <button type="button" id="staff-preview-fotovoltaico">Fotovoltaico</button>
+      <button type="button" id="staff-preview-climatizzazione">Pompe di calore</button>
       <button type="button" id="staff-preview-otp">Verifica offerte</button>
       <button type="button" id="staff-preview-help">Aiuto difficoltà</button>
       <button type="button" id="staff-preview-callback">Richiesta ricontatto</button>
@@ -8000,6 +8018,9 @@ function creaPannelloAnteprimeStaff() {
   `;
   document.body.appendChild(panel);
   document.getElementById("staff-preview-home")?.addEventListener("click", apriHomeStaff);
+  document.getElementById("staff-preview-speed-test")?.addEventListener("click", () => apriPaginaAnteprimaStaff("/speed-test.html"));
+  document.getElementById("staff-preview-fotovoltaico")?.addEventListener("click", () => apriPaginaAnteprimaStaff("/fotovoltaico.html"));
+  document.getElementById("staff-preview-climatizzazione")?.addEventListener("click", () => apriPaginaAnteprimaStaff("/climatizzazione-pompa-di-calore.html"));
   document.getElementById("staff-preview-otp")?.addEventListener("click", apriAnteprimaOtpStaff);
   document.getElementById("staff-preview-help")?.addEventListener("click", apriAnteprimaAiutoStaff);
   document.getElementById("staff-preview-callback")?.addEventListener("click", apriAnteprimaRicontattoStaff);
