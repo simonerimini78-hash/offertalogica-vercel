@@ -15,6 +15,8 @@ const CUSTOMER_DB_SUPABASE_SERVICE_ROLE_KEY =
   "";
 
 const CUSTOMER_DB_EVENTS_TABLE = process.env.CUSTOMER_DB_EVENTS_TABLE || "lead_events";
+const CAMPAIGN_BASELINE_ISO = "2026-09-02T22:00:00.000Z";
+const CAMPAIGN_BASELINE_LABEL = "3 settembre 2026, 00:00";
 const LANDING_PATH_EVENTS = Object.freeze({
   view: "landing_view",
   selfService: "landing_self_service_click",
@@ -62,7 +64,10 @@ function normalizeLandingRange(value) {
 
 function landingRangeFrom(range) {
   const days = range === "7d" ? 7 : range === "30d" ? 30 : null;
-  return days ? new Date(Date.now() - days * 86400000).toISOString() : null;
+  const requestedFrom = days ? new Date(Date.now() - days * 86400000).toISOString() : CAMPAIGN_BASELINE_ISO;
+  return new Date(requestedFrom).getTime() < new Date(CAMPAIGN_BASELINE_ISO).getTime()
+    ? CAMPAIGN_BASELINE_ISO
+    : requestedFrom;
 }
 
 const LANDING_SIGNAL_EVENT_TYPES = new Set([
@@ -257,10 +262,10 @@ async function loadLandingPathAnalytics(rangeValue) {
 function analyticsLimit(value) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return 200;
-  return Math.max(1, Math.min(200, Math.floor(parsed)));
+  return Math.max(1, Math.min(2000, Math.floor(parsed)));
 }
 
-async function loadAnalyticsTrafficSignals(limitValue) {
+async function loadAnalyticsTrafficSignals(limitValue, from = CAMPAIGN_BASELINE_ISO) {
   const signals = new Map();
   if (!customerDbConfiguredForLandingAnalytics()) return signals;
 
@@ -269,6 +274,7 @@ async function loadAnalyticsTrafficSignals(limitValue) {
     order: "created_at.desc",
     limit: String(analyticsLimit(limitValue)),
   });
+  if (from) query.set("created_at", `gte.${from}`);
   const response = await fetch(
     `${customerDbBaseUrl()}/rest/v1/${CUSTOMER_DB_EVENTS_TABLE}?${query.toString()}`,
     { method: "GET", headers: customerDbReadHeaders() },
@@ -299,6 +305,35 @@ function topEntries(map, limit = 8) {
     .map(([key, count]) => ({ key, count }))
     .sort((a, b) => b.count - a.count || a.key.localeCompare(b.key))
     .slice(0, limit);
+}
+
+function normalizeTrafficSource(value) {
+  const source = String(value || "").trim().toLowerCase();
+  if (!source || ["direct", "(direct)", "none", "(none)"].includes(source)) return "direct";
+  if (/(google[_ -]?ads|adwords|gads|google.*(?:cpc|paid))/i.test(source)) return "google_ads";
+  if (/(google[_ -]?organic|(^|\.)google\.|^google$)/i.test(source)) return "google_organic";
+  if (/(instagram|l\.instagram\.com)/i.test(source)) return "instagram";
+  if (/(facebook|fb\.com|l\.facebook\.com|lm\.facebook\.com)/i.test(source)) return "facebook";
+  if (/(tiktok|tiktok\.com)/i.test(source)) return "tiktok";
+  if (/(meta_other|meta)/i.test(source)) return "meta_other";
+  return "referral_other";
+}
+
+function trafficSourceLabel(key) {
+  return ({
+    google_ads: "Google Ads",
+    google_organic: "Google organico",
+    instagram: "Instagram",
+    facebook: "Facebook",
+    tiktok: "TikTok",
+    meta_other: "Meta non distinto",
+    direct: "Diretto",
+    referral_other: "Referral / altro",
+  })[key] || key;
+}
+
+function sourceEntries(map) {
+  return topEntries(map, 12).map((item) => ({ ...item, label: trafficSourceLabel(item.key) }));
 }
 
 function funnelFromProbablePeople(events = []) {
@@ -357,6 +392,25 @@ function visitorDescriptor(events) {
   return { type: "undetermined", label: "Non determinabile", reason: "evento precedente al controllo bot/persona" };
 }
 
+function analyticsFromCampaignBaseline(result) {
+  if (!result || !Array.isArray(result.events)) return result;
+  const baselineMs = new Date(CAMPAIGN_BASELINE_ISO).getTime();
+  const events = result.events.filter((event) => {
+    const createdMs = new Date(event.createdAt || 0).getTime();
+    return Number.isFinite(createdMs) && createdMs >= baselineMs;
+  });
+  return {
+    ...result,
+    events,
+    summary: {
+      recentEvents: events.length,
+      uniqueSessions: 0,
+      linkedLeads: 0,
+      funnel: {},
+    },
+  };
+}
+
 function enhanceAnalyticsForStaff(result, trafficSignals = new Map()) {
   if (!result || !Array.isArray(result.events)) return result;
 
@@ -382,13 +436,23 @@ function enhanceAnalyticsForStaff(result, trafficSignals = new Map()) {
     automation: 0,
     undetermined: 0,
   };
+  const trafficSourceSessions = {};
   groups.forEach((group) => {
     const visitor = visitorDescriptor(group);
     visitorCounts[visitor.type] = (visitorCounts[visitor.type] || 0) + 1;
+    const sourceEligible = visitor.type === "probable_person"
+      || group.some((event) => event.trafficAgent === "browser");
+    if (sourceEligible) {
+      const rawSource = group.map((event) => event.trafficSource).find(Boolean)
+        || group.map((event) => event.source).find(Boolean)
+        || "direct";
+      increment(trafficSourceSessions, normalizeTrafficSource(rawSource));
+    }
     group.forEach((event) => {
       event.visitorType = visitor.type;
       event.visitorLabel = visitor.label;
       event.visitorReason = visitor.reason;
+      event.trafficSource = normalizeTrafficSource(event.trafficSource || event.source);
       const trafficText = `Visitatore: ${visitor.label} · ${visitor.reason}`;
       event.reason = [event.reason, trafficText].filter(Boolean).join(" · ");
     });
@@ -420,6 +484,7 @@ function enhanceAnalyticsForStaff(result, trafficSignals = new Map()) {
       topProviders: topEntries(byProvider),
       topOffers: topEntries(byOffer),
       visitorSessions: visitorCounts,
+      trafficSources: sourceEntries(trafficSourceSessions),
     },
   };
 }
@@ -519,18 +584,23 @@ export default async function handler(req, res) {
     });
   }
 
-  const limit = url.searchParams.get("limit") || 200;
+  const limit = url.searchParams.get("limit") || 2000;
   const landingRange = normalizeLandingRange(url.searchParams.get("landingRange"));
   const [rawResult, landingPath, trafficSignals] = await Promise.all([
     listCustomerAnalytics({ limit }),
     loadLandingPathAnalytics(landingRange),
-    loadAnalyticsTrafficSignals(limit).catch(() => new Map()),
+    loadAnalyticsTrafficSignals(limit, CAMPAIGN_BASELINE_ISO).catch(() => new Map()),
   ]);
-  const result = enhanceAnalyticsForStaff(rawResult, trafficSignals);
+  const result = enhanceAnalyticsForStaff(analyticsFromCampaignBaseline(rawResult), trafficSignals);
 
   json(res, result.ok ? 200 : 500, {
     ...result,
     landingPath,
+    baseline: {
+      from: CAMPAIGN_BASELINE_ISO,
+      label: CAMPAIGN_BASELINE_LABEL,
+      timezone: "Europe/Rome",
+    },
     authorizedBy,
     checkedAt: new Date().toISOString(),
   });

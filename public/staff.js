@@ -666,6 +666,9 @@
     renderFunnel(byId("analyticsFunnel"), funnel);
     renderRankList(byId("analyticsProviders"), summary.topProviders || [], "Nessun provider cliccato");
     renderRankList(byId("analyticsOffers"), summary.topOffers || [], "Nessuna offerta cliccata");
+    renderRankList(byId("analyticsTrafficSources"), (summary.trafficSources || []).map((item) => ({ key: item.label || item.key, count: item.count })), "Nessuna sessione dal punto zero");
+    const baseline = cache.analyticsBaseline || {};
+    text(byId("analyticsBaseline"), baseline.label ? `Punto zero campagna: ${baseline.label}` : "Punto zero campagna");
     renderLandingTraffic();
 
     const body = byId("analyticsRows");
@@ -687,7 +690,7 @@
       body.append(node("tr", {}, [
         node("td", {}, [node("strong", { text: formatDate(event.createdAt) }), node("small", { text: `#${event.id}` })]),
         node("td", {}, [badge(event.eventType || "—", "info"), node("small", { text: event.reason || "" })]),
-        node("td", {}, [node("strong", { text: event.dataOrigin || event.source || "—" }), node("small", { text: event.page || "" })]),
+        node("td", {}, [node("strong", { text: event.trafficSource || event.dataOrigin || event.source || "—" }), node("small", { text: [event.trafficCampaign, event.dataOrigin, event.page].filter(Boolean).join(" · ") })]),
         node("td", {}, [node("strong", { text: [event.provider, event.offerName].filter(Boolean).join(" · ") || "—" }), node("small", { text: event.destinationStatus || "" })]),
         node("td", { text: values }),
         node("td", {}, [badge(event.leadId ? "collegato" : "anonimo", event.leadId ? "ok" : "warn"), node("small", { text: event.leadId || "" })]),
@@ -715,10 +718,11 @@
   async function loadAnalytics({ silent = false } = {}) {
     if (!silent) setMessage("info", "Aggiornamento analytics…");
     const landingRange = String(byId("landingPathRange")?.value || "30d");
-    const payload = await staffFetch(`/api/staff-analytics?limit=200&landingRange=${encodeURIComponent(landingRange)}`);
+    const payload = await staffFetch(`/api/staff-analytics?limit=2000&landingRange=${encodeURIComponent(landingRange)}`);
     cache.analytics = Array.isArray(payload.events) ? payload.events : [];
     cache.analyticsSummary = payload.summary || {};
     cache.landingPath = payload.landingPath || null;
+    cache.analyticsBaseline = payload.baseline || null;
     renderAnalytics();
     renderFunnel(byId("overviewFunnel"), cache.analyticsSummary.funnel || {}, true);
     if (!silent) setMessage("success", "Analytics aggiornati.");

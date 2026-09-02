@@ -2964,6 +2964,7 @@ const PDF_PROFILE_STATE = { current: {}, offer: {} };
 
 
 const ANALYTICS_SESSION_KEY = "offertalogicaAnalyticsSession";
+const TRAFFIC_ATTRIBUTION_STORAGE_KEY = "offertalogicaTrafficAttributionV1";
 const INTERACTIVE_TOOL_CODE = "energia_comparatore";
 
 function trackInteractiveTool(toolAction, payload = {}) {
@@ -2995,6 +2996,90 @@ function analyticsSessionId() {
   }
 }
 
+function trafficText(value, max = 160) {
+  return String(value || "").trim().slice(0, max);
+}
+
+function trafficReferrerHost() {
+  try {
+    return document.referrer ? new URL(document.referrer).hostname.toLowerCase() : "";
+  } catch {
+    return "";
+  }
+}
+
+function trafficAttributionFromEntry() {
+  const params = new URLSearchParams(window.location.search || "");
+  const utmSource = trafficText(params.get("utm_source") || params.get("source"), 80).toLowerCase();
+  const utmMedium = trafficText(params.get("utm_medium"), 80).toLowerCase();
+  const referrerHost = trafficReferrerHost();
+  const hasGclid = Boolean(params.get("gclid"));
+  const hasGbraid = Boolean(params.get("gbraid"));
+  const hasWbraid = Boolean(params.get("wbraid"));
+  const hasFbclid = Boolean(params.get("fbclid"));
+  const hasTtclid = Boolean(params.get("ttclid"));
+  const paidSearch = /(?:cpc|ppc|paid[_ -]?search|sem)/i.test(utmMedium);
+
+  let trafficSource = "direct";
+  if (hasGclid || hasGbraid || hasWbraid || (/google|adwords|gads/i.test(utmSource) && paidSearch)) {
+    trafficSource = "google_ads";
+  } else if (/instagram|(^|[_-])ig($|[_-])|linkinbio|reel/i.test(utmSource) || /(^|\.)instagram\.com$/i.test(referrerHost)) {
+    trafficSource = "instagram";
+  } else if (/facebook|(^|[_-])fb($|[_-])/i.test(utmSource) || /(^|\.)(facebook|fb)\.com$/i.test(referrerHost)) {
+    trafficSource = "facebook";
+  } else if (/tiktok/i.test(utmSource) || /(^|\.)tiktok\.com$/i.test(referrerHost) || hasTtclid) {
+    trafficSource = "tiktok";
+  } else if (/google/i.test(utmSource) || /(^|\.)google\.[a-z.]+$/i.test(referrerHost)) {
+    trafficSource = paidSearch ? "google_ads" : "google_organic";
+  } else if (utmSource) {
+    trafficSource = /meta/i.test(utmSource) ? "meta_other" : "referral_other";
+  } else if (hasFbclid) {
+    trafficSource = "meta_other";
+  } else if (referrerHost) {
+    trafficSource = "referral_other";
+  }
+
+  let trafficMedium = utmMedium;
+  if (!trafficMedium) {
+    if (trafficSource === "google_ads") trafficMedium = "cpc";
+    else if (["facebook", "instagram", "tiktok", "meta_other"].includes(trafficSource)) trafficMedium = "social";
+    else if (trafficSource === "google_organic") trafficMedium = "organic";
+    else if (trafficSource === "direct") trafficMedium = "direct";
+    else trafficMedium = "referral";
+  }
+
+  const clickIdType = hasGclid ? "gclid"
+    : hasGbraid ? "gbraid"
+      : hasWbraid ? "wbraid"
+        : hasTtclid ? "ttclid"
+          : hasFbclid ? "fbclid"
+            : "";
+
+  return {
+    trafficSource,
+    trafficMedium,
+    trafficCampaign: trafficText(params.get("utm_campaign"), 120),
+    trafficTerm: trafficText(params.get("utm_term"), 120),
+    trafficContent: trafficText(params.get("utm_content"), 120),
+    trafficReferrer: trafficText(referrerHost, 160),
+    trafficLandingPage: trafficText(window.location.pathname || "/", 220),
+    trafficClickIdType: clickIdType,
+  };
+}
+
+function trafficAttribution() {
+  try {
+    const existing = JSON.parse(sessionStorage.getItem(TRAFFIC_ATTRIBUTION_STORAGE_KEY) || "null");
+    if (existing && typeof existing === "object" && existing.trafficSource) return existing;
+  } catch {}
+
+  const current = trafficAttributionFromEntry();
+  try {
+    sessionStorage.setItem(TRAFFIC_ATTRIBUTION_STORAGE_KEY, JSON.stringify(current));
+  } catch {}
+  return current;
+}
+
 function trackEvent(eventType, payload = {}) {
   if (!trackingApiDisponibile()) return;
   if (LEAD_STATE.staffMode) return;
@@ -3002,6 +3087,7 @@ function trackEvent(eventType, payload = {}) {
   const leadId = LEAD_STATE.leadId && !["preview", STAFF_MODE_LEAD_ID].includes(LEAD_STATE.leadId)
     ? LEAD_STATE.leadId
     : "";
+  const attribution = trafficAttribution();
   const body = JSON.stringify({
     eventType,
     sessionId: analyticsSessionId(),
@@ -3020,6 +3106,14 @@ function trackEvent(eventType, payload = {}) {
       bestSaving: LEAD_STATE.bestSaving,
       pdfDocumentCount: (LEAD_STATE.pdfDocuments || []).length,
       ...payload,
+      trafficSource: attribution.trafficSource,
+      trafficMedium: attribution.trafficMedium,
+      trafficCampaign: attribution.trafficCampaign,
+      trafficTerm: attribution.trafficTerm,
+      trafficContent: attribution.trafficContent,
+      trafficReferrer: attribution.trafficReferrer,
+      trafficLandingPage: attribution.trafficLandingPage,
+      trafficClickIdType: attribution.trafficClickIdType,
     },
   });
 
@@ -11356,7 +11450,9 @@ function collegaEventiUX() {
   inizializzaOffertaFacoltativaMobile();
   document.addEventListener("input", registraModificaManualePdf, true);
   document.addEventListener("change", registraModificaManualePdf, true);
-  inizializzaModalitaStaff();
+  inizializzaModalitaStaff()
+    .then(() => trackEvent("landing_view"))
+    .catch(() => {});
   inizializzaSelectFornitoreGas();
   applicaAmbitoConfronto(leggiValore("master-tipo-fornitura", "dual"));
   importaAnalisiPdfDaArchivio();
