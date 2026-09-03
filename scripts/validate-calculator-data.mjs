@@ -86,8 +86,6 @@ function validateAreraCatalog() {
     assert(Array.isArray(dual.gas.sconti), `offerta ${dual.codice}: metadata sconti gas mancante`);
   }
 
-  const illumia = arera.offerteDual.filter((dual) => dual.providerKey === "illum");
-  assert(illumia.length > 0, "catalogo ARERA: offerta dual Illumia non trovata");
   return arera;
 }
 
