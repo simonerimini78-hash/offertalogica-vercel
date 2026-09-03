@@ -568,20 +568,36 @@
     }
   }
 
-  const funnelDefinitions = [
-    ["pdfStarted", "PDF avviati"], ["pdfCompleted", "PDF letti"], ["comparisons", "Confronti"],
-    ["leadModalOpened", "Popup lead"], ["otpSent", "OTP inviati"], ["otpVerified", "OTP verificati"],
+  const activityFunnelDefinitions = [
+    ["pdfStarted", "PDF avviati"], ["pdfCompleted", "PDF letti"], ["comparisons", "Confronti eseguiti"],
+    ["leadModalOpened", "Popup aperti"], ["otpSent", "OTP inviati"], ["otpVerified", "OTP verificati"],
     ["offersUnlocked", "Offerte sbloccate"], ["offerConsentOpened", "Offerte cliccate"],
     ["partnerConsentConfirmed", "Consensi partner"], ["redirects", "Redirect"],
     ["consultantRequests", "Richieste assistite"], ["failedRequests", "Errori richiesta"]
   ];
+  const sessionFunnelDefinitions = [
+    ["entries", "Ingressi attribuiti"], ["comparisons", "Almeno 1 confronto"],
+    ["leadModalOpened", "Popup lead"], ["otpSent", "OTP inviato"],
+    ["otpVerified", "OTP verificato"], ["offersUnlocked", "Offerta sbloccata"]
+  ];
 
-  function renderFunnel(target, funnel = {}, compact = false) {
+  function renderActivityFunnel(target, funnel = {}) {
     clear(target);
-    const definitions = compact ? funnelDefinitions.slice(1, 7) : funnelDefinitions;
-    definitions.forEach(([key, label]) => target.append(node("div", { className: "funnel-step" }, [
+    activityFunnelDefinitions.forEach(([key, label]) => target.append(node("div", { className: "funnel-step" }, [
       node("strong", { text: funnel[key] || 0 }), node("span", { text: label })
     ])));
+  }
+
+  function renderSessionFunnel(target, funnel = {}) {
+    clear(target);
+    const entries = Number(funnel.entries || 0);
+    sessionFunnelDefinitions.forEach(([key, label]) => {
+      const count = Number(funnel[key] || 0);
+      const share = entries && key !== "entries" ? `${formatNumber((count / entries) * 100, 1)}% degli ingressi` : "Sessioni uniche";
+      target.append(node("div", { className: "funnel-step" }, [
+        node("strong", { text: count }), node("span", { text: label }), node("small", { text: share })
+      ]));
+    });
   }
 
   function renderRankList(target, rows = [], emptyLabel = "Nessun dato") {
@@ -658,12 +674,14 @@
 
   function renderAnalytics() {
     const summary = cache.analyticsSummary || {};
-    const funnel = summary.funnel || {};
+    const activityFunnel = summary.funnel || {};
+    const sessionFunnel = summary.sessionFunnel || {};
     text(byId("analyticsEvents"), summary.recentEvents || 0);
-    text(byId("analyticsSessions"), summary.uniqueSessions || 0);
+    text(byId("analyticsSessions"), summary.attributedSessions || sessionFunnel.entries || 0);
     text(byId("analyticsLinkedLeads"), summary.linkedLeads || 0);
-    text(byId("analyticsOtpRate"), funnel.otpSent ? `${Math.round((Number(funnel.otpVerified || 0) / Number(funnel.otpSent)) * 100)}%` : "—");
-    renderFunnel(byId("analyticsFunnel"), funnel);
+    text(byId("analyticsOtpRate"), sessionFunnel.otpSent ? `${Math.round((Number(sessionFunnel.otpVerified || 0) / Number(sessionFunnel.otpSent)) * 100)}%` : "—");
+    renderSessionFunnel(byId("analyticsFunnel"), sessionFunnel);
+    renderActivityFunnel(byId("analyticsActivity"), activityFunnel);
     renderRankList(byId("analyticsProviders"), summary.topProviders || [], "Nessun provider cliccato");
     renderRankList(byId("analyticsOffers"), summary.topOffers || [], "Nessuna offerta cliccata");
     renderRankList(byId("analyticsTrafficSources"), (summary.trafficSources || []).map((item) => ({ key: item.label || item.key, count: item.count })), "Nessuna sessione dal punto zero");
@@ -724,7 +742,7 @@
     cache.landingPath = payload.landingPath || null;
     cache.analyticsBaseline = payload.baseline || null;
     renderAnalytics();
-    renderFunnel(byId("overviewFunnel"), cache.analyticsSummary.funnel || {}, true);
+    renderSessionFunnel(byId("overviewFunnel"), cache.analyticsSummary.sessionFunnel || {});
     if (!silent) setMessage("success", "Analytics aggiornati.");
   }
 
@@ -2837,7 +2855,7 @@
       list.append(leadButton);
     }
     target.append(list);
-    renderFunnel(byId("overviewFunnel"), cache.analyticsSummary.funnel || {}, true);
+    renderSessionFunnel(byId("overviewFunnel"), cache.analyticsSummary.sessionFunnel || {});
   }
 
   async function loadOverview({ silent = false } = {}) {

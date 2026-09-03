@@ -370,6 +370,29 @@ function funnelFromProbablePeople(events = []) {
   return funnel;
 }
 
+function sessionFunnelFromGroups(groups = []) {
+  const funnel = {
+    entries: 0,
+    comparisons: 0,
+    leadModalOpened: 0,
+    otpSent: 0,
+    otpVerified: 0,
+    offersUnlocked: 0,
+  };
+
+  groups.forEach((group) => {
+    const eventTypes = new Set(group.map((event) => event.eventType).filter(Boolean));
+    funnel.entries += 1;
+    if (eventTypes.has("comparison_completed")) funnel.comparisons += 1;
+    if (eventTypes.has("lead_modal_opened")) funnel.leadModalOpened += 1;
+    if (eventTypes.has("otp_sent")) funnel.otpSent += 1;
+    if (eventTypes.has("otp_verified")) funnel.otpVerified += 1;
+    if (eventTypes.has("offers_unlocked")) funnel.offersUnlocked += 1;
+  });
+
+  return funnel;
+}
+
 function visitorDescriptor(events) {
   const agents = new Set(events.map((event) => event.trafficAgent).filter(Boolean));
   if (agents.has("known_bot")) {
@@ -437,12 +460,15 @@ function enhanceAnalyticsForStaff(result, trafficSignals = new Map()) {
     undetermined: 0,
   };
   const trafficSourceSessions = {};
-  groups.forEach((group) => {
+  const attributedSessionGroups = [];
+  groups.forEach((group, groupKey) => {
     const visitor = visitorDescriptor(group);
     visitorCounts[visitor.type] = (visitorCounts[visitor.type] || 0) + 1;
-    const sourceEligible = visitor.type === "probable_person"
-      || group.some((event) => event.trafficAgent === "browser");
+    const hasSessionId = String(groupKey || "").startsWith("session:");
+    const sourceEligible = hasSessionId && (visitor.type === "probable_person"
+      || group.some((event) => event.trafficAgent === "browser"));
     if (sourceEligible) {
+      attributedSessionGroups.push(group);
       const rawSource = group.map((event) => event.trafficSource).find(Boolean)
         || group.map((event) => event.source).find(Boolean)
         || "direct";
@@ -478,6 +504,8 @@ function enhanceAnalyticsForStaff(result, trafficSignals = new Map()) {
       rawUniqueSessions: Number(result.summary?.uniqueSessions || 0),
       rawLinkedLeads: Number(result.summary?.linkedLeads || 0),
       funnel: funnelFromProbablePeople(probableEvents),
+      sessionFunnel: sessionFunnelFromGroups(attributedSessionGroups),
+      attributedSessions: attributedSessionGroups.length,
       uniqueSessions: probableSessions.size,
       linkedLeads: probableLeads.size,
       probablePersonEvents: probableEvents.length,
