@@ -6,12 +6,15 @@ import io
 import json
 import re
 import sys
+import time
+import urllib.error
 import urllib.request
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from urllib.parse import urljoin
 
 ARERA_VIGILANZA_URL = "https://www.arera.it/vigilanza-energetica"
+ARERA_BULLETIN_BASE_URL = "https://www.arera.it/fileadmin/home/slider/bollettino_vigilanza_energetica/"
 OUTPUT_PATH = Path("public/data/energia-oggi.json")
 PARAMS_PATH = Path("public/data/calcolo-parametri.json")
 PUN_PAGE_PATH = Path("public/pun-oggi.html")
@@ -30,17 +33,37 @@ def log(message: str) -> None:
     print(f"[ENERGIA] {message}", flush=True)
 
 
-def fetch_bytes(url: str) -> bytes:
-    request = urllib.request.Request(
-        url,
-        headers={
-            "User-Agent": USER_AGENT,
-            "Accept": "text/html,application/pdf;q=0.9,*/*;q=0.8",
-            "Accept-Language": "it-IT,it;q=0.9",
-        },
-    )
-    with urllib.request.urlopen(request, timeout=45) as response:
-        return response.read()
+def fetch_bytes(url: str, attempts: int = 3, retry_delay: float = 2.0) -> bytes:
+    last_error: Exception | None = None
+    for attempt in range(1, max(1, attempts) + 1):
+        request = urllib.request.Request(
+            url,
+            headers={
+                "User-Agent": USER_AGENT,
+                "Accept": "text/html,application/pdf;q=0.9,*/*;q=0.8",
+                "Accept-Language": "it-IT,it;q=0.9",
+                "Cache-Control": "no-cache",
+            },
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=45) as response:
+                return response.read()
+        except urllib.error.HTTPError as exc:
+            last_error = exc
+            # Un 404 su un candidato datato significa semplicemente che quel
+            # bollettino non esiste: non ha senso riprovare lo stesso URL.
+            if exc.code == 404:
+                raise
+            if attempt >= attempts:
+                raise
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+            last_error = exc
+            if attempt >= attempts:
+                raise
+        log(f"Download temporaneamente fallito ({attempt}/{attempts}) per {url}; nuovo tentativo tra {retry_delay:g}s")
+        time.sleep(retry_delay)
+    assert last_error is not None
+    raise last_error
 
 
 def discover_latest_bulletin(page_html: str, base_url: str = ARERA_VIGILANZA_URL) -> tuple[str, str]:
@@ -51,6 +74,71 @@ def discover_latest_bulletin(page_html: str, base_url: str = ARERA_VIGILANZA_URL
         raise RuntimeError("Nessun bollettino ARERA individuato nella pagina di Vigilanza Energetica")
     yyyymmdd, url = max(candidates, key=lambda item: item[0])
     return url, yyyymmdd
+
+
+def bulletin_url_for_day(day: date) -> str:
+    yyyymmdd = day.strftime("%Y%m%d")
+    return urljoin(
+        ARERA_BULLETIN_BASE_URL,
+        f"Bollettino_vigilanza_energetica_{yyyymmdd}.pdf",
+    )
+
+
+def is_pdf(payload: bytes) -> bool:
+    return payload.lstrip().startswith(b"%PDF-")
+
+
+def fetch_latest_bulletin(reference_day: date | None = None, lookback_days: int = 14) -> tuple[str, str, bytes]:
+    """Trova e scarica l'ultimo bollettino ARERA con doppio percorso.
+
+    Percorso primario: pagina Vigilanza Energetica, con retry.
+    Fallback: URL ufficiale datato, provato a ritroso. Questo evita che una
+    pagina HTML temporaneamente incompleta o un errore CDN blocchino l'intero
+    aggiornamento quando il PDF ufficiale e' gia' disponibile.
+    """
+    page_error: Exception | None = None
+    try:
+        page_html = fetch_bytes(ARERA_VIGILANZA_URL, attempts=3).decode("utf-8", errors="replace")
+        bulletin_url, bulletin_date = discover_latest_bulletin(page_html)
+        try:
+            pdf_bytes = fetch_bytes(bulletin_url, attempts=3)
+            if not is_pdf(pdf_bytes):
+                raise RuntimeError("Il link individuato nella pagina ARERA non restituisce un PDF valido")
+            return bulletin_url, bulletin_date, pdf_bytes
+        except Exception as exc:
+            page_error = exc
+            log(f"Bollettino individuato nella pagina ma non scaricabile ({exc}); attivo il fallback datato")
+    except Exception as exc:
+        page_error = exc
+        log(f"Scoperta dalla pagina ARERA non riuscita ({exc}); attivo il fallback datato")
+
+    start_day = reference_day or date.today()
+    for offset in range(max(0, lookback_days) + 1):
+        candidate_day = start_day - timedelta(days=offset)
+        candidate_date = candidate_day.strftime("%Y%m%d")
+        candidate_url = bulletin_url_for_day(candidate_day)
+        try:
+            # I 404 non vengono ritentati da fetch_bytes; per errori temporanei
+            # (es. 502) concediamo invece un secondo tentativo anche al fallback.
+            payload = fetch_bytes(candidate_url, attempts=2)
+        except urllib.error.HTTPError as exc:
+            if exc.code == 404:
+                continue
+            log(f"Fallback ARERA {candidate_date} non disponibile: HTTP {exc.code}")
+            continue
+        except Exception as exc:
+            log(f"Fallback ARERA {candidate_date} non disponibile: {exc}")
+            continue
+        if not is_pdf(payload):
+            log(f"Fallback ARERA {candidate_date} ignorato: risposta non PDF")
+            continue
+        log(f"Fallback ARERA riuscito sul bollettino {candidate_date}")
+        return candidate_url, candidate_date, payload
+
+    detail = f"; errore pagina: {page_error}" if page_error else ""
+    raise RuntimeError(
+        f"Nessun bollettino ARERA valido trovato nella pagina o negli ultimi {lookback_days + 1} giorni{detail}"
+    )
 
 
 def normalize_cell(value: object) -> str:
@@ -413,10 +501,12 @@ def main() -> int:
             bulletin_url = bulletin_url or "file-locale-verificato"
         else:
             if not bulletin_url:
-                page_html = fetch_bytes(ARERA_VIGILANZA_URL).decode("utf-8", errors="replace")
-                bulletin_url, bulletin_date = discover_latest_bulletin(page_html)
-                log(f"Ultimo bollettino ARERA individuato: {bulletin_date} - {bulletin_url}")
-            pdf_bytes = fetch_bytes(bulletin_url)
+                bulletin_url, bulletin_date, pdf_bytes = fetch_latest_bulletin()
+                log(f"Ultimo bollettino ARERA utilizzato: {bulletin_date} - {bulletin_url}")
+            else:
+                pdf_bytes = fetch_bytes(bulletin_url, attempts=3)
+                if not is_pdf(pdf_bytes):
+                    raise RuntimeError("L'URL bollettino specificato non restituisce un PDF valido")
 
         rows = extract_rows_from_pdf(pdf_bytes)
         values = extract_market_values(rows)
