@@ -346,7 +346,7 @@ function isRealComparisonCompleted(event = {}) {
   return event.eventType === "comparison_completed" && !isAutomaticLandingPreview(event);
 }
 
-function funnelFromProbablePeople(events = []) {
+function activityFunnelFromEvents(events = []) {
   const funnel = {
     pdfStarted: 0,
     pdfCompleted: 0,
@@ -354,7 +354,12 @@ function funnelFromProbablePeople(events = []) {
     landingPreviews: 0,
     offersRendered: 0,
     leadModalOpened: 0,
+    leadModalClosed: 0,
+    leadFormInvalid: 0,
+    otpRequestStarted: 0,
+    leadCreatedClient: 0,
     otpSent: 0,
+    otpFailed: 0,
     otpVerified: 0,
     offersUnlocked: 0,
     offerConsentOpened: 0,
@@ -370,7 +375,12 @@ function funnelFromProbablePeople(events = []) {
     if (event.eventType === "comparison_completed" && isAutomaticLandingPreview(event)) funnel.landingPreviews += 1;
     if (event.eventType === "offers_rendered") funnel.offersRendered += 1;
     if (event.eventType === "lead_modal_opened") funnel.leadModalOpened += 1;
+    if (event.eventType === "lead_modal_closed") funnel.leadModalClosed += 1;
+    if (event.eventType === "lead_form_invalid") funnel.leadFormInvalid += 1;
+    if (event.eventType === "otp_request_started") funnel.otpRequestStarted += 1;
+    if (event.eventType === "lead_created_client") funnel.leadCreatedClient += 1;
     if (event.eventType === "otp_sent") funnel.otpSent += 1;
+    if (event.eventType === "otp_failed") funnel.otpFailed += 1;
     if (event.eventType === "otp_verified") funnel.otpVerified += 1;
     if (event.eventType === "offers_unlocked") funnel.offersUnlocked += 1;
     if (event.eventType === "offer_consent_opened") funnel.offerConsentOpened += 1;
@@ -385,24 +395,69 @@ function funnelFromProbablePeople(events = []) {
 function sessionFunnelFromGroups(groups = []) {
   const funnel = {
     entries: 0,
+    pathSelected: 0,
+    selfServiceSelected: 0,
+    assistedSelected: 0,
+    pdfCompleted: 0,
     comparisons: 0,
+    comparisonOrPdf: 0,
     leadModalOpened: 0,
+    otpRequestStarted: 0,
     otpSent: 0,
     otpVerified: 0,
     offersUnlocked: 0,
+    offerAction: 0,
+    redirects: 0,
   };
 
   groups.forEach((group) => {
     const eventTypes = new Set(group.map((event) => event.eventType).filter(Boolean));
+    const hasRealComparison = group.some((event) => isRealComparisonCompleted(event));
+    const hasPdfCompleted = eventTypes.has("pdf_analysis_completed");
+    const hasSelfService = eventTypes.has("landing_self_service_click");
+    const hasAssisted = eventTypes.has("landing_assisted_click");
     funnel.entries += 1;
-    if (group.some((event) => isRealComparisonCompleted(event))) funnel.comparisons += 1;
+    if (hasSelfService || hasAssisted) funnel.pathSelected += 1;
+    if (hasSelfService) funnel.selfServiceSelected += 1;
+    if (hasAssisted) funnel.assistedSelected += 1;
+    if (hasPdfCompleted) funnel.pdfCompleted += 1;
+    if (hasRealComparison) funnel.comparisons += 1;
+    if (hasRealComparison || hasPdfCompleted) funnel.comparisonOrPdf += 1;
     if (eventTypes.has("lead_modal_opened")) funnel.leadModalOpened += 1;
+    if (eventTypes.has("otp_request_started")) funnel.otpRequestStarted += 1;
     if (eventTypes.has("otp_sent")) funnel.otpSent += 1;
     if (eventTypes.has("otp_verified")) funnel.otpVerified += 1;
     if (eventTypes.has("offers_unlocked")) funnel.offersUnlocked += 1;
+    if (["offer_consent_opened", "offer_partner_consent_confirmed", "offer_redirect", "offer_request_recorded"].some((type) => eventTypes.has(type))) {
+      funnel.offerAction += 1;
+    }
+    if (eventTypes.has("offer_redirect")) funnel.redirects += 1;
   });
 
   return funnel;
+}
+
+function sourceForSessionGroup(group = []) {
+  const ordered = [...group].sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime());
+  const landing = ordered.find((event) => event.eventType === LANDING_PATH_EVENTS.view);
+  const rawSource = landing?.trafficSource
+    || landing?.source
+    || ordered.map((event) => event.trafficSource).find(Boolean)
+    || ordered.map((event) => event.source).find(Boolean)
+    || "direct";
+  return normalizeTrafficSource(rawSource);
+}
+
+function sessionFunnelsBySource(groups = []) {
+  const grouped = new Map();
+  groups.forEach((group) => {
+    const source = sourceForSessionGroup(group);
+    if (!grouped.has(source)) grouped.set(source, []);
+    grouped.get(source).push(group);
+  });
+  return Object.fromEntries(
+    [...grouped.entries()].map(([source, sourceGroups]) => [source, sessionFunnelFromGroups(sourceGroups)])
+  );
 }
 
 function visitorDescriptor(events) {
@@ -477,20 +532,18 @@ function enhanceAnalyticsForStaff(result, trafficSignals = new Map()) {
     const visitor = visitorDescriptor(group);
     visitorCounts[visitor.type] = (visitorCounts[visitor.type] || 0) + 1;
     const hasSessionId = String(groupKey || "").startsWith("session:");
+    const groupSource = sourceForSessionGroup(group);
     const sourceEligible = hasSessionId && (visitor.type === "probable_person"
       || group.some((event) => event.trafficAgent === "browser"));
     if (sourceEligible) {
       attributedSessionGroups.push(group);
-      const rawSource = group.map((event) => event.trafficSource).find(Boolean)
-        || group.map((event) => event.source).find(Boolean)
-        || "direct";
-      increment(trafficSourceSessions, normalizeTrafficSource(rawSource));
+      increment(trafficSourceSessions, groupSource);
     }
     group.forEach((event) => {
       event.visitorType = visitor.type;
       event.visitorLabel = visitor.label;
       event.visitorReason = visitor.reason;
-      event.trafficSource = normalizeTrafficSource(event.trafficSource || event.source);
+      event.trafficSource = hasSessionId ? groupSource : normalizeTrafficSource(event.trafficSource || event.source);
       const trafficText = `Visitatore: ${visitor.label} · ${visitor.reason}`;
       event.reason = [event.reason, trafficText].filter(Boolean).join(" · ");
     });
@@ -515,8 +568,9 @@ function enhanceAnalyticsForStaff(result, trafficSignals = new Map()) {
       rawFunnel: result.summary?.funnel || {},
       rawUniqueSessions: Number(result.summary?.uniqueSessions || 0),
       rawLinkedLeads: Number(result.summary?.linkedLeads || 0),
-      funnel: funnelFromProbablePeople(probableEvents),
+      funnel: activityFunnelFromEvents(events),
       sessionFunnel: sessionFunnelFromGroups(attributedSessionGroups),
+      sessionFunnelsBySource: sessionFunnelsBySource(attributedSessionGroups),
       attributedSessions: attributedSessionGroups.length,
       uniqueSessions: probableSessions.size,
       linkedLeads: probableLeads.size,

@@ -570,15 +570,24 @@
 
   const activityFunnelDefinitions = [
     ["pdfStarted", "PDF avviati"], ["pdfCompleted", "PDF letti"], ["comparisons", "Confronti reali"],
-    ["landingPreviews", "Anteprime automatiche landing"], ["leadModalOpened", "Popup aperti"], ["otpSent", "OTP inviati"], ["otpVerified", "OTP verificati"],
+    ["landingPreviews", "Anteprime automatiche landing"], ["leadModalOpened", "Popup aperti"],
+    ["leadModalClosed", "Popup chiusi"], ["leadFormInvalid", "Form non validi"], ["otpRequestStarted", "Richieste OTP avviate"],
+    ["leadCreatedClient", "Lead creati"], ["otpSent", "OTP inviati"], ["otpFailed", "Errori OTP"], ["otpVerified", "OTP verificati"],
     ["offersUnlocked", "Offerte sbloccate"], ["offerConsentOpened", "Offerte cliccate"],
     ["partnerConsentConfirmed", "Consensi partner"], ["redirects", "Redirect"],
     ["consultantRequests", "Richieste assistite"], ["failedRequests", "Errori richiesta"]
   ];
   const sessionFunnelDefinitions = [
-    ["entries", "Ingressi attribuiti"], ["comparisons", "Almeno 1 confronto reale"],
-    ["leadModalOpened", "Popup lead"], ["otpSent", "OTP inviato"],
-    ["otpVerified", "OTP verificato"], ["offersUnlocked", "Offerta sbloccata"]
+    ["entries", "Ingressi attribuiti"],
+    ["pathSelected", "Scelta percorso"],
+    ["comparisonOrPdf", "Confronto reale / PDF"],
+    ["leadModalOpened", "Popup lead"],
+    ["otpRequestStarted", "Richiesta OTP"],
+    ["otpSent", "OTP inviato"],
+    ["otpVerified", "OTP verificato"],
+    ["offersUnlocked", "Offerta sbloccata"],
+    ["offerAction", "Azione su offerta"],
+    ["redirects", "Redirect partner"]
   ];
 
   function renderActivityFunnel(target, funnel = {}) {
@@ -591,12 +600,21 @@
   function renderSessionFunnel(target, funnel = {}) {
     clear(target);
     const entries = Number(funnel.entries || 0);
+    let previousCount = null;
     sessionFunnelDefinitions.forEach(([key, label]) => {
       const count = Number(funnel[key] || 0);
-      const share = entries && key !== "entries" ? `${formatNumber((count / entries) * 100, 1)}% degli ingressi` : "Sessioni uniche";
+      let detail = "Sessioni uniche";
+      if (key !== "entries") {
+        const entryShare = entries ? `${formatNumber((count / entries) * 100, 1)}% ingressi` : "— ingressi";
+        const previousShare = previousCount
+          ? `${formatNumber((count / previousCount) * 100, 1)}% vs fase prec.`
+          : "— vs fase prec.";
+        detail = `${entryShare} · ${previousShare}`;
+      }
       target.append(node("div", { className: "funnel-step" }, [
-        node("strong", { text: count }), node("span", { text: label }), node("small", { text: share })
+        node("strong", { text: count }), node("span", { text: label }), node("small", { text: detail })
       ]));
+      previousCount = count;
     });
   }
 
@@ -676,6 +694,15 @@
     "lead_modal_opened", "lead_modal_closed", "lead_form_invalid", "otp_request_started",
     "lead_created_client", "otp_sent", "otp_failed", "otp_verified"
   ]);
+  const EXPECTED_ANALYTICS_EVENT_TYPES = [
+    "landing_view", "landing_self_service_click", "landing_assisted_click",
+    "comparison_started", "comparison_completed", "offers_rendered",
+    "pdf_analysis_started", "pdf_analysis_completed",
+    "lead_modal_opened", "lead_modal_closed", "lead_form_invalid", "otp_request_started",
+    "lead_created_client", "otp_sent", "otp_failed", "otp_verified", "offers_unlocked",
+    "offer_consent_opened", "offer_partner_consent_confirmed", "offer_redirect",
+    "offer_request_recorded", "offer_request_failed"
+  ];
 
   function analyticsOrigin(event = {}) {
     return String(event.dataOrigin || "").trim();
@@ -684,44 +711,130 @@
   function populateAnalyticsFilters() {
     const eventSelect = byId("analyticsEventFilter");
     const originSelect = byId("analyticsOriginFilter");
-    if (!eventSelect || !originSelect) return;
+    const sourceSelect = byId("analyticsSourceFilter");
+    if (!eventSelect || !originSelect || !sourceSelect) return;
 
     const selectedEvent = eventSelect.value;
     const selectedOrigin = originSelect.value;
-    const eventTypes = [...new Set(cache.analytics.map(event => String(event.eventType || "").trim()).filter(Boolean))].sort();
+    const selectedSource = sourceSelect.value;
+    const observedEventTypes = cache.analytics.map(event => String(event.eventType || "").trim()).filter(Boolean);
+    const eventTypes = [...new Set([...EXPECTED_ANALYTICS_EVENT_TYPES, ...observedEventTypes])].sort();
     const origins = [...new Set(cache.analytics.map(analyticsOrigin).filter(Boolean))].sort();
+    const trafficSources = Array.isArray(cache.analyticsSummary?.trafficSources) ? cache.analyticsSummary.trafficSources : [];
 
     eventSelect.replaceChildren(
       node("option", { value: "", text: "Tutti gli eventi" }),
       node("option", { value: "__lead_otp__", text: "Solo funnel lead / OTP" }),
-      ...eventTypes.map(value => node("option", { value, text: value }))
+      ...eventTypes.map(value => {
+        const observed = observedEventTypes.includes(value);
+        return node("option", { value, text: observed ? value : `${value} (0)` });
+      })
     );
     originSelect.replaceChildren(
       node("option", { value: "", text: "Tutte le origini" }),
       ...origins.map(value => node("option", { value, text: value }))
     );
+    sourceSelect.replaceChildren(
+      node("option", { value: "", text: "Tutte le provenienze" }),
+      ...trafficSources.map(item => node("option", {
+        value: String(item.key || ""),
+        text: `${item.label || item.key} (${formatNumber(item.count || 0)})`
+      }))
+    );
     eventSelect.value = eventTypes.includes(selectedEvent) || selectedEvent === "__lead_otp__" ? selectedEvent : "";
     originSelect.value = origins.includes(selectedOrigin) ? selectedOrigin : "";
+    sourceSelect.value = trafficSources.some(item => String(item.key || "") === selectedSource) ? selectedSource : "";
   }
 
   function filteredAnalyticsEvents() {
     const eventFilter = String(byId("analyticsEventFilter")?.value || "");
     const originFilter = String(byId("analyticsOriginFilter")?.value || "");
+    const sourceFilter = String(byId("analyticsSourceFilter")?.value || "");
     return cache.analytics.filter(event => {
       const eventType = String(event.eventType || "");
       const eventMatches = !eventFilter
         || (eventFilter === "__lead_otp__" ? LEAD_OTP_EVENT_TYPES.has(eventType) : eventType === eventFilter);
       const originMatches = !originFilter || analyticsOrigin(event) === originFilter;
-      return eventMatches && originMatches;
+      const sourceMatches = !sourceFilter || String(event.trafficSource || "") === sourceFilter;
+      return eventMatches && originMatches && sourceMatches;
     });
+  }
+
+  function analyticsEventValueText(event = {}) {
+    return [
+      event.bestSaving != null ? `risparmio ${formatMoney(event.bestSaving)}` : "",
+      event.annualCost != null ? `costo ${formatMoney(event.annualCost)}` : "",
+      event.visibleOffersCount != null ? `${event.visibleOffersCount} offerte` : "",
+      event.fileCount != null ? `${event.fileCount} file` : "",
+    ].filter(Boolean).join(" · ") || "—";
+  }
+
+  function analyticsSourceLabel(sourceKey = "") {
+    const item = (cache.analyticsSummary?.trafficSources || []).find(entry => String(entry.key || "") === String(sourceKey || ""));
+    return item?.label || sourceKey || "Tutte le provenienze";
+  }
+
+  function closeAnalyticsSession() {
+    const panel = byId("analyticsSessionPanel");
+    if (panel) panel.hidden = true;
+    clear(byId("analyticsSessionEvents"));
+    text(byId("analyticsSessionTitle"), "Percorso sessione");
+    text(byId("analyticsSessionMeta"), "");
+  }
+
+  function openAnalyticsSession(event = {}) {
+    const sessionId = String(event.sessionId || "");
+    if (!sessionId) return;
+    const rows = cache.analytics
+      .filter(item => String(item.sessionId || "") === sessionId)
+      .slice()
+      .sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime());
+    if (!rows.length) return;
+
+    const panel = byId("analyticsSessionPanel");
+    const list = byId("analyticsSessionEvents");
+    if (!panel || !list) return;
+
+    const first = rows[0];
+    const last = rows[rows.length - 1];
+    const shortId = sessionId.length > 18 ? `${sessionId.slice(0, 9)}…${sessionId.slice(-6)}` : sessionId;
+    text(byId("analyticsSessionTitle"), `Percorso sessione ${shortId}`);
+    text(byId("analyticsSessionMeta"), [
+      analyticsSourceLabel(first.trafficSource),
+      first.visitorLabel || "",
+      `${formatNumber(rows.length)} eventi`,
+      `${formatDate(first.createdAt)} → ${formatDate(last.createdAt)}`
+    ].filter(Boolean).join(" · "));
+    clear(list);
+
+    rows.forEach(item => {
+      const origin = [item.dataOrigin, item.page].filter(Boolean).join(" · ") || "—";
+      const offer = [item.provider, item.offerName].filter(Boolean).join(" · ");
+      const detail = [origin, offer, analyticsEventValueText(item) !== "—" ? analyticsEventValueText(item) : ""].filter(Boolean).join(" · ") || "—";
+      list.append(node("div", { className: "analytics-session-event" }, [
+        node("time", { text: formatDate(item.createdAt) }),
+        node("div", {}, [badge(item.eventType || "—", "info"), node("small", { text: `#${item.id}` })]),
+        node("div", {}, [node("strong", { text: item.trafficSource || "—" }), node("small", { text: detail })])
+      ]));
+    });
+
+    panel.hidden = false;
+    panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
   function renderAnalytics() {
     const summary = cache.analyticsSummary || {};
     const activityFunnel = summary.funnel || {};
-    const sessionFunnel = summary.sessionFunnel || {};
+
+    populateAnalyticsFilters();
+    const sourceFilter = String(byId("analyticsSourceFilter")?.value || "");
+    const baseSessionFunnel = summary.sessionFunnel || {};
+    const sessionFunnel = sourceFilter
+      ? (summary.sessionFunnelsBySource?.[sourceFilter] || {})
+      : baseSessionFunnel;
+
     text(byId("analyticsEvents"), summary.recentEvents || 0);
-    text(byId("analyticsSessions"), summary.attributedSessions || sessionFunnel.entries || 0);
+    text(byId("analyticsSessions"), summary.attributedSessions || baseSessionFunnel.entries || 0);
     text(byId("analyticsLinkedLeads"), summary.linkedLeads || 0);
     text(byId("analyticsOtpRate"), sessionFunnel.otpSent ? `${Math.round((Number(sessionFunnel.otpVerified || 0) / Number(sessionFunnel.otpSent)) * 100)}%` : "—");
     renderSessionFunnel(byId("analyticsFunnel"), sessionFunnel);
@@ -731,9 +844,11 @@
     renderRankList(byId("analyticsTrafficSources"), (summary.trafficSources || []).map((item) => ({ key: item.label || item.key, count: item.count })), "Nessuna sessione dal punto zero");
     const baseline = cache.analyticsBaseline || {};
     text(byId("analyticsBaseline"), baseline.label ? `Punto zero campagna: ${baseline.label}` : "Punto zero campagna");
+    text(byId("analyticsFunnelNote"), sourceFilter
+      ? `Provenienza selezionata: ${analyticsSourceLabel(sourceFilter)}. Percentuali rispetto agli ingressi della stessa provenienza e alla fase precedente; i percorsi possono ramificarsi.`
+      : "Tutte le provenienze. Percentuali rispetto agli ingressi e alla fase precedente; i percorsi possono ramificarsi.");
     renderLandingTraffic();
 
-    populateAnalyticsFilters();
     const filteredEvents = filteredAnalyticsEvents();
     const body = byId("analyticsRows");
     clear(body);
@@ -743,15 +858,10 @@
       return;
     }
     filteredEvents.slice(0, 200).forEach(event => {
-      const values = [
-        event.bestSaving != null ? `risparmio ${formatMoney(event.bestSaving)}` : "",
-        event.annualCost != null ? `costo ${formatMoney(event.annualCost)}` : "",
-        event.visibleOffersCount != null ? `${event.visibleOffersCount} offerte` : "",
-        event.fileCount != null ? `${event.fileCount} file` : "",
-      ].filter(Boolean).join(" · ") || "—";
-      const deleteButton = node("button", { className: "button danger compact", type: "button", text: "Elimina" });
-      deleteButton.hidden = !isAdmin();
-      deleteButton.addEventListener("click", () => deleteAnalyticsEvent(event));
+      const values = analyticsEventValueText(event);
+      const sessionButton = node("button", { className: "button secondary compact", type: "button", text: "Vedi sessione" });
+      sessionButton.disabled = !event.sessionId;
+      sessionButton.addEventListener("click", () => openAnalyticsSession(event));
       body.append(node("tr", {}, [
         node("td", {}, [node("strong", { text: formatDate(event.createdAt) }), node("small", { text: `#${event.id}` })]),
         node("td", {}, [badge(event.eventType || "—", "info"), node("small", { text: event.reason || "" })]),
@@ -759,7 +869,7 @@
         node("td", {}, [node("strong", { text: [event.provider, event.offerName].filter(Boolean).join(" · ") || "—" }), node("small", { text: event.destinationStatus || "" })]),
         node("td", { text: values }),
         node("td", {}, [badge(event.leadId ? "collegato" : "anonimo", event.leadId ? "ok" : "warn"), node("small", { text: event.leadId || "" })]),
-        node("td", {}, [deleteButton])
+        node("td", {}, [node("div", { className: "row-actions" }, [sessionButton])])
       ]));
     });
   }
@@ -3142,9 +3252,16 @@
     byId("landingPathRange")?.addEventListener("change", () => loadAnalytics({ silent: true }).catch(error => setMessage("error", friendlyError(error))));
     byId("analyticsEventFilter")?.addEventListener("change", renderAnalytics);
     byId("analyticsOriginFilter")?.addEventListener("change", renderAnalytics);
+    byId("analyticsSourceFilter")?.addEventListener("change", () => {
+      closeAnalyticsSession();
+      renderAnalytics();
+    });
+    byId("analyticsSessionClose")?.addEventListener("click", closeAnalyticsSession);
     byId("analyticsFilterReset")?.addEventListener("click", () => {
       if (byId("analyticsEventFilter")) byId("analyticsEventFilter").value = "";
       if (byId("analyticsOriginFilter")) byId("analyticsOriginFilter").value = "";
+      if (byId("analyticsSourceFilter")) byId("analyticsSourceFilter").value = "";
+      closeAnalyticsSession();
       renderAnalytics();
     });
     byId("collaboratorRefresh").addEventListener("click", () => loadCollaborators().catch(error => setMessage("error", friendlyError(error))));
