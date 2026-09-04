@@ -6839,6 +6839,90 @@ function miglioreRigaAreraPerProvider(providerKey, commodity, tipo, attuale) {
     .sort((a, b) => (costoRigaAreraSuProfilo(a, attuale) - costoRigaAreraSuProfilo(b, attuale)) || (a.score - b.score))[0] || null;
 }
 
+function commodityDaCodiceOffertaArera(riga) {
+  const codice = String(riga?.codice || "").trim().toUpperCase();
+  return codice.length >= 7 ? codice[6] : "";
+}
+
+function fraseAreraPresente(testo, frase) {
+  const testoNormalizzato = testoAreraNormalizzato(testo);
+  const fraseNormalizzata = testoAreraNormalizzato(frase);
+  if (!testoNormalizzato || !fraseNormalizzata) return false;
+  return ` ${testoNormalizzato} `.includes(` ${fraseNormalizzata} `);
+}
+
+function testoCitaNomeOffertaAreraEsatto(testo, riferimento) {
+  return variantiNomeRiferimentoArera(riferimento)
+    .some((variante) => fraseAreraPresente(testo, variante));
+}
+
+function escapeRegexArera(value) {
+  return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function testoProvaLegameGenericoProviderArera(testo, commodityOpposta, riga) {
+  const normalized = testoAreraNormalizzato(testo);
+  if (!normalized) return false;
+
+  const commodityPattern = commodityOpposta === "luce"
+    ? "(?:energia\\s+elettrica|luce)"
+    : "(?:gas(?:\\s+naturale)?)";
+  const providerVariants = [...new Set([
+    testoAreraNormalizzato(riga?.providerLabel || riga?.fornitore),
+    testoAreraNormalizzato(riga?.providerKey),
+  ].filter((value) => value.length >= 3))];
+  if (!providerVariants.length) return false;
+
+  // Ammette solo un legame dichiarato a livello di venditore del tipo
+  // "offerta/fornitura di gas|luce ... con <venditore>". Le condizioni che
+  // nominano invece una famiglia specifica sono gestite dal match esatto sopra.
+  return providerVariants.some((provider) => {
+    const providerPattern = escapeRegexArera(provider).replace(/\\\s+/g, "\\s+");
+    const pattern = new RegExp(`(?:offerta|fornitura)(?:\\s+di)?\\s+${commodityPattern}\\b.{0,180}?\\bcon\\s+${providerPattern}\\b`);
+    return pattern.test(normalized);
+  });
+}
+
+function scontoAreraProvaLegameDual(riga, commodity, luce, gas) {
+  if (!riga) return false;
+  const riferimentoOpposto = commodity === "luce"
+    ? riferimentoAreraDaRiga(gas)
+    : riferimentoAreraDaRiga(luce);
+  const commodityOpposta = commodity === "luce" ? "gas" : "luce";
+
+  return normalizzaScontiArera(riga.sconti).some((sconto) => {
+    if (!sconto?.condizionato) return false;
+    const testo = testoCondizioneScontoArera(sconto);
+    if (!testo) return false;
+    if (riferimentoOpposto && testoCitaNomeOffertaAreraEsatto(testo, riferimentoOpposto)) return true;
+    return testoProvaLegameGenericoProviderArera(testo, commodityOpposta, riga);
+  });
+}
+
+function coppiaAreraEGHaLegameDual(luce, gas, luciProvider = [], gasProvider = []) {
+  if (!luce || !gas) return false;
+  if (luce.providerKey !== gas.providerKey || luce.tipo !== gas.tipo) return false;
+
+  // Regola primaria: una condizione economica ARERA della specifica offerta
+  // collega esplicitamente l'altra fornitura (nome preciso oppure qualunque
+  // offerta della commodity opposta con lo stesso venditore).
+  if (scontoAreraProvaLegameDual(luce, "luce", luce, gas)) return true;
+  if (scontoAreraProvaLegameDual(gas, "gas", luce, gas)) return true;
+
+  // Regola formale di fallback. Nel codice offerta standard ARERA il settimo
+  // carattere identifica la commodity; D indica dual fuel. Se il file D non ha
+  // prodotto il contenitore congiunto, si ricostruisce E+G soltanto quando la
+  // coppia D e univoca per venditore e tipo prezzo. Nessun nome fornitore e
+  // nessuna blacklist/whitelist intervengono nella decisione.
+  if (commodityDaCodiceOffertaArera(luce) !== "D" || commodityDaCodiceOffertaArera(gas) !== "D") return false;
+  const luciDualFormali = luciProvider.filter((riga) => commodityDaCodiceOffertaArera(riga) === "D");
+  const gasDualFormali = gasProvider.filter((riga) => commodityDaCodiceOffertaArera(riga) === "D");
+  return luciDualFormali.length === 1
+    && gasDualFormali.length === 1
+    && luciDualFormali[0].codice === luce.codice
+    && gasDualFormali[0].codice === gas.codice;
+}
+
 function miglioreCoppiaAreraEGPerProvider(providerKey, tipo, attuale) {
   const luci = OFFERTE_ARERA_MENU
     .filter((riga) => riga.providerKey === providerKey && riga.commodity === "luce" && riga.tipo === tipo)
@@ -6849,6 +6933,7 @@ function miglioreCoppiaAreraEGPerProvider(providerKey, tipo, attuale) {
   let migliore = null;
   for (const luce of luci) {
     for (const gasRiga of gas) {
+      if (!coppiaAreraEGHaLegameDual(luce, gasRiga, luci, gas)) continue;
       const costo = costoCoppiaAreraEGSuProfilo(luce, gasRiga, attuale);
       const score = numeroSicuro(luce.score, 999) + numeroSicuro(gasRiga.score, 999);
       if (!migliore || costo < migliore.costo - 0.000001 || (Math.abs(costo - migliore.costo) <= 0.000001 && score < migliore.score)) {
@@ -6902,9 +6987,9 @@ function rigaAreraDaCodice(codice) {
 }
 
 // OFFERTALOGICA_STRICT_ARERA_SOURCE_ROUTING_20260727
-// I record D restano offerte dual native. Per il confronto economico, quando esistono
-// due offerte E+G correnti dello stesso venditore, la migliore composizione puo essere
-// confrontata con il record D senza inventare condizioni o prezzi.
+// I record D restano offerte dual native. Una coppia E+G puo competere con il record D
+// soltanto quando il catalogo ARERA prova un legame dual fra le due forniture; la sola
+// coincidenza del venditore non e sufficiente.
 function offertaAreraDualDaCodice(codice) {
   const normalized = String(codice || "").trim();
   if (!normalized) return null;
@@ -7067,8 +7152,8 @@ function offertaPartnerConPrezziArera(offerta, attuale) {
     }
 
     // Se il catalogo D non contiene una specifica dual corrente, la card partner
-    // puo essere valorizzata soltanto con due righe E/G correnti dello stesso
-    // venditore e dello stesso tipo prezzo. Il funnel deve confermare le condizioni.
+    // puo essere valorizzata soltanto con una coppia E/G corrente il cui legame dual
+    // sia provato dai dati ARERA. Il solo venditore comune non e sufficiente.
     if (!OFFERTE_ARERA_MENU.length) return null;
     const providerKey = chiaveFornitoreDaNome(offerta.provider);
     if (!providerKey) return null;
@@ -7128,7 +7213,6 @@ function offertaPartnerConPrezziArera(offerta, attuale) {
 }
 
 function offertaAreraRankingProvider(providerKey, tipo, tipoFornitura, attuale) {
-  if (!providerCompatibileConTipoFornitura(providerKey, tipoFornitura)) return null;
   let luce = null;
   let gas = null;
   let dual = null;
@@ -11947,12 +12031,6 @@ const PROVIDER_MATCHERS = [
   ["sinergy", ["sinergy"]],
 ];
 
-const PROVIDER_SOLO_FORNITURE_SEPARATE = new Set(["segnoverde", "magis"]);
-
-function providerCompatibileConTipoFornitura(providerKey, tipoFornitura) {
-  return !(tipoFornitura === "dual" && PROVIDER_SOLO_FORNITURE_SEPARATE.has(providerKey));
-}
-
 function testoFornitoreNormalizzato(name) {
   return String(name || "")
     .toLowerCase()
@@ -12180,7 +12258,6 @@ function voceDaRigaArera(riga) {
 }
 
 function offertaAreraDaRighe(providerKey, tipo, tipoFornitura, attuale) {
-  if (!providerCompatibileConTipoFornitura(providerKey, tipoFornitura)) return null;
   const righe = OFFERTE_ARERA_MENU.filter((riga) => riga.providerKey === providerKey);
   if (!righe.length) return null;
 
