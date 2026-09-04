@@ -6899,21 +6899,94 @@ function scontoAreraProvaLegameDual(riga, commodity, luce, gas) {
   });
 }
 
+function nomeFamigliaCommercialeAreraNormalizzato(value) {
+  return testoAreraNormalizzato(String(value || "").replace(/\+/g, " plus "))
+    .replace(/\bfix\s+web\b/g, "fixweb")
+    .replace(/\bweb\s+fix\b/g, "fixweb");
+}
+
+function tokenFamigliaCommercialeArera(riga, rilassata = false) {
+  const stop = new Set([
+    "luce", "gas", "naturale", "elettrica", "elettrico",
+    "p", "g", "mese", "mesi", "anno", "anni",
+    "mono", "monoraria",
+  ]);
+  if (rilassata) {
+    ["prezzo", "fisso", "fissa"].forEach((token) => stop.add(token));
+  }
+  return nomeFamigliaCommercialeAreraNormalizzato(riga?.nome)
+    .split(" ")
+    .filter(Boolean)
+    .filter((token) => !stop.has(token));
+}
+
+function tokenProviderFamigliaArera(riga) {
+  return new Set([
+    ...nomeFamigliaCommercialeAreraNormalizzato(riga?.providerLabel || riga?.fornitore).split(" "),
+    ...nomeFamigliaCommercialeAreraNormalizzato(riga?.providerKey).split(" "),
+  ].filter(Boolean));
+}
+
+function tokenCoreFamigliaCommercialeArera(riga, rilassata = false) {
+  const providerTokens = tokenProviderFamigliaArera(riga);
+  return tokenFamigliaCommercialeArera(riga, rilassata)
+    .filter((token) => !providerTokens.has(token))
+    .filter((token) => token !== "e" && token !== "on");
+}
+
+function chiaveFamigliaCommercialeArera(riga, rilassata = false) {
+  return tokenFamigliaCommercialeArera(riga, rilassata).join("");
+}
+
+function coppiaAreraEGStessaFamigliaCommerciale(luce, gas) {
+  if (!luce || !gas) return false;
+  if (luce.providerKey !== gas.providerKey || luce.tipo !== gas.tipo) return false;
+
+  // Match forte: i nomi commerciali sono speculari dopo aver rimosso soltanto
+  // le parole che identificano la commodity e i marker tecnici specifici.
+  // Esempi: "Fix Web Luce" / "FixWeb Gas", "MIA LUCE FIX WEB" /
+  // "MIA GAS FIX WEB", "Fixa Time 24 Luce" / "Fixa Time 24 Gas".
+  const chiaveLuce = chiaveFamigliaCommercialeArera(luce, false);
+  const chiaveGas = chiaveFamigliaCommercialeArera(gas, false);
+  if (chiaveLuce && chiaveLuce === chiaveGas) {
+    const core = tokenCoreFamigliaCommercialeArera(luce, false);
+    if (core.some((token) => /[a-z]/.test(token))) return true;
+  }
+
+  // Match controllato per differenze descrittive non sostanziali fra le due
+  // commodity (es. "Prima Scelta Luce Fissa" / "Prima Scelta Gas" oppure
+  // "Luce Fix Mono Segugio" / "Gas Naturale Fix Segugio"). Per evitare
+  // accoppiamenti generici, il nucleo residuo deve restare sufficientemente
+  // distintivo dopo la normalizzazione.
+  const chiaveLuceRilassata = chiaveFamigliaCommercialeArera(luce, true);
+  const chiaveGasRilassata = chiaveFamigliaCommercialeArera(gas, true);
+  if (!chiaveLuceRilassata || chiaveLuceRilassata !== chiaveGasRilassata) return false;
+
+  const deboli = new Set([
+    "web", "casa", "home", "start", "smart", "easy", "fix", "fixed",
+    "flex", "energy", "energia", "standard", "clear", "light", "plus",
+    "pro", "premium", "special", "online", "digital", "ready", "full", "time",
+  ]);
+  const core = tokenCoreFamigliaCommercialeArera(luce, true)
+    .filter((token) => /[a-z]/.test(token));
+  return core.length >= 2 || core.some((token) => token.length >= 5 && !deboli.has(token));
+}
+
 function coppiaAreraEGHaLegameDual(luce, gas, luciProvider = [], gasProvider = []) {
   if (!luce || !gas) return false;
   if (luce.providerKey !== gas.providerKey || luce.tipo !== gas.tipo) return false;
 
-  // Regola primaria: una condizione economica ARERA della specifica offerta
-  // collega esplicitamente l'altra fornitura (nome preciso oppure qualunque
-  // offerta della commodity opposta con lo stesso venditore).
+  // 1) Legame economico/contrattuale esplicito nei dati ARERA: una delle due
+  // offerte richiede o premia la presenza/attivazione della commodity opposta.
   if (scontoAreraProvaLegameDual(luce, "luce", luce, gas)) return true;
   if (scontoAreraProvaLegameDual(gas, "gas", luce, gas)) return true;
 
-  // Regola formale di fallback. Nel codice offerta standard ARERA il settimo
-  // carattere identifica la commodity; D indica dual fuel. Se il file D non ha
-  // prodotto il contenitore congiunto, si ricostruisce E+G soltanto quando la
-  // coppia D e univoca per venditore e tipo prezzo. Nessun nome fornitore e
-  // nessuna blacklist/whitelist intervengono nella decisione.
+  // 2) Stessa linea commerciale E+G: i due nomi ARERA sono la variante luce e
+  // la variante gas della medesima famiglia. Non basta piu il solo venditore.
+  if (coppiaAreraEGStessaFamigliaCommerciale(luce, gas)) return true;
+
+  // 3) Fallback formale: componenti con codice standard ARERA marcato D. Il
+  // contenitore D nativo resta comunque la fonte prioritaria quando presente.
   if (commodityDaCodiceOffertaArera(luce) !== "D" || commodityDaCodiceOffertaArera(gas) !== "D") return false;
   const luciDualFormali = luciProvider.filter((riga) => commodityDaCodiceOffertaArera(riga) === "D");
   const gasDualFormali = gasProvider.filter((riga) => commodityDaCodiceOffertaArera(riga) === "D");
@@ -6988,8 +7061,9 @@ function rigaAreraDaCodice(codice) {
 
 // OFFERTALOGICA_STRICT_ARERA_SOURCE_ROUTING_20260727
 // I record D restano offerte dual native. Una coppia E+G puo competere con il record D
-// soltanto quando il catalogo ARERA prova un legame dual fra le due forniture; la sola
-// coincidenza del venditore non e sufficiente.
+// soltanto quando i dati ARERA provano un legame fra le due forniture: condizione
+// incrociata, stessa famiglia commerciale E+G oppure codifica formale D. Il solo
+// venditore comune non e sufficiente.
 function offertaAreraDualDaCodice(codice) {
   const normalized = String(codice || "").trim();
   if (!normalized) return null;
@@ -7152,8 +7226,8 @@ function offertaPartnerConPrezziArera(offerta, attuale) {
     }
 
     // Se il catalogo D non contiene una specifica dual corrente, la card partner
-    // puo essere valorizzata soltanto con una coppia E/G corrente il cui legame dual
-    // sia provato dai dati ARERA. Il solo venditore comune non e sufficiente.
+    // puo essere valorizzata soltanto con una coppia E/G corrente collegata dai dati
+    // ARERA (condizione incrociata o stessa famiglia commerciale).
     if (!OFFERTE_ARERA_MENU.length) return null;
     const providerKey = chiaveFornitoreDaNome(offerta.provider);
     if (!providerKey) return null;
