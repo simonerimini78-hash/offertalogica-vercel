@@ -569,14 +569,14 @@
   }
 
   const activityFunnelDefinitions = [
-    ["pdfStarted", "PDF avviati"], ["pdfCompleted", "PDF letti"], ["comparisons", "Confronti eseguiti"],
-    ["leadModalOpened", "Popup aperti"], ["otpSent", "OTP inviati"], ["otpVerified", "OTP verificati"],
+    ["pdfStarted", "PDF avviati"], ["pdfCompleted", "PDF letti"], ["comparisons", "Confronti reali"],
+    ["landingPreviews", "Anteprime automatiche landing"], ["leadModalOpened", "Popup aperti"], ["otpSent", "OTP inviati"], ["otpVerified", "OTP verificati"],
     ["offersUnlocked", "Offerte sbloccate"], ["offerConsentOpened", "Offerte cliccate"],
     ["partnerConsentConfirmed", "Consensi partner"], ["redirects", "Redirect"],
     ["consultantRequests", "Richieste assistite"], ["failedRequests", "Errori richiesta"]
   ];
   const sessionFunnelDefinitions = [
-    ["entries", "Ingressi attribuiti"], ["comparisons", "Almeno 1 confronto"],
+    ["entries", "Ingressi attribuiti"], ["comparisons", "Almeno 1 confronto reale"],
     ["leadModalOpened", "Popup lead"], ["otpSent", "OTP inviato"],
     ["otpVerified", "OTP verificato"], ["offersUnlocked", "Offerta sbloccata"]
   ];
@@ -672,6 +672,50 @@
       : "Classificazione non disponibile");
   }
 
+  const LEAD_OTP_EVENT_TYPES = new Set([
+    "lead_modal_opened", "lead_modal_closed", "lead_form_invalid", "otp_request_started",
+    "lead_created_client", "otp_sent", "otp_failed", "otp_verified"
+  ]);
+
+  function analyticsOrigin(event = {}) {
+    return String(event.dataOrigin || "").trim();
+  }
+
+  function populateAnalyticsFilters() {
+    const eventSelect = byId("analyticsEventFilter");
+    const originSelect = byId("analyticsOriginFilter");
+    if (!eventSelect || !originSelect) return;
+
+    const selectedEvent = eventSelect.value;
+    const selectedOrigin = originSelect.value;
+    const eventTypes = [...new Set(cache.analytics.map(event => String(event.eventType || "").trim()).filter(Boolean))].sort();
+    const origins = [...new Set(cache.analytics.map(analyticsOrigin).filter(Boolean))].sort();
+
+    eventSelect.replaceChildren(
+      node("option", { value: "", text: "Tutti gli eventi" }),
+      node("option", { value: "__lead_otp__", text: "Solo funnel lead / OTP" }),
+      ...eventTypes.map(value => node("option", { value, text: value }))
+    );
+    originSelect.replaceChildren(
+      node("option", { value: "", text: "Tutte le origini" }),
+      ...origins.map(value => node("option", { value, text: value }))
+    );
+    eventSelect.value = eventTypes.includes(selectedEvent) || selectedEvent === "__lead_otp__" ? selectedEvent : "";
+    originSelect.value = origins.includes(selectedOrigin) ? selectedOrigin : "";
+  }
+
+  function filteredAnalyticsEvents() {
+    const eventFilter = String(byId("analyticsEventFilter")?.value || "");
+    const originFilter = String(byId("analyticsOriginFilter")?.value || "");
+    return cache.analytics.filter(event => {
+      const eventType = String(event.eventType || "");
+      const eventMatches = !eventFilter
+        || (eventFilter === "__lead_otp__" ? LEAD_OTP_EVENT_TYPES.has(eventType) : eventType === eventFilter);
+      const originMatches = !originFilter || analyticsOrigin(event) === originFilter;
+      return eventMatches && originMatches;
+    });
+  }
+
   function renderAnalytics() {
     const summary = cache.analyticsSummary || {};
     const activityFunnel = summary.funnel || {};
@@ -689,13 +733,16 @@
     text(byId("analyticsBaseline"), baseline.label ? `Punto zero campagna: ${baseline.label}` : "Punto zero campagna");
     renderLandingTraffic();
 
+    populateAnalyticsFilters();
+    const filteredEvents = filteredAnalyticsEvents();
     const body = byId("analyticsRows");
     clear(body);
-    if (!cache.analytics.length) {
-      body.append(node("tr", {}, [node("td", { text: "Nessun evento disponibile.", attrs: { colspan: "7" } })]));
+    text(byId("analyticsFilterInfo"), `${formatNumber(filteredEvents.length)} visibili su ${formatNumber(cache.analytics.length)} eventi caricati`);
+    if (!filteredEvents.length) {
+      body.append(node("tr", {}, [node("td", { text: "Nessun evento corrisponde ai filtri selezionati.", attrs: { colspan: "7" } })]));
       return;
     }
-    cache.analytics.slice(0, 200).forEach(event => {
+    filteredEvents.slice(0, 200).forEach(event => {
       const values = [
         event.bestSaving != null ? `risparmio ${formatMoney(event.bestSaving)}` : "",
         event.annualCost != null ? `costo ${formatMoney(event.annualCost)}` : "",
@@ -3093,6 +3140,13 @@
     document.addEventListener("keydown", event => { if (event.key === "Escape" && !byId("staffComplimentaryLayer")?.hidden) closeComplimentary(); });
     byId("analyticsRefresh").addEventListener("click", () => loadAnalytics().catch(error => setMessage("error", friendlyError(error))));
     byId("landingPathRange")?.addEventListener("change", () => loadAnalytics({ silent: true }).catch(error => setMessage("error", friendlyError(error))));
+    byId("analyticsEventFilter")?.addEventListener("change", renderAnalytics);
+    byId("analyticsOriginFilter")?.addEventListener("change", renderAnalytics);
+    byId("analyticsFilterReset")?.addEventListener("click", () => {
+      if (byId("analyticsEventFilter")) byId("analyticsEventFilter").value = "";
+      if (byId("analyticsOriginFilter")) byId("analyticsOriginFilter").value = "";
+      renderAnalytics();
+    });
     byId("collaboratorRefresh").addEventListener("click", () => loadCollaborators().catch(error => setMessage("error", friendlyError(error))));
     byId("collaboratorShowRemoved").addEventListener("click", () => {
       includeRemovedCollaborators = !includeRemovedCollaborators;

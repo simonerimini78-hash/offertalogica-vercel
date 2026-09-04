@@ -17,6 +17,7 @@ const CUSTOMER_DB_SUPABASE_SERVICE_ROLE_KEY =
 const CUSTOMER_DB_EVENTS_TABLE = process.env.CUSTOMER_DB_EVENTS_TABLE || "lead_events";
 const CAMPAIGN_BASELINE_ISO = "2026-09-02T22:00:00.000Z";
 const CAMPAIGN_BASELINE_LABEL = "3 settembre 2026, 00:00";
+const LANDING_AUTOMATIC_DATA_ORIGIN = "landing_average_profile";
 const LANDING_PATH_EVENTS = Object.freeze({
   view: "landing_view",
   selfService: "landing_self_service_click",
@@ -336,11 +337,21 @@ function sourceEntries(map) {
   return topEntries(map, 12).map((item) => ({ ...item, label: trafficSourceLabel(item.key) }));
 }
 
+
+function isAutomaticLandingPreview(event = {}) {
+  return String(event.dataOrigin || "").trim().toLowerCase() === LANDING_AUTOMATIC_DATA_ORIGIN;
+}
+
+function isRealComparisonCompleted(event = {}) {
+  return event.eventType === "comparison_completed" && !isAutomaticLandingPreview(event);
+}
+
 function funnelFromProbablePeople(events = []) {
   const funnel = {
     pdfStarted: 0,
     pdfCompleted: 0,
     comparisons: 0,
+    landingPreviews: 0,
     offersRendered: 0,
     leadModalOpened: 0,
     otpSent: 0,
@@ -355,7 +366,8 @@ function funnelFromProbablePeople(events = []) {
   events.forEach((event) => {
     if (event.eventType === "pdf_analysis_started") funnel.pdfStarted += 1;
     if (event.eventType === "pdf_analysis_completed") funnel.pdfCompleted += 1;
-    if (event.eventType === "comparison_completed") funnel.comparisons += 1;
+    if (isRealComparisonCompleted(event)) funnel.comparisons += 1;
+    if (event.eventType === "comparison_completed" && isAutomaticLandingPreview(event)) funnel.landingPreviews += 1;
     if (event.eventType === "offers_rendered") funnel.offersRendered += 1;
     if (event.eventType === "lead_modal_opened") funnel.leadModalOpened += 1;
     if (event.eventType === "otp_sent") funnel.otpSent += 1;
@@ -383,7 +395,7 @@ function sessionFunnelFromGroups(groups = []) {
   groups.forEach((group) => {
     const eventTypes = new Set(group.map((event) => event.eventType).filter(Boolean));
     funnel.entries += 1;
-    if (eventTypes.has("comparison_completed")) funnel.comparisons += 1;
+    if (group.some((event) => isRealComparisonCompleted(event))) funnel.comparisons += 1;
     if (eventTypes.has("lead_modal_opened")) funnel.leadModalOpened += 1;
     if (eventTypes.has("otp_sent")) funnel.otpSent += 1;
     if (eventTypes.has("otp_verified")) funnel.otpVerified += 1;

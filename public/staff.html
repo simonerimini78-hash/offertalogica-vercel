@@ -213,7 +213,15 @@
         </div>
       </section>
       <div class="grid-2" style="margin-top:14px"><section class="panel"><div class="panel-head"><h3>Provider più cliccati</h3></div><div class="panel-body"><div class="rank-list" id="analyticsProviders"></div></div></section><section class="panel"><div class="panel-head"><h3>Offerte più cliccate</h3></div><div class="panel-body"><div class="rank-list" id="analyticsOffers"></div></div></section></div>
-      <section class="panel" style="margin-top:14px"><div class="table-wrap"><table class="data-table"><thead><tr><th>Data</th><th>Evento</th><th>Origine</th><th>Offerta</th><th>Valori</th><th>Lead</th><th>Azioni</th></tr></thead><tbody id="analyticsRows"></tbody></table></div></section>
+      <section class="panel" style="margin-top:14px">
+        <div class="toolbar four">
+          <select id="analyticsEventFilter" aria-label="Filtra per evento"><option value="">Tutti gli eventi</option><option value="__lead_otp__">Solo funnel lead / OTP</option></select>
+          <select id="analyticsOriginFilter" aria-label="Filtra per origine tecnica"><option value="">Tutte le origini</option></select>
+          <div id="analyticsFilterInfo" style="align-self:center;color:var(--muted);font-size:11px">Tutti gli eventi</div>
+          <button class="button secondary" id="analyticsFilterReset" type="button">Reimposta filtri</button>
+        </div>
+        <div class="table-wrap"><table class="data-table"><thead><tr><th>Data</th><th>Evento</th><th>Origine</th><th>Offerta</th><th>Valori</th><th>Lead</th><th>Azioni</th></tr></thead><tbody id="analyticsRows"></tbody></table></div>
+      </section>
     </section>
 
     <section class="view" data-staff-view="pdf">
@@ -276,7 +284,7 @@
 </div>
 <div id="staffUpdateNotice" class="staff-update" role="status" aria-live="polite"><span id="staffUpdateNoticeText">Nuova versione disponibile.</span><button id="staffApplyUpdate" type="button" hidden>AGGIORNA</button></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="/staff.js?v=0.36.93"></script>
+<script src="/staff.js?v=0.36.94"></script>
 <script src="/staff-governance-v2.5B.js"></script>
 <script defer src="/staff-management.js?v=0.36.93"></script>
 <script defer src="/staff-economics.js?v=0.36.80"></script>
@@ -381,7 +389,7 @@
 </script>
 <script>
   (()=>{
-    const CURRENT_RELEASE="0.36.93";
+    const CURRENT_RELEASE="0.36.94";
     const PRODUCTION_ORIGIN="https://staff.offertalogica.it";
     const isVercelDeployment=()=>location.hostname.toLowerCase().endsWith(".vercel.app");
     const redirectDeploymentToProduction=()=>{if(!isVercelDeployment())return false;const target=new URL(`${location.pathname}${location.search}${location.hash}`,PRODUCTION_ORIGIN);if(target.href===location.href)return false;location.replace(target.href);return true};
