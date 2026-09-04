@@ -4403,6 +4403,7 @@ function normalizzaRigaAreraMenu(riga) {
     providerKey: String(riga.providerKey || "").trim(),
     providerLabel: riga.providerLabel || riga.fornitore || "",
     fornitore: riga.fornitore || riga.providerLabel || "",
+    pivaVenditore: String(riga.pivaVenditore || "").trim(),
     commodity: riga.commodity === "gas" ? "gas" : "luce",
     tipo: riga.tipo === "variabile" ? "variabile" : "fisso",
     nome: riga.nome || "Offerta ARERA",
@@ -4432,11 +4433,16 @@ function normalizzaRigaAreraDual(riga) {
   if (!codiceLuce || !codiceGas || luce.codice !== codiceLuce || gas.codice !== codiceGas) return null;
   if (luce.providerKey !== riga.providerKey || gas.providerKey !== riga.providerKey) return null;
   if (luce.tipo !== riga.tipo || gas.tipo !== riga.tipo) return null;
+  const pivaVenditore = String(riga.pivaVenditore || "").trim();
+  if (luce.pivaVenditore && gas.pivaVenditore && luce.pivaVenditore !== gas.pivaVenditore) return null;
+  if (pivaVenditore && luce.pivaVenditore && pivaVenditore !== luce.pivaVenditore) return null;
+  if (pivaVenditore && gas.pivaVenditore && pivaVenditore !== gas.pivaVenditore) return null;
 
   return {
     providerKey: String(riga.providerKey || "").trim(),
     providerLabel: riga.providerLabel || riga.fornitore || "",
     fornitore: riga.fornitore || riga.providerLabel || "",
+    pivaVenditore: pivaVenditore || luce.pivaVenditore || gas.pivaVenditore || "",
     fornitura: "dual",
     tipo: riga.tipo === "variabile" ? "variabile" : "fisso",
     nome: riga.nome || "Offerta ARERA luce e gas",
@@ -6938,6 +6944,31 @@ function chiaveFamigliaCommercialeArera(riga, rilassata = false) {
   return tokenFamigliaCommercialeArera(riga, rilassata).join("");
 }
 
+function pivaVenditoreArera(riga) {
+  return String(riga?.pivaVenditore || "").replace(/\s+/g, "").trim();
+}
+
+function coppiaAreraEGStessoVenditoreLegale(luce, gas) {
+  const pivaLuce = pivaVenditoreArera(luce);
+  const pivaGas = pivaVenditoreArera(gas);
+  return Boolean(pivaLuce && pivaGas && pivaLuce === pivaGas);
+}
+
+function giornoFineCommercialeArera(riga) {
+  const fine = parseDataArera(riga?.dataFine);
+  if (!fine) return "";
+  const year = String(fine.getFullYear()).padStart(4, "0");
+  const month = String(fine.getMonth() + 1).padStart(2, "0");
+  const day = String(fine.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function coppiaAreraEGStessaFinestraCommerciale(luce, gas) {
+  const fineLuce = giornoFineCommercialeArera(luce);
+  const fineGas = giornoFineCommercialeArera(gas);
+  return Boolean(fineLuce && fineGas && fineLuce === fineGas);
+}
+
 function coppiaAreraEGStessaFamigliaCommerciale(luce, gas) {
   if (!luce || !gas) return false;
   if (luce.providerKey !== gas.providerKey || luce.tipo !== gas.tipo) return false;
@@ -6976,14 +7007,20 @@ function coppiaAreraEGHaLegameDual(luce, gas, luciProvider = [], gasProvider = [
   if (!luce || !gas) return false;
   if (luce.providerKey !== gas.providerKey || luce.tipo !== gas.tipo) return false;
 
+  // Ogni E+G ricostruita deve appartenere allo stesso venditore legale. Il
+  // providerKey identifica il marchio/gruppo e da solo non e una prova sufficiente.
+  if (!coppiaAreraEGStessoVenditoreLegale(luce, gas)) return false;
+
   // 1) Legame economico/contrattuale esplicito nei dati ARERA: una delle due
   // offerte richiede o premia la presenza/attivazione della commodity opposta.
   if (scontoAreraProvaLegameDual(luce, "luce", luce, gas)) return true;
   if (scontoAreraProvaLegameDual(gas, "gas", luce, gas)) return true;
 
-  // 2) Stessa linea commerciale E+G: i due nomi ARERA sono la variante luce e
-  // la variante gas della medesima famiglia. Non basta piu il solo venditore.
-  if (coppiaAreraEGStessaFamigliaCommerciale(luce, gas)) return true;
+  // 2) Stessa linea commerciale E+G: oltre al nome di famiglia coerente, le
+  // due righe devono appartenere alla stessa finestra di commercializzazione.
+  // La data di fine comune evita di mescolare revisioni diverse ancora attive.
+  if (coppiaAreraEGStessaFamigliaCommerciale(luce, gas)
+      && coppiaAreraEGStessaFinestraCommerciale(luce, gas)) return true;
 
   // 3) Fallback formale: componenti con codice standard ARERA marcato D. Il
   // contenitore D nativo resta comunque la fonte prioritaria quando presente.
@@ -7061,9 +7098,10 @@ function rigaAreraDaCodice(codice) {
 
 // OFFERTALOGICA_STRICT_ARERA_SOURCE_ROUTING_20260727
 // I record D restano offerte dual native. Una coppia E+G puo competere con il record D
-// soltanto quando i dati ARERA provano un legame fra le due forniture: condizione
-// incrociata, stessa famiglia commerciale E+G oppure codifica formale D. Il solo
-// venditore comune non e sufficiente.
+// soltanto quando i dati ARERA provano un legame fra le due forniture. Per ogni
+// E+G ricostruita e obbligatoria la stessa P.IVA venditore; la stessa famiglia
+// commerciale richiede anche una scadenza comune, cosi non si mescolano revisioni.
+// Il solo marchio/providerKey comune non e sufficiente.
 function offertaAreraDualDaCodice(codice) {
   const normalized = String(codice || "").trim();
   if (!normalized) return null;
@@ -7227,7 +7265,7 @@ function offertaPartnerConPrezziArera(offerta, attuale) {
 
     // Se il catalogo D non contiene una specifica dual corrente, la card partner
     // puo essere valorizzata soltanto con una coppia E/G corrente collegata dai dati
-    // ARERA (condizione incrociata o stessa famiglia commerciale).
+    // ARERA (stesso venditore legale + condizione incrociata oppure famiglia commerciale coerente).
     if (!OFFERTE_ARERA_MENU.length) return null;
     const providerKey = chiaveFornitoreDaNome(offerta.provider);
     if (!providerKey) return null;
@@ -7244,7 +7282,7 @@ function offertaPartnerConPrezziArera(offerta, attuale) {
       fornitura: "dual",
       luce: voceDaRigaArera(luce),
       gas: voceDaRigaArera(gas),
-      descrizione: `Stima economica giornaliera composta dalle offerte luce e gas ARERA correnti dello stesso venditore. Il percorso partner e attivo, ma nome e condizioni finali devono essere confermati nel funnel. Codici: ${codici}`,
+      descrizione: `Stima economica giornaliera composta da offerte luce e gas ARERA correnti con legame E+G comprovato. Il percorso partner e attivo, ma nome e condizioni finali devono essere confermati nel funnel. Codici: ${codici}`,
       fonte: `${DATI_ARERA_MENU_META.fonte} Cataloghi E+G. Codici: ${codici}`,
       aggiornataIl: DATI_ARERA_MENU_META.aggiornatoIl,
       certificazione: {
@@ -13050,7 +13088,7 @@ if (document.readyState === "loading") {
         <div class="partner-vertical-card" style="background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
             <div class="partner-meta">
                 <div class="partner-title" style="font-size: 16px; font-weight: bold; color: var(--text-color);">E.ON Luce e Gas Insieme</div>
-                <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Prezzi. Luce: 0,1007 €/kWh | Gas: 0,474 €/Smc. Fisso vendita: 109,23€ luce + 108€ gas</div>
+                <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Condizioni economiche caricate dal catalogo ARERA/AU aggiornato al momento del confronto.</div>
                 <div id="risparmio-partner-1" style="font-size: 14px; font-weight: bold; color: var(--primary); margin-top: 5px; display: none;"></div>
             </div>
             <a id="link-partner-1" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
@@ -13060,7 +13098,7 @@ if (document.readyState === "loading") {
         <div class="partner-vertical-card" style="background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
             <div class="partner-meta">
                 <div class="partner-title" style="font-size: 16px; font-weight: bold; color: var(--text-color);">A2A Start Luce e Gas</div>
-                <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Prezzi. Luce: 0,1390 €/kWh | Gas: 0,4900 €/Smc. Corrispettivo annuo: 114€ luce + 114€ gas (Fisso 24 mesi)</div>
+                <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Condizioni economiche caricate dal catalogo ARERA/AU aggiornato al momento del confronto.</div>
                 <div id="risparmio-partner-2" style="font-size: 14px; font-weight: bold; color: var(--primary); margin-top: 5px; display: none;"></div>
             </div>
             <a id="link-partner-2" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
@@ -13070,7 +13108,7 @@ if (document.readyState === "loading") {
         <div class="partner-vertical-card" style="background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
             <div class="partner-meta">
                 <div class="partner-title" style="font-size: 16px; font-weight: bold; color: var(--text-color);">Magis Energia Mia Fix</div>
-                <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Prezzi. Luce: 0,1027 €/kWh | Gas: 0,4930 €/Smc. Corrispettivo annuo: 96€ (Separate)</div>
+                <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Condizioni economiche caricate dal catalogo ARERA/AU aggiornato al momento del confronto.</div>
                 <div id="risparmio-partner-3" style="font-size: 14px; font-weight: bold; color: var(--primary); margin-top: 5px; display: none;"></div>
             </div>
             <a id="link-partner-3" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
@@ -13080,7 +13118,7 @@ if (document.readyState === "loading") {
         <div class="partner-vertical-card" style="background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
             <div class="partner-meta">
                 <div class="partner-title" style="font-size: 16px; font-weight: bold; color: var(--text-color);">Octopus Luce e Gas Monoraria</div>
-                <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Prezzi. Luce: 0,1298 €/kWh | Gas: 0,4900 €/Smc. Corrispettivo annuo: 156€ (Fisso)</div>
+                <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Condizioni economiche caricate dal catalogo ARERA/AU aggiornato al momento del confronto.</div>
                 <div id="risparmio-partner-4" style="font-size: 14px; font-weight: bold; color: var(--primary); margin-top: 5px; display: none;"></div>
             </div>
             <a id="link-partner-4" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
@@ -13090,7 +13128,7 @@ if (document.readyState === "loading") {
         <div class="partner-vertical-card" style="background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
             <div class="partner-meta">
                 <div class="partner-title" style="font-size: 16px; font-weight: bold; color: var(--text-color);">Iren Fissa 36 Mesi</div>
-                <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Prezzi. Luce: 0,1000 €/kWh | Gas: 0,4300 €/Smc. Corrispettivo annuo: 240€ (Bloccato 3 Anni)</div>
+                <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Condizioni economiche caricate dal catalogo ARERA/AU aggiornato al momento del confronto.</div>
                 <div id="risparmio-partner-5" style="font-size: 14px; font-weight: bold; color: var(--primary); margin-top: 5px; display: none;"></div>
             </div>
             <a id="link-partner-5" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
@@ -13100,7 +13138,7 @@ if (document.readyState === "loading") {
         <div class="partner-vertical-card" style="background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
             <div class="partner-meta">
                 <div class="partner-title" style="font-size: 16px; font-weight: bold; color: var(--text-color);">neN Luce Dieci</div>
-                <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Prezzo Luce: 0,1190 €/kWh | Corrispettivo: 72€/anno (Bloccato per ben 10 Anni)</div>
+                <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Condizioni economiche caricate dal catalogo ARERA/AU aggiornato al momento del confronto.</div>
                 <div id="risparmio-partner-6" style="font-size: 14px; font-weight: bold; color: var(--primary); margin-top: 5px; display: none;"></div>
             </div>
             <a id="link-partner-6" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
@@ -13110,7 +13148,7 @@ if (document.readyState === "loading") {
         <div class="partner-vertical-card" style="background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
             <div class="partner-meta">
                 <div class="partner-title" style="font-size: 16px; font-weight: bold; color: var(--text-color);">neN Duel Luce e Gas</div>
-                <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Prezzi. Luce: 0,1290 €/kWh | Gas: 0,4600 €/Smc. Corrispettivo annuo: 192€ (Bloccato 2 Anni)</div>
+                <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Condizioni economiche caricate dal catalogo ARERA/AU aggiornato al momento del confronto.</div>
                 <div id="risparmio-partner-7" style="font-size: 14px; font-weight: bold; color: var(--primary); margin-top: 5px; display: none;"></div>
             </div>
             <a id="link-partner-7" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
@@ -13120,7 +13158,7 @@ if (document.readyState === "loading") {
         <div class="partner-vertical-card" style="background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
             <div class="partner-meta">
                 <div class="partner-title" style="font-size: 16px; font-weight: bold; color: var(--text-color);">neN Luce Surf</div>
-                <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Prezzo Variabile (PUN monorario) + 0€ spread. Corrispettivo annuo: 120€</div>
+                <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Condizioni economiche caricate dal catalogo ARERA/AU aggiornato al momento del confronto.</div>
                 <div id="risparmio-partner-8" style="font-size: 14px; font-weight: bold; color: var(--primary); margin-top: 5px; display: none;"></div>
             </div>
             <a id="link-partner-8" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
@@ -13130,7 +13168,7 @@ if (document.readyState === "loading") {
         <div class="partner-vertical-card" style="background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
             <div class="partner-meta">
                 <div class="partner-title" style="font-size: 16px; font-weight: bold; color: var(--text-color);">neN Gas Surf</div>
-                <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Prezzo Variabile (PSV) + 0€ spread. Corrispettivo annuo: 120€</div>
+                <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Condizioni economiche caricate dal catalogo ARERA/AU aggiornato al momento del confronto.</div>
                 <div id="risparmio-partner-9" style="font-size: 14px; font-weight: bold; color: var(--primary); margin-top: 5px; display: none;"></div>
             </div>
             <a id="link-partner-9" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
@@ -13139,7 +13177,7 @@ if (document.readyState === "loading") {
         <div class="partner-vertical-card" style="background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
             <div class="partner-meta">
                 <div class="partner-title" style="font-size: 16px; font-weight: bold; color: var(--text-color);">Enel Fix Web Luce e Gas</div>
-                <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Prezzi. Luce: 0,1390 €/kWh | Gas: 0,4900 €/Smc. Corrispettivo: 288€/anno (Fisso 3 anni; bonus 200€ dual fuel)</div>
+                <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Condizioni economiche caricate dal catalogo ARERA/AU aggiornato al momento del confronto.</div>
                 <div id="risparmio-partner-10" style="font-size: 14px; font-weight: bold; color: var(--primary); margin-top: 5px; display: none;"></div>
             </div>
             <a id="link-partner-10" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
@@ -13149,7 +13187,7 @@ if (document.readyState === "loading") {
         <div class="partner-vertical-card" style="background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
             <div class="partner-meta">
                 <div class="partner-title" style="font-size: 16px; font-weight: bold; color: var(--text-color);">Eni Plenitude Fixa Time 24</div>
-                <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Prezzi. Luce: 0,0987 €/kWh | Gas: 0,4205 €/Smc. Commercializzazione e vendita: 144€/anno luce + 144€/anno gas.</div>
+                <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Condizioni economiche caricate dal catalogo ARERA/AU aggiornato al momento del confronto.</div>
                 <div id="risparmio-partner-11" style="font-size: 14px; font-weight: bold; color: var(--primary); margin-top: 5px; display: none;"></div>
             </div>
             <a id="link-partner-11" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
@@ -13159,7 +13197,7 @@ if (document.readyState === "loading") {
         <div class="partner-vertical-card" style="background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
             <div class="partner-meta">
                 <div class="partner-title" style="font-size: 16px; font-weight: bold; color: var(--text-color);">Alperia Smile Easy / Start</div>
-                <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Attivabile online. Luce: 0,1027 €/kWh (36M) | Gas: 0,4500 €/Smc (24M). Fisso vendita: 95,40€ luce + 144€ gas</div>
+                <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Condizioni economiche caricate dal catalogo ARERA/AU aggiornato al momento del confronto.</div>
                 <div id="risparmio-partner-12" style="font-size: 14px; font-weight: bold; color: var(--primary); margin-top: 5px; display: none;"></div>
             </div>
             <a id="link-partner-12" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
@@ -13169,7 +13207,7 @@ if (document.readyState === "loading") {
         <div class="partner-vertical-card" style="background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; margin-top: 15px;">
             <div class="partner-meta">
                 <div class="partner-title" style="font-size: 16px; font-weight: bold; color: var(--text-color);">Sorgenia Next Energy Smart</div>
-                <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Prezzi. Luce: 0,1300 €/kWh | Gas: 0,5200 €/Smc. Corrispettivo annuo: 258€ (Fisso 12 Mesi)</div>
+                <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Condizioni economiche caricate dal catalogo ARERA/AU aggiornato al momento del confronto.</div>
                 <div id="risparmio-partner-13" style="font-size: 14px; font-weight: bold; color: var(--primary); margin-top: 5px; display: none;"></div>
            </div>
            <a id="link-partner-13" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
