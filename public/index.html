@@ -12754,7 +12754,7 @@ function preparaRisparmioIngressoSocialMobile() {
     btnMedi?.click();
     LEAD_STATE.dataOrigin = "landing_average_profile";
     window.avviaComparazioneDati?.();
-    const saving = Number(LEAD_STATE.bestPartnerSaving || 0);
+    const saving = Number(LEAD_STATE.bestSaving || 0);
     const formatted = formattaRisparmioSocial(saving);
     if (value) value.textContent = formatted || "Offerte aggiornate";
     if (period) period.textContent = formatted ? "all'anno · esempio su profilo medio" : "confronta le offerte sui tuoi consumi";
@@ -12794,7 +12794,7 @@ function urlCalcolatoreDaLanding() {
 function apriCalcolatoreDaLanding() {
   if (!SOCIAL_ENTRY_STATE.ready) return;
   trackEvent("landing_self_service_click", {
-    bestSaving: Number(LEAD_STATE.bestPartnerSaving || 0),
+    bestSaving: Number(LEAD_STATE.bestSaving || 0),
     source: sorgenteIngressoLanding(),
     destinationType: "calculator",
     redirect: true,
@@ -12807,7 +12807,7 @@ function apriPercorsoAssistitoDaLanding() {
   const status = document.getElementById("landing-assisted-status");
   const destinationReady = Boolean(SWITCHO_LANDING_URL);
   trackEvent("landing_assisted_click", {
-    bestSaving: Number(LEAD_STATE.bestPartnerSaving || 0),
+    bestSaving: Number(LEAD_STATE.bestSaving || 0),
     source: sorgenteIngressoLanding(),
     destinationType: "switcho",
     destinationStatus: destinationReady ? "ready" : "pending_url",
