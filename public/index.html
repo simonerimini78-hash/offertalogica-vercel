@@ -2741,6 +2741,7 @@
 
         /* OFFERTALOGICA_MOBILE_RESULTS_FAST_V2_20260905 */
         .offer-bill-precision { display: none; }
+        .offer-switcho-bill-note { display: none; }
         @media (max-width: 700px) {
             html.mobile-fast-flow body.mobile-fast-results:not(.social-entry-active) #results-area {
                 display: none !important;
@@ -2844,6 +2845,16 @@
                 font-weight: 900;
                 vertical-align: middle;
                 cursor: pointer;
+            }
+            html.mobile-fast-flow body.mobile-fast-results:not(.social-entry-active) .offer-switcho-bill-note {
+                display: block;
+                width: 100%;
+                margin: -4px 0 0;
+                color: #64748b;
+                font-size: 10.5px;
+                line-height: 1.3;
+                font-weight: 650;
+                text-align: center;
             }
         }
 
@@ -8164,7 +8175,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
         : separataMulti
           ? `<span class="offer-path-status" style="display:inline-block; margin:0 0 6px 6px; padding:3px 8px; border:1px solid #cbd5e1; border-radius:999px; background:#f8fafc; color:#475569; font-size:11px; font-weight:800;">${percorsoBadgeText}</span>`
           : `<span class="offer-path-status is-unverified" style="display:inline-block; margin:0 0 6px 6px; padding:3px 8px; border:1px solid #cbd5e1; border-radius:999px; background:#f8fafc; color:#475569; font-size:11px; font-weight:800;">${percorsoBadgeText}</span>`;
-      const bollettaPrecisionButton = modalitaCalcolo === "media"
+      const bollettaPrecisionButton = modalitaCalcolo === "media" && attivabileOnline
         ? `<button type="button" class="offer-bill-precision">Carica bolletta per confronto preciso</button>`
         : "";
       const alternativeNote = alternativeFiltro
@@ -8186,6 +8197,13 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
           event.preventDefault();
           apriConsensoOfferta(offerta);
         };
+        card.querySelector(".offer-switcho-bill-note")?.remove();
+        if (!attivabileOnline && modalitaCalcolo === "media") {
+          const switchoBillNote = document.createElement("small");
+          switchoBillNote.className = "offer-switcho-bill-note";
+          switchoBillNote.textContent = "Su Switcho puoi anche caricare la bolletta per un confronto più preciso.";
+          link.insertAdjacentElement("afterend", switchoBillNote);
+        }
       }
       saving.style.color = risparmio ? "var(--primary)" : "var(--danger)";
       saving.innerHTML = `
