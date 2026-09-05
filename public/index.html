@@ -6593,6 +6593,7 @@ function testoAzioneOfferta(offerta, attivabileOnline) {
 }
 
 function testoBadgeOfferta(item, migliore) {
+  if (modalitaCalcolo === "media" && item.posizioneEconomica) return `Posizione ${item.posizioneEconomica}`;
   if (item.posizioneEconomica === 1) return "Migliore per i tuoi consumi";
   if (item.posizioneEconomica) return `Posizione economica ${item.posizioneEconomica}`;
   const scarto = item.costo - (migliore?.costo || item.costo);
