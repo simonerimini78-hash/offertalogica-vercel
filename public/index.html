@@ -2738,6 +2738,114 @@
             }
         }
 
+
+        /* OFFERTALOGICA_MOBILE_RESULTS_FAST_V2_20260905 */
+        .offer-bill-precision { display: none; }
+        @media (max-width: 700px) {
+            html.mobile-fast-flow body.mobile-fast-results:not(.social-entry-active) #results-area {
+                display: none !important;
+            }
+            html.mobile-fast-flow body.mobile-fast-results:not(.social-entry-active) .fornitori-consigliati-section {
+                padding: 8px 6px 12px !important;
+                border: 0 !important;
+                border-radius: 12px !important;
+                box-shadow: none !important;
+                background: transparent !important;
+            }
+            html.mobile-fast-flow body.mobile-fast-results:not(.social-entry-active) #offers-personalize-prompt,
+            html.mobile-fast-flow body.mobile-fast-results:not(.social-entry-active) #offers-ranking-explainer {
+                display: none !important;
+            }
+            html.mobile-fast-flow body.mobile-fast-results:not(.social-entry-active) .vertical-cards-container {
+                gap: 8px !important;
+            }
+            html.mobile-fast-flow body.mobile-fast-results:not(.social-entry-active) #offerte-ranking-group {
+                padding: 6px !important;
+                border: 0 !important;
+                border-radius: 12px !important;
+                box-shadow: none !important;
+                background: transparent !important;
+            }
+            html.mobile-fast-flow body.mobile-fast-results:not(.social-entry-active) #offerte-ranking-group .offers-list-heading {
+                margin: 0 0 7px !important;
+                padding: 5px 4px !important;
+                border: 0 !important;
+                border-radius: 0 !important;
+                background: transparent !important;
+                text-align: left;
+            }
+            .mobile-results-heading-row {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 8px;
+                min-width: 0;
+            }
+            .mobile-results-heading-copy {
+                min-width: 0;
+                color: #123044;
+                font-size: 15px;
+                line-height: 1.15;
+                font-weight: 900;
+            }
+            .mobile-results-heading-copy small {
+                display: block;
+                margin-top: 2px;
+                color: #64748b;
+                font-size: 10.5px;
+                line-height: 1.2;
+                font-weight: 650;
+            }
+            .mobile-method-toggle {
+                flex: 0 0 auto;
+                min-height: 34px;
+                border: 1px solid #cbd5e1;
+                border-radius: 999px;
+                padding: 6px 10px;
+                background: #fff;
+                color: #334155;
+                font-size: 11px;
+                line-height: 1;
+                font-weight: 850;
+                cursor: pointer;
+            }
+            .mobile-method-panel {
+                margin-top: 6px;
+                padding: 8px 9px;
+                border: 1px solid #dbe7df;
+                border-radius: 10px;
+                background: #f8fafc;
+                color: #475569;
+                font-size: 11px;
+                line-height: 1.35;
+                font-weight: 600;
+            }
+            .mobile-method-panel[hidden] { display: none !important; }
+            html.mobile-fast-flow body.mobile-fast-results:not(.social-entry-active) #offerte-ranking-group .offer-group-cards {
+                gap: 10px;
+            }
+            html.mobile-fast-flow body.mobile-fast-results:not(.social-entry-active) .offer-path-status.is-unverified {
+                display: none !important;
+            }
+            html.mobile-fast-flow body.mobile-fast-results:not(.social-entry-active) .offer-bill-precision {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                min-height: 30px;
+                margin: 0 0 6px 6px;
+                border: 1px solid #bbf7d0;
+                border-radius: 999px;
+                padding: 5px 9px;
+                background: #f0fdf4;
+                color: #166534;
+                font-size: 10.5px;
+                line-height: 1.1;
+                font-weight: 850;
+                vertical-align: middle;
+                cursor: pointer;
+            }
+        }
+
         /* OFFERTALOGICA_MOBILE_HELP_NEAR_IUBENDA_20260730 */
         .guided-assistant-mobile-toggle { display: none; }
         @media (max-width: 560px) {
@@ -8051,8 +8159,10 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
         ? "Attivabile online"
         : (separataMulti ? "Verifica con consulente" : "Percorso da verificare");
       const percorsoBadge = attivabileOnline
-        ? `<span style="display:inline-block; margin:0 0 6px 6px; padding:3px 8px; border:1px solid #a7f3d0; border-radius:999px; background:#ecfdf5; color:#047857; font-size:11px; font-weight:800;">${percorsoBadgeText}</span>`
-        : `<span style="display:inline-block; margin:0 0 6px 6px; padding:3px 8px; border:1px solid #cbd5e1; border-radius:999px; background:#f8fafc; color:#475569; font-size:11px; font-weight:800;">${percorsoBadgeText}</span>`;
+        ? `<span class="offer-path-status" style="display:inline-block; margin:0 0 6px 6px; padding:3px 8px; border:1px solid #a7f3d0; border-radius:999px; background:#ecfdf5; color:#047857; font-size:11px; font-weight:800;">${percorsoBadgeText}</span>`
+        : separataMulti
+          ? `<span class="offer-path-status" style="display:inline-block; margin:0 0 6px 6px; padding:3px 8px; border:1px solid #cbd5e1; border-radius:999px; background:#f8fafc; color:#475569; font-size:11px; font-weight:800;">${percorsoBadgeText}</span>`
+          : `<span class="offer-path-status is-unverified" style="display:inline-block; margin:0 0 6px 6px; padding:3px 8px; border:1px solid #cbd5e1; border-radius:999px; background:#f8fafc; color:#475569; font-size:11px; font-weight:800;">${percorsoBadgeText}</span>${modalitaCalcolo === "media" ? `<button type="button" class="offer-bill-precision">Carica bolletta per confronto preciso</button>` : ""}`;
       const alternativeNote = alternativeFiltro
         ? `<small style="display:block; margin-top:3px; color:#92400e; font-weight:700;">${tipoTariffa === "variabile" && offerta.tipo === "variabile" ? "Offerta variabile" : "Alternativa"} ${descriviTipoOfferta(offerta)} mostrata anche se il filtro selezionato e ${testoFiltroOfferte(tipoTariffa, tipoFornitura)}.</small>`
         : "";
@@ -8086,6 +8196,11 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
           Materia energia/gas: ${euro(costoOfferta.quotaVariabile)} | Fissa vendita: ${euro(costoOfferta.quotaFissaVendita)} | Potenza/ambito: ${euro(costoOfferta.quotaTecnicaProfilo)} | Oneri, imposte e IVA: ${euroOneriFiscali(costoOfferta.quotaRegolata + costoOfferta.quotaFiscale)}
         </small>
       `;
+      saving.querySelector(".offer-bill-precision")?.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        caricaBollettaDaOfferte();
+      });
       contenitoreTarget?.appendChild(card);
     });
 
@@ -8128,6 +8243,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
         : "Stima basata sui consumi che hai inserito: verifica il numero per visualizzare il confronto completo.";
   }
   aggiornaPromptBollettaDopoOfferte();
+  ottimizzaRisultatiMobile();
 }
 
 function aggiornaConsumiDaMasterSeMedia() {
@@ -13137,6 +13253,47 @@ function tracciaAccessoAppLanding(tipo) {
   });
 }
 
+function ottimizzaRisultatiMobile() {
+  if (!document.documentElement.classList.contains("mobile-fast-flow")) return;
+  const section = document.querySelector(".fornitori-consigliati-section");
+  const group = document.getElementById("offerte-ranking-group");
+  const heading = group?.querySelector(".offers-list-heading");
+  const firstCard = group?.querySelector(".offer-group-cards .partner-vertical-card");
+  if (!section || !group || !heading || !firstCard || group.style.display === "none") return;
+
+  document.body.classList.add("mobile-fast-results");
+  const prompt = document.getElementById("offers-personalize-prompt");
+  if (prompt) prompt.hidden = true;
+
+  const metodo = modalitaCalcolo === "media"
+    ? TESTO_METODOLOGIA_MEDIA_ARERA
+    : TESTO_METODOLOGIA_CONSUMI_REALI;
+  const copertura = document.getElementById("offers-ranking-explainer")?.textContent?.trim() || "";
+  const origine = modalitaCalcolo === "media" ? "Stima su consumi medi ARERA" : "Confronto sui tuoi consumi";
+
+  heading.innerHTML = `
+    <div class="mobile-results-heading-row">
+      <div class="mobile-results-heading-copy">Offerte più convenienti<small>${origine}</small></div>
+      <button type="button" class="mobile-method-toggle" id="mobile-method-toggle" aria-expanded="false" aria-controls="mobile-method-panel">Come calcoliamo</button>
+    </div>
+    <div class="mobile-method-panel" id="mobile-method-panel" hidden>${testoHtmlSicuro(metodo)}${copertura ? `<br><br>${testoHtmlSicuro(copertura)}` : ""}</div>
+  `;
+
+  const toggle = document.getElementById("mobile-method-toggle");
+  const panel = document.getElementById("mobile-method-panel");
+  toggle?.addEventListener("click", () => {
+    const open = toggle.getAttribute("aria-expanded") !== "true";
+    toggle.setAttribute("aria-expanded", open ? "true" : "false");
+    toggle.textContent = open ? "Chiudi" : "Come calcoliamo";
+    if (panel) panel.hidden = !open;
+  });
+
+  if (window.__OL_MOBILE_FAST_RESULTS_PENDING__) {
+    window.__OL_MOBILE_FAST_RESULTS_PENDING__ = false;
+    window.setTimeout(() => group.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+  }
+}
+
 function aggiornaPromptBollettaDopoOfferte() {
   const prompt = document.getElementById("offers-personalize-prompt");
   if (!prompt) return;
@@ -13156,7 +13313,8 @@ function caricaBollettaDaOfferte() {
   const prompt = document.getElementById("offers-personalize-prompt");
   if (prompt) prompt.hidden = true;
   trackEvent("offers_bill_prompt_clicked", { dataOrigin: LEAD_STATE.dataOrigin });
-  vaiAlCaricatoreScheda({ source: "offers_personalization" });
+  window.__OL_OPEN_MOBILE_FAST_PDF__?.();
+  window.setTimeout(() => vaiAlCaricatoreScheda({ source: "offers_personalization" }), 30);
 }
 
 function collegaEventiUX() {
@@ -14057,6 +14215,13 @@ I tuoi dati non vengono inviati a fornitori o partner finché non scegli di proc
 
     setMobileFastMode("");
     compactSegmentState();
+    window.__OL_OPEN_MOBILE_FAST_PDF__ = () => {
+      setMobileFastMode("pdf");
+      document.body.classList.remove("mobile-fast-pdf-review");
+    };
+    submit?.addEventListener("click", () => {
+      window.__OL_MOBILE_FAST_RESULTS_PENDING__ = true;
+    });
 
     const observer = new MutationObserver(compactSegmentState);
     if (btnPrivato) observer.observe(btnPrivato, { attributes: true, attributeFilter: ["class"] });
