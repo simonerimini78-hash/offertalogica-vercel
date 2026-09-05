@@ -2641,6 +2641,8 @@
                 <a href="/internet-casa.html">Internet casa</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
                 <a href="/fotovoltaico.html">Fotovoltaico</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
                 <a href="/climatizzazione-pompa-di-calore.html">Climatizzazione</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
+                <a href="https://wa.me/393299786242" target="_blank" rel="noopener">WhatsApp +39 329 978 6242</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
+                <a href="mailto:offertalogica@gmail.com">offertalogica@gmail.com</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
                 <a href="https://www.iubenda.com/privacy-policy/36565194" class="iubenda-white iubenda-noiframe iubenda-embed">Privacy Policy</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
                 <a href="https://www.iubenda.com/privacy-policy/36565194/cookie-policy" class="iubenda-white iubenda-noiframe iubenda-embed">Cookie Policy</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
                 <button type="button" onclick="apriPreferenzeCookie(event)">Modifica preferenze cookie</button>
@@ -7812,7 +7814,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       card.style.display = "flex";
       card.style.borderColor = posizioneEconomica === 1 ? "var(--primary)" : "var(--border)";
       card.style.boxShadow = posizioneEconomica === 1 ? "0 0 0 1px rgba(16, 185, 129, 0.18)" : "none";
-      card.classList.toggle("locked-offer", !LEAD_STATE.verified);
+      card.classList.remove("locked-offer");
 
       const title = card.querySelector(".partner-title");
       const details = card.querySelector(".partner-details");
@@ -7835,56 +7837,31 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       const risparmioLockedLabel = risparmio ? "Risparmio potenziale stimato" : "Costo stimato superiore";
       const savingLineClass = risparmio ? "offer-saving-line" : "offer-saving-line is-negative";
       const promozioniHtml = htmlPromozioniApplicateOfferta(offerta, costoOfferta);
-      if (LEAD_STATE.verified) {
-        if (title) title.innerText = titoloOffertaVisibile(offerta);
-        aggiornaLogoOfferta(card, offerta, true);
-        if (details) details.innerText = dettagliOfferta(offerta);
-        if (link) {
-          link.innerText = testoAzioneOfferta(offerta, attivabileOnline);
-          link.href = "#";
-          link.removeAttribute("target");
-          link.onclick = (event) => {
-            event.preventDefault();
-            apriConsensoOfferta(offerta);
-          };
-        }
-        saving.style.color = risparmio ? "var(--primary)" : "var(--danger)";
-        saving.innerHTML = `
-          ${badge}${percorsoBadge}
-          <span class="offer-metrics">
-            <span class="offer-cost-line"><span>${costoStimatoLabel}</span><strong>${euro(costo)} / anno</strong></span>
-            <span class="${savingLineClass}"><span>${risparmioLabel}</span><strong>${euro(Math.abs(differenza))} / anno</strong></span>
-          </span>
-          ${alternativeNote}
-          ${promozioniHtml}
-          <small style="display:block; margin-top:3px; color:var(--text-muted); font-weight:600;">
-            Materia energia/gas: ${euro(costoOfferta.quotaVariabile)} | Fissa vendita: ${euro(costoOfferta.quotaFissaVendita)} | Potenza/ambito: ${euro(costoOfferta.quotaTecnicaProfilo)} | Oneri, imposte e IVA: ${euroOneriFiscali(costoOfferta.quotaRegolata + costoOfferta.quotaFiscale)}
-          </small>
-        `;
-      } else {
-        if (title) title.innerText = "Offerta confrontata";
-        aggiornaLogoOfferta(card, offerta, false);
-        if (details) details.innerText = "Verifica il numero per vedere nome fornitore, dettagli economici e percorso.";
-        if (link) {
-          link.innerText = "Verifica";
-          link.href = "#";
-          link.onclick = (event) => {
-            event.preventDefault();
-            apriLeadModal("unlock");
-          };
-        }
-        saving.style.color = "var(--text-muted)";
-        saving.innerHTML = `
-          ${badge}${percorsoBadge}
-          <span class="offer-metrics">
-            <span class="offer-cost-line"><span>Costo stimato</span><strong>Disponibile dopo verifica</strong></span>
-            <span class="offer-saving-line"><span>Risparmio stimato</span><strong>Disponibile dopo verifica</strong></span>
-          </span>
-          <small style="display:block; margin-top:3px; color:var(--text-muted); font-weight:600;">
-            Verifica il numero per vedere importi, prezzo, fornitore e percorso.
-          </small>
-        `;
+      if (title) title.innerText = titoloOffertaVisibile(offerta);
+      aggiornaLogoOfferta(card, offerta, true);
+      if (details) details.innerText = dettagliOfferta(offerta);
+      if (link) {
+        link.innerText = testoAzioneOfferta(offerta, attivabileOnline);
+        link.href = "#";
+        link.removeAttribute("target");
+        link.onclick = (event) => {
+          event.preventDefault();
+          apriConsensoOfferta(offerta);
+        };
       }
+      saving.style.color = risparmio ? "var(--primary)" : "var(--danger)";
+      saving.innerHTML = `
+        ${badge}${percorsoBadge}
+        <span class="offer-metrics">
+          <span class="offer-cost-line"><span>${costoStimatoLabel}</span><strong>${euro(costo)} / anno</strong></span>
+          <span class="${savingLineClass}"><span>${risparmioLabel}</span><strong>${euro(Math.abs(differenza))} / anno</strong></span>
+        </span>
+        ${alternativeNote}
+        ${promozioniHtml}
+        <small style="display:block; margin-top:3px; color:var(--text-muted); font-weight:600;">
+          Materia energia/gas: ${euro(costoOfferta.quotaVariabile)} | Fissa vendita: ${euro(costoOfferta.quotaFissaVendita)} | Potenza/ambito: ${euro(costoOfferta.quotaTecnicaProfilo)} | Oneri, imposte e IVA: ${euroOneriFiscali(costoOfferta.quotaRegolata + costoOfferta.quotaFiscale)}
+        </small>
+      `;
       contenitoreTarget?.appendChild(card);
     });
 
@@ -7907,7 +7884,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
   const teaser = document.getElementById("lead-teaser");
   const teaserTitle = document.getElementById("lead-teaser-title");
   const teaserCopy = document.getElementById("lead-teaser-copy");
-  if (teaser) teaser.style.display = !LEAD_STATE.verified && hasVisibleOffers ? "block" : "none";
+  if (teaser) teaser.style.display = "none";
   const teaserSaving = SOCIAL_ENTRY_STATE.isSocialJourney
     ? LEAD_STATE.bestPartnerSaving
     : LEAD_STATE.bestSaving;
@@ -8411,6 +8388,8 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
   }
   const isAssistance = source === "assistance_callback";
   const isBusiness = source === "business";
+  const isOfferSelection = source === "offer_selection";
+  const selectedOfferName = LEAD_STATE.selectedOffer?.name || "l\'offerta scelta";
   if (sendBtn) {
     sendBtn.style.display = "inline-block";
     sendBtn.innerText = "Invia il codice di verifica";
@@ -8421,28 +8400,36 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
       ? "Verifica e richiedi il ricontatto"
       : isBusiness
         ? "Verifica e prosegui con la richiesta"
-        : "Verifica e mostra le offerte";
+        : isOfferSelection
+          ? "Verifica e continua"
+          : "Verifica e mostra le offerte";
   }
   if (title) {
     title.innerText = isAssistance
       ? "Richiedi assistenza"
       : isBusiness
         ? "Verifica il numero per proseguire con la richiesta aziendale"
-        : "Verifica il numero per vedere il confronto completo";
+        : isOfferSelection
+          ? "Verifica il numero per continuare con l'offerta scelta"
+          : "Verifica il numero per vedere il confronto completo";
   }
   if (copy) {
     copy.innerText = isAssistance
       ? "Inserisci i tuoi dati e verifica il numero. OffertaLogica potrà ricontattarti per aiutarti a completare il confronto."
       : isBusiness
         ? "Il codice SMS serve a verificare il numero.\nI tuoi dati non vengono inviati a consulenti o partner senza la relativa autorizzazione."
-        : "Il codice SMS serve a verificare il numero.\nI tuoi dati non vengono inviati a fornitori o partner finché non scegli di procedere con un'offerta.";
+        : isOfferSelection
+          ? `Hai scelto ${selectedOfferName}. Il codice SMS serve a verificare il numero prima di proseguire.\nI dati non vengono trasmessi al fornitore o al partner senza la relativa autorizzazione.`
+          : "Il codice SMS serve a verificare il numero.\nI tuoi dati non vengono inviati a fornitori o partner finché non scegli di procedere con un'offerta.";
   }
   if (serviceCopy) {
     serviceCopy.innerHTML = isAssistance
       ? `<strong>Richiedo di essere ricontattato da OffertaLogica per ricevere assistenza sul confronto.</strong> Dichiaro di aver letto l'<a href="https://www.iubenda.com/privacy-policy/36565194" target="_blank" rel="noopener">informativa privacy</a>.<span class="lead-consent-detail">Useremo i dati solo per verificare la richiesta e fornirti l'assistenza richiesta.</span>`
       : isBusiness
         ? `<strong>Richiedo l'analisi preliminare e il ricontatto necessario alla gestione della mia richiesta.</strong> Dichiaro di aver letto l'<a href="https://www.iubenda.com/privacy-policy/36565194" target="_blank" rel="noopener">informativa privacy</a>.<span class="lead-consent-detail">Useremo i dati inseriti o caricati per preparare l'analisi preliminare e gestire la tua richiesta.</span>`
-        : `<strong>Richiedo la comparazione personalizzata e il ricontatto necessario alla gestione della mia richiesta.</strong> Dichiaro di aver letto l'<a href="https://www.iubenda.com/privacy-policy/36565194" target="_blank" rel="noopener">informativa privacy</a>.<span class="lead-consent-detail">Useremo i dati inseriti o caricati per elaborare il confronto e gestire la tua richiesta.</span>`;
+        : isOfferSelection
+          ? `<strong>Richiedo di verificare il numero e proseguire con l'offerta che ho selezionato.</strong> Dichiaro di aver letto l'<a href="https://www.iubenda.com/privacy-policy/36565194" target="_blank" rel="noopener">informativa privacy</a>.<span class="lead-consent-detail">La verifica non autorizza da sola la trasmissione dei dati al fornitore o al partner.</span>`
+          : `<strong>Richiedo la comparazione personalizzata e il ricontatto necessario alla gestione della mia richiesta.</strong> Dichiaro di aver letto l'<a href="https://www.iubenda.com/privacy-policy/36565194" target="_blank" rel="noopener">informativa privacy</a>.<span class="lead-consent-detail">Useremo i dati inseriti o caricati per elaborare il confronto e gestire la tua richiesta.</span>`;
   }
   if (partnerLabel) partnerLabel.style.display = isAssistance ? "none" : "flex";
   const serviceCheckbox = document.getElementById("lead-consenso-servizio");
@@ -8454,13 +8441,17 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
       ? "La verifica serve a confermare il numero sul quale desideri essere ricontattato. Questa richiesta non autorizza l'invio dei dati a un fornitore."
       : isBusiness
         ? "L'SMS serve solo a confermare il numero e proseguire con la richiesta aziendale. L'invio dei dati a consulenti o partner resta separato e facoltativo."
-        : "L'SMS serve solo a confermare il numero e sbloccare il confronto. L'invio dei dati a fornitori o partner resta separato e facoltativo fino alla scelta di un'offerta.";
+        : isOfferSelection
+          ? "L'SMS conferma il numero e sblocca la prosecuzione sull'offerta scelta. La trasmissione dei dati al fornitore o al partner resta separata e richiede la relativa autorizzazione."
+          : "L'SMS serve solo a confermare il numero. L'invio dei dati a fornitori o partner resta separato e facoltativo fino alla scelta di un'offerta.";
   }
   if (partnerCopy && !isAssistance) {
     if (source === "business") {
       partnerCopy.innerText = "Autorizzo OffertaLogica a trasmettere i miei dati e i dati della fornitura a consulenti o partner incaricati della pratica business, per essere ricontattato sulla richiesta.";
     } else {
-      partnerCopy.innerHTML = "<strong>Facoltativo</strong> - autorizzo OffertaLogica a trasmettere i miei dati al fornitore o partner dell'offerta che sceglierò, per essere ricontattato esclusivamente in merito a quella proposta.";
+      partnerCopy.innerHTML = isOfferSelection
+        ? "<strong>Facoltativo</strong> - autorizzo OffertaLogica a trasmettere i miei dati al fornitore o partner dell'offerta selezionata, esclusivamente per proseguire con quella proposta."
+        : "<strong>Facoltativo</strong> - autorizzo OffertaLogica a trasmettere i miei dati al fornitore o partner dell'offerta che sceglierò, per essere ricontattato esclusivamente in merito a quella proposta.";
     }
   }
   modal.style.display = "flex";
@@ -8534,6 +8525,7 @@ function completaLeadVerificato() {
     mostraConfermaRichiestaAssistenza();
     return;
   }
+  const selectedOfferId = String(LEAD_STATE.selectedOffer?.id || "");
   LEAD_STATE.verified = true;
   trackEvent("offers_unlocked", { leadSource: LEAD_STATE.leadSource });
   if (LEAD_STATE.customerType === "business") {
@@ -8548,6 +8540,12 @@ function completaLeadVerificato() {
     return;
   }
   window.avviaComparazioneDati();
+  if (selectedOfferId) {
+    const selectedOffer = OFFERTE_PROPOSTE.find((item) => String(item?.id || "") === selectedOfferId);
+    if (selectedOffer) {
+      window.setTimeout(() => window.apriConsensoOfferta?.(selectedOffer), 0);
+    }
+  }
 }
 
 async function inviaOtp() {
@@ -8738,30 +8736,30 @@ function configuraPopupConsensoOfferta(richiedeConsenso) {
 }
 
 window.apriConsensoOfferta = function apriConsensoOfferta(offerta) {
+  LEAD_STATE.selectedOffer = {
+    id: String(offerta?.id || ""),
+    name: offerta?.nome || offerta?.name || "",
+    link: offerta?.link || "",
+    provider: offerta?.provider || "",
+    fornitura: offerta?.fornitura || "",
+    destinationType: offerta?.destinationType || "partner_lead",
+    destinationStatus: offerta?.destinationStatus || "pending_destination",
+    monetization: offerta?.monetizzazione || offerta?.monetization || null,
+    componentiSeparate: offerta?.componentiSeparate || null,
+    rankingContext: OFFER_RENDER_CONTEXTS.get(String(offerta?.id || "")) || offerta?.rankingContext || null,
+  };
+
   if (!LEAD_STATE.verified) {
     trackEvent("offer_click_locked", {
-      offerId: String(offerta?.id || ""),
-      offerName: offerta?.nome || "",
-      provider: offerta?.provider || "",
-      destinationType: offerta?.destinationType || "",
-      destinationStatus: offerta?.destinationStatus || "",
+      offerId: LEAD_STATE.selectedOffer.id,
+      offerName: LEAD_STATE.selectedOffer.name,
+      provider: LEAD_STATE.selectedOffer.provider,
+      destinationType: LEAD_STATE.selectedOffer.destinationType,
+      destinationStatus: LEAD_STATE.selectedOffer.destinationStatus,
     });
-    apriLeadModal("unlock");
+    apriLeadModal("offer_selection");
     return;
   }
-
-  LEAD_STATE.selectedOffer = {
-    id: String(offerta.id || ""),
-    name: offerta.nome || "",
-    link: offerta.link || "",
-    provider: offerta.provider || "",
-    fornitura: offerta.fornitura || "",
-    destinationType: offerta.destinationType || "partner_lead",
-    destinationStatus: offerta.destinationStatus || "pending_destination",
-    monetization: offerta.monetizzazione || null,
-    componentiSeparate: offerta.componentiSeparate || null,
-    rankingContext: OFFER_RENDER_CONTEXTS.get(String(offerta.id)) || null,
-  };
 
   if (!offertaAttivabileOnline(offerta)) {
     trackEvent("offer_switcho_redirect", {
@@ -8772,6 +8770,11 @@ window.apriConsensoOfferta = function apriConsensoOfferta(offerta) {
       destinationStatus: LEAD_STATE.selectedOffer.destinationStatus,
     });
     apriLandingSwitcho("offer_not_activatable", LEAD_STATE.selectedOffer);
+    return;
+  }
+
+  if (LEAD_STATE.partnerConsent) {
+    registraRichiestaOfferta();
     return;
   }
 
@@ -13720,6 +13723,8 @@ I tuoi dati non vengono inviati a fornitori o partner finché non scegli di proc
         <a href="/casa-smart.html" style="color: #555; text-decoration: none; margin: 0 10px;">Casa smart</a> |
         <a href="/internet-casa.html" style="color: #555; text-decoration: none; margin: 0 10px;">Internet casa</a> |
         <a href="/climatizzazione-pompa-di-calore.html" style="color: #555; text-decoration: none; margin: 0 10px;">Climatizzazione</a> |
+        <a href="https://wa.me/393299786242" target="_blank" rel="noopener" style="color: #555; text-decoration: none; margin: 0 10px;">WhatsApp +39 329 978 6242</a> |
+        <a href="mailto:offertalogica@gmail.com" style="color: #555; text-decoration: none; margin: 0 10px;">offertalogica@gmail.com</a> |
         <a href="https://www.iubenda.com/privacy-policy/36565194" class="iubenda-white iubenda-noiframe iubenda-embed" style="color: #555; text-decoration: none; margin: 0 10px;">Privacy Policy</a> | 
         <a href="https://www.iubenda.com/privacy-policy/36565194/cookie-policy" class="iubenda-white iubenda-noiframe iubenda-embed" style="color: #555; text-decoration: none; margin: 0 10px;">Cookie Policy</a> |
         <button type="button" class="footer-privacy-action" onclick="apriPreferenzeCookie(event)">Modifica preferenze cookie</button>
