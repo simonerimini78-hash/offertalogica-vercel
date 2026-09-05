@@ -8749,6 +8749,41 @@ window.apriConsensoOfferta = function apriConsensoOfferta(offerta) {
     rankingContext: OFFER_RENDER_CONTEXTS.get(String(offerta?.id || "")) || offerta?.rankingContext || null,
   };
 
+  // Le offerte instradate a Switcho non richiedono l'OTP OffertaLogica:
+  // registriamo la scelta e il redirect, poi lasciamo a Switcho registrazione e pratica.
+  if (!offertaAttivabileOnline(offerta)) {
+    const tracking = LEAD_STATE.selectedOffer.rankingContext || {};
+    trackEvent("offer_switcho_redirect", {
+      offerId: LEAD_STATE.selectedOffer.id,
+      offerName: LEAD_STATE.selectedOffer.name,
+      provider: LEAD_STATE.selectedOffer.provider,
+      destinationType: LEAD_STATE.selectedOffer.destinationType,
+      destinationStatus: LEAD_STATE.selectedOffer.destinationStatus,
+      displayGroup: tracking.displayGroup || "",
+      economyRank: tracking.economyRank || null,
+      displayRank: tracking.displayRank || null,
+      annualCost: tracking.annualCost || null,
+      annualDelta: tracking.annualDelta || null,
+    });
+    // Evento compatibile con il funnel Staff esistente: conta il passaggio partner.
+    trackEvent("offer_redirect", {
+      offerId: LEAD_STATE.selectedOffer.id,
+      offerName: LEAD_STATE.selectedOffer.name,
+      provider: LEAD_STATE.selectedOffer.provider,
+      destinationType: "switcho",
+      destinationStatus: "redirect",
+      redirect: true,
+      route: "switcho",
+      displayGroup: tracking.displayGroup || "",
+      economyRank: tracking.economyRank || null,
+      displayRank: tracking.displayRank || null,
+      annualCost: tracking.annualCost || null,
+      annualDelta: tracking.annualDelta || null,
+    });
+    apriLandingSwitcho("offer_not_activatable", LEAD_STATE.selectedOffer);
+    return;
+  }
+
   if (!LEAD_STATE.verified) {
     trackEvent("offer_click_locked", {
       offerId: LEAD_STATE.selectedOffer.id,
@@ -8758,18 +8793,6 @@ window.apriConsensoOfferta = function apriConsensoOfferta(offerta) {
       destinationStatus: LEAD_STATE.selectedOffer.destinationStatus,
     });
     apriLeadModal("offer_selection");
-    return;
-  }
-
-  if (!offertaAttivabileOnline(offerta)) {
-    trackEvent("offer_switcho_redirect", {
-      offerId: LEAD_STATE.selectedOffer.id,
-      offerName: LEAD_STATE.selectedOffer.name,
-      provider: LEAD_STATE.selectedOffer.provider,
-      destinationType: LEAD_STATE.selectedOffer.destinationType,
-      destinationStatus: LEAD_STATE.selectedOffer.destinationStatus,
-    });
-    apriLandingSwitcho("offer_not_activatable", LEAD_STATE.selectedOffer);
     return;
   }
 
@@ -12751,12 +12774,20 @@ const SWITCHO_LANDING_URL = "https://bit.ly/Switcho-LuceGas-OffertaLogica";
 
 function apriLandingSwitcho(source = "guided", offer = null) {
   if (!SWITCHO_LANDING_URL) return false;
+  const ranking = offer?.rankingContext || {};
   trackEvent("switcho_landing_opened", {
     source,
     routingVersion: SWITCHO_ROUTING_VERSION,
     offerId: offer?.id || "",
     offerName: offer?.name || offer?.nome || "",
     provider: offer?.provider || "",
+    destinationType: offer?.destinationType || "switcho",
+    destinationStatus: offer?.destinationStatus || "redirect",
+    displayGroup: ranking.displayGroup || "",
+    economyRank: ranking.economyRank || null,
+    displayRank: ranking.displayRank || null,
+    annualCost: ranking.annualCost || null,
+    annualDelta: ranking.annualDelta || null,
   });
   window.location.assign(SWITCHO_LANDING_URL);
   return true;
