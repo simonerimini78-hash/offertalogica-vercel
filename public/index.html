@@ -2537,6 +2537,207 @@
             .social-entry-cta { animation: none; }
         }
 
+        /* OFFERTALOGICA_MOBILE_FAST_FLOW_V1_20260905 */
+        .mobile-fast-start { display: none; }
+        @media (max-width: 700px) {
+            html.mobile-fast-flow body:not(.social-entry-active) {
+                padding: 8px 10px 14px;
+            }
+            html.mobile-fast-flow body:not(.social-entry-active) header {
+                padding: 7px 8px 9px !important;
+                margin-bottom: 0;
+            }
+            html.mobile-fast-flow body:not(.social-entry-active) .site-logo-main {
+                width: min(190px, 56vw);
+            }
+            html.mobile-fast-flow body:not(.social-entry-active) header::after {
+                width: 52px;
+                height: 3px;
+                margin-top: 6px;
+            }
+            html.mobile-fast-flow body:not(.social-entry-active) .container {
+                padding: 12px 10px 18px;
+                border-radius: 14px;
+            }
+            html.mobile-fast-flow body:not(.social-entry-active) .segment-switch {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 7px;
+                margin: 0 0 10px;
+            }
+            html.mobile-fast-flow body:not(.social-entry-active) .segment-switch button {
+                position: relative;
+                min-height: 48px;
+                padding: 10px 9px;
+                border-radius: 12px;
+                font-size: 14px;
+                line-height: 1.1;
+                text-align: center;
+            }
+            html.mobile-fast-flow body:not(.social-entry-active) .segment-switch button span {
+                display: none;
+            }
+            html.mobile-fast-flow body:not(.social-entry-active) .segment-switch button.active::after {
+                content: "✓";
+                display: inline-grid;
+                place-items: center;
+                width: 18px;
+                height: 18px;
+                margin-left: 6px;
+                border-radius: 999px;
+                background: #16a34a;
+                color: #fff;
+                font-size: 11px;
+                vertical-align: 1px;
+            }
+            html.mobile-fast-flow body:not(.social-entry-active) .segment-switch button:disabled {
+                opacity: 1;
+                cursor: default;
+            }
+            html.mobile-fast-flow body:not(.social-entry-active):not(.mobile-fast-business) .mobile-fast-start {
+                display: block;
+            }
+            .mobile-fast-start {
+                margin: 0 0 12px;
+                padding: 15px 12px 13px;
+                border: 1px solid rgba(22, 163, 74, .20);
+                border-radius: 16px;
+                background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(240,253,244,.92));
+                box-shadow: 0 12px 28px rgba(15, 23, 42, .07);
+            }
+            .mobile-fast-start-heading {
+                margin-bottom: 10px;
+                text-align: center;
+            }
+            .mobile-fast-start-heading h2 {
+                margin: 0;
+                color: #123044;
+                font-size: 20px;
+                line-height: 1.15;
+                letter-spacing: -.02em;
+            }
+            .mobile-fast-start-heading p {
+                margin: 5px 0 0;
+                color: #64748b;
+                font-size: 12.5px;
+                line-height: 1.35;
+            }
+            .mobile-fast-options {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 8px;
+            }
+            .mobile-fast-option {
+                min-width: 0;
+                min-height: 76px;
+                display: grid;
+                align-content: center;
+                gap: 4px;
+                padding: 11px 10px;
+                border: 1px solid #dbe7df;
+                border-radius: 13px;
+                background: #fff;
+                color: #123044;
+                text-align: left;
+                box-shadow: 0 7px 18px rgba(15, 23, 42, .05);
+                cursor: pointer;
+            }
+            .mobile-fast-option.is-fastest {
+                grid-column: 1 / -1;
+                min-height: 82px;
+                border-color: rgba(22,163,74,.44);
+                background: linear-gradient(135deg, #ecfdf3, #f7fff9);
+            }
+            .mobile-fast-option.is-selected {
+                border-color: #16a34a;
+                box-shadow: 0 0 0 2px rgba(22,163,74,.14), 0 10px 24px rgba(22,163,74,.10);
+            }
+            .mobile-fast-option strong {
+                display: block;
+                font-size: 14px;
+                line-height: 1.18;
+                font-weight: 900;
+            }
+            .mobile-fast-option small {
+                display: block;
+                color: #64748b;
+                font-size: 11.5px;
+                line-height: 1.3;
+                font-weight: 650;
+            }
+            .mobile-fast-badge {
+                justify-self: start;
+                margin-bottom: 1px;
+                padding: 3px 7px;
+                border-radius: 999px;
+                background: #dcfce7;
+                color: #166534;
+                font-size: 10px;
+                line-height: 1;
+                font-weight: 900;
+                text-transform: uppercase;
+                letter-spacing: .04em;
+            }
+            html.mobile-fast-flow body:not(.social-entry-active):not(.mobile-fast-business):not(.mobile-fast-mode-pdf) #pdf-upload-panel,
+            html.mobile-fast-flow body.mobile-fast-mode-average #pdf-upload-panel,
+            html.mobile-fast-flow body.mobile-fast-mode-manual #pdf-upload-panel {
+                display: none !important;
+            }
+            html.mobile-fast-flow body:not(.social-entry-active):not(.mobile-fast-business):not(.mobile-fast-mode-manual):not(.mobile-fast-pdf-review) #mobile-private-input-flow,
+            html.mobile-fast-flow body.mobile-fast-mode-average #mobile-private-input-flow {
+                display: none !important;
+            }
+            html.mobile-fast-flow body.mobile-fast-mode-manual #mobile-private-input-flow,
+            html.mobile-fast-flow body.mobile-fast-pdf-review #mobile-private-input-flow {
+                display: block !important;
+                margin-top: 10px !important;
+                padding: 14px 10px !important;
+            }
+            html.mobile-fast-flow body.mobile-fast-mode-manual #mobile-private-input-flow > .current-supply-heading,
+            html.mobile-fast-flow body.mobile-fast-mode-manual #mobile-private-input-flow > .choice-grid,
+            html.mobile-fast-flow body.mobile-fast-pdf-review #mobile-private-input-flow > .current-supply-heading,
+            html.mobile-fast-flow body.mobile-fast-pdf-review #mobile-private-input-flow > .choice-grid {
+                display: none !important;
+            }
+            html.mobile-fast-flow body.mobile-fast-mode-average #master-tendine-container,
+            html.mobile-fast-flow body.mobile-fast-mode-average #master-blocchi-inferiori,
+            html.mobile-fast-flow body.mobile-fast-mode-average #master-pulsante-calc-manuale {
+                display: none !important;
+            }
+            html.mobile-fast-flow body:not(.mobile-fast-mode-average):not(.mobile-fast-mode-manual):not(.mobile-fast-pdf-review) #comparison-next-step-guidance,
+            html.mobile-fast-flow body:not(.mobile-fast-mode-average):not(.mobile-fast-mode-manual):not(.mobile-fast-pdf-review) #comparison-submit-button {
+                display: none !important;
+            }
+            html.mobile-fast-flow body.mobile-fast-mode-average #comparison-next-step-guidance {
+                margin: 10px auto 8px;
+                padding: 11px 12px;
+                font-size: 12.5px;
+            }
+            html.mobile-fast-flow body.mobile-fast-mode-average #comparison-submit-button {
+                min-height: 58px;
+                margin-top: 6px;
+                border-radius: 14px;
+                font-size: 18px;
+            }
+            html.mobile-fast-flow body.mobile-fast-mode-pdf:not(.mobile-fast-pdf-review) #comparison-submit-button {
+                display: none !important;
+            }
+            html.mobile-fast-flow body.mobile-fast-mode-pdf #pdf-upload-panel {
+                margin: 0 0 10px;
+                padding: 14px 11px;
+                border-radius: 15px;
+            }
+            html.mobile-fast-flow body.mobile-fast-mode-pdf #pdf-upload-panel h3 {
+                margin-bottom: 8px;
+                font-size: 19px;
+            }
+            html.mobile-fast-flow body.mobile-fast-business .mobile-fast-start {
+                display: none !important;
+            }
+            html.mobile-fast-flow body.mobile-fast-business .segment-switch {
+                margin-bottom: 10px;
+            }
+        }
+
         /* OFFERTALOGICA_MOBILE_HELP_NEAR_IUBENDA_20260730 */
         .guided-assistant-mobile-toggle { display: none; }
         @media (max-width: 560px) {
@@ -2583,6 +2784,7 @@
         const staffPreview = staffSessionActive || ["staff", "staffToken", "previewToken"].some((key) => params.has(key) || hashParams.has(key));
         const staffHomeRequested = params.get("staffHome") === "1";
         const calculatorBypass = params.get("landing") === "0" || String(params.get("entry") || "").toLowerCase() === "calculator";
+        if (window.matchMedia?.("(max-width: 700px)")?.matches) document.documentElement.classList.add("mobile-fast-flow");
         const requested = staffHomeRequested || (!staffPreview && (Boolean(window.__OFFERTALOGICA_LANDING_FORCE__) || !calculatorBypass));
         window.__OFFERTALOGICA_LANDING_REQUESTED__ = requested;
         window.__OFFERTALOGICA_SOCIAL_ENTRY_REQUESTED__ = requested;
@@ -2688,6 +2890,28 @@
             <span>Analisi preliminare per imprese, negozi, uffici e professionisti.</span>
         </button>
     </div>
+
+    <section class="mobile-fast-start" id="mobile-fast-start" aria-labelledby="mobile-fast-start-title">
+        <div class="mobile-fast-start-heading">
+            <h2 id="mobile-fast-start-title">Come vuoi confrontare?</h2>
+            <p>Scegli un metodo: ti portiamo direttamente al passaggio utile.</p>
+        </div>
+        <div class="mobile-fast-options">
+            <button type="button" class="mobile-fast-option is-fastest" id="mobile-fast-average">
+                <span class="mobile-fast-badge">Più veloce</span>
+                <strong>Non conosco i miei consumi</strong>
+                <small>Usiamo il profilo medio ARERA. Nessun dato da inserire.</small>
+            </button>
+            <button type="button" class="mobile-fast-option" id="mobile-fast-pdf">
+                <strong>Carica la bolletta</strong>
+                <small>Leggiamo i dati dal PDF.</small>
+            </button>
+            <button type="button" class="mobile-fast-option" id="mobile-fast-manual">
+                <strong>Conosco i miei consumi</strong>
+                <small>Inserisco i valori manualmente.</small>
+            </button>
+        </div>
+    </section>
 
     <div class="business-panel" id="business-panel">
         <h3>Analisi aziendale luce e gas</h3>
@@ -2838,7 +3062,7 @@
     </div>
 
     <!-- TESTATA CENTRATA CON SPAZIO DI 50PX (PULITA SENZA DOPPIONI) -->
-    <div class="manual-block" style="margin-bottom: 25px; border-color: var(--accent); padding: 25px 20px;">
+    <div class="manual-block" id="mobile-private-input-flow" style="margin-bottom: 25px; border-color: var(--accent); padding: 25px 20px;">
         
         <h3 class="current-supply-heading" style="text-align: center; color: var(--accent); font-size: 20px; margin-bottom: 20px; border-bottom: none; padding-bottom: 0; font-weight: 700;">
             <span class="title-dark">La tua fornitura attuale</span>
@@ -9387,6 +9611,9 @@ function mostraStatoPdfMobile({ mode = "loading", title = "", copy = "", filenam
   if (!panel) return;
   MOBILE_PDF_STATUS_STATE.mode = mode;
   MOBILE_PDF_STATUS_STATE.primaryAction = primaryAction;
+  if (document.documentElement.classList.contains("mobile-fast-flow") && mode !== "loading") {
+    document.body.classList.add("mobile-fast-pdf-review");
+  }
   MOBILE_PDF_STATUS_STATE.missingFieldId = missingFieldId;
   panel.hidden = false;
   panel.classList.add("is-visible");
@@ -13775,5 +14002,111 @@ I tuoi dati non vengono inviati a fornitori o partner finché non scegli di proc
     </script>
     <script type="text/javascript">(function (w,d) {var loader = function () {var s = d.createElement("script"), tag = d.getElementsByTagName("script")[0]; s.src="https://cdn.iubenda.com/iubenda.js"; tag.parentNode.insertBefore(s,tag);}; if(w.addEventListener){w.addEventListener("load", loader, false);}else if(w.attachEvent){w.attachEvent("onload", loader);}else{w.onload = loader;}})(window, document);</script>
 </footer>
+<script>
+/* OFFERTALOGICA_MOBILE_FAST_FLOW_V1_20260905 */
+(function () {
+  function mobileFastEnabled() {
+    return document.documentElement.classList.contains("mobile-fast-flow");
+  }
+
+  function setMobileFastMode(mode) {
+    if (!mobileFastEnabled()) return;
+    const body = document.body;
+    ["average", "pdf", "manual"].forEach((name) => {
+      body.classList.toggle(`mobile-fast-mode-${name}`, name === mode);
+      document.getElementById(`mobile-fast-${name}`)?.classList.toggle("is-selected", name === mode);
+    });
+    if (mode !== "pdf") body.classList.remove("mobile-fast-pdf-review");
+  }
+
+  function compactSegmentState() {
+    if (!mobileFastEnabled()) return;
+    const privato = document.getElementById("btn-segmento-privato");
+    const business = document.getElementById("btn-segmento-business");
+    const isBusiness = Boolean(business?.classList.contains("active"));
+    document.body.classList.toggle("mobile-fast-business", isBusiness);
+    if (privato) {
+      privato.disabled = !isBusiness;
+      privato.setAttribute("aria-pressed", isBusiness ? "false" : "true");
+    }
+    if (business) {
+      business.disabled = isBusiness;
+      business.setAttribute("aria-pressed", isBusiness ? "true" : "false");
+    }
+  }
+
+  function scrollFast(target, block = "center") {
+    if (!target) return;
+    window.requestAnimationFrame(() => window.setTimeout(() => {
+      target.scrollIntoView({ behavior: "smooth", block });
+    }, 40));
+  }
+
+  function initMobileFastFlow() {
+    if (!mobileFastEnabled()) return;
+    const btnAverage = document.getElementById("mobile-fast-average");
+    const btnPdf = document.getElementById("mobile-fast-pdf");
+    const btnManual = document.getElementById("mobile-fast-manual");
+    const btnMedi = document.getElementById("btn-attiva-medi");
+    const btnPrecisi = document.getElementById("btn-attiva-precisi");
+    const submit = document.getElementById("comparison-submit-button");
+    const pdfPanel = document.getElementById("pdf-upload-panel");
+    const manualFlow = document.getElementById("mobile-private-input-flow");
+    const btnPrivato = document.getElementById("btn-segmento-privato");
+    const btnBusiness = document.getElementById("btn-segmento-business");
+
+    setMobileFastMode("");
+    compactSegmentState();
+
+    const observer = new MutationObserver(compactSegmentState);
+    if (btnPrivato) observer.observe(btnPrivato, { attributes: true, attributeFilter: ["class"] });
+    if (btnBusiness) observer.observe(btnBusiness, { attributes: true, attributeFilter: ["class"] });
+
+    btnAverage?.addEventListener("click", () => {
+      setMobileFastMode("average");
+      btnMedi?.click();
+      window.setTimeout(() => {
+        if (submit) submit.textContent = "Vedi le offerte";
+        scrollFast(submit, "center");
+      }, 90);
+    });
+
+    btnPdf?.addEventListener("click", () => {
+      setMobileFastMode("pdf");
+      document.body.classList.remove("mobile-fast-pdf-review");
+      scrollFast(pdfPanel, "start");
+    });
+
+    btnManual?.addEventListener("click", () => {
+      setMobileFastMode("manual");
+      btnPrecisi?.click();
+      window.setTimeout(() => {
+        if (submit) submit.textContent = "Vedi le offerte";
+        const firstField = manualFlow?.querySelector("select:not([disabled]), input:not([type='hidden']):not([disabled])");
+        scrollFast(firstField || manualFlow, "center");
+      }, 60);
+    });
+
+    document.getElementById("pdf-static-input")?.addEventListener("change", () => {
+      if (document.body.classList.contains("mobile-fast-mode-pdf")) {
+        document.body.classList.remove("mobile-fast-pdf-review");
+      }
+    });
+
+    document.querySelector("#pdf-upload-panel .lead-secondary")?.addEventListener("click", () => {
+      if (document.body.classList.contains("mobile-fast-mode-pdf")) {
+        document.body.classList.remove("mobile-fast-pdf-review");
+        window.setTimeout(() => scrollFast(pdfPanel, "start"), 30);
+      }
+    });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initMobileFastFlow);
+  } else {
+    initMobileFastFlow();
+  }
+})();
+</script>
 </body>
 </html>
