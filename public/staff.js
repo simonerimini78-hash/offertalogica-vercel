@@ -32,6 +32,7 @@
     leadSummary: {},
     analytics: [],
     analyticsSummary: {},
+    switcho: { rows: [], summary: {} },
     landingPath: null,
     customers: [],
     checks: [],
@@ -700,8 +701,8 @@
     "pdf_analysis_started", "pdf_analysis_completed",
     "lead_modal_opened", "lead_modal_closed", "lead_form_invalid", "otp_request_started",
     "lead_created_client", "otp_sent", "otp_failed", "otp_verified", "offers_unlocked",
-    "offer_consent_opened", "offer_partner_consent_confirmed", "offer_redirect",
-    "offer_request_recorded", "offer_request_failed"
+    "offer_consent_opened", "offer_partner_consent_confirmed", "offer_switcho_redirect",
+    "offer_redirect", "switcho_landing_opened", "offer_request_recorded", "offer_request_failed"
   ];
 
   function analyticsOrigin(event = {}) {
@@ -822,6 +823,154 @@
     panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
+  function switchoSourceLabel(source = "") {
+    const labels = {
+      google_ads: "Google Ads", google_organic: "Google organico", instagram: "Instagram",
+      facebook: "Facebook", tiktok: "TikTok", meta_other: "Meta non distinto",
+      direct: "Diretto", referral_other: "Referral / altro"
+    };
+    return labels[String(source || "")] || String(source || "") || "Diretto";
+  }
+
+  function switchoPathLabel(row = {}) {
+    const source = String(row.switchoSource || "").toLowerCase();
+    if (row.offerName || source === "offer_not_activatable") return "Card offerta";
+    if (source === "landing_assisted" || source === "guided") return "Percorso guidato";
+    if (source === "business") return "Business";
+    if (source.startsWith("assistance_")) return "Assistenza";
+    return source ? source.replaceAll("_", " ") : "Percorso guidato";
+  }
+
+  function switchoOriginLabel(origin = "") {
+    const labels = {
+      pdf_upload: "PDF / bolletta",
+      manual_input: "Dati inseriti",
+      landing_average_profile: "Profilo medio landing"
+    };
+    return labels[String(origin || "")] || String(origin || "") || "—";
+  }
+
+  function switchoStatusLabel(row = {}) {
+    if (row.landingOpened) return "Landing Switcho avviata";
+    if (row.redirectRecorded) return "Redirect registrato";
+    if (row.choiceRecorded) return "Scelta registrata";
+    return "Passaggio registrato";
+  }
+
+  function switchoRangeStart(range = "30d") {
+    const days = range === "7d" ? 7 : range === "30d" ? 30 : 0;
+    return days ? Date.now() - days * 86400000 : 0;
+  }
+
+  function filteredSwitchoRows() {
+    const rows = Array.isArray(cache.switcho?.rows) ? cache.switcho.rows : [];
+    const range = String(byId("switchoRange")?.value || "30d");
+    const source = String(byId("switchoSourceFilter")?.value || "");
+    const from = switchoRangeStart(range);
+    return rows.filter(row => {
+      const created = new Date(row.createdAt || row.firstAt || 0).getTime();
+      const rangeMatch = !from || (Number.isFinite(created) && created >= from);
+      const sourceMatch = !source || String(row.trafficSource || "direct") === source;
+      return rangeMatch && sourceMatch;
+    });
+  }
+
+  function populateSwitchoSourceFilter() {
+    const select = byId("switchoSourceFilter");
+    if (!select) return;
+    const selected = select.value;
+    const rows = Array.isArray(cache.switcho?.rows) ? cache.switcho.rows : [];
+    const counts = new Map();
+    rows.forEach(row => {
+      const key = String(row.trafficSource || "direct");
+      counts.set(key, (counts.get(key) || 0) + 1);
+    });
+    const entries = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+    select.replaceChildren(
+      node("option", { value: "", text: "Tutte le provenienze" }),
+      ...entries.map(([key, count]) => node("option", { value: key, text: `${switchoSourceLabel(key)} (${formatNumber(count)})` }))
+    );
+    select.value = counts.has(selected) ? selected : "";
+  }
+
+  function renderSwitchoAnalytics() {
+    populateSwitchoSourceFilter();
+    const rows = filteredSwitchoRows();
+    const offerSelections = rows.filter(row => row.choiceRecorded || row.offerName).length;
+    const guided = rows.filter(row => !row.offerName).length;
+    const redirects = rows.filter(row => row.redirectRecorded || row.landingOpened).length;
+    text(byId("switchoSessions"), formatNumber(rows.length));
+    text(byId("switchoOfferSelections"), formatNumber(offerSelections));
+    text(byId("switchoGuided"), formatNumber(guided));
+    text(byId("switchoRedirects"), formatNumber(redirects));
+    const rangeLabel = ({ "7d": "ultimi 7 giorni", "30d": "ultimi 30 giorni", all: "dal punto zero" })[String(byId("switchoRange")?.value || "30d")] || "periodo selezionato";
+    const source = String(byId("switchoSourceFilter")?.value || "");
+    text(byId("switchoFilterInfo"), rows.length
+      ? `${formatNumber(rows.length)} sessioni verso Switcho · ${rangeLabel}${source ? ` · ${switchoSourceLabel(source)}` : ""}. Il dato indica il redirect avviato da OffertaLogica, non il caricamento confermato della pagina partner.`
+      : `Nessun passaggio Switcho · ${rangeLabel}${source ? ` · ${switchoSourceLabel(source)}` : ""}.`);
+
+    const body = byId("switchoRows");
+    if (!body) return;
+    clear(body);
+    if (!rows.length) {
+      body.append(node("tr", {}, [node("td", { text: "Nessun passaggio Switcho nel periodo selezionato.", attrs: { colspan: "8" } })]));
+      return;
+    }
+    rows.slice(0, 500).forEach(row => {
+      const sessionId = String(row.sessionId || "");
+      const displayId = sessionId.length > 18 ? `${sessionId.slice(0, 9)}…${sessionId.slice(-6)}` : sessionId || "—";
+      const ranking = [row.economyRank != null ? `economica ${row.economyRank}` : "", row.displayRank != null ? `vista ${row.displayRank}` : ""].filter(Boolean).join(" · ") || "—";
+      const values = [row.annualCost != null ? `costo ${formatMoney(row.annualCost)}` : "", row.annualSaving != null ? `risparmio ${formatMoney(row.annualSaving)}` : ""].filter(Boolean).join(" · ") || "—";
+      const offer = [row.provider, row.offerName].filter(Boolean).join(" · ") || "Percorso guidato senza offerta associata";
+      const path = `${switchoPathLabel(row)} · ${switchoOriginLabel(row.dataOrigin)}`;
+      body.append(node("tr", {}, [
+        node("td", {}, [node("strong", { text: formatDate(row.createdAt || row.firstAt) })]),
+        node("td", {}, [node("strong", { text: switchoSourceLabel(row.trafficSource) }), node("small", { text: row.trafficCampaign || "" })]),
+        node("td", { text: path }),
+        node("td", { text: offer }),
+        node("td", { text: ranking }),
+        node("td", { text: values }),
+        node("td", {}, [badge(switchoStatusLabel(row), row.landingOpened || row.redirectRecorded ? "ok" : "warn")]),
+        node("td", {}, [node("span", { className: "switcho-session", text: displayId, attrs: { title: sessionId || "" } })])
+      ]));
+    });
+  }
+
+  async function exportSwitchoCsv() {
+    const rows = filteredSwitchoRows();
+    if (!rows.length) {
+      setMessage("info", "Nessun passaggio Switcho da esportare con i filtri selezionati.");
+      return;
+    }
+    try {
+      if (typeof recordExportAudit === "function") {
+        await recordExportAudit("switcho", { metadata: { rows: rows.length, range: byId("switchoRange")?.value || "30d", source: byId("switchoSourceFilter")?.value || "all" } }).catch(() => {});
+      }
+      const moneyCell = value => value == null || !Number.isFinite(Number(value)) ? "" : Number(value).toFixed(2).replace(".", ",");
+      const csvRows = [[
+        "Data", "Session ID", "Provenienza", "Campagna", "Medium", "Termine", "Percorso Switcho", "Origine dati",
+        "Fornitore", "Offerta", "Posizione economica", "Posizione visualizzata", "Costo annuo stimato EUR", "Risparmio annuo stimato EUR",
+        "Scelta card registrata", "Redirect registrato", "Landing Switcho avviata", "Lead ID"
+      ], ...rows.map(row => [
+        row.createdAt || row.firstAt || "", row.sessionId || "", switchoSourceLabel(row.trafficSource), row.trafficCampaign || "", row.trafficMedium || "", row.trafficTerm || "",
+        switchoPathLabel(row), switchoOriginLabel(row.dataOrigin), row.provider || "", row.offerName || "", row.economyRank ?? "", row.displayRank ?? "",
+        moneyCell(row.annualCost), moneyCell(row.annualSaving), row.choiceRecorded ? "SI" : "NO", row.redirectRecorded ? "SI" : "NO", row.landingOpened ? "SI" : "NO", row.leadId || ""
+      ])];
+      const cell = value => `"${String(value ?? "").replaceAll('"', '""')}"`;
+      const content = "\ufeff" + csvRows.map(row => row.map(cell).join(";")).join("\r\n") + "\r\n";
+      const blob = new Blob([content], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = node("a", { attrs: { href: url, download: `offertalogica-switcho-${new Date().toISOString().slice(0, 10)}.csv` } });
+      document.body.append(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      setMessage("success", `CSV Switcho generato: ${rows.length} sessioni.`);
+    } catch (error) {
+      setMessage("error", friendlyError(error));
+    }
+  }
+
   function renderAnalytics() {
     const summary = cache.analyticsSummary || {};
     const activityFunnel = summary.funnel || {};
@@ -848,6 +997,7 @@
       ? `Provenienza selezionata: ${analyticsSourceLabel(sourceFilter)}. Percentuali rispetto agli ingressi della stessa provenienza e alla fase precedente; i percorsi possono ramificarsi.`
       : "Tutte le provenienze. Percentuali rispetto agli ingressi e alla fase precedente; i percorsi possono ramificarsi.");
     renderLandingTraffic();
+    renderSwitchoAnalytics();
 
     const filteredEvents = filteredAnalyticsEvents();
     const body = byId("analyticsRows");
@@ -896,6 +1046,7 @@
     const payload = await staffFetch(`/api/staff-analytics?limit=2000&landingRange=${encodeURIComponent(landingRange)}`);
     cache.analytics = Array.isArray(payload.events) ? payload.events : [];
     cache.analyticsSummary = payload.summary || {};
+    cache.switcho = payload.switcho && typeof payload.switcho === "object" ? payload.switcho : { rows: [], summary: {} };
     cache.landingPath = payload.landingPath || null;
     cache.analyticsBaseline = payload.baseline || null;
     renderAnalytics();
@@ -3250,6 +3401,9 @@
     document.addEventListener("keydown", event => { if (event.key === "Escape" && !byId("staffComplimentaryLayer")?.hidden) closeComplimentary(); });
     byId("analyticsRefresh").addEventListener("click", () => loadAnalytics().catch(error => setMessage("error", friendlyError(error))));
     byId("landingPathRange")?.addEventListener("change", () => loadAnalytics({ silent: true }).catch(error => setMessage("error", friendlyError(error))));
+    byId("switchoRange")?.addEventListener("change", renderSwitchoAnalytics);
+    byId("switchoSourceFilter")?.addEventListener("change", renderSwitchoAnalytics);
+    byId("switchoCsv")?.addEventListener("click", () => { void exportSwitchoCsv(); });
     byId("analyticsEventFilter")?.addEventListener("change", renderAnalytics);
     byId("analyticsOriginFilter")?.addEventListener("change", renderAnalytics);
     byId("analyticsSourceFilter")?.addEventListener("change", () => {

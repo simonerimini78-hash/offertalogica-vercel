@@ -33,6 +33,9 @@ const HUMAN_INTERACTION_EVENTS = new Set([
   "pdf_analysis_started",
   "activation_data_copied",
   "assistance_callback_verified",
+  "offer_switcho_redirect",
+  "switcho_landing_opened",
+  "offer_redirect",
 ]);
 
 function customerDbConfiguredForLandingAnalytics() {
@@ -258,6 +261,134 @@ async function loadLandingPathAnalytics(rangeValue) {
       error: String(error?.message || error || "landing_analytics_error"),
     };
   }
+}
+
+
+const SWITCHO_EVENT_TYPES = ["offer_switcho_redirect", "offer_redirect", "switcho_landing_opened"];
+const SWITCHO_ANALYTICS_PAGE_SIZE = 1000;
+const SWITCHO_ANALYTICS_MAX_ROWS = 20000;
+
+function switchoEventFromRow(row = {}) {
+  const payload = row?.payload && typeof row.payload === "object" ? row.payload : {};
+  const eventType = String(row?.event_type || row?.eventType || "");
+  const destinationType = String(payload.destinationType || "").trim().toLowerCase();
+  const route = String(payload.route || "").trim().toLowerCase();
+  const isSwitcho = eventType === "offer_switcho_redirect"
+    || eventType === "switcho_landing_opened"
+    || (eventType === "offer_redirect" && (destinationType === "switcho" || route === "switcho"));
+  if (!isSwitcho) return null;
+  return {
+    id: String(row?.id || ""),
+    leadId: String(row?.lead_id || ""),
+    eventType,
+    createdAt: row?.created_at || "",
+    sessionId: String(payload.sessionId || ""),
+    page: String(payload.page || ""),
+    dataOrigin: String(payload.dataOrigin || ""),
+    trafficSource: normalizeTrafficSource(payload.trafficSource || payload.source || payload.leadSource || "direct"),
+    trafficCampaign: String(payload.trafficCampaign || ""),
+    trafficMedium: String(payload.trafficMedium || ""),
+    trafficTerm: String(payload.trafficTerm || ""),
+    switchoSource: String(payload.source || ""),
+    offerId: String(payload.offerId || ""),
+    offerName: String(payload.offerName || ""),
+    provider: String(payload.provider || ""),
+    destinationType: String(payload.destinationType || ""),
+    destinationStatus: String(payload.destinationStatus || ""),
+    displayGroup: String(payload.displayGroup || ""),
+    economyRank: Number.isFinite(Number(payload.economyRank)) ? Number(payload.economyRank) : null,
+    displayRank: Number.isFinite(Number(payload.displayRank)) ? Number(payload.displayRank) : null,
+    annualCost: Number.isFinite(Number(payload.annualCost)) ? Number(payload.annualCost) : null,
+    annualSaving: Number.isFinite(Number(payload.annualDelta)) ? Number(payload.annualDelta) : null,
+  };
+}
+
+function switchoSessionsFromEvents(events = []) {
+  const groups = new Map();
+  events.forEach((event) => {
+    const key = event.sessionId ? `session:${event.sessionId}` : `event:${event.id}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(event);
+  });
+
+  const rows = [...groups.values()].map((group) => {
+    const ordered = [...group].sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime());
+    const choice = ordered.find((event) => event.eventType === "offer_switcho_redirect");
+    const redirect = ordered.find((event) => event.eventType === "offer_redirect");
+    const landing = ordered.find((event) => event.eventType === "switcho_landing_opened");
+    const representative = landing || redirect || choice || ordered[ordered.length - 1] || {};
+    const offerEvent = [choice, redirect, landing, representative].find((event) => event?.offerName || event?.provider) || representative;
+    const trafficEvent = ordered.find((event) => event?.trafficSource && event.trafficSource !== "direct") || representative;
+    return {
+      sessionId: String(representative.sessionId || ""),
+      leadId: String(representative.leadId || ""),
+      createdAt: representative.createdAt || "",
+      firstAt: ordered[0]?.createdAt || representative.createdAt || "",
+      trafficSource: trafficEvent?.trafficSource || representative.trafficSource || "direct",
+      trafficSourceLabel: trafficSourceLabel(trafficEvent?.trafficSource || representative.trafficSource || "direct"),
+      trafficCampaign: trafficEvent?.trafficCampaign || representative.trafficCampaign || "",
+      trafficMedium: trafficEvent?.trafficMedium || representative.trafficMedium || "",
+      trafficTerm: trafficEvent?.trafficTerm || representative.trafficTerm || "",
+      dataOrigin: offerEvent?.dataOrigin || representative.dataOrigin || "",
+      switchoSource: landing?.switchoSource || choice?.switchoSource || representative.switchoSource || "",
+      offerId: offerEvent?.offerId || "",
+      offerName: offerEvent?.offerName || "",
+      provider: offerEvent?.provider || "",
+      economyRank: offerEvent?.economyRank ?? null,
+      displayRank: offerEvent?.displayRank ?? null,
+      annualCost: offerEvent?.annualCost ?? null,
+      annualSaving: offerEvent?.annualSaving ?? null,
+      choiceRecorded: Boolean(choice),
+      redirectRecorded: Boolean(redirect),
+      landingOpened: Boolean(landing),
+      eventsCount: ordered.length,
+    };
+  }).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+
+  return rows;
+}
+
+async function loadSwitchoAnalytics(from = CAMPAIGN_BASELINE_ISO) {
+  if (!customerDbConfiguredForLandingAnalytics()) {
+    return { ok: true, configured: false, rows: [], summary: { sessions: 0, offerSelections: 0, guidedSessions: 0, redirects: 0 } };
+  }
+
+  const allEvents = [];
+  for (let offset = 0; offset < SWITCHO_ANALYTICS_MAX_ROWS; offset += SWITCHO_ANALYTICS_PAGE_SIZE) {
+    const query = new URLSearchParams({
+      select: "id,lead_id,event_type,created_at,payload",
+      order: "created_at.asc",
+      limit: String(SWITCHO_ANALYTICS_PAGE_SIZE),
+      offset: String(offset),
+      event_type: `in.(${SWITCHO_EVENT_TYPES.join(",")})`,
+    });
+    if (from) query.set("created_at", `gte.${from}`);
+    const response = await fetch(
+      `${customerDbBaseUrl()}/rest/v1/${CUSTOMER_DB_EVENTS_TABLE}?${query.toString()}`,
+      { method: "GET", headers: customerDbReadHeaders() },
+    );
+    if (!response.ok) throw new Error(`Customer DB Switcho analytics error ${response.status}`);
+    const rawRows = await response.json();
+    const batch = (Array.isArray(rawRows) ? rawRows : []).map(switchoEventFromRow).filter(Boolean);
+    allEvents.push(...batch);
+    if (!Array.isArray(rawRows) || rawRows.length < SWITCHO_ANALYTICS_PAGE_SIZE) break;
+  }
+
+  const rows = switchoSessionsFromEvents(allEvents);
+  const sourceCounts = {};
+  rows.forEach((row) => increment(sourceCounts, row.trafficSource || "direct"));
+  return {
+    ok: true,
+    configured: true,
+    rows,
+    summary: {
+      sessions: rows.length,
+      offerSelections: rows.filter((row) => row.choiceRecorded || row.offerName).length,
+      guidedSessions: rows.filter((row) => !row.offerName).length,
+      redirects: rows.filter((row) => row.redirectRecorded || row.landingOpened).length,
+      sources: sourceEntries(sourceCounts),
+    },
+  };
 }
 
 function analyticsLimit(value) {
@@ -680,16 +811,22 @@ export default async function handler(req, res) {
 
   const limit = url.searchParams.get("limit") || 2000;
   const landingRange = normalizeLandingRange(url.searchParams.get("landingRange"));
-  const [rawResult, landingPath, trafficSignals] = await Promise.all([
+  const [rawResult, landingPath, trafficSignals, switcho] = await Promise.all([
     listCustomerAnalytics({ limit }),
     loadLandingPathAnalytics(landingRange),
     loadAnalyticsTrafficSignals(limit, CAMPAIGN_BASELINE_ISO).catch(() => new Map()),
+    loadSwitchoAnalytics(CAMPAIGN_BASELINE_ISO).catch((error) => ({
+      ok: false, configured: true, rows: [],
+      summary: { sessions: 0, offerSelections: 0, guidedSessions: 0, redirects: 0, sources: [] },
+      error: String(error?.message || error || "switcho_analytics_error"),
+    })),
   ]);
   const result = enhanceAnalyticsForStaff(analyticsFromCampaignBaseline(rawResult), trafficSignals);
 
   json(res, result.ok ? 200 : 500, {
     ...result,
     landingPath,
+    switcho,
     baseline: {
       from: CAMPAIGN_BASELINE_ISO,
       label: CAMPAIGN_BASELINE_LABEL,
