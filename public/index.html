@@ -3288,8 +3288,8 @@
                         <label for="master-gas-consumo">Consumo Annuo Gas</label>
                         <select id="master-gas-consumo">
                             <option value="300">Basso (Solo cucina/acqua calda - 300 Smc)</option>
-                            <option value="700" selected>Medio (Standard Riscaldamento - 700 Smc)</option>
-                            <option value="1400">Alto (Grandi consumi - 1400 Smc)</option>
+                            <option value="700">Medio (Riscaldamento contenuto - 700 Smc)</option>
+                            <option value="1400" selected>Standard (Riscaldamento - 1400 Smc)</option>
                         </select>
                     </div>
                     <div class="input-group">
@@ -3890,7 +3890,7 @@ let PARAMETRI_CALCOLO = {
   perditeReteLuceVariabile: 1.102,
   profiloMedio: {
     luceConsumoKwh: 2700,
-    gasConsumoSmc: 700,
+    gasConsumoSmc: 1400,
     prezzoLuceEurKwh: 0.1500,
     prezzoGasEurSmc: 0.6800,
     quotaFissaLuceAnnua: 144,
@@ -13380,7 +13380,7 @@ function luceMasterBucket(consumo) {
 
 function gasMasterBucket(consumo) {
   const value = Number(consumo || 0);
-  if (!value) return "700";
+  if (!value) return "1400";
   if (value <= 300) return "300";
   if (value <= 1000) return "700";
   return "1400";
