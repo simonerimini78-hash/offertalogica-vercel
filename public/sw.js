@@ -78,7 +78,12 @@ self.addEventListener("fetch", event => {
     "/casa-smart.html",
     "/internet-casa.html"
   ]);
-  if (liveMainPaths.has(url.pathname) || url.pathname.startsWith("/fornitori/")) {
+  const premiumSecurityLivePath =
+    url.pathname === "/app.html"
+    || ["/app-auth.js", "/app-support.js", "/app-utilities.js", "/app-premium-bills.js", "/premium-ai-validation.js"].includes(url.pathname)
+    || url.pathname.startsWith("/staff");
+
+  if (premiumSecurityLivePath || liveMainPaths.has(url.pathname) || url.pathname.startsWith("/fornitori/")) {
     event.respondWith(fetch(request, { cache: "no-store" }));
     return;
   }
