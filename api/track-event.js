@@ -1,4 +1,4 @@
-import { clientIp, json, method, readJson, requireAllowedOrigin } from "../lib/http.js";
+import { clientIp, json, leadSessionSubject, method, readJson, requireAllowedOrigin } from "../lib/http.js";
 import { persistAnalyticsEvent } from "../lib/customerDb.js";
 import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
 import { getJson } from "../lib/store.js";
@@ -253,14 +253,17 @@ function validateInteractiveToolPayload(eventType, payload) {
   return { ok: true };
 }
 
-async function validateAnalyticsIntegrity(eventType, body, payload) {
+async function validateAnalyticsIntegrity(req, eventType, body, payload) {
   if (!VERIFIED_LEAD_EVENT_TYPES.has(eventType)) {
     return { ok: true, integrity: "public_event", leadId: text(body.leadId, 90) };
   }
 
   const leadId = text(body.leadId, 90);
-  if (!leadId) {
+  if (!/^[A-Za-z0-9_-]{8,90}$/.test(leadId)) {
     return { ok: false, status: 400, error: "Lead verificato richiesto" };
+  }
+  if (leadSessionSubject(req) !== leadId) {
+    return { ok: false, status: 403, error: "Sessione di verifica non valida o scaduta" };
   }
 
   const lead = await getJson(`lead:${leadId}`);
@@ -355,7 +358,7 @@ export default async function handler(req, res) {
       json(res, toolValidation.status || 400, { ok: false, error: toolValidation.error || "Evento strumento non autorizzato" });
       return;
     }
-    const integrity = await validateAnalyticsIntegrity(eventType, body, payload);
+    const integrity = await validateAnalyticsIntegrity(req, eventType, body, payload);
     if (!integrity.ok) {
       json(res, integrity.status || 400, { ok: false, error: integrity.error || "Evento non autorizzato" });
       return;

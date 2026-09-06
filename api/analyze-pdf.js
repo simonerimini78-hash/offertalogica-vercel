@@ -3,7 +3,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import formidable from "formidable";
-import { json, method, requireAllowedOrigin } from "../lib/http.js";
+import { json, method, requireAllowedBrowserOrigin } from "../lib/http.js";
 import { extractPdfPureAi, PDF_PURE_AI_DEFAULT_MODEL } from "../lib/pdfPureAiReader.js";
 import { normalizePdfFileHeader } from "../lib/pdfFileValidation.js";
 import {
@@ -28,6 +28,36 @@ const ACCEPTED_UPLOAD_MIME_TYPES = new Set([
   "application/x-pdf",
   "application/octet-stream",
 ]);
+
+function envPositiveInteger(name, fallback, { min = 1, max = 100_000 } = {}) {
+  const parsed = Number(process.env[name]);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return Math.max(min, Math.min(max, Math.floor(parsed)));
+}
+
+function pdfAiKillSwitchEnabled() {
+  return String(process.env.PDF_AI_KILL_SWITCH || "").trim().toLowerCase() === "true";
+}
+
+async function enforcePdfAiGlobalGuards(req, res) {
+  const hourlyLimit = envPositiveInteger("PDF_AI_GLOBAL_HOURLY_LIMIT", 120, { max: 20_000 });
+  if (!(await enforceRateLimit(req, res, {
+    label: "analyze-pdf-global-hour",
+    identifier: "site-pdf-ai-global",
+    limit: hourlyLimit,
+    windowSeconds: 3600,
+  }))) return false;
+
+  const dailyLimit = envPositiveInteger("PDF_AI_GLOBAL_DAILY_LIMIT", 600, { max: 100_000 });
+  if (!(await enforceRateLimit(req, res, {
+    label: "analyze-pdf-global-day",
+    identifier: "site-pdf-ai-global",
+    limit: dailyLimit,
+    windowSeconds: 86400,
+  }))) return false;
+
+  return true;
+}
 
 function parseForm(req) {
   const maxFileSize = pdfMaxBytes();
@@ -133,7 +163,11 @@ function publicError(error) {
 
 export default async function handler(req, res) {
   if (!method(req, res, ["POST"])) return;
-  if (!requireAllowedOrigin(req, res)) return;
+  if (!requireAllowedBrowserOrigin(req, res)) return;
+  if (pdfAiKillSwitchEnabled()) {
+    res.setHeader("Retry-After", "300");
+    return json(res, 503, { ok: false, code: "AI_TEMPORARILY_DISABLED", error: "Servizio IA temporaneamente non disponibile" });
+  }
 
   let temporaryFilePath = "";
   let directUploadTicket = "";
@@ -230,6 +264,7 @@ export default async function handler(req, res) {
     if (pdfHeader.sanitized && fileMetadata) fileMetadata.fileSize = pdfHeader.fileSize;
     validPdf = true;
 
+    if (!(await enforcePdfAiGlobalGuards(req, res))) return;
     analysisStage = "openai_analysis";
     const normalized = await extractPdfPureAi({
       filePath: temporaryFilePath,
