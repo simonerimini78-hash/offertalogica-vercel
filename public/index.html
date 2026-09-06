@@ -3288,8 +3288,8 @@
                         <label for="master-gas-consumo">Consumo Annuo Gas</label>
                         <select id="master-gas-consumo">
                             <option value="300">Basso (Solo cucina/acqua calda - 300 Smc)</option>
-                            <option value="700">Medio (Riscaldamento contenuto - 700 Smc)</option>
-                            <option value="1400" selected>Standard (Riscaldamento - 1400 Smc)</option>
+                            <option value="700">Medio-basso (700 Smc)</option>
+                            <option value="1400" selected>Medio ARERA (1400 Smc)</option>
                         </select>
                     </div>
                     <div class="input-group">
@@ -3849,9 +3849,9 @@ const DATI_ARERA_MENU_URLS = ["/data/offerte-arera-menu.json", "data/offerte-are
 const DATI_PROVIDER_BRAND_URLS = ["/data/provider-brand.json", "data/provider-brand.json"];
 let DATI_UFFICIALI_CONFRONTO_PRONTI = false;
 let DATI_CALCOLO_META = {
-  versioneDati: "fallback-html-2026-06-27-v3",
-  fonte: "Fallback interno HTML",
-  aggiornatoIl: "2026-06-27",
+  versioneDati: "non-caricato",
+  fonte: "Dati ARERA non ancora caricati",
+  aggiornatoIl: "",
 };
 let DATI_OFFERTE_META = {
   versioneDati: "fallback-html-2026-07-03-v14-variabili-calcolabili",
@@ -3891,10 +3891,10 @@ let PARAMETRI_CALCOLO = {
   profiloMedio: {
     luceConsumoKwh: 2700,
     gasConsumoSmc: 1400,
-    prezzoLuceEurKwh: 0.1500,
-    prezzoGasEurSmc: 0.6800,
-    quotaFissaLuceAnnua: 144,
-    quotaFissaGasAnnua: 120,
+    prezzoLuceEurKwh: null,
+    prezzoGasEurSmc: null,
+    quotaFissaLuceAnnua: null,
+    quotaFissaGasAnnua: null,
     potenzaKw: "3",
     regioneGas: "nord-ovest",
     tipoPrezzo: "fisso",
@@ -3937,24 +3937,9 @@ const TESTO_METODOLOGIA_CONSUMI_REALI = "I risparmi stimati sono calcolati sui c
 const TESTO_METODOLOGIA_MEDIA_ARERA = "Quando non conosci i tuoi consumi, la comparazione viene fatta su consumi medi usando il catalogo ARERA e gli indici di mercato disponibili. Questa base omogenea serve a stimare il risparmio potenziale tra le diverse proposte.";
 
 let INDICI_MERCATO = {
-  pun: {
-    label: "PUN",
-    valore: 0.119351258,
-    unita: "€/kWh",
-    note: "PUN Index GME maggio 2026: 119,351258 eur/MWh, convertito in 0,119351258 eur/kWh.",
-  },
-  psv: {
-    label: "PSV",
-    valore: 0.504419055,
-    unita: "€/Smc",
-    note: "Fallback tecnico per offerte PSV: usa il valore medio gas gia presente nel motore, da sostituire con il PSV medio ufficiale del periodo al prossimo aggiornamento dati.",
-  },
-  psbg: {
-    label: "PSBG",
-    valore: 0.504419055,
-    unita: "€/Smc",
-    note: "Prezzo medio mensile GME gas/prezzo sbilanciamento maggio 2026: 47,1419677419 eur/MWh, convertito in eur/Smc con PCS 38,52 MJ/Smc indicato nella scheda E.CO.",
-  },
+  pun: { label: "PUN", valore: null, unita: "€/kWh", note: "Caricato esclusivamente dai dati ufficiali aggiornati." },
+  psv: { label: "PSV", valore: null, unita: "€/Smc", note: "Caricato esclusivamente dai dati ufficiali aggiornati." },
+  psbg: { label: "PSBG", valore: null, unita: "€/Smc", note: "Caricato esclusivamente dai dati ufficiali aggiornati." },
 };
 
 const LEAD_STATE = {
@@ -4390,8 +4375,24 @@ function aggiornaParametriDerivati() {
   };
 }
 
-function applicaDatiCalcolo(data) {
+function datiCalcoloAreraValidi(data) {
   if (!data || typeof data !== "object") return false;
+  const profile = data.parametriCalcolo?.profiloMedio;
+  const source = String(data.parametriCalcolo?.profiloMedioFonte?.fonte || data.fonte || "").toLowerCase();
+  if (!source.includes("arera") || !profile || typeof profile !== "object") return false;
+  const positiveProfileFields = [
+    "luceConsumoKwh", "gasConsumoSmc", "prezzoLuceEurKwh", "prezzoGasEurSmc",
+    "quotaFissaLuceAnnua", "quotaFissaGasAnnua",
+  ];
+  if (!positiveProfileFields.every((field) => Number.isFinite(Number(profile[field])) && Number(profile[field]) > 0)) return false;
+  return ["pun", "psv", "psbg"].every((key) => {
+    const value = Number(data.indiciMercato?.[key]?.valore);
+    return Number.isFinite(value) && value > 0;
+  });
+}
+
+function applicaDatiCalcolo(data) {
+  if (!datiCalcoloAreraValidi(data)) return false;
   DATI_CALCOLO_META = {
     versioneDati: data.versioneDati || data.version || DATI_CALCOLO_META.versioneDati,
     fonte: data.fonte || DATI_CALCOLO_META.fonte,
@@ -13380,7 +13381,7 @@ function luceMasterBucket(consumo) {
 
 function gasMasterBucket(consumo) {
   const value = Number(consumo || 0);
-  if (!value) return "1400";
+  if (!value) return "700";
   if (value <= 300) return "300";
   if (value <= 1000) return "700";
   return "1400";
@@ -14163,6 +14164,14 @@ if (document.readyState === "loading") {
       // 1. CLIC SU: "Non conosco i miei consumi"
       if(btnMedi) {
           btnMedi.addEventListener("click", function() {
+              if (!DATI_UFFICIALI_CONFRONTO_PRONTI) {
+                  const areaRisultati = document.getElementById("results-area");
+                  if (areaRisultati) {
+                      areaRisultati.style.display = "flex";
+                      areaRisultati.innerHTML = `<div class="verdetto-box warning"><h2>Dati ARERA in caricamento</h2><p>Il profilo medio viene applicato solo dopo il caricamento degli ultimi dati ARERA validi.</p></div>`;
+                  }
+                  return;
+              }
               resetBotteonStyles();
               btnMedi.classList.add("selected");
               LEAD_STATE.dataOrigin = "arera_average_profile";
