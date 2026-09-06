@@ -19,6 +19,14 @@ export default async function handler(req, res) {
   });
   if (!identity) return;
   const authorizedBy = identity.authorizedBy;
+  if (authorizedBy === "health") {
+    return json(res, 200, {
+      ok: true,
+      status: "ready",
+      authorizedBy,
+      checkedAt: new Date().toISOString(),
+    });
+  }
 
   const url = new URL(req.url || "/api/staff-analytics", `https://${req.headers.host || "offertalogica.it"}`);
   if (req.method === "DELETE") {

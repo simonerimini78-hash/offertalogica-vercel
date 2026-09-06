@@ -75,6 +75,42 @@ const PREMIUM_OPENAI_USD_PRICING = Object.freeze({
 });
 let premiumEcbFxCache = null;
 
+function envPositiveInteger(env, name, fallback, { min = 1, max = 100_000 } = {}) {
+  const parsed = Number(env?.[name]);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return Math.max(min, Math.min(max, Math.floor(parsed)));
+}
+
+function premiumAiKillSwitchEnabled(env = process.env) {
+  return String(env?.PREMIUM_AI_KILL_SWITCH || "").trim().toLowerCase() === "true";
+}
+
+async function enforcePremiumAiGlobalGuards(req, res, env = process.env) {
+  if (premiumAiKillSwitchEnabled(env)) {
+    res.setHeader("Retry-After", "300");
+    json(res, 503, { ok: false, code: "PREMIUM_AI_TEMPORARILY_DISABLED", error: "Analisi Premium temporaneamente non disponibile." });
+    return false;
+  }
+
+  const hourlyLimit = envPositiveInteger(env, "PREMIUM_AI_GLOBAL_HOURLY_LIMIT", 120, { max: 20_000 });
+  if (!(await enforceRateLimit(req, res, {
+    label: "premium-ai-global-hour",
+    identifier: "premium-ai-global",
+    limit: hourlyLimit,
+    windowSeconds: 3600,
+  }))) return false;
+
+  const dailyLimit = envPositiveInteger(env, "PREMIUM_AI_GLOBAL_DAILY_LIMIT", 600, { max: 100_000 });
+  if (!(await enforceRateLimit(req, res, {
+    label: "premium-ai-global-day",
+    identifier: "premium-ai-global",
+    limit: dailyLimit,
+    windowSeconds: 86400,
+  }))) return false;
+
+  return true;
+}
+
 function configuredOpenAiUsdPricing(model = "") {
   return PREMIUM_OPENAI_USD_PRICING[String(model || "").trim().toLowerCase()] || null;
 }
@@ -983,6 +1019,10 @@ export function createPremiumAiAnalysisHandler({
         ({ check, bill } = await loadPremiumCheckAndBill({ config: backend, checkId: body.checkId, fetchImpl }));
         contract = await loadPremiumBillContract({ config: backend, bill, fetchImpl });
       }
+
+      // Global guards are consumed only after authentication, ownership/role checks
+      // and per-user limits have succeeded, immediately before billable AI work.
+      if (!(await enforcePremiumAiGlobalGuards(req, res, env))) return;
 
       pricingSnapshot = await requireVerifiedPremiumPricing(backend, fetchImpl, now());
       run = await createPremiumAnalysisRun({
