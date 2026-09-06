@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { json, method, readJson, requireAllowedBrowserOrigin } from "../lib/http.js";
+import { json, method, readJson, requireAllowedBrowserOrigin, requireLeadSession } from "../lib/http.js";
 import { persistLeadSnapshot } from "../lib/customerDb.js";
 import { notifyLeadVerified } from "../lib/notify.js";
 import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
@@ -357,7 +357,8 @@ export default async function handler(req, res) {
     const acceptedAt = new Date().toISOString();
     const switchoConfig = switchoServerConfig();
 
-    if (!leadId) return json(res, 400, { ok: false, error: "Lead mancante" });
+    if (!/^[A-Za-z0-9_-]{8,100}$/.test(leadId)) return json(res, 400, { ok: false, error: "Lead non valido" });
+    if (!requireLeadSession(req, res, leadId)) return;
     if (!accepted) return json(res, 400, { ok: false, error: "Consenso commerciale non confermato" });
 
     const offerCatalog = await loadOfferCatalog();
@@ -458,7 +459,10 @@ export default async function handler(req, res) {
     if (error?.code === "offer_catalog_unavailable") {
       return json(res, 503, { ok: false, error: "Catalogo offerte temporaneamente non disponibile" });
     }
-    json(res, 400, { ok: false, error: error.message || "Errore consenso offerta" });
+    console.error("offer_consent_failed", {
+      message: String(error?.message || "offer_consent_error").slice(0, 240),
+    });
+    json(res, 400, { ok: false, error: "Impossibile registrare il consenso. Riprova." });
   }
 }
 

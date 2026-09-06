@@ -55,6 +55,9 @@ export default async function handler(req, res) {
     }
     json(res, 200, { ok: true, leadId: id, status: record.status });
   } catch (error) {
-    json(res, 400, { ok: false, error: error.message || "Errore creazione lead" });
+    console.error("lead_create_failed", {
+      message: String(error?.message || "lead_create_error").slice(0, 240),
+    });
+    json(res, 400, { ok: false, error: "Impossibile creare la richiesta. Riprova." });
   }
 }

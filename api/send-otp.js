@@ -122,6 +122,10 @@ export default async function handler(req, res) {
       ...(process.env.NODE_ENV !== "production" && sent.demoCode ? { demoCode: sent.demoCode } : {}),
     });
   } catch (error) {
-    json(res, 400, { ok: false, error: error.message || "Errore invio OTP" });
+    console.error("send_otp_failed", {
+      leadId: otpKey ? otpKey.replace(/^otp:/, "").slice(0, 100) : null,
+      message: String(error?.message || "send_otp_error").slice(0, 240),
+    });
+    json(res, 400, { ok: false, error: "Impossibile inviare il codice. Riprova." });
   }
 }
