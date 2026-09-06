@@ -1,4 +1,4 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2.115.0";
 import {
   constantTimeStringEqual,
   normalizeCleanupLimit,
@@ -67,6 +67,6 @@ Deno.serve(async (request) => {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error || "cleanup_failed");
     console.error("premium-trial-cleanup", message);
-    return jsonResponse({ ok: false, error: message.slice(0, 500) }, 500);
+    return jsonResponse({ ok: false, error: "cleanup_failed" }, 500);
   }
 });

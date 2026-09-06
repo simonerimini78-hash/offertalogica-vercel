@@ -1,4 +1,4 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2.115.0";
 import {
   PREMIUM_CURRENCY,
   PREMIUM_FIRST_YEAR_AMOUNT_CENTS,
@@ -86,6 +86,31 @@ function jsonResponse(body: unknown, status = 200, origin = "") {
       "cache-control": "no-store",
     },
   });
+}
+
+const PUBLIC_BILLING_ERRORS = new Set([
+  "authentication_required",
+  "authentication_invalid",
+  "origin_not_allowed",
+  "premium_account_not_active",
+  "premium_subscription_missing",
+  "premium_subscription_mapping_missing",
+  "premium_stripe_plan_segment_mismatch",
+  "premium_billing_not_enabled",
+  "premium_business_billing_not_enabled",
+  "premium_legal_acceptance_required",
+  "premium_subscription_already_active",
+  "premium_app_origin_invalid",
+  "premium_billing_customer_missing",
+  "premium_paid_subscription_missing",
+]);
+
+function publicBillingError(error: unknown) {
+  const message = compactBillingError(error);
+  if (PUBLIC_BILLING_ERRORS.has(message)) return message;
+  if (message.startsWith("stripe:")) return "billing_provider_error";
+  if (message.includes("configuration") || message.includes("_missing")) return "billing_configuration_unavailable";
+  return "billing_operation_failed";
 }
 
 async function stripeRequest(path: string, options: {
@@ -616,7 +641,7 @@ async function handleWebhook(request: Request, admin: any, rawBody: string) {
     const message = compactBillingError(error);
     await finishWebhookEvent(admin, stored.id, "failed", message);
     console.error("premium-billing-webhook", event?.type, message);
-    return jsonResponse({ ok: false, error: message }, 500);
+    return jsonResponse({ ok: false, error: "stripe_event_processing_failed" }, 500);
   }
 }
 
@@ -688,6 +713,6 @@ Deno.serve(async request => {
       : message.includes("not_enabled") || message.includes("missing") ? 409
       : 400;
     console.error("premium-billing-action", message);
-    return jsonResponse({ ok: false, error: message }, status, origin);
+    return jsonResponse({ ok: false, error: publicBillingError(error) }, status, origin);
   }
 });
