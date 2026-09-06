@@ -48,6 +48,129 @@
 
   const byId = id => document.getElementById(id);
 
+  const STAFF_EVENT_LABELS_IT = Object.freeze({
+    landing_view: "Landing visualizzata",
+    calculator_view: "Calcolatore aperto",
+    landing_self_service_click: "Confronto in autonomia",
+    landing_assisted_click: "Percorso guidato con Switcho",
+    landing_free_app_click: "App gratuita selezionata",
+    landing_premium_app_click: "App Premium selezionata",
+    customer_segment_selected: "Tipo cliente selezionato",
+    business_calculation_incomplete: "Calcolo business incompleto",
+    business_calculation_completed: "Calcolo business completato",
+    business_lead_modal_requested: "Contatto business richiesto",
+    business_photovoltaic_tool_opened: "Fotovoltaico business aperto",
+    comparison_incomplete_data: "Confronto: dati incompleti",
+    comparison_started: "Confronto avviato",
+    comparison_missing_current_price: "Confronto: tariffa attuale incompleta",
+    comparison_completed: "Confronto completato",
+    offers_rendered: "Offerte visualizzate",
+    offers_unlocked: "Offerte sbloccate",
+    offers_bill_prompt_dismissed: "Invito bolletta chiuso",
+    offers_bill_prompt_clicked: "Invito bolletta selezionato",
+    lead_modal_opened: "Verifica numero aperta",
+    lead_modal_closed: "Verifica numero chiusa",
+    lead_form_invalid: "Dati contatto non validi",
+    lead_created_client: "Contatto registrato",
+    otp_request_started: "Invio SMS richiesto",
+    otp_sent: "SMS inviato",
+    otp_failed: "Invio SMS fallito",
+    otp_failed_preview_fallback: "SMS non inviato: anteprima Staff",
+    otp_verify_missing_code: "Codice SMS mancante",
+    otp_verify_started: "Verifica numero avviata",
+    otp_verified: "Numero verificato",
+    otp_verify_failed: "Verifica numero fallita",
+    activation_channel_choice_opened: "Scelta canale attivazione aperta",
+    activation_channel_selected: "Canale attivazione selezionato",
+    activation_data_copied: "Dati attivazione copiati",
+    activation_assistant_opened: "Assistente attivazione aperto",
+    offer_click_locked: "Offerta selezionata",
+    offer_consent_opened: "Consenso offerta aperto",
+    offer_partner_consent_missing: "Consenso partner mancante",
+    offer_partner_consent_confirmed: "Consenso partner confermato",
+    offer_request_missing_link: "Link offerta mancante",
+    offer_request_started: "Richiesta offerta avviata",
+    offer_request_recorded: "Richiesta offerta registrata",
+    offer_request_failed: "Richiesta offerta fallita",
+    offer_redirect: "Redirect partner",
+    partner_funnel_opened: "Percorso partner aperto",
+    assistance_prompt_shown: "Aiuto proposto",
+    assistance_prompt_closed: "Aiuto chiuso",
+    assistance_guide_opened: "Guida assistenza aperta",
+    assistance_callback_started: "Richiamata richiesta",
+    assistance_callback_verified: "Richiamata verificata",
+    pdf_no_file_selected: "Nessuna bolletta selezionata",
+    pdf_analysis_started: "Lettura bolletta avviata",
+    pdf_analysis_completed: "Bolletta letta",
+    pdf_data_confirmed: "Dati bolletta confermati",
+    pdf_autofill_preview_opened: "Anteprima dati bolletta aperta",
+    pdf_autofill_preview_confirmed: "Anteprima dati bolletta confermata",
+    pdf_reset: "Bolletta rimossa",
+    switcho_observed_offer_selected: "Offerta Switcho osservata selezionata",
+    switcho_landing_opened: "Landing Switcho aperta",
+    offer_switcho_redirect: "Offerta scelta → Switcho",
+    business_switcho_requested: "Business → Switcho",
+    assistance_switcho_redirect: "Assistenza → Switcho",
+    social_entry_viewed: "Ingresso social visualizzato",
+    social_entry_saving_ready: "Stima landing pronta",
+    social_entry_saving_fallback: "Stima landing di riserva",
+    social_entry_offer_clicked: "Offerta landing selezionata",
+    session_engagement: "Tempo di permanenza",
+    interactive_tool_event: "Strumento interattivo",
+  });
+
+  const STAFF_DATA_ORIGIN_LABELS_IT = Object.freeze({
+    arera_average_profile: "Profilo medio ARERA",
+    landing_average_profile: "Profilo medio ARERA",
+    manual_input: "Consumi inseriti",
+    pdf_upload: "Bolletta/PDF",
+    business_profile: "Profilo aziendale",
+  });
+
+  const STAFF_ENGAGEMENT_REASON_LABELS_IT = Object.freeze({
+    checkpoint: "Aggiornamento periodico",
+    hidden: "Pagina in secondo piano",
+    pagehide: "Uscita dalla pagina",
+    beforeunload: "Chiusura pagina",
+    final: "Chiusura sessione",
+  });
+
+  function staffEventLabel(value, fallback = "") {
+    const event = value && typeof value === "object" ? value : null;
+    const key = String(event ? event.eventType || "" : value || "").trim();
+    return String(event?.eventLabel || STAFF_EVENT_LABELS_IT[key] || fallback || key || "—");
+  }
+
+  function staffDataOriginLabel(value, fallback = "") {
+    const event = value && typeof value === "object" ? value : null;
+    const key = String(event ? event.dataOrigin || "" : value || "").trim();
+    return String(event?.dataOriginLabel || STAFF_DATA_ORIGIN_LABELS_IT[key] || fallback || key || "—");
+  }
+
+  function staffEngagementStageLabel(event = {}) {
+    if (event?.engagementStageLabel) return String(event.engagementStageLabel);
+    return ({ landing: "Landing", calculator: "Calcolatore", offers: "Offerte", otp: "Verifica numero", other: "Altro" })[String(event?.engagementStage || "")] || "";
+  }
+
+  function staffEngagementReasonLabel(reason = "") {
+    const key = String(reason || "").trim().toLowerCase();
+    return STAFF_ENGAGEMENT_REASON_LABELS_IT[key] || String(reason || "");
+  }
+
+  function formatDurationSeconds(value) {
+    const seconds = Number(value);
+    if (!Number.isFinite(seconds) || seconds < 0) return "";
+    const rounded = Math.round(seconds);
+    if (rounded < 60) return `${rounded}s`;
+    const minutes = Math.floor(rounded / 60);
+    const rest = rounded % 60;
+    if (minutes < 60) return rest ? `${minutes}m ${rest}s` : `${minutes}m`;
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return mins ? `${hours}h ${mins}m` : `${hours}h`;
+  }
+
+
   function confirmAction({ title = "Conferma operazione", message = "", keyword = "", confirmLabel = "CONFERMA" } = {}) {
     const layer = byId("staffConfirmLayer");
     if (!layer) return Promise.resolve(false);
@@ -440,7 +563,7 @@
       deleteButton.addEventListener("click", () => deleteLead(lead));
       const supply = lead.currentSupply || {};
       const originCell = node("td", {}, [
-        node("strong", { text: lead.dataOrigin || lead.source || "—" }),
+        node("strong", { text: lead.dataOrigin ? staffDataOriginLabel(lead.dataOrigin) : (lead.source || "—") }),
         node("small", { text: `PDF ${lead.pdfDocumentCount || 0} · ${supply.provider || "fornitore non indicato"}` }),
         node("small", { text: [supply.luceConsumoKwh ? `${supply.luceConsumoKwh} kWh` : "", supply.gasConsumoSmc ? `${supply.gasConsumoSmc} Smc` : ""].filter(Boolean).join(" · ") || "Consumi non disponibili" })
       ]);
@@ -696,13 +819,16 @@
     "lead_created_client", "otp_sent", "otp_failed", "otp_verified"
   ]);
   const EXPECTED_ANALYTICS_EVENT_TYPES = [
-    "landing_view", "landing_self_service_click", "landing_assisted_click",
+    "landing_view", "calculator_view", "landing_self_service_click", "landing_assisted_click",
+    "landing_free_app_click", "landing_premium_app_click",
     "comparison_started", "comparison_completed", "offers_rendered",
     "pdf_analysis_started", "pdf_analysis_completed",
     "lead_modal_opened", "lead_modal_closed", "lead_form_invalid", "otp_request_started",
     "lead_created_client", "otp_sent", "otp_failed", "otp_verified", "offers_unlocked",
     "offer_consent_opened", "offer_partner_consent_confirmed", "offer_switcho_redirect",
-    "offer_redirect", "switcho_landing_opened", "offer_request_recorded", "offer_request_failed"
+    "offer_redirect", "switcho_landing_opened", "business_switcho_requested", "assistance_switcho_redirect",
+    "offer_request_recorded", "offer_request_failed", "business_photovoltaic_tool_opened",
+    "session_engagement"
   ];
 
   function analyticsOrigin(event = {}) {
@@ -728,12 +854,12 @@
       node("option", { value: "__lead_otp__", text: "Solo funnel lead / OTP" }),
       ...eventTypes.map(value => {
         const observed = observedEventTypes.includes(value);
-        return node("option", { value, text: observed ? value : `${value} (0)` });
+        return node("option", { value, text: observed ? staffEventLabel(value) : `${staffEventLabel(value)} (0)` });
       })
     );
     originSelect.replaceChildren(
       node("option", { value: "", text: "Tutte le origini" }),
-      ...origins.map(value => node("option", { value, text: value }))
+      ...origins.map(value => node("option", { value, text: staffDataOriginLabel(value) }))
     );
     sourceSelect.replaceChildren(
       node("option", { value: "", text: "Tutte le provenienze" }),
@@ -762,6 +888,18 @@
   }
 
   function analyticsEventValueText(event = {}) {
+    if (String(event.eventType || "") === "session_engagement") {
+      return [
+        staffEngagementStageLabel(event) ? `fase ${staffEngagementStageLabel(event).toLowerCase()}` : "",
+        event.engagementActiveSeconds != null ? `attivo ${formatDurationSeconds(event.engagementActiveSeconds)}` : "",
+        event.engagementLandingSeconds != null && Number(event.engagementLandingSeconds) > 0 ? `landing ${formatDurationSeconds(event.engagementLandingSeconds)}` : "",
+        event.engagementCalculatorSeconds != null && Number(event.engagementCalculatorSeconds) > 0 ? `calcolatore ${formatDurationSeconds(event.engagementCalculatorSeconds)}` : "",
+        event.engagementOffersSeconds != null && Number(event.engagementOffersSeconds) > 0 ? `offerte ${formatDurationSeconds(event.engagementOffersSeconds)}` : "",
+        event.engagementOtpSeconds != null && Number(event.engagementOtpSeconds) > 0 ? `verifica ${formatDurationSeconds(event.engagementOtpSeconds)}` : "",
+        event.engagementFirstActionSeconds != null ? `prima azione ${formatDurationSeconds(event.engagementFirstActionSeconds)}` : "",
+        event.engagementOffersReachedSeconds != null ? `alle offerte ${formatDurationSeconds(event.engagementOffersReachedSeconds)}` : "",
+      ].filter(Boolean).join(" · ") || "—";
+    }
     return [
       event.bestSaving != null ? `risparmio ${formatMoney(event.bestSaving)}` : "",
       event.annualCost != null ? `costo ${formatMoney(event.annualCost)}` : "",
@@ -809,13 +947,13 @@
     clear(list);
 
     rows.forEach(item => {
-      const origin = [item.dataOrigin, item.page].filter(Boolean).join(" · ") || "—";
+      const origin = [item.dataOrigin ? staffDataOriginLabel(item) : "", item.page].filter(Boolean).join(" · ") || "—";
       const offer = [item.provider, item.offerName].filter(Boolean).join(" · ");
       const detail = [origin, offer, analyticsEventValueText(item) !== "—" ? analyticsEventValueText(item) : ""].filter(Boolean).join(" · ") || "—";
       list.append(node("div", { className: "analytics-session-event" }, [
         node("time", { text: formatDate(item.createdAt) }),
-        node("div", {}, [badge(item.eventType || "—", "info"), node("small", { text: `#${item.id}` })]),
-        node("div", {}, [node("strong", { text: item.trafficSource || "—" }), node("small", { text: detail })])
+        node("div", {}, [badge(staffEventLabel(item), "info"), node("small", { text: `#${item.id}` })]),
+        node("div", {}, [node("strong", { text: analyticsSourceLabel(item.trafficSource) || "—" }), node("small", { text: detail })])
       ]));
     });
 
@@ -842,12 +980,7 @@
   }
 
   function switchoOriginLabel(origin = "") {
-    const labels = {
-      pdf_upload: "PDF / bolletta",
-      manual_input: "Dati inseriti",
-      landing_average_profile: "Profilo medio landing"
-    };
-    return labels[String(origin || "")] || String(origin || "") || "—";
+    return staffDataOriginLabel(origin);
   }
 
   function switchoStatusLabel(row = {}) {
@@ -1014,8 +1147,8 @@
       sessionButton.addEventListener("click", () => openAnalyticsSession(event));
       body.append(node("tr", {}, [
         node("td", {}, [node("strong", { text: formatDate(event.createdAt) }), node("small", { text: `#${event.id}` })]),
-        node("td", {}, [badge(event.eventType || "—", "info"), node("small", { text: event.reason || "" })]),
-        node("td", {}, [node("strong", { text: event.trafficSource || event.dataOrigin || event.source || "—" }), node("small", { text: [event.trafficCampaign, event.dataOrigin, event.page].filter(Boolean).join(" · ") })]),
+        node("td", {}, [badge(staffEventLabel(event), "info"), node("small", { text: event.eventType === "session_engagement" ? staffEngagementReasonLabel(event.engagementReason) : (event.reason || "") })]),
+        node("td", {}, [node("strong", { text: event.trafficSource ? analyticsSourceLabel(event.trafficSource) : (event.dataOrigin ? staffDataOriginLabel(event) : (event.source || "—")) }), node("small", { text: [event.trafficCampaign, event.dataOrigin ? staffDataOriginLabel(event) : "", event.page].filter(Boolean).join(" · ") })]),
         node("td", {}, [node("strong", { text: [event.provider, event.offerName].filter(Boolean).join(" · ") || "—" }), node("small", { text: event.destinationStatus || "" })]),
         node("td", { text: values }),
         node("td", {}, [badge(event.leadId ? "collegato" : "anonimo", event.leadId ? "ok" : "warn"), node("small", { text: event.leadId || "" })]),
