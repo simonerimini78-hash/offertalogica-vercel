@@ -3961,6 +3961,8 @@ const LEAD_STATE = {
   verified: false,
   otpPreviewCode: "",
   bestSaving: 0,
+  firstOfferSaving: null,
+  firstOfferId: "",
   bestPartnerSaving: 0,
   leadId: "",
   leadSource: "manual",
@@ -6804,6 +6806,8 @@ function mostraErroreDatiMancanti(mancanti, contesto = "fornitura attuale") {
   if (offerte) offerte.style.display = "none";
   if (teaser) teaser.style.display = "none";
   LEAD_STATE.bestSaving = 0;
+  LEAD_STATE.firstOfferSaving = null;
+  LEAD_STATE.firstOfferId = "";
   LEAD_STATE.bestPartnerSaving = 0;
   if (mancanti.some(({ id }) => String(id).includes("-nuov"))) apriDettagliNuovaOfferta();
   segnalaCampiMancanti(mancanti);
@@ -8639,7 +8643,12 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
     });
 
   LEAD_STATE.bestPartnerSaving = Math.max(0, ...attivabiliVisibili.map((item) => item.differenza));
-  LEAD_STATE.bestSaving = Math.max(0, ...visibili.map((item) => item.differenza));
+  const primaPosizione = visibili[0] || null;
+  LEAD_STATE.firstOfferSaving = primaPosizione ? Math.max(0, Number(primaPosizione.differenza) || 0) : 0;
+  LEAD_STATE.firstOfferId = String(primaPosizione?.offerta?.id || "");
+  // Unica fonte per il risparmio consumer: coincide sempre con la Posizione 1 visualizzata.
+  LEAD_STATE.bestSaving = LEAD_STATE.firstOfferSaving;
+  aggiornaRisparmioLandingDaPrimaPosizione();
   trackEvent("offers_rendered", {
     tipoPrezzo: tipoTariffa,
     tipoFornitura,
@@ -12803,6 +12812,8 @@ window.azzeraPdfEModulo = function azzeraPdfEModulo() {
   LEAD_STATE.verified = false;
   LEAD_STATE.otpPreviewCode = "";
   LEAD_STATE.bestSaving = 0;
+  LEAD_STATE.firstOfferSaving = null;
+  LEAD_STATE.firstOfferId = "";
   LEAD_STATE.bestPartnerSaving = 0;
   LEAD_STATE.leadId = "";
   LEAD_STATE.leadSource = "manual";
@@ -13532,6 +13543,26 @@ function formattaRisparmioSocial(value) {
   return `${new Intl.NumberFormat("it-IT", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount)} €`;
 }
 
+function risparmioPrimaPosizioneCorrente() {
+  const amount = Number(LEAD_STATE.firstOfferSaving);
+  return Number.isFinite(amount) && amount >= 0 ? amount : 0;
+}
+
+function aggiornaRisparmioLandingDaPrimaPosizione() {
+  if (!SOCIAL_ENTRY_STATE.active) return false;
+  const value = document.getElementById("social-entry-saving-value");
+  const period = document.getElementById("social-entry-saving-period");
+  const savingBox = document.getElementById("social-entry-saving");
+  const saving = risparmioPrimaPosizioneCorrente();
+  const formatted = formattaRisparmioSocial(saving);
+  if (value) value.textContent = formatted || "Offerte aggiornate";
+  if (period) period.textContent = formatted
+    ? "Risparmio annuo stimato · profilo medio ARERA · Posizione 1"
+    : "Offerte luce e gas aggiornate";
+  savingBox?.classList.remove("is-loading");
+  return true;
+}
+
 // v80 — routing trasparente verso il partner Switcho, incluso percorso Business
 const SWITCHO_ROUTING_VERSION = "switcho-v2-2026-09-01";
 const SWITCHO_LANDING_URL = "https://bit.ly/Switcho-LuceGas-OffertaLogica";
@@ -13598,11 +13629,7 @@ function preparaRisparmioIngressoSocialMobile() {
     LEAD_STATE.dataOrigin = "landing_average_profile";
     window.avviaComparazioneDati?.();
     window.__OL_LANDING_PREVIEW_CALC__ = false;
-    const saving = Number(LEAD_STATE.bestSaving || 0);
-    const formatted = formattaRisparmioSocial(saving);
-    if (value) value.textContent = formatted || "Offerte aggiornate";
-    if (period) period.textContent = formatted ? "Risparmio annuo stimato · profilo medio ARERA" : "Offerte luce e gas aggiornate";
-    savingBox?.classList.remove("is-loading");
+    aggiornaRisparmioLandingDaPrimaPosizione();
     impostaLandingPronta();
     return true;
   } catch (error) {
