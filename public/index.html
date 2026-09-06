@@ -13951,6 +13951,17 @@ function collegaEventiUX() {
     if (!DATI_UFFICIALI_CONFRONTO_PRONTI) return;
     sincronizzaIndiciMercatoConCatalogoArera();
     assicuraSchedeOfferte();
+
+    // Se l'autoselezione del profilo medio e' partita prima del caricamento
+    // dei dati ARERA, ripetila ora che la sorgente ufficiale e' pronta.
+    // Non sovrascrive mai una scelta gia effettuata dall'utente.
+    const btnMedi = document.getElementById("btn-attiva-medi");
+    const btnPrecisi = document.getElementById("btn-attiva-precisi");
+    const btnBusiness = document.getElementById("btn-segmento-business");
+    const sceltaGiaFatta = Boolean(btnMedi?.classList.contains("selected") || btnPrecisi?.classList.contains("selected"));
+    const businessAttivo = Boolean(btnBusiness?.classList.contains("active"));
+    if (!SOCIAL_ENTRY_STATE.active && !businessAttivo && !sceltaGiaFatta) btnMedi?.click();
+
     if (SOCIAL_ENTRY_STATE.active) {
       preparaRisparmioIngressoSocialMobile();
       return;
