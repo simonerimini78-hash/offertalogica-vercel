@@ -1,6 +1,6 @@
 (function(){
   'use strict';
-  const TOOL_VERSION='security-energy-v0.1.1';
+  const TOOL_VERSION='security-energy-v0.1.2';
   const TOOL_CODE='sicurezza_energia';
   const SOURCE='seo_sicurezza_energia';
   const TRACK_URL='/api/track-event';
@@ -89,6 +89,7 @@
     if(urgency==='yes')signalParts.push('Hai segnalato fretta o pressione.');
     if(unexpected==='yes')signalParts.push('La chiamata era inattesa.');
     if(contract==='yes')signalParts.push('Era presente una proposta di attivazione o cambio.');
+    if(accepted==='yes')signalParts.push('Hai indicato di aver già accettato o confermato.');
     if(!signalParts.length)signalParts.push('Non hai selezionato richieste o comportamenti specifici da evidenziare.');
     return {identity:identity,claims:claims,requests:requests,urgency:urgency,contract:contract,unexpected:unexpected,accepted:accepted,level:level,points:points,signalText:signalParts.join(' ')};
   }
@@ -113,56 +114,105 @@
     const providerName=root.querySelector('[data-provider-feedback-name]');
     if(providerName)providerName.textContent=identityLabels[identity]||'soggetto dichiarato';
   }
-  function renderSourceSummary(diagnosis){
+  function assessSources(diagnosis){
     const agcom=sourceOutcome('agcom');
     const provider=sourceOutcome('provider');
-    const items=[];
-    if(agcom==='found')items.push('Registro AGCOM: numerazione trovata. Il dato identifica la numerazione dichiarata al ROC, non certifica da solo chi stava parlando.');
-    if(agcom==='not_found')items.push('Registro AGCOM: nessuna corrispondenza indicata. Questo non equivale a “numero truffa”.');
-    if(provider==='confirmed')items.push('Fonte ufficiale del soggetto dichiarato: hai indicato che il numero è stato confermato. Resta comunque prudente valutare il contenuto della chiamata.');
-    if(provider==='not_confirmed')items.push('Fonte ufficiale del soggetto dichiarato: hai indicato che il numero non è stato confermato. L’identità della chiamata resta quindi non confermata.');
+    let state='not_checked';
+    let sourceLevel='neutral';
+    let level=diagnosis.level;
+    let text='';
+
+    if(agcom==='found'&&provider==='confirmed'){
+      state='double_match';
+      sourceLevel='confirmed';
+      text='Hai indicato due riscontri: la numerazione compare nel Registro AGCOM e la fonte ufficiale del soggetto dichiarato conferma il numero. Sono elementi coerenti, ma non certificano da soli chi stava materialmente effettuando la chiamata.';
+    }else if(agcom==='not_found'&&provider==='confirmed'){
+      state='provider_match_roc_missing';
+      sourceLevel='mixed';
+      text='Hai indicato che la fonte ufficiale del soggetto dichiarato conferma il numero, mentre nel Registro AGCOM non hai trovato una corrispondenza. I due esiti hanno significati diversi: l’assenza nel ROC non annulla automaticamente la conferma del fornitore.';
+    }else if(agcom==='found'&&provider==='not_confirmed'){
+      state='roc_match_provider_missing';
+      sourceLevel='review';
+      level=maxLevel(level,'review');
+      text='Hai indicato che la numerazione compare nel Registro AGCOM, ma non è confermata dalla fonte ufficiale del soggetto dichiarato. Il ROC può riferirsi a un’impresa di call center diversa dal marchio dichiarato: l’identità della chiamata resta da approfondire.';
+    }else if(agcom==='not_found'&&provider==='not_confirmed'){
+      state='no_match';
+      sourceLevel='review';
+      level=maxLevel(level,'review');
+      text='Non hai trovato una corrispondenza nel Registro AGCOM e hai indicato che la fonte ufficiale del soggetto dichiarato non conferma il numero. Questo non prova una frode, ma non fornisce una conferma dell’identità dichiarata.';
+    }else if(provider==='confirmed'){
+      state='provider_match';
+      sourceLevel='confirmed';
+      text='Hai indicato che la fonte ufficiale del soggetto dichiarato conferma il numero. È un riscontro utile, ma non certifica da solo chi stava materialmente effettuando la chiamata.';
+    }else if(provider==='not_confirmed'){
+      state='provider_missing';
+      sourceLevel='review';
+      level=maxLevel(level,'review');
+      text='Hai indicato che la fonte ufficiale del soggetto dichiarato non conferma il numero. L’identità dichiarata resta quindi non confermata; verifica attraverso i recapiti ufficiali prima di proseguire.';
+    }else if(agcom==='found'){
+      state='roc_match';
+      text='Hai indicato che la numerazione compare nel Registro AGCOM. Il registro identifica una numerazione dichiarata al ROC, ma non certifica da solo il soggetto che stava parlando né il contenuto della proposta.';
+    }else if(agcom==='not_found'){
+      state='roc_missing';
+      text='Non hai trovato una corrispondenza nel Registro AGCOM. Questo risultato, da solo, non significa che il numero sia fraudolento.';
+    }
+
     const status=root.querySelector('[data-source-status]');
-    if(!items.length){status.hidden=true;status.textContent='';status.dataset.sourceLevel='neutral';return {level:diagnosis.level,state:'not_checked'};}
-    status.hidden=false;
-    status.textContent=items.join(' ');
-    const sourceLevel=provider==='not_confirmed'?'review':(provider==='confirmed'?'confirmed':'neutral');
-    status.dataset.sourceLevel=sourceLevel;
-    let combined=diagnosis.level;
-    if(provider==='not_confirmed')combined=maxLevel(combined,'review');
-    return {level:combined,state:[agcom,provider].join('+')};
+    if(state==='not_checked'){
+      status.hidden=true;
+      status.textContent='';
+      status.dataset.sourceLevel='neutral';
+    }else{
+      status.hidden=false;
+      status.textContent=text;
+      status.dataset.sourceLevel=sourceLevel;
+    }
+    return {level:level,state:state,sourceLevel:sourceLevel,agcom:agcom,provider:provider};
+  }
+  function resultCopy(diagnosis,sourceAssessment){
+    if(diagnosis.level==='high')return {title:'Elementi che richiedono cautela elevata',summary:'Nelle risposte compaiono elementi che meritano una verifica indipendente prima di proseguire, comunicare altri dati o confermare una proposta.',kicker:'Valutazione combinata'};
+    if(sourceAssessment.state==='no_match')return {title:'Identità non confermata dalle fonti consultate',summary:'Le verifiche che hai riportato non forniscono una conferma del numero rispetto all’identità dichiarata. Non è una prova di frode, ma è prudente usare solo recapiti ufficiali per ogni passaggio successivo.',kicker:'Verifica delle fonti'};
+    if(sourceAssessment.state==='roc_match_provider_missing')return {title:'Le fonti richiedono un approfondimento',summary:'Il numero risulta presente nel ROC secondo la tua verifica, ma non è confermato dalla fonte ufficiale del soggetto dichiarato. Non assumere che i due risultati identifichino la stessa organizzazione.',kicker:'Esiti non univoci'};
+    if(sourceAssessment.state==='provider_match_roc_missing')return {title:'Conferma del fornitore, ROC senza corrispondenza',summary:'Hai riportato una conferma dalla fonte ufficiale del soggetto dichiarato e nessuna corrispondenza nel ROC. I due controlli non sono equivalenti e l’assenza dal registro non prova una frode.',kicker:'Esiti da leggere separatamente'};
+    if(sourceAssessment.state==='double_match'&&diagnosis.level==='low')return {title:'Riscontri coerenti, senza segnali forti',summary:'Hai riportato una corrispondenza nel ROC e una conferma dalla fonte ufficiale del soggetto dichiarato. È un quadro coerente, ma resta utile valutare il contenuto della chiamata e la convenienza della proposta.',kicker:'Riscontri delle fonti'};
+    if(sourceAssessment.state==='provider_missing')return {title:'Identità non confermata dalla fonte ufficiale',summary:'Hai indicato che il numero non è stato confermato dalla fonte ufficiale del soggetto dichiarato. Questo non prova una frode, ma richiede una verifica attraverso canali ufficiali prima di proseguire.',kicker:'Verifica della fonte'};
+    if(sourceAssessment.state==='roc_missing'&&diagnosis.level==='low')return {title:'Nessuna corrispondenza nel ROC, senza segnali forti',summary:'L’assenza di corrispondenza nel registro non classifica il numero. Le risposte sulla telefonata non mostrano elementi ad alta cautela: verifica comunque l’identità attraverso canali ufficiali.',kicker:'Registro e telefonata'};
+    if(sourceAssessment.level==='review')return {title:'Alcuni elementi richiedono verifica',summary:'La telefonata o gli esiti delle fonti contengono uno o più elementi che è prudente controllare attraverso canali ufficiali prima di proseguire.',kicker:'Valutazione combinata'};
+    if(sourceAssessment.state==='provider_match')return {title:'Numero confermato dalla fonte dichiarata, senza segnali forti',summary:'Hai indicato che la fonte ufficiale del soggetto dichiarato conferma il numero. È un elemento utile, ma non certifica da solo l’identità materiale del chiamante.',kicker:'Verifica della fonte'};
+    return {title:'Nessun segnale forte emerso dalle risposte',summary:'Le risposte inserite non mostrano elementi ad alta cautela. Verifica comunque il numero e l’identità attraverso i canali ufficiali prima di accettare una proposta.',kicker:'Valutazione della telefonata'};
+  }
+  function configureNextActions(diagnosis){
+    const offerBox=root.querySelector('[data-offer-cta]');
+    const afterBox=root.querySelector('[data-after-cta]');
+    const offerTitle=root.querySelector('[data-offer-title]');
+    const offerText=root.querySelector('[data-offer-text]');
+    afterBox.hidden=diagnosis.accepted!=='yes';
+    offerBox.hidden=diagnosis.contract!=='yes';
+    if(diagnosis.contract==='yes'&&diagnosis.accepted==='yes'){
+      offerTitle.textContent='Dopo aver verificato il contratto, controlla anche il prezzo';
+      offerText.textContent='La verifica dell’attivazione viene prima. Poi puoi confrontare la proposta economica con le offerte monitorate da OffertaLogica sui tuoi consumi.';
+    }else{
+      offerTitle.textContent='Ti hanno proposto una tariffa?';
+      offerText.textContent='La verifica della telefonata e quella economica sono due cose diverse. Controlla se l’offerta proposta conviene davvero sui tuoi consumi.';
+    }
   }
   function renderResult(){
     if(!currentDiagnosis)return;
     const diagnosis=currentDiagnosis;
-    const combined=renderSourceSummary(diagnosis);
-    const providerOutcome=sourceOutcome('provider');
-    let title='Nessun segnale forte emerso dalle risposte';
-    let summary='Le risposte inserite non mostrano elementi ad alta cautela. Verifica comunque il numero e l’identità attraverso i canali ufficiali prima di accettare una proposta.';
-    if(combined.level==='high'){
-      title='Elementi che richiedono cautela elevata';
-      summary='Nelle risposte compaiono elementi che meritano una verifica indipendente prima di proseguire o comunicare altri dati.';
-    }else if(providerOutcome==='not_confirmed'){
-      title='Identità non confermata dalla fonte ufficiale';
-      summary='Hai indicato che il numero non è stato confermato dalla fonte ufficiale del soggetto dichiarato. Questo non prova una frode, ma richiede una verifica attraverso canali ufficiali prima di proseguire.';
-    }else if(combined.level==='review'){
-      title='Alcuni elementi richiedono verifica';
-      summary='La telefonata contiene uno o più elementi che è prudente controllare attraverso fonti e canali ufficiali.';
-    }else if(providerOutcome==='confirmed'){
-      title='Numero confermato dalla fonte dichiarata, senza segnali forti';
-      summary='Hai indicato che la fonte ufficiale del soggetto dichiarato conferma il numero. È un elemento utile, ma non certifica da solo l’identità materiale del chiamante.';
-    }
+    const sourceAssessment=assessSources(diagnosis);
+    const copy=resultCopy(diagnosis,sourceAssessment);
     const head=root.querySelector('.security-result-head');
-    head.dataset.resultLevel=combined.level;
-    root.querySelector('[data-result-title]').textContent=title;
-    root.querySelector('[data-result-summary]').textContent=summary;
+    head.dataset.resultLevel=sourceAssessment.level;
+    root.querySelector('[data-result-kicker]').textContent=copy.kicker;
+    root.querySelector('[data-result-title]').textContent=copy.title;
+    root.querySelector('[data-result-summary]').textContent=copy.summary;
     root.querySelector('[data-result-phone]').textContent=normalizedPhone;
     root.querySelector('[data-result-identity]').textContent=identityLabels[diagnosis.identity]||'Non indicata';
     root.querySelector('[data-result-identity-note]').textContent=diagnosis.identity==='unknown'?'Non hai indicato chi dichiarava di essere il chiamante. La verifica del numero resta comunque utile.':'Questa è l’identità che ricordi dalla chiamata; non è stata verificata automaticamente da OffertaLogica.';
     root.querySelector('[data-result-signal-title]').textContent=diagnosis.level==='high'?'Cautela elevata':(diagnosis.level==='review'?'Da verificare':'Nessun segnale forte');
     root.querySelector('[data-result-signals]').textContent=diagnosis.signalText;
-    root.querySelector('[data-offer-cta]').hidden=diagnosis.contract!=='yes';
-    root.querySelector('[data-after-cta]').hidden=diagnosis.accepted!=='yes';
-    return combined;
+    configureNextActions(diagnosis);
+    return sourceAssessment;
   }
   function evaluate(){
     currentDiagnosis=diagnose();
@@ -171,7 +221,7 @@
     showStep('result');
     const result=root.querySelector('[data-security-step="result"]');
     result.focus({preventScroll:true});
-    track('diagnosis_completed',{outcome:currentDiagnosis.level,context:'claims-'+currentDiagnosis.claims.length+'-requests-'+currentDiagnosis.requests.length});
+    track('diagnosis_completed',{outcome:currentDiagnosis.level,context:'claims-'+currentDiagnosis.claims.length+'-requests-'+currentDiagnosis.requests.length+'-accepted-'+currentDiagnosis.accepted});
   }
   function resetSourceOutcomes(){
     root.querySelectorAll('[data-source-outcome]').forEach(function(el){el.value='not_checked';});
@@ -206,10 +256,10 @@
     if(back){showStep(back.getAttribute('data-back'));return;}
     if(event.target.closest('[data-evaluate]')){resetSourceOutcomes();evaluate();return;}
     if(event.target.closest('[data-source-update]')){
-      const combined=renderResult();
+      const assessment=renderResult();
       const agcom=sourceOutcome('agcom');
       const provider=sourceOutcome('provider');
-      track('source_outcome',{outcome:combined?combined.level:'unknown',context:'agcom-'+agcom+'-provider-'+provider});
+      track('source_outcome',{outcome:assessment?assessment.state:'unknown',context:'agcom-'+agcom+'-provider-'+provider});
       return;
     }
     if(event.target.closest('[data-restart]')){
