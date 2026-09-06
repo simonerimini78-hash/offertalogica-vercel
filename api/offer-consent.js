@@ -459,7 +459,10 @@ export default async function handler(req, res) {
     if (error?.code === "offer_catalog_unavailable") {
       return json(res, 503, { ok: false, error: "Catalogo offerte temporaneamente non disponibile" });
     }
-    json(res, 400, { ok: false, error: error.message || "Errore consenso offerta" });
+    console.error("offer_consent_failed", {
+      message: String(error?.message || "offer_consent_error").slice(0, 240),
+    });
+    json(res, 400, { ok: false, error: "Impossibile registrare il consenso. Riprova." });
   }
 }
 

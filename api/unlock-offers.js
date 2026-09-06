@@ -157,6 +157,9 @@ export default async function handler(req, res) {
       message: "Lead verificato: il frontend puo mostrare le offerte complete.",
     });
   } catch (error) {
-    json(res, 400, { ok: false, error: error.message || "Errore sblocco offerte" });
+    console.error("unlock_offers_failed", {
+      message: String(error?.message || "unlock_offers_error").slice(0, 240),
+    });
+    json(res, 400, { ok: false, error: "Impossibile sbloccare le offerte. Riprova." });
   }
 }
