@@ -3,7 +3,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import formidable from "formidable";
-import { json, method, requireAllowedOrigin } from "../lib/http.js";
+import { json, method, requireAllowedBrowserOrigin } from "../lib/http.js";
 import { extractPdfPureAi, PDF_PURE_AI_DEFAULT_MODEL } from "../lib/pdfPureAiReader.js";
 import { normalizePdfFileHeader } from "../lib/pdfFileValidation.js";
 import {
@@ -163,7 +163,7 @@ function publicError(error) {
 
 export default async function handler(req, res) {
   if (!method(req, res, ["POST"])) return;
-  if (!requireAllowedOrigin(req, res)) return;
+  if (!requireAllowedBrowserOrigin(req, res)) return;
   if (pdfAiKillSwitchEnabled()) {
     res.setHeader("Retry-After", "300");
     return json(res, 503, { ok: false, code: "AI_TEMPORARILY_DISABLED", error: "Servizio IA temporaneamente non disponibile" });

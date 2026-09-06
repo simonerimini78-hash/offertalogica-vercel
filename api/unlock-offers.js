@@ -1,4 +1,4 @@
-import { json, method, readJson, requireAllowedOrigin, requireLeadSession } from "../lib/http.js";
+import { json, method, readJson, requireAllowedBrowserOrigin, requireLeadSession } from "../lib/http.js";
 import { getJson } from "../lib/store.js";
 import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
 
@@ -138,7 +138,7 @@ async function handlePvEstimate(req, res, body) {
 
 export default async function handler(req, res) {
   if (!method(req, res, ["POST"])) return;
-  if (!requireAllowedOrigin(req, res)) return;
+  if (!requireAllowedBrowserOrigin(req, res)) return;
 
   try {
     const body = await readJson(req);
