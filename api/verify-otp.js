@@ -1,4 +1,4 @@
-import { json, method, readJson, requireAllowedBrowserOrigin } from "../lib/http.js";
+import { createLeadSessionToken, json, method, readJson, requireAllowedBrowserOrigin, setLeadSessionCookie } from "../lib/http.js";
 import { persistLeadSnapshot } from "../lib/customerDb.js";
 import { notifyLeadVerified } from "../lib/notify.js";
 import { checkTwilioVerify, otpHashMatches } from "../lib/otp.js";
@@ -17,6 +17,8 @@ export default async function handler(req, res) {
     if (!normalizedLeadId || !/^[A-Za-z0-9_-]+$/.test(normalizedLeadId) || !/^\d{4,10}$/.test(normalizedCode)) {
       return json(res, 400, { ok: false, error: "Codice non corretto" });
     }
+
+    createLeadSessionToken(normalizedLeadId);
 
     const lead = await getJson(`lead:${normalizedLeadId}`);
     const otp = await getJson(`otp:${normalizedLeadId}`);
@@ -60,11 +62,16 @@ export default async function handler(req, res) {
     if (!customerDb.ok && !customerDb.skipped) {
       console.warn("customer_db_lead_verified_failed", customerDb.error);
     }
+    setLeadSessionCookie(res, normalizedLeadId);
     json(res, 200, { ok: true, status: "verified" });
   } catch (error) {
+    const message = String(error?.message || "verify_otp_error");
     console.error("verify_otp_failed", {
-      message: String(error?.message || "verify_otp_error").slice(0, 240),
+      message: message.slice(0, 240),
     });
-    json(res, 400, { ok: false, error: "Impossibile verificare il codice. Riprova." });
+    if (message === "lead_session_secret_not_configured") {
+      return json(res, 503, { ok: false, error: "Servizio di verifica temporaneamente non disponibile. Riprova." });
+    }
+    return json(res, 400, { ok: false, error: "Impossibile verificare il codice. Riprova." });
   }
 }

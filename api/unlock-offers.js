@@ -1,4 +1,4 @@
-import { json, method, readJson, requireAllowedOrigin } from "../lib/http.js";
+import { json, method, readJson, requireAllowedOrigin, requireLeadSession } from "../lib/http.js";
 import { getJson } from "../lib/store.js";
 import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
 
@@ -144,7 +144,9 @@ export default async function handler(req, res) {
     const body = await readJson(req);
     if (body?.action === "pv_estimate") return handlePvEstimate(req, res, body);
 
-    const leadId = body?.leadId;
+    const leadId = String(body?.leadId || "").trim().slice(0, 100);
+    if (!/^[A-Za-z0-9_-]{8,100}$/.test(leadId)) return json(res, 400, { ok: false, error: "Lead non valido" });
+    if (!requireLeadSession(req, res, leadId)) return;
     const lead = await getJson(`lead:${leadId}`);
     if (!lead) return json(res, 404, { ok: false, error: "Lead non trovato" });
     if (lead.status !== "verified") return json(res, 403, { ok: false, error: "Lead non verificato" });
