@@ -70,8 +70,15 @@ const ALLOWED_EVENT_TYPES = new Set([
 
   // Landing analytics already consumed by the Staff dashboard.
   "landing_view",
+  "calculator_view",
   "landing_self_service_click",
   "landing_assisted_click",
+  "landing_free_app_click",
+  "landing_premium_app_click",
+  "business_photovoltaic_tool_opened",
+
+  // Telemetria automatica: non è una conversione e non entra nel funnel.
+  "session_engagement",
 
   // Funnel generico degli strumenti SEO interattivi.
   "interactive_tool_event",
@@ -217,6 +224,20 @@ function sanitizePayload(payload = {}) {
     toolOutcome: text(input.toolOutcome, 100).toLowerCase(),
     toolContext: text(input.toolContext, 80).toLowerCase(),
     toolVersion: text(input.toolVersion, 40),
+    routingVersion: text(input.routingVersion, 80),
+    rankingOffersCount: numberOrNull(input.rankingOffersCount),
+    bestPartnerSaving: numberOrNull(input.bestPartnerSaving),
+    engagementStage: text(input.engagementStage, 40).toLowerCase(),
+    engagementReason: text(input.engagementReason, 40).toLowerCase(),
+    engagementActiveSeconds: numberOrNull(input.engagementActiveSeconds),
+    engagementElapsedSeconds: numberOrNull(input.engagementElapsedSeconds),
+    engagementLandingSeconds: numberOrNull(input.engagementLandingSeconds),
+    engagementCalculatorSeconds: numberOrNull(input.engagementCalculatorSeconds),
+    engagementOffersSeconds: numberOrNull(input.engagementOffersSeconds),
+    engagementOtpSeconds: numberOrNull(input.engagementOtpSeconds),
+    engagementFirstActionSeconds: numberOrNull(input.engagementFirstActionSeconds),
+    engagementOffersReachedSeconds: numberOrNull(input.engagementOffersReachedSeconds),
+    telemetry: booleanOrNull(input.telemetry),
     reason: text(input.reason, 100),
   };
 }

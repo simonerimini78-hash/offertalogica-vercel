@@ -4042,6 +4042,177 @@ function trafficAttribution() {
   return current;
 }
 
+const ANALYTICS_ENGAGEMENT_STAGE_KEYS = ["landing", "calculator", "offers", "otp", "other"];
+const ANALYTICS_USER_ACTION_EVENTS = new Set([
+  "landing_self_service_click",
+  "landing_assisted_click",
+  "landing_free_app_click",
+  "landing_premium_app_click",
+  "customer_segment_selected",
+  "comparison_started",
+  "offers_bill_prompt_clicked",
+  "offers_bill_prompt_dismissed",
+  "pdf_analysis_started",
+  "pdf_data_confirmed",
+  "pdf_reset",
+  "lead_modal_opened",
+  "lead_modal_closed",
+  "otp_request_started",
+  "otp_verify_started",
+  "offer_click_locked",
+  "offer_consent_opened",
+  "offer_partner_consent_confirmed",
+  "offer_request_started",
+  "offer_switcho_redirect",
+  "business_switcho_requested",
+  "business_photovoltaic_tool_opened",
+  "assistance_prompt_closed",
+  "assistance_switcho_redirect",
+]);
+const ANALYTICS_ENGAGEMENT_STATE = {
+  initialized: false,
+  startedAt: 0,
+  lastTickAt: 0,
+  lastInteractionAt: 0,
+  activeMs: 0,
+  stage: "other",
+  stageMs: { landing: 0, calculator: 0, offers: 0, otp: 0, other: 0 },
+  stageBeforeModal: "calculator",
+  firstActionActiveMs: null,
+  offersReachedActiveMs: null,
+  lastSentActiveMs: 0,
+  checkpointTimer: null,
+  visible: true,
+};
+
+function analyticsEngagementTick(now = Date.now()) {
+  const state = ANALYTICS_ENGAGEMENT_STATE;
+  if (!state.initialized) return;
+  if (!state.lastTickAt) state.lastTickAt = now;
+  const from = state.lastTickAt;
+  const to = Math.max(from, now);
+  const activeUntil = Math.min(to, state.lastInteractionAt + 60000);
+  const activeDelta = state.visible ? Math.max(0, activeUntil - from) : 0;
+  if (activeDelta > 0) {
+    state.activeMs += activeDelta;
+    const stage = ANALYTICS_ENGAGEMENT_STAGE_KEYS.includes(state.stage) ? state.stage : "other";
+    state.stageMs[stage] = (state.stageMs[stage] || 0) + activeDelta;
+  }
+  state.lastTickAt = to;
+}
+
+function analyticsEngagementSetStage(stage) {
+  const state = ANALYTICS_ENGAGEMENT_STATE;
+  if (!state.initialized) return;
+  analyticsEngagementTick();
+  state.stage = ANALYTICS_ENGAGEMENT_STAGE_KEYS.includes(stage) ? stage : "other";
+}
+
+function analyticsEngagementSnapshot() {
+  const state = ANALYTICS_ENGAGEMENT_STATE;
+  if (!state.initialized) return {};
+  analyticsEngagementTick();
+  const sec = (value) => Math.max(0, Math.round(Number(value || 0) / 1000));
+  return {
+    engagementActiveSeconds: sec(state.activeMs),
+    engagementElapsedSeconds: sec(Date.now() - state.startedAt),
+    engagementStage: state.stage,
+    engagementLandingSeconds: sec(state.stageMs.landing),
+    engagementCalculatorSeconds: sec(state.stageMs.calculator),
+    engagementOffersSeconds: sec(state.stageMs.offers),
+    engagementOtpSeconds: sec(state.stageMs.otp),
+    engagementFirstActionSeconds: state.firstActionActiveMs == null ? null : sec(state.firstActionActiveMs),
+    engagementOffersReachedSeconds: state.offersReachedActiveMs == null ? null : sec(state.offersReachedActiveMs),
+  };
+}
+
+function analyticsEngagementPrepareEvent(eventType) {
+  const state = ANALYTICS_ENGAGEMENT_STATE;
+  if (!state.initialized || eventType === "session_engagement") return { snapshot: analyticsEngagementSnapshot(), nextStage: "" };
+  analyticsEngagementTick();
+  if (ANALYTICS_USER_ACTION_EVENTS.has(eventType) && state.firstActionActiveMs == null) {
+    state.firstActionActiveMs = state.activeMs;
+  }
+  if (eventType === "offers_rendered" && state.offersReachedActiveMs == null) {
+    state.offersReachedActiveMs = state.activeMs;
+  }
+  let nextStage = "";
+  if (eventType === "landing_self_service_click" || eventType === "calculator_view") nextStage = "calculator";
+  if (eventType === "offers_rendered") nextStage = "offers";
+  if (eventType === "lead_modal_opened") {
+    state.stageBeforeModal = state.stage === "otp" ? "calculator" : state.stage;
+    nextStage = "otp";
+  }
+  if (eventType === "lead_modal_closed") nextStage = state.stageBeforeModal || "calculator";
+  return { snapshot: analyticsEngagementSnapshot(), nextStage };
+}
+
+function analyticsEngagementMarkInteraction() {
+  const state = ANALYTICS_ENGAGEMENT_STATE;
+  if (!state.initialized) return;
+  analyticsEngagementTick();
+  state.lastInteractionAt = Date.now();
+  state.lastTickAt = state.lastInteractionAt;
+}
+
+function flushAnalyticsEngagement(reason = "checkpoint", force = false) {
+  const state = ANALYTICS_ENGAGEMENT_STATE;
+  if (!state.initialized || LEAD_STATE.staffMode) return;
+  const snapshot = analyticsEngagementSnapshot();
+  const activeMs = state.activeMs;
+  if (activeMs < 1000) return;
+  if (!force && activeMs - state.lastSentActiveMs < 5000) return;
+  state.lastSentActiveMs = activeMs;
+  trackEvent("session_engagement", {
+    ...snapshot,
+    engagementReason: reason,
+    telemetry: true,
+    dataOrigin: "",
+  });
+}
+
+function inizializzaAnalyticsEngagement(initialStage = "calculator") {
+  const state = ANALYTICS_ENGAGEMENT_STATE;
+  if (state.initialized) return;
+  const now = Date.now();
+  state.initialized = true;
+  state.startedAt = now;
+  state.lastTickAt = now;
+  state.lastInteractionAt = now;
+  state.stage = ANALYTICS_ENGAGEMENT_STAGE_KEYS.includes(initialStage) ? initialStage : "calculator";
+  state.visible = document.visibilityState === "visible";
+
+  const interactionEvents = ["pointerdown", "touchstart", "keydown", "scroll", "input", "change"];
+  interactionEvents.forEach((eventName) => {
+    document.addEventListener(eventName, analyticsEngagementMarkInteraction, { capture: true, passive: eventName !== "keydown" && eventName !== "input" && eventName !== "change" });
+  });
+
+  document.addEventListener("visibilitychange", () => {
+    analyticsEngagementTick();
+    state.visible = document.visibilityState === "visible";
+    if (!state.visible) flushAnalyticsEngagement("hidden");
+    else {
+      state.lastTickAt = Date.now();
+      state.lastInteractionAt = Date.now();
+    }
+  });
+  window.addEventListener("pagehide", () => flushAnalyticsEngagement("pagehide", true));
+  state.checkpointTimer = window.setInterval(() => {
+    analyticsEngagementTick();
+    if (state.activeMs - state.lastSentActiveMs >= 60000) flushAnalyticsEngagement("checkpoint");
+  }, 5000);
+}
+
+function registraVistaInizialeAnalytics() {
+  const landingVisible = Boolean(SOCIAL_ENTRY_STATE.active || document.documentElement.classList.contains("social-entry-requested"));
+  const stage = landingVisible ? "landing" : "calculator";
+  analyticsEngagementSetStage(stage);
+  trackEvent(landingVisible ? "landing_view" : "calculator_view", {
+    dataOrigin: "",
+    source: landingVisible ? sorgenteIngressoLanding() : "calculator",
+  });
+}
+
 function trackEvent(eventType, payload = {}) {
   if (!trackingApiDisponibile()) return;
   if (LEAD_STATE.staffMode) return;
@@ -4051,23 +4222,27 @@ function trackEvent(eventType, payload = {}) {
     ? LEAD_STATE.leadId
     : "";
   const attribution = trafficAttribution();
+  const hasDataOriginOverride = Object.prototype.hasOwnProperty.call(payload || {}, "dataOrigin");
+  const resolvedDataOrigin = hasDataOriginOverride ? String(payload.dataOrigin || "") : determinaOrigineDatoLead();
+  const engagement = analyticsEngagementPrepareEvent(String(eventType || ""));
   const body = JSON.stringify({
     eventType,
     sessionId: analyticsSessionId(),
     leadId,
     page: window.location.pathname || "/",
     customerType: LEAD_STATE.customerType,
-    dataOrigin: determinaOrigineDatoLead(),
+    dataOrigin: resolvedDataOrigin,
     source: LEAD_STATE.leadSource,
     payload: {
       page: window.location.pathname || "/",
       customerType: LEAD_STATE.customerType,
-      dataOrigin: determinaOrigineDatoLead(),
+      dataOrigin: resolvedDataOrigin,
       leadSource: LEAD_STATE.leadSource,
       verified: LEAD_STATE.verified,
       staffMode: LEAD_STATE.staffMode,
       bestSaving: LEAD_STATE.bestSaving,
       pdfDocumentCount: (LEAD_STATE.pdfDocuments || []).length,
+      ...engagement.snapshot,
       ...payload,
       trafficSource: attribution.trafficSource,
       trafficMedium: attribution.trafficMedium,
@@ -4079,12 +4254,12 @@ function trackEvent(eventType, payload = {}) {
       trafficClickIdType: attribution.trafficClickIdType,
     },
   });
+  if (engagement.nextStage) analyticsEngagementSetStage(engagement.nextStage);
 
   try {
     if (navigator.sendBeacon) {
       const blob = new Blob([body], { type: "application/json" });
-      navigator.sendBeacon("/api/track-event", blob);
-      return;
+      if (navigator.sendBeacon("/api/track-event", blob)) return;
     }
   } catch {
     // Il tracciamento non deve mai interferire con il confronto.
@@ -9301,21 +9476,6 @@ window.apriConsensoOfferta = function apriConsensoOfferta(offerta) {
       annualCost: tracking.annualCost || null,
       annualDelta: tracking.annualDelta || null,
     });
-    // Evento compatibile con il funnel Staff esistente: conta il passaggio partner.
-    trackEvent("offer_redirect", {
-      offerId: LEAD_STATE.selectedOffer.id,
-      offerName: LEAD_STATE.selectedOffer.name,
-      provider: LEAD_STATE.selectedOffer.provider,
-      destinationType: "switcho",
-      destinationStatus: "redirect",
-      redirect: true,
-      route: "switcho",
-      displayGroup: tracking.displayGroup || "",
-      economyRank: tracking.economyRank || null,
-      displayRank: tracking.displayRank || null,
-      annualCost: tracking.annualCost || null,
-      annualDelta: tracking.annualDelta || null,
-    });
     apriLandingSwitcho("offer_not_activatable", LEAD_STATE.selectedOffer);
     return;
   }
@@ -13379,11 +13539,6 @@ function preparaRisparmioIngressoSocialMobile() {
     if (period) period.textContent = formatted ? "all'anno · esempio su profilo medio" : "confronta le offerte sui tuoi consumi";
     savingBox?.classList.remove("is-loading");
     impostaLandingPronta();
-    trackEvent("landing_saving_ready", {
-      bestSaving: saving,
-      source: sorgenteIngressoLanding(),
-      dataOrigin: LEAD_STATE.dataOrigin,
-    });
     return true;
   } catch (error) {
     window.__OL_LANDING_PREVIEW_CALC__ = false;
@@ -13391,10 +13546,6 @@ function preparaRisparmioIngressoSocialMobile() {
     if (period) period.textContent = "confronta le offerte sui tuoi consumi";
     savingBox?.classList.remove("is-loading");
     impostaLandingPronta();
-    trackEvent("landing_saving_fallback", {
-      source: sorgenteIngressoLanding(),
-      reason: String(error?.message || error || "").slice(0, 100),
-    });
     return false;
   }
 }
@@ -13522,7 +13673,10 @@ function collegaEventiUX() {
   document.addEventListener("input", registraModificaManualePdf, true);
   document.addEventListener("change", registraModificaManualePdf, true);
   inizializzaModalitaStaff()
-    .then(() => trackEvent("landing_view"))
+    .then(() => {
+      inizializzaAnalyticsEngagement(SOCIAL_ENTRY_STATE.active ? "landing" : "calculator");
+      registraVistaInizialeAnalytics();
+    })
     .catch(() => {});
   inizializzaSelectFornitoreGas();
   applicaAmbitoConfronto(leggiValore("master-tipo-fornitura", "dual"));
