@@ -1,7 +1,7 @@
 import { json, method, readJson, requireAllowedBrowserOrigin } from "../lib/http.js";
 import { persistLeadSnapshot } from "../lib/customerDb.js";
 import { notifyLeadVerified } from "../lib/notify.js";
-import { checkTwilioVerify, hashOtp } from "../lib/otp.js";
+import { checkTwilioVerify, otpHashMatches } from "../lib/otp.js";
 import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
 import { del, getJson, setJson } from "../lib/store.js";
 
@@ -12,21 +12,27 @@ export default async function handler(req, res) {
 
   try {
     const { leadId, code } = await readJson(req);
-    const lead = await getJson(`lead:${leadId}`);
-    const otp = await getJson(`otp:${leadId}`);
+    const normalizedLeadId = String(leadId || "").trim().slice(0, 100);
+    const normalizedCode = String(code || "").trim();
+    if (!normalizedLeadId || !/^[A-Za-z0-9_-]+$/.test(normalizedLeadId) || !/^\d{4,10}$/.test(normalizedCode)) {
+      return json(res, 400, { ok: false, error: "Codice non corretto" });
+    }
+
+    const lead = await getJson(`lead:${normalizedLeadId}`);
+    const otp = await getJson(`otp:${normalizedLeadId}`);
     if (!lead || !otp) return json(res, 404, { ok: false, error: "Codice scaduto o lead non trovato" });
     if (otp.expiresAt < Date.now()) return json(res, 400, { ok: false, error: "Codice scaduto" });
     if (otp.attempts >= 5) return json(res, 429, { ok: false, error: "Troppi tentativi" });
 
     let valid = false;
     if (otp.provider === "twilio-verify") {
-      const twilioResult = await checkTwilioVerify(lead.phone, String(code || ""));
+      const twilioResult = await checkTwilioVerify(lead.phone, normalizedCode);
       valid = twilioResult.approved;
     } else {
-      valid = hashOtp(lead.phone, String(code || "")) === otp.hash;
+      valid = otpHashMatches(lead.phone, normalizedCode, otp.hash);
     }
     if (!valid) {
-      await setJson(`otp:${leadId}`, { ...otp, attempts: otp.attempts + 1 }, 300);
+      await setJson(`otp:${normalizedLeadId}`, { ...otp, attempts: otp.attempts + 1 }, 300);
       return json(res, 400, { ok: false, error: "Codice non corretto" });
     }
 
@@ -48,14 +54,17 @@ export default async function handler(req, res) {
         };
       }
     }
-    await setJson(`lead:${leadId}`, updatedLead, Number(process.env.LEAD_RETENTION_DAYS || 30) * 24 * 3600);
-    await del(`otp:${leadId}`);
+    await setJson(`lead:${normalizedLeadId}`, updatedLead, Number(process.env.LEAD_RETENTION_DAYS || 30) * 24 * 3600);
+    await del(`otp:${normalizedLeadId}`);
     const customerDb = await persistLeadSnapshot(updatedLead, "lead_verified");
     if (!customerDb.ok && !customerDb.skipped) {
       console.warn("customer_db_lead_verified_failed", customerDb.error);
     }
     json(res, 200, { ok: true, status: "verified" });
   } catch (error) {
-    json(res, 400, { ok: false, error: error.message || "Errore verifica OTP" });
+    console.error("verify_otp_failed", {
+      message: String(error?.message || "verify_otp_error").slice(0, 240),
+    });
+    json(res, 400, { ok: false, error: "Impossibile verificare il codice. Riprova." });
   }
 }
