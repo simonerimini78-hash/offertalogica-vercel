@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { json, method, readJson, requireAllowedOrigin } from "../lib/http.js";
+import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
 import { requireStaffSession } from "../lib/staffSessionAuth.js";
 
 const STAFF_PREVIEW_TARGETS = new Set([
@@ -24,6 +25,10 @@ function safeEqual(left, right) {
 export default async function handler(req, res) {
   if (!method(req, res, ["POST"])) return;
   if (!requireAllowedOrigin(req, res)) return;
+  if (!(await enforceRateLimit(req, res, {
+    label: "staff-preview",
+    ...rateLimitConfig("STAFF_PREVIEW", 20),
+  }))) return;
 
   try {
     const body = await readJson(req);
@@ -49,7 +54,7 @@ export default async function handler(req, res) {
       return json(res, 200, {
         ok: true,
         target,
-        url: `https://offertalogica.it/api/staff-preview?target=${encodeURIComponent(target)}#staff=${encodeURIComponent(expectedToken)}`,
+        url: `https://offertalogica.it${target}#staff=${encodeURIComponent(expectedToken)}`,
       });
     }
 

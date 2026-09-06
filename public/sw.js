@@ -63,6 +63,28 @@ self.addEventListener("fetch", event => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
+  const securitySensitivePath =
+    url.pathname === "/app.html"
+    || [
+      "/app-auth.js",
+      "/app-support.js",
+      "/app-utilities.js",
+      "/app-premium-bills.js",
+      "/premium-ai-validation.js",
+      "/staff.js",
+      "/staff-premium.js",
+      "/staff-management.js",
+      "/staff-governance-v2.5B.js",
+      "/staff-economics.js",
+      "/staff-premium-timeline-v2.7C2.js",
+    ].includes(url.pathname)
+    || url.pathname.startsWith("/staff");
+
+  if (securitySensitivePath) {
+    event.respondWith(fetch(request, { cache: "no-store" }));
+    return;
+  }
+
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request)
