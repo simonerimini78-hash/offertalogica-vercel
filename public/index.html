@@ -3014,21 +3014,17 @@
     <section class="mobile-fast-start" id="mobile-fast-start" aria-labelledby="mobile-fast-start-title">
         <div class="mobile-fast-start-heading">
             <h2 id="mobile-fast-start-title">Come vuoi confrontare?</h2>
-            <p>Scegli un metodo: ti portiamo direttamente al passaggio utile.</p>
         </div>
         <div class="mobile-fast-options">
-            <button type="button" class="mobile-fast-option is-fastest" id="mobile-fast-average">
-                <span class="mobile-fast-badge">Più veloce</span>
+            <button type="button" class="mobile-fast-option is-fastest is-selected" id="mobile-fast-average" aria-pressed="true">
                 <strong>Non conosco i miei consumi</strong>
-                <small>Usiamo il profilo medio ARERA. Nessun dato da inserire.</small>
+                <small>Profilo medio ARERA</small>
             </button>
-            <button type="button" class="mobile-fast-option" id="mobile-fast-pdf">
+            <button type="button" class="mobile-fast-option" id="mobile-fast-pdf" aria-pressed="false">
                 <strong>Carica la bolletta</strong>
-                <small>Leggiamo i dati dal PDF.</small>
             </button>
-            <button type="button" class="mobile-fast-option" id="mobile-fast-manual">
-                <strong>Conosco i miei consumi</strong>
-                <small>Inserisco i valori manualmente.</small>
+            <button type="button" class="mobile-fast-option" id="mobile-fast-manual" aria-pressed="false">
+                <strong>Inserisci i miei consumi</strong>
             </button>
         </div>
     </section>
@@ -3556,7 +3552,7 @@
         <span><strong>Il profilo medio è già pronto.</strong> Non devi modificare nulla: premi il pulsante qui sotto per vedere le offerte.</span>
     </div>
        
-    <button id="comparison-submit-button" class="btn-calc" onclick="avviaComparazioneDati()">Mostra le offerte disponibili</button>
+    <button id="comparison-submit-button" class="btn-calc" onclick="avviaComparazioneDati()">Vedi le offerte</button>
 
     <!-- Risultato della Comparazione (Appare dopo il click) -->
     <div class="results-layout" id="results-area">
@@ -3604,6 +3600,167 @@
     background: var(--card-bg) !important;
     transform: translateY(-1px);
 }
+
+
+        /* OFFERTALOGICA_FLUID_UX_V6_20260906 */
+        .offer-details-toggle {
+            margin-top: 7px;
+            border-top: 1px solid rgba(148,163,184,.28);
+            color: #475569;
+            text-align: left;
+        }
+        .offer-details-toggle summary {
+            list-style: none;
+            width: fit-content;
+            margin: 6px auto 0;
+            padding: 5px 8px;
+            border-radius: 999px;
+            color: #475569;
+            font-size: 11px;
+            line-height: 1.1;
+            font-weight: 800;
+            cursor: pointer;
+        }
+        .offer-details-toggle summary::-webkit-details-marker { display: none; }
+        .offer-details-toggle summary::after { content: " +"; }
+        .offer-details-toggle[open] summary::after { content: " −"; }
+        .offer-details-content {
+            margin-top: 5px;
+            padding: 8px 9px;
+            border-radius: 9px;
+            background: #f8fafc;
+            color: #475569;
+            font-size: 11px;
+            line-height: 1.35;
+        }
+        .offer-details-content p { margin: 5px 0; }
+        .offer-details-content small { display: block; margin-top: 5px; color: #64748b; font-size: 10.5px; font-weight: 600; }
+        .offer-detail-pills { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 5px; }
+        .offer-detail-pill { display: inline-flex; padding: 3px 6px; border: 1px solid #dbeafe; border-radius: 999px; background: #eff6ff; color: #1d4ed8; font-size: 10px; font-weight: 800; }
+        .choice-card,
+        .mobile-fast-option { position: relative; }
+        @media (min-width: 701px) {
+            .choice-card.selected::after,
+            .segment-switch button.active::after {
+                content: "✓";
+                position: absolute;
+                top: 9px;
+                right: 9px;
+                display: grid;
+                place-items: center;
+                width: 21px;
+                height: 21px;
+                border-radius: 999px;
+                background: #16a34a;
+                color: #fff;
+                font-size: 12px;
+                font-weight: 950;
+            }
+            .segment-switch button { position: relative; }
+        }
+        @media (max-width: 700px) {
+            .mobile-fast-start { padding: 11px 10px 10px; margin-bottom: 8px; }
+            .mobile-fast-start-heading { margin-bottom: 7px; }
+            .mobile-fast-start-heading h2 { font-size: 18px; }
+            .mobile-fast-start-heading p { display: none; }
+            .mobile-fast-options { gap: 6px; }
+            .mobile-fast-option {
+                min-height: 54px;
+                padding: 9px 9px;
+                gap: 2px;
+                text-align: center;
+            }
+            .mobile-fast-option.is-fastest { min-height: 60px; }
+            .mobile-fast-option strong { font-size: 13.5px; }
+            .mobile-fast-option small { font-size: 10.5px; line-height: 1.15; }
+            .mobile-fast-option.is-selected::after {
+                content: "✓";
+                position: absolute;
+                top: 7px;
+                right: 7px;
+                display: grid;
+                place-items: center;
+                width: 18px;
+                height: 18px;
+                border-radius: 999px;
+                background: #16a34a;
+                color: #fff;
+                font-size: 10px;
+                font-weight: 950;
+            }
+            html.mobile-fast-flow body.mobile-fast-mode-average #comparison-next-step-guidance { display: none !important; }
+            html.mobile-fast-flow body.mobile-fast-mode-average #comparison-submit-button {
+                min-height: 50px;
+                margin-top: 4px;
+                border-radius: 12px;
+                font-size: 16px;
+            }
+            html.mobile-fast-flow body.mobile-fast-results:not(.social-entry-active) .partner-vertical-card {
+                padding: 11px !important;
+                gap: 7px !important;
+            }
+            html.mobile-fast-flow body.mobile-fast-results:not(.social-entry-active) .partner-brand-line {
+                min-height: 92px;
+                padding-top: 58px;
+            }
+            html.mobile-fast-flow body.mobile-fast-results:not(.social-entry-active) .partner-brand-line.is-split-brand {
+                min-height: 98px;
+                padding-top: 62px;
+            }
+            html.mobile-fast-flow body.mobile-fast-results:not(.social-entry-active) .partner-title { font-size: 16px !important; }
+            html.mobile-fast-flow body.mobile-fast-results:not(.social-entry-active) [id^="risparmio-partner-"] {
+                padding: 8px 9px !important;
+                min-height: 0;
+            }
+            html.mobile-fast-flow body.mobile-fast-results:not(.social-entry-active) .offer-metrics { gap: 5px; }
+            html.mobile-fast-flow body.mobile-fast-results:not(.social-entry-active) .offer-saving-line { padding: 7px 8px; }
+            html.mobile-fast-flow body.mobile-fast-results:not(.social-entry-active) .offer-saving-line span { font-size: 10.5px; }
+            html.mobile-fast-flow body.mobile-fast-results:not(.social-entry-active) .offer-saving-line strong { font-size: 20px; }
+            html.mobile-fast-flow body.mobile-fast-results:not(.social-entry-active) [id^="link-partner-"] { min-height: 48px; padding: 11px 13px !important; }
+            .offer-details-toggle { margin-top: 5px; }
+            .offer-details-toggle summary { margin-top: 4px; padding: 4px 7px; font-size: 10.5px; }
+
+            /* OTP/registrazione: compatto, senza rimuovere consensi o controlli. */
+            .lead-modal-backdrop { padding: 6px; }
+            .lead-modal {
+                max-height: 94dvh;
+                padding: 13px 12px max(13px, env(safe-area-inset-bottom));
+                border-radius: 14px 14px 0 0;
+            }
+            .lead-modal h3 { margin-bottom: 3px; font-size: 18px; }
+            .lead-modal > p { margin-bottom: 8px; font-size: 12px; line-height: 1.3; }
+            .lead-form-grid { gap: 7px; }
+            .lead-field { gap: 3px; font-size: 11px; }
+            .lead-form-grid input { min-height: 44px; padding: 9px 10px; }
+            .lead-consent { gap: 7px; padding: 7px 8px; font-size: 11px; line-height: 1.25; }
+            .lead-consent input { width: 18px; height: 18px; }
+            .lead-consent-detail { margin-top: 4px; font-size: 10px; line-height: 1.2; }
+            .lead-privacy-note { display: none; }
+            .lead-actions { gap: 7px; margin-top: 9px; }
+            .lead-actions button { min-height: 44px; padding: 9px 12px; font-size: 14px; }
+            .lead-status { margin-top: 6px; font-size: 11px; line-height: 1.25; }
+
+            /* Help e Iubenda restano accessibili ma non coprono il funnel. */
+            .guided-assistant-mobile-toggle {
+                left: auto !important;
+                right: 7px !important;
+                bottom: max(6px, env(safe-area-inset-bottom)) !important;
+                width: 34px !important;
+                height: 34px !important;
+                font-size: 18px !important;
+                opacity: .76;
+                box-shadow: 0 5px 14px rgba(15,23,42,.12) !important;
+            }
+            .iubenda-tp-btn.iubenda-cs-preferences-link {
+                transform: scale(.72) !important;
+                transform-origin: left bottom !important;
+                opacity: .68 !important;
+            }
+            body.lead-modal-visible .guided-assistant-mobile-toggle,
+            body.lead-modal-visible .iubenda-tp-btn.iubenda-cs-preferences-link {
+                display: none !important;
+            }
+        }
 </style>
 <script>
 function avviaComparazioneDati() {
@@ -3888,6 +4045,7 @@ function trafficAttribution() {
 function trackEvent(eventType, payload = {}) {
   if (!trackingApiDisponibile()) return;
   if (LEAD_STATE.staffMode) return;
+  if (window.__OL_LANDING_PREVIEW_CALC__ && ["comparison_started", "comparison_completed", "offers_rendered"].includes(String(eventType || ""))) return;
 
   const leadId = LEAD_STATE.leadId && !["preview", STAFF_MODE_LEAD_ID].includes(LEAD_STATE.leadId)
     ? LEAD_STATE.leadId
@@ -5326,7 +5484,7 @@ function htmlPromozioniApplicateOfferta(offerta, costoOfferta) {
     const durata = testoHtmlSicuro(durataPromozioneArera(sconto));
     const condizione = testoHtmlSicuro(condizionePromozioneArera(sconto));
     const dettagli = [valore, durata].filter(Boolean).join(" · ");
-    return `<div style="margin-top:3px;"><strong>${ambito} · ${nome}</strong>${dettagli ? `: ${dettagli}` : ""} <span style="white-space:nowrap;">→ −${euro(importo)} sul tuo profilo</span>${condizione ? `<br><span style="color:var(--text-muted);">Condizione: ${condizione}</span>` : ""}</div>`;
+    return `<div style="margin-top:3px;"><strong>${ambito} · ${nome}</strong>${dettagli ? `: ${dettagli}` : ""} <span style="white-space:nowrap;">→ −${euro(importo)} sul profilo di calcolo</span>${condizione ? `<br><span style="color:var(--text-muted);">Condizione: ${condizione}</span>` : ""}</div>`;
   }).join("");
 
   const incluse = riepilogo.applicate.length
@@ -6946,7 +7104,10 @@ function assicuraSchedeOfferte(offerte = OFFERTE_PROPOSTE) {
     const link = document.getElementById(`link-partner-${offerta.id}`);
     if (title) title.innerText = offerta.nome;
     aggiornaLogoOfferta(card, offerta, LEAD_STATE.verified);
-    if (details) details.innerText = dettagliOfferta(offerta);
+    if (details) {
+      details.innerText = dettagliOfferta(offerta);
+      details.hidden = true;
+    }
     if (link) {
       link.href = "#";
       link.removeAttribute("target");
@@ -8167,15 +8328,10 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       const separataMulti = offertaSeparataMultiFornitore(offerta);
       const badgeText = testoBadgeOfferta({ offerta, posizioneEconomica, posizioneGruppo, gruppoVisuale, costo, compatibileRanking }, migliore);
       const tipoPrezzoBadge = offerta?.tipo === "variabile" ? "Prezzo variabile" : "Prezzo fisso";
-      const badge = `<span style="display:inline-block; margin:0 0 6px; padding:3px 8px; border:1px solid; border-radius:999px; font-size:11px; font-weight:800; ${stileBadgeOfferta({ posizioneEconomica, gruppoVisuale })}">${badgeText}</span><span style="display:inline-block; margin:0 0 6px 6px; padding:3px 8px; border:1px solid #bfdbfe; border-radius:999px; background:#eff6ff; color:#1d4ed8; font-size:11px; font-weight:800;">${tipoPrezzoBadge}</span>`;
+      const badge = `<span class="offer-position-badge" style="display:inline-block; margin:0 0 6px; padding:3px 8px; border:1px solid; border-radius:999px; font-size:11px; font-weight:800; ${stileBadgeOfferta({ posizioneEconomica, gruppoVisuale })}">${badgeText}</span>`;
       const percorsoBadgeText = attivabileOnline
         ? "Attivabile online"
-        : (separataMulti ? "Verifica con consulente" : "Percorso da verificare");
-      const percorsoBadge = attivabileOnline
-        ? `<span class="offer-path-status" style="display:inline-block; margin:0 0 6px 6px; padding:3px 8px; border:1px solid #a7f3d0; border-radius:999px; background:#ecfdf5; color:#047857; font-size:11px; font-weight:800;">${percorsoBadgeText}</span>`
-        : separataMulti
-          ? `<span class="offer-path-status" style="display:inline-block; margin:0 0 6px 6px; padding:3px 8px; border:1px solid #cbd5e1; border-radius:999px; background:#f8fafc; color:#475569; font-size:11px; font-weight:800;">${percorsoBadgeText}</span>`
-          : `<span class="offer-path-status is-unverified" style="display:inline-block; margin:0 0 6px 6px; padding:3px 8px; border:1px solid #cbd5e1; border-radius:999px; background:#f8fafc; color:#475569; font-size:11px; font-weight:800;">${percorsoBadgeText}</span>`;
+        : (separataMulti ? "Verifica con consulente" : "");
       const bollettaPrecisionButton = modalitaCalcolo === "media" && attivabileOnline
         ? `<button type="button" class="offer-bill-precision">Carica bolletta per confronto preciso</button>`
         : "";
@@ -8183,13 +8339,18 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
         ? `<small style="display:block; margin-top:3px; color:#92400e; font-weight:700;">${tipoTariffa === "variabile" && offerta.tipo === "variabile" ? "Offerta variabile" : "Alternativa"} ${descriviTipoOfferta(offerta)} mostrata anche se il filtro selezionato e ${testoFiltroOfferte(tipoTariffa, tipoFornitura)}.</small>`
         : "";
       const costoStimatoLabel = `Costo stimato ${ambito}`;
-      const risparmioLabel = risparmio ? "Risparmio annuo stimato" : "Costo annuo più alto";
+      const risparmioLabel = risparmio
+        ? (modalitaCalcolo === "media" ? "Risparmio annuo stimato su consumi medi ARERA" : "Risparmio annuo stimato")
+        : "Costo annuo più alto";
       const risparmioLockedLabel = risparmio ? "Risparmio potenziale stimato" : "Costo stimato superiore";
       const savingLineClass = risparmio ? "offer-saving-line" : "offer-saving-line is-negative";
       const promozioniHtml = htmlPromozioniApplicateOfferta(offerta, costoOfferta);
       if (title) title.innerText = titoloOffertaVisibile(offerta);
       aggiornaLogoOfferta(card, offerta, true);
-      if (details) details.innerText = dettagliOfferta(offerta);
+      if (details) {
+        details.innerText = dettagliOfferta(offerta);
+        details.hidden = true;
+      }
       if (link) {
         link.innerText = testoAzioneOfferta(offerta, attivabileOnline);
         link.href = "#";
@@ -8206,18 +8367,28 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
           link.insertAdjacentElement("afterend", switchoBillNote);
         }
       }
+      const percorsoDettaglio = percorsoBadgeText
+        ? `<span class="offer-detail-pill">${testoHtmlSicuro(percorsoBadgeText)}</span>`
+        : "";
+      const dettagliCondizioniHtml = `
+        <details class="offer-details-toggle">
+          <summary>Dettagli e condizioni</summary>
+          <div class="offer-details-content">
+            <div class="offer-detail-pills"><span class="offer-detail-pill">${testoHtmlSicuro(tipoPrezzoBadge)}</span>${percorsoDettaglio}</div>
+            <p>${testoHtmlSicuro(dettagliOfferta(offerta))}</p>
+            ${alternativeNote}
+            ${promozioniHtml}
+            <small>Materia energia/gas: ${euro(costoOfferta.quotaVariabile)} · Fissa vendita: ${euro(costoOfferta.quotaFissaVendita)} · Potenza/ambito: ${euro(costoOfferta.quotaTecnicaProfilo)} · Oneri, imposte e IVA: ${euroOneriFiscali(costoOfferta.quotaRegolata + costoOfferta.quotaFiscale)}</small>
+          </div>
+        </details>`;
       saving.style.color = risparmio ? "var(--primary)" : "var(--danger)";
       saving.innerHTML = `
-        ${badge}${percorsoBadge}${bollettaPrecisionButton}
+        ${badge}${bollettaPrecisionButton}
         <span class="offer-metrics">
           <span class="offer-cost-line"><span>${costoStimatoLabel}</span><strong>${euro(costo)} / anno</strong></span>
           <span class="${savingLineClass}"><span>${risparmioLabel}</span><strong>${euro(Math.abs(differenza))} / anno</strong></span>
         </span>
-        ${alternativeNote}
-        ${promozioniHtml}
-        <small style="display:block; margin-top:3px; color:var(--text-muted); font-weight:600;">
-          Materia energia/gas: ${euro(costoOfferta.quotaVariabile)} | Fissa vendita: ${euro(costoOfferta.quotaFissaVendita)} | Potenza/ambito: ${euro(costoOfferta.quotaTecnicaProfilo)} | Oneri, imposte e IVA: ${euroOneriFiscali(costoOfferta.quotaRegolata + costoOfferta.quotaFiscale)}
-        </small>
+        ${dettagliCondizioniHtml}
       `;
       saving.querySelector(".offer-bill-precision")?.addEventListener("click", (event) => {
         event.preventDefault();
@@ -8771,19 +8942,19 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
     title.innerText = isAssistance
       ? "Richiedi assistenza"
       : isBusiness
-        ? "Verifica il numero per proseguire con la richiesta aziendale"
+        ? "Verifica il numero"
         : isOfferSelection
-          ? "Verifica il numero per continuare con l'offerta scelta"
-          : "Verifica il numero per vedere il confronto completo";
+          ? "Verifica il numero"
+          : "Verifica il numero";
   }
   if (copy) {
     copy.innerText = isAssistance
       ? "Inserisci i tuoi dati e verifica il numero. OffertaLogica potrà ricontattarti per aiutarti a completare il confronto."
       : isBusiness
-        ? "Il codice SMS serve a verificare il numero.\nI tuoi dati non vengono inviati a consulenti o partner senza la relativa autorizzazione."
+        ? "Ricevi un codice SMS per confermare il numero. Nessun dato viene inviato a partner senza autorizzazione."
         : isOfferSelection
-          ? `Hai scelto ${selectedOfferName}. Il codice SMS serve a verificare il numero prima di proseguire.\nI dati non vengono trasmessi al fornitore o al partner senza la relativa autorizzazione.`
-          : "Il codice SMS serve a verificare il numero.\nI tuoi dati non vengono inviati a fornitori o partner finché non scegli di procedere con un'offerta.";
+          ? `Ricevi un codice SMS per continuare con ${selectedOfferName}. I dati non vengono trasmessi al partner senza autorizzazione.`
+          : "Inserisci i dati e ricevi un codice SMS. Nessun dato viene inviato a partner finché non scegli un'offerta.";
   }
   if (serviceCopy) {
     serviceCopy.innerHTML = isAssistance
@@ -8818,6 +8989,7 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
     }
   }
   modal.style.display = "flex";
+  document.body.classList.add("lead-modal-visible");
   trackEvent("lead_modal_opened", { leadSource: source });
   leadStatus(staffModeAttiva()
     ? "Modalita staff attiva: premi “Invia il codice di verifica” e usa il codice 000000. Nessun dato viene salvato."
@@ -8827,6 +8999,7 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
 function chiudiLeadModal() {
   const modal = document.getElementById("lead-modal-backdrop");
   if (modal) modal.style.display = "none";
+  document.body.classList.remove("lead-modal-visible");
   trackEvent("lead_modal_closed", { leadSource: LEAD_STATE.leadSource });
 }
 
@@ -13195,9 +13368,11 @@ function preparaRisparmioIngressoSocialMobile() {
   const btnMedi = document.getElementById("btn-attiva-medi");
 
   try {
+    window.__OL_LANDING_PREVIEW_CALC__ = true;
     btnMedi?.click();
     LEAD_STATE.dataOrigin = "landing_average_profile";
     window.avviaComparazioneDati?.();
+    window.__OL_LANDING_PREVIEW_CALC__ = false;
     const saving = Number(LEAD_STATE.bestSaving || 0);
     const formatted = formattaRisparmioSocial(saving);
     if (value) value.textContent = formatted || "Offerte aggiornate";
@@ -13211,6 +13386,7 @@ function preparaRisparmioIngressoSocialMobile() {
     });
     return true;
   } catch (error) {
+    window.__OL_LANDING_PREVIEW_CALC__ = false;
     if (value) value.textContent = "Offerte aggiornate";
     if (period) period.textContent = "confronta le offerte sui tuoi consumi";
     savingBox?.classList.remove("is-loading");
@@ -13371,7 +13547,7 @@ function collegaEventiUX() {
 
   btnMedi?.addEventListener("click", () => {
     window.setTimeout(() => {
-      if (containerTendine) containerTendine.style.display = "block";
+      if (containerTendine) containerTendine.style.display = "none";
       if (blocchiInferiori) blocchiInferiori.style.display = "none";
       if (pulsanteCalcoloManuale) pulsanteCalcoloManuale.style.display = "none";
     }, 0);
@@ -13794,11 +13970,7 @@ if (document.readyState === "loading") {
               const tariffaModal = document.getElementById("tariffa-modal");
               if (tariffaModal) tariffaModal.style.display = "none";
 
-              mostraGuida(
-                "comparison-next-step-guidance",
-                "<strong>Il profilo medio è già pronto.</strong> Non devi modificare nulla: premi il pulsante qui sotto per vedere le offerte.",
-                { scroll: true, block: "center", focus: true }
-              );
+              nascondiGuida("comparison-next-step-guidance");
           });
       }
 
@@ -13953,9 +14125,8 @@ if (document.readyState === "loading") {
 
 <div class="lead-modal-backdrop" id="lead-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="lead-modal-title">
     <div class="lead-modal">
-        <h3 id="lead-modal-title">Verifica il numero per vedere il confronto completo</h3>
-        <p id="lead-modal-copy">Il codice SMS serve a verificare il numero.
-I tuoi dati non vengono inviati a fornitori o partner finché non scegli di procedere con un'offerta.</p>
+        <h3 id="lead-modal-title">Verifica il numero</h3>
+        <p id="lead-modal-copy">Inserisci i dati e ricevi un codice SMS. Nessun dato viene inviato a partner finché non scegli un'offerta.</p>
         <div class="lead-form-grid">
             <label class="lead-field" for="lead-nome"><span>Nome e cognome</span><input id="lead-nome" type="text" autocomplete="name" placeholder="Mario Rossi"></label>
             <label class="lead-field" for="lead-telefono"><span>Cellulare</span><input id="lead-telefono" type="tel" autocomplete="tel" inputmode="tel" placeholder="333 1234567"></label>
@@ -14195,7 +14366,9 @@ I tuoi dati non vengono inviati a fornitori o partner finché non scegli di proc
     const body = document.body;
     ["average", "pdf", "manual"].forEach((name) => {
       body.classList.toggle(`mobile-fast-mode-${name}`, name === mode);
-      document.getElementById(`mobile-fast-${name}`)?.classList.toggle("is-selected", name === mode);
+      const option = document.getElementById(`mobile-fast-${name}`);
+      option?.classList.toggle("is-selected", name === mode);
+      option?.setAttribute("aria-pressed", name === mode ? "true" : "false");
     });
     if (mode !== "pdf") body.classList.remove("mobile-fast-pdf-review");
   }
@@ -14223,7 +14396,17 @@ I tuoi dati non vengono inviati a fornitori o partner finché non scegli di proc
     }, 40));
   }
 
+  function initDefaultAverageChoice() {
+    const btnMedi = document.getElementById("btn-attiva-medi");
+    const btnBusiness = document.getElementById("btn-segmento-business");
+    const submit = document.getElementById("comparison-submit-button");
+    const isBusiness = Boolean(btnBusiness?.classList.contains("active"));
+    if (!isBusiness && btnMedi && !btnMedi.classList.contains("selected")) btnMedi.click();
+    if (!isBusiness && submit) submit.textContent = "Vedi le offerte";
+  }
+
   function initMobileFastFlow() {
+    initDefaultAverageChoice();
     if (!mobileFastEnabled()) return;
     const btnAverage = document.getElementById("mobile-fast-average");
     const btnPdf = document.getElementById("mobile-fast-pdf");
@@ -14236,8 +14419,9 @@ I tuoi dati non vengono inviati a fornitori o partner finché non scegli di proc
     const btnPrivato = document.getElementById("btn-segmento-privato");
     const btnBusiness = document.getElementById("btn-segmento-business");
 
-    setMobileFastMode("");
+    setMobileFastMode("average");
     compactSegmentState();
+    if (submit) submit.textContent = "Vedi le offerte";
     window.__OL_OPEN_MOBILE_FAST_PDF__ = () => {
       setMobileFastMode("pdf");
       document.body.classList.remove("mobile-fast-pdf-review");
