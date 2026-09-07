@@ -49,8 +49,57 @@
         .container { max-width: 1000px; margin: 0 auto; }
         .skip-link { position: absolute; left: -999px; top: 12px; background: #fff; color: var(--accent); padding: 10px 14px; border-radius: 8px; font-weight: 800; z-index: 2000; }
         .skip-link:focus { left: 12px; }
-        .footer-privacy-action { background: transparent; border: 0; color: #555; text-decoration: none; margin: 0 10px; cursor: pointer; font-size: 13px; font-weight: 600; }
+        .footer-privacy-action { background: transparent; border: 0; color: #555; text-decoration: none; margin: 0; cursor: pointer; font-size: 13px; font-weight: 600; }
         .footer-privacy-action:hover { color: var(--accent); text-decoration: underline; }
+        .site-footer-links {
+            max-width: 940px;
+            margin: 0 auto 20px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 7px 18px;
+            text-align: center;
+        }
+        .site-footer-links a,
+        .site-footer-links button {
+            margin: 0 !important;
+            color: #555 !important;
+            text-decoration: none !important;
+            line-height: 1.35;
+        }
+        .site-footer-links a:hover,
+        .site-footer-links button:hover { color: var(--accent) !important; text-decoration: underline !important; }
+        .site-footer-contact { white-space: nowrap; }
+        @media (max-width: 560px) {
+            .site-footer-links {
+                width: min(100%, 360px);
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 8px 14px;
+                margin: 0 auto 18px;
+            }
+            .site-footer-links a,
+            .site-footer-links button {
+                display: flex;
+                min-width: 0;
+                align-items: center;
+                justify-content: center;
+                padding: 2px 3px;
+                text-align: center;
+            }
+            .site-footer-links .site-footer-nav-last,
+            .site-footer-links .site-footer-contact {
+                grid-column: 1 / -1;
+                justify-self: center;
+                width: max-content;
+                max-width: 100%;
+            }
+            .site-footer-links .footer-privacy-action {
+                grid-column: 1 / -1;
+                justify-self: center;
+            }
+        }
         .staff-mode-banner { position: fixed; left: 16px; right: 16px; bottom: 16px; z-index: 900; max-width: 900px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; background: #0f172a; color: #e2e8f0; border: 1px solid rgba(255,255,255,.12); border-radius: 10px; padding: 10px 12px; box-shadow: 0 18px 44px rgba(15,23,42,.35); font-size: 13px; }
         .staff-mode-copy { min-width: 0; }
         .staff-mode-banner strong { color: #bbf7d0; }
@@ -2249,12 +2298,61 @@
             font-variant-numeric: tabular-nums;
             filter: drop-shadow(0 10px 20px rgba(24,168,75,.13));
         }
-        .social-entry-saving span {
+        .social-entry-saving-copy {
+            display: grid;
+            grid-template-columns: auto auto;
+            align-items: center;
+            justify-content: center;
+            column-gap: 8px;
+            row-gap: 2px;
+            max-width: 100%;
+            text-align: center;
+        }
+        .social-entry-saving-period {
+            grid-column: 1 / -1;
             color: #123044;
             font-size: clamp(20px, 3.8vw, 28px);
             line-height: 1.12;
             font-weight: 850;
         }
+        .social-entry-saving-basis {
+            color: #526b75;
+            font-size: clamp(12px, 2vw, 14px);
+            line-height: 1.25;
+            font-weight: 750;
+        }
+        .social-entry-saving-info-toggle {
+            width: 25px;
+            height: 25px;
+            display: inline-grid;
+            place-items: center;
+            border: 1px solid rgba(37, 99, 235, .28);
+            border-radius: 999px;
+            padding: 0;
+            background: rgba(239, 246, 255, .86);
+            color: #1d4ed8;
+            font-size: 14px;
+            line-height: 1;
+            font-weight: 900;
+            cursor: pointer;
+        }
+        .social-entry-saving-info-toggle:hover { background: #dbeafe; }
+        .social-entry-saving-info-toggle:focus-visible { outline: 3px solid rgba(37,99,235,.22); outline-offset: 2px; }
+        .social-entry-saving-info {
+            width: min(100%, 650px);
+            margin: -1px auto 1px;
+            padding: 12px 14px;
+            border: 1px solid rgba(37, 99, 235, .18);
+            border-radius: 14px;
+            background: rgba(239, 246, 255, .76);
+            color: #425b66;
+            font-size: 12px;
+            line-height: 1.45;
+            text-align: left;
+        }
+        .social-entry-saving-info[hidden] { display: none !important; }
+        .social-entry-saving-info strong { display: block; margin-bottom: 4px; color: #123044; font-size: 12.5px; }
+        .social-entry-saving-info p { margin: 4px 0 0; }
         .social-entry-saving.is-loading strong {
             color: #5f747a;
             background: none;
@@ -2263,8 +2361,11 @@
             letter-spacing: -.02em;
             filter: none;
         }
-        .social-entry-saving.is-loading span { color: #647985; font-size: 16px; font-weight: 750; }
+        .social-entry-saving.is-loading .social-entry-saving-period { color: #647985; font-size: 16px; font-weight: 750; }
+        .social-entry-saving.is-loading .social-entry-saving-basis,
+        .social-entry-saving.is-loading .social-entry-saving-info-toggle { display: none; }
         .social-entry-disclaimer {
+            display: none;
             max-width: 650px;
             margin: -1px 0 1px;
             color: #647985;
@@ -2499,28 +2600,32 @@
                 gap: 8px;
             }
             .social-entry-saving strong { font-size: clamp(52px, 16.2vw, 78px); }
-            .social-entry-saving span {
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
+            .social-entry-saving-copy { column-gap: 6px; row-gap: 4px; }
+            .social-entry-saving-period {
+                display: block;
                 max-width: 100%;
-                min-height: 30px;
-                padding: 6px 11px;
-                border: 1px solid rgba(24, 168, 75, .28);
-                border-radius: 999px;
-                background: rgba(255, 255, 255, .52);
-                color: #087f3a;
-                box-shadow: inset 0 1px 0 rgba(255, 255, 255, .86);
-                font-size: clamp(10px, 2.7vw, 11.5px);
+                color: #123044;
+                font-size: clamp(15px, 4vw, 18px);
                 line-height: 1.15;
                 font-weight: 900;
-                letter-spacing: .035em;
-                text-transform: uppercase;
+                letter-spacing: -.01em;
             }
-            .social-entry-saving.is-loading span {
+            .social-entry-saving-basis {
+                font-size: clamp(10px, 2.75vw, 11.5px);
+                line-height: 1.2;
+                font-weight: 750;
+            }
+            .social-entry-saving-info-toggle { width: 24px; height: 24px; font-size: 13px; }
+            .social-entry-saving.is-loading .social-entry-saving-period {
                 color: #647985;
                 font-size: 11px;
                 font-weight: 800;
+            }
+            .social-entry-saving-info {
+                width: min(100%, 480px);
+                padding: 11px 12px;
+                font-size: 11.5px;
+                line-height: 1.42;
             }
             .social-entry-disclaimer,
             .social-entry-choice-title { display: none; }
@@ -2553,6 +2658,31 @@
             .social-entry-status { order: 7; }
             .social-entry-apps { order: 8; }
             .social-entry-footer { order: 9; }
+            .social-entry-footer-links {
+                width: min(100%, 360px);
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 7px 12px;
+                margin: 9px auto 0;
+            }
+            .social-entry-footer-separator { display: none; }
+            .social-entry-footer-links a,
+            .social-entry-footer-links button {
+                display: flex;
+                min-width: 0;
+                align-items: center;
+                justify-content: center;
+                padding: 2px 3px;
+                text-align: center;
+            }
+            .social-entry-footer-links .social-entry-footer-contact {
+                grid-column: 1 / -1;
+                justify-self: center;
+                width: max-content;
+                max-width: 100%;
+                white-space: nowrap;
+            }
+            .social-entry-footer-links button { grid-column: 1 / -1; justify-self: center; }
         }
         @media (max-width: 380px) {
             .social-entry-card { padding-inline: 12px; }
@@ -2987,9 +3117,19 @@
         <img class="social-entry-logo" src="/assets/logo-offertalogica-header.png" alt="OffertaLogica.it - Confronta, scegli, risparmia">
         <p class="social-entry-eyebrow">Offerte luce e gas aggiornate</p>
         <h1 class="social-entry-title" id="social-entry-title">Confronta le offerte luce e gas sui tuoi consumi</h1>
-        <div class="social-entry-saving is-loading" id="social-entry-saving" role="status">
-            <strong id="social-entry-saving-value">Aggiorniamo le offerte di oggi</strong>
-            <span id="social-entry-saving-period">stima su profilo medio ARERA</span>
+        <div class="social-entry-saving is-loading" id="social-entry-saving">
+            <strong id="social-entry-saving-value" aria-live="polite">Aggiorniamo le offerte di oggi</strong>
+            <div class="social-entry-saving-copy">
+                <span class="social-entry-saving-period" id="social-entry-saving-period">Stima su profilo medio di consumo</span>
+                <span class="social-entry-saving-basis" id="social-entry-saving-basis">calcolata con i dati del motore OffertaLogica</span>
+                <button type="button" class="social-entry-saving-info-toggle" id="social-entry-saving-info-toggle" aria-expanded="false" aria-controls="social-entry-saving-info" aria-label="Come viene calcolata questa stima">i</button>
+            </div>
+        </div>
+        <div class="social-entry-saving-info" id="social-entry-saving-info" role="note" hidden>
+            <strong>Come viene calcolata questa stima?</strong>
+            <p id="social-entry-saving-profile-detail">Carichiamo il profilo standard usato dal motore.</p>
+            <p id="social-entry-saving-update-detail">Le date di aggiornamento vengono lette dai dati effettivamente caricati.</p>
+            <p>Nel confronto reale OffertaLogica usa i tuoi consumi effettivi e, quando disponibili, i dati della tua tariffa attuale per ottenere un confronto più preciso.</p>
         </div>
         <p class="social-entry-disclaimer">La cifra mostrata è un esempio calcolato su un profilo medio. Il confronto reale usa i tuoi consumi e la tua tariffa attuale.</p>
         <h2 class="social-entry-choice-title">Come vuoi procedere?</h2>
@@ -3028,8 +3168,8 @@
                 <a href="/internet-casa.html">Internet casa</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
                 <a href="/fotovoltaico.html">Fotovoltaico</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
                 <a href="/climatizzazione-pompa-di-calore.html">Climatizzazione</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
-                <a href="https://wa.me/393299786242" target="_blank" rel="noopener">WhatsApp +39 329 978 6242</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
-                <a href="mailto:offertalogica@gmail.com">offertalogica@gmail.com</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
+                <a class="social-entry-footer-contact" href="https://wa.me/393299786242" target="_blank" rel="noopener">WhatsApp +39 329 978 6242</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
+                <a class="social-entry-footer-contact" href="mailto:offertalogica@gmail.com">offertalogica@gmail.com</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
                 <a href="https://www.iubenda.com/privacy-policy/36565194" class="iubenda-white iubenda-noiframe iubenda-embed">Privacy Policy</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
                 <a href="https://www.iubenda.com/privacy-policy/36565194/cookie-policy" class="iubenda-white iubenda-noiframe iubenda-embed">Cookie Policy</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
                 <button type="button" onclick="apriPreferenzeCookie(event)">Modifica preferenze cookie</button>
@@ -13548,17 +13688,83 @@ function risparmioPrimaPosizioneCorrente() {
   return Number.isFinite(amount) && amount >= 0 ? amount : 0;
 }
 
+function formattaDataStimaLanding(value) {
+  const match = String(value || "").trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return match ? `${match[3]}/${match[2]}/${match[1]}` : "";
+}
+
+function formattaConsumoStimaLanding(value) {
+  const amount = Number(value);
+  return Number.isFinite(amount) && amount > 0
+    ? new Intl.NumberFormat("it-IT", { maximumFractionDigits: 0 }).format(amount)
+    : "";
+}
+
+function aggiornaDettagliStimaLanding() {
+  const profilo = PARAMETRI_CALCOLO?.profiloMedio || {};
+  const luce = formattaConsumoStimaLanding(profilo.luceConsumoKwh);
+  const gas = formattaConsumoStimaLanding(profilo.gasConsumoSmc);
+  const potenza = String(profilo.potenzaKw || "").trim();
+  const profileDetail = document.getElementById("social-entry-saving-profile-detail");
+  const updateDetail = document.getElementById("social-entry-saving-update-detail");
+
+  if (profileDetail) {
+    const parts = [];
+    if (luce) parts.push(`${luce} kWh/anno di luce`);
+    if (gas) parts.push(`${gas} Smc/anno di gas`);
+    if (potenza) parts.push(`${potenza} kW di potenza`);
+    profileDetail.textContent = parts.length
+      ? `Per questa anteprima OffertaLogica usa un profilo standard di ${parts.join(", ")}.`
+      : "Per questa anteprima OffertaLogica usa il profilo standard caricato dal motore.";
+  }
+
+  if (updateDetail) {
+    const profiloAggiornato = formattaDataStimaLanding(DATI_CALCOLO_META?.aggiornatoIl);
+    const catalogoAggiornato = formattaDataStimaLanding(DATI_ARERA_MENU_META?.aggiornatoIl);
+    if (profiloAggiornato && catalogoAggiornato && profiloAggiornato === catalogoAggiornato) {
+      updateDetail.textContent = `Profilo, parametri di calcolo e catalogo offerte ARERA aggiornati al ${profiloAggiornato}.`;
+    } else {
+      const parts = [];
+      if (profiloAggiornato) parts.push(`Profilo e parametri di calcolo aggiornati al ${profiloAggiornato}.`);
+      if (catalogoAggiornato) parts.push(`Catalogo offerte ARERA aggiornato al ${catalogoAggiornato}.`);
+      updateDetail.textContent = parts.join(" ") || "La data di aggiornamento viene mostrata quando i dati del motore sono disponibili.";
+    }
+  }
+}
+
+function inizializzaDettagliStimaLanding() {
+  const button = document.getElementById("social-entry-saving-info-toggle");
+  const panel = document.getElementById("social-entry-saving-info");
+  if (!button || !panel || button.dataset.bound === "true") return;
+  button.dataset.bound = "true";
+  button.addEventListener("click", () => {
+    aggiornaDettagliStimaLanding();
+    const open = panel.hidden;
+    panel.hidden = !open;
+    button.setAttribute("aria-expanded", open ? "true" : "false");
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || panel.hidden) return;
+    panel.hidden = true;
+    button.setAttribute("aria-expanded", "false");
+    button.focus();
+  });
+}
+
 function aggiornaRisparmioLandingDaPrimaPosizione() {
   if (!SOCIAL_ENTRY_STATE.active) return false;
   const value = document.getElementById("social-entry-saving-value");
   const period = document.getElementById("social-entry-saving-period");
+  const basis = document.getElementById("social-entry-saving-basis");
   const savingBox = document.getElementById("social-entry-saving");
   const saving = risparmioPrimaPosizioneCorrente();
   const formatted = formattaRisparmioSocial(saving);
   if (value) value.textContent = formatted || "Offerte aggiornate";
   if (period) period.textContent = formatted
-    ? "Risparmio annuo stimato · profilo medio ARERA · Posizione 1"
+    ? "Risparmio stimato in un anno"
     : "Offerte luce e gas aggiornate";
+  if (basis) basis.textContent = "calcolato su un profilo medio di consumo";
+  aggiornaDettagliStimaLanding();
   savingBox?.classList.remove("is-loading");
   return true;
 }
@@ -13607,6 +13813,7 @@ function inizializzaIngressoSocialMobile() {
   SOCIAL_ENTRY_STATE.isSocialJourney = true;
   document.documentElement.classList.add("social-entry-requested");
   document.body.classList.add("social-entry-active");
+  inizializzaDettagliStimaLanding();
   return true;
 }
 
@@ -13636,6 +13843,9 @@ function preparaRisparmioIngressoSocialMobile() {
     window.__OL_LANDING_PREVIEW_CALC__ = false;
     if (value) value.textContent = "Offerte aggiornate";
     if (period) period.textContent = "Offerte luce e gas aggiornate";
+    const basis = document.getElementById("social-entry-saving-basis");
+    if (basis) basis.textContent = "calcolato su un profilo medio di consumo";
+    aggiornaDettagliStimaLanding();
     savingBox?.classList.remove("is-loading");
     impostaLandingPronta();
     return false;
@@ -14588,23 +14798,24 @@ if (document.readyState === "loading") {
         Le stime sono informative e non sostituiscono scheda sintetica, condizioni economiche e contratto del fornitore.
     </p>
 
-    <div style="margin-bottom: 20px;">
-        <a href="/come-funziona.html" style="color: #555; text-decoration: none; margin: 0 10px;">Come funziona</a> |
-        <a href="/offerte-luce-gas-aggiornate.html" style="color: #555; text-decoration: none; margin: 0 10px;">Offerte aggiornate</a> |
-        <a href="/fornitori/" style="color: #555; text-decoration: none; margin: 0 10px;">Fornitori</a> |
-        <a href="/come-leggere-bolletta-luce-gas.html" style="color: #555; text-decoration: none; margin: 0 10px;">Guida bolletta</a> |
-        <a href="/truffe-telefoniche-luce-gas.html" style="color: #555; text-decoration: none; margin: 0 10px;">Sicurezza chiamate</a> |
-        <a href="/partner.html" style="color: #555; text-decoration: none; margin: 0 10px;">Partner</a> |
-        <a href="/termini-condizioni.html" style="color: #555; text-decoration: none; margin: 0 10px;">Termini e condizioni</a> |
-        <a href="/casa-smart.html" style="color: #555; text-decoration: none; margin: 0 10px;">Casa smart</a> |
-        <a href="/internet-casa.html" style="color: #555; text-decoration: none; margin: 0 10px;">Internet casa</a> |
-        <a href="/climatizzazione-pompa-di-calore.html" style="color: #555; text-decoration: none; margin: 0 10px;">Climatizzazione</a> |
-        <a href="https://wa.me/393299786242" target="_blank" rel="noopener" style="color: #555; text-decoration: none; margin: 0 10px;">WhatsApp +39 329 978 6242</a> |
-        <a href="mailto:offertalogica@gmail.com" style="color: #555; text-decoration: none; margin: 0 10px;">offertalogica@gmail.com</a> |
-        <a href="https://www.iubenda.com/privacy-policy/36565194" class="iubenda-white iubenda-noiframe iubenda-embed" style="color: #555; text-decoration: none; margin: 0 10px;">Privacy Policy</a> | 
-        <a href="https://www.iubenda.com/privacy-policy/36565194/cookie-policy" class="iubenda-white iubenda-noiframe iubenda-embed" style="color: #555; text-decoration: none; margin: 0 10px;">Cookie Policy</a> |
+    <nav class="site-footer-links" aria-label="Link del sito e contatti">
+        <a href="/come-funziona.html">Come funziona</a>
+        <a href="/offerte-luce-gas-aggiornate.html">Offerte aggiornate</a>
+        <a href="/fornitori/">Fornitori</a>
+        <a href="/come-leggere-bolletta-luce-gas.html">Guida bolletta</a>
+        <a href="/truffe-telefoniche-luce-gas.html">Sicurezza chiamate</a>
+        <a href="/partner.html">Partner</a>
+        <a href="/termini-condizioni.html">Termini e condizioni</a>
+        <a href="/casa-smart.html">Casa smart</a>
+        <a href="/internet-casa.html">Internet casa</a>
+        <a href="/fotovoltaico.html">Fotovoltaico</a>
+        <a class="site-footer-nav-last" href="/climatizzazione-pompa-di-calore.html">Climatizzazione</a>
+        <a class="site-footer-contact" href="https://wa.me/393299786242" target="_blank" rel="noopener">WhatsApp +39 329 978 6242</a>
+        <a class="site-footer-contact" href="mailto:offertalogica@gmail.com">offertalogica@gmail.com</a>
+        <a href="https://www.iubenda.com/privacy-policy/36565194" class="iubenda-white iubenda-noiframe iubenda-embed">Privacy Policy</a>
+        <a href="https://www.iubenda.com/privacy-policy/36565194/cookie-policy" class="iubenda-white iubenda-noiframe iubenda-embed">Cookie Policy</a>
         <button type="button" class="footer-privacy-action" onclick="apriPreferenzeCookie(event)">Modifica preferenze cookie</button>
-    </div>
+    </nav>
 
     <!-- Script di Iubenda per gestire i pop-up -->
     <script type="text/javascript">
