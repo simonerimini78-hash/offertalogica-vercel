@@ -1,6 +1,6 @@
 (function(){
   'use strict';
-  const TOOL_VERSION='security-energy-v0.1.2';
+  const TOOL_VERSION='security-energy-v0.1.3';
   const TOOL_CODE='sicurezza_energia';
   const SOURCE='seo_sicurezza_energia';
   const TRACK_URL='/api/track-event';
@@ -48,13 +48,15 @@
   function checkedValues(selector){return Array.from(root.querySelectorAll(selector+':checked')).map(function(el){return el.value;});}
   function behavior(name){const el=root.querySelector('[data-behavior="'+name+'"]');return el?el.value:'unknown';}
   function sourceOutcome(name){const el=root.querySelector('[data-source-outcome="'+name+'"]');return el?el.value:'not_checked';}
+  function noneSelected(group){const el=root.querySelector('[data-none-group="'+group+'"]');return Boolean(el&&el.checked);}
   function showStep(name){
     root.dataset.step=name;
-    root.querySelectorAll('[data-security-step]').forEach(function(step){step.hidden=step.getAttribute('data-security-step')!==name;});
+    let activeStep=null;
+    root.querySelectorAll('[data-security-step]').forEach(function(step){const isActive=step.getAttribute('data-security-step')===name;step.hidden=!isActive;if(isActive)activeStep=step;});
     const order=['phone','identity','signals','result'];
     const current=order.indexOf(name);
-    root.querySelectorAll('[data-progress]').forEach(function(item){const idx=order.indexOf(item.getAttribute('data-progress'));item.classList.toggle('active',idx<=current);const line=item.nextElementSibling;if(line&&line.tagName==='I')line.classList.toggle('active',idx<current);});
-    if(name!=='phone')root.scrollIntoView({behavior:'smooth',block:'start'});
+    root.querySelectorAll('[data-progress]').forEach(function(item){const idx=order.indexOf(item.getAttribute('data-progress'));item.classList.toggle('active',idx<=current);item.setAttribute('aria-current',idx===current?'step':'false');const line=item.nextElementSibling;if(line&&line.tagName==='I')line.classList.toggle('active',idx<current);});
+    if(name!=='phone'){root.scrollIntoView({behavior:'smooth',block:'start'});if(activeStep)requestAnimationFrame(function(){activeStep.focus({preventScroll:true});});}
   }
   function joinNatural(items){if(!items.length)return '';if(items.length===1)return items[0];return items.slice(0,-1).join(', ')+' e '+items[items.length-1];}
   function levelRank(level){return level==='high'?2:(level==='review'?1:0);}
@@ -90,6 +92,8 @@
     if(unexpected==='yes')signalParts.push('La chiamata era inattesa.');
     if(contract==='yes')signalParts.push('Era presente una proposta di attivazione o cambio.');
     if(accepted==='yes')signalParts.push('Hai indicato di aver già accettato o confermato.');
+    if(!claims.length&&noneSelected('claims'))signalParts.push('Non ricordi frasi specifiche tra quelle proposte.');
+    if(!requests.length&&noneSelected('requests'))signalParts.push('Non ricordi richieste specifiche di dati tra quelle proposte.');
     if(!signalParts.length)signalParts.push('Non hai selezionato richieste o comportamenti specifici da evidenziare.');
     return {identity:identity,claims:claims,requests:requests,urgency:urgency,contract:contract,unexpected:unexpected,accepted:accepted,level:level,points:points,signalText:signalParts.join(' ')};
   }
@@ -256,9 +260,16 @@
     if(back){showStep(back.getAttribute('data-back'));return;}
     if(event.target.closest('[data-evaluate]')){resetSourceOutcomes();evaluate();return;}
     if(event.target.closest('[data-source-update]')){
-      const assessment=renderResult();
       const agcom=sourceOutcome('agcom');
       const provider=sourceOutcome('provider');
+      const providerSelect=root.querySelector('[data-source-outcome="provider"]');
+      const providerAvailable=Boolean(providerSelect&&!providerSelect.disabled);
+      if(agcom==='not_checked'&&(!providerAvailable||provider==='not_checked')){
+        const status=root.querySelector('[data-source-status]');
+        if(status){status.hidden=false;status.textContent='Seleziona almeno un esito verificato prima di aggiornare la valutazione.';status.dataset.sourceLevel='neutral';}
+        return;
+      }
+      const assessment=renderResult();
       track('source_outcome',{outcome:assessment?assessment.state:'unknown',context:'agcom-'+agcom+'-provider-'+provider});
       return;
     }
@@ -279,6 +290,20 @@
     if(offer)track('offer_cta',{outcome:'comparison'});
     const after=event.target.closest('[data-after-cta] a');
     if(after)track('after_contract_cta',{outcome:'after_contract'});
+  });
+  root.addEventListener('change',function(event){
+    const none=event.target.closest('[data-none-group]');
+    if(none&&none.checked){
+      const selector=none.dataset.noneGroup==='claims'?'[data-claim]':'[data-request]';
+      root.querySelectorAll(selector).forEach(function(el){el.checked=false;});
+      return;
+    }
+    const item=event.target.closest('[data-claim],[data-request]');
+    if(item&&item.checked){
+      const group=item.hasAttribute('data-claim')?'claims':'requests';
+      const noneChoice=root.querySelector('[data-none-group="'+group+'"]');
+      if(noneChoice)noneChoice.checked=false;
+    }
   });
   track('page_view',{outcome:'loaded'});
 })();
