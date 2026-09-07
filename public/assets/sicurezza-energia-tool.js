@@ -1,6 +1,6 @@
 (function(){
   'use strict';
-  const TOOL_VERSION='security-energy-v0.1.3';
+  const TOOL_VERSION='security-energy-v0.1.4';
   const TOOL_CODE='sicurezza_energia';
   const SOURCE='seo_sicurezza_energia';
   const TRACK_URL='/api/track-event';
@@ -48,15 +48,29 @@
   function checkedValues(selector){return Array.from(root.querySelectorAll(selector+':checked')).map(function(el){return el.value;});}
   function behavior(name){const el=root.querySelector('[data-behavior="'+name+'"]');return el?el.value:'unknown';}
   function sourceOutcome(name){const el=root.querySelector('[data-source-outcome="'+name+'"]');return el?el.value:'not_checked';}
-  function noneSelected(group){const el=root.querySelector('[data-none-group="'+group+'"]');return Boolean(el&&el.checked);}
+  function emptyChoice(group){const el=root.querySelector('[data-empty-group="'+group+'"]:checked');return el?el.value:'';}
+  function signalGroupAnswered(group){const selector=group==='claims'?'[data-claim]':'[data-request]';return checkedValues(selector).length>0||Boolean(emptyChoice(group));}
+  function validateSignals(){
+    const groups=['claims','requests'];
+    let firstError=null;
+    groups.forEach(function(group){
+      const ok=signalGroupAnswered(group);
+      const error=root.querySelector('[data-signal-error="'+group+'"]');
+      const fieldset=root.querySelector('[data-signal-group="'+group+'"]');
+      if(error){error.hidden=ok;if(!ok&&!firstError)firstError=error;}
+      if(fieldset)fieldset.setAttribute('aria-invalid',ok?'false':'true');
+    });
+    if(firstError){const reduceMotion=globalThis.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;firstError.focus({preventScroll:true});firstError.scrollIntoView({behavior:reduceMotion?'auto':'smooth',block:'center'});return false;}
+    return true;
+  }
   function showStep(name){
     root.dataset.step=name;
     let activeStep=null;
     root.querySelectorAll('[data-security-step]').forEach(function(step){const isActive=step.getAttribute('data-security-step')===name;step.hidden=!isActive;if(isActive)activeStep=step;});
     const order=['phone','identity','signals','result'];
     const current=order.indexOf(name);
-    root.querySelectorAll('[data-progress]').forEach(function(item){const idx=order.indexOf(item.getAttribute('data-progress'));item.classList.toggle('active',idx<=current);item.setAttribute('aria-current',idx===current?'step':'false');const line=item.nextElementSibling;if(line&&line.tagName==='I')line.classList.toggle('active',idx<current);});
-    if(name!=='phone'){root.scrollIntoView({behavior:'smooth',block:'start'});if(activeStep)requestAnimationFrame(function(){activeStep.focus({preventScroll:true});});}
+    root.querySelectorAll('[data-progress]').forEach(function(item){const idx=order.indexOf(item.getAttribute('data-progress'));item.classList.toggle('active',idx<=current);if(idx===current)item.setAttribute('aria-current','step');else item.removeAttribute('aria-current');const line=item.nextElementSibling;if(line&&line.tagName==='I')line.classList.toggle('active',idx<current);});
+    if(name!=='phone'){const reduceMotion=globalThis.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;root.scrollIntoView({behavior:reduceMotion?'auto':'smooth',block:'start'});if(activeStep)requestAnimationFrame(function(){activeStep.focus({preventScroll:true});});}
   }
   function joinNatural(items){if(!items.length)return '';if(items.length===1)return items[0];return items.slice(0,-1).join(', ')+' e '+items[items.length-1];}
   function levelRank(level){return level==='high'?2:(level==='review'?1:0);}
@@ -69,6 +83,8 @@
     const contract=behavior('contract');
     const unexpected=behavior('unexpected');
     const accepted=behavior('accepted');
+    const claimsFallback=emptyChoice('claims');
+    const requestsFallback=emptyChoice('requests');
     const highRequests=requests.filter(function(v){return highRiskRequests.has(v);});
     let points=0;
     if(highRequests.length)points+=4;
@@ -92,15 +108,18 @@
     if(unexpected==='yes')signalParts.push('La chiamata era inattesa.');
     if(contract==='yes')signalParts.push('Era presente una proposta di attivazione o cambio.');
     if(accepted==='yes')signalParts.push('Hai indicato di aver già accettato o confermato.');
-    if(!claims.length&&noneSelected('claims'))signalParts.push('Non ricordi frasi specifiche tra quelle proposte.');
-    if(!requests.length&&noneSelected('requests'))signalParts.push('Non ricordi richieste specifiche di dati tra quelle proposte.');
-    if(!signalParts.length)signalParts.push('Non hai selezionato richieste o comportamenti specifici da evidenziare.');
-    return {identity:identity,claims:claims,requests:requests,urgency:urgency,contract:contract,unexpected:unexpected,accepted:accepted,level:level,points:points,signalText:signalParts.join(' ')};
+    if(!claims.length&&claimsFallback==='none')signalParts.push('Non hai riconosciuto nessuna delle frasi proposte.');
+    if(!claims.length&&claimsFallback==='unknown')signalParts.push('Non ricordi abbastanza bene le frasi usate durante la chiamata.');
+    if(!requests.length&&requestsFallback==='none')signalParts.push('Non hai riconosciuto nessuna delle richieste di dati proposte.');
+    if(!requests.length&&requestsFallback==='unknown')signalParts.push('Non ricordi abbastanza bene quali dati ti siano stati chiesti.');
+    if(!signalParts.length)signalParts.push('Non emergono altri comportamenti specifici dalle risposte inserite.');
+    return {identity:identity,claims:claims,requests:requests,claimsFallback:claimsFallback,requestsFallback:requestsFallback,urgency:urgency,contract:contract,unexpected:unexpected,accepted:accepted,level:level,points:points,signalText:signalParts.join(' ')};
   }
   function configureProviderSource(identity){
     const providerLink=root.querySelector('[data-provider-source]');
     const providerFeedback=root.querySelector('[data-provider-feedback]');
     const providerOutcome=root.querySelector('[data-source-outcome="provider"]');
+    const providerNote=root.querySelector('[data-provider-source-note]');
     const source=providerSources[identity];
     if(source){
       providerLink.href=source.url;
@@ -117,6 +136,14 @@
     if(providerOutcome){providerOutcome.disabled=!canReport;if(!canReport)providerOutcome.value='not_checked';}
     const providerName=root.querySelector('[data-provider-feedback-name]');
     if(providerName)providerName.textContent=identityLabels[identity]||'soggetto dichiarato';
+    if(providerNote){
+      providerNote.hidden=false;
+      if(canReport)providerNote.textContent='Questa fonte consente un controllo del numero: dopo averlo eseguito puoi riportare qui sotto soltanto l’esito.';
+      else if(source)providerNote.textContent='Questa è una pagina ufficiale di orientamento, non un checker del numero utilizzato dal tool. Usala per verificare i canali corretti senza riportare un esito come conferma.';
+      else if(identity==='current_supplier')providerNote.textContent='Se hanno detto soltanto “il tuo fornitore”, controlla prima il nome del venditore sulla bolletta e poi usa esclusivamente il suo sito o la sua app ufficiale.';
+      else if(identity==='unknown')providerNote.textContent='Se non ricordi chi dichiarava di essere il chiamante, non dedurre l’identità dal solo numero: usa il Registro AGCOM come primo riscontro e interrompi ogni passaggio che richieda dati sensibili.';
+      else providerNote.textContent='Per questo soggetto non proponiamo un checker ufficiale del numero. Verifica l’identità partendo dal sito o dai recapiti ufficiali del soggetto che ritieni coinvolto.';
+    }
   }
   function assessSources(diagnosis){
     const agcom=sourceOutcome('agcom');
@@ -185,6 +212,16 @@
     if(sourceAssessment.state==='provider_match')return {title:'Numero confermato dalla fonte dichiarata, senza segnali forti',summary:'Hai indicato che la fonte ufficiale del soggetto dichiarato conferma il numero. È un elemento utile, ma non certifica da solo l’identità materiale del chiamante.',kicker:'Verifica della fonte'};
     return {title:'Nessun segnale forte emerso dalle risposte',summary:'Le risposte inserite non mostrano elementi ad alta cautela. Verifica comunque il numero e l’identità attraverso i canali ufficiali prima di accettare una proposta.',kicker:'Valutazione della telefonata'};
   }
+  function recommendationCopy(diagnosis,sourceAssessment){
+    if(diagnosis.accepted==='yes')return 'Non fornire altri dati durante la chiamata. Controlla prima documenti, venditore e stato del contratto usando esclusivamente canali ufficiali; solo dopo valuta il prezzo.';
+    if(diagnosis.level==='high')return 'Non comunicare altri dati o codici e non confermare la proposta durante la chiamata. Chiudi e ricontatta il soggetto attraverso un recapito ufficiale.';
+    if(['no_match','provider_missing','roc_match_provider_missing'].includes(sourceAssessment.state))return 'L’identità dichiarata non è confermata in modo sufficiente. Non proseguire dalla chiamata: verifica il soggetto attraverso i suoi canali ufficiali.';
+    if(sourceAssessment.state==='not_checked')return 'Verifica ora il numero nel Registro AGCOM e, quando disponibile, nel checker ufficiale del soggetto dichiarato; poi riporta qui soltanto gli esiti.';
+    if((sourceAssessment.state==='double_match'||sourceAssessment.state==='provider_match')&&diagnosis.contract==='yes')return 'I riscontri che hai riportato sono utili. Prima di accettare, confronta comunque condizioni economiche, durata, quota fissa e costo annuo sui tuoi consumi.';
+    if(sourceAssessment.state==='provider_match'||sourceAssessment.state==='double_match')return 'I riscontri sono coerenti, ma per qualsiasi operazione usa comunque i canali ufficiali e non basarti soltanto sul numero visualizzato.';
+    return 'Completa le verifiche attraverso canali ufficiali e valuta separatamente il contenuto della proposta prima di comunicare dati o confermare un cambio.';
+  }
+
   function configureNextActions(diagnosis){
     const offerBox=root.querySelector('[data-offer-cta]');
     const afterBox=root.querySelector('[data-after-cta]');
@@ -215,6 +252,7 @@
     root.querySelector('[data-result-identity-note]').textContent=diagnosis.identity==='unknown'?'Non hai indicato chi dichiarava di essere il chiamante. La verifica del numero resta comunque utile.':'Questa è l’identità che ricordi dalla chiamata; non è stata verificata automaticamente da OffertaLogica.';
     root.querySelector('[data-result-signal-title]').textContent=diagnosis.level==='high'?'Cautela elevata':(diagnosis.level==='review'?'Da verificare':'Nessun segnale forte');
     root.querySelector('[data-result-signals]').textContent=diagnosis.signalText;
+    root.querySelector('[data-recommendation-text]').textContent=recommendationCopy(diagnosis,sourceAssessment);
     configureNextActions(diagnosis);
     return sourceAssessment;
   }
@@ -258,7 +296,7 @@
     }
     const back=event.target.closest('[data-back]');
     if(back){showStep(back.getAttribute('data-back'));return;}
-    if(event.target.closest('[data-evaluate]')){resetSourceOutcomes();evaluate();return;}
+    if(event.target.closest('[data-evaluate]')){if(!validateSignals()){track('error',{outcome:'signals_incomplete'});return;}resetSourceOutcomes();evaluate();return;}
     if(event.target.closest('[data-source-update]')){
       const agcom=sourceOutcome('agcom');
       const provider=sourceOutcome('provider');
@@ -292,17 +330,24 @@
     if(after)track('after_contract_cta',{outcome:'after_contract'});
   });
   root.addEventListener('change',function(event){
-    const none=event.target.closest('[data-none-group]');
-    if(none&&none.checked){
-      const selector=none.dataset.noneGroup==='claims'?'[data-claim]':'[data-request]';
+    const empty=event.target.closest('[data-empty-group]');
+    if(empty&&empty.checked){
+      const group=empty.dataset.emptyGroup;
+      const selector=group==='claims'?'[data-claim]':'[data-request]';
       root.querySelectorAll(selector).forEach(function(el){el.checked=false;});
+      root.querySelectorAll('[data-empty-group="'+group+'"]').forEach(function(el){if(el!==empty)el.checked=false;});
+      const error=root.querySelector('[data-signal-error="'+group+'"]');
+      const fieldset=root.querySelector('[data-signal-group="'+group+'"]');
+      if(error)error.hidden=true;if(fieldset)fieldset.setAttribute('aria-invalid','false');
       return;
     }
     const item=event.target.closest('[data-claim],[data-request]');
     if(item&&item.checked){
       const group=item.hasAttribute('data-claim')?'claims':'requests';
-      const noneChoice=root.querySelector('[data-none-group="'+group+'"]');
-      if(noneChoice)noneChoice.checked=false;
+      root.querySelectorAll('[data-empty-group="'+group+'"]').forEach(function(el){el.checked=false;});
+      const error=root.querySelector('[data-signal-error="'+group+'"]');
+      const fieldset=root.querySelector('[data-signal-group="'+group+'"]');
+      if(error)error.hidden=true;if(fieldset)fieldset.setAttribute('aria-invalid','false');
     }
   });
   track('page_view',{outcome:'loaded'});
