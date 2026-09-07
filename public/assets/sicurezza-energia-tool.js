@@ -1,6 +1,6 @@
 (function(){
   'use strict';
-  const TOOL_VERSION='security-energy-v0.1.5';
+  const TOOL_VERSION='security-energy-v0.1.6';
   const TOOL_CODE='sicurezza_energia';
   const SOURCE='seo_sicurezza_energia';
   const TRACK_URL='/api/track-event';
@@ -75,6 +75,8 @@
   function joinNatural(items){if(!items.length)return '';if(items.length===1)return items[0];return items.slice(0,-1).join(', ')+' e '+items[items.length-1];}
   function levelRank(level){return level==='high'?2:(level==='review'?1:0);}
   function maxLevel(a,b){return levelRank(a)>=levelRank(b)?a:b;}
+  function hasMemoryGaps(diagnosis){return diagnosis.identity==='unknown'||diagnosis.claimsFallback==='unknown'||diagnosis.requestsFallback==='unknown';}
+  function maskedPhone(value){const digits=String(value||'').replace(/\D/g,'');if(!digits)return 'Numero inserito';const visible=digits.slice(-4);return '•••• '+visible;}
   function diagnose(){
     const identity=selectedIdentity()||'unknown';
     const claims=checkedValues('[data-claim]');
@@ -203,21 +205,27 @@
     return {level:level,state:state,sourceLevel:sourceLevel,agcom:agcom,provider:provider};
   }
   function resultCopy(diagnosis,sourceAssessment){
+    const memoryGaps=hasMemoryGaps(diagnosis);
     if(diagnosis.level==='high')return {title:'Elementi che richiedono cautela elevata',summary:'Nelle risposte compaiono elementi che meritano una verifica indipendente prima di proseguire, comunicare altri dati o confermare una proposta.',kicker:'Valutazione combinata'};
     if(sourceAssessment.state==='no_match')return {title:'Identità non confermata dalle fonti consultate',summary:'Le verifiche che hai riportato non forniscono una conferma del numero rispetto all’identità dichiarata. Non è una prova di frode, ma è prudente usare solo recapiti ufficiali per ogni passaggio successivo.',kicker:'Verifica delle fonti'};
     if(sourceAssessment.state==='roc_match_provider_missing')return {title:'Le fonti richiedono un approfondimento',summary:'Il numero risulta presente nel ROC secondo la tua verifica, ma non è confermato dalla fonte ufficiale del soggetto dichiarato. Non assumere che i due risultati identifichino la stessa organizzazione.',kicker:'Esiti non univoci'};
     if(sourceAssessment.state==='provider_match_roc_missing')return {title:'Conferma del fornitore, ROC senza corrispondenza',summary:'Hai riportato una conferma dalla fonte ufficiale del soggetto dichiarato e nessuna corrispondenza nel ROC. I due controlli non sono equivalenti e l’assenza dal registro non prova una frode.',kicker:'Esiti da leggere separatamente'};
-    if(sourceAssessment.state==='double_match'&&diagnosis.level==='low')return {title:'Riscontri coerenti, senza segnali forti',summary:'Hai riportato una corrispondenza nel ROC e una conferma dalla fonte ufficiale del soggetto dichiarato. È un quadro coerente, ma resta utile valutare il contenuto della chiamata e la convenienza della proposta.',kicker:'Riscontri delle fonti'};
     if(sourceAssessment.state==='provider_missing')return {title:'Identità non confermata dalla fonte ufficiale',summary:'Hai indicato che il numero non è stato confermato dalla fonte ufficiale del soggetto dichiarato. Questo non prova una frode, ma richiede una verifica attraverso canali ufficiali prima di proseguire.',kicker:'Verifica della fonte'};
+    if(sourceAssessment.state==='double_match'&&diagnosis.level==='low'&&memoryGaps)return {title:'Riscontri coerenti, ma informazioni incomplete',summary:'Hai riportato una corrispondenza nel ROC e una conferma dalla fonte ufficiale. Alcuni dettagli della chiamata però non sono ricordati: considera i riscontri utili senza trasformarli in una garanzia sull’intera telefonata.',kicker:'Riscontri e memoria della chiamata'};
+    if(sourceAssessment.state==='double_match'&&diagnosis.level==='low')return {title:'Riscontri coerenti, senza segnali forti',summary:'Hai riportato una corrispondenza nel ROC e una conferma dalla fonte ufficiale del soggetto dichiarato. È un quadro coerente, ma resta utile valutare il contenuto della chiamata e la convenienza della proposta.',kicker:'Riscontri delle fonti'};
+    if(sourceAssessment.state==='roc_missing'&&diagnosis.level==='low'&&memoryGaps)return {title:'ROC senza corrispondenza, informazioni incomplete',summary:'L’assenza di corrispondenza nel registro non classifica il numero. Poiché alcuni dettagli della chiamata non sono ricordati, non usare l’assenza di segnali riportati come indicazione di affidabilità.',kicker:'Registro e informazioni disponibili'};
     if(sourceAssessment.state==='roc_missing'&&diagnosis.level==='low')return {title:'Nessuna corrispondenza nel ROC, senza segnali forti',summary:'L’assenza di corrispondenza nel registro non classifica il numero. Le risposte sulla telefonata non mostrano elementi ad alta cautela: verifica comunque l’identità attraverso canali ufficiali.',kicker:'Registro e telefonata'};
     if(sourceAssessment.level==='review')return {title:'Alcuni elementi richiedono verifica',summary:'La telefonata o gli esiti delle fonti contengono uno o più elementi che è prudente controllare attraverso canali ufficiali prima di proseguire.',kicker:'Valutazione combinata'};
+    if(sourceAssessment.state==='provider_match'&&memoryGaps)return {title:'Numero confermato, ma informazioni sulla chiamata incomplete',summary:'Hai indicato che la fonte ufficiale del soggetto dichiarato conferma il numero. È un riscontro utile, ma alcuni dettagli della telefonata non sono ricordati e il numero non certifica da solo chi stava materialmente chiamando.',kicker:'Verifica della fonte'};
     if(sourceAssessment.state==='provider_match')return {title:'Numero confermato dalla fonte dichiarata, senza segnali forti',summary:'Hai indicato che la fonte ufficiale del soggetto dichiarato conferma il numero. È un elemento utile, ma non certifica da solo l’identità materiale del chiamante.',kicker:'Verifica della fonte'};
+    if(memoryGaps)return {title:'Informazioni incomplete: verifica prima di fidarti',summary:'Nelle informazioni che ricordi non emergono segnali ad alta cautela, ma alcuni dettagli della chiamata non sono disponibili. Non interpretare questo risultato come una conferma di affidabilità.',kicker:'Valutazione delle informazioni disponibili'};
     return {title:'Nessun segnale forte emerso dalle risposte',summary:'Le risposte inserite non mostrano elementi ad alta cautela. Verifica comunque il numero e l’identità attraverso i canali ufficiali prima di accettare una proposta.',kicker:'Valutazione della telefonata'};
   }
   function recommendationCopy(diagnosis,sourceAssessment){
     if(diagnosis.accepted==='yes')return 'Non fornire altri dati durante la chiamata. Controlla prima documenti, venditore e stato del contratto usando esclusivamente canali ufficiali; solo dopo valuta il prezzo.';
     if(diagnosis.level==='high')return 'Non comunicare altri dati o codici e non confermare la proposta durante la chiamata. Chiudi e ricontatta il soggetto attraverso un recapito ufficiale.';
     if(['no_match','provider_missing','roc_match_provider_missing'].includes(sourceAssessment.state))return 'L’identità dichiarata non è confermata in modo sufficiente. Non proseguire dalla chiamata: verifica il soggetto attraverso i suoi canali ufficiali.';
+    if(sourceAssessment.state==='not_checked'&&hasMemoryGaps(diagnosis))return 'Poiché alcuni dettagli non sono ricordati, dai più peso alla verifica esterna: controlla il numero nel Registro AGCOM e, quando disponibile, nella fonte ufficiale del soggetto dichiarato.';
     if(sourceAssessment.state==='not_checked')return 'Verifica ora il numero nel Registro AGCOM e, quando disponibile, nel checker ufficiale del soggetto dichiarato; poi riporta qui soltanto gli esiti.';
     if((sourceAssessment.state==='double_match'||sourceAssessment.state==='provider_match')&&diagnosis.contract==='yes')return 'I riscontri che hai riportato sono utili. Prima di accettare, confronta comunque condizioni economiche, durata, quota fissa e costo annuo sui tuoi consumi.';
     if(sourceAssessment.state==='provider_match'||sourceAssessment.state==='double_match')return 'I riscontri sono coerenti, ma per qualsiasi operazione usa comunque i canali ufficiali e non basarti soltanto sul numero visualizzato.';
@@ -249,7 +257,7 @@
     root.querySelector('[data-result-kicker]').textContent=copy.kicker;
     root.querySelector('[data-result-title]').textContent=copy.title;
     root.querySelector('[data-result-summary]').textContent=copy.summary;
-    root.querySelector('[data-result-phone]').textContent=normalizedPhone;
+    root.querySelector('[data-result-phone]').textContent=maskedPhone(normalizedPhone);
     root.querySelector('[data-result-identity]').textContent=identityLabels[diagnosis.identity]||'Non indicata';
     root.querySelector('[data-result-identity-note]').textContent=diagnosis.identity==='unknown'?'Non hai indicato chi dichiarava di essere il chiamante. La verifica del numero resta comunque utile.':'Questa è l’identità che ricordi dalla chiamata; non è stata verificata automaticamente da OffertaLogica.';
     root.querySelector('[data-result-signal-title]').textContent=diagnosis.level==='high'?'Cautela elevata':(diagnosis.level==='review'?'Da verificare':'Nessun segnale forte');
