@@ -7133,8 +7133,10 @@ function offertaAttivabileOnline(offerta) {
   return percorsoAffiliatoAttivo && !monetizzazioneEsplicitamenteDisattivata;
 }
 
-function testoAzioneOfferta() {
-  return "Scopri se fa per te";
+function testoAzioneOfferta(offerta, attivabileOnline) {
+  if (modalitaCalcolo === "media") return "Scopri se fa per te";
+  if (!attivabileOnline) return "Continua con Switcho";
+  return "Vedi come procedere";
 }
 
 function testoBadgeOfferta(item, migliore) {
@@ -7174,7 +7176,7 @@ function creaSchedaOfferta(offerta) {
       <div class="partner-details" style="font-size:13px; color:var(--text-muted); margin-top:2px;"></div>
       <div id="risparmio-partner-${offerta.id}" style="font-size:14px; font-weight:bold; color:var(--primary); margin-top:5px; display:none;"></div>
     </div>
-    <a id="link-partner-${offerta.id}" href="#" style="background:var(--dark-btn); color:white; text-decoration:none; padding:10px 20px; border-radius:8px; font-size:13px; font-weight:bold; white-space:nowrap;">Scopri se fa per te</a>
+    <a id="link-partner-${offerta.id}" href="#" style="background:var(--dark-btn); color:white; text-decoration:none; padding:10px 20px; border-radius:8px; font-size:13px; font-weight:bold; white-space:nowrap;">Vedi Offerta</a>
   `;
   return card;
 }
@@ -9677,9 +9679,9 @@ window.apriConsensoOfferta = function apriConsensoOfferta(offerta) {
     rankingContext: OFFER_RENDER_CONTEXTS.get(String(offerta?.id || "")) || offerta?.rankingContext || null,
   };
 
-  // Test card v81: ogni CTA delle offerte passa direttamente a Switcho.
-  // L'OTP/consenso OffertaLogica resta nel codice ma viene bypassato dalle card finche il test e attivo.
-  if (OFFER_CARD_SWITCHO_DIRECT || !offertaAttivabileOnline(offerta)) {
+  // Test card v82: nel solo percorso "non conosco i miei consumi" (modalita media)
+  // ogni CTA passa direttamente a Switcho. Gli altri percorsi mantengono il routing v80.
+  if ((OFFER_CARD_SWITCHO_DIRECT_MEDIA && modalitaCalcolo === "media") || !offertaAttivabileOnline(offerta)) {
     const tracking = LEAD_STATE.selectedOffer.rankingContext || {};
     trackEvent("offer_switcho_redirect", {
       offerId: LEAD_STATE.selectedOffer.id,
@@ -9693,7 +9695,10 @@ window.apriConsensoOfferta = function apriConsensoOfferta(offerta) {
       annualCost: tracking.annualCost || null,
       annualDelta: tracking.annualDelta || null,
     });
-    apriLandingSwitcho(OFFER_CARD_SWITCHO_DIRECT ? "offer_card" : "offer_not_activatable", LEAD_STATE.selectedOffer);
+    apriLandingSwitcho(
+      OFFER_CARD_SWITCHO_DIRECT_MEDIA && modalitaCalcolo === "media" ? "offer_card_media" : "offer_not_activatable",
+      LEAD_STATE.selectedOffer
+    );
     return;
   }
 
@@ -13772,10 +13777,10 @@ function aggiornaRisparmioLandingDaPrimaPosizione() {
   return true;
 }
 
-// v81 — test card: CTA "Scopri se fa per te" con inoltro diretto a Switcho
-const SWITCHO_ROUTING_VERSION = "switcho-v3-2026-09-07-card-direct";
+// v82 — test card limitato al percorso "non conosco i miei consumi"
+const SWITCHO_ROUTING_VERSION = "switcho-v3-2026-09-07-media-card-direct";
 const SWITCHO_LANDING_URL = "https://bit.ly/Switcho-LuceGas-OffertaLogica";
-const OFFER_CARD_SWITCHO_DIRECT = true;
+const OFFER_CARD_SWITCHO_DIRECT_MEDIA = true;
 
 function apriLandingSwitcho(source = "guided", offer = null) {
   if (!SWITCHO_LANDING_URL) return false;
@@ -14224,7 +14229,7 @@ if (document.readyState === "loading") {
                 <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Condizioni economiche caricate dal catalogo ARERA/AU aggiornato al momento del confronto.</div>
                 <div id="risparmio-partner-1" style="font-size: 14px; font-weight: bold; color: var(--primary); margin-top: 5px; display: none;"></div>
             </div>
-            <a id="link-partner-1" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Scopri se fa per te</a>
+            <a id="link-partner-1" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
         </div>
 
         <!-- Offerta Consigliata 2: A2A Start Luce e Gas -->
@@ -14234,7 +14239,7 @@ if (document.readyState === "loading") {
                 <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Condizioni economiche caricate dal catalogo ARERA/AU aggiornato al momento del confronto.</div>
                 <div id="risparmio-partner-2" style="font-size: 14px; font-weight: bold; color: var(--primary); margin-top: 5px; display: none;"></div>
             </div>
-            <a id="link-partner-2" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Scopri se fa per te</a>
+            <a id="link-partner-2" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
         </div>
 
         <!-- Offerta Consigliata 3: Magis Energia -->
@@ -14244,7 +14249,7 @@ if (document.readyState === "loading") {
                 <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Condizioni economiche caricate dal catalogo ARERA/AU aggiornato al momento del confronto.</div>
                 <div id="risparmio-partner-3" style="font-size: 14px; font-weight: bold; color: var(--primary); margin-top: 5px; display: none;"></div>
             </div>
-            <a id="link-partner-3" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Scopri se fa per te</a>
+            <a id="link-partner-3" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
         </div>
 
         <!-- Offerta Consigliata 4: Octopus Luce e Gas -->
@@ -14254,7 +14259,7 @@ if (document.readyState === "loading") {
                 <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Condizioni economiche caricate dal catalogo ARERA/AU aggiornato al momento del confronto.</div>
                 <div id="risparmio-partner-4" style="font-size: 14px; font-weight: bold; color: var(--primary); margin-top: 5px; display: none;"></div>
             </div>
-            <a id="link-partner-4" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Scopri se fa per te</a>
+            <a id="link-partner-4" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
         </div>
 
         <!-- Offerta Consigliata 5: Iren Fissa 36 Mesi -->
@@ -14264,7 +14269,7 @@ if (document.readyState === "loading") {
                 <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Condizioni economiche caricate dal catalogo ARERA/AU aggiornato al momento del confronto.</div>
                 <div id="risparmio-partner-5" style="font-size: 14px; font-weight: bold; color: var(--primary); margin-top: 5px; display: none;"></div>
             </div>
-            <a id="link-partner-5" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Scopri se fa per te</a>
+            <a id="link-partner-5" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
         </div>
 
         <!-- Offerta Consigliata 6: neN Luce Dieci -->
@@ -14274,7 +14279,7 @@ if (document.readyState === "loading") {
                 <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Condizioni economiche caricate dal catalogo ARERA/AU aggiornato al momento del confronto.</div>
                 <div id="risparmio-partner-6" style="font-size: 14px; font-weight: bold; color: var(--primary); margin-top: 5px; display: none;"></div>
             </div>
-            <a id="link-partner-6" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Scopri se fa per te</a>
+            <a id="link-partner-6" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
         </div>
 
         <!-- Offerta Consigliata 7: neN Duel Luce e Gas -->
@@ -14284,7 +14289,7 @@ if (document.readyState === "loading") {
                 <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Condizioni economiche caricate dal catalogo ARERA/AU aggiornato al momento del confronto.</div>
                 <div id="risparmio-partner-7" style="font-size: 14px; font-weight: bold; color: var(--primary); margin-top: 5px; display: none;"></div>
             </div>
-            <a id="link-partner-7" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Scopri se fa per te</a>
+            <a id="link-partner-7" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
         </div>
 
         <!-- Offerta Consigliata 8: neN Luce Surf -->
@@ -14294,7 +14299,7 @@ if (document.readyState === "loading") {
                 <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Condizioni economiche caricate dal catalogo ARERA/AU aggiornato al momento del confronto.</div>
                 <div id="risparmio-partner-8" style="font-size: 14px; font-weight: bold; color: var(--primary); margin-top: 5px; display: none;"></div>
             </div>
-            <a id="link-partner-8" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Scopri se fa per te</a>
+            <a id="link-partner-8" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
         </div>
 
         <!-- Offerta Consigliata 9: neN Gas Surf -->
@@ -14304,7 +14309,7 @@ if (document.readyState === "loading") {
                 <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Condizioni economiche caricate dal catalogo ARERA/AU aggiornato al momento del confronto.</div>
                 <div id="risparmio-partner-9" style="font-size: 14px; font-weight: bold; color: var(--primary); margin-top: 5px; display: none;"></div>
             </div>
-            <a id="link-partner-9" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Scopri se fa per te</a>
+            <a id="link-partner-9" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
         </div>
         <!-- Offerta Consigliata 10: Enel Fix Web -->
         <div class="partner-vertical-card" style="background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
@@ -14313,7 +14318,7 @@ if (document.readyState === "loading") {
                 <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Condizioni economiche caricate dal catalogo ARERA/AU aggiornato al momento del confronto.</div>
                 <div id="risparmio-partner-10" style="font-size: 14px; font-weight: bold; color: var(--primary); margin-top: 5px; display: none;"></div>
             </div>
-            <a id="link-partner-10" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Scopri se fa per te</a>
+            <a id="link-partner-10" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
         </div>
 
         <!-- Offerta Consigliata 11: Eni Plenitude Fixa Time 24 -->
@@ -14323,7 +14328,7 @@ if (document.readyState === "loading") {
                 <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Condizioni economiche caricate dal catalogo ARERA/AU aggiornato al momento del confronto.</div>
                 <div id="risparmio-partner-11" style="font-size: 14px; font-weight: bold; color: var(--primary); margin-top: 5px; display: none;"></div>
             </div>
-            <a id="link-partner-11" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Scopri se fa per te</a>
+            <a id="link-partner-11" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
         </div>
 
         <!-- Offerta Consigliata 12: Alperia Smile -->
@@ -14333,7 +14338,7 @@ if (document.readyState === "loading") {
                 <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Condizioni economiche caricate dal catalogo ARERA/AU aggiornato al momento del confronto.</div>
                 <div id="risparmio-partner-12" style="font-size: 14px; font-weight: bold; color: var(--primary); margin-top: 5px; display: none;"></div>
             </div>
-            <a id="link-partner-12" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Scopri se fa per te</a>
+            <a id="link-partner-12" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
           </div>
     
         <!-- Offerta Consigliata 13: Sorgenia Next Energy Smart -->
@@ -14343,7 +14348,7 @@ if (document.readyState === "loading") {
                 <div class="partner-details" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Condizioni economiche caricate dal catalogo ARERA/AU aggiornato al momento del confronto.</div>
                 <div id="risparmio-partner-13" style="font-size: 14px; font-weight: bold; color: var(--primary); margin-top: 5px; display: none;"></div>
            </div>
-           <a id="link-partner-13" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Scopri se fa per te</a>
+           <a id="link-partner-13" href="#" style="background: var(--dark-btn); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: bold; white-space: nowrap;">Vedi Offerta</a>
         </div>
 
         <div>
