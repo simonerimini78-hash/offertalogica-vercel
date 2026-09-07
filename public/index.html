@@ -2966,7 +2966,7 @@
         const params = new URLSearchParams(window.location.search || "");
         const hashParams = new URLSearchParams(String(window.location.hash || "").replace(/^#/, ""));
         const staffSessionActive = sessionStorage.getItem("offertalogicaStaffMode") === "true";
-        const staffPreview = staffSessionActive || ["staff", "staffToken", "previewToken"].some((key) => params.has(key) || hashParams.has(key));
+        const staffPreview = staffSessionActive || ["staffPreview", "staff", "staffToken", "previewToken"].some((key) => params.has(key) || hashParams.has(key));
         const staffHomeRequested = params.get("staffHome") === "1";
         const calculatorBypass = params.get("landing") === "0" || String(params.get("entry") || "").toLowerCase() === "calculator";
         if (window.matchMedia?.("(max-width: 700px)")?.matches) document.documentElement.classList.add("mobile-fast-flow");
@@ -4327,7 +4327,6 @@ function trackEvent(eventType, payload = {}) {
 
 const PRIVACY_VERSION = "privacy-lead-v3-2026-07-04";
 const STAFF_MODE_STORAGE_KEY = "offertalogicaStaffMode";
-const STAFF_MODE_TOKEN_STORAGE_KEY = "offertalogicaStaffToken";
 const STAFF_MODE_LEAD_ID = "staff-preview";
 const STAFF_MOBILE_PREVIEW_STORAGE_KEY = "offertalogicaStaffMobilePreview";
 const STAFF_MODE_OTP = "000000";
@@ -8817,12 +8816,12 @@ function staffModeAttiva() {
   return Boolean(LEAD_STATE.staffMode);
 }
 
-function pulisciTokenStaffDaUrl() {
+function pulisciTicketStaffDaUrl() {
   try {
     const url = new URL(window.location.href);
-    ["staff", "staffToken", "previewToken"].forEach((key) => url.searchParams.delete(key));
+    ["staff", "staffToken", "previewToken", "staffPreview"].forEach((key) => url.searchParams.delete(key));
     const hashParams = new URLSearchParams(String(url.hash || "").replace(/^#/, ""));
-    ["staff", "staffToken", "previewToken"].forEach((key) => hashParams.delete(key));
+    ["staff", "staffToken", "previewToken", "staffPreview"].forEach((key) => hashParams.delete(key));
     const nextHash = hashParams.toString();
     url.hash = nextHash ? `#${nextHash}` : "";
     window.history.replaceState({}, document.title, `${url.pathname}${url.search}${url.hash}`);
@@ -8831,12 +8830,14 @@ function pulisciTokenStaffDaUrl() {
   }
 }
 
-function leggiTokenStaffDaUrl() {
+function leggiTicketStaffDaUrl() {
   const query = new URLSearchParams(window.location.search || "");
   const hash = new URLSearchParams(String(window.location.hash || "").replace(/^#/, ""));
+  const staffValue = hash.get("staff") || query.get("staff") || "";
   return {
-    token: hash.get("staff") || hash.get("staffToken") || hash.get("previewToken") || query.get("staff") || query.get("staffToken") || query.get("previewToken") || "",
-    off: hash.get("staff") === "off" || query.get("staff") === "off",
+    ticket: hash.get("staffPreview") || query.get("staffPreview") || "",
+    off: staffValue === "off",
+    legacy: Boolean(hash.get("staffToken") || hash.get("previewToken") || query.get("staffToken") || query.get("previewToken") || (staffValue && staffValue !== "off")),
   };
 }
 
@@ -8953,9 +8954,8 @@ function apriAnteprimaMobileStaff() {
     return;
   }
 
-  const token = sessionStorage.getItem(STAFF_MODE_TOKEN_STORAGE_KEY) || "";
   const target = new URL(window.location.href);
-  ["staff", "staffToken", "previewToken", "staffMobile"].forEach((key) => target.searchParams.delete(key));
+  ["staff", "staffToken", "previewToken", "staffPreview", "staffMobile"].forEach((key) => target.searchParams.delete(key));
   target.hash = "";
 
   const width = 390;
@@ -8980,7 +8980,6 @@ function apriAnteprimaMobileStaff() {
 
   try {
     mobileWindow.sessionStorage.setItem(STAFF_MODE_STORAGE_KEY, "true");
-    if (token) mobileWindow.sessionStorage.setItem(STAFF_MODE_TOKEN_STORAGE_KEY, token);
     mobileWindow.sessionStorage.setItem(STAFF_MOBILE_PREVIEW_STORAGE_KEY, "true");
     mobileWindow.location.replace(target.toString());
     mobileWindow.resizeTo(width, height);
@@ -9066,7 +9065,6 @@ function aggiornaBannerStaff() {
     });
     document.getElementById("staff-mode-exit")?.addEventListener("click", () => {
       sessionStorage.removeItem(STAFF_MODE_STORAGE_KEY);
-      sessionStorage.removeItem(STAFF_MODE_TOKEN_STORAGE_KEY);
       LEAD_STATE.staffMode = false;
       LEAD_STATE.staffActivatedAt = "";
       LEAD_STATE.verified = false;
@@ -9088,13 +9086,12 @@ function abilitaModalitaStaff(activatedAt = "") {
 }
 
 async function inizializzaModalitaStaff() {
-  const staffRequest = leggiTokenStaffDaUrl();
+  const staffRequest = leggiTicketStaffDaUrl();
   if (staffRequest.off) {
     sessionStorage.removeItem(STAFF_MODE_STORAGE_KEY);
-    sessionStorage.removeItem(STAFF_MODE_TOKEN_STORAGE_KEY);
     LEAD_STATE.staffMode = false;
     LEAD_STATE.staffActivatedAt = "";
-    pulisciTokenStaffDaUrl();
+    pulisciTicketStaffDaUrl();
     aggiornaBannerStaff();
     return;
   }
@@ -9103,22 +9100,24 @@ async function inizializzaModalitaStaff() {
     abilitaModalitaStaff("session");
   }
 
-  if (!staffRequest.token) return;
-  pulisciTokenStaffDaUrl();
+  if (!staffRequest.ticket) {
+    if (staffRequest.legacy) pulisciTicketStaffDaUrl();
+    return;
+  }
+  pulisciTicketStaffDaUrl();
 
   try {
     const response = await fetch("/api/staff-preview", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token: staffRequest.token }),
+      body: JSON.stringify({ ticket: staffRequest.ticket, target: window.location.pathname || "/" }),
+      cache: "no-store",
     });
     const payload = await response.json();
-    if (!payload.ok) throw new Error(payload.error || "Token staff non valido");
-    sessionStorage.setItem(STAFF_MODE_TOKEN_STORAGE_KEY, staffRequest.token);
+    if (!response.ok || !payload.ok) throw new Error(payload.error || "Ticket Staff non valido");
     abilitaModalitaStaff(payload.activatedAt || "");
   } catch (error) {
     sessionStorage.removeItem(STAFF_MODE_STORAGE_KEY);
-    sessionStorage.removeItem(STAFF_MODE_TOKEN_STORAGE_KEY);
     LEAD_STATE.staffMode = false;
     aggiornaBannerStaff();
     console.warn("Modalita staff non attivata", error.message);
