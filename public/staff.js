@@ -94,8 +94,8 @@
     offer_request_failed: "Richiesta offerta fallita",
     offer_redirect: "Redirect partner",
     partner_funnel_opened: "Percorso partner aperto",
-    assistance_prompt_shown: "Aiuto proposto",
-    assistance_prompt_closed: "Aiuto chiuso",
+    assistance_prompt_shown: "Invito assistenza mostrato",
+    assistance_prompt_closed: "Invito assistenza chiuso",
     assistance_guide_opened: "Guida assistenza aperta",
     assistance_callback_started: "Richiamata richiesta",
     assistance_callback_verified: "Richiamata verificata",
@@ -891,21 +891,157 @@
     if (String(event.eventType || "") === "session_engagement") {
       return [
         staffEngagementStageLabel(event) ? `fase ${staffEngagementStageLabel(event).toLowerCase()}` : "",
-        event.engagementActiveSeconds != null ? `attivo ${formatDurationSeconds(event.engagementActiveSeconds)}` : "",
+        event.engagementActiveSeconds != null && Number(event.engagementActiveSeconds) > 0 ? `attivo ${formatDurationSeconds(event.engagementActiveSeconds)}` : "",
         event.engagementLandingSeconds != null && Number(event.engagementLandingSeconds) > 0 ? `landing ${formatDurationSeconds(event.engagementLandingSeconds)}` : "",
         event.engagementCalculatorSeconds != null && Number(event.engagementCalculatorSeconds) > 0 ? `calcolatore ${formatDurationSeconds(event.engagementCalculatorSeconds)}` : "",
         event.engagementOffersSeconds != null && Number(event.engagementOffersSeconds) > 0 ? `offerte ${formatDurationSeconds(event.engagementOffersSeconds)}` : "",
         event.engagementOtpSeconds != null && Number(event.engagementOtpSeconds) > 0 ? `verifica ${formatDurationSeconds(event.engagementOtpSeconds)}` : "",
-        event.engagementFirstActionSeconds != null ? `prima azione ${formatDurationSeconds(event.engagementFirstActionSeconds)}` : "",
-        event.engagementOffersReachedSeconds != null ? `alle offerte ${formatDurationSeconds(event.engagementOffersReachedSeconds)}` : "",
+        event.engagementFirstActionSeconds != null && Number(event.engagementFirstActionSeconds) > 0 ? `prima azione ${formatDurationSeconds(event.engagementFirstActionSeconds)}` : "",
+        event.engagementOffersReachedSeconds != null && Number(event.engagementOffersReachedSeconds) > 0 ? `alle offerte ${formatDurationSeconds(event.engagementOffersReachedSeconds)}` : "",
       ].filter(Boolean).join(" · ") || "—";
     }
     return [
-      event.bestSaving != null ? `risparmio ${formatMoney(event.bestSaving)}` : "",
-      event.annualCost != null ? `costo ${formatMoney(event.annualCost)}` : "",
-      event.visibleOffersCount != null ? `${event.visibleOffersCount} offerte` : "",
-      event.fileCount != null ? `${event.fileCount} file` : "",
+      event.bestSaving != null && Math.abs(Number(event.bestSaving)) > 0 ? `risparmio ${formatMoney(event.bestSaving)}` : "",
+      event.annualCost != null && Math.abs(Number(event.annualCost)) > 0 ? `costo ${formatMoney(event.annualCost)}` : "",
+      event.visibleOffersCount != null && Number(event.visibleOffersCount) > 0 ? `${event.visibleOffersCount} offerte` : "",
+      event.fileCount != null && Number(event.fileCount) > 0 ? `${event.fileCount} file` : "",
     ].filter(Boolean).join(" · ") || "—";
+  }
+
+  const SESSION_USER_ACTION_EVENTS = new Set([
+    "landing_self_service_click", "landing_assisted_click", "landing_free_app_click", "landing_premium_app_click",
+    "comparison_started", "pdf_analysis_started", "lead_modal_opened", "otp_request_started", "otp_verified",
+    "offer_click_locked", "offer_consent_opened", "offer_partner_consent_confirmed", "offer_request_started",
+    "offer_request_recorded", "offer_switcho_redirect", "switcho_landing_opened", "offer_redirect",
+    "partner_funnel_opened", "business_photovoltaic_tool_opened", "assistance_guide_opened",
+    "assistance_callback_started", "assistance_callback_verified", "assistance_switcho_redirect",
+  ]);
+
+  const SESSION_COMMERCIAL_EVENTS = new Set([
+    "offer_switcho_redirect", "switcho_landing_opened", "offer_redirect", "partner_funnel_opened",
+    "activation_assistant_opened", "assistance_switcho_redirect", "business_switcho_requested",
+  ]);
+
+  const SESSION_OFFER_ACTION_EVENTS = new Set([
+    "offer_click_locked", "offer_consent_opened", "offer_partner_consent_missing",
+    "offer_partner_consent_confirmed", "offer_request_started", "offer_request_recorded",
+    "offer_switcho_redirect", "switcho_landing_opened", "offer_redirect", "partner_funnel_opened",
+  ]);
+
+  const SESSION_MAIN_EVENT_TYPES = new Set([
+    "landing_view", "landing_self_service_click", "landing_assisted_click", "landing_free_app_click", "landing_premium_app_click",
+    "calculator_view", "comparison_started", "comparison_completed", "offers_rendered",
+    "offers_bill_prompt_clicked", "pdf_analysis_started", "pdf_analysis_completed", "pdf_data_confirmed",
+    "lead_modal_opened", "otp_request_started", "otp_sent", "otp_verified",
+    "offer_click_locked", "offer_consent_opened", "offer_partner_consent_missing", "offer_partner_consent_confirmed",
+    "offer_request_started", "offer_request_recorded", "offer_request_failed", "offer_switcho_redirect",
+    "switcho_landing_opened", "offer_redirect", "partner_funnel_opened",
+    "assistance_prompt_shown", "assistance_prompt_closed", "assistance_guide_opened",
+    "assistance_callback_started", "assistance_callback_verified", "assistance_switcho_redirect",
+    "business_switcho_requested",
+  ]);
+
+  function analyticsSessionTypes(rows = []) {
+    return new Set(rows.map(item => String(item.eventType || "")).filter(Boolean));
+  }
+
+  function analyticsSessionActiveSeconds(rows = []) {
+    const lastByPage = new Map();
+    let total = 0;
+    rows.forEach(item => {
+      if (String(item.eventType || "") !== "session_engagement") return;
+      const current = Number(item.engagementActiveSeconds);
+      if (!Number.isFinite(current) || current <= 0) return;
+      const key = String(item.page || item.engagementStage || "session");
+      const previous = Number(lastByPage.get(key) || 0);
+      total += current >= previous ? current - previous : current;
+      lastByPage.set(key, current);
+    });
+    return Math.round(total);
+  }
+
+  function analyticsSessionLatestOffersCount(rows = []) {
+    const values = rows
+      .map(item => Number(item.visibleOffersCount))
+      .filter(value => Number.isFinite(value) && value > 0);
+    return values.length ? values[values.length - 1] : null;
+  }
+
+  function analyticsSessionOutcome(rows = []) {
+    const types = analyticsSessionTypes(rows);
+    const has = type => types.has(type);
+    const hasAny = set => [...set].some(type => types.has(type));
+    if (hasAny(SESSION_COMMERCIAL_EVENTS)) return { label: "Passaggio verso partner / Switcho avviato", tone: "ok" };
+    if (hasAny(SESSION_OFFER_ACTION_EVENTS)) return { label: "Offerta selezionata, passaggio esterno non completato", tone: "warn" };
+    if (has("offers_rendered")) return { label: "Offerte raggiunte, nessun clic commerciale", tone: "warn" };
+    if (has("comparison_started") || has("comparison_completed")) return { label: "Confronto avviato, offerte non raggiunte", tone: "warn" };
+    if (has("landing_self_service_click") || has("landing_assisted_click")) return { label: "Percorso scelto, nessun avanzamento successivo", tone: "warn" };
+    if (has("calculator_view")) return { label: "Calcolatore aperto, confronto non avviato", tone: "warn" };
+    if (has("landing_view")) return { label: "Abbandono sulla landing", tone: "warn" };
+    return { label: "Sessione senza avanzamento nel funnel", tone: "info" };
+  }
+
+  function analyticsSessionFunnel(rows = []) {
+    const types = analyticsSessionTypes(rows);
+    const has = type => types.has(type);
+    const assistedOnly = has("landing_assisted_click") && !has("landing_self_service_click");
+    const commercial = [...SESSION_COMMERCIAL_EVENTS].some(type => types.has(type));
+    const landing = has("landing_view");
+    const choice = has("landing_self_service_click") || has("landing_assisted_click");
+    const comparison = has("comparison_started") || has("comparison_completed") || has("offers_rendered");
+    const offers = has("offers_rendered");
+    return [
+      { label: "Landing", state: landing ? "done" : (comparison || choice ? "skip" : "idle"), note: landing ? "raggiunta" : "non registrata" },
+      { label: "CTA", state: choice ? "done" : (landing ? "miss" : "idle"), note: choice ? "scelta" : "nessuna scelta" },
+      { label: "Confronto", state: comparison ? "done" : (assistedOnly ? "skip" : (choice || has("calculator_view") ? "miss" : "idle")), note: assistedOnly ? "non previsto" : (comparison ? "avviato" : "non raggiunto") },
+      { label: "Offerte", state: offers ? "done" : (assistedOnly ? "skip" : (comparison ? "miss" : "idle")), note: assistedOnly ? "non previste" : (offers ? "visualizzate" : "non raggiunte") },
+      { label: "Partner", state: commercial ? "done" : ((offers || assistedOnly) ? "miss" : "idle"), note: commercial ? "avviato" : ((offers || assistedOnly) ? "nessun passaggio" : "non raggiunto") },
+    ];
+  }
+
+  function analyticsSessionEventDescription(item = {}) {
+    const type = String(item.eventType || "");
+    const origin = item.dataOrigin ? staffDataOriginLabel(item) : "";
+    const offers = Number(item.visibleOffersCount);
+    const saving = Number(item.bestSaving);
+    const providerOffer = [item.provider, item.offerName].filter(Boolean).join(" · ");
+    const descriptions = {
+      landing_view: "Arrivo sul sito",
+      landing_self_service_click: "Ha scelto il confronto in autonomia",
+      landing_assisted_click: "Ha scelto il percorso guidato con Switcho",
+      landing_free_app_click: "Ha scelto l’app gratuita",
+      landing_premium_app_click: "Ha scelto l’app Premium",
+      calculator_view: "Ha aperto il calcolatore",
+      comparison_started: origin ? `Confronto avviato con ${origin}` : "Confronto avviato",
+      comparison_completed: Number.isFinite(saving) && Math.abs(saving) > 0 ? `Confronto completato · risparmio stimato ${formatMoney(saving)}` : "Confronto completato",
+      offers_rendered: `${Number.isFinite(offers) && offers > 0 ? `${offers} offerte visualizzate` : "Offerte visualizzate"}${Number.isFinite(saving) && Math.abs(saving) > 0 ? ` · miglior risparmio ${formatMoney(saving)}` : ""}`,
+      assistance_prompt_shown: "Suggerimento automatico di assistenza mostrato",
+      assistance_prompt_closed: "Suggerimento di assistenza chiuso",
+      assistance_guide_opened: "Ha aperto la guida di assistenza",
+      assistance_callback_started: "Ha avviato la richiesta di richiamata",
+      assistance_callback_verified: "Richiamata verificata",
+      pdf_analysis_started: "Ha avviato la lettura della bolletta",
+      pdf_analysis_completed: "Lettura della bolletta completata",
+      lead_modal_opened: "Ha aperto la verifica del numero",
+      otp_request_started: "Ha richiesto l’invio dell’SMS",
+      otp_sent: "SMS inviato",
+      otp_verified: "Numero verificato",
+      offer_click_locked: providerOffer ? `Ha selezionato ${providerOffer}` : "Ha selezionato un’offerta",
+      offer_consent_opened: providerOffer ? `Ha aperto il consenso per ${providerOffer}` : "Ha aperto il consenso dell’offerta",
+      offer_partner_consent_confirmed: "Consenso partner confermato",
+      offer_request_started: "Richiesta dell’offerta avviata",
+      offer_request_recorded: "Richiesta dell’offerta registrata",
+      offer_request_failed: "Richiesta dell’offerta non riuscita",
+      offer_switcho_redirect: "Ha scelto un’offerta con destinazione Switcho",
+      switcho_landing_opened: "Apertura della landing Switcho avviata",
+      offer_redirect: "Passaggio verso il partner avviato",
+      partner_funnel_opened: "Percorso partner aperto",
+      assistance_switcho_redirect: "Passaggio da assistenza verso Switcho avviato",
+      business_switcho_requested: "Passaggio business verso Switcho avviato",
+    };
+    if (descriptions[type]) return descriptions[type];
+    const values = analyticsEventValueText(item);
+    return [origin, providerOffer, values !== "—" ? values : ""].filter(Boolean).join(" · ") || "Evento registrato";
   }
 
   function analyticsSourceLabel(sourceKey = "") {
@@ -916,7 +1052,10 @@
   function closeAnalyticsSession() {
     const panel = byId("analyticsSessionPanel");
     if (panel) panel.hidden = true;
+    clear(byId("analyticsSessionSummary"));
+    clear(byId("analyticsSessionFunnel"));
     clear(byId("analyticsSessionEvents"));
+    clear(byId("analyticsSessionTechnicalEvents"));
     text(byId("analyticsSessionTitle"), "Percorso sessione");
     text(byId("analyticsSessionMeta"), "");
   }
@@ -931,29 +1070,78 @@
     if (!rows.length) return;
 
     const panel = byId("analyticsSessionPanel");
+    const summary = byId("analyticsSessionSummary");
+    const funnel = byId("analyticsSessionFunnel");
     const list = byId("analyticsSessionEvents");
-    if (!panel || !list) return;
+    const technicalList = byId("analyticsSessionTechnicalEvents");
+    if (!panel || !summary || !funnel || !list || !technicalList) return;
 
     const first = rows[0];
     const last = rows[rows.length - 1];
     const shortId = sessionId.length > 18 ? `${sessionId.slice(0, 9)}…${sessionId.slice(-6)}` : sessionId;
+    const source = analyticsSourceLabel(first.trafficSource);
+    const activeSeconds = analyticsSessionActiveSeconds(rows);
+    const firstAction = rows.find(item => SESSION_USER_ACTION_EVENTS.has(String(item.eventType || "")));
+    const offersCount = analyticsSessionLatestOffersCount(rows);
+    const outcome = analyticsSessionOutcome(rows);
+
     text(byId("analyticsSessionTitle"), `Percorso sessione ${shortId}`);
     text(byId("analyticsSessionMeta"), [
-      analyticsSourceLabel(first.trafficSource),
+      source,
       first.visitorLabel || "",
       `${formatNumber(rows.length)} eventi`,
       `${formatDate(first.createdAt)} → ${formatDate(last.createdAt)}`
     ].filter(Boolean).join(" · "));
-    clear(list);
 
+    clear(summary);
+    summary.append(
+      node("div", { className: `analytics-session-outcome ${outcome.tone}` }, [
+        node("span", { text: "Esito sessione" }),
+        node("strong", { text: outcome.label }),
+        node("small", { text: `${source} · ${activeSeconds > 0 ? `${formatDurationSeconds(activeSeconds)} attivi` : "tempo attivo non disponibile"} · ${firstAction ? "interazione registrata" : "nessuna interazione"}` }),
+      ]),
+      node("div", { className: "analytics-session-facts" }, [
+        node("div", {}, [node("span", { text: "Provenienza" }), node("strong", { text: source || "—" })]),
+        node("div", {}, [node("span", { text: "Tempo attivo" }), node("strong", { text: activeSeconds > 0 ? formatDurationSeconds(activeSeconds) : "—" })]),
+        node("div", {}, [node("span", { text: "Prima azione" }), node("strong", { text: firstAction ? staffEventLabel(firstAction) : "Nessuna" })]),
+        node("div", {}, [node("span", { text: "Offerte" }), node("strong", { text: offersCount != null ? `${offersCount} visualizzate` : "Non raggiunte" })]),
+      ])
+    );
+
+    clear(funnel);
+    analyticsSessionFunnel(rows).forEach(step => {
+      const symbol = step.state === "done" ? "✓" : step.state === "miss" ? "✕" : step.state === "skip" ? "—" : "·";
+      funnel.append(node("div", { className: `analytics-session-funnel-step ${step.state}` }, [
+        node("span", { className: "analytics-session-funnel-symbol", text: symbol }),
+        node("strong", { text: step.label }),
+        node("small", { text: step.note }),
+      ]));
+    });
+
+    clear(list);
+    const mainRows = rows.filter(item => SESSION_MAIN_EVENT_TYPES.has(String(item.eventType || "")));
+    if (!mainRows.length) {
+      list.append(node("div", { className: "analytics-session-empty", text: "Nessun evento principale registrato in questa sessione." }));
+    } else {
+      mainRows.forEach(item => {
+        const isAutomatic = String(item.eventType || "").startsWith("assistance_prompt_");
+        list.append(node("div", { className: "analytics-session-event readable" }, [
+          node("time", { text: formatDate(item.createdAt) }),
+          node("div", {}, [badge(staffEventLabel(item), isAutomatic ? "warn" : "info")]),
+          node("div", {}, [node("strong", { text: analyticsSessionEventDescription(item) }), node("small", { text: isAutomatic ? "Evento automatico: non conta come azione dell’utente" : "" })])
+        ]));
+      });
+    }
+
+    clear(technicalList);
     rows.forEach(item => {
       const origin = [item.dataOrigin ? staffDataOriginLabel(item) : "", item.page].filter(Boolean).join(" · ") || "—";
       const offer = [item.provider, item.offerName].filter(Boolean).join(" · ");
       const detail = [origin, offer, analyticsEventValueText(item) !== "—" ? analyticsEventValueText(item) : ""].filter(Boolean).join(" · ") || "—";
-      list.append(node("div", { className: "analytics-session-event" }, [
+      technicalList.append(node("div", { className: "analytics-session-event technical" }, [
         node("time", { text: formatDate(item.createdAt) }),
         node("div", {}, [badge(staffEventLabel(item), "info"), node("small", { text: `#${item.id}` })]),
-        node("div", {}, [node("strong", { text: analyticsSourceLabel(item.trafficSource) || "—" }), node("small", { text: detail })])
+        node("div", {}, [node("strong", { text: staffEngagementReasonLabel(item.engagementReason) || item.reason || "Dettaglio tecnico" }), node("small", { text: detail })])
       ]));
     });
 
