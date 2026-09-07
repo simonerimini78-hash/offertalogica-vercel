@@ -1,6 +1,6 @@
 (function(){
   'use strict';
-  const TOOL_VERSION='security-energy-v0.1.4';
+  const TOOL_VERSION='security-energy-v0.1.5';
   const TOOL_CODE='sicurezza_energia';
   const SOURCE='seo_sicurezza_energia';
   const TRACK_URL='/api/track-event';
@@ -12,10 +12,10 @@
     plenitude:{label:'Plenitude — verifica numero telefonico',url:'https://eniplenitude.com/verifica-numero-telefonico',mode:'verifier'},
     acea:{label:'Acea Energia — riconosci le truffe',url:'https://www.aceaenergia.it/trova-e-risolvi/riconosci-le-truffe',mode:'verifier'},
     a2a:{label:'A2A Energia — verifica chiamate sospette',url:'https://www.a2a.it/assistenza/chiamate-sospette',mode:'verifier'},
-    iren:{label:'Iren — verifica telefonate sospette',url:'https://www.irenlucegas.it/assistenza/gestisci-il-tuo-contratto/telefonate-sospette-cosa-fare',mode:'verifier'},
+    iren:{label:'Iren — istruzioni per “Verifica agente” in IrenYou',url:'https://www.irenlucegas.it/assistenza/gestisci-il-tuo-contratto/telefonate-sospette-cosa-fare',mode:'verifier_area'},
     sorgenia:{label:'Sorgenia — guida alle telefonate sospette',url:'https://www.sorgenia.it/partnership-consigli-pratici-telefonate-sospette',mode:'guidance'},
     illumia:{label:'Illumia — controllo chiamate',url:'https://www.illumia.it/',mode:'verifier'},
-    edison:{label:'Edison Energia — sito ufficiale',url:'https://www.edisonenergia.it/',mode:'guidance'},
+    edison:{label:'Edison Energia — sito ufficiale',url:'https://www.edisonenergia.it/',mode:'official_site'},
     authority:{label:'ARERA — sito ufficiale consumatori',url:'https://www.arera.it/consumatori',mode:'guidance'}
   };
   const identityLabels={enel:'Enel Energia',plenitude:'Plenitude',edison:'Edison Energia',iren:'Iren',a2a:'A2A Energia',acea:'Acea Energia',sorgenia:'Sorgenia',illumia:'Illumia',other_provider:'Altro fornitore',distributor:'Distributore',authority:'ARERA / Autorità',current_supplier:'“Il tuo fornitore”',association:'Associazione consumatori',unknown:'Non ricordo'};
@@ -39,7 +39,7 @@
     let raw=String(value||'').trim();
     if(!raw)return {ok:false,error:'Inserisci il numero visualizzato sul telefono.'};
     raw=raw.replace(/[\s().-]/g,'');
-    if(raw.startsWith('0039'))raw=raw.slice(4);else if(raw.startsWith('+39'))raw=raw.slice(3);else if(raw.startsWith('+'))return {ok:false,error:'Per questa versione inserisci una numerazione italiana.'};
+    if(raw.startsWith('0039'))raw=raw.slice(4);else if(raw.startsWith('+39'))raw=raw.slice(3);else if(raw.startsWith('+')||raw.startsWith('00'))return {ok:false,error:'Per questa versione inserisci una numerazione italiana.'};
     if(!/^\d+$/.test(raw))return {ok:false,error:'Il numero contiene caratteri non riconosciuti.'};
     if(raw.length<6||raw.length>12)return {ok:false,error:'Controlla il numero: la lunghezza non sembra valida per una numerazione italiana.'};
     return {ok:true,value:raw,display:raw};
@@ -131,14 +131,16 @@
       providerLink.removeAttribute('href');
       delete providerLink.dataset.sourceMode;
     }
-    const canReport=Boolean(source&&source.mode==='verifier');
+    const canReport=Boolean(source&&(source.mode==='verifier'||source.mode==='verifier_area'));
     providerFeedback.hidden=!canReport;
     if(providerOutcome){providerOutcome.disabled=!canReport;if(!canReport)providerOutcome.value='not_checked';}
     const providerName=root.querySelector('[data-provider-feedback-name]');
     if(providerName)providerName.textContent=identityLabels[identity]||'soggetto dichiarato';
     if(providerNote){
       providerNote.hidden=false;
-      if(canReport)providerNote.textContent='Questa fonte consente un controllo del numero: dopo averlo eseguito puoi riportare qui sotto soltanto l’esito.';
+      if(source&&source.mode==='verifier_area')providerNote.textContent='La pagina ufficiale spiega come usare “Verifica agente” nell’Area Riservata IrenYou. Se completi lì il controllo, puoi riportare qui sotto soltanto l’esito.';
+      else if(canReport)providerNote.textContent='Questa fonte consente un controllo del numero: dopo averlo eseguito puoi riportare qui sotto soltanto l’esito.';
+      else if(source&&source.mode==='official_site')providerNote.textContent='Questo è il sito ufficiale del soggetto dichiarato, non un checker del numero. Usa soltanto i recapiti e i servizi ufficiali disponibili sul sito, senza riportare un esito come conferma.';
       else if(source)providerNote.textContent='Questa è una pagina ufficiale di orientamento, non un checker del numero utilizzato dal tool. Usala per verificare i canali corretti senza riportare un esito come conferma.';
       else if(identity==='current_supplier')providerNote.textContent='Se hanno detto soltanto “il tuo fornitore”, controlla prima il nome del venditore sulla bolletta e poi usa esclusivamente il suo sito o la sua app ufficiale.';
       else if(identity==='unknown')providerNote.textContent='Se non ricordi chi dichiarava di essere il chiamante, non dedurre l’identità dal solo numero: usa il Registro AGCOM come primo riscontro e interrompi ogni passaggio che richieda dati sensibili.';
@@ -277,8 +279,8 @@
       if(step==='identity'){
         const parsed=normalizePhone(root.querySelector('#security-phone').value);
         const error=root.querySelector('#security-error');
-        if(!parsed.ok){error.textContent=parsed.error;error.hidden=false;track('error',{outcome:'invalid_phone'});return;}
-        error.hidden=true;
+        if(!parsed.ok){error.textContent=parsed.error;error.hidden=false;const phoneInput=root.querySelector('#security-phone');phoneInput.setAttribute('aria-invalid','true');phoneInput.focus();track('error',{outcome:'invalid_phone'});return;}
+        error.hidden=true;root.querySelector('#security-phone').setAttribute('aria-invalid','false');
         normalizedPhone=parsed.display;
         if(!hasTrackedStart){track('started',{context:'phone_valid'});hasTrackedStart=true;}
         showStep('identity');
@@ -287,8 +289,8 @@
       }
       if(step==='signals'){
         const error=root.querySelector('[data-identity-error]');
-        if(!selectedIdentity()){error.hidden=false;return;}
-        error.hidden=true;
+        if(!selectedIdentity()){error.hidden=false;const group=root.querySelector('[data-identity-group]');if(group)group.setAttribute('aria-invalid','true');requestAnimationFrame(function(){error.focus({preventScroll:true});});return;}
+        error.hidden=true;const group=root.querySelector('[data-identity-group]');if(group)group.setAttribute('aria-invalid','false');
         showStep('signals');
         track('step_completed',{outcome:'identity'});
         return;
@@ -330,6 +332,8 @@
     if(after)track('after_contract_cta',{outcome:'after_contract'});
   });
   root.addEventListener('change',function(event){
+    const identityChoice=event.target.closest('input[name="declared-identity"]');
+    if(identityChoice&&identityChoice.checked){const error=root.querySelector('[data-identity-error]');const group=root.querySelector('[data-identity-group]');if(error)error.hidden=true;if(group)group.setAttribute('aria-invalid','false');}
     const empty=event.target.closest('[data-empty-group]');
     if(empty&&empty.checked){
       const group=empty.dataset.emptyGroup;
