@@ -1,6 +1,6 @@
 (function(){
   'use strict';
-  const TOOL_VERSION='security-energy-v0.1.6';
+  const TOOL_VERSION='security-energy-v0.1.7';
   const TOOL_CODE='sicurezza_energia';
   const SOURCE='seo_sicurezza_energia';
   const TRACK_URL='/api/track-event';
@@ -75,7 +75,8 @@
   function joinNatural(items){if(!items.length)return '';if(items.length===1)return items[0];return items.slice(0,-1).join(', ')+' e '+items[items.length-1];}
   function levelRank(level){return level==='high'?2:(level==='review'?1:0);}
   function maxLevel(a,b){return levelRank(a)>=levelRank(b)?a:b;}
-  function hasMemoryGaps(diagnosis){return diagnosis.identity==='unknown'||diagnosis.claimsFallback==='unknown'||diagnosis.requestsFallback==='unknown';}
+  function hasCallMemoryGaps(diagnosis){return diagnosis.claimsFallback==='unknown'||diagnosis.requestsFallback==='unknown'||diagnosis.urgency==='unknown'||diagnosis.contract==='unknown'||diagnosis.unexpected==='unknown'||diagnosis.accepted==='unknown';}
+  function hasMemoryGaps(diagnosis){return diagnosis.identity==='unknown'||hasCallMemoryGaps(diagnosis);}
   function maskedPhone(value){const digits=String(value||'').replace(/\D/g,'');if(!digits)return 'Numero inserito';const visible=digits.slice(-4);return '•••• '+visible;}
   function diagnose(){
     const identity=selectedIdentity()||'unknown';
@@ -114,6 +115,12 @@
     if(!claims.length&&claimsFallback==='unknown')signalParts.push('Non ricordi abbastanza bene le frasi usate durante la chiamata.');
     if(!requests.length&&requestsFallback==='none')signalParts.push('Non hai riconosciuto nessuna delle richieste di dati proposte.');
     if(!requests.length&&requestsFallback==='unknown')signalParts.push('Non ricordi abbastanza bene quali dati ti siano stati chiesti.');
+    const behaviorGaps=[];
+    if(urgency==='unknown')behaviorGaps.push('se ti abbiano messo fretta');
+    if(unexpected==='unknown')behaviorGaps.push('se la chiamata fosse inattesa');
+    if(contract==='unknown')behaviorGaps.push('se ci fosse una proposta di attivazione o cambio');
+    if(accepted==='unknown')behaviorGaps.push('se tu abbia già accettato o confermato');
+    if(behaviorGaps.length)signalParts.push('Non ricordi con certezza '+joinNatural(behaviorGaps)+'.');
     if(!signalParts.length)signalParts.push('Non emergono altri comportamenti specifici dalle risposte inserite.');
     return {identity:identity,claims:claims,requests:requests,claimsFallback:claimsFallback,requestsFallback:requestsFallback,urgency:urgency,contract:contract,unexpected:unexpected,accepted:accepted,level:level,points:points,signalText:signalParts.join(' ')};
   }
@@ -221,6 +228,21 @@
     if(memoryGaps)return {title:'Informazioni incomplete: verifica prima di fidarti',summary:'Nelle informazioni che ricordi non emergono segnali ad alta cautela, ma alcuni dettagli della chiamata non sono disponibili. Non interpretare questo risultato come una conferma di affidabilità.',kicker:'Valutazione delle informazioni disponibili'};
     return {title:'Nessun segnale forte emerso dalle risposte',summary:'Le risposte inserite non mostrano elementi ad alta cautela. Verifica comunque il numero e l’identità attraverso i canali ufficiali prima di accettare una proposta.',kicker:'Valutazione della telefonata'};
   }
+  function verificationPendingCopy(diagnosis,sourceAssessment){
+    const pending=[];
+    if(sourceAssessment.agcom==='not_checked')pending.push('Registro AGCOM');
+    const source=providerSources[diagnosis.identity];
+    const providerCanReport=Boolean(source&&(source.mode==='verifier'||source.mode==='verifier_area'));
+    if(providerCanReport&&sourceAssessment.provider==='not_checked')pending.push('fonte ufficiale '+(identityLabels[diagnosis.identity]||'del soggetto dichiarato'));
+    if(!pending.length)return '';
+    return 'Verifiche ancora da completare: '+joinNatural(pending)+'.';
+  }
+  function resultSignalTitle(diagnosis){
+    if(diagnosis.level==='high')return 'Cautela elevata';
+    if(diagnosis.level==='review')return 'Da verificare';
+    if(hasCallMemoryGaps(diagnosis))return 'Informazioni incomplete';
+    return 'Nessun segnale forte';
+  }
   function recommendationCopy(diagnosis,sourceAssessment){
     if(diagnosis.accepted==='yes')return 'Non fornire altri dati durante la chiamata. Controlla prima documenti, venditore e stato del contratto usando esclusivamente canali ufficiali; solo dopo valuta il prezzo.';
     if(diagnosis.level==='high')return 'Non comunicare altri dati o codici e non confermare la proposta durante la chiamata. Chiudi e ricontatta il soggetto attraverso un recapito ufficiale.';
@@ -260,9 +282,11 @@
     root.querySelector('[data-result-phone]').textContent=maskedPhone(normalizedPhone);
     root.querySelector('[data-result-identity]').textContent=identityLabels[diagnosis.identity]||'Non indicata';
     root.querySelector('[data-result-identity-note]').textContent=diagnosis.identity==='unknown'?'Non hai indicato chi dichiarava di essere il chiamante. La verifica del numero resta comunque utile.':'Questa è l’identità che ricordi dalla chiamata; non è stata verificata automaticamente da OffertaLogica.';
-    root.querySelector('[data-result-signal-title]').textContent=diagnosis.level==='high'?'Cautela elevata':(diagnosis.level==='review'?'Da verificare':'Nessun segnale forte');
+    root.querySelector('[data-result-signal-title]').textContent=resultSignalTitle(diagnosis);
     root.querySelector('[data-result-signals]').textContent=diagnosis.signalText;
     root.querySelector('[data-recommendation-text]').textContent=recommendationCopy(diagnosis,sourceAssessment);
+    const pending=root.querySelector('[data-verification-pending]');
+    if(pending){const pendingText=verificationPendingCopy(diagnosis,sourceAssessment);pending.textContent=pendingText;pending.hidden=!pendingText;}
     configureNextActions(diagnosis);
     return sourceAssessment;
   }
@@ -273,7 +297,7 @@
     showStep('result');
     const result=root.querySelector('[data-security-step="result"]');
     result.focus({preventScroll:true});
-    track('diagnosis_completed',{outcome:currentDiagnosis.level,context:'claims-'+currentDiagnosis.claims.length+'-requests-'+currentDiagnosis.requests.length+'-accepted-'+currentDiagnosis.accepted});
+    track('diagnosis_completed',{outcome:currentDiagnosis.level,context:'claims-'+currentDiagnosis.claims.length+'-requests-'+currentDiagnosis.requests.length+'-accepted-'+currentDiagnosis.accepted+'-memory-'+(hasMemoryGaps(currentDiagnosis)?'incomplete':'complete')});
   }
   function resetSourceOutcomes(){
     root.querySelectorAll('[data-source-outcome]').forEach(function(el){el.value='not_checked';});
