@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { json, method, readJson, requireAllowedOrigin } from "../lib/http.js";
 import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
+import { persistentStoreConfigured } from "../lib/store.js";
 import { requireStaffSession } from "../lib/staffSessionAuth.js";
 
 const STAFF_PREVIEW_TARGETS = new Set([
@@ -74,13 +75,20 @@ function verifyPreviewTicket(ticket, requestedTarget, secret) {
   }
 }
 
+async function enforcePreviewRateLimit(req, res) {
+  // Issue richiede una sessione Staff autorizzata; verify accetta solo ticket HMAC
+  // a breve scadenza. Se il KV non è configurato non blocchiamo l'intero flusso;
+  // il rate limit persistente resta attivo quando lo store è disponibile.
+  if (!persistentStoreConfigured()) return true;
+  return enforceRateLimit(req, res, {
+    label: "staff-preview",
+    ...rateLimitConfig("STAFF_PREVIEW", 20),
+  });
+}
+
 export default async function handler(req, res) {
   if (!method(req, res, ["POST"])) return;
   if (!requireAllowedOrigin(req, res)) return;
-  if (!(await enforceRateLimit(req, res, {
-    label: "staff-preview",
-    ...rateLimitConfig("STAFF_PREVIEW", 20),
-  }))) return;
 
   try {
     const body = await readJson(req);
@@ -101,6 +109,7 @@ export default async function handler(req, res) {
         permissions: ["view_site_preview"],
       });
       if (!identity) return;
+      if (!(await enforcePreviewRateLimit(req, res))) return;
 
       const target = normalizePreviewTarget(body.target);
       const ticket = issuePreviewTicket(target, secret);
@@ -116,6 +125,7 @@ export default async function handler(req, res) {
       return json(res, 400, { ok: false, error: "Azione staff non valida" });
     }
 
+    if (!(await enforcePreviewRateLimit(req, res))) return;
     const target = normalizePreviewTarget(body.target);
     const ticket = String(body.ticket || "").trim();
     const payload = verifyPreviewTicket(ticket, target, secret);
