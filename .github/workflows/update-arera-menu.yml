@@ -14,10 +14,14 @@ on:
       - "public/data/energia-oggi.json"
       - "public/pun-oggi.html"
       - "public/psv-gas-oggi.html"
+      - "public/offerte-luce-gas-aggiornate.html"
+      - "public/sitemap.xml"
       - "scripts/aggiorna-arera-locale-mac.sh"
       - "scripts/update-arera-menu.py"
       - "scripts/update-arera-reference-data.py"
       - "scripts/update-energy-today.py"
+      - "scripts/update-sitemap-lastmod.py"
+      - "test/update_sitemap_lastmod_test.py"
 
 permissions:
   contents: read
@@ -39,6 +43,9 @@ jobs:
 
       - name: Test riferimenti ARERA
         run: python test/update_arera_reference_data_test.py
+
+      - name: Test coerenza metadata SEO dataset
+        run: python test/update_sitemap_lastmod_test.py
 
       - name: Riepilogo
         if: always()
