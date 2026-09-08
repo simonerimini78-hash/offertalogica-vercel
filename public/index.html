@@ -24,6 +24,50 @@
     <link rel="icon" type="image/png" href="/assets/logo-offertalogica-icon.png">
     <link rel="apple-touch-icon" href="/assets/logo-offertalogica-icon.png">
     <link rel="stylesheet" href="/assets/ol-app-access.css">
+    <script type="application/ld+json">
+    {
+      "@context":"https://schema.org",
+      "@graph":[
+        {
+          "@type":"Organization",
+          "@id":"https://offertalogica.it/#organization",
+          "name":"OffertaLogica",
+          "url":"https://offertalogica.it/",
+          "logo":{"@type":"ImageObject","url":"https://offertalogica.it/assets/logo-offertalogica-header.png"}
+        },
+        {
+          "@type":"WebSite",
+          "@id":"https://offertalogica.it/#website",
+          "url":"https://offertalogica.it/",
+          "name":"OffertaLogica",
+          "publisher":{"@id":"https://offertalogica.it/#organization"},
+          "inLanguage":"it-IT"
+        },
+        {
+          "@type":"WebPage",
+          "@id":"https://offertalogica.it/#webpage",
+          "url":"https://offertalogica.it/",
+          "name":"OffertaLogica | Calcolatore offerte luce e gas",
+          "description":"Confronta offerte luce e gas in base ai tuoi consumi, carica la bolletta e scopri le proposte più adatte con il calcolatore OffertaLogica.",
+          "isPartOf":{"@id":"https://offertalogica.it/#website"},
+          "about":{"@id":"https://offertalogica.it/#calculator"},
+          "inLanguage":"it-IT"
+        },
+        {
+          "@type":"WebApplication",
+          "@id":"https://offertalogica.it/#calculator",
+          "name":"Calcolatore offerte luce e gas OffertaLogica",
+          "url":"https://offertalogica.it/",
+          "applicationCategory":"UtilitiesApplication",
+          "operatingSystem":"Web",
+          "description":"Calcolatore OffertaLogica per confrontare offerte luce e gas usando consumi, profilo o dati della bolletta.",
+          "provider":{"@id":"https://offertalogica.it/#organization"},
+          "isPartOf":{"@id":"https://offertalogica.it/#website"},
+          "mainEntityOfPage":{"@id":"https://offertalogica.it/#webpage"}
+        }
+      ]
+    }
+    </script>
     <style>
         :root {
             --bg-color: #f1f5f9;
