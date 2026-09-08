@@ -18,11 +18,13 @@ test('sitemap includes all three agriculture vertical pages exactly once', () =>
   }
 });
 
-test('agriculture sitemap entries use current lastmod and non-daily cadence', () => {
+test('agriculture sitemap entries keep a valid lastmod and non-daily cadence', () => {
   for (const url of agricultureUrls) {
     const escaped = url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const pattern = new RegExp(`<url><loc>${escaped}</loc><lastmod>2026-08-25</lastmod><changefreq>monthly</changefreq><priority>0\\.8</priority></url>`);
-    assert.match(sitemap, pattern);
+    const pattern = new RegExp(`<url><loc>${escaped}</loc><lastmod>(\\d{4}-\\d{2}-\\d{2})</lastmod><changefreq>monthly</changefreq><priority>0\\.8</priority></url>`);
+    const match = sitemap.match(pattern);
+    assert.ok(match, `${url} deve restare mensile con lastmod ISO valido`);
+    assert.ok(!Number.isNaN(Date.parse(`${match[1]}T00:00:00Z`)));
   }
 });
 

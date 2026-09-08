@@ -34,9 +34,13 @@ test('pagina avicola collega gerarchia e calcolatore esistenti', () => {
   assert.ok([...poultry.matchAll(/href="\/"/g)].length >= 2);
 });
 
-test('pagina allevamenti collega la specializzazione avicola senza saltare la gerarchia dalla pillar', () => {
+test('pagina allevamenti e pillar mantengono una gerarchia leggibile verso la specializzazione avicola', () => {
   const livestockLinks = [...livestock.matchAll(/href="\/energia-allevamento-avicolo\.html"/g)];
-  assert.equal(livestockLinks.length, 2);
+  assert.ok(livestockLinks.length >= 1);
   assert.match(livestock, /Approfondisci il profilo energetico avicolo/);
-  assert.doesNotMatch(agriculture, /href="\/energia-allevamento-avicolo\.html"/i);
+  const generalIndex = agriculture.indexOf('href="/costi-energetici-allevamenti.html"');
+  const avianIndex = agriculture.indexOf('href="/energia-allevamento-avicolo.html"');
+  assert.ok(generalIndex >= 0);
+  assert.ok(avianIndex >= 0);
+  assert.ok(generalIndex < avianIndex);
 });

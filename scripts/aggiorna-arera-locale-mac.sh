@@ -150,6 +150,7 @@ ensure_static_surfaces_from_main() {
   for rel in \
     public/pun-oggi.html \
     public/psv-gas-oggi.html \
+    public/offerte-luce-gas-aggiornate.html \
     public/sitemap.xml
   do
     if [ ! -f "$MAIN_REPO_DIR/$rel" ]; then
@@ -178,6 +179,7 @@ backup_outputs() {
     public/data/energia-oggi.json \
     public/pun-oggi.html \
     public/psv-gas-oggi.html \
+    public/offerte-luce-gas-aggiornate.html \
     public/sitemap.xml
   do
     mkdir -p "$BACKUP_DIR/$(dirname "$rel")"
@@ -203,6 +205,7 @@ restore_outputs() {
     public/data/energia-oggi.json \
     public/pun-oggi.html \
     public/psv-gas-oggi.html \
+    public/offerte-luce-gas-aggiornate.html \
     public/sitemap.xml
   do
     if [ -f "$BACKUP_DIR/$rel.__missing__" ]; then
@@ -604,6 +607,58 @@ PY
 
 python3 "$ROOT_DIR/scripts/update-sitemap-lastmod.py" --root "$ROOT_DIR"
 
+log "Verifico la coerenza SEO tra dataset, pagine e sitemap."
+python3 - "$ROOT_DIR" <<'PYSEO'
+from __future__ import annotations
+
+import json
+import re
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1]).resolve()
+catalog = json.loads((root / "public/data/offerte-arera-menu.json").read_text(encoding="utf-8"))
+energy = json.loads((root / "public/data/energia-oggi.json").read_text(encoding="utf-8"))
+sitemap = (root / "public/sitemap.xml").read_text(encoding="utf-8")
+offers = (root / "public/offerte-luce-gas-aggiornate.html").read_text(encoding="utf-8")
+pun_page = (root / "public/pun-oggi.html").read_text(encoding="utf-8")
+gas_page = (root / "public/psv-gas-oggi.html").read_text(encoding="utf-8")
+
+def lastmod(url: str) -> str:
+    match = re.search(
+        rf"<url><loc>{re.escape(url)}</loc><lastmod>(\d{{4}}-\d{{2}}-\d{{2}})</lastmod>",
+        sitemap,
+    )
+    if not match:
+        raise RuntimeError(f"URL sitemap non trovata: {url}")
+    return match.group(1)
+
+catalog_date = str(catalog.get("aggiornatoIl") or "")
+pun_date = str((energy.get("pun") or {}).get("data") or "")
+gas_date = str(((energy.get("gas") or {}).get("giornaliero") or {}).get("data") or "")
+if lastmod("https://offertalogica.it/offerte-luce-gas-aggiornate.html") != catalog_date:
+    raise RuntimeError("lastmod offerte non coerente con il catalogo ARERA")
+for url in re.findall(r"<loc>(https://offertalogica\.it/fornitori/[^<]+\.html)</loc>", sitemap):
+    if lastmod(url) != catalog_date:
+        raise RuntimeError(f"lastmod fornitore non coerente con il catalogo ARERA: {url}")
+if lastmod("https://offertalogica.it/pun-oggi.html") != pun_date:
+    raise RuntimeError("lastmod PUN sovrascritto da un dataset diverso")
+if lastmod("https://offertalogica.it/psv-gas-oggi.html") != gas_date:
+    raise RuntimeError("lastmod PSV sovrascritto da un dataset diverso")
+if f'"dateModified":"{pun_date}"' not in pun_page:
+    raise RuntimeError("dateModified PUN non coerente")
+if f'"dateModified":"{gas_date}"' not in gas_page:
+    raise RuntimeError("dateModified PSV non coerente")
+if not re.search(rf'"dateModified"\s*:\s*"{re.escape(catalog_date)}"', offers):
+    raise RuntimeError("dateModified offerte non coerente con il catalogo ARERA")
+if 'data-energy-method="pun"' not in pun_page or 'data-energy-method="gas"' not in gas_page:
+    raise RuntimeError("sezione Fonti e metodo non gestita dall'updater energia")
+print(
+    "[ARERA-LOCALE] Coerenza SEO OK: "
+    f"catalogo={catalog_date}, PUN={pun_date}, PSV={gas_date}."
+)
+PYSEO
+
 rm -f \
   "$DOWNLOAD_DIR"/PO_Offerte_E_MLIBERO_*.xml \
   "$DOWNLOAD_DIR"/PO_Offerte_G_MLIBERO_*.xml \
@@ -622,4 +677,5 @@ log "- public/data/calcolo-parametri.json"
 log "- public/data/energia-oggi.json"
 log "- public/pun-oggi.html"
 log "- public/psv-gas-oggi.html"
+log "- public/offerte-luce-gas-aggiornate.html"
 log "- public/sitemap.xml"

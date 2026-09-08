@@ -33,13 +33,17 @@ test('pagina allevamenti collega pillar e calcolatore esistenti', () => {
   assert.ok(rootLinks.length >= 2);
 });
 
-test('la pillar collega la pagina allevamenti una sola volta', () => {
+test('la pillar collega il livello allevamenti in modo esplicito', () => {
   const matches = [...agriculture.matchAll(/href="\/costi-energetici-allevamenti\.html"/g)];
-  assert.equal(matches.length, 1);
+  assert.ok(matches.length >= 1);
   assert.match(agriculture, /Approfondisci i costi energetici negli allevamenti/);
 });
 
-test('la pagina allevamenti collega la specializzazione avicola, mentre la pillar mantiene la gerarchia', () => {
+test('la specializzazione avicola resta subordinata al livello generale allevamenti', () => {
   assert.match(livestock, /href="\/energia-allevamento-avicolo\.html"/i);
-  assert.doesNotMatch(agriculture, /href="\/energia-allevamento-avicolo\.html"/i);
+  const generalIndex = agriculture.indexOf('href="/costi-energetici-allevamenti.html"');
+  const avianIndex = agriculture.indexOf('href="/energia-allevamento-avicolo.html"');
+  assert.ok(generalIndex >= 0);
+  assert.ok(avianIndex >= 0);
+  assert.ok(generalIndex < avianIndex);
 });

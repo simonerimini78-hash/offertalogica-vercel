@@ -39,7 +39,10 @@ test('pagine pilastro: canonical e H1 restano unici',()=>{
   }
 });
 
-test('sitemap: lastmod aggiornato solo sulle due pagine del pacchetto',()=>{
-  assert.match(sitemap,/come-leggere-bolletta-luce-gas\.html<\/loc><lastmod>2026-08-28<\/lastmod>/);
-  assert.match(sitemap,/offerte-luce-gas-aggiornate\.html<\/loc><lastmod>2026-08-28<\/lastmod>/);
+test('sitemap: lastmod delle pagine pilastro segue la fonte corretta',()=>{
+  const guideModified=guide.match(/"dateModified"\s*:\s*"(\d{4}-\d{2}-\d{2})"/)?.[1];
+  const catalog=JSON.parse(fs.readFileSync(path.join(publicDir,'data','offerte-arera-menu.json'),'utf8'));
+  assert.ok(guideModified);
+  assert.match(sitemap,new RegExp(`come-leggere-bolletta-luce-gas\\.html</loc><lastmod>${guideModified}</lastmod>`));
+  assert.match(sitemap,new RegExp(`offerte-luce-gas-aggiornate\\.html</loc><lastmod>${catalog.aggiornatoIl}</lastmod>`));
 });

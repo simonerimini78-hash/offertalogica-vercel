@@ -25,9 +25,12 @@ test('CTA porta al calcolatore business esistente senza inventare deep-link', ()
   assert.ok(rootLinks.length >= 2);
 });
 
-test('la pillar collega il livello allevamenti senza saltare direttamente alla specializzazione avicola', () => {
-  assert.match(agriculture, /href="\/costi-energetici-allevamenti\.html"/i);
-  assert.doesNotMatch(agriculture, /href="\/energia-allevamento-avicolo\.html"/i);
+test('la pillar mantiene il livello allevamenti come percorso principale e consente l’approfondimento avicolo', () => {
+  const generalIndex = agriculture.indexOf('href="/costi-energetici-allevamenti.html"');
+  const avianIndex = agriculture.indexOf('href="/energia-allevamento-avicolo.html"');
+  assert.ok(generalIndex >= 0);
+  assert.ok(avianIndex >= 0);
+  assert.ok(generalIndex < avianIndex, 'il percorso generale allevamenti deve precedere la specializzazione avicola');
 });
 
 test('la pagina offerte aggiornata collega la nuova pillar agricola una sola volta', () => {

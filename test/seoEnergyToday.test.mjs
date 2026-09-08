@@ -58,6 +58,22 @@ test("dati locali: fonte tecnica, origine e periodicità restano esplicite",()=>
   assert.ok(String(data.gas.giornaliero.fonteOriginaleLabel||"").length>0);
 });
 
+
+test("Fonti e metodo sono renderizzate dallo stesso dataset e non possono restare snapshot manuali",()=>{
+  const punMethod=pun.match(/<p data-energy-method="pun">([\s\S]*?)<\/p>/)?.[1]||"";
+  const gasMethod=gas.match(/<p data-energy-method="gas">([\s\S]*?)<\/p>/)?.[1]||"";
+  assert.ok(punMethod);
+  assert.ok(gasMethod);
+  assert.ok(punMethod.includes(fmt(data.pun.valoreEurMwh,2)));
+  assert.ok(punMethod.includes(fmt(data.pun.valoreEurKwh,5)));
+  assert.ok(punMethod.includes(data.pun.fonteOriginaleLabel));
+  assert.ok(gasMethod.includes(fmt(data.gas.giornaliero.valoreEurMwh,2)));
+  assert.ok(gasMethod.includes(fmt(data.gas.psvMensile.valoreEurSmc,6)));
+  assert.ok(gasMethod.includes(String(data.gas.psvMensile.periodoLabel||data.gas.psvMensile.periodo)));
+  assert.ok(gasMethod.includes(data.gas.giornaliero.fonteOriginaleLabel));
+  assert.ok(gasMethod.includes(data.gas.psvMensile.fonteOriginaleLabel));
+});
+
 test("pagine oggi: nessuna nuova API e sitemap sincronizzata alle date dati",()=>{
   const js=read("assets/seo-energy-live.js");
   assert.doesNotMatch(js,/\/api\//);

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import html as html_lib
 import io
 import json
 import re
@@ -351,15 +352,74 @@ def date_it(iso: object) -> str:
 
 
 def replace_once(text: str, pattern: str, replacement: str, label: str, flags: int = 0) -> str:
-    updated, count = re.subn(pattern, replacement, text, count=1, flags=flags)
-    if count != 1:
-        raise RuntimeError(f"Sincronizzazione HTML fallita ({label}): atteso 1 match, trovati {count}")
-    return updated
+    matches = list(re.finditer(pattern, text, flags=flags))
+    if len(matches) != 1:
+        raise RuntimeError(f"Sincronizzazione HTML fallita ({label}): atteso 1 match, trovati {len(matches)}")
+    return re.sub(pattern, replacement, text, count=1, flags=flags)
 
 
 def set_data_live(html: str, key: str, value: str) -> str:
     pattern = rf'(<[^>]+data-live=["\']{re.escape(key)}["\'][^>]*>)(.*?)(</[^>]+>)'
     return replace_once(html, pattern, rf"\g<1>{value}\g<3>", f"data-live={key}", flags=re.S)
+
+
+def source_link(url: object, label: object) -> str:
+    safe_url = html_lib.escape(str(url or ""), quote=True)
+    safe_label = html_lib.escape(str(label or "Fonte originaria"))
+    if not safe_url:
+        return safe_label
+    return f'<a href="{safe_url}" target="_blank" rel="noopener">{safe_label}</a>'
+
+
+def render_pun_method_section(data: dict[str, object]) -> str:
+    pun = data["pun"]
+    assert isinstance(pun, dict)
+    source_label = pun.get("fonteOriginaleLabel") or pun.get("origineDato") or "Fonte originaria"
+    source_url = pun.get("urlFonteOriginale") or data.get("urlOrigineAggiornamento") or ""
+    source = source_link(source_url, source_label)
+    return (
+        '<section class="panel sources" id="fonti"><h2>Fonti e metodo</h2>'
+        '<p data-energy-method="pun">'
+        f'Il PUN Index GME mostrato in questa pagina è aggiornato al <strong>{date_it(pun.get("data"))}</strong>: '
+        f'<strong>{fmt_it(pun.get("valoreEurMwh"), 2)} €/MWh</strong> '
+        f'(<strong>{fmt_it(pun.get("valoreEurKwh"), 5)} €/kWh</strong>). '
+        f'OffertaLogica sincronizza questo riferimento dal dataset energia locale; la fonte originaria associata al dato è {source}. '
+        'Il valore di mercato resta distinto dal prezzo finale applicato in bolletta.'
+        '</p><ul>'
+        f'<li>{source}</li>'
+        '</ul></section>'
+    )
+
+
+def render_gas_method_section(data: dict[str, object]) -> str:
+    gas = data["gas"]
+    assert isinstance(gas, dict)
+    daily = gas["giornaliero"]
+    monthly = gas["psvMensile"]
+    assert isinstance(daily, dict) and isinstance(monthly, dict)
+    daily_source = source_link(
+        daily.get("urlFonteOriginale") or data.get("urlOrigineAggiornamento") or "",
+        daily.get("fonteOriginaleLabel") or daily.get("origineDato") or "Fonte giornaliera",
+    )
+    monthly_source = source_link(
+        monthly.get("urlFonteOriginale") or "",
+        monthly.get("fonteOriginaleLabel") or monthly.get("origineDato") or "Fonte mensile",
+    )
+    monthly_label = html_lib.escape(str(monthly.get("label") or "PSV mensile"))
+    monthly_period = html_lib.escape(str(monthly.get("periodoLabel") or monthly.get("periodo") or "n.d."))
+    return (
+        '<section class="panel sources" id="fonti"><h2>Fonti e metodo</h2>'
+        '<p data-energy-method="gas">'
+        f'Il riferimento giornaliero mostrato è <strong>IG Index GME</strong>, aggiornato al '
+        f'<strong>{date_it(daily.get("data"))}</strong>: <strong>{fmt_it(daily.get("valoreEurMwh"), 2)} €/MWh</strong>. '
+        f'Il riferimento mensile resta separato: <strong>{monthly_label}</strong>, periodo '
+        f'<strong>{monthly_period}</strong>, valore <strong>{fmt_it(monthly.get("valoreEurSmc"), 6)} €/Smc</strong>. '
+        f'Le fonti originarie associate ai due dati sono {daily_source} e {monthly_source}. '
+        'OffertaLogica non trasforma il solo indice giornaliero in un valore PSV mensile.'
+        '</p><ul>'
+        f'<li>{daily_source}</li><li>{monthly_source}</li>'
+        '</ul></section>'
+    )
 
 
 def render_pun_page(html: str, data: dict[str, object]) -> str:
@@ -388,6 +448,13 @@ def render_pun_page(html: str, data: dict[str, object]) -> str:
         r'Un valore giornaliero di [\d.,]+ €/MWh equivale matematicamente a [\d.,]+ €/kWh',
         body_sentence,
         "PUN testo esplicativo",
+    )
+    html = replace_once(
+        html,
+        r'<section class="panel sources" id="fonti">.*?</section>',
+        render_pun_method_section(data),
+        "PUN fonti e metodo",
+        flags=re.S,
     )
     return html
 
@@ -422,6 +489,13 @@ def render_gas_page(html: str, data: dict[str, object]) -> str:
         r'PSV oggi = [\d.,]+',
         f'PSV oggi = {fmt_it(daily["valoreEurMwh"], 2)}',
         "Gas alert valore",
+    )
+    html = replace_once(
+        html,
+        r'<section class="panel sources" id="fonti">.*?</section>',
+        render_gas_method_section(data),
+        "Gas fonti e metodo",
+        flags=re.S,
     )
     return html
 
