@@ -101,7 +101,7 @@
     assistance_callback_verified: "Richiamata verificata",
     pdf_no_file_selected: "Nessuna bolletta selezionata",
     pdf_analysis_started: "Lettura bolletta avviata",
-    pdf_analysis_completed: "Esito lettura bolletta",
+    pdf_analysis_completed: "Bolletta letta",
     pdf_data_confirmed: "Dati bolletta confermati",
     pdf_autofill_preview_opened: "Anteprima dati bolletta aperta",
     pdf_autofill_preview_confirmed: "Anteprima dati bolletta confermata",
@@ -693,7 +693,7 @@
   }
 
   const activityFunnelDefinitions = [
-    ["pdfStarted", "PDF avviati"], ["pdfCompleted", "PDF letti con successo"], ["pdfFailed", "PDF non riusciti"], ["comparisons", "Confronti reali"],
+    ["pdfStarted", "PDF avviati"], ["pdfCompleted", "PDF letti"], ["comparisons", "Confronti reali"],
     ["landingPreviews", "Anteprime automatiche landing"], ["leadModalOpened", "Popup aperti"],
     ["leadModalClosed", "Popup chiusi"], ["leadFormInvalid", "Form non validi"], ["otpRequestStarted", "Richieste OTP avviate"],
     ["leadCreatedClient", "Lead creati"], ["otpSent", "OTP inviati"], ["otpFailed", "Errori OTP"], ["otpVerified", "OTP verificati"],
@@ -905,8 +905,6 @@
       event.annualCost != null && Math.abs(Number(event.annualCost)) > 0 ? `costo ${formatMoney(event.annualCost)}` : "",
       event.visibleOffersCount != null && Number(event.visibleOffersCount) > 0 ? `${event.visibleOffersCount} offerte` : "",
       event.fileCount != null && Number(event.fileCount) > 0 ? `${event.fileCount} file` : "",
-      event.successCount != null ? `${event.successCount} letti` : "",
-      event.errorCount != null && Number(event.errorCount) > 0 ? `${event.errorCount} errori` : "",
     ].filter(Boolean).join(" · ") || "—";
   }
 
@@ -976,18 +974,7 @@
     if (hasAny(SESSION_COMMERCIAL_EVENTS)) return { label: "Passaggio verso partner / Switcho avviato", tone: "ok" };
     if (hasAny(SESSION_OFFER_ACTION_EVENTS)) return { label: "Offerta selezionata, passaggio esterno non completato", tone: "warn" };
     if (has("offers_rendered")) return { label: "Offerte raggiunte, nessun clic commerciale", tone: "warn" };
-    if (has("comparison_incomplete_data")) return { label: "Confronto fermato: dati della bolletta incompleti", tone: "warn" };
     if (has("comparison_started") || has("comparison_completed")) return { label: "Confronto avviato, offerte non raggiunte", tone: "warn" };
-    const pdfResult = [...rows].reverse().find(item => String(item.eventType || "") === "pdf_analysis_completed");
-    if (pdfResult) {
-      const hasSuccessCount = pdfResult.successCount !== null && pdfResult.successCount !== undefined && pdfResult.successCount !== "";
-      const successCount = hasSuccessCount ? Number(pdfResult.successCount) : null;
-      const errorCount = pdfResult.errorCount !== null && pdfResult.errorCount !== undefined && pdfResult.errorCount !== "" ? Number(pdfResult.errorCount) : null;
-      if (Number.isFinite(successCount) && successCount <= 0) {
-        return { label: Number.isFinite(errorCount) && errorCount > 0 ? "PDF caricato, analisi non riuscita" : "PDF caricato, documento non utilizzabile", tone: "warn" };
-      }
-      return { label: "Bolletta letta, confronto non completato", tone: "warn" };
-    }
     if (has("landing_self_service_click") || has("landing_assisted_click")) return { label: "Percorso scelto, nessun avanzamento successivo", tone: "warn" };
     if (has("calculator_view")) return { label: "Calcolatore aperto, confronto non avviato", tone: "warn" };
     if (has("landing_view")) return { label: "Abbandono sulla landing", tone: "warn" };
@@ -1033,10 +1020,8 @@
       assistance_guide_opened: "Ha aperto la guida di assistenza",
       assistance_callback_started: "Ha avviato la richiesta di richiamata",
       assistance_callback_verified: "Richiamata verificata",
-      pdf_analysis_started: "PDF caricato · lettura avviata",
-      comparison_incomplete_data: "Confronto fermato: dati della bolletta incompleti",
-      comparison_missing_current_price: "Dati essenziali della fornitura attuale incompleti",
-      pdf_data_confirmed: "Dati letti dal PDF confermati",
+      pdf_analysis_started: "Ha avviato la lettura della bolletta",
+      pdf_analysis_completed: "Lettura della bolletta completata",
       lead_modal_opened: "Ha aperto la verifica del numero",
       otp_request_started: "Ha richiesto l’invio dell’SMS",
       otp_sent: "SMS inviato",
@@ -1054,19 +1039,6 @@
       assistance_switcho_redirect: "Passaggio da assistenza verso Switcho avviato",
       business_switcho_requested: "Passaggio business verso Switcho avviato",
     };
-    if (type === "pdf_analysis_completed") {
-      const hasSuccessCount = item.successCount !== null && item.successCount !== undefined && item.successCount !== "";
-      const successCount = hasSuccessCount ? Number(item.successCount) : null;
-      const errorCount = item.errorCount !== null && item.errorCount !== undefined && item.errorCount !== "" ? Number(item.errorCount) : null;
-      if (Number.isFinite(successCount) && successCount > 0) {
-        return Number.isFinite(errorCount) && errorCount > 0
-          ? `Lettura parziale · ${successCount} PDF letti · ${errorCount} errori`
-          : `Lettura riuscita · ${successCount} ${successCount === 1 ? "PDF letto" : "PDF letti"}`;
-      }
-      if (Number.isFinite(successCount) && successCount <= 0 && Number.isFinite(errorCount) && errorCount > 0) return `Lettura non riuscita · ${errorCount} ${errorCount === 1 ? "errore" : "errori"}`;
-      if (Number.isFinite(successCount) && successCount <= 0) return "Lettura completata senza documenti utilizzabili";
-      return "Lettura della bolletta completata";
-    }
     if (descriptions[type]) return descriptions[type];
     const values = analyticsEventValueText(item);
     return [origin, providerOffer, values !== "—" ? values : ""].filter(Boolean).join(" · ") || "Evento registrato";
@@ -1075,68 +1047,6 @@
   function analyticsSourceLabel(sourceKey = "") {
     const item = (cache.analyticsSummary?.trafficSources || []).find(entry => String(entry.key || "") === String(sourceKey || ""));
     return item?.label || sourceKey || "Tutte le provenienze";
-  }
-
-  function analyticsTrafficDetail(item = {}, { includeCampaign = true } = {}) {
-    const parts = [];
-    const referrer = String(item.trafficReferrer || "").trim();
-    const medium = String(item.trafficMedium || "").trim();
-    const campaign = String(item.trafficCampaign || "").trim();
-    const content = String(item.trafficContent || "").trim();
-    const term = String(item.trafficTerm || "").trim();
-    const landing = String(item.trafficLandingPage || item.page || "").trim();
-    const clickIdType = String(item.trafficClickIdType || "").trim();
-    if (referrer) parts.push(`ref: ${referrer}`);
-    if (medium) parts.push(`medium: ${medium}`);
-    if (includeCampaign && campaign) parts.push(`campagna: ${campaign}`);
-    if (content) parts.push(`content: ${content}`);
-    if (term) parts.push(`term: ${term}`);
-    if (landing) parts.push(`landing: ${landing}`);
-    if (clickIdType) parts.push(`click-id: ${clickIdType}`);
-    return parts.join(" · ");
-  }
-
-  function analyticsSourceWithTechnicalOrigin(item = {}) {
-    const source = analyticsSourceLabel(item.trafficSource);
-    const referrer = String(item.trafficReferrer || "").trim();
-    return referrer ? `${source} · ${referrer}` : source;
-  }
-
-  function renderTrafficSourcesWithTechnical() {
-    const target = byId("analyticsTrafficSources");
-    if (!target) return;
-    clear(target);
-
-    const sources = Array.isArray(cache.analyticsSummary?.trafficSources)
-      ? cache.analyticsSummary.trafficSources
-      : [];
-    const technicalBySource = cache.analyticsSummary?.trafficTechnicalBySource || {};
-
-    if (!sources.length) {
-      target.append(node("div", { className: "empty", text: "Nessuna sessione dal punto zero" }));
-      return;
-    }
-
-    sources.forEach((item) => {
-      const key = String(item.key || "");
-      const count = Number(item.count || 0);
-      const breakdown = Array.isArray(technicalBySource[key]) ? technicalBySource[key] : [];
-      const breakdownTotal = breakdown.reduce((sum, row) => sum + Number(row.count || 0), 0);
-      const detail = breakdown.length
-        ? breakdown.map((row) => `${row.key}: ${formatNumber(row.count || 0)}`).join(" · ")
-        : "Nessun referrer tecnico disponibile";
-      const consistency = breakdown.length && breakdownTotal !== count
-        ? ` · dettaglio tecnico ${formatNumber(breakdownTotal)}/${formatNumber(count)}`
-        : "";
-
-      target.append(node("div", { className: "traffic-source-row" }, [
-        node("div", { className: "traffic-source-main" }, [
-          node("strong", { text: item.label || item.key }),
-          node("small", { text: `Referrer delle stesse sessioni: ${detail}${consistency}` }),
-        ]),
-        node("span", { className: "traffic-source-count", text: formatNumber(count) }),
-      ]));
-    });
   }
 
   function closeAnalyticsSession() {
@@ -1170,7 +1080,6 @@
     const last = rows[rows.length - 1];
     const shortId = sessionId.length > 18 ? `${sessionId.slice(0, 9)}…${sessionId.slice(-6)}` : sessionId;
     const source = analyticsSourceLabel(first.trafficSource);
-    const sourceTechnical = analyticsSourceWithTechnicalOrigin(first);
     const activeSeconds = analyticsSessionActiveSeconds(rows);
     const firstAction = rows.find(item => SESSION_USER_ACTION_EVENTS.has(String(item.eventType || "")));
     const offersCount = analyticsSessionLatestOffersCount(rows);
@@ -1178,7 +1087,7 @@
 
     text(byId("analyticsSessionTitle"), `Percorso sessione ${shortId}`);
     text(byId("analyticsSessionMeta"), [
-      sourceTechnical,
+      source,
       first.visitorLabel || "",
       `${formatNumber(rows.length)} eventi`,
       `${formatDate(first.createdAt)} → ${formatDate(last.createdAt)}`
@@ -1189,10 +1098,10 @@
       node("div", { className: `analytics-session-outcome ${outcome.tone}` }, [
         node("span", { text: "Esito sessione" }),
         node("strong", { text: outcome.label }),
-        node("small", { text: `${sourceTechnical} · ${activeSeconds > 0 ? `${formatDurationSeconds(activeSeconds)} attivi` : "tempo attivo non disponibile"} · ${firstAction ? "interazione registrata" : "nessuna interazione"}` }),
+        node("small", { text: `${source} · ${activeSeconds > 0 ? `${formatDurationSeconds(activeSeconds)} attivi` : "tempo attivo non disponibile"} · ${firstAction ? "interazione registrata" : "nessuna interazione"}` }),
       ]),
       node("div", { className: "analytics-session-facts" }, [
-        node("div", {}, [node("span", { text: "Provenienza" }), node("strong", { text: sourceTechnical || "—" }), node("small", { text: analyticsTrafficDetail(first) || "Nessun dettaglio tecnico disponibile" })]),
+        node("div", {}, [node("span", { text: "Provenienza" }), node("strong", { text: source || "—" })]),
         node("div", {}, [node("span", { text: "Tempo attivo" }), node("strong", { text: activeSeconds > 0 ? formatDurationSeconds(activeSeconds) : "—" })]),
         node("div", {}, [node("span", { text: "Prima azione" }), node("strong", { text: firstAction ? staffEventLabel(firstAction) : "Nessuna" })]),
         node("div", {}, [node("span", { text: "Offerte" }), node("strong", { text: offersCount != null ? `${offersCount} visualizzate` : "Non raggiunte" })]),
@@ -1228,7 +1137,7 @@
     rows.forEach(item => {
       const origin = [item.dataOrigin ? staffDataOriginLabel(item) : "", item.page].filter(Boolean).join(" · ") || "—";
       const offer = [item.provider, item.offerName].filter(Boolean).join(" · ");
-      const detail = [analyticsTrafficDetail(item), origin, offer, analyticsEventValueText(item) !== "—" ? analyticsEventValueText(item) : ""].filter(Boolean).join(" · ") || "—";
+      const detail = [origin, offer, analyticsEventValueText(item) !== "—" ? analyticsEventValueText(item) : ""].filter(Boolean).join(" · ") || "—";
       technicalList.append(node("div", { className: "analytics-session-event technical" }, [
         node("time", { text: formatDate(item.createdAt) }),
         node("div", {}, [badge(staffEventLabel(item), "info"), node("small", { text: `#${item.id}` })]),
@@ -1337,7 +1246,7 @@
       const path = `${switchoPathLabel(row)} · ${switchoOriginLabel(row.dataOrigin)}`;
       body.append(node("tr", {}, [
         node("td", {}, [node("strong", { text: formatDate(row.createdAt || row.firstAt) })]),
-        node("td", {}, [node("strong", { text: row.trafficReferrer ? `${switchoSourceLabel(row.trafficSource)} · ${row.trafficReferrer}` : switchoSourceLabel(row.trafficSource) }), node("small", { text: analyticsTrafficDetail(row) || row.trafficCampaign || "" })]),
+        node("td", {}, [node("strong", { text: switchoSourceLabel(row.trafficSource) }), node("small", { text: row.trafficCampaign || "" })]),
         node("td", { text: path }),
         node("td", { text: offer }),
         node("td", { text: ranking }),
@@ -1360,11 +1269,12 @@
       }
       const moneyCell = value => value == null || !Number.isFinite(Number(value)) ? "" : Number(value).toFixed(2).replace(".", ",");
       const csvRows = [[
-        "Data", "Session ID", "Provenienza", "Referrer", "Campagna", "Medium", "Content", "Termine", "Landing", "Tipo click ID", "Percorso Switcho", "Origine dati",
+        "Data", "Session ID", "Provenienza", "Campagna", "Medium", "Termine", "Content", "Referrer", "Landing", "Click ID tipo", "Click ID", "Percorso Switcho", "Origine dati",
         "Fornitore", "Offerta", "Posizione economica", "Posizione visualizzata", "Costo annuo stimato EUR", "Risparmio annuo stimato EUR",
         "Scelta card registrata", "Redirect registrato", "Landing Switcho avviata", "Lead ID"
       ], ...rows.map(row => [
-        row.createdAt || row.firstAt || "", row.sessionId || "", switchoSourceLabel(row.trafficSource), row.trafficReferrer || "", row.trafficCampaign || "", row.trafficMedium || "", row.trafficContent || "", row.trafficTerm || "", row.trafficLandingPage || "", row.trafficClickIdType || "",
+        row.createdAt || row.firstAt || "", row.sessionId || "", switchoSourceLabel(row.trafficSource), row.trafficCampaign || "", row.trafficMedium || "", row.trafficTerm || "",
+        row.trafficContent || "", row.trafficReferrer || "", row.trafficLandingPage || "", row.trafficClickIdType || "", row.trafficClickId || "",
         switchoPathLabel(row), switchoOriginLabel(row.dataOrigin), row.provider || "", row.offerName || "", row.economyRank ?? "", row.displayRank ?? "",
         moneyCell(row.annualCost), moneyCell(row.annualSaving), row.choiceRecorded ? "SI" : "NO", row.redirectRecorded ? "SI" : "NO", row.landingOpened ? "SI" : "NO", row.leadId || ""
       ])];
@@ -1402,7 +1312,7 @@
     renderActivityFunnel(byId("analyticsActivity"), activityFunnel);
     renderRankList(byId("analyticsProviders"), summary.topProviders || [], "Nessun provider cliccato");
     renderRankList(byId("analyticsOffers"), summary.topOffers || [], "Nessuna offerta cliccata");
-    renderTrafficSourcesWithTechnical();
+    renderRankList(byId("analyticsTrafficSources"), (summary.trafficSources || []).map((item) => ({ key: item.label || item.key, count: item.count })), "Nessuna sessione dal punto zero");
     const baseline = cache.analyticsBaseline || {};
     text(byId("analyticsBaseline"), baseline.label ? `Punto zero campagna: ${baseline.label}` : "Punto zero campagna");
     text(byId("analyticsFunnelNote"), sourceFilter
@@ -1427,7 +1337,7 @@
       body.append(node("tr", {}, [
         node("td", {}, [node("strong", { text: formatDate(event.createdAt) }), node("small", { text: `#${event.id}` })]),
         node("td", {}, [badge(staffEventLabel(event), "info"), node("small", { text: event.eventType === "session_engagement" ? staffEngagementReasonLabel(event.engagementReason) : (event.reason || "") })]),
-        node("td", {}, [node("strong", { text: event.trafficSource ? analyticsSourceWithTechnicalOrigin(event) : (event.dataOrigin ? staffDataOriginLabel(event) : (event.source || "—")) }), node("small", { text: [analyticsTrafficDetail(event), event.dataOrigin ? staffDataOriginLabel(event) : ""].filter(Boolean).join(" · ") })]),
+        node("td", {}, [node("strong", { text: event.trafficSource ? analyticsSourceLabel(event.trafficSource) : (event.dataOrigin ? staffDataOriginLabel(event) : (event.source || "—")) }), node("small", { text: [event.trafficCampaign, event.dataOrigin ? staffDataOriginLabel(event) : "", event.page].filter(Boolean).join(" · ") })]),
         node("td", {}, [node("strong", { text: [event.provider, event.offerName].filter(Boolean).join(" · ") || "—" }), node("small", { text: event.destinationStatus || "" })]),
         node("td", { text: values }),
         node("td", {}, [badge(event.leadId ? "collegato" : "anonimo", event.leadId ? "ok" : "warn"), node("small", { text: event.leadId || "" })]),
@@ -1451,6 +1361,31 @@
 
 
 
+
+  async function exportAnalyticsCsv(scope = "events") {
+    const range = String(byId("analyticsExportRange")?.value || "baseline");
+    const scopeLabel = scope === "sessions" ? "funnel_sessioni" : "analytics_completo";
+    try {
+      setMessage("info", scope === "sessions" ? "Preparazione export funnel/sessioni…" : "Preparazione export analytics completo…");
+      if (typeof recordExportAudit === "function") {
+        await recordExportAudit(scopeLabel, { metadata: { range, scope } }).catch(() => {});
+      }
+      const blob = await staffFetch(`/api/staff-analytics?format=csv&scope=${encodeURIComponent(scope)}&range=${encodeURIComponent(range)}`, { expectBlob: true });
+      const url = URL.createObjectURL(blob);
+      const date = new Date().toISOString().slice(0, 10);
+      const filename = scope === "sessions"
+        ? `offertalogica-funnel-sessioni-${range}-${date}.csv`
+        : `offertalogica-analytics-completo-${range}-${date}.csv`;
+      const link = node("a", { attrs: { href: url, download: filename } });
+      document.body.append(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      setMessage("success", scope === "sessions" ? "Export funnel/sessioni generato." : "Export analytics completo generato.");
+    } catch (error) {
+      setMessage("error", `Esportazione analytics bloccata: ${friendlyError(error)}`);
+    }
+  }
 
   async function loadAnalytics({ silent = false } = {}) {
     if (!silent) setMessage("info", "Aggiornamento analytics…");
@@ -3812,6 +3747,8 @@
     byId("staffComplimentaryLayer").addEventListener("click", event => { if (event.target === byId("staffComplimentaryLayer")) closeComplimentary(); });
     document.addEventListener("keydown", event => { if (event.key === "Escape" && !byId("staffComplimentaryLayer")?.hidden) closeComplimentary(); });
     byId("analyticsRefresh").addEventListener("click", () => loadAnalytics().catch(error => setMessage("error", friendlyError(error))));
+    byId("analyticsExportAll")?.addEventListener("click", () => { void exportAnalyticsCsv("events"); });
+    byId("analyticsExportSessions")?.addEventListener("click", () => { void exportAnalyticsCsv("sessions"); });
     byId("landingPathRange")?.addEventListener("change", () => loadAnalytics({ silent: true }).catch(error => setMessage("error", friendlyError(error))));
     byId("switchoRange")?.addEventListener("change", renderSwitchoAnalytics);
     byId("switchoSourceFilter")?.addEventListener("change", renderSwitchoAnalytics);

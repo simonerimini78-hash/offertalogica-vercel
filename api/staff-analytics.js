@@ -295,8 +295,9 @@ function switchoEventFromRow(row = {}) {
     trafficTerm: String(payload.trafficTerm || ""),
     trafficContent: String(payload.trafficContent || ""),
     trafficReferrer: String(payload.trafficReferrer || ""),
-    trafficLandingPage: String(payload.trafficLandingPage || payload.page || ""),
+    trafficLandingPage: String(payload.trafficLandingPage || ""),
     trafficClickIdType: String(payload.trafficClickIdType || ""),
+    trafficClickId: String(payload.trafficClickId || ""),
     switchoSource: String(payload.source || ""),
     offerId: String(payload.offerId || ""),
     offerName: String(payload.offerName || ""),
@@ -341,6 +342,7 @@ function switchoSessionsFromEvents(events = []) {
       trafficReferrer: trafficEvent?.trafficReferrer || representative.trafficReferrer || "",
       trafficLandingPage: trafficEvent?.trafficLandingPage || representative.trafficLandingPage || "",
       trafficClickIdType: trafficEvent?.trafficClickIdType || representative.trafficClickIdType || "",
+      trafficClickId: trafficEvent?.trafficClickId || representative.trafficClickId || "",
       dataOrigin: offerEvent?.dataOrigin || representative.dataOrigin || "",
       switchoSource: landing?.switchoSource || choice?.switchoSource || representative.switchoSource || "",
       offerId: offerEvent?.offerId || "",
@@ -480,52 +482,6 @@ function sourceEntries(map) {
   return topEntries(map, 12).map((item) => ({ ...item, label: trafficSourceLabel(item.key) }));
 }
 
-function normalizeTechnicalReferrer(rawReferrer = "") {
-  const raw = String(rawReferrer || "").trim();
-  if (!raw) return "";
-
-  let hostname = raw.toLowerCase();
-  try {
-    hostname = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(raw) ? raw : `https://${raw}`).hostname.toLowerCase();
-  } catch (_) {
-    hostname = hostname.split("/")[0].split(":")[0];
-  }
-  hostname = hostname.replace(/\.$/, "").replace(/^www\./, "");
-
-  if (hostname === "offertalogica.it" || hostname.endsWith(".offertalogica.it")) return "OffertaLogica (interno)";
-  if (hostname === "facebook.com" || hostname.endsWith(".facebook.com") || hostname === "fb.com" || hostname.endsWith(".fb.com")) return "Facebook";
-  if (hostname === "instagram.com" || hostname.endsWith(".instagram.com")) return "Instagram";
-  if (hostname === "tiktok.com" || hostname.endsWith(".tiktok.com")) return "TikTok";
-  if (hostname === "linkedin.com" || hostname.endsWith(".linkedin.com") || hostname === "lnkd.in" || hostname.endsWith(".lnkd.in")) return "LinkedIn";
-  if (/(^|\.)google\.[a-z.]+$/i.test(hostname)) return "Google";
-  if (hostname === "bing.com" || hostname.endsWith(".bing.com")) return "Bing";
-  if (hostname === "duckduckgo.com" || hostname.endsWith(".duckduckgo.com")) return "DuckDuckGo";
-  if (hostname === "chatgpt.com" || hostname.endsWith(".chatgpt.com") || hostname === "chat.openai.com") return "ChatGPT";
-  if (hostname === "bit.ly" || hostname.endsWith(".bit.ly")) return "Bitly";
-
-  return hostname || raw;
-}
-
-function technicalReferrerForSessionGroup(group = []) {
-  const ordered = [...group].sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime());
-  const withReferrer = ordered.find((event) => String(event.trafficReferrer || "").trim());
-  const normalized = normalizeTechnicalReferrer(withReferrer?.trafficReferrer || "");
-  return normalized || "Senza referrer";
-}
-
-function technicalBreakdownBySource(groups = []) {
-  const grouped = {};
-  groups.forEach((group) => {
-    const source = sourceForSessionGroup(group);
-    const technical = technicalReferrerForSessionGroup(group);
-    if (!grouped[source]) grouped[source] = {};
-    increment(grouped[source], technical);
-  });
-  return Object.fromEntries(
-    Object.entries(grouped).map(([source, counts]) => [source, topEntries(counts, 20)])
-  );
-}
-
 
 function isAutomaticLandingPreview(event = {}) {
   return String(event.dataOrigin || "").trim().toLowerCase() === LANDING_AUTOMATIC_DATA_ORIGIN;
@@ -535,25 +491,10 @@ function isRealComparisonCompleted(event = {}) {
   return event.eventType === "comparison_completed" && !isAutomaticLandingPreview(event);
 }
 
-function isSuccessfulPdfAnalysisEvent(event = {}) {
-  if (event.eventType !== "pdf_analysis_completed") return false;
-  if (event.successCount === null || event.successCount === undefined || event.successCount === "") return true;
-  const successCount = Number(event.successCount);
-  return Number.isFinite(successCount) ? successCount > 0 : true;
-}
-
-function isUnsuccessfulPdfAnalysisEvent(event = {}) {
-  if (event.eventType !== "pdf_analysis_completed") return false;
-  if (event.successCount === null || event.successCount === undefined || event.successCount === "") return false;
-  const successCount = Number(event.successCount);
-  return Number.isFinite(successCount) && successCount <= 0;
-}
-
 function activityFunnelFromEvents(events = []) {
   const funnel = {
     pdfStarted: 0,
     pdfCompleted: 0,
-    pdfFailed: 0,
     comparisons: 0,
     landingPreviews: 0,
     offersRendered: 0,
@@ -574,8 +515,7 @@ function activityFunnelFromEvents(events = []) {
   };
   events.forEach((event) => {
     if (event.eventType === "pdf_analysis_started") funnel.pdfStarted += 1;
-    if (isSuccessfulPdfAnalysisEvent(event)) funnel.pdfCompleted += 1;
-    if (isUnsuccessfulPdfAnalysisEvent(event)) funnel.pdfFailed += 1;
+    if (event.eventType === "pdf_analysis_completed") funnel.pdfCompleted += 1;
     if (isRealComparisonCompleted(event)) funnel.comparisons += 1;
     if (event.eventType === "comparison_completed" && isAutomaticLandingPreview(event)) funnel.landingPreviews += 1;
     if (event.eventType === "offers_rendered") funnel.offersRendered += 1;
@@ -618,7 +558,7 @@ function sessionFunnelFromGroups(groups = []) {
   groups.forEach((group) => {
     const eventTypes = new Set(group.map((event) => event.eventType).filter(Boolean));
     const hasRealComparison = group.some((event) => isRealComparisonCompleted(event));
-    const hasPdfCompleted = group.some((event) => isSuccessfulPdfAnalysisEvent(event));
+    const hasPdfCompleted = eventTypes.has("pdf_analysis_completed");
     const hasSelfService = eventTypes.has("landing_self_service_click");
     const hasAssisted = eventTypes.has("landing_assisted_click");
     funnel.entries += 1;
@@ -784,9 +724,245 @@ function enhanceAnalyticsForStaff(result, trafficSignals = new Map()) {
       topOffers: topEntries(byOffer),
       visitorSessions: visitorCounts,
       trafficSources: sourceEntries(trafficSourceSessions),
-      trafficTechnicalBySource: technicalBreakdownBySource(attributedSessionGroups),
     },
   };
+}
+
+const ANALYTICS_EXPORT_PAGE_SIZE = 1000;
+const ANALYTICS_EXPORT_MAX_ROWS = 100000;
+
+function csvEscape(value) {
+  const normalized = value === null || value === undefined
+    ? ""
+    : typeof value === "object"
+      ? JSON.stringify(value)
+      : String(value);
+  return `"${normalized.replace(/"/g, '""')}"`;
+}
+
+function csvFromObjects(rows, headers) {
+  return [
+    headers.join(","),
+    ...rows.map((row) => headers.map((header) => csvEscape(row[header])).join(",")),
+  ].join("\n");
+}
+
+function analyticsExportRangeFrom(value) {
+  return String(value || "baseline").toLowerCase() === "all" ? "" : CAMPAIGN_BASELINE_ISO;
+}
+
+async function fetchAnalyticsExportPage(from, offset, limit = ANALYTICS_EXPORT_PAGE_SIZE) {
+  const query = new URLSearchParams({
+    select: "id,lead_id,event_type,created_at,payload",
+    order: "created_at.asc",
+    limit: String(limit),
+    offset: String(offset),
+  });
+  if (from) query.set("created_at", `gte.${from}`);
+  const response = await fetch(
+    `${customerDbBaseUrl()}/rest/v1/${CUSTOMER_DB_EVENTS_TABLE}?${query.toString()}`,
+    { method: "GET", headers: customerDbReadHeaders() },
+  );
+  if (!response.ok) throw new Error(`Customer DB analytics export error ${response.status}`);
+  const rows = await response.json();
+  return Array.isArray(rows) ? rows : [];
+}
+
+async function loadAnalyticsExportRows(from) {
+  if (!customerDbConfiguredForLandingAnalytics()) return [];
+  const rows = [];
+  for (let offset = 0; offset < ANALYTICS_EXPORT_MAX_ROWS; offset += ANALYTICS_EXPORT_PAGE_SIZE) {
+    const page = await fetchAnalyticsExportPage(from, offset);
+    rows.push(...page);
+    if (page.length < ANALYTICS_EXPORT_PAGE_SIZE) return rows;
+  }
+  const overflow = await fetchAnalyticsExportPage(from, ANALYTICS_EXPORT_MAX_ROWS, 1);
+  if (overflow.length) throw new Error("Export analytics oltre il limite di lettura sicura: nessun CSV parziale generato");
+  return rows;
+}
+
+function rawAnalyticsPayload(row = {}) {
+  return row?.payload && typeof row.payload === "object" && !Array.isArray(row.payload) ? row.payload : {};
+}
+
+function analyticsEventExportRows(rows = []) {
+  return rows.map((row) => {
+    const p = rawAnalyticsPayload(row);
+    return {
+      id: row.id ?? "",
+      lead_id: row.lead_id || "",
+      event_type: row.event_type || "",
+      created_at: row.created_at || "",
+      session_id: p.sessionId || "",
+      page: p.page || "",
+      customer_type: p.customerType || "",
+      data_origin: p.dataOrigin || "",
+      source: p.source || "",
+      lead_source: p.leadSource || "",
+      traffic_source: p.trafficSource || "",
+      traffic_medium: p.trafficMedium || "",
+      traffic_campaign: p.trafficCampaign || "",
+      traffic_term: p.trafficTerm || "",
+      traffic_content: p.trafficContent || "",
+      traffic_referrer: p.trafficReferrer || "",
+      traffic_landing_page: p.trafficLandingPage || "",
+      traffic_click_id_type: p.trafficClickIdType || "",
+      traffic_click_id: p.trafficClickId || "",
+      traffic_agent: p.trafficAgent || "",
+      traffic_reason: p.trafficReason || "",
+      event_integrity: p.eventIntegrity || "",
+      verified: p.verified ?? "",
+      staff_mode: p.staffMode ?? "",
+      best_saving: p.bestSaving ?? "",
+      pdf_document_count: p.pdfDocumentCount ?? "",
+      visible_offers_count: p.visibleOffersCount ?? "",
+      active_partner_offers_count: p.activePartnerOffersCount ?? "",
+      consultant_offers_count: p.consultantOffersCount ?? "",
+      offer_id: p.offerId || "",
+      offer_name: p.offerName || "",
+      provider: p.provider || "",
+      destination_type: p.destinationType || "",
+      destination_status: p.destinationStatus || "",
+      display_group: p.displayGroup || "",
+      economy_rank: p.economyRank ?? "",
+      display_rank: p.displayRank ?? "",
+      annual_cost: p.annualCost ?? "",
+      annual_delta: p.annualDelta ?? "",
+      network: p.network || "",
+      model: p.model || "",
+      redirect: p.redirect ?? "",
+      routing_version: p.routingVersion || "",
+      engagement_stage: p.engagementStage || "",
+      engagement_reason: p.engagementReason || "",
+      engagement_active_seconds: p.engagementActiveSeconds ?? "",
+      engagement_elapsed_seconds: p.engagementElapsedSeconds ?? "",
+      engagement_landing_seconds: p.engagementLandingSeconds ?? "",
+      engagement_calculator_seconds: p.engagementCalculatorSeconds ?? "",
+      engagement_offers_seconds: p.engagementOffersSeconds ?? "",
+      engagement_otp_seconds: p.engagementOtpSeconds ?? "",
+      engagement_first_action_seconds: p.engagementFirstActionSeconds ?? "",
+      engagement_offers_reached_seconds: p.engagementOffersReachedSeconds ?? "",
+      telemetry: p.telemetry ?? "",
+      reason: p.reason || "",
+      payload_json: p,
+    };
+  });
+}
+
+function exportSessionActiveSeconds(events = []) {
+  const lastByPage = new Map();
+  let total = 0;
+  events.forEach((event) => {
+    const p = event.payload || {};
+    if (event.eventType !== "session_engagement") return;
+    const current = Number(p.engagementActiveSeconds);
+    if (!Number.isFinite(current) || current <= 0) return;
+    const key = String(p.page || p.engagementStage || "session");
+    const previous = Number(lastByPage.get(key) || 0);
+    total += current >= previous ? current - previous : current;
+    lastByPage.set(key, current);
+  });
+  return Math.round(total);
+}
+
+function analyticsSessionExportRows(rawRows = []) {
+  const groups = new Map();
+  rawRows.forEach((row) => {
+    const p = rawAnalyticsPayload(row);
+    const sessionId = String(p.sessionId || "");
+    const key = sessionId ? `session:${sessionId}` : `event:${row.id}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push({
+      id: row.id,
+      leadId: row.lead_id || "",
+      eventType: String(row.event_type || ""),
+      createdAt: row.created_at || "",
+      payload: p,
+      dataOrigin: String(p.dataOrigin || ""),
+      trafficAgent: String(p.trafficAgent || ""),
+    });
+  });
+
+  return [...groups.values()].map((group) => {
+    const ordered = [...group].sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime());
+    const first = ordered[0] || {};
+    const last = ordered[ordered.length - 1] || first;
+    const landing = ordered.find((event) => event.eventType === "landing_view") || first;
+    const attributionEvent = ordered.find((event) => event.payload?.trafficSource && event.payload.trafficSource !== "direct") || landing || first;
+    const attribution = attributionEvent.payload || {};
+    const eventTypes = new Set(ordered.map((event) => event.eventType).filter(Boolean));
+    const firstPayload = first.payload || {};
+    const lastPayload = last.payload || {};
+    const offerEvent = [...ordered].reverse().find((event) => event.payload?.offerName || event.payload?.provider) || last;
+    const offerPayload = offerEvent.payload || {};
+    const engagementEvents = ordered.filter((event) => event.eventType === "session_engagement");
+    const engagementLast = engagementEvents[engagementEvents.length - 1]?.payload || {};
+    const hasRealComparison = ordered.some((event) => event.eventType === "comparison_completed" && String(event.dataOrigin || "").toLowerCase() !== LANDING_AUTOMATIC_DATA_ORIGIN);
+    const hasSelf = eventTypes.has("landing_self_service_click");
+    const hasAssisted = eventTypes.has("landing_assisted_click");
+    const path = hasSelf && hasAssisted ? "autonomia + guidato" : hasSelf ? "autonomia" : hasAssisted ? "guidato" : "";
+    const switcho = ["offer_switcho_redirect", "switcho_landing_opened", "business_switcho_requested", "assistance_switcho_redirect"]
+      .some((type) => eventTypes.has(type));
+    const partner = eventTypes.has("offer_redirect") || eventTypes.has("offer_partner_consent_confirmed") || switcho;
+    const visitor = visitorDescriptor(ordered);
+    const leadId = ordered.map((event) => event.leadId).find(Boolean) || "";
+    return {
+      session_id: String(firstPayload.sessionId || ""),
+      first_at: first.createdAt || "",
+      last_at: last.createdAt || "",
+      events_count: ordered.length,
+      event_types: [...eventTypes].join(" | "),
+      visitor_type: visitor.type,
+      visitor_label: visitor.label,
+      source: normalizeTrafficSource(attribution.trafficSource || attribution.source || attribution.leadSource || "direct"),
+      medium: attribution.trafficMedium || "",
+      campaign: attribution.trafficCampaign || "",
+      term: attribution.trafficTerm || "",
+      content: attribution.trafficContent || "",
+      click_id_type: attribution.trafficClickIdType || "",
+      click_id: attribution.trafficClickId || "",
+      referrer: attribution.trafficReferrer || "",
+      landing: attribution.trafficLandingPage || landing.payload?.page || firstPayload.page || "",
+      scelta_percorso: path,
+      confronto_avviato: eventTypes.has("comparison_started"),
+      confronto_reale: hasRealComparison,
+      pdf_completato: eventTypes.has("pdf_analysis_completed"),
+      lead_id: leadId,
+      lead_creato: Boolean(leadId || eventTypes.has("lead_created_client")),
+      popup_lead: eventTypes.has("lead_modal_opened"),
+      otp_richiesto: eventTypes.has("otp_request_started"),
+      otp_inviato: eventTypes.has("otp_sent"),
+      otp_verificato: eventTypes.has("otp_verified"),
+      offerte_visualizzate: eventTypes.has("offers_rendered"),
+      numero_offerte: ordered.map((event) => Number(event.payload?.visibleOffersCount)).filter((value) => Number.isFinite(value) && value > 0).pop() || "",
+      offerta_sbloccata: eventTypes.has("offers_unlocked"),
+      azione_offerta: ["offer_consent_opened", "offer_partner_consent_confirmed", "offer_switcho_redirect", "offer_redirect", "offer_request_recorded"].some((type) => eventTypes.has(type)),
+      switcho,
+      partner,
+      provider: offerPayload.provider || "",
+      offerta: offerPayload.offerName || "",
+      ranking_economico: offerPayload.economyRank ?? "",
+      ranking_visuale: offerPayload.displayRank ?? "",
+      costo_annuo: offerPayload.annualCost ?? "",
+      risparmio_annuo: offerPayload.annualDelta ?? lastPayload.bestSaving ?? firstPayload.bestSaving ?? "",
+      tempo_attivo_secondi: exportSessionActiveSeconds(ordered),
+      tempo_landing_secondi: engagementLast.engagementLandingSeconds ?? "",
+      tempo_calcolatore_secondi: engagementLast.engagementCalculatorSeconds ?? "",
+      tempo_offerte_secondi: engagementLast.engagementOffersSeconds ?? "",
+      tempo_otp_secondi: engagementLast.engagementOtpSeconds ?? "",
+      prima_azione_secondi: engagementLast.engagementFirstActionSeconds ?? "",
+      offerte_raggiunte_secondi: engagementLast.engagementOffersReachedSeconds ?? "",
+      ultimo_evento: last.eventType || "",
+    };
+  }).sort((a, b) => new Date(b.first_at || 0).getTime() - new Date(a.first_at || 0).getTime());
+}
+
+function sendAnalyticsCsv(res, csv, filename) {
+  res.statusCode = 200;
+  res.setHeader("Content-Type", "text/csv; charset=utf-8");
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+  res.end(`\ufeff${csv}`);
 }
 
 function bodyObject(req) {
@@ -890,6 +1066,47 @@ export default async function handler(req, res) {
       authorizedBy,
       checkedAt: new Date().toISOString(),
     });
+  }
+
+  const format = String(url.searchParams.get("format") || "json").toLowerCase();
+  const exportScope = String(url.searchParams.get("scope") || "events").toLowerCase();
+  const exportRange = String(url.searchParams.get("range") || "baseline").toLowerCase();
+  if (format === "csv") {
+    if (!customerDbConfiguredForLandingAnalytics()) {
+      return sendAnalyticsCsv(res, "", `offertalogica-analytics-${new Date().toISOString().slice(0, 10)}.csv`);
+    }
+    try {
+      const rows = await loadAnalyticsExportRows(analyticsExportRangeFrom(exportRange));
+      const date = new Date().toISOString().slice(0, 10);
+      if (exportScope === "sessions") {
+        const sessionRows = analyticsSessionExportRows(rows);
+        const headers = [
+          "session_id", "first_at", "last_at", "events_count", "event_types", "visitor_type", "visitor_label",
+          "source", "medium", "campaign", "term", "content", "click_id_type", "click_id", "referrer", "landing",
+          "scelta_percorso", "confronto_avviato", "confronto_reale", "pdf_completato", "lead_id", "lead_creato", "popup_lead",
+          "otp_richiesto", "otp_inviato", "otp_verificato", "offerte_visualizzate", "numero_offerte", "offerta_sbloccata",
+          "azione_offerta", "switcho", "partner", "provider", "offerta", "ranking_economico", "ranking_visuale", "costo_annuo",
+          "risparmio_annuo", "tempo_attivo_secondi", "tempo_landing_secondi", "tempo_calcolatore_secondi", "tempo_offerte_secondi",
+          "tempo_otp_secondi", "prima_azione_secondi", "offerte_raggiunte_secondi", "ultimo_evento"
+        ];
+        return sendAnalyticsCsv(res, csvFromObjects(sessionRows, headers), `offertalogica-funnel-sessioni-${exportRange}-${date}.csv`);
+      }
+      const eventRows = analyticsEventExportRows(rows);
+      const headers = [
+        "id", "lead_id", "event_type", "created_at", "session_id", "page", "customer_type", "data_origin", "source", "lead_source",
+        "traffic_source", "traffic_medium", "traffic_campaign", "traffic_term", "traffic_content", "traffic_referrer", "traffic_landing_page",
+        "traffic_click_id_type", "traffic_click_id", "traffic_agent", "traffic_reason", "event_integrity", "verified", "staff_mode", "best_saving",
+        "pdf_document_count", "visible_offers_count", "active_partner_offers_count", "consultant_offers_count", "offer_id", "offer_name", "provider",
+        "destination_type", "destination_status", "display_group", "economy_rank", "display_rank", "annual_cost", "annual_delta", "network", "model",
+        "redirect", "routing_version", "engagement_stage", "engagement_reason", "engagement_active_seconds", "engagement_elapsed_seconds",
+        "engagement_landing_seconds", "engagement_calculator_seconds", "engagement_offers_seconds", "engagement_otp_seconds",
+        "engagement_first_action_seconds", "engagement_offers_reached_seconds", "telemetry", "reason", "payload_json"
+      ];
+      return sendAnalyticsCsv(res, csvFromObjects(eventRows, headers), `offertalogica-analytics-completo-${exportRange}-${date}.csv`);
+    } catch (error) {
+      console.error("staff-analytics-export", error);
+      return json(res, 500, { ok: false, error: String(error?.message || error || "analytics_export_error") });
+    }
   }
 
   const limit = url.searchParams.get("limit") || 2000;
