@@ -117,7 +117,7 @@
         <section class="panel"><div class="panel-head"><h3>Priorità operative</h3><small>Pratiche raccolte dai moduli operativi</small></div><div class="panel-body" id="overviewTasks"><div class="empty">Caricamento…</div></div></section>
         <section class="panel"><div class="panel-head"><h3>Acquisizione e conversione</h3><small>Funnel essenziale</small></div><div class="panel-body"><div class="funnel" id="overviewFunnel"></div></div></section>
       </div>
-      <div class="version">Control Center Staff v0.37.06</div>
+      <div class="version">Control Center Staff v0.37.07</div>
     </section>
 
     <section class="view" data-staff-view="cases">
@@ -215,7 +215,7 @@
       </section>
       <section class="panel" style="margin-top:14px"><div class="panel-head"><div><h3>Attività registrate</h3><small>Volumi tecnici degli eventi: possono includere più azioni della stessa sessione.</small></div></div><div class="panel-body"><div class="funnel" id="analyticsActivity"></div></div></section>
       <section class="panel" style="margin-top:14px"><div class="panel-head"><h3>Provenienza sessioni uniche</h3><small>Una sola attribuzione per sessionId: Google Ads, Google organico, Facebook, Instagram, TikTok, diretto e referral dal punto zero</small></div><div class="panel-body"><div class="rank-list" id="analyticsTrafficSources"></div></div></section>
-      <section class="panel" style="margin-top:14px"><div class="panel-head"><h3>Origine tecnica registrata</h3><small>Mostra il referrer reale quando il browser lo comunica. “Senza referrer” può includere accesso diretto, app, email, link copiati o protezioni privacy.</small></div><div class="panel-body"><div class="rank-list" id="analyticsTrafficReferrers"></div></div></section>
+      <section class="panel" style="margin-top:14px"><div class="panel-head"><h3>Origine tecnica registrata</h3><small>Raggruppa i referrer equivalenti per piattaforma (es. facebook.com, www.facebook.com e lm.facebook.com). Il dominio tecnico originale resta disponibile nei dettagli delle sessioni. “Senza referrer” può includere accesso diretto, app, email, link copiati o protezioni privacy.</small></div><div class="panel-body"><div class="rank-list" id="analyticsTrafficReferrers"></div></div></section>
       <section class="panel landing-path-panel" id="landingPathPanel">
         <div class="panel-head"><div class="landing-path-head-copy"><h3>Scelta percorso landing</h3><small>Confronta i clic sui due percorsi. Le percentuali misurano la quota delle scelte, non le vendite.</small></div><select class="landing-path-range" id="landingPathRange" aria-label="Periodo statistiche landing"><option value="7d">Ultimi 7 giorni</option><option value="30d" selected>Ultimi 30 giorni</option><option value="all">Tutto</option></select></div>
         <div class="panel-body">
@@ -312,7 +312,7 @@
 </div>
 <div id="staffUpdateNotice" class="staff-update" role="status" aria-live="polite"><span id="staffUpdateNoticeText">Nuova versione disponibile.</span><button id="staffApplyUpdate" type="button" hidden>AGGIORNA</button></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.115.0/dist/umd/supabase.js"></script>
-<script src="/staff.js?v=0.37.06"></script>
+<script src="/staff.js?v=0.37.07"></script>
 <script src="/staff-governance-v2.5B.js"></script>
 <script defer src="/staff-management.js?v=0.36.93"></script>
 <script defer src="/staff-economics.js?v=0.36.80"></script>
@@ -417,7 +417,7 @@
 </script>
 <script>
   (()=>{
-    const CURRENT_RELEASE="0.37.06";
+    const CURRENT_RELEASE="0.37.07";
     const PRODUCTION_ORIGIN="https://staff.offertalogica.it";
     const isVercelDeployment=()=>location.hostname.toLowerCase().endsWith(".vercel.app");
     const redirectDeploymentToProduction=()=>{if(!isVercelDeployment())return false;const target=new URL(`${location.pathname}${location.search}${location.hash}`,PRODUCTION_ORIGIN);if(target.href===location.href)return false;location.replace(target.href);return true};

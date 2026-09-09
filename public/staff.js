@@ -1074,6 +1074,32 @@
     return referrer ? `${source} · ${referrer}` : source;
   }
 
+  function normalizedTechnicalReferrer(rawReferrer = "") {
+    const raw = String(rawReferrer || "").trim();
+    if (!raw) return "";
+
+    let hostname = raw.toLowerCase();
+    try {
+      hostname = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(raw) ? raw : `https://${raw}`).hostname.toLowerCase();
+    } catch (_) {
+      hostname = hostname.split("/")[0].split(":")[0];
+    }
+    hostname = hostname.replace(/\.$/, "").replace(/^www\./, "");
+
+    if (hostname === "offertalogica.it" || hostname.endsWith(".offertalogica.it")) return "OffertaLogica (interno)";
+    if (hostname === "facebook.com" || hostname.endsWith(".facebook.com") || hostname === "fb.com" || hostname.endsWith(".fb.com")) return "Facebook";
+    if (hostname === "instagram.com" || hostname.endsWith(".instagram.com")) return "Instagram";
+    if (hostname === "tiktok.com" || hostname.endsWith(".tiktok.com")) return "TikTok";
+    if (hostname === "linkedin.com" || hostname.endsWith(".linkedin.com") || hostname === "lnkd.in" || hostname.endsWith(".lnkd.in")) return "LinkedIn";
+    if (/(^|\.)google\.[a-z.]+$/i.test(hostname)) return "Google";
+    if (hostname === "bing.com" || hostname.endsWith(".bing.com")) return "Bing";
+    if (hostname === "duckduckgo.com" || hostname.endsWith(".duckduckgo.com")) return "DuckDuckGo";
+    if (hostname === "chatgpt.com" || hostname.endsWith(".chatgpt.com") || hostname === "chat.openai.com") return "ChatGPT";
+    if (hostname === "bit.ly" || hostname.endsWith(".bit.ly")) return "Bitly";
+
+    return hostname || raw;
+  }
+
   function renderTechnicalTrafficOrigins() {
     const target = byId("analyticsTrafficReferrers");
     if (!target) return;
@@ -1088,7 +1114,7 @@
       const withReferrer = events.find((item) => String(item.trafficReferrer || "").trim());
       const representative = withReferrer || events.find((item) => String(item.trafficSource || "").trim()) || events[0] || {};
       const referrer = String(representative.trafficReferrer || "").trim();
-      let label = referrer;
+      let label = normalizedTechnicalReferrer(referrer);
       if (!label && representative.trafficSource && representative.trafficSource !== "direct") {
         label = `${analyticsSourceLabel(representative.trafficSource)} (UTM/click-id o referrer non disponibile)`;
       }
