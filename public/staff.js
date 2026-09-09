@@ -1078,8 +1078,9 @@
 
     const first = rows[0];
     const last = rows[rows.length - 1];
+    const attributionRow = rows.find(item => item.trafficCampaign || item.trafficTerm || item.trafficClickId || item.trafficCampaignId || item.trafficAdGroupId || item.trafficCreativeId) || first;
     const shortId = sessionId.length > 18 ? `${sessionId.slice(0, 9)}…${sessionId.slice(-6)}` : sessionId;
-    const source = analyticsSourceLabel(first.trafficSource);
+    const source = analyticsSourceLabel(attributionRow.trafficSource || first.trafficSource);
     const activeSeconds = analyticsSessionActiveSeconds(rows);
     const firstAction = rows.find(item => SESSION_USER_ACTION_EVENTS.has(String(item.eventType || "")));
     const offersCount = analyticsSessionLatestOffersCount(rows);
@@ -1093,6 +1094,29 @@
       `${formatDate(first.createdAt)} → ${formatDate(last.createdAt)}`
     ].filter(Boolean).join(" · "));
 
+    const sessionFacts = [
+      node("div", {}, [node("span", { text: "Provenienza" }), node("strong", { text: source || "—" })]),
+    ];
+    if (attributionRow.trafficCampaign) sessionFacts.push(node("div", {}, [node("span", { text: "Campagna" }), node("strong", { text: attributionRow.trafficCampaign })]));
+    if (attributionRow.trafficTerm) sessionFacts.push(node("div", {}, [node("span", { text: "Keyword Ads" }), node("strong", { text: attributionRow.trafficTerm })]));
+    if (attributionRow.trafficMatchType || attributionRow.trafficDevice) {
+      sessionFacts.push(node("div", {}, [
+        node("span", { text: "Match / dispositivo" }),
+        node("strong", { text: [attributionRow.trafficMatchType, attributionRow.trafficDevice].filter(Boolean).join(" · ") || "—" })
+      ]));
+    }
+    if (attributionRow.trafficCampaignId || attributionRow.trafficAdGroupId || attributionRow.trafficCreativeId) {
+      sessionFacts.push(node("div", {}, [
+        node("span", { text: "ID Ads" }),
+        node("strong", { text: [attributionRow.trafficCampaignId ? `C:${attributionRow.trafficCampaignId}` : "", attributionRow.trafficAdGroupId ? `G:${attributionRow.trafficAdGroupId}` : "", attributionRow.trafficCreativeId ? `A:${attributionRow.trafficCreativeId}` : ""].filter(Boolean).join(" · ") || "—" })
+      ]));
+    }
+    sessionFacts.push(
+      node("div", {}, [node("span", { text: "Tempo attivo" }), node("strong", { text: activeSeconds > 0 ? formatDurationSeconds(activeSeconds) : "—" })]),
+      node("div", {}, [node("span", { text: "Prima azione" }), node("strong", { text: firstAction ? staffEventLabel(firstAction) : "Nessuna" })]),
+      node("div", {}, [node("span", { text: "Offerte" }), node("strong", { text: offersCount != null ? `${offersCount} visualizzate` : "Non raggiunte" })])
+    );
+
     clear(summary);
     summary.append(
       node("div", { className: `analytics-session-outcome ${outcome.tone}` }, [
@@ -1100,12 +1124,7 @@
         node("strong", { text: outcome.label }),
         node("small", { text: `${source} · ${activeSeconds > 0 ? `${formatDurationSeconds(activeSeconds)} attivi` : "tempo attivo non disponibile"} · ${firstAction ? "interazione registrata" : "nessuna interazione"}` }),
       ]),
-      node("div", { className: "analytics-session-facts" }, [
-        node("div", {}, [node("span", { text: "Provenienza" }), node("strong", { text: source || "—" })]),
-        node("div", {}, [node("span", { text: "Tempo attivo" }), node("strong", { text: activeSeconds > 0 ? formatDurationSeconds(activeSeconds) : "—" })]),
-        node("div", {}, [node("span", { text: "Prima azione" }), node("strong", { text: firstAction ? staffEventLabel(firstAction) : "Nessuna" })]),
-        node("div", {}, [node("span", { text: "Offerte" }), node("strong", { text: offersCount != null ? `${offersCount} visualizzate` : "Non raggiunte" })]),
-      ])
+      node("div", { className: "analytics-session-facts" }, sessionFacts)
     );
 
     clear(funnel);
@@ -1246,7 +1265,7 @@
       const path = `${switchoPathLabel(row)} · ${switchoOriginLabel(row.dataOrigin)}`;
       body.append(node("tr", {}, [
         node("td", {}, [node("strong", { text: formatDate(row.createdAt || row.firstAt) })]),
-        node("td", {}, [node("strong", { text: switchoSourceLabel(row.trafficSource) }), node("small", { text: row.trafficCampaign || "" })]),
+        node("td", {}, [node("strong", { text: switchoSourceLabel(row.trafficSource) }), node("small", { text: [row.trafficCampaign, row.trafficTerm].filter(Boolean).join(" · ") })]),
         node("td", { text: path }),
         node("td", { text: offer }),
         node("td", { text: ranking }),
@@ -1269,12 +1288,13 @@
       }
       const moneyCell = value => value == null || !Number.isFinite(Number(value)) ? "" : Number(value).toFixed(2).replace(".", ",");
       const csvRows = [[
-        "Data", "Session ID", "Provenienza", "Campagna", "Medium", "Termine", "Content", "Referrer", "Landing", "Click ID tipo", "Click ID", "Percorso Switcho", "Origine dati",
+        "Data", "Session ID", "Provenienza", "Campagna", "Medium", "Termine", "Content", "Campaign ID", "Ad group ID", "Creative ID", "Match type", "Device", "Rete Ads", "Referrer", "Landing", "Click ID tipo", "Click ID", "Percorso Switcho", "Origine dati",
         "Fornitore", "Offerta", "Posizione economica", "Posizione visualizzata", "Costo annuo stimato EUR", "Risparmio annuo stimato EUR",
         "Scelta card registrata", "Redirect registrato", "Landing Switcho avviata", "Lead ID"
       ], ...rows.map(row => [
         row.createdAt || row.firstAt || "", row.sessionId || "", switchoSourceLabel(row.trafficSource), row.trafficCampaign || "", row.trafficMedium || "", row.trafficTerm || "",
-        row.trafficContent || "", row.trafficReferrer || "", row.trafficLandingPage || "", row.trafficClickIdType || "", row.trafficClickId || "",
+        row.trafficContent || "", row.trafficCampaignId || "", row.trafficAdGroupId || "", row.trafficCreativeId || "", row.trafficMatchType || "", row.trafficDevice || "", row.trafficNetwork || "",
+        row.trafficReferrer || "", row.trafficLandingPage || "", row.trafficClickIdType || "", row.trafficClickId || "",
         switchoPathLabel(row), switchoOriginLabel(row.dataOrigin), row.provider || "", row.offerName || "", row.economyRank ?? "", row.displayRank ?? "",
         moneyCell(row.annualCost), moneyCell(row.annualSaving), row.choiceRecorded ? "SI" : "NO", row.redirectRecorded ? "SI" : "NO", row.landingOpened ? "SI" : "NO", row.leadId || ""
       ])];
