@@ -2,6 +2,90 @@
 <html lang="it">
 <head>
     <!--Tradedoubler site verification cidd973bbed-1203-458b-841b-ed0a9816a8f2-->
+    <!-- OFFERTALOGICA_PUBLIC_V84_20260909: banner cookie compatto e non oscurante -->
+    <script>
+      window._iub = window._iub || [];
+      window._iub.csConfiguration = window._iub.csConfiguration || {};
+      window._iub.csConfiguration.banner = Object.assign({}, window._iub.csConfiguration.banner || {}, {
+        position: "float-bottom-center",
+        backgroundOverlay: false,
+        acceptButtonDisplay: true,
+        rejectButtonDisplay: true,
+        customizeButtonDisplay: true
+      });
+    </script>
+    <style id="offertalogica-iubenda-compact">
+      /* Primo livello Iubenda: lascia visibile la landing e occupa solo la fascia bassa. */
+      #iubenda-cs-banner {
+        position: fixed !important;
+        inset: auto 12px 12px !important;
+        width: auto !important;
+        max-width: 1180px !important;
+        height: auto !important;
+        min-height: 0 !important;
+        margin: 0 auto !important;
+        background: transparent !important;
+      }
+      #iubenda-cs-banner .iubenda-cs-container {
+        width: 100% !important;
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: min(42dvh, 360px) !important;
+        overflow: auto !important;
+        border-radius: 16px !important;
+        box-shadow: 0 16px 42px rgba(15, 23, 42, .18) !important;
+      }
+      #iubenda-cs-banner .iubenda-cs-content {
+        padding: 14px 16px !important;
+      }
+      #iubenda-cs-banner .iubenda-cs-rationale {
+        margin: 0 !important;
+        padding: 0 !important;
+        max-height: none !important;
+        overflow: visible !important;
+      }
+      #iubenda-cs-banner .iubenda-cs-opt-group {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        align-items: center !important;
+        justify-content: flex-end !important;
+        gap: 8px !important;
+        margin-top: 10px !important;
+      }
+      #iubenda-cs-banner .iubenda-cs-opt-group > * {
+        margin: 0 !important;
+      }
+      #iubenda-cs-banner .iubenda-cs-accept-btn,
+      #iubenda-cs-banner .iubenda-cs-reject-btn,
+      #iubenda-cs-banner .iubenda-cs-customize-btn {
+        min-height: 40px !important;
+        border-radius: 9px !important;
+        padding: 9px 14px !important;
+      }
+      @media (max-width: 720px) {
+        #iubenda-cs-banner { inset: auto 8px 8px !important; }
+        #iubenda-cs-banner .iubenda-cs-container {
+          max-height: min(38dvh, 300px) !important;
+          border-radius: 14px !important;
+        }
+        #iubenda-cs-banner .iubenda-cs-content { padding: 10px 11px !important; }
+        #iubenda-cs-banner .iubenda-cs-opt-group {
+          display: grid !important;
+          grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+          gap: 6px !important;
+          margin-top: 8px !important;
+        }
+        #iubenda-cs-banner .iubenda-cs-accept-btn,
+        #iubenda-cs-banner .iubenda-cs-reject-btn,
+        #iubenda-cs-banner .iubenda-cs-customize-btn {
+          width: 100% !important;
+          min-height: 38px !important;
+          padding: 7px 8px !important;
+          font-size: 12px !important;
+          line-height: 1.15 !important;
+        }
+      }
+    </style>
     <script type="text/javascript" src="https://embeds.iubenda.com/widgets/7a8d1e4e-6d87-44e3-9842-5e8991323410.js"></script>
     <!-- Google tag (gtag.js) - Google Ads -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=AW-18424345732"></script>
@@ -2216,21 +2300,25 @@
             margin-bottom: 2px;
             filter: drop-shadow(0 11px 24px rgba(18, 48, 68, .10));
         }
+        /* OFFERTALOGICA_PUBLIC_V84_20260909: gratuità evidente senza aggiungere una nuova riga alla landing. */
         .social-entry-eyebrow {
             display: inline-flex;
             align-items: center;
             justify-content: center;
             margin: 0;
-            padding: 8px 14px;
-            border: 1px solid rgba(24, 168, 75, .28);
+            padding: 10px 24px;
+            border: 1px solid rgba(255, 255, 255, .34);
             border-radius: 999px;
-            background: rgba(255, 255, 255, .52);
-            color: #087f3a;
-            font-size: 12px;
-            font-weight: 900;
-            letter-spacing: .05em;
+            background: var(--logo-green-gradient);
+            color: #ffffff;
+            font-size: clamp(15px, 1.8vw, 18px);
+            line-height: 1;
+            font-weight: 950;
+            letter-spacing: .055em;
             text-transform: uppercase;
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, .86);
+            box-shadow:
+                0 10px 24px rgba(22, 163, 74, .24),
+                inset 0 1px 0 rgba(255, 255, 255, .30);
         }
         .social-entry-title {
             max-width: 650px;
@@ -2585,6 +2673,12 @@
                 border-radius: 28px;
             }
             .social-entry-logo { width: min(66vw, 250px); }
+            .social-entry-eyebrow {
+                padding: 9px 18px;
+                font-size: clamp(13px, 3.8vw, 15px);
+                letter-spacing: .045em;
+                box-shadow: 0 8px 18px rgba(22, 163, 74, .22), inset 0 1px 0 rgba(255, 255, 255, .28);
+            }
             /* Il titolo resta nel markup per SEO/accessibilita, ma non appesantisce la landing mobile. */
             .social-entry-title {
                 position: absolute !important;
@@ -2691,7 +2785,7 @@
         @media (max-width: 380px) {
             .social-entry-card { padding-inline: 12px; }
             .social-entry-logo { width: min(62vw, 220px); }
-            .social-entry-eyebrow { font-size: 10.5px; padding: 7px 10px; }
+            .social-entry-eyebrow { font-size: 13px; padding: 8px 16px; }
             .social-entry-disclaimer { font-size: 11.5px; }
             .social-entry-apps { grid-template-columns: 1fr; }
         }
@@ -3119,7 +3213,7 @@
 <section class="social-mobile-entry" id="social-mobile-entry" aria-labelledby="social-entry-title" aria-live="polite">
     <div class="social-entry-card">
         <img class="social-entry-logo" src="/assets/logo-offertalogica-header.png" alt="OffertaLogica.it - Confronta, scegli, risparmia">
-        <p class="social-entry-eyebrow">Offerte luce e gas aggiornate</p>
+        <p class="social-entry-eyebrow">Prova gratis</p>
         <h1 class="social-entry-title" id="social-entry-title">Confronta gratis le offerte luce e gas sui tuoi consumi</h1>
         <div class="social-entry-saving is-loading" id="social-entry-saving">
             <strong id="social-entry-saving-value" aria-live="polite">Aggiorniamo le offerte di oggi</strong>
