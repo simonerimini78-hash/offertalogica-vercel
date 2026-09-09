@@ -3372,7 +3372,7 @@
 </script>
 </head>
 <body>
-<section class="social-mobile-entry" id="social-mobile-entry" aria-labelledby="social-entry-title" aria-live="polite">
+<section class="social-mobile-entry" id="social-mobile-entry" aria-labelledby="social-entry-title">
     <div class="social-entry-card">
         <img class="social-entry-logo" src="/assets/logo-offertalogica-header.png" alt="OffertaLogica.it - Confronta, scegli, risparmia">
         <div class="social-entry-free-cue">
@@ -3382,7 +3382,7 @@
         <h1 class="social-entry-title" id="social-entry-title">Confronta gratis le offerte luce e gas sui tuoi consumi</h1>
         <div class="social-entry-saving is-loading" id="social-entry-saving">
             <span class="social-entry-saving-kicker" id="social-entry-saving-kicker">Fino a</span>
-            <strong id="social-entry-saving-value" aria-live="polite">Aggiorniamo le offerte di oggi</strong>
+            <strong id="social-entry-saving-value" role="status" aria-live="polite" aria-atomic="true">Aggiorniamo le offerte di oggi</strong>
             <div class="social-entry-saving-copy">
                 <span class="social-entry-saving-period" id="social-entry-saving-period">Stima su profilo medio di consumo</span>
                 <span class="social-entry-saving-basis" id="social-entry-saving-basis">calcolata con i dati del motore OffertaLogica</span>
@@ -3630,7 +3630,7 @@
         </div>
         <div class="upload-drop" id="pdf-upload-drop">
             <div class="pdf-file-picker">
-                <input id="pdf-static-input" class="pdf-native-file-input" type="file" accept="application/pdf" multiple aria-describedby="pdf-upload-context-notice pdf-file-picker-status">
+                <input id="pdf-static-input" class="pdf-native-file-input" type="file" accept="application/pdf" multiple tabindex="-1" aria-hidden="true" aria-describedby="pdf-upload-context-notice pdf-file-picker-status">
                 <button id="pdf-select-files-button" type="button" class="pdf-file-picker-button" onclick="apriSelettorePdf()">Scegli file</button>
                 <span id="pdf-file-picker-status" class="pdf-file-picker-status">Nessun PDF aggiunto</span>
             </div>
@@ -3817,16 +3817,16 @@
                         </select>
                     </div>
                     <div class="input-group">
-                        <label>Quanta luce usi in un anno? (kWh)</label>
+                        <label for="in-luce-cons-att">Quanta luce usi in un anno? (kWh)</label>
                         <input type="number" id="in-luce-cons-att" placeholder="Es. 2700">
                     </div>
                     <div class="input-group">
-                        <label>Quanto paghi la luce? (€/kWh)</label>
+                        <label for="in-luce-prezzo-att">Quanto paghi la luce? (€/kWh)</label>
                         <small class="input-guidance">Cerca in bolletta: "di cui spesa per la vendita".</small>
                         <input type="number" id="in-luce-prezzo-att" step="0.0001" placeholder="Es. 0.1450">
                     </div>
                     <div class="input-group">
-                        <label>Costo fisso della bolletta luce</label>
+                        <label for="in-luce-fisso-att">Costo fisso della bolletta luce</label>
                         <small class="input-guidance">Cerca "QUOTA FISSA", poi copia "di cui spesa per vendita" in €/mese.</small>
                         <div class="fixed-fee-input">
                             <input type="number" id="in-luce-fisso-att" step="0.01" placeholder="Es. 12">
@@ -3849,16 +3849,16 @@
                         </select>
                     </div>
                     <div class="input-group">
-                        <label>Quanto gas usi in un anno? (Smc)</label>
+                        <label for="in-gas-cons-att">Quanto gas usi in un anno? (Smc)</label>
                         <input type="number" id="in-gas-cons-att" placeholder="Es. 1000">
                     </div>
                     <div class="input-group">
-                        <label>Quanto paghi il gas? (€/Smc)</label>
+                        <label for="in-gas-prezzo-att">Quanto paghi il gas? (€/Smc)</label>
                         <small class="input-guidance">Cerca in bolletta: "di cui spesa per la vendita".</small>
                         <input type="number" id="in-gas-prezzo-att" step="0.0001" placeholder="Es. 0.6500">
                     </div>
                     <div class="input-group">
-                        <label>Costo fisso della bolletta gas</label>
+                        <label for="in-gas-fisso-att">Costo fisso della bolletta gas</label>
                         <small class="input-guidance">Cerca "QUOTA FISSA", poi copia "di cui spesa per vendita" in €/mese.</small>
                         <div class="fixed-fee-input">
                             <input type="number" id="in-gas-fisso-att" step="0.01" placeholder="Es. 12">
@@ -4021,7 +4021,7 @@
         <span><strong>Il profilo medio è già pronto.</strong> Non devi modificare nulla: premi il pulsante qui sotto per vedere le offerte.</span>
     </div>
        
-    <button id="comparison-submit-button" class="btn-calc" onclick="avviaComparazioneDati()">Vedi le offerte</button>
+    <button id="comparison-submit-button" class="btn-calc" onclick="window.__OL_A11Y_RESULTS_PENDING__=true; avviaComparazioneDati()">Vedi le offerte</button>
 
     <!-- Risultato della Comparazione (Appare dopo il click) -->
     <div class="results-layout" id="results-area">
@@ -6320,6 +6320,7 @@ function applicaAmbitoConfronto(scope, options = {}) {
 function chiudiDecisionePdf(value = null) {
   const backdrop = document.getElementById("pdf-decision-backdrop");
   if (backdrop) backdrop.style.display = "none";
+  a11yChiudiDialog(backdrop);
   const resolve = PDF_DECISION_RESOLVE;
   PDF_DECISION_RESOLVE = null;
   if (resolve) resolve(value);
@@ -6345,7 +6346,7 @@ function apriDecisionePdf({ title, copy, options }) {
       actions.appendChild(button);
     });
     backdrop.style.display = "flex";
-    window.setTimeout(() => actions.querySelector("button")?.focus(), 30);
+    a11yApriDialog(backdrop, "#pdf-decision-actions button");
   });
 }
 
@@ -6903,6 +6904,9 @@ function renderRankingBusiness(profile, ranking) {
 function mostraBusinessErrore(message) {
   const error = document.getElementById("business-error");
   if (!error) return;
+  error.setAttribute("role", "alert");
+  error.setAttribute("aria-live", "assertive");
+  error.setAttribute("aria-atomic", "true");
   error.innerText = message;
   error.style.display = "block";
 }
@@ -7471,6 +7475,8 @@ function commissionePrevista(offerta) {
 function creaSchedaOfferta(offerta) {
   const card = document.createElement("div");
   card.className = "partner-vertical-card";
+  card.setAttribute("role", "article");
+  card.setAttribute("aria-label", offerta?.nome ? `Offerta ${offerta.nome}` : "Offerta energia");
   card.style.cssText = "background:#f8fafc; border:1px solid var(--border); border-radius:10px; padding:15px 20px; display:flex; justify-content:space-between; align-items:center;";
   const logoIniziale = (typeof LEAD_STATE !== "undefined" && LEAD_STATE.verified)
     ? htmlLogoOfferta(offerta, true)
@@ -7702,6 +7708,9 @@ function creaGruppoOfferte(id, classe, titolo, testo) {
   const group = document.createElement("div");
   group.id = id;
   group.className = `offer-result-group ${classe || ""}`.trim();
+  group.setAttribute("role", "region");
+  group.setAttribute("tabindex", "-1");
+  group.setAttribute("aria-label", titolo || "Risultati del confronto offerte");
   group.innerHTML = `
     <div class="offers-list-heading">
       <div>${titolo}</div>
@@ -7726,6 +7735,7 @@ function assicuraGruppoOfferte(id, classe, titolo, testo) {
 
 function aggiornaGruppoOfferte(group, titolo, testo) {
   if (!group) return;
+  group.setAttribute("aria-label", titolo || "Risultati del confronto offerte");
   const title = group.querySelector(".offers-list-heading > div:first-child");
   const copy = group.querySelector(".offers-list-heading > div:last-child");
   if (title) title.innerText = titolo;
@@ -9042,7 +9052,12 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       const risparmioLockedLabel = risparmio ? "Risparmio potenziale stimato" : "Costo stimato superiore";
       const savingLineClass = risparmio ? "offer-saving-line" : "offer-saving-line is-negative";
       const promozioniHtml = htmlPromozioniApplicateOfferta(offerta, costoOfferta);
-      if (title) title.innerText = titoloOffertaVisibile(offerta);
+      if (title) {
+        title.innerText = titoloOffertaVisibile(offerta);
+        title.setAttribute("role", "heading");
+        title.setAttribute("aria-level", "3");
+      }
+      card.setAttribute("aria-label", `Offerta ${titoloOffertaVisibile(offerta)}`);
       aggiornaLogoOfferta(card, offerta, true);
       if (details) {
         details.innerText = dettagliOfferta(offerta);
@@ -9050,6 +9065,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       }
       if (link) {
         link.innerText = testoAzioneOfferta(offerta, attivabileOnline);
+        link.setAttribute("aria-label", `${testoAzioneOfferta(offerta, attivabileOnline)}: ${titoloOffertaVisibile(offerta)}`);
         link.href = "#";
         link.removeAttribute("target");
         link.onclick = (event) => {
@@ -9087,7 +9103,9 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
         </span>
         ${dettagliCondizioniHtml}
       `;
-      saving.querySelector(".offer-bill-precision")?.addEventListener("click", (event) => {
+      const billPrecisionButton = saving.querySelector(".offer-bill-precision");
+      billPrecisionButton?.setAttribute("aria-label", `Carica bolletta per confronto preciso per ${titoloOffertaVisibile(offerta)}`);
+      billPrecisionButton?.addEventListener("click", (event) => {
         event.preventDefault();
         event.stopPropagation();
         caricaBollettaDaOfferte();
@@ -9164,6 +9182,8 @@ function aggiornaConsumiDaMasterSeMedia() {
 }
 
 window.avviaComparazioneDati = function avviaComparazioneDati() {
+  const a11yUserRequestedResults = Boolean(window.__OL_A11Y_RESULTS_PENDING__);
+  window.__OL_A11Y_RESULTS_PENDING__ = false;
   if (!DATI_UFFICIALI_CONFRONTO_PRONTI) {
     const areaRisultati = document.getElementById("results-area");
     if (areaRisultati) {
@@ -9238,11 +9258,80 @@ window.avviaComparazioneDati = function avviaComparazioneDati() {
     hasNewOffer: haNuovaOfferta,
     bestSaving: LEAD_STATE.bestSaving,
   });
+  if (a11yUserRequestedResults) {
+    window.setTimeout(() => {
+      const group = document.getElementById("offerte-ranking-group");
+      if (!group || group.style.display === "none") return;
+      const count = group.querySelectorAll(".partner-vertical-card:not([style*='display: none'])").length;
+      group.setAttribute("aria-label", `Risultati del confronto. ${count || ""} offerte disponibili`.trim());
+      group.focus({ preventScroll: true });
+      group.scrollIntoView({ behavior: movimentoRidottoAttivo() ? "auto" : "smooth", block: "start" });
+    }, 100);
+  }
 };
+
+const A11Y_DIALOG_RETURN_FOCUS = new WeakMap();
+
+function a11yDialogFocusable(dialog) {
+  if (!dialog) return [];
+  return [...dialog.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex]:not([tabindex="-1"])')]
+    .filter((el) => !el.hidden && el.getAttribute("aria-hidden") !== "true" && window.getComputedStyle(el).display !== "none" && window.getComputedStyle(el).visibility !== "hidden");
+}
+
+function a11yApriDialog(dialog, preferredSelector = "") {
+  if (!dialog) return;
+  const active = document.activeElement;
+  if (active && active !== document.body && !dialog.contains(active)) A11Y_DIALOG_RETURN_FOCUS.set(dialog, active);
+  window.setTimeout(() => {
+    let target = preferredSelector ? dialog.querySelector(preferredSelector) : null;
+    if (!target || target.hidden || window.getComputedStyle(target).display === "none") target = a11yDialogFocusable(dialog)[0] || null;
+    target?.focus({ preventScroll: true });
+  }, 35);
+}
+
+function a11yChiudiDialog(dialog) {
+  if (!dialog) return;
+  const target = A11Y_DIALOG_RETURN_FOCUS.get(dialog);
+  A11Y_DIALOG_RETURN_FOCUS.delete(dialog);
+  window.setTimeout(() => {
+    if (target && document.contains(target)) target.focus({ preventScroll: true });
+  }, 20);
+}
+
+function a11yDialogVisibile() {
+  return [...document.querySelectorAll('[role="dialog"][aria-modal="true"]')]
+    .reverse()
+    .find((dialog) => window.getComputedStyle(dialog).display !== "none" && window.getComputedStyle(dialog).visibility !== "hidden");
+}
+
+function a11yGestisciTabDialog(event) {
+  if (event.key !== "Tab") return;
+  const dialog = a11yDialogVisibile();
+  if (!dialog) return;
+  const focusables = a11yDialogFocusable(dialog);
+  if (!focusables.length) {
+    event.preventDefault();
+    return;
+  }
+  const first = focusables[0];
+  const last = focusables[focusables.length - 1];
+  if (event.shiftKey && (document.activeElement === first || !dialog.contains(document.activeElement))) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
+document.addEventListener("keydown", a11yGestisciTabDialog);
 
 function leadStatus(message, isError = false) {
   const status = document.getElementById("lead-status");
   if (!status) return;
+  status.setAttribute("role", isError ? "alert" : "status");
+  status.setAttribute("aria-live", isError ? "assertive" : "polite");
+  status.setAttribute("aria-atomic", "true");
   status.innerText = message;
   status.style.color = isError ? "var(--danger)" : "var(--text-muted)";
 }
@@ -9697,6 +9786,7 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
   }
   modal.style.display = "flex";
   document.body.classList.add("lead-modal-visible");
+  a11yApriDialog(modal, "#lead-nome");
   trackEvent("lead_modal_opened", { leadSource: source });
   leadStatus(staffModeAttiva()
     ? "Modalita staff attiva: premi “Invia il codice di verifica” e usa il codice 000000. Nessun dato viene salvato."
@@ -9706,6 +9796,7 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
 function chiudiLeadModal() {
   const modal = document.getElementById("lead-modal-backdrop");
   if (modal) modal.style.display = "none";
+  a11yChiudiDialog(modal);
   document.body.classList.remove("lead-modal-visible");
   trackEvent("lead_modal_closed", { leadSource: LEAD_STATE.leadSource });
 }
@@ -9954,6 +10045,9 @@ async function verificaOtp() {
 function offerConsentStatus(message, isError = false) {
   const status = document.getElementById("offer-consent-status");
   if (!status) return;
+  status.setAttribute("role", isError ? "alert" : "status");
+  status.setAttribute("aria-live", isError ? "assertive" : "polite");
+  status.setAttribute("aria-atomic", "true");
   status.innerText = message;
   status.style.color = isError ? "var(--danger)" : "var(--text-muted)";
 }
@@ -10056,7 +10150,10 @@ window.apriConsensoOfferta = function apriConsensoOfferta(offerta) {
     note.innerText = "Senza questo consenso puoi vedere il confronto, ma non possiamo inoltrare la richiesta di attivazione o ricontatto ai partner incaricati.";
   }
   configuraPopupConsensoOfferta(!LEAD_STATE.partnerConsent);
-  if (modal) modal.style.display = "flex";
+  if (modal) {
+    modal.style.display = "flex";
+    a11yApriDialog(modal, "#offer-consent-checkbox, #offer-consent-confirm");
+  }
   offerConsentStatus("");
   trackEvent("offer_consent_opened", {
     offerId: LEAD_STATE.selectedOffer.id,
@@ -10077,6 +10174,7 @@ window.apriConsensoOfferta = function apriConsensoOfferta(offerta) {
 function chiudiConsensoOfferta() {
   const modal = document.getElementById("offer-consent-backdrop");
   if (modal) modal.style.display = "none";
+  a11yChiudiDialog(modal);
 }
 
 function offertaConRedirectAttivo(offer) {
@@ -10177,6 +10275,9 @@ function aggiornaAssistenteAttivazioneVisibilita() {
 function assistenteAttivazioneStatus(message, isError = false) {
   const status = document.getElementById("activation-helper-status");
   if (!status) return;
+  status.setAttribute("role", isError ? "alert" : "status");
+  status.setAttribute("aria-live", isError ? "assertive" : "polite");
+  status.setAttribute("aria-atomic", "true");
   status.innerText = message || "";
   status.style.color = isError ? "var(--danger)" : "var(--text-muted)";
 }
@@ -10279,7 +10380,10 @@ window.apriAssistenteAttivazione = function apriAssistenteAttivazione(options = 
   aggiornaAssistenteAttivazioneVisibilita();
   renderAssistenteAttivazione();
   const modal = document.getElementById("activation-helper-backdrop");
-  if (modal) modal.style.display = "flex";
+  if (modal) {
+    modal.style.display = "flex";
+    a11yApriDialog(modal, "#activation-helper-open, #activation-helper-copy-all, #activation-helper-close");
+  }
   trackEvent("activation_assistant_opened", {
     source: options.source || "manual_button",
     hasPendingUrl: Boolean(LEAD_STATE.activationAssistant.pendingUrl),
@@ -10292,6 +10396,7 @@ window.apriAssistenteAttivazione = function apriAssistenteAttivazione(options = 
 function chiudiAssistenteAttivazione() {
   const modal = document.getElementById("activation-helper-backdrop");
   if (modal) modal.style.display = "none";
+  a11yChiudiDialog(modal);
 }
 
 function apriFunnelDaAssistente() {
@@ -10392,10 +10497,7 @@ function mostraRichiestaAssistenza(reason = "manual", options = {}) {
   actions.style.display = success ? "none" : "grid";
   successBox.style.display = success ? "block" : "none";
   backdrop.style.display = "flex";
-  window.setTimeout(() => {
-    const focusTarget = success ? document.getElementById("assistance-rescue-success-close") : document.getElementById("assistance-rescue-open-guide");
-    focusTarget?.focus();
-  }, 30);
+  a11yApriDialog(backdrop, success ? "#assistance-rescue-success-close" : "#assistance-rescue-open-guide");
   if (!success) trackEvent("assistance_prompt_shown", { reason });
   return true;
 }
@@ -10407,6 +10509,7 @@ function mostraConfermaRichiestaAssistenza() {
 function chiudiRichiestaAssistenza(source = "close") {
   const backdrop = document.getElementById("assistance-rescue-backdrop");
   if (backdrop) backdrop.style.display = "none";
+  a11yChiudiDialog(backdrop);
   trackEvent("assistance_prompt_closed", { source, reason: LEAD_STATE.assistance?.reason || "" });
 }
 
@@ -12509,6 +12612,7 @@ function apriAnteprimaAutocompilazionePdf(data) {
   }
   renderPdfAutofillPreviewRows();
   backdrop.style.display = "flex";
+  a11yApriDialog(backdrop, "#pdf-autofill-apply, #pdf-autofill-cancel");
   LEAD_STATE.pdfAutofill = {
     ...(LEAD_STATE.pdfAutofill || {}),
     previewedAt: new Date().toISOString(),
@@ -12520,13 +12624,13 @@ function apriAnteprimaAutocompilazionePdf(data) {
     protectedCount,
     ocrReviewCount,
   });
-  window.setTimeout(() => document.getElementById("pdf-autofill-apply")?.focus(), 30);
   return new Promise((resolve) => { PDF_AUTOFILL_PREVIEW_RESOLVE = resolve; });
 }
 
 function chiudiAnteprimaAutocompilazionePdf(result = null) {
   const backdrop = document.getElementById("pdf-autofill-preview-backdrop");
   if (backdrop) backdrop.style.display = "none";
+  a11yChiudiDialog(backdrop);
   const resolve = PDF_AUTOFILL_PREVIEW_RESOLVE;
   PDF_AUTOFILL_PREVIEW_RESOLVE = null;
   if (resolve) resolve(result);
@@ -14506,6 +14610,8 @@ function collegaEventiUX() {
     else if (document.getElementById("pdf-decision-backdrop")?.style.display === "flex") chiudiDecisionePdf(null);
     else if (document.getElementById("assistance-rescue-backdrop")?.style.display === "flex") chiudiRichiestaAssistenza("escape");
     else if (document.getElementById("activation-helper-backdrop")?.style.display === "flex") chiudiAssistenteAttivazione();
+    else if (document.getElementById("offer-consent-backdrop")?.style.display === "flex") chiudiConsensoOfferta();
+    else if (document.getElementById("lead-modal-backdrop")?.style.display === "flex") chiudiLeadModal();
   });
   inizializzaAssistenzaProattiva();
   aggiornaAssistenteAttivazioneVisibilita();

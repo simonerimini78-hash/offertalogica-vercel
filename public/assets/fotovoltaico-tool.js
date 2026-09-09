@@ -169,7 +169,7 @@ function renderResults(pv,locationInfo,power,consumption,profile,impact,powerOri
   const impactSection=$('pv-impact-section'),missing=$('pv-profile-missing');
   if(impact){impactSection.hidden=false;missing.hidden=true;setText('pv-result-self',`${fmt(impact.selfKwh)} kWh`);setText('pv-result-grid',`${fmt(impact.residualKwh)} kWh`);setText('pv-result-excess',`${fmt(impact.excessKwh)} kWh`);setText('pv-profile-note',profile.origin==='bands'?`Stima basata sulle proporzioni ${profile.description}. Usiamo le fasce orarie ARERA e le distribuiamo convenzionalmente nelle rispettive ore di una settimana tipo. Non è una curva oraria reale e, se la bolletta copre un solo periodo, quel periodo può non rappresentare tutto l’anno.`:`Scenario indicativo scelto dall’utente: ${profile.description}. Il consumo annuale viene distribuito uniformemente sui giorni dell’anno.`);}
   else{impactSection.hidden=true;missing.hidden=!(consumption&&consumption>0);}
-  renderMonthly(pv.monthly); $('pv-results').hidden=false; $('pv-results').scrollIntoView({behavior:'smooth',block:'start'});
+  renderMonthly(pv.monthly); const results=$('pv-results'); results.hidden=false; results.setAttribute('role','region'); results.setAttribute('aria-label','Risultati della stima fotovoltaica'); results.setAttribute('tabindex','-1'); results.focus({preventScroll:true}); results.scrollIntoView({behavior:window.matchMedia?.('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'});
 }
 async function compute(){
   const locationInfo=resolvedLocation(); if(!locationInfo){status('Inserisci Comune/CAP oppure scegli una regione.','error');return;}

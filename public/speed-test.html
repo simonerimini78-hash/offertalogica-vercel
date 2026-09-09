@@ -1535,6 +1535,10 @@ function finishTest(results, runId, context) {
     els.startButton.disabled = false;
     els.startButton.textContent = 'RIPETI SPEED TEST';
     els.resultPanel.classList.add('visible');
+    els.resultPanel.setAttribute('role', 'region');
+    els.resultPanel.setAttribute('aria-label', 'Risultati Speed Test');
+    els.resultPanel.setAttribute('tabindex', '-1');
+    window.setTimeout(() => els.resultPanel.focus({ preventScroll: true }), 30);
 
     if (context === 'standard' && isPoor(result)) {
         els.startButton.textContent = 'RIPETI TEST STANDARD';
