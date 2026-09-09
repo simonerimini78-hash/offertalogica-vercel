@@ -2430,7 +2430,7 @@
                 0 10px 24px rgba(22, 163, 74, .24),
                 inset 0 1px 0 rgba(255, 255, 255, .30);
         }
-        /* OFFERTALOGICA_PUBLIC_V92_20260909: richiamo visivo leggero e centrato; le CTA restano protagoniste. */
+        /* OFFERTALOGICA_PUBLIC_V93_20260909: hero mobile compattato; CTA mantenute protagoniste. */
         .social-entry-free-cue {
             display: grid;
             justify-items: center;
@@ -2815,11 +2815,14 @@
             }
             .social-entry-card {
                 width: min(100%, 520px);
-                gap: 10px;
-                padding: 16px 14px 17px;
+                gap: 8px;
+                padding: 12px 14px 15px;
                 border-radius: 28px;
             }
-            .social-entry-logo { width: min(66vw, 250px); }
+            .social-entry-logo {
+                width: min(52vw, 195px);
+                margin-bottom: 0;
+            }
             .social-entry-eyebrow {
                 padding: 9px 18px;
                 font-size: clamp(13px, 3.8vw, 15px);
@@ -2841,18 +2844,18 @@
                 border: 0 !important;
             }
             .social-entry-saving {
-                min-height: 104px;
-                padding: 11px 14px 12px;
-                border-radius: 24px;
-                gap: 5px;
+                min-height: 88px;
+                padding: 8px 12px 9px;
+                border-radius: 22px;
+                gap: 3px;
             }
             .social-entry-saving-kicker {
                 font-size: clamp(11px, 3vw, 12.5px);
                 line-height: 1.05;
             }
             .social-entry-saving strong {
-                font-size: clamp(46px, 14.2vw, 66px);
-                line-height: .95;
+                font-size: clamp(42px, 12.8vw, 58px);
+                line-height: .94;
                 letter-spacing: -.05em;
                 white-space: nowrap;
             }
@@ -2862,12 +2865,12 @@
                 display: block;
                 max-width: 100%;
                 color: #526b75;
-                font-size: clamp(11px, 3vw, 12.5px);
-                line-height: 1.16;
+                font-size: clamp(10.5px, 2.8vw, 12px);
+                line-height: 1.14;
                 font-weight: 800;
                 letter-spacing: 0;
             }
-            .social-entry-saving-info-toggle { width: 24px; height: 24px; font-size: 13px; }
+            .social-entry-saving-info-toggle { width: 22px; height: 22px; margin-top: 3px; font-size: 12px; }
             .social-entry-saving.is-loading .social-entry-saving-period {
                 color: #647985;
                 font-size: 11px;
@@ -2938,7 +2941,7 @@
         }
         @media (max-width: 380px) {
             .social-entry-card { padding-inline: 12px; }
-            .social-entry-logo { width: min(62vw, 220px); }
+            .social-entry-logo { width: min(50vw, 178px); }
             .social-entry-eyebrow { font-size: 13px; padding: 8px 16px; }
             .social-entry-disclaimer { font-size: 11.5px; }
             .social-entry-apps { grid-template-columns: 1fr; }
@@ -14023,6 +14026,11 @@ function formattaDataStimaLanding(value) {
   return match ? `${match[3]}/${match[2]}/${match[1]}` : "";
 }
 
+function dataAggiornamentoCatalogoLanding() {
+  if (!Array.isArray(OFFERTE_ARERA_MENU) || OFFERTE_ARERA_MENU.length === 0) return "";
+  return formattaDataStimaLanding(DATI_ARERA_MENU_META?.aggiornatoIl);
+}
+
 function formattaConsumoStimaLanding(value) {
   const amount = Number(value);
   return Number.isFinite(amount) && amount > 0
@@ -14050,7 +14058,7 @@ function aggiornaDettagliStimaLanding() {
 
   if (updateDetail) {
     const profiloAggiornato = formattaDataStimaLanding(DATI_CALCOLO_META?.aggiornatoIl);
-    const catalogoAggiornato = formattaDataStimaLanding(DATI_ARERA_MENU_META?.aggiornatoIl);
+    const catalogoAggiornato = dataAggiornamentoCatalogoLanding();
     if (profiloAggiornato && catalogoAggiornato && profiloAggiornato === catalogoAggiornato) {
       updateDetail.textContent = `Profilo, parametri di calcolo e catalogo offerte ARERA aggiornati al ${profiloAggiornato}.`;
     } else {
@@ -14094,7 +14102,12 @@ function aggiornaRisparmioLandingDaPrimaPosizione() {
   if (period) period.textContent = formatted
     ? "di risparmio annuo"
     : "Offerte luce e gas aggiornate";
-  if (basis) basis.textContent = "calcolato su profilo medio ARERA";
+  if (basis) {
+    const catalogoAggiornato = dataAggiornamentoCatalogoLanding();
+    basis.textContent = catalogoAggiornato
+      ? `calcolato su profilo medio ARERA · offerte aggiornate al ${catalogoAggiornato}`
+      : "calcolato su profilo medio ARERA";
+  }
   aggiornaDettagliStimaLanding();
   savingBox?.classList.remove("is-loading");
   return true;
@@ -14176,7 +14189,12 @@ function preparaRisparmioIngressoSocialMobile() {
     if (value) value.textContent = "Offerte aggiornate";
     if (period) period.textContent = "Offerte luce e gas aggiornate";
     const basis = document.getElementById("social-entry-saving-basis");
-    if (basis) basis.textContent = "calcolato su profilo medio ARERA";
+    if (basis) {
+    const catalogoAggiornato = dataAggiornamentoCatalogoLanding();
+    basis.textContent = catalogoAggiornato
+      ? `calcolato su profilo medio ARERA · offerte aggiornate al ${catalogoAggiornato}`
+      : "calcolato su profilo medio ARERA";
+  }
     aggiornaDettagliStimaLanding();
     savingBox?.classList.remove("is-loading");
     impostaLandingPronta();
