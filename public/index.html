@@ -2411,12 +2411,10 @@
             filter: drop-shadow(0 11px 24px rgba(18, 48, 68, .10));
         }
         /* OFFERTALOGICA_PUBLIC_V84_20260909: gratuità evidente senza aggiungere una nuova riga alla landing. */
-        /* OFFERTALOGICA_PUBLIC_V91_20260909: richiamo visivo breve sul badge gratuito; nessuna alterazione dei due percorsi. */
         .social-entry-eyebrow {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            gap: 8px;
             margin: 0;
             padding: 10px 24px;
             border: 1px solid rgba(255, 255, 255, .34);
@@ -2431,24 +2429,38 @@
             box-shadow:
                 0 10px 24px rgba(22, 163, 74, .24),
                 inset 0 1px 0 rgba(255, 255, 255, .30);
+        }
+        /* OFFERTALOGICA_PUBLIC_V92_20260909: richiamo visivo leggero e centrato; le CTA restano protagoniste. */
+        .social-entry-free-cue {
+            display: grid;
+            justify-items: center;
+            align-items: center;
+            gap: 3px;
+            margin: 0;
+        }
+        .social-entry-eyebrow {
+            animation: olFreePulse 1.05s ease-in-out 1.0s 2 both;
             transform-origin: center;
-            animation: olLandingFreePulse 1.15s ease-in-out 1s 2;
         }
-        .social-entry-eyebrow::after {
-            content: "↓";
-            display: inline-block;
-            font-size: .95em;
-            line-height: 1;
+        .social-entry-free-arrow {
+            display: block;
+            height: 15px;
+            color: #18a84b;
+            font-size: 18px;
+            line-height: 15px;
             font-weight: 950;
-            animation: olLandingFreeArrow .76s ease-in-out 1.1s 3;
+            opacity: .82;
+            animation: olFreeArrow 0.82s ease-in-out 1.15s 3 both;
+            pointer-events: none;
+            user-select: none;
         }
-        @keyframes olLandingFreePulse {
+        @keyframes olFreePulse {
             0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.045); }
+            50% { transform: scale(1.035); }
         }
-        @keyframes olLandingFreeArrow {
-            0%, 100% { transform: translateY(-1px); }
-            50% { transform: translateY(4px); }
+        @keyframes olFreeArrow {
+            0%, 100% { transform: translateY(0); opacity: .66; }
+            50% { transform: translateY(4px); opacity: 1; }
         }
         .social-entry-title {
             max-width: 650px;
@@ -2504,16 +2516,27 @@
             opacity: .92;
             pointer-events: none;
         }
+        .social-entry-saving-kicker {
+            display: block;
+            margin: 0 0 -1px;
+            color: #526b75;
+            font-size: clamp(12px, 1.8vw, 14px);
+            line-height: 1.1;
+            font-weight: 800;
+            letter-spacing: .01em;
+            text-align: center;
+        }
         .social-entry-saving strong {
             color: #18a84b;
             background: linear-gradient(135deg, #087f3a 0%, #18a84b 58%, #73c928 108%);
             -webkit-background-clip: text;
             background-clip: text;
             -webkit-text-fill-color: transparent;
-            font-size: clamp(60px, 10.8vw, 94px);
+            font-size: clamp(58px, 10vw, 88px);
             line-height: .96;
-            letter-spacing: -.06em;
+            letter-spacing: -.055em;
             font-variant-numeric: tabular-nums;
+            white-space: nowrap;
             filter: drop-shadow(0 10px 20px rgba(24,168,75,.13));
         }
         .social-entry-saving-copy {
@@ -2525,20 +2548,13 @@
             gap: 2px;
             text-align: center;
         }
-        .social-entry-saving-period {
-            width: 100%;
-            color: #123044;
-            font-size: clamp(20px, 3.8vw, 28px);
-            line-height: 1.12;
-            font-weight: 850;
-            text-align: center;
-        }
+        .social-entry-saving-period,
         .social-entry-saving-basis {
             width: 100%;
             color: #526b75;
-            font-size: clamp(12px, 2vw, 14px);
-            line-height: 1.25;
-            font-weight: 750;
+            font-size: clamp(13px, 2vw, 15px);
+            line-height: 1.2;
+            font-weight: 800;
             text-align: center;
         }
         .social-entry-saving-info-toggle {
@@ -2584,6 +2600,7 @@
             filter: none;
         }
         .social-entry-saving.is-loading .social-entry-saving-period { color: #647985; font-size: 16px; font-weight: 750; }
+        .social-entry-saving.is-loading .social-entry-saving-kicker,
         .social-entry-saving.is-loading .social-entry-saving-basis,
         .social-entry-saving.is-loading .social-entry-saving-info-toggle { display: none; }
         .social-entry-disclaimer {
@@ -2809,6 +2826,8 @@
                 letter-spacing: .045em;
                 box-shadow: 0 8px 18px rgba(22, 163, 74, .22), inset 0 1px 0 rgba(255, 255, 255, .28);
             }
+            .social-entry-free-cue { gap: 2px; }
+            .social-entry-free-arrow { height: 13px; font-size: 16px; line-height: 13px; }
             /* Il titolo resta nel markup per SEO/accessibilita, ma non appesantisce la landing mobile. */
             .social-entry-title {
                 position: absolute !important;
@@ -2822,26 +2841,31 @@
                 border: 0 !important;
             }
             .social-entry-saving {
-                min-height: 112px;
-                padding: 13px 14px 14px;
+                min-height: 104px;
+                padding: 11px 14px 12px;
                 border-radius: 24px;
-                gap: 8px;
+                gap: 5px;
             }
-            .social-entry-saving strong { font-size: clamp(40px, 12.8vw, 64px); }
-            .social-entry-saving-copy { column-gap: 6px; row-gap: 4px; }
-            .social-entry-saving-period {
+            .social-entry-saving-kicker {
+                font-size: clamp(11px, 3vw, 12.5px);
+                line-height: 1.05;
+            }
+            .social-entry-saving strong {
+                font-size: clamp(46px, 14.2vw, 66px);
+                line-height: .95;
+                letter-spacing: -.05em;
+                white-space: nowrap;
+            }
+            .social-entry-saving-copy { column-gap: 0; row-gap: 2px; }
+            .social-entry-saving-period,
+            .social-entry-saving-basis {
                 display: block;
                 max-width: 100%;
-                color: #123044;
-                font-size: clamp(15px, 4vw, 18px);
-                line-height: 1.15;
-                font-weight: 900;
-                letter-spacing: -.01em;
-            }
-            .social-entry-saving-basis {
-                font-size: clamp(10px, 2.75vw, 11.5px);
-                line-height: 1.2;
-                font-weight: 750;
+                color: #526b75;
+                font-size: clamp(11px, 3vw, 12.5px);
+                line-height: 1.16;
+                font-weight: 800;
+                letter-spacing: 0;
             }
             .social-entry-saving-info-toggle { width: 24px; height: 24px; font-size: 13px; }
             .social-entry-saving.is-loading .social-entry-saving-period {
@@ -2920,8 +2944,6 @@
             .social-entry-apps { grid-template-columns: 1fr; }
         }
         @media (prefers-reduced-motion: reduce) {
-            .social-entry-eyebrow,
-            .social-entry-eyebrow::after { animation: none; }
             .social-entry-route { transition: none; }
             .social-entry-route:hover:not(:disabled),
             .social-entry-route:focus-visible:not(:disabled) { transform: none; }
@@ -3319,6 +3341,11 @@
                 pointer-events: none !important;
             }
         }
+
+        @media (prefers-reduced-motion: reduce) {
+            .social-entry-eyebrow,
+            .social-entry-free-arrow { animation: none !important; transform: none !important; }
+        }
     </style>
 <script>
 (function () {
@@ -3345,9 +3372,13 @@
 <section class="social-mobile-entry" id="social-mobile-entry" aria-labelledby="social-entry-title" aria-live="polite">
     <div class="social-entry-card">
         <img class="social-entry-logo" src="/assets/logo-offertalogica-header.png" alt="OffertaLogica.it - Confronta, scegli, risparmia">
-        <p class="social-entry-eyebrow">Prova gratis</p>
+        <div class="social-entry-free-cue">
+            <p class="social-entry-eyebrow">Prova gratis</p>
+            <span class="social-entry-free-arrow" aria-hidden="true">↓</span>
+        </div>
         <h1 class="social-entry-title" id="social-entry-title">Confronta gratis le offerte luce e gas sui tuoi consumi</h1>
         <div class="social-entry-saving is-loading" id="social-entry-saving">
+            <span class="social-entry-saving-kicker" id="social-entry-saving-kicker">Fino a</span>
             <strong id="social-entry-saving-value" aria-live="polite">Aggiorniamo le offerte di oggi</strong>
             <div class="social-entry-saving-copy">
                 <span class="social-entry-saving-period" id="social-entry-saving-period">Stima su profilo medio di consumo</span>
@@ -14058,13 +14089,12 @@ function aggiornaRisparmioLandingDaPrimaPosizione() {
   const savingBox = document.getElementById("social-entry-saving");
   const saving = risparmioPrimaPosizioneCorrente();
   const formatted = formattaRisparmioSocial(saving);
-  if (value) value.textContent = formatted ? `Fino a ${formatted}` : "Offerte aggiornate";
+  const landingFormatted = formatted ? `€ ${formatted.replace(/\s*€$/, "")}` : "";
+  if (value) value.textContent = landingFormatted || "Offerte aggiornate";
   if (period) period.textContent = formatted
     ? "di risparmio annuo"
     : "Offerte luce e gas aggiornate";
-  if (basis) basis.textContent = formatted
-    ? "calcolato su profilo medio ARERA"
-    : "calcolato su un profilo medio di consumo";
+  if (basis) basis.textContent = "calcolato su profilo medio ARERA";
   aggiornaDettagliStimaLanding();
   savingBox?.classList.remove("is-loading");
   return true;
@@ -14146,7 +14176,7 @@ function preparaRisparmioIngressoSocialMobile() {
     if (value) value.textContent = "Offerte aggiornate";
     if (period) period.textContent = "Offerte luce e gas aggiornate";
     const basis = document.getElementById("social-entry-saving-basis");
-    if (basis) basis.textContent = "calcolato su un profilo medio di consumo";
+    if (basis) basis.textContent = "calcolato su profilo medio ARERA";
     aggiornaDettagliStimaLanding();
     savingBox?.classList.remove("is-loading");
     impostaLandingPronta();
