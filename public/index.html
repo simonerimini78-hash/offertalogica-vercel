@@ -24,50 +24,6 @@
     <link rel="icon" type="image/png" href="/assets/logo-offertalogica-icon.png">
     <link rel="apple-touch-icon" href="/assets/logo-offertalogica-icon.png">
     <link rel="stylesheet" href="/assets/ol-app-access.css">
-    <script type="application/ld+json">
-    {
-      "@context":"https://schema.org",
-      "@graph":[
-        {
-          "@type":"Organization",
-          "@id":"https://offertalogica.it/#organization",
-          "name":"OffertaLogica",
-          "url":"https://offertalogica.it/",
-          "logo":{"@type":"ImageObject","url":"https://offertalogica.it/assets/logo-offertalogica-header.png"}
-        },
-        {
-          "@type":"WebSite",
-          "@id":"https://offertalogica.it/#website",
-          "url":"https://offertalogica.it/",
-          "name":"OffertaLogica",
-          "publisher":{"@id":"https://offertalogica.it/#organization"},
-          "inLanguage":"it-IT"
-        },
-        {
-          "@type":"WebPage",
-          "@id":"https://offertalogica.it/#webpage",
-          "url":"https://offertalogica.it/",
-          "name":"OffertaLogica | Calcolatore offerte luce e gas",
-          "description":"Confronta offerte luce e gas in base ai tuoi consumi, carica la bolletta e scopri le proposte più adatte con il calcolatore OffertaLogica.",
-          "isPartOf":{"@id":"https://offertalogica.it/#website"},
-          "about":{"@id":"https://offertalogica.it/#calculator"},
-          "inLanguage":"it-IT"
-        },
-        {
-          "@type":"WebApplication",
-          "@id":"https://offertalogica.it/#calculator",
-          "name":"Calcolatore offerte luce e gas OffertaLogica",
-          "url":"https://offertalogica.it/",
-          "applicationCategory":"UtilitiesApplication",
-          "operatingSystem":"Web",
-          "description":"Calcolatore OffertaLogica per confrontare offerte luce e gas usando consumi, profilo o dati della bolletta.",
-          "provider":{"@id":"https://offertalogica.it/#organization"},
-          "isPartOf":{"@id":"https://offertalogica.it/#website"},
-          "mainEntityOfPage":{"@id":"https://offertalogica.it/#webpage"}
-        }
-      ]
-    }
-    </script>
     <style>
         :root {
             --bg-color: #f1f5f9;
@@ -3164,7 +3120,7 @@
     <div class="social-entry-card">
         <img class="social-entry-logo" src="/assets/logo-offertalogica-header.png" alt="OffertaLogica.it - Confronta, scegli, risparmia">
         <p class="social-entry-eyebrow">Offerte luce e gas aggiornate</p>
-        <h1 class="social-entry-title" id="social-entry-title">Confronta le offerte luce e gas sui tuoi consumi</h1>
+        <h1 class="social-entry-title" id="social-entry-title">Confronta gratis le offerte luce e gas sui tuoi consumi</h1>
         <div class="social-entry-saving is-loading" id="social-entry-saving">
             <strong id="social-entry-saving-value" aria-live="polite">Aggiorniamo le offerte di oggi</strong>
             <div class="social-entry-saving-copy">
@@ -3274,7 +3230,7 @@
                 <small>Profilo medio ARERA</small>
             </button>
             <button type="button" class="mobile-fast-option" id="mobile-fast-pdf" aria-pressed="false">
-                <strong>Carica la bolletta</strong>
+                <strong>Analizza la bolletta gratis</strong>
             </button>
             <button type="button" class="mobile-fast-option" id="mobile-fast-manual" aria-pressed="false">
                 <strong>Inserisci i miei consumi</strong>
@@ -3419,7 +3375,7 @@
                 <span id="pdf-file-picker-status" class="pdf-file-picker-status">Nessun PDF aggiunto</span>
             </div>
             <div id="pdf-selected-files" class="pdf-selected-files" aria-live="polite" hidden></div>
-            <button type="button" class="btn-action" onclick="preparaConfermaPdf()">Analizza PDF</button>
+            <button type="button" class="btn-action" onclick="preparaConfermaPdf()">Analizza PDF gratis</button>
             <button type="button" class="lead-secondary" onclick="azzeraPdfEModulo()">Rimuovi tutti i PDF e ricomincia</button>
             <div class="upload-note">Puoi aggiungere in momenti diversi la bolletta luce e la bolletta gas: se sono compatibili restano insieme. Una nuova lettura della stessa fornitura aggiorna quella precedente. La bolletta attuale e l'eventuale scheda di una nuova offerta restano separate.</div>
             <div class="upload-note"><strong>Controllo finale:</strong> il PDF serve a compilare i dati utili al confronto. Verifica i valori letti prima di procedere; il caricamento non avvia alcun cambio di fornitore.</div>
@@ -4179,6 +4135,34 @@ const PDF_PROFILE_STATE = { current: {}, offer: {} };
 const ANALYTICS_SESSION_KEY = "offertalogicaAnalyticsSession";
 const TRAFFIC_ATTRIBUTION_STORAGE_KEY = "offertalogicaTrafficAttributionV1";
 
+// v83 — le anteprime aperte da "Verifica sito" non devono entrare nelle statistiche.
+// Il blocco nasce in modo sincrono, prima della verifica asincrona del ticket Staff,
+// così anche gli eventi automatici iniziali restano esclusi.
+const STAFF_TRACKING_SESSION_KEY = "offertalogicaStaffMode";
+let STAFF_TRACKING_BLOCKED_EARLY = (() => {
+  try {
+    if (sessionStorage.getItem(STAFF_TRACKING_SESSION_KEY) === "true") return true;
+  } catch {}
+  try {
+    const query = new URLSearchParams(window.location.search || "");
+    const hash = new URLSearchParams(String(window.location.hash || "").replace(/^#/, ""));
+    const staffValue = hash.get("staff") || query.get("staff") || "";
+    if (staffValue === "off") return false;
+    return Boolean(
+      hash.get("staffPreview") || query.get("staffPreview") ||
+      hash.get("staffToken") || query.get("staffToken") ||
+      hash.get("previewToken") || query.get("previewToken") ||
+      (staffValue && staffValue !== "off")
+    );
+  } catch {
+    return false;
+  }
+})();
+
+function staffTrackingEscluso() {
+  return Boolean(LEAD_STATE.staffMode || STAFF_TRACKING_BLOCKED_EARLY);
+}
+
 function trackingApiDisponibile() {
   return window.location.protocol === "https:" || /\.vercel\.app$/i.test(window.location.hostname);
 }
@@ -4397,7 +4381,7 @@ function analyticsEngagementMarkInteraction() {
 
 function flushAnalyticsEngagement(reason = "checkpoint", force = false) {
   const state = ANALYTICS_ENGAGEMENT_STATE;
-  if (!state.initialized || LEAD_STATE.staffMode) return;
+  if (!state.initialized || staffTrackingEscluso()) return;
   const snapshot = analyticsEngagementSnapshot();
   const activeMs = state.activeMs;
   if (activeMs < 1000) return;
@@ -4413,7 +4397,7 @@ function flushAnalyticsEngagement(reason = "checkpoint", force = false) {
 
 function inizializzaAnalyticsEngagement(initialStage = "calculator") {
   const state = ANALYTICS_ENGAGEMENT_STATE;
-  if (state.initialized) return;
+  if (state.initialized || staffTrackingEscluso()) return;
   const now = Date.now();
   state.initialized = true;
   state.startedAt = now;
@@ -4455,7 +4439,7 @@ function registraVistaInizialeAnalytics() {
 
 function trackEvent(eventType, payload = {}) {
   if (!trackingApiDisponibile()) return;
-  if (LEAD_STATE.staffMode) return;
+  if (staffTrackingEscluso()) return;
   if (window.__OL_LANDING_PREVIEW_CALC__ && ["comparison_started", "comparison_completed", "offers_rendered"].includes(String(eventType || ""))) return;
 
   const leadId = LEAD_STATE.leadId && !["preview", STAFF_MODE_LEAD_ID].includes(LEAD_STATE.leadId)
@@ -9253,6 +9237,7 @@ function aggiornaBannerStaff() {
       staffPreviewStatus("");
     });
     document.getElementById("staff-mode-exit")?.addEventListener("click", () => {
+      STAFF_TRACKING_BLOCKED_EARLY = false;
       sessionStorage.removeItem(STAFF_MODE_STORAGE_KEY);
       LEAD_STATE.staffMode = false;
       LEAD_STATE.staffActivatedAt = "";
@@ -9268,6 +9253,7 @@ function aggiornaBannerStaff() {
 }
 
 function abilitaModalitaStaff(activatedAt = "") {
+  STAFF_TRACKING_BLOCKED_EARLY = true;
   LEAD_STATE.staffMode = true;
   LEAD_STATE.staffActivatedAt = activatedAt || new Date().toISOString();
   sessionStorage.setItem(STAFF_MODE_STORAGE_KEY, "true");
@@ -9277,6 +9263,7 @@ function abilitaModalitaStaff(activatedAt = "") {
 async function inizializzaModalitaStaff() {
   const staffRequest = leggiTicketStaffDaUrl();
   if (staffRequest.off) {
+    STAFF_TRACKING_BLOCKED_EARLY = false;
     sessionStorage.removeItem(STAFF_MODE_STORAGE_KEY);
     LEAD_STATE.staffMode = false;
     LEAD_STATE.staffActivatedAt = "";
@@ -9291,6 +9278,7 @@ async function inizializzaModalitaStaff() {
 
   if (!staffRequest.ticket) {
     if (staffRequest.legacy) pulisciTicketStaffDaUrl();
+    if (!LEAD_STATE.staffMode) STAFF_TRACKING_BLOCKED_EARLY = false;
     return;
   }
   pulisciTicketStaffDaUrl();
@@ -9306,6 +9294,7 @@ async function inizializzaModalitaStaff() {
     if (!response.ok || !payload.ok) throw new Error(payload.error || "Ticket Staff non valido");
     abilitaModalitaStaff(payload.activatedAt || "");
   } catch (error) {
+    STAFF_TRACKING_BLOCKED_EARLY = false;
     sessionStorage.removeItem(STAFF_MODE_STORAGE_KEY);
     LEAD_STATE.staffMode = false;
     aggiornaBannerStaff();

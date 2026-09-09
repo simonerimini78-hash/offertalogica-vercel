@@ -291,6 +291,7 @@
             }
 
             function trackAffiliateClick(link) {
+                try { if (sessionStorage.getItem("offertalogicaStaffMode") === "true") return; } catch {}
                 var page = window.location.pathname || "/";
                 var body = JSON.stringify({
                     eventType: "partner_funnel_opened",
