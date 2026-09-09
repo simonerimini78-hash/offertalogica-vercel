@@ -1,5 +1,5 @@
-// premium-analysis-info-ux-v03651-business-ranking-p3 + premium-business-account-segment-v03671 + premium-business-billing-p5 + premium-direct-compare-p6
-const CACHE = "offertalogica-premium-v03651-analysis-info-ux-business-ranking-p3-business-account-segment-v03671-business-billing-p5-direct-compare-p6";
+// premium-analysis-info-ux-v03651-business-ranking-p3 + premium-business-account-segment-v03671 + premium-business-billing-p5 + premium-direct-compare-p6 + premium-direct-tab-p7
+const CACHE = "offertalogica-premium-v03651-analysis-info-ux-business-ranking-p3-business-account-segment-v03671-business-billing-p5-direct-compare-p6-direct-tab-p7";
 const APP_SHELL = [
   "/app.html",
   "/app-dialog.js",

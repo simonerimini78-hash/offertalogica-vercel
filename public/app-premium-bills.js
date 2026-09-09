@@ -1532,6 +1532,17 @@
     pendingComparisonPrefill = buildPremiumComparisonProfile();
   }
 
+  function openPremiumComparisonFromTab(event) {
+    const tab = event.target instanceof Element ? event.target.closest('[data-tab="offers"]') : null;
+    if (!tab) return;
+    const profile = buildPremiumComparisonProfile();
+    if (!profile) return;
+    const link = document.querySelector('#view-offers [data-app-url="/?entry=app#main-content"]');
+    if (!link) return;
+    pendingComparisonPrefill = profile;
+    link.click();
+  }
+
   function applyPendingComparisonPrefill() {
     if (!pendingComparisonPrefill) return;
     const frame = document.getElementById("appBrowserFrame");
@@ -3096,6 +3107,7 @@
     collectElements();
     if (!state.card) return;
     document.addEventListener("click", preparePremiumComparisonPrefill, true);
+    document.addEventListener("click", openPremiumComparisonFromTab);
     document.getElementById("appBrowserFrame")?.addEventListener("load", applyPendingComparisonPrefill);
     renderComparisonAvailability();
     startUtilityConsumptionHistoryObserver();
@@ -3213,6 +3225,7 @@
 
     window.addEventListener("pagehide", () => {
       document.removeEventListener("click", preparePremiumComparisonPrefill, true);
+      document.removeEventListener("click", openPremiumComparisonFromTab);
       authSubscription?.data?.subscription?.unsubscribe?.();
       if (pollTimer) clearTimeout(pollTimer);
       utilityHistoryObserver?.disconnect?.();
