@@ -4444,6 +4444,12 @@ function trafficAttributionFromEntry() {
         : hasTtclid ? "ttclid"
           : hasFbclid ? "fbclid"
             : "";
+  const clickId = hasGclid ? params.get("gclid")
+    : hasGbraid ? params.get("gbraid")
+      : hasWbraid ? params.get("wbraid")
+        : hasTtclid ? params.get("ttclid")
+          : hasFbclid ? params.get("fbclid")
+            : "";
 
   return {
     trafficSource,
@@ -4454,6 +4460,7 @@ function trafficAttributionFromEntry() {
     trafficReferrer: trafficText(referrerHost, 160),
     trafficLandingPage: trafficText(window.location.pathname || "/", 220),
     trafficClickIdType: clickIdType,
+    trafficClickId: trafficText(clickId, 240),
   };
 }
 
@@ -4680,6 +4687,7 @@ function trackEvent(eventType, payload = {}) {
       trafficReferrer: attribution.trafficReferrer,
       trafficLandingPage: attribution.trafficLandingPage,
       trafficClickIdType: attribution.trafficClickIdType,
+      trafficClickId: attribution.trafficClickId,
     },
   });
   if (engagement.nextStage) analyticsEngagementSetStage(engagement.nextStage);

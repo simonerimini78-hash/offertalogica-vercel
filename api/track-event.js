@@ -192,6 +192,7 @@ function sanitizePayload(payload = {}) {
     trafficReferrer: text(input.trafficReferrer, 160).toLowerCase(),
     trafficLandingPage: text(input.trafficLandingPage, 220),
     trafficClickIdType: text(input.trafficClickIdType, 20).toLowerCase(),
+    trafficClickId: text(input.trafficClickId, 240),
     tipoPrezzo: text(input.tipoPrezzo, 40),
     tipoFornitura: text(input.tipoFornitura, 40),
     regioneGas: text(input.regioneGas, 80),
