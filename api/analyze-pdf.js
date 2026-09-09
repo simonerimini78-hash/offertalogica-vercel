@@ -15,6 +15,7 @@ import {
 } from "../lib/pdfArchive.js";
 import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
 import { classifyPdfAnalysisError, pdfAnalysisDiagnosticLog } from "../lib/pdfAnalysisDiagnostics.js";
+import { createSitePdfUsageMeter, recordSitePdfAiEconomicEvent } from "../lib/sitePdfAiEconomics.js";
 
 export const config = {
   api: { bodyParser: false },
@@ -182,6 +183,31 @@ export default async function handler(req, res) {
     ? Math.max(24_000, Math.min(52_000, configuredDeadlineMs))
     : 52_000;
   const analysisDeadlineAt = Date.now() + analysisDeadlineMs;
+  const aiUsageMeter = createSitePdfUsageMeter();
+  const economicEventId = `site-pdf-ai-${crypto.randomUUID()}`;
+  let aiEconomicRecorded = false;
+  const recordAiEconomicCost = async ({ outcome, normalized = null, error = null } = {}) => {
+    if (aiEconomicRecorded || !aiUsageMeter.totals.calls.length) return;
+    aiEconomicRecorded = true;
+    const model = normalized?.ai?.model
+      || aiUsageMeter.totals.calls.find((call) => call?.model)?.model
+      || process.env.PDF_AI_PRIMARY_MODEL
+      || "";
+    await recordSitePdfAiEconomicEvent({
+      eventId: economicEventId,
+      usage: aiUsageMeter.totals,
+      model,
+      customerType: normalized?.customer_type || archiveContext?.customerType,
+      outcome,
+      ingressMode,
+      analysisStage,
+      elapsedMs: Date.now() - requestStartedAt,
+      errorCode: error ? publicError(error).code : "",
+      occurredAt: new Date(requestStartedAt).toISOString(),
+    }).catch((economicError) => {
+      console.error("[site-pdf-ai-economic-error]", String(economicError?.message || economicError || "economic_record_failed"));
+    });
+  };
 
   try {
     const contentType = String(req.headers?.["content-type"] || "").toLowerCase();
@@ -239,6 +265,7 @@ export default async function handler(req, res) {
       filePath: temporaryFilePath,
       filename: fileMetadata.originalFilename,
       deadlineAt: analysisDeadlineAt,
+      transport: aiUsageMeter.transport,
     });
     normalized.ai = {
       ...(normalized.ai || {}),
@@ -247,6 +274,7 @@ export default async function handler(req, res) {
       pdf_header_normalized: Boolean(pdfHeader.sanitized),
       leading_bytes_removed: Number(pdfHeader.bytesRemoved || 0),
     };
+    await recordAiEconomicCost({ outcome: "success", normalized });
     analysisStage = "archive_success";
     const canArchive = analysisDeadlineAt - Date.now() >= 7_000;
     const archive = canArchive
@@ -262,6 +290,7 @@ export default async function handler(req, res) {
     const { _reader_trace: _privateReaderTrace, ...publicNormalized } = normalized;
     return json(res, 200, { ok: true, normalized: publicNormalized, archive });
   } catch (error) {
+    await recordAiEconomicCost({ outcome: "failed", error });
     const elapsedMs = Date.now() - requestStartedAt;
     const remainingMs = analysisDeadlineAt - Date.now();
     let archive = { stored: false, reason: "not_attempted" };
