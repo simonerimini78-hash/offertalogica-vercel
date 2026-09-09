@@ -1074,58 +1074,41 @@
     return referrer ? `${source} · ${referrer}` : source;
   }
 
-  function normalizedTechnicalReferrer(rawReferrer = "") {
-    const raw = String(rawReferrer || "").trim();
-    if (!raw) return "";
-
-    let hostname = raw.toLowerCase();
-    try {
-      hostname = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(raw) ? raw : `https://${raw}`).hostname.toLowerCase();
-    } catch (_) {
-      hostname = hostname.split("/")[0].split(":")[0];
-    }
-    hostname = hostname.replace(/\.$/, "").replace(/^www\./, "");
-
-    if (hostname === "offertalogica.it" || hostname.endsWith(".offertalogica.it")) return "OffertaLogica (interno)";
-    if (hostname === "facebook.com" || hostname.endsWith(".facebook.com") || hostname === "fb.com" || hostname.endsWith(".fb.com")) return "Facebook";
-    if (hostname === "instagram.com" || hostname.endsWith(".instagram.com")) return "Instagram";
-    if (hostname === "tiktok.com" || hostname.endsWith(".tiktok.com")) return "TikTok";
-    if (hostname === "linkedin.com" || hostname.endsWith(".linkedin.com") || hostname === "lnkd.in" || hostname.endsWith(".lnkd.in")) return "LinkedIn";
-    if (/(^|\.)google\.[a-z.]+$/i.test(hostname)) return "Google";
-    if (hostname === "bing.com" || hostname.endsWith(".bing.com")) return "Bing";
-    if (hostname === "duckduckgo.com" || hostname.endsWith(".duckduckgo.com")) return "DuckDuckGo";
-    if (hostname === "chatgpt.com" || hostname.endsWith(".chatgpt.com") || hostname === "chat.openai.com") return "ChatGPT";
-    if (hostname === "bit.ly" || hostname.endsWith(".bit.ly")) return "Bitly";
-
-    return hostname || raw;
-  }
-
-  function renderTechnicalTrafficOrigins() {
-    const target = byId("analyticsTrafficReferrers");
+  function renderTrafficSourcesWithTechnical() {
+    const target = byId("analyticsTrafficSources");
     if (!target) return;
-    const groups = new Map();
-    (cache.analytics || []).forEach((event) => {
-      const key = String(event.sessionId || `event:${event.id || Math.random()}`);
-      if (!groups.has(key)) groups.set(key, []);
-      groups.get(key).push(event);
+    clear(target);
+
+    const sources = Array.isArray(cache.analyticsSummary?.trafficSources)
+      ? cache.analyticsSummary.trafficSources
+      : [];
+    const technicalBySource = cache.analyticsSummary?.trafficTechnicalBySource || {};
+
+    if (!sources.length) {
+      target.append(node("div", { className: "empty", text: "Nessuna sessione dal punto zero" }));
+      return;
+    }
+
+    sources.forEach((item) => {
+      const key = String(item.key || "");
+      const count = Number(item.count || 0);
+      const breakdown = Array.isArray(technicalBySource[key]) ? technicalBySource[key] : [];
+      const breakdownTotal = breakdown.reduce((sum, row) => sum + Number(row.count || 0), 0);
+      const detail = breakdown.length
+        ? breakdown.map((row) => `${row.key}: ${formatNumber(row.count || 0)}`).join(" · ")
+        : "Nessun referrer tecnico disponibile";
+      const consistency = breakdown.length && breakdownTotal !== count
+        ? ` · dettaglio tecnico ${formatNumber(breakdownTotal)}/${formatNumber(count)}`
+        : "";
+
+      target.append(node("div", { className: "traffic-source-row" }, [
+        node("div", { className: "traffic-source-main" }, [
+          node("strong", { text: item.label || item.key }),
+          node("small", { text: `Referrer delle stesse sessioni: ${detail}${consistency}` }),
+        ]),
+        node("span", { className: "traffic-source-count", text: formatNumber(count) }),
+      ]));
     });
-    const counts = new Map();
-    groups.forEach((events) => {
-      const withReferrer = events.find((item) => String(item.trafficReferrer || "").trim());
-      const representative = withReferrer || events.find((item) => String(item.trafficSource || "").trim()) || events[0] || {};
-      const referrer = String(representative.trafficReferrer || "").trim();
-      let label = normalizedTechnicalReferrer(referrer);
-      if (!label && representative.trafficSource && representative.trafficSource !== "direct") {
-        label = `${analyticsSourceLabel(representative.trafficSource)} (UTM/click-id o referrer non disponibile)`;
-      }
-      if (!label) label = "Senza referrer (diretto / app / privacy)";
-      counts.set(label, (counts.get(label) || 0) + 1);
-    });
-    const rows = [...counts.entries()]
-      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-      .slice(0, 20)
-      .map(([key, count]) => ({ key, count }));
-    renderRankList(target, rows, "Nessuna origine tecnica disponibile");
   }
 
   function closeAnalyticsSession() {
@@ -1391,8 +1374,7 @@
     renderActivityFunnel(byId("analyticsActivity"), activityFunnel);
     renderRankList(byId("analyticsProviders"), summary.topProviders || [], "Nessun provider cliccato");
     renderRankList(byId("analyticsOffers"), summary.topOffers || [], "Nessuna offerta cliccata");
-    renderRankList(byId("analyticsTrafficSources"), (summary.trafficSources || []).map((item) => ({ key: item.label || item.key, count: item.count })), "Nessuna sessione dal punto zero");
-    renderTechnicalTrafficOrigins();
+    renderTrafficSourcesWithTechnical();
     const baseline = cache.analyticsBaseline || {};
     text(byId("analyticsBaseline"), baseline.label ? `Punto zero campagna: ${baseline.label}` : "Punto zero campagna");
     text(byId("analyticsFunnelNote"), sourceFilter

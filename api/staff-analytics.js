@@ -480,6 +480,52 @@ function sourceEntries(map) {
   return topEntries(map, 12).map((item) => ({ ...item, label: trafficSourceLabel(item.key) }));
 }
 
+function normalizeTechnicalReferrer(rawReferrer = "") {
+  const raw = String(rawReferrer || "").trim();
+  if (!raw) return "";
+
+  let hostname = raw.toLowerCase();
+  try {
+    hostname = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(raw) ? raw : `https://${raw}`).hostname.toLowerCase();
+  } catch (_) {
+    hostname = hostname.split("/")[0].split(":")[0];
+  }
+  hostname = hostname.replace(/\.$/, "").replace(/^www\./, "");
+
+  if (hostname === "offertalogica.it" || hostname.endsWith(".offertalogica.it")) return "OffertaLogica (interno)";
+  if (hostname === "facebook.com" || hostname.endsWith(".facebook.com") || hostname === "fb.com" || hostname.endsWith(".fb.com")) return "Facebook";
+  if (hostname === "instagram.com" || hostname.endsWith(".instagram.com")) return "Instagram";
+  if (hostname === "tiktok.com" || hostname.endsWith(".tiktok.com")) return "TikTok";
+  if (hostname === "linkedin.com" || hostname.endsWith(".linkedin.com") || hostname === "lnkd.in" || hostname.endsWith(".lnkd.in")) return "LinkedIn";
+  if (/(^|\.)google\.[a-z.]+$/i.test(hostname)) return "Google";
+  if (hostname === "bing.com" || hostname.endsWith(".bing.com")) return "Bing";
+  if (hostname === "duckduckgo.com" || hostname.endsWith(".duckduckgo.com")) return "DuckDuckGo";
+  if (hostname === "chatgpt.com" || hostname.endsWith(".chatgpt.com") || hostname === "chat.openai.com") return "ChatGPT";
+  if (hostname === "bit.ly" || hostname.endsWith(".bit.ly")) return "Bitly";
+
+  return hostname || raw;
+}
+
+function technicalReferrerForSessionGroup(group = []) {
+  const ordered = [...group].sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime());
+  const withReferrer = ordered.find((event) => String(event.trafficReferrer || "").trim());
+  const normalized = normalizeTechnicalReferrer(withReferrer?.trafficReferrer || "");
+  return normalized || "Senza referrer";
+}
+
+function technicalBreakdownBySource(groups = []) {
+  const grouped = {};
+  groups.forEach((group) => {
+    const source = sourceForSessionGroup(group);
+    const technical = technicalReferrerForSessionGroup(group);
+    if (!grouped[source]) grouped[source] = {};
+    increment(grouped[source], technical);
+  });
+  return Object.fromEntries(
+    Object.entries(grouped).map(([source, counts]) => [source, topEntries(counts, 20)])
+  );
+}
+
 
 function isAutomaticLandingPreview(event = {}) {
   return String(event.dataOrigin || "").trim().toLowerCase() === LANDING_AUTOMATIC_DATA_ORIGIN;
@@ -722,6 +768,7 @@ function enhanceAnalyticsForStaff(result, trafficSignals = new Map()) {
       topOffers: topEntries(byOffer),
       visitorSessions: visitorCounts,
       trafficSources: sourceEntries(trafficSourceSessions),
+      trafficTechnicalBySource: technicalBreakdownBySource(attributedSessionGroups),
     },
   };
 }
