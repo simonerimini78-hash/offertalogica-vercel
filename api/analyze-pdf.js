@@ -178,10 +178,12 @@ export default async function handler(req, res) {
   let pdfHeader = { valid: false, sanitized: false, bytesRemoved: 0, fileSize: null };
   let analysisStage = "request_received";
   const requestStartedAt = Date.now();
-  const configuredDeadlineMs = Number.parseInt(process.env.PDF_ANALYSIS_DEADLINE_MS || "52000", 10);
+  // La Function ha maxDuration 60 s: l'IA deve lasciare margine a
+  // contabilizzazione, archivio, risposta HTTP e pulizie.
+  const configuredDeadlineMs = Number.parseInt(process.env.PDF_ANALYSIS_DEADLINE_MS || "48000", 10);
   const analysisDeadlineMs = Number.isFinite(configuredDeadlineMs)
-    ? Math.max(24_000, Math.min(52_000, configuredDeadlineMs))
-    : 52_000;
+    ? Math.max(24_000, Math.min(48_000, configuredDeadlineMs))
+    : 48_000;
   const analysisDeadlineAt = Date.now() + analysisDeadlineMs;
   const aiAccountingEventId = crypto.randomUUID();
   const aiAccountingOccurredAt = new Date(requestStartedAt).toISOString();
@@ -227,6 +229,7 @@ export default async function handler(req, res) {
           originalFilename: body.filename,
           mimeType: body.mimeType,
           fileSize: body.fileSize,
+          requestTimeoutMs: 8_000,
         });
         return json(res, 200, { ok: true, upload });
       }
@@ -238,6 +241,7 @@ export default async function handler(req, res) {
       fileMetadata = await downloadPdfDirectUpload({
         ticket: directUploadTicket,
         destinationPath: temporaryFilePath,
+        requestTimeoutMs: 8_000,
       });
       ingressMode = "supabase_signed_upload";
     } else {
@@ -289,7 +293,11 @@ export default async function handler(req, res) {
         ...fileMetadata,
         normalized,
         context: archiveContext,
-      }).catch(() => ({ stored: false, reason: "archive_error" }))
+        requestTimeoutMs: 2_500,
+      }).catch((archiveError) => ({
+        stored: false,
+        reason: /timeout/i.test(String(archiveError?.message || "")) ? "archive_timeout" : "archive_error",
+      }))
       : { stored: false, reason: "insufficient_time_budget" };
     // La risposta originale dell'IA contiene evidenze diagnostiche riservate allo staff.
     // Non viene esposta al browser pubblico.
@@ -307,9 +315,13 @@ export default async function handler(req, res) {
           ...fileMetadata,
           error,
           context: archiveContext,
+          requestTimeoutMs: 2_500,
         });
       } catch (archiveError) {
-        archive = { stored: false, reason: "archive_error" };
+        archive = {
+          stored: false,
+          reason: /timeout/i.test(String(archiveError?.message || "")) ? "archive_timeout" : "archive_error",
+        };
         console.error("[pdf-analysis-archive-error]", JSON.stringify({
           event: "pdf_analysis_archive_failed",
           stage: analysisStage,
@@ -348,7 +360,7 @@ export default async function handler(req, res) {
       archive,
     });
   } finally {
-    if (directUploadTicket) await deletePdfDirectUpload(directUploadTicket).catch(() => {});
+    if (directUploadTicket) await deletePdfDirectUpload(directUploadTicket, { requestTimeoutMs: 2_000 }).catch(() => {});
     if (temporaryFilePath) await fs.unlink(temporaryFilePath).catch(() => {});
   }
 }

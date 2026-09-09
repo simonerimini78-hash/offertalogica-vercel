@@ -2,185 +2,197 @@
 <html lang="it">
 <head>
     <!--Tradedoubler site verification cidd973bbed-1203-458b-841b-ed0a9816a8f2-->
-    <!-- OFFERTALOGICA_PUBLIC_V89_20260909: cookie strip custom, centrata sul fondo -->
+    <!-- OFFERTALOGICA_PUBLIC_V86_20260909: cookie strip minima centrata in basso -->
     <script>
       window._iub = window._iub || [];
       window._iub.csConfiguration = window._iub.csConfiguration || {};
       window._iub.csConfiguration.banner = Object.assign({}, window._iub.csConfiguration.banner || {}, {
-        position: "bottom",
+        position: "float-bottom-center",
         backgroundOverlay: false,
-        applyStyles: false,
         acceptButtonDisplay: true,
         rejectButtonDisplay: true,
         customizeButtonDisplay: true,
-        closeButtonDisplay: false,
         acceptButtonCaption: "Accetta",
         rejectButtonCaption: "Rifiuta",
         customizeButtonCaption: "Preferenze",
-        cookiePolicyLinkCaption: "Dettagli",
-        content: 'Cookie necessari; marketing solo con consenso. <a class="ol-cookie-iubenda" href="https://www.iubenda.com/" target="_blank" rel="noopener">iubenda</a> · %{cookie_policy_link}',
-        html: '<div class="iubenda-cs-content ol-cookie-strip" role="dialog" aria-label="Preferenze cookie"><div class="ol-cookie-copy">%{banner_content}</div><div class="ol-cookie-actions"><button type="button" class="iubenda-cs-customize-btn ol-cookie-btn ol-cookie-pref">Preferenze</button><button type="button" class="iubenda-cs-reject-btn ol-cookie-btn ol-cookie-reject">Rifiuta</button><button type="button" class="iubenda-cs-accept-btn ol-cookie-btn ol-cookie-accept">Accetta</button></div></div>'
+        fontSizeBody: "10px"
       });
     </script>
-    <style id="offertalogica-iubenda-strip-v89">
-      /* Banner consenso custom: piccolo, leggibile, centrato e sempre ancorato al fondo. */
+    <style id="offertalogica-iubenda-strip">
+      /* Iubenda: una sola striscia bassa, centrata, senza oscurare la pagina. */
       #iubenda-cs-banner {
         position: fixed !important;
-        left: 50% !important;
-        right: auto !important;
-        top: auto !important;
-        bottom: 0 !important;
-        transform: translateX(-50%) !important;
-        width: min(610px, calc(100vw - 16px)) !important;
-        max-width: 610px !important;
-        min-width: 0 !important;
-        height: auto !important;
-        min-height: 0 !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        background: transparent !important;
-        color: #334155 !important;
-        box-shadow: none !important;
-        overflow: visible !important;
-        box-sizing: border-box !important;
-        z-index: 2147483000 !important;
-      }
-      #iubenda-cs-banner .iubenda-cs-container,
-      #iubenda-cs-banner .iubenda-cs-rationale,
-      #iubenda-cs-banner .iubenda-cs-content {
+        inset: auto 0 0 0 !important;
         width: 100% !important;
         max-width: none !important;
-        min-width: 0 !important;
         height: auto !important;
         min-height: 0 !important;
         margin: 0 !important;
+        padding: 0 6px 6px !important;
+        display: flex !important;
+        align-items: flex-end !important;
+        justify-content: center !important;
+        background: transparent !important;
+        pointer-events: none !important;
         box-sizing: border-box !important;
       }
-      #iubenda-cs-banner .iubenda-cs-container,
-      #iubenda-cs-banner .iubenda-cs-rationale {
-        padding: 0 !important;
-        background: transparent !important;
-        overflow: visible !important;
+      #iubenda-cs-banner .iubenda-cs-container {
+        position: relative !important;
+        width: min(1080px, calc(100vw - 12px)) !important;
+        max-width: 1080px !important;
+        height: auto !important;
+        min-height: 0 !important;
+        margin: 0 auto !important;
+        overflow: hidden !important;
+        pointer-events: auto !important;
       }
-      #iubenda-cs-banner .ol-cookie-strip {
+      #iubenda-cs-banner.iubenda-cs-default-floating .iubenda-cs-content,
+      #iubenda-cs-banner .iubenda-cs-content {
+        position: relative !important;
+        height: 48px !important;
+        min-height: 48px !important;
+        max-height: 48px !important;
+        margin: 0 !important;
+        padding: 5px 8px 8px !important;
+        border-radius: 10px !important;
+        box-shadow: 0 6px 20px rgba(15, 23, 42, .14) !important;
+        overflow: hidden !important;
+        box-sizing: border-box !important;
+      }
+      #iubenda-cs-banner .iubenda-cs-rationale {
         display: grid !important;
         grid-template-columns: minmax(0, 1fr) auto !important;
         align-items: center !important;
         gap: 8px !important;
-        min-height: 52px !important;
-        padding: 7px 9px !important;
-        background: rgba(255,255,255,.98) !important;
-        border: 1px solid #d7e0e5 !important;
-        border-bottom: 0 !important;
-        border-radius: 12px 12px 0 0 !important;
-        box-shadow: 0 -4px 16px rgba(15,23,42,.10) !important;
+        width: 100% !important;
+        height: 34px !important;
+        min-height: 34px !important;
+        max-height: 34px !important;
+        margin: 0 !important;
+        padding: 0 !important;
         overflow: hidden !important;
-        font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
       }
-      #iubenda-cs-banner .ol-cookie-copy {
+      #iubenda-cs-banner .iubenda-banner-content {
         min-width: 0 !important;
+        width: 100% !important;
+        height: 18px !important;
+        max-height: 18px !important;
         margin: 0 !important;
         padding: 0 !important;
-        color: #475569 !important;
-        font-size: 10.5px !important;
-        font-weight: 600 !important;
-        line-height: 1.25 !important;
-        text-align: left !important;
-        white-space: nowrap !important;
         overflow: hidden !important;
+        white-space: nowrap !important;
         text-overflow: ellipsis !important;
+        font-size: 10px !important;
+        line-height: 18px !important;
+        -webkit-mask-image: none !important;
+        mask-image: none !important;
       }
-      #iubenda-cs-banner .ol-cookie-copy a {
-        color: #166534 !important;
-        font: inherit !important;
-        font-weight: 800 !important;
-        text-decoration: underline !important;
-        text-underline-offset: 2px !important;
-      }
-      #iubenda-cs-banner .ol-cookie-iubenda {
-        color: #475569 !important;
-        font-weight: 700 !important;
-      }
-      #iubenda-cs-banner .ol-cookie-actions {
-        display: flex !important;
-        flex: 0 0 auto !important;
-        align-items: center !important;
-        justify-content: center !important;
-        gap: 4px !important;
+      #iubenda-cs-banner .iubenda-banner-content p,
+      #iubenda-cs-banner .iubenda-banner-content div,
+      #iubenda-cs-banner .iubenda-banner-content span,
+      #iubenda-cs-banner .iubenda-banner-content a {
+        display: inline !important;
         margin: 0 !important;
         padding: 0 !important;
+        font-size: inherit !important;
+        line-height: inherit !important;
       }
-      #iubenda-cs-banner .ol-cookie-btn {
-        position: static !important;
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center !important;
+      #iubenda-cs-banner .iubenda-banner-content br { display: none !important; }
+      #iubenda-cs-banner .iubenda-cs-opt-group {
         width: auto !important;
-        min-width: 68px !important;
-        height: 30px !important;
-        min-height: 30px !important;
         margin: 0 !important;
-        padding: 0 9px !important;
-        border-radius: 9px !important;
-        cursor: pointer !important;
-        font-family: inherit !important;
-        font-size: 10px !important;
-        font-weight: 800 !important;
-        line-height: 1 !important;
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: center !important;
+        justify-content: flex-end !important;
+        gap: 4px !important;
+      }
+      #iubenda-cs-banner .iubenda-cs-opt-group > div {
+        width: auto !important;
+        margin: 0 !important;
+        display: contents !important;
+      }
+      #iubenda-cs-banner .iubenda-cs-opt-group button,
+      #iubenda-cs-banner .iubenda-cs-accept-btn,
+      #iubenda-cs-banner .iubenda-cs-reject-btn,
+      #iubenda-cs-banner .iubenda-cs-customize-btn {
+        width: auto !important;
+        min-width: 0 !important;
+        height: 28px !important;
+        min-height: 28px !important;
+        max-height: 28px !important;
+        margin: 0 !important;
+        padding: 4px 8px !important;
+        border-radius: 7px !important;
+        font-size: 9px !important;
+        line-height: 18px !important;
         white-space: nowrap !important;
-        opacity: 1 !important;
-        visibility: visible !important;
-        box-sizing: border-box !important;
-        -webkit-appearance: none !important;
-        appearance: none !important;
-      }
-      #iubenda-cs-banner .ol-cookie-pref {
-        background: #f1f5f9 !important;
-        border: 1px solid #cbd5e1 !important;
-        color: #334155 !important;
-      }
-      #iubenda-cs-banner .ol-cookie-reject {
-        background: #ffffff !important;
-        border: 1px solid #94a3b8 !important;
-        color: #334155 !important;
-      }
-      #iubenda-cs-banner .ol-cookie-accept {
-        background: #16a34a !important;
-        border: 1px solid #16a34a !important;
-        color: #ffffff !important;
       }
       #iubenda-cs-banner .iubenda-cs-branding {
-        display: none !important;
+        position: absolute !important;
+        left: 8px !important;
+        right: auto !important;
+        bottom: 1px !important;
+        height: 7px !important;
+        max-height: 7px !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+        font-size: 7px !important;
+        line-height: 7px !important;
+        opacity: .55 !important;
       }
-      @media (max-width: 640px) {
-        #iubenda-cs-banner {
-          width: calc(100vw - 12px) !important;
-          max-width: calc(100vw - 12px) !important;
+      #iubenda-cs-banner .iubenda-cs-branding * {
+        margin: 0 !important;
+        padding: 0 !important;
+        font-size: 7px !important;
+        line-height: 7px !important;
+      }
+      @media (max-width: 720px) {
+        #iubenda-cs-banner { padding: 0 3px 3px !important; }
+        #iubenda-cs-banner .iubenda-cs-container {
+          width: calc(100vw - 6px) !important;
+          max-width: none !important;
         }
-        #iubenda-cs-banner .ol-cookie-strip {
-          grid-template-columns: 1fr !important;
-          gap: 5px !important;
-          min-height: 72px !important;
-          padding: 6px 7px 7px !important;
-          border-radius: 11px 11px 0 0 !important;
+        #iubenda-cs-banner.iubenda-cs-default-floating .iubenda-cs-content,
+        #iubenda-cs-banner .iubenda-cs-content {
+          height: 46px !important;
+          min-height: 46px !important;
+          max-height: 46px !important;
+          padding: 4px 5px 7px !important;
+          border-radius: 8px !important;
         }
-        #iubenda-cs-banner .ol-cookie-copy {
-          width: 100% !important;
-          font-size: 10px !important;
-          line-height: 1.2 !important;
-          text-align: center !important;
+        #iubenda-cs-banner .iubenda-cs-rationale {
+          grid-template-columns: minmax(0, 1fr) auto !important;
+          gap: 4px !important;
+          height: 33px !important;
+          min-height: 33px !important;
+          max-height: 33px !important;
         }
-        #iubenda-cs-banner .ol-cookie-actions {
-          width: 100% !important;
-          gap: 5px !important;
+        #iubenda-cs-banner .iubenda-banner-content {
+          height: 16px !important;
+          max-height: 16px !important;
+          font-size: 8px !important;
+          line-height: 16px !important;
         }
-        #iubenda-cs-banner .ol-cookie-btn {
-          flex: 1 1 0 !important;
-          min-width: 0 !important;
-          height: 31px !important;
-          min-height: 31px !important;
-          padding: 0 7px !important;
-          font-size: 10px !important;
+        #iubenda-cs-banner .iubenda-cs-opt-group { gap: 2px !important; }
+        #iubenda-cs-banner .iubenda-cs-opt-group button,
+        #iubenda-cs-banner .iubenda-cs-accept-btn,
+        #iubenda-cs-banner .iubenda-cs-reject-btn,
+        #iubenda-cs-banner .iubenda-cs-customize-btn {
+          height: 27px !important;
+          min-height: 27px !important;
+          max-height: 27px !important;
+          padding: 4px 5px !important;
+          border-radius: 6px !important;
+          font-size: 8px !important;
+          line-height: 17px !important;
+        }
+        #iubenda-cs-banner .iubenda-cs-branding,
+        #iubenda-cs-banner .iubenda-cs-branding * {
+          font-size: 6px !important;
+          line-height: 6px !important;
         }
       }
     </style>
@@ -10670,6 +10682,17 @@ function aggiornaStatoPdfMobileDopoAnalisi({ files = [], validCurrent = [], vali
   });
 }
 
+function avviaPassoSuccessivoPdfMobileAutomatico() {
+  if (!esperienzaPdfMobileAttiva() || MOBILE_PDF_STATUS_STATE.mode !== "ready") return;
+  const action = MOBILE_PDF_STATUS_STATE.primaryAction;
+  if (!['compare', 'business_compare'].includes(action)) return;
+  window.setTimeout(() => {
+    if (!esperienzaPdfMobileAttiva()) return;
+    if (MOBILE_PDF_STATUS_STATE.mode !== "ready" || MOBILE_PDF_STATUS_STATE.primaryAction !== action) return;
+    gestisciAzionePrimariaPdfMobile();
+  }, 80);
+}
+
 function attivaFocusOfferteMobile() {
   if (!esperienzaPdfMobileAttiva()) return;
   document.body.classList.add("mobile-offers-focus");
@@ -11470,6 +11493,7 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
     retainedOfferDocuments: PDF_DOCUMENT_SLOTS.offer.length,
   });
   aggiornaStatoPdfMobileDopoAnalisi({ files, validCurrent, validOffer, results });
+  avviaPassoSuccessivoPdfMobileAutomatico();
   } catch (error) {
     mostraStatoPdfMobile({
       mode: "warning",
@@ -14289,12 +14313,19 @@ function collegaEventiUX() {
     aggiornaInterfacciaSelezionePdf();
     nascondiGuida("pdf-confirm-guidance");
     document.getElementById("pdf-review-static")?.classList.remove("pdf-confirm-attention");
-    if (!notice || (!added && !duplicates)) return;
-    notice.hidden = false;
-    const duplicateCopy = duplicates ? ` ${duplicates === 1 ? "Un duplicato è stato ignorato." : `${duplicates} duplicati sono stati ignorati.`}` : "";
-    notice.innerHTML = added
-      ? `<span class="pdf-context-icon" aria-hidden="true">✓</span><span><strong>${added === 1 ? "PDF aggiunto" : `${added} PDF aggiunti`}.</strong> I documenti precedenti restano memorizzati. Ora premi <strong>Analizza PDF</strong>.${duplicateCopy}</span>`
-      : `<span class="pdf-context-icon" aria-hidden="true">✓</span><span><strong>Nessun nuovo PDF aggiunto.</strong>${duplicateCopy}</span>`;
+    if (notice && (added || duplicates)) {
+      notice.hidden = false;
+      const duplicateCopy = duplicates ? ` ${duplicates === 1 ? "Un duplicato è stato ignorato." : `${duplicates} duplicati sono stati ignorati.`}` : "";
+      const mobileAutoCopy = esperienzaPdfMobileAttiva() ? " Analisi avviata automaticamente." : " Ora premi <strong>Analizza PDF</strong>.";
+      notice.innerHTML = added
+        ? `<span class="pdf-context-icon" aria-hidden="true">✓</span><span><strong>${added === 1 ? "PDF aggiunto" : `${added} PDF aggiunti`}.</strong> I documenti precedenti restano memorizzati.${mobileAutoCopy}${duplicateCopy}</span>`
+        : `<span class="pdf-context-icon" aria-hidden="true">✓</span><span><strong>Nessun nuovo PDF aggiunto.</strong>${duplicateCopy}</span>`;
+    }
+    if (added && esperienzaPdfMobileAttiva()) {
+      window.preparaConfermaPdf?.().catch((error) => {
+        console.error("[mobile-pdf-auto-analysis]", error);
+      });
+    }
   });
   document.getElementById("optional-edit-consumptions")?.addEventListener("click", vaiAiConsumiAttuali);
   document.getElementById("optional-manual-toggle")?.addEventListener("click", () => {
