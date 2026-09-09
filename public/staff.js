@@ -101,7 +101,7 @@
     assistance_callback_verified: "Richiamata verificata",
     pdf_no_file_selected: "Nessuna bolletta selezionata",
     pdf_analysis_started: "Lettura bolletta avviata",
-    pdf_analysis_completed: "Bolletta letta",
+    pdf_analysis_completed: "Esito lettura bolletta",
     pdf_data_confirmed: "Dati bolletta confermati",
     pdf_autofill_preview_opened: "Anteprima dati bolletta aperta",
     pdf_autofill_preview_confirmed: "Anteprima dati bolletta confermata",
@@ -693,7 +693,7 @@
   }
 
   const activityFunnelDefinitions = [
-    ["pdfStarted", "PDF avviati"], ["pdfCompleted", "PDF letti"], ["comparisons", "Confronti reali"],
+    ["pdfStarted", "PDF avviati"], ["pdfCompleted", "PDF letti con successo"], ["pdfFailed", "PDF non riusciti"], ["comparisons", "Confronti reali"],
     ["landingPreviews", "Anteprime automatiche landing"], ["leadModalOpened", "Popup aperti"],
     ["leadModalClosed", "Popup chiusi"], ["leadFormInvalid", "Form non validi"], ["otpRequestStarted", "Richieste OTP avviate"],
     ["leadCreatedClient", "Lead creati"], ["otpSent", "OTP inviati"], ["otpFailed", "Errori OTP"], ["otpVerified", "OTP verificati"],
@@ -905,6 +905,8 @@
       event.annualCost != null && Math.abs(Number(event.annualCost)) > 0 ? `costo ${formatMoney(event.annualCost)}` : "",
       event.visibleOffersCount != null && Number(event.visibleOffersCount) > 0 ? `${event.visibleOffersCount} offerte` : "",
       event.fileCount != null && Number(event.fileCount) > 0 ? `${event.fileCount} file` : "",
+      event.successCount != null ? `${event.successCount} letti` : "",
+      event.errorCount != null && Number(event.errorCount) > 0 ? `${event.errorCount} errori` : "",
     ].filter(Boolean).join(" · ") || "—";
   }
 
@@ -974,7 +976,18 @@
     if (hasAny(SESSION_COMMERCIAL_EVENTS)) return { label: "Passaggio verso partner / Switcho avviato", tone: "ok" };
     if (hasAny(SESSION_OFFER_ACTION_EVENTS)) return { label: "Offerta selezionata, passaggio esterno non completato", tone: "warn" };
     if (has("offers_rendered")) return { label: "Offerte raggiunte, nessun clic commerciale", tone: "warn" };
+    if (has("comparison_incomplete_data")) return { label: "Confronto fermato: dati della bolletta incompleti", tone: "warn" };
     if (has("comparison_started") || has("comparison_completed")) return { label: "Confronto avviato, offerte non raggiunte", tone: "warn" };
+    const pdfResult = [...rows].reverse().find(item => String(item.eventType || "") === "pdf_analysis_completed");
+    if (pdfResult) {
+      const hasSuccessCount = pdfResult.successCount !== null && pdfResult.successCount !== undefined && pdfResult.successCount !== "";
+      const successCount = hasSuccessCount ? Number(pdfResult.successCount) : null;
+      const errorCount = pdfResult.errorCount !== null && pdfResult.errorCount !== undefined && pdfResult.errorCount !== "" ? Number(pdfResult.errorCount) : null;
+      if (Number.isFinite(successCount) && successCount <= 0) {
+        return { label: Number.isFinite(errorCount) && errorCount > 0 ? "PDF caricato, analisi non riuscita" : "PDF caricato, documento non utilizzabile", tone: "warn" };
+      }
+      return { label: "Bolletta letta, confronto non completato", tone: "warn" };
+    }
     if (has("landing_self_service_click") || has("landing_assisted_click")) return { label: "Percorso scelto, nessun avanzamento successivo", tone: "warn" };
     if (has("calculator_view")) return { label: "Calcolatore aperto, confronto non avviato", tone: "warn" };
     if (has("landing_view")) return { label: "Abbandono sulla landing", tone: "warn" };
@@ -1020,8 +1033,10 @@
       assistance_guide_opened: "Ha aperto la guida di assistenza",
       assistance_callback_started: "Ha avviato la richiesta di richiamata",
       assistance_callback_verified: "Richiamata verificata",
-      pdf_analysis_started: "Ha avviato la lettura della bolletta",
-      pdf_analysis_completed: "Lettura della bolletta completata",
+      pdf_analysis_started: "PDF caricato · lettura avviata",
+      comparison_incomplete_data: "Confronto fermato: dati della bolletta incompleti",
+      comparison_missing_current_price: "Dati essenziali della fornitura attuale incompleti",
+      pdf_data_confirmed: "Dati letti dal PDF confermati",
       lead_modal_opened: "Ha aperto la verifica del numero",
       otp_request_started: "Ha richiesto l’invio dell’SMS",
       otp_sent: "SMS inviato",
@@ -1039,6 +1054,19 @@
       assistance_switcho_redirect: "Passaggio da assistenza verso Switcho avviato",
       business_switcho_requested: "Passaggio business verso Switcho avviato",
     };
+    if (type === "pdf_analysis_completed") {
+      const hasSuccessCount = item.successCount !== null && item.successCount !== undefined && item.successCount !== "";
+      const successCount = hasSuccessCount ? Number(item.successCount) : null;
+      const errorCount = item.errorCount !== null && item.errorCount !== undefined && item.errorCount !== "" ? Number(item.errorCount) : null;
+      if (Number.isFinite(successCount) && successCount > 0) {
+        return Number.isFinite(errorCount) && errorCount > 0
+          ? `Lettura parziale · ${successCount} PDF letti · ${errorCount} errori`
+          : `Lettura riuscita · ${successCount} ${successCount === 1 ? "PDF letto" : "PDF letti"}`;
+      }
+      if (Number.isFinite(successCount) && successCount <= 0 && Number.isFinite(errorCount) && errorCount > 0) return `Lettura non riuscita · ${errorCount} ${errorCount === 1 ? "errore" : "errori"}`;
+      if (Number.isFinite(successCount) && successCount <= 0) return "Lettura completata senza documenti utilizzabili";
+      return "Lettura della bolletta completata";
+    }
     if (descriptions[type]) return descriptions[type];
     const values = analyticsEventValueText(item);
     return [origin, providerOffer, values !== "—" ? values : ""].filter(Boolean).join(" · ") || "Evento registrato";

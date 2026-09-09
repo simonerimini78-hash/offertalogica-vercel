@@ -535,10 +535,25 @@ function isRealComparisonCompleted(event = {}) {
   return event.eventType === "comparison_completed" && !isAutomaticLandingPreview(event);
 }
 
+function isSuccessfulPdfAnalysisEvent(event = {}) {
+  if (event.eventType !== "pdf_analysis_completed") return false;
+  if (event.successCount === null || event.successCount === undefined || event.successCount === "") return true;
+  const successCount = Number(event.successCount);
+  return Number.isFinite(successCount) ? successCount > 0 : true;
+}
+
+function isUnsuccessfulPdfAnalysisEvent(event = {}) {
+  if (event.eventType !== "pdf_analysis_completed") return false;
+  if (event.successCount === null || event.successCount === undefined || event.successCount === "") return false;
+  const successCount = Number(event.successCount);
+  return Number.isFinite(successCount) && successCount <= 0;
+}
+
 function activityFunnelFromEvents(events = []) {
   const funnel = {
     pdfStarted: 0,
     pdfCompleted: 0,
+    pdfFailed: 0,
     comparisons: 0,
     landingPreviews: 0,
     offersRendered: 0,
@@ -559,7 +574,8 @@ function activityFunnelFromEvents(events = []) {
   };
   events.forEach((event) => {
     if (event.eventType === "pdf_analysis_started") funnel.pdfStarted += 1;
-    if (event.eventType === "pdf_analysis_completed") funnel.pdfCompleted += 1;
+    if (isSuccessfulPdfAnalysisEvent(event)) funnel.pdfCompleted += 1;
+    if (isUnsuccessfulPdfAnalysisEvent(event)) funnel.pdfFailed += 1;
     if (isRealComparisonCompleted(event)) funnel.comparisons += 1;
     if (event.eventType === "comparison_completed" && isAutomaticLandingPreview(event)) funnel.landingPreviews += 1;
     if (event.eventType === "offers_rendered") funnel.offersRendered += 1;
@@ -602,7 +618,7 @@ function sessionFunnelFromGroups(groups = []) {
   groups.forEach((group) => {
     const eventTypes = new Set(group.map((event) => event.eventType).filter(Boolean));
     const hasRealComparison = group.some((event) => isRealComparisonCompleted(event));
-    const hasPdfCompleted = eventTypes.has("pdf_analysis_completed");
+    const hasPdfCompleted = group.some((event) => isSuccessfulPdfAnalysisEvent(event));
     const hasSelfService = eventTypes.has("landing_self_service_click");
     const hasAssisted = eventTypes.has("landing_assisted_click");
     funnel.entries += 1;

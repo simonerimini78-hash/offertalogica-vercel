@@ -8335,6 +8335,27 @@ function gestisciAzionePrimariaPdfMobile() {
   }
 }
 
+function proseguiAutomaticamenteDopoAnalisiPdfMobile({ validCurrent = [] } = {}) {
+  if (!esperienzaPdfMobileAttiva() || !validCurrent.length) return;
+  const scope = ambitoConfrontoAttivo();
+  if (["pending_gas", "pending_luce"].includes(scope)) return;
+
+  const data = datiBollettaCorrentePdf() || LEAD_STATE.pdfData || {};
+  const mancanti = campiMancanti(configurazioniPdfDaControllare(data, false));
+
+  // Riusa il confronto esistente: se mancano dati registra gia l'incompletezza,
+  // evidenzia i campi e porta l'utente al primo valore da completare.
+  if (mancanti.length) {
+    window.avviaComparazioneDati?.();
+    return;
+  }
+
+  nascondiStatoPdfMobile();
+  attivaFocusOfferteMobile();
+  window.avviaComparazioneDati?.();
+  window.requestAnimationFrame(() => window.setTimeout(portaAlTeaserOfferteMobile, 30));
+}
+
 function controllaDatiDaStatoPdfMobile() {
   const target = MOBILE_PDF_STATUS_STATE.primaryAction === "offer_review"
     ? document.getElementById("blocco-nuovo")
@@ -9032,6 +9053,7 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
     retainedOfferDocuments: PDF_DOCUMENT_SLOTS.offer.length,
   });
   aggiornaStatoPdfMobileDopoAnalisi({ files, validCurrent, validOffer, results });
+  proseguiAutomaticamenteDopoAnalisiPdfMobile({ validCurrent });
   } catch (error) {
     mostraStatoPdfMobile({
       mode: "warning",
@@ -11588,12 +11610,17 @@ function collegaEventiUX() {
     aggiornaInterfacciaSelezionePdf();
     nascondiGuida("pdf-confirm-guidance");
     document.getElementById("pdf-review-static")?.classList.remove("pdf-confirm-attention");
-    if (!notice || (!added && !duplicates)) return;
-    notice.hidden = false;
-    const duplicateCopy = duplicates ? ` ${duplicates === 1 ? "Un duplicato è stato ignorato." : `${duplicates} duplicati sono stati ignorati.`}` : "";
-    notice.innerHTML = added
-      ? `<span class="pdf-context-icon" aria-hidden="true">✓</span><span><strong>${added === 1 ? "PDF aggiunto" : `${added} PDF aggiunti`}.</strong> I documenti precedenti restano memorizzati. Ora premi <strong>Analizza PDF</strong>.${duplicateCopy}</span>`
-      : `<span class="pdf-context-icon" aria-hidden="true">✓</span><span><strong>Nessun nuovo PDF aggiunto.</strong>${duplicateCopy}</span>`;
+    const analisiAutomaticaMobile = added > 0 && esperienzaPdfMobileAttiva();
+    if (notice && (added || duplicates)) {
+      notice.hidden = false;
+      const duplicateCopy = duplicates ? ` ${duplicates === 1 ? "Un duplicato è stato ignorato." : `${duplicates} duplicati sono stati ignorati.`}` : "";
+      notice.innerHTML = added
+        ? `<span class="pdf-context-icon" aria-hidden="true">✓</span><span><strong>${added === 1 ? "PDF aggiunto" : `${added} PDF aggiunti`}.</strong> I documenti precedenti restano memorizzati. ${analisiAutomaticaMobile ? "L’analisi parte automaticamente." : "Ora premi <strong>Analizza PDF</strong>."}${duplicateCopy}</span>`
+        : `<span class="pdf-context-icon" aria-hidden="true">✓</span><span><strong>Nessun nuovo PDF aggiunto.</strong>${duplicateCopy}</span>`;
+    }
+    if (analisiAutomaticaMobile) {
+      void window.preparaConfermaPdf?.().catch(() => undefined);
+    }
   });
   document.getElementById("optional-edit-consumptions")?.addEventListener("click", vaiAiConsumiAttuali);
   document.getElementById("optional-manual-toggle")?.addEventListener("click", () => {
