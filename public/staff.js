@@ -1049,6 +1049,59 @@
     return item?.label || sourceKey || "Tutte le provenienze";
   }
 
+  function analyticsTrafficDetail(item = {}, { includeCampaign = true } = {}) {
+    const parts = [];
+    const referrer = String(item.trafficReferrer || "").trim();
+    const medium = String(item.trafficMedium || "").trim();
+    const campaign = String(item.trafficCampaign || "").trim();
+    const content = String(item.trafficContent || "").trim();
+    const term = String(item.trafficTerm || "").trim();
+    const landing = String(item.trafficLandingPage || item.page || "").trim();
+    const clickIdType = String(item.trafficClickIdType || "").trim();
+    if (referrer) parts.push(`ref: ${referrer}`);
+    if (medium) parts.push(`medium: ${medium}`);
+    if (includeCampaign && campaign) parts.push(`campagna: ${campaign}`);
+    if (content) parts.push(`content: ${content}`);
+    if (term) parts.push(`term: ${term}`);
+    if (landing) parts.push(`landing: ${landing}`);
+    if (clickIdType) parts.push(`click-id: ${clickIdType}`);
+    return parts.join(" · ");
+  }
+
+  function analyticsSourceWithTechnicalOrigin(item = {}) {
+    const source = analyticsSourceLabel(item.trafficSource);
+    const referrer = String(item.trafficReferrer || "").trim();
+    return referrer ? `${source} · ${referrer}` : source;
+  }
+
+  function renderTechnicalTrafficOrigins() {
+    const target = byId("analyticsTrafficReferrers");
+    if (!target) return;
+    const groups = new Map();
+    (cache.analytics || []).forEach((event) => {
+      const key = String(event.sessionId || `event:${event.id || Math.random()}`);
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(event);
+    });
+    const counts = new Map();
+    groups.forEach((events) => {
+      const withReferrer = events.find((item) => String(item.trafficReferrer || "").trim());
+      const representative = withReferrer || events.find((item) => String(item.trafficSource || "").trim()) || events[0] || {};
+      const referrer = String(representative.trafficReferrer || "").trim();
+      let label = referrer;
+      if (!label && representative.trafficSource && representative.trafficSource !== "direct") {
+        label = `${analyticsSourceLabel(representative.trafficSource)} (UTM/click-id o referrer non disponibile)`;
+      }
+      if (!label) label = "Senza referrer (diretto / app / privacy)";
+      counts.set(label, (counts.get(label) || 0) + 1);
+    });
+    const rows = [...counts.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .slice(0, 20)
+      .map(([key, count]) => ({ key, count }));
+    renderRankList(target, rows, "Nessuna origine tecnica disponibile");
+  }
+
   function closeAnalyticsSession() {
     const panel = byId("analyticsSessionPanel");
     if (panel) panel.hidden = true;
@@ -1080,6 +1133,7 @@
     const last = rows[rows.length - 1];
     const shortId = sessionId.length > 18 ? `${sessionId.slice(0, 9)}…${sessionId.slice(-6)}` : sessionId;
     const source = analyticsSourceLabel(first.trafficSource);
+    const sourceTechnical = analyticsSourceWithTechnicalOrigin(first);
     const activeSeconds = analyticsSessionActiveSeconds(rows);
     const firstAction = rows.find(item => SESSION_USER_ACTION_EVENTS.has(String(item.eventType || "")));
     const offersCount = analyticsSessionLatestOffersCount(rows);
@@ -1087,7 +1141,7 @@
 
     text(byId("analyticsSessionTitle"), `Percorso sessione ${shortId}`);
     text(byId("analyticsSessionMeta"), [
-      source,
+      sourceTechnical,
       first.visitorLabel || "",
       `${formatNumber(rows.length)} eventi`,
       `${formatDate(first.createdAt)} → ${formatDate(last.createdAt)}`
@@ -1098,10 +1152,10 @@
       node("div", { className: `analytics-session-outcome ${outcome.tone}` }, [
         node("span", { text: "Esito sessione" }),
         node("strong", { text: outcome.label }),
-        node("small", { text: `${source} · ${activeSeconds > 0 ? `${formatDurationSeconds(activeSeconds)} attivi` : "tempo attivo non disponibile"} · ${firstAction ? "interazione registrata" : "nessuna interazione"}` }),
+        node("small", { text: `${sourceTechnical} · ${activeSeconds > 0 ? `${formatDurationSeconds(activeSeconds)} attivi` : "tempo attivo non disponibile"} · ${firstAction ? "interazione registrata" : "nessuna interazione"}` }),
       ]),
       node("div", { className: "analytics-session-facts" }, [
-        node("div", {}, [node("span", { text: "Provenienza" }), node("strong", { text: source || "—" })]),
+        node("div", {}, [node("span", { text: "Provenienza" }), node("strong", { text: sourceTechnical || "—" }), node("small", { text: analyticsTrafficDetail(first) || "Nessun dettaglio tecnico disponibile" })]),
         node("div", {}, [node("span", { text: "Tempo attivo" }), node("strong", { text: activeSeconds > 0 ? formatDurationSeconds(activeSeconds) : "—" })]),
         node("div", {}, [node("span", { text: "Prima azione" }), node("strong", { text: firstAction ? staffEventLabel(firstAction) : "Nessuna" })]),
         node("div", {}, [node("span", { text: "Offerte" }), node("strong", { text: offersCount != null ? `${offersCount} visualizzate` : "Non raggiunte" })]),
@@ -1137,7 +1191,7 @@
     rows.forEach(item => {
       const origin = [item.dataOrigin ? staffDataOriginLabel(item) : "", item.page].filter(Boolean).join(" · ") || "—";
       const offer = [item.provider, item.offerName].filter(Boolean).join(" · ");
-      const detail = [origin, offer, analyticsEventValueText(item) !== "—" ? analyticsEventValueText(item) : ""].filter(Boolean).join(" · ") || "—";
+      const detail = [analyticsTrafficDetail(item), origin, offer, analyticsEventValueText(item) !== "—" ? analyticsEventValueText(item) : ""].filter(Boolean).join(" · ") || "—";
       technicalList.append(node("div", { className: "analytics-session-event technical" }, [
         node("time", { text: formatDate(item.createdAt) }),
         node("div", {}, [badge(staffEventLabel(item), "info"), node("small", { text: `#${item.id}` })]),
@@ -1246,7 +1300,7 @@
       const path = `${switchoPathLabel(row)} · ${switchoOriginLabel(row.dataOrigin)}`;
       body.append(node("tr", {}, [
         node("td", {}, [node("strong", { text: formatDate(row.createdAt || row.firstAt) })]),
-        node("td", {}, [node("strong", { text: switchoSourceLabel(row.trafficSource) }), node("small", { text: row.trafficCampaign || "" })]),
+        node("td", {}, [node("strong", { text: row.trafficReferrer ? `${switchoSourceLabel(row.trafficSource)} · ${row.trafficReferrer}` : switchoSourceLabel(row.trafficSource) }), node("small", { text: analyticsTrafficDetail(row) || row.trafficCampaign || "" })]),
         node("td", { text: path }),
         node("td", { text: offer }),
         node("td", { text: ranking }),
@@ -1269,11 +1323,11 @@
       }
       const moneyCell = value => value == null || !Number.isFinite(Number(value)) ? "" : Number(value).toFixed(2).replace(".", ",");
       const csvRows = [[
-        "Data", "Session ID", "Provenienza", "Campagna", "Medium", "Termine", "Percorso Switcho", "Origine dati",
+        "Data", "Session ID", "Provenienza", "Referrer", "Campagna", "Medium", "Content", "Termine", "Landing", "Tipo click ID", "Percorso Switcho", "Origine dati",
         "Fornitore", "Offerta", "Posizione economica", "Posizione visualizzata", "Costo annuo stimato EUR", "Risparmio annuo stimato EUR",
         "Scelta card registrata", "Redirect registrato", "Landing Switcho avviata", "Lead ID"
       ], ...rows.map(row => [
-        row.createdAt || row.firstAt || "", row.sessionId || "", switchoSourceLabel(row.trafficSource), row.trafficCampaign || "", row.trafficMedium || "", row.trafficTerm || "",
+        row.createdAt || row.firstAt || "", row.sessionId || "", switchoSourceLabel(row.trafficSource), row.trafficReferrer || "", row.trafficCampaign || "", row.trafficMedium || "", row.trafficContent || "", row.trafficTerm || "", row.trafficLandingPage || "", row.trafficClickIdType || "",
         switchoPathLabel(row), switchoOriginLabel(row.dataOrigin), row.provider || "", row.offerName || "", row.economyRank ?? "", row.displayRank ?? "",
         moneyCell(row.annualCost), moneyCell(row.annualSaving), row.choiceRecorded ? "SI" : "NO", row.redirectRecorded ? "SI" : "NO", row.landingOpened ? "SI" : "NO", row.leadId || ""
       ])];
@@ -1312,6 +1366,7 @@
     renderRankList(byId("analyticsProviders"), summary.topProviders || [], "Nessun provider cliccato");
     renderRankList(byId("analyticsOffers"), summary.topOffers || [], "Nessuna offerta cliccata");
     renderRankList(byId("analyticsTrafficSources"), (summary.trafficSources || []).map((item) => ({ key: item.label || item.key, count: item.count })), "Nessuna sessione dal punto zero");
+    renderTechnicalTrafficOrigins();
     const baseline = cache.analyticsBaseline || {};
     text(byId("analyticsBaseline"), baseline.label ? `Punto zero campagna: ${baseline.label}` : "Punto zero campagna");
     text(byId("analyticsFunnelNote"), sourceFilter
@@ -1336,7 +1391,7 @@
       body.append(node("tr", {}, [
         node("td", {}, [node("strong", { text: formatDate(event.createdAt) }), node("small", { text: `#${event.id}` })]),
         node("td", {}, [badge(staffEventLabel(event), "info"), node("small", { text: event.eventType === "session_engagement" ? staffEngagementReasonLabel(event.engagementReason) : (event.reason || "") })]),
-        node("td", {}, [node("strong", { text: event.trafficSource ? analyticsSourceLabel(event.trafficSource) : (event.dataOrigin ? staffDataOriginLabel(event) : (event.source || "—")) }), node("small", { text: [event.trafficCampaign, event.dataOrigin ? staffDataOriginLabel(event) : "", event.page].filter(Boolean).join(" · ") })]),
+        node("td", {}, [node("strong", { text: event.trafficSource ? analyticsSourceWithTechnicalOrigin(event) : (event.dataOrigin ? staffDataOriginLabel(event) : (event.source || "—")) }), node("small", { text: [analyticsTrafficDetail(event), event.dataOrigin ? staffDataOriginLabel(event) : ""].filter(Boolean).join(" · ") })]),
         node("td", {}, [node("strong", { text: [event.provider, event.offerName].filter(Boolean).join(" · ") || "—" }), node("small", { text: event.destinationStatus || "" })]),
         node("td", { text: values }),
         node("td", {}, [badge(event.leadId ? "collegato" : "anonimo", event.leadId ? "ok" : "warn"), node("small", { text: event.leadId || "" })]),
