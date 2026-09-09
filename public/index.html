@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
     <!--Tradedoubler site verification cidd973bbed-1203-458b-841b-ed0a9816a8f2-->
-    <!-- OFFERTALOGICA_PUBLIC_V87_20260909: cookie strip leggibile con azioni sempre visibili -->
+    <!-- OFFERTALOGICA_PUBLIC_V88_20260909: cookie strip compatta 610px, branding inline -->
     <script>
       window._iub = window._iub || [];
       window._iub.csConfiguration = window._iub.csConfiguration || {};
@@ -16,12 +16,12 @@
         acceptButtonCaption: "Accetta",
         rejectButtonCaption: "Rifiuta",
         customizeButtonCaption: "Preferenze",
-        content: 'Usiamo cookie tecnici necessari e, con il tuo consenso, cookie di marketing. <a class="iubenda-cs-cookie-policy-lnk" href="https://www.iubenda.com/privacy-policy/36565194/cookie-policy">Dettagli</a>.',
-        fontSizeBody: "12px"
+        content: 'Cookie necessari; marketing solo con consenso. <a class="iubenda-cs-cookie-policy-lnk" href="https://www.iubenda.com/privacy-policy/36565194/cookie-policy">Dettagli</a>.',
+        fontSizeBody: "11px"
       });
     </script>
-    <style id="offertalogica-iubenda-strip-v87">
-      /* Barra consenso: bassa, leggibile, centrata e con i tre pulsanti sempre visibili. */
+    <style id="offertalogica-iubenda-strip-v88">
+      /* Strip consenso: stessa larghezza del box risparmio (610px), centrata e molto bassa. */
       #iubenda-cs-banner {
         position: fixed !important;
         inset: auto 0 0 0 !important;
@@ -30,7 +30,7 @@
         height: auto !important;
         min-height: 0 !important;
         margin: 0 !important;
-        padding: 0 !important;
+        padding: 0 8px !important;
         display: flex !important;
         align-items: flex-end !important;
         justify-content: center !important;
@@ -40,8 +40,8 @@
       }
       #iubenda-cs-banner .iubenda-cs-container {
         position: relative !important;
-        width: min(1080px, 100vw) !important;
-        max-width: 1080px !important;
+        width: min(610px, calc(100vw - 16px)) !important;
+        max-width: 610px !important;
         height: auto !important;
         min-height: 0 !important;
         margin: 0 auto !important;
@@ -54,48 +54,49 @@
       #iubenda-cs-banner .iubenda-cs-content {
         position: relative !important;
         width: 100% !important;
-        height: 62px !important;
-        min-height: 62px !important;
-        max-height: 62px !important;
+        height: 58px !important;
+        min-height: 58px !important;
+        max-height: 58px !important;
         margin: 0 !important;
-        padding: 8px 14px 12px !important;
+        padding: 5px 9px 6px !important;
         background: #ffffff !important;
         color: #334155 !important;
         border: 1px solid #d7e0e5 !important;
         border-bottom: 0 !important;
-        border-radius: 12px 12px 0 0 !important;
-        box-shadow: 0 -5px 18px rgba(15, 23, 42, .10) !important;
+        border-radius: 11px 11px 0 0 !important;
+        box-shadow: 0 -4px 14px rgba(15, 23, 42, .09) !important;
         overflow: hidden !important;
         box-sizing: border-box !important;
       }
       #iubenda-cs-banner .iubenda-cs-rationale {
         width: 100% !important;
-        height: 40px !important;
-        min-height: 40px !important;
-        max-height: 40px !important;
+        height: 46px !important;
+        min-height: 46px !important;
+        max-height: 46px !important;
         margin: 0 !important;
         padding: 0 !important;
         display: flex !important;
-        flex-direction: row !important;
+        flex-direction: column !important;
         align-items: center !important;
-        justify-content: space-between !important;
-        gap: 12px !important;
+        justify-content: center !important;
+        gap: 3px !important;
         overflow: visible !important;
         box-sizing: border-box !important;
       }
       #iubenda-cs-banner .iubenda-banner-content {
-        flex: 1 1 auto !important;
+        flex: 0 0 14px !important;
         min-width: 0 !important;
-        width: auto !important;
-        height: auto !important;
-        max-height: 32px !important;
+        width: 100% !important;
+        height: 14px !important;
+        max-height: 14px !important;
         margin: 0 !important;
         padding: 0 !important;
         overflow: hidden !important;
         color: #475569 !important;
-        font-size: 12.5px !important;
-        font-weight: 500 !important;
-        line-height: 1.25 !important;
+        font-size: 10px !important;
+        font-weight: 600 !important;
+        line-height: 14px !important;
+        text-align: center !important;
         white-space: nowrap !important;
         text-overflow: ellipsis !important;
         -webkit-mask-image: none !important;
@@ -120,18 +121,18 @@
       }
       #iubenda-cs-banner .iubenda-banner-content br { display: none !important; }
       #iubenda-cs-banner .iubenda-cs-counterpart {
-        flex: 0 0 auto !important;
-        width: auto !important;
+        flex: 0 0 29px !important;
+        width: 100% !important;
         min-width: 0 !important;
         max-width: none !important;
-        height: 36px !important;
-        min-height: 36px !important;
+        height: 29px !important;
+        min-height: 29px !important;
         margin: 0 !important;
         padding: 0 !important;
         display: flex !important;
         flex-direction: row !important;
         align-items: center !important;
-        justify-content: flex-end !important;
+        justify-content: center !important;
         overflow: visible !important;
       }
       #iubenda-cs-banner .iubenda-cs-controls {
@@ -139,7 +140,8 @@
         margin: 0 !important;
         padding: 0 !important;
       }
-      #iubenda-cs-banner .iubenda-cs-opt-group {
+      #iubenda-cs-banner .iubenda-cs-opt-group,
+      #iubenda-cs-banner .iubenda-cs-opt-group > div {
         width: auto !important;
         margin: 0 !important;
         padding: 0 !important;
@@ -147,17 +149,8 @@
         flex-direction: row !important;
         flex-wrap: nowrap !important;
         align-items: center !important;
-        justify-content: flex-end !important;
-        gap: 6px !important;
-      }
-      #iubenda-cs-banner .iubenda-cs-opt-group > div {
-        width: auto !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        display: flex !important;
-        flex-direction: row !important;
-        align-items: center !important;
-        gap: 6px !important;
+        justify-content: center !important;
+        gap: 5px !important;
       }
       #iubenda-cs-banner .iubenda-cs-opt-group button,
       #iubenda-cs-banner .iubenda-cs-accept-btn,
@@ -168,14 +161,14 @@
         align-items: center !important;
         justify-content: center !important;
         width: auto !important;
-        min-width: 66px !important;
-        height: 34px !important;
-        min-height: 34px !important;
-        max-height: 34px !important;
+        min-width: 64px !important;
+        height: 28px !important;
+        min-height: 28px !important;
+        max-height: 28px !important;
         margin: 0 !important;
-        padding: 0 11px !important;
+        padding: 0 10px !important;
         border-radius: 8px !important;
-        font-size: 11.5px !important;
+        font-size: 10px !important;
         font-weight: 800 !important;
         line-height: 1 !important;
         white-space: nowrap !important;
@@ -197,90 +190,107 @@
         border: 1px solid #16a34a !important;
         color: #ffffff !important;
       }
-      #iubenda-cs-banner .iubenda-cs-branding {
-        position: absolute !important;
-        left: 14px !important;
-        right: auto !important;
-        bottom: 2px !important;
+      /* Il branding Iubenda viene spostato via JS sulla prima riga, prima di Dettagli. */
+      #iubenda-cs-banner .iubenda-banner-content .iubenda-cs-branding {
+        position: static !important;
+        display: inline !important;
         width: auto !important;
-        height: 8px !important;
-        max-height: 8px !important;
-        margin: 0 !important;
+        height: auto !important;
+        max-height: none !important;
+        margin: 0 2px 0 5px !important;
         padding: 0 !important;
-        overflow: hidden !important;
-        font-size: 6px !important;
-        line-height: 8px !important;
-        opacity: .55 !important;
+        overflow: visible !important;
+        font-size: 9px !important;
+        line-height: 14px !important;
+        opacity: .68 !important;
+        vertical-align: baseline !important;
       }
-      #iubenda-cs-banner .iubenda-cs-branding * {
+      #iubenda-cs-banner .iubenda-banner-content .iubenda-cs-branding * {
         margin: 0 !important;
         padding: 0 !important;
-        font-size: 6px !important;
-        line-height: 8px !important;
+        font-size: 9px !important;
+        line-height: 14px !important;
+      }
+      /* Prima dello spostamento non deve creare una seconda riga sotto la strip. */
+      #iubenda-cs-banner .iubenda-cs-content > .iubenda-cs-branding {
+        position: absolute !important;
+        width: 1px !important;
+        height: 1px !important;
+        overflow: hidden !important;
+        clip: rect(0 0 0 0) !important;
+        white-space: nowrap !important;
       }
       @media (max-width: 720px) {
+        #iubenda-cs-banner { padding: 0 6px !important; }
         #iubenda-cs-banner .iubenda-cs-container {
-          width: 100vw !important;
-          max-width: none !important;
+          width: min(610px, calc(100vw - 12px)) !important;
+          max-width: 610px !important;
         }
         #iubenda-cs-banner.iubenda-cs-default-floating .iubenda-cs-content,
         #iubenda-cs-banner .iubenda-cs-content {
-          height: 68px !important;
-          min-height: 68px !important;
-          max-height: 68px !important;
-          padding: 7px 7px 11px !important;
-          border-left: 0 !important;
-          border-right: 0 !important;
+          height: 60px !important;
+          min-height: 60px !important;
+          max-height: 60px !important;
+          padding: 5px 6px 6px !important;
           border-radius: 9px 9px 0 0 !important;
         }
         #iubenda-cs-banner .iubenda-cs-rationale {
-          height: 46px !important;
-          min-height: 46px !important;
-          max-height: 46px !important;
-          gap: 6px !important;
-        }
-        #iubenda-cs-banner .iubenda-banner-content {
-          max-height: 32px !important;
-          font-size: 10.5px !important;
-          line-height: 1.15 !important;
-          white-space: normal !important;
-          display: -webkit-box !important;
-          -webkit-line-clamp: 2 !important;
-          -webkit-box-orient: vertical !important;
-        }
-        #iubenda-cs-banner .iubenda-cs-counterpart {
-          height: 34px !important;
-          min-height: 34px !important;
-        }
-        #iubenda-cs-banner .iubenda-cs-opt-group,
-        #iubenda-cs-banner .iubenda-cs-opt-group > div {
+          height: 48px !important;
+          min-height: 48px !important;
+          max-height: 48px !important;
           gap: 3px !important;
         }
+        #iubenda-cs-banner .iubenda-banner-content {
+          flex-basis: 15px !important;
+          height: 15px !important;
+          max-height: 15px !important;
+          font-size: 9px !important;
+          line-height: 15px !important;
+        }
+        #iubenda-cs-banner .iubenda-banner-content .iubenda-cs-branding,
+        #iubenda-cs-banner .iubenda-banner-content .iubenda-cs-branding * {
+          font-size: 8px !important;
+          line-height: 15px !important;
+        }
+        #iubenda-cs-banner .iubenda-cs-counterpart {
+          flex-basis: 30px !important;
+          height: 30px !important;
+          min-height: 30px !important;
+        }
+        #iubenda-cs-banner .iubenda-cs-opt-group,
+        #iubenda-cs-banner .iubenda-cs-opt-group > div { gap: 3px !important; }
         #iubenda-cs-banner .iubenda-cs-opt-group button,
         #iubenda-cs-banner .iubenda-cs-accept-btn,
         #iubenda-cs-banner .iubenda-cs-reject-btn,
         #iubenda-cs-banner .iubenda-cs-customize-btn {
           min-width: 0 !important;
-          height: 32px !important;
-          min-height: 32px !important;
-          max-height: 32px !important;
-          padding: 0 7px !important;
+          height: 29px !important;
+          min-height: 29px !important;
+          max-height: 29px !important;
+          padding: 0 8px !important;
           border-radius: 7px !important;
-          font-size: 10px !important;
-        }
-        #iubenda-cs-banner .iubenda-cs-branding {
-          left: 7px !important;
-          bottom: 1px !important;
-          font-size: 5px !important;
-          line-height: 6px !important;
-          height: 6px !important;
-        }
-        #iubenda-cs-banner .iubenda-cs-branding * {
-          font-size: 5px !important;
-          line-height: 6px !important;
+          font-size: 9.5px !important;
         }
       }
     </style>
+    <script>
+      (() => {
+        const moveIubendaBrandingInline = () => {
+          const banner = document.getElementById("iubenda-cs-banner");
+          const content = banner?.querySelector(".iubenda-banner-content");
+          const details = content?.querySelector(".iubenda-cs-cookie-policy-lnk");
+          const branding = banner?.querySelector(".iubenda-cs-branding");
+          if (!content || !details || !branding || branding.dataset.olInline === "1") return;
+          branding.dataset.olInline = "1";
+          content.insertBefore(branding, details);
+          branding.insertAdjacentText("afterend", " · ");
+        };
+        const observer = new MutationObserver(moveIubendaBrandingInline);
+        observer.observe(document.documentElement, { childList: true, subtree: true });
+        document.addEventListener("DOMContentLoaded", moveIubendaBrandingInline, { once: true });
+        window.addEventListener("load", moveIubendaBrandingInline, { once: true });
+      })();
+    </script>
     <script type="text/javascript" src="https://embeds.iubenda.com/widgets/7a8d1e4e-6d87-44e3-9842-5e8991323410.js"></script>
     <!-- Google tag (gtag.js) - Google Ads -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=AW-18424345732"></script>
