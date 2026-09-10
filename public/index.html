@@ -4511,7 +4511,7 @@ function trafficAttributionFromEntry() {
     trafficSource,
     trafficMedium,
     trafficCampaign: trafficText(params.get("utm_campaign"), 120),
-    trafficTerm: trafficText(params.get("utm_term"), 120),
+    trafficTerm: trafficText(params.get("utm_term") || params.get("keyword"), 120),
     trafficContent: trafficText(params.get("utm_content"), 120),
     trafficCampaignId: trafficText(params.get("campaign_id") || params.get("campaignid"), 40),
     trafficAdGroupId: trafficText(params.get("adgroup_id") || params.get("adgroupid"), 40),
@@ -4546,10 +4546,14 @@ const ANALYTICS_USER_ACTION_EVENTS = new Set([
   "landing_free_app_click",
   "landing_premium_app_click",
   "customer_segment_selected",
+  "comparison_path_selected",
+  "pdf_picker_opened",
+  "pdf_file_selected",
   "comparison_started",
   "offers_bill_prompt_clicked",
   "offers_bill_prompt_dismissed",
   "pdf_analysis_started",
+  "pdf_analysis_interrupted",
   "pdf_data_confirmed",
   "pdf_reset",
   "lead_modal_opened",
@@ -4775,6 +4779,81 @@ function trackEvent(eventType, payload = {}) {
     body,
     keepalive: true,
   }).catch(() => {});
+}
+
+
+let ANALYTICS_LAST_PATH_CHOICE = "";
+
+function tracciaSceltaPercorsoConfronto(pathChoice, trigger = "") {
+  const normalized = String(pathChoice || "").trim().toLowerCase();
+  if (!["average", "pdf", "manual"].includes(normalized)) return;
+  if (ANALYTICS_LAST_PATH_CHOICE === normalized) return;
+  ANALYTICS_LAST_PATH_CHOICE = normalized;
+  trackEvent("comparison_path_selected", {
+    pathChoice: normalized,
+    trigger: String(trigger || "").trim().toLowerCase(),
+    dataOrigin: normalized === "pdf"
+      ? "pdf_upload"
+      : normalized === "manual"
+        ? "manual_input"
+        : "arera_average_profile",
+  });
+}
+
+function valoriUniciTrackingPdf(values = [], limit = 80) {
+  const out = [];
+  values.flat(Infinity).forEach((value) => {
+    const normalized = String(value || "").trim();
+    if (!normalized || out.includes(normalized) || out.length >= limit) return;
+    out.push(normalized);
+  });
+  return out;
+}
+
+function diagnosticaTrackingPdf(results = [], data = LEAD_STATE.pdfData || {}) {
+  const successCount = results.filter(risultatoPdfUtilizzabile).length;
+  const errorCount = results.filter((item) => item?.error).length;
+  const unrecognizedCount = results.filter((item) => !item?.error && !risultatoPdfUtilizzabile(item)).length;
+  const diagnosticCodes = valoriUniciTrackingPdf(results.map((item) => item?.diagnostic_code));
+  const analysisStages = valoriUniciTrackingPdf(results.map((item) => item?.analysis_stage));
+  const ingressModes = valoriUniciTrackingPdf(results.map((item) => item?.ingress_mode));
+  const documentKinds = valoriUniciTrackingPdf(results.map((item) => item?.kind));
+  const commodities = valoriUniciTrackingPdf(results.map((item) => item?.commodity));
+  const missingFields = valoriUniciTrackingPdf([
+    data?.readiness?.confronto?.luce?.missing || [],
+    data?.readiness?.confronto?.gas?.missing || [],
+    data?.readiness?.dati_bolletta?.luce?.missing || [],
+    data?.readiness?.dati_bolletta?.gas?.missing || [],
+  ]);
+  const contractFields = data?.data_contract?.fields && typeof data.data_contract.fields === "object"
+    ? Object.values(data.data_contract.fields)
+    : [];
+  const reviewFieldCount = contractFields.filter((entry) => entry?.autofill?.review_selectable === true).length;
+  const analysisStatus = successCount === results.length && results.length > 0 && !data?.mixed_documents && !data?.merge_blocked
+    ? (missingFields.length ? "success_missing_data" : "success")
+    : successCount > 0
+      ? "partial"
+      : errorCount > 0
+        ? "failed"
+        : unrecognizedCount > 0
+          ? "unrecognized"
+          : "unknown";
+  return {
+    analysisStatus,
+    successCount,
+    unrecognizedCount,
+    errorCount,
+    diagnosticCodes,
+    analysisStages,
+    ingressModes,
+    documentKinds,
+    commodities,
+    missingFields,
+    missingFieldCount: missingFields.length,
+    reviewFieldCount,
+    mixedDocuments: Boolean(data?.mixed_documents),
+    mergeBlocked: Boolean(data?.merge_blocked),
+  };
 }
 
 const PRIVACY_VERSION = "privacy-lead-v3-2026-07-04";
@@ -11511,6 +11590,11 @@ function aggiornaInterfacciaSelezionePdf() {
 window.apriSelettorePdf = function apriSelettorePdf() {
   const input = document.getElementById("pdf-static-input");
   if (!input) return;
+  tracciaSceltaPercorsoConfronto("pdf", "pdf_picker");
+  trackEvent("pdf_picker_opened", {
+    trigger: "pdf_picker",
+    pdfDocumentCount: (LEAD_STATE.pdfDocuments || []).length,
+  });
   input.value = "";
   input.click();
 };
@@ -11662,11 +11746,10 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
     applicaRisultatoPdfDirettamente(results);
   }
   aggiornaInterfacciaSelezionePdf();
+  const pdfTracking = diagnosticaTrackingPdf(results, LEAD_STATE.pdfData || {});
   trackEvent("pdf_analysis_completed", {
     fileCount: files.length,
-    successCount: results.filter(risultatoPdfUtilizzabile).length,
-    unrecognizedCount: results.filter((item) => !item.error && !risultatoPdfUtilizzabile(item)).length,
-    errorCount: results.filter((item) => item.error).length,
+    ...pdfTracking,
     activeSlot: activeSlot || "",
     retainedCurrentDocuments: PDF_DOCUMENT_SLOTS.current.length,
     retainedOfferDocuments: PDF_DOCUMENT_SLOTS.offer.length,
@@ -11674,6 +11757,13 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
   aggiornaStatoPdfMobileDopoAnalisi({ files, validCurrent, validOffer, results });
   avviaPassoSuccessivoPdfMobileAutomatico();
   } catch (error) {
+    trackEvent("pdf_analysis_interrupted", {
+      analysisStatus: "interrupted",
+      diagnosticCode: error?.diagnostic_code || error?.code || error?.name || "pdf_analysis_interrupted",
+      analysisStage: error?.analysis_stage || "",
+      ingressMode: error?.ingress_mode || "",
+      reason: "pdf_analysis_interrupted",
+    });
     mostraStatoPdfMobile({
       mode: "warning",
       title: "Lettura interrotta",
@@ -11694,10 +11784,10 @@ window.confermaPdfECalcola = async function confermaPdfECalcola() {
   const confirmButton = document.getElementById("pdf-confirm-data-button");
   if (confirmButton?.disabled) return;
   const activeDocuments = pdfDocumentiSlot();
+  const pdfConfirmTracking = diagnosticaTrackingPdf(activeDocuments, data);
   trackEvent("pdf_data_confirmed", {
     pdfDocumentCount: activeDocuments.length,
-    successCount: activeDocuments.filter((item) => !item.error).length,
-    errorCount: activeDocuments.filter((item) => item.error).length,
+    ...pdfConfirmTracking,
     activeSlot: PDF_ACTIVE_SLOT || "",
   });
   nascondiGuida("pdf-confirm-guidance");
@@ -13628,6 +13718,7 @@ function chiudiDettagliNuovaOfferta() {
 }
 
 function vaiAlCaricatoreScheda(options = {}) {
+  if (options?.source) tracciaSceltaPercorsoConfronto("pdf", String(options.source));
   const panel = document.getElementById("pdf-upload-panel") || document.querySelector(".pdf-lead-panel");
   const drop = document.getElementById("pdf-upload-drop");
   const input = document.getElementById("pdf-static-input");
@@ -14451,8 +14542,9 @@ function collegaEventiUX() {
   btnPrivato?.addEventListener("click", () => selezionaSegmentoCliente("privato"));
   btnBusiness?.addEventListener("click", () => selezionaSegmentoCliente("business"));
 
-  btnMedi?.addEventListener("click", () => {
+  btnMedi?.addEventListener("click", (event) => {
     modalitaCalcolo = "media";
+    if (event?.isTrusted) tracciaSceltaPercorsoConfronto("average", "desktop_choice");
   }, true);
 
   btnMedi?.addEventListener("click", () => {
@@ -14463,8 +14555,16 @@ function collegaEventiUX() {
     }, 0);
   });
 
-  btnPrecisi?.addEventListener("click", () => {
+  btnPrecisi?.addEventListener("click", (event) => {
     modalitaCalcolo = "manuale";
+    if (event?.isTrusted) tracciaSceltaPercorsoConfronto("manual", "desktop_choice");
+  }, true);
+
+  document.getElementById("comparison-submit-button")?.addEventListener("click", (event) => {
+    if (!event?.isTrusted) return;
+    const origin = determinaOrigineDatoLead();
+    const pathChoice = origin === "pdf_upload" ? "pdf" : modalitaCalcolo === "media" ? "average" : "manual";
+    tracciaSceltaPercorsoConfronto(pathChoice, "comparison_submit");
   }, true);
 
   luceAtt?.addEventListener("input", sincronizzaConsumiNuovaOfferta);
@@ -14506,6 +14606,17 @@ function collegaEventiUX() {
       added += 1;
     });
     if (event.target) event.target.value = "";
+    if (selected.length) {
+      tracciaSceltaPercorsoConfronto("pdf", "pdf_file_selected");
+      trackEvent("pdf_file_selected", {
+        trigger: "file_input",
+        selectedCount: selected.length,
+        acceptedCount: added,
+        duplicateCount: duplicates,
+        fileCount: PDF_PENDING_FILES.length,
+        pdfDocumentCount: (LEAD_STATE.pdfDocuments || []).length,
+      });
+    }
     aggiornaInterfacciaSelezionePdf();
     nascondiGuida("pdf-confirm-guidance");
     document.getElementById("pdf-review-static")?.classList.remove("pdf-confirm-attention");
@@ -15375,6 +15486,7 @@ if (document.readyState === "loading") {
     if (btnBusiness) observer.observe(btnBusiness, { attributes: true, attributeFilter: ["class"] });
 
     btnAverage?.addEventListener("click", () => {
+      tracciaSceltaPercorsoConfronto("average", "mobile_fast_choice");
       setMobileFastMode("average");
       btnMedi?.click();
       window.setTimeout(() => {
@@ -15384,12 +15496,14 @@ if (document.readyState === "loading") {
     });
 
     btnPdf?.addEventListener("click", () => {
+      tracciaSceltaPercorsoConfronto("pdf", "mobile_fast_choice");
       setMobileFastMode("pdf");
       document.body.classList.remove("mobile-fast-pdf-review");
       scrollFast(pdfPanel, "start");
     });
 
     btnManual?.addEventListener("click", () => {
+      tracciaSceltaPercorsoConfronto("manual", "mobile_fast_choice");
       setMobileFastMode("manual");
       btnPrecisi?.click();
       window.setTimeout(() => {

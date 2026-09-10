@@ -50,9 +50,13 @@ const ALLOWED_EVENT_TYPES = new Set([
   "assistance_guide_opened",
   "assistance_callback_started",
   "assistance_callback_verified",
+  "comparison_path_selected",
+  "pdf_picker_opened",
+  "pdf_file_selected",
   "pdf_no_file_selected",
   "pdf_analysis_started",
   "pdf_analysis_completed",
+  "pdf_analysis_interrupted",
   "pdf_data_confirmed",
   "pdf_autofill_preview_opened",
   "pdf_autofill_preview_confirmed",
@@ -136,6 +140,21 @@ function booleanOrNull(value) {
   return null;
 }
 
+function textList(value, maxItems = 30, maxItemLength = 90) {
+  const source = Array.isArray(value)
+    ? value
+    : value === null || value === undefined || value === ""
+      ? []
+      : String(value).split(/[|,]/);
+  const out = [];
+  source.forEach((item) => {
+    const normalized = text(item, maxItemLength);
+    if (!normalized || out.includes(normalized) || out.length >= maxItems) return;
+    out.push(normalized);
+  });
+  return out;
+}
+
 function requestHeader(req, name, max = 500) {
   const normalized = String(name || "").trim().toLowerCase();
   const value = req?.headers?.[normalized];
@@ -207,9 +226,40 @@ function sanitizePayload(payload = {}) {
     staffMode: booleanOrNull(input.staffMode),
     bestSaving: numberOrNull(input.bestSaving),
     pdfDocumentCount: numberOrNull(input.pdfDocumentCount),
+    pathChoice: text(input.pathChoice, 40).toLowerCase(),
+    trigger: text(input.trigger, 80).toLowerCase(),
     fileCount: numberOrNull(input.fileCount),
+    selectedCount: numberOrNull(input.selectedCount),
+    acceptedCount: numberOrNull(input.acceptedCount),
+    duplicateCount: numberOrNull(input.duplicateCount),
     successCount: numberOrNull(input.successCount),
+    unrecognizedCount: numberOrNull(input.unrecognizedCount),
     errorCount: numberOrNull(input.errorCount),
+    fieldCount: numberOrNull(input.fieldCount),
+    protectedCount: numberOrNull(input.protectedCount),
+    ocrReviewCount: numberOrNull(input.ocrReviewCount),
+    skippedCount: numberOrNull(input.skippedCount),
+    protectedSkippedCount: numberOrNull(input.protectedSkippedCount),
+    missingFieldCount: numberOrNull(input.missingFieldCount),
+    reviewFieldCount: numberOrNull(input.reviewFieldCount),
+    activeSlot: text(input.activeSlot, 40).toLowerCase(),
+    retainedCurrentDocuments: numberOrNull(input.retainedCurrentDocuments),
+    retainedOfferDocuments: numberOrNull(input.retainedOfferDocuments),
+    analysisStatus: text(input.analysisStatus, 40).toLowerCase(),
+    diagnosticCode: text(input.diagnosticCode, 80),
+    analysisStage: text(input.analysisStage, 80).toLowerCase(),
+    ingressMode: text(input.ingressMode, 80).toLowerCase(),
+    diagnosticCodes: textList(input.diagnosticCodes, 30, 80),
+    analysisStages: textList(input.analysisStages, 30, 80),
+    ingressModes: textList(input.ingressModes, 20, 80),
+    documentKinds: textList(input.documentKinds, 10, 60),
+    commodities: textList(input.commodities, 10, 40),
+    missingFields: textList(input.missingFields, 80, 90),
+    mixedDocuments: booleanOrNull(input.mixedDocuments),
+    mergeBlocked: booleanOrNull(input.mergeBlocked),
+    gasDecision: text(input.gasDecision, 60).toLowerCase(),
+    electricityDecision: text(input.electricityDecision, 60).toLowerCase(),
+    hasNewOffer: booleanOrNull(input.hasNewOffer),
     visibleOffersCount: numberOrNull(input.visibleOffersCount),
     activePartnerOffersCount: numberOrNull(input.activePartnerOffersCount),
     consultantOffersCount: numberOrNull(input.consultantOffersCount),
