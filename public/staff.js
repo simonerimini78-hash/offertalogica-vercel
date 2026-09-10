@@ -1082,6 +1082,22 @@
     text(byId("analyticsSessionMeta"), "");
   }
 
+  function revealAnalyticsSessionPanel(panel) {
+    if (!panel) return;
+    let parent = panel.parentElement;
+    while (parent) {
+      if (parent.tagName === "DETAILS") parent.open = true;
+      parent = parent.parentElement;
+    }
+    panel.hidden = false;
+    const technical = panel.querySelector("details.analytics-session-technical");
+    if (technical) technical.open = false;
+    requestAnimationFrame(() => {
+      panel.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (typeof panel.focus === "function") panel.focus({ preventScroll: true });
+    });
+  }
+
   async function openAnalyticsSession(event = {}) {
     const sessionId = String(event.sessionId || "");
     if (!sessionId) return;
@@ -1207,8 +1223,7 @@
       ]));
     });
 
-    panel.hidden = false;
-    panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    revealAnalyticsSessionPanel(panel);
   }
 
   function switchoSourceLabel(source = "") {
