@@ -32,6 +32,8 @@
     leadSummary: {},
     analytics: [],
     analyticsSummary: {},
+    journeys: [],
+    journeySummary: {},
     switcho: { rows: [], summary: {} },
     landingPath: null,
     customers: [],
@@ -64,6 +66,7 @@
     comparison_started: "Confronto avviato",
     comparison_missing_current_price: "Confronto: tariffa attuale incompleta",
     comparison_completed: "Confronto completato",
+    comparison_path_selected: "Percorso confronto scelto",
     offers_rendered: "Offerte visualizzate",
     offers_unlocked: "Offerte sbloccate",
     offers_bill_prompt_dismissed: "Invito bolletta chiuso",
@@ -100,8 +103,11 @@
     assistance_callback_started: "Richiamata richiesta",
     assistance_callback_verified: "Richiamata verificata",
     pdf_no_file_selected: "Nessuna bolletta selezionata",
+    pdf_picker_opened: "Selettore bolletta aperto",
+    pdf_file_selected: "File bolletta selezionato",
     pdf_analysis_started: "Lettura bolletta avviata",
     pdf_analysis_completed: "Bolletta letta",
+    pdf_analysis_interrupted: "Lettura bolletta interrotta",
     pdf_data_confirmed: "Dati bolletta confermati",
     pdf_autofill_preview_opened: "Anteprima dati bolletta aperta",
     pdf_autofill_preview_confirmed: "Anteprima dati bolletta confermata",
@@ -693,7 +699,8 @@
   }
 
   const activityFunnelDefinitions = [
-    ["pdfStarted", "PDF avviati"], ["pdfCompleted", "PDF letti"], ["comparisons", "Confronti reali"],
+    ["pdfPathSelected", "PDF scelti"], ["pdfPickerOpened", "Selettori PDF"], ["pdfFileSelected", "File PDF scelti"],
+    ["pdfStarted", "PDF avviati"], ["pdfCompleted", "PDF letti"], ["pdfInterrupted", "PDF interrotti"], ["comparisons", "Confronti reali"],
     ["landingPreviews", "Anteprime automatiche landing"], ["leadModalOpened", "Popup aperti"],
     ["leadModalClosed", "Popup chiusi"], ["leadFormInvalid", "Form non validi"], ["otpRequestStarted", "Richieste OTP avviate"],
     ["leadCreatedClient", "Lead creati"], ["otpSent", "OTP inviati"], ["otpFailed", "Errori OTP"], ["otpVerified", "OTP verificati"],
@@ -702,16 +709,16 @@
     ["consultantRequests", "Richieste assistite"], ["failedRequests", "Errori richiesta"]
   ];
   const sessionFunnelDefinitions = [
-    ["entries", "Ingressi attribuiti"],
+    ["entries", "Sessioni analizzabili"],
     ["pathSelected", "Scelta percorso"],
-    ["comparisonOrPdf", "Confronto reale / PDF"],
-    ["leadModalOpened", "Popup lead"],
-    ["otpRequestStarted", "Richiesta OTP"],
-    ["otpSent", "OTP inviato"],
-    ["otpVerified", "OTP verificato"],
-    ["offersUnlocked", "Offerta sbloccata"],
-    ["offerAction", "Azione su offerta"],
-    ["redirects", "Redirect partner"]
+    ["selfServiceSelected", "Autonomia"],
+    ["assistedSelected", "Guidato → Switcho"],
+    ["averageSelected", "Profilo medio"],
+    ["manualSelected", "Manuale"],
+    ["pdfSelected", "PDF"],
+    ["comparisons", "Confronto completato"],
+    ["offersViewed", "Offerte viste"],
+    ["switcho", "Switcho"]
   ];
 
   function renderActivityFunnel(target, funnel = {}) {
@@ -723,22 +730,18 @@
 
   function renderSessionFunnel(target, funnel = {}) {
     clear(target);
+    if (!target) return;
     const entries = Number(funnel.entries || 0);
-    let previousCount = null;
     sessionFunnelDefinitions.forEach(([key, label]) => {
       const count = Number(funnel[key] || 0);
-      let detail = "Sessioni uniche";
-      if (key !== "entries") {
-        const entryShare = entries ? `${formatNumber((count / entries) * 100, 1)}% ingressi` : "— ingressi";
-        const previousShare = previousCount
-          ? `${formatNumber((count / previousCount) * 100, 1)}% vs fase prec.`
-          : "— vs fase prec.";
-        detail = `${entryShare} · ${previousShare}`;
-      }
+      const detail = key === "entries"
+        ? "Sessioni uniche"
+        : entries
+          ? `${formatNumber((count / entries) * 100, 1)}% degli ingressi`
+          : "— degli ingressi";
       target.append(node("div", { className: "funnel-step" }, [
         node("strong", { text: count }), node("span", { text: label }), node("small", { text: detail })
       ]));
-      previousCount = count;
     });
   }
 
@@ -821,8 +824,8 @@
   const EXPECTED_ANALYTICS_EVENT_TYPES = [
     "landing_view", "calculator_view", "landing_self_service_click", "landing_assisted_click",
     "landing_free_app_click", "landing_premium_app_click",
-    "comparison_started", "comparison_completed", "offers_rendered",
-    "pdf_analysis_started", "pdf_analysis_completed",
+    "comparison_started", "comparison_completed", "comparison_path_selected", "offers_rendered",
+    "pdf_picker_opened", "pdf_file_selected", "pdf_analysis_started", "pdf_analysis_completed", "pdf_analysis_interrupted",
     "lead_modal_opened", "lead_modal_closed", "lead_form_invalid", "otp_request_started",
     "lead_created_client", "otp_sent", "otp_failed", "otp_verified", "offers_unlocked",
     "offer_consent_opened", "offer_partner_consent_confirmed", "offer_switcho_redirect",
@@ -847,7 +850,9 @@
     const observedEventTypes = cache.analytics.map(event => String(event.eventType || "").trim()).filter(Boolean);
     const eventTypes = [...new Set([...EXPECTED_ANALYTICS_EVENT_TYPES, ...observedEventTypes])].sort();
     const origins = [...new Set(cache.analytics.map(analyticsOrigin).filter(Boolean))].sort();
-    const trafficSources = Array.isArray(cache.analyticsSummary?.trafficSources) ? cache.analyticsSummary.trafficSources : [];
+    const trafficSources = Array.isArray(cache.journeySummary?.trafficSources) && cache.journeySummary.trafficSources.length
+      ? cache.journeySummary.trafficSources
+      : Array.isArray(cache.analyticsSummary?.trafficSources) ? cache.analyticsSummary.trafficSources : [];
 
     eventSelect.replaceChildren(
       node("option", { value: "", text: "Tutti gli eventi" }),
@@ -905,12 +910,18 @@
       event.annualCost != null && Math.abs(Number(event.annualCost)) > 0 ? `costo ${formatMoney(event.annualCost)}` : "",
       event.visibleOffersCount != null && Number(event.visibleOffersCount) > 0 ? `${event.visibleOffersCount} offerte` : "",
       event.fileCount != null && Number(event.fileCount) > 0 ? `${event.fileCount} file` : "",
+      event.analysisStatus ? `esito ${event.analysisStatus}` : "",
+      event.successCount != null ? `${event.successCount} riusciti` : "",
+      event.unrecognizedCount != null ? `${event.unrecognizedCount} non riconosciuti` : "",
+      event.errorCount != null ? `${event.errorCount} errori` : "",
+      event.missingFieldCount != null && Number(event.missingFieldCount) > 0 ? `${event.missingFieldCount} dati mancanti` : "",
+      Array.isArray(event.diagnosticCodes) && event.diagnosticCodes.length ? `diagnostica ${event.diagnosticCodes.join(", ")}` : (event.diagnosticCode ? `diagnostica ${event.diagnosticCode}` : ""),
     ].filter(Boolean).join(" · ") || "—";
   }
 
   const SESSION_USER_ACTION_EVENTS = new Set([
     "landing_self_service_click", "landing_assisted_click", "landing_free_app_click", "landing_premium_app_click",
-    "comparison_started", "pdf_analysis_started", "lead_modal_opened", "otp_request_started", "otp_verified",
+    "comparison_path_selected", "comparison_started", "pdf_picker_opened", "pdf_file_selected", "pdf_analysis_started", "pdf_analysis_interrupted", "lead_modal_opened", "otp_request_started", "otp_verified",
     "offer_click_locked", "offer_consent_opened", "offer_partner_consent_confirmed", "offer_request_started",
     "offer_request_recorded", "offer_switcho_redirect", "switcho_landing_opened", "offer_redirect",
     "partner_funnel_opened", "business_photovoltaic_tool_opened", "assistance_guide_opened",
@@ -930,8 +941,8 @@
 
   const SESSION_MAIN_EVENT_TYPES = new Set([
     "landing_view", "landing_self_service_click", "landing_assisted_click", "landing_free_app_click", "landing_premium_app_click",
-    "calculator_view", "comparison_started", "comparison_completed", "offers_rendered",
-    "offers_bill_prompt_clicked", "pdf_analysis_started", "pdf_analysis_completed", "pdf_data_confirmed",
+    "calculator_view", "comparison_path_selected", "comparison_started", "comparison_completed", "offers_rendered",
+    "offers_bill_prompt_clicked", "pdf_picker_opened", "pdf_file_selected", "pdf_analysis_started", "pdf_analysis_completed", "pdf_analysis_interrupted", "pdf_data_confirmed",
     "lead_modal_opened", "otp_request_started", "otp_sent", "otp_verified",
     "offer_click_locked", "offer_consent_opened", "offer_partner_consent_missing", "offer_partner_consent_confirmed",
     "offer_request_started", "offer_request_recorded", "offer_request_failed", "offer_switcho_redirect",
@@ -1012,6 +1023,7 @@
       landing_free_app_click: "Ha scelto l’app gratuita",
       landing_premium_app_click: "Ha scelto l’app Premium",
       calculator_view: "Ha aperto il calcolatore",
+      comparison_path_selected: `Ha scelto ${item.pathChoice === "pdf" ? "il percorso PDF" : item.pathChoice === "manual" ? "l’inserimento manuale" : item.pathChoice === "average" ? "il profilo medio ARERA" : "una modalità di confronto"}`,
       comparison_started: origin ? `Confronto avviato con ${origin}` : "Confronto avviato",
       comparison_completed: Number.isFinite(saving) && Math.abs(saving) > 0 ? `Confronto completato · risparmio stimato ${formatMoney(saving)}` : "Confronto completato",
       offers_rendered: `${Number.isFinite(offers) && offers > 0 ? `${offers} offerte visualizzate` : "Offerte visualizzate"}${Number.isFinite(saving) && Math.abs(saving) > 0 ? ` · miglior risparmio ${formatMoney(saving)}` : ""}`,
@@ -1020,8 +1032,11 @@
       assistance_guide_opened: "Ha aperto la guida di assistenza",
       assistance_callback_started: "Ha avviato la richiesta di richiamata",
       assistance_callback_verified: "Richiamata verificata",
+      pdf_picker_opened: "Ha aperto il selettore della bolletta",
+      pdf_file_selected: `Ha selezionato ${Number(item.acceptedCount || item.selectedCount || 0) || "un"} file PDF`,
       pdf_analysis_started: "Ha avviato la lettura della bolletta",
-      pdf_analysis_completed: "Lettura della bolletta completata",
+      pdf_analysis_completed: item.analysisStatus ? `Lettura bolletta: ${item.analysisStatus}` : "Lettura della bolletta completata",
+      pdf_analysis_interrupted: `Lettura bolletta interrotta${item.diagnosticCode ? ` · ${item.diagnosticCode}` : ""}`,
       lead_modal_opened: "Ha aperto la verifica del numero",
       otp_request_started: "Ha richiesto l’invio dell’SMS",
       otp_sent: "SMS inviato",
@@ -1045,8 +1060,15 @@
   }
 
   function analyticsSourceLabel(sourceKey = "") {
-    const item = (cache.analyticsSummary?.trafficSources || []).find(entry => String(entry.key || "") === String(sourceKey || ""));
-    return item?.label || sourceKey || "Tutte le provenienze";
+    const key = String(sourceKey || "");
+    const item = (cache.journeySummary?.trafficSources || cache.analyticsSummary?.trafficSources || [])
+      .find(entry => String(entry.key || "") === key);
+    const known = {
+      google_ads: "Google Ads", google_organic: "Google organico", instagram: "Instagram",
+      facebook: "Facebook", tiktok: "TikTok", meta_other: "Meta non distinto",
+      direct: "Diretto", referral_other: "Referral / altro"
+    };
+    return item?.label || known[key] || key || "Tutte le provenienze";
   }
 
   function closeAnalyticsSession() {
@@ -1060,14 +1082,35 @@
     text(byId("analyticsSessionMeta"), "");
   }
 
-  function openAnalyticsSession(event = {}) {
+  async function openAnalyticsSession(event = {}) {
     const sessionId = String(event.sessionId || "");
     if (!sessionId) return;
-    const rows = cache.analytics
+    let rows = cache.analytics
       .filter(item => String(item.sessionId || "") === sessionId)
       .slice()
       .sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime());
-    if (!rows.length) return;
+    try {
+      setMessage("info", "Caricamento storico completo della sessione…");
+      const payload = await staffFetch(`/api/staff-analytics?sessionId=${encodeURIComponent(sessionId)}&limit=5000`);
+      const completeRows = (Array.isArray(payload.events) ? payload.events : [])
+        .filter(item => String(item.sessionId || "") === sessionId)
+        .slice()
+        .sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime());
+      if (completeRows.length) {
+        rows = completeRows;
+        setMessage("success", `Sessione completa caricata: ${rows.length} eventi.`);
+      }
+    } catch (error) {
+      if (!rows.length) {
+        setMessage("error", `Impossibile caricare la sessione: ${friendlyError(error)}`);
+        return;
+      }
+      setMessage("info", "Storico completo non disponibile: mostro gli eventi già caricati per la sessione.");
+    }
+    if (!rows.length) {
+      setMessage("info", "Nessun evento disponibile per questa sessione nel periodo analytics conservato.");
+      return;
+    }
 
     const panel = byId("analyticsSessionPanel");
     const summary = byId("analyticsSessionSummary");
@@ -1197,6 +1240,130 @@
     return "Passaggio registrato";
   }
 
+  const ANALYTICS_PAGE_SIZE = 10;
+  const analyticsPages = { journeys: 1, pdf: 1, switcho: 1, events: 1 };
+
+  function analyticsPageRows(rows = [], key = "events") {
+    const totalPages = Math.max(1, Math.ceil(rows.length / ANALYTICS_PAGE_SIZE));
+    analyticsPages[key] = Math.min(Math.max(1, Number(analyticsPages[key] || 1)), totalPages);
+    const start = (analyticsPages[key] - 1) * ANALYTICS_PAGE_SIZE;
+    return { rows: rows.slice(start, start + ANALYTICS_PAGE_SIZE), page: analyticsPages[key], totalPages };
+  }
+
+  function renderAnalyticsPagination(target, totalRows, key, rerender) {
+    if (!target) return;
+    clear(target);
+    const totalPages = Math.max(1, Math.ceil(Number(totalRows || 0) / ANALYTICS_PAGE_SIZE));
+    const current = Math.min(Math.max(1, Number(analyticsPages[key] || 1)), totalPages);
+    analyticsPages[key] = current;
+    if (totalPages <= 1) {
+      target.append(node("span", { text: totalRows ? `Pagina 1 di 1 · ${formatNumber(totalRows)} risultati` : "Nessun risultato" }));
+      return;
+    }
+    const addButton = (label, page, disabled = false, active = false) => {
+      const button = node("button", { type: "button", text: label, className: active ? "active" : "" });
+      button.disabled = disabled;
+      if (!disabled && !active) button.addEventListener("click", () => { analyticsPages[key] = page; rerender(); });
+      target.append(button);
+    };
+    addButton("←", current - 1, current <= 1);
+    const pages = new Set([1, totalPages, current, current - 1, current + 1, current - 2, current + 2].filter(page => page >= 1 && page <= totalPages));
+    let previous = 0;
+    [...pages].sort((a, b) => a - b).forEach(page => {
+      if (previous && page - previous > 1) target.append(node("span", { text: "…" }));
+      addButton(String(page), page, false, page === current);
+      previous = page;
+    });
+    addButton("→", current + 1, current >= totalPages);
+    target.append(node("span", { text: `${formatNumber(totalRows)} risultati` }));
+  }
+
+  function journeySessionButton(sessionId) {
+    const button = node("button", { className: "button secondary compact", type: "button", text: "Vedi" });
+    button.disabled = !sessionId;
+    button.addEventListener("click", () => {
+      const event = cache.analytics.find(item => String(item.sessionId || "") === String(sessionId || ""));
+      openAnalyticsSession(event || { sessionId });
+    });
+    return button;
+  }
+
+  function renderJourneyAnalytics() {
+    const rows = Array.isArray(cache.journeys) ? cache.journeys : [];
+    const summary = cache.journeySummary || {};
+    text(byId("journeySelfService"), formatNumber(summary.landingSelfService || 0));
+    text(byId("journeyAssisted"), formatNumber(summary.landingAssisted || 0));
+    text(byId("journeyAverage"), formatNumber(summary.average || 0));
+    text(byId("journeyManual"), formatNumber(summary.manual || 0));
+    text(byId("journeyPdf"), formatNumber(summary.pdf || 0));
+    text(byId("journeyOffers"), formatNumber(summary.offersViewed || 0));
+    text(byId("journeySwitcho"), formatNumber(summary.switcho || 0));
+    text(byId("journeySessions"), formatNumber(summary.sessions || rows.length));
+    const body = byId("journeyRows");
+    if (!body) return;
+    clear(body);
+    const pageData = analyticsPageRows(rows, "journeys");
+    if (!rows.length) body.append(node("tr", {}, [node("td", { text: "Nessuna sessione disponibile.", attrs: { colspan: "7" } })]));
+    pageData.rows.forEach(row => {
+      const source = analyticsSourceLabel(row.source || "direct");
+      const intent = row.intento || "Intento non determinabile";
+      const intentBasis = row.intento_base || "";
+      const comparison = row.percorso_sequenza || row.percorso_confronto || "—";
+      const comparisonBasis = row.percorso_base ? ` · ${row.percorso_base}` : "";
+      body.append(node("tr", {}, [
+        node("td", {}, [node("strong", { text: formatDate(row.first_at) }), node("small", { text: row.device || "" })]),
+        node("td", { className: "analytics-journey-intent" }, [node("strong", { text: intent }), node("small", { text: intentBasis })]),
+        node("td", {}, [node("strong", { text: source }), node("small", { text: [row.campaign, row.term].filter(Boolean).join(" · ") })]),
+        node("td", { text: row.scelta_percorso || "—" }),
+        node("td", {}, [node("strong", { text: comparison }), node("small", { text: comparisonBasis.replace(/^ · /, "") })]),
+        node("td", {}, [badge(row.esito_sessione || "—", row.switcho || row.partner ? "ok" : row.offerte_visualizzate ? "info" : "warn"), node("small", { text: row.abbandono_fase ? `Ultima fase: ${row.abbandono_fase}` : "" })]),
+        node("td", {}, [node("div", { className: "row-actions" }, [journeySessionButton(row.session_id)])])
+      ]));
+    });
+    renderAnalyticsPagination(byId("journeyPagination"), rows.length, "journeys", renderJourneyAnalytics);
+  }
+
+  function renderPdfJourneyAnalytics() {
+    const allRows = Array.isArray(cache.journeys) ? cache.journeys : [];
+    const rows = allRows.filter(row => Boolean(row.pdf_scelto));
+    const summary = cache.journeySummary || {};
+    text(byId("pdfJourneySelected"), formatNumber(summary.pdf || 0));
+    text(byId("pdfJourneyPicker"), formatNumber(summary.pdfPickerOpened || 0));
+    text(byId("pdfJourneyFile"), formatNumber(summary.pdfFileSelected || 0));
+    text(byId("pdfJourneyStarted"), formatNumber(summary.pdfStarted || 0));
+    text(byId("pdfJourneyCompleted"), formatNumber(summary.pdfCompleted || 0));
+    text(byId("pdfJourneyInterrupted"), formatNumber(summary.pdfInterrupted || 0));
+    text(byId("pdfJourneyMissing"), formatNumber(summary.pdfWithMissingFields || 0));
+    text(byId("pdfJourneyExplicit"), formatNumber(summary.pdfSelectedRecorded || 0));
+    const body = byId("pdfJourneyRows");
+    if (!body) return;
+    clear(body);
+    const pageData = analyticsPageRows(rows, "pdf");
+    if (!rows.length) body.append(node("tr", {}, [node("td", { text: "Nessuna sessione PDF disponibile.", attrs: { colspan: "7" } })]));
+    pageData.rows.forEach(row => {
+      const steps = [
+        row.pdf_scelto ? "scelto ✓" : "",
+        row.pdf_picker_aperto ? "selettore ✓" : "",
+        row.pdf_file_selezionato ? "file ✓" : "",
+        row.pdf_analisi_avviata ? "analisi ✓" : "",
+        row.pdf_analisi_completata ? "completata ✓" : row.pdf_analisi_interrotta ? "interrotta" : "",
+        row.pdf_dati_confermati ? "dati confermati ✓" : "",
+      ].filter(Boolean).join(" · ") || "PDF inferito dallo storico";
+      const diagnostics = [row.pdf_missing_fields ? `Mancanti: ${row.pdf_missing_fields}` : "", row.pdf_diagnostic_codes ? `Codici: ${row.pdf_diagnostic_codes}` : "", row.pdf_analysis_stages ? `Fase: ${row.pdf_analysis_stages}` : ""].filter(Boolean).join(" · ") || "Nessuna diagnostica registrata";
+      const afterPdf = row.switcho ? "Switcho" : row.azione_offerta ? "Azione offerta" : row.offerte_visualizzate ? "Offerte viste" : row.confronto_reale ? "Confronto completato" : row.abbandono_fase || "—";
+      body.append(node("tr", {}, [
+        node("td", {}, [node("strong", { text: formatDate(row.first_at) }), node("small", { text: row.device || "" })]),
+        node("td", {}, [node("strong", { text: analyticsSourceLabel(row.source || "direct") }), node("small", { text: row.intento || "Intento non determinabile" })]),
+        node("td", { text: steps }),
+        node("td", { className: "analytics-pdf-status" }, [node("strong", { text: row.pdf_esito || "Esito non disponibile" }), node("small", { text: [row.pdf_file_count ? `${row.pdf_file_count} file` : "", row.pdf_success_count !== "" ? `${row.pdf_success_count} riusciti` : "", row.pdf_unrecognized_count !== "" ? `${row.pdf_unrecognized_count} non riconosciuti` : "", row.pdf_error_count !== "" ? `${row.pdf_error_count} errori` : ""].filter(Boolean).join(" · ") })]),
+        node("td", {}, [node("strong", { text: row.pdf_missing_field_count ? `${row.pdf_missing_field_count} dati mancanti` : "—" }), node("small", { text: diagnostics })]),
+        node("td", { text: afterPdf }),
+        node("td", {}, [node("div", { className: "row-actions" }, [journeySessionButton(row.session_id)])])
+      ]));
+    });
+    renderAnalyticsPagination(byId("pdfJourneyPagination"), rows.length, "pdf", renderPdfJourneyAnalytics);
+  }
+
   function switchoRangeStart(range = "30d") {
     const days = range === "7d" ? 7 : range === "30d" ? 30 : 0;
     return days ? Date.now() - days * 86400000 : 0;
@@ -1246,17 +1413,15 @@
     const rangeLabel = ({ "7d": "ultimi 7 giorni", "30d": "ultimi 30 giorni", all: "dal punto zero" })[String(byId("switchoRange")?.value || "30d")] || "periodo selezionato";
     const source = String(byId("switchoSourceFilter")?.value || "");
     text(byId("switchoFilterInfo"), rows.length
-      ? `${formatNumber(rows.length)} sessioni verso Switcho · ${rangeLabel}${source ? ` · ${switchoSourceLabel(source)}` : ""}. Il dato indica il redirect avviato da OffertaLogica, non il caricamento confermato della pagina partner.`
+      ? `${formatNumber(rows.length)} sessioni verso Switcho · ${rangeLabel}${source ? ` · ${switchoSourceLabel(source)}` : ""}. Redirect avviato da OffertaLogica; non certifica il completamento sul sito partner.`
       : `Nessun passaggio Switcho · ${rangeLabel}${source ? ` · ${switchoSourceLabel(source)}` : ""}.`);
 
     const body = byId("switchoRows");
     if (!body) return;
     clear(body);
-    if (!rows.length) {
-      body.append(node("tr", {}, [node("td", { text: "Nessun passaggio Switcho nel periodo selezionato.", attrs: { colspan: "8" } })]));
-      return;
-    }
-    rows.slice(0, 500).forEach(row => {
+    const pageData = analyticsPageRows(rows, "switcho");
+    if (!rows.length) body.append(node("tr", {}, [node("td", { text: "Nessun passaggio Switcho nel periodo selezionato.", attrs: { colspan: "8" } })]));
+    pageData.rows.forEach(row => {
       const sessionId = String(row.sessionId || "");
       const displayId = sessionId.length > 18 ? `${sessionId.slice(0, 9)}…${sessionId.slice(-6)}` : sessionId || "—";
       const ranking = [row.economyRank != null ? `economica ${row.economyRank}` : "", row.displayRank != null ? `vista ${row.displayRank}` : ""].filter(Boolean).join(" · ") || "—";
@@ -1266,14 +1431,12 @@
       body.append(node("tr", {}, [
         node("td", {}, [node("strong", { text: formatDate(row.createdAt || row.firstAt) })]),
         node("td", {}, [node("strong", { text: switchoSourceLabel(row.trafficSource) }), node("small", { text: [row.trafficCampaign, row.trafficTerm].filter(Boolean).join(" · ") })]),
-        node("td", { text: path }),
-        node("td", { text: offer }),
-        node("td", { text: ranking }),
-        node("td", { text: values }),
+        node("td", { text: path }), node("td", { text: offer }), node("td", { text: ranking }), node("td", { text: values }),
         node("td", {}, [badge(switchoStatusLabel(row), row.landingOpened || row.redirectRecorded ? "ok" : "warn")]),
-        node("td", {}, [node("span", { className: "switcho-session", text: displayId, attrs: { title: sessionId || "" } })])
+        node("td", {}, [node("span", { className: "switcho-session", text: displayId, attrs: { title: sessionId || "" } }), journeySessionButton(sessionId)])
       ]));
     });
+    renderAnalyticsPagination(byId("switchoPagination"), rows.length, "switcho", renderSwitchoAnalytics);
   }
 
   async function exportSwitchoCsv() {
@@ -1315,41 +1478,41 @@
 
   function renderAnalytics() {
     const summary = cache.analyticsSummary || {};
-    const activityFunnel = summary.funnel || {};
+    const fullSummary = cache.journeySummary || {};
+    const activityFunnel = fullSummary.activity || summary.funnel || {};
 
     populateAnalyticsFilters();
     const sourceFilter = String(byId("analyticsSourceFilter")?.value || "");
-    const baseSessionFunnel = summary.sessionFunnel || {};
-    const sessionFunnel = sourceFilter
-      ? (summary.sessionFunnelsBySource?.[sourceFilter] || {})
-      : baseSessionFunnel;
+    const baseSessionFunnel = fullSummary.sessionFunnel || summary.sessionFunnel || {};
+    const sourceFunnels = fullSummary.sessionFunnelsBySource || summary.sessionFunnelsBySource || {};
+    const sessionFunnel = sourceFilter ? (sourceFunnels[sourceFilter] || {}) : baseSessionFunnel;
 
-    text(byId("analyticsEvents"), summary.recentEvents || 0);
-    text(byId("analyticsSessions"), summary.attributedSessions || baseSessionFunnel.entries || 0);
-    text(byId("analyticsLinkedLeads"), summary.linkedLeads || 0);
+    text(byId("analyticsEvents"), formatNumber(fullSummary.events ?? summary.recentEvents ?? 0));
+    text(byId("analyticsSessions"), formatNumber(summary.attributedSessions || baseSessionFunnel.entries || 0));
+    text(byId("analyticsLinkedLeads"), formatNumber(summary.linkedLeads || 0));
     text(byId("analyticsOtpRate"), sessionFunnel.otpSent ? `${Math.round((Number(sessionFunnel.otpVerified || 0) / Number(sessionFunnel.otpSent)) * 100)}%` : "—");
     renderSessionFunnel(byId("analyticsFunnel"), sessionFunnel);
     renderActivityFunnel(byId("analyticsActivity"), activityFunnel);
-    renderRankList(byId("analyticsProviders"), summary.topProviders || [], "Nessun provider cliccato");
-    renderRankList(byId("analyticsOffers"), summary.topOffers || [], "Nessuna offerta cliccata");
-    renderRankList(byId("analyticsTrafficSources"), (summary.trafficSources || []).map((item) => ({ key: item.label || item.key, count: item.count })), "Nessuna sessione dal punto zero");
+    renderRankList(byId("analyticsProviders"), fullSummary.topProviders || summary.topProviders || [], "Nessun provider cliccato");
+    renderRankList(byId("analyticsOffers"), fullSummary.topOffers || summary.topOffers || [], "Nessuna offerta cliccata");
+    renderRankList(byId("analyticsTrafficSources"), (fullSummary.trafficSources || summary.trafficSources || []).map((item) => ({ key: item.label || analyticsSourceLabel(item.key), count: item.count })), "Nessuna sessione dal punto zero");
     const baseline = cache.analyticsBaseline || {};
     text(byId("analyticsBaseline"), baseline.label ? `Punto zero campagna: ${baseline.label}` : "Punto zero campagna");
     text(byId("analyticsFunnelNote"), sourceFilter
-      ? `Provenienza selezionata: ${analyticsSourceLabel(sourceFilter)}. Percentuali rispetto agli ingressi della stessa provenienza e alla fase precedente; i percorsi possono ramificarsi.`
-      : "Tutte le provenienze. Percentuali rispetto agli ingressi e alla fase precedente; i percorsi possono ramificarsi.");
+      ? `Provenienza selezionata: ${analyticsSourceLabel(sourceFilter)}. Le percentuali sono rispetto agli ingressi della stessa provenienza; medio, manuale e PDF sono rami alternativi.`
+      : "Tutte le provenienze. Le percentuali sono rispetto agli ingressi; medio, manuale e PDF sono rami alternativi e non vengono più sommati in un unico numero.");
     renderLandingTraffic();
+    renderJourneyAnalytics();
+    renderPdfJourneyAnalytics();
     renderSwitchoAnalytics();
 
     const filteredEvents = filteredAnalyticsEvents();
     const body = byId("analyticsRows");
     clear(body);
-    text(byId("analyticsFilterInfo"), `${formatNumber(filteredEvents.length)} visibili su ${formatNumber(cache.analytics.length)} eventi caricati`);
-    if (!filteredEvents.length) {
-      body.append(node("tr", {}, [node("td", { text: "Nessun evento corrisponde ai filtri selezionati.", attrs: { colspan: "7" } })]));
-      return;
-    }
-    filteredEvents.slice(0, 200).forEach(event => {
+    text(byId("analyticsFilterInfo"), `${formatNumber(filteredEvents.length)} risultati nei ${formatNumber(cache.analytics.length)} eventi recenti caricati · CSV = archivio completo`);
+    const pageData = analyticsPageRows(filteredEvents, "events");
+    if (!filteredEvents.length) body.append(node("tr", {}, [node("td", { text: "Nessun evento corrisponde ai filtri selezionati.", attrs: { colspan: "7" } })]));
+    pageData.rows.forEach(event => {
       const values = analyticsEventValueText(event);
       const sessionButton = node("button", { className: "button secondary compact", type: "button", text: "Vedi sessione" });
       sessionButton.disabled = !event.sessionId;
@@ -1357,13 +1520,14 @@
       body.append(node("tr", {}, [
         node("td", {}, [node("strong", { text: formatDate(event.createdAt) }), node("small", { text: `#${event.id}` })]),
         node("td", {}, [badge(staffEventLabel(event), "info"), node("small", { text: event.eventType === "session_engagement" ? staffEngagementReasonLabel(event.engagementReason) : (event.reason || "") })]),
-        node("td", {}, [node("strong", { text: event.trafficSource ? analyticsSourceLabel(event.trafficSource) : (event.dataOrigin ? staffDataOriginLabel(event) : (event.source || "—")) }), node("small", { text: [event.trafficCampaign, event.dataOrigin ? staffDataOriginLabel(event) : "", event.page].filter(Boolean).join(" · ") })]),
+        node("td", {}, [node("strong", { text: event.trafficSource ? analyticsSourceLabel(event.trafficSource) : (event.dataOrigin ? staffDataOriginLabel(event) : (event.source || "—")) }), node("small", { text: [event.trafficCampaign, event.trafficTerm, event.dataOrigin ? staffDataOriginLabel(event) : "", event.page].filter(Boolean).join(" · ") })]),
         node("td", {}, [node("strong", { text: [event.provider, event.offerName].filter(Boolean).join(" · ") || "—" }), node("small", { text: event.destinationStatus || "" })]),
         node("td", { text: values }),
         node("td", {}, [badge(event.leadId ? "collegato" : "anonimo", event.leadId ? "ok" : "warn"), node("small", { text: event.leadId || "" })]),
         node("td", {}, [node("div", { className: "row-actions" }, [sessionButton])])
       ]));
     });
+    renderAnalyticsPagination(byId("analyticsEventsPagination"), filteredEvents.length, "events", renderAnalytics);
   }
 
   async function deleteAnalyticsEvent(event) {
@@ -1384,24 +1548,24 @@
 
   async function exportAnalyticsCsv(scope = "events") {
     const range = String(byId("analyticsExportRange")?.value || "baseline");
-    const scopeLabel = scope === "sessions" ? "funnel_sessioni" : "analytics_completo";
+    const labels = {
+      events: "analytics completo", sessions: "sessioni", paths: "percorsi", pdf: "percorso PDF",
+      switcho: "percorso Switcho", traffic: "provenienza e intento", offers: "offerte", landing: "landing"
+    };
+    const filenames = {
+      events: "analytics-completo", sessions: "funnel-sessioni", paths: "percorsi", pdf: "percorso-pdf",
+      switcho: "percorso-switcho", traffic: "provenienza-intento", offers: "offerte", landing: "landing"
+    };
+    const label = labels[scope] || "analytics";
     try {
-      setMessage("info", scope === "sessions" ? "Preparazione export funnel/sessioni…" : "Preparazione export analytics completo…");
-      if (typeof recordExportAudit === "function") {
-        await recordExportAudit(scopeLabel, { metadata: { range, scope } }).catch(() => {});
-      }
+      setMessage("info", `Preparazione CSV ${label}…`);
+      if (typeof recordExportAudit === "function") await recordExportAudit(`analytics_${scope}`, { metadata: { range, scope } }).catch(() => {});
       const blob = await staffFetch(`/api/staff-analytics?format=csv&scope=${encodeURIComponent(scope)}&range=${encodeURIComponent(range)}`, { expectBlob: true });
       const url = URL.createObjectURL(blob);
       const date = new Date().toISOString().slice(0, 10);
-      const filename = scope === "sessions"
-        ? `offertalogica-funnel-sessioni-${range}-${date}.csv`
-        : `offertalogica-analytics-completo-${range}-${date}.csv`;
-      const link = node("a", { attrs: { href: url, download: filename } });
-      document.body.append(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
-      setMessage("success", scope === "sessions" ? "Export funnel/sessioni generato." : "Export analytics completo generato.");
+      const link = node("a", { attrs: { href: url, download: `offertalogica-${filenames[scope] || "analytics"}-${range}-${date}.csv` } });
+      document.body.append(link); link.click(); link.remove(); URL.revokeObjectURL(url);
+      setMessage("success", `CSV ${label} generato con tutti i dati del periodo selezionato.`);
     } catch (error) {
       setMessage("error", `Esportazione analytics bloccata: ${friendlyError(error)}`);
     }
@@ -1413,9 +1577,12 @@
     const payload = await staffFetch(`/api/staff-analytics?limit=2000&landingRange=${encodeURIComponent(landingRange)}`);
     cache.analytics = Array.isArray(payload.events) ? payload.events : [];
     cache.analyticsSummary = payload.summary || {};
+    cache.journeys = Array.isArray(payload.journeys) ? payload.journeys : [];
+    cache.journeySummary = payload.journeySummary || {};
     cache.switcho = payload.switcho && typeof payload.switcho === "object" ? payload.switcho : { rows: [], summary: {} };
     cache.landingPath = payload.landingPath || null;
     cache.analyticsBaseline = payload.baseline || null;
+    Object.keys(analyticsPages).forEach(key => { analyticsPages[key] = 1; });
     renderAnalytics();
     renderSessionFunnel(byId("overviewFunnel"), cache.analyticsSummary.sessionFunnel || {});
     if (!silent) setMessage("success", "Analytics aggiornati.");
@@ -3766,17 +3933,19 @@
     byId("staffComplimentaryRevoke").addEventListener("click", revokeComplimentary);
     byId("staffComplimentaryLayer").addEventListener("click", event => { if (event.target === byId("staffComplimentaryLayer")) closeComplimentary(); });
     document.addEventListener("keydown", event => { if (event.key === "Escape" && !byId("staffComplimentaryLayer")?.hidden) closeComplimentary(); });
-    byId("analyticsRefresh").addEventListener("click", () => loadAnalytics().catch(error => setMessage("error", friendlyError(error))));
+    byId("analyticsRefresh")?.addEventListener("click", () => loadAnalytics().catch(error => setMessage("error", friendlyError(error))));
+    document.querySelectorAll("[data-analytics-refresh]").forEach(button => button.addEventListener("click", () => loadAnalytics().catch(error => setMessage("error", friendlyError(error)))));
+    document.querySelectorAll("[data-analytics-export]").forEach(button => button.addEventListener("click", () => { void exportAnalyticsCsv(String(button.dataset.analyticsExport || "events")); }));
     byId("analyticsExportAll")?.addEventListener("click", () => { void exportAnalyticsCsv("events"); });
     byId("analyticsExportSessions")?.addEventListener("click", () => { void exportAnalyticsCsv("sessions"); });
     byId("landingPathRange")?.addEventListener("change", () => loadAnalytics({ silent: true }).catch(error => setMessage("error", friendlyError(error))));
-    byId("switchoRange")?.addEventListener("change", renderSwitchoAnalytics);
-    byId("switchoSourceFilter")?.addEventListener("change", renderSwitchoAnalytics);
-    byId("switchoCsv")?.addEventListener("click", () => { void exportSwitchoCsv(); });
-    byId("analyticsEventFilter")?.addEventListener("change", renderAnalytics);
-    byId("analyticsOriginFilter")?.addEventListener("change", renderAnalytics);
+    byId("switchoRange")?.addEventListener("change", () => { analyticsPages.switcho = 1; renderSwitchoAnalytics(); });
+    byId("switchoSourceFilter")?.addEventListener("change", () => { analyticsPages.switcho = 1; renderSwitchoAnalytics(); });
+    byId("analyticsEventFilter")?.addEventListener("change", () => { analyticsPages.events = 1; renderAnalytics(); });
+    byId("analyticsOriginFilter")?.addEventListener("change", () => { analyticsPages.events = 1; renderAnalytics(); });
     byId("analyticsSourceFilter")?.addEventListener("change", () => {
       closeAnalyticsSession();
+      analyticsPages.events = 1;
       renderAnalytics();
     });
     byId("analyticsSessionClose")?.addEventListener("click", closeAnalyticsSession);
@@ -3785,6 +3954,7 @@
       if (byId("analyticsOriginFilter")) byId("analyticsOriginFilter").value = "";
       if (byId("analyticsSourceFilter")) byId("analyticsSourceFilter").value = "";
       closeAnalyticsSession();
+      analyticsPages.events = 1;
       renderAnalytics();
     });
     byId("collaboratorRefresh").addEventListener("click", () => loadCollaborators().catch(error => setMessage("error", friendlyError(error))));

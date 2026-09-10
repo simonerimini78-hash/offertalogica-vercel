@@ -33,7 +33,11 @@ const HUMAN_INTERACTION_EVENTS = new Set([
   "offer_consent_opened",
   "lead_modal_opened",
   "otp_request_started",
+  "comparison_path_selected",
+  "pdf_picker_opened",
+  "pdf_file_selected",
   "pdf_analysis_started",
+  "pdf_analysis_interrupted",
   "activation_data_copied",
   "business_photovoltaic_tool_opened",
   "assistance_callback_verified",
@@ -503,10 +507,93 @@ function isRealComparisonCompleted(event = {}) {
   return event.eventType === "comparison_completed" && !isAutomaticLandingPreview(event);
 }
 
+const COMPARISON_PATH_SIGNAL_EVENT_TYPES = new Set([
+  "comparison_started",
+  "comparison_completed",
+  "comparison_incomplete_data",
+  "comparison_missing_current_price",
+  "offers_rendered",
+]);
+
+function comparisonEventPathChoice(event = {}) {
+  const raw = String(event.pathChoice || event.payload?.pathChoice || "").trim().toLowerCase();
+  if (["average", "media", "profilo_medio", "arera_average_profile"].includes(raw)) return "average";
+  if (["manual", "manuale", "manual_input"].includes(raw)) return "manual";
+  if (["pdf", "pdf_upload"].includes(raw)) return "pdf";
+  return "";
+}
+
+function comparisonEventDataOrigin(event = {}) {
+  return String(event.dataOrigin || event.payload?.dataOrigin || "").trim().toLowerCase();
+}
+
+function comparisonPathSignals(events = []) {
+  const ordered = [...(Array.isArray(events) ? events : [])].sort((a, b) => {
+    const left = new Date(a.createdAt || a.created_at || 0).getTime();
+    const right = new Date(b.createdAt || b.created_at || 0).getTime();
+    return left - right;
+  });
+  const sequence = [];
+  let explicitCount = 0;
+  let inferredCount = 0;
+  const push = (path, basis) => {
+    if (!path) return;
+    if (sequence[sequence.length - 1]?.path === path) {
+      if (basis === "registrato") sequence[sequence.length - 1].basis = "registrato";
+      return;
+    }
+    sequence.push({ path, basis });
+    if (basis === "registrato") explicitCount += 1;
+    else inferredCount += 1;
+  };
+
+  ordered.forEach((event) => {
+    const eventType = String(event.eventType || event.event_type || "");
+    if (eventType === "comparison_path_selected") {
+      push(comparisonEventPathChoice(event), "registrato");
+      return;
+    }
+
+    // Qualunque evento PDF rappresenta un segnale reale del ramo PDF, anche nello storico.
+    if (eventType.startsWith("pdf_")) {
+      push("pdf", "inferito");
+      return;
+    }
+
+    // Gli origin vengono usati solo su eventi di confronto significativi.
+    // landing_view può ereditare manual_input e non deve mai diventare una scelta manuale.
+    if (!COMPARISON_PATH_SIGNAL_EVENT_TYPES.has(eventType)) return;
+    const origin = comparisonEventDataOrigin(event);
+    if (!origin || origin === LANDING_AUTOMATIC_DATA_ORIGIN) return;
+    if (origin === "pdf_upload") push("pdf", "inferito");
+    else if (origin === "manual_input") push("manual", "inferito");
+    else if (origin === "arera_average_profile") push("average", "inferito");
+  });
+
+  return {
+    sequence,
+    paths: new Set(sequence.map((item) => item.path)),
+    latest: sequence[sequence.length - 1]?.path || "",
+    hasExplicit: explicitCount > 0,
+    hasInferred: inferredCount > 0,
+  };
+}
+
+function comparisonPathLabel(path = "") {
+  if (path === "average") return "profilo medio ARERA";
+  if (path === "manual") return "manuale";
+  if (path === "pdf") return "pdf";
+  return "";
+}
+
 function activityFunnelFromEvents(events = []) {
   const funnel = {
+    pdfPathSelected: 0,
+    pdfPickerOpened: 0,
+    pdfFileSelected: 0,
     pdfStarted: 0,
     pdfCompleted: 0,
+    pdfInterrupted: 0,
     comparisons: 0,
     landingPreviews: 0,
     offersRendered: 0,
@@ -526,11 +613,15 @@ function activityFunnelFromEvents(events = []) {
     failedRequests: 0,
   };
   events.forEach((event) => {
+    if (event.eventType === "comparison_path_selected" && String(event.pathChoice || "") === "pdf") funnel.pdfPathSelected += 1;
+    if (event.eventType === "pdf_picker_opened") funnel.pdfPickerOpened += 1;
+    if (event.eventType === "pdf_file_selected") funnel.pdfFileSelected += 1;
     if (event.eventType === "pdf_analysis_started") funnel.pdfStarted += 1;
     if (event.eventType === "pdf_analysis_completed") funnel.pdfCompleted += 1;
+    if (event.eventType === "pdf_analysis_interrupted") funnel.pdfInterrupted += 1;
     if (isRealComparisonCompleted(event)) funnel.comparisons += 1;
     if (event.eventType === "comparison_completed" && isAutomaticLandingPreview(event)) funnel.landingPreviews += 1;
-    if (event.eventType === "offers_rendered") funnel.offersRendered += 1;
+    if (event.eventType === "offers_rendered" && !isAutomaticLandingPreview(event)) funnel.offersRendered += 1;
     if (event.eventType === "lead_modal_opened") funnel.leadModalOpened += 1;
     if (event.eventType === "lead_modal_closed") funnel.leadModalClosed += 1;
     if (event.eventType === "lead_form_invalid") funnel.leadFormInvalid += 1;
@@ -555,9 +646,14 @@ function sessionFunnelFromGroups(groups = []) {
     pathSelected: 0,
     selfServiceSelected: 0,
     assistedSelected: 0,
+    averageSelected: 0,
+    manualSelected: 0,
+    pdfSelected: 0,
+    pdfStarted: 0,
     pdfCompleted: 0,
     comparisons: 0,
-    comparisonOrPdf: 0,
+    offersViewed: 0,
+    switcho: 0,
     leadModalOpened: 0,
     otpRequestStarted: 0,
     otpSent: 0,
@@ -570,25 +666,35 @@ function sessionFunnelFromGroups(groups = []) {
   groups.forEach((group) => {
     const eventTypes = new Set(group.map((event) => event.eventType).filter(Boolean));
     const hasRealComparison = group.some((event) => isRealComparisonCompleted(event));
-    const hasPdfCompleted = eventTypes.has("pdf_analysis_completed");
     const hasSelfService = eventTypes.has("landing_self_service_click");
     const hasAssisted = eventTypes.has("landing_assisted_click");
+    const pathSignals = comparisonPathSignals(group);
+    const hasPdfSignal = pathSignals.paths.has("pdf");
+    const hasSwitcho = ["offer_switcho_redirect", "switcho_landing_opened", "business_switcho_requested", "assistance_switcho_redirect"]
+      .some((type) => eventTypes.has(type));
+    const hasRealOffers = group.some((event) => event.eventType === "offers_rendered" && !isAutomaticLandingPreview(event));
+
     funnel.entries += 1;
     if (hasSelfService || hasAssisted) funnel.pathSelected += 1;
     if (hasSelfService) funnel.selfServiceSelected += 1;
     if (hasAssisted) funnel.assistedSelected += 1;
-    if (hasPdfCompleted) funnel.pdfCompleted += 1;
+    if (pathSignals.paths.has("average")) funnel.averageSelected += 1;
+    if (pathSignals.paths.has("manual")) funnel.manualSelected += 1;
+    if (pathSignals.paths.has("pdf")) funnel.pdfSelected += 1;
+    if (eventTypes.has("pdf_analysis_started")) funnel.pdfStarted += 1;
+    if (eventTypes.has("pdf_analysis_completed")) funnel.pdfCompleted += 1;
     if (hasRealComparison) funnel.comparisons += 1;
-    if (hasRealComparison || hasPdfCompleted) funnel.comparisonOrPdf += 1;
+    if (hasRealOffers) funnel.offersViewed += 1;
+    if (hasSwitcho) funnel.switcho += 1;
     if (eventTypes.has("lead_modal_opened")) funnel.leadModalOpened += 1;
     if (eventTypes.has("otp_request_started")) funnel.otpRequestStarted += 1;
     if (eventTypes.has("otp_sent")) funnel.otpSent += 1;
     if (eventTypes.has("otp_verified")) funnel.otpVerified += 1;
     if (eventTypes.has("offers_unlocked")) funnel.offersUnlocked += 1;
-    if (["offer_consent_opened", "offer_partner_consent_confirmed", "offer_redirect", "offer_request_recorded"].some((type) => eventTypes.has(type))) {
+    if (["offer_consent_opened", "offer_partner_consent_confirmed", "offer_switcho_redirect", "offer_redirect", "offer_request_recorded"].some((type) => eventTypes.has(type))) {
       funnel.offerAction += 1;
     }
-    if (eventTypes.has("offer_redirect")) funnel.redirects += 1;
+    if (eventTypes.has("offer_redirect") || hasSwitcho) funnel.redirects += 1;
   });
 
   return funnel;
@@ -831,8 +937,42 @@ function analyticsEventExportRows(rows = []) {
       event_integrity: p.eventIntegrity || "",
       verified: p.verified ?? "",
       staff_mode: p.staffMode ?? "",
+      path_choice: p.pathChoice || "",
+      trigger: p.trigger || "",
       best_saving: p.bestSaving ?? "",
       pdf_document_count: p.pdfDocumentCount ?? "",
+      file_count: p.fileCount ?? "",
+      selected_count: p.selectedCount ?? "",
+      accepted_count: p.acceptedCount ?? "",
+      duplicate_count: p.duplicateCount ?? "",
+      success_count: p.successCount ?? "",
+      unrecognized_count: p.unrecognizedCount ?? "",
+      error_count: p.errorCount ?? "",
+      analysis_status: p.analysisStatus || "",
+      diagnostic_code: p.diagnosticCode || "",
+      diagnostic_codes: p.diagnosticCodes ?? [],
+      analysis_stage: p.analysisStage || "",
+      analysis_stages: p.analysisStages ?? [],
+      ingress_mode: p.ingressMode || "",
+      ingress_modes: p.ingressModes ?? [],
+      document_kinds: p.documentKinds ?? [],
+      commodities: p.commodities ?? [],
+      missing_fields: p.missingFields ?? [],
+      missing_field_count: p.missingFieldCount ?? "",
+      review_field_count: p.reviewFieldCount ?? "",
+      field_count: p.fieldCount ?? "",
+      protected_count: p.protectedCount ?? "",
+      ocr_review_count: p.ocrReviewCount ?? "",
+      skipped_count: p.skippedCount ?? "",
+      protected_skipped_count: p.protectedSkippedCount ?? "",
+      active_slot: p.activeSlot || "",
+      retained_current_documents: p.retainedCurrentDocuments ?? "",
+      retained_offer_documents: p.retainedOfferDocuments ?? "",
+      mixed_documents: p.mixedDocuments ?? "",
+      merge_blocked: p.mergeBlocked ?? "",
+      gas_decision: p.gasDecision || "",
+      electricity_decision: p.electricityDecision || "",
+      has_new_offer: p.hasNewOffer ?? "",
       visible_offers_count: p.visibleOffersCount ?? "",
       active_partner_offers_count: p.activePartnerOffersCount ?? "",
       consultant_offers_count: p.consultantOffersCount ?? "",
@@ -901,6 +1041,9 @@ function analyticsSessionExportRows(rawRows = []) {
     });
   });
 
+  const uniqueList = (values = []) => [...new Set(values.flatMap((value) => Array.isArray(value) ? value : value ? [value] : []).map((value) => String(value || "").trim()).filter(Boolean))];
+  const numberValue = (value) => Number.isFinite(Number(value)) ? Number(value) : null;
+
   return [...groups.values()].map((group) => {
     const ordered = [...group].sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime());
     const first = ordered[0] || {};
@@ -918,12 +1061,88 @@ function analyticsSessionExportRows(rawRows = []) {
     const hasRealComparison = ordered.some((event) => event.eventType === "comparison_completed" && String(event.dataOrigin || "").toLowerCase() !== LANDING_AUTOMATIC_DATA_ORIGIN);
     const hasSelf = eventTypes.has("landing_self_service_click");
     const hasAssisted = eventTypes.has("landing_assisted_click");
-    const path = hasSelf && hasAssisted ? "autonomia + guidato" : hasSelf ? "autonomia" : hasAssisted ? "guidato" : "";
+    const landingPath = hasSelf && hasAssisted ? "autonomia + guidato" : hasSelf ? "autonomia" : hasAssisted ? "guidato" : "";
+    const pathSignals = comparisonPathSignals(ordered);
+    const comparisonPath = comparisonPathLabel(pathSignals.latest);
+    const comparisonPathSequence = pathSignals.sequence.map((item) => comparisonPathLabel(item.path)).filter(Boolean).join(" → ");
+    const pathBasis = pathSignals.hasExplicit
+      ? pathSignals.hasInferred ? "registrato + inferito dagli eventi" : "registrato"
+      : comparisonPath ? "inferito dagli eventi storici" : "";
+    const hasPdfSignal = pathSignals.paths.has("pdf");
+
+    const pdfEvents = ordered.filter((event) => event.eventType.startsWith("pdf_") || (COMPARISON_PATH_SIGNAL_EVENT_TYPES.has(event.eventType) && comparisonEventDataOrigin(event) === "pdf_upload"));
+    const pdfCompletedEvent = [...pdfEvents].reverse().find((event) => event.eventType === "pdf_analysis_completed");
+    const pdfInterruptedEvent = [...pdfEvents].reverse().find((event) => event.eventType === "pdf_analysis_interrupted");
+    const pdfPayloads = pdfEvents.map((event) => event.payload || {});
+    const latestPdfPayload = pdfCompletedEvent?.payload || pdfInterruptedEvent?.payload || pdfPayloads[pdfPayloads.length - 1] || {};
+    const successCount = numberValue(latestPdfPayload.successCount);
+    const unrecognizedCount = numberValue(latestPdfPayload.unrecognizedCount);
+    const errorCount = numberValue(latestPdfPayload.errorCount);
+    const missingFieldCount = numberValue(latestPdfPayload.missingFieldCount);
+    const rawPdfOutcome = String(latestPdfPayload.analysisStatus || "").trim().toLowerCase();
+    let pdfOutcome = ({
+      success: "riuscita",
+      success_missing_data: "riuscita con dati mancanti",
+      partial: "parziale",
+      failed: "fallita",
+      unrecognized: "documento non riconosciuto",
+      interrupted: "interrotta",
+      unknown: "esito non determinato",
+    })[rawPdfOutcome] || rawPdfOutcome;
+    if (!pdfOutcome && pdfInterruptedEvent) pdfOutcome = "interrotta";
+    if (!pdfOutcome && pdfCompletedEvent) {
+      if ((successCount || 0) > 0 && ((unrecognizedCount || 0) > 0 || (errorCount || 0) > 0 || (missingFieldCount || 0) > 0)) pdfOutcome = "parziale";
+      else if ((successCount || 0) > 0) pdfOutcome = "riuscita";
+      else if ((unrecognizedCount || 0) > 0 || (errorCount || 0) > 0) pdfOutcome = "fallita";
+      else pdfOutcome = "completata (storico senza dettaglio esito)";
+    }
+    if (!pdfOutcome && eventTypes.has("pdf_analysis_started")) pdfOutcome = "avviata, esito non registrato";
+    if (!pdfOutcome && hasPdfSignal) pdfOutcome = "percorso PDF avviato";
+
+    const missingFields = uniqueList(pdfPayloads.map((payload) => payload.missingFields));
+    const diagnosticCodes = uniqueList(pdfPayloads.map((payload) => [payload.diagnosticCode, ...(Array.isArray(payload.diagnosticCodes) ? payload.diagnosticCodes : [])]));
+    const analysisStages = uniqueList(pdfPayloads.map((payload) => [payload.analysisStage, ...(Array.isArray(payload.analysisStages) ? payload.analysisStages : [])]));
+    const documentKinds = uniqueList(pdfPayloads.map((payload) => payload.documentKinds));
+    const commodities = uniqueList(pdfPayloads.map((payload) => payload.commodities));
+
     const switcho = ["offer_switcho_redirect", "switcho_landing_opened", "business_switcho_requested", "assistance_switcho_redirect"]
       .some((type) => eventTypes.has(type));
     const partner = eventTypes.has("offer_redirect") || eventTypes.has("offer_partner_consent_confirmed") || switcho;
+    const switchoEvent = [...ordered].reverse().find((event) => ["switcho_landing_opened", "offer_switcho_redirect", "assistance_switcho_redirect", "business_switcho_requested"].includes(event.eventType));
     const visitor = visitorDescriptor(ordered);
     const leadId = ordered.map((event) => event.leadId).find(Boolean) || "";
+    const offersViewed = ordered.some((event) => event.eventType === "offers_rendered" && !isAutomaticLandingPreview(event));
+    const offerAction = ["offer_click_locked", "offer_consent_opened", "offer_partner_consent_confirmed", "offer_switcho_redirect", "offer_redirect", "offer_request_recorded"].some((type) => eventTypes.has(type));
+
+    const intentTerm = String(attribution.trafficTerm || "").trim();
+    let intent = intentTerm;
+    let intentBasis = intentTerm ? "termine/keyword disponibile" : "inferito dal comportamento";
+    if (!intent) {
+      if (hasAssisted && !hasSelf) intent = "Preferisce assistenza guidata";
+      else if (comparisonPath === "pdf") intent = "Vuole verificare la propria bolletta";
+      else if (comparisonPath === "manuale") intent = "Vuole confrontare usando i propri consumi";
+      else if (comparisonPath === "profilo medio ARERA") intent = "Vuole una prima stima indicativa";
+      else if (offersViewed) intent = "Sta valutando offerte";
+      else intent = "Intento non determinabile";
+    }
+
+    let finalOutcome = "Nessun avanzamento rilevante";
+    let abandonmentStage = "";
+    if (switcho) finalOutcome = "Passaggio a Switcho";
+    else if (partner) finalOutcome = "Passaggio partner";
+    else if (offerAction) finalOutcome = "Azione su offerta";
+    else if (offersViewed) { finalOutcome = "Offerte visualizzate"; abandonmentStage = "offerte"; }
+    else if (hasRealComparison) { finalOutcome = "Confronto completato"; abandonmentStage = "dopo confronto"; }
+    else if (eventTypes.has("pdf_analysis_interrupted")) { finalOutcome = "PDF interrotto"; abandonmentStage = "analisi PDF"; }
+    else if (eventTypes.has("pdf_analysis_started") && !eventTypes.has("pdf_analysis_completed")) { finalOutcome = "PDF avviato senza completamento"; abandonmentStage = "analisi PDF"; }
+    else if (hasPdfSignal) { finalOutcome = "Percorso PDF senza analisi completata"; abandonmentStage = "caricamento PDF"; }
+    else if (eventTypes.has("comparison_started")) { finalOutcome = "Confronto avviato"; abandonmentStage = "confronto"; }
+    else if (hasSelf || hasAssisted) { finalOutcome = "Percorso scelto"; abandonmentStage = hasAssisted ? "passaggio guidato" : "scelta modalità confronto"; }
+    else if (eventTypes.has("landing_view")) { finalOutcome = "Solo landing"; abandonmentStage = "landing"; }
+
+    const selectionEvent = [...ordered].reverse().find((event) => event.eventType === "pdf_file_selected")?.payload || {};
+    const previewOpened = [...ordered].reverse().find((event) => event.eventType === "pdf_autofill_preview_opened")?.payload || {};
+    const previewConfirmed = [...ordered].reverse().find((event) => event.eventType === "pdf_autofill_preview_confirmed")?.payload || {};
     return {
       session_id: String(firstPayload.sessionId || ""),
       first_at: first.createdAt || "",
@@ -947,21 +1166,58 @@ function analyticsSessionExportRows(rawRows = []) {
       click_id: attribution.trafficClickId || "",
       referrer: attribution.trafficReferrer || "",
       landing: attribution.trafficLandingPage || landing.payload?.page || firstPayload.page || "",
-      scelta_percorso: path,
-      confronto_avviato: eventTypes.has("comparison_started"),
+      intento: intent,
+      intento_base: intentBasis,
+      scelta_percorso: landingPath,
+      percorso_confronto: comparisonPath,
+      percorso_sequenza: comparisonPathSequence,
+      percorso_base: pathBasis,
+      profilo_medio_scelto: pathSignals.paths.has("average"),
+      manuale_scelto: pathSignals.paths.has("manual"),
+      confronto_avviato: ordered.some((event) => event.eventType === "comparison_started" && !isAutomaticLandingPreview(event)),
       confronto_reale: hasRealComparison,
-      pdf_completato: eventTypes.has("pdf_analysis_completed"),
+      offerte_visualizzate: offersViewed,
+      numero_offerte: ordered.map((event) => Number(event.payload?.visibleOffersCount)).filter((value) => Number.isFinite(value) && value > 0).pop() || "",
+      pdf_scelto: hasPdfSignal,
+      pdf_scelto_registrato: ordered.some((event) => event.eventType === "comparison_path_selected" && String(event.payload?.pathChoice || "").toLowerCase() === "pdf"),
+      pdf_picker_aperto: eventTypes.has("pdf_picker_opened"),
+      pdf_file_selezionato: eventTypes.has("pdf_file_selected"),
+      pdf_file_selezionati: selectionEvent.selectedCount ?? "",
+      pdf_file_accettati: selectionEvent.acceptedCount ?? "",
+      pdf_duplicati: selectionEvent.duplicateCount ?? "",
+      pdf_analisi_avviata: eventTypes.has("pdf_analysis_started"),
+      pdf_analisi_completata: eventTypes.has("pdf_analysis_completed"),
+      pdf_analisi_interrotta: eventTypes.has("pdf_analysis_interrupted"),
+      pdf_esito: pdfOutcome,
+      pdf_file_count: latestPdfPayload.fileCount ?? "",
+      pdf_success_count: latestPdfPayload.successCount ?? "",
+      pdf_unrecognized_count: latestPdfPayload.unrecognizedCount ?? "",
+      pdf_error_count: latestPdfPayload.errorCount ?? "",
+      pdf_missing_fields: missingFields.join(" | "),
+      pdf_missing_field_count: latestPdfPayload.missingFieldCount ?? (missingFields.length || ""),
+      pdf_review_field_count: latestPdfPayload.reviewFieldCount ?? previewOpened.ocrReviewCount ?? "",
+      pdf_diagnostic_codes: diagnosticCodes.join(" | "),
+      pdf_analysis_stages: analysisStages.join(" | "),
+      pdf_document_kinds: documentKinds.join(" | "),
+      pdf_commodities: commodities.join(" | "),
+      pdf_mixed_documents: latestPdfPayload.mixedDocuments ?? "",
+      pdf_merge_blocked: latestPdfPayload.mergeBlocked ?? "",
+      pdf_dati_confermati: eventTypes.has("pdf_data_confirmed"),
+      pdf_autofill_aperto: eventTypes.has("pdf_autofill_preview_opened"),
+      pdf_autofill_confermato: eventTypes.has("pdf_autofill_preview_confirmed"),
+      pdf_campi_autofill: previewOpened.fieldCount ?? "",
+      pdf_campi_selezionati: previewConfirmed.selectedCount ?? "",
+      pdf_campi_saltati: previewConfirmed.skippedCount ?? "",
       lead_id: leadId,
       lead_creato: Boolean(leadId || eventTypes.has("lead_created_client")),
       popup_lead: eventTypes.has("lead_modal_opened"),
       otp_richiesto: eventTypes.has("otp_request_started"),
       otp_inviato: eventTypes.has("otp_sent"),
       otp_verificato: eventTypes.has("otp_verified"),
-      offerte_visualizzate: eventTypes.has("offers_rendered"),
-      numero_offerte: ordered.map((event) => Number(event.payload?.visibleOffersCount)).filter((value) => Number.isFinite(value) && value > 0).pop() || "",
       offerta_sbloccata: eventTypes.has("offers_unlocked"),
-      azione_offerta: ["offer_consent_opened", "offer_partner_consent_confirmed", "offer_switcho_redirect", "offer_redirect", "offer_request_recorded"].some((type) => eventTypes.has(type)),
+      azione_offerta: offerAction,
       switcho,
+      switcho_source: switchoEvent?.payload?.source || "",
       partner,
       provider: offerPayload.provider || "",
       offerta: offerPayload.offerName || "",
@@ -976,9 +1232,81 @@ function analyticsSessionExportRows(rawRows = []) {
       tempo_otp_secondi: engagementLast.engagementOtpSeconds ?? "",
       prima_azione_secondi: engagementLast.engagementFirstActionSeconds ?? "",
       offerte_raggiunte_secondi: engagementLast.engagementOffersReachedSeconds ?? "",
+      esito_sessione: finalOutcome,
+      abbandono_fase: abandonmentStage,
       ultimo_evento: last.eventType || "",
     };
   }).sort((a, b) => new Date(b.first_at || 0).getTime() - new Date(a.first_at || 0).getTime());
+}
+
+function analyticsJourneyRows(rawRows = []) {
+  return analyticsSessionExportRows(rawRows).filter((row) => row.session_id && !["known_bot", "automation"].includes(row.visitor_type));
+}
+
+function analyticsJourneySummary(rows = [], rawRows = []) {
+  const count = (predicate) => rows.filter(predicate).length;
+  const funnelFromRows = (items = []) => ({
+    entries: items.length,
+    pathSelected: items.filter((row) => row.scelta_percorso).length,
+    selfServiceSelected: items.filter((row) => String(row.scelta_percorso).includes("autonomia")).length,
+    assistedSelected: items.filter((row) => String(row.scelta_percorso).includes("guidato")).length,
+    averageSelected: items.filter((row) => row.profilo_medio_scelto).length,
+    manualSelected: items.filter((row) => row.manuale_scelto).length,
+    pdfSelected: items.filter((row) => row.pdf_scelto).length,
+    pdfStarted: items.filter((row) => row.pdf_analisi_avviata).length,
+    pdfCompleted: items.filter((row) => row.pdf_analisi_completata).length,
+    comparisons: items.filter((row) => row.confronto_reale).length,
+    offersViewed: items.filter((row) => row.offerte_visualizzate).length,
+    switcho: items.filter((row) => row.switcho).length,
+    leadModalOpened: items.filter((row) => row.popup_lead).length,
+    otpRequestStarted: items.filter((row) => row.otp_richiesto).length,
+    otpSent: items.filter((row) => row.otp_inviato).length,
+    otpVerified: items.filter((row) => row.otp_verificato).length,
+    offersUnlocked: items.filter((row) => row.offerta_sbloccata).length,
+    offerAction: items.filter((row) => row.azione_offerta).length,
+    redirects: items.filter((row) => row.partner || row.switcho).length,
+  });
+  const trafficCounts = {};
+  const providerCounts = {};
+  const offerCounts = {};
+  rows.forEach((row) => {
+    increment(trafficCounts, row.source || "direct");
+    if (row.azione_offerta && row.provider) increment(providerCounts, row.provider);
+    if (row.azione_offerta && row.offerta) increment(offerCounts, `${row.provider || "Fornitore"} - ${row.offerta}`);
+  });
+  const activityEvents = (Array.isArray(rawRows) ? rawRows : []).map((row) => {
+    const payload = rawAnalyticsPayload(row);
+    return { eventType: String(row.event_type || ""), dataOrigin: String(payload.dataOrigin || ""), pathChoice: String(payload.pathChoice || "") };
+  });
+  const bySource = {};
+  Object.keys(trafficCounts).forEach((source) => {
+    bySource[source] = funnelFromRows(rows.filter((row) => String(row.source || "direct") === source));
+  });
+  return {
+    events: Array.isArray(rawRows) ? rawRows.length : 0,
+    sessions: rows.length,
+    activity: activityFunnelFromEvents(activityEvents),
+    sessionFunnel: funnelFromRows(rows),
+    sessionFunnelsBySource: bySource,
+    trafficSources: sourceEntries(trafficCounts),
+    topProviders: topEntries(providerCounts),
+    topOffers: topEntries(offerCounts),
+    landingSelfService: count((row) => String(row.scelta_percorso).includes("autonomia")),
+    landingAssisted: count((row) => String(row.scelta_percorso).includes("guidato")),
+    average: count((row) => row.profilo_medio_scelto),
+    manual: count((row) => row.manuale_scelto),
+    pdf: count((row) => row.pdf_scelto),
+    pdfSelectedRecorded: count((row) => row.pdf_scelto_registrato),
+    pdfPickerOpened: count((row) => row.pdf_picker_aperto),
+    pdfFileSelected: count((row) => row.pdf_file_selezionato),
+    pdfStarted: count((row) => row.pdf_analisi_avviata),
+    pdfCompleted: count((row) => row.pdf_analisi_completata),
+    pdfInterrupted: count((row) => row.pdf_analisi_interrotta),
+    pdfWithMissingFields: count((row) => Number(row.pdf_missing_field_count || 0) > 0 || Boolean(row.pdf_missing_fields)),
+    offersViewed: count((row) => row.offerte_visualizzate),
+    switcho: count((row) => row.switcho),
+    partner: count((row) => row.partner),
+  };
 }
 
 function sendAnalyticsCsv(res, csv, filename) {
@@ -1102,26 +1430,43 @@ export default async function handler(req, res) {
     try {
       const rows = await loadAnalyticsExportRows(analyticsExportRangeFrom(exportRange));
       const date = new Date().toISOString().slice(0, 10);
-      if (exportScope === "sessions") {
-        const sessionRows = analyticsSessionExportRows(rows);
+      const sessionScopes = new Set(["sessions", "paths", "pdf", "switcho", "traffic", "offers", "landing"]);
+      if (sessionScopes.has(exportScope)) {
+        let sessionRows = analyticsJourneyRows(rows);
+        if (exportScope === "paths") sessionRows = sessionRows.filter((row) => row.scelta_percorso || row.percorso_confronto || row.pdf_scelto);
+        if (exportScope === "pdf") sessionRows = sessionRows.filter((row) => row.pdf_scelto);
+        if (exportScope === "switcho") sessionRows = sessionRows.filter((row) => row.switcho);
+        if (exportScope === "traffic") sessionRows = sessionRows.filter((row) => row.source || row.term || row.referrer || row.landing);
+        if (exportScope === "offers") sessionRows = sessionRows.filter((row) => row.offerte_visualizzate || row.azione_offerta || row.provider || row.offerta);
+        if (exportScope === "landing") sessionRows = sessionRows.filter((row) => row.scelta_percorso || String(row.event_types || "").includes("landing_view"));
         const headers = [
           "session_id", "first_at", "last_at", "events_count", "event_types", "visitor_type", "visitor_label",
           "source", "medium", "campaign", "term", "content", "campaign_id", "adgroup_id", "creative_id", "match_type", "device", "ads_network", "click_id_type", "click_id", "referrer", "landing",
-          "scelta_percorso", "confronto_avviato", "confronto_reale", "pdf_completato", "lead_id", "lead_creato", "popup_lead",
-          "otp_richiesto", "otp_inviato", "otp_verificato", "offerte_visualizzate", "numero_offerte", "offerta_sbloccata",
-          "azione_offerta", "switcho", "partner", "provider", "offerta", "ranking_economico", "ranking_visuale", "costo_annuo",
-          "risparmio_annuo", "tempo_attivo_secondi", "tempo_landing_secondi", "tempo_calcolatore_secondi", "tempo_offerte_secondi",
-          "tempo_otp_secondi", "prima_azione_secondi", "offerte_raggiunte_secondi", "ultimo_evento"
+          "intento", "intento_base", "scelta_percorso", "percorso_confronto", "percorso_sequenza", "percorso_base", "profilo_medio_scelto", "manuale_scelto", "confronto_avviato", "confronto_reale", "offerte_visualizzate", "numero_offerte",
+          "pdf_scelto", "pdf_scelto_registrato", "pdf_picker_aperto", "pdf_file_selezionato", "pdf_file_selezionati", "pdf_file_accettati", "pdf_duplicati",
+          "pdf_analisi_avviata", "pdf_analisi_completata", "pdf_analisi_interrotta", "pdf_esito", "pdf_file_count", "pdf_success_count", "pdf_unrecognized_count", "pdf_error_count",
+          "pdf_missing_fields", "pdf_missing_field_count", "pdf_review_field_count", "pdf_diagnostic_codes", "pdf_analysis_stages", "pdf_document_kinds", "pdf_commodities", "pdf_mixed_documents", "pdf_merge_blocked",
+          "pdf_dati_confermati", "pdf_autofill_aperto", "pdf_autofill_confermato", "pdf_campi_autofill", "pdf_campi_selezionati", "pdf_campi_saltati",
+          "lead_id", "lead_creato", "popup_lead", "otp_richiesto", "otp_inviato", "otp_verificato", "offerta_sbloccata", "azione_offerta", "switcho", "switcho_source", "partner",
+          "provider", "offerta", "ranking_economico", "ranking_visuale", "costo_annuo", "risparmio_annuo", "tempo_attivo_secondi", "tempo_landing_secondi", "tempo_calcolatore_secondi", "tempo_offerte_secondi",
+          "tempo_otp_secondi", "prima_azione_secondi", "offerte_raggiunte_secondi", "esito_sessione", "abbandono_fase", "ultimo_evento"
         ];
-        return sendAnalyticsCsv(res, csvFromObjects(sessionRows, headers), `offertalogica-funnel-sessioni-${exportRange}-${date}.csv`);
+        const filenameScope = ({
+          sessions: "funnel-sessioni", paths: "percorsi", pdf: "percorso-pdf", switcho: "percorso-switcho",
+          traffic: "provenienza-intento", offers: "offerte", landing: "landing"
+        })[exportScope] || "sessioni";
+        return sendAnalyticsCsv(res, csvFromObjects(sessionRows, headers), `offertalogica-${filenameScope}-${exportRange}-${date}.csv`);
       }
       const eventRows = analyticsEventExportRows(rows);
       const headers = [
         "id", "lead_id", "event_type", "created_at", "session_id", "page", "customer_type", "data_origin", "source", "lead_source",
         "traffic_source", "traffic_medium", "traffic_campaign", "traffic_term", "traffic_content", "traffic_campaign_id", "traffic_adgroup_id",
         "traffic_creative_id", "traffic_match_type", "traffic_device", "traffic_network", "traffic_referrer", "traffic_landing_page",
-        "traffic_click_id_type", "traffic_click_id", "traffic_agent", "traffic_reason", "event_integrity", "verified", "staff_mode", "best_saving",
-        "pdf_document_count", "visible_offers_count", "active_partner_offers_count", "consultant_offers_count", "offer_id", "offer_name", "provider",
+        "traffic_click_id_type", "traffic_click_id", "traffic_agent", "traffic_reason", "event_integrity", "verified", "staff_mode", "path_choice", "trigger", "best_saving",
+        "pdf_document_count", "file_count", "selected_count", "accepted_count", "duplicate_count", "success_count", "unrecognized_count", "error_count", "analysis_status",
+        "diagnostic_code", "diagnostic_codes", "analysis_stage", "analysis_stages", "ingress_mode", "ingress_modes", "document_kinds", "commodities", "missing_fields", "missing_field_count", "review_field_count",
+        "field_count", "protected_count", "ocr_review_count", "skipped_count", "protected_skipped_count", "active_slot", "retained_current_documents", "retained_offer_documents", "mixed_documents", "merge_blocked",
+        "gas_decision", "electricity_decision", "has_new_offer", "visible_offers_count", "active_partner_offers_count", "consultant_offers_count", "offer_id", "offer_name", "provider",
         "destination_type", "destination_status", "display_group", "economy_rank", "display_rank", "annual_cost", "annual_delta", "network", "model",
         "redirect", "routing_version", "engagement_stage", "engagement_reason", "engagement_active_seconds", "engagement_elapsed_seconds",
         "engagement_landing_seconds", "engagement_calculator_seconds", "engagement_offers_seconds", "engagement_otp_seconds",
@@ -1134,9 +1479,26 @@ export default async function handler(req, res) {
     }
   }
 
+  const requestedSessionId = String(url.searchParams.get("sessionId") || "").trim().slice(0, 160);
+  if (requestedSessionId) {
+    const sessionRawResult = await listCustomerAnalytics({ limit: 5000, sessionId: requestedSessionId });
+    const sessionResult = enhanceAnalyticsForStaff(analyticsFromCampaignBaseline(sessionRawResult), new Map());
+    return json(res, sessionResult.ok ? 200 : 500, {
+      ...sessionResult,
+      requestedSessionId,
+      baseline: {
+        from: CAMPAIGN_BASELINE_ISO,
+        label: CAMPAIGN_BASELINE_LABEL,
+        timezone: "Europe/Rome",
+      },
+      authorizedBy,
+      checkedAt: new Date().toISOString(),
+    });
+  }
+
   const limit = url.searchParams.get("limit") || 2000;
   const landingRange = normalizeLandingRange(url.searchParams.get("landingRange"));
-  const [rawResult, landingPath, trafficSignals, switcho] = await Promise.all([
+  const [rawResult, landingPath, trafficSignals, switcho, fullAnalyticsRows] = await Promise.all([
     listCustomerAnalytics({ limit }),
     loadLandingPathAnalytics(landingRange),
     loadAnalyticsTrafficSignals(limit, CAMPAIGN_BASELINE_ISO).catch(() => new Map()),
@@ -1145,12 +1507,20 @@ export default async function handler(req, res) {
       summary: { sessions: 0, offerSelections: 0, guidedSessions: 0, redirects: 0, sources: [] },
       error: String(error?.message || error || "switcho_analytics_error"),
     })),
+    loadAnalyticsExportRows(CAMPAIGN_BASELINE_ISO).catch((error) => {
+      console.error("staff-analytics-journeys", error);
+      return [];
+    }),
   ]);
   const result = enhanceAnalyticsForStaff(analyticsFromCampaignBaseline(rawResult), trafficSignals);
+  const journeys = analyticsJourneyRows(fullAnalyticsRows);
+  const journeySummary = analyticsJourneySummary(journeys, fullAnalyticsRows);
 
   json(res, result.ok ? 200 : 500, {
     ...result,
     landingPath,
+    journeys,
+    journeySummary,
     switcho,
     baseline: {
       from: CAMPAIGN_BASELINE_ISO,
