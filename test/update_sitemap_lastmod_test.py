@@ -126,6 +126,9 @@ class SitemapDatasetFreshnessTest(unittest.TestCase):
             'python3 "$REPO_DIR/test/update_sitemap_lastmod_test.py"',
             shell,
         )
+        self.assertNotIn('git -C "$REPO_DIR" fetch origin main', shell)
+        self.assertNotIn('git -C "$REPO_DIR" checkout --quiet main', shell)
+        self.assertNotIn('git -C "$REPO_DIR" reset --hard origin/main', shell)
 
     def test_github_workflow_only_validates_offline_and_does_not_acquire_or_publish_data(self):
         workflow = (self.repo / ".github/workflows/update-arera-menu.yml").read_text(encoding="utf-8")

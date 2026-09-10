@@ -75,10 +75,6 @@ if [ "${ARERA_FORCE_PUBLISH:-0}" != "1" ] && [ "$PUBLISH_DATE" != "$TODAY" ]; th
 fi
 
 log "Aggiornamento ARERA valido del $PUBLISH_DATE."
-log "Aggiorno la copia locale del repository GitHub."
-git -C "$REPO_DIR" fetch origin main
-git -C "$REPO_DIR" checkout --quiet main
-git -C "$REPO_DIR" reset --hard origin/main >/dev/null
 
 ENERGY_PUBLISH=1
 if [ -s "$REPO_DIR/public/data/energia-oggi.json" ]; then
