@@ -110,6 +110,23 @@ class SitemapDatasetFreshnessTest(unittest.TestCase):
         self.assertIn("lastmod PUN sovrascritto da un dataset diverso", shell)
         self.assertIn('log "- public/offerte-luce-gas-aggiornate.html"', shell)
 
+    def test_github_publisher_includes_catalog_page_in_all_publish_stages(self):
+        shell = (self.repo / "scripts/pubblica-arera-github.sh").read_text(encoding="utf-8")
+        self.assertIn("PUBLISH_FILES=(", shell)
+        self.assertEqual(shell.count('"public/offerte-luce-gas-aggiornate.html"'), 1)
+        self.assertEqual(
+            shell.count('for relative_path in "${PUBLISH_FILES[@]}"; do'),
+            3,
+        )
+        self.assertIn(
+            'git -C "$REPO_DIR" add -- "${PUBLISH_FILES[@]}"',
+            shell,
+        )
+        self.assertIn(
+            'python3 "$REPO_DIR/test/update_sitemap_lastmod_test.py"',
+            shell,
+        )
+
     def test_github_workflow_only_validates_offline_and_does_not_acquire_or_publish_data(self):
         workflow = (self.repo / ".github/workflows/update-arera-menu.yml").read_text(encoding="utf-8")
         self.assertIn("name: Verifica dati OffertaLogica", workflow)
