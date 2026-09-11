@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <meta name="referrer" content="no-referrer">
+  <title>Redazione | OffertaLogica</title>
+  <link rel="icon" type="image/png" href="/assets/logo-offertalogica-icon.png">
+  <link rel="stylesheet" href="/assets/editorial.css">
+</head>
+<body data-editorial-view="review">
+<a class="ol-skip-link" href="#contenuto-principale">Vai al contenuto principale</a>
+<header class="ol-topbar">
+  <div class="ol-shell ol-topbar-inner">
+    <a class="ol-brand" href="/" aria-label="OffertaLogica, torna alla home"><img src="/assets/logo-offertalogica-header.png" alt="OffertaLogica.it"></a>
+    <nav class="ol-nav" aria-label="Area redazione"><a href="/redazione" aria-current="page">Redazione</a><a href="/articoli.html">Archivio pubblico</a></nav>
+  </div>
+</header>
+
+<main id="contenuto-principale">
+  <section class="ol-hero ol-hero-compact">
+    <div class="ol-shell">
+      <div class="ol-eyebrow">Pannello redazione</div>
+      <h1>Revisione e pubblicazione degli articoli.</h1>
+      <p>Accesso riservato a editor e amministratori. Le transizioni di stato sono controllate anche dal database.</p>
+    </div>
+  </section>
+
+  <section class="ol-section">
+    <div class="ol-shell">
+      <div class="ol-alert ol-alert-danger" role="alert" data-review-config-error hidden></div>
+      <section class="ol-panel ol-panel-body ol-auth-panel" data-review-auth-panel>
+        <div><h2>Accesso redazione</h2><p class="ol-muted">Usa un account editor o admin abilitato in Supabase.</p></div>
+        <form class="ol-form ol-login-form" data-review-login-form>
+          <div class="ol-field"><label for="review-email">Email</label><input id="review-email" name="email" type="email" autocomplete="username" required></div>
+          <div class="ol-field"><label for="review-password">Password</label><input id="review-password" name="password" type="password" autocomplete="current-password" required></div>
+          <div class="ol-alert ol-alert-danger" role="alert" data-review-login-error hidden></div>
+          <button class="ol-button ol-button-primary" type="submit" data-review-login-button>Accedi</button>
+        </form>
+      </section>
+
+      <div data-review-workspace hidden>
+        <div class="ol-session-bar">
+          <div><strong>Redazione OffertaLogica</strong><span data-review-role></span><small data-review-email></small></div>
+          <button class="ol-button ol-button-secondary" type="button" data-review-logout>Esci</button>
+        </div>
+
+        <div class="ol-review-layout">
+          <aside class="ol-sidebar ol-review-sidebar" aria-label="Coda editoriale">
+            <section class="ol-card">
+              <div class="ol-toolbar ol-toolbar-compact"><h2 class="ol-sidebar-title">Articoli</h2><button class="ol-button ol-button-secondary ol-button-small" type="button" data-review-refresh>Aggiorna</button></div>
+              <div class="ol-field ol-field-compact"><label for="review-status-filter">Filtra per stato</label><select id="review-status-filter" data-review-status-filter><option value="in_review">In revisione</option><option value="changes_requested">Modifiche richieste</option><option value="approved">Approvati</option><option value="published">Pubblicati</option><option value="draft">Bozze</option><option value="archived">Archiviati</option><option value="all">Tutti</option></select></div>
+              <p class="ol-muted ol-small" data-review-count aria-live="polite"></p>
+              <div class="ol-my-articles" data-review-list aria-live="polite"><p class="ol-muted">Caricamento…</p></div>
+            </section>
+          </aside>
+
+          <section class="ol-review-main">
+            <div class="ol-panel ol-panel-body ol-empty" data-review-empty>
+              <h2>Seleziona un articolo</h2><p>Scegli un contenuto dalla coda per iniziare la revisione.</p>
+            </div>
+
+            <form class="ol-panel ol-panel-body ol-form" data-review-form hidden novalidate>
+              <input type="hidden" id="review-article-id" name="id">
+              <input type="hidden" id="review-article-status" name="status">
+              <div class="ol-review-heading">
+                <div><div class="ol-eyebrow">Revisione editoriale</div><h2 data-review-form-title>Articolo</h2></div>
+                <span class="ol-status" data-review-current-status></span>
+              </div>
+              <dl class="ol-review-meta">
+                <div><dt>Autore</dt><dd data-review-author>—</dd></div>
+                <div><dt>Inviato</dt><dd data-review-submitted>—</dd></div>
+                <div><dt>Aggiornato</dt><dd data-review-updated>—</dd></div>
+              </dl>
+              <div class="ol-alert ol-alert-success" role="status" aria-live="polite" data-review-save-message hidden></div>
+              <div class="ol-alert ol-alert-danger" role="alert" aria-live="assertive" data-review-validation hidden></div>
+
+              <fieldset class="ol-fieldset">
+                <legend>Contenuto</legend>
+                <div class="ol-field"><label for="review-title">Titolo</label><input id="review-title" name="title" type="text" maxlength="140" required><div class="ol-counter" data-count-for="review-title"></div></div>
+                <div class="ol-field"><label for="review-slug">Slug</label><input id="review-slug" name="slug" type="text" maxlength="120" spellcheck="false" required><small>Usa solo lettere minuscole, numeri e trattini.</small></div>
+                <div class="ol-grid ol-grid-2">
+                  <div class="ol-field"><label for="review-category">Categoria</label><select id="review-category" name="category"><option value="">Seleziona</option><option value="bollette">Bollette</option><option value="offerte-luce-gas">Offerte luce e gas</option><option value="mercato-energia">Mercato energia</option><option value="risparmio">Risparmio</option><option value="casa-smart">Casa smart</option></select></div>
+                  <div class="ol-field"><label for="review-image">Immagine principale</label><input id="review-image" name="featured_image_url" type="url" placeholder="https://…"></div>
+                </div>
+                <div class="ol-field"><label for="review-image-alt">Testo alternativo immagine</label><input id="review-image-alt" name="featured_image_alt" type="text" maxlength="180"><div class="ol-counter" data-count-for="review-image-alt"></div></div>
+                <div class="ol-field"><label for="review-excerpt">Sommario</label><textarea id="review-excerpt" name="excerpt" maxlength="320" required></textarea><div class="ol-counter" data-count-for="review-excerpt"></div></div>
+                <div class="ol-field"><label for="review-content">Contenuto</label><textarea id="review-content" class="ol-content" name="content" maxlength="40000" required></textarea><small>Supporta paragrafi, titoli con <code>##</code>/<code>###</code> e liste con trattino.</small><div class="ol-counter" data-count-for="review-content"></div></div>
+                <div class="ol-field"><label for="review-sources">Fonti e link</label><textarea id="review-sources" name="sources" maxlength="4000" placeholder="Una fonte per riga"></textarea><div class="ol-counter" data-count-for="review-sources"></div></div>
+              </fieldset>
+
+              <fieldset class="ol-fieldset">
+                <legend>SEO e visibilità IA</legend>
+                <div class="ol-field"><label for="review-seo-title">Titolo SEO</label><input id="review-seo-title" name="seo_title" type="text" maxlength="70" aria-describedby="review-seo-title-help"><small id="review-seo-title-help">Obbligatorio prima della pubblicazione. Se vuoto, “Pubblica” propone il titolo articolo.</small><div class="ol-counter" data-count-for="review-seo-title"></div></div>
+                <div class="ol-field"><label for="review-seo-description">Descrizione SEO</label><textarea id="review-seo-description" name="seo_description" maxlength="180" aria-describedby="review-seo-description-help"></textarea><small id="review-seo-description-help">Sintesi autonoma e comprensibile anche fuori contesto.</small><div class="ol-counter" data-count-for="review-seo-description"></div></div>
+              </fieldset>
+
+              <fieldset class="ol-fieldset">
+                <legend>Note di revisione</legend>
+                <div class="ol-grid ol-grid-note">
+                  <div class="ol-field"><label for="review-note">Nuova nota</label><textarea id="review-note" name="review_note" maxlength="2000" placeholder="Scrivi il feedback o una nota interna"></textarea><div class="ol-counter" data-count-for="review-note"></div></div>
+                  <div class="ol-field"><label for="review-note-visibility">Visibilità</label><select id="review-note-visibility" name="review_note_visibility"><option value="author">Visibile all’autore</option><option value="internal">Solo redazione</option></select><small>Per “Richiedi modifiche” il feedback viene sempre inviato all’autore.</small></div>
+                </div>
+                <div class="ol-notes" data-review-notes aria-live="polite"><p class="ol-muted">Nessuna nota.</p></div>
+              </fieldset>
+
+              <div class="ol-review-actions" aria-label="Azioni articolo">
+                <button class="ol-button ol-button-secondary" type="button" data-review-save>Salva modifiche</button>
+                <button class="ol-button ol-button-warning" type="button" data-review-changes>Richiedi modifiche</button>
+                <button class="ol-button ol-button-secondary" type="button" data-review-approve>Approva</button>
+                <button class="ol-button ol-button-primary" type="button" data-review-publish>Pubblica</button>
+                <button class="ol-button ol-button-danger" type="button" data-review-archive>Archivia</button>
+                <a class="ol-button ol-button-secondary" data-review-public-link href="/articoli.html" target="_blank" rel="noopener" hidden>Apri articolo pubblico</a>
+              </div>
+            </form>
+          </section>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="ol-footer"><div class="ol-shell">Pannello redazione OffertaLogica · accesso riservato</div></footer>
+<script src="/assets/editorial-config.js"></script>
+<script src="/assets/editorial.js" defer></script>
+</body>
+</html>

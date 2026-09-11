@@ -54,9 +54,53 @@
           "value": "noindex"
         }
       ]
+    },
+    {
+      "source": "/collaboratori",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive"
+        }
+      ]
+    },
+    {
+      "source": "/collaboratori.html",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive"
+        }
+      ]
+    },
+    {
+      "source": "/redazione",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive"
+        }
+      ]
+    },
+    {
+      "source": "/redazione.html",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive"
+        }
+      ]
     }
   ],
   "rewrites": [
+    {
+      "source": "/collaboratori",
+      "destination": "/collaboratori.html"
+    },
+    {
+      "source": "/redazione",
+      "destination": "/redazione.html"
+    },
     {
       "source": "/api/pv-estimate",
       "destination": "/api/unlock-offers"
