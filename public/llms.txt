@@ -1,9 +1,9 @@
 # OffertaLogica
 
-> Confronto e informazione su energia, bollette, offerte luce e gas.
+> Informazione, guide, analisi e approfondimenti della redazione OffertaLogica.
 
 ## Risorse principali
-- [Guide e articoli](https://offertalogica.it/articoli.html)
+- [OffertaLogica Informa](https://offertalogica.it/articoli.html)
 - [Come funziona](https://offertalogica.it/come-funziona.html)
 - [Guida alla bolletta](https://offertalogica.it/come-leggere-bolletta-luce-gas.html)
 - [Offerte luce e gas aggiornate](https://offertalogica.it/offerte-luce-gas-aggiornate.html)

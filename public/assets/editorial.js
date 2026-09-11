@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.6.0";
+  const VERSION = "0.7.0";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const STATUSES = new Set(["draft", "in_review", "changes_requested", "approved", "published", "archived"]);
   const STATUS_LABELS = {draft:"Bozza",in_review:"In revisione",changes_requested:"Modifiche richieste",approved:"Approvato",published:"Pubblicato",archived:"Archiviato"};
@@ -23,9 +23,16 @@
   function authHeaders(token=""){ const h={apikey:config.key,"Content-Type":"application/json"}; if(token)h.Authorization=`Bearer ${token}`; return h; }
 
   async function request(url,options={}){
-    const response=await fetch(url,options); const payload=await response.json().catch(()=>null);
-    if(!response.ok){ const message=payload?.message||payload?.msg||payload?.error_description||payload?.error||`Errore ${response.status}`; const error=new Error(message); error.status=response.status; throw error; }
-    return payload;
+    const controller=new AbortController();
+    const timeout=setTimeout(()=>controller.abort(),12000);
+    try{
+      const response=await fetch(url,{...options,signal:controller.signal}); const payload=await response.json().catch(()=>null);
+      if(!response.ok){ const message=payload?.message||payload?.msg||payload?.error_description||payload?.error||`Errore ${response.status}`; const error=new Error(message); error.status=response.status; throw error; }
+      return payload;
+    }catch(error){
+      if(error?.name==="AbortError")throw new Error("Servizio temporaneamente non raggiungibile. Riprova tra poco.");
+      throw error;
+    }finally{clearTimeout(timeout);}
   }
   async function db(path,{method="GET",token="",body=null,prefer=""}={}){ const headers=authHeaders(token); if(prefer)headers.Prefer=prefer; return request(`${config.url}/rest/v1/${path}`,{method,headers,body:body===null?undefined:JSON.stringify(body),cache:"no-store"}); }
   async function login(email,password){ return request(`${config.url}/auth/v1/token?grant_type=password`,{method:"POST",headers:authHeaders(),body:JSON.stringify({email,password}),cache:"no-store"}); }
@@ -542,7 +549,16 @@
 
     if(hashError){regError(hashError);loading.hidden=true;return;}
     try{
-      await loadPreview();
+      if(mode==="bootstrap"){
+        if(!token||token.length<40)throw new Error("Link amministratore mancante o incompleto.");
+        preview={valid:true,role:"admin"};
+        inviteSummary.hidden=true;bootstrapFields.hidden=false;loginEmailField.hidden=false;
+        const pending=pendingBootstrap();
+        if(pending){form.elements.display_name.value=pending.display_name||"";form.elements.author_slug.value=pending.author_slug||"";form.elements.email.value=pending.email||"";loginForm.elements.email.value=pending.email||"";}
+        loading.hidden=true;panel.hidden=false;
+      }else{
+        await loadPreview();
+      }
       if(await completeHashSession())return;
     }catch(error){loading.hidden=true;regError(error.message);return;}
 
