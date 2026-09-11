@@ -46,8 +46,7 @@
 
         <form class="ol-form" data-registration-form novalidate>
           <div data-bootstrap-fields hidden>
-            <div class="ol-field"><label for="registration-name">Nome pubblico autore</label><input id="registration-name" name="display_name" type="text" maxlength="120" autocomplete="name" required></div>
-            <div class="ol-field"><label for="registration-slug">Slug autore</label><input id="registration-slug" name="author_slug" type="text" maxlength="120" spellcheck="false" required><small>Esempio: mario-rossi. Verrà usato nell’indirizzo pubblico dell’autore.</small></div>
+            <div class="ol-field"><label for="registration-name">Nome pubblico autore</label><input id="registration-name" name="display_name" type="text" maxlength="120" autocomplete="name" required><input id="registration-slug" name="author_slug" type="hidden"><small data-bootstrap-slug-preview>L’indirizzo pubblico autore verrà creato automaticamente dal nome.</small></div>
             <div class="ol-field"><label for="registration-email-input">Email</label><input id="registration-email-input" name="email" type="email" maxlength="320" autocomplete="email" required></div>
           </div>
           <div class="ol-field"><label for="registration-password">Scegli una password</label><input id="registration-password" name="password" type="password" minlength="8" autocomplete="new-password" required><small>Usa almeno 8 caratteri e una password che non riutilizzi altrove.</small></div>

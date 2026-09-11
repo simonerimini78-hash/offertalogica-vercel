@@ -59,8 +59,7 @@
               <h3>Invita una persona</h3>
               <form class="ol-form" data-admin-invite-form>
                 <div class="ol-field"><label for="invite-email">Email</label><input id="invite-email" name="email" type="email" maxlength="320" autocomplete="email" required></div>
-                <div class="ol-field"><label for="invite-name">Nome pubblico autore</label><input id="invite-name" name="display_name" type="text" maxlength="120" autocomplete="name" required></div>
-                <div class="ol-field"><label for="invite-slug">Slug autore</label><input id="invite-slug" name="author_slug" type="text" maxlength="120" spellcheck="false" required><small>Esempio: mario-rossi.</small></div>
+                <div class="ol-field"><label for="invite-name">Nome pubblico autore</label><input id="invite-name" name="display_name" type="text" maxlength="120" autocomplete="name" required><input id="invite-slug" name="author_slug" type="hidden"><small data-author-slug-preview>L’indirizzo pubblico dell’autore verrà creato automaticamente dal nome.</small></div>
                 <div class="ol-field"><label for="invite-role">Ruolo</label><select id="invite-role" name="role"><option value="contributor">Collaboratore</option><option value="editor">Editor</option></select><small>Il ruolo stabilisce il limite massimo. I permessi sotto definiscono cosa può fare davvero la persona.</small></div>
                 <fieldset class="ol-permission-box">
                   <legend>Permessi iniziali</legend>
@@ -135,11 +134,11 @@
                 <summary>Cosa significano i campi?</summary>
                 <dl>
                   <div data-guide-permission="edit_title"><dt>Titolo</dt><dd>Il titolo principale mostrato al lettore.</dd></div>
-                  <div data-guide-permission="edit_slug"><dt>Slug</dt><dd>La parte finale dell’URL pubblico dell’articolo. È un dato tecnico.</dd></div>
+                  <div data-guide-permission="edit_slug"><dt>Slug</dt><dd>La parte finale dell’URL pubblico. Si genera automaticamente dal titolo e può essere corretta manualmente da chi ha il permesso.</dd></div>
                   <div data-guide-permission="edit_excerpt"><dt>Sommario</dt><dd>La breve introduzione dell’articolo.</dd></div>
                   <div data-guide-permission="edit_content"><dt>Contenuto</dt><dd>Il testo completo dell’articolo.</dd></div>
                   <div data-guide-permission="edit_category"><dt>Categoria</dt><dd>L’argomento principale usato per organizzare OffertaLogica Informa.</dd></div>
-                  <div data-guide-permission="edit_images"><dt>Immagine e alt text</dt><dd>L’immagine principale e la sua descrizione accessibile.</dd></div>
+                  <div data-guide-permission="edit_images"><dt>Immagine e alt text</dt><dd>La foto o immagine principale dell’articolo e la sua descrizione accessibile per screen reader.</dd></div>
                   <div data-guide-permission="edit_sources"><dt>Fonti</dt><dd>Riferimenti verificabili utilizzati per il contenuto.</dd></div>
                   <div data-guide-permission="edit_seo"><dt>SEO</dt><dd>Titolo e descrizione destinati soprattutto ai motori di ricerca e alle anteprime.</dd></div>
                 </dl>
@@ -149,11 +148,13 @@
                 <legend>Contenuto</legend>
                 <div class="ol-field" data-requires-permission="edit_title"><label for="review-title">Titolo</label><input id="review-title" name="title" type="text" maxlength="140" required><div class="ol-counter" data-count-for="review-title"></div></div>
                 <div class="ol-field" data-requires-permission="edit_slug"><label for="review-slug">Slug</label><input id="review-slug" name="slug" type="text" maxlength="120" spellcheck="false" required><small>Usa solo lettere minuscole, numeri e trattini.</small></div>
-                <div class="ol-grid ol-grid-2">
-                  <div class="ol-field" data-requires-permission="edit_category"><label for="review-category">Categoria</label><select id="review-category" name="category" data-category-select><option value="">Seleziona</option></select></div>
-                  <div class="ol-field" data-requires-permission="edit_images"><label for="review-image">Immagine principale</label><input id="review-image" name="featured_image_url" type="url" placeholder="https://…"></div>
+                <div class="ol-field" data-requires-permission="edit_category"><label for="review-category">Categoria</label><select id="review-category" name="category" data-category-select><option value="">Seleziona</option></select></div>
+                <div data-requires-permission="edit_images" class="ol-permission-group" data-image-uploader>
+                  <input id="review-image-url" name="featured_image_url" type="hidden">
+                  <div class="ol-field"><label for="review-image-upload">Immagine principale</label><input id="review-image-upload" data-image-upload type="file" accept="image/jpeg,image/png,image/webp,image/avif"><small>Carica JPG, PNG, WebP o AVIF fino a 5 MB.</small><p class="ol-small ol-muted" data-image-status aria-live="polite"></p></div>
+                  <div class="ol-image-preview" data-image-preview-box hidden><img data-image-preview alt=""><button class="ol-button ol-button-secondary ol-button-small" type="button" data-image-remove>Rimuovi immagine</button></div>
+                  <div class="ol-field"><label for="review-image-alt">Testo alternativo immagine</label><input id="review-image-alt" name="featured_image_alt" type="text" maxlength="180"><small>Descrivi ciò che è utile capire nell’immagine.</small><div class="ol-counter" data-count-for="review-image-alt"></div></div>
                 </div>
-                <div class="ol-field" data-requires-permission="edit_images"><label for="review-image-alt">Testo alternativo immagine</label><input id="review-image-alt" name="featured_image_alt" type="text" maxlength="180"><div class="ol-counter" data-count-for="review-image-alt"></div></div>
                 <div class="ol-field" data-requires-permission="edit_excerpt"><label for="review-excerpt">Sommario</label><textarea id="review-excerpt" name="excerpt" maxlength="320" required></textarea><div class="ol-counter" data-count-for="review-excerpt"></div></div>
                 <div class="ol-field" data-requires-permission="edit_content"><label for="review-content">Contenuto</label><textarea id="review-content" class="ol-content" name="content" maxlength="40000" required></textarea><small>Supporta paragrafi, titoli con <code>##</code>/<code>###</code> e liste con trattino.</small><div class="ol-counter" data-count-for="review-content"></div></div>
                 <div class="ol-field" data-requires-permission="edit_sources"><label for="review-sources">Fonti e link</label><textarea id="review-sources" name="sources" maxlength="4000" placeholder="Una fonte per riga"></textarea><div class="ol-counter" data-count-for="review-sources"></div></div>
@@ -161,7 +162,7 @@
 
               <fieldset class="ol-fieldset" data-requires-permission="edit_seo">
                 <legend>SEO e visibilità IA</legend>
-                <div class="ol-field"><label for="review-seo-title">Titolo SEO</label><input id="review-seo-title" name="seo_title" type="text" maxlength="70" aria-describedby="review-seo-title-help"><small id="review-seo-title-help">Obbligatorio prima della pubblicazione. Se vuoto, “Pubblica” propone il titolo articolo.</small><div class="ol-counter" data-count-for="review-seo-title"></div></div>
+                <div class="ol-field"><label for="review-seo-title">Titolo SEO</label><input id="review-seo-title" name="seo_title" type="text" maxlength="70" aria-describedby="review-seo-title-help"><small id="review-seo-title-help">Viene suggerito automaticamente dal titolo dell’articolo e dalla categoria. Puoi modificarlo prima della pubblicazione.</small><div class="ol-toolbar-group ol-toolbar-inline"><button class="ol-button ol-button-secondary ol-button-small" type="button" data-suggest-seo-title>Suggerisci titolo SEO</button></div><div class="ol-counter" data-count-for="review-seo-title"></div></div>
                 <div class="ol-field"><label for="review-seo-description">Descrizione SEO</label><textarea id="review-seo-description" name="seo_description" maxlength="180" aria-describedby="review-seo-description-help"></textarea><small id="review-seo-description-help">Sintesi autonoma e comprensibile anche fuori contesto.</small><div class="ol-counter" data-count-for="review-seo-description"></div></div>
               </fieldset>
 

@@ -69,23 +69,25 @@
               <summary>Cosa significano i campi?</summary>
               <dl>
                 <div data-guide-permission="edit_title"><dt>Titolo</dt><dd>Il nome principale dell’articolo che il lettore vede nella pagina.</dd></div>
-                <div data-guide-permission="edit_slug"><dt>Slug</dt><dd>La parte finale dell’indirizzo web dell’articolo. È un campo tecnico e normalmente viene gestito dalla redazione.</dd></div>
+                <div data-guide-permission="edit_slug"><dt>Slug</dt><dd>La parte finale dell’indirizzo web. Si genera automaticamente dal titolo; chi è autorizzato può correggerla prima della pubblicazione.</dd></div>
                 <div data-guide-permission="edit_excerpt"><dt>Sommario</dt><dd>Una breve introduzione che spiega in poche righe cosa troverà il lettore.</dd></div>
                 <div data-guide-permission="edit_content"><dt>Contenuto</dt><dd>Il testo vero e proprio dell’articolo.</dd></div>
                 <div data-guide-permission="edit_category"><dt>Categoria</dt><dd>L’argomento principale usato per organizzare i contenuti di OffertaLogica Informa.</dd></div>
-                <div data-guide-permission="edit_images"><dt>Immagine e testo alternativo</dt><dd>L’immagine principale e la descrizione testuale utile a persone non vedenti e motori di ricerca.</dd></div>
+                <div data-guide-permission="edit_images"><dt>Immagine e testo alternativo</dt><dd>Puoi caricare la foto o immagine principale dell’articolo. Il testo alternativo descrive ciò che è utile capire nell’immagine, soprattutto per chi usa uno screen reader.</dd></div>
                 <div data-guide-permission="edit_sources"><dt>Fonti e link</dt><dd>Le fonti usate per verificare dati, affermazioni e riferimenti dell’articolo.</dd></div>
                 <div data-guide-permission="edit_seo"><dt>SEO</dt><dd>Titolo e descrizione usati soprattutto da motori di ricerca e anteprime. Se non hai questo permesso se ne occupa la redazione.</dd></div>
               </dl>
             </details>
 
             <div class="ol-field" data-requires-permission="edit_title"><label for="article-title">Titolo</label><input id="article-title" name="title" type="text" maxlength="140" autocomplete="off"><div class="ol-counter" data-count-for="article-title"></div></div>
-            <div class="ol-field" data-requires-permission="edit_slug"><label for="article-slug">Slug</label><input id="article-slug" name="slug" type="text" maxlength="120" autocomplete="off" spellcheck="false"><small>È l’indirizzo leggibile dell’articolo, per esempio <code>assicurazione-casa-guida</code>.</small></div>
+            <div class="ol-field" data-requires-permission="edit_slug"><label for="article-slug">Slug</label><input id="article-slug" name="slug" type="text" maxlength="120" autocomplete="off" spellcheck="false"><small>Generato automaticamente dal titolo. Modificalo solo se serve, prima della pubblicazione.</small></div>
 
             <div class="ol-field" data-requires-permission="edit_category"><label for="article-category">Categoria</label><select id="article-category" name="category" data-category-select><option value="">Seleziona</option></select><small>Se non trovi l’argomento corretto, segnalalo alla redazione.</small></div>
-            <div data-requires-permission="edit_images" class="ol-permission-group">
-              <div class="ol-field"><label for="article-image">Immagine principale</label><input id="article-image" name="featured_image_url" type="url" placeholder="https://…" aria-describedby="article-image-help"><small id="article-image-help">URL dell’immagine principale. Se non hai dimestichezza, può occuparsene la redazione.</small></div>
-              <div class="ol-field"><label for="article-image-alt">Testo alternativo immagine</label><input id="article-image-alt" name="featured_image_alt" type="text" maxlength="180" autocomplete="off" aria-describedby="article-image-alt-help"><small id="article-image-alt-help">Descrive ciò che è importante capire nell’immagine.</small><div class="ol-counter" data-count-for="article-image-alt"></div></div>
+            <div data-requires-permission="edit_images" class="ol-permission-group" data-image-uploader>
+              <input id="article-image-url" name="featured_image_url" type="hidden">
+              <div class="ol-field"><label for="article-image-upload">Immagine principale</label><input id="article-image-upload" data-image-upload type="file" accept="image/jpeg,image/png,image/webp,image/avif" aria-describedby="article-image-help"><small id="article-image-help">Carica JPG, PNG, WebP o AVIF fino a 5 MB. L’immagine verrà usata per corredare l’articolo.</small><p class="ol-small ol-muted" data-image-status aria-live="polite"></p></div>
+              <div class="ol-image-preview" data-image-preview-box hidden><img data-image-preview alt=""><button class="ol-button ol-button-secondary ol-button-small" type="button" data-image-remove>Rimuovi immagine</button></div>
+              <div class="ol-field"><label for="article-image-alt">Testo alternativo immagine</label><input id="article-image-alt" name="featured_image_alt" type="text" maxlength="180" autocomplete="off" aria-describedby="article-image-alt-help"><small id="article-image-alt-help">Descrivi brevemente ciò che è importante capire nell’immagine. Non inserire “foto di” se non serve.</small><div class="ol-counter" data-count-for="article-image-alt"></div></div>
             </div>
 
             <div class="ol-field" data-requires-permission="edit_excerpt"><label for="article-excerpt">Sommario</label><textarea id="article-excerpt" name="excerpt" maxlength="320"></textarea><div class="ol-counter" data-count-for="article-excerpt"></div></div>
@@ -94,7 +96,7 @@
 
             <fieldset class="ol-fieldset" data-requires-permission="edit_seo">
               <legend>SEO</legend>
-              <div class="ol-field"><label for="article-seo-title">Titolo SEO</label><input id="article-seo-title" name="seo_title" type="text" maxlength="70"><small>Può essere diverso dal titolo dell’articolo per descriverlo meglio nei risultati di ricerca.</small><div class="ol-counter" data-count-for="article-seo-title"></div></div>
+              <div class="ol-field"><label for="article-seo-title">Titolo SEO</label><input id="article-seo-title" name="seo_title" type="text" maxlength="70"><small>Titolo suggerito automaticamente in base al titolo dell’articolo e alla categoria. Puoi modificarlo.</small><div class="ol-toolbar-group ol-toolbar-inline"><button class="ol-button ol-button-secondary ol-button-small" type="button" data-suggest-seo-title>Suggerisci titolo SEO</button></div><div class="ol-counter" data-count-for="article-seo-title"></div></div>
               <div class="ol-field"><label for="article-seo-description">Descrizione SEO</label><textarea id="article-seo-description" name="seo_description" maxlength="180"></textarea><small>Riassunto breve e autonomo del contenuto.</small><div class="ol-counter" data-count-for="article-seo-description"></div></div>
             </fieldset>
 
