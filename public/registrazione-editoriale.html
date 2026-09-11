@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <meta name="referrer" content="no-referrer">
+  <title>Attiva account editoriale | OffertaLogica</title>
+  <link rel="icon" type="image/png" href="/assets/logo-offertalogica-icon.png">
+  <link rel="stylesheet" href="/assets/editorial.css">
+</head>
+<body data-editorial-view="registration">
+<a class="ol-skip-link" href="#contenuto-principale">Vai al contenuto principale</a>
+<header class="ol-topbar">
+  <div class="ol-shell ol-topbar-inner">
+    <a class="ol-brand" href="/" aria-label="OffertaLogica, torna alla home"><img src="/assets/logo-offertalogica-header.png" alt="OffertaLogica.it"></a>
+  </div>
+</header>
+<main id="contenuto-principale">
+  <section class="ol-hero ol-hero-compact">
+    <div class="ol-shell ol-register-shell">
+      <div class="ol-eyebrow">Accesso editoriale</div>
+      <h1>Attiva il tuo account.</h1>
+      <p>L’accesso è disponibile solo tramite un invito valido della redazione OffertaLogica.</p>
+    </div>
+  </section>
+  <section class="ol-section">
+    <div class="ol-shell ol-register-shell">
+      <div class="ol-alert ol-alert-danger" role="alert" data-registration-error hidden></div>
+      <div class="ol-alert ol-alert-success" role="status" aria-live="polite" data-registration-success hidden></div>
+
+      <section class="ol-panel ol-panel-body" data-registration-loading>
+        <h2>Verifica invito</h2>
+        <p class="ol-muted">Controllo del link in corso…</p>
+      </section>
+
+      <section class="ol-panel ol-panel-body" data-registration-panel hidden>
+        <div class="ol-register-summary" data-invite-summary hidden>
+          <h2>Invito OffertaLogica</h2>
+          <dl class="ol-review-meta">
+            <div><dt>Nome</dt><dd data-registration-name>—</dd></div>
+            <div><dt>Email</dt><dd data-registration-email>—</dd></div>
+            <div><dt>Ruolo</dt><dd data-registration-role>—</dd></div>
+          </dl>
+        </div>
+
+        <form class="ol-form" data-registration-form novalidate>
+          <div data-bootstrap-fields hidden>
+            <div class="ol-field"><label for="registration-name">Nome pubblico autore</label><input id="registration-name" name="display_name" type="text" maxlength="120" autocomplete="name" required></div>
+            <div class="ol-field"><label for="registration-slug">Slug autore</label><input id="registration-slug" name="author_slug" type="text" maxlength="120" spellcheck="false" required><small>Esempio: mario-rossi. Verrà usato nell’indirizzo pubblico dell’autore.</small></div>
+            <div class="ol-field"><label for="registration-email-input">Email</label><input id="registration-email-input" name="email" type="email" maxlength="320" autocomplete="email" required></div>
+          </div>
+          <div class="ol-field"><label for="registration-password">Scegli una password</label><input id="registration-password" name="password" type="password" minlength="8" autocomplete="new-password" required><small>Usa almeno 8 caratteri e una password che non riutilizzi altrove.</small></div>
+          <div class="ol-field"><label for="registration-password-confirm">Conferma password</label><input id="registration-password-confirm" name="password_confirm" type="password" minlength="8" autocomplete="new-password" required></div>
+          <button class="ol-button ol-button-primary" type="submit" data-registration-create>Crea account</button>
+        </form>
+
+        <details class="ol-existing-account" data-existing-account>
+          <summary>Hai già un account con questa email?</summary>
+          <form class="ol-form" data-registration-login-form>
+            <div class="ol-field" data-registration-login-email-field hidden><label for="registration-login-email">Email</label><input id="registration-login-email" name="email" type="email" maxlength="320" autocomplete="username"></div>
+            <div class="ol-field"><label for="registration-login-password">Password esistente</label><input id="registration-login-password" name="password" type="password" autocomplete="current-password" required></div>
+            <button class="ol-button ol-button-secondary" type="submit">Accedi e accetta l’invito</button>
+            <p class="ol-auth-help"><a href="/recupera-password">Hai dimenticato la password?</a></p>
+          </form>
+        </details>
+      </section>
+    </div>
+  </section>
+</main>
+<footer class="ol-footer"><div class="ol-shell">OffertaLogica · accesso editoriale riservato</div></footer>
+<script src="/assets/editorial-config.js"></script>
+<script src="/assets/editorial.js" defer></script>
+</body>
+</html>

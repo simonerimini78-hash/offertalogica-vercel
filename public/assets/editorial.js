@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.5.0";
+  const VERSION = "0.6.0";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const STATUSES = new Set(["draft", "in_review", "changes_requested", "approved", "published", "archived"]);
   const STATUS_LABELS = {draft:"Bozza",in_review:"In revisione",changes_requested:"Modifiche richieste",approved:"Approvato",published:"Pubblicato",archived:"Archiviato"};
@@ -29,6 +29,10 @@
   }
   async function db(path,{method="GET",token="",body=null,prefer=""}={}){ const headers=authHeaders(token); if(prefer)headers.Prefer=prefer; return request(`${config.url}/rest/v1/${path}`,{method,headers,body:body===null?undefined:JSON.stringify(body),cache:"no-store"}); }
   async function login(email,password){ return request(`${config.url}/auth/v1/token?grant_type=password`,{method:"POST",headers:authHeaders(),body:JSON.stringify({email,password}),cache:"no-store"}); }
+  async function signup(email,password,redirectTo){ const target=redirectTo?`?redirect_to=${encodeURIComponent(redirectTo)}`:""; return request(`${config.url}/auth/v1/signup${target}`,{method:"POST",headers:authHeaders(),body:JSON.stringify({email,password}),cache:"no-store"}); }
+  async function requestPasswordRecovery(email,redirectTo){ const target=redirectTo?`?redirect_to=${encodeURIComponent(redirectTo)}`:""; return request(`${config.url}/auth/v1/recover${target}`,{method:"POST",headers:authHeaders(),body:JSON.stringify({email}),cache:"no-store"}); }
+  async function authUser(token){ return request(`${config.url}/auth/v1/user`,{method:"GET",headers:authHeaders(token),cache:"no-store"}); }
+  async function updatePassword(token,password){ return request(`${config.url}/auth/v1/user`,{method:"PUT",headers:authHeaders(token),body:JSON.stringify({password}),cache:"no-store"}); }
 
   function initCounters(root=document){ root.querySelectorAll("[data-count-for]").forEach(counter=>{ const field=document.getElementById(counter.getAttribute("data-count-for")); if(!field)return; const max=Number(field.getAttribute("maxlength")||0); const update=()=>counter.textContent=max?`${field.value.length}/${max}`:String(field.value.length); if(!counter.dataset.counterReady){counter.dataset.counterReady="1";field.addEventListener("input",update);} update(); }); }
 
@@ -163,6 +167,16 @@
     const count=document.querySelector("[data-review-count]");
     const newButton=document.querySelector("[data-review-new]");
     const authorWarning=document.querySelector("[data-review-author-warning]");
+    const adminTeam=document.querySelector("[data-admin-team]");
+    const adminError=document.querySelector("[data-admin-error]");
+    const adminSuccess=document.querySelector("[data-admin-success]");
+    const adminInviteForm=document.querySelector("[data-admin-invite-form]");
+    const adminPeople=document.querySelector("[data-admin-people]");
+    const adminInvitations=document.querySelector("[data-admin-invitations]");
+    const adminInviteResult=document.querySelector("[data-admin-invite-result]");
+    const adminInviteLink=document.querySelector("[data-admin-invite-link]");
+    const adminEmailInvite=document.querySelector("[data-admin-email-invite]");
+    let inviteSlugTouched=false;
 
     function safeId(value){return String(value||"").replace(/[^a-f0-9-]/gi,"");}
     function isOwnArticle(){return Boolean(currentArticle?.created_by&&currentArticle.created_by===session?.user?.id);}
@@ -316,17 +330,100 @@
         show(saveMessage,messages[target]||"Stato aggiornato."); await loadArticle(article.id); await loadQueue();
       }catch(error){show(validation,`Cambio stato non riuscito: ${error.message}`);}
     }
+    function adminMessage(error="",success=""){show(adminError,error);show(adminSuccess,success);}
+    function roleLabel(role){return role==="admin"?"Admin":role==="editor"?"Editor":"Collaboratore";}
+    function statusPill(state,label){const span=document.createElement("span");span.className="ol-status-pill";span.dataset.state=state;span.textContent=label;return span;}
+    function inviteState(row){
+      if(row.used_at)return ["used","Usato"];
+      if(row.revoked_at)return ["revoked","Revocato"];
+      if(row.expires_at&&new Date(row.expires_at).getTime()<=Date.now())return ["expired","Scaduto"];
+      return ["pending","In attesa"];
+    }
+    function renderAdminPeople(rows){
+      adminPeople.replaceChildren();
+      if(!rows?.length){const p=document.createElement("p");p.className="ol-muted";p.textContent="Nessuna persona abilitata.";adminPeople.append(p);return;}
+      rows.forEach(row=>{
+        const item=document.createElement("article");item.className="ol-team-item";
+        const head=document.createElement("div");head.className="ol-team-item-head";
+        const info=document.createElement("div");const strong=document.createElement("strong");strong.textContent=row.display_name||row.email||"Utente";const small=document.createElement("small");small.textContent=`${row.email||""} · ${row.author_slug?`/autori/${row.author_slug}.html · `:""}${roleLabel(row.role)}`;info.append(strong,small);
+        head.append(info,statusPill(row.active?"active":"inactive",row.active?"Attivo":"Disattivato"));item.append(head);
+        if(row.user_id!==session.user.id&&row.role!=="admin"){
+          const actions=document.createElement("div");actions.className="ol-team-actions";
+          const roleButton=document.createElement("button");roleButton.type="button";roleButton.className="ol-button ol-button-secondary ol-button-small";roleButton.dataset.memberId=row.user_id;roleButton.dataset.memberRole=row.role==="editor"?"contributor":"editor";roleButton.dataset.memberActive=String(Boolean(row.active));roleButton.textContent=row.role==="editor"?"Rendi collaboratore":"Rendi editor";
+          const activeButton=document.createElement("button");activeButton.type="button";activeButton.className="ol-button ol-button-secondary ol-button-small";activeButton.dataset.memberId=row.user_id;activeButton.dataset.memberRole=row.role;activeButton.dataset.memberActive=String(!row.active);activeButton.textContent=row.active?"Disattiva":"Riattiva";
+          actions.append(roleButton,activeButton);item.append(actions);
+        }
+        adminPeople.append(item);
+      });
+    }
+    function renderAdminInvitations(rows){
+      adminInvitations.replaceChildren();
+      if(!rows?.length){const p=document.createElement("p");p.className="ol-muted";p.textContent="Nessun invito creato.";adminInvitations.append(p);return;}
+      rows.forEach(row=>{
+        const item=document.createElement("article");item.className="ol-team-item";
+        const head=document.createElement("div");head.className="ol-team-item-head";
+        const info=document.createElement("div");const strong=document.createElement("strong");strong.textContent=row.display_name||row.email;const small=document.createElement("small");small.textContent=`${row.email} · ${roleLabel(row.role)} · scadenza ${formatDate(row.expires_at)}`;info.append(strong,small);const [state,label]=inviteState(row);head.append(info,statusPill(state,label));item.append(head);
+        if(state==="pending"){
+          const actions=document.createElement("div");actions.className="ol-team-actions";const revoke=document.createElement("button");revoke.type="button";revoke.className="ol-button ol-button-danger ol-button-small";revoke.dataset.revokeInvitation=row.id;revoke.textContent="Revoca";actions.append(revoke);item.append(actions);
+        }
+        adminInvitations.append(item);
+      });
+    }
+    async function loadAdminPanel(){
+      if(member?.role!=="admin"||!adminTeam)return;
+      adminMessage();
+      try{
+        const [people,invitations]=await Promise.all([
+          db("rpc/editorial_admin_list_people",{method:"POST",token:session.access_token,body:{}}),
+          db("rpc/editorial_admin_list_invitations",{method:"POST",token:session.access_token,body:{}})
+        ]);
+        renderAdminPeople(people||[]);renderAdminInvitations(invitations||[]);
+      }catch(error){adminMessage(`Gestione utenti non disponibile: ${error.message}`);}
+    }
+    async function createAdminInvitation(event){
+      event.preventDefault();adminMessage();
+      const fd=new FormData(adminInviteForm);const email=text(fd.get("email"),320).toLowerCase();const displayName=text(fd.get("display_name"),120);const role=text(fd.get("role"),20);const authorSlug=normalizeSlug(fd.get("author_slug"));
+      if(!email||!displayName||!authorSlug){adminMessage("Completa email, nome pubblico e slug autore.");return;}
+      const button=adminInviteForm.querySelector('button[type="submit"]');button.disabled=true;
+      try{
+        const result=await db("rpc/editorial_admin_create_invitation",{method:"POST",token:session.access_token,body:{p_email:email,p_display_name:displayName,p_role:role,p_author_slug:authorSlug}});
+        if(!result?.token)throw new Error("Invito non confermato");
+        const link=`${location.origin}/registrazione-editoriale?invite=${encodeURIComponent(result.token)}`;
+        adminInviteLink.value=link;adminInviteResult.hidden=false;
+        const subject="Invito alla redazione OffertaLogica";
+        const body=`Ciao ${displayName},\n\nti ho invitato nella redazione OffertaLogica con ruolo ${roleLabel(role)}.\n\nApri questo link personale per creare il tuo account e scegliere la password:\n${link}\n\nIl link è monouso e scade dopo 7 giorni.\n`;
+        adminEmailInvite.href=`mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        adminInviteForm.reset();inviteSlugTouched=false;adminMessage("","Invito creato. Ora puoi copiare il link oppure aprire l’email già compilata.");await loadAdminPanel();
+      }catch(error){adminMessage(`Invito non creato: ${error.message}`);}finally{button.disabled=false;}
+    }
+    async function updateAdminMember(button){
+      const id=safeId(button.dataset.memberId);const role=button.dataset.memberRole;const active=button.dataset.memberActive==="true";if(!id)return;
+      const action=active?`${roleLabel(role)} attivo`:`disattivato`;
+      if(!window.confirm(`Confermare il nuovo stato: ${action}?`))return;
+      adminMessage();button.disabled=true;
+      try{await db("rpc/editorial_admin_update_member",{method:"POST",token:session.access_token,body:{p_user_id:id,p_role:role,p_active:active}});adminMessage("","Utente aggiornato.");await loadAdminPanel();}
+      catch(error){adminMessage(`Aggiornamento non riuscito: ${error.message}`);}finally{button.disabled=false;}
+    }
+    async function revokeAdminInvitation(button){
+      const id=safeId(button.dataset.revokeInvitation);if(!id||!window.confirm("Revocare questo invito? Il link non funzionerà più."))return;
+      adminMessage();button.disabled=true;
+      try{await db("rpc/editorial_admin_revoke_invitation",{method:"POST",token:session.access_token,body:{p_invitation_id:id}});adminMessage("","Invito revocato.");await loadAdminPanel();}
+      catch(error){adminMessage(`Revoca non riuscita: ${error.message}`);}finally{button.disabled=false;}
+    }
+
     async function loadContext(){
       const rows=await db(`editorial_members?select=user_id,role,active&user_id=eq.${encodeURIComponent(session.user.id)}&limit=1`,{token:session.access_token});
       member=rows?.[0]; if(!member?.active||!["editor","admin"].includes(member.role))throw new Error("Account non abilitato alla redazione");
       const authors=await db(`editorial_authors?select=id,user_id,slug,display_name,active&user_id=eq.${encodeURIComponent(session.user.id)}&limit=1`,{token:session.access_token});
       ownAuthor=authors?.[0]?.active?authors[0]:null;
       document.querySelector("[data-review-name]").textContent=ownAuthor?.display_name||"Redazione OffertaLogica";
-      document.querySelector("[data-review-role]").textContent=member.role; document.querySelector("[data-review-email]").textContent=session.user.email||""; authPanel.hidden=true;workspace.hidden=false;
+      document.querySelector("[data-review-role]").textContent=roleLabel(member.role); document.querySelector("[data-review-email]").textContent=session.user.email||""; authPanel.hidden=true;workspace.hidden=false;
       newButton.disabled=!ownAuthor; show(authorWarning,ownAuthor?"":"Puoi revisionare gli articoli, ma per scriverne uno tuo devi avere anche un profilo autore attivo.");
+      if(adminTeam)adminTeam.hidden=member.role!=="admin";
       const params=new URLSearchParams(location.search); const requestedStatus=params.get("status"); const requestedScope=params.get("scope");
       if(["in_review","changes_requested","approved","published","draft","archived","all"].includes(requestedStatus))filter.value=requestedStatus;
       if(["all","mine"].includes(requestedScope))scope.value=requestedScope;
+      if(member.role==="admin")await loadAdminPanel();
       await loadQueue(); const id=params.get("id"); if(id)await loadArticle(id);
     }
     async function activate(){if(!session?.access_token||!session?.user?.id)return;try{await loadContext();}catch(error){sessionWrite(null);session=null;member=null;ownAuthor=null;authPanel.hidden=false;workspace.hidden=true;show(loginError,error.message);}}
@@ -342,6 +439,20 @@
 
     loginForm.addEventListener("submit",async event=>{event.preventDefault();show(loginError,"");const button=loginForm.querySelector("[data-review-login-button]");button.disabled=true;try{const data=await login(text(loginForm.email.value,320),String(loginForm.password.value||""));session={access_token:data.access_token,user:data.user,expires_at:data.expires_at};sessionWrite(session);await activate();}catch(error){show(loginError,`Accesso non riuscito: ${error.message}`);}finally{button.disabled=false;}});
     document.querySelector("[data-review-logout]").addEventListener("click",()=>{sessionWrite(null);location.replace("/redazione");});
+    if(adminInviteForm){
+      adminInviteForm.addEventListener("submit",createAdminInvitation);
+      const nameField=adminInviteForm.elements.display_name;const slugField=adminInviteForm.elements.author_slug;
+      nameField.addEventListener("input",()=>{if(!inviteSlugTouched)slugField.value=normalizeSlug(nameField.value);});
+      slugField.addEventListener("input",()=>{inviteSlugTouched=true;slugField.value=normalizeSlug(slugField.value);});
+      document.querySelector("[data-admin-refresh]").addEventListener("click",loadAdminPanel);
+      document.querySelector("[data-admin-copy-invite]").addEventListener("click",async()=>{
+        if(!adminInviteLink.value)return;
+        try{await navigator.clipboard.writeText(adminInviteLink.value);adminMessage("","Link copiato.");}
+        catch{adminInviteLink.focus();adminInviteLink.select();document.execCommand("copy");adminMessage("","Link copiato.");}
+      });
+      adminPeople.addEventListener("click",event=>{const button=event.target.closest("button[data-member-id]");if(button)updateAdminMember(button);});
+      adminInvitations.addEventListener("click",event=>{const button=event.target.closest("button[data-revoke-invitation]");if(button)revokeAdminInvitation(button);});
+    }
     newButton.addEventListener("click",startNewArticle);
     document.querySelector("[data-review-refresh]").addEventListener("click",loadQueue);
     filter.addEventListener("change",changeQueueFilter); scope.addEventListener("change",changeQueueFilter);
@@ -359,5 +470,183 @@
     if(session)await activate();
   }
 
-  document.documentElement.dataset.editorialVersion=VERSION; initCounters(); const view=document.body?.dataset?.editorialView||""; if(view==="archive")initPublicArchive(); if(view==="article")initArticlePage(); if(view==="workspace")initWorkspace(); if(view==="review")initReview();
+  async function initRegistration(){
+    const loading=document.querySelector("[data-registration-loading]");
+    const panel=document.querySelector("[data-registration-panel]");
+    const errorBox=document.querySelector("[data-registration-error]");
+    const successBox=document.querySelector("[data-registration-success]");
+    const form=document.querySelector("[data-registration-form]");
+    const loginForm=document.querySelector("[data-registration-login-form]");
+    const inviteSummary=document.querySelector("[data-invite-summary]");
+    const bootstrapFields=document.querySelector("[data-bootstrap-fields]");
+    const loginEmailField=document.querySelector("[data-registration-login-email-field]");
+    const params=new URLSearchParams(location.search);
+    const inviteToken=text(params.get("invite"),200);
+    const bootstrapToken=text(params.get("bootstrap"),200);
+    const mode=inviteToken?"invite":bootstrapToken?"bootstrap":"";
+    const token=inviteToken||bootstrapToken;
+    const hash=new URLSearchParams(location.hash.replace(/^#/,""));
+    const hashError=hash.get("error_description")||hash.get("error");
+    let preview=null;
+    let slugTouched=false;
+    const pendingKey="offertalogica.editorial.bootstrap.pending.v1";
+
+    function regError(message){show(errorBox,message);}
+    function regSuccess(message){show(successBox,message);}
+    function redirectUrl(){return `${location.origin}/registrazione-editoriale?${mode}=${encodeURIComponent(token)}`;}
+    function pendingBootstrap(){try{return JSON.parse(sessionStorage.getItem(pendingKey)||"null");}catch{return null;}}
+    function savePendingBootstrap(value){if(value)sessionStorage.setItem(pendingKey,JSON.stringify(value));else sessionStorage.removeItem(pendingKey);}
+    async function acceptAuthenticated(accessToken,user,bootstrapData=null){
+      let result;
+      if(mode==="invite"){
+        result=await db("rpc/editorial_accept_invitation",{method:"POST",token:accessToken,body:{p_token:token}});
+      }else{
+        const data=bootstrapData||pendingBootstrap();
+        if(!data?.display_name||!data?.author_slug)throw new Error("Dati del primo amministratore non disponibili. Riapri il link bootstrap e completa il modulo.");
+        result=await db("rpc/editorial_accept_admin_bootstrap",{method:"POST",token:accessToken,body:{p_token:token,p_display_name:data.display_name,p_author_slug:data.author_slug}});
+        savePendingBootstrap(null);
+      }
+      sessionWrite({access_token:accessToken,user,expires_at:Number(hash.get("expires_at")||0)||null});
+      regSuccess("Account attivato. Apertura dell’area editoriale…");
+      const role=result?.role||preview?.role;
+      location.replace(role==="contributor"?"/collaboratori":"/redazione");
+    }
+    async function completeHashSession(){
+      const accessToken=hash.get("access_token");
+      if(!accessToken)return false;
+      try{
+        const user=await authUser(accessToken);
+        await acceptAuthenticated(accessToken,user);
+        return true;
+      }catch(error){regError(`Attivazione non completata: ${error.message}`);return true;}
+    }
+    async function loadPreview(){
+      if(!configured())throw new Error("Servizio editoriale non configurato.");
+      if(!mode||!token)throw new Error("Link di attivazione mancante o incompleto.");
+      const rpc=mode==="invite"?"editorial_invitation_preview":"editorial_bootstrap_preview";
+      const result=await db(`rpc/${rpc}`,{method:"POST",body:{p_token:token}});
+      if(!result?.valid)throw new Error(mode==="invite"?"Invito non valido, scaduto o già utilizzato.":"Link amministratore non valido, scaduto o già utilizzato.");
+      preview=result;
+      if(mode==="invite"){
+        inviteSummary.hidden=false;bootstrapFields.hidden=true;loginEmailField.hidden=true;
+        document.querySelector("[data-registration-name]").textContent=result.display_name||"—";
+        document.querySelector("[data-registration-email]").textContent=result.email||"—";
+        document.querySelector("[data-registration-role]").textContent=result.role==="editor"?"Editor":"Collaboratore";
+      }else{
+        inviteSummary.hidden=true;bootstrapFields.hidden=false;loginEmailField.hidden=false;
+        const pending=pendingBootstrap();
+        if(pending){form.elements.display_name.value=pending.display_name||"";form.elements.author_slug.value=pending.author_slug||"";form.elements.email.value=pending.email||"";loginForm.elements.email.value=pending.email||"";}
+      }
+      loading.hidden=true;panel.hidden=false;
+    }
+
+    if(hashError){regError(hashError);loading.hidden=true;return;}
+    try{
+      await loadPreview();
+      if(await completeHashSession())return;
+    }catch(error){loading.hidden=true;regError(error.message);return;}
+
+    if(mode==="bootstrap"){
+      form.elements.display_name.addEventListener("input",()=>{if(!slugTouched)form.elements.author_slug.value=normalizeSlug(form.elements.display_name.value);});
+      form.elements.author_slug.addEventListener("input",()=>{slugTouched=true;form.elements.author_slug.value=normalizeSlug(form.elements.author_slug.value);});
+      form.elements.email.addEventListener("input",()=>{loginForm.elements.email.value=form.elements.email.value;});
+    }
+
+    form.addEventListener("submit",async event=>{
+      event.preventDefault();regError("");regSuccess("");
+      const password=String(form.elements.password.value||"");const confirm=String(form.elements.password_confirm.value||"");
+      if(password.length<8){regError("La password deve contenere almeno 8 caratteri.");return;}
+      if(password!==confirm){regError("Le due password non coincidono.");return;}
+      const email=mode==="invite"?preview.email:text(form.elements.email.value,320).toLowerCase();
+      if(!email){regError("Inserisci un indirizzo email valido.");return;}
+      let bootstrapData=null;
+      if(mode==="bootstrap"){
+        const displayName=text(form.elements.display_name.value,120);const authorSlug=normalizeSlug(form.elements.author_slug.value);
+        if(!displayName||!authorSlug){regError("Completa nome pubblico e slug autore.");return;}
+        bootstrapData={email,display_name:displayName,author_slug:authorSlug};savePendingBootstrap(bootstrapData);
+      }
+      const button=form.querySelector("[data-registration-create]");button.disabled=true;
+      try{
+        const data=await signup(email,password,redirectUrl());
+        if(data?.access_token&&data?.user){await acceptAuthenticated(data.access_token,data.user,bootstrapData);return;}
+        regSuccess("Account creato. Controlla la tua email e conferma l’indirizzo: dopo la conferma tornerai qui per completare automaticamente l’attivazione.");
+      }catch(error){regError(`Creazione account non riuscita: ${error.message}`);}finally{button.disabled=false;}
+    });
+
+    loginForm.addEventListener("submit",async event=>{
+      event.preventDefault();regError("");regSuccess("");
+      const email=mode==="invite"?preview.email:text(loginForm.elements.email.value,320).toLowerCase();const password=String(loginForm.elements.password.value||"");
+      if(!email||!password){regError("Inserisci email e password dell’account esistente.");return;}
+      try{
+        const data=await login(email,password);
+        const bootstrapData=mode==="bootstrap"?{email,display_name:text(form.elements.display_name.value,120),author_slug:normalizeSlug(form.elements.author_slug.value)}:null;
+        if(mode==="bootstrap"&&(!bootstrapData.display_name||!bootstrapData.author_slug)){regError("Completa prima nome pubblico e slug autore nel modulo superiore.");return;}
+        await acceptAuthenticated(data.access_token,data.user,bootstrapData);
+      }catch(error){regError(`Accesso non riuscito: ${error.message}`);}
+    });
+  }
+
+
+  async function initPasswordRecovery(){
+    const errorBox=document.querySelector("[data-password-error]");
+    const successBox=document.querySelector("[data-password-success]");
+    const requestPanel=document.querySelector("[data-password-request-panel]");
+    const updatePanel=document.querySelector("[data-password-update-panel]");
+    const requestForm=document.querySelector("[data-password-request-form]");
+    const updateForm=document.querySelector("[data-password-update-form]");
+    if(!requestPanel||!updatePanel||!requestForm||!updateForm)return;
+    if(!configured()){show(errorBox,"Servizio editoriale non configurato.");requestForm.querySelector("button").disabled=true;return;}
+
+    const hash=new URLSearchParams(location.hash.replace(/^#/,""));
+    const accessToken=hash.get("access_token")||"";
+    const recoveryType=hash.get("type")||"";
+    const hashError=hash.get("error_description")||hash.get("error");
+    let recoveryUser=null;
+
+    function recoveryError(message){show(errorBox,message);}
+    function recoverySuccess(message){show(successBox,message);}
+    function redirectUrl(){return `${location.origin}/recupera-password`;}
+
+    if(hashError){recoveryError(hashError);}
+    if(accessToken&&recoveryType==="recovery"){
+      try{
+        recoveryUser=await authUser(accessToken);
+        requestPanel.hidden=true;
+        updatePanel.hidden=false;
+      }catch(error){recoveryError(`Link di recupero non valido o scaduto: ${error.message}`);}
+    }
+
+    requestForm.addEventListener("submit",async event=>{
+      event.preventDefault();recoveryError("");recoverySuccess("");
+      const email=text(requestForm.elements.email.value,320).toLowerCase();
+      if(!email||!email.includes("@")){recoveryError("Inserisci un indirizzo email valido.");return;}
+      const button=requestForm.querySelector("[data-password-request-button]");button.disabled=true;
+      try{
+        await requestPasswordRecovery(email,redirectUrl());
+        recoverySuccess("Se esiste un account editoriale associato a questa email, riceverai un link per impostare una nuova password.");
+        requestForm.reset();
+      }catch(error){recoveryError(`Richiesta non riuscita: ${error.message}`);}finally{button.disabled=false;}
+    });
+
+    updateForm.addEventListener("submit",async event=>{
+      event.preventDefault();recoveryError("");recoverySuccess("");
+      if(!accessToken||!recoveryUser){recoveryError("Il link di recupero non è valido o è scaduto. Richiedine uno nuovo.");return;}
+      const password=String(updateForm.elements.password.value||"");
+      const confirm=String(updateForm.elements.password_confirm.value||"");
+      if(password.length<8){recoveryError("La password deve contenere almeno 8 caratteri.");return;}
+      if(password!==confirm){recoveryError("Le due password non coincidono.");return;}
+      const button=updateForm.querySelector("[data-password-update-button]");button.disabled=true;
+      try{
+        await updatePassword(accessToken,password);
+        const members=await db(`editorial_members?select=role,active&user_id=eq.${encodeURIComponent(recoveryUser.id)}&limit=1`,{token:accessToken});
+        const member=members?.[0];
+        sessionWrite({access_token:accessToken,user:recoveryUser,expires_at:Number(hash.get("expires_at")||0)||null});
+        recoverySuccess("Password aggiornata. Reindirizzamento all’area editoriale…");
+        history.replaceState(null,"",location.pathname);
+        window.setTimeout(()=>location.replace(member?.role==="contributor"?"/collaboratori":"/redazione"),700);
+      }catch(error){recoveryError(`Aggiornamento password non riuscito: ${error.message}`);}finally{button.disabled=false;}
+    });
+  }
+
+  document.documentElement.dataset.editorialVersion=VERSION; initCounters(); const view=document.body?.dataset?.editorialView||""; if(view==="archive")initPublicArchive(); if(view==="article")initArticlePage(); if(view==="workspace")initWorkspace(); if(view==="review")initReview(); if(view==="registration")initRegistration(); if(view==="password-recovery")initPasswordRecovery();
 })();

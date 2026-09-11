@@ -31,12 +31,13 @@
     <div class="ol-shell">
       <div class="ol-alert ol-alert-danger" role="alert" data-review-config-error hidden></div>
       <section class="ol-panel ol-panel-body ol-auth-panel" data-review-auth-panel>
-        <div><h2>Accesso redazione</h2><p class="ol-muted">Usa un account editor o admin abilitato in Supabase.</p></div>
+        <div><h2>Accesso redazione</h2><p class="ol-muted">Usa il tuo account OffertaLogica abilitato come editor o amministratore.</p></div>
         <form class="ol-form ol-login-form" data-review-login-form>
           <div class="ol-field"><label for="review-email">Email</label><input id="review-email" name="email" type="email" autocomplete="username" required></div>
           <div class="ol-field"><label for="review-password">Password</label><input id="review-password" name="password" type="password" autocomplete="current-password" required></div>
           <div class="ol-alert ol-alert-danger" role="alert" data-review-login-error hidden></div>
           <button class="ol-button ol-button-primary" type="submit" data-review-login-button>Accedi</button>
+          <p class="ol-auth-help"><a href="/recupera-password">Password dimenticata?</a></p>
         </form>
       </section>
 
@@ -45,6 +46,41 @@
           <div><strong data-review-name>Redazione OffertaLogica</strong><span data-review-role></span><small data-review-email></small></div>
           <button class="ol-button ol-button-secondary" type="button" data-review-logout>Esci</button>
         </div>
+
+        <section class="ol-panel ol-panel-body ol-team-panel" data-admin-team hidden>
+          <div class="ol-toolbar">
+            <div><div class="ol-eyebrow">Amministrazione</div><h2>Collaboratori e redazione</h2><p class="ol-muted">Invita nuove persone e gestisci ruoli e accessi senza usare il pannello tecnico del database.</p></div>
+            <button class="ol-button ol-button-secondary ol-button-small" type="button" data-admin-refresh>Aggiorna utenti</button>
+          </div>
+          <div class="ol-alert ol-alert-danger" role="alert" data-admin-error hidden></div>
+          <div class="ol-alert ol-alert-success" role="status" aria-live="polite" data-admin-success hidden></div>
+          <div class="ol-admin-grid">
+            <section class="ol-card">
+              <h3>Invita una persona</h3>
+              <form class="ol-form" data-admin-invite-form>
+                <div class="ol-field"><label for="invite-email">Email</label><input id="invite-email" name="email" type="email" maxlength="320" autocomplete="email" required></div>
+                <div class="ol-field"><label for="invite-name">Nome pubblico autore</label><input id="invite-name" name="display_name" type="text" maxlength="120" autocomplete="name" required></div>
+                <div class="ol-field"><label for="invite-slug">Slug autore</label><input id="invite-slug" name="author_slug" type="text" maxlength="120" spellcheck="false" required><small>Esempio: mario-rossi.</small></div>
+                <div class="ol-field"><label for="invite-role">Ruolo</label><select id="invite-role" name="role"><option value="contributor">Collaboratore</option><option value="editor">Editor</option></select></div>
+                <button class="ol-button ol-button-primary" type="submit">Crea invito</button>
+              </form>
+              <div class="ol-invite-result" data-admin-invite-result hidden>
+                <strong>Invito pronto</strong>
+                <p class="ol-muted">Il link è monouso e scade dopo 7 giorni. Invia questa email al destinatario.</p>
+                <div class="ol-field"><label for="invite-link">Link personale</label><input id="invite-link" data-admin-invite-link type="text" readonly></div>
+                <div class="ol-toolbar-group"><button class="ol-button ol-button-secondary ol-button-small" type="button" data-admin-copy-invite>Copia link</button><a class="ol-button ol-button-primary ol-button-small" data-admin-email-invite href="#">Apri email</a></div>
+              </div>
+            </section>
+            <section class="ol-card">
+              <h3>Persone abilitate</h3>
+              <div class="ol-team-list" data-admin-people aria-live="polite"><p class="ol-muted">Caricamento…</p></div>
+            </section>
+            <section class="ol-card">
+              <h3>Inviti recenti</h3>
+              <div class="ol-team-list" data-admin-invitations aria-live="polite"><p class="ol-muted">Caricamento…</p></div>
+            </section>
+          </div>
+        </section>
 
         <div class="ol-review-layout">
           <aside class="ol-sidebar ol-review-sidebar" aria-label="Coda editoriale">

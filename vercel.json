@@ -90,6 +90,42 @@
           "value": "noindex, nofollow, noarchive"
         }
       ]
+    },
+    {
+      "source": "/registrazione-editoriale",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive"
+        }
+      ]
+    },
+    {
+      "source": "/registrazione-editoriale.html",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive"
+        }
+      ]
+    },
+    {
+      "source": "/recupera-password",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive"
+        }
+      ]
+    },
+    {
+      "source": "/recupera-password.html",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive"
+        }
+      ]
     }
   ],
   "rewrites": [
@@ -100,6 +136,14 @@
     {
       "source": "/redazione",
       "destination": "/redazione.html"
+    },
+    {
+      "source": "/registrazione-editoriale",
+      "destination": "/registrazione-editoriale.html"
+    },
+    {
+      "source": "/recupera-password",
+      "destination": "/recupera-password.html"
     },
     {
       "source": "/api/pv-estimate",
