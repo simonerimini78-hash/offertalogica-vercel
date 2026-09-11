@@ -10,14 +10,15 @@
   <link rel="stylesheet" href="/assets/editorial.css">
 </head>
 <body data-editorial-view="workspace">
+<a class="ol-skip-link" href="#contenuto-principale">Vai al contenuto principale</a>
 <header class="ol-topbar">
   <div class="ol-shell ol-topbar-inner">
     <a class="ol-brand" href="/" aria-label="OffertaLogica"><img src="/assets/logo-offertalogica-header.png" alt="OffertaLogica.it"></a>
-    <nav class="ol-nav" aria-label="Area editoriale"><a href="/collaboratori.html" aria-current="page">I miei articoli</a><a href="/articoli.html">Archivio pubblico</a></nav>
+    <nav class="ol-nav" aria-label="Area editoriale"><a href="/collaboratori" aria-current="page">I miei articoli</a><a href="/articoli.html">Archivio pubblico</a></nav>
   </div>
 </header>
 
-<main>
+<main id="contenuto-principale">
   <section class="ol-hero">
     <div class="ol-shell">
       <div class="ol-eyebrow">Area collaboratori</div>
@@ -28,13 +29,13 @@
 
   <section class="ol-section">
     <div class="ol-shell">
-      <div class="ol-alert ol-alert-danger" data-config-error hidden></div>
+      <div class="ol-alert ol-alert-danger" role="alert" data-config-error hidden></div>
       <section class="ol-panel ol-panel-body ol-auth-panel" data-auth-panel>
         <div><h2>Accesso collaboratore</h2><p class="ol-muted">Usa l’account ricevuto tramite invito della redazione.</p></div>
         <form class="ol-form ol-login-form" data-login-form>
           <div class="ol-field"><label for="editorial-email">Email</label><input id="editorial-email" name="email" type="email" autocomplete="username" required></div>
           <div class="ol-field"><label for="editorial-password">Password</label><input id="editorial-password" name="password" type="password" autocomplete="current-password" required></div>
-          <div class="ol-alert ol-alert-danger" data-login-error hidden></div>
+          <div class="ol-alert ol-alert-danger" role="alert" data-login-error hidden></div>
           <button class="ol-button ol-button-primary" type="submit" data-login-button>Accedi</button>
         </form>
       </section>
@@ -59,16 +60,17 @@
             <input type="hidden" id="article-id" name="id">
             <input type="hidden" id="article-status" name="status" value="draft">
             <div><h2 data-form-title>Nuovo articolo</h2><p class="ol-muted" data-form-hint>Salva una bozza oppure inviala alla redazione quando è completa.</p></div>
-            <div class="ol-alert ol-alert-success" data-save-message hidden></div>
-            <div class="ol-alert ol-alert-danger" data-validation-message hidden></div>
+            <div class="ol-alert ol-alert-success" role="status" aria-live="polite" data-save-message hidden></div>
+            <div class="ol-alert ol-alert-danger" role="alert" aria-live="assertive" data-validation-message hidden></div>
 
             <div class="ol-field"><label for="article-title">Titolo</label><input id="article-title" name="title" type="text" maxlength="140" autocomplete="off" required><div class="ol-counter" data-count-for="article-title"></div></div>
             <div class="ol-field"><label for="article-slug">Slug</label><input id="article-slug" name="slug" type="text" maxlength="120" autocomplete="off" spellcheck="false" required><small>Generato dal titolo, poi modificabile fino all’invio in revisione.</small></div>
 
             <div class="ol-grid ol-grid-2">
               <div class="ol-field"><label for="article-category">Categoria</label><select id="article-category" name="category"><option value="">Seleziona</option><option value="bollette">Bollette</option><option value="offerte-luce-gas">Offerte luce e gas</option><option value="mercato-energia">Mercato energia</option><option value="risparmio">Risparmio</option><option value="casa-smart">Casa smart</option></select></div>
-              <div class="ol-field"><label for="article-image">Immagine principale</label><input id="article-image" name="featured_image_url" type="url" placeholder="https://…"><small>Per ora viene salvato un URL; upload gestito in una fase successiva.</small></div>
+              <div class="ol-field"><label for="article-image">Immagine principale</label><input id="article-image" name="featured_image_url" type="url" placeholder="https://…" aria-describedby="article-image-help"><small id="article-image-help">Per ora viene salvato un URL; upload gestito in una fase successiva.</small></div>
             </div>
+            <div class="ol-field"><label for="article-image-alt">Testo alternativo immagine</label><input id="article-image-alt" name="featured_image_alt" type="text" maxlength="180" autocomplete="off" aria-describedby="article-image-alt-help"><small id="article-image-alt-help">Descrivi ciò che è utile capire nell’immagine. Se inserisci un’immagine principale, questo campo è obbligatorio prima della revisione.</small><div class="ol-counter" data-count-for="article-image-alt"></div></div>
 
             <div class="ol-field"><label for="article-excerpt">Sommario</label><textarea id="article-excerpt" name="excerpt" maxlength="320" required></textarea><div class="ol-counter" data-count-for="article-excerpt"></div></div>
             <div class="ol-field"><label for="article-content">Contenuto</label><textarea id="article-content" class="ol-content" name="content" maxlength="40000" required></textarea><small>Testo semplice: niente HTML eseguibile.</small><div class="ol-counter" data-count-for="article-content"></div></div>

@@ -58,6 +58,10 @@
   ],
   "rewrites": [
     {
+      "source": "/collaboratori",
+      "destination": "/collaboratori.html"
+    },
+    {
       "source": "/api/pv-estimate",
       "destination": "/api/unlock-offers"
     }
