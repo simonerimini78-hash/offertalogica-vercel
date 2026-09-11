@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.2.0";
+  const VERSION = "0.2.1";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const STATUSES = new Set(["draft", "in_review", "changes_requested", "approved", "published", "archived"]);
   const STATUS_LABELS = {draft:"Bozza",in_review:"In revisione",changes_requested:"Modifiche richieste",approved:"Approvato",published:"Pubblicato",archived:"Archiviato"};
