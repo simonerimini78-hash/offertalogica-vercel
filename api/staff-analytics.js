@@ -94,6 +94,63 @@ function percentage(part, total) {
   return Math.round((part / total) * 1000) / 10;
 }
 
+function analyticsEventSequence(event = {}) {
+  const raw = event.sessionEventSeq ?? event.session_event_seq ?? event.payload?.session_event_seq ?? event.payload?.sessionEventSeq;
+  if (raw === null || raw === undefined || raw === "") return null;
+  const parsed = Number(raw);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+function analyticsEventClientTimestamp(event = {}) {
+  return String(event.clientTimestamp || event.client_timestamp || event.payload?.client_timestamp || event.payload?.clientTimestamp || "").trim();
+}
+
+function analyticsEventTime(value) {
+  if (!value) return null;
+  const parsed = new Date(value).getTime();
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function compareAnalyticsEventOrder(a = {}, b = {}) {
+  const aSeq = analyticsEventSequence(a);
+  const bSeq = analyticsEventSequence(b);
+  if (aSeq !== null && bSeq !== null && aSeq !== bSeq) return aSeq - bSeq;
+
+  const aClient = analyticsEventTime(analyticsEventClientTimestamp(a));
+  const bClient = analyticsEventTime(analyticsEventClientTimestamp(b));
+  if (aClient !== null && bClient !== null && aClient !== bClient) return aClient - bClient;
+
+  const aServer = analyticsEventTime(a.createdAt || a.created_at);
+  const bServer = analyticsEventTime(b.createdAt || b.created_at);
+  if (aServer !== null && bServer !== null && aServer !== bServer) return aServer - bServer;
+  if (aServer !== null && bServer === null) return -1;
+  if (aServer === null && bServer !== null) return 1;
+
+  const aId = Number(a.id);
+  const bId = Number(b.id);
+  if (Number.isFinite(aId) && Number.isFinite(bId) && aId !== bId) return aId - bId;
+  return String(a.id || "").localeCompare(String(b.id || ""));
+}
+
+function pdfDiagnosticReason({ status = "", codes = [], missingFieldCount = 0, mixedDocuments = false, mergeBlocked = false } = {}) {
+  const normalizedStatus = String(status || "").trim().toLowerCase();
+  const list = [...new Set((Array.isArray(codes) ? codes : String(codes || "").split(/[|,]/))
+    .map((code) => String(code || "").trim().toUpperCase())
+    .filter(Boolean))];
+  const signature = list.join(" ");
+  if (mixedDocuments || mergeBlocked) return "Documenti incompatibili o misti";
+  if (normalizedStatus === "unrecognized") return "Documento non riconosciuto";
+  if (normalizedStatus === "success_missing_data" || Number(missingFieldCount || 0) > 0) return "Dati insufficienti o da confermare";
+  if (/NETWORK|FETCH|UPLOAD|DIRECT_UPLOAD|UPLOAD_/.test(signature)) return "Errore di rete o caricamento";
+  if (/TIMEOUT|DEADLINE|INSUFFICIENT_TIME_BUDGET/.test(signature)) return "Timeout analisi";
+  if (/PDF_INVALID|PDF_PROTECTED|PDF_TOO_LARGE|FILE_MISSING/.test(signature)) return "PDF non valido o non leggibile";
+  if (/UNRECOGNIZED|NOT_RECOGNIZED/.test(signature)) return "Documento non riconosciuto";
+  if (/INVALID_RESULT|INVALID_OUTPUT|EMPTY_OUTPUT|JSON_PARSE|INCOMPLETE|REFUSAL|RESPONSE_INVALID/.test(signature)) return "Risposta analisi non utilizzabile";
+  if (normalizedStatus === "interrupted") return "Analisi interrotta o abbandonata";
+  if (normalizedStatus === "failed" || list.length) return list.length ? `Errore interno/altro · ${list.join(", ")}` : "Errore tecnico (evento storico senza codice)";
+  return "";
+}
+
 function landingSignalEvent(row = {}) {
   const payload = row?.payload && typeof row.payload === "object" ? row.payload : {};
   return {
@@ -308,6 +365,8 @@ function switchoEventFromRow(row = {}) {
     trafficLandingPage: String(payload.trafficLandingPage || ""),
     trafficClickIdType: String(payload.trafficClickIdType || ""),
     trafficClickId: String(payload.trafficClickId || ""),
+    clientTimestamp: String(payload.client_timestamp || payload.clientTimestamp || ""),
+    sessionEventSeq: analyticsEventSequence({ payload }),
     switchoSource: String(payload.source || ""),
     offerId: String(payload.offerId || ""),
     offerName: String(payload.offerName || ""),
@@ -331,7 +390,7 @@ function switchoSessionsFromEvents(events = []) {
   });
 
   const rows = [...groups.values()].map((group) => {
-    const ordered = [...group].sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime());
+    const ordered = [...group].sort(compareAnalyticsEventOrder);
     const choice = ordered.find((event) => event.eventType === "offer_switcho_redirect");
     const redirect = ordered.find((event) => event.eventType === "offer_redirect");
     const landing = ordered.find((event) => event.eventType === "switcho_landing_opened");
@@ -528,11 +587,7 @@ function comparisonEventDataOrigin(event = {}) {
 }
 
 function comparisonPathSignals(events = []) {
-  const ordered = [...(Array.isArray(events) ? events : [])].sort((a, b) => {
-    const left = new Date(a.createdAt || a.created_at || 0).getTime();
-    const right = new Date(b.createdAt || b.created_at || 0).getTime();
-    return left - right;
-  });
+  const ordered = [...(Array.isArray(events) ? events : [])].sort(compareAnalyticsEventOrder);
   const sequence = [];
   let explicitCount = 0;
   let inferredCount = 0;
@@ -701,7 +756,7 @@ function sessionFunnelFromGroups(groups = []) {
 }
 
 function sourceForSessionGroup(group = []) {
-  const ordered = [...group].sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime());
+  const ordered = [...group].sort(compareAnalyticsEventOrder);
   const landing = ordered.find((event) => event.eventType === LANDING_PATH_EVENTS.view);
   const rawSource = landing?.trafficSource
     || landing?.source
@@ -911,6 +966,8 @@ function analyticsEventExportRows(rows = []) {
       lead_id: row.lead_id || "",
       event_type: row.event_type || "",
       created_at: row.created_at || "",
+      client_timestamp: p.client_timestamp || p.clientTimestamp || "",
+      session_event_seq: p.session_event_seq ?? p.sessionEventSeq ?? "",
       session_id: p.sessionId || "",
       page: p.page || "",
       customer_type: p.customerType || "",
@@ -1035,6 +1092,8 @@ function analyticsSessionExportRows(rawRows = []) {
       leadId: row.lead_id || "",
       eventType: String(row.event_type || ""),
       createdAt: row.created_at || "",
+      clientTimestamp: p.client_timestamp || p.clientTimestamp || "",
+      sessionEventSeq: analyticsEventSequence({ payload: p }),
       payload: p,
       dataOrigin: String(p.dataOrigin || ""),
       trafficAgent: String(p.trafficAgent || ""),
@@ -1045,7 +1104,7 @@ function analyticsSessionExportRows(rawRows = []) {
   const numberValue = (value) => Number.isFinite(Number(value)) ? Number(value) : null;
 
   return [...groups.values()].map((group) => {
-    const ordered = [...group].sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime());
+    const ordered = [...group].sort(compareAnalyticsEventOrder);
     const first = ordered[0] || {};
     const last = ordered[ordered.length - 1] || first;
     const landing = ordered.find((event) => event.eventType === "landing_view") || first;
@@ -1081,19 +1140,20 @@ function analyticsSessionExportRows(rawRows = []) {
     const missingFieldCount = numberValue(latestPdfPayload.missingFieldCount);
     const rawPdfOutcome = String(latestPdfPayload.analysisStatus || "").trim().toLowerCase();
     let pdfOutcome = ({
-      success: "riuscita",
-      success_missing_data: "riuscita con dati mancanti",
-      partial: "parziale",
-      failed: "fallita",
+      success: "successo completo",
+      success_missing_data: "successo con dati mancanti / da confermare",
+      partial: "analisi parziale",
+      failed: "errore tecnico",
       unrecognized: "documento non riconosciuto",
-      interrupted: "interrotta",
+      interrupted: "analisi interrotta / abbandonata",
       unknown: "esito non determinato",
     })[rawPdfOutcome] || rawPdfOutcome;
     if (!pdfOutcome && pdfInterruptedEvent) pdfOutcome = "interrotta";
     if (!pdfOutcome && pdfCompletedEvent) {
-      if ((successCount || 0) > 0 && ((unrecognizedCount || 0) > 0 || (errorCount || 0) > 0 || (missingFieldCount || 0) > 0)) pdfOutcome = "parziale";
-      else if ((successCount || 0) > 0) pdfOutcome = "riuscita";
-      else if ((unrecognizedCount || 0) > 0 || (errorCount || 0) > 0) pdfOutcome = "fallita";
+      if ((successCount || 0) > 0 && ((unrecognizedCount || 0) > 0 || (errorCount || 0) > 0 || (missingFieldCount || 0) > 0)) pdfOutcome = "analisi parziale";
+      else if ((successCount || 0) > 0) pdfOutcome = "successo completo";
+      else if ((errorCount || 0) > 0) pdfOutcome = "errore tecnico";
+      else if ((unrecognizedCount || 0) > 0) pdfOutcome = "documento non riconosciuto";
       else pdfOutcome = "completata (storico senza dettaglio esito)";
     }
     if (!pdfOutcome && eventTypes.has("pdf_analysis_started")) pdfOutcome = "avviata, esito non registrato";
@@ -1104,6 +1164,13 @@ function analyticsSessionExportRows(rawRows = []) {
     const analysisStages = uniqueList(pdfPayloads.map((payload) => [payload.analysisStage, ...(Array.isArray(payload.analysisStages) ? payload.analysisStages : [])]));
     const documentKinds = uniqueList(pdfPayloads.map((payload) => payload.documentKinds));
     const commodities = uniqueList(pdfPayloads.map((payload) => payload.commodities));
+    const pdfReason = pdfDiagnosticReason({
+      status: rawPdfOutcome,
+      codes: diagnosticCodes,
+      missingFieldCount: latestPdfPayload.missingFieldCount ?? missingFields.length,
+      mixedDocuments: Boolean(latestPdfPayload.mixedDocuments),
+      mergeBlocked: Boolean(latestPdfPayload.mergeBlocked),
+    });
 
     const switcho = ["offer_switcho_redirect", "switcho_landing_opened", "business_switcho_requested", "assistance_switcho_redirect"]
       .some((type) => eventTypes.has(type));
@@ -1133,9 +1200,14 @@ function analyticsSessionExportRows(rawRows = []) {
     else if (offerAction) finalOutcome = "Azione su offerta";
     else if (offersViewed) { finalOutcome = "Offerte visualizzate"; abandonmentStage = "offerte"; }
     else if (hasRealComparison) { finalOutcome = "Confronto completato"; abandonmentStage = "dopo confronto"; }
-    else if (eventTypes.has("pdf_analysis_interrupted")) { finalOutcome = "PDF interrotto"; abandonmentStage = "analisi PDF"; }
-    else if (eventTypes.has("pdf_analysis_started") && !eventTypes.has("pdf_analysis_completed")) { finalOutcome = "PDF avviato senza completamento"; abandonmentStage = "analisi PDF"; }
-    else if (hasPdfSignal) { finalOutcome = "Percorso PDF senza analisi completata"; abandonmentStage = "caricamento PDF"; }
+    else if (eventTypes.has("pdf_analysis_interrupted")) { finalOutcome = "PDF: analisi interrotta / abbandonata"; abandonmentStage = "analisi PDF"; }
+    else if (pdfCompletedEvent && rawPdfOutcome === "failed") { finalOutcome = "PDF: errore tecnico"; abandonmentStage = "analisi PDF"; }
+    else if (pdfCompletedEvent && rawPdfOutcome === "unrecognized") { finalOutcome = "PDF: documento non riconosciuto"; abandonmentStage = "analisi PDF"; }
+    else if (pdfCompletedEvent && rawPdfOutcome === "success_missing_data") { finalOutcome = "PDF: dati mancanti / da confermare"; abandonmentStage = "conferma dati PDF"; }
+    else if (pdfCompletedEvent && rawPdfOutcome === "partial") { finalOutcome = "PDF: analisi parziale"; abandonmentStage = "verifica dati PDF"; }
+    else if (pdfCompletedEvent) { finalOutcome = `PDF: ${pdfOutcome || "analisi completata"}`; abandonmentStage = "dopo analisi PDF"; }
+    else if (eventTypes.has("pdf_analysis_started")) { finalOutcome = "PDF avviato senza completamento"; abandonmentStage = "analisi PDF"; }
+    else if (hasPdfSignal) { finalOutcome = "Percorso PDF senza analisi avviata"; abandonmentStage = "caricamento PDF"; }
     else if (eventTypes.has("comparison_started")) { finalOutcome = "Confronto avviato"; abandonmentStage = "confronto"; }
     else if (hasSelf || hasAssisted) { finalOutcome = "Percorso scelto"; abandonmentStage = hasAssisted ? "passaggio guidato" : "scelta modalità confronto"; }
     else if (eventTypes.has("landing_view")) { finalOutcome = "Solo landing"; abandonmentStage = "landing"; }
@@ -1196,6 +1268,7 @@ function analyticsSessionExportRows(rawRows = []) {
       pdf_missing_fields: missingFields.join(" | "),
       pdf_missing_field_count: latestPdfPayload.missingFieldCount ?? (missingFields.length || ""),
       pdf_review_field_count: latestPdfPayload.reviewFieldCount ?? previewOpened.ocrReviewCount ?? "",
+      pdf_diagnostic_reason: pdfReason,
       pdf_diagnostic_codes: diagnosticCodes.join(" | "),
       pdf_analysis_stages: analysisStages.join(" | "),
       pdf_document_kinds: documentKinds.join(" | "),
@@ -1445,7 +1518,7 @@ export default async function handler(req, res) {
           "intento", "intento_base", "scelta_percorso", "percorso_confronto", "percorso_sequenza", "percorso_base", "profilo_medio_scelto", "manuale_scelto", "confronto_avviato", "confronto_reale", "offerte_visualizzate", "numero_offerte",
           "pdf_scelto", "pdf_scelto_registrato", "pdf_picker_aperto", "pdf_file_selezionato", "pdf_file_selezionati", "pdf_file_accettati", "pdf_duplicati",
           "pdf_analisi_avviata", "pdf_analisi_completata", "pdf_analisi_interrotta", "pdf_esito", "pdf_file_count", "pdf_success_count", "pdf_unrecognized_count", "pdf_error_count",
-          "pdf_missing_fields", "pdf_missing_field_count", "pdf_review_field_count", "pdf_diagnostic_codes", "pdf_analysis_stages", "pdf_document_kinds", "pdf_commodities", "pdf_mixed_documents", "pdf_merge_blocked",
+          "pdf_missing_fields", "pdf_missing_field_count", "pdf_review_field_count", "pdf_diagnostic_reason", "pdf_diagnostic_codes", "pdf_analysis_stages", "pdf_document_kinds", "pdf_commodities", "pdf_mixed_documents", "pdf_merge_blocked",
           "pdf_dati_confermati", "pdf_autofill_aperto", "pdf_autofill_confermato", "pdf_campi_autofill", "pdf_campi_selezionati", "pdf_campi_saltati",
           "lead_id", "lead_creato", "popup_lead", "otp_richiesto", "otp_inviato", "otp_verificato", "offerta_sbloccata", "azione_offerta", "switcho", "switcho_source", "partner",
           "provider", "offerta", "ranking_economico", "ranking_visuale", "costo_annuo", "risparmio_annuo", "tempo_attivo_secondi", "tempo_landing_secondi", "tempo_calcolatore_secondi", "tempo_offerte_secondi",
@@ -1459,7 +1532,7 @@ export default async function handler(req, res) {
       }
       const eventRows = analyticsEventExportRows(rows);
       const headers = [
-        "id", "lead_id", "event_type", "created_at", "session_id", "page", "customer_type", "data_origin", "source", "lead_source",
+        "id", "lead_id", "event_type", "created_at", "client_timestamp", "session_event_seq", "session_id", "page", "customer_type", "data_origin", "source", "lead_source",
         "traffic_source", "traffic_medium", "traffic_campaign", "traffic_term", "traffic_content", "traffic_campaign_id", "traffic_adgroup_id",
         "traffic_creative_id", "traffic_match_type", "traffic_device", "traffic_network", "traffic_referrer", "traffic_landing_page",
         "traffic_click_id_type", "traffic_click_id", "traffic_agent", "traffic_reason", "event_integrity", "verified", "staff_mode", "path_choice", "trigger", "best_saving",

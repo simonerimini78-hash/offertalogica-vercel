@@ -892,6 +892,79 @@
     });
   }
 
+
+  function analyticsEventSequence(event = {}) {
+    const raw = event.sessionEventSeq ?? event.session_event_seq;
+    if (raw === null || raw === undefined || raw === "") return null;
+    const parsed = Number(raw);
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+  }
+
+  function analyticsEventTime(value) {
+    if (!value) return null;
+    const parsed = new Date(value).getTime();
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  function compareAnalyticsEventOrder(a = {}, b = {}) {
+    const aSeq = analyticsEventSequence(a);
+    const bSeq = analyticsEventSequence(b);
+    if (aSeq !== null && bSeq !== null && aSeq !== bSeq) return aSeq - bSeq;
+    const aClient = analyticsEventTime(a.clientTimestamp || a.client_timestamp);
+    const bClient = analyticsEventTime(b.clientTimestamp || b.client_timestamp);
+    if (aClient !== null && bClient !== null && aClient !== bClient) return aClient - bClient;
+    const aServer = analyticsEventTime(a.createdAt);
+    const bServer = analyticsEventTime(b.createdAt);
+    if (aServer !== null && bServer !== null && aServer !== bServer) return aServer - bServer;
+    const aId = Number(a.id);
+    const bId = Number(b.id);
+    if (Number.isFinite(aId) && Number.isFinite(bId) && aId !== bId) return aId - bId;
+    return String(a.id || "").localeCompare(String(b.id || ""));
+  }
+
+  function pdfStatusLabel(status = "") {
+    return ({
+      success: "Successo completo",
+      success_missing_data: "Successo con dati mancanti / da confermare",
+      partial: "Analisi parziale",
+      failed: "Errore tecnico",
+      unrecognized: "Documento non riconosciuto",
+      interrupted: "Analisi interrotta / abbandonata",
+      unknown: "Esito non determinato",
+    })[String(status || "").trim().toLowerCase()] || String(status || "").replaceAll("_", " ") || "Esito non determinato";
+  }
+
+  function pdfDiagnosticReason({ status = "", codes = [], missingFieldCount = 0, mixedDocuments = false, mergeBlocked = false } = {}) {
+    const normalizedStatus = String(status || "").trim().toLowerCase();
+    const sourceCodes = Array.isArray(codes) ? codes : String(codes || "").split(/[|,]/);
+    const list = [...new Set(sourceCodes.map(code => String(code || "").trim().toUpperCase()).filter(Boolean))];
+    const signature = list.join(" ");
+    if (mixedDocuments || mergeBlocked) return "Documenti incompatibili o misti";
+    if (normalizedStatus === "unrecognized") return "Documento non riconosciuto";
+    if (normalizedStatus === "success_missing_data" || Number(missingFieldCount || 0) > 0) return "Dati insufficienti o da confermare";
+    if (/TIMEOUT|DEADLINE|INSUFFICIENT_TIME_BUDGET/.test(signature)) return "Timeout analisi";
+    if (/NETWORK|FETCH|UPLOAD|DIRECT_UPLOAD|UPLOAD_/.test(signature)) return "Errore di rete o caricamento";
+    if (/PDF_INVALID|PDF_PROTECTED|PDF_TOO_LARGE|FILE_MISSING/.test(signature)) return "PDF non valido o non leggibile";
+    if (/UNRECOGNIZED|NOT_RECOGNIZED/.test(signature)) return "Documento non riconosciuto";
+    if (/INVALID_RESULT|INVALID_OUTPUT|EMPTY_OUTPUT|JSON_PARSE|INCOMPLETE|REFUSAL|RESPONSE_INVALID/.test(signature)) return "Risposta analisi non utilizzabile";
+    if (normalizedStatus === "interrupted") return "Analisi interrotta o abbandonata";
+    if (normalizedStatus === "failed" || list.length) return list.length ? "Errore interno / altro" : "Errore tecnico (evento storico senza codice)";
+    return "";
+  }
+
+  function pdfEventDiagnosticReason(event = {}) {
+    const codes = Array.isArray(event.diagnosticCodes) && event.diagnosticCodes.length
+      ? event.diagnosticCodes
+      : event.diagnosticCode ? [event.diagnosticCode] : [];
+    return pdfDiagnosticReason({
+      status: event.analysisStatus,
+      codes,
+      missingFieldCount: event.missingFieldCount,
+      mixedDocuments: event.mixedDocuments,
+      mergeBlocked: event.mergeBlocked,
+    });
+  }
+
   function analyticsEventValueText(event = {}) {
     if (String(event.eventType || "") === "session_engagement") {
       return [
@@ -910,7 +983,8 @@
       event.annualCost != null && Math.abs(Number(event.annualCost)) > 0 ? `costo ${formatMoney(event.annualCost)}` : "",
       event.visibleOffersCount != null && Number(event.visibleOffersCount) > 0 ? `${event.visibleOffersCount} offerte` : "",
       event.fileCount != null && Number(event.fileCount) > 0 ? `${event.fileCount} file` : "",
-      event.analysisStatus ? `esito ${event.analysisStatus}` : "",
+      event.analysisStatus ? `esito ${pdfStatusLabel(event.analysisStatus)}` : "",
+      pdfEventDiagnosticReason(event) ? `motivo ${pdfEventDiagnosticReason(event)}` : "",
       event.successCount != null ? `${event.successCount} riusciti` : "",
       event.unrecognizedCount != null ? `${event.unrecognizedCount} non riconosciuti` : "",
       event.errorCount != null ? `${event.errorCount} errori` : "",
@@ -985,6 +1059,13 @@
     if (hasAny(SESSION_COMMERCIAL_EVENTS)) return { label: "Passaggio verso partner / Switcho avviato", tone: "ok" };
     if (hasAny(SESSION_OFFER_ACTION_EVENTS)) return { label: "Offerta selezionata, passaggio esterno non completato", tone: "warn" };
     if (has("offers_rendered")) return { label: "Offerte raggiunte, nessun clic commerciale", tone: "warn" };
+    const latestPdfEvent = [...rows].reverse().find(item => ["pdf_analysis_completed", "pdf_analysis_interrupted"].includes(String(item.eventType || "")));
+    const pdfStatus = String(latestPdfEvent?.analysisStatus || (latestPdfEvent?.eventType === "pdf_analysis_interrupted" ? "interrupted" : "")).toLowerCase();
+    if (pdfStatus === "failed") return { label: "PDF: errore tecnico", tone: "warn" };
+    if (pdfStatus === "unrecognized") return { label: "PDF: documento non riconosciuto", tone: "warn" };
+    if (pdfStatus === "interrupted") return { label: "PDF: analisi interrotta / abbandonata", tone: "warn" };
+    if (pdfStatus === "success_missing_data") return { label: "PDF: dati mancanti / da confermare", tone: "warn" };
+    if (pdfStatus === "partial") return { label: "PDF: analisi parziale", tone: "warn" };
     if (has("comparison_started") || has("comparison_completed")) return { label: "Confronto avviato, offerte non raggiunte", tone: "warn" };
     if (has("landing_self_service_click") || has("landing_assisted_click")) return { label: "Percorso scelto, nessun avanzamento successivo", tone: "warn" };
     if (has("calculator_view")) return { label: "Calcolatore aperto, confronto non avviato", tone: "warn" };
@@ -1035,8 +1116,10 @@
       pdf_picker_opened: "Ha aperto il selettore della bolletta",
       pdf_file_selected: `Ha selezionato ${Number(item.acceptedCount || item.selectedCount || 0) || "un"} file PDF`,
       pdf_analysis_started: "Ha avviato la lettura della bolletta",
-      pdf_analysis_completed: item.analysisStatus ? `Lettura bolletta: ${item.analysisStatus}` : "Lettura della bolletta completata",
-      pdf_analysis_interrupted: `Lettura bolletta interrotta${item.diagnosticCode ? ` · ${item.diagnosticCode}` : ""}`,
+      pdf_analysis_completed: item.analysisStatus
+        ? `Lettura bolletta: ${pdfStatusLabel(item.analysisStatus)}${pdfEventDiagnosticReason(item) ? ` · ${pdfEventDiagnosticReason(item)}` : ""}`
+        : "Lettura della bolletta completata",
+      pdf_analysis_interrupted: `Lettura bolletta interrotta${pdfEventDiagnosticReason(item) ? ` · ${pdfEventDiagnosticReason(item)}` : ""}`,
       lead_modal_opened: "Ha aperto la verifica del numero",
       otp_request_started: "Ha richiesto l’invio dell’SMS",
       otp_sent: "SMS inviato",
@@ -1104,14 +1187,14 @@
     let rows = cache.analytics
       .filter(item => String(item.sessionId || "") === sessionId)
       .slice()
-      .sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime());
+      .sort(compareAnalyticsEventOrder);
     try {
       setMessage("info", "Caricamento storico completo della sessione…");
       const payload = await staffFetch(`/api/staff-analytics?sessionId=${encodeURIComponent(sessionId)}&limit=5000`);
       const completeRows = (Array.isArray(payload.events) ? payload.events : [])
         .filter(item => String(item.sessionId || "") === sessionId)
         .slice()
-        .sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime());
+        .sort(compareAnalyticsEventOrder);
       if (completeRows.length) {
         rows = completeRows;
         setMessage("success", `Sessione completa caricata: ${rows.length} eventi.`);
@@ -1175,6 +1258,15 @@
       node("div", {}, [node("span", { text: "Prima azione" }), node("strong", { text: firstAction ? staffEventLabel(firstAction) : "Nessuna" })]),
       node("div", {}, [node("span", { text: "Offerte" }), node("strong", { text: offersCount != null ? `${offersCount} visualizzate` : "Non raggiunte" })])
     );
+    const latestPdfEvent = [...rows].reverse().find(item => ["pdf_analysis_completed", "pdf_analysis_interrupted"].includes(String(item.eventType || "")));
+    if (latestPdfEvent) {
+      const pdfReason = pdfEventDiagnosticReason(latestPdfEvent);
+      sessionFacts.push(node("div", {}, [
+        node("span", { text: "Esito PDF" }),
+        node("strong", { text: pdfStatusLabel(latestPdfEvent.analysisStatus || (latestPdfEvent.eventType === "pdf_analysis_interrupted" ? "interrupted" : "unknown")) }),
+        node("small", { text: pdfReason || "Nessun motivo aggiuntivo registrato" })
+      ]));
+    }
 
     clear(summary);
     summary.append(
@@ -1203,10 +1295,14 @@
     } else {
       mainRows.forEach(item => {
         const isAutomatic = String(item.eventType || "").startsWith("assistance_prompt_");
+        const displayTimestamp = item.clientTimestamp || item.createdAt;
+        const orderNote = item.sessionEventSeq != null
+          ? `Sequenza client #${item.sessionEventSeq}${item.clientTimestamp ? ` · client ${formatDate(item.clientTimestamp)}` : ""}`
+          : item.clientTimestamp ? `Timestamp client ${formatDate(item.clientTimestamp)}` : "Ordine storico ricostruito dal timestamp server";
         list.append(node("div", { className: "analytics-session-event readable" }, [
-          node("time", { text: formatDate(item.createdAt) }),
+          node("time", { text: formatDate(displayTimestamp) }),
           node("div", {}, [badge(staffEventLabel(item), isAutomatic ? "warn" : "info")]),
-          node("div", {}, [node("strong", { text: analyticsSessionEventDescription(item) }), node("small", { text: isAutomatic ? "Evento automatico: non conta come azione dell’utente" : "" })])
+          node("div", {}, [node("strong", { text: analyticsSessionEventDescription(item) }), node("small", { text: [isAutomatic ? "Evento automatico: non conta come azione dell’utente" : "", orderNote].filter(Boolean).join(" · ") })])
         ]));
       });
     }
@@ -1216,9 +1312,11 @@
       const origin = [item.dataOrigin ? staffDataOriginLabel(item) : "", item.page].filter(Boolean).join(" · ") || "—";
       const offer = [item.provider, item.offerName].filter(Boolean).join(" · ");
       const detail = [origin, offer, analyticsEventValueText(item) !== "—" ? analyticsEventValueText(item) : ""].filter(Boolean).join(" · ") || "—";
+      const sequenceLabel = item.sessionEventSeq != null ? ` · seq ${item.sessionEventSeq}` : "";
+      const clientLabel = item.clientTimestamp ? ` · client ${formatDate(item.clientTimestamp)}` : "";
       technicalList.append(node("div", { className: "analytics-session-event technical" }, [
         node("time", { text: formatDate(item.createdAt) }),
-        node("div", {}, [badge(staffEventLabel(item), "info"), node("small", { text: `#${item.id}` })]),
+        node("div", {}, [badge(staffEventLabel(item), "info"), node("small", { text: `#${item.id}${sequenceLabel}${clientLabel}` })]),
         node("div", {}, [node("strong", { text: staffEngagementReasonLabel(item.engagementReason) || item.reason || "Dettaglio tecnico" }), node("small", { text: detail })])
       ]));
     });
@@ -1364,7 +1462,14 @@
         row.pdf_analisi_completata ? "completata ✓" : row.pdf_analisi_interrotta ? "interrotta" : "",
         row.pdf_dati_confermati ? "dati confermati ✓" : "",
       ].filter(Boolean).join(" · ") || "PDF inferito dallo storico";
-      const diagnostics = [row.pdf_missing_fields ? `Mancanti: ${row.pdf_missing_fields}` : "", row.pdf_diagnostic_codes ? `Codici: ${row.pdf_diagnostic_codes}` : "", row.pdf_analysis_stages ? `Fase: ${row.pdf_analysis_stages}` : ""].filter(Boolean).join(" · ") || "Nessuna diagnostica registrata";
+      const readableReason = row.pdf_diagnostic_reason || pdfDiagnosticReason({
+        status: String(row.pdf_esito || "").includes("non riconosciuto") ? "unrecognized" : String(row.pdf_esito || "").includes("interrott") ? "interrupted" : "",
+        codes: row.pdf_diagnostic_codes,
+        missingFieldCount: row.pdf_missing_field_count,
+        mixedDocuments: row.pdf_mixed_documents,
+        mergeBlocked: row.pdf_merge_blocked,
+      });
+      const diagnostics = [readableReason ? `Motivo: ${readableReason}` : "", row.pdf_missing_fields ? `Mancanti: ${row.pdf_missing_fields}` : "", row.pdf_diagnostic_codes ? `Codici: ${row.pdf_diagnostic_codes}` : "", row.pdf_analysis_stages ? `Fase: ${row.pdf_analysis_stages}` : ""].filter(Boolean).join(" · ") || "Nessuna diagnostica registrata";
       const afterPdf = row.switcho ? "Switcho" : row.azione_offerta ? "Azione offerta" : row.offerte_visualizzate ? "Offerte viste" : row.confronto_reale ? "Confronto completato" : row.abbandono_fase || "—";
       body.append(node("tr", {}, [
         node("td", {}, [node("strong", { text: formatDate(row.first_at) }), node("small", { text: row.device || "" })]),
