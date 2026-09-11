@@ -4714,6 +4714,23 @@ function registraVistaInizialeAnalytics() {
   });
 }
 
+const ANALYTICS_EVENT_SEQUENCE_STORAGE_KEY = "offertalogica.analytics.session_event_seq.v1";
+let ANALYTICS_EVENT_SEQUENCE_MEMORY = 0;
+
+function analyticsNextSessionEventSeq() {
+  let stored = 0;
+  try {
+    const parsed = Number.parseInt(sessionStorage.getItem(ANALYTICS_EVENT_SEQUENCE_STORAGE_KEY) || "0", 10);
+    stored = Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+  } catch {}
+  const next = Math.max(ANALYTICS_EVENT_SEQUENCE_MEMORY, stored) + 1;
+  ANALYTICS_EVENT_SEQUENCE_MEMORY = next;
+  try {
+    sessionStorage.setItem(ANALYTICS_EVENT_SEQUENCE_STORAGE_KEY, String(next));
+  } catch {}
+  return next;
+}
+
 function trackEvent(eventType, payload = {}) {
   if (!trackingApiDisponibile()) return;
   if (staffTrackingEscluso()) return;
@@ -4726,6 +4743,8 @@ function trackEvent(eventType, payload = {}) {
   const hasDataOriginOverride = Object.prototype.hasOwnProperty.call(payload || {}, "dataOrigin");
   const resolvedDataOrigin = hasDataOriginOverride ? String(payload.dataOrigin || "") : determinaOrigineDatoLead();
   const engagement = analyticsEngagementPrepareEvent(String(eventType || ""));
+  const clientTimestamp = new Date().toISOString();
+  const sessionEventSeq = analyticsNextSessionEventSeq();
   const body = JSON.stringify({
     eventType,
     sessionId: analyticsSessionId(),
@@ -4745,6 +4764,8 @@ function trackEvent(eventType, payload = {}) {
       pdfDocumentCount: (LEAD_STATE.pdfDocuments || []).length,
       ...engagement.snapshot,
       ...payload,
+      client_timestamp: clientTimestamp,
+      session_event_seq: sessionEventSeq,
       trafficSource: attribution.trafficSource,
       trafficMedium: attribution.trafficMedium,
       trafficCampaign: attribution.trafficCampaign,
@@ -11475,65 +11496,100 @@ function pdfFileSizeLabel(size) {
 
 var PDF_DIRECT_UPLOAD_THRESHOLD_BYTES = 4_000_000;
 
-function pdfAnalysisError(payload, fallback = "Errore analisi PDF") {
+function pdfAnalysisError(payload, fallback = "Errore analisi PDF", fallbackStage = "server_response") {
   const error = new Error(payload?.error || fallback);
   error.code = payload?.code || "PDF_ANALYSIS_ERROR";
-  error.diagnostic_code = payload?.diagnostic_code || null;
-  error.analysis_stage = payload?.analysis_stage || null;
+  error.diagnostic_code = payload?.diagnostic_code || error.code || "PDF_ANALYSIS_ERROR";
+  error.analysis_stage = payload?.analysis_stage || fallbackStage || "server_response";
   error.ingress_mode = payload?.ingress_mode || null;
   error.elapsed_ms = Number(payload?.elapsed_ms || 0) || null;
   return error;
 }
 
-async function pdfJsonResponse(response) {
+function pdfEnsureDiagnosticError(value, fallbackStage = "client_request") {
+  const error = value instanceof Error ? value : new Error(String(value || "Errore analisi PDF"));
+  if (!error.diagnostic_code) {
+    const signature = `${error.name || ""} ${error.code || ""} ${error.message || ""}`.toLowerCase();
+    if (/abort|timeout|deadline/.test(signature)) error.diagnostic_code = "PDF_CLIENT_TIMEOUT";
+    else if (/failed to fetch|network|load failed|networkerror|fetch failed/.test(signature)) error.diagnostic_code = "PDF_NETWORK_ERROR";
+    else if (/caricamento protetto/.test(signature)) error.diagnostic_code = "PDF_UPLOAD_FAILED";
+    else if (/api_non_disponibile|response|json|unexpected token/.test(signature)) error.diagnostic_code = "PDF_RESPONSE_INVALID";
+    else if (/pdf mancante|formato non accettato/.test(signature)) error.diagnostic_code = "PDF_FILE_MISSING";
+    else error.diagnostic_code = error.code && error.code !== "Error" ? String(error.code) : "PDF_CLIENT_ERROR";
+  }
+  if (!error.analysis_stage) error.analysis_stage = fallbackStage || "client_request";
+  return error;
+}
+
+async function pdfJsonResponse(response, fallbackStage = "server_response") {
   const contentType = response?.headers?.get?.("content-type") || "";
-  if (!contentType.includes("application/json")) throw new Error("api_non_disponibile");
-  const payload = await response.json();
-  if (!response.ok || !payload?.ok) throw pdfAnalysisError(payload);
+  if (!contentType.includes("application/json")) {
+    throw pdfEnsureDiagnosticError(new Error("api_non_disponibile"), fallbackStage);
+  }
+  let payload;
+  try {
+    payload = await response.json();
+  } catch (error) {
+    throw pdfEnsureDiagnosticError(error, fallbackStage);
+  }
+  if (!response.ok || !payload?.ok) throw pdfAnalysisError(payload, "Errore analisi PDF", fallbackStage);
   return payload;
 }
 
 async function analizzaPdfSelezionato(file, archiveContext = {}) {
-  if (!file) throw new Error("PDF mancante o formato non accettato");
+  if (!file) throw pdfEnsureDiagnosticError(new Error("PDF mancante o formato non accettato"), "client_file_validation");
   const context = archiveContext && typeof archiveContext === "object" ? archiveContext : {};
+  let clientStage = "client_prepare";
 
-  if (Number(file.size || 0) >= PDF_DIRECT_UPLOAD_THRESHOLD_BYTES) {
-    const createResponse = await fetch("/api/analyze-pdf", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "create_upload",
-        filename: file.name || "documento.pdf",
-        mimeType: file.type || "application/pdf",
-        fileSize: Number(file.size || 0),
-      }),
-    });
-    const created = await pdfJsonResponse(createResponse);
-    const upload = created.upload || {};
-    if (!upload.uploadUrl || !upload.uploadTicket) throw new Error("Caricamento protetto del PDF non riuscito");
+  try {
+    if (Number(file.size || 0) >= PDF_DIRECT_UPLOAD_THRESHOLD_BYTES) {
+      clientStage = "create_signed_upload";
+      const createResponse = await fetch("/api/analyze-pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "create_upload",
+          filename: file.name || "documento.pdf",
+          mimeType: file.type || "application/pdf",
+          fileSize: Number(file.size || 0),
+        }),
+      });
+      const created = await pdfJsonResponse(createResponse, clientStage);
+      const upload = created.upload || {};
+      if (!upload.uploadUrl || !upload.uploadTicket) {
+        throw pdfEnsureDiagnosticError(new Error("Caricamento protetto del PDF non riuscito"), clientStage);
+      }
 
-    const signedBody = new FormData();
-    signedBody.append("file", file, file.name || "documento.pdf");
-    const uploadResponse = await fetch(upload.uploadUrl, { method: "PUT", body: signedBody });
-    if (!uploadResponse.ok) throw new Error("Caricamento protetto del PDF non riuscito");
+      clientStage = "direct_upload";
+      const signedBody = new FormData();
+      signedBody.append("file", file, file.name || "documento.pdf");
+      const uploadResponse = await fetch(upload.uploadUrl, { method: "PUT", body: signedBody });
+      if (!uploadResponse.ok) {
+        throw pdfEnsureDiagnosticError(new Error("Caricamento protetto del PDF non riuscito"), clientStage);
+      }
 
-    const analyzeResponse = await fetch("/api/analyze-pdf", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "analyze_uploaded_pdf",
-        uploadTicket: upload.uploadTicket,
-        archiveContext: context,
-      }),
-    });
-    return pdfJsonResponse(analyzeResponse);
+      clientStage = "analyze_uploaded_pdf";
+      const analyzeResponse = await fetch("/api/analyze-pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "analyze_uploaded_pdf",
+          uploadTicket: upload.uploadTicket,
+          archiveContext: context,
+        }),
+      });
+      return pdfJsonResponse(analyzeResponse, clientStage);
+    }
+
+    clientStage = "multipart_upload_analysis";
+    const formData = new FormData();
+    formData.append("pdf", file);
+    formData.append("archiveContext", JSON.stringify(context));
+    const response = await fetch("/api/analyze-pdf", { method: "POST", body: formData });
+    return pdfJsonResponse(response, clientStage);
+  } catch (error) {
+    throw pdfEnsureDiagnosticError(error, clientStage);
   }
-
-  const formData = new FormData();
-  formData.append("pdf", file);
-  formData.append("archiveContext", JSON.stringify(context));
-  const response = await fetch("/api/analyze-pdf", { method: "POST", body: formData });
-  return pdfJsonResponse(response);
 }
 
 function pdfErrorPublicMessage(error) {
@@ -11705,16 +11761,17 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
         ...payload.normalized,
       });
     } catch (error) {
+      const diagnosticError = pdfEnsureDiagnosticError(error, "pdf_file_analysis");
       results.push({
         filename: file.name,
         upload_id: pendingEntry.id,
         file_fingerprint: pendingEntry.fingerprint,
         file_size: Number(file.size || 0),
-        error: pdfErrorPublicMessage(error),
-        diagnostic_code: error?.diagnostic_code || error?.code || null,
-        analysis_stage: error?.analysis_stage || null,
-        ingress_mode: error?.ingress_mode || null,
-        elapsed_ms: error?.elapsed_ms || null,
+        error: pdfErrorPublicMessage(diagnosticError),
+        diagnostic_code: diagnosticError.diagnostic_code,
+        analysis_stage: diagnosticError.analysis_stage,
+        ingress_mode: diagnosticError.ingress_mode || null,
+        elapsed_ms: diagnosticError.elapsed_ms || null,
       });
     }
   }
@@ -11757,11 +11814,12 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
   aggiornaStatoPdfMobileDopoAnalisi({ files, validCurrent, validOffer, results });
   avviaPassoSuccessivoPdfMobileAutomatico();
   } catch (error) {
+    const diagnosticError = pdfEnsureDiagnosticError(error, "pdf_batch_processing");
     trackEvent("pdf_analysis_interrupted", {
       analysisStatus: "interrupted",
-      diagnosticCode: error?.diagnostic_code || error?.code || error?.name || "pdf_analysis_interrupted",
-      analysisStage: error?.analysis_stage || "",
-      ingressMode: error?.ingress_mode || "",
+      diagnosticCode: diagnosticError.diagnostic_code,
+      analysisStage: diagnosticError.analysis_stage,
+      ingressMode: diagnosticError.ingress_mode || "",
       reason: "pdf_analysis_interrupted",
     });
     mostraStatoPdfMobile({

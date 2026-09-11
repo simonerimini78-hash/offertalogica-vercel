@@ -218,6 +218,8 @@ function sanitizePayload(payload = {}) {
     trafficLandingPage: text(input.trafficLandingPage, 220),
     trafficClickIdType: text(input.trafficClickIdType, 20).toLowerCase(),
     trafficClickId: text(input.trafficClickId, 240),
+    client_timestamp: text(input.client_timestamp || input.clientTimestamp, 48),
+    session_event_seq: numberOrNull(input.session_event_seq ?? input.sessionEventSeq),
     tipoPrezzo: text(input.tipoPrezzo, 40),
     tipoFornitura: text(input.tipoFornitura, 40),
     regioneGas: text(input.regioneGas, 80),
