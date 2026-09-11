@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.4.0";
+  const VERSION = "0.5.0";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const STATUSES = new Set(["draft", "in_review", "changes_requested", "approved", "published", "archived"]);
   const STATUS_LABELS = {draft:"Bozza",in_review:"In revisione",changes_requested:"Modifiche richieste",approved:"Approvato",published:"Pubblicato",archived:"Archiviato"};
@@ -30,7 +30,7 @@
   async function db(path,{method="GET",token="",body=null,prefer=""}={}){ const headers=authHeaders(token); if(prefer)headers.Prefer=prefer; return request(`${config.url}/rest/v1/${path}`,{method,headers,body:body===null?undefined:JSON.stringify(body),cache:"no-store"}); }
   async function login(email,password){ return request(`${config.url}/auth/v1/token?grant_type=password`,{method:"POST",headers:authHeaders(),body:JSON.stringify({email,password}),cache:"no-store"}); }
 
-  function initCounters(root=document){ root.querySelectorAll("[data-count-for]").forEach(counter=>{ const field=document.getElementById(counter.getAttribute("data-count-for")); if(!field||counter.dataset.counterReady)return; counter.dataset.counterReady="1"; const max=Number(field.getAttribute("maxlength")||0); const update=()=>counter.textContent=max?`${field.value.length}/${max}`:String(field.value.length); field.addEventListener("input",update); update(); }); }
+  function initCounters(root=document){ root.querySelectorAll("[data-count-for]").forEach(counter=>{ const field=document.getElementById(counter.getAttribute("data-count-for")); if(!field)return; const max=Number(field.getAttribute("maxlength")||0); const update=()=>counter.textContent=max?`${field.value.length}/${max}`:String(field.value.length); if(!counter.dataset.counterReady){counter.dataset.counterReady="1";field.addEventListener("input",update);} update(); }); }
 
   async function fetchAuthors(ids,token=""){
     const unique=[...new Set(ids.filter(Boolean))]; if(!unique.length)return new Map();
@@ -147,8 +147,10 @@
 
     let session=sessionRead();
     let member=null;
+    let ownAuthor=null;
     let currentArticle=null;
     let dirty=false;
+    let slugTouched=false;
     const form=document.querySelector("[data-review-form]");
     const empty=document.querySelector("[data-review-empty]");
     const fields=workspaceFields(form);
@@ -156,10 +158,21 @@
     const saveMessage=document.querySelector("[data-review-save-message]");
     const validation=document.querySelector("[data-review-validation]");
     const filter=document.querySelector("[data-review-status-filter]");
+    const scope=document.querySelector("[data-review-scope-filter]");
     const list=document.querySelector("[data-review-list]");
     const count=document.querySelector("[data-review-count]");
+    const newButton=document.querySelector("[data-review-new]");
+    const authorWarning=document.querySelector("[data-review-author-warning]");
 
     function safeId(value){return String(value||"").replace(/[^a-f0-9-]/gi,"");}
+    function isOwnArticle(){return Boolean(currentArticle?.created_by&&currentArticle.created_by===session?.user?.id);}
+    function queueUrl(id=""){
+      const params=new URLSearchParams();
+      params.set("scope",scope.value);
+      params.set("status",filter.value);
+      if(id)params.set("id",id);
+      return `/redazione?${params.toString()}`;
+    }
     function reviewPayload(){
       return {
         title:text(fields.title.value,140),
@@ -174,30 +187,46 @@
         seo_description:text(fields.seo_description.value,180)||null
       };
     }
-    function validateArticle({forPublish=false}={}){
-      const p=reviewPayload(); const missing=[];
+    function validateArticle({forPublish=false,forReview=false}={}){
+      const p=reviewPayload(); const missing=[]; const status=fields.status.value;
       if(!p.title)missing.push("Titolo");
       if(!p.slug)missing.push("Slug");
-      if(!p.excerpt)missing.push("Sommario");
-      if(!p.content)missing.push("Contenuto");
-      if(p.featured_image_url&&!p.featured_image_alt)missing.push("Testo alternativo immagine");
+      if(forReview||forPublish||status!=="draft"){
+        if(!p.excerpt)missing.push("Sommario");
+        if(!p.content)missing.push("Contenuto");
+        if(p.featured_image_url&&!p.featured_image_alt)missing.push("Testo alternativo immagine");
+      }
       if(forPublish&&!p.seo_title)missing.push("Titolo SEO");
       if(forPublish&&!p.seo_description)missing.push("Descrizione SEO");
       return missing;
     }
     function clearMessages(){show(saveMessage,"");show(validation,"");}
+    function renderEmptyNotes(message="Nessuna nota."){
+      const box=document.querySelector("[data-review-notes]"); box.replaceChildren();
+      const p=document.createElement("p");p.className="ol-muted";p.textContent=message;box.append(p);
+    }
     function setActionState(){
       const status=fields.status.value;
-      form.querySelector("[data-review-changes]").disabled=!(["in_review","approved"].includes(status));
-      form.querySelector("[data-review-approve]").disabled=status!=="in_review";
+      const own=isOwnArticle()||(!fields.id.value&&Boolean(ownAuthor));
+      const editorSelfReview=member?.role==="editor"&&own;
+      form.querySelector("[data-review-submit]").disabled=!(own&&["draft","changes_requested"].includes(status));
+      form.querySelector("[data-review-changes]").disabled=editorSelfReview||!(["in_review","approved"].includes(status));
+      form.querySelector("[data-review-approve]").disabled=editorSelfReview||status!=="in_review";
       form.querySelector("[data-review-publish]").disabled=status!=="approved";
-      form.querySelector("[data-review-archive]").disabled=!(["in_review","changes_requested","approved","published"].includes(status));
+      form.querySelector("[data-review-archive]").disabled=!(
+        ["in_review","changes_requested","approved","published"].includes(status) ||
+        (status==="draft"&&(member?.role==="admin"||own))
+      );
+      const approve=form.querySelector("[data-review-approve]");
+      approve.title=editorSelfReview?"Un editor non può approvare un articolo scritto da sé.":"";
       const publicLink=form.querySelector("[data-review-public-link]");
       if(status==="published"&&fields.slug.value){publicLink.href=`/articolo.html?slug=${encodeURIComponent(fields.slug.value)}`;publicLink.hidden=false;}else publicLink.hidden=true;
     }
     function populateArticle(article,author){
       currentArticle=article;
+      slugTouched=true;
       Object.entries({id:article.id,status:article.status,title:article.title||"",slug:article.slug||"",category:article.category||"",featured_image_url:article.featured_image_url||"",featured_image_alt:article.featured_image_alt||"",excerpt:article.excerpt||"",content:article.content||"",sources:article.sources||"",seo_title:article.seo_title||"",seo_description:article.seo_description||""}).forEach(([k,v])=>{if(fields[k])fields[k].value=v;});
+      document.querySelector("[data-review-mode]").textContent=isOwnArticle()?"Il mio articolo":"Revisione editoriale";
       document.querySelector("[data-review-form-title]").textContent=article.title||"Articolo";
       document.querySelector("[data-review-author]").textContent=author?.display_name||"Autore non disponibile";
       document.querySelector("[data-review-submitted]").textContent=formatDate(article.submitted_at)||"—";
@@ -205,21 +234,35 @@
       setStatusBadge(statusBadge,article.status);
       form.hidden=false; empty.hidden=true; dirty=false; initCounters(form); setActionState();
     }
+    function startNewArticle(){
+      if(!ownAuthor){show(authorWarning,"Per scrivere un articolo serve un profilo autore attivo associato a questo account.");return;}
+      if(dirty&&!window.confirm("Hai modifiche non salvate. Creare comunque un nuovo articolo?"))return;
+      clearMessages(); currentArticle=null; slugTouched=false; form.reset(); fields.id.value=""; fields.status.value="draft";
+      scope.value="mine"; filter.value="draft";
+      document.querySelector("[data-review-mode]").textContent="Nuovo articolo personale";
+      document.querySelector("[data-review-form-title]").textContent="Nuovo articolo";
+      document.querySelector("[data-review-author]").textContent=ownAuthor.display_name||"Autore";
+      document.querySelector("[data-review-submitted]").textContent="—";
+      document.querySelector("[data-review-updated]").textContent="—";
+      fields.review_note.value=""; fields.review_note_visibility.value="internal";
+      setStatusBadge(statusBadge,"draft"); renderEmptyNotes("Le note saranno disponibili dopo il primo salvataggio.");
+      form.hidden=false; empty.hidden=true; dirty=false; setActionState(); initCounters(form); history.replaceState(null,"",queueUrl()); loadQueue(); fields.title.focus();
+    }
     async function loadNotes(article){
       const box=document.querySelector("[data-review-notes]"); box.replaceChildren();
       const rows=await db(`editorial_article_notes?select=id,body,visibility,created_by,created_at&article_id=eq.${encodeURIComponent(article.id)}&order=created_at.asc`,{token:session.access_token});
-      if(!rows?.length){const p=document.createElement("p");p.className="ol-muted";p.textContent="Nessuna nota.";box.append(p);return;}
+      if(!rows?.length){renderEmptyNotes();return;}
       rows.forEach(note=>{const item=document.createElement("article");item.className="ol-note";const meta=document.createElement("small");const who=note.created_by===session.user.id?"Tu":(note.created_by===article.created_by?"Autore":"Redazione");meta.textContent=`${who} · ${note.visibility==="internal"?"nota interna":"visibile all’autore"} · ${formatDate(note.created_at)}`;const body=document.createElement("p");body.textContent=note.body;item.append(meta,body);box.append(item);});
     }
     async function loadQueue(){
       list.replaceChildren(); const loading=document.createElement("p");loading.className="ol-muted";loading.textContent="Caricamento…";list.append(loading);
-      const status=filter.value; const statusPart=status==="all"?"":`&status=eq.${encodeURIComponent(status)}`;
+      const status=filter.value; const statusPart=status==="all"?"":`&status=eq.${encodeURIComponent(status)}`; const scopePart=scope.value==="mine"?`&created_by=eq.${encodeURIComponent(session.user.id)}`:"";
       try{
-        const rows=await db(`editorial_articles?select=id,title,status,author_id,submitted_at,updated_at,published_at&order=updated_at.desc&limit=200${statusPart}`,{token:session.access_token});
+        const rows=await db(`editorial_articles?select=id,title,status,author_id,created_by,submitted_at,updated_at,published_at&order=updated_at.desc&limit=200${statusPart}${scopePart}`,{token:session.access_token});
         const authors=await fetchAuthors((rows||[]).map(r=>r.author_id),session.access_token);
-        list.replaceChildren(); count.textContent=`${rows.length} ${rows.length===1?"articolo":"articoli"}`;
-        if(!rows.length){const p=document.createElement("p");p.className="ol-muted";p.textContent="Nessun articolo in questo stato.";list.append(p);return;}
-        rows.forEach(row=>{const a=document.createElement("a");a.className="ol-my-article";a.href=`/redazione?status=${encodeURIComponent(status)}&id=${encodeURIComponent(row.id)}`;if(row.id===fields.id.value)a.setAttribute("aria-current","true");const strong=document.createElement("strong");strong.textContent=row.title||"Senza titolo";const author=authors.get(row.author_id);const span=document.createElement("span");span.textContent=`${STATUS_LABELS[row.status]||row.status} · ${author?.display_name||"Autore"} · ${formatDate(row.updated_at)}`;a.append(strong,span);list.append(a);});
+        list.replaceChildren(); count.textContent=`${rows.length} ${rows.length===1?"articolo":"articoli"} · ${scope.value==="mine"?"i miei":"tutti"}`;
+        if(!rows.length){const p=document.createElement("p");p.className="ol-muted";p.textContent="Nessun articolo con questi filtri.";list.append(p);return;}
+        rows.forEach(row=>{const a=document.createElement("a");a.className="ol-my-article";a.href=queueUrl(row.id);if(row.id===fields.id.value)a.setAttribute("aria-current","true");const strong=document.createElement("strong");strong.textContent=row.title||"Senza titolo";const author=authors.get(row.author_id);const span=document.createElement("span");span.textContent=`${STATUS_LABELS[row.status]||row.status} · ${author?.display_name||"Autore"} · ${formatDate(row.updated_at)}`;a.append(strong,span);list.append(a);});
       }catch(error){list.replaceChildren();show(configError,`Coda editoriale non disponibile: ${error.message}`);}
     }
     async function loadArticle(id){
@@ -235,22 +278,33 @@
       fields.review_note.value="";
     }
     async function saveArticle({silent=false,saveNote=true}={}){
-      clearMessages(); if(!fields.id.value)return null; const missing=validateArticle(); if(missing.length){show(validation,`Completa prima: ${missing.join(", ")}.`);return null;}
+      clearMessages(); const missing=validateArticle(); if(missing.length){show(validation,`Completa prima: ${missing.join(", ")}.`);return null;}
       try{
-        const rows=await db(`editorial_articles?id=eq.${encodeURIComponent(fields.id.value)}&select=*`,{method:"PATCH",token:session.access_token,prefer:"return=representation",body:reviewPayload()});
-        const article=rows?.[0]; if(!article)throw new Error("Salvataggio non confermato");
+        let article;
+        if(fields.id.value){
+          const rows=await db(`editorial_articles?id=eq.${encodeURIComponent(fields.id.value)}&select=*`,{method:"PATCH",token:session.access_token,prefer:"return=representation",body:reviewPayload()}); article=rows?.[0];
+        }else{
+          if(!ownAuthor)throw new Error("Profilo autore non disponibile per questo account");
+          const rows=await db("editorial_articles?select=*",{method:"POST",token:session.access_token,prefer:"return=representation",body:{...reviewPayload(),status:"draft",author_id:ownAuthor.id,created_by:session.user.id,updated_by:session.user.id}}); article=rows?.[0];
+        }
+        if(!article)throw new Error("Salvataggio non confermato");
+        fields.id.value=article.id; fields.status.value=article.status; currentArticle=article;
         if(saveNote)await addStandaloneNote(article.id);
-        currentArticle=article; dirty=false; if(!silent)show(saveMessage,article.status==="published"?"Modifiche salvate. La versione HTML SEO sarà aggiornata al prossimo deploy.":"Modifiche salvate."); await loadQueue(); await loadNotes(article); return article;
+        dirty=false; slugTouched=true; history.replaceState(null,"",queueUrl(article.id));
+        if(!silent)show(saveMessage,article.status==="published"?"Modifiche salvate. La versione HTML SEO sarà aggiornata al prossimo deploy.":"Articolo salvato.");
+        const authors=await fetchAuthors([article.author_id],session.access_token); populateArticle(article,authors.get(article.author_id)); await loadQueue(); await loadNotes(article); return article;
       }catch(error){show(validation,`Salvataggio non riuscito: ${error.message}`);return null;}
     }
     async function transition(target){
       clearMessages();
+      const own=isOwnArticle()||(!fields.id.value&&Boolean(ownAuthor));
+      if(member?.role==="editor"&&own&&["changes_requested","approved"].includes(target)){show(validation,"Un editor non può revisionare o approvare un articolo scritto da sé. Deve farlo un altro editor o un admin.");return;}
       if(target==="changes_requested"&&!text(fields.review_note.value,2000)){show(validation,"Scrivi il feedback da inviare all’autore prima di richiedere modifiche.");fields.review_note.focus();return;}
       if(target==="published"){
         if(!fields.seo_title.value.trim())fields.seo_title.value=text(fields.title.value,70);
         if(!fields.seo_description.value.trim())fields.seo_description.value=text(fields.excerpt.value,180);
       }
-      const missing=validateArticle({forPublish:target==="published"}); if(missing.length){show(validation,`Completa prima: ${missing.join(", ")}.`);return;}
+      const missing=validateArticle({forPublish:target==="published",forReview:target==="in_review"}); if(missing.length){show(validation,`Completa prima: ${missing.join(", ")}.`);return;}
       if(target==="published"&&!window.confirm("Pubblicare questo articolo? Diventerà visibile nell’archivio pubblico."))return;
       if(target==="archived"&&!window.confirm("Archiviare questo articolo?"))return;
       const article=await saveArticle({silent:true,saveNote:false}); if(!article)return;
@@ -258,29 +312,47 @@
       try{
         await db("rpc/editorial_staff_transition_article",{method:"POST",token:session.access_token,body:{p_article_id:article.id,p_status:target,p_feedback:note,p_visibility:visibility}});
         fields.review_note.value=""; dirty=false;
-        const messages={changes_requested:"Modifiche richieste all’autore.",approved:"Articolo approvato.",published:"Articolo pubblicato. La versione HTML SEO sarà rigenerata al prossimo deploy.",archived:"Articolo archiviato."};
+        const messages={in_review:"Articolo inviato in revisione.",changes_requested:"Modifiche richieste all’autore.",approved:"Articolo approvato.",published:"Articolo pubblicato. La versione HTML SEO sarà rigenerata al prossimo deploy.",archived:"Articolo archiviato."};
         show(saveMessage,messages[target]||"Stato aggiornato."); await loadArticle(article.id); await loadQueue();
       }catch(error){show(validation,`Cambio stato non riuscito: ${error.message}`);}
     }
     async function loadContext(){
       const rows=await db(`editorial_members?select=user_id,role,active&user_id=eq.${encodeURIComponent(session.user.id)}&limit=1`,{token:session.access_token});
       member=rows?.[0]; if(!member?.active||!["editor","admin"].includes(member.role))throw new Error("Account non abilitato alla redazione");
+      const authors=await db(`editorial_authors?select=id,user_id,slug,display_name,active&user_id=eq.${encodeURIComponent(session.user.id)}&limit=1`,{token:session.access_token});
+      ownAuthor=authors?.[0]?.active?authors[0]:null;
+      document.querySelector("[data-review-name]").textContent=ownAuthor?.display_name||"Redazione OffertaLogica";
       document.querySelector("[data-review-role]").textContent=member.role; document.querySelector("[data-review-email]").textContent=session.user.email||""; authPanel.hidden=true;workspace.hidden=false;
-      const params=new URLSearchParams(location.search); const requestedStatus=params.get("status"); if(["in_review","changes_requested","approved","published","draft","archived","all"].includes(requestedStatus))filter.value=requestedStatus;
+      newButton.disabled=!ownAuthor; show(authorWarning,ownAuthor?"":"Puoi revisionare gli articoli, ma per scriverne uno tuo devi avere anche un profilo autore attivo.");
+      const params=new URLSearchParams(location.search); const requestedStatus=params.get("status"); const requestedScope=params.get("scope");
+      if(["in_review","changes_requested","approved","published","draft","archived","all"].includes(requestedStatus))filter.value=requestedStatus;
+      if(["all","mine"].includes(requestedScope))scope.value=requestedScope;
       await loadQueue(); const id=params.get("id"); if(id)await loadArticle(id);
     }
-    async function activate(){if(!session?.access_token||!session?.user?.id)return;try{await loadContext();}catch(error){sessionWrite(null);session=null;member=null;authPanel.hidden=false;workspace.hidden=true;show(loginError,error.message);}}
+    async function activate(){if(!session?.access_token||!session?.user?.id)return;try{await loadContext();}catch(error){sessionWrite(null);session=null;member=null;ownAuthor=null;authPanel.hidden=false;workspace.hidden=true;show(loginError,error.message);}}
+    function restoreFiltersFromUrl(){
+      const params=new URLSearchParams(location.search); const savedStatus=params.get("status"); const savedScope=params.get("scope");
+      filter.value=["in_review","changes_requested","approved","published","draft","archived","all"].includes(savedStatus)?savedStatus:"in_review";
+      scope.value=["all","mine"].includes(savedScope)?savedScope:"all";
+    }
+    function changeQueueFilter(){
+      if(dirty&&!window.confirm("Hai modifiche non salvate. Cambiare filtro comunque?")){restoreFiltersFromUrl();return;}
+      history.replaceState(null,"",queueUrl()); form.hidden=true;empty.hidden=false;fields.id.value="";currentArticle=null;dirty=false;loadQueue();
+    }
 
     loginForm.addEventListener("submit",async event=>{event.preventDefault();show(loginError,"");const button=loginForm.querySelector("[data-review-login-button]");button.disabled=true;try{const data=await login(text(loginForm.email.value,320),String(loginForm.password.value||""));session={access_token:data.access_token,user:data.user,expires_at:data.expires_at};sessionWrite(session);await activate();}catch(error){show(loginError,`Accesso non riuscito: ${error.message}`);}finally{button.disabled=false;}});
     document.querySelector("[data-review-logout]").addEventListener("click",()=>{sessionWrite(null);location.replace("/redazione");});
+    newButton.addEventListener("click",startNewArticle);
     document.querySelector("[data-review-refresh]").addEventListener("click",loadQueue);
-    filter.addEventListener("change",()=>{history.replaceState(null,"",`/redazione?status=${encodeURIComponent(filter.value)}`);form.hidden=true;empty.hidden=false;fields.id.value="";loadQueue();});
+    filter.addEventListener("change",changeQueueFilter); scope.addEventListener("change",changeQueueFilter);
     form.querySelector("[data-review-save]").addEventListener("click",()=>saveArticle());
+    form.querySelector("[data-review-submit]").addEventListener("click",()=>transition("in_review"));
     form.querySelector("[data-review-changes]").addEventListener("click",()=>transition("changes_requested"));
     form.querySelector("[data-review-approve]").addEventListener("click",()=>transition("approved"));
     form.querySelector("[data-review-publish]").addEventListener("click",()=>transition("published"));
     form.querySelector("[data-review-archive]").addEventListener("click",()=>transition("archived"));
-    fields.slug.addEventListener("input",()=>{fields.slug.value=normalizeSlug(fields.slug.value);dirty=true;setActionState();});
+    fields.slug.addEventListener("input",()=>{slugTouched=true;fields.slug.value=normalizeSlug(fields.slug.value);dirty=true;setActionState();});
+    fields.title.addEventListener("input",()=>{if(!fields.id.value&&!slugTouched)fields.slug.value=normalizeSlug(fields.title.value);dirty=true;});
     form.querySelectorAll("input,textarea,select").forEach(el=>el.addEventListener("change",()=>dirty=true));
     form.addEventListener("submit",event=>event.preventDefault());
     window.addEventListener("beforeunload",event=>{if(dirty){event.preventDefault();event.returnValue="";}});

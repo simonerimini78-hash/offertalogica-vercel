@@ -42,15 +42,19 @@
 
       <div data-review-workspace hidden>
         <div class="ol-session-bar">
-          <div><strong>Redazione OffertaLogica</strong><span data-review-role></span><small data-review-email></small></div>
+          <div><strong data-review-name>Redazione OffertaLogica</strong><span data-review-role></span><small data-review-email></small></div>
           <button class="ol-button ol-button-secondary" type="button" data-review-logout>Esci</button>
         </div>
 
         <div class="ol-review-layout">
           <aside class="ol-sidebar ol-review-sidebar" aria-label="Coda editoriale">
             <section class="ol-card">
-              <div class="ol-toolbar ol-toolbar-compact"><h2 class="ol-sidebar-title">Articoli</h2><button class="ol-button ol-button-secondary ol-button-small" type="button" data-review-refresh>Aggiorna</button></div>
-              <div class="ol-field ol-field-compact"><label for="review-status-filter">Filtra per stato</label><select id="review-status-filter" data-review-status-filter><option value="in_review">In revisione</option><option value="changes_requested">Modifiche richieste</option><option value="approved">Approvati</option><option value="published">Pubblicati</option><option value="draft">Bozze</option><option value="archived">Archiviati</option><option value="all">Tutti</option></select></div>
+              <div class="ol-toolbar ol-toolbar-compact"><h2 class="ol-sidebar-title">Articoli</h2><div class="ol-toolbar-group"><button class="ol-button ol-button-primary ol-button-small" type="button" data-review-new>Nuovo articolo</button><button class="ol-button ol-button-secondary ol-button-small" type="button" data-review-refresh>Aggiorna</button></div></div>
+              <div class="ol-grid ol-grid-2 ol-review-filters">
+                <div class="ol-field ol-field-compact"><label for="review-scope-filter">Visualizza</label><select id="review-scope-filter" data-review-scope-filter><option value="all">Tutti gli articoli</option><option value="mine">I miei articoli</option></select></div>
+                <div class="ol-field ol-field-compact"><label for="review-status-filter">Stato</label><select id="review-status-filter" data-review-status-filter><option value="in_review">In revisione</option><option value="changes_requested">Modifiche richieste</option><option value="approved">Approvati</option><option value="published">Pubblicati</option><option value="draft">Bozze</option><option value="archived">Archiviati</option><option value="all">Tutti</option></select></div>
+              </div>
+              <div class="ol-alert ol-alert-warning ol-alert-compact" role="status" data-review-author-warning hidden></div>
               <p class="ol-muted ol-small" data-review-count aria-live="polite"></p>
               <div class="ol-my-articles" data-review-list aria-live="polite"><p class="ol-muted">Caricamento…</p></div>
             </section>
@@ -65,7 +69,7 @@
               <input type="hidden" id="review-article-id" name="id">
               <input type="hidden" id="review-article-status" name="status">
               <div class="ol-review-heading">
-                <div><div class="ol-eyebrow">Revisione editoriale</div><h2 data-review-form-title>Articolo</h2></div>
+                <div><div class="ol-eyebrow" data-review-mode>Revisione editoriale</div><h2 data-review-form-title>Articolo</h2></div>
                 <span class="ol-status" data-review-current-status></span>
               </div>
               <dl class="ol-review-meta">
@@ -107,6 +111,7 @@
 
               <div class="ol-review-actions" aria-label="Azioni articolo">
                 <button class="ol-button ol-button-secondary" type="button" data-review-save>Salva modifiche</button>
+                <button class="ol-button ol-button-secondary" type="button" data-review-submit>Invia in revisione</button>
                 <button class="ol-button ol-button-warning" type="button" data-review-changes>Richiedi modifiche</button>
                 <button class="ol-button ol-button-secondary" type="button" data-review-approve>Approva</button>
                 <button class="ol-button ol-button-primary" type="button" data-review-publish>Pubblica</button>
