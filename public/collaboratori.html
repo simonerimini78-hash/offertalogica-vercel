@@ -12,13 +12,8 @@
 <body data-editorial-view="workspace">
 <header class="ol-topbar">
   <div class="ol-shell ol-topbar-inner">
-    <a class="ol-brand" href="/" aria-label="OffertaLogica">
-      <img src="/assets/logo-offertalogica-header.png" alt="OffertaLogica.it">
-    </a>
-    <nav class="ol-nav" aria-label="Area editoriale">
-      <a href="/collaboratori.html" aria-current="page">I miei articoli</a>
-      <a href="/articoli.html">Archivio pubblico</a>
-    </nav>
+    <a class="ol-brand" href="/" aria-label="OffertaLogica"><img src="/assets/logo-offertalogica-header.png" alt="OffertaLogica.it"></a>
+    <nav class="ol-nav" aria-label="Area editoriale"><a href="/collaboratori.html" aria-current="page">I miei articoli</a><a href="/articoli.html">Archivio pubblico</a></nav>
   </div>
 </header>
 
@@ -27,117 +22,71 @@
     <div class="ol-shell">
       <div class="ol-eyebrow">Area collaboratori</div>
       <h1>Scrivi, salva e invia l’articolo alla redazione.</h1>
-      <p>Il collaboratore prepara il contenuto; pubblicazione, data definitiva e approvazione restano sotto controllo editoriale.</p>
+      <p>Accesso solo su invito. Il collaboratore prepara il contenuto; approvazione e pubblicazione restano alla redazione.</p>
     </div>
   </section>
 
   <section class="ol-section">
-    <div class="ol-shell ol-workspace">
-      <form class="ol-panel ol-panel-body ol-form" data-editorial-form novalidate>
-        <div>
-          <h2>Nuovo articolo</h2>
-          <p class="ol-muted">Versione strutturale. Il salvataggio remoto viene attivato solo dopo autenticazione e RLS.</p>
+    <div class="ol-shell">
+      <div class="ol-alert ol-alert-danger" data-config-error hidden></div>
+      <section class="ol-panel ol-panel-body ol-auth-panel" data-auth-panel>
+        <div><h2>Accesso collaboratore</h2><p class="ol-muted">Usa l’account ricevuto tramite invito della redazione.</p></div>
+        <form class="ol-form ol-login-form" data-login-form>
+          <div class="ol-field"><label for="editorial-email">Email</label><input id="editorial-email" name="email" type="email" autocomplete="username" required></div>
+          <div class="ol-field"><label for="editorial-password">Password</label><input id="editorial-password" name="password" type="password" autocomplete="current-password" required></div>
+          <div class="ol-alert ol-alert-danger" data-login-error hidden></div>
+          <button class="ol-button ol-button-primary" type="submit" data-login-button>Accedi</button>
+        </form>
+      </section>
+
+      <div data-editorial-workspace hidden>
+        <div class="ol-session-bar">
+          <div><strong data-member-name>Collaboratore</strong><span data-member-role></span><small data-member-email></small></div>
+          <button class="ol-button ol-button-secondary" type="button" data-logout>Esci</button>
         </div>
 
-        <div class="ol-alert ol-alert-warning" data-backend-notice hidden>
-          Backend editoriale non ancora collegato: nessun contenuto è stato inviato o salvato.
+        <div class="ol-workspace-layout">
+          <aside class="ol-sidebar ol-sidebar-list">
+            <section class="ol-card">
+              <div class="ol-toolbar ol-toolbar-compact"><h3>I miei articoli</h3><button class="ol-button ol-button-secondary ol-button-small" type="button" data-new-article>Nuovo</button></div>
+              <div class="ol-my-articles" data-my-articles><p class="ol-muted">Caricamento…</p></div>
+            </section>
+            <section class="ol-card"><h3>Stato</h3><p><span class="ol-status" data-current-status data-status="draft">Bozza</span></p></section>
+            <section class="ol-card"><h3>Permessi</h3><p>Puoi lavorare sui tuoi articoli in bozza o con modifiche richieste. La pubblicazione è riservata alla redazione.</p></section>
+          </aside>
+
+          <form class="ol-panel ol-panel-body ol-form" data-editorial-form novalidate>
+            <input type="hidden" id="article-id" name="id">
+            <input type="hidden" id="article-status" name="status" value="draft">
+            <div><h2 data-form-title>Nuovo articolo</h2><p class="ol-muted" data-form-hint>Salva una bozza oppure inviala alla redazione quando è completa.</p></div>
+            <div class="ol-alert ol-alert-success" data-save-message hidden></div>
+            <div class="ol-alert ol-alert-danger" data-validation-message hidden></div>
+
+            <div class="ol-field"><label for="article-title">Titolo</label><input id="article-title" name="title" type="text" maxlength="140" autocomplete="off" required><div class="ol-counter" data-count-for="article-title"></div></div>
+            <div class="ol-field"><label for="article-slug">Slug</label><input id="article-slug" name="slug" type="text" maxlength="120" autocomplete="off" spellcheck="false" required><small>Generato dal titolo, poi modificabile fino all’invio in revisione.</small></div>
+
+            <div class="ol-grid ol-grid-2">
+              <div class="ol-field"><label for="article-category">Categoria</label><select id="article-category" name="category"><option value="">Seleziona</option><option value="bollette">Bollette</option><option value="offerte-luce-gas">Offerte luce e gas</option><option value="mercato-energia">Mercato energia</option><option value="risparmio">Risparmio</option><option value="casa-smart">Casa smart</option></select></div>
+              <div class="ol-field"><label for="article-image">Immagine principale</label><input id="article-image" name="featured_image_url" type="url" placeholder="https://…"><small>Per ora viene salvato un URL; upload gestito in una fase successiva.</small></div>
+            </div>
+
+            <div class="ol-field"><label for="article-excerpt">Sommario</label><textarea id="article-excerpt" name="excerpt" maxlength="320" required></textarea><div class="ol-counter" data-count-for="article-excerpt"></div></div>
+            <div class="ol-field"><label for="article-content">Contenuto</label><textarea id="article-content" class="ol-content" name="content" maxlength="40000" required></textarea><small>Testo semplice: niente HTML eseguibile.</small><div class="ol-counter" data-count-for="article-content"></div></div>
+            <div class="ol-field"><label for="article-sources">Fonti e link</label><textarea id="article-sources" name="sources" maxlength="4000" placeholder="Una fonte per riga"></textarea><div class="ol-counter" data-count-for="article-sources"></div></div>
+            <div class="ol-field"><label for="article-notes">Nota per la redazione</label><textarea id="article-notes" name="editorial_note" maxlength="2000"></textarea><div class="ol-counter" data-count-for="article-notes"></div></div>
+
+            <div class="ol-toolbar">
+              <div class="ol-toolbar-group"><button class="ol-button ol-button-secondary" type="button" data-save-draft>Salva bozza</button><button class="ol-button ol-button-primary" type="button" data-send-review>Invia in revisione</button></div>
+            </div>
+          </form>
         </div>
-        <div class="ol-alert ol-alert-danger" data-validation-message hidden></div>
-
-        <div class="ol-field">
-          <label for="article-title">Titolo</label>
-          <input id="article-title" name="title" type="text" maxlength="140" autocomplete="off" required>
-          <div class="ol-counter" data-count-for="article-title"></div>
-        </div>
-
-        <div class="ol-field">
-          <label for="article-slug">Slug</label>
-          <input id="article-slug" name="slug" type="text" maxlength="120" autocomplete="off" spellcheck="false">
-          <small>Generato dal titolo, poi modificabile. Diventerà univoco a livello database.</small>
-        </div>
-
-        <div class="ol-grid ol-grid-2">
-          <div class="ol-field">
-            <label for="article-category">Categoria</label>
-            <select id="article-category" name="category">
-              <option value="">Seleziona</option>
-              <option value="bollette">Bollette</option>
-              <option value="offerte-luce-gas">Offerte luce e gas</option>
-              <option value="mercato-energia">Mercato energia</option>
-              <option value="risparmio">Risparmio</option>
-              <option value="casa-smart">Casa smart</option>
-            </select>
-          </div>
-          <div class="ol-field">
-            <label for="article-image">Immagine principale</label>
-            <input id="article-image" name="featured_image_url" type="url" placeholder="https://…">
-            <small>L’upload gestito verrà collegato in una fase successiva.</small>
-          </div>
-        </div>
-
-        <div class="ol-field">
-          <label for="article-excerpt">Sommario</label>
-          <textarea id="article-excerpt" name="excerpt" maxlength="320" required></textarea>
-          <div class="ol-counter" data-count-for="article-excerpt"></div>
-        </div>
-
-        <div class="ol-field">
-          <label for="article-content">Contenuto</label>
-          <textarea id="article-content" class="ol-content" name="content" maxlength="40000" required></textarea>
-          <small>In questa prima struttura il contenuto è testo editoriale; il formato ricco verrà definito prima del collegamento dati.</small>
-          <div class="ol-counter" data-count-for="article-content"></div>
-        </div>
-
-        <div class="ol-field">
-          <label for="article-sources">Fonti e link per la redazione</label>
-          <textarea id="article-sources" name="sources" maxlength="4000" placeholder="Una fonte per riga"></textarea>
-          <div class="ol-counter" data-count-for="article-sources"></div>
-        </div>
-
-        <div class="ol-field">
-          <label for="article-notes">Note per la redazione</label>
-          <textarea id="article-notes" name="editorial_note" maxlength="2000"></textarea>
-          <div class="ol-counter" data-count-for="article-notes"></div>
-        </div>
-
-        <input id="article-status" type="hidden" name="status" value="draft">
-
-        <div class="ol-toolbar">
-          <div class="ol-toolbar-group">
-            <button class="ol-button ol-button-secondary" type="button" data-save-draft>Salva bozza</button>
-            <button class="ol-button ol-button-primary" type="button" data-send-review>Invia in revisione</button>
-          </div>
-        </div>
-      </form>
-
-      <aside class="ol-sidebar">
-        <section class="ol-card">
-          <h3>Stato</h3>
-          <p><span class="ol-status" data-current-status data-status="draft">Bozza</span></p>
-        </section>
-
-        <section class="ol-card">
-          <h3>Flusso previsto</h3>
-          <div class="ol-info-list">
-            <div class="ol-info-row"><span>1</span><strong>Bozza</strong></div>
-            <div class="ol-info-row"><span>2</span><strong>In revisione</strong></div>
-            <div class="ol-info-row"><span>3</span><strong>Approvato / modifiche</strong></div>
-            <div class="ol-info-row"><span>4</span><strong>Pubblicato</strong></div>
-          </div>
-        </section>
-
-        <section class="ol-card">
-          <h3>Permessi collaboratore</h3>
-          <p>Potrà operare solo sui propri articoli non pubblicati. Pubblicazione e cambio autore resteranno riservati alla redazione.</p>
-        </section>
-      </aside>
+      </div>
     </div>
   </section>
 </main>
 
-<footer class="ol-footer">
-  <div class="ol-shell">Area editoriale OffertaLogica · accesso su invito</div>
-</footer>
+<footer class="ol-footer"><div class="ol-shell">Area editoriale OffertaLogica · accesso su invito</div></footer>
+<script src="/assets/editorial-config.js"></script>
 <script src="/assets/editorial.js" defer></script>
 </body>
 </html>
