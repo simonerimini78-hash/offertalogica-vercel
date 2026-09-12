@@ -15,6 +15,7 @@
   let authSubscription = null;
   let recoveryMode = false;
   let currentSession = null;
+  let currentProfile = null;
   let currentSubscription = null;
   let accountLoadSequence = 0;
   let passwordUpdateInProgress = false;
@@ -451,6 +452,7 @@
     accountLoadSequence += 1;
     showAccountPanels({ signedIn: false });
     currentSession = null;
+    currentProfile = null;
     currentSubscription = null;
     legalRedirectPerformed = false;
     if (state.authSignedOut) state.authSignedOut.hidden = false;
@@ -523,12 +525,26 @@
   function renderLegalPanel(profile, acceptanceStatus) {
     if (!state.legalPanel) return;
     const complete = acceptancesComplete(acceptanceStatus);
-    const canAccept = Boolean(profile && profile.account_status === "active");
-    state.legalPanel.hidden = !profile || complete;
+
+    if (!profile) {
+      state.legalPanel.hidden = false;
+      state.legalPanel.classList.remove("complete");
+      setText(state.legalStatus, "Questo account OffertaLogica esiste già, ma non è un account Premium. Attiva l’area Premium solo se vuoi usare questo servizio: l’accesso editoriale o ad altri prodotti resta separato.");
+      if (state.legalAcceptButton) {
+        state.legalAcceptButton.hidden = false;
+        state.legalAcceptButton.disabled = false;
+        state.legalAcceptButton.textContent = "ATTIVA AREA PREMIUM";
+      }
+      return;
+    }
+
+    const canAccept = profile.account_status === "active";
+    state.legalPanel.hidden = complete;
     setText(state.legalStatus, complete
       ? "Condizioni e informativa accettate."
       : "Accetta le condizioni correnti per continuare. I dati già salvati restano disponibili.");
     if (state.legalAcceptButton) {
+      state.legalAcceptButton.textContent = "ACCETTA CONDIZIONI CORRENTI";
       state.legalAcceptButton.hidden = complete || !canAccept;
       state.legalAcceptButton.disabled = !canAccept;
     }
@@ -690,9 +706,8 @@
     return { profileResult, subscriptionResult, consentsResult };
   }
 
-  async function ensureCurrentUserPremiumProfile(profile) {
-    if (profile) return false;
-    const { error } = await client.rpc("premium_ensure_current_user_profile");
+  async function activateCurrentUserPremiumProfile() {
+    const { error } = await client.rpc("premium_ensure_current_user_profile", { p_explicit: true });
     if (error) {
       const message = String(error.message || error || "").toLowerCase();
       if (!message.includes("premium_ensure_current_user_profile") && !message.includes("function") && !message.includes("schema cache")) {
@@ -828,19 +843,7 @@
     let profile = profileResult.data;
     let subscription = subscriptionResult.data;
     let acceptanceStatus = acceptanceMap(consentsResult.data);
-
-    if (await ensureCurrentUserPremiumProfile(profile)) {
-      results = await fetchAccountData(userId);
-      if (sequence !== accountLoadSequence) return false;
-      if (results.profileResult.error || results.subscriptionResult.error || results.consentsResult.error) {
-        setMessage("error", "Profilo Premium associato, ma i dati dell’account non sono ancora disponibili. Ricarica la pagina.");
-        return false;
-      }
-      ({ profileResult, subscriptionResult, consentsResult } = results);
-      profile = profileResult.data;
-      subscription = subscriptionResult.data;
-      acceptanceStatus = acceptanceMap(consentsResult.data);
-    }
+    currentProfile = profile || null;
 
     if (await activateBetaTrialIfEligible(profile, subscription, acceptanceStatus)) {
       results = await fetchAccountData(userId);
@@ -855,6 +858,7 @@
       acceptanceStatus = acceptanceMap(consentsResult.data);
     }
 
+    currentProfile = profile || null;
     currentSubscription = subscription || null;
     const legalReady = acceptancesComplete(acceptanceStatus);
     const periodActive = subscriptionPeriodIsActive(subscription);
@@ -1176,6 +1180,24 @@
 
   async function handleLegalAcceptance() {
     if (!client || !currentSession?.user) return;
+
+    if (!currentProfile) {
+      const confirmed = await globalThis.OffertaLogicaPremiumDialog?.confirm({
+        title: "Attiva l’area Premium",
+        message: "Questo account OffertaLogica non è ancora un account Premium. Confermi di volerlo associare esplicitamente al servizio Premium? L’eventuale ruolo editoriale o staff resterà separato.",
+        confirmLabel: "ATTIVA PREMIUM",
+      });
+      if (!confirmed) return;
+      if (state.legalAcceptButton) state.legalAcceptButton.disabled = true;
+      setMessage("info", "Attivazione del profilo Premium…");
+      const activated = await activateCurrentUserPremiumProfile();
+      if (state.legalAcceptButton) state.legalAcceptButton.disabled = false;
+      if (!activated) return;
+      setMessage("success", "Profilo Premium attivato. Ora puoi accettare le condizioni del servizio.");
+      window.setTimeout(() => window.location.reload(), 450);
+      return;
+    }
+
     const confirmed = await globalThis.OffertaLogicaPremiumDialog?.confirm({
       title: "Accetta le condizioni Premium",
       message: "Confermi di aver letto e accettato i Termini Premium, l’Informativa Premium e il trattamento cloud/IA necessario all’erogazione del servizio?",
