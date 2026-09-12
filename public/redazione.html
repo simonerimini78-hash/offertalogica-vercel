@@ -7,7 +7,7 @@
   <meta name="referrer" content="no-referrer">
   <title>Redazione | OffertaLogica</title>
   <link rel="icon" type="image/png" href="/assets/logo-offertalogica-icon.png">
-  <link rel="stylesheet" href="/assets/editorial.css">
+  <link rel="stylesheet" href="/assets/editorial.css?v=0.11.1">
 </head>
 <body data-editorial-view="review">
 <a class="ol-skip-link" href="#contenuto-principale">Vai al contenuto principale</a>
@@ -53,12 +53,13 @@
           </div>
         </div>
 
+        <div class="ol-management-shortcuts">
         <details class="ol-panel ol-collapsible-panel ol-author-profile-panel" data-own-author-profile hidden>
-          <summary class="ol-collapsible-summary"><span><span class="ol-eyebrow">Profilo pubblico</span><strong>Il mio profilo autore</strong><small>Foto, nome, biografia e link pubblici.</small></span><span class="ol-collapsible-action" aria-hidden="true">Apri</span></summary>
+          <summary class="ol-collapsible-summary"><span><strong>Profilo autore</strong><small>Foto, biografia e link pubblici</small></span><span class="ol-collapsible-action" aria-hidden="true">Apri</span></summary>
           <div class="ol-collapsible-content ol-panel-body">
           <div class="ol-toolbar ol-toolbar-compact">
             <p class="ol-muted">Usato automaticamente negli articoli che pubblichi a tuo nome.</p>
-            <a class="ol-button ol-button-secondary ol-button-small" data-author-public-link href="#" target="_blank" rel="author noopener" hidden>Vedi profilo pubblico<span class="ol-visually-hidden"> (si apre in una nuova scheda)</span></a>
+            <a class="ol-button ol-button-secondary ol-button-small" data-author-public-link href="#" target="_blank" rel="author noopener" hidden>Apri destinazione pubblica<span class="ol-visually-hidden"> (si apre in una nuova scheda)</span></a>
           </div>
           <form class="ol-form ol-author-profile-form" data-author-profile-form novalidate>
             <div class="ol-alert ol-alert-success" role="status" aria-live="polite" data-author-profile-success hidden></div>
@@ -67,7 +68,7 @@
               <div class="ol-author-profile-photo" data-author-avatar-uploader><input name="avatar_url" type="hidden"><div class="ol-avatar-preview" data-author-avatar-preview-box hidden><img data-author-avatar-preview alt=""><button class="ol-button ol-button-secondary ol-button-small" type="button" data-author-avatar-remove>Rimuovi foto</button></div><div class="ol-field"><label for="review-author-avatar-upload">Foto autore</label><input id="review-author-avatar-upload" data-author-avatar-upload type="file" accept="image/jpeg,image/png,image/webp,image/avif" aria-describedby="review-author-avatar-help"><small id="review-author-avatar-help">JPG, PNG, WebP o AVIF fino a 5 MB.</small><p class="ol-small ol-muted" data-author-avatar-status aria-live="polite"></p></div></div>
               <div class="ol-author-profile-fields">
                 <div class="ol-field"><label for="review-author-display-name">Nome pubblico</label><input id="review-author-display-name" name="display_name" type="text" maxlength="120" autocomplete="name" required></div>
-                <div class="ol-field"><label for="review-author-profile-slug">Pagina autore</label><input id="review-author-profile-slug" name="slug" type="text" readonly></div>
+                <div class="ol-field"><label for="review-author-profile-slug">Destinazione pubblica</label><input id="review-author-profile-slug" name="slug" type="text" readonly></div>
                 <div class="ol-field"><label for="review-author-bio">Biografia breve</label><textarea id="review-author-bio" name="bio" maxlength="700"></textarea><div class="ol-counter" data-count-for="review-author-bio"></div></div>
                 <div class="ol-field"><label for="review-author-linkedin">Profilo LinkedIn</label><input id="review-author-linkedin" name="linkedin_url" type="url" maxlength="500" inputmode="url" autocomplete="url" placeholder="https://www.linkedin.com/in/..."></div>
                 <div class="ol-field"><label for="review-author-website">Sito personale <span class="ol-muted">(facoltativo)</span></label><input id="review-author-website" name="website_url" type="url" maxlength="500" inputmode="url" autocomplete="url" placeholder="https://..."></div>
@@ -79,7 +80,7 @@
         </details>
 
         <details class="ol-panel ol-collapsible-panel ol-team-panel" data-admin-team hidden>
-          <summary class="ol-collapsible-summary"><span><span class="ol-eyebrow">Amministrazione</span><strong>Collaboratori, autori e categorie</strong><small>Inviti, persone abilitate, profili autori e gestione categorie.</small></span><span class="ol-collapsible-action" aria-hidden="true">Apri</span></summary>
+          <summary class="ol-collapsible-summary"><span><strong>Amministrazione</strong><small>Inviti, persone abilitate e categorie</small></span><span class="ol-collapsible-action" aria-hidden="true">Apri</span></summary>
           <div class="ol-collapsible-content ol-panel-body">
           <div class="ol-toolbar ol-toolbar-compact">
             <p class="ol-muted">Strumenti amministrativi. Apri questa sezione solo quando devi gestire accessi o profili.</p>
@@ -93,7 +94,7 @@
               <form class="ol-form ol-invite-form-compact" data-admin-invite-form>
                 <div class="ol-invite-fields">
                   <div class="ol-field"><label for="invite-email">Email</label><input id="invite-email" name="email" type="email" maxlength="320" autocomplete="email" required></div>
-                  <div class="ol-field"><label for="invite-name">Nome pubblico autore</label><input id="invite-name" name="display_name" type="text" maxlength="120" autocomplete="name" required><input id="invite-slug" name="author_slug" type="hidden"><small data-author-slug-preview>L’indirizzo pubblico dell’autore verrà creato automaticamente dal nome.</small></div>
+                  <div class="ol-field"><label for="invite-name">Nome pubblico autore</label><input id="invite-name" name="display_name" type="text" maxlength="120" autocomplete="name" required><input id="invite-slug" name="author_slug" type="hidden"><small data-author-slug-preview>L’identificativo autore verrà creato automaticamente dal nome.</small></div>
                   <div class="ol-field"><label for="invite-role">Ruolo</label><select id="invite-role" name="role"><option value="contributor">Collaboratore</option><option value="editor">Editor</option></select><small>Il ruolo stabilisce il limite massimo.</small></div>
                 </div>
                 <fieldset class="ol-permission-box ol-permission-box-compact">
@@ -136,6 +137,7 @@
           </div>
           </div>
         </details>
+        </div>
 
         <div class="ol-review-layout">
           <aside class="ol-sidebar ol-review-sidebar" aria-label="Coda editoriale">
@@ -143,7 +145,7 @@
               <div class="ol-toolbar ol-toolbar-compact"><h2 class="ol-sidebar-title">Articoli</h2><div class="ol-toolbar-group"><button class="ol-button ol-button-primary ol-button-small" type="button" data-review-new>Nuovo articolo</button><button class="ol-button ol-button-secondary ol-button-small" type="button" data-review-refresh>Aggiorna</button></div></div>
               <div class="ol-grid ol-grid-2 ol-review-filters">
                 <div class="ol-field ol-field-compact"><label for="review-scope-filter">Visualizza</label><select id="review-scope-filter" data-review-scope-filter><option value="all">Tutti gli articoli</option><option value="mine">I miei articoli</option></select></div>
-                <div class="ol-field ol-field-compact"><label for="review-status-filter">Stato</label><select id="review-status-filter" data-review-status-filter><option value="in_review">In revisione</option><option value="changes_requested">Modifiche richieste</option><option value="approved">Approvati</option><option value="published">Pubblicati</option><option value="draft">Bozze</option><option value="archived">Archiviati</option><option value="all">Tutti</option></select></div>
+                <div class="ol-field ol-field-compact"><label for="review-status-filter">Stato</label><select id="review-status-filter" data-review-status-filter><option value="all" selected>Tutti</option><option value="in_review">In revisione</option><option value="changes_requested">Modifiche richieste</option><option value="approved">Approvati</option><option value="published">Pubblicati</option><option value="draft">Bozze</option><option value="archived">Archiviati</option></select></div>
               </div>
               <div class="ol-alert ol-alert-warning ol-alert-compact" role="status" data-review-author-warning hidden></div>
               <p class="ol-muted ol-small" data-review-count aria-live="polite"></p>
@@ -234,7 +236,7 @@
 </main>
 
 <footer class="ol-footer"><div class="ol-shell">Pannello redazione OffertaLogica · accesso riservato</div></footer>
-<script src="/assets/editorial-config.js"></script>
-<script src="/assets/editorial.js" defer></script>
+<script src="/assets/editorial-config.js?v=0.11.1"></script>
+<script src="/assets/editorial.js?v=0.11.1" defer></script>
 </body>
 </html>

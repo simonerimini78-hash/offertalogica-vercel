@@ -95,3 +95,30 @@
 .ol-collapsible-panel{margin:0 0 12px;overflow:hidden}.ol-collapsible-summary{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 18px;cursor:pointer;list-style:none}.ol-collapsible-summary::-webkit-details-marker{display:none}.ol-collapsible-summary>span:first-child{display:grid;gap:2px}.ol-collapsible-summary strong{font-size:17px;line-height:1.2}.ol-collapsible-summary small{color:var(--ol-muted);font-size:12px}.ol-collapsible-action{flex:0 0 auto;border:1px solid var(--ol-border);border-radius:999px;padding:5px 10px;background:#fff;color:#334155;font-size:12px;font-weight:850}.ol-collapsible-panel[open] .ol-collapsible-summary{border-bottom:1px solid var(--ol-border);background:var(--ol-surface-soft)}.ol-collapsible-panel[open] .ol-collapsible-action{background:#f0fdf4;color:var(--ol-primary-dark)}.ol-collapsible-content>.ol-toolbar:first-child{margin-bottom:14px}.ol-author-profile-panel{margin-bottom:12px}.ol-team-panel{margin-bottom:16px}
 @media(max-width:980px){.ol-informa-lead-grid{grid-template-columns:1fr}.ol-resource-list{grid-template-columns:repeat(2,minmax(0,1fr))}.ol-more-articles-section .ol-article-list{grid-template-columns:repeat(2,minmax(0,1fr))}.ol-prose{max-width:100%}}
 @media(max-width:700px){.ol-resource-list,.ol-more-articles-section .ol-article-list{grid-template-columns:1fr}.ol-informa-featured [data-article-featured]>.ol-article-item-featured{min-height:0;padding:20px}.ol-session-bar{align-items:stretch}.ol-session-context{display:none}.ol-session-actions{justify-content:space-between}.ol-session-author-chip{max-width:calc(100% - 78px)}.ol-collapsible-summary{padding:12px 14px}.ol-collapsible-summary small{display:none}.ol-prose.ol-panel-body{padding:18px}}
+
+/* Editoriale v0.11.1: correzione pannello redazione e autore in evidenza. */
+body[data-editorial-view="review"] .ol-hero{padding:22px 0 10px}
+body[data-editorial-view="review"] .ol-hero h1{max-width:none;margin:4px 0 7px;font-size:clamp(30px,3.5vw,42px);line-height:1.05}
+body[data-editorial-view="review"] .ol-hero p{max-width:920px;font-size:15px;line-height:1.45}
+body[data-editorial-view="review"] .ol-section{padding-top:10px}
+body[data-editorial-view="review"] .ol-session-bar{min-height:58px;margin-bottom:10px;padding:7px 10px}
+body[data-editorial-view="review"] .ol-session-bar .ol-session-actions{display:flex!important;align-items:center!important;gap:8px}
+body[data-editorial-view="review"] .ol-session-bar .ol-session-author-chip{display:flex!important;align-items:center!important;gap:8px;padding:4px 9px 4px 4px}
+body[data-editorial-view="review"] .ol-session-avatar{width:34px;height:34px;flex-basis:34px}
+body[data-editorial-view="review"] .ol-session-bar .ol-session-author-text{display:grid!important;gap:0!important}
+.ol-management-shortcuts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 12px}
+.ol-management-shortcuts .ol-collapsible-panel{margin:0;box-shadow:none}
+.ol-collapsible-summary{min-height:58px;padding:10px 14px}
+.ol-collapsible-summary>span:first-child{display:grid!important;gap:1px!important;min-width:0}
+.ol-collapsible-summary strong{font-size:15px}
+.ol-collapsible-summary small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ol-collapsible-action{padding:4px 9px}
+.ol-review-layout{margin-top:0}
+.ol-article-item-featured{position:relative}
+.ol-featured-author{position:absolute;top:20px;right:22px;display:flex;align-items:center;gap:8px;max-width:220px;border:1px solid var(--ol-border);border-radius:999px;background:#fff;padding:5px 10px 5px 5px;text-decoration:none;font-size:13px;font-weight:850;box-shadow:0 5px 18px rgba(15,23,42,.06)}
+.ol-featured-author:hover{border-color:#86efac;background:#f0fdf4}
+.ol-featured-author-avatar{display:grid;width:32px;height:32px;flex:0 0 32px;place-items:center;overflow:hidden;border-radius:50%;background:#e2e8f0;color:#334155;font-weight:900}
+.ol-featured-author-avatar img{width:100%;height:100%;object-fit:cover}
+.ol-informa-featured .ol-article-item-featured .ol-article-meta{padding-right:220px}
+.ol-prose{max-width:1120px}
+@media(max-width:760px){.ol-management-shortcuts{grid-template-columns:1fr}.ol-featured-author{position:static;align-self:flex-start;max-width:100%;margin:0 0 10px}.ol-informa-featured .ol-article-item-featured .ol-article-meta{padding-right:0}}
