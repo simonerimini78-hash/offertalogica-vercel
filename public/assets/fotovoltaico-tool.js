@@ -1,4 +1,4 @@
-const TOOL_VERSION = '1.4.2';
+const TOOL_VERSION = '1.4.3';
 const TRACK_URL = '/api/track-event';
 const PV_URL = '/api/pv-estimate';
 const PDF_REPLAY_KEY = 'offertalogicaPdfArchiveReplay';
@@ -258,21 +258,58 @@ function showQuickStep(step,{focus=true}={}){
 }
 function quickOwner(){ return checkedValue('pv-owner'); }
 function quickProfileChoice(){ return checkedValue('pv-quick-profile')||'unknown'; }
+function quickConsumptionSource(){ return checkedValue('pv-consumption-source'); }
+function quickSpendPeriod(){ return checkedValue('pv-spend-period')||'month'; }
+function quickHouseholdSize(){ return checkedValue('pv-household-size'); }
+function setQuickConsumptionPanel(source,{focus=false}={}){
+  ['exact','spend','household'].forEach((name)=>{const panel=$(`pv-quick-source-${name}`);if(panel)panel.hidden=name!==source;});
+  if(!focus)return;
+  const target=source==='exact'?$('pv-quick-consumption'):source==='spend'?$('pv-quick-spend'):document.querySelector('input[name="pv-household-size"]');
+  window.setTimeout(()=>target?.focus({preventScroll:true}),20);
+}
+function estimateQuickConsumption(){
+  const source=quickConsumptionSource();
+  if(source==='exact'){
+    const annual=num('pv-quick-consumption');
+    if(!(annual>0))return{error:'Inserisci il consumo annuo in kWh.'};
+    return{annualKwh:annual,source:'exact',label:'kWh annui indicati'};
+  }
+  if(source==='spend'){
+    const spend=num('pv-quick-spend');
+    if(!(spend>0))return{error:'Inserisci quanto spendi circa di elettricità.'};
+    const annualSpend=quickSpendPeriod()==='year'?spend:spend*12;
+    const annualKwh=clamp(Math.round(annualSpend/0.30/50)*50,800,30000);
+    return{annualKwh,source:'spend',label:'consumo stimato dalla spesa'};
+  }
+  if(source==='household'){
+    const size=quickHouseholdSize();
+    const estimates={1:1800,2:2600,3:3300,4:4000,'5plus':4800};
+    const annualKwh=estimates[size];
+    if(!annualKwh)return{error:'Indica quante persone vivono normalmente in casa.'};
+    return{annualKwh,source:'household',label:'consumo orientativo stimato'};
+  }
+  return{error:'Scegli il modo più semplice per indicare i consumi.'};
+}
 function saveQuickState(step=1){
   try{
-    const state={version:TOOL_VERSION,step:Math.min(2,Math.max(1,Number(step)||1)),owner:quickOwner(),placeQuery:String($('pv-quick-place')?.value||'').slice(0,120),consumption:num('pv-quick-consumption'),profileChoice:quickProfileChoice(),location:latestProjectProfile?.location||null};
+    const estimate=estimateQuickConsumption();
+    const state={version:TOOL_VERSION,step:Math.min(2,Math.max(1,Number(step)||1)),consumptionSource:quickConsumptionSource(),spend:num('pv-quick-spend'),spendPeriod:quickSpendPeriod(),householdSize:quickHouseholdSize(),placeQuery:String($('pv-quick-place')?.value||'').slice(0,120),consumption:num('pv-quick-consumption'),estimatedConsumption:Number.isFinite(Number(estimate.annualKwh))?Number(estimate.annualKwh):null,profileChoice:quickProfileChoice(),location:latestProjectProfile?.location||null};
     sessionStorage.setItem(QUICK_STATE_KEY,JSON.stringify(state));
   }catch{}
 }
 function restoreQuickState(){
   try{
     const state=JSON.parse(sessionStorage.getItem(QUICK_STATE_KEY)||'null'); if(!state||state.version!==TOOL_VERSION)return;
-    const owner=radioByValue('pv-owner',state.owner); if(owner)owner.checked=true;
+    const source=radioByValue('pv-consumption-source',state.consumptionSource); if(source)source.checked=true;
+    setQuickConsumptionPanel(state.consumptionSource||'');
     if($('pv-quick-place'))$('pv-quick-place').value=String(state.placeQuery||'');
     if($('pv-quick-consumption')&&Number.isFinite(Number(state.consumption)))$('pv-quick-consumption').value=String(state.consumption);
+    if($('pv-quick-spend')&&Number.isFinite(Number(state.spend)))$('pv-quick-spend').value=String(state.spend);
+    const spendPeriod=radioByValue('pv-spend-period',state.spendPeriod||'month'); if(spendPeriod)spendPeriod.checked=true;
+    const household=radioByValue('pv-household-size',state.householdSize); if(household)household.checked=true;
     const profile=radioByValue('pv-quick-profile',state.profileChoice||'unknown'); if(profile)profile.checked=true;
-    if(state.location&&validCoordinate(Number(state.location.lat),35,48)&&validCoordinate(Number(state.location.lon),5,20))latestProjectProfile={origin:'quick_pending',ownership:String(state.owner||''),location:state.location};
-    if(Number(state.step)===2)showQuickStep(2,{focus:false});
+    if(state.location&&validCoordinate(Number(state.location.lat),35,48)&&validCoordinate(Number(state.location.lon),5,20))latestProjectProfile={origin:'quick_pending',customerType:'privato',ownership:'unknown',location:state.location,annualConsumptionKwh:Number(state.estimatedConsumption)||null,consumptionSource:String(state.consumptionSource||'')};
+    if(Number(state.step)===2&&latestProjectProfile?.location&&latestProjectProfile?.annualConsumptionKwh)showQuickStep(2,{focus:false});
   }catch{}
 }
 async function lookupItalianPlace(query){
@@ -297,58 +334,58 @@ function scaledPv(base,powerKw){
   const factor=Number(powerKw)||1;
   return{...base,annualKwh:Number(base.annualKwh||0)*factor,monthly:(base.monthly||[]).map((row)=>({...row,kwh:Number(row.kwh||0)*factor,variabilityKwh:Number.isFinite(Number(row.variabilityKwh))?Number(row.variabilityKwh)*factor:row.variabilityKwh}))};
 }
-function quickConfidence(owner,consumption,profileChoice){
-  if(!consumption)return 'Bassa: manca il consumo annuo.';
-  if(!owner||owner==='not_owner'||profileChoice==='unknown')return 'Media: alcuni dati importanti sono ancora da verificare.';
-  return 'Buona per una prima valutazione energetica.';
+function quickConfidence(consumptionSource,profileChoice){
+  const profileKnown=profileChoice&&profileChoice!=='unknown';
+  if(consumptionSource==='exact')return profileKnown?'Buona: usiamo i tuoi kWh annui e le abitudini indicate.':'Media: i kWh sono reali, ma non sappiamo quando consumi di più.';
+  if(consumptionSource==='spend')return profileKnown?'Media: il consumo è stimato dalla spesa indicata.':'Preliminare: consumo e profilo orario sono stimati.';
+  return profileKnown?'Preliminare: il consumo è stimato dal numero di persone in casa.':'Preliminare: usiamo poche informazioni e ipotesi prudenti.';
 }
-function quickAssessment({owner,impact,consumption,capped}){
-  if(!consumption)return{tone:'caution',title:'Per capire se vale la pena approfondire ci serve il consumo annuo',copy:'La zona è sufficiente per stimare il sole disponibile, ma senza i kWh annui non possiamo confrontare produzione e fabbisogno in modo utile.',eligible:false,code:'missing_consumption'};
-  if(owner==='not_owner')return{tone:'caution',title:'Il progetto va verificato prima con il proprietario',copy:'Possiamo stimare produzione e autoconsumo, ma prima di trasformare la valutazione in un progetto reale serve la disponibilità del proprietario dell’immobile.',eligible:false,code:'owner_required'};
-  if(!impact)return{tone:'caution',title:'Il fotovoltaico può avere senso, ma manca un dato decisivo',copy:'Sappiamo quanto consumi, ma non quando. Senza il profilo orario non stimiamo quanta energia riusciresti a usare direttamente e quanta continueresti a comprare dalla rete.',eligible:true,code:'profile_missing'};
+function quickAssessment({impact,consumption,capped}){
+  if(!consumption)return{tone:'caution',title:'Ci serve ancora un dato sui consumi',copy:'Scegli kWh, spesa oppure numero di persone: basta una di queste informazioni per preparare una prima stima.',eligible:false,code:'missing_consumption'};
+  if(!impact)return{tone:'',title:'Il fotovoltaico può valere un approfondimento',copy:'Abbiamo stimato produzione e fabbisogno annuale. Non sapendo quando consumi di più, non possiamo ancora stimare con precisione quanta energia useresti direttamente mentre il fotovoltaico produce.',eligible:true,code:'profile_missing'};
   const coverage=Number(impact.coveragePct||0);
-  if(coverage>=35&&!capped)return{tone:'positive',title:'Il fotovoltaico merita di essere approfondito nel tuo caso',copy:`Nello scenario indicativo una parte significativa dei tuoi consumi potrebbe coincidere con la produzione solare. Restano però costi dell’impianto, tetto e lavori reali da verificare prima di parlare di convenienza economica definitiva.`,eligible:true,code:'good_energy_fit'};
+  if(coverage>=35&&!capped)return{tone:'positive',title:'Il fotovoltaico merita di essere approfondito nel tuo caso',copy:'Nella prima stima una parte significativa dei consumi può coincidere con la produzione solare. Costi reali, tetto e lavori vanno comunque verificati prima di parlare di convenienza economica definitiva.',eligible:true,code:'good_energy_fit'};
   if(coverage>=20)return{tone:'',title:'Può avere senso, ma non basta guardare la produzione annuale',copy:'Il tuo profilo mostra un margine di autoconsumo, ma una quota rilevante di energia resterebbe acquistata dalla rete. Prima di decidere conviene confrontare bene taglia dell’impianto, costo e abitudini di consumo.',eligible:true,code:capped?'large_consumption':'medium_energy_fit'};
-  return{tone:'caution',title:'Il tuo profilo richiede più attenzione prima di investire',copy:'Con le abitudini indicate l’autoconsumo diretto risulta limitato. Questo non significa automaticamente che il fotovoltaico non convenga, ma sarebbe sbagliato considerarlo conveniente senza valutare costi, possibili spostamenti dei consumi e caratteristiche reali del tetto.',eligible:true,code:'low_direct_use'};
+  return{tone:'caution',title:'Il tuo profilo richiede più attenzione prima di investire',copy:'Con le abitudini indicate l’autoconsumo diretto risulta limitato. Non significa automaticamente che il fotovoltaico non convenga, ma sarebbe sbagliato deciderlo senza valutare costi, possibili spostamenti dei consumi e caratteristiche reali del tetto.',eligible:true,code:'low_direct_use'};
 }
 async function quickNext(){
-  const owner=quickOwner(); const query=String($('pv-quick-place')?.value||'').trim();
-  if(!owner){quickStatus('pv-quick-status-1','Indica se l’immobile è di tua proprietà.','error');return;}
+  const estimate=estimateQuickConsumption(); const query=String($('pv-quick-place')?.value||'').trim();
+  if(estimate.error){quickStatus('pv-quick-status-1',estimate.error,'error');return;}
   if(query.length<2){quickStatus('pv-quick-status-1','Inserisci il Comune o il CAP dell’immobile.','error');return;}
   const button=$('pv-quick-next'); if(button)button.disabled=true; quickStatus('pv-quick-status-1','Cerco i dati solari della zona…');
   try{
-    const locationInfo=await lookupItalianPlace(query); latestProjectProfile={origin:'quick_pending',ownership:owner,location:locationInfo}; syncQuickToDetailed(locationInfo,null,'unknown');
-    quickStatus('pv-quick-status-1',`Zona trovata: ${locationInfo.label}.`,'ok'); track('quick_evaluation_started',{context:owner}); showQuickStep(2);
+    const locationInfo=await lookupItalianPlace(query);
+    latestProjectProfile={origin:'quick_pending',customerType:'privato',ownership:'unknown',location:locationInfo,annualConsumptionKwh:Number(estimate.annualKwh),consumptionSource:estimate.source};
+    syncQuickToDetailed(locationInfo,estimate.annualKwh,'unknown');
+    quickStatus('pv-quick-status-1',`Zona trovata: ${locationInfo.label}.`,'ok'); track('quick_evaluation_started',{context:estimate.source}); showQuickStep(2);
   }catch(error){quickStatus('pv-quick-status-1',String(error?.message||'Zona non trovata.'),'error');}
   finally{if(button)button.disabled=false;}
 }
 async function quickEvaluate(){
-  const owner=quickOwner(); const locationInfo=latestProjectProfile?.location;
-  if(!owner||!locationInfo){showQuickStep(1);quickStatus('pv-quick-status-1','Riparti dalla zona dell’immobile.','error');return;}
-  const consumption=num('pv-quick-consumption'); const profileChoice=quickProfileChoice(); const button=$('pv-quick-evaluate');
-  if(button)button.disabled=true; quickStatus('pv-quick-status-2','Preparo la valutazione con i dati PVGIS…');
+  const locationInfo=latestProjectProfile?.location; const consumption=Number(latestProjectProfile?.annualConsumptionKwh||0); const consumptionSource=String(latestProjectProfile?.consumptionSource||'');
+  if(!locationInfo||!(consumption>0)){showQuickStep(1);quickStatus('pv-quick-status-1','Riparti dai consumi e dalla zona dell’immobile.','error');return;}
+  const profileChoice=quickProfileChoice(); const button=$('pv-quick-evaluate');
+  if(button)button.disabled=true; quickStatus('pv-quick-status-2','Calcolo la prima stima con i dati PVGIS…');
   try{
-    if(!consumption||consumption<=0){
-      const assessment=quickAssessment({owner,impact:null,consumption:null,capped:false});
-      latestProjectProfile={origin:'quick',customerType:'privato',ownership:owner,location:locationInfo,annualConsumptionKwh:null,usageProfile:profileChoice,assessment:assessment.code,assessmentLabel:assessment.title,confidence:'low',leadEligible:false,evaluatedAt:new Date().toISOString()};
-      renderQuickResult(latestProjectProfile,assessment,null); syncQuickToDetailed(locationInfo,null,profileChoice); track('quick_evaluation_completed',{outcome:assessment.code,context:'missing_consumption'}); return;
-    }
     const base=await fetchPvEstimate({lat:locationInfo.lat,lon:locationInfo.lon,powerKw:1,customerType:'consumer',angle:null,aspect:null});
     const yieldPerKw=Number(base.annualKwh||0); if(!(yieldPerKw>0))throw new Error('Produzione solare non disponibile per la zona indicata.');
     const rawPower=consumption/yieldPerKw; const capped=rawPower>12; const scenarioPower=clamp(Math.round(clamp(rawPower,1.5,12)*2)/2,1.5,12); const pv=scaledPv(base,scenarioPower);
-    const profile=profileFromChoice(profileChoice); const impact=profile?calculateImpact(pv,consumption,profile):null; const assessment=quickAssessment({owner,impact,consumption,capped});
-    const confidence=quickConfidence(owner,consumption,profileChoice);
-    latestProjectProfile={origin:'quick',customerType:'privato',ownership:owner,location:locationInfo,annualConsumptionKwh:consumption,usageProfile:profileChoice,scenarioPowerKw:scenarioPower,annualProductionKwh:Number(pv.annualKwh||0),selfConsumptionKwh:impact?Number(impact.selfKwh||0):null,residualGridKwh:impact?Number(impact.residualKwh||0):null,excessKwh:impact?Number(impact.excessKwh||0):null,coveragePct:impact?Number(impact.coveragePct||0):null,assessment:assessment.code,assessmentLabel:assessment.title,confidence:confidence.startsWith('Buona')?'good':'medium',leadEligible:assessment.eligible,evaluatedAt:new Date().toISOString()};
-    renderQuickResult(latestProjectProfile,assessment,impact); syncQuickToDetailed(locationInfo,consumption,profileChoice,scenarioPower); track('quick_evaluation_completed',{outcome:assessment.code,context:profileChoice});
+    const profile=profileFromChoice(profileChoice); const impact=profile?calculateImpact(pv,consumption,profile):null; const assessment=quickAssessment({impact,consumption,capped});
+    const confidence=quickConfidence(consumptionSource,profileChoice);
+    latestProjectProfile={origin:'quick',customerType:'privato',ownership:'unknown',location:locationInfo,annualConsumptionKwh:consumption,consumptionSource,usageProfile:profileChoice,scenarioPowerKw:scenarioPower,annualProductionKwh:Number(pv.annualKwh||0),selfConsumptionKwh:impact?Number(impact.selfKwh||0):null,residualGridKwh:impact?Number(impact.residualKwh||0):null,excessKwh:impact?Number(impact.excessKwh||0):null,coveragePct:impact?Number(impact.coveragePct||0):null,assessment:assessment.code,assessmentLabel:assessment.title,confidence:consumptionSource==='exact'&&profileChoice!=='unknown'?'good':consumptionSource==='household'?'low':'medium',leadEligible:assessment.eligible,evaluatedAt:new Date().toISOString()};
+    renderQuickResult(latestProjectProfile,assessment,impact); syncQuickToDetailed(locationInfo,consumption,profileChoice,scenarioPower); track('quick_evaluation_completed',{outcome:assessment.code,context:`${consumptionSource}:${profileChoice}`});
   }catch(error){quickStatus('pv-quick-status-2',String(error?.message||'Valutazione non disponibile. Riprova.'),'error');track('quick_evaluation_failed',{outcome:String(error?.message||'error')});}
   finally{if(button)button.disabled=false;}
 }
 function renderQuickResult(project,assessment,impact){
+  const sourceLabel=project.consumptionSource==='exact'?'dato indicato':project.consumptionSource==='spend'?'stima dalla spesa':'stima orientativa';
   setText('pv-quick-result-title',assessment.title); setText('pv-quick-result-copy',assessment.copy); setText('pv-quick-result-place',project.location?.label||'—');
-  setText('pv-quick-result-power',project.scenarioPowerKw?`${fmt(project.scenarioPowerKw,1)} kW`:'Serve il consumo annuo');
-  setText('pv-quick-result-self',impact?`${fmt(impact.selfKwh)} kWh/anno`:'Da stimare'); setText('pv-quick-result-grid',impact?`${fmt(impact.residualKwh)} kWh/anno`:'Da stimare');
-  const box=$('pv-quick-assessment'); if(box){box.className=`assessment-box ${assessment.tone||''}`.trim();box.textContent=assessment.eligible?'La valutazione non presume che l’impianto convenga: indica se i dati energetici rendono sensato approfondire costi e fattibilità.':'Prima di chiedere un preventivo conviene completare o verificare i dati indicati sopra.';}
-  setText('pv-quick-confidence',quickConfidence(project.ownership,project.annualConsumptionKwh,project.usageProfile)); const consult=$('pv-quick-consult'); if(consult)consult.hidden=!assessment.eligible;
+  setText('pv-quick-result-consumption',project.annualConsumptionKwh?`${fmt(project.annualConsumptionKwh)} kWh/anno · ${sourceLabel}`:'—');
+  setText('pv-quick-result-power',project.scenarioPowerKw?`${fmt(project.scenarioPowerKw,1)} kW`:'Da stimare');
+  setText('pv-quick-result-production',project.annualProductionKwh?`${fmt(project.annualProductionKwh)} kWh/anno`:'Da stimare');
+  setText('pv-quick-result-self',impact?`${fmt(impact.selfKwh)} kWh/anno`:'Da approfondire'); setText('pv-quick-result-grid',impact?`${fmt(impact.residualKwh)} kWh/anno`:'Da approfondire');
+  const box=$('pv-quick-assessment'); if(box){box.className=`assessment-box ${assessment.tone||''}`.trim();box.textContent='Questa prima stima serve a capire se vale la pena approfondire. Proprietà dell’immobile, tetto e costi reali vengono verificati solo nel passaggio successivo.';}
+  setText('pv-quick-confidence',quickConfidence(project.consumptionSource,project.usageProfile)); const consult=$('pv-quick-consult'); if(consult)consult.hidden=!assessment.eligible;
   quickStatus('pv-quick-status-2',''); showQuickStep(3); saveQuickState(2);
 }
 function updateProjectFromDetailed(pv,locationInfo,power,consumption,profile,impact,powerOrigin){
@@ -401,6 +438,7 @@ async function verifyPhotovoltaicOtp(){
   finally{if(button)button.disabled=false;}
 }
 
+document.querySelectorAll('input[name="pv-consumption-source"]').forEach((input)=>input.addEventListener('change',()=>setQuickConsumptionPanel(input.value,{focus:true})));
 $('pv-quick-next')?.addEventListener('click',quickNext);
 $('pv-quick-back')?.addEventListener('click',()=>showQuickStep(1));
 $('pv-quick-evaluate')?.addEventListener('click',quickEvaluate);

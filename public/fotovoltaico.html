@@ -24,7 +24,7 @@
   <link rel="icon" type="image/png" href="/assets/logo-offertalogica-icon.png">
   <link rel="apple-touch-icon" href="/assets/logo-offertalogica-icon.png">
   <link rel="stylesheet" href="/assets/ol-app-access.css">
-  <link rel="stylesheet" href="/assets/fotovoltaico-tool.css?v=1.4.2">
+  <link rel="stylesheet" href="/assets/fotovoltaico-tool.css?v=1.4.3">
   <script type="application/ld+json">
   {"@context":"https://schema.org","@graph":[{"@type":"WebPage","@id":"https://offertalogica.it/fotovoltaico.html#webpage","url":"https://offertalogica.it/fotovoltaico.html","name":"Fotovoltaico: conviene davvero? Calcolo e valutazione | OffertaLogica","description":"Valutazione preliminare del fotovoltaico basata su zona, consumi, autoconsumo ed energia residua prima di richiedere un preventivo.","isPartOf":{"@id":"https://offertalogica.it/#website"},"publisher":{"@id":"https://offertalogica.it/#organization"},"mainEntity":{"@id":"https://offertalogica.it/fotovoltaico.html#simulatore"},"inLanguage":"it-IT"},{"@type":"WebApplication","@id":"https://offertalogica.it/fotovoltaico.html#simulatore","name":"Valutazione fotovoltaico OffertaLogica","url":"https://offertalogica.it/fotovoltaico.html","applicationCategory":"UtilitiesApplication","operatingSystem":"Web","description":"Strumento informativo che usa PVGIS e i consumi dichiarati per stimare produzione, autoconsumo ed energia ancora acquistata dalla rete, senza obbligare a richiedere un preventivo.","provider":{"@id":"https://offertalogica.it/#organization"},"isPartOf":{"@id":"https://offertalogica.it/#website"},"mainEntityOfPage":{"@id":"https://offertalogica.it/fotovoltaico.html#webpage"},"isBasedOn":["https://joint-research-centre.ec.europa.eu/photovoltaic-geographical-information-system-pvgis_en","https://www.media.enea.it/comunicati-e-news/archivio-anni/anno-2026/energia-case-vuote-con-riqualificazione-energetica-valore-di-mercato-aumenta-del-45.html","https://www.arera.it/bolletta/glossario-dei-termini/dettaglio/fasce-orarie"],"inLanguage":"it-IT"},{"@type":"FAQPage","@id":"https://offertalogica.it/fotovoltaico.html#faq","mainEntity":[{"@type":"Question","name":"Come capire se il fotovoltaico conviene davvero?","acceptedAnswer":{"@type":"Answer","text":"Non basta confrontare produzione e consumo annuale. Conta quanta energia riesci a usare mentre l'impianto produce, quanta continui ad acquistare dalla rete, il costo reale del progetto e la fattibilità dell'immobile."}},{"@type":"Question","name":"Serve sempre una batteria con il fotovoltaico?","acceptedAnswer":{"@type":"Answer","text":"No. L'accumulo può aumentare l'autoconsumo, ma la sua convenienza economica va valutata separatamente rispetto al solo impianto fotovoltaico."}},{"@type":"Question","name":"Devo lasciare telefono o email per vedere la valutazione?","acceptedAnswer":{"@type":"Answer","text":"No. La valutazione preliminare è disponibile prima dei recapiti. I dati di contatto vengono richiesti solo se scegli volontariamente il ricontatto e acconsenti alla comunicazione a un consulente tecnico esterno che effettua il primo ricontatto e approfondisce la tua richiesta."}}]}]}
   </script>
@@ -51,40 +51,75 @@
         <h2 id="pv-quick-title">In due passaggi capiamo se vale la pena approfondire</h2>
         <p>Non ti chiediamo di scegliere pannelli o batterie. Ci servono solo dati che puoi conoscere senza essere un tecnico.</p>
         <ol class="quick-progress" aria-label="Fasi della valutazione">
-          <li class="active" data-quick-progress="1">Il tuo caso</li>
-          <li data-quick-progress="2">I consumi</li>
-          <li data-quick-progress="3">La valutazione</li>
+          <li class="active" data-quick-progress="1">Consumi e zona</li>
+          <li data-quick-progress="2">Quando consumi</li>
+          <li data-quick-progress="3">Prima stima</li>
         </ol>
       </div>
 
       <div class="quick-step" id="pv-quick-step-1" data-quick-step="1">
-        <h3 tabindex="-1">1. Partiamo dall'immobile</h3>
+        <h3 tabindex="-1">1. Quanto consumi e dove si trova la casa?</h3>
+        <p class="quick-step-intro">Se non conosci i kWh va bene: partiamo dalla spesa oppure facciamo una stima semplice.</p>
         <fieldset class="choice-fieldset">
-          <legend>L'immobile è di tua proprietà?</legend>
+          <legend>Sai quanta energia consumi in un anno?</legend>
           <div class="choice-grid three">
-            <label class="choice-card"><input type="radio" name="pv-owner" value="owner"><span>Sì, è mio</span></label>
-            <label class="choice-card"><input type="radio" name="pv-owner" value="buying"><span>Lo sto acquistando</span></label>
-            <label class="choice-card"><input type="radio" name="pv-owner" value="not_owner"><span>No</span></label>
+            <label class="choice-card"><input type="radio" name="pv-consumption-source" value="exact"><span>Conosco i kWh</span></label>
+            <label class="choice-card"><input type="radio" name="pv-consumption-source" value="spend"><span>So quanto spendo</span></label>
+            <label class="choice-card"><input type="radio" name="pv-consumption-source" value="household"><span>Non lo so</span></label>
           </div>
         </fieldset>
+
+        <div class="quick-source-panel" id="pv-quick-source-exact" hidden>
+          <div class="field quick-field">
+            <label for="pv-quick-consumption">Consumo annuo</label>
+            <div class="input-with-unit"><input id="pv-quick-consumption" type="number" min="1" step="1" inputmode="numeric" placeholder="Es. 3500"><span aria-hidden="true">kWh/anno</span></div>
+            <small>È il dato migliore. Di solito è indicato nella bolletta come consumo annuo.</small>
+          </div>
+        </div>
+
+        <div class="quick-source-panel" id="pv-quick-source-spend" hidden>
+          <div class="field quick-field">
+            <label for="pv-quick-spend">Quanto spendi circa di elettricità?</label>
+            <div class="input-with-unit"><input id="pv-quick-spend" type="number" min="1" step="1" inputmode="decimal" placeholder="Es. 100"><span aria-hidden="true">€</span></div>
+          </div>
+          <fieldset class="choice-fieldset compact-choice-fieldset">
+            <legend>La cifra è:</legend>
+            <div class="choice-grid two">
+              <label class="choice-card"><input type="radio" name="pv-spend-period" value="month" checked><span>Al mese</span></label>
+              <label class="choice-card"><input type="radio" name="pv-spend-period" value="year"><span>All'anno</span></label>
+            </div>
+          </fieldset>
+          <small class="quick-source-note">Dalla spesa ricaviamo solo una stima indicativa dei kWh: la bolletta comprende anche costi fissi e imposte.</small>
+        </div>
+
+        <div class="quick-source-panel" id="pv-quick-source-household" hidden>
+          <fieldset class="choice-fieldset compact-choice-fieldset">
+            <legend>Quante persone vivono normalmente in casa?</legend>
+            <div class="choice-grid household-grid">
+              <label class="choice-card"><input type="radio" name="pv-household-size" value="1"><span>1</span></label>
+              <label class="choice-card"><input type="radio" name="pv-household-size" value="2"><span>2</span></label>
+              <label class="choice-card"><input type="radio" name="pv-household-size" value="3"><span>3</span></label>
+              <label class="choice-card"><input type="radio" name="pv-household-size" value="4"><span>4</span></label>
+              <label class="choice-card"><input type="radio" name="pv-household-size" value="5plus"><span>5+</span></label>
+            </div>
+          </fieldset>
+          <small class="quick-source-note">Useremo una fascia di consumo tipica solo per una prima stima. Potrai sostituirla con i kWh reali in qualsiasi momento.</small>
+        </div>
+
         <div class="field quick-field">
-          <label for="pv-quick-place">In quale Comune o CAP si trova?</label>
+          <label for="pv-quick-place">Comune o CAP dell'immobile</label>
           <input id="pv-quick-place" type="text" autocomplete="postal-code" inputmode="text" placeholder="Es. Ravenna oppure 48125" aria-describedby="pv-quick-place-help">
-          <small id="pv-quick-place-help">La zona serve per usare l'irraggiamento solare locale di PVGIS.</small>
+          <small id="pv-quick-place-help">La zona serve per usare i dati solari locali di PVGIS.</small>
         </div>
         <div class="quick-actions"><button class="button primary" id="pv-quick-next" type="button">Continua</button></div>
         <div class="status" id="pv-quick-status-1" role="status" aria-live="polite"></div>
       </div>
 
       <div class="quick-step" id="pv-quick-step-2" data-quick-step="2" hidden>
-        <h3 tabindex="-1">2. Quanto e quando consumi energia?</h3>
-        <div class="field quick-field">
-          <label for="pv-quick-consumption">Consumo annuo di energia elettrica <span class="optional-label">(se lo conosci)</span></label>
-          <div class="input-with-unit"><input id="pv-quick-consumption" type="number" min="1" step="1" inputmode="numeric" placeholder="Es. 3500"><span aria-hidden="true">kWh/anno</span></div>
-          <small>Lo trovi in bolletta. Se non lo conosci puoi continuare: ti diremo chiaramente cosa manca per una valutazione utile.</small>
-        </div>
+        <h3 tabindex="-1">2. Quando usate più energia?</h3>
+        <p class="quick-step-intro">Non serve essere precisi: scegli la risposta che assomiglia di più alle vostre abitudini.</p>
         <fieldset class="choice-fieldset">
-          <legend>Quando usate più energia in casa?</legend>
+          <legend class="visually-hidden">Quando usate più energia in casa?</legend>
           <div class="choice-grid two">
             <label class="choice-card"><input type="radio" name="pv-quick-profile" value="high"><span>Soprattutto di giorno</span></label>
             <label class="choice-card"><input type="radio" name="pv-quick-profile" value="medium"><span>Tra giorno e sera</span></label>
@@ -93,17 +128,18 @@
             <label class="choice-card choice-wide"><input type="radio" name="pv-quick-profile" value="unknown"><span>Non lo so</span></label>
           </div>
         </fieldset>
-        <div class="quick-actions split-actions"><button class="button secondary" id="pv-quick-back" type="button">Indietro</button><button class="button primary" id="pv-quick-evaluate" type="button">Vedi la valutazione</button></div>
+        <div class="quick-actions split-actions"><button class="button secondary" id="pv-quick-back" type="button">Indietro</button><button class="button primary" id="pv-quick-evaluate" type="button">Calcola la prima stima</button></div>
         <div class="status" id="pv-quick-status-2" role="status" aria-live="polite"></div>
       </div>
 
       <div class="quick-step quick-result" id="pv-quick-result" data-quick-step="3" hidden tabindex="-1" aria-labelledby="pv-quick-result-title">
-        <p class="result-kicker">Valutazione preliminare OffertaLogica</p>
+        <p class="result-kicker">Prima stima energetica · <span id="pv-quick-result-place">—</span></p>
         <h3 id="pv-quick-result-title">—</h3>
         <p id="pv-quick-result-copy">—</p>
         <div class="quick-result-grid">
-          <div><span>Zona</span><strong id="pv-quick-result-place">—</strong></div>
+          <div><span>Consumo usato per la stima</span><strong id="pv-quick-result-consumption">—</strong></div>
           <div><span>Scenario FV indicativo</span><strong id="pv-quick-result-power">—</strong></div>
+          <div><span>Produzione annua stimata</span><strong id="pv-quick-result-production">—</strong></div>
           <div><span>Energia usata mentre il FV produce</span><strong id="pv-quick-result-self">—</strong></div>
           <div><span>Energia ancora acquistata dalla rete</span><strong id="pv-quick-result-grid">—</strong></div>
         </div>
@@ -307,6 +343,6 @@
     </nav>
 </footer>
 </div>
-<script src="/assets/fotovoltaico-tool.js?v=1.4.2" defer></script>
+<script src="/assets/fotovoltaico-tool.js?v=1.4.3" defer></script>
 </body>
 </html>

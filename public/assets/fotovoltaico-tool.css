@@ -37,3 +37,11 @@ a{color:inherit}button,input,select{font:inherit}[hidden]{display:none!important
 }
 
 .consent-note{margin:.35rem 0 0;padding:.75rem .9rem;border-radius:.75rem;background:rgba(15,23,42,.04);font-size:.92rem;line-height:1.5;color:#334155}
+
+/* v1.4.3 — percorso rapido: due schermate, dati progressivi e leggibili su mobile. */
+.quick-step-intro{margin:-8px 0 16px;color:var(--muted);font-size:14px;line-height:1.5}
+.quick-source-panel{margin:-5px 0 18px;padding:14px;border:1px solid rgba(203,213,225,.82);border-radius:16px;background:#f8fafc}
+.quick-source-panel[hidden]{display:none!important}
+.quick-source-panel .quick-field{margin-bottom:10px}.quick-source-panel .choice-fieldset{margin-bottom:10px}.quick-source-note{display:block;color:var(--muted);line-height:1.45}
+.compact-choice-fieldset legend{font-size:14px}.household-grid{grid-template-columns:repeat(5,minmax(0,1fr))}.household-grid .choice-card{min-height:48px}.household-grid .choice-card span{padding:9px 5px}
+@media(max-width:620px){.quick-source-panel{padding:12px}.household-grid{grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}.household-grid .choice-card,.household-grid .choice-card span{min-height:50px}.household-grid .choice-card span{padding:8px 3px}}
