@@ -515,6 +515,52 @@ async function loadAnalyticsTrafficSignals(limitValue, from = CAMPAIGN_BASELINE_
   return signals;
 }
 
+const ANALYTICS_RECENT_JOURNEY_MAX_ROWS = 5000;
+const ANALYTICS_SUMMARY_RPC = "offertalogica_staff_analytics_summary";
+
+function analyticsRpcMissing(status, payload = {}) {
+  const code = String(payload?.code || "").trim();
+  const message = String(payload?.message || payload?.error || "").toLowerCase();
+  return status === 404 || code === "PGRST202" || code === "42883" || message.includes("could not find the function") || message.includes("does not exist");
+}
+
+async function loadDatabaseAnalyticsSummary(from = CAMPAIGN_BASELINE_ISO) {
+  if (!customerDbConfiguredForLandingAnalytics()) return null;
+  const response = await fetch(
+    `${customerDbBaseUrl()}/rest/v1/rpc/${ANALYTICS_SUMMARY_RPC}`,
+    {
+      method: "POST",
+      headers: { ...customerDbReadHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify({ p_from: from || CAMPAIGN_BASELINE_ISO }),
+    },
+  );
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    if (analyticsRpcMissing(response.status, payload)) return null;
+    throw new Error(`Customer DB analytics summary error ${response.status}: ${payload?.message || payload?.error || "unknown"}`);
+  }
+  const summary = Array.isArray(payload) ? payload[0] : payload;
+  return summary && typeof summary === "object" ? summary : null;
+}
+
+async function loadRecentAnalyticsRows(from = CAMPAIGN_BASELINE_ISO, limit = ANALYTICS_RECENT_JOURNEY_MAX_ROWS) {
+  if (!customerDbConfiguredForLandingAnalytics()) return [];
+  const safeLimit = Math.max(1, Math.min(ANALYTICS_RECENT_JOURNEY_MAX_ROWS, Number(limit) || ANALYTICS_RECENT_JOURNEY_MAX_ROWS));
+  const query = new URLSearchParams({
+    select: "id,lead_id,event_type,created_at,payload",
+    order: "created_at.desc",
+    limit: String(safeLimit),
+  });
+  if (from) query.set("created_at", `gte.${from}`);
+  const response = await fetch(
+    `${customerDbBaseUrl()}/rest/v1/${CUSTOMER_DB_EVENTS_TABLE}?${query.toString()}`,
+    { method: "GET", headers: customerDbReadHeaders() },
+  );
+  if (!response.ok) throw new Error(`Customer DB recent analytics error ${response.status}`);
+  const rows = await response.json();
+  return Array.isArray(rows) ? rows : [];
+}
+
 function increment(map, key) {
   const normalized = String(key || "").trim();
   if (!normalized) return;
@@ -1574,6 +1620,29 @@ export default async function handler(req, res) {
   const mode = String(url.searchParams.get("mode") || "").trim().toLowerCase();
 
   if (mode === "overview") {
+    let databaseSummary = null;
+    try {
+      databaseSummary = await loadDatabaseAnalyticsSummary(CAMPAIGN_BASELINE_ISO);
+    } catch (error) {
+      console.error("staff-analytics-summary", error);
+    }
+    if (databaseSummary) {
+      return json(res, 200, {
+        ok: true,
+        configured: true,
+        status: "ready",
+        summary: databaseSummary,
+        aggregationMode: "database",
+        baseline: {
+          from: CAMPAIGN_BASELINE_ISO,
+          label: CAMPAIGN_BASELINE_LABEL,
+          timezone: "Europe/Rome",
+        },
+        authorizedBy,
+        checkedAt: new Date().toISOString(),
+      });
+    }
+
     const rawResult = await listCustomerAnalytics({ limit });
     const result = enhanceAnalyticsForStaff(analyticsFromCampaignBaseline(rawResult));
     return json(res, result.ok ? 200 : 500, {
@@ -1581,6 +1650,7 @@ export default async function handler(req, res) {
       configured: result.configured,
       status: result.status,
       summary: result.summary || {},
+      aggregationMode: "recent_fallback",
       baseline: {
         from: CAMPAIGN_BASELINE_ISO,
         label: CAMPAIGN_BASELINE_LABEL,
@@ -1606,7 +1676,7 @@ export default async function handler(req, res) {
     });
   }
 
-  const [rawResult, landingPath, switcho, fullAnalyticsRows] = await Promise.all([
+  const [rawResult, landingPath, switcho, recentAnalyticsRows, databaseSummary] = await Promise.all([
     listCustomerAnalytics({ limit }),
     loadLandingPathAnalytics(landingRange),
     loadSwitchoAnalytics(CAMPAIGN_BASELINE_ISO).catch((error) => ({
@@ -1614,20 +1684,41 @@ export default async function handler(req, res) {
       summary: { sessions: 0, offerSelections: 0, guidedSessions: 0, redirects: 0, sources: [] },
       error: String(error?.message || error || "switcho_analytics_error"),
     })),
-    loadAnalyticsExportRows(CAMPAIGN_BASELINE_ISO).catch((error) => {
-      console.error("staff-analytics-journeys", error);
+    loadRecentAnalyticsRows(CAMPAIGN_BASELINE_ISO).catch((error) => {
+      console.error("staff-analytics-recent-journeys", error);
       return [];
+    }),
+    loadDatabaseAnalyticsSummary(CAMPAIGN_BASELINE_ISO).catch((error) => {
+      console.error("staff-analytics-summary", error);
+      return null;
     }),
   ]);
   const result = enhanceAnalyticsForStaff(analyticsFromCampaignBaseline(rawResult));
-  const journeys = analyticsJourneyRows(fullAnalyticsRows);
-  const journeySummary = analyticsJourneySummary(journeys, fullAnalyticsRows);
+  const journeys = analyticsJourneyRows(recentAnalyticsRows);
+  const recentJourneySummary = analyticsJourneySummary(journeys, recentAnalyticsRows);
+  const exactSummary = databaseSummary && typeof databaseSummary === "object" ? databaseSummary : null;
+  const summary = exactSummary
+    ? { ...(result.summary || {}), ...exactSummary, funnel: exactSummary.activity || exactSummary.funnel || result.summary?.funnel || {} }
+    : (result.summary || {});
+  const journeySummary = exactSummary
+    ? { ...recentJourneySummary, ...exactSummary, activity: exactSummary.activity || recentJourneySummary.activity || {}, sessionFunnel: exactSummary.sessionFunnel || recentJourneySummary.sessionFunnel || {}, sessionFunnelsBySource: exactSummary.sessionFunnelsBySource || recentJourneySummary.sessionFunnelsBySource || {} }
+    : recentJourneySummary;
 
-  json(res, result.ok ? 200 : 500, {
+  const responseOk = Boolean(result.ok || exactSummary);
+  json(res, responseOk ? 200 : 500, {
     ...result,
     landingPath,
+    ok: responseOk,
+    status: exactSummary ? "ready" : result.status,
+    summary,
     journeys,
     journeySummary,
+    journeyWindow: {
+      maxEvents: ANALYTICS_RECENT_JOURNEY_MAX_ROWS,
+      loadedEvents: recentAnalyticsRows.length,
+      recentOnly: true,
+    },
+    aggregationMode: exactSummary ? "database" : "recent_fallback",
     switcho,
     baseline: {
       from: CAMPAIGN_BASELINE_ISO,

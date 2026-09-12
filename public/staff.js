@@ -34,6 +34,8 @@
     leadSummary: {},
     analytics: [],
     analyticsSummary: {},
+    analyticsAggregationMode: "",
+    journeyWindow: null,
     journeys: [],
     journeySummary: {},
     switcho: { rows: [], summary: {} },
@@ -1623,6 +1625,13 @@
     text(byId("analyticsFunnelNote"), sourceFilter
       ? `Provenienza selezionata: ${analyticsSourceLabel(sourceFilter)}. Le percentuali sono rispetto agli ingressi della stessa provenienza; medio, manuale e PDF sono rami alternativi.`
       : "Tutte le provenienze. Le percentuali sono rispetto agli ingressi; medio, manuale e PDF sono rami alternativi e non vengono più sommati in un unico numero.");
+    const journeyScope = byId("analyticsJourneyScope");
+    if (journeyScope) {
+      const loaded = Number(cache.journeyWindow?.loadedEvents || 0);
+      journeyScope.textContent = cache.analyticsAggregationMode === "database"
+        ? `KPI calcolati sull’intero archivio. La tabella carica solo le sessioni recenti (${formatNumber(loaded)} eventi al massimo) per restare veloce; il CSV esporta il periodo completo.`
+        : `Modalità compatibilità: KPI e tabella usano i dati recenti caricati (${formatNumber(loaded || cache.analytics.length)} eventi). Applica l’SQL di aggregazione per KPI completi senza rallentare la pagina.`;
+    }
     renderLandingTraffic();
     renderJourneyAnalytics();
     renderPdfJourneyAnalytics();
@@ -1701,6 +1710,8 @@
     if (sequence !== analyticsLoadSequence) return;
     cache.analytics = Array.isArray(payload.events) ? payload.events : [];
     cache.analyticsSummary = payload.summary || {};
+    cache.analyticsAggregationMode = String(payload.aggregationMode || "");
+    cache.journeyWindow = payload.journeyWindow && typeof payload.journeyWindow === "object" ? payload.journeyWindow : null;
     cache.journeys = Array.isArray(payload.journeys) ? payload.journeys : [];
     cache.journeySummary = payload.journeySummary || {};
     cache.switcho = payload.switcho && typeof payload.switcho === "object" ? payload.switcho : { rows: [], summary: {} };
@@ -1717,6 +1728,7 @@
     const payload = await staffFetch("/api/staff-analytics?mode=overview&limit=2000");
     if (sequence !== analyticsSummarySequence) return;
     cache.analyticsSummary = payload.summary || {};
+    cache.analyticsAggregationMode = String(payload.aggregationMode || cache.analyticsAggregationMode || "");
     cache.analyticsBaseline = payload.baseline || cache.analyticsBaseline || null;
     renderSessionFunnel(byId("overviewFunnel"), cache.analyticsSummary.sessionFunnel || {});
   }
@@ -3836,16 +3848,22 @@
   async function loadOverview({ silent = false } = {}) {
     if (!silent) setMessage("info", "Aggiornamento riepilogo…");
     const tasks = [loadChecks({ silent: true }), loadCustomers({ silent: true }), loadAnalyticsSummary(), loadCosts({ silent: true }), loadSupportRequests({ silent: true })];
-    if (isAdmin()) tasks.push(loadLeads({ silent: true }));
+    const taskNames = ["bollette e verifiche", "clienti e utenze", "funnel e traffico", "costi e tempi", "richieste di supporto"];
+    if (isAdmin()) { tasks.push(loadLeads({ silent: true })); taskNames.push("lead e attivazioni"); }
     if (isOwner()) tasks.push(loadCollaborators({ silent: true }));
+    if (isOwner()) taskNames.push("collaboratori");
     const results = await Promise.allSettled(tasks);
-    const failures = results.filter(result => result.status === "rejected");
+    const failures = results
+      .map((result, index) => ({ ...result, name: taskNames[index] || `modulo ${index + 1}` }))
+      .filter(result => result.status === "rejected");
+    failures.forEach(failure => console.warn(`[staff-overview] ${failure.name}`, failure.reason));
     renderOverview();
     if (failures.length) {
-      setMessage("info", `Riepilogo parziale: ${failures.length} modulo/i non disponibili. Gli altri dati restano operativi.`);
+      setMessage("info", `Riepilogo parziale: non disponibili ${failures.map(item => item.name).join(", ")}. Gli altri dati restano operativi.`);
     } else if (!silent) {
       setMessage("success", "Riepilogo aggiornato.");
     }
+    return { failures: failures.map(item => item.name) };
   }
 
   async function refreshTab(tab, { silent = false } = {}) {
@@ -3983,6 +4001,10 @@
         try {
           await loadOverview({ silent: true });
           renderOverview();
+          if (activeTab !== "overview") {
+            await refreshTab(activeTab, { silent: true });
+            setMessage("", "");
+          }
         } catch (error) {
           setMessage("error", friendlyError(error));
         }

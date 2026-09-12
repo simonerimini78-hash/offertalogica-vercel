@@ -56,7 +56,7 @@
 <header class="topbar">
   <div class="brand">
     <img src="/assets/logo-offertalogica-icon.png" alt="OffertaLogica">
-    <div><h1>Control Center OffertaLogica</h1><p>Centro operativo per clienti, pratiche, verifiche e dati · v0.37.11</p></div>
+    <div><h1>Control Center OffertaLogica</h1><p>Centro operativo per clienti, pratiche, verifiche e dati · v0.37.12</p></div>
   </div>
   <div class="top-actions" id="staffTopActions" hidden>
     <span class="staff-chip" id="staffIdentity">Staff</span>
@@ -119,7 +119,7 @@
         <section class="panel"><div class="panel-head"><h3>Priorità operative</h3><small>Pratiche raccolte dai moduli operativi</small></div><div class="panel-body" id="overviewTasks"><div class="empty">Caricamento…</div></div></section>
         <section class="panel"><div class="panel-head"><h3>Acquisizione e conversione</h3><small>Funnel essenziale</small></div><div class="panel-body"><div class="funnel" id="overviewFunnel"></div></div></section>
       </div>
-      <div class="version">Control Center Staff v0.37.11</div>
+      <div class="version">Control Center Staff v0.37.12</div>
     </section>
 
     <section class="view" data-staff-view="cases">
@@ -201,7 +201,7 @@
       </section>
 
       <section class="panel" id="analyticsJourneysPanel" style="margin-top:14px">
-        <div class="panel-head"><div><h3>Percorsi nel sito</h3><small>Una riga per sessione. Mostra intenzione disponibile/inferita, scelta, modalità di confronto e risultato finale.</small></div><div class="analytics-module-actions"><button class="button secondary compact" type="button" data-analytics-refresh>Aggiorna</button><button class="button secondary compact" type="button" data-analytics-export="paths">CSV</button></div></div>
+        <div class="panel-head"><div><h3>Percorsi nel sito</h3><small id="analyticsJourneyScope">Una riga per sessione recente. I KPI restano separati dalla tabella e il CSV esporta il periodo completo.</small></div><div class="analytics-module-actions"><button class="button secondary compact" type="button" data-analytics-refresh>Aggiorna</button><button class="button secondary compact" type="button" data-analytics-export="paths">CSV</button></div></div>
         <div class="panel-body">
           <div class="metrics"><article class="metric priority"><span>Autonomia</span><strong id="journeySelfService">0</strong></article><article class="metric"><span>Guidato → Switcho</span><strong id="journeyAssisted">0</strong></article><article class="metric"><span>Profilo medio</span><strong id="journeyAverage">0</strong></article><article class="metric"><span>Manuale</span><strong id="journeyManual">0</strong></article><article class="metric"><span>PDF</span><strong id="journeyPdf">0</strong></article><article class="metric"><span>Offerte viste</span><strong id="journeyOffers">0</strong></article><article class="metric"><span>Switcho</span><strong id="journeySwitcho">0</strong></article><article class="metric"><span>Sessioni analizzabili</span><strong id="journeySessions">0</strong></article></div>
           <details class="analytics-details" open><summary>Sessioni — 10 risultati per pagina</summary><div class="analytics-details-content"><div class="table-wrap"><table class="data-table analytics-compact-table"><thead><tr><th>Data</th><th>Intenzione</th><th>Provenienza</th><th>Percorso landing</th><th>Confronto</th><th>Esito</th><th>Sessione</th></tr></thead><tbody id="journeyRows"></tbody></table></div><div class="analytics-pagination" id="journeyPagination"></div></div></details>
@@ -292,7 +292,7 @@
 </div>
 <div id="staffUpdateNotice" class="staff-update" role="status" aria-live="polite"><span id="staffUpdateNoticeText">Nuova versione disponibile.</span><button id="staffApplyUpdate" type="button" hidden>AGGIORNA</button></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.115.0/dist/umd/supabase.js"></script>
-<script src="/staff.js?v=0.37.11"></script>
+<script src="/staff.js?v=0.37.12"></script>
 <script src="/staff-governance-v2.5B.js"></script>
 <script defer src="/staff-management.js?v=0.36.94"></script>
 <script defer src="/staff-economics.js?v=0.36.80"></script>
@@ -397,7 +397,7 @@
 </script>
 <script>
   (()=>{
-    const CURRENT_RELEASE="0.37.11";
+    const CURRENT_RELEASE="0.37.12";
     const PRODUCTION_ORIGIN="https://staff.offertalogica.it";
     const isVercelDeployment=()=>location.hostname.toLowerCase().endsWith(".vercel.app");
     const redirectDeploymentToProduction=()=>{if(!isVercelDeployment())return false;const target=new URL(`${location.pathname}${location.search}${location.hash}`,PRODUCTION_ORIGIN);if(target.href===location.href)return false;location.replace(target.href);return true};
