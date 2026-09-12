@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.10.8";
+  const VERSION = "0.10.9";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const STATUSES = new Set(["draft", "in_review", "changes_requested", "approved", "published", "archived"]);
   const STATUS_LABELS = {draft:"Bozza",in_review:"In revisione",changes_requested:"Modifiche richieste",approved:"Approvato",published:"Pubblicato",archived:"Archiviato"};
@@ -210,18 +210,36 @@
     catch(error){ container.setAttribute("aria-busy","false"); show(errorBox,`Impossibile caricare gli articoli: ${error.message}`); }
   }
 
+  function safeEditorialHref(value=""){
+    const href=String(value||"").trim();
+    if(!href||/[\u0000-\u001f\u007f\s"'<>]/.test(href))return "";
+    if(/^\/(?!\/)/.test(href))return href;
+    if(/^https:\/\//i.test(href)){try{const url=new URL(href);return url.protocol==="https:"?url.href:"";}catch{return "";}}
+    return "";
+  }
+  function appendInlineMarkdown(parent,value){
+    const source=String(value||""); const pattern=/\[([^\]\n]+)\]\(([^)\s]+)\)/g; let last=0; let match;
+    while((match=pattern.exec(source))){
+      if(match.index>last)parent.append(document.createTextNode(source.slice(last,match.index)));
+      const href=safeEditorialHref(match[2]);
+      if(href){const a=document.createElement("a");a.href=href;a.textContent=match[1];if(/^https:\/\//i.test(href))a.rel="noopener noreferrer";parent.append(a);}
+      else parent.append(document.createTextNode(match[0]));
+      last=pattern.lastIndex;
+    }
+    if(last<source.length)parent.append(document.createTextNode(source.slice(last)));
+  }
   function renderPlainContent(body,content){
     body.replaceChildren(); const blocks=String(content||"").split(/\n\s*\n/).map(v=>v.trim()).filter(Boolean);
     blocks.forEach(block=>{
       let node;
-      if(/^###\s+/.test(block)){node=document.createElement("h3");node.textContent=block.replace(/^###\s+/,"");}
-      else if(/^##\s+/.test(block)){node=document.createElement("h2");node.textContent=block.replace(/^##\s+/,"");}
+      if(/^###\s+/.test(block)){node=document.createElement("h3");appendInlineMarkdown(node,block.replace(/^###\s+/,""));}
+      else if(/^##\s+/.test(block)){node=document.createElement("h2");appendInlineMarkdown(node,block.replace(/^##\s+/,""));}
       else {
         const lines=block.split(/\r?\n/).map(v=>v.trim()).filter(Boolean);
         const unordered=lines.length>1&&lines.every(v=>/^[-*]\s+/.test(v));
         const ordered=lines.length>1&&lines.every(v=>/^\d+[.)]\s+/.test(v));
-        if(unordered||ordered){node=document.createElement(ordered?"ol":"ul");lines.forEach(line=>{const li=document.createElement("li");li.textContent=line.replace(ordered?/^\d+[.)]\s+/:/^[-*]\s+/,"");node.append(li);});}
-        else {node=document.createElement("p");lines.forEach((line,index)=>{if(index)node.append(document.createElement("br"));node.append(document.createTextNode(line));});}
+        if(unordered||ordered){node=document.createElement(ordered?"ol":"ul");lines.forEach(line=>{const li=document.createElement("li");appendInlineMarkdown(li,line.replace(ordered?/^\d+[.)]\s+/:/^[-*]\s+/,""));node.append(li);});}
+        else {node=document.createElement("p");lines.forEach((line,index)=>{if(index)node.append(document.createElement("br"));appendInlineMarkdown(node,line);});}
       }
       body.append(node);
     });

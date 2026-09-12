@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.10.8";
+  const VERSION = "0.10.9";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const SUPABASE_URL = "https://kzxdamhfmzaxonpkytcf.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_poz1xBKiXceLCFV3u_tPIg_5_-ycHcl";
