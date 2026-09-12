@@ -157,11 +157,22 @@
   function publicArticleHref(article,staticSlugs){const slug=normalizeSlug(article?.slug||"");return staticSlugs?.has(slug)?`/articoli/${encodeURIComponent(slug)}.html`:`/articolo.html?slug=${encodeURIComponent(slug)}`;}
 
   function makeTime(value){ const t=document.createElement("time"); if(value)t.dateTime=value; t.textContent=formatDate(value); return t; }
+  function articleIsNew(article,now=Date.now()){
+    const published=Date.parse(article?.published_at||"");
+    if(!Number.isFinite(published))return false;
+    const age=now-published;
+    return age>=0&&age<=7*24*60*60*1000;
+  }
+
   function renderArchive(container,articles,staticSlugs){
     container.replaceChildren(); container.setAttribute("aria-busy","false");
     if(!articles.length){ const empty=document.createElement("div"); empty.className="ol-empty"; const h=document.createElement("h3"); h.textContent="Nessun articolo pubblicato"; const p=document.createElement("p"); p.textContent="I contenuti approvati compariranno qui."; empty.append(h,p); container.append(empty); return; }
-    articles.forEach(article=>{
-      const item=document.createElement("article"); item.className="ol-article-item";
+    const newestIsNew=articleIsNew(articles[0]);
+    articles.forEach((article,index)=>{
+      const item=document.createElement("article");
+      const featured=index===0&&newestIsNew;
+      item.className=`ol-article-item${featured?" ol-article-item-featured":""}`;
+      if(featured){const badge=document.createElement("span");badge.className="ol-new-badge";badge.textContent="Nuovo";item.append(badge);}
       const meta=document.createElement("div"); meta.className="ol-article-meta";
       if(article.category){const span=document.createElement("span");span.textContent=article.category_name||categoryLabel(article.category);meta.append(span);}
       if(article.author_display_name){ const a=document.createElement(article.author_slug?"a":"span"); if(article.author_slug)a.href=`/autori/${encodeURIComponent(article.author_slug)}.html`; a.textContent=article.author_display_name; meta.append(a); }

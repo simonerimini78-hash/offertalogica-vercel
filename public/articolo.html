@@ -28,7 +28,29 @@
     </article>
   </div>
 </main>
-<footer class="ol-footer"><div class="ol-shell"><a href="/articoli.html">Torna a OffertaLogica Informa</a></div></footer>
+<footer class="ol-footer">
+  <div class="ol-shell">
+    <nav class="ol-footer-links" aria-label="Link legali e preferenze privacy">
+      <a href="/articoli.html">Torna a OffertaLogica Informa</a>
+      <a href="/termini-condizioni.html">Termini e condizioni</a>
+      <a href="https://www.iubenda.com/privacy-policy/36565194" class="iubenda-white iubenda-noiframe iubenda-embed">Privacy Policy</a>
+      <a href="https://www.iubenda.com/privacy-policy/36565194/cookie-policy" class="iubenda-white iubenda-noiframe iubenda-embed">Cookie Policy</a>
+      <button type="button" class="ol-footer-privacy-action" onclick="apriPreferenzeCookie(event)">Modifica preferenze cookie</button>
+    </nav>
+  </div>
+</footer>
+<script>
+  function apriPreferenzeCookie(event) {
+    if (event) event.preventDefault();
+    const officialButton = document.querySelector('.iubenda-tp-btn.iubenda-cs-preferences-link');
+    if (officialButton) {
+      officialButton.click();
+      return;
+    }
+    window.location.href = 'https://www.iubenda.com/privacy-policy/36565194/cookie-policy';
+  }
+</script>
+<script>(function(w,d){var loader=function(){var s=d.createElement('script'),tag=d.getElementsByTagName('script')[0];s.src='https://cdn.iubenda.com/iubenda.js';tag.parentNode.insertBefore(s,tag);};if(w.addEventListener){w.addEventListener('load',loader,false);}else if(w.attachEvent){w.attachEvent('onload',loader);}else{w.onload=loader;}})(window,document);</script>
 <script src="/assets/editorial-config.js"></script>
 <script src="/assets/editorial.js" defer></script>
 </body>
