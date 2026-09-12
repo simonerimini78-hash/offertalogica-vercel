@@ -39,20 +39,25 @@ export default async function handler(req, res) {
     }
 
     const updatedLead = { ...lead, status: "verified", verifiedAt: new Date().toISOString() };
-    if (updatedLead.calculation?.customerType === "business") {
+    const notificationEvent = updatedLead.calculation?.requestType === "photovoltaic_consulting"
+      ? "photovoltaic_consulting_request"
+      : updatedLead.calculation?.customerType === "business"
+        ? "business_consulting_request"
+        : "";
+    if (notificationEvent) {
       try {
-        const notification = await notifyLeadVerified(updatedLead, "business_consulting_request");
+        const notification = await notifyLeadVerified(updatedLead, notificationEvent);
         updatedLead.notification = {
           webhookSent: !notification.skipped,
           sentAt: notification.skipped ? null : new Date().toISOString(),
-          event: "business_consulting_request",
+          event: notificationEvent,
         };
       } catch (notificationError) {
         updatedLead.notification = {
           webhookSent: false,
           error: notificationError.message || "Errore invio webhook",
           failedAt: new Date().toISOString(),
-          event: "business_consulting_request",
+          event: notificationEvent,
         };
       }
     }

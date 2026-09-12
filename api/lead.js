@@ -14,6 +14,13 @@ export default async function handler(req, res) {
     const body = await readJson(req);
     const lead = sanitizeLead(body);
     const calculation = sanitizeLeadCalculation(body.calculation);
+    if (calculation?.requestType === "photovoltaic_consulting") {
+      if (!lead.consentPartners) throw new Error("Richiesta al professionista non autorizzata");
+      if (!calculation.photovoltaicProfile?.timeframe) throw new Error("Tempistica progetto obbligatoria");
+      if (!calculation.photovoltaicProfile?.ownership || calculation.photovoltaicProfile.ownership === "unknown") {
+        throw new Error("Disponibilita immobile obbligatoria");
+      }
+    }
     const id = createId();
     const retentionDays = Number(process.env.LEAD_RETENTION_DAYS || 30);
     const createdAt = new Date().toISOString();
