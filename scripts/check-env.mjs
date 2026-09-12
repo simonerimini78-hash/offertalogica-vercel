@@ -31,7 +31,10 @@ const hasSmsProvider = Boolean(
     process.env.ARUBA_SMS_MESSAGE_TYPE)
 );
 
+const previewSecret = String(process.env.STAFF_PREVIEW_SECRET || "").trim();
+
 const missing = requiredForProduction.filter((key) => !process.env[key]);
+if (Buffer.byteLength(previewSecret, "utf8") < 32) missing.push("STAFF_PREVIEW_SECRET (almeno 32 byte)");
 if (!hasStorage) missing.push("Redis/Upstash REST URL + TOKEN");
 if (!hasSmsProvider) missing.push("provider SMS Aruba o Twilio completo");
 

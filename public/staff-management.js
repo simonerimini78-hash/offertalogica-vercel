@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const RELEASE = "0.36.93";
+  const RELEASE = "0.36.94";
   if (window.OffertaLogicaStaffManagement?.release === RELEASE) return;
 
   const TIME_ZONE = "Europe/Rome";
@@ -49,6 +49,7 @@
   const decimalFormatter = new Intl.NumberFormat("it-IT", { maximumFractionDigits: 2 });
 
   let managementLoading = false;
+  let managementRefreshPending = false;
   let managementSnapshot = null;
   let managementSourceData = null;
   let managementSourceLoading = false;
@@ -1572,7 +1573,10 @@
   }
 
   async function refreshManagementReport() {
-    if (managementLoading) return;
+    if (managementLoading) {
+      managementRefreshPending = true;
+      return;
+    }
     const view = byId(VIEW_ID);
     if (!view?.classList.contains("active")) return;
     const input = byId("managementMonth");
@@ -1604,6 +1608,10 @@
     } finally {
       managementLoading = false;
       if (refresh) refresh.disabled = false;
+      if (managementRefreshPending) {
+        managementRefreshPending = false;
+        window.setTimeout(() => { void refreshManagementReport(); }, 0);
+      }
     }
   }
 

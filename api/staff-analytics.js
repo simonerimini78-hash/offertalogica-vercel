@@ -826,8 +826,8 @@ function enhanceAnalyticsForStaff(result, trafficSignals = new Map()) {
     const signal = trafficSignals.get(String(event.id || "")) || {};
     return {
       ...event,
-      trafficAgent: signal.trafficAgent || "",
-      trafficReason: signal.trafficReason || "",
+      trafficAgent: signal.trafficAgent || event.trafficAgent || "",
+      trafficReason: signal.trafficReason || event.trafficReason || "",
     };
   });
 
@@ -1571,10 +1571,44 @@ export default async function handler(req, res) {
 
   const limit = url.searchParams.get("limit") || 2000;
   const landingRange = normalizeLandingRange(url.searchParams.get("landingRange"));
-  const [rawResult, landingPath, trafficSignals, switcho, fullAnalyticsRows] = await Promise.all([
+  const mode = String(url.searchParams.get("mode") || "").trim().toLowerCase();
+
+  if (mode === "overview") {
+    const rawResult = await listCustomerAnalytics({ limit });
+    const result = enhanceAnalyticsForStaff(analyticsFromCampaignBaseline(rawResult));
+    return json(res, result.ok ? 200 : 500, {
+      ok: result.ok,
+      configured: result.configured,
+      status: result.status,
+      summary: result.summary || {},
+      baseline: {
+        from: CAMPAIGN_BASELINE_ISO,
+        label: CAMPAIGN_BASELINE_LABEL,
+        timezone: "Europe/Rome",
+      },
+      authorizedBy,
+      checkedAt: new Date().toISOString(),
+    });
+  }
+
+  if (mode === "landing" || (Number(limit) === 1 && url.searchParams.has("landingRange"))) {
+    const landingPath = await loadLandingPathAnalytics(landingRange);
+    return json(res, 200, {
+      ok: true,
+      landingPath,
+      baseline: {
+        from: CAMPAIGN_BASELINE_ISO,
+        label: CAMPAIGN_BASELINE_LABEL,
+        timezone: "Europe/Rome",
+      },
+      authorizedBy,
+      checkedAt: new Date().toISOString(),
+    });
+  }
+
+  const [rawResult, landingPath, switcho, fullAnalyticsRows] = await Promise.all([
     listCustomerAnalytics({ limit }),
     loadLandingPathAnalytics(landingRange),
-    loadAnalyticsTrafficSignals(limit, CAMPAIGN_BASELINE_ISO).catch(() => new Map()),
     loadSwitchoAnalytics(CAMPAIGN_BASELINE_ISO).catch((error) => ({
       ok: false, configured: true, rows: [],
       summary: { sessions: 0, offerSelections: 0, guidedSessions: 0, redirects: 0, sources: [] },
@@ -1585,7 +1619,7 @@ export default async function handler(req, res) {
       return [];
     }),
   ]);
-  const result = enhanceAnalyticsForStaff(analyticsFromCampaignBaseline(rawResult), trafficSignals);
+  const result = enhanceAnalyticsForStaff(analyticsFromCampaignBaseline(rawResult));
   const journeys = analyticsJourneyRows(fullAnalyticsRows);
   const journeySummary = analyticsJourneySummary(journeys, fullAnalyticsRows);
 

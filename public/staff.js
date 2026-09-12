@@ -26,6 +26,8 @@
   let includeRemovedCollaborators = false;
   let collaboratorsLoaded = false;
   let auditLoaded = false;
+  let analyticsLoadSequence = 0;
+  let analyticsSummarySequence = 0;
 
   const cache = {
     leads: [],
@@ -1692,9 +1694,11 @@
   }
 
   async function loadAnalytics({ silent = false } = {}) {
+    const sequence = ++analyticsLoadSequence;
     if (!silent) setMessage("info", "Aggiornamento analytics…");
     const landingRange = String(byId("landingPathRange")?.value || "30d");
     const payload = await staffFetch(`/api/staff-analytics?limit=2000&landingRange=${encodeURIComponent(landingRange)}`);
+    if (sequence !== analyticsLoadSequence) return;
     cache.analytics = Array.isArray(payload.events) ? payload.events : [];
     cache.analyticsSummary = payload.summary || {};
     cache.journeys = Array.isArray(payload.journeys) ? payload.journeys : [];
@@ -1706,6 +1710,15 @@
     renderAnalytics();
     renderSessionFunnel(byId("overviewFunnel"), cache.analyticsSummary.sessionFunnel || {});
     if (!silent) setMessage("success", "Analytics aggiornati.");
+  }
+
+  async function loadAnalyticsSummary() {
+    const sequence = ++analyticsSummarySequence;
+    const payload = await staffFetch("/api/staff-analytics?mode=overview&limit=2000");
+    if (sequence !== analyticsSummarySequence) return;
+    cache.analyticsSummary = payload.summary || {};
+    cache.analyticsBaseline = payload.baseline || cache.analyticsBaseline || null;
+    renderSessionFunnel(byId("overviewFunnel"), cache.analyticsSummary.sessionFunnel || {});
   }
 
   function addressLabel(address) {
@@ -3822,7 +3835,7 @@
 
   async function loadOverview({ silent = false } = {}) {
     if (!silent) setMessage("info", "Aggiornamento riepilogo…");
-    const tasks = [loadChecks({ silent: true }), loadCustomers({ silent: true }), loadAnalytics({ silent: true }), loadCosts({ silent: true }), loadSupportRequests({ silent: true })];
+    const tasks = [loadChecks({ silent: true }), loadCustomers({ silent: true }), loadAnalyticsSummary(), loadCosts({ silent: true }), loadSupportRequests({ silent: true })];
     if (isAdmin()) tasks.push(loadLeads({ silent: true }));
     if (isOwner()) tasks.push(loadCollaborators({ silent: true }));
     const results = await Promise.allSettled(tasks);
