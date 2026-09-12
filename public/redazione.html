@@ -43,13 +43,21 @@
 
       <div data-review-workspace hidden>
         <div class="ol-session-bar">
-          <div><strong data-review-name>Redazione OffertaLogica Informa</strong><span data-review-role></span><small data-review-email></small></div>
-          <button class="ol-button ol-button-secondary" type="button" data-review-logout>Esci</button>
+          <span class="ol-session-context">Area redazione</span>
+          <div class="ol-session-actions">
+            <div class="ol-session-author-chip">
+              <span class="ol-session-avatar" aria-hidden="true"><img data-review-avatar alt="" hidden><span data-review-avatar-fallback>R</span></span>
+              <div class="ol-session-author-text"><strong data-review-name>Redazione OffertaLogica Informa</strong><span data-review-role></span><small data-review-email></small></div>
+            </div>
+            <button class="ol-button ol-button-secondary" type="button" data-review-logout>Esci</button>
+          </div>
         </div>
 
-        <section class="ol-panel ol-panel-body ol-author-profile-panel" data-own-author-profile hidden>
-          <div class="ol-toolbar">
-            <div><div class="ol-eyebrow">Profilo pubblico</div><h2>Il mio profilo autore</h2><p class="ol-muted">Usato automaticamente negli articoli che pubblichi a tuo nome.</p></div>
+        <details class="ol-panel ol-collapsible-panel ol-author-profile-panel" data-own-author-profile hidden>
+          <summary class="ol-collapsible-summary"><span><span class="ol-eyebrow">Profilo pubblico</span><strong>Il mio profilo autore</strong><small>Foto, nome, biografia e link pubblici.</small></span><span class="ol-collapsible-action" aria-hidden="true">Apri</span></summary>
+          <div class="ol-collapsible-content ol-panel-body">
+          <div class="ol-toolbar ol-toolbar-compact">
+            <p class="ol-muted">Usato automaticamente negli articoli che pubblichi a tuo nome.</p>
             <a class="ol-button ol-button-secondary ol-button-small" data-author-public-link href="#" target="_blank" rel="author noopener" hidden>Vedi profilo pubblico<span class="ol-visually-hidden"> (si apre in una nuova scheda)</span></a>
           </div>
           <form class="ol-form ol-author-profile-form" data-author-profile-form novalidate>
@@ -67,11 +75,14 @@
             </div>
             <div class="ol-toolbar"><button class="ol-button ol-button-primary" type="submit" data-author-profile-save>Salva profilo autore</button></div>
           </form>
-        </section>
+          </div>
+        </details>
 
-        <section class="ol-panel ol-panel-body ol-team-panel" data-admin-team hidden>
-          <div class="ol-toolbar">
-            <div><div class="ol-eyebrow">Amministrazione</div><h2>Collaboratori e redazione</h2><p class="ol-muted">Invita nuove persone e gestisci ruoli e accessi senza usare il pannello tecnico del database.</p></div>
+        <details class="ol-panel ol-collapsible-panel ol-team-panel" data-admin-team hidden>
+          <summary class="ol-collapsible-summary"><span><span class="ol-eyebrow">Amministrazione</span><strong>Collaboratori, autori e categorie</strong><small>Inviti, persone abilitate, profili autori e gestione categorie.</small></span><span class="ol-collapsible-action" aria-hidden="true">Apri</span></summary>
+          <div class="ol-collapsible-content ol-panel-body">
+          <div class="ol-toolbar ol-toolbar-compact">
+            <p class="ol-muted">Strumenti amministrativi. Apri questa sezione solo quando devi gestire accessi o profili.</p>
             <button class="ol-button ol-button-secondary ol-button-small" type="button" data-admin-refresh>Aggiorna utenti</button>
           </div>
           <div class="ol-alert ol-alert-danger" role="alert" data-admin-error hidden></div>
@@ -123,7 +134,8 @@
               <div class="ol-team-list ol-category-list ol-category-list-compact" data-admin-categories aria-live="polite"><p class="ol-muted">Caricamento…</p></div>
             </section>
           </div>
-        </section>
+          </div>
+        </details>
 
         <div class="ol-review-layout">
           <aside class="ol-sidebar ol-review-sidebar" aria-label="Coda editoriale">
