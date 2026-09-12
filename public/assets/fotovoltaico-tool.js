@@ -1,4 +1,4 @@
-const TOOL_VERSION = '1.3.0';
+const TOOL_VERSION = '1.4.2';
 const TRACK_URL = '/api/track-event';
 const PV_URL = '/api/pv-estimate';
 const PDF_REPLAY_KEY = 'offertalogicaPdfArchiveReplay';
@@ -7,6 +7,10 @@ if (!root) throw new Error('Fotovoltaico tool root non trovato');
 
 let mode = 'consumer';
 let billReplayPayload = null;
+let latestProjectProfile = null;
+let pvLeadId = '';
+let pvPreviewOtp = '';
+const QUICK_STATE_KEY = 'offertalogicaPvQuickV1';
 const pvCache = new Map();
 const source = 'seo_fotovoltaico';
 const sessionId = (() => {
@@ -169,6 +173,7 @@ function renderResults(pv,locationInfo,power,consumption,profile,impact,powerOri
   const impactSection=$('pv-impact-section'),missing=$('pv-profile-missing');
   if(impact){impactSection.hidden=false;missing.hidden=true;setText('pv-result-self',`${fmt(impact.selfKwh)} kWh`);setText('pv-result-grid',`${fmt(impact.residualKwh)} kWh`);setText('pv-result-excess',`${fmt(impact.excessKwh)} kWh`);setText('pv-profile-note',profile.origin==='bands'?`Stima basata sulle proporzioni ${profile.description}. Usiamo le fasce orarie ARERA e le distribuiamo convenzionalmente nelle rispettive ore di una settimana tipo. Non è una curva oraria reale e, se la bolletta copre un solo periodo, quel periodo può non rappresentare tutto l’anno.`:`Scenario indicativo scelto dall’utente: ${profile.description}. Il consumo annuale viene distribuito uniformemente sui giorni dell’anno.`);}
   else{impactSection.hidden=true;missing.hidden=!(consumption&&consumption>0);}
+  updateProjectFromDetailed(pv,locationInfo,power,consumption,profile,impact,powerOrigin);
   renderMonthly(pv.monthly); const results=$('pv-results'); results.hidden=false; results.setAttribute('role','region'); results.setAttribute('aria-label','Risultati della stima fotovoltaica'); results.setAttribute('tabindex','-1'); results.focus({preventScroll:true}); results.scrollIntoView({behavior:window.matchMedia?.('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'});
 }
 async function compute(){
@@ -228,6 +233,185 @@ function prefillFromQuery(){
   const q=new URLSearchParams(location.search);const requestedProfile=String(q.get('profilo')||'').toLowerCase(),requestedKind=String(q.get('tipo')||'').toLowerCase();if(requestedProfile==='azienda'||requestedProfile==='business'||requestedKind==='agricola'||requestedKind==='agriculture')setMode('business',requestedKind.startsWith('agri')?'agriculture':'');
   const map={consumo:'pv-consumption-kwh',f1:'pv-f1',f2:'pv-f2',f3:'pv-f3',potenza:'pv-contract-power',impianto:'pv-power-kw'};Object.entries(map).forEach(([key,id])=>{const raw=q.get(key),value=raw===null?null:Number(String(raw).replace(',','.'));if(raw!==null&&$(id)&&Number.isFinite(value))$(id).value=String(value);});
 }
+
+
+function quickStatus(id,text,type=''){
+  const el=$(id); if(!el)return; el.textContent=text; el.className=`status ${type}`.trim();
+}
+function checkedValue(name){ return document.querySelector(`input[name="${name}"]:checked`)?.value||''; }
+function radioByValue(name,value){ return Array.from(document.querySelectorAll(`input[name="${name}"]`)).find((input)=>input.value===String(value||''))||null; }
+function smoothBehavior(){ return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'; }
+function setQuickProgress(step){
+  document.querySelectorAll('[data-quick-progress]').forEach((item)=>{
+    const n=Number(item.dataset.quickProgress||0); const active=n===step; item.classList.toggle('active',active); item.classList.toggle('done',n<step);
+    if(active)item.setAttribute('aria-current','step');else item.removeAttribute('aria-current');
+  });
+}
+function showQuickStep(step,{focus=true}={}){
+  document.querySelectorAll('[data-quick-step]').forEach((panel)=>{ panel.hidden=Number(panel.dataset.quickStep||0)!==step; });
+  setQuickProgress(step);
+  if(focus){
+    const target=step===3?$('pv-quick-result'):$(`pv-quick-step-${step}`)?.querySelector('h3');
+    target?.focus({preventScroll:true}); target?.scrollIntoView({behavior:smoothBehavior(),block:'start'});
+  }
+  saveQuickState(step);
+}
+function quickOwner(){ return checkedValue('pv-owner'); }
+function quickProfileChoice(){ return checkedValue('pv-quick-profile')||'unknown'; }
+function saveQuickState(step=1){
+  try{
+    const state={version:TOOL_VERSION,step:Math.min(2,Math.max(1,Number(step)||1)),owner:quickOwner(),placeQuery:String($('pv-quick-place')?.value||'').slice(0,120),consumption:num('pv-quick-consumption'),profileChoice:quickProfileChoice(),location:latestProjectProfile?.location||null};
+    sessionStorage.setItem(QUICK_STATE_KEY,JSON.stringify(state));
+  }catch{}
+}
+function restoreQuickState(){
+  try{
+    const state=JSON.parse(sessionStorage.getItem(QUICK_STATE_KEY)||'null'); if(!state||state.version!==TOOL_VERSION)return;
+    const owner=radioByValue('pv-owner',state.owner); if(owner)owner.checked=true;
+    if($('pv-quick-place'))$('pv-quick-place').value=String(state.placeQuery||'');
+    if($('pv-quick-consumption')&&Number.isFinite(Number(state.consumption)))$('pv-quick-consumption').value=String(state.consumption);
+    const profile=radioByValue('pv-quick-profile',state.profileChoice||'unknown'); if(profile)profile.checked=true;
+    if(state.location&&validCoordinate(Number(state.location.lat),35,48)&&validCoordinate(Number(state.location.lon),5,20))latestProjectProfile={origin:'quick_pending',ownership:String(state.owner||''),location:state.location};
+    if(Number(state.step)===2)showQuickStep(2,{focus:false});
+  }catch{}
+}
+async function lookupItalianPlace(query){
+  const raw=String(query||'').trim(); if(raw.length<2)throw new Error('Inserisci un Comune o un CAP.');
+  const url=`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(raw)}&count=5&language=it&format=json&countryCode=IT`;
+  const response=await fetch(url,{headers:{Accept:'application/json'}}); if(!response.ok)throw new Error('Ricerca della zona non disponibile. Riprova.');
+  const data=await response.json(); const result=(data?.results||[]).find((item)=>String(item?.country_code||'').toUpperCase()==='IT'&&validCoordinate(Number(item?.latitude),35,48)&&validCoordinate(Number(item?.longitude),5,20));
+  if(!result)throw new Error('Comune o CAP non trovato. Controlla il dato inserito.');
+  return{lat:Number(result.latitude),lon:Number(result.longitude),label:[result.name,result.admin2].filter(Boolean).join(', '),region:String(result.admin1||''),precision:'locality'};
+}
+function syncQuickToDetailed(locationInfo,consumption,profileChoice,powerKw=null){
+  if(locationInfo){
+    if($('pv-place-search'))$('pv-place-search').value=locationInfo.label||'';
+    setResolvedPlace(locationInfo.lat,locationInfo.lon,locationInfo.label,locationInfo.region||'');
+  }
+  if(consumption&&$('pv-consumption-kwh'))$('pv-consumption-kwh').value=String(Math.round(consumption));
+  if($('pv-usage-profile'))$('pv-usage-profile').value=profileChoice||'unknown';
+  if(powerKw&&$('pv-power-kw'))$('pv-power-kw').value=String(powerKw);
+  setMode('consumer');
+}
+function scaledPv(base,powerKw){
+  const factor=Number(powerKw)||1;
+  return{...base,annualKwh:Number(base.annualKwh||0)*factor,monthly:(base.monthly||[]).map((row)=>({...row,kwh:Number(row.kwh||0)*factor,variabilityKwh:Number.isFinite(Number(row.variabilityKwh))?Number(row.variabilityKwh)*factor:row.variabilityKwh}))};
+}
+function quickConfidence(owner,consumption,profileChoice){
+  if(!consumption)return 'Bassa: manca il consumo annuo.';
+  if(!owner||owner==='not_owner'||profileChoice==='unknown')return 'Media: alcuni dati importanti sono ancora da verificare.';
+  return 'Buona per una prima valutazione energetica.';
+}
+function quickAssessment({owner,impact,consumption,capped}){
+  if(!consumption)return{tone:'caution',title:'Per capire se vale la pena approfondire ci serve il consumo annuo',copy:'La zona è sufficiente per stimare il sole disponibile, ma senza i kWh annui non possiamo confrontare produzione e fabbisogno in modo utile.',eligible:false,code:'missing_consumption'};
+  if(owner==='not_owner')return{tone:'caution',title:'Il progetto va verificato prima con il proprietario',copy:'Possiamo stimare produzione e autoconsumo, ma prima di trasformare la valutazione in un progetto reale serve la disponibilità del proprietario dell’immobile.',eligible:false,code:'owner_required'};
+  if(!impact)return{tone:'caution',title:'Il fotovoltaico può avere senso, ma manca un dato decisivo',copy:'Sappiamo quanto consumi, ma non quando. Senza il profilo orario non stimiamo quanta energia riusciresti a usare direttamente e quanta continueresti a comprare dalla rete.',eligible:true,code:'profile_missing'};
+  const coverage=Number(impact.coveragePct||0);
+  if(coverage>=35&&!capped)return{tone:'positive',title:'Il fotovoltaico merita di essere approfondito nel tuo caso',copy:`Nello scenario indicativo una parte significativa dei tuoi consumi potrebbe coincidere con la produzione solare. Restano però costi dell’impianto, tetto e lavori reali da verificare prima di parlare di convenienza economica definitiva.`,eligible:true,code:'good_energy_fit'};
+  if(coverage>=20)return{tone:'',title:'Può avere senso, ma non basta guardare la produzione annuale',copy:'Il tuo profilo mostra un margine di autoconsumo, ma una quota rilevante di energia resterebbe acquistata dalla rete. Prima di decidere conviene confrontare bene taglia dell’impianto, costo e abitudini di consumo.',eligible:true,code:capped?'large_consumption':'medium_energy_fit'};
+  return{tone:'caution',title:'Il tuo profilo richiede più attenzione prima di investire',copy:'Con le abitudini indicate l’autoconsumo diretto risulta limitato. Questo non significa automaticamente che il fotovoltaico non convenga, ma sarebbe sbagliato considerarlo conveniente senza valutare costi, possibili spostamenti dei consumi e caratteristiche reali del tetto.',eligible:true,code:'low_direct_use'};
+}
+async function quickNext(){
+  const owner=quickOwner(); const query=String($('pv-quick-place')?.value||'').trim();
+  if(!owner){quickStatus('pv-quick-status-1','Indica se l’immobile è di tua proprietà.','error');return;}
+  if(query.length<2){quickStatus('pv-quick-status-1','Inserisci il Comune o il CAP dell’immobile.','error');return;}
+  const button=$('pv-quick-next'); if(button)button.disabled=true; quickStatus('pv-quick-status-1','Cerco i dati solari della zona…');
+  try{
+    const locationInfo=await lookupItalianPlace(query); latestProjectProfile={origin:'quick_pending',ownership:owner,location:locationInfo}; syncQuickToDetailed(locationInfo,null,'unknown');
+    quickStatus('pv-quick-status-1',`Zona trovata: ${locationInfo.label}.`,'ok'); track('quick_evaluation_started',{context:owner}); showQuickStep(2);
+  }catch(error){quickStatus('pv-quick-status-1',String(error?.message||'Zona non trovata.'),'error');}
+  finally{if(button)button.disabled=false;}
+}
+async function quickEvaluate(){
+  const owner=quickOwner(); const locationInfo=latestProjectProfile?.location;
+  if(!owner||!locationInfo){showQuickStep(1);quickStatus('pv-quick-status-1','Riparti dalla zona dell’immobile.','error');return;}
+  const consumption=num('pv-quick-consumption'); const profileChoice=quickProfileChoice(); const button=$('pv-quick-evaluate');
+  if(button)button.disabled=true; quickStatus('pv-quick-status-2','Preparo la valutazione con i dati PVGIS…');
+  try{
+    if(!consumption||consumption<=0){
+      const assessment=quickAssessment({owner,impact:null,consumption:null,capped:false});
+      latestProjectProfile={origin:'quick',customerType:'privato',ownership:owner,location:locationInfo,annualConsumptionKwh:null,usageProfile:profileChoice,assessment:assessment.code,assessmentLabel:assessment.title,confidence:'low',leadEligible:false,evaluatedAt:new Date().toISOString()};
+      renderQuickResult(latestProjectProfile,assessment,null); syncQuickToDetailed(locationInfo,null,profileChoice); track('quick_evaluation_completed',{outcome:assessment.code,context:'missing_consumption'}); return;
+    }
+    const base=await fetchPvEstimate({lat:locationInfo.lat,lon:locationInfo.lon,powerKw:1,customerType:'consumer',angle:null,aspect:null});
+    const yieldPerKw=Number(base.annualKwh||0); if(!(yieldPerKw>0))throw new Error('Produzione solare non disponibile per la zona indicata.');
+    const rawPower=consumption/yieldPerKw; const capped=rawPower>12; const scenarioPower=clamp(Math.round(clamp(rawPower,1.5,12)*2)/2,1.5,12); const pv=scaledPv(base,scenarioPower);
+    const profile=profileFromChoice(profileChoice); const impact=profile?calculateImpact(pv,consumption,profile):null; const assessment=quickAssessment({owner,impact,consumption,capped});
+    const confidence=quickConfidence(owner,consumption,profileChoice);
+    latestProjectProfile={origin:'quick',customerType:'privato',ownership:owner,location:locationInfo,annualConsumptionKwh:consumption,usageProfile:profileChoice,scenarioPowerKw:scenarioPower,annualProductionKwh:Number(pv.annualKwh||0),selfConsumptionKwh:impact?Number(impact.selfKwh||0):null,residualGridKwh:impact?Number(impact.residualKwh||0):null,excessKwh:impact?Number(impact.excessKwh||0):null,coveragePct:impact?Number(impact.coveragePct||0):null,assessment:assessment.code,assessmentLabel:assessment.title,confidence:confidence.startsWith('Buona')?'good':'medium',leadEligible:assessment.eligible,evaluatedAt:new Date().toISOString()};
+    renderQuickResult(latestProjectProfile,assessment,impact); syncQuickToDetailed(locationInfo,consumption,profileChoice,scenarioPower); track('quick_evaluation_completed',{outcome:assessment.code,context:profileChoice});
+  }catch(error){quickStatus('pv-quick-status-2',String(error?.message||'Valutazione non disponibile. Riprova.'),'error');track('quick_evaluation_failed',{outcome:String(error?.message||'error')});}
+  finally{if(button)button.disabled=false;}
+}
+function renderQuickResult(project,assessment,impact){
+  setText('pv-quick-result-title',assessment.title); setText('pv-quick-result-copy',assessment.copy); setText('pv-quick-result-place',project.location?.label||'—');
+  setText('pv-quick-result-power',project.scenarioPowerKw?`${fmt(project.scenarioPowerKw,1)} kW`:'Serve il consumo annuo');
+  setText('pv-quick-result-self',impact?`${fmt(impact.selfKwh)} kWh/anno`:'Da stimare'); setText('pv-quick-result-grid',impact?`${fmt(impact.residualKwh)} kWh/anno`:'Da stimare');
+  const box=$('pv-quick-assessment'); if(box){box.className=`assessment-box ${assessment.tone||''}`.trim();box.textContent=assessment.eligible?'La valutazione non presume che l’impianto convenga: indica se i dati energetici rendono sensato approfondire costi e fattibilità.':'Prima di chiedere un preventivo conviene completare o verificare i dati indicati sopra.';}
+  setText('pv-quick-confidence',quickConfidence(project.ownership,project.annualConsumptionKwh,project.usageProfile)); const consult=$('pv-quick-consult'); if(consult)consult.hidden=!assessment.eligible;
+  quickStatus('pv-quick-status-2',''); showQuickStep(3); saveQuickState(2);
+}
+function updateProjectFromDetailed(pv,locationInfo,power,consumption,profile,impact,powerOrigin){
+  const knownOwner=quickOwner()||'unknown';
+  latestProjectProfile={origin:'detailed',customerType:mode==='business'?'business':'privato',ownership:knownOwner,location:{lat:locationInfo.lat,lon:locationInfo.lon,label:locationInfo.label,precision:locationInfo.precision},annualConsumptionKwh:consumption||null,usageProfile:profile?.origin==='declared'?String($('pv-usage-profile')?.value||'unknown'):profile?.origin||'unknown',scenarioPowerKw:Number(power||0)||null,powerOrigin,annualProductionKwh:Number(pv?.annualKwh||0)||null,selfConsumptionKwh:impact?Number(impact.selfKwh||0):null,residualGridKwh:impact?Number(impact.residualKwh||0):null,excessKwh:impact?Number(impact.excessKwh||0):null,coveragePct:impact?Number(impact.coveragePct||0):null,assessment:impact?'detailed_energy_balance':'production_only',assessmentLabel:impact?'Scenario energetico calcolato':'Produzione calcolata',confidence:impact?'good':'medium',leadEligible:Boolean(consumption&&Number(consumption)>0&&knownOwner!=='not_owner'),evaluatedAt:new Date().toISOString()};
+  const prompt=$('pv-detailed-consult-prompt'); if(prompt)prompt.hidden=!latestProjectProfile.leadEligible;
+}
+function openConsultation(){
+  if(!latestProjectProfile)return;
+  const section=$('pv-consultation'); if(!section)return; section.hidden=false; section.setAttribute('tabindex','-1');
+  const ownerField=$('pv-consult-owner-field'); if(ownerField)ownerField.hidden=Boolean(latestProjectProfile.ownership&&latestProjectProfile.ownership!=='unknown');
+  track('consultation_cta_clicked',{context:latestProjectProfile.origin||'unknown'}); section.focus({preventScroll:true}); section.scrollIntoView({behavior:smoothBehavior(),block:'start'});
+}
+function detailedFromQuick(){
+  const tool=$('ol-pv-tool'); if(!tool)return; track('detailed_calculator_clicked',{context:'quick_result'}); tool.scrollIntoView({behavior:smoothBehavior(),block:'start'}); $('pv-power-kw')?.focus({preventScroll:true});
+}
+function restartQuick(){ latestProjectProfile=null; const consultation=$('pv-consultation'); if(consultation)consultation.hidden=true; const detailedPrompt=$('pv-detailed-consult-prompt'); if(detailedPrompt)detailedPrompt.hidden=true; showQuickStep(1); }
+function leadStatus(text,type=''){ const el=$('pv-lead-status'); if(!el)return; el.textContent=text; el.className=`status ${type}`.trim(); }
+function validOptionalEmail(value){ return !value||/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value); }
+function leadOwnership(){ const current=latestProjectProfile?.ownership; return current&&current!=='unknown'?current:checkedValue('pv-consult-owner'); }
+function photovoltaicPayload(timeframe,ownership){
+  const project=latestProjectProfile||{}; const locationInfo=project.location||{};
+  return{source:String(project.origin||'unknown'),ownership,timeframe,place:String(locationInfo.label||''),lat:Number.isFinite(Number(locationInfo.lat))?Number(locationInfo.lat):null,lon:Number.isFinite(Number(locationInfo.lon))?Number(locationInfo.lon):null,annualConsumptionKwh:project.annualConsumptionKwh??null,usageProfile:String(project.usageProfile||'unknown'),scenarioPowerKw:project.scenarioPowerKw??null,annualProductionKwh:project.annualProductionKwh??null,selfConsumptionKwh:project.selfConsumptionKwh??null,residualGridKwh:project.residualGridKwh??null,excessKwh:project.excessKwh??null,coveragePct:project.coveragePct??null,assessment:String(project.assessment||''),assessmentLabel:String(project.assessmentLabel||''),confidence:String(project.confidence||''),evaluatedAt:String(project.evaluatedAt||'')};
+}
+async function submitPhotovoltaicLead(event){
+  event?.preventDefault(); if(!latestProjectProfile){leadStatus('Prima completa una valutazione fotovoltaica.','error');return;}
+  const timeframe=checkedValue('pv-timeframe'),ownership=leadOwnership(),name=String($('pv-lead-name')?.value||'').trim(),phone=String($('pv-lead-phone')?.value||'').trim(),email=String($('pv-lead-email')?.value||'').trim().toLowerCase(),service=Boolean($('pv-consent-service')?.checked),partner=Boolean($('pv-consent-partner')?.checked);
+  if(!ownership){leadStatus('Indica se l’immobile è di tua proprietà.','error');return;} if(!timeframe){leadStatus('Indica quando pensi di poter realizzare il progetto.','error');return;} if(!name){leadStatus('Inserisci nome e cognome.','error');return;} if(phone.replace(/\D/g,'').length<8){leadStatus('Inserisci un numero di cellulare valido.','error');return;} if(!validOptionalEmail(email)){leadStatus('Controlla l’indirizzo email inserito.','error');return;} if(!service||!partner){leadStatus('Per richiedere il ricontatto servono entrambe le conferme indicate.','error');return;}
+  const button=$('pv-lead-send'); if(button)button.disabled=true; leadStatus('Creo la richiesta e invio il codice SMS…'); track('photovoltaic_lead_started',{context:timeframe});
+  try{
+    if(isStaffPreview()){
+      pvLeadId='preview'; pvPreviewOtp='123456'; $('pv-otp-panel').hidden=false; $('pv-lead-otp')?.focus(); leadStatus('Anteprima staff: usa il codice 123456.','ok'); return;
+    }
+    const acceptedAt=new Date().toISOString(); const project=photovoltaicPayload(timeframe,ownership); const projectCustomerType=latestProjectProfile?.customerType==='business'?'business':'privato';
+    const leadPayload=await jsonResponse(await fetch('/api/lead',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({name,phone,email,consentService:true,consentMarketing:false,consentPartners:true,calculation:{customerType:projectCustomerType,dataOrigin:'photovoltaic_evaluation',requestType:'photovoltaic_consulting',photovoltaicProfile:project,dataStewardship:{originalPdfStored:false,internalImprovement:true,anonymizedInsight:true}},privacyVersion:'privacy-fotovoltaico-v3',consentProof:{acceptedAt,source:'fotovoltaico_consulting',dataOrigin:'photovoltaic_evaluation',page:location.pathname,internalImprovement:true}})}),'Impossibile creare la richiesta');
+    pvLeadId=leadPayload.leadId;
+    const otpPayload=await jsonResponse(await fetch('/api/send-otp',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({leadId:pvLeadId})}),'Impossibile inviare il codice');
+    $('pv-otp-panel').hidden=false; $('pv-lead-otp')?.focus(); leadStatus(otpPayload.demoCode?`Codice di prova: ${otpPayload.demoCode}.`:'Codice SMS inviato. Inseriscilo per confermare la richiesta.','ok'); track('photovoltaic_otp_sent',{context:timeframe});
+  }catch(error){leadStatus(String(error?.message||'Servizio temporaneamente non disponibile. Riprova.'),'error');track('photovoltaic_lead_failed',{outcome:String(error?.message||'error')});}
+  finally{if(button)button.disabled=false;}
+}
+async function verifyPhotovoltaicOtp(){
+  const code=String($('pv-lead-otp')?.value||'').trim(); if(!pvLeadId||!/^\d{4,10}$/.test(code)){leadStatus('Inserisci il codice SMS ricevuto.','error');return;}
+  const button=$('pv-lead-verify'); if(button)button.disabled=true; leadStatus('Verifico il numero…');
+  try{
+    if(pvLeadId==='preview'){if(code!==pvPreviewOtp)throw new Error('Codice di anteprima non corretto.');}
+    else await jsonResponse(await fetch('/api/verify-otp',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({leadId:pvLeadId,code})}),'Codice non corretto o scaduto');
+    $('pv-consult-form').hidden=true; $('pv-otp-panel').hidden=true; const success=$('pv-consult-success');success.hidden=false;success.focus({preventScroll:true});leadStatus('');track('photovoltaic_lead_completed',{outcome:'verified'});
+  }catch(error){leadStatus(String(error?.message||'Codice non corretto o scaduto.'),'error');track('photovoltaic_otp_failed',{outcome:String(error?.message||'error')});}
+  finally{if(button)button.disabled=false;}
+}
+
+$('pv-quick-next')?.addEventListener('click',quickNext);
+$('pv-quick-back')?.addEventListener('click',()=>showQuickStep(1));
+$('pv-quick-evaluate')?.addEventListener('click',quickEvaluate);
+$('pv-quick-consult')?.addEventListener('click',openConsultation);
+$('pv-detailed-consult')?.addEventListener('click',openConsultation);
+$('pv-quick-detailed')?.addEventListener('click',detailedFromQuick);
+$('pv-quick-restart')?.addEventListener('click',restartQuick);
+$('pv-consult-form')?.addEventListener('submit',submitPhotovoltaicLead);
+$('pv-lead-verify')?.addEventListener('click',verifyPhotovoltaicOtp);
+$('pv-quick-place')?.addEventListener('keydown',(event)=>{if(event.key==='Enter'){event.preventDefault();quickNext();}});
+restoreQuickState();
 
 $('pv-calc')?.addEventListener('click',compute);$('pv-find-place')?.addEventListener('click',findPlace);$('pv-bill-file')?.addEventListener('change',onBillSelected);$('pv-region')?.addEventListener('change',()=>{$('pv-lat').value='';$('pv-lon').value='';$('pv-place-label').value='';});$('pv-place-search')?.addEventListener('input',()=>{$('pv-lat').value='';$('pv-lon').value='';$('pv-place-label').value='';});$('pv-place-search')?.addEventListener('keydown',(event)=>{if(event.key==='Enter'){event.preventDefault();findPlace();}});$('pv-business-kind')?.addEventListener('change',updateAgricultureVisibility);document.querySelectorAll('[data-segment]').forEach((el)=>el.addEventListener('click',()=>setMode(el.dataset.segment)));$('pv-compare-cta')?.addEventListener('click',prepareComparison);document.querySelectorAll('[data-pv-track]').forEach((el)=>el.addEventListener('click',()=>track(el.dataset.pvTrack||'cta_clicked')));
 prefillFromQuery();updateComparisonCta();track('tool_viewed');

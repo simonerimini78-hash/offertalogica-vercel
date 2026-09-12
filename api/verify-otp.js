@@ -26,11 +26,15 @@ export default async function handler(req, res) {
     if (otp.expiresAt < Date.now()) return json(res, 400, { ok: false, error: "Codice scaduto" });
     if (otp.attempts >= 5) return json(res, 429, { ok: false, error: "Troppi tentativi" });
 
-    let valid = false;
-    if (otp.provider === "twilio-verify") {
+    // Se il numero era già stato verificato ma la consegna della lead era fallita,
+    // non chiediamo al provider OTP di approvare nuovamente lo stesso codice.
+    // Questo è importante soprattutto con Twilio Verify, dove una verifica già
+    // approvata può non essere riutilizzabile in un secondo VerificationCheck.
+    let valid = lead.status === "verified" && Boolean(lead.verifiedAt);
+    if (!valid && otp.provider === "twilio-verify") {
       const twilioResult = await checkTwilioVerify(lead.phone, normalizedCode);
       valid = twilioResult.approved;
-    } else {
+    } else if (!valid) {
       valid = otpHashMatches(lead.phone, normalizedCode, otp.hash);
     }
     if (!valid) {
@@ -38,30 +42,52 @@ export default async function handler(req, res) {
       return json(res, 400, { ok: false, error: "Codice non corretto" });
     }
 
-    const updatedLead = { ...lead, status: "verified", verifiedAt: new Date().toISOString() };
-    if (updatedLead.calculation?.customerType === "business") {
+    const updatedLead = {
+      ...lead,
+      status: "verified",
+      verifiedAt: lead.verifiedAt || new Date().toISOString(),
+    };
+    const notificationEvent = updatedLead.calculation?.requestType === "photovoltaic_consulting"
+      ? "photovoltaic_consulting_request"
+      : updatedLead.calculation?.customerType === "business"
+        ? "business_consulting_request"
+        : "";
+    let notificationFailed = false;
+    if (notificationEvent) {
       try {
-        const notification = await notifyLeadVerified(updatedLead, "business_consulting_request");
+        const notification = await notifyLeadVerified(updatedLead, notificationEvent);
         updatedLead.notification = {
-          webhookSent: !notification.skipped,
+          emailSent: Boolean(notification.emailSent),
+          webhookSent: Boolean(notification.webhookSent),
           sentAt: notification.skipped ? null : new Date().toISOString(),
-          event: "business_consulting_request",
+          event: notificationEvent,
+          warnings: Array.isArray(notification.warnings) ? notification.warnings.slice(0, 5) : [],
         };
       } catch (notificationError) {
+        notificationFailed = true;
         updatedLead.notification = {
+          emailSent: false,
           webhookSent: false,
-          error: notificationError.message || "Errore invio webhook",
+          error: notificationError.message || "Errore invio notifica lead",
           failedAt: new Date().toISOString(),
-          event: "business_consulting_request",
+          event: notificationEvent,
         };
       }
     }
     await setJson(`lead:${normalizedLeadId}`, updatedLead, Number(process.env.LEAD_RETENTION_DAYS || 30) * 24 * 3600);
-    await del(`otp:${normalizedLeadId}`);
     const customerDb = await persistLeadSnapshot(updatedLead, "lead_verified");
     if (!customerDb.ok && !customerDb.skipped) {
       console.warn("customer_db_lead_verified_failed", customerDb.error);
     }
+
+    if (notificationEvent === "photovoltaic_consulting_request" && notificationFailed) {
+      return json(res, 503, {
+        ok: false,
+        error: "Numero verificato, ma l'invio della richiesta non e' riuscito. Premi di nuovo Verifica tra poco.",
+      });
+    }
+
+    await del(`otp:${normalizedLeadId}`);
     setLeadSessionCookie(res, normalizedLeadId);
     json(res, 200, { ok: true, status: "verified" });
   } catch (error) {

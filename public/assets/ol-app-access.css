@@ -528,3 +528,38 @@ td {
     color: #166534 !important;
     box-shadow: 0 0 0 2px rgba(22,163,74,.10), inset 0 1px 0 rgba(255,255,255,.82) !important;
 }
+
+/* ================================================================
+ * MOBILE READABILITY v1.0.0
+ * Correzioni mirate verificate a 320-430 px: testo secondario utile
+ * piu leggibile e accessi App/Premium con target piu comodi.
+ * Non modifica struttura, ordine DOM o logica dei componenti.
+ * ================================================================ */
+@media (max-width: 700px) {
+    .nav a,
+    .top-nav a,
+    .ol-app-access-inner .ol-app-access-link,
+    .ol-app-access-footer .ol-app-access-link {
+        min-height: 44px;
+        font-size: 14px !important;
+        line-height: 1.3;
+    }
+
+    .nav a,
+    .top-nav a {
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .hero .hero-note,
+    .field small,
+    .ol-live-note,
+    .ol-calc-note,
+    .precision-or,
+    .info-box p,
+    .related-card span,
+    .figure figcaption {
+        font-size: 14px !important;
+        line-height: 1.55 !important;
+    }
+}
