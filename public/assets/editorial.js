@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.9.0";
+  const VERSION = "0.10.7";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const STATUSES = new Set(["draft", "in_review", "changes_requested", "approved", "published", "archived"]);
   const STATUS_LABELS = {draft:"Bozza",in_review:"In revisione",changes_requested:"Modifiche richieste",approved:"Approvato",published:"Pubblicato",archived:"Archiviato"};
@@ -165,8 +165,9 @@
   }
 
   function renderArchive(container,articles,staticSlugs){
+    const status=document.querySelector("[data-archive-status]");
     container.replaceChildren(); container.setAttribute("aria-busy","false");
-    if(!articles.length){ const empty=document.createElement("div"); empty.className="ol-empty"; const h=document.createElement("h3"); h.textContent="Nessun articolo pubblicato"; const p=document.createElement("p"); p.textContent="I contenuti approvati compariranno qui."; empty.append(h,p); container.append(empty); return; }
+    if(!articles.length){ const empty=document.createElement("div"); empty.className="ol-empty"; const h=document.createElement("h3"); h.textContent="Nessun articolo pubblicato"; const p=document.createElement("p"); p.textContent="I contenuti approvati compariranno qui."; empty.append(h,p); container.append(empty); if(status)status.textContent="Nessun articolo pubblicato."; return; }
     const newestIsNew=articleIsNew(articles[0]);
     articles.forEach((article,index)=>{
       const item=document.createElement("article");
@@ -176,10 +177,11 @@
       const meta=document.createElement("div"); meta.className="ol-article-meta";
       if(article.category){const span=document.createElement("span");span.textContent=article.category_name||categoryLabel(article.category);meta.append(span);}
       if(article.author_display_name){ const a=document.createElement(article.author_slug?"a":"span"); if(article.author_slug)a.href=`/autori/${encodeURIComponent(article.author_slug)}.html`; a.textContent=article.author_display_name; meta.append(a); }
-      if(article.published_at)meta.append(makeTime(article.published_at));
+      if(article.published_at){const t=makeTime(article.published_at);t.textContent=`Pubblicato il ${formatDate(article.published_at)}`;meta.append(t);}
       const h=document.createElement("h3"); const a=document.createElement("a"); a.href=publicArticleHref(article,staticSlugs); a.textContent=article.title; h.append(a);
-      const p=document.createElement("p"); p.textContent=article.excerpt||""; item.append(meta,h,p); container.append(item);
+      const excerpt=document.createElement("p"); excerpt.textContent=article.excerpt||""; item.append(meta,h,excerpt); container.append(item);
     });
+    if(status)status.textContent=`Caricati ${articles.length} ${articles.length===1?"articolo":"articoli"}.`;
   }
 
   async function initPublicArchive(){
@@ -191,7 +193,19 @@
 
   function renderPlainContent(body,content){
     body.replaceChildren(); const blocks=String(content||"").split(/\n\s*\n/).map(v=>v.trim()).filter(Boolean);
-    blocks.forEach(block=>{ let node; if(/^###\s+/.test(block)){node=document.createElement("h3");node.textContent=block.replace(/^###\s+/,"");} else if(/^##\s+/.test(block)){node=document.createElement("h2");node.textContent=block.replace(/^##\s+/,"");} else {node=document.createElement("p");node.textContent=block;} body.append(node); });
+    blocks.forEach(block=>{
+      let node;
+      if(/^###\s+/.test(block)){node=document.createElement("h3");node.textContent=block.replace(/^###\s+/,"");}
+      else if(/^##\s+/.test(block)){node=document.createElement("h2");node.textContent=block.replace(/^##\s+/,"");}
+      else {
+        const lines=block.split(/\r?\n/).map(v=>v.trim()).filter(Boolean);
+        const unordered=lines.length>1&&lines.every(v=>/^[-*]\s+/.test(v));
+        const ordered=lines.length>1&&lines.every(v=>/^\d+[.)]\s+/.test(v));
+        if(unordered||ordered){node=document.createElement(ordered?"ol":"ul");lines.forEach(line=>{const li=document.createElement("li");li.textContent=line.replace(ordered?/^\d+[.)]\s+/:/^[-*]\s+/,"");node.append(li);});}
+        else {node=document.createElement("p");lines.forEach((line,index)=>{if(index)node.append(document.createElement("br"));node.append(document.createTextNode(line));});}
+      }
+      body.append(node);
+    });
   }
   function renderSources(article){
     const section=document.querySelector("[data-article-sources]"); const list=document.querySelector("[data-source-list]"); if(!section||!list)return; list.replaceChildren();
@@ -199,6 +213,23 @@
     lines.forEach(line=>{ const li=document.createElement("li"); const match=line.match(/^(.*?)(https?:\/\/\S+)$/i); if(match){ const label=match[1].replace(/[|–—:-]+\s*$/,"").trim(); const a=document.createElement("a"); a.href=match[2]; a.textContent=label||match[2]; a.rel="noopener noreferrer"; li.append(a); } else li.textContent=line; list.append(li); }); section.hidden=false;
   }
   async function renderRelated(article){ const section=document.querySelector("[data-related-section]"); const list=document.querySelector("[data-related-list]"); if(!section||!list||!article.category)return; try{ const [rows,staticSlugs]=await Promise.all([fetchPublicArticles(`&category=eq.${encodeURIComponent(article.category)}&slug=neq.${encodeURIComponent(article.slug)}&order=published_at.desc&limit=3`),fetchStaticSlugs()]); list.replaceChildren(); (rows||[]).forEach(row=>{const a=document.createElement("a");a.href=publicArticleHref(row,staticSlugs);a.textContent=row.title;list.append(a);}); section.hidden=!rows?.length; }catch{section.hidden=true;} }
+
+  function renderAuthorCard(article){
+    const card=document.querySelector("[data-article-author-card]"); if(!card)return;
+    const name=article.author_display_name||"Redazione OffertaLogica";
+    const profileHref=article.author_slug?`/autori/${encodeURIComponent(article.author_slug)}.html`:"";
+    const nameEl=card.querySelector("[data-author-name]"); nameEl.replaceChildren();
+    if(profileHref){const a=document.createElement("a");a.href=profileHref;a.textContent=name;nameEl.append(a);}else nameEl.textContent=name;
+    const avatar=card.querySelector("[data-author-avatar]");
+    if(avatar&&/^https:\/\//i.test(article.author_avatar_url||"")){avatar.src=article.author_avatar_url;avatar.alt="";avatar.loading="lazy";avatar.decoding="async";avatar.hidden=false;}else if(avatar){avatar.removeAttribute("src");avatar.hidden=true;}
+    const bio=card.querySelector("[data-author-bio]"); if(bio){bio.textContent=article.author_bio||"";bio.hidden=!article.author_bio;}
+    const links=card.querySelector("[data-author-links]"); links.replaceChildren();
+    const addLink=(href,label)=>{if(!/^https:\/\//i.test(href||"")&&!href?.startsWith("/"))return;const a=document.createElement("a");a.href=href;a.textContent=label;if(/^https:\/\//i.test(href)){a.rel="me noopener noreferrer";a.target="_blank";a.setAttribute("aria-label",`${label}, si apre in una nuova scheda`);}links.append(a);};
+    if(profileHref)addLink(profileHref,"Profilo autore");
+    addLink(article.author_linkedin_url,"LinkedIn");
+    addLink(article.author_website_url,"Sito personale");
+    card.hidden=false;
+  }
 
   async function initArticlePage(){
     const errorBox=document.querySelector("[data-public-error]"); const slug=normalizeSlug(new URLSearchParams(location.search).get("slug")||""); const articleView=document.querySelector("[data-article-view]");
@@ -208,11 +239,12 @@
       const rows=await fetchPublicArticles(`&slug=eq.${encodeURIComponent(slug)}&limit=1`); const article=rows?.[0]; if(!article)throw new Error("Articolo non trovato o non pubblicato");
       document.querySelector("[data-article-title]").textContent=article.title; document.querySelector("[data-article-excerpt]").textContent=article.excerpt||""; document.querySelector("[data-article-category]").textContent=article.category_name||categoryLabel(article.category);
       const authorEl=document.querySelector("[data-article-author]"); authorEl.replaceChildren(); if(article.author_slug){const a=document.createElement("a");a.href=`/autori/${encodeURIComponent(article.author_slug)}.html`;a.textContent=article.author_display_name||"Redazione OffertaLogica";authorEl.append(a);}else authorEl.textContent=article.author_display_name||"Redazione OffertaLogica";
-      const date=document.querySelector("[data-article-date]"); date.textContent=formatDate(article.published_at); if(article.published_at)date.dateTime=article.published_at;
+      const date=document.querySelector("[data-article-date]"); date.textContent=article.published_at?`Pubblicato il ${formatDate(article.published_at)}`:""; if(article.published_at)date.dateTime=article.published_at;
+      const updated=document.querySelector("[data-article-updated]"); const publishedTime=Date.parse(article.published_at||""); const updatedTime=Date.parse(article.updated_at||""); const showUpdated=updated&&Number.isFinite(updatedTime)&&(!Number.isFinite(publishedTime)||updatedTime-publishedTime>60*60*1000); if(updated){updated.hidden=!showUpdated;if(showUpdated){updated.dateTime=article.updated_at;updated.textContent=`Aggiornato il ${formatDate(article.updated_at)}`;}}
       renderPlainContent(document.querySelector("[data-article-content]"),article.content);
-      const image=document.querySelector("[data-article-image]"); if(image&&/^https:\/\//i.test(article.featured_image_url||"")){image.src=article.featured_image_url;image.alt=article.featured_image_alt||article.title;image.hidden=false;}
-      renderSources(article); renderRelated(article); document.title=article.seo_title||`${article.title} | OffertaLogica`; const description=document.querySelector('meta[name="description"]'); if(description)description.content=article.seo_description||article.excerpt||"Approfondimento OffertaLogica."; if(articleView)articleView.setAttribute("aria-busy","false");
-    }catch(error){ if(articleView)articleView.setAttribute("aria-busy","false"); show(errorBox,error.message); }
+      const image=document.querySelector("[data-article-image]"); if(image&&/^https:\/\//i.test(article.featured_image_url||"")){image.src=article.featured_image_url;image.alt=article.featured_image_alt||article.title;image.decoding="async";image.hidden=false;}
+      renderAuthorCard(article); renderSources(article); renderRelated(article); document.title=article.seo_title||`${article.title} | OffertaLogica`; const description=document.querySelector('meta[name="description"]'); if(description)description.content=article.seo_description||article.excerpt||"Approfondimento OffertaLogica."; if(articleView)articleView.setAttribute("aria-busy","false"); const status=document.querySelector("[data-article-status]"); if(status)status.textContent=`Articolo caricato: ${article.title}.`;
+    }catch(error){ if(articleView)articleView.setAttribute("aria-busy","false"); show(errorBox,error.message); const status=document.querySelector("[data-article-status]"); if(status)status.textContent="Impossibile caricare l’articolo."; }
   }
 
   function workspaceFields(form){ return Object.fromEntries([...form.elements].filter(el=>el.name).map(el=>[el.name,el])); }

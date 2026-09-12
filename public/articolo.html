@@ -16,13 +16,23 @@
   <div class="ol-shell">
     <nav class="ol-breadcrumbs" aria-label="Percorso di navigazione"><a href="/">Home</a><span aria-hidden="true">/</span><a href="/articoli.html">OffertaLogica Informa</a><span aria-hidden="true">/</span><span aria-current="page">Articolo</span></nav>
     <div class="ol-alert ol-alert-danger ol-prose" role="alert" data-public-error hidden></div>
-    <article class="ol-panel ol-panel-body ol-prose" data-article-view aria-live="polite" aria-busy="true">
+    <p class="ol-visually-hidden" role="status" aria-live="polite" aria-atomic="true" data-article-status>Caricamento dell’articolo in corso.</p>
+    <article class="ol-panel ol-panel-body ol-prose" data-article-view aria-busy="true">
       <div class="ol-eyebrow" data-article-category>Articolo OffertaLogica</div>
       <h1 data-article-title>Caricamento articolo</h1>
       <p class="ol-lead" data-article-excerpt></p>
-      <div class="ol-article-meta ol-article-meta-large"><span data-article-author></span><time data-article-date></time></div>
+      <div class="ol-article-meta ol-article-meta-large"><span data-article-author></span><time data-article-date></time><time data-article-updated hidden></time></div>
       <img class="ol-featured-image" data-article-image alt="" hidden>
       <div class="ol-prose-body" data-article-content></div>
+      <section class="ol-author-card" data-article-author-card hidden aria-labelledby="autore-articolo">
+        <img class="ol-author-avatar" data-author-avatar alt="" hidden>
+        <div class="ol-author-card-body">
+          <div class="ol-eyebrow">Autore</div>
+          <h2 id="autore-articolo" data-author-name></h2>
+          <p data-author-bio hidden></p>
+          <div class="ol-author-links" data-author-links></div>
+        </div>
+      </section>
       <section class="ol-sources" data-article-sources hidden><h2>Fonti</h2><ul data-source-list></ul></section>
       <section class="ol-related" data-related-section hidden><h2>Articoli correlati</h2><div class="ol-related-list" data-related-list></div></section>
     </article>
