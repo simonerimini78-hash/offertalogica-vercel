@@ -1,4 +1,4 @@
-const TOOL_VERSION = '1.4.0';
+const TOOL_VERSION = '1.4.1';
 const TRACK_URL = '/api/track-event';
 const PV_URL = '/api/pv-estimate';
 const PDF_REPLAY_KEY = 'offertalogicaPdfArchiveReplay';
@@ -330,7 +330,7 @@ async function quickEvaluate(){
   try{
     if(!consumption||consumption<=0){
       const assessment=quickAssessment({owner,impact:null,consumption:null,capped:false});
-      latestProjectProfile={origin:'quick',ownership:owner,location:locationInfo,annualConsumptionKwh:null,usageProfile:profileChoice,assessment:assessment.code,assessmentLabel:assessment.title,confidence:'low',leadEligible:false,evaluatedAt:new Date().toISOString()};
+      latestProjectProfile={origin:'quick',customerType:'privato',ownership:owner,location:locationInfo,annualConsumptionKwh:null,usageProfile:profileChoice,assessment:assessment.code,assessmentLabel:assessment.title,confidence:'low',leadEligible:false,evaluatedAt:new Date().toISOString()};
       renderQuickResult(latestProjectProfile,assessment,null); syncQuickToDetailed(locationInfo,null,profileChoice); track('quick_evaluation_completed',{outcome:assessment.code,context:'missing_consumption'}); return;
     }
     const base=await fetchPvEstimate({lat:locationInfo.lat,lon:locationInfo.lon,powerKw:1,customerType:'consumer',angle:null,aspect:null});
@@ -338,7 +338,7 @@ async function quickEvaluate(){
     const rawPower=consumption/yieldPerKw; const capped=rawPower>12; const scenarioPower=clamp(Math.round(clamp(rawPower,1.5,12)*2)/2,1.5,12); const pv=scaledPv(base,scenarioPower);
     const profile=profileFromChoice(profileChoice); const impact=profile?calculateImpact(pv,consumption,profile):null; const assessment=quickAssessment({owner,impact,consumption,capped});
     const confidence=quickConfidence(owner,consumption,profileChoice);
-    latestProjectProfile={origin:'quick',ownership:owner,location:locationInfo,annualConsumptionKwh:consumption,usageProfile:profileChoice,scenarioPowerKw:scenarioPower,annualProductionKwh:Number(pv.annualKwh||0),selfConsumptionKwh:impact?Number(impact.selfKwh||0):null,residualGridKwh:impact?Number(impact.residualKwh||0):null,excessKwh:impact?Number(impact.excessKwh||0):null,coveragePct:impact?Number(impact.coveragePct||0):null,assessment:assessment.code,assessmentLabel:assessment.title,confidence:confidence.startsWith('Buona')?'good':'medium',leadEligible:assessment.eligible,evaluatedAt:new Date().toISOString()};
+    latestProjectProfile={origin:'quick',customerType:'privato',ownership:owner,location:locationInfo,annualConsumptionKwh:consumption,usageProfile:profileChoice,scenarioPowerKw:scenarioPower,annualProductionKwh:Number(pv.annualKwh||0),selfConsumptionKwh:impact?Number(impact.selfKwh||0):null,residualGridKwh:impact?Number(impact.residualKwh||0):null,excessKwh:impact?Number(impact.excessKwh||0):null,coveragePct:impact?Number(impact.coveragePct||0):null,assessment:assessment.code,assessmentLabel:assessment.title,confidence:confidence.startsWith('Buona')?'good':'medium',leadEligible:assessment.eligible,evaluatedAt:new Date().toISOString()};
     renderQuickResult(latestProjectProfile,assessment,impact); syncQuickToDetailed(locationInfo,consumption,profileChoice,scenarioPower); track('quick_evaluation_completed',{outcome:assessment.code,context:profileChoice});
   }catch(error){quickStatus('pv-quick-status-2',String(error?.message||'Valutazione non disponibile. Riprova.'),'error');track('quick_evaluation_failed',{outcome:String(error?.message||'error')});}
   finally{if(button)button.disabled=false;}
@@ -353,7 +353,7 @@ function renderQuickResult(project,assessment,impact){
 }
 function updateProjectFromDetailed(pv,locationInfo,power,consumption,profile,impact,powerOrigin){
   const knownOwner=quickOwner()||'unknown';
-  latestProjectProfile={origin:'detailed',ownership:knownOwner,location:{lat:locationInfo.lat,lon:locationInfo.lon,label:locationInfo.label,precision:locationInfo.precision},annualConsumptionKwh:consumption||null,usageProfile:profile?.origin==='declared'?String($('pv-usage-profile')?.value||'unknown'):profile?.origin||'unknown',scenarioPowerKw:Number(power||0)||null,powerOrigin,annualProductionKwh:Number(pv?.annualKwh||0)||null,selfConsumptionKwh:impact?Number(impact.selfKwh||0):null,residualGridKwh:impact?Number(impact.residualKwh||0):null,excessKwh:impact?Number(impact.excessKwh||0):null,coveragePct:impact?Number(impact.coveragePct||0):null,assessment:impact?'detailed_energy_balance':'production_only',assessmentLabel:impact?'Scenario energetico calcolato':'Produzione calcolata',confidence:impact?'good':'medium',leadEligible:Boolean(consumption&&Number(consumption)>0&&knownOwner!=='not_owner'),evaluatedAt:new Date().toISOString()};
+  latestProjectProfile={origin:'detailed',customerType:mode==='business'?'business':'privato',ownership:knownOwner,location:{lat:locationInfo.lat,lon:locationInfo.lon,label:locationInfo.label,precision:locationInfo.precision},annualConsumptionKwh:consumption||null,usageProfile:profile?.origin==='declared'?String($('pv-usage-profile')?.value||'unknown'):profile?.origin||'unknown',scenarioPowerKw:Number(power||0)||null,powerOrigin,annualProductionKwh:Number(pv?.annualKwh||0)||null,selfConsumptionKwh:impact?Number(impact.selfKwh||0):null,residualGridKwh:impact?Number(impact.residualKwh||0):null,excessKwh:impact?Number(impact.excessKwh||0):null,coveragePct:impact?Number(impact.coveragePct||0):null,assessment:impact?'detailed_energy_balance':'production_only',assessmentLabel:impact?'Scenario energetico calcolato':'Produzione calcolata',confidence:impact?'good':'medium',leadEligible:Boolean(consumption&&Number(consumption)>0&&knownOwner!=='not_owner'),evaluatedAt:new Date().toISOString()};
   const prompt=$('pv-detailed-consult-prompt'); if(prompt)prompt.hidden=!latestProjectProfile.leadEligible;
 }
 function openConsultation(){
@@ -382,8 +382,8 @@ async function submitPhotovoltaicLead(event){
     if(isStaffPreview()){
       pvLeadId='preview'; pvPreviewOtp='123456'; $('pv-otp-panel').hidden=false; $('pv-lead-otp')?.focus(); leadStatus('Anteprima staff: usa il codice 123456.','ok'); return;
     }
-    const acceptedAt=new Date().toISOString(); const project=photovoltaicPayload(timeframe,ownership);
-    const leadPayload=await jsonResponse(await fetch('/api/lead',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({name,phone,email,consentService:true,consentMarketing:false,consentPartners:true,calculation:{customerType:'privato',dataOrigin:'photovoltaic_evaluation',requestType:'photovoltaic_consulting',photovoltaicProfile:project,dataStewardship:{originalPdfStored:false,internalImprovement:true,anonymizedInsight:true}},privacyVersion:'privacy-fotovoltaico-v1',consentProof:{acceptedAt,source:'fotovoltaico_consulting',dataOrigin:'photovoltaic_evaluation',page:location.pathname,internalImprovement:true}})}),'Impossibile creare la richiesta');
+    const acceptedAt=new Date().toISOString(); const project=photovoltaicPayload(timeframe,ownership); const projectCustomerType=latestProjectProfile?.customerType==='business'?'business':'privato';
+    const leadPayload=await jsonResponse(await fetch('/api/lead',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({name,phone,email,consentService:true,consentMarketing:false,consentPartners:true,calculation:{customerType:projectCustomerType,dataOrigin:'photovoltaic_evaluation',requestType:'photovoltaic_consulting',photovoltaicProfile:project,dataStewardship:{originalPdfStored:false,internalImprovement:true,anonymizedInsight:true}},privacyVersion:'privacy-fotovoltaico-v1',consentProof:{acceptedAt,source:'fotovoltaico_consulting',dataOrigin:'photovoltaic_evaluation',page:location.pathname,internalImprovement:true}})}),'Impossibile creare la richiesta');
     pvLeadId=leadPayload.leadId;
     const otpPayload=await jsonResponse(await fetch('/api/send-otp',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({leadId:pvLeadId})}),'Impossibile inviare il codice');
     $('pv-otp-panel').hidden=false; $('pv-lead-otp')?.focus(); leadStatus(otpPayload.demoCode?`Codice di prova: ${otpPayload.demoCode}.`:'Codice SMS inviato. Inseriscilo per confermare la richiesta.','ok'); track('photovoltaic_otp_sent',{context:timeframe});

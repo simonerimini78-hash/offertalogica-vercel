@@ -13,7 +13,7 @@ a{color:inherit}button,input,select{font:inherit}[hidden]{display:none!important
 @media(max-width:800px){.bill-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.content-grid{grid-template-columns:1fr}.cta-card{grid-template-columns:1fr}}
 @media(max-width:620px){.page-shell{width:min(100% - 18px,1080px)}.form-grid,.place-row,.metrics{grid-template-columns:1fr}.field.span-2,.agriculture-only,.advanced-note{grid-column:auto}.bill-import-card{grid-template-columns:1fr}.bill-summary-grid,.bill-detail-grid{grid-template-columns:1fr}.button{width:100%}.actions{display:grid;grid-template-columns:1fr}.segment-switch{position:sticky;top:6px;z-index:4;box-shadow:0 8px 20px rgba(15,23,42,.07)}.monthly-chart{gap:5px}}
 
-/* Fotovoltaico Mobile Plus v1.4.0 */
+/* Fotovoltaico Mobile Plus v1.4.1 */
 .quick-eval-card,.consult-card{margin-top:22px;padding:clamp(20px,4vw,34px);border:1px solid rgba(227,233,231,.92);border-radius:28px;background:rgba(255,255,255,.84);box-shadow:var(--shadow)}
 .quick-eval-head h2,.consult-head h2{margin:0;font-size:clamp(25px,3.4vw,34px);line-height:1.12}.quick-eval-head>p:not(.eyebrow),.consult-head>p:not(.eyebrow){margin:8px 0 0;color:var(--muted);max-width:780px}
 .quick-progress{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;list-style:none;padding:0;margin:18px 0 0}.quick-progress li{padding:9px 8px;border:1px solid var(--border);border-radius:999px;background:#f8fafc;color:var(--muted);font-size:12px;font-weight:850;text-align:center}.quick-progress li.active{border-color:#86efac;background:#f0fdf4;color:#166534}.quick-progress li.done{border-color:#bbf7d0;background:#f7fee7;color:#3f6212}
@@ -29,3 +29,9 @@ a{color:inherit}button,input,select{font:inherit}[hidden]{display:none!important
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
 .result-consult-prompt{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:center;margin-top:14px;padding:14px 15px;border:1px solid #86efac;border-radius:15px;background:#f0fdf4}.result-consult-prompt strong,.result-consult-prompt span{display:block}.result-consult-prompt strong{color:#166534}.result-consult-prompt span{margin-top:3px;color:#456052;font-size:13px}
 @media(max-width:620px){.result-consult-prompt{grid-template-columns:1fr}}
+
+@media(max-width:620px){
+  .quick-progress li{font-size:12px}
+  .field small,.profile-missing span,.storage-note span,.method-copy,.confidence-line,.quick-disclaimer,.result-consult-prompt span,.consent-row{font-size:14px;line-height:1.5}
+  .quick-result-grid span{font-size:13px}
+}
