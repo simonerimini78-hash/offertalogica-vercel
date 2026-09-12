@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { json, method } from "../lib/http.js";
 import { checkCustomerDb } from "../lib/customerDb.js";
 import { otpProviderStatus } from "../lib/otp.js";
+import { notificationChannelsStatus } from "../lib/notify.js";
 import { checkStore, persistentStoreConfigured } from "../lib/store.js";
 
 function requestToken(req) {
@@ -38,6 +39,7 @@ export default async function handler(req, res) {
       storage: persistentStoreConfigured() ? "redis" : "memory",
       customerDb,
       sms: otpProviderStatus(),
+      notifications: notificationChannelsStatus(),
       latencyMs: Date.now() - startedAt,
       checkedAt: new Date().toISOString(),
     });

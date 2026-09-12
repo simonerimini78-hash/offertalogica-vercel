@@ -1,4 +1,4 @@
-const TOOL_VERSION = '1.4.1';
+const TOOL_VERSION = '1.4.2';
 const TRACK_URL = '/api/track-event';
 const PV_URL = '/api/pv-estimate';
 const PDF_REPLAY_KEY = 'offertalogicaPdfArchiveReplay';
@@ -383,7 +383,7 @@ async function submitPhotovoltaicLead(event){
       pvLeadId='preview'; pvPreviewOtp='123456'; $('pv-otp-panel').hidden=false; $('pv-lead-otp')?.focus(); leadStatus('Anteprima staff: usa il codice 123456.','ok'); return;
     }
     const acceptedAt=new Date().toISOString(); const project=photovoltaicPayload(timeframe,ownership); const projectCustomerType=latestProjectProfile?.customerType==='business'?'business':'privato';
-    const leadPayload=await jsonResponse(await fetch('/api/lead',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({name,phone,email,consentService:true,consentMarketing:false,consentPartners:true,calculation:{customerType:projectCustomerType,dataOrigin:'photovoltaic_evaluation',requestType:'photovoltaic_consulting',photovoltaicProfile:project,dataStewardship:{originalPdfStored:false,internalImprovement:true,anonymizedInsight:true}},privacyVersion:'privacy-fotovoltaico-v1',consentProof:{acceptedAt,source:'fotovoltaico_consulting',dataOrigin:'photovoltaic_evaluation',page:location.pathname,internalImprovement:true}})}),'Impossibile creare la richiesta');
+    const leadPayload=await jsonResponse(await fetch('/api/lead',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({name,phone,email,consentService:true,consentMarketing:false,consentPartners:true,calculation:{customerType:projectCustomerType,dataOrigin:'photovoltaic_evaluation',requestType:'photovoltaic_consulting',photovoltaicProfile:project,dataStewardship:{originalPdfStored:false,internalImprovement:true,anonymizedInsight:true}},privacyVersion:'privacy-fotovoltaico-v3',consentProof:{acceptedAt,source:'fotovoltaico_consulting',dataOrigin:'photovoltaic_evaluation',page:location.pathname,internalImprovement:true}})}),'Impossibile creare la richiesta');
     pvLeadId=leadPayload.leadId;
     const otpPayload=await jsonResponse(await fetch('/api/send-otp',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({leadId:pvLeadId})}),'Impossibile inviare il codice');
     $('pv-otp-panel').hidden=false; $('pv-lead-otp')?.focus(); leadStatus(otpPayload.demoCode?`Codice di prova: ${otpPayload.demoCode}.`:'Codice SMS inviato. Inseriscilo per confermare la richiesta.','ok'); track('photovoltaic_otp_sent',{context:timeframe});

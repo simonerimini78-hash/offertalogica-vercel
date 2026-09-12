@@ -71,6 +71,18 @@ if (pdfStorageConfigured && String(process.env.PDF_UPLOAD_TICKET_SECRET || "").l
   missing.push("PDF_UPLOAD_TICKET_SECRET di almeno 32 caratteri");
 }
 
+
+const resendApiKey = String(process.env.RESEND_API_KEY || "").trim();
+const leadNotificationEmail = String(process.env.LEAD_NOTIFICATION_EMAIL || "").trim();
+const leadNotificationFrom = String(process.env.LEAD_NOTIFICATION_FROM || "").trim();
+const emailLeadConfigured = Boolean(resendApiKey && leadNotificationEmail && leadNotificationFrom);
+const emailLeadPartial = Boolean(resendApiKey || leadNotificationEmail || leadNotificationFrom) && !emailLeadConfigured;
+if (emailLeadPartial) {
+  if (!resendApiKey) missing.push("RESEND_API_KEY per notifica email lead");
+  if (!leadNotificationEmail) missing.push("LEAD_NOTIFICATION_EMAIL per notifica email lead");
+  if (!leadNotificationFrom) missing.push("LEAD_NOTIFICATION_FROM per notifica email lead");
+}
+
 const leadWebhookUrl = String(process.env.LEAD_WEBHOOK_URL || "").trim();
 if (leadWebhookUrl) {
   try {
@@ -82,6 +94,15 @@ if (leadWebhookUrl) {
   if (String(process.env.LEAD_WEBHOOK_SECRET || "").length < 32) {
     missing.push("LEAD_WEBHOOK_SECRET di almeno 32 caratteri quando il webhook è attivo");
   }
+}
+
+if (!emailLeadConfigured && !leadWebhookUrl) {
+  missing.push("destinazione lead verificati: email Resend completa oppure LEAD_WEBHOOK_URL");
+}
+
+const photovoltaicRetentionDays = Number(process.env.CUSTOMER_DB_PHOTOVOLTAIC_RETENTION_DAYS || 120);
+if (!Number.isFinite(photovoltaicRetentionDays) || photovoltaicRetentionDays < 1 || photovoltaicRetentionDays > 3650) {
+  missing.push("CUSTOMER_DB_PHOTOVOLTAIC_RETENTION_DAYS tra 1 e 3650");
 }
 
 if (missing.length) {

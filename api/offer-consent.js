@@ -430,14 +430,17 @@ export default async function handler(req, res) {
     try {
       const notification = await notifyLeadVerified(updatedLead, "offer_partner_consent");
       updatedLead.notification = {
-        webhookSent: !notification.skipped,
+        emailSent: Boolean(notification.emailSent),
+        webhookSent: Boolean(notification.webhookSent),
         sentAt: notification.skipped ? null : new Date().toISOString(),
         event: "offer_partner_consent",
+        warnings: Array.isArray(notification.warnings) ? notification.warnings.slice(0, 5) : [],
       };
     } catch (notificationError) {
       updatedLead.notification = {
+        emailSent: false,
         webhookSent: false,
-        error: notificationError.message || "Errore invio webhook",
+        error: notificationError.message || "Errore invio notifica lead",
         failedAt: new Date().toISOString(),
         event: "offer_partner_consent",
       };
