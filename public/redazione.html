@@ -47,6 +47,28 @@
           <button class="ol-button ol-button-secondary" type="button" data-review-logout>Esci</button>
         </div>
 
+        <section class="ol-panel ol-panel-body ol-author-profile-panel" data-own-author-profile hidden>
+          <div class="ol-toolbar">
+            <div><div class="ol-eyebrow">Profilo pubblico</div><h2>Il mio profilo autore</h2><p class="ol-muted">Usato automaticamente negli articoli che pubblichi a tuo nome.</p></div>
+            <a class="ol-button ol-button-secondary ol-button-small" data-author-public-link href="#" target="_blank" rel="author noopener" hidden>Vedi profilo pubblico<span class="ol-visually-hidden"> (si apre in una nuova scheda)</span></a>
+          </div>
+          <form class="ol-form ol-author-profile-form" data-author-profile-form novalidate>
+            <div class="ol-alert ol-alert-success" role="status" aria-live="polite" data-author-profile-success hidden></div>
+            <div class="ol-alert ol-alert-danger" role="alert" aria-live="assertive" data-author-profile-error hidden></div>
+            <div class="ol-author-profile-grid">
+              <div class="ol-author-profile-photo" data-author-avatar-uploader><input name="avatar_url" type="hidden"><div class="ol-avatar-preview" data-author-avatar-preview-box hidden><img data-author-avatar-preview alt=""><button class="ol-button ol-button-secondary ol-button-small" type="button" data-author-avatar-remove>Rimuovi foto</button></div><div class="ol-field"><label for="review-author-avatar-upload">Foto autore</label><input id="review-author-avatar-upload" data-author-avatar-upload type="file" accept="image/jpeg,image/png,image/webp,image/avif" aria-describedby="review-author-avatar-help"><small id="review-author-avatar-help">JPG, PNG, WebP o AVIF fino a 5 MB.</small><p class="ol-small ol-muted" data-author-avatar-status aria-live="polite"></p></div></div>
+              <div class="ol-author-profile-fields">
+                <div class="ol-field"><label for="review-author-display-name">Nome pubblico</label><input id="review-author-display-name" name="display_name" type="text" maxlength="120" autocomplete="name" required></div>
+                <div class="ol-field"><label for="review-author-profile-slug">Pagina autore</label><input id="review-author-profile-slug" name="slug" type="text" readonly></div>
+                <div class="ol-field"><label for="review-author-bio">Biografia breve</label><textarea id="review-author-bio" name="bio" maxlength="700"></textarea><div class="ol-counter" data-count-for="review-author-bio"></div></div>
+                <div class="ol-field"><label for="review-author-linkedin">Profilo LinkedIn</label><input id="review-author-linkedin" name="linkedin_url" type="url" maxlength="500" inputmode="url" autocomplete="url" placeholder="https://www.linkedin.com/in/..."></div>
+                <div class="ol-field"><label for="review-author-website">Sito personale <span class="ol-muted">(facoltativo)</span></label><input id="review-author-website" name="website_url" type="url" maxlength="500" inputmode="url" autocomplete="url" placeholder="https://..."></div>
+              </div>
+            </div>
+            <div class="ol-toolbar"><button class="ol-button ol-button-primary" type="submit" data-author-profile-save>Salva profilo autore</button></div>
+          </form>
+        </section>
+
         <section class="ol-panel ol-panel-body ol-team-panel" data-admin-team hidden>
           <div class="ol-toolbar">
             <div><div class="ol-eyebrow">Amministrazione</div><h2>Collaboratori e redazione</h2><p class="ol-muted">Invita nuove persone e gestisci ruoli e accessi senza usare il pannello tecnico del database.</p></div>
@@ -80,6 +102,10 @@
             <section class="ol-card ol-admin-list-card">
               <h3>Persone abilitate</h3>
               <div class="ol-team-list" data-admin-people aria-live="polite"><p class="ol-muted">Caricamento…</p></div>
+            </section>
+            <section class="ol-card ol-admin-list-card ol-admin-author-card">
+              <div class="ol-category-heading"><div><h3>Profili autori</h3><p class="ol-muted ol-small">Supervisiona i dati pubblici. Un autore con articoli non può essere eliminato: può essere disattivato oppure gli articoli vanno prima riassegnati.</p></div></div>
+              <div class="ol-team-list ol-author-admin-list" data-admin-author-profiles aria-live="polite"><p class="ol-muted">Caricamento…</p></div>
             </section>
             <section class="ol-card ol-admin-list-card">
               <h3>Inviti recenti</h3>
