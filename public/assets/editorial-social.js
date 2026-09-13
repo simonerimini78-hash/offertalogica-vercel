@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.3";
+  const VERSION = "0.12.4";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const PLATFORMS = [
     { key: "facebook", label: "Facebook" },
@@ -99,7 +99,7 @@
       </div>
       <div class="ol-toolbar ol-toolbar-compact" data-social-instagram-test-box>
         <button class="ol-button ol-button-secondary ol-button-small" type="button" data-social-instagram-test disabled>Pubblica test Instagram</button>
-        <a class="ol-button ol-button-secondary ol-button-small" data-social-instagram-test-link href="#" target="_blank" rel="noopener noreferrer" hidden>Apri post di test</a>
+        <a class="ol-button ol-button-secondary ol-button-small" data-social-instagram-test-link target="_blank" rel="noopener noreferrer" hidden>Apri post di test</a>
       </div>
       <p class="ol-muted ol-small">Il test pubblica davvero un singolo post Instagram usando l'articolo selezionato. È disponibile solo per articoli già pubblicati e richiede il permesso di pubblicazione della Redazione.</p>`;
 
@@ -210,6 +210,19 @@
     }
   }
 
+  function setInstagramTestLink(link, permalink = "") {
+    if (!link) return false;
+    const safePermalink = /^https:\/\/(?:www\.)?instagram\.com\//i.test(String(permalink || "").trim());
+    if (!safePermalink) {
+      link.removeAttribute("href");
+      link.hidden = true;
+      return false;
+    }
+    link.href = String(permalink).trim();
+    link.hidden = false;
+    return true;
+  }
+
   function updateInstagramTestButton(root, articleId, status) {
     const button = root.querySelector("[data-social-instagram-test]");
     if (!button) return;
@@ -229,7 +242,7 @@
 
     button.dataset.busy = "true";
     button.disabled = true;
-    if (link) link.hidden = true;
+    setInstagramTestLink(link);
     setFeedback(root, "Preparazione del post Instagram di test…");
 
     try {
@@ -263,11 +276,14 @@
         confirm: "PUBLISH_INSTAGRAM_TEST"
       });
       const permalink = String(published?.media?.permalink || "");
-      if (link && /^https:\/\//i.test(permalink)) {
-        link.href = permalink;
-        link.hidden = false;
-      }
-      setFeedback(root, "Post Instagram di test pubblicato correttamente.", "ok");
+      const hasPermalink = setInstagramTestLink(link, permalink);
+      setFeedback(
+        root,
+        hasPermalink
+          ? "Post Instagram di test pubblicato correttamente."
+          : "Post Instagram pubblicato, ma Meta non ha restituito un permalink apribile.",
+        "ok"
+      );
     } catch (error) {
       setFeedback(root, `Test Instagram non pubblicato: ${error.message}`, "error");
     } finally {
