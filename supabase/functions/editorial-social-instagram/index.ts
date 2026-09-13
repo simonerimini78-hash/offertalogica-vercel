@@ -1,18 +1,42 @@
 const API_VERSION = "v26.0";
 const INSTAGRAM_GRAPH = "https://graph.instagram.com";
 const VERSION = "0.12.3";
+const PUBLISH_CONFIRMATION = "PUBLISH_INSTAGRAM_TEST";
 
-const CORS_HEADERS = {
-  "access-control-allow-origin": "*",
+const ALLOWED_ORIGINS = new Set([
+  "https://offertalogica.it",
+  "https://www.offertalogica.it",
+]);
+
+const CORS_BASE_HEADERS = {
   "access-control-allow-headers": "authorization, apikey, content-type",
   "access-control-allow-methods": "POST, OPTIONS",
 };
 
-function json(body: unknown, status = 200) {
+function requestOrigin(req: Request) {
+  return (req.headers.get("origin") || "").replace(/\/$/, "");
+}
+
+function originAllowed(req: Request) {
+  const origin = requestOrigin(req);
+  return !origin || ALLOWED_ORIGINS.has(origin);
+}
+
+function corsHeaders(req: Request) {
+  const origin = requestOrigin(req);
+  const headers: Record<string, string> = { ...CORS_BASE_HEADERS };
+  if (origin && ALLOWED_ORIGINS.has(origin)) {
+    headers["access-control-allow-origin"] = origin;
+    headers.vary = "Origin";
+  }
+  return headers;
+}
+
+function json(req: Request, body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
-      ...CORS_HEADERS,
+      ...corsHeaders(req),
       "content-type": "application/json; charset=utf-8",
       "cache-control": "no-store",
     },
@@ -261,12 +285,15 @@ async function publishedMedia(instagramToken: string, mediaId: string) {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS_HEADERS });
-  if (req.method !== "POST") return json({ ok: false, error: "Metodo non consentito" }, 405);
+  if (!originAllowed(req)) {
+    return json(req, { ok: false, error: "Origine non consentita" }, 403);
+  }
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders(req) });
+  if (req.method !== "POST") return json(req, { ok: false, error: "Metodo non consentito" }, 405);
 
   const instagramToken = Deno.env.get("META_INSTAGRAM_ACCESS_TOKEN")?.trim() || "";
   if (!instagramToken) {
-    return json({ ok: false, error: "Secret META_INSTAGRAM_ACCESS_TOKEN non configurato" }, 500);
+    return json(req, { ok: false, error: "Secret META_INSTAGRAM_ACCESS_TOKEN non configurato" }, 500);
   }
 
   const body = await readJson(req);
@@ -277,7 +304,7 @@ Deno.serve(async (req) => {
     const account = await identity(instagramToken);
 
     if (action === "validate") {
-      return json({
+      return json(req, {
         ok: true,
         version: VERSION,
         api_version: API_VERSION,
@@ -289,7 +316,7 @@ Deno.serve(async (req) => {
 
     if (action === "prepare_article_test") {
       const articleId = String(body?.article_id || "").trim();
-      if (!validUuid(articleId)) return json({ ok: false, error: "article_id non valido" }, 400);
+      if (!validUuid(articleId)) return json(req, { ok: false, error: "article_id non valido" }, 400);
       const article = await loadPublishedArticle(ctx, articleId);
       const caption = composeCaption(article);
       const creationId = await createContainer(
@@ -298,7 +325,7 @@ Deno.serve(async (req) => {
         String(article.featured_image_url),
         caption,
       );
-      return json({
+      return json(req, {
         ok: true,
         version: VERSION,
         instagram: account,
@@ -314,38 +341,55 @@ Deno.serve(async (req) => {
 
     if (action === "container_status") {
       const creationId = String(body?.creation_id || "").trim();
-      if (!/^\d{6,40}$/.test(creationId)) return json({ ok: false, error: "creation_id non valido" }, 400);
+      if (!/^\d{6,40}$/.test(creationId)) return json(req, { ok: false, error: "creation_id non valido" }, 400);
       const container = await containerStatus(instagramToken, creationId);
-      return json({ ok: true, version: VERSION, container, published: false });
+      return json(req, { ok: true, version: VERSION, container, published: false });
     }
 
     if (action === "publish_container_test") {
       const creationId = String(body?.creation_id || "").trim();
-      if (!/^\d{6,40}$/.test(creationId)) return json({ ok: false, error: "creation_id non valido" }, 400);
+      const articleId = String(body?.article_id || "").trim();
+      const confirmation = String(body?.confirm || "").trim();
+
+      if (!/^\d{6,40}$/.test(creationId)) return json(req, { ok: false, error: "creation_id non valido" }, 400);
+      if (!validUuid(articleId)) return json(req, { ok: false, error: "article_id non valido" }, 400);
+      if (confirmation !== PUBLISH_CONFIRMATION) {
+        return json(req, { ok: false, error: "Conferma esplicita di pubblicazione mancante" }, 400);
+      }
+
+      // Ricontrollo immediatamente prima di media_publish: l'articolo deve essere
+      // ancora pubblicato e l'utente deve conservare publish_articles.
+      const article = await loadPublishedArticle(ctx, articleId);
       const container = await containerStatus(instagramToken, creationId);
       if (container.status_code !== "FINISHED") {
-        return json({
+        return json(req, {
           ok: false,
           error: "Il contenitore Instagram non è ancora pronto",
           container,
         }, 409);
       }
+
       const mediaId = await publishContainer(instagramToken, account.id, creationId);
       const media = await publishedMedia(instagramToken, mediaId);
-      return json({
+      return json(req, {
         ok: true,
         version: VERSION,
         instagram: account,
+        article: {
+          id: String(article.id),
+          slug: String(article.slug || ""),
+          title: String(article.title || ""),
+        },
         creation_id: creationId,
         media: media || { id: mediaId, permalink: "", media_type: "", timestamp: "" },
         published: true,
       });
     }
 
-    return json({ ok: false, error: `Azione non supportata in v${VERSION}` }, 400);
+    return json(req, { ok: false, error: `Azione non supportata in v${VERSION}` }, 400);
   } catch (error) {
     const err = error as any;
-    return json({
+    return json(req, {
       ok: false,
       error: err?.message || "Errore Instagram",
       meta: err?.meta || null,

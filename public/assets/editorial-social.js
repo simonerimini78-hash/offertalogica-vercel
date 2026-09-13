@@ -257,7 +257,11 @@
       }
 
       setFeedback(root, "Pubblicazione del post Instagram di test…");
-      const published = await socialFunction("publish_container_test", { creation_id: creationId });
+      const published = await socialFunction("publish_container_test", {
+        creation_id: creationId,
+        article_id: articleId,
+        confirm: "PUBLISH_INSTAGRAM_TEST"
+      });
       const permalink = String(published?.media?.permalink || "");
       if (link && /^https:\/\//i.test(permalink)) {
         link.href = permalink;
