@@ -152,16 +152,8 @@ function sourceItems(value = "") {
 }
 
 function authorPublicUrl(article) {
-  const website = String(article?.author_website_url || "").trim();
-  if (/^https:\/\//i.test(website)) {
-    try {
-      const url = new URL(website);
-      if (url.protocol === "https:") return url.href;
-    } catch {
-      // fallback OffertaLogica
-    }
-  }
-  return `${EDITORIAL_SITE}/`;
+  const slug = editorialSlug(article?.author_slug || "");
+  return slug ? `${EDITORIAL_SITE}/autori/${encodeURIComponent(slug)}.html` : `${EDITORIAL_SITE}/articoli.html`;
 }
 
 function authorSameAs(article) {
@@ -237,12 +229,68 @@ async function loadEditorialArticle(slug) {
   }
 }
 
-async function loadEditorialSitemapRows() {
+async function loadEditorialAuthor(authorSlug) {
+  const slug = editorialSlug(authorSlug);
+  if (!slug) return null;
+  const encoded = encodeURIComponent(slug);
   try {
-    return await editorialApi("editorial_public_articles?select=slug,published_at,updated_at&order=published_at.desc");
+    const rows = await editorialApi(`editorial_public_articles?select=${EDITORIAL_PUBLIC_SELECT}&author_slug=eq.${encoded}&order=published_at.desc`);
+    if (!rows?.length) return null;
+    const first = rows[0];
+    return {
+      author: {
+        author_slug: slug,
+        author_display_name: first.author_display_name || "Redazione OffertaLogica",
+        author_bio: first.author_bio || "",
+        author_avatar_url: first.author_avatar_url || "",
+        author_website_url: first.author_website_url || "",
+        author_linkedin_url: first.author_linkedin_url || "",
+      },
+      articles: rows,
+    };
   } catch (error) {
     if (error.status !== 400 && error.status !== 404) throw error;
-    return editorialApi("editorial_articles?select=slug,published_at,updated_at&status=eq.published&order=published_at.desc");
+    const authors = await editorialApi(`editorial_authors?select=id,slug,display_name,bio,avatar_url,website_url,linkedin_url,active&slug=eq.${encoded}&active=eq.true&limit=1`);
+    const author = authors?.[0];
+    if (!author) return null;
+    const articles = await editorialApi(`editorial_articles?select=id,author_id,slug,title,excerpt,content,category,featured_image_url,sources,seo_title,seo_description,published_at,updated_at&status=eq.published&author_id=eq.${encodeURIComponent(author.id)}&order=published_at.desc`);
+    return {
+      author: {
+        author_slug: author.slug || slug,
+        author_display_name: author.display_name || "Redazione OffertaLogica",
+        author_bio: author.bio || "",
+        author_avatar_url: author.avatar_url || "",
+        author_website_url: author.website_url || "",
+        author_linkedin_url: author.linkedin_url || "",
+      },
+      articles: (articles || []).map((article) => ({
+        ...article,
+        featured_image_alt: article.title,
+        author_slug: author.slug || slug,
+        author_display_name: author.display_name || "Redazione OffertaLogica",
+        author_bio: author.bio || "",
+        author_avatar_url: author.avatar_url || "",
+        author_website_url: author.website_url || "",
+        author_linkedin_url: author.linkedin_url || "",
+        category_name: categoryLabel(article.category),
+      })),
+    };
+  }
+}
+
+async function loadEditorialSitemapRows() {
+  try {
+    return await editorialApi("editorial_public_articles?select=slug,published_at,updated_at,author_slug&order=published_at.desc");
+  } catch (error) {
+    if (error.status !== 400 && error.status !== 404) throw error;
+    const articles = await editorialApi("editorial_articles?select=slug,published_at,updated_at,author_id&status=eq.published&order=published_at.desc");
+    const ids = [...new Set((articles || []).map((article) => article.author_id).filter(Boolean))];
+    let authorMap = new Map();
+    if (ids.length) {
+      const authors = await editorialApi(`editorial_authors?select=id,slug&id=in.(${ids.join(",")})`);
+      authorMap = new Map((authors || []).map((author) => [author.id, editorialSlug(author.slug)]));
+    }
+    return (articles || []).map((article) => ({ ...article, author_slug: authorMap.get(article.author_id) || "" }));
   }
 }
 
@@ -294,11 +342,63 @@ function articleHtml(article) {
   const authorCard = authorName ? `<section class="ol-author-card" aria-labelledby="autore-articolo">${article.author_avatar_url ? `<img class="ol-author-avatar" src="${esc(article.author_avatar_url)}" alt="" loading="lazy" decoding="async">` : ""}<div class="ol-author-card-body"><div class="ol-eyebrow">Autore</div><h2 id="autore-articolo"><a href="${esc(authorUrl)}">${esc(authorName)}</a></h2>${article.author_bio ? `<p>${esc(article.author_bio)}</p>` : ""}<div class="ol-author-links">${authorLinks(article)}</div></div></section>` : "";
 
   return `<!DOCTYPE html>
-<html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${esc(title)}</title><meta name="description" content="${esc(description)}"><meta name="author" content="${esc(authorName)}"><meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1"><link rel="canonical" href="${canonical}"><link rel="sitemap" type="application/xml" href="/sitemap-informa.xml"><meta property="og:type" content="article"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(description)}"><meta property="og:url" content="${canonical}"><meta property="og:site_name" content="OffertaLogica">${article.featured_image_url ? `<meta property="og:image" content="${esc(article.featured_image_url)}">` : ""}<meta property="article:published_time" content="${esc(published)}"><meta property="article:modified_time" content="${esc(updated)}"><meta name="twitter:card" content="${article.featured_image_url ? "summary_large_image" : "summary"}"><link rel="icon" type="image/png" href="/assets/logo-offertalogica-icon.png"><link rel="stylesheet" href="/assets/editorial.css?v=0.11.2"><script type="application/ld+json">${escJson(articleLd)}</script><script type="application/ld+json">${escJson(breadcrumb)}</script></head><body><a class="ol-skip-link" href="#contenuto-principale">Vai al contenuto principale</a><header class="ol-topbar"><div class="ol-shell ol-topbar-inner"><a class="ol-brand" href="/" aria-label="OffertaLogica, torna alla home"><img src="/assets/logo-offertalogica-header.png" alt="OffertaLogica"></a><nav class="ol-nav" aria-label="Navigazione principale"><a href="/">Calcolatore</a><a href="/come-funziona.html">Come funziona</a><a href="/articoli.html">OffertaLogica Informa</a></nav></div></header><main id="contenuto-principale" class="ol-section"><div class="ol-shell"><nav class="ol-breadcrumbs" aria-label="Percorso di navigazione"><a href="/">Home</a><span aria-hidden="true">/</span><a href="/articoli.html">OffertaLogica Informa</a><span aria-hidden="true">/</span><span aria-current="page">${esc(article.title)}</span></nav><article class="ol-panel ol-panel-body ol-prose"><div class="ol-eyebrow">${esc(article.category_name || categoryLabel(article.category))}</div><h1>${esc(article.title)}</h1><p class="ol-lead">${esc(article.excerpt || "")}</p><div class="ol-article-meta ol-article-meta-large"><a href="${esc(authorUrl)}">${esc(authorName)}</a><time datetime="${esc(published)}">Pubblicato il ${esc(humanDate(article.published_at))}</time>${visiblyUpdated ? `<time datetime="${esc(updated)}">Aggiornato il ${esc(humanDate(article.updated_at))}</time>` : ""}</div>${article.featured_image_url ? `<img class="ol-featured-image" src="${esc(article.featured_image_url)}" alt="${esc(article.featured_image_alt || article.title)}" decoding="async">` : ""}<div class="ol-prose-body">${renderBody(article.content)}</div>${authorCard}${article.sources ? `<section class="ol-sources"><h2>Fonti</h2><ul>${sourceItems(article.sources)}</ul></section>` : ""}<section class="ol-related"><h2>Approfondimenti utili</h2><div class="ol-related-list">${useful.map(([label, href]) => `<a href="${href}">${esc(label)}</a>`).join("")}</div></section></article></div></main>${legalFooter()}</body></html>\n`;
+<html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${esc(title)}</title><meta name="description" content="${esc(description)}"><meta name="author" content="${esc(authorName)}"><meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1"><link rel="canonical" href="${canonical}"><link rel="sitemap" type="application/xml" href="/sitemap-informa.xml"><meta property="og:type" content="article"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(description)}"><meta property="og:url" content="${canonical}"><meta property="og:site_name" content="OffertaLogica">${article.featured_image_url ? `<meta property="og:image" content="${esc(article.featured_image_url)}">` : ""}<meta property="article:published_time" content="${esc(published)}"><meta property="article:modified_time" content="${esc(updated)}"><meta name="twitter:card" content="${article.featured_image_url ? "summary_large_image" : "summary"}"><link rel="icon" type="image/png" href="/assets/logo-offertalogica-icon.png"><link rel="stylesheet" href="/assets/editorial.css?v=0.11.6"><script type="application/ld+json">${escJson(articleLd)}</script><script type="application/ld+json">${escJson(breadcrumb)}</script></head><body><a class="ol-skip-link" href="#contenuto-principale">Vai al contenuto principale</a><header class="ol-topbar"><div class="ol-shell ol-topbar-inner"><a class="ol-brand" href="/" aria-label="OffertaLogica, torna alla home"><img src="/assets/logo-offertalogica-header.png" alt="OffertaLogica"></a><nav class="ol-nav" aria-label="Navigazione principale"><a href="/">Calcolatore</a><a href="/come-funziona.html">Come funziona</a><a href="/articoli.html">OffertaLogica Informa</a></nav></div></header><main id="contenuto-principale" class="ol-section"><div class="ol-shell"><nav class="ol-breadcrumbs" aria-label="Percorso di navigazione"><a href="/">Home</a><span aria-hidden="true">/</span><a href="/articoli.html">OffertaLogica Informa</a><span aria-hidden="true">/</span><span aria-current="page">${esc(article.title)}</span></nav><article class="ol-panel ol-panel-body ol-prose"><div class="ol-eyebrow">${esc(article.category_name || categoryLabel(article.category))}</div><h1>${esc(article.title)}</h1><p class="ol-lead">${esc(article.excerpt || "")}</p><div class="ol-article-meta ol-article-meta-large"><a href="${esc(authorUrl)}">${esc(authorName)}</a><time datetime="${esc(published)}">Pubblicato il ${esc(humanDate(article.published_at))}</time>${visiblyUpdated ? `<time datetime="${esc(updated)}">Aggiornato il ${esc(humanDate(article.updated_at))}</time>` : ""}</div>${article.featured_image_url ? `<img class="ol-featured-image" src="${esc(article.featured_image_url)}" alt="${esc(article.featured_image_alt || article.title)}" decoding="async">` : ""}<div class="ol-prose-body">${renderBody(article.content)}</div>${authorCard}${article.sources ? `<section class="ol-sources"><h2>Fonti</h2><ul>${sourceItems(article.sources)}</ul></section>` : ""}<section class="ol-related"><h2>Approfondimenti utili</h2><div class="ol-related-list">${useful.map(([label, href]) => `<a href="${href}">${esc(label)}</a>`).join("")}</div></section></article></div></main>${legalFooter()}</body></html>\n`;
 }
 
-function notFoundHtml() {
-  return `<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Articolo non trovato | OffertaLogica</title><meta name="robots" content="noindex,follow"><link rel="stylesheet" href="/assets/editorial.css?v=0.11.2"></head><body><main id="contenuto-principale" class="ol-section"><div class="ol-shell"><section class="ol-panel ol-panel-body"><h1>Articolo non trovato</h1><p>Il contenuto richiesto non è disponibile.</p><p><a href="/articoli.html">Torna a OffertaLogica Informa</a></p></section></div></main></body></html>`;
+function authorHtml(author, articles) {
+  const authorSlug = editorialSlug(author?.author_slug || "");
+  const canonical = `${EDITORIAL_SITE}/autori/${encodeURIComponent(authorSlug)}.html`;
+  const name = author?.author_display_name || "Redazione OffertaLogica";
+  const title = `${name} - Autore | OffertaLogica`;
+  const description = author?.author_bio || `Articoli e profilo di ${name} su OffertaLogica.`;
+  const sameAs = [author?.author_linkedin_url, author?.author_website_url]
+    .map((value) => String(value || "").trim())
+    .filter((value) => /^https:\/\//i.test(value));
+  const person = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "ProfilePage",
+        "@id": `${canonical}#webpage`,
+        url: canonical,
+        name: title,
+        description,
+        inLanguage: "it-IT",
+        mainEntity: {
+          "@type": "Person",
+          "@id": `${canonical}#person`,
+          url: canonical,
+          name,
+          ...(author?.author_bio ? { description: author.author_bio } : {}),
+          ...(author?.author_avatar_url ? { image: { "@type": "ImageObject", url: author.author_avatar_url } } : {}),
+          ...(sameAs.length ? { sameAs } : {}),
+        },
+        isPartOf: { "@type": "WebSite", "@id": `${EDITORIAL_SITE}/#website`, url: `${EDITORIAL_SITE}/`, name: "OffertaLogica" },
+      },
+      {
+        "@type": "ItemList",
+        "@id": `${canonical}#articoli`,
+        name: `Articoli pubblicati da ${name}`,
+        numberOfItems: articles.length,
+        itemListElement: articles.map((article, index) => ({
+          "@type": "ListItem",
+          position: index + 1,
+          url: `${EDITORIAL_SITE}/articoli/${encodeURIComponent(editorialSlug(article.slug))}.html`,
+          name: article.title,
+        })),
+      },
+    ],
+  };
+  const links = authorLinks(author);
+  const cards = articles.map((article) => {
+    const slug = editorialSlug(article.slug);
+    return `<article class="ol-article-item"><div class="ol-article-meta"><span>${esc(article.category_name || categoryLabel(article.category))}</span><time datetime="${esc(isoDate(article.published_at))}">${esc(humanDate(article.published_at))}</time></div><h3><a href="/articoli/${encodeURIComponent(slug)}.html">${esc(article.title)}</a></h3><p>${esc(article.excerpt || "")}</p></article>`;
+  }).join("");
+  return `<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${esc(title)}</title><meta name="description" content="${esc(description)}"><meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1"><link rel="canonical" href="${canonical}"><link rel="sitemap" type="application/xml" href="/sitemap-informa.xml"><meta property="og:type" content="profile"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(description)}"><meta property="og:url" content="${canonical}">${author?.author_avatar_url ? `<meta property="og:image" content="${esc(author.author_avatar_url)}">` : ""}<link rel="icon" type="image/png" href="/assets/logo-offertalogica-icon.png"><link rel="stylesheet" href="/assets/editorial.css?v=0.11.6"><script type="application/ld+json">${escJson(person)}</script></head><body><a class="ol-skip-link" href="#contenuto-principale">Vai al contenuto principale</a><header class="ol-topbar"><div class="ol-shell ol-topbar-inner"><a class="ol-brand" href="/" aria-label="OffertaLogica, torna alla home"><img src="/assets/logo-offertalogica-header.png" alt="OffertaLogica"></a><nav class="ol-nav" aria-label="Navigazione principale"><a href="/">Calcolatore</a><a href="/come-funziona.html">Come funziona</a><a href="/articoli.html">OffertaLogica Informa</a></nav></div></header><main id="contenuto-principale" class="ol-section"><div class="ol-shell"><nav class="ol-breadcrumbs" aria-label="Percorso di navigazione"><a href="/">Home</a><span aria-hidden="true">/</span><a href="/articoli.html">OffertaLogica Informa</a><span aria-hidden="true">/</span><span aria-current="page">${esc(name)}</span></nav><section class="ol-panel ol-panel-body"><div class="ol-author-profile">${author?.author_avatar_url ? `<img class="ol-author-avatar" src="${esc(author.author_avatar_url)}" alt="" loading="lazy" decoding="async">` : ""}<div><div class="ol-eyebrow">Autore OffertaLogica Informa</div><h1>${esc(name)}</h1>${author?.author_bio ? `<p class="ol-lead">${esc(author.author_bio)}</p>` : ""}${links ? `<div class="ol-author-links">${links}</div>` : ""}</div></div><section aria-labelledby="articoli-autore"><h2 id="articoli-autore">Articoli pubblicati</h2><div class="ol-author-article-grid">${cards}</div></section></section></div></main>${legalFooter()}</body></html>\n`;
+}
+
+function notFoundHtml(label = "Contenuto") {
+  return `<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${esc(label)} non trovato | OffertaLogica</title><meta name="robots" content="noindex,follow"><link rel="stylesheet" href="/assets/editorial.css?v=0.11.6"></head><body><main id="contenuto-principale" class="ol-section"><div class="ol-shell"><section class="ol-panel ol-panel-body"><h1>${esc(label)} non trovato</h1><p>Il contenuto richiesto non è disponibile.</p><p><a href="/articoli.html">Torna a OffertaLogica Informa</a></p></section></div></main></body></html>`;
 }
 
 function sendEditorialHtml(req, res, status, html, { indexable = false } = {}) {
@@ -316,14 +416,31 @@ async function handleEditorialArticle(req, res, slugValue) {
     return json(res, 405, { ok: false, error: "Metodo non consentito" });
   }
   const slug = editorialSlug(slugValue);
-  if (!slug) return sendEditorialHtml(req, res, 404, notFoundHtml());
+  if (!slug) return sendEditorialHtml(req, res, 404, notFoundHtml("Articolo"));
   try {
     const article = await loadEditorialArticle(slug);
-    if (!article) return sendEditorialHtml(req, res, 404, notFoundHtml());
+    if (!article) return sendEditorialHtml(req, res, 404, notFoundHtml("Articolo"));
     return sendEditorialHtml(req, res, 200, articleHtml(article), { indexable: true });
   } catch (error) {
     console.error("editorial_article_render_failed", { slug, message: String(error?.message || error || "render_failed").slice(0, 180) });
     return sendEditorialHtml(req, res, 503, `<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8"><meta name="robots" content="noindex,follow"><title>OffertaLogica Informa</title></head><body><main><h1>Contenuto temporaneamente non disponibile</h1><p>Riprova tra poco.</p></main></body></html>`);
+  }
+}
+
+async function handleEditorialAuthor(req, res, slugValue) {
+  if (!["GET", "HEAD"].includes(req.method)) {
+    res.setHeader("Allow", "GET, HEAD");
+    return json(res, 405, { ok: false, error: "Metodo non consentito" });
+  }
+  const slug = editorialSlug(slugValue);
+  if (!slug) return sendEditorialHtml(req, res, 404, notFoundHtml("Autore"));
+  try {
+    const profile = await loadEditorialAuthor(slug);
+    if (!profile) return sendEditorialHtml(req, res, 404, notFoundHtml("Autore"));
+    return sendEditorialHtml(req, res, 200, authorHtml(profile.author, profile.articles || []), { indexable: true });
+  } catch (error) {
+    console.error("editorial_author_render_failed", { slug, message: String(error?.message || error || "render_failed").slice(0, 180) });
+    return sendEditorialHtml(req, res, 503, `<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8"><meta name="robots" content="noindex,follow"><title>OffertaLogica Informa</title></head><body><main><h1>Profilo autore temporaneamente non disponibile</h1><p>Riprova tra poco.</p></main></body></html>`);
   }
 }
 
@@ -336,10 +453,21 @@ async function handleEditorialSitemap(req, res) {
     const rows = (await loadEditorialSitemapRows()) || [];
     const items = rows.map((row) => ({
       slug: editorialSlug(row.slug),
+      authorSlug: editorialSlug(row.author_slug || ""),
       lastmod: isoDate(row.updated_at || row.published_at).slice(0, 10),
     })).filter((row) => row.slug);
     const archiveLastmod = items.map((row) => row.lastmod).filter(Boolean).sort().at(-1) || new Date().toISOString().slice(0, 10);
-    const entries = [{ loc: `${EDITORIAL_SITE}/articoli.html`, lastmod: archiveLastmod }, ...items.map((row) => ({ loc: `${EDITORIAL_SITE}/articoli/${row.slug}.html`, lastmod: row.lastmod || archiveLastmod }))];
+    const authors = new Map();
+    for (const item of items) {
+      if (!item.authorSlug) continue;
+      const previous = authors.get(item.authorSlug) || "";
+      if (!previous || item.lastmod > previous) authors.set(item.authorSlug, item.lastmod || archiveLastmod);
+    }
+    const entries = [
+      { loc: `${EDITORIAL_SITE}/articoli.html`, lastmod: archiveLastmod },
+      ...items.map((row) => ({ loc: `${EDITORIAL_SITE}/articoli/${row.slug}.html`, lastmod: row.lastmod || archiveLastmod })),
+      ...[...authors.entries()].map(([authorSlug, lastmod]) => ({ loc: `${EDITORIAL_SITE}/autori/${authorSlug}.html`, lastmod: lastmod || archiveLastmod })),
+    ];
     const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${entries.map((entry) => `  <url><loc>${xmlEsc(entry.loc)}</loc><lastmod>${entry.lastmod}</lastmod></url>`).join("\n")}\n</urlset>\n`;
     res.statusCode = 200;
     res.setHeader("Content-Type", "application/xml; charset=utf-8");
@@ -356,6 +484,8 @@ export default async function handler(req, res) {
   const url = requestUrl(req);
   const publicArticleSlug = url.searchParams.get("editorial_slug");
   if (publicArticleSlug !== null) return handleEditorialArticle(req, res, publicArticleSlug);
+  const publicAuthorSlug = url.searchParams.get("editorial_author_slug");
+  if (publicAuthorSlug !== null) return handleEditorialAuthor(req, res, publicAuthorSlug);
   if (url.searchParams.get("editorial_sitemap") === "1") return handleEditorialSitemap(req, res);
 
   if (!method(req, res, ["GET"])) return;

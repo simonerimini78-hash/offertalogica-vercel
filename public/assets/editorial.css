@@ -96,7 +96,7 @@
 @media(max-width:980px){.ol-informa-lead-grid{grid-template-columns:1fr}.ol-resource-list{grid-template-columns:repeat(2,minmax(0,1fr))}.ol-more-articles-section .ol-article-list{grid-template-columns:repeat(2,minmax(0,1fr))}.ol-prose{max-width:100%}}
 @media(max-width:700px){.ol-resource-list,.ol-more-articles-section .ol-article-list{grid-template-columns:1fr}.ol-informa-featured [data-article-featured]>.ol-article-item-featured{min-height:0;padding:20px}.ol-session-bar{align-items:stretch}.ol-session-context{display:none}.ol-session-actions{justify-content:space-between}.ol-session-author-chip{max-width:calc(100% - 78px)}.ol-collapsible-summary{padding:12px 14px}.ol-collapsible-summary small{display:none}.ol-prose.ol-panel-body{padding:18px}}
 
-/* Editoriale v0.11.1: correzione pannello redazione e autore in evidenza. */
+/* Editoriale v0.11.6: correzione pannello redazione e autore in evidenza. */
 body[data-editorial-view="review"] .ol-hero{padding:22px 0 10px}
 body[data-editorial-view="review"] .ol-hero h1{max-width:none;margin:4px 0 7px;font-size:clamp(30px,3.5vw,42px);line-height:1.05}
 body[data-editorial-view="review"] .ol-hero p{max-width:920px;font-size:15px;line-height:1.45}
@@ -122,6 +122,6 @@ body[data-editorial-view="review"] .ol-session-bar .ol-session-author-text{displ
 .ol-informa-featured .ol-article-item-featured .ol-article-meta{padding-right:220px}
 .ol-prose{max-width:1120px}
 @media(max-width:760px){.ol-management-shortcuts{grid-template-columns:1fr}.ol-featured-author{position:static;align-self:flex-start;max-width:100%;margin:0 0 10px}.ol-informa-featured .ol-article-item-featured .ol-article-meta{padding-right:0}}
-
-/* Editoriale v0.11.2: titolo completo in evidenza e URL SEO server-rendered. */
+/* Editoriale v0.11.6: il titolo dell'articolo in evidenza resta completo su desktop. */
 .ol-informa-featured .ol-article-item-featured h3{display:block;min-height:0;overflow:visible;-webkit-line-clamp:unset}
+

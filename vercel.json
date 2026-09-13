@@ -143,6 +143,10 @@
       "destination": "/api/health?editorial_slug=:slug"
     },
     {
+      "source": "/autori/:slug.html",
+      "destination": "/api/health?editorial_author_slug=:slug"
+    },
+    {
       "source": "/sitemap-informa.xml",
       "destination": "/api/health?editorial_sitemap=1"
     },

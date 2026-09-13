@@ -177,11 +177,13 @@
       return (legacy||[]).map(article=>{ const author=authors.get(article.author_id)||{}; return {...article,featured_image_alt:article.title,author_slug:author.slug||"",author_display_name:author.display_name||"Redazione OffertaLogica",author_bio:author.bio||"",author_avatar_url:author.avatar_url||"",author_website_url:author.website_url||"",author_linkedin_url:author.linkedin_url||""}; });
     }
   }
+  async function fetchStaticSlugs(){
+    try{const response=await fetch("/data/editorial-static.json",{cache:"no-store"});if(!response.ok)return new Set();const payload=await response.json();return new Set((Array.isArray(payload?.slugs)?payload.slugs:[]).map(normalizeSlug).filter(Boolean));}catch{return new Set();}
+  }
   function publicArticleHref(article){const slug=normalizeSlug(article?.slug||"");return slug?`/articoli/${encodeURIComponent(slug)}.html`:"/articoli.html";}
   function authorPublicHref(author){
-    const website=String(author?.author_website_url||author?.website_url||"").trim();
-    if(/^https:\/\//i.test(website)){try{const url=new URL(website);if(url.protocol==="https:")return url.href;}catch{}}
-    return "https://offertalogica.it/";
+    const slug=normalizeSlug(author?.author_slug||author?.slug||"");
+    return slug?`/autori/${encodeURIComponent(slug)}.html`:"";
   }
 
   function makeTime(value){ const t=document.createElement("time"); if(value)t.dateTime=value; t.textContent=formatDate(value); return t; }
@@ -192,33 +194,34 @@
     return age>=0&&age<=7*24*60*60*1000;
   }
 
-  function createArchiveCard(article,{featured=false}={}){
+  function createArchiveCard(article,staticSlugs,{featured=false}={}){
     const item=document.createElement("article");
     item.className=`ol-article-item${featured?" ol-article-item-featured":""}`;
     if(featured&&articleIsNew(article)){const badge=document.createElement("span");badge.className="ol-new-badge";badge.textContent="Nuovo";item.append(badge);}
     if(featured&&article.author_display_name){
-      const author=document.createElement("a");author.className="ol-featured-author";author.href=authorPublicHref(article);author.setAttribute("aria-label",`Autore: ${article.author_display_name}`);
+      const profileHref=authorPublicHref(article);
+      const author=document.createElement(profileHref?"a":"span");author.className="ol-featured-author";if(profileHref)author.href=profileHref;author.setAttribute("aria-label",`Autore: ${article.author_display_name}`);
       const avatar=document.createElement("span");avatar.className="ol-featured-author-avatar";
       if(/^https:\/\//i.test(article.author_avatar_url||"")){const img=document.createElement("img");img.src=article.author_avatar_url;img.alt="";img.loading="lazy";avatar.append(img);}else{avatar.textContent=(String(article.author_display_name).match(/[A-Za-zÀ-ÖØ-öø-ÿ0-9]/)?.[0]||"O").toUpperCase();}
       const label=document.createElement("span");label.textContent=article.author_display_name;author.append(avatar,label);item.append(author);
     }
     const meta=document.createElement("div"); meta.className="ol-article-meta";
     if(article.category){const span=document.createElement("span");span.textContent=article.category_name||categoryLabel(article.category);meta.append(span);}
-    if(article.author_display_name&&!featured){const a=document.createElement("a");a.href=authorPublicHref(article);a.textContent=article.author_display_name;meta.append(a);}
+    if(article.author_display_name&&!featured){const profileHref=authorPublicHref(article);const authorEl=document.createElement(profileHref?"a":"span");if(profileHref)authorEl.href=profileHref;authorEl.textContent=article.author_display_name;meta.append(authorEl);}
     if(article.published_at){const t=makeTime(article.published_at);t.textContent=`Pubblicato il ${formatDate(article.published_at)}`;meta.append(t);}
-    const h=document.createElement("h3"); const a=document.createElement("a"); a.href=publicArticleHref(article); a.textContent=article.title; h.append(a);
+    const h=document.createElement("h3"); const a=document.createElement("a"); a.href=publicArticleHref(article,staticSlugs); a.textContent=article.title; h.append(a);
     const excerpt=document.createElement("p"); excerpt.textContent=article.excerpt||""; item.append(meta,h,excerpt); return item;
   }
 
-  function renderArchive(featuredContainer,container,articles){
+  function renderArchive(featuredContainer,container,articles,staticSlugs){
     const status=document.querySelector("[data-archive-status]");
     const archiveSection=document.querySelector("[data-article-archive-section]");
     featuredContainer.replaceChildren(); featuredContainer.setAttribute("aria-busy","false");
     container.replaceChildren(); container.setAttribute("aria-busy","false");
     if(!articles.length){ const empty=document.createElement("div"); empty.className="ol-empty"; const h=document.createElement("h3"); h.textContent="Nessun articolo pubblicato"; const p=document.createElement("p"); p.textContent="I contenuti approvati compariranno qui."; empty.append(h,p); featuredContainer.append(empty); if(archiveSection)archiveSection.hidden=true; if(status)status.textContent="Nessun articolo pubblicato."; return; }
-    featuredContainer.append(createArchiveCard(articles[0],{featured:true}));
+    featuredContainer.append(createArchiveCard(articles[0],staticSlugs,{featured:true}));
     const older=articles.slice(1);
-    older.forEach(article=>container.append(createArchiveCard(article)));
+    older.forEach(article=>container.append(createArchiveCard(article,staticSlugs)));
     if(archiveSection)archiveSection.hidden=!older.length;
     if(status)status.textContent=`Caricati ${articles.length} ${articles.length===1?"articolo":"articoli"}. Il contenuto più recente è in evidenza.`;
   }
@@ -226,7 +229,7 @@
   async function initPublicArchive(){
     const featuredContainer=document.querySelector("[data-article-featured]"); const container=document.querySelector("[data-article-list]"); const errorBox=document.querySelector("[data-public-error]"); if(!featuredContainer||!container)return;
     if(!configured()){ featuredContainer.setAttribute("aria-busy","false"); container.setAttribute("aria-busy","false"); show(errorBox,"Archivio editoriale temporaneamente non disponibile."); return; }
-    try{ const articles=await fetchPublicArticles("&order=published_at.desc&limit=100"); renderArchive(featuredContainer,container,articles||[]); }
+    try{ const [articles,staticSlugs]=await Promise.all([fetchPublicArticles("&order=published_at.desc&limit=100"),fetchStaticSlugs()]); renderArchive(featuredContainer,container,articles||[],staticSlugs); }
     catch(error){ featuredContainer.setAttribute("aria-busy","false"); container.setAttribute("aria-busy","false"); show(errorBox,`Impossibile caricare gli articoli: ${error.message}`); }
   }
 
@@ -269,7 +272,7 @@
     const lines=String(article.sources||"").split(/\r?\n/).map(v=>v.trim()).filter(Boolean); if(!lines.length){section.hidden=true;return;}
     lines.forEach(line=>{ const li=document.createElement("li"); const match=line.match(/^(.*?)(https?:\/\/\S+)$/i); if(match){ const label=match[1].replace(/[|–—:-]+\s*$/,"").trim(); const a=document.createElement("a"); a.href=match[2]; a.textContent=label||match[2]; a.rel="noopener noreferrer"; li.append(a); } else li.textContent=line; list.append(li); }); section.hidden=false;
   }
-  async function renderRelated(article){ const section=document.querySelector("[data-related-section]"); const list=document.querySelector("[data-related-list]"); if(!section||!list||!article.category)return; try{ const rows=await fetchPublicArticles(`&category=eq.${encodeURIComponent(article.category)}&slug=neq.${encodeURIComponent(article.slug)}&order=published_at.desc&limit=3`); list.replaceChildren(); (rows||[]).forEach(row=>{const a=document.createElement("a");a.href=publicArticleHref(row);a.textContent=row.title;list.append(a);}); section.hidden=!rows?.length; }catch{section.hidden=true;} }
+  async function renderRelated(article){ const section=document.querySelector("[data-related-section]"); const list=document.querySelector("[data-related-list]"); if(!section||!list||!article.category)return; try{ const [rows,staticSlugs]=await Promise.all([fetchPublicArticles(`&category=eq.${encodeURIComponent(article.category)}&slug=neq.${encodeURIComponent(article.slug)}&order=published_at.desc&limit=3`),fetchStaticSlugs()]); list.replaceChildren(); (rows||[]).forEach(row=>{const a=document.createElement("a");a.href=publicArticleHref(row,staticSlugs);a.textContent=row.title;list.append(a);}); section.hidden=!rows?.length; }catch{section.hidden=true;} }
 
   function renderAuthorCard(article){
     const card=document.querySelector("[data-article-author-card]"); if(!card)return;
@@ -294,7 +297,7 @@
     try{
       const rows=await fetchPublicArticles(`&slug=eq.${encodeURIComponent(slug)}&limit=1`); const article=rows?.[0]; if(!article)throw new Error("Articolo non trovato o non pubblicato");
       document.querySelector("[data-article-title]").textContent=article.title; document.querySelector("[data-article-excerpt]").textContent=article.excerpt||""; document.querySelector("[data-article-category]").textContent=article.category_name||categoryLabel(article.category);
-      const authorEl=document.querySelector("[data-article-author]"); authorEl.replaceChildren(); const authorAnchor=document.createElement("a");authorAnchor.href=authorPublicHref(article);authorAnchor.textContent=article.author_display_name||"Redazione OffertaLogica";authorEl.append(authorAnchor);
+      const authorEl=document.querySelector("[data-article-author]"); authorEl.replaceChildren(); const profileHref=authorPublicHref(article); const authorNode=document.createElement(profileHref?"a":"span");if(profileHref)authorNode.href=profileHref;authorNode.textContent=article.author_display_name||"Redazione OffertaLogica";authorEl.append(authorNode);
       const date=document.querySelector("[data-article-date]"); date.textContent=article.published_at?`Pubblicato il ${formatDate(article.published_at)}`:""; if(article.published_at)date.dateTime=article.published_at;
       const updated=document.querySelector("[data-article-updated]"); const publishedTime=Date.parse(article.published_at||""); const updatedTime=Date.parse(article.updated_at||""); const showUpdated=updated&&Number.isFinite(updatedTime)&&(!Number.isFinite(publishedTime)||updatedTime-publishedTime>60*60*1000); if(updated){updated.hidden=!showUpdated;if(showUpdated){updated.dateTime=article.updated_at;updated.textContent=`Aggiornato il ${formatDate(article.updated_at)}`;}}
       renderPlainContent(document.querySelector("[data-article-content]"),article.content);
@@ -388,7 +391,7 @@
       form.querySelector("[data-review-publish]").disabled=!can(member,"publish_articles")||status!=="approved";
       form.querySelector("[data-review-archive]").disabled=!can(member,"archive_articles")||!(["in_review","changes_requested","approved","published"].includes(status)||(status==="draft"&&(member?.role==="admin"||own)));
       const approve=form.querySelector("[data-review-approve]");approve.title=editorSelfReview?"Un editor non può approvare un articolo scritto da sé.":"";
-      const publicLink=form.querySelector("[data-review-public-link]");if(status==="published"&&fields.slug.value){publicLink.href=`/articoli/${encodeURIComponent(normalizeSlug(fields.slug.value))}.html`;publicLink.hidden=false;}else publicLink.hidden=true;
+      const publicLink=form.querySelector("[data-review-public-link]");if(status==="published"&&fields.slug.value){publicLink.href=`/articolo.html?slug=${encodeURIComponent(fields.slug.value)}`;publicLink.hidden=false;}else publicLink.hidden=true;
     }
     function populateArticle(article,author){
       currentArticle=article;slugTouched=true;seoTitleTouched=Boolean(article.seo_title);
