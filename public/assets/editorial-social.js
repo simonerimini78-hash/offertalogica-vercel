@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.6";
+  const VERSION = "0.12.7";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const PLATFORMS = [
     { key: "facebook", label: "Facebook" },
@@ -66,10 +66,6 @@
     return payload;
   }
 
-  function wait(ms) {
-    return new Promise((resolve) => window.setTimeout(resolve, ms));
-  }
-
   async function rpc(name, body = {}) {
     const session = sessionRead();
     if (!session?.access_token) throw new Error("Sessione editoriale non disponibile.");
@@ -101,18 +97,14 @@
     fieldset.dataset.socialDistribution = VERSION;
     fieldset.innerHTML = `
       <legend>Diffusione social</legend>
-      <p class="ol-muted ol-small ol-social-intro">Quando l'articolo viene pubblicato, OffertaLogica prepara una coda separata per i social selezionati. Il post parte solo dopo che il relativo canale è stato collegato e la pagina pubblica è online.</p>
+      <p class="ol-muted ol-small ol-social-intro">Quando l'articolo viene pubblicato, OffertaLogica prepara una coda separata per i social selezionati. Instagram viene elaborato automaticamente solo dopo che la pagina pubblica risulta online.</p>
       <div class="ol-social-platform-grid" data-social-platforms></div>
       <div class="ol-social-feedback ol-small" data-social-feedback aria-live="polite"></div>
       <div class="ol-social-status" data-social-status hidden>
         <strong>Stato diffusione</strong>
         <div class="ol-social-status-list" data-social-status-list></div>
       </div>
-      <div class="ol-toolbar ol-toolbar-compact" data-social-instagram-test-box>
-        <button class="ol-button ol-button-secondary ol-button-small" type="button" data-social-instagram-test disabled>Pubblica test Instagram</button>
-        <a class="ol-button ol-button-secondary ol-button-small" data-social-instagram-test-link target="_blank" rel="noopener noreferrer" hidden>Apri post di test</a>
-      </div>
-      <p class="ol-muted ol-small">Il test pubblica davvero un singolo post Instagram usando l'articolo selezionato. È disponibile solo per articoli già pubblicati e richiede il permesso di pubblicazione della Redazione.</p>`;
+      <p class="ol-muted ol-small">Instagram è collegato alla coda automatica. Facebook continua per ora tramite il cross-posting Meta dell'account Instagram; Threads e LinkedIn restano disattivati finché non vengono collegati.</p>`;
 
     const platformBox = fieldset.querySelector("[data-social-platforms]");
     PLATFORMS.forEach((platform) => {
@@ -198,15 +190,14 @@
     box.hidden = list.childElementCount === 0;
   }
 
-  async function loadArticle(root, articleId) {
-    const preserveTestFeedback = root.dataset.instagramTestFeedbackLocked === "true";
+  async function loadArticle(root, articleId, quiet = false) {
     if (!articleId) {
       root.querySelectorAll("input[data-social-platform]").forEach((input) => { input.checked = true; });
       renderPublications(root, [], selectedPlatforms(root));
-      if (!preserveTestFeedback) setFeedback(root, "Le preferenze social saranno salvate dopo il primo salvataggio dell'articolo.");
-      return;
+      if (!quiet) setFeedback(root, "Le preferenze social saranno salvate dopo il primo salvataggio dell'articolo.");
+      return null;
     }
-    if (!preserveTestFeedback) setFeedback(root, "Caricamento diffusione social…");
+    if (!quiet) setFeedback(root, "Caricamento diffusione social…");
     try {
       const payload = await rpc("editorial_social_article_get", { p_article_id: articleId });
       const platforms = Array.isArray(payload?.platforms) ? payload.platforms : [];
@@ -215,102 +206,67 @@
       });
       renderChannels(root, payload?.channels || []);
       renderPublications(root, payload?.publications || [], platforms);
-      if (!preserveTestFeedback) setFeedback(root, "Preferenze social sincronizzate.", "ok");
+      if (!quiet) setFeedback(root, "Preferenze social sincronizzate.", "ok");
+      return payload;
     } catch (error) {
       const migrationMissing = error.status === 404 || /editorial_social_article_get|schema cache|function/i.test(error.message || "");
-      if (!preserveTestFeedback) {
+      if (!quiet) {
         setFeedback(root, migrationMissing ? "Diffusione social non ancora attivata: esegui prima la migrazione SQL v0.12.0." : `Diffusione social non disponibile: ${error.message}`, "error");
       }
+      return null;
     }
   }
 
-  function setInstagramTestLink(link, permalink = "") {
-    if (!link) return false;
-    const safePermalink = /^https:\/\/(?:www\.)?instagram\.com\//i.test(String(permalink || "").trim());
-    if (!safePermalink) {
-      link.removeAttribute("href");
-      link.hidden = true;
-      return false;
-    }
-    link.href = String(permalink).trim();
-    link.hidden = false;
-    return true;
+  function instagramSelectedAndConnected(root) {
+    const input = root.querySelector('input[data-social-platform="instagram"]');
+    const wrapper = input?.closest(".ol-social-platform");
+    return Boolean(input?.checked && wrapper?.dataset.connected === "true");
   }
 
-  function updateInstagramTestButton(root, articleId, status) {
-    const button = root.querySelector("[data-social-instagram-test]");
-    if (!button) return;
-    const instagramSelected = Boolean(root.querySelector('input[data-social-platform="instagram"]:checked'));
-    button.disabled = !articleId || status !== "published" || !instagramSelected || button.dataset.busy === "true";
+  function queueFeedback(root, result) {
+    switch (String(result?.result || "")) {
+      case "waiting_web":
+        setFeedback(root, "Instagram: attendo che la pagina pubblica dell'articolo sia online.");
+        break;
+      case "published":
+        setFeedback(root, "Instagram pubblicato automaticamente. Facebook riceverà il post tramite il cross-posting Meta configurato.", "ok");
+        break;
+      case "failed":
+        setFeedback(root, `Instagram: tentativo non riuscito. ${result?.error || "Il sistema riproverà in modo controllato."}`, "error");
+        break;
+      case "retry_exhausted":
+        setFeedback(root, "Instagram: tentativi automatici esauriti. È necessaria una verifica manuale.", "error");
+        break;
+      case "ambiguous_publish":
+        setFeedback(root, "Instagram: esito della pubblicazione non verificabile. Il sistema NON riproverà automaticamente per evitare doppioni.", "error");
+        break;
+      case "legacy_queue":
+      case "skipped":
+      case "already_published":
+      case "in_progress":
+      case "not_queued":
+      case "channel_disabled":
+      default:
+        break;
+    }
   }
 
-  async function publishInstagramTest(root, articleId, status) {
-    const button = root.querySelector("[data-social-instagram-test]");
-    const link = root.querySelector("[data-social-instagram-test-link]");
-    if (!button) return;
-    if (!articleId || status !== "published") {
-      setFeedback(root, "Il test Instagram richiede un articolo già pubblicato.", "error");
-      return;
-    }
-    if (!window.confirm("Pubblicare ORA un post Instagram reale usando l'articolo selezionato?")) return;
+  async function processInstagramQueue(root, articleId, status) {
+    if (!articleId || status !== "published" || document.hidden) return;
+    if (root.dataset.instagramQueueBusy === "true") return;
+    if (!instagramSelectedAndConnected(root)) return;
 
-    let step = "verifica della sessione Redazione";
-    root.dataset.instagramTestBusy = "true";
-    root.dataset.instagramTestFeedbackLocked = "true";
-    button.dataset.busy = "true";
-    button.disabled = true;
-    setInstagramTestLink(link);
-    setFeedback(root, "Test Instagram 1/4 · verifica sessione e permessi…");
-
+    root.dataset.instagramQueueBusy = "true";
     try {
-      // Passa prima da una RPC editoriale: se il JWT è vicino alla scadenza,
-      // editorial-config.js lo rinnova prima della chiamata alla Edge Function.
+      // Questa RPC fa anche scattare il refresh automatico della sessione se necessario.
       await rpc("editorial_social_article_get", { p_article_id: articleId });
-
-      step = "creazione del contenitore Instagram";
-      setFeedback(root, "Test Instagram 2/4 · creazione del contenitore…");
-      const prepared = await socialFunction("prepare_article_test", { article_id: articleId });
-      const creationId = String(prepared?.creation_id || "");
-      if (!creationId) throw new Error("Instagram non ha restituito il contenitore del post.");
-
-      step = "elaborazione dell'immagine";
-      setFeedback(root, "Test Instagram 3/4 · elaborazione dell'immagine…");
-      let container = null;
-      for (let attempt = 0; attempt < 10; attempt += 1) {
-        if (attempt > 0) await wait(1600);
-        const statusPayload = await socialFunction("container_status", { creation_id: creationId });
-        container = statusPayload?.container || null;
-        if (container?.status_code === "FINISHED") break;
-        if (["ERROR", "EXPIRED"].includes(container?.status_code)) {
-          throw new Error(container?.status || "Instagram non ha elaborato il contenitore.");
-        }
-      }
-      if (container?.status_code !== "FINISHED") {
-        throw new Error("Instagram sta ancora elaborando l'immagine. Riprova tra poco.");
-      }
-
-      step = "pubblicazione finale su Instagram";
-      setFeedback(root, "Test Instagram 4/4 · pubblicazione finale…");
-      const published = await socialFunction("publish_container_test", {
-        creation_id: creationId,
-        article_id: articleId,
-        confirm: "PUBLISH_INSTAGRAM_TEST"
-      });
-      const permalink = String(published?.media?.permalink || "");
-      const hasPermalink = setInstagramTestLink(link, permalink);
-      setFeedback(
-        root,
-        hasPermalink
-          ? "Test Instagram riuscito: post pubblicato correttamente."
-          : "Test Instagram riuscito: post pubblicato, ma Meta non ha restituito un permalink apribile.",
-        "ok"
-      );
+      const result = await socialFunction("process_article_queue", { article_id: articleId });
+      queueFeedback(root, result);
+      await loadArticle(root, articleId, true);
     } catch (error) {
-      setFeedback(root, `Test Instagram fermato durante ${step}: ${error.message}`, "error");
+      setFeedback(root, `Automazione Instagram non disponibile: ${error.message}`, "error");
     } finally {
-      root.dataset.instagramTestBusy = "false";
-      button.dataset.busy = "false";
-      updateInstagramTestButton(root, articleId, status);
+      root.dataset.instagramQueueBusy = "false";
     }
   }
 
@@ -348,18 +304,23 @@
     let currentId = "";
     let currentStatus = "";
     let saveTimer = null;
+    let publishTimer = null;
 
     root.addEventListener("change", (event) => {
       if (!event.target.matches("input[data-social-platform]")) return;
-      root.dataset.instagramTestFeedbackLocked = "false";
       clearTimeout(saveTimer);
-      saveTimer = window.setTimeout(() => saveArticle(root, idField.value), 220);
-      updateInstagramTestButton(root, idField.value, statusField.value);
+      saveTimer = window.setTimeout(async () => {
+        await saveArticle(root, idField.value);
+        if (statusField.value === "published") processInstagramQueue(root, idField.value, statusField.value);
+      }, 220);
     });
 
-    root.querySelector("[data-social-instagram-test]")?.addEventListener("click", () => {
-      publishInstagramTest(root, idField.value, statusField.value);
-    });
+    const scheduleProcess = (delay = 1200) => {
+      clearTimeout(publishTimer);
+      publishTimer = window.setTimeout(() => {
+        processInstagramQueue(root, currentId, currentStatus);
+      }, delay);
+    };
 
     const sync = () => {
       const nextId = String(idField.value || "");
@@ -367,25 +328,28 @@
       if (nextId !== currentId) {
         currentId = nextId;
         currentStatus = nextStatus;
-        root.dataset.instagramTestFeedbackLocked = "false";
-        root.dataset.instagramTestBusy = "false";
-        loadArticle(root, currentId);
-        updateInstagramTestButton(root, currentId, currentStatus);
+        root.dataset.instagramQueueBusy = "false";
+        loadArticle(root, currentId).then(() => {
+          if (currentStatus === "published") scheduleProcess(800);
+        });
         return;
       }
       if (nextStatus !== currentStatus) {
         currentStatus = nextStatus;
-        if (currentId) loadArticle(root, currentId);
+        if (currentId) {
+          loadArticle(root, currentId).then(() => {
+            if (currentStatus === "published") scheduleProcess(1200);
+          });
+        }
       }
-      updateInstagramTestButton(root, currentId, currentStatus);
     };
 
     sync();
     window.setInterval(sync, 700);
-    window.setInterval(() => {
-      if (currentId && currentStatus === "published" && !document.hidden && root.dataset.instagramTestBusy !== "true") {
-        loadArticle(root, currentId);
-      }
+    window.setInterval(async () => {
+      if (!currentId || currentStatus !== "published" || document.hidden) return;
+      await loadArticle(root, currentId, true);
+      processInstagramQueue(root, currentId, currentStatus);
     }, 15000);
   }
 
