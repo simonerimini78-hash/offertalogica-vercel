@@ -126,9 +126,26 @@
           "value": "noindex, nofollow, noarchive"
         }
       ]
+    },
+    {
+      "source": "/articolo.html",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, follow, noarchive"
+        }
+      ]
     }
   ],
   "rewrites": [
+    {
+      "source": "/articoli/:slug.html",
+      "destination": "/api/health?editorial_slug=:slug"
+    },
+    {
+      "source": "/sitemap-informa.xml",
+      "destination": "/api/health?editorial_sitemap=1"
+    },
     {
       "source": "/collaboratori",
       "destination": "/collaboratori.html"

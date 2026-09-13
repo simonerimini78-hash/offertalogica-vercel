@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.11.4";
+  const VERSION = "0.11.2";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const SUPABASE_URL = "https://kzxdamhfmzaxonpkytcf.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_poz1xBKiXceLCFV3u_tPIg_5_-ycHcl";
@@ -161,22 +161,6 @@
     });
 
     return refreshPromise;
-  }
-
-  function loadEditorialAdminResponsiveStyles() {
-    if (document.body?.dataset?.editorialView !== "review") return;
-    if (document.querySelector('link[data-editorial-admin-responsive]')) return;
-    const link = document.createElement("link");
-    link.rel = "stylesheet";
-    link.href = "/assets/editorial-admin-mobile.css?v=0.11.4";
-    link.dataset.editorialAdminResponsive = "0.11.4";
-    document.head.append(link);
-  }
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", loadEditorialAdminResponsiveStyles, { once: true });
-  } else {
-    loadEditorialAdminResponsiveStyles();
   }
 
   window.fetch = async function editorialFetch(input, init = {}) {

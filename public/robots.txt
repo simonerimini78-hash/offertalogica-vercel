@@ -2,4 +2,4 @@ User-agent: *
 Allow: /
 
 Sitemap: https://offertalogica.it/sitemap.xml
-Sitemap: https://offertalogica.it/sitemap-editoriale.xml
+Sitemap: https://offertalogica.it/sitemap-informa.xml
