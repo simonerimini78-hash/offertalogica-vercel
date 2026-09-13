@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.4";
+  const VERSION = "0.12.5";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const PLATFORMS = [
     { key: "facebook", label: "Facebook" },
@@ -31,6 +31,16 @@
     }
   }
 
+  function socialErrorMessage(payload, status) {
+    const base = payload?.error || payload?.message || `Errore HTTP ${status}`;
+    const meta = payload?.meta || {};
+    const details = [];
+    if (meta?.message && meta.message !== base) details.push(`Meta: ${meta.message}`);
+    if (meta?.code !== null && meta?.code !== undefined) details.push(`codice ${meta.code}`);
+    if (meta?.subcode !== null && meta?.subcode !== undefined) details.push(`sottocodice ${meta.subcode}`);
+    return details.length ? `${base} — ${details.join(", ")}` : base;
+  }
+
   async function socialFunction(action, body = {}) {
     const session = sessionRead();
     if (!session?.access_token) throw new Error("Sessione editoriale non disponibile.");
@@ -46,10 +56,10 @@
     });
     const payload = await response.json().catch(() => null);
     if (!response.ok || !payload?.ok) {
-      const message = payload?.error || payload?.message || `Errore ${response.status}`;
-      const error = new Error(message);
+      const error = new Error(socialErrorMessage(payload, response.status));
       error.status = response.status;
       error.payload = payload;
+      error.action = action;
       throw error;
     }
     return payload;
@@ -188,13 +198,14 @@
   }
 
   async function loadArticle(root, articleId) {
+    const preserveTestFeedback = root.dataset.instagramTestFeedbackLocked === "true";
     if (!articleId) {
       root.querySelectorAll("input[data-social-platform]").forEach((input) => { input.checked = true; });
       renderPublications(root, [], selectedPlatforms(root));
-      setFeedback(root, "Le preferenze social saranno salvate dopo il primo salvataggio dell'articolo.");
+      if (!preserveTestFeedback) setFeedback(root, "Le preferenze social saranno salvate dopo il primo salvataggio dell'articolo.");
       return;
     }
-    setFeedback(root, "Caricamento diffusione social…");
+    if (!preserveTestFeedback) setFeedback(root, "Caricamento diffusione social…");
     try {
       const payload = await rpc("editorial_social_article_get", { p_article_id: articleId });
       const platforms = Array.isArray(payload?.platforms) ? payload.platforms : [];
@@ -203,10 +214,12 @@
       });
       renderChannels(root, payload?.channels || []);
       renderPublications(root, payload?.publications || [], platforms);
-      setFeedback(root, "Preferenze social sincronizzate.", "ok");
+      if (!preserveTestFeedback) setFeedback(root, "Preferenze social sincronizzate.", "ok");
     } catch (error) {
       const migrationMissing = error.status === 404 || /editorial_social_article_get|schema cache|function/i.test(error.message || "");
-      setFeedback(root, migrationMissing ? "Diffusione social non ancora attivata: esegui prima la migrazione SQL v0.12.0." : `Diffusione social non disponibile: ${error.message}`, "error");
+      if (!preserveTestFeedback) {
+        setFeedback(root, migrationMissing ? "Diffusione social non ancora attivata: esegui prima la migrazione SQL v0.12.0." : `Diffusione social non disponibile: ${error.message}`, "error");
+      }
     }
   }
 
@@ -240,21 +253,27 @@
     }
     if (!window.confirm("Pubblicare ORA un post Instagram reale usando l'articolo selezionato?")) return;
 
+    let step = "verifica della sessione Redazione";
+    root.dataset.instagramTestBusy = "true";
+    root.dataset.instagramTestFeedbackLocked = "true";
     button.dataset.busy = "true";
     button.disabled = true;
     setInstagramTestLink(link);
-    setFeedback(root, "Preparazione del post Instagram di test…");
+    setFeedback(root, "Test Instagram 1/4 · verifica sessione e permessi…");
 
     try {
       // Passa prima da una RPC editoriale: se il JWT è vicino alla scadenza,
       // editorial-config.js lo rinnova prima della chiamata alla Edge Function.
       await rpc("editorial_social_article_get", { p_article_id: articleId });
 
+      step = "creazione del contenitore Instagram";
+      setFeedback(root, "Test Instagram 2/4 · creazione del contenitore…");
       const prepared = await socialFunction("prepare_article_test", { article_id: articleId });
       const creationId = String(prepared?.creation_id || "");
       if (!creationId) throw new Error("Instagram non ha restituito il contenitore del post.");
 
-      setFeedback(root, "Instagram sta elaborando l'immagine…");
+      step = "elaborazione dell'immagine";
+      setFeedback(root, "Test Instagram 3/4 · elaborazione dell'immagine…");
       let container = null;
       for (let attempt = 0; attempt < 10; attempt += 1) {
         if (attempt > 0) await wait(1600);
@@ -269,7 +288,8 @@
         throw new Error("Instagram sta ancora elaborando l'immagine. Riprova tra poco.");
       }
 
-      setFeedback(root, "Pubblicazione del post Instagram di test…");
+      step = "pubblicazione finale su Instagram";
+      setFeedback(root, "Test Instagram 4/4 · pubblicazione finale…");
       const published = await socialFunction("publish_container_test", {
         creation_id: creationId,
         article_id: articleId,
@@ -280,13 +300,14 @@
       setFeedback(
         root,
         hasPermalink
-          ? "Post Instagram di test pubblicato correttamente."
-          : "Post Instagram pubblicato, ma Meta non ha restituito un permalink apribile.",
+          ? "Test Instagram riuscito: post pubblicato correttamente."
+          : "Test Instagram riuscito: post pubblicato, ma Meta non ha restituito un permalink apribile.",
         "ok"
       );
     } catch (error) {
-      setFeedback(root, `Test Instagram non pubblicato: ${error.message}`, "error");
+      setFeedback(root, `Test Instagram fermato durante ${step}: ${error.message}`, "error");
     } finally {
+      root.dataset.instagramTestBusy = "false";
       button.dataset.busy = "false";
       updateInstagramTestButton(root, articleId, status);
     }
@@ -329,6 +350,7 @@
 
     root.addEventListener("change", (event) => {
       if (!event.target.matches("input[data-social-platform]")) return;
+      root.dataset.instagramTestFeedbackLocked = "false";
       clearTimeout(saveTimer);
       saveTimer = window.setTimeout(() => saveArticle(root, idField.value), 220);
       updateInstagramTestButton(root, idField.value, statusField.value);
@@ -344,6 +366,8 @@
       if (nextId !== currentId) {
         currentId = nextId;
         currentStatus = nextStatus;
+        root.dataset.instagramTestFeedbackLocked = "false";
+        root.dataset.instagramTestBusy = "false";
         loadArticle(root, currentId);
         updateInstagramTestButton(root, currentId, currentStatus);
         return;
@@ -358,7 +382,9 @@
     sync();
     window.setInterval(sync, 700);
     window.setInterval(() => {
-      if (currentId && currentStatus === "published" && !document.hidden) loadArticle(root, currentId);
+      if (currentId && currentStatus === "published" && !document.hidden && root.dataset.instagramTestBusy !== "true") {
+        loadArticle(root, currentId);
+      }
     }, 15000);
   }
 
