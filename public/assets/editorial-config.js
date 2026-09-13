@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.11.7";
+  const VERSION = "0.12.0";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const SUPABASE_URL = "https://kzxdamhfmzaxonpkytcf.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_poz1xBKiXceLCFV3u_tPIg_5_-ycHcl";
@@ -63,8 +63,6 @@
     return merged;
   }
 
-  // editorial.js salva una sessione ridotta. Manteniamo il refresh_token ottenuto
-  // dall'autenticazione senza modificare il resto del codice editoriale.
   Storage.prototype.setItem = function patchedSetItem(key, value) {
     if (this === window.sessionStorage && key === SESSION_KEY) {
       try {
@@ -83,8 +81,6 @@
     return nativeSetItem.call(this, key, value);
   };
 
-  // I callback email Supabase possono riportare i token nell'hash URL.
-  // Li conserviamo in memoria così il primo sessionWrite non perde il refresh_token.
   try {
     const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
     const accessToken = hash.get("access_token") || "";
@@ -163,20 +159,38 @@
     return refreshPromise;
   }
 
-  function loadEditorialAdminResponsiveStyles() {
+  function loadEditorialReviewAssets() {
     if (document.body?.dataset?.editorialView !== "review") return;
-    if (document.querySelector('link[data-editorial-admin-responsive]')) return;
-    const link = document.createElement("link");
-    link.rel = "stylesheet";
-    link.href = "/assets/editorial-admin-mobile.css?v=0.11.7";
-    link.dataset.editorialAdminResponsive = "0.11.7";
-    document.head.append(link);
+
+    if (!document.querySelector('link[data-editorial-admin-responsive]')) {
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = "/assets/editorial-admin-mobile.css?v=0.11.7";
+      link.dataset.editorialAdminResponsive = "0.11.7";
+      document.head.append(link);
+    }
+
+    if (!document.querySelector('link[data-editorial-social]')) {
+      const socialCss = document.createElement("link");
+      socialCss.rel = "stylesheet";
+      socialCss.href = `/assets/editorial-social.css?v=${VERSION}`;
+      socialCss.dataset.editorialSocial = VERSION;
+      document.head.append(socialCss);
+    }
+
+    if (!document.querySelector('script[data-editorial-social]')) {
+      const socialJs = document.createElement("script");
+      socialJs.src = `/assets/editorial-social.js?v=${VERSION}`;
+      socialJs.defer = true;
+      socialJs.dataset.editorialSocial = VERSION;
+      document.head.append(socialJs);
+    }
   }
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", loadEditorialAdminResponsiveStyles, { once: true });
+    document.addEventListener("DOMContentLoaded", loadEditorialReviewAssets, { once: true });
   } else {
-    loadEditorialAdminResponsiveStyles();
+    loadEditorialReviewAssets();
   }
 
   window.fetch = async function editorialFetch(input, init = {}) {
