@@ -1,10 +1,18 @@
 const API_VERSION = "v26.0";
 const INSTAGRAM_GRAPH = "https://graph.instagram.com";
+const VERSION = "0.12.3";
+
+const CORS_HEADERS = {
+  "access-control-allow-origin": "*",
+  "access-control-allow-headers": "authorization, apikey, content-type",
+  "access-control-allow-methods": "POST, OPTIONS",
+};
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
+      ...CORS_HEADERS,
       "content-type": "application/json; charset=utf-8",
       "cache-control": "no-store",
     },
@@ -27,6 +35,40 @@ function metaError(payload: any) {
     subcode: error?.error_subcode ?? null,
     message: error?.message || null,
   };
+}
+
+function bearerToken(req: Request) {
+  const raw = req.headers.get("authorization") || "";
+  const match = raw.match(/^Bearer\s+(.+)$/i);
+  return match?.[1]?.trim() || "";
+}
+
+function validUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function validHttps(value: string) {
+  try {
+    return new URL(value).protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function articleUrl(slug: string) {
+  return `https://offertalogica.it/articoli/${encodeURIComponent(slug)}.html`;
+}
+
+function composeCaption(article: any) {
+  const title = String(article?.title || "").replace(/\s+/g, " ").trim();
+  const excerpt = String(article?.excerpt || "").replace(/\s+/g, " ").trim();
+  const slug = String(article?.slug || "").trim();
+  const parts = [title];
+  if (excerpt) parts.push(excerpt);
+  if (slug) parts.push(`Leggi l'approfondimento su OffertaLogica Informa: ${articleUrl(slug)}`);
+  parts.push("#OffertaLogica #OffertaLogicaInforma");
+  const caption = parts.filter(Boolean).join("\n\n");
+  return caption.length <= 2200 ? caption : `${caption.slice(0, 2197).trimEnd()}…`;
 }
 
 async function instagramGet(token: string, path: string, fields = "") {
@@ -57,107 +99,250 @@ async function identity(token: string) {
   };
 }
 
+async function editorialContext(req: Request) {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")?.replace(/\/+$/, "") || "";
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY")?.trim() || "";
+  const jwt = bearerToken(req);
+
+  if (!supabaseUrl || !anonKey) {
+    throw Object.assign(new Error("Configurazione Supabase non disponibile"), { status: 500 });
+  }
+  if (!jwt) {
+    throw Object.assign(new Error("Sessione Redazione richiesta"), { status: 401 });
+  }
+
+  const authResponse = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    method: "GET",
+    headers: {
+      apikey: anonKey,
+      Authorization: `Bearer ${jwt}`,
+      Accept: "application/json",
+    },
+  });
+  const user = await authResponse.json().catch(() => null);
+  if (!authResponse.ok || !user?.id) {
+    throw Object.assign(new Error("Sessione Redazione non valida o scaduta"), { status: 401 });
+  }
+
+  const permissionResponse = await fetch(`${supabaseUrl}/rest/v1/rpc/editorial_has_permission`, {
+    method: "POST",
+    headers: {
+      apikey: anonKey,
+      Authorization: `Bearer ${jwt}`,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({ p_permission: "publish_articles" }),
+  });
+  const permission = await permissionResponse.json().catch(() => false);
+  if (!permissionResponse.ok) {
+    throw Object.assign(new Error("Impossibile verificare il permesso di pubblicazione"), { status: 502 });
+  }
+  if (permission !== true) {
+    throw Object.assign(new Error("Permesso publish_articles richiesto"), { status: 403 });
+  }
+
+  return { supabaseUrl, anonKey, jwt, userId: String(user.id) };
+}
+
+async function loadPublishedArticle(ctx: Awaited<ReturnType<typeof editorialContext>>, articleId: string) {
+  const endpoint = new URL(`${ctx.supabaseUrl}/rest/v1/editorial_articles`);
+  endpoint.searchParams.set("id", `eq.${articleId}`);
+  endpoint.searchParams.set("select", "id,status,slug,title,excerpt,featured_image_url");
+  endpoint.searchParams.set("limit", "1");
+
+  const response = await fetch(endpoint, {
+    method: "GET",
+    headers: {
+      apikey: ctx.anonKey,
+      Authorization: `Bearer ${ctx.jwt}`,
+      Accept: "application/json",
+    },
+  });
+  const rows = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw Object.assign(new Error("Impossibile leggere l'articolo dalla Redazione"), { status: 502 });
+  }
+  const article = Array.isArray(rows) ? rows[0] : null;
+  if (!article) {
+    throw Object.assign(new Error("Articolo non trovato"), { status: 404 });
+  }
+  if (article.status !== "published") {
+    throw Object.assign(new Error("Il test Instagram è consentito solo per un articolo già pubblicato"), { status: 409 });
+  }
+  const imageUrl = String(article.featured_image_url || "").trim();
+  if (!validHttps(imageUrl)) {
+    throw Object.assign(new Error("L'articolo deve avere un'immagine principale HTTPS"), { status: 422 });
+  }
+  return article;
+}
+
+async function createContainer(instagramToken: string, accountId: string, imageUrl: string, caption: string) {
+  const endpoint = `${INSTAGRAM_GRAPH}/${API_VERSION}/${encodeURIComponent(accountId)}/media`;
+  const form = new URLSearchParams();
+  form.set("image_url", imageUrl);
+  form.set("caption", caption);
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${instagramToken}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+      Accept: "application/json",
+    },
+    body: form,
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok || !payload?.id) {
+    throw Object.assign(new Error("Impossibile creare il contenitore Instagram"), {
+      status: 502,
+      meta: metaError(payload),
+    });
+  }
+  return String(payload.id);
+}
+
+async function containerStatus(instagramToken: string, creationId: string) {
+  const { response, payload } = await instagramGet(
+    instagramToken,
+    encodeURIComponent(creationId),
+    "id,status_code,status",
+  );
+  if (!response.ok) {
+    throw Object.assign(new Error("Impossibile leggere lo stato del contenitore"), {
+      status: 502,
+      meta: metaError(payload),
+    });
+  }
+  return {
+    id: String(payload?.id || creationId),
+    status_code: String(payload?.status_code || ""),
+    status: String(payload?.status || ""),
+  };
+}
+
+async function publishContainer(instagramToken: string, accountId: string, creationId: string) {
+  const endpoint = `${INSTAGRAM_GRAPH}/${API_VERSION}/${encodeURIComponent(accountId)}/media_publish`;
+  const form = new URLSearchParams();
+  form.set("creation_id", creationId);
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${instagramToken}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+      Accept: "application/json",
+    },
+    body: form,
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok || !payload?.id) {
+    throw Object.assign(new Error("Instagram non ha pubblicato il contenitore"), {
+      status: 502,
+      meta: metaError(payload),
+    });
+  }
+  return String(payload.id);
+}
+
+async function publishedMedia(instagramToken: string, mediaId: string) {
+  const { response, payload } = await instagramGet(
+    instagramToken,
+    encodeURIComponent(mediaId),
+    "id,permalink,media_type,timestamp",
+  );
+  if (!response.ok) return null;
+  return {
+    id: String(payload?.id || mediaId),
+    permalink: String(payload?.permalink || ""),
+    media_type: String(payload?.media_type || ""),
+    timestamp: String(payload?.timestamp || ""),
+  };
+}
+
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { status: 204 });
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS_HEADERS });
   if (req.method !== "POST") return json({ ok: false, error: "Metodo non consentito" }, 405);
 
-  const token = Deno.env.get("META_INSTAGRAM_ACCESS_TOKEN")?.trim() || "";
-  if (!token) {
-    return json({
-      ok: false,
-      error: "Secret META_INSTAGRAM_ACCESS_TOKEN non configurato",
-    }, 500);
+  const instagramToken = Deno.env.get("META_INSTAGRAM_ACCESS_TOKEN")?.trim() || "";
+  if (!instagramToken) {
+    return json({ ok: false, error: "Secret META_INSTAGRAM_ACCESS_TOKEN non configurato" }, 500);
   }
 
   const body = await readJson(req);
-  const action = String(body?.action || "validate").trim().toLowerCase();
+  const action = String(body?.action || "").trim().toLowerCase();
 
   try {
+    const ctx = await editorialContext(req);
+    const account = await identity(instagramToken);
+
     if (action === "validate") {
-      const account = await identity(token);
       return json({
         ok: true,
+        version: VERSION,
         api_version: API_VERSION,
         instagram: account,
-        next_step: "Token valido. Nessun contenuto pubblicato.",
+        authorized_user_id: ctx.userId,
+        can_publish: true,
       });
     }
 
-    if (action === "prepare_test") {
-      const imageUrl = String(body?.image_url || "").trim();
-      const caption = String(body?.caption || "Test tecnico OffertaLogica Informa").trim().slice(0, 2200);
-
-      let parsed: URL;
-      try {
-        parsed = new URL(imageUrl);
-      } catch {
-        return json({ ok: false, error: "image_url non valido" }, 400);
-      }
-      if (parsed.protocol !== "https:") {
-        return json({ ok: false, error: "image_url deve usare https://" }, 400);
-      }
-
-      const account = await identity(token);
-      const endpoint = `${INSTAGRAM_GRAPH}/${API_VERSION}/${encodeURIComponent(account.id)}/media`;
-      const form = new URLSearchParams();
-      form.set("image_url", imageUrl);
-      form.set("caption", caption);
-
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/x-www-form-urlencoded",
-          Accept: "application/json",
-        },
-        body: form,
-      });
-      const payload = await response.json().catch(() => null);
-      if (!response.ok || !payload?.id) {
-        return json({
-          ok: false,
-          error: "Impossibile creare il contenitore Instagram di test",
-          meta: metaError(payload),
-        }, 502);
-      }
-
+    if (action === "prepare_article_test") {
+      const articleId = String(body?.article_id || "").trim();
+      if (!validUuid(articleId)) return json({ ok: false, error: "article_id non valido" }, 400);
+      const article = await loadPublishedArticle(ctx, articleId);
+      const caption = composeCaption(article);
+      const creationId = await createContainer(
+        instagramToken,
+        account.id,
+        String(article.featured_image_url),
+        caption,
+      );
       return json({
         ok: true,
+        version: VERSION,
         instagram: account,
-        container_id: String(payload.id),
+        article: {
+          id: String(article.id),
+          slug: String(article.slug || ""),
+          title: String(article.title || ""),
+        },
+        creation_id: creationId,
         published: false,
-        next_step: "Contenitore creato ma NON pubblicato. Verifica lo stato con action=container_status.",
       });
     }
 
     if (action === "container_status") {
       const creationId = String(body?.creation_id || "").trim();
-      if (!/^\d{6,40}$/.test(creationId)) {
-        return json({ ok: false, error: "creation_id non valido" }, 400);
-      }
-      const { response, payload } = await instagramGet(token, encodeURIComponent(creationId), "id,status_code,status");
-      if (!response.ok) {
+      if (!/^\d{6,40}$/.test(creationId)) return json({ ok: false, error: "creation_id non valido" }, 400);
+      const container = await containerStatus(instagramToken, creationId);
+      return json({ ok: true, version: VERSION, container, published: false });
+    }
+
+    if (action === "publish_container_test") {
+      const creationId = String(body?.creation_id || "").trim();
+      if (!/^\d{6,40}$/.test(creationId)) return json({ ok: false, error: "creation_id non valido" }, 400);
+      const container = await containerStatus(instagramToken, creationId);
+      if (container.status_code !== "FINISHED") {
         return json({
           ok: false,
-          error: "Impossibile leggere lo stato del contenitore",
-          meta: metaError(payload),
-        }, 502);
+          error: "Il contenitore Instagram non è ancora pronto",
+          container,
+        }, 409);
       }
+      const mediaId = await publishContainer(instagramToken, account.id, creationId);
+      const media = await publishedMedia(instagramToken, mediaId);
       return json({
         ok: true,
-        container: {
-          id: String(payload?.id || creationId),
-          status_code: String(payload?.status_code || ""),
-          status: String(payload?.status || ""),
-        },
-        published: false,
-        next_step: payload?.status_code === "FINISHED"
-          ? "Permesso di creazione contenuti confermato. La pubblicazione resta disattivata."
-          : "Il contenitore non è ancora pronto: riprova lo stato tra poco.",
+        version: VERSION,
+        instagram: account,
+        creation_id: creationId,
+        media: media || { id: mediaId, permalink: "", media_type: "", timestamp: "" },
+        published: true,
       });
     }
 
-    return json({ ok: false, error: "Azione non supportata in v0.12.2" }, 400);
+    return json({ ok: false, error: `Azione non supportata in v${VERSION}` }, 400);
   } catch (error) {
     const err = error as any;
     return json({

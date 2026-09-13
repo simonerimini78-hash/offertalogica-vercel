@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.0";
+  const VERSION = "0.12.3";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const PLATFORMS = [
     { key: "facebook", label: "Facebook" },
@@ -29,6 +29,34 @@
     } catch {
       return null;
     }
+  }
+
+  async function socialFunction(action, body = {}) {
+    const session = sessionRead();
+    if (!session?.access_token) throw new Error("Sessione editoriale non disponibile.");
+    const response = await fetch(`${supabaseUrl}/functions/v1/editorial-social-instagram`, {
+      method: "POST",
+      headers: {
+        apikey: supabaseKey,
+        Authorization: `Bearer ${session.access_token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ action, ...body }),
+      cache: "no-store"
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || !payload?.ok) {
+      const message = payload?.error || payload?.message || `Errore ${response.status}`;
+      const error = new Error(message);
+      error.status = response.status;
+      error.payload = payload;
+      throw error;
+    }
+    return payload;
+  }
+
+  function wait(ms) {
+    return new Promise((resolve) => window.setTimeout(resolve, ms));
   }
 
   async function rpc(name, body = {}) {
@@ -68,7 +96,12 @@
       <div class="ol-social-status" data-social-status hidden>
         <strong>Stato diffusione</strong>
         <div class="ol-social-status-list" data-social-status-list></div>
-      </div>`;
+      </div>
+      <div class="ol-toolbar ol-toolbar-compact" data-social-instagram-test-box>
+        <button class="ol-button ol-button-secondary ol-button-small" type="button" data-social-instagram-test disabled>Pubblica test Instagram</button>
+        <a class="ol-button ol-button-secondary ol-button-small" data-social-instagram-test-link href="#" target="_blank" rel="noopener noreferrer" hidden>Apri post di test</a>
+      </div>
+      <p class="ol-muted ol-small">Il test pubblica davvero un singolo post Instagram usando l'articolo selezionato. È disponibile solo per articoli già pubblicati e richiede il permesso di pubblicazione della Redazione.</p>`;
 
     const platformBox = fieldset.querySelector("[data-social-platforms]");
     PLATFORMS.forEach((platform) => {
@@ -177,6 +210,68 @@
     }
   }
 
+  function updateInstagramTestButton(root, articleId, status) {
+    const button = root.querySelector("[data-social-instagram-test]");
+    if (!button) return;
+    const instagramSelected = Boolean(root.querySelector('input[data-social-platform="instagram"]:checked'));
+    button.disabled = !articleId || status !== "published" || !instagramSelected || button.dataset.busy === "true";
+  }
+
+  async function publishInstagramTest(root, articleId, status) {
+    const button = root.querySelector("[data-social-instagram-test]");
+    const link = root.querySelector("[data-social-instagram-test-link]");
+    if (!button) return;
+    if (!articleId || status !== "published") {
+      setFeedback(root, "Il test Instagram richiede un articolo già pubblicato.", "error");
+      return;
+    }
+    if (!window.confirm("Pubblicare ORA un post Instagram reale usando l'articolo selezionato?")) return;
+
+    button.dataset.busy = "true";
+    button.disabled = true;
+    if (link) link.hidden = true;
+    setFeedback(root, "Preparazione del post Instagram di test…");
+
+    try {
+      // Passa prima da una RPC editoriale: se il JWT è vicino alla scadenza,
+      // editorial-config.js lo rinnova prima della chiamata alla Edge Function.
+      await rpc("editorial_social_article_get", { p_article_id: articleId });
+
+      const prepared = await socialFunction("prepare_article_test", { article_id: articleId });
+      const creationId = String(prepared?.creation_id || "");
+      if (!creationId) throw new Error("Instagram non ha restituito il contenitore del post.");
+
+      setFeedback(root, "Instagram sta elaborando l'immagine…");
+      let container = null;
+      for (let attempt = 0; attempt < 10; attempt += 1) {
+        if (attempt > 0) await wait(1600);
+        const statusPayload = await socialFunction("container_status", { creation_id: creationId });
+        container = statusPayload?.container || null;
+        if (container?.status_code === "FINISHED") break;
+        if (["ERROR", "EXPIRED"].includes(container?.status_code)) {
+          throw new Error(container?.status || "Instagram non ha elaborato il contenitore.");
+        }
+      }
+      if (container?.status_code !== "FINISHED") {
+        throw new Error("Instagram sta ancora elaborando l'immagine. Riprova tra poco.");
+      }
+
+      setFeedback(root, "Pubblicazione del post Instagram di test…");
+      const published = await socialFunction("publish_container_test", { creation_id: creationId });
+      const permalink = String(published?.media?.permalink || "");
+      if (link && /^https:\/\//i.test(permalink)) {
+        link.href = permalink;
+        link.hidden = false;
+      }
+      setFeedback(root, "Post Instagram di test pubblicato correttamente.", "ok");
+    } catch (error) {
+      setFeedback(root, `Test Instagram non pubblicato: ${error.message}`, "error");
+    } finally {
+      button.dataset.busy = "false";
+      updateInstagramTestButton(root, articleId, status);
+    }
+  }
+
   async function saveArticle(root, articleId) {
     if (!articleId) {
       setFeedback(root, "Salva prima l'articolo: le preferenze social verranno associate automaticamente.");
@@ -216,6 +311,11 @@
       if (!event.target.matches("input[data-social-platform]")) return;
       clearTimeout(saveTimer);
       saveTimer = window.setTimeout(() => saveArticle(root, idField.value), 220);
+      updateInstagramTestButton(root, idField.value, statusField.value);
+    });
+
+    root.querySelector("[data-social-instagram-test]")?.addEventListener("click", () => {
+      publishInstagramTest(root, idField.value, statusField.value);
     });
 
     const sync = () => {
@@ -225,12 +325,14 @@
         currentId = nextId;
         currentStatus = nextStatus;
         loadArticle(root, currentId);
+        updateInstagramTestButton(root, currentId, currentStatus);
         return;
       }
       if (nextStatus !== currentStatus) {
         currentStatus = nextStatus;
         if (currentId) loadArticle(root, currentId);
       }
+      updateInstagramTestButton(root, currentId, currentStatus);
     };
 
     sync();
