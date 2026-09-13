@@ -1,0 +1,28 @@
+/* OffertaLogica Informa — diffusione social v0.12.0 */
+.ol-social-fieldset{background:linear-gradient(180deg,#fff,#f8fafc)}
+.ol-social-intro{margin:0}
+.ol-social-platform-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.ol-social-platform{display:flex;min-width:0;align-items:flex-start;gap:9px;padding:11px;border:1px solid var(--ol-border);border-radius:10px;background:#fff;cursor:pointer}
+.ol-social-platform:hover{border-color:#86efac;background:#f0fdf4}
+.ol-social-platform input{width:18px;height:18px;flex:0 0 18px;margin:2px 0 0;accent-color:var(--ol-primary)}
+.ol-social-platform span{display:grid;min-width:0;gap:2px;line-height:1.25}
+.ol-social-platform strong{font-size:14px}
+.ol-social-platform small{color:var(--ol-muted);font-size:12px}
+.ol-social-platform[data-connected="false"] small{color:#92400e}
+.ol-social-platform[data-connected="true"] small{color:#166534}
+.ol-social-feedback{min-height:1.4em;color:var(--ol-muted)}
+.ol-social-feedback[data-state="ok"]{color:#166534}
+.ol-social-feedback[data-state="error"]{color:#991b1b}
+.ol-social-status{display:grid;gap:8px;padding-top:12px;border-top:1px solid #e2e8f0}
+.ol-social-status-list{display:grid;gap:7px}
+.ol-social-status-row{display:grid;grid-template-columns:minmax(110px,.45fr) minmax(0,1fr);gap:8px 12px;align-items:center;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;font-size:13px}
+.ol-social-status-row>span:first-child{font-weight:850}
+.ol-social-state{justify-self:start;border-radius:999px;padding:3px 8px;background:#e2e8f0;color:#334155;font-size:12px;font-weight:850;text-decoration:none}
+.ol-social-state[data-state="published"]{background:#dcfce7;color:#166534}
+.ol-social-state[data-state="failed"]{background:#fee2e2;color:#991b1b}
+.ol-social-state[data-state="waiting_connection"]{background:#fef3c7;color:#92400e}
+.ol-social-state[data-state="waiting_web"],.ol-social-state[data-state="ready"],.ol-social-state[data-state="publishing"]{background:#dbeafe;color:#1d4ed8}
+.ol-social-state[href]:hover{text-decoration:underline;text-underline-offset:3px}
+.ol-social-error{grid-column:1/-1;color:#991b1b;overflow-wrap:anywhere}
+@media(max-width:900px){.ol-social-platform-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.ol-social-platform-grid{grid-template-columns:1fr}.ol-social-status-row{grid-template-columns:1fr}.ol-social-state{justify-self:start}}
