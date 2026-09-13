@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.11.2";
+  const VERSION = "0.11.4";
   const config = window.OFFERTALOGICA_EDITORIAL_CONFIG || {};
   const supabaseUrl = String(config.supabaseUrl || "").replace(/\/+$/, "");
   const supabaseKey = String(config.supabaseAnonKey || "").trim();
@@ -37,8 +37,6 @@
 
   function authorHref(article) {
     if (isOffertaLogicaAuthor(article)) return "https://offertalogica.it/";
-    const slug = String(article?.author_slug || "").trim();
-    if (slug) return `/autori/${encodeURIComponent(slug)}.html`;
     return isHttps(article?.author_linkedin_url) || isHttps(article?.author_website_url) || "";
   }
 

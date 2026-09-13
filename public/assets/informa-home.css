@@ -1,4 +1,4 @@
-/* OffertaLogica Informa — home editoriale v0.11.2 */
+/* OffertaLogica Informa — home editoriale v0.11.4 */
 body[data-editorial-view="archive"] .ol-hero {
   padding: 28px 0 12px;
 }
@@ -30,6 +30,11 @@ body[data-editorial-view="archive"] .ol-section-heading {
 
 body[data-editorial-view="archive"] .ol-section-heading h2 {
   font-size: 24px;
+}
+
+/* Allineamento desktop: il primo riquadro guida parte alla stessa quota della card principale. */
+body[data-editorial-view="archive"] .ol-informa-guides {
+  margin-top: 20px;
 }
 
 /* Articolo principale: immagine + contenuto con gerarchia editoriale stabile. */
@@ -245,6 +250,10 @@ body[data-editorial-view="archive"] .ol-featured-author {
 }
 
 @media (max-width: 980px) {
+  body[data-editorial-view="archive"] .ol-informa-guides {
+    margin-top: 0;
+  }
+
   body[data-editorial-view="archive"] .ol-informa-lead-grid {
     grid-template-columns: 1fr;
   }

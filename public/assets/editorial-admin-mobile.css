@@ -1,0 +1,147 @@
+/* OffertaLogica Informa — amministrazione responsive v0.11.4
+   Correzione mirata: il layout dei permessi dipende dalla larghezza reale
+   della card, non solo dalla larghezza della finestra. */
+
+body[data-editorial-view="review"] .ol-admin-invite-card,
+body[data-editorial-view="review"] .ol-admin-list-card,
+body[data-editorial-view="review"] .ol-admin-category-card {
+  min-width: 0;
+}
+
+body[data-editorial-view="review"] .ol-admin-invite-card {
+  container-type: inline-size;
+}
+
+body[data-editorial-view="review"] .ol-invite-form-compact,
+body[data-editorial-view="review"] .ol-invite-fields,
+body[data-editorial-view="review"] .ol-permission-box-compact,
+body[data-editorial-view="review"] .ol-permission-grid-compact {
+  min-width: 0;
+}
+
+body[data-editorial-view="review"] .ol-permission-option {
+  min-width: 0;
+}
+
+body[data-editorial-view="review"] .ol-permission-option input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  margin: 2px 0 0;
+}
+
+body[data-editorial-view="review"] .ol-permission-option > span,
+body[data-editorial-view="review"] .ol-permission-option strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+/* La card invito diventa a colonna singola quando è realmente stretta,
+   anche se la viewport desktop è più larga. */
+@container (max-width: 760px) {
+  body[data-editorial-view="review"] .ol-invite-form-compact {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 16px !important;
+  }
+
+  body[data-editorial-view="review"] .ol-permission-box-compact {
+    width: 100%;
+  }
+
+  body[data-editorial-view="review"] .ol-permission-grid-compact {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  body[data-editorial-view="review"] .ol-invite-submit {
+    grid-column: 1 !important;
+    width: 100%;
+    min-width: 0;
+    justify-self: stretch !important;
+  }
+}
+
+@container (max-width: 520px) {
+  body[data-editorial-view="review"] .ol-permission-grid-compact {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  body[data-editorial-view="review"] .ol-permission-grid-compact .ol-permission-option {
+    min-height: 0;
+    padding: 10px;
+  }
+}
+
+/* Fallback per browser senza container queries e rifiniture mobile. */
+@media (max-width: 900px) {
+  body[data-editorial-view="review"] .ol-admin-grid-compact {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  body[data-editorial-view="review"] .ol-admin-invite-card,
+  body[data-editorial-view="review"] .ol-admin-category-card,
+  body[data-editorial-view="review"] .ol-admin-author-card {
+    grid-column: 1 !important;
+  }
+
+  body[data-editorial-view="review"] .ol-invite-form-compact {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  body[data-editorial-view="review"] .ol-invite-submit {
+    grid-column: 1 !important;
+    width: 100%;
+    justify-self: stretch !important;
+  }
+}
+
+@media (max-width: 620px) {
+  body[data-editorial-view="review"] .ol-team-panel .ol-panel-body {
+    padding: 14px;
+  }
+
+  body[data-editorial-view="review"] .ol-admin-invite-card,
+  body[data-editorial-view="review"] .ol-admin-list-card,
+  body[data-editorial-view="review"] .ol-admin-category-card {
+    padding: 14px;
+  }
+
+  body[data-editorial-view="review"] .ol-team-panel .ol-toolbar {
+    align-items: stretch;
+  }
+
+  body[data-editorial-view="review"] .ol-team-panel .ol-toolbar > .ol-button,
+  body[data-editorial-view="review"] [data-admin-refresh] {
+    width: 100%;
+  }
+
+  body[data-editorial-view="review"] .ol-permission-grid-compact {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  body[data-editorial-view="review"] .ol-permission-box-compact {
+    padding: 12px;
+  }
+
+  body[data-editorial-view="review"] .ol-category-form-compact,
+  body[data-editorial-view="review"] .ol-admin-author-fields,
+  body[data-editorial-view="review"] .ol-author-admin-list {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  body[data-editorial-view="review"] .ol-category-form-actions {
+    grid-column: 1 !important;
+  }
+
+  body[data-editorial-view="review"] .ol-category-form-actions .ol-button,
+  body[data-editorial-view="review"] .ol-team-actions .ol-button {
+    width: 100%;
+  }
+
+  body[data-editorial-view="review"] .ol-team-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
