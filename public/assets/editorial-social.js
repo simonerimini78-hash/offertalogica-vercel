@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.5";
+  const VERSION = "0.12.6";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const PLATFORMS = [
     { key: "facebook", label: "Facebook" },
@@ -22,6 +22,7 @@
   const config = window.OFFERTALOGICA_EDITORIAL_CONFIG || {};
   const supabaseUrl = String(config.supabaseUrl || "").replace(/\/+$/, "");
   const supabaseKey = String(config.supabaseAnonKey || "").trim();
+  const socialFunctionUrl = "/editorial-social-instagram";
 
   function sessionRead() {
     try {
@@ -44,7 +45,7 @@
   async function socialFunction(action, body = {}) {
     const session = sessionRead();
     if (!session?.access_token) throw new Error("Sessione editoriale non disponibile.");
-    const response = await fetch(`${supabaseUrl}/functions/v1/editorial-social-instagram`, {
+    const response = await fetch(socialFunctionUrl, {
       method: "POST",
       headers: {
         apikey: supabaseKey,

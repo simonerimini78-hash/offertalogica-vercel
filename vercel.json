@@ -139,6 +139,10 @@
   ],
   "rewrites": [
     {
+      "source": "/editorial-social-instagram",
+      "destination": "https://kzxdamhfmzaxonpkytcf.supabase.co/functions/v1/editorial-social-instagram"
+    },
+    {
       "source": "/articoli/:slug.html",
       "destination": "/api/health?editorial_slug=:slug"
     },
