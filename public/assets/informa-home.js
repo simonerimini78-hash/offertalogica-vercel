@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.11.4";
+  const VERSION = "0.11.7";
   const config = window.OFFERTALOGICA_EDITORIAL_CONFIG || {};
   const supabaseUrl = String(config.supabaseUrl || "").replace(/\/+$/, "");
   const supabaseKey = String(config.supabaseAnonKey || "").trim();
@@ -26,18 +26,20 @@
     }
   }
 
-  function isOffertaLogicaAuthor(article) {
-    const name = String(article?.author_display_name || "")
+  function normalizeSlug(value) {
+    return String(value || "")
       .trim()
       .toLocaleLowerCase("it-IT")
-      .replace(/\s+/g, " ");
-    const compact = name.replace(/[^a-z0-9]+/g, "");
-    return compact === "offertalogica" || compact === "offertalogicait" || compact === "redazioneoffertalogica" || compact === "redazioneoffertalogicait" || compact === "redazioneoffertalogicainforma";
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 120);
   }
 
   function authorHref(article) {
-    if (isOffertaLogicaAuthor(article)) return "https://offertalogica.it/";
-    return isHttps(article?.author_linkedin_url) || isHttps(article?.author_website_url) || "";
+    const slug = normalizeSlug(article?.author_slug || "");
+    return slug ? `/autori/${encodeURIComponent(slug)}.html` : "";
   }
 
   function applyExternalLinkAttributes(link, href) {
@@ -117,7 +119,8 @@
   function decorateCard(card, article, featured = false) {
     if (!card || !article) return;
     const titleLink = card.querySelector("h3 a");
-    const articleHref = titleLink?.getAttribute("href") || (article.slug ? `/articolo.html?slug=${encodeURIComponent(article.slug)}` : "/articoli.html");
+    const cleanSlug = normalizeSlug(article?.slug || "");
+    const articleHref = titleLink?.getAttribute("href") || (cleanSlug ? `/articoli/${encodeURIComponent(cleanSlug)}.html` : "/articoli.html");
 
     addImage(card, article, articleHref, featured);
     removeLegacyAuthor(card, article);

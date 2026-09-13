@@ -1,4 +1,4 @@
-/* OffertaLogica Informa — home editoriale v0.11.4 */
+/* OffertaLogica Informa — home editoriale v0.11.7 */
 body[data-editorial-view="archive"] .ol-hero {
   padding: 28px 0 12px;
 }
@@ -102,10 +102,13 @@ body[data-editorial-view="archive"] .ol-informa-featured .ol-article-meta {
 
 body[data-editorial-view="archive"] .ol-informa-featured .ol-article-item-featured h3 {
   grid-area: title;
+  display: block;
+  min-height: 0;
   margin: 0;
+  overflow: visible;
   font-size: clamp(27px, 3vw, 36px);
   line-height: 1.12;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: unset;
 }
 
 body[data-editorial-view="archive"] .ol-informa-featured .ol-article-item-featured > p {
