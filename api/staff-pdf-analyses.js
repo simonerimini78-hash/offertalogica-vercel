@@ -105,6 +105,7 @@ export default async function handler(req, res) {
         status: String(req.query?.status || ""),
         provider: String(req.query?.provider || ""),
         reviewStatus: String(req.query?.reviewStatus || ""),
+        id: String(req.query?.id || ""),
       });
       return json(res, 200, { ok: true, analyses: rows || [] });
     }

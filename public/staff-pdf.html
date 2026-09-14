@@ -122,7 +122,7 @@ let currentStaff = null;
 const ALLOWED_STAFF_ROLES = new Set(["reviewer", "technician", "admin", "owner"]);
 const isAdminRole = (role) => ["admin", "owner"].includes(String(role || "").trim().toLowerCase());
 let analyses = [];
-let selectedId = "";
+let selectedId = new URLSearchParams(window.location.search || "").get("analysisId") || "";
 const esc = (value) => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
 const fmt = (value) => value === null || value === undefined || value === "" ? "—" : typeof value === "object" ? JSON.stringify(value) : String(value);
 async function ensureStaffSession() {
@@ -156,9 +156,13 @@ function showStatus(message, error=false) {
 }
 function confirmStaffAction(options={}) { const handler=window.top?.OffertaLogicaStaffConfirm; return typeof handler==="function"?handler(options):Promise.resolve(false); }
 function archiveUrl() {
-  const params=new URLSearchParams({limit:"200"});
-  const status=document.getElementById("status-filter").value; const provider=document.getElementById("provider-filter").value.trim(); const reviewStatus=document.getElementById("review-filter").value;
-  if(status)params.set("status",status); if(provider)params.set("provider",provider); if(reviewStatus)params.set("reviewStatus",reviewStatus);
+  const params=new URLSearchParams({limit:selectedId?"1":"200"});
+  if(selectedId) {
+    params.set("id", selectedId);
+  } else {
+    const status=document.getElementById("status-filter").value; const provider=document.getElementById("provider-filter").value.trim(); const reviewStatus=document.getElementById("review-filter").value;
+    if(status)params.set("status",status); if(provider)params.set("provider",provider); if(reviewStatus)params.set("reviewStatus",reviewStatus);
+  }
   return `/api/staff-pdf-analyses?${params}`;
 }
 async function loadAnalyses() {
@@ -195,13 +199,13 @@ function renderValidationSummary(normalized) {
 function renderDataContractSummary(normalized) {
   const contract = normalized?.data_contract;
   if (!contract) return "";
-  const fields = Object.values(contract.fields || {}).filter((entry) => entry.normalized_value !== null && entry.normalized_value !== undefined && entry.normalized_value !== "");
-  const rows = fields.map((entry) => `<tr><td>${esc(LABELS[entry.field]||entry.field)}</td><td><strong>${esc(fmt(entry.normalized_value))}</strong>${entry.unit?`<br><small>${esc(entry.unit)}</small>`:""}<br><small>originale: ${esc(fmt(entry.original_value))} (${esc(entry.original_value_kind||"—")})</small></td><td>${esc(entry.status||"—")}</td><td>${esc(entry.provenance?.source||"—")}<br><small>${esc(entry.provenance?.method||"—")}</small></td><td>${esc(entry.evidence?.page||"—")}</td><td class="snippet">${esc(entry.evidence?.snippet||entry.evidence?.source_match||entry.evidence?.note||"—")}<br><small>qualità: ${esc(entry.evidence?.quality||"—")}</small></td><td>${entry.autofill?.allowed?'<span class="badge found">consentita dopo conferma</span>':`<span class="badge review">bloccata</span><br><small>${esc(entry.autofill?.reason||"—")}</small>`}</td></tr>`).join("");
+  const fields = Object.values(contract.fields || {});
+  const rows = fields.map((entry) => `<tr><td>${esc(LABELS[entry.field]||entry.field)}</td><td><strong>${esc(fmt(entry.normalized_value))}</strong>${entry.unit?`<br><small>${esc(entry.unit)}</small>`:""}<br><small>originale: ${esc(fmt(entry.original_value))} (${esc(entry.original_value_kind||"—")})</small></td><td>${esc(entry.status||"—")}</td><td>${esc(entry.status_reason||"—")}<br><small>confidenza: ${esc(entry.provenance?.confidence||"—")}</small></td><td>${esc(entry.provenance?.source||"—")}<br><small>${esc(entry.provenance?.method||"—")}</small></td><td>${esc(entry.evidence?.page||"—")}</td><td class="snippet">${esc(entry.evidence?.snippet||entry.evidence?.source_match||entry.evidence?.note||"—")}<br><small>qualità: ${esc(entry.evidence?.quality||"—")}</small></td><td>${entry.autofill?.allowed?'<span class="badge found">consentita dopo conferma</span>':`<span class="badge review">bloccata</span><br><small>${esc(entry.autofill?.reason||"—")}</small>`}</td></tr>`).join("");
   return `
     <h3>Contratto dati Step 5</h3>
     <div class="summary"><div><span>Versione contratto</span><strong>${esc(contract.contract_version||"—")}</strong></div><div><span>Modalità</span><strong>${esc(contract.parser?.mode||"—")}</strong></div><div><span>Target sicuri</span><strong>${esc(contract.autofill_plan?.safe_target_count ?? 0)}</strong></div><div><span>Campi mappati bloccati</span><strong>${esc(contract.autofill_plan?.blocked_field_count ?? 0)}</strong></div></div>
     <div class="meta"><strong>Regola:</strong> ${esc(contract.autofill_plan?.policy||"—")} · conferma utente richiesta: ${contract.autofill_plan?.requires_user_confirmation?"sì":"no"}</div>
-    <div class="table-wrap"><table><thead><tr><th>Campo</th><th>Valore normalizzato</th><th>Stato</th><th>Provenienza</th><th>Pagina</th><th>Evidenza</th><th>Autocompilazione</th></tr></thead><tbody>${rows||'<tr><td colspan="7">Nessun valore contrattualizzato.</td></tr>'}</tbody></table></div>
+    <div class="table-wrap"><table><thead><tr><th>Campo</th><th>Valore normalizzato</th><th>Stato</th><th>Motivo / attendibilità</th><th>Provenienza</th><th>Pagina</th><th>Evidenza</th><th>Autocompilazione</th></tr></thead><tbody>${rows||'<tr><td colspan="8">Nessun campo contrattualizzato.</td></tr>'}</tbody></table></div>
   `;
 }
 function renderDetail(item) {
@@ -210,6 +214,7 @@ function renderDetail(item) {
   document.getElementById("detail").innerHTML=`
     <div class="detail-head"><div><h2>${esc(item.original_file_name)}</h2><div class="meta">${esc(item.parser_version)} · hash ${esc((item.file_sha256||'').slice(0,12))}… · scadenza ${item.expires_at?esc(new Date(item.expires_at).toLocaleDateString('it-IT')):'—'}</div></div><div class="actions"><button class="btn" id="replay-analysis">Prova questi dati nel calcolatore</button><button class="btn primary" id="open-pdf">Apri PDF originale</button>${isAdminRole(currentStaff?.role)?`<button class="btn danger" id="delete-analysis">Elimina singola</button><button class="btn danger" id="delete-pdf-block">Elimina blocco PDF</button>`:""}</div></div>
     <div class="summary"><div><span>Esito</span><strong>${esc(item.status)}</strong></div><div><span>Revisione</span><strong>${esc(item.review_status)}</strong></div><div><span>Fornitore</span><strong>${esc(item.provider||'—')}</strong></div><div><span>Prove sullo stesso PDF</span><strong>${esc(analyses.filter(row=>row.file_sha256&&row.file_sha256===item.file_sha256).length||1)}</strong></div></div>
+    <div class="meta"><strong>Sessione analytics:</strong> ${esc(item.source_context?.sessionId||'—')} · <strong>Origine:</strong> ${esc(item.source_context?.source||item.source_context?.page||'—')} · <strong>ID analisi:</strong> ${esc(item.id||'—')}</div>
     ${item.error_message?`<h3>Errore</h3><pre>${esc(item.error_code)}\n${esc(item.error_message)}</pre>`:''}
     ${renderValidationSummary(n)}
     ${renderDataContractSummary(n)}

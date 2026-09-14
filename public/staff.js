@@ -28,6 +28,7 @@
   let auditLoaded = false;
   let analyticsLoadSequence = 0;
   let analyticsSummarySequence = 0;
+  let analyticsSessionRows = [];
 
   const cache = {
     leads: [],
@@ -127,6 +128,8 @@
     social_entry_offer_clicked: "Offerta landing selezionata",
     session_engagement: "Tempo di permanenza",
     interactive_tool_event: "Strumento interattivo",
+    article_view: "Articolo visualizzato",
+    cookie_consent_choice: "Scelta cookie Iubenda",
   });
 
   const STAFF_DATA_ORIGIN_LABELS_IT = Object.freeze({
@@ -835,7 +838,7 @@
     "offer_consent_opened", "offer_partner_consent_confirmed", "offer_switcho_redirect",
     "offer_redirect", "switcho_landing_opened", "business_switcho_requested", "assistance_switcho_redirect",
     "offer_request_recorded", "offer_request_failed", "business_photovoltaic_tool_opened",
-    "session_engagement"
+    "session_engagement", "article_view", "cookie_consent_choice"
   ];
 
   function analyticsOrigin(event = {}) {
@@ -970,6 +973,8 @@
   }
 
   function analyticsEventValueText(event = {}) {
+    if (String(event.eventType || "") === "article_view") return [event.articleTitle || event.articleSlug || "articolo", event.articleCategory || ""].filter(Boolean).join(" · ");
+    if (String(event.eventType || "") === "cookie_consent_choice") return event.consentAction === "accept" ? "cookie accettati" : event.consentAction === "reject" ? "cookie rifiutati" : "preferenze cookie aperte";
     if (String(event.eventType || "") === "session_engagement") {
       return [
         staffEngagementStageLabel(event) ? `fase ${staffEngagementStageLabel(event).toLowerCase()}` : "",
@@ -1028,6 +1033,7 @@
     "assistance_prompt_shown", "assistance_prompt_closed", "assistance_guide_opened",
     "assistance_callback_started", "assistance_callback_verified", "assistance_switcho_redirect",
     "business_switcho_requested",
+    "article_view", "cookie_consent_choice",
   ]);
 
   function analyticsSessionTypes(rows = []) {
@@ -1124,6 +1130,9 @@
         ? `Lettura bolletta: ${pdfStatusLabel(item.analysisStatus)}${pdfEventDiagnosticReason(item) ? ` · ${pdfEventDiagnosticReason(item)}` : ""}`
         : "Lettura della bolletta completata",
       pdf_analysis_interrupted: `Lettura bolletta interrotta${pdfEventDiagnosticReason(item) ? ` · ${pdfEventDiagnosticReason(item)}` : ""}`,
+      pdf_data_confirmed: "Ha confermato i dati letti dalla bolletta",
+      article_view: item.articleTitle ? `Ha visualizzato l’articolo “${item.articleTitle}”${item.articleCategory ? ` · ${item.articleCategory}` : ""}` : `Ha visualizzato l’articolo ${item.articleSlug || ""}`.trim(),
+      cookie_consent_choice: item.consentAction === "accept" ? "Ha accettato i cookie dal banner Iubenda" : item.consentAction === "reject" ? "Ha rifiutato i cookie dal banner Iubenda" : "Ha aperto le preferenze cookie Iubenda",
       lead_modal_opened: "Ha aperto la verifica del numero",
       otp_request_started: "Ha richiesto l’invio dell’SMS",
       otp_sent: "SMS inviato",
@@ -1146,6 +1155,127 @@
     return [origin, providerOffer, values !== "—" ? values : ""].filter(Boolean).join(" · ") || "Evento registrato";
   }
 
+  function analyticsPathChoiceLabel(value = "") {
+    const key = String(value || "").toLowerCase();
+    return key === "pdf" ? "PDF" : key === "manual" ? "Inserimento manuale" : key === "average" ? "Profilo medio ARERA" : key || "Percorso";
+  }
+
+  function analyticsPathTriggerLabel(value = "") {
+    const key = String(value || "").trim().toLowerCase();
+    const labels = {
+      desktop_choice: "scelta esplicita dal selettore desktop",
+      mobile_fast_choice: "scelta esplicita dal selettore mobile",
+      comparison_submit: "impostato al comando Vedi le offerte",
+      pdf_picker: "apertura del selettore PDF",
+      pdf_file_selected: "selezione del file PDF",
+      offers_personalization: "personalizzazione delle offerte",
+    };
+    return labels[key] || (key ? `trigger ${key}` : "");
+  }
+
+  function analyticsReadableSignature(item = {}) {
+    return [
+      item.eventType, item.pathChoice, item.dataOrigin, item.analysisStatus, item.diagnosticCode,
+      item.offerId, item.articleSlug, item.consentAction, item.visibleOffersCount, item.bestSaving,
+      item.destinationType, item.reason, item.trigger,
+    ].map(value => String(value ?? "")).join("|");
+  }
+
+  function analyticsReadableSessionRows(rows = []) {
+    const main = rows.filter(item => SESSION_MAIN_EVENT_TYPES.has(String(item.eventType || "")));
+    const out = [];
+    let previousPath = "";
+    main.forEach(item => {
+      let description = analyticsSessionEventDescription(item);
+      if (String(item.eventType || "") === "comparison_path_selected") {
+        const currentPath = analyticsPathChoiceLabel(item.pathChoice);
+        const trigger = analyticsPathTriggerLabel(item.trigger);
+        if (previousPath && currentPath && previousPath !== currentPath) {
+          description = `Passaggio percorso: ${previousPath} → ${currentPath}${trigger ? ` · ${trigger}` : ""}`;
+        } else {
+          description = `Percorso impostato: ${currentPath}${trigger ? ` · ${trigger}` : ""}`;
+        }
+        previousPath = currentPath || previousPath;
+      }
+      const signature = analyticsReadableSignature(item);
+      const last = out[out.length - 1];
+      if (last && last.signature === signature) {
+        last.items.push(item);
+        return;
+      }
+      out.push({ signature, item, items: [item], description });
+    });
+    return out;
+  }
+
+  function analyticsCsvCell(value) {
+    const normalized = value == null ? "" : typeof value === "object" ? JSON.stringify(value) : String(value);
+    return `"${normalized.replace(/"/g, '""')}"`;
+  }
+
+  async function downloadAnalyticsMappedCsv(rows = [], filename = "offertalogica-eventi.csv", auditScope = "analytics_session") {
+    const safeRows = Array.isArray(rows) ? rows.filter(Boolean) : [];
+    if (!safeRows.length) {
+      setMessage("info", "Nessun evento da esportare.");
+      return;
+    }
+    const preferred = ["id", "eventType", "eventLabel", "createdAt", "clientTimestamp", "sessionEventSeq", "sessionId", "page", "trafficSource", "trafficCampaign", "trafficTerm", "dataOrigin", "leadId"];
+    const keys = new Set();
+    safeRows.forEach(row => Object.keys(row || {}).forEach(key => { if (key !== "payload") keys.add(key); }));
+    const headers = [...preferred.filter(key => keys.has(key)), ...[...keys].filter(key => !preferred.includes(key)).sort(), "payload_json"];
+    const lines = [headers.map(analyticsCsvCell).join(";")];
+    safeRows.forEach(row => {
+      const values = headers.map(key => key === "payload_json" ? row.payload || {} : row[key]);
+      lines.push(values.map(analyticsCsvCell).join(";"));
+    });
+    if (typeof recordExportAudit === "function") await recordExportAudit(auditScope, { targetId: safeRows[0]?.sessionId || safeRows[0]?.id || null, metadata: { rows: safeRows.length } }).catch(() => {});
+    const blob = new Blob(["\ufeff" + lines.join("\r\n") + "\r\n"], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = node("a", { attrs: { href: url, download: filename } });
+    document.body.append(link); link.click(); link.remove(); URL.revokeObjectURL(url);
+    setMessage("success", `CSV generato: ${safeRows.length} eventi.`);
+  }
+
+  function renderAnalyticsSessionPdfDiagnostics(rows = []) {
+    const target = byId("analyticsSessionPdfDiagnostics");
+    if (!target) return;
+    clear(target);
+    const pdfRows = rows.filter(item => String(item.eventType || "").startsWith("pdf_"));
+    const analysisIds = [...new Set(pdfRows.flatMap(item => Array.isArray(item.pdfAnalysisIds) ? item.pdfAnalysisIds : []).map(String).filter(Boolean))];
+    const diagnosticRow = [...pdfRows].reverse().find(item => Array.isArray(item.pdfFieldDiagnostics) && item.pdfFieldDiagnostics.length);
+    const fields = Array.isArray(diagnosticRow?.pdfFieldDiagnostics) ? diagnosticRow.pdfFieldDiagnostics : [];
+    if (!analysisIds.length && !fields.length) {
+      target.hidden = true;
+      return;
+    }
+    target.hidden = false;
+    target.append(node("div", { className: "analytics-pdf-diagnostics-head" }, [
+      node("strong", { text: "Diagnostica PDF collegata alla sessione" }),
+      node("small", { text: "Stato campo per campo nell’analytics; valori originali, evidenze e PDF restano nell’archivio diagnostico privato." }),
+    ]));
+    if (fields.length) {
+      const table = node("table");
+      const thead = node("thead", {}, [node("tr", {}, ["Campo", "Stato", "Motivo", "Provenienza", "Confidenza", "Pagina", "Autofill"].map(label => node("th", { text: label }))) ]);
+      const tbody = node("tbody");
+      fields.forEach(field => tbody.append(node("tr", {}, [
+        node("td", { text: field.field || "—" }),
+        node("td", { text: field.status || "—" }),
+        node("td", { text: field.statusReason || "—" }),
+        node("td", { text: [field.source, field.method].filter(Boolean).join(" · ") || "—" }),
+        node("td", { text: field.confidence || "—" }),
+        node("td", { text: field.page == null ? "—" : String(field.page) }),
+        node("td", { text: field.autofillAllowed === true ? "consentito" : field.autofillReason || "bloccato / da verificare" }),
+      ])));
+      table.append(thead, tbody);
+      target.append(node("div", { className: "table-wrap" }, [table]));
+    }
+    if (analysisIds.length) {
+      const links = node("div", { className: "pdf-archive-links" });
+      analysisIds.forEach((analysisId, index) => links.append(node("a", { className: "button secondary compact", text: `Apri analisi PDF${analysisIds.length > 1 ? ` ${index + 1}` : ""}`, attrs: { href: `/staff-pdf.html?analysisId=${encodeURIComponent(analysisId)}`, target: "_blank", rel: "noopener" } })));
+      target.append(links);
+    }
+  }
+
   function analyticsSourceLabel(sourceKey = "") {
     const key = String(sourceKey || "");
     const item = (cache.journeySummary?.trafficSources || cache.analyticsSummary?.trafficSources || [])
@@ -1159,12 +1289,15 @@
   }
 
   function closeAnalyticsSession() {
+    analyticsSessionRows = [];
     const panel = byId("analyticsSessionPanel");
     if (panel) panel.hidden = true;
     clear(byId("analyticsSessionSummary"));
     clear(byId("analyticsSessionFunnel"));
     clear(byId("analyticsSessionEvents"));
     clear(byId("analyticsSessionTechnicalEvents"));
+    clear(byId("analyticsSessionPdfDiagnostics"));
+    if (byId("analyticsSessionPdfDiagnostics")) byId("analyticsSessionPdfDiagnostics").hidden = true;
     text(byId("analyticsSessionTitle"), "Percorso sessione");
     text(byId("analyticsSessionMeta"), "");
   }
@@ -1214,6 +1347,7 @@
       setMessage("info", "Nessun evento disponibile per questa sessione nel periodo analytics conservato.");
       return;
     }
+    analyticsSessionRows = rows.slice();
 
     const panel = byId("analyticsSessionPanel");
     const summary = byId("analyticsSessionSummary");
@@ -1293,35 +1427,52 @@
     });
 
     clear(list);
-    const mainRows = rows.filter(item => SESSION_MAIN_EVENT_TYPES.has(String(item.eventType || "")));
-    if (!mainRows.length) {
-      list.append(node("div", { className: "analytics-session-empty", text: "Nessun evento principale registrato in questa sessione." }));
+    const readableRows = analyticsReadableSessionRows(rows);
+    if (!readableRows.length) {
+      list.append(node("div", { className: "analytics-session-empty", text: "Nessuna azione leggibile registrata in questa sessione." }));
     } else {
-      mainRows.forEach(item => {
+      readableRows.forEach(group => {
+        const item = group.item;
         const isAutomatic = String(item.eventType || "").startsWith("assistance_prompt_");
         const displayTimestamp = item.clientTimestamp || item.createdAt;
         const orderNote = item.sessionEventSeq != null
           ? `Sequenza client #${item.sessionEventSeq}${item.clientTimestamp ? ` · client ${formatDate(item.clientTimestamp)}` : ""}`
           : item.clientTimestamp ? `Timestamp client ${formatDate(item.clientTimestamp)}` : "Ordine storico ricostruito dal timestamp server";
+        const repeatNote = group.items.length > 1
+          ? `Ripetuto ${group.items.length} volte · seq ${group.items.map(row => row.sessionEventSeq ?? `ID ${row.id}`).join(", ")}`
+          : "";
         list.append(node("div", { className: "analytics-session-event readable" }, [
           node("time", { text: formatDate(displayTimestamp) }),
-          node("div", {}, [badge(staffEventLabel(item), isAutomatic ? "warn" : "info")]),
-          node("div", {}, [node("strong", { text: analyticsSessionEventDescription(item) }), node("small", { text: [isAutomatic ? "Evento automatico: non conta come azione dell’utente" : "", orderNote].filter(Boolean).join(" · ") })])
+          node("div", {}, [badge(staffEventLabel(item), isAutomatic ? "warn" : "info"), ...(group.items.length > 1 ? [node("span", { className: "analytics-session-repeat", text: `×${group.items.length}` })] : [])]),
+          node("div", {}, [node("strong", { text: group.description }), node("small", { text: [isAutomatic ? "Evento automatico: non conta come azione dell’utente" : "", repeatNote, orderNote].filter(Boolean).join(" · ") })])
         ]));
       });
     }
 
+    renderAnalyticsSessionPdfDiagnostics(rows);
     clear(technicalList);
+    text(byId("analyticsSessionTechnicalSummary"), `Telemetria completa 1:1 — ${rows.length} eventi`);
     rows.forEach(item => {
       const origin = [item.dataOrigin ? staffDataOriginLabel(item) : "", item.page].filter(Boolean).join(" · ") || "—";
       const offer = [item.provider, item.offerName].filter(Boolean).join(" · ");
       const detail = [origin, offer, analyticsEventValueText(item) !== "—" ? analyticsEventValueText(item) : ""].filter(Boolean).join(" · ") || "—";
       const sequenceLabel = item.sessionEventSeq != null ? ` · seq ${item.sessionEventSeq}` : "";
       const clientLabel = item.clientTimestamp ? ` · client ${formatDate(item.clientTimestamp)}` : "";
+      const csvButton = node("button", { className: "button secondary compact", type: "button", text: "CSV evento" });
+      csvButton.addEventListener("click", () => { void downloadAnalyticsMappedCsv([item], `offertalogica-evento-${item.id}-${new Date().toISOString().slice(0, 10)}.csv`, "analytics_event"); });
+      const payloadDetails = node("details", { className: "analytics-raw-payload" }, [
+        node("summary", { text: "Payload grezzo completo" }),
+        node("pre", { text: JSON.stringify(item.payload || {}, null, 2) }),
+      ]);
       technicalList.append(node("div", { className: "analytics-session-event technical" }, [
         node("time", { text: formatDate(item.createdAt) }),
         node("div", {}, [badge(staffEventLabel(item), "info"), node("small", { text: `#${item.id}${sequenceLabel}${clientLabel}` })]),
-        node("div", {}, [node("strong", { text: staffEngagementReasonLabel(item.engagementReason) || item.reason || "Dettaglio tecnico" }), node("small", { text: detail })])
+        node("div", {}, [
+          node("strong", { text: staffEngagementReasonLabel(item.engagementReason) || item.reason || "Dettaglio tecnico" }),
+          node("small", { text: detail }),
+          node("div", { className: "analytics-event-actions" }, [csvButton]),
+          payloadDetails,
+        ])
       ]));
     });
 
@@ -1648,6 +1799,8 @@
       const sessionButton = node("button", { className: "button secondary compact", type: "button", text: "Vedi sessione" });
       sessionButton.disabled = !event.sessionId;
       sessionButton.addEventListener("click", () => openAnalyticsSession(event));
+      const eventCsvButton = node("button", { className: "button secondary compact", type: "button", text: "CSV evento" });
+      eventCsvButton.addEventListener("click", () => { void downloadAnalyticsMappedCsv([event], `offertalogica-evento-${event.id}-${new Date().toISOString().slice(0, 10)}.csv`, "analytics_event"); });
       body.append(node("tr", {}, [
         node("td", {}, [node("strong", { text: formatDate(event.createdAt) }), node("small", { text: `#${event.id}` })]),
         node("td", {}, [badge(staffEventLabel(event), "info"), node("small", { text: event.eventType === "session_engagement" ? staffEngagementReasonLabel(event.engagementReason) : (event.reason || "") })]),
@@ -1655,7 +1808,7 @@
         node("td", {}, [node("strong", { text: [event.provider, event.offerName].filter(Boolean).join(" · ") || "—" }), node("small", { text: event.destinationStatus || "" })]),
         node("td", { text: values }),
         node("td", {}, [badge(event.leadId ? "collegato" : "anonimo", event.leadId ? "ok" : "warn"), node("small", { text: event.leadId || "" })]),
-        node("td", {}, [node("div", { className: "row-actions" }, [sessionButton])])
+        node("td", {}, [node("div", { className: "row-actions" }, [sessionButton, eventCsvButton])])
       ]));
     });
     renderAnalyticsPagination(byId("analyticsEventsPagination"), filteredEvents.length, "events", renderAnalytics);
@@ -4102,6 +4255,11 @@
       closeAnalyticsSession();
       analyticsPages.events = 1;
       renderAnalytics();
+    });
+    byId("analyticsSessionCsv")?.addEventListener("click", () => {
+      if (!analyticsSessionRows.length) return;
+      const sessionId = String(analyticsSessionRows[0]?.sessionId || "sessione").replace(/[^a-z0-9_-]+/gi, "-").slice(0, 80);
+      void downloadAnalyticsMappedCsv(analyticsSessionRows, `offertalogica-sessione-${sessionId}-${new Date().toISOString().slice(0, 10)}.csv`, "analytics_session");
     });
     byId("analyticsSessionClose")?.addEventListener("click", closeAnalyticsSession);
     byId("analyticsFilterReset")?.addEventListener("click", () => {
