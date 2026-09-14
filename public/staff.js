@@ -1035,8 +1035,10 @@
         event.engagementOffersReachedSeconds != null && Number(event.engagementOffersReachedSeconds) > 0 ? `alle offerte ${formatDurationSeconds(event.engagementOffersReachedSeconds)}` : "",
       ].filter(Boolean).join(" · ") || "—";
     }
+    const selectedOfferValueEvent = ["offer_click_locked", "offer_consent_opened", "offer_partner_consent_confirmed", "offer_request_started", "offer_request_recorded", "offer_switcho_redirect", "switcho_landing_opened", "offer_redirect", "partner_funnel_opened"].includes(String(event.eventType || ""));
+    const savingValue = selectedOfferValueEvent && event.annualDelta != null ? event.annualDelta : event.bestSaving;
     return [
-      event.bestSaving != null && Math.abs(Number(event.bestSaving)) > 0 ? `risparmio ${formatMoney(event.bestSaving)}` : "",
+      savingValue != null && Math.abs(Number(savingValue)) > 0 ? `risparmio ${formatMoney(savingValue)}` : "",
       event.annualCost != null && Math.abs(Number(event.annualCost)) > 0 ? `costo ${formatMoney(event.annualCost)}` : "",
       event.visibleOffersCount != null && Number(event.visibleOffersCount) > 0 ? `${event.visibleOffersCount} offerte` : "",
       event.fileCount != null && Number(event.fileCount) > 0 ? `${event.fileCount} file` : "",
@@ -1150,12 +1152,51 @@
     ];
   }
 
+  function analyticsOfferDisplayName(item = {}) {
+    const provider = String(item.provider || "").trim();
+    const offerName = String(item.offerName || "").trim();
+    if (offerName && provider && offerName.toLowerCase().startsWith(provider.toLowerCase())) return offerName;
+    return [provider, offerName].filter(Boolean).join(" · ");
+  }
+
+  function analyticsOfferSelectionDetails(item = {}) {
+    const rank = Number(item.displayRank ?? item.economyRank);
+    const annualCost = Number(item.annualCost);
+    const annualSaving = Number(item.annualDelta);
+    return [
+      Number.isFinite(rank) && rank > 0 ? `Posizione ${rank}` : "",
+      Number.isFinite(annualCost) && annualCost > 0 ? `${formatMoney(annualCost)}/anno` : "",
+      Number.isFinite(annualSaving) && Math.abs(annualSaving) > 0 ? `risparmio ${formatMoney(annualSaving)}/anno` : "",
+    ].filter(Boolean).join(" · ");
+  }
+
+  function analyticsSelectedOfferEvent(rows = []) {
+    const priority = [
+      "offer_switcho_redirect",
+      "offer_redirect",
+      "partner_funnel_opened",
+      "offer_request_recorded",
+      "offer_request_started",
+      "offer_partner_consent_confirmed",
+      "offer_consent_opened",
+      "offer_click_locked",
+      "switcho_landing_opened",
+    ];
+    const reversed = [...rows].reverse();
+    for (const type of priority) {
+      const match = reversed.find(item => String(item.eventType || "") === type && (item.offerName || item.provider));
+      if (match) return match;
+    }
+    return null;
+  }
+
   function analyticsSessionEventDescription(item = {}) {
     const type = String(item.eventType || "");
     const origin = item.dataOrigin ? staffDataOriginLabel(item) : "";
     const offers = Number(item.visibleOffersCount);
     const saving = Number(item.bestSaving);
-    const providerOffer = [item.provider, item.offerName].filter(Boolean).join(" · ");
+    const providerOffer = analyticsOfferDisplayName(item);
+    const offerSelectionDetails = analyticsOfferSelectionDetails(item);
     const pdfUploadSource = analyticsPdfUploadSourceLabel(item);
     const descriptions = {
       landing_view: "Arrivo sul sito",
@@ -1194,9 +1235,15 @@
       offer_request_started: "Richiesta dell’offerta avviata",
       offer_request_recorded: "Richiesta dell’offerta registrata",
       offer_request_failed: "Richiesta dell’offerta non riuscita",
-      offer_switcho_redirect: "Ha scelto un’offerta con destinazione Switcho",
-      switcho_landing_opened: "Apertura della landing Switcho avviata",
-      offer_redirect: "Passaggio verso il partner avviato",
+      offer_switcho_redirect: providerOffer
+        ? `Ha scelto ${providerOffer} → Switcho${offerSelectionDetails ? ` · ${offerSelectionDetails}` : ""}`
+        : "Ha scelto un’offerta con destinazione Switcho",
+      switcho_landing_opened: providerOffer
+        ? `Landing Switcho aperta dopo la scelta di ${providerOffer}${offerSelectionDetails ? ` · ${offerSelectionDetails}` : ""}`
+        : "Apertura della landing Switcho avviata",
+      offer_redirect: providerOffer
+        ? `Passaggio verso il partner per ${providerOffer}${offerSelectionDetails ? ` · ${offerSelectionDetails}` : ""}`
+        : "Passaggio verso il partner avviato",
       partner_funnel_opened: "Percorso partner aperto",
       assistance_switcho_redirect: "Passaggio da assistenza verso Switcho avviato",
       business_switcho_requested: "Passaggio business verso Switcho avviato",
@@ -1557,6 +1604,7 @@
     const activeSeconds = analyticsSessionActiveSeconds(rows);
     const firstAction = rows.find(item => SESSION_USER_ACTION_EVENTS.has(String(item.eventType || "")));
     const offersCount = analyticsSessionLatestOffersCount(rows);
+    const selectedOfferEvent = analyticsSelectedOfferEvent(rows);
     const outcome = analyticsSessionOutcome(rows);
 
     text(byId("analyticsSessionTitle"), `Percorso sessione ${shortId}`);
@@ -1589,6 +1637,15 @@
       node("div", {}, [node("span", { text: "Prima azione" }), node("strong", { text: firstAction ? staffEventLabel(firstAction) : "Nessuna" })]),
       node("div", {}, [node("span", { text: "Offerte" }), node("strong", { text: offersCount != null ? `${offersCount} visualizzate` : "Non raggiunte" })])
     );
+    if (selectedOfferEvent) {
+      const selectedOfferName = analyticsOfferDisplayName(selectedOfferEvent);
+      const selectedOfferDetails = analyticsOfferSelectionDetails(selectedOfferEvent);
+      sessionFacts.push(node("div", {}, [
+        node("span", { text: "Offerta cliccata" }),
+        node("strong", { text: selectedOfferName || "Offerta registrata" }),
+        ...(selectedOfferDetails ? [node("small", { text: selectedOfferDetails })] : []),
+      ]));
+    }
     const latestPdfEvent = [...rows].reverse().find(item => ["pdf_analysis_completed", "pdf_analysis_interrupted"].includes(String(item.eventType || "")));
     if (latestPdfEvent) {
       const pdfReason = pdfEventDiagnosticReason(latestPdfEvent);
