@@ -4647,6 +4647,24 @@ function trackEvent(eventType, payload = {}) {
   }).catch(() => {});
 }
 
+function tracciaSceltaCookieIubenda(event) {
+  const target = event?.target?.closest?.(".iubenda-cs-accept-btn, .iubenda-cs-reject-btn, .iubenda-cs-customize-btn, .iubenda-tp-btn.iubenda-cs-preferences-link");
+  if (!target) return;
+  let consentAction = "";
+  let consentSource = "iubenda_banner";
+  if (target.matches(".iubenda-cs-accept-btn")) consentAction = "accept";
+  else if (target.matches(".iubenda-cs-reject-btn")) consentAction = "reject";
+  else if (target.matches(".iubenda-cs-customize-btn")) consentAction = "preferences_opened";
+  else if (target.matches(".iubenda-tp-btn.iubenda-cs-preferences-link")) {
+    consentAction = "preferences_opened";
+    consentSource = "iubenda_preferences_button";
+  }
+  if (!consentAction) return;
+  trackEvent("cookie_consent_choice", { consentAction, consentSource, dataOrigin: "" });
+}
+
+document.addEventListener("click", tracciaSceltaCookieIubenda, true);
+
 
 let ANALYTICS_LAST_PATH_CHOICE = "";
 
@@ -4691,10 +4709,25 @@ function diagnosticaTrackingPdf(results = [], data = LEAD_STATE.pdfData || {}) {
     data?.readiness?.dati_bolletta?.luce?.missing || [],
     data?.readiness?.dati_bolletta?.gas?.missing || [],
   ]);
-  const contractFields = data?.data_contract?.fields && typeof data.data_contract.fields === "object"
-    ? Object.values(data.data_contract.fields)
+  const dataContract = data?.data_contract && typeof data.data_contract === "object" ? data.data_contract : null;
+  const contractFields = dataContract?.fields && typeof dataContract.fields === "object"
+    ? Object.values(dataContract.fields)
     : [];
   const reviewFieldCount = contractFields.filter((entry) => entry?.autofill?.review_selectable === true).length;
+  const pdfAnalysisIds = valoriUniciTrackingPdf(results.map((item) => item?.archive?.analysisId), 20);
+  const pdfArchiveStored = results.some((item) => item?.archive?.stored === true);
+  const pdfFieldDiagnostics = contractFields.map((entry) => ({
+    field: String(entry?.field || ""),
+    status: String(entry?.status || ""),
+    statusReason: String(entry?.status_reason || ""),
+    source: String(entry?.provenance?.source || ""),
+    method: String(entry?.provenance?.method || ""),
+    confidence: String(entry?.provenance?.confidence || ""),
+    page: Number.isFinite(Number(entry?.evidence?.page)) ? Number(entry.evidence.page) : null,
+    evidenceQuality: String(entry?.evidence?.quality || ""),
+    autofillAllowed: typeof entry?.autofill?.allowed === "boolean" ? entry.autofill.allowed : null,
+    autofillReason: String(entry?.autofill?.reason || ""),
+  })).filter((entry) => entry.field);
   const analysisStatus = successCount === results.length && results.length > 0 && !data?.mixed_documents && !data?.merge_blocked
     ? (missingFields.length ? "success_missing_data" : "success")
     : successCount > 0
@@ -4717,6 +4750,14 @@ function diagnosticaTrackingPdf(results = [], data = LEAD_STATE.pdfData || {}) {
     missingFields,
     missingFieldCount: missingFields.length,
     reviewFieldCount,
+    pdfAnalysisIds,
+    pdfArchiveStored,
+    pdfContractVersion: String(dataContract?.contract_version || ""),
+    pdfParserMode: String(dataContract?.parser?.mode || ""),
+    pdfParserVersion: String(dataContract?.parser?.parser_version || data?.parser_version || ""),
+    pdfReaderConfidence: String(dataContract?.document?.confidence || data?.confidence || ""),
+    pdfPageCount: Number.isFinite(Number(dataContract?.parser?.page_count)) ? Number(dataContract.parser.page_count) : null,
+    pdfFieldDiagnostics,
     mixedDocuments: Boolean(data?.mixed_documents),
     mergeBlocked: Boolean(data?.merge_blocked),
   };

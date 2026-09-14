@@ -1,5 +1,12 @@
 (function(){
   'use strict';
+  if(!document.querySelector('script[data-ol-article-analytics]')){
+    var analyticsScript=document.createElement('script');
+    analyticsScript.src='/assets/article-analytics.js';
+    analyticsScript.defer=true;
+    analyticsScript.setAttribute('data-ol-article-analytics','1');
+    document.head.appendChild(analyticsScript);
+  }
   function initChoices(root){
     var buttons=[].slice.call(root.querySelectorAll('[data-choice]'));
     var results=[].slice.call(root.querySelectorAll('[data-choice-result]'));

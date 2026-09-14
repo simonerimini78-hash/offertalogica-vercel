@@ -84,6 +84,10 @@ const ALLOWED_EVENT_TYPES = new Set([
   // Telemetria automatica: non è una conversione e non entra nel funnel.
   "session_engagement",
 
+  // Osservabilità contenuti e consenso cookie: restano fuori dal funnel commerciale.
+  "article_view",
+  "cookie_consent_choice",
+
   // Funnel generico degli strumenti SEO interattivi.
   "interactive_tool_event",
 ]);
@@ -155,6 +159,25 @@ function textList(value, maxItems = 30, maxItemLength = 90) {
   return out;
 }
 
+function pdfFieldDiagnosticList(value, maxItems = 120) {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, maxItems).map((entry) => {
+    const item = entry && typeof entry === "object" && !Array.isArray(entry) ? entry : {};
+    return {
+      field: text(item.field, 90),
+      status: text(item.status, 40).toLowerCase(),
+      statusReason: text(item.statusReason || item.status_reason, 180),
+      source: text(item.source, 60),
+      method: text(item.method, 80),
+      confidence: text(item.confidence, 40).toLowerCase(),
+      page: numberOrNull(item.page),
+      evidenceQuality: text(item.evidenceQuality || item.evidence_quality, 40).toLowerCase(),
+      autofillAllowed: booleanOrNull(item.autofillAllowed ?? item.autofill_allowed),
+      autofillReason: text(item.autofillReason || item.autofill_reason, 180),
+    };
+  }).filter((item) => item.field);
+}
+
 function requestHeader(req, name, max = 500) {
   const normalized = String(name || "").trim().toLowerCase();
   const value = req?.headers?.[normalized];
@@ -224,6 +247,19 @@ function sanitizePayload(payload = {}) {
     tipoFornitura: text(input.tipoFornitura, 40),
     regioneGas: text(input.regioneGas, 80),
     potenzaKw: numberOrNull(input.potenzaKw),
+    luceConsumoKwh: numberOrNull(input.luceConsumoKwh),
+    gasConsumoSmc: numberOrNull(input.gasConsumoSmc),
+    fornitoreAttuale: text(input.fornitoreAttuale, 120),
+    fornitoreLuceAttuale: text(input.fornitoreLuceAttuale, 120),
+    fornitoreGasAttuale: text(input.fornitoreGasAttuale, 120),
+    fornitoreNuovaOfferta: text(input.fornitoreNuovaOfferta, 120),
+    context: text(input.context, 100).toLowerCase(),
+    field: text(input.field, 120),
+    mode: text(input.mode, 40).toLowerCase(),
+    hasPendingUrl: booleanOrNull(input.hasPendingUrl),
+    assisted: booleanOrNull(input.assisted),
+    businessCatalogOffersCount: numberOrNull(input.businessCatalogOffersCount),
+    businessCatalogDualOffersCount: numberOrNull(input.businessCatalogDualOffersCount),
     verified: booleanOrNull(input.verified),
     staffMode: booleanOrNull(input.staffMode),
     bestSaving: numberOrNull(input.bestSaving),
@@ -257,6 +293,14 @@ function sanitizePayload(payload = {}) {
     documentKinds: textList(input.documentKinds, 10, 60),
     commodities: textList(input.commodities, 10, 40),
     missingFields: textList(input.missingFields, 80, 90),
+    pdfAnalysisIds: textList(input.pdfAnalysisIds, 20, 80),
+    pdfArchiveStored: booleanOrNull(input.pdfArchiveStored),
+    pdfContractVersion: text(input.pdfContractVersion, 60),
+    pdfParserMode: text(input.pdfParserMode, 80).toLowerCase(),
+    pdfParserVersion: text(input.pdfParserVersion, 80),
+    pdfReaderConfidence: text(input.pdfReaderConfidence, 40).toLowerCase(),
+    pdfPageCount: numberOrNull(input.pdfPageCount),
+    pdfFieldDiagnostics: pdfFieldDiagnosticList(input.pdfFieldDiagnostics),
     mixedDocuments: booleanOrNull(input.mixedDocuments),
     mergeBlocked: booleanOrNull(input.mergeBlocked),
     gasDecision: text(input.gasDecision, 60).toLowerCase(),
@@ -284,6 +328,13 @@ function sanitizePayload(payload = {}) {
     toolOutcome: text(input.toolOutcome, 100).toLowerCase(),
     toolContext: text(input.toolContext, 80).toLowerCase(),
     toolVersion: text(input.toolVersion, 40),
+    articleSlug: text(input.articleSlug, 180),
+    articleTitle: text(input.articleTitle, 220),
+    articleCategory: text(input.articleCategory, 120),
+    articleType: text(input.articleType, 40).toLowerCase(),
+    articleCanonical: text(input.articleCanonical, 260),
+    consentAction: text(input.consentAction, 40).toLowerCase(),
+    consentSource: text(input.consentSource, 80).toLowerCase(),
     routingVersion: text(input.routingVersion, 80),
     rankingOffersCount: numberOrNull(input.rankingOffersCount),
     bestPartnerSaving: numberOrNull(input.bestPartnerSaving),
