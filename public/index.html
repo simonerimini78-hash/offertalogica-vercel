@@ -4236,6 +4236,53 @@ const SOCIAL_ENTRY_STATE = {
 const PDF_ARCHIVE_REPLAY_STORAGE_KEY = "offertalogicaPdfArchiveReplay";
 const PDF_PROFILE_STATE = { current: {}, offer: {} };
 
+const PDF_UPLOAD_SOURCE_STATE = {
+  pending: null,
+  active: null,
+};
+
+function normalizzaOrigineCaricamentoPdf(value = "") {
+  return String(value || "").trim().toLowerCase().replace(/[^a-z0-9_:-]+/g, "_").slice(0, 80);
+}
+
+function impostaOrigineCaricamentoPdf(source = "", meta = {}) {
+  const normalized = normalizzaOrigineCaricamentoPdf(source) || "pdf_panel";
+  PDF_UPLOAD_SOURCE_STATE.pending = {
+    source: normalized,
+    offerId: String(meta?.offerId || "").trim().slice(0, 90),
+    offerName: String(meta?.offerName || "").trim().slice(0, 160),
+    provider: String(meta?.provider || "").trim().slice(0, 100),
+    armedAt: Date.now(),
+  };
+  return PDF_UPLOAD_SOURCE_STATE.pending;
+}
+
+function attivaOrigineCaricamentoPdf() {
+  const pending = PDF_UPLOAD_SOURCE_STATE.pending;
+  const stillRelevant = pending && Number.isFinite(Number(pending.armedAt)) && (Date.now() - Number(pending.armedAt)) <= 10 * 60 * 1000;
+  PDF_UPLOAD_SOURCE_STATE.active = stillRelevant
+    ? { ...pending }
+    : { source: "pdf_panel", offerId: "", offerName: "", provider: "", armedAt: Date.now() };
+  PDF_UPLOAD_SOURCE_STATE.pending = null;
+  return PDF_UPLOAD_SOURCE_STATE.active;
+}
+
+function trackingOrigineCaricamentoPdf(preferPending = false) {
+  const entry = preferPending
+    ? (PDF_UPLOAD_SOURCE_STATE.pending || PDF_UPLOAD_SOURCE_STATE.active || { source: "pdf_panel" })
+    : (PDF_UPLOAD_SOURCE_STATE.active || PDF_UPLOAD_SOURCE_STATE.pending || { source: "pdf_panel" });
+  return {
+    pdfUploadSource: normalizzaOrigineCaricamentoPdf(entry.source) || "pdf_panel",
+    pdfUploadOfferId: String(entry.offerId || ""),
+    pdfUploadOfferName: String(entry.offerName || ""),
+    pdfUploadProvider: String(entry.provider || ""),
+  };
+}
+
+function azzeraOrigineCaricamentoPdf() {
+  PDF_UPLOAD_SOURCE_STATE.pending = null;
+  PDF_UPLOAD_SOURCE_STATE.active = null;
+}
 
 const ANALYTICS_SESSION_KEY = "offertalogicaAnalyticsSession";
 const TRAFFIC_ATTRIBUTION_STORAGE_KEY = "offertalogicaTrafficAttributionV1";
@@ -9094,7 +9141,12 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       billPrecisionButton?.addEventListener("click", (event) => {
         event.preventDefault();
         event.stopPropagation();
-        caricaBollettaDaOfferte();
+        caricaBollettaDaOfferte({
+          source: "offer_card",
+          offerId: String(offerta?.id || ""),
+          offerName: titoloOffertaVisibile(offerta),
+          provider: String(offerta?.provider || ""),
+        });
       });
       contenitoreTarget?.appendChild(card);
     });
@@ -9186,12 +9238,12 @@ window.avviaComparazioneDati = function avviaComparazioneDati() {
   const tipoFornitura = tipoFornituraPerCalcolo();
   if (ambitoConfrontoAttivo() === "pending_gas") {
     mostraGuida("pdf-data-review-guidance", "<strong>La fornitura luce è pronta.</strong> Hai scelto di aggiungere anche il gas: carica ora la bolletta gas, poi conferma i nuovi dati.", { scroll: true, focus: true });
-    vaiAlCaricatoreScheda();
+    vaiAlCaricatoreScheda({ source: "pending_gas_followup" });
     return;
   }
   if (ambitoConfrontoAttivo() === "pending_luce") {
     mostraGuida("pdf-data-review-guidance", "<strong>La fornitura gas è pronta.</strong> Hai scelto di aggiungere anche la luce: carica ora la bolletta luce, poi conferma i nuovi dati.", { scroll: true, focus: true });
-    vaiAlCaricatoreScheda();
+    vaiAlCaricatoreScheda({ source: "pending_luce_followup" });
     return;
   }
   const attuale = leggiOffertaAttuale();
@@ -10905,7 +10957,7 @@ function gestisciAzionePrimariaPdfMobile() {
   }
   if (action === "upload_next" || action === "upload_review") {
     nascondiStatoPdfMobile();
-    vaiAlCaricatoreScheda();
+    vaiAlCaricatoreScheda({ source: "mobile_pdf_followup" });
     return;
   }
   if (action === "offer_review") {
@@ -11532,10 +11584,12 @@ function aggiornaInterfacciaSelezionePdf() {
 window.apriSelettorePdf = function apriSelettorePdf() {
   const input = document.getElementById("pdf-static-input");
   if (!input) return;
+  attivaOrigineCaricamentoPdf();
   tracciaSceltaPercorsoConfronto("pdf", "pdf_picker");
   trackEvent("pdf_picker_opened", {
     trigger: "pdf_picker",
     pdfDocumentCount: (LEAD_STATE.pdfDocuments || []).length,
+    ...trackingOrigineCaricamentoPdf(),
   });
   input.value = "";
   input.click();
@@ -11584,7 +11638,7 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
   const pendingEntries = [...PDF_PENDING_FILES];
   const files = pendingEntries.map((entry) => entry.file);
   if (!files.length) {
-    trackEvent("pdf_no_file_selected");
+    trackEvent("pdf_no_file_selected", trackingOrigineCaricamentoPdf());
     if (panel) panel.style.display = "block";
     if (pdfDocumentiAnalizzatiTutti().length) {
       const activeDocuments = pdfDocumentiSlot().length
@@ -11623,7 +11677,7 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
     copy: "Può richiedere qualche secondo. Non chiudere la pagina.",
     filename: riepilogoNomePdf(files),
   });
-  trackEvent("pdf_analysis_started", { fileCount: files.length });
+  trackEvent("pdf_analysis_started", { fileCount: files.length, ...trackingOrigineCaricamentoPdf() });
 
   try {
   const results = [];
@@ -11692,6 +11746,7 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
   const pdfTracking = diagnosticaTrackingPdf(results, LEAD_STATE.pdfData || {});
   trackEvent("pdf_analysis_completed", {
     fileCount: files.length,
+    ...trackingOrigineCaricamentoPdf(),
     ...pdfTracking,
     activeSlot: activeSlot || "",
     retainedCurrentDocuments: PDF_DOCUMENT_SLOTS.current.length,
@@ -11703,6 +11758,7 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
     const diagnosticError = pdfEnsureDiagnosticError(error, "pdf_batch_processing");
     trackEvent("pdf_analysis_interrupted", {
       analysisStatus: "interrupted",
+      ...trackingOrigineCaricamentoPdf(),
       diagnosticCode: diagnosticError.diagnostic_code,
       analysisStage: diagnosticError.analysis_stage,
       ingressMode: diagnosticError.ingress_mode || "",
@@ -11731,6 +11787,7 @@ window.confermaPdfECalcola = async function confermaPdfECalcola() {
   const pdfConfirmTracking = diagnosticaTrackingPdf(activeDocuments, data);
   trackEvent("pdf_data_confirmed", {
     pdfDocumentCount: activeDocuments.length,
+    ...trackingOrigineCaricamentoPdf(),
     ...pdfConfirmTracking,
     activeSlot: PDF_ACTIVE_SLOT || "",
   });
@@ -11765,12 +11822,12 @@ window.confermaPdfECalcola = async function confermaPdfECalcola() {
     aggiornaAssistenteAttivazioneVisibilita();
     if (ambitoConfrontoAttivo() === "pending_gas") {
       if (copy) copy.innerText = "Dati luce confermati e inseriti nel modulo aziendale. Ora carica la bolletta gas: i dati già letti restano memorizzati.";
-      vaiAlCaricatoreScheda();
+      vaiAlCaricatoreScheda({ source: "pending_gas_followup" });
       return;
     }
     if (ambitoConfrontoAttivo() === "pending_luce") {
       if (copy) copy.innerText = "Dati gas confermati e inseriti nel modulo aziendale. Ora carica la bolletta luce: i dati già letti restano memorizzati.";
-      vaiAlCaricatoreScheda();
+      vaiAlCaricatoreScheda({ source: "pending_luce_followup" });
       return;
     }
     if (copy) copy.innerText = Array.isArray(selectedAutofillRows) && selectedAutofillRows.length === 0
@@ -11795,13 +11852,13 @@ window.confermaPdfECalcola = async function confermaPdfECalcola() {
   if (ambitoConfrontoAttivo() === "pending_gas") {
     if (copy) copy.innerText = "Dati luce confermati. Ora carica la bolletta gas: conserveremo i dati già letti e uniremo le due forniture senza sovrascriverle.";
     mostraGuida("pdf-data-review-guidance", "<strong>La luce è stata memorizzata.</strong> Seleziona ora il PDF della bolletta gas e premi <strong>Analizza PDF</strong>.");
-    vaiAlCaricatoreScheda();
+    vaiAlCaricatoreScheda({ source: "pending_gas_followup" });
     return;
   }
   if (ambitoConfrontoAttivo() === "pending_luce") {
     if (copy) copy.innerText = "Dati gas confermati. Ora carica la bolletta luce: conserveremo i dati già letti e uniremo le due forniture senza sovrascriverle.";
     mostraGuida("pdf-data-review-guidance", "<strong>Il gas è stato memorizzato.</strong> Seleziona ora il PDF della bolletta luce e premi <strong>Analizza PDF</strong>.");
-    vaiAlCaricatoreScheda();
+    vaiAlCaricatoreScheda({ source: "pending_luce_followup" });
     return;
   }
   if (copy) copy.innerText = Array.isArray(selectedAutofillRows) && selectedAutofillRows.length === 0
@@ -12655,6 +12712,7 @@ function apriAnteprimaAutocompilazionePdf(data) {
   };
   trackEvent("pdf_autofill_preview_opened", {
     fieldCount: PDF_AUTOFILL_PREVIEW_ROWS.length,
+    ...trackingOrigineCaricamentoPdf(),
     protectedCount,
     ocrReviewCount,
   });
@@ -12680,6 +12738,7 @@ function confermaAnteprimaAutocompilazionePdf() {
   };
   trackEvent("pdf_autofill_preview_confirmed", {
     selectedCount: selected.length,
+    ...trackingOrigineCaricamentoPdf(),
     skippedCount: skipped.length,
     protectedSkippedCount: PDF_AUTOFILL_PREVIEW_ROWS.filter((row) => row.manually_protected && !row.selected).length,
   });
@@ -13405,7 +13464,9 @@ window.azzeraPdfEModulo = function azzeraPdfEModulo() {
   document.body.classList.remove("mobile-offers-focus");
   trackEvent("pdf_reset", {
     pdfDocumentCount: (LEAD_STATE.pdfDocuments || []).length,
+    ...trackingOrigineCaricamentoPdf(),
   });
+  azzeraOrigineCaricamentoPdf();
   LEAD_STATE.pdfData = null;
   LEAD_STATE.pdfDocuments = [];
   PDF_DOCUMENT_SLOTS.current = [];
@@ -13662,7 +13723,10 @@ function chiudiDettagliNuovaOfferta() {
 }
 
 function vaiAlCaricatoreScheda(options = {}) {
-  if (options?.source) tracciaSceltaPercorsoConfronto("pdf", String(options.source));
+  if (options?.source) {
+    impostaOrigineCaricamentoPdf(options.source, options);
+    tracciaSceltaPercorsoConfronto("pdf", String(options.source));
+  }
   const panel = document.getElementById("pdf-upload-panel") || document.querySelector(".pdf-lead-panel");
   const drop = document.getElementById("pdf-upload-drop");
   const input = document.getElementById("pdf-static-input");
@@ -14449,13 +14513,22 @@ function continuaConStimaMedia() {
   trackEvent("offers_bill_prompt_dismissed", { dataOrigin: LEAD_STATE.dataOrigin });
 }
 
-function caricaBollettaDaOfferte() {
+function caricaBollettaDaOfferte(options = {}) {
   SOCIAL_ENTRY_STATE.personalizationDismissed = true;
   const prompt = document.getElementById("offers-personalize-prompt");
   if (prompt) prompt.hidden = true;
-  trackEvent("offers_bill_prompt_clicked", { dataOrigin: LEAD_STATE.dataOrigin });
+  const source = normalizzaOrigineCaricamentoPdf(options?.source) || "offers_personalization";
+  impostaOrigineCaricamentoPdf(source, options);
+  trackEvent("offers_bill_prompt_clicked", {
+    dataOrigin: LEAD_STATE.dataOrigin,
+    ...trackingOrigineCaricamentoPdf(true),
+  });
   window.__OL_OPEN_MOBILE_FAST_PDF__?.();
-  window.setTimeout(() => vaiAlCaricatoreScheda({ source: "offers_personalization" }), 30);
+  if (source === "offers_personalization") {
+    window.setTimeout(() => vaiAlCaricatoreScheda({ source: "offers_personalization" }), 30);
+  } else {
+    window.setTimeout(() => vaiAlCaricatoreScheda({ source, offerId: options?.offerId, offerName: options?.offerName, provider: options?.provider }), 30);
+  }
 }
 
 function collegaEventiUX() {
@@ -14513,7 +14586,7 @@ function collegaEventiUX() {
 
   luceAtt?.addEventListener("input", sincronizzaConsumiNuovaOfferta);
   gasAtt?.addEventListener("input", sincronizzaConsumiNuovaOfferta);
-  document.getElementById("optional-upload-sheet")?.addEventListener("click", vaiAlCaricatoreScheda);
+  document.getElementById("optional-upload-sheet")?.addEventListener("click", () => vaiAlCaricatoreScheda({ source: "optional_offer_card" }));
   document.getElementById("mobile-pdf-primary")?.addEventListener("click", gestisciAzionePrimariaPdfMobile);
   document.getElementById("mobile-pdf-secondary")?.addEventListener("click", controllaDatiDaStatoPdfMobile);
   document.getElementById("mobile-optional-offer-toggle")?.addEventListener("click", () => {
@@ -14524,7 +14597,7 @@ function collegaEventiUX() {
   document.getElementById("landing-assisted")?.addEventListener("click", apriPercorsoAssistitoDaLanding);
   document.getElementById("landing-free-app")?.addEventListener("click", () => tracciaAccessoAppLanding("free"));
   document.getElementById("landing-premium-app")?.addEventListener("click", () => tracciaAccessoAppLanding("premium"));
-  document.getElementById("offers-upload-bill")?.addEventListener("click", caricaBollettaDaOfferte);
+  document.getElementById("offers-upload-bill")?.addEventListener("click", () => caricaBollettaDaOfferte({ source: "offers_personalization" }));
   document.getElementById("offers-keep-average")?.addEventListener("click", continuaConStimaMedia);
   document.getElementById("pdf-static-input")?.addEventListener("change", (event) => {
     const selected = Array.from(event.target?.files || []);
@@ -14554,6 +14627,7 @@ function collegaEventiUX() {
       tracciaSceltaPercorsoConfronto("pdf", "pdf_file_selected");
       trackEvent("pdf_file_selected", {
         trigger: "file_input",
+        ...trackingOrigineCaricamentoPdf(),
         selectedCount: selected.length,
         acceptedCount: added,
         duplicateCount: duplicates,
@@ -15250,6 +15324,7 @@ if (document.readyState === "loading") {
         switch (action) {
             case "pdf":
                 setMessage("Ottima scelta: caricando la bolletta o la scheda sintetica il confronto diventa piu preciso. Dopo la lettura controlla i dati e confermali.");
+                if (typeof impostaOrigineCaricamentoPdf === "function") impostaOrigineCaricamentoPdf("guided_assistant");
                 scrollToTarget(".pdf-lead-panel");
                 break;
             case "media":
