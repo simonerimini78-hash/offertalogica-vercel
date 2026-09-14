@@ -972,6 +972,54 @@
     });
   }
 
+  function pdfFieldReasonLabel(reason = "") {
+    const key = String(reason || "").trim();
+    const labels = {
+      non_estratto_per_policy_privacy_lettore: "Non estratto dal lettore IA per policy privacy; il PDF originale resta disponibile nell’archivio diagnostico privato.",
+      non_individuato_dopo_rilettura_ia_mirata: "Non individuato neppure dopo la seconda lettura IA mirata sul dato mancante.",
+      rilettura_ia_mirata_non_completata: "La rilettura IA mirata non si è completata; controllare la diagnostica tecnica dell’analisi.",
+      non_individuato_dal_lettore_ia: "Il lettore IA non ha individuato un valore utilizzabile nel documento.",
+      non_restituito_dal_lettore_ia: "Il lettore IA non ha restituito un valore utilizzabile per questo campo.",
+      valore_non_estratto: "Nessun valore è stato estratto per questo campo.",
+      indirizzo_non_estratto: "L’indirizzo non è stato estratto.",
+      pod_non_estratto: "Il POD non è stato estratto.",
+      pdr_non_estratto: "Il PDR non è stato estratto.",
+      codice_fiscale_non_estratto: "Il codice fiscale non è stato estratto.",
+      codice_cliente_non_estratto: "Il codice cliente non è stato estratto.",
+      intestatario_non_estratto: "L’intestatario non è stato estratto.",
+      tipo_prezzo_non_estratto: "Il tipo di prezzo non è stato individuato.",
+      indice_atteso_non_estratto: "Era atteso un indice di riferimento ma non è stato individuato.",
+      periodo_non_estratto: "Decorrenza e scadenza delle condizioni economiche non sono state individuate.",
+      valore_fuori_intervallo: "Il valore estratto esiste ma è fuori dall’intervallo considerato plausibile.",
+      formato_pod_non_valido: "È stato trovato un possibile POD, ma il formato non è valido.",
+      formato_pdr_non_valido: "È stato trovato un possibile PDR, ma il formato non è valido.",
+      formato_codice_fiscale_non_valido: "È stato trovato un possibile codice fiscale, ma il formato non è valido.",
+      formato_codice_cliente_non_valido: "È stato trovato un possibile codice cliente, ma il formato non è valido.",
+      conflitto_tra_documenti: "Documenti diversi hanno restituito valori in conflitto per questo campo.",
+    };
+    return labels[key] || (key ? key.replaceAll("_", " ") : "Motivo non registrato");
+  }
+
+  function analyticsPdfUploadSourceLabel(eventOrSource = {}) {
+    const event = eventOrSource && typeof eventOrSource === "object" ? eventOrSource : {};
+    const key = String(typeof eventOrSource === "string" ? eventOrSource : (event.pdfUploadSource || event.payload?.pdfUploadSource || "")).trim().toLowerCase();
+    const labels = {
+      pdf_panel: "box PDF principale",
+      offer_card: "card di una specifica offerta",
+      optional_offer_card: "card per confrontare un’offerta specifica",
+      pending_gas_followup: "richiesta della seconda bolletta gas",
+      pending_luce_followup: "richiesta della seconda bolletta luce",
+      mobile_pdf_followup: "passo successivo del percorso PDF mobile",
+      guided_assistant: "assistente guidato",
+      offers_personalization: "personalizzazione delle offerte",
+    };
+    let label = labels[key] || (key ? key.replaceAll("_", " ") : "");
+    const offerName = String(event.pdfUploadOfferName || event.payload?.pdfUploadOfferName || "").trim();
+    const provider = String(event.pdfUploadProvider || event.payload?.pdfUploadProvider || "").trim();
+    if (key === "offer_card" && (offerName || provider)) label += ` (${[provider, offerName].filter(Boolean).join(" · ")})`;
+    return label;
+  }
+
   function analyticsEventValueText(event = {}) {
     if (String(event.eventType || "") === "article_view") return [event.articleTitle || event.articleSlug || "articolo", event.articleCategory || ""].filter(Boolean).join(" · ");
     if (String(event.eventType || "") === "cookie_consent_choice") return event.consentAction === "accept" ? "cookie accettati" : event.consentAction === "reject" ? "cookie rifiutati" : "preferenze cookie aperte";
@@ -992,6 +1040,7 @@
       event.annualCost != null && Math.abs(Number(event.annualCost)) > 0 ? `costo ${formatMoney(event.annualCost)}` : "",
       event.visibleOffersCount != null && Number(event.visibleOffersCount) > 0 ? `${event.visibleOffersCount} offerte` : "",
       event.fileCount != null && Number(event.fileCount) > 0 ? `${event.fileCount} file` : "",
+      analyticsPdfUploadSourceLabel(event) ? `origine caricamento ${analyticsPdfUploadSourceLabel(event)}` : "",
       event.analysisStatus ? `esito ${pdfStatusLabel(event.analysisStatus)}` : "",
       pdfEventDiagnosticReason(event) ? `motivo ${pdfEventDiagnosticReason(event)}` : "",
       event.successCount != null ? `${event.successCount} riusciti` : "",
@@ -1107,6 +1156,7 @@
     const offers = Number(item.visibleOffersCount);
     const saving = Number(item.bestSaving);
     const providerOffer = [item.provider, item.offerName].filter(Boolean).join(" · ");
+    const pdfUploadSource = analyticsPdfUploadSourceLabel(item);
     const descriptions = {
       landing_view: "Arrivo sul sito",
       landing_self_service_click: "Ha scelto il confronto in autonomia",
@@ -1123,13 +1173,14 @@
       assistance_guide_opened: "Ha aperto la guida di assistenza",
       assistance_callback_started: "Ha avviato la richiesta di richiamata",
       assistance_callback_verified: "Richiamata verificata",
-      pdf_picker_opened: "Ha aperto il selettore della bolletta",
-      pdf_file_selected: `Ha selezionato ${Number(item.acceptedCount || item.selectedCount || 0) || "un"} file PDF`,
-      pdf_analysis_started: "Ha avviato la lettura della bolletta",
+      offers_bill_prompt_clicked: pdfUploadSource ? `Ha scelto di caricare la bolletta da ${pdfUploadSource}` : "Ha scelto di caricare la bolletta dalle offerte",
+      pdf_picker_opened: `Ha aperto il selettore della bolletta${pdfUploadSource ? ` · da ${pdfUploadSource}` : ""}`,
+      pdf_file_selected: `Ha selezionato ${Number(item.acceptedCount || item.selectedCount || 0) || "un"} file PDF${pdfUploadSource ? ` · da ${pdfUploadSource}` : ""}`,
+      pdf_analysis_started: `Ha avviato la lettura della bolletta${pdfUploadSource ? ` · caricata da ${pdfUploadSource}` : ""}`,
       pdf_analysis_completed: item.analysisStatus
-        ? `Lettura bolletta: ${pdfStatusLabel(item.analysisStatus)}${pdfEventDiagnosticReason(item) ? ` · ${pdfEventDiagnosticReason(item)}` : ""}`
-        : "Lettura della bolletta completata",
-      pdf_analysis_interrupted: `Lettura bolletta interrotta${pdfEventDiagnosticReason(item) ? ` · ${pdfEventDiagnosticReason(item)}` : ""}`,
+        ? `Lettura bolletta: ${pdfStatusLabel(item.analysisStatus)}${pdfEventDiagnosticReason(item) ? ` · ${pdfEventDiagnosticReason(item)}` : ""}${pdfUploadSource ? ` · origine ${pdfUploadSource}` : ""}`
+        : `Lettura della bolletta completata${pdfUploadSource ? ` · origine ${pdfUploadSource}` : ""}`,
+      pdf_analysis_interrupted: `Lettura bolletta interrotta${pdfEventDiagnosticReason(item) ? ` · ${pdfEventDiagnosticReason(item)}` : ""}${pdfUploadSource ? ` · origine ${pdfUploadSource}` : ""}`,
       pdf_data_confirmed: "Ha confermato i dati letti dalla bolletta",
       article_view: item.articleTitle ? `Ha visualizzato l’articolo “${item.articleTitle}”${item.articleCategory ? ` · ${item.articleCategory}` : ""}` : `Ha visualizzato l’articolo ${item.articleSlug || ""}`.trim(),
       cookie_consent_choice: item.consentAction === "accept" ? "Ha accettato i cookie dal banner Iubenda" : item.consentAction === "reject" ? "Ha rifiutato i cookie dal banner Iubenda" : "Ha aperto le preferenze cookie Iubenda",
@@ -1169,6 +1220,12 @@
       pdf_picker: "apertura del selettore PDF",
       pdf_file_selected: "selezione del file PDF",
       offers_personalization: "personalizzazione delle offerte",
+      offer_card: "card di una specifica offerta",
+      optional_offer_card: "card per confrontare un’offerta specifica",
+      pending_gas_followup: "richiesta della seconda bolletta gas",
+      pending_luce_followup: "richiesta della seconda bolletta luce",
+      mobile_pdf_followup: "passo successivo PDF mobile",
+      guided_assistant: "assistente guidato",
     };
     return labels[key] || (key ? `trigger ${key}` : "");
   }
@@ -1177,7 +1234,7 @@
     return [
       item.eventType, item.pathChoice, item.dataOrigin, item.analysisStatus, item.diagnosticCode,
       item.offerId, item.articleSlug, item.consentAction, item.visibleOffersCount, item.bestSaving,
-      item.destinationType, item.reason, item.trigger,
+      item.destinationType, item.reason, item.trigger, item.pdfUploadSource, item.pdfUploadOfferId,
     ].map(value => String(value ?? "")).join("|");
   }
 
@@ -1206,6 +1263,138 @@
       out.push({ signature, item, items: [item], description });
     });
     return out;
+  }
+
+  function analyticsNarrativeGapText(rows = []) {
+    const seq = [...new Set(rows.map(analyticsEventSequence).filter(value => value !== null))].sort((a, b) => a - b);
+    if (seq.length < 2) return "";
+    const missing = [];
+    for (let i = 1; i < seq.length; i += 1) {
+      for (let value = seq[i - 1] + 1; value < seq[i] && missing.length < 30; value += 1) missing.push(value);
+      if (missing.length >= 30) break;
+    }
+    if (!missing.length) return "";
+    const shown = missing.slice(0, 12).map(value => `#${value}`).join(", ");
+    return `Nel tracciato disponibile mancano ${shown}${missing.length > 12 ? " e altre sequenze" : ""}. Questo segnala un buco di telemetria: non permette di dedurre quali azioni, se presenti, non siano state registrate.`;
+  }
+
+  function analyticsNarrativePdfQuality(rows = []) {
+    const completed = [...rows].reverse().find(item => String(item.eventType || "") === "pdf_analysis_completed");
+    if (!completed) return null;
+    const diagnosticRow = [...rows].reverse().find(item => Array.isArray(item.pdfFieldDiagnostics) && item.pdfFieldDiagnostics.length);
+    const fields = Array.isArray(diagnosticRow?.pdfFieldDiagnostics) ? diagnosticRow.pdfFieldDiagnostics : [];
+    const privacyMissing = fields.filter(field => field.status === "mancante" && field.statusReason === "non_estratto_per_policy_privacy_lettore");
+    const comparisonCritical = new Set([
+      "consumo_luce_kwh", "consumo_gas_smc",
+      "prezzo_luce_eur_kwh", "prezzo_gas_eur_smc",
+      "quota_fissa_vendita_luce_eur_anno", "quota_fissa_vendita_gas_eur_anno",
+    ]);
+    const criticalProblems = fields.filter(field => comparisonCritical.has(String(field.field || "")) && ["mancante", "parziale", "da_verificare"].includes(String(field.status || "")));
+    const otherProblems = fields.filter(field => ["mancante", "parziale", "da_verificare"].includes(String(field.status || "")) && !privacyMissing.includes(field) && !criticalProblems.includes(field));
+    return { completed, fields, privacyMissing, criticalProblems, otherProblems };
+  }
+
+  function analyticsSessionNarrative(rows = []) {
+    if (!Array.isArray(rows) || !rows.length) return [];
+    const ordered = rows.slice().sort(compareAnalyticsEventOrder);
+    const first = ordered[0];
+    const last = ordered[ordered.length - 1];
+    const source = analyticsSourceLabel(first.trafficSource || "");
+    const attribution = ordered.find(item => item.trafficCampaign || item.trafficTerm || item.trafficReferrer) || first;
+    const paragraphs = [];
+    let intro = `La sessione entra da ${source || "provenienza non determinata"}`;
+    if (attribution.trafficTerm) intro += ` con keyword “${attribution.trafficTerm}”`;
+    else if (attribution.trafficReferrer) intro += ` con referrer ${attribution.trafficReferrer}`;
+    intro += ` e registra ${ordered.length} eventi tra ${formatDate(first.clientTimestamp || first.createdAt)} e ${formatDate(last.clientTimestamp || last.createdAt)}.`;
+    paragraphs.push({ text: intro, tone: "info" });
+
+    const articles = ordered.filter(item => String(item.eventType || "") === "article_view");
+    if (articles.length) {
+      const titles = [...new Set(articles.map(item => item.articleTitle || item.articleSlug).filter(Boolean))];
+      paragraphs.push({ text: `Prima o durante il percorso ha visualizzato ${articles.length} articolo${articles.length === 1 ? "" : "i"}${titles.length ? `: ${titles.map(title => `“${title}”`).join(", ")}` : ""}.`, tone: "info" });
+    }
+
+    const cookie = [...ordered].reverse().find(item => String(item.eventType || "") === "cookie_consent_choice");
+    if (cookie) paragraphs.push({ text: `Scelta cookie Iubenda registrata: ${cookie.consentAction === "accept" ? "accetta" : cookie.consentAction === "reject" ? "rifiuta" : "apre le preferenze"}.`, tone: "info" });
+
+    const pathRows = ordered.filter(item => String(item.eventType || "") === "comparison_path_selected");
+    if (pathRows.length) {
+      const pathLabels = pathRows.map(item => analyticsPathChoiceLabel(item.pathChoice)).filter(Boolean);
+      const compactPaths = pathLabels.filter((label, index) => index === 0 || label !== pathLabels[index - 1]);
+      if (compactPaths.length === 1) paragraphs.push({ text: `Percorso di confronto registrato: ${compactPaths[0]}.`, tone: "info" });
+      else if (compactPaths.length > 1) paragraphs.push({ text: `Ha cambiato percorso durante la stessa sessione: ${compactPaths.join(" → ")}. Il cambio viene mantenuto nella cronologia e non viene interpretato come una nuova sessione.`, tone: "warn" });
+    }
+
+    const pdfSelections = ordered.filter(item => String(item.eventType || "") === "pdf_file_selected");
+    if (pdfSelections.length) {
+      const sources = [...new Set(pdfSelections.map(analyticsPdfUploadSourceLabel).filter(Boolean))];
+      if (sources.length === 1) paragraphs.push({ text: `Il file PDF è stato selezionato da ${sources[0]}.`, tone: "info" });
+      else if (sources.length > 1) paragraphs.push({ text: `Nella sessione i PDF sono stati caricati da ingressi diversi: ${sources.join(" → ")}.`, tone: "info" });
+    }
+
+    const pdfStart = ordered.find(item => String(item.eventType || "") === "pdf_analysis_started");
+    const pdfQuality = analyticsNarrativePdfQuality(ordered);
+    if (pdfStart && pdfQuality?.completed) {
+      const end = pdfQuality.completed;
+      const startMs = analyticsEventTime(pdfStart.clientTimestamp || pdfStart.createdAt);
+      const endMs = analyticsEventTime(end.clientTimestamp || end.createdAt);
+      const elapsed = startMs !== null && endMs !== null && endMs >= startMs ? Math.round((endMs - startMs) / 1000) : null;
+      let pdfText = `La lettura PDF termina come “${pdfStatusLabel(end.analysisStatus || "unknown")}"${elapsed !== null ? ` dopo circa ${formatDurationSeconds(elapsed)}` : ""}.`;
+      if (pdfQuality.criticalProblems.length) {
+        pdfText += ` Restano problematici per il confronto: ${pdfQuality.criticalProblems.map(field => field.field).join(", ")}.`;
+      } else if (pdfQuality.fields.length) {
+        pdfText += " I dati economici essenziali tracciati non risultano mancanti o da verificare.";
+      }
+      if (pdfQuality.privacyMissing.length) pdfText += ` ${pdfQuality.privacyMissing.length} campi personali risultano non estratti per policy privacy del lettore, non per errore di lettura.`;
+      if (pdfQuality.otherProblems.length) pdfText += ` Altri ${pdfQuality.otherProblems.length} campi sono mancanti, parziali o da verificare.`;
+      paragraphs.push({ text: pdfText, tone: pdfQuality.criticalProblems.length ? "warn" : "info" });
+
+      const duringPdf = ordered.filter(item => {
+        const type = String(item.eventType || "");
+        if (!["comparison_started", "comparison_completed", "offers_rendered", "comparison_path_selected"].includes(type)) return false;
+        const at = analyticsEventTime(item.clientTimestamp || item.createdAt);
+        return startMs !== null && endMs !== null && at !== null && at > startMs && at < endMs;
+      });
+      if (duringPdf.length) paragraphs.push({ text: `Durante l’attesa della lettura PDF risultano anche ${duringPdf.length} eventi di confronto/percorso: la sessione quindi non è rimasta ferma sull’analisi.`, tone: "warn" });
+
+      const nextComparison = ordered.find(item => String(item.eventType || "") === "comparison_started" && compareAnalyticsEventOrder(item, end) > 0);
+      const hasExplicitConfirmation = ordered.some(item => String(item.eventType || "") === "pdf_data_confirmed" && compareAnalyticsEventOrder(item, end) > 0 && (!nextComparison || compareAnalyticsEventOrder(item, nextComparison) < 0));
+      if (nextComparison && String(end.analysisStatus || "") === "success_missing_data" && !hasExplicitConfirmation) {
+        const nextMs = analyticsEventTime(nextComparison.clientTimestamp || nextComparison.createdAt);
+        const gap = endMs !== null && nextMs !== null && nextMs >= endMs ? Math.round((nextMs - endMs) / 1000) : null;
+        paragraphs.push({ text: `Dopo l’esito PDF con dati mancanti il confronto riparte${gap !== null ? ` circa ${formatDurationSeconds(gap)} dopo` : ""}, ma nel tracciato disponibile non compare un evento esplicito che spieghi come siano stati completati o sostituiti quei dati. Questo passaggio resta non determinabile.`, tone: "warn" });
+      }
+    }
+
+    const offers = [...ordered].reverse().find(item => String(item.eventType || "") === "offers_rendered");
+    if (offers) {
+      const count = Number(offers.visibleOffersCount);
+      const saving = Number(offers.bestSaving);
+      paragraphs.push({ text: `Il percorso arriva alle offerte${Number.isFinite(count) && count > 0 ? `: ${count} visualizzate` : ""}${Number.isFinite(saving) && Math.abs(saving) > 0 ? `, miglior risparmio indicato ${formatMoney(saving)}` : ""}.`, tone: "info" });
+    }
+
+    const commercial = ordered.find(item => SESSION_COMMERCIAL_EVENTS.has(String(item.eventType || "")));
+    if (commercial) paragraphs.push({ text: `È registrato un passaggio commerciale/partner: ${analyticsSessionEventDescription(commercial)}.`, tone: "info" });
+    else if (offers) paragraphs.push({ text: "Non risulta un passaggio finale verso partner/Switcho dopo le offerte nel tracciato disponibile.", tone: "warn" });
+
+    const gapText = analyticsNarrativeGapText(ordered);
+    if (gapText) paragraphs.push({ text: gapText, tone: "warn" });
+    return paragraphs;
+  }
+
+  function renderAnalyticsSessionNarrative(rows = []) {
+    const target = byId("analyticsSessionNarrative");
+    if (!target) return;
+    clear(target);
+    const paragraphs = analyticsSessionNarrative(rows);
+    target.append(
+      node("strong", { text: "Sintesi automatica della sessione" }),
+      node("small", { text: "Costruita solo dagli eventi registrati. Quando un passaggio non è dimostrabile, viene indicato esplicitamente come non determinabile." })
+    );
+    const body = node("div", { className: "analytics-session-narrative-body" });
+    if (!paragraphs.length) body.append(node("p", { className: "info", text: "Dati insufficienti per costruire una sintesi affidabile." }));
+    else paragraphs.forEach(item => body.append(node("p", { className: item.tone || "info", text: item.text })));
+    target.append(body);
   }
 
   function analyticsCsvCell(value) {
@@ -1260,7 +1449,10 @@
       fields.forEach(field => tbody.append(node("tr", {}, [
         node("td", { text: field.field || "—" }),
         node("td", { text: field.status || "—" }),
-        node("td", { text: field.statusReason || "—" }),
+        node("td", {}, [
+          node("span", { text: pdfFieldReasonLabel(field.statusReason) }),
+          ...(field.statusReason ? [node("small", { className: "analytics-session-narrative-code", text: field.statusReason })] : []),
+        ]),
         node("td", { text: [field.source, field.method].filter(Boolean).join(" · ") || "—" }),
         node("td", { text: field.confidence || "—" }),
         node("td", { text: field.page == null ? "—" : String(field.page) }),
@@ -1293,6 +1485,7 @@
     const panel = byId("analyticsSessionPanel");
     if (panel) panel.hidden = true;
     clear(byId("analyticsSessionSummary"));
+    clear(byId("analyticsSessionNarrative"));
     clear(byId("analyticsSessionFunnel"));
     clear(byId("analyticsSessionEvents"));
     clear(byId("analyticsSessionTechnicalEvents"));
@@ -1415,6 +1608,7 @@
       ]),
       node("div", { className: "analytics-session-facts" }, sessionFacts)
     );
+    renderAnalyticsSessionNarrative(rows);
 
     clear(funnel);
     analyticsSessionFunnel(rows).forEach(step => {
