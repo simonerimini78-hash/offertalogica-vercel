@@ -574,6 +574,75 @@ function topEntries(map, limit = 8) {
     .slice(0, limit);
 }
 
+const OFFER_SELECTION_EVENT_TYPES = Object.freeze([
+  "offer_click_locked",
+  "offer_consent_opened",
+  "offer_partner_consent_confirmed",
+  "offer_request_started",
+  "offer_request_recorded",
+  "offer_switcho_redirect",
+  "offer_redirect",
+]);
+const OFFER_SELECTION_PAGE_SIZE = 1000;
+const OFFER_SELECTION_MAX_ROWS = 100000;
+
+async function fetchOfferSelectionPage(from, offset = 0) {
+  if (!customerDbConfiguredForLandingAnalytics()) return [];
+  const query = new URLSearchParams({
+    select: "id,event_type,created_at,payload",
+    order: "created_at.asc",
+    limit: String(OFFER_SELECTION_PAGE_SIZE),
+    offset: String(Math.max(0, Number(offset) || 0)),
+  });
+  if (from) query.set("created_at", `gte.${from}`);
+  query.set("event_type", `in.(${OFFER_SELECTION_EVENT_TYPES.join(",")})`);
+  const response = await fetch(
+    `${customerDbBaseUrl()}/rest/v1/${CUSTOMER_DB_EVENTS_TABLE}?${query.toString()}`,
+    { method: "GET", headers: customerDbReadHeaders() },
+  );
+  if (!response.ok) throw new Error(`Customer DB offer selections error ${response.status}`);
+  const rows = await response.json();
+  return Array.isArray(rows) ? rows : [];
+}
+
+function offerSelectionSummaryFromRows(rows = []) {
+  const uniqueSelections = new Map();
+  (Array.isArray(rows) ? rows : []).forEach((row) => {
+    const payload = rawAnalyticsPayload(row);
+    if (payload.staffMode === true || String(payload.trafficAgent || "").toLowerCase() === "automation") return;
+    const provider = String(payload.provider || "").trim();
+    const offerName = String(payload.offerName || "").trim();
+    if (!provider && !offerName) return;
+    const sessionId = String(payload.sessionId || "").trim() || `event:${row.id || ""}`;
+    const offerIdentity = String(payload.offerId || "").trim() || `${provider}::${offerName}`;
+    const key = `${sessionId}::${offerIdentity}`;
+    if (!uniqueSelections.has(key)) uniqueSelections.set(key, { provider, offerName });
+  });
+
+  const byProvider = {};
+  const byOffer = {};
+  uniqueSelections.forEach(({ provider, offerName }) => {
+    if (provider) increment(byProvider, provider);
+    if (offerName) increment(byOffer, `${provider || "Fornitore"} - ${offerName}`);
+  });
+  return {
+    selections: uniqueSelections.size,
+    topProviders: topEntries(byProvider, 100),
+    topOffers: topEntries(byOffer, 100),
+  };
+}
+
+async function loadOfferSelectionSummary(from = CAMPAIGN_BASELINE_ISO) {
+  if (!customerDbConfiguredForLandingAnalytics()) return { selections: 0, topProviders: [], topOffers: [] };
+  const rows = [];
+  for (let offset = 0; offset < OFFER_SELECTION_MAX_ROWS; offset += OFFER_SELECTION_PAGE_SIZE) {
+    const page = await fetchOfferSelectionPage(from, offset);
+    rows.push(...page);
+    if (page.length < OFFER_SELECTION_PAGE_SIZE) return offerSelectionSummaryFromRows(rows);
+  }
+  throw new Error("Offer selections oltre il limite di lettura sicura");
+}
+
 function normalizeTrafficSource(value) {
   const source = String(value || "").trim().toLowerCase();
   if (!source || ["direct", "(direct)", "none", "(none)"].includes(source)) return "direct";
@@ -1721,7 +1790,7 @@ export default async function handler(req, res) {
     });
   }
 
-  const [rawResult, landingPath, switcho, recentAnalyticsRows, databaseSummary] = await Promise.all([
+  const [rawResult, landingPath, switcho, recentAnalyticsRows, databaseSummary, offerSelectionSummary] = await Promise.all([
     listCustomerAnalytics({ limit }),
     loadLandingPathAnalytics(landingRange),
     loadSwitchoAnalytics(CAMPAIGN_BASELINE_ISO).catch((error) => ({
@@ -1737,17 +1806,27 @@ export default async function handler(req, res) {
       console.error("staff-analytics-summary", error);
       return null;
     }),
+    loadOfferSelectionSummary(CAMPAIGN_BASELINE_ISO).catch((error) => {
+      console.error("staff-analytics-offer-selections", error);
+      return null;
+    }),
   ]);
   const result = enhanceAnalyticsForStaff(analyticsFromCampaignBaseline(rawResult));
   const journeys = analyticsJourneyRows(recentAnalyticsRows);
   const recentJourneySummary = analyticsJourneySummary(journeys, recentAnalyticsRows);
   const exactSummary = databaseSummary && typeof databaseSummary === "object" ? databaseSummary : null;
+  const clickedProviders = offerSelectionSummary?.topProviders?.length
+    ? offerSelectionSummary.topProviders
+    : (exactSummary?.topProviders?.length ? exactSummary.topProviders : recentJourneySummary.topProviders || result.summary?.topProviders || []);
+  const clickedOffers = offerSelectionSummary?.topOffers?.length
+    ? offerSelectionSummary.topOffers
+    : (exactSummary?.topOffers?.length ? exactSummary.topOffers : recentJourneySummary.topOffers || result.summary?.topOffers || []);
   const summary = exactSummary
-    ? { ...(result.summary || {}), ...exactSummary, funnel: exactSummary.activity || exactSummary.funnel || result.summary?.funnel || {} }
-    : (result.summary || {});
+    ? { ...(result.summary || {}), ...exactSummary, topProviders: clickedProviders, topOffers: clickedOffers, funnel: exactSummary.activity || exactSummary.funnel || result.summary?.funnel || {} }
+    : { ...(result.summary || {}), topProviders: clickedProviders, topOffers: clickedOffers };
   const journeySummary = exactSummary
-    ? { ...recentJourneySummary, ...exactSummary, activity: exactSummary.activity || recentJourneySummary.activity || {}, sessionFunnel: exactSummary.sessionFunnel || recentJourneySummary.sessionFunnel || {}, sessionFunnelsBySource: exactSummary.sessionFunnelsBySource || recentJourneySummary.sessionFunnelsBySource || {} }
-    : recentJourneySummary;
+    ? { ...recentJourneySummary, ...exactSummary, topProviders: clickedProviders, topOffers: clickedOffers, offerSelections: offerSelectionSummary?.selections ?? exactSummary.offerSelections ?? recentJourneySummary.offerAction ?? 0, activity: exactSummary.activity || recentJourneySummary.activity || {}, sessionFunnel: exactSummary.sessionFunnel || recentJourneySummary.sessionFunnel || {}, sessionFunnelsBySource: exactSummary.sessionFunnelsBySource || recentJourneySummary.sessionFunnelsBySource || {} }
+    : { ...recentJourneySummary, topProviders: clickedProviders, topOffers: clickedOffers, offerSelections: offerSelectionSummary?.selections ?? recentJourneySummary.offerAction ?? 0 };
 
   const responseOk = Boolean(result.ok || exactSummary);
   json(res, responseOk ? 200 : 500, {
