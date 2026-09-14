@@ -1,16 +1,16 @@
 {
-  "versioneDati": "parametri-calcolo-2026-09-13-arera-2026-08",
+  "versioneDati": "parametri-calcolo-2026-09-14-arera-2026-08",
   "fonte": "ARERA: catalogo Portale Offerte e riferimenti mensili ufficiali PLACET. Nessun prezzo statico usato come indice di confronto.",
-  "aggiornatoIl": "2026-09-13",
+  "aggiornatoIl": "2026-09-14",
   "parametriCalcolo": {
     "perditeReteLuceVariabile": 1.102,
     "profiloMedio": {
       "luceConsumoKwh": 2700,
       "gasConsumoSmc": 1400,
-      "prezzoLuceEurKwh": 0.1545618,
-      "prezzoGasEurSmc": 0.71925909,
-      "quotaFissaLuceAnnua": 137.9937,
-      "quotaFissaGasAnnua": 135.0682,
+      "prezzoLuceEurKwh": 0.15609793,
+      "prezzoGasEurSmc": 0.72783111,
+      "quotaFissaLuceAnnua": 137.5888,
+      "quotaFissaGasAnnua": 135.1,
       "potenzaKw": "3",
       "regioneGas": "nord-ovest",
       "tipoPrezzo": "fisso",
@@ -50,7 +50,7 @@
     "profiloConsumiFonte": {
       "fonte": "ARERA - Monitoraggio Retail - Offerte e prezzi",
       "urlFonte": "https://www.arera.it/rapporti-e-relazioni/monitoraggio-retail/monitoraggio-retail-offerte-e-prezzi",
-      "acquisitoIl": "2026-09-13",
+      "acquisitoIl": "2026-09-14",
       "profiloStandard": "Cliente domestico usato da ARERA per il monitoraggio delle offerte",
       "luceConsumoKwh": 2700,
       "gasConsumoSmc": 1400,
@@ -58,12 +58,12 @@
     },
     "profiloMedioFonte": {
       "fonte": "Portale Offerte ARERA/Acquirente Unico Open Data",
-      "catalogoVersione": "arera-menu-2026-09-13",
-      "catalogoAggiornatoIl": "2026-09-13",
+      "catalogoVersione": "arera-menu-2026-09-14",
+      "catalogoAggiornatoIl": "2026-09-14",
       "tipoPrezzo": "fisso",
       "metodoPrezzo": "Media aritmetica dei prezzi unitari e delle quote fisse delle offerte ARERA correnti per clienti privati dello stesso tipo prezzo.",
-      "numeroOfferteLuce": 111,
-      "numeroOfferteGas": 88,
+      "numeroOfferteLuce": 116,
+      "numeroOfferteGas": 90,
       "luceConsumoKwh": 2700,
       "gasConsumoSmc": 1400,
       "potenzaKw": "3"
@@ -80,7 +80,7 @@
       "unitaOriginale": "eur_mwh",
       "fonte": "ARERA - Offerte PLACET",
       "urlFonte": "https://www.arera.it/consumatori/offerte-standard-per-i-clienti-finali-placet",
-      "acquisitoIl": "2026-09-13",
+      "acquisitoIl": "2026-09-14",
       "stato": "ufficiale",
       "note": "Media mensile monoraria P_ING,M pubblicata da ARERA per le offerte PLACET elettriche."
     },
@@ -92,7 +92,7 @@
       "periodoLabel": "Agosto 2026",
       "fonte": "ARERA - Offerte PLACET",
       "urlFonte": "https://www.arera.it/consumatori/offerte-standard-per-i-clienti-finali-placet",
-      "acquisitoIl": "2026-09-13",
+      "acquisitoIl": "2026-09-14",
       "stato": "ufficiale",
       "note": "Media mensile del prezzo giornaliero al PSV (day ahead) pubblicata da ARERA per le offerte PLACET gas."
     },
