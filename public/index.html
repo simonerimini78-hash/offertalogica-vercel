@@ -3248,8 +3248,8 @@
                 <span>Puoi partire anche senza conoscere i consumi.</span>
             </button>
             <button type="button" class="social-entry-route" id="landing-assisted" disabled>
-                <strong>Preferisci essere aiutato?</strong>
-                <span>Continua con Switcho.</span>
+                <strong>Continua con Switcho</strong>
+                <span>Partner di OffertaLogica. Crea il tuo profilo: alla burocrazia pensa Switcho.</span>
             </button>
         </div>
         <div class="social-entry-proof" aria-label="Come calcoliamo il confronto">
@@ -3272,6 +3272,7 @@
                 <a href="/fornitori/">Fornitori</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
                 <a href="/come-leggere-bolletta-luce-gas.html">Guida bolletta</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
                 <a href="/partner.html">Partner</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
+                <a href="/switcho.html">Switcho</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
                 <a href="/termini-condizioni.html">Termini e condizioni</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
                 <a href="/casa-smart.html">Casa smart</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
                 <a href="/internet-casa.html">Internet casa</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
@@ -3456,7 +3457,7 @@
                 <button type="button" class="business-secondary-action" onclick="apriSimulatoreFotovoltaicoBusiness()">Simula fotovoltaico con questi dati</button>
                 <button type="button" class="business-secondary-action" onclick="apriLeadBusiness()">Continua con Switcho</button>
             </div>
-            <p class="business-action-note">L'analisi resta su OffertaLogica; per proseguire verrai indirizzato al nostro partner Switcho. I dati inseriti qui non vengono trasferiti automaticamente.</p>
+            <p class="business-action-note">Partner di OffertaLogica. Crea il tuo profilo: alla burocrazia pensa Switcho. Prima del passaggio ti mostriamo come funziona la collaborazione; i dati inseriti qui non vengono trasferiti automaticamente.</p>
         </div>
         <div class="business-error" id="business-error"></div>
         <div class="business-result" id="business-result">
@@ -7479,7 +7480,7 @@ function offertaAttivabileOnline(offerta) {
 }
 
 function testoAzioneOfferta(offerta, attivabileOnline) {
-  if (modalitaCalcolo === "media") return "Scopri se fa per te";
+  if (OFFER_CARD_SWITCHO_DIRECT_MEDIA && modalitaCalcolo === "media") return "Continua con Switcho";
   if (!attivabileOnline) return "Continua con Switcho";
   return "Vedi come procedere";
 }
@@ -9106,10 +9107,10 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
           apriConsensoOfferta(offerta);
         };
         card.querySelector(".offer-switcho-bill-note")?.remove();
-        if (!attivabileOnline && modalitaCalcolo === "media") {
+        if ((OFFER_CARD_SWITCHO_DIRECT_MEDIA && modalitaCalcolo === "media") || !attivabileOnline) {
           const switchoBillNote = document.createElement("small");
           switchoBillNote.className = "offer-switcho-bill-note";
-          switchoBillNote.textContent = "Su Switcho puoi anche caricare la bolletta per un confronto più preciso.";
+          switchoBillNote.textContent = "Partner di OffertaLogica. Crea il tuo profilo: alla burocrazia pensa Switcho.";
           link.insertAdjacentElement("afterend", switchoBillNote);
         }
       }
@@ -10124,8 +10125,8 @@ window.apriConsensoOfferta = function apriConsensoOfferta(offerta) {
     rankingContext: OFFER_RENDER_CONTEXTS.get(String(offerta?.id || "")) || offerta?.rankingContext || null,
   };
 
-  // Test card v82: nel solo percorso "non conosco i miei consumi" (modalita media)
-  // ogni CTA passa direttamente a Switcho. Gli altri percorsi mantengono il routing v80.
+  // Gateway Switcho v4: nel percorso "non conosco i miei consumi" (modalita media)
+  // e per le offerte non attivabili, la CTA passa prima dalla pagina informativa OffertaLogica × Switcho.
   if ((OFFER_CARD_SWITCHO_DIRECT_MEDIA && modalitaCalcolo === "media") || !offertaAttivabileOnline(offerta)) {
     const tracking = LEAD_STATE.selectedOffer.rankingContext || {};
     trackEvent("offer_switcho_redirect", {
@@ -10531,7 +10532,7 @@ function mostraRichiestaAssistenza(reason = "manual", options = {}) {
   title.innerText = success ? "Richiesta ricevuta" : "Ti serve una mano?";
   copy.innerText = success
     ? "Il numero è stato verificato. OffertaLogica potrà ricontattarti per aiutarti a completare il confronto."
-    : "Se vuoi una mano, puoi continuare con il supporto del nostro partner Switcho per scegliere e attivare l'offerta più adatta, oppure restare su OffertaLogica.";
+    : "Se vuoi una mano, puoi continuare con Switcho, partner di OffertaLogica. Crea il tuo profilo: alla burocrazia pensa Switcho. Oppure puoi restare su OffertaLogica.";
   actions.style.display = success ? "none" : "grid";
   successBox.style.display = success ? "block" : "none";
   backdrop.style.display = "flex";
@@ -14317,8 +14318,8 @@ function aggiornaRisparmioLandingDaPrimaPosizione() {
 }
 
 // v82 — test card limitato al percorso "non conosco i miei consumi"
-const SWITCHO_ROUTING_VERSION = "switcho-v3-2026-09-07-media-card-direct";
-const SWITCHO_LANDING_URL = "https://bit.ly/Switcho-LuceGas-OffertaLogica";
+const SWITCHO_ROUTING_VERSION = "switcho-v4-2026-09-15-partnership-gateway";
+const SWITCHO_LANDING_URL = "/switcho.html";
 const OFFER_CARD_SWITCHO_DIRECT_MEDIA = true;
 
 function apriLandingSwitcho(source = "guided", offer = null) {
@@ -15148,7 +15149,7 @@ if (document.readyState === "loading") {
 <div class="assistance-rescue-backdrop" id="assistance-rescue-backdrop" role="dialog" aria-modal="true" aria-labelledby="assistance-rescue-title">
     <div class="assistance-rescue-modal">
         <h3 id="assistance-rescue-title">Ti serve una mano?</h3>
-        <p id="assistance-rescue-copy">Se vuoi una mano, puoi continuare con il supporto del nostro partner Switcho per scegliere e attivare l'offerta più adatta, oppure restare su OffertaLogica.</p>
+        <p id="assistance-rescue-copy">Se vuoi una mano, puoi continuare con Switcho, partner di OffertaLogica. Crea il tuo profilo: alla burocrazia pensa Switcho. Oppure puoi restare su OffertaLogica.</p>
         <div class="assistance-rescue-actions" id="assistance-rescue-actions">
             <button type="button" class="is-primary" id="assistance-rescue-open-guide">Continua con Switcho</button>
             <button type="button" class="is-help" id="assistance-rescue-callback">Richiedi un ricontatto OffertaLogica</button>
@@ -15160,7 +15161,7 @@ if (document.readyState === "loading") {
                 <button type="button" class="lead-primary" id="assistance-rescue-success-close">Continua sul calcolatore</button>
             </div>
         </div>
-        <div class="assistance-rescue-note">Il percorso guidato prosegue su una pagina esterna gestita da Switcho. OffertaLogica non invia automaticamente i tuoi dati a Switcho tramite questo pulsante.</div>
+        <div class="assistance-rescue-note">Questo pulsante apre la pagina OffertaLogica dedicata alla collaborazione con Switcho. Da lì puoi scegliere se continuare su Switcho. I dati inseriti su OffertaLogica non vengono trasferiti automaticamente.</div>
     </div>
 </div>
 
@@ -15398,6 +15399,7 @@ if (document.readyState === "loading") {
         <a href="/come-leggere-bolletta-luce-gas.html">Guida bolletta</a>
         <a href="/truffe-telefoniche-luce-gas.html">Sicurezza chiamate</a>
         <a href="/partner.html">Partner</a>
+        <a href="/switcho.html">Switcho</a>
         <a href="/termini-condizioni.html">Termini e condizioni</a>
         <a href="/casa-smart.html">Casa smart</a>
         <a href="/internet-casa.html">Internet casa</a>
