@@ -1,6 +1,6 @@
 const API_VERSION = "v26.0";
 const INSTAGRAM_GRAPH = "https://graph.instagram.com";
-const VERSION = "0.12.9";
+const VERSION = "0.12.10";
 const PLATFORM = "instagram";
 const MAX_ATTEMPTS = 3;
 const MAX_CAROUSEL_SLIDES = 10;
@@ -109,7 +109,6 @@ function composeCaption(article: any, author: any = {}, presentationMode = "full
   const linkedin = String(author?.linkedin_url || "").trim();
   if (validHttps(website)) parts.push(`Sito autore: ${website}`);
   if (validHttps(linkedin)) parts.push(`LinkedIn: ${linkedin}`);
-  parts.push("#OffertaLogica");
   const caption = parts.filter(Boolean).join("\n\n");
   return caption.length <= 2200 ? caption : `${caption.slice(0, 2197).trimEnd()}…`;
 }
@@ -910,7 +909,7 @@ Deno.serve(async (req) => {
     if (["prepare_article_test", "publish_container_test"].includes(action)) {
       return json(req, {
         ok: false,
-        error: "Test manuale Instagram disattivato in v0.12.9: usa la coda automatica.",
+        error: "Test manuale Instagram disattivato in v0.12.10: usa la coda automatica.",
       }, 410);
     }
 

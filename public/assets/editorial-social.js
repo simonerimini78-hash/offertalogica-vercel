@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.9";
+  const VERSION = "0.12.10";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const PLATFORMS = [
     { key: "facebook", label: "Facebook" },
