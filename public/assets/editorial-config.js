@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.15";
+  const VERSION = "0.12.16";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const SUPABASE_URL = "https://kzxdamhfmzaxonpkytcf.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_poz1xBKiXceLCFV3u_tPIg_5_-ycHcl";
@@ -184,6 +184,14 @@
       socialJs.defer = true;
       socialJs.dataset.editorialSocial = VERSION;
       document.head.append(socialJs);
+    }
+
+    if (!document.querySelector('script[data-editorial-facebook]')) {
+      const facebookJs = document.createElement("script");
+      facebookJs.src = `/assets/editorial-facebook.js?v=${VERSION}`;
+      facebookJs.defer = true;
+      facebookJs.dataset.editorialFacebook = VERSION;
+      document.head.append(facebookJs);
     }
   }
 
