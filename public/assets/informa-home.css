@@ -1,4 +1,4 @@
-/* OffertaLogica Informa — home editoriale v0.11.7 */
+/* OffertaLogica Informa — home editoriale v0.11.8 */
 body[data-editorial-view="archive"] .ol-hero {
   padding: 28px 0 12px;
 }
@@ -188,6 +188,48 @@ body[data-editorial-view="archive"] .ol-resource-list .ol-resource-card {
 
 body[data-editorial-view="archive"] .ol-resource-list .ol-resource-card strong {
   font-size: 14px;
+}
+
+/* Pagine-dato e hub: separati dalle guide essenziali e mantenuti più compatti. */
+body[data-editorial-view="archive"] .ol-resource-secondary {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--ol-border);
+}
+
+body[data-editorial-view="archive"] .ol-resource-secondary h3 {
+  margin: 0 0 9px;
+  font-size: 14px;
+  line-height: 1.25;
+  color: #475569;
+}
+
+body[data-editorial-view="archive"] .ol-resource-secondary-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+body[data-editorial-view="archive"] .ol-resource-secondary-list a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 7px 10px;
+  border: 1px solid var(--ol-border);
+  border-radius: 9px;
+  background: #fff;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-decoration: none;
+}
+
+body[data-editorial-view="archive"] .ol-resource-secondary-list a:hover,
+body[data-editorial-view="archive"] .ol-resource-secondary-list a:focus-visible {
+  border-color: #86efac;
+  color: #166534;
+  text-decoration: underline;
 }
 
 /* Archivio: card uniformi, immagini 16:9 e autore sempre in fondo. */
