@@ -379,6 +379,16 @@
         .vertical-cards-container { display: flex; flex-direction: column; gap: 15px; }
         
         .partner-vertical-card { background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
+        .offer-action-column { min-width:180px; display:flex; flex-direction:column; justify-content:center; gap:7px; }
+        .offer-action-row { display:flex; flex-direction:column; align-items:stretch; gap:7px; }
+        .offer-switcho-cta { flex-direction:column !important; gap:8px; line-height:1.1; }
+        .offer-switcho-cta-title { display:block; font-size:16px; font-weight:950; }
+        .offer-switcho-cta-brand { display:inline-flex; align-items:center; justify-content:center; min-height:32px; padding:5px 10px; border-radius:8px; background:#fff; box-shadow:inset 0 0 0 1px rgba(255,255,255,.76),0 4px 12px rgba(15,23,42,.10); }
+        .offer-switcho-cta-logo { display:block; width:auto; height:22px; max-width:94px; object-fit:contain; }
+        .offer-switcho-info-link { display:inline-flex; width:30px; min-width:30px; min-height:30px; align-items:center; justify-content:center; align-self:center; border:1px solid #bbf7d0; border-radius:999px; background:#f0fdf4; color:#166534; text-decoration:none; font-size:14px; line-height:1; font-weight:900; box-shadow:0 4px 12px rgba(22,163,74,.10); }
+        .offer-switcho-info-link:hover { background:#dcfce7; color:#14532d; }
+        .offer-switcho-info-link:focus-visible { outline:3px solid rgba(37,99,235,.28); outline-offset:2px; }
+        .offer-switcho-info-link[hidden] { display:none !important; }
         .partner-meta { text-align: left; }
         .partner-title { font-size: 16px; font-weight: bold; color: var(--text-color); }
         .partner-details { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
@@ -1546,12 +1556,22 @@
                 font-size: 18px;
                 border-radius: 13px;
             }
+            .offer-action-column {
+                min-width: 0;
+                width: 100%;
+            }
             [id^="link-partner-"] {
                 min-width: 0;
                 width: 100%;
                 min-height: 58px;
                 padding: 15px 16px !important;
                 white-space: normal !important;
+            }
+            .offer-switcho-info-link {
+                width: 38px;
+                min-width: 38px;
+                min-height: 38px;
+                font-size: 16px;
             }
             .locked-offer [id^="link-partner-"] {
                 min-height: 74px;
@@ -7480,7 +7500,7 @@ function offertaAttivabileOnline(offerta) {
 }
 
 function testoAzioneOfferta(offerta, attivabileOnline) {
-  if (OFFER_CARD_SWITCHO_DIRECT_MEDIA && modalitaCalcolo === "media") return "Continua con Switcho";
+  if (OFFER_CARD_SWITCHO_DIRECT_MEDIA && modalitaCalcolo === "media") return "Scopri se fa per te";
   if (!attivabileOnline) return "Continua con Switcho";
   return "Vedi come procedere";
 }
@@ -7524,7 +7544,12 @@ function creaSchedaOfferta(offerta) {
       <div class="partner-details" style="font-size:13px; color:var(--text-muted); margin-top:2px;"></div>
       <div id="risparmio-partner-${offerta.id}" style="font-size:14px; font-weight:bold; color:var(--primary); margin-top:5px; display:none;"></div>
     </div>
-    <a id="link-partner-${offerta.id}" href="#" style="background:var(--dark-btn); color:white; text-decoration:none; padding:10px 20px; border-radius:8px; font-size:13px; font-weight:bold; white-space:nowrap;">Vedi Offerta</a>
+    <div class="offer-action-column">
+      <div class="offer-action-row">
+        <a id="link-partner-${offerta.id}" href="#" style="background:var(--dark-btn); color:white; text-decoration:none; padding:10px 20px; border-radius:8px; font-size:13px; font-weight:bold; white-space:nowrap;">Vedi Offerta</a>
+        <a class="offer-switcho-info-link" href="/switcho.html#come-funziona" aria-label="Informazioni su Switcho e sulla collaborazione con OffertaLogica" title="Informazioni su Switcho" hidden><span aria-hidden="true">i</span></a>
+      </div>
+    </div>
   `;
   return card;
 }
@@ -9098,20 +9123,30 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
         details.hidden = true;
       }
       if (link) {
-        link.innerText = testoAzioneOfferta(offerta, attivabileOnline);
-        link.setAttribute("aria-label", `${testoAzioneOfferta(offerta, attivabileOnline)}: ${titoloOffertaVisibile(offerta)}`);
+        const switchoPath = (OFFER_CARD_SWITCHO_DIRECT_MEDIA && modalitaCalcolo === "media") || !attivabileOnline;
+        if (switchoPath) {
+          link.classList.add("offer-switcho-cta");
+          link.innerHTML = `<span class="offer-switcho-cta-title">Scopri se fa per te</span><span class="offer-switcho-cta-brand" aria-hidden="true"><img class="offer-switcho-cta-logo" src="/assets/logo-switcho.png" alt=""></span>`;
+          link.setAttribute("aria-label", `Scopri se fa per te. Continua con Switcho: ${titoloOffertaVisibile(offerta)}`);
+        } else {
+          link.classList.remove("offer-switcho-cta");
+          link.innerText = testoAzioneOfferta(offerta, attivabileOnline);
+          link.setAttribute("aria-label", `${testoAzioneOfferta(offerta, attivabileOnline)}: ${titoloOffertaVisibile(offerta)}`);
+        }
         link.href = "#";
         link.removeAttribute("target");
         link.onclick = (event) => {
           event.preventDefault();
           apriConsensoOfferta(offerta);
         };
+        const switchoInfoLink = card.querySelector(".offer-switcho-info-link");
+        if (switchoInfoLink) switchoInfoLink.hidden = !switchoPath;
         card.querySelector(".offer-switcho-bill-note")?.remove();
-        if ((OFFER_CARD_SWITCHO_DIRECT_MEDIA && modalitaCalcolo === "media") || !attivabileOnline) {
+        if (switchoPath) {
           const switchoBillNote = document.createElement("small");
           switchoBillNote.className = "offer-switcho-bill-note";
           switchoBillNote.textContent = "Partner di OffertaLogica. Crea il tuo profilo: alla burocrazia pensa Switcho.";
-          link.insertAdjacentElement("afterend", switchoBillNote);
+          (card.querySelector(".offer-action-column") || link.parentElement || card).appendChild(switchoBillNote);
         }
       }
       const percorsoDettaglio = percorsoBadgeText
@@ -10125,8 +10160,8 @@ window.apriConsensoOfferta = function apriConsensoOfferta(offerta) {
     rankingContext: OFFER_RENDER_CONTEXTS.get(String(offerta?.id || "")) || offerta?.rankingContext || null,
   };
 
-  // Gateway Switcho v4: nel percorso "non conosco i miei consumi" (modalita media)
-  // e per le offerte non attivabili, la CTA passa prima dalla pagina informativa OffertaLogica × Switcho.
+  // Gateway Switcho v5: nelle card Switcho la CTA prosegue direttamente verso Switcho;
+  // il link informativo separato (i) apre la pagina OffertaLogica × Switcho.
   if ((OFFER_CARD_SWITCHO_DIRECT_MEDIA && modalitaCalcolo === "media") || !offertaAttivabileOnline(offerta)) {
     const tracking = LEAD_STATE.selectedOffer.rankingContext || {};
     trackEvent("offer_switcho_redirect", {
@@ -10141,7 +10176,7 @@ window.apriConsensoOfferta = function apriConsensoOfferta(offerta) {
       annualCost: tracking.annualCost || null,
       annualDelta: tracking.annualDelta || null,
     });
-    apriLandingSwitcho(
+    apriSwitchoDirettoDaOfferta(
       OFFER_CARD_SWITCHO_DIRECT_MEDIA && modalitaCalcolo === "media" ? "offer_card_media" : "offer_not_activatable",
       LEAD_STATE.selectedOffer
     );
@@ -14317,10 +14352,32 @@ function aggiornaRisparmioLandingDaPrimaPosizione() {
   return true;
 }
 
-// v82 — test card limitato al percorso "non conosco i miei consumi"
-const SWITCHO_ROUTING_VERSION = "switcho-v4-2026-09-15-partnership-gateway";
+// v83 — card Switcho: CTA diretta + informazione separata sulla partnership
+const SWITCHO_ROUTING_VERSION = "switcho-v5-2026-09-15-card-direct-info";
 const SWITCHO_LANDING_URL = "/switcho.html";
+const SWITCHO_PARTNER_URL = "https://bit.ly/Switcho-LuceGas-OffertaLogica";
 const OFFER_CARD_SWITCHO_DIRECT_MEDIA = true;
+
+function apriSwitchoDirettoDaOfferta(source = "offer_card", offer = null) {
+  if (!SWITCHO_PARTNER_URL) return false;
+  const ranking = offer?.rankingContext || {};
+  trackEvent("switcho_direct_opened", {
+    source,
+    routingVersion: SWITCHO_ROUTING_VERSION,
+    offerId: offer?.id || "",
+    offerName: offer?.name || offer?.nome || "",
+    provider: offer?.provider || "",
+    destinationType: "switcho",
+    destinationStatus: "redirect",
+    displayGroup: ranking.displayGroup || "",
+    economyRank: ranking.economyRank || null,
+    displayRank: ranking.displayRank || null,
+    annualCost: ranking.annualCost || null,
+    annualDelta: ranking.annualDelta || null,
+  });
+  window.location.assign(SWITCHO_PARTNER_URL);
+  return true;
+}
 
 function apriLandingSwitcho(source = "guided", offer = null) {
   if (!SWITCHO_LANDING_URL) return false;
