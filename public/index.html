@@ -381,14 +381,60 @@
         .partner-vertical-card { background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
         .offer-action-column { min-width:180px; display:flex; flex-direction:column; justify-content:center; gap:7px; }
         .offer-action-row { display:flex; flex-direction:column; align-items:stretch; gap:7px; }
-        .offer-switcho-cta { flex-direction:column !important; gap:8px; line-height:1.1; }
+        .offer-action-column.is-switcho-panel {
+            align-self:stretch;
+            min-height:100%;
+            justify-content:stretch;
+            gap:0;
+            overflow:hidden;
+            border-radius:12px;
+            background:var(--logo-green-gradient);
+            box-shadow:0 14px 30px rgba(22,163,74,.24), inset 0 1px 0 rgba(255,255,255,.22);
+        }
+        .offer-action-column.is-switcho-panel .offer-action-row {
+            flex:1 1 auto;
+            display:grid;
+            grid-template-rows:minmax(0,1fr) auto;
+            align-items:stretch;
+            gap:0;
+            min-height:0;
+        }
+        .offer-action-column.is-switcho-panel [id^="link-partner-"] {
+            min-width:0;
+            min-height:0;
+            height:100%;
+            align-self:stretch;
+            border-radius:0 !important;
+            background:transparent !important;
+            box-shadow:none !important;
+            padding:18px 16px !important;
+        }
+        .offer-action-column.is-switcho-panel [id^="link-partner-"]:hover {
+            background:rgba(255,255,255,.06) !important;
+            box-shadow:none !important;
+            transform:none;
+            filter:none;
+        }
+        .offer-switcho-cta { flex-direction:column !important; gap:10px; line-height:1.1; }
         .offer-switcho-cta-title { display:block; font-size:16px; font-weight:950; }
-        .offer-switcho-cta-brand { display:inline-flex; align-items:center; justify-content:center; min-height:32px; padding:5px 10px; border-radius:8px; background:#fff; box-shadow:inset 0 0 0 1px rgba(255,255,255,.76),0 4px 12px rgba(15,23,42,.10); }
-        .offer-switcho-cta-logo { display:block; width:auto; height:22px; max-width:94px; object-fit:contain; }
-        .offer-switcho-info-link { display:inline-flex; width:30px; min-width:30px; min-height:30px; align-items:center; justify-content:center; align-self:center; border:1px solid #bbf7d0; border-radius:999px; background:#f0fdf4; color:#166534; text-decoration:none; font-size:14px; line-height:1; font-weight:900; box-shadow:0 4px 12px rgba(22,163,74,.10); }
-        .offer-switcho-info-link:hover { background:#dcfce7; color:#14532d; }
-        .offer-switcho-info-link:focus-visible { outline:3px solid rgba(37,99,235,.28); outline-offset:2px; }
+        .offer-switcho-cta-brand { display:inline-flex; align-items:center; justify-content:center; min-height:30px; padding:4px 9px; border-radius:7px; background:rgba(255,255,255,.96); box-shadow:none; }
+        .offer-switcho-cta-logo { display:block; width:auto; height:20px; max-width:90px; object-fit:contain; }
+        .offer-switcho-info-link { display:inline-flex; min-height:36px; align-items:center; justify-content:center; gap:6px; border:0; border-top:1px solid rgba(255,255,255,.25); border-radius:0; background:rgba(255,255,255,.10); color:#fff; text-decoration:none; font-size:12px; line-height:1; font-weight:850; box-shadow:none; padding:8px 10px; }
+        .offer-switcho-info-link > span:first-child { display:grid; place-items:center; width:18px; height:18px; border:1px solid rgba(255,255,255,.72); border-radius:999px; font-size:11px; font-family:Georgia,serif; font-weight:900; }
+        .offer-switcho-info-link:hover { background:rgba(255,255,255,.18); color:#fff; }
+        .offer-switcho-info-link:focus-visible { outline:3px solid rgba(37,99,235,.32); outline-offset:-3px; }
         .offer-switcho-info-link[hidden] { display:none !important; }
+        .offer-action-column.is-switcho-panel .offer-switcho-bill-note {
+            display:block;
+            margin:0;
+            padding:9px 11px 10px;
+            border-top:1px solid rgba(255,255,255,.18);
+            color:rgba(255,255,255,.86);
+            font-size:10px;
+            line-height:1.3;
+            font-weight:700;
+            text-align:center;
+        }
         .partner-meta { text-align: left; }
         .partner-title { font-size: 16px; font-weight: bold; color: var(--text-color); }
         .partner-details { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
@@ -1567,11 +1613,19 @@
                 padding: 15px 16px !important;
                 white-space: normal !important;
             }
+            .offer-action-column.is-switcho-panel {
+                min-height:0;
+                width:100%;
+            }
+            .offer-action-column.is-switcho-panel [id^="link-partner-"] {
+                min-height:94px;
+                padding:14px 16px !important;
+            }
             .offer-switcho-info-link {
-                width: 38px;
-                min-width: 38px;
-                min-height: 38px;
-                font-size: 16px;
+                width:100%;
+                min-width:0;
+                min-height:38px;
+                font-size:12px;
             }
             .locked-offer [id^="link-partner-"] {
                 min-height: 74px;
@@ -7547,7 +7601,7 @@ function creaSchedaOfferta(offerta) {
     <div class="offer-action-column">
       <div class="offer-action-row">
         <a id="link-partner-${offerta.id}" href="#" style="background:var(--dark-btn); color:white; text-decoration:none; padding:10px 20px; border-radius:8px; font-size:13px; font-weight:bold; white-space:nowrap;">Vedi Offerta</a>
-        <a class="offer-switcho-info-link" href="/switcho.html#come-funziona" aria-label="Informazioni su Switcho e sulla collaborazione con OffertaLogica" title="Informazioni su Switcho" hidden><span aria-hidden="true">i</span></a>
+        <a class="offer-switcho-info-link" href="/switcho.html#come-funziona" aria-label="Come funziona la collaborazione tra OffertaLogica e Switcho" title="Come funziona la collaborazione con Switcho" hidden><span aria-hidden="true">i</span><span>Come funziona</span></a>
       </div>
     </div>
   `;
@@ -9139,6 +9193,8 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
           event.preventDefault();
           apriConsensoOfferta(offerta);
         };
+        const actionColumn = card.querySelector(".offer-action-column");
+        if (actionColumn) actionColumn.classList.toggle("is-switcho-panel", switchoPath);
         const switchoInfoLink = card.querySelector(".offer-switcho-info-link");
         if (switchoInfoLink) switchoInfoLink.hidden = !switchoPath;
         card.querySelector(".offer-switcho-bill-note")?.remove();
@@ -14353,7 +14409,7 @@ function aggiornaRisparmioLandingDaPrimaPosizione() {
 }
 
 // v83 — card Switcho: CTA diretta + informazione separata sulla partnership
-const SWITCHO_ROUTING_VERSION = "switcho-v5-2026-09-15-card-direct-info";
+const SWITCHO_ROUTING_VERSION = "switcho-v6-2026-09-15-card-panel-info";
 const SWITCHO_LANDING_URL = "/switcho.html";
 const SWITCHO_PARTNER_URL = "https://bit.ly/Switcho-LuceGas-OffertaLogica";
 const OFFER_CARD_SWITCHO_DIRECT_MEDIA = true;
