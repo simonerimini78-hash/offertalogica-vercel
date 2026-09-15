@@ -1,8 +1,12 @@
 const API_VERSION = "v26.0";
 const INSTAGRAM_GRAPH = "https://graph.instagram.com";
-const VERSION = "0.12.7";
+const VERSION = "0.12.8";
 const PLATFORM = "instagram";
 const MAX_ATTEMPTS = 3;
+const MAX_CAROUSEL_SLIDES = 10;
+const MAX_SLIDE_BYTES = 900_000;
+const MAX_SLIDES_TOTAL_BYTES = 6_000_000;
+const SOCIAL_BUCKET = "editorial-social-instagram";
 
 const ALLOWED_ORIGINS = new Set([
   "https://offertalogica.it",
@@ -84,14 +88,21 @@ function articleUrl(slug: string) {
   return `https://offertalogica.it/articoli/${encodeURIComponent(slug)}.html`;
 }
 
-function composeCaption(article: any) {
+function composeCaption(article: any, author: any = {}) {
   const title = String(article?.title || "").replace(/\s+/g, " ").trim();
   const excerpt = String(article?.excerpt || "").replace(/\s+/g, " ").trim();
   const slug = String(article?.slug || "").trim();
+  const authorName = String(author?.display_name || "Redazione OffertaLogica").replace(/\s+/g, " ").trim();
   const parts = [title];
   if (excerpt) parts.push(excerpt);
-  if (slug) parts.push(`Leggi l'approfondimento su OffertaLogica Informa: ${articleUrl(slug)}`);
-  parts.push("#OffertaLogica #OffertaLogicaInforma");
+  parts.push("Articolo completo nel carosello.");
+  if (slug) parts.push(`Articolo originale: ${articleUrl(slug)}`);
+  if (authorName) parts.push(`Autore: ${authorName}`);
+  const website = String(author?.website_url || "").trim();
+  const linkedin = String(author?.linkedin_url || "").trim();
+  if (validHttps(website)) parts.push(`Sito autore: ${website}`);
+  if (validHttps(linkedin)) parts.push(`LinkedIn: ${linkedin}`);
+  parts.push("#OffertaLogica");
   const caption = parts.filter(Boolean).join("\n\n");
   return caption.length <= 2200 ? caption : `${caption.slice(0, 2197).trimEnd()}…`;
 }
@@ -186,7 +197,7 @@ async function editorialContext(req: Request): Promise<EditorialContext> {
 async function loadPublishedArticle(ctx: EditorialContext, articleId: string) {
   const endpoint = new URL(`${ctx.supabaseUrl}/rest/v1/editorial_articles`);
   endpoint.searchParams.set("id", `eq.${articleId}`);
-  endpoint.searchParams.set("select", "id,status,slug,title,excerpt,featured_image_url");
+  endpoint.searchParams.set("select", "id,status,author_id,slug,title,excerpt,content,sources,featured_image_url,featured_image_alt");
   endpoint.searchParams.set("limit", "1");
 
   const response = await fetch(endpoint, {
@@ -208,11 +219,24 @@ async function loadPublishedArticle(ctx: EditorialContext, articleId: string) {
   if (article.status !== "published") {
     throw Object.assign(new Error("L'articolo deve essere pubblicato prima della diffusione social"), { status: 409 });
   }
-  const imageUrl = String(article.featured_image_url || "").trim();
-  if (!validHttps(imageUrl)) {
-    throw Object.assign(new Error("L'articolo deve avere un'immagine principale HTTPS"), { status: 422 });
-  }
   return article;
+}
+
+async function loadArticleAuthor(ctx: EditorialContext, article: any) {
+  const authorId = String(article?.author_id || "").trim();
+  if (!validUuid(authorId)) {
+    return { display_name: "Redazione OffertaLogica", website_url: "", linkedin_url: "" };
+  }
+  const rows = await serviceRows(
+    ctx,
+    `editorial_authors?id=eq.${encodeURIComponent(authorId)}&select=display_name,website_url,linkedin_url&limit=1`,
+  );
+  const author = rows[0] || {};
+  return {
+    display_name: String(author?.display_name || "Redazione OffertaLogica"),
+    website_url: validHttps(String(author?.website_url || "")) ? String(author.website_url) : "",
+    linkedin_url: validHttps(String(author?.linkedin_url || "")) ? String(author.linkedin_url) : "",
+  };
 }
 
 function serviceHeaders(ctx: EditorialContext, prefer = "") {
@@ -251,6 +275,133 @@ async function updateRows(ctx: EditorialContext, path: string, body: Record<stri
     throw Object.assign(new Error("Impossibile aggiornare la coda social"), { status: 502, db: payload });
   }
   return Array.isArray(payload) ? payload : [];
+}
+
+function storageHeaders(ctx: EditorialContext, contentType = "application/json") {
+  return {
+    apikey: ctx.serviceKey,
+    Authorization: `Bearer ${ctx.serviceKey}`,
+    Accept: "application/json",
+    "Content-Type": contentType,
+  };
+}
+
+async function ensureSocialBucket(ctx: EditorialContext) {
+  const base = `${ctx.supabaseUrl}/storage/v1`;
+  const check = await fetch(`${base}/bucket/${encodeURIComponent(SOCIAL_BUCKET)}`, {
+    method: "GET",
+    headers: storageHeaders(ctx),
+    cache: "no-store",
+  });
+  if (check.ok) {
+    const bucket = await check.json().catch(() => null);
+    if (bucket?.public !== true) {
+      throw Object.assign(new Error("Lo spazio temporaneo social esiste ma non è pubblico"), { status: 502 });
+    }
+    return;
+  }
+  if (check.status !== 404) {
+    throw Object.assign(new Error("Impossibile verificare lo spazio temporaneo social"), { status: 502 });
+  }
+  const created = await fetch(`${base}/bucket`, {
+    method: "POST",
+    headers: storageHeaders(ctx),
+    body: JSON.stringify({
+      id: SOCIAL_BUCKET,
+      name: SOCIAL_BUCKET,
+      public: true,
+      file_size_limit: MAX_SLIDE_BYTES,
+      allowed_mime_types: ["image/jpeg"],
+    }),
+    cache: "no-store",
+  });
+  if (!created.ok && created.status !== 409) {
+    const payload = await created.json().catch(() => null);
+    throw Object.assign(new Error("Impossibile creare lo spazio temporaneo social"), { status: 502, db: payload });
+  }
+}
+
+function decodeCarouselSlides(value: unknown) {
+  if (!Array.isArray(value) || value.length < 2 || value.length > MAX_CAROUSEL_SLIDES) {
+    throw Object.assign(new Error(`Il carosello deve contenere da 2 a ${MAX_CAROUSEL_SLIDES} slide.`), { status: 422 });
+  }
+  let totalBytes = 0;
+  return value.map((raw: any, index: number) => {
+    const dataUrl = String(raw?.data_url || "");
+    const match = dataUrl.match(/^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/i);
+    if (!match) {
+      throw Object.assign(new Error(`Slide ${index + 1}: formato JPEG non valido.`), { status: 422 });
+    }
+    let binary = "";
+    try {
+      binary = atob(match[1]);
+    } catch {
+      throw Object.assign(new Error(`Slide ${index + 1}: contenuto base64 non valido.`), { status: 422 });
+    }
+    if (!binary.length || binary.length > MAX_SLIDE_BYTES) {
+      throw Object.assign(new Error(`Slide ${index + 1}: dimensione non valida.`), { status: 422 });
+    }
+    totalBytes += binary.length;
+    if (totalBytes > MAX_SLIDES_TOTAL_BYTES) {
+      throw Object.assign(new Error("Il carosello è troppo pesante per la pubblicazione automatica."), { status: 413 });
+    }
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+    return {
+      bytes,
+      altText: String(raw?.alt_text || "Slide articolo OffertaLogica Informa").replace(/\s+/g, " ").trim().slice(0, 950),
+    };
+  });
+}
+
+async function uploadCarouselSlides(ctx: EditorialContext, publicationId: string, attempt: number, slides: Array<{ bytes: Uint8Array; altText: string }>) {
+  await ensureSocialBucket(ctx);
+  const root = `instagram/${publicationId}/attempt-${attempt}`;
+  const uploaded: Array<{ path: string; url: string; altText: string }> = [];
+  try {
+    for (let index = 0; index < slides.length; index += 1) {
+      const path = `${root}/slide-${String(index + 1).padStart(2, "0")}.jpg`;
+      const response = await fetch(`${ctx.supabaseUrl}/storage/v1/object/${SOCIAL_BUCKET}/${path}`, {
+        method: "POST",
+        headers: {
+          ...storageHeaders(ctx, "image/jpeg"),
+          "cache-control": "max-age=3600",
+        },
+        body: slides[index].bytes,
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw Object.assign(new Error(`Impossibile caricare la slide ${index + 1}`), { status: 502, db: payload });
+      }
+      uploaded.push({
+        path,
+        url: `${ctx.supabaseUrl}/storage/v1/object/public/${SOCIAL_BUCKET}/${path}`,
+        altText: slides[index].altText,
+      });
+    }
+    return uploaded;
+  } catch (error) {
+    await removeCarouselSlides(ctx, uploaded.map((item) => item.path)).catch(() => null);
+    throw error;
+  }
+}
+
+async function removeCarouselSlides(ctx: EditorialContext, paths: string[]) {
+  if (!paths.length) return;
+  await fetch(`${ctx.supabaseUrl}/storage/v1/object/${SOCIAL_BUCKET}`, {
+    method: "DELETE",
+    headers: storageHeaders(ctx),
+    body: JSON.stringify({ prefixes: paths }),
+  }).catch(() => null);
+}
+
+async function publicImageReady(url: string) {
+  try {
+    const response = await fetch(url, { method: "HEAD", cache: "no-store" });
+    return response.ok && String(response.headers.get("content-type") || "").toLowerCase().includes("image/jpeg");
+  } catch {
+    return false;
+  }
 }
 
 async function loadChannel(ctx: EditorialContext) {
@@ -320,10 +471,38 @@ async function publicArticleOnline(article: any) {
   }
 }
 
-async function createContainer(instagramToken: string, accountId: string, imageUrl: string, caption: string) {
+async function createCarouselItem(instagramToken: string, accountId: string, imageUrl: string, altText: string) {
   const endpoint = `${INSTAGRAM_GRAPH}/${API_VERSION}/${encodeURIComponent(accountId)}/media`;
   const form = new URLSearchParams();
   form.set("image_url", imageUrl);
+  form.set("is_carousel_item", "true");
+  if (altText) form.set("alt_text", altText);
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${instagramToken}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+      Accept: "application/json",
+    },
+    body: form,
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok || !payload?.id) {
+    throw Object.assign(new Error("Impossibile creare una slide del carosello Instagram"), {
+      status: 502,
+      meta: metaError(payload),
+      phase: "prepare",
+    });
+  }
+  return String(payload.id);
+}
+
+async function createCarouselContainer(instagramToken: string, accountId: string, childIds: string[], caption: string) {
+  const endpoint = `${INSTAGRAM_GRAPH}/${API_VERSION}/${encodeURIComponent(accountId)}/media`;
+  const form = new URLSearchParams();
+  form.set("media_type", "CAROUSEL");
+  form.set("children", childIds.join(","));
   form.set("caption", caption);
 
   const response = await fetch(endpoint, {
@@ -337,7 +516,7 @@ async function createContainer(instagramToken: string, accountId: string, imageU
   });
   const payload = await response.json().catch(() => null);
   if (!response.ok || !payload?.id) {
-    throw Object.assign(new Error("Impossibile creare il contenitore Instagram"), {
+    throw Object.assign(new Error("Impossibile creare il carosello Instagram"), {
       status: 502,
       meta: metaError(payload),
       phase: "prepare",
@@ -364,6 +543,19 @@ async function containerStatus(instagramToken: string, creationId: string) {
     status_code: String(payload?.status_code || ""),
     status: String(payload?.status || ""),
   };
+}
+
+async function waitContainerReady(instagramToken: string, creationId: string, label = "contenitore") {
+  let container: any = null;
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    if (attempt > 0) await sleep(1400);
+    container = await containerStatus(instagramToken, creationId);
+    if (container?.status_code === "FINISHED") return container;
+    if (["ERROR", "EXPIRED"].includes(container?.status_code)) {
+      throw Object.assign(new Error(container?.status || `Instagram non ha elaborato il ${label}`), { phase: "prepare" });
+    }
+  }
+  throw Object.assign(new Error(`Instagram sta ancora elaborando il ${label}`), { phase: "prepare" });
 }
 
 async function publishContainer(instagramToken: string, accountId: string, creationId: string) {
@@ -424,22 +616,9 @@ async function markFailed(ctx: EditorialContext, publicationId: string, message:
   });
 }
 
-async function processArticleQueue(
-  req: Request,
-  ctx: EditorialContext,
-  instagramToken: string,
-  account: { id: string; username: string },
-  articleId: string,
-) {
-  const channel = await loadChannel(ctx);
-  if (!channel?.enabled) {
-    return json(req, { ok: true, version: VERSION, result: "channel_disabled", published: false });
-  }
-
-  const publication = await loadPublication(ctx, articleId);
-  if (!publication) {
-    return json(req, { ok: true, version: VERSION, result: "not_queued", published: false });
-  }
+function queueResult(req: Request, publication: any, channel: any) {
+  if (!channel?.enabled) return json(req, { ok: true, version: VERSION, result: "channel_disabled", published: false });
+  if (!publication) return json(req, { ok: true, version: VERSION, result: "not_queued", published: false });
   if (publication.status === "published") {
     return json(req, {
       ok: true,
@@ -450,16 +629,13 @@ async function processArticleQueue(
       external_post_url: publication.external_post_url || null,
     });
   }
-  if (publication.status === "skipped") {
-    return json(req, { ok: true, version: VERSION, result: "skipped", published: false });
-  }
+  if (publication.status === "skipped") return json(req, { ok: true, version: VERSION, result: "skipped", published: false });
 
   const queuedAt = Date.parse(String(publication.queued_at || ""));
   const enabledAt = Date.parse(String(channel.updated_at || ""));
   if (Number.isFinite(queuedAt) && Number.isFinite(enabledAt) && queuedAt < enabledAt) {
     return json(req, { ok: true, version: VERSION, result: "legacy_queue", published: false });
   }
-
   if (publication.status === "publishing") {
     const ambiguous = Boolean(String(publication.last_error || "").startsWith("ESITO INCERTO:"));
     return json(req, {
@@ -469,15 +645,20 @@ async function processArticleQueue(
       published: false,
     });
   }
-
-  const attempts = Number(publication.attempts || 0);
-  if (attempts >= MAX_ATTEMPTS) {
+  if (Number(publication.attempts || 0) >= MAX_ATTEMPTS) {
     return json(req, { ok: true, version: VERSION, result: "retry_exhausted", published: false });
   }
+  return null;
+}
+
+async function prepareArticleQueue(req: Request, ctx: EditorialContext, articleId: string) {
+  const channel = await loadChannel(ctx);
+  const publication = await loadPublication(ctx, articleId);
+  const terminal = queueResult(req, publication, channel);
+  if (terminal) return terminal;
 
   const article = await loadPublishedArticle(ctx, articleId);
-  const online = await publicArticleOnline(article);
-  if (!online) {
+  if (!(await publicArticleOnline(article))) {
     if (["waiting_connection", "ready", "failed"].includes(String(publication.status || ""))) {
       await updatePublication(ctx, String(publication.id), {
         status: "waiting_web",
@@ -488,40 +669,103 @@ async function processArticleQueue(
     return json(req, { ok: true, version: VERSION, result: "waiting_web", published: false });
   }
 
-  const claimed = await claimPublication(ctx, publication);
-  if (!claimed) {
-    return json(req, { ok: true, version: VERSION, result: "in_progress", published: false });
+  const author = await loadArticleAuthor(ctx, article);
+  return json(req, {
+    ok: true,
+    version: VERSION,
+    result: "needs_carousel",
+    published: false,
+    max_slides: MAX_CAROUSEL_SLIDES,
+    article_url: articleUrl(String(article.slug || "")),
+    article: {
+      id: String(article.id),
+      slug: String(article.slug || ""),
+      title: String(article.title || ""),
+      excerpt: String(article.excerpt || ""),
+      content: String(article.content || ""),
+      sources: String(article.sources || ""),
+      featured_image_url: String(article.featured_image_url || ""),
+      featured_image_alt: String(article.featured_image_alt || article.title || ""),
+    },
+    author,
+  });
+}
+
+async function processArticleQueue(
+  req: Request,
+  ctx: EditorialContext,
+  instagramToken: string,
+  account: { id: string; username: string },
+  articleId: string,
+  rawSlides: unknown,
+) {
+  const channel = await loadChannel(ctx);
+  const publication = await loadPublication(ctx, articleId);
+  const terminal = queueResult(req, publication, channel);
+  if (terminal) return terminal;
+  if (!Array.isArray(rawSlides)) {
+    return json(req, { ok: true, version: VERSION, result: "carousel_required", published: false });
   }
 
+  const slides = decodeCarouselSlides(rawSlides);
+  const article = await loadPublishedArticle(ctx, articleId);
+  if (!(await publicArticleOnline(article))) {
+    if (["waiting_connection", "ready", "failed"].includes(String(publication.status || ""))) {
+      await updatePublication(ctx, String(publication.id), {
+        status: "waiting_web",
+        last_error: null,
+        updated_at: new Date().toISOString(),
+      });
+    }
+    return json(req, { ok: true, version: VERSION, result: "waiting_web", published: false });
+  }
+  const author = await loadArticleAuthor(ctx, article);
+
+  const claimed = await claimPublication(ctx, publication);
+  if (!claimed) return json(req, { ok: true, version: VERSION, result: "in_progress", published: false });
+
   const publicationId = String(claimed.id);
+  const attempt = Number(claimed.attempts || Number(publication.attempts || 0) + 1);
+  let uploaded: Array<{ path: string; url: string; altText: string }> = [];
   let creationId = "";
+
   try {
-    creationId = await createContainer(
+    uploaded = await uploadCarouselSlides(ctx, publicationId, attempt, slides);
+    for (let index = 0; index < uploaded.length; index += 1) {
+      if (!(await publicImageReady(uploaded[index].url))) {
+        throw Object.assign(new Error(`La slide ${index + 1} non è ancora disponibile per Meta`), { phase: "prepare" });
+      }
+    }
+
+    const children: string[] = [];
+    for (let index = 0; index < uploaded.length; index += 1) {
+      const childId = await createCarouselItem(
+        instagramToken,
+        account.id,
+        uploaded[index].url,
+        uploaded[index].altText,
+      );
+      await waitContainerReady(instagramToken, childId, `contenitore della slide ${index + 1}`);
+      children.push(childId);
+    }
+
+    creationId = await createCarouselContainer(
       instagramToken,
       account.id,
-      String(article.featured_image_url),
-      composeCaption(article),
+      children,
+      composeCaption(article, author),
     );
 
     await updatePublication(ctx, publicationId, {
-      external_post_id: `container:${creationId}`,
+      external_post_id: `carousel:${creationId}`,
       updated_at: new Date().toISOString(),
     });
 
-    let container: any = null;
-    for (let attempt = 0; attempt < 10; attempt += 1) {
-      if (attempt > 0) await sleep(1600);
-      container = await containerStatus(instagramToken, creationId);
-      if (container?.status_code === "FINISHED") break;
-      if (["ERROR", "EXPIRED"].includes(container?.status_code)) {
-        throw Object.assign(new Error(container?.status || "Instagram non ha elaborato il contenitore"), {
-          phase: "prepare",
-        });
-      }
-    }
-    if (container?.status_code !== "FINISHED") {
-      throw Object.assign(new Error("Instagram sta ancora elaborando l'immagine"), { phase: "prepare" });
-    }
+    await waitContainerReady(instagramToken, creationId, "carosello");
+
+    // Le immagini sono state ormai acquisite da Meta: liberiamo lo storage temporaneo.
+    await removeCarouselSlides(ctx, uploaded.map((item) => item.path)).catch(() => null);
+    uploaded = [];
 
     // Ultimo controllo immediatamente prima di media_publish.
     const finalArticle = await loadPublishedArticle(ctx, articleId);
@@ -540,23 +784,17 @@ async function processArticleQueue(
     } catch (error) {
       const err = error as any;
       if (err?.phase === "publish_ambiguous") {
-        const message = `ESITO INCERTO: media_publish è stato inviato ma la risposta non è verificabile. Non ritentare automaticamente. Contenitore ${creationId}.`;
+        const message = `ESITO INCERTO: media_publish del carosello è stato inviato ma la risposta non è verificabile. Non ritentare automaticamente. Contenitore ${creationId}.`;
         await updatePublication(ctx, publicationId, {
           status: "publishing",
           last_error: message,
           updated_at: new Date().toISOString(),
         }).catch(() => null);
-        return json(req, {
-          ok: true,
-          version: VERSION,
-          result: "ambiguous_publish",
-          published: false,
-        });
+        return json(req, { ok: true, version: VERSION, result: "ambiguous_publish", published: false });
       }
       throw error;
     }
 
-    // Registriamo subito l'ID pubblico. Da questo punto non deve più esistere alcun retry.
     try {
       await updatePublication(ctx, publicationId, {
         status: "published",
@@ -566,20 +804,13 @@ async function processArticleQueue(
         updated_at: new Date().toISOString(),
       });
     } catch {
-      // Meta ha già restituito un media ID: teniamo il job bloccato su publishing se il DB non risponde,
-      // così nessun retry automatico può creare un doppione.
       await updatePublication(ctx, publicationId, {
         status: "publishing",
         external_post_id: mediaId,
         last_error: `ESITO INCERTO: Instagram ha restituito il media ID ${mediaId}, ma il database non ha confermato lo stato published. Non ritentare automaticamente.`,
         updated_at: new Date().toISOString(),
       }).catch(() => null);
-      return json(req, {
-        ok: true,
-        version: VERSION,
-        result: "ambiguous_publish",
-        published: false,
-      });
+      return json(req, { ok: true, version: VERSION, result: "ambiguous_publish", published: false });
     }
 
     const media = await publishedMedia(instagramToken, mediaId);
@@ -595,15 +826,19 @@ async function processArticleQueue(
       version: VERSION,
       result: "published",
       published: true,
+      format: "carousel_full_article",
+      slides: slides.length,
       instagram: account,
       article: {
         id: String(article.id),
         slug: String(article.slug || ""),
         title: String(article.title || ""),
+        url: articleUrl(String(article.slug || "")),
       },
       media: media || { id: mediaId, permalink: "", media_type: "", timestamp: "" },
     });
   } catch (error) {
+    if (uploaded.length) await removeCarouselSlides(ctx, uploaded.map((item) => item.path)).catch(() => null);
     const err = error as any;
     const message = err?.message || "Errore Instagram";
     await markFailed(ctx, publicationId, message).catch(() => null);
@@ -648,10 +883,16 @@ Deno.serve(async (req) => {
       });
     }
 
+    if (action === "prepare_article_queue") {
+      const articleId = String(body?.article_id || "").trim();
+      if (!validUuid(articleId)) return json(req, { ok: false, error: "article_id non valido" }, 400);
+      return await prepareArticleQueue(req, ctx, articleId);
+    }
+
     if (action === "process_article_queue") {
       const articleId = String(body?.article_id || "").trim();
       if (!validUuid(articleId)) return json(req, { ok: false, error: "article_id non valido" }, 400);
-      return await processArticleQueue(req, ctx, instagramToken, account, articleId);
+      return await processArticleQueue(req, ctx, instagramToken, account, articleId, body?.slides);
     }
 
     // Il test manuale viene disattivato quando entra in funzione la coda automatica:
@@ -659,7 +900,7 @@ Deno.serve(async (req) => {
     if (["prepare_article_test", "publish_container_test"].includes(action)) {
       return json(req, {
         ok: false,
-        error: "Test manuale Instagram disattivato in v0.12.7: usa la coda automatica.",
+        error: "Test manuale Instagram disattivato in v0.12.8: usa la coda automatica.",
       }, 410);
     }
 
