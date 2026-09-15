@@ -2723,7 +2723,11 @@
         body: JSON.stringify({ billId: id })
       });
       const body = await response.json().catch(() => ({}));
-      if (!response.ok || !body?.ok) throw new Error(body?.error || body?.code || "Analisi automatica non riuscita");
+      if (!response.ok || !body?.ok) {
+        const failure = new Error(body?.error || body?.code || "Analisi automatica non riuscita");
+        failure.code = body?.code || "";
+        throw failure;
+      }
       analysisAttemptFailures.delete(id);
       await loadData(currentUser, currentSubscription);
       refreshedFromServer = true;
@@ -2741,7 +2745,10 @@
         await loadData(currentUser, currentSubscription);
         refreshedFromServer = true;
       } catch {}
-      setMessage("error", `${friendlyError(error)} Riprova oppure carica un PDF più leggibile.`);
+      const retryHint = error?.code === "PREMIUM_RATE_LIMIT_UNAVAILABLE"
+        ? " Riprova tra poco."
+        : " Riprova oppure carica un PDF più leggibile.";
+      setMessage("error", `${friendlyError(error)}${retryHint}`);
     } finally {
       analysisInFlightIds.delete(id);
       syncUpdateBusyState();

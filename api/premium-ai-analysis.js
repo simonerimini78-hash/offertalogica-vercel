@@ -5,8 +5,7 @@ import path from "node:path";
 import { json, method, readJson, requireAllowedOrigin } from "../lib/http.js";
 import { normalizePdfFileHeader } from "../lib/pdfFileValidation.js";
 import { extractPdfPureAi } from "../lib/pdfPureAiReader.js";
-import { enforceRateLimit } from "../lib/rateLimit.js";
-import { checkStore, persistentStoreConfigured } from "../lib/store.js";
+import { checkStore, persistentStoreConfigured, takeRateLimit } from "../lib/store.js";
 import {
   applyPremiumOfferCustomerDecision,
   checkPremiumOfferHistory,
@@ -85,7 +84,125 @@ function premiumAiKillSwitchEnabled(env = process.env) {
   return String(env?.PREMIUM_AI_KILL_SWITCH || "").trim().toLowerCase() === "true";
 }
 
-async function enforcePremiumAiGlobalGuards(req, res, env = process.env) {
+const PREMIUM_RATE_LIMIT_FALLBACK_VERSION = "premium-rate-limit-supabase-v0.36.72";
+
+function premiumRateLimitBucket(label, identifier, windowSeconds, nowMs = Date.now()) {
+  const safeWindowSeconds = Math.max(1, Math.floor(Number(windowSeconds) || 3600));
+  const bucket = Math.floor(Number(nowMs) / (safeWindowSeconds * 1000));
+  const identifierHash = crypto
+    .createHash("sha256")
+    .update(String(identifier || "unknown"))
+    .digest("hex")
+    .slice(0, 32);
+  return {
+    key: `rate:${String(label || "premium-ai")}:${identifierHash}:${bucket}`,
+    resetAt: (bucket + 1) * safeWindowSeconds * 1000,
+    windowSeconds: safeWindowSeconds,
+  };
+}
+
+function premiumServiceHeaders(backend, extra = {}) {
+  const headers = { apikey: backend.serviceKey, ...extra };
+  if (String(backend.serviceKey || "").split(".").length === 3) {
+    headers.Authorization = `Bearer ${backend.serviceKey}`;
+  }
+  return headers;
+}
+
+async function takePremiumSupabaseRateLimit({ backend, fetchImpl = fetch, key, limit, ttlSeconds }) {
+  if (!backend?.supabaseUrl || !backend?.serviceKey) throw new Error("premium_supabase_not_configured");
+  const response = await fetchImpl(`${backend.supabaseUrl}/rest/v1/rpc/premium_take_ai_rate_limit`, {
+    method: "POST",
+    headers: premiumServiceHeaders(backend, { "Content-Type": "application/json" }),
+    body: JSON.stringify({
+      p_key: String(key || "").slice(0, 300),
+      p_limit: Math.max(1, Math.floor(Number(limit) || 1)),
+      p_ttl_seconds: Math.max(1, Math.floor(Number(ttlSeconds) || 1)),
+      p_version: PREMIUM_RATE_LIMIT_FALLBACK_VERSION,
+    }),
+  });
+  const text = await response.text().catch(() => "");
+  let payload = null;
+  if (text) {
+    try { payload = JSON.parse(text); }
+    catch { payload = text; }
+  }
+  if (!response.ok) {
+    const details = typeof payload === "string" ? payload : JSON.stringify(payload || {});
+    throw new Error(`premium_rate_limit_rpc_${response.status}:${details.slice(0, 240)}`);
+  }
+  const row = Array.isArray(payload) ? payload[0] : payload;
+  if (!row || typeof row.allowed !== "boolean") throw new Error("premium_rate_limit_rpc_invalid");
+  return {
+    allowed: row.allowed,
+    count: Math.max(0, Number(row.count) || 0),
+    persistent: true,
+    backend: "supabase",
+  };
+}
+
+async function enforcePremiumRateLimit(req, res, { env = process.env, backend, fetchImpl = fetch, label, identifier, limit, windowSeconds }) {
+  const safeLimit = Math.max(1, Math.floor(Number(limit) || 1));
+  const { key, resetAt, windowSeconds: safeWindowSeconds } = premiumRateLimitBucket(
+    label,
+    identifier,
+    windowSeconds,
+  );
+  let result = null;
+  const requiresPersistentStore = env?.VERCEL === "1" || env?.NODE_ENV === "production";
+
+  if (persistentStoreConfigured() || !requiresPersistentStore) {
+    try {
+      result = await takeRateLimit(key, safeLimit, safeWindowSeconds + 60);
+    } catch (error) {
+      console.error("premium_rate_limit_primary_failed", {
+        label,
+        message: String(error?.message || "premium_rate_limit_primary_error").slice(0, 180),
+      });
+    }
+  }
+
+  if (!result) {
+    try {
+      result = await takePremiumSupabaseRateLimit({
+        backend,
+        fetchImpl,
+        key,
+        limit: safeLimit,
+        ttlSeconds: safeWindowSeconds + 60,
+      });
+    } catch (error) {
+      console.error("premium_rate_limit_fallback_failed", {
+        label,
+        message: String(error?.message || "premium_rate_limit_fallback_error").slice(0, 180),
+      });
+      res.setHeader("Retry-After", "30");
+      json(res, 503, {
+        ok: false,
+        code: "PREMIUM_RATE_LIMIT_UNAVAILABLE",
+        error: "Servizio Premium temporaneamente non disponibile. Il PDF non è stato scartato: riprova tra poco.",
+      });
+      return false;
+    }
+  }
+
+  if (!result.allowed) {
+    const retryAfter = Math.max(1, Math.ceil((resetAt - Date.now()) / 1000));
+    res.setHeader("Retry-After", String(retryAfter));
+    res.setHeader("X-RateLimit-Limit", String(safeLimit));
+    res.setHeader("X-RateLimit-Remaining", "0");
+    res.setHeader("X-RateLimit-Reset", String(Math.ceil(resetAt / 1000)));
+    json(res, 429, { ok: false, error: "Troppe richieste. Riprova piu tardi." });
+    return false;
+  }
+
+  res.setHeader("X-RateLimit-Limit", String(safeLimit));
+  res.setHeader("X-RateLimit-Remaining", String(Math.max(0, safeLimit - result.count)));
+  res.setHeader("X-RateLimit-Reset", String(Math.ceil(resetAt / 1000)));
+  return true;
+}
+
+async function enforcePremiumAiGlobalGuards(req, res, { env = process.env, backend, fetchImpl = fetch } = {}) {
   if (premiumAiKillSwitchEnabled(env)) {
     res.setHeader("Retry-After", "300");
     json(res, 503, { ok: false, code: "PREMIUM_AI_TEMPORARILY_DISABLED", error: "Analisi Premium temporaneamente non disponibile." });
@@ -93,7 +210,10 @@ async function enforcePremiumAiGlobalGuards(req, res, env = process.env) {
   }
 
   const hourlyLimit = envPositiveInteger(env, "PREMIUM_AI_GLOBAL_HOURLY_LIMIT", 120, { max: 20_000 });
-  if (!(await enforceRateLimit(req, res, {
+  if (!(await enforcePremiumRateLimit(req, res, {
+    env,
+    backend,
+    fetchImpl,
     label: "premium-ai-global-hour",
     identifier: "premium-ai-global",
     limit: hourlyLimit,
@@ -101,7 +221,10 @@ async function enforcePremiumAiGlobalGuards(req, res, env = process.env) {
   }))) return false;
 
   const dailyLimit = envPositiveInteger(env, "PREMIUM_AI_GLOBAL_DAILY_LIMIT", 600, { max: 100_000 });
-  if (!(await enforceRateLimit(req, res, {
+  if (!(await enforcePremiumRateLimit(req, res, {
+    env,
+    backend,
+    fetchImpl,
     label: "premium-ai-global-day",
     identifier: "premium-ai-global",
     limit: dailyLimit,
@@ -566,7 +689,10 @@ export function createPremiumAiAnalysisHandler({
       if (body?.action === "update_declared_offer") {
         if (!backend.supabaseUrl || !backend.serviceKey) throw new Error("premium_supabase_not_configured");
         const { user } = await verifyPremiumCustomer({ config: backend, accessToken, fetchImpl });
-        if (!(await enforceRateLimit(req, res, {
+        if (!(await enforcePremiumRateLimit(req, res, {
+          env,
+          backend,
+          fetchImpl,
           label: "premium-offer-confirmation",
           identifier: user.id,
           limit: Number(env.RATE_LIMIT_PREMIUM_OFFER_CONFIRM_LIMIT || 30),
@@ -602,7 +728,10 @@ export function createPremiumAiAnalysisHandler({
       if (offerDecision) {
         if (!backend.supabaseUrl || !backend.serviceKey) throw new Error("premium_supabase_not_configured");
         const { user } = await verifyPremiumCustomer({ config: backend, accessToken, fetchImpl });
-        if (!(await enforceRateLimit(req, res, {
+        if (!(await enforcePremiumRateLimit(req, res, {
+          env,
+          backend,
+          fetchImpl,
           label: "premium-offer-confirmation",
           identifier: user.id,
           limit: Number(env.RATE_LIMIT_PREMIUM_OFFER_CONFIRM_LIMIT || 30),
@@ -677,7 +806,10 @@ export function createPremiumAiAnalysisHandler({
         assertPremiumAiConfigured(backend);
         try {
           const { user } = await verifyPremiumCustomer({ config: backend, accessToken, fetchImpl });
-          if (!(await enforceRateLimit(req, res, {
+          if (!(await enforcePremiumRateLimit(req, res, {
+            env,
+            backend,
+            fetchImpl,
             label: "premium-ai-red-verification",
             identifier: user.id,
             limit: Number(env.RATE_LIMIT_PREMIUM_AI_RED_LIMIT || 12),
@@ -999,7 +1131,10 @@ export function createPremiumAiAnalysisHandler({
         const { user, subscription } = await verifyPremiumCustomer({ config: backend, accessToken, fetchImpl });
         customerSubscription = subscription;
         actorUserId = user.id;
-        if (!(await enforceRateLimit(req, res, {
+        if (!(await enforcePremiumRateLimit(req, res, {
+          env,
+          backend,
+          fetchImpl,
           label: "premium-ai-customer-analysis",
           identifier: user.id,
           limit: Number(env.RATE_LIMIT_PREMIUM_AI_CUSTOMER_LIMIT || 24),
@@ -1010,7 +1145,10 @@ export function createPremiumAiAnalysisHandler({
       } else {
         const { user } = await verifyPremiumStaff({ config: backend, accessToken, fetchImpl });
         actorUserId = user.id;
-        if (!(await enforceRateLimit(req, res, {
+        if (!(await enforcePremiumRateLimit(req, res, {
+          env,
+          backend,
+          fetchImpl,
           label: "premium-ai-analysis",
           identifier: user.id,
           limit: Number(env.RATE_LIMIT_PREMIUM_AI_LIMIT || 12),
@@ -1022,7 +1160,7 @@ export function createPremiumAiAnalysisHandler({
 
       // Global guards are consumed only after authentication, ownership/role checks
       // and per-user limits have succeeded, immediately before billable AI work.
-      if (!(await enforcePremiumAiGlobalGuards(req, res, env))) return;
+      if (!(await enforcePremiumAiGlobalGuards(req, res, { env, backend, fetchImpl }))) return;
 
       pricingSnapshot = await requireVerifiedPremiumPricing(backend, fetchImpl, now());
       run = await createPremiumAnalysisRun({
