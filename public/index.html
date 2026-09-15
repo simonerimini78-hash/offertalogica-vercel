@@ -3269,7 +3269,7 @@
             .social-entry-free-arrow { animation: none !important; transform: none !important; }
         }
 
-        /* OFFERTALOGICA_PUBLIC_V95_20260915: landing CRO; gerarchia, proporzioni e messaggi della landing esistente. */
+        /* OFFERTALOGICA_PUBLIC_V96_20260915: landing CRO; gerarchia, proporzioni e messaggi della landing esistente. */
         .social-entry-hero-message {
             width: min(100%, 690px);
             display: grid;
@@ -3307,7 +3307,7 @@
         .social-entry-actions { align-items: stretch; }
         .social-entry-route {
             min-height: 210px;
-            grid-template-rows: 46px 72px 42px;
+            grid-template-rows: 46px minmax(72px, 1fr) 42px;
             align-content: stretch;
             gap: 8px;
             padding: 18px;
@@ -3316,6 +3316,7 @@
             background: linear-gradient(145deg, rgba(5,93,56,.97) 0%, rgba(8,127,58,.95) 40%, rgba(24,168,75,.92) 74%, rgba(115,201,40,.79) 112%);
         }
         .social-entry-route-switcho {
+            grid-template-rows: 28px 58px minmax(56px, 1fr) 42px;
             background: linear-gradient(145deg, #087c7f 0%, #07989a 48%, #16b8ad 108%);
         }
         .social-entry-route-title,
@@ -3353,16 +3354,18 @@
             text-align: center;
         }
         .social-entry-switcho-logo {
-            position: absolute;
-            top: 49px;
-            left: 50%;
-            width: min(66%, 230px);
-            height: 64px;
+            position: static;
+            width: min(62%, 210px);
+            height: 58px;
             object-fit: contain;
-            transform: translateX(-50%);
+            object-position: center;
+            transform: translateX(-3%);
             display: block;
+            align-self: center;
+            justify-self: center;
+            margin: 0 auto;
         }
-        .social-entry-route-switcho .social-entry-route-copy { padding-top: 8px; }
+        .social-entry-route-switcho .social-entry-route-copy { padding-top: 0; }
         .social-entry-route-cta {
             min-height: 42px;
             display: flex !important;
@@ -3418,10 +3421,13 @@
             .social-entry-actions { gap: 8px; }
             .social-entry-route {
                 min-height: 170px;
-                grid-template-rows: 38px 66px 38px;
+                grid-template-rows: 38px minmax(66px, 1fr) 38px;
                 gap: 6px;
                 padding: 10px 8px;
                 border-radius: 18px;
+            }
+            .social-entry-route-switcho {
+                grid-template-rows: 24px 44px minmax(52px, 1fr) 38px;
             }
             .social-entry-route-title {
                 min-height: 38px;
@@ -3439,11 +3445,10 @@
                 line-height: 1.22;
             }
             .social-entry-switcho-logo {
-                top: 40px;
-                width: min(70%, 150px);
-                height: 48px;
+                width: min(72%, 148px);
+                height: 44px;
             }
-            .social-entry-route-switcho .social-entry-route-copy { padding-top: 11px; }
+            .social-entry-route-switcho .social-entry-route-copy { padding-top: 0; }
             .social-entry-route-cta {
                 min-height: 38px;
                 padding: 8px 5px;
