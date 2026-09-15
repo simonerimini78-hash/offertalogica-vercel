@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.14";
+  const VERSION = "0.12.15";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const PLATFORMS = [
     { key: "facebook", label: "Facebook" },
@@ -104,7 +104,7 @@
         <strong>Stato diffusione</strong>
         <div class="ol-social-status-list" data-social-status-list></div>
       </div>
-      <p class="ol-muted ol-small">Instagram usa un solo carosello per articolo: testo integrale quando è leggibile entro il limite, sintesi dei punti chiave quando l’articolo è più lungo. La copertina usa un template editoriale mobile-first stabile per tutti gli articoli: brand e titolo restano sempre in primo piano, mentre l’immagine dell’articolo è un elemento secondario e non invade mai il testo. Il link esatto all’articolo, l’autore e i relativi riferimenti restano nella didascalia. Threads e LinkedIn restano disattivati finché non vengono collegati.</p>`;
+      <p class="ol-muted ol-small">Instagram usa un solo carosello per articolo: testo integrale quando è leggibile entro il limite, sintesi dei punti chiave quando l’articolo è più lungo. La copertina usa un template editoriale mobile-first stabile per tutti gli articoli: brand in alto, immagine originale dell’articolo ampia subito sotto, quindi formato, titolo e breve testo. Nessun falso pulsante o CTA non cliccabile. Il link esatto all’articolo, l’autore e i relativi riferimenti restano nella didascalia. Threads e LinkedIn restano disattivati finché non vengono collegati.</p>`;
 
     const platformBox = fieldset.querySelector("[data-social-platforms]");
     PLATFORMS.forEach((platform) => {
@@ -698,24 +698,24 @@
   }
 
   function drawArticleVisual(ctx, featuredImage) {
-    const x = 500;
-    const y = 222;
-    const width = 506;
-    const height = 356;
-    fillElevatedPanel(ctx, x, y, width, height, 32, "rgba(255,255,255,.98)", "rgba(15,23,42,.18)");
-    strokeRoundedRect(ctx, x, y, width, height, 32, "rgba(15,81,50,.08)", 2);
+    const x = 72;
+    const y = 264;
+    const width = SOCIAL_SLIDE_WIDTH - 144;
+    const height = 408;
+    fillElevatedPanel(ctx, x, y, width, height, 34, "rgba(255,255,255,.98)", "rgba(15,23,42,.14)");
+    strokeRoundedRect(ctx, x, y, width, height, 34, "rgba(15,81,50,.08)", 2);
 
-    const innerX = x + 18;
-    const innerY = y + 18;
-    const innerWidth = width - 36;
-    const innerHeight = height - 36;
+    const innerX = x + 16;
+    const innerY = y + 16;
+    const innerWidth = width - 32;
+    const innerHeight = height - 32;
 
     if (!featuredImage || featuredImage.width <= 0 || featuredImage.height <= 0) {
       const fallback = ctx.createLinearGradient(innerX, innerY, innerX + innerWidth, innerY + innerHeight);
       fallback.addColorStop(0, "#edf8f0");
       fallback.addColorStop(1, "#f8fbf9");
-      fillRoundedRect(ctx, innerX, innerY, innerWidth, innerHeight, 22, fallback);
-      ctx.font = canvasFont(24, 760);
+      fillRoundedRect(ctx, innerX, innerY, innerWidth, innerHeight, 24, fallback);
+      ctx.font = canvasFont(28, 760);
       ctx.fillStyle = "#0f5132";
       ctx.textAlign = "center";
       ctx.fillText("OffertaLogica Informa", x + width / 2, y + height / 2);
@@ -724,13 +724,18 @@
     }
 
     const aspect = featuredImage.width / featuredImage.height;
-    const mode = aspect >= 1.15 ? "cover" : "contain";
+    // Foto e visual larghi riempiono l'area; documenti/screenshot verticali restano interi
+    // e vengono valorizzati su un fondale neutro, senza sfocature o testo sovrapposto.
+    const mode = aspect >= 1.30 ? "cover" : "contain";
     const placement = imagePlacement(featuredImage, innerWidth, innerHeight, mode);
 
     ctx.save();
-    roundedRectPath(ctx, innerX, innerY, innerWidth, innerHeight, 22);
+    roundedRectPath(ctx, innerX, innerY, innerWidth, innerHeight, 24);
     ctx.clip();
-    ctx.fillStyle = "#f8faf9";
+    const visualBg = ctx.createLinearGradient(innerX, innerY, innerX + innerWidth, innerY + innerHeight);
+    visualBg.addColorStop(0, "#f8fbf9");
+    visualBg.addColorStop(1, "#eef6f1");
+    ctx.fillStyle = visualBg;
     ctx.fillRect(innerX, innerY, innerWidth, innerHeight);
     if (placement) {
       ctx.drawImage(
@@ -746,23 +751,23 @@
 
   function drawBrandHeader(ctx, logoImage) {
     if (logoImage && logoImage.width > 0 && logoImage.height > 0) {
-      const maxWidth = 250;
-      const maxHeight = 72;
+      const maxWidth = 320;
+      const maxHeight = 120;
       const ratio = Math.min(maxWidth / logoImage.width, maxHeight / logoImage.height);
       const width = logoImage.width * ratio;
       const height = logoImage.height * ratio;
-      ctx.drawImage(logoImage, 72, 66, width, height);
+      ctx.drawImage(logoImage, 72, 32, width, height);
     } else {
-      ctx.font = canvasFont(34, 850);
+      ctx.font = canvasFont(38, 850);
       ctx.fillStyle = "#0f5132";
-      ctx.fillText("OffertaLogica", 72, 112);
+      ctx.fillText("OffertaLogica", 72, 110);
     }
 
     ctx.fillStyle = "#23a83f";
-    ctx.fillRect(74, 164, 62, 4);
-    ctx.font = canvasFont(29, 540);
+    ctx.fillRect(74, 172, 74, 4);
+    ctx.font = canvasFont(31, 520);
     ctx.fillStyle = "#14324a";
-    ctx.fillText("OffertaLogica Informa", 72, 216);
+    ctx.fillText("OffertaLogica Informa", 72, 226);
   }
 
   function drawMetaPill(ctx, total, presentationMode) {
@@ -777,36 +782,6 @@
     ctx.textAlign = "left";
   }
 
-  function drawSwipeArrow(ctx, x, y, width, height) {
-    const centerY = y + height / 2;
-    const endX = x + width - 14;
-    ctx.save();
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    ctx.lineWidth = 9;
-    ctx.strokeStyle = "#0f7d33";
-    ctx.beginPath();
-    ctx.moveTo(x + 12, centerY);
-    ctx.lineTo(endX - 25, centerY);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(endX - 44, centerY - 20);
-    ctx.lineTo(endX - 12, centerY);
-    ctx.lineTo(endX - 44, centerY + 20);
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  function drawSwipeCta(ctx, x, y) {
-    const width = 390;
-    const height = 88;
-    fillElevatedPanel(ctx, x, y, width, height, 30, "#16a044", "rgba(15,125,51,.22)");
-    ctx.font = canvasFont(28, 820);
-    ctx.fillStyle = "#ffffff";
-    ctx.fillText("Scorri per leggere", x + 30, y + 55);
-    fillRoundedRect(ctx, x + width - 82, y + 12, 64, 64, 32, "#ffffff");
-    drawSwipeArrow(ctx, x + width - 73, y + 18, 47, 52);
-  }
 
   function coverTitleLayout(ctx, title, maxWidth) {
     for (const size of [66, 62, 58, 54, 50, 46, 42]) {
@@ -826,17 +801,17 @@
     drawArticleVisual(ctx, featuredImage);
 
     const title = String(article?.title || "Approfondimento OffertaLogica").trim();
-    const excerpt = String(article?.excerpt || "").replace(/\s+/g, " ").trim();
+    const excerpt = String(article?.excerpt || "").replace(/\s+/g, " " ).trim();
 
     const label = presentationMode === "summary" ? "IN SINTESI" : "APPROFONDIMENTO";
-    fillRoundedRect(ctx, 72, 620, presentationMode === "summary" ? 178 : 250, 56, 28, "#dcf5e3");
+    fillRoundedRect(ctx, 72, 700, presentationMode === "summary" ? 178 : 250, 56, 28, "#dcf5e3");
     ctx.font = canvasFont(20, 820);
     ctx.fillStyle = "#0f7d33";
-    ctx.fillText(label, 96, 656);
+    ctx.fillText(label, 96, 736);
 
     const titleLayout = coverTitleLayout(ctx, title, SOCIAL_SLIDE_WIDTH - 144);
-    const titleLineHeight = titleLayout.size + 12;
-    let y = 746;
+    const titleLineHeight = titleLayout.size + 11;
+    let y = 822;
     ctx.font = canvasFont(titleLayout.size, 860);
     ctx.fillStyle = "#09213e";
     titleLayout.lines.forEach((line) => {
@@ -844,12 +819,14 @@
       y += titleLineHeight;
     });
 
-    const availableBeforeCta = 1164 - y;
-    const excerptLineHeight = 40;
-    const possibleExcerptLines = Math.max(0, Math.min(3, Math.floor((availableBeforeCta - 44) / excerptLineHeight)));
+    // L'excerpt è secondario: entra solo se rimane spazio reale, senza mai comprimere il titolo.
+    const footerY = 1300;
+    const excerptLineHeight = 38;
+    const spaceForExcerpt = footerY - y - 34;
+    const possibleExcerptLines = Math.max(0, Math.min(3, Math.floor(spaceForExcerpt / excerptLineHeight)));
     if (excerpt && possibleExcerptLines > 0) {
       y += 24;
-      ctx.font = canvasFont(29, 540);
+      ctx.font = canvasFont(28, 540);
       ctx.fillStyle = "#334155";
       const excerptLines = wrapCanvasText(ctx, excerpt, SOCIAL_SLIDE_WIDTH - 144).slice(0, possibleExcerptLines);
       excerptLines.forEach((line) => {
@@ -858,12 +835,9 @@
       });
     }
 
-    drawSwipeCta(ctx, 72, 1192);
     ctx.font = canvasFont(20, 700);
     ctx.fillStyle = "#16324a";
-    ctx.textAlign = "right";
-    ctx.fillText("offertalogica.it", SOCIAL_SLIDE_WIDTH - 72, 1250);
-    ctx.textAlign = "left";
+    ctx.fillText("offertalogica.it", 72, 1310);
   }
 
   function drawBodySlide(ctx, page, index, total) {
