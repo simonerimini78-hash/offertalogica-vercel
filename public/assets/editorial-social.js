@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.13";
+  const VERSION = "0.12.14";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const PLATFORMS = [
     { key: "facebook", label: "Facebook" },
@@ -104,7 +104,7 @@
         <strong>Stato diffusione</strong>
         <div class="ol-social-status-list" data-social-status-list></div>
       </div>
-      <p class="ol-muted ol-small">Instagram usa un solo carosello per articolo: testo integrale quando è leggibile entro il limite, sintesi dei punti chiave quando l’articolo è più lungo. La copertina usa l’immagine dell’articolo come sfondo attenuato e decorativo, con primo piano ad alto contrasto pensato per il mobile; il link esatto all’articolo, l’autore e i relativi riferimenti restano nella didascalia. Threads e LinkedIn restano disattivati finché non vengono collegati.</p>`;
+      <p class="ol-muted ol-small">Instagram usa un solo carosello per articolo: testo integrale quando è leggibile entro il limite, sintesi dei punti chiave quando l’articolo è più lungo. La copertina usa un template editoriale mobile-first stabile per tutti gli articoli: brand e titolo restano sempre in primo piano, mentre l’immagine dell’articolo è un elemento secondario e non invade mai il testo. Il link esatto all’articolo, l’autore e i relativi riferimenti restano nella didascalia. Threads e LinkedIn restano disattivati finché non vengono collegati.</p>`;
 
     const platformBox = fieldset.querySelector("[data-social-platforms]");
     PLATFORMS.forEach((platform) => {
@@ -649,200 +649,220 @@
     fillRoundedRect(ctx, 782, 176, 190, 190, 48, "rgba(255,255,255,.08)");
   }
 
-  function drawCoverBackdrop(ctx, featuredImage) {
-    if (featuredImage && featuredImage.width > 0 && featuredImage.height > 0) {
-      const fit = fitCoverImage(featuredImage);
-      const extraScale = 1.08;
-      const width = fit.width * extraScale;
-      const height = fit.height * extraScale;
-      const x = (SOCIAL_SLIDE_WIDTH - width) / 2;
-      const y = (SOCIAL_SLIDE_HEIGHT - height) / 2;
-      ctx.save();
-      ctx.filter = "blur(18px) saturate(0.75) brightness(0.68)";
-      ctx.drawImage(featuredImage, x, y, width, height);
-      ctx.restore();
-    } else {
-      coverFallbackBackground(ctx);
-    }
-    const overlay = ctx.createLinearGradient(0, 0, 0, SOCIAL_SLIDE_HEIGHT);
-    overlay.addColorStop(0, "rgba(245,248,252,.14)");
-    overlay.addColorStop(0.30, "rgba(10,18,30,.16)");
-    overlay.addColorStop(1, "rgba(10,18,30,.44)");
-    ctx.fillStyle = overlay;
+  function drawCoverBackdrop(ctx) {
+    const base = ctx.createLinearGradient(0, 0, SOCIAL_SLIDE_WIDTH, SOCIAL_SLIDE_HEIGHT);
+    base.addColorStop(0, "#fbfdfc");
+    base.addColorStop(0.56, "#f7fbf8");
+    base.addColorStop(1, "#eef8f0");
+    ctx.fillStyle = base;
     ctx.fillRect(0, 0, SOCIAL_SLIDE_WIDTH, SOCIAL_SLIDE_HEIGHT);
-    ctx.fillStyle = "rgba(255,255,255,.10)";
+
+    const glow = ctx.createRadialGradient(860, 210, 30, 860, 210, 360);
+    glow.addColorStop(0, "rgba(15,125,51,.10)");
+    glow.addColorStop(1, "rgba(15,125,51,0)");
+    ctx.fillStyle = glow;
+    ctx.fillRect(480, 0, 600, 600);
+
+    ctx.save();
+    ctx.strokeStyle = "rgba(35,168,63,.22)";
+    ctx.lineWidth = 7;
     ctx.beginPath();
-    ctx.arc(930, 180, 184, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "rgba(255,255,255,.06)";
-    ctx.beginPath();
-    ctx.arc(834, 286, 112, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.moveTo(610, 1340);
+    ctx.bezierCurveTo(790, 1270, 880, 1180, 1088, 900);
+    ctx.stroke();
+    ctx.restore();
   }
 
-  function fillElevatedPanel(ctx, x, y, width, height, radius, fillStyle, shadowColor = "rgba(15,23,42,.16)") {
+  function fillElevatedPanel(ctx, x, y, width, height, radius, fillStyle, shadowColor = "rgba(15,23,42,.14)") {
     ctx.save();
     ctx.shadowColor = shadowColor;
     ctx.shadowBlur = 28;
-    ctx.shadowOffsetY = 16;
+    ctx.shadowOffsetY = 12;
     fillRoundedRect(ctx, x, y, width, height, radius, fillStyle);
     ctx.restore();
   }
 
-  function drawCoverPreview(ctx, featuredImage) {
-    if (!featuredImage || featuredImage.width <= 0 || featuredImage.height <= 0) return;
-    const frameX = 810;
-    const frameY = 194;
-    const frameWidth = 192;
-    const frameHeight = 270;
-    fillElevatedPanel(ctx, frameX, frameY, frameWidth, frameHeight, 28, "rgba(255,255,255,.90)", "rgba(15,23,42,.22)");
+  function imagePlacement(image, boxWidth, boxHeight, mode = "contain") {
+    if (!image || image.width <= 0 || image.height <= 0) return null;
+    const scale = mode === "cover"
+      ? Math.max(boxWidth / image.width, boxHeight / image.height)
+      : Math.min(boxWidth / image.width, boxHeight / image.height);
+    const width = image.width * scale;
+    const height = image.height * scale;
+    return {
+      width,
+      height,
+      x: (boxWidth - width) / 2,
+      y: (boxHeight - height) / 2,
+    };
+  }
+
+  function drawArticleVisual(ctx, featuredImage) {
+    const x = 500;
+    const y = 222;
+    const width = 506;
+    const height = 356;
+    fillElevatedPanel(ctx, x, y, width, height, 32, "rgba(255,255,255,.98)", "rgba(15,23,42,.18)");
+    strokeRoundedRect(ctx, x, y, width, height, 32, "rgba(15,81,50,.08)", 2);
+
+    const innerX = x + 18;
+    const innerY = y + 18;
+    const innerWidth = width - 36;
+    const innerHeight = height - 36;
+
+    if (!featuredImage || featuredImage.width <= 0 || featuredImage.height <= 0) {
+      const fallback = ctx.createLinearGradient(innerX, innerY, innerX + innerWidth, innerY + innerHeight);
+      fallback.addColorStop(0, "#edf8f0");
+      fallback.addColorStop(1, "#f8fbf9");
+      fillRoundedRect(ctx, innerX, innerY, innerWidth, innerHeight, 22, fallback);
+      ctx.font = canvasFont(24, 760);
+      ctx.fillStyle = "#0f5132";
+      ctx.textAlign = "center";
+      ctx.fillText("OffertaLogica Informa", x + width / 2, y + height / 2);
+      ctx.textAlign = "left";
+      return;
+    }
+
+    const aspect = featuredImage.width / featuredImage.height;
+    const mode = aspect >= 1.15 ? "cover" : "contain";
+    const placement = imagePlacement(featuredImage, innerWidth, innerHeight, mode);
+
     ctx.save();
-    roundedRectPath(ctx, frameX + 10, frameY + 10, frameWidth - 20, frameHeight - 20, 20);
+    roundedRectPath(ctx, innerX, innerY, innerWidth, innerHeight, 22);
     ctx.clip();
-    const scale = Math.max((frameWidth - 20) / featuredImage.width, (frameHeight - 20) / featuredImage.height);
-    const width = featuredImage.width * scale;
-    const height = featuredImage.height * scale;
-    const x = frameX + 10 + ((frameWidth - 20) - width) / 2;
-    const y = frameY + 10 + ((frameHeight - 20) - height) / 2;
-    ctx.drawImage(featuredImage, x, y, width, height);
+    ctx.fillStyle = "#f8faf9";
+    ctx.fillRect(innerX, innerY, innerWidth, innerHeight);
+    if (placement) {
+      ctx.drawImage(
+        featuredImage,
+        innerX + placement.x,
+        innerY + placement.y,
+        placement.width,
+        placement.height,
+      );
+    }
     ctx.restore();
-    strokeRoundedRect(ctx, frameX + 10, frameY + 10, frameWidth - 20, frameHeight - 20, 20, "rgba(255,255,255,.85)", 2);
   }
 
-  function drawGlassPanel(ctx, x, y, width, height, radius = 34) {
-    fillRoundedRect(ctx, x, y, width, height, radius, "rgba(255,255,255,.14)");
-    fillRoundedRect(ctx, x + 2, y + 2, width - 4, height - 4, Math.max(radius - 2, 0), "rgba(255,255,255,.07)");
-    strokeRoundedRect(ctx, x, y, width, height, radius, "rgba(255,255,255,.28)", 2);
-  }
-
-  function drawBrandBadge(ctx, logoImage) {
-    fillElevatedPanel(ctx, 72, 70, 456, 124, 32, "rgba(255,255,255,.88)", "rgba(15,23,42,.16)");
+  function drawBrandHeader(ctx, logoImage) {
     if (logoImage && logoImage.width > 0 && logoImage.height > 0) {
-      const maxWidth = 198;
-      const maxHeight = 50;
+      const maxWidth = 250;
+      const maxHeight = 72;
       const ratio = Math.min(maxWidth / logoImage.width, maxHeight / logoImage.height);
       const width = logoImage.width * ratio;
       const height = logoImage.height * ratio;
-      ctx.drawImage(logoImage, 102, 94, width, height);
+      ctx.drawImage(logoImage, 72, 66, width, height);
     } else {
-      ctx.font = canvasFont(28, 850);
+      ctx.font = canvasFont(34, 850);
       ctx.fillStyle = "#0f5132";
-      ctx.fillText("OffertaLogica", 102, 126);
+      ctx.fillText("OffertaLogica", 72, 112);
     }
-    ctx.font = canvasFont(24, 760);
+
+    ctx.fillStyle = "#23a83f";
+    ctx.fillRect(74, 164, 62, 4);
+    ctx.font = canvasFont(29, 540);
     ctx.fillStyle = "#14324a";
-    ctx.fillText("OffertaLogica Informa", 102, 164);
+    ctx.fillText("OffertaLogica Informa", 72, 216);
   }
 
   function drawMetaPill(ctx, total, presentationMode) {
-    fillElevatedPanel(ctx, SOCIAL_SLIDE_WIDTH - 270, 80, 182, 84, 26, "rgba(255,255,255,.86)", "rgba(15,23,42,.14)");
-    ctx.font = canvasFont(27, 820);
+    fillElevatedPanel(ctx, SOCIAL_SLIDE_WIDTH - 230, 66, 158, 92, 34, "rgba(255,255,255,.96)", "rgba(15,23,42,.12)");
+    ctx.font = canvasFont(30, 850);
     ctx.fillStyle = "#14324a";
     ctx.textAlign = "center";
-    ctx.fillText(`1/${total}`, SOCIAL_SLIDE_WIDTH - 179, 114);
-    ctx.font = canvasFont(16, 760);
-    ctx.fillStyle = "#0f5132";
-    ctx.fillText(presentationMode === "summary" ? "sintesi" : "articolo", SOCIAL_SLIDE_WIDTH - 179, 142);
+    ctx.fillText(`1/${total}`, SOCIAL_SLIDE_WIDTH - 151, 105);
+    ctx.font = canvasFont(15, 760);
+    ctx.fillStyle = "#0f7d33";
+    ctx.fillText(presentationMode === "summary" ? "sintesi" : "articolo", SOCIAL_SLIDE_WIDTH - 151, 134);
     ctx.textAlign = "left";
   }
 
-
   function drawSwipeArrow(ctx, x, y, width, height) {
-    const centerY = y + (height / 2);
-    const startX = x + 22;
-    const endX = x + width - 24;
+    const centerY = y + height / 2;
+    const endX = x + width - 14;
     ctx.save();
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-    ctx.lineWidth = 8;
-    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 9;
+    ctx.strokeStyle = "#0f7d33";
     ctx.beginPath();
-    ctx.moveTo(startX, centerY);
-    ctx.lineTo(endX - 28, centerY);
+    ctx.moveTo(x + 12, centerY);
+    ctx.lineTo(endX - 25, centerY);
     ctx.stroke();
     ctx.beginPath();
-    ctx.moveTo(endX - 48, centerY - 20);
-    ctx.lineTo(endX - 14, centerY);
-    ctx.lineTo(endX - 48, centerY + 20);
+    ctx.moveTo(endX - 44, centerY - 20);
+    ctx.lineTo(endX - 12, centerY);
+    ctx.lineTo(endX - 44, centerY + 20);
     ctx.stroke();
     ctx.restore();
   }
 
   function drawSwipeCta(ctx, x, y) {
-    const width = 340;
-    const height = 92;
-    fillElevatedPanel(ctx, x, y, width, height, 24, "rgba(15,125,51,.94)", "rgba(15,23,42,.22)");
-    ctx.font = canvasFont(18, 780);
-    ctx.fillStyle = "rgba(255,255,255,.86)";
-    ctx.fillText("SCORRI", x + 28, y + 28);
-    ctx.font = canvasFont(28, 800);
+    const width = 390;
+    const height = 88;
+    fillElevatedPanel(ctx, x, y, width, height, 30, "#16a044", "rgba(15,125,51,.22)");
+    ctx.font = canvasFont(28, 820);
     ctx.fillStyle = "#ffffff";
-    ctx.fillText("Vai alle slide", x + 28, y + 62);
-    drawSwipeArrow(ctx, x + width - 110, y + 18, 74, 56);
+    ctx.fillText("Scorri per leggere", x + 30, y + 55);
+    fillRoundedRect(ctx, x + width - 82, y + 12, 64, 64, 32, "#ffffff");
+    drawSwipeArrow(ctx, x + width - 73, y + 18, 47, 52);
+  }
+
+  function coverTitleLayout(ctx, title, maxWidth) {
+    for (const size of [66, 62, 58, 54, 50, 46, 42]) {
+      ctx.font = canvasFont(size, 860);
+      const lines = wrapCanvasText(ctx, title, maxWidth);
+      if (lines.length <= 4) return { size, lines };
+    }
+    ctx.font = canvasFont(40, 860);
+    return { size: 40, lines: wrapCanvasText(ctx, title, maxWidth) };
   }
 
   async function drawTitleSlide(ctx, article, total, presentationMode = "full") {
     const { featuredImage, logoImage } = await loadCoverAssets(article);
-    drawCoverBackdrop(ctx, featuredImage);
-    drawBrandBadge(ctx, logoImage);
+    drawCoverBackdrop(ctx);
+    drawBrandHeader(ctx, logoImage);
     drawMetaPill(ctx, total, presentationMode);
-    drawCoverPreview(ctx, featuredImage);
-
-    const cardX = 72;
-    const cardY = 620;
-    const cardWidth = 936;
-    const cardHeight = 586;
-    fillElevatedPanel(ctx, cardX, cardY, cardWidth, cardHeight, 40, "rgba(255,255,255,.92)", "rgba(15,23,42,.22)");
-    strokeRoundedRect(ctx, cardX, cardY, cardWidth, cardHeight, 40, "rgba(255,255,255,.72)", 2);
+    drawArticleVisual(ctx, featuredImage);
 
     const title = String(article?.title || "Approfondimento OffertaLogica").trim();
-    const excerpt = String(article?.excerpt || "").trim();
-    let titleSize = 60;
-    let titleLines = [];
-    while (titleSize >= 42) {
-      ctx.font = canvasFont(titleSize, 850);
-      titleLines = wrapCanvasText(ctx, title, cardWidth - 84);
-      if (titleLines.length <= 4) break;
-      titleSize -= 4;
-    }
+    const excerpt = String(article?.excerpt || "").replace(/\s+/g, " ").trim();
 
-    let y = cardY + 88;
-    ctx.font = canvasFont(18, 800);
+    const label = presentationMode === "summary" ? "IN SINTESI" : "APPROFONDIMENTO";
+    fillRoundedRect(ctx, 72, 620, presentationMode === "summary" ? 178 : 250, 56, 28, "#dcf5e3");
+    ctx.font = canvasFont(20, 820);
     ctx.fillStyle = "#0f7d33";
-    ctx.fillText("OFFERTALOGICA INFORMA", cardX + 42, y);
-    y += 52;
+    ctx.fillText(label, 96, 656);
 
-    ctx.font = canvasFont(titleSize, 860);
-    ctx.fillStyle = "#10273f";
-    titleLines.forEach((line) => {
-      ctx.fillText(line, cardX + 42, y);
-      y += titleSize + 12;
+    const titleLayout = coverTitleLayout(ctx, title, SOCIAL_SLIDE_WIDTH - 144);
+    const titleLineHeight = titleLayout.size + 12;
+    let y = 746;
+    ctx.font = canvasFont(titleLayout.size, 860);
+    ctx.fillStyle = "#09213e";
+    titleLayout.lines.forEach((line) => {
+      ctx.fillText(line, 72, y);
+      y += titleLineHeight;
     });
 
-    if (excerpt) {
-      y += 18;
-      ctx.font = canvasFont(29, 560);
+    const availableBeforeCta = 1164 - y;
+    const excerptLineHeight = 40;
+    const possibleExcerptLines = Math.max(0, Math.min(3, Math.floor((availableBeforeCta - 44) / excerptLineHeight)));
+    if (excerpt && possibleExcerptLines > 0) {
+      y += 24;
+      ctx.font = canvasFont(29, 540);
       ctx.fillStyle = "#334155";
-      const excerptLines = wrapCanvasText(ctx, excerpt, cardWidth - 84).slice(0, 3);
+      const excerptLines = wrapCanvasText(ctx, excerpt, SOCIAL_SLIDE_WIDTH - 144).slice(0, possibleExcerptLines);
       excerptLines.forEach((line) => {
-        ctx.fillText(line, cardX + 42, y);
-        y += 40;
+        ctx.fillText(line, 72, y);
+        y += excerptLineHeight;
       });
     }
 
-    y = Math.min(y + 26, cardY + 404);
-    fillRoundedRect(ctx, cardX + 42, y, 372, 58, 18, "rgba(15,125,51,.14)");
-    ctx.font = canvasFont(22, 760);
-    ctx.fillStyle = "#0f5132";
-    ctx.fillText(presentationMode === "summary" ? "Sintesi dei punti chiave" : "Articolo completo", cardX + 64, y + 37);
-
-    drawSwipeCta(ctx, cardX + 42, cardY + cardHeight - 160);
-
-    ctx.font = canvasFont(20, 650);
-    ctx.fillStyle = "#475569";
-    ctx.fillText("Scorri per leggere", cardX + 42, cardY + cardHeight - 22);
+    drawSwipeCta(ctx, 72, 1192);
+    ctx.font = canvasFont(20, 700);
+    ctx.fillStyle = "#16324a";
     ctx.textAlign = "right";
-    ctx.fillText("offertalogica.it", cardX + cardWidth - 42, cardY + cardHeight - 22);
+    ctx.fillText("offertalogica.it", SOCIAL_SLIDE_WIDTH - 72, 1250);
     ctx.textAlign = "left";
   }
 

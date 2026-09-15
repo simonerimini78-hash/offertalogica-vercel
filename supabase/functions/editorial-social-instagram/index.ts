@@ -1,6 +1,6 @@
 const API_VERSION = "v26.0";
 const INSTAGRAM_GRAPH = "https://graph.instagram.com";
-const VERSION = "0.12.13";
+const VERSION = "0.12.14";
 const PLATFORM = "instagram";
 const MAX_ATTEMPTS = 3;
 const MAX_CAROUSEL_SLIDES = 10;
@@ -909,7 +909,7 @@ Deno.serve(async (req) => {
     if (["prepare_article_test", "publish_container_test"].includes(action)) {
       return json(req, {
         ok: false,
-        error: "Test manuale Instagram disattivato in v0.12.13: usa la coda automatica.",
+        error: "Test manuale Instagram disattivato in v0.12.14: usa la coda automatica.",
       }, 410);
     }
 
