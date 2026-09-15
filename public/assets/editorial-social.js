@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.10";
+  const VERSION = "0.12.12";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const PLATFORMS = [
     { key: "facebook", label: "Facebook" },
@@ -104,7 +104,7 @@
         <strong>Stato diffusione</strong>
         <div class="ol-social-status-list" data-social-status-list></div>
       </div>
-      <p class="ol-muted ol-small">Instagram usa un solo carosello per articolo: testo integrale quando è leggibile entro il limite, sintesi dei punti chiave quando l’articolo è più lungo. Il link esatto all’articolo, l’autore e i relativi riferimenti restano nella didascalia; dove il social rende i link cliccabili continuano a funzionare. Threads e LinkedIn restano disattivati finché non vengono collegati.</p>`;
+      <p class="ol-muted ol-small">Instagram usa un solo carosello per articolo: testo integrale quando è leggibile entro il limite, sintesi dei punti chiave quando l’articolo è più lungo. La copertina usa l’immagine dell’articolo con stile elegante e vetro/fluid glass, con indicatore di scorrimento più visibile anche da mobile; il link esatto all’articolo, l’autore e i relativi riferimenti restano nella didascalia. Threads e LinkedIn restano disattivati finché non vengono collegati.</p>`;
 
     const platformBox = fieldset.querySelector("[data-social-platforms]");
     PLATFORMS.forEach((platform) => {
@@ -567,55 +567,243 @@
     ctx.fillText("offertalogica.it", 88, SOCIAL_SLIDE_HEIGHT - 58);
   }
 
-  function drawTitleSlide(ctx, article, total, presentationMode = "full") {
+  function roundedRectPath(ctx, x, y, width, height, radius) {
+    const safe = Math.max(0, Math.min(radius, Math.min(width, height) / 2));
+    ctx.beginPath();
+    ctx.moveTo(x + safe, y);
+    ctx.lineTo(x + width - safe, y);
+    ctx.quadraticCurveTo(x + width, y, x + width, y + safe);
+    ctx.lineTo(x + width, y + height - safe);
+    ctx.quadraticCurveTo(x + width, y + height, x + width - safe, y + height);
+    ctx.lineTo(x + safe, y + height);
+    ctx.quadraticCurveTo(x, y + height, x, y + height - safe);
+    ctx.lineTo(x, y + safe);
+    ctx.quadraticCurveTo(x, y, x + safe, y);
+    ctx.closePath();
+  }
+
+  function fillRoundedRect(ctx, x, y, width, height, radius, fillStyle) {
+    ctx.save();
+    roundedRectPath(ctx, x, y, width, height, radius);
+    ctx.fillStyle = fillStyle;
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function strokeRoundedRect(ctx, x, y, width, height, radius, strokeStyle, lineWidth = 1) {
+    ctx.save();
+    roundedRectPath(ctx, x, y, width, height, radius);
+    ctx.lineWidth = lineWidth;
+    ctx.strokeStyle = strokeStyle;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function fitCoverImage(image) {
+    const scale = Math.max(SOCIAL_SLIDE_WIDTH / image.width, SOCIAL_SLIDE_HEIGHT / image.height);
+    const width = image.width * scale;
+    const height = image.height * scale;
+    const x = (SOCIAL_SLIDE_WIDTH - width) / 2;
+    const y = (SOCIAL_SLIDE_HEIGHT - height) / 2;
+    return { x, y, width, height };
+  }
+
+  function loadImageAsset(src) {
+    return new Promise((resolve, reject) => {
+      if (!src) {
+        reject(new Error("Asset immagine mancante"));
+        return;
+      }
+      const image = new Image();
+      image.decoding = "async";
+      try {
+        const target = new URL(src, window.location.origin);
+        if (target.origin !== window.location.origin) image.crossOrigin = "anonymous";
+        image.src = target.href;
+      } catch {
+        image.src = src;
+      }
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error(`Impossibile caricare l'immagine ${src}`));
+    });
+  }
+
+  async function loadCoverAssets(article = {}) {
+    const featuredSource = String(article?.featured_image_url || "").trim();
+    const logoSource = "/assets/logo-offertalogica-header.png";
+    const [featuredImage, logoImage] = await Promise.all([
+      featuredSource ? loadImageAsset(featuredSource).catch(() => null) : Promise.resolve(null),
+      loadImageAsset(logoSource).catch(() => null)
+    ]);
+    return { featuredImage, logoImage };
+  }
+
+  function coverFallbackBackground(ctx) {
     const gradient = ctx.createLinearGradient(0, 0, SOCIAL_SLIDE_WIDTH, SOCIAL_SLIDE_HEIGHT);
-    gradient.addColorStop(0, "#0f5132");
-    gradient.addColorStop(0.58, "#0f7d33");
-    gradient.addColorStop(1, "#23a83f");
+    gradient.addColorStop(0, "#0f172a");
+    gradient.addColorStop(0.46, "#18304c");
+    gradient.addColorStop(1, "#32556f");
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, SOCIAL_SLIDE_WIDTH, SOCIAL_SLIDE_HEIGHT);
-    ctx.fillStyle = "rgba(255,255,255,.16)";
+    fillRoundedRect(ctx, 720, 82, 252, 252, 58, "rgba(255,255,255,.08)");
+    fillRoundedRect(ctx, 782, 176, 190, 190, 48, "rgba(255,255,255,.08)");
+  }
+
+  function drawCoverBackdrop(ctx, featuredImage) {
+    if (featuredImage && featuredImage.width > 0 && featuredImage.height > 0) {
+      const fit = fitCoverImage(featuredImage);
+      ctx.drawImage(featuredImage, fit.x, fit.y, fit.width, fit.height);
+    } else {
+      coverFallbackBackground(ctx);
+    }
+    const overlay = ctx.createLinearGradient(0, 0, 0, SOCIAL_SLIDE_HEIGHT);
+    overlay.addColorStop(0, "rgba(8,16,26,.20)");
+    overlay.addColorStop(0.48, "rgba(8,16,26,.34)");
+    overlay.addColorStop(1, "rgba(8,16,26,.78)");
+    ctx.fillStyle = overlay;
+    ctx.fillRect(0, 0, SOCIAL_SLIDE_WIDTH, SOCIAL_SLIDE_HEIGHT);
+    ctx.fillStyle = "rgba(255,255,255,.10)";
     ctx.beginPath();
-    ctx.arc(930, 170, 250, 0, Math.PI * 2);
+    ctx.arc(956, 176, 198, 0, Math.PI * 2);
     ctx.fill();
-    ctx.font = canvasFont(32, 800);
+    ctx.fillStyle = "rgba(255,255,255,.06)";
+    ctx.beginPath();
+    ctx.arc(838, 272, 120, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function drawGlassPanel(ctx, x, y, width, height, radius = 34) {
+    fillRoundedRect(ctx, x, y, width, height, radius, "rgba(255,255,255,.14)");
+    fillRoundedRect(ctx, x + 2, y + 2, width - 4, height - 4, Math.max(radius - 2, 0), "rgba(255,255,255,.07)");
+    strokeRoundedRect(ctx, x, y, width, height, radius, "rgba(255,255,255,.28)", 2);
+  }
+
+  function drawBrandBadge(ctx, logoImage) {
+    drawGlassPanel(ctx, 72, 70, 498, 132, 34);
+    if (logoImage && logoImage.width > 0 && logoImage.height > 0) {
+      const maxWidth = 210;
+      const maxHeight = 54;
+      const ratio = Math.min(maxWidth / logoImage.width, maxHeight / logoImage.height);
+      const width = logoImage.width * ratio;
+      const height = logoImage.height * ratio;
+      ctx.drawImage(logoImage, 104, 96, width, height);
+    } else {
+      ctx.font = canvasFont(30, 850);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText("OffertaLogica", 104, 132);
+    }
+    ctx.font = canvasFont(20, 750);
+    ctx.fillStyle = "rgba(255,255,255,.84)";
+    ctx.fillText("OffertaLogica Informa", 104, 166);
+  }
+
+  function drawMetaPill(ctx, total, presentationMode) {
+    drawGlassPanel(ctx, SOCIAL_SLIDE_WIDTH - 294, 82, 206, 82, 28);
+    ctx.font = canvasFont(24, 780);
     ctx.fillStyle = "#ffffff";
-    ctx.fillText("OffertaLogica Informa", 88, 126);
+    ctx.textAlign = "center";
+    ctx.fillText(`1/${total}`, SOCIAL_SLIDE_WIDTH - 191, 116);
+    ctx.font = canvasFont(16, 700);
+    ctx.fillStyle = "rgba(255,255,255,.80)";
+    ctx.fillText(presentationMode === "summary" ? "sintesi" : "articolo", SOCIAL_SLIDE_WIDTH - 191, 144);
+    ctx.textAlign = "left";
+  }
+
+
+  function drawSwipeArrow(ctx, x, y, width, height) {
+    const centerY = y + (height / 2);
+    const startX = x + 28;
+    const endX = x + width - 34;
+    ctx.save();
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.lineWidth = 7;
+    ctx.strokeStyle = "#ffffff";
+    ctx.beginPath();
+    ctx.moveTo(startX, centerY);
+    ctx.lineTo(endX - 24, centerY);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(endX - 42, centerY - 18);
+    ctx.lineTo(endX - 12, centerY);
+    ctx.lineTo(endX - 42, centerY + 18);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawSwipeCta(ctx, x, y) {
+    const width = 308;
+    const height = 88;
+    drawGlassPanel(ctx, x, y, width, height, 24);
+    ctx.font = canvasFont(18, 760);
+    ctx.fillStyle = "rgba(255,255,255,.82)";
+    ctx.fillText("SCORRI", x + 28, y + 30);
+    ctx.font = canvasFont(26, 760);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText("Vai alle slide", x + 28, y + 61);
+    drawSwipeArrow(ctx, x + width - 98, y + 19, 58, 50);
+  }
+
+  async function drawTitleSlide(ctx, article, total, presentationMode = "full") {
+    const { featuredImage, logoImage } = await loadCoverAssets(article);
+    drawCoverBackdrop(ctx, featuredImage);
+    drawBrandBadge(ctx, logoImage);
+    drawMetaPill(ctx, total, presentationMode);
+
+    const cardX = 72;
+    const cardY = 650;
+    const cardWidth = SOCIAL_SLIDE_WIDTH - 144;
+    const cardHeight = 596;
+    drawGlassPanel(ctx, cardX, cardY, cardWidth, cardHeight, 40);
 
     const title = String(article?.title || "Approfondimento OffertaLogica").trim();
     const excerpt = String(article?.excerpt || "").trim();
-    let titleSize = 66;
+    let titleSize = 58;
     let titleLines = [];
-    while (titleSize >= 50) {
+    while (titleSize >= 42) {
       ctx.font = canvasFont(titleSize, 850);
-      titleLines = wrapCanvasText(ctx, title, SOCIAL_SLIDE_WIDTH - 176);
-      if (titleLines.length <= 5) break;
+      titleLines = wrapCanvasText(ctx, title, cardWidth - 84);
+      if (titleLines.length <= 4) break;
       titleSize -= 4;
     }
-    let y = 300;
+
+    let y = cardY + 90;
+    ctx.font = canvasFont(18, 760);
+    ctx.fillStyle = "rgba(255,255,255,.82)";
+    ctx.fillText("OFFERTALOGICA INFORMA", cardX + 42, y);
+    y += 50;
+
     ctx.font = canvasFont(titleSize, 850);
     ctx.fillStyle = "#ffffff";
     titleLines.forEach((line) => {
-      ctx.fillText(line, 88, y);
+      ctx.fillText(line, cardX + 42, y);
       y += titleSize + 14;
     });
 
     if (excerpt) {
-      y += 34;
-      ctx.font = canvasFont(34, 550);
-      ctx.fillStyle = "#eaf8ef";
-      const excerptLines = wrapCanvasText(ctx, excerpt, SOCIAL_SLIDE_WIDTH - 176).slice(0, 7);
+      y += 22;
+      ctx.font = canvasFont(30, 560);
+      ctx.fillStyle = "rgba(244,248,252,.95)";
+      const excerptLines = wrapCanvasText(ctx, excerpt, cardWidth - 84).slice(0, 4);
       excerptLines.forEach((line) => {
-        ctx.fillText(line, 88, y);
-        y += 49;
+        ctx.fillText(line, cardX + 42, y);
+        y += 42;
       });
     }
 
-    ctx.font = canvasFont(29, 750);
+    y = Math.min(y + 30, cardY + 448);
+    fillRoundedRect(ctx, cardX + 42, y, 356, 56, 18, "rgba(255,255,255,.20)");
+    ctx.font = canvasFont(22, 750);
     ctx.fillStyle = "#ffffff";
-    ctx.fillText(presentationMode === "summary" ? "Sintesi dei punti chiave · scorri per leggere" : "Articolo completo · scorri per leggere", 88, SOCIAL_SLIDE_HEIGHT - 122);
+    ctx.fillText(presentationMode === "summary" ? "Sintesi dei punti chiave" : "Articolo completo", cardX + 64, y + 36);
+
+    drawSwipeCta(ctx, cardX + 42, cardY + cardHeight - 148);
+
+    ctx.font = canvasFont(20, 640);
+    ctx.fillStyle = "rgba(255,255,255,.88)";
+    ctx.fillText("Scorri per leggere", cardX + 42, cardY + cardHeight - 20);
     ctx.textAlign = "right";
-    ctx.fillText(`1/${total}`, SOCIAL_SLIDE_WIDTH - 88, SOCIAL_SLIDE_HEIGHT - 122);
+    ctx.fillText("offertalogica.it", cardX + cardWidth - 42, cardY + cardHeight - 20);
     ctx.textAlign = "left";
   }
 
@@ -671,7 +859,7 @@
     if (!ctx) throw new Error("Canvas non disponibile nel browser.");
 
     const slides = [];
-    drawTitleSlide(ctx, article, total, presentationMode);
+    await drawTitleSlide(ctx, article, total, presentationMode);
     slides.push({
       data_url: canvasJpegData(canvas),
       alt_text: `Copertina dell'articolo “${String(article.title || "").slice(0, 160)}” di OffertaLogica Informa.`
