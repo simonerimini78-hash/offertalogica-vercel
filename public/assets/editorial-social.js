@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.8";
+  const VERSION = "0.12.9";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const PLATFORMS = [
     { key: "facebook", label: "Facebook" },
@@ -97,14 +97,14 @@
     fieldset.dataset.socialDistribution = VERSION;
     fieldset.innerHTML = `
       <legend>Diffusione social</legend>
-      <p class="ol-muted ol-small ol-social-intro">Quando l'articolo viene pubblicato, OffertaLogica prepara una coda separata per i social selezionati. Instagram viene elaborato automaticamente solo dopo che la pagina pubblica risulta online e pubblica l’articolo completo in un carosello leggibile.</p>
+      <p class="ol-muted ol-small ol-social-intro">Quando l'articolo viene pubblicato, OffertaLogica prepara una coda separata per i social selezionati. Instagram viene elaborato automaticamente solo dopo che la pagina pubblica risulta online: se il testo entra in un solo carosello viene mantenuto integralmente, altrimenti viene creata una sintesi autosufficiente dei punti chiave.</p>
       <div class="ol-social-platform-grid" data-social-platforms></div>
       <div class="ol-social-feedback ol-small" data-social-feedback aria-live="polite"></div>
       <div class="ol-social-status" data-social-status hidden>
         <strong>Stato diffusione</strong>
         <div class="ol-social-status-list" data-social-status-list></div>
       </div>
-      <p class="ol-muted ol-small">Instagram pubblica automaticamente l’articolo completo come carosello. Il link esatto all’articolo resta nella didascalia: su Instagram può non essere cliccabile, mentre il cross-post Facebook può renderlo utilizzabile. Threads e LinkedIn restano disattivati finché non vengono collegati.</p>`;
+      <p class="ol-muted ol-small">Instagram usa un solo carosello per articolo: testo integrale quando è leggibile entro il limite, sintesi dei punti chiave quando l’articolo è più lungo. Il link esatto all’articolo, l’autore e i relativi riferimenti restano nella didascalia; dove il social rende i link cliccabili continuano a funzionare. Threads e LinkedIn restano disattivati finché non vengono collegati.</p>`;
 
     const platformBox = fieldset.querySelector("[data-social-platforms]");
     PLATFORMS.forEach((platform) => {
@@ -254,7 +254,7 @@
       .trim();
   }
 
-  function articleSlideBlocks(article = {}, author = {}) {
+  function articleContentBlocks(article = {}) {
     const blocks = [];
     const content = String(article?.content || "").replace(/\r\n?/g, "\n").trim();
     const paragraphs = content.split(/\n\s*\n/).map((value) => value.trim()).filter(Boolean);
@@ -280,7 +280,11 @@
       }
       blocks.push({ kind: "body", text: readableInlineMarkdown(lines.join(" ")) });
     });
+    return blocks.filter((block) => block.text);
+  }
 
+  function articleReferenceBlocks(article = {}, author = {}) {
+    const blocks = [];
     const sources = String(article?.sources || "").replace(/\r\n?/g, "\n").split("\n").map((value) => value.trim()).filter(Boolean);
     if (sources.length) {
       blocks.push({ kind: "heading", text: "Fonti" });
@@ -295,6 +299,10 @@
     if (articleUrl) blocks.push({ kind: "body", text: `Articolo originale: ${articleUrl}` });
     blocks.push({ kind: "body", text: "OffertaLogica.it" });
     return blocks.filter((block) => block.text);
+  }
+
+  function articleSlideBlocks(article = {}, author = {}) {
+    return [...articleContentBlocks(article), ...articleReferenceBlocks(article, author)];
   }
 
   function socialFont(kind, bodySize) {
@@ -383,13 +391,160 @@
     return pages;
   }
 
-  function fitArticlePages(blocks) {
+  function fitFullArticlePages(blocks) {
+    let minimum = [];
     for (const size of [36, 34, 32, 30]) {
       const pages = paginateArticleBlocks(blocks, size);
-      if (pages.length + 1 <= SOCIAL_SLIDE_MAX) return { pages, bodySize: size };
+      minimum = pages;
+      if (pages.length + 1 <= SOCIAL_SLIDE_MAX) {
+        return { fits: true, pages, bodySize: size, requiredSlides: pages.length + 1 };
+      }
     }
-    const minimum = paginateArticleBlocks(blocks, 30);
-    throw new Error(`L'articolo richiede ${minimum.length + 1} slide: Instagram consente al massimo ${SOCIAL_SLIDE_MAX} elementi per questo carosello. Nessun contenuto è stato pubblicato o tagliato.`);
+    return { fits: false, pages: minimum, bodySize: 30, requiredSlides: minimum.length + 1 };
+  }
+
+  function sentenceParts(value = "") {
+    const text = String(value || "").replace(/\s+/g, " ").trim();
+    if (!text) return [];
+    try {
+      if (typeof Intl !== "undefined" && typeof Intl.Segmenter === "function") {
+        const segmenter = new Intl.Segmenter("it", { granularity: "sentence" });
+        return [...segmenter.segment(text)].map((part) => String(part.segment || "").trim()).filter(Boolean);
+      }
+    } catch {
+      // Fallback deterministico sotto.
+    }
+    return (text.match(/[^.!?]+(?:[.!?]+|$)/g) || [text]).map((part) => part.trim()).filter(Boolean);
+  }
+
+  function keywordSet(value = "") {
+    const stop = new Set(["della", "delle", "degli", "dello", "dalla", "dalle", "dagli", "dallo", "nella", "nelle", "negli", "nello", "alla", "alle", "agli", "allo", "anche", "come", "cosa", "sono", "essere", "questo", "questa", "quello", "quella", "dopo", "prima", "quando", "dove", "perché", "perche", "quindi", "oppure", "senza", "sulla", "sulle", "sugli", "sullo", "nelle", "agli", "offertalogica"]);
+    return new Set(String(value || "").toLocaleLowerCase("it-IT").normalize("NFD").replace(/[\u0300-\u036f]/g, "").match(/[a-z0-9]{4,}/g)?.filter((word) => !stop.has(word)) || []);
+  }
+
+  function sentenceScore(sentence, index, keywords) {
+    const normalized = String(sentence || "").toLocaleLowerCase("it-IT").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    let score = index === 0 ? 4 : Math.max(0, 2 - index * 0.15);
+    if (/[0-9€%]/.test(sentence)) score += 2;
+    if (/\b(non|deve|devono|puo|possono|attenzione|importante|obbligo|diritto|prezzo|costo|durata|scadenza|recesso|garanzia|verifica|controll|condizion)\w*/i.test(normalized)) score += 1.5;
+    keywords.forEach((keyword) => {
+      if (normalized.includes(keyword)) score += 0.7;
+    });
+    return score;
+  }
+
+  function shortenAtWord(value = "", maxChars = 500) {
+    const text = String(value || "").replace(/\s+/g, " ").trim();
+    if (text.length <= maxChars) return text;
+    const slice = text.slice(0, Math.max(1, maxChars - 1));
+    const boundary = slice.lastIndexOf(" ");
+    return `${(boundary > maxChars * 0.65 ? slice.slice(0, boundary) : slice).trimEnd()}…`;
+  }
+
+  function contentSections(article = {}) {
+    const blocks = articleContentBlocks(article);
+    const sections = [];
+    let current = { heading: "", headingKind: "heading", blocks: [] };
+    const flush = () => {
+      if (current.heading || current.blocks.length) sections.push(current);
+      current = { heading: "", headingKind: "heading", blocks: [] };
+    };
+    blocks.forEach((block) => {
+      if (block.kind === "heading" || block.kind === "subheading") {
+        flush();
+        current.heading = block.text;
+        current.headingKind = block.kind;
+      } else {
+        current.blocks.push(block);
+      }
+    });
+    flush();
+    return sections;
+  }
+
+  function digestBlocks(article = {}, detail = {}) {
+    const sections = contentSections(article);
+    const titleKeywords = keywordSet(article?.title || "");
+    const out = [];
+    sections.forEach((section, sectionIndex) => {
+      const heading = section.heading || (sectionIndex === 0 ? "In breve" : "");
+      if (heading) out.push({ kind: section.headingKind || "heading", text: shortenAtWord(heading, 120) });
+
+      const bodySentences = [];
+      section.blocks.filter((block) => block.kind === "body").forEach((block) => {
+        sentenceParts(block.text).forEach((sentence) => bodySentences.push(sentence));
+      });
+      if (bodySentences.length) {
+        const keywords = new Set([...titleKeywords, ...keywordSet(heading)]);
+        const ranked = bodySentences.map((sentence, index) => ({ sentence, index, score: sentenceScore(sentence, index, keywords) }));
+        ranked.sort((a, b) => b.score - a.score || a.index - b.index);
+        const selected = ranked.slice(0, Math.max(1, detail.sentencesPerSection || 1)).sort((a, b) => a.index - b.index);
+        const summary = shortenAtWord(selected.map((item) => item.sentence).join(" "), detail.bodyChars || 480);
+        if (summary) out.push({ kind: "body", text: summary });
+      }
+
+      const lists = section.blocks.filter((block) => block.kind === "list");
+      lists.slice(0, Math.max(0, detail.listItemsPerSection || 0)).forEach((block) => {
+        out.push({ kind: "list", text: shortenAtWord(block.text, detail.listChars || 170) });
+      });
+    });
+    return out.filter((block) => block.text);
+  }
+
+  function fitDigestPages(article = {}) {
+    const strategies = [
+      { sentencesPerSection: 2, listItemsPerSection: 3, bodyChars: 620, listChars: 190, sizes: [34, 32] },
+      { sentencesPerSection: 2, listItemsPerSection: 2, bodyChars: 520, listChars: 170, sizes: [32, 30] },
+      { sentencesPerSection: 1, listItemsPerSection: 2, bodyChars: 430, listChars: 155, sizes: [32, 30] },
+      { sentencesPerSection: 1, listItemsPerSection: 1, bodyChars: 340, listChars: 140, sizes: [30] }
+    ];
+    for (const strategy of strategies) {
+      const blocks = digestBlocks(article, strategy);
+      for (const size of strategy.sizes) {
+        const pages = paginateArticleBlocks(blocks, size);
+        if (pages.length <= SOCIAL_SLIDE_MAX - 2) return { pages, bodySize: size };
+      }
+    }
+    throw new Error("L'articolo è troppo articolato per produrre automaticamente una sintesi leggibile in un solo carosello. Nessun contenuto è stato pubblicato.");
+  }
+
+  function sourceLabel(value = "") {
+    let text = String(value || "").trim().replace(/^[-*]\s+/, "");
+    text = text.replace(/\[([^\]\n]+)\]\(([^)]+)\)/g, "$1");
+    text = text.replace(/https?:\/\/[^\s)]+/gi, (raw) => {
+      try {
+        return new URL(raw).hostname.replace(/^www\./, "");
+      } catch {
+        return "fonte online";
+      }
+    });
+    return shortenAtWord(readableInlineMarkdown(text), 150);
+  }
+
+  function compactReferenceBlocks(article = {}, author = {}, maxSources = 4) {
+    const blocks = [{ kind: "heading", text: "Fonti e riferimenti" }];
+    const sources = String(article?.sources || "").replace(/\r\n?/g, "\n").split("\n").map(sourceLabel).filter(Boolean);
+    sources.slice(0, maxSources).forEach((source) => blocks.push({ kind: "list", text: `• ${source}` }));
+    if (sources.length > maxSources) blocks.push({ kind: "body", text: `Altre ${sources.length - maxSources} fonti sono elencate nell'articolo originale.` });
+    const authorName = String(author?.display_name || "Redazione OffertaLogica").trim() || "Redazione OffertaLogica";
+    blocks.push({ kind: "body", text: `Autore: ${authorName}` });
+    if (absoluteEditorialLink(author?.website_url)) blocks.push({ kind: "body", text: `Sito autore: ${absoluteEditorialLink(author.website_url)}` });
+    if (absoluteEditorialLink(author?.linkedin_url)) blocks.push({ kind: "body", text: `LinkedIn: ${absoluteEditorialLink(author.linkedin_url)}` });
+    const articleUrl = String(article?.article_url || "").trim();
+    if (articleUrl) blocks.push({ kind: "body", text: `Articolo originale: ${articleUrl}` });
+    blocks.push({ kind: "body", text: "OffertaLogica.it" });
+    return blocks;
+  }
+
+  function fitReferencePage(article = {}, author = {}) {
+    for (const maxSources of [4, 3, 2]) {
+      const blocks = compactReferenceBlocks(article, author, maxSources);
+      for (const size of [28, 26, 24]) {
+        const pages = paginateArticleBlocks(blocks, size);
+        if (pages.length === 1) return { page: pages[0], bodySize: size };
+      }
+    }
+    throw new Error("I riferimenti dell'articolo non entrano in modo leggibile nella slide finale. Nessun contenuto è stato pubblicato.");
   }
 
   function drawSlideChrome(ctx, index, total) {
@@ -412,7 +567,7 @@
     ctx.fillText("offertalogica.it", 88, SOCIAL_SLIDE_HEIGHT - 58);
   }
 
-  function drawTitleSlide(ctx, article, total) {
+  function drawTitleSlide(ctx, article, total, presentationMode = "full") {
     const gradient = ctx.createLinearGradient(0, 0, SOCIAL_SLIDE_WIDTH, SOCIAL_SLIDE_HEIGHT);
     gradient.addColorStop(0, "#0f5132");
     gradient.addColorStop(0.58, "#0f7d33");
@@ -458,7 +613,7 @@
 
     ctx.font = canvasFont(29, 750);
     ctx.fillStyle = "#ffffff";
-    ctx.fillText("Articolo completo · scorri per leggere", 88, SOCIAL_SLIDE_HEIGHT - 122);
+    ctx.fillText(presentationMode === "summary" ? "Sintesi dei punti chiave · scorri per leggere" : "Articolo completo · scorri per leggere", 88, SOCIAL_SLIDE_HEIGHT - 122);
     ctx.textAlign = "right";
     ctx.fillText(`1/${total}`, SOCIAL_SLIDE_WIDTH - 88, SOCIAL_SLIDE_HEIGHT - 122);
     ctx.textAlign = "left";
@@ -490,11 +645,25 @@
     const article = render?.article || {};
     const author = render?.author || {};
     article.article_url = render?.article_url || article?.article_url || "";
-    if (!String(article?.content || "").trim()) throw new Error("Il contenuto completo dell'articolo non è disponibile.");
+    if (!String(article?.content || "").trim()) throw new Error("Il contenuto dell'articolo non è disponibile.");
 
-    const blocks = articleSlideBlocks(article, author);
-    const fitted = fitArticlePages(blocks);
-    const total = fitted.pages.length + 1;
+    const fullBlocks = articleSlideBlocks(article, author);
+    const full = fitFullArticlePages(fullBlocks);
+    let pages = full.pages;
+    let presentationMode = "full";
+    let referencePage = null;
+
+    if (!full.fits) {
+      presentationMode = "summary";
+      const digest = fitDigestPages(article);
+      const references = fitReferencePage(article, author);
+      pages = digest.pages;
+      referencePage = references.page;
+    }
+
+    const total = 1 + pages.length + (referencePage ? 1 : 0);
+    if (total > SOCIAL_SLIDE_MAX) throw new Error(`Il carosello richiede ${total} slide dopo l'adattamento. Nessun contenuto è stato pubblicato.`);
+
     const canvas = document.createElement("canvas");
     canvas.width = SOCIAL_SLIDE_WIDTH;
     canvas.height = SOCIAL_SLIDE_HEIGHT;
@@ -502,20 +671,35 @@
     if (!ctx) throw new Error("Canvas non disponibile nel browser.");
 
     const slides = [];
-    drawTitleSlide(ctx, article, total);
+    drawTitleSlide(ctx, article, total, presentationMode);
     slides.push({
       data_url: canvasJpegData(canvas),
       alt_text: `Copertina dell'articolo “${String(article.title || "").slice(0, 160)}” di OffertaLogica Informa.`
     });
 
-    fitted.pages.forEach((page, pageIndex) => {
+    pages.forEach((page, pageIndex) => {
       drawBodySlide(ctx, page, pageIndex + 2, total);
       slides.push({
         data_url: canvasJpegData(canvas),
-        alt_text: `Testo dell'articolo “${String(article.title || "").slice(0, 140)}”, slide ${pageIndex + 2} di ${total}.`
+        alt_text: presentationMode === "summary"
+          ? `Sintesi dell'articolo “${String(article.title || "").slice(0, 130)}”, slide ${pageIndex + 2} di ${total}.`
+          : `Testo dell'articolo “${String(article.title || "").slice(0, 140)}”, slide ${pageIndex + 2} di ${total}.`
       });
     });
-    return slides;
+
+    if (referencePage) {
+      drawBodySlide(ctx, referencePage, total, total);
+      slides.push({
+        data_url: canvasJpegData(canvas),
+        alt_text: `Fonti, autore e riferimenti dell'articolo “${String(article.title || "").slice(0, 130)}”.`
+      });
+    }
+
+    return {
+      slides,
+      presentation_mode: presentationMode,
+      original_slide_estimate: full.requiredSlides
+    };
   }
 
   function queueFeedback(root, result) {
@@ -524,10 +708,10 @@
         setFeedback(root, "Instagram: attendo che la pagina pubblica dell'articolo sia online.");
         break;
       case "carousel_required":
-        setFeedback(root, "Instagram: preparo il carosello con l'articolo completo.");
+        setFeedback(root, "Instagram: preparo il carosello dell'articolo.");
         break;
       case "published":
-        setFeedback(root, "Instagram pubblicato automaticamente. Facebook riceverà il post tramite il cross-posting Meta configurato.", "ok");
+        setFeedback(root, result?.presentation_mode === "summary" ? "Instagram pubblicato automaticamente come sintesi dei punti chiave. Facebook riceverà il post tramite il cross-posting Meta configurato." : "Instagram pubblicato automaticamente con l’articolo completo. Facebook riceverà il post tramite il cross-posting Meta configurato.", "ok");
         break;
       case "failed":
         setFeedback(root, `Instagram: tentativo non riuscito. ${result?.error || "Il sistema riproverà in modo controllato."}`, "error");
@@ -565,10 +749,19 @@
         return;
       }
 
-      setFeedback(root, "Instagram: impagino l'articolo completo nel carosello…");
-      const slides = await renderArticleCarousel(prepared);
-      setFeedback(root, `Instagram: ${slides.length} slide pronte, avvio la pubblicazione…`);
-      const result = await socialFunction("process_article_queue", { article_id: articleId, slides });
+      setFeedback(root, "Instagram: preparo un unico carosello leggibile…");
+      const rendered = await renderArticleCarousel(prepared);
+      const slides = rendered.slides;
+      if (rendered.presentation_mode === "summary") {
+        setFeedback(root, `Instagram: l'articolo richiederebbe circa ${rendered.original_slide_estimate} slide; preparo una sintesi autosufficiente in ${slides.length} slide.`);
+      } else {
+        setFeedback(root, `Instagram: articolo completo in ${slides.length} slide, avvio la pubblicazione…`);
+      }
+      const result = await socialFunction("process_article_queue", {
+        article_id: articleId,
+        slides,
+        presentation_mode: rendered.presentation_mode
+      });
       queueFeedback(root, result);
       await loadArticle(root, articleId, true);
     } catch (error) {

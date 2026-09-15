@@ -1,6 +1,6 @@
 const API_VERSION = "v26.0";
 const INSTAGRAM_GRAPH = "https://graph.instagram.com";
-const VERSION = "0.12.8";
+const VERSION = "0.12.9";
 const PLATFORM = "instagram";
 const MAX_ATTEMPTS = 3;
 const MAX_CAROUSEL_SLIDES = 10;
@@ -88,14 +88,21 @@ function articleUrl(slug: string) {
   return `https://offertalogica.it/articoli/${encodeURIComponent(slug)}.html`;
 }
 
-function composeCaption(article: any, author: any = {}) {
+function normalizePresentationMode(value: unknown) {
+  return String(value || "").trim().toLowerCase() === "summary" ? "summary" : "full";
+}
+
+function composeCaption(article: any, author: any = {}, presentationMode = "full") {
   const title = String(article?.title || "").replace(/\s+/g, " ").trim();
   const excerpt = String(article?.excerpt || "").replace(/\s+/g, " ").trim();
   const slug = String(article?.slug || "").trim();
   const authorName = String(author?.display_name || "Redazione OffertaLogica").replace(/\s+/g, " ").trim();
+  const mode = normalizePresentationMode(presentationMode);
   const parts = [title];
   if (excerpt) parts.push(excerpt);
-  parts.push("Articolo completo nel carosello.");
+  parts.push(mode === "summary"
+    ? "Nel carosello trovi una sintesi autosufficiente dei punti chiave dell'articolo."
+    : "Articolo completo nel carosello.");
   if (slug) parts.push(`Articolo originale: ${articleUrl(slug)}`);
   if (authorName) parts.push(`Autore: ${authorName}`);
   const website = String(author?.website_url || "").trim();
@@ -698,6 +705,7 @@ async function processArticleQueue(
   account: { id: string; username: string },
   articleId: string,
   rawSlides: unknown,
+  rawPresentationMode: unknown,
 ) {
   const channel = await loadChannel(ctx);
   const publication = await loadPublication(ctx, articleId);
@@ -708,6 +716,7 @@ async function processArticleQueue(
   }
 
   const slides = decodeCarouselSlides(rawSlides);
+  const presentationMode = normalizePresentationMode(rawPresentationMode);
   const article = await loadPublishedArticle(ctx, articleId);
   if (!(await publicArticleOnline(article))) {
     if (["waiting_connection", "ready", "failed"].includes(String(publication.status || ""))) {
@@ -753,7 +762,7 @@ async function processArticleQueue(
       instagramToken,
       account.id,
       children,
-      composeCaption(article, author),
+      composeCaption(article, author, presentationMode),
     );
 
     await updatePublication(ctx, publicationId, {
@@ -826,7 +835,8 @@ async function processArticleQueue(
       version: VERSION,
       result: "published",
       published: true,
-      format: "carousel_full_article",
+      format: presentationMode === "summary" ? "carousel_article_summary" : "carousel_full_article",
+      presentation_mode: presentationMode,
       slides: slides.length,
       instagram: account,
       article: {
@@ -892,7 +902,7 @@ Deno.serve(async (req) => {
     if (action === "process_article_queue") {
       const articleId = String(body?.article_id || "").trim();
       if (!validUuid(articleId)) return json(req, { ok: false, error: "article_id non valido" }, 400);
-      return await processArticleQueue(req, ctx, instagramToken, account, articleId, body?.slides);
+      return await processArticleQueue(req, ctx, instagramToken, account, articleId, body?.slides, body?.presentation_mode);
     }
 
     // Il test manuale viene disattivato quando entra in funzione la coda automatica:
@@ -900,7 +910,7 @@ Deno.serve(async (req) => {
     if (["prepare_article_test", "publish_container_test"].includes(action)) {
       return json(req, {
         ok: false,
-        error: "Test manuale Instagram disattivato in v0.12.8: usa la coda automatica.",
+        error: "Test manuale Instagram disattivato in v0.12.9: usa la coda automatica.",
       }, 410);
     }
 
