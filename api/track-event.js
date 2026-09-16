@@ -65,6 +65,7 @@ const ALLOWED_EVENT_TYPES = new Set([
   // Switcho v80: eventi già emessi dal frontend pubblico.
   "switcho_landing_opened",
   "offer_switcho_redirect",
+  "provider_site_redirect",
   "business_switcho_requested",
   "assistance_switcho_redirect",
   "social_entry_viewed",
@@ -340,6 +341,8 @@ function sanitizePayload(payload = {}) {
     consentAction: text(input.consentAction, 40).toLowerCase(),
     consentSource: text(input.consentSource, 80).toLowerCase(),
     routingVersion: text(input.routingVersion, 80),
+    route: text(input.route, 60).toLowerCase(),
+    channel: text(input.channel, 60).toLowerCase(),
     rankingOffersCount: numberOrNull(input.rankingOffersCount),
     bestPartnerSaving: numberOrNull(input.bestPartnerSaving),
     engagementStage: text(input.engagementStage, 40).toLowerCase(),

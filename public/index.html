@@ -3293,7 +3293,7 @@
             .social-entry-free-arrow { animation: none !important; transform: none !important; }
         }
 
-        /* OFFERTALOGICA_PUBLIC_V100_20260916: routing trasparente partner OffertaLogica / Switcho / sito fornitore + trust contatti. */
+        /* OFFERTALOGICA_PUBLIC_V101_20260916: routing trasparente + telemetria percorso offerte per Staff. */
         .social-entry-hero-message {
             width: min(100%, 690px);
             display: grid;
@@ -10662,6 +10662,8 @@ function apriPercorsoOffertaMedia(offerta) {
   trackEvent("activation_channel_choice_opened", {
     source: "offer_card_media",
     route: route.attivabileOnline ? "offertalogica_partner" : route.switchoSupported ? "switcho_provider" : route.officialUrl ? "provider_site" : "no_route",
+    destinationType: LEAD_STATE.selectedOffer?.destinationType || "",
+    destinationStatus: LEAD_STATE.selectedOffer?.destinationStatus || "",
     offerId: LEAD_STATE.selectedOffer?.id || "",
     offerName: LEAD_STATE.selectedOffer?.name || "",
     provider: LEAD_STATE.selectedOffer?.provider || "",
@@ -10677,6 +10679,9 @@ function proseguiPercorsoOffertaConBolletta() {
   trackEvent("activation_channel_selected", {
     source: "offer_card_media",
     channel: "bill_upload",
+    route: "offertalogica_partner",
+    destinationType: offer.destinationType || "",
+    destinationStatus: offer.destinationStatus || "",
     offerId: offer.id || "",
     offerName: offer.name || "",
     provider: offer.provider || "",
@@ -10696,6 +10701,9 @@ function proseguiPercorsoOffertaConSwitcho() {
   trackEvent("activation_channel_selected", {
     source: "offer_card_media",
     channel: "switcho",
+    route: offertaAttivabileOnline(offer) ? "offertalogica_partner" : "switcho_provider",
+    destinationType: offer.destinationType || "",
+    destinationStatus: offer.destinationStatus || "",
     offerId: offer.id || "",
     offerName: offer.name || "",
     provider: offer.provider || "",
@@ -10703,6 +10711,8 @@ function proseguiPercorsoOffertaConSwitcho() {
   chiudiPercorsoOfferta();
   const tracking = offer.rankingContext || {};
   trackEvent("offer_switcho_redirect", {
+    route: offertaAttivabileOnline(offer) ? "offertalogica_partner" : "switcho_provider",
+    channel: "switcho",
     offerId: offer.id || "",
     offerName: offer.name || "",
     provider: offer.provider || "",
@@ -10723,6 +10733,8 @@ function proseguiPercorsoOffertaConFornitore() {
   if (!url || offertaAttivabileOnline(offer) || switchoSupportaFornitoreOfferta(offer)) return;
   trackEvent("provider_site_redirect", {
     source: "offer_card_media",
+    route: "provider_site",
+    channel: "provider_site",
     offerId: offer.id || "",
     offerName: offer.name || "",
     provider: offer.provider || "",
@@ -10792,6 +10804,8 @@ window.apriConsensoOfferta = function apriConsensoOfferta(offerta) {
     const tracking = LEAD_STATE.selectedOffer.rankingContext || {};
     if (switchoSupportaFornitoreOfferta(offerta)) {
       trackEvent("offer_switcho_redirect", {
+        route: "switcho_provider",
+        channel: "switcho",
         offerId: LEAD_STATE.selectedOffer.id,
         offerName: LEAD_STATE.selectedOffer.name,
         provider: LEAD_STATE.selectedOffer.provider,
@@ -10810,6 +10824,8 @@ window.apriConsensoOfferta = function apriConsensoOfferta(offerta) {
     if (officialUrl) {
       trackEvent("provider_site_redirect", {
         source: "offer_card_precise",
+        route: "provider_site",
+        channel: "provider_site",
         offerId: LEAD_STATE.selectedOffer.id,
         offerName: LEAD_STATE.selectedOffer.name,
         provider: LEAD_STATE.selectedOffer.provider,
@@ -11342,6 +11358,8 @@ async function registraRichiestaOfferta() {
     if (payload.redirectUrl) {
       offerConsentStatus("Richiesta registrata. Ti portiamo alla pagina dell'offerta scelta.");
       trackEvent("offer_redirect", {
+        route: "offertalogica_partner",
+        channel: "partner_redirect",
         offerId: offer.id || "",
         offerName: offer.name || "",
         provider: offer.provider || "",
