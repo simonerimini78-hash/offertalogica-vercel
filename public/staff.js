@@ -763,6 +763,53 @@
     rows.forEach(item => target.append(node("div", { className: "rank-row" }, [node("strong", { text: item.key }), node("span", { text: item.count })])));
   }
 
+  function offerNetworkMeta(stats = null) {
+    const data = stats && typeof stats === "object" ? stats : null;
+    if (!data) return { label: "NON CLASSIFICATO", tone: "route-unknown", detail: "Dati precedenti al nuovo routing o percorso non ancora aperto." };
+    const network = String(data.network || "unknown");
+    const labels = {
+      offertalogica_partner: ["PARTNER OL", "route-ol"],
+      switcho_provider: ["SWITCHO", "route-switcho"],
+      external_provider: ["ESTERNO", "route-external"],
+      no_route: ["NESSUN PERCORSO", "route-none"],
+      mixed: ["MISTO", "route-mixed"],
+      unknown: ["NON CLASSIFICATO", "route-unknown"],
+    };
+    const [label, tone] = labels[network] || labels.unknown;
+    const parts = [
+      Number(data.opens) > 0 ? `${formatNumber(data.opens)} aperture` : "",
+      Number(data.billUploads) > 0 ? `${formatNumber(data.billUploads)} bolletta` : "",
+      Number(data.switchoChoices) > 0 ? `${formatNumber(data.switchoChoices)} → Switcho` : "",
+      Number(data.partnerRedirects) > 0 ? `${formatNumber(data.partnerRedirects)} → partner OL` : "",
+      Number(data.providerRedirects) > 0 ? `${formatNumber(data.providerRedirects)} → sito fornitore` : "",
+      Number(data.noActionAfterOpen) > 0 ? `${formatNumber(data.noActionAfterOpen)} senza scelta` : "",
+    ].filter(Boolean);
+    return { label, tone, detail: parts.join(" · ") || "Nessun passaggio successivo ancora registrato." };
+  }
+
+  function renderOfferRoutingRankList(target, rows = [], emptyLabel = "Nessun dato") {
+    clear(target);
+    if (!rows.length) {
+      target.append(node("div", { className: "empty", text: emptyLabel }));
+      return;
+    }
+    rows.forEach((item) => {
+      const route = offerNetworkMeta(item.routeStats);
+      const heading = node("div", { className: "rank-route-heading" }, [
+        node("strong", { text: item.key }),
+        node("span", { className: `badge ${route.tone}`, text: route.label }),
+      ]);
+      const left = node("div", { className: "rank-route-main" }, [
+        heading,
+        node("small", { className: "rank-route-meta", text: route.detail }),
+      ]);
+      target.append(node("div", { className: "rank-row offer-routing-row" }, [
+        left,
+        node("span", { className: "rank-route-count", text: item.count }),
+      ]));
+    });
+  }
+
   function ensureLandingTrafficMetrics() {
     let target = byId("landingTrafficMetrics");
     if (target) return target;
@@ -2077,8 +2124,8 @@
     text(byId("analyticsOtpRate"), sessionFunnel.otpSent ? `${Math.round((Number(sessionFunnel.otpVerified || 0) / Number(sessionFunnel.otpSent)) * 100)}%` : "—");
     renderSessionFunnel(byId("analyticsFunnel"), sessionFunnel);
     renderActivityFunnel(byId("analyticsActivity"), activityFunnel);
-    renderRankList(byId("analyticsProviders"), fullSummary.topProviders || summary.topProviders || [], "Nessun provider cliccato");
-    renderRankList(byId("analyticsOffers"), fullSummary.topOffers || summary.topOffers || [], "Nessuna offerta cliccata");
+    renderOfferRoutingRankList(byId("analyticsProviders"), fullSummary.topProviders || summary.topProviders || [], "Nessun provider cliccato");
+    renderOfferRoutingRankList(byId("analyticsOffers"), fullSummary.topOffers || summary.topOffers || [], "Nessuna offerta cliccata");
     renderRankList(byId("analyticsTrafficSources"), (fullSummary.trafficSources || summary.trafficSources || []).map((item) => ({ key: item.label || analyticsSourceLabel(item.key), count: item.count })), "Nessuna sessione dal punto zero");
     const baseline = cache.analyticsBaseline || {};
     text(byId("analyticsBaseline"), baseline.label ? `Punto zero campagna: ${baseline.label}` : "Punto zero campagna");

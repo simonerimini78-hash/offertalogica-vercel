@@ -541,7 +541,7 @@ function offerRouteEventFromRow(row = {}) {
 
 function summarizeOfferRouteEvents(events = []) {
   const categoryKeys = ["offertalogica_partner", "switcho_provider", "external_provider", "no_route"];
-  const state = Object.fromEntries(categoryKeys.map((key) => [key, {
+  const makeBucket = () => ({
     sessions: new Set(),
     opens: new Set(),
     billUploads: new Set(),
@@ -549,8 +549,55 @@ function summarizeOfferRouteEvents(events = []) {
     providerRedirects: new Set(),
     partnerRedirects: new Set(),
     providerSessions: new Map(),
-  }]));
+  });
+  const state = Object.fromEntries(categoryKeys.map((key) => [key, makeBucket()]));
   const classifiedSessions = new Set();
+  const providerDetails = new Map();
+  const offerDetails = new Map();
+
+  const ensureDetail = (map, key, seed = {}) => {
+    if (!key) return null;
+    if (!map.has(key)) {
+      map.set(key, {
+        key,
+        provider: String(seed.provider || "").trim(),
+        offerName: String(seed.offerName || "").trim(),
+        categories: new Map(),
+        sessions: new Set(),
+        opens: new Set(),
+        billUploads: new Set(),
+        switchoChoices: new Set(),
+        providerRedirects: new Set(),
+        partnerRedirects: new Set(),
+        actionSessions: new Set(),
+      });
+    }
+    return map.get(key);
+  };
+
+  const registerDetail = (detail, event, sessionKey) => {
+    if (!detail) return;
+    detail.sessions.add(sessionKey);
+    if (!detail.categories.has(event.category)) detail.categories.set(event.category, new Set());
+    detail.categories.get(event.category).add(sessionKey);
+    if (event.eventType === "activation_channel_choice_opened") detail.opens.add(sessionKey);
+    if (event.eventType === "activation_channel_selected" && event.channel === "bill_upload") {
+      detail.billUploads.add(sessionKey);
+      detail.actionSessions.add(sessionKey);
+    }
+    if ((event.eventType === "activation_channel_selected" && event.channel === "switcho") || event.eventType === "offer_switcho_redirect") {
+      detail.switchoChoices.add(sessionKey);
+      detail.actionSessions.add(sessionKey);
+    }
+    if (event.eventType === "provider_site_redirect") {
+      detail.providerRedirects.add(sessionKey);
+      detail.actionSessions.add(sessionKey);
+    }
+    if (event.eventType === "offer_redirect") {
+      detail.partnerRedirects.add(sessionKey);
+      detail.actionSessions.add(sessionKey);
+    }
+  };
 
   events.forEach((event) => {
     const bucket = state[event.category];
@@ -566,6 +613,11 @@ function summarizeOfferRouteEvents(events = []) {
     if (event.provider) {
       if (!bucket.providerSessions.has(event.provider)) bucket.providerSessions.set(event.provider, new Set());
       bucket.providerSessions.get(event.provider).add(sessionKey);
+      registerDetail(ensureDetail(providerDetails, event.provider, { provider: event.provider }), event, sessionKey);
+    }
+    if (event.provider || event.offerName) {
+      const offerKey = `${event.provider || "Fornitore"} - ${event.offerName || "Offerta"}`;
+      registerDetail(ensureDetail(offerDetails, offerKey, { provider: event.provider, offerName: event.offerName }), event, sessionKey);
     }
   });
 
@@ -582,12 +634,44 @@ function summarizeOfferRouteEvents(events = []) {
       .slice(0, 5),
   });
 
+  const detailNetwork = (detail) => {
+    const observed = [...detail.categories.entries()]
+      .filter(([, sessions]) => sessions.size > 0)
+      .map(([category]) => category)
+      .filter((category) => category !== "no_route");
+    const unique = [...new Set(observed)];
+    if (unique.length === 1) return unique[0];
+    if (unique.length > 1) return "mixed";
+    return detail.categories.has("no_route") ? "no_route" : "unknown";
+  };
+
+  const finalizeDetailMap = (map) => [...map.values()].map((detail) => {
+    const stopped = [...detail.opens].filter((sessionKey) => !detail.actionSessions.has(sessionKey)).length;
+    const categoryCounts = Object.fromEntries(categoryKeys.map((category) => [category, detail.categories.get(category)?.size || 0]));
+    return {
+      key: detail.key,
+      provider: detail.provider,
+      offerName: detail.offerName,
+      network: detailNetwork(detail),
+      networkCounts: categoryCounts,
+      sessions: detail.sessions.size,
+      opens: detail.opens.size,
+      billUploads: detail.billUploads.size,
+      switchoChoices: detail.switchoChoices.size,
+      providerRedirects: detail.providerRedirects.size,
+      partnerRedirects: detail.partnerRedirects.size,
+      noActionAfterOpen: stopped,
+    };
+  }).sort((a, b) => b.sessions - a.sessions || a.key.localeCompare(b.key));
+
   return {
     classifiedSessions: classifiedSessions.size,
     offertalogicaPartner: finalize(state.offertalogica_partner),
     switchoProvider: finalize(state.switcho_provider),
     externalProvider: finalize(state.external_provider),
     noRoute: finalize(state.no_route),
+    providerDetails: finalizeDetailMap(providerDetails),
+    offerDetails: finalizeDetailMap(offerDetails),
   };
 }
 
@@ -719,6 +803,9 @@ function topEntries(map, limit = 8) {
 }
 
 const OFFER_SELECTION_EVENT_TYPES = Object.freeze([
+  "activation_channel_choice_opened",
+  "activation_channel_selected",
+  "provider_site_redirect",
   "offer_click_locked",
   "offer_consent_opened",
   "offer_partner_consent_confirmed",
@@ -1964,12 +2051,21 @@ export default async function handler(req, res) {
   const journeys = analyticsJourneyRows(recentAnalyticsRows);
   const recentJourneySummary = analyticsJourneySummary(journeys, recentAnalyticsRows);
   const exactSummary = databaseSummary && typeof databaseSummary === "object" ? databaseSummary : null;
-  const clickedProviders = offerSelectionSummary?.topProviders?.length
+  const rawClickedProviders = offerSelectionSummary?.topProviders?.length
     ? offerSelectionSummary.topProviders
     : (exactSummary?.topProviders?.length ? exactSummary.topProviders : recentJourneySummary.topProviders || result.summary?.topProviders || []);
-  const clickedOffers = offerSelectionSummary?.topOffers?.length
+  const rawClickedOffers = offerSelectionSummary?.topOffers?.length
     ? offerSelectionSummary.topOffers
     : (exactSummary?.topOffers?.length ? exactSummary.topOffers : recentJourneySummary.topOffers || result.summary?.topOffers || []);
+  const routeSummary = offerRoutes?.summary && typeof offerRoutes.summary === "object" ? offerRoutes.summary : {};
+  const providerRouteMap = new Map((routeSummary.providerDetails || []).map((item) => [String(item.key || "").trim().toLowerCase(), item]));
+  const offerRouteMap = new Map((routeSummary.offerDetails || []).map((item) => [String(item.key || "").trim().toLowerCase(), item]));
+  const decorateRouteRows = (rows, routeMap) => (Array.isArray(rows) ? rows : []).map((item) => ({
+    ...item,
+    routeStats: routeMap.get(String(item?.key || "").trim().toLowerCase()) || null,
+  }));
+  const clickedProviders = decorateRouteRows(rawClickedProviders, providerRouteMap);
+  const clickedOffers = decorateRouteRows(rawClickedOffers, offerRouteMap);
   const summary = exactSummary
     ? { ...(result.summary || {}), ...exactSummary, topProviders: clickedProviders, topOffers: clickedOffers, funnel: exactSummary.activity || exactSummary.funnel || result.summary?.funnel || {} }
     : { ...(result.summary || {}), topProviders: clickedProviders, topOffers: clickedOffers };
