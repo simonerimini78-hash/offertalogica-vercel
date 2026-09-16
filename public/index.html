@@ -571,10 +571,12 @@
         .offer-path-option { width: 100%; display: grid; gap: 6px; align-items: center; justify-items: center; min-height: 104px; padding: 15px 16px; border: 1px solid var(--border); border-radius: 13px; cursor: pointer; text-align: center; transition: transform .15s ease, box-shadow .15s ease, filter .15s ease; }
         .offer-path-option:hover { transform: translateY(-1px); box-shadow: 0 12px 26px rgba(15,23,42,.10); }
         .offer-path-option:focus-visible { outline: 3px solid rgba(37,99,235,.26); outline-offset: 2px; }
+        .offer-path-option[hidden] { display: none !important; }
         .offer-path-option strong { display: block; font-size: 16px; line-height: 1.15; font-weight: 950; }
         .offer-path-option small { display: block; max-width: 440px; font-size: 12.5px; line-height: 1.4; font-weight: 650; }
         .offer-path-option.is-bill { border-color: rgba(22,163,74,.38); background: linear-gradient(145deg,#f0fdf4,#ecfdf5); color: #14532d; }
         .offer-path-option.is-switcho { border-color: rgba(8,152,154,.38); background: linear-gradient(145deg,#ecfeff,#f0fdfa); color: #115e59; }
+        .offer-path-option.is-provider { border-color: rgba(37,99,235,.32); background: linear-gradient(145deg,#eff6ff,#f8fafc); color: #1e3a8a; }
         .offer-path-switcho-head { display: inline-flex; align-items: center; justify-content: center; gap: 9px; min-height: 28px; }
         .offer-path-switcho-head span { font-size: 12px; line-height: 1; font-weight: 900; letter-spacing: .08em; }
         .offer-path-switcho-logo { display: block; width: auto; height: 27px; max-width: 118px; object-fit: contain; }
@@ -3291,7 +3293,7 @@
             .social-entry-free-arrow { animation: none !important; transform: none !important; }
         }
 
-        /* OFFERTALOGICA_PUBLIC_V99_20260916: pulizia risultati desktop + card piu leggibili; mobile invariato. */
+        /* OFFERTALOGICA_PUBLIC_V100_20260916: routing trasparente partner OffertaLogica / Switcho / sito fornitore + trust contatti. */
         .social-entry-hero-message {
             width: min(100%, 690px);
             display: grid;
@@ -3710,7 +3712,7 @@
                 <span class="social-entry-route-cta">CONTINUA <b aria-hidden="true">→</b></span>
             </button>
         </div>
-        <p class="social-entry-trust-note"><strong>Confronto senza telefono, email o registrazione.</strong> OffertaLogica richiede i dati di contatto solo se scegli di proseguire tramite noi con un’offerta partner. Nel percorso Switcho li inserisci direttamente su Switcho.</p>
+        <p class="social-entry-trust-note"><strong>Confronto senza telefono, email o registrazione.</strong> OffertaLogica non effettua chiamate telefoniche. I dati di contatto vengono richiesti solo se scegli di proseguire tramite noi con un’offerta partner; nel percorso Switcho li inserisci direttamente su Switcho.</p>
         <div class="social-entry-proof" aria-label="Come calcoliamo il confronto">
             <span>Dati dal Portale Offerte</span>
             <span>Confronto sul costo reale</span>
@@ -6039,6 +6041,7 @@ function normalizzaOfferta(offerta, index) {
     tipo: offerta.tipo || "fisso",
     fornitura: offerta.fornitura || (luce && gas ? "dual" : "separate"),
     link: offerta.link || "#",
+    officialUrl: offerta.officialUrl || ((offerta.destinationType === "arera" || offerta.destinationStatus === "solo_confronto") ? (offerta.link || "#") : "#"),
     destinationType: offerta.destinationType || "da_definire",
     destinationStatus: offerta.destinationStatus || "da_cercare",
     luce,
@@ -7941,10 +7944,49 @@ function offertaAttivabileOnline(offerta) {
   return percorsoAffiliatoAttivo && !monetizzazioneEsplicitamenteDisattivata;
 }
 
+// V100 — fornitori verificati sulle pagine pubbliche Switcho al 16/09/2026.
+// Switcho dichiara di confrontare 18 fornitori; il routing usa il brand del fornitore,
+// non presume che la specifica offerta mostrata da OffertaLogica sia disponibile su Switcho.
+const SWITCHO_VERIFIED_PROVIDER_KEYS_20260916 = new Set([
+  "a2a", "acea", "dolomiti", "edison", "enel", "eni", "eon", "hera", "illum",
+  "iren", "lene", "magis", "nen", "octopus", "pulsee", "segnoverde", "sorgenia", "vivi"
+]);
+
+function providerKeysPercorsoOfferta(offerta) {
+  const keys = [];
+  const direct = chiaveFornitoreDaNome(offerta?.provider || offerta?.fornitore || "");
+  if (direct) keys.push(direct);
+  const componenti = offerta?.componentiSeparate || {};
+  [componenti?.luce, componenti?.gas].forEach((voce) => {
+    const key = voce?.providerKey || chiaveFornitoreDaNome(voce?.providerLabel || voce?.provider || "");
+    if (key) keys.push(key);
+  });
+  return [...new Set(keys)];
+}
+
+function switchoSupportaFornitoreOfferta(offerta) {
+  const keys = providerKeysPercorsoOfferta(offerta);
+  return keys.length > 0 && keys.every((key) => SWITCHO_VERIFIED_PROVIDER_KEYS_20260916.has(key));
+}
+
+function urlUfficialeFornitoreOfferta(offerta) {
+  const raw = String(offerta?.officialUrl || ((offerta?.destinationType === "arera" || offerta?.destinationStatus === "solo_confronto") ? offerta?.link : "") || "").trim();
+  if (!/^https?:\/\//i.test(raw)) return "";
+  try {
+    const url = new URL(raw, window.location.href);
+    if (!/^https?:$/.test(url.protocol)) return "";
+    return url.href;
+  } catch {
+    return "";
+  }
+}
+
 function testoAzioneOfferta(offerta, attivabileOnline) {
   if (modalitaCalcolo === "media") return "Scopri come proseguire";
-  if (!attivabileOnline) return "Continua con Switcho";
-  return "Vai all'offerta";
+  if (attivabileOnline) return "Vai all'offerta";
+  if (switchoSupportaFornitoreOfferta(offerta)) return "Continua con Switcho";
+  if (urlUfficialeFornitoreOfferta(offerta)) return "Vai al sito del fornitore";
+  return "Dettagli offerta";
 }
 
 function testoBadgeOfferta(item, migliore) {
@@ -8217,7 +8259,7 @@ function creaGruppoOfferte(id, classe, titolo, testo) {
       <div>${titolo}</div>
       <div>${testo}</div>
     </div>
-    <div class="offers-contact-trust"><strong>Confronto senza registrazione.</strong> Telefono ed email servono solo se prosegui tramite OffertaLogica con un’offerta partner.</div>
+    <div class="offers-contact-trust"><strong>Confronto senza registrazione.</strong> OffertaLogica non effettua chiamate telefoniche. Telefono ed email servono solo se prosegui tramite noi con un’offerta partner.</div>
     <div class="offer-group-cards"></div>
   `;
   return group;
@@ -9671,7 +9713,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       : "Abbiamo trovato le offerte più adatte al tuo profilo";
   }
   if (teaserCopy) {
-    teaserCopy.innerText = "Il confronto è consultabile senza registrazione. Telefono ed email vengono richiesti da OffertaLogica solo se scegli di proseguire tramite noi con un’offerta partner.";
+    teaserCopy.innerText = "Il confronto è consultabile senza registrazione. OffertaLogica non effettua chiamate telefoniche; telefono ed email vengono richiesti solo se scegli di proseguire tramite noi con un’offerta partner.";
   }
   aggiornaPromptBollettaDopoOfferte();
   ottimizzaRisultatiMobile();
@@ -10244,7 +10286,7 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
   if (verifyBtn) {
     verifyBtn.style.display = "none";
     verifyBtn.innerText = isAssistance
-      ? "Verifica e richiedi il ricontatto"
+      ? "Verifica e richiedi assistenza"
       : isBusiness
         ? "Verifica e prosegui con la richiesta"
         : isOfferSelection
@@ -10262,21 +10304,21 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
   }
   if (copy) {
     copy.innerText = isAssistance
-      ? "Inserisci i tuoi dati e verifica il numero. OffertaLogica potrà ricontattarti per aiutarti a completare il confronto."
+      ? "Inserisci i tuoi dati e verifica il numero. OffertaLogica non effettua chiamate telefoniche: se richiedi assistenza, ti contattiamo via email."
       : isBusiness
         ? "Ricevi un codice SMS per confermare il numero. Nessun dato viene inviato a partner senza autorizzazione."
         : isOfferSelection
-          ? `Stai scegliendo di proseguire con ${selectedOfferName}. Solo ora OffertaLogica ti chiede telefono ed email per verificare il numero. I dati non vengono trasmessi al partner senza autorizzazione.`
+          ? `Stai scegliendo di proseguire con ${selectedOfferName}. Solo ora OffertaLogica ti chiede telefono ed email: il cellulare serve alla verifica OTP. OffertaLogica non effettua chiamate telefoniche e i dati non vengono trasmessi al partner senza autorizzazione.`
           : "Inserisci i dati e ricevi un codice SMS. Nessun dato viene inviato a partner finché non scegli un'offerta.";
   }
   if (serviceCopy) {
     serviceCopy.innerHTML = isAssistance
-      ? `<strong>Richiedo di essere ricontattato da OffertaLogica per ricevere assistenza sul confronto.</strong> Dichiaro di aver letto l'<a href="https://www.iubenda.com/privacy-policy/36565194" target="_blank" rel="noopener">informativa privacy</a>.<span class="lead-consent-detail">Useremo i dati solo per verificare la richiesta e fornirti l'assistenza richiesta.</span>`
+      ? `<strong>Richiedo assistenza via email da OffertaLogica sul confronto.</strong> Dichiaro di aver letto l'<a href="https://www.iubenda.com/privacy-policy/36565194" target="_blank" rel="noopener">informativa privacy</a>.<span class="lead-consent-detail">Useremo i dati solo per verificare la richiesta e fornirti l'assistenza richiesta.</span>`
       : isBusiness
         ? `<strong>Richiedo l'analisi preliminare e il ricontatto necessario alla gestione della mia richiesta.</strong> Dichiaro di aver letto l'<a href="https://www.iubenda.com/privacy-policy/36565194" target="_blank" rel="noopener">informativa privacy</a>.<span class="lead-consent-detail">Useremo i dati inseriti o caricati per preparare l'analisi preliminare e gestire la tua richiesta.</span>`
         : isOfferSelection
           ? `<strong>Richiedo di verificare il numero e proseguire con l'offerta che ho selezionato.</strong> Dichiaro di aver letto l'<a href="https://www.iubenda.com/privacy-policy/36565194" target="_blank" rel="noopener">informativa privacy</a>.<span class="lead-consent-detail">La verifica non autorizza da sola la trasmissione dei dati al fornitore o al partner.</span>`
-          : `<strong>Richiedo la comparazione personalizzata e il ricontatto necessario alla gestione della mia richiesta.</strong> Dichiaro di aver letto l'<a href="https://www.iubenda.com/privacy-policy/36565194" target="_blank" rel="noopener">informativa privacy</a>.<span class="lead-consent-detail">Useremo i dati inseriti o caricati per elaborare il confronto e gestire la tua richiesta.</span>`;
+          : `<strong>Richiedo la comparazione personalizzata e l'assistenza necessaria alla gestione della mia richiesta.</strong> Dichiaro di aver letto l'<a href="https://www.iubenda.com/privacy-policy/36565194" target="_blank" rel="noopener">informativa privacy</a>.<span class="lead-consent-detail">Useremo i dati inseriti o caricati per elaborare il confronto e gestire la tua richiesta.</span>`;
   }
   if (partnerLabel) partnerLabel.style.display = isAssistance ? "none" : "flex";
   const serviceCheckbox = document.getElementById("lead-consenso-servizio");
@@ -10285,7 +10327,7 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
   if (partnerCheckbox) partnerCheckbox.checked = false;
   if (privacySummary) {
     privacySummary.innerText = isAssistance
-      ? "La verifica serve a confermare il numero sul quale desideri essere ricontattato. Questa richiesta non autorizza l'invio dei dati a un fornitore."
+      ? "La verifica conferma il numero per sicurezza. OffertaLogica non effettua chiamate telefoniche: l'assistenza richiesta viene fornita via email e non autorizza l'invio dei dati a un fornitore."
       : isBusiness
         ? "L'SMS serve solo a confermare il numero e proseguire con la richiesta aziendale. L'invio dei dati a consulenti o partner resta separato e facoltativo."
         : isOfferSelection
@@ -10565,21 +10607,61 @@ function chiudiPercorsoOfferta() {
   a11yChiudiDialog(modal);
 }
 
+function configuraPercorsoOffertaMedia(offerta) {
+  const bill = document.getElementById("offer-path-bill");
+  const switcho = document.getElementById("offer-path-switcho");
+  const provider = document.getElementById("offer-path-provider");
+  const providerLabel = document.getElementById("offer-path-provider-label");
+  const note = document.getElementById("offer-path-note");
+  const attivabileOnline = offertaAttivabileOnline(offerta);
+  const switchoSupported = switchoSupportaFornitoreOfferta(offerta);
+  const officialUrl = urlUfficialeFornitoreOfferta(offerta);
+  const providerName = offerta?.provider || offerta?.fornitore || "fornitore";
+
+  if (bill) bill.hidden = !attivabileOnline;
+  if (switcho) switcho.hidden = attivabileOnline ? false : !switchoSupported;
+  if (provider) provider.hidden = attivabileOnline || switchoSupported || !officialUrl;
+  if (providerLabel) providerLabel.textContent = `VAI AL SITO DI ${String(providerName).toUpperCase()}`;
+
+  if (note) {
+    if (attivabileOnline) {
+      note.textContent = "Puoi prima caricare la bolletta per un confronto dedicato ai tuoi consumi oppure scegliere il percorso assistito Switcho. Il percorso Switcho è separato: le offerte disponibili possono essere diverse da quella visualizzata.";
+    } else if (switchoSupported) {
+      note.textContent = "Questa offerta non è attivabile tramite OffertaLogica. Switcho confronta anche questo fornitore, ma nel suo percorso può proporti un'offerta diversa da quella visualizzata qui.";
+    } else if (officialUrl) {
+      note.textContent = "Questa offerta non è attivabile tramite OffertaLogica. Per trasparenza puoi continuare sul sito ufficiale del fornitore: il collegamento non è affiliato e OffertaLogica non riceve commissioni su questo passaggio.";
+    } else {
+      note.textContent = "Questa offerta resta nel confronto economico, ma al momento non abbiamo un percorso di attivazione verificato da proporti.";
+    }
+  }
+  return { attivabileOnline, switchoSupported, officialUrl, providerName };
+}
+
 function apriPercorsoOffertaMedia(offerta) {
   const modal = document.getElementById("offer-path-backdrop");
   const title = document.getElementById("offer-path-title");
   const intro = document.getElementById("offer-path-intro");
   if (!modal) return;
   const nomeOfferta = titoloOffertaVisibile(offerta) || "questa offerta";
+  const route = configuraPercorsoOffertaMedia(offerta);
   if (title) title.textContent = "Scopri come proseguire";
   if (intro) {
-    intro.innerHTML = `La stima per <strong>${testoHtmlSicuro(nomeOfferta)}</strong> usa un profilo medio. Per un confronto dedicato a te puoi caricare la tua bolletta; se preferisci assistenza puoi continuare con Switcho.`;
+    if (route.attivabileOnline) {
+      intro.innerHTML = `La stima per <strong>${testoHtmlSicuro(nomeOfferta)}</strong> usa un profilo medio. Carica la bolletta per verificare il confronto sui tuoi consumi, oppure scegli un percorso assistito.`;
+    } else if (route.switchoSupported) {
+      intro.innerHTML = `<strong>${testoHtmlSicuro(nomeOfferta)}</strong> è nel confronto OffertaLogica, ma non è attivabile tramite noi. Se preferisci assistenza puoi continuare con Switcho.`;
+    } else if (route.officialUrl) {
+      intro.innerHTML = `<strong>${testoHtmlSicuro(nomeOfferta)}</strong> è nel confronto OffertaLogica, ma non è attivabile tramite noi. Puoi comunque raggiungere gratuitamente il sito ufficiale del fornitore.`;
+    } else {
+      intro.innerHTML = `<strong>${testoHtmlSicuro(nomeOfferta)}</strong> resta visibile perché il ranking è economico e non dipende dalle partnership. Al momento non abbiamo un percorso di attivazione verificato.`;
+    }
   }
   modal.style.display = "flex";
-  a11yApriDialog(modal, "#offer-path-bill, #offer-path-switcho, #offer-path-close");
+  a11yApriDialog(modal, route.attivabileOnline ? "#offer-path-bill" : route.switchoSupported ? "#offer-path-switcho" : route.officialUrl ? "#offer-path-provider" : "#offer-path-close");
   const tracking = LEAD_STATE.selectedOffer?.rankingContext || {};
   trackEvent("activation_channel_choice_opened", {
     source: "offer_card_media",
+    route: route.attivabileOnline ? "offertalogica_partner" : route.switchoSupported ? "switcho_provider" : route.officialUrl ? "provider_site" : "no_route",
     offerId: LEAD_STATE.selectedOffer?.id || "",
     offerName: LEAD_STATE.selectedOffer?.name || "",
     provider: LEAD_STATE.selectedOffer?.provider || "",
@@ -10591,6 +10673,7 @@ function apriPercorsoOffertaMedia(offerta) {
 
 function proseguiPercorsoOffertaConBolletta() {
   const offer = LEAD_STATE.selectedOffer || {};
+  if (!offertaAttivabileOnline(offer)) return;
   trackEvent("activation_channel_selected", {
     source: "offer_card_media",
     channel: "bill_upload",
@@ -10609,6 +10692,7 @@ function proseguiPercorsoOffertaConBolletta() {
 
 function proseguiPercorsoOffertaConSwitcho() {
   const offer = LEAD_STATE.selectedOffer || {};
+  if (!offertaAttivabileOnline(offer) && !switchoSupportaFornitoreOfferta(offer)) return;
   trackEvent("activation_channel_selected", {
     source: "offer_card_media",
     channel: "switcho",
@@ -10631,6 +10715,22 @@ function proseguiPercorsoOffertaConSwitcho() {
     annualDelta: tracking.annualDelta || null,
   });
   apriSwitchoDirettoDaOfferta("offer_card_media_assisted", offer);
+}
+
+function proseguiPercorsoOffertaConFornitore() {
+  const offer = LEAD_STATE.selectedOffer || {};
+  const url = urlUfficialeFornitoreOfferta(offer);
+  if (!url || offertaAttivabileOnline(offer) || switchoSupportaFornitoreOfferta(offer)) return;
+  trackEvent("provider_site_redirect", {
+    source: "offer_card_media",
+    offerId: offer.id || "",
+    offerName: offer.name || "",
+    provider: offer.provider || "",
+    destinationType: "official_provider_site",
+    destinationStatus: "non_affiliated",
+  });
+  chiudiPercorsoOfferta();
+  window.location.assign(url);
 }
 
 function offerConsentStatus(message, isError = false) {
@@ -10668,6 +10768,7 @@ window.apriConsensoOfferta = function apriConsensoOfferta(offerta) {
     id: String(offerta?.id || ""),
     name: offerta?.nome || offerta?.name || "",
     link: offerta?.link || "",
+    officialUrl: offerta?.officialUrl || ((offerta?.destinationType === "arera" || offerta?.destinationStatus === "solo_confronto") ? (offerta?.link || "") : ""),
     provider: offerta?.provider || "",
     fornitura: offerta?.fornitura || "",
     destinationType: offerta?.destinationType || "partner_lead",
@@ -10684,23 +10785,41 @@ window.apriConsensoOfferta = function apriConsensoOfferta(offerta) {
     return;
   }
 
-  // Fuori dal profilo medio, le offerte non attivabili tramite OffertaLogica
-  // mantengono il percorso assistito Switcho come alternativa separata.
+  // Fuori dal profilo medio il routing resta trasparente:
+  // partner OffertaLogica -> nostro funnel; fornitore verificato su Switcho -> Switcho;
+  // altrimenti, quando disponibile, sito ufficiale non affiliato del fornitore.
   if (!offertaAttivabileOnline(offerta)) {
     const tracking = LEAD_STATE.selectedOffer.rankingContext || {};
-    trackEvent("offer_switcho_redirect", {
-      offerId: LEAD_STATE.selectedOffer.id,
-      offerName: LEAD_STATE.selectedOffer.name,
-      provider: LEAD_STATE.selectedOffer.provider,
-      destinationType: LEAD_STATE.selectedOffer.destinationType,
-      destinationStatus: LEAD_STATE.selectedOffer.destinationStatus,
-      displayGroup: tracking.displayGroup || "",
-      economyRank: tracking.economyRank || null,
-      displayRank: tracking.displayRank || null,
-      annualCost: tracking.annualCost || null,
-      annualDelta: tracking.annualDelta || null,
-    });
-    apriSwitchoDirettoDaOfferta("offer_not_activatable", LEAD_STATE.selectedOffer);
+    if (switchoSupportaFornitoreOfferta(offerta)) {
+      trackEvent("offer_switcho_redirect", {
+        offerId: LEAD_STATE.selectedOffer.id,
+        offerName: LEAD_STATE.selectedOffer.name,
+        provider: LEAD_STATE.selectedOffer.provider,
+        destinationType: LEAD_STATE.selectedOffer.destinationType,
+        destinationStatus: LEAD_STATE.selectedOffer.destinationStatus,
+        displayGroup: tracking.displayGroup || "",
+        economyRank: tracking.economyRank || null,
+        displayRank: tracking.displayRank || null,
+        annualCost: tracking.annualCost || null,
+        annualDelta: tracking.annualDelta || null,
+      });
+      apriSwitchoDirettoDaOfferta("offer_not_activatable_switcho_provider", LEAD_STATE.selectedOffer);
+      return;
+    }
+    const officialUrl = urlUfficialeFornitoreOfferta(offerta);
+    if (officialUrl) {
+      trackEvent("provider_site_redirect", {
+        source: "offer_card_precise",
+        offerId: LEAD_STATE.selectedOffer.id,
+        offerName: LEAD_STATE.selectedOffer.name,
+        provider: LEAD_STATE.selectedOffer.provider,
+        destinationType: "official_provider_site",
+        destinationStatus: "non_affiliated",
+      });
+      window.location.assign(officialUrl);
+      return;
+    }
+    offerConsentStatus("Questa offerta resta nel confronto economico, ma al momento non abbiamo un percorso di attivazione verificato.", true);
     return;
   }
 
@@ -11087,7 +11206,7 @@ function mostraRichiestaAssistenza(reason = "manual", options = {}) {
   if (!success) marcaAssistenzaMostrata();
   title.innerText = success ? "Richiesta ricevuta" : "Ti serve una mano?";
   copy.innerText = success
-    ? "Il numero è stato verificato. OffertaLogica potrà ricontattarti per aiutarti a completare il confronto."
+    ? "Il numero è stato verificato. OffertaLogica non effettua chiamate telefoniche: se hai richiesto assistenza, ti contatteremo via email."
     : "Se vuoi una mano, puoi continuare con Switcho, partner di OffertaLogica. Crea il tuo profilo: alla burocrazia pensa Switcho. Oppure puoi restare su OffertaLogica.";
   actions.style.display = success ? "none" : "grid";
   successBox.style.display = success ? "block" : "none";
@@ -14486,6 +14605,7 @@ function offertaAreraDaRighe(providerKey, tipo, tipoFornitura, attuale) {
     tipo,
     fornitura: luce && gas && tipoFornitura === "dual" ? "dual" : "separate",
     link: dual?.url || luce?.url || gas?.url || "#",
+    officialUrl: dual?.url || luce?.url || gas?.url || "#",
     destinationType: "arera",
     destinationStatus: "solo_confronto",
     luce: voceDaRigaArera(luce),
@@ -14874,7 +14994,7 @@ function aggiornaRisparmioLandingDaPrimaPosizione() {
 }
 
 // v83 — card Switcho: CTA diretta + informazione separata sulla partnership
-const SWITCHO_ROUTING_VERSION = "switcho-v7-2026-09-16-card-path-choice";
+const SWITCHO_ROUTING_VERSION = "switcho-v8-2026-09-16-provider-routing";
 const SWITCHO_LANDING_URL = "/switcho.html";
 const SWITCHO_PARTNER_URL = "https://bit.ly/Switcho-LuceGas-OffertaLogica";
 const OFFER_CARD_SWITCHO_DIRECT_MEDIA = false;
@@ -15081,7 +15201,7 @@ function ottimizzaRisultatiMobile() {
 function aggiornaPromptBollettaDopoOfferte() {
   const prompt = document.getElementById("offers-personalize-prompt");
   if (!prompt) return;
-  // V99: il prompt superiore e mantenuto solo per compatibilita interna ma non viene piu mostrato.
+  // V100: il prompt superiore resta solo per compatibilita interna e non viene mostrato.
   // La scelta bolletta / percorso assistito avviene dalla CTA della singola offerta.
   prompt.hidden = true;
   prompt.setAttribute("aria-hidden", "true");
@@ -15288,6 +15408,7 @@ function collegaEventiUX() {
   });
   document.getElementById("offer-path-bill")?.addEventListener("click", proseguiPercorsoOffertaConBolletta);
   document.getElementById("offer-path-switcho")?.addEventListener("click", proseguiPercorsoOffertaConSwitcho);
+  document.getElementById("offer-path-provider")?.addEventListener("click", proseguiPercorsoOffertaConFornitore);
   document.getElementById("offer-path-close")?.addEventListener("click", chiudiPercorsoOfferta);
   document.getElementById("offer-path-backdrop")?.addEventListener("click", (event) => {
     if (event.target?.id === "offer-path-backdrop") chiudiPercorsoOfferta();
@@ -15379,7 +15500,7 @@ if (document.readyState === "loading") {
 <div class="fornitori-consigliati-section">
 <div class="lead-teaser" id="lead-teaser">
     <strong id="lead-teaser-title">Abbiamo trovato offerte più convenienti.</strong>
-    <p id="lead-teaser-copy">Il confronto è consultabile senza registrazione. Telefono ed email vengono richiesti solo se scegli di proseguire tramite OffertaLogica con un’offerta partner.</p>
+    <p id="lead-teaser-copy">Il confronto è consultabile senza registrazione. OffertaLogica non effettua chiamate telefoniche; telefono ed email vengono richiesti solo se scegli di proseguire tramite noi con un’offerta partner.</p>
     <button type="button" onclick="apriLeadModal('teaser')">Verifica e visualizza le offerte</button>
 </div>
 <div class="offers-personalize-prompt" id="offers-personalize-prompt" hidden aria-hidden="true">
@@ -15739,11 +15860,11 @@ if (document.readyState === "loading") {
         <p id="assistance-rescue-copy">Se vuoi una mano, puoi continuare con Switcho, partner di OffertaLogica. Crea il tuo profilo: alla burocrazia pensa Switcho. Oppure puoi restare su OffertaLogica.</p>
         <div class="assistance-rescue-actions" id="assistance-rescue-actions">
             <button type="button" class="is-primary" id="assistance-rescue-open-guide">Continua con Switcho</button>
-            <button type="button" class="is-help" id="assistance-rescue-callback">Richiedi un ricontatto OffertaLogica</button>
+            <button type="button" class="is-help" id="assistance-rescue-callback">Richiedi assistenza via email</button>
             <button type="button" class="is-secondary" id="assistance-rescue-continue">Continua da solo</button>
         </div>
         <div class="assistance-rescue-success" id="assistance-rescue-success">
-            La richiesta di assistenza è stata registrata. Puoi continuare a usare il calcolatore: i dati già inseriti restano disponibili.
+            La richiesta di assistenza è stata registrata. OffertaLogica non effettua chiamate telefoniche: se necessario ti contatteremo via email. Puoi continuare a usare il calcolatore e i dati già inseriti restano disponibili.
             <div class="lead-actions">
                 <button type="button" class="lead-primary" id="assistance-rescue-success-close">Continua sul calcolatore</button>
             </div>
@@ -15781,14 +15902,14 @@ if (document.readyState === "loading") {
 <div class="lead-modal-backdrop" id="lead-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="lead-modal-title">
     <div class="lead-modal">
         <h3 id="lead-modal-title">Verifica il numero</h3>
-        <p id="lead-modal-copy">Hai scelto di proseguire con un’offerta partner tramite OffertaLogica. Inserisci i dati e ricevi un codice SMS per verificare il numero; l’eventuale invio al partner richiede la tua autorizzazione.</p>
+        <p id="lead-modal-copy">Hai scelto di proseguire con un’offerta partner tramite OffertaLogica. Inserisci i dati e ricevi un codice SMS per verificare il numero. OffertaLogica non effettua chiamate telefoniche; l’eventuale invio al partner richiede la tua autorizzazione.</p>
         <div class="lead-form-grid">
             <label class="lead-field" for="lead-nome"><span>Nome e cognome</span><input id="lead-nome" type="text" autocomplete="name" placeholder="Mario Rossi"></label>
             <label class="lead-field" for="lead-telefono"><span>Cellulare</span><input id="lead-telefono" type="tel" autocomplete="tel" inputmode="tel" placeholder="333 1234567"></label>
             <label class="lead-field" for="lead-email"><span>Email</span><input id="lead-email" type="email" autocomplete="email" inputmode="email" placeholder="nome@email.it"></label>
             <label class="lead-consent required">
                 <input id="lead-consenso-servizio" type="checkbox">
-                <span class="lead-consent-copy" id="lead-service-copy"><strong>Richiedo la comparazione personalizzata e il ricontatto necessario alla gestione della mia richiesta.</strong> Dichiaro di aver letto l'<a href="https://www.iubenda.com/privacy-policy/36565194" target="_blank" rel="noopener">informativa privacy</a>.<span class="lead-consent-detail">Useremo i dati inseriti o caricati per elaborare il confronto e gestire la tua richiesta.</span></span>
+                <span class="lead-consent-copy" id="lead-service-copy"><strong>Richiedo la comparazione personalizzata e l'assistenza necessaria alla gestione della mia richiesta.</strong> Dichiaro di aver letto l'<a href="https://www.iubenda.com/privacy-policy/36565194" target="_blank" rel="noopener">informativa privacy</a>.<span class="lead-consent-detail">Useremo i dati inseriti o caricati per elaborare il confronto e gestire la tua richiesta.</span></span>
             </label>
             <label class="lead-consent" id="lead-partner-label">
                 <input id="lead-consenso-partner" type="checkbox">
@@ -15819,8 +15940,12 @@ if (document.readyState === "loading") {
                 <span class="offer-path-switcho-head"><span>CONTINUA CON</span><img class="offer-path-switcho-logo" src="/assets/logo-switcho.png" alt="Switcho"></span>
                 <small>Se preferisci, lascia che ti accompagnino nel cambio.</small>
             </button>
+            <button type="button" class="offer-path-option is-provider" id="offer-path-provider" hidden>
+                <strong id="offer-path-provider-label">VAI AL SITO DEL FORNITORE</strong>
+                <small>Collegamento ufficiale non affiliato. OffertaLogica non riceve commissioni su questo passaggio.</small>
+            </button>
         </div>
-        <p class="offer-path-note">Il percorso Switcho è separato dal confronto OffertaLogica: le offerte disponibili possono essere diverse da quella che stai visualizzando.</p>
+        <p class="offer-path-note" id="offer-path-note">Il percorso Switcho è separato dal confronto OffertaLogica: le offerte disponibili possono essere diverse da quella che stai visualizzando.</p>
         <button type="button" class="offer-path-close" id="offer-path-close">Torna ai risultati</button>
     </div>
 </div>
