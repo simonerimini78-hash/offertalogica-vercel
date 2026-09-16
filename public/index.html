@@ -40,7 +40,49 @@
         #iubenda-cs-banner .iubenda-cs-opt-group{width:100%!important;display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:4px!important}
         #iubenda-cs-banner .iubenda-cs-opt-group button,#iubenda-cs-banner .iubenda-cs-accept-btn,#iubenda-cs-banner .iubenda-cs-reject-btn,#iubenda-cs-banner .iubenda-cs-customize-btn{width:100%!important;min-height:36px!important;padding:7px 4px!important;font-size:10px!important}
       }
-    </style>
+    
+/* OFFERTALOGICA_HOME_LAYOUT_V2_20260916 — griglia unica desktop/mobile */
+@media (min-width: 981px) {
+  .ol-site-header {
+    width:min(100%,1000px); margin:0 auto 22px; padding:18px 0 12px;
+    display:grid; grid-template-columns:220px minmax(0,1fr) 46px; gap:16px;
+    align-items:center; justify-content:stretch; text-align:left;
+  }
+  .ol-site-header::after { display:none !important; }
+  .ol-site-header .site-logo-link { justify-content:flex-start; }
+  .ol-site-header .site-logo-main { width:220px; max-width:220px; margin:0; }
+  .ol-desktop-nav { width:100%; justify-content:center; gap:2px; padding:5px; border-radius:16px; }
+  .ol-desktop-nav a { padding:8px 9px; font-size:11.5px; }
+  .ol-menu-toggle { position:static; transform:none; display:grid !important; width:46px; height:46px; }
+  .ol-discovery-shell { width:min(100%,1000px); margin:34px auto 0; }
+  .ol-discovery { padding:0; border:0; border-radius:0; background:transparent; box-shadow:none; backdrop-filter:none; -webkit-backdrop-filter:none; }
+  .ol-discovery-head { padding:0 2px; margin-bottom:15px; }
+  .ol-discovery-grid { gap:12px; }
+  .ol-discovery-card { min-width:0; }
+  .ol-informa-preview { margin-top:20px; padding:18px 0 0; border:0; border-top:1px solid rgba(148,163,184,.28); border-radius:0; background:transparent; }
+  .ol-informa-list { grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px; }
+  .ol-informa-item { min-height:92px; }
+  .ol-business-entry { margin-top:20px; min-height:76px; }
+}
+@media (max-width: 980px) and (min-width:681px) {
+  .ol-site-header { width:min(100%,760px); margin:0 auto 18px; padding:16px 12px; display:grid; grid-template-columns:220px 1fr 46px; gap:12px; }
+  .ol-site-header::after { display:none !important; }
+  .ol-site-header .site-logo-main { width:210px; margin:0; }
+  .ol-desktop-nav { display:none; }
+  .ol-menu-toggle { position:static; transform:none; display:grid !important; justify-self:end; }
+  .ol-discovery-shell { width:min(100%,760px); }
+}
+@media (max-width:680px) {
+  .ol-site-header { width:100%; margin:0 0 10px; display:grid; grid-template-columns:minmax(0,1fr) 44px; gap:10px; align-items:center; text-align:left; }
+  .ol-site-header::after { display:none !important; }
+  .ol-site-header .site-logo-link { justify-content:flex-start; }
+  .ol-site-header .site-logo-main { width:min(220px,70vw); margin:0; }
+  .ol-menu-toggle { position:static; transform:none; justify-self:end; }
+  .ol-discovery { border:0; background:transparent; box-shadow:none; backdrop-filter:none; -webkit-backdrop-filter:none; padding-left:0; padding-right:0; }
+  .ol-discovery-head { padding:0; }
+  .ol-informa-preview { padding-left:0; padding-right:0; border-left:0; border-right:0; border-radius:0; background:transparent; }
+}
+</style>
     <script type="text/javascript" src="https://embeds.iubenda.com/widgets/7a8d1e4e-6d87-44e3-9842-5e8991323410.js"></script>
     <!-- Google tag (gtag.js) - Google Ads -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=AW-18424345732"></script>
@@ -16250,7 +16292,7 @@ if (document.readyState === "loading") {
           <details class="ol-discovery-card is-offers" data-discovery-card="offerte"><summary><strong>Offerte e fornitori</strong><span>Offerte aggiornate, operatori e cambio fornitore.</span></summary><div class="ol-discovery-links"><a href="/offerte-luce-gas-aggiornate.html" data-discovery-link="offerte-aggiornate">Offerte aggiornate</a><a href="/fornitori/" data-discovery-link="fornitori">Conosci i fornitori</a><a href="/come-cambiare-fornitore-luce-gas.html" data-discovery-link="cambio-fornitore">Come cambiare fornitore</a></div></details>
           <details class="ol-discovery-card is-bill" data-discovery-card="bolletta"><summary><strong>Bolletta e risparmio</strong><span>Capisci cosa paghi e quali voci incidono davvero.</span></summary><div class="ol-discovery-links"><a href="/come-leggere-bolletta-luce-gas.html" data-discovery-link="leggere-bolletta">Come leggere la bolletta</a><a href="/prezzo-fisso-o-variabile-luce-gas.html" data-discovery-link="fisso-variabile">Prezzo fisso o variabile</a><a href="/quota-fissa-luce-gas-consumi-bassi.html" data-discovery-link="quota-fissa">Quota fissa e consumi</a><a href="/pun-psv-spread-luce-gas.html" data-discovery-link="pun-psv">PUN, PSV e spread spiegati</a></div></details>
           <details class="ol-discovery-card is-guides" data-discovery-card="guide"><summary><strong>Guide e novità</strong><span>Approfondimenti pratici e sicurezza sulle utenze.</span></summary><div class="ol-discovery-links"><a href="/articoli.html" data-discovery-link="informa">OffertaLogica Informa</a><a href="/truffe-telefoniche-luce-gas.html" data-discovery-link="truffe">Truffe telefoniche: come difendersi</a><a href="/pun-oggi.html" data-discovery-link="pun-oggi">Prezzo luce oggi</a><a href="/psv-gas-oggi.html" data-discovery-link="psv-oggi">Prezzo gas oggi</a></div></details>
-          <details class="ol-discovery-card is-home" data-discovery-card="casa"><summary><strong>Casa e servizi</strong><span>Energia, comfort e connessione oltre la bolletta.</span></summary><div class="ol-discovery-links"><a href="/fotovoltaico.html" data-discovery-link="fotovoltaico">Fotovoltaico</a><a href="/climatizzazione-pompa-di-calore.html" data-discovery-link="climatizzazione">Climatizzazione e pompa di calore</a><a href="/internet-casa.html" data-discovery-link="internet">Internet casa</a><a href="/casa-smart.html" data-discovery-link="casa-smart">Casa smart</a></div></details>
+          <details class="ol-discovery-card is-home" data-discovery-card="casa"><summary><strong>Casa e servizi</strong><span>Energia, comfort e connessione oltre la bolletta.</span></summary><div class="ol-discovery-links"><a href="/fotovoltaico.html" data-discovery-link="fotovoltaico">Fotovoltaico</a><a href="/climatizzazione-pompa-di-calore.html" data-discovery-link="climatizzazione">Climatizzazione e pompa di calore</a><a href="/speed-test.html" data-discovery-link="speed-test">Internet e Speed Test</a><a href="/climatizzazione-pompa-di-calore.html" data-discovery-link="climatizzazione-2">Climatizzazione e comfort</a></div></details>
         </div>
         <section class="ol-informa-preview" aria-labelledby="ol-informa-title"><div class="ol-informa-head"><h3 id="ol-informa-title">Da OffertaLogica Informa</h3><a href="/articoli.html" data-discovery-link="informa-tutti">Vedi tutti</a></div><div class="ol-informa-list" id="ol-informa-list"><a class="ol-informa-item" href="/articoli.html"><strong>Guide, novità e approfondimenti</strong><small>Scopri gli ultimi contenuti pubblicati</small></a></div></section>
         <a class="ol-business-entry" href="/#business-panel" data-discovery-link="business"><span><strong>Hai un'azienda o un'attività?</strong><span>Vai all'analisi preliminare per imprese e P.IVA.</span></span></a>
