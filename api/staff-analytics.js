@@ -41,6 +41,9 @@ const HUMAN_INTERACTION_EVENTS = new Set([
   "activation_data_copied",
   "business_photovoltaic_tool_opened",
   "assistance_callback_verified",
+  "activation_channel_choice_opened",
+  "activation_channel_selected",
+  "provider_site_redirect",
   "offer_switcho_redirect",
   "switcho_landing_opened",
   "offer_redirect",
@@ -477,6 +480,147 @@ async function loadSwitchoAnalytics(from = CAMPAIGN_BASELINE_ISO) {
       redirects: rows.filter((row) => row.redirectRecorded || row.landingOpened).length,
       sources: sourceEntries(sourceCounts),
     },
+  };
+}
+
+
+const OFFER_ROUTE_EVENT_TYPES = [
+  "activation_channel_choice_opened",
+  "activation_channel_selected",
+  "provider_site_redirect",
+  "offer_switcho_redirect",
+  "offer_redirect",
+];
+const OFFER_ROUTE_ANALYTICS_PAGE_SIZE = 1000;
+const OFFER_ROUTE_ANALYTICS_MAX_ROWS = 20000;
+
+function offerRouteCategory(eventType = "", payload = {}) {
+  const route = String(payload.route || "").trim().toLowerCase();
+  if (route === "offertalogica_partner") return "offertalogica_partner";
+  if (route === "switcho_provider") return "switcho_provider";
+  if (route === "provider_site") return "external_provider";
+  if (route === "no_route") return "no_route";
+
+  const channel = String(payload.channel || "").trim().toLowerCase();
+  const destinationType = String(payload.destinationType || "").trim().toLowerCase();
+  const destinationStatus = String(payload.destinationStatus || "").trim().toLowerCase();
+  if (eventType === "provider_site_redirect") return "external_provider";
+  if (eventType === "offer_redirect") return destinationType === "switcho" ? "switcho_provider" : "offertalogica_partner";
+  if (eventType === "offer_switcho_redirect") return destinationType === "affiliazione" ? "offertalogica_partner" : "switcho_provider";
+  if (eventType === "activation_channel_selected") {
+    if (channel === "bill_upload") return "offertalogica_partner";
+    if (channel === "provider_site") return "external_provider";
+    if (channel === "switcho") return destinationType === "affiliazione" ? "offertalogica_partner" : "switcho_provider";
+  }
+  if (eventType === "activation_channel_choice_opened") {
+    if (destinationType === "affiliazione" && destinationStatus === "attiva") return "offertalogica_partner";
+  }
+  return "";
+}
+
+function offerRouteEventFromRow(row = {}) {
+  const payload = row?.payload && typeof row.payload === "object" ? row.payload : {};
+  const eventType = String(row?.event_type || row?.eventType || "");
+  const category = offerRouteCategory(eventType, payload);
+  if (!category) return null;
+  return {
+    id: String(row?.id || ""),
+    eventType,
+    createdAt: row?.created_at || "",
+    sessionId: String(payload.sessionId || ""),
+    provider: String(payload.provider || "").trim(),
+    offerId: String(payload.offerId || "").trim(),
+    offerName: String(payload.offerName || "").trim(),
+    route: String(payload.route || "").trim().toLowerCase(),
+    channel: String(payload.channel || "").trim().toLowerCase(),
+    destinationType: String(payload.destinationType || "").trim().toLowerCase(),
+    destinationStatus: String(payload.destinationStatus || "").trim().toLowerCase(),
+    category,
+  };
+}
+
+function summarizeOfferRouteEvents(events = []) {
+  const categoryKeys = ["offertalogica_partner", "switcho_provider", "external_provider", "no_route"];
+  const state = Object.fromEntries(categoryKeys.map((key) => [key, {
+    sessions: new Set(),
+    opens: new Set(),
+    billUploads: new Set(),
+    switchoChoices: new Set(),
+    providerRedirects: new Set(),
+    partnerRedirects: new Set(),
+    providerSessions: new Map(),
+  }]));
+  const classifiedSessions = new Set();
+
+  events.forEach((event) => {
+    const bucket = state[event.category];
+    if (!bucket) return;
+    const sessionKey = event.sessionId ? `session:${event.sessionId}` : `event:${event.id}`;
+    bucket.sessions.add(sessionKey);
+    classifiedSessions.add(sessionKey);
+    if (event.eventType === "activation_channel_choice_opened") bucket.opens.add(sessionKey);
+    if (event.eventType === "activation_channel_selected" && event.channel === "bill_upload") bucket.billUploads.add(sessionKey);
+    if ((event.eventType === "activation_channel_selected" && event.channel === "switcho") || event.eventType === "offer_switcho_redirect") bucket.switchoChoices.add(sessionKey);
+    if (event.eventType === "provider_site_redirect") bucket.providerRedirects.add(sessionKey);
+    if (event.eventType === "offer_redirect") bucket.partnerRedirects.add(sessionKey);
+    if (event.provider) {
+      if (!bucket.providerSessions.has(event.provider)) bucket.providerSessions.set(event.provider, new Set());
+      bucket.providerSessions.get(event.provider).add(sessionKey);
+    }
+  });
+
+  const finalize = (bucket) => ({
+    sessions: bucket.sessions.size,
+    opens: bucket.opens.size,
+    billUploads: bucket.billUploads.size,
+    switchoChoices: bucket.switchoChoices.size,
+    providerRedirects: bucket.providerRedirects.size,
+    partnerRedirects: bucket.partnerRedirects.size,
+    topProviders: [...bucket.providerSessions.entries()]
+      .map(([key, sessions]) => ({ key, count: sessions.size }))
+      .sort((a, b) => b.count - a.count || a.key.localeCompare(b.key))
+      .slice(0, 5),
+  });
+
+  return {
+    classifiedSessions: classifiedSessions.size,
+    offertalogicaPartner: finalize(state.offertalogica_partner),
+    switchoProvider: finalize(state.switcho_provider),
+    externalProvider: finalize(state.external_provider),
+    noRoute: finalize(state.no_route),
+  };
+}
+
+async function loadOfferRouteAnalytics(from = CAMPAIGN_BASELINE_ISO) {
+  const emptySummary = summarizeOfferRouteEvents([]);
+  if (!customerDbConfiguredForLandingAnalytics()) {
+    return { ok: true, configured: false, from, summary: emptySummary };
+  }
+  const allEvents = [];
+  for (let offset = 0; offset < OFFER_ROUTE_ANALYTICS_MAX_ROWS; offset += OFFER_ROUTE_ANALYTICS_PAGE_SIZE) {
+    const query = new URLSearchParams({
+      select: "id,event_type,created_at,payload",
+      order: "created_at.asc",
+      limit: String(OFFER_ROUTE_ANALYTICS_PAGE_SIZE),
+      offset: String(offset),
+      event_type: `in.(${OFFER_ROUTE_EVENT_TYPES.join(",")})`,
+    });
+    if (from) query.set("created_at", `gte.${from}`);
+    const response = await fetch(
+      `${customerDbBaseUrl()}/rest/v1/${CUSTOMER_DB_EVENTS_TABLE}?${query.toString()}`,
+      { method: "GET", headers: customerDbReadHeaders() },
+    );
+    if (!response.ok) throw new Error(`Customer DB offer route analytics error ${response.status}`);
+    const rawRows = await response.json();
+    const batch = (Array.isArray(rawRows) ? rawRows : []).map(offerRouteEventFromRow).filter(Boolean);
+    allEvents.push(...batch);
+    if (!Array.isArray(rawRows) || rawRows.length < OFFER_ROUTE_ANALYTICS_PAGE_SIZE) break;
+  }
+  return {
+    ok: true,
+    configured: true,
+    from,
+    summary: summarizeOfferRouteEvents(allEvents),
   };
 }
 
@@ -1790,13 +1934,18 @@ export default async function handler(req, res) {
     });
   }
 
-  const [rawResult, landingPath, switcho, recentAnalyticsRows, databaseSummary, offerSelectionSummary] = await Promise.all([
+  const [rawResult, landingPath, switcho, offerRoutes, recentAnalyticsRows, databaseSummary, offerSelectionSummary] = await Promise.all([
     listCustomerAnalytics({ limit }),
     loadLandingPathAnalytics(landingRange),
     loadSwitchoAnalytics(CAMPAIGN_BASELINE_ISO).catch((error) => ({
       ok: false, configured: true, rows: [],
       summary: { sessions: 0, offerSelections: 0, guidedSessions: 0, redirects: 0, sources: [] },
       error: String(error?.message || error || "switcho_analytics_error"),
+    })),
+    loadOfferRouteAnalytics(CAMPAIGN_BASELINE_ISO).catch((error) => ({
+      ok: false, configured: true, from: CAMPAIGN_BASELINE_ISO,
+      summary: summarizeOfferRouteEvents([]),
+      error: String(error?.message || error || "offer_route_analytics_error"),
     })),
     loadRecentAnalyticsRows(CAMPAIGN_BASELINE_ISO).catch((error) => {
       console.error("staff-analytics-recent-journeys", error);
@@ -1844,6 +1993,7 @@ export default async function handler(req, res) {
     },
     aggregationMode: exactSummary ? "database" : "recent_fallback",
     switcho,
+    offerRoutes,
     baseline: {
       from: CAMPAIGN_BASELINE_ISO,
       label: CAMPAIGN_BASELINE_LABEL,

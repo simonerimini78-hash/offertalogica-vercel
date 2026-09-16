@@ -40,6 +40,7 @@
     journeys: [],
     journeySummary: {},
     switcho: { rows: [], summary: {} },
+    offerRoutes: { summary: {} },
     landingPath: null,
     customers: [],
     checks: [],
@@ -120,6 +121,7 @@
     switcho_observed_offer_selected: "Offerta Switcho osservata selezionata",
     switcho_landing_opened: "Landing Switcho aperta",
     offer_switcho_redirect: "Offerta scelta → Switcho",
+    provider_site_redirect: "Uscita al sito del fornitore",
     business_switcho_requested: "Business → Switcho",
     assistance_switcho_redirect: "Assistenza → Switcho",
     social_entry_viewed: "Ingresso social visualizzato",
@@ -1035,9 +1037,13 @@
         event.engagementOffersReachedSeconds != null && Number(event.engagementOffersReachedSeconds) > 0 ? `alle offerte ${formatDurationSeconds(event.engagementOffersReachedSeconds)}` : "",
       ].filter(Boolean).join(" · ") || "—";
     }
-    const selectedOfferValueEvent = ["offer_click_locked", "offer_consent_opened", "offer_partner_consent_confirmed", "offer_request_started", "offer_request_recorded", "offer_switcho_redirect", "switcho_landing_opened", "offer_redirect", "partner_funnel_opened"].includes(String(event.eventType || ""));
+    const selectedOfferValueEvent = ["offer_click_locked", "offer_consent_opened", "offer_partner_consent_confirmed", "offer_request_started", "offer_request_recorded", "offer_switcho_redirect", "switcho_landing_opened", "provider_site_redirect", "offer_redirect", "partner_funnel_opened", "activation_channel_choice_opened", "activation_channel_selected"].includes(String(event.eventType || ""));
     const savingValue = selectedOfferValueEvent && event.annualDelta != null ? event.annualDelta : event.bestSaving;
+    const routeLabels = { offertalogica_partner: "partner OffertaLogica", switcho_provider: "Switcho", provider_site: "sito fornitore", no_route: "nessun percorso" };
+    const channelLabels = { bill_upload: "carica bolletta", switcho: "Switcho", provider_site: "sito fornitore", partner_redirect: "offerta partner" };
     return [
+      event.route ? `percorso ${routeLabels[String(event.route).toLowerCase()] || event.route}` : "",
+      event.channel ? `azione ${channelLabels[String(event.channel).toLowerCase()] || event.channel}` : "",
       savingValue != null && Math.abs(Number(savingValue)) > 0 ? `risparmio ${formatMoney(savingValue)}` : "",
       event.annualCost != null && Math.abs(Number(event.annualCost)) > 0 ? `costo ${formatMoney(event.annualCost)}` : "",
       event.visibleOffersCount != null && Number(event.visibleOffersCount) > 0 ? `${event.visibleOffersCount} offerte` : "",
@@ -1056,6 +1062,7 @@
   const SESSION_USER_ACTION_EVENTS = new Set([
     "landing_self_service_click", "landing_assisted_click", "landing_free_app_click", "landing_premium_app_click",
     "comparison_path_selected", "comparison_started", "pdf_picker_opened", "pdf_file_selected", "pdf_analysis_started", "pdf_analysis_interrupted", "lead_modal_opened", "otp_request_started", "otp_verified",
+    "activation_channel_choice_opened", "activation_channel_selected", "provider_site_redirect",
     "offer_click_locked", "offer_consent_opened", "offer_partner_consent_confirmed", "offer_request_started",
     "offer_request_recorded", "offer_switcho_redirect", "switcho_landing_opened", "offer_redirect",
     "partner_funnel_opened", "business_photovoltaic_tool_opened", "assistance_guide_opened",
@@ -1063,14 +1070,15 @@
   ]);
 
   const SESSION_COMMERCIAL_EVENTS = new Set([
-    "offer_switcho_redirect", "switcho_landing_opened", "offer_redirect", "partner_funnel_opened",
-    "activation_assistant_opened", "assistance_switcho_redirect", "business_switcho_requested",
+    "offer_switcho_redirect", "switcho_landing_opened", "provider_site_redirect", "offer_redirect", "partner_funnel_opened",
+    "activation_channel_choice_opened", "activation_channel_selected", "activation_assistant_opened", "assistance_switcho_redirect", "business_switcho_requested",
   ]);
 
   const SESSION_OFFER_ACTION_EVENTS = new Set([
     "offer_click_locked", "offer_consent_opened", "offer_partner_consent_missing",
     "offer_partner_consent_confirmed", "offer_request_started", "offer_request_recorded",
-    "offer_switcho_redirect", "switcho_landing_opened", "offer_redirect", "partner_funnel_opened",
+    "offer_switcho_redirect", "switcho_landing_opened", "provider_site_redirect", "offer_redirect", "partner_funnel_opened",
+    "activation_channel_choice_opened", "activation_channel_selected",
   ]);
 
   const SESSION_MAIN_EVENT_TYPES = new Set([
@@ -1080,6 +1088,7 @@
     "lead_modal_opened", "otp_request_started", "otp_sent", "otp_verified",
     "offer_click_locked", "offer_consent_opened", "offer_partner_consent_missing", "offer_partner_consent_confirmed",
     "offer_request_started", "offer_request_recorded", "offer_request_failed", "offer_switcho_redirect",
+    "activation_channel_choice_opened", "activation_channel_selected", "provider_site_redirect",
     "switcho_landing_opened", "offer_redirect", "partner_funnel_opened",
     "assistance_prompt_shown", "assistance_prompt_closed", "assistance_guide_opened",
     "assistance_callback_started", "assistance_callback_verified", "assistance_switcho_redirect",
@@ -2002,6 +2011,55 @@
     }
   }
 
+
+  function offerRouteProviderText(items = []) {
+    const rows = Array.isArray(items) ? items : [];
+    if (!rows.length) return "";
+    return rows.slice(0, 3).map(item => `${item.key} ${formatNumber(item.count)}`).join(" · ");
+  }
+
+  function renderOfferRouteAnalytics() {
+    const payload = cache.offerRoutes && typeof cache.offerRoutes === "object" ? cache.offerRoutes : {};
+    const summary = payload.summary && typeof payload.summary === "object" ? payload.summary : {};
+    const ol = summary.offertalogicaPartner || {};
+    const switcho = summary.switchoProvider || {};
+    const external = summary.externalProvider || {};
+    const noRoute = summary.noRoute || {};
+
+    text(byId("offerRouteOlSessions"), formatNumber(ol.sessions || 0));
+    text(byId("offerRouteSwitchoSessions"), formatNumber(switcho.sessions || 0));
+    text(byId("offerRouteExternalSessions"), formatNumber(external.sessions || 0));
+
+    const olParts = [
+      ol.opens ? `${formatNumber(ol.opens)} aperture` : "",
+      ol.billUploads ? `${formatNumber(ol.billUploads)} bollette` : "",
+      ol.switchoChoices ? `${formatNumber(ol.switchoChoices)} verso Switcho` : "",
+      ol.partnerRedirects ? `${formatNumber(ol.partnerRedirects)} redirect partner` : "",
+    ].filter(Boolean);
+    const switchoParts = [
+      switcho.opens ? `${formatNumber(switcho.opens)} aperture` : "",
+      switcho.switchoChoices ? `${formatNumber(switcho.switchoChoices)} passaggi Switcho` : "",
+    ].filter(Boolean);
+    const externalParts = [
+      external.opens ? `${formatNumber(external.opens)} aperture` : "",
+      external.providerRedirects ? `${formatNumber(external.providerRedirects)} uscite al fornitore` : "",
+    ].filter(Boolean);
+
+    text(byId("offerRouteOlMeta"), olParts.join(" · ") || "Nessun percorso registrato");
+    text(byId("offerRouteSwitchoMeta"), switchoParts.join(" · ") || "Nessun percorso registrato");
+    text(byId("offerRouteExternalMeta"), externalParts.join(" · ") || "Nessun percorso registrato");
+
+    const providerParts = [
+      offerRouteProviderText(ol.topProviders) ? `OffertaLogica: ${offerRouteProviderText(ol.topProviders)}` : "",
+      offerRouteProviderText(switcho.topProviders) ? `Switcho: ${offerRouteProviderText(switcho.topProviders)}` : "",
+      offerRouteProviderText(external.topProviders) ? `Esterni: ${offerRouteProviderText(external.topProviders)}` : "",
+    ].filter(Boolean);
+    const extra = Number(noRoute.sessions || 0) > 0 ? ` · Senza percorso verificato: ${formatNumber(noRoute.sessions)}` : "";
+    text(byId("offerRouteStatus"), Number(summary.classifiedSessions || 0) > 0
+      ? `${formatNumber(summary.classifiedSessions)} sessioni classificate dal nuovo routing. ${providerParts.join(" · ") || "Nessun fornitore ancora disponibile."}${extra}`
+      : `Nessuna sessione ancora classificata dal nuovo routing.${extra}`);
+  }
+
   function renderAnalytics() {
     const summary = cache.analyticsSummary || {};
     const fullSummary = cache.journeySummary || {};
@@ -2038,6 +2096,7 @@
     renderJourneyAnalytics();
     renderPdfJourneyAnalytics();
     renderSwitchoAnalytics();
+    renderOfferRouteAnalytics();
 
     const filteredEvents = filteredAnalyticsEvents();
     const body = byId("analyticsRows");
@@ -2119,6 +2178,7 @@
     cache.journeys = Array.isArray(payload.journeys) ? payload.journeys : [];
     cache.journeySummary = payload.journeySummary || {};
     cache.switcho = payload.switcho && typeof payload.switcho === "object" ? payload.switcho : { rows: [], summary: {} };
+    cache.offerRoutes = payload.offerRoutes && typeof payload.offerRoutes === "object" ? payload.offerRoutes : { summary: {} };
     cache.landingPath = payload.landingPath || null;
     cache.analyticsBaseline = payload.baseline || null;
     Object.keys(analyticsPages).forEach(key => { analyticsPages[key] = 1; });

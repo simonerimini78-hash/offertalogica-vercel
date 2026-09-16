@@ -56,7 +56,7 @@
 <header class="topbar">
   <div class="brand">
     <img src="/assets/logo-offertalogica-icon.png" alt="OffertaLogica">
-    <div><h1>Control Center OffertaLogica</h1><p>Centro operativo per clienti, pratiche, verifiche e dati · v0.37.16</p></div>
+    <div><h1>Control Center OffertaLogica</h1><p>Centro operativo per clienti, pratiche, verifiche e dati · v0.37.17</p></div>
   </div>
   <div class="top-actions" id="staffTopActions" hidden>
     <span class="staff-chip" id="staffIdentity">Staff</span>
@@ -119,7 +119,7 @@
         <section class="panel"><div class="panel-head"><h3>Priorità operative</h3><small>Pratiche raccolte dai moduli operativi</small></div><div class="panel-body" id="overviewTasks"><div class="empty">Caricamento…</div></div></section>
         <section class="panel"><div class="panel-head"><h3>Acquisizione e conversione</h3><small>Funnel essenziale</small></div><div class="panel-body"><div class="funnel" id="overviewFunnel"></div></div></section>
       </div>
-      <div class="version">Control Center Staff v0.37.16</div>
+      <div class="version">Control Center Staff v0.37.17</div>
     </section>
 
     <section class="view" data-staff-view="cases">
@@ -198,6 +198,18 @@
       <section class="panel" id="analyticsFunnelPanel">
         <div class="panel-head"><div><h3>Funnel sessioni uniche</h3><small>Le fasi di ramo non vengono più accorpate: autonomia, guidato, profilo medio, manuale e PDF restano distinguibili.</small></div><div class="analytics-module-actions"><select id="analyticsSourceFilter" aria-label="Filtra funnel per provenienza"><option value="">Tutte le provenienze</option></select><button class="button secondary compact" id="analyticsRefresh" type="button">Aggiorna</button><button class="button secondary compact" type="button" data-analytics-export="sessions">CSV</button></div></div>
         <div class="panel-body"><div class="funnel" id="analyticsFunnel"></div><div class="landing-path-status" id="analyticsFunnelNote">Le percentuali sono riferite agli ingressi della provenienza selezionata; le modalità di confronto sono rami alternativi.</div></div>
+      </section>
+
+      <section class="panel" id="analyticsOfferRoutesPanel" style="margin-top:14px">
+        <div class="panel-head"><div><h3>Percorsi offerte per rete</h3><small>Classifica l’offerta selezionata in base al percorso realmente disponibile. Una sessione può comparire in più gruppi se esplora offerte diverse.</small></div><div class="analytics-module-actions"><button class="button secondary compact" type="button" data-analytics-refresh>Aggiorna</button></div></div>
+        <div class="panel-body">
+          <div class="metrics">
+            <article class="metric priority"><span>Partner OffertaLogica</span><strong id="offerRouteOlSessions">0</strong><small id="offerRouteOlMeta">Nessun percorso registrato</small></article>
+            <article class="metric"><span>Switcho, non OffertaLogica</span><strong id="offerRouteSwitchoSessions">0</strong><small id="offerRouteSwitchoMeta">Nessun percorso registrato</small></article>
+            <article class="metric"><span>Né OffertaLogica né Switcho</span><strong id="offerRouteExternalSessions">0</strong><small id="offerRouteExternalMeta">Nessun percorso registrato</small></article>
+          </div>
+          <div class="landing-path-status" id="offerRouteStatus">Il nuovo tracciamento distingue il tipo di percorso dalla card selezionata.</div>
+        </div>
       </section>
 
       <section class="panel" id="analyticsJourneysPanel" style="margin-top:14px">
@@ -292,7 +304,7 @@
 </div>
 <div id="staffUpdateNotice" class="staff-update" role="status" aria-live="polite"><span id="staffUpdateNoticeText">Nuova versione disponibile.</span><button id="staffApplyUpdate" type="button" hidden>AGGIORNA</button></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.115.0/dist/umd/supabase.js"></script>
-<script src="/staff.js?v=0.37.16"></script>
+<script src="/staff.js?v=0.37.17"></script>
 <script src="/staff-governance-v2.5B.js"></script>
 <script defer src="/staff-management.js?v=0.36.94"></script>
 <script defer src="/staff-economics.js?v=0.36.80"></script>
@@ -397,7 +409,7 @@
 </script>
 <script>
   (()=>{
-    const CURRENT_RELEASE="0.37.16";
+    const CURRENT_RELEASE="0.37.17";
     const PRODUCTION_ORIGIN="https://staff.offertalogica.it";
     const isVercelDeployment=()=>location.hostname.toLowerCase().endsWith(".vercel.app");
     const redirectDeploymentToProduction=()=>{if(!isVercelDeployment())return false;const target=new URL(`${location.pathname}${location.search}${location.hash}`,PRODUCTION_ORIGIN);if(target.href===location.href)return false;location.replace(target.href);return true};
