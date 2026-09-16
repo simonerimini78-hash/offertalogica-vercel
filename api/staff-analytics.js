@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { json } from "../lib/http.js";
 
-const VERSION = "0.12.28";
+const VERSION = "0.12.29";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -17,6 +17,7 @@ const OPPORTUNITY_LIST_LIMIT = 50;
 const TARGET_PAGE_MAX_BYTES = 2 * 1024 * 1024;
 const UPDATE_PROPOSAL_DECISIONS = new Set(["approved", "rejected"]);
 const UPDATE_TEXT_DECISIONS = new Set(["approved", "rejected"]);
+const UPDATE_PREVIEW_DECISIONS = new Set(["confirmed", "cancelled"]);
 
 function env(name) {
   return String(process.env[name] || "").trim();
@@ -1005,7 +1006,7 @@ async function prepareEditorialUpdateProposal(user, idValue, targetUrlValue) {
   const pageResult = await fetchEditorialPage(targetUrl);
   const proposal = buildUpdateProposal(opportunity, pageResult.finalUrl, pageResult.html, user.id);
   const previousEvidence = opportunity.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {};
-  const { update_text_draft: _discardedTextDraft, ...proposalEvidenceBase } = previousEvidence;
+  const { update_text_draft: _discardedTextDraft, update_apply_preview: _discardedApplyPreview, ...proposalEvidenceBase } = previousEvidence;
   const evidence = {
     ...proposalEvidenceBase,
     page_urls: Array.isArray(previousEvidence.page_urls) && previousEvidence.page_urls.length
@@ -1048,7 +1049,7 @@ async function reviewEditorialUpdateProposal(user, idValue, decisionValue) {
     reviewed_by: user.id,
   };
   const currentEvidence = opportunity.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {};
-  const { update_text_draft: _discardedTextDraft, ...reviewEvidenceBase } = currentEvidence;
+  const { update_text_draft: _discardedTextDraft, update_apply_preview: _discardedApplyPreview, ...reviewEvidenceBase } = currentEvidence;
   const evidence = {
     ...reviewEvidenceBase,
     update_proposal: proposal,
@@ -1106,7 +1107,7 @@ function approvedProposalSection(html, proposal) {
       break;
     }
   }
-  return { heading, html: String(html || "").slice(heading.start, end) };
+  return { heading, start: heading.start, end, html: String(html || "").slice(heading.start, end) };
 }
 
 function firstSectionParagraph(sectionHtml, headingEndOffset = 0) {
@@ -1197,8 +1198,10 @@ async function prepareEditorialUpdateText(user, idValue) {
     throw new Error("La pagina è cambiata dopo la proposta: rigenera e riapprova la proposta prima della bozza testo");
   }
   const draft = buildUpdateTextDraft(opportunity, proposal, pageResult.html, user.id);
+  const currentEvidence = opportunity.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {};
+  const { update_apply_preview: _discardedApplyPreview, ...textEvidenceBase } = currentEvidence;
   const evidence = {
-    ...(opportunity.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {}),
+    ...textEvidenceBase,
     update_text_draft: draft,
   };
   const now = new Date().toISOString();
@@ -1235,8 +1238,10 @@ async function reviewEditorialUpdateText(user, idValue, decisionValue) {
     reviewed_at: now,
     reviewed_by: user.id,
   };
+  const currentEvidence = opportunity.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {};
+  const { update_apply_preview: _discardedApplyPreview, ...reviewTextEvidenceBase } = currentEvidence;
   const evidence = {
-    ...(opportunity.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {}),
+    ...reviewTextEvidenceBase,
     update_text_draft: draft,
   };
   const updatedRows = await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(id)}`, {
@@ -1247,6 +1252,213 @@ async function reviewEditorialUpdateText(user, idValue, decisionValue) {
   const updated = updatedRows?.[0];
   if (!updated?.id) throw new Error("Decisione sulla bozza testo non salvata");
   return { opportunity: updated, draft };
+}
+
+
+function escapeHtmlText(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function firstSectionParagraphRange(sectionHtml, headingEndOffset = 0) {
+  const full = String(sectionHtml || "");
+  const offset = Math.max(0, Number(headingEndOffset) || 0);
+  const source = full.slice(offset);
+  const match = /<p\b[^>]*>([\s\S]*?)<\/p>/i.exec(source);
+  if (!match) return null;
+  const relativeStart = offset + match.index;
+  const innerOffset = match[0].indexOf(match[1]);
+  if (innerOffset < 0) return null;
+  const innerStart = relativeStart + innerOffset;
+  const innerEnd = innerStart + match[1].length;
+  const text = plainHtmlText(match[1]).replace(/\s+/g, " ").trim();
+  return {
+    start: relativeStart,
+    end: relativeStart + match[0].length,
+    inner_start: innerStart,
+    inner_end: innerEnd,
+    inner_html: match[1],
+    text,
+  };
+}
+
+function applyApprovedTextDraft(html, proposal, draft) {
+  const source = String(html || "");
+  const changes = Array.isArray(draft?.changes) ? draft.changes : [];
+  if (changes.length !== 1) throw new Error("L’anteprima controllata richiede esattamente una modifica testuale");
+  const change = changes[0] || {};
+  const before = String(change.before || "").trim();
+  const after = String(change.after || "").trim();
+  if (!before || !after || before === after) throw new Error("Diff testuale non valido per l’anteprima");
+
+  const section = approvedProposalSection(source, proposal);
+  const relativeHeadingEnd = Math.max(0, section.heading.heading_end - section.heading.start);
+  const paragraph = firstSectionParagraphRange(section.html, relativeHeadingEnd);
+  if (!paragraph?.text) throw new Error("Paragrafo approvato non più disponibile nella pagina");
+  if (paragraph.text !== before) throw new Error("Il testo sorgente non coincide più con la bozza approvata: rigenera la proposta");
+  if (/<[^>]+>/.test(paragraph.inner_html)) {
+    throw new Error("Il paragrafo contiene markup interno: applicazione automatica bloccata per sicurezza");
+  }
+
+  const globalInnerStart = section.start + paragraph.inner_start;
+  const globalInnerEnd = section.start + paragraph.inner_end;
+  const modified = `${source.slice(0, globalInnerStart)}${escapeHtmlText(after)}${source.slice(globalInnerEnd)}`;
+  if (modified === source) throw new Error("L’anteprima non produce alcuna modifica");
+
+  const sourcePage = {
+    title: firstTagText(source, "title"),
+    h1: firstTagText(source, "h1"),
+    meta_description: metaDescription(source),
+  };
+  const previewPage = {
+    title: firstTagText(modified, "title"),
+    h1: firstTagText(modified, "h1"),
+    meta_description: metaDescription(modified),
+  };
+  if (sourcePage.title !== previewPage.title || sourcePage.h1 !== previewPage.h1 || sourcePage.meta_description !== previewPage.meta_description) {
+    throw new Error("L’anteprima toccherebbe elementi fuori dalla sezione approvata: operazione bloccata");
+  }
+
+  return {
+    modified,
+    section,
+    before,
+    after,
+    sourcePage,
+    previewPage,
+  };
+}
+
+function buildUpdateApplyPreview(opportunity, proposal, draft, html, userId) {
+  const applied = applyApprovedTextDraft(html, proposal, draft);
+  const sourceFingerprint = crypto.createHash("sha256").update(html).digest("hex");
+  const previewFingerprint = crypto.createHash("sha256").update(applied.modified).digest("hex");
+  return {
+    schema_version: 1,
+    status: "pending_confirmation",
+    target_url: proposal.target_url,
+    prepared_at: new Date().toISOString(),
+    prepared_by: userId,
+    source_page_fingerprint_sha256: sourceFingerprint,
+    preview_page_fingerprint_sha256: previewFingerprint,
+    change_count: 1,
+    target: {
+      heading_level: applied.section.heading.tag,
+      heading_id: applied.section.heading.id || null,
+      heading_text: applied.section.heading.text,
+    },
+    page_preview: {
+      title: applied.previewPage.title,
+      h1: applied.previewPage.h1,
+      meta_description: applied.previewPage.meta_description,
+      before_paragraph: applied.before,
+      after_paragraph: applied.after,
+    },
+    validation: {
+      source_matches_approved_draft: sourceFingerprint === draft.source_page_fingerprint_sha256,
+      title_unchanged: applied.sourcePage.title === applied.previewPage.title,
+      h1_unchanged: applied.sourcePage.h1 === applied.previewPage.h1,
+      meta_description_unchanged: applied.sourcePage.meta_description === applied.previewPage.meta_description,
+      writes_page: false,
+    },
+    safeguards: [
+      "L’anteprima applica il diff soltanto a una copia in memoria della pagina.",
+      "Il file HTML pubblicato non viene scritto o modificato.",
+      "La conferma dell’anteprima registra solo un’autorizzazione separata; non pubblica nulla.",
+    ],
+  };
+}
+
+async function prepareEditorialUpdatePreview(user, idValue) {
+  const id = String(idValue || "").trim();
+  if (!validUuid(id)) throw new Error("Identificativo opportunità non valido");
+  const rows = await serviceFetch(
+    `editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(id)}&limit=1`,
+  );
+  const opportunity = rows?.[0];
+  if (!opportunity) throw new Error("Opportunità non trovata");
+  const proposal = opportunity?.evidence?.update_proposal;
+  const draft = opportunity?.evidence?.update_text_draft;
+  if (opportunity.status !== "selected" || opportunity.opportunity_type !== "update_article") {
+    throw new Error("L’anteprima richiede un aggiornamento selezionato");
+  }
+  if (proposal?.status !== "approved") throw new Error("Approva prima la proposta di aggiornamento");
+  if (draft?.status !== "approved") throw new Error("Approva prima la bozza testuale");
+
+  const targetUrl = normalizedPageUrl(proposal.target_url || opportunity?.evidence?.target_page_url);
+  const pageResult = await fetchEditorialPage(targetUrl);
+  const sourceFingerprint = crypto.createHash("sha256").update(pageResult.html).digest("hex");
+  if (!draft.source_page_fingerprint_sha256 || sourceFingerprint !== draft.source_page_fingerprint_sha256) {
+    throw new Error("La pagina è cambiata dopo la bozza approvata: rigenera proposta e testo");
+  }
+
+  const preview = buildUpdateApplyPreview(opportunity, proposal, draft, pageResult.html, user.id);
+  const evidence = {
+    ...(opportunity.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {}),
+    update_apply_preview: preview,
+  };
+  const now = new Date().toISOString();
+  const updatedRows = await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    prefer: "return=representation",
+    body: { evidence, updated_at: now, decided_by: user.id },
+  });
+  const updated = updatedRows?.[0];
+  if (!updated?.id) throw new Error("Anteprima applicata non salvata");
+  return { opportunity: updated, preview };
+}
+
+async function reviewEditorialUpdatePreview(user, idValue, decisionValue) {
+  const id = String(idValue || "").trim();
+  const decision = String(decisionValue || "").trim();
+  if (!validUuid(id)) throw new Error("Identificativo opportunità non valido");
+  if (!UPDATE_PREVIEW_DECISIONS.has(decision)) throw new Error("Decisione anteprima non valida");
+  const rows = await serviceFetch(
+    `editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(id)}&limit=1`,
+  );
+  const opportunity = rows?.[0];
+  if (!opportunity) throw new Error("Opportunità non trovata");
+  const proposal = opportunity?.evidence?.update_proposal;
+  const draft = opportunity?.evidence?.update_text_draft;
+  const currentPreview = opportunity?.evidence?.update_apply_preview;
+  if (opportunity.status !== "selected" || opportunity.opportunity_type !== "update_article" || proposal?.status !== "approved" || draft?.status !== "approved") {
+    throw new Error("Proposta o testo approvato non più validi per questa anteprima");
+  }
+  if (!currentPreview || typeof currentPreview !== "object") throw new Error("Prepara prima l’anteprima applicata");
+
+  const targetUrl = normalizedPageUrl(currentPreview.target_url || proposal.target_url);
+  const pageResult = await fetchEditorialPage(targetUrl);
+  const sourceFingerprint = crypto.createHash("sha256").update(pageResult.html).digest("hex");
+  if (!currentPreview.source_page_fingerprint_sha256 || sourceFingerprint !== currentPreview.source_page_fingerprint_sha256) {
+    throw new Error("La pagina è cambiata dopo l’anteprima: rigenera prima di confermare");
+  }
+  const recomputed = buildUpdateApplyPreview(opportunity, proposal, draft, pageResult.html, user.id);
+  if (recomputed.preview_page_fingerprint_sha256 !== currentPreview.preview_page_fingerprint_sha256) {
+    throw new Error("L’anteprima non coincide più con il diff approvato: rigenerala");
+  }
+
+  const now = new Date().toISOString();
+  const preview = {
+    ...currentPreview,
+    status: decision,
+    reviewed_at: now,
+    reviewed_by: user.id,
+    ready_for_apply: decision === "confirmed",
+  };
+  const evidence = {
+    ...(opportunity.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {}),
+    update_apply_preview: preview,
+  };
+  const updatedRows = await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    prefer: "return=representation",
+    body: { evidence, updated_at: now, decided_by: user.id },
+  });
+  const updated = updatedRows?.[0];
+  if (!updated?.id) throw new Error("Decisione anteprima non salvata");
+  return { opportunity: updated, preview };
 }
 
 async function analysisPayload() {
@@ -1421,6 +1633,16 @@ export default async function handler(req, res) {
 
     if (req.method === "POST" && action === "review-editorial-update-text") {
       const result = await reviewEditorialUpdateText(user, req.body?.id, req.body?.decision);
+      return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "POST" && action === "prepare-editorial-update-preview") {
+      const result = await prepareEditorialUpdatePreview(user, req.body?.id);
+      return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "POST" && action === "review-editorial-update-preview") {
+      const result = await reviewEditorialUpdatePreview(user, req.body?.id, req.body?.decision);
       return json(res, 200, { ok: true, version: VERSION, result });
     }
 

@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.28";
+  const VERSION = "0.12.29";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
   let statusLoaded = false;
@@ -97,7 +97,7 @@
 
       <div class="ol-field" style="margin-top:18px">
         <label>Opportunità salvate</label>
-        <p class="ol-muted">Un segnale entra qui solo quando lo salvi manualmente. Dopo la selezione puoi classificarlo come nuovo articolo, aggiornamento, solo social o monitoraggio. “Nuovo articolo” abilita una bozza vuota; “Aggiornamento” permette di preparare una proposta e, dopo approvazione, una bozza testuale/diff separata dalla pagina pubblicata. Nessuna azione pubblica contenuti.</p>
+        <p class="ol-muted">Un segnale entra qui solo quando lo salvi manualmente. Dopo la selezione puoi classificarlo come nuovo articolo, aggiornamento, solo social o monitoraggio. “Nuovo articolo” abilita una bozza vuota; “Aggiornamento” permette di preparare proposta, bozza testuale e anteprima applicata con conferma separata, sempre senza modificare la pagina pubblicata. Nessuna azione pubblica contenuti.</p>
         <p class="ol-autopilot-save-state" data-opportunity-message>Caricamento opportunità…</p>
         <div class="ol-autopilot-archive-list" data-opportunity-list>
           <p class="ol-muted">Caricamento…</p>
@@ -265,6 +265,35 @@
     return ({ pending_review: "Da revisionare", approved: "Approvata", rejected: "Rifiutata" })[status] || status || "—";
   }
 
+  function updateApplyPreviewStatusLabel(status) {
+    return ({ pending_confirmation: "Da confermare", confirmed: "Confermata", cancelled: "Annullata" })[status] || status || "—";
+  }
+
+  function updateApplyPreviewMarkup(row) {
+    const preview = row?.evidence?.update_apply_preview;
+    if (!preview || typeof preview !== "object") return "";
+    const page = preview.page_preview || {};
+    const target = preview.target || {};
+    const validation = preview.validation || {};
+    const unchanged = validation.title_unchanged && validation.h1_unchanged && validation.meta_description_unchanged;
+    return `<div class="ol-field" style="margin-top:10px">
+      <label>Anteprima applicata · ${esc(updateApplyPreviewStatusLabel(preview.status))}</label>
+      <small>Calcolata ${esc(dateIt(preview.prepared_at))} su una copia in memoria della pagina. Il file HTML pubblicato resta invariato.</small>
+      <div class="ol-autopilot-archive-item" style="margin-top:6px">
+        <strong>Come apparirebbe la sezione</strong>
+        <small><b>${esc(target.heading_level || "Sezione")}:</b> ${esc(target.heading_text || "—")}</small>
+        <small><b>Prima:</b> ${esc(page.before_paragraph || "—")}</small>
+        <small><b>Anteprima:</b> ${esc(page.after_paragraph || "—")}</small>
+        <small><b>Controlli:</b> ${unchanged ? "title, H1 e meta description invariati" : "verifica elementi pagina non completata"} · ${Number(preview.change_count || 0)} modifica applicata in memoria.</small>
+      </div>
+      <div class="ol-toolbar-group" style="margin-top:8px">
+        <button class="ol-button ol-button-secondary ol-button-small" type="button" data-update-preview-review="confirmed" data-update-preview-opportunity="${esc(row.id || "")}" ${preview.status === "confirmed" ? "disabled" : ""}>Conferma anteprima</button>
+        <button class="ol-button ol-button-secondary ol-button-small" type="button" data-update-preview-review="cancelled" data-update-preview-opportunity="${esc(row.id || "")}" ${preview.status === "cancelled" ? "disabled" : ""}>Annulla anteprima</button>
+      </div>
+      <small>La conferma registra solo l’autorizzazione a procedere al livello successivo: non modifica e non pubblica la pagina.</small>
+    </div>`;
+  }
+
   function updateTextDraftMarkup(row) {
     const draft = row?.evidence?.update_text_draft;
     if (!draft || typeof draft !== "object") return "";
@@ -285,6 +314,7 @@
         <button class="ol-button ol-button-secondary ol-button-small" type="button" data-update-text-review="rejected" data-update-text-opportunity="${esc(row.id || "")}" ${draft.status === "rejected" ? "disabled" : ""}>Rifiuta testo</button>
       </div>
       <small>Anche l’approvazione del testo non applica modifiche e non pubblica la pagina.</small>
+      ${draft.status === "approved" ? `<div class="ol-toolbar-group" style="margin-top:8px"><button class="ol-button ol-button-secondary ol-button-small" type="button" data-update-preview-prepare="${esc(row.id || "")}">${row?.evidence?.update_apply_preview ? "Rigenera anteprima applicata" : "Prepara anteprima applicata"}</button></div><small>L’anteprima applica il diff soltanto a una copia in memoria e richiede una conferma separata.</small>${updateApplyPreviewMarkup(row)}` : ""}
     </div>`;
   }
 
@@ -444,6 +474,8 @@
     const updateReviewButton = event.target.closest("[data-update-review][data-update-opportunity]");
     const updateTextPrepareButton = event.target.closest("[data-update-text-prepare]");
     const updateTextReviewButton = event.target.closest("[data-update-text-review][data-update-text-opportunity]");
+    const updatePreviewPrepareButton = event.target.closest("[data-update-preview-prepare]");
+    const updatePreviewReviewButton = event.target.closest("[data-update-preview-review][data-update-preview-opportunity]");
     const message = section.querySelector("[data-opportunity-message]");
 
     if (saveButton) {
@@ -616,6 +648,50 @@
       } catch (error) {
         updateTextReviewButton.disabled = false;
         if (message) message.textContent = `Decisione sul testo non salvata: ${error.message}`;
+      }
+      return;
+    }
+
+    if (updatePreviewPrepareButton) {
+      const id = updatePreviewPrepareButton.dataset.updatePreviewPrepare || "";
+      const existingPreview = opportunityRows.find((row) => String(row.id || "") === id)?.evidence?.update_apply_preview;
+      if (!id || updatePreviewPrepareButton.disabled) return;
+      if (existingPreview && !window.confirm("Rigenerare l’anteprima applicata? L’eventuale conferma precedente verrà sostituita.")) return;
+      updatePreviewPrepareButton.disabled = true;
+      if (message) message.textContent = "Preparazione anteprima applicata su copia in memoria…";
+      try {
+        await endpoint("prepare-editorial-update-preview", {
+          method: "POST",
+          body: { id },
+        });
+        if (message) message.textContent = "Anteprima applicata preparata. Il file HTML pubblicato non è stato modificato.";
+        await loadOpportunities(section, true);
+      } catch (error) {
+        updatePreviewPrepareButton.disabled = false;
+        if (message) message.textContent = `Anteprima non preparata: ${error.message}`;
+      }
+      return;
+    }
+
+    if (updatePreviewReviewButton) {
+      const id = updatePreviewReviewButton.dataset.updatePreviewOpportunity || "";
+      const decision = updatePreviewReviewButton.dataset.updatePreviewReview || "";
+      if (!id || !decision || updatePreviewReviewButton.disabled) return;
+      if (decision === "confirmed" && !window.confirm("Confermare questa anteprima? La conferma NON modifica ancora il file HTML e non pubblica la pagina.")) return;
+      updatePreviewReviewButton.disabled = true;
+      if (message) message.textContent = decision === "confirmed" ? "Conferma anteprima…" : "Annullamento anteprima…";
+      try {
+        await endpoint("review-editorial-update-preview", {
+          method: "POST",
+          body: { id, decision },
+        });
+        if (message) message.textContent = decision === "confirmed"
+          ? "Anteprima confermata. Nessun file HTML è stato modificato o pubblicato."
+          : "Anteprima annullata. La pagina resta invariata.";
+        await loadOpportunities(section, true);
+      } catch (error) {
+        updatePreviewReviewButton.disabled = false;
+        if (message) message.textContent = `Decisione anteprima non salvata: ${error.message}`;
       }
     }
   }
