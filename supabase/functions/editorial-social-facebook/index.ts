@@ -1,7 +1,13 @@
 // @ts-nocheck
+import {
+  buildSocialSummary,
+  cleanSocialInlineText,
+  SOCIAL_SUMMARY_VERSION,
+} from "../_shared/editorial-social-summary.ts";
+
 const API_VERSION = "v26.0";
 const FACEBOOK_GRAPH = "https://graph.facebook.com";
-const VERSION = "0.12.16";
+const VERSION = "0.12.17";
 const PLATFORM = "facebook";
 const MAX_ATTEMPTS = 3;
 const MAX_MESSAGE_CHARS = 7000;
@@ -91,58 +97,40 @@ function articleUrl(slug) {
   return `https://offertalogica.it/articoli/${encodeURIComponent(slug)}.html`;
 }
 
-function cleanInlineMarkdown(value = "") {
-  return String(value || "")
-    .replace(/\[([^\]\n]+)\]\(([^)\s]+)\)/g, "$1 ($2)")
-    .replace(/!\[([^\]]*)\]\([^)]+\)/g, "$1")
-    .replace(/^#{1,6}\s+/gm, "")
-    .replace(/^\s*[-*+]\s+/gm, "• ")
-    .replace(/^\s*\d+[.)]\s+/gm, "• ")
-    .replace(/[*_`~]+/g, "")
-    .replace(/\r\n?/g, "\n")
-    .replace(/[ \t]+/g, " ")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-}
-
 function composeFacebookMessage(article, author = {}) {
-  const title = cleanInlineMarkdown(article?.title || "").replace(/\s+/g, " ").trim();
-  const excerpt = cleanInlineMarkdown(article?.excerpt || "").replace(/\s+/g, " ").trim();
-  const content = cleanInlineMarkdown(article?.content || "");
+  const title = cleanSocialInlineText(article?.title || "").replace(/\s+/g, " ").trim();
+  const excerpt = cleanSocialInlineText(article?.excerpt || "").replace(/\s+/g, " ").trim();
   const slug = String(article?.slug || "").trim();
   const url = slug ? articleUrl(slug) : "";
   const authorName = String(author?.display_name || "Redazione OffertaLogica").replace(/\s+/g, " ").trim();
-
-  const bodyParts = [];
-  if (content) {
-    const paragraphs = content.split(/\n\s*\n/).map((item) => item.trim()).filter(Boolean);
-    let used = 0;
-    for (const paragraph of paragraphs) {
-      if (excerpt && paragraph.toLowerCase() === excerpt.toLowerCase()) continue;
-      const room = 4300 - used;
-      if (room <= 0) break;
-      if (paragraph.length > room) {
-        bodyParts.push(`${paragraph.slice(0, Math.max(0, room - 1)).trimEnd()}…`);
-        used = 4300;
-        break;
-      }
-      bodyParts.push(paragraph);
-      used += paragraph.length + 2;
-      if (used >= 4300) break;
-    }
-  }
+  const summary = buildSocialSummary(article);
 
   const parts = [];
   if (title) parts.push(title);
   if (excerpt) parts.push(excerpt);
-  if (bodyParts.length) parts.push(bodyParts.join("\n\n"));
-  if (url) parts.push(`Leggi l'articolo completo: ${url}`);
+  if (summary.text) parts.push(summary.text);
+  if (url) parts.push(`Leggi l'articolo completo su OffertaLogica Informa:\n${url}`);
   if (authorName) parts.push(`Autore: ${authorName}`);
 
   const message = parts.filter(Boolean).join("\n\n");
-  return message.length <= MAX_MESSAGE_CHARS
-    ? message
-    : `${message.slice(0, MAX_MESSAGE_CHARS - 1).trimEnd()}…`;
+  if (message.length <= MAX_MESSAGE_CHARS) {
+    return { message, summaryProfile: summary.profile };
+  }
+
+  const footer = [
+    url ? `Leggi l'articolo completo su OffertaLogica Informa:\n${url}` : "",
+    authorName ? `Autore: ${authorName}` : "",
+  ].filter(Boolean).join("\n\n");
+  const header = [title, excerpt].filter(Boolean).join("\n\n");
+  const reserved = header.length + footer.length + 8;
+  const fitted = buildSocialSummary(article, { maxChars: Math.max(800, MAX_MESSAGE_CHARS - reserved) });
+  const safeMessage = [header, fitted.text, footer].filter(Boolean).join("\n\n");
+  return {
+    message: safeMessage.length <= MAX_MESSAGE_CHARS
+      ? safeMessage
+      : `${safeMessage.slice(0, MAX_MESSAGE_CHARS - 1).trimEnd()}…`,
+    summaryProfile: fitted.profile,
+  };
 }
 
 async function facebookGet(token, path, fields = "") {
@@ -519,7 +507,8 @@ async function processArticleQueue(req, ctx, pageToken, pageId, articleId) {
   }
 
   const author = await loadArticleAuthor(ctx, article);
-  const message = composeFacebookMessage(article, author);
+  const composed = composeFacebookMessage(article, author);
+  const message = composed.message;
   const link = articleUrl(String(article.slug || ""));
   if (!message || !validHttps(link)) {
     throw Object.assign(new Error("Contenuto Facebook non valido"), { status: 422 });
@@ -576,6 +565,8 @@ async function processArticleQueue(req, ctx, pageToken, pageId, articleId) {
       external_post_url: post?.permalink_url || null,
       page_id: pageId,
       page_name: identity.name || null,
+      summary_version: SOCIAL_SUMMARY_VERSION,
+      summary_profile: composed.summaryProfile,
     });
   } catch (error) {
     const phase = String(error?.phase || "");
@@ -638,6 +629,7 @@ Deno.serve(async (req) => {
         platform: PLATFORM,
         page_id: identity.id,
         page_name: identity.name,
+        summary_version: SOCIAL_SUMMARY_VERSION,
       });
     }
 
