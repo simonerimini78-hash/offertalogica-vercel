@@ -11789,6 +11789,36 @@ function avviaPassoSuccessivoPdfMobileAutomatico() {
   }, 80);
 }
 
+// OFFERTALOGICA_PUBLIC_V102_20260916: sul desktop una bolletta privata completa
+// prosegue come il flusso mobile: calcola e apre direttamente le offerte.
+function avviaPassoSuccessivoPdfDesktopAutomatico({ validCurrent = [] } = {}) {
+  if (esperienzaPdfMobileAttiva() || LEAD_STATE.customerType === "business" || !validCurrent.length) return;
+  const current = datiPdfValidiSlot("current");
+  const data = current?.data || datiBollettaCorrentePdf() || LEAD_STATE.pdfData || {};
+  if (!current || data.kind !== "bolletta") return;
+  if (["pending_gas", "pending_luce"].includes(ambitoConfrontoAttivo())) return;
+  if (campiMancanti(configurazioniPdfDaControllare(data, false)).length) return;
+
+  window.setTimeout(() => {
+    if (esperienzaPdfMobileAttiva() || LEAD_STATE.customerType === "business") return;
+    const freshCurrent = datiPdfValidiSlot("current");
+    const freshData = freshCurrent?.data || {};
+    if (!freshCurrent || freshData.kind !== "bolletta") return;
+    if (["pending_gas", "pending_luce"].includes(ambitoConfrontoAttivo())) return;
+    if (campiMancanti(configurazioniPdfDaControllare(freshData, false)).length) return;
+
+    window.avviaComparazioneDati?.();
+    window.requestAnimationFrame(() => {
+      window.setTimeout(() => {
+        const target = document.querySelector(".fornitori-consigliati-section") || document.getElementById("results-area");
+        if (target && window.getComputedStyle(target).display !== "none") {
+          portaElementoInVista(target, { block: "start", focus: false, delay: 0 });
+        }
+      }, 30);
+    });
+  }, 80);
+}
+
 function attivaFocusOfferteMobile() {
   if (!esperienzaPdfMobileAttiva()) return;
   document.body.classList.add("mobile-offers-focus");
@@ -12633,6 +12663,7 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
   });
   aggiornaStatoPdfMobileDopoAnalisi({ files, validCurrent, validOffer, results });
   avviaPassoSuccessivoPdfMobileAutomatico();
+  avviaPassoSuccessivoPdfDesktopAutomatico({ validCurrent });
   } catch (error) {
     const diagnosticError = pdfEnsureDiagnosticError(error, "pdf_batch_processing");
     trackEvent("pdf_analysis_interrupted", {
