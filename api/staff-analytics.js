@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { json } from "../lib/http.js";
 
-const VERSION = "0.12.25";
+const VERSION = "0.12.26";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -12,6 +12,7 @@ const ANALYSIS_PAGE_SIZE = 1000;
 const ANALYSIS_MAX_ROWS_PER_SNAPSHOT = 20000;
 const ANALYSIS_WINDOWS = [7, 28, 90];
 const OPPORTUNITY_STATUSES = new Set(["pending", "selected", "deferred", "rejected"]);
+const OPPORTUNITY_TYPES = new Set(["new_article", "update_article", "social_only", "monitor"]);
 const OPPORTUNITY_LIST_LIMIT = 50;
 
 function env(name) {
@@ -376,6 +377,7 @@ function aggregateSnapshot(rows) {
         position_weight: 0,
         queries: new Set(),
         pages: new Set(),
+        page_impressions: new Map(),
       };
       topics.set(key, topic);
     }
@@ -386,7 +388,11 @@ function aggregateSnapshot(rows) {
     topic.clicks += clicks;
     topic.impressions += impressions;
     topic.queries.add(String(row.query || ""));
-    if (row.page_url) topic.pages.add(String(row.page_url));
+    if (row.page_url) {
+      const pageUrl = String(row.page_url);
+      topic.pages.add(pageUrl);
+      topic.page_impressions.set(pageUrl, (topic.page_impressions.get(pageUrl) || 0) + impressions);
+    }
 
     if (impressions > topic.display_impressions) {
       topic.display_impressions = impressions;
@@ -408,6 +414,10 @@ function aggregateSnapshot(rows) {
     avg_position: topic.position_weight > 0 ? topic.position_weighted / topic.position_weight : null,
     query_count: topic.queries.size,
     page_count: topic.pages.size,
+    page_urls: [...topic.page_impressions.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .slice(0, 5)
+      .map(([url]) => url),
   }]));
 }
 
@@ -456,10 +466,26 @@ async function opportunitiesPayload() {
   const rows = await serviceFetch(
     `editorial_research_opportunities?select=${opportunitySelect()}&order=updated_at.desc&limit=${OPPORTUNITY_LIST_LIMIT}`,
   );
+  const opportunities = Array.isArray(rows) ? rows : [];
+  const needsContext = opportunities.some((row) => {
+    const savedPages = row?.evidence?.page_urls;
+    return (!Array.isArray(savedPages) || !savedPages.length) && row?.evidence?.topic_key;
+  });
+  let signalsByTopic = new Map();
+  if (needsContext) {
+    const analysis = await analysisPayload().catch(() => null);
+    if (analysis?.ready) {
+      signalsByTopic = new Map((analysis.signals || []).map((signal) => [signal.topic_key, signal]));
+    }
+  }
   return {
     ok: true,
     version: VERSION,
-    opportunities: Array.isArray(rows) ? rows : [],
+    opportunities: opportunities.map((row) => {
+      const savedPages = Array.isArray(row?.evidence?.page_urls) ? row.evidence.page_urls : [];
+      const livePages = signalsByTopic.get(row?.evidence?.topic_key)?.page_urls || [];
+      return { ...row, context_pages: (savedPages.length ? savedPages : livePages).slice(0, 5) };
+    }),
   };
 }
 
@@ -517,6 +543,7 @@ async function saveEditorialOpportunity(user, topicKeyValue) {
     topic_key: signal.topic_key,
     query_count: signal.query_count,
     page_count: signal.page_count,
+    page_urls: Array.isArray(signal.page_urls) ? signal.page_urls.slice(0, 5) : [],
     momentum_ratio: signal.momentum_ratio,
     metrics: signal.metrics,
     snapshots: analysis.snapshots.map((row) => ({
@@ -556,10 +583,11 @@ async function updateEditorialOpportunity(user, idValue, statusValue) {
   if (!OPPORTUNITY_STATUSES.has(status)) throw new Error("Stato opportunità non valido");
 
   const current = await serviceFetch(
-    `editorial_research_opportunities?select=id,status&id=eq.${encodeURIComponent(id)}&limit=1`,
+    `editorial_research_opportunities?select=id,status,target_article_id&id=eq.${encodeURIComponent(id)}&limit=1`,
   );
   if (!current?.[0]) throw new Error("Opportunità non trovata");
   if (current[0].status === "completed") throw new Error("Un’opportunità completata non può essere riaperta da questa fase");
+  if (current[0].target_article_id) throw new Error("L’opportunità è già collegata a un articolo; gestiscila dalla bozza collegata");
 
   const now = new Date().toISOString();
   const decided = status !== "pending";
@@ -576,6 +604,132 @@ async function updateEditorialOpportunity(user, idValue, statusValue) {
   const opportunity = rows?.[0];
   if (!opportunity?.id) throw new Error("Stato opportunità non aggiornato");
   return opportunity;
+}
+
+
+function normalizeArticleSlug(value) {
+  return String(value || "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 120);
+}
+
+async function classifyEditorialOpportunity(user, idValue, typeValue) {
+  const id = String(idValue || "").trim();
+  const opportunityType = String(typeValue || "").trim();
+  if (!validUuid(id)) throw new Error("Identificativo opportunità non valido");
+  if (!OPPORTUNITY_TYPES.has(opportunityType)) throw new Error("Destinazione editoriale non valida");
+
+  const current = await serviceFetch(
+    `editorial_research_opportunities?select=id,status,target_article_id,opportunity_type&id=eq.${encodeURIComponent(id)}&limit=1`,
+  );
+  const opportunity = current?.[0];
+  if (!opportunity) throw new Error("Opportunità non trovata");
+  if (opportunity.status !== "selected") throw new Error("Seleziona prima l’opportunità");
+  if (opportunity.target_article_id) throw new Error("Questa opportunità è già collegata a una bozza");
+
+  const now = new Date().toISOString();
+  const rows = await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    prefer: "return=representation",
+    body: {
+      opportunity_type: opportunityType,
+      updated_at: now,
+      decided_by: user.id,
+    },
+  });
+  const updated = rows?.[0];
+  if (!updated?.id) throw new Error("Destinazione editoriale non aggiornata");
+  return updated;
+}
+
+async function articleSummary(articleId) {
+  if (!validUuid(articleId)) return null;
+  const rows = await serviceFetch(
+    `editorial_articles?select=id,title,slug,status&id=eq.${encodeURIComponent(articleId)}&limit=1`,
+  );
+  return rows?.[0] || null;
+}
+
+async function prepareEditorialDraft(user, idValue) {
+  const id = String(idValue || "").trim();
+  if (!validUuid(id)) throw new Error("Identificativo opportunità non valido");
+
+  const current = await serviceFetch(
+    `editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(id)}&limit=1`,
+  );
+  const opportunity = current?.[0];
+  if (!opportunity) throw new Error("Opportunità non trovata");
+
+  if (opportunity.target_article_id) {
+    const existingArticle = await articleSummary(opportunity.target_article_id);
+    if (existingArticle) return { created: false, article: existingArticle, opportunity };
+  }
+  if (opportunity.status !== "selected") throw new Error("L’opportunità deve essere selezionata");
+  if (opportunity.opportunity_type !== "new_article") {
+    throw new Error("La bozza è disponibile solo per opportunità classificate come Nuovo articolo");
+  }
+
+  const authorRows = await serviceFetch(
+    `editorial_authors?select=id,user_id,slug,display_name,active&user_id=eq.${encodeURIComponent(user.id)}&active=eq.true&limit=1`,
+  );
+  const author = authorRows?.[0];
+  if (!author?.id) throw new Error("Profilo autore attivo non disponibile per questo account");
+
+  const title = String(opportunity.topic || "Bozza editoriale").trim().slice(0, 140) || "Bozza editoriale";
+  const baseSlug = normalizeArticleSlug(title).slice(0, 76) || "bozza-editoriale";
+  const slug = `${baseSlug}-${id}`.slice(0, 120);
+  const articleRows = await serviceFetch("editorial_articles?select=*", {
+    method: "POST",
+    prefer: "return=representation",
+    body: {
+      title,
+      slug,
+      category: opportunity.category || null,
+      featured_image_url: null,
+      featured_image_alt: null,
+      excerpt: "",
+      content: "",
+      sources: null,
+      seo_title: null,
+      seo_description: null,
+      status: "draft",
+      author_id: author.id,
+      created_by: user.id,
+      updated_by: user.id,
+    },
+  });
+  const article = articleRows?.[0];
+  if (!article?.id) throw new Error("Bozza editoriale non creata");
+
+  const now = new Date().toISOString();
+  try {
+    const opportunityRows = await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      prefer: "return=representation",
+      body: {
+        target_article_id: article.id,
+        decided_by: user.id,
+        updated_at: now,
+      },
+    });
+    const updatedOpportunity = opportunityRows?.[0];
+    if (!updatedOpportunity?.id) throw new Error("Collegamento opportunità-bozza non confermato");
+    return {
+      created: true,
+      article: { id: article.id, title: article.title, slug: article.slug, status: article.status },
+      opportunity: updatedOpportunity,
+    };
+  } catch (error) {
+    await serviceFetch(`editorial_articles?id=eq.${encodeURIComponent(article.id)}`, {
+      method: "DELETE",
+      prefer: "return=minimal",
+    }).catch(() => {});
+    throw error;
+  }
 }
 
 async function analysisPayload() {
@@ -636,6 +790,11 @@ async function analysisPayload() {
       score,
       query_count: Math.max(seven?.query_count || 0, twentyEight?.query_count || 0, ninety?.query_count || 0),
       page_count: Math.max(seven?.page_count || 0, twentyEight?.page_count || 0, ninety?.page_count || 0),
+      page_urls: [...new Set([
+        ...(ninety?.page_urls || []),
+        ...(twentyEight?.page_urls || []),
+        ...(seven?.page_urls || []),
+      ])].slice(0, 5),
       momentum_ratio: roundMetric(momentum.ratio, 3),
       metrics: {
         "7": seven ? {
@@ -716,6 +875,16 @@ export default async function handler(req, res) {
     if (req.method === "POST" && action === "update-editorial-opportunity") {
       const opportunity = await updateEditorialOpportunity(user, req.body?.id, req.body?.status);
       return json(res, 200, { ok: true, version: VERSION, opportunity });
+    }
+
+    if (req.method === "POST" && action === "classify-editorial-opportunity") {
+      const opportunity = await classifyEditorialOpportunity(user, req.body?.id, req.body?.opportunity_type);
+      return json(res, 200, { ok: true, version: VERSION, opportunity });
+    }
+
+    if (req.method === "POST" && action === "prepare-editorial-draft") {
+      const result = await prepareEditorialDraft(user, req.body?.id);
+      return json(res, 200, { ok: true, version: VERSION, result });
     }
 
     return json(res, 404, { ok: false, error: "Azione non trovata" });

@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.25";
+  const VERSION = "0.12.26";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
   let statusLoaded = false;
@@ -97,7 +97,7 @@
 
       <div class="ol-field" style="margin-top:18px">
         <label>Opportunità salvate</label>
-        <p class="ol-muted">Un segnale entra qui solo quando lo salvi manualmente. Puoi selezionarlo, rimandarlo o rifiutarlo. In questa fase nessuna azione crea bozze o pubblica contenuti.</p>
+        <p class="ol-muted">Un segnale entra qui solo quando lo salvi manualmente. Dopo la selezione puoi classificarlo come nuovo articolo, aggiornamento, solo social o monitoraggio. Solo “Nuovo articolo” abilita la creazione manuale di una bozza vuota; nessuna azione pubblica contenuti.</p>
         <p class="ol-autopilot-save-state" data-opportunity-message>Caricamento opportunità…</p>
         <div class="ol-autopilot-archive-list" data-opportunity-list>
           <p class="ol-muted">Caricamento…</p>
@@ -239,16 +239,74 @@
     })[status] || status || "—";
   }
 
+  function opportunityTypeLabel(type) {
+    return ({
+      new_article: "Nuovo articolo",
+      update_article: "Aggiornamento articolo/pagina",
+      social_only: "Solo social",
+      monitor: "Monitoraggio",
+    })[type] || type || "Monitoraggio";
+  }
+
+  function contextPagesMarkup(pages) {
+    const safePages = (Array.isArray(pages) ? pages : []).filter(Boolean).slice(0, 3);
+    if (!safePages.length) return "";
+    return `<small>Pagine già intercettate da Search Console:</small>${safePages
+      .map((url) => `<small>• ${esc(url)}</small>`)
+      .join("")}`;
+  }
+
   function opportunityActions(row) {
     const id = esc(row.id || "");
     const status = String(row.status || "");
-    if (status === "completed") return "";
+    if (status === "completed" || row.target_article_id) return "";
     const buttons = [];
     if (status !== "selected") buttons.push(`<button class="ol-button ol-button-secondary ol-button-small" type="button" data-opportunity-id="${id}" data-opportunity-status="selected">Seleziona</button>`);
     if (status !== "deferred") buttons.push(`<button class="ol-button ol-button-secondary ol-button-small" type="button" data-opportunity-id="${id}" data-opportunity-status="deferred">Rimanda</button>`);
     if (status !== "rejected") buttons.push(`<button class="ol-button ol-button-secondary ol-button-small" type="button" data-opportunity-id="${id}" data-opportunity-status="rejected">Rifiuta</button>`);
     if (status !== "pending") buttons.push(`<button class="ol-button ol-button-secondary ol-button-small" type="button" data-opportunity-id="${id}" data-opportunity-status="pending">Rimetti in attesa</button>`);
     return buttons.join("");
+  }
+
+  function selectedOpportunityWorkflow(row) {
+    const id = esc(row.id || "");
+    const type = String(row.opportunity_type || "monitor");
+    const targetArticleId = String(row.target_article_id || "");
+    if (targetArticleId) {
+      return `<div class="ol-toolbar-group" style="margin-top:8px">
+        <a class="ol-button ol-button-secondary ol-button-small" href="/redazione?scope=mine&amp;status=all&amp;id=${encodeURIComponent(targetArticleId)}">Apri articolo collegato</a>
+      </div>`;
+    }
+    if (row.status !== "selected") return "";
+
+    const option = (value, label) => `<option value="${value}" ${type === value ? "selected" : ""}>${label}</option>`;
+    let followup = '<small>Scegli la destinazione editoriale e salvala prima di procedere.</small>';
+    if (type === "new_article") {
+      followup = `<small>La bozza sarà creata vuota nella coda Redazione: titolo e slug iniziali, nessun testo generato e nessuna pubblicazione.</small>
+        <div class="ol-toolbar-group" style="margin-top:8px">
+          <button class="ol-button ol-button-secondary ol-button-small" type="button" data-opportunity-prepare="${id}">Prepara bozza</button>
+        </div>`;
+    } else if (type === "update_article") {
+      followup = "<small>Nessuna nuova bozza viene creata: questa destinazione evita duplicati e sarà gestita nel flusso di aggiornamento.</small>";
+    } else if (type === "social_only") {
+      followup = "<small>Classificata per uso social: in questa fase non viene creato alcun contenuto.</small>";
+    } else if (type === "monitor") {
+      followup = "<small>Resta in monitoraggio: nessuna bozza viene creata.</small>";
+    }
+
+    return `<div class="ol-field" style="margin-top:10px">
+      <label>Destinazione editoriale</label>
+      <select data-opportunity-type-select="${id}">
+        ${option("monitor", "Monitoraggio")}
+        ${option("new_article", "Nuovo articolo")}
+        ${option("update_article", "Aggiornamento articolo/pagina")}
+        ${option("social_only", "Solo social")}
+      </select>
+      <div class="ol-toolbar-group" style="margin-top:8px">
+        <button class="ol-button ol-button-secondary ol-button-small" type="button" data-opportunity-classify="${id}">Salva destinazione</button>
+      </div>
+      ${followup}
+    </div>`;
   }
 
   function renderOpportunities(section, rows) {
@@ -269,12 +327,14 @@
         const decided = row.decided_at ? ` · decisione ${dateIt(row.decided_at)}` : "";
         return `<div class="ol-autopilot-archive-item">
           <strong>${esc(row.topic || "Senza titolo")} · ${Number(row.score || 0)}/100 · ${esc(opportunityStatusLabel(row.status))}</strong>
-          <small>Tipo: monitoraggio · salvata ${esc(dateIt(row.created_at))}${esc(decided)}</small>
+          <small>Tipo: ${esc(opportunityTypeLabel(row.opportunity_type))} · salvata ${esc(dateIt(row.created_at))}${esc(decided)}</small>
           <small>${esc(row.rationale || "Segnale da valutare manualmente.")}</small>
+          ${contextPagesMarkup(row.context_pages)}
           <div class="ol-toolbar-group" style="margin-top:8px">${opportunityActions(row)}</div>
+          ${selectedOpportunityWorkflow(row)}
         </div>`;
       }).join("");
-      message.textContent = `${numberIt(opportunityRows.length)} opportunità persistenti. Le decisioni restano manuali.`;
+      message.textContent = `${numberIt(opportunityRows.length)} opportunità persistenti. Classificazione, bozza e decisioni restano manuali.`;
     }
 
     if (lastAnalysisPayload) renderAnalysis(section, lastAnalysisPayload);
@@ -296,6 +356,8 @@
     const section = event.currentTarget;
     const saveButton = event.target.closest("[data-save-opportunity]");
     const statusButton = event.target.closest("[data-opportunity-id][data-opportunity-status]");
+    const classifyButton = event.target.closest("[data-opportunity-classify]");
+    const prepareButton = event.target.closest("[data-opportunity-prepare]");
     const message = section.querySelector("[data-opportunity-message]");
 
     if (saveButton) {
@@ -337,6 +399,49 @@
         statusButton.disabled = false;
         if (message) message.textContent = `Aggiornamento non completato: ${error.message}`;
       }
+      return;
+    }
+
+    if (classifyButton) {
+      const id = classifyButton.dataset.opportunityClassify || "";
+      const select = section.querySelector(`[data-opportunity-type-select="${id}"]`);
+      const opportunityType = select?.value || "";
+      if (!id || !opportunityType || classifyButton.disabled) return;
+      classifyButton.disabled = true;
+      if (message) message.textContent = "Salvataggio destinazione editoriale…";
+      try {
+        await endpoint("classify-editorial-opportunity", {
+          method: "POST",
+          body: { id, opportunity_type: opportunityType },
+        });
+        if (message) message.textContent = `Destinazione salvata: ${opportunityTypeLabel(opportunityType)}.`;
+        await loadOpportunities(section, true);
+      } catch (error) {
+        classifyButton.disabled = false;
+        if (message) message.textContent = `Destinazione non salvata: ${error.message}`;
+      }
+      return;
+    }
+
+    if (prepareButton) {
+      const id = prepareButton.dataset.opportunityPrepare || "";
+      if (!id || prepareButton.disabled) return;
+      prepareButton.disabled = true;
+      if (message) message.textContent = "Preparazione bozza vuota…";
+      try {
+        const payload = await endpoint("prepare-editorial-draft", {
+          method: "POST",
+          body: { id },
+        });
+        const created = Boolean(payload?.result?.created);
+        if (message) message.textContent = created
+          ? "Bozza creata e collegata. Nessun contenuto è stato generato o pubblicato."
+          : "La bozza era già collegata a questa opportunità.";
+        await loadOpportunities(section, true);
+      } catch (error) {
+        prepareButton.disabled = false;
+        if (message) message.textContent = `Bozza non preparata: ${error.message}`;
+      }
     }
   }
 
@@ -369,6 +474,7 @@
         <strong>${esc(signal.topic)} · punteggio ${Number(signal.score || 0)}/100</strong>
         <small>${esc(metricSummary(signal, 7))} · ${esc(metricSummary(signal, 28))} · ${esc(metricSummary(signal, 90))}</small>
         <small>${Number(signal.query_count || 0)} query collegate · ${Number(signal.page_count || 0)} pagine · ${esc(momentum)}</small>
+        ${contextPagesMarkup(signal.page_urls)}
         <div class="ol-toolbar-group" style="margin-top:8px">
           <button class="ol-button ol-button-secondary ol-button-small" type="button" data-save-opportunity="${esc(signal.topic_key || "")}" ${alreadySaved ? "disabled" : ""}>${alreadySaved ? "Già salvata" : "Salva opportunità"}</button>
         </div>
