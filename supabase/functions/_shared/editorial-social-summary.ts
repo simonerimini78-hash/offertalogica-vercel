@@ -1,9 +1,29 @@
 // Sintesi editoriale canonica per tutti i social OffertaLogica.
 // Le funzioni di pubblicazione devono riusare questo modulo invece di creare
 // algoritmi di sintesi specifici per singola piattaforma.
+// La struttura preserva titoli, entità, numeri, elenchi e link descrittivi per
+// leggibilità, indicizzazione semantica/AI e tecnologie assistive.
 
-export const SOCIAL_SUMMARY_VERSION = "1";
+export const SOCIAL_SUMMARY_VERSION = "2";
 export const SOCIAL_SUMMARY_MAX_CHARS = 4200;
+const SOCIAL_SITE = "https://offertalogica.it";
+
+// Mantiene i riferimenti utili anche fuori dal sito: i link interni diventano
+// URL assoluti, mentre link non sicuri/non web non vengono esposti.
+export function absoluteSocialLink(value = "") {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  if (/^https:\/\//i.test(raw)) {
+    try {
+      const url = new URL(raw);
+      return url.protocol === "https:" ? url.href : "";
+    } catch {
+      return "";
+    }
+  }
+  if (/^\/(?!\/)/.test(raw)) return `${SOCIAL_SITE}${raw}`;
+  return "";
+}
 
 const SUMMARY_PROFILES = [
   { name: "detailed", sentencesPerSection: 2, listItemsPerSection: 3, bodyChars: 620, listChars: 190 },
@@ -14,8 +34,11 @@ const SUMMARY_PROFILES = [
 
 export function cleanSocialInlineText(value = "") {
   return String(value || "")
-    .replace(/\[([^\]\n]+)\]\(([^)\s]+)\)/g, "$1 ($2)")
-    .replace(/!\[([^\]]*)\]\([^)]+\)/g, "$1")
+    .replace(/!\[([^\]]*)\]\([^)]+\)/g, (_match, alt) => String(alt || ""))
+    .replace(/\[([^\]\n]+)\]\(([^)\s]+)\)/g, (_match, label, href) => {
+      const safe = absoluteSocialLink(href);
+      return safe ? `${label} (${safe})` : String(label || "");
+    })
     .replace(/[*_`~]+/g, "")
     .replace(/[ \t]+/g, " ")
     .trim();
