@@ -1,10 +1,13 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.24";
+  const VERSION = "0.12.25";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
   let statusLoaded = false;
+  let lastAnalysisPayload = null;
+  let opportunityRows = [];
+  let opportunityTopicKeys = new Set();
 
   function sessionRead() {
     try { return JSON.parse(sessionStorage.getItem(SESSION_KEY) || "null"); }
@@ -90,6 +93,15 @@
           <button class="ol-button ol-button-secondary" type="button" data-search-console-analyze disabled>Analizza storico</button>
         </div>
         <div class="ol-autopilot-archive-list" data-search-console-analysis-results></div>
+      </div>
+
+      <div class="ol-field" style="margin-top:18px">
+        <label>Opportunità salvate</label>
+        <p class="ol-muted">Un segnale entra qui solo quando lo salvi manualmente. Puoi selezionarlo, rimandarlo o rifiutarlo. In questa fase nessuna azione crea bozze o pubblica contenuti.</p>
+        <p class="ol-autopilot-save-state" data-opportunity-message>Caricamento opportunità…</p>
+        <div class="ol-autopilot-archive-list" data-opportunity-list>
+          <p class="ol-muted">Caricamento…</p>
+        </div>
       </div>`;
   }
 
@@ -104,8 +116,10 @@
     grid.append(section);
     section.querySelector("[data-search-console-collect]")?.addEventListener("click", collect);
     section.querySelector("[data-search-console-analyze]")?.addEventListener("click", analyze);
+    section.addEventListener("click", handleOpportunityAction);
     statusLoaded = false;
     loadStatus(section);
+    loadOpportunities(section);
   }
 
   function renderHistory(section, snapshots) {
@@ -215,7 +229,119 @@
     return `${days}g: ${numberIt(metric.impressions)} imp · ${numberIt(metric.clicks)} clic · pos ${position}`;
   }
 
+  function opportunityStatusLabel(status) {
+    return ({
+      pending: "In attesa",
+      selected: "Selezionata",
+      deferred: "Rimandata",
+      rejected: "Rifiutata",
+      completed: "Completata",
+    })[status] || status || "—";
+  }
+
+  function opportunityActions(row) {
+    const id = esc(row.id || "");
+    const status = String(row.status || "");
+    if (status === "completed") return "";
+    const buttons = [];
+    if (status !== "selected") buttons.push(`<button class="ol-button ol-button-secondary ol-button-small" type="button" data-opportunity-id="${id}" data-opportunity-status="selected">Seleziona</button>`);
+    if (status !== "deferred") buttons.push(`<button class="ol-button ol-button-secondary ol-button-small" type="button" data-opportunity-id="${id}" data-opportunity-status="deferred">Rimanda</button>`);
+    if (status !== "rejected") buttons.push(`<button class="ol-button ol-button-secondary ol-button-small" type="button" data-opportunity-id="${id}" data-opportunity-status="rejected">Rifiuta</button>`);
+    if (status !== "pending") buttons.push(`<button class="ol-button ol-button-secondary ol-button-small" type="button" data-opportunity-id="${id}" data-opportunity-status="pending">Rimetti in attesa</button>`);
+    return buttons.join("");
+  }
+
+  function renderOpportunities(section, rows) {
+    const list = section.querySelector("[data-opportunity-list]");
+    const message = section.querySelector("[data-opportunity-message]");
+    if (!list || !message) return;
+
+    opportunityRows = Array.isArray(rows) ? rows : [];
+    opportunityTopicKeys = new Set(
+      opportunityRows.map((row) => String(row?.evidence?.topic_key || "")).filter(Boolean),
+    );
+
+    if (!opportunityRows.length) {
+      list.innerHTML = '<p class="ol-muted">Nessuna opportunità salvata.</p>';
+      message.textContent = "Salva manualmente un segnale dall’analisi quando vuoi conservarlo.";
+    } else {
+      list.innerHTML = opportunityRows.map((row) => {
+        const decided = row.decided_at ? ` · decisione ${dateIt(row.decided_at)}` : "";
+        return `<div class="ol-autopilot-archive-item">
+          <strong>${esc(row.topic || "Senza titolo")} · ${Number(row.score || 0)}/100 · ${esc(opportunityStatusLabel(row.status))}</strong>
+          <small>Tipo: monitoraggio · salvata ${esc(dateIt(row.created_at))}${esc(decided)}</small>
+          <small>${esc(row.rationale || "Segnale da valutare manualmente.")}</small>
+          <div class="ol-toolbar-group" style="margin-top:8px">${opportunityActions(row)}</div>
+        </div>`;
+      }).join("");
+      message.textContent = `${numberIt(opportunityRows.length)} opportunità persistenti. Le decisioni restano manuali.`;
+    }
+
+    if (lastAnalysisPayload) renderAnalysis(section, lastAnalysisPayload);
+  }
+
+  async function loadOpportunities(section, quiet = false) {
+    const message = section?.querySelector("[data-opportunity-message]");
+    if (!section?.isConnected) return;
+    if (!quiet && message) message.textContent = "Caricamento opportunità…";
+    try {
+      const payload = await endpoint("editorial-opportunities");
+      if (section.isConnected) renderOpportunities(section, payload?.opportunities || []);
+    } catch (error) {
+      if (message) message.textContent = `Opportunità non disponibili: ${error.message}`;
+    }
+  }
+
+  async function handleOpportunityAction(event) {
+    const section = event.currentTarget;
+    const saveButton = event.target.closest("[data-save-opportunity]");
+    const statusButton = event.target.closest("[data-opportunity-id][data-opportunity-status]");
+    const message = section.querySelector("[data-opportunity-message]");
+
+    if (saveButton) {
+      const topicKey = saveButton.dataset.saveOpportunity || "";
+      if (!topicKey || saveButton.disabled) return;
+      saveButton.disabled = true;
+      if (message) message.textContent = "Salvataggio opportunità…";
+      try {
+        const payload = await endpoint("save-editorial-opportunity", {
+          method: "POST",
+          body: { topic_key: topicKey },
+        });
+        const created = Boolean(payload?.result?.created);
+        if (message) message.textContent = created
+          ? "Opportunità salvata in attesa di decisione manuale."
+          : "Questa opportunità era già stata salvata per lo snapshot corrente.";
+        await loadOpportunities(section, true);
+      } catch (error) {
+        saveButton.disabled = false;
+        if (message) message.textContent = `Salvataggio non completato: ${error.message}`;
+      }
+      return;
+    }
+
+    if (statusButton) {
+      const id = statusButton.dataset.opportunityId || "";
+      const status = statusButton.dataset.opportunityStatus || "";
+      if (!id || !status || statusButton.disabled) return;
+      statusButton.disabled = true;
+      if (message) message.textContent = "Aggiornamento decisione…";
+      try {
+        await endpoint("update-editorial-opportunity", {
+          method: "POST",
+          body: { id, status },
+        });
+        if (message) message.textContent = `Decisione aggiornata: ${opportunityStatusLabel(status)}.`;
+        await loadOpportunities(section, true);
+      } catch (error) {
+        statusButton.disabled = false;
+        if (message) message.textContent = `Aggiornamento non completato: ${error.message}`;
+      }
+    }
+  }
+
   function renderAnalysis(section, payload) {
+    lastAnalysisPayload = payload || null;
     const list = section.querySelector("[data-search-console-analysis-results]");
     const message = section.querySelector("[data-search-console-analysis-message]");
     if (!list || !message) return;
@@ -238,16 +364,20 @@
       const momentum = Number.isFinite(Number(signal.momentum_ratio))
         ? `${((Number(signal.momentum_ratio) - 1) * 100).toFixed(0)}% ritmo 7g vs media 28g`
         : "ritmo recente non calcolabile";
+      const alreadySaved = opportunityTopicKeys.has(String(signal.topic_key || ""));
       return `<div class="ol-autopilot-archive-item">
         <strong>${esc(signal.topic)} · punteggio ${Number(signal.score || 0)}/100</strong>
         <small>${esc(metricSummary(signal, 7))} · ${esc(metricSummary(signal, 28))} · ${esc(metricSummary(signal, 90))}</small>
         <small>${Number(signal.query_count || 0)} query collegate · ${Number(signal.page_count || 0)} pagine · ${esc(momentum)}</small>
+        <div class="ol-toolbar-group" style="margin-top:8px">
+          <button class="ol-button ol-button-secondary ol-button-small" type="button" data-save-opportunity="${esc(signal.topic_key || "")}" ${alreadySaved ? "disabled" : ""}>${alreadySaved ? "Già salvata" : "Salva opportunità"}</button>
+        </div>
       </div>`;
     }).join("");
 
     message.textContent = payload.truncated
       ? "Analisi completata su un campione massimo di 20.000 righe per snapshot."
-      : "Analisi completata. Nessuna opportunità è stata salvata o pubblicata.";
+      : "Analisi completata. Puoi salvare manualmente i segnali che vuoi conservare; nessun contenuto viene creato o pubblicato.";
   }
 
   async function analyze(event) {
