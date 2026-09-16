@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { json } from "../lib/http.js";
 
-const VERSION = "0.12.29";
+const VERSION = "0.12.31";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -464,6 +464,35 @@ function opportunitySelect() {
 
 function validUuid(value) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ""));
+}
+
+function validCommitRef(value) {
+  return /^[0-9a-f]{7,64}$/i.test(String(value || "").trim());
+}
+
+function metricDelta(current, baseline) {
+  if (!current || !baseline) return null;
+  const numberOrNull = (value) => {
+    if (value === null || value === undefined || value === "") return null;
+    return Number.isFinite(Number(value)) ? Number(value) : null;
+  };
+  const cImpressions = numberOrNull(current.impressions);
+  const bImpressions = numberOrNull(baseline.impressions);
+  const cClicks = numberOrNull(current.clicks);
+  const bClicks = numberOrNull(baseline.clicks);
+  const cPosition = numberOrNull(current.avg_position);
+  const bPosition = numberOrNull(baseline.avg_position);
+  return {
+    impressions: cImpressions === null || bImpressions === null ? null : cImpressions - bImpressions,
+    clicks: cClicks === null || bClicks === null ? null : cClicks - bClicks,
+    avg_position: cPosition === null || bPosition === null ? null : roundMetric(cPosition - bPosition, 2),
+  };
+}
+
+function snapshotFullyAfter(snapshot, isoDate) {
+  const appliedDate = String(isoDate || "").slice(0, 10);
+  const periodStart = String(snapshot?.period_start || "");
+  return Boolean(appliedDate && periodStart && periodStart > appliedDate);
 }
 
 async function opportunitiesPayload() {
@@ -1461,6 +1490,154 @@ async function reviewEditorialUpdatePreview(user, idValue, decisionValue) {
   return { opportunity: updated, preview };
 }
 
+async function completeEditorialUpdate(user, idValue, commitRefValue) {
+  const id = String(idValue || "").trim();
+  const commitRef = String(commitRefValue || "").trim().toLowerCase();
+  if (!validUuid(id)) throw new Error("Identificativo opportunità non valido");
+  if (!validCommitRef(commitRef)) throw new Error("Inserisci un riferimento commit Git valido (7–64 caratteri esadecimali)");
+
+  const rows = await serviceFetch(
+    `editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(id)}&limit=1`,
+  );
+  const opportunity = rows?.[0];
+  if (!opportunity) throw new Error("Opportunità non trovata");
+  if (opportunity.status === "completed" && opportunity?.evidence?.update_application) {
+    return { already_completed: true, opportunity, application: opportunity.evidence.update_application };
+  }
+  const proposal = opportunity?.evidence?.update_proposal;
+  const draft = opportunity?.evidence?.update_text_draft;
+  const preview = opportunity?.evidence?.update_apply_preview;
+  if (opportunity.status !== "selected" || opportunity.opportunity_type !== "update_article") {
+    throw new Error("La chiusura richiede un aggiornamento ancora selezionato");
+  }
+  if (proposal?.status !== "approved" || draft?.status !== "approved" || preview?.status !== "confirmed") {
+    throw new Error("Proposta, testo e anteprima devono essere approvati e confermati prima della chiusura");
+  }
+  if (!preview.preview_page_fingerprint_sha256) throw new Error("Impronta dell’anteprima confermata non disponibile");
+
+  const targetUrl = normalizedPageUrl(preview.target_url || proposal.target_url || opportunity?.evidence?.target_page_url);
+  const pageResult = await fetchEditorialPage(targetUrl);
+  const publishedFingerprint = crypto.createHash("sha256").update(pageResult.html).digest("hex");
+  if (publishedFingerprint !== preview.preview_page_fingerprint_sha256) {
+    throw new Error("La pagina pubblicata non coincide con l’anteprima confermata: chiusura bloccata");
+  }
+
+  const now = new Date().toISOString();
+  const currentEvidence = opportunity.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {};
+  const application = {
+    schema_version: 1,
+    status: "verified_applied",
+    target_url: pageResult.finalUrl,
+    applied_at: now,
+    applied_by: user.id,
+    commit_ref: commitRef,
+    commit_ref_verified: false,
+    page_fingerprint_sha256: publishedFingerprint,
+    expected_preview_fingerprint_sha256: preview.preview_page_fingerprint_sha256,
+    change_count: Number(preview.change_count || 1),
+    baseline: {
+      topic_key: currentEvidence.topic_key || null,
+      metrics: currentEvidence.metrics || {},
+      snapshots: Array.isArray(currentEvidence.snapshots) ? currentEvidence.snapshots : [],
+    },
+  };
+  const evidence = { ...currentEvidence, update_application: application };
+  const updatedRows = await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    prefer: "return=representation",
+    body: {
+      status: "completed",
+      evidence,
+      decided_by: user.id,
+      decided_at: now,
+      updated_at: now,
+    },
+  });
+  const updated = updatedRows?.[0];
+  if (!updated?.id || updated.status !== "completed") throw new Error("Chiusura opportunità non salvata");
+  return { already_completed: false, opportunity: updated, application };
+}
+
+async function checkEditorialUpdateImpact(user, idValue) {
+  const id = String(idValue || "").trim();
+  if (!validUuid(id)) throw new Error("Identificativo opportunità non valido");
+  const rows = await serviceFetch(
+    `editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(id)}&limit=1`,
+  );
+  const opportunity = rows?.[0];
+  if (!opportunity) throw new Error("Opportunità non trovata");
+  const application = opportunity?.evidence?.update_application;
+  if (opportunity.status !== "completed" || application?.status !== "verified_applied") {
+    throw new Error("Il monitoraggio è disponibile solo dopo la chiusura verificata dell’aggiornamento");
+  }
+  const topicKey = String(application?.baseline?.topic_key || opportunity?.evidence?.topic_key || "").trim();
+  if (!topicKey) throw new Error("Topic Search Console non disponibile per il monitoraggio");
+
+  const allSnapshots = await searchConsoleSnapshots();
+  const snapshots = latestWindowSnapshots(allSnapshots);
+  if (!ANALYSIS_WINDOWS.every((days) => snapshots.some((row) => Number(row.days) === days))) {
+    throw new Error("Storico Search Console non sufficiente per il monitoraggio");
+  }
+  const snapshotsByDays = new Map(snapshots.map((row) => [Number(row.days), row]));
+  const baselineMetrics = application?.baseline?.metrics || {};
+  const currentMetrics = {};
+  for (const days of ANALYSIS_WINDOWS) {
+    const snapshot = snapshotsByDays.get(days);
+    const result = await snapshotQueryRows(snapshot.id);
+    const topic = aggregateSnapshot(result.rows).get(topicKey) || null;
+    currentMetrics[String(days)] = topic ? {
+      clicks: topic.clicks,
+      impressions: topic.impressions,
+      ctr: roundMetric(topic.ctr, 4),
+      avg_position: roundMetric(topic.avg_position, 2),
+    } : null;
+  }
+  const ready = {};
+  const deltas = {};
+  for (const days of ANALYSIS_WINDOWS) {
+    const key = String(days);
+    ready[key] = snapshotFullyAfter(snapshotsByDays.get(days), application.applied_at);
+    deltas[key] = ready[key] ? metricDelta(currentMetrics[key], baselineMetrics[key]) : null;
+  }
+  const now = new Date().toISOString();
+  const monitor = {
+    schema_version: 1,
+    checked_at: now,
+    checked_by: user.id,
+    topic_key: topicKey,
+    applied_at: application.applied_at,
+    readiness: ready,
+    baseline_metrics: baselineMetrics,
+    current_metrics: currentMetrics,
+    deltas,
+    snapshots: snapshots.map((row) => ({
+      id: row.id,
+      days: row.days,
+      period_start: row.period_start,
+      period_end: row.period_end,
+      captured_at: row.captured_at,
+      row_count: row.row_count,
+    })),
+    note: ready["28"]
+      ? "Finestra 28 giorni interamente successiva all’applicazione disponibile."
+      : ready["7"]
+        ? "Finestra 7 giorni interamente successiva all’applicazione disponibile; 28 giorni ancora in maturazione."
+        : "I dati disponibili includono ancora giorni precedenti all’applicazione; nessun delta post-modifica viene interpretato.",
+  };
+  const evidence = {
+    ...(opportunity.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {}),
+    update_monitor: monitor,
+  };
+  const updatedRows = await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    prefer: "return=representation",
+    body: { evidence, updated_at: now, decided_by: user.id },
+  });
+  const updated = updatedRows?.[0];
+  if (!updated?.id) throw new Error("Monitoraggio post-modifica non salvato");
+  return { opportunity: updated, monitor };
+}
+
 async function analysisPayload() {
   const allSnapshots = await searchConsoleSnapshots();
   const snapshots = latestWindowSnapshots(allSnapshots);
@@ -1643,6 +1820,16 @@ export default async function handler(req, res) {
 
     if (req.method === "POST" && action === "review-editorial-update-preview") {
       const result = await reviewEditorialUpdatePreview(user, req.body?.id, req.body?.decision);
+      return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "POST" && action === "complete-editorial-update") {
+      const result = await completeEditorialUpdate(user, req.body?.id, req.body?.commit_ref);
+      return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "POST" && action === "check-editorial-update-impact") {
+      const result = await checkEditorialUpdateImpact(user, req.body?.id);
       return json(res, 200, { ok: true, version: VERSION, result });
     }
 

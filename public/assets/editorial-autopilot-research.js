@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.29";
+  const VERSION = "0.12.31";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
   let statusLoaded = false;
@@ -97,7 +97,7 @@
 
       <div class="ol-field" style="margin-top:18px">
         <label>Opportunità salvate</label>
-        <p class="ol-muted">Un segnale entra qui solo quando lo salvi manualmente. Dopo la selezione puoi classificarlo come nuovo articolo, aggiornamento, solo social o monitoraggio. “Nuovo articolo” abilita una bozza vuota; “Aggiornamento” permette di preparare proposta, bozza testuale e anteprima applicata con conferma separata, sempre senza modificare la pagina pubblicata. Nessuna azione pubblica contenuti.</p>
+        <p class="ol-muted">Un segnale entra qui solo quando lo salvi manualmente. Dopo la selezione puoi classificarlo come nuovo articolo, aggiornamento, solo social o monitoraggio. “Nuovo articolo” abilita una bozza vuota; “Aggiornamento” permette di preparare proposta, bozza testuale e anteprima con conferma separata; dopo una pubblicazione manuale può verificarla, chiudere l’opportunità e monitorare i dati Search Console successivi.</p>
         <p class="ol-autopilot-save-state" data-opportunity-message>Caricamento opportunità…</p>
         <div class="ol-autopilot-archive-list" data-opportunity-list>
           <p class="ol-muted">Caricamento…</p>
@@ -269,6 +269,59 @@
     return ({ pending_confirmation: "Da confermare", confirmed: "Confermata", cancelled: "Annullata" })[status] || status || "—";
   }
 
+  function metricValueMarkup(metric) {
+    if (!metric) return "—";
+    const position = metric.avg_position === null || metric.avg_position === undefined ? "—" : Number(metric.avg_position).toFixed(1);
+    return `${numberIt(metric.impressions)} imp · ${numberIt(metric.clicks)} clic · pos ${position}`;
+  }
+
+  function deltaValueMarkup(delta) {
+    if (!delta) return "finestra non ancora interamente post-modifica";
+    const signed = (value, digits = 0) => {
+      if (value === null || value === undefined || !Number.isFinite(Number(value))) return "—";
+      const n = Number(value);
+      return `${n > 0 ? "+" : ""}${digits ? n.toFixed(digits) : numberIt(n)}`;
+    };
+    return `Δ imp ${signed(delta.impressions)} · Δ clic ${signed(delta.clicks)} · Δ posizione ${signed(delta.avg_position, 2)}`;
+  }
+
+  function updateCompletionMarkup(row) {
+    const application = row?.evidence?.update_application;
+    if (!application || typeof application !== "object") return "";
+    const monitor = row?.evidence?.update_monitor;
+    const readiness = monitor?.readiness || {};
+    const monitorRows = [7, 28].map((days) => {
+      const key = String(days);
+      const baseline = monitor?.baseline_metrics?.[key] || application?.baseline?.metrics?.[key];
+      const current = monitor?.current_metrics?.[key];
+      return `<small><b>${days}g:</b> baseline ${esc(metricValueMarkup(baseline))}${monitor ? ` · attuale ${esc(metricValueMarkup(current))} · ${esc(deltaValueMarkup(monitor?.deltas?.[key]))}` : ""}${readiness[key] ? " · finestra post-modifica completa" : ""}</small>`;
+    }).join("");
+    return `<div class="ol-field" style="margin-top:10px">
+      <label>Aggiornamento applicato · verificato</label>
+      <small>Chiuso ${esc(dateIt(application.applied_at))} · commit ${esc(application.commit_ref || "—")}.</small>
+      <small>Pagina: <a href="${esc(application.target_url || "#")}" target="_blank" rel="noopener noreferrer">${esc(application.target_url || "—")}</a></small>
+      ${monitorRows}
+      ${monitor?.note ? `<small><b>Monitoraggio:</b> ${esc(monitor.note)}</small>` : "<small>Acquisisci nuovi snapshot Search Console e usa il controllo impatto quando vuoi aggiornare il confronto.</small>"}
+      <div class="ol-toolbar-group" style="margin-top:8px">
+        <button class="ol-button ol-button-secondary ol-button-small" type="button" data-update-impact-check="${esc(row.id || "")}">Verifica impatto Search Console</button>
+      </div>
+    </div>`;
+  }
+
+  function updateFinalizeMarkup(row) {
+    const preview = row?.evidence?.update_apply_preview;
+    if (row.status === "completed") return updateCompletionMarkup(row);
+    if (preview?.status !== "confirmed") return "";
+    return `<div class="ol-field" style="margin-top:10px">
+      <label>Chiusura applicazione reale</label>
+      <small>Dopo avere pubblicato manualmente il file approvato, inserisci il commit. Il server rilegge la pagina pubblica e chiude l’opportunità soltanto se la sua impronta coincide esattamente con l’anteprima confermata.</small>
+      <input type="text" data-update-completion-commit="${esc(row.id || "")}" placeholder="SHA commit Git (es. 386db541…)" autocomplete="off" spellcheck="false">
+      <div class="ol-toolbar-group" style="margin-top:8px">
+        <button class="ol-button ol-button-secondary ol-button-small" type="button" data-update-complete="${esc(row.id || "")}">Verifica pagina e completa</button>
+      </div>
+    </div>`;
+  }
+
   function updateApplyPreviewMarkup(row) {
     const preview = row?.evidence?.update_apply_preview;
     if (!preview || typeof preview !== "object") return "";
@@ -291,6 +344,7 @@
         <button class="ol-button ol-button-secondary ol-button-small" type="button" data-update-preview-review="cancelled" data-update-preview-opportunity="${esc(row.id || "")}" ${preview.status === "cancelled" ? "disabled" : ""}>Annulla anteprima</button>
       </div>
       <small>La conferma registra solo l’autorizzazione a procedere al livello successivo: non modifica e non pubblica la pagina.</small>
+      ${updateFinalizeMarkup(row)}
     </div>`;
   }
 
@@ -443,10 +497,10 @@
           <small>${esc(row.rationale || "Segnale da valutare manualmente.")}</small>
           ${contextPagesMarkup(row.context_pages)}
           <div class="ol-toolbar-group" style="margin-top:8px">${opportunityActions(row)}</div>
-          ${selectedOpportunityWorkflow(row)}
+          ${row.status === "completed" ? updateCompletionMarkup(row) : selectedOpportunityWorkflow(row)}
         </div>`;
       }).join("");
-      message.textContent = `${numberIt(opportunityRows.length)} opportunità persistenti. Classificazione, bozza e decisioni restano manuali.`;
+      message.textContent = `${numberIt(opportunityRows.length)} opportunità persistenti. Il ciclo di aggiornamento può essere chiuso solo dopo verifica della pagina pubblicata.`;
     }
 
     if (lastAnalysisPayload) renderAnalysis(section, lastAnalysisPayload);
@@ -476,6 +530,8 @@
     const updateTextReviewButton = event.target.closest("[data-update-text-review][data-update-text-opportunity]");
     const updatePreviewPrepareButton = event.target.closest("[data-update-preview-prepare]");
     const updatePreviewReviewButton = event.target.closest("[data-update-preview-review][data-update-preview-opportunity]");
+    const updateCompleteButton = event.target.closest("[data-update-complete]");
+    const updateImpactButton = event.target.closest("[data-update-impact-check]");
     const message = section.querySelector("[data-opportunity-message]");
 
     if (saveButton) {
@@ -693,6 +749,48 @@
         updatePreviewReviewButton.disabled = false;
         if (message) message.textContent = `Decisione anteprima non salvata: ${error.message}`;
       }
+      return;
+    }
+
+    if (updateCompleteButton) {
+      const id = updateCompleteButton.dataset.updateComplete || "";
+      const input = section.querySelector(`[data-update-completion-commit="${id}"]`);
+      const commitRef = String(input?.value || "").trim();
+      if (!id || !commitRef || updateCompleteButton.disabled) return;
+      if (!window.confirm("Verificare la pagina pubblicata e chiudere definitivamente questa opportunità se coincide con l’anteprima confermata?")) return;
+      updateCompleteButton.disabled = true;
+      if (message) message.textContent = "Verifica della pagina pubblicata e chiusura opportunità…";
+      try {
+        await endpoint("complete-editorial-update", {
+          method: "POST",
+          body: { id, commit_ref: commitRef },
+        });
+        if (message) message.textContent = "Aggiornamento verificato sulla pagina pubblica. Opportunità completata.";
+        await loadOpportunities(section, true);
+      } catch (error) {
+        updateCompleteButton.disabled = false;
+        if (message) message.textContent = `Chiusura non completata: ${error.message}`;
+      }
+      return;
+    }
+
+    if (updateImpactButton) {
+      const id = updateImpactButton.dataset.updateImpactCheck || "";
+      if (!id || updateImpactButton.disabled) return;
+      updateImpactButton.disabled = true;
+      if (message) message.textContent = "Controllo dati Search Console post-modifica…";
+      try {
+        await endpoint("check-editorial-update-impact", {
+          method: "POST",
+          body: { id },
+        });
+        if (message) message.textContent = "Monitoraggio aggiornato. Le differenze sono mostrate solo per finestre interamente successive alla modifica.";
+        await loadOpportunities(section, true);
+      } catch (error) {
+        updateImpactButton.disabled = false;
+        if (message) message.textContent = `Monitoraggio non aggiornato: ${error.message}`;
+      }
+      return;
     }
   }
 
