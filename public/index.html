@@ -139,6 +139,78 @@
                 justify-self: center;
             }
         }
+
+        /* OFFERTALOGICA_HOME_DISCOVERY_V1_20260916 */
+        .ol-site-header { position: relative; text-align:center; padding:20px 20px 30px; }
+        .ol-menu-toggle { position:absolute; right:20px; top:50%; transform:translateY(-58%); width:46px; height:46px; display:grid; place-items:center; border:1px solid rgba(148,163,184,.38); border-radius:14px; background:rgba(255,255,255,.58); color:var(--text-color); cursor:pointer; box-shadow:0 10px 28px rgba(15,23,42,.08); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); }
+        .ol-menu-toggle span,.ol-menu-toggle::before,.ol-menu-toggle::after { content:""; display:block; width:20px; height:2px; border-radius:99px; background:currentColor; transition:transform .18s ease,opacity .18s ease; }
+        .ol-menu-toggle { gap:4px; }
+        .ol-menu-toggle[aria-expanded="true"] span { opacity:0; }
+        .ol-menu-toggle[aria-expanded="true"]::before { transform:translateY(6px) rotate(45deg); }
+        .ol-menu-toggle[aria-expanded="true"]::after { transform:translateY(-6px) rotate(-45deg); }
+        .ol-menu-backdrop { position:fixed; inset:0; z-index:1190; background:rgba(15,23,42,.42); opacity:0; pointer-events:none; transition:opacity .18s ease; }
+        .ol-menu-backdrop.is-open { opacity:1; pointer-events:auto; }
+        .ol-menu-drawer { position:absolute; top:0; right:0; width:min(88vw,390px); height:100%; overflow:auto; padding:22px 18px max(24px,env(safe-area-inset-bottom)); background:rgba(248,250,252,.94); border-left:1px solid rgba(255,255,255,.7); box-shadow:-24px 0 60px rgba(15,23,42,.18); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); transform:translateX(100%); transition:transform .2s ease; }
+        .ol-menu-backdrop.is-open .ol-menu-drawer { transform:translateX(0); }
+        .ol-menu-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:18px; }
+        .ol-menu-head img { width:172px; max-width:70%; height:auto; }
+        .ol-menu-close { width:44px; height:44px; border:1px solid rgba(148,163,184,.35); border-radius:13px; background:rgba(255,255,255,.7); color:var(--text-color); font-size:24px; line-height:1; cursor:pointer; }
+        .ol-menu-nav { display:grid; gap:8px; text-align:left; }
+        .ol-menu-nav a { display:block; min-height:52px; padding:12px 14px; border:1px solid rgba(203,213,225,.7); border-radius:14px; background:rgba(255,255,255,.64); color:var(--text-color); text-decoration:none; box-shadow:0 8px 24px rgba(15,23,42,.04); }
+        .ol-menu-nav a strong,.ol-menu-nav a small { display:block; }
+        .ol-menu-nav a strong { font-size:14px; }
+        .ol-menu-nav a small { margin-top:2px; color:var(--text-muted); font-size:11.5px; line-height:1.35; }
+        .ol-menu-secondary { margin-top:16px; padding-top:14px; border-top:1px solid rgba(203,213,225,.7); display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+        .ol-menu-secondary a { color:var(--text-muted); text-decoration:none; font-size:12px; font-weight:750; padding:8px; }
+        .ol-discovery-shell { width:min(100%,1000px); margin:30px auto 0; padding:0 0 8px; color:var(--text-color); text-align:left; }
+        .ol-discovery { padding:24px; border:1px solid rgba(255,255,255,.72); border-radius:24px; background:linear-gradient(145deg,rgba(255,255,255,.78),rgba(241,245,249,.58)); box-shadow:0 18px 48px rgba(15,23,42,.08); backdrop-filter:blur(22px); -webkit-backdrop-filter:blur(22px); }
+        .ol-discovery-head { margin-bottom:17px; }
+        .ol-discovery-head h2 { margin:0; font-size:25px; line-height:1.15; }
+        .ol-discovery-head p { margin:7px 0 0; color:var(--text-muted); font-size:14px; }
+        .ol-discovery-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+        .ol-discovery-card { overflow:hidden; border:1px solid rgba(203,213,225,.68); border-radius:18px; background:rgba(255,255,255,.66); box-shadow:0 10px 28px rgba(15,23,42,.05); }
+        .ol-discovery-card summary { list-style:none; min-height:92px; padding:17px 48px 17px 17px; position:relative; cursor:pointer; }
+        .ol-discovery-card summary::-webkit-details-marker { display:none; }
+        .ol-discovery-card summary::after { content:"+"; position:absolute; right:17px; top:50%; transform:translateY(-50%); width:30px; height:30px; display:grid; place-items:center; border-radius:999px; background:rgba(255,255,255,.72); color:var(--text-color); font-size:20px; font-weight:500; box-shadow:0 5px 14px rgba(15,23,42,.06); }
+        .ol-discovery-card[open] summary::after { content:"−"; }
+        .ol-discovery-card strong { display:block; font-size:16px; line-height:1.2; }
+        .ol-discovery-card summary span { display:block; margin-top:5px; color:var(--text-muted); font-size:12.5px; line-height:1.4; }
+        .ol-discovery-card.is-offers { background:linear-gradient(145deg,rgba(236,253,245,.88),rgba(255,255,255,.68)); }
+        .ol-discovery-card.is-bill { background:linear-gradient(145deg,rgba(239,246,255,.9),rgba(255,255,255,.68)); }
+        .ol-discovery-card.is-guides { background:linear-gradient(145deg,rgba(245,243,255,.9),rgba(255,255,255,.68)); }
+        .ol-discovery-card.is-home { background:linear-gradient(145deg,rgba(255,247,237,.92),rgba(255,255,255,.68)); }
+        .ol-discovery-links { padding:0 12px 12px; display:grid; gap:7px; }
+        .ol-discovery-links a { min-height:46px; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 12px; border:1px solid rgba(203,213,225,.58); border-radius:12px; background:rgba(255,255,255,.72); color:var(--text-color); text-decoration:none; font-size:13px; font-weight:800; }
+        .ol-discovery-links a::after { content:"›"; font-size:20px; font-weight:500; color:var(--text-muted); }
+        .ol-informa-preview { margin-top:18px; padding:19px; border:1px solid rgba(203,213,225,.62); border-radius:18px; background:rgba(255,255,255,.58); }
+        .ol-informa-head { display:flex; align-items:flex-end; justify-content:space-between; gap:12px; margin-bottom:11px; }
+        .ol-informa-head h3 { margin:0; font-size:18px; }
+        .ol-informa-head a { color:var(--primary); font-size:12px; font-weight:850; text-decoration:none; white-space:nowrap; }
+        .ol-informa-list { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:9px; }
+        .ol-informa-item { min-height:74px; display:block; padding:12px; border:1px solid rgba(203,213,225,.58); border-radius:13px; background:rgba(255,255,255,.72); color:var(--text-color); text-decoration:none; }
+        .ol-informa-item strong { font-size:13px; line-height:1.35; }
+        .ol-informa-item small { display:block; margin-top:5px; color:var(--text-muted); font-size:11px; }
+        .ol-business-entry { margin-top:12px; display:flex; align-items:center; justify-content:space-between; gap:15px; min-height:72px; padding:15px 17px; border:1px solid rgba(134,239,172,.48); border-radius:17px; background:linear-gradient(145deg,rgba(240,253,244,.82),rgba(255,255,255,.64)); color:var(--text-color); text-decoration:none; }
+        .ol-business-entry strong { font-size:14px; }
+        .ol-business-entry span { display:block; margin-top:3px; color:var(--text-muted); font-size:11.5px; }
+        .ol-business-entry::after { content:"›"; font-size:24px; color:var(--primary); }
+        .ol-discovery a:focus-visible,.ol-discovery summary:focus-visible,.ol-menu-toggle:focus-visible,.ol-menu-close:focus-visible,.ol-menu-nav a:focus-visible { outline:3px solid rgba(37,99,235,.3); outline-offset:2px; }
+        @media (max-width:680px) {
+            .ol-site-header { padding:16px 58px 22px 12px !important; }
+            .ol-site-header .site-logo-main { max-width:min(230px,78vw); }
+            .ol-menu-toggle { right:8px; width:44px; height:44px; }
+            .ol-discovery-shell { margin-top:20px; }
+            .ol-discovery { padding:17px 12px; border-radius:20px; }
+            .ol-discovery-head { padding:0 4px; }
+            .ol-discovery-head h2 { font-size:22px; }
+            .ol-discovery-grid { grid-template-columns:1fr; gap:9px; }
+            .ol-discovery-card summary { min-height:82px; padding:15px 48px 15px 15px; }
+            .ol-informa-preview { padding:15px 12px; }
+            .ol-informa-list { grid-template-columns:1fr; }
+            .ol-informa-item { min-height:62px; }
+        }
+        @media (prefers-reduced-motion:reduce) { .ol-menu-backdrop,.ol-menu-drawer,.ol-menu-toggle span,.ol-menu-toggle::before,.ol-menu-toggle::after { transition:none !important; } }
+
         .staff-mode-banner { position: fixed; left: 16px; right: 16px; bottom: 16px; z-index: 900; max-width: 900px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; background: #0f172a; color: #e2e8f0; border: 1px solid rgba(255,255,255,.12); border-radius: 10px; padding: 10px 12px; box-shadow: 0 18px 44px rgba(15,23,42,.35); font-size: 13px; }
         .staff-mode-copy { min-width: 0; }
         .staff-mode-banner strong { color: #bbf7d0; }
@@ -3769,11 +3841,27 @@
 <a class="skip-link" href="#main-content">Vai al contenuto principale</a>
 
 <!-- Awin verification 2932723 -->
-<header style="text-align: center; padding: 20px 20px 30px 20px; font-family: sans-serif;">
+<header class="ol-site-header">
     <a class="site-logo-link" href="/" aria-label="OffertaLogica.it">
         <img class="site-logo-main" src="/assets/logo-offertalogica-header.png" alt="OffertaLogica.it - Confronta, scegli, risparmia">
     </a>
+    <button type="button" class="ol-menu-toggle" id="ol-menu-toggle" aria-expanded="false" aria-controls="ol-menu-drawer" aria-label="Apri menu"><span aria-hidden="true"></span></button>
 </header>
+<div class="ol-menu-backdrop" id="ol-menu-backdrop" hidden>
+  <aside class="ol-menu-drawer" id="ol-menu-drawer" aria-label="Navigazione OffertaLogica">
+    <div class="ol-menu-head"><img src="/assets/logo-offertalogica-header.png" alt="OffertaLogica.it"><button type="button" class="ol-menu-close" id="ol-menu-close" aria-label="Chiudi menu">×</button></div>
+    <nav class="ol-menu-nav" aria-label="Menu principale">
+      <a href="/#main-content" data-ol-nav="confronta"><strong>Confronta luce e gas</strong><small>Parti dal calcolatore OffertaLogica</small></a>
+      <a href="/offerte-luce-gas-aggiornate.html" data-ol-nav="offerte"><strong>Offerte aggiornate</strong><small>Consulta offerte e dati aggiornati</small></a>
+      <a href="/fornitori/" data-ol-nav="fornitori"><strong>Fornitori</strong><small>Informazioni sui principali operatori</small></a>
+      <a href="/articoli.html" data-ol-nav="informa"><strong>OffertaLogica Informa</strong><small>Guide, notizie e approfondimenti</small></a>
+      <a href="/come-leggere-bolletta-luce-gas.html" data-ol-nav="bolletta"><strong>Bolletta e risparmio</strong><small>Capisci costi, prezzi e consumi</small></a>
+      <a href="/fotovoltaico.html" data-ol-nav="casa"><strong>Casa e servizi</strong><small>Fotovoltaico, climatizzazione e Internet</small></a>
+      <a href="/#business-panel" data-ol-nav="business"><strong>Per aziende e attività</strong><small>Analisi preliminare per imprese e P.IVA</small></a>
+    </nav>
+    <nav class="ol-menu-secondary" aria-label="Altri link"><a href="/come-funziona.html">Come funziona</a><a href="/partner.html">Partner</a><a href="/termini-condizioni.html">Termini</a><a href="https://www.iubenda.com/privacy-policy/36565194">Privacy</a></nav>
+  </aside>
+</div>
 
 <main id="main-content" role="main">
 <div class="container">
@@ -16131,6 +16219,21 @@ if (document.readyState === "loading") {
         <a class="ol-app-access-link ol-app-access-premium" href="https://premium.offertalogica.it/app.html?install=1">Scarica app Premium</a>
     </div>
 
+
+    <section class="ol-discovery-shell" id="scopri-offertalogica" aria-labelledby="ol-discovery-title">
+      <div class="ol-discovery">
+        <div class="ol-discovery-head"><h2 id="ol-discovery-title">Scopri OffertaLogica</h2><p>Guide e strumenti per capire le tue utenze e scegliere con più consapevolezza.</p></div>
+        <div class="ol-discovery-grid">
+          <details class="ol-discovery-card is-offers" data-discovery-card="offerte"><summary><strong>Offerte e fornitori</strong><span>Offerte aggiornate, operatori e cambio fornitore.</span></summary><div class="ol-discovery-links"><a href="/offerte-luce-gas-aggiornate.html" data-discovery-link="offerte-aggiornate">Offerte aggiornate</a><a href="/fornitori/" data-discovery-link="fornitori">Conosci i fornitori</a><a href="/come-cambiare-fornitore-luce-gas.html" data-discovery-link="cambio-fornitore">Come cambiare fornitore</a></div></details>
+          <details class="ol-discovery-card is-bill" data-discovery-card="bolletta"><summary><strong>Bolletta e risparmio</strong><span>Capisci cosa paghi e quali voci incidono davvero.</span></summary><div class="ol-discovery-links"><a href="/come-leggere-bolletta-luce-gas.html" data-discovery-link="leggere-bolletta">Come leggere la bolletta</a><a href="/prezzo-fisso-o-variabile-luce-gas.html" data-discovery-link="fisso-variabile">Prezzo fisso o variabile</a><a href="/quota-fissa-luce-gas-consumi-bassi.html" data-discovery-link="quota-fissa">Quota fissa e consumi</a><a href="/pun-psv-spread-luce-gas.html" data-discovery-link="pun-psv">PUN, PSV e spread spiegati</a></div></details>
+          <details class="ol-discovery-card is-guides" data-discovery-card="guide"><summary><strong>Guide e novità</strong><span>Approfondimenti pratici e sicurezza sulle utenze.</span></summary><div class="ol-discovery-links"><a href="/articoli.html" data-discovery-link="informa">OffertaLogica Informa</a><a href="/truffe-telefoniche-luce-gas.html" data-discovery-link="truffe">Truffe telefoniche: come difendersi</a><a href="/pun-oggi.html" data-discovery-link="pun-oggi">Prezzo luce oggi</a><a href="/psv-gas-oggi.html" data-discovery-link="psv-oggi">Prezzo gas oggi</a></div></details>
+          <details class="ol-discovery-card is-home" data-discovery-card="casa"><summary><strong>Casa e servizi</strong><span>Energia, comfort e connessione oltre la bolletta.</span></summary><div class="ol-discovery-links"><a href="/fotovoltaico.html" data-discovery-link="fotovoltaico">Fotovoltaico</a><a href="/climatizzazione-pompa-di-calore.html" data-discovery-link="climatizzazione">Climatizzazione e pompa di calore</a><a href="/internet-casa.html" data-discovery-link="internet">Internet casa</a><a href="/casa-smart.html" data-discovery-link="casa-smart">Casa smart</a></div></details>
+        </div>
+        <section class="ol-informa-preview" aria-labelledby="ol-informa-title"><div class="ol-informa-head"><h3 id="ol-informa-title">Da OffertaLogica Informa</h3><a href="/articoli.html" data-discovery-link="informa-tutti">Vedi tutti</a></div><div class="ol-informa-list" id="ol-informa-list"><a class="ol-informa-item" href="/articoli.html"><strong>Guide, novità e approfondimenti</strong><small>Scopri gli ultimi contenuti pubblicati</small></a></div></section>
+        <a class="ol-business-entry" href="/#business-panel" data-discovery-link="business"><span><strong>Hai un'azienda o un'attività?</strong><span>Vai all'analisi preliminare per imprese e P.IVA.</span></span></a>
+      </div>
+    </section>
+
     
     <p style="margin-bottom: 8px; font-weight: bold;">&copy; 2026 OffertaLogica.it - Calcolatore Energetico</p>
     
@@ -16161,7 +16264,46 @@ if (document.readyState === "loading") {
         <button type="button" class="footer-privacy-action" onclick="apriPreferenzeCookie(event)">Modifica preferenze cookie</button>
     </nav>
 
-    <!-- Script di Iubenda per gestire i pop-up -->
+
+<script src="/assets/editorial-config.js"></script>
+<script>
+/* OFFERTALOGICA_HOME_DISCOVERY_V1_20260916 */
+(() => {
+  const toggle=document.getElementById('ol-menu-toggle');
+  const backdrop=document.getElementById('ol-menu-backdrop');
+  const close=document.getElementById('ol-menu-close');
+  const drawer=document.getElementById('ol-menu-drawer');
+  let lastFocus=null;
+  function setMenu(open){
+    if(!toggle||!backdrop) return;
+    toggle.setAttribute('aria-expanded',String(open));
+    toggle.setAttribute('aria-label',open?'Chiudi menu':'Apri menu');
+    if(open){ lastFocus=document.activeElement; backdrop.hidden=false; requestAnimationFrame(()=>backdrop.classList.add('is-open')); document.body.style.overflow='hidden'; setTimeout(()=>close?.focus(),30); trackEvent?.('navigation_menu_opened',{placement:'header'}); }
+    else { backdrop.classList.remove('is-open'); document.body.style.overflow=''; setTimeout(()=>{backdrop.hidden=true; lastFocus?.focus?.();},200); }
+  }
+  toggle?.addEventListener('click',()=>setMenu(toggle.getAttribute('aria-expanded')!=='true'));
+  close?.addEventListener('click',()=>setMenu(false));
+  backdrop?.addEventListener('click',e=>{ if(e.target===backdrop) setMenu(false); });
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&toggle?.getAttribute('aria-expanded')==='true') setMenu(false); });
+  drawer?.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>{ trackEvent?.('navigation_link_clicked',{placement:'menu',destination:a.getAttribute('href'),item:a.dataset.olNav||a.textContent.trim()}); setMenu(false); }));
+  document.querySelectorAll('[data-discovery-card]').forEach(card=>card.addEventListener('toggle',()=>{ if(card.open) trackEvent?.('home_discovery_opened',{section:card.dataset.discoveryCard}); }));
+  document.querySelectorAll('[data-discovery-link]').forEach(a=>a.addEventListener('click',()=>trackEvent?.('home_discovery_clicked',{item:a.dataset.discoveryLink,destination:a.getAttribute('href')})));
+  const section=document.getElementById('scopri-offertalogica');
+  if(section&&'IntersectionObserver' in window){ let seen=false; const io=new IntersectionObserver(entries=>{ if(!seen&&entries.some(e=>e.isIntersecting&&e.intersectionRatio>=.35)){seen=true;trackEvent?.('home_discovery_viewed',{placement:'after_apps'});io.disconnect();} },{threshold:[.35]}); io.observe(section); }
+  const list=document.getElementById('ol-informa-list');
+  const cfg=window.OFFERTALOGICA_EDITORIAL_CONFIG;
+  if(list&&cfg?.supabaseUrl&&cfg?.supabaseAnonKey){
+    const q='/rest/v1/editorial_public_articles?select=slug,title,published_at&order=published_at.desc&limit=3';
+    fetch(cfg.supabaseUrl+q,{headers:{apikey:cfg.supabaseAnonKey,Authorization:'Bearer '+cfg.supabaseAnonKey}}).then(r=>r.ok?r.json():Promise.reject()).then(rows=>{
+      if(!Array.isArray(rows)||!rows.length)return;
+      list.innerHTML=rows.map(row=>{ const title=String(row.title||'Articolo').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); const slug=encodeURIComponent(row.slug||''); const date=row.published_at?new Intl.DateTimeFormat('it-IT',{day:'numeric',month:'short',year:'numeric'}).format(new Date(row.published_at)):''; return `<a class="ol-informa-item" href="/articolo.html?slug=${slug}" data-discovery-link="informa-articolo"><strong>${title}</strong>${date?`<small>${date}</small>`:''}</a>`; }).join('');
+      list.querySelectorAll('[data-discovery-link]').forEach(a=>a.addEventListener('click',()=>trackEvent?.('home_discovery_clicked',{item:'informa-articolo',destination:a.getAttribute('href')})));
+    }).catch(()=>{});
+  }
+})();
+</script>
+
+        <!-- Script di Iubenda per gestire i pop-up -->
     <script type="text/javascript">
         function apriPreferenzeCookie(event) {
             if (event) event.preventDefault();
