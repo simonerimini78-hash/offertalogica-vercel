@@ -3291,7 +3291,7 @@
             .social-entry-free-arrow { animation: none !important; transform: none !important; }
         }
 
-        /* OFFERTALOGICA_PUBLIC_V98_20260916: landing CRO + scelta percorso card profilo medio. */
+        /* OFFERTALOGICA_PUBLIC_V99_20260916: pulizia risultati desktop + card piu leggibili; mobile invariato. */
         .social-entry-hero-message {
             width: min(100%, 690px);
             display: grid;
@@ -3457,6 +3457,110 @@
             text-align: center;
         }
         .offers-contact-trust strong { color:#14532d; font-weight:950; }
+        #offers-ranking-explainer { display:none; }
+
+        @media (min-width: 701px) {
+            .offer-result-group {
+                padding: 20px;
+            }
+            .offer-result-group .offers-list-heading {
+                margin: 0;
+                padding: 14px 16px 8px;
+                border-radius: 12px 12px 0 0;
+                border: 1px solid rgba(37, 99, 235, .14);
+                border-bottom: 0;
+                background: #f8fafc;
+            }
+            .offer-result-group .offers-list-heading > div:first-child {
+                font-size: 19px !important;
+                line-height: 1.2;
+            }
+            .offer-result-group .offers-list-heading > div:last-child {
+                margin-top: 4px !important;
+                font-size: 13px !important;
+                line-height: 1.35;
+                color: #526274 !important;
+            }
+            .offer-result-group .offers-contact-trust {
+                margin: 0 0 16px;
+                padding: 0 16px 13px;
+                border: 1px solid rgba(37, 99, 235, .14);
+                border-top: 0;
+                border-radius: 0 0 12px 12px;
+                background: #f8fafc;
+                color: #355f49;
+                font-size: 12px;
+                line-height: 1.35;
+                text-align: center;
+            }
+            .partner-vertical-card {
+                grid-template-columns: minmax(0, 1fr) 270px !important;
+                gap: 20px;
+                min-height: 220px;
+                padding: 20px !important;
+            }
+            .partner-meta {
+                align-content: stretch;
+                gap: 10px;
+            }
+            .partner-details {
+                display: none !important;
+            }
+            .offer-details-toggle {
+                margin-top: 10px;
+                border-top: 1px solid rgba(148, 163, 184, .20);
+                padding-top: 10px;
+            }
+            .offer-details-toggle[open] > summary {
+                margin-bottom: 9px;
+                color: #334155;
+                font-weight: 900;
+            }
+            .offer-details-content {
+                padding: 10px 12px 11px;
+                border: 1px solid rgba(148, 163, 184, .22);
+                border-radius: 10px;
+                background: #f8fafc;
+                color: #526274;
+            }
+            .offer-action-column {
+                min-width: 0;
+                width: 100%;
+                align-self: stretch;
+                display: flex;
+                justify-content: center;
+                padding: 16px;
+                border: 1px solid rgba(22, 163, 74, .18);
+                border-radius: 14px;
+                background: linear-gradient(180deg, rgba(240,253,244,.92) 0%, rgba(248,250,252,.96) 100%);
+                box-sizing: border-box;
+            }
+            .offer-action-row {
+                width: 100%;
+                min-height: 100%;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: stretch;
+            }
+            [id^="link-partner-"] {
+                width: 100%;
+                min-width: 0;
+                min-height: 76px;
+                height: auto;
+                padding: 18px 20px !important;
+                border-radius: 13px !important;
+                font-size: 17px !important;
+                line-height: 1.2 !important;
+                white-space: normal !important;
+            }
+            .offer-action-column:not(.is-switcho-panel) [id^="link-partner-"]::after {
+                content: "  →";
+                font-size: 20px;
+                line-height: 1;
+                font-weight: 950;
+            }
+        }
 
         @media (max-width: 720px) {
             .social-entry-card { gap: 9px; }
@@ -8113,7 +8217,7 @@ function creaGruppoOfferte(id, classe, titolo, testo) {
       <div>${titolo}</div>
       <div>${testo}</div>
     </div>
-    <div class="offers-contact-trust"><strong>Confronto senza registrazione.</strong> Telefono ed email vengono richiesti da OffertaLogica solo se scegli di proseguire tramite noi con un’offerta partner.</div>
+    <div class="offers-contact-trust"><strong>Confronto senza registrazione.</strong> Telefono ed email servono solo se prosegui tramite OffertaLogica con un’offerta partner.</div>
     <div class="offer-group-cards"></div>
   `;
   return group;
@@ -9377,8 +9481,8 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
     "ranking-group",
     "Offerte più convenienti per costo annuo stimato",
     OFFERTE_ARERA_MENU.length
-      ? "Ordinate esclusivamente in base al costo annuo stimato sul tuo profilo. Il badge di percorso indica come puoi procedere con ciascuna offerta."
-      : "Ordinate esclusivamente in base al costo annuo stimato tra le offerte disponibili. Il badge di percorso indica come puoi procedere con ciascuna offerta."
+      ? "Ordinate per costo annuo stimato sul profilo selezionato. Offerte aggiornate ogni giorno."
+      : "Ordinate per costo annuo stimato tra le offerte disponibili. Offerte aggiornate ogni giorno."
   );
   const contenitoreRanking = resetGruppoOfferte(gruppoRanking, hasVisibleOffers);
 
@@ -9494,8 +9598,9 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       const percorsoDettaglio = percorsoBadgeText
         ? `<span class="offer-detail-pill">${testoHtmlSicuro(percorsoBadgeText)}</span>`
         : "";
+      const dettagliApertiDesktop = window.matchMedia?.("(min-width: 701px)")?.matches ? " open" : "";
       const dettagliCondizioniHtml = `
-        <details class="offer-details-toggle">
+        <details class="offer-details-toggle"${dettagliApertiDesktop}>
           <summary>Dettagli e condizioni</summary>
           <div class="offer-details-content">
             <div class="offer-detail-pills"><span class="offer-detail-pill">${testoHtmlSicuro(tipoPrezzoBadge)}</span>${percorsoDettaglio}</div>
@@ -14976,8 +15081,10 @@ function ottimizzaRisultatiMobile() {
 function aggiornaPromptBollettaDopoOfferte() {
   const prompt = document.getElementById("offers-personalize-prompt");
   if (!prompt) return;
-  const show = modalitaCalcolo === "media" && !SOCIAL_ENTRY_STATE.personalizationDismissed;
-  prompt.hidden = !show;
+  // V99: il prompt superiore e mantenuto solo per compatibilita interna ma non viene piu mostrato.
+  // La scelta bolletta / percorso assistito avviene dalla CTA della singola offerta.
+  prompt.hidden = true;
+  prompt.setAttribute("aria-hidden", "true");
 }
 
 function continuaConStimaMedia() {
@@ -15275,7 +15382,7 @@ if (document.readyState === "loading") {
     <p id="lead-teaser-copy">Il confronto è consultabile senza registrazione. Telefono ed email vengono richiesti solo se scegli di proseguire tramite OffertaLogica con un’offerta partner.</p>
     <button type="button" onclick="apriLeadModal('teaser')">Verifica e visualizza le offerte</button>
 </div>
-<div class="offers-personalize-prompt" id="offers-personalize-prompt" hidden>
+<div class="offers-personalize-prompt" id="offers-personalize-prompt" hidden aria-hidden="true">
     <strong>Vuoi sapere quanto risparmieresti con i tuoi consumi reali?</strong>
     <p>Carica la bolletta: confronteremo le offerte usando i tuoi consumi, senza perdere la stima che stai visualizzando.</p>
     <div class="offers-personalize-actions">
