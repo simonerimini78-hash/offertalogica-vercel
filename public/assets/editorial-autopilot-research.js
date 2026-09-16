@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.27";
+  const VERSION = "0.12.28";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
   let statusLoaded = false;
@@ -97,7 +97,7 @@
 
       <div class="ol-field" style="margin-top:18px">
         <label>Opportunità salvate</label>
-        <p class="ol-muted">Un segnale entra qui solo quando lo salvi manualmente. Dopo la selezione puoi classificarlo come nuovo articolo, aggiornamento, solo social o monitoraggio. “Nuovo articolo” abilita una bozza vuota; “Aggiornamento” permette di preparare e approvare una proposta separata dalla pagina pubblicata. Nessuna azione pubblica contenuti.</p>
+        <p class="ol-muted">Un segnale entra qui solo quando lo salvi manualmente. Dopo la selezione puoi classificarlo come nuovo articolo, aggiornamento, solo social o monitoraggio. “Nuovo articolo” abilita una bozza vuota; “Aggiornamento” permette di preparare una proposta e, dopo approvazione, una bozza testuale/diff separata dalla pagina pubblicata. Nessuna azione pubblica contenuti.</p>
         <p class="ol-autopilot-save-state" data-opportunity-message>Caricamento opportunità…</p>
         <div class="ol-autopilot-archive-list" data-opportunity-list>
           <p class="ol-muted">Caricamento…</p>
@@ -261,6 +261,33 @@
     return ({ pending_review: "Da approvare", approved: "Approvata", rejected: "Rifiutata" })[status] || status || "—";
   }
 
+  function updateTextDraftStatusLabel(status) {
+    return ({ pending_review: "Da revisionare", approved: "Approvata", rejected: "Rifiutata" })[status] || status || "—";
+  }
+
+  function updateTextDraftMarkup(row) {
+    const draft = row?.evidence?.update_text_draft;
+    if (!draft || typeof draft !== "object") return "";
+    const changes = Array.isArray(draft.changes) ? draft.changes : [];
+    const changesMarkup = changes.slice(0, 4).map((change) => `<div class="ol-autopilot-archive-item" style="margin-top:6px">
+      <strong>${esc(change.label || "Modifica testuale")}</strong>
+      <small><b>Prima:</b> ${esc(change.before || "—")}</small>
+      <small><b>Dopo:</b> ${esc(change.after || "—")}</small>
+      <small><b>Perché:</b> ${esc(change.reason || "—")}</small>
+    </div>`).join("");
+    return `<div class="ol-field" style="margin-top:10px">
+      <label>Bozza testo / diff · ${esc(updateTextDraftStatusLabel(draft.status))}</label>
+      <small>Preparata ${esc(dateIt(draft.prepared_at))} esclusivamente dal testo già presente nella pagina.</small>
+      ${draft?.target?.heading_text ? `<small>Sezione: ${esc(draft.target.heading_text)}</small>` : ""}
+      ${changesMarkup}
+      <div class="ol-toolbar-group" style="margin-top:8px">
+        <button class="ol-button ol-button-secondary ol-button-small" type="button" data-update-text-review="approved" data-update-text-opportunity="${esc(row.id || "")}" ${draft.status === "approved" ? "disabled" : ""}>Approva testo</button>
+        <button class="ol-button ol-button-secondary ol-button-small" type="button" data-update-text-review="rejected" data-update-text-opportunity="${esc(row.id || "")}" ${draft.status === "rejected" ? "disabled" : ""}>Rifiuta testo</button>
+      </div>
+      <small>Anche l’approvazione del testo non applica modifiche e non pubblica la pagina.</small>
+    </div>`;
+  }
+
   function updateProposalMarkup(row) {
     const proposal = row?.evidence?.update_proposal;
     if (!proposal || typeof proposal !== "object") return "";
@@ -287,6 +314,8 @@
         <button class="ol-button ol-button-secondary ol-button-small" type="button" data-update-review="rejected" data-update-opportunity="${esc(row.id || "")}" ${proposal.status === "rejected" ? "disabled" : ""}>Rifiuta proposta</button>
       </div>
       <small>Anche l’approvazione registra solo la decisione: non applica modifiche alla pagina.</small>
+      ${proposal.status === "approved" ? `<div class="ol-toolbar-group" style="margin-top:8px"><button class="ol-button ol-button-secondary ol-button-small" type="button" data-update-text-prepare="${esc(row.id || "")}">${row?.evidence?.update_text_draft ? "Rigenera bozza testo" : "Prepara bozza testo"}</button></div><small>La bozza usa solo testo già presente nella pagina e viene mostrata come diff prima/dopo.</small>` : ""}
+      ${proposal.status === "approved" ? updateTextDraftMarkup(row) : ""}
     </div>`;
   }
 
@@ -413,6 +442,8 @@
     const prepareButton = event.target.closest("[data-opportunity-prepare]");
     const updatePrepareButton = event.target.closest("[data-update-prepare]");
     const updateReviewButton = event.target.closest("[data-update-review][data-update-opportunity]");
+    const updateTextPrepareButton = event.target.closest("[data-update-text-prepare]");
+    const updateTextReviewButton = event.target.closest("[data-update-text-review][data-update-text-opportunity]");
     const message = section.querySelector("[data-opportunity-message]");
 
     if (saveButton) {
@@ -542,6 +573,49 @@
       } catch (error) {
         updateReviewButton.disabled = false;
         if (message) message.textContent = `Decisione non salvata: ${error.message}`;
+      }
+          return;
+    }
+
+    if (updateTextPrepareButton) {
+      const id = updateTextPrepareButton.dataset.updateTextPrepare || "";
+      const existingDraft = opportunityRows.find((row) => String(row.id || "") === id)?.evidence?.update_text_draft;
+      if (!id || updateTextPrepareButton.disabled) return;
+      if (existingDraft && !window.confirm("Rigenerare la bozza testuale? L’eventuale decisione precedente sul testo verrà sostituita.")) return;
+      updateTextPrepareButton.disabled = true;
+      if (message) message.textContent = "Preparazione diff testuale controllato…";
+      try {
+        await endpoint("prepare-editorial-update-text", {
+          method: "POST",
+          body: { id },
+        });
+        if (message) message.textContent = "Bozza testuale preparata. La pagina pubblicata non è stata modificata.";
+        await loadOpportunities(section, true);
+      } catch (error) {
+        updateTextPrepareButton.disabled = false;
+        if (message) message.textContent = `Bozza testuale non preparata: ${error.message}`;
+      }
+      return;
+    }
+
+    if (updateTextReviewButton) {
+      const id = updateTextReviewButton.dataset.updateTextOpportunity || "";
+      const decision = updateTextReviewButton.dataset.updateTextReview || "";
+      if (!id || !decision || updateTextReviewButton.disabled) return;
+      updateTextReviewButton.disabled = true;
+      if (message) message.textContent = decision === "approved" ? "Approvazione testo…" : "Rifiuto testo…";
+      try {
+        await endpoint("review-editorial-update-text", {
+          method: "POST",
+          body: { id, decision },
+        });
+        if (message) message.textContent = decision === "approved"
+          ? "Testo approvato. Non è stato applicato né pubblicato."
+          : "Testo rifiutato. La pagina resta invariata.";
+        await loadOpportunities(section, true);
+      } catch (error) {
+        updateTextReviewButton.disabled = false;
+        if (message) message.textContent = `Decisione sul testo non salvata: ${error.message}`;
       }
     }
   }

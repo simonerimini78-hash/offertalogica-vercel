@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { json } from "../lib/http.js";
 
-const VERSION = "0.12.27";
+const VERSION = "0.12.28";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -16,6 +16,7 @@ const OPPORTUNITY_TYPES = new Set(["new_article", "update_article", "social_only
 const OPPORTUNITY_LIST_LIMIT = 50;
 const TARGET_PAGE_MAX_BYTES = 2 * 1024 * 1024;
 const UPDATE_PROPOSAL_DECISIONS = new Set(["approved", "rejected"]);
+const UPDATE_TEXT_DECISIONS = new Set(["approved", "rejected"]);
 
 function env(name) {
   return String(process.env[name] || "").trim();
@@ -1004,8 +1005,9 @@ async function prepareEditorialUpdateProposal(user, idValue, targetUrlValue) {
   const pageResult = await fetchEditorialPage(targetUrl);
   const proposal = buildUpdateProposal(opportunity, pageResult.finalUrl, pageResult.html, user.id);
   const previousEvidence = opportunity.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {};
+  const { update_text_draft: _discardedTextDraft, ...proposalEvidenceBase } = previousEvidence;
   const evidence = {
-    ...previousEvidence,
+    ...proposalEvidenceBase,
     page_urls: Array.isArray(previousEvidence.page_urls) && previousEvidence.page_urls.length
       ? previousEvidence.page_urls
       : candidates.slice(0, 5),
@@ -1045,8 +1047,10 @@ async function reviewEditorialUpdateProposal(user, idValue, decisionValue) {
     reviewed_at: now,
     reviewed_by: user.id,
   };
+  const currentEvidence = opportunity.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {};
+  const { update_text_draft: _discardedTextDraft, ...reviewEvidenceBase } = currentEvidence;
   const evidence = {
-    ...(opportunity.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {}),
+    ...reviewEvidenceBase,
     update_proposal: proposal,
   };
   const updatedRows = await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(id)}`, {
@@ -1057,6 +1061,192 @@ async function reviewEditorialUpdateProposal(user, idValue, decisionValue) {
   const updated = updatedRows?.[0];
   if (!updated?.id) throw new Error("Decisione sulla proposta non salvata");
   return { opportunity: updated, proposal };
+}
+
+
+function escapeRegExp(value) {
+  return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function pageHeadingRanges(html) {
+  const source = String(html || "");
+  const items = [];
+  const regex = /<(h[23])\b([^>]*)>([\s\S]*?)<\/\1>/gi;
+  let match;
+  while ((match = regex.exec(source)) !== null && items.length < 120) {
+    const id = match[2]?.match(/\bid\s*=\s*["']([^"']+)["']/i)?.[1] || "";
+    items.push({
+      level: Number(match[1].slice(1)),
+      tag: match[1].toUpperCase(),
+      id,
+      text: plainHtmlText(match[3]).slice(0, 300),
+      start: match.index,
+      heading_end: regex.lastIndex,
+    });
+  }
+  return items;
+}
+
+function approvedProposalSection(html, proposal) {
+  const matched = proposal?.page?.matched_heading;
+  if (!matched || typeof matched !== "object") throw new Error("La proposta approvata non identifica una sezione precisa");
+  const headings = pageHeadingRanges(html);
+  const targetId = String(matched.id || "").trim();
+  const targetText = normalizedText(matched.text || "");
+  const index = headings.findIndex((heading) => {
+    if (targetId && heading.id === targetId) return true;
+    return targetText && normalizedText(heading.text) === targetText;
+  });
+  if (index < 0) throw new Error("La sezione approvata non è più presente nella pagina: rigenera la proposta");
+  const heading = headings[index];
+  let end = String(html || "").length;
+  for (let cursor = index + 1; cursor < headings.length; cursor += 1) {
+    if (headings[cursor].level <= heading.level) {
+      end = headings[cursor].start;
+      break;
+    }
+  }
+  return { heading, html: String(html || "").slice(heading.start, end) };
+}
+
+function firstSectionParagraph(sectionHtml, headingEndOffset = 0) {
+  const source = String(sectionHtml || "").slice(Math.max(0, Number(headingEndOffset) || 0));
+  const match = source.match(/<p\b[^>]*>([\s\S]*?)<\/p>/i);
+  if (!match) return null;
+  const text = plainHtmlText(match[1]).replace(/\s+/g, " ").trim();
+  return text ? { text } : null;
+}
+
+function conservativeLeadRevision(paragraphText, headingText) {
+  const current = String(paragraphText || "").trim();
+  const prefix = String(headingText || "").split(/[:–—]/, 1)[0].trim();
+  if (!current || !prefix) return null;
+  const prefixWords = normalizedWords(prefix);
+  if (prefixWords.length < 2) return null;
+  const firstKeyword = prefixWords[0];
+  const match = current.match(/^(Il|Lo|La|I|Gli|Le|Un|Una|Uno)\s+([^\s,.;:!?]+)/i);
+  if (!match) return null;
+  const paragraphKeyword = stemItalianWord(normalizedText(match[2]).split(" ")[0] || "");
+  if (!paragraphKeyword || paragraphKeyword !== firstKeyword) return null;
+
+  const article = match[1];
+  const safePrefix = `${prefix.charAt(0).toLowerCase()}${prefix.slice(1)}`;
+  const replacement = `${article} ${safePrefix}`;
+  const beforeLead = `${match[1]} ${match[2]}`;
+  if (normalizedText(current).startsWith(normalizedText(replacement))) return null;
+  const proposed = current.replace(new RegExp(`^${escapeRegExp(beforeLead)}\\b`, "i"), replacement);
+  if (!proposed || proposed === current) return null;
+  return { before: current, after: proposed };
+}
+
+function buildUpdateTextDraft(opportunity, proposal, html, userId) {
+  const section = approvedProposalSection(html, proposal);
+  const relativeHeadingEnd = Math.max(0, section.heading.heading_end - section.heading.start);
+  const paragraph = firstSectionParagraph(section.html, relativeHeadingEnd);
+  if (!paragraph) throw new Error("La sezione approvata non contiene un paragrafo modificabile");
+  const revision = conservativeLeadRevision(paragraph.text, section.heading.text);
+  if (!revision) {
+    throw new Error("Non ho trovato una modifica testuale conservativa abbastanza sicura: mantieni la proposta come piano manuale");
+  }
+  return {
+    schema_version: 1,
+    status: "pending_review",
+    target_url: proposal.target_url,
+    prepared_at: new Date().toISOString(),
+    prepared_by: userId,
+    source_page_fingerprint_sha256: proposal?.page?.fingerprint_sha256 || null,
+    basis: "existing_page_only",
+    scope: "first_paragraph_copy_edit",
+    target: {
+      heading_level: section.heading.tag,
+      heading_id: section.heading.id || null,
+      heading_text: section.heading.text,
+    },
+    changes: [{
+      key: "lead_topic_context",
+      label: "Apertura della sezione",
+      before: revision.before,
+      after: revision.after,
+      reason: `Rende esplicito nel primo periodo il contesto già dichiarato dal titolo della sezione, senza aggiungere dati, numeri o fatti nuovi. Segnale Search Console: “${String(opportunity.topic || "").trim()}”.`,
+    }],
+    safeguards: [
+      "La bozza deriva esclusivamente dal testo già pubblicato nella pagina.",
+      "Nessun dato tecnico, numero o fonte esterna viene aggiunto automaticamente.",
+      "L’approvazione della bozza non modifica e non pubblica la pagina.",
+    ],
+  };
+}
+
+async function prepareEditorialUpdateText(user, idValue) {
+  const id = String(idValue || "").trim();
+  if (!validUuid(id)) throw new Error("Identificativo opportunità non valido");
+  const rows = await serviceFetch(
+    `editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(id)}&limit=1`,
+  );
+  const opportunity = rows?.[0];
+  if (!opportunity) throw new Error("Opportunità non trovata");
+  if (opportunity.status !== "selected" || opportunity.opportunity_type !== "update_article") {
+    throw new Error("La bozza testo richiede un aggiornamento selezionato");
+  }
+  const proposal = opportunity?.evidence?.update_proposal;
+  if (!proposal || proposal.status !== "approved") throw new Error("Approva prima la proposta di aggiornamento");
+  const targetUrl = normalizedPageUrl(proposal.target_url || opportunity?.evidence?.target_page_url);
+  const pageResult = await fetchEditorialPage(targetUrl);
+  const currentFingerprint = crypto.createHash("sha256").update(pageResult.html).digest("hex");
+  if (!proposal?.page?.fingerprint_sha256 || currentFingerprint !== proposal.page.fingerprint_sha256) {
+    throw new Error("La pagina è cambiata dopo la proposta: rigenera e riapprova la proposta prima della bozza testo");
+  }
+  const draft = buildUpdateTextDraft(opportunity, proposal, pageResult.html, user.id);
+  const evidence = {
+    ...(opportunity.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {}),
+    update_text_draft: draft,
+  };
+  const now = new Date().toISOString();
+  const updatedRows = await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    prefer: "return=representation",
+    body: { evidence, updated_at: now, decided_by: user.id },
+  });
+  const updated = updatedRows?.[0];
+  if (!updated?.id) throw new Error("Bozza testuale non salvata");
+  return { opportunity: updated, draft };
+}
+
+async function reviewEditorialUpdateText(user, idValue, decisionValue) {
+  const id = String(idValue || "").trim();
+  const decision = String(decisionValue || "").trim();
+  if (!validUuid(id)) throw new Error("Identificativo opportunità non valido");
+  if (!UPDATE_TEXT_DECISIONS.has(decision)) throw new Error("Decisione bozza testo non valida");
+  const rows = await serviceFetch(
+    `editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(id)}&limit=1`,
+  );
+  const opportunity = rows?.[0];
+  if (!opportunity) throw new Error("Opportunità non trovata");
+  const proposal = opportunity?.evidence?.update_proposal;
+  if (opportunity.status !== "selected" || opportunity.opportunity_type !== "update_article" || proposal?.status !== "approved") {
+    throw new Error("La proposta approvata non è più valida per questa bozza");
+  }
+  const currentDraft = opportunity?.evidence?.update_text_draft;
+  if (!currentDraft || typeof currentDraft !== "object") throw new Error("Prepara prima la bozza testuale");
+  const now = new Date().toISOString();
+  const draft = {
+    ...currentDraft,
+    status: decision,
+    reviewed_at: now,
+    reviewed_by: user.id,
+  };
+  const evidence = {
+    ...(opportunity.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {}),
+    update_text_draft: draft,
+  };
+  const updatedRows = await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    prefer: "return=representation",
+    body: { evidence, updated_at: now, decided_by: user.id },
+  });
+  const updated = updatedRows?.[0];
+  if (!updated?.id) throw new Error("Decisione sulla bozza testo non salvata");
+  return { opportunity: updated, draft };
 }
 
 async function analysisPayload() {
@@ -1221,6 +1411,16 @@ export default async function handler(req, res) {
 
     if (req.method === "POST" && action === "review-editorial-update") {
       const result = await reviewEditorialUpdateProposal(user, req.body?.id, req.body?.decision);
+      return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "POST" && action === "prepare-editorial-update-text") {
+      const result = await prepareEditorialUpdateText(user, req.body?.id);
+      return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "POST" && action === "review-editorial-update-text") {
+      const result = await reviewEditorialUpdateText(user, req.body?.id, req.body?.decision);
       return json(res, 200, { ok: true, version: VERSION, result });
     }
 
