@@ -4,25 +4,36 @@
 // La struttura preserva titoli, entità, numeri, elenchi e link descrittivi per
 // leggibilità, indicizzazione semantica/AI e tecnologie assistive.
 
-export const SOCIAL_SUMMARY_VERSION = "2";
+export const SOCIAL_SUMMARY_VERSION = "3";
 export const SOCIAL_SUMMARY_MAX_CHARS = 4200;
 const SOCIAL_SITE = "https://offertalogica.it";
+const SOCIAL_PDF_UPLOAD_URL = `${SOCIAL_SITE}/carica-pdf.html`;
 
 // Mantiene i riferimenti utili anche fuori dal sito: i link interni diventano
-// URL assoluti, mentre link non sicuri/non web non vengono esposti.
+// URL assoluti. Le azioni che sul sito usano un frammento vengono convertite
+// in una URL pubblica stabile, così i social non perdono la destinazione.
 export function absoluteSocialLink(value = "") {
   const raw = String(value || "").trim();
   if (!raw) return "";
-  if (/^https:\/\//i.test(raw)) {
-    try {
-      const url = new URL(raw);
-      return url.protocol === "https:" ? url.href : "";
-    } catch {
-      return "";
-    }
+
+  let url;
+  try {
+    if (/^https:\/\//i.test(raw)) url = new URL(raw);
+    else if (/^\/(?!\/)/.test(raw)) url = new URL(raw, SOCIAL_SITE);
+    else return "";
+  } catch {
+    return "";
   }
-  if (/^\/(?!\/)/.test(raw)) return `${SOCIAL_SITE}${raw}`;
-  return "";
+
+  if (url.protocol !== "https:") return "";
+
+  const host = url.hostname.toLowerCase();
+  const internal = host === "offertalogica.it" || host === "www.offertalogica.it";
+  if (internal && url.hash.toLowerCase() === "#pdf-upload-panel") {
+    return SOCIAL_PDF_UPLOAD_URL;
+  }
+
+  return url.href;
 }
 
 const SUMMARY_PROFILES = [

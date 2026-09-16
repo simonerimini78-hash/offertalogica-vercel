@@ -1,27 +1,38 @@
 // @ts-nocheck
-// v0.12.18: snapshot self-contained della sintesi social canonica v2.
+// v0.12.19: snapshot self-contained della sintesi social canonica v3.
 // È incorporato anche qui per consentire il deploy diretto dall'editor web
 // Supabase senza dipendenze da file _shared esterni.
 
-const SOCIAL_SUMMARY_VERSION = "2";
+const SOCIAL_SUMMARY_VERSION = "3";
 const SOCIAL_SUMMARY_MAX_CHARS = 4200;
 const SOCIAL_SITE = "https://offertalogica.it";
+const SOCIAL_PDF_UPLOAD_URL = `${SOCIAL_SITE}/carica-pdf.html`;
 
 // Mantiene i riferimenti utili anche fuori dal sito: i link interni diventano
-// URL assoluti, mentre link non sicuri/non web non vengono esposti.
+// URL assoluti. Le azioni che sul sito usano un frammento vengono convertite
+// in una URL pubblica stabile, così i social non perdono la destinazione.
 function absoluteSocialLink(value = "") {
   const raw = String(value || "").trim();
   if (!raw) return "";
-  if (/^https:\/\//i.test(raw)) {
-    try {
-      const url = new URL(raw);
-      return url.protocol === "https:" ? url.href : "";
-    } catch {
-      return "";
-    }
+
+  let url;
+  try {
+    if (/^https:\/\//i.test(raw)) url = new URL(raw);
+    else if (/^\/(?!\/)/.test(raw)) url = new URL(raw, SOCIAL_SITE);
+    else return "";
+  } catch {
+    return "";
   }
-  if (/^\/(?!\/)/.test(raw)) return `${SOCIAL_SITE}${raw}`;
-  return "";
+
+  if (url.protocol !== "https:") return "";
+
+  const host = url.hostname.toLowerCase();
+  const internal = host === "offertalogica.it" || host === "www.offertalogica.it";
+  if (internal && url.hash.toLowerCase() === "#pdf-upload-panel") {
+    return SOCIAL_PDF_UPLOAD_URL;
+  }
+
+  return url.href;
 }
 
 const SUMMARY_PROFILES = [
@@ -253,7 +264,7 @@ function buildSocialSummary(article: any = {}, options: { maxChars?: number } = 
 
 const API_VERSION = "v26.0";
 const FACEBOOK_GRAPH = "https://graph.facebook.com";
-const VERSION = "0.12.18";
+const VERSION = "0.12.19";
 const PLATFORM = "facebook";
 const MAX_ATTEMPTS = 3;
 const MAX_MESSAGE_CHARS = 7000;
