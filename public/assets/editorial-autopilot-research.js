@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.26";
+  const VERSION = "0.12.27";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
   let statusLoaded = false;
@@ -97,7 +97,7 @@
 
       <div class="ol-field" style="margin-top:18px">
         <label>Opportunità salvate</label>
-        <p class="ol-muted">Un segnale entra qui solo quando lo salvi manualmente. Dopo la selezione puoi classificarlo come nuovo articolo, aggiornamento, solo social o monitoraggio. Solo “Nuovo articolo” abilita la creazione manuale di una bozza vuota; nessuna azione pubblica contenuti.</p>
+        <p class="ol-muted">Un segnale entra qui solo quando lo salvi manualmente. Dopo la selezione puoi classificarlo come nuovo articolo, aggiornamento, solo social o monitoraggio. “Nuovo articolo” abilita una bozza vuota; “Aggiornamento” permette di preparare e approvare una proposta separata dalla pagina pubblicata. Nessuna azione pubblica contenuti.</p>
         <p class="ol-autopilot-save-state" data-opportunity-message>Caricamento opportunità…</p>
         <div class="ol-autopilot-archive-list" data-opportunity-list>
           <p class="ol-muted">Caricamento…</p>
@@ -256,6 +256,59 @@
       .join("")}`;
   }
 
+
+  function updateProposalStatusLabel(status) {
+    return ({ pending_review: "Da approvare", approved: "Approvata", rejected: "Rifiutata" })[status] || status || "—";
+  }
+
+  function updateProposalMarkup(row) {
+    const proposal = row?.evidence?.update_proposal;
+    if (!proposal || typeof proposal !== "object") return "";
+    const page = proposal.page || {};
+    const matched = page.matched_heading?.text || "Nessuna sezione H2/H3 specifica individuata";
+    const plan = Array.isArray(proposal.plan) ? proposal.plan : [];
+    const targetUrl = String(proposal.target_url || row?.evidence?.target_page_url || "");
+    const planMarkup = plan.slice(0, 5).map((item) => `<div class="ol-autopilot-archive-item" style="margin-top:6px">
+      <strong>${esc(item.label || "Intervento")}</strong>
+      <small><b>Cosa cambierebbe:</b> ${esc(item.change || "—")}</small>
+      <small><b>Perché:</b> ${esc(item.reason || "—")}</small>
+      ${item.target ? `<small><b>Dove:</b> ${esc(item.target)}</small>` : ""}
+    </div>`).join("");
+    return `<div class="ol-field" style="margin-top:10px">
+      <label>Proposta di aggiornamento · ${esc(updateProposalStatusLabel(proposal.status))}</label>
+      <small>Preparata ${esc(dateIt(proposal.prepared_at))}. La pagina pubblicata non è stata modificata.</small>
+      ${targetUrl ? `<small>Pagina: <a href="${esc(targetUrl)}" target="_blank" rel="noopener noreferrer">${esc(targetUrl)}</a></small>` : ""}
+      <small>Title attuale: ${esc(page.title || "—")}</small>
+      <small>H1 attuale: ${esc(page.h1 || "—")}</small>
+      <small>Sezione più pertinente: ${esc(matched)}</small>
+      ${planMarkup}
+      <div class="ol-toolbar-group" style="margin-top:8px">
+        <button class="ol-button ol-button-secondary ol-button-small" type="button" data-update-review="approved" data-update-opportunity="${esc(row.id || "")}" ${proposal.status === "approved" ? "disabled" : ""}>Approva proposta</button>
+        <button class="ol-button ol-button-secondary ol-button-small" type="button" data-update-review="rejected" data-update-opportunity="${esc(row.id || "")}" ${proposal.status === "rejected" ? "disabled" : ""}>Rifiuta proposta</button>
+      </div>
+      <small>Anche l’approvazione registra solo la decisione: non applica modifiche alla pagina.</small>
+    </div>`;
+  }
+
+  function updateTargetWorkflow(row) {
+    const id = esc(row.id || "");
+    const pages = [...new Set((Array.isArray(row.context_pages) ? row.context_pages : []).filter(Boolean))].slice(0, 5);
+    const savedTarget = String(row?.evidence?.target_page_url || "");
+    if (savedTarget && !pages.includes(savedTarget)) pages.unshift(savedTarget);
+    if (!pages.length) return '<small>Nessuna pagina associata disponibile: non preparo una proposta per evitare collegamenti arbitrari.</small>';
+    const options = pages.map((url) => `<option value="${esc(url)}" ${savedTarget === url ? "selected" : ""}>${esc(url)}</option>`).join("");
+    const proposal = row?.evidence?.update_proposal;
+    return `<div class="ol-field" style="margin-top:8px">
+      <label>Pagina da aggiornare</label>
+      <select data-update-target="${id}">${options}</select>
+      <div class="ol-toolbar-group" style="margin-top:8px">
+        <button class="ol-button ol-button-secondary ol-button-small" type="button" data-update-prepare="${id}">${proposal ? "Rigenera proposta" : "Prepara proposta aggiornamento"}</button>
+      </div>
+      <small>La proposta legge la pagina esistente e salva soltanto un piano di revisione nell’opportunità.</small>
+      ${updateProposalMarkup(row)}
+    </div>`;
+  }
+
   function opportunityActions(row) {
     const id = esc(row.id || "");
     const status = String(row.status || "");
@@ -287,7 +340,7 @@
           <button class="ol-button ol-button-secondary ol-button-small" type="button" data-opportunity-prepare="${id}">Prepara bozza</button>
         </div>`;
     } else if (type === "update_article") {
-      followup = "<small>Nessuna nuova bozza viene creata: questa destinazione evita duplicati e sarà gestita nel flusso di aggiornamento.</small>";
+      followup = `<small>Nessuna nuova bozza viene creata. Prepara una proposta separata dalla pagina pubblicata e approvala manualmente prima di qualsiasi fase applicativa.</small>${updateTargetWorkflow(row)}`;
     } else if (type === "social_only") {
       followup = "<small>Classificata per uso social: in questa fase non viene creato alcun contenuto.</small>";
     } else if (type === "monitor") {
@@ -358,6 +411,8 @@
     const statusButton = event.target.closest("[data-opportunity-id][data-opportunity-status]");
     const classifyButton = event.target.closest("[data-opportunity-classify]");
     const prepareButton = event.target.closest("[data-opportunity-prepare]");
+    const updatePrepareButton = event.target.closest("[data-update-prepare]");
+    const updateReviewButton = event.target.closest("[data-update-review][data-update-opportunity]");
     const message = section.querySelector("[data-opportunity-message]");
 
     if (saveButton) {
@@ -441,6 +496,52 @@
       } catch (error) {
         prepareButton.disabled = false;
         if (message) message.textContent = `Bozza non preparata: ${error.message}`;
+      }
+  
+      return;
+    }
+
+    if (updatePrepareButton) {
+      const id = updatePrepareButton.dataset.updatePrepare || "";
+      const select = section.querySelector(`[data-update-target="${id}"]`);
+      const targetUrl = select?.value || "";
+      const existing = opportunityRows.find((row) => String(row.id || "") === id)?.evidence?.update_proposal;
+      if (!id || !targetUrl || updatePrepareButton.disabled) return;
+      if (existing && !window.confirm("Rigenerare la proposta? L’eventuale approvazione precedente verrà sostituita da una nuova proposta da revisionare.")) return;
+      updatePrepareButton.disabled = true;
+      if (message) message.textContent = "Lettura pagina e preparazione proposta…";
+      try {
+        await endpoint("prepare-editorial-update", {
+          method: "POST",
+          body: { id, target_url: targetUrl },
+        });
+        if (message) message.textContent = "Proposta preparata e salvata. La pagina pubblicata non è stata modificata.";
+        await loadOpportunities(section, true);
+      } catch (error) {
+        updatePrepareButton.disabled = false;
+        if (message) message.textContent = `Proposta non preparata: ${error.message}`;
+      }
+      return;
+    }
+
+    if (updateReviewButton) {
+      const id = updateReviewButton.dataset.updateOpportunity || "";
+      const decision = updateReviewButton.dataset.updateReview || "";
+      if (!id || !decision || updateReviewButton.disabled) return;
+      updateReviewButton.disabled = true;
+      if (message) message.textContent = decision === "approved" ? "Approvazione proposta…" : "Rifiuto proposta…";
+      try {
+        await endpoint("review-editorial-update", {
+          method: "POST",
+          body: { id, decision },
+        });
+        if (message) message.textContent = decision === "approved"
+          ? "Proposta approvata. Nessuna modifica è stata applicata alla pagina."
+          : "Proposta rifiutata. Nessuna modifica è stata applicata alla pagina.";
+        await loadOpportunities(section, true);
+      } catch (error) {
+        updateReviewButton.disabled = false;
+        if (message) message.textContent = `Decisione non salvata: ${error.message}`;
       }
     }
   }

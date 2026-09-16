@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { json } from "../lib/http.js";
 
-const VERSION = "0.12.26";
+const VERSION = "0.12.27";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -14,6 +14,8 @@ const ANALYSIS_WINDOWS = [7, 28, 90];
 const OPPORTUNITY_STATUSES = new Set(["pending", "selected", "deferred", "rejected"]);
 const OPPORTUNITY_TYPES = new Set(["new_article", "update_article", "social_only", "monitor"]);
 const OPPORTUNITY_LIST_LIMIT = 50;
+const TARGET_PAGE_MAX_BYTES = 2 * 1024 * 1024;
+const UPDATE_PROPOSAL_DECISIONS = new Set(["approved", "rejected"]);
 
 function env(name) {
   return String(process.env[name] || "").trim();
@@ -732,6 +734,331 @@ async function prepareEditorialDraft(user, idValue) {
   }
 }
 
+
+function normalizedPageUrl(value) {
+  const raw = String(value || "").trim();
+  if (!raw) throw new Error("Pagina da aggiornare non indicata");
+  let parsed;
+  let configured;
+  try {
+    parsed = new URL(raw);
+    configured = new URL(searchConsoleConfig().siteUrl);
+  } catch {
+    throw new Error("URL pagina non valido");
+  }
+  if (parsed.protocol !== "https:" || parsed.origin !== configured.origin) {
+    throw new Error("La proposta può usare solo pagine HTTPS di OffertaLogica");
+  }
+  parsed.hash = "";
+  return parsed.href;
+}
+
+function decodeHtmlEntities(value) {
+  return String(value || "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code) || 32))
+    .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCodePoint(parseInt(code, 16) || 32));
+}
+
+function plainHtmlText(value) {
+  return decodeHtmlEntities(String(value || "").replace(/<[^>]*>/g, " "))
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function firstTagText(html, tagName) {
+  const match = String(html || "").match(new RegExp(`<${tagName}\\b[^>]*>([\\s\\S]*?)<\\/${tagName}>`, "i"));
+  return plainHtmlText(match?.[1] || "").slice(0, 500);
+}
+
+function metaDescription(html) {
+  const tags = String(html || "").match(/<meta\b[^>]*>/gi) || [];
+  for (const tag of tags) {
+    if (!/\bname\s*=\s*["']description["']/i.test(tag)) continue;
+    const match = tag.match(/\bcontent\s*=\s*["']([\s\S]*?)["']/i);
+    if (match?.[1]) return decodeHtmlEntities(match[1]).replace(/\s+/g, " ").trim().slice(0, 500);
+  }
+  return "";
+}
+
+function pageHeadings(html) {
+  const headings = [];
+  const regex = /<(h[23])\b([^>]*)>([\s\S]*?)<\/\1>/gi;
+  let match;
+  while ((match = regex.exec(String(html || ""))) !== null && headings.length < 80) {
+    const id = match[2]?.match(/\bid\s*=\s*["']([^"']+)["']/i)?.[1] || "";
+    headings.push({ level: match[1].toUpperCase(), id, text: plainHtmlText(match[3]).slice(0, 300) });
+  }
+  return headings.filter((row) => row.text);
+}
+
+function normalizedText(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function stemItalianWord(word) {
+  const clean = String(word || "");
+  return clean.length > 4 ? clean.replace(/[aeio]$/, "") : clean;
+}
+
+function normalizedWords(value) {
+  return normalizedText(value).split(" ").filter((word) => word.length > 2).map(stemItalianWord);
+}
+
+function topicWords(value) {
+  return [...new Set(normalizedWords(value))].slice(0, 12);
+}
+
+function wordCoverage(value, words) {
+  if (!words.length) return 0;
+  const haystack = new Set(normalizedWords(value));
+  const hits = words.filter((word) => haystack.has(word)).length;
+  return hits / words.length;
+}
+
+function bestTopicHeading(headings, topic) {
+  const words = topicWords(topic);
+  return (headings || [])
+    .map((heading, index) => ({ ...heading, coverage: wordCoverage(heading.text, words), index }))
+    .filter((heading) => heading.coverage > 0)
+    .sort((a, b) => b.coverage - a.coverage || a.index - b.index)[0] || null;
+}
+
+async function opportunityContextPages(opportunity) {
+  const saved = Array.isArray(opportunity?.evidence?.page_urls)
+    ? opportunity.evidence.page_urls.filter(Boolean)
+    : [];
+  if (saved.length) return saved.slice(0, 5);
+  const topicKey = String(opportunity?.evidence?.topic_key || "");
+  if (!topicKey) return [];
+  const analysis = await analysisPayload();
+  const signal = (analysis.signals || []).find((row) => row.topic_key === topicKey);
+  return Array.isArray(signal?.page_urls) ? signal.page_urls.filter(Boolean).slice(0, 5) : [];
+}
+
+async function fetchEditorialPage(targetUrl) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  try {
+    const response = await fetch(targetUrl, {
+      headers: { "User-Agent": "OffertaLogica-Editorial-Update-Proposal/1.0" },
+      redirect: "follow",
+      cache: "no-store",
+      signal: controller.signal,
+    });
+    if (!response.ok) throw new Error(`Pagina non leggibile: HTTP ${response.status}`);
+    const finalUrl = normalizedPageUrl(response.url || targetUrl);
+    const contentType = String(response.headers.get("content-type") || "").toLowerCase();
+    if (contentType && !contentType.includes("text/html")) throw new Error("La pagina indicata non restituisce HTML");
+    const declared = Number(response.headers.get("content-length") || 0);
+    if (declared > TARGET_PAGE_MAX_BYTES) throw new Error("Pagina troppo grande per l’analisi controllata");
+    const html = await response.text();
+    if (Buffer.byteLength(html, "utf8") > TARGET_PAGE_MAX_BYTES) throw new Error("Pagina troppo grande per l’analisi controllata");
+    return { html, finalUrl };
+  } catch (error) {
+    if (error?.name === "AbortError") throw new Error("Timeout durante la lettura della pagina esistente");
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function buildUpdateProposal(opportunity, targetUrl, html, userId) {
+  const topic = String(opportunity.topic || "").trim();
+  const words = topicWords(topic);
+  const headings = pageHeadings(html);
+  const bestHeading = bestTopicHeading(headings, topic);
+  const title = firstTagText(html, "title");
+  const description = metaDescription(html);
+  const h1 = firstTagText(html, "h1");
+  const metric28 = opportunity?.evidence?.metrics?.["28"] || {};
+  const impressions28 = Number(metric28.impressions || 0);
+  const clicks28 = Number(metric28.clicks || 0);
+  const position28 = Number.isFinite(Number(metric28.avg_position)) ? Number(metric28.avg_position).toFixed(1) : "n/d";
+  const queryCount = Number(opportunity?.evidence?.query_count || 0);
+  const presence = {
+    title: wordCoverage(title, words),
+    meta_description: wordCoverage(description, words),
+    h1: wordCoverage(h1, words),
+    heading: bestHeading?.coverage || 0,
+  };
+
+  const plan = [];
+  if (bestHeading) {
+    plan.push({
+      key: "target_section",
+      label: "Sezione da revisionare",
+      target: `${bestHeading.level}${bestHeading.id ? ` #${bestHeading.id}` : ""} · ${bestHeading.text}`,
+      change: `Revisionare e approfondire la sezione già esistente rispetto al tema “${topic}”, senza creare una pagina duplicata.`,
+      reason: `Search Console registra ${impressions28} impressioni, ${clicks28} clic e posizione media ${position28} nei 28 giorni disponibili.`,
+    });
+  } else {
+    plan.push({
+      key: "target_section",
+      label: "Sezione da aggiungere",
+      target: "Contenuto principale",
+      change: `Valutare una sezione esplicita dedicata al tema “${topic}”, mantenendo invariato il resto della pagina fino alla revisione manuale.`,
+      reason: `Il tema genera un segnale Search Console ma non è stato trovato un H2/H3 chiaramente corrispondente nella pagina corrente.`,
+    });
+  }
+
+  plan.push({
+    key: "query_intent",
+    label: "Copertura delle query",
+    target: bestHeading?.text || h1 || title || "Pagina",
+    change: `Confrontare le ${queryCount ? `${queryCount} query` : "query"} collegate con il testo della sezione e integrare soltanto i sotto-temi realmente mancanti, usando fonti verificabili.`,
+    reason: "La proposta usa il cluster Search Console salvato; non inventa dati o valori tecnici.",
+  });
+
+  if (presence.meta_description >= 0.5) {
+    plan.push({
+      key: "snippet",
+      label: "Snippet SEO",
+      target: description || "Meta description",
+      change: "Nessuna modifica automatica alla meta description: il tema risulta già rappresentato. Rivalutarla soltanto dopo l’aggiornamento del contenuto.",
+      reason: "Si evita di modificare lo snippet senza un beneficio verificato.",
+    });
+  } else {
+    plan.push({
+      key: "snippet",
+      label: "Snippet SEO da verificare",
+      target: description || "Meta description assente",
+      change: `Dopo la revisione del contenuto, valutare se rendere più esplicito il tema “${topic}” nella meta description, senza cambiare automaticamente title o H1.`,
+      reason: "Il tema è poco rappresentato nello snippet corrente rispetto al segnale Search Console.",
+    });
+  }
+
+  return {
+    schema_version: 1,
+    status: "pending_review",
+    target_url: targetUrl,
+    prepared_at: new Date().toISOString(),
+    prepared_by: userId,
+    page: {
+      fingerprint_sha256: crypto.createHash("sha256").update(html).digest("hex"),
+      title,
+      meta_description: description,
+      h1,
+      matched_heading: bestHeading ? {
+        level: bestHeading.level,
+        id: bestHeading.id || null,
+        text: bestHeading.text,
+        coverage: roundMetric(bestHeading.coverage, 3),
+      } : null,
+      topic_presence: Object.fromEntries(Object.entries(presence).map(([key, value]) => [key, roundMetric(value, 3)])),
+    },
+    signal: {
+      topic,
+      score: Number(opportunity.score || 0),
+      query_count: queryCount,
+      metrics_28: {
+        impressions: impressions28,
+        clicks: clicks28,
+        avg_position: Number.isFinite(Number(metric28.avg_position)) ? roundMetric(Number(metric28.avg_position), 2) : null,
+      },
+    },
+    plan,
+    safeguards: [
+      "La pagina pubblicata non viene modificata da questa proposta.",
+      "L’approvazione registra soltanto una decisione editoriale e non applica modifiche.",
+      "Qualsiasi nuovo dato tecnico o numerico deve essere verificato con fonti prima dell’eventuale applicazione.",
+    ],
+  };
+}
+
+async function prepareEditorialUpdateProposal(user, idValue, targetUrlValue) {
+  const id = String(idValue || "").trim();
+  if (!validUuid(id)) throw new Error("Identificativo opportunità non valido");
+  const rows = await serviceFetch(
+    `editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(id)}&limit=1`,
+  );
+  const opportunity = rows?.[0];
+  if (!opportunity) throw new Error("Opportunità non trovata");
+  if (opportunity.status !== "selected") throw new Error("L’opportunità deve essere selezionata");
+  if (opportunity.opportunity_type !== "update_article") {
+    throw new Error("La proposta di aggiornamento richiede la destinazione Aggiornamento articolo/pagina");
+  }
+  if (opportunity.target_article_id) throw new Error("L’opportunità è già collegata a un articolo editoriale");
+
+  const targetUrl = normalizedPageUrl(targetUrlValue);
+  const candidates = (await opportunityContextPages(opportunity)).map((url) => {
+    try { return normalizedPageUrl(url); } catch { return ""; }
+  }).filter(Boolean);
+  const savedTarget = opportunity?.evidence?.target_page_url;
+  if (savedTarget) {
+    try { candidates.push(normalizedPageUrl(savedTarget)); } catch {}
+  }
+  if (!new Set(candidates).has(targetUrl)) throw new Error("La pagina scelta non appartiene alle pagine associate al segnale Search Console");
+
+  const pageResult = await fetchEditorialPage(targetUrl);
+  const proposal = buildUpdateProposal(opportunity, pageResult.finalUrl, pageResult.html, user.id);
+  const previousEvidence = opportunity.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {};
+  const evidence = {
+    ...previousEvidence,
+    page_urls: Array.isArray(previousEvidence.page_urls) && previousEvidence.page_urls.length
+      ? previousEvidence.page_urls
+      : candidates.slice(0, 5),
+    target_page_url: pageResult.finalUrl,
+    update_proposal: proposal,
+  };
+  const now = new Date().toISOString();
+  const updatedRows = await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    prefer: "return=representation",
+    body: { evidence, updated_at: now, decided_by: user.id },
+  });
+  const updated = updatedRows?.[0];
+  if (!updated?.id) throw new Error("Proposta di aggiornamento non salvata");
+  return { opportunity: updated, proposal };
+}
+
+async function reviewEditorialUpdateProposal(user, idValue, decisionValue) {
+  const id = String(idValue || "").trim();
+  const decision = String(decisionValue || "").trim();
+  if (!validUuid(id)) throw new Error("Identificativo opportunità non valido");
+  if (!UPDATE_PROPOSAL_DECISIONS.has(decision)) throw new Error("Decisione proposta non valida");
+  const rows = await serviceFetch(
+    `editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(id)}&limit=1`,
+  );
+  const opportunity = rows?.[0];
+  if (!opportunity) throw new Error("Opportunità non trovata");
+  if (opportunity.status !== "selected" || opportunity.opportunity_type !== "update_article") {
+    throw new Error("La proposta non è più associata a un aggiornamento selezionato");
+  }
+  const currentProposal = opportunity?.evidence?.update_proposal;
+  if (!currentProposal || typeof currentProposal !== "object") throw new Error("Prepara prima una proposta di aggiornamento");
+  const now = new Date().toISOString();
+  const proposal = {
+    ...currentProposal,
+    status: decision,
+    reviewed_at: now,
+    reviewed_by: user.id,
+  };
+  const evidence = {
+    ...(opportunity.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {}),
+    update_proposal: proposal,
+  };
+  const updatedRows = await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    prefer: "return=representation",
+    body: { evidence, updated_at: now, decided_by: user.id },
+  });
+  const updated = updatedRows?.[0];
+  if (!updated?.id) throw new Error("Decisione sulla proposta non salvata");
+  return { opportunity: updated, proposal };
+}
+
 async function analysisPayload() {
   const allSnapshots = await searchConsoleSnapshots();
   const snapshots = latestWindowSnapshots(allSnapshots);
@@ -884,6 +1211,16 @@ export default async function handler(req, res) {
 
     if (req.method === "POST" && action === "prepare-editorial-draft") {
       const result = await prepareEditorialDraft(user, req.body?.id);
+      return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "POST" && action === "prepare-editorial-update") {
+      const result = await prepareEditorialUpdateProposal(user, req.body?.id, req.body?.target_url);
+      return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "POST" && action === "review-editorial-update") {
+      const result = await reviewEditorialUpdateProposal(user, req.body?.id, req.body?.decision);
       return json(res, 200, { ok: true, version: VERSION, result });
     }
 
