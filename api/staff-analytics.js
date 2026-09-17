@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { json } from "../lib/http.js";
 
-const VERSION = "0.12.41";
+const VERSION = "0.12.44";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -2419,6 +2419,16 @@ function schedulerSlotMinutes(value) {
   return hour * 60 + minute;
 }
 
+const SCHEDULER_SLOT_MAX_ATTEMPTS_PER_DAY = 3;
+
+function schedulerSlotAttemptState(runs, schedulerKey) {
+  const matching = (runs || []).filter((run) => run?.details?.scheduler_key === schedulerKey);
+  const failedAttempts = matching.filter((run) => String(run?.status || "") === "failed").length;
+  const consumed = matching.some((run) => String(run?.status || "") !== "failed")
+    || failedAttempts >= SCHEDULER_SLOT_MAX_ATTEMPTS_PER_DAY;
+  return { failedAttempts, consumed };
+}
+
 async function automationSchedulerRuns(limit = 100) {
   const rows = await serviceFetch(`editorial_automation_runs?select=id,run_type,status,scheduled_for,started_at,finished_at,opportunity_id,article_id,social_plan_item_id,details,last_error,created_at&order=created_at.desc&limit=${Math.max(1, Math.min(200, Number(limit) || 100))}`);
   return rows || [];
@@ -2567,7 +2577,19 @@ function schedulerTargetUrl(opportunity) {
 
 async function schedulerProcessSlot(slot, user, settings, runs, local) {
   const schedulerKey = `${local.date}:${slot.id}`;
-  const details = { scheduler_key: schedulerKey, slot_id: slot.id, slot_kind: slot.kind, local_date: local.date, local_time: local.time, timezone: local.time_zone, stage: "started", slot_only: true };
+  const attemptState = schedulerSlotAttemptState(runs, schedulerKey);
+  const details = {
+    scheduler_key: schedulerKey,
+    slot_id: slot.id,
+    slot_kind: slot.kind,
+    local_date: local.date,
+    local_time: local.time,
+    timezone: local.time_zone,
+    stage: "started",
+    slot_only: true,
+    attempt: attemptState.failedAttempts + 1,
+    max_attempts: SCHEDULER_SLOT_MAX_ATTEMPTS_PER_DAY,
+  };
   const run = await automationSchedulerRunStart(String(slot.kind || "research"), details);
   if (!run?.id) throw new Error("Autopilota: run schedulato non creato");
   try {
@@ -2638,7 +2660,7 @@ async function editorialAutopilotTick() {
     const minutes = schedulerSlotMinutes(slot.time_local);
     if (minutes === null || local.minutes < minutes) return false;
     const key = `${local.date}:${slot.id}`;
-    return !runs.some((run) => run?.details?.scheduler_key === key);
+    return !schedulerSlotAttemptState(runs, key).consumed;
   })[0] || null;
   if (!due) return { ok: true, version: VERSION, active: true, action: "idle", local };
   const result = await schedulerProcessSlot(due, user, settings, runs, local);
