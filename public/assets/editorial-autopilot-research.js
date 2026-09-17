@@ -1,13 +1,16 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.32";
+  const VERSION = "0.12.33";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
   let statusLoaded = false;
   let lastAnalysisPayload = null;
   let opportunityRows = [];
   let opportunityTopicKeys = new Set();
+  let socialPlanItems = [];
+  let socialChannels = [];
+  let automationRuns = [];
 
   function sessionRead() {
     try { return JSON.parse(sessionStorage.getItem(SESSION_KEY) || "null"); }
@@ -161,11 +164,24 @@
 
       <div class="ol-field" style="margin-top:18px">
         <label>Opportunità salvate</label>
-        <p class="ol-muted">Qui convivono idee inserite dalla Redazione e opportunità salvate dall’analisi Search Console, con origine sempre visibile. Dopo la selezione puoi classificarle e proseguire nel flusso controllato; una pubblicazione reale resta separata e verificata.</p>
+        <p class="ol-muted">Qui convivono idee inserite dalla Redazione e opportunità salvate dall’analisi Search Console, con origine sempre visibile. Per un nuovo articolo selezionato puoi ora generare una bozza completa con ricerca web, fonti e QA. La generazione non pubblica nulla.</p>
         <p class="ol-autopilot-save-state" data-opportunity-message>Caricamento opportunità…</p>
         <div class="ol-autopilot-archive-list" data-opportunity-list>
           <p class="ol-muted">Caricamento…</p>
         </div>
+      </div>
+
+      <div class="ol-field" style="margin-top:18px">
+        <label>Piano post statici</label>
+        <p class="ol-muted">I post collegati all’articolo restano bozze separate. Nessun canale è preselezionato: Facebook/Instagram vengono associati solo se li scegli esplicitamente. Reel, video, TikTok e LinkedIn non fanno parte di questo blocco.</p>
+        <p class="ol-autopilot-save-state" data-social-plan-message>Caricamento piano post…</p>
+        <div class="ol-autopilot-archive-list" data-social-plan-list><p class="ol-muted">Caricamento…</p></div>
+      </div>
+
+      <div class="ol-field" style="margin-top:18px">
+        <label>Ultimi cicli Autopilota</label>
+        <p class="ol-muted">Registro tecnico delle preparazioni. In questa versione il ciclo genera bozze e post, ma non esegue pubblicazioni automatiche.</p>
+        <div class="ol-autopilot-archive-list" data-automation-run-list><p class="ol-muted">Caricamento…</p></div>
       </div>`;
   }
 
@@ -184,6 +200,8 @@
     statusLoaded = false;
     loadStatus(section);
     loadOpportunities(section);
+    loadSocialPlan(section);
+    loadAutomationRuns(section);
   }
 
   function renderHistory(section, snapshots) {
@@ -615,6 +633,118 @@
     return `<small>Origine: inserimento manuale${esc(deadline)}</small>${notes}${editable ? `<div class="ol-toolbar-group" style="margin-top:8px">${editable}</div>` : ""}`;
   }
 
+
+  function platformLabel(platform) {
+    return ({ facebook: "Facebook", instagram: "Instagram", threads: "Threads", linkedin: "LinkedIn" })[platform] || platform;
+  }
+
+  function platformChoicesMarkup(id, selected = [], attribute = "data-package-platform") {
+    const selectedSet = new Set(Array.isArray(selected) ? selected : []);
+    const channels = (socialChannels.length ? socialChannels : [
+      { platform: "facebook", display_name: "Facebook", enabled: false },
+      { platform: "instagram", display_name: "Instagram", enabled: false },
+    ]).filter((channel) => ["facebook", "instagram"].includes(String(channel.platform || "")));
+    return channels.map((channel) => {
+      const platform = String(channel.platform || "");
+      const enabled = Boolean(channel.enabled);
+      const checked = enabled && selectedSet.has(platform);
+      return `<label class="ol-autopilot-source"><input type="checkbox" ${attribute}="${esc(id)}" value="${esc(platform)}" ${checked ? "checked" : ""} ${enabled ? "" : "disabled"}>${esc(channel.display_name || platformLabel(platform))}${enabled ? "" : " · non collegato"}</label>`;
+    }).join("");
+  }
+
+  function articleGenerationMarkup(row) {
+    const id = String(row?.id || "");
+    const generation = row?.evidence?.article_generation;
+    const qa = generation?.qa || {};
+    const sourceCount = Number(qa.sources_count || generation?.sources?.length || 0);
+    const buttonLabel = generation ? "Rigenera bozza completa" : "Genera bozza completa con fonti";
+    const currentPlatforms = Array.isArray(generation?.platforms) ? generation.platforms : [];
+    const summary = generation
+      ? `<small>Ultima generazione: ${esc(dateIt(generation.generated_at))} · ${esc(generation.model || "modello server")} · ${sourceCount} fonti · ${Number(qa.static_posts_count || 0)} post statici. Pubblicazione automatica: no.</small>`
+      : '<small>La generazione usa ricerca web lato server, salva le fonti, applica controlli minimi e prepara due post statici in bozza. Nessun contenuto viene pubblicato.</small>';
+    return `<div class="ol-field" style="margin-top:8px">
+      <label>Canali per i post statici del pacchetto</label>
+      <div class="ol-autopilot-sources">${platformChoicesMarkup(id, currentPlatforms)}</div>
+      <small>Nessun canale è obbligatorio. I canali non collegati restano disabilitati.</small>
+      <div class="ol-toolbar-group" style="margin-top:8px">
+        <button class="ol-button ol-button-primary ol-button-small" type="button" data-article-generate="${esc(id)}">${buttonLabel}</button>
+      </div>
+      ${summary}
+    </div>`;
+  }
+
+  function socialPlanStatusLabel(status) {
+    return ({ draft: "Bozza", approved: "Approvato", cancelled: "Annullato", scheduled: "Programmato", publishing: "Pubblicazione", published: "Pubblicato", failed: "Errore" })[status] || status || "—";
+  }
+
+  function renderSocialPlan(section) {
+    const list = section?.querySelector("[data-social-plan-list]");
+    const message = section?.querySelector("[data-social-plan-message]");
+    if (!list || !message) return;
+    if (!socialPlanItems.length) {
+      list.innerHTML = '<p class="ol-muted">Nessun post statico preparato.</p>';
+      message.textContent = "Il piano verrà popolato insieme alle bozze articolo generate dall’Autopilota.";
+      return;
+    }
+    list.innerHTML = socialPlanItems.map((row) => {
+      const id = String(row.id || "");
+      const editable = ["draft", "approved", "cancelled"].includes(String(row.status || ""));
+      const destination = row.destination_target
+        ? `${row.destination_target.label} · ${row.destination_target.url_path}`
+        : row.post_type === "article_followup" ? "Articolo collegato" : "—";
+      const statusOptions = [
+        ["draft", "Bozza"], ["approved", "Approvato"], ["cancelled", "Annullato"],
+      ].map(([value, label]) => `<option value="${value}" ${row.status === value ? "selected" : ""}>${label}</option>`).join("");
+      return `<div class="ol-autopilot-archive-item" data-social-plan-item="${esc(id)}">
+        <strong>${esc(row.theme || row.post_type || "Post statico")} · ${esc(socialPlanStatusLabel(row.status))}</strong>
+        <small>${esc(row.post_type || "")} · destinazione: ${esc(destination)}</small>
+        <div class="ol-field" style="margin-top:8px"><label>Testo canonico</label><textarea data-social-plan-text="${esc(id)}" rows="4" maxlength="4000" ${editable ? "" : "disabled"}>${esc(row.canonical_text || "")}</textarea></div>
+        <div class="ol-field" style="margin-top:8px"><label>Canali espliciti</label><div class="ol-autopilot-sources">${platformChoicesMarkup(id, row.platforms || [], "data-social-plan-platform")}</div></div>
+        ${editable ? `<div class="ol-autopilot-fields" style="margin-top:8px"><div class="ol-field"><label>Stato editoriale</label><select data-social-plan-status="${esc(id)}">${statusOptions}</select></div></div><div class="ol-toolbar-group" style="margin-top:8px"><button class="ol-button ol-button-secondary ol-button-small" type="button" data-social-plan-save="${esc(id)}">Salva post</button></div>` : ""}
+        <small>Nessuna pubblicazione automatica viene eseguita da questo pannello.</small>
+      </div>`;
+    }).join("");
+    message.textContent = `${numberIt(socialPlanItems.length)} post nel piano. Canali e approvazione restano espliciti.`;
+  }
+
+  async function loadSocialPlan(section) {
+    const message = section?.querySelector("[data-social-plan-message]");
+    try {
+      const payload = await endpoint("editorial-social-plan");
+      socialPlanItems = Array.isArray(payload?.items) ? payload.items : [];
+      socialChannels = Array.isArray(payload?.channels) ? payload.channels : [];
+      renderSocialPlan(section);
+      if (opportunityRows.length) renderOpportunities(section, opportunityRows);
+    } catch (error) {
+      if (message) message.textContent = `Piano post non disponibile: ${error.message}`;
+    }
+  }
+
+  function renderAutomationRuns(section) {
+    const list = section?.querySelector("[data-automation-run-list]");
+    if (!list) return;
+    if (!automationRuns.length) {
+      list.innerHTML = '<p class="ol-muted">Nessun ciclo registrato.</p>';
+      return;
+    }
+    list.innerHTML = automationRuns.slice(0, 12).map((run) => `<div class="ol-autopilot-archive-item">
+      <strong>${esc(run.run_type || "ciclo")} · ${esc(run.status || "—")}</strong>
+      <small>Avvio ${esc(dateIt(run.started_at || run.created_at))}${run.finished_at ? ` · fine ${esc(dateIt(run.finished_at))}` : ""}</small>
+      ${run.last_error ? `<small>Errore: ${esc(run.last_error)}</small>` : `<small>Pubblicazione automatica: ${run?.details?.publication_performed ? "sì" : "no"}</small>`}
+    </div>`).join("");
+  }
+
+  async function loadAutomationRuns(section) {
+    try {
+      const payload = await endpoint("editorial-automation-runs");
+      automationRuns = Array.isArray(payload?.runs) ? payload.runs : [];
+      renderAutomationRuns(section);
+    } catch {
+      automationRuns = [];
+      renderAutomationRuns(section);
+    }
+  }
+
   function opportunityActions(row) {
     const id = esc(row.id || "");
     const status = String(row.status || "");
@@ -631,7 +761,7 @@
     const id = esc(row.id || "");
     const type = String(row.opportunity_type || "monitor");
     const targetArticleId = String(row.target_article_id || "");
-    if (targetArticleId) {
+    if (targetArticleId && (row.status !== "selected" || type !== "new_article")) {
       return `<div class="ol-toolbar-group" style="margin-top:8px">
         <a class="ol-button ol-button-secondary ol-button-small" href="/redazione?scope=mine&amp;status=all&amp;id=${encodeURIComponent(targetArticleId)}">Apri articolo collegato</a>
       </div>`;
@@ -641,10 +771,7 @@
     const option = (value, label) => `<option value="${value}" ${type === value ? "selected" : ""}>${label}</option>`;
     let followup = '<small>Scegli la destinazione editoriale e salvala prima di procedere.</small>';
     if (type === "new_article") {
-      followup = `<small>La bozza sarà creata vuota nella coda Redazione: titolo e slug iniziali, nessun testo generato e nessuna pubblicazione.</small>
-        <div class="ol-toolbar-group" style="margin-top:8px">
-          <button class="ol-button ol-button-secondary ol-button-small" type="button" data-opportunity-prepare="${id}">Prepara bozza</button>
-        </div>`;
+      followup = `${targetArticleId ? `<div class="ol-toolbar-group" style="margin-top:8px"><a class="ol-button ol-button-secondary ol-button-small" href="/redazione?scope=mine&amp;status=all&amp;id=${encodeURIComponent(targetArticleId)}">Apri articolo collegato</a></div>` : ""}${articleGenerationMarkup(row)}`;
     } else if (type === "update_article") {
       followup = `<small>Nessuna nuova bozza viene creata. Prepara una proposta separata dalla pagina pubblicata e approvala manualmente prima di qualsiasi fase applicativa.</small>${updateTargetWorkflow(row)}`;
     } else if (type === "social_only") {
@@ -718,6 +845,8 @@
     const manualCancelButton = event.target.closest("[data-manual-idea-cancel]");
     const manualEditButton = event.target.closest("[data-manual-idea-edit]");
     const plannerButton = event.target.closest("[data-planner-preview]");
+    const generateArticleButton = event.target.closest("[data-article-generate]");
+    const socialPlanSaveButton = event.target.closest("[data-social-plan-save]");
     const saveButton = event.target.closest("[data-save-opportunity]");
     const statusButton = event.target.closest("[data-opportunity-id][data-opportunity-status]");
     const classifyButton = event.target.closest("[data-opportunity-classify]");
@@ -784,6 +913,53 @@
         if (plannerMessage) plannerMessage.textContent = `Anteprima non disponibile: ${error.message}`;
       } finally {
         plannerButton.disabled = false;
+      }
+      return;
+    }
+
+
+    if (generateArticleButton) {
+      const id = generateArticleButton.dataset.articleGenerate || "";
+      if (!id || generateArticleButton.disabled) return;
+      const row = opportunityRows.find((item) => String(item.id || "") === id);
+      if (row?.evidence?.article_generation && !window.confirm("Rigenerare la bozza completa? È consentito solo se la bozza non è stata modificata manualmente dopo l’ultima generazione.")) return;
+      const platforms = [...section.querySelectorAll(`input[data-package-platform="${id}"]:checked`)].map((input) => input.value);
+      generateArticleButton.disabled = true;
+      if (message) message.textContent = "Ricerca fonti, generazione bozza e QA in corso…";
+      try {
+        const payload = await endpoint("generate-editorial-article-package", {
+          method: "POST",
+          body: { id, platforms },
+        });
+        const result = payload?.result;
+        if (message) message.textContent = `Bozza completa preparata: ${Number(result?.qa?.sources_count || 0)} fonti usate dalla ricerca, ${Number(result?.qa?.static_posts_count || 0)} post statici in bozza. Nessuna pubblicazione eseguita.`;
+        await Promise.all([loadOpportunities(section, true), loadSocialPlan(section), loadAutomationRuns(section)]);
+      } catch (error) {
+        generateArticleButton.disabled = false;
+        if (message) message.textContent = `Generazione non completata: ${error.message}`;
+      }
+      return;
+    }
+
+    if (socialPlanSaveButton) {
+      const id = socialPlanSaveButton.dataset.socialPlanSave || "";
+      const textArea = section.querySelector(`[data-social-plan-text="${id}"]`);
+      const statusSelect = section.querySelector(`[data-social-plan-status="${id}"]`);
+      const platforms = [...section.querySelectorAll(`input[data-social-plan-platform="${id}"]:checked`)].map((input) => input.value);
+      if (!id || !textArea || socialPlanSaveButton.disabled) return;
+      socialPlanSaveButton.disabled = true;
+      const planMessage = section.querySelector("[data-social-plan-message]");
+      if (planMessage) planMessage.textContent = "Salvataggio post statico…";
+      try {
+        await endpoint("update-editorial-social-plan-item", {
+          method: "POST",
+          body: { id, canonical_text: textArea.value, status: statusSelect?.value || "draft", platforms },
+        });
+        if (planMessage) planMessage.textContent = "Post salvato. Nessuna pubblicazione è stata eseguita.";
+        await loadSocialPlan(section);
+      } catch (error) {
+        socialPlanSaveButton.disabled = false;
+        if (planMessage) planMessage.textContent = `Post non salvato: ${error.message}`;
       }
       return;
     }

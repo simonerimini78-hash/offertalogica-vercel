@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { json } from "../lib/http.js";
 
-const VERSION = "0.12.32";
+const VERSION = "0.12.33";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -21,6 +21,11 @@ const UPDATE_PREVIEW_DECISIONS = new Set(["confirmed", "cancelled"]);
 const MANUAL_IDEA_PRIORITIES = new Set(["normal", "high", "urgent"]);
 const MANUAL_IDEA_TYPES = new Set(["new_article", "update_article"]);
 const MANUAL_IDEA_PRIORITY_RANK = { normal: 100, high: 300, urgent: 400 };
+const EDITORIAL_AI_DEFAULT_MODEL = "gpt-5.6-terra";
+const EDITORIAL_AI_TIMEOUT_MS = 45000;
+const EDITORIAL_PLAN_POST_TYPES = new Set(["article_followup", "related", "evergreen", "service", "data"]);
+const EDITORIAL_PLAN_EDITABLE_STATUSES = new Set(["draft", "approved", "cancelled"]);
+const EDITORIAL_SOCIAL_PLATFORMS = new Set(["facebook", "instagram"]);
 
 function env(name) {
   return String(process.env[name] || "").trim();
@@ -1042,6 +1047,589 @@ async function prepareEditorialDraft(user, idValue) {
     }).catch(() => {});
     throw error;
   }
+}
+
+
+function cleanEditorialText(value, maxLength) {
+  return String(value || "").replace(/\r\n?/g, "\n").trim().slice(0, maxLength);
+}
+
+function editorialAiModel() {
+  return env("EDITORIAL_AI_MODEL") || EDITORIAL_AI_DEFAULT_MODEL;
+}
+
+function responseOutputText(payload) {
+  const parts = [];
+  for (const item of Array.isArray(payload?.output) ? payload.output : []) {
+    if (item?.type !== "message") continue;
+    for (const content of Array.isArray(item?.content) ? item.content : []) {
+      if (content?.type === "output_text" && typeof content.text === "string") parts.push(content.text);
+    }
+  }
+  return parts.join("\n").trim();
+}
+
+function responseSourceUrls(payload) {
+  const urls = new Set();
+  for (const item of Array.isArray(payload?.output) ? payload.output : []) {
+    if (item?.type === "web_search_call") {
+      for (const source of Array.isArray(item?.action?.sources) ? item.action.sources : []) {
+        if (typeof source?.url === "string") urls.add(source.url);
+      }
+    }
+    if (item?.type === "message") {
+      for (const content of Array.isArray(item?.content) ? item.content : []) {
+        for (const annotation of Array.isArray(content?.annotations) ? content.annotations : []) {
+          if (typeof annotation?.url === "string") urls.add(annotation.url);
+          if (typeof annotation?.url_citation?.url === "string") urls.add(annotation.url_citation.url);
+        }
+      }
+    }
+  }
+  return [...urls];
+}
+
+function normalizedHttps(value) {
+  try {
+    const url = new URL(String(value || "").trim());
+    if (url.protocol !== "https:") return null;
+    url.hash = "";
+    return url.href;
+  } catch {
+    return null;
+  }
+}
+
+function articleEditorialFingerprint(article) {
+  const stable = {
+    title: String(article?.title || ""),
+    slug: String(article?.slug || ""),
+    category: String(article?.category || ""),
+    excerpt: String(article?.excerpt || ""),
+    content: String(article?.content || ""),
+    sources: String(article?.sources || ""),
+    seo_title: String(article?.seo_title || ""),
+    seo_description: String(article?.seo_description || ""),
+  };
+  return crypto.createHash("sha256").update(JSON.stringify(stable)).digest("hex");
+}
+
+async function activeEditorialCategories() {
+  const rows = await serviceFetch("editorial_categories?select=slug,name,active&active=eq.true&order=sort_order.asc,name.asc");
+  return Array.isArray(rows) ? rows : [];
+}
+
+async function enabledPromotionTargets() {
+  const rows = await serviceFetch("editorial_promotion_targets?select=id,label,url_path,category,enabled,sort_order&enabled=eq.true&order=sort_order.asc,label.asc");
+  return Array.isArray(rows) ? rows : [];
+}
+
+async function editorialSocialChannels() {
+  const rows = await serviceFetch("editorial_social_channels?select=platform,display_name,enabled,public_handle,sort_order&order=sort_order.asc");
+  return Array.isArray(rows) ? rows : [];
+}
+
+function validateRequestedPlatforms(values, channels) {
+  const enabled = new Set((channels || []).filter((row) => row.enabled).map((row) => row.platform));
+  const requested = [...new Set((Array.isArray(values) ? values : []).map((value) => String(value || "").trim()))]
+    .filter((value) => EDITORIAL_SOCIAL_PLATFORMS.has(value));
+  for (const platform of requested) {
+    if (!enabled.has(platform)) throw new Error(`Il canale ${platform} non risulta collegato: non può essere preselezionato nel piano post`);
+  }
+  return requested;
+}
+
+function categorySlugForPackage(value, categories, opportunity) {
+  const requested = String(value || "").trim().toLocaleLowerCase("it-IT");
+  const opportunityCategory = String(opportunity?.category || "").trim().toLocaleLowerCase("it-IT");
+  const rows = Array.isArray(categories) ? categories : [];
+  const match = rows.find((row) => String(row.slug || "").toLocaleLowerCase("it-IT") === requested)
+    || rows.find((row) => String(row.name || "").toLocaleLowerCase("it-IT") === requested)
+    || rows.find((row) => String(row.slug || "").toLocaleLowerCase("it-IT") === opportunityCategory)
+    || rows.find((row) => String(row.name || "").toLocaleLowerCase("it-IT") === opportunityCategory);
+  if (!match?.slug) throw new Error("La generazione non ha restituito una categoria editoriale valida");
+  return match.slug;
+}
+
+function editorialPackageSchema() {
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: ["title", "category_slug", "excerpt", "content", "seo_title", "seo_description", "sources", "posts"],
+    properties: {
+      title: { type: "string" },
+      category_slug: { type: "string" },
+      excerpt: { type: "string" },
+      content: { type: "string" },
+      seo_title: { type: "string" },
+      seo_description: { type: "string" },
+      sources: {
+        type: "array",
+        minItems: 2,
+        maxItems: 8,
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["title", "url", "source_type"],
+          properties: {
+            title: { type: "string" },
+            url: { type: "string" },
+            source_type: { type: "string", enum: ["primary", "secondary"] },
+          },
+        },
+      },
+      posts: {
+        type: "array",
+        minItems: 2,
+        maxItems: 2,
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["post_type", "theme", "brief", "canonical_text", "destination_target_id"],
+          properties: {
+            post_type: { type: "string", enum: ["article_followup", "related"] },
+            theme: { type: "string" },
+            brief: { type: "string" },
+            canonical_text: { type: "string" },
+            destination_target_id: { type: ["string", "null"] },
+          },
+        },
+      },
+    },
+  };
+}
+
+async function generateOpenAiEditorialPackage({ opportunity, article, categories, targets }) {
+  const apiKey = env("OPENAI_API_KEY");
+  if (!apiKey) throw new Error("OPENAI_API_KEY non configurata lato server");
+  const model = editorialAiModel();
+  const categoryList = categories.map((row) => `${row.slug} = ${row.name}`).join("\n");
+  const targetList = targets.map((row) => `${row.id} | ${row.label} | ${row.url_path}${row.category ? ` | ${row.category}` : ""}`).join("\n");
+  const manual = manualIdeaMeta(opportunity);
+  const notes = cleanEditorialText(manual?.notes, 2000);
+  const signal = opportunity?.evidence?.metrics ? JSON.stringify(opportunity.evidence.metrics) : "non disponibile";
+  const articleUrl = `https://offertalogica.it/articoli/${encodeURIComponent(article.slug)}.html`;
+  const instructions = [
+    "Sei il motore editoriale server-side di OffertaLogica.it.",
+    "Devi preparare una bozza informativa in italiano, chiara e prudente, non un testo promozionale aggressivo.",
+    "Usa il web search per verificare fatti attuali e preferisci fonti primarie/istituzionali quando disponibili.",
+    "Non inventare dati, percentuali, norme, prezzi, date o dichiarazioni. Se un punto non è verificabile, omettilo.",
+    "Il contenuto deve essere originale, non copiare passaggi estesi dalle fonti.",
+    "Il campo content usa Markdown semplice con paragrafi e intestazioni ## / ###. Non inserire HTML.",
+    "Le fonti devono essere URL https realmente consultati durante la ricerca.",
+    "Genera esattamente due post statici: article_followup rimanda all'articolo; related rimanda a UNA destinazione OffertaLogica consentita dall'elenco fornito.",
+    "Non scegliere canali social: i canali sono decisi separatamente dalla Redazione.",
+    "Non proporre Reel, video, TikTok o LinkedIn come strategia.",
+  ].join(" ");
+  const input = `ARGOMENTO: ${opportunity.topic}\nTIPO: nuovo articolo\nNOTE REDAZIONE: ${notes || "nessuna"}\nSEGNALI SEARCH CONSOLE: ${signal}\nURL ARTICOLO DOPO PUBBLICAZIONE: ${articleUrl}\n\nCATEGORIE AMMESSE (restituisci esattamente uno slug):\n${categoryList}\n\nDESTINAZIONI PROMOZIONALI AMMESSE PER IL POST related (restituisci esattamente l'id scelto):\n${targetList || "nessuna"}\n\nVincoli editoriali: titolo <= 140 caratteri; excerpt <= 320; SEO title <= 70; SEO description <= 180; contenuto sostanziale e leggibile; almeno 2 fonti, includendo una fonte primaria se disponibile. Il post article_followup deve includere il link ${articleUrl}. Il post related deve includere l'URL della destinazione consentita scelta.`;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), EDITORIAL_AI_TIMEOUT_MS);
+  let response;
+  try {
+    response = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        tools: [{ type: "web_search", search_context_size: "medium" }],
+        tool_choice: "auto",
+        instructions,
+        input,
+        reasoning: { effort: "low" },
+        max_output_tokens: 9000,
+        text: {
+          format: {
+            type: "json_schema",
+            name: "offertalogica_editorial_package",
+            strict: true,
+            schema: editorialPackageSchema(),
+          },
+        },
+      }),
+      cache: "no-store",
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (error?.name === "AbortError") throw new Error("Timeout durante ricerca e generazione editoriale");
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) throw new Error(payload?.error?.message || `OpenAI ${response.status}`);
+  if (payload?.status && payload.status !== "completed") throw new Error("Generazione editoriale non completata");
+  const text = responseOutputText(payload);
+  if (!text) throw new Error("La generazione non ha restituito contenuto strutturato");
+  let result;
+  try { result = JSON.parse(text); }
+  catch { throw new Error("Risposta editoriale non interpretabile"); }
+  return { result, model, sourceUrls: responseSourceUrls(payload), responseId: payload?.id || null };
+}
+
+function sourceUrlKey(value) {
+  const normalized = normalizedHttps(value);
+  if (!normalized) return null;
+  try {
+    const url = new URL(normalized);
+    const path = url.pathname.replace(/\/+$/, "") || "/";
+    return `${url.origin}${path}`.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+function validateGeneratedEditorialPackage(generated, { opportunity, categories, targets, settings, observedSourceUrls }) {
+  const title = cleanEditorialText(generated?.title, 140);
+  const excerpt = cleanEditorialText(generated?.excerpt, 320);
+  const content = cleanEditorialText(generated?.content, 40000);
+  const seoTitle = cleanEditorialText(generated?.seo_title, 70);
+  const seoDescription = cleanEditorialText(generated?.seo_description, 180);
+  if (title.length < 12) throw new Error("Titolo generato troppo breve");
+  if (excerpt.length < 60) throw new Error("Sommario generato troppo breve");
+  if (content.length < 1200) throw new Error("Contenuto generato troppo breve per una bozza editoriale completa");
+  if (!seoTitle || !seoDescription) throw new Error("Metadati SEO non completi");
+  const category = categorySlugForPackage(generated?.category_slug, categories, opportunity);
+
+  const observed = new Set((observedSourceUrls || []).map(sourceUrlKey).filter(Boolean));
+  const sources = [];
+  for (const source of Array.isArray(generated?.sources) ? generated.sources : []) {
+    const url = normalizedHttps(source?.url);
+    if (!url) continue;
+    if (observed.size && !observed.has(sourceUrlKey(url))) continue;
+    if (sources.some((row) => row.url === url)) continue;
+    sources.push({
+      title: cleanEditorialText(source?.title, 240) || new URL(url).hostname,
+      url,
+      source_type: source?.source_type === "primary" ? "primary" : "secondary",
+    });
+  }
+  if (Boolean(settings?.require_sources) && observed.size < 2) {
+    throw new Error("QA fonti fallito: la ricerca web non ha restituito almeno 2 fonti verificabili");
+  }
+  if (Boolean(settings?.require_sources) && sources.length < 2) {
+    throw new Error("QA fonti fallito: servono almeno 2 fonti web effettivamente usate dalla ricerca");
+  }
+  if (Boolean(settings?.require_primary_source) && sources.length && !sources.some((row) => row.source_type === "primary")) {
+    throw new Error("QA fonti fallito: manca una fonte primaria");
+  }
+
+  const targetMap = new Map((targets || []).map((row) => [String(row.id), row]));
+  const posts = [];
+  for (const post of Array.isArray(generated?.posts) ? generated.posts : []) {
+    const type = String(post?.post_type || "");
+    if (!EDITORIAL_PLAN_POST_TYPES.has(type) || !["article_followup", "related"].includes(type)) continue;
+    const destinationTargetId = post?.destination_target_id ? String(post.destination_target_id) : null;
+    if (type === "related" && (!destinationTargetId || !targetMap.has(destinationTargetId))) {
+      throw new Error("Il post collegato non usa una destinazione promozionale consentita");
+    }
+    posts.push({
+      post_type: type,
+      theme: cleanEditorialText(post?.theme, 240),
+      brief: cleanEditorialText(post?.brief, 1200),
+      canonical_text: cleanEditorialText(post?.canonical_text, 4000),
+      destination_target_id: type === "related" ? destinationTargetId : null,
+    });
+  }
+  if (posts.length !== 2 || new Set(posts.map((row) => row.post_type)).size !== 2) {
+    throw new Error("QA post fallito: servono esattamente un follow-up articolo e un post collegato");
+  }
+  if (posts.some((row) => row.canonical_text.length < 80)) throw new Error("QA post fallito: testo social troppo breve");
+
+  return {
+    article: { title, category, excerpt, content, seo_title: seoTitle, seo_description: seoDescription },
+    sources,
+    posts,
+    qa: {
+      title_ok: true,
+      excerpt_ok: true,
+      content_min_length_ok: true,
+      seo_ok: true,
+      sources_count: sources.length,
+      primary_source_present: sources.some((row) => row.source_type === "primary"),
+      web_source_match_enforced: observed.size > 0,
+      static_posts_count: posts.length,
+      writes_publication: false,
+    },
+  };
+}
+
+async function upsertGeneratedSocialPlans(user, opportunity, article, posts, platforms) {
+  const existing = await serviceFetch(
+    `editorial_social_plan_items?select=id,post_type,status,source_article_id,opportunity_id&opportunity_id=eq.${encodeURIComponent(opportunity.id)}&source_article_id=eq.${encodeURIComponent(article.id)}&limit=20`,
+  );
+  const byType = new Map((existing || []).map((row) => [row.post_type, row]));
+  const protectedRows = (existing || []).filter((row) => !["draft", "cancelled"].includes(String(row.status || "")));
+  if (protectedRows.length) throw new Error("Esiste già un post del piano approvato o in lavorazione: rigenerazione bloccata");
+  const now = new Date().toISOString();
+  const result = [];
+  for (const post of posts) {
+    const current = byType.get(post.post_type);
+    const body = {
+      source_article_id: article.id,
+      opportunity_id: opportunity.id,
+      post_type: post.post_type,
+      destination_target_id: post.destination_target_id,
+      theme: post.theme || opportunity.topic,
+      brief: post.brief || null,
+      canonical_text: post.canonical_text,
+      platforms,
+      scheduled_for: null,
+      status: "draft",
+      updated_at: now,
+      updated_by: user.id,
+    };
+    let rows;
+    if (current?.id) {
+      rows = await serviceFetch(`editorial_social_plan_items?id=eq.${encodeURIComponent(current.id)}`, {
+        method: "PATCH", prefer: "return=representation", body,
+      });
+    } else {
+      rows = await serviceFetch("editorial_social_plan_items", {
+        method: "POST", prefer: "return=representation", body: { ...body, created_by: user.id },
+      });
+    }
+    if (!rows?.[0]?.id) throw new Error("Piano post statici non salvato");
+    result.push(rows[0]);
+  }
+  return result;
+}
+
+async function automationRunStart(opportunityId) {
+  const rows = await serviceFetch("editorial_automation_runs", {
+    method: "POST",
+    prefer: "return=representation",
+    body: {
+      run_type: "article_prepare",
+      status: "running",
+      started_at: new Date().toISOString(),
+      opportunity_id: opportunityId,
+      details: { version: VERSION, source: "manual_controlled_run" },
+    },
+  });
+  return rows?.[0] || null;
+}
+
+async function automationRunFinish(run, status, patch = {}) {
+  if (!run?.id) return;
+  await serviceFetch(`editorial_automation_runs?id=eq.${encodeURIComponent(run.id)}`, {
+    method: "PATCH",
+    prefer: "return=minimal",
+    body: {
+      status,
+      finished_at: new Date().toISOString(),
+      article_id: patch.article_id || null,
+      social_plan_item_id: patch.social_plan_item_id || null,
+      details: patch.details || run.details || {},
+      last_error: patch.last_error || null,
+    },
+  }).catch(() => {});
+}
+
+async function generateEditorialArticlePackage(user, payload = {}) {
+  const id = String(payload.id || "").trim();
+  if (!validUuid(id)) throw new Error("Identificativo opportunità non valido");
+  const rows = await serviceFetch(
+    `editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(id)}&limit=1`,
+  );
+  let opportunity = rows?.[0];
+  if (!opportunity) throw new Error("Opportunità non trovata");
+  if (opportunity.status !== "selected") throw new Error("Seleziona prima l’opportunità");
+  if (opportunity.opportunity_type !== "new_article") throw new Error("La generazione completa è disponibile solo per un nuovo articolo");
+
+  const [settingsRows, categories, targets, channels] = await Promise.all([
+    serviceFetch("editorial_automation_settings?select=*&id=eq.1&limit=1"),
+    activeEditorialCategories(),
+    enabledPromotionTargets(),
+    editorialSocialChannels(),
+  ]);
+  const settings = settingsRows?.[0] || {};
+  const platforms = validateRequestedPlatforms(payload.platforms, channels);
+  if (!categories.length) throw new Error("Nessuna categoria editoriale attiva disponibile");
+  if (!targets.length) throw new Error("Nessuna destinazione promozionale attiva disponibile per il post collegato");
+
+  const draftResult = await prepareEditorialDraft(user, id);
+  const articleId = draftResult?.article?.id;
+  if (!articleId) throw new Error("Bozza articolo non disponibile");
+  const articleRows = await serviceFetch(`editorial_articles?select=*&id=eq.${encodeURIComponent(articleId)}&limit=1`);
+  let article = articleRows?.[0];
+  if (!article) throw new Error("Bozza articolo non trovata");
+  if (article.status !== "draft") throw new Error("La generazione può aggiornare solo una bozza ancora in stato Bozza");
+
+  opportunity = (await serviceFetch(
+    `editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(id)}&limit=1`,
+  ))?.[0] || opportunity;
+  const previousGeneration = opportunity?.evidence?.article_generation;
+  const currentFingerprint = articleEditorialFingerprint(article);
+  const hasEditorialContent = Boolean(String(article.content || "").trim() || String(article.excerpt || "").trim());
+  if (hasEditorialContent && (!previousGeneration?.article_fingerprint_sha256 || previousGeneration.article_fingerprint_sha256 !== currentFingerprint)) {
+    throw new Error("La bozza contiene modifiche manuali o contenuto non generato dall’Autopilota: sovrascrittura bloccata");
+  }
+
+  const originalArticle = { ...article };
+  let articleUpdated = false;
+  const run = await automationRunStart(id);
+  try {
+    const ai = await generateOpenAiEditorialPackage({ opportunity, article, categories, targets });
+    const validated = validateGeneratedEditorialPackage(ai.result, {
+      opportunity, categories, targets, settings, observedSourceUrls: ai.sourceUrls,
+    });
+    const sourcesText = validated.sources.map((source) => `${source.title} — ${source.url}`).join("\n").slice(0, 4000);
+    const updatedRows = await serviceFetch(`editorial_articles?id=eq.${encodeURIComponent(article.id)}&select=*`, {
+      method: "PATCH",
+      prefer: "return=representation",
+      body: {
+        title: validated.article.title,
+        category: validated.article.category,
+        excerpt: validated.article.excerpt,
+        content: validated.article.content,
+        sources: sourcesText || null,
+        seo_title: validated.article.seo_title,
+        seo_description: validated.article.seo_description,
+        updated_by: user.id,
+      },
+    });
+    article = updatedRows?.[0];
+    if (!article?.id) throw new Error("Bozza articolo generata ma non salvata");
+    articleUpdated = true;
+
+    const plans = await upsertGeneratedSocialPlans(user, opportunity, article, validated.posts, platforms);
+    const articleFingerprint = articleEditorialFingerprint(article);
+    const now = new Date().toISOString();
+    const evidence = {
+      ...(opportunity.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {}),
+      article_generation: {
+        schema_version: 1,
+        status: "draft_ready_for_review",
+        generated_at: now,
+        generated_by: user.id,
+        model: ai.model,
+        response_id: ai.responseId,
+        article_fingerprint_sha256: articleFingerprint,
+        web_source_urls: ai.sourceUrls,
+        sources: validated.sources,
+        qa: validated.qa,
+        social_plan_item_ids: plans.map((row) => row.id),
+        platforms,
+        automatic_publish: false,
+      },
+    };
+    const opportunityRows = await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      prefer: "return=representation",
+      body: { evidence, target_article_id: article.id, updated_at: now, decided_by: user.id },
+    });
+    const updatedOpportunity = opportunityRows?.[0];
+    if (!updatedOpportunity?.id) throw new Error("Metadati generazione non salvati");
+    await automationRunFinish(run, "success", {
+      article_id: article.id,
+      social_plan_item_id: plans?.[0]?.id || null,
+      details: {
+        version: VERSION,
+        source: "manual_controlled_run",
+        model: ai.model,
+        opportunity_id: id,
+        qa: validated.qa,
+        sources_count: validated.sources.length,
+        social_plan_item_ids: plans.map((row) => row.id),
+        platforms,
+        publication_performed: false,
+      },
+    });
+    return {
+      article: { id: article.id, title: article.title, slug: article.slug, status: article.status, category: article.category },
+      opportunity: updatedOpportunity,
+      qa: validated.qa,
+      sources: validated.sources,
+      plans,
+      model: ai.model,
+      automatic_publish: false,
+    };
+  } catch (error) {
+    if (articleUpdated && originalArticle?.id) {
+      await serviceFetch(`editorial_articles?id=eq.${encodeURIComponent(originalArticle.id)}`, {
+        method: "PATCH",
+        prefer: "return=minimal",
+        body: {
+          title: originalArticle.title,
+          category: originalArticle.category,
+          excerpt: originalArticle.excerpt,
+          content: originalArticle.content,
+          sources: originalArticle.sources,
+          seo_title: originalArticle.seo_title,
+          seo_description: originalArticle.seo_description,
+          updated_by: user.id,
+        },
+      }).catch(() => {});
+    }
+    await automationRunFinish(run, "failed", {
+      article_id: article?.id || null,
+      last_error: String(error?.message || error).slice(0, 2000),
+      details: { version: VERSION, source: "manual_controlled_run", opportunity_id: id, publication_performed: false },
+    });
+    throw error;
+  }
+}
+
+async function editorialSocialPlanPayload() {
+  const [items, channels] = await Promise.all([
+    serviceFetch("editorial_social_plan_items?select=*&order=updated_at.desc&limit=50"),
+    editorialSocialChannels(),
+  ]);
+  const targetIds = [...new Set((items || []).map((row) => row.destination_target_id).filter(Boolean))];
+  let targets = [];
+  if (targetIds.length) {
+    targets = await serviceFetch(`editorial_promotion_targets?select=id,label,url_path,category&id=in.(${targetIds.map((id) => encodeURIComponent(id)).join(",")})`);
+  }
+  const targetMap = new Map((targets || []).map((row) => [row.id, row]));
+  return {
+    ok: true,
+    version: VERSION,
+    channels,
+    items: (items || []).map((row) => ({ ...row, destination_target: targetMap.get(row.destination_target_id) || null })),
+  };
+}
+
+async function updateEditorialSocialPlanItem(user, payload = {}) {
+  const id = String(payload.id || "").trim();
+  if (!validUuid(id)) throw new Error("Identificativo post non valido");
+  const currentRows = await serviceFetch(`editorial_social_plan_items?select=*&id=eq.${encodeURIComponent(id)}&limit=1`);
+  const current = currentRows?.[0];
+  if (!current) throw new Error("Post del piano non trovato");
+  if (["publishing", "published", "failed"].includes(String(current.status || ""))) {
+    throw new Error("Un post già avviato o pubblicato non può essere modificato da questo pannello");
+  }
+  const channels = await editorialSocialChannels();
+  const platforms = validateRequestedPlatforms(payload.platforms, channels);
+  const status = String(payload.status || current.status || "draft");
+  if (!EDITORIAL_PLAN_EDITABLE_STATUSES.has(status)) throw new Error("Stato post non modificabile da questo pannello");
+  const canonicalText = cleanEditorialText(payload.canonical_text ?? current.canonical_text, 4000);
+  if (!canonicalText) throw new Error("Il testo del post non può essere vuoto");
+  const theme = cleanEditorialText(payload.theme ?? current.theme, 240) || null;
+  const brief = cleanEditorialText(payload.brief ?? current.brief, 1200) || null;
+  const rows = await serviceFetch(`editorial_social_plan_items?id=eq.${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    prefer: "return=representation",
+    body: {
+      theme,
+      brief,
+      canonical_text: canonicalText,
+      platforms,
+      status,
+      scheduled_for: null,
+      updated_at: new Date().toISOString(),
+      updated_by: user.id,
+    },
+  });
+  if (!rows?.[0]?.id) throw new Error("Post del piano non aggiornato");
+  return rows[0];
+}
+
+async function automationRunsPayload() {
+  const rows = await serviceFetch("editorial_automation_runs?select=id,run_type,status,scheduled_for,started_at,finished_at,opportunity_id,article_id,social_plan_item_id,details,last_error,created_at&order=created_at.desc&limit=20");
+  return { ok: true, version: VERSION, runs: rows || [] };
 }
 
 
@@ -2079,6 +2667,24 @@ export default async function handler(req, res) {
     if (req.method === "POST" && action === "classify-editorial-opportunity") {
       const opportunity = await classifyEditorialOpportunity(user, req.body?.id, req.body?.opportunity_type);
       return json(res, 200, { ok: true, version: VERSION, opportunity });
+    }
+
+    if (req.method === "POST" && action === "generate-editorial-article-package") {
+      const result = await generateEditorialArticlePackage(user, req.body || {});
+      return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "GET" && action === "editorial-social-plan") {
+      return json(res, 200, await editorialSocialPlanPayload());
+    }
+
+    if (req.method === "POST" && action === "update-editorial-social-plan-item") {
+      const item = await updateEditorialSocialPlanItem(user, req.body || {});
+      return json(res, 200, { ok: true, version: VERSION, item });
+    }
+
+    if (req.method === "GET" && action === "editorial-automation-runs") {
+      return json(res, 200, await automationRunsPayload());
     }
 
     if (req.method === "POST" && action === "prepare-editorial-draft") {
