@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { json } from "../lib/http.js";
 
-const VERSION = "0.12.31";
+const VERSION = "0.12.32";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -18,6 +18,9 @@ const TARGET_PAGE_MAX_BYTES = 2 * 1024 * 1024;
 const UPDATE_PROPOSAL_DECISIONS = new Set(["approved", "rejected"]);
 const UPDATE_TEXT_DECISIONS = new Set(["approved", "rejected"]);
 const UPDATE_PREVIEW_DECISIONS = new Set(["confirmed", "cancelled"]);
+const MANUAL_IDEA_PRIORITIES = new Set(["normal", "high", "urgent"]);
+const MANUAL_IDEA_TYPES = new Set(["new_article", "update_article"]);
+const MANUAL_IDEA_PRIORITY_RANK = { normal: 100, high: 300, urgent: 400 };
 
 function env(name) {
   return String(process.env[name] || "").trim();
@@ -495,6 +498,51 @@ function snapshotFullyAfter(snapshot, isoDate) {
   return Boolean(appliedDate && periodStart && periodStart > appliedDate);
 }
 
+function cleanManualIdeaText(value, maxLength) {
+  return String(value || "").replace(/\s+/g, " ").trim().slice(0, maxLength);
+}
+
+function normalizeManualIdeaTopic(value) {
+  return cleanManualIdeaText(value, 240).toLocaleLowerCase("it-IT");
+}
+
+function validManualIdeaDeadline(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const date = String(value).trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error("Scadenza idea non valida");
+  const parsed = Date.parse(`${date}T12:00:00Z`);
+  if (!Number.isFinite(parsed) || new Date(parsed).toISOString().slice(0, 10) !== date) {
+    throw new Error("Scadenza idea non valida");
+  }
+  return date;
+}
+
+function manualIdeaMeta(opportunity) {
+  const evidence = opportunity?.evidence;
+  const manual = evidence && typeof evidence === "object" ? evidence.manual_idea : null;
+  if (evidence?.source !== "manual_idea" || !manual || typeof manual !== "object") return null;
+  return manual;
+}
+
+function manualIdeaRationale(priority, deadline) {
+  const priorityLabel = ({ urgent: "urgente", high: "alta", normal: "normale" })[priority] || "normale";
+  return `Idea editoriale inserita manualmente dalla Redazione. Priorità ${priorityLabel}${deadline ? `; scadenza ${deadline}` : ""}. La priorità è distinta dal punteggio tecnico Search Console.`;
+}
+
+function manualIdeaDeadlineTime(value) {
+  const parsed = value ? Date.parse(`${value}T12:00:00Z`) : NaN;
+  return Number.isFinite(parsed) ? parsed : Number.POSITIVE_INFINITY;
+}
+
+function plannerCandidateComparator(a, b) {
+  if (a.rank !== b.rank) return b.rank - a.rank;
+  const aDeadline = manualIdeaDeadlineTime(a.deadline);
+  const bDeadline = manualIdeaDeadlineTime(b.deadline);
+  if (aDeadline !== bDeadline) return aDeadline - bDeadline;
+  if (a.score !== b.score) return b.score - a.score;
+  return String(a.created_at || "").localeCompare(String(b.created_at || ""));
+}
+
 async function opportunitiesPayload() {
   const rows = await serviceFetch(
     `editorial_research_opportunities?select=${opportunitySelect()}&order=updated_at.desc&limit=${OPPORTUNITY_LIST_LIMIT}`,
@@ -519,6 +567,237 @@ async function opportunitiesPayload() {
       const livePages = signalsByTopic.get(row?.evidence?.topic_key)?.page_urls || [];
       return { ...row, context_pages: (savedPages.length ? savedPages : livePages).slice(0, 5) };
     }),
+  };
+}
+
+async function existingActiveManualIdea(topic) {
+  const rows = await serviceFetch(
+    `editorial_research_opportunities?select=${opportunitySelect()}&status=in.(pending,selected,deferred)&order=created_at.desc&limit=100`,
+  );
+  const normalized = normalizeManualIdeaTopic(topic);
+  return (rows || []).find((row) => manualIdeaMeta(row) && normalizeManualIdeaTopic(row.topic) === normalized) || null;
+}
+
+async function createManualEditorialIdea(user, payload = {}) {
+  const topic = cleanManualIdeaText(payload.topic, 240);
+  const category = cleanManualIdeaText(payload.category, 80) || null;
+  const notes = String(payload.notes || "").trim().slice(0, 2000);
+  const priority = String(payload.priority || "normal").trim();
+  const opportunityType = String(payload.opportunity_type || "new_article").trim();
+  const deadline = validManualIdeaDeadline(payload.deadline);
+  const targetUrl = opportunityType === "update_article" && String(payload.target_url || "").trim()
+    ? normalizedPageUrl(payload.target_url)
+    : null;
+
+  if (topic.length < 3) throw new Error("Inserisci un’idea editoriale di almeno 3 caratteri");
+  if (!MANUAL_IDEA_PRIORITIES.has(priority)) throw new Error("Priorità idea non valida");
+  if (!MANUAL_IDEA_TYPES.has(opportunityType)) throw new Error("Le idee manuali di questo pannello devono essere un nuovo articolo o un aggiornamento");
+
+  const duplicate = await existingActiveManualIdea(topic);
+  if (duplicate) return { created: false, opportunity: duplicate };
+
+  const now = new Date().toISOString();
+  const evidence = {
+    source: "manual_idea",
+    ...(targetUrl ? { target_page_url: targetUrl, page_urls: [targetUrl] } : {}),
+    manual_idea: {
+      schema_version: 1,
+      priority,
+      deadline,
+      notes,
+      created_at: now,
+      created_by: user.id,
+      updated_at: now,
+      updated_by: user.id,
+    },
+  };
+  const rows = await serviceFetch("editorial_research_opportunities", {
+    method: "POST",
+    prefer: "return=representation",
+    body: {
+      snapshot_id: null,
+      topic,
+      category,
+      opportunity_type: opportunityType,
+      score: 0,
+      rationale: manualIdeaRationale(priority, deadline),
+      evidence,
+      status: "pending",
+    },
+  });
+  const opportunity = rows?.[0];
+  if (!opportunity?.id) throw new Error("Idea editoriale non salvata");
+  return { created: true, opportunity };
+}
+
+async function updateManualEditorialIdea(user, payload = {}) {
+  const id = String(payload.id || "").trim();
+  if (!validUuid(id)) throw new Error("Identificativo idea non valido");
+
+  const currentRows = await serviceFetch(
+    `editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(id)}&limit=1`,
+  );
+  const current = currentRows?.[0];
+  if (!current) throw new Error("Idea editoriale non trovata");
+  const manual = manualIdeaMeta(current);
+  if (!manual) throw new Error("Questa opportunità non è un’idea inserita manualmente");
+  if (current.status === "completed" || current.target_article_id) {
+    throw new Error("Un’idea già collegata o completata non può essere modificata da questo pannello");
+  }
+
+  const topic = cleanManualIdeaText(payload.topic, 240);
+  const category = cleanManualIdeaText(payload.category, 80) || null;
+  const notes = String(payload.notes || "").trim().slice(0, 2000);
+  const priority = String(payload.priority || "normal").trim();
+  const opportunityType = String(payload.opportunity_type || current.opportunity_type || "new_article").trim();
+  const deadline = validManualIdeaDeadline(payload.deadline);
+  if (topic.length < 3) throw new Error("Inserisci un’idea editoriale di almeno 3 caratteri");
+  if (!MANUAL_IDEA_PRIORITIES.has(priority)) throw new Error("Priorità idea non valida");
+  if (!MANUAL_IDEA_TYPES.has(opportunityType)) throw new Error("Le idee manuali di questo pannello devono essere un nuovo articolo o un aggiornamento");
+  const duplicate = await existingActiveManualIdea(topic);
+  if (duplicate && duplicate.id !== id) throw new Error("Esiste già un’idea manuale attiva con lo stesso argomento");
+  const targetUrl = opportunityType === "update_article" && String(payload.target_url || "").trim()
+    ? normalizedPageUrl(payload.target_url)
+    : null;
+
+  const now = new Date().toISOString();
+  const currentEvidence = current.evidence && typeof current.evidence === "object" ? current.evidence : {};
+  const { target_page_url: _oldTarget, page_urls: _oldPages, ...evidenceBase } = currentEvidence;
+  const evidence = {
+    ...evidenceBase,
+    source: "manual_idea",
+    ...(targetUrl ? { target_page_url: targetUrl, page_urls: [targetUrl] } : {}),
+    manual_idea: {
+      ...manual,
+      schema_version: 1,
+      priority,
+      deadline,
+      notes,
+      updated_at: now,
+      updated_by: user.id,
+    },
+  };
+  const rows = await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    prefer: "return=representation",
+    body: {
+      topic,
+      category,
+      opportunity_type: opportunityType,
+      rationale: manualIdeaRationale(priority, deadline),
+      evidence,
+      updated_at: now,
+    },
+  });
+  const opportunity = rows?.[0];
+  if (!opportunity?.id) throw new Error("Idea editoriale non aggiornata");
+  return opportunity;
+}
+
+async function editorialPlannerPreview() {
+  const settingsRows = await serviceFetch(
+    "editorial_automation_settings?select=id,enabled,execution_mode,minimum_opportunity_score,allow_no_publish,max_articles_per_cycle,timezone&id=eq.1&limit=1",
+  );
+  const settings = settingsRows?.[0] || {};
+  const minimumScore = Number.isFinite(Number(settings.minimum_opportunity_score))
+    ? Number(settings.minimum_opportunity_score)
+    : 60;
+
+  const savedRows = await serviceFetch(
+    `editorial_research_opportunities?select=${opportunitySelect()}&status=in.(pending,selected)&order=created_at.asc&limit=100`,
+  );
+  const candidates = [];
+
+  for (const row of savedRows || []) {
+    if (!MANUAL_IDEA_TYPES.has(String(row.opportunity_type || ""))) continue;
+    const manual = manualIdeaMeta(row);
+    if (row.status === "selected") {
+      candidates.push({
+        source: manual ? "manual_idea" : "saved_opportunity",
+        id: row.id,
+        topic: row.topic,
+        opportunity_type: row.opportunity_type,
+        priority: manual?.priority || null,
+        deadline: manual?.deadline || null,
+        score: Number(row.score || 0),
+        status: row.status,
+        created_at: row.created_at,
+        rank: 500,
+        reason: "Opportunità già selezionata manualmente dalla Redazione: precede ogni scelta automatica.",
+      });
+      continue;
+    }
+    if (!manual) continue;
+    const priority = MANUAL_IDEA_PRIORITIES.has(String(manual.priority)) ? String(manual.priority) : "normal";
+    candidates.push({
+      source: "manual_idea",
+      id: row.id,
+      topic: row.topic,
+      opportunity_type: row.opportunity_type,
+      priority,
+      deadline: manual.deadline || null,
+      score: 0,
+      status: row.status,
+      created_at: row.created_at,
+      rank: MANUAL_IDEA_PRIORITY_RANK[priority],
+      reason: priority === "urgent"
+        ? "Idea manuale urgente: precede i segnali Search Console."
+        : priority === "high"
+          ? "Idea manuale ad alta priorità: precede i segnali Search Console."
+          : "Idea manuale a priorità normale: viene considerata dopo i segnali Search Console sopra soglia.",
+    });
+  }
+
+  const analysis = await analysisPayload().catch(() => null);
+  const topSearchSignal = analysis?.ready
+    ? (analysis.signals || []).find((signal) => Number(signal.score || 0) >= minimumScore)
+    : null;
+  if (topSearchSignal) {
+    candidates.push({
+      source: "search_console",
+      id: null,
+      topic: topSearchSignal.topic,
+      opportunity_type: "research_candidate",
+      priority: null,
+      deadline: null,
+      score: Number(topSearchSignal.score || 0),
+      status: "live_signal",
+      created_at: null,
+      rank: 200,
+      reason: `Miglior segnale Search Console sopra la soglia ${minimumScore}/100.`,
+      topic_key: topSearchSignal.topic_key,
+      metrics: topSearchSignal.metrics,
+    });
+  }
+
+  candidates.sort(plannerCandidateComparator);
+  const maxArticlesPerCycle = Number.isFinite(Number(settings.max_articles_per_cycle))
+    ? Math.max(0, Number(settings.max_articles_per_cycle))
+    : 1;
+  const articleCycleDisabled = maxArticlesPerCycle === 0;
+  const decision = articleCycleDisabled ? null : (candidates[0] || null);
+  const noPublish = articleCycleDisabled || (!decision && Boolean(settings.allow_no_publish));
+  return {
+    ok: true,
+    version: VERSION,
+    dry_run: true,
+    writes_database: false,
+    automation_enabled: Boolean(settings.enabled),
+    execution_mode: settings.execution_mode || "approval",
+    minimum_opportunity_score: minimumScore,
+    max_articles_per_cycle: maxArticlesPerCycle,
+    article_cycle_disabled: articleCycleDisabled,
+    timezone: settings.timezone || "Europe/Rome",
+    search_console_ready: Boolean(analysis?.ready),
+    decision,
+    no_publish: noPublish,
+    ordering: [
+      "opportunità già selezionata manualmente",
+      "idea manuale urgente",
+      "idea manuale ad alta priorità",
+      "segnale Search Console sopra soglia",
+      "idea manuale a priorità normale",
+    ],
   };
 }
 
@@ -1030,7 +1309,7 @@ async function prepareEditorialUpdateProposal(user, idValue, targetUrlValue) {
   if (savedTarget) {
     try { candidates.push(normalizedPageUrl(savedTarget)); } catch {}
   }
-  if (!new Set(candidates).has(targetUrl)) throw new Error("La pagina scelta non appartiene alle pagine associate al segnale Search Console");
+  if (!new Set(candidates).has(targetUrl)) throw new Error("La pagina scelta non appartiene alle pagine associate all’opportunità");
 
   const pageResult = await fetchEditorialPage(targetUrl);
   const proposal = buildUpdateProposal(opportunity, pageResult.finalUrl, pageResult.html, user.id);
@@ -1766,6 +2045,20 @@ export default async function handler(req, res) {
 
     if (req.method === "GET" && action === "editorial-opportunities") {
       return json(res, 200, await opportunitiesPayload());
+    }
+
+    if (req.method === "GET" && action === "editorial-planner-preview") {
+      return json(res, 200, await editorialPlannerPreview());
+    }
+
+    if (req.method === "POST" && action === "create-manual-editorial-idea") {
+      const result = await createManualEditorialIdea(user, req.body || {});
+      return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "POST" && action === "update-manual-editorial-idea") {
+      const opportunity = await updateManualEditorialIdea(user, req.body || {});
+      return json(res, 200, { ok: true, version: VERSION, opportunity });
     }
 
     if (req.method === "POST" && action === "collect-search-console") {

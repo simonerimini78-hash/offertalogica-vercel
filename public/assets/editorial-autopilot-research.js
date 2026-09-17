@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.31";
+  const VERSION = "0.12.32";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
   let statusLoaded = false;
@@ -52,8 +52,72 @@
 
   function cardMarkup() {
     return `
-      <h3>Acquisizione Search Console</h3>
-      <p>Importa nello storico editoriale dati aggregati di query, pagina, clic, impressioni, CTR e posizione. Nessun articolo viene generato o pubblicato.</p>
+      <h3>Idee editoriali e ricerca</h3>
+      <p>Le idee inserite dalla Redazione entrano nella stessa coda delle opportunità di ricerca, ma mantengono una provenienza distinta. Nessuna azione di questo blocco genera o pubblica contenuti.</p>
+
+      <div class="ol-field" data-manual-idea-editor>
+        <label>Idea editoriale manuale</label>
+        <div class="ol-autopilot-fields">
+          <div class="ol-field">
+            <label for="autopilot-manual-idea-topic">Argomento</label>
+            <input id="autopilot-manual-idea-topic" data-manual-idea-topic type="text" maxlength="240" placeholder="Es. nuova norma urgente sul mercato energia">
+          </div>
+          <div class="ol-field">
+            <label for="autopilot-manual-idea-type">Destinazione</label>
+            <select id="autopilot-manual-idea-type" data-manual-idea-type>
+              <option value="new_article">Nuovo articolo</option>
+              <option value="update_article">Aggiornamento articolo/pagina</option>
+            </select>
+          </div>
+          <div class="ol-field">
+            <label for="autopilot-manual-idea-priority">Priorità</label>
+            <select id="autopilot-manual-idea-priority" data-manual-idea-priority>
+              <option value="normal">Normale · dopo i segnali Search Console sopra soglia</option>
+              <option value="high">Alta · precede Search Console</option>
+              <option value="urgent">Urgente · precede tutto salvo una scelta già selezionata</option>
+            </select>
+          </div>
+          <div class="ol-field">
+            <label for="autopilot-manual-idea-deadline">Scadenza facoltativa</label>
+            <input id="autopilot-manual-idea-deadline" data-manual-idea-deadline type="date">
+          </div>
+          <div class="ol-field">
+            <label for="autopilot-manual-idea-category">Categoria facoltativa</label>
+            <input id="autopilot-manual-idea-category" data-manual-idea-category type="text" maxlength="80" placeholder="Es. Energia">
+          </div>
+          <div class="ol-field">
+            <label for="autopilot-manual-idea-target">Pagina da aggiornare <span class="ol-muted">(solo aggiornamento)</span></label>
+            <input id="autopilot-manual-idea-target" data-manual-idea-target type="url" maxlength="500" placeholder="https://offertalogica.it/…">
+            <small>Facoltativa al salvataggio; se indicata deve essere una pagina HTTPS di OffertaLogica.</small>
+          </div>
+          <div class="ol-field">
+            <label for="autopilot-manual-idea-notes">Note editoriali</label>
+            <textarea id="autopilot-manual-idea-notes" data-manual-idea-notes maxlength="2000" rows="3" placeholder="Perché è importante, taglio desiderato, fonti da verificare…"></textarea>
+          </div>
+        </div>
+        <div class="ol-autopilot-toolbar" style="margin-top:10px">
+          <p class="ol-autopilot-save-state" data-manual-idea-message>Le idee ad alta priorità o urgenti possono precedere i segnali automatici.</p>
+          <div class="ol-toolbar-group">
+            <button class="ol-button ol-button-secondary" type="button" data-manual-idea-cancel hidden>Annulla modifica</button>
+            <button class="ol-button ol-button-primary" type="button" data-manual-idea-save>Salva idea</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="ol-field" style="margin-top:18px">
+        <label>Anteprima priorità Autopilota</label>
+        <p class="ol-muted">Calcola quale tema verrebbe scelto oggi. È un dry-run: non cambia stati, non crea bozze e non pubblica.</p>
+        <div class="ol-autopilot-toolbar">
+          <p class="ol-autopilot-save-state" data-planner-message>Nessuna anteprima calcolata.</p>
+          <button class="ol-button ol-button-secondary" type="button" data-planner-preview>Calcola scelta</button>
+        </div>
+        <div class="ol-autopilot-archive-list" data-planner-result></div>
+      </div>
+
+      <div class="ol-field" style="margin-top:18px">
+        <label>Acquisizione Search Console</label>
+        <p>Importa nello storico editoriale dati aggregati di query, pagina, clic, impressioni, CTR e posizione. Nessun articolo viene generato o pubblicato.</p>
+      </div>
       <div class="ol-autopilot-fields">
         <div class="ol-field">
           <label for="autopilot-search-console-period">Periodo stabile</label>
@@ -97,7 +161,7 @@
 
       <div class="ol-field" style="margin-top:18px">
         <label>Opportunità salvate</label>
-        <p class="ol-muted">Un segnale entra qui solo quando lo salvi manualmente. Dopo la selezione puoi classificarlo come nuovo articolo, aggiornamento, solo social o monitoraggio. “Nuovo articolo” abilita una bozza vuota; “Aggiornamento” permette di preparare proposta, bozza testuale e anteprima con conferma separata; dopo una pubblicazione manuale può verificarla, chiudere l’opportunità e monitorare i dati Search Console successivi.</p>
+        <p class="ol-muted">Qui convivono idee inserite dalla Redazione e opportunità salvate dall’analisi Search Console, con origine sempre visibile. Dopo la selezione puoi classificarle e proseguire nel flusso controllato; una pubblicazione reale resta separata e verificata.</p>
         <p class="ol-autopilot-save-state" data-opportunity-message>Caricamento opportunità…</p>
         <div class="ol-autopilot-archive-list" data-opportunity-list>
           <p class="ol-muted">Caricamento…</p>
@@ -246,6 +310,116 @@
       social_only: "Solo social",
       monitor: "Monitoraggio",
     })[type] || type || "Monitoraggio";
+  }
+
+  function manualIdeaMeta(row) {
+    const evidence = row?.evidence;
+    const manual = evidence && typeof evidence === "object" ? evidence.manual_idea : null;
+    return evidence?.source === "manual_idea" && manual && typeof manual === "object" ? manual : null;
+  }
+
+  function manualIdeaPriorityLabel(priority) {
+    return ({ urgent: "Urgente", high: "Alta", normal: "Normale" })[priority] || "Normale";
+  }
+
+  function manualIdeaDeadlineLabel(value) {
+    if (!value) return "nessuna scadenza";
+    const date = new Date(`${value}T12:00:00Z`);
+    if (Number.isNaN(date.getTime())) return value;
+    return new Intl.DateTimeFormat("it-IT", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "UTC" }).format(date);
+  }
+
+  function resetManualIdeaEditor(section, finalMessage = "") {
+    const editor = section?.querySelector("[data-manual-idea-editor]");
+    if (!editor) return;
+    editor.dataset.editingId = "";
+    const topic = editor.querySelector("[data-manual-idea-topic]");
+    const type = editor.querySelector("[data-manual-idea-type]");
+    const priority = editor.querySelector("[data-manual-idea-priority]");
+    const deadline = editor.querySelector("[data-manual-idea-deadline]");
+    const category = editor.querySelector("[data-manual-idea-category]");
+    const target = editor.querySelector("[data-manual-idea-target]");
+    const notes = editor.querySelector("[data-manual-idea-notes]");
+    if (topic) topic.value = "";
+    if (type) type.value = "new_article";
+    if (priority) priority.value = "normal";
+    if (deadline) deadline.value = "";
+    if (category) category.value = "";
+    if (target) target.value = "";
+    if (notes) notes.value = "";
+    const cancel = editor.querySelector("[data-manual-idea-cancel]");
+    const save = editor.querySelector("[data-manual-idea-save]");
+    const message = editor.querySelector("[data-manual-idea-message]");
+    if (cancel) cancel.hidden = true;
+    if (save) save.textContent = "Salva idea";
+    if (message) message.textContent = finalMessage || "Le idee ad alta priorità o urgenti possono precedere i segnali automatici.";
+  }
+
+  function editManualIdea(section, row) {
+    const editor = section?.querySelector("[data-manual-idea-editor]");
+    const manual = manualIdeaMeta(row);
+    if (!editor || !manual) return;
+    editor.dataset.editingId = String(row.id || "");
+    editor.querySelector("[data-manual-idea-topic]").value = row.topic || "";
+    editor.querySelector("[data-manual-idea-type]").value = ["new_article", "update_article"].includes(row.opportunity_type) ? row.opportunity_type : "new_article";
+    editor.querySelector("[data-manual-idea-priority]").value = ["normal", "high", "urgent"].includes(manual.priority) ? manual.priority : "normal";
+    editor.querySelector("[data-manual-idea-deadline]").value = manual.deadline || "";
+    editor.querySelector("[data-manual-idea-category]").value = row.category || "";
+    editor.querySelector("[data-manual-idea-target]").value = row?.evidence?.target_page_url || "";
+    editor.querySelector("[data-manual-idea-notes]").value = manual.notes || "";
+    editor.querySelector("[data-manual-idea-cancel]").hidden = false;
+    editor.querySelector("[data-manual-idea-save]").textContent = "Salva modifiche";
+    editor.querySelector("[data-manual-idea-message]").textContent = "Modifica dell’idea selezionata. Lo stato della coda non viene cambiato.";
+    editor.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  function manualIdeaPayload(section) {
+    const editor = section?.querySelector("[data-manual-idea-editor]");
+    if (!editor) return null;
+    return {
+      id: editor.dataset.editingId || "",
+      topic: editor.querySelector("[data-manual-idea-topic]")?.value || "",
+      opportunity_type: editor.querySelector("[data-manual-idea-type]")?.value || "new_article",
+      priority: editor.querySelector("[data-manual-idea-priority]")?.value || "normal",
+      deadline: editor.querySelector("[data-manual-idea-deadline]")?.value || "",
+      category: editor.querySelector("[data-manual-idea-category]")?.value || "",
+      target_url: editor.querySelector("[data-manual-idea-target]")?.value || "",
+      notes: editor.querySelector("[data-manual-idea-notes]")?.value || "",
+    };
+  }
+
+  function renderPlannerPreview(section, payload) {
+    const box = section?.querySelector("[data-planner-result]");
+    const message = section?.querySelector("[data-planner-message]");
+    if (!box || !message) return;
+    const decision = payload?.decision;
+    const engine = payload?.automation_enabled ? "motore configurato come attivo" : "motore ancora disattivato";
+    if (!decision) {
+      const reason = payload?.article_cycle_disabled
+        ? "Il limite massimo articoli per ciclo è impostato a 0."
+        : payload?.no_publish
+          ? "La configurazione consente di chiudere il ciclo senza articolo."
+          : "Nessun candidato disponibile con le regole attuali.";
+      box.innerHTML = `<div class="ol-autopilot-archive-item"><strong>Nessun tema selezionato nel dry-run</strong><small>Soglia Search Console: ${Number(payload?.minimum_opportunity_score || 0)}/100 · ${esc(engine)}.</small><small>${esc(reason)}</small></div>`;
+      message.textContent = "Dry-run completato senza candidato.";
+      return;
+    }
+    const source = decision.source === "manual_idea"
+      ? `Idea manuale · priorità ${manualIdeaPriorityLabel(decision.priority).toLowerCase()}`
+      : decision.source === "search_console"
+        ? `Search Console · ${Number(decision.score || 0)}/100`
+        : "Opportunità già selezionata";
+    const deadline = decision.deadline ? ` · scadenza ${manualIdeaDeadlineLabel(decision.deadline)}` : "";
+    const destination = decision.source === "search_console"
+      ? "Segnale da classificare"
+      : opportunityTypeLabel(decision.opportunity_type);
+    box.innerHTML = `<div class="ol-autopilot-archive-item">
+      <strong>${esc(decision.topic || "Tema senza titolo")}</strong>
+      <small>${esc(source)}${esc(deadline)} · ${esc(destination)}</small>
+      <small>${esc(decision.reason || "Scelta deterministica secondo le priorità configurate.")}</small>
+      <small>Dry-run: nessuno stato o contenuto è stato modificato.</small>
+    </div>`;
+    message.textContent = `Scelta calcolata · ${engine}.`;
   }
 
   function contextPagesMarkup(pages) {
@@ -422,6 +596,25 @@
     </div>`;
   }
 
+  function opportunityHeading(row) {
+    const manual = manualIdeaMeta(row);
+    if (manual) {
+      return `${esc(row.topic || "Senza titolo")} · Idea manuale · priorità ${esc(manualIdeaPriorityLabel(manual.priority))} · ${esc(opportunityStatusLabel(row.status))}`;
+    }
+    return `${esc(row.topic || "Senza titolo")} · ${Number(row.score || 0)}/100 · ${esc(opportunityStatusLabel(row.status))}`;
+  }
+
+  function opportunitySourceDetails(row) {
+    const manual = manualIdeaMeta(row);
+    if (!manual) return "";
+    const deadline = manual.deadline ? ` · scadenza ${manualIdeaDeadlineLabel(manual.deadline)}` : " · nessuna scadenza";
+    const notes = manual.notes ? `<small>Note: ${esc(manual.notes)}</small>` : "";
+    const editable = row.status !== "completed" && !row.target_article_id
+      ? `<button class="ol-button ol-button-secondary ol-button-small" type="button" data-manual-idea-edit="${esc(row.id || "")}">Modifica idea</button>`
+      : "";
+    return `<small>Origine: inserimento manuale${esc(deadline)}</small>${notes}${editable ? `<div class="ol-toolbar-group" style="margin-top:8px">${editable}</div>` : ""}`;
+  }
+
   function opportunityActions(row) {
     const id = esc(row.id || "");
     const status = String(row.status || "");
@@ -492,10 +685,11 @@
       list.innerHTML = opportunityRows.map((row) => {
         const decided = row.decided_at ? ` · decisione ${dateIt(row.decided_at)}` : "";
         return `<div class="ol-autopilot-archive-item">
-          <strong>${esc(row.topic || "Senza titolo")} · ${Number(row.score || 0)}/100 · ${esc(opportunityStatusLabel(row.status))}</strong>
+          <strong>${opportunityHeading(row)}</strong>
           <small>Tipo: ${esc(opportunityTypeLabel(row.opportunity_type))} · salvata ${esc(dateIt(row.created_at))}${esc(decided)}</small>
           <small>${esc(row.rationale || "Segnale da valutare manualmente.")}</small>
-          ${contextPagesMarkup(row.context_pages)}
+          ${opportunitySourceDetails(row)}
+          ${manualIdeaMeta(row) ? "" : contextPagesMarkup(row.context_pages)}
           <div class="ol-toolbar-group" style="margin-top:8px">${opportunityActions(row)}</div>
           ${row.status === "completed" ? updateCompletionMarkup(row) : selectedOpportunityWorkflow(row)}
         </div>`;
@@ -520,6 +714,10 @@
 
   async function handleOpportunityAction(event) {
     const section = event.currentTarget;
+    const manualSaveButton = event.target.closest("[data-manual-idea-save]");
+    const manualCancelButton = event.target.closest("[data-manual-idea-cancel]");
+    const manualEditButton = event.target.closest("[data-manual-idea-edit]");
+    const plannerButton = event.target.closest("[data-planner-preview]");
     const saveButton = event.target.closest("[data-save-opportunity]");
     const statusButton = event.target.closest("[data-opportunity-id][data-opportunity-status]");
     const classifyButton = event.target.closest("[data-opportunity-classify]");
@@ -533,6 +731,62 @@
     const updateCompleteButton = event.target.closest("[data-update-complete]");
     const updateImpactButton = event.target.closest("[data-update-impact-check]");
     const message = section.querySelector("[data-opportunity-message]");
+
+    if (manualCancelButton) {
+      resetManualIdeaEditor(section);
+      return;
+    }
+
+    if (manualEditButton) {
+      const id = manualEditButton.dataset.manualIdeaEdit || "";
+      const row = opportunityRows.find((item) => item.id === id);
+      if (row) editManualIdea(section, row);
+      return;
+    }
+
+    if (manualSaveButton) {
+      const ideaMessage = section.querySelector("[data-manual-idea-message]");
+      const body = manualIdeaPayload(section);
+      if (!body || manualSaveButton.disabled) return;
+      if (String(body.topic || "").trim().length < 3) {
+        if (ideaMessage) ideaMessage.textContent = "Inserisci un argomento di almeno 3 caratteri.";
+        return;
+      }
+      manualSaveButton.disabled = true;
+      if (ideaMessage) ideaMessage.textContent = body.id ? "Aggiornamento idea…" : "Salvataggio idea…";
+      try {
+        const action = body.id ? "update-manual-editorial-idea" : "create-manual-editorial-idea";
+        const payload = await endpoint(action, { method: "POST", body });
+        const finalMessage = body.id
+          ? "Idea aggiornata senza cambiare il suo stato nella coda."
+          : payload?.result?.created === false
+            ? "Esiste già un’idea manuale attiva con lo stesso argomento."
+            : "Idea salvata nella coda editoriale.";
+        resetManualIdeaEditor(section, finalMessage);
+        await loadOpportunities(section, true);
+      } catch (error) {
+        if (ideaMessage) ideaMessage.textContent = `Idea non salvata: ${error.message}`;
+      } finally {
+        manualSaveButton.disabled = false;
+      }
+      return;
+    }
+
+    if (plannerButton) {
+      const plannerMessage = section.querySelector("[data-planner-message]");
+      if (plannerButton.disabled) return;
+      plannerButton.disabled = true;
+      if (plannerMessage) plannerMessage.textContent = "Calcolo priorità in corso…";
+      try {
+        const payload = await endpoint("editorial-planner-preview");
+        renderPlannerPreview(section, payload);
+      } catch (error) {
+        if (plannerMessage) plannerMessage.textContent = `Anteprima non disponibile: ${error.message}`;
+      } finally {
+        plannerButton.disabled = false;
+      }
+      return;
+    }
 
     if (saveButton) {
       const topicKey = saveButton.dataset.saveOpportunity || "";
