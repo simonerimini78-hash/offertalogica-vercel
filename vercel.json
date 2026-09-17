@@ -1,11 +1,14 @@
 {
   "version": 2,
   "functions": {
+    "api/*.js": {
+      "maxDuration": 30
+    },
     "api/analyze-pdf.js": {
       "maxDuration": 60
     },
-    "api/*.js": {
-      "maxDuration": 30
+    "api/staff-analytics.js": {
+      "maxDuration": 60
     }
   },
   "headers": [
