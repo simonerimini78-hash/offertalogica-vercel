@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.35";
+  const VERSION = "0.12.36";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
   let statusLoaded = false;
@@ -720,13 +720,17 @@
   function articleGenerationMarkup(row) {
     const id = String(row?.id || "");
     const generation = row?.evidence?.article_generation;
+    const job = row?.evidence?.article_generation_job;
+    const jobRunning = Boolean(job?.response_id && ["queued", "in_progress"].includes(String(job.status || "")));
     const qa = generation?.qa || {};
     const sourceCount = Number(qa.sources_count || generation?.sources?.length || 0);
-    const buttonLabel = generation ? "Rigenera bozza completa" : "Genera bozza completa con fonti";
-    const currentPlatforms = Array.isArray(generation?.platforms) ? generation.platforms : [];
-    const summary = generation
-      ? `<small>Ultima generazione: ${esc(dateIt(generation.generated_at))} · ${esc(generation.model || "modello server")} · ${sourceCount} fonti · ${Number(qa.static_posts_count || 0)} post statici. Pubblicazione automatica: no.</small>`
-      : '<small>La generazione usa ricerca web lato server, salva le fonti, applica controlli minimi e prepara due post statici in bozza. Nessun contenuto viene pubblicato.</small>';
+    const buttonLabel = jobRunning ? "Riprendi controllo generazione" : generation ? "Rigenera bozza completa" : "Genera bozza completa con fonti";
+    const currentPlatforms = Array.isArray(job?.platforms) ? job.platforms : Array.isArray(generation?.platforms) ? generation.platforms : [];
+    const summary = jobRunning
+      ? `<small>Generazione asincrona ${esc(job.status === "queued" ? "in coda" : "in corso")} dal ${esc(dateIt(job.started_at))}. Puoi lasciare lavorare il motore e riprendere il controllo senza perdere il job.</small>`
+      : generation
+        ? `<small>Ultima generazione: ${esc(dateIt(generation.generated_at))} · ${esc(generation.model || "modello server")} · ${sourceCount} fonti · ${Number(qa.static_posts_count || 0)} post statici. Pubblicazione automatica: no.</small>`
+        : '<small>La generazione usa ricerca web lato server in background, salva le fonti, applica controlli minimi e prepara due post statici in bozza. Nessun contenuto viene pubblicato.</small>';
     return `<div class="ol-field" style="margin-top:8px">
       <label>Canali per i post statici del pacchetto</label>
       <div class="ol-autopilot-sources">${platformChoicesMarkup(id, currentPlatforms)}</div>
@@ -1080,21 +1084,35 @@
       const id = generateArticleButton.dataset.articleGenerate || "";
       if (!id || generateArticleButton.disabled) return;
       const row = opportunityRows.find((item) => String(item.id || "") === id);
-      if (row?.evidence?.article_generation && !window.confirm("Rigenerare la bozza completa? È consentito solo se la bozza non è stata modificata manualmente dopo l’ultima generazione.")) return;
+      const existingJob = row?.evidence?.article_generation_job;
+      const jobRunning = Boolean(existingJob?.response_id && ["queued", "in_progress"].includes(String(existingJob.status || "")));
+      if (!jobRunning && row?.evidence?.article_generation && !window.confirm("Rigenerare la bozza completa? È consentito solo se la bozza non è stata modificata manualmente dopo l’ultima generazione.")) return;
       const platforms = [...section.querySelectorAll(`input[data-package-platform="${id}"]:checked`)].map((input) => input.value);
       generateArticleButton.disabled = true;
-      if (message) message.textContent = "Ricerca fonti, generazione bozza e QA in corso…";
+      if (message) message.textContent = jobRunning ? "Riprendo il controllo della generazione in background…" : "Avvio ricerca fonti e generazione editoriale in background…";
       try {
-        const payload = await endpoint("generate-editorial-article-package", {
-          method: "POST",
-          body: { id, platforms },
-        });
-        const result = payload?.result;
+        let result;
+        if (jobRunning) {
+          const check = await endpoint("check-editorial-article-package", { method: "POST", body: { id } });
+          result = check?.result;
+        } else {
+          const payload = await endpoint("generate-editorial-article-package", { method: "POST", body: { id, platforms } });
+          result = payload?.result;
+        }
+        while (result?.pending) {
+          if (message) message.textContent = result.status === "queued"
+            ? "Generazione avviata e in coda. La pagina controlla automaticamente lo stato…"
+            : "Ricerca web e generazione editoriale in corso in background…";
+          await new Promise((resolve) => window.setTimeout(resolve, 3000));
+          const check = await endpoint("check-editorial-article-package", { method: "POST", body: { id } });
+          result = check?.result;
+        }
         if (message) message.textContent = `Bozza completa preparata: ${Number(result?.qa?.sources_count || 0)} fonti usate dalla ricerca, ${Number(result?.qa?.static_posts_count || 0)} post statici in bozza. Nessuna pubblicazione eseguita.`;
         await Promise.all([loadOpportunities(section, true), loadSocialPlan(section), loadAutomationRuns(section)]);
       } catch (error) {
         generateArticleButton.disabled = false;
         if (message) message.textContent = `Generazione non completata: ${error.message}`;
+        await loadOpportunities(section, true).catch(() => {});
       }
       return;
     }

@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { json } from "../lib/http.js";
 
-const VERSION = "0.12.35";
+const VERSION = "0.12.36";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -22,7 +22,7 @@ const MANUAL_IDEA_PRIORITIES = new Set(["normal", "high", "urgent"]);
 const MANUAL_IDEA_TYPES = new Set(["new_article", "update_article"]);
 const MANUAL_IDEA_PRIORITY_RANK = { normal: 100, high: 300, urgent: 400 };
 const EDITORIAL_AI_DEFAULT_MODEL = "gpt-5.6-terra";
-const EDITORIAL_AI_TIMEOUT_MS = 45000;
+const EDITORIAL_AI_HTTP_TIMEOUT_MS = 20000;
 const EDITORIAL_PLAN_POST_TYPES = new Set(["article_followup", "related", "evergreen", "service", "data"]);
 const EDITORIAL_PLAN_EDITABLE_STATUSES = new Set(["draft", "approved", "cancelled"]);
 const EDITORIAL_SOCIAL_PLATFORMS = new Set(["facebook", "instagram"]);
@@ -1548,9 +1548,35 @@ function editorialPackageSchema() {
   };
 }
 
-async function generateOpenAiEditorialPackage({ opportunity, article, categories, targets }) {
+async function openAiResponseRequest(path, { method = "GET", body } = {}) {
   const apiKey = env("OPENAI_API_KEY");
   if (!apiKey) throw new Error("OPENAI_API_KEY non configurata lato server");
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), EDITORIAL_AI_HTTP_TIMEOUT_MS);
+  let response;
+  try {
+    response = await fetch(`https://api.openai.com/v1/responses${path}`, {
+      method,
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: body === undefined ? undefined : JSON.stringify(body),
+      cache: "no-store",
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (error?.name === "AbortError") throw new Error("Timeout di connessione con il servizio AI");
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) throw new Error(payload?.error?.message || `OpenAI ${response.status}`);
+  return payload;
+}
+
+async function startOpenAiEditorialPackage({ opportunity, article, categories, targets }) {
   const model = editorialAiModel();
   const categoryList = categories.map((row) => `${row.slug} = ${row.name}`).join("\n");
   const targetList = targets.map((row) => `${row.id} | ${row.label} | ${row.url_path}${row.category ? ` | ${row.category}` : ""}`).join("\n");
@@ -1564,58 +1590,45 @@ async function generateOpenAiEditorialPackage({ opportunity, article, categories
     "Usa il web search per verificare fatti attuali e preferisci fonti primarie/istituzionali quando disponibili.",
     "Non inventare dati, percentuali, norme, prezzi, date o dichiarazioni. Se un punto non è verificabile, omettilo.",
     "Il contenuto deve essere originale, non copiare passaggi estesi dalle fonti.",
-    "Il campo content usa Markdown semplice con paragrafi e intestazioni ## / ###. Non inserire HTML.",
+    "Ottimizza la struttura per SEO e leggibilità: intento di ricerca chiaro, risposta utile nelle prime sezioni, intestazioni descrittive, entità e concetti espliciti, passaggi autosufficienti e facilmente comprensibili anche da sistemi di ricerca e assistenti AI.",
+    "Quando utile inserisci nel Markdown link https pertinenti alle fonti e collegamenti interni OffertaLogica coerenti con le destinazioni fornite, senza forzature o keyword stuffing.",
+    "Il campo content usa Markdown semplice con paragrafi, elenchi e intestazioni ## / ###. Non inserire HTML.",
     "Le fonti devono essere URL https realmente consultati durante la ricerca.",
     "Genera esattamente due post statici: article_followup rimanda all'articolo; related rimanda a UNA destinazione OffertaLogica consentita dall'elenco fornito.",
     "Non scegliere canali social: i canali sono decisi separatamente dalla Redazione.",
     "Non proporre Reel, video, TikTok o LinkedIn come strategia.",
   ].join(" ");
-  const input = `ARGOMENTO: ${opportunity.topic}\nTIPO: nuovo articolo\nNOTE REDAZIONE: ${notes || "nessuna"}\nSEGNALI SEARCH CONSOLE: ${signal}\nURL ARTICOLO DOPO PUBBLICAZIONE: ${articleUrl}\n\nCATEGORIE AMMESSE (restituisci esattamente uno slug):\n${categoryList}\n\nDESTINAZIONI PROMOZIONALI AMMESSE PER IL POST related (restituisci esattamente l'id scelto):\n${targetList || "nessuna"}\n\nVincoli editoriali: titolo <= 140 caratteri; excerpt <= 320; SEO title <= 70; SEO description <= 180; contenuto sostanziale e leggibile; almeno 2 fonti, includendo una fonte primaria se disponibile. Il post article_followup deve includere il link ${articleUrl}. Il post related deve includere l'URL della destinazione consentita scelta.`;
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), EDITORIAL_AI_TIMEOUT_MS);
-  let response;
-  try {
-    response = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model,
-        tools: [{ type: "web_search", search_context_size: "medium" }],
-        tool_choice: "auto",
-        instructions,
-        input,
-        reasoning: { effort: "low" },
-        max_output_tokens: 9000,
-        text: {
-          format: {
-            type: "json_schema",
-            name: "offertalogica_editorial_package",
-            strict: true,
-            schema: editorialPackageSchema(),
-          },
+  const input = `ARGOMENTO: ${opportunity.topic}\nTIPO: nuovo articolo\nNOTE REDAZIONE: ${notes || "nessuna"}\nSEGNALI SEARCH CONSOLE: ${signal}\nURL ARTICOLO DOPO PUBBLICAZIONE: ${articleUrl}\n\nCATEGORIE AMMESSE (restituisci esattamente uno slug):\n${categoryList}\n\nDESTINAZIONI PROMOZIONALI AMMESSE PER IL POST related (restituisci esattamente l'id scelto):\n${targetList || "nessuna"}\n\nVincoli editoriali: titolo <= 140 caratteri; excerpt <= 320; SEO title <= 70; SEO description <= 180; contenuto sostanziale, leggibile e realmente utile; almeno 2 fonti, includendo una fonte primaria se disponibile. Il post article_followup deve includere il link ${articleUrl}. Il post related deve includere l'URL della destinazione consentita scelta.`;
+  const payload = await openAiResponseRequest("", {
+    method: "POST",
+    body: {
+      model,
+      tools: [{ type: "web_search", search_context_size: "high" }],
+      tool_choice: "auto",
+      instructions,
+      input,
+      reasoning: { effort: "medium" },
+      max_output_tokens: 9000,
+      background: true,
+      store: true,
+      text: {
+        format: {
+          type: "json_schema",
+          name: "offertalogica_editorial_package",
+          strict: true,
+          schema: editorialPackageSchema(),
         },
-      }),
-      cache: "no-store",
-      signal: controller.signal,
-    });
-  } catch (error) {
-    if (error?.name === "AbortError") throw new Error("Timeout durante ricerca e generazione editoriale");
-    throw error;
-  } finally {
-    clearTimeout(timeout);
-  }
-  const payload = await response.json().catch(() => null);
-  if (!response.ok) throw new Error(payload?.error?.message || `OpenAI ${response.status}`);
-  if (payload?.status && payload.status !== "completed") throw new Error("Generazione editoriale non completata");
-  const text = responseOutputText(payload);
-  if (!text) throw new Error("La generazione non ha restituito contenuto strutturato");
-  let result;
-  try { result = JSON.parse(text); }
-  catch { throw new Error("Risposta editoriale non interpretabile"); }
-  return { result, model, sourceUrls: responseSourceUrls(payload), responseId: payload?.id || null };
+      },
+    },
+  });
+  if (!payload?.id) throw new Error("Generazione editoriale non avviata");
+  return { responseId: payload.id, status: payload.status || "queued", model };
+}
+
+async function retrieveOpenAiEditorialPackage(responseId) {
+  const id = String(responseId || "").trim();
+  if (!/^resp_[A-Za-z0-9_-]+$/.test(id)) throw new Error("Identificativo generazione AI non valido");
+  return openAiResponseRequest(`/${encodeURIComponent(id)}`);
 }
 
 function sourceUrlKey(value) {
@@ -1788,13 +1801,22 @@ async function generateEditorialArticlePackage(user, payload = {}) {
   if (opportunity.status !== "selected") throw new Error("Seleziona prima l’opportunità");
   if (opportunity.opportunity_type !== "new_article") throw new Error("La generazione completa è disponibile solo per un nuovo articolo");
 
-  const [settingsRows, categories, targets, channels] = await Promise.all([
-    serviceFetch("editorial_automation_settings?select=*&id=eq.1&limit=1"),
+  const existingJob = opportunity?.evidence?.article_generation_job;
+  if (existingJob?.response_id && ["queued", "in_progress"].includes(String(existingJob.status || ""))) {
+    return {
+      pending: true,
+      status: existingJob.status,
+      response_id: existingJob.response_id,
+      started_at: existingJob.started_at || null,
+      article_id: existingJob.article_id || opportunity.target_article_id || null,
+    };
+  }
+
+  const [categories, targets, channels] = await Promise.all([
     activeEditorialCategories(),
     enabledPromotionTargets(),
     editorialSocialChannels(),
   ]);
-  const settings = settingsRows?.[0] || {};
   const platforms = validateRequestedPlatforms(payload.platforms, channels);
   if (!categories.length) throw new Error("Nessuna categoria editoriale attiva disponibile");
   if (!targets.length) throw new Error("Nessuna destinazione promozionale attiva disponibile per il post collegato");
@@ -1803,7 +1825,7 @@ async function generateEditorialArticlePackage(user, payload = {}) {
   const articleId = draftResult?.article?.id;
   if (!articleId) throw new Error("Bozza articolo non disponibile");
   const articleRows = await serviceFetch(`editorial_articles?select=*&id=eq.${encodeURIComponent(articleId)}&limit=1`);
-  let article = articleRows?.[0];
+  const article = articleRows?.[0];
   if (!article) throw new Error("Bozza articolo non trovata");
   if (article.status !== "draft") throw new Error("La generazione può aggiornare solo una bozza ancora in stato Bozza");
 
@@ -1817,14 +1839,175 @@ async function generateEditorialArticlePackage(user, payload = {}) {
     throw new Error("La bozza contiene modifiche manuali o contenuto non generato dall’Autopilota: sovrascrittura bloccata");
   }
 
-  const originalArticle = { ...article };
-  let articleUpdated = false;
   const run = await automationRunStart(id);
   try {
-    const ai = await generateOpenAiEditorialPackage({ opportunity, article, categories, targets });
-    const validated = validateGeneratedEditorialPackage(ai.result, {
-      opportunity, categories, targets, settings, observedSourceUrls: ai.sourceUrls,
+    const ai = await startOpenAiEditorialPackage({ opportunity, article, categories, targets });
+    const now = new Date().toISOString();
+    const job = {
+      schema_version: 1,
+      status: ai.status,
+      started_at: now,
+      started_by: user.id,
+      checked_at: now,
+      model: ai.model,
+      response_id: ai.responseId,
+      article_id: article.id,
+      article_fingerprint_sha256: currentFingerprint,
+      automation_run_id: run?.id || null,
+      platforms,
+      automatic_publish: false,
+    };
+    const evidence = {
+      ...(opportunity.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {}),
+      article_generation_job: job,
+    };
+    const savedRows = await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      prefer: "return=representation",
+      body: { evidence, target_article_id: article.id, updated_at: now, decided_by: user.id },
     });
+    if (!savedRows?.[0]?.id) throw new Error("Stato generazione asincrona non salvato");
+    return {
+      pending: true,
+      status: ai.status,
+      response_id: ai.responseId,
+      started_at: now,
+      article_id: article.id,
+      automatic_publish: false,
+    };
+  } catch (error) {
+    await automationRunFinish(run, "failed", {
+      article_id: article?.id || null,
+      last_error: String(error?.message || error).slice(0, 2000),
+      details: { version: VERSION, source: "manual_controlled_run", opportunity_id: id, publication_performed: false },
+    });
+    throw error;
+  }
+}
+
+async function checkEditorialArticlePackage(user, payload = {}) {
+  const id = String(payload.id || "").trim();
+  if (!validUuid(id)) throw new Error("Identificativo opportunità non valido");
+  const rows = await serviceFetch(
+    `editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(id)}&limit=1`,
+  );
+  const opportunity = rows?.[0];
+  if (!opportunity) throw new Error("Opportunità non trovata");
+  const evidenceBase = opportunity.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {};
+  const job = evidenceBase.article_generation_job;
+  const completedGeneration = evidenceBase.article_generation;
+  if (!job?.response_id) {
+    if (completedGeneration?.status === "draft_ready_for_review") {
+      return { pending: false, status: "completed", qa: completedGeneration.qa || {}, generation: completedGeneration };
+    }
+    throw new Error("Nessuna generazione editoriale in corso");
+  }
+  if (job.status === "completed" && completedGeneration?.response_id === job.response_id) {
+    return { pending: false, status: "completed", qa: completedGeneration.qa || {}, generation: completedGeneration };
+  }
+  if (["failed", "cancelled", "incomplete"].includes(String(job.status || ""))) {
+    throw new Error(job.last_error || `Generazione editoriale terminata con stato ${job.status}`);
+  }
+
+  const response = await retrieveOpenAiEditorialPackage(job.response_id);
+  const status = String(response?.status || "");
+  if (["queued", "in_progress"].includes(status)) {
+    const now = new Date().toISOString();
+    const nextEvidence = {
+      ...evidenceBase,
+      article_generation_job: { ...job, status, checked_at: now },
+    };
+    await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      prefer: "return=minimal",
+      body: { evidence: nextEvidence, updated_at: now },
+    });
+    return { pending: true, status, response_id: job.response_id, started_at: job.started_at || null };
+  }
+
+  const runRef = job.automation_run_id ? { id: job.automation_run_id, details: { version: VERSION, source: "manual_controlled_run" } } : null;
+  if (status !== "completed") {
+    const message = response?.error?.message || response?.incomplete_details?.reason || `Generazione editoriale terminata con stato ${status || "sconosciuto"}`;
+    const now = new Date().toISOString();
+    const nextEvidence = {
+      ...evidenceBase,
+      article_generation_job: { ...job, status: status || "failed", checked_at: now, finished_at: now, last_error: String(message).slice(0, 2000) },
+    };
+    await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(id)}`, {
+      method: "PATCH", prefer: "return=minimal", body: { evidence: nextEvidence, updated_at: now },
+    }).catch(() => {});
+    await automationRunFinish(runRef, "failed", {
+      article_id: job.article_id || opportunity.target_article_id || null,
+      last_error: String(message).slice(0, 2000),
+      details: { version: VERSION, source: "manual_controlled_run", opportunity_id: id, publication_performed: false },
+    });
+    throw new Error(message);
+  }
+
+  const [settingsRows, categories, targets] = await Promise.all([
+    serviceFetch("editorial_automation_settings?select=*&id=eq.1&limit=1"),
+    activeEditorialCategories(),
+    enabledPromotionTargets(),
+  ]);
+  const settings = settingsRows?.[0] || {};
+  if (!categories.length) throw new Error("Nessuna categoria editoriale attiva disponibile");
+  if (!targets.length) throw new Error("Nessuna destinazione promozionale attiva disponibile per il post collegato");
+  const articleId = job.article_id || opportunity.target_article_id;
+  if (!validUuid(articleId)) throw new Error("Bozza articolo associata alla generazione non valida");
+  const articleRows = await serviceFetch(`editorial_articles?select=*&id=eq.${encodeURIComponent(articleId)}&limit=1`);
+  let article = articleRows?.[0];
+  if (!article) throw new Error("Bozza articolo non trovata");
+  if (article.status !== "draft") throw new Error("La generazione può completare solo una bozza ancora in stato Bozza");
+  if (job.article_fingerprint_sha256 && articleEditorialFingerprint(article) !== job.article_fingerprint_sha256) {
+    const message = "La bozza è stata modificata manualmente durante la generazione: risultato AI non applicato";
+    const now = new Date().toISOString();
+    const nextEvidence = {
+      ...evidenceBase,
+      article_generation_job: { ...job, status: "failed", checked_at: now, finished_at: now, last_error: message },
+    };
+    await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(id)}`, {
+      method: "PATCH", prefer: "return=minimal", body: { evidence: nextEvidence, updated_at: now },
+    }).catch(() => {});
+    await automationRunFinish(runRef, "failed", {
+      article_id: article.id,
+      last_error: message,
+      details: { version: VERSION, source: "manual_controlled_run", opportunity_id: id, publication_performed: false },
+    });
+    throw new Error(message);
+  }
+
+  let validated;
+  let sourceUrls;
+  try {
+    const text = responseOutputText(response);
+    if (!text) throw new Error("La generazione non ha restituito contenuto strutturato");
+    let generated;
+    try { generated = JSON.parse(text); }
+    catch { throw new Error("Risposta editoriale non interpretabile"); }
+    sourceUrls = responseSourceUrls(response);
+    validated = validateGeneratedEditorialPackage(generated, {
+      opportunity, categories, targets, settings, observedSourceUrls: sourceUrls,
+    });
+  } catch (error) {
+    const now = new Date().toISOString();
+    const nextEvidence = {
+      ...evidenceBase,
+      article_generation_job: { ...job, status: "failed", checked_at: now, finished_at: now, last_error: String(error?.message || error).slice(0, 2000) },
+    };
+    await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(id)}`, {
+      method: "PATCH", prefer: "return=minimal", body: { evidence: nextEvidence, updated_at: now },
+    }).catch(() => {});
+    await automationRunFinish(runRef, "failed", {
+      article_id: article.id,
+      last_error: String(error?.message || error).slice(0, 2000),
+      details: { version: VERSION, source: "manual_controlled_run", opportunity_id: id, publication_performed: false, background: true },
+    });
+    throw error;
+  }
+
+  const originalArticle = { ...article };
+  let articleUpdated = false;
+  try {
     const sourcesText = validated.sources.map((source) => `${source.title} — ${source.url}`).join("\n").slice(0, 4000);
     const updatedRows = await editorialUserFetch(user, `editorial_articles?id=eq.${encodeURIComponent(article.id)}&select=*`, {
       method: "PATCH",
@@ -1844,56 +2027,63 @@ async function generateEditorialArticlePackage(user, payload = {}) {
     if (!article?.id) throw new Error("Bozza articolo generata ma non salvata");
     articleUpdated = true;
 
+    const platforms = Array.isArray(job.platforms) ? job.platforms : [];
     const plans = await upsertGeneratedSocialPlans(user, opportunity, article, validated.posts, platforms);
     const articleFingerprint = articleEditorialFingerprint(article);
     const now = new Date().toISOString();
-    const evidence = {
-      ...(opportunity.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {}),
-      article_generation: {
-        schema_version: 1,
-        status: "draft_ready_for_review",
-        generated_at: now,
-        generated_by: user.id,
-        model: ai.model,
-        response_id: ai.responseId,
-        article_fingerprint_sha256: articleFingerprint,
-        web_source_urls: ai.sourceUrls,
-        sources: validated.sources,
-        qa: validated.qa,
-        social_plan_item_ids: plans.map((row) => row.id),
-        platforms,
-        automatic_publish: false,
-      },
+    const generation = {
+      schema_version: 2,
+      status: "draft_ready_for_review",
+      generated_at: now,
+      generated_by: user.id,
+      model: job.model || editorialAiModel(),
+      response_id: job.response_id,
+      article_fingerprint_sha256: articleFingerprint,
+      web_source_urls: sourceUrls,
+      sources: validated.sources,
+      qa: validated.qa,
+      social_plan_item_ids: plans.map((row) => row.id),
+      platforms,
+      automatic_publish: false,
+      background: true,
+    };
+    const nextEvidence = {
+      ...evidenceBase,
+      article_generation: generation,
+      article_generation_job: { ...job, status: "completed", checked_at: now, finished_at: now },
     };
     const opportunityRows = await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(id)}`, {
       method: "PATCH",
       prefer: "return=representation",
-      body: { evidence, target_article_id: article.id, updated_at: now, decided_by: user.id },
+      body: { evidence: nextEvidence, target_article_id: article.id, updated_at: now, decided_by: user.id },
     });
     const updatedOpportunity = opportunityRows?.[0];
     if (!updatedOpportunity?.id) throw new Error("Metadati generazione non salvati");
-    await automationRunFinish(run, "success", {
+    await automationRunFinish(runRef, "success", {
       article_id: article.id,
       social_plan_item_id: plans?.[0]?.id || null,
       details: {
         version: VERSION,
         source: "manual_controlled_run",
-        model: ai.model,
+        model: generation.model,
         opportunity_id: id,
         qa: validated.qa,
         sources_count: validated.sources.length,
         social_plan_item_ids: plans.map((row) => row.id),
         platforms,
         publication_performed: false,
+        background: true,
       },
     });
     return {
+      pending: false,
+      status: "completed",
       article: { id: article.id, title: article.title, slug: article.slug, status: article.status, category: article.category },
       opportunity: updatedOpportunity,
       qa: validated.qa,
       sources: validated.sources,
       plans,
-      model: ai.model,
+      model: generation.model,
       automatic_publish: false,
     };
   } catch (error) {
@@ -1913,10 +2103,18 @@ async function generateEditorialArticlePackage(user, payload = {}) {
         },
       }).catch(() => {});
     }
-    await automationRunFinish(run, "failed", {
+    const now = new Date().toISOString();
+    const nextEvidence = {
+      ...evidenceBase,
+      article_generation_job: { ...job, status: "failed", checked_at: now, finished_at: now, last_error: String(error?.message || error).slice(0, 2000) },
+    };
+    await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(id)}`, {
+      method: "PATCH", prefer: "return=minimal", body: { evidence: nextEvidence, updated_at: now },
+    }).catch(() => {});
+    await automationRunFinish(runRef, "failed", {
       article_id: article?.id || null,
       last_error: String(error?.message || error).slice(0, 2000),
-      details: { version: VERSION, source: "manual_controlled_run", opportunity_id: id, publication_performed: false },
+      details: { version: VERSION, source: "manual_controlled_run", opportunity_id: id, publication_performed: false, background: true },
     });
     throw error;
   }
@@ -3030,6 +3228,11 @@ export default async function handler(req, res) {
 
     if (req.method === "POST" && action === "generate-editorial-article-package") {
       const result = await generateEditorialArticlePackage(user, req.body || {});
+      return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "POST" && action === "check-editorial-article-package") {
+      const result = await checkEditorialArticlePackage(user, req.body || {});
       return json(res, 200, { ok: true, version: VERSION, result });
     }
 
