@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { json } from "../lib/http.js";
 
-const VERSION = "0.12.36";
+const VERSION = "0.12.37";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -1604,7 +1604,8 @@ async function startOpenAiEditorialPackage({ opportunity, article, categories, t
     body: {
       model,
       tools: [{ type: "web_search", search_context_size: "high" }],
-      tool_choice: "auto",
+      tool_choice: "required",
+      include: ["web_search_call.action.sources"],
       instructions,
       input,
       reasoning: { effort: "medium" },
@@ -1628,7 +1629,8 @@ async function startOpenAiEditorialPackage({ opportunity, article, categories, t
 async function retrieveOpenAiEditorialPackage(responseId) {
   const id = String(responseId || "").trim();
   if (!/^resp_[A-Za-z0-9_-]+$/.test(id)) throw new Error("Identificativo generazione AI non valido");
-  return openAiResponseRequest(`/${encodeURIComponent(id)}`);
+  const include = encodeURIComponent("web_search_call.action.sources");
+  return openAiResponseRequest(`/${encodeURIComponent(id)}?include=${include}`);
 }
 
 function sourceUrlKey(value) {
