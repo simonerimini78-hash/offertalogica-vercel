@@ -125,3 +125,38 @@ body[data-editorial-view="review"] .ol-session-bar .ol-session-author-text{displ
 /* Editoriale v0.11.6: il titolo dell'articolo in evidenza resta completo su desktop. */
 .ol-informa-featured .ol-article-item-featured h3{display:block;min-height:0;overflow:visible;-webkit-line-clamp:unset}
 
+
+/* Editoriale v0.12.42: pulsanti leggibili e coerenti con la palette OffertaLogica. */
+body[data-editorial-view="review"] .ol-button-primary{background:#23834c;color:#fff;border-color:#23834c}
+body[data-editorial-view="review"] .ol-button-primary:hover{background:#26734c;border-color:#26734c;color:#fff}
+body[data-editorial-view="review"] .ol-button-secondary{background:#2f855a;color:#fff;border-color:#2f855a}
+body[data-editorial-view="review"] .ol-button-secondary:hover{background:#28754f;border-color:#28754f;color:#fff}
+body[data-editorial-view="review"] .ol-button-danger{background:#b91c1c;color:#fff;border-color:#b91c1c}
+body[data-editorial-view="review"] .ol-button-danger:hover{background:#991b1b;border-color:#991b1b;color:#fff}
+body[data-editorial-view="review"] .ol-collapsible-action{background:#2f855a;color:#fff;border-color:#2f855a}
+body[data-editorial-view="review"] .ol-collapsible-panel[open] .ol-collapsible-action{background:#23834c;color:#fff;border-color:#23834c}
+
+/* Editoriale v0.12.43: gerarchia operativa chiara, blocchi simmetrici e navigazione di sezione. */
+body[data-editorial-view="review"] .ol-shell{width:min(1440px,calc(100% - 48px))}
+body[data-editorial-view="review"] .ol-hero{padding:20px 0 8px}
+body[data-editorial-view="review"] .ol-hero h1{margin:2px 0 5px;font-size:clamp(30px,3.2vw,40px)}
+body[data-editorial-view="review"] .ol-hero p{margin:0}
+.ol-editorial-sections{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:2px 0 18px}
+.ol-editorial-section-link{display:grid;grid-template-columns:34px minmax(0,1fr);grid-template-rows:auto auto;column-gap:10px;align-items:center;min-width:0;border:1px solid #b9d8c3;border-radius:11px;background:#f6fbf7;padding:11px 12px;text-decoration:none;color:#1f2937;transition:border-color .15s ease,background .15s ease,transform .15s ease}
+.ol-editorial-section-link:hover{border-color:#72b88a;background:#eef9f1}
+.ol-editorial-section-link>span{grid-row:1/3;display:grid;width:32px;height:32px;place-items:center;border-radius:50%;background:#4b9b69;color:#fff;font-size:13px;font-weight:900}
+.ol-editorial-section-link strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;line-height:1.2}
+.ol-editorial-section-link small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#64748b;font-size:11px;line-height:1.25}
+.ol-editorial-section-link-current{border-color:#4b9b69;background:#eaf7ee;box-shadow:inset 0 0 0 1px #4b9b69}
+.ol-editorial-block{scroll-margin-top:16px;margin:0 0 16px;border:1px solid #b9d8c3;border-radius:13px;background:#fff;overflow:hidden;box-shadow:0 4px 14px rgba(15,23,42,.035)}
+.ol-editorial-block:target{border-color:#4b9b69;box-shadow:0 0 0 2px rgba(75,155,105,.15)}
+.ol-editorial-block-head{display:grid;grid-template-columns:42px minmax(0,1fr) auto;gap:12px;align-items:center;width:100%;margin:0;padding:15px 18px;border:0;border-bottom:1px solid #cfe3d5;background:#eff8f2;text-align:left;color:inherit}
+.ol-editorial-block-head>div{min-width:0}.ol-editorial-block-head h2{margin:0;font-size:21px;line-height:1.15}.ol-editorial-block-head p{margin:2px 0 0;color:#52635a;font-size:13px;line-height:1.35}.ol-editorial-block-kicker{margin:0 0 2px!important;color:#2f855a!important;font-size:10px!important;font-weight:900;letter-spacing:.08em;text-transform:uppercase}
+.ol-editorial-block-number{display:grid;width:38px;height:38px;place-items:center;border-radius:9px;background:#4b9b69;color:#fff;font-size:15px;font-weight:900}
+.ol-editorial-block-body{padding:16px;background:#fbfdfb}
+.ol-editorial-block-collapsible>.ol-editorial-block-head{cursor:pointer;list-style:none;border-bottom:0}.ol-editorial-block-collapsible>.ol-editorial-block-head::-webkit-details-marker{display:none}.ol-editorial-block-collapsible[open]>.ol-editorial-block-head{border-bottom:1px solid #cfe3d5}.ol-editorial-block-action{display:inline-flex;align-items:center;justify-content:center;min-width:64px;border-radius:999px;background:#4b9b69;color:#fff;padding:6px 11px;font-size:12px;font-weight:900}.ol-editorial-block-collapsible[open] .ol-editorial-block-action{background:#3f8559;font-size:0}.ol-editorial-block-collapsible[open] .ol-editorial-block-action::after{content:"Chiudi";font-size:12px}
+#editorial-articles .ol-review-layout{gap:16px}#editorial-articles .ol-review-sidebar{top:14px}#editorial-articles .ol-card,#editorial-articles .ol-panel{border-color:#d7e6dc;box-shadow:none}#editorial-articles .ol-review-sidebar>.ol-card{height:auto}
+.ol-management-shortcuts-ordered{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:0}.ol-management-shortcuts-ordered .ol-collapsible-panel{height:100%;border-color:#d7e6dc;border-radius:10px;background:#fff}.ol-management-shortcuts-ordered .ol-collapsible-summary{min-height:64px;background:#f7fbf8}.ol-management-shortcuts-ordered .ol-collapsible-panel[open] .ol-collapsible-summary{background:#eef8f1}
+body[data-editorial-view="review"] .ol-button-warning{background:#b7791f;color:#fff;border-color:#b7791f}body[data-editorial-view="review"] .ol-button-warning:hover{background:#996515;color:#fff;border-color:#996515}
+@media(max-width:1000px){.ol-editorial-sections{grid-template-columns:repeat(2,minmax(0,1fr))}.ol-management-shortcuts-ordered{grid-template-columns:1fr}}
+@media(max-width:620px){body[data-editorial-view="review"] .ol-shell{width:min(100% - 22px,1440px)}.ol-editorial-sections{grid-template-columns:1fr}.ol-editorial-block-head{grid-template-columns:36px minmax(0,1fr) auto;padding:12px}.ol-editorial-block-number{width:34px;height:34px}.ol-editorial-block-head p:not(.ol-editorial-block-kicker){display:none}.ol-editorial-block-body{padding:12px}}

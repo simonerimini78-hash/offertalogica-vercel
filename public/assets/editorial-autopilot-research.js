@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.39";
+  const VERSION = "0.12.43";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
   let statusLoaded = false;
@@ -55,145 +55,156 @@
 
   function cardMarkup() {
     return `
-      <h3>Idee editoriali e ricerca</h3>
-      <p>Le idee inserite dalla Redazione entrano nella stessa coda delle opportunità di ricerca, ma mantengono una provenienza distinta. Nessuna azione di questo blocco genera o pubblica contenuti.</p>
-
-      <div class="ol-field" data-manual-idea-editor>
-        <label>Idea editoriale manuale</label>
-        <div class="ol-autopilot-fields">
-          <div class="ol-field">
-            <label for="autopilot-manual-idea-topic">Argomento</label>
-            <input id="autopilot-manual-idea-topic" data-manual-idea-topic type="text" maxlength="240" placeholder="Es. nuova norma urgente sul mercato energia">
-          </div>
-          <div class="ol-field">
-            <label for="autopilot-manual-idea-type">Destinazione</label>
-            <select id="autopilot-manual-idea-type" data-manual-idea-type>
-              <option value="new_article">Nuovo articolo</option>
-              <option value="update_article">Aggiornamento articolo/pagina</option>
-            </select>
-          </div>
-          <div class="ol-field">
-            <label for="autopilot-manual-idea-priority">Priorità</label>
-            <select id="autopilot-manual-idea-priority" data-manual-idea-priority>
-              <option value="normal">Normale · dopo i segnali Search Console sopra soglia</option>
-              <option value="high">Alta · precede Search Console</option>
-              <option value="urgent">Urgente · precede tutto salvo una scelta già selezionata</option>
-            </select>
-          </div>
-          <div class="ol-field">
-            <label for="autopilot-manual-idea-deadline">Scadenza facoltativa</label>
-            <input id="autopilot-manual-idea-deadline" data-manual-idea-deadline type="date">
-          </div>
-          <div class="ol-field">
-            <label for="autopilot-manual-idea-category">Categoria facoltativa</label>
-            <input id="autopilot-manual-idea-category" data-manual-idea-category type="text" maxlength="80" placeholder="Es. Energia">
-          </div>
-          <div class="ol-field">
-            <label for="autopilot-manual-idea-target">Pagina da aggiornare <span class="ol-muted">(solo aggiornamento)</span></label>
-            <input id="autopilot-manual-idea-target" data-manual-idea-target type="url" maxlength="500" placeholder="https://offertalogica.it/…">
-            <small>Facoltativa al salvataggio; se indicata deve essere una pagina HTTPS di OffertaLogica.</small>
-          </div>
-          <div class="ol-field">
-            <label for="autopilot-manual-idea-notes">Note editoriali</label>
-            <textarea id="autopilot-manual-idea-notes" data-manual-idea-notes maxlength="2000" rows="3" placeholder="Perché è importante, taglio desiderato, fonti da verificare…"></textarea>
-          </div>
-        </div>
-        <div class="ol-autopilot-toolbar" style="margin-top:10px">
-          <p class="ol-autopilot-save-state" data-manual-idea-message>Le idee ad alta priorità o urgenti possono precedere i segnali automatici.</p>
-          <div class="ol-toolbar-group">
-            <button class="ol-button ol-button-secondary" type="button" data-manual-idea-cancel hidden>Annulla modifica</button>
-            <button class="ol-button ol-button-primary" type="button" data-manual-idea-save>Salva idea</button>
-          </div>
-        </div>
+      <div class="ol-autopilot-card-heading">
+        <div><h3>Flusso operativo del ciclo</h3><p>Idea o segnale → scelta → bozza → post collegati → controllo. Nessuna azione di questa area pubblica automaticamente.</p></div>
       </div>
 
-      <div class="ol-field" style="margin-top:18px">
-        <label>Anteprima priorità Autopilota</label>
-        <p class="ol-muted">Calcola quale tema verrebbe scelto oggi. È un dry-run: non cambia stati, non crea bozze e non pubblica.</p>
-        <div class="ol-autopilot-toolbar">
-          <p class="ol-autopilot-save-state" data-planner-message>Nessuna anteprima calcolata.</p>
-          <button class="ol-button ol-button-secondary" type="button" data-planner-preview>Calcola scelta</button>
-        </div>
-        <div class="ol-autopilot-archive-list" data-planner-result></div>
-      </div>
+      <div class="ol-autopilot-workflow">
+        <section class="ol-autopilot-stage">
+          <div class="ol-autopilot-stage-heading"><span class="ol-autopilot-stage-number">1</span><div><h4>Idee e priorità</h4><p>Inserisci un tema manuale oppure verifica quale opportunità sceglierebbe oggi il planner.</p></div></div>
+          <div class="ol-autopilot-pair">
+            <div class="ol-autopilot-pane" data-manual-idea-editor>
+              <h5>Idea editoriale manuale</h5>
+              <div class="ol-autopilot-fields">
+                <div class="ol-field">
+                  <label for="autopilot-manual-idea-topic">Argomento</label>
+                  <input id="autopilot-manual-idea-topic" data-manual-idea-topic type="text" maxlength="240" placeholder="Es. nuova norma urgente sul mercato energia">
+                </div>
+                <div class="ol-field">
+                  <label for="autopilot-manual-idea-type">Destinazione</label>
+                  <select id="autopilot-manual-idea-type" data-manual-idea-type>
+                    <option value="new_article">Nuovo articolo</option>
+                    <option value="update_article">Aggiornamento articolo/pagina</option>
+                  </select>
+                </div>
+                <div class="ol-field">
+                  <label for="autopilot-manual-idea-priority">Priorità</label>
+                  <select id="autopilot-manual-idea-priority" data-manual-idea-priority>
+                    <option value="normal">Normale · dopo i segnali Search Console sopra soglia</option>
+                    <option value="high">Alta · precede Search Console</option>
+                    <option value="urgent">Urgente · precede tutto salvo una scelta già selezionata</option>
+                  </select>
+                </div>
+                <div class="ol-field">
+                  <label for="autopilot-manual-idea-deadline">Scadenza facoltativa</label>
+                  <input id="autopilot-manual-idea-deadline" data-manual-idea-deadline type="date">
+                </div>
+                <div class="ol-field">
+                  <label for="autopilot-manual-idea-category">Categoria facoltativa</label>
+                  <input id="autopilot-manual-idea-category" data-manual-idea-category type="text" maxlength="80" placeholder="Es. Energia">
+                </div>
+                <div class="ol-field">
+                  <label for="autopilot-manual-idea-target">Pagina da aggiornare <span class="ol-muted">(solo aggiornamento)</span></label>
+                  <input id="autopilot-manual-idea-target" data-manual-idea-target type="url" maxlength="500" placeholder="https://offertalogica.it/…">
+                  <small>Facoltativa al salvataggio; se indicata deve essere una pagina HTTPS di OffertaLogica.</small>
+                </div>
+                <div class="ol-field ol-autopilot-field-wide">
+                  <label for="autopilot-manual-idea-notes">Note editoriali</label>
+                  <textarea id="autopilot-manual-idea-notes" data-manual-idea-notes maxlength="2000" rows="3" placeholder="Perché è importante, taglio desiderato, fonti da verificare…"></textarea>
+                </div>
+              </div>
+              <div class="ol-autopilot-toolbar">
+                <p class="ol-autopilot-save-state" data-manual-idea-message>Le idee ad alta priorità o urgenti possono precedere i segnali automatici.</p>
+                <div class="ol-toolbar-group">
+                  <button class="ol-button ol-button-secondary" type="button" data-manual-idea-cancel hidden>Annulla modifica</button>
+                  <button class="ol-button ol-button-primary" type="button" data-manual-idea-save>Salva idea</button>
+                </div>
+              </div>
+            </div>
 
-      <div class="ol-field" style="margin-top:18px">
-        <label>Acquisizione Search Console</label>
-        <p>Importa nello storico editoriale dati aggregati di query, pagina, clic, impressioni, CTR e posizione. Nessun articolo viene generato o pubblicato.</p>
-      </div>
-      <div class="ol-autopilot-fields">
-        <div class="ol-field">
-          <label for="autopilot-search-console-period">Periodo stabile</label>
-          <select id="autopilot-search-console-period" data-search-console-days>
-            <option value="7">Ultimi 7 giorni</option>
-            <option value="28" selected>Ultimi 28 giorni</option>
-            <option value="90">Ultimi 90 giorni</option>
-          </select>
-          <small>Il periodo termina 3 giorni fa per usare dati Search Console consolidati.</small>
-        </div>
-        <div class="ol-field">
-          <label>Stato collegamento</label>
-          <div class="ol-autopilot-archive-item" data-search-console-status>
-            <strong>Verifica configurazione…</strong>
-            <small>Controllo credenziali server e storico disponibile.</small>
+            <div class="ol-autopilot-pane">
+              <h5>Anteprima priorità Autopilota</h5>
+              <p class="ol-muted">Calcola quale tema verrebbe scelto oggi. È un dry-run: non cambia stati, non crea bozze e non pubblica.</p>
+              <div class="ol-autopilot-toolbar">
+                <p class="ol-autopilot-save-state" data-planner-message>Nessuna anteprima calcolata.</p>
+                <button class="ol-button ol-button-secondary" type="button" data-planner-preview>Calcola scelta</button>
+              </div>
+              <div class="ol-autopilot-archive-list" data-planner-result></div>
+            </div>
           </div>
-        </div>
-      </div>
+        </section>
 
-      <div class="ol-field" style="margin-top:12px">
-        <label>Storico acquisizioni</label>
-        <div class="ol-autopilot-archive-list" data-search-console-history>
-          <p class="ol-muted">Caricamento storico…</p>
-        </div>
-      </div>
+        <section class="ol-autopilot-stage">
+          <div class="ol-autopilot-stage-heading"><span class="ol-autopilot-stage-number">2</span><div><h4>Dati Search Console</h4><p>Acquisizione e analisi restano strumenti di controllo. Lo scheduler usa gli stessi dati quando è configurato.</p></div></div>
+          <div class="ol-autopilot-pair">
+            <div class="ol-autopilot-pane">
+              <h5>Acquisizione</h5>
+              <div class="ol-autopilot-fields ol-autopilot-fields-compact">
+                <div class="ol-field">
+                  <label for="autopilot-search-console-period">Periodo stabile</label>
+                  <select id="autopilot-search-console-period" data-search-console-days>
+                    <option value="7">Ultimi 7 giorni</option>
+                    <option value="28" selected>Ultimi 28 giorni</option>
+                    <option value="90">Ultimi 90 giorni</option>
+                  </select>
+                  <small>Il periodo termina 3 giorni fa per usare dati consolidati.</small>
+                </div>
+                <div class="ol-field">
+                  <label>Stato collegamento</label>
+                  <div class="ol-autopilot-archive-item" data-search-console-status>
+                    <strong>Verifica configurazione…</strong>
+                    <small>Controllo credenziali server e storico disponibile.</small>
+                  </div>
+                </div>
+              </div>
+              <div class="ol-field">
+                <label>Storico 7 / 28 / 90 giorni</label>
+                <div class="ol-autopilot-archive-list" data-search-console-history><p class="ol-muted">Caricamento storico…</p></div>
+              </div>
+              <div class="ol-autopilot-toolbar">
+                <p class="ol-autopilot-save-state" data-search-console-message>Acquisizione manuale controllata.</p>
+                <button class="ol-button ol-button-secondary" type="button" data-search-console-collect disabled>Acquisisci Search Console</button>
+              </div>
+            </div>
 
-      <div class="ol-autopilot-toolbar">
-        <p class="ol-autopilot-save-state" data-search-console-message>Fase 2 · acquisizione manuale controllata.</p>
-        <button class="ol-button ol-button-secondary" type="button" data-search-console-collect disabled>Acquisisci Search Console</button>
-      </div>
+            <div class="ol-autopilot-pane">
+              <h5>Analisi segnali</h5>
+              <p class="ol-muted">Punteggio tecnico 0–100 basato su domanda, ritmo recente, posizione e clic. Non crea né pubblica contenuti.</p>
+              <div class="ol-autopilot-toolbar">
+                <p class="ol-autopilot-save-state" data-search-console-analysis-message>Servono gli snapshot 7, 28 e 90 giorni.</p>
+                <button class="ol-button ol-button-secondary" type="button" data-search-console-analyze disabled>Analizza storico</button>
+              </div>
+              <div class="ol-autopilot-archive-list" data-search-console-analysis-results></div>
+            </div>
+          </div>
+        </section>
 
-      <div class="ol-field" style="margin-top:18px">
-        <label>Analisi segnali editoriali</label>
-        <p class="ol-muted">Raggruppamento lessicale e punteggio tecnico 0–100 basato su domanda, ritmo recente, posizione e clic. È solo una lettura dello storico: non crea e non pubblica contenuti.</p>
-        <div class="ol-autopilot-toolbar">
-          <p class="ol-autopilot-save-state" data-search-console-analysis-message>Servono gli snapshot 7, 28 e 90 giorni.</p>
-          <button class="ol-button ol-button-secondary" type="button" data-search-console-analyze disabled>Analizza storico</button>
-        </div>
-        <div class="ol-autopilot-archive-list" data-search-console-analysis-results></div>
-      </div>
+        <section class="ol-autopilot-stage">
+          <div class="ol-autopilot-stage-heading"><span class="ol-autopilot-stage-number">3</span><div><h4>Opportunità e preparazione contenuti</h4><p>Qui confluiscono idee manuali e segnali Search Console. La provenienza resta visibile e la generazione si ferma prima della pubblicazione.</p></div></div>
+          <p class="ol-autopilot-save-state" data-opportunity-message>Caricamento opportunità…</p>
+          <div class="ol-autopilot-archive-list" data-opportunity-list><p class="ol-muted">Caricamento…</p></div>
+        </section>
 
-      <div class="ol-field" style="margin-top:18px">
-        <label>Opportunità salvate</label>
-        <p class="ol-muted">Qui convivono idee inserite dalla Redazione e opportunità salvate dall’analisi Search Console, con origine sempre visibile. Per un nuovo articolo selezionato puoi ora generare una bozza completa con ricerca web, fonti e QA. La generazione non pubblica nulla.</p>
-        <p class="ol-autopilot-save-state" data-opportunity-message>Caricamento opportunità…</p>
-        <div class="ol-autopilot-archive-list" data-opportunity-list>
-          <p class="ol-muted">Caricamento…</p>
-        </div>
-      </div>
-
-      <div class="ol-field" style="margin-top:18px">
-        <label>Piano post statici</label>
-        <p class="ol-muted">I post collegati all’articolo restano bozze separate. Nessun canale è preselezionato: Facebook/Instagram vengono associati solo se li scegli esplicitamente. Reel, video, TikTok e LinkedIn non fanno parte di questo blocco.</p>
-        <p class="ol-autopilot-save-state" data-social-plan-message>Caricamento piano post…</p>
-        <div class="ol-autopilot-archive-list" data-social-plan-list><p class="ol-muted">Caricamento…</p></div>
-      </div>
-
-      <div class="ol-field" style="margin-top:18px">
-        <label>Ultimi cicli Autopilota</label>
-        <p class="ol-muted">Registro tecnico delle preparazioni. In questa versione il ciclo genera bozze e post, ma non esegue pubblicazioni automatiche.</p>
-        <div class="ol-autopilot-archive-list" data-automation-run-list><p class="ol-muted">Caricamento…</p></div>
+        <section class="ol-autopilot-stage">
+          <div class="ol-autopilot-stage-heading"><span class="ol-autopilot-stage-number">4</span><div><h4>Controllo del ciclo</h4><p>Post preparati e registro tecnico restano affiancati per capire subito cosa è pronto e cosa ha fatto lo scheduler.</p></div></div>
+          <div class="ol-autopilot-pair">
+            <div class="ol-autopilot-pane">
+              <h5>Piano post statici</h5>
+              <p class="ol-muted">I post collegati all’articolo restano bozze separate. Facebook/Instagram vengono associati solo se scelti esplicitamente.</p>
+              <p class="ol-autopilot-save-state" data-social-plan-message>Caricamento piano post…</p>
+              <div class="ol-autopilot-archive-list" data-social-plan-list><p class="ol-muted">Caricamento…</p></div>
+            </div>
+            <div class="ol-autopilot-pane">
+              <h5>Ultimi cicli Autopilota</h5>
+              <p class="ol-muted">Registro tecnico delle preparazioni. In questa release il ciclo genera bozze e post, ma non esegue pubblicazioni automatiche.</p>
+              <div class="ol-autopilot-archive-list" data-automation-run-list><p class="ol-muted">Caricamento…</p></div>
+            </div>
+          </div>
+        </section>
       </div>`;
   }
 
   function ensureCard() {
-    const grid = document.querySelector('[data-editorial-autopilot="1"] .ol-autopilot-grid');
-    if (!grid || grid.querySelector("[data-search-console-card]")) return;
+    const host = document.querySelector("[data-editorial-research-host]");
+    const adminShell = document.querySelector('[data-editorial-autopilot="1"]');
+    if (!host || !adminShell || host.querySelector("[data-search-console-card]")) return;
 
+    host.innerHTML = "";
     const section = document.createElement("section");
-    section.className = "ol-card ol-autopilot-card";
+    section.className = "ol-autopilot-research-panel";
     section.dataset.searchConsoleCard = VERSION;
     section.innerHTML = cardMarkup();
-    grid.append(section);
+    host.append(section);
     section.querySelector("[data-search-console-collect]")?.addEventListener("click", collect);
     section.querySelector("[data-search-console-analyze]")?.addEventListener("click", analyze);
     section.addEventListener("click", handleOpportunityAction);

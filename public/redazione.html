@@ -7,8 +7,8 @@
   <meta name="referrer" content="no-referrer">
   <title>Redazione | OffertaLogica</title>
   <link rel="icon" type="image/png" href="/assets/logo-offertalogica-icon.png">
-  <link rel="stylesheet" href="/assets/editorial.css?v=0.11.6">
-  <link rel="stylesheet" href="/assets/editorial-autopilot.css?v=0.12.22">
+  <link rel="stylesheet" href="/assets/editorial.css?v=0.12.43">
+  <link rel="stylesheet" href="/assets/editorial-autopilot.css?v=0.12.43">
 </head>
 <body data-editorial-view="review">
 <a class="ol-skip-link" href="#contenuto-principale">Vai al contenuto principale</a>
@@ -23,8 +23,8 @@
   <section class="ol-hero ol-hero-compact">
     <div class="ol-shell">
       <div class="ol-eyebrow">Pannello redazione</div>
-      <h1>Revisione e pubblicazione degli articoli.</h1>
-      <p>Accesso riservato a editor e amministratori. Le transizioni di stato sono controllate anche dal database.</p>
+      <h1>Redazione OffertaLogica</h1>
+      <p>Articoli, Autopilota, ricerca e gestione sono separati in aree operative distinte.</p>
     </div>
   </section>
 
@@ -54,92 +54,19 @@
           </div>
         </div>
 
-        <div class="ol-management-shortcuts">
-        <details class="ol-panel ol-collapsible-panel ol-author-profile-panel" data-own-author-profile hidden>
-          <summary class="ol-collapsible-summary"><span><strong>Profilo autore</strong><small>Foto, biografia e link pubblici</small></span><span class="ol-collapsible-action" aria-hidden="true">Apri</span></summary>
-          <div class="ol-collapsible-content ol-panel-body">
-          <div class="ol-toolbar ol-toolbar-compact">
-            <p class="ol-muted">Usato automaticamente negli articoli che pubblichi a tuo nome.</p>
-            <a class="ol-button ol-button-secondary ol-button-small" data-author-public-link href="#" target="_blank" rel="author noopener" hidden>Apri destinazione pubblica<span class="ol-visually-hidden"> (si apre in una nuova scheda)</span></a>
-          </div>
-          <form class="ol-form ol-author-profile-form" data-author-profile-form novalidate>
-            <div class="ol-alert ol-alert-success" role="status" aria-live="polite" data-author-profile-success hidden></div>
-            <div class="ol-alert ol-alert-danger" role="alert" aria-live="assertive" data-author-profile-error hidden></div>
-            <div class="ol-author-profile-grid">
-              <div class="ol-author-profile-photo" data-author-avatar-uploader><input name="avatar_url" type="hidden"><div class="ol-avatar-preview" data-author-avatar-preview-box hidden><img data-author-avatar-preview alt=""><button class="ol-button ol-button-secondary ol-button-small" type="button" data-author-avatar-remove>Rimuovi foto</button></div><div class="ol-field"><label for="review-author-avatar-upload">Foto autore</label><input id="review-author-avatar-upload" data-author-avatar-upload type="file" accept="image/jpeg,image/png,image/webp,image/avif" aria-describedby="review-author-avatar-help"><small id="review-author-avatar-help">JPG, PNG, WebP o AVIF fino a 5 MB.</small><p class="ol-small ol-muted" data-author-avatar-status aria-live="polite"></p></div></div>
-              <div class="ol-author-profile-fields">
-                <div class="ol-field"><label for="review-author-display-name">Nome pubblico</label><input id="review-author-display-name" name="display_name" type="text" maxlength="120" autocomplete="name" required></div>
-                <div class="ol-field"><label for="review-author-profile-slug">Destinazione pubblica</label><input id="review-author-profile-slug" name="slug" type="text" readonly></div>
-                <div class="ol-field"><label for="review-author-bio">Biografia breve</label><textarea id="review-author-bio" name="bio" maxlength="700"></textarea><div class="ol-counter" data-count-for="review-author-bio"></div></div>
-                <div class="ol-field"><label for="review-author-linkedin">Profilo LinkedIn</label><input id="review-author-linkedin" name="linkedin_url" type="url" maxlength="500" inputmode="url" autocomplete="url" placeholder="https://www.linkedin.com/in/..."></div>
-                <div class="ol-field"><label for="review-author-website">Sito personale <span class="ol-muted">(facoltativo)</span></label><input id="review-author-website" name="website_url" type="url" maxlength="500" inputmode="url" autocomplete="url" placeholder="https://..."></div>
-              </div>
-            </div>
-            <div class="ol-toolbar"><button class="ol-button ol-button-primary" type="submit" data-author-profile-save>Salva profilo autore</button></div>
-          </form>
-          </div>
-        </details>
+        <nav class="ol-editorial-sections" aria-label="Sezioni operative della Redazione">
+          <a class="ol-editorial-section-link ol-editorial-section-link-current" href="#editorial-articles"><span>1</span><strong>Articoli</strong><small>Scrivi, revisiona e pubblica</small></a>
+          <a class="ol-editorial-section-link" href="#editorial-autopilot"><span>2</span><strong>Autopilota</strong><small>Regole, calendario e destinazioni</small></a>
+          <a class="ol-editorial-section-link" href="#editorial-research"><span>3</span><strong>Ricerca e piano</strong><small>Segnali, opportunità e post</small></a>
+          <a class="ol-editorial-section-link" href="#editorial-management"><span>4</span><strong>Gestione</strong><small>Profilo, persone e categorie</small></a>
+        </nav>
 
-        <details class="ol-panel ol-collapsible-panel ol-team-panel" data-admin-team hidden>
-          <summary class="ol-collapsible-summary"><span><strong>Amministrazione</strong><small>Inviti, persone abilitate e categorie</small></span><span class="ol-collapsible-action" aria-hidden="true">Apri</span></summary>
-          <div class="ol-collapsible-content ol-panel-body">
-          <div class="ol-toolbar ol-toolbar-compact">
-            <p class="ol-muted">Strumenti amministrativi. Apri questa sezione solo quando devi gestire accessi o profili.</p>
-            <button class="ol-button ol-button-secondary ol-button-small" type="button" data-admin-refresh>Aggiorna utenti</button>
-          </div>
-          <div class="ol-alert ol-alert-danger" role="alert" data-admin-error hidden></div>
-          <div class="ol-alert ol-alert-success" role="status" aria-live="polite" data-admin-success hidden></div>
-          <div class="ol-admin-grid ol-admin-grid-compact">
-            <section class="ol-card ol-admin-invite-card">
-              <h3>Invita una persona</h3>
-              <form class="ol-form ol-invite-form-compact" data-admin-invite-form>
-                <div class="ol-invite-fields">
-                  <div class="ol-field"><label for="invite-email">Email</label><input id="invite-email" name="email" type="email" maxlength="320" autocomplete="email" required></div>
-                  <div class="ol-field"><label for="invite-name">Nome pubblico autore</label><input id="invite-name" name="display_name" type="text" maxlength="120" autocomplete="name" required><input id="invite-slug" name="author_slug" type="hidden"><small data-author-slug-preview>L’identificativo autore verrà creato automaticamente dal nome.</small></div>
-                  <div class="ol-field"><label for="invite-role">Ruolo</label><select id="invite-role" name="role"><option value="contributor">Collaboratore</option><option value="editor">Editor</option></select><small>Il ruolo stabilisce il limite massimo.</small></div>
-                </div>
-                <fieldset class="ol-permission-box ol-permission-box-compact">
-                  <legend>Permessi iniziali</legend>
-                  <p class="ol-muted ol-small ol-permission-hint">Scegli cosa può fare. Potrai cambiare questi permessi anche dopo l’invito.</p>
-                  <div class="ol-permission-grid ol-permission-grid-compact" data-invite-permissions></div>
-                </fieldset>
-                <button class="ol-button ol-button-primary ol-invite-submit" type="submit">Crea invito</button>
-              </form>
-              <div class="ol-invite-result" data-admin-invite-result hidden>
-                <strong>Invito pronto</strong>
-                <p class="ol-muted">Il link è monouso e scade dopo 7 giorni. Invia questa email al destinatario.</p>
-                <div class="ol-field"><label for="invite-link">Link personale</label><input id="invite-link" data-admin-invite-link type="text" readonly></div>
-                <div class="ol-toolbar-group"><button class="ol-button ol-button-secondary ol-button-small" type="button" data-admin-copy-invite>Copia link</button><a class="ol-button ol-button-primary ol-button-small" data-admin-email-invite href="#">Apri email</a></div>
-              </div>
-            </section>
-            <section class="ol-card ol-admin-list-card">
-              <h3>Persone abilitate</h3>
-              <div class="ol-team-list" data-admin-people aria-live="polite"><p class="ol-muted">Caricamento…</p></div>
-            </section>
-            <section class="ol-card ol-admin-list-card ol-admin-author-card">
-              <div class="ol-category-heading"><div><h3>Profili autori</h3><p class="ol-muted ol-small">Supervisiona i dati pubblici. Un autore con articoli non può essere eliminato: può essere disattivato oppure gli articoli vanno prima riassegnati.</p></div></div>
-              <div class="ol-team-list ol-author-admin-list" data-admin-author-profiles aria-live="polite"><p class="ol-muted">Caricamento…</p></div>
-            </section>
-            <section class="ol-card ol-admin-list-card">
-              <h3>Inviti recenti</h3>
-              <div class="ol-team-list" data-admin-invitations aria-live="polite"><p class="ol-muted">Caricamento…</p></div>
-            </section>
-            <section class="ol-card ol-admin-category-card">
-              <div class="ol-category-heading"><div><h3>Categorie</h3><p class="ol-muted ol-small">Aggiungi un nuovo argomento quando serve: comparirà automaticamente negli articoli.</p></div></div>
-              <form class="ol-form ol-category-form ol-category-form-compact" data-admin-category-form>
-                <input type="hidden" name="id" value=""><input type="hidden" name="active" value="true">
-                <div class="ol-field"><label for="category-name">Nome categoria</label><input id="category-name" name="name" type="text" maxlength="80" placeholder="Es. Assicurazioni" required></div>
-                <div class="ol-field"><label for="category-slug">Slug categoria</label><input id="category-slug" name="slug" type="text" maxlength="80" placeholder="assicurazioni" required></div>
-                <div class="ol-toolbar-group ol-category-form-actions"><button class="ol-button ol-button-secondary ol-button-small" type="submit" data-category-save>Aggiungi categoria</button><button class="ol-button ol-button-secondary ol-button-small" type="button" data-category-cancel hidden>Annulla</button></div>
-              </form>
-              <div class="ol-category-table-head" aria-hidden="true"><span>Categoria</span><span>Azioni</span></div>
-              <div class="ol-team-list ol-category-list ol-category-list-compact" data-admin-categories aria-live="polite"><p class="ol-muted">Caricamento…</p></div>
-            </section>
-          </div>
-          </div>
-        </details>
-        </div>
-
+        <section class="ol-editorial-block ol-editorial-block-main" id="editorial-articles">
+          <header class="ol-editorial-block-head">
+            <span class="ol-editorial-block-number">1</span>
+            <div><p class="ol-editorial-block-kicker">Area operativa</p><h2>Articoli</h2><p>Qui lavori sui contenuti: selezione, scrittura, revisione e pubblicazione.</p></div>
+          </header>
+          <div class="ol-editorial-block-body">
         <div class="ol-review-layout">
           <aside class="ol-sidebar ol-review-sidebar" aria-label="Coda editoriale">
             <section class="ol-card">
@@ -232,6 +159,120 @@
             </form>
           </section>
         </div>
+          </div>
+        </section>
+
+        <details class="ol-editorial-block ol-editorial-block-collapsible" id="editorial-autopilot">
+          <summary class="ol-editorial-block-head">
+            <span class="ol-editorial-block-number">2</span>
+            <div><p class="ol-editorial-block-kicker">Automazione</p><h2>Autopilota</h2><p>Regole operative, calendario settimanale e destinazioni OffertaLogica.</p></div>
+            <span class="ol-editorial-block-action" aria-hidden="true">Apri</span>
+          </summary>
+          <div class="ol-editorial-block-body" data-editorial-autopilot-host><p class="ol-muted">Sezione disponibile agli amministratori.</p></div>
+        </details>
+
+        <details class="ol-editorial-block ol-editorial-block-collapsible" id="editorial-research">
+          <summary class="ol-editorial-block-head">
+            <span class="ol-editorial-block-number">3</span>
+            <div><p class="ol-editorial-block-kicker">Analisi e piano</p><h2>Ricerca e piano</h2><p>Idee, Search Console, opportunità, post del ciclo e storico tecnico.</p></div>
+            <span class="ol-editorial-block-action" aria-hidden="true">Apri</span>
+          </summary>
+          <div class="ol-editorial-block-body" data-editorial-research-host><p class="ol-muted">Sezione disponibile agli amministratori.</p></div>
+        </details>
+
+        <section class="ol-editorial-block" id="editorial-management">
+          <header class="ol-editorial-block-head">
+            <span class="ol-editorial-block-number">4</span>
+            <div><p class="ol-editorial-block-kicker">Amministrazione</p><h2>Gestione</h2><p>Profilo autore, persone abilitate, inviti e categorie. Non interferisce con il lavoro sugli articoli.</p></div>
+          </header>
+          <div class="ol-editorial-block-body">
+            <div class="ol-management-shortcuts ol-management-shortcuts-ordered">
+        <details class="ol-panel ol-collapsible-panel ol-author-profile-panel" data-own-author-profile hidden>
+          <summary class="ol-collapsible-summary"><span><strong>Profilo autore</strong><small>Foto, biografia e link pubblici</small></span><span class="ol-collapsible-action" aria-hidden="true">Apri</span></summary>
+          <div class="ol-collapsible-content ol-panel-body">
+          <div class="ol-toolbar ol-toolbar-compact">
+            <p class="ol-muted">Usato automaticamente negli articoli che pubblichi a tuo nome.</p>
+            <a class="ol-button ol-button-secondary ol-button-small" data-author-public-link href="#" target="_blank" rel="author noopener" hidden>Apri destinazione pubblica<span class="ol-visually-hidden"> (si apre in una nuova scheda)</span></a>
+          </div>
+          <form class="ol-form ol-author-profile-form" data-author-profile-form novalidate>
+            <div class="ol-alert ol-alert-success" role="status" aria-live="polite" data-author-profile-success hidden></div>
+            <div class="ol-alert ol-alert-danger" role="alert" aria-live="assertive" data-author-profile-error hidden></div>
+            <div class="ol-author-profile-grid">
+              <div class="ol-author-profile-photo" data-author-avatar-uploader><input name="avatar_url" type="hidden"><div class="ol-avatar-preview" data-author-avatar-preview-box hidden><img data-author-avatar-preview alt=""><button class="ol-button ol-button-secondary ol-button-small" type="button" data-author-avatar-remove>Rimuovi foto</button></div><div class="ol-field"><label for="review-author-avatar-upload">Foto autore</label><input id="review-author-avatar-upload" data-author-avatar-upload type="file" accept="image/jpeg,image/png,image/webp,image/avif" aria-describedby="review-author-avatar-help"><small id="review-author-avatar-help">JPG, PNG, WebP o AVIF fino a 5 MB.</small><p class="ol-small ol-muted" data-author-avatar-status aria-live="polite"></p></div></div>
+              <div class="ol-author-profile-fields">
+                <div class="ol-field"><label for="review-author-display-name">Nome pubblico</label><input id="review-author-display-name" name="display_name" type="text" maxlength="120" autocomplete="name" required></div>
+                <div class="ol-field"><label for="review-author-profile-slug">Destinazione pubblica</label><input id="review-author-profile-slug" name="slug" type="text" readonly></div>
+                <div class="ol-field"><label for="review-author-bio">Biografia breve</label><textarea id="review-author-bio" name="bio" maxlength="700"></textarea><div class="ol-counter" data-count-for="review-author-bio"></div></div>
+                <div class="ol-field"><label for="review-author-linkedin">Profilo LinkedIn</label><input id="review-author-linkedin" name="linkedin_url" type="url" maxlength="500" inputmode="url" autocomplete="url" placeholder="https://www.linkedin.com/in/..."></div>
+                <div class="ol-field"><label for="review-author-website">Sito personale <span class="ol-muted">(facoltativo)</span></label><input id="review-author-website" name="website_url" type="url" maxlength="500" inputmode="url" autocomplete="url" placeholder="https://..."></div>
+              </div>
+            </div>
+            <div class="ol-toolbar"><button class="ol-button ol-button-primary" type="submit" data-author-profile-save>Salva profilo autore</button></div>
+          </form>
+          </div>
+        </details>
+
+        <details class="ol-panel ol-collapsible-panel ol-team-panel" data-admin-team hidden>
+          <summary class="ol-collapsible-summary"><span><strong>Amministrazione</strong><small>Inviti, persone abilitate e categorie</small></span><span class="ol-collapsible-action" aria-hidden="true">Apri</span></summary>
+          <div class="ol-collapsible-content ol-panel-body">
+          <div class="ol-toolbar ol-toolbar-compact">
+            <p class="ol-muted">Strumenti amministrativi. Apri questa sezione solo quando devi gestire accessi o profili.</p>
+            <button class="ol-button ol-button-secondary ol-button-small" type="button" data-admin-refresh>Aggiorna utenti</button>
+          </div>
+          <div class="ol-alert ol-alert-danger" role="alert" data-admin-error hidden></div>
+          <div class="ol-alert ol-alert-success" role="status" aria-live="polite" data-admin-success hidden></div>
+          <div class="ol-admin-grid ol-admin-grid-compact">
+            <section class="ol-card ol-admin-invite-card">
+              <h3>Invita una persona</h3>
+              <form class="ol-form ol-invite-form-compact" data-admin-invite-form>
+                <div class="ol-invite-fields">
+                  <div class="ol-field"><label for="invite-email">Email</label><input id="invite-email" name="email" type="email" maxlength="320" autocomplete="email" required></div>
+                  <div class="ol-field"><label for="invite-name">Nome pubblico autore</label><input id="invite-name" name="display_name" type="text" maxlength="120" autocomplete="name" required><input id="invite-slug" name="author_slug" type="hidden"><small data-author-slug-preview>L’identificativo autore verrà creato automaticamente dal nome.</small></div>
+                  <div class="ol-field"><label for="invite-role">Ruolo</label><select id="invite-role" name="role"><option value="contributor">Collaboratore</option><option value="editor">Editor</option></select><small>Il ruolo stabilisce il limite massimo.</small></div>
+                </div>
+                <fieldset class="ol-permission-box ol-permission-box-compact">
+                  <legend>Permessi iniziali</legend>
+                  <p class="ol-muted ol-small ol-permission-hint">Scegli cosa può fare. Potrai cambiare questi permessi anche dopo l’invito.</p>
+                  <div class="ol-permission-grid ol-permission-grid-compact" data-invite-permissions></div>
+                </fieldset>
+                <button class="ol-button ol-button-primary ol-invite-submit" type="submit">Crea invito</button>
+              </form>
+              <div class="ol-invite-result" data-admin-invite-result hidden>
+                <strong>Invito pronto</strong>
+                <p class="ol-muted">Il link è monouso e scade dopo 7 giorni. Invia questa email al destinatario.</p>
+                <div class="ol-field"><label for="invite-link">Link personale</label><input id="invite-link" data-admin-invite-link type="text" readonly></div>
+                <div class="ol-toolbar-group"><button class="ol-button ol-button-secondary ol-button-small" type="button" data-admin-copy-invite>Copia link</button><a class="ol-button ol-button-primary ol-button-small" data-admin-email-invite href="#">Apri email</a></div>
+              </div>
+            </section>
+            <section class="ol-card ol-admin-list-card">
+              <h3>Persone abilitate</h3>
+              <div class="ol-team-list" data-admin-people aria-live="polite"><p class="ol-muted">Caricamento…</p></div>
+            </section>
+            <section class="ol-card ol-admin-list-card ol-admin-author-card">
+              <div class="ol-category-heading"><div><h3>Profili autori</h3><p class="ol-muted ol-small">Supervisiona i dati pubblici. Un autore con articoli non può essere eliminato: può essere disattivato oppure gli articoli vanno prima riassegnati.</p></div></div>
+              <div class="ol-team-list ol-author-admin-list" data-admin-author-profiles aria-live="polite"><p class="ol-muted">Caricamento…</p></div>
+            </section>
+            <section class="ol-card ol-admin-list-card">
+              <h3>Inviti recenti</h3>
+              <div class="ol-team-list" data-admin-invitations aria-live="polite"><p class="ol-muted">Caricamento…</p></div>
+            </section>
+            <section class="ol-card ol-admin-category-card">
+              <div class="ol-category-heading"><div><h3>Categorie</h3><p class="ol-muted ol-small">Aggiungi un nuovo argomento quando serve: comparirà automaticamente negli articoli.</p></div></div>
+              <form class="ol-form ol-category-form ol-category-form-compact" data-admin-category-form>
+                <input type="hidden" name="id" value=""><input type="hidden" name="active" value="true">
+                <div class="ol-field"><label for="category-name">Nome categoria</label><input id="category-name" name="name" type="text" maxlength="80" placeholder="Es. Assicurazioni" required></div>
+                <div class="ol-field"><label for="category-slug">Slug categoria</label><input id="category-slug" name="slug" type="text" maxlength="80" placeholder="assicurazioni" required></div>
+                <div class="ol-toolbar-group ol-category-form-actions"><button class="ol-button ol-button-secondary ol-button-small" type="submit" data-category-save>Aggiungi categoria</button><button class="ol-button ol-button-secondary ol-button-small" type="button" data-category-cancel hidden>Annulla</button></div>
+              </form>
+              <div class="ol-category-table-head" aria-hidden="true"><span>Categoria</span><span>Azioni</span></div>
+              <div class="ol-team-list ol-category-list ol-category-list-compact" data-admin-categories aria-live="polite"><p class="ol-muted">Caricamento…</p></div>
+            </section>
+          </div>
+          </div>
+        </details>
+            </div>
+          </div>
+        </section>
       </div>
     </div>
   </section>
@@ -240,7 +281,7 @@
 <footer class="ol-footer"><div class="ol-shell">Pannello redazione OffertaLogica · accesso riservato</div></footer>
 <script src="/assets/editorial-config.js?v=0.12.15"></script>
 <script src="/assets/editorial.js?v=0.12.40" defer></script>
-<script src="/assets/editorial-autopilot.js?v=0.12.41" defer></script>
-<script src="/assets/editorial-autopilot-research.js?v=0.12.39" defer></script>
+<script src="/assets/editorial-autopilot.js?v=0.12.43" defer></script>
+<script src="/assets/editorial-autopilot-research.js?v=0.12.43" defer></script>
 </body>
 </html>
