@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { json } from "../lib/http.js";
 
-const VERSION = "0.12.33";
+const VERSION = "0.12.34";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -26,6 +26,10 @@ const EDITORIAL_AI_TIMEOUT_MS = 45000;
 const EDITORIAL_PLAN_POST_TYPES = new Set(["article_followup", "related", "evergreen", "service", "data"]);
 const EDITORIAL_PLAN_EDITABLE_STATUSES = new Set(["draft", "approved", "cancelled"]);
 const EDITORIAL_SOCIAL_PLATFORMS = new Set(["facebook", "instagram"]);
+const EDITORIAL_IMAGE_DEFAULT_MODEL = "gpt-image-2";
+const EDITORIAL_IMAGE_BUCKET = "editorial-images";
+const EDITORIAL_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+const EDITORIAL_IMAGE_ARTICLE_STATUSES = new Set(["draft", "in_review", "changes_requested", "approved", "published"]);
 
 function env(name) {
   return String(process.env[name] || "").trim();
@@ -1054,6 +1058,323 @@ function cleanEditorialText(value, maxLength) {
   return String(value || "").replace(/\r\n?/g, "\n").trim().slice(0, maxLength);
 }
 
+
+function editorialImageModel() {
+  return env("EDITORIAL_IMAGE_MODEL") || EDITORIAL_IMAGE_DEFAULT_MODEL;
+}
+
+function encodedStoragePath(value) {
+  return String(value || "").split("/").filter(Boolean).map(encodeURIComponent).join("/");
+}
+
+function editorialImagePublicUrl(objectPath) {
+  const { url } = supabaseConfig();
+  return `${url}/storage/v1/object/public/${EDITORIAL_IMAGE_BUCKET}/${encodedStoragePath(objectPath)}`;
+}
+
+function editorialImageObjectPathFromUrl(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+  const { url } = supabaseConfig();
+  try {
+    const imageUrl = new URL(raw);
+    const supabaseUrl = new URL(url);
+    const prefix = `/storage/v1/object/public/${EDITORIAL_IMAGE_BUCKET}/`;
+    if (imageUrl.protocol !== "https:" || imageUrl.origin !== supabaseUrl.origin || !imageUrl.pathname.startsWith(prefix)) return null;
+    const encoded = imageUrl.pathname.slice(prefix.length);
+    if (!encoded) return null;
+    return encoded.split("/").map((part) => decodeURIComponent(part)).join("/");
+  } catch {
+    return null;
+  }
+}
+
+async function uploadEditorialImageBuffer(objectPath, buffer, mimeType = "image/jpeg") {
+  const { url, serviceKey } = supabaseConfig();
+  if (!url || !serviceKey) throw new Error("Supabase server non configurato");
+  if (!Buffer.isBuffer(buffer) || !buffer.length) throw new Error("Immagine generata vuota");
+  if (buffer.length > EDITORIAL_IMAGE_MAX_BYTES) throw new Error("L’immagine generata supera il limite di 5 MB dello storage editoriale");
+  const response = await fetch(`${url}/storage/v1/object/${EDITORIAL_IMAGE_BUCKET}/${encodedStoragePath(objectPath)}`, {
+    method: "POST",
+    headers: {
+      apikey: serviceKey,
+      Authorization: `Bearer ${serviceKey}`,
+      "Content-Type": mimeType,
+      "x-upsert": "false",
+    },
+    body: buffer,
+    cache: "no-store",
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) throw new Error(payload?.message || payload?.error || `Storage ${response.status}`);
+  return editorialImagePublicUrl(objectPath);
+}
+
+function articleImageState(opportunity) {
+  const raw = opportunity?.evidence?.article_image;
+  const state = raw && typeof raw === "object" ? raw : {};
+  return {
+    schema_version: 1,
+    current: state.current && typeof state.current === "object" ? state.current : null,
+    candidate: state.candidate && typeof state.candidate === "object" ? state.candidate : null,
+    history: Array.isArray(state.history) ? state.history.slice(-8) : [],
+  };
+}
+
+function imageHistoryAppend(history, asset, outcome) {
+  if (!asset || typeof asset !== "object") return Array.isArray(history) ? history.slice(-8) : [];
+  return [...(Array.isArray(history) ? history : []), {
+    ...asset,
+    outcome,
+    archived_at: new Date().toISOString(),
+  }].slice(-8);
+}
+
+function defaultArticleImageAlt(article) {
+  const title = cleanEditorialText(article?.title, 140) || "approfondimento OffertaLogica";
+  return cleanEditorialText(`Immagine editoriale fotografica dedicata all’articolo “${title}”.`, 180);
+}
+
+async function articleImageContext(idValue) {
+  const id = String(idValue || "").trim();
+  if (!validUuid(id)) throw new Error("Identificativo opportunità non valido");
+  const rows = await serviceFetch(
+    `editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(id)}&limit=1`,
+  );
+  const opportunity = rows?.[0];
+  if (!opportunity) throw new Error("Opportunità non trovata");
+  if (opportunity.opportunity_type !== "new_article") throw new Error("L’immagine dedicata è disponibile solo per un nuovo articolo");
+  if (!validUuid(opportunity.target_article_id)) throw new Error("Genera prima la bozza completa dell’articolo");
+  const articleRows = await serviceFetch(`editorial_articles?select=*&id=eq.${encodeURIComponent(opportunity.target_article_id)}&limit=1`);
+  const article = articleRows?.[0];
+  if (!article) throw new Error("Articolo collegato non trovato");
+  if (!EDITORIAL_IMAGE_ARTICLE_STATUSES.has(String(article.status || ""))) throw new Error("Lo stato dell’articolo non consente di cambiare l’immagine da questo pannello");
+  return { id, opportunity, article, state: articleImageState(opportunity) };
+}
+
+function articleImagePrompt(article, opportunity, guidance = "") {
+  const content = cleanEditorialText(article?.content, 2800).replace(/[#*_`>-]+/g, " ").replace(/\s+/g, " ");
+  const notes = cleanEditorialText(manualIdeaMeta(opportunity)?.notes, 800);
+  const extra = cleanEditorialText(guidance, 600);
+  return [
+    "Create one high-resolution landscape editorial photograph for an Italian consumer-information article published by OffertaLogica.",
+    `Article title: ${cleanEditorialText(article?.title, 140)}.`,
+    `Article summary: ${cleanEditorialText(article?.excerpt, 320)}.`,
+    article?.category ? `Editorial category: ${cleanEditorialText(article.category, 80)}.` : "",
+    content ? `Article context: ${content}.` : "",
+    notes ? `Editorial notes: ${notes}.` : "",
+    extra ? `Requested revision or visual direction from the editor: ${extra}.` : "",
+    "Visual direction: photorealistic, premium editorial-journalism photography, natural believable lighting, contemporary Italian/European context when relevant, visually clear but not advertising-like.",
+    "Composition: horizontal 3:2 hero image, strong central subject with generous safe margins so the same master can later be cropped for a static social post.",
+    "Do not add text, captions, letters, numbers, logos, brand marks, watermarks, fake interfaces, readable documents, price tags, charts or infographic elements.",
+    "Do not invent a specific real person, company, event or document that the article does not establish. Prefer a truthful visual metaphor when the topic is abstract.",
+    "The image must look like a real professional photograph, not an illustration, 3D render, collage or stock-ad composition.",
+  ].filter(Boolean).join(" ");
+}
+
+async function generateOpenAiArticleImage(article, opportunity, guidance = "") {
+  const apiKey = env("OPENAI_API_KEY");
+  if (!apiKey) throw new Error("OPENAI_API_KEY non configurata lato server");
+  const model = editorialImageModel();
+  const prompt = articleImagePrompt(article, opportunity, guidance);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 26000);
+  let response;
+  try {
+    response = await fetch("https://api.openai.com/v1/images/generations", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        prompt,
+        size: "1536x1024",
+        quality: "high",
+        output_format: "jpeg",
+        n: 1,
+      }),
+      cache: "no-store",
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (error?.name === "AbortError") throw new Error("Timeout durante la generazione dell’immagine HD: riprova");
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) throw new Error(payload?.error?.message || `OpenAI Images ${response.status}`);
+  const item = Array.isArray(payload?.data) ? payload.data[0] : null;
+  let buffer = null;
+  if (item?.b64_json) {
+    buffer = Buffer.from(item.b64_json, "base64");
+  } else if (item?.url) {
+    const remote = await fetch(item.url, { cache: "no-store" });
+    if (!remote.ok) throw new Error("Immagine generata non scaricabile");
+    buffer = Buffer.from(await remote.arrayBuffer());
+  }
+  if (!buffer?.length) throw new Error("OpenAI non ha restituito un’immagine utilizzabile");
+  if (buffer.length > EDITORIAL_IMAGE_MAX_BYTES) throw new Error("L’immagine HD generata supera 5 MB: rigenera l’immagine");
+  return { model, prompt, buffer };
+}
+
+async function saveArticleImageState(user, opportunity, state) {
+  const evidence = {
+    ...(opportunity.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {}),
+    article_image: state,
+  };
+  const rows = await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(opportunity.id)}`, {
+    method: "PATCH",
+    prefer: "return=representation",
+    body: { evidence, updated_at: new Date().toISOString(), decided_by: user.id },
+  });
+  if (!rows?.[0]?.id) throw new Error("Stato immagine articolo non salvato");
+  return rows[0];
+}
+
+async function generateEditorialArticleImage(user, payload = {}) {
+  const context = await articleImageContext(payload.id);
+  if (!String(context.article.title || "").trim() || !String(context.article.content || "").trim()) {
+    throw new Error("Completa prima la bozza dell’articolo: titolo e contenuto sono necessari per generare l’immagine dedicata");
+  }
+  const generated = await generateOpenAiArticleImage(context.article, context.opportunity, payload.guidance);
+  const objectPath = `autopilot/${context.article.id}/${Date.now()}-${crypto.randomUUID()}.jpg`;
+  const imageUrl = await uploadEditorialImageBuffer(objectPath, generated.buffer, "image/jpeg");
+  const now = new Date().toISOString();
+  const candidate = {
+    source: "generated",
+    status: "pending_review",
+    url: imageUrl,
+    object_path: objectPath,
+    mime_type: "image/jpeg",
+    size: "1536x1024",
+    quality: "high",
+    model: generated.model,
+    prompt: generated.prompt,
+    guidance: cleanEditorialText(payload.guidance, 600) || null,
+    alt_text: defaultArticleImageAlt(context.article),
+    created_at: now,
+    created_by: user.id,
+  };
+  const state = {
+    ...context.state,
+    history: context.state.candidate
+      ? imageHistoryAppend(context.state.history, context.state.candidate, "superseded")
+      : context.state.history,
+    candidate,
+  };
+  const opportunity = await saveArticleImageState(user, context.opportunity, state);
+  return { candidate, current: state.current, opportunity_id: opportunity.id, article_id: context.article.id, featured_image_unchanged: true };
+}
+
+async function setEditorialArticleImageCandidate(user, payload = {}) {
+  const context = await articleImageContext(payload.id);
+  const imageUrl = String(payload.image_url || "").trim();
+  const objectPath = editorialImageObjectPathFromUrl(imageUrl);
+  if (!objectPath || !objectPath.startsWith(`${user.id}/`)) {
+    throw new Error("L’immagine manuale deve provenire dal tuo spazio immagini editoriale OffertaLogica");
+  }
+  const altText = cleanEditorialText(payload.alt_text, 180) || defaultArticleImageAlt(context.article);
+  const now = new Date().toISOString();
+  const candidate = {
+    source: "manual_upload",
+    status: "pending_review",
+    url: imageUrl,
+    object_path: objectPath,
+    mime_type: null,
+    size: null,
+    quality: "manual",
+    model: null,
+    prompt: null,
+    guidance: null,
+    alt_text: altText,
+    created_at: now,
+    created_by: user.id,
+  };
+  const state = {
+    ...context.state,
+    history: context.state.candidate
+      ? imageHistoryAppend(context.state.history, context.state.candidate, "superseded")
+      : context.state.history,
+    candidate,
+  };
+  await saveArticleImageState(user, context.opportunity, state);
+  return { candidate, current: state.current, article_id: context.article.id, featured_image_unchanged: true };
+}
+
+async function approveEditorialArticleImage(user, payload = {}) {
+  const context = await articleImageContext(payload.id);
+  const candidate = context.state.candidate;
+  if (!candidate?.url) throw new Error("Genera o carica prima una nuova immagine da approvare");
+  const altText = cleanEditorialText(payload.alt_text, 180) || cleanEditorialText(candidate.alt_text, 180) || defaultArticleImageAlt(context.article);
+  const previousUrl = String(context.article.featured_image_url || "").trim();
+  const rows = await serviceFetch(`editorial_articles?id=eq.${encodeURIComponent(context.article.id)}&select=*`, {
+    method: "PATCH",
+    prefer: "return=representation",
+    body: {
+      featured_image_url: candidate.url,
+      featured_image_alt: altText,
+      updated_by: user.id,
+    },
+  });
+  const article = rows?.[0];
+  if (!article?.id) throw new Error("Immagine approvata ma collegamento all’articolo non confermato");
+  const now = new Date().toISOString();
+  let history = context.state.history;
+  if (context.state.current?.url) {
+    history = imageHistoryAppend(history, context.state.current, "replaced");
+  } else if (previousUrl && previousUrl !== candidate.url) {
+    history = imageHistoryAppend(history, {
+      source: "preexisting",
+      status: "previous_featured_image",
+      url: previousUrl,
+      alt_text: context.article.featured_image_alt || null,
+    }, "replaced");
+  }
+  const current = {
+    ...candidate,
+    alt_text: altText,
+    status: "approved",
+    approved_at: now,
+    approved_by: user.id,
+  };
+  const state = { ...context.state, current, candidate: null, history };
+  try {
+    await saveArticleImageState(user, context.opportunity, state);
+  } catch (error) {
+    await serviceFetch(`editorial_articles?id=eq.${encodeURIComponent(context.article.id)}`, {
+      method: "PATCH",
+      prefer: "return=minimal",
+      body: {
+        featured_image_url: context.article.featured_image_url || null,
+        featured_image_alt: context.article.featured_image_alt || null,
+        updated_by: user.id,
+      },
+    }).catch(() => {});
+    throw error;
+  }
+  return {
+    article: { id: article.id, featured_image_url: article.featured_image_url, featured_image_alt: article.featured_image_alt },
+    current,
+    candidate: null,
+    replaced_previous_image: Boolean(previousUrl && previousUrl !== candidate.url),
+  };
+}
+
+async function discardEditorialArticleImageCandidate(user, payload = {}) {
+  const context = await articleImageContext(payload.id);
+  if (!context.state.candidate) return { discarded: false, current: context.state.current, candidate: null };
+  const state = {
+    ...context.state,
+    history: imageHistoryAppend(context.state.history, context.state.candidate, "discarded"),
+    candidate: null,
+  };
+  await saveArticleImageState(user, context.opportunity, state);
+  return { discarded: true, current: state.current, candidate: null };
+}
+
 function editorialAiModel() {
   return env("EDITORIAL_AI_MODEL") || EDITORIAL_AI_DEFAULT_MODEL;
 }
@@ -1579,16 +1900,26 @@ async function editorialSocialPlanPayload() {
     editorialSocialChannels(),
   ]);
   const targetIds = [...new Set((items || []).map((row) => row.destination_target_id).filter(Boolean))];
+  const articleIds = [...new Set((items || []).map((row) => row.source_article_id).filter(Boolean))];
   let targets = [];
+  let articles = [];
   if (targetIds.length) {
     targets = await serviceFetch(`editorial_promotion_targets?select=id,label,url_path,category&id=in.(${targetIds.map((id) => encodeURIComponent(id)).join(",")})`);
   }
+  if (articleIds.length) {
+    articles = await serviceFetch(`editorial_articles?select=id,featured_image_url,featured_image_alt&id=in.(${articleIds.map((id) => encodeURIComponent(id)).join(",")})`);
+  }
   const targetMap = new Map((targets || []).map((row) => [row.id, row]));
+  const articleMap = new Map((articles || []).map((row) => [row.id, row]));
   return {
     ok: true,
     version: VERSION,
     channels,
-    items: (items || []).map((row) => ({ ...row, destination_target: targetMap.get(row.destination_target_id) || null })),
+    items: (items || []).map((row) => ({
+      ...row,
+      destination_target: targetMap.get(row.destination_target_id) || null,
+      source_article_image: articleMap.get(row.source_article_id) || null,
+    })),
   };
 }
 
@@ -2671,6 +3002,26 @@ export default async function handler(req, res) {
 
     if (req.method === "POST" && action === "generate-editorial-article-package") {
       const result = await generateEditorialArticlePackage(user, req.body || {});
+      return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "POST" && action === "generate-editorial-article-image") {
+      const result = await generateEditorialArticleImage(user, req.body || {});
+      return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "POST" && action === "set-editorial-article-image-candidate") {
+      const result = await setEditorialArticleImageCandidate(user, req.body || {});
+      return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "POST" && action === "approve-editorial-article-image") {
+      const result = await approveEditorialArticleImage(user, req.body || {});
+      return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "POST" && action === "discard-editorial-article-image-candidate") {
+      const result = await discardEditorialArticleImageCandidate(user, req.body || {});
       return json(res, 200, { ok: true, version: VERSION, result });
     }
 

@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.33";
+  const VERSION = "0.12.34";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
   let statusLoaded = false;
@@ -652,6 +652,71 @@
     }).join("");
   }
 
+  function articleImageWorkflowMarkup(row) {
+    const id = String(row?.id || "");
+    const articleId = String(row?.target_article_id || "");
+    const generation = row?.evidence?.article_generation;
+    if (!articleId || !generation) return "";
+    const imageState = row?.evidence?.article_image && typeof row.evidence.article_image === "object"
+      ? row.evidence.article_image
+      : {};
+    const candidate = imageState?.candidate && typeof imageState.candidate === "object" ? imageState.candidate : null;
+    const current = imageState?.current && typeof imageState.current === "object" ? imageState.current : null;
+    const candidateAlt = String(candidate?.alt_text || current?.alt_text || `Immagine editoriale dedicata a ${row.topic || "articolo OffertaLogica"}`).slice(0, 180);
+    const currentMarkup = current?.url
+      ? `<div style="margin-top:8px"><small>Immagine approvata e collegata all’articolo.</small><div style="margin-top:6px"><img src="${esc(current.url)}" alt="${esc(current.alt_text || "Immagine articolo approvata")}" loading="lazy" style="display:block;max-width:520px;width:100%;height:auto;border-radius:10px"></div></div>`
+      : '<small>Nessuna immagine approvata ancora.</small>';
+    const candidateMarkup = candidate?.url
+      ? `<div style="margin-top:10px"><strong>Anteprima da approvare</strong><div style="margin-top:6px"><img src="${esc(candidate.url)}" alt="${esc(candidate.alt_text || "Anteprima immagine articolo")}" loading="lazy" style="display:block;max-width:620px;width:100%;height:auto;border-radius:10px"></div><small>${candidate.source === "manual_upload" ? "Immagine caricata manualmente" : `Generata in HD · ${esc(candidate.model || "modello immagini")}`} · non ancora collegata all’articolo.</small></div>`
+      : "";
+    return `<div class="ol-field" style="margin-top:12px" data-article-image-workflow="${esc(id)}">
+      <label>Immagine dedicata articolo · HD fotografica</label>
+      <small>La master è orizzontale e senza testo sovrapposto, pensata anche per futuri crop del post statico. L’immagine attuale non cambia finché non approvi la nuova anteprima.</small>
+      ${currentMarkup}
+      ${candidateMarkup}
+      <div class="ol-field" style="margin-top:8px"><label>Indicazioni per generare o rigenerare <span class="ol-muted">(facoltative)</span></label><textarea data-article-image-guidance="${esc(id)}" maxlength="600" rows="2" placeholder="Es. più realistica, niente persone, inquadratura più pulita, focus su contatore e abitazione…"></textarea></div>
+      <div class="ol-field" style="margin-top:8px"><label>Testo alternativo</label><input data-article-image-alt="${esc(id)}" type="text" maxlength="180" value="${esc(candidateAlt)}"></div>
+      <div class="ol-field" style="margin-top:8px"><label>Sostituzione manuale</label><input data-article-image-file="${esc(id)}" type="file" accept="image/jpeg,image/png,image/webp,image/avif"><small>JPG, PNG, WebP o AVIF, massimo 5 MB. Il file diventa prima una nuova anteprima e richiede comunque approvazione.</small></div>
+      <div class="ol-toolbar-group" style="margin-top:8px">
+        <button class="ol-button ol-button-primary ol-button-small" type="button" data-article-image-generate="${esc(id)}">${candidate || current ? "Rigenera immagine fotografica HD" : "Genera immagine fotografica HD"}</button>
+        <button class="ol-button ol-button-secondary ol-button-small" type="button" data-article-image-upload="${esc(id)}">Carica / sostituisci manualmente</button>
+        ${candidate ? `<button class="ol-button ol-button-primary ol-button-small" type="button" data-article-image-approve="${esc(id)}">Approva e usa nell’articolo</button><button class="ol-button ol-button-secondary ol-button-small" type="button" data-article-image-discard="${esc(id)}">Scarta anteprima</button>` : ""}
+      </div>
+      <small data-article-image-message="${esc(id)}">${candidate ? "Puoi approvare questa anteprima, rigenerarla oppure sostituirla con un tuo file." : current ? "Puoi lasciare l’immagine approvata oppure preparare un’alternativa senza sostituirla subito." : "Genera la prima immagine dedicata oppure caricane una tua."}</small>
+    </div>`;
+  }
+
+  async function uploadArticleImageFile(file, id) {
+    if (!file) throw new Error("Seleziona un’immagine da caricare.");
+    const allowed = new Map([["image/jpeg", "jpg"], ["image/png", "png"], ["image/webp", "webp"], ["image/avif", "avif"]]);
+    if (!allowed.has(file.type)) throw new Error("Formato non supportato. Usa JPG, PNG, WebP o AVIF.");
+    if (file.size <= 0 || file.size > 5 * 1024 * 1024) throw new Error("L’immagine deve pesare al massimo 5 MB.");
+    const session = sessionRead();
+    if (!session?.access_token || !session?.user?.id) throw new Error("Sessione Redazione non disponibile.");
+    const config = window.OFFERTALOGICA_EDITORIAL_CONFIG || {};
+    const baseUrl = String(config.supabaseUrl || "").replace(/\/+$/, "");
+    const anonKey = String(config.supabaseAnonKey || "").trim();
+    if (!/^https:\/\//i.test(baseUrl) || anonKey.length < 20) throw new Error("Storage editoriale non configurato.");
+    const ext = allowed.get(file.type);
+    const safeId = String(id || "immagine").replace(/[^a-z0-9-]/gi, "").slice(0, 60) || "immagine";
+    const objectPath = `${session.user.id}/${Date.now()}-autopilota-${safeId}.${ext}`;
+    const encodedPath = objectPath.split("/").map(encodeURIComponent).join("/");
+    const response = await fetch(`${baseUrl}/storage/v1/object/editorial-images/${encodedPath}`, {
+      method: "POST",
+      headers: {
+        apikey: anonKey,
+        Authorization: `Bearer ${session.access_token}`,
+        "Content-Type": file.type,
+        "x-upsert": "false",
+      },
+      body: file,
+      cache: "no-store",
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) throw new Error(payload?.message || payload?.error || `Upload ${response.status}`);
+    return `${baseUrl}/storage/v1/object/public/editorial-images/${encodedPath}`;
+  }
+
   function articleGenerationMarkup(row) {
     const id = String(row?.id || "");
     const generation = row?.evidence?.article_generation;
@@ -670,6 +735,7 @@
         <button class="ol-button ol-button-primary ol-button-small" type="button" data-article-generate="${esc(id)}">${buttonLabel}</button>
       </div>
       ${summary}
+      ${articleImageWorkflowMarkup(row)}
     </div>`;
   }
 
@@ -698,6 +764,7 @@
       return `<div class="ol-autopilot-archive-item" data-social-plan-item="${esc(id)}">
         <strong>${esc(row.theme || row.post_type || "Post statico")} · ${esc(socialPlanStatusLabel(row.status))}</strong>
         <small>${esc(row.post_type || "")} · destinazione: ${esc(destination)}</small>
+        ${row?.source_article_image?.featured_image_url ? `<small>Immagine articolo approvata disponibile per il futuro riuso nel post statico.</small>` : `<small>Immagine articolo non ancora approvata.</small>`}
         <div class="ol-field" style="margin-top:8px"><label>Testo canonico</label><textarea data-social-plan-text="${esc(id)}" rows="4" maxlength="4000" ${editable ? "" : "disabled"}>${esc(row.canonical_text || "")}</textarea></div>
         <div class="ol-field" style="margin-top:8px"><label>Canali espliciti</label><div class="ol-autopilot-sources">${platformChoicesMarkup(id, row.platforms || [], "data-social-plan-platform")}</div></div>
         ${editable ? `<div class="ol-autopilot-fields" style="margin-top:8px"><div class="ol-field"><label>Stato editoriale</label><select data-social-plan-status="${esc(id)}">${statusOptions}</select></div></div><div class="ol-toolbar-group" style="margin-top:8px"><button class="ol-button ol-button-secondary ol-button-small" type="button" data-social-plan-save="${esc(id)}">Salva post</button></div>` : ""}
@@ -846,6 +913,10 @@
     const manualEditButton = event.target.closest("[data-manual-idea-edit]");
     const plannerButton = event.target.closest("[data-planner-preview]");
     const generateArticleButton = event.target.closest("[data-article-generate]");
+    const generateImageButton = event.target.closest("[data-article-image-generate]");
+    const uploadImageButton = event.target.closest("[data-article-image-upload]");
+    const approveImageButton = event.target.closest("[data-article-image-approve]");
+    const discardImageButton = event.target.closest("[data-article-image-discard]");
     const socialPlanSaveButton = event.target.closest("[data-social-plan-save]");
     const saveButton = event.target.closest("[data-save-opportunity]");
     const statusButton = event.target.closest("[data-opportunity-id][data-opportunity-status]");
@@ -917,6 +988,93 @@
       return;
     }
 
+
+    if (generateImageButton) {
+      const id = generateImageButton.dataset.articleImageGenerate || "";
+      const imageMessage = section.querySelector(`[data-article-image-message="${id}"]`);
+      const guidance = section.querySelector(`[data-article-image-guidance="${id}"]`)?.value || "";
+      const row = opportunityRows.find((item) => String(item.id || "") === id);
+      const candidate = row?.evidence?.article_image?.candidate;
+      if (!id || generateImageButton.disabled) return;
+      if (candidate && !window.confirm("Sostituire questa anteprima con una nuova immagine generata? L’immagine già approvata, se presente, resterà invariata finché non approvi la nuova.")) return;
+      generateImageButton.disabled = true;
+      if (imageMessage) imageMessage.textContent = "Generazione immagine fotografica HD in corso…";
+      try {
+        await endpoint("generate-editorial-article-image", { method: "POST", body: { id, guidance } });
+        if (imageMessage) imageMessage.textContent = "Nuova anteprima pronta. Verificala, modifica se serve il testo alternativo e approvala solo se ti convince.";
+        await Promise.all([loadOpportunities(section, true), loadSocialPlan(section)]);
+      } catch (error) {
+        generateImageButton.disabled = false;
+        if (imageMessage) imageMessage.textContent = `Immagine non generata: ${error.message}`;
+      }
+      return;
+    }
+
+    if (uploadImageButton) {
+      const id = uploadImageButton.dataset.articleImageUpload || "";
+      const imageMessage = section.querySelector(`[data-article-image-message="${id}"]`);
+      const fileInput = section.querySelector(`[data-article-image-file="${id}"]`);
+      const altInput = section.querySelector(`[data-article-image-alt="${id}"]`);
+      if (!id || !fileInput?.files?.[0] || uploadImageButton.disabled) {
+        if (imageMessage && !fileInput?.files?.[0]) imageMessage.textContent = "Seleziona prima un file immagine.";
+        return;
+      }
+      uploadImageButton.disabled = true;
+      if (imageMessage) imageMessage.textContent = "Caricamento nuova immagine…";
+      try {
+        const imageUrl = await uploadArticleImageFile(fileInput.files[0], id);
+        await endpoint("set-editorial-article-image-candidate", {
+          method: "POST",
+          body: { id, image_url: imageUrl, alt_text: altInput?.value || "" },
+        });
+        if (imageMessage) imageMessage.textContent = "Immagine caricata come nuova anteprima. Non sostituisce quella approvata finché non premi Approva.";
+        await Promise.all([loadOpportunities(section, true), loadSocialPlan(section)]);
+      } catch (error) {
+        uploadImageButton.disabled = false;
+        if (imageMessage) imageMessage.textContent = `Immagine non caricata: ${error.message}`;
+      }
+      return;
+    }
+
+    if (approveImageButton) {
+      const id = approveImageButton.dataset.articleImageApprove || "";
+      const imageMessage = section.querySelector(`[data-article-image-message="${id}"]`);
+      const altText = section.querySelector(`[data-article-image-alt="${id}"]`)?.value || "";
+      const row = opportunityRows.find((item) => String(item.id || "") === id);
+      const hasCurrent = Boolean(row?.evidence?.article_image?.current?.url);
+      if (!id || approveImageButton.disabled) return;
+      if (!window.confirm(hasCurrent
+        ? "Approvare questa nuova immagine e sostituire quella attualmente collegata all’articolo?"
+        : "Approvare questa immagine e collegarla all’articolo?")) return;
+      approveImageButton.disabled = true;
+      if (imageMessage) imageMessage.textContent = "Approvazione e collegamento all’articolo…";
+      try {
+        await endpoint("approve-editorial-article-image", { method: "POST", body: { id, alt_text: altText } });
+        if (imageMessage) imageMessage.textContent = "Immagine approvata e collegata all’articolo. Rimane sostituibile in qualsiasi momento preparando una nuova anteprima.";
+        await Promise.all([loadOpportunities(section, true), loadSocialPlan(section)]);
+      } catch (error) {
+        approveImageButton.disabled = false;
+        if (imageMessage) imageMessage.textContent = `Immagine non approvata: ${error.message}`;
+      }
+      return;
+    }
+
+    if (discardImageButton) {
+      const id = discardImageButton.dataset.articleImageDiscard || "";
+      const imageMessage = section.querySelector(`[data-article-image-message="${id}"]`);
+      if (!id || discardImageButton.disabled) return;
+      if (!window.confirm("Scartare questa anteprima? L’immagine già approvata, se presente, non verrà modificata.")) return;
+      discardImageButton.disabled = true;
+      try {
+        await endpoint("discard-editorial-article-image-candidate", { method: "POST", body: { id } });
+        if (imageMessage) imageMessage.textContent = "Anteprima scartata. Puoi generarne o caricarne un’altra.";
+        await loadOpportunities(section, true);
+      } catch (error) {
+        discardImageButton.disabled = false;
+        if (imageMessage) imageMessage.textContent = `Anteprima non scartata: ${error.message}`;
+      }
+      return;
+    }
 
     if (generateArticleButton) {
       const id = generateArticleButton.dataset.articleGenerate || "";
