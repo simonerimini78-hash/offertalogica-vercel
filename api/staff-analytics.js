@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { json } from "../lib/http.js";
 
-const VERSION = "0.12.38";
+const VERSION = "0.12.39";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -22,7 +22,9 @@ const MANUAL_IDEA_PRIORITIES = new Set(["normal", "high", "urgent"]);
 const MANUAL_IDEA_TYPES = new Set(["new_article", "update_article"]);
 const MANUAL_IDEA_PRIORITY_RANK = { normal: 100, high: 300, urgent: 400 };
 const EDITORIAL_AI_DEFAULT_MODEL = "gpt-5.6-terra";
-const EDITORIAL_AI_HTTP_TIMEOUT_MS = 20000;
+const EDITORIAL_AI_HTTP_TIMEOUT_MS = 45000;
+const EDITORIAL_IMAGE_GENERATION_TIMEOUT_MS = 240000;
+const EDITORIAL_PAGE_FETCH_TIMEOUT_MS = 20000;
 const EDITORIAL_PLAN_POST_TYPES = new Set(["article_followup", "related", "evergreen", "service", "data"]);
 const EDITORIAL_PLAN_EDITABLE_STATUSES = new Set(["draft", "approved", "cancelled"]);
 const EDITORIAL_SOCIAL_PLATFORMS = new Set(["facebook", "instagram"]);
@@ -1206,7 +1208,7 @@ async function generateOpenAiArticleImage(article, opportunity, guidance = "") {
   const model = editorialImageModel();
   const prompt = articleImagePrompt(article, opportunity, guidance);
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 26000);
+  const timeout = setTimeout(() => controller.abort(), EDITORIAL_IMAGE_GENERATION_TIMEOUT_MS);
   let response;
   try {
     response = await fetch("https://api.openai.com/v1/images/generations", {
@@ -2306,7 +2308,7 @@ async function opportunityContextPages(opportunity) {
 
 async function fetchEditorialPage(targetUrl) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
+  const timeout = setTimeout(() => controller.abort(), EDITORIAL_PAGE_FETCH_TIMEOUT_MS);
   try {
     const response = await fetch(targetUrl, {
       headers: { "User-Agent": "OffertaLogica-Editorial-Update-Proposal/1.0" },

@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.38";
+  const VERSION = "0.12.39";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
   let statusLoaded = false;
@@ -1002,7 +1002,7 @@
       if (!id || generateImageButton.disabled) return;
       if (candidate && !window.confirm("Sostituire questa anteprima con una nuova immagine generata? L’immagine già approvata, se presente, resterà invariata finché non approvi la nuova.")) return;
       generateImageButton.disabled = true;
-      if (imageMessage) imageMessage.textContent = "Generazione immagine fotografica HD in corso…";
+      if (imageMessage) imageMessage.textContent = "Generazione immagine fotografica HD in corso… può richiedere alcuni minuti.";
       try {
         await endpoint("generate-editorial-article-image", { method: "POST", body: { id, guidance } });
         if (imageMessage) imageMessage.textContent = "Nuova anteprima pronta. Verificala, modifica se serve il testo alternativo e approvala solo se ti convince.";
