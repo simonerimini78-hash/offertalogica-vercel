@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { json } from "../lib/http.js";
 
-const VERSION = "0.12.39";
+const VERSION = "0.12.40";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -1140,6 +1140,32 @@ async function uploadEditorialImageBuffer(objectPath, buffer, mimeType = "image/
   return editorialImagePublicUrl(objectPath);
 }
 
+async function deleteEditorialImageObjects(objectPaths) {
+  const prefixes = [...new Set((Array.isArray(objectPaths) ? objectPaths : [])
+    .map((value) => String(value || "").trim())
+    .filter(Boolean))];
+  if (!prefixes.length) return { deleted: 0, warning: null };
+  const { url, serviceKey } = supabaseConfig();
+  if (!url || !serviceKey) return { deleted: 0, warning: "Storage Supabase non configurato" };
+  try {
+    const response = await fetch(`${url}/storage/v1/object/${EDITORIAL_IMAGE_BUCKET}`, {
+      method: "DELETE",
+      headers: {
+        apikey: serviceKey,
+        Authorization: `Bearer ${serviceKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ prefixes }),
+      cache: "no-store",
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) throw new Error(payload?.message || payload?.error || `Storage ${response.status}`);
+    return { deleted: Array.isArray(payload) ? payload.length : prefixes.length, warning: null };
+  } catch (error) {
+    return { deleted: 0, warning: String(error?.message || error).slice(0, 500) };
+  }
+}
+
 function articleImageState(opportunity) {
   const raw = opportunity?.evidence?.article_image;
   const state = raw && typeof raw === "object" ? raw : {};
@@ -2122,6 +2148,104 @@ async function checkEditorialArticlePackage(user, payload = {}) {
     });
     throw error;
   }
+}
+
+async function deleteEditorialDraftArticle(user, payload = {}) {
+  const articleId = String(payload.article_id || "").trim();
+  if (!validUuid(articleId)) throw new Error("Identificativo articolo non valido");
+
+  const articleRows = await serviceFetch(
+    `editorial_articles?select=id,title,status,featured_image_url,featured_image_alt,created_by&id=eq.${encodeURIComponent(articleId)}&limit=1`,
+  );
+  const article = articleRows?.[0];
+  if (!article) throw new Error("Articolo non trovato");
+  if (String(article.status || "") !== "draft") {
+    throw new Error("Solo una bozza può essere eliminata definitivamente. Per gli altri stati usa Archivia.");
+  }
+
+  const opportunities = await serviceFetch(
+    `editorial_research_opportunities?select=${opportunitySelect()}&target_article_id=eq.${encodeURIComponent(articleId)}&limit=20`,
+  );
+  const socialItems = await serviceFetch(
+    `editorial_social_plan_items?select=*&source_article_id=eq.${encodeURIComponent(articleId)}&limit=100`,
+  );
+  const protectedSocialItems = (socialItems || []).filter((row) => !["draft", "cancelled"].includes(String(row.status || "")));
+  if (protectedSocialItems.length) {
+    throw new Error("La bozza ha post social già approvati o avviati: annullali prima di eliminare l’articolo");
+  }
+
+  const imagePaths = new Set();
+  const generatedPrefix = `autopilot/${articleId}/`;
+  const featuredPath = editorialImageObjectPathFromUrl(article.featured_image_url);
+  if (featuredPath?.startsWith(generatedPrefix)) imagePaths.add(featuredPath);
+  for (const opportunity of opportunities || []) {
+    const state = articleImageState(opportunity);
+    for (const asset of [state.current, state.candidate, ...(state.history || [])]) {
+      const objectPath = String(asset?.object_path || "").trim();
+      if (objectPath.startsWith(generatedPrefix)) imagePaths.add(objectPath);
+    }
+  }
+
+  const socialIds = (socialItems || []).map((row) => String(row.id || "")).filter(validUuid);
+  if (socialIds.length) {
+    await serviceFetch(
+      `editorial_automation_runs?social_plan_item_id=in.(${socialIds.map((id) => encodeURIComponent(id)).join(",")})`,
+      { method: "PATCH", prefer: "return=minimal", body: { social_plan_item_id: null } },
+    );
+  }
+  await serviceFetch(`editorial_automation_runs?article_id=eq.${encodeURIComponent(articleId)}`, {
+    method: "PATCH",
+    prefer: "return=minimal",
+    body: { article_id: null },
+  });
+
+  if (socialItems?.length) {
+    await serviceFetch(`editorial_social_plan_items?source_article_id=eq.${encodeURIComponent(articleId)}`, {
+      method: "DELETE",
+      prefer: "return=minimal",
+    });
+  }
+  await serviceFetch(`editorial_article_notes?article_id=eq.${encodeURIComponent(articleId)}`, {
+    method: "DELETE",
+    prefer: "return=minimal",
+  });
+
+  const now = new Date().toISOString();
+  for (const opportunity of opportunities || []) {
+    const evidence = opportunity?.evidence && typeof opportunity.evidence === "object"
+      ? { ...opportunity.evidence }
+      : {};
+    delete evidence.article_generation;
+    delete evidence.article_generation_job;
+    delete evidence.article_image;
+    await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(opportunity.id)}`, {
+      method: "PATCH",
+      prefer: "return=minimal",
+      body: {
+        target_article_id: null,
+        evidence,
+        updated_at: now,
+        decided_by: user.id,
+      },
+    });
+  }
+
+  const deletedRows = await serviceFetch(`editorial_articles?id=eq.${encodeURIComponent(articleId)}&select=id`, {
+    method: "DELETE",
+    prefer: "return=representation",
+  });
+  if (!deletedRows?.[0]?.id) throw new Error("Eliminazione articolo non confermata");
+
+  const storage = await deleteEditorialImageObjects([...imagePaths]);
+  return {
+    deleted: true,
+    article_id: articleId,
+    opportunity_ids: (opportunities || []).map((row) => row.id).filter(Boolean),
+    social_plan_items_deleted: (socialItems || []).length,
+    generated_images_deleted: storage.deleted,
+    storage_warning: storage.warning,
+    opportunity_reset: Boolean((opportunities || []).length),
+  };
 }
 
 async function editorialSocialPlanPayload() {
@@ -3257,6 +3381,11 @@ export default async function handler(req, res) {
 
     if (req.method === "POST" && action === "discard-editorial-article-image-candidate") {
       const result = await discardEditorialArticleImageCandidate(user, req.body || {});
+      return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "POST" && action === "delete-editorial-draft-article") {
+      const result = await deleteEditorialDraftArticle(user, req.body || {});
       return json(res, 200, { ok: true, version: VERSION, result });
     }
 
