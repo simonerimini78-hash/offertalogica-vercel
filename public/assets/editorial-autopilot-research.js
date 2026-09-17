@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.37";
+  const VERSION = "0.12.38";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
   let statusLoaded = false;
@@ -1111,8 +1111,9 @@
         await Promise.all([loadOpportunities(section, true), loadSocialPlan(section), loadAutomationRuns(section)]);
       } catch (error) {
         generateArticleButton.disabled = false;
-        if (message) message.textContent = `Generazione non completata: ${error.message}`;
-        await loadOpportunities(section, true).catch(() => {});
+        const errorText = `Generazione non completata: ${error.message}`;
+        if (message) message.textContent = errorText;
+        await loadAutomationRuns(section).catch(() => {});
       }
       return;
     }
