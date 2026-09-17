@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { json } from "../lib/http.js";
 
-const VERSION = "0.12.40";
+const VERSION = "0.12.41";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -116,6 +116,51 @@ async function editorialUserFetch(user, path, { method = "GET", body, prefer } =
     throw new Error(message);
   }
   return payload;
+}
+
+async function editorialArticleCreate(user, body) {
+  if (user?._automation) {
+    const payload = await serviceFetch("rpc/editorial_autopilot_create_draft", {
+      method: "POST",
+      body: {
+        p_actor_user_id: user.id,
+        p_title: body.title,
+        p_slug: body.slug,
+        p_category: body.category || null,
+      },
+    });
+    if (!payload?.id) throw new Error("RPC Autopilota: bozza non creata");
+    return payload;
+  }
+  const rows = await editorialUserFetch(user, "editorial_articles?select=*", {
+    method: "POST", prefer: "return=representation", body,
+  });
+  return rows?.[0] || null;
+}
+
+async function editorialArticleUpdateDraft(user, articleId, body) {
+  if (user?._automation) {
+    const payload = await serviceFetch("rpc/editorial_autopilot_update_draft", {
+      method: "POST",
+      body: {
+        p_actor_user_id: user.id,
+        p_article_id: articleId,
+        p_title: body.title ?? null,
+        p_category: body.category ?? null,
+        p_excerpt: body.excerpt ?? null,
+        p_content: body.content ?? null,
+        p_sources: body.sources ?? null,
+        p_seo_title: body.seo_title ?? null,
+        p_seo_description: body.seo_description ?? null,
+      },
+    });
+    if (!payload?.id) throw new Error("RPC Autopilota: bozza non aggiornata");
+    return payload;
+  }
+  const rows = await editorialUserFetch(user, `editorial_articles?id=eq.${encodeURIComponent(articleId)}&select=*`, {
+    method: "PATCH", prefer: "return=representation", body,
+  });
+  return rows?.[0] || null;
 }
 
 async function authenticatedAdmin(req) {
@@ -1033,27 +1078,22 @@ async function prepareEditorialDraft(user, idValue) {
   const title = String(opportunity.topic || "Bozza editoriale").trim().slice(0, 140) || "Bozza editoriale";
   const baseSlug = normalizeArticleSlug(title).slice(0, 76) || "bozza-editoriale";
   const slug = `${baseSlug}-${id}`.slice(0, 120);
-  const articleRows = await editorialUserFetch(user, "editorial_articles?select=*", {
-    method: "POST",
-    prefer: "return=representation",
-    body: {
-      title,
-      slug,
-      category: opportunity.category || null,
-      featured_image_url: null,
-      featured_image_alt: null,
-      excerpt: "",
-      content: "",
-      sources: null,
-      seo_title: null,
-      seo_description: null,
-      status: "draft",
-      author_id: author.id,
-      created_by: user.id,
-      updated_by: user.id,
-    },
+  const article = await editorialArticleCreate(user, {
+    title,
+    slug,
+    category: opportunity.category || null,
+    featured_image_url: null,
+    featured_image_alt: null,
+    excerpt: "",
+    content: "",
+    sources: null,
+    seo_title: null,
+    seo_description: null,
+    status: "draft",
+    author_id: author.id,
+    created_by: user.id,
+    updated_by: user.id,
   });
-  const article = articleRows?.[0];
   if (!article?.id) throw new Error("Bozza editoriale non creata");
 
   const now = new Date().toISOString();
@@ -1789,7 +1829,7 @@ async function upsertGeneratedSocialPlans(user, opportunity, article, posts, pla
   return result;
 }
 
-async function automationRunStart(opportunityId) {
+async function automationRunStart(opportunityId, source = "manual_controlled_run") {
   const rows = await serviceFetch("editorial_automation_runs", {
     method: "POST",
     prefer: "return=representation",
@@ -1798,7 +1838,7 @@ async function automationRunStart(opportunityId) {
       status: "running",
       started_at: new Date().toISOString(),
       opportunity_id: opportunityId,
-      details: { version: VERSION, source: "manual_controlled_run" },
+      details: { version: VERSION, source },
     },
   });
   return rows?.[0] || null;
@@ -1806,17 +1846,19 @@ async function automationRunStart(opportunityId) {
 
 async function automationRunFinish(run, status, patch = {}) {
   if (!run?.id) return;
+  const body = {
+    status,
+    finished_at: new Date().toISOString(),
+    details: patch.details || run.details || {},
+    last_error: patch.last_error || null,
+  };
+  if (Object.prototype.hasOwnProperty.call(patch, "opportunity_id") || run.opportunity_id) body.opportunity_id = patch.opportunity_id || run.opportunity_id || null;
+  if (Object.prototype.hasOwnProperty.call(patch, "article_id") || run.article_id) body.article_id = patch.article_id || run.article_id || null;
+  if (Object.prototype.hasOwnProperty.call(patch, "social_plan_item_id") || run.social_plan_item_id) body.social_plan_item_id = patch.social_plan_item_id || run.social_plan_item_id || null;
   await serviceFetch(`editorial_automation_runs?id=eq.${encodeURIComponent(run.id)}`, {
     method: "PATCH",
     prefer: "return=minimal",
-    body: {
-      status,
-      finished_at: new Date().toISOString(),
-      article_id: patch.article_id || null,
-      social_plan_item_id: patch.social_plan_item_id || null,
-      details: patch.details || run.details || {},
-      last_error: patch.last_error || null,
-    },
+    body,
   }).catch(() => {});
 }
 
@@ -1869,7 +1911,8 @@ async function generateEditorialArticlePackage(user, payload = {}) {
     throw new Error("La bozza contiene modifiche manuali o contenuto non generato dall’Autopilota: sovrascrittura bloccata");
   }
 
-  const run = await automationRunStart(id);
+  const runSource = user?._automation ? "scheduler" : "manual_controlled_run";
+  const run = await automationRunStart(id, runSource);
   try {
     const ai = await startOpenAiEditorialPackage({ opportunity, article, categories, targets });
     const now = new Date().toISOString();
@@ -1886,6 +1929,7 @@ async function generateEditorialArticlePackage(user, payload = {}) {
       automation_run_id: run?.id || null,
       platforms,
       automatic_publish: false,
+      source: runSource,
     };
     const evidence = {
       ...(opportunity.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {}),
@@ -1909,7 +1953,7 @@ async function generateEditorialArticlePackage(user, payload = {}) {
     await automationRunFinish(run, "failed", {
       article_id: article?.id || null,
       last_error: String(error?.message || error).slice(0, 2000),
-      details: { version: VERSION, source: "manual_controlled_run", opportunity_id: id, publication_performed: false },
+      details: { version: VERSION, source: runSource, opportunity_id: id, publication_performed: false },
     });
     throw error;
   }
@@ -1926,6 +1970,7 @@ async function checkEditorialArticlePackage(user, payload = {}) {
   const evidenceBase = opportunity.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {};
   const job = evidenceBase.article_generation_job;
   const completedGeneration = evidenceBase.article_generation;
+  const runSource = String(job?.source || (user?._automation ? "scheduler" : "manual_controlled_run"));
   if (!job?.response_id) {
     if (completedGeneration?.status === "draft_ready_for_review") {
       return { pending: false, status: "completed", qa: completedGeneration.qa || {}, generation: completedGeneration };
@@ -1955,7 +2000,7 @@ async function checkEditorialArticlePackage(user, payload = {}) {
     return { pending: true, status, response_id: job.response_id, started_at: job.started_at || null };
   }
 
-  const runRef = job.automation_run_id ? { id: job.automation_run_id, details: { version: VERSION, source: "manual_controlled_run" } } : null;
+  const runRef = job.automation_run_id ? { id: job.automation_run_id, details: { version: VERSION, source: runSource } } : null;
   if (status !== "completed") {
     const message = response?.error?.message || response?.incomplete_details?.reason || `Generazione editoriale terminata con stato ${status || "sconosciuto"}`;
     const now = new Date().toISOString();
@@ -1969,7 +2014,7 @@ async function checkEditorialArticlePackage(user, payload = {}) {
     await automationRunFinish(runRef, "failed", {
       article_id: job.article_id || opportunity.target_article_id || null,
       last_error: String(message).slice(0, 2000),
-      details: { version: VERSION, source: "manual_controlled_run", opportunity_id: id, publication_performed: false },
+      details: { version: VERSION, source: runSource, opportunity_id: id, publication_performed: false },
     });
     throw new Error(message);
   }
@@ -2001,7 +2046,7 @@ async function checkEditorialArticlePackage(user, payload = {}) {
     await automationRunFinish(runRef, "failed", {
       article_id: article.id,
       last_error: message,
-      details: { version: VERSION, source: "manual_controlled_run", opportunity_id: id, publication_performed: false },
+      details: { version: VERSION, source: runSource, opportunity_id: id, publication_performed: false },
     });
     throw new Error(message);
   }
@@ -2030,7 +2075,7 @@ async function checkEditorialArticlePackage(user, payload = {}) {
     await automationRunFinish(runRef, "failed", {
       article_id: article.id,
       last_error: String(error?.message || error).slice(0, 2000),
-      details: { version: VERSION, source: "manual_controlled_run", opportunity_id: id, publication_performed: false, background: true },
+      details: { version: VERSION, source: runSource, opportunity_id: id, publication_performed: false, background: true },
     });
     throw error;
   }
@@ -2039,21 +2084,16 @@ async function checkEditorialArticlePackage(user, payload = {}) {
   let articleUpdated = false;
   try {
     const sourcesText = validated.sources.map((source) => `${source.title} — ${source.url}`).join("\n").slice(0, 4000);
-    const updatedRows = await editorialUserFetch(user, `editorial_articles?id=eq.${encodeURIComponent(article.id)}&select=*`, {
-      method: "PATCH",
-      prefer: "return=representation",
-      body: {
-        title: validated.article.title,
-        category: validated.article.category,
-        excerpt: validated.article.excerpt,
-        content: validated.article.content,
-        sources: sourcesText || null,
-        seo_title: validated.article.seo_title,
-        seo_description: validated.article.seo_description,
-        updated_by: user.id,
-      },
+    article = await editorialArticleUpdateDraft(user, article.id, {
+      title: validated.article.title,
+      category: validated.article.category,
+      excerpt: validated.article.excerpt,
+      content: validated.article.content,
+      sources: sourcesText || null,
+      seo_title: validated.article.seo_title,
+      seo_description: validated.article.seo_description,
+      updated_by: user.id,
     });
-    article = updatedRows?.[0];
     if (!article?.id) throw new Error("Bozza articolo generata ma non salvata");
     articleUpdated = true;
 
@@ -2094,7 +2134,7 @@ async function checkEditorialArticlePackage(user, payload = {}) {
       social_plan_item_id: plans?.[0]?.id || null,
       details: {
         version: VERSION,
-        source: "manual_controlled_run",
+        source: runSource,
         model: generation.model,
         opportunity_id: id,
         qa: validated.qa,
@@ -2118,19 +2158,15 @@ async function checkEditorialArticlePackage(user, payload = {}) {
     };
   } catch (error) {
     if (articleUpdated && originalArticle?.id) {
-      await editorialUserFetch(user, `editorial_articles?id=eq.${encodeURIComponent(originalArticle.id)}`, {
-        method: "PATCH",
-        prefer: "return=minimal",
-        body: {
-          title: originalArticle.title,
-          category: originalArticle.category,
-          excerpt: originalArticle.excerpt,
-          content: originalArticle.content,
-          sources: originalArticle.sources,
-          seo_title: originalArticle.seo_title,
-          seo_description: originalArticle.seo_description,
-          updated_by: user.id,
-        },
+      await editorialArticleUpdateDraft(user, originalArticle.id, {
+        title: originalArticle.title,
+        category: originalArticle.category,
+        excerpt: originalArticle.excerpt,
+        content: originalArticle.content,
+        sources: originalArticle.sources,
+        seo_title: originalArticle.seo_title,
+        seo_description: originalArticle.seo_description,
+        updated_by: user.id,
       }).catch(() => {});
     }
     const now = new Date().toISOString();
@@ -2144,7 +2180,7 @@ async function checkEditorialArticlePackage(user, payload = {}) {
     await automationRunFinish(runRef, "failed", {
       article_id: article?.id || null,
       last_error: String(error?.message || error).slice(0, 2000),
-      details: { version: VERSION, source: "manual_controlled_run", opportunity_id: id, publication_performed: false, background: true },
+      details: { version: VERSION, source: runSource, opportunity_id: id, publication_performed: false, background: true },
     });
     throw error;
   }
@@ -2315,6 +2351,298 @@ async function updateEditorialSocialPlanItem(user, payload = {}) {
 async function automationRunsPayload() {
   const rows = await serviceFetch("editorial_automation_runs?select=id,run_type,status,scheduled_for,started_at,finished_at,opportunity_id,article_id,social_plan_item_id,details,last_error,created_at&order=created_at.desc&limit=20");
   return { ok: true, version: VERSION, runs: rows || [] };
+}
+
+
+async function automationCronAuthorized(req) {
+  const secret = String(req.headers?.["x-offertalogica-autopilot-secret"] || "").trim();
+  if (secret.length < 32 || secret.length > 256) return false;
+  try {
+    const verified = await serviceFetch("rpc/editorial_autopilot_verify_cron_secret", {
+      method: "POST",
+      body: { p_secret: secret },
+    });
+    return verified === true || verified?.verified === true;
+  } catch {
+    return false;
+  }
+}
+
+async function automationSchedulerSettings() {
+  const rows = await serviceFetch("editorial_automation_settings?select=*&id=eq.1&limit=1");
+  return rows?.[0] || null;
+}
+
+async function automationSchedulerUser(settings) {
+  const userId = String(settings?.updated_by || "").trim();
+  if (!validUuid(userId)) throw new Error("Autopilota: amministratore responsabile non configurato. Salva di nuovo la configurazione dalla Redazione.");
+  const [members, authors] = await Promise.all([
+    serviceFetch(`editorial_members?select=user_id,role,active&user_id=eq.${encodeURIComponent(userId)}&limit=1`),
+    serviceFetch(`editorial_authors?select=id,user_id,active&user_id=eq.${encodeURIComponent(userId)}&active=eq.true&limit=1`),
+  ]);
+  if (!members?.[0]?.active || members[0].role !== "admin") throw new Error("Autopilota: l’utente responsabile non è più un amministratore attivo");
+  if (!authors?.[0]?.id) throw new Error("Autopilota: l’amministratore responsabile non ha un profilo autore attivo");
+  return { id: userId, _automation: true };
+}
+
+function schedulerLocalParts(timeZone, date = new Date()) {
+  const zone = String(timeZone || "Europe/Rome").trim() || "Europe/Rome";
+  let parts;
+  try {
+    parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone: zone,
+      year: "numeric", month: "2-digit", day: "2-digit",
+      weekday: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+    }).formatToParts(date);
+  } catch {
+    throw new Error(`Fuso orario Autopilota non valido: ${zone}`);
+  }
+  const value = (type) => parts.find((part) => part.type === type)?.value || "";
+  const weekdayMap = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
+  const hour = Number(value("hour"));
+  const minute = Number(value("minute"));
+  return {
+    time_zone: zone,
+    date: `${value("year")}-${value("month")}-${value("day")}`,
+    weekday: weekdayMap[value("weekday")] || 0,
+    minutes: hour * 60 + minute,
+    time: `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`,
+  };
+}
+
+function schedulerSlotMinutes(value) {
+  const match = String(value || "").match(/^(\d{1,2}):(\d{2})/);
+  if (!match) return null;
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (!Number.isInteger(hour) || !Number.isInteger(minute) || hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
+  return hour * 60 + minute;
+}
+
+async function automationSchedulerRuns(limit = 100) {
+  const rows = await serviceFetch(`editorial_automation_runs?select=id,run_type,status,scheduled_for,started_at,finished_at,opportunity_id,article_id,social_plan_item_id,details,last_error,created_at&order=created_at.desc&limit=${Math.max(1, Math.min(200, Number(limit) || 100))}`);
+  return rows || [];
+}
+
+async function automationSchedulerRunStart(runType, details = {}, opportunityId = null) {
+  const now = new Date().toISOString();
+  const rows = await serviceFetch("editorial_automation_runs", {
+    method: "POST",
+    prefer: "return=representation",
+    body: {
+      run_type: runType,
+      status: "running",
+      scheduled_for: now,
+      started_at: now,
+      opportunity_id: validUuid(opportunityId) ? opportunityId : null,
+      details: { version: VERSION, source: "scheduler", ...details },
+    },
+  });
+  return rows?.[0] || null;
+}
+
+async function automationSchedulerRunPatch(run, detailsPatch = {}) {
+  if (!run?.id) return null;
+  const details = { ...(run.details && typeof run.details === "object" ? run.details : {}), ...detailsPatch, version: VERSION, source: "scheduler" };
+  const rows = await serviceFetch(`editorial_automation_runs?id=eq.${encodeURIComponent(run.id)}`, {
+    method: "PATCH", prefer: "return=representation", body: { details },
+  });
+  return rows?.[0] || { ...run, details };
+}
+
+function schedulerInternalPageUrl(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+  try {
+    const url = new URL(raw, "https://offertalogica.it");
+    if (url.protocol !== "https:" || !["offertalogica.it", "www.offertalogica.it"].includes(url.hostname.toLowerCase())) return null;
+    return `https://offertalogica.it${url.pathname}${url.search}`;
+  } catch {
+    return null;
+  }
+}
+
+async function schedulerSelectOpportunity(user, settings) {
+  const preview = await editorialPlannerPreview();
+  const decision = preview?.decision;
+  if (!decision) return null;
+  let opportunity = null;
+  if (decision.id) {
+    const rows = await serviceFetch(`editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(decision.id)}&limit=1`);
+    opportunity = rows?.[0] || null;
+  } else if (decision.source === "search_console" && decision.topic_key) {
+    const saved = await saveEditorialOpportunity(user, decision.topic_key);
+    opportunity = saved?.opportunity || null;
+  }
+  if (!opportunity?.id) return null;
+  if (opportunity.status === "pending") opportunity = await updateEditorialOpportunity(user, opportunity.id, "selected");
+  if (opportunity.status !== "selected") return opportunity;
+
+  if (opportunity.opportunity_type === "monitor") {
+    const freshRows = await serviceFetch(`editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(opportunity.id)}&limit=1`);
+    const fresh = freshRows?.[0] || opportunity;
+    const pageUrls = Array.isArray(fresh?.evidence?.page_urls) ? fresh.evidence.page_urls : [];
+    const target = pageUrls.map(schedulerInternalPageUrl).find(Boolean) || null;
+    const type = Boolean(settings?.allow_article_updates && target) ? "update_article" : "new_article";
+    opportunity = await classifyEditorialOpportunity(user, fresh.id, type);
+  }
+  return opportunity;
+}
+
+function schedulerArticleFrequencyAllows(settings, runs, now = Date.now()) {
+  const weeks = Math.max(1, Math.min(4, Number(settings?.article_frequency_weeks) || 1));
+  const last = (runs || []).find((run) => run.run_type === "article_prepare" && run.status === "success" && run?.details?.source === "scheduler" && !run?.details?.slot_only);
+  if (!last) return true;
+  const when = Date.parse(last.finished_at || last.started_at || last.created_at || "");
+  if (!Number.isFinite(when)) return true;
+  return now - when >= weeks * 7 * 86400000 - 6 * 3600000;
+}
+
+async function schedulerProcessResearchRun(run, user, settings) {
+  const stage = String(run?.details?.stage || "collect_7");
+  try {
+    if (stage === "collect_7") {
+      const result = await collectSearchConsole(user, 7);
+      const next = await automationSchedulerRunPatch(run, { stage: "collect_28", collect_7: result });
+      return { action: "research_collect_7", pending: true, run: next };
+    }
+    if (stage === "collect_28") {
+      const result = await collectSearchConsole(user, 28);
+      const next = await automationSchedulerRunPatch(run, { stage: "collect_90", collect_28: result });
+      return { action: "research_collect_28", pending: true, run: next };
+    }
+    if (stage === "collect_90") {
+      const result = await collectSearchConsole(user, 90);
+      const next = await automationSchedulerRunPatch(run, { stage: "plan", collect_90: result });
+      return { action: "research_collect_90", pending: true, run: next };
+    }
+    const opportunity = await schedulerSelectOpportunity(user, settings);
+    await automationRunFinish(run, "success", {
+      details: { ...(run.details || {}), version: VERSION, source: "scheduler", stage: "completed", selected_opportunity_id: opportunity?.id || null, selected_type: opportunity?.opportunity_type || null },
+    });
+    return { action: "research_plan", pending: false, opportunity_id: opportunity?.id || null, opportunity_type: opportunity?.opportunity_type || null };
+  } catch (error) {
+    await automationRunFinish(run, "failed", { last_error: String(error?.message || error).slice(0, 2000), details: { ...(run.details || {}), version: VERSION, source: "scheduler", failed_stage: stage } });
+    throw error;
+  }
+}
+
+async function schedulerResumeResearch(user, settings, runs) {
+  const run = (runs || []).find((row) => row.run_type === "research" && row.status === "running" && row?.details?.source === "scheduler");
+  if (!run) return null;
+  return schedulerProcessResearchRun(run, user, settings);
+}
+
+async function schedulerResumeArticleGeneration(user) {
+  const rows = await serviceFetch(`editorial_research_opportunities?select=${opportunitySelect()}&status=eq.selected&opportunity_type=eq.new_article&order=updated_at.asc&limit=50`);
+  for (const opportunity of rows || []) {
+    const job = opportunity?.evidence?.article_generation_job;
+    if (job?.source !== "scheduler" || !job?.response_id || !["queued", "in_progress"].includes(String(job.status || ""))) continue;
+    const result = await checkEditorialArticlePackage(user, { id: opportunity.id });
+    return { action: "article_generation_check", opportunity_id: opportunity.id, result };
+  }
+  return null;
+}
+
+async function schedulerPrepareMissingImage(user) {
+  const rows = await serviceFetch(`editorial_research_opportunities?select=${opportunitySelect()}&status=eq.selected&opportunity_type=eq.new_article&order=updated_at.asc&limit=50`);
+  for (const opportunity of rows || []) {
+    const evidence = opportunity?.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {};
+    if (evidence?.article_generation_job?.source !== "scheduler") continue;
+    if (evidence?.article_generation?.status !== "draft_ready_for_review") continue;
+    const image = articleImageState(opportunity);
+    if (image.current?.url || image.candidate?.url) continue;
+    const result = await generateEditorialArticleImage(user, { id: opportunity.id, guidance: "" });
+    return { action: "image_candidate_generated", opportunity_id: opportunity.id, article_id: result.article_id };
+  }
+  return null;
+}
+
+function schedulerTargetUrl(opportunity) {
+  const manual = manualIdeaMeta(opportunity);
+  const candidates = [opportunity?.evidence?.target_page_url, ...(Array.isArray(opportunity?.evidence?.page_urls) ? opportunity.evidence.page_urls : [])];
+  if (manual?.target_page_url) candidates.unshift(manual.target_page_url);
+  return candidates.map(schedulerInternalPageUrl).find(Boolean) || null;
+}
+
+async function schedulerProcessSlot(slot, user, settings, runs, local) {
+  const schedulerKey = `${local.date}:${slot.id}`;
+  const details = { scheduler_key: schedulerKey, slot_id: slot.id, slot_kind: slot.kind, local_date: local.date, local_time: local.time, timezone: local.time_zone, stage: "started", slot_only: true };
+  const run = await automationSchedulerRunStart(String(slot.kind || "research"), details);
+  if (!run?.id) throw new Error("Autopilota: run schedulato non creato");
+  try {
+    if (slot.kind === "research") {
+      const staged = await automationSchedulerRunPatch(run, { stage: "collect_7" });
+      return schedulerProcessResearchRun(staged, user, settings);
+    }
+    if (slot.kind === "article_prepare") {
+      if (Number(settings?.max_articles_per_cycle) <= 0) {
+        await automationRunFinish(run, "success", { details: { ...details, stage: "skipped", reason: "max_articles_per_cycle=0" } });
+        return { action: "article_prepare_skipped", reason: "max_articles_per_cycle=0" };
+      }
+      if (!schedulerArticleFrequencyAllows(settings, runs)) {
+        await automationRunFinish(run, "success", { details: { ...details, stage: "skipped", reason: "article_frequency_weeks" } });
+        return { action: "article_prepare_skipped", reason: "article_frequency_weeks" };
+      }
+      const opportunity = await schedulerSelectOpportunity(user, settings);
+      if (!opportunity?.id) {
+        await automationRunFinish(run, "success", { details: { ...details, stage: "completed", no_publish: true, reason: "no_opportunity" } });
+        return { action: "article_prepare_no_opportunity" };
+      }
+      if (opportunity.opportunity_type === "new_article") {
+        const result = await generateEditorialArticlePackage(user, { id: opportunity.id, platforms: [] });
+        await automationRunFinish(run, "success", { opportunity_id: opportunity.id, article_id: result.article_id || null, details: { ...details, stage: "background_started", opportunity_id: opportunity.id, slot_only: true } });
+        return { action: "article_generation_started", opportunity_id: opportunity.id, result };
+      }
+      if (opportunity.opportunity_type === "update_article" && settings?.allow_article_updates) {
+        const targetUrl = schedulerTargetUrl(opportunity);
+        if (!targetUrl) throw new Error("Autopilota: opportunità di aggiornamento senza pagina target verificabile");
+        const result = await prepareEditorialUpdateProposal(user, opportunity.id, targetUrl);
+        await automationRunFinish(run, "success", { opportunity_id: opportunity.id, details: { ...details, stage: "update_proposal_ready", opportunity_id: opportunity.id, target_url: targetUrl, slot_only: true } });
+        return { action: "update_proposal_ready", opportunity_id: opportunity.id, target_url: targetUrl, result };
+      }
+      await automationRunFinish(run, "success", { details: { ...details, stage: "skipped", reason: `unsupported_opportunity_type:${opportunity.opportunity_type || "unknown"}` } });
+      return { action: "article_prepare_skipped", reason: "unsupported_opportunity_type" };
+    }
+    await automationRunFinish(run, "success", { details: { ...details, stage: "waiting_human_approval", publication_performed: false, reason: "approval_mode" } });
+    return { action: `${slot.kind}_waiting_human_approval`, publication_performed: false };
+  } catch (error) {
+    await automationRunFinish(run, "failed", { last_error: String(error?.message || error).slice(0, 2000), details: { ...details, stage: "failed" } });
+    throw error;
+  }
+}
+
+async function editorialAutopilotTick() {
+  const settings = await automationSchedulerSettings();
+  if (!settings?.enabled) return { ok: true, version: VERSION, active: false, action: "disabled" };
+  if (String(settings.execution_mode || "approval") === "automatic") {
+    return { ok: true, version: VERSION, active: false, blocked: true, action: "automatic_publish_not_enabled", message: "La pubblicazione automatica completa resta bloccata: usa Genera e chiedi approvazione." };
+  }
+  const user = await automationSchedulerUser(settings);
+  let runs = await automationSchedulerRuns(120);
+
+  const research = await schedulerResumeResearch(user, settings, runs);
+  if (research) return { ok: true, version: VERSION, active: true, ...research };
+
+  const generation = await schedulerResumeArticleGeneration(user);
+  if (generation) return { ok: true, version: VERSION, active: true, ...generation };
+
+  const image = await schedulerPrepareMissingImage(user);
+  if (image) return { ok: true, version: VERSION, active: true, ...image };
+
+  const local = schedulerLocalParts(settings.timezone || "Europe/Rome");
+  const schedule = await serviceFetch("editorial_automation_schedule?select=*&enabled=eq.true&order=sort_order.asc");
+  runs = runs.length ? runs : await automationSchedulerRuns(120);
+  const due = (schedule || []).filter((slot) => {
+    if (Number(slot.weekday) !== local.weekday) return false;
+    const minutes = schedulerSlotMinutes(slot.time_local);
+    if (minutes === null || local.minutes < minutes) return false;
+    const key = `${local.date}:${slot.id}`;
+    return !runs.some((run) => run?.details?.scheduler_key === key);
+  })[0] || null;
+  if (!due) return { ok: true, version: VERSION, active: true, action: "idle", local };
+  const result = await schedulerProcessSlot(due, user, settings, runs, local);
+  return { ok: true, version: VERSION, active: true, slot: { id: due.id, kind: due.kind, label: due.label }, ...result };
 }
 
 
@@ -3304,10 +3632,15 @@ export default async function handler(req, res) {
       return json(res, 405, { ok: false, error: "Metodo non consentito" });
     }
 
+    const action = String(req.query?.action || "");
+    if (req.method === "GET" && action === "editorial-autopilot-tick") {
+      if (!(await automationCronAuthorized(req))) return json(res, 401, { ok: false, error: "Autopilota scheduler non autorizzato" });
+      return json(res, 200, await editorialAutopilotTick());
+    }
+
     const user = await authenticatedAdmin(req);
     if (!user) return json(res, 401, { ok: false, error: "Accesso amministratore richiesto" });
 
-    const action = String(req.query?.action || "");
     if (req.method === "GET" && action === "editorial-research-status") {
       return json(res, 200, await statusPayload());
     }
