@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.34";
+  const VERSION = "0.12.35";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
   let statusLoaded = false;

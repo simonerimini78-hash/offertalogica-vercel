@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { json } from "../lib/http.js";
 
-const VERSION = "0.12.34";
+const VERSION = "0.12.35";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -89,6 +89,33 @@ async function serviceFetch(path, { method = "GET", body, prefer } = {}) {
   return payload;
 }
 
+async function editorialUserFetch(user, path, { method = "GET", body, prefer } = {}) {
+  const { url, serviceKey } = supabaseConfig();
+  const accessToken = String(user?._editorialAccessToken || "").trim();
+  if (!url || !serviceKey) throw new Error("Supabase server non configurato");
+  if (!accessToken) throw new Error("Sessione editoriale autenticata non disponibile");
+
+  const headers = {
+    apikey: serviceKey,
+    Authorization: `Bearer ${accessToken}`,
+    "Content-Type": "application/json",
+  };
+  if (prefer) headers.Prefer = prefer;
+
+  const response = await fetch(`${url}/rest/v1/${path}`, {
+    method,
+    headers,
+    body: body === undefined ? undefined : JSON.stringify(body),
+    cache: "no-store",
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message = payload?.message || payload?.error || `Supabase ${response.status}`;
+    throw new Error(message);
+  }
+  return payload;
+}
+
 async function authenticatedAdmin(req) {
   const token = bearerToken(req);
   if (!token) return null;
@@ -113,6 +140,7 @@ async function authenticatedAdmin(req) {
   );
   const member = rows?.[0];
   if (!member?.active || member.role !== "admin") return null;
+  Object.defineProperty(user, "_editorialAccessToken", { value: token, enumerable: false, configurable: false });
   return user;
 }
 
@@ -1003,7 +1031,7 @@ async function prepareEditorialDraft(user, idValue) {
   const title = String(opportunity.topic || "Bozza editoriale").trim().slice(0, 140) || "Bozza editoriale";
   const baseSlug = normalizeArticleSlug(title).slice(0, 76) || "bozza-editoriale";
   const slug = `${baseSlug}-${id}`.slice(0, 120);
-  const articleRows = await serviceFetch("editorial_articles?select=*", {
+  const articleRows = await editorialUserFetch(user, "editorial_articles?select=*", {
     method: "POST",
     prefer: "return=representation",
     body: {
@@ -1310,7 +1338,7 @@ async function approveEditorialArticleImage(user, payload = {}) {
   if (!candidate?.url) throw new Error("Genera o carica prima una nuova immagine da approvare");
   const altText = cleanEditorialText(payload.alt_text, 180) || cleanEditorialText(candidate.alt_text, 180) || defaultArticleImageAlt(context.article);
   const previousUrl = String(context.article.featured_image_url || "").trim();
-  const rows = await serviceFetch(`editorial_articles?id=eq.${encodeURIComponent(context.article.id)}&select=*`, {
+  const rows = await editorialUserFetch(user, `editorial_articles?id=eq.${encodeURIComponent(context.article.id)}&select=*`, {
     method: "PATCH",
     prefer: "return=representation",
     body: {
@@ -1344,7 +1372,7 @@ async function approveEditorialArticleImage(user, payload = {}) {
   try {
     await saveArticleImageState(user, context.opportunity, state);
   } catch (error) {
-    await serviceFetch(`editorial_articles?id=eq.${encodeURIComponent(context.article.id)}`, {
+    await editorialUserFetch(user, `editorial_articles?id=eq.${encodeURIComponent(context.article.id)}`, {
       method: "PATCH",
       prefer: "return=minimal",
       body: {
@@ -1798,7 +1826,7 @@ async function generateEditorialArticlePackage(user, payload = {}) {
       opportunity, categories, targets, settings, observedSourceUrls: ai.sourceUrls,
     });
     const sourcesText = validated.sources.map((source) => `${source.title} — ${source.url}`).join("\n").slice(0, 4000);
-    const updatedRows = await serviceFetch(`editorial_articles?id=eq.${encodeURIComponent(article.id)}&select=*`, {
+    const updatedRows = await editorialUserFetch(user, `editorial_articles?id=eq.${encodeURIComponent(article.id)}&select=*`, {
       method: "PATCH",
       prefer: "return=representation",
       body: {
@@ -1870,7 +1898,7 @@ async function generateEditorialArticlePackage(user, payload = {}) {
     };
   } catch (error) {
     if (articleUpdated && originalArticle?.id) {
-      await serviceFetch(`editorial_articles?id=eq.${encodeURIComponent(originalArticle.id)}`, {
+      await editorialUserFetch(user, `editorial_articles?id=eq.${encodeURIComponent(originalArticle.id)}`, {
         method: "PATCH",
         prefer: "return=minimal",
         body: {
