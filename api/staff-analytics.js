@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { json } from "../lib/http.js";
 
-const VERSION = "0.12.44";
+const VERSION = "0.12.45";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -795,6 +795,10 @@ async function editorialPlannerPreview() {
   for (const row of savedRows || []) {
     if (!MANUAL_IDEA_TYPES.has(String(row.opportunity_type || ""))) continue;
     const manual = manualIdeaMeta(row);
+    // Un'opportunità già collegata a un articolo appartiene al ciclo precedente:
+    // non deve bloccare la ricerca del ciclo successivo mentre il post del lunedì
+    // è ancora in attesa di pubblicazione.
+    if (row.status === "selected" && validUuid(String(row.target_article_id || ""))) continue;
     if (row.status === "selected") {
       candidates.push({
         source: manual ? "manual_idea" : "saved_opportunity",
@@ -1544,6 +1548,13 @@ async function enabledPromotionTargets() {
 async function editorialSocialChannels() {
   const rows = await serviceFetch("editorial_social_channels?select=platform,display_name,enabled,public_handle,sort_order&order=sort_order.asc");
   return Array.isArray(rows) ? rows : [];
+}
+
+async function editorialEnabledSocialPlatforms() {
+  const channels = await editorialSocialChannels();
+  return channels
+    .filter((row) => row?.enabled && EDITORIAL_SOCIAL_PLATFORMS.has(String(row.platform || "")))
+    .map((row) => String(row.platform));
 }
 
 function validateRequestedPlatforms(values, channels) {
@@ -2501,7 +2512,13 @@ async function schedulerSelectOpportunity(user, settings) {
 
 function schedulerArticleFrequencyAllows(settings, runs, now = Date.now()) {
   const weeks = Math.max(1, Math.min(4, Number(settings?.article_frequency_weeks) || 1));
-  const last = (runs || []).find((run) => run.run_type === "article_prepare" && run.status === "success" && run?.details?.source === "scheduler" && !run?.details?.slot_only);
+  const last = (runs || []).find((run) =>
+    run.run_type === "article_prepare"
+    && run.status === "success"
+    && run?.details?.source === "scheduler"
+    && validUuid(String(run?.opportunity_id || ""))
+    && !["skipped", "waiting_human_approval"].includes(String(run?.details?.stage || ""))
+  );
   if (!last) return true;
   const when = Date.parse(last.finished_at || last.started_at || last.created_at || "");
   if (!Number.isFinite(when)) return true;
@@ -2575,6 +2592,397 @@ function schedulerTargetUrl(opportunity) {
   return candidates.map(schedulerInternalPageUrl).find(Boolean) || null;
 }
 
+
+function schedulerLatestArticleCycleRun(runs) {
+  return (runs || []).find((run) =>
+    run?.run_type === "article_prepare"
+    && run?.status === "success"
+    && run?.details?.source === "scheduler"
+    && validUuid(run?.article_id)
+    && validUuid(run?.opportunity_id)
+  ) || null;
+}
+
+async function schedulerArticleCycleContext(runs) {
+  const run = schedulerLatestArticleCycleRun(runs);
+  if (!run) return null;
+  const [articleRows, opportunityRows] = await Promise.all([
+    serviceFetch(`editorial_articles?select=*&id=eq.${encodeURIComponent(run.article_id)}&limit=1`),
+    serviceFetch(`editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(run.opportunity_id)}&limit=1`),
+  ]);
+  const article = articleRows?.[0] || null;
+  const opportunity = opportunityRows?.[0] || null;
+  if (!article?.id || !opportunity?.id) return null;
+  if (String(opportunity.status || "") !== "selected" || String(opportunity.opportunity_type || "") !== "new_article") return null;
+  return { run, article, opportunity };
+}
+
+function schedulerGeneratedArticleIsUntouched(context) {
+  const generation = context?.opportunity?.evidence?.article_generation;
+  const expected = String(generation?.article_fingerprint_sha256 || "").trim();
+  if (!expected) return false;
+  return expected === articleEditorialFingerprint(context.article);
+}
+
+async function schedulerApproveArticleImage(user, context) {
+  const { article, opportunity } = context;
+  const state = articleImageState(opportunity);
+  if (state.current?.url && String(article.featured_image_url || "") === String(state.current.url || "")) {
+    return { approved: false, already_approved: true, article, opportunity };
+  }
+  if (!state.candidate?.url) {
+    if (String(article.featured_image_url || "").trim()) {
+      return { approved: false, already_featured: true, article, opportunity };
+    }
+    throw new Error("Autopilota: immagine candidata non disponibile per la pubblicazione automatica");
+  }
+
+  const candidate = state.candidate;
+  const altText = cleanEditorialText(candidate.alt_text, 180) || defaultArticleImageAlt(article);
+  const updatedArticle = await serviceFetch("rpc/editorial_autopilot_set_featured_image", {
+    method: "POST",
+    body: {
+      p_actor_user_id: user.id,
+      p_article_id: article.id,
+      p_image_url: candidate.url,
+      p_alt_text: altText,
+    },
+  });
+  if (!updatedArticle?.id) throw new Error("Autopilota: approvazione automatica immagine non confermata");
+
+  const now = new Date().toISOString();
+  let history = state.history;
+  if (state.current?.url) {
+    history = imageHistoryAppend(history, state.current, "replaced");
+  } else if (article.featured_image_url && article.featured_image_url !== candidate.url) {
+    history = imageHistoryAppend(history, {
+      source: "preexisting",
+      status: "previous_featured_image",
+      url: article.featured_image_url,
+      alt_text: article.featured_image_alt || null,
+    }, "replaced");
+  }
+  const current = {
+    ...candidate,
+    alt_text: altText,
+    status: "approved",
+    approved_at: now,
+    approved_by: user.id,
+  };
+  const nextState = { ...state, current, candidate: null, history };
+  const nextEvidence = {
+    ...(opportunity.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {}),
+    article_image: nextState,
+  };
+  const opportunityRows = await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(opportunity.id)}`, {
+    method: "PATCH",
+    prefer: "return=representation",
+    body: { evidence: nextEvidence, updated_at: now, decided_by: user.id },
+  });
+  return {
+    approved: true,
+    article: updatedArticle,
+    opportunity: opportunityRows?.[0] || { ...opportunity, evidence: nextEvidence },
+  };
+}
+
+async function schedulerQueueArticleSocial(articleId, platforms) {
+  const now = new Date().toISOString();
+  const output = [];
+  for (const platform of platforms || []) {
+    if (!EDITORIAL_SOCIAL_PLATFORMS.has(platform)) continue;
+    const currentRows = await serviceFetch(
+      `editorial_social_publications?select=*&article_id=eq.${encodeURIComponent(articleId)}&platform=eq.${encodeURIComponent(platform)}&limit=1`,
+    );
+    const current = currentRows?.[0] || null;
+    if (current) {
+      output.push(current);
+      continue;
+    }
+    const rows = await serviceFetch("editorial_social_publications", {
+      method: "POST",
+      prefer: "return=representation",
+      body: {
+        article_id: articleId,
+        platform,
+        status: "ready",
+        attempts: 0,
+        queued_at: now,
+        ready_at: now,
+        updated_at: now,
+      },
+    });
+    if (!rows?.[0]) throw new Error(`Autopilota: coda ${platform} dell'articolo non creata`);
+    output.push(rows[0]);
+  }
+  return output;
+}
+
+async function schedulerQueuePlanSocial(item, platforms) {
+  const now = new Date().toISOString();
+  const output = [];
+  for (const platform of platforms || []) {
+    if (!EDITORIAL_SOCIAL_PLATFORMS.has(platform)) continue;
+    const currentRows = await serviceFetch(
+      `editorial_social_plan_publications?select=*&social_plan_item_id=eq.${encodeURIComponent(item.id)}&platform=eq.${encodeURIComponent(platform)}&limit=1`,
+    );
+    const current = currentRows?.[0] || null;
+    if (current) {
+      output.push(current);
+      continue;
+    }
+    const rows = await serviceFetch("editorial_social_plan_publications", {
+      method: "POST",
+      prefer: "return=representation",
+      body: {
+        social_plan_item_id: item.id,
+        platform,
+        status: "ready",
+        attempts: 0,
+        queued_at: now,
+        updated_at: now,
+      },
+    });
+    if (!rows?.[0]) throw new Error(`Autopilota: coda ${platform} del post non creata`);
+    output.push(rows[0]);
+  }
+  return output;
+}
+
+async function schedulerSocialFunction(user, platform, action, body = {}) {
+  const { url, serviceKey } = supabaseConfig();
+  if (!url || !serviceKey) throw new Error("Supabase server non configurato");
+  if (!EDITORIAL_SOCIAL_PLATFORMS.has(platform)) throw new Error(`Canale social non supportato: ${platform}`);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 210000);
+  try {
+    const response = await fetch(`${url}/functions/v1/editorial-social-${platform}`, {
+      method: "POST",
+      headers: {
+        apikey: serviceKey,
+        Authorization: `Bearer ${serviceKey}`,
+        "Content-Type": "application/json",
+        "x-editorial-actor-id": user.id,
+      },
+      body: JSON.stringify({ action, ...body }),
+      cache: "no-store",
+      signal: controller.signal,
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || payload?.ok === false) {
+      throw new Error(payload?.error || `${platform}: funzione social HTTP ${response.status}`);
+    }
+    return payload || { ok: true, result: "unknown" };
+  } catch (error) {
+    if (error?.name === "AbortError") throw new Error(`${platform}: timeout pubblicazione social`);
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function schedulerEnsureSocialRuntime(user, platforms) {
+  if (!Array.isArray(platforms) || !platforms.length) {
+    throw new Error("Autopilota: nessun canale social abilitato");
+  }
+  for (const platform of platforms) {
+    const payload = await schedulerSocialFunction(user, platform, "validate");
+    if (String(payload?.version || "") !== VERSION) {
+      throw new Error(`Autopilota: funzione social ${platform} non allineata alla release ${VERSION}`);
+    }
+  }
+}
+
+function schedulerSocialResultState(payload) {
+  const result = String(payload?.result || payload?.status || "").trim();
+  if (["published", "already_published", "skipped"].includes(result)) return "success";
+  if (result === "ambiguous_publish") return "ambiguous";
+  if (["waiting_web", "in_progress", "carousel_required"].includes(result)) return "retry";
+  if (["failed", "retry_exhausted", "not_queued", "legacy_queue"].includes(result)) return "failed";
+  return payload?.published === true ? "success" : "failed";
+}
+
+async function schedulerPublishArticleIntro(user, context, platforms) {
+  if (!Array.isArray(platforms) || !platforms.length) {
+    return {
+      blocked: true,
+      reason: "no_enabled_social_channels",
+      message: "Nessun canale social abilitato: pubblicazione automatica fermata prima dell'articolo.",
+      publication_performed: false,
+    };
+  }
+  await schedulerEnsureSocialRuntime(user, platforms);
+  let nextContext = context;
+  if (!schedulerGeneratedArticleIsUntouched(context) && context.article.status !== "published") {
+    return {
+      blocked: true,
+      reason: "manual_changes_detected",
+      message: "La bozza è stata modificata dopo la generazione: pubblicazione automatica fermata.",
+    };
+  }
+
+  if (context.article.status !== "published") {
+    if (!["draft", "in_review", "approved"].includes(String(context.article.status || ""))) {
+      return {
+        blocked: true,
+        reason: `article_status_${context.article.status || "unknown"}`,
+        message: "Lo stato dell'articolo richiede controllo umano.",
+      };
+    }
+    const imageResult = await schedulerApproveArticleImage(user, context);
+    if (imageResult?.article?.id) {
+      nextContext = { ...context, article: imageResult.article, opportunity: imageResult.opportunity || context.opportunity };
+    }
+    const published = await serviceFetch("rpc/editorial_autopilot_publish_article", {
+      method: "POST",
+      body: { p_actor_user_id: user.id, p_article_id: nextContext.article.id },
+    });
+    if (!published?.id || String(published.status || "") !== "published") {
+      throw new Error("Autopilota: pubblicazione articolo non confermata");
+    }
+    nextContext = { ...nextContext, article: published };
+  }
+
+  await schedulerQueueArticleSocial(nextContext.article.id, platforms);
+  const results = {};
+  let ambiguous = false;
+  for (const platform of platforms) {
+    const action = "process_autopilot_article_intro";
+    const payload = await schedulerSocialFunction(user, platform, action, { article_id: nextContext.article.id });
+    results[platform] = payload;
+    const state = schedulerSocialResultState(payload);
+    if (state === "ambiguous") ambiguous = true;
+    else if (state === "retry") throw new Error(`Autopilota: ${platform} non ancora pronto (${payload?.result || "attesa"})`);
+    else if (state === "failed") throw new Error(`Autopilota: ${platform} non pubblicato (${payload?.error || payload?.result || "errore"})`);
+  }
+
+  return {
+    blocked: false,
+    ambiguous,
+    article: nextContext.article,
+    opportunity: nextContext.opportunity,
+    social: results,
+    publication_performed: true,
+  };
+}
+
+function schedulerPlanPostType(slotKind) {
+  if (slotKind === "social_followup") return "article_followup";
+  if (slotKind === "social_related") return "related";
+  return null;
+}
+
+async function schedulerPlanItemForCycle(context, slotKind) {
+  const postType = schedulerPlanPostType(slotKind);
+  if (!postType) return null;
+  const rows = await serviceFetch(
+    `editorial_social_plan_items?select=*&source_article_id=eq.${encodeURIComponent(context.article.id)}&opportunity_id=eq.${encodeURIComponent(context.opportunity.id)}&post_type=eq.${encodeURIComponent(postType)}&order=created_at.desc&limit=1`,
+  );
+  return rows?.[0] || null;
+}
+
+async function schedulerCompleteOpportunityCycle(user, context, finalItem, reason = "published") {
+  if (String(context?.opportunity?.status || "") !== "selected") return false;
+  const evidence = {
+    ...(context.opportunity.evidence && typeof context.opportunity.evidence === "object" ? context.opportunity.evidence : {}),
+    autopilot_cycle: {
+      schema_version: 1,
+      status: "completed",
+      completed_at: new Date().toISOString(),
+      completion_reason: reason,
+      article_id: context.article.id,
+      final_social_plan_item_id: finalItem?.id || null,
+    },
+  };
+  await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(context.opportunity.id)}`, {
+    method: "PATCH",
+    prefer: "return=minimal",
+    body: {
+      status: "completed",
+      evidence,
+      decided_by: user.id,
+      decided_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+  });
+  return true;
+}
+
+async function schedulerPublishPlanItem(user, context, slotKind, enabledPlatforms) {
+  const item = await schedulerPlanItemForCycle(context, slotKind);
+  if (!item?.id) throw new Error(`Autopilota: post ${schedulerPlanPostType(slotKind)} non trovato`);
+  if (String(item.status || "") === "cancelled") {
+    if (slotKind === "social_related") await schedulerCompleteOpportunityCycle(user, context, item, "final_post_cancelled");
+    return { blocked: true, reason: "post_cancelled", item, publication_performed: false };
+  }
+  if (String(item.status || "") === "published") {
+    if (slotKind === "social_related") await schedulerCompleteOpportunityCycle(user, context, item, "final_post_already_published");
+    return { blocked: false, already_published: true, item, publication_performed: true, social: {} };
+  }
+  if (String(context.article.status || "") !== "published") {
+    throw new Error("Autopilota: il post social non può partire prima della pubblicazione dell'articolo");
+  }
+
+  const requested = Array.isArray(item.platforms) && item.platforms.length
+    ? item.platforms.filter((platform) => enabledPlatforms.includes(platform))
+    : enabledPlatforms;
+  if (!requested.length) {
+    return { blocked: true, reason: "no_enabled_social_channels", item, publication_performed: false };
+  }
+  await schedulerEnsureSocialRuntime(user, requested);
+
+  const now = new Date().toISOString();
+  const publishingRows = await serviceFetch(`editorial_social_plan_items?id=eq.${encodeURIComponent(item.id)}`, {
+    method: "PATCH",
+    prefer: "return=representation",
+    body: { status: "publishing", scheduled_for: item.scheduled_for || now, updated_at: now, updated_by: user.id },
+  });
+  const publishingItem = publishingRows?.[0] || item;
+  await schedulerQueuePlanSocial(publishingItem, requested);
+
+  const results = {};
+  let ambiguous = false;
+  try {
+    for (const platform of requested) {
+      const payload = await schedulerSocialFunction(user, platform, "process_plan_item", {
+        social_plan_item_id: publishingItem.id,
+      });
+      results[platform] = payload;
+      const state = schedulerSocialResultState(payload);
+      if (state === "ambiguous") ambiguous = true;
+      else if (state === "retry") throw new Error(`Autopilota: ${platform} post in attesa (${payload?.result || "attesa"})`);
+      else if (state === "failed") throw new Error(`Autopilota: ${platform} post non pubblicato (${payload?.error || payload?.result || "errore"})`);
+    }
+  } catch (error) {
+    await serviceFetch(`editorial_social_plan_items?id=eq.${encodeURIComponent(publishingItem.id)}`, {
+      method: "PATCH",
+      prefer: "return=minimal",
+      body: { status: "failed", updated_at: new Date().toISOString(), updated_by: user.id },
+    }).catch(() => {});
+    throw error;
+  }
+
+  const finalStatus = ambiguous ? "failed" : "published";
+  const finalRows = await serviceFetch(`editorial_social_plan_items?id=eq.${encodeURIComponent(publishingItem.id)}`, {
+    method: "PATCH",
+    prefer: "return=representation",
+    body: { status: finalStatus, updated_at: new Date().toISOString(), updated_by: user.id },
+  });
+  const finalItem = finalRows?.[0] || { ...publishingItem, status: finalStatus };
+
+  if (!ambiguous && slotKind === "social_related") {
+    await schedulerCompleteOpportunityCycle(user, context, finalItem, "final_post_published");
+  }
+
+  return {
+    blocked: false,
+    ambiguous,
+    item: finalItem,
+    social: results,
+    publication_performed: !ambiguous,
+  };
+}
+
 async function schedulerProcessSlot(slot, user, settings, runs, local) {
   const schedulerKey = `${local.date}:${slot.id}`;
   const attemptState = schedulerSlotAttemptState(runs, schedulerKey);
@@ -2612,7 +3020,8 @@ async function schedulerProcessSlot(slot, user, settings, runs, local) {
         return { action: "article_prepare_no_opportunity" };
       }
       if (opportunity.opportunity_type === "new_article") {
-        const result = await generateEditorialArticlePackage(user, { id: opportunity.id, platforms: [] });
+        const enabledPlatforms = await editorialEnabledSocialPlatforms();
+        const result = await generateEditorialArticlePackage(user, { id: opportunity.id, platforms: enabledPlatforms });
         await automationRunFinish(run, "success", { opportunity_id: opportunity.id, article_id: result.article_id || null, details: { ...details, stage: "background_started", opportunity_id: opportunity.id, slot_only: true } });
         return { action: "article_generation_started", opportunity_id: opportunity.id, result };
       }
@@ -2626,8 +3035,71 @@ async function schedulerProcessSlot(slot, user, settings, runs, local) {
       await automationRunFinish(run, "success", { details: { ...details, stage: "skipped", reason: `unsupported_opportunity_type:${opportunity.opportunity_type || "unknown"}` } });
       return { action: "article_prepare_skipped", reason: "unsupported_opportunity_type" };
     }
-    await automationRunFinish(run, "success", { details: { ...details, stage: "waiting_human_approval", publication_performed: false, reason: "approval_mode" } });
-    return { action: `${slot.kind}_waiting_human_approval`, publication_performed: false };
+    const mode = String(settings?.execution_mode || "approval");
+    if (mode === "draft") {
+      await automationRunFinish(run, "success", { details: { ...details, stage: "skipped_draft_mode", publication_performed: false, reason: "draft_mode" } });
+      return { action: `${slot.kind}_skipped_draft_mode`, publication_performed: false };
+    }
+    if (mode !== "automatic") {
+      await automationRunFinish(run, "success", { details: { ...details, stage: "waiting_human_approval", publication_performed: false, reason: "approval_mode" } });
+      return { action: `${slot.kind}_waiting_human_approval`, publication_performed: false };
+    }
+
+    const context = await schedulerArticleCycleContext(runs);
+    if (!context) {
+      await automationRunFinish(run, "success", { details: { ...details, stage: "skipped", publication_performed: false, reason: "no_article_cycle" } });
+      return { action: `${slot.kind}_skipped`, reason: "no_article_cycle", publication_performed: false };
+    }
+    const enabledPlatforms = await editorialEnabledSocialPlatforms();
+
+    if (slot.kind === "article_publish") {
+      const result = await schedulerPublishArticleIntro(user, context, enabledPlatforms);
+      if (result.blocked) {
+        if (result.reason === "no_enabled_social_channels") {
+          throw new Error("Autopilota: nessun canale social abilitato per lo slot article_publish");
+        }
+        await automationRunFinish(run, "success", {
+          opportunity_id: context.opportunity.id,
+          article_id: context.article.id,
+          details: { ...details, stage: "waiting_human_review", publication_performed: false, reason: result.reason },
+        });
+        return { action: "article_publish_waiting_human_review", ...result };
+      }
+      await automationRunFinish(run, "success", {
+        opportunity_id: context.opportunity.id,
+        article_id: context.article.id,
+        details: {
+          ...details,
+          stage: result.ambiguous ? "manual_social_check_required" : "completed",
+          publication_performed: true,
+          social: result.social,
+        },
+      });
+      return { action: result.ambiguous ? "article_published_social_check_required" : "article_published", ...result };
+    }
+
+    if (slot.kind === "social_followup" || slot.kind === "social_related") {
+      const result = await schedulerPublishPlanItem(user, context, slot.kind, enabledPlatforms);
+      if (result.blocked && result.reason === "no_enabled_social_channels") {
+        throw new Error(`Autopilota: nessun canale social abilitato per lo slot ${slot.kind}`);
+      }
+      await automationRunFinish(run, "success", {
+        opportunity_id: context.opportunity.id,
+        article_id: context.article.id,
+        social_plan_item_id: result.item?.id || null,
+        details: {
+          ...details,
+          stage: result.blocked ? "blocked" : (result.ambiguous ? "manual_social_check_required" : "completed"),
+          publication_performed: Boolean(result.publication_performed),
+          reason: result.reason || null,
+          social: result.social || {},
+        },
+      });
+      return { action: `${slot.kind}_${result.blocked ? "blocked" : (result.ambiguous ? "check_required" : "published")}`, ...result };
+    }
+
+    await automationRunFinish(run, "success", { details: { ...details, stage: "skipped", publication_performed: false, reason: "unsupported_slot_kind" } });
+    return { action: `${slot.kind}_skipped`, publication_performed: false, reason: "unsupported_slot_kind" };
   } catch (error) {
     await automationRunFinish(run, "failed", { last_error: String(error?.message || error).slice(0, 2000), details: { ...details, stage: "failed" } });
     throw error;
@@ -2637,9 +3109,6 @@ async function schedulerProcessSlot(slot, user, settings, runs, local) {
 async function editorialAutopilotTick() {
   const settings = await automationSchedulerSettings();
   if (!settings?.enabled) return { ok: true, version: VERSION, active: false, action: "disabled" };
-  if (String(settings.execution_mode || "approval") === "automatic") {
-    return { ok: true, version: VERSION, active: false, blocked: true, action: "automatic_publish_not_enabled", message: "La pubblicazione automatica completa resta bloccata: usa Genera e chiedi approvazione." };
-  }
   const user = await automationSchedulerUser(settings);
   let runs = await automationSchedulerRuns(120);
 

@@ -1,6 +1,6 @@
 const API_VERSION = "v26.0";
 const INSTAGRAM_GRAPH = "https://graph.instagram.com";
-const VERSION = "0.12.15";
+const VERSION = "0.12.45";
 const PLATFORM = "instagram";
 const MAX_ATTEMPTS = 3;
 const MAX_CAROUSEL_SLIDES = 10;
@@ -14,7 +14,7 @@ const ALLOWED_ORIGINS = new Set([
 ]);
 
 const CORS_BASE_HEADERS = {
-  "access-control-allow-headers": "authorization, apikey, content-type",
+  "access-control-allow-headers": "authorization, apikey, content-type, x-editorial-actor-id",
   "access-control-allow-methods": "POST, OPTIONS",
 };
 
@@ -151,6 +151,7 @@ type EditorialContext = {
   serviceKey: string;
   jwt: string;
   userId: string;
+  scheduler: boolean;
 };
 
 async function editorialContext(req: Request): Promise<EditorialContext> {
@@ -164,6 +165,32 @@ async function editorialContext(req: Request): Promise<EditorialContext> {
   }
   if (!jwt) {
     throw Object.assign(new Error("Sessione Redazione richiesta"), { status: 401 });
+  }
+
+  if (jwt === serviceKey) {
+    const actorId = String(req.headers.get("x-editorial-actor-id") || "").trim();
+    if (!validUuid(actorId)) {
+      throw Object.assign(new Error("Attore Autopilota non valido"), { status: 401 });
+    }
+    const headers = {
+      apikey: serviceKey,
+      Authorization: `Bearer ${serviceKey}`,
+      Accept: "application/json",
+    };
+    const [memberResponse, authorResponse] = await Promise.all([
+      fetch(`${supabaseUrl}/rest/v1/editorial_members?select=user_id,role,active&user_id=eq.${encodeURIComponent(actorId)}&limit=1`, {
+        headers, cache: "no-store",
+      }),
+      fetch(`${supabaseUrl}/rest/v1/editorial_authors?select=id,user_id,active&user_id=eq.${encodeURIComponent(actorId)}&active=eq.true&limit=1`, {
+        headers, cache: "no-store",
+      }),
+    ]);
+    const members = await memberResponse.json().catch(() => []);
+    const authors = await authorResponse.json().catch(() => []);
+    if (!memberResponse.ok || !authorResponse.ok || !members?.[0]?.active || members[0].role !== "admin" || !authors?.[0]?.id) {
+      throw Object.assign(new Error("Attore Autopilota non autorizzato alla pubblicazione social"), { status: 403 });
+    }
+    return { supabaseUrl, anonKey, serviceKey, jwt, userId: actorId, scheduler: true };
   }
 
   const authResponse = await fetch(`${supabaseUrl}/auth/v1/user`, {
@@ -197,7 +224,7 @@ async function editorialContext(req: Request): Promise<EditorialContext> {
     throw Object.assign(new Error("Permesso publish_articles richiesto"), { status: 403 });
   }
 
-  return { supabaseUrl, anonKey, serviceKey, jwt, userId: String(user.id) };
+  return { supabaseUrl, anonKey, serviceKey, jwt, userId: String(user.id), scheduler: false };
 }
 
 async function loadPublishedArticle(ctx: EditorialContext, articleId: string) {
@@ -209,8 +236,8 @@ async function loadPublishedArticle(ctx: EditorialContext, articleId: string) {
   const response = await fetch(endpoint, {
     method: "GET",
     headers: {
-      apikey: ctx.anonKey,
-      Authorization: `Bearer ${ctx.jwt}`,
+      apikey: ctx.scheduler ? ctx.serviceKey : ctx.anonKey,
+      Authorization: `Bearer ${ctx.scheduler ? ctx.serviceKey : ctx.jwt}`,
       Accept: "application/json",
     },
   });
@@ -477,6 +504,40 @@ async function publicArticleOnline(article: any) {
   }
 }
 
+
+async function createSingleImageContainer(
+  instagramToken: string,
+  accountId: string,
+  imageUrl: string,
+  caption: string,
+  altText: string,
+) {
+  const endpoint = `${INSTAGRAM_GRAPH}/${API_VERSION}/${encodeURIComponent(accountId)}/media`;
+  const form = new URLSearchParams();
+  form.set("image_url", imageUrl);
+  form.set("caption", caption);
+  if (altText) form.set("alt_text", altText);
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${instagramToken}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+      Accept: "application/json",
+    },
+    body: form,
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok || !payload?.id) {
+    throw Object.assign(new Error("Impossibile creare il contenitore immagine Instagram"), {
+      status: 502,
+      meta: metaError(payload),
+      phase: "prepare",
+    });
+  }
+  return String(payload.id);
+}
+
 async function createCarouselItem(instagramToken: string, accountId: string, imageUrl: string, altText: string) {
   const endpoint = `${INSTAGRAM_GRAPH}/${API_VERSION}/${encodeURIComponent(accountId)}/media`;
   const form = new URLSearchParams();
@@ -655,6 +716,368 @@ function queueResult(req: Request, publication: any, channel: any) {
     return json(req, { ok: true, version: VERSION, result: "retry_exhausted", published: false });
   }
   return null;
+}
+
+
+function trackedArticleDestination(article: any, platform = PLATFORM, content = "article_intro") {
+  const slug = String(article?.slug || "").trim();
+  if (!slug) return "";
+  try {
+    const url = new URL(articleUrl(slug));
+    url.searchParams.set("utm_source", platform);
+    url.searchParams.set("utm_medium", "social");
+    url.searchParams.set("utm_campaign", `editorial_${String(article?.id || "").slice(0, 8)}`);
+    url.searchParams.set("utm_content", content);
+    return url.href;
+  } catch {
+    return articleUrl(slug);
+  }
+}
+
+function composeIntroCaption(article: any, author: any = {}) {
+  const title = String(article?.title || "").replace(/\s+/g, " ").trim();
+  const excerpt = String(article?.excerpt || "").replace(/\s+/g, " ").trim();
+  const link = trackedArticleDestination(article, PLATFORM, "article_intro");
+  const authorName = String(author?.display_name || "Redazione OffertaLogica").replace(/\s+/g, " ").trim();
+  const parts = [title, excerpt];
+  if (link) parts.push(`Approfondisci su OffertaLogica Informa: ${link}`);
+  if (authorName) parts.push(`Autore: ${authorName}`);
+  const caption = parts.filter(Boolean).join("\n\n");
+  return caption.length <= 2200 ? caption : `${caption.slice(0, 2197).trimEnd()}…`;
+}
+
+async function processAutopilotArticleIntro(
+  req: Request,
+  ctx: EditorialContext,
+  instagramToken: string,
+  account: { id: string; username: string },
+  articleId: string,
+) {
+  const channel = await loadChannel(ctx);
+  const publication = await loadPublication(ctx, articleId);
+  const terminal = queueResult(req, publication, channel);
+  if (terminal) return terminal;
+
+  const article = await loadPublishedArticle(ctx, articleId);
+  if (!(await publicArticleOnline(article))) {
+    if (["waiting_connection", "ready", "failed"].includes(String(publication.status || ""))) {
+      await updatePublication(ctx, String(publication.id), {
+        status: "waiting_web",
+        last_error: null,
+        updated_at: new Date().toISOString(),
+      });
+    }
+    return json(req, { ok: true, version: VERSION, result: "waiting_web", published: false });
+  }
+
+  const imageUrl = String(article.featured_image_url || "").trim();
+  if (!validHttps(imageUrl) || !(await publicImageReady(imageUrl))) {
+    return json(req, { ok: true, version: VERSION, result: "waiting_web", published: false, error: "Immagine articolo non ancora disponibile per Meta" });
+  }
+  const author = await loadArticleAuthor(ctx, article);
+  const claimed = await claimPublication(ctx, publication);
+  if (!claimed) return json(req, { ok: true, version: VERSION, result: "in_progress", published: false });
+
+  const publicationId = String(claimed.id);
+  let creationId = "";
+  let mediaId = "";
+  try {
+    creationId = await createSingleImageContainer(
+      instagramToken,
+      account.id,
+      imageUrl,
+      composeIntroCaption(article, author),
+      String(article.featured_image_alt || article.title || "").slice(0, 1000),
+    );
+    await updatePublication(ctx, publicationId, {
+      external_post_id: `container:${creationId}`,
+      updated_at: new Date().toISOString(),
+    });
+    await waitContainerReady(instagramToken, creationId, "contenitore immagine");
+
+    if (!(await publicArticleOnline(await loadPublishedArticle(ctx, articleId)))) {
+      await updatePublication(ctx, publicationId, {
+        status: "waiting_web",
+        last_error: null,
+        updated_at: new Date().toISOString(),
+      });
+      return json(req, { ok: true, version: VERSION, result: "waiting_web", published: false });
+    }
+
+    try {
+      mediaId = await publishContainer(instagramToken, account.id, creationId);
+    } catch (error) {
+      const err = error as any;
+      if (err?.phase === "publish_ambiguous") {
+        await updatePublication(ctx, publicationId, {
+          status: "publishing",
+          last_error: `ESITO INCERTO: media_publish immagine inviato ma risposta non verificabile. Non ritentare automaticamente. Contenitore ${creationId}.`,
+          updated_at: new Date().toISOString(),
+        }).catch(() => null);
+        return json(req, { ok: true, version: VERSION, result: "ambiguous_publish", published: false });
+      }
+      throw error;
+    }
+
+    const now = new Date().toISOString();
+    const updated = await updatePublication(ctx, publicationId, {
+      status: "published",
+      external_post_id: mediaId,
+      published_at: now,
+      last_error: null,
+      updated_at: now,
+    });
+    if (!updated) {
+      await updatePublication(ctx, publicationId, {
+        status: "publishing",
+        external_post_id: mediaId,
+        last_error: `ESITO INCERTO: Instagram ha restituito il media ID ${mediaId}, ma il database non ha confermato published. Non ritentare automaticamente.`,
+        updated_at: new Date().toISOString(),
+      }).catch(() => null);
+      return json(req, { ok: true, version: VERSION, result: "ambiguous_publish", published: false });
+    }
+
+    const media = await publishedMedia(instagramToken, mediaId);
+    if (media?.permalink) {
+      await updatePublication(ctx, publicationId, {
+        external_post_url: media.permalink,
+        updated_at: new Date().toISOString(),
+      }).catch(() => null);
+    }
+    return json(req, {
+      ok: true,
+      version: VERSION,
+      result: "published",
+      published: true,
+      external_post_id: mediaId,
+      external_post_url: media?.permalink || null,
+      format: "static_article_intro",
+    });
+  } catch (error) {
+    const err = error as any;
+    const message = err?.message || "Errore Instagram";
+    await markFailed(ctx, publicationId, message).catch(() => null);
+    return json(req, { ok: true, version: VERSION, result: "failed", published: false, error: message, meta: err?.meta || null });
+  }
+}
+
+async function loadPlanPublication(ctx: EditorialContext, itemId: string) {
+  const rows = await serviceRows(
+    ctx,
+    `editorial_social_plan_publications?social_plan_item_id=eq.${encodeURIComponent(itemId)}&platform=eq.${PLATFORM}&select=social_plan_item_id,platform,status,attempts,external_post_id,external_post_url,last_error,queued_at,last_attempt_at,published_at,updated_at&limit=1`,
+  );
+  return rows[0] || null;
+}
+
+async function updatePlanPublication(ctx: EditorialContext, itemId: string, body: Record<string, unknown>) {
+  const rows = await updateRows(
+    ctx,
+    `editorial_social_plan_publications?social_plan_item_id=eq.${encodeURIComponent(itemId)}&platform=eq.${PLATFORM}`,
+    body,
+  );
+  return rows[0] || null;
+}
+
+async function claimPlanPublication(ctx: EditorialContext, publication: any) {
+  const attempts = Number(publication?.attempts || 0);
+  const rows = await updateRows(
+    ctx,
+    `editorial_social_plan_publications?social_plan_item_id=eq.${encodeURIComponent(String(publication.social_plan_item_id))}&platform=eq.${PLATFORM}&status=in.(ready,failed)&attempts=eq.${attempts}`,
+    {
+      status: "publishing",
+      attempts: attempts + 1,
+      last_attempt_at: new Date().toISOString(),
+      last_error: null,
+      updated_at: new Date().toISOString(),
+    },
+  );
+  return rows[0] || null;
+}
+
+function planQueueResult(req: Request, publication: any, channel: any) {
+  if (!channel?.enabled) return json(req, { ok: true, version: VERSION, result: "channel_disabled", published: false });
+  if (!publication) return json(req, { ok: true, version: VERSION, result: "not_queued", published: false });
+  if (publication.status === "published") {
+    return json(req, {
+      ok: true,
+      version: VERSION,
+      result: "already_published",
+      published: true,
+      external_post_id: publication.external_post_id || null,
+      external_post_url: publication.external_post_url || null,
+    });
+  }
+  if (publication.status === "skipped") return json(req, { ok: true, version: VERSION, result: "skipped", published: false });
+  if (publication.status === "publishing") {
+    const ambiguous = Boolean(String(publication.last_error || "").startsWith("ESITO INCERTO:"));
+    return json(req, { ok: true, version: VERSION, result: ambiguous ? "ambiguous_publish" : "in_progress", published: false });
+  }
+  if (Number(publication.attempts || 0) >= MAX_ATTEMPTS) {
+    return json(req, { ok: true, version: VERSION, result: "retry_exhausted", published: false, last_error: publication.last_error || null });
+  }
+  return null;
+}
+
+function trackedPlanDestination(rawUrl: string, item: any, platform: string) {
+  if (!validHttps(rawUrl)) return "";
+  try {
+    const url = new URL(rawUrl);
+    url.searchParams.set("utm_source", platform);
+    url.searchParams.set("utm_medium", "social");
+    url.searchParams.set("utm_campaign", `editorial_${String(item?.source_article_id || "").slice(0, 8)}`);
+    url.searchParams.set("utm_content", String(item?.post_type || "post"));
+    return url.href;
+  } catch {
+    return rawUrl;
+  }
+}
+
+async function loadPlanItemContext(ctx: EditorialContext, itemId: string) {
+  const itemRows = await serviceRows(
+    ctx,
+    `editorial_social_plan_items?id=eq.${encodeURIComponent(itemId)}&select=id,source_article_id,opportunity_id,post_type,destination_target_id,theme,brief,canonical_text,platforms,status&limit=1`,
+  );
+  const item = itemRows[0] || null;
+  if (!item) throw Object.assign(new Error("Post del piano non trovato"), { status: 404 });
+
+  const articleRows = await serviceRows(
+    ctx,
+    `editorial_articles?id=eq.${encodeURIComponent(String(item.source_article_id || ""))}&select=id,status,slug,title,featured_image_url,featured_image_alt&limit=1`,
+  );
+  const article = articleRows[0] || null;
+  if (!article || article.status !== "published") {
+    throw Object.assign(new Error("L'articolo collegato deve essere pubblicato"), { status: 409 });
+  }
+  const imageUrl = String(article.featured_image_url || "").trim();
+  if (!validHttps(imageUrl)) throw Object.assign(new Error("Immagine articolo non disponibile"), { status: 409 });
+
+  let destination = articleUrl(String(article.slug || ""));
+  if (item.post_type === "related" && validUuid(String(item.destination_target_id || ""))) {
+    const targetRows = await serviceRows(
+      ctx,
+      `editorial_promotion_targets?id=eq.${encodeURIComponent(String(item.destination_target_id))}&select=id,url_path,enabled&limit=1`,
+    );
+    const target = targetRows[0] || null;
+    if (!target?.enabled) throw Object.assign(new Error("Destinazione OffertaLogica non disponibile"), { status: 409 });
+    const raw = String(target.url_path || "").trim();
+    try {
+      const url = new URL(raw, "https://offertalogica.it");
+      if (!["offertalogica.it", "www.offertalogica.it"].includes(url.hostname.toLowerCase()) || url.protocol !== "https:") throw new Error("host");
+      destination = `https://offertalogica.it${url.pathname}${url.search}`;
+    } catch {
+      throw Object.assign(new Error("Destinazione OffertaLogica non valida"), { status: 422 });
+    }
+  }
+
+  return {
+    item,
+    article,
+    imageUrl,
+    destination: trackedPlanDestination(destination, item, PLATFORM),
+  };
+}
+
+function composePlanCaption(item: any, destination: string) {
+  const base = String(item?.canonical_text || "").trim();
+  const caption = [base, destination ? `Approfondisci: ${destination}` : ""].filter(Boolean).join("\n\n");
+  return caption.length <= 2200 ? caption : `${caption.slice(0, 2197).trimEnd()}…`;
+}
+
+async function processPlanItem(
+  req: Request,
+  ctx: EditorialContext,
+  instagramToken: string,
+  account: { id: string; username: string },
+  itemId: string,
+) {
+  const channel = await loadChannel(ctx);
+  const publication = await loadPlanPublication(ctx, itemId);
+  const terminal = planQueueResult(req, publication, channel);
+  if (terminal) return terminal;
+
+  const { item, article, imageUrl, destination } = await loadPlanItemContext(ctx, itemId);
+  if (!(await publicImageReady(imageUrl))) {
+    return json(req, { ok: true, version: VERSION, result: "waiting_web", published: false, error: "Immagine articolo non ancora disponibile per Meta" });
+  }
+  const claimed = await claimPlanPublication(ctx, publication);
+  if (!claimed) return json(req, { ok: true, version: VERSION, result: "in_progress", published: false });
+
+  let creationId = "";
+  let mediaId = "";
+  try {
+    creationId = await createSingleImageContainer(
+      instagramToken,
+      account.id,
+      imageUrl,
+      composePlanCaption(item, destination),
+      String(article.featured_image_alt || article.title || "").slice(0, 1000),
+    );
+    await updatePlanPublication(ctx, itemId, {
+      external_post_id: `container:${creationId}`,
+      updated_at: new Date().toISOString(),
+    });
+    await waitContainerReady(instagramToken, creationId, "contenitore immagine");
+
+    try {
+      mediaId = await publishContainer(instagramToken, account.id, creationId);
+    } catch (error) {
+      const err = error as any;
+      if (err?.phase === "publish_ambiguous") {
+        await updatePlanPublication(ctx, itemId, {
+          status: "publishing",
+          last_error: `ESITO INCERTO: media_publish del post statico inviato ma risposta non verificabile. Non ritentare automaticamente. Contenitore ${creationId}.`,
+          updated_at: new Date().toISOString(),
+        }).catch(() => null);
+        return json(req, { ok: true, version: VERSION, result: "ambiguous_publish", published: false });
+      }
+      throw error;
+    }
+
+    const now = new Date().toISOString();
+    const updated = await updatePlanPublication(ctx, itemId, {
+      status: "published",
+      external_post_id: mediaId,
+      published_at: now,
+      last_error: null,
+      updated_at: now,
+    });
+    if (!updated) {
+      await updatePlanPublication(ctx, itemId, {
+        status: "publishing",
+        external_post_id: mediaId,
+        last_error: `ESITO INCERTO: Instagram ha restituito il media ID ${mediaId}, ma il database non ha confermato published. Non ritentare automaticamente.`,
+        updated_at: new Date().toISOString(),
+      }).catch(() => null);
+      return json(req, { ok: true, version: VERSION, result: "ambiguous_publish", published: false });
+    }
+
+    const media = await publishedMedia(instagramToken, mediaId);
+    if (media?.permalink) {
+      await updatePlanPublication(ctx, itemId, {
+        external_post_url: media.permalink,
+        updated_at: new Date().toISOString(),
+      }).catch(() => null);
+    }
+    return json(req, {
+      ok: true,
+      version: VERSION,
+      result: "published",
+      published: true,
+      external_post_id: mediaId,
+      external_post_url: media?.permalink || null,
+      destination,
+      format: "static_plan_post",
+    });
+  } catch (error) {
+    const err = error as any;
+    const message = err?.message || "Errore Instagram";
+    await updatePlanPublication(ctx, itemId, {
+      status: "failed",
+      last_error: String(message).slice(0, 1000),
+      updated_at: new Date().toISOString(),
+    }).catch(() => null);
+    return json(req, { ok: true, version: VERSION, result: "failed", published: false, error: message, meta: err?.meta || null });
+  }
 }
 
 async function prepareArticleQueue(req: Request, ctx: EditorialContext, articleId: string) {
@@ -904,12 +1327,24 @@ Deno.serve(async (req) => {
       return await processArticleQueue(req, ctx, instagramToken, account, articleId, body?.slides, body?.presentation_mode);
     }
 
+    if (action === "process_autopilot_article_intro") {
+      const articleId = String(body?.article_id || "").trim();
+      if (!validUuid(articleId)) return json(req, { ok: false, error: "article_id non valido" }, 400);
+      return await processAutopilotArticleIntro(req, ctx, instagramToken, account, articleId);
+    }
+
+    if (action === "process_plan_item") {
+      const itemId = String(body?.social_plan_item_id || "").trim();
+      if (!validUuid(itemId)) return json(req, { ok: false, error: "social_plan_item_id non valido" }, 400);
+      return await processPlanItem(req, ctx, instagramToken, account, itemId);
+    }
+
     // Il test manuale viene disattivato quando entra in funzione la coda automatica:
     // evita che una vecchia pagina in cache possa pubblicare un doppione.
     if (["prepare_article_test", "publish_container_test"].includes(action)) {
       return json(req, {
         ok: false,
-        error: "Test manuale Instagram disattivato in v0.12.15: usa la coda automatica.",
+        error: "Test manuale Instagram disattivato: usa la coda automatica.",
       }, 410);
     }
 

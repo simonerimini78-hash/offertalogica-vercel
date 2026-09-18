@@ -1,5 +1,5 @@
 // @ts-nocheck
-// v0.12.19: snapshot self-contained della sintesi social canonica v3.
+// v0.12.45: mantiene self-contained la sintesi social canonica v3.
 // È incorporato anche qui per consentire il deploy diretto dall'editor web
 // Supabase senza dipendenze da file _shared esterni.
 
@@ -264,7 +264,7 @@ function buildSocialSummary(article: any = {}, options: { maxChars?: number } = 
 
 const API_VERSION = "v26.0";
 const FACEBOOK_GRAPH = "https://graph.facebook.com";
-const VERSION = "0.12.19";
+const VERSION = "0.12.45";
 const PLATFORM = "facebook";
 const MAX_ATTEMPTS = 3;
 const MAX_MESSAGE_CHARS = 7000;
@@ -275,7 +275,7 @@ const ALLOWED_ORIGINS = new Set([
 ]);
 
 const CORS_BASE_HEADERS = {
-  "access-control-allow-headers": "authorization, apikey, content-type",
+  "access-control-allow-headers": "authorization, apikey, content-type, x-editorial-actor-id",
   "access-control-allow-methods": "POST, OPTIONS",
 };
 
@@ -352,6 +352,33 @@ function validHttps(value) {
 
 function articleUrl(slug) {
   return `https://offertalogica.it/articoli/${encodeURIComponent(slug)}.html`;
+}
+
+function trackedArticleDestination(article, platform = PLATFORM, content = "article_intro") {
+  const slug = String(article?.slug || "").trim();
+  if (!slug) return "";
+  try {
+    const url = new URL(articleUrl(slug));
+    url.searchParams.set("utm_source", platform);
+    url.searchParams.set("utm_medium", "social");
+    url.searchParams.set("utm_campaign", `editorial_${String(article?.id || "").slice(0, 8)}`);
+    url.searchParams.set("utm_content", content);
+    return url.href;
+  } catch {
+    return articleUrl(slug);
+  }
+}
+
+function composeAutopilotIntroMessage(article, author = {}, link = "") {
+  const title = cleanSocialInlineText(article?.title || "").replace(/\s+/g, " ").trim();
+  const excerpt = cleanSocialInlineText(article?.excerpt || "").replace(/\s+/g, " ").trim();
+  const authorName = String(author?.display_name || "Redazione OffertaLogica").replace(/\s+/g, " ").trim();
+  const parts = [title, excerpt];
+  if (link) parts.push(`Approfondisci su OffertaLogica Informa:
+${link}`);
+  if (authorName) parts.push(`Autore: ${authorName}`);
+  const message = parts.filter(Boolean).join("\n\n");
+  return message.length <= MAX_MESSAGE_CHARS ? message : `${message.slice(0, MAX_MESSAGE_CHARS - 1).trimEnd()}…`;
 }
 
 function composeFacebookMessage(article, author = {}) {
@@ -432,6 +459,32 @@ async function editorialContext(req) {
     throw Object.assign(new Error("Sessione Redazione richiesta"), { status: 401 });
   }
 
+  if (jwt === serviceKey) {
+    const actorId = String(req.headers.get("x-editorial-actor-id") || "").trim();
+    if (!validUuid(actorId)) {
+      throw Object.assign(new Error("Attore Autopilota non valido"), { status: 401 });
+    }
+    const headers = {
+      apikey: serviceKey,
+      Authorization: `Bearer ${serviceKey}`,
+      Accept: "application/json",
+    };
+    const [memberResponse, authorResponse] = await Promise.all([
+      fetch(`${supabaseUrl}/rest/v1/editorial_members?select=user_id,role,active&user_id=eq.${encodeURIComponent(actorId)}&limit=1`, {
+        headers, cache: "no-store",
+      }),
+      fetch(`${supabaseUrl}/rest/v1/editorial_authors?select=id,user_id,active&user_id=eq.${encodeURIComponent(actorId)}&active=eq.true&limit=1`, {
+        headers, cache: "no-store",
+      }),
+    ]);
+    const members = await memberResponse.json().catch(() => []);
+    const authors = await authorResponse.json().catch(() => []);
+    if (!memberResponse.ok || !authorResponse.ok || !members?.[0]?.active || members[0].role !== "admin" || !authors?.[0]?.id) {
+      throw Object.assign(new Error("Attore Autopilota non autorizzato alla pubblicazione social"), { status: 403 });
+    }
+    return { supabaseUrl, anonKey, serviceKey, jwt, userId: actorId, scheduler: true };
+  }
+
   const authResponse = await fetch(`${supabaseUrl}/auth/v1/user`, {
     method: "GET",
     headers: {
@@ -465,7 +518,7 @@ async function editorialContext(req) {
     throw Object.assign(new Error("Permesso publish_articles richiesto"), { status: 403 });
   }
 
-  return { supabaseUrl, anonKey, serviceKey, jwt, userId: String(user.id) };
+  return { supabaseUrl, anonKey, serviceKey, jwt, userId: String(user.id), scheduler: false };
 }
 
 function serviceHeaders(ctx, prefer = "") {
@@ -515,8 +568,8 @@ async function loadPublishedArticle(ctx, articleId) {
   const response = await fetch(endpoint, {
     method: "GET",
     headers: {
-      apikey: ctx.anonKey,
-      Authorization: `Bearer ${ctx.jwt}`,
+      apikey: ctx.scheduler ? ctx.serviceKey : ctx.anonKey,
+      Authorization: `Bearer ${ctx.scheduler ? ctx.serviceKey : ctx.jwt}`,
       Accept: "application/json",
     },
     cache: "no-store",
@@ -740,7 +793,212 @@ async function markAmbiguous(ctx, publicationId, message, externalPostId = null)
   return updatePublication(ctx, publicationId, body);
 }
 
-async function processArticleQueue(req, ctx, pageToken, pageId, articleId) {
+
+async function loadPlanPublication(ctx, itemId) {
+  const rows = await serviceRows(
+    ctx,
+    `editorial_social_plan_publications?social_plan_item_id=eq.${encodeURIComponent(itemId)}&platform=eq.${PLATFORM}&select=social_plan_item_id,platform,status,attempts,external_post_id,external_post_url,last_error,queued_at,last_attempt_at,published_at,updated_at&limit=1`,
+  );
+  return rows[0] || null;
+}
+
+async function updatePlanPublication(ctx, itemId, body) {
+  const rows = await updateRows(
+    ctx,
+    `editorial_social_plan_publications?social_plan_item_id=eq.${encodeURIComponent(itemId)}&platform=eq.${PLATFORM}`,
+    body,
+  );
+  return rows[0] || null;
+}
+
+async function claimPlanPublication(ctx, publication) {
+  const attempts = Number(publication?.attempts || 0);
+  const rows = await updateRows(
+    ctx,
+    `editorial_social_plan_publications?social_plan_item_id=eq.${encodeURIComponent(String(publication.social_plan_item_id))}&platform=eq.${PLATFORM}&status=in.(ready,failed)&attempts=eq.${attempts}`,
+    {
+      status: "publishing",
+      attempts: attempts + 1,
+      last_attempt_at: new Date().toISOString(),
+      last_error: null,
+      updated_at: new Date().toISOString(),
+    },
+  );
+  return rows[0] || null;
+}
+
+function planTerminalResult(req, publication, channel) {
+  if (!channel?.enabled) {
+    return json(req, { ok: true, version: VERSION, result: "channel_disabled", status: "channel_disabled", published: false });
+  }
+  if (!publication) {
+    return json(req, { ok: true, version: VERSION, result: "not_queued", status: "not_queued", published: false });
+  }
+  if (publication.status === "published") {
+    return json(req, {
+      ok: true,
+      version: VERSION,
+      result: "already_published",
+      status: "published",
+      published: true,
+      external_post_id: publication.external_post_id || null,
+      external_post_url: publication.external_post_url || null,
+    });
+  }
+  if (publication.status === "skipped") {
+    return json(req, { ok: true, version: VERSION, result: "skipped", status: "skipped", published: false });
+  }
+  if (publication.status === "publishing") {
+    const ambiguous = Boolean(String(publication.last_error || "").startsWith("ESITO INCERTO:"));
+    return json(req, {
+      ok: true,
+      version: VERSION,
+      result: ambiguous ? "ambiguous_publish" : "in_progress",
+      status: ambiguous ? "ambiguous_publish" : "in_progress",
+      published: false,
+      external_post_id: publication.external_post_id || null,
+    });
+  }
+  if (Number(publication.attempts || 0) >= MAX_ATTEMPTS) {
+    return json(req, {
+      ok: true,
+      version: VERSION,
+      result: "retry_exhausted",
+      status: "retry_exhausted",
+      published: false,
+      last_error: publication.last_error || null,
+    });
+  }
+  return null;
+}
+
+function trackedPlanDestination(rawUrl, item, platform) {
+  if (!validHttps(rawUrl)) return "";
+  try {
+    const url = new URL(rawUrl);
+    url.searchParams.set("utm_source", platform);
+    url.searchParams.set("utm_medium", "social");
+    url.searchParams.set("utm_campaign", `editorial_${String(item?.source_article_id || "").slice(0, 8)}`);
+    url.searchParams.set("utm_content", String(item?.post_type || "post"));
+    return url.href;
+  } catch {
+    return rawUrl;
+  }
+}
+
+async function loadPlanItemContext(ctx, itemId) {
+  const itemRows = await serviceRows(
+    ctx,
+    `editorial_social_plan_items?id=eq.${encodeURIComponent(itemId)}&select=id,source_article_id,opportunity_id,post_type,destination_target_id,theme,brief,canonical_text,platforms,status&limit=1`,
+  );
+  const item = itemRows[0] || null;
+  if (!item) throw Object.assign(new Error("Post del piano non trovato"), { status: 404 });
+
+  const articleRows = await serviceRows(
+    ctx,
+    `editorial_articles?id=eq.${encodeURIComponent(String(item.source_article_id || ""))}&select=id,status,slug,title,featured_image_url,featured_image_alt&limit=1`,
+  );
+  const article = articleRows[0] || null;
+  if (!article || article.status !== "published") {
+    throw Object.assign(new Error("L'articolo collegato deve essere pubblicato"), { status: 409 });
+  }
+
+  let destination = articleUrl(String(article.slug || ""));
+  if (item.post_type === "related" && validUuid(String(item.destination_target_id || ""))) {
+    const targetRows = await serviceRows(
+      ctx,
+      `editorial_promotion_targets?id=eq.${encodeURIComponent(String(item.destination_target_id))}&select=id,url_path,enabled&limit=1`,
+    );
+    const target = targetRows[0] || null;
+    if (!target?.enabled) throw Object.assign(new Error("Destinazione OffertaLogica non disponibile"), { status: 409 });
+    const raw = String(target.url_path || "").trim();
+    try {
+      const url = new URL(raw, "https://offertalogica.it");
+      if (!["offertalogica.it", "www.offertalogica.it"].includes(url.hostname.toLowerCase()) || url.protocol !== "https:") {
+        throw new Error("host");
+      }
+      destination = `https://offertalogica.it${url.pathname}${url.search}`;
+    } catch {
+      throw Object.assign(new Error("Destinazione OffertaLogica non valida"), { status: 422 });
+    }
+  }
+
+  return { item, article, destination: trackedPlanDestination(destination, item, PLATFORM) };
+}
+
+async function processPlanItem(req, ctx, pageToken, pageId, itemId) {
+  const channel = await loadChannel(ctx);
+  const publication = await loadPlanPublication(ctx, itemId);
+  const terminal = planTerminalResult(req, publication, channel);
+  if (terminal) return terminal;
+
+  const identity = await pageIdentity(pageToken);
+  if (identity.id !== pageId) {
+    throw Object.assign(new Error("Il Page Access Token non appartiene alla Pagina Facebook configurata"), { status: 409 });
+  }
+  const { item, destination } = await loadPlanItemContext(ctx, itemId);
+  const message = String(item.canonical_text || "").trim().slice(0, MAX_MESSAGE_CHARS);
+  if (!message) throw Object.assign(new Error("Testo del post vuoto"), { status: 422 });
+
+  const claimed = await claimPlanPublication(ctx, publication);
+  if (!claimed) {
+    return json(req, { ok: true, version: VERSION, result: "in_progress", status: "in_progress", published: false });
+  }
+
+  let postId = "";
+  try {
+    postId = await createPagePost(pageToken, pageId, message, destination);
+    const post = await publishedPost(pageToken, postId).catch(() => null);
+    const now = new Date().toISOString();
+    const updated = await updatePlanPublication(ctx, itemId, {
+      status: "published",
+      external_post_id: postId,
+      external_post_url: post?.permalink_url || null,
+      last_error: null,
+      published_at: now,
+      updated_at: now,
+    });
+    if (!updated) {
+      await updatePlanPublication(ctx, itemId, {
+        status: "publishing",
+        external_post_id: postId,
+        last_error: "ESITO INCERTO: post creato su Facebook ma conferma database non riuscita. Non ritentare automaticamente.",
+        updated_at: new Date().toISOString(),
+      }).catch(() => null);
+      return json(req, { ok: true, version: VERSION, result: "ambiguous_publish", status: "ambiguous_publish", published: false, external_post_id: postId });
+    }
+    return json(req, {
+      ok: true,
+      version: VERSION,
+      result: "published",
+      status: "published",
+      published: true,
+      external_post_id: postId,
+      external_post_url: post?.permalink_url || null,
+      destination,
+    });
+  } catch (error) {
+    const phase = String(error?.phase || "");
+    if (phase === "publish_ambiguous") {
+      await updatePlanPublication(ctx, itemId, {
+        status: "publishing",
+        external_post_id: postId || null,
+        last_error: `ESITO INCERTO: ${String(error?.message || "pubblicazione Facebook non verificabile").slice(0, 800)} Non ritentare automaticamente.`,
+        updated_at: new Date().toISOString(),
+      }).catch(() => null);
+      return json(req, { ok: true, version: VERSION, result: "ambiguous_publish", status: "ambiguous_publish", published: false, external_post_id: postId || null });
+    }
+    const message = error?.meta?.message ? `${error.message}: ${error.meta.message}` : String(error?.message || "Errore Facebook");
+    await updatePlanPublication(ctx, itemId, {
+      status: "failed",
+      last_error: message.slice(0, 1000),
+      updated_at: new Date().toISOString(),
+    }).catch(() => null);
+    return json(req, { ok: true, version: VERSION, result: "failed", status: "failed", published: false, error: message });
+  }
+}
+
+async function processArticleQueue(req, ctx, pageToken, pageId, articleId, options = {}) {
   const channel = await loadChannel(ctx);
   const publication = await loadPublication(ctx, articleId);
   const terminal = terminalResult(req, publication, channel);
@@ -764,9 +1022,14 @@ async function processArticleQueue(req, ctx, pageToken, pageId, articleId) {
   }
 
   const author = await loadArticleAuthor(ctx, article);
-  const composed = composeFacebookMessage(article, author);
+  const autopilotIntro = options?.autopilotIntro === true;
+  const link = autopilotIntro
+    ? trackedArticleDestination(article, PLATFORM, "article_intro")
+    : articleUrl(String(article.slug || ""));
+  const composed = autopilotIntro
+    ? { message: composeAutopilotIntroMessage(article, author, link), summaryProfile: "autopilot_intro" }
+    : composeFacebookMessage(article, author);
   const message = composed.message;
-  const link = articleUrl(String(article.slug || ""));
   if (!message || !validHttps(link)) {
     throw Object.assign(new Error("Contenuto Facebook non valido"), { status: 422 });
   }
@@ -824,6 +1087,7 @@ async function processArticleQueue(req, ctx, pageToken, pageId, articleId) {
       page_name: identity.name || null,
       summary_version: SOCIAL_SUMMARY_VERSION,
       summary_profile: composed.summaryProfile,
+      format: autopilotIntro ? "article_intro" : "article_standard",
     });
   } catch (error) {
     const phase = String(error?.phase || "");
@@ -894,6 +1158,18 @@ Deno.serve(async (req) => {
       const articleId = String(body?.article_id || "").trim();
       if (!validUuid(articleId)) return json(req, { ok: false, error: "article_id non valido" }, 422);
       return await processArticleQueue(req, ctx, pageToken, pageId, articleId);
+    }
+
+    if (action === "process_autopilot_article_intro") {
+      const articleId = String(body?.article_id || "").trim();
+      if (!validUuid(articleId)) return json(req, { ok: false, error: "article_id non valido" }, 422);
+      return await processArticleQueue(req, ctx, pageToken, pageId, articleId, { autopilotIntro: true });
+    }
+
+    if (action === "process_plan_item") {
+      const itemId = String(body?.social_plan_item_id || "").trim();
+      if (!validUuid(itemId)) return json(req, { ok: false, error: "social_plan_item_id non valido" }, 422);
+      return await processPlanItem(req, ctx, pageToken, pageId, itemId);
     }
 
     return json(req, { ok: false, error: "Azione non supportata" }, 400);

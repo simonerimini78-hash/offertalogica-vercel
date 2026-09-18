@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.43";
+  const VERSION = "0.12.45";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
   let statusLoaded = false;
@@ -56,7 +56,7 @@
   function cardMarkup() {
     return `
       <div class="ol-autopilot-card-heading">
-        <div><h3>Flusso operativo del ciclo</h3><p>Idea o segnale → scelta → bozza → post collegati → controllo. Nessuna azione di questa area pubblica automaticamente.</p></div>
+        <div><h3>Flusso operativo del ciclo</h3><p>Idea o segnale → scelta → articolo → social → controllo. La pubblicazione dei nuovi articoli dipende dalla modalità scelta nell’Autopilota e dagli slot del calendario; gli aggiornamenti di pagine esistenti restano sotto verifica umana.</p></div>
       </div>
 
       <div class="ol-autopilot-workflow">
@@ -170,7 +170,7 @@
         </section>
 
         <section class="ol-autopilot-stage">
-          <div class="ol-autopilot-stage-heading"><span class="ol-autopilot-stage-number">3</span><div><h4>Opportunità e preparazione contenuti</h4><p>Qui confluiscono idee manuali e segnali Search Console. La provenienza resta visibile e la generazione si ferma prima della pubblicazione.</p></div></div>
+          <div class="ol-autopilot-stage-heading"><span class="ol-autopilot-stage-number">3</span><div><h4>Opportunità e preparazione contenuti</h4><p>Qui confluiscono idee manuali e segnali Search Console. La provenienza resta visibile; la generazione prepara il pacchetto che il calendario potrà pubblicare in modalità Automatico completo.</p></div></div>
           <p class="ol-autopilot-save-state" data-opportunity-message>Caricamento opportunità…</p>
           <div class="ol-autopilot-archive-list" data-opportunity-list><p class="ol-muted">Caricamento…</p></div>
         </section>
@@ -180,13 +180,13 @@
           <div class="ol-autopilot-pair">
             <div class="ol-autopilot-pane">
               <h5>Piano post statici</h5>
-              <p class="ol-muted">I post collegati all’articolo restano bozze separate. Facebook/Instagram vengono associati solo se scelti esplicitamente.</p>
+              <p class="ol-muted">I due post collegati restano elementi separati del piano. In Automatico completo vengono distribuiti negli slot successivi sui canali abilitati; nelle altre modalità restano sotto controllo umano.</p>
               <p class="ol-autopilot-save-state" data-social-plan-message>Caricamento piano post…</p>
               <div class="ol-autopilot-archive-list" data-social-plan-list><p class="ol-muted">Caricamento…</p></div>
             </div>
             <div class="ol-autopilot-pane">
               <h5>Ultimi cicli Autopilota</h5>
-              <p class="ol-muted">Registro tecnico delle preparazioni. In questa release il ciclo genera bozze e post, ma non esegue pubblicazioni automatiche.</p>
+              <p class="ol-muted">Registro tecnico dell’intero ciclo: ricerca, preparazione, pubblicazione articolo e social previsti dal calendario.</p>
               <div class="ol-autopilot-archive-list" data-automation-run-list><p class="ol-muted">Caricamento…</p></div>
             </div>
           </div>
@@ -740,8 +740,8 @@
     const summary = jobRunning
       ? `<small>Generazione asincrona ${esc(job.status === "queued" ? "in coda" : "in corso")} dal ${esc(dateIt(job.started_at))}. Puoi lasciare lavorare il motore e riprendere il controllo senza perdere il job.</small>`
       : generation
-        ? `<small>Ultima generazione: ${esc(dateIt(generation.generated_at))} · ${esc(generation.model || "modello server")} · ${sourceCount} fonti · ${Number(qa.static_posts_count || 0)} post statici. Pubblicazione automatica: no.</small>`
-        : '<small>La generazione usa ricerca web lato server in background, salva le fonti, applica controlli minimi e prepara due post statici in bozza. Nessun contenuto viene pubblicato.</small>';
+        ? `<small>Ultima generazione: ${esc(dateIt(generation.generated_at))} · ${esc(generation.model || "modello server")} · ${sourceCount} fonti · ${Number(qa.static_posts_count || 0)} post statici. Pacchetto editoriale pronto per il calendario.</small>`
+        : '<small>La generazione usa ricerca web lato server in background, salva le fonti, applica controlli minimi e prepara due post statici. La pubblicazione resta governata dalla modalità Autopilota e dal calendario.</small>';
     return `<div class="ol-field" style="margin-top:8px">
       <label>Canali per i post statici del pacchetto</label>
       <div class="ol-autopilot-sources">${platformChoicesMarkup(id, currentPlatforms)}</div>
@@ -783,10 +783,10 @@
         <div class="ol-field" style="margin-top:8px"><label>Testo canonico</label><textarea data-social-plan-text="${esc(id)}" rows="4" maxlength="4000" ${editable ? "" : "disabled"}>${esc(row.canonical_text || "")}</textarea></div>
         <div class="ol-field" style="margin-top:8px"><label>Canali espliciti</label><div class="ol-autopilot-sources">${platformChoicesMarkup(id, row.platforms || [], "data-social-plan-platform")}</div></div>
         ${editable ? `<div class="ol-autopilot-fields" style="margin-top:8px"><div class="ol-field"><label>Stato editoriale</label><select data-social-plan-status="${esc(id)}">${statusOptions}</select></div></div><div class="ol-toolbar-group" style="margin-top:8px"><button class="ol-button ol-button-secondary ol-button-small" type="button" data-social-plan-save="${esc(id)}">Salva post</button></div>` : ""}
-        <small>Nessuna pubblicazione automatica viene eseguita da questo pannello.</small>
+        <small>La pubblicazione non parte dal pulsante di questo pannello: in Automatico completo viene eseguita dallo scheduler nello slot previsto.</small>
       </div>`;
     }).join("");
-    message.textContent = `${numberIt(socialPlanItems.length)} post nel piano. Canali e approvazione restano espliciti.`;
+    message.textContent = `${numberIt(socialPlanItems.length)} post nel piano. In Automatico completo i canali abilitati vengono gestiti dal calendario; negli altri modi restano sotto controllo umano.`;
   }
 
   async function loadSocialPlan(section) {
@@ -1118,7 +1118,7 @@
           const check = await endpoint("check-editorial-article-package", { method: "POST", body: { id } });
           result = check?.result;
         }
-        if (message) message.textContent = `Bozza completa preparata: ${Number(result?.qa?.sources_count || 0)} fonti usate dalla ricerca, ${Number(result?.qa?.static_posts_count || 0)} post statici in bozza. Nessuna pubblicazione eseguita.`;
+        if (message) message.textContent = `Bozza completa preparata: ${Number(result?.qa?.sources_count || 0)} fonti usate dalla ricerca, ${Number(result?.qa?.static_posts_count || 0)} post statici. La pubblicazione segue modalità e calendario Autopilota.`;
         await Promise.all([loadOpportunities(section, true), loadSocialPlan(section), loadAutomationRuns(section)]);
       } catch (error) {
         generateArticleButton.disabled = false;

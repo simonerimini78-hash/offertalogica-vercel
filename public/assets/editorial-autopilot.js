@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.43";
+  const VERSION = "0.12.45";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WEEKDAYS = [[1,"Lunedì"],[2,"Martedì"],[3,"Mercoledì"],[4,"Giovedì"],[5,"Venerdì"],[6,"Sabato"],[7,"Domenica"]];
   const SLOT_HELP = {
@@ -52,8 +52,9 @@
     const enabled=Boolean(s.enabled);
     const statusTitle=root.querySelector("[data-autopilot-status-title]");const statusCopy=root.querySelector("[data-autopilot-status-copy]");const statusBadge=root.querySelector("[data-autopilot-status-badge]");
     if(statusTitle&&statusCopy&&statusBadge){
-      if(enabled&&mode!=="automatic"){statusTitle.textContent="Motore schedulato attivo";statusCopy.textContent="Ricerca, scelta opportunità, articolo con fonti, 2 post e immagine candidata vengono preparati automaticamente. Pubblicazione e approvazione restano manuali.";statusBadge.textContent="Attivo";}
-      else if(enabled&&mode==="automatic"){statusTitle.textContent="Automatico completo bloccato";statusCopy.textContent="La pubblicazione totalmente automatica non è ancora abilitata. Usa la modalità controllata per lo scheduler.";statusBadge.textContent="Bloccato";}
+      if(enabled&&mode==="automatic"){statusTitle.textContent="Automatico completo attivo";statusCopy.textContent="Per i nuovi articoli il ciclo segue il calendario: prepara, pubblica articolo e social iniziale, quindi i due post successivi. Modifiche manuali alla bozza bloccano la pubblicazione automatica; gli aggiornamenti di pagine esistenti restano sotto controllo umano.";statusBadge.textContent="Automatico";}
+      else if(enabled&&mode==="approval"){statusTitle.textContent="Motore schedulato attivo · controllo umano";statusCopy.textContent="Ricerca, articolo con fonti, 2 post e immagine candidata vengono preparati automaticamente; pubblicazione e social attendono il controllo umano.";statusBadge.textContent="Approval";}
+      else if(enabled){statusTitle.textContent="Motore schedulato attivo · solo bozza";statusCopy.textContent="Il ciclo prepara i contenuti ma non esegue le fasi di pubblicazione previste dal calendario.";statusBadge.textContent="Bozza";}
       else{statusTitle.textContent="Motore schedulato disattivato";statusCopy.textContent="La configurazione è disponibile, ma nessun ciclo parte finché il motore non viene attivato.";statusBadge.textContent="Disattivato";}
     }
 
@@ -73,9 +74,9 @@
     box.innerHTML=`<form data-autopilot-form novalidate>
       <div class="ol-autopilot-grid">
         <section class="ol-card ol-autopilot-card ol-autopilot-card-settings">
-          <div class="ol-autopilot-card-heading"><div><h3>1. Impostazioni operative</h3><p>Mostra solo i controlli che incidono realmente sul ciclo attuale.</p></div><div class="ol-autopilot-limit"><strong>Limite attuale</strong><span>1 articolo · 2 post · 1 immagine candidata · pubblicazione manuale</span></div></div>
+          <div class="ol-autopilot-card-heading"><div><h3>1. Impostazioni operative</h3><p>Mostra solo i controlli che incidono realmente sul ciclo attuale.</p></div><div class="ol-autopilot-limit"><strong>Limite attuale</strong><span>1 articolo · social iniziale · 2 post · 1 immagine · ciclo settimanale</span></div></div>
           <div class="ol-autopilot-fields">
-            ${field("Modalità",`<select name="execution_mode"><option value="approval"${mode==="approval"?" selected":""}>Preparazione automatica + controllo umano</option><option value="draft"${mode==="draft"?" selected":""}>Solo preparazione in bozza</option><option value="automatic"${mode==="automatic"?" selected":""}>Automatico completo (bloccato)</option></select>`,`Le prime due modalità si fermano entrambe prima della pubblicazione. L'automatico completo resta bloccato.`)}
+            ${field("Modalità",`<select name="execution_mode"><option value="approval"${mode==="approval"?" selected":""}>Preparazione automatica + controllo umano</option><option value="draft"${mode==="draft"?" selected":""}>Solo preparazione in bozza</option><option value="automatic"${mode==="automatic"?" selected":""}>Automatico completo</option></select>`,`Bozza prepara soltanto i contenuti. Controllo umano prepara tutto e attende prima di pubblicare. Automatico completo segue l'intero calendario settimanale per i nuovi articoli; gli aggiornamenti di pagine esistenti restano proposte da verificare.`)}
             ${field("Frequenza articolo",`<select name="article_frequency_weeks">${[1,2,3,4].map(n=>`<option value="${n}"${Number(s.article_frequency_weeks||1)===n?" selected":""}>Ogni ${n===1?"settimana":`${n} settimane`}</option>`).join("")}</select>`)}
             ${field("Soglia opportunità",`<input name="minimum_opportunity_score" type="number" min="0" max="100" step="1" value="${Number(s.minimum_opportunity_score??60)}">`,`Sotto questa soglia il planner può decidere di non creare un nuovo articolo.`)}
             ${field("Fuso orario",`<input name="timezone" type="text" maxlength="80" value="${esc(s.timezone||"Europe/Rome")}">`,`Viene validato prima del salvataggio.`)}
@@ -89,7 +90,7 @@
           </div>
         </section>
 
-        <section class="ol-card ol-autopilot-card"><h3>2. Calendario settimanale</h3><p>Qui si decide quando ogni fase deve essere controllata dallo scheduler. Le fasi di pubblicazione restano manuali nella release attuale.</p><div class="ol-autopilot-schedule">${schedule||'<p class="ol-muted">Nessuno slot configurato.</p>'}</div></section>
+        <section class="ol-card ol-autopilot-card"><h3>2. Calendario settimanale</h3><p>Qui si decide quando ogni fase viene presa in carico dallo scheduler. In Automatico completo gli slot di pubblicazione e social vengono eseguiti; nelle altre modalità si fermano prima della pubblicazione.</p><div class="ol-autopilot-schedule">${schedule||'<p class="ol-muted">Nessuno slot configurato.</p>'}</div></section>
 
         <section class="ol-card ol-autopilot-card"><h3>3. Destinazioni OffertaLogica</h3><p>Il post orientato all'azione può usare soltanto queste destinazioni interne abilitate.</p><div class="ol-autopilot-targets">${targets||'<p class="ol-muted">Nessuna destinazione configurata.</p>'}</div></section>
       </div>
@@ -115,7 +116,6 @@
       const requestedMode=String(form.elements.execution_mode.value||"approval");
       const requestedEnabled=Boolean(form.elements.enabled.checked);
       const timezone=String(form.elements.timezone.value||"Europe/Rome").trim().slice(0,80);
-      if(requestedEnabled&&requestedMode==="automatic")throw new Error("Automatico completo non è ancora abilitato. Seleziona una modalità controllata.");
       if(!validTimezone(timezone))throw new Error(`Fuso orario non valido: ${timezone||"vuoto"}.`);
 
       const scheduleRows=[...form.querySelectorAll("[data-slot-id]")].map(row=>{
