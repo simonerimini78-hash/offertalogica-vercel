@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { json } from "../lib/http.js";
+import { recordEditorialArticleAiEconomicEvent, recordEditorialImageAiEconomicEvent } from "../lib/editorialAiEconomics.js";
 
 const VERSION = "0.12.45";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
@@ -1277,6 +1278,7 @@ async function generateOpenAiArticleImage(article, opportunity, guidance = "") {
   if (!apiKey) throw new Error("OPENAI_API_KEY non configurata lato server");
   const model = editorialImageModel();
   const prompt = articleImagePrompt(article, opportunity, guidance);
+  const economicEventId = `editorial-image:${crypto.randomUUID()}`;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), EDITORIAL_IMAGE_GENERATION_TIMEOUT_MS);
   let response;
@@ -1305,7 +1307,31 @@ async function generateOpenAiArticleImage(article, opportunity, guidance = "") {
     clearTimeout(timeout);
   }
   const payload = await response.json().catch(() => null);
-  if (!response.ok) throw new Error(payload?.error?.message || `OpenAI Images ${response.status}`);
+  if (!response.ok) {
+    if (payload?.usage) {
+      await recordEditorialImageAiEconomicEvent({
+        eventId: economicEventId,
+        response: payload,
+        model,
+        outcome: "failed",
+        opportunityId: opportunity?.id || null,
+        articleId: article?.id || null,
+        size: "1536x1024",
+        quality: "high",
+      }).catch(() => {});
+    }
+    throw new Error(payload?.error?.message || `OpenAI Images ${response.status}`);
+  }
+  await recordEditorialImageAiEconomicEvent({
+    eventId: economicEventId,
+    response: payload || {},
+    model,
+    outcome: "completed",
+    opportunityId: opportunity?.id || null,
+    articleId: article?.id || null,
+    size: "1536x1024",
+    quality: "high",
+  }).catch(() => {});
   const item = Array.isArray(payload?.data) ? payload.data[0] : null;
   let buffer = null;
   if (item?.b64_json) {
@@ -1997,6 +2023,17 @@ async function checkEditorialArticlePackage(user, payload = {}) {
 
   const response = await retrieveOpenAiEditorialPackage(job.response_id);
   const status = String(response?.status || "");
+  if (!["queued", "in_progress"].includes(status)) {
+    await recordEditorialArticleAiEconomicEvent({
+      eventId: response?.id || job.response_id,
+      response: response || {},
+      model: job.model || editorialAiModel(),
+      outcome: status === "completed" ? "completed" : "failed",
+      opportunityId: id,
+      articleId: job.article_id || opportunity.target_article_id || null,
+      runSource,
+    }).catch(() => {});
+  }
   if (["queued", "in_progress"].includes(status)) {
     const now = new Date().toISOString();
     const nextEvidence = {
