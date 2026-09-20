@@ -5178,6 +5178,95 @@
                 display: none !important;
             }
         }
+
+        /* OFFERTALOGICA_PUBLIC_V106_20260920 / FAST_CHOICES_ALIGNMENT_V6
+           Fascia superiore dedicata a spunta/info e fasce testo uguali tra tutte le card. */
+        .mobile-fast-options {
+            align-items: stretch;
+            grid-auto-rows: 1fr;
+        }
+        .mobile-fast-option-card {
+            min-width: 0;
+            display: flex;
+            align-self: stretch;
+        }
+        .mobile-fast-option-card .mobile-fast-option {
+            width: 100%;
+            height: 100%;
+            min-height: 126px;
+            display: grid;
+            align-content: center;
+            justify-items: center;
+            gap: 5px;
+            padding: 39px 14px 14px;
+            text-align: center !important;
+        }
+        .mobile-fast-option-card .mobile-fast-option strong,
+        .mobile-fast-option-card .mobile-fast-option small {
+            width: 100%;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            text-align: center !important;
+        }
+        .mobile-fast-option-card .mobile-fast-option strong {
+            height: 2.4em;
+        }
+        .mobile-fast-option-card .mobile-fast-option small {
+            height: 2.6em;
+        }
+        .mobile-fast-info-button {
+            top: 9px;
+            right: 9px;
+            transform: none;
+        }
+        .mobile-fast-option.is-selected::after {
+            top: 9px !important;
+            left: 9px !important;
+            right: auto !important;
+            transform: none !important;
+        }
+        @media (min-width: 701px) and (max-width: 900px) {
+            .mobile-fast-options {
+                grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            }
+        }
+        @media (max-width: 700px) {
+            .mobile-fast-option-card .mobile-fast-option {
+                min-height: 124px !important;
+                padding: 35px 10px 11px !important;
+                gap: 4px !important;
+            }
+            .mobile-fast-option-card .mobile-fast-option strong {
+                height: 2.4em;
+                font-size: 13.5px !important;
+                line-height: 1.2 !important;
+            }
+            .mobile-fast-option-card .mobile-fast-option small {
+                height: 3.75em;
+                font-size: 10.5px !important;
+                line-height: 1.25 !important;
+            }
+            .mobile-fast-info-button {
+                top: 7px;
+                right: 7px;
+                transform: none;
+            }
+            .mobile-fast-option.is-selected::after {
+                top: 7px !important;
+                left: 7px !important;
+                transform: none !important;
+            }
+        }
+        @media (max-width: 360px) {
+            .mobile-fast-option-card .mobile-fast-option {
+                min-height: 138px !important;
+            }
+            .mobile-fast-option-card .mobile-fast-option small {
+                height: 5em;
+            }
+        }
 </style>
 <script>
 function avviaComparazioneDati() {
