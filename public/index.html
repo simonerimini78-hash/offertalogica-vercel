@@ -4021,9 +4021,9 @@
             box-shadow: 0 11px 24px rgba(15,23,42,.10);
         }
         .mobile-fast-option.is-photo-action {
-            border: 2px solid rgba(22,163,74,.72);
-            background: linear-gradient(145deg,#eafbf0,#ffffff);
-            box-shadow: 0 10px 22px rgba(22,163,74,.13);
+            border: 1px solid rgba(22,163,74,.46);
+            background: linear-gradient(145deg,#f1fcf5,#ffffff);
+            box-shadow: 0 8px 18px rgba(22,163,74,.09);
         }
         .mobile-fast-action-badge {
             display: inline-flex;
@@ -4301,6 +4301,13 @@
             <p>Scegli il modo più comodo: foto, PDF, stima o inserimento manuale.</p>
         </div>
         <div class="mobile-fast-options">
+            <div class="mobile-fast-option-card">
+                <button type="button" class="mobile-fast-option is-selected" id="mobile-fast-average" aria-pressed="true">
+                    <strong>Usa il profilo medio</strong>
+                    <small>Vedi subito una stima senza bolletta</small>
+                </button>
+                <button type="button" class="mobile-fast-info-button" data-fast-help="average" aria-label="Come funziona il profilo medio?">i</button>
+            </div>
             <div class="mobile-fast-option-card is-photo-card">
                 <button type="button" class="mobile-fast-option is-photo-action" id="mobile-fast-photo" aria-pressed="false">
                     <span class="mobile-fast-action-badge">Più rapido da mobile</span>
@@ -4317,17 +4324,11 @@
                 <button type="button" class="mobile-fast-info-button" data-fast-help="pdf" aria-label="Quale PDF della bolletta caricare?">i</button>
             </div>
             <div class="mobile-fast-option-card">
-                <button type="button" class="mobile-fast-option is-selected" id="mobile-fast-average" aria-pressed="true">
-                    <strong>Usa il profilo medio</strong>
-                    <small>Vedi subito una stima senza bolletta</small>
-                </button>
-                <button type="button" class="mobile-fast-info-button" data-fast-help="average" aria-label="Come funziona il profilo medio?">i</button>
-            </div>
-            <div class="mobile-fast-option-card">
                 <button type="button" class="mobile-fast-option" id="mobile-fast-manual" aria-pressed="false">
                     <strong>Inserisci i dati a mano</strong>
                     <small>Compila consumi e dati della fornitura</small>
                 </button>
+                <button type="button" class="mobile-fast-info-button" data-fast-help="manual" aria-label="Come funziona l’inserimento manuale?">i</button>
             </div>
         </div>
     </section>
@@ -17410,6 +17411,10 @@ if (document.readyState === "loading") {
       average: {
         title: "Come funziona il profilo medio?",
         html: "<p>Se non hai la bolletta o non conosci i consumi, OffertaLogica usa un <strong>profilo medio di riferimento</strong> per mostrarti subito una stima delle offerte.</p><p>La stima non usa i tuoi consumi reali: puoi sempre renderla più precisa in seguito con foto, PDF o inserimento manuale.</p>"
+      },
+      manual: {
+        title: "Inserimento manuale",
+        html: "<p>Se conosci i dati della tua fornitura puoi inserirli direttamente, senza caricare foto o PDF.</p><p>Compila i <strong>consumi e i dati richiesti dal calcolatore</strong>: OffertaLogica userà quei valori per costruire il confronto personalizzato.</p>"
       }
     };
     function closeFastHelp() {
