@@ -711,7 +711,6 @@
         .offer-consent-modal { width: min(560px, 100%); background: #fff; border-radius: 14px; border: 1px solid var(--border); padding: 22px; box-shadow: 0 24px 60px rgba(15,23,42,.28); }
         .offer-consent-modal h3 { font-size: 20px; margin-bottom: 6px; color: var(--text-color); }
         .offer-consent-modal p { color: var(--text-muted); font-size: 14px; margin-bottom: 14px; }
-        /* OFFERTALOGICA_PUBLIC_V107_20260920: popup percorso offerta e consensi ottimizzati mobile-first. */
         .offer-path-backdrop { position: fixed; inset: 0; z-index: 1003; display: none; align-items: center; justify-content: center; padding: 20px; background: rgba(15,23,42,.62); }
         .offer-path-modal { width: min(620px, 100%); background: #fff; border-radius: 16px; border: 1px solid var(--border); padding: 22px; box-shadow: 0 24px 60px rgba(15,23,42,.30); }
         .offer-path-modal h3 { margin: 0 0 8px; color: var(--text-color); font-size: 22px; line-height: 1.15; }
@@ -4574,46 +4573,7 @@
                 <label for="nome-fornitore-nuov">Di quale fornitore vuoi vedere le offerte?</label>
                 <select id="nome-fornitore-nuov" aria-describedby="nuova-offerta-menu-help nuova-offerta-auto-hint">
                     <option value="" disabled selected>Seleziona un fornitore</option>
-                    <option value="a2a">A2A Energia</option>
-                    <option value="acea">Acea Energia</option>
-                    <option value="agasco">Agasco</option>
-                    <option value="alperia">Alperia</option>
-                    <option value="amga">Amga</option>
-                    <option value="argos">Argos</option>
-                    <option value="axpo">Axpo Energia</option>
-                    <option value="dolomiti">Dolomiti Energia</option>
-                    <option value="eco">E.CO Energia Corrente</option>
-                    <option value="eon">E.ON</option>
-                    <option value="edison">Edison</option>
-                    <option value="estra">Estra Energie</option>
-                    <option value="free">Free Luce&amp;Gas</option>
-                    <option value="butangas">ButanGas</option>
-                    <option value="unoenergy">Unoenergy</option>
-                    <option value="eni">Eni Plenitude</option>
-                    <option value="enel">Enel Energia</option>
-                    <option value="enercom">Enercom</option>
-                    <option value="engie">Engie</option>
-                    <option value="eja">Eja Energia</option>
-                    <option value="hera">Hera Comm</option>
-                    <option value="illum">Illumia</option>
-                    <option value="iren">Iren Luce e Gas</option>
-                    <option value="lene">Lene Energia</option>
-                    <option value="magis">Magis Energia</option>
-                    <option value="nen">neN</option>
-                    <option value="nova">Nova Aeg</option>
-                    <option value="octopus">Octopus Energy</option>
-                    <option value="optima">Optima Italia</option>
-                    <option value="poste">Poste Energia</option>
-                    <option value="pulsee">Pulsee Luce e Gas</option>
-                    <option value="segnoverde">Segnoverde</option>
-                    <option value="sen">Servizio Elettrico Nazionale</option>
-                    <option value="sorgenia">Sorgenia</option>
-                    <option value="tate">Tate</option>
-                    <option value="vivi">Vivi Energia</option>
-                    <option value="wekiwi">Wekiwi</option>
-                    <option value="sinergy">Sinergy</option>
                     <option value="altro">Altro (Fornitore non in elenco)</option>
-                
                 </select>
                 <small id="nuova-offerta-menu-help" class="provider-help">Seleziona un fornitore: caricheremo automaticamente la proposta più adatta disponibile nel catalogo.</small>
                 <div id="nuova-offerta-auto-hint" role="status" aria-live="polite" style="display:none; margin-top:8px; font-size:12px; color:var(--text-muted); line-height:1.4;"></div>
@@ -8454,14 +8414,14 @@ function testoAzioneOfferta(offerta, attivabileOnline) {
   if (modalitaCalcolo === "media" && switchoSupported) return "Scopri come proseguire";
   if (modalitaCalcolo === "media") return "Scopri le alternative attivabili";
   if (attivabileOnline) return "Vai all'offerta";
-  if (switchoSupported) return "Scopri il confronto su Switcho";
+  if (switchoSupported) return "Continua con Switcho";
   return "Scopri le alternative attivabili";
 }
 
 function testoBeneficioAzioneOfferta(offerta, attivabileOnline) {
   if (modalitaCalcolo === "media" && attivabileOnline) return "Carica la bolletta e confrontiamo questa offerta con i tuoi consumi reali.";
   if (attivabileOnline) return "Per questa offerta è disponibile un percorso online tramite OffertaLogica.";
-  if (switchoSupportaFornitoreOfferta(offerta)) return "Carica la bolletta e ricevi un’analisi personalizzata sui tuoi consumi direttamente su Switcho.";
+  if (switchoSupportaFornitoreOfferta(offerta)) return "Percorso assistito separato: su Switcho le offerte disponibili possono essere diverse.";
   return "La mostriamo nel ranking anche senza accordi commerciali: puoi vedere le alternative con un percorso disponibile.";
 }
 
@@ -8852,8 +8812,13 @@ function offertaCoerenteConFornitura(offerta, tipoFornitura) {
   return false;
 }
 
+function tipoPrezzoCompatibileConRanking(offerta, tipoTariffa) {
+  if (modalitaCalcolo === "media") return ["fisso", "variabile"].includes(offerta?.tipo);
+  return offerta?.tipo === tipoTariffa;
+}
+
 function offertaCompatibileConRanking(offerta, tipoTariffa, tipoFornitura) {
-  if (offerta.tipo !== tipoTariffa) return false;
+  if (!tipoPrezzoCompatibileConRanking(offerta, tipoTariffa)) return false;
   return offertaCoerenteConFornitura(offerta, tipoFornitura);
 }
 
@@ -9075,6 +9040,64 @@ function providerKeysArera() {
     ...OFFERTE_ARERA_MENU.map((riga) => riga.providerKey),
     ...OFFERTE_ARERA_DUAL.map((offerta) => offerta.providerKey),
   ].filter(Boolean))].sort();
+}
+
+const MAX_PROVIDER_MENU_CORRENTE = 30;
+
+function providerCatalogoCorrenteOrdinati() {
+  const contatori = new Map();
+  OFFERTE_ARERA_MENU
+    .filter(rigaAreraIdonea)
+    .forEach((riga) => {
+      const key = String(riga.providerKey || "").trim();
+      if (!key) return;
+      const corrente = contatori.get(key) || {
+        key,
+        label: String(riga.providerLabel || riga.fornitore || PROVIDER_BRANDS[key]?.label || key).trim(),
+        count: 0,
+      };
+      corrente.count += 1;
+      if (!corrente.label) corrente.label = String(PROVIDER_BRANDS[key]?.label || key).trim();
+      contatori.set(key, corrente);
+    });
+
+  return [...contatori.values()]
+    .sort((a, b) => (b.count - a.count) || a.label.localeCompare(b.label, "it"))
+    .slice(0, MAX_PROVIDER_MENU_CORRENTE);
+}
+
+function aggiornaSelectFornitoreNuovoDaCatalogo() {
+  const select = document.getElementById("nome-fornitore-nuov");
+  if (!select || !OFFERTE_ARERA_MENU.length) return false;
+
+  const selected = String(select.value || "");
+  const providers = providerCatalogoCorrenteOrdinati();
+  if (!providers.length) return false;
+
+  select.innerHTML = "";
+
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.disabled = true;
+  placeholder.textContent = "Seleziona un fornitore";
+  select.appendChild(placeholder);
+
+  providers.forEach(({ key, label }) => {
+    const option = document.createElement("option");
+    option.value = key;
+    option.textContent = label;
+    select.appendChild(option);
+  });
+
+  const altro = document.createElement("option");
+  altro.value = "altro";
+  altro.textContent = "Altro (Fornitore non in elenco)";
+  select.appendChild(altro);
+
+  const valorePresente = selected && Array.from(select.options).some((option) => option.value === selected);
+  select.value = valorePresente ? selected : "";
+  placeholder.selected = !valorePresente;
+  return true;
 }
 
 function miglioreRigaAreraPerProvider(providerKey, commodity, tipo, attuale) {
@@ -9856,14 +9879,21 @@ function unisciOfferteCandidati(offerteRanking, offertePartner) {
 }
 
 function costruisciOfferteRanking(attuale, tipoTariffa, tipoFornitura) {
-  const daArera = costruisciOfferteAreraRanking(attuale, tipoTariffa, tipoFornitura);
+  const tipiRanking = modalitaCalcolo === "media"
+    ? ["fisso", "variabile"]
+    : [tipoTariffa];
+  const daArera = tipiRanking.flatMap((tipo) => costruisciOfferteAreraRanking(attuale, tipo, tipoFornitura));
 
+  // Nel profilo medio di default mostriamo nello stesso ranking fisso e variabile,
+  // mantenendo invariati consumi, ambito di fornitura e motore di calcolo.
+  // Nei percorsi manuali/PDF la tendina "Tipo di Prezzo" resta invece vincolante.
+  //
   // Nel dual ogni provider ARERA viene gia arricchito con l'eventuale percorso
   // commerciale attivo. Evitiamo che una card partner sostituisca una composizione
   // E+G economicamente migliore o una vera offerta D migliore dello stesso venditore.
   const partnerDirette = tipoFornitura === "dual"
     ? []
-    : offertePartnerDiretteAttivabili(tipoTariffa, tipoFornitura, attuale);
+    : tipiRanking.flatMap((tipo) => offertePartnerDiretteAttivabili(tipo, tipoFornitura, attuale));
 
   // Il catalogo ARERA giornaliero alimenta sempre la parte economica.
   // Il catalogo partner aggiunge soltanto i percorsi commerciali attivi.
@@ -9935,7 +9965,8 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
     }
 
     const compatibileRanking = offertaCompatibileConRanking(offerta, tipoTariffa, tipoFornitura);
-    const filtroEsatto = offerta.tipo === tipoTariffa && offertaCoerenteConFornitura(offerta, tipoFornitura);
+    const filtroEsatto = tipoPrezzoCompatibileConRanking(offerta, tipoTariffa)
+      && offertaCoerenteConFornitura(offerta, tipoFornitura);
     const attivabileOnline = offertaAttivabileOnline(offerta);
     const attivabileCoerente = attivabileOnline && filtroEsatto;
     if (!compatibileRanking && !attivabileCoerente) {
@@ -10094,8 +10125,8 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
         if (benefit) benefit.textContent = testoBeneficioAzioneOfferta(offerta, attivabileOnline);
         if (switchoPath) {
           link.classList.add("offer-switcho-cta");
-          link.innerHTML = `<span class="offer-switcho-cta-title">Scopri il confronto su</span><span class="offer-switcho-cta-brand" aria-hidden="true"><img class="offer-switcho-cta-logo" src="/assets/logo-switcho.png" alt=""></span>`;
-          link.setAttribute("aria-label", `Scopri il confronto su Switcho: ${titoloOffertaVisibile(offerta)}`);
+          link.innerHTML = `<span class="offer-switcho-cta-title">Continua con</span><span class="offer-switcho-cta-brand" aria-hidden="true"><img class="offer-switcho-cta-logo" src="/assets/logo-switcho.png" alt=""></span>`;
+          link.setAttribute("aria-label", `Continua con Switcho: ${titoloOffertaVisibile(offerta)}`);
         } else {
           link.classList.remove("offer-switcho-cta");
           link.innerText = testoAzioneOfferta(offerta, attivabileOnline);
@@ -10115,7 +10146,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
         if (switchoPath) {
           const switchoBillNote = document.createElement("small");
           switchoBillNote.className = "offer-switcho-bill-note";
-          switchoBillNote.textContent = "Il confronto viene elaborato direttamente da Switcho.";
+          switchoBillNote.textContent = "Percorso assistito separato dal confronto OffertaLogica.";
           (card.querySelector(".offer-action-column") || link.parentElement || card).appendChild(switchoBillNote);
         }
       }
@@ -10797,7 +10828,7 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
       : isBusiness
         ? "Verifica il numero"
         : isOfferSelection
-          ? "Verifica il numero e prosegui"
+          ? "Verifica il numero"
           : "Verifica il numero";
   }
   if (copy) {
@@ -10806,7 +10837,7 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
       : isBusiness
         ? "Ricevi un codice SMS per confermare il numero. Nessun dato viene inviato a partner senza autorizzazione."
         : isOfferSelection
-          ? `Per proseguire con ${selectedOfferName}, verifica il numero con un codice SMS. OffertaLogica non effettua chiamate telefoniche; email e telefono non vengono trasmessi al partner senza una tua autorizzazione separata.`
+          ? `Stai scegliendo di proseguire con ${selectedOfferName}. Solo ora OffertaLogica ti chiede telefono ed email: il cellulare serve alla verifica OTP. OffertaLogica non effettua chiamate telefoniche e i dati non vengono trasmessi al partner senza autorizzazione.`
           : "Inserisci i dati e ricevi un codice SMS. Nessun dato viene inviato a partner finché non scegli un'offerta.";
   }
   if (serviceCopy) {
@@ -11080,11 +11111,7 @@ async function verificaOtp() {
     });
     const payload = await response.json();
     if (!payload.ok) throw new Error(payload.error || "Codice non corretto");
-    leadStatus(LEAD_STATE.leadSource === "offer_selection"
-      ? "Numero verificato. Puoi proseguire con l’offerta scelta."
-      : LEAD_STATE.leadSource === "assistance_callback"
-        ? "Numero verificato. La richiesta di assistenza può proseguire."
-        : "Numero verificato. Puoi proseguire.");
+    leadStatus("Numero verificato. Le offerte sono ora disponibili.");
     trackEvent("otp_verified", { leadSource: LEAD_STATE.leadSource });
     if (typeof gtag === "function") {
       gtag("event", "conversion", {
@@ -11126,11 +11153,11 @@ function configuraPercorsoOffertaMedia(offerta) {
 
   if (note) {
     if (attivabileOnline) {
-      note.textContent = "Se preferisci Switcho, l’analisi viene elaborata direttamente da Switcho.";
+      note.textContent = "Puoi ottenere un confronto basato sui tuoi consumi reali caricando la bolletta. In alternativa puoi scegliere il percorso assistito Switcho, separato dal confronto OffertaLogica.";
     } else if (switchoSupported) {
-      note.textContent = "L’analisi viene elaborata direttamente da Switcho.";
+      note.textContent = "Questa offerta non è attivabile tramite OffertaLogica. Switcho confronta anche questo fornitore, ma nel suo percorso può proporti un'offerta diversa da quella visualizzata qui.";
     } else {
-      note.textContent = "Questa selezione è separata dal ranking economico completo, che resta invariato.";
+      note.textContent = "Puoi tornare al ranking completo oppure vedere, in una selezione separata, le offerte per cui è disponibile un percorso online. Il ranking economico originale non viene modificato.";
     }
   }
   return { attivabileOnline, switchoSupported, alternativeAvailable };
@@ -11147,16 +11174,16 @@ function apriPercorsoOffertaMedia(offerta) {
     title.textContent = route.attivabileOnline
       ? "Scopri il tuo risparmio reale"
       : route.switchoSupported
-        ? "Approfondisci con i tuoi consumi reali"
-        : "Scopri le alternative con un percorso disponibile";
+        ? "Scopri come proseguire"
+        : "Questa offerta resta nel confronto";
   }
   if (intro) {
     if (route.attivabileOnline) {
       intro.innerHTML = `Con <strong>${testoHtmlSicuro(nomeOfferta)}</strong> puoi passare dalla stima a un confronto basato sui tuoi consumi reali.`;
     } else if (route.switchoSupported) {
-      intro.innerHTML = `OffertaLogica include <strong>${testoHtmlSicuro(nomeOfferta)}</strong> nel confronto anche senza una partnership commerciale. Su Switcho puoi ottenere un’analisi personalizzata partendo dalla tua bolletta.`;
+      intro.innerHTML = `<strong>${testoHtmlSicuro(nomeOfferta)}</strong> è nel confronto OffertaLogica, ma non è attivabile tramite noi. Se preferisci assistenza puoi continuare con Switcho.`;
     } else {
-      intro.innerHTML = `OffertaLogica include <strong>${testoHtmlSicuro(nomeOfferta)}</strong> nel ranking anche senza una partnership commerciale. Puoi continuare confrontando le offerte per cui è disponibile un percorso online.`;
+      intro.innerHTML = `<strong>${testoHtmlSicuro(nomeOfferta)}</strong> resta visibile perché il ranking è economico e non dipende dalle partnership. OffertaLogica non ha un percorso di attivazione per questa offerta.`;
     }
   }
   modal.style.display = "flex";
@@ -11371,12 +11398,10 @@ window.apriConsensoOfferta = function apriConsensoOfferta(offerta) {
   }
 
   const modal = document.getElementById("offer-consent-backdrop");
-  const consentTitle = document.getElementById("offer-consent-title");
   const name = document.getElementById("offer-consent-offer-name");
   const intro = document.getElementById("offer-consent-intro");
   const checkbox = document.getElementById("offer-consent-checkbox");
   const note = document.getElementById("offer-consent-note");
-  if (consentTitle) consentTitle.innerText = "Conferma e prosegui con l’offerta";
   if (name) name.innerText = LEAD_STATE.selectedOffer.name || "offerta selezionata";
   if (intro) {
     const nomeOfferta = testoHtmlSicuro(LEAD_STATE.selectedOffer.name || "questa offerta");
@@ -11387,13 +11412,13 @@ window.apriConsensoOfferta = function apriConsensoOfferta(offerta) {
       intro.innerHTML = `Hai scelto <strong id="offer-consent-offer-name">${nomeOfferta}</strong>: luce con <strong>${luceProvider}</strong> e gas con <strong>${gasProvider}</strong>. Per continuare serve una verifica consulenziale, perche si tratta di due forniture separate e potrebbero essere necessari due percorsi di attivazione distinti.<br><br>Le condizioni finali dovranno essere confermate dal consulente o dai fornitori: eventuali costi accessori, servizi aggiuntivi, vincoli o promozioni non rilevati dal calcolatore potrebbero modificare la convenienza stimata.`;
     } else {
       intro.innerHTML = offertaConRedirectAttivo(LEAD_STATE.selectedOffer)
-      ? `Hai scelto <strong id="offer-consent-offer-name">${nomeOfferta}</strong>. Per proseguire apriremo il percorso di attivazione del fornitore o del partner collegato all'offerta.`
-      : `Hai scelto <strong id="offer-consent-offer-name">${nomeOfferta}</strong>. Per proseguire serve autorizzare l’invio dei dati necessari al fornitore o partner che gestisce la richiesta.<br><br>Le condizioni finali dovranno essere confermate dal consulente o dal fornitore: eventuali costi accessori, servizi aggiuntivi, vincoli o promozioni non rilevati dal calcolatore potrebbero modificare la convenienza stimata.`;
+      ? `Hai scelto <strong id="offer-consent-offer-name">${nomeOfferta}</strong>. Per continuare apriremo il funnel ufficiale del fornitore o del partner commerciale collegato all'offerta.`
+      : `Hai scelto <strong id="offer-consent-offer-name">${nomeOfferta}</strong>. Per continuare dobbiamo trasmettere i tuoi dati al fornitore o a un partner commerciale incaricato di gestire la richiesta.<br><br>Le condizioni finali dovranno essere confermate dal consulente o dal fornitore: eventuali costi accessori, servizi aggiuntivi, vincoli o promozioni non rilevati dal calcolatore potrebbero modificare la convenienza stimata.`;
     }
   }
   if (checkbox) checkbox.checked = false;
   if (note) {
-    note.innerText = "Senza questa autorizzazione il confronto resta disponibile, ma non possiamo inoltrare i dati necessari per proseguire con l’offerta.";
+    note.innerText = "Senza questo consenso puoi vedere il confronto, ma non possiamo inoltrare la richiesta di attivazione o ricontatto ai partner incaricati.";
   }
   configuraPopupConsensoOfferta(!LEAD_STATE.partnerConsent);
   if (modal) {
@@ -11688,7 +11713,7 @@ async function confermaConsensoOfferta() {
       offerName: LEAD_STATE.selectedOffer?.name || "",
       provider: LEAD_STATE.selectedOffer?.provider || "",
     });
-    offerConsentStatus("Per proseguire serve l’autorizzazione alla trasmissione dei dati per l’offerta scelta.", true);
+    offerConsentStatus("Per procedere serve il consenso al ricontatto/trasmissione dati sull'offerta scelta.", true);
     return;
   }
 
@@ -16029,6 +16054,7 @@ function collegaEventiUX() {
     DATI_UFFICIALI_CONFRONTO_PRONTI = Boolean(calcoloOk && offerteOk && areraOk);
     if (!DATI_UFFICIALI_CONFRONTO_PRONTI) return;
     sincronizzaIndiciMercatoConCatalogoArera();
+    aggiornaSelectFornitoreNuovoDaCatalogo();
     assicuraSchedeOfferte();
 
     // Se l'autoselezione del profilo medio e' partita prima del caricamento
@@ -16498,38 +16524,38 @@ if (document.readyState === "loading") {
 
 <div class="offer-path-backdrop" id="offer-path-backdrop" role="dialog" aria-modal="true" aria-labelledby="offer-path-title">
     <div class="offer-path-modal">
-        <h3 id="offer-path-title">Approfondisci con i tuoi consumi reali</h3>
-        <p class="offer-path-intro" id="offer-path-intro">La stima usa un profilo medio. Puoi passare a un confronto sui tuoi consumi reali con OffertaLogica oppure aprire un confronto personalizzato direttamente su Switcho.</p>
+        <h3 id="offer-path-title">Scopri come proseguire</h3>
+        <p class="offer-path-intro" id="offer-path-intro">La stima usa un profilo medio. Per un confronto dedicato a te puoi caricare la tua bolletta; se preferisci assistenza puoi continuare con Switcho.</p>
         <div class="offer-path-actions">
             <button type="button" class="offer-path-option is-bill" id="offer-path-bill">
                 <strong>SCOPRI QUANTO PUOI RISPARMIARE DAVVERO</strong>
                 <small>Carica la tua bolletta per un confronto dedicato ai tuoi consumi reali.</small>
             </button>
             <button type="button" class="offer-path-option is-switcho" id="offer-path-switcho">
-                <span class="offer-path-switcho-head"><span>SCOPRI SE FA PER TE SU</span><img class="offer-path-switcho-logo" src="/assets/logo-switcho.png" alt="Switcho"></span>
-                <small>Carica la bolletta e ricevi un’analisi personalizzata sui tuoi consumi.</small>
+                <span class="offer-path-switcho-head"><span>CONTINUA CON</span><img class="offer-path-switcho-logo" src="/assets/logo-switcho.png" alt="Switcho"></span>
+                <small>Se preferisci, lascia che ti accompagnino nel cambio.</small>
             </button>
             <button type="button" class="offer-path-option is-provider" id="offer-path-provider" hidden>
                 <strong id="offer-path-provider-label">SCOPRI LE OFFERTE ATTIVABILI ONLINE</strong>
                 <small>Vedi le alternative per cui è disponibile un percorso tramite OffertaLogica o Switcho.</small>
             </button>
         </div>
-        <p class="offer-path-note" id="offer-path-note">Il confronto viene elaborato direttamente da Switcho.</p>
+        <p class="offer-path-note" id="offer-path-note">Il percorso Switcho è separato dal confronto OffertaLogica: le offerte disponibili possono essere diverse da quella che stai visualizzando.</p>
         <button type="button" class="offer-path-close" id="offer-path-close">Torna ai risultati</button>
     </div>
 </div>
 
 <div class="offer-consent-backdrop" id="offer-consent-backdrop" role="dialog" aria-modal="true" aria-labelledby="offer-consent-title">
     <div class="offer-consent-modal">
-        <h3 id="offer-consent-title">Conferma e prosegui con l'offerta</h3>
-        <p id="offer-consent-intro">Hai scelto <strong id="offer-consent-offer-name">questa offerta</strong>. Per proseguire serve autorizzare l’invio dei dati necessari al fornitore o partner che gestisce la richiesta.</p>
+        <h3 id="offer-consent-title">Come procedere con l'offerta</h3>
+        <p id="offer-consent-intro">Hai scelto <strong id="offer-consent-offer-name">questa offerta</strong>. Per continuare dobbiamo trasmettere i tuoi dati al fornitore o a un partner commerciale incaricato di gestire la richiesta.</p>
         <label class="lead-consent required" id="offer-consent-label">
             <input id="offer-consent-checkbox" type="checkbox">
-            <span>Autorizzo OffertaLogica a trasmettere i miei dati e i dati della fornitura al fornitore o partner collegato all'offerta scelta, esclusivamente per gestire la richiesta relativa a quella proposta.</span>
+            <span>Autorizzo OffertaLogica a trasmettere i miei dati e i dati della fornitura al fornitore o partner collegato all'offerta scelta, per essere ricontattato su quella proposta.</span>
         </label>
-        <div class="lead-privacy-note" id="offer-consent-note">Senza questa autorizzazione il confronto resta disponibile, ma non possiamo inoltrare i dati necessari per proseguire con l’offerta.</div>
+        <div class="lead-privacy-note" id="offer-consent-note">Senza questo consenso puoi vedere il confronto, ma non possiamo inoltrare la richiesta di attivazione o ricontatto ai partner incaricati.</div>
         <div class="lead-actions">
-            <button type="button" class="lead-primary" id="offer-consent-confirm">Conferma e prosegui</button>
+            <button type="button" class="lead-primary" id="offer-consent-confirm">Conferma e procedi</button>
             <button type="button" class="lead-secondary" id="offer-consent-close">Annulla</button>
         </div>
         <div class="lead-status" id="offer-consent-status"></div>
