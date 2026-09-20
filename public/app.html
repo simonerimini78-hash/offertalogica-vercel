@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="OffertaLogica Premium">
-  <meta name="offertalogica-app-version" content="APP v0.36.29">
+  <meta name="offertalogica-app-version" content="APP v0.36.30">
   <title>OffertaLogica Premium</title>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/assets/logo-offertalogica-icon.png?v=19">
@@ -572,6 +572,14 @@
       <div class="page-head section-head"><div class="kicker">Le tue bollette</div><h1>Archivio personale</h1><p>Carica e consulta le tue bollette.</p></div>
 
 
+      <!-- OFFERTALOGICA_BILL_PHOTO_APP_V1_20260920 -->
+      <section class="feature-card gradient-panel" style="margin-bottom:14px">
+        <div class="feature-symbol"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h3l2-2h6l2 2h3v12H4z"/><circle cx="12" cy="13" r="4"/></svg></div>
+        <h2>Fotografa la bolletta</h2>
+        <p>Scatta una foto: se leggiamo tutti i dati necessari apriamo subito le offerte. Se manca qualcosa ti chiediamo solo quei dati.</p>
+        <a class="cta" href="/?entry=app&bill_input=photo#pdf-upload-panel" data-app-url="/?entry=app&bill_input=photo#pdf-upload-panel" data-app-title="Fotografa la bolletta"><span>SCATTA FOTO</span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="m14 7 5 5-5 5"/></svg></a>
+      </section>
+
       <div class="section-title"><h2>Archivio cloud Premium</h2><span id="premiumCloudBillsQuota">Non collegato</span></div>
       <section id="premiumCloudBillsCard" class="cloud-bill-card" aria-label="Archivio bollette cloud Premium">
         <div class="cloud-bill-head">
@@ -791,7 +799,7 @@
 
       <section id="premiumSupportPanel" class="account-manage" aria-label="Richiesta assistenza" hidden></section>
 
-      <span class="version-badge">APP Premium v0.36.29</span>
+      <span class="version-badge">APP Premium v0.36.30</span>
     </section>
   </main>
 
@@ -1014,7 +1022,7 @@
       globalThis.OffertaLogicaPremiumBills?.init();
 
       if(!('serviceWorker' in navigator))return;
-      const CURRENT_RELEASE="0.36.29";
+      const CURRENT_RELEASE="0.36.30";
       let refreshing=false;let activationRequested=false;let registration=null;let pendingWorker=null;let manifestReloadPending=false;let controlledAtStart=Boolean(navigator.serviceWorker.controller);
       const boundRegistrations=new WeakSet();
       let updateCheckInFlight=null;let updateTimer=null;let retryTimer=null;let lastInteractionAt=Date.now();
