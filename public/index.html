@@ -3916,7 +3916,58 @@
             .vertical-cards-container > .partner-vertical-card:first-child [id^="link-partner-"] { animation: none; }
         }
 
+        /* OFFERTALOGICA_PUBLIC_V105_20260920: densita mobile + allineamento desktop. */
+        @media (min-width: 701px) {
+            .mobile-fast-option {
+                justify-items: center;
+                text-align: center;
+            }
+            .mobile-fast-option strong,
+            .mobile-fast-option small {
+                width: 100%;
+                text-align: center;
+            }
+        }
+        @media (max-width: 700px) {
+            html.mobile-fast-flow body:not(.social-entry-active) #comparison-submit-button {
+                margin-bottom: 6px !important;
+            }
+            html.mobile-fast-flow body:not(.social-entry-active) footer {
+                margin-top: 12px !important;
+                padding: 16px 10px 20px !important;
+            }
+            html.mobile-fast-flow body:not(.social-entry-active) footer .ol-app-access-footer {
+                margin-bottom: 12px;
+                padding-inline: 0;
+            }
+            html.mobile-fast-flow body:not(.social-entry-active) footer .ol-discovery-shell {
+                margin-top: 8px;
+            }
+            html.mobile-fast-flow body:not(.social-entry-active) .container {
+                padding-bottom: 10px;
+            }
+        }
+
         @media (max-width: 720px) {
+            /* Mobile: meno altezza vuota nella hero e nelle due vie di ingresso. */
+            .social-entry-card { gap: 7px; }
+            .social-entry-hero-message { gap: 5px; }
+            .social-entry-route {
+                min-height: 174px;
+                grid-template-rows: 20px 38px minmax(48px, 1fr) 36px;
+                gap: 4px;
+                padding: 10px;
+            }
+            .social-entry-route-title,
+            .social-entry-route-kicker { min-height: 0; }
+            .social-entry-switcho-logo { width: min(70%, 160px); height: 38px; }
+            .social-entry-route .social-entry-route-copy { min-height: 0; font-size: clamp(10.5px, 2.9vw, 12px); line-height: 1.2; }
+            .social-entry-route-cta { min-height: 36px; padding: 8px 9px; }
+            .social-entry-trust-note { padding: 7px 9px; }
+            .social-entry-proof span { min-height: 28px; padding-block: 4px; }
+            .social-entry-apps { padding-top: 9px; }
+            .social-entry-card > .ol-landing-discovery .ol-discovery { padding-top: 10px; }
+            .social-entry-card > .ol-landing-discovery .ol-discovery-card summary { min-height: 72px; padding-top: 11px; padding-bottom: 11px; }
             .social-entry-difference { max-width: 92%; font-size: clamp(11.5px, 3.2vw, 13px); }
             .social-entry-saving {
                 width: min(95%, 470px);
