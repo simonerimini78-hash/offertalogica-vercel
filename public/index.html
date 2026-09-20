@@ -711,6 +711,7 @@
         .offer-consent-modal { width: min(560px, 100%); background: #fff; border-radius: 14px; border: 1px solid var(--border); padding: 22px; box-shadow: 0 24px 60px rgba(15,23,42,.28); }
         .offer-consent-modal h3 { font-size: 20px; margin-bottom: 6px; color: var(--text-color); }
         .offer-consent-modal p { color: var(--text-muted); font-size: 14px; margin-bottom: 14px; }
+        /* OFFERTALOGICA_PUBLIC_V106_20260920: copy Switcho separato dal percorso della singola offerta. */
         .offer-path-backdrop { position: fixed; inset: 0; z-index: 1003; display: none; align-items: center; justify-content: center; padding: 20px; background: rgba(15,23,42,.62); }
         .offer-path-modal { width: min(620px, 100%); background: #fff; border-radius: 16px; border: 1px solid var(--border); padding: 22px; box-shadow: 0 24px 60px rgba(15,23,42,.30); }
         .offer-path-modal h3 { margin: 0 0 8px; color: var(--text-color); font-size: 22px; line-height: 1.15; }
@@ -8453,14 +8454,14 @@ function testoAzioneOfferta(offerta, attivabileOnline) {
   if (modalitaCalcolo === "media" && switchoSupported) return "Scopri come proseguire";
   if (modalitaCalcolo === "media") return "Scopri le alternative attivabili";
   if (attivabileOnline) return "Vai all'offerta";
-  if (switchoSupported) return "Continua con Switcho";
+  if (switchoSupported) return "Scopri il confronto su Switcho";
   return "Scopri le alternative attivabili";
 }
 
 function testoBeneficioAzioneOfferta(offerta, attivabileOnline) {
   if (modalitaCalcolo === "media" && attivabileOnline) return "Carica la bolletta e confrontiamo questa offerta con i tuoi consumi reali.";
   if (attivabileOnline) return "Per questa offerta è disponibile un percorso online tramite OffertaLogica.";
-  if (switchoSupportaFornitoreOfferta(offerta)) return "Percorso assistito separato: su Switcho le offerte disponibili possono essere diverse.";
+  if (switchoSupportaFornitoreOfferta(offerta)) return "Carica la bolletta e ricevi un’analisi personalizzata sui tuoi consumi direttamente su Switcho.";
   return "La mostriamo nel ranking anche senza accordi commerciali: puoi vedere le alternative con un percorso disponibile.";
 }
 
@@ -10093,8 +10094,8 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
         if (benefit) benefit.textContent = testoBeneficioAzioneOfferta(offerta, attivabileOnline);
         if (switchoPath) {
           link.classList.add("offer-switcho-cta");
-          link.innerHTML = `<span class="offer-switcho-cta-title">Continua con</span><span class="offer-switcho-cta-brand" aria-hidden="true"><img class="offer-switcho-cta-logo" src="/assets/logo-switcho.png" alt=""></span>`;
-          link.setAttribute("aria-label", `Continua con Switcho: ${titoloOffertaVisibile(offerta)}`);
+          link.innerHTML = `<span class="offer-switcho-cta-title">Scopri il confronto su</span><span class="offer-switcho-cta-brand" aria-hidden="true"><img class="offer-switcho-cta-logo" src="/assets/logo-switcho.png" alt=""></span>`;
+          link.setAttribute("aria-label", `Scopri il confronto su Switcho: ${titoloOffertaVisibile(offerta)}`);
         } else {
           link.classList.remove("offer-switcho-cta");
           link.innerText = testoAzioneOfferta(offerta, attivabileOnline);
@@ -10114,7 +10115,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
         if (switchoPath) {
           const switchoBillNote = document.createElement("small");
           switchoBillNote.className = "offer-switcho-bill-note";
-          switchoBillNote.textContent = "Percorso assistito separato dal confronto OffertaLogica.";
+          switchoBillNote.textContent = "Il confronto viene elaborato direttamente da Switcho.";
           (card.querySelector(".offer-action-column") || link.parentElement || card).appendChild(switchoBillNote);
         }
       }
@@ -11121,9 +11122,9 @@ function configuraPercorsoOffertaMedia(offerta) {
 
   if (note) {
     if (attivabileOnline) {
-      note.textContent = "Puoi ottenere un confronto basato sui tuoi consumi reali caricando la bolletta. In alternativa puoi scegliere il percorso assistito Switcho, separato dal confronto OffertaLogica.";
+      note.textContent = "Il confronto su Switcho viene elaborato direttamente da Switcho.";
     } else if (switchoSupported) {
-      note.textContent = "Questa offerta non è attivabile tramite OffertaLogica. Switcho confronta anche questo fornitore, ma nel suo percorso può proporti un'offerta diversa da quella visualizzata qui.";
+      note.textContent = "Questa offerta non è attivabile tramite OffertaLogica. Se scegli Switcho, il confronto viene elaborato direttamente da Switcho.";
     } else {
       note.textContent = "Puoi tornare al ranking completo oppure vedere, in una selezione separata, le offerte per cui è disponibile un percorso online. Il ranking economico originale non viene modificato.";
     }
@@ -11149,7 +11150,7 @@ function apriPercorsoOffertaMedia(offerta) {
     if (route.attivabileOnline) {
       intro.innerHTML = `Con <strong>${testoHtmlSicuro(nomeOfferta)}</strong> puoi passare dalla stima a un confronto basato sui tuoi consumi reali.`;
     } else if (route.switchoSupported) {
-      intro.innerHTML = `<strong>${testoHtmlSicuro(nomeOfferta)}</strong> è nel confronto OffertaLogica, ma non è attivabile tramite noi. Se preferisci assistenza puoi continuare con Switcho.`;
+      intro.innerHTML = `<strong>${testoHtmlSicuro(nomeOfferta)}</strong> è nel confronto OffertaLogica, ma non è attivabile tramite noi. Puoi aprire un confronto personalizzato direttamente su Switcho.`;
     } else {
       intro.innerHTML = `<strong>${testoHtmlSicuro(nomeOfferta)}</strong> resta visibile perché il ranking è economico e non dipende dalle partnership. OffertaLogica non ha un percorso di attivazione per questa offerta.`;
     }
@@ -16492,22 +16493,22 @@ if (document.readyState === "loading") {
 <div class="offer-path-backdrop" id="offer-path-backdrop" role="dialog" aria-modal="true" aria-labelledby="offer-path-title">
     <div class="offer-path-modal">
         <h3 id="offer-path-title">Scopri come proseguire</h3>
-        <p class="offer-path-intro" id="offer-path-intro">La stima usa un profilo medio. Per un confronto dedicato a te puoi caricare la tua bolletta; se preferisci assistenza puoi continuare con Switcho.</p>
+        <p class="offer-path-intro" id="offer-path-intro">La stima usa un profilo medio. Puoi passare a un confronto sui tuoi consumi reali con OffertaLogica oppure aprire un confronto personalizzato direttamente su Switcho.</p>
         <div class="offer-path-actions">
             <button type="button" class="offer-path-option is-bill" id="offer-path-bill">
                 <strong>SCOPRI QUANTO PUOI RISPARMIARE DAVVERO</strong>
                 <small>Carica la tua bolletta per un confronto dedicato ai tuoi consumi reali.</small>
             </button>
             <button type="button" class="offer-path-option is-switcho" id="offer-path-switcho">
-                <span class="offer-path-switcho-head"><span>CONTINUA CON</span><img class="offer-path-switcho-logo" src="/assets/logo-switcho.png" alt="Switcho"></span>
-                <small>Se preferisci, lascia che ti accompagnino nel cambio.</small>
+                <span class="offer-path-switcho-head"><span>SCOPRI IL CONFRONTO SU</span><img class="offer-path-switcho-logo" src="/assets/logo-switcho.png" alt="Switcho"></span>
+                <small>Carica la bolletta e ricevi un’analisi personalizzata sui tuoi consumi.</small>
             </button>
             <button type="button" class="offer-path-option is-provider" id="offer-path-provider" hidden>
                 <strong id="offer-path-provider-label">SCOPRI LE OFFERTE ATTIVABILI ONLINE</strong>
                 <small>Vedi le alternative per cui è disponibile un percorso tramite OffertaLogica o Switcho.</small>
             </button>
         </div>
-        <p class="offer-path-note" id="offer-path-note">Il percorso Switcho è separato dal confronto OffertaLogica: le offerte disponibili possono essere diverse da quella che stai visualizzando.</p>
+        <p class="offer-path-note" id="offer-path-note">Il confronto viene elaborato direttamente da Switcho.</p>
         <button type="button" class="offer-path-close" id="offer-path-close">Torna ai risultati</button>
     </div>
 </div>
