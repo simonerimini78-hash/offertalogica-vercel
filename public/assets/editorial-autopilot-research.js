@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.45";
+  const VERSION = "0.12.46";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
   let statusLoaded = false;
@@ -677,8 +677,17 @@
     const currentMarkup = current?.url
       ? `<div style="margin-top:8px"><small>Immagine approvata e collegata all’articolo.</small><div style="margin-top:6px"><img src="${esc(current.url)}" alt="${esc(current.alt_text || "Immagine articolo approvata")}" loading="lazy" style="display:block;max-width:520px;width:100%;height:auto;border-radius:10px"></div></div>`
       : '<small>Nessuna immagine approvata ancora.</small>';
+    const qa = candidate?.qa && typeof candidate.qa === "object" ? candidate.qa : null;
+    const qaStatus = String(qa?.status || "");
+    const qaMarkup = qaStatus === "passed"
+      ? `<div style="margin-top:6px"><small><strong>QA visiva automatica superata.</strong> Pertinenza, chiarezza e qualità editoriale verificate.</small></div>`
+      : qaStatus === "failed"
+        ? `<div style="margin-top:6px"><small><strong>QA visiva non superata.</strong> ${esc(qa?.reason || "L’immagine verrà rigenerata automaticamente.")}</small></div>`
+        : qaStatus === "human_review_required"
+          ? `<div style="margin-top:6px"><small><strong>Controllo umano richiesto.</strong> La QA visiva non è stata superata dopo due rigenerazioni. ${esc(qa?.reason || "Verifica l’anteprima prima di approvarla o rigenerala manualmente.")}</small></div>`
+          : "";
     const candidateMarkup = candidate?.url
-      ? `<div style="margin-top:10px"><strong>Anteprima da approvare</strong><div style="margin-top:6px"><img src="${esc(candidate.url)}" alt="${esc(candidate.alt_text || "Anteprima immagine articolo")}" loading="lazy" style="display:block;max-width:620px;width:100%;height:auto;border-radius:10px"></div><small>${candidate.source === "manual_upload" ? "Immagine caricata manualmente" : `Generata in HD · ${esc(candidate.model || "modello immagini")}`} · non ancora collegata all’articolo.</small></div>`
+      ? `<div style="margin-top:10px"><strong>Anteprima da approvare</strong><div style="margin-top:6px"><img src="${esc(candidate.url)}" alt="${esc(candidate.alt_text || "Anteprima immagine articolo")}" loading="lazy" style="display:block;max-width:620px;width:100%;height:auto;border-radius:10px"></div><small>${candidate.source === "manual_upload" ? "Immagine caricata manualmente" : `Generata in HD · ${esc(candidate.model || "modello immagini")}`} · non ancora collegata all’articolo.</small>${qaMarkup}</div>`
       : "";
     return `<div class="ol-field" style="margin-top:12px" data-article-image-workflow="${esc(id)}">
       <label>Immagine dedicata articolo · HD fotografica</label>

@@ -1,8 +1,7 @@
 import crypto from "node:crypto";
 import { json } from "../lib/http.js";
-import { recordEditorialArticleAiEconomicEvent, recordEditorialImageAiEconomicEvent } from "../lib/editorialAiEconomics.js";
 
-const VERSION = "0.12.45";
+const VERSION = "0.12.46";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -33,6 +32,7 @@ const EDITORIAL_IMAGE_DEFAULT_MODEL = "gpt-image-2";
 const EDITORIAL_IMAGE_BUCKET = "editorial-images";
 const EDITORIAL_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 const EDITORIAL_IMAGE_ARTICLE_STATUSES = new Set(["draft", "in_review", "changes_requested", "approved", "published"]);
+const EDITORIAL_IMAGE_QA_MAX_REGENERATIONS = 2;
 
 function env(name) {
   return String(process.env[name] || "").trim();
@@ -1273,12 +1273,100 @@ function articleImagePrompt(article, opportunity, guidance = "") {
   ].filter(Boolean).join(" ");
 }
 
+function editorialImageQaSchema() {
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: ["relevant", "clear", "misleading", "editorial_quality", "reason", "regeneration_guidance"],
+    properties: {
+      relevant: { type: "boolean" },
+      clear: { type: "boolean" },
+      misleading: { type: "boolean" },
+      editorial_quality: { type: "boolean" },
+      reason: { type: "string" },
+      regeneration_guidance: { type: "string" },
+    },
+  };
+}
+
+function articleImageQaFailureCount(state) {
+  const failed = (asset) => ["failed", "human_review_required"].includes(String(asset?.qa?.status || ""));
+  return (Array.isArray(state?.history) ? state.history.filter(failed).length : 0)
+    + (failed(state?.candidate) ? 1 : 0);
+}
+
+async function evaluateEditorialArticleImage(article, candidate) {
+  const imageUrl = String(candidate?.url || "").trim();
+  if (!/^https:\/\//i.test(imageUrl)) throw new Error("QA immagine: URL candidato non valido");
+  const title = cleanEditorialText(article?.title, 140);
+  const excerpt = cleanEditorialText(article?.excerpt, 320);
+  const content = cleanEditorialText(article?.content, 1600).replace(/[#*_`>-]+/g, " ").replace(/\s+/g, " ");
+  const inputText = [
+    "Valuta questa immagine come hero editoriale per un articolo informativo italiano di OffertaLogica.",
+    `Titolo: ${title}.`,
+    `Sommario: ${excerpt}.`,
+    content ? `Contesto articolo: ${content}.` : "",
+    "Criteri obbligatori: l'immagine deve essere chiaramente pertinente al tema, comprensibile a colpo d'occhio, non fuorviante e adatta a un articolo editoriale informativo.",
+    "Non penalizzare l'assenza di testo nell'immagine: il testo sovrapposto è volutamente vietato.",
+    "Se uno dei criteri fallisce, spiega in modo breve il problema e fornisci una direzione concreta per la rigenerazione. Se tutti passano, regeneration_guidance deve essere una stringa vuota.",
+  ].filter(Boolean).join(" ");
+
+  const response = await openAiResponseRequest("", {
+    method: "POST",
+    body: {
+      model: editorialAiModel(),
+      instructions: "Agisci come revisore visivo editoriale severo e prudente. Giudica il contenuto effettivamente visibile nell'immagine rispetto all'articolo fornito. Non approvare immagini solo genericamente belle o vagamente collegate al settore.",
+      input: [{
+        role: "user",
+        content: [
+          { type: "input_text", text: inputText },
+          { type: "input_image", image_url: imageUrl, detail: "high" },
+        ],
+      }],
+      reasoning: { effort: "low" },
+      max_output_tokens: 1200,
+      store: false,
+      text: {
+        format: {
+          type: "json_schema",
+          name: "offertalogica_editorial_image_qa",
+          strict: true,
+          schema: editorialImageQaSchema(),
+        },
+      },
+    },
+  });
+  const raw = responseOutputText(response);
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error("QA immagine: risposta AI non interpretabile");
+  }
+  const relevant = parsed?.relevant === true;
+  const clear = parsed?.clear === true;
+  const misleading = parsed?.misleading === true;
+  const editorialQuality = parsed?.editorial_quality === true;
+  const passed = relevant && clear && !misleading && editorialQuality;
+  return {
+    schema_version: 1,
+    status: passed ? "passed" : "failed",
+    evaluated_at: new Date().toISOString(),
+    model: editorialAiModel(),
+    relevant,
+    clear,
+    misleading,
+    editorial_quality: editorialQuality,
+    reason: cleanEditorialText(parsed?.reason, 600) || (passed ? "Immagine coerente con il tema e adatta alla pubblicazione editoriale." : "QA visiva non superata."),
+    regeneration_guidance: passed ? "" : cleanEditorialText(parsed?.regeneration_guidance, 600),
+  };
+}
+
 async function generateOpenAiArticleImage(article, opportunity, guidance = "") {
   const apiKey = env("OPENAI_API_KEY");
   if (!apiKey) throw new Error("OPENAI_API_KEY non configurata lato server");
   const model = editorialImageModel();
   const prompt = articleImagePrompt(article, opportunity, guidance);
-  const economicEventId = `editorial-image:${crypto.randomUUID()}`;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), EDITORIAL_IMAGE_GENERATION_TIMEOUT_MS);
   let response;
@@ -1307,31 +1395,7 @@ async function generateOpenAiArticleImage(article, opportunity, guidance = "") {
     clearTimeout(timeout);
   }
   const payload = await response.json().catch(() => null);
-  if (!response.ok) {
-    if (payload?.usage) {
-      await recordEditorialImageAiEconomicEvent({
-        eventId: economicEventId,
-        response: payload,
-        model,
-        outcome: "failed",
-        opportunityId: opportunity?.id || null,
-        articleId: article?.id || null,
-        size: "1536x1024",
-        quality: "high",
-      }).catch(() => {});
-    }
-    throw new Error(payload?.error?.message || `OpenAI Images ${response.status}`);
-  }
-  await recordEditorialImageAiEconomicEvent({
-    eventId: economicEventId,
-    response: payload || {},
-    model,
-    outcome: "completed",
-    opportunityId: opportunity?.id || null,
-    articleId: article?.id || null,
-    size: "1536x1024",
-    quality: "high",
-  }).catch(() => {});
+  if (!response.ok) throw new Error(payload?.error?.message || `OpenAI Images ${response.status}`);
   const item = Array.isArray(payload?.data) ? payload.data[0] : null;
   let buffer = null;
   if (item?.b64_json) {
@@ -2023,17 +2087,6 @@ async function checkEditorialArticlePackage(user, payload = {}) {
 
   const response = await retrieveOpenAiEditorialPackage(job.response_id);
   const status = String(response?.status || "");
-  if (!["queued", "in_progress"].includes(status)) {
-    await recordEditorialArticleAiEconomicEvent({
-      eventId: response?.id || job.response_id,
-      response: response || {},
-      model: job.model || editorialAiModel(),
-      outcome: status === "completed" ? "completed" : "failed",
-      opportunityId: id,
-      articleId: job.article_id || opportunity.target_article_id || null,
-      runSource,
-    }).catch(() => {});
-  }
   if (["queued", "in_progress"].includes(status)) {
     const now = new Date().toISOString();
     const nextEvidence = {
@@ -2614,10 +2667,65 @@ async function schedulerPrepareMissingImage(user) {
     const evidence = opportunity?.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {};
     if (evidence?.article_generation_job?.source !== "scheduler") continue;
     if (evidence?.article_generation?.status !== "draft_ready_for_review") continue;
+
     const image = articleImageState(opportunity);
-    if (image.current?.url || image.candidate?.url) continue;
-    const result = await generateEditorialArticleImage(user, { id: opportunity.id, guidance: "" });
-    return { action: "image_candidate_generated", opportunity_id: opportunity.id, article_id: result.article_id };
+    if (image.current?.url) continue;
+
+    if (!image.candidate?.url) {
+      const result = await generateEditorialArticleImage(user, { id: opportunity.id, guidance: "" });
+      return { action: "image_candidate_generated", opportunity_id: opportunity.id, article_id: result.article_id };
+    }
+
+    const qaStatus = String(image.candidate?.qa?.status || "");
+    if (!qaStatus) {
+      const articleRows = await serviceFetch(`editorial_articles?select=*&id=eq.${encodeURIComponent(opportunity.target_article_id)}&limit=1`);
+      const article = articleRows?.[0];
+      if (!article?.id) throw new Error("Autopilota QA immagine: articolo collegato non trovato");
+      const qa = await evaluateEditorialArticleImage(article, image.candidate);
+      const attempt = (Array.isArray(image.history) ? image.history.filter((asset) => ["failed", "human_review_required"].includes(String(asset?.qa?.status || ""))).length : 0) + 1;
+      const candidate = { ...image.candidate, qa: { ...qa, attempt } };
+      await saveArticleImageState(user, opportunity, { ...image, candidate });
+      return {
+        action: qa.status === "passed" ? "image_qa_passed" : "image_qa_failed",
+        opportunity_id: opportunity.id,
+        article_id: article.id,
+        qa: candidate.qa,
+      };
+    }
+
+    if (qaStatus === "failed") {
+      const failures = articleImageQaFailureCount(image);
+      if (failures <= EDITORIAL_IMAGE_QA_MAX_REGENERATIONS) {
+        const guidance = cleanEditorialText(image.candidate?.qa?.regeneration_guidance, 600)
+          || "Rendi il collegamento con il tema dell'articolo più immediato e inequivocabile, mantenendo una fotografia editoriale realistica e senza testo.";
+        const result = await generateEditorialArticleImage(user, { id: opportunity.id, guidance });
+        return {
+          action: "image_candidate_regenerated_after_qa",
+          opportunity_id: opportunity.id,
+          article_id: result.article_id,
+          regeneration_number: failures,
+          max_regenerations: EDITORIAL_IMAGE_QA_MAX_REGENERATIONS,
+        };
+      }
+      const candidate = {
+        ...image.candidate,
+        qa: {
+          ...image.candidate.qa,
+          status: "human_review_required",
+          exhausted_at: new Date().toISOString(),
+          max_regenerations: EDITORIAL_IMAGE_QA_MAX_REGENERATIONS,
+        },
+      };
+      await saveArticleImageState(user, opportunity, { ...image, candidate });
+      return {
+        action: "image_qa_human_review_required",
+        opportunity_id: opportunity.id,
+        article_id: opportunity.target_article_id,
+        qa: candidate.qa,
+      };
+    }
+
+    if (qaStatus === "passed" || qaStatus === "human_review_required") continue;
   }
   return null;
 }
@@ -2865,6 +2973,25 @@ async function schedulerPublishArticleIntro(user, context, platforms) {
         reason: `article_status_${context.article.status || "unknown"}`,
         message: "Lo stato dell'articolo richiede controllo umano.",
       };
+    }
+    const imageState = articleImageState(context.opportunity);
+    const featuredImageUrl = String(context.article.featured_image_url || "").trim();
+    const imageAlreadyApproved = Boolean(
+      (imageState.current?.url && featuredImageUrl === String(imageState.current.url || ""))
+      || (featuredImageUrl && !imageState.candidate?.url),
+    );
+    if (!imageAlreadyApproved) {
+      const qaStatus = String(imageState.candidate?.qa?.status || "");
+      if (qaStatus !== "passed") {
+        return {
+          blocked: true,
+          reason: qaStatus === "human_review_required" ? "image_qa_human_review_required" : "image_qa_not_passed",
+          message: qaStatus === "human_review_required"
+            ? "La QA visiva non è stata superata dopo due rigenerazioni: serve controllo umano dell'immagine."
+            : "L'immagine candidata non ha ancora superato la QA visiva automatica.",
+          publication_performed: false,
+        };
+      }
     }
     const imageResult = await schedulerApproveArticleImage(user, context);
     if (imageResult?.article?.id) {
