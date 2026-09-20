@@ -4122,6 +4122,139 @@
             .mobile-fast-option.is-selected::after { left: 7px !important; right: auto !important; }
             .social-entry-app-link { min-height: 50px; white-space: nowrap; font-size: clamp(11px,3.15vw,13px) !important; }
         }
+
+        /* OFFERTALOGICA_FAST_CHOICES_ALIGNMENT_V5_20260920 */
+        .mobile-fast-option-card {
+            position: relative;
+            min-width: 0;
+            display: flex;
+        }
+        .mobile-fast-option-card .mobile-fast-option {
+            width: 100%;
+            min-height: 96px;
+            display: grid;
+            align-content: center;
+            justify-items: center;
+            gap: 5px;
+            padding: 14px 38px;
+            text-align: center !important;
+        }
+        .mobile-fast-option-card .mobile-fast-option strong,
+        .mobile-fast-option-card .mobile-fast-option small {
+            width: 100%;
+            margin: 0;
+            text-align: center !important;
+        }
+        .mobile-fast-info-button {
+            top: 50%;
+            right: 9px;
+            transform: translateY(-50%);
+            width: 24px;
+            height: 24px;
+        }
+        .mobile-fast-option.is-selected::after {
+            content: "✓";
+            position: absolute;
+            top: 50% !important;
+            left: 9px !important;
+            right: auto !important;
+            transform: translateY(-50%);
+            display: grid;
+            place-items: center;
+            width: 20px !important;
+            height: 20px !important;
+            margin: 0 !important;
+            border-radius: 999px;
+            background: #16a34a;
+            color: #fff;
+            font-size: 11px !important;
+            font-weight: 950;
+            line-height: 1;
+        }
+        .mobile-fast-option.is-photo-action {
+            border-color: rgba(22,163,74,.34);
+            background: linear-gradient(145deg,#f6fdf8,#ffffff);
+            box-shadow: 0 7px 16px rgba(22,163,74,.07);
+        }
+        .segment-switch {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            grid-auto-rows: 1fr;
+            align-items: stretch;
+        }
+        .segment-switch button {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            min-height: 52px;
+            display: grid;
+            place-items: center;
+            padding: 10px 34px 10px 12px;
+            text-align: center;
+        }
+        .segment-switch button.active::after {
+            content: "✓";
+            position: absolute;
+            top: 50%;
+            right: 10px;
+            transform: translateY(-50%);
+            display: grid;
+            place-items: center;
+            width: 20px;
+            height: 20px;
+            margin: 0;
+            border-radius: 999px;
+            background: #16a34a;
+            color: #fff;
+            font-size: 11px;
+            font-weight: 950;
+            line-height: 1;
+        }
+        @media (max-width: 700px) {
+            html.mobile-fast-flow body:not(.social-entry-active) .segment-switch {
+                grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+                grid-auto-rows: 52px;
+                gap: 7px;
+            }
+            html.mobile-fast-flow body:not(.social-entry-active) .segment-switch button {
+                min-height: 52px;
+                height: 52px;
+                padding: 10px 32px 10px 12px;
+                font-size: 14px;
+                line-height: 1.15;
+            }
+            html.mobile-fast-flow body:not(.social-entry-active) .segment-switch button.active::after {
+                position: absolute;
+                top: 50%;
+                right: 9px;
+                transform: translateY(-50%);
+                width: 18px;
+                height: 18px;
+                margin: 0;
+            }
+            .mobile-fast-option-card .mobile-fast-option {
+                min-height: 96px !important;
+                padding: 12px 34px !important;
+                gap: 4px !important;
+            }
+            .mobile-fast-option-card .mobile-fast-option strong {
+                font-size: 13.5px !important;
+                line-height: 1.2 !important;
+            }
+            .mobile-fast-option-card .mobile-fast-option small {
+                font-size: 10.5px !important;
+                line-height: 1.25 !important;
+            }
+            .mobile-fast-info-button {
+                right: 8px;
+                width: 23px;
+                height: 23px;
+            }
+            .mobile-fast-option.is-selected::after {
+                left: 8px !important;
+                width: 18px !important;
+                height: 18px !important;
+            }
+        }
     </style>
 <script>
 (function () {
@@ -4310,7 +4443,6 @@
             </div>
             <div class="mobile-fast-option-card is-photo-card">
                 <button type="button" class="mobile-fast-option is-photo-action" id="mobile-fast-photo" aria-pressed="false">
-                    <span class="mobile-fast-action-badge">Più rapido da mobile</span>
                     <strong>Scatta una foto</strong>
                     <small>Fotografa la pagina con consumi e prezzi</small>
                 </button>
