@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import formidable from "formidable";
 import { json, method, requireAllowedOrigin } from "../lib/http.js";
-import { extractPdfPureAi } from "../lib/pdfPureAiReader.js";
+import { extractBillPhotoPureAi, extractPdfPureAi, PDF_PURE_AI_DEFAULT_MODEL } from "../lib/pdfPureAiReader.js";
 import { normalizePdfFileHeader } from "../lib/pdfFileValidation.js";
 import {
   archivePdfAnalysis,
@@ -15,6 +15,7 @@ import {
 } from "../lib/pdfArchive.js";
 import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
 import { classifyPdfAnalysisError, pdfAnalysisDiagnosticLog } from "../lib/pdfAnalysisDiagnostics.js";
+import { createSitePdfUsageMeter, recordSitePdfAiEconomicEvent } from "../lib/sitePdfAiEconomics.js";
 
 export const config = {
   api: { bodyParser: false },
@@ -26,7 +27,11 @@ const ACCEPTED_UPLOAD_MIME_TYPES = new Set([
   "application/pdf",
   "application/x-pdf",
   "application/octet-stream",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
 ]);
+const PHOTO_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 function parseForm(req) {
   const maxFileSize = pdfMaxBytes();
@@ -83,8 +88,16 @@ function parseArchiveContext(fields = {}) {
   return normalizedArchiveContext(fieldValue(fields.archiveContext));
 }
 
+function normalizedPhotoSource(value) {
+  const source = String(fieldValue(value) || "").trim().toLowerCase();
+  return ["camera", "gallery"].includes(source) ? source : "upload";
+}
+
 function publicError(error) {
   const message = String(error?.message || "");
+  if (/bill_photo_unsupported_mime|bill_photo_empty|bill_photo_file_path_required/.test(message)) {
+    return { status: 415, code: "PHOTO_INVALID", error: "Foto non leggibile o formato non supportato" };
+  }
   if (/maxFileSize|max file size|too large|pdf_upload_too_large/i.test(message)) {
     return {
       status: 413,
@@ -139,6 +152,8 @@ export default async function handler(req, res) {
   let fileMetadata = null;
   let archiveContext = {};
   let validPdf = false;
+  let inputKind = "pdf";
+  let photoSource = "";
   let ingressMode = "vercel_multipart";
   let pdfHeader = { valid: false, sanitized: false, bytesRemoved: 0, fileSize: null };
   let analysisStage = "request_received";
@@ -148,6 +163,37 @@ export default async function handler(req, res) {
     ? Math.max(24_000, Math.min(52_000, configuredDeadlineMs))
     : 52_000;
   const analysisDeadlineAt = Date.now() + analysisDeadlineMs;
+  const photoAiAccountingEventId = crypto.randomUUID();
+  const photoAiAccountingOccurredAt = new Date(requestStartedAt).toISOString();
+  const photoAiModel = process.env.PDF_AI_PRIMARY_MODEL || PDF_PURE_AI_DEFAULT_MODEL;
+  const photoAiUsageMeter = createSitePdfUsageMeter();
+  let photoAiAccountingRecorded = false;
+
+  async function recordPhotoAiEconomicCost({ outcome, normalized = null, error = null } = {}) {
+    if (inputKind !== "photo" || photoAiAccountingRecorded || photoAiUsageMeter.totals.calls.length === 0) return;
+    photoAiAccountingRecorded = true;
+    try {
+      await recordSitePdfAiEconomicEvent({
+        eventId: photoAiAccountingEventId,
+        usage: photoAiUsageMeter.totals,
+        model: photoAiModel,
+        customerType: normalized?.customer_type || archiveContext?.customerType,
+        inputKind: "photo",
+        outcome,
+        ingressMode,
+        analysisStage,
+        elapsedMs: Date.now() - requestStartedAt,
+        errorCode: error ? String(error?.code || error?.name || error?.message || "photo_analysis_error").slice(0, 120) : "",
+        occurredAt: photoAiAccountingOccurredAt,
+      });
+    } catch (accountingError) {
+      console.error("[site-photo-ai-accounting-error]", JSON.stringify({
+        event: "site_photo_ai_accounting_failed",
+        stage: analysisStage,
+        message: String(accountingError?.message || accountingError || "accounting_error").slice(0, 300),
+      }));
+    }
+  }
 
   try {
     const contentType = String(req.headers?.["content-type"] || "").toLowerCase();
@@ -180,57 +226,85 @@ export default async function handler(req, res) {
       analysisStage = "parse_multipart";
       const { fields, files } = await parseForm(req);
       archiveContext = parseArchiveContext(fields);
-      const file = Array.isArray(files.pdf) ? files.pdf[0] : files.pdf;
-      if (!file) return json(res, 400, { ok: false, error: "PDF mancante o formato non accettato" });
+      const photo = Array.isArray(files.photo) ? files.photo[0] : files.photo;
+      const pdf = Array.isArray(files.pdf) ? files.pdf[0] : files.pdf;
+      const file = photo || pdf;
+      if (!file) return json(res, 400, { ok: false, error: "Documento mancante o formato non accettato" });
 
       temporaryFilePath = file.filepath;
       fileMetadata = {
-        originalFilename: file.originalFilename || file.newFilename || "documento.pdf",
-        mimeType: file.mimetype || "application/pdf",
+        originalFilename: file.originalFilename || file.newFilename || (photo ? "foto-bolletta.jpg" : "documento.pdf"),
+        mimeType: file.mimetype || (photo ? "image/jpeg" : "application/pdf"),
         fileSize: Number(file.size || 0),
       };
+      inputKind = photo || PHOTO_MIME_TYPES.has(String(fileMetadata.mimeType || "").toLowerCase()) ? "photo" : "pdf";
+      if (inputKind === "photo") {
+        photoSource = normalizedPhotoSource(fields.inputSource);
+        ingressMode = `photo_${photoSource}`;
+      }
     }
 
-    analysisStage = "validate_pdf";
-    pdfHeader = await normalizePdfFileHeader(temporaryFilePath);
-    if (!pdfHeader.valid) {
-      return json(res, 415, { ok: false, code: "PDF_INVALID", error: "Il file caricato non è un PDF valido" });
+    if (inputKind === "pdf") {
+      analysisStage = "validate_pdf";
+      pdfHeader = await normalizePdfFileHeader(temporaryFilePath);
+      if (!pdfHeader.valid) {
+        return json(res, 415, { ok: false, code: "PDF_INVALID", error: "Il file caricato non è un PDF valido" });
+      }
+      if (pdfHeader.sanitized && fileMetadata) fileMetadata.fileSize = pdfHeader.fileSize;
+      validPdf = true;
+    } else {
+      analysisStage = "validate_photo";
+      if (!PHOTO_MIME_TYPES.has(String(fileMetadata?.mimeType || "").toLowerCase())) {
+        return json(res, 415, { ok: false, code: "PHOTO_INVALID", error: "Foto non leggibile o formato non supportato" });
+      }
     }
-    if (pdfHeader.sanitized && fileMetadata) fileMetadata.fileSize = pdfHeader.fileSize;
-    validPdf = true;
 
-    analysisStage = "openai_analysis";
-    const normalized = await extractPdfPureAi({
-      filePath: temporaryFilePath,
-      filename: fileMetadata.originalFilename,
-      deadlineAt: analysisDeadlineAt,
-    });
+    analysisStage = inputKind === "photo" ? "openai_photo_analysis" : "openai_analysis";
+    const normalized = inputKind === "photo"
+      ? await extractBillPhotoPureAi({
+        filePath: temporaryFilePath,
+        mimeType: fileMetadata.mimeType,
+        deadlineAt: analysisDeadlineAt,
+        transport: photoAiUsageMeter.transport,
+        model: photoAiModel,
+      })
+      : await extractPdfPureAi({
+        filePath: temporaryFilePath,
+        filename: fileMetadata.originalFilename,
+        deadlineAt: analysisDeadlineAt,
+      });
     normalized.ai = {
       ...(normalized.ai || {}),
+      input_kind: inputKind,
+      input_source: inputKind === "photo" ? photoSource : "pdf",
       ingress_mode: ingressMode,
-      ingress_version: PDF_INGRESS_VERSION,
-      pdf_header_normalized: Boolean(pdfHeader.sanitized),
-      leading_bytes_removed: Number(pdfHeader.bytesRemoved || 0),
+      ingress_version: inputKind === "photo" ? "bill-photo-ingress-v1" : PDF_INGRESS_VERSION,
+      pdf_header_normalized: inputKind === "pdf" ? Boolean(pdfHeader.sanitized) : false,
+      leading_bytes_removed: inputKind === "pdf" ? Number(pdfHeader.bytesRemoved || 0) : 0,
     };
+    await recordPhotoAiEconomicCost({ outcome: "success", normalized });
     analysisStage = "archive_success";
-    const canArchive = analysisDeadlineAt - Date.now() >= 7_000;
-    const archive = canArchive
-      ? await archivePdfAnalysis({
-        filePath: temporaryFilePath,
-        ...fileMetadata,
-        normalized,
-        context: archiveContext,
-      }).catch(() => ({ stored: false, reason: "archive_error" }))
-      : { stored: false, reason: "insufficient_time_budget" };
+    const canArchive = inputKind === "pdf" && analysisDeadlineAt - Date.now() >= 7_000;
+    const archive = inputKind === "photo"
+      ? { stored: false, reason: "photo_not_archived" }
+      : canArchive
+        ? await archivePdfAnalysis({
+          filePath: temporaryFilePath,
+          ...fileMetadata,
+          normalized,
+          context: archiveContext,
+        }).catch(() => ({ stored: false, reason: "archive_error" }))
+        : { stored: false, reason: "insufficient_time_budget" };
     // La risposta originale dell'IA contiene evidenze diagnostiche riservate allo staff.
     // Non viene esposta al browser pubblico.
     const { _reader_trace: _privateReaderTrace, ...publicNormalized } = normalized;
-    return json(res, 200, { ok: true, normalized: publicNormalized, archive });
+    return json(res, 200, { ok: true, inputKind, inputSource: inputKind === "photo" ? photoSource : "pdf", normalized: publicNormalized, archive });
   } catch (error) {
     const elapsedMs = Date.now() - requestStartedAt;
     const remainingMs = analysisDeadlineAt - Date.now();
+    await recordPhotoAiEconomicCost({ outcome: "failed", error });
     let archive = { stored: false, reason: "not_attempted" };
-    if (validPdf && temporaryFilePath && fileMetadata && remainingMs >= 7_000) {
+    if (inputKind === "pdf" && validPdf && temporaryFilePath && fileMetadata && remainingMs >= 7_000) {
       try {
         archive = await archivePdfAnalysis({
           filePath: temporaryFilePath,
@@ -249,7 +323,7 @@ export default async function handler(req, res) {
           message: String(archiveError?.message || archiveError || "archive_error").slice(0, 500),
         }));
       }
-    } else if (validPdf && temporaryFilePath && fileMetadata) {
+    } else if (inputKind === "pdf" && validPdf && temporaryFilePath && fileMetadata) {
       archive = { stored: false, reason: "insufficient_time_budget", remaining_ms: remainingMs };
     }
 
