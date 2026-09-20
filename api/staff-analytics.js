@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { json } from "../lib/http.js";
 
-const VERSION = "0.12.46";
+const VERSION = "0.12.47";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -28,11 +28,13 @@ const EDITORIAL_PAGE_FETCH_TIMEOUT_MS = 20000;
 const EDITORIAL_PLAN_POST_TYPES = new Set(["article_followup", "related", "evergreen", "service", "data"]);
 const EDITORIAL_PLAN_EDITABLE_STATUSES = new Set(["draft", "approved", "cancelled"]);
 const EDITORIAL_SOCIAL_PLATFORMS = new Set(["facebook", "instagram"]);
+const EDITORIAL_SOCIAL_RUNTIME_VERSION = "0.12.45";
 const EDITORIAL_IMAGE_DEFAULT_MODEL = "gpt-image-2";
 const EDITORIAL_IMAGE_BUCKET = "editorial-images";
 const EDITORIAL_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 const EDITORIAL_IMAGE_ARTICLE_STATUSES = new Set(["draft", "in_review", "changes_requested", "approved", "published"]);
 const EDITORIAL_IMAGE_QA_MAX_REGENERATIONS = 2;
+const EDITORIAL_IMAGE_SOURCE_POLICY = "generated_from_scratch_no_web_source";
 
 function env(name) {
   return String(process.env[name] || "").trim();
@@ -1258,7 +1260,9 @@ function articleImagePrompt(article, opportunity, guidance = "") {
   const notes = cleanEditorialText(manualIdeaMeta(opportunity)?.notes, 800);
   const extra = cleanEditorialText(guidance, 600);
   return [
-    "Create one high-resolution landscape editorial photograph for an Italian consumer-information article published by OffertaLogica.",
+    "Create one entirely new, original high-resolution landscape editorial photograph from scratch for an Italian consumer-information article published by OffertaLogica.",
+    "Use only the textual context supplied in this prompt. Do not retrieve, reuse, trace, imitate, transform or derive from any existing web image, stock photograph, artwork, advertisement, brand campaign or third-party visual reference.",
+    "Do not reproduce a recognizable copyrighted composition or the distinctive style of a named living artist or photographer.",
     `Article title: ${cleanEditorialText(article?.title, 140)}.`,
     `Article summary: ${cleanEditorialText(article?.excerpt, 320)}.`,
     article?.category ? `Editorial category: ${cleanEditorialText(article.category, 80)}.` : "",
@@ -1293,6 +1297,18 @@ function articleImageQaFailureCount(state) {
   const failed = (asset) => ["failed", "human_review_required"].includes(String(asset?.qa?.status || ""));
   return (Array.isArray(state?.history) ? state.history.filter(failed).length : 0)
     + (failed(state?.candidate) ? 1 : 0);
+}
+
+function isAutopilotGeneratedImageAsset(asset) {
+  return Boolean(
+    asset
+    && asset.source === "generated"
+    && asset.provider === "openai"
+    && asset.generation_mode === "text_to_image"
+    && asset.source_policy === EDITORIAL_IMAGE_SOURCE_POLICY
+    && asset.url
+    && asset.object_path
+  );
 }
 
 async function evaluateEditorialArticleImage(article, candidate) {
@@ -1359,6 +1375,7 @@ async function evaluateEditorialArticleImage(article, candidate) {
     editorial_quality: editorialQuality,
     reason: cleanEditorialText(parsed?.reason, 600) || (passed ? "Immagine coerente con il tema e adatta alla pubblicazione editoriale." : "QA visiva non superata."),
     regeneration_guidance: passed ? "" : cleanEditorialText(parsed?.regeneration_guidance, 600),
+    source_policy: EDITORIAL_IMAGE_SOURCE_POLICY,
   };
 }
 
@@ -1435,6 +1452,9 @@ async function generateEditorialArticleImage(user, payload = {}) {
   const now = new Date().toISOString();
   const candidate = {
     source: "generated",
+    provider: "openai",
+    generation_mode: "text_to_image",
+    source_policy: EDITORIAL_IMAGE_SOURCE_POLICY,
     status: "pending_review",
     url: imageUrl,
     object_path: objectPath,
@@ -2676,6 +2696,32 @@ async function schedulerPrepareMissingImage(user) {
       return { action: "image_candidate_generated", opportunity_id: opportunity.id, article_id: result.article_id };
     }
 
+    if (!isAutopilotGeneratedImageAsset(image.candidate)) {
+      const candidate = {
+        ...image.candidate,
+        qa: {
+          schema_version: 1,
+          status: "human_review_required",
+          evaluated_at: new Date().toISOString(),
+          model: null,
+          relevant: false,
+          clear: false,
+          misleading: false,
+          editorial_quality: false,
+          reason: "Candidata non generata ex novo dal percorso text-to-image dell’Autopilota: uso automatico bloccato.",
+          regeneration_guidance: "",
+          source_policy: EDITORIAL_IMAGE_SOURCE_POLICY,
+        },
+      };
+      await saveArticleImageState(user, opportunity, { ...image, candidate });
+      return {
+        action: "image_source_human_review_required",
+        opportunity_id: opportunity.id,
+        article_id: opportunity.target_article_id,
+        qa: candidate.qa,
+      };
+    }
+
     const qaStatus = String(image.candidate?.qa?.status || "");
     if (!qaStatus) {
       const articleRows = await serviceFetch(`editorial_articles?select=*&id=eq.${encodeURIComponent(opportunity.target_article_id)}&limit=1`);
@@ -2773,16 +2819,22 @@ async function schedulerApproveArticleImage(user, context) {
   const { article, opportunity } = context;
   const state = articleImageState(opportunity);
   if (state.current?.url && String(article.featured_image_url || "") === String(state.current.url || "")) {
+    if (!isAutopilotGeneratedImageAsset(state.current)) {
+      throw new Error("Autopilota: immagine già collegata ma priva di provenienza text-to-image verificata; pubblicazione automatica bloccata");
+    }
     return { approved: false, already_approved: true, article, opportunity };
   }
   if (!state.candidate?.url) {
-    if (String(article.featured_image_url || "").trim()) {
-      return { approved: false, already_featured: true, article, opportunity };
-    }
-    throw new Error("Autopilota: immagine candidata non disponibile per la pubblicazione automatica");
+    throw new Error("Autopilota: immagine candidata generata ex novo non disponibile per la pubblicazione automatica");
   }
 
   const candidate = state.candidate;
+  if (!isAutopilotGeneratedImageAsset(candidate)) {
+    throw new Error("Autopilota: la candidata non proviene dalla generazione text-to-image ex novo; pubblicazione automatica bloccata");
+  }
+  if (String(candidate?.qa?.status || "") !== "passed") {
+    throw new Error("Autopilota: la candidata generata ex novo non ha superato la QA visiva");
+  }
   const altText = cleanEditorialText(candidate.alt_text, 180) || defaultArticleImageAlt(article);
   const updatedArticle = await serviceFetch("rpc/editorial_autopilot_set_featured_image", {
     method: "POST",
@@ -2932,8 +2984,8 @@ async function schedulerEnsureSocialRuntime(user, platforms) {
   }
   for (const platform of platforms) {
     const payload = await schedulerSocialFunction(user, platform, "validate");
-    if (String(payload?.version || "") !== VERSION) {
-      throw new Error(`Autopilota: funzione social ${platform} non allineata alla release ${VERSION}`);
+    if (String(payload?.version || "") !== EDITORIAL_SOCIAL_RUNTIME_VERSION) {
+      throw new Error(`Autopilota: funzione social ${platform} non allineata al runtime richiesto ${EDITORIAL_SOCIAL_RUNTIME_VERSION}`);
     }
   }
 }
@@ -2977,8 +3029,9 @@ async function schedulerPublishArticleIntro(user, context, platforms) {
     const imageState = articleImageState(context.opportunity);
     const featuredImageUrl = String(context.article.featured_image_url || "").trim();
     const imageAlreadyApproved = Boolean(
-      (imageState.current?.url && featuredImageUrl === String(imageState.current.url || ""))
-      || (featuredImageUrl && !imageState.candidate?.url),
+      imageState.current?.url
+      && featuredImageUrl === String(imageState.current.url || "")
+      && isAutopilotGeneratedImageAsset(imageState.current),
     );
     if (!imageAlreadyApproved) {
       const qaStatus = String(imageState.candidate?.qa?.status || "");
