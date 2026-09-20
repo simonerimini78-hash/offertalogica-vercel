@@ -3801,7 +3801,7 @@
             .social-entry-route { min-height: 192px; }
         }
 
-        /* OFFERTALOGICA_PUBLIC_V103_20260920: CRO campagna, routing interno trasparente e controlli di plausibilita. */
+        /* OFFERTALOGICA_PUBLIC_V104_20260920: funnel mobile-first unificato, copy operativo coerente e CTA card a respiro leggero. */
         .social-entry-difference {
             margin: -2px 0 0;
             color: #355f49;
@@ -3858,6 +3858,64 @@
             font-weight: 850;
             cursor: pointer;
         }
+        /* V104: stessa scelta del metodo su ogni dispositivo; il desktop usa lo spazio orizzontale. */
+        @media (min-width: 701px) {
+            body.unified-comparison-flow:not(.social-entry-active):not(.mobile-fast-business) .mobile-fast-start {
+                display: block;
+            }
+            .mobile-fast-start {
+                margin: 0 0 18px;
+                padding: 18px;
+                border: 1px solid rgba(22,163,74,.20);
+                border-radius: 16px;
+                background: linear-gradient(180deg, rgba(255,255,255,.99), rgba(240,253,244,.72));
+                box-shadow: 0 10px 26px rgba(15,23,42,.06);
+            }
+            .mobile-fast-start-heading { margin-bottom: 14px; text-align: center; }
+            .mobile-fast-start-heading h2 { margin: 0; color: #123044; font-size: 23px; line-height: 1.15; }
+            .mobile-fast-start-heading p { margin: 6px 0 0; color: #64748b; font-size: 13px; }
+            .mobile-fast-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+            .mobile-fast-option {
+                position: relative; min-width: 0; min-height: 92px; display: grid; align-content: center; gap: 5px;
+                padding: 14px 15px; border: 1px solid #dbe7df; border-radius: 13px; background: #fff;
+                color: #123044; text-align: left; box-shadow: 0 7px 18px rgba(15,23,42,.05); cursor: pointer;
+            }
+            .mobile-fast-option.is-fastest { border-color: rgba(22,163,74,.44); background: linear-gradient(135deg,#ecfdf3,#f7fff9); }
+            .mobile-fast-option.is-selected { border-color: #16a34a; box-shadow: 0 0 0 2px rgba(22,163,74,.14),0 10px 24px rgba(22,163,74,.10); }
+            .mobile-fast-option strong { font-size: 15px; line-height: 1.2; font-weight: 900; }
+            .mobile-fast-option small { color: #64748b; font-size: 12px; line-height: 1.3; font-weight: 650; }
+            body.unified-comparison-flow.mobile-fast-business .mobile-fast-start { display: none !important; }
+            body.unified-comparison-flow.mobile-fast-mode-average #pdf-upload-panel,
+            body.unified-comparison-flow.mobile-fast-mode-manual #pdf-upload-panel { display: none !important; }
+            body.unified-comparison-flow.mobile-fast-mode-average #mobile-private-input-flow,
+            body.unified-comparison-flow.mobile-fast-mode-pdf:not(.mobile-fast-pdf-review) #mobile-private-input-flow { display: none !important; }
+            body.unified-comparison-flow.mobile-fast-mode-manual #mobile-private-input-flow,
+            body.unified-comparison-flow.mobile-fast-pdf-review #mobile-private-input-flow { display: block !important; margin-top: 14px !important; }
+            body.unified-comparison-flow.mobile-fast-mode-manual #mobile-private-input-flow > .current-supply-heading,
+            body.unified-comparison-flow.mobile-fast-mode-manual #mobile-private-input-flow > .choice-grid,
+            body.unified-comparison-flow.mobile-fast-pdf-review #mobile-private-input-flow > .current-supply-heading,
+            body.unified-comparison-flow.mobile-fast-pdf-review #mobile-private-input-flow > .choice-grid { display: none !important; }
+            body.unified-comparison-flow.mobile-fast-mode-average #comparison-submit-button { display: block !important; max-width: 520px; margin: 14px auto 0; }
+            body.unified-comparison-flow.mobile-fast-mode-pdf:not(.mobile-fast-pdf-review) #comparison-submit-button { display: none !important; }
+            body.unified-comparison-flow.mobile-fast-mode-manual #comparison-submit-button,
+            body.unified-comparison-flow.mobile-fast-pdf-review #comparison-submit-button { display: block !important; }
+        }
+
+        /* Una sola CTA respira: quella della prima offerta, senza lampeggi o cambi colore. */
+        @keyframes olPrimaryOfferBreath {
+            0%, 78%, 100% { transform: scale(1); box-shadow: 0 8px 18px rgba(15,23,42,.12); }
+            86% { transform: scale(1.018); box-shadow: 0 10px 24px rgba(22,163,74,.20); }
+        }
+        .vertical-cards-container > .partner-vertical-card:first-child [id^="link-partner-"] {
+            animation: olPrimaryOfferBreath 3.8s ease-in-out infinite; transform-origin: center;
+        }
+        .vertical-cards-container > .partner-vertical-card:first-child [id^="link-partner-"]:hover,
+        .vertical-cards-container > .partner-vertical-card:first-child [id^="link-partner-"]:focus-visible,
+        .vertical-cards-container > .partner-vertical-card:first-child [id^="link-partner-"]:active { animation: none; transform: none; }
+        @media (prefers-reduced-motion: reduce) {
+            .vertical-cards-container > .partner-vertical-card:first-child [id^="link-partner-"] { animation: none; }
+        }
+
         @media (max-width: 720px) {
             .social-entry-difference { max-width: 92%; font-size: clamp(11.5px, 3.2vw, 13px); }
             .social-entry-saving {
@@ -4047,18 +4105,21 @@
 
     <section class="mobile-fast-start" id="mobile-fast-start" aria-labelledby="mobile-fast-start-title">
         <div class="mobile-fast-start-heading">
-            <h2 id="mobile-fast-start-title">Come vuoi confrontare?</h2>
+            <h2 id="mobile-fast-start-title">Inizia il confronto</h2>
+            <p>Parti con una stima media oppure usa i tuoi dati reali.</p>
         </div>
         <div class="mobile-fast-options">
             <button type="button" class="mobile-fast-option is-fastest is-selected" id="mobile-fast-average" aria-pressed="true">
-                <strong>Non conosco i miei consumi</strong>
-                <small>Profilo medio ARERA</small>
+                <strong>Parti con una stima media</strong>
+                <small>Confronto rapido su consumi medi</small>
             </button>
             <button type="button" class="mobile-fast-option" id="mobile-fast-pdf" aria-pressed="false">
-                <strong>Analizza la bolletta gratis</strong>
+                <strong>Leggi i dati dalla bolletta</strong>
+                <small>Carica il PDF e li leggiamo noi</small>
             </button>
             <button type="button" class="mobile-fast-option" id="mobile-fast-manual" aria-pressed="false">
-                <strong>Inserisci i miei consumi</strong>
+                <strong>Inserisci i dati a mano</strong>
+                <small>Compila consumi e dati della fornitura</small>
             </button>
         </div>
     </section>
@@ -4188,10 +4249,10 @@
     </div>
 
     <div class="pdf-lead-panel" id="pdf-upload-panel">
-        <h3>Carica bolletta o scheda sintetica</h3>
+        <h3>Confronto più preciso, senza inserire i dati a mano</h3>
         <div id="pdf-upload-context-notice" class="pdf-context-notice" role="status" aria-live="polite" hidden>
             <span class="pdf-context-icon" aria-hidden="true">↓</span>
-            <span><strong>Sei nel punto giusto.</strong> Seleziona la bolletta o la scheda sintetica, poi premi <strong>Analizza PDF</strong>.</span>
+            <span>Seleziona la bolletta o la scheda sintetica di un’offerta. Leggiamo i dati utili e te li facciamo controllare prima del confronto.</span>
         </div>
         <div class="upload-drop" id="pdf-upload-drop">
             <div class="pdf-file-picker">
@@ -4215,18 +4276,18 @@
     <div class="manual-block" id="mobile-private-input-flow" style="margin-bottom: 25px; border-color: var(--accent); padding: 25px 20px;">
         
         <h3 class="current-supply-heading" style="text-align: center; color: var(--accent); font-size: 20px; margin-bottom: 20px; border-bottom: none; padding-bottom: 0; font-weight: 700;">
-            <span class="title-dark">La tua fornitura attuale</span>
+            <span class="title-dark">Inserisci i dati della tua fornitura</span>
             <span class="title-green">Luce e Gas</span>
         </h3>
         
         <div class="choice-grid">
             <button type="button" id="btn-attiva-medi" class="choice-card primary">
-                <strong>Non conosco i miei consumi</strong>
-                <span>Usa profili medi e filtri principali per stimare subito le offerte più adatte.</span>
+                <strong>Parti con una stima media</strong>
+                <span>Usa consumi medi per vedere subito le offerte.</span>
             </button>
             <button type="button" id="btn-attiva-precisi" class="choice-card secondary">
-                <strong>Conosco i miei consumi</strong>
-                <span>Inserisci i valori della bolletta e confronta le offerte sui tuoi consumi reali.</span>
+                <strong>Inserisci i dati a mano</strong>
+                <span>Compila consumi e dati della fornitura per un confronto sui tuoi valori reali.</span>
             </button>
         </div>
 
@@ -4442,18 +4503,18 @@
                 <h3 class="compare-card-title optional-offer-title"><span class="compare-card-icon optional-title-icon" aria-hidden="true">📊</span><span>Confronta un'offerta o un fornitore specifico</span></h3>
                 <span class="compare-card-badge optional-badge">Facoltativo</span>
             </div>
-            <button type="button" class="mobile-optional-offer-toggle" id="mobile-optional-offer-toggle" aria-expanded="true" aria-controls="mobile-optional-offer-content">Hai già un'offerta da confrontare? Apri la sezione facoltativa</button>
+            <button type="button" class="mobile-optional-offer-toggle" id="mobile-optional-offer-toggle" aria-expanded="true" aria-controls="mobile-optional-offer-content">Confronta una proposta che hai già ricevuto</button>
             <div class="mobile-optional-offer-content" id="mobile-optional-offer-content">
             <p class="compare-card-intro optional-offer-intro"><strong>Puoi ignorare questa sezione.</strong> Usala solo per vedere le offerte di un fornitore preciso o confrontare una proposta che hai già ricevuto.</p>
 
             <div class="optional-offer-actions" aria-label="Azioni facoltative per una proposta specifica">
                 <button type="button" class="optional-action-button" id="optional-upload-sheet">
                     <span class="optional-action-icon" aria-hidden="true">📄</span>
-                    <span class="optional-action-copy"><strong>Carica una scheda sintetica</strong><small>Leggiamo automaticamente prezzi e condizioni.</small></span>
+                    <span class="optional-action-copy"><strong>Leggi una proposta dal PDF</strong><small>Carica la scheda sintetica: leggiamo prezzi e condizioni.</small></span>
                 </button>
                 <button type="button" class="optional-action-button" id="optional-manual-toggle" aria-expanded="false" aria-controls="nuova-offerta-details">
                     <span class="optional-action-icon" aria-hidden="true">✍️</span>
-                    <span class="optional-action-copy"><strong id="optional-manual-toggle-label">Inserisci una proposta manualmente</strong><small>Per offerte non presenti o dati da correggere.</small></span>
+                    <span class="optional-action-copy"><strong id="optional-manual-toggle-label">Inserisci i dati della proposta a mano</strong><small>Per offerte non presenti o valori da correggere.</small></span>
                 </button>
             </div>
 
@@ -4583,7 +4644,7 @@
 
     <div id="comparison-next-step-guidance" class="guided-step-notice" role="status" aria-live="polite" tabindex="-1" hidden>
         <span class="guided-step-arrow" aria-hidden="true">↓</span>
-        <span><strong>Il profilo medio è già pronto.</strong> Non devi modificare nulla: premi il pulsante qui sotto per vedere le offerte.</span>
+        <span><strong>La stima media è pronta.</strong> Premi il pulsante qui sotto per scoprire le offerte.</span>
     </div>
        
     <button id="comparison-submit-button" class="btn-calc" onclick="window.__OL_A11Y_RESULTS_PENDING__=true; avviaComparazioneDati()">Scopri le offerte</button>
@@ -4603,8 +4664,8 @@
 <!-- POP-UP INTELLIGENTE SELEZIONE TARIFFA -->
 <div id="tariffa-modal" style="display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); align-items: center; justify-content: center; backdrop-filter: blur(4px);">
     <div style="background-color: var(--card-bg); border: 1px solid var(--border); border-radius: 16px; padding: 30px; width: 90%; max-width: 450px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.15); animation: popupIn 0.3s ease-out;">
-        <h3 style="margin-top: 0; margin-bottom: 15px; color: var(--text-color); font-size: 20px;">📊 Che tipo di tariffa vuoi confrontare?</h3>
-        <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 25px; line-height: 1.4;">Seleziona la tipologia di prezzo per calcolare accuratamente le spese (incluse le perdite di rete del 10,2% per il prezzo variabile).</p>
+        <h3 style="margin-top: 0; margin-bottom: 15px; color: var(--text-color); font-size: 20px;">Seleziona il tipo di prezzo</h3>
+        <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 25px; line-height: 1.4;">Scegli prezzo fisso o variabile per calcolare correttamente il confronto.</p>
         
         <div style="display: flex; flex-direction: column; gap: 12px;">
             <!-- Pulsante Tariffa Fissa -->
@@ -4696,7 +4757,7 @@
             .mobile-fast-start { padding: 11px 10px 10px; margin-bottom: 8px; }
             .mobile-fast-start-heading { margin-bottom: 7px; }
             .mobile-fast-start-heading h2 { font-size: 18px; }
-            .mobile-fast-start-heading p { display: none; }
+            .mobile-fast-start-heading p { display: block; margin: 4px auto 0; max-width: 300px; font-size: 11px; line-height: 1.25; }
             .mobile-fast-options { gap: 6px; }
             .mobile-fast-option {
                 min-height: 54px;
@@ -12116,7 +12177,7 @@ function impostaOffertaFacoltativaMobileAperta(open, { focus = false } = {}) {
   toggle.setAttribute("aria-expanded", open ? "true" : "false");
   toggle.textContent = open
     ? "Nascondi la sezione facoltativa"
-    : "Hai già un'offerta da confrontare? Apri la sezione facoltativa";
+    : "Confronta una proposta che hai già ricevuto";
   if (open && focus) portaElementoInVista(card, { block: "start", focus: false, delay: 40 });
 }
 
@@ -14708,7 +14769,7 @@ window.azzeraPdfEModulo = function azzeraPdfEModulo() {
   const uploadDrop = document.getElementById("pdf-upload-drop");
   if (notice) {
     notice.hidden = false;
-    notice.innerHTML = '<span class="pdf-context-icon" aria-hidden="true">↓</span><span><strong>Documento rimosso: il percorso è ripartito.</strong> Carica un nuovo PDF oppure scegli più sotto “Non conosco i miei consumi” o “Conosco i miei consumi”.</span>';
+    notice.innerHTML = '<span class="pdf-context-icon" aria-hidden="true">↓</span><span><strong>Documento rimosso: il percorso è ripartito.</strong> Carica un nuovo PDF oppure scegli “Parti con una stima media” o “Inserisci i dati a mano”.</span>';
   }
   uploadPanel?.classList.remove("pdf-upload-attention");
   uploadDrop?.classList.remove("pdf-upload-target");
@@ -14830,7 +14891,7 @@ function impostaDettagliNuovaOffertaAperti(aperti, options = {}) {
   if (!details) return;
   details.hidden = !aperti;
   if (toggle) toggle.setAttribute("aria-expanded", aperti ? "true" : "false");
-  if (label) label.textContent = aperti ? "Nascondi i dati dell'offerta" : "Inserisci una proposta manualmente";
+  if (label) label.textContent = aperti ? "Nascondi i dati dell'offerta" : "Inserisci i dati della proposta a mano";
   if (aperti && options.focus) {
     window.setTimeout(() => document.getElementById("in-luce-prezzo-nuov")?.focus(), 30);
   }
@@ -16132,7 +16193,7 @@ if (document.readyState === "loading") {
           if(btnPrecisi) btnPrecisi.classList.remove("selected");
       }
 
-      // 1. CLIC SU: "Non conosco i miei consumi"
+      // 1. CLIC SU: percorso con stima media
       if(btnMedi) {
           btnMedi.addEventListener("click", function() {
               if (!DATI_UFFICIALI_CONFRONTO_PRONTI) {
@@ -16200,7 +16261,7 @@ if (document.readyState === "loading") {
           });
       }
 
-      // 2. CLIC SU: "Conosco i miei consumi"
+      // 2. CLIC SU: inserimento dati manuale
       if(btnPrecisi) {
           btnPrecisi.addEventListener("click", function() {
               resetBotteonStyles();
@@ -16250,16 +16311,16 @@ if (document.readyState === "loading") {
         </div>
         <div class="guided-assistant-options">
             <button type="button" class="guided-assistant-option" data-assistant-action="pdf">
-                Ho una bolletta o una scheda sintetica
-                <small>Carica il PDF: compileremo direttamente il modulo.</small>
+                Leggi i dati dalla bolletta
+                <small>Carica il PDF: leggiamo i dati e te li facciamo controllare.</small>
             </button>
             <button type="button" class="guided-assistant-option" data-assistant-action="media">
-                Non conosco i miei consumi
-                <small>Usa un profilo medio e poi verifica le offerte.</small>
+                Parti con una stima media
+                <small>Usa consumi medi e scopri subito le offerte.</small>
             </button>
             <button type="button" class="guided-assistant-option" data-assistant-action="manuale">
-                Conosco i miei consumi
-                <small>Inserisci i dati reali della tua fornitura.</small>
+                Inserisci i dati a mano
+                <small>Compila consumi e dati reali della tua fornitura.</small>
             </button>
             <button type="button" class="guided-assistant-option" data-assistant-action="business">
                 Sono un'azienda o P.IVA
@@ -16267,7 +16328,7 @@ if (document.readyState === "loading") {
             </button>
             <button type="button" class="guided-assistant-option" data-assistant-action="offerte">
                 Voglio capire le offerte
-                <small>Le offerte saranno visibili dopo il confronto e la verifica OTP.</small>
+                <small>Le offerte compaiono dopo il confronto; l’OTP serve solo se prosegui con un percorso partner che lo richiede.</small>
             </button>
             <button type="button" class="guided-assistant-option" data-assistant-action="privacy">
                 Come trattate i miei dati?
@@ -16668,7 +16729,19 @@ if (document.readyState === "loading") {
 /* OFFERTALOGICA_MOBILE_FAST_FLOW_V1_20260905 */
 (function () {
   function mobileFastEnabled() {
-    return document.documentElement.classList.contains("mobile-fast-flow");
+    return document.documentElement.classList.contains("mobile-fast-flow") || document.body?.classList.contains("unified-comparison-flow");
+  }
+
+  function enableDesktopUnifiedFlow() {
+    if (!window.matchMedia?.("(min-width: 701px)")?.matches) return;
+    try {
+      const params = new URLSearchParams(window.location.search || "");
+      const hashParams = new URLSearchParams(String(window.location.hash || "").replace(/^#/, ""));
+      const staffSessionActive = sessionStorage.getItem("offertalogicaStaffMode") === "true";
+      const staffPreview = staffSessionActive || ["staffPreview", "staff", "staffToken", "previewToken"].some((key) => params.has(key) || hashParams.has(key));
+      if (staffPreview) return;
+    } catch {}
+    document.body?.classList.add("unified-comparison-flow");
   }
 
   function setMobileFastMode(mode) {
@@ -16716,6 +16789,7 @@ if (document.readyState === "loading") {
   }
 
   function initMobileFastFlow() {
+    enableDesktopUnifiedFlow();
     initDefaultAverageChoice();
     if (!mobileFastEnabled()) return;
     const btnAverage = document.getElementById("mobile-fast-average");
@@ -16745,7 +16819,7 @@ if (document.readyState === "loading") {
     if (btnBusiness) observer.observe(btnBusiness, { attributes: true, attributeFilter: ["class"] });
 
     btnAverage?.addEventListener("click", () => {
-      tracciaSceltaPercorsoConfronto("average", "mobile_fast_choice");
+      tracciaSceltaPercorsoConfronto("average", "comparison_method_choice");
       setMobileFastMode("average");
       btnMedi?.click();
       window.setTimeout(() => {
@@ -16755,14 +16829,14 @@ if (document.readyState === "loading") {
     });
 
     btnPdf?.addEventListener("click", () => {
-      tracciaSceltaPercorsoConfronto("pdf", "mobile_fast_choice");
+      tracciaSceltaPercorsoConfronto("pdf", "comparison_method_choice");
       setMobileFastMode("pdf");
       document.body.classList.remove("mobile-fast-pdf-review");
       scrollFast(pdfPanel, "start");
     });
 
     btnManual?.addEventListener("click", () => {
-      tracciaSceltaPercorsoConfronto("manual", "mobile_fast_choice");
+      tracciaSceltaPercorsoConfronto("manual", "comparison_method_choice");
       setMobileFastMode("manual");
       btnPrecisi?.click();
       window.setTimeout(() => {
