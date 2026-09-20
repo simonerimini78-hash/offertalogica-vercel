@@ -2254,6 +2254,26 @@
         }
 
 
+        /* OFFERTALOGICA_BILL_PHOTO_DISCOVERY_V1_20260920 */
+        .bill-photo-help {
+            width: 100%;
+            margin-top: 2px;
+            text-align: left;
+        }
+        .bill-photo-help summary {
+            width: fit-content;
+            cursor: pointer;
+            font-weight: 700;
+            color: #234;
+        }
+        .bill-photo-help-copy {
+            margin-top: 8px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            background: rgba(17, 24, 39, 0.05);
+            line-height: 1.45;
+        }
+
         /* OFFERTALOGICA_MOBILE_PDF_JOURNEY_V1_20260730 */
         .mobile-pdf-status { display: none; }
         .mobile-optional-offer-toggle { display: none; }
@@ -4031,7 +4051,7 @@
         <div class="social-entry-actions" aria-label="Scegli come procedere">
             <button type="button" class="social-entry-route social-entry-route-self" id="landing-self-service" disabled>
                 <strong class="social-entry-route-title">Confronta in autonomia</strong>
-                <span class="social-entry-route-copy"><span>Puoi partire anche senza conoscere i consumi.</span><b class="social-entry-route-copy-emphasis">Nessun telefono, email o registrazione.</b></span>
+                <span class="social-entry-route-copy"><span>Parti con una stima oppure usa una foto della bolletta.</span><b class="social-entry-route-copy-emphasis">Nessun telefono, email o registrazione.</b></span>
                 <span class="social-entry-route-cta">VAI ALLE OFFERTE <b aria-hidden="true">→</b></span>
             </button>
             <button type="button" class="social-entry-route social-entry-route-switcho" id="landing-assisted" disabled>
@@ -4165,8 +4185,8 @@
                 <small>Confronto rapido su consumi medi</small>
             </button>
             <button type="button" class="mobile-fast-option" id="mobile-fast-pdf" aria-pressed="false">
-                <strong>Leggi i dati dalla bolletta</strong>
-                <small>Carica il PDF e li leggiamo noi</small>
+                <strong>Usa la tua bolletta</strong>
+                <small>Scatta una foto, scegli un’immagine o carica il PDF</small>
             </button>
             <button type="button" class="mobile-fast-option" id="mobile-fast-manual" aria-pressed="false">
                 <strong>Inserisci i dati a mano</strong>
@@ -4303,7 +4323,7 @@
         <h3>Confronto più preciso, senza inserire i dati a mano</h3>
         <div id="pdf-upload-context-notice" class="pdf-context-notice" role="status" aria-live="polite" hidden>
             <span class="pdf-context-icon" aria-hidden="true">↓</span>
-            <span>Seleziona la bolletta o la scheda sintetica di un’offerta. Leggiamo i dati utili e te li facciamo controllare prima del confronto.</span>
+            <span>Scatta una foto, scegli un’immagine o carica il PDF. Se leggiamo tutti i dati necessari, apriamo subito le offerte.</span>
         </div>
         <div class="upload-drop" id="pdf-upload-drop">
             <!-- OFFERTALOGICA_BILL_PHOTO_UI_V1_20260920 -->
@@ -4312,6 +4332,10 @@
                 <input id="bill-photo-gallery-input" class="pdf-native-file-input" type="file" accept="image/*" tabindex="-1" aria-hidden="true">
                 <button id="bill-photo-camera-button" type="button" class="pdf-file-picker-button" onclick="apriFotoBolletta('camera')">Scatta foto</button>
                 <button id="bill-photo-gallery-button" type="button" class="pdf-file-picker-button" onclick="apriFotoBolletta('gallery')">Scegli foto</button>
+                <details class="bill-photo-help">
+                    <summary aria-label="Quale pagina della bolletta fotografare?">ⓘ Quale pagina?</summary>
+                    <div class="bill-photo-help-copy"><strong>Fotografa la pagina con i dati utili al confronto.</strong> Cerca consumi annui e prezzo/condizioni economiche: spesso non è la prima pagina. Inquadra tutta la pagina e assicurati che il testo sia leggibile.</div>
+                </details>
                 <span class="pdf-file-picker-status">Se leggiamo tutti i dati necessari, apriamo subito le offerte.</span>
             </div>
             <div class="upload-note"><strong>Foto veloce:</strong> inquadra una pagina nitida e completa. Se manca un dato necessario te lo chiediamo; se la foto non è leggibile te lo diciamo senza stimare valori.</div>
@@ -16679,8 +16703,8 @@ if (document.readyState === "loading") {
         </div>
         <div class="guided-assistant-options">
             <button type="button" class="guided-assistant-option" data-assistant-action="pdf">
-                Leggi i dati dalla bolletta
-                <small>Carica il PDF: leggiamo i dati e te li facciamo controllare.</small>
+                Usa la tua bolletta
+                <small>Scatta una foto o carica il PDF: leggiamo i dati utili al confronto.</small>
             </button>
             <button type="button" class="guided-assistant-option" data-assistant-action="media">
                 Parti con una stima media
