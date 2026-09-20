@@ -3800,6 +3800,78 @@
             .social-entry-logo { width: min(52.5vw, 205px); }
             .social-entry-route { min-height: 192px; }
         }
+
+        /* OFFERTALOGICA_PUBLIC_V103_20260920: CRO campagna, routing interno trasparente e controlli di plausibilita. */
+        .social-entry-difference {
+            margin: -2px 0 0;
+            color: #355f49;
+            font-size: clamp(13px, 1.9vw, 15px);
+            line-height: 1.3;
+            font-weight: 850;
+            text-align: center;
+        }
+        .social-entry-saving {
+            width: min(100%, 540px);
+            min-height: 100px;
+            padding: 10px 20px 12px;
+            border-radius: 25px;
+        }
+        .social-entry-saving-kicker {
+            font-size: clamp(15px, 2vw, 17px);
+            font-weight: 900;
+        }
+        .social-entry-saving strong { font-size: clamp(48px, 8vw, 70px); }
+        .social-entry-choice-title { display: none !important; }
+        .social-entry-actions { grid-template-columns: minmax(0, 1.32fr) minmax(0, .88fr); }
+        .social-entry-route-self { box-shadow: 0 16px 34px rgba(5,93,56,.22), inset 0 1px 0 rgba(255,255,255,.18); }
+        .social-entry-route-switcho { opacity: .94; box-shadow: 0 10px 24px rgba(7,124,127,.14), inset 0 1px 0 rgba(255,255,255,.14); }
+        .offer-action-column.is-switcho-panel .offer-action-benefit { display:none; }
+        .offer-action-column:not(.is-switcho-panel) .offer-action-row { min-height:0; flex:1 1 auto; }
+        .offer-action-benefit {
+            margin: 0 0 10px;
+            color: #526274;
+            font-size: 12.5px;
+            line-height: 1.4;
+            font-weight: 700;
+            text-align: center;
+        }
+        .offers-activatable-view-banner {
+            margin: 0 0 14px;
+            padding: 13px 14px;
+            border: 1px solid rgba(37,99,235,.20);
+            border-radius: 12px;
+            background: #eff6ff;
+            color: #334155;
+            font-size: 12.5px;
+            line-height: 1.4;
+            text-align: center;
+        }
+        .offers-activatable-view-banner strong { display:block; margin-bottom:3px; color:#123044; font-size:14px; }
+        .offers-activatable-view-banner button {
+            min-height: 38px;
+            margin-top: 9px;
+            padding: 8px 13px;
+            border: 1px solid #cbd5e1;
+            border-radius: 999px;
+            background: #fff;
+            color: #334155;
+            font-weight: 850;
+            cursor: pointer;
+        }
+        @media (max-width: 720px) {
+            .social-entry-difference { max-width: 92%; font-size: clamp(11.5px, 3.2vw, 13px); }
+            .social-entry-saving {
+                width: min(95%, 470px);
+                min-height: 70px;
+                padding: 6px 10px 7px;
+                border-radius: 18px;
+            }
+            .social-entry-saving-kicker { font-size: clamp(13.5px, 3.8vw, 15px); }
+            .social-entry-saving strong { font-size: clamp(36px, 10.8vw, 46px); }
+            .social-entry-actions { grid-template-columns: minmax(0, 1.12fr) minmax(0, .88fr); }
+            .offer-action-benefit { display: none; }
+            .offers-activatable-view-banner { margin-bottom: 9px; padding: 10px; font-size: 11px; }
+        }
     </style>
 <script>
 (function () {
@@ -3827,7 +3899,8 @@
     <div class="social-entry-card">
         <img class="social-entry-logo" src="/assets/logo-offertalogica-header.png" alt="OffertaLogica.it - Confronta, scegli, risparmia">
         <div class="social-entry-hero-message">
-            <h1 class="social-entry-title" id="social-entry-title">Scopri le migliori offerte luce e gas</h1>
+            <h1 class="social-entry-title" id="social-entry-title">Scopri le offerte luce e gas più convenienti</h1>
+            <p class="social-entry-difference">Confrontiamo anche offerte di fornitori non partner.</p>
             <span class="social-entry-free-arrow" aria-hidden="true">↓</span>
         </div>
         <div class="social-entry-saving is-loading" id="social-entry-saving">
@@ -3846,7 +3919,6 @@
             <p>Nel confronto reale OffertaLogica usa i tuoi consumi effettivi e, quando disponibili, i dati della tua tariffa attuale per ottenere un confronto più preciso.</p>
         </div>
         <p class="social-entry-disclaimer">La cifra mostrata è un esempio calcolato su un profilo medio. Il confronto reale usa i tuoi consumi e la tua tariffa attuale.</p>
-        <h2 class="social-entry-choice-title">Come vuoi procedere?</h2>
         <div class="social-entry-actions" aria-label="Scegli come procedere">
             <button type="button" class="social-entry-route social-entry-route-self" id="landing-self-service" disabled>
                 <strong class="social-entry-route-title">Confronta in autonomia</strong>
@@ -3860,11 +3932,11 @@
                 <span class="social-entry-route-cta">CONTINUA <b aria-hidden="true">→</b></span>
             </button>
         </div>
-        <p class="social-entry-trust-note"><strong>Confronto senza telefono, email o registrazione.</strong> OffertaLogica non effettua chiamate telefoniche. I dati di contatto vengono richiesti solo se scegli di proseguire tramite noi con un’offerta partner; nel percorso Switcho li inserisci direttamente su Switcho.</p>
+        <p class="social-entry-trust-note"><strong>Confronta senza telefono, email o registrazione.</strong> OffertaLogica non effettua chiamate telefoniche.</p>
         <div class="social-entry-proof" aria-label="Come calcoliamo il confronto">
             <span>Dati dal Portale Offerte</span>
-            <span>Confronto sul costo reale</span>
-            <span>Anche fornitori non partner</span>
+            <span>Confronto sul costo annuo</span>
+            <span>Nessuna chiamata</span>
         </div>
         <p class="social-entry-ranking-note">Le partnership commerciali non modificano l'ordine economico delle offerte.</p>
         <p class="social-entry-status" id="landing-assisted-status" role="status" tabindex="-1" hidden></p>
@@ -4514,7 +4586,7 @@
         <span><strong>Il profilo medio è già pronto.</strong> Non devi modificare nulla: premi il pulsante qui sotto per vedere le offerte.</span>
     </div>
        
-    <button id="comparison-submit-button" class="btn-calc" onclick="window.__OL_A11Y_RESULTS_PENDING__=true; avviaComparazioneDati()">Vedi le offerte</button>
+    <button id="comparison-submit-button" class="btn-calc" onclick="window.__OL_A11Y_RESULTS_PENDING__=true; avviaComparazioneDati()">Scopri le offerte</button>
 
     <!-- Risultato della Comparazione (Appare dopo il click) -->
     <div class="results-layout" id="results-area">
@@ -6929,6 +7001,42 @@ const CAMPI_NUOVA_OFFERTA_ESSENZIALI = [
   { id: "in-gas-fisso-nuov", label: "quota fissa gas della nuova offerta", zeroAmmesso: true, negativoAmmesso: true, instruction: "Inserisci la quota fissa gas della proposta e scegli euro/mese o euro/anno." },
 ];
 
+const LIMITI_PLAUSIBILITA_PRIVATO = {
+  "in-luce-cons-att": { max: 100000, instruction: "Il consumo luce sembra fuori scala per una fornitura domestica. Controlla di non aver aggiunto zeri o copiato un totale diverso dai kWh annui." },
+  "in-gas-cons-att": { max: 50000, instruction: "Il consumo gas sembra fuori scala per una fornitura domestica. Controlla che il dato sia espresso in Smc annui." },
+  "in-luce-prezzo-att": { max: 5, instruction: "Il prezzo luce sembra troppo alto in €/kWh. Se in bolletta leggi, per esempio, 145 €/MWh, il valore equivalente è 0,145 €/kWh." },
+  "in-gas-prezzo-att": { max: 15, instruction: "Il prezzo gas sembra troppo alto in €/Smc. Controlla di non aver inserito l'importo totale della bolletta o un valore con un'altra unità." },
+  "in-luce-prezzo-nuov": { max: 5, instruction: "Il prezzo luce della nuova offerta sembra troppo alto in €/kWh. Controlla valore e unità." },
+  "in-gas-prezzo-nuov": { max: 15, instruction: "Il prezzo gas della nuova offerta sembra troppo alto in €/Smc. Controlla valore e unità." },
+};
+
+function limiteQuotaFissaPlausibile(fieldId) {
+  const unitId = fieldId.replace(/-fisso-(att|nuov)$/, "-fisso-$1-unita");
+  const unit = leggiValore(unitId, "mese");
+  return unit === "anno" ? 6000 : 500;
+}
+
+function campiImplausibili(configurazioni) {
+  if (LEAD_STATE.customerType !== "privato") return [];
+  return configurazioni.map(statoCampoNumerico).filter((campo) => {
+    if (!campo.valido) return false;
+    const limite = LIMITI_PLAUSIBILITA_PRIVATO[campo.id];
+    campo.noPdfPrefix = true;
+    if (limite && Math.abs(campo.value) > limite.max) {
+      campo.instruction = limite.instruction;
+      return true;
+    }
+    if (/^in-(luce|gas)-fisso-(att|nuov)$/.test(campo.id)) {
+      const max = limiteQuotaFissaPlausibile(campo.id);
+      if (Math.abs(campo.value) > max) {
+        campo.instruction = `Il costo fisso sembra fuori scala. Controlla l'importo e soprattutto se hai selezionato ${leggiValore(campo.id + "-unita", "mese") === "anno" ? "€/anno" : "€/mese"}.`;
+        return true;
+      }
+    }
+    return false;
+  });
+}
+
 
 let PDF_DECISION_RESOLVE = null;
 
@@ -7137,7 +7245,7 @@ function pulisciSegnalazioniDatiMancanti() {
 
 function segnalaCampiMancanti(mancanti) {
   const daPdf = determinaOrigineDatoLead() === "pdf_upload";
-  mancanti.forEach(({ element, instruction }) => {
+  mancanti.forEach(({ element, instruction, noPdfPrefix }) => {
     if (!element) return;
     element?.classList.add("calculation-field-missing");
     element?.setAttribute("aria-invalid", "true");
@@ -7147,7 +7255,7 @@ function segnalaCampiMancanti(mancanti) {
     error.id = errorId;
     error.className = "field-error-message";
     error.setAttribute("role", "alert");
-    error.textContent = `${daPdf ? "Dato non rilevato nel PDF. " : ""}${instruction || "Inserisci un valore valido."}`;
+    error.textContent = `${daPdf && !noPdfPrefix ? "Dato non rilevato nel PDF. " : ""}${instruction || "Inserisci un valore valido."}`;
     const anchor = element.closest(".fixed-fee-input") || element;
     anchor.insertAdjacentElement("afterend", error);
     const describedBy = new Set(String(element.getAttribute("aria-describedby") || "").split(/\s+/).filter(Boolean));
@@ -7962,6 +8070,67 @@ function mostraErroreDatiMancanti(mancanti, contesto = "fornitura attuale") {
   registraDifficoltaAssistenza(`missing_${contesto.replace(/\s+/g, "_")}`);
 }
 
+function mostraErroreDatiImplausibili(campi, contesto = "fornitura attuale") {
+  const areaRisultati = document.getElementById("results-area");
+  const titolo = document.getElementById("verdetto-titolo");
+  const badgeNumero = document.getElementById("verdetto-numero");
+  const testoDescrizione = document.getElementById("verdetto-testo");
+  const btnAttiva = document.getElementById("btn-attiva-subito");
+  const scatolaVerdetto = document.querySelector(".verdetto-box");
+  const comparazione = document.getElementById("comparazione-dettaglio-costi");
+  const offerte = document.querySelector(".fornitori-consigliati-section");
+  const teaser = document.getElementById("lead-teaser");
+  if (areaRisultati) areaRisultati.style.display = "flex";
+  if (scatolaVerdetto) scatolaVerdetto.className = "verdetto-box warning";
+  if (titolo) titolo.innerText = "Controlla un dato";
+  if (badgeNumero) {
+    badgeNumero.innerText = "Valore da verificare";
+    badgeNumero.style.display = "inline-block";
+  }
+  if (testoDescrizione) testoDescrizione.innerText = "Uno dei valori inseriti è fuori scala per una normale fornitura domestica. Correggi il campo evidenziato prima di calcolare il risparmio.";
+  if (btnAttiva) btnAttiva.style.display = "none";
+  if (comparazione) comparazione.remove();
+  if (offerte) offerte.style.display = "none";
+  if (teaser) teaser.style.display = "none";
+  LEAD_STATE.bestSaving = 0;
+  LEAD_STATE.firstOfferSaving = null;
+  LEAD_STATE.firstOfferId = "";
+  LEAD_STATE.bestPartnerSaving = 0;
+  segnalaCampiMancanti(campi);
+  window.setTimeout(() => {
+    campi[0]?.element?.scrollIntoView({ behavior: "smooth", block: "center" });
+    campi[0]?.element?.focus({ preventScroll: true });
+  }, 50);
+  trackEvent("comparison_implausible_data", {
+    reason: "domestic_plausibility_check",
+    context: contesto,
+    missingFields: campi.map(({ id }) => id),
+  });
+}
+
+function risultatoPrivatoImplausibile(calcoloAttuale, confrontoNuova = null) {
+  if (LEAD_STATE.customerType !== "privato") return false;
+  const costoAttuale = Number(calcoloAttuale?.totale);
+  const differenza = Math.abs(Number(confrontoNuova?.differenza?.totale || 0));
+  return (Number.isFinite(costoAttuale) && costoAttuale > 100000) || (Number.isFinite(differenza) && differenza > 50000);
+}
+
+function mostraErroreRisultatoImplausibile() {
+  const areaRisultati = document.getElementById("results-area");
+  const titolo = document.getElementById("verdetto-titolo");
+  const badgeNumero = document.getElementById("verdetto-numero");
+  const testoDescrizione = document.getElementById("verdetto-testo");
+  const scatolaVerdetto = document.querySelector(".verdetto-box");
+  const offerte = document.querySelector(".fornitori-consigliati-section");
+  if (areaRisultati) areaRisultati.style.display = "flex";
+  if (scatolaVerdetto) scatolaVerdetto.className = "verdetto-box warning";
+  if (titolo) titolo.innerText = "Risultato non plausibile";
+  if (badgeNumero) { badgeNumero.innerText = "Controlla i dati"; badgeNumero.style.display = "inline-block"; }
+  if (testoDescrizione) testoDescrizione.innerText = "Il risultato ottenuto è fuori scala per una normale fornitura domestica. Controlla prezzi, consumi e quote fisse prima di continuare.";
+  if (offerte) offerte.style.display = "none";
+  trackEvent("comparison_implausible_data", { reason: "implausible_calculated_result", context: "calculated_result", missingFields: [] });
+}
+
 function aggiornaVerdetto(differenzaNuova) {
   const scatolaVerdetto = document.querySelector(".verdetto-box");
   const titolo = document.getElementById("verdetto-titolo");
@@ -8167,11 +8336,20 @@ function urlUfficialeFornitoreOfferta(offerta) {
 }
 
 function testoAzioneOfferta(offerta, attivabileOnline) {
-  if (modalitaCalcolo === "media") return "Scopri come proseguire";
+  const switchoSupported = switchoSupportaFornitoreOfferta(offerta);
+  if (modalitaCalcolo === "media" && attivabileOnline) return "Scopri il tuo risparmio reale";
+  if (modalitaCalcolo === "media" && switchoSupported) return "Scopri come proseguire";
+  if (modalitaCalcolo === "media") return "Scopri le alternative attivabili";
   if (attivabileOnline) return "Vai all'offerta";
-  if (switchoSupportaFornitoreOfferta(offerta)) return "Continua con Switcho";
-  if (urlUfficialeFornitoreOfferta(offerta)) return "Vai al sito del fornitore";
-  return "Dettagli offerta";
+  if (switchoSupported) return "Continua con Switcho";
+  return "Scopri le alternative attivabili";
+}
+
+function testoBeneficioAzioneOfferta(offerta, attivabileOnline) {
+  if (modalitaCalcolo === "media" && attivabileOnline) return "Carica la bolletta e confrontiamo questa offerta con i tuoi consumi reali.";
+  if (attivabileOnline) return "Per questa offerta è disponibile un percorso online tramite OffertaLogica.";
+  if (switchoSupportaFornitoreOfferta(offerta)) return "Percorso assistito separato: su Switcho le offerte disponibili possono essere diverse.";
+  return "La mostriamo nel ranking anche senza accordi commerciali: puoi vedere le alternative con un percorso disponibile.";
 }
 
 function testoBadgeOfferta(item, migliore) {
@@ -8214,6 +8392,7 @@ function creaSchedaOfferta(offerta) {
       <div id="risparmio-partner-${offerta.id}" style="font-size:14px; font-weight:bold; color:var(--primary); margin-top:5px; display:none;"></div>
     </div>
     <div class="offer-action-column">
+      <p class="offer-action-benefit" aria-live="polite"></p>
       <div class="offer-action-row">
         <a id="link-partner-${offerta.id}" href="#" style="background:var(--dark-btn); color:white; text-decoration:none; padding:10px 20px; border-radius:8px; font-size:13px; font-weight:bold; white-space:nowrap;">Vedi Offerta</a>
         <a class="offer-switcho-info-link" href="/switcho.html#come-funziona" aria-label="Come funziona la collaborazione tra OffertaLogica e Switcho" title="Come funziona la collaborazione con Switcho" hidden><span aria-hidden="true">i</span><span>Come funziona</span></a>
@@ -8474,6 +8653,7 @@ function aggiornaGruppoOfferte(group, titolo, testo) {
 function resetGruppoOfferte(group, visible) {
   if (!group) return null;
   group.style.display = visible ? "block" : "none";
+  group.querySelector(".offers-activatable-view-banner")?.remove();
   const cards = group.querySelector(".offer-group-cards");
   if (cards) cards.innerHTML = "";
   return cards;
@@ -9794,7 +9974,11 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       }
       if (link) {
         const mediaDiscoveryPath = modalitaCalcolo === "media";
-        const switchoPath = !mediaDiscoveryPath && !attivabileOnline;
+        const switchoSupported = switchoSupportaFornitoreOfferta(offerta);
+        const switchoPath = !mediaDiscoveryPath && !attivabileOnline && switchoSupported;
+        card.dataset.activationRoute = attivabileOnline ? "offertalogica" : switchoSupported ? "switcho" : "none";
+        const benefit = card.querySelector(".offer-action-benefit");
+        if (benefit) benefit.textContent = testoBeneficioAzioneOfferta(offerta, attivabileOnline);
         if (switchoPath) {
           link.classList.add("offer-switcho-cta");
           link.innerHTML = `<span class="offer-switcho-cta-title">Continua con</span><span class="offer-switcho-cta-brand" aria-hidden="true"><img class="offer-switcho-cta-logo" src="/assets/logo-switcho.png" alt=""></span>`;
@@ -9959,7 +10143,8 @@ window.avviaComparazioneDati = function avviaComparazioneDati() {
     ...leggiProfiloComparazione(),
   });
 
-  const mancantiAttuale = campiMancanti(configurazioniPerAmbito(CAMPI_ATTUALI_ESSENZIALI));
+  const configurazioniAttuali = configurazioniPerAmbito(CAMPI_ATTUALI_ESSENZIALI);
+  const mancantiAttuale = campiMancanti(configurazioniAttuali);
   if (mancantiAttuale.length) {
     trackEvent("comparison_missing_current_price", {
       tipoPrezzo: tipoTariffa,
@@ -9969,12 +10154,23 @@ window.avviaComparazioneDati = function avviaComparazioneDati() {
     mostraErroreDatiMancanti(mancantiAttuale, "fornitura attuale");
     return;
   }
+  const implausibiliAttuale = campiImplausibili(configurazioniAttuali);
+  if (implausibiliAttuale.length) {
+    mostraErroreDatiImplausibili(implausibiliAttuale, "fornitura attuale");
+    return;
+  }
 
   const nuova = leggiNuovaOfferta(attuale);
   const nuovaIniziata = nuovaOffertaCompilata();
-  const mancantiNuova = nuovaIniziata ? campiMancanti(configurazioniPerAmbito(CAMPI_NUOVA_OFFERTA_ESSENZIALI)) : [];
+  const configurazioniNuova = configurazioniPerAmbito(CAMPI_NUOVA_OFFERTA_ESSENZIALI);
+  const mancantiNuova = nuovaIniziata ? campiMancanti(configurazioniNuova) : [];
   if (mancantiNuova.length) {
     mostraErroreDatiMancanti(mancantiNuova, "nuova offerta");
+    return;
+  }
+  const implausibiliNuova = nuovaIniziata ? campiImplausibili(configurazioniNuova) : [];
+  if (implausibiliNuova.length) {
+    mostraErroreDatiImplausibili(implausibiliNuova, "nuova offerta");
     return;
   }
   const tipoTariffaNuova = PDF_PROFILE_STATE.offer.tipo_prezzo_luce
@@ -9982,6 +10178,10 @@ window.avviaComparazioneDati = function avviaComparazioneDati() {
     || NUOVA_OFFERTA_AUTOMATICA?.offerta?.tipo
     || tipoTariffa;
   const confrontoNuova = calcolaDifferenza(attuale, nuova, tipoTariffa, tipoTariffaNuova);
+  if (risultatoPrivatoImplausibile(confrontoNuova.attuale, confrontoNuova)) {
+    mostraErroreRisultatoImplausibile();
+    return;
+  }
   const haNuovaOfferta = nuovaIniziata && nuovaOffertaComparabile(attuale, nuova);
   const areaRisultati = document.getElementById("results-area");
 
@@ -10795,31 +10995,28 @@ function chiudiPercorsoOfferta() {
 function configuraPercorsoOffertaMedia(offerta) {
   const bill = document.getElementById("offer-path-bill");
   const switcho = document.getElementById("offer-path-switcho");
-  const provider = document.getElementById("offer-path-provider");
-  const providerLabel = document.getElementById("offer-path-provider-label");
+  const alternatives = document.getElementById("offer-path-provider");
+  const alternativesLabel = document.getElementById("offer-path-provider-label");
   const note = document.getElementById("offer-path-note");
   const attivabileOnline = offertaAttivabileOnline(offerta);
   const switchoSupported = switchoSupportaFornitoreOfferta(offerta);
-  const officialUrl = urlUfficialeFornitoreOfferta(offerta);
-  const providerName = offerta?.provider || offerta?.fornitore || "fornitore";
+  const alternativeAvailable = !attivabileOnline && !switchoSupported;
 
   if (bill) bill.hidden = !attivabileOnline;
   if (switcho) switcho.hidden = attivabileOnline ? false : !switchoSupported;
-  if (provider) provider.hidden = attivabileOnline || switchoSupported || !officialUrl;
-  if (providerLabel) providerLabel.textContent = `VAI AL SITO DI ${String(providerName).toUpperCase()}`;
+  if (alternatives) alternatives.hidden = !alternativeAvailable;
+  if (alternativesLabel) alternativesLabel.textContent = "SCOPRI LE OFFERTE ATTIVABILI ONLINE";
 
   if (note) {
     if (attivabileOnline) {
-      note.textContent = "Puoi prima caricare la bolletta per un confronto dedicato ai tuoi consumi oppure scegliere il percorso assistito Switcho. Il percorso Switcho è separato: le offerte disponibili possono essere diverse da quella visualizzata.";
+      note.textContent = "Puoi ottenere un confronto basato sui tuoi consumi reali caricando la bolletta. In alternativa puoi scegliere il percorso assistito Switcho, separato dal confronto OffertaLogica.";
     } else if (switchoSupported) {
       note.textContent = "Questa offerta non è attivabile tramite OffertaLogica. Switcho confronta anche questo fornitore, ma nel suo percorso può proporti un'offerta diversa da quella visualizzata qui.";
-    } else if (officialUrl) {
-      note.textContent = "Questa offerta non è attivabile tramite OffertaLogica. Per trasparenza puoi continuare sul sito ufficiale del fornitore: il collegamento non è affiliato e OffertaLogica non riceve commissioni su questo passaggio.";
     } else {
-      note.textContent = "Questa offerta resta nel confronto economico, ma al momento non abbiamo un percorso di attivazione verificato da proporti.";
+      note.textContent = "Puoi tornare al ranking completo oppure vedere, in una selezione separata, le offerte per cui è disponibile un percorso online. Il ranking economico originale non viene modificato.";
     }
   }
-  return { attivabileOnline, switchoSupported, officialUrl, providerName };
+  return { attivabileOnline, switchoSupported, alternativeAvailable };
 }
 
 function apriPercorsoOffertaMedia(offerta) {
@@ -10829,24 +11026,28 @@ function apriPercorsoOffertaMedia(offerta) {
   if (!modal) return;
   const nomeOfferta = titoloOffertaVisibile(offerta) || "questa offerta";
   const route = configuraPercorsoOffertaMedia(offerta);
-  if (title) title.textContent = "Scopri come proseguire";
+  if (title) {
+    title.textContent = route.attivabileOnline
+      ? "Scopri il tuo risparmio reale"
+      : route.switchoSupported
+        ? "Scopri come proseguire"
+        : "Questa offerta resta nel confronto";
+  }
   if (intro) {
     if (route.attivabileOnline) {
-      intro.innerHTML = `La stima per <strong>${testoHtmlSicuro(nomeOfferta)}</strong> usa un profilo medio. Carica la bolletta per verificare il confronto sui tuoi consumi, oppure scegli un percorso assistito.`;
+      intro.innerHTML = `Con <strong>${testoHtmlSicuro(nomeOfferta)}</strong> puoi passare dalla stima a un confronto basato sui tuoi consumi reali.`;
     } else if (route.switchoSupported) {
       intro.innerHTML = `<strong>${testoHtmlSicuro(nomeOfferta)}</strong> è nel confronto OffertaLogica, ma non è attivabile tramite noi. Se preferisci assistenza puoi continuare con Switcho.`;
-    } else if (route.officialUrl) {
-      intro.innerHTML = `<strong>${testoHtmlSicuro(nomeOfferta)}</strong> è nel confronto OffertaLogica, ma non è attivabile tramite noi. Puoi comunque raggiungere gratuitamente il sito ufficiale del fornitore.`;
     } else {
-      intro.innerHTML = `<strong>${testoHtmlSicuro(nomeOfferta)}</strong> resta visibile perché il ranking è economico e non dipende dalle partnership. Al momento non abbiamo un percorso di attivazione verificato.`;
+      intro.innerHTML = `<strong>${testoHtmlSicuro(nomeOfferta)}</strong> resta visibile perché il ranking è economico e non dipende dalle partnership. OffertaLogica non ha un percorso di attivazione per questa offerta.`;
     }
   }
   modal.style.display = "flex";
-  a11yApriDialog(modal, route.attivabileOnline ? "#offer-path-bill" : route.switchoSupported ? "#offer-path-switcho" : route.officialUrl ? "#offer-path-provider" : "#offer-path-close");
+  a11yApriDialog(modal, route.attivabileOnline ? "#offer-path-bill" : route.switchoSupported ? "#offer-path-switcho" : "#offer-path-provider");
   const tracking = LEAD_STATE.selectedOffer?.rankingContext || {};
   trackEvent("activation_channel_choice_opened", {
-    source: "offer_card_media",
-    route: route.attivabileOnline ? "offertalogica_partner" : route.switchoSupported ? "switcho_provider" : route.officialUrl ? "provider_site" : "no_route",
+    source: modalitaCalcolo === "media" ? "offer_card_media" : "offer_card_precise",
+    route: route.attivabileOnline ? "offertalogica_partner" : route.switchoSupported ? "switcho_provider" : "internal_activatable_view",
     destinationType: LEAD_STATE.selectedOffer?.destinationType || "",
     destinationStatus: LEAD_STATE.selectedOffer?.destinationStatus || "",
     offerId: LEAD_STATE.selectedOffer?.id || "",
@@ -10865,8 +11066,6 @@ function proseguiPercorsoOffertaConBolletta() {
     source: "offer_card_media",
     channel: "bill_upload",
     route: "offertalogica_partner",
-    destinationType: offer.destinationType || "",
-    destinationStatus: offer.destinationStatus || "",
     offerId: offer.id || "",
     offerName: offer.name || "",
     provider: offer.provider || "",
@@ -10912,22 +11111,50 @@ function proseguiPercorsoOffertaConSwitcho() {
   apriSwitchoDirettoDaOfferta("offer_card_media_assisted", offer);
 }
 
-function proseguiPercorsoOffertaConFornitore() {
+function ripristinaRankingCompletoOfferte() {
+  const group = document.getElementById("offerte-ranking-group");
+  if (!group) return;
+  group.querySelectorAll(".offer-group-cards .partner-vertical-card").forEach((card) => {
+    card.style.display = "flex";
+  });
+  group.querySelector(".offers-activatable-view-banner")?.remove();
+}
+
+function mostraOfferteAttivabiliOnline() {
   const offer = LEAD_STATE.selectedOffer || {};
-  const url = urlUfficialeFornitoreOfferta(offer);
-  if (!url || offertaAttivabileOnline(offer) || switchoSupportaFornitoreOfferta(offer)) return;
-  trackEvent("provider_site_redirect", {
-    source: "offer_card_media",
-    route: "provider_site",
-    channel: "provider_site",
+  const group = document.getElementById("offerte-ranking-group");
+  const container = group?.querySelector(".offer-group-cards");
+  if (!group || !container) return;
+  const cards = [...container.querySelectorAll(".partner-vertical-card")];
+  const eligible = cards.filter((card) => card.dataset.activationRoute && card.dataset.activationRoute !== "none");
+  cards.forEach((card) => {
+    card.style.display = card.dataset.activationRoute && card.dataset.activationRoute !== "none" ? "flex" : "none";
+  });
+  group.querySelector(".offers-activatable-view-banner")?.remove();
+  const banner = document.createElement("div");
+  banner.className = "offers-activatable-view-banner";
+  banner.innerHTML = eligible.length
+    ? `<strong>Offerte con un percorso disponibile</strong><span>Questa è una selezione separata dal ranking economico completo. Mostriamo soltanto le offerte per cui puoi proseguire tramite OffertaLogica o Switcho, mantenendo lo stesso ordine economico.</span><br><button type="button">Mostra di nuovo tutte le offerte</button>`
+    : `<strong>Nessun percorso disponibile in questa selezione</strong><span>Il ranking completo resta consultabile senza modifiche.</span><br><button type="button">Torna a tutte le offerte</button>`;
+  banner.querySelector("button")?.addEventListener("click", ripristinaRankingCompletoOfferte);
+  const trust = group.querySelector(".offers-contact-trust");
+  (trust || group.querySelector(".offers-list-heading"))?.insertAdjacentElement("afterend", banner);
+  trackEvent("activation_channel_selected", {
+    source: modalitaCalcolo === "media" ? "offer_card_media" : "offer_card_precise",
+    channel: "internal",
+    route: "internal_activatable_view",
     offerId: offer.id || "",
     offerName: offer.name || "",
     provider: offer.provider || "",
-    destinationType: "official_provider_site",
-    destinationStatus: "non_affiliated",
   });
   chiudiPercorsoOfferta();
-  window.location.assign(url);
+  window.setTimeout(() => group.scrollIntoView({ behavior: movimentoRidottoAttivo() ? "auto" : "smooth", block: "start" }), 30);
+}
+
+function proseguiPercorsoOffertaConAlternative() {
+  const offer = LEAD_STATE.selectedOffer || {};
+  if (offertaAttivabileOnline(offer) || switchoSupportaFornitoreOfferta(offer)) return;
+  mostraOfferteAttivabiliOnline();
 }
 
 function offerConsentStatus(message, isError = false) {
@@ -10984,7 +11211,7 @@ window.apriConsensoOfferta = function apriConsensoOfferta(offerta) {
 
   // Fuori dal profilo medio il routing resta trasparente:
   // partner OffertaLogica -> nostro funnel; fornitore verificato su Switcho -> Switcho;
-  // altrimenti, quando disponibile, sito ufficiale non affiliato del fornitore.
+  // negli altri casi mostriamo la spiegazione e una selezione interna separata di percorsi disponibili.
   if (!offertaAttivabileOnline(offerta)) {
     const tracking = LEAD_STATE.selectedOffer.rankingContext || {};
     if (switchoSupportaFornitoreOfferta(offerta)) {
@@ -11005,22 +11232,7 @@ window.apriConsensoOfferta = function apriConsensoOfferta(offerta) {
       apriSwitchoDirettoDaOfferta("offer_not_activatable_switcho_provider", LEAD_STATE.selectedOffer);
       return;
     }
-    const officialUrl = urlUfficialeFornitoreOfferta(offerta);
-    if (officialUrl) {
-      trackEvent("provider_site_redirect", {
-        source: "offer_card_precise",
-        route: "provider_site",
-        channel: "provider_site",
-        offerId: LEAD_STATE.selectedOffer.id,
-        offerName: LEAD_STATE.selectedOffer.name,
-        provider: LEAD_STATE.selectedOffer.provider,
-        destinationType: "official_provider_site",
-        destinationStatus: "non_affiliated",
-      });
-      window.location.assign(officialUrl);
-      return;
-    }
-    offerConsentStatus("Questa offerta resta nel confronto economico, ma al momento non abbiamo un percorso di attivazione verificato.", true);
+    apriPercorsoOffertaMedia(offerta);
     return;
   }
 
@@ -15593,10 +15805,14 @@ function collegaEventiUX() {
     impostaDettagliNuovaOffertaAperti(Boolean(details?.hidden), { focus: Boolean(details?.hidden) });
   });
   document.getElementById("optional-details-close")?.addEventListener("click", chiudiDettagliNuovaOfferta);
-  [...CAMPI_ATTUALI_ESSENZIALI, ...CAMPI_NUOVA_OFFERTA_ESSENZIALI].forEach(({ id }) => {
-    const field = document.getElementById(id);
+  [...CAMPI_ATTUALI_ESSENZIALI, ...CAMPI_NUOVA_OFFERTA_ESSENZIALI].forEach((configurazione) => {
+    const field = document.getElementById(configurazione.id);
     field?.addEventListener("input", () => {
       pulisciErroreCampo(field);
+    });
+    field?.addEventListener("blur", () => {
+      const implausibili = campiImplausibili([configurazione]);
+      if (implausibili.length) segnalaCampiMancanti(implausibili);
     });
   });
   document.getElementById("nome-fornitore-nuov")?.addEventListener("change", () => {
@@ -15642,7 +15858,7 @@ function collegaEventiUX() {
   });
   document.getElementById("offer-path-bill")?.addEventListener("click", proseguiPercorsoOffertaConBolletta);
   document.getElementById("offer-path-switcho")?.addEventListener("click", proseguiPercorsoOffertaConSwitcho);
-  document.getElementById("offer-path-provider")?.addEventListener("click", proseguiPercorsoOffertaConFornitore);
+  document.getElementById("offer-path-provider")?.addEventListener("click", proseguiPercorsoOffertaConAlternative);
   document.getElementById("offer-path-close")?.addEventListener("click", chiudiPercorsoOfferta);
   document.getElementById("offer-path-backdrop")?.addEventListener("click", (event) => {
     if (event.target?.id === "offer-path-backdrop") chiudiPercorsoOfferta();
@@ -16167,16 +16383,16 @@ if (document.readyState === "loading") {
         <p class="offer-path-intro" id="offer-path-intro">La stima usa un profilo medio. Per un confronto dedicato a te puoi caricare la tua bolletta; se preferisci assistenza puoi continuare con Switcho.</p>
         <div class="offer-path-actions">
             <button type="button" class="offer-path-option is-bill" id="offer-path-bill">
-                <strong>CARICA LA TUA BOLLETTA</strong>
-                <small>Scopri quanto puoi risparmiare davvero con i tuoi consumi.</small>
+                <strong>SCOPRI QUANTO PUOI RISPARMIARE DAVVERO</strong>
+                <small>Carica la tua bolletta per un confronto dedicato ai tuoi consumi reali.</small>
             </button>
             <button type="button" class="offer-path-option is-switcho" id="offer-path-switcho">
                 <span class="offer-path-switcho-head"><span>CONTINUA CON</span><img class="offer-path-switcho-logo" src="/assets/logo-switcho.png" alt="Switcho"></span>
                 <small>Se preferisci, lascia che ti accompagnino nel cambio.</small>
             </button>
             <button type="button" class="offer-path-option is-provider" id="offer-path-provider" hidden>
-                <strong id="offer-path-provider-label">VAI AL SITO DEL FORNITORE</strong>
-                <small>Collegamento ufficiale non affiliato. OffertaLogica non riceve commissioni su questo passaggio.</small>
+                <strong id="offer-path-provider-label">SCOPRI LE OFFERTE ATTIVABILI ONLINE</strong>
+                <small>Vedi le alternative per cui è disponibile un percorso tramite OffertaLogica o Switcho.</small>
             </button>
         </div>
         <p class="offer-path-note" id="offer-path-note">Il percorso Switcho è separato dal confronto OffertaLogica: le offerte disponibili possono essere diverse da quella che stai visualizzando.</p>
@@ -16496,7 +16712,7 @@ if (document.readyState === "loading") {
     const submit = document.getElementById("comparison-submit-button");
     const isBusiness = Boolean(btnBusiness?.classList.contains("active"));
     if (!isBusiness && btnMedi && !btnMedi.classList.contains("selected")) btnMedi.click();
-    if (!isBusiness && submit) submit.textContent = "Vedi le offerte";
+    if (!isBusiness && submit) submit.textContent = "Scopri le offerte";
   }
 
   function initMobileFastFlow() {
@@ -16515,7 +16731,7 @@ if (document.readyState === "loading") {
 
     setMobileFastMode("average");
     compactSegmentState();
-    if (submit) submit.textContent = "Vedi le offerte";
+    if (submit) submit.textContent = "Scopri le offerte";
     window.__OL_OPEN_MOBILE_FAST_PDF__ = () => {
       setMobileFastMode("pdf");
       document.body.classList.remove("mobile-fast-pdf-review");
@@ -16533,7 +16749,7 @@ if (document.readyState === "loading") {
       setMobileFastMode("average");
       btnMedi?.click();
       window.setTimeout(() => {
-        if (submit) submit.textContent = "Vedi le offerte";
+        if (submit) submit.textContent = "Scopri le offerte";
         scrollFast(submit, "center");
       }, 90);
     });
@@ -16550,7 +16766,7 @@ if (document.readyState === "loading") {
       setMobileFastMode("manual");
       btnPrecisi?.click();
       window.setTimeout(() => {
-        if (submit) submit.textContent = "Vedi le offerte";
+        if (submit) submit.textContent = "Scopri le offerte";
         const firstField = manualFlow?.querySelector("select:not([disabled]), input:not([type='hidden']):not([disabled])");
         scrollFast(firstField || manualFlow, "center");
       }, 60);

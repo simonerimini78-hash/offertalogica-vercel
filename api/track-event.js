@@ -12,6 +12,7 @@ const ALLOWED_EVENT_TYPES = new Set([
   "business_calculation_completed",
   "business_lead_modal_requested",
   "comparison_incomplete_data",
+  "comparison_implausible_data",
   "comparison_started",
   "comparison_missing_current_price",
   "comparison_completed",
