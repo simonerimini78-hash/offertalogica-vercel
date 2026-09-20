@@ -229,6 +229,25 @@
         </div>
       </section>
 
+      <section class="panel" id="analyticsPhotoPanel" style="margin-top:14px">
+        <div class="panel-head"><div><h3>Foto bolletta</h3><small>Sessioni uniche dal punto zero: acquisizione foto, esito lettura, confronto automatico e offerte raggiunte.</small></div><div class="analytics-module-actions"><button class="button secondary compact" type="button" data-analytics-refresh>Aggiorna</button></div></div>
+        <div class="panel-body">
+          <div class="metrics">
+            <article class="metric priority"><span>Sessioni foto</span><strong id="photoJourneySessions">0</strong><small>Almeno un evento foto bolletta</small></article>
+            <article class="metric"><span>Fotocamera</span><strong id="photoJourneyCamera">0</strong></article>
+            <article class="metric"><span>Galleria</span><strong id="photoJourneyGallery">0</strong></article>
+            <article class="metric"><span>Letture avviate</span><strong id="photoJourneyStarted">0</strong></article>
+            <article class="metric"><span>Letture completate</span><strong id="photoJourneyCompleted">0</strong></article>
+            <article class="metric"><span>Dati completi</span><strong id="photoJourneyComplete">0</strong></article>
+            <article class="metric"><span>Dati mancanti</span><strong id="photoJourneyMissing">0</strong></article>
+            <article class="metric"><span>Non leggibili</span><strong id="photoJourneyUnreadable">0</strong></article>
+            <article class="metric"><span>Confronto automatico</span><strong id="photoJourneyAutoCompare">0</strong></article>
+            <article class="metric"><span>Offerte raggiunte</span><strong id="photoJourneyOffers">0</strong></article>
+          </div>
+          <div class="landing-path-status" id="photoJourneyStatus">Il conteggio è per sessione unica, non per numero grezzo di eventi.</div>
+        </div>
+      </section>
+
       <section class="panel" id="switchoAnalyticsPanel" style="margin-top:14px">
         <div class="panel-head"><div><h3>Percorso Switcho</h3><small>Una riga per sessione inviata verso Switcho, distinta per origine del passaggio e percorso precedente.</small></div><div class="analytics-module-actions"><select id="switchoRange" aria-label="Periodo passaggi Switcho"><option value="7d">Ultimi 7 giorni</option><option value="30d" selected>Ultimi 30 giorni</option><option value="all">Dal punto zero</option></select><select id="switchoSourceFilter" aria-label="Provenienza passaggi Switcho"><option value="">Tutte le provenienze</option></select><button class="button secondary compact" type="button" data-analytics-refresh>Aggiorna</button><button class="button secondary compact" id="switchoCsv" type="button" data-analytics-export="switcho">CSV</button></div></div>
         <div class="panel-body"><div class="metrics"><article class="metric priority"><span>Sessioni verso Switcho</span><strong id="switchoSessions">0</strong><small>SessionId unici con passaggio registrato</small></article><article class="metric"><span>Scelte da card offerta</span><strong id="switchoOfferSelections">0</strong><small>Offerta identificata prima del passaggio</small></article><article class="metric"><span>Percorsi guidati</span><strong id="switchoGuided">0</strong><small>Passaggi senza specifica offerta associata</small></article><article class="metric"><span>Redirect avviati</span><strong id="switchoRedirects">0</strong><small>Redirect/landing Switcho avviati dal browser</small></article></div><div class="landing-path-status" id="switchoFilterInfo">Nessun passaggio Switcho nel periodo selezionato.</div><details class="analytics-details"><summary>Dettaglio passaggi Switcho — 10 risultati per pagina</summary><div class="analytics-details-content"><div class="table-wrap"><table class="data-table analytics-compact-table"><thead><tr><th>Data</th><th>Provenienza</th><th>Percorso</th><th>Offerta scelta</th><th>Ranking</th><th>Valori</th><th>Stato</th><th>Sessione</th></tr></thead><tbody id="switchoRows"></tbody></table></div><div class="analytics-pagination" id="switchoPagination"></div></div></details></div>

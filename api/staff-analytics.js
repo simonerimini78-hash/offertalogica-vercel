@@ -38,6 +38,12 @@ const HUMAN_INTERACTION_EVENTS = new Set([
   "pdf_file_selected",
   "pdf_analysis_started",
   "pdf_analysis_interrupted",
+  "bill_photo_camera_opened",
+  "bill_photo_gallery_opened",
+  "bill_photo_selected",
+  "bill_photo_analysis_started",
+  "bill_photo_analysis_failed",
+  "bill_photo_comparison_auto_started",
   "activation_data_copied",
   "business_photovoltaic_tool_opened",
   "assistance_callback_verified",
@@ -872,6 +878,116 @@ async function loadOfferSelectionSummary(from = CAMPAIGN_BASELINE_ISO) {
     if (page.length < OFFER_SELECTION_PAGE_SIZE) return offerSelectionSummaryFromRows(rows);
   }
   throw new Error("Offer selections oltre il limite di lettura sicura");
+}
+
+
+const PHOTO_JOURNEY_EVENT_TYPES = Object.freeze([
+  "bill_photo_camera_opened",
+  "bill_photo_gallery_opened",
+  "bill_photo_selected",
+  "bill_photo_analysis_started",
+  "bill_photo_analysis_completed",
+  "bill_photo_analysis_failed",
+  "bill_photo_comparison_auto_started",
+  "offers_rendered",
+]);
+const PHOTO_JOURNEY_PAGE_SIZE = 1000;
+const PHOTO_JOURNEY_MAX_ROWS = 100000;
+
+async function fetchPhotoJourneyPage(from, offset = 0) {
+  if (!customerDbConfiguredForLandingAnalytics()) return [];
+  const query = new URLSearchParams({
+    select: "id,event_type,created_at,payload",
+    order: "created_at.asc",
+    limit: String(PHOTO_JOURNEY_PAGE_SIZE),
+    offset: String(Math.max(0, Number(offset) || 0)),
+  });
+  if (from) query.set("created_at", `gte.${from}`);
+  query.set("event_type", `in.(${PHOTO_JOURNEY_EVENT_TYPES.join(",")})`);
+  const response = await fetch(
+    `${customerDbBaseUrl()}/rest/v1/${CUSTOMER_DB_EVENTS_TABLE}?${query.toString()}`,
+    { method: "GET", headers: customerDbReadHeaders() },
+  );
+  if (!response.ok) throw new Error(`Customer DB photo journey error ${response.status}`);
+  const rows = await response.json();
+  return Array.isArray(rows) ? rows : [];
+}
+
+function photoJourneySummaryFromRows(rows = []) {
+  const groups = new Map();
+  (Array.isArray(rows) ? rows : []).forEach((row) => {
+    const payload = rawAnalyticsPayload(row);
+    if (payload.staffMode === true || String(payload.trafficAgent || "").toLowerCase() === "automation") return;
+    const sessionId = String(payload.sessionId || "").trim();
+    if (!sessionId) return;
+    if (!groups.has(sessionId)) groups.set(sessionId, []);
+    groups.get(sessionId).push({
+      eventType: String(row.event_type || ""),
+      createdAt: row.created_at || "",
+      payload,
+    });
+  });
+
+  const sets = {
+    sessions: new Set(), camera: new Set(), gallery: new Set(), selected: new Set(), started: new Set(),
+    completed: new Set(), complete: new Set(), missing: new Set(), unreadable: new Set(), failed: new Set(),
+    autoCompare: new Set(), offersReached: new Set(),
+  };
+
+  groups.forEach((events, sessionId) => {
+    const ordered = [...events].sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime());
+    const photoEvents = ordered.filter((event) => event.eventType.startsWith("bill_photo_"));
+    if (!photoEvents.length) return;
+    sets.sessions.add(sessionId);
+    if (photoEvents.some((event) => event.eventType === "bill_photo_camera_opened" || String(event.payload?.inputSource || "") === "camera")) sets.camera.add(sessionId);
+    if (photoEvents.some((event) => event.eventType === "bill_photo_gallery_opened" || String(event.payload?.inputSource || "") === "gallery")) sets.gallery.add(sessionId);
+    if (photoEvents.some((event) => event.eventType === "bill_photo_selected")) sets.selected.add(sessionId);
+    if (photoEvents.some((event) => event.eventType === "bill_photo_analysis_started")) sets.started.add(sessionId);
+    if (photoEvents.some((event) => event.eventType === "bill_photo_analysis_completed")) sets.completed.add(sessionId);
+    if (photoEvents.some((event) => event.eventType === "bill_photo_analysis_failed")) sets.failed.add(sessionId);
+    if (photoEvents.some((event) => event.eventType === "bill_photo_comparison_auto_started" || event.payload?.comparisonAutoStarted === true)) sets.autoCompare.add(sessionId);
+
+    const statuses = photoEvents
+      .filter((event) => event.eventType === "bill_photo_analysis_completed")
+      .map((event) => String(event.payload?.analysisStatus || "").toLowerCase());
+    if (statuses.includes("success")) sets.complete.add(sessionId);
+    if (statuses.includes("success_missing_data")) sets.missing.add(sessionId);
+    if (statuses.includes("unreadable") || sets.failed.has(sessionId)) sets.unreadable.add(sessionId);
+
+    const firstPhotoAt = photoEvents
+      .map((event) => new Date(event.createdAt || 0).getTime())
+      .filter(Number.isFinite)
+      .sort((a, b) => a - b)[0] || 0;
+    if (firstPhotoAt && ordered.some((event) => event.eventType === "offers_rendered" && new Date(event.createdAt || 0).getTime() >= firstPhotoAt)) {
+      sets.offersReached.add(sessionId);
+    }
+  });
+
+  return {
+    sessions: sets.sessions.size,
+    cameraSessions: sets.camera.size,
+    gallerySessions: sets.gallery.size,
+    selectedSessions: sets.selected.size,
+    startedSessions: sets.started.size,
+    completedSessions: sets.completed.size,
+    completeSessions: sets.complete.size,
+    missingDataSessions: sets.missing.size,
+    unreadableSessions: sets.unreadable.size,
+    failedSessions: sets.failed.size,
+    autoCompareSessions: sets.autoCompare.size,
+    offersReachedSessions: sets.offersReached.size,
+  };
+}
+
+async function loadPhotoJourneySummary(from = CAMPAIGN_BASELINE_ISO) {
+  if (!customerDbConfiguredForLandingAnalytics()) return photoJourneySummaryFromRows([]);
+  const rows = [];
+  for (let offset = 0; offset < PHOTO_JOURNEY_MAX_ROWS; offset += PHOTO_JOURNEY_PAGE_SIZE) {
+    const page = await fetchPhotoJourneyPage(from, offset);
+    rows.push(...page);
+    if (page.length < PHOTO_JOURNEY_PAGE_SIZE) return photoJourneySummaryFromRows(rows);
+  }
+  throw new Error("Photo journey oltre il limite di lettura sicura");
 }
 
 function normalizeTrafficSource(value) {
@@ -2021,7 +2137,7 @@ export default async function handler(req, res) {
     });
   }
 
-  const [rawResult, landingPath, switcho, offerRoutes, recentAnalyticsRows, databaseSummary, offerSelectionSummary] = await Promise.all([
+  const [rawResult, landingPath, switcho, offerRoutes, recentAnalyticsRows, databaseSummary, offerSelectionSummary, photoJourneySummary] = await Promise.all([
     listCustomerAnalytics({ limit }),
     loadLandingPathAnalytics(landingRange),
     loadSwitchoAnalytics(CAMPAIGN_BASELINE_ISO).catch((error) => ({
@@ -2045,6 +2161,10 @@ export default async function handler(req, res) {
     loadOfferSelectionSummary(CAMPAIGN_BASELINE_ISO).catch((error) => {
       console.error("staff-analytics-offer-selections", error);
       return null;
+    }),
+    loadPhotoJourneySummary(CAMPAIGN_BASELINE_ISO).catch((error) => {
+      console.error("staff-analytics-photo-journey", error);
+      return photoJourneySummaryFromRows([]);
     }),
   ]);
   const result = enhanceAnalyticsForStaff(analyticsFromCampaignBaseline(rawResult));
@@ -2090,6 +2210,7 @@ export default async function handler(req, res) {
     aggregationMode: exactSummary ? "database" : "recent_fallback",
     switcho,
     offerRoutes,
+    photoJourneySummary,
     baseline: {
       from: CAMPAIGN_BASELINE_ISO,
       label: CAMPAIGN_BASELINE_LABEL,

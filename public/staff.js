@@ -41,6 +41,7 @@
     journeySummary: {},
     switcho: { rows: [], summary: {} },
     offerRoutes: { summary: {} },
+    photoJourneySummary: {},
     landingPath: null,
     customers: [],
     checks: [],
@@ -114,6 +115,13 @@
     pdf_analysis_started: "Lettura bolletta avviata",
     pdf_analysis_completed: "Bolletta letta",
     pdf_analysis_interrupted: "Lettura bolletta interrotta",
+    bill_photo_camera_opened: "Fotocamera bolletta aperta",
+    bill_photo_gallery_opened: "Galleria foto bolletta aperta",
+    bill_photo_selected: "Foto bolletta selezionata",
+    bill_photo_analysis_started: "Lettura foto avviata",
+    bill_photo_analysis_completed: "Foto bolletta letta",
+    bill_photo_analysis_failed: "Lettura foto fallita",
+    bill_photo_comparison_auto_started: "Confronto automatico da foto",
     pdf_data_confirmed: "Dati bolletta confermati",
     pdf_autofill_preview_opened: "Anteprima dati bolletta aperta",
     pdf_autofill_preview_confirmed: "Anteprima dati bolletta confermata",
@@ -882,6 +890,8 @@
     "landing_free_app_click", "landing_premium_app_click",
     "comparison_started", "comparison_completed", "comparison_path_selected", "offers_rendered",
     "pdf_picker_opened", "pdf_file_selected", "pdf_analysis_started", "pdf_analysis_completed", "pdf_analysis_interrupted",
+    "bill_photo_camera_opened", "bill_photo_gallery_opened", "bill_photo_selected", "bill_photo_analysis_started",
+    "bill_photo_analysis_completed", "bill_photo_analysis_failed", "bill_photo_comparison_auto_started",
     "lead_modal_opened", "lead_modal_closed", "lead_form_invalid", "otp_request_started",
     "lead_created_client", "otp_sent", "otp_failed", "otp_verified", "offers_unlocked",
     "offer_consent_opened", "offer_partner_consent_confirmed", "offer_switcho_redirect",
@@ -1278,6 +1288,17 @@
         ? `Lettura bolletta: ${pdfStatusLabel(item.analysisStatus)}${pdfEventDiagnosticReason(item) ? ` · ${pdfEventDiagnosticReason(item)}` : ""}${pdfUploadSource ? ` · origine ${pdfUploadSource}` : ""}`
         : `Lettura della bolletta completata${pdfUploadSource ? ` · origine ${pdfUploadSource}` : ""}`,
       pdf_analysis_interrupted: `Lettura bolletta interrotta${pdfEventDiagnosticReason(item) ? ` · ${pdfEventDiagnosticReason(item)}` : ""}${pdfUploadSource ? ` · origine ${pdfUploadSource}` : ""}`,
+      bill_photo_camera_opened: "Ha aperto la fotocamera per leggere la bolletta",
+      bill_photo_gallery_opened: "Ha aperto la galleria per scegliere una foto della bolletta",
+      bill_photo_selected: `Ha selezionato una foto della bolletta${item.inputSource ? ` · ${item.inputSource === "camera" ? "fotocamera" : "galleria"}` : ""}`,
+      bill_photo_analysis_started: "Ha avviato la lettura IA della foto",
+      bill_photo_analysis_completed: item.analysisStatus === "success"
+        ? "Foto letta: dati sufficienti per il confronto"
+        : item.analysisStatus === "success_missing_data"
+          ? `Foto letta: ${Number(item.missingFieldCount || 0) || "alcuni"} dati mancanti`
+          : item.analysisStatus === "unreadable" ? "Foto non leggibile" : "Lettura foto completata",
+      bill_photo_analysis_failed: "Lettura foto non riuscita",
+      bill_photo_comparison_auto_started: "Dati foto completi: confronto avviato automaticamente",
       pdf_data_confirmed: "Ha confermato i dati letti dalla bolletta",
       article_view: item.articleTitle ? `Ha visualizzato l’articolo “${item.articleTitle}”${item.articleCategory ? ` · ${item.articleCategory}` : ""}` : `Ha visualizzato l’articolo ${item.articleSlug || ""}`.trim(),
       cookie_consent_choice: item.consentAction === "accept" ? "Ha accettato i cookie dal banner Iubenda" : item.consentAction === "reject" ? "Ha rifiutato i cookie dal banner Iubenda" : "Ha aperto le preferenze cookie Iubenda",
@@ -1946,6 +1967,26 @@
     renderAnalyticsPagination(byId("pdfJourneyPagination"), rows.length, "pdf", renderPdfJourneyAnalytics);
   }
 
+  function renderPhotoJourneyAnalytics() {
+    const summary = cache.photoJourneySummary || {};
+    text(byId("photoJourneySessions"), formatNumber(summary.sessions || 0));
+    text(byId("photoJourneyCamera"), formatNumber(summary.cameraSessions || 0));
+    text(byId("photoJourneyGallery"), formatNumber(summary.gallerySessions || 0));
+    text(byId("photoJourneyStarted"), formatNumber(summary.startedSessions || 0));
+    text(byId("photoJourneyCompleted"), formatNumber(summary.completedSessions || 0));
+    text(byId("photoJourneyComplete"), formatNumber(summary.completeSessions || 0));
+    text(byId("photoJourneyMissing"), formatNumber(summary.missingDataSessions || 0));
+    text(byId("photoJourneyUnreadable"), formatNumber(summary.unreadableSessions || 0));
+    text(byId("photoJourneyAutoCompare"), formatNumber(summary.autoCompareSessions || 0));
+    text(byId("photoJourneyOffers"), formatNumber(summary.offersReachedSessions || 0));
+    const sessions = Number(summary.sessions || 0);
+    const offers = Number(summary.offersReachedSessions || 0);
+    const status = byId("photoJourneyStatus");
+    if (status) status.textContent = sessions
+      ? `${formatNumber(offers)} sessioni su ${formatNumber(sessions)} con foto hanno raggiunto le offerte. Conteggi per sessione unica dal punto zero.`
+      : "Nessuna sessione foto registrata dal punto zero.";
+  }
+
   function switchoRangeStart(range = "30d") {
     const days = range === "7d" ? 7 : range === "30d" ? 30 : 0;
     return days ? Date.now() - days * 86400000 : 0;
@@ -2142,6 +2183,7 @@
     renderLandingTraffic();
     renderJourneyAnalytics();
     renderPdfJourneyAnalytics();
+    renderPhotoJourneyAnalytics();
     renderSwitchoAnalytics();
     renderOfferRouteAnalytics();
 
@@ -2226,6 +2268,7 @@
     cache.journeySummary = payload.journeySummary || {};
     cache.switcho = payload.switcho && typeof payload.switcho === "object" ? payload.switcho : { rows: [], summary: {} };
     cache.offerRoutes = payload.offerRoutes && typeof payload.offerRoutes === "object" ? payload.offerRoutes : { summary: {} };
+    cache.photoJourneySummary = payload.photoJourneySummary && typeof payload.photoJourneySummary === "object" ? payload.photoJourneySummary : {};
     cache.landingPath = payload.landingPath || null;
     cache.analyticsBaseline = payload.baseline || null;
     Object.keys(analyticsPages).forEach(key => { analyticsPages[key] = 1; });
