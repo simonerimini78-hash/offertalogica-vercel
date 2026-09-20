@@ -4001,6 +4001,127 @@
             .offer-action-benefit { display: none; }
             .offers-activatable-view-banner { margin-bottom: 9px; padding: 10px; font-size: 11px; }
         }
+
+        /* OFFERTALOGICA_FAST_CHOICES_V2_20260920 */
+        .mobile-fast-option-card {
+            position: relative;
+            min-width: 0;
+            display: flex;
+        }
+        .mobile-fast-option-card .mobile-fast-option {
+            width: 100%;
+            min-height: 92px;
+            padding: 13px 34px 13px 12px;
+            border-width: 1px;
+            transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease, background .15s ease;
+        }
+        .mobile-fast-option-card .mobile-fast-option:hover,
+        .mobile-fast-option-card .mobile-fast-option:focus-visible {
+            transform: translateY(-1px);
+            box-shadow: 0 11px 24px rgba(15,23,42,.10);
+        }
+        .mobile-fast-option.is-photo-action {
+            border: 2px solid rgba(22,163,74,.72);
+            background: linear-gradient(145deg,#eafbf0,#ffffff);
+            box-shadow: 0 10px 22px rgba(22,163,74,.13);
+        }
+        .mobile-fast-action-badge {
+            display: inline-flex;
+            width: fit-content;
+            margin-bottom: 2px;
+            padding: 3px 7px;
+            border-radius: 999px;
+            background: #16a34a;
+            color: #fff;
+            font-size: 9.5px;
+            line-height: 1;
+            font-weight: 900;
+            letter-spacing: .02em;
+            text-transform: uppercase;
+        }
+        .mobile-fast-info-button {
+            position: absolute;
+            z-index: 2;
+            top: 8px;
+            right: 8px;
+            width: 25px;
+            height: 25px;
+            display: grid;
+            place-items: center;
+            padding: 0;
+            border: 1px solid rgba(18,48,68,.18);
+            border-radius: 999px;
+            background: rgba(255,255,255,.94);
+            color: #123044;
+            font: 900 13px/1 Arial,sans-serif;
+            box-shadow: 0 4px 10px rgba(15,23,42,.08);
+            cursor: pointer;
+        }
+        .mobile-fast-info-button:focus-visible { outline: 3px solid rgba(37,99,235,.22); outline-offset: 2px; }
+        .mobile-fast-help-backdrop[hidden] { display: none !important; }
+        .mobile-fast-help-backdrop {
+            position: fixed;
+            z-index: 10050;
+            inset: 0;
+            display: grid;
+            place-items: center;
+            padding: 18px;
+            background: rgba(15,23,42,.48);
+            backdrop-filter: blur(2px);
+        }
+        .mobile-fast-help-dialog {
+            position: relative;
+            width: min(92vw, 440px);
+            max-height: min(78vh, 560px);
+            overflow: auto;
+            padding: 22px 20px 18px;
+            border: 1px solid rgba(18,48,68,.12);
+            border-radius: 18px;
+            background: #fff;
+            color: #334155;
+            box-shadow: 0 28px 70px rgba(15,23,42,.26);
+        }
+        .mobile-fast-help-dialog h3 { margin: 0 34px 10px 0; color: #123044; font-size: 19px; line-height: 1.2; }
+        .mobile-fast-help-dialog p { margin: 8px 0 0; font-size: 13.5px; line-height: 1.5; }
+        .mobile-fast-help-close {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 32px;
+            height: 32px;
+            display: grid;
+            place-items: center;
+            border: 0;
+            border-radius: 999px;
+            background: #f1f5f9;
+            color: #334155;
+            font-size: 22px;
+            line-height: 1;
+            cursor: pointer;
+        }
+        .social-entry-app-link {
+            min-height: 50px;
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 8px !important;
+            line-height: 1.1;
+            text-align: center;
+        }
+        @media (min-width: 701px) {
+            .mobile-fast-options { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
+            .mobile-fast-option-card .mobile-fast-option { min-height: 108px; text-align: center; justify-items: center; padding: 14px 34px 14px 14px; }
+            .mobile-fast-action-badge { justify-self: center; }
+        }
+        @media (max-width: 700px) {
+            .mobile-fast-options { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; }
+            .mobile-fast-option-card .mobile-fast-option { min-height: 96px !important; padding: 11px 30px 11px 9px !important; gap: 3px !important; text-align: center !important; }
+            .mobile-fast-option-card .mobile-fast-option strong { font-size: 13.5px !important; line-height: 1.15 !important; }
+            .mobile-fast-option-card .mobile-fast-option small { font-size: 10.5px !important; line-height: 1.2 !important; }
+            .mobile-fast-action-badge { justify-self: center; font-size: 8.5px; padding: 3px 6px; }
+            .mobile-fast-option.is-selected::after { left: 7px !important; right: auto !important; }
+            .social-entry-app-link { min-height: 50px; white-space: nowrap; font-size: clamp(11px,3.15vw,13px) !important; }
+        }
     </style>
 <script>
 (function () {
@@ -4177,23 +4298,46 @@
     <section class="mobile-fast-start" id="mobile-fast-start" aria-labelledby="mobile-fast-start-title">
         <div class="mobile-fast-start-heading">
             <h2 id="mobile-fast-start-title">Inizia il confronto</h2>
-            <p>Parti con una stima media oppure usa i tuoi dati reali.</p>
+            <p>Scegli il modo più comodo: foto, PDF, stima o inserimento manuale.</p>
         </div>
         <div class="mobile-fast-options">
-            <button type="button" class="mobile-fast-option is-fastest is-selected" id="mobile-fast-average" aria-pressed="true">
-                <strong>Parti con una stima media</strong>
-                <small>Confronto rapido su consumi medi</small>
-            </button>
-            <button type="button" class="mobile-fast-option" id="mobile-fast-pdf" aria-pressed="false">
-                <strong>Usa la tua bolletta</strong>
-                <small>Scatta una foto, scegli un’immagine o carica il PDF</small>
-            </button>
-            <button type="button" class="mobile-fast-option" id="mobile-fast-manual" aria-pressed="false">
-                <strong>Inserisci i dati a mano</strong>
-                <small>Compila consumi e dati della fornitura</small>
-            </button>
+            <div class="mobile-fast-option-card is-photo-card">
+                <button type="button" class="mobile-fast-option is-photo-action" id="mobile-fast-photo" aria-pressed="false">
+                    <span class="mobile-fast-action-badge">Più rapido da mobile</span>
+                    <strong>Scatta una foto</strong>
+                    <small>Fotografa la pagina con consumi e prezzi</small>
+                </button>
+                <button type="button" class="mobile-fast-info-button" data-fast-help="photo" aria-label="Quale pagina della bolletta fotografare?">i</button>
+            </div>
+            <div class="mobile-fast-option-card">
+                <button type="button" class="mobile-fast-option" id="mobile-fast-pdf" aria-pressed="false">
+                    <strong>Carica il PDF</strong>
+                    <small>Usa la bolletta originale ricevuta dal fornitore</small>
+                </button>
+                <button type="button" class="mobile-fast-info-button" data-fast-help="pdf" aria-label="Quale PDF della bolletta caricare?">i</button>
+            </div>
+            <div class="mobile-fast-option-card">
+                <button type="button" class="mobile-fast-option is-selected" id="mobile-fast-average" aria-pressed="true">
+                    <strong>Usa il profilo medio</strong>
+                    <small>Vedi subito una stima senza bolletta</small>
+                </button>
+                <button type="button" class="mobile-fast-info-button" data-fast-help="average" aria-label="Come funziona il profilo medio?">i</button>
+            </div>
+            <div class="mobile-fast-option-card">
+                <button type="button" class="mobile-fast-option" id="mobile-fast-manual" aria-pressed="false">
+                    <strong>Inserisci i dati a mano</strong>
+                    <small>Compila consumi e dati della fornitura</small>
+                </button>
+            </div>
         </div>
     </section>
+    <div class="mobile-fast-help-backdrop" id="mobile-fast-help-backdrop" hidden>
+        <section class="mobile-fast-help-dialog" role="dialog" aria-modal="true" aria-labelledby="mobile-fast-help-title">
+            <button type="button" class="mobile-fast-help-close" id="mobile-fast-help-close" aria-label="Chiudi">×</button>
+            <h3 id="mobile-fast-help-title">Informazioni</h3>
+            <div id="mobile-fast-help-copy"></div>
+        </section>
+    </div>
 
     <div class="business-panel" id="business-panel">
         <h3>Analisi aziendale luce e gas</h3>
@@ -4334,7 +4478,7 @@
                 <button id="bill-photo-gallery-button" type="button" class="pdf-file-picker-button" onclick="apriFotoBolletta('gallery')">Scegli foto</button>
                 <details class="bill-photo-help">
                     <summary aria-label="Quale pagina della bolletta fotografare?">ⓘ Quale pagina?</summary>
-                    <div class="bill-photo-help-copy"><strong>Fotografa la pagina con i dati utili al confronto.</strong> Cerca consumi annui e prezzo/condizioni economiche: spesso non è la prima pagina. Inquadra tutta la pagina e assicurati che il testo sia leggibile.</div>
+                    <div class="bill-photo-help-copy"><strong>Fotografa la pagina con consumi annui e prezzo/condizioni economiche.</strong> Spesso non è la prima pagina. Non serve fotografare la pagina con nome, indirizzo e totale da pagare. Inquadra tutta la pagina e assicurati che il testo sia leggibile.</div>
                 </details>
                 <span class="pdf-file-picker-status">Se leggiamo tutti i dati necessari, apriamo subito le offerte.</span>
             </div>
@@ -17136,14 +17280,16 @@ if (document.readyState === "loading") {
     document.body?.classList.add("unified-comparison-flow");
   }
 
-  function setMobileFastMode(mode) {
+  function setMobileFastMode(mode, selectedChoice = mode) {
     if (!mobileFastEnabled()) return;
     const body = document.body;
     ["average", "pdf", "manual"].forEach((name) => {
       body.classList.toggle(`mobile-fast-mode-${name}`, name === mode);
+    });
+    ["photo", "pdf", "average", "manual"].forEach((name) => {
       const option = document.getElementById(`mobile-fast-${name}`);
-      option?.classList.toggle("is-selected", name === mode);
-      option?.setAttribute("aria-pressed", name === mode ? "true" : "false");
+      option?.classList.toggle("is-selected", name === selectedChoice);
+      option?.setAttribute("aria-pressed", name === selectedChoice ? "true" : "false");
     });
     if (mode !== "pdf") body.classList.remove("mobile-fast-pdf-review");
   }
@@ -17184,6 +17330,7 @@ if (document.readyState === "loading") {
     enableDesktopUnifiedFlow();
     initDefaultAverageChoice();
     if (!mobileFastEnabled()) return;
+    const btnPhoto = document.getElementById("mobile-fast-photo");
     const btnAverage = document.getElementById("mobile-fast-average");
     const btnPdf = document.getElementById("mobile-fast-pdf");
     const btnManual = document.getElementById("mobile-fast-manual");
@@ -17199,7 +17346,7 @@ if (document.readyState === "loading") {
     compactSegmentState();
     if (submit) submit.textContent = "Scopri le offerte";
     window.__OL_OPEN_MOBILE_FAST_PDF__ = () => {
-      setMobileFastMode("pdf");
+      setMobileFastMode("pdf", "pdf");
       document.body.classList.remove("mobile-fast-pdf-review");
     };
     submit?.addEventListener("click", () => {
@@ -17220,11 +17367,20 @@ if (document.readyState === "loading") {
       }, 90);
     });
 
-    btnPdf?.addEventListener("click", () => {
-      tracciaSceltaPercorsoConfronto("pdf", "comparison_method_choice");
-      setMobileFastMode("pdf");
+    btnPhoto?.addEventListener("click", () => {
+      tracciaSceltaPercorsoConfronto("pdf", "photo_camera_choice");
+      setMobileFastMode("pdf", "photo");
       document.body.classList.remove("mobile-fast-pdf-review");
-      scrollFast(pdfPanel, "start");
+      if (typeof window.apriFotoBolletta === "function") window.apriFotoBolletta("camera");
+      else scrollFast(pdfPanel, "start");
+    });
+
+    btnPdf?.addEventListener("click", () => {
+      tracciaSceltaPercorsoConfronto("pdf", "pdf_file_choice");
+      setMobileFastMode("pdf", "pdf");
+      document.body.classList.remove("mobile-fast-pdf-review");
+      if (typeof window.apriSelettorePdf === "function") window.apriSelettorePdf();
+      else scrollFast(pdfPanel, "start");
     });
 
     btnManual?.addEventListener("click", () => {
@@ -17238,6 +17394,45 @@ if (document.readyState === "loading") {
       }, 60);
     });
 
+    const helpBackdrop = document.getElementById("mobile-fast-help-backdrop");
+    const helpTitle = document.getElementById("mobile-fast-help-title");
+    const helpCopy = document.getElementById("mobile-fast-help-copy");
+    const helpClose = document.getElementById("mobile-fast-help-close");
+    const helpContent = {
+      photo: {
+        title: "Quale pagina fotografare?",
+        html: "<p>Fotografa la pagina dove trovi <strong>consumi annui (kWh o Smc)</strong> e <strong>prezzo o condizioni economiche</strong>.</p><p>Spesso <strong>non è la prima pagina</strong>. Non serve fotografare la pagina con nome, indirizzo e totale da pagare.</p><p>Inquadra tutta la pagina, senza riflessi e con il testo leggibile.</p>"
+      },
+      pdf: {
+        title: "Quale PDF caricare?",
+        html: "<p>Carica la <strong>bolletta originale in PDF</strong> ricevuta dal tuo fornitore, per esempio via email o scaricata dall’area clienti.</p><p>Il PDF originale è preferibile a una fotografia convertita in PDF perché mantiene meglio i dati utili alla lettura.</p>"
+      },
+      average: {
+        title: "Come funziona il profilo medio?",
+        html: "<p>Se non hai la bolletta o non conosci i consumi, OffertaLogica usa un <strong>profilo medio di riferimento</strong> per mostrarti subito una stima delle offerte.</p><p>La stima non usa i tuoi consumi reali: puoi sempre renderla più precisa in seguito con foto, PDF o inserimento manuale.</p>"
+      }
+    };
+    function closeFastHelp() {
+      if (helpBackdrop) helpBackdrop.hidden = true;
+    }
+    document.querySelectorAll("[data-fast-help]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const content = helpContent[button.dataset.fastHelp];
+        if (!content || !helpBackdrop || !helpTitle || !helpCopy) return;
+        helpTitle.textContent = content.title;
+        helpCopy.innerHTML = content.html;
+        helpBackdrop.hidden = false;
+        window.setTimeout(() => helpClose?.focus(), 0);
+      });
+    });
+    helpClose?.addEventListener("click", closeFastHelp);
+    helpBackdrop?.addEventListener("click", (event) => {
+      if (event.target === helpBackdrop) closeFastHelp();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && helpBackdrop && !helpBackdrop.hidden) closeFastHelp();
+    });
+
     document.getElementById("pdf-static-input")?.addEventListener("change", () => {
       if (document.body.classList.contains("mobile-fast-mode-pdf")) {
         document.body.classList.remove("mobile-fast-pdf-review");
@@ -17248,7 +17443,7 @@ if (document.readyState === "loading") {
     if (photoEntryRequested) {
       tracciaSceltaPercorsoConfronto("pdf", "photo_deep_link");
       if (mobileFastEnabled()) {
-        setMobileFastMode("pdf");
+        setMobileFastMode("pdf", "photo");
         document.body.classList.remove("mobile-fast-pdf-review");
       }
       window.setTimeout(() => scrollFast(pdfPanel, "start"), 80);
