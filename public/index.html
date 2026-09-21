@@ -4672,6 +4672,15 @@
                             <option value="6">6.0 kW (Elevato)</option>
                         </select>
                     </div>
+                    <div class="input-group">
+                        <label for="master-luce-residenza">Residenza anagrafica sulla fornitura</label>
+                        <select id="master-luce-residenza">
+                            <option value="">Non so / non applicare quote specifiche</option>
+                            <option value="residente">Residente</option>
+                            <option value="non-residente">Non residente / seconda casa</option>
+                        </select>
+                        <small style="display:block; margin-top:5px; color:#64748b; line-height:1.35;">Serve per applicare correttamente la quota fissa ASOS prevista per i domestici non residenti. Nessun valore viene presunto se lasci vuoto.</small>
+                    </div>
                 </div>
 
                 <div class="column-energy" id="master-gas-column" style="border: none; padding: 0; background: transparent;">
@@ -5385,6 +5394,7 @@ let PARAMETRI_CALCOLO = {
     quotaFissaLuceAnnua: null,
     quotaFissaGasAnnua: null,
     potenzaKw: "3",
+    residenzaLuce: "",
     regioneGas: "",
     classeContatoreGas: "",
     potereCalorificoGasGjSmc: "",
@@ -5417,6 +5427,7 @@ let PARAMETRI_CALCOLO = {
       potenzaEurKwAnno: 23.7188,
       imposteEurUnita: 0,
       ivaPercentuale: 0,
+      asosFissaNonResidentiEurAnno: 95.0916,
     },
     gas: {
       schema: "gas_rete_scaglioni_2026",
@@ -7779,9 +7790,12 @@ function calcolaVoceEnergia({ consumo = 0, prezzoVariabile = 0, formula, consumi
   const quotaImposte = regolateGas?.imposteDisponibili
     ? regolateGas.quotaImposte
     : consumoRegolato * Math.max(0, numeroSicuro(regolate.imposteEurUnita, 0));
+  const quotaAsosFissaNonResidenti = commodity === "luce" && String(regolate.residenzaAnagrafica || "").trim().toLowerCase() === "non-residente"
+    ? Math.max(0, numeroSicuro(regolate.asosFissaNonResidentiEurAnno, 0))
+    : 0;
   const quotaRegolataFissa = regolateGas
     ? regolateGas.quotaFissa
-    : Math.max(0, numeroSicuro(regolate.fissaAnnua, 0));
+    : Math.max(0, numeroSicuro(regolate.fissaAnnua, 0)) + quotaAsosFissaNonResidenti;
   const imponibile = quotaMateria + quotaFissaVendita + quotaTecnicaProfilo + quotaRegolataVariabile + quotaRegolataFissa + quotaImposte;
   let quotaIva = imponibile * Math.max(0, numeroSicuro(regolate.ivaPercentuale, 0));
   let dettaglioIvaGas = null;
@@ -7811,10 +7825,11 @@ function calcolaVoceEnergia({ consumo = 0, prezzoVariabile = 0, formula, consumi
     regolate.variabileEurUnita,
     regolate.fissaAnnua,
     regolate.potenzaEurKwAnno,
+    regolate.asosFissaNonResidentiEurAnno,
     regolate.imposteEurUnita,
     regolate.ivaPercentuale,
   ].some((value) => Math.abs(numeroSicuro(value, 0)) > 0) || quotaTecnicaProfilo > 0;
-  return { commodity, consumo: consumoProfilo, consumoFatturato, consumoRegolato, tipoPrezzo: tipoVoce, modalitaPrezzo: materiaFasce?.modalitaPrezzo || (formula?.tipo || "single_price"), fattorePerdite, prezzoVariabile: prezzoCalcolo, quotaMateria, quotaVariabile: quotaMateria, quotaFissaVendita, quotaTecnicaProfilo, quotaRegolata, quotaRegolataVariabile, quotaRegolataFissa, quotaImposte, quotaIva, quotaFiscale, quotaFissa, componentiRegolateDisponibili: componentiRegolateDisponibiliVoce, dettaglioRegolatoGas: regolateGas, dettaglioIvaGas, totale: imponibile + quotaIva };
+  return { commodity, consumo: consumoProfilo, consumoFatturato, consumoRegolato, tipoPrezzo: tipoVoce, modalitaPrezzo: materiaFasce?.modalitaPrezzo || (formula?.tipo || "single_price"), fattorePerdite, prezzoVariabile: prezzoCalcolo, quotaMateria, quotaVariabile: quotaMateria, quotaFissaVendita, quotaTecnicaProfilo, quotaRegolata, quotaRegolataVariabile, quotaRegolataFissa, quotaAsosFissaNonResidenti, quotaImposte, quotaIva, quotaFiscale, quotaFissa, componentiRegolateDisponibili: componentiRegolateDisponibiliVoce, dettaglioRegolatoGas: regolateGas, dettaglioIvaGas, totale: imponibile + quotaIva };
 }
 
 function testoAreraNormalizzato(value) {
@@ -8543,7 +8558,7 @@ function notaOneriFiscali(valori) {
     return "Oneri, imposte e IVA: n.n. = dato non stimato nel dettaglio, per evitare di indicare come zero una voce che puo dipendere da bolletta, regime fiscale e condizioni applicate.";
   }
   if (!componentiRegolateComplete()) {
-    return "Inclusa la parte regolata verificata disponibile: rete elettrica e componenti ASOS/ARIM/UC3/UC6 comuni ai domestici; per il gas, le componenti UG1/RS/RE/UG2/UG3 vigenti nel III trimestre 2026 sono applicate sul consumo, mentre la tariffa 2026 di distribuzione/misura richiede ambito ARERA e classe contatore. L'accisa gas domestica viene inclusa solo con scelta esplicita del regime TUA. L'addizionale regionale ARISGAM viene inclusa separatamente solo per i profili territoriali verificati e selezionati dall'utente; nessuna Regione viene dedotta dall'ambito tariffario. Il trasporto gas QTt viene incluso solo se e stato inserito il potere calorifico convenzionale P della fornitura; senza P resta non stimato. L'IVA gas domestica viene applicata solo quando rete, QTt, accisa e ARISGAM sono tutte determinate: 10% sui primi 480 Smc/anno e 22% sui consumi successivi e sulle quote fisse. Restano escluse la quota fissa ASOS dei non residenti, dispacciamento/capacita luce, accisa luce, IVA luce e i casi ARISGAM non supportati.";
+    return "Inclusa la parte regolata verificata disponibile: rete elettrica e componenti ASOS/ARIM/UC3/UC6 comuni ai domestici; per il gas, le componenti UG1/RS/RE/UG2/UG3 vigenti nel III trimestre 2026 sono applicate sul consumo, mentre la tariffa 2026 di distribuzione/misura richiede ambito ARERA e classe contatore. L'accisa gas domestica viene inclusa solo con scelta esplicita del regime TUA. L'addizionale regionale ARISGAM viene inclusa separatamente solo per i profili territoriali verificati e selezionati dall'utente; nessuna Regione viene dedotta dall'ambito tariffario. Il trasporto gas QTt viene incluso solo se e stato inserito il potere calorifico convenzionale P della fornitura; senza P resta non stimato. L'IVA gas domestica viene applicata solo quando rete, QTt, accisa e ARISGAM sono tutte determinate: 10% sui primi 480 Smc/anno e 22% sui consumi successivi e sulle quote fisse. La quota fissa ASOS dei non residenti viene inclusa solo con scelta esplicita dello stato di residenza. Restano esclusi dispacciamento/capacita luce, accisa luce, IVA luce e i casi ARISGAM non supportati.";
   }
   return "";
 }
@@ -9063,6 +9078,12 @@ function maggiorazioneMaster(commodity) {
 
 function componentiRegolateMaster(commodity) {
   const base = PARAMETRI_CALCOLO.componentiRegolate?.[commodity] || componentiRegolateVuote();
+  if (commodity === "luce") {
+    return {
+      ...base,
+      residenzaAnagrafica: leggiValore("master-luce-residenza", PARAMETRI_CALCOLO.profiloMedio.residenzaLuce || ""),
+    };
+  }
   if (commodity !== "gas") return base;
   return {
     ...base,
@@ -9099,6 +9120,7 @@ function leggiProfiloComparazione() {
     potereCalorificoGasGjSmc: usaGas ? leggiNumero("master-gas-pcs", numeroSicuro(PARAMETRI_CALCOLO.profiloMedio.potereCalorificoGasGjSmc, 0)) : 0,
     regimeAccisaGas: usaGas ? leggiValore("master-gas-accisa", PARAMETRI_CALCOLO.profiloMedio.regimeAccisaGas || "") : "",
     regimeArisgamGas: usaGas ? leggiValore("master-gas-arisgam", PARAMETRI_CALCOLO.profiloMedio.regimeArisgamGas || "") : "",
+    residenzaLuce: usaLuce ? leggiValore("master-luce-residenza", PARAMETRI_CALCOLO.profiloMedio.residenzaLuce || "") : "",
     potenzaKw: usaLuce ? leggiNumero("master-luce-potenza", PARAMETRI_CALCOLO.profiloMedio.potenzaKw) : 0,
     luceConsumoKwh: usaLuce ? leggiNumero("in-luce-cons-att", leggiNumero("master-luce-consumo", PARAMETRI_CALCOLO.profiloMedio.luceConsumoKwh)) : 0,
     gasConsumoSmc: usaGas ? leggiNumero("in-gas-cons-att", leggiNumero("master-gas-consumo", PARAMETRI_CALCOLO.profiloMedio.gasConsumoSmc)) : 0,
@@ -16255,6 +16277,7 @@ window.azzeraPdfEModulo = function azzeraPdfEModulo() {
   setField("master-luce-consumo", PARAMETRI_CALCOLO.profiloMedio.luceConsumoKwh);
   setField("master-gas-consumo", PARAMETRI_CALCOLO.profiloMedio.gasConsumoSmc);
   setField("master-luce-potenza", PARAMETRI_CALCOLO.profiloMedio.potenzaKw);
+  setField("master-luce-residenza", PARAMETRI_CALCOLO.profiloMedio.residenzaLuce || "");
   setField("master-luce-tipo", PARAMETRI_CALCOLO.profiloMedio.tipoPrezzo);
   setField("master-tipo-fornitura", PARAMETRI_CALCOLO.profiloMedio.tipoFornitura);
   applicaAmbitoConfronto(PARAMETRI_CALCOLO.profiloMedio.tipoFornitura);
@@ -16793,6 +16816,7 @@ function applicaDatiPdfAlModulo(data) {
     setField("master-luce-consumo", PARAMETRI_CALCOLO.profiloMedio.luceConsumoKwh);
     setField("master-gas-consumo", PARAMETRI_CALCOLO.profiloMedio.gasConsumoSmc);
     setField("master-luce-potenza", PARAMETRI_CALCOLO.profiloMedio.potenzaKw);
+  setField("master-luce-residenza", PARAMETRI_CALCOLO.profiloMedio.residenzaLuce || "");
     setField("master-luce-tipo", PARAMETRI_CALCOLO.profiloMedio.tipoPrezzo);
     setField("master-tipo-fornitura", PARAMETRI_CALCOLO.profiloMedio.tipoFornitura);
     setField("master-gas-regione", PARAMETRI_CALCOLO.profiloMedio.regioneGas);
@@ -17759,6 +17783,7 @@ if (document.readyState === "loading") {
               // A. Configura le tendine Master superiori
               if(document.getElementById("master-luce-consumo")) document.getElementById("master-luce-consumo").value = String(PARAMETRI_CALCOLO.profiloMedio.luceConsumoKwh);
               if(document.getElementById("master-luce-potenza")) document.getElementById("master-luce-potenza").value = PARAMETRI_CALCOLO.profiloMedio.potenzaKw;
+              if(document.getElementById("master-luce-residenza")) document.getElementById("master-luce-residenza").value = PARAMETRI_CALCOLO.profiloMedio.residenzaLuce || "";
               if(document.getElementById("master-luce-tipo")) document.getElementById("master-luce-tipo").value = PARAMETRI_CALCOLO.profiloMedio.tipoPrezzo;
               if(document.getElementById("master-gas-consumo")) document.getElementById("master-gas-consumo").value = String(PARAMETRI_CALCOLO.profiloMedio.gasConsumoSmc);
               if(document.getElementById("master-tipo-fornitura")) document.getElementById("master-tipo-fornitura").value = PARAMETRI_CALCOLO.profiloMedio.tipoFornitura;
