@@ -970,7 +970,7 @@
       },
       "urlFonteAccise": "https://www.adm.gov.it/portale/aliquote-accisa-nazionali",
       "urlFonteNormativaAccisaGas": "https://www.normattiva.it/eli/id/2026/06/27/26A03280/ORIGINAL",
-      "notaAccisaGas": "L accisa nazionale sul gas naturale per usi domestici e applicata solo con scelta esplicita del regime TUA. Step 3F aggiunge separatamente l ARISGAM regionale per i soli profili verificati; senza scelta del profilo regionale non viene applicata alcuna addizionale presunta. IVA resta esclusa.",
+      "notaAccisaGas": "L accisa nazionale sul gas naturale per usi domestici e applicata solo con scelta esplicita del regime TUA. Step 3F aggiunge separatamente l ARISGAM regionale per i soli profili verificati; senza scelta del profilo regionale non viene applicata alcuna addizionale presunta. L IVA gas domestica e inclusa dallo Step 3H solo quando la base imponibile del modello e completa; altrimenti resta non stimata.",
       "valoriAccisaGas2026": {
         "ordinarioEurSmc": [
           0.044,
