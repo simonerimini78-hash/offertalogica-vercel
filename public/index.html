@@ -4686,13 +4686,23 @@
                     <div class="input-group">
                         <label for="master-gas-regione">Regione / Ambito Tariffario</label>
                         <select id="master-gas-regione">
-                            <option value="">Seleziona la tua zona...</option>
-                            <option value="nord-ovest">Nord-Occidentale (TO, AO, GE, MI...)</option>
-                            <option value="nord-est">Nord-Orientale (VE, TN, TS, BO...)</option>
-                            <option value="centro">Centrale (FI, PG, AN, AQ, RM...)</option>
-                            <option value="sud">Meridionale (NA, BA, CB, PZ, CZ...)</option>
-                            <option value="sicilia">Sicilia</option>
+                            <option value="">Seleziona l'ambito ARERA...</option>
+                            <option value="nord-occidentale">Nord-Occidentale — Valle d'Aosta, Piemonte, Liguria</option>
+                            <option value="nord-orientale">Nord-Orientale — Lombardia, Trentino-Alto Adige, Veneto, Friuli-Venezia Giulia, Emilia-Romagna</option>
+                            <option value="centrale">Centrale — Toscana, Umbria, Marche</option>
+                            <option value="centro-sud-orientale">Centro-Sud Orientale — Abruzzo, Molise, Puglia, Basilicata</option>
+                            <option value="centro-sud-occidentale">Centro-Sud Occidentale — Lazio, Campania</option>
+                            <option value="meridionale">Meridionale — Calabria, Sicilia</option>
                             <option value="sardegna">Sardegna</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label for="master-gas-contatore">Classe contatore gas</label>
+                        <select id="master-gas-contatore">
+                            <option value="">Seleziona la classe...</option>
+                            <option value="g4-g6">G4–G6</option>
+                            <option value="g10-g40">G10–G40</option>
+                            <option value="oltre-g40">Oltre G40</option>
                         </select>
                     </div>
                 </div>
@@ -5337,7 +5347,8 @@ let PARAMETRI_CALCOLO = {
     quotaFissaLuceAnnua: null,
     quotaFissaGasAnnua: null,
     potenzaKw: "3",
-    regioneGas: "nord-ovest",
+    regioneGas: "",
+    classeContatoreGas: "",
     tipoPrezzo: "fisso",
     tipoFornitura: "dual",
   },
@@ -5349,11 +5360,12 @@ let PARAMETRI_CALCOLO = {
     },
     ambitoGasAnnua: {
       "": 0,
-      "nord-ovest": 0,
-      "nord-est": 0,
-      centro: 0,
-      sud: 0,
-      sicilia: 0,
+      "nord-occidentale": 0,
+      "nord-orientale": 0,
+      centrale: 0,
+      "centro-sud-orientale": 0,
+      "centro-sud-occidentale": 0,
+      meridionale: 0,
       sardegna: 0,
     },
   },
@@ -5366,10 +5378,370 @@ let PARAMETRI_CALCOLO = {
       ivaPercentuale: 0,
     },
     gas: {
+      schema: "gas_rete_scaglioni_2026",
       variabileEurUnita: 0,
       fissaAnnua: 0,
       imposteEurUnita: 0,
       ivaPercentuale: 0,
+      ambiti: {
+      "nord-occidentale": {
+            label: "Nord-Occidentale (Valle d'Aosta, Piemonte, Liguria)",
+            tau1CotEurPdrAnno: 2.01,
+            tau1DisEurPdrAnno: {
+                  "g4-g6": 49.52,
+                  "g10-g40": 375.6,
+                  "oltre-g40": 726.93
+            },
+            tau1MisEurPdrAnno: {
+                  "g4-g6": 29.23,
+                  "g10-g40": 210.52,
+                  "oltre-g40": 405.84
+            },
+            stEurPdrAnno: -0.23,
+            vrEurPdrAnno: 0.07,
+            ceEurPdrAnno: 0.0,
+            tau3Scaglioni: [
+                  {
+                        finoSmc: 120,
+                        eurSmc: 0.0
+                  },
+                  {
+                        finoSmc: 480,
+                        eurSmc: 0.107315
+                  },
+                  {
+                        finoSmc: 1560,
+                        eurSmc: 0.098223
+                  },
+                  {
+                        finoSmc: 5000,
+                        eurSmc: 0.098636
+                  },
+                  {
+                        finoSmc: 80000,
+                        eurSmc: 0.073701
+                  },
+                  {
+                        finoSmc: 200000,
+                        eurSmc: 0.037333
+                  },
+                  {
+                        finoSmc: 1000000,
+                        eurSmc: 0.018322
+                  },
+                  {
+                        finoSmc: null,
+                        eurSmc: 0.005097
+                  }
+            ]
+      },
+      "nord-orientale": {
+            label: "Nord-Orientale (Lombardia, Trentino-Alto Adige, Veneto, Friuli-Venezia Giulia, Emilia-Romagna)",
+            tau1CotEurPdrAnno: 2.01,
+            tau1DisEurPdrAnno: {
+                  "g4-g6": 40.26,
+                  "g10-g40": 295.72,
+                  "oltre-g40": 604.12
+            },
+            tau1MisEurPdrAnno: {
+                  "g4-g6": 27.33,
+                  "g10-g40": 189.98,
+                  "oltre-g40": 386.34
+            },
+            stEurPdrAnno: -0.35,
+            vrEurPdrAnno: -0.01,
+            ceEurPdrAnno: 0.0,
+            tau3Scaglioni: [
+                  {
+                        finoSmc: 120,
+                        eurSmc: 0.0
+                  },
+                  {
+                        finoSmc: 480,
+                        eurSmc: 0.079367
+                  },
+                  {
+                        finoSmc: 1560,
+                        eurSmc: 0.072643
+                  },
+                  {
+                        finoSmc: 5000,
+                        eurSmc: 0.072949
+                  },
+                  {
+                        finoSmc: 80000,
+                        eurSmc: 0.054508
+                  },
+                  {
+                        finoSmc: 200000,
+                        eurSmc: 0.02761
+                  },
+                  {
+                        finoSmc: 1000000,
+                        eurSmc: 0.013551
+                  },
+                  {
+                        finoSmc: null,
+                        eurSmc: 0.00377
+                  }
+            ]
+      },
+      centrale: {
+            label: "Centrale (Toscana, Umbria, Marche)",
+            tau1CotEurPdrAnno: 2.01,
+            tau1DisEurPdrAnno: {
+                  "g4-g6": 44.77,
+                  "g10-g40": 323.58,
+                  "oltre-g40": 666.35
+            },
+            tau1MisEurPdrAnno: {
+                  "g4-g6": 26.81,
+                  "g10-g40": 183.2,
+                  "oltre-g40": 375.46
+            },
+            stEurPdrAnno: 0.0,
+            vrEurPdrAnno: 0.0,
+            ceEurPdrAnno: 0.0,
+            tau3Scaglioni: [
+                  {
+                        finoSmc: 120,
+                        eurSmc: 0.0
+                  },
+                  {
+                        finoSmc: 480,
+                        eurSmc: 0.111183
+                  },
+                  {
+                        finoSmc: 1560,
+                        eurSmc: 0.101763
+                  },
+                  {
+                        finoSmc: 5000,
+                        eurSmc: 0.102191
+                  },
+                  {
+                        finoSmc: 80000,
+                        eurSmc: 0.076358
+                  },
+                  {
+                        finoSmc: 200000,
+                        eurSmc: 0.038678
+                  },
+                  {
+                        finoSmc: 1000000,
+                        eurSmc: 0.018982
+                  },
+                  {
+                        finoSmc: null,
+                        eurSmc: 0.005281
+                  }
+            ]
+      },
+      "centro-sud-orientale": {
+            label: "Centro-Sud Orientale (Abruzzo, Molise, Puglia, Basilicata)",
+            tau1CotEurPdrAnno: 2.01,
+            tau1DisEurPdrAnno: {
+                  "g4-g6": 38.1,
+                  "g10-g40": 284.19,
+                  "oltre-g40": 587.85
+            },
+            tau1MisEurPdrAnno: {
+                  "g4-g6": 27.67,
+                  "g10-g40": 195.4,
+                  "oltre-g40": 402.37
+            },
+            stEurPdrAnno: 0.0,
+            vrEurPdrAnno: 0.0,
+            ceEurPdrAnno: 0.0,
+            tau3Scaglioni: [
+                  {
+                        finoSmc: 120,
+                        eurSmc: 0.0
+                  },
+                  {
+                        finoSmc: 480,
+                        eurSmc: 0.132517
+                  },
+                  {
+                        finoSmc: 1560,
+                        eurSmc: 0.12129
+                  },
+                  {
+                        finoSmc: 5000,
+                        eurSmc: 0.1218
+                  },
+                  {
+                        finoSmc: 80000,
+                        eurSmc: 0.09101
+                  },
+                  {
+                        finoSmc: 200000,
+                        eurSmc: 0.0461
+                  },
+                  {
+                        finoSmc: 1000000,
+                        eurSmc: 0.022625
+                  },
+                  {
+                        finoSmc: null,
+                        eurSmc: 0.006294
+                  }
+            ]
+      },
+      "centro-sud-occidentale": {
+            label: "Centro-Sud Occidentale (Lazio, Campania)",
+            tau1CotEurPdrAnno: 2.01,
+            tau1DisEurPdrAnno: {
+                  "g4-g6": 54.02,
+                  "g10-g40": 423.15,
+                  "oltre-g40": 854.31
+            },
+            tau1MisEurPdrAnno: {
+                  "g4-g6": 31.39,
+                  "g10-g40": 234.26,
+                  "oltre-g40": 471.23
+            },
+            stEurPdrAnno: -0.35,
+            vrEurPdrAnno: -0.37,
+            ceEurPdrAnno: 0.0,
+            tau3Scaglioni: [
+                  {
+                        finoSmc: 120,
+                        eurSmc: 0.0
+                  },
+                  {
+                        finoSmc: 480,
+                        eurSmc: 0.193801
+                  },
+                  {
+                        finoSmc: 1560,
+                        eurSmc: 0.177381
+                  },
+                  {
+                        finoSmc: 5000,
+                        eurSmc: 0.178128
+                  },
+                  {
+                        finoSmc: 80000,
+                        eurSmc: 0.133098
+                  },
+                  {
+                        finoSmc: 200000,
+                        eurSmc: 0.06742
+                  },
+                  {
+                        finoSmc: 1000000,
+                        eurSmc: 0.033088
+                  },
+                  {
+                        finoSmc: null,
+                        eurSmc: 0.009205
+                  }
+            ]
+      },
+      meridionale: {
+            label: "Meridionale (Calabria, Sicilia)",
+            tau1CotEurPdrAnno: 2.01,
+            tau1DisEurPdrAnno: {
+                  "g4-g6": 65.32,
+                  "g10-g40": 471.95,
+                  "oltre-g40": 1018.27
+            },
+            tau1MisEurPdrAnno: {
+                  "g4-g6": 28.99,
+                  "g10-g40": 198.85,
+                  "oltre-g40": 427.07
+            },
+            stEurPdrAnno: 0.0,
+            vrEurPdrAnno: 0.0,
+            ceEurPdrAnno: 0.0,
+            tau3Scaglioni: [
+                  {
+                        finoSmc: 120,
+                        eurSmc: 0.0
+                  },
+                  {
+                        finoSmc: 480,
+                        eurSmc: 0.258579
+                  },
+                  {
+                        finoSmc: 1560,
+                        eurSmc: 0.236671
+                  },
+                  {
+                        finoSmc: 5000,
+                        eurSmc: 0.237667
+                  },
+                  {
+                        finoSmc: 80000,
+                        eurSmc: 0.177586
+                  },
+                  {
+                        finoSmc: 200000,
+                        eurSmc: 0.089955
+                  },
+                  {
+                        finoSmc: 1000000,
+                        eurSmc: 0.044148
+                  },
+                  {
+                        finoSmc: null,
+                        eurSmc: 0.012282
+                  }
+            ]
+      },
+      sardegna: {
+            label: "Sardegna",
+            tau1CotEurPdrAnno: 2.01,
+            tau1DisEurPdrAnno: {
+                  "g4-g6": 1641.38,
+                  "g10-g40": 2048.01,
+                  "oltre-g40": 2594.33
+            },
+            tau1MisEurPdrAnno: {
+                  "g4-g6": 28.99,
+                  "g10-g40": 198.85,
+                  "oltre-g40": 427.07
+            },
+            stEurPdrAnno: 0.0,
+            vrEurPdrAnno: 0.0,
+            ceEurPdrAnno: -1576.06,
+            tau3Scaglioni: [
+                  {
+                        finoSmc: 120,
+                        eurSmc: 0.0
+                  },
+                  {
+                        finoSmc: 480,
+                        eurSmc: 0.258579
+                  },
+                  {
+                        finoSmc: 1560,
+                        eurSmc: 0.236671
+                  },
+                  {
+                        finoSmc: 5000,
+                        eurSmc: 0.237667
+                  },
+                  {
+                        finoSmc: 80000,
+                        eurSmc: 0.177586
+                  },
+                  {
+                        finoSmc: 200000,
+                        eurSmc: 0.089955
+                  },
+                  {
+                        finoSmc: 1000000,
+                        eurSmc: 0.044148
+                  },
+                  {
+                        finoSmc: null,
+                        eurSmc: 0.012282
+                  }
+            ]
+      }
+}
     },
   },
   componentiRegolateMeta: {
@@ -5378,17 +5750,19 @@ let PARAMETRI_CALCOLO = {
     periodoRete: "2026",
     periodoOneri: "2026-07-01/2026-09-30",
     acquisitoIl: "2026-09-21",
-    delibera: "575/2025/R/eel + 227/2026/R/com",
+    delibera: "575/2025/R/eel + 227/2026/R/com + 574/2025/R/gas",
     fonte: "ARERA - Tariffe rete domestici; ARERA - oneri generali e ulteriori componenti; valori operativi Q3 pubblicati da E-Distribuzione in attuazione della delibera 227/2026/R/com",
     urlFonte: "https://www.arera.it/area-operatori/prezzi-e-tariffe/tariffe-trasmissione-distribuzione-e-misura-clienti-domestici",
     urlFonteOneri: "https://www.arera.it/area-operatori/prezzi-e-tariffe/oneri-generali-di-sistema-e-ulteriori-componenti",
     urlTabellaOperativaOneri: "https://www.e-distribuzione.it/content/dam/e-distribuzione/a-chi-ci-rivolgiamo/venditori/2026/Oneri_A_UC_annuali_Del_2_7_26.pdf",
-    vociIncluse: ["luce_s1_quota_fissa", "luce_s2_quota_potenza", "luce_s3_quota_energia", "luce_ASOS_quota_energia_domestici", "luce_ARIM_quota_energia_domestici", "luce_UC3_quota_energia_domestici", "luce_UC6_quota_potenza_domestici", "luce_UC6_quota_energia_domestici"],
-    vociNonIncluse: ["luce_ASOS_quota_fissa_non_residenti", "dispacciamento", "capacita", "accisa", "IVA", "gas"],
+    vociIncluse: ["luce_s1_quota_fissa", "luce_s2_quota_potenza", "luce_s3_quota_energia", "luce_ASOS_quota_energia_domestici", "luce_ARIM_quota_energia_domestici", "luce_UC3_quota_energia_domestici", "luce_UC6_quota_potenza_domestici", "luce_UC6_quota_energia_domestici", "gas_tau1_dis_2026", "gas_tau1_mis_2026", "gas_tau1_cot_2026", "gas_tau3_dis_scaglioni_2026", "gas_ST_2026", "gas_VR_2026", "gas_CE_2026"],
+    vociNonIncluse: ["luce_ASOS_quota_fissa_non_residenti", "dispacciamento", "capacita", "accisa", "IVA", "gas_oneri_generali_Q3_2026", "gas_trasporto", "gas_accisa", "gas_addizionale_regionale", "gas_IVA"],
     notaResidenza: "La quota fissa ASOS di 95,0916 €/POD/anno prevista per i domestici NON RESIDENTI non viene applicata perche il calcolatore non acquisisce ancora lo stato di residenza. Le componenti incluse in Step 3B sono solo quelle comuni a residenti e non residenti.",
-    notaGas: "Le precedenti maggiorazioni annue regionali interne restano disattivate: la tariffa gas ARERA 2026 richiede ambiti tariffari e componenti/scaglioni dedicati e non e rappresentabile come maggiorazione fissa generica.",
+    notaGas: "Step 3C include esclusivamente la tariffa obbligatoria 2026 di distribuzione, misura e commercializzazione della distribuzione gas (tau1, tau3, ST, VR, CE), differenziata per i 7 ambiti ARERA e per classe contatore. Oneri generali trimestrali, trasporto, accise, addizionale regionale e IVA restano esclusi finche non sono modellati puntualmente.",
+    urlFonteGas: "https://www.arera.it/consumatori/valori-rete-oneri-domestici-gas",
+    urlDeliberaGas: "https://www.arera.it/atti-e-provvedimenti/dettaglio/25/574-25",
   },
-  note: "Stima comparativa annua: per la luce include rete domestica ARERA 2026 (s1, s2, s3) e, per il III trimestre 2026, ASOS/ARIM/UC3/UC6 applicabili a tutti i domestici. La quota fissa ASOS dei non residenti non e applicata finche la residenza non viene acquisita; dispacciamento/capacita, imposte, IVA e gas restano non valorizzati finche non sono calcolabili puntualmente.",
+  note: "Stima comparativa annua: per la luce include rete domestica ARERA 2026 e componenti ASOS/ARIM/UC3/UC6 comuni ai domestici nel III trimestre 2026. Per il gas include la tariffa obbligatoria 2026 di distribuzione, misura e commercializzazione della distribuzione solo quando l'utente seleziona ambito tariffario ARERA e classe contatore. Restano esclusi i corrispettivi non ancora modellati puntualmente (tra cui quota fissa ASOS non residenti, dispacciamento/capacita luce, oneri generali e trasporto gas, imposte e IVA).",
 };
 let PERDITE_RETE_LUCE_VARIABILE = PARAMETRI_CALCOLO.perditeReteLuceVariabile;
 const TESTO_METODOLOGIA_CONSUMI_REALI = "I risparmi stimati sono calcolati sui consumi che hai inserito o confermato dalla bolletta. Applichiamo le condizioni economiche delle offerte allo stesso profilo di consumo, separando quota variabile e quota fissa.";
@@ -7072,6 +7446,53 @@ function calcolaMateriaPerFasce(consumiFasce = {}, prezziFasce = {}) {
   return null;
 }
 
+function normalizzaAmbitoTariffarioGas(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  const aliasSicuri = {
+    "nord-ovest": "nord-occidentale",
+    "nord-est": "nord-orientale",
+    centro: "centrale",
+    sicilia: "meridionale",
+  };
+  return aliasSicuri[raw] || raw;
+}
+
+function calcolaQuotaScaglioniGas(consumo, scaglioni = []) {
+  const totaleConsumo = Math.max(0, numeroSicuro(consumo, 0));
+  let precedente = 0;
+  let totale = 0;
+  for (const scaglione of scaglioni) {
+    const finoRaw = scaglione?.finoSmc;
+    const fino = finoRaw === null || finoRaw === undefined || finoRaw === "" ? Infinity : Number(finoRaw);
+    const aliquota = numeroSicuro(scaglione?.eurSmc, NaN);
+    if (!Number.isFinite(aliquota) || aliquota < 0 || (!Number.isFinite(fino) && fino !== Infinity) || fino <= precedente) continue;
+    const quantita = Math.max(0, Math.min(totaleConsumo, fino) - precedente);
+    totale += quantita * aliquota;
+    precedente = fino;
+    if (totaleConsumo <= fino) break;
+  }
+  return totale;
+}
+
+function calcolaComponentiRegolateGas(consumo, regolate = {}) {
+  if (regolate?.schema !== "gas_rete_scaglioni_2026") return null;
+  const ambitoKey = normalizzaAmbitoTariffarioGas(regolate.ambitoTariffario);
+  const classe = String(regolate.classeContatore || "").trim().toLowerCase();
+  const ambito = regolate?.ambiti?.[ambitoKey];
+  if (!ambito || !["g4-g6", "g10-g40", "oltre-g40"].includes(classe)) return null;
+  const tau1Dis = numeroSicuro(ambito?.tau1DisEurPdrAnno?.[classe], NaN);
+  const tau1Mis = numeroSicuro(ambito?.tau1MisEurPdrAnno?.[classe], NaN);
+  const tau1Cot = numeroSicuro(ambito?.tau1CotEurPdrAnno, NaN);
+  const st = numeroSicuro(ambito?.stEurPdrAnno, 0);
+  const vr = numeroSicuro(ambito?.vrEurPdrAnno, 0);
+  const ce = numeroSicuro(ambito?.ceEurPdrAnno, 0);
+  if (![tau1Dis, tau1Mis, tau1Cot].every(Number.isFinite)) return null;
+  const quotaFissa = tau1Dis + tau1Mis + tau1Cot + st + vr + ce;
+  const quotaVariabile = calcolaQuotaScaglioniGas(consumo, ambito?.tau3Scaglioni || []);
+  if (!Number.isFinite(quotaFissa) || quotaFissa < 0 || !Number.isFinite(quotaVariabile) || quotaVariabile < 0) return null;
+  return { ambito: ambitoKey, classeContatore: classe, quotaFissa, quotaVariabile };
+}
+
 function calcolaVoceEnergia({ consumo = 0, prezzoVariabile = 0, formula, consumiFasce, prezziFasce, quotaFissaAnnua = 0, quoteUniversaliAnnue = 0, componentiRegolate, tipoTariffa, commodity }) {
   const consumoProfilo = Math.max(0, numeroSicuro(consumo, 0));
   const tipoVoce = tipoPrezzoVoce({ formula }, tipoTariffa);
@@ -7086,22 +7507,27 @@ function calcolaVoceEnergia({ consumo = 0, prezzoVariabile = 0, formula, consumi
   const quotaFissaVendita = numeroSicuro(quotaFissaAnnua, 0);
   const quotaTecnicaProfilo = Math.max(0, numeroSicuro(quoteUniversaliAnnue, 0));
   const regolate = componentiRegolate || componentiRegolateVuote();
-  const quotaRegolataVariabile = consumoRegolato * Math.max(0, numeroSicuro(regolate.variabileEurUnita, 0));
+  const regolateGas = commodity === "gas" ? calcolaComponentiRegolateGas(consumoRegolato, regolate) : null;
+  const quotaRegolataVariabile = regolateGas
+    ? regolateGas.quotaVariabile
+    : consumoRegolato * Math.max(0, numeroSicuro(regolate.variabileEurUnita, 0));
   const quotaImposte = consumoRegolato * Math.max(0, numeroSicuro(regolate.imposteEurUnita, 0));
-  const quotaRegolataFissa = Math.max(0, numeroSicuro(regolate.fissaAnnua, 0));
+  const quotaRegolataFissa = regolateGas
+    ? regolateGas.quotaFissa
+    : Math.max(0, numeroSicuro(regolate.fissaAnnua, 0));
   const imponibile = quotaMateria + quotaFissaVendita + quotaTecnicaProfilo + quotaRegolataVariabile + quotaRegolataFissa + quotaImposte;
   const quotaIva = imponibile * Math.max(0, numeroSicuro(regolate.ivaPercentuale, 0));
   const quotaRegolata = quotaRegolataVariabile + quotaRegolataFissa;
   const quotaFissa = quotaFissaVendita + quotaTecnicaProfilo + quotaRegolataFissa;
   const quotaFiscale = quotaImposte + quotaIva;
-  const componentiRegolateDisponibiliVoce = [
+  const componentiRegolateDisponibiliVoce = Boolean(regolateGas) || [
     regolate.variabileEurUnita,
     regolate.fissaAnnua,
     regolate.potenzaEurKwAnno,
     regolate.imposteEurUnita,
     regolate.ivaPercentuale,
   ].some((value) => Math.abs(numeroSicuro(value, 0)) > 0) || quotaTecnicaProfilo > 0;
-  return { commodity, consumo: consumoProfilo, consumoFatturato, consumoRegolato, tipoPrezzo: tipoVoce, modalitaPrezzo: materiaFasce?.modalitaPrezzo || (formula?.tipo || "single_price"), fattorePerdite, prezzoVariabile: prezzoCalcolo, quotaMateria, quotaVariabile: quotaMateria, quotaFissaVendita, quotaTecnicaProfilo, quotaRegolata, quotaRegolataVariabile, quotaRegolataFissa, quotaImposte, quotaIva, quotaFiscale, quotaFissa, componentiRegolateDisponibili: componentiRegolateDisponibiliVoce, totale: imponibile + quotaIva };
+  return { commodity, consumo: consumoProfilo, consumoFatturato, consumoRegolato, tipoPrezzo: tipoVoce, modalitaPrezzo: materiaFasce?.modalitaPrezzo || (formula?.tipo || "single_price"), fattorePerdite, prezzoVariabile: prezzoCalcolo, quotaMateria, quotaVariabile: quotaMateria, quotaFissaVendita, quotaTecnicaProfilo, quotaRegolata, quotaRegolataVariabile, quotaRegolataFissa, quotaImposte, quotaIva, quotaFiscale, quotaFissa, componentiRegolateDisponibili: componentiRegolateDisponibiliVoce, dettaglioRegolatoGas: regolateGas, totale: imponibile + quotaIva };
 }
 
 function testoAreraNormalizzato(value) {
@@ -7796,7 +8222,7 @@ function componentiRegolateDisponibili() {
   const componenti = PARAMETRI_CALCOLO.componentiRegolate || {};
   return ["luce", "gas"].some((commodity) => {
     const valori = componenti[commodity] || {};
-    return [
+    return valori.schema === "gas_rete_scaglioni_2026" || [
       valori.variabileEurUnita,
       valori.fissaAnnua,
       valori.potenzaEurKwAnno,
@@ -7830,7 +8256,7 @@ function notaOneriFiscali(valori) {
     return "Oneri, imposte e IVA: n.n. = dato non stimato nel dettaglio, per evitare di indicare come zero una voce che puo dipendere da bolletta, regime fiscale e condizioni applicate.";
   }
   if (!componentiRegolateComplete()) {
-    return "Inclusa la parte regolata verificata disponibile: rete elettrica e componenti ASOS/ARIM/UC3/UC6 comuni ai domestici. Restano escluse la quota fissa ASOS dei non residenti (residenza non acquisita), dispacciamento/capacita, imposte, IVA e gas finche non sono calcolabili puntualmente.";
+    return "Inclusa la parte regolata verificata disponibile: rete elettrica e componenti ASOS/ARIM/UC3/UC6 comuni ai domestici; per il gas, tariffa 2026 di distribuzione/misura solo se sono selezionati ambito ARERA e classe contatore. Restano escluse la quota fissa ASOS dei non residenti, dispacciamento/capacita luce, oneri generali e trasporto gas, accise/addizionali e IVA finche non sono calcolabili puntualmente.";
   }
   return "";
 }
@@ -8349,7 +8775,13 @@ function maggiorazioneMaster(commodity) {
 }
 
 function componentiRegolateMaster(commodity) {
-  return PARAMETRI_CALCOLO.componentiRegolate?.[commodity] || componentiRegolateVuote();
+  const base = PARAMETRI_CALCOLO.componentiRegolate?.[commodity] || componentiRegolateVuote();
+  if (commodity !== "gas") return base;
+  return {
+    ...base,
+    ambitoTariffario: normalizzaAmbitoTariffarioGas(leggiValore("master-gas-regione", PARAMETRI_CALCOLO.profiloMedio.regioneGas || "")),
+    classeContatore: leggiValore("master-gas-contatore", PARAMETRI_CALCOLO.profiloMedio.classeContatoreGas || ""),
+  };
 }
 
 function determinaOrigineDatoLead() {
@@ -8373,6 +8805,7 @@ function leggiProfiloComparazione() {
     gasDecision: LEAD_STATE.gasDecision || "",
     electricityDecision: LEAD_STATE.electricityDecision || "",
     regioneGas: usaGas ? leggiValore("master-gas-regione", PARAMETRI_CALCOLO.profiloMedio.regioneGas) : "",
+    classeContatoreGas: usaGas ? leggiValore("master-gas-contatore", PARAMETRI_CALCOLO.profiloMedio.classeContatoreGas || "") : "",
     potenzaKw: usaLuce ? leggiNumero("master-luce-potenza", PARAMETRI_CALCOLO.profiloMedio.potenzaKw) : 0,
     luceConsumoKwh: usaLuce ? leggiNumero("in-luce-cons-att", leggiNumero("master-luce-consumo", PARAMETRI_CALCOLO.profiloMedio.luceConsumoKwh)) : 0,
     gasConsumoSmc: usaGas ? leggiNumero("in-gas-cons-att", leggiNumero("master-gas-consumo", PARAMETRI_CALCOLO.profiloMedio.gasConsumoSmc)) : 0,
@@ -15533,6 +15966,7 @@ window.azzeraPdfEModulo = function azzeraPdfEModulo() {
   setField("master-tipo-fornitura", PARAMETRI_CALCOLO.profiloMedio.tipoFornitura);
   applicaAmbitoConfronto(PARAMETRI_CALCOLO.profiloMedio.tipoFornitura);
   setField("master-gas-regione", PARAMETRI_CALCOLO.profiloMedio.regioneGas);
+  setField("master-gas-contatore", PARAMETRI_CALCOLO.profiloMedio.classeContatoreGas || "");
 
   ["lead-nome", "lead-telefono", "lead-email", "lead-otp"].forEach(clearField);
   ["lead-consenso-servizio", "lead-consenso-partner", "offer-consent-checkbox"].forEach((id) => {
@@ -16066,6 +16500,7 @@ function applicaDatiPdfAlModulo(data) {
     setField("master-luce-tipo", PARAMETRI_CALCOLO.profiloMedio.tipoPrezzo);
     setField("master-tipo-fornitura", PARAMETRI_CALCOLO.profiloMedio.tipoFornitura);
     setField("master-gas-regione", PARAMETRI_CALCOLO.profiloMedio.regioneGas);
+    setField("master-gas-contatore", PARAMETRI_CALCOLO.profiloMedio.classeContatoreGas || "");
     setField("in-luce-tipo-att", PARAMETRI_CALCOLO.profiloMedio.tipoPrezzo);
     setField("in-gas-tipo-att", PARAMETRI_CALCOLO.profiloMedio.tipoPrezzo);
     setField("in-luce-cons-att", PARAMETRI_CALCOLO.profiloMedio.luceConsumoKwh);
@@ -16080,7 +16515,7 @@ function applicaDatiPdfAlModulo(data) {
 
   if (Array.isArray(selectedRows)) {
     applicaRigheAutocompilazionePdf(selectedRows);
-    if (!leggiValore("master-gas-regione", "")) setField("master-gas-regione", "nord-ovest");
+    
     if (data.kind === "scheda_offerta") {
       apriDettagliNuovaOfferta();
       const provider = safe("fornitore_luce") ?? safe("fornitore_gas");
@@ -16093,7 +16528,7 @@ function applicaDatiPdfAlModulo(data) {
 
   const power = safe("potenza_impegnata_kw");
   if (power !== undefined) setField("master-luce-potenza", power);
-  if (!leggiValore("master-gas-regione", "")) setField("master-gas-regione", "nord-ovest");
+  
 
   const isOffer = data.kind === "scheda_offerta";
   aggiornaProfiloPdfDaDati(data, isOffer ? "offer" : "current");
