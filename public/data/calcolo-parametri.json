@@ -406,10 +406,73 @@
               }
             ]
           }
-        }
+        },
+        "ug2FissaEurPdrAnno": -21.63,
+        "ug2Scaglioni": [
+          {
+            "finoSmc": 120,
+            "eurSmc": 0.0
+          },
+          {
+            "finoSmc": 480,
+            "eurSmc": 0.0496
+          },
+          {
+            "finoSmc": 1560,
+            "eurSmc": 0.0293
+          },
+          {
+            "finoSmc": 5000,
+            "eurSmc": 0.0237
+          },
+          {
+            "finoSmc": 80000,
+            "eurSmc": 0.017
+          },
+          {
+            "finoSmc": 200000,
+            "eurSmc": 0.0071
+          },
+          {
+            "finoSmc": null,
+            "eurSmc": 0.0
+          }
+        ],
+        "ug1Scaglioni": [
+          {
+            "finoSmc": 200000,
+            "eurSmc": 0.034837
+          },
+          {
+            "finoSmc": null,
+            "eurSmc": 0.017603
+          }
+        ],
+        "rsScaglioni": [
+          {
+            "finoSmc": 200000,
+            "eurSmc": 0.002788
+          },
+          {
+            "finoSmc": null,
+            "eurSmc": 0.001409
+          }
+        ],
+        "reScaglioni": [
+          {
+            "finoSmc": 200000,
+            "eurSmc": 0.029417
+          },
+          {
+            "finoSmc": null,
+            "eurSmc": 0.015611
+          }
+        ],
+        "ug3EurSmc": 0.007292,
+        "gsDomesticiEurSmc": 0.0
       }
     },
-    "note": "Stima comparativa annua: per la luce include rete domestica ARERA 2026 e componenti ASOS/ARIM/UC3/UC6 comuni ai domestici nel III trimestre 2026. Per il gas include la tariffa obbligatoria 2026 di distribuzione, misura e commercializzazione della distribuzione solo quando l'utente seleziona ambito tariffario ARERA e classe contatore. Restano esclusi i corrispettivi non ancora modellati puntualmente (tra cui quota fissa ASOS non residenti, dispacciamento/capacita luce, oneri generali e trasporto gas, imposte e IVA).",
+    "note": "Stima comparativa annua: per la luce include rete domestica ARERA 2026 e componenti ASOS/ARIM/UC3/UC6 comuni ai domestici nel III trimestre 2026. Per il gas include la tariffa obbligatoria 2026 di distribuzione/misura e, quando sono selezionati ambito tariffario ARERA e classe contatore, le componenti UG1, RS, RE, UG2 e UG3 vigenti nel III trimestre 2026; GS e pari a zero per i clienti domestici. Restano esclusi i corrispettivi non ancora modellati puntualmente (tra cui quota fissa ASOS non residenti, dispacciamento/capacita luce, trasporto gas QTt, imposte e IVA).",
     "profiloConsumiFonte": {
       "fonte": "ARERA - Monitoraggio Retail - Offerte e prezzi",
       "urlFonte": "https://www.arera.it/rapporti-e-relazioni/monitoraggio-retail/monitoraggio-retail-offerte-e-prezzi",
@@ -435,7 +498,7 @@
       "stato": "parziale_verificato",
       "periodo": "2026-Q3",
       "acquisitoIl": "2026-09-21",
-      "delibera": "575/2025/R/eel + 227/2026/R/com + 574/2025/R/gas",
+      "delibera": "575/2025/R/eel + 227/2026/R/com + 574/2025/R/gas + 126/2025/R/gas + 588/2025/R/com + 281/2025/R/com + 113/2024/R/com",
       "fonte": "ARERA - Tariffe rete domestici; ARERA - oneri generali e ulteriori componenti; valori operativi Q3 pubblicati da E-Distribuzione in attuazione della delibera 227/2026/R/com",
       "urlFonte": "https://www.arera.it/area-operatori/prezzi-e-tariffe/tariffe-trasmissione-distribuzione-e-misura-clienti-domestici",
       "vociIncluse": [
@@ -453,7 +516,13 @@
         "gas_tau3_dis_scaglioni_2026",
         "gas_ST_2026",
         "gas_VR_2026",
-        "gas_CE_2026"
+        "gas_CE_2026",
+        "gas_UG1_Q3_2026",
+        "gas_RS_Q3_2026",
+        "gas_RE_Q3_2026",
+        "gas_UG2_Q3_2026",
+        "gas_UG3_Q3_2026",
+        "gas_GS_domestici_zero_Q3_2026"
       ],
       "vociNonIncluse": [
         "luce_ASOS_quota_fissa_non_residenti",
@@ -461,11 +530,10 @@
         "capacita",
         "accisa",
         "IVA",
-        "gas_oneri_generali_Q3_2026",
-        "gas_trasporto",
         "gas_accisa",
         "gas_addizionale_regionale",
-        "gas_IVA"
+        "gas_IVA",
+        "gas_trasporto_QTt_PCS_locale"
       ],
       "valoriLuce2026": {
         "s1EurPodAnno": 23.04,
@@ -480,14 +548,37 @@
         "variabileComuneApplicataEurKwh": 0.047883,
         "potenzaComuneApplicataEurKwAnno": 23.7188
       },
-      "notaGas": "Step 3C include esclusivamente la tariffa obbligatoria 2026 di distribuzione, misura e commercializzazione della distribuzione gas (tau1, tau3, ST, VR, CE), differenziata per i 7 ambiti ARERA e per classe contatore. Oneri generali trimestrali, trasporto, accise, addizionale regionale e IVA restano esclusi finche non sono modellati puntualmente.",
+      "notaGas": "Step 3D include la tariffa obbligatoria 2026 di distribuzione/misura e le componenti gas UG1, RS, RE, UG2 e UG3 vigenti nel III trimestre 2026. Per i clienti domestici GS e pari a zero. Il trasporto QTt resta escluso perche la conversione da euro/GJ richiede il PCS locale della fornitura; accise, addizionale regionale e IVA restano escluse finche non sono modellate puntualmente.",
       "periodoRete": "2026",
       "periodoOneri": "2026-07-01/2026-09-30",
       "urlFonteOneri": "https://www.arera.it/area-operatori/prezzi-e-tariffe/oneri-generali-di-sistema-e-ulteriori-componenti",
       "urlTabellaOperativaOneri": "https://www.e-distribuzione.it/content/dam/e-distribuzione/a-chi-ci-rivolgiamo/venditori/2026/Oneri_A_UC_annuali_Del_2_7_26.pdf",
       "notaResidenza": "La quota fissa ASOS di 95,0916 €/POD/anno prevista per i domestici NON RESIDENTI non viene applicata perche il calcolatore non acquisisce ancora lo stato di residenza. Le componenti incluse in Step 3B sono solo quelle comuni a residenti e non residenti.",
       "urlFonteGas": "https://www.arera.it/consumatori/valori-rete-oneri-domestici-gas",
-      "urlDeliberaGas": "https://www.arera.it/atti-e-provvedimenti/dettaglio/25/574-25"
+      "urlDeliberaGas": "https://www.arera.it/atti-e-provvedimenti/dettaglio/25/574-25",
+      "urlFonteGasOneri": "https://www.arera.it/area-operatori/prezzi-e-tariffe/tariffe-di-distribuzione-misura-oneri-generali",
+      "urlDeliberaUg2": "https://www.arera.it/atti-e-provvedimenti/dettaglio/25/126-25",
+      "urlDeliberaOneriQ3": "https://www.arera.it/atti-e-provvedimenti/dettaglio/26/227-26",
+      "valoriGasQ3_2026": {
+        "ug2FissaEurPdrAnno": -21.63,
+        "ug2EurSmcScaglioni": [
+          0.0,
+          0.0496,
+          0.0293,
+          0.0237,
+          0.017,
+          0.0071,
+          0.0
+        ],
+        "ug1EurSmcFino200000": 0.034837,
+        "ug1EurSmcOltre200000": 0.017603,
+        "rsEurSmcFino200000": 0.002788,
+        "rsEurSmcOltre200000": 0.001409,
+        "reEurSmcFino200000": 0.029417,
+        "reEurSmcOltre200000": 0.015611,
+        "ug3EurSmc": 0.007292,
+        "gsDomesticiEurSmc": 0.0
+      }
     }
   },
   "indiciMercato": {

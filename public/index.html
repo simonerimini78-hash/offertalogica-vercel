@@ -5383,6 +5383,30 @@ let PARAMETRI_CALCOLO = {
       fissaAnnua: 0,
       imposteEurUnita: 0,
       ivaPercentuale: 0,
+      ug2FissaEurPdrAnno: -21.63,
+      ug2Scaglioni: [
+        { finoSmc: 120, eurSmc: 0 },
+        { finoSmc: 480, eurSmc: 0.0496 },
+        { finoSmc: 1560, eurSmc: 0.0293 },
+        { finoSmc: 5000, eurSmc: 0.0237 },
+        { finoSmc: 80000, eurSmc: 0.017 },
+        { finoSmc: 200000, eurSmc: 0.0071 },
+        { finoSmc: null, eurSmc: 0 },
+      ],
+      ug1Scaglioni: [
+        { finoSmc: 200000, eurSmc: 0.034837 },
+        { finoSmc: null, eurSmc: 0.017603 },
+      ],
+      rsScaglioni: [
+        { finoSmc: 200000, eurSmc: 0.002788 },
+        { finoSmc: null, eurSmc: 0.001409 },
+      ],
+      reScaglioni: [
+        { finoSmc: 200000, eurSmc: 0.029417 },
+        { finoSmc: null, eurSmc: 0.015611 },
+      ],
+      ug3EurSmc: 0.007292,
+      gsDomesticiEurSmc: 0,
       ambiti: {
       "nord-occidentale": {
             label: "Nord-Occidentale (Valle d'Aosta, Piemonte, Liguria)",
@@ -7487,10 +7511,33 @@ function calcolaComponentiRegolateGas(consumo, regolate = {}) {
   const vr = numeroSicuro(ambito?.vrEurPdrAnno, 0);
   const ce = numeroSicuro(ambito?.ceEurPdrAnno, 0);
   if (![tau1Dis, tau1Mis, tau1Cot].every(Number.isFinite)) return null;
-  const quotaFissa = tau1Dis + tau1Mis + tau1Cot + st + vr + ce;
-  const quotaVariabile = calcolaQuotaScaglioniGas(consumo, ambito?.tau3Scaglioni || []);
-  if (!Number.isFinite(quotaFissa) || quotaFissa < 0 || !Number.isFinite(quotaVariabile) || quotaVariabile < 0) return null;
-  return { ambito: ambitoKey, classeContatore: classe, quotaFissa, quotaVariabile };
+  const quotaReteFissa = tau1Dis + tau1Mis + tau1Cot + st + vr + ce;
+  const quotaReteVariabile = calcolaQuotaScaglioniGas(consumo, ambito?.tau3Scaglioni || []);
+  const quotaUg2Fissa = numeroSicuro(regolate?.ug2FissaEurPdrAnno, 0);
+  const quotaUg2Variabile = calcolaQuotaScaglioniGas(consumo, regolate?.ug2Scaglioni || []);
+  const quotaUg1 = calcolaQuotaScaglioniGas(consumo, regolate?.ug1Scaglioni || []);
+  const quotaRs = calcolaQuotaScaglioniGas(consumo, regolate?.rsScaglioni || []);
+  const quotaRe = calcolaQuotaScaglioniGas(consumo, regolate?.reScaglioni || []);
+  const quotaUg3 = Math.max(0, numeroSicuro(consumo, 0)) * Math.max(0, numeroSicuro(regolate?.ug3EurSmc, 0));
+  const quotaGs = Math.max(0, numeroSicuro(consumo, 0)) * Math.max(0, numeroSicuro(regolate?.gsDomesticiEurSmc, 0));
+  const quotaFissa = quotaReteFissa + quotaUg2Fissa;
+  const quotaVariabile = quotaReteVariabile + quotaUg2Variabile + quotaUg1 + quotaRs + quotaRe + quotaUg3 + quotaGs;
+  if (!Number.isFinite(quotaFissa) || !Number.isFinite(quotaVariabile) || quotaVariabile < 0) return null;
+  return {
+    ambito: ambitoKey,
+    classeContatore: classe,
+    quotaFissa,
+    quotaVariabile,
+    quotaReteFissa,
+    quotaReteVariabile,
+    quotaUg2Fissa,
+    quotaUg2Variabile,
+    quotaUg1,
+    quotaRs,
+    quotaRe,
+    quotaUg3,
+    quotaGs,
+  };
 }
 
 function calcolaVoceEnergia({ consumo = 0, prezzoVariabile = 0, formula, consumiFasce, prezziFasce, quotaFissaAnnua = 0, quoteUniversaliAnnue = 0, componentiRegolate, tipoTariffa, commodity }) {
@@ -8256,7 +8303,7 @@ function notaOneriFiscali(valori) {
     return "Oneri, imposte e IVA: n.n. = dato non stimato nel dettaglio, per evitare di indicare come zero una voce che puo dipendere da bolletta, regime fiscale e condizioni applicate.";
   }
   if (!componentiRegolateComplete()) {
-    return "Inclusa la parte regolata verificata disponibile: rete elettrica e componenti ASOS/ARIM/UC3/UC6 comuni ai domestici; per il gas, tariffa 2026 di distribuzione/misura solo se sono selezionati ambito ARERA e classe contatore. Restano escluse la quota fissa ASOS dei non residenti, dispacciamento/capacita luce, oneri generali e trasporto gas, accise/addizionali e IVA finche non sono calcolabili puntualmente.";
+    return "Inclusa la parte regolata verificata disponibile: rete elettrica e componenti ASOS/ARIM/UC3/UC6 comuni ai domestici; per il gas, tariffa 2026 di distribuzione/misura e componenti UG1/RS/RE/UG2/UG3 vigenti nel III trimestre 2026, solo se sono selezionati ambito ARERA e classe contatore. Per i domestici GS e pari a zero. Restano escluse la quota fissa ASOS dei non residenti, dispacciamento/capacita luce, trasporto gas QTt legato al PCS locale, accise/addizionali e IVA finche non sono calcolabili puntualmente.";
   }
   return "";
 }
