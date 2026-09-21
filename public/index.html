@@ -5358,7 +5358,7 @@ function avviaComparazioneDati() {
 }
 </script>
 <script>
-let MOTORE_CALCOLO_VERSION = "motore-v13-audit-calcolo-tracciabile-2026-09-21";
+let MOTORE_CALCOLO_VERSION = "motore-v14-audit-provenienza-prezzo-2026-09-21";
 const DATI_CALCOLO_URLS = ["/data/calcolo-parametri.json", "data/calcolo-parametri.json"];
 const DATI_OFFERTE_URLS = ["/data/offerte-proposte.json", "data/offerte-proposte.json"];
 const DATI_ARERA_MENU_URLS = ["/data/offerte-arera-menu.json", "data/offerte-arera-menu.json"];
@@ -7356,6 +7356,25 @@ function normalizzaScontiArera(sconti, durataOffertaMesi = null) {
   }).filter(Boolean);
 }
 
+function normalizzaProvenienzaPrezzoArera(provenienza) {
+  if (!provenienza || typeof provenienza !== "object") return null;
+  const periodo = provenienza.periodoValidita && typeof provenienza.periodoValidita === "object"
+    ? {
+      dataInizio: String(provenienza.periodoValidita.dataInizio || "").trim(),
+      dataFine: String(provenienza.periodoValidita.dataFine || "").trim(),
+    }
+    : null;
+  const normalized = {
+    sorgente: String(provenienza.sorgente || "").trim(),
+    etichettaOriginale: String(provenienza.etichettaOriginale || "").trim(),
+    unitaMisura: String(provenienza.unitaMisura || "").trim(),
+    ruolo: String(provenienza.ruolo || "").trim(),
+    indiceApplicato: String(provenienza.indiceApplicato || "").trim().toLowerCase(),
+    periodoValidita: periodo && Object.values(periodo).some(Boolean) ? periodo : null,
+  };
+  return Object.values(normalized).some(Boolean) ? normalized : null;
+}
+
 function normalizzaRiferimentoArera(riferimento) {
   if (!riferimento || typeof riferimento !== "object") return null;
   const normalized = {
@@ -7369,6 +7388,8 @@ function normalizzaRiferimentoArera(riferimento) {
     indiceRiferimento: String(riferimento.indiceRiferimento || "").trim().toLowerCase(),
     dataInizio: String(riferimento.dataInizio || "").trim(),
     dataFine: String(riferimento.dataFine || "").trim(),
+    fonte: String(riferimento.fonte || "").trim(),
+    provenienzaPrezzo: normalizzaProvenienzaPrezzoArera(riferimento.provenienzaPrezzo),
   };
   return Object.values(normalized).some(Boolean) ? normalized : null;
 }
@@ -7504,6 +7525,7 @@ function normalizzaRigaAreraMenu(riga) {
     score: numeroSicuro(riga.score, 999),
     qualitaPrezzo: riga.qualitaPrezzo || "",
     indiceRiferimento: String(riga.indiceRiferimento || riga.provenienzaPrezzo?.indiceApplicato || "").trim().toLowerCase(),
+    provenienzaPrezzo: normalizzaProvenienzaPrezzoArera(riga.provenienzaPrezzo),
     sconti: normalizzaScontiArera(riga.sconti, riga.durataMesi),
   };
 }
@@ -8741,16 +8763,49 @@ function auditCompletezzaVoce(commodity, costoVoce) {
   };
 }
 
+function dataPortaleAudit(value) {
+  const testo = String(value || "").trim();
+  if (!testo) return "";
+  return testo.split("_")[0];
+}
+
+function nomeSorgentePrezzoAudit(provenienza) {
+  const sorgente = String(provenienza?.sorgente || "").trim();
+  if (!sorgente) return "";
+  const file = sorgente.match(/PO_Offerte_[A-Z]_MLIBERO_\d{8}\.xml/i)?.[0];
+  return file || sorgente;
+}
+
+function etichettaProvenienzaPrezzoAudit(qualitaPrezzo) {
+  const qualita = String(qualitaPrezzo || "").trim().toLowerCase();
+  if (qualita === "prezzo_esplicito") return "ufficiale da catalogo ARERA/AU";
+  if (qualita === "indice_piu_spread_semantico") return "stimato: spread catalogo ARERA + indice corrente";
+  if (qualita === "verificato_specifica_commerciale") return "verificato su specifica commerciale";
+  return "non classificato";
+}
+
 function auditRiferimentoOfferta(voceOfferta, costoVoce) {
   const riferimento = normalizzaRiferimentoArera(voceOfferta?.riferimentoArera) || {};
-  const indice = riferimento.indiceRiferimento || String(voceOfferta?.formula?.indice || "").trim().toLowerCase();
+  const provenienza = riferimento.provenienzaPrezzo || {};
+  const indice = riferimento.indiceRiferimento || provenienza.indiceApplicato || String(voceOfferta?.formula?.indice || "").trim().toLowerCase();
   const indiceMeta = indice && INDICI_MERCATO[indice] ? INDICI_MERCATO[indice] : null;
+  const validitaPrezzo = provenienza.periodoValidita || {};
   return {
     codice: riferimento.codice || "",
     qualitaPrezzo: riferimento.qualitaPrezzo || "",
+    statoProvenienzaPrezzo: etichettaProvenienzaPrezzoAudit(riferimento.qualitaPrezzo),
+    fonteOfferta: riferimento.fonte || "",
+    sorgentePrezzo: nomeSorgentePrezzoAudit(provenienza),
+    etichettaPrezzo: String(provenienza.etichettaOriginale || ""),
+    unitaPrezzo: String(provenienza.unitaMisura || ""),
+    ruoloPrezzo: String(provenienza.ruolo || ""),
+    dataInizioPrezzo: dataPortaleAudit(validitaPrezzo.dataInizio || riferimento.dataInizio),
+    dataFinePrezzo: dataPortaleAudit(validitaPrezzo.dataFine || riferimento.dataFine),
     indice,
     periodoIndice: String(indiceMeta?.periodo || ""),
     statoIndice: String(indiceMeta?.stato || ""),
+    fonteIndice: String(indiceMeta?.fonte || ""),
+    acquisitoIndice: String(indiceMeta?.acquisitoIl || ""),
     dataInizio: riferimento.dataInizio || "",
     dataFine: riferimento.dataFine || "",
     completezza: auditCompletezzaVoce(riferimento.commodity || costoVoce?.commodity || "", costoVoce),
@@ -8773,23 +8828,50 @@ function htmlAuditCalcoloOfferta(offerta, costoOfferta) {
     const parti = [];
     if (audit.codice) parti.push(`codice ARERA ${audit.codice}`);
     if (audit.qualitaPrezzo) parti.push(`qualità ${audit.qualitaPrezzo}`);
+    parti.push(`provenienza ${audit.statoProvenienzaPrezzo}`);
+    parti.push(`stato ${etichettaStatoAudit(audit.completezza.stato)}`);
+
+    const fontePrezzo = [];
+    if (audit.sorgentePrezzo) fontePrezzo.push(`sorgente ${audit.sorgentePrezzo}`);
+    if (audit.etichettaPrezzo) fontePrezzo.push(`campo “${audit.etichettaPrezzo}”`);
+    if (audit.unitaPrezzo) fontePrezzo.push(audit.unitaPrezzo);
+    if (audit.dataInizioPrezzo || audit.dataFinePrezzo) {
+      fontePrezzo.push(`validità ${audit.dataInizioPrezzo || "?"}–${audit.dataFinePrezzo || "?"}`);
+    }
+
+    const indiceDettaglio = [];
     if (audit.indice) {
       const periodo = audit.periodoIndice ? ` ${audit.periodoIndice}` : "";
-      const stato = audit.statoIndice ? ` (${audit.statoIndice})` : "";
-      parti.push(`indice ${audit.indice.toUpperCase()}${periodo}${stato}`);
+      const stato = audit.statoIndice ? ` · ${audit.statoIndice}` : "";
+      indiceDettaglio.push(`indice ${audit.indice.toUpperCase()}${periodo}${stato}`);
+      if (audit.fonteIndice) indiceDettaglio.push(`fonte ${audit.fonteIndice}`);
+      const dataIndice = formattaDataCatalogoCopertura(audit.acquisitoIndice);
+      if (dataIndice) indiceDettaglio.push(`acquisito ${dataIndice}`);
     }
-    parti.push(`stato ${etichettaStatoAudit(audit.completezza.stato)}`);
+
     const note = [...audit.completezza.mancanti, ...audit.completezza.limitazioni];
-    righe.push(`<small style="display:block; margin-top:3px; color:var(--text-muted);"><strong>${commodity === "luce" ? "Luce" : "Gas"}:</strong> ${testoHtmlSicuro(parti.join(" · "))}${note.length ? `<br><span>${testoHtmlSicuro(note.join(" · "))}</span>` : ""}</small>`);
+    const dettagli = [
+      fontePrezzo.length ? fontePrezzo.join(" · ") : "",
+      indiceDettaglio.length ? indiceDettaglio.join(" · ") : "",
+      note.length ? note.join(" · ") : "",
+    ].filter(Boolean);
+    righe.push(`<small style="display:block; margin-top:3px; color:var(--text-muted);"><strong>${commodity === "luce" ? "Luce" : "Gas"}:</strong> ${testoHtmlSicuro(parti.join(" · "))}${dettagli.map((riga) => `<br><span>${testoHtmlSicuro(riga)}</span>`).join("")}</small>`);
   }
   const dataCatalogo = formattaDataCatalogoCopertura(DATI_ARERA_MENU_META.aggiornatoIl);
+  const regolateMeta = PARAMETRI_CALCOLO.componentiRegolateMeta || {};
+  const dataRegolate = formattaDataCatalogoCopertura(regolateMeta.acquisitoIl);
+  const statoRegolate = String(regolateMeta.stato || "").replace(/_/g, " ");
   const meta = [
     `motore ${MOTORE_CALCOLO_VERSION}`,
     DATI_ARERA_MENU_META.versioneDati ? `catalogo ${DATI_ARERA_MENU_META.versioneDati}` : "",
-    dataCatalogo ? `aggiornato ${dataCatalogo}` : "",
-    PARAMETRI_CALCOLO.componentiRegolateMeta?.periodo ? `regolate ${PARAMETRI_CALCOLO.componentiRegolateMeta.periodo}` : "",
+    dataCatalogo ? `catalogo aggiornato ${dataCatalogo}` : "",
+    DATI_CALCOLO_META.versioneDati ? `parametri ${DATI_CALCOLO_META.versioneDati}` : "",
+    regolateMeta.periodo ? `regolate ${regolateMeta.periodo}` : "",
+    statoRegolate ? `regolate ${statoRegolate}` : "",
+    dataRegolate ? `regolate acquisite ${dataRegolate}` : "",
   ].filter(Boolean).join(" · ");
-  return `<div class="offer-calculation-audit" style="margin-top:8px; padding-top:8px; border-top:1px dashed var(--border);"><small style="display:block; font-weight:800; color:var(--text-color);">Tracciabilità del calcolo</small><small style="display:block; color:var(--text-muted);">${testoHtmlSicuro(meta)}</small>${righe.join("")}</div>`;
+  const fonteRegolate = String(regolateMeta.fonte || "").trim();
+  return `<div class="offer-calculation-audit" style="margin-top:8px; padding-top:8px; border-top:1px dashed var(--border);"><small style="display:block; font-weight:800; color:var(--text-color);">Tracciabilità del calcolo</small><small style="display:block; color:var(--text-muted);">${testoHtmlSicuro(meta)}</small>${fonteRegolate ? `<small style="display:block; color:var(--text-muted);">Fonte regolate: ${testoHtmlSicuro(fonteRegolate)}</small>` : ""}${righe.join("")}</div>`;
 }
 
 function setDisplay(selector, display) {
@@ -16856,6 +16938,8 @@ function riferimentoAreraDaRiga(riga) {
     indiceRiferimento: riga.indiceRiferimento,
     dataInizio: riga.dataInizio,
     dataFine: riga.dataFine,
+    fonte: riga.fonte,
+    provenienzaPrezzo: riga.provenienzaPrezzo,
   });
 }
 
