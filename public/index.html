@@ -5331,7 +5331,7 @@ function avviaComparazioneDati() {
 }
 </script>
 <script>
-let MOTORE_CALCOLO_VERSION = "motore-v9-fisco-gas-arisgam-verificata-2026-09-21";
+let MOTORE_CALCOLO_VERSION = "motore-v10-iva-gas-base-completa-2026-09-21";
 const DATI_CALCOLO_URLS = ["/data/calcolo-parametri.json", "data/calcolo-parametri.json"];
 const DATI_OFFERTE_URLS = ["/data/offerte-proposte.json", "data/offerte-proposte.json"];
 const DATI_ARERA_MENU_URLS = ["/data/offerte-arera-menu.json", "data/offerte-arera-menu.json"];
@@ -5425,6 +5425,13 @@ let PARAMETRI_CALCOLO = {
       imposteEurUnita: 0,
       ivaPercentuale: 0,
       qttEurGj: 1.931333,
+      ivaDomestica: {
+        sogliaRidottaSmc: 480,
+        aliquotaRidotta: 0.10,
+        aliquotaOrdinaria: 0.22,
+        aliquotaQuoteFisse: 0.22,
+        applicaSoloConBaseCompleta: true,
+      },
       ug2FissaEurPdrAnno: -21.63,
       ug2Scaglioni: [
         { finoSmc: 120, eurSmc: 0 },
@@ -5939,15 +5946,17 @@ let PARAMETRI_CALCOLO = {
     urlFonte: "https://www.arera.it/area-operatori/prezzi-e-tariffe/tariffe-trasmissione-distribuzione-e-misura-clienti-domestici",
     urlFonteOneri: "https://www.arera.it/area-operatori/prezzi-e-tariffe/oneri-generali-di-sistema-e-ulteriori-componenti",
     urlTabellaOperativaOneri: "https://www.e-distribuzione.it/content/dam/e-distribuzione/a-chi-ci-rivolgiamo/venditori/2026/Oneri_A_UC_annuali_Del_2_7_26.pdf",
-    vociIncluse: ["luce_s1_quota_fissa", "luce_s2_quota_potenza", "luce_s3_quota_energia", "luce_ASOS_quota_energia_domestici", "luce_ARIM_quota_energia_domestici", "luce_UC3_quota_energia_domestici", "luce_UC6_quota_potenza_domestici", "luce_UC6_quota_energia_domestici", "gas_tau1_dis_2026", "gas_tau1_mis_2026", "gas_tau1_cot_2026", "gas_tau3_dis_scaglioni_2026", "gas_ST_2026", "gas_VR_2026", "gas_CE_2026", "gas_UG1_Q3_2026", "gas_RS_Q3_2026", "gas_RE_Q3_2026", "gas_UG2_Q3_2026", "gas_UG3_Q3_2026", "gas_GS_domestici_zero_Q3_2026", "gas_accisa_domestica_TUA_2026", "gas_addizionale_regionale_ARISGAM_casi_verificati", "gas_QTt_Q3_2026_con_P_fatturazione_esplicito"],
-    vociNonIncluse: ["luce_ASOS_quota_fissa_non_residenti", "dispacciamento", "capacita", "accisa_luce", "IVA", "gas_addizionale_regionale_casi_non_supportati", "gas_IVA"],
+    vociIncluse: ["luce_s1_quota_fissa", "luce_s2_quota_potenza", "luce_s3_quota_energia", "luce_ASOS_quota_energia_domestici", "luce_ARIM_quota_energia_domestici", "luce_UC3_quota_energia_domestici", "luce_UC6_quota_potenza_domestici", "luce_UC6_quota_energia_domestici", "gas_tau1_dis_2026", "gas_tau1_mis_2026", "gas_tau1_cot_2026", "gas_tau3_dis_scaglioni_2026", "gas_ST_2026", "gas_VR_2026", "gas_CE_2026", "gas_UG1_Q3_2026", "gas_RS_Q3_2026", "gas_RE_Q3_2026", "gas_UG2_Q3_2026", "gas_UG3_Q3_2026", "gas_GS_domestici_zero_Q3_2026", "gas_accisa_domestica_TUA_2026", "gas_addizionale_regionale_ARISGAM_casi_verificati", "gas_QTt_Q3_2026_con_P_fatturazione_esplicito", "gas_IVA_domestica_10_primi_480_smc_22_resto_e_quote_fisse_con_base_completa"],
+    vociNonIncluse: ["luce_ASOS_quota_fissa_non_residenti", "dispacciamento", "capacita", "accisa_luce", "IVA_luce", "gas_addizionale_regionale_casi_non_supportati"],
     notaResidenza: "La quota fissa ASOS di 95,0916 €/POD/anno prevista per i domestici NON RESIDENTI non viene applicata perche il calcolatore non acquisisce ancora lo stato di residenza. Le componenti incluse in Step 3B sono solo quelle comuni a residenti e non residenti.",
-    notaGas: "Step 3G include anche il trasporto QTt pari a 1,931333 euro/GJ, applicato solo quando l'utente inserisce il potere calorifico convenzionale P della propria fornitura in GJ/Smc. Senza P il QTt resta non stimato. IVA e casi ARISGAM non supportati restano esclusi.",
+    notaGas: "Step 3G include anche il trasporto QTt pari a 1,931333 euro/GJ, applicato solo quando l'utente inserisce il potere calorifico convenzionale P della propria fornitura in GJ/Smc. Senza P il QTt resta non stimato. IVA luce e casi ARISGAM non supportati restano esclusi. L IVA gas domestica e inclusa solo con base imponibile gas completa.",
+    urlFonteIvaGas: "https://www.arera.it/bolletta/guida-alla-lettura-delle-voci-di-spesa-gas",
+    notaIvaGas: "IVA gas domestica applicata solo quando la base imponibile e completa nel modello: rete distribuzione/misura, oneri, QTt con P esplicito, accisa e ARISGAM verificata. Aliquota 10% sui primi 480 Smc/anno e 22% sui consumi successivi e sulle quote fisse. Se manca uno dei dati necessari, l IVA resta non stimata.",
     urlFonteTrasportoGas: "https://www.arera.it/fileadmin/allegati/docs/26/161-2026-R-gas_Testo_integrato_100-23-AllegatoA-NuovoTIVG.pdf",
     urlFonteGas: "https://www.arera.it/consumatori/valori-rete-oneri-domestici-gas",
     urlDeliberaGas: "https://www.arera.it/atti-e-provvedimenti/dettaglio/25/574-25",
   },
-  note: "Stima comparativa annua: per la luce include rete domestica ARERA 2026 e componenti ASOS/ARIM/UC3/UC6 comuni ai domestici nel III trimestre 2026. Per il gas include rete/misura 2026, oneri UG1/RS/RE/UG2/UG3 Q3 2026, accisa nazionale con regime esplicito, ARISGAM per i profili verificati e QTt solo quando e disponibile il potere calorifico convenzionale P della fornitura. Restano esclusi quota fissa ASOS non residenti, dispacciamento/capacita luce, accisa luce, IVA e casi ARISGAM non supportati.",
+  note: "Stima comparativa annua: per la luce include rete domestica ARERA 2026 e componenti ASOS/ARIM/UC3/UC6 comuni ai domestici nel III trimestre 2026. Per il gas include rete/misura 2026, oneri UG1/RS/RE/UG2/UG3 Q3 2026, accisa nazionale con regime esplicito, ARISGAM per i profili verificati e QTt solo quando e disponibile il potere calorifico convenzionale P della fornitura. Restano esclusi quota fissa ASOS non residenti, dispacciamento/capacita luce, accisa luce, IVA luce e casi ARISGAM non supportati. L IVA gas domestica e applicata solo quando la base imponibile gas e completa.",
 };
 let PERDITE_RETE_LUCE_VARIABILE = PARAMETRI_CALCOLO.perditeReteLuceVariabile;
 const TESTO_METODOLOGIA_CONSUMI_REALI = "I risparmi stimati sono calcolati sui consumi che hai inserito o confermato dalla bolletta. Applichiamo le condizioni economiche delle offerte allo stesso profilo di consumo, separando quota variabile e quota fissa.";
@@ -7695,6 +7704,22 @@ function calcolaComponentiRegolateGas(consumo, regolate = {}) {
   const quotaAddizionaleRegionale = arisgamDisponibile ? calcolaQuotaScaglioniGas(consumo, scaglioniArisgam) : 0;
   const quotaImposte = quotaAccisa + quotaAddizionaleRegionale;
   const imposteDisponibili = accisaDisponibile || arisgamDisponibile;
+  const ivaConfig = regolate?.ivaDomestica || {};
+  const sogliaIvaRidotta = Math.max(0, numeroSicuro(ivaConfig.sogliaRidottaSmc, 480));
+  const consumoIvaRidotta = Math.min(Math.max(0, numeroSicuro(consumo, 0)), sogliaIvaRidotta);
+  const quotaReteVariabileIvaRidotta = reteDisponibile ? calcolaQuotaScaglioniGas(consumoIvaRidotta, ambito?.tau3Scaglioni || []) : 0;
+  const quotaUg2VariabileIvaRidotta = calcolaQuotaScaglioniGas(consumoIvaRidotta, regolate?.ug2Scaglioni || []);
+  const quotaUg1IvaRidotta = calcolaQuotaScaglioniGas(consumoIvaRidotta, regolate?.ug1Scaglioni || []);
+  const quotaRsIvaRidotta = calcolaQuotaScaglioniGas(consumoIvaRidotta, regolate?.rsScaglioni || []);
+  const quotaReIvaRidotta = calcolaQuotaScaglioniGas(consumoIvaRidotta, regolate?.reScaglioni || []);
+  const quotaUg3IvaRidotta = consumoIvaRidotta * Math.max(0, numeroSicuro(regolate?.ug3EurSmc, 0));
+  const quotaGsIvaRidotta = consumoIvaRidotta * Math.max(0, numeroSicuro(regolate?.gsDomesticiEurSmc, 0));
+  const quotaQttIvaRidotta = qttDisponibile ? consumoIvaRidotta * qttEurGj * potereCalorificoGasGjSmc : 0;
+  const quotaAccisaIvaRidotta = accisaDisponibile ? calcolaQuotaScaglioniGas(consumoIvaRidotta, scaglioniAccisa) : 0;
+  const quotaArisgamIvaRidotta = arisgamDisponibile ? calcolaQuotaScaglioniGas(consumoIvaRidotta, scaglioniArisgam) : 0;
+  const quotaVariabileIvaRidotta = quotaReteVariabileIvaRidotta + quotaUg2VariabileIvaRidotta + quotaUg1IvaRidotta + quotaRsIvaRidotta + quotaReIvaRidotta + quotaUg3IvaRidotta + quotaGsIvaRidotta + quotaQttIvaRidotta;
+  const quotaImposteIvaRidotta = quotaAccisaIvaRidotta + quotaArisgamIvaRidotta;
+  const ivaBaseCompleta = Boolean(reteDisponibile && qttDisponibile && accisaDisponibile && arisgamDisponibile);
   const quotaFissa = quotaReteFissa + quotaUg2Fissa;
   const quotaVariabile = quotaReteVariabile + quotaUg2Variabile + quotaUg1 + quotaRs + quotaRe + quotaUg3 + quotaGs + quotaQtt;
   if (!Number.isFinite(quotaFissa) || !Number.isFinite(quotaVariabile) || quotaVariabile < 0) return null;
@@ -7725,6 +7750,11 @@ function calcolaComponentiRegolateGas(consumo, regolate = {}) {
     quotaAddizionaleRegionale,
     imposteDisponibili,
     quotaImposte,
+    sogliaIvaRidotta,
+    consumoIvaRidotta,
+    quotaVariabileIvaRidotta,
+    quotaImposteIvaRidotta,
+    ivaBaseCompleta,
   };
 }
 
@@ -7753,7 +7783,27 @@ function calcolaVoceEnergia({ consumo = 0, prezzoVariabile = 0, formula, consumi
     ? regolateGas.quotaFissa
     : Math.max(0, numeroSicuro(regolate.fissaAnnua, 0));
   const imponibile = quotaMateria + quotaFissaVendita + quotaTecnicaProfilo + quotaRegolataVariabile + quotaRegolataFissa + quotaImposte;
-  const quotaIva = imponibile * Math.max(0, numeroSicuro(regolate.ivaPercentuale, 0));
+  let quotaIva = imponibile * Math.max(0, numeroSicuro(regolate.ivaPercentuale, 0));
+  let dettaglioIvaGas = null;
+  if (commodity === "gas" && regolateGas) {
+    const ivaConfig = regolate?.ivaDomestica || {};
+    const aliquotaRidotta = numeroSicuro(ivaConfig.aliquotaRidotta, NaN);
+    const aliquotaOrdinaria = numeroSicuro(ivaConfig.aliquotaOrdinaria, NaN);
+    const aliquotaQuoteFisse = numeroSicuro(ivaConfig.aliquotaQuoteFisse, NaN);
+    const ivaConfigValida = [aliquotaRidotta, aliquotaOrdinaria, aliquotaQuoteFisse].every((value) => Number.isFinite(value) && value >= 0 && value <= 1);
+    const ivaDisponibile = Boolean(ivaConfigValida && regolateGas.ivaBaseCompleta);
+    if (ivaDisponibile) {
+      const quotaMateriaIvaRidotta = consumoRegolato > 0 ? quotaMateria * (regolateGas.consumoIvaRidotta / consumoRegolato) : 0;
+      const baseRidotta = Math.max(0, quotaMateriaIvaRidotta + regolateGas.quotaVariabileIvaRidotta + regolateGas.quotaImposteIvaRidotta);
+      const baseVariabileOrdinaria = Math.max(0, (quotaMateria + quotaRegolataVariabile + quotaImposte) - baseRidotta);
+      const baseFissaOrdinaria = Math.max(0, quotaFissaVendita + quotaTecnicaProfilo + quotaRegolataFissa);
+      quotaIva = baseRidotta * aliquotaRidotta + baseVariabileOrdinaria * aliquotaOrdinaria + baseFissaOrdinaria * aliquotaQuoteFisse;
+      dettaglioIvaGas = { ivaDisponibile: true, aliquotaRidotta, aliquotaOrdinaria, aliquotaQuoteFisse, sogliaRidottaSmc: regolateGas.sogliaIvaRidotta, baseRidotta, baseVariabileOrdinaria, baseFissaOrdinaria };
+    } else {
+      quotaIva = 0;
+      dettaglioIvaGas = { ivaDisponibile: false };
+    }
+  }
   const quotaRegolata = quotaRegolataVariabile + quotaRegolataFissa;
   const quotaFissa = quotaFissaVendita + quotaTecnicaProfilo + quotaRegolataFissa;
   const quotaFiscale = quotaImposte + quotaIva;
@@ -7764,7 +7814,7 @@ function calcolaVoceEnergia({ consumo = 0, prezzoVariabile = 0, formula, consumi
     regolate.imposteEurUnita,
     regolate.ivaPercentuale,
   ].some((value) => Math.abs(numeroSicuro(value, 0)) > 0) || quotaTecnicaProfilo > 0;
-  return { commodity, consumo: consumoProfilo, consumoFatturato, consumoRegolato, tipoPrezzo: tipoVoce, modalitaPrezzo: materiaFasce?.modalitaPrezzo || (formula?.tipo || "single_price"), fattorePerdite, prezzoVariabile: prezzoCalcolo, quotaMateria, quotaVariabile: quotaMateria, quotaFissaVendita, quotaTecnicaProfilo, quotaRegolata, quotaRegolataVariabile, quotaRegolataFissa, quotaImposte, quotaIva, quotaFiscale, quotaFissa, componentiRegolateDisponibili: componentiRegolateDisponibiliVoce, dettaglioRegolatoGas: regolateGas, totale: imponibile + quotaIva };
+  return { commodity, consumo: consumoProfilo, consumoFatturato, consumoRegolato, tipoPrezzo: tipoVoce, modalitaPrezzo: materiaFasce?.modalitaPrezzo || (formula?.tipo || "single_price"), fattorePerdite, prezzoVariabile: prezzoCalcolo, quotaMateria, quotaVariabile: quotaMateria, quotaFissaVendita, quotaTecnicaProfilo, quotaRegolata, quotaRegolataVariabile, quotaRegolataFissa, quotaImposte, quotaIva, quotaFiscale, quotaFissa, componentiRegolateDisponibili: componentiRegolateDisponibiliVoce, dettaglioRegolatoGas: regolateGas, dettaglioIvaGas, totale: imponibile + quotaIva };
 }
 
 function testoAreraNormalizzato(value) {
@@ -8493,7 +8543,7 @@ function notaOneriFiscali(valori) {
     return "Oneri, imposte e IVA: n.n. = dato non stimato nel dettaglio, per evitare di indicare come zero una voce che puo dipendere da bolletta, regime fiscale e condizioni applicate.";
   }
   if (!componentiRegolateComplete()) {
-    return "Inclusa la parte regolata verificata disponibile: rete elettrica e componenti ASOS/ARIM/UC3/UC6 comuni ai domestici; per il gas, le componenti UG1/RS/RE/UG2/UG3 vigenti nel III trimestre 2026 sono applicate sul consumo, mentre la tariffa 2026 di distribuzione/misura richiede ambito ARERA e classe contatore. L'accisa gas domestica viene inclusa solo con scelta esplicita del regime TUA. L'addizionale regionale ARISGAM viene inclusa separatamente solo per i profili territoriali verificati e selezionati dall'utente; nessuna Regione viene dedotta dall'ambito tariffario. Il trasporto gas QTt viene incluso solo se e stato inserito il potere calorifico convenzionale P della fornitura; senza P resta non stimato. Restano escluse la quota fissa ASOS dei non residenti, dispacciamento/capacita luce, accisa luce, IVA e i casi ARISGAM non supportati.";
+    return "Inclusa la parte regolata verificata disponibile: rete elettrica e componenti ASOS/ARIM/UC3/UC6 comuni ai domestici; per il gas, le componenti UG1/RS/RE/UG2/UG3 vigenti nel III trimestre 2026 sono applicate sul consumo, mentre la tariffa 2026 di distribuzione/misura richiede ambito ARERA e classe contatore. L'accisa gas domestica viene inclusa solo con scelta esplicita del regime TUA. L'addizionale regionale ARISGAM viene inclusa separatamente solo per i profili territoriali verificati e selezionati dall'utente; nessuna Regione viene dedotta dall'ambito tariffario. Il trasporto gas QTt viene incluso solo se e stato inserito il potere calorifico convenzionale P della fornitura; senza P resta non stimato. L'IVA gas domestica viene applicata solo quando rete, QTt, accisa e ARISGAM sono tutte determinate: 10% sui primi 480 Smc/anno e 22% sui consumi successivi e sulle quote fisse. Restano escluse la quota fissa ASOS dei non residenti, dispacciamento/capacita luce, accisa luce, IVA luce e i casi ARISGAM non supportati.";
   }
   return "";
 }

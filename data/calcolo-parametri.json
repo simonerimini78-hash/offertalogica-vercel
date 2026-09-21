@@ -819,10 +819,17 @@
               "eurSmc": 0.030987
             }
           ]
+        },
+        "ivaDomestica": {
+          "sogliaRidottaSmc": 480,
+          "aliquotaRidotta": 0.1,
+          "aliquotaOrdinaria": 0.22,
+          "aliquotaQuoteFisse": 0.22,
+          "applicaSoloConBaseCompleta": true
         }
       }
     },
-    "note": "Stima comparativa annua: per la luce include rete domestica ARERA 2026 e componenti ASOS/ARIM/UC3/UC6 comuni ai domestici nel III trimestre 2026. Per il gas include rete/misura 2026, oneri UG1/RS/RE/UG2/UG3 Q3 2026, accisa nazionale con regime esplicito, ARISGAM per i profili verificati e QTt solo quando e disponibile il potere calorifico convenzionale P della fornitura. Restano esclusi quota fissa ASOS non residenti, dispacciamento/capacita luce, accisa luce, IVA e casi ARISGAM non supportati.",
+    "note": "Stima comparativa annua: per la luce include rete domestica ARERA 2026 e componenti ASOS/ARIM/UC3/UC6 comuni ai domestici. Per il gas include rete/misura 2026, oneri UG1/RS/RE/UG2/UG3 Q3 2026, accisa nazionale con regime esplicito, ARISGAM per i profili verificati, QTt con P esplicito e IVA domestica solo quando la base imponibile gas e completa. Restano esclusi quota fissa ASOS non residenti, dispacciamento/capacita luce, accisa luce, IVA luce e casi ARISGAM non supportati.",
     "profiloConsumiFonte": {
       "fonte": "ARERA - Monitoraggio Retail - Offerte e prezzi",
       "urlFonte": "https://www.arera.it/rapporti-e-relazioni/monitoraggio-retail/monitoraggio-retail-offerte-e-prezzi",
@@ -875,16 +882,16 @@
         "gas_GS_domestici_zero_Q3_2026",
         "gas_accisa_domestica_TUA_2026",
         "gas_addizionale_regionale_ARISGAM_casi_verificati",
-        "gas_QTt_Q3_2026_con_P_fatturazione_esplicito"
+        "gas_QTt_Q3_2026_con_P_fatturazione_esplicito",
+        "gas_IVA_domestica_10_primi_480_smc_22_resto_e_quote_fisse_con_base_completa"
       ],
       "vociNonIncluse": [
         "luce_ASOS_quota_fissa_non_residenti",
         "dispacciamento",
         "capacita",
         "accisa",
-        "IVA",
-        "gas_IVA",
-        "gas_addizionale_regionale_casi_non_supportati"
+        "gas_addizionale_regionale_casi_non_supportati",
+        "IVA_luce"
       ],
       "valoriLuce2026": {
         "s1EurPodAnno": 23.04,
@@ -899,7 +906,7 @@
         "variabileComuneApplicataEurKwh": 0.047883,
         "potenzaComuneApplicataEurKwAnno": 23.7188
       },
-      "notaGas": "Step 3G include anche il trasporto QTt pari a 1,931333 euro/GJ, applicato solo quando l'utente inserisce il potere calorifico convenzionale P della propria fornitura in GJ/Smc. Senza P il QTt resta non stimato. IVA e casi ARISGAM non supportati restano esclusi.",
+      "notaGas": "Step 3H include anche l IVA gas domestica: 10% sui primi 480 Smc/anno e 22% sui consumi successivi e sulle quote fisse, esclusivamente quando rete, QTt, accisa e ARISGAM sono tutte determinate. Senza base completa l IVA resta non stimata. I casi ARISGAM non supportati restano esclusi.",
       "periodoRete": "2026",
       "periodoOneri": "2026-07-01/2026-09-30",
       "urlFonteOneri": "https://www.arera.it/area-operatori/prezzi-e-tariffe/oneri-generali-di-sistema-e-ulteriori-componenti",
@@ -1074,7 +1081,9 @@
         ]
       },
       "urlFonteTrasportoGas": "https://www.arera.it/fileadmin/allegati/docs/26/161-2026-R-gas_Testo_integrato_100-23-AllegatoA-NuovoTIVG.pdf",
-      "valoreQttQ3_2026EurGj": 1.931333
+      "valoreQttQ3_2026EurGj": 1.931333,
+      "urlFonteIvaGas": "https://www.arera.it/bolletta/guida-alla-lettura-delle-voci-di-spesa-gas",
+      "notaIvaGas": "IVA gas domestica applicata solo quando la base imponibile e completa nel modello: rete distribuzione/misura, oneri, QTt con P esplicito, accisa e ARISGAM verificata. Aliquota 10% sui primi 480 Smc/anno e 22% sui consumi successivi e sulle quote fisse. Se manca uno dei dati necessari, l IVA resta non stimata."
     }
   },
   "indiciMercato": {
