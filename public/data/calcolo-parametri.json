@@ -3,7 +3,7 @@
   "fonte": "ARERA: catalogo Portale Offerte e riferimenti mensili ufficiali PLACET. Nessun prezzo statico usato come indice di confronto.",
   "aggiornatoIl": "2026-09-21",
   "parametriCalcolo": {
-    "perditeReteLuceVariabile": 1.102,
+    "perditeReteLuceVariabile": 1.10,
     "profiloMedio": {
       "luceConsumoKwh": 2700,
       "gasConsumoSmc": 1400,

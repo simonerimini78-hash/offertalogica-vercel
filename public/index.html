@@ -5328,7 +5328,7 @@ let PROVIDER_BRANDS = {
   segnoverde: { label: "Segnoverde", logo: "/assets/providers/segnoverde-user.png" },
 };
 let PARAMETRI_CALCOLO = {
-  perditeReteLuceVariabile: 1.102,
+  perditeReteLuceVariabile: 1.10,
   profiloMedio: {
     luceConsumoKwh: 2700,
     gasConsumoSmc: 1400,
@@ -6051,7 +6051,7 @@ function mergeProfondo(base, aggiornamento) {
 }
 
 function aggiornaParametriDerivati() {
-  PERDITE_RETE_LUCE_VARIABILE = numeroSicuro(PARAMETRI_CALCOLO.perditeReteLuceVariabile, 1.102);
+  PERDITE_RETE_LUCE_VARIABILE = numeroSicuro(PARAMETRI_CALCOLO.perditeReteLuceVariabile, 1.10);
   PARAMETRI_MASTER = {
     potenzaLuce: PARAMETRI_CALCOLO.componentiProfilo?.potenzaLuceAnnua || {},
     regioneGas: PARAMETRI_CALCOLO.componentiProfilo?.ambitoGasAnnua || {},
