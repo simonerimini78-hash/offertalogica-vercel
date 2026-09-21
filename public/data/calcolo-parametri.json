@@ -52,6 +52,22 @@
           "sogliaRecuperoFino1_5KwKwh": 150,
           "sogliaRecuperoOltre1_5Fino3KwKwh": 220,
           "richiedeConsumiMensiliPerResidenteFino3Kw": true
+        },
+        "dispacciamentoCapacita": {
+          "schema": "cdispd_tiv_domestici_2026",
+          "periodo": "2026-09",
+          "periodoLabel": "Settembre 2026",
+          "dispacciamentoTernaEurKwhNettoPerdite": 0.010501,
+          "capacitaAreraEurKwhNettoPerdite": 0.003197,
+          "fattorePerdite": 1.1,
+          "cDispdEurKwh": 0.0150678,
+          "formula": "1.10 * (0.010501 + 0.003197)",
+          "metodoApplicazione": "annualizzazione_a_valori_correnti_su_consumi_reali",
+          "fonteDispacciamento": "Terna - corrispettivo unitario di dispacciamento TIDE, III trimestre 2026",
+          "urlFonteDispacciamento": "https://dati.terna.it/-/media/project/terna/dati/corrispettivi/corrispettivi-dispacciamento-ai-sensi-del-tide/2026/07/01/avviso_udd_pubblicazione_3q2026.pdf",
+          "fonteCapacita": "ARERA - deliberazione 219/2026/R/eel, articolo 4.1",
+          "urlFonteCapacita": "https://www.arera.it/fileadmin/allegati/docs/26/219-2026-R-eel.pdf",
+          "stato": "verificato"
         }
       },
       "gas": {

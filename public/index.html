@@ -5446,6 +5446,22 @@ let PARAMETRI_CALCOLO = {
       imposteEurUnita: 0,
       ivaPercentuale: 0,
       asosFissaNonResidentiEurAnno: 95.0916,
+      dispacciamentoCapacita: {
+        schema: "cdispd_tiv_domestici_2026",
+        periodo: "2026-09",
+        periodoLabel: "Settembre 2026",
+        dispacciamentoTernaEurKwhNettoPerdite: 0.010501,
+        capacitaAreraEurKwhNettoPerdite: 0.003197,
+        fattorePerdite: 1.1,
+        cDispdEurKwh: 0.0150678,
+        formula: "1.10 * (0.010501 + 0.003197)",
+        metodoApplicazione: "annualizzazione_a_valori_correnti_su_consumi_reali",
+        fonteDispacciamento: "Terna - corrispettivo unitario di dispacciamento TIDE, III trimestre 2026",
+        urlFonteDispacciamento: "https://dati.terna.it/-/media/project/terna/dati/corrispettivi/corrispettivi-dispacciamento-ai-sensi-del-tide/2026/07/01/avviso_udd_pubblicazione_3q2026.pdf",
+        fonteCapacita: "ARERA - deliberazione 219/2026/R/eel, articolo 4.1",
+        urlFonteCapacita: "https://www.arera.it/fileadmin/allegati/docs/26/219-2026-R-eel.pdf",
+        stato: "verificato",
+      },
       accisaDomestica: {
         aliquotaEurKwh: 0.0227,
         sogliaEsenteMensileKwh: 150,
@@ -7869,14 +7885,27 @@ function calcolaVoceEnergia({ consumo = 0, prezzoVariabile = 0, formula, consumi
   const quotaTecnicaProfilo = Math.max(0, numeroSicuro(quoteUniversaliAnnue, 0));
   const regolate = componentiRegolate || componentiRegolateVuote();
   const regolateGas = commodity === "gas" ? calcolaComponentiRegolateGas(consumoRegolato, regolate) : null;
-  const regolateLuce = commodity === "luce" ? calcolaAccisaLuce(consumoRegolato, regolate) : null;
+  const accisaLuce = commodity === "luce" ? calcolaAccisaLuce(consumoRegolato, regolate) : null;
+  const cDispdConfig = commodity === "luce" && regolate?.dispacciamentoCapacita && typeof regolate.dispacciamentoCapacita === "object"
+    ? regolate.dispacciamentoCapacita
+    : null;
+  const cDispdEurKwh = numeroSicuro(cDispdConfig?.cDispdEurKwh, NaN);
+  const cDispdDisponibile = Boolean(cDispdConfig?.stato === "verificato" && Number.isFinite(cDispdEurKwh) && cDispdEurKwh >= 0);
+  const quotaDispacciamentoCapacita = cDispdDisponibile ? consumoRegolato * cDispdEurKwh : 0;
+  const regolateLuce = commodity === "luce" ? {
+    ...(accisaLuce || {}),
+    dispacciamentoCapacitaDisponibile: cDispdDisponibile,
+    quotaDispacciamentoCapacita,
+    cDispdEurKwh: cDispdDisponibile ? cDispdEurKwh : 0,
+    periodoCDispd: cDispdConfig?.periodo || "",
+  } : null;
   const quotaRegolataVariabile = regolateGas
     ? regolateGas.quotaVariabile
-    : consumoRegolato * Math.max(0, numeroSicuro(regolate.variabileEurUnita, 0));
+    : consumoRegolato * Math.max(0, numeroSicuro(regolate.variabileEurUnita, 0)) + quotaDispacciamentoCapacita;
   const quotaImposte = regolateGas?.imposteDisponibili
     ? regolateGas.quotaImposte
-    : regolateLuce?.accisaDisponibile
-      ? regolateLuce.quotaAccisa
+    : accisaLuce?.accisaDisponibile
+      ? accisaLuce.quotaAccisa
       : consumoRegolato * Math.max(0, numeroSicuro(regolate.imposteEurUnita, 0));
   const quotaAsosFissaNonResidenti = commodity === "luce" && String(regolate.residenzaAnagrafica || "").trim().toLowerCase() === "non-residente"
     ? Math.max(0, numeroSicuro(regolate.asosFissaNonResidentiEurAnno, 0))
@@ -7914,6 +7943,7 @@ function calcolaVoceEnergia({ consumo = 0, prezzoVariabile = 0, formula, consumi
     regolate.fissaAnnua,
     regolate.potenzaEurKwAnno,
     regolate.asosFissaNonResidentiEurAnno,
+    regolate.dispacciamentoCapacita?.cDispdEurKwh,
     regolate.imposteEurUnita,
     regolate.ivaPercentuale,
   ].some((value) => Math.abs(numeroSicuro(value, 0)) > 0) || quotaTecnicaProfilo > 0;
@@ -8646,7 +8676,7 @@ function notaOneriFiscali(valori) {
     return "Oneri, imposte e IVA: n.n. = dato non stimato nel dettaglio, per evitare di indicare come zero una voce che puo dipendere da bolletta, regime fiscale e condizioni applicate.";
   }
   if (!componentiRegolateComplete()) {
-    return "Inclusa la parte regolata verificata disponibile: rete elettrica e componenti ASOS/ARIM/UC3/UC6 comuni ai domestici; per il gas, le componenti UG1/RS/RE/UG2/UG3 vigenti nel III trimestre 2026 sono applicate sul consumo, mentre la tariffa 2026 di distribuzione/misura richiede ambito ARERA e classe contatore. L'accisa gas domestica viene inclusa solo con scelta esplicita del regime TUA. L'addizionale regionale ARISGAM viene inclusa separatamente solo per i profili territoriali verificati e selezionati dall'utente; nessuna Regione viene dedotta dall'ambito tariffario. Il trasporto gas QTt viene incluso solo se e stato inserito il potere calorifico convenzionale P della fornitura; senza P resta non stimato. L'IVA gas domestica viene applicata solo quando rete, QTt, accisa e ARISGAM sono tutte determinate: 10% sui primi 480 Smc/anno e 22% sui consumi successivi e sulle quote fisse. La quota fissa ASOS dei non residenti viene inclusa solo con scelta esplicita dello stato di residenza. L'accisa luce viene inclusa a 0,0227 €/kWh quando il regime e determinabile: intero consumo per non residenti o potenza oltre 3 kW; per residenti fino a 3 kW solo con 12 consumi mensili completi e coerenti con l'annuo. Restano esclusi dispacciamento/capacita luce, IVA luce e i casi ARISGAM non supportati.";
+    return "Inclusa la parte regolata verificata disponibile: rete elettrica e componenti ASOS/ARIM/UC3/UC6 comuni ai domestici; per il gas, le componenti UG1/RS/RE/UG2/UG3 vigenti nel III trimestre 2026 sono applicate sul consumo, mentre la tariffa 2026 di distribuzione/misura richiede ambito ARERA e classe contatore. L'accisa gas domestica viene inclusa solo con scelta esplicita del regime TUA. L'addizionale regionale ARISGAM viene inclusa separatamente solo per i profili territoriali verificati e selezionati dall'utente; nessuna Regione viene dedotta dall'ambito tariffario. Il trasporto gas QTt viene incluso solo se e stato inserito il potere calorifico convenzionale P della fornitura; senza P resta non stimato. L'IVA gas domestica viene applicata solo quando rete, QTt, accisa e ARISGAM sono tutte determinate: 10% sui primi 480 Smc/anno e 22% sui consumi successivi e sulle quote fisse. La quota fissa ASOS dei non residenti viene inclusa solo con scelta esplicita dello stato di residenza. L'accisa luce viene inclusa a 0,0227 €/kWh quando il regime e determinabile: intero consumo per non residenti o potenza oltre 3 kW; per residenti fino a 3 kW solo con 12 consumi mensili completi e coerenti con l'annuo. Per la luce e incluso anche il C_DISPD domestico vigente di settembre 2026 (dispacciamento TIDE + mercato capacita, perdite gia incorporate nel coefficiente), applicato ai kWh reali come annualizzazione a valori correnti. Restano esclusi IVA luce e i casi ARISGAM non supportati.";
   }
   return "";
 }
