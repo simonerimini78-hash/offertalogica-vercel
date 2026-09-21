@@ -4706,6 +4706,11 @@
                         </select>
                     </div>
                     <div class="input-group">
+                        <label for="master-gas-pcs">Potere calorifico P gas (GJ/Smc)</label>
+                        <input id="master-gas-pcs" type="number" inputmode="decimal" min="0" step="0.000001" placeholder="es. 0,0385">
+                        <small style="display:block; margin-top:5px; color:#64748b; line-height:1.35;">Dato convenzionale di fatturazione P/PCS della fornitura. Se non è disponibile in bolletta, lascia vuoto: il trasporto QTt non viene stimato.</small>
+                    </div>
+                    <div class="input-group">
                         <label for="master-gas-accisa">Regime accisa gas</label>
                         <select id="master-gas-accisa">
                             <option value="">Non so / non applicare l'accisa</option>
@@ -5382,6 +5387,7 @@ let PARAMETRI_CALCOLO = {
     potenzaKw: "3",
     regioneGas: "",
     classeContatoreGas: "",
+    potereCalorificoGasGjSmc: "",
     regimeAccisaGas: "",
     regimeArisgamGas: "",
     tipoPrezzo: "fisso",
@@ -5418,6 +5424,7 @@ let PARAMETRI_CALCOLO = {
       fissaAnnua: 0,
       imposteEurUnita: 0,
       ivaPercentuale: 0,
+      qttEurGj: 1.931333,
       ug2FissaEurPdrAnno: -21.63,
       ug2Scaglioni: [
         { finoSmc: 120, eurSmc: 0 },
@@ -5927,19 +5934,20 @@ let PARAMETRI_CALCOLO = {
     periodoRete: "2026",
     periodoOneri: "2026-07-01/2026-09-30",
     acquisitoIl: "2026-09-21",
-    delibera: "575/2025/R/eel + 227/2026/R/com + 574/2025/R/gas + 126/2025/R/gas + TUA 2026 + norme regionali ARISGAM verificate",
+    delibera: "575/2025/R/eel + 227/2026/R/com + 574/2025/R/gas + 126/2025/R/gas + 98/2026/R/com + TIVG 161/2026/R/gas + TUA 2026 + norme regionali ARISGAM verificate",
     fonte: "ARERA - Tariffe rete domestici; ARERA - oneri generali e ulteriori componenti; valori operativi Q3 pubblicati da E-Distribuzione in attuazione della delibera 227/2026/R/com",
     urlFonte: "https://www.arera.it/area-operatori/prezzi-e-tariffe/tariffe-trasmissione-distribuzione-e-misura-clienti-domestici",
     urlFonteOneri: "https://www.arera.it/area-operatori/prezzi-e-tariffe/oneri-generali-di-sistema-e-ulteriori-componenti",
     urlTabellaOperativaOneri: "https://www.e-distribuzione.it/content/dam/e-distribuzione/a-chi-ci-rivolgiamo/venditori/2026/Oneri_A_UC_annuali_Del_2_7_26.pdf",
-    vociIncluse: ["luce_s1_quota_fissa", "luce_s2_quota_potenza", "luce_s3_quota_energia", "luce_ASOS_quota_energia_domestici", "luce_ARIM_quota_energia_domestici", "luce_UC3_quota_energia_domestici", "luce_UC6_quota_potenza_domestici", "luce_UC6_quota_energia_domestici", "gas_tau1_dis_2026", "gas_tau1_mis_2026", "gas_tau1_cot_2026", "gas_tau3_dis_scaglioni_2026", "gas_ST_2026", "gas_VR_2026", "gas_CE_2026", "gas_UG1_Q3_2026", "gas_RS_Q3_2026", "gas_RE_Q3_2026", "gas_UG2_Q3_2026", "gas_UG3_Q3_2026", "gas_GS_domestici_zero_Q3_2026", "gas_accisa_domestica_TUA_2026", "gas_addizionale_regionale_ARISGAM_casi_verificati"],
-    vociNonIncluse: ["luce_ASOS_quota_fissa_non_residenti", "dispacciamento", "capacita", "accisa_luce", "IVA", "gas_trasporto_QTt_PCS_locale", "gas_addizionale_regionale_casi_non_supportati", "gas_IVA"],
+    vociIncluse: ["luce_s1_quota_fissa", "luce_s2_quota_potenza", "luce_s3_quota_energia", "luce_ASOS_quota_energia_domestici", "luce_ARIM_quota_energia_domestici", "luce_UC3_quota_energia_domestici", "luce_UC6_quota_potenza_domestici", "luce_UC6_quota_energia_domestici", "gas_tau1_dis_2026", "gas_tau1_mis_2026", "gas_tau1_cot_2026", "gas_tau3_dis_scaglioni_2026", "gas_ST_2026", "gas_VR_2026", "gas_CE_2026", "gas_UG1_Q3_2026", "gas_RS_Q3_2026", "gas_RE_Q3_2026", "gas_UG2_Q3_2026", "gas_UG3_Q3_2026", "gas_GS_domestici_zero_Q3_2026", "gas_accisa_domestica_TUA_2026", "gas_addizionale_regionale_ARISGAM_casi_verificati", "gas_QTt_Q3_2026_con_P_fatturazione_esplicito"],
+    vociNonIncluse: ["luce_ASOS_quota_fissa_non_residenti", "dispacciamento", "capacita", "accisa_luce", "IVA", "gas_addizionale_regionale_casi_non_supportati", "gas_IVA"],
     notaResidenza: "La quota fissa ASOS di 95,0916 €/POD/anno prevista per i domestici NON RESIDENTI non viene applicata perche il calcolatore non acquisisce ancora lo stato di residenza. Le componenti incluse in Step 3B sono solo quelle comuni a residenti e non residenti.",
-    notaGas: "Step 3F include rete/misura 2026, oneri gas Q3 2026, accisa nazionale domestica con regime TUA esplicito e addizionale regionale ARISGAM solo per profili territoriali verificati e scelti dall'utente. Nessuna Regione viene dedotta automaticamente dall'ambito tariffario. QTt/PCS locale, IVA e casi ARISGAM non supportati restano non stimati.",
+    notaGas: "Step 3G include anche il trasporto QTt pari a 1,931333 euro/GJ, applicato solo quando l'utente inserisce il potere calorifico convenzionale P della propria fornitura in GJ/Smc. Senza P il QTt resta non stimato. IVA e casi ARISGAM non supportati restano esclusi.",
+    urlFonteTrasportoGas: "https://www.arera.it/fileadmin/allegati/docs/26/161-2026-R-gas_Testo_integrato_100-23-AllegatoA-NuovoTIVG.pdf",
     urlFonteGas: "https://www.arera.it/consumatori/valori-rete-oneri-domestici-gas",
     urlDeliberaGas: "https://www.arera.it/atti-e-provvedimenti/dettaglio/25/574-25",
   },
-  note: "Stima comparativa annua: per la luce include rete domestica ARERA 2026 e componenti ASOS/ARIM/UC3/UC6 comuni ai domestici nel III trimestre 2026. Per il gas include rete/misura 2026, oneri UG1/RS/RE/UG2/UG3 Q3 2026, accisa nazionale solo con regime esplicito e ARISGAM solo per i profili territoriali verificati e selezionati. Restano esclusi quota fissa ASOS non residenti, dispacciamento/capacita luce, QTt/PCS locale, accisa luce, IVA e casi ARISGAM non supportati.",
+  note: "Stima comparativa annua: per la luce include rete domestica ARERA 2026 e componenti ASOS/ARIM/UC3/UC6 comuni ai domestici nel III trimestre 2026. Per il gas include rete/misura 2026, oneri UG1/RS/RE/UG2/UG3 Q3 2026, accisa nazionale con regime esplicito, ARISGAM per i profili verificati e QTt solo quando e disponibile il potere calorifico convenzionale P della fornitura. Restano esclusi quota fissa ASOS non residenti, dispacciamento/capacita luce, accisa luce, IVA e casi ARISGAM non supportati.",
 };
 let PERDITE_RETE_LUCE_VARIABILE = PARAMETRI_CALCOLO.perditeReteLuceVariabile;
 const TESTO_METODOLOGIA_CONSUMI_REALI = "I risparmi stimati sono calcolati sui consumi che hai inserito o confermato dalla bolletta. Applichiamo le condizioni economiche delle offerte allo stesso profilo di consumo, separando quota variabile e quota fissa.";
@@ -7673,6 +7681,10 @@ function calcolaComponentiRegolateGas(consumo, regolate = {}) {
   const quotaRe = calcolaQuotaScaglioniGas(consumo, regolate?.reScaglioni || []);
   const quotaUg3 = Math.max(0, numeroSicuro(consumo, 0)) * Math.max(0, numeroSicuro(regolate?.ug3EurSmc, 0));
   const quotaGs = Math.max(0, numeroSicuro(consumo, 0)) * Math.max(0, numeroSicuro(regolate?.gsDomesticiEurSmc, 0));
+  const qttEurGj = numeroSicuro(regolate?.qttEurGj, NaN);
+  const potereCalorificoGasGjSmc = numeroSicuro(regolate?.potereCalorificoGasGjSmc, NaN);
+  const qttDisponibile = Number.isFinite(qttEurGj) && qttEurGj >= 0 && Number.isFinite(potereCalorificoGasGjSmc) && potereCalorificoGasGjSmc > 0;
+  const quotaQtt = qttDisponibile ? Math.max(0, numeroSicuro(consumo, 0)) * qttEurGj * potereCalorificoGasGjSmc : 0;
   const regimeAccisa = String(regolate?.regimeAccisaGas || "").trim().toLowerCase();
   const scaglioniAccisa = regolate?.accisaDomestica?.[regimeAccisa];
   const accisaDisponibile = Array.isArray(scaglioniAccisa) && scaglioniAccisa.length > 0;
@@ -7684,7 +7696,7 @@ function calcolaComponentiRegolateGas(consumo, regolate = {}) {
   const quotaImposte = quotaAccisa + quotaAddizionaleRegionale;
   const imposteDisponibili = accisaDisponibile || arisgamDisponibile;
   const quotaFissa = quotaReteFissa + quotaUg2Fissa;
-  const quotaVariabile = quotaReteVariabile + quotaUg2Variabile + quotaUg1 + quotaRs + quotaRe + quotaUg3 + quotaGs;
+  const quotaVariabile = quotaReteVariabile + quotaUg2Variabile + quotaUg1 + quotaRs + quotaRe + quotaUg3 + quotaGs + quotaQtt;
   if (!Number.isFinite(quotaFissa) || !Number.isFinite(quotaVariabile) || quotaVariabile < 0) return null;
   return {
     ambito: ambitoKey,
@@ -7701,6 +7713,10 @@ function calcolaComponentiRegolateGas(consumo, regolate = {}) {
     quotaRe,
     quotaUg3,
     quotaGs,
+    qttEurGj,
+    potereCalorificoGasGjSmc,
+    qttDisponibile,
+    quotaQtt,
     regimeAccisa,
     accisaDisponibile,
     quotaAccisa,
@@ -8477,7 +8493,7 @@ function notaOneriFiscali(valori) {
     return "Oneri, imposte e IVA: n.n. = dato non stimato nel dettaglio, per evitare di indicare come zero una voce che puo dipendere da bolletta, regime fiscale e condizioni applicate.";
   }
   if (!componentiRegolateComplete()) {
-    return "Inclusa la parte regolata verificata disponibile: rete elettrica e componenti ASOS/ARIM/UC3/UC6 comuni ai domestici; per il gas, le componenti UG1/RS/RE/UG2/UG3 vigenti nel III trimestre 2026 sono applicate sul consumo, mentre la tariffa 2026 di distribuzione/misura richiede ambito ARERA e classe contatore. L'accisa gas domestica viene inclusa solo con scelta esplicita del regime TUA. L'addizionale regionale ARISGAM viene inclusa separatamente solo per i profili territoriali verificati e selezionati dall'utente; nessuna Regione viene dedotta dall'ambito tariffario. Restano escluse la quota fissa ASOS dei non residenti, dispacciamento/capacita luce, trasporto gas QTt legato al PCS locale, accisa luce, IVA e i casi ARISGAM non supportati.";
+    return "Inclusa la parte regolata verificata disponibile: rete elettrica e componenti ASOS/ARIM/UC3/UC6 comuni ai domestici; per il gas, le componenti UG1/RS/RE/UG2/UG3 vigenti nel III trimestre 2026 sono applicate sul consumo, mentre la tariffa 2026 di distribuzione/misura richiede ambito ARERA e classe contatore. L'accisa gas domestica viene inclusa solo con scelta esplicita del regime TUA. L'addizionale regionale ARISGAM viene inclusa separatamente solo per i profili territoriali verificati e selezionati dall'utente; nessuna Regione viene dedotta dall'ambito tariffario. Il trasporto gas QTt viene incluso solo se e stato inserito il potere calorifico convenzionale P della fornitura; senza P resta non stimato. Restano escluse la quota fissa ASOS dei non residenti, dispacciamento/capacita luce, accisa luce, IVA e i casi ARISGAM non supportati.";
   }
   return "";
 }
@@ -9002,6 +9018,7 @@ function componentiRegolateMaster(commodity) {
     ...base,
     ambitoTariffario: normalizzaAmbitoTariffarioGas(leggiValore("master-gas-regione", PARAMETRI_CALCOLO.profiloMedio.regioneGas || "")),
     classeContatore: leggiValore("master-gas-contatore", PARAMETRI_CALCOLO.profiloMedio.classeContatoreGas || ""),
+    potereCalorificoGasGjSmc: leggiNumero("master-gas-pcs", numeroSicuro(PARAMETRI_CALCOLO.profiloMedio.potereCalorificoGasGjSmc, NaN)),
     regimeAccisaGas: leggiValore("master-gas-accisa", PARAMETRI_CALCOLO.profiloMedio.regimeAccisaGas || ""),
     regimeArisgamGas: leggiValore("master-gas-arisgam", PARAMETRI_CALCOLO.profiloMedio.regimeArisgamGas || ""),
   };
@@ -9029,6 +9046,7 @@ function leggiProfiloComparazione() {
     electricityDecision: LEAD_STATE.electricityDecision || "",
     regioneGas: usaGas ? leggiValore("master-gas-regione", PARAMETRI_CALCOLO.profiloMedio.regioneGas) : "",
     classeContatoreGas: usaGas ? leggiValore("master-gas-contatore", PARAMETRI_CALCOLO.profiloMedio.classeContatoreGas || "") : "",
+    potereCalorificoGasGjSmc: usaGas ? leggiNumero("master-gas-pcs", numeroSicuro(PARAMETRI_CALCOLO.profiloMedio.potereCalorificoGasGjSmc, 0)) : 0,
     regimeAccisaGas: usaGas ? leggiValore("master-gas-accisa", PARAMETRI_CALCOLO.profiloMedio.regimeAccisaGas || "") : "",
     regimeArisgamGas: usaGas ? leggiValore("master-gas-arisgam", PARAMETRI_CALCOLO.profiloMedio.regimeArisgamGas || "") : "",
     potenzaKw: usaLuce ? leggiNumero("master-luce-potenza", PARAMETRI_CALCOLO.profiloMedio.potenzaKw) : 0,
@@ -16192,6 +16210,7 @@ window.azzeraPdfEModulo = function azzeraPdfEModulo() {
   applicaAmbitoConfronto(PARAMETRI_CALCOLO.profiloMedio.tipoFornitura);
   setField("master-gas-regione", PARAMETRI_CALCOLO.profiloMedio.regioneGas);
   setField("master-gas-contatore", PARAMETRI_CALCOLO.profiloMedio.classeContatoreGas || "");
+  setField("master-gas-pcs", PARAMETRI_CALCOLO.profiloMedio.potereCalorificoGasGjSmc || "");
   setField("master-gas-accisa", PARAMETRI_CALCOLO.profiloMedio.regimeAccisaGas || "");
   setField("master-gas-arisgam", PARAMETRI_CALCOLO.profiloMedio.regimeArisgamGas || "");
 
@@ -16728,6 +16747,7 @@ function applicaDatiPdfAlModulo(data) {
     setField("master-tipo-fornitura", PARAMETRI_CALCOLO.profiloMedio.tipoFornitura);
     setField("master-gas-regione", PARAMETRI_CALCOLO.profiloMedio.regioneGas);
     setField("master-gas-contatore", PARAMETRI_CALCOLO.profiloMedio.classeContatoreGas || "");
+    setField("master-gas-pcs", PARAMETRI_CALCOLO.profiloMedio.potereCalorificoGasGjSmc || "");
     setField("master-gas-accisa", PARAMETRI_CALCOLO.profiloMedio.regimeAccisaGas || "");
   setField("master-gas-arisgam", PARAMETRI_CALCOLO.profiloMedio.regimeArisgamGas || "");
     setField("in-luce-tipo-att", PARAMETRI_CALCOLO.profiloMedio.tipoPrezzo);
@@ -17693,6 +17713,8 @@ if (document.readyState === "loading") {
               if(document.getElementById("master-gas-consumo")) document.getElementById("master-gas-consumo").value = String(PARAMETRI_CALCOLO.profiloMedio.gasConsumoSmc);
               if(document.getElementById("master-tipo-fornitura")) document.getElementById("master-tipo-fornitura").value = PARAMETRI_CALCOLO.profiloMedio.tipoFornitura;
               if(document.getElementById("master-gas-regione")) document.getElementById("master-gas-regione").value = PARAMETRI_CALCOLO.profiloMedio.regioneGas;
+              if(document.getElementById("master-gas-contatore")) document.getElementById("master-gas-contatore").value = PARAMETRI_CALCOLO.profiloMedio.classeContatoreGas || "";
+              if(document.getElementById("master-gas-pcs")) document.getElementById("master-gas-pcs").value = PARAMETRI_CALCOLO.profiloMedio.potereCalorificoGasGjSmc || "";
               if(document.getElementById("master-gas-accisa")) document.getElementById("master-gas-accisa").value = PARAMETRI_CALCOLO.profiloMedio.regimeAccisaGas || "";
               if(document.getElementById("master-gas-arisgam")) document.getElementById("master-gas-arisgam").value = PARAMETRI_CALCOLO.profiloMedio.regimeArisgamGas || "";
 
