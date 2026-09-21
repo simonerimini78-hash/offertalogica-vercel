@@ -18,24 +18,25 @@
     },
     "componentiProfilo": {
       "potenzaLuceAnnua": {
-        "3": 0,
-        "4.5": 32,
-        "6": 64
+        "3": 70.56,
+        "4.5": 105.84,
+        "6": 141.12
       },
       "ambitoGasAnnua": {
         "": 0,
         "nord-ovest": 0,
-        "nord-est": 8,
-        "centro": 15,
-        "sud": 25,
-        "sicilia": 35,
-        "sardegna": 35
+        "nord-est": 0,
+        "centro": 0,
+        "sud": 0,
+        "sicilia": 0,
+        "sardegna": 0
       }
     },
     "componentiRegolate": {
       "luce": {
-        "variabileEurUnita": 0,
-        "fissaAnnua": 0,
+        "variabileEurUnita": 0.0119,
+        "fissaAnnua": 23.04,
+        "potenzaEurKwAnno": 23.52,
         "imposteEurUnita": 0,
         "ivaPercentuale": 0
       },
@@ -46,7 +47,7 @@
         "ivaPercentuale": 0
       }
     },
-    "note": "Stima comparativa annua sulle componenti disponibili. Oneri, imposte e IVA puntuali sono indicati come n.n. quando non stimati nel dettaglio. Le componenti di profilo sono applicate in modo omogeneo a tutti gli scenari.",
+    "note": "Stima comparativa annua: per la luce include le componenti di rete domestiche ARERA 2026 s1, s2 e s3. Oneri di sistema, dispacciamento/capacita, imposte, IVA e componenti gas restano non valorizzati finche non sono rappresentabili con dati ufficiali puntuali.",
     "profiloConsumiFonte": {
       "fonte": "ARERA - Monitoraggio Retail - Offerte e prezzi",
       "urlFonte": "https://www.arera.it/rapporti-e-relazioni/monitoraggio-retail/monitoraggio-retail-offerte-e-prezzi",
@@ -67,6 +68,36 @@
       "luceConsumoKwh": 2700,
       "gasConsumoSmc": 1400,
       "potenzaKw": "3"
+    },
+    "componentiRegolateMeta": {
+      "stato": "parziale_verificato",
+      "periodo": "2026",
+      "acquisitoIl": "2026-09-21",
+      "delibera": "575/2025/R/eel",
+      "fonte": "ARERA - Tariffe trasmissione, distribuzione e misura - clienti domestici",
+      "urlFonte": "https://www.arera.it/area-operatori/prezzi-e-tariffe/tariffe-trasmissione-distribuzione-e-misura-clienti-domestici",
+      "vociIncluse": [
+        "luce_s1_quota_fissa",
+        "luce_s2_quota_potenza",
+        "luce_s3_quota_energia"
+      ],
+      "vociNonIncluse": [
+        "ASOS",
+        "ARIM",
+        "UC3",
+        "UC6",
+        "dispacciamento",
+        "capacita",
+        "accisa",
+        "IVA",
+        "gas"
+      ],
+      "valoriLuce2026": {
+        "s1EurPodAnno": 23.04,
+        "s2EurKwAnno": 23.52,
+        "s3EurKwh": 0.0119
+      },
+      "notaGas": "Le precedenti maggiorazioni annue regionali interne sono disattivate: la tariffa gas ARERA 2026 richiede ambiti tariffari e componenti/scaglioni dedicati e non e rappresentabile come maggiorazione fissa generica."
     }
   },
   "indiciMercato": {

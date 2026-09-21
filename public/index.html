@@ -5283,7 +5283,7 @@ function avviaComparazioneDati() {
 }
 </script>
 <script>
-let MOTORE_CALCOLO_VERSION = "motore-v6-arera-first-2026-07-03";
+let MOTORE_CALCOLO_VERSION = "motore-v7-rete-luce-arera-2026-09-21";
 const DATI_CALCOLO_URLS = ["/data/calcolo-parametri.json", "data/calcolo-parametri.json"];
 const DATI_OFFERTE_URLS = ["/data/offerte-proposte.json", "data/offerte-proposte.json"];
 const DATI_ARERA_MENU_URLS = ["/data/offerte-arera-menu.json", "data/offerte-arera-menu.json"];
@@ -5343,24 +5343,25 @@ let PARAMETRI_CALCOLO = {
   },
   componentiProfilo: {
     potenzaLuceAnnua: {
-      "3": 0,
-      "4.5": 32,
-      "6": 64,
+      "3": 70.56,
+      "4.5": 105.84,
+      "6": 141.12,
     },
     ambitoGasAnnua: {
       "": 0,
       "nord-ovest": 0,
-      "nord-est": 8,
-      centro: 15,
-      sud: 25,
-      sicilia: 35,
-      sardegna: 35,
+      "nord-est": 0,
+      centro: 0,
+      sud: 0,
+      sicilia: 0,
+      sardegna: 0,
     },
   },
   componentiRegolate: {
     luce: {
-      variabileEurUnita: 0,
-      fissaAnnua: 0,
+      variabileEurUnita: 0.0119,
+      fissaAnnua: 23.04,
+      potenzaEurKwAnno: 23.52,
       imposteEurUnita: 0,
       ivaPercentuale: 0,
     },
@@ -5371,7 +5372,18 @@ let PARAMETRI_CALCOLO = {
       ivaPercentuale: 0,
     },
   },
-  note: "Stima comparativa annua sulle componenti disponibili. Oneri, imposte e IVA puntuali sono indicati come n.n. quando non stimati nel dettaglio. Le componenti di profilo sono applicate in modo omogeneo a tutti gli scenari.",
+  componentiRegolateMeta: {
+    stato: "parziale_verificato",
+    periodo: "2026",
+    acquisitoIl: "2026-09-21",
+    delibera: "575/2025/R/eel",
+    fonte: "ARERA - Tariffe trasmissione, distribuzione e misura - clienti domestici",
+    urlFonte: "https://www.arera.it/area-operatori/prezzi-e-tariffe/tariffe-trasmissione-distribuzione-e-misura-clienti-domestici",
+    vociIncluse: ["luce_s1_quota_fissa", "luce_s2_quota_potenza", "luce_s3_quota_energia"],
+    vociNonIncluse: ["ASOS", "ARIM", "UC3", "UC6", "dispacciamento", "capacita", "accisa", "IVA", "gas"],
+    notaGas: "Le precedenti maggiorazioni annue regionali interne sono disattivate: la tariffa gas ARERA 2026 richiede ambiti tariffari e componenti/scaglioni dedicati e non e rappresentabile come maggiorazione fissa generica.",
+  },
+  note: "Stima comparativa annua: per la luce include le componenti di rete domestiche ARERA 2026 s1, s2 e s3. Oneri di sistema, dispacciamento/capacita, imposte, IVA e componenti gas restano non valorizzati finche non sono rappresentabili con dati ufficiali puntuali.",
 };
 let PERDITE_RETE_LUCE_VARIABILE = PARAMETRI_CALCOLO.perditeReteLuceVariabile;
 const TESTO_METODOLOGIA_CONSUMI_REALI = "I risparmi stimati sono calcolati sui consumi che hai inserito o confermato dalla bolletta. Applichiamo le condizioni economiche delle offerte allo stesso profilo di consumo, separando quota variabile e quota fissa.";
@@ -7064,19 +7076,27 @@ function calcolaVoceEnergia({ consumo = 0, prezzoVariabile = 0, formula, consumi
   const materiaFasce = commodity === "luce" ? calcolaMateriaPerFasce(consumiFasce, prezziFasce) : null;
   const consumoFatturatoBase = materiaFasce?.consumoFatturato ?? consumoProfilo;
   const consumoFatturato = consumoFatturatoBase * fattorePerdite;
+  const consumoRegolato = consumoFatturatoBase;
   const quotaMateria = materiaFasce ? materiaFasce.quotaMateria * fattorePerdite : consumoFatturato * prezzoCalcolo;
   const quotaFissaVendita = numeroSicuro(quotaFissaAnnua, 0);
   const quotaTecnicaProfilo = Math.max(0, numeroSicuro(quoteUniversaliAnnue, 0));
   const regolate = componentiRegolate || componentiRegolateVuote();
-  const quotaRegolataVariabile = consumoFatturato * Math.max(0, numeroSicuro(regolate.variabileEurUnita, 0));
-  const quotaImposte = consumoFatturato * Math.max(0, numeroSicuro(regolate.imposteEurUnita, 0));
+  const quotaRegolataVariabile = consumoRegolato * Math.max(0, numeroSicuro(regolate.variabileEurUnita, 0));
+  const quotaImposte = consumoRegolato * Math.max(0, numeroSicuro(regolate.imposteEurUnita, 0));
   const quotaRegolataFissa = Math.max(0, numeroSicuro(regolate.fissaAnnua, 0));
   const imponibile = quotaMateria + quotaFissaVendita + quotaTecnicaProfilo + quotaRegolataVariabile + quotaRegolataFissa + quotaImposte;
   const quotaIva = imponibile * Math.max(0, numeroSicuro(regolate.ivaPercentuale, 0));
   const quotaRegolata = quotaRegolataVariabile + quotaRegolataFissa;
   const quotaFissa = quotaFissaVendita + quotaTecnicaProfilo + quotaRegolataFissa;
   const quotaFiscale = quotaImposte + quotaIva;
-  return { commodity, consumo: consumoProfilo, consumoFatturato, tipoPrezzo: tipoVoce, modalitaPrezzo: materiaFasce?.modalitaPrezzo || (formula?.tipo || "single_price"), fattorePerdite, prezzoVariabile: prezzoCalcolo, quotaMateria, quotaVariabile: quotaMateria, quotaFissaVendita, quotaTecnicaProfilo, quotaRegolata, quotaRegolataVariabile, quotaRegolataFissa, quotaImposte, quotaIva, quotaFiscale, quotaFissa, totale: imponibile + quotaIva };
+  const componentiRegolateDisponibiliVoce = [
+    regolate.variabileEurUnita,
+    regolate.fissaAnnua,
+    regolate.potenzaEurKwAnno,
+    regolate.imposteEurUnita,
+    regolate.ivaPercentuale,
+  ].some((value) => Math.abs(numeroSicuro(value, 0)) > 0) || quotaTecnicaProfilo > 0;
+  return { commodity, consumo: consumoProfilo, consumoFatturato, consumoRegolato, tipoPrezzo: tipoVoce, modalitaPrezzo: materiaFasce?.modalitaPrezzo || (formula?.tipo || "single_price"), fattorePerdite, prezzoVariabile: prezzoCalcolo, quotaMateria, quotaVariabile: quotaMateria, quotaFissaVendita, quotaTecnicaProfilo, quotaRegolata, quotaRegolataVariabile, quotaRegolataFissa, quotaImposte, quotaIva, quotaFiscale, quotaFissa, componentiRegolateDisponibili: componentiRegolateDisponibiliVoce, totale: imponibile + quotaIva };
 }
 
 function testoAreraNormalizzato(value) {
@@ -7299,6 +7319,7 @@ function calcolaOfferta(offerta, tipoTariffa) {
     quotaIva: luce.quotaIva + gas.quotaIva,
     quotaFiscale: luce.quotaFiscale + gas.quotaFiscale,
     quotaFissa: luce.quotaFissa + gas.quotaFissa,
+    componentiRegolateDisponibili: Boolean(luce.componentiRegolateDisponibili || gas.componentiRegolateDisponibili),
     scontoArera: numeroSicuro(luce.scontoArera, 0) + numeroSicuro(gas.scontoArera, 0) + scontoDualArera,
     totale: Math.max(0, luce.totale + gas.totale - scontoDualArera),
   };
@@ -7443,6 +7464,7 @@ function calcolaDifferenza(offertaAttuale, offertaConfronto, tipoTariffaAttuale,
       quotaIva: attuale.quotaIva - confronto.quotaIva,
       quotaFiscale: attuale.quotaFiscale - confronto.quotaFiscale,
       quotaFissa: attuale.quotaFissa - confronto.quotaFissa,
+      componentiRegolateDisponibili: Boolean(attuale.componentiRegolateDisponibili || confronto.componentiRegolateDisponibili),
       scontoArera: numeroSicuro(attuale.scontoArera, 0) - numeroSicuro(confronto.scontoArera, 0),
       totale: attuale.totale - confronto.totale,
     },
@@ -7772,19 +7794,40 @@ function componentiRegolateDisponibili() {
     return [
       valori.variabileEurUnita,
       valori.fissaAnnua,
+      valori.potenzaEurKwAnno,
       valori.imposteEurUnita,
       valori.ivaPercentuale,
     ].some((value) => Math.abs(numeroSicuro(value, 0)) > 0);
   });
 }
 
-function euroOneriFiscali(value) {
-  return componentiRegolateDisponibili() ? euro(value) : "n.n.";
+function componentiRegolateComplete() {
+  return String(PARAMETRI_CALCOLO.componentiRegolateMeta?.stato || "").trim().toLowerCase() === "completo_verificato";
 }
 
-function notaOneriFiscali() {
-  if (componentiRegolateDisponibili()) return "";
-  return " Oneri, imposte e IVA: n.n. = dato non stimato nel dettaglio, per evitare di indicare come zero una voce che puo dipendere da bolletta, regime fiscale e condizioni applicate.";
+function componentiRegolatePresentiNelCosto(valori) {
+  if (typeof valori?.componentiRegolateDisponibili === "boolean") return valori.componentiRegolateDisponibili;
+  return componentiRegolateDisponibili();
+}
+
+function etichettaOneriFiscali(valori) {
+  if (!componentiRegolatePresentiNelCosto(valori) || componentiRegolateComplete()) return "Oneri, imposte e IVA";
+  return "Rete/regolate incluse (parziale)";
+}
+
+function euroOneriFiscali(value, valori) {
+  if (!componentiRegolatePresentiNelCosto(valori)) return "n.n.";
+  return componentiRegolateComplete() ? euro(value) : `${euro(value)} (parziale)`;
+}
+
+function notaOneriFiscali(valori) {
+  if (!componentiRegolatePresentiNelCosto(valori)) {
+    return "Oneri, imposte e IVA: n.n. = dato non stimato nel dettaglio, per evitare di indicare come zero una voce che puo dipendere da bolletta, regime fiscale e condizioni applicate.";
+  }
+  if (!componentiRegolateComplete()) {
+    return "Inclusa solo la parte regolata verificata indicata nei dati; oneri di sistema, altre componenti regolate, imposte e IVA restano esclusi finche non sono calcolabili puntualmente.";
+  }
+  return "";
 }
 
 function setDisplay(selector, display) {
@@ -8291,6 +8334,8 @@ window.apriLeadBusiness = function apriLeadBusiness() {
 function maggiorazioneMaster(commodity) {
   if (commodity === "luce") {
     const potenza = leggiValore("master-luce-potenza", "3");
+    const quotaPotenza = numeroSicuro(PARAMETRI_CALCOLO.componentiRegolate?.luce?.potenzaEurKwAnno, 0);
+    if (quotaPotenza > 0) return Math.max(0, numeroSicuro(potenza, 0)) * quotaPotenza;
     return PARAMETRI_MASTER.potenzaLuce[potenza] || 0;
   }
 
@@ -8662,7 +8707,7 @@ function rigaComparazione(label, valori) {
       <td style="padding:8px; border-bottom:1px solid #e2e8f0; text-align:right;">${euro(valori.quotaVariabile)}</td>
       <td style="padding:8px; border-bottom:1px solid #e2e8f0; text-align:right;">${euro(valori.quotaFissaVendita)}</td>
       <td style="padding:8px; border-bottom:1px solid #e2e8f0; text-align:right;">${euro(valori.quotaTecnicaProfilo)}</td>
-      <td style="padding:8px; border-bottom:1px solid #e2e8f0; text-align:right;">${euroOneriFiscali((valori.quotaRegolata || 0) + (valori.quotaFiscale || 0))}</td>
+      <td style="padding:8px; border-bottom:1px solid #e2e8f0; text-align:right;">${euroOneriFiscali((valori.quotaRegolata || 0) + (valori.quotaFiscale || 0), valori)}</td>
       <td style="padding:8px; border-bottom:1px solid #e2e8f0; text-align:right; font-weight:800;">${euro(valori.totale)}</td>
     </tr>
   `;
@@ -8686,7 +8731,7 @@ function renderComparazione(areaRisultati, confrontoNuova) {
           <th style="padding:8px; text-align:right;">Materia/variabile</th>
           <th style="padding:8px; text-align:right;">Fissa vendita</th>
           <th style="padding:8px; text-align:right;">Potenza/ambito</th>
-          <th style="padding:8px; text-align:right;">Oneri, imposte e IVA</th>
+          <th style="padding:8px; text-align:right;">${etichettaOneriFiscali(confrontoNuova.attuale)}</th>
           <th style="padding:8px; text-align:right;">Totale</th>
         </tr>
       </thead>
@@ -8696,6 +8741,7 @@ function renderComparazione(areaRisultati, confrontoNuova) {
         ${rigaComparazione("Differenza", confrontoNuova.differenza)}
       </tbody>
     </table>
+    ${notaOneriFiscali(confrontoNuova.attuale) ? `<small style="display:block; margin-top:8px; color:#64748b;">${testoHtmlSicuro(notaOneriFiscali(confrontoNuova.attuale))}</small>` : ""}
   `;
 }
 
@@ -10566,7 +10612,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
             <p>${testoHtmlSicuro(dettagliOfferta(offerta))}</p>
             ${alternativeNote}
             ${promozioniHtml}
-            <small>Materia energia/gas: ${euro(costoOfferta.quotaVariabile)} · Fissa vendita: ${euro(costoOfferta.quotaFissaVendita)} · Potenza/ambito: ${euro(costoOfferta.quotaTecnicaProfilo)} · Oneri, imposte e IVA: ${euroOneriFiscali(costoOfferta.quotaRegolata + costoOfferta.quotaFiscale)}</small>
+            <small>Materia energia/gas: ${euro(costoOfferta.quotaVariabile)} · Fissa vendita: ${euro(costoOfferta.quotaFissaVendita)} · Potenza/ambito: ${euro(costoOfferta.quotaTecnicaProfilo)} · ${etichettaOneriFiscali(costoOfferta)}: ${euroOneriFiscali(costoOfferta.quotaRegolata + costoOfferta.quotaFiscale, costoOfferta)}</small>
           </div>
         </details>`;
       saving.style.color = risparmio ? "var(--primary)" : "var(--danger)";
