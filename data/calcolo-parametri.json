@@ -16,7 +16,8 @@
       "tipoPrezzo": "fisso",
       "tipoFornitura": "dual",
       "classeContatoreGas": "",
-      "regimeAccisaGas": ""
+      "regimeAccisaGas": "",
+      "regimeArisgamGas": ""
     },
     "componentiProfilo": {
       "potenzaLuceAnnua": {
@@ -508,10 +509,318 @@
               "eurSmc": 0.15
             }
           ]
+        },
+        "addizionaleRegionaleDomestica": {
+          "abruzzo-ordinario": [
+            {
+              "finoSmc": 120,
+              "eurSmc": 0.019
+            },
+            {
+              "finoSmc": 480,
+              "eurSmc": 0.023241
+            },
+            {
+              "finoSmc": 1560,
+              "eurSmc": 0.025823
+            },
+            {
+              "finoSmc": null,
+              "eurSmc": 0.025823
+            }
+          ],
+          "abruzzo-clima-ef": [
+            {
+              "finoSmc": 120,
+              "eurSmc": 0.01033
+            },
+            {
+              "finoSmc": 480,
+              "eurSmc": 0.01033
+            },
+            {
+              "finoSmc": 1560,
+              "eurSmc": 0.01033
+            },
+            {
+              "finoSmc": null,
+              "eurSmc": 0.01033
+            }
+          ],
+          "basilicata": [
+            {
+              "finoSmc": 120,
+              "eurSmc": 0.019
+            },
+            {
+              "finoSmc": 480,
+              "eurSmc": 0.0258228
+            },
+            {
+              "finoSmc": 1560,
+              "eurSmc": 0.0258228
+            },
+            {
+              "finoSmc": null,
+              "eurSmc": 0.0258228
+            }
+          ],
+          "campania": [
+            {
+              "finoSmc": 120,
+              "eurSmc": 0.019
+            },
+            {
+              "finoSmc": 480,
+              "eurSmc": 0.031
+            },
+            {
+              "finoSmc": 1560,
+              "eurSmc": 0.031
+            },
+            {
+              "finoSmc": null,
+              "eurSmc": 0.031
+            }
+          ],
+          "emilia-romagna": [
+            {
+              "finoSmc": 120,
+              "eurSmc": 0.022
+            },
+            {
+              "finoSmc": 480,
+              "eurSmc": 0.0309874
+            },
+            {
+              "finoSmc": 1560,
+              "eurSmc": 0.0309874
+            },
+            {
+              "finoSmc": null,
+              "eurSmc": 0.0309874
+            }
+          ],
+          "lazio-centro-nord": [
+            {
+              "finoSmc": 120,
+              "eurSmc": 0.022
+            },
+            {
+              "finoSmc": 480,
+              "eurSmc": 0.03099
+            },
+            {
+              "finoSmc": 1560,
+              "eurSmc": 0.03099
+            },
+            {
+              "finoSmc": null,
+              "eurSmc": 0.03099
+            }
+          ],
+          "lazio-mezzogiorno": [
+            {
+              "finoSmc": 120,
+              "eurSmc": 0.019
+            },
+            {
+              "finoSmc": 480,
+              "eurSmc": 0.03099
+            },
+            {
+              "finoSmc": 1560,
+              "eurSmc": 0.03099
+            },
+            {
+              "finoSmc": null,
+              "eurSmc": 0.03099
+            }
+          ],
+          "liguria-cd": [
+            {
+              "finoSmc": 120,
+              "eurSmc": 0.022
+            },
+            {
+              "finoSmc": 480,
+              "eurSmc": 0.0258
+            },
+            {
+              "finoSmc": 1560,
+              "eurSmc": 0.0258
+            },
+            {
+              "finoSmc": null,
+              "eurSmc": 0.0258
+            }
+          ],
+          "liguria-e": [
+            {
+              "finoSmc": 120,
+              "eurSmc": 0.0155
+            },
+            {
+              "finoSmc": 480,
+              "eurSmc": 0.0155
+            },
+            {
+              "finoSmc": 1560,
+              "eurSmc": 0.0155
+            },
+            {
+              "finoSmc": null,
+              "eurSmc": 0.0155
+            }
+          ],
+          "liguria-f": [
+            {
+              "finoSmc": 120,
+              "eurSmc": 0.0103
+            },
+            {
+              "finoSmc": 480,
+              "eurSmc": 0.0103
+            },
+            {
+              "finoSmc": 1560,
+              "eurSmc": 0.0103
+            },
+            {
+              "finoSmc": null,
+              "eurSmc": 0.0103
+            }
+          ],
+          "lombardia": [
+            {
+              "finoSmc": 120,
+              "eurSmc": 0.0
+            },
+            {
+              "finoSmc": 480,
+              "eurSmc": 0.0
+            },
+            {
+              "finoSmc": 1560,
+              "eurSmc": 0.0
+            },
+            {
+              "finoSmc": null,
+              "eurSmc": 0.0
+            }
+          ],
+          "marche": [
+            {
+              "finoSmc": 120,
+              "eurSmc": 0.0155
+            },
+            {
+              "finoSmc": 480,
+              "eurSmc": 0.0181
+            },
+            {
+              "finoSmc": 1560,
+              "eurSmc": 0.0207
+            },
+            {
+              "finoSmc": null,
+              "eurSmc": 0.0258
+            }
+          ],
+          "piemonte-ordinario": [
+            {
+              "finoSmc": 120,
+              "eurSmc": 0.022
+            },
+            {
+              "finoSmc": 480,
+              "eurSmc": 0.0258
+            },
+            {
+              "finoSmc": 1560,
+              "eurSmc": 0.0258
+            },
+            {
+              "finoSmc": null,
+              "eurSmc": 0.0258
+            }
+          ],
+          "puglia": [
+            {
+              "finoSmc": 120,
+              "eurSmc": 0.019
+            },
+            {
+              "finoSmc": 480,
+              "eurSmc": 0.03098
+            },
+            {
+              "finoSmc": 1560,
+              "eurSmc": 0.03098
+            },
+            {
+              "finoSmc": null,
+              "eurSmc": 0.03098
+            }
+          ],
+          "toscana": [
+            {
+              "finoSmc": 120,
+              "eurSmc": 0.022
+            },
+            {
+              "finoSmc": 480,
+              "eurSmc": 0.030987
+            },
+            {
+              "finoSmc": 1560,
+              "eurSmc": 0.030987
+            },
+            {
+              "finoSmc": null,
+              "eurSmc": 0.030987
+            }
+          ],
+          "umbria": [
+            {
+              "finoSmc": 120,
+              "eurSmc": 0.005165
+            },
+            {
+              "finoSmc": 480,
+              "eurSmc": 0.005165
+            },
+            {
+              "finoSmc": 1560,
+              "eurSmc": 0.005165
+            },
+            {
+              "finoSmc": null,
+              "eurSmc": 0.005165
+            }
+          ],
+          "veneto": [
+            {
+              "finoSmc": 120,
+              "eurSmc": 0.007747
+            },
+            {
+              "finoSmc": 480,
+              "eurSmc": 0.023241
+            },
+            {
+              "finoSmc": 1560,
+              "eurSmc": 0.025823
+            },
+            {
+              "finoSmc": null,
+              "eurSmc": 0.030987
+            }
+          ]
         }
       }
     },
-    "note": "Stima comparativa annua: per la luce include rete domestica ARERA 2026 e componenti ASOS/ARIM/UC3/UC6 comuni ai domestici nel III trimestre 2026. Per il gas include tariffa obbligatoria 2026 di distribuzione/misura, oneri UG1/RS/RE/UG2/UG3 Q3 2026 e, solo con scelta esplicita del regime fiscale, l'accisa nazionale domestica a scaglioni. Restano esclusi i corrispettivi non ancora modellati puntualmente (quota fissa ASOS non residenti, dispacciamento/capacita luce, trasporto gas QTt/PCS locale, accisa luce, addizionale regionale gas e IVA).",
+    "note": "Stima comparativa annua: per la luce include rete domestica ARERA 2026 e componenti ASOS/ARIM/UC3/UC6 comuni ai domestici nel III trimestre 2026. Per il gas include tariffa obbligatoria 2026 di distribuzione/misura, oneri UG1/RS/RE/UG2/UG3 Q3 2026, accisa nazionale domestica solo con regime esplicito e addizionale regionale ARISGAM solo per i casi territoriali verificati e selezionati esplicitamente. Restano esclusi i corrispettivi non ancora modellati puntualmente (quota fissa ASOS non residenti, dispacciamento/capacita luce, trasporto gas QTt/PCS locale, accisa luce, IVA e casi ARISGAM non verificati/supportati).",
     "profiloConsumiFonte": {
       "fonte": "ARERA - Monitoraggio Retail - Offerte e prezzi",
       "urlFonte": "https://www.arera.it/rapporti-e-relazioni/monitoraggio-retail/monitoraggio-retail-offerte-e-prezzi",
@@ -562,7 +871,8 @@
         "gas_UG2_Q3_2026",
         "gas_UG3_Q3_2026",
         "gas_GS_domestici_zero_Q3_2026",
-        "gas_accisa_domestica_TUA_2026"
+        "gas_accisa_domestica_TUA_2026",
+        "gas_addizionale_regionale_ARISGAM_casi_verificati"
       ],
       "vociNonIncluse": [
         "luce_ASOS_quota_fissa_non_residenti",
@@ -570,9 +880,9 @@
         "capacita",
         "accisa",
         "IVA",
-        "gas_addizionale_regionale",
         "gas_IVA",
-        "gas_trasporto_QTt_PCS_locale"
+        "gas_trasporto_QTt_PCS_locale",
+        "gas_addizionale_regionale_casi_non_supportati"
       ],
       "valoriLuce2026": {
         "s1EurPodAnno": 23.04,
@@ -587,7 +897,7 @@
         "variabileComuneApplicataEurKwh": 0.047883,
         "potenzaComuneApplicataEurKwAnno": 23.7188
       },
-      "notaGas": "Step 3D include la tariffa obbligatoria 2026 di distribuzione/misura e le componenti gas UG1, RS, RE, UG2 e UG3 vigenti nel III trimestre 2026. Per i clienti domestici GS e pari a zero. Il trasporto QTt resta escluso perche la conversione da euro/GJ richiede il PCS locale della fornitura; accise, addizionale regionale e IVA restano escluse finche non sono modellate puntualmente.",
+      "notaGas": "Step 3F include, oltre alla rete/oneri e all accisa nazionale gia modellati, l addizionale regionale ARISGAM solo per profili territoriali verificati su fonti regionali istituzionali e selezionati esplicitamente. Nessuna Regione viene dedotta automaticamente dall ambito tariffario ARERA. Il trasporto QTt resta escluso perche la conversione da euro/GJ richiede il PCS locale; IVA e casi ARISGAM non supportati restano non stimati.",
       "periodoRete": "2026",
       "periodoOneri": "2026-07-01/2026-09-30",
       "urlFonteOneri": "https://www.arera.it/area-operatori/prezzi-e-tariffe/oneri-generali-di-sistema-e-ulteriori-componenti",
@@ -620,7 +930,7 @@
       },
       "urlFonteAccise": "https://www.adm.gov.it/portale/aliquote-accisa-nazionali",
       "urlFonteNormativaAccisaGas": "https://www.normattiva.it/eli/id/2026/06/27/26A03280/ORIGINAL",
-      "notaAccisaGas": "Step 3E include l'accisa nazionale sul gas naturale per usi domestici secondo gli scaglioni vigenti del TUA 2026. Il calcolo richiede una scelta esplicita tra regime ordinario e regime agevolato per i territori DPR 218/1978; senza scelta non viene applicata alcuna accisa presunta. Addizionale regionale e IVA restano escluse.",
+      "notaAccisaGas": "L accisa nazionale sul gas naturale per usi domestici e applicata solo con scelta esplicita del regime TUA. Step 3F aggiunge separatamente l ARISGAM regionale per i soli profili verificati; senza scelta del profilo regionale non viene applicata alcuna addizionale presunta. IVA resta esclusa.",
       "valoriAccisaGas2026": {
         "ordinarioEurSmc": [
           0.044,
@@ -639,6 +949,126 @@
           480,
           1560,
           null
+        ]
+      },
+      "notaArisgamGas": "Profili ARISGAM verificati su fonti istituzionali regionali: Abruzzo (ordinario o zone climatiche E/F), Basilicata, Campania, Emilia-Romagna, Lazio (Centro-Nord o territori Mezzogiorno), Liguria (zone C-D, E o F), Lombardia (tributo disapplicato), Marche, Piemonte ordinario, Puglia, Toscana, Umbria e Veneto. Calabria, Molise, Regioni a statuto speciale e casi agevolati/speciali non sono calcolati finche non sono verificati in modo puntuale. Piemonte nuovi allacciamenti agevolati esclusi dal profilo ordinario.",
+      "urlFontiArisgamGas": {
+        "abruzzo": "https://www.regione.abruzzo.it/argomenti/bilanci-tributi-e-tasse/tributi-e-tasse-regionali/altri-tributi/addizionale-regionale-all-accisa-sul-gas-naturale",
+        "basilicata": "https://www.regione.basilicata.it/?temi-prsf=tributi%2Faddizionale-regionale-allaccisa-sul-gas-naturale-arisgan",
+        "campania": "https://entrate.regione.campania.it/fr/arisgan",
+        "emiliaRomagna": "https://finanze.regione.emilia-romagna.it/tributi-regionali/imposte/arisgam/quanto-come-e-quando-si-paga",
+        "lazio": "https://www.regione.lazio.it/tributi-regionali/altri-tributi/addizionale-regionale-gas-naturale",
+        "liguria": "https://www.regione.liguria.it/homepage-pagamenti-online-imposte/cosa-cerchi/addizionale-regionale-accisa-sul-gas-naturale-ex-arisgam/pagamenti-gas-naturale.html",
+        "lombardia": "https://www.regione.lombardia.it/bollo-auto-e-tributi-regionali/tributi-regionali-disapplicati-o-sospesi",
+        "marche": "https://www.regione.marche.it/Regione-Utile/Finanze-e-Tributi/Addizionale-regionale-accisa-gas-naturale",
+        "piemonte": "https://www.regione.piemonte.it/web/temi/tributi/addizionali-regionali/addizionale-regionale-allaccisa-sul-gas-naturale",
+        "puglia": "https://fatturazione-elettronica.regione.puglia.it/it/web/tributi/arisgan",
+        "toscana": "https://raccoltanormativa.consiglio.regione.toscana.it/articolo?anc=sez3&urndoc=urn:nir:regione.toscana:legge:2012-12-27;77",
+        "umbria": "https://www.regione.umbria.it/ambiente/-/asset_publisher/5DgXK4fP5T2d/content/addizionale-regionale-all-accisa-sul-gas-natura-1",
+        "veneto": "https://portalegestori.regione.veneto.it/"
+      },
+      "valoriArisgamGas2026": {
+        "abruzzo-ordinario": [
+          0.019,
+          0.023241,
+          0.025823,
+          0.025823
+        ],
+        "abruzzo-clima-ef": [
+          0.01033,
+          0.01033,
+          0.01033,
+          0.01033
+        ],
+        "basilicata": [
+          0.019,
+          0.0258228,
+          0.0258228,
+          0.0258228
+        ],
+        "campania": [
+          0.019,
+          0.031,
+          0.031,
+          0.031
+        ],
+        "emilia-romagna": [
+          0.022,
+          0.0309874,
+          0.0309874,
+          0.0309874
+        ],
+        "lazio-centro-nord": [
+          0.022,
+          0.03099,
+          0.03099,
+          0.03099
+        ],
+        "lazio-mezzogiorno": [
+          0.019,
+          0.03099,
+          0.03099,
+          0.03099
+        ],
+        "liguria-cd": [
+          0.022,
+          0.0258,
+          0.0258,
+          0.0258
+        ],
+        "liguria-e": [
+          0.0155,
+          0.0155,
+          0.0155,
+          0.0155
+        ],
+        "liguria-f": [
+          0.0103,
+          0.0103,
+          0.0103,
+          0.0103
+        ],
+        "lombardia": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "marche": [
+          0.0155,
+          0.0181,
+          0.0207,
+          0.0258
+        ],
+        "piemonte-ordinario": [
+          0.022,
+          0.0258,
+          0.0258,
+          0.0258
+        ],
+        "puglia": [
+          0.019,
+          0.03098,
+          0.03098,
+          0.03098
+        ],
+        "toscana": [
+          0.022,
+          0.030987,
+          0.030987,
+          0.030987
+        ],
+        "umbria": [
+          0.005165,
+          0.005165,
+          0.005165,
+          0.005165
+        ],
+        "veneto": [
+          0.007747,
+          0.023241,
+          0.025823,
+          0.030987
         ]
       }
     }
