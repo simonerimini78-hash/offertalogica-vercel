@@ -5358,7 +5358,7 @@ function avviaComparazioneDati() {
 }
 </script>
 <script>
-let MOTORE_CALCOLO_VERSION = "motore-v12-iva-luce-base-completa-2026-09-21";
+let MOTORE_CALCOLO_VERSION = "motore-v13-audit-calcolo-tracciabile-2026-09-21";
 const DATI_CALCOLO_URLS = ["/data/calcolo-parametri.json", "data/calcolo-parametri.json"];
 const DATI_OFFERTE_URLS = ["/data/offerte-proposte.json", "data/offerte-proposte.json"];
 const DATI_ARERA_MENU_URLS = ["/data/offerte-arera-menu.json", "data/offerte-arera-menu.json"];
@@ -7364,6 +7364,11 @@ function normalizzaRiferimentoArera(riferimento) {
     providerKey: String(riferimento.providerKey || "").trim(),
     providerLabel: String(riferimento.providerLabel || riferimento.fornitore || "").trim(),
     commodity: String(riferimento.commodity || "").trim(),
+    tipo: String(riferimento.tipo || "").trim().toLowerCase(),
+    qualitaPrezzo: String(riferimento.qualitaPrezzo || "").trim(),
+    indiceRiferimento: String(riferimento.indiceRiferimento || "").trim().toLowerCase(),
+    dataInizio: String(riferimento.dataInizio || "").trim(),
+    dataFine: String(riferimento.dataFine || "").trim(),
   };
   return Object.values(normalized).some(Boolean) ? normalized : null;
 }
@@ -8708,6 +8713,83 @@ function notaOneriFiscali(valori) {
     return "Inclusa la parte regolata verificata disponibile: rete elettrica e componenti ASOS/ARIM/UC3/UC6 comuni ai domestici; per il gas, le componenti UG1/RS/RE/UG2/UG3 vigenti nel III trimestre 2026 sono applicate sul consumo, mentre la tariffa 2026 di distribuzione/misura richiede ambito ARERA e classe contatore. L'accisa gas domestica viene inclusa solo con scelta esplicita del regime TUA. L'addizionale regionale ARISGAM viene inclusa separatamente solo per i profili territoriali verificati e selezionati dall'utente; nessuna Regione viene dedotta dall'ambito tariffario. Il trasporto gas QTt viene incluso solo se e stato inserito il potere calorifico convenzionale P della fornitura; senza P resta non stimato. L'IVA gas domestica viene applicata solo quando rete, QTt, accisa e ARISGAM sono tutte determinate: 10% sui primi 480 Smc/anno e 22% sui consumi successivi e sulle quote fisse. La quota fissa ASOS dei non residenti viene inclusa solo con scelta esplicita dello stato di residenza. L'accisa luce viene inclusa a 0,0227 €/kWh quando il regime e determinabile: intero consumo per non residenti o potenza oltre 3 kW; per residenti fino a 3 kW solo con 12 consumi mensili completi e coerenti con l'annuo. Per la luce e incluso anche il C_DISPD domestico vigente di settembre 2026 (dispacciamento TIDE + mercato capacita, perdite gia incorporate nel coefficiente), applicato ai kWh reali come annualizzazione a valori correnti. L IVA luce domestica al 10% viene inclusa solo quando residenza, accisa e C_DISPD sono tutti determinati; altrimenti resta non stimata. Restano esclusi i casi ARISGAM non supportati.";
   }
   return "";
+}
+
+function auditCompletezzaVoce(commodity, costoVoce) {
+  if (!costoVoce || numeroSicuro(costoVoce.consumo, 0) <= 0) {
+    return { stato: "non_applicabile", mancanti: [], limitazioni: [] };
+  }
+  const mancanti = [];
+  const limitazioni = [];
+  if (commodity === "luce") {
+    if (!costoVoce.dettaglioIvaLuce?.ivaDisponibile) mancanti.push("fiscalità luce non completamente determinata");
+  } else if (commodity === "gas") {
+    const dettaglio = costoVoce.dettaglioRegolatoGas || {};
+    if (!dettaglio.reteDisponibile) mancanti.push("rete gas");
+    if (!dettaglio.qttDisponibile) mancanti.push("QTt");
+    if (!dettaglio.accisaDisponibile) mancanti.push("accisa gas");
+    if (!dettaglio.arisgamDisponibile) mancanti.push("ARISGAM");
+    if (!costoVoce.dettaglioIvaGas?.ivaDisponibile) mancanti.push("IVA gas");
+  }
+  if (costoVoce.tipoPrezzo === "variabile") {
+    limitazioni.push("indice corrente annualizzato: le quotazioni forward trimestrali del Portale Offerte non sono disponibili negli open data");
+  }
+  return {
+    stato: mancanti.length || limitazioni.length ? "stima_verificata_parziale" : "stima_verificata_completa_sui_dati_modellati",
+    mancanti,
+    limitazioni,
+  };
+}
+
+function auditRiferimentoOfferta(voceOfferta, costoVoce) {
+  const riferimento = normalizzaRiferimentoArera(voceOfferta?.riferimentoArera) || {};
+  const indice = riferimento.indiceRiferimento || String(voceOfferta?.formula?.indice || "").trim().toLowerCase();
+  const indiceMeta = indice && INDICI_MERCATO[indice] ? INDICI_MERCATO[indice] : null;
+  return {
+    codice: riferimento.codice || "",
+    qualitaPrezzo: riferimento.qualitaPrezzo || "",
+    indice,
+    periodoIndice: String(indiceMeta?.periodo || ""),
+    statoIndice: String(indiceMeta?.stato || ""),
+    dataInizio: riferimento.dataInizio || "",
+    dataFine: riferimento.dataFine || "",
+    completezza: auditCompletezzaVoce(riferimento.commodity || costoVoce?.commodity || "", costoVoce),
+  };
+}
+
+function etichettaStatoAudit(stato) {
+  if (stato === "stima_verificata_completa_sui_dati_modellati") return "completa sui dati modellati";
+  if (stato === "stima_verificata_parziale") return "parziale / verificata";
+  return "non applicabile";
+}
+
+function htmlAuditCalcoloOfferta(offerta, costoOfferta) {
+  const righe = [];
+  for (const commodity of ["luce", "gas"]) {
+    const voceOfferta = offerta?.[commodity];
+    const costoVoce = costoOfferta?.[commodity];
+    if (!voceOfferta || !costoVoce || numeroSicuro(costoVoce.consumo, 0) <= 0) continue;
+    const audit = auditRiferimentoOfferta(voceOfferta, costoVoce);
+    const parti = [];
+    if (audit.codice) parti.push(`codice ARERA ${audit.codice}`);
+    if (audit.qualitaPrezzo) parti.push(`qualità ${audit.qualitaPrezzo}`);
+    if (audit.indice) {
+      const periodo = audit.periodoIndice ? ` ${audit.periodoIndice}` : "";
+      const stato = audit.statoIndice ? ` (${audit.statoIndice})` : "";
+      parti.push(`indice ${audit.indice.toUpperCase()}${periodo}${stato}`);
+    }
+    parti.push(`stato ${etichettaStatoAudit(audit.completezza.stato)}`);
+    const note = [...audit.completezza.mancanti, ...audit.completezza.limitazioni];
+    righe.push(`<small style="display:block; margin-top:3px; color:var(--text-muted);"><strong>${commodity === "luce" ? "Luce" : "Gas"}:</strong> ${testoHtmlSicuro(parti.join(" · "))}${note.length ? `<br><span>${testoHtmlSicuro(note.join(" · "))}</span>` : ""}</small>`);
+  }
+  const dataCatalogo = formattaDataCatalogoCopertura(DATI_ARERA_MENU_META.aggiornatoIl);
+  const meta = [
+    `motore ${MOTORE_CALCOLO_VERSION}`,
+    DATI_ARERA_MENU_META.versioneDati ? `catalogo ${DATI_ARERA_MENU_META.versioneDati}` : "",
+    dataCatalogo ? `aggiornato ${dataCatalogo}` : "",
+    PARAMETRI_CALCOLO.componentiRegolateMeta?.periodo ? `regolate ${PARAMETRI_CALCOLO.componentiRegolateMeta.periodo}` : "",
+  ].filter(Boolean).join(" · ");
+  return `<div class="offer-calculation-audit" style="margin-top:8px; padding-top:8px; border-top:1px dashed var(--border);"><small style="display:block; font-weight:800; color:var(--text-color);">Tracciabilità del calcolo</small><small style="display:block; color:var(--text-muted);">${testoHtmlSicuro(meta)}</small>${righe.join("")}</div>`;
 }
 
 function setDisplay(selector, display) {
@@ -11515,6 +11597,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
             ${alternativeNote}
             ${promozioniHtml}
             <small>Materia energia/gas: ${euro(costoOfferta.quotaVariabile)} · Fissa vendita: ${euro(costoOfferta.quotaFissaVendita)} · Potenza/ambito: ${euro(costoOfferta.quotaTecnicaProfilo)} · ${etichettaOneriFiscali(costoOfferta)}: ${euroOneriFiscali(costoOfferta.quotaRegolata + costoOfferta.quotaFiscale, costoOfferta)}</small>
+            ${htmlAuditCalcoloOfferta(offerta, costoOfferta)}
           </div>
         </details>`;
       saving.style.color = risparmio ? "var(--primary)" : "var(--danger)";
@@ -16768,6 +16851,11 @@ function riferimentoAreraDaRiga(riga) {
     providerKey: riga.providerKey,
     providerLabel: riga.providerLabel || riga.fornitore,
     commodity: riga.commodity,
+    tipo: riga.tipo,
+    qualitaPrezzo: riga.qualitaPrezzo,
+    indiceRiferimento: riga.indiceRiferimento,
+    dataInizio: riga.dataInizio,
+    dataFine: riga.dataFine,
   });
 }
 
