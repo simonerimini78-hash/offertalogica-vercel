@@ -4681,6 +4681,24 @@
                         </select>
                         <small style="display:block; margin-top:5px; color:#64748b; line-height:1.35;">Serve per applicare correttamente la quota fissa ASOS prevista per i domestici non residenti. Nessun valore viene presunto se lasci vuoto.</small>
                     </div>
+                    <details style="margin-top:8px;">
+                        <summary style="cursor:pointer; font-weight:700; color:#334155;">Consumi mensili luce (opzionali, per accisa esatta)</summary>
+                        <small style="display:block; margin:6px 0 8px; color:#64748b; line-height:1.35;">Per una fornitura residente fino a 3 kW l'accisa dipende dai consumi di ciascun mese. Inserisci tutti i 12 valori solo se li conosci: la somma deve coincidere con il consumo annuo usato nel confronto.</small>
+                        <div style="display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:7px;">
+                            <input id="master-luce-mese-01" type="number" min="0" step="0.01" placeholder="Gen kWh" aria-label="Consumo luce gennaio kWh">
+                            <input id="master-luce-mese-02" type="number" min="0" step="0.01" placeholder="Feb kWh" aria-label="Consumo luce febbraio kWh">
+                            <input id="master-luce-mese-03" type="number" min="0" step="0.01" placeholder="Mar kWh" aria-label="Consumo luce marzo kWh">
+                            <input id="master-luce-mese-04" type="number" min="0" step="0.01" placeholder="Apr kWh" aria-label="Consumo luce aprile kWh">
+                            <input id="master-luce-mese-05" type="number" min="0" step="0.01" placeholder="Mag kWh" aria-label="Consumo luce maggio kWh">
+                            <input id="master-luce-mese-06" type="number" min="0" step="0.01" placeholder="Giu kWh" aria-label="Consumo luce giugno kWh">
+                            <input id="master-luce-mese-07" type="number" min="0" step="0.01" placeholder="Lug kWh" aria-label="Consumo luce luglio kWh">
+                            <input id="master-luce-mese-08" type="number" min="0" step="0.01" placeholder="Ago kWh" aria-label="Consumo luce agosto kWh">
+                            <input id="master-luce-mese-09" type="number" min="0" step="0.01" placeholder="Set kWh" aria-label="Consumo luce settembre kWh">
+                            <input id="master-luce-mese-10" type="number" min="0" step="0.01" placeholder="Ott kWh" aria-label="Consumo luce ottobre kWh">
+                            <input id="master-luce-mese-11" type="number" min="0" step="0.01" placeholder="Nov kWh" aria-label="Consumo luce novembre kWh">
+                            <input id="master-luce-mese-12" type="number" min="0" step="0.01" placeholder="Dic kWh" aria-label="Consumo luce dicembre kWh">
+                        </div>
+                    </details>
                 </div>
 
                 <div class="column-energy" id="master-gas-column" style="border: none; padding: 0; background: transparent;">
@@ -5340,7 +5358,7 @@ function avviaComparazioneDati() {
 }
 </script>
 <script>
-let MOTORE_CALCOLO_VERSION = "motore-v10-iva-gas-base-completa-2026-09-21";
+let MOTORE_CALCOLO_VERSION = "motore-v11-accisa-luce-mensile-2026-09-21";
 const DATI_CALCOLO_URLS = ["/data/calcolo-parametri.json", "data/calcolo-parametri.json"];
 const DATI_OFFERTE_URLS = ["/data/offerte-proposte.json", "data/offerte-proposte.json"];
 const DATI_ARERA_MENU_URLS = ["/data/offerte-arera-menu.json", "data/offerte-arera-menu.json"];
@@ -5428,6 +5446,13 @@ let PARAMETRI_CALCOLO = {
       imposteEurUnita: 0,
       ivaPercentuale: 0,
       asosFissaNonResidentiEurAnno: 95.0916,
+      accisaDomestica: {
+        aliquotaEurKwh: 0.0227,
+        sogliaEsenteMensileKwh: 150,
+        sogliaRecuperoFino1_5KwKwh: 150,
+        sogliaRecuperoOltre1_5Fino3KwKwh: 220,
+        richiedeConsumiMensiliPerResidenteFino3Kw: true,
+      },
     },
     gas: {
       schema: "gas_rete_scaglioni_2026",
@@ -5967,7 +5992,7 @@ let PARAMETRI_CALCOLO = {
     urlFonteGas: "https://www.arera.it/consumatori/valori-rete-oneri-domestici-gas",
     urlDeliberaGas: "https://www.arera.it/atti-e-provvedimenti/dettaglio/25/574-25",
   },
-  note: "Stima comparativa annua: per la luce include rete domestica ARERA 2026 e componenti ASOS/ARIM/UC3/UC6 comuni ai domestici nel III trimestre 2026. Per il gas include rete/misura 2026, oneri UG1/RS/RE/UG2/UG3 Q3 2026, accisa nazionale con regime esplicito, ARISGAM per i profili verificati e QTt solo quando e disponibile il potere calorifico convenzionale P della fornitura. Restano esclusi quota fissa ASOS non residenti, dispacciamento/capacita luce, accisa luce, IVA luce e casi ARISGAM non supportati. L IVA gas domestica e applicata solo quando la base imponibile gas e completa.",
+  note: "Stima comparativa annua: per la luce include rete domestica ARERA 2026 e componenti ASOS/ARIM/UC3/UC6 comuni ai domestici nel III trimestre 2026. Per il gas include rete/misura 2026, oneri UG1/RS/RE/UG2/UG3 Q3 2026, accisa nazionale con regime esplicito, ARISGAM per i profili verificati e QTt solo quando e disponibile il potere calorifico convenzionale P della fornitura. Restano esclusi dispacciamento/capacita luce, IVA luce e casi ARISGAM non supportati; l accisa luce e inclusa solo quando determinabile senza stimare il profilo mensile. L IVA gas domestica e applicata solo quando la base imponibile gas e completa.",
 };
 let PERDITE_RETE_LUCE_VARIABILE = PARAMETRI_CALCOLO.perditeReteLuceVariabile;
 const TESTO_METODOLOGIA_CONSUMI_REALI = "I risparmi stimati sono calcolati sui consumi che hai inserito o confermato dalla bolletta. Applichiamo le condizioni economiche delle offerte allo stesso profilo di consumo, separando quota variabile e quota fissa.";
@@ -7651,6 +7676,66 @@ function calcolaMateriaPerFasce(consumiFasce = {}, prezziFasce = {}) {
   return null;
 }
 
+const ID_CONSUMI_MENSILI_LUCE = Array.from({ length: 12 }, (_, index) => `master-luce-mese-${String(index + 1).padStart(2, "0")}`);
+
+function leggiConsumiMensiliLuce() {
+  const valori = ID_CONSUMI_MENSILI_LUCE.map((id) => {
+    const field = document.getElementById(id);
+    if (!field) return NaN;
+    const raw = String(field.value ?? "").trim();
+    if (!raw) return NaN;
+    const value = Number(raw);
+    return Number.isFinite(value) && value >= 0 ? value : NaN;
+  });
+  return valori.every(Number.isFinite) ? valori : [];
+}
+
+function calcolaAccisaLuce(consumo, regolate = {}) {
+  const config = regolate?.accisaDomestica || {};
+  const aliquota = numeroSicuro(config.aliquotaEurKwh, NaN);
+  const residenza = String(regolate?.residenzaAnagrafica || "").trim().toLowerCase();
+  const potenzaKw = numeroSicuro(regolate?.potenzaKw, NaN);
+  const consumoAnnuo = Math.max(0, numeroSicuro(consumo, 0));
+  if (!Number.isFinite(aliquota) || aliquota < 0 || !residenza) {
+    return { accisaDisponibile: false, quotaAccisa: 0, motivo: !residenza ? "residenza_non_indicata" : "aliquota_non_disponibile" };
+  }
+  if (residenza !== "residente" || (Number.isFinite(potenzaKw) && potenzaKw > 3)) {
+    return { accisaDisponibile: true, quotaAccisa: consumoAnnuo * aliquota, consumoImponibileKwh: consumoAnnuo, metodo: "intero_consumo_annuo" };
+  }
+  if (!Number.isFinite(potenzaKw) || potenzaKw <= 0 || potenzaKw > 3) {
+    return { accisaDisponibile: false, quotaAccisa: 0, motivo: "potenza_non_valida" };
+  }
+  const mensili = Array.isArray(regolate?.consumiMensiliKwh) ? regolate.consumiMensiliKwh.map(Number) : [];
+  if (mensili.length !== 12 || !mensili.every((value) => Number.isFinite(value) && value >= 0)) {
+    return { accisaDisponibile: false, quotaAccisa: 0, motivo: "consumi_mensili_mancanti" };
+  }
+  const sommaMensili = mensili.reduce((sum, value) => sum + value, 0);
+  if (Math.abs(sommaMensili - consumoAnnuo) > 0.01) {
+    return { accisaDisponibile: false, quotaAccisa: 0, motivo: "somma_mensile_diversa_dal_consumo_annuo", sommaMensili };
+  }
+  const sogliaEsente = Math.max(0, numeroSicuro(config.sogliaEsenteMensileKwh, 150));
+  const sogliaRecuperoBassa = Math.max(sogliaEsente, numeroSicuro(config.sogliaRecuperoFino1_5KwKwh, 150));
+  const sogliaRecuperoStandard = Math.max(sogliaEsente, numeroSicuro(config.sogliaRecuperoOltre1_5Fino3KwKwh, 220));
+  let consumoImponibileKwh = 0;
+  for (const mese of mensili) {
+    if (mese <= sogliaEsente) continue;
+    if (potenzaKw <= 1.5) {
+      const eccedenza = Math.max(0, mese - sogliaRecuperoBassa);
+      const esenzioneResidua = Math.max(0, sogliaEsente - eccedenza);
+      consumoImponibileKwh += Math.max(0, mese - esenzioneResidua);
+      continue;
+    }
+    if (mese <= sogliaRecuperoStandard) {
+      consumoImponibileKwh += mese - sogliaEsente;
+      continue;
+    }
+    const eccedenza = mese - sogliaRecuperoStandard;
+    const esenzioneResidua = Math.max(0, sogliaEsente - eccedenza);
+    consumoImponibileKwh += Math.max(0, mese - esenzioneResidua);
+  }
+  return { accisaDisponibile: true, quotaAccisa: consumoImponibileKwh * aliquota, consumoImponibileKwh, metodo: "mensile_residente_fino_3kw", sommaMensili };
+}
+
 function normalizzaAmbitoTariffarioGas(value) {
   const raw = String(value || "").trim().toLowerCase();
   const aliasSicuri = {
@@ -7784,12 +7869,15 @@ function calcolaVoceEnergia({ consumo = 0, prezzoVariabile = 0, formula, consumi
   const quotaTecnicaProfilo = Math.max(0, numeroSicuro(quoteUniversaliAnnue, 0));
   const regolate = componentiRegolate || componentiRegolateVuote();
   const regolateGas = commodity === "gas" ? calcolaComponentiRegolateGas(consumoRegolato, regolate) : null;
+  const regolateLuce = commodity === "luce" ? calcolaAccisaLuce(consumoRegolato, regolate) : null;
   const quotaRegolataVariabile = regolateGas
     ? regolateGas.quotaVariabile
     : consumoRegolato * Math.max(0, numeroSicuro(regolate.variabileEurUnita, 0));
   const quotaImposte = regolateGas?.imposteDisponibili
     ? regolateGas.quotaImposte
-    : consumoRegolato * Math.max(0, numeroSicuro(regolate.imposteEurUnita, 0));
+    : regolateLuce?.accisaDisponibile
+      ? regolateLuce.quotaAccisa
+      : consumoRegolato * Math.max(0, numeroSicuro(regolate.imposteEurUnita, 0));
   const quotaAsosFissaNonResidenti = commodity === "luce" && String(regolate.residenzaAnagrafica || "").trim().toLowerCase() === "non-residente"
     ? Math.max(0, numeroSicuro(regolate.asosFissaNonResidentiEurAnno, 0))
     : 0;
@@ -7829,7 +7917,7 @@ function calcolaVoceEnergia({ consumo = 0, prezzoVariabile = 0, formula, consumi
     regolate.imposteEurUnita,
     regolate.ivaPercentuale,
   ].some((value) => Math.abs(numeroSicuro(value, 0)) > 0) || quotaTecnicaProfilo > 0;
-  return { commodity, consumo: consumoProfilo, consumoFatturato, consumoRegolato, tipoPrezzo: tipoVoce, modalitaPrezzo: materiaFasce?.modalitaPrezzo || (formula?.tipo || "single_price"), fattorePerdite, prezzoVariabile: prezzoCalcolo, quotaMateria, quotaVariabile: quotaMateria, quotaFissaVendita, quotaTecnicaProfilo, quotaRegolata, quotaRegolataVariabile, quotaRegolataFissa, quotaAsosFissaNonResidenti, quotaImposte, quotaIva, quotaFiscale, quotaFissa, componentiRegolateDisponibili: componentiRegolateDisponibiliVoce, dettaglioRegolatoGas: regolateGas, dettaglioIvaGas, totale: imponibile + quotaIva };
+  return { commodity, consumo: consumoProfilo, consumoFatturato, consumoRegolato, tipoPrezzo: tipoVoce, modalitaPrezzo: materiaFasce?.modalitaPrezzo || (formula?.tipo || "single_price"), fattorePerdite, prezzoVariabile: prezzoCalcolo, quotaMateria, quotaVariabile: quotaMateria, quotaFissaVendita, quotaTecnicaProfilo, quotaRegolata, quotaRegolataVariabile, quotaRegolataFissa, quotaAsosFissaNonResidenti, quotaImposte, quotaIva, quotaFiscale, quotaFissa, componentiRegolateDisponibili: componentiRegolateDisponibiliVoce, dettaglioRegolatoLuce: regolateLuce, dettaglioRegolatoGas: regolateGas, dettaglioIvaGas, totale: imponibile + quotaIva };
 }
 
 function testoAreraNormalizzato(value) {
@@ -8558,7 +8646,7 @@ function notaOneriFiscali(valori) {
     return "Oneri, imposte e IVA: n.n. = dato non stimato nel dettaglio, per evitare di indicare come zero una voce che puo dipendere da bolletta, regime fiscale e condizioni applicate.";
   }
   if (!componentiRegolateComplete()) {
-    return "Inclusa la parte regolata verificata disponibile: rete elettrica e componenti ASOS/ARIM/UC3/UC6 comuni ai domestici; per il gas, le componenti UG1/RS/RE/UG2/UG3 vigenti nel III trimestre 2026 sono applicate sul consumo, mentre la tariffa 2026 di distribuzione/misura richiede ambito ARERA e classe contatore. L'accisa gas domestica viene inclusa solo con scelta esplicita del regime TUA. L'addizionale regionale ARISGAM viene inclusa separatamente solo per i profili territoriali verificati e selezionati dall'utente; nessuna Regione viene dedotta dall'ambito tariffario. Il trasporto gas QTt viene incluso solo se e stato inserito il potere calorifico convenzionale P della fornitura; senza P resta non stimato. L'IVA gas domestica viene applicata solo quando rete, QTt, accisa e ARISGAM sono tutte determinate: 10% sui primi 480 Smc/anno e 22% sui consumi successivi e sulle quote fisse. La quota fissa ASOS dei non residenti viene inclusa solo con scelta esplicita dello stato di residenza. Restano esclusi dispacciamento/capacita luce, accisa luce, IVA luce e i casi ARISGAM non supportati.";
+    return "Inclusa la parte regolata verificata disponibile: rete elettrica e componenti ASOS/ARIM/UC3/UC6 comuni ai domestici; per il gas, le componenti UG1/RS/RE/UG2/UG3 vigenti nel III trimestre 2026 sono applicate sul consumo, mentre la tariffa 2026 di distribuzione/misura richiede ambito ARERA e classe contatore. L'accisa gas domestica viene inclusa solo con scelta esplicita del regime TUA. L'addizionale regionale ARISGAM viene inclusa separatamente solo per i profili territoriali verificati e selezionati dall'utente; nessuna Regione viene dedotta dall'ambito tariffario. Il trasporto gas QTt viene incluso solo se e stato inserito il potere calorifico convenzionale P della fornitura; senza P resta non stimato. L'IVA gas domestica viene applicata solo quando rete, QTt, accisa e ARISGAM sono tutte determinate: 10% sui primi 480 Smc/anno e 22% sui consumi successivi e sulle quote fisse. La quota fissa ASOS dei non residenti viene inclusa solo con scelta esplicita dello stato di residenza. L'accisa luce viene inclusa a 0,0227 €/kWh quando il regime e determinabile: intero consumo per non residenti o potenza oltre 3 kW; per residenti fino a 3 kW solo con 12 consumi mensili completi e coerenti con l'annuo. Restano esclusi dispacciamento/capacita luce, IVA luce e i casi ARISGAM non supportati.";
   }
   return "";
 }
@@ -9082,6 +9170,8 @@ function componentiRegolateMaster(commodity) {
     return {
       ...base,
       residenzaAnagrafica: leggiValore("master-luce-residenza", PARAMETRI_CALCOLO.profiloMedio.residenzaLuce || ""),
+      potenzaKw: leggiNumero("master-luce-potenza", PARAMETRI_CALCOLO.profiloMedio.potenzaKw || 0),
+      consumiMensiliKwh: leggiConsumiMensiliLuce(),
     };
   }
   if (commodity !== "gas") return base;

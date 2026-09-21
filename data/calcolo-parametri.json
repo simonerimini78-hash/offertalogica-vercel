@@ -45,7 +45,14 @@
         "potenzaEurKwAnno": 23.7188,
         "imposteEurUnita": 0,
         "ivaPercentuale": 0,
-        "asosFissaNonResidentiEurAnno": 95.0916
+        "asosFissaNonResidentiEurAnno": 95.0916,
+        "accisaDomestica": {
+          "aliquotaEurKwh": 0.0227,
+          "sogliaEsenteMensileKwh": 150,
+          "sogliaRecuperoFino1_5KwKwh": 150,
+          "sogliaRecuperoOltre1_5Fino3KwKwh": 220,
+          "richiedeConsumiMensiliPerResidenteFino3Kw": true
+        }
       },
       "gas": {
         "variabileEurUnita": 0,
@@ -886,12 +893,12 @@
         "gas_addizionale_regionale_ARISGAM_casi_verificati",
         "gas_QTt_Q3_2026_con_P_fatturazione_esplicito",
         "gas_IVA_domestica_10_primi_480_smc_22_resto_e_quote_fisse_con_base_completa",
-        "luce_ASOS_quota_fissa_non_residenti_con_residenza_esplicita"
+        "luce_ASOS_quota_fissa_non_residenti_con_residenza_esplicita",
+        "luce_accisa_domestica_0_0227_eur_kwh_con_esenzione_mensile_residente_fino_3kw"
       ],
       "vociNonIncluse": [
         "dispacciamento",
         "capacita",
-        "accisa",
         "gas_addizionale_regionale_casi_non_supportati",
         "IVA_luce"
       ],
@@ -1085,7 +1092,16 @@
       "urlFonteTrasportoGas": "https://www.arera.it/fileadmin/allegati/docs/26/161-2026-R-gas_Testo_integrato_100-23-AllegatoA-NuovoTIVG.pdf",
       "valoreQttQ3_2026EurGj": 1.931333,
       "urlFonteIvaGas": "https://www.arera.it/bolletta/guida-alla-lettura-delle-voci-di-spesa-gas",
-      "notaIvaGas": "IVA gas domestica applicata solo quando la base imponibile e completa nel modello: rete distribuzione/misura, oneri, QTt con P esplicito, accisa e ARISGAM verificata. Aliquota 10% sui primi 480 Smc/anno e 22% sui consumi successivi e sulle quote fisse. Se manca uno dei dati necessari, l IVA resta non stimata."
+      "notaIvaGas": "IVA gas domestica applicata solo quando la base imponibile e completa nel modello: rete distribuzione/misura, oneri, QTt con P esplicito, accisa e ARISGAM verificata. Aliquota 10% sui primi 480 Smc/anno e 22% sui consumi successivi e sulle quote fisse. Se manca uno dei dati necessari, l IVA resta non stimata.",
+      "urlFonteAccisaLuce": "https://www.adm.gov.it/portale/aliquote-accisa-nazionali",
+      "urlNormativaAccisaLuce": "https://www.normattiva.it/eli/id/2025/04/04/25G00052/ORIGINAL",
+      "notaAccisaLuce": "Accisa elettrica domestica: 0,0227 €/kWh. Per fornitura non residente o residente con potenza oltre 3 kW si applica all'intero consumo annuo. Per residenza anagrafica con potenza fino a 3 kW il calcolo richiede 12 consumi mensili completi per applicare esenzione e recupero previsti dal TUA; nessun profilo mensile viene stimato.",
+      "valoriAccisaLuce2026": {
+        "aliquotaEurKwh": 0.0227,
+        "sogliaEsenteMensileKwh": 150,
+        "sogliaRecuperoFino1_5KwKwh": 150,
+        "sogliaRecuperoOltre1_5Fino3KwKwh": 220
+      }
     }
   },
   "indiciMercato": {
