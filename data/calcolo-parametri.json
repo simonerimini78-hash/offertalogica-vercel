@@ -18,9 +18,9 @@
     },
     "componentiProfilo": {
       "potenzaLuceAnnua": {
-        "3": 70.56,
-        "4.5": 105.84,
-        "6": 141.12
+        "3": 71.1564,
+        "4.5": 106.7346,
+        "6": 142.3128
       },
       "ambitoGasAnnua": {
         "": 0,
@@ -34,9 +34,9 @@
     },
     "componentiRegolate": {
       "luce": {
-        "variabileEurUnita": 0.0119,
+        "variabileEurUnita": 0.047883,
         "fissaAnnua": 23.04,
-        "potenzaEurKwAnno": 23.52,
+        "potenzaEurKwAnno": 23.7188,
         "imposteEurUnita": 0,
         "ivaPercentuale": 0
       },
@@ -47,7 +47,7 @@
         "ivaPercentuale": 0
       }
     },
-    "note": "Stima comparativa annua: per la luce include le componenti di rete domestiche ARERA 2026 s1, s2 e s3. Oneri di sistema, dispacciamento/capacita, imposte, IVA e componenti gas restano non valorizzati finche non sono rappresentabili con dati ufficiali puntuali.",
+    "note": "Stima comparativa annua: per la luce include rete domestica ARERA 2026 (s1, s2, s3) e, per il III trimestre 2026, ASOS/ARIM/UC3/UC6 applicabili a tutti i domestici. La quota fissa ASOS dei non residenti non e applicata finche la residenza non viene acquisita; dispacciamento/capacita, imposte, IVA e gas restano non valorizzati finche non sono calcolabili puntualmente.",
     "profiloConsumiFonte": {
       "fonte": "ARERA - Monitoraggio Retail - Offerte e prezzi",
       "urlFonte": "https://www.arera.it/rapporti-e-relazioni/monitoraggio-retail/monitoraggio-retail-offerte-e-prezzi",
@@ -71,21 +71,23 @@
     },
     "componentiRegolateMeta": {
       "stato": "parziale_verificato",
-      "periodo": "2026",
+      "periodo": "2026-Q3",
       "acquisitoIl": "2026-09-21",
-      "delibera": "575/2025/R/eel",
-      "fonte": "ARERA - Tariffe trasmissione, distribuzione e misura - clienti domestici",
+      "delibera": "575/2025/R/eel + 227/2026/R/com",
+      "fonte": "ARERA - Tariffe rete domestici; ARERA - oneri generali e ulteriori componenti; valori operativi Q3 pubblicati da E-Distribuzione in attuazione della delibera 227/2026/R/com",
       "urlFonte": "https://www.arera.it/area-operatori/prezzi-e-tariffe/tariffe-trasmissione-distribuzione-e-misura-clienti-domestici",
       "vociIncluse": [
         "luce_s1_quota_fissa",
         "luce_s2_quota_potenza",
-        "luce_s3_quota_energia"
+        "luce_s3_quota_energia",
+        "luce_ASOS_quota_energia_domestici",
+        "luce_ARIM_quota_energia_domestici",
+        "luce_UC3_quota_energia_domestici",
+        "luce_UC6_quota_potenza_domestici",
+        "luce_UC6_quota_energia_domestici"
       ],
       "vociNonIncluse": [
-        "ASOS",
-        "ARIM",
-        "UC3",
-        "UC6",
+        "luce_ASOS_quota_fissa_non_residenti",
         "dispacciamento",
         "capacita",
         "accisa",
@@ -95,9 +97,22 @@
       "valoriLuce2026": {
         "s1EurPodAnno": 23.04,
         "s2EurKwAnno": 23.52,
-        "s3EurKwh": 0.0119
+        "s3EurKwh": 0.0119,
+        "asosEurKwh": 0.031515,
+        "arimEurKwh": 0.001638,
+        "uc3EurKwh": 0.00276,
+        "uc6EurKwAnno": 0.1988,
+        "uc6EurKwh": 0.00007,
+        "asosFissaNonResidentiEurPodAnno": 95.0916,
+        "variabileComuneApplicataEurKwh": 0.047883,
+        "potenzaComuneApplicataEurKwAnno": 23.7188
       },
-      "notaGas": "Le precedenti maggiorazioni annue regionali interne sono disattivate: la tariffa gas ARERA 2026 richiede ambiti tariffari e componenti/scaglioni dedicati e non e rappresentabile come maggiorazione fissa generica."
+      "notaGas": "Le precedenti maggiorazioni annue regionali interne restano disattivate: la tariffa gas ARERA 2026 richiede ambiti tariffari e componenti/scaglioni dedicati e non e rappresentabile come maggiorazione fissa generica.",
+      "periodoRete": "2026",
+      "periodoOneri": "2026-07-01/2026-09-30",
+      "urlFonteOneri": "https://www.arera.it/area-operatori/prezzi-e-tariffe/oneri-generali-di-sistema-e-ulteriori-componenti",
+      "urlTabellaOperativaOneri": "https://www.e-distribuzione.it/content/dam/e-distribuzione/a-chi-ci-rivolgiamo/venditori/2026/Oneri_A_UC_annuali_Del_2_7_26.pdf",
+      "notaResidenza": "La quota fissa ASOS di 95,0916 €/POD/anno prevista per i domestici NON RESIDENTI non viene applicata perche il calcolatore non acquisisce ancora lo stato di residenza. Le componenti incluse in Step 3B sono solo quelle comuni a residenti e non residenti."
     }
   },
   "indiciMercato": {
