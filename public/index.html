@@ -4705,6 +4705,15 @@
                             <option value="oltre-g40">Oltre G40</option>
                         </select>
                     </div>
+                    <div class="input-group">
+                        <label for="master-gas-accisa">Regime accisa gas</label>
+                        <select id="master-gas-accisa">
+                            <option value="">Non so / non applicare l'accisa</option>
+                            <option value="ordinario">Ordinario — resto d'Italia</option>
+                            <option value="mezzogiorno-dpr218">Agevolato DPR 218 — Mezzogiorno e territori ammessi</option>
+                        </select>
+                        <small style="display:block; margin-top:5px; color:#64748b; line-height:1.35;">Se non sei certo del regime fiscale, lascia vuoto: il calcolatore non presume l'aliquota.</small>
+                    </div>
                 </div>
             </div>
 
@@ -5349,6 +5358,7 @@ let PARAMETRI_CALCOLO = {
     potenzaKw: "3",
     regioneGas: "",
     classeContatoreGas: "",
+    regimeAccisaGas: "",
     tipoPrezzo: "fisso",
     tipoFornitura: "dual",
   },
@@ -5407,6 +5417,20 @@ let PARAMETRI_CALCOLO = {
       ],
       ug3EurSmc: 0.007292,
       gsDomesticiEurSmc: 0,
+      accisaDomestica: {
+        ordinario: [
+          { finoSmc: 120, eurSmc: 0.044 },
+          { finoSmc: 480, eurSmc: 0.175 },
+          { finoSmc: 1560, eurSmc: 0.170 },
+          { finoSmc: null, eurSmc: 0.186 },
+        ],
+        "mezzogiorno-dpr218": [
+          { finoSmc: 120, eurSmc: 0.038 },
+          { finoSmc: 480, eurSmc: 0.135 },
+          { finoSmc: 1560, eurSmc: 0.120 },
+          { finoSmc: null, eurSmc: 0.150 },
+        ],
+      },
       ambiti: {
       "nord-occidentale": {
             label: "Nord-Occidentale (Valle d'Aosta, Piemonte, Liguria)",
@@ -7520,6 +7544,10 @@ function calcolaComponentiRegolateGas(consumo, regolate = {}) {
   const quotaRe = calcolaQuotaScaglioniGas(consumo, regolate?.reScaglioni || []);
   const quotaUg3 = Math.max(0, numeroSicuro(consumo, 0)) * Math.max(0, numeroSicuro(regolate?.ug3EurSmc, 0));
   const quotaGs = Math.max(0, numeroSicuro(consumo, 0)) * Math.max(0, numeroSicuro(regolate?.gsDomesticiEurSmc, 0));
+  const regimeAccisa = String(regolate?.regimeAccisaGas || "").trim().toLowerCase();
+  const scaglioniAccisa = regolate?.accisaDomestica?.[regimeAccisa];
+  const accisaDisponibile = Array.isArray(scaglioniAccisa) && scaglioniAccisa.length > 0;
+  const quotaAccisa = accisaDisponibile ? calcolaQuotaScaglioniGas(consumo, scaglioniAccisa) : 0;
   const quotaFissa = quotaReteFissa + quotaUg2Fissa;
   const quotaVariabile = quotaReteVariabile + quotaUg2Variabile + quotaUg1 + quotaRs + quotaRe + quotaUg3 + quotaGs;
   if (!Number.isFinite(quotaFissa) || !Number.isFinite(quotaVariabile) || quotaVariabile < 0) return null;
@@ -7537,6 +7565,9 @@ function calcolaComponentiRegolateGas(consumo, regolate = {}) {
     quotaRe,
     quotaUg3,
     quotaGs,
+    regimeAccisa,
+    accisaDisponibile,
+    quotaAccisa,
   };
 }
 
@@ -7558,7 +7589,9 @@ function calcolaVoceEnergia({ consumo = 0, prezzoVariabile = 0, formula, consumi
   const quotaRegolataVariabile = regolateGas
     ? regolateGas.quotaVariabile
     : consumoRegolato * Math.max(0, numeroSicuro(regolate.variabileEurUnita, 0));
-  const quotaImposte = consumoRegolato * Math.max(0, numeroSicuro(regolate.imposteEurUnita, 0));
+  const quotaImposte = regolateGas?.accisaDisponibile
+    ? regolateGas.quotaAccisa
+    : consumoRegolato * Math.max(0, numeroSicuro(regolate.imposteEurUnita, 0));
   const quotaRegolataFissa = regolateGas
     ? regolateGas.quotaFissa
     : Math.max(0, numeroSicuro(regolate.fissaAnnua, 0));
@@ -8303,7 +8336,7 @@ function notaOneriFiscali(valori) {
     return "Oneri, imposte e IVA: n.n. = dato non stimato nel dettaglio, per evitare di indicare come zero una voce che puo dipendere da bolletta, regime fiscale e condizioni applicate.";
   }
   if (!componentiRegolateComplete()) {
-    return "Inclusa la parte regolata verificata disponibile: rete elettrica e componenti ASOS/ARIM/UC3/UC6 comuni ai domestici; per il gas, tariffa 2026 di distribuzione/misura e componenti UG1/RS/RE/UG2/UG3 vigenti nel III trimestre 2026, solo se sono selezionati ambito ARERA e classe contatore. Per i domestici GS e pari a zero. Restano escluse la quota fissa ASOS dei non residenti, dispacciamento/capacita luce, trasporto gas QTt legato al PCS locale, accise/addizionali e IVA finche non sono calcolabili puntualmente.";
+    return "Inclusa la parte regolata verificata disponibile: rete elettrica e componenti ASOS/ARIM/UC3/UC6 comuni ai domestici; per il gas, tariffa 2026 di distribuzione/misura e componenti UG1/RS/RE/UG2/UG3 vigenti nel III trimestre 2026, solo se sono selezionati ambito ARERA e classe contatore. L'accisa gas domestica viene inclusa solo quando l'utente seleziona esplicitamente il regime ordinario o quello agevolato DPR 218; senza scelta resta non stimata. Restano escluse la quota fissa ASOS dei non residenti, dispacciamento/capacita luce, trasporto gas QTt legato al PCS locale, accisa luce, addizionale regionale gas e IVA.";
   }
   return "";
 }
@@ -8828,6 +8861,7 @@ function componentiRegolateMaster(commodity) {
     ...base,
     ambitoTariffario: normalizzaAmbitoTariffarioGas(leggiValore("master-gas-regione", PARAMETRI_CALCOLO.profiloMedio.regioneGas || "")),
     classeContatore: leggiValore("master-gas-contatore", PARAMETRI_CALCOLO.profiloMedio.classeContatoreGas || ""),
+    regimeAccisaGas: leggiValore("master-gas-accisa", PARAMETRI_CALCOLO.profiloMedio.regimeAccisaGas || ""),
   };
 }
 
@@ -8853,6 +8887,7 @@ function leggiProfiloComparazione() {
     electricityDecision: LEAD_STATE.electricityDecision || "",
     regioneGas: usaGas ? leggiValore("master-gas-regione", PARAMETRI_CALCOLO.profiloMedio.regioneGas) : "",
     classeContatoreGas: usaGas ? leggiValore("master-gas-contatore", PARAMETRI_CALCOLO.profiloMedio.classeContatoreGas || "") : "",
+    regimeAccisaGas: usaGas ? leggiValore("master-gas-accisa", PARAMETRI_CALCOLO.profiloMedio.regimeAccisaGas || "") : "",
     potenzaKw: usaLuce ? leggiNumero("master-luce-potenza", PARAMETRI_CALCOLO.profiloMedio.potenzaKw) : 0,
     luceConsumoKwh: usaLuce ? leggiNumero("in-luce-cons-att", leggiNumero("master-luce-consumo", PARAMETRI_CALCOLO.profiloMedio.luceConsumoKwh)) : 0,
     gasConsumoSmc: usaGas ? leggiNumero("in-gas-cons-att", leggiNumero("master-gas-consumo", PARAMETRI_CALCOLO.profiloMedio.gasConsumoSmc)) : 0,
@@ -16014,6 +16049,7 @@ window.azzeraPdfEModulo = function azzeraPdfEModulo() {
   applicaAmbitoConfronto(PARAMETRI_CALCOLO.profiloMedio.tipoFornitura);
   setField("master-gas-regione", PARAMETRI_CALCOLO.profiloMedio.regioneGas);
   setField("master-gas-contatore", PARAMETRI_CALCOLO.profiloMedio.classeContatoreGas || "");
+  setField("master-gas-accisa", PARAMETRI_CALCOLO.profiloMedio.regimeAccisaGas || "");
 
   ["lead-nome", "lead-telefono", "lead-email", "lead-otp"].forEach(clearField);
   ["lead-consenso-servizio", "lead-consenso-partner", "offer-consent-checkbox"].forEach((id) => {
@@ -16548,6 +16584,7 @@ function applicaDatiPdfAlModulo(data) {
     setField("master-tipo-fornitura", PARAMETRI_CALCOLO.profiloMedio.tipoFornitura);
     setField("master-gas-regione", PARAMETRI_CALCOLO.profiloMedio.regioneGas);
     setField("master-gas-contatore", PARAMETRI_CALCOLO.profiloMedio.classeContatoreGas || "");
+    setField("master-gas-accisa", PARAMETRI_CALCOLO.profiloMedio.regimeAccisaGas || "");
     setField("in-luce-tipo-att", PARAMETRI_CALCOLO.profiloMedio.tipoPrezzo);
     setField("in-gas-tipo-att", PARAMETRI_CALCOLO.profiloMedio.tipoPrezzo);
     setField("in-luce-cons-att", PARAMETRI_CALCOLO.profiloMedio.luceConsumoKwh);
@@ -17511,6 +17548,7 @@ if (document.readyState === "loading") {
               if(document.getElementById("master-gas-consumo")) document.getElementById("master-gas-consumo").value = String(PARAMETRI_CALCOLO.profiloMedio.gasConsumoSmc);
               if(document.getElementById("master-tipo-fornitura")) document.getElementById("master-tipo-fornitura").value = PARAMETRI_CALCOLO.profiloMedio.tipoFornitura;
               if(document.getElementById("master-gas-regione")) document.getElementById("master-gas-regione").value = PARAMETRI_CALCOLO.profiloMedio.regioneGas;
+              if(document.getElementById("master-gas-accisa")) document.getElementById("master-gas-accisa").value = PARAMETRI_CALCOLO.profiloMedio.regimeAccisaGas || "";
 
               // B. SELEZIONE FORNITORI DI DEFAULT (Fondamentale se la funzione nativa li richiede)
               if(document.getElementById("nome-fornitore-att")) document.getElementById("nome-fornitore-att").value = "enel";

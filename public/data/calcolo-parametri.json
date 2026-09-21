@@ -15,7 +15,8 @@
       "regioneGas": "",
       "tipoPrezzo": "fisso",
       "tipoFornitura": "dual",
-      "classeContatoreGas": ""
+      "classeContatoreGas": "",
+      "regimeAccisaGas": ""
     },
     "componentiProfilo": {
       "potenzaLuceAnnua": {
@@ -469,10 +470,48 @@
           }
         ],
         "ug3EurSmc": 0.007292,
-        "gsDomesticiEurSmc": 0.0
+        "gsDomesticiEurSmc": 0.0,
+        "accisaDomestica": {
+          "ordinario": [
+            {
+              "finoSmc": 120,
+              "eurSmc": 0.044
+            },
+            {
+              "finoSmc": 480,
+              "eurSmc": 0.175
+            },
+            {
+              "finoSmc": 1560,
+              "eurSmc": 0.17
+            },
+            {
+              "finoSmc": null,
+              "eurSmc": 0.186
+            }
+          ],
+          "mezzogiorno-dpr218": [
+            {
+              "finoSmc": 120,
+              "eurSmc": 0.038
+            },
+            {
+              "finoSmc": 480,
+              "eurSmc": 0.135
+            },
+            {
+              "finoSmc": 1560,
+              "eurSmc": 0.12
+            },
+            {
+              "finoSmc": null,
+              "eurSmc": 0.15
+            }
+          ]
+        }
       }
     },
-    "note": "Stima comparativa annua: per la luce include rete domestica ARERA 2026 e componenti ASOS/ARIM/UC3/UC6 comuni ai domestici nel III trimestre 2026. Per il gas include la tariffa obbligatoria 2026 di distribuzione/misura e, quando sono selezionati ambito tariffario ARERA e classe contatore, le componenti UG1, RS, RE, UG2 e UG3 vigenti nel III trimestre 2026; GS e pari a zero per i clienti domestici. Restano esclusi i corrispettivi non ancora modellati puntualmente (tra cui quota fissa ASOS non residenti, dispacciamento/capacita luce, trasporto gas QTt, imposte e IVA).",
+    "note": "Stima comparativa annua: per la luce include rete domestica ARERA 2026 e componenti ASOS/ARIM/UC3/UC6 comuni ai domestici nel III trimestre 2026. Per il gas include tariffa obbligatoria 2026 di distribuzione/misura, oneri UG1/RS/RE/UG2/UG3 Q3 2026 e, solo con scelta esplicita del regime fiscale, l'accisa nazionale domestica a scaglioni. Restano esclusi i corrispettivi non ancora modellati puntualmente (quota fissa ASOS non residenti, dispacciamento/capacita luce, trasporto gas QTt/PCS locale, accisa luce, addizionale regionale gas e IVA).",
     "profiloConsumiFonte": {
       "fonte": "ARERA - Monitoraggio Retail - Offerte e prezzi",
       "urlFonte": "https://www.arera.it/rapporti-e-relazioni/monitoraggio-retail/monitoraggio-retail-offerte-e-prezzi",
@@ -522,7 +561,8 @@
         "gas_RE_Q3_2026",
         "gas_UG2_Q3_2026",
         "gas_UG3_Q3_2026",
-        "gas_GS_domestici_zero_Q3_2026"
+        "gas_GS_domestici_zero_Q3_2026",
+        "gas_accisa_domestica_TUA_2026"
       ],
       "vociNonIncluse": [
         "luce_ASOS_quota_fissa_non_residenti",
@@ -530,7 +570,6 @@
         "capacita",
         "accisa",
         "IVA",
-        "gas_accisa",
         "gas_addizionale_regionale",
         "gas_IVA",
         "gas_trasporto_QTt_PCS_locale"
@@ -578,6 +617,29 @@
         "reEurSmcOltre200000": 0.015611,
         "ug3EurSmc": 0.007292,
         "gsDomesticiEurSmc": 0.0
+      },
+      "urlFonteAccise": "https://www.adm.gov.it/portale/aliquote-accisa-nazionali",
+      "urlFonteNormativaAccisaGas": "https://www.normattiva.it/eli/id/2026/06/27/26A03280/ORIGINAL",
+      "notaAccisaGas": "Step 3E include l'accisa nazionale sul gas naturale per usi domestici secondo gli scaglioni vigenti del TUA 2026. Il calcolo richiede una scelta esplicita tra regime ordinario e regime agevolato per i territori DPR 218/1978; senza scelta non viene applicata alcuna accisa presunta. Addizionale regionale e IVA restano escluse.",
+      "valoriAccisaGas2026": {
+        "ordinarioEurSmc": [
+          0.044,
+          0.175,
+          0.17,
+          0.186
+        ],
+        "mezzogiornoDpr218EurSmc": [
+          0.038,
+          0.135,
+          0.12,
+          0.15
+        ],
+        "soglieSmc": [
+          120,
+          480,
+          1560,
+          null
+        ]
       }
     }
   },
