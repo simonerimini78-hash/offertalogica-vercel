@@ -1,4 +1,4 @@
-/* OffertaLogica mobile journey v1.3.0 */
+/* OffertaLogica mobile journey v1.3.1 */
 (function () {
   'use strict';
 
@@ -249,7 +249,7 @@
       var labels = Array.prototype.slice.call(table.querySelectorAll('thead th')).map(function (th) {
         return (th.textContent || '').trim().replace(/\s+/g, ' ');
       });
-      if (labels.length < 3) return;
+      if (labels.length < 2) return;
       table.classList.add('ol-mobile-card-table');
       var wrap = table.closest('.table-wrap');
       if (wrap) wrap.classList.add('ol-mobile-card-table-wrap');

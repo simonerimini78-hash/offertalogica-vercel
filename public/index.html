@@ -19135,7 +19135,7 @@ if (document.readyState === "loading") {
       window.setTimeout(() => scrollFast(pdfPanel, "start"), 80);
     }
 
-    /* OFFERTALOGICA_EXTERNAL_FAST_START_V1_20260922
+    /* OFFERTALOGICA_EXTERNAL_FAST_START_V2_20260922
        Solo instradamento: usa i percorsi già esistenti del calcolatore senza modificarne calcoli o validazioni. */
     const externalFastStartQuery = new URLSearchParams(window.location.search).get("compare_start");
     const externalFastStartHash = new URLSearchParams(String(window.location.hash || "").replace(/^#/, "")).get("compare_start");
@@ -19165,10 +19165,23 @@ if (document.readyState === "loading") {
             }, 40);
             return;
           }
-          if (attempts < 80) {
+          if (attempts === 80) {
+            let status = document.getElementById("ol-external-average-status");
+            if (!status) {
+              status = document.createElement("p");
+              status.id = "ol-external-average-status";
+              status.setAttribute("role", "status");
+              status.style.cssText = "max-width:520px;margin:8px auto 0;color:#64748b;font-size:12px;line-height:1.35;text-align:center";
+              (document.getElementById("mobile-fast-start") || submit)?.insertAdjacentElement("afterend", status);
+            }
+            if (status) status.textContent = "Sto completando il caricamento dei dati delle offerte. Il confronto partirà automaticamente appena sono pronti.";
+          }
+          if (attempts < 240) {
             window.setTimeout(startAverageComparison, 125);
             return;
           }
+          const status = document.getElementById("ol-external-average-status");
+          if (status) status.textContent = "Il caricamento sta richiedendo più del previsto. Tocca Usa il profilo medio per riprovare senza perdere la pagina.";
           scrollFast(btnAverage || submit, "center");
         };
         startAverageComparison();

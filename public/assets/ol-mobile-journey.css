@@ -1,4 +1,4 @@
-/* OffertaLogica mobile journey v1.3.0
+/* OffertaLogica mobile journey v1.3.1
  * Solo presentazione mobile e navigazione del sito pubblico.
  * Non modifica breadcrumb, metadati SEO/IA, logica del calcolatore o contenuti tecnici.
  */
@@ -16,6 +16,13 @@
   body.ol-mobile-journey-ready.ol-mobile-menu-open {
     overflow: hidden;
     touch-action: none;
+  }
+
+  /* Il controllo privacy resta raggiungibile ma non copre CTA o contenuti. */
+  .iubenda-tp-btn.iubenda-cs-preferences-link {
+    transform: scale(.72) !important;
+    transform-origin: left bottom !important;
+    opacity: .68 !important;
   }
 
   body.ol-mobile-journey-ready .ol-mobile-menu-host {
