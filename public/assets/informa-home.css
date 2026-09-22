@@ -364,3 +364,59 @@ body[data-editorial-view="archive"] .ol-featured-author {
     min-height: 0;
   }
 }
+
+/* OffertaLogica Informa — mobile compact v0.11.9 */
+@media (max-width: 700px) {
+  body[data-editorial-view="archive"] .ol-hero {
+    padding: 14px 0 8px;
+  }
+
+  body[data-editorial-view="archive"] .ol-hero h1 {
+    margin: 2px 0 6px;
+    font-size: clamp(31px, 9.4vw, 39px);
+    line-height: 1.02;
+  }
+
+  body[data-editorial-view="archive"] .ol-hero p {
+    font-size: 15px;
+    line-height: 1.45;
+  }
+
+  body[data-editorial-view="archive"] .ol-public-primary-cta {
+    width: 100%;
+    margin-top: 12px;
+  }
+
+  body[data-editorial-view="archive"] .ol-informa-lead-section {
+    padding-top: 6px;
+    padding-bottom: 28px;
+  }
+
+  body[data-editorial-view="archive"] .ol-section-heading {
+    margin-bottom: 8px;
+  }
+
+  body[data-editorial-view="archive"] .ol-section-heading h2 {
+    font-size: 22px;
+  }
+
+  body[data-editorial-view="archive"] .ol-informa-featured .ol-article-item-featured,
+  body[data-editorial-view="archive"] .ol-informa-featured .ol-article-item-featured.ol-article-item-has-image {
+    padding: 14px;
+    row-gap: 7px;
+  }
+
+  body[data-editorial-view="archive"] .ol-informa-featured .ol-archive-image-link {
+    width: calc(100% + 28px);
+    margin: -14px -14px 5px;
+  }
+
+  body[data-editorial-view="archive"] .ol-informa-featured .ol-article-item-featured h3 {
+    font-size: clamp(24px, 7.3vw, 30px);
+  }
+
+  body[data-editorial-view="archive"] .ol-resource-list .ol-resource-card {
+    min-height: 58px;
+    padding: 9px 11px;
+  }
+}

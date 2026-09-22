@@ -563,3 +563,236 @@ td {
         line-height: 1.55 !important;
     }
 }
+
+/* ================================================================
+ * MOBILE CONTENT PRIORITY v1.1.0
+ * Pagine informative: meno altezza prima del contenuto, CTA principale
+ * piu evidente, navigazione completa ma su una sola riga scorrevole.
+ * La barra App/Premium resta secondaria e compatta, mentre il calcolatore
+ * diventa l’azione primaria sopra la piega sui dispositivi mobili.
+ * ================================================================ */
+@media (max-width: 700px) {
+    .topbar .topbar-inner {
+        min-height: 0 !important;
+        align-items: stretch !important;
+        flex-direction: column !important;
+        justify-content: flex-start !important;
+        gap: 7px !important;
+        padding: 8px 0 7px !important;
+    }
+
+    .topbar .brand {
+        align-self: flex-start;
+    }
+
+    .topbar .brand img {
+        width: 126px !important;
+        max-width: 44vw !important;
+    }
+
+    .site-logo-main {
+        width: min(190px, 56vw) !important;
+        max-width: 100% !important;
+    }
+
+    header:has(.site-logo-main) {
+        padding: 10px 8px 8px !important;
+    }
+
+    .topbar .nav,
+    .topbar .top-nav {
+        width: 100%;
+        max-width: 100%;
+        flex-wrap: nowrap !important;
+        justify-content: flex-start !important;
+        gap: 6px !important;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding: 0 0 2px;
+        scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
+        scroll-snap-type: x proximity;
+    }
+
+    .topbar .nav::-webkit-scrollbar,
+    .topbar .top-nav::-webkit-scrollbar {
+        display: none;
+    }
+
+    .topbar .nav a,
+    .topbar .top-nav a {
+        flex: 0 0 auto;
+        min-height: 44px !important;
+        padding: 7px 10px !important;
+        font-size: 13px !important;
+        line-height: 1.2 !important;
+        white-space: nowrap;
+        scroll-snap-align: start;
+    }
+
+    .topbar .nav a[href="/"],
+    .topbar .top-nav a[href="/"] {
+        background: linear-gradient(135deg, #087f3a 0%, #18a84b 62%, #67c82f 100%) !important;
+        border-color: rgba(8,127,58,.34) !important;
+        color: #fff !important;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.25), 0 8px 18px rgba(8,127,58,.16) !important;
+    }
+
+    /* App/Premium resta disponibile, ma come navigazione secondaria compatta e non sticky. */
+    .ol-app-access-bar {
+        position: static !important;
+    }
+
+    .ol-app-access-inner {
+        flex-wrap: nowrap !important;
+        gap: 6px !important;
+        padding: 4px 12px 6px !important;
+    }
+
+    .ol-app-access-inner .ol-app-access-link {
+        min-height: 40px !important;
+        padding: 6px 10px !important;
+        border-radius: 10px !important;
+        font-size: 12px !important;
+        line-height: 1.15 !important;
+        box-shadow: none !important;
+    }
+
+    /* Le pagine con nav separata non devono piu impilare ogni voce a tutta larghezza. */
+    .top-nav {
+        width: min(100% - 24px, 1080px) !important;
+        max-width: 100% !important;
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        justify-content: flex-start !important;
+        gap: 6px !important;
+        margin: 0 auto 12px !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
+        scroll-snap-type: x proximity;
+    }
+
+    .top-nav::-webkit-scrollbar {
+        display: none;
+    }
+
+    .top-nav a {
+        width: auto !important;
+        flex: 0 0 auto !important;
+        min-height: 44px !important;
+        padding: 7px 10px !important;
+        font-size: 13px !important;
+        line-height: 1.2 !important;
+        white-space: nowrap;
+        scroll-snap-align: start;
+    }
+
+    .top-nav a[href="/"] {
+        background: linear-gradient(135deg, #087f3a 0%, #18a84b 62%, #67c82f 100%) !important;
+        border-color: rgba(8,127,58,.34) !important;
+        color: #fff !important;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.25), 0 8px 18px rgba(8,127,58,.16) !important;
+    }
+
+    .ol-breadcrumbs {
+        margin-top: 8px !important;
+        padding-top: 0 !important;
+        font-size: 12px !important;
+        line-height: 1.3 !important;
+        gap: 4px !important;
+    }
+
+    .hero {
+        padding: 14px 0 16px !important;
+    }
+
+    .hero > .shell {
+        padding: 18px 16px !important;
+        border-radius: 20px !important;
+    }
+
+    .hero .eyebrow {
+        margin-bottom: 7px !important;
+        font-size: 12px !important;
+        line-height: 1.25 !important;
+    }
+
+    .hero h1,
+    .hero h2 {
+        margin-bottom: 10px !important;
+        font-size: clamp(30px, 9.3vw, 40px) !important;
+        line-height: 1.02 !important;
+        letter-spacing: -.025em !important;
+    }
+
+    .hero p,
+    .hero-copy,
+    .section-lead {
+        font-size: 16px !important;
+        line-height: 1.48 !important;
+    }
+
+    .hero-actions {
+        gap: 8px !important;
+        margin-top: 14px !important;
+    }
+
+    .hero-actions .button,
+    .hero-actions .btn-action,
+    .hero-actions .lead-primary,
+    .hero-actions .lead-secondary,
+    .hero-actions .business-secondary-action,
+    .hero-actions .primary-link,
+    .hero-actions .secondary-link {
+        min-height: 46px !important;
+        font-size: 14px !important;
+        line-height: 1.2 !important;
+    }
+
+    .notice {
+        margin-top: 14px !important;
+        padding: 12px 13px !important;
+        font-size: 14px !important;
+        line-height: 1.45 !important;
+    }
+
+    .ol-interactive {
+        margin-bottom: 20px !important;
+        padding: 15px !important;
+    }
+
+    .ol-interactive h2 {
+        font-size: 22px !important;
+    }
+
+    .ol-interactive .ol-choice-row {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 8px !important;
+        margin-top: 12px !important;
+    }
+
+    .ol-interactive .ol-choice-row .ol-choice {
+        min-height: 46px !important;
+        padding: 8px 9px !important;
+        font-size: 13px !important;
+        line-height: 1.25 !important;
+    }
+
+    .ol-interactive .ol-choice-row .ol-choice:last-child:nth-child(odd) {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 380px) {
+    .topbar .brand img {
+        width: 118px !important;
+    }
+
+    .hero h1,
+    .hero h2 {
+        font-size: clamp(29px, 9.2vw, 36px) !important;
+    }
+}
