@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "version": "arera-history-2026-09-21",
-  "updatedAt": "2026-09-21",
-  "sourceCatalogVersion": "arera-menu-2026-09-21",
+  "version": "arera-history-2026-09-22",
+  "updatedAt": "2026-09-22",
+  "sourceCatalogVersion": "arera-menu-2026-09-22",
   "source": "Portale Offerte ARERA/Acquirente Unico Open Data. Le offerte variabili sono stimate con indice corrente del motore quando ARERA espone solo lo spread.",
   "offers": [
     {
@@ -62,7 +62,7 @@
       "offerName": "A2A Bonus 10 Gas",
       "customerType": "privato",
       "firstSeen": "2026-09-01",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -231,7 +231,7 @@
       "offerName": "A2A Click - GAS",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -308,7 +308,7 @@
       "offerName": "A2A Easy Gas",
       "customerType": "privato",
       "firstSeen": "2026-09-01",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -462,7 +462,7 @@
       "offerName": "A2A Full Gas",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -493,7 +493,7 @@
       "offerName": "A2A Full Gas",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -586,7 +586,7 @@
       "offerName": "A2A Full Gas Business",
       "customerType": "business",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -617,7 +617,7 @@
       "offerName": "A2A Full Gas Business",
       "customerType": "business",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -725,7 +725,7 @@
       "offerName": "A2A Ready 12 Gas",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -864,7 +864,7 @@
       "offerName": "A2A Start Gas",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -895,7 +895,7 @@
       "offerName": "A2A Start Gas",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -1003,7 +1003,7 @@
       "offerName": "Esclusiva2a - Gas",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -1096,7 +1096,7 @@
       "offerName": "Esclusiva2a Gas Business",
       "customerType": "business",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -1189,7 +1189,7 @@
       "offerName": "Prezzo Sicuro Gas Business",
       "customerType": "business",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -1220,7 +1220,7 @@
       "offerName": "Prezzo Sicuro Gas Business",
       "customerType": "business",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -1282,7 +1282,7 @@
       "offerName": "Smart Business - Gas",
       "customerType": "business",
       "firstSeen": "2026-09-01",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -1359,7 +1359,7 @@
       "offerName": "Smart Business+ Gas",
       "customerType": "business",
       "firstSeen": "2026-09-01",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -1497,7 +1497,7 @@
       "offerName": "Smart Casa Gas",
       "customerType": "privato",
       "firstSeen": "2026-09-01",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -1543,7 +1543,7 @@
       "offerName": "Smart Casa Gas",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -1666,7 +1666,7 @@
       "offerName": "Smart Casa+ Gas",
       "customerType": "privato",
       "firstSeen": "2026-09-01",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -1758,7 +1758,7 @@
       "offerName": "Smart Casa+ Gas",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -1835,7 +1835,7 @@
       "offerName": "A2A Bonus 10 Luce",
       "customerType": "privato",
       "firstSeen": "2026-09-01",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -1927,7 +1927,7 @@
       "offerName": "A2A Bonus 10 Luce",
       "customerType": "privato",
       "firstSeen": "2026-09-01",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -2234,7 +2234,7 @@
       "offerName": "A2A Click Luce",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -2311,7 +2311,7 @@
       "offerName": "A2A Easy Luce",
       "customerType": "privato",
       "firstSeen": "2026-09-01",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -2403,7 +2403,7 @@
       "offerName": "A2A Easy Luce",
       "customerType": "privato",
       "firstSeen": "2026-09-01",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -2650,7 +2650,7 @@
       "offerName": "A2A Full Luce",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -2681,7 +2681,7 @@
       "offerName": "A2A Full Luce",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -2774,7 +2774,7 @@
       "offerName": "A2A Full Luce Business",
       "customerType": "business",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -2805,7 +2805,7 @@
       "offerName": "A2A Full Luce Business",
       "customerType": "business",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -2944,7 +2944,7 @@
       "offerName": "A2A Ready 12 Luce",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -3176,7 +3176,7 @@
       "offerName": "A2A Start Luce",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -3207,7 +3207,7 @@
       "offerName": "A2A Start Luce",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -3346,7 +3346,7 @@
       "offerName": "Esclusiva2a Luce",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -3439,7 +3439,7 @@
       "offerName": "Esclusiva2a Luce Business",
       "customerType": "business",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -3563,7 +3563,7 @@
       "offerName": "Prezzo Sicuro Verde Business",
       "customerType": "business",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -3594,7 +3594,7 @@
       "offerName": "Prezzo Sicuro Verde Business",
       "customerType": "business",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -3656,7 +3656,7 @@
       "offerName": "Smart Business - Luce",
       "customerType": "business",
       "firstSeen": "2026-09-01",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -3733,7 +3733,7 @@
       "offerName": "Smart Business - Luce",
       "customerType": "business",
       "firstSeen": "2026-09-01",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -3810,7 +3810,7 @@
       "offerName": "Smart Business+ Luce",
       "customerType": "business",
       "firstSeen": "2026-09-01",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -3887,7 +3887,7 @@
       "offerName": "Smart Business+ Luce",
       "customerType": "business",
       "firstSeen": "2026-09-01",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -4025,7 +4025,7 @@
       "offerName": "Smart Casa Luce",
       "customerType": "privato",
       "firstSeen": "2026-09-01",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -4117,7 +4117,7 @@
       "offerName": "Smart Casa Luce",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -4240,7 +4240,7 @@
       "offerName": "Smart Casa Luce",
       "customerType": "privato",
       "firstSeen": "2026-09-01",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -4332,7 +4332,7 @@
       "offerName": "Smart Casa Luce",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -4455,7 +4455,7 @@
       "offerName": "Smart Casa+ Luce",
       "customerType": "privato",
       "firstSeen": "2026-09-01",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -4547,7 +4547,7 @@
       "offerName": "Smart Casa+ Luce",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -4670,7 +4670,7 @@
       "offerName": "Smart Casa+ Luce",
       "customerType": "privato",
       "firstSeen": "2026-09-01",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -4762,7 +4762,7 @@
       "offerName": "Smart Casa+ Luce",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -4826,7 +4826,7 @@
       "offerName": "Accendi Casa AGILE ECOLOGICA Luce e Gas 12 mesi",
       "customerType": "privato",
       "firstSeen": "2026-09-01",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -4892,7 +4892,7 @@
       "offerName": "Accendi ECOLOGICA Luce e Gas 24 Mesi",
       "customerType": "privato",
       "firstSeen": "2026-09-21",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -5024,7 +5024,7 @@
       "offerName": "ACCENDI AG",
       "customerType": "business",
       "firstSeen": "2026-08-24",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -5070,7 +5070,7 @@
       "offerName": "ACCENDI AG MEDIUM",
       "customerType": "business",
       "firstSeen": "2026-08-24",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -5147,7 +5147,7 @@
       "offerName": "Accendi Casa AGILE ECOLOGICA Gas 12 mesi",
       "customerType": "privato",
       "firstSeen": "2026-09-01",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -5224,7 +5224,7 @@
       "offerName": "Accendi Casa AGILE ECOLOGICA Luce e Gas 12 mesi",
       "customerType": "privato",
       "firstSeen": "2026-09-01",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -5301,7 +5301,7 @@
       "offerName": "Accendi ECOLOGICA Gas 24 Mesi",
       "customerType": "privato",
       "firstSeen": "2026-09-21",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -5363,7 +5363,7 @@
       "offerName": "Accendi ECOLOGICA Luce e Gas 24 Mesi",
       "customerType": "privato",
       "firstSeen": "2026-09-21",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -5580,7 +5580,7 @@
       "offerName": "ACCENDI GOLD",
       "customerType": "business",
       "firstSeen": "2026-08-24",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -5626,7 +5626,7 @@
       "offerName": "ACCENDI PLUS",
       "customerType": "business",
       "firstSeen": "2026-08-24",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -5703,7 +5703,7 @@
       "offerName": "Accendi Casa AGILE ECOLOGICA Luce 12 mesi",
       "customerType": "privato",
       "firstSeen": "2026-09-01",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -5780,7 +5780,7 @@
       "offerName": "Accendi Casa AGILE ECOLOGICA Luce e Gas 12 mesi",
       "customerType": "privato",
       "firstSeen": "2026-09-01",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -5857,7 +5857,7 @@
       "offerName": "Accendi ECOLOGICA Luce 24 Mesi",
       "customerType": "privato",
       "firstSeen": "2026-09-21",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -5919,7 +5919,7 @@
       "offerName": "Accendi ECOLOGICA Luce e Gas 24 Mesi",
       "customerType": "privato",
       "firstSeen": "2026-09-21",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -6244,7 +6244,7 @@
       "offerName": "Acea Energia Fix",
       "customerType": "privato",
       "firstSeen": "2026-09-18",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -6275,7 +6275,7 @@
       "offerName": "Acea Energia Flex Casa",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -6336,7 +6336,7 @@
       "offerName": "Acea Energia Sprint",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -6397,7 +6397,7 @@
       "offerName": "Acea Energia Sprint Web",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -6458,7 +6458,7 @@
       "offerName": "Acea Energia Trend 12",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -6519,7 +6519,7 @@
       "offerName": "Acea Energia Trend 24",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -6595,7 +6595,7 @@
       "offerName": "ACEA GAS SOLUZIONE SEMPLICE 02_26",
       "customerType": "business",
       "firstSeen": "2026-08-24",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -6656,7 +6656,7 @@
       "offerName": "ACEA GAS SOLUZIONE SEMPLICE 02_26",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -6732,7 +6732,7 @@
       "offerName": "GAS SOLUZIONE SEMPLICE 02_26",
       "customerType": "business",
       "firstSeen": "2026-08-24",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -6963,7 +6963,7 @@
       "offerName": "Acea Energia Fix",
       "customerType": "privato",
       "firstSeen": "2026-09-18",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -6994,7 +6994,7 @@
       "offerName": "Acea Energia Flex Casa",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -7055,7 +7055,7 @@
       "offerName": "Acea Energia Flex Casa",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -7116,7 +7116,7 @@
       "offerName": "Acea Energia Sprint",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -7177,7 +7177,7 @@
       "offerName": "Acea Energia Sprint",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -7238,7 +7238,7 @@
       "offerName": "Acea Energia Sprint Web",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -7299,7 +7299,7 @@
       "offerName": "Acea Energia Sprint Web",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -7360,7 +7360,7 @@
       "offerName": "Acea Energia Trend 12",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -7421,7 +7421,7 @@
       "offerName": "Acea Energia Trend 12",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -7482,7 +7482,7 @@
       "offerName": "Acea Energia Trend 24",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -7543,7 +7543,7 @@
       "offerName": "Acea Energia Trend 24",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -7604,7 +7604,7 @@
       "offerName": "LUCE BACK TO SCHOOL",
       "customerType": "privato",
       "firstSeen": "2026-09-01",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -7650,7 +7650,7 @@
       "offerName": "LUCE BUSINESS SMART",
       "customerType": "business",
       "firstSeen": "2026-08-24",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -7696,7 +7696,7 @@
       "offerName": "LUCE CASA INTELLIGENTE",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -7757,7 +7757,7 @@
       "offerName": "LUCE COMMUNITY",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -7818,7 +7818,7 @@
       "offerName": "LUCE OVER 75 26_01",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -7879,7 +7879,7 @@
       "offerName": "LUCE SECONDE CASE",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -7940,7 +7940,7 @@
       "offerName": "Alperia Gas Condoindex Sciliar",
       "customerType": "business",
       "firstSeen": "2026-08-24",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -7986,7 +7986,7 @@
       "offerName": "Alperia Gas Free",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -8062,7 +8062,7 @@
       "offerName": "Alperia Gas Home Digital",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -8138,7 +8138,7 @@
       "offerName": "Alperia Gas Home Promo",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -8214,7 +8214,7 @@
       "offerName": "Alperia Gas Home Pure",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -8290,7 +8290,7 @@
       "offerName": "Alperia Gas Home Standard",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -8366,7 +8366,7 @@
       "offerName": "Alperia Gas Home Start",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -8442,7 +8442,7 @@
       "offerName": "Alperia Gas Index Business",
       "customerType": "business",
       "firstSeen": "2026-08-24",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -8488,7 +8488,7 @@
       "offerName": "Alperia Gas Index Caldaro",
       "customerType": "business",
       "firstSeen": "2026-08-24",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -8534,7 +8534,7 @@
       "offerName": "Alperia Gas Index Carezza",
       "customerType": "business",
       "firstSeen": "2026-08-24",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -8566,6 +8566,37 @@
           "indexName": "PSV",
           "indexValueAtCapture": 0.686448,
           "spreadEstimate": -0.039836
+        }
+      ]
+    },
+    {
+      "key": "gas:000368GSFML01XX4945654X260922XVE",
+      "recordType": "single",
+      "commodity": "gas",
+      "offerCode": "000368GSFML01XX4945654X260922XVE",
+      "providerKey": "alperia",
+      "providerName": "Alperia",
+      "providerVat": "01745520211",
+      "offerName": "Alperia Gas Smile Clear",
+      "customerType": "privato",
+      "firstSeen": "2026-09-22",
+      "lastSeen": "2026-09-22",
+      "active": true,
+      "versions": [
+        {
+          "catalogDate": "2026-09-22",
+          "validFrom": "22/09/2026_00:00:00",
+          "validTo": "30/11/2026_23:59:59",
+          "priceType": "fisso",
+          "price": 0.599,
+          "annualFixedFee": 144.0,
+          "durationMonths": 36,
+          "priceQuality": "prezzo_esplicito",
+          "url": "https://www.alperia.eu/offerta/alperia-gas-smile-clear",
+          "source": "Portale Offerte ARERA/Acquirente Unico Open Data - codice 000368GSFML01XX4945654X260922XVE",
+          "indexName": null,
+          "indexValueAtCapture": null,
+          "spreadEstimate": null
         }
       ]
     },
@@ -8693,6 +8724,37 @@
       ]
     },
     {
+      "key": "gas:000368GSFML01XX4935652X260922XVE",
+      "recordType": "single",
+      "commodity": "gas",
+      "offerCode": "000368GSFML01XX4935652X260922XVE",
+      "providerKey": "alperia",
+      "providerName": "Alperia",
+      "providerVat": "01745520211",
+      "offerName": "Alperia Gas Südtirol - Alto Adige",
+      "customerType": "privato",
+      "firstSeen": "2026-09-22",
+      "lastSeen": "2026-09-22",
+      "active": true,
+      "versions": [
+        {
+          "catalogDate": "2026-09-22",
+          "validFrom": "22/09/2026_00:00:00",
+          "validTo": "30/11/2026_23:59:59",
+          "priceType": "fisso",
+          "price": 0.599,
+          "annualFixedFee": 108.0,
+          "durationMonths": 36,
+          "priceQuality": "prezzo_esplicito",
+          "url": "https://www.alperia.eu/offerta/alperia-gas-südtirol-alto-adige",
+          "source": "Portale Offerte ARERA/Acquirente Unico Open Data - codice 000368GSFML01XX4935652X260922XVE",
+          "indexName": null,
+          "indexValueAtCapture": null,
+          "spreadEstimate": null
+        }
+      ]
+    },
+    {
       "key": "luce:000368ESFML01XX3835448X260511XVE",
       "recordType": "single",
       "commodity": "luce",
@@ -8703,7 +8765,7 @@
       "offerName": "Alperia Direct Alto Adige",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -8826,7 +8888,7 @@
       "customerType": "privato",
       "firstSeen": "2026-09-11",
       "lastSeen": "2026-09-21",
-      "active": true,
+      "active": false,
       "versions": [
         {
           "catalogDate": "2026-09-11",
@@ -8856,7 +8918,7 @@
       "offerName": "Alperia Free",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -8932,7 +8994,7 @@
       "offerName": "Alperia Free Welcome",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -9008,7 +9070,7 @@
       "offerName": "Alperia Home Clear",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -9084,7 +9146,7 @@
       "offerName": "Alperia Home Digital",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -9160,7 +9222,7 @@
       "offerName": "Alperia Home Plus",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -9236,7 +9298,7 @@
       "offerName": "Alperia Home Pro",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -9312,7 +9374,7 @@
       "offerName": "Alperia Home Pure",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -9388,7 +9450,7 @@
       "offerName": "Alperia Home Standard",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -9464,7 +9526,7 @@
       "offerName": "Alperia Home Start",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -9540,7 +9602,7 @@
       "offerName": "Alperia Power Condoindex Sciliar",
       "customerType": "business",
       "firstSeen": "2026-08-24",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -9586,7 +9648,7 @@
       "offerName": "Alperia Power Index Business",
       "customerType": "business",
       "firstSeen": "2026-08-24",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -9632,7 +9694,7 @@
       "offerName": "Alperia Power Index Caldaro",
       "customerType": "business",
       "firstSeen": "2026-08-24",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -9678,7 +9740,7 @@
       "offerName": "Alperia Power Index Carezza",
       "customerType": "business",
       "firstSeen": "2026-08-24",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -9801,13 +9863,28 @@
       "offerName": "Alperia Smile Clear",
       "customerType": "privato",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
           "catalogDate": "2026-09-11",
           "validFrom": "11/09/2026_00:00:00",
           "validTo": "21/09/2026_23:59:59",
+          "priceType": "fisso",
+          "price": 0.1793,
+          "annualFixedFee": 145.0,
+          "durationMonths": 24,
+          "priceQuality": "prezzo_esplicito",
+          "url": "https://www.alperia.eu/offerta/alperia-smile-clear",
+          "source": "Portale Offerte ARERA/Acquirente Unico Open Data - codice 000368ESFML04XX3395080X260911XVE",
+          "indexName": null,
+          "indexValueAtCapture": null,
+          "spreadEstimate": null
+        },
+        {
+          "catalogDate": "2026-09-22",
+          "validFrom": "11/09/2026_00:00:00",
+          "validTo": "30/09/2026_23:59:59",
           "priceType": "fisso",
           "price": 0.1793,
           "annualFixedFee": 145.0,
@@ -9986,13 +10063,28 @@
       "offerName": "Alperia Smile Safety",
       "customerType": "privato",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
           "catalogDate": "2026-09-11",
           "validFrom": "11/09/2026_00:00:00",
           "validTo": "21/09/2026_23:59:59",
+          "priceType": "fisso",
+          "price": 0.176,
+          "annualFixedFee": 97.0,
+          "durationMonths": 24,
+          "priceQuality": "prezzo_esplicito",
+          "url": "https://www.alperia.eu/offerta/alperia-smile-safety",
+          "source": "Portale Offerte ARERA/Acquirente Unico Open Data - codice 000368ESFML04XX3385081X260911XVE",
+          "indexName": null,
+          "indexValueAtCapture": null,
+          "spreadEstimate": null
+        },
+        {
+          "catalogDate": "2026-09-22",
+          "validFrom": "11/09/2026_00:00:00",
+          "validTo": "30/09/2026_23:59:59",
           "priceType": "fisso",
           "price": 0.176,
           "annualFixedFee": 97.0,
@@ -10094,13 +10186,28 @@
       "offerName": "Alperia Smile Standard",
       "customerType": "privato",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
           "catalogDate": "2026-09-11",
           "validFrom": "11/09/2026_00:00:00",
           "validTo": "21/09/2026_23:59:59",
+          "priceType": "fisso",
+          "price": 0.1705,
+          "annualFixedFee": 121.0,
+          "durationMonths": 24,
+          "priceQuality": "prezzo_esplicito",
+          "url": "https://www.alperia.eu/offerta/alperia-smile-standard/",
+          "source": "Portale Offerte ARERA/Acquirente Unico Open Data - codice 000368ESFML03XX4775571X260911XVE",
+          "indexName": null,
+          "indexValueAtCapture": null,
+          "spreadEstimate": null
+        },
+        {
+          "catalogDate": "2026-09-22",
+          "validFrom": "11/09/2026_00:00:00",
+          "validTo": "30/09/2026_23:59:59",
           "priceType": "fisso",
           "price": 0.1705,
           "annualFixedFee": 121.0,
@@ -10125,7 +10232,7 @@
       "offerName": "Alperia TerzoTempo",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -10278,7 +10385,7 @@
       "offerName": "FIX STORE GAS SCONTO 15%",
       "customerType": "privato",
       "firstSeen": "2026-09-04",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -10340,7 +10447,7 @@
       "offerName": "GAS BUSINESS FISSA WEB",
       "customerType": "business",
       "firstSeen": "2026-09-04",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -10417,7 +10524,7 @@
       "offerName": "GAS BUSINESS FLEX WEB",
       "customerType": "business",
       "firstSeen": "2026-09-04",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -10725,7 +10832,7 @@
       "offerName": "MOVE GAS FISSA WEB",
       "customerType": "privato",
       "firstSeen": "2026-09-04",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -10817,7 +10924,7 @@
       "offerName": "MOVE GAS FLEX WEB",
       "customerType": "privato",
       "firstSeen": "2026-09-04",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -10987,7 +11094,7 @@
       "offerName": "FLEX STORE LUCE SCONTO 50%",
       "customerType": "privato",
       "firstSeen": "2026-09-04",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -11064,7 +11171,7 @@
       "offerName": "LUCE BUSINESS DINAMICO",
       "customerType": "business",
       "firstSeen": "2026-09-04",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -11141,7 +11248,7 @@
       "offerName": "LUCE BUSINESS FLEX WEB",
       "customerType": "business",
       "firstSeen": "2026-09-04",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -11233,7 +11340,7 @@
       "offerName": "LUCE DINAMICA VACANZE 3 FASCE",
       "customerType": "privato",
       "firstSeen": "2026-09-04",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -11526,7 +11633,7 @@
       "offerName": "LUCE FLEX 40",
       "customerType": "privato",
       "firstSeen": "2026-09-04",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -11834,7 +11941,7 @@
       "offerName": "MOVE LUCE FLEX WEB",
       "customerType": "privato",
       "firstSeen": "2026-09-04",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -11911,7 +12018,7 @@
       "offerName": "Axpo Condominio Gas Index",
       "customerType": "business",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -11988,7 +12095,7 @@
       "offerName": "Business Dinamico GAS",
       "customerType": "business",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -12112,7 +12219,7 @@
       "offerName": "Business Sereno Gas",
       "customerType": "business",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -12235,7 +12342,7 @@
       "offerName": "Scegli Dinamico GAS 2",
       "customerType": "business",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -12358,7 +12465,7 @@
       "offerName": "Scegli Dinamico GAS 2.0",
       "customerType": "business",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -12481,7 +12588,7 @@
       "offerName": "Scegli Dinamico Gas Light",
       "customerType": "business",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -12651,7 +12758,7 @@
       "offerName": "Scegli Sereno GAS 2.0",
       "customerType": "business",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -12821,7 +12928,7 @@
       "offerName": "Scegli Sereno GAS 2.0 Light",
       "customerType": "business",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -12883,7 +12990,7 @@
       "offerName": "Axpo Condominio Power Index",
       "customerType": "business",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -12945,7 +13052,7 @@
       "offerName": "Business Dinamico Power 3Fasce",
       "customerType": "business",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -13053,7 +13160,7 @@
       "offerName": "Scegli Dinamico 2.0",
       "customerType": "business",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -13161,7 +13268,7 @@
       "offerName": "Scegli Dinamico 3Fasce 2.0",
       "customerType": "business",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -13269,7 +13376,7 @@
       "offerName": "Scegli Dinamico 6",
       "customerType": "business",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -13377,7 +13484,7 @@
       "offerName": "Scegli Dinamico Light",
       "customerType": "business",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -13485,7 +13592,7 @@
       "offerName": "Scegli Dinamico Plus",
       "customerType": "business",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -13950,7 +14057,7 @@
       "offerName": "DOLOMITI FISSO GAS 12 BUSINESS",
       "customerType": "business",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -14074,7 +14181,7 @@
       "offerName": "DOLOMITI FISSO GAS 12 CORPORATE",
       "customerType": "business",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -14430,7 +14537,7 @@
       "offerName": "DOLOMITI FLEX 24 GAS",
       "customerType": "privato",
       "firstSeen": "2026-08-27",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -14522,7 +14629,7 @@
       "offerName": "DOLOMITI FLEX GAS BUSINESS",
       "customerType": "business",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -14599,7 +14706,7 @@
       "offerName": "DOLOMITI FLEX GAS BUSINESS PERTINENZA",
       "customerType": "business",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -14676,7 +14783,7 @@
       "offerName": "DOLOMITI FLEX GAS CONDOMINI",
       "customerType": "business",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -14753,7 +14860,7 @@
       "offerName": "DOLOMITI FLEX GAS CORPORATE",
       "customerType": "business",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -14830,7 +14937,7 @@
       "offerName": "DOLOMITI SINERGIKA GAS",
       "customerType": "privato",
       "firstSeen": "2026-08-27",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -15806,7 +15913,7 @@
       "offerName": "ENERGIA CASA PRIMIERO",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -15867,7 +15974,7 @@
       "offerName": "ENERGIA CASA TRENTINO",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -15928,7 +16035,7 @@
       "offerName": "E.CO GAS ACQUA GOLD",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -15989,7 +16096,7 @@
       "offerName": "E.CO GAS ACQUA GOLD LINK",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -16050,7 +16157,7 @@
       "offerName": "E.CO GAS ACQUA PREMIUM",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -16111,7 +16218,7 @@
       "offerName": "E.CO GAS ACQUA PREMIUM LINK",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -16172,7 +16279,7 @@
       "offerName": "E.CO GAS ACQUA SPECIAL",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -16233,7 +16340,7 @@
       "offerName": "E.CO GAS ACQUA SPECIAL LINK",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -16340,7 +16447,7 @@
       "offerName": "E.CO Gas CasaFissa",
       "customerType": "privato",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -16417,7 +16524,7 @@
       "offerName": "E.CO Gas CasaFissa LINK",
       "customerType": "privato",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -16448,7 +16555,7 @@
       "offerName": "E.CO Gas Equilibrio Gold",
       "customerType": "business",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -16509,7 +16616,7 @@
       "offerName": "E.CO Gas Equilibrio Gold LINK",
       "customerType": "business",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -16570,7 +16677,7 @@
       "offerName": "E.CO Gas Equilibrio Premium",
       "customerType": "business",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -16631,7 +16738,7 @@
       "offerName": "E.CO Gas Equilibrio Premium LINK",
       "customerType": "business",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -16692,7 +16799,7 @@
       "offerName": "E.CO Gas Equilibrio Special",
       "customerType": "business",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -16753,7 +16860,7 @@
       "offerName": "E.CO Gas Equilibrio Special LINK",
       "customerType": "business",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -16814,7 +16921,7 @@
       "offerName": "E.CO Gas Essenza Gold",
       "customerType": "business",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -16875,7 +16982,7 @@
       "offerName": "E.CO Gas Essenza Gold LINK",
       "customerType": "business",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -16936,7 +17043,7 @@
       "offerName": "E.CO Gas Essenza Premium",
       "customerType": "business",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -16997,7 +17104,7 @@
       "offerName": "E.CO Gas Essenza Premium LINK",
       "customerType": "business",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -17058,7 +17165,7 @@
       "offerName": "E.CO Gas Essenza Special",
       "customerType": "business",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -17119,7 +17226,7 @@
       "offerName": "E.CO Gas Essenza Special LINK",
       "customerType": "business",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -17364,7 +17471,7 @@
       "offerName": "E.CO GAS PER LGL BUS 1",
       "customerType": "business",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -17425,7 +17532,7 @@
       "offerName": "E.CO GAS PER LGL BUS 2",
       "customerType": "business",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -17486,7 +17593,7 @@
       "offerName": "E.CO GAS PER LGL BUS LINK 1",
       "customerType": "business",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -17547,7 +17654,7 @@
       "offerName": "E.CO GAS PER LGL BUS LINK 2",
       "customerType": "business",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -17654,7 +17761,7 @@
       "offerName": "E.CO Gas Prezzo Chiaro BUS",
       "customerType": "business",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -17731,7 +17838,7 @@
       "offerName": "E.CO Gas Prezzo Chiaro BUS LINK",
       "customerType": "business",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -17808,7 +17915,7 @@
       "offerName": "E.CO Gas Prezzo Garantito",
       "customerType": "privato",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -17885,7 +17992,7 @@
       "offerName": "E.CO Gas Prezzo Garantito LINK",
       "customerType": "privato",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -17962,7 +18069,7 @@
       "offerName": "E.CO Gas Prezzo Protetto",
       "customerType": "privato",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -18039,7 +18146,7 @@
       "offerName": "E.CO Gas Prezzo Protetto LINK",
       "customerType": "privato",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -18116,7 +18223,7 @@
       "offerName": "E.CO Gas Prezzo Relax BUS",
       "customerType": "business",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -18193,7 +18300,7 @@
       "offerName": "E.CO Gas Prezzo Relax BUS LINK",
       "customerType": "business",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -18270,7 +18377,7 @@
       "offerName": "E.CO Gas Prezzo Sicuro",
       "customerType": "privato",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -18347,7 +18454,7 @@
       "offerName": "E.CO Gas Prezzo Sicuro LINK",
       "customerType": "privato",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -18378,7 +18485,7 @@
       "offerName": "E.CO GAS SOLE GOLD",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -18439,7 +18546,7 @@
       "offerName": "E.CO GAS SOLE GOLD LINK",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -18500,7 +18607,7 @@
       "offerName": "E.CO GAS SOLE PREMIUM",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -18561,7 +18668,7 @@
       "offerName": "E.CO GAS SOLE PREMIUM LINK",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -18622,7 +18729,7 @@
       "offerName": "E.CO GAS SOLE SPECIAL",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -18683,7 +18790,7 @@
       "offerName": "E.CO GAS SOLE SPECIAL LINK",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -18744,7 +18851,7 @@
       "offerName": "E.CO Gas Sostanza Gold",
       "customerType": "business",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -18805,7 +18912,7 @@
       "offerName": "E.CO Gas Sostanza Gold LINK",
       "customerType": "business",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -18866,7 +18973,7 @@
       "offerName": "E.CO Gas Sostanza Premium",
       "customerType": "business",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -18927,7 +19034,7 @@
       "offerName": "E.CO Gas Sostanza Premium LINK",
       "customerType": "business",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -18988,7 +19095,7 @@
       "offerName": "E.CO Gas Sostanza Special",
       "customerType": "business",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -19049,7 +19156,7 @@
       "offerName": "E.CO Gas Sostanza Special LINK",
       "customerType": "business",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -19110,7 +19217,7 @@
       "offerName": "E.CO GAS VENTO GOLD",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -19171,7 +19278,7 @@
       "offerName": "E.CO GAS VENTO GOLD LINK",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -19232,7 +19339,7 @@
       "offerName": "E.CO GAS VENTO PREMIUM",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -19293,7 +19400,7 @@
       "offerName": "E.CO GAS VENTO PREMIUM LINK",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -19354,7 +19461,7 @@
       "offerName": "E.CO GAS VENTO SPECIAL",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -19415,7 +19522,7 @@
       "offerName": "E.CO GAS VENTO SPECIAL LINK",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -19476,7 +19583,7 @@
       "offerName": "E.CO GAS ZERO GOLD",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -19537,7 +19644,7 @@
       "offerName": "E.CO GAS ZERO GOLD LINK",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -19598,7 +19705,7 @@
       "offerName": "E.CO GAS ZERO PREMIUM",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -19659,7 +19766,7 @@
       "offerName": "E.CO GAS ZERO PREMIUM LINK",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -19720,7 +19827,7 @@
       "offerName": "E.CO GAS ZERO SPECIAL",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -19781,7 +19888,7 @@
       "offerName": "E.CO GAS ZERO SPECIAL LINK",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -20676,7 +20783,7 @@
       "offerName": "E.CO LUCE ACQUA GOLD",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -20737,7 +20844,7 @@
       "offerName": "E.CO LUCE ACQUA GOLD LINK",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -20798,7 +20905,7 @@
       "offerName": "E.CO LUCE ACQUA PREMIUM",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -20859,7 +20966,7 @@
       "offerName": "E.CO LUCE ACQUA PREMIUM LINK",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -20920,7 +21027,7 @@
       "offerName": "E.CO LUCE ACQUA SPECIAL",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -20981,7 +21088,7 @@
       "offerName": "E.CO LUCE ACQUA SPECIAL LINK",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -21088,7 +21195,7 @@
       "offerName": "E.CO Luce CasaFissa",
       "customerType": "privato",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -21165,7 +21272,7 @@
       "offerName": "E.CO Luce CasaFissa Link",
       "customerType": "privato",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -21242,7 +21349,7 @@
       "offerName": "E.CO Luce CasaFissa x2",
       "customerType": "privato",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -21319,7 +21426,7 @@
       "offerName": "E.CO Luce CasaFissa x2 LINK",
       "customerType": "privato",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -21350,7 +21457,7 @@
       "offerName": "E.CO LUCE CONDOMINI GOLD",
       "customerType": "business",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -21411,7 +21518,7 @@
       "offerName": "E.CO LUCE CONDOMINI PREMIUM",
       "customerType": "business",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -21472,7 +21579,7 @@
       "offerName": "E.CO Luce Equilibrio Gold",
       "customerType": "business",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -21533,7 +21640,7 @@
       "offerName": "E.CO Luce Equilibrio Gold LINK",
       "customerType": "business",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -21594,7 +21701,7 @@
       "offerName": "E.CO Luce Equilibrio Premium",
       "customerType": "business",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -21655,7 +21762,7 @@
       "offerName": "E.CO Luce Equilibrio Premium LINK",
       "customerType": "business",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -21716,7 +21823,7 @@
       "offerName": "E.CO Luce Equilibrio Special",
       "customerType": "business",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -21777,7 +21884,7 @@
       "offerName": "E.CO Luce Equilibrio Special LINK",
       "customerType": "business",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -21838,7 +21945,7 @@
       "offerName": "E.CO Luce Essenza Gold",
       "customerType": "business",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -21899,7 +22006,7 @@
       "offerName": "E.CO Luce Essenza Gold LINK",
       "customerType": "business",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -21960,7 +22067,7 @@
       "offerName": "E.CO Luce Essenza Premium",
       "customerType": "business",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -22021,7 +22128,7 @@
       "offerName": "E.CO Luce Essenza Premium LINK",
       "customerType": "business",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -22082,7 +22189,7 @@
       "offerName": "E.CO Luce Essenza Special",
       "customerType": "business",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -22143,7 +22250,7 @@
       "offerName": "E.CO Luce Essenza Special LINK",
       "customerType": "business",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -22434,7 +22541,7 @@
       "offerName": "E.CO Luce Prezzo Chiaro BUS",
       "customerType": "business",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -22511,7 +22618,7 @@
       "offerName": "E.CO Luce Prezzo Chiaro BUS LINK",
       "customerType": "business",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -22588,7 +22695,7 @@
       "offerName": "E.CO Luce Prezzo Garantito",
       "customerType": "privato",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -22665,7 +22772,7 @@
       "offerName": "E.CO Luce Prezzo Garantito Link",
       "customerType": "privato",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -22742,7 +22849,7 @@
       "offerName": "E.CO Luce Prezzo Garantito x2",
       "customerType": "privato",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -22819,7 +22926,7 @@
       "offerName": "E.CO Luce Prezzo Garantito x2 LINK",
       "customerType": "privato",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -22896,7 +23003,7 @@
       "offerName": "E.CO Luce Prezzo Protetto",
       "customerType": "privato",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -22973,7 +23080,7 @@
       "offerName": "E.CO Luce Prezzo Protetto Link",
       "customerType": "privato",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -23050,7 +23157,7 @@
       "offerName": "E.CO Luce Prezzo Protetto x2",
       "customerType": "privato",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -23127,7 +23234,7 @@
       "offerName": "E.CO Luce Prezzo Protetto x2 LINK",
       "customerType": "privato",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -23204,7 +23311,7 @@
       "offerName": "E.CO Luce Prezzo Relax BUS",
       "customerType": "business",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -23281,7 +23388,7 @@
       "offerName": "E.CO Luce Prezzo Relax BUS LINK",
       "customerType": "business",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -23358,7 +23465,7 @@
       "offerName": "E.CO Luce Prezzo Sicuro",
       "customerType": "privato",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -23435,7 +23542,7 @@
       "offerName": "E.CO Luce Prezzo Sicuro Link",
       "customerType": "privato",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -23512,7 +23619,7 @@
       "offerName": "E.CO Luce Prezzo Sicuro x2",
       "customerType": "privato",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -23589,7 +23696,7 @@
       "offerName": "E.CO Luce Prezzo Sicuro x2 LINK",
       "customerType": "privato",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -23620,7 +23727,7 @@
       "offerName": "E.CO LUCE SOLE GOLD",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -23681,7 +23788,7 @@
       "offerName": "E.CO LUCE SOLE GOLD LINK",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -23742,7 +23849,7 @@
       "offerName": "E.CO LUCE SOLE PREMIUM",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -23803,7 +23910,7 @@
       "offerName": "E.CO LUCE SOLE PREMIUM LINK",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -23864,7 +23971,7 @@
       "offerName": "E.CO LUCE SOLE SPECIAL",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -23925,7 +24032,7 @@
       "offerName": "E.CO LUCE SOLE SPECIAL LINK",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -23986,7 +24093,7 @@
       "offerName": "E.CO Luce Sostanza Gold",
       "customerType": "business",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -24047,7 +24154,7 @@
       "offerName": "E.CO Luce Sostanza Gold LINK",
       "customerType": "business",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -24108,7 +24215,7 @@
       "offerName": "E.CO Luce Sostanza Premium",
       "customerType": "business",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -24169,7 +24276,7 @@
       "offerName": "E.CO Luce Sostanza Premium LINK",
       "customerType": "business",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -24230,7 +24337,7 @@
       "offerName": "E.CO Luce Sostanza Special",
       "customerType": "business",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -24291,7 +24398,7 @@
       "offerName": "E.CO Luce Sostanza Special LINK",
       "customerType": "business",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -24352,7 +24459,7 @@
       "offerName": "E.CO LUCE VENTO GOLD",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -24413,7 +24520,7 @@
       "offerName": "E.CO LUCE VENTO GOLD LINK",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -24474,7 +24581,7 @@
       "offerName": "E.CO LUCE VENTO PREMIUM",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -24535,7 +24642,7 @@
       "offerName": "E.CO LUCE VENTO PREMIUM LINK",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -24596,7 +24703,7 @@
       "offerName": "E.CO LUCE VENTO SPECIAL",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -24657,7 +24764,7 @@
       "offerName": "E.CO LUCE VENTO SPECIAL LINK",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -24718,7 +24825,7 @@
       "offerName": "E.CO LUCE ZERO GOLD",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -24779,7 +24886,7 @@
       "offerName": "E.CO LUCE ZERO GOLD LINK",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -24840,7 +24947,7 @@
       "offerName": "E.CO LUCE ZERO PREMIUM",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -24901,7 +25008,7 @@
       "offerName": "E.CO LUCE ZERO PREMIUM LINK",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -24962,7 +25069,7 @@
       "offerName": "E.CO LUCE ZERO SPECIAL",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -25023,7 +25130,7 @@
       "offerName": "E.CO LUCE ZERO SPECIAL LINK",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -25641,7 +25748,7 @@
       "offerName": "E.ON Flex Gas",
       "customerType": "privato",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -25764,7 +25871,7 @@
       "offerName": "E.ON Flex Gas Protetta",
       "customerType": "privato",
       "firstSeen": "2026-09-12",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -25964,7 +26071,7 @@
       "offerName": "E.ON FlexClick Gas - PROMO",
       "customerType": "privato",
       "firstSeen": "2026-09-19",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -26087,7 +26194,7 @@
       "offerName": "E.ON FreeComfort Gas Protetta",
       "customerType": "privato",
       "firstSeen": "2026-09-12",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -26164,7 +26271,7 @@
       "offerName": "E.ON Gas - Amico new",
       "customerType": "privato",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -26195,7 +26302,7 @@
       "offerName": "E.ON Gas 70 FlexPer12",
       "customerType": "privato",
       "firstSeen": "2026-09-12",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -26226,7 +26333,7 @@
       "offerName": "E.ON Gas 70 TuaPer12",
       "customerType": "privato",
       "firstSeen": "2026-09-12",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -26257,7 +26364,7 @@
       "offerName": "E.ON Gas 70 TuaPer24",
       "customerType": "privato",
       "firstSeen": "2026-09-12",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -26458,7 +26565,7 @@
       "offerName": "E.ON Gas Click",
       "customerType": "privato",
       "firstSeen": "2026-09-19",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -26489,7 +26596,7 @@
       "offerName": "E.ON Gas Dinamica Click",
       "customerType": "business",
       "firstSeen": "2026-08-24",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -26535,7 +26642,7 @@
       "offerName": "E.ON Gas Impresa",
       "customerType": "business",
       "firstSeen": "2026-08-24",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -26581,7 +26688,7 @@
       "offerName": "E.ON Gas Impresa Easy",
       "customerType": "business",
       "firstSeen": "2026-08-24",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -26797,7 +26904,7 @@
       "offerName": "E.ON Gas Insieme",
       "customerType": "privato",
       "firstSeen": "2026-09-19",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -26998,7 +27105,7 @@
       "offerName": "E.ON Gas Premia",
       "customerType": "privato",
       "firstSeen": "2026-09-19",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -27106,7 +27213,7 @@
       "offerName": "E.ON Gas Protetta Per 24",
       "customerType": "privato",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -27183,7 +27290,7 @@
       "offerName": "E.ON Gas Tua",
       "customerType": "privato",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -27384,7 +27491,7 @@
       "offerName": "E.ON GasClick - Amico new",
       "customerType": "privato",
       "firstSeen": "2026-09-19",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -27461,7 +27568,7 @@
       "offerName": "E.ON GasVerde Protetta",
       "customerType": "privato",
       "firstSeen": "2026-09-12",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -27615,7 +27722,7 @@
       "offerName": "E.ON Flex Luce",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -27769,7 +27876,7 @@
       "offerName": "E.ON Flex Luce Casa",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -27923,7 +28030,7 @@
       "offerName": "E.ON Flex Luce Per 24",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -28154,7 +28261,7 @@
       "offerName": "E.ON FlexClick Luce - PROMO",
       "customerType": "privato",
       "firstSeen": "2026-09-19",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -28308,7 +28415,7 @@
       "offerName": "E.ON FreeComfort Luce Casa",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -28416,7 +28523,7 @@
       "offerName": "E.ON Luce - Amico new",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -28478,7 +28585,7 @@
       "offerName": "E.ON Luce 70 FlexPer12",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -28540,7 +28647,7 @@
       "offerName": "E.ON Luce 70 TuaPer12",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -28602,7 +28709,7 @@
       "offerName": "E.ON Luce 70 TuaPer24",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -28741,7 +28848,7 @@
       "offerName": "E.ON Luce Casa Per 24",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -29205,7 +29312,7 @@
       "offerName": "E.ON Luce Insieme",
       "customerType": "privato",
       "firstSeen": "2026-09-19",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -29437,7 +29544,7 @@
       "offerName": "E.ON Luce Premia",
       "customerType": "privato",
       "firstSeen": "2026-09-19",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -29669,7 +29776,7 @@
       "offerName": "E.ON Luce Tua",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -29839,7 +29946,7 @@
       "offerName": "E.ON Luce Tua Per 24",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -30133,7 +30240,7 @@
       "offerName": "E.ON LuceClick - Amico new",
       "customerType": "privato",
       "firstSeen": "2026-09-19",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -30427,7 +30534,7 @@
       "offerName": "E.ON LuceClickVerde",
       "customerType": "privato",
       "firstSeen": "2026-09-19",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -30458,7 +30565,7 @@
       "offerName": "E.ON LuceDinamica Click ECO",
       "customerType": "business",
       "firstSeen": "2026-08-24",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -30504,7 +30611,7 @@
       "offerName": "E.ON LuceDinamica Easy ECO",
       "customerType": "business",
       "firstSeen": "2026-08-24",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -30550,7 +30657,7 @@
       "offerName": "E.ON LuceDinamica ECO",
       "customerType": "business",
       "firstSeen": "2026-08-24",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -30673,7 +30780,7 @@
       "offerName": "E.ON LuceVerde Casa",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -31120,7 +31227,7 @@
       "offerName": "Edison EasyFix Gas",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -31351,7 +31458,7 @@
       "offerName": "Edison Sweet Gas",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -31536,7 +31643,7 @@
       "offerName": "Edison Web Gas",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -31751,7 +31858,7 @@
       "offerName": "Edison 5xTe Luce km0",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -32074,7 +32181,7 @@
       "offerName": "Edison EasyFix Luce",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -32397,7 +32504,7 @@
       "offerName": "Edison Sweet Luce",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -32628,7 +32735,7 @@
       "offerName": "Edison Web Luce",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -32909,7 +33016,7 @@
       "offerName": "FIX_HOME_PLUS_DUAL",
       "customerType": "privato",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -32992,7 +33099,7 @@
       "offerName": "MY HOME 4.0 DUAL",
       "customerType": "privato",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -33025,7 +33132,7 @@
       "offerName": "START_MY_HOME_DUAL",
       "customerType": "privato",
       "firstSeen": "2026-08-24",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -33121,7 +33228,7 @@
       "offerName": "CONDOMINIO_GAS_ELIT",
       "customerType": "business",
       "firstSeen": "2026-09-15",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -33245,7 +33352,7 @@
       "offerName": "FIX_HOME_GAS_PLUS",
       "customerType": "privato",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -33307,7 +33414,7 @@
       "offerName": "FIX_HOME_GAS_PLUS_DUAL",
       "customerType": "privato",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -33338,7 +33445,7 @@
       "offerName": "FLEX MY HOME GAS NON RESIDENTE",
       "customerType": "privato",
       "firstSeen": "2026-08-24",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -33384,7 +33491,7 @@
       "offerName": "FLEX MY HOME GAS R",
       "customerType": "privato",
       "firstSeen": "2026-08-24",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -33430,7 +33537,7 @@
       "offerName": "GOOD LIFE 75 PLUS GAS",
       "customerType": "privato",
       "firstSeen": "2026-08-24",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -33476,7 +33583,7 @@
       "offerName": "GOOD LIFE 75 PLUS GAS_DUAL",
       "customerType": "privato",
       "firstSeen": "2026-08-24",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -33522,7 +33629,7 @@
       "offerName": "MY BUSINESS GAS",
       "customerType": "business",
       "firstSeen": "2026-08-24",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -33568,7 +33675,7 @@
       "offerName": "MY BUSINESS GAS DUAL",
       "customerType": "business",
       "firstSeen": "2026-08-24",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -33660,7 +33767,7 @@
       "offerName": "MY HOME 4.0 GAS",
       "customerType": "privato",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -33737,7 +33844,7 @@
       "offerName": "MY HOME 4.0 GAS DUAL",
       "customerType": "privato",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -33814,7 +33921,7 @@
       "offerName": "MY HOME PLUS GAS",
       "customerType": "privato",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -33891,7 +33998,7 @@
       "offerName": "MY HOME PLUS GAS DUAL",
       "customerType": "privato",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -33922,7 +34029,7 @@
       "offerName": "START_MY_HOME_GAS",
       "customerType": "privato",
       "firstSeen": "2026-08-24",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -33968,7 +34075,7 @@
       "offerName": "START_MY_HOME_GAS",
       "customerType": "privato",
       "firstSeen": "2026-08-24",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -34107,7 +34214,7 @@
       "offerName": "FIX_HOME_LUCE_PLUS",
       "customerType": "privato",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -34169,7 +34276,7 @@
       "offerName": "FIX_HOME_LUCE_PLUS_DUAL",
       "customerType": "privato",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -34200,7 +34307,7 @@
       "offerName": "FLEX MY HOME LUCEMNR",
       "customerType": "privato",
       "firstSeen": "2026-08-24",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -34246,7 +34353,7 @@
       "offerName": "FLEX MY HOME LUCEMRE",
       "customerType": "privato",
       "firstSeen": "2026-08-24",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -34292,7 +34399,7 @@
       "offerName": "FLEXMYHOMELUCETNR",
       "customerType": "privato",
       "firstSeen": "2026-08-24",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -34384,7 +34491,7 @@
       "offerName": "MY HOME 4.0 LUCE",
       "customerType": "privato",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -34461,7 +34568,7 @@
       "offerName": "MY HOME 4.0 LUCE DUAL",
       "customerType": "privato",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -34492,7 +34599,7 @@
       "offerName": "START_MY_HOME_LUCE",
       "customerType": "privato",
       "firstSeen": "2026-08-24",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -34538,7 +34645,7 @@
       "offerName": "START_MY_HOME_LUCE",
       "customerType": "privato",
       "firstSeen": "2026-08-24",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -34615,7 +34722,7 @@
       "offerName": "Enel Condominio gas",
       "customerType": "business",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -34677,7 +34784,7 @@
       "offerName": "Enel Fix Business Gas",
       "customerType": "business",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -34739,7 +34846,7 @@
       "offerName": "ENEL FIX BUSINESS START GAS",
       "customerType": "business",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -34862,7 +34969,7 @@
       "offerName": "Enel Fix WOW Gas",
       "customerType": "privato",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -34939,7 +35046,7 @@
       "offerName": "Enel FixWeb Gas",
       "customerType": "privato",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -35016,7 +35123,7 @@
       "offerName": "Enel Flash Gas",
       "customerType": "privato",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -35155,7 +35262,7 @@
       "offerName": "ENEL MOVE GAS",
       "customerType": "privato",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -35217,7 +35324,7 @@
       "offerName": "Enel Business Luce",
       "customerType": "business",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -35279,7 +35386,7 @@
       "offerName": "ENEL BUSINESS ORE HAPPY 12-15",
       "customerType": "business",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -35418,7 +35525,7 @@
       "offerName": "Enel Digital Luce",
       "customerType": "privato",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -35495,7 +35602,7 @@
       "offerName": "Enel Drive Luce",
       "customerType": "privato",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -35557,7 +35664,7 @@
       "offerName": "Enel Fix Business Luce",
       "customerType": "business",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -35619,7 +35726,7 @@
       "offerName": "ENEL FIX BUSINESS START LUCE",
       "customerType": "business",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -35696,7 +35803,7 @@
       "offerName": "Enel Fix Web Luce",
       "customerType": "privato",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -35773,7 +35880,7 @@
       "offerName": "Enel Fix Wow Luce",
       "customerType": "privato",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -35850,7 +35957,7 @@
       "offerName": "Enel Flash Luce",
       "customerType": "privato",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -35927,7 +36034,7 @@
       "offerName": "ENEL FLEX BOX",
       "customerType": "business",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -36004,7 +36111,7 @@
       "offerName": "Enel Flex Business Luce",
       "customerType": "business",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -36081,7 +36188,7 @@
       "offerName": "Enel Flex Control Business Luce",
       "customerType": "business",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -36219,7 +36326,7 @@
       "offerName": "Enel Flex Corporate",
       "customerType": "business",
       "firstSeen": "2026-08-24",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -36265,7 +36372,7 @@
       "offerName": "Enel Flex Corporate",
       "customerType": "business",
       "firstSeen": "2026-08-24",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -36311,7 +36418,7 @@
       "offerName": "Enel Flex Corporate Green",
       "customerType": "business",
       "firstSeen": "2026-08-24",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -36403,7 +36510,7 @@
       "offerName": "Enel Flex Impresa Pmi",
       "customerType": "business",
       "firstSeen": "2026-08-24",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -36449,7 +36556,7 @@
       "offerName": "Enel Flex Impresa Pmi",
       "customerType": "business",
       "firstSeen": "2026-08-24",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -36495,7 +36602,7 @@
       "offerName": "Enel Flex Impresa Pmi Green",
       "customerType": "business",
       "firstSeen": "2026-08-24",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -36541,7 +36648,7 @@
       "offerName": "Enel Luce e Giga",
       "customerType": "privato",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -36664,7 +36771,7 @@
       "offerName": "ENEL MOVE LUCE",
       "customerType": "privato",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -36787,7 +36894,7 @@
       "offerName": "Enel Seconda Casa Luce",
       "customerType": "privato",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -36925,7 +37032,7 @@
       "offerName": "ALCHIMIA GAS",
       "customerType": "privato",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -37002,7 +37109,7 @@
       "offerName": "ARMONIA GAS",
       "customerType": "privato",
       "firstSeen": "2026-09-01",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -37217,7 +37324,7 @@
       "offerName": "ARMONIA GAS 24",
       "customerType": "privato",
       "firstSeen": "2026-09-01",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -37432,7 +37539,7 @@
       "offerName": "EQUA GAS",
       "customerType": "privato",
       "firstSeen": "2026-09-01",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -37494,7 +37601,7 @@
       "offerName": "FIX ECO GAS BUSINESS",
       "customerType": "business",
       "firstSeen": "2026-09-01",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -37525,7 +37632,7 @@
       "offerName": "FIX ECO GAS BUSINESS 24",
       "customerType": "business",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -37602,7 +37709,7 @@
       "offerName": "INDEX ECO GAS BUSINESS",
       "customerType": "business",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -37786,7 +37893,7 @@
       "offerName": "ALCHIMIA LUCE H24",
       "customerType": "privato",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -37987,7 +38094,7 @@
       "offerName": "ARMONIA LUCE 24",
       "customerType": "privato",
       "firstSeen": "2026-09-01",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -38202,7 +38309,7 @@
       "offerName": "EQUA LUCE",
       "customerType": "privato",
       "firstSeen": "2026-09-01",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -38233,7 +38340,7 @@
       "offerName": "FIX ECO LUCE BUSINESS 24",
       "customerType": "business",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -38297,7 +38404,7 @@
       "offerName": "Benvenuto in ENGIE",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -38363,7 +38470,7 @@
       "offerName": "eFLEX",
       "customerType": "business",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -38545,7 +38652,7 @@
       "offerName": "Energia PuntoFisso - 12 mesi",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -38611,7 +38718,7 @@
       "offerName": "Energia VedoChiaro",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -38677,7 +38784,7 @@
       "offerName": "Energia VedoChiaro",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -38743,7 +38850,7 @@
       "offerName": "Energia VedoChiaro SMILE",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -38868,7 +38975,7 @@
       "offerName": "Benvenuto in ENGIE",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -38945,7 +39052,7 @@
       "offerName": "eFLEX",
       "customerType": "business",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -39378,7 +39485,7 @@
       "offerName": "Energia PuntoFisso - 12 mesi",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -39409,7 +39516,7 @@
       "offerName": "Energia PuntoFisso - 12 mesi",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -39532,7 +39639,7 @@
       "offerName": "Energia VedoChiaro",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -39655,7 +39762,7 @@
       "offerName": "Energia VedoChiaro SMILE",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -39778,7 +39885,7 @@
       "offerName": "Benvenuto in ENGIE",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -39855,7 +39962,7 @@
       "offerName": "eFLEX",
       "customerType": "business",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -40195,7 +40302,7 @@
       "offerName": "Energia PuntoFisso - 12 mesi",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -40318,7 +40425,7 @@
       "offerName": "Energia VedoChiaro",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -40441,7 +40548,7 @@
       "offerName": "Energia VedoChiaro",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -40564,7 +40671,7 @@
       "offerName": "Energia VedoChiaro SMILE",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -40749,7 +40856,7 @@
       "offerName": "Taaanta Energia",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -40888,7 +40995,7 @@
       "offerName": "Fixa Time 24 Gas",
       "customerType": "privato",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -41072,7 +41179,7 @@
       "offerName": "Fixa Time Gas",
       "customerType": "privato",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -41164,7 +41271,7 @@
       "offerName": "Trend Casa Gas",
       "customerType": "privato",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -41256,7 +41363,7 @@
       "offerName": "Trend Casa NoPensieri Gas",
       "customerType": "privato",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -41395,7 +41502,7 @@
       "offerName": "Fixa Time",
       "customerType": "privato",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -41503,7 +41610,7 @@
       "offerName": "Fixa Time 24 Luce",
       "customerType": "privato",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -41749,7 +41856,7 @@
       "offerName": "Flexi Pertinenze",
       "customerType": "business",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -41934,7 +42041,7 @@
       "offerName": "Trend Casa Luce",
       "customerType": "privato",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -42026,7 +42133,7 @@
       "offerName": "Trend Casa Luce",
       "customerType": "privato",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -42118,7 +42225,7 @@
       "offerName": "Trend Casa Luce Plus",
       "customerType": "privato",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -42210,7 +42317,7 @@
       "offerName": "Trend Casa Luce Plus",
       "customerType": "privato",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -42302,7 +42409,7 @@
       "offerName": "Trend Casa NoPensieri Luce",
       "customerType": "privato",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -42394,7 +42501,7 @@
       "offerName": "Trend Casa NoPensieri Luce",
       "customerType": "privato",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -42456,7 +42563,7 @@
       "offerName": "PiuControllo Active Casa Gas_Caso A",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -42548,7 +42655,7 @@
       "offerName": "PiuControllo Active Casa Gas_Caso A",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -42579,7 +42686,7 @@
       "offerName": "PiuControllo Active Casa Gas_Caso B",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -42671,7 +42778,7 @@
       "offerName": "PiuControllo Active Casa Gas_Caso B",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -42702,7 +42809,7 @@
       "offerName": "PiuControllo Active Easy Casa Gas",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -42794,7 +42901,7 @@
       "offerName": "PiuControllo Active Easy Casa Gas",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -42825,7 +42932,7 @@
       "offerName": "PiuControllo Active Lavoro Gas",
       "customerType": "business",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -42902,7 +43009,7 @@
       "offerName": "PiuControllo Active Lavoro Gas",
       "customerType": "business",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -42933,7 +43040,7 @@
       "offerName": "PiuControllo Active Special Casa Gas",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -43025,7 +43132,7 @@
       "offerName": "PiuControllo Active Special Casa Gas",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -43056,7 +43163,7 @@
       "offerName": "PiuControllo Active Special Lavoro Gas",
       "customerType": "business",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -43133,7 +43240,7 @@
       "offerName": "PiuControllo Active Special Lavoro Gas",
       "customerType": "business",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -43210,7 +43317,7 @@
       "offerName": "PiuContr Flat EV Dom EE24",
       "customerType": "privato",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -43287,7 +43394,7 @@
       "offerName": "PiuContr Flat EV Dom EE24",
       "customerType": "privato",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -43364,7 +43471,7 @@
       "offerName": "PiuContr Flat EV Dual Dom EE24",
       "customerType": "privato",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -43441,7 +43548,7 @@
       "offerName": "PiuContr Flat EV Dual Dom EE24",
       "customerType": "privato",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -43533,7 +43640,7 @@
       "offerName": "PiuControllo Active Casa Luce_Caso A",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -43625,7 +43732,7 @@
       "offerName": "PiuControllo Active Casa Luce_Caso A",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -43717,7 +43824,7 @@
       "offerName": "PiuControllo Active Casa Luce_Caso B",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -43809,7 +43916,7 @@
       "offerName": "PiuControllo Active Casa Luce_Caso B",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -43901,7 +44008,7 @@
       "offerName": "PiuControllo Active Easy Casa EE",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -43993,7 +44100,7 @@
       "offerName": "PiuControllo Active Easy Casa EE",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -44085,7 +44192,7 @@
       "offerName": "PiuControllo Active Special Casa Luce",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -44177,7 +44284,7 @@
       "offerName": "PiuControllo Active Special Casa Luce",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -44269,7 +44376,7 @@
       "offerName": "PiuControllo FLAT Casa Luce 24",
       "customerType": "privato",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -44392,7 +44499,7 @@
       "offerName": "PiuControllo FLAT Casa Luce 24",
       "customerType": "privato",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -44670,7 +44777,7 @@
       "offerName": "PiuControllo Flat Dom EE_24",
       "customerType": "privato",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -44793,7 +44900,7 @@
       "offerName": "PiuControllo Flat Dom EE_24",
       "customerType": "privato",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -45071,7 +45178,7 @@
       "offerName": "PiuControllo Flat Easy Casa EE_24",
       "customerType": "privato",
       "firstSeen": "2026-09-19",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -45225,7 +45332,7 @@
       "offerName": "PiuControllo Flat Easy Casa EE_24",
       "customerType": "privato",
       "firstSeen": "2026-09-19",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -45302,7 +45409,7 @@
       "offerName": "PiuControllo Flat Lav EE_24",
       "customerType": "business",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -45379,7 +45486,7 @@
       "offerName": "PiuControllo Flat Lav EE_24",
       "customerType": "business",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -45533,7 +45640,7 @@
       "offerName": "PiuControllo Flat Special Casa Luce 24",
       "customerType": "privato",
       "firstSeen": "2026-09-19",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -45687,7 +45794,7 @@
       "offerName": "PiuControllo Flat Special Casa Luce 24",
       "customerType": "privato",
       "firstSeen": "2026-09-19",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -45797,7 +45904,7 @@
       "offerName": "A Modo Tuo Business Gas",
       "customerType": "business",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -45905,7 +46012,7 @@
       "offerName": "A Modo Tuo Fix Gas 36",
       "customerType": "privato",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -46028,7 +46135,7 @@
       "offerName": "A Modo Tuo Gas",
       "customerType": "privato",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -46059,7 +46166,7 @@
       "offerName": "Caldaia A Modo Tuo Fix Gas 36",
       "customerType": "privato",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -46090,7 +46197,7 @@
       "offerName": "Caldaia Gas Happy Home Fix 36",
       "customerType": "privato",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -46275,7 +46382,7 @@
       "offerName": "Energia Amica Fix Gas 36",
       "customerType": "privato",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -46413,7 +46520,7 @@
       "offerName": "Energia Amica Flex Gas",
       "customerType": "privato",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -46521,7 +46628,7 @@
       "offerName": "Energia Lunga Gas",
       "customerType": "privato",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -46629,7 +46736,7 @@
       "offerName": "Energia Lunga Gas Easy",
       "customerType": "privato",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -46737,7 +46844,7 @@
       "offerName": "Energia Lunga Gas Special",
       "customerType": "privato",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -46845,7 +46952,7 @@
       "offerName": "Energia Lunghissima Gas",
       "customerType": "privato",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -46968,7 +47075,7 @@
       "offerName": "Gas Flex",
       "customerType": "privato",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -47076,7 +47183,7 @@
       "offerName": "Gas Happy Home Fix 36",
       "customerType": "privato",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -47214,7 +47321,7 @@
       "offerName": "Gas Happy Home Flex",
       "customerType": "privato",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -47245,7 +47352,7 @@
       "offerName": "GAS PMI SPREAD - SPECIAL EX ILLUMIA",
       "customerType": "business",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -47413,7 +47520,7 @@
       "offerName": "Gas Premium Flex",
       "customerType": "privato",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -47490,7 +47597,7 @@
       "offerName": "Gas Premium Flex Business",
       "customerType": "business",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -47628,7 +47735,7 @@
       "offerName": "Gas Zero Pensieri",
       "customerType": "privato",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -47705,7 +47812,7 @@
       "offerName": "Gas Zero Pensieri Business",
       "customerType": "business",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -47813,7 +47920,7 @@
       "offerName": "Gas Zero Pensieri Fix 36",
       "customerType": "privato",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -47951,7 +48058,7 @@
       "offerName": "Illumia Sicurinsieme Gas",
       "customerType": "privato",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -48043,7 +48150,7 @@
       "offerName": "Illumia Smart Flex Business Gas",
       "customerType": "business",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -48181,7 +48288,7 @@
       "offerName": "Illumia Smart Flex Gas",
       "customerType": "privato",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -48289,7 +48396,7 @@
       "offerName": "Over Blindato Gas 36",
       "customerType": "business",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -48411,7 +48518,7 @@
       "offerName": "Over Limpido Gas",
       "customerType": "business",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -48519,7 +48626,7 @@
       "offerName": "Under Blindato Gas 36",
       "customerType": "business",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -48626,7 +48733,7 @@
       "offerName": "Under Limpido Gas",
       "customerType": "business",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -48703,7 +48810,7 @@
       "offerName": "A Modo Tuo Business Luce",
       "customerType": "business",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -48780,7 +48887,7 @@
       "offerName": "A Modo Tuo Business Luce",
       "customerType": "business",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -48887,7 +48994,7 @@
       "offerName": "Efficace",
       "customerType": "business",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -48994,7 +49101,7 @@
       "offerName": "Efficace",
       "customerType": "business",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -49132,7 +49239,7 @@
       "offerName": "Energia Amica Flex",
       "customerType": "privato",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -49270,7 +49377,7 @@
       "offerName": "Energia Amica Flex",
       "customerType": "privato",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -49440,7 +49547,7 @@
       "offerName": "Energia Lunga Luce",
       "customerType": "privato",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -49610,7 +49717,7 @@
       "offerName": "Energia Lunga Luce Easy",
       "customerType": "privato",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -49780,7 +49887,7 @@
       "offerName": "Energia Lunga Luce Special",
       "customerType": "privato",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -49950,7 +50057,7 @@
       "offerName": "Energia Lunga Luce Web",
       "customerType": "privato",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -50120,7 +50227,7 @@
       "offerName": "Energia Lunghissima Luce",
       "customerType": "privato",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -50151,7 +50258,7 @@
       "offerName": "LUCE BUSINESS SPREAD - SPECIAL EX ILLUMIA",
       "customerType": "business",
       "firstSeen": "2026-08-24",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -50304,7 +50411,7 @@
       "offerName": "Luce Flex",
       "customerType": "privato",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -50442,7 +50549,7 @@
       "offerName": "Luce Flex",
       "customerType": "privato",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -50580,7 +50687,7 @@
       "offerName": "Luce Premium Flex",
       "customerType": "privato",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -50718,7 +50825,7 @@
       "offerName": "Luce Premium Flex",
       "customerType": "privato",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -50795,7 +50902,7 @@
       "offerName": "Luce Premium Flex Business",
       "customerType": "business",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -50902,7 +51009,7 @@
       "offerName": "Over 50 Autentico Non Orario",
       "customerType": "business",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -51009,7 +51116,7 @@
       "offerName": "Over 50 Autentico Non Orario",
       "customerType": "business",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -51179,7 +51286,7 @@
       "offerName": "Over 50 Super Tenace 36",
       "customerType": "business",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -51488,7 +51595,7 @@
       "offerName": "Prezzo Garantito Luce 36",
       "customerType": "privato",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -51519,7 +51626,7 @@
       "offerName": "Prezzo Garantito Luce 36",
       "customerType": "business",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -51626,7 +51733,7 @@
       "offerName": "Under Autentico",
       "customerType": "business",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -51733,7 +51840,7 @@
       "offerName": "Under Autentico",
       "customerType": "business",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -51903,7 +52010,7 @@
       "offerName": "Under Super Tenace 36",
       "customerType": "business",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -52073,7 +52180,7 @@
       "offerName": "Under Tenace 12",
       "customerType": "business",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -52165,7 +52272,7 @@
       "offerName": "IREN 10 PER TRE GAS VARIABILE PSV 2023",
       "customerType": "privato",
       "firstSeen": "2026-09-14",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -52257,7 +52364,7 @@
       "offerName": "IREN GAS FACILE FLEX TOP",
       "customerType": "privato",
       "firstSeen": "2026-09-14",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -52319,7 +52426,7 @@
       "offerName": "Iren GasStabile Condominio",
       "customerType": "business",
       "firstSeen": "2026-09-08",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -52411,7 +52518,7 @@
       "offerName": "IREN LARGE GAS VARIABILE PSV",
       "customerType": "privato",
       "firstSeen": "2026-09-14",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -52581,7 +52688,7 @@
       "offerName": "IREN NO STRESS GAS",
       "customerType": "privato",
       "firstSeen": "2026-09-18",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -52658,7 +52765,7 @@
       "offerName": "Iren OndaGas Condominio",
       "customerType": "business",
       "firstSeen": "2026-09-14",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -52735,7 +52842,7 @@
       "offerName": "Iren OndaGas Condominio Top",
       "customerType": "business",
       "firstSeen": "2026-09-14",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -52905,7 +53012,7 @@
       "offerName": "IREN PREZZO FISSO EXTRA SMALL LUMINEA GAS",
       "customerType": "privato",
       "firstSeen": "2026-09-18",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -53075,7 +53182,7 @@
       "offerName": "IREN PREZZO FISSO ULTRA GAS",
       "customerType": "privato",
       "firstSeen": "2026-09-18",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -53245,7 +53352,7 @@
       "offerName": "IREN PRIMA SCELTA GAS",
       "customerType": "privato",
       "firstSeen": "2026-09-18",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -53616,7 +53723,7 @@
       "offerName": "IREN PRONTO GAS FISSA",
       "customerType": "privato",
       "firstSeen": "2026-09-18",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -53817,7 +53924,7 @@
       "offerName": "IREN QUICK GAS WEB TOP",
       "customerType": "privato",
       "firstSeen": "2026-09-18",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -54018,7 +54125,7 @@
       "offerName": "IREN REVOLUTION SPESE PROTETTE GAS PREZZO FISSO",
       "customerType": "privato",
       "firstSeen": "2026-09-18",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -54110,7 +54217,7 @@
       "offerName": "IREN REVOLUTION SPESE PROTETTE GAS VARIABILE",
       "customerType": "privato",
       "firstSeen": "2026-09-14",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -54202,7 +54309,7 @@
       "offerName": "IREN SMALL GAS VARIABILE PSV MENSILE",
       "customerType": "privato",
       "firstSeen": "2026-09-14",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -54294,7 +54401,7 @@
       "offerName": "IREN SOTTOCASA GAS VARIABILE NEW",
       "customerType": "privato",
       "firstSeen": "2026-09-14",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -54495,7 +54602,7 @@
       "offerName": "IREN SOTTOCASA SPECIAL GAS",
       "customerType": "privato",
       "firstSeen": "2026-09-18",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -54587,7 +54694,7 @@
       "offerName": "IREN STAY GAS PREZZO VARIABILE CONNETTIVITA'",
       "customerType": "privato",
       "firstSeen": "2026-09-14",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -54679,7 +54786,7 @@
       "offerName": "IREN SUPERSCONTO 100 RCA GAS SELF VARIABILE",
       "customerType": "privato",
       "firstSeen": "2026-09-14",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -54741,7 +54848,7 @@
       "offerName": "Iren Tua Azienda Gas Fisso",
       "customerType": "business",
       "firstSeen": "2026-09-08",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -54818,7 +54925,7 @@
       "offerName": "Iren Tua Azienda Gas Variabile",
       "customerType": "business",
       "firstSeen": "2026-09-14",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -54910,7 +55017,7 @@
       "offerName": "IREN UNIVERSO GAS VARIABILE PSV",
       "customerType": "privato",
       "firstSeen": "2026-09-14",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -55111,7 +55218,7 @@
       "offerName": "IREN WEB SELF GAS PREZZO FISSO",
       "customerType": "privato",
       "firstSeen": "2026-09-18",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -55234,7 +55341,7 @@
       "offerName": "SEV IREN BONUS 100 GAS",
       "customerType": "privato",
       "firstSeen": "2026-09-10",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -55357,7 +55464,7 @@
       "offerName": "SEV IREN GAS CONNETTIVITA",
       "customerType": "privato",
       "firstSeen": "2026-09-10",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -55480,7 +55587,7 @@
       "offerName": "SEV IREN LARGE GAS",
       "customerType": "privato",
       "firstSeen": "2026-09-10",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -55650,7 +55757,7 @@
       "offerName": "SEV IREN QUICK GAS",
       "customerType": "privato",
       "firstSeen": "2026-09-15",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -55773,7 +55880,7 @@
       "offerName": "SEV IREN REVOLUTION SPESE PROTETTE GAS VARIABILE",
       "customerType": "privato",
       "firstSeen": "2026-09-10",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -55896,7 +56003,7 @@
       "offerName": "SEV IREN SMALL GAS MENSILE",
       "customerType": "privato",
       "firstSeen": "2026-09-10",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -55988,7 +56095,7 @@
       "offerName": "IREN 10 PER TRE LUCE VARIABILE",
       "customerType": "privato",
       "firstSeen": "2026-09-14",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -56173,7 +56280,7 @@
       "offerName": "IREN EXTRA SMALL LUCE VARIABILE",
       "customerType": "privato",
       "firstSeen": "2026-09-14",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -56265,7 +56372,7 @@
       "offerName": "IREN LARGE LUCE VARIABILE",
       "customerType": "privato",
       "firstSeen": "2026-09-14",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -56296,7 +56403,7 @@
       "offerName": "IREN LUCE FACILE FLEX TOP",
       "customerType": "privato",
       "firstSeen": "2026-09-14",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -56373,7 +56480,7 @@
       "offerName": "Iren OndaLuce Condominio",
       "customerType": "business",
       "firstSeen": "2026-09-14",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -56450,7 +56557,7 @@
       "offerName": "Iren OndaLuce Condominio Top",
       "customerType": "business",
       "firstSeen": "2026-09-14",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -56620,7 +56727,7 @@
       "offerName": "IREN PREZZO FISSO EXTRA SMALL LUMINEA LUCE",
       "customerType": "privato",
       "firstSeen": "2026-09-18",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -56790,7 +56897,7 @@
       "offerName": "IREN PREZZO FISSO ULTRA LUCE",
       "customerType": "privato",
       "firstSeen": "2026-09-18",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -57161,7 +57268,7 @@
       "offerName": "IREN PRIMA SCELTA LUCE FISSA",
       "customerType": "privato",
       "firstSeen": "2026-09-18",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -57362,7 +57469,7 @@
       "offerName": "IREN PRONTO FISSA LUCE",
       "customerType": "privato",
       "firstSeen": "2026-09-18",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -57563,7 +57670,7 @@
       "offerName": "IREN QUICK LUCE WEB TOP",
       "customerType": "privato",
       "firstSeen": "2026-09-18",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -57764,7 +57871,7 @@
       "offerName": "IREN REVOLUTION SALUTE PREZZO FISSO LUCE",
       "customerType": "privato",
       "firstSeen": "2026-09-18",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -57856,7 +57963,7 @@
       "offerName": "IREN REVOLUTION SALUTE VARIABILE LUCE",
       "customerType": "privato",
       "firstSeen": "2026-09-14",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -57948,7 +58055,7 @@
       "offerName": "IREN SMALL LUCE VARIABILE",
       "customerType": "privato",
       "firstSeen": "2026-09-14",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -58118,7 +58225,7 @@
       "offerName": "IREN SMART NO STRESS LUCE VERDE",
       "customerType": "privato",
       "firstSeen": "2026-09-18",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -58319,7 +58426,7 @@
       "offerName": "IREN SOTTOCASA LUCE SPECIAL",
       "customerType": "privato",
       "firstSeen": "2026-09-18",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -58411,7 +58518,7 @@
       "offerName": "IREN SOTTOCASA LUCE VARIABILE NEW",
       "customerType": "privato",
       "firstSeen": "2026-09-14",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -58581,7 +58688,7 @@
       "offerName": "IREN STAY LUCE PREZZO FISSO CONNETTIVITA'",
       "customerType": "privato",
       "firstSeen": "2026-09-18",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -58751,7 +58858,7 @@
       "offerName": "IREN STAY TECH LUCE PREZZO FISSO",
       "customerType": "privato",
       "firstSeen": "2026-09-18",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -58843,7 +58950,7 @@
       "offerName": "IREN SUPERSCONTO 100 RCA LUCE SELF",
       "customerType": "privato",
       "firstSeen": "2026-09-14",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -58920,7 +59027,7 @@
       "offerName": "Iren Tua Azienda Luce Variabile",
       "customerType": "business",
       "firstSeen": "2026-09-14",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -59012,7 +59119,7 @@
       "offerName": "IREN UNIVERSO LUCE VARIABILE",
       "customerType": "privato",
       "firstSeen": "2026-09-14",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -59213,7 +59320,7 @@
       "offerName": "IREN WEB SELF LUCE PREZZO FISSO",
       "customerType": "privato",
       "firstSeen": "2026-09-18",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -59336,7 +59443,7 @@
       "offerName": "SEV IREN BONUS 100 LUCE",
       "customerType": "privato",
       "firstSeen": "2026-09-10",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -59598,7 +59705,7 @@
       "offerName": "SEV IREN LARGE LUCE",
       "customerType": "privato",
       "firstSeen": "2026-09-10",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -59721,7 +59828,7 @@
       "offerName": "SEV IREN LUCE CONNETTIVITA",
       "customerType": "privato",
       "firstSeen": "2026-09-10",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -59844,7 +59951,7 @@
       "offerName": "SEV IREN LUCE PERTINENZE",
       "customerType": "business",
       "firstSeen": "2026-09-10",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -59967,7 +60074,7 @@
       "offerName": "SEV IREN MEDIUM LUCE",
       "customerType": "privato",
       "firstSeen": "2026-09-10",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -60106,7 +60213,7 @@
       "offerName": "SEV IREN QUICK LUCE",
       "customerType": "privato",
       "firstSeen": "2026-09-08",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -60137,7 +60244,7 @@
       "offerName": "SEV IREN QUICK LUCE",
       "customerType": "privato",
       "firstSeen": "2026-09-15",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -60260,7 +60367,7 @@
       "offerName": "SEV IREN REVOLUTION SALUTE LUCE VARIABILE",
       "customerType": "privato",
       "firstSeen": "2026-09-10",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -60383,7 +60490,7 @@
       "offerName": "SEV IREN SMALL LUCE MENSILE",
       "customerType": "privato",
       "firstSeen": "2026-09-10",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -60506,7 +60613,7 @@
       "offerName": "SEV IREN X VULNERABILI STG",
       "customerType": "privato",
       "firstSeen": "2026-09-10",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -60598,7 +60705,7 @@
       "offerName": "MIA GAS",
       "customerType": "privato",
       "firstSeen": "2026-09-14",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -61325,7 +61432,7 @@
       "offerName": "MIA GAS FIX WEB",
       "customerType": "privato",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -61433,7 +61540,7 @@
       "offerName": "MIA GAS PLUS",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -61494,7 +61601,7 @@
       "offerName": "MIA GAS PRO",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -61616,7 +61723,7 @@
       "offerName": "MIA LUCE",
       "customerType": "privato",
       "firstSeen": "2026-09-14",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -61817,7 +61924,7 @@
       "offerName": "MIA LUCE FIX PLUS",
       "customerType": "privato",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -62049,7 +62156,7 @@
       "offerName": "MIA LUCE FIX PRO",
       "customerType": "privato",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -62281,7 +62388,7 @@
       "offerName": "MIA LUCE FIX SMART",
       "customerType": "privato",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -62436,7 +62543,7 @@
       "offerName": "MIA LUCE FIX WEB",
       "customerType": "privato",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -62544,7 +62651,7 @@
       "offerName": "MIA LUCE PLUS",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -62605,7 +62712,7 @@
       "offerName": "MIA LUCE PRO",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -62945,7 +63052,7 @@
       "offerName": "PROXIMA SMALL LUCE",
       "customerType": "business",
       "firstSeen": "2026-08-24",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -63099,7 +63206,7 @@
       "offerName": "Due Gas",
       "customerType": "privato",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -63238,7 +63345,7 @@
       "offerName": "NeN Gas",
       "customerType": "business",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -63392,7 +63499,7 @@
       "offerName": "Surf Gas",
       "customerType": "privato",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -63531,7 +63638,7 @@
       "offerName": "Due Luce",
       "customerType": "privato",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -63639,7 +63746,7 @@
       "offerName": "NeN Dieci Luce",
       "customerType": "privato",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -63778,7 +63885,7 @@
       "offerName": "NeN Luce",
       "customerType": "business",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -64320,7 +64427,7 @@
       "offerName": "Octopus Fissa 12M Gas",
       "customerType": "privato",
       "firstSeen": "2026-09-19",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -64397,7 +64504,7 @@
       "offerName": "Octopus Flex Gas",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -64458,7 +64565,7 @@
       "offerName": "Octopus Flex Gas",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -64519,7 +64626,7 @@
       "offerName": "Octopus Flex Gas",
       "customerType": "privato",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -64580,7 +64687,7 @@
       "offerName": "Octopus Flex Gas",
       "customerType": "privato",
       "firstSeen": "2026-09-01",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -65075,7 +65182,7 @@
       "offerName": "Octopus Fissa 12M",
       "customerType": "privato",
       "firstSeen": "2026-09-19",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -65106,7 +65213,7 @@
       "offerName": "Octopus Flex",
       "customerType": "privato",
       "firstSeen": "2026-08-07",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -65167,7 +65274,7 @@
       "offerName": "Octopus Flex",
       "customerType": "privato",
       "firstSeen": "2026-09-01",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -65259,7 +65366,7 @@
       "offerName": "Octopus Flex",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -65320,7 +65427,7 @@
       "offerName": "Octopus Flex",
       "customerType": "privato",
       "firstSeen": "2026-08-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -65458,7 +65565,7 @@
       "offerName": "Octopus Flex Mono",
       "customerType": "privato",
       "firstSeen": "2026-09-01",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -65735,7 +65842,7 @@
       "offerName": "Poste Energia Luce",
       "customerType": "privato",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -65797,7 +65904,7 @@
       "offerName": "Poste Energia Luce Altri Usi",
       "customerType": "business",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -65861,7 +65968,7 @@
       "offerName": "Pulsee Limit.e Dual Index",
       "customerType": "privato",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -65927,7 +66034,7 @@
       "offerName": "Pulsee Luce e Gas Per Te Dual Index",
       "customerType": "privato",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -66059,7 +66166,7 @@
       "offerName": "Pulsee Luce e Gas Relax Dual Fix",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -66191,7 +66298,7 @@
       "offerName": "Pulsee Luce e Gas RELAX Dual Fix 36 mesi",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -66323,7 +66430,7 @@
       "offerName": "Pulsee Luce e Gas Semplice Dual Fix",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -66389,7 +66496,7 @@
       "offerName": "Pulsee Luce e Gas Semplice Dual Index",
       "customerType": "privato",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -66561,7 +66668,7 @@
       "offerName": "Easy Gas Fix",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -66731,7 +66838,7 @@
       "offerName": "Easy Gas Fix 36 mesi",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -66854,7 +66961,7 @@
       "offerName": "Easy Gas Index",
       "customerType": "privato",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -67024,7 +67131,7 @@
       "offerName": "Partner Gas Fix",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -67194,7 +67301,7 @@
       "offerName": "Partner Gas Fix 36 mesi",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -67364,7 +67471,7 @@
       "offerName": "Partner Gas Fix Plus",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -67534,7 +67641,7 @@
       "offerName": "Partner Gas Fix Plus 36 mesi",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -67657,7 +67764,7 @@
       "offerName": "Partner Gas Index",
       "customerType": "privato",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -67780,7 +67887,7 @@
       "offerName": "Partner Gas Index Plus",
       "customerType": "privato",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -67888,7 +67995,7 @@
       "offerName": "Pulsee Gas PER TE Index",
       "customerType": "privato",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -68058,7 +68165,7 @@
       "offerName": "Pulsee Gas RELAX Fix",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -68228,7 +68335,7 @@
       "offerName": "Pulsee Gas Semplice Fix",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -68336,7 +68443,7 @@
       "offerName": "Pulsee Gas Semplice Index",
       "customerType": "privato",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -68444,7 +68551,7 @@
       "offerName": "Pulsee Limit.e DUAL - Gas",
       "customerType": "privato",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -68552,7 +68659,7 @@
       "offerName": "Pulsee Lounge Gas Index",
       "customerType": "privato",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -68660,7 +68767,7 @@
       "offerName": "Pulsee Luce e Gas PER TE Index - G",
       "customerType": "privato",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -68830,7 +68937,7 @@
       "offerName": "Pulsee Luce e Gas RELAX Fix - G",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -69000,7 +69107,7 @@
       "offerName": "Pulsee Luce e Gas RELAX Fix - G 36 mesi",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -69170,7 +69277,7 @@
       "offerName": "Pulsee Luce e Gas Semplice Fix - G",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -69278,7 +69385,7 @@
       "offerName": "Pulsee Luce e Gas Semplice Index - G",
       "customerType": "privato",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -69448,7 +69555,7 @@
       "offerName": "Smart Gas Fix",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -69618,7 +69725,7 @@
       "offerName": "Smart Gas Fix 36 mesi",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -69756,7 +69863,7 @@
       "offerName": "Smart Gas Index",
       "customerType": "privato",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -69926,7 +70033,7 @@
       "offerName": "Value Gas Fix",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -70096,7 +70203,7 @@
       "offerName": "Value Gas Fix 36 mesi",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -70219,7 +70326,7 @@
       "offerName": "Value Gas Index",
       "customerType": "privato",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -70451,7 +70558,7 @@
       "offerName": "Easy Luce Fix 36 mesi Unico",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -70683,7 +70790,7 @@
       "offerName": "Easy Luce Fix Unico",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -70791,7 +70898,7 @@
       "offerName": "Easy Luce Index",
       "customerType": "privato",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -70899,7 +71006,7 @@
       "offerName": "Easy Luce Limit.e",
       "customerType": "privato",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -71255,7 +71362,7 @@
       "offerName": "Partner Luce Index",
       "customerType": "privato",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -71363,7 +71470,7 @@
       "offerName": "Partner Luce Index Plus",
       "customerType": "privato",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -71471,7 +71578,7 @@
       "offerName": "Pulsee Limit.e DUAL - Luce",
       "customerType": "privato",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -71579,7 +71686,7 @@
       "offerName": "Pulsee Lounge Luce Index",
       "customerType": "privato",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -71687,7 +71794,7 @@
       "offerName": "Pulsee Luce e Gas PER TE Index - P",
       "customerType": "privato",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -71857,7 +71964,7 @@
       "offerName": "Pulsee Luce e Gas RELAX Fix - P",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -72027,7 +72134,7 @@
       "offerName": "Pulsee Luce e Gas RELAX Fix - P 36 mesi",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -72197,7 +72304,7 @@
       "offerName": "Pulsee Luce e Gas Semplice Fix - P",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -72305,7 +72412,7 @@
       "offerName": "Pulsee Luce e Gas Semplice Index - P",
       "customerType": "privato",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -72413,7 +72520,7 @@
       "offerName": "Pulsee Luce Limit.e",
       "customerType": "privato",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -72521,7 +72628,7 @@
       "offerName": "Pulsee Luce PER TE Index",
       "customerType": "privato",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -72691,7 +72798,7 @@
       "offerName": "Pulsee Luce RELAX Fix",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -72861,7 +72968,7 @@
       "offerName": "Pulsee Luce RELAX Fix 36 mesi",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -73031,7 +73138,7 @@
       "offerName": "Pulsee Luce Semplice Fix",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -73139,7 +73246,7 @@
       "offerName": "Pulsee Luce Semplice Index",
       "customerType": "privato",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -73371,7 +73478,7 @@
       "offerName": "Smart Luce Fix 36 mesi Unico",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -73603,7 +73710,7 @@
       "offerName": "Smart Luce Fix Unico",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -73711,7 +73818,7 @@
       "offerName": "Smart Luce Index",
       "customerType": "privato",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -73943,7 +74050,7 @@
       "offerName": "Value Luce Fix 36 mesi Unico",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -74175,7 +74282,7 @@
       "offerName": "Value Luce Fix Unico",
       "customerType": "privato",
       "firstSeen": "2026-09-17",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -74283,7 +74390,7 @@
       "offerName": "Value Luce Index",
       "customerType": "privato",
       "firstSeen": "2026-09-03",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -75250,7 +75357,7 @@
       "offerName": "NEXT ENERGY SUNLIGHT GAS",
       "customerType": "privato",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -75281,7 +75388,7 @@
       "offerName": "NEXT ENERGY SUNLIGHT GAS",
       "customerType": "privato",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -75312,7 +75419,7 @@
       "offerName": "NEXT ENERGY SUNLIGHT GAS",
       "customerType": "privato",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -75544,7 +75651,7 @@
       "offerName": "NEXT E-BUSINESS SUNLIGHT LUCE",
       "customerType": "business",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -75853,7 +75960,7 @@
       "offerName": "NEXT ENERGY SUNLIGHT LUCE",
       "customerType": "privato",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -75884,7 +75991,7 @@
       "offerName": "NEXT ENERGY SUNLIGHT LUCE",
       "customerType": "privato",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -75915,7 +76022,7 @@
       "offerName": "NEXT ENERGY SUNLIGHT LUCE",
       "customerType": "privato",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -75946,7 +76053,7 @@
       "offerName": "NEXT ENERGY SUNLIGHT LUCE",
       "customerType": "privato",
       "firstSeen": "2026-09-11",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -76010,7 +76117,7 @@
       "offerName": "VIVIattivo Lucegas",
       "customerType": "privato",
       "firstSeen": "2026-09-04",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -76076,7 +76183,7 @@
       "offerName": "VIVIclear Lucegas Flex",
       "customerType": "privato",
       "firstSeen": "2026-09-04",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -76142,7 +76249,7 @@
       "offerName": "VIVIconsapevole Flex Lucegas",
       "customerType": "privato",
       "firstSeen": "2026-09-04",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -76208,7 +76315,7 @@
       "offerName": "VIVIdinamico Lucegas",
       "customerType": "privato",
       "firstSeen": "2026-09-04",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -76274,7 +76381,7 @@
       "offerName": "VIVIplan Lucegas",
       "customerType": "privato",
       "firstSeen": "2026-09-04",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -76307,7 +76414,7 @@
       "offerName": "viviweb allday fix lucegas",
       "customerType": "privato",
       "firstSeen": "2026-09-18",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -76472,7 +76579,7 @@
       "offerName": "viviweb allday flex lucegas",
       "customerType": "privato",
       "firstSeen": "2026-09-18",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -76637,7 +76744,7 @@
       "offerName": "viviweb allday24 flex lucegas",
       "customerType": "privato",
       "firstSeen": "2026-09-18",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -76670,7 +76777,7 @@
       "offerName": "viviattivo fix gas",
       "customerType": "privato",
       "firstSeen": "2026-09-18",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -76701,7 +76808,7 @@
       "offerName": "viviattivo fix lucegas",
       "customerType": "privato",
       "firstSeen": "2026-09-18",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -76824,7 +76931,7 @@
       "offerName": "VIVIattivo Gas",
       "customerType": "privato",
       "firstSeen": "2026-09-04",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -76947,7 +77054,7 @@
       "offerName": "VIVIattivo LuceGas",
       "customerType": "privato",
       "firstSeen": "2026-09-04",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -77024,7 +77131,7 @@
       "offerName": "VIVIcaldo Gas",
       "customerType": "privato",
       "firstSeen": "2026-09-04",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -77055,7 +77162,7 @@
       "offerName": "viviclear fix gas",
       "customerType": "privato",
       "firstSeen": "2026-09-18",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -77086,7 +77193,7 @@
       "offerName": "viviclear fix lucegas",
       "customerType": "privato",
       "firstSeen": "2026-09-18",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -77163,7 +77270,7 @@
       "offerName": "VIVIclear Gas Flex",
       "customerType": "privato",
       "firstSeen": "2026-09-04",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -77255,7 +77362,7 @@
       "offerName": "VIVIclear Lucegas Flex",
       "customerType": "privato",
       "firstSeen": "2026-09-04",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -77286,7 +77393,7 @@
       "offerName": "viviconsapevole fix gas",
       "customerType": "privato",
       "firstSeen": "2026-09-18",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -77317,7 +77424,7 @@
       "offerName": "viviconsapevole fix lucegas",
       "customerType": "privato",
       "firstSeen": "2026-09-18",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -77440,7 +77547,7 @@
       "offerName": "VIVIconsapevole Flex LuceGas",
       "customerType": "privato",
       "firstSeen": "2026-09-04",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -77563,7 +77670,7 @@
       "offerName": "VIVIconsapevole Gas Flex",
       "customerType": "privato",
       "firstSeen": "2026-09-04",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -77640,7 +77747,7 @@
       "offerName": "VIVIdinamico Gas",
       "customerType": "privato",
       "firstSeen": "2026-09-04",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -77717,7 +77824,7 @@
       "offerName": "VIVIdinamico LuceGas",
       "customerType": "privato",
       "firstSeen": "2026-09-04",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -77794,7 +77901,7 @@
       "offerName": "VIVIflessibile Gas Business",
       "customerType": "business",
       "firstSeen": "2026-09-04",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -77871,7 +77978,7 @@
       "offerName": "VIVIperTutti Gas",
       "customerType": "business",
       "firstSeen": "2026-09-04",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -77902,7 +78009,7 @@
       "offerName": "viviplan fix gas",
       "customerType": "privato",
       "firstSeen": "2026-09-18",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -77933,7 +78040,7 @@
       "offerName": "viviplan fix lucegas",
       "customerType": "privato",
       "firstSeen": "2026-09-18",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -77964,7 +78071,7 @@
       "offerName": "viviplan fix24 gas",
       "customerType": "privato",
       "firstSeen": "2026-09-18",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -77995,7 +78102,7 @@
       "offerName": "viviplan fix24 lucegas",
       "customerType": "privato",
       "firstSeen": "2026-09-18",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -78072,7 +78179,7 @@
       "offerName": "VIVIplan Gas",
       "customerType": "privato",
       "firstSeen": "2026-09-04",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -78149,7 +78256,7 @@
       "offerName": "VIVIplan Lucegas",
       "customerType": "privato",
       "firstSeen": "2026-09-04",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -78180,7 +78287,7 @@
       "offerName": "viviplan real fix gas",
       "customerType": "privato",
       "firstSeen": "2026-09-18",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -78211,7 +78318,7 @@
       "offerName": "viviplan real fix lucegas",
       "customerType": "privato",
       "firstSeen": "2026-09-18",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -78242,7 +78349,7 @@
       "offerName": "viviplan real fix24 gas",
       "customerType": "privato",
       "firstSeen": "2026-09-18",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -78273,7 +78380,7 @@
       "offerName": "viviplan real fix24 lucegas",
       "customerType": "privato",
       "firstSeen": "2026-09-18",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -78366,7 +78473,7 @@
       "offerName": "viviweb allday fix gas",
       "customerType": "privato",
       "firstSeen": "2026-09-18",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -78397,7 +78504,7 @@
       "offerName": "viviweb allday fix lucegas",
       "customerType": "privato",
       "firstSeen": "2026-09-18",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -78721,7 +78828,7 @@
       "offerName": "viviweb allday flex gas",
       "customerType": "privato",
       "firstSeen": "2026-09-18",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -78983,7 +79090,7 @@
       "offerName": "viviweb allday flex lucegas",
       "customerType": "privato",
       "firstSeen": "2026-09-18",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -79476,7 +79583,7 @@
       "offerName": "viviweb allday24 flex gas",
       "customerType": "privato",
       "firstSeen": "2026-09-18",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -79507,7 +79614,7 @@
       "offerName": "viviweb allday24 flex lucegas",
       "customerType": "privato",
       "firstSeen": "2026-09-18",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -79630,7 +79737,7 @@
       "offerName": "VIVIattivo Luce",
       "customerType": "privato",
       "firstSeen": "2026-09-04",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -79753,7 +79860,7 @@
       "offerName": "VIVIattivo LuceGas",
       "customerType": "privato",
       "firstSeen": "2026-09-04",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -79830,7 +79937,7 @@
       "offerName": "VIVIclear Luce Flex",
       "customerType": "privato",
       "firstSeen": "2026-09-04",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -79907,7 +80014,7 @@
       "offerName": "VIVIclear LuceGas Flex",
       "customerType": "privato",
       "firstSeen": "2026-09-04",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -80030,7 +80137,7 @@
       "offerName": "VIVIconsapevole Flex Luce",
       "customerType": "privato",
       "firstSeen": "2026-09-04",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -80153,7 +80260,7 @@
       "offerName": "VIVIconsapevole Flex LuceGas",
       "customerType": "privato",
       "firstSeen": "2026-09-04",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -80230,7 +80337,7 @@
       "offerName": "VIVIdinamico Luce",
       "customerType": "privato",
       "firstSeen": "2026-09-04",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -80307,7 +80414,7 @@
       "offerName": "VIVIdinamico LuceGas",
       "customerType": "privato",
       "firstSeen": "2026-09-04",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -80384,7 +80491,7 @@
       "offerName": "VIVIflessibile Luce Business",
       "customerType": "business",
       "firstSeen": "2026-09-04",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -80461,7 +80568,7 @@
       "offerName": "VIVIperTutti Luce",
       "customerType": "business",
       "firstSeen": "2026-09-04",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -80538,7 +80645,7 @@
       "offerName": "VIVIplan Luce",
       "customerType": "privato",
       "firstSeen": "2026-09-04",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -80615,7 +80722,7 @@
       "offerName": "VIVIplan LuceGas",
       "customerType": "privato",
       "firstSeen": "2026-09-04",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -80646,7 +80753,7 @@
       "offerName": "VIVIplanet",
       "customerType": "privato",
       "firstSeen": "2026-09-16",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -80677,7 +80784,7 @@
       "offerName": "viviweb allday 24 flex luce",
       "customerType": "privato",
       "firstSeen": "2026-09-18",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -80739,7 +80846,7 @@
       "offerName": "viviweb allday fix luce",
       "customerType": "privato",
       "firstSeen": "2026-09-18",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -80801,7 +80908,7 @@
       "offerName": "viviweb allday fix lucegas",
       "customerType": "privato",
       "firstSeen": "2026-09-18",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -81110,7 +81217,7 @@
       "offerName": "viviweb allday flex luce",
       "customerType": "privato",
       "firstSeen": "2026-09-18",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -81357,7 +81464,7 @@
       "offerName": "viviweb allday flex lucegas",
       "customerType": "privato",
       "firstSeen": "2026-09-18",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -81820,7 +81927,7 @@
       "offerName": "viviweb allday24 flex lucegas",
       "customerType": "privato",
       "firstSeen": "2026-09-18",
-      "lastSeen": "2026-09-21",
+      "lastSeen": "2026-09-22",
       "active": true,
       "versions": [
         {
@@ -81842,10 +81949,10 @@
     }
   ],
   "statistics": {
-    "totalOffers": 2123,
-    "activeOffers": 723,
-    "inactiveOffers": 1400,
-    "totalVersions": 3181,
-    "currentCatalogRecords": 723
+    "totalOffers": 2125,
+    "activeOffers": 724,
+    "inactiveOffers": 1401,
+    "totalVersions": 3186,
+    "currentCatalogRecords": 724
   }
 }
