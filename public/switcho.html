@@ -60,6 +60,8 @@
     .skip-link{position:absolute;left:-999px;top:12px;background:#fff;color:var(--accent);padding:10px 14px;border-radius:8px;font-weight:800;z-index:30}
     .skip-link:focus{left:12px}
     .shell{max-width:1120px;margin:0 auto;padding:0 22px}
+.breadcrumbs{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:16px;color:var(--muted);font-size:13px;font-weight:700;line-height:1.4}.breadcrumbs a{color:var(--dark);text-decoration:none}.breadcrumbs a:hover,.breadcrumbs a:focus-visible{color:var(--primary-dark);text-decoration:underline}.breadcrumbs .separator{color:#94a3b8;font-weight:600}.breadcrumbs [aria-current="page"]{color:var(--muted);font-weight:700}
+
     .topbar{background:#fff;border-bottom:1px solid var(--border)}
     .topbar-inner{min-height:72px;display:flex;align-items:center;justify-content:space-between;gap:16px}
     .brand{display:inline-flex;align-items:center;line-height:0;text-decoration:none}
@@ -67,7 +69,7 @@
     .nav{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
     .nav a{text-decoration:none;color:var(--dark);font-size:14px;font-weight:800;padding:9px 10px;border-radius:8px}
     .nav a:hover,.nav a:focus-visible{background:#f0fdf4;color:var(--primary-dark)}
-    .hero{padding:52px 0 34px}
+    .hero{padding:28px 0 34px}
     .hero-grid{display:grid;grid-template-columns:minmax(0,1.07fr) minmax(320px,.93fr);gap:30px;align-items:center}
     .eyebrow{display:inline-flex;align-items:center;gap:8px;color:var(--primary-dark);font-weight:900;font-size:13px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px}
     .eyebrow::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--primary)}
@@ -163,7 +165,7 @@
   </div>
 </section>
 <main id="main-content">
-  <section class="hero">
+  <section class="hero"><nav class="breadcrumbs shell" aria-label="Percorso di navigazione"><a href="/">Home</a><span class="separator" aria-hidden="true">›</span><a href="/partner.html">Partner</a><span class="separator" aria-hidden="true">›</span><span aria-current="page">Switcho</span></nav>
     <div class="shell hero-grid">
       <div>
         <div class="eyebrow">Collaborazione OffertaLogica × Switcho</div>
