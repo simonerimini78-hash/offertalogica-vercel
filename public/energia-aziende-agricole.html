@@ -89,6 +89,9 @@
         ]
     }
     </script>
+    <script type="application/ld+json">
+    {"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"OffertaLogica","item":"https://offertalogica.it/"},{"@type":"ListItem","position":2,"name":"Energia aziende agricole","item":"https://offertalogica.it/energia-aziende-agricole.html"}]}
+    </script>
     <style>
         :root {
             --bg: #f1f5f9;
@@ -172,6 +175,29 @@
             table { min-width: 680px; }
             .button { width: 100%; }
         }
+
+        /* Breadcrumb accessibile: percorso reale della sezione agricola. */
+        .ol-breadcrumbs {
+            max-width: 1120px;
+            margin: 18px auto 0;
+            padding: 0 22px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px;
+            color: #64748b;
+            font-size: 13px;
+            font-weight: 700;
+            line-height: 1.4;
+        }
+        .ol-breadcrumbs a { color: #334155; text-decoration: none; }
+        .ol-breadcrumbs a:hover,
+        .ol-breadcrumbs a:focus-visible { color: #14532d; text-decoration: underline; }
+        .ol-breadcrumbs .ol-breadcrumb-separator { color: #94a3b8; font-weight: 600; }
+        .ol-breadcrumbs [aria-current="page"] { color: #64748b; font-weight: 700; min-width: 0; }
+        @media (max-width: 560px) {
+            .ol-breadcrumbs { padding: 0 14px; margin-top: 14px; }
+        }
     </style>
 </head>
 <body>
@@ -201,6 +227,11 @@
     </div>
 </section>
 <main id="main-content">
+    <nav class="ol-breadcrumbs" aria-label="Percorso di navigazione">
+        <a href="/">Home</a>
+        <span class="ol-breadcrumb-separator" aria-hidden="true">›</span>
+        <span aria-current="page">Energia aziende agricole</span>
+    </nav>
     <section class="hero">
         <div class="shell">
             <div class="eyebrow">Energia per imprese agricole</div>
