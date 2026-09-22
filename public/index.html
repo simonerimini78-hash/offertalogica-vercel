@@ -1440,6 +1440,38 @@
             font-weight: 950;
             white-space: nowrap;
         }
+        .offer-estimate-level {
+            display: inline-flex;
+            align-items: center;
+            margin: 0 0 7px 6px;
+            padding: 3px 8px;
+            border: 1px solid #cbd5e1;
+            border-radius: 999px;
+            background: #f8fafc;
+            color: #475569;
+            font-size: 10.5px;
+            line-height: 1.2;
+            font-weight: 850;
+            vertical-align: top;
+        }
+        .offer-estimate-level.is-complete { border-color:#86efac; background:#f0fdf4; color:#166534; }
+        .offer-estimate-level.is-personalized { border-color:#bfdbfe; background:#eff6ff; color:#1d4ed8; }
+        .offer-estimate-level.is-average { border-color:#fde68a; background:#fffbeb; color:#92400e; }
+        .offer-metric-copy { display:grid; gap:2px; min-width:0; }
+        .offer-metric-copy b { font:inherit; font-weight:900; }
+        .offer-metric-copy small {
+            display:block;
+            color:inherit;
+            font-size:10.5px;
+            line-height:1.2;
+            font-weight:700;
+            text-transform:none;
+            letter-spacing:0;
+            opacity:.82;
+        }
+        .offer-saving-line .offer-metric-copy small { color:#166534; }
+        .offer-saving-line.is-negative .offer-metric-copy small { color:#991b1b; }
+        .offer-cost-line .offer-metric-copy small { color:#64748b; }
         .partner-title {
             font-size: 20px !important;
             line-height: 1.22 !important;
@@ -4600,7 +4632,7 @@
         <h3>Confronto più preciso, senza inserire i dati a mano</h3>
         <div id="pdf-upload-context-notice" class="pdf-context-notice" role="status" aria-live="polite" hidden>
             <span class="pdf-context-icon" aria-hidden="true">↓</span>
-            <span>Scatta una foto, scegli un’immagine o carica il PDF. Se leggiamo tutti i dati necessari, apriamo subito le offerte.</span>
+            <span>Scatta una foto, scegli un’immagine o carica il PDF. Usiamo i dati leggibili e, se manca un dato essenziale, completiamo la stima con il profilo medio dichiarandolo nelle card.</span>
         </div>
         <div class="upload-drop" id="pdf-upload-drop">
             <!-- OFFERTALOGICA_BILL_PHOTO_UI_V1_20260920 -->
@@ -4613,9 +4645,9 @@
                     <summary aria-label="Quale pagina della bolletta fotografare?">ⓘ Quale pagina?</summary>
                     <div class="bill-photo-help-copy"><strong>Fotografa la pagina con consumi annui e prezzo/condizioni economiche.</strong> Spesso non è la prima pagina. Non serve fotografare la pagina con nome, indirizzo e totale da pagare. Inquadra tutta la pagina e assicurati che il testo sia leggibile.</div>
                 </details>
-                <span class="pdf-file-picker-status">Se leggiamo tutti i dati necessari, apriamo subito le offerte.</span>
+                <span class="pdf-file-picker-status">Usiamo i dati leggibili; gli eventuali dati essenziali mancanti vengono completati con il profilo medio e segnalati nella stima.</span>
             </div>
-            <div class="upload-note"><strong>Foto veloce:</strong> inquadra una pagina nitida e completa. Se manca un dato necessario te lo chiediamo; se la foto non è leggibile te lo diciamo senza stimare valori.</div>
+            <div class="upload-note"><strong>Foto veloce:</strong> inquadra una pagina nitida e completa. Se la pagina non contiene tutti i dati essenziali, usiamo il profilo medio solo per quelli mancanti e mostriamo una <strong>stima personalizzata</strong>; per la massima precisione usa il PDF completo del fornitore.</div>
             <div class="pdf-file-picker">
                 <input id="pdf-static-input" class="pdf-native-file-input" type="file" accept="application/pdf" multiple tabindex="-1" aria-hidden="true" aria-describedby="pdf-upload-context-notice pdf-file-picker-status">
                 <button id="pdf-select-files-button" type="button" class="pdf-file-picker-button" onclick="apriSelettorePdf()">Scegli file</button>
@@ -5358,7 +5390,7 @@ function avviaComparazioneDati() {
 }
 </script>
 <script>
-let MOTORE_CALCOLO_VERSION = "motore-v14-audit-provenienza-prezzo-2026-09-21";
+let MOTORE_CALCOLO_VERSION = "motore-v15-stime-progressive-2026-09-22";
 const DATI_CALCOLO_URLS = ["/data/calcolo-parametri.json", "data/calcolo-parametri.json"];
 const DATI_OFFERTE_URLS = ["/data/offerte-proposte.json", "data/offerte-proposte.json"];
 const DATI_ARERA_MENU_URLS = ["/data/offerte-arera-menu.json", "data/offerte-arera-menu.json"];
@@ -6023,6 +6055,157 @@ let PARAMETRI_CALCOLO = {
 let PERDITE_RETE_LUCE_VARIABILE = PARAMETRI_CALCOLO.perditeReteLuceVariabile;
 const TESTO_METODOLOGIA_CONSUMI_REALI = "I risparmi stimati sono calcolati sui consumi che hai inserito o confermato dalla bolletta. Applichiamo le condizioni economiche delle offerte allo stesso profilo di consumo, separando quota variabile e quota fissa.";
 const TESTO_METODOLOGIA_MEDIA_ARERA = "Quando non conosci i tuoi consumi, la comparazione viene fatta su consumi medi usando il catalogo ARERA e gli indici di mercato disponibili. Questa base omogenea serve a stimare il risparmio potenziale tra le diverse proposte.";
+
+const STIMA_DOCUMENTALE_STATE = {
+  fallbacks: [],
+};
+
+function origineDocumentoConfronto() {
+  const docs = Array.isArray(LEAD_STATE.pdfDocuments) ? LEAD_STATE.pdfDocuments : [];
+  if (!docs.length) return "";
+  const photo = docs.some((doc) => {
+    const uploadId = String(doc?.upload_id || "").toLowerCase();
+    const fingerprint = String(doc?.file_fingerprint || "").toLowerCase();
+    const inputKind = String(doc?.ai?.input_kind || doc?.input_kind || "").toLowerCase();
+    const ingress = String(doc?.ai?.ingress_mode || doc?.ingress_mode || "").toLowerCase();
+    return uploadId.startsWith("photo-") || fingerprint.startsWith("photo::") || inputKind === "photo" || ingress.startsWith("photo_");
+  });
+  return photo ? "photo" : "pdf";
+}
+
+function fallbackDocumentaliAttivi() {
+  const active = [];
+  for (const item of STIMA_DOCUMENTALE_STATE.fallbacks || []) {
+    const element = document.getElementById(item.id);
+    if (!element) continue;
+    const current = Number.parseFloat(String(element.value || "").replace(",", "."));
+    if (!Number.isFinite(current) || Math.abs(current - item.value) > 1e-9) continue;
+    if (item.unitId && item.unit && leggiValore(item.unitId, item.unit) !== item.unit) continue;
+    active.push(item);
+  }
+  STIMA_DOCUMENTALE_STATE.fallbacks = active;
+  return active;
+}
+
+function applicaFallbackStimaDocumentale() {
+  const source = origineDocumentoConfronto();
+  if (!source || modalitaCalcolo === "media" || LEAD_STATE.customerType !== "privato") return fallbackDocumentaliAttivi();
+  const profilo = PARAMETRI_CALCOLO.profiloMedio || {};
+  const fallbackById = {
+    "in-luce-cons-att": { value: numeroSicuro(profilo.luceConsumoKwh, NaN), label: "consumo annuo luce" },
+    "in-luce-prezzo-att": { value: numeroSicuro(profilo.prezzoLuceEurKwh, NaN), label: "prezzo luce attuale" },
+    "in-luce-fisso-att": { value: numeroSicuro(profilo.quotaFissaLuceAnnua, NaN), label: "quota fissa luce attuale", unitId: "in-luce-fisso-att-unita", unit: "anno" },
+    "in-gas-cons-att": { value: numeroSicuro(profilo.gasConsumoSmc, NaN), label: "consumo annuo gas" },
+    "in-gas-prezzo-att": { value: numeroSicuro(profilo.prezzoGasEurSmc, NaN), label: "prezzo gas attuale" },
+    "in-gas-fisso-att": { value: numeroSicuro(profilo.quotaFissaGasAnnua, NaN), label: "quota fissa gas attuale", unitId: "in-gas-fisso-att-unita", unit: "anno" },
+  };
+  const missing = campiMancanti(configurazioniPerAmbito(CAMPI_ATTUALI_ESSENZIALI));
+  const already = new Map(fallbackDocumentaliAttivi().map((item) => [item.id, item]));
+  for (const field of missing) {
+    const fallback = fallbackById[field.id];
+    const element = document.getElementById(field.id);
+    if (!fallback || !element || !Number.isFinite(fallback.value)) continue;
+    element.value = String(fallback.value);
+    element.dataset.estimateFallback = "profile-medium";
+    if (fallback.unitId && fallback.unit) {
+      const unitElement = document.getElementById(fallback.unitId);
+      if (unitElement) unitElement.value = fallback.unit;
+    }
+    already.set(field.id, { id: field.id, label: fallback.label, value: fallback.value, unitId: fallback.unitId || "", unit: fallback.unit || "" });
+  }
+  STIMA_DOCUMENTALE_STATE.fallbacks = [...already.values()];
+  sincronizzaConsumiNuovaOfferta();
+  return fallbackDocumentaliAttivi();
+}
+
+function riepilogoCompletezzaCosto(costo) {
+  const states = [];
+  for (const commodity of ["luce", "gas"]) {
+    const voce = costo?.[commodity];
+    if (!voce || numeroSicuro(voce.consumo, 0) <= 0) continue;
+    states.push(auditCompletezzaVoce(commodity, voce));
+  }
+  const mancanti = states.flatMap((item) => item.mancanti || []);
+  const limitazioni = states.flatMap((item) => item.limitazioni || []);
+  return {
+    applicabile: states.length > 0,
+    completa: states.length > 0 && states.every((item) => item.stato === "stima_verificata_completa_sui_dati_modellati"),
+    mancanti: [...new Set(mancanti)],
+    limitazioni: [...new Set(limitazioni)],
+  };
+}
+
+function classificaLivelloStima(attualeCosto, costoOfferta) {
+  if (modalitaCalcolo === "media") {
+    return { code: "average", label: "Stima media", detail: "Profilo medio di riferimento; le componenti non determinabili restano indicate come parziali o n.n." };
+  }
+  const source = origineDocumentoConfronto();
+  const fallbacks = fallbackDocumentaliAttivi();
+  const current = riepilogoCompletezzaCosto(attualeCosto);
+  const offer = riepilogoCompletezzaCosto(costoOfferta);
+  const complete = current.completa && offer.completa && fallbacks.length === 0;
+  if (source === "pdf" && complete) {
+    return { code: "complete", label: "Stima completa da PDF", detail: "PDF completo e componenti del motore determinate sui dati disponibili." };
+  }
+  if (source === "pdf") {
+    return {
+      code: "personalized",
+      label: "Stima personalizzata da PDF",
+      detail: fallbacks.length
+        ? `${fallbacks.length} ${fallbacks.length === 1 ? "dato essenziale completato" : "dati essenziali completati"} con il profilo medio.`
+        : "Il PDF personalizza il confronto; eventuali componenti non determinabili sono indicate nel dettaglio.",
+    };
+  }
+  if (source === "photo") {
+    return {
+      code: "personalized",
+      label: "Stima personalizzata da foto",
+      detail: fallbacks.length
+        ? `${fallbacks.length} ${fallbacks.length === 1 ? "dato essenziale completato" : "dati essenziali completati"} con il profilo medio; il PDF completo può rendere la stima più precisa.`
+        : "Calcolo sui dati leggibili della foto; il PDF completo può rendere la stima più precisa.",
+    };
+  }
+  return { code: "personalized", label: "Stima personalizzata", detail: "Calcolo sui dati inseriti o confermati." };
+}
+
+function mediaMensileEquivalente(importoAnnuo) {
+  return Math.max(0, numeroSicuro(importoAnnuo, 0)) / 12;
+}
+
+function statoComponenteAggregata(costo, tipo) {
+  const voci = [costo?.luce, costo?.gas].filter((voce) => voce && numeroSicuro(voce.consumo, 0) > 0);
+  if (!voci.length) return "none";
+  const disponibili = voci.map((voce) => {
+    if (tipo === "imposte") {
+      if (voce.commodity === "luce") return Boolean(voce.dettaglioRegolatoLuce?.accisaDisponibile);
+      return Boolean(voce.dettaglioRegolatoGas?.accisaDisponibile && voce.dettaglioRegolatoGas?.arisgamDisponibile);
+    }
+    if (tipo === "iva") {
+      return voce.commodity === "luce" ? Boolean(voce.dettaglioIvaLuce?.ivaDisponibile) : Boolean(voce.dettaglioIvaGas?.ivaDisponibile);
+    }
+    if (tipo === "regolate") {
+      return voce.commodity === "luce" || Boolean(voce.dettaglioRegolatoGas?.reteDisponibile && voce.dettaglioRegolatoGas?.qttDisponibile);
+    }
+    return true;
+  });
+  if (disponibili.every(Boolean)) return "complete";
+  const value = tipo === "imposte" ? costo.quotaImposte : tipo === "iva" ? costo.quotaIva : costo.quotaRegolata;
+  return Math.abs(numeroSicuro(value, 0)) > 0 ? "partial" : "none";
+}
+
+function importoComponenteDettaglio(value, stato) {
+  if (stato === "complete") return euro(value);
+  if (stato === "partial") return `${euro(value)} (parziale)`;
+  return "n.n.";
+}
+
+function htmlDettaglioComponentiCosto(costo) {
+  const statoRegolate = statoComponenteAggregata(costo, "regolate");
+  const statoImposte = statoComponenteAggregata(costo, "imposte");
+  const statoIva = statoComponenteAggregata(costo, "iva");
+  const reteOneri = numeroSicuro(costo?.quotaTecnicaProfilo, 0) + numeroSicuro(costo?.quotaRegolata, 0);
+  return `Materia energia/gas: ${euro(costo.quotaVariabile)} · Fissa vendita: ${euro(costo.quotaFissaVendita)} · Rete, oneri, trasporto e potenza: ${importoComponenteDettaglio(reteOneri, statoRegolate)} · Accise/addizionali: ${importoComponenteDettaglio(costo.quotaImposte, statoImposte)} · IVA: ${importoComponenteDettaglio(costo.quotaIva, statoIva)} · Totale annuo: ${euro(costo.totale)}`;
+}
 
 let INDICI_MERCATO = {
   pun: { label: "PUN", valore: null, unita: "€/kWh", note: "Caricato esclusivamente dai dati ufficiali aggiornati." },
@@ -11574,7 +11757,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
     if (!hasVisibleOffers) contenitoreSchede?.appendChild(emptyMessage);
   }
 
-  visibili.forEach(({ card, offerta, costo, costoOfferta, differenza, risparmio, saving, ambito, posizioneEconomica, posizioneGruppo, gruppoVisuale, attivabileOnline, compatibileRanking, filtroEsatto, alternativeFiltro }) => {
+  visibili.forEach(({ card, offerta, costo, costoOfferta, attualeComparabile, differenza, risparmio, saving, ambito, posizioneEconomica, posizioneGruppo, gruppoVisuale, attivabileOnline, compatibileRanking, filtroEsatto, alternativeFiltro }) => {
       const contenitoreTarget = contenitoreRanking;
       const context = {
         economyRank: posizioneEconomica,
@@ -11605,6 +11788,8 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       const badgeText = testoBadgeOfferta({ offerta, posizioneEconomica, posizioneGruppo, gruppoVisuale, costo, compatibileRanking }, migliore);
       const tipoPrezzoBadge = offerta?.tipo === "variabile" ? "Prezzo variabile" : "Prezzo fisso";
       const badge = `<span class="offer-position-badge" style="display:inline-block; margin:0 0 6px; padding:3px 8px; border:1px solid; border-radius:999px; font-size:11px; font-weight:800; ${stileBadgeOfferta({ posizioneEconomica, gruppoVisuale })}">${badgeText}</span>`;
+      const livelloStima = classificaLivelloStima(attualeComparabile, costoOfferta);
+      const livelloStimaBadge = `<span class="offer-estimate-level is-${livelloStima.code}" title="${testoHtmlSicuro(livelloStima.detail)}">${testoHtmlSicuro(livelloStima.label)}</span>`;
       const percorsoBadgeText = attivabileOnline
         ? "Attivabile online"
         : (separataMulti ? "Verifica con consulente" : "");
@@ -11678,16 +11863,17 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
             <p>${testoHtmlSicuro(dettagliOfferta(offerta))}</p>
             ${alternativeNote}
             ${promozioniHtml}
-            <small>Materia energia/gas: ${euro(costoOfferta.quotaVariabile)} · Fissa vendita: ${euro(costoOfferta.quotaFissaVendita)} · Potenza/ambito: ${euro(costoOfferta.quotaTecnicaProfilo)} · ${etichettaOneriFiscali(costoOfferta)}: ${euroOneriFiscali(costoOfferta.quotaRegolata + costoOfferta.quotaFiscale, costoOfferta)}</small>
+            <small>${htmlDettaglioComponentiCosto(costoOfferta)}</small>
+            <small style="display:block; margin-top:4px; color:var(--text-muted);"><strong>${testoHtmlSicuro(livelloStima.label)}:</strong> ${testoHtmlSicuro(livelloStima.detail)}</small>
             ${htmlAuditCalcoloOfferta(offerta, costoOfferta)}
           </div>
         </details>`;
       saving.style.color = risparmio ? "var(--primary)" : "var(--danger)";
       saving.innerHTML = `
-        ${badge}${bollettaPrecisionButton}
+        ${badge}${livelloStimaBadge}${bollettaPrecisionButton}
         <span class="offer-metrics">
-          <span class="offer-cost-line"><span>${costoStimatoLabel}</span><strong>${euro(costo)} / anno</strong></span>
-          <span class="${savingLineClass}"><span>${risparmioLabel}</span><strong>${euro(Math.abs(differenza))} / anno</strong></span>
+          <span class="${savingLineClass}"><span class="offer-metric-copy"><b>${risparmioLabel}</b><small>≈ ${euro(mediaMensileEquivalente(Math.abs(differenza)))} / mese ${risparmio ? "in media" : "in più, in media"}</small></span><strong>${euro(Math.abs(differenza))} / anno</strong></span>
+          <span class="offer-cost-line"><span class="offer-metric-copy"><b>${costoStimatoLabel}</b><small>≈ ${euro(mediaMensileEquivalente(costo))} / mese in media</small></span><strong>${euro(costo)} / anno</strong></span>
         </span>
         ${dettagliCondizioniHtml}
       `;
@@ -11797,6 +11983,7 @@ window.avviaComparazioneDati = function avviaComparazioneDati() {
     vaiAlCaricatoreScheda({ source: "pending_luce_followup" });
     return;
   }
+  if (origineDocumentoConfronto()) applicaFallbackStimaDocumentale();
   const attuale = leggiOffertaAttuale();
   trackEvent("comparison_started", {
     tipoPrezzo: tipoTariffa,
@@ -13608,13 +13795,15 @@ function aggiornaStatoPdfMobileDopoAnalisi({ files = [], validCurrent = [], vali
       });
       return;
     }
+    const mancantiPrima = campiMancanti(configurazioniPdfDaControllare(data, false));
+    const fallback = mancantiPrima.length ? applicaFallbackStimaDocumentale() : fallbackDocumentaliAttivi();
     const mancanti = campiMancanti(configurazioniPdfDaControllare(data, false));
     if (mancanti.length) {
       const count = mancanti.length;
       mostraStatoPdfMobile({
         mode: "warning",
         title: count === 1 ? "Manca 1 dato per continuare" : `Mancano ${count} dati per continuare`,
-        copy: "Apri il primo campo evidenziato e completa ciò che non è stato letto dalla bolletta.",
+        copy: "Non abbiamo un valore medio valido per questo campo. Controlla il primo dato evidenziato oppure prova con il PDF completo del fornitore.",
         filename,
         primaryLabel: count === 1 ? "Completa il dato" : "Completa i dati",
         secondaryLabel: "Controlla il modulo",
@@ -13623,10 +13812,15 @@ function aggiornaStatoPdfMobileDopoAnalisi({ files = [], validCurrent = [], vali
       });
       return;
     }
+    const source = origineDocumentoConfronto();
     mostraStatoPdfMobile({
       mode: "ready",
-      title: "Bolletta letta correttamente",
-      copy: "I dati necessari sono stati inseriti. Puoi vedere subito le offerte oppure controllare il modulo.",
+      title: fallback.length ? "Stima personalizzata pronta" : "Bolletta letta correttamente",
+      copy: fallback.length
+        ? `${fallback.length} ${fallback.length === 1 ? "dato essenziale non era visibile" : "dati essenziali non erano visibili"}: abbiamo usato il profilo medio solo per ${fallback.length === 1 ? "quel dato" : "quei dati"}. Le card lo segnaleranno chiaramente.`
+        : source === "photo"
+          ? "I dati leggibili della foto sono sufficienti. Puoi vedere subito le offerte; il PDF completo può rendere la stima più precisa."
+          : "I dati necessari sono stati inseriti. Puoi vedere subito le offerte oppure controllare il modulo.",
       filename,
       primaryLabel: "Confronta le offerte",
       secondaryLabel: "Controlla i dati",
@@ -13678,6 +13872,7 @@ function avviaPassoSuccessivoPdfDesktopAutomatico({ validCurrent = [] } = {}) {
   const data = current?.data || datiBollettaCorrentePdf() || LEAD_STATE.pdfData || {};
   if (!current || data.kind !== "bolletta") return;
   if (["pending_gas", "pending_luce"].includes(ambitoConfrontoAttivo())) return;
+  applicaFallbackStimaDocumentale();
   if (campiMancanti(configurazioniPdfDaControllare(data, false)).length) return;
 
   window.setTimeout(() => {
@@ -13686,6 +13881,7 @@ function avviaPassoSuccessivoPdfDesktopAutomatico({ validCurrent = [] } = {}) {
     const freshData = freshCurrent?.data || {};
     if (!freshCurrent || freshData.kind !== "bolletta") return;
     if (["pending_gas", "pending_luce"].includes(ambitoConfrontoAttivo())) return;
+    applicaFallbackStimaDocumentale();
     if (campiMancanti(configurazioniPdfDaControllare(freshData, false)).length) return;
 
     window.avviaComparazioneDati?.();
@@ -14418,11 +14614,13 @@ async function analizzaFotoBolletta(file, source = "camera") {
     }
 
     const missing = datiMancantiCalcolatoreDaFoto(validCurrent);
+    const fallback = missing.length ? applicaFallbackStimaDocumentale() : fallbackDocumentaliAttivi();
+    const missingAfterFallback = datiMancantiCalcolatoreDaFoto(validCurrent);
     const pendingSecondBill = ["pending_gas", "pending_luce"].includes(ambitoConfrontoAttivo());
     const canAutoCompare = Boolean(validCurrent.length)
       && LEAD_STATE.customerType !== "business"
       && !pendingSecondBill
-      && missing.length === 0;
+      && missingAfterFallback.length === 0;
     trackEvent("bill_photo_analysis_completed", {
       inputSource: normalizedSource,
       analysisStatus: missing.length ? "success_missing_data" : "success",
@@ -14445,12 +14643,14 @@ async function analizzaFotoBolletta(file, source = "camera") {
     }
 
     if (panel) panel.style.display = "block";
-    if (missing.length) {
-      if (title) title.innerText = missing.length === 1 ? "Manca 1 dato" : `Mancano ${missing.length} dati`;
-      if (copy) copy.innerText = "Completa solo i campi evidenziati. Gli altri dati letti dalla foto sono già inseriti.";
+    if (missingAfterFallback.length) {
+      if (title) title.innerText = "Stima non disponibile";
+      if (copy) copy.innerText = "Questa foto non contiene abbastanza dati per costruire una stima. Prova con il PDF completo del fornitore.";
     } else if (title) {
-      title.innerText = "Bolletta letta";
-      if (copy) copy.innerText = "Dati sufficienti per il confronto. Stiamo aprendo le offerte.";
+      title.innerText = fallback.length ? "Stima personalizzata pronta" : "Bolletta letta";
+      if (copy) copy.innerText = fallback.length
+        ? `Abbiamo letto la foto e completato ${fallback.length} ${fallback.length === 1 ? "dato essenziale" : "dati essenziali"} con il profilo medio. Le card distingueranno questa stima da un calcolo completo da PDF.`
+        : "Dati sufficienti per il confronto. Stiamo aprendo le offerte.";
     }
 
     aggiornaStatoPdfMobileDopoAnalisi({ files: [file], validCurrent, validOffer, results });
@@ -17565,7 +17765,14 @@ function ottimizzaRisultatiMobile() {
     ? TESTO_METODOLOGIA_MEDIA_ARERA
     : TESTO_METODOLOGIA_CONSUMI_REALI;
   const copertura = document.getElementById("offers-ranking-explainer")?.textContent?.trim() || "";
-  const origine = modalitaCalcolo === "media" ? "Stima su consumi medi ARERA" : "Confronto sui tuoi consumi";
+  const origineDocumento = origineDocumentoConfronto();
+  const origine = modalitaCalcolo === "media"
+    ? "Stima media su profilo di riferimento"
+    : origineDocumento === "pdf"
+      ? "Stima personalizzata da PDF"
+      : origineDocumento === "photo"
+        ? "Stima personalizzata da foto"
+        : "Confronto sui tuoi consumi";
 
   heading.innerHTML = `
     <div class="mobile-results-heading-row">
