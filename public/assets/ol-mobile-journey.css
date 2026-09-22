@@ -1,0 +1,520 @@
+/* OffertaLogica mobile journey v1.2.0
+ * Solo presentazione mobile e navigazione del sito pubblico.
+ * Non modifica breadcrumb, metadati SEO/IA, logica del calcolatore o contenuti tecnici.
+ */
+.ol-mobile-menu-toggle,
+.ol-mobile-menu-backdrop,
+.ol-mobile-menu-panel { display: none; }
+
+@media (max-width: 700px) {
+  html,
+  body.ol-mobile-journey-ready {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  body.ol-mobile-journey-ready.ol-mobile-menu-open {
+    overflow: hidden;
+    touch-action: none;
+  }
+
+  body.ol-mobile-journey-ready .ol-mobile-menu-host {
+    position: relative !important;
+    min-height: 60px;
+  }
+
+  body.ol-mobile-journey-ready .topbar .topbar-inner,
+  body.ol-mobile-journey-ready .ol-topbar .ol-topbar-inner {
+    min-height: 60px !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 8px !important;
+    padding-top: 7px !important;
+    padding-bottom: 7px !important;
+    padding-right: 66px !important;
+  }
+
+  body.ol-mobile-journey-ready .topbar .brand img,
+  body.ol-mobile-journey-ready .ol-topbar .ol-brand img {
+    width: 132px !important;
+    max-width: 46vw !important;
+  }
+
+  body.ol-mobile-journey-ready .page-shell > header.ol-mobile-menu-host,
+  body.ol-mobile-journey-ready header.site-header.ol-mobile-menu-host {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    min-height: 60px !important;
+    padding: 7px 66px 7px 10px !important;
+    text-align: left !important;
+  }
+
+  body.ol-mobile-journey-ready .site-logo-main {
+    width: min(168px, 48vw) !important;
+    max-width: 100% !important;
+  }
+
+  /* La navigazione completa passa nel menu: niente righe o scorrimento orizzontale sotto il logo. */
+  body.ol-mobile-journey-ready .ol-mobile-menu-host .nav,
+  body.ol-mobile-journey-ready .ol-mobile-menu-host .ol-nav,
+  body.ol-mobile-journey-ready .top-nav {
+    display: none !important;
+  }
+
+  /* App e Premium restano nel menu e nel footer: si elimina una riga prima del contenuto. */
+  body.ol-mobile-journey-ready .ol-app-access-bar {
+    display: none !important;
+  }
+
+  .ol-mobile-menu-toggle {
+    position: absolute;
+    top: 50%;
+    right: 10px;
+    z-index: 1003;
+    display: inline-flex;
+    min-width: 52px;
+    min-height: 44px;
+    transform: translateY(-50%);
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 7px 9px;
+    border: 1px solid rgba(15, 118, 64, .22);
+    border-radius: 12px;
+    background: rgba(255,255,255,.92);
+    color: #17394a;
+    box-shadow: 0 6px 18px rgba(18,48,68,.08);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 850;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .ol-mobile-menu-icon {
+    display: grid;
+    gap: 3px;
+    width: 17px;
+  }
+
+  .ol-mobile-menu-icon i {
+    display: block;
+    width: 17px;
+    height: 2px;
+    border-radius: 999px;
+    background: currentColor;
+  }
+
+  .ol-mobile-menu-label { line-height: 1; }
+
+  .ol-mobile-menu-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1004;
+    display: block;
+    background: rgba(15,23,42,.38);
+    opacity: 0;
+    transition: opacity .18s ease;
+  }
+
+  .ol-mobile-menu-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    z-index: 1005;
+    display: flex;
+    width: min(88vw, 360px);
+    max-width: 100%;
+    height: 100vh;
+    height: 100dvh;
+    flex-direction: column;
+    gap: 14px;
+    overflow-y: auto;
+    padding: 18px 16px 22px;
+    background: #f8fcf8;
+    color: #17394a;
+    box-shadow: -18px 0 46px rgba(15,23,42,.18);
+    transform: translateX(104%);
+    transition: transform .18s ease;
+    overscroll-behavior: contain;
+  }
+
+  .ol-mobile-menu-backdrop[hidden],
+  .ol-mobile-menu-panel[hidden] { display: none !important; }
+
+  body.ol-mobile-menu-open .ol-mobile-menu-backdrop { opacity: 1; }
+  body.ol-mobile-menu-open .ol-mobile-menu-panel { transform: translateX(0); }
+
+  .ol-mobile-menu-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-height: 40px;
+    color: #0f5132;
+    font-size: 17px;
+  }
+
+  .ol-mobile-menu-close {
+    display: inline-flex;
+    width: 42px;
+    height: 42px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #dbe7df;
+    border-radius: 12px;
+    background: #fff;
+    color: #17394a;
+    font: inherit;
+    font-size: 29px;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .ol-mobile-menu-primary {
+    display: flex;
+    min-height: 50px;
+    align-items: center;
+    justify-content: center;
+    padding: 11px 14px;
+    border-radius: 13px;
+    background: linear-gradient(135deg,#087f3a 0%,#18a84b 62%,#67c82f 100%);
+    color: #fff !important;
+    text-align: center;
+    text-decoration: none !important;
+    font-size: 15px;
+    font-weight: 900;
+    line-height: 1.2;
+    box-shadow: 0 10px 22px rgba(8,127,58,.18);
+  }
+
+  .ol-mobile-menu-links {
+    display: grid;
+    gap: 7px;
+  }
+
+  .ol-mobile-menu-links a {
+    position: relative;
+    display: flex;
+    min-height: 44px;
+    align-items: center;
+    padding: 9px 34px 9px 12px;
+    border: 1px solid #dce8df;
+    border-radius: 11px;
+    background: #fff;
+    color: #315564 !important;
+    text-decoration: none !important;
+    font-size: 14px;
+    font-weight: 800;
+    line-height: 1.2;
+  }
+
+  .ol-mobile-menu-links a::after {
+    content: '›';
+    position: absolute;
+    right: 13px;
+    top: 50%;
+    transform: translateY(-52%);
+    color: #168445;
+    font-size: 22px;
+    font-weight: 700;
+  }
+
+  .ol-mobile-menu-links a[aria-current='page'] {
+    border-color: #8fddb0;
+    background: #effbf3;
+    color: #0f6b38 !important;
+  }
+
+  .ol-mobile-menu-apps {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding-top: 4px;
+  }
+
+  .ol-mobile-menu-apps a {
+    display: flex;
+    min-height: 42px;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    border: 1px solid #dce8df;
+    border-radius: 11px;
+    background: rgba(255,255,255,.8);
+    color: #315564 !important;
+    text-align: center;
+    text-decoration: none !important;
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  /* CTA: linguaggio orientato al beneficio e dimensione coerente. */
+  body.ol-mobile-journey-ready .ol-journey-calculator-cta,
+  body.ol-mobile-journey-ready .hero-actions .button.primary[href^='/'],
+  body.ol-mobile-journey-ready .cta .button.primary[href^='/'] {
+    min-height: 48px !important;
+    padding: 10px 14px !important;
+    border-radius: 12px !important;
+    font-size: 14px !important;
+    font-weight: 900 !important;
+    line-height: 1.2 !important;
+    text-align: center;
+  }
+
+  /* Gli indici diventano chiaramente interattivi senza occupare tutta la schermata. */
+  body.ol-mobile-journey-ready .ol-mobile-toc {
+    padding: 13px !important;
+    border-radius: 16px !important;
+  }
+
+  body.ol-mobile-journey-ready .ol-mobile-toc strong {
+    margin: 0 !important;
+    font-size: 18px !important;
+    line-height: 1.25 !important;
+  }
+
+  body.ol-mobile-journey-ready .ol-mobile-toc-hint {
+    display: block;
+    margin: 3px 0 9px;
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 650;
+    line-height: 1.3;
+  }
+
+  body.ol-mobile-journey-ready .ol-mobile-toc a {
+    position: relative;
+    display: flex !important;
+    min-height: 40px;
+    align-items: center;
+    margin: 6px 0 0 !important;
+    padding: 8px 32px 8px 10px !important;
+    border: 1px solid #dce8df !important;
+    border-radius: 9px !important;
+    background: rgba(255,255,255,.72) !important;
+    color: #315564 !important;
+    text-decoration: none !important;
+    font-size: 13px !important;
+    font-weight: 800 !important;
+    line-height: 1.25 !important;
+  }
+
+  body.ol-mobile-journey-ready .ol-mobile-toc a::after {
+    content: '›';
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-53%);
+    color: #168445;
+    font-size: 20px;
+  }
+
+  /* Tabelle larghe: su mobile diventano card verticali, senza scorrimento laterale. */
+  body.ol-mobile-journey-ready table.ol-mobile-card-table {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    border-collapse: separate !important;
+    background: transparent !important;
+  }
+
+  body.ol-mobile-journey-ready table.ol-mobile-card-table thead {
+    display: none !important;
+  }
+
+  body.ol-mobile-journey-ready table.ol-mobile-card-table tbody {
+    display: grid !important;
+    width: 100% !important;
+    gap: 10px;
+  }
+
+  body.ol-mobile-journey-ready table.ol-mobile-card-table tr {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: hidden;
+    border: 1px solid #dce4e8;
+    border-radius: 13px;
+    background: rgba(255,255,255,.88);
+    box-shadow: 0 5px 15px rgba(18,48,68,.045);
+  }
+
+  body.ol-mobile-journey-ready table.ol-mobile-card-table td {
+    display: grid !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    grid-template-columns: minmax(88px, 34%) minmax(0, 1fr);
+    gap: 9px;
+    align-items: start;
+    padding: 9px 10px !important;
+    border: 0 !important;
+    border-top: 1px solid #edf1f2 !important;
+    color: #52677d;
+    font-size: 13px !important;
+    line-height: 1.35 !important;
+    overflow-wrap: anywhere;
+  }
+
+  body.ol-mobile-journey-ready table.ol-mobile-card-table td:first-child {
+    border-top: 0 !important;
+  }
+
+  body.ol-mobile-journey-ready table.ol-mobile-card-table td::before {
+    content: attr(data-ol-label);
+    color: #315564;
+    font-size: 11px;
+    font-weight: 900;
+    line-height: 1.25;
+    text-transform: uppercase;
+    letter-spacing: .025em;
+  }
+
+  body.ol-mobile-journey-ready table.ol-mobile-card-table td.ol-mobile-table-status,
+  body.ol-mobile-journey-ready table.ol-mobile-card-table td[colspan] {
+    display: block !important;
+    padding: 12px !important;
+  }
+
+  body.ol-mobile-journey-ready table.ol-mobile-card-table td.ol-mobile-table-status::before,
+  body.ol-mobile-journey-ready table.ol-mobile-card-table td[colspan]::before {
+    display: none !important;
+  }
+
+  body.ol-mobile-journey-ready .table-wrap.ol-mobile-card-table-wrap {
+    max-width: 100% !important;
+    overflow: visible !important;
+    border: 0 !important;
+    background: transparent !important;
+  }
+
+  /* CTA/indice specifici della pagina offerte. */
+  body.ol-offers-page .ol-interactive {
+    padding: 14px !important;
+    margin-bottom: 14px !important;
+  }
+
+  body.ol-offers-page .ol-interactive h2 {
+    margin-bottom: 5px !important;
+    font-size: 23px !important;
+    line-height: 1.08 !important;
+  }
+
+  body.ol-offers-page .ol-interactive > p {
+    font-size: 14px !important;
+    line-height: 1.45 !important;
+  }
+
+  body.ol-offers-page .ol-choice-row {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 7px !important;
+    margin-top: 11px !important;
+  }
+
+  body.ol-offers-page .ol-choice-row .ol-choice {
+    position: relative;
+    width: 100% !important;
+    min-height: 44px !important;
+    padding: 8px 34px 8px 11px !important;
+    text-align: left !important;
+    font-size: 13px !important;
+    line-height: 1.2 !important;
+  }
+
+  body.ol-offers-page .ol-choice-row .ol-choice:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+
+  body.ol-offers-page .ol-choice-row .ol-choice::after {
+    content: '›';
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-53%);
+    color: #168445;
+    font-size: 20px;
+  }
+
+  /* Footer più compatto; il collegamento Informa non appare più come un blocco fuori stile. */
+  body.ol-mobile-journey-ready .footer,
+  body.ol-mobile-journey-ready .ol-footer {
+    max-width: 100%;
+    padding: 24px 12px !important;
+    overflow: hidden;
+    font-size: 12px !important;
+    line-height: 1.45 !important;
+  }
+
+  body.ol-mobile-journey-ready .footer a,
+  body.ol-mobile-journey-ready .footer button,
+  body.ol-mobile-journey-ready .ol-footer a,
+  body.ol-mobile-journey-ready .ol-footer button {
+    max-width: 100%;
+    margin: 4px 5px !important;
+    overflow-wrap: anywhere;
+  }
+
+  body.ol-mobile-journey-ready .ol-app-access-footer {
+    gap: 8px !important;
+    margin-bottom: 14px !important;
+  }
+
+  body.ol-mobile-journey-ready .ol-app-access-footer .ol-app-access-link {
+    min-height: 42px !important;
+    padding: 8px 12px !important;
+    font-size: 12px !important;
+    box-shadow: none !important;
+  }
+
+  body.ol-mobile-journey-ready footer nav[aria-label='OffertaLogica Informa'] {
+    margin-top: 10px !important;
+  }
+
+  body.ol-mobile-journey-ready footer nav[aria-label='OffertaLogica Informa'] a {
+    display: inline-flex !important;
+    min-height: 38px !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 7px 11px !important;
+    border: 1px solid #b7dfc6 !important;
+    border-radius: 10px !important;
+    background: rgba(255,255,255,.78) !important;
+    color: #16713d !important;
+    box-shadow: none !important;
+    font-size: 12px !important;
+    font-weight: 850 !important;
+    line-height: 1.2 !important;
+    text-decoration: none !important;
+  }
+
+  body.ol-mobile-journey-ready .panel,
+  body.ol-mobile-journey-ready .content,
+  body.ol-mobile-journey-ready .shell,
+  body.ol-mobile-journey-ready main,
+  body.ol-mobile-journey-ready article {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  body.ol-mobile-journey-ready img,
+  body.ol-mobile-journey-ready video,
+  body.ol-mobile-journey-ready iframe {
+    max-width: 100%;
+  }
+
+  body.ol-mobile-journey-ready .panel a,
+  body.ol-mobile-journey-ready .content a,
+  body.ol-mobile-journey-ready article a,
+  body.ol-mobile-journey-ready footer a {
+    overflow-wrap: anywhere;
+  }
+}
+
+@media (max-width: 380px) {
+  .ol-mobile-menu-label { display: none; }
+  .ol-mobile-menu-toggle { min-width: 44px; padding-inline: 8px; }
+}
