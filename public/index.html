@@ -1950,6 +1950,42 @@
             border-color: #16a34a;
             background: #f8fafc;
         }
+        .guided-assistant-resources {
+            margin-top: 12px;
+            padding-top: 11px;
+            border-top: 1px solid #e2e8f0;
+        }
+        .guided-assistant-resources strong {
+            display: block;
+            margin-bottom: 7px;
+            color: #334155;
+            font-size: 12px;
+        }
+        .guided-assistant-resources-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .guided-assistant-resources a {
+            display: inline-flex;
+            min-height: 34px;
+            align-items: center;
+            padding: 7px 9px;
+            border: 1px solid #dbeafe;
+            border-radius: 9px;
+            color: #1e3a5f;
+            background: #f8fafc;
+            text-decoration: none;
+            font-size: 11px;
+            font-weight: 800;
+            line-height: 1.25;
+        }
+        .guided-assistant-resources a:hover,
+        .guided-assistant-resources a:focus-visible {
+            border-color: #16a34a;
+            color: #14532d;
+            text-decoration: underline;
+        }
         .guided-assistant-highlight {
             outline: 3px solid rgba(22, 163, 74, .28) !important;
             outline-offset: 4px;
@@ -4755,53 +4791,59 @@
                             <option value="sardegna">Sardegna</option>
                         </select>
                     </div>
-                    <div class="input-group">
-                        <label for="master-gas-contatore">Classe contatore gas</label>
-                        <select id="master-gas-contatore">
-                            <option value="">Seleziona la classe...</option>
-                            <option value="g4-g6">G4–G6</option>
-                            <option value="g10-g40">G10–G40</option>
-                            <option value="oltre-g40">Oltre G40</option>
-                        </select>
-                    </div>
-                    <div class="input-group">
-                        <label for="master-gas-pcs">Potere calorifico P gas (GJ/Smc)</label>
-                        <input id="master-gas-pcs" type="number" inputmode="decimal" min="0" step="0.000001" placeholder="es. 0,0385">
-                        <small style="display:block; margin-top:5px; color:#64748b; line-height:1.35;">Dato convenzionale di fatturazione P/PCS della fornitura. Se non è disponibile in bolletta, lascia vuoto: il trasporto QTt non viene stimato.</small>
-                    </div>
-                    <div class="input-group">
-                        <label for="master-gas-accisa">Regime accisa gas</label>
-                        <select id="master-gas-accisa">
-                            <option value="">Non so / non applicare l'accisa</option>
-                            <option value="ordinario">Ordinario — resto d'Italia</option>
-                            <option value="mezzogiorno-dpr218">Agevolato DPR 218 — Mezzogiorno e territori ammessi</option>
-                        </select>
-                        <small style="display:block; margin-top:5px; color:#64748b; line-height:1.35;">Se non sei certo del regime fiscale, lascia vuoto: il calcolatore non presume l'aliquota.</small>
-                    </div>
-                    <div class="input-group">
-                        <label for="master-gas-arisgam">Addizionale regionale gas (ARISGAM)</label>
-                        <select id="master-gas-arisgam">
-                            <option value="">Non so / caso non verificato</option>
-                            <option value="abruzzo-ordinario">Abruzzo — regime ordinario</option>
-                            <option value="abruzzo-clima-ef">Abruzzo — zona climatica E/F</option>
-                            <option value="basilicata">Basilicata</option>
-                            <option value="campania">Campania</option>
-                            <option value="emilia-romagna">Emilia-Romagna</option>
-                            <option value="lazio-centro-nord">Lazio — territorio Centro-Nord</option>
-                            <option value="lazio-mezzogiorno">Lazio — territorio DPR 218/Mezzogiorno</option>
-                            <option value="liguria-cd">Liguria — zona climatica C/D</option>
-                            <option value="liguria-e">Liguria — zona climatica E</option>
-                            <option value="liguria-f">Liguria — zona climatica F</option>
-                            <option value="lombardia">Lombardia — ARISGAM disapplicata</option>
-                            <option value="marche">Marche</option>
-                            <option value="piemonte-ordinario">Piemonte — ordinario (non nuovo allacciamento agevolato)</option>
-                            <option value="puglia">Puglia</option>
-                            <option value="toscana">Toscana</option>
-                            <option value="umbria">Umbria</option>
-                            <option value="veneto">Veneto</option>
-                        </select>
-                        <small style="display:block; margin-top:5px; color:#64748b; line-height:1.35;">Se il tuo caso non è nell'elenco o non conosci la zona fiscale/climatica, lascia vuoto: nessuna addizionale viene presunta.</small>
-                    </div>
+                    <details id="master-gas-advanced-details" style="margin-top:8px;">
+                        <summary style="cursor:pointer; font-weight:700; color:#334155;">Dati avanzati gas (opzionali)</summary>
+                        <small style="display:block; margin:6px 0 10px; color:#64748b; line-height:1.35;">Classe contatore, P/PCS, accisa e ARISGAM servono solo a rendere più completa la stima delle componenti regolate e fiscali. Se non li conosci, lascia i campi vuoti: il calcolatore segnala le componenti non determinabili senza inventare valori.</small>
+                        <div style="display:grid; gap:12px;">
+                            <div class="input-group">
+                                <label for="master-gas-contatore">Classe contatore gas</label>
+                                <select id="master-gas-contatore">
+                                    <option value="">Seleziona la classe...</option>
+                                    <option value="g4-g6">G4–G6</option>
+                                    <option value="g10-g40">G10–G40</option>
+                                    <option value="oltre-g40">Oltre G40</option>
+                                </select>
+                            </div>
+                            <div class="input-group">
+                                <label for="master-gas-pcs">Potere calorifico P gas (GJ/Smc)</label>
+                                <input id="master-gas-pcs" type="number" inputmode="decimal" min="0" step="0.000001" placeholder="es. 0,0385">
+                                <small style="display:block; margin-top:5px; color:#64748b; line-height:1.35;">Dato convenzionale di fatturazione P/PCS della fornitura. Se non è disponibile in bolletta, lascia vuoto: il trasporto QTt non viene stimato.</small>
+                            </div>
+                            <div class="input-group">
+                                <label for="master-gas-accisa">Regime accisa gas</label>
+                                <select id="master-gas-accisa">
+                                    <option value="">Non so / non applicare l'accisa</option>
+                                    <option value="ordinario">Ordinario — resto d'Italia</option>
+                                    <option value="mezzogiorno-dpr218">Agevolato DPR 218 — Mezzogiorno e territori ammessi</option>
+                                </select>
+                                <small style="display:block; margin-top:5px; color:#64748b; line-height:1.35;">Se non sei certo del regime fiscale, lascia vuoto: il calcolatore non presume l'aliquota.</small>
+                            </div>
+                            <div class="input-group">
+                                <label for="master-gas-arisgam">Addizionale regionale gas (ARISGAM)</label>
+                                <select id="master-gas-arisgam">
+                                    <option value="">Non so / caso non verificato</option>
+                                    <option value="abruzzo-ordinario">Abruzzo — regime ordinario</option>
+                                    <option value="abruzzo-clima-ef">Abruzzo — zona climatica E/F</option>
+                                    <option value="basilicata">Basilicata</option>
+                                    <option value="campania">Campania</option>
+                                    <option value="emilia-romagna">Emilia-Romagna</option>
+                                    <option value="lazio-centro-nord">Lazio — territorio Centro-Nord</option>
+                                    <option value="lazio-mezzogiorno">Lazio — territorio DPR 218/Mezzogiorno</option>
+                                    <option value="liguria-cd">Liguria — zona climatica C/D</option>
+                                    <option value="liguria-e">Liguria — zona climatica E</option>
+                                    <option value="liguria-f">Liguria — zona climatica F</option>
+                                    <option value="lombardia">Lombardia — ARISGAM disapplicata</option>
+                                    <option value="marche">Marche</option>
+                                    <option value="piemonte-ordinario">Piemonte — ordinario (non nuovo allacciamento agevolato)</option>
+                                    <option value="puglia">Puglia</option>
+                                    <option value="toscana">Toscana</option>
+                                    <option value="umbria">Umbria</option>
+                                    <option value="veneto">Veneto</option>
+                                </select>
+                                <small style="display:block; margin-top:5px; color:#64748b; line-height:1.35;">Se il tuo caso non è nell'elenco o non conosci la zona fiscale/climatica, lascia vuoto: nessuna addizionale viene presunta.</small>
+                            </div>
+                        </div>
+                    </details>
                 </div>
             </div>
 
@@ -7941,6 +7983,17 @@ function applicaConsumiMensiliProfiloMedio() {
   impostaConsumiMensiliLuce(PARAMETRI_CALCOLO.profiloMedio?.consumiMensiliLuceKwh || []);
 }
 
+function azzeraDatiTecniciProfiloManuale() {
+  setField("master-luce-residenza", "");
+  setField("master-gas-regione", "");
+  setField("master-gas-contatore", "");
+  setField("master-gas-pcs", "");
+  setField("master-gas-accisa", "");
+  setField("master-gas-arisgam", "");
+  impostaConsumiMensiliLuce([]);
+  document.getElementById("master-gas-advanced-details")?.removeAttribute("open");
+}
+
 function calcolaAccisaLuce(consumo, regolate = {}) {
   const config = regolate?.accisaDomestica || {};
   const aliquota = numeroSicuro(config.aliquotaEurKwh, NaN);
@@ -9587,10 +9640,11 @@ function maggiorazioneMaster(commodity) {
 
 function componentiRegolateMaster(commodity) {
   const base = PARAMETRI_CALCOLO.componentiRegolate?.[commodity] || componentiRegolateVuote();
+  const usaProfiloMedio = modalitaCalcolo === "media";
   if (commodity === "luce") {
     return {
       ...base,
-      residenzaAnagrafica: leggiValore("master-luce-residenza", PARAMETRI_CALCOLO.profiloMedio.residenzaLuce || ""),
+      residenzaAnagrafica: leggiValore("master-luce-residenza", usaProfiloMedio ? (PARAMETRI_CALCOLO.profiloMedio.residenzaLuce || "") : ""),
       potenzaKw: leggiNumero("master-luce-potenza", PARAMETRI_CALCOLO.profiloMedio.potenzaKw || 0),
       consumiMensiliKwh: leggiConsumiMensiliLuce(),
     };
@@ -9598,11 +9652,11 @@ function componentiRegolateMaster(commodity) {
   if (commodity !== "gas") return base;
   return {
     ...base,
-    ambitoTariffario: normalizzaAmbitoTariffarioGas(leggiValore("master-gas-regione", PARAMETRI_CALCOLO.profiloMedio.regioneGas || "")),
-    classeContatore: leggiValore("master-gas-contatore", PARAMETRI_CALCOLO.profiloMedio.classeContatoreGas || ""),
-    potereCalorificoGasGjSmc: leggiNumero("master-gas-pcs", numeroSicuro(PARAMETRI_CALCOLO.profiloMedio.potereCalorificoGasGjSmc, NaN)),
-    regimeAccisaGas: leggiValore("master-gas-accisa", PARAMETRI_CALCOLO.profiloMedio.regimeAccisaGas || ""),
-    regimeArisgamGas: leggiValore("master-gas-arisgam", PARAMETRI_CALCOLO.profiloMedio.regimeArisgamGas || ""),
+    ambitoTariffario: normalizzaAmbitoTariffarioGas(leggiValore("master-gas-regione", usaProfiloMedio ? (PARAMETRI_CALCOLO.profiloMedio.regioneGas || "") : "")),
+    classeContatore: leggiValore("master-gas-contatore", usaProfiloMedio ? (PARAMETRI_CALCOLO.profiloMedio.classeContatoreGas || "") : ""),
+    potereCalorificoGasGjSmc: leggiNumero("master-gas-pcs", usaProfiloMedio ? numeroSicuro(PARAMETRI_CALCOLO.profiloMedio.potereCalorificoGasGjSmc, NaN) : NaN),
+    regimeAccisaGas: leggiValore("master-gas-accisa", usaProfiloMedio ? (PARAMETRI_CALCOLO.profiloMedio.regimeAccisaGas || "") : ""),
+    regimeArisgamGas: leggiValore("master-gas-arisgam", usaProfiloMedio ? (PARAMETRI_CALCOLO.profiloMedio.regimeArisgamGas || "") : ""),
   };
 }
 
@@ -9620,18 +9674,19 @@ function leggiProfiloComparazione() {
   const scope = tipoFornituraPerCalcolo();
   const usaLuce = scope !== "gas";
   const usaGas = ["gas", "dual", "separate"].includes(scope);
+  const usaProfiloMedio = modalitaCalcolo === "media";
   return {
     dataOrigin: determinaOrigineDatoLead(),
     tipoPrezzo: leggiValore("master-luce-tipo", PARAMETRI_CALCOLO.profiloMedio.tipoPrezzo),
     tipoFornitura: tipoFornituraPerCalcolo(),
     gasDecision: LEAD_STATE.gasDecision || "",
     electricityDecision: LEAD_STATE.electricityDecision || "",
-    regioneGas: usaGas ? leggiValore("master-gas-regione", PARAMETRI_CALCOLO.profiloMedio.regioneGas) : "",
-    classeContatoreGas: usaGas ? leggiValore("master-gas-contatore", PARAMETRI_CALCOLO.profiloMedio.classeContatoreGas || "") : "",
-    potereCalorificoGasGjSmc: usaGas ? leggiNumero("master-gas-pcs", numeroSicuro(PARAMETRI_CALCOLO.profiloMedio.potereCalorificoGasGjSmc, 0)) : 0,
-    regimeAccisaGas: usaGas ? leggiValore("master-gas-accisa", PARAMETRI_CALCOLO.profiloMedio.regimeAccisaGas || "") : "",
-    regimeArisgamGas: usaGas ? leggiValore("master-gas-arisgam", PARAMETRI_CALCOLO.profiloMedio.regimeArisgamGas || "") : "",
-    residenzaLuce: usaLuce ? leggiValore("master-luce-residenza", PARAMETRI_CALCOLO.profiloMedio.residenzaLuce || "") : "",
+    regioneGas: usaGas ? leggiValore("master-gas-regione", usaProfiloMedio ? PARAMETRI_CALCOLO.profiloMedio.regioneGas : "") : "",
+    classeContatoreGas: usaGas ? leggiValore("master-gas-contatore", usaProfiloMedio ? (PARAMETRI_CALCOLO.profiloMedio.classeContatoreGas || "") : "") : "",
+    potereCalorificoGasGjSmc: usaGas ? leggiNumero("master-gas-pcs", usaProfiloMedio ? numeroSicuro(PARAMETRI_CALCOLO.profiloMedio.potereCalorificoGasGjSmc, 0) : 0) : 0,
+    regimeAccisaGas: usaGas ? leggiValore("master-gas-accisa", usaProfiloMedio ? (PARAMETRI_CALCOLO.profiloMedio.regimeAccisaGas || "") : "") : "",
+    regimeArisgamGas: usaGas ? leggiValore("master-gas-arisgam", usaProfiloMedio ? (PARAMETRI_CALCOLO.profiloMedio.regimeArisgamGas || "") : "") : "",
+    residenzaLuce: usaLuce ? leggiValore("master-luce-residenza", usaProfiloMedio ? (PARAMETRI_CALCOLO.profiloMedio.residenzaLuce || "") : "") : "",
     potenzaKw: usaLuce ? leggiNumero("master-luce-potenza", PARAMETRI_CALCOLO.profiloMedio.potenzaKw) : 0,
     luceConsumoKwh: usaLuce ? leggiNumero("in-luce-cons-att", leggiNumero("master-luce-consumo", PARAMETRI_CALCOLO.profiloMedio.luceConsumoKwh)) : 0,
     gasConsumoSmc: usaGas ? leggiNumero("in-gas-cons-att", leggiNumero("master-gas-consumo", PARAMETRI_CALCOLO.profiloMedio.gasConsumoSmc)) : 0,
@@ -12539,7 +12594,7 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
         ? "Verifica e prosegui con la richiesta"
         : isOfferSelection
           ? "Verifica e continua"
-          : "Verifica e mostra le offerte";
+          : "Verifica e continua";
   }
   if (title) {
     title.innerText = isAssistance
@@ -16846,16 +16901,11 @@ window.azzeraPdfEModulo = function azzeraPdfEModulo() {
   setField("master-luce-consumo", PARAMETRI_CALCOLO.profiloMedio.luceConsumoKwh);
   setField("master-gas-consumo", PARAMETRI_CALCOLO.profiloMedio.gasConsumoSmc);
   setField("master-luce-potenza", PARAMETRI_CALCOLO.profiloMedio.potenzaKw);
-  setField("master-luce-residenza", PARAMETRI_CALCOLO.profiloMedio.residenzaLuce || "");
+  setField("master-luce-residenza", "");
   setField("master-luce-tipo", PARAMETRI_CALCOLO.profiloMedio.tipoPrezzo);
   setField("master-tipo-fornitura", PARAMETRI_CALCOLO.profiloMedio.tipoFornitura);
   applicaAmbitoConfronto(PARAMETRI_CALCOLO.profiloMedio.tipoFornitura);
-  setField("master-gas-regione", PARAMETRI_CALCOLO.profiloMedio.regioneGas);
-  setField("master-gas-contatore", PARAMETRI_CALCOLO.profiloMedio.classeContatoreGas || "");
-  setField("master-gas-pcs", PARAMETRI_CALCOLO.profiloMedio.potereCalorificoGasGjSmc || "");
-  setField("master-gas-accisa", PARAMETRI_CALCOLO.profiloMedio.regimeAccisaGas || "");
-  setField("master-gas-arisgam", PARAMETRI_CALCOLO.profiloMedio.regimeArisgamGas || "");
-  applicaConsumiMensiliProfiloMedio();
+  azzeraDatiTecniciProfiloManuale();
 
   ["lead-nome", "lead-telefono", "lead-email", "lead-otp"].forEach(clearField);
   ["lead-consenso-servizio", "lead-consenso-partner", "offer-consent-checkbox"].forEach((id) => {
@@ -17393,15 +17443,10 @@ function applicaDatiPdfAlModulo(data) {
     setField("master-luce-consumo", PARAMETRI_CALCOLO.profiloMedio.luceConsumoKwh);
     setField("master-gas-consumo", PARAMETRI_CALCOLO.profiloMedio.gasConsumoSmc);
     setField("master-luce-potenza", PARAMETRI_CALCOLO.profiloMedio.potenzaKw);
-  setField("master-luce-residenza", PARAMETRI_CALCOLO.profiloMedio.residenzaLuce || "");
+  setField("master-luce-residenza", "");
     setField("master-luce-tipo", PARAMETRI_CALCOLO.profiloMedio.tipoPrezzo);
     setField("master-tipo-fornitura", PARAMETRI_CALCOLO.profiloMedio.tipoFornitura);
-    setField("master-gas-regione", PARAMETRI_CALCOLO.profiloMedio.regioneGas);
-    setField("master-gas-contatore", PARAMETRI_CALCOLO.profiloMedio.classeContatoreGas || "");
-    setField("master-gas-pcs", PARAMETRI_CALCOLO.profiloMedio.potereCalorificoGasGjSmc || "");
-    setField("master-gas-accisa", PARAMETRI_CALCOLO.profiloMedio.regimeAccisaGas || "");
-  setField("master-gas-arisgam", PARAMETRI_CALCOLO.profiloMedio.regimeArisgamGas || "");
-    applicaConsumiMensiliProfiloMedio();
+    azzeraDatiTecniciProfiloManuale();
     setField("in-luce-tipo-att", PARAMETRI_CALCOLO.profiloMedio.tipoPrezzo);
     setField("in-gas-tipo-att", PARAMETRI_CALCOLO.profiloMedio.tipoPrezzo);
     setField("in-luce-cons-att", PARAMETRI_CALCOLO.profiloMedio.luceConsumoKwh);
@@ -18166,7 +18211,7 @@ if (document.readyState === "loading") {
 <div class="lead-teaser" id="lead-teaser">
     <strong id="lead-teaser-title">Abbiamo trovato offerte più convenienti.</strong>
     <p id="lead-teaser-copy">Il confronto è consultabile senza registrazione. OffertaLogica non effettua chiamate telefoniche; telefono ed email vengono richiesti solo se scegli di proseguire tramite noi con un’offerta partner.</p>
-    <button type="button" onclick="apriLeadModal('teaser')">Verifica e visualizza le offerte</button>
+    <button type="button" onclick="document.getElementById('offerte-ranking-group')?.scrollIntoView({ behavior: 'smooth', block: 'start' })">Vai alle offerte</button>
 </div>
 <div class="offers-personalize-prompt" id="offers-personalize-prompt" hidden aria-hidden="true">
     <strong>Vuoi sapere quanto risparmieresti con i tuoi consumi reali?</strong>
@@ -18424,9 +18469,11 @@ if (document.readyState === "loading") {
       // 2. CLIC SU: inserimento dati manuale
       if(btnPrecisi) {
           btnPrecisi.addEventListener("click", function() {
+              const originePrecedente = LEAD_STATE.dataOrigin;
               resetBotteonStyles();
               btnPrecisi.classList.add("selected");
               LEAD_STATE.dataOrigin = "manual_input";
+              if (originePrecedente === "arera_average_profile") azzeraDatiTecniciProfiloManuale();
               nascondiGuida("comparison-next-step-guidance");
               nascondiGuida("pdf-data-review-guidance");
               
@@ -18488,13 +18535,24 @@ if (document.readyState === "loading") {
             </button>
             <button type="button" class="guided-assistant-option" data-assistant-action="offerte">
                 Voglio capire le offerte
-                <small>Le offerte compaiono dopo il confronto; l’OTP serve solo se prosegui con un percorso partner che lo richiede.</small>
+                <small>Le offerte compaiono dopo il confronto; l’OTP serve solo se prosegui con un percorso che richiede la verifica del numero.</small>
             </button>
             <button type="button" class="guided-assistant-option" data-assistant-action="privacy">
                 Come trattate i miei dati?
                 <small>Consulta privacy, cookie e termini del servizio.</small>
             </button>
         </div>
+        <nav class="guided-assistant-resources" aria-label="Guide utili OffertaLogica">
+            <strong>Guide e strumenti utili</strong>
+            <div class="guided-assistant-resources-links">
+                <a href="/offerte-luce-gas-aggiornate.html">Offerte aggiornate</a>
+                <a href="/come-leggere-bolletta-luce-gas.html">Leggere la bolletta</a>
+                <a href="/prezzo-fisso-o-variabile-luce-gas.html">Fisso o variabile</a>
+                <a href="/come-cambiare-fornitore-luce-gas.html">Cambiare fornitore</a>
+                <a href="/pun-psv-spread-luce-gas.html">PUN e PSV</a>
+                <a href="/truffe-telefoniche-luce-gas.html">Chiamate sospette</a>
+            </div>
+        </nav>
     </div>
 </section>
 
@@ -18586,12 +18644,12 @@ if (document.readyState === "loading") {
                 <input id="lead-consenso-partner" type="checkbox">
                 <span id="lead-partner-copy" class="lead-consent-copy"><strong>Facoltativo</strong> - autorizzo OffertaLogica a trasmettere i miei dati al fornitore o partner dell'offerta che sceglierò, per essere ricontattato esclusivamente in merito a quella proposta.</span>
             </label>
-            <div class="lead-privacy-note" id="lead-privacy-summary">L'SMS serve solo a confermare il numero e sbloccare il confronto. L'invio dei dati a fornitori o partner resta separato e facoltativo fino alla scelta di un'offerta.</div>
+            <div class="lead-privacy-note" id="lead-privacy-summary">Il confronto resta consultabile senza registrazione. L'SMS serve a confermare il numero solo nei percorsi successivi che richiedono una verifica; l'invio dei dati a fornitori o partner resta separato e soggetto alle autorizzazioni previste.</div>
             <label class="lead-field" id="lead-otp-field" for="lead-otp" style="display:none;"><span>Codice ricevuto via SMS</span><input id="lead-otp" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" placeholder="000000"></label>
         </div>
         <div class="lead-actions">
             <button type="button" class="lead-primary" id="lead-send-otp">Invia il codice di verifica</button>
-            <button type="button" class="lead-primary" id="lead-verify-otp" style="display:none;">Verifica e mostra le offerte</button>
+            <button type="button" class="lead-primary" id="lead-verify-otp" style="display:none;">Verifica e continua</button>
             <button type="button" class="lead-secondary" id="lead-close">Chiudi</button>
         </div>
         <div class="lead-status" id="lead-status"></div>
@@ -18746,7 +18804,7 @@ if (document.readyState === "loading") {
                 scrollToTarget("#business-panel");
                 break;
             case "offerte":
-                setMessage("Le offerte compaiono dopo il pulsante di confronto. Per vedere nomi, prezzi e link serve la verifica OTP del numero.");
+                setMessage("Le offerte compaiono dopo il pulsante di confronto e il ranking è consultabile senza registrazione. L’OTP entra solo se scegli di proseguire in un percorso che richiede la verifica del numero.");
                 scrollToTarget(".fornitori-consigliati-section");
                 break;
             case "privacy":
