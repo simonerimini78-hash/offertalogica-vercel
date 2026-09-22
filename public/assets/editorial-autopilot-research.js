@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.48";
+  const VERSION = "0.12.49";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
   let statusLoaded = false;
@@ -56,7 +56,7 @@
   function cardMarkup() {
     return `
       <div class="ol-autopilot-card-heading">
-        <div><h3>Flusso operativo del ciclo</h3><p>Idea o segnale → scelta → articolo → social → controllo. La pubblicazione dei nuovi articoli dipende dalla modalità scelta nell’Autopilota e dagli slot del calendario; gli aggiornamenti di pagine esistenti restano sotto verifica umana.</p></div>
+        <div><h3>Flusso operativo del ciclo</h3><p>Idea o segnale → scelta → nuovo articolo → social → controllo. L’Editoriale usa i dati del sito come contesto ma non modifica mai le pagine esistenti.</p></div>
       </div>
 
       <div class="ol-autopilot-workflow">
@@ -71,11 +71,9 @@
                   <input id="autopilot-manual-idea-topic" data-manual-idea-topic type="text" maxlength="240" placeholder="Es. nuova norma urgente sul mercato energia">
                 </div>
                 <div class="ol-field">
-                  <label for="autopilot-manual-idea-type">Destinazione</label>
-                  <select id="autopilot-manual-idea-type" data-manual-idea-type>
-                    <option value="new_article">Nuovo articolo</option>
-                    <option value="update_article">Aggiornamento articolo/pagina</option>
-                  </select>
+                  <label>Destinazione</label>
+                  <input id="autopilot-manual-idea-type" data-manual-idea-type type="hidden" value="new_article">
+                  <div class="ol-autopilot-archive-item"><strong>Nuovo articolo</strong><small>L’Editoriale non modifica le pagine esistenti del sito.</small></div>
                 </div>
                 <div class="ol-field">
                   <label for="autopilot-manual-idea-priority">Priorità</label>
@@ -93,11 +91,7 @@
                   <label for="autopilot-manual-idea-category">Categoria facoltativa</label>
                   <input id="autopilot-manual-idea-category" data-manual-idea-category type="text" maxlength="80" placeholder="Es. Energia">
                 </div>
-                <div class="ol-field">
-                  <label for="autopilot-manual-idea-target">Pagina da aggiornare <span class="ol-muted">(solo aggiornamento)</span></label>
-                  <input id="autopilot-manual-idea-target" data-manual-idea-target type="url" maxlength="500" placeholder="https://offertalogica.it/…">
-                  <small>Facoltativa al salvataggio; se indicata deve essere una pagina HTTPS di OffertaLogica.</small>
-                </div>
+
                 <div class="ol-field ol-autopilot-field-wide">
                   <label for="autopilot-manual-idea-notes">Note editoriali</label>
                   <textarea id="autopilot-manual-idea-notes" data-manual-idea-notes maxlength="2000" rows="3" placeholder="Perché è importante, taglio desiderato, fonti da verificare…"></textarea>
@@ -335,7 +329,7 @@
   function opportunityTypeLabel(type) {
     return ({
       new_article: "Nuovo articolo",
-      update_article: "Aggiornamento articolo/pagina",
+      update_article: "Nuovo articolo (legacy)",
       social_only: "Solo social",
       monitor: "Monitoraggio",
     })[type] || type || "Monitoraggio";
@@ -390,11 +384,11 @@
     if (!editor || !manual) return;
     editor.dataset.editingId = String(row.id || "");
     editor.querySelector("[data-manual-idea-topic]").value = row.topic || "";
-    editor.querySelector("[data-manual-idea-type]").value = ["new_article", "update_article"].includes(row.opportunity_type) ? row.opportunity_type : "new_article";
+    editor.querySelector("[data-manual-idea-type]").value = "new_article";
     editor.querySelector("[data-manual-idea-priority]").value = ["normal", "high", "urgent"].includes(manual.priority) ? manual.priority : "normal";
     editor.querySelector("[data-manual-idea-deadline]").value = manual.deadline || "";
     editor.querySelector("[data-manual-idea-category]").value = row.category || "";
-    editor.querySelector("[data-manual-idea-target]").value = row?.evidence?.target_page_url || "";
+    editor.querySelector("[data-manual-idea-target]")?.setAttribute("value", "");
     editor.querySelector("[data-manual-idea-notes]").value = manual.notes || "";
     editor.querySelector("[data-manual-idea-cancel]").hidden = false;
     editor.querySelector("[data-manual-idea-save]").textContent = "Salva modifiche";
@@ -408,11 +402,11 @@
     return {
       id: editor.dataset.editingId || "",
       topic: editor.querySelector("[data-manual-idea-topic]")?.value || "",
-      opportunity_type: editor.querySelector("[data-manual-idea-type]")?.value || "new_article",
+      opportunity_type: "new_article",
       priority: editor.querySelector("[data-manual-idea-priority]")?.value || "normal",
       deadline: editor.querySelector("[data-manual-idea-deadline]")?.value || "",
       category: editor.querySelector("[data-manual-idea-category]")?.value || "",
-      target_url: editor.querySelector("[data-manual-idea-target]")?.value || "",
+      target_url: "",
       notes: editor.querySelector("[data-manual-idea-notes]")?.value || "",
     };
   }
@@ -863,7 +857,8 @@
 
   function selectedOpportunityWorkflow(row) {
     const id = esc(row.id || "");
-    const type = String(row.opportunity_type || "monitor");
+    const rawType = String(row.opportunity_type || "monitor");
+    const type = rawType === "update_article" ? "new_article" : rawType;
     const targetArticleId = String(row.target_article_id || "");
     if (targetArticleId && (row.status !== "selected" || type !== "new_article")) {
       return `<div class="ol-toolbar-group" style="margin-top:8px">
@@ -876,8 +871,6 @@
     let followup = '<small>Scegli la destinazione editoriale e salvala prima di procedere.</small>';
     if (type === "new_article") {
       followup = `${targetArticleId ? `<div class="ol-toolbar-group" style="margin-top:8px"><a class="ol-button ol-button-secondary ol-button-small" href="/redazione?scope=mine&amp;status=all&amp;id=${encodeURIComponent(targetArticleId)}">Apri articolo collegato</a></div>` : ""}${articleGenerationMarkup(row)}`;
-    } else if (type === "update_article") {
-      followup = `<small>Nessuna nuova bozza viene creata. Prepara una proposta separata dalla pagina pubblicata e approvala manualmente prima di qualsiasi fase applicativa.</small>${updateTargetWorkflow(row)}`;
     } else if (type === "social_only") {
       followup = "<small>Classificata per uso social: in questa fase non viene creato alcun contenuto.</small>";
     } else if (type === "monitor") {
@@ -889,7 +882,6 @@
       <select data-opportunity-type-select="${id}">
         ${option("monitor", "Monitoraggio")}
         ${option("new_article", "Nuovo articolo")}
-        ${option("update_article", "Aggiornamento articolo/pagina")}
         ${option("social_only", "Solo social")}
       </select>
       <div class="ol-toolbar-group" style="margin-top:8px">
@@ -1494,10 +1486,31 @@
     }
   }
 
+  function enforceArticleOnlySettings() {
+    const root = document.querySelector('[data-editorial-autopilot="1"]');
+    if (!root) return;
+    const input = root.querySelector('input[name="allow_article_updates"]');
+    if (input) {
+      input.checked = false;
+      const row = input.closest("label");
+      if (row) row.hidden = true;
+    }
+    const statusCopy = root.querySelector("[data-autopilot-status-copy]");
+    if (statusCopy && /aggiornament/i.test(statusCopy.textContent || "")) {
+      statusCopy.textContent = "Il ciclo editoriale genera nuovi articoli e contenuti social; le pagine esistenti del sito non vengono modificate.";
+    }
+    root.querySelectorAll("small").forEach((node) => {
+      if (/aggiornamenti di pagine esistenti/i.test(node.textContent || "")) {
+        node.textContent = "Il ciclo editoriale riguarda esclusivamente nuovi articoli e contenuti social.";
+      }
+    });
+  }
+
   function boot() {
-    const observer = new MutationObserver(() => ensureCard());
+    const observer = new MutationObserver(() => { ensureCard(); enforceArticleOnlySettings(); });
     observer.observe(document.documentElement, { childList: true, subtree: true });
     ensureCard();
+    enforceArticleOnlySettings();
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot, { once: true });

@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { json } from "../lib/http.js";
 
-const VERSION = "0.12.48";
+const VERSION = "0.12.49";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -12,14 +12,14 @@ const ANALYSIS_PAGE_SIZE = 1000;
 const ANALYSIS_MAX_ROWS_PER_SNAPSHOT = 20000;
 const ANALYSIS_WINDOWS = [7, 28, 90];
 const OPPORTUNITY_STATUSES = new Set(["pending", "selected", "deferred", "rejected"]);
-const OPPORTUNITY_TYPES = new Set(["new_article", "update_article", "social_only", "monitor"]);
+const OPPORTUNITY_TYPES = new Set(["new_article", "social_only", "monitor"]);
 const OPPORTUNITY_LIST_LIMIT = 50;
 const TARGET_PAGE_MAX_BYTES = 2 * 1024 * 1024;
 const UPDATE_PROPOSAL_DECISIONS = new Set(["approved", "rejected"]);
 const UPDATE_TEXT_DECISIONS = new Set(["approved", "rejected"]);
 const UPDATE_PREVIEW_DECISIONS = new Set(["confirmed", "cancelled"]);
 const MANUAL_IDEA_PRIORITIES = new Set(["normal", "high", "urgent"]);
-const MANUAL_IDEA_TYPES = new Set(["new_article", "update_article"]);
+const MANUAL_IDEA_TYPES = new Set(["new_article"]);
 const MANUAL_IDEA_PRIORITY_RANK = { normal: 100, high: 300, urgent: 400 };
 const EDITORIAL_AI_DEFAULT_MODEL = "gpt-5.6-terra";
 const EDITORIAL_AI_HTTP_TIMEOUT_MS = 45000;
@@ -35,6 +35,16 @@ const EDITORIAL_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 const EDITORIAL_IMAGE_ARTICLE_STATUSES = new Set(["draft", "in_review", "changes_requested", "approved", "published"]);
 const EDITORIAL_IMAGE_QA_MAX_REGENERATIONS = 2;
 const EDITORIAL_IMAGE_SOURCE_POLICY = "generated_from_scratch_no_web_source";
+const EDITORIAL_PAGE_UPDATE_ACTIONS = new Set([
+  "prepare-editorial-update",
+  "review-editorial-update",
+  "prepare-editorial-update-text",
+  "review-editorial-update-text",
+  "prepare-editorial-update-preview",
+  "review-editorial-update-preview",
+  "complete-editorial-update",
+  "check-editorial-update-impact",
+]);
 
 function env(name) {
   return String(process.env[name] || "").trim();
@@ -670,15 +680,12 @@ async function createManualEditorialIdea(user, payload = {}) {
   const category = cleanManualIdeaText(payload.category, 80) || null;
   const notes = String(payload.notes || "").trim().slice(0, 2000);
   const priority = String(payload.priority || "normal").trim();
-  const opportunityType = String(payload.opportunity_type || "new_article").trim();
+  const opportunityType = "new_article";
   const deadline = validManualIdeaDeadline(payload.deadline);
-  const targetUrl = opportunityType === "update_article" && String(payload.target_url || "").trim()
-    ? normalizedPageUrl(payload.target_url)
-    : null;
 
   if (topic.length < 3) throw new Error("Inserisci un’idea editoriale di almeno 3 caratteri");
   if (!MANUAL_IDEA_PRIORITIES.has(priority)) throw new Error("Priorità idea non valida");
-  if (!MANUAL_IDEA_TYPES.has(opportunityType)) throw new Error("Le idee manuali di questo pannello devono essere un nuovo articolo o un aggiornamento");
+  if (!MANUAL_IDEA_TYPES.has(opportunityType)) throw new Error("Le idee manuali della Redazione devono generare nuovi articoli");
 
   const duplicate = await existingActiveManualIdea(topic);
   if (duplicate) return { created: false, opportunity: duplicate };
@@ -686,7 +693,6 @@ async function createManualEditorialIdea(user, payload = {}) {
   const now = new Date().toISOString();
   const evidence = {
     source: "manual_idea",
-    ...(targetUrl ? { target_page_url: targetUrl, page_urls: [targetUrl] } : {}),
     manual_idea: {
       schema_version: 1,
       priority,
@@ -736,16 +742,13 @@ async function updateManualEditorialIdea(user, payload = {}) {
   const category = cleanManualIdeaText(payload.category, 80) || null;
   const notes = String(payload.notes || "").trim().slice(0, 2000);
   const priority = String(payload.priority || "normal").trim();
-  const opportunityType = String(payload.opportunity_type || current.opportunity_type || "new_article").trim();
+  const opportunityType = "new_article";
   const deadline = validManualIdeaDeadline(payload.deadline);
   if (topic.length < 3) throw new Error("Inserisci un’idea editoriale di almeno 3 caratteri");
   if (!MANUAL_IDEA_PRIORITIES.has(priority)) throw new Error("Priorità idea non valida");
-  if (!MANUAL_IDEA_TYPES.has(opportunityType)) throw new Error("Le idee manuali di questo pannello devono essere un nuovo articolo o un aggiornamento");
+  if (!MANUAL_IDEA_TYPES.has(opportunityType)) throw new Error("Le idee manuali della Redazione devono generare nuovi articoli");
   const duplicate = await existingActiveManualIdea(topic);
   if (duplicate && duplicate.id !== id) throw new Error("Esiste già un’idea manuale attiva con lo stesso argomento");
-  const targetUrl = opportunityType === "update_article" && String(payload.target_url || "").trim()
-    ? normalizedPageUrl(payload.target_url)
-    : null;
 
   const now = new Date().toISOString();
   const currentEvidence = current.evidence && typeof current.evidence === "object" ? current.evidence : {};
@@ -753,7 +756,6 @@ async function updateManualEditorialIdea(user, payload = {}) {
   const evidence = {
     ...evidenceBase,
     source: "manual_idea",
-    ...(targetUrl ? { target_page_url: targetUrl, page_urls: [targetUrl] } : {}),
     manual_idea: {
       ...manual,
       schema_version: 1,
@@ -796,7 +798,11 @@ async function editorialPlannerPreview() {
   const candidates = [];
 
   for (const row of savedRows || []) {
-    if (!MANUAL_IDEA_TYPES.has(String(row.opportunity_type || ""))) continue;
+    const savedType = String(row.opportunity_type || "");
+    // Le vecchie opportunità update_article restano leggibili solo per essere
+    // convertite a nuovo articolo dal ciclo automatico; non possono più
+    // avviare un aggiornamento della pagina esistente.
+    if (!MANUAL_IDEA_TYPES.has(savedType) && savedType !== "update_article") continue;
     const manual = manualIdeaMeta(row);
     // Un'opportunità già collegata a un articolo appartiene al ciclo precedente:
     // non deve bloccare la ricerca del ciclo successivo mentre il post del lunedì
@@ -1043,7 +1049,8 @@ function normalizeArticleSlug(value) {
 
 async function classifyEditorialOpportunity(user, idValue, typeValue) {
   const id = String(idValue || "").trim();
-  const opportunityType = String(typeValue || "").trim();
+  const requestedType = String(typeValue || "").trim();
+  const opportunityType = requestedType === "update_article" ? "new_article" : requestedType;
   if (!validUuid(id)) throw new Error("Identificativo opportunità non valido");
   if (!OPPORTUNITY_TYPES.has(opportunityType)) throw new Error("Destinazione editoriale non valida");
 
@@ -2630,13 +2637,12 @@ async function schedulerSelectOpportunity(user, settings) {
   if (opportunity.status === "pending") opportunity = await updateEditorialOpportunity(user, opportunity.id, "selected");
   if (opportunity.status !== "selected") return opportunity;
 
-  if (opportunity.opportunity_type === "monitor") {
+  if (["monitor", "update_article"].includes(String(opportunity.opportunity_type || ""))) {
     const freshRows = await serviceFetch(`editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(opportunity.id)}&limit=1`);
     const fresh = freshRows?.[0] || opportunity;
-    const pageUrls = Array.isArray(fresh?.evidence?.page_urls) ? fresh.evidence.page_urls : [];
-    const target = pageUrls.map(schedulerInternalPageUrl).find(Boolean) || null;
-    const type = Boolean(settings?.allow_article_updates && target) ? "update_article" : "new_article";
-    opportunity = await classifyEditorialOpportunity(user, fresh.id, type);
+    // L'Editoriale usa eventuali pagine Search Console solo come contesto:
+    // non propone e non applica mai aggiornamenti alle pagine esistenti del sito.
+    opportunity = await classifyEditorialOpportunity(user, fresh.id, "new_article");
   }
   if (opportunity && typeof opportunity === "object") {
     Object.defineProperty(opportunity, "_schedulerSelection", {
@@ -2668,7 +2674,7 @@ function schedulerArticleFrequencyAllows(settings, runs, now = Date.now()) {
     run.run_type === "article_prepare"
     && run.status === "success"
     && run?.details?.source === "scheduler"
-    && validUuid(String(run?.opportunity_id || ""))
+    && validUuid(String(run?.article_id || ""))
     && !["skipped", "waiting_human_approval"].includes(String(run?.details?.stage || ""))
   );
   if (!last) return true;
@@ -2697,7 +2703,8 @@ function schedulerArticlePrepareRecoverable(slot, settings, runs, schedulerKey, 
     const stage = String(run?.details?.stage || "");
     const reason = String(run?.details?.reason || "");
     return (stage === "skipped" && reason === "article_frequency_weeks")
-      || (stage === "completed" && reason === "no_opportunity");
+      || (stage === "completed" && reason === "no_opportunity")
+      || stage === "update_proposal_ready";
   });
   if (!recoverable) return false;
   if (!schedulerArticleFrequencyAllows(settings, runs, now)) return false;
@@ -3339,13 +3346,6 @@ async function schedulerProcessSlot(slot, user, settings, runs, local) {
         const result = await generateEditorialArticlePackage(user, { id: opportunity.id, platforms: enabledPlatforms });
         await automationRunFinish(run, "success", { opportunity_id: opportunity.id, article_id: result.article_id || null, details: { ...details, ...selectionDetails, stage: "background_started", opportunity_id: opportunity.id, slot_only: true } });
         return { action: "article_generation_started", opportunity_id: opportunity.id, result };
-      }
-      if (opportunity.opportunity_type === "update_article" && settings?.allow_article_updates) {
-        const targetUrl = schedulerTargetUrl(opportunity);
-        if (!targetUrl) throw new Error("Autopilota: opportunità di aggiornamento senza pagina target verificabile");
-        const result = await prepareEditorialUpdateProposal(user, opportunity.id, targetUrl);
-        await automationRunFinish(run, "success", { opportunity_id: opportunity.id, details: { ...details, ...selectionDetails, stage: "update_proposal_ready", opportunity_id: opportunity.id, target_url: targetUrl, slot_only: true } });
-        return { action: "update_proposal_ready", opportunity_id: opportunity.id, target_url: targetUrl, result };
       }
       await automationRunFinish(run, "success", { details: { ...details, stage: "skipped", reason: `unsupported_opportunity_type:${opportunity.opportunity_type || "unknown"}` } });
       return { action: "article_prepare_skipped", reason: "unsupported_opportunity_type" };
@@ -4448,6 +4448,14 @@ export default async function handler(req, res) {
 
     const user = await authenticatedAdmin(req);
     if (!user) return json(res, 401, { ok: false, error: "Accesso amministratore richiesto" });
+
+    if (req.method === "POST" && EDITORIAL_PAGE_UPDATE_ACTIONS.has(action)) {
+      return json(res, 409, {
+        ok: false,
+        version: VERSION,
+        error: "Gli aggiornamenti delle pagine del sito sono disattivati: l’Editoriale genera solo nuovi articoli e contenuti social.",
+      });
+    }
 
     if (req.method === "GET" && action === "editorial-research-status") {
       return json(res, 200, await statusPayload());
