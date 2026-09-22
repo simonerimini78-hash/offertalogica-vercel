@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.46";
+  const VERSION = "0.12.48";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
   let statusLoaded = false;
@@ -818,11 +818,24 @@
       list.innerHTML = '<p class="ol-muted">Nessun ciclo registrato.</p>';
       return;
     }
-    list.innerHTML = automationRuns.slice(0, 12).map((run) => `<div class="ol-autopilot-archive-item">
-      <strong>${esc(run.run_type || "ciclo")} · ${esc(run.status || "—")}</strong>
-      <small>Avvio ${esc(dateIt(run.started_at || run.created_at))}${run.finished_at ? ` · fine ${esc(dateIt(run.finished_at))}` : ""}</small>
-      ${run.last_error ? `<small>Errore: ${esc(run.last_error)}</small>` : `<small>Pubblicazione automatica: ${run?.details?.publication_performed ? "sì" : "no"}</small>`}
-    </div>`).join("");
+    list.innerHTML = automationRuns.slice(0, 12).map((run) => {
+      const details = run?.details || {};
+      const diagnostic = [];
+      if (details.stage) diagnostic.push(`fase ${details.stage}`);
+      if (details.reason) diagnostic.push(`motivo ${details.reason}`);
+      if (details.selection_source) diagnostic.push(`scelta ${details.selection_source}`);
+      if (details.selection_score !== null && details.selection_score !== undefined) diagnostic.push(`punteggio ${Number(details.selection_score)}/100`);
+      if (details.selection_fallback_below_threshold) diagnostic.push("fallback sotto soglia");
+      if (run.opportunity_id) diagnostic.push(`opportunità ${run.opportunity_id}`);
+      if (run.article_id) diagnostic.push(`articolo ${run.article_id}`);
+      return `<div class="ol-autopilot-archive-item">
+        <strong>${esc(run.run_type || "ciclo")} · ${esc(run.status || "—")}</strong>
+        <small>Avvio ${esc(dateIt(run.started_at || run.created_at))}${run.finished_at ? ` · fine ${esc(dateIt(run.finished_at))}` : ""}</small>
+        ${diagnostic.length ? `<small>${esc(diagnostic.join(" · "))}</small>` : ""}
+        ${details.selection_reason ? `<small>${esc(details.selection_reason)}</small>` : ""}
+        ${run.last_error ? `<small>Errore: ${esc(run.last_error)}</small>` : `<small>Pubblicazione automatica: ${details.publication_performed ? "sì" : "no"}</small>`}
+      </div>`;
+    }).join("");
   }
 
   async function loadAutomationRuns(section) {

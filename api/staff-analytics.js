@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { json } from "../lib/http.js";
 
-const VERSION = "0.12.47";
+const VERSION = "0.12.48";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -840,9 +840,8 @@ async function editorialPlannerPreview() {
   }
 
   const analysis = await analysisPayload().catch(() => null);
-  const topSearchSignal = analysis?.ready
-    ? (analysis.signals || []).find((signal) => Number(signal.score || 0) >= minimumScore)
-    : null;
+  const searchSignals = analysis?.ready && Array.isArray(analysis.signals) ? analysis.signals : [];
+  const topSearchSignal = searchSignals.find((signal) => Number(signal.score || 0) >= minimumScore) || null;
   if (topSearchSignal) {
     candidates.push({
       source: "search_console",
@@ -858,7 +857,28 @@ async function editorialPlannerPreview() {
       reason: `Miglior segnale Search Console sopra la soglia ${minimumScore}/100.`,
       topic_key: topSearchSignal.topic_key,
       metrics: topSearchSignal.metrics,
+      fallback_below_threshold: false,
     });
+  } else if (!Boolean(settings.allow_no_publish)) {
+    const fallbackSearchSignal = searchSignals.find((signal) => signal?.topic_key && signal?.topic) || null;
+    if (fallbackSearchSignal) {
+      candidates.push({
+        source: "search_console",
+        id: null,
+        topic: fallbackSearchSignal.topic,
+        opportunity_type: "research_candidate",
+        priority: null,
+        deadline: null,
+        score: Number(fallbackSearchSignal.score || 0),
+        status: "live_signal",
+        created_at: null,
+        rank: 50,
+        reason: `Nessun segnale Search Console raggiunge la soglia ${minimumScore}/100: il ciclo richiede comunque un articolo, quindi viene usato il miglior segnale disponibile.`,
+        topic_key: fallbackSearchSignal.topic_key,
+        metrics: fallbackSearchSignal.metrics,
+        fallback_below_threshold: true,
+      });
+    }
   }
 
   candidates.sort(plannerCandidateComparator);
@@ -888,6 +908,7 @@ async function editorialPlannerPreview() {
       "idea manuale ad alta priorità",
       "segnale Search Console sopra soglia",
       "idea manuale a priorità normale",
+      "miglior segnale Search Console sotto soglia quando il ciclo non può chiudersi senza articolo",
     ],
   };
 }
@@ -2617,6 +2638,18 @@ async function schedulerSelectOpportunity(user, settings) {
     const type = Boolean(settings?.allow_article_updates && target) ? "update_article" : "new_article";
     opportunity = await classifyEditorialOpportunity(user, fresh.id, type);
   }
+  if (opportunity && typeof opportunity === "object") {
+    Object.defineProperty(opportunity, "_schedulerSelection", {
+      value: {
+        source: decision.source || null,
+        score: Number.isFinite(Number(decision.score)) ? Number(decision.score) : null,
+        reason: decision.reason || null,
+        fallback_below_threshold: Boolean(decision.fallback_below_threshold),
+      },
+      enumerable: false,
+      configurable: false,
+    });
+  }
   return opportunity;
 }
 
@@ -2649,20 +2682,36 @@ function schedulerArticleFrequencyAllows(settings, runs, now = Date.now()) {
   return currentWeekStart - lastWeekStart >= weeks * 7 * 86400000;
 }
 
-function schedulerFrequencySkipRecoverable(slot, settings, runs, schedulerKey, now = Date.now()) {
+function schedulerArticlePrepareRecoverable(slot, settings, runs, schedulerKey, now = Date.now()) {
   if (String(slot?.kind || "") !== "article_prepare") return false;
+  if (Number(settings?.max_articles_per_cycle) <= 0) return false;
+
   const matching = (runs || []).filter((run) => run?.details?.scheduler_key === schedulerKey);
   const failedAttempts = matching.filter((run) => String(run?.status || "") === "failed").length;
   if (failedAttempts >= SCHEDULER_SLOT_MAX_ATTEMPTS_PER_DAY) return false;
 
   const nonFailed = matching.filter((run) => String(run?.status || "") !== "failed");
   if (!nonFailed.length) return false;
-  const onlyFrequencySkips = nonFailed.every((run) =>
-    String(run?.status || "") === "success"
-    && String(run?.details?.stage || "") === "skipped"
-    && String(run?.details?.reason || "") === "article_frequency_weeks"
+  const recoverable = nonFailed.every((run) => {
+    if (String(run?.status || "") !== "success") return false;
+    const stage = String(run?.details?.stage || "");
+    const reason = String(run?.details?.reason || "");
+    return (stage === "skipped" && reason === "article_frequency_weeks")
+      || (stage === "completed" && reason === "no_opportunity");
+  });
+  if (!recoverable) return false;
+  if (!schedulerArticleFrequencyAllows(settings, runs, now)) return false;
+
+  const noOpportunityRuns = nonFailed.filter((run) =>
+    String(run?.details?.stage || "") === "completed"
+    && String(run?.details?.reason || "") === "no_opportunity"
   );
-  return onlyFrequencySkips && schedulerArticleFrequencyAllows(settings, runs, now);
+  if (!noOpportunityRuns.length) return true;
+  if (Boolean(settings?.allow_no_publish)) return false;
+
+  // Un solo recupero aggiuntivo evita loop ogni 15 minuti se Search Console
+  // non contiene davvero alcun segnale utilizzabile.
+  return noOpportunityRuns.length < 2;
 }
 
 async function schedulerProcessResearchRun(run, user, settings) {
@@ -2684,8 +2733,20 @@ async function schedulerProcessResearchRun(run, user, settings) {
       return { action: "research_collect_90", pending: true, run: next };
     }
     const opportunity = await schedulerSelectOpportunity(user, settings);
+    const selection = opportunity?._schedulerSelection || {};
     await automationRunFinish(run, "success", {
-      details: { ...(run.details || {}), version: VERSION, source: "scheduler", stage: "completed", selected_opportunity_id: opportunity?.id || null, selected_type: opportunity?.opportunity_type || null },
+      details: {
+        ...(run.details || {}),
+        version: VERSION,
+        source: "scheduler",
+        stage: "completed",
+        selected_opportunity_id: opportunity?.id || null,
+        selected_type: opportunity?.opportunity_type || null,
+        selection_source: selection.source || null,
+        selection_score: selection.score ?? null,
+        selection_reason: selection.reason || null,
+        selection_fallback_below_threshold: Boolean(selection.fallback_below_threshold),
+      },
     });
     return { action: "research_plan", pending: false, opportunity_id: opportunity?.id || null, opportunity_type: opportunity?.opportunity_type || null };
   } catch (error) {
@@ -3266,17 +3327,24 @@ async function schedulerProcessSlot(slot, user, settings, runs, local) {
         await automationRunFinish(run, "success", { details: { ...details, stage: "completed", no_publish: true, reason: "no_opportunity" } });
         return { action: "article_prepare_no_opportunity" };
       }
+      const selection = opportunity?._schedulerSelection || {};
+      const selectionDetails = {
+        selection_source: selection.source || null,
+        selection_score: selection.score ?? null,
+        selection_reason: selection.reason || null,
+        selection_fallback_below_threshold: Boolean(selection.fallback_below_threshold),
+      };
       if (opportunity.opportunity_type === "new_article") {
         const enabledPlatforms = await editorialEnabledSocialPlatforms();
         const result = await generateEditorialArticlePackage(user, { id: opportunity.id, platforms: enabledPlatforms });
-        await automationRunFinish(run, "success", { opportunity_id: opportunity.id, article_id: result.article_id || null, details: { ...details, stage: "background_started", opportunity_id: opportunity.id, slot_only: true } });
+        await automationRunFinish(run, "success", { opportunity_id: opportunity.id, article_id: result.article_id || null, details: { ...details, ...selectionDetails, stage: "background_started", opportunity_id: opportunity.id, slot_only: true } });
         return { action: "article_generation_started", opportunity_id: opportunity.id, result };
       }
       if (opportunity.opportunity_type === "update_article" && settings?.allow_article_updates) {
         const targetUrl = schedulerTargetUrl(opportunity);
         if (!targetUrl) throw new Error("Autopilota: opportunità di aggiornamento senza pagina target verificabile");
         const result = await prepareEditorialUpdateProposal(user, opportunity.id, targetUrl);
-        await automationRunFinish(run, "success", { opportunity_id: opportunity.id, details: { ...details, stage: "update_proposal_ready", opportunity_id: opportunity.id, target_url: targetUrl, slot_only: true } });
+        await automationRunFinish(run, "success", { opportunity_id: opportunity.id, details: { ...details, ...selectionDetails, stage: "update_proposal_ready", opportunity_id: opportunity.id, target_url: targetUrl, slot_only: true } });
         return { action: "update_proposal_ready", opportunity_id: opportunity.id, target_url: targetUrl, result };
       }
       await automationRunFinish(run, "success", { details: { ...details, stage: "skipped", reason: `unsupported_opportunity_type:${opportunity.opportunity_type || "unknown"}` } });
@@ -3378,7 +3446,7 @@ async function editorialAutopilotTick() {
     const key = `${local.date}:${slot.id}`;
     const attemptState = schedulerSlotAttemptState(runs, key);
     if (!attemptState.consumed) return true;
-    return schedulerFrequencySkipRecoverable(slot, settings, runs, key);
+    return schedulerArticlePrepareRecoverable(slot, settings, runs, key);
   })[0] || null;
   if (!due) return { ok: true, version: VERSION, active: true, action: "idle", local };
   const result = await schedulerProcessSlot(due, user, settings, runs, local);
