@@ -160,6 +160,7 @@ function validateCanonicalEconomicRouting() {
   assert(localUpdater.includes("update-arera-reference-data.py\" indices"), "pipeline Mac: aggiornamento indici ufficiali mancante");
   assert(localUpdater.includes("update-arera-menu.py"), "pipeline Mac: generazione catalogo mancante");
   assert(localUpdater.includes("update-arera-reference-data.py\" benchmark"), "pipeline Mac: benchmark medio mancante");
+  assert(localUpdater.includes("update-regulated-parameters.py"), "pipeline Mac: aggiornamento/guardia parametri regolati mancante");
   assert(localUpdater.includes("update-energy-today.py"), "pipeline Mac: dati energia giornalieri mancanti");
   assert(localUpdater.includes("validate-calculator-data.mjs"), "pipeline Mac: validazione finale mancante");
 
@@ -169,6 +170,7 @@ function validateCanonicalEconomicRouting() {
   assert(!workflow.includes("npm run validate:calculator"), "workflow GitHub: la validazione completa deve restare sul Mac");
   assert(workflow.includes("python test/update_arera_menu_test.py"), "workflow GitHub: test offline parser ARERA mancante");
   assert(workflow.includes("python test/update_arera_reference_data_test.py"), "workflow GitHub: test offline riferimenti ARERA mancante");
+  assert(workflow.includes("python test/update_regulated_parameters_test.py"), "workflow GitHub: test offline parametri regolati mancante");
 }
 
 function loadEngineContext() {
