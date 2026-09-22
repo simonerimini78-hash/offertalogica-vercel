@@ -1,9 +1,9 @@
 {
-  "versioneDati": "parametri-calcolo-2026-09-22-arera-2026-08",
+  "versioneDati": "parametri-calcolo-2026-09-22-step6b-benchmark-arera",
   "fonte": "ARERA: catalogo Portale Offerte e riferimenti mensili ufficiali PLACET. Nessun prezzo statico usato come indice di confronto.",
   "aggiornatoIl": "2026-09-22",
   "parametriCalcolo": {
-    "perditeReteLuceVariabile": 1.102,
+    "perditeReteLuceVariabile": 1.1,
     "profiloMedio": {
       "luceConsumoKwh": 2700,
       "gasConsumoSmc": 1400,
@@ -12,49 +12,903 @@
       "quotaFissaLuceAnnua": 139.0998,
       "quotaFissaGasAnnua": 132.8529,
       "potenzaKw": "3",
-      "regioneGas": "nord-ovest",
+      "regioneGas": "nord-orientale",
       "tipoPrezzo": "fisso",
-      "tipoFornitura": "dual"
+      "tipoFornitura": "dual",
+      "classeContatoreGas": "g4-g6",
+      "regimeAccisaGas": "ordinario",
+      "regimeArisgamGas": "lombardia",
+      "potereCalorificoGasGjSmc": 0.03852,
+      "residenzaLuce": "residente",
+      "consumiMensiliLuceKwh": [
+        225,
+        225,
+        225,
+        225,
+        225,
+        225,
+        225,
+        225,
+        225,
+        225,
+        225,
+        225
+      ]
     },
     "componentiProfilo": {
       "potenzaLuceAnnua": {
-        "3": 0,
-        "4.5": 32,
-        "6": 64
+        "3": 71.1564,
+        "4.5": 106.7346,
+        "6": 142.3128
       },
       "ambitoGasAnnua": {
         "": 0,
-        "nord-ovest": 0,
-        "nord-est": 8,
-        "centro": 15,
-        "sud": 25,
-        "sicilia": 35,
-        "sardegna": 35
+        "nord-occidentale": 0,
+        "nord-orientale": 0,
+        "centrale": 0,
+        "centro-sud-orientale": 0,
+        "centro-sud-occidentale": 0,
+        "meridionale": 0,
+        "sardegna": 0
       }
     },
     "componentiRegolate": {
       "luce": {
-        "variabileEurUnita": 0,
-        "fissaAnnua": 0,
+        "variabileEurUnita": 0.047883,
+        "fissaAnnua": 23.04,
+        "potenzaEurKwAnno": 23.7188,
         "imposteEurUnita": 0,
-        "ivaPercentuale": 0
+        "ivaPercentuale": 0,
+        "asosFissaNonResidentiEurAnno": 95.0916,
+        "accisaDomestica": {
+          "aliquotaEurKwh": 0.0227,
+          "sogliaEsenteMensileKwh": 150,
+          "sogliaRecuperoFino1_5KwKwh": 150,
+          "sogliaRecuperoOltre1_5Fino3KwKwh": 220,
+          "richiedeConsumiMensiliPerResidenteFino3Kw": true
+        },
+        "ivaDomestica": {
+          "aliquota": 0.1,
+          "applicaSoloConBaseCompleta": true,
+          "fonte": "ARERA - Guida alla lettura delle voci di spesa elettricita",
+          "urlFonte": "https://www.arera.it/bolletta/guida-alla-lettura-delle-voci-di-spesa",
+          "nota": "IVA domestica 10% sull importo totale della bolletta; applicata dal motore solo quando residenza, accisa e C_DISPD sono determinati."
+        },
+        "dispacciamentoCapacita": {
+          "schema": "cdispd_tiv_domestici_2026",
+          "periodo": "2026-09",
+          "periodoLabel": "Settembre 2026",
+          "dispacciamentoTernaEurKwhNettoPerdite": 0.010501,
+          "capacitaAreraEurKwhNettoPerdite": 0.003197,
+          "fattorePerdite": 1.1,
+          "cDispdEurKwh": 0.0150678,
+          "formula": "1.10 * (0.010501 + 0.003197)",
+          "metodoApplicazione": "annualizzazione_a_valori_correnti_su_consumi_reali",
+          "fonteDispacciamento": "Terna - corrispettivo unitario di dispacciamento TIDE, III trimestre 2026",
+          "urlFonteDispacciamento": "https://dati.terna.it/-/media/project/terna/dati/corrispettivi/corrispettivi-dispacciamento-ai-sensi-del-tide/2026/07/01/avviso_udd_pubblicazione_3q2026.pdf",
+          "fonteCapacita": "ARERA - deliberazione 219/2026/R/eel, articolo 4.1",
+          "urlFonteCapacita": "https://www.arera.it/fileadmin/allegati/docs/26/219-2026-R-eel.pdf",
+          "stato": "verificato"
+        }
       },
       "gas": {
         "variabileEurUnita": 0,
         "fissaAnnua": 0,
         "imposteEurUnita": 0,
-        "ivaPercentuale": 0
+        "ivaPercentuale": 0,
+        "qttEurGj": 1.931333,
+        "schema": "gas_rete_scaglioni_2026",
+        "ambiti": {
+          "nord-occidentale": {
+            "label": "Nord-Occidentale (Valle d'Aosta, Piemonte, Liguria)",
+            "tau1CotEurPdrAnno": 2.01,
+            "tau1DisEurPdrAnno": {
+              "g4-g6": 49.52,
+              "g10-g40": 375.6,
+              "oltre-g40": 726.93
+            },
+            "tau1MisEurPdrAnno": {
+              "g4-g6": 29.23,
+              "g10-g40": 210.52,
+              "oltre-g40": 405.84
+            },
+            "stEurPdrAnno": -0.23,
+            "vrEurPdrAnno": 0.07,
+            "ceEurPdrAnno": 0.0,
+            "tau3Scaglioni": [
+              {
+                "finoSmc": 120,
+                "eurSmc": 0.0
+              },
+              {
+                "finoSmc": 480,
+                "eurSmc": 0.107315
+              },
+              {
+                "finoSmc": 1560,
+                "eurSmc": 0.098223
+              },
+              {
+                "finoSmc": 5000,
+                "eurSmc": 0.098636
+              },
+              {
+                "finoSmc": 80000,
+                "eurSmc": 0.073701
+              },
+              {
+                "finoSmc": 200000,
+                "eurSmc": 0.037333
+              },
+              {
+                "finoSmc": 1000000,
+                "eurSmc": 0.018322
+              },
+              {
+                "finoSmc": null,
+                "eurSmc": 0.005097
+              }
+            ]
+          },
+          "nord-orientale": {
+            "label": "Nord-Orientale (Lombardia, Trentino-Alto Adige, Veneto, Friuli-Venezia Giulia, Emilia-Romagna)",
+            "tau1CotEurPdrAnno": 2.01,
+            "tau1DisEurPdrAnno": {
+              "g4-g6": 40.26,
+              "g10-g40": 295.72,
+              "oltre-g40": 604.12
+            },
+            "tau1MisEurPdrAnno": {
+              "g4-g6": 27.33,
+              "g10-g40": 189.98,
+              "oltre-g40": 386.34
+            },
+            "stEurPdrAnno": -0.35,
+            "vrEurPdrAnno": -0.01,
+            "ceEurPdrAnno": 0.0,
+            "tau3Scaglioni": [
+              {
+                "finoSmc": 120,
+                "eurSmc": 0.0
+              },
+              {
+                "finoSmc": 480,
+                "eurSmc": 0.079367
+              },
+              {
+                "finoSmc": 1560,
+                "eurSmc": 0.072643
+              },
+              {
+                "finoSmc": 5000,
+                "eurSmc": 0.072949
+              },
+              {
+                "finoSmc": 80000,
+                "eurSmc": 0.054508
+              },
+              {
+                "finoSmc": 200000,
+                "eurSmc": 0.02761
+              },
+              {
+                "finoSmc": 1000000,
+                "eurSmc": 0.013551
+              },
+              {
+                "finoSmc": null,
+                "eurSmc": 0.00377
+              }
+            ]
+          },
+          "centrale": {
+            "label": "Centrale (Toscana, Umbria, Marche)",
+            "tau1CotEurPdrAnno": 2.01,
+            "tau1DisEurPdrAnno": {
+              "g4-g6": 44.77,
+              "g10-g40": 323.58,
+              "oltre-g40": 666.35
+            },
+            "tau1MisEurPdrAnno": {
+              "g4-g6": 26.81,
+              "g10-g40": 183.2,
+              "oltre-g40": 375.46
+            },
+            "stEurPdrAnno": 0.0,
+            "vrEurPdrAnno": 0.0,
+            "ceEurPdrAnno": 0.0,
+            "tau3Scaglioni": [
+              {
+                "finoSmc": 120,
+                "eurSmc": 0.0
+              },
+              {
+                "finoSmc": 480,
+                "eurSmc": 0.111183
+              },
+              {
+                "finoSmc": 1560,
+                "eurSmc": 0.101763
+              },
+              {
+                "finoSmc": 5000,
+                "eurSmc": 0.102191
+              },
+              {
+                "finoSmc": 80000,
+                "eurSmc": 0.076358
+              },
+              {
+                "finoSmc": 200000,
+                "eurSmc": 0.038678
+              },
+              {
+                "finoSmc": 1000000,
+                "eurSmc": 0.018982
+              },
+              {
+                "finoSmc": null,
+                "eurSmc": 0.005281
+              }
+            ]
+          },
+          "centro-sud-orientale": {
+            "label": "Centro-Sud Orientale (Abruzzo, Molise, Puglia, Basilicata)",
+            "tau1CotEurPdrAnno": 2.01,
+            "tau1DisEurPdrAnno": {
+              "g4-g6": 38.1,
+              "g10-g40": 284.19,
+              "oltre-g40": 587.85
+            },
+            "tau1MisEurPdrAnno": {
+              "g4-g6": 27.67,
+              "g10-g40": 195.4,
+              "oltre-g40": 402.37
+            },
+            "stEurPdrAnno": 0.0,
+            "vrEurPdrAnno": 0.0,
+            "ceEurPdrAnno": 0.0,
+            "tau3Scaglioni": [
+              {
+                "finoSmc": 120,
+                "eurSmc": 0.0
+              },
+              {
+                "finoSmc": 480,
+                "eurSmc": 0.132517
+              },
+              {
+                "finoSmc": 1560,
+                "eurSmc": 0.12129
+              },
+              {
+                "finoSmc": 5000,
+                "eurSmc": 0.1218
+              },
+              {
+                "finoSmc": 80000,
+                "eurSmc": 0.09101
+              },
+              {
+                "finoSmc": 200000,
+                "eurSmc": 0.0461
+              },
+              {
+                "finoSmc": 1000000,
+                "eurSmc": 0.022625
+              },
+              {
+                "finoSmc": null,
+                "eurSmc": 0.006294
+              }
+            ]
+          },
+          "centro-sud-occidentale": {
+            "label": "Centro-Sud Occidentale (Lazio, Campania)",
+            "tau1CotEurPdrAnno": 2.01,
+            "tau1DisEurPdrAnno": {
+              "g4-g6": 54.02,
+              "g10-g40": 423.15,
+              "oltre-g40": 854.31
+            },
+            "tau1MisEurPdrAnno": {
+              "g4-g6": 31.39,
+              "g10-g40": 234.26,
+              "oltre-g40": 471.23
+            },
+            "stEurPdrAnno": -0.35,
+            "vrEurPdrAnno": -0.37,
+            "ceEurPdrAnno": 0.0,
+            "tau3Scaglioni": [
+              {
+                "finoSmc": 120,
+                "eurSmc": 0.0
+              },
+              {
+                "finoSmc": 480,
+                "eurSmc": 0.193801
+              },
+              {
+                "finoSmc": 1560,
+                "eurSmc": 0.177381
+              },
+              {
+                "finoSmc": 5000,
+                "eurSmc": 0.178128
+              },
+              {
+                "finoSmc": 80000,
+                "eurSmc": 0.133098
+              },
+              {
+                "finoSmc": 200000,
+                "eurSmc": 0.06742
+              },
+              {
+                "finoSmc": 1000000,
+                "eurSmc": 0.033088
+              },
+              {
+                "finoSmc": null,
+                "eurSmc": 0.009205
+              }
+            ]
+          },
+          "meridionale": {
+            "label": "Meridionale (Calabria, Sicilia)",
+            "tau1CotEurPdrAnno": 2.01,
+            "tau1DisEurPdrAnno": {
+              "g4-g6": 65.32,
+              "g10-g40": 471.95,
+              "oltre-g40": 1018.27
+            },
+            "tau1MisEurPdrAnno": {
+              "g4-g6": 28.99,
+              "g10-g40": 198.85,
+              "oltre-g40": 427.07
+            },
+            "stEurPdrAnno": 0.0,
+            "vrEurPdrAnno": 0.0,
+            "ceEurPdrAnno": 0.0,
+            "tau3Scaglioni": [
+              {
+                "finoSmc": 120,
+                "eurSmc": 0.0
+              },
+              {
+                "finoSmc": 480,
+                "eurSmc": 0.258579
+              },
+              {
+                "finoSmc": 1560,
+                "eurSmc": 0.236671
+              },
+              {
+                "finoSmc": 5000,
+                "eurSmc": 0.237667
+              },
+              {
+                "finoSmc": 80000,
+                "eurSmc": 0.177586
+              },
+              {
+                "finoSmc": 200000,
+                "eurSmc": 0.089955
+              },
+              {
+                "finoSmc": 1000000,
+                "eurSmc": 0.044148
+              },
+              {
+                "finoSmc": null,
+                "eurSmc": 0.012282
+              }
+            ]
+          },
+          "sardegna": {
+            "label": "Sardegna",
+            "tau1CotEurPdrAnno": 2.01,
+            "tau1DisEurPdrAnno": {
+              "g4-g6": 1641.38,
+              "g10-g40": 2048.01,
+              "oltre-g40": 2594.33
+            },
+            "tau1MisEurPdrAnno": {
+              "g4-g6": 28.99,
+              "g10-g40": 198.85,
+              "oltre-g40": 427.07
+            },
+            "stEurPdrAnno": 0.0,
+            "vrEurPdrAnno": 0.0,
+            "ceEurPdrAnno": -1576.06,
+            "tau3Scaglioni": [
+              {
+                "finoSmc": 120,
+                "eurSmc": 0.0
+              },
+              {
+                "finoSmc": 480,
+                "eurSmc": 0.258579
+              },
+              {
+                "finoSmc": 1560,
+                "eurSmc": 0.236671
+              },
+              {
+                "finoSmc": 5000,
+                "eurSmc": 0.237667
+              },
+              {
+                "finoSmc": 80000,
+                "eurSmc": 0.177586
+              },
+              {
+                "finoSmc": 200000,
+                "eurSmc": 0.089955
+              },
+              {
+                "finoSmc": 1000000,
+                "eurSmc": 0.044148
+              },
+              {
+                "finoSmc": null,
+                "eurSmc": 0.012282
+              }
+            ]
+          }
+        },
+        "ug2FissaEurPdrAnno": -21.63,
+        "ug2Scaglioni": [
+          {
+            "finoSmc": 120,
+            "eurSmc": 0.0
+          },
+          {
+            "finoSmc": 480,
+            "eurSmc": 0.0496
+          },
+          {
+            "finoSmc": 1560,
+            "eurSmc": 0.0293
+          },
+          {
+            "finoSmc": 5000,
+            "eurSmc": 0.0237
+          },
+          {
+            "finoSmc": 80000,
+            "eurSmc": 0.017
+          },
+          {
+            "finoSmc": 200000,
+            "eurSmc": 0.0071
+          },
+          {
+            "finoSmc": null,
+            "eurSmc": 0.0
+          }
+        ],
+        "ug1Scaglioni": [
+          {
+            "finoSmc": 200000,
+            "eurSmc": 0.034837
+          },
+          {
+            "finoSmc": null,
+            "eurSmc": 0.017603
+          }
+        ],
+        "rsScaglioni": [
+          {
+            "finoSmc": 200000,
+            "eurSmc": 0.002788
+          },
+          {
+            "finoSmc": null,
+            "eurSmc": 0.001409
+          }
+        ],
+        "reScaglioni": [
+          {
+            "finoSmc": 200000,
+            "eurSmc": 0.029417
+          },
+          {
+            "finoSmc": null,
+            "eurSmc": 0.015611
+          }
+        ],
+        "ug3EurSmc": 0.007292,
+        "gsDomesticiEurSmc": 0.0,
+        "accisaDomestica": {
+          "ordinario": [
+            {
+              "finoSmc": 120,
+              "eurSmc": 0.044
+            },
+            {
+              "finoSmc": 480,
+              "eurSmc": 0.175
+            },
+            {
+              "finoSmc": 1560,
+              "eurSmc": 0.17
+            },
+            {
+              "finoSmc": null,
+              "eurSmc": 0.186
+            }
+          ],
+          "mezzogiorno-dpr218": [
+            {
+              "finoSmc": 120,
+              "eurSmc": 0.038
+            },
+            {
+              "finoSmc": 480,
+              "eurSmc": 0.135
+            },
+            {
+              "finoSmc": 1560,
+              "eurSmc": 0.12
+            },
+            {
+              "finoSmc": null,
+              "eurSmc": 0.15
+            }
+          ]
+        },
+        "addizionaleRegionaleDomestica": {
+          "abruzzo-ordinario": [
+            {
+              "finoSmc": 120,
+              "eurSmc": 0.019
+            },
+            {
+              "finoSmc": 480,
+              "eurSmc": 0.023241
+            },
+            {
+              "finoSmc": 1560,
+              "eurSmc": 0.025823
+            },
+            {
+              "finoSmc": null,
+              "eurSmc": 0.025823
+            }
+          ],
+          "abruzzo-clima-ef": [
+            {
+              "finoSmc": 120,
+              "eurSmc": 0.01033
+            },
+            {
+              "finoSmc": 480,
+              "eurSmc": 0.01033
+            },
+            {
+              "finoSmc": 1560,
+              "eurSmc": 0.01033
+            },
+            {
+              "finoSmc": null,
+              "eurSmc": 0.01033
+            }
+          ],
+          "basilicata": [
+            {
+              "finoSmc": 120,
+              "eurSmc": 0.019
+            },
+            {
+              "finoSmc": 480,
+              "eurSmc": 0.0258228
+            },
+            {
+              "finoSmc": 1560,
+              "eurSmc": 0.0258228
+            },
+            {
+              "finoSmc": null,
+              "eurSmc": 0.0258228
+            }
+          ],
+          "campania": [
+            {
+              "finoSmc": 120,
+              "eurSmc": 0.019
+            },
+            {
+              "finoSmc": 480,
+              "eurSmc": 0.031
+            },
+            {
+              "finoSmc": 1560,
+              "eurSmc": 0.031
+            },
+            {
+              "finoSmc": null,
+              "eurSmc": 0.031
+            }
+          ],
+          "emilia-romagna": [
+            {
+              "finoSmc": 120,
+              "eurSmc": 0.022
+            },
+            {
+              "finoSmc": 480,
+              "eurSmc": 0.0309874
+            },
+            {
+              "finoSmc": 1560,
+              "eurSmc": 0.0309874
+            },
+            {
+              "finoSmc": null,
+              "eurSmc": 0.0309874
+            }
+          ],
+          "lazio-centro-nord": [
+            {
+              "finoSmc": 120,
+              "eurSmc": 0.022
+            },
+            {
+              "finoSmc": 480,
+              "eurSmc": 0.03099
+            },
+            {
+              "finoSmc": 1560,
+              "eurSmc": 0.03099
+            },
+            {
+              "finoSmc": null,
+              "eurSmc": 0.03099
+            }
+          ],
+          "lazio-mezzogiorno": [
+            {
+              "finoSmc": 120,
+              "eurSmc": 0.019
+            },
+            {
+              "finoSmc": 480,
+              "eurSmc": 0.03099
+            },
+            {
+              "finoSmc": 1560,
+              "eurSmc": 0.03099
+            },
+            {
+              "finoSmc": null,
+              "eurSmc": 0.03099
+            }
+          ],
+          "liguria-cd": [
+            {
+              "finoSmc": 120,
+              "eurSmc": 0.022
+            },
+            {
+              "finoSmc": 480,
+              "eurSmc": 0.0258
+            },
+            {
+              "finoSmc": 1560,
+              "eurSmc": 0.0258
+            },
+            {
+              "finoSmc": null,
+              "eurSmc": 0.0258
+            }
+          ],
+          "liguria-e": [
+            {
+              "finoSmc": 120,
+              "eurSmc": 0.0155
+            },
+            {
+              "finoSmc": 480,
+              "eurSmc": 0.0155
+            },
+            {
+              "finoSmc": 1560,
+              "eurSmc": 0.0155
+            },
+            {
+              "finoSmc": null,
+              "eurSmc": 0.0155
+            }
+          ],
+          "liguria-f": [
+            {
+              "finoSmc": 120,
+              "eurSmc": 0.0103
+            },
+            {
+              "finoSmc": 480,
+              "eurSmc": 0.0103
+            },
+            {
+              "finoSmc": 1560,
+              "eurSmc": 0.0103
+            },
+            {
+              "finoSmc": null,
+              "eurSmc": 0.0103
+            }
+          ],
+          "lombardia": [
+            {
+              "finoSmc": 120,
+              "eurSmc": 0.0
+            },
+            {
+              "finoSmc": 480,
+              "eurSmc": 0.0
+            },
+            {
+              "finoSmc": 1560,
+              "eurSmc": 0.0
+            },
+            {
+              "finoSmc": null,
+              "eurSmc": 0.0
+            }
+          ],
+          "marche": [
+            {
+              "finoSmc": 120,
+              "eurSmc": 0.0155
+            },
+            {
+              "finoSmc": 480,
+              "eurSmc": 0.0181
+            },
+            {
+              "finoSmc": 1560,
+              "eurSmc": 0.0207
+            },
+            {
+              "finoSmc": null,
+              "eurSmc": 0.0258
+            }
+          ],
+          "piemonte-ordinario": [
+            {
+              "finoSmc": 120,
+              "eurSmc": 0.022
+            },
+            {
+              "finoSmc": 480,
+              "eurSmc": 0.0258
+            },
+            {
+              "finoSmc": 1560,
+              "eurSmc": 0.0258
+            },
+            {
+              "finoSmc": null,
+              "eurSmc": 0.0258
+            }
+          ],
+          "puglia": [
+            {
+              "finoSmc": 120,
+              "eurSmc": 0.019
+            },
+            {
+              "finoSmc": 480,
+              "eurSmc": 0.03098
+            },
+            {
+              "finoSmc": 1560,
+              "eurSmc": 0.03098
+            },
+            {
+              "finoSmc": null,
+              "eurSmc": 0.03098
+            }
+          ],
+          "toscana": [
+            {
+              "finoSmc": 120,
+              "eurSmc": 0.022
+            },
+            {
+              "finoSmc": 480,
+              "eurSmc": 0.030987
+            },
+            {
+              "finoSmc": 1560,
+              "eurSmc": 0.030987
+            },
+            {
+              "finoSmc": null,
+              "eurSmc": 0.030987
+            }
+          ],
+          "umbria": [
+            {
+              "finoSmc": 120,
+              "eurSmc": 0.005165
+            },
+            {
+              "finoSmc": 480,
+              "eurSmc": 0.005165
+            },
+            {
+              "finoSmc": 1560,
+              "eurSmc": 0.005165
+            },
+            {
+              "finoSmc": null,
+              "eurSmc": 0.005165
+            }
+          ],
+          "veneto": [
+            {
+              "finoSmc": 120,
+              "eurSmc": 0.007747
+            },
+            {
+              "finoSmc": 480,
+              "eurSmc": 0.023241
+            },
+            {
+              "finoSmc": 1560,
+              "eurSmc": 0.025823
+            },
+            {
+              "finoSmc": null,
+              "eurSmc": 0.030987
+            }
+          ]
+        },
+        "ivaDomestica": {
+          "sogliaRidottaSmc": 480,
+          "aliquotaRidotta": 0.1,
+          "aliquotaOrdinaria": 0.22,
+          "aliquotaQuoteFisse": 0.22,
+          "applicaSoloConBaseCompleta": true
+        }
       }
     },
-    "note": "Stima comparativa annua sulle componenti disponibili. Oneri, imposte e IVA puntuali sono indicati come n.n. quando non stimati nel dettaglio. Le componenti di profilo sono applicate in modo omogeneo a tutti gli scenari.",
+    "note": "Stima comparativa annua: per la luce include rete domestica ARERA 2026, ASOS/ARIM/UC3/UC6, quota fissa ASOS non residenti con residenza esplicita, C_DISPD corrente settembre 2026, accisa quando determinabile e IVA domestica 10% solo con base elettrica completa. Per il gas include rete/misura 2026, oneri UG1/RS/RE/UG2/UG3 Q3 2026, accisa nazionale con regime esplicito, ARISGAM per i profili verificati, QTt con P esplicito e IVA domestica solo quando la base imponibile gas e completa. Restano esclusi i casi ARISGAM non supportati e le proiezioni forward dello Step 2.",
     "profiloConsumiFonte": {
       "fonte": "ARERA - Monitoraggio Retail - Offerte e prezzi",
       "urlFonte": "https://www.arera.it/rapporti-e-relazioni/monitoraggio-retail/monitoraggio-retail-offerte-e-prezzi",
       "acquisitoIl": "2026-09-22",
-      "profiloStandard": "Cliente domestico usato da ARERA per il monitoraggio delle offerte",
+      "profiloStandard": "Cliente tipo ARERA usato per il monitoraggio delle offerte: domestico residente a Milano, 3 kW e 2.700 kWh/anno; gas domestico a Milano, 1.400 Smc/anno. Il benchmark tecnico gas usa ambito Nord-Orientale, misuratore G4 e P=0,03852 GJ/Smc, coerentemente con gli esempi ARERA di bolletta standard.",
       "luceConsumoKwh": 2700,
       "gasConsumoSmc": 1400,
-      "potenzaKw": "3"
+      "potenzaKw": "3",
+      "localitaBenchmark": "Milano",
+      "residenzaLuce": "residente",
+      "consumiMensiliLuceKwh": [
+        225,
+        225,
+        225,
+        225,
+        225,
+        225,
+        225,
+        225,
+        225,
+        225,
+        225,
+        225
+      ],
+      "ambitoGas": "nord-orientale",
+      "classeMisuratoreGas": "G4",
+      "potereCalorificoGasGjSmc": 0.03852,
+      "regimeAccisaGas": "ordinario",
+      "profiloArisgamGas": "lombardia",
+      "urlFonteBenchmark": "https://www.arera.it/dati-e-statistiche/dettaglio/analisi-delle-offerte-disponibili-sul-portale-offerte",
+      "urlFonteBenchmarkGas": "https://www.arera.it/dati-e-statistiche/dettaglio/analisi-delle-offerte-disponibili-sul-portale-offerte-1",
+      "urlFonteEsempioBolletta": "https://www.arera.it/fileadmin/allegati/docs/24/136-24.pdf",
+      "notaBenchmark": "La stima media e un benchmark standardizzato, non una media geografica nazionale. I costi territoriali gas sono quelli del profilo di riferimento Milano/Lombardia; il confronto tra offerte usa lo stesso profilo per tutte le proposte."
     },
     "profiloMedioFonte": {
       "fonte": "Portale Offerte ARERA/Acquirente Unico Open Data",
@@ -66,7 +920,254 @@
       "numeroOfferteGas": 102,
       "luceConsumoKwh": 2700,
       "gasConsumoSmc": 1400,
-      "potenzaKw": "3"
+      "potenzaKw": "3",
+      "benchmarkTecnico": "ARERA cliente tipo Milano: luce residente 3 kW/2700 kWh; gas 1400 Smc, Nord-Orientale, G4, P 0,03852; fiscalita territoriale Lombardia.",
+      "notaBenchmark": "Il termine stima media indica un confronto standardizzato sul cliente tipo ARERA; non rappresenta la media geografica di tutte le famiglie italiane."
+    },
+    "componentiRegolateMeta": {
+      "stato": "parziale_verificato",
+      "periodo": "2026-Q3",
+      "acquisitoIl": "2026-09-21",
+      "delibera": "575/2025/R/eel + 227/2026/R/com + 574/2025/R/gas + 126/2025/R/gas + 98/2026/R/com + TIVG 161/2026/R/gas + TUA 2026 + norme regionali ARISGAM verificate",
+      "fonte": "ARERA - Tariffe rete domestici; ARERA - oneri generali e ulteriori componenti; valori operativi Q3 pubblicati da E-Distribuzione in attuazione della delibera 227/2026/R/com",
+      "urlFonte": "https://www.arera.it/area-operatori/prezzi-e-tariffe/tariffe-trasmissione-distribuzione-e-misura-clienti-domestici",
+      "vociIncluse": [
+        "luce_s1_quota_fissa",
+        "luce_s2_quota_potenza",
+        "luce_s3_quota_energia",
+        "luce_ASOS_quota_energia_domestici",
+        "luce_ARIM_quota_energia_domestici",
+        "luce_UC3_quota_energia_domestici",
+        "luce_UC6_quota_potenza_domestici",
+        "luce_UC6_quota_energia_domestici",
+        "gas_tau1_dis_2026",
+        "gas_tau1_mis_2026",
+        "gas_tau1_cot_2026",
+        "gas_tau3_dis_scaglioni_2026",
+        "gas_ST_2026",
+        "gas_VR_2026",
+        "gas_CE_2026",
+        "gas_UG1_Q3_2026",
+        "gas_RS_Q3_2026",
+        "gas_RE_Q3_2026",
+        "gas_UG2_Q3_2026",
+        "gas_UG3_Q3_2026",
+        "gas_GS_domestici_zero_Q3_2026",
+        "gas_accisa_domestica_TUA_2026",
+        "gas_addizionale_regionale_ARISGAM_casi_verificati",
+        "gas_QTt_Q3_2026_con_P_fatturazione_esplicito",
+        "gas_IVA_domestica_10_primi_480_smc_22_resto_e_quote_fisse_con_base_completa",
+        "luce_ASOS_quota_fissa_non_residenti_con_residenza_esplicita",
+        "luce_accisa_domestica_0_0227_eur_kwh_con_esenzione_mensile_residente_fino_3kw",
+        "luce_C_DISPD_settembre_2026_dispacciamento_TIDE_piu_capacita",
+        "luce_IVA_domestica_10_con_base_completa"
+      ],
+      "vociNonIncluse": [
+        "gas_addizionale_regionale_casi_non_supportati"
+      ],
+      "valoriLuce2026": {
+        "s1EurPodAnno": 23.04,
+        "s2EurKwAnno": 23.52,
+        "s3EurKwh": 0.0119,
+        "asosEurKwh": 0.031515,
+        "arimEurKwh": 0.001638,
+        "uc3EurKwh": 0.00276,
+        "uc6EurKwAnno": 0.1988,
+        "uc6EurKwh": 7e-05,
+        "asosFissaNonResidentiEurPodAnno": 95.0916,
+        "variabileComuneApplicataEurKwh": 0.047883,
+        "potenzaComuneApplicataEurKwAnno": 23.7188
+      },
+      "notaGas": "Step 3H include anche l IVA gas domestica: 10% sui primi 480 Smc/anno e 22% sui consumi successivi e sulle quote fisse, esclusivamente quando rete, QTt, accisa e ARISGAM sono tutte determinate. Senza base completa l IVA resta non stimata. I casi ARISGAM non supportati restano esclusi.",
+      "periodoRete": "2026",
+      "periodoOneri": "2026-07-01/2026-09-30",
+      "urlFonteOneri": "https://www.arera.it/area-operatori/prezzi-e-tariffe/oneri-generali-di-sistema-e-ulteriori-componenti",
+      "urlTabellaOperativaOneri": "https://www.e-distribuzione.it/content/dam/e-distribuzione/a-chi-ci-rivolgiamo/venditori/2026/Oneri_A_UC_annuali_Del_2_7_26.pdf",
+      "notaResidenza": "La quota fissa ASOS di 95,0916 €/POD/anno per domestici non residenti e applicata solo quando l utente seleziona esplicitamente non residente. Nessuna residenza viene presunta se il dato e sconosciuto.",
+      "urlFonteGas": "https://www.arera.it/consumatori/valori-rete-oneri-domestici-gas",
+      "urlDeliberaGas": "https://www.arera.it/atti-e-provvedimenti/dettaglio/25/574-25",
+      "urlFonteGasOneri": "https://www.arera.it/area-operatori/prezzi-e-tariffe/tariffe-di-distribuzione-misura-oneri-generali",
+      "urlDeliberaUg2": "https://www.arera.it/atti-e-provvedimenti/dettaglio/25/126-25",
+      "urlDeliberaOneriQ3": "https://www.arera.it/atti-e-provvedimenti/dettaglio/26/227-26",
+      "valoriGasQ3_2026": {
+        "ug2FissaEurPdrAnno": -21.63,
+        "ug2EurSmcScaglioni": [
+          0.0,
+          0.0496,
+          0.0293,
+          0.0237,
+          0.017,
+          0.0071,
+          0.0
+        ],
+        "ug1EurSmcFino200000": 0.034837,
+        "ug1EurSmcOltre200000": 0.017603,
+        "rsEurSmcFino200000": 0.002788,
+        "rsEurSmcOltre200000": 0.001409,
+        "reEurSmcFino200000": 0.029417,
+        "reEurSmcOltre200000": 0.015611,
+        "ug3EurSmc": 0.007292,
+        "gsDomesticiEurSmc": 0.0
+      },
+      "urlFonteAccise": "https://www.adm.gov.it/portale/aliquote-accisa-nazionali",
+      "urlFonteNormativaAccisaGas": "https://www.normattiva.it/eli/id/2026/06/27/26A03280/ORIGINAL",
+      "notaAccisaGas": "L accisa nazionale sul gas naturale per usi domestici e applicata solo con scelta esplicita del regime TUA. Step 3F aggiunge separatamente l ARISGAM regionale per i soli profili verificati; senza scelta del profilo regionale non viene applicata alcuna addizionale presunta. L IVA gas domestica e inclusa dallo Step 3H solo quando la base imponibile del modello e completa; altrimenti resta non stimata.",
+      "valoriAccisaGas2026": {
+        "ordinarioEurSmc": [
+          0.044,
+          0.175,
+          0.17,
+          0.186
+        ],
+        "mezzogiornoDpr218EurSmc": [
+          0.038,
+          0.135,
+          0.12,
+          0.15
+        ],
+        "soglieSmc": [
+          120,
+          480,
+          1560,
+          null
+        ]
+      },
+      "notaArisgamGas": "Profili ARISGAM verificati su fonti istituzionali regionali: Abruzzo (ordinario o zone climatiche E/F), Basilicata, Campania, Emilia-Romagna, Lazio (Centro-Nord o territori Mezzogiorno), Liguria (zone C-D, E o F), Lombardia (tributo disapplicato), Marche, Piemonte ordinario, Puglia, Toscana, Umbria e Veneto. Calabria, Molise, Regioni a statuto speciale e casi agevolati/speciali non sono calcolati finche non sono verificati in modo puntuale. Piemonte nuovi allacciamenti agevolati esclusi dal profilo ordinario.",
+      "urlFontiArisgamGas": {
+        "abruzzo": "https://www.regione.abruzzo.it/argomenti/bilanci-tributi-e-tasse/tributi-e-tasse-regionali/altri-tributi/addizionale-regionale-all-accisa-sul-gas-naturale",
+        "basilicata": "https://www.regione.basilicata.it/?temi-prsf=tributi%2Faddizionale-regionale-allaccisa-sul-gas-naturale-arisgan",
+        "campania": "https://entrate.regione.campania.it/fr/arisgan",
+        "emiliaRomagna": "https://finanze.regione.emilia-romagna.it/tributi-regionali/imposte/arisgam/quanto-come-e-quando-si-paga",
+        "lazio": "https://www.regione.lazio.it/tributi-regionali/altri-tributi/addizionale-regionale-gas-naturale",
+        "liguria": "https://www.regione.liguria.it/homepage-pagamenti-online-imposte/cosa-cerchi/addizionale-regionale-accisa-sul-gas-naturale-ex-arisgam/pagamenti-gas-naturale.html",
+        "lombardia": "https://www.regione.lombardia.it/bollo-auto-e-tributi-regionali/tributi-regionali-disapplicati-o-sospesi",
+        "marche": "https://www.regione.marche.it/Regione-Utile/Finanze-e-Tributi/Addizionale-regionale-accisa-gas-naturale",
+        "piemonte": "https://www.regione.piemonte.it/web/temi/tributi/addizionali-regionali/addizionale-regionale-allaccisa-sul-gas-naturale",
+        "puglia": "https://fatturazione-elettronica.regione.puglia.it/it/web/tributi/arisgan",
+        "toscana": "https://raccoltanormativa.consiglio.regione.toscana.it/articolo?anc=sez3&urndoc=urn:nir:regione.toscana:legge:2012-12-27;77",
+        "umbria": "https://www.regione.umbria.it/ambiente/-/asset_publisher/5DgXK4fP5T2d/content/addizionale-regionale-all-accisa-sul-gas-natura-1",
+        "veneto": "https://portalegestori.regione.veneto.it/"
+      },
+      "valoriArisgamGas2026": {
+        "abruzzo-ordinario": [
+          0.019,
+          0.023241,
+          0.025823,
+          0.025823
+        ],
+        "abruzzo-clima-ef": [
+          0.01033,
+          0.01033,
+          0.01033,
+          0.01033
+        ],
+        "basilicata": [
+          0.019,
+          0.0258228,
+          0.0258228,
+          0.0258228
+        ],
+        "campania": [
+          0.019,
+          0.031,
+          0.031,
+          0.031
+        ],
+        "emilia-romagna": [
+          0.022,
+          0.0309874,
+          0.0309874,
+          0.0309874
+        ],
+        "lazio-centro-nord": [
+          0.022,
+          0.03099,
+          0.03099,
+          0.03099
+        ],
+        "lazio-mezzogiorno": [
+          0.019,
+          0.03099,
+          0.03099,
+          0.03099
+        ],
+        "liguria-cd": [
+          0.022,
+          0.0258,
+          0.0258,
+          0.0258
+        ],
+        "liguria-e": [
+          0.0155,
+          0.0155,
+          0.0155,
+          0.0155
+        ],
+        "liguria-f": [
+          0.0103,
+          0.0103,
+          0.0103,
+          0.0103
+        ],
+        "lombardia": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "marche": [
+          0.0155,
+          0.0181,
+          0.0207,
+          0.0258
+        ],
+        "piemonte-ordinario": [
+          0.022,
+          0.0258,
+          0.0258,
+          0.0258
+        ],
+        "puglia": [
+          0.019,
+          0.03098,
+          0.03098,
+          0.03098
+        ],
+        "toscana": [
+          0.022,
+          0.030987,
+          0.030987,
+          0.030987
+        ],
+        "umbria": [
+          0.005165,
+          0.005165,
+          0.005165,
+          0.005165
+        ],
+        "veneto": [
+          0.007747,
+          0.023241,
+          0.025823,
+          0.030987
+        ]
+      },
+      "urlFonteTrasportoGas": "https://www.arera.it/fileadmin/allegati/docs/26/161-2026-R-gas_Testo_integrato_100-23-AllegatoA-NuovoTIVG.pdf",
+      "valoreQttQ3_2026EurGj": 1.931333,
+      "urlFonteIvaGas": "https://www.arera.it/bolletta/guida-alla-lettura-delle-voci-di-spesa-gas",
+      "notaIvaGas": "IVA gas domestica applicata solo quando la base imponibile e completa nel modello: rete distribuzione/misura, oneri, QTt con P esplicito, accisa e ARISGAM verificata. Aliquota 10% sui primi 480 Smc/anno e 22% sui consumi successivi e sulle quote fisse. Se manca uno dei dati necessari, l IVA resta non stimata.",
+      "urlFonteAccisaLuce": "https://www.adm.gov.it/portale/aliquote-accisa-nazionali",
+      "urlNormativaAccisaLuce": "https://www.normattiva.it/eli/id/2025/04/04/25G00052/ORIGINAL",
+      "notaAccisaLuce": "Accisa elettrica domestica: 0,0227 €/kWh. Per fornitura non residente o residente con potenza oltre 3 kW si applica all'intero consumo annuo. Per residenza anagrafica con potenza fino a 3 kW il calcolo richiede 12 consumi mensili completi per applicare esenzione e recupero previsti dal TUA; nessun profilo mensile viene stimato.",
+      "valoriAccisaLuce2026": {
+        "aliquotaEurKwh": 0.0227,
+        "sogliaEsenteMensileKwh": 150,
+        "sogliaRecuperoFino1_5KwKwh": 150,
+        "sogliaRecuperoOltre1_5Fino3KwKwh": 220
+      },
+      "urlFonteIvaLuce": "https://www.arera.it/bolletta/guida-alla-lettura-delle-voci-di-spesa",
+      "notaIvaLuce": "IVA elettrica domestica al 10% sull importo totale della bolletta. Il motore la applica solo quando la base elettrica e completa nel modello: residenza esplicita, accisa determinata e C_DISPD verificato; altrimenti resta non stimata.",
+      "notaDispacciamentoLuce": "C_DISPD domestico incluso come annualizzazione ai valori correnti di settembre 2026: 1,10 x (dispacciamento TIDE 0,010501 + capacita 0,003197) = 0,0150678 €/kWh sui consumi reali."
     }
   },
   "indiciMercato": {

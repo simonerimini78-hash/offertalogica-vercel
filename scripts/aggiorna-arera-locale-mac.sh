@@ -104,6 +104,7 @@ sync_main_code() {
     scripts/aggiorna-arera-locale-mac.sh \
     scripts/update-arera-menu.py \
     scripts/update-arera-reference-data.py \
+    scripts/update-regulated-parameters.py \
     scripts/update-energy-today.py \
     scripts/update-sitemap-lastmod.py \
     scripts/validate-calculator-data.mjs \
@@ -420,6 +421,9 @@ ensure_static_surfaces_from_main
 
 log "Rileggo e convalido oggi gli indici ufficiali ARERA usati dal calcolatore."
 python3 "$ROOT_DIR/scripts/update-arera-reference-data.py" indices --package-root "$ROOT_DIR"
+
+log "Controllo e aggiorno i parametri regolati dalle fonti ufficiali ARERA/ADM."
+python3 "$ROOT_DIR/scripts/update-regulated-parameters.py" --package-root "$ROOT_DIR"
 
 log "Genero e valido il JSON OffertaLogica con:"
 log "- luce: $E_FILE"

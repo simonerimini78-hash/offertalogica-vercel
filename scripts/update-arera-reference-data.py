@@ -228,15 +228,21 @@ def update_indices(
     params["aggiornatoIl"] = date.today().isoformat()
     params["versioneDati"] = f"parametri-calcolo-{date.today().isoformat()}-arera-{'_'.join(periods)}"
     params["fonte"] = "ARERA: catalogo Portale Offerte e riferimenti mensili ufficiali PLACET. Nessun prezzo statico usato come indice di confronto."
-    calculation["profiloConsumiFonte"] = {
+    profile_source = calculation.setdefault("profiloConsumiFonte", {})
+    if not isinstance(profile_source, dict):
+        raise RuntimeError("profiloConsumiFonte non valido")
+    profile_source.update({
         "fonte": "ARERA - Monitoraggio Retail - Offerte e prezzi",
         "urlFonte": ARERA_PROFILE_URL,
         "acquisitoIl": date.today().isoformat(),
-        "profiloStandard": "Cliente domestico usato da ARERA per il monitoraggio delle offerte",
         "luceConsumoKwh": standard_profile["luceConsumoKwh"],
         "gasConsumoSmc": standard_profile["gasConsumoSmc"],
         "potenzaKw": standard_profile["potenzaKw"],
-    }
+    })
+    profile_source.setdefault(
+        "profiloStandard",
+        "Cliente domestico usato da ARERA per il monitoraggio delle offerte",
+    )
     write_params(root, params)
     return params
 
@@ -290,7 +296,10 @@ def update_benchmark(root: Path) -> dict[str, object]:
     profile["quotaFissaLuceAnnua"] = round(arithmetic_mean([float(row["quotaFissaAnnua"]) for row in light_rows]), 4)
     profile["quotaFissaGasAnnua"] = round(arithmetic_mean([float(row["quotaFissaAnnua"]) for row in gas_rows]), 4)
 
-    calculation["profiloMedioFonte"] = {
+    average_source = calculation.setdefault("profiloMedioFonte", {})
+    if not isinstance(average_source, dict):
+        raise RuntimeError("profiloMedioFonte non valido")
+    average_source.update({
         "fonte": "Portale Offerte ARERA/Acquirente Unico Open Data",
         "catalogoVersione": catalog.get("versioneDati"),
         "catalogoAggiornatoIl": catalog.get("aggiornatoIl"),
@@ -301,7 +310,7 @@ def update_benchmark(root: Path) -> dict[str, object]:
         "luceConsumoKwh": profile.get("luceConsumoKwh"),
         "gasConsumoSmc": profile.get("gasConsumoSmc"),
         "potenzaKw": profile.get("potenzaKw"),
-    }
+    })
     params["aggiornatoIl"] = date.today().isoformat()
     write_params(root, params)
     return params
