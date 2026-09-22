@@ -77,6 +77,32 @@
         ]
 }
     </script>
+    <script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+        {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "OffertaLogica",
+            "item": "https://offertalogica.it/"
+        },
+        {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Fornitori luce e gas",
+            "item": "https://offertalogica.it/fornitori/"
+        },
+        {
+            "@type": "ListItem",
+            "position": 3,
+            "name": "A2A Energia",
+            "item": "https://offertalogica.it/fornitori/a2a.html"
+        }
+    ]
+}
+    </script>
     <style>
         :root {
             --bg: #f1f5f9;
@@ -98,6 +124,11 @@
         .skip-link { position: absolute; left: -999px; top: 12px; background: #fff; color: var(--accent); padding: 10px 14px; border-radius: 8px; font-weight: 800; z-index: 20; }
         .skip-link:focus { left: 12px; }
         .shell { max-width: 1120px; margin: 0 auto; padding: 0 22px; }
+        .breadcrumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 16px; color: var(--muted); font-size: 13px; font-weight: 700; line-height: 1.4; }
+        .breadcrumbs a { color: var(--dark); text-decoration: none; }
+        .breadcrumbs a:hover, .breadcrumbs a:focus-visible { color: var(--primary-dark); text-decoration: underline; }
+        .breadcrumbs .separator { color: #94a3b8; font-weight: 600; }
+        .breadcrumbs [aria-current="page"] { color: var(--muted); font-weight: 700; }
         .topbar { background: #ffffff; border-bottom: 1px solid var(--border); }
         .topbar-inner { min-height: 72px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
         .brand { display: inline-flex; align-items: center; flex: 0 0 auto; line-height: 0; text-decoration: none; }
@@ -105,7 +136,7 @@
         .nav { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
         .nav a { text-decoration: none; color: var(--dark); font-size: 14px; font-weight: 800; padding: 9px 12px; border-radius: 8px; }
         .nav a:hover { background: #f0fdf4; color: var(--primary-dark); }
-        .hero { padding: 52px 0 26px; }
+        .hero { padding: 28px 0 26px; }
         .eyebrow { color: var(--primary-dark); font-weight: 900; font-size: 13px; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 10px; }
         .hero-grid { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 24px; align-items: center; }
         h1 { font-size: clamp(34px, 5vw, 54px); line-height: 1.04; letter-spacing: 0; margin-bottom: 16px; max-width: 880px; }
@@ -200,6 +231,13 @@
 
 <main id="main-content">
     <section class="hero">
+        <nav class="breadcrumbs shell" aria-label="Percorso di navigazione">
+            <a href="/">Home</a>
+            <span class="separator" aria-hidden="true">›</span>
+            <a href="/fornitori/">Fornitori luce e gas</a>
+            <span class="separator" aria-hidden="true">›</span>
+            <span aria-current="page">A2A Energia</span>
+        </nav>
         <div class="shell hero-grid">
             <div>
                 <div class="eyebrow">Fornitore monitorato</div>
