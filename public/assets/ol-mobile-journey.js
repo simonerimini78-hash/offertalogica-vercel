@@ -1,3 +1,4 @@
+/* OffertaLogica mobile journey v1.3.0 */
 (function () {
   'use strict';
 
@@ -103,11 +104,6 @@
     });
     panel.appendChild(nav);
 
-    var apps = document.createElement('div');
-    apps.className = 'ol-mobile-menu-apps';
-    apps.innerHTML = '<a href="https://app.offertalogica.it/app.html">App gratuita</a><a href="https://premium.offertalogica.it/app.html">Area Premium</a>';
-    panel.appendChild(apps);
-
     document.body.appendChild(backdrop);
     document.body.appendChild(panel);
 
@@ -191,6 +187,35 @@
     });
   }
 
+  function enhanceFastEntries() {
+    document.querySelectorAll('[data-ol-fast-entry]').forEach(function (section) {
+      var help = section.querySelector('[data-ol-fast-entry-help]');
+      var buttons = Array.prototype.slice.call(section.querySelectorAll('[data-ol-fast-info]'));
+      if (!help || !buttons.length) return;
+
+      function closeHelp() {
+        help.hidden = true;
+        help.textContent = '';
+        buttons.forEach(function (button) { button.setAttribute('aria-expanded', 'false'); });
+      }
+
+      buttons.forEach(function (button) {
+        button.addEventListener('click', function () {
+          var wasOpen = button.getAttribute('aria-expanded') === 'true' && !help.hidden;
+          closeHelp();
+          if (wasOpen) return;
+          help.textContent = button.getAttribute('data-ol-fast-info') || '';
+          help.hidden = false;
+          button.setAttribute('aria-expanded', 'true');
+        });
+      });
+
+      section.querySelectorAll('.ol-fast-entry-option').forEach(function (link) {
+        link.addEventListener('click', closeHelp);
+      });
+    });
+  }
+
   function enhanceTocs() {
     document.querySelectorAll('.toc').forEach(function (toc) {
       if (!toc.querySelector('a[href^="#"]')) return;
@@ -246,6 +271,7 @@
   function init() {
     buildMenu();
     normalizeCalculatorCtas();
+    enhanceFastEntries();
     enhanceTocs();
     enhanceTables();
     markOffersPage();

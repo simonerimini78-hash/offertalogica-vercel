@@ -19077,6 +19077,46 @@ if (document.readyState === "loading") {
       window.setTimeout(() => scrollFast(pdfPanel, "start"), 80);
     }
 
+    /* OFFERTALOGICA_EXTERNAL_FAST_START_V1_20260922
+       Solo instradamento: usa i percorsi già esistenti del calcolatore senza modificarne calcoli o validazioni. */
+    const externalFastStartQuery = new URLSearchParams(window.location.search).get("compare_start");
+    const externalFastStartHash = new URLSearchParams(String(window.location.hash || "").replace(/^#/, "")).get("compare_start");
+    const externalFastStart = String(externalFastStartQuery || externalFastStartHash || "").toLowerCase();
+    if (["average", "photo", "pdf", "manual"].includes(externalFastStart) && !document.body.classList.contains("social-entry-active")) {
+      if (externalFastStart === "manual") {
+        window.setTimeout(() => btnManual?.click(), 90);
+      } else if (externalFastStart === "photo" || externalFastStart === "pdf") {
+        setMobileFastMode("pdf", externalFastStart);
+        document.body.classList.remove("mobile-fast-pdf-review");
+        window.setTimeout(() => {
+          scrollFast(pdfPanel, "start");
+          const target = externalFastStart === "photo"
+            ? document.getElementById("bill-photo-camera-button")
+            : document.getElementById("pdf-select-files-button");
+          window.setTimeout(() => target?.focus({ preventScroll: true }), 180);
+        }, 90);
+      } else if (externalFastStart === "average") {
+        let attempts = 0;
+        const startAverageComparison = () => {
+          attempts += 1;
+          if (typeof DATI_UFFICIALI_CONFRONTO_PRONTI !== "undefined" && DATI_UFFICIALI_CONFRONTO_PRONTI) {
+            btnMedi?.click();
+            window.setTimeout(() => {
+              window.__OL_A11Y_RESULTS_PENDING__ = true;
+              window.avviaComparazioneDati?.();
+            }, 40);
+            return;
+          }
+          if (attempts < 80) {
+            window.setTimeout(startAverageComparison, 125);
+            return;
+          }
+          scrollFast(btnAverage || submit, "center");
+        };
+        startAverageComparison();
+      }
+    }
+
     document.querySelector("#pdf-upload-panel .lead-secondary")?.addEventListener("click", () => {
       if (document.body.classList.contains("mobile-fast-mode-pdf")) {
         document.body.classList.remove("mobile-fast-pdf-review");
