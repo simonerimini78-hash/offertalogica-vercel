@@ -1,7 +1,7 @@
 {
-  "versioneDati": "parametri-calcolo-2026-09-21-arera-2026-08",
+  "versioneDati": "parametri-calcolo-2026-09-22-step6b-benchmark-arera",
   "fonte": "ARERA: catalogo Portale Offerte e riferimenti mensili ufficiali PLACET. Nessun prezzo statico usato come indice di confronto.",
-  "aggiornatoIl": "2026-09-21",
+  "aggiornatoIl": "2026-09-22",
   "parametriCalcolo": {
     "perditeReteLuceVariabile": 1.1,
     "profiloMedio": {
@@ -12,14 +12,28 @@
       "quotaFissaLuceAnnua": 138.8381,
       "quotaFissaGasAnnua": 132.99,
       "potenzaKw": "3",
-      "regioneGas": "",
+      "regioneGas": "nord-orientale",
       "tipoPrezzo": "fisso",
       "tipoFornitura": "dual",
-      "classeContatoreGas": "",
-      "regimeAccisaGas": "",
-      "regimeArisgamGas": "",
-      "potereCalorificoGasGjSmc": "",
-      "residenzaLuce": ""
+      "classeContatoreGas": "g4-g6",
+      "regimeAccisaGas": "ordinario",
+      "regimeArisgamGas": "lombardia",
+      "potereCalorificoGasGjSmc": 0.03852,
+      "residenzaLuce": "residente",
+      "consumiMensiliLuceKwh": [
+        225,
+        225,
+        225,
+        225,
+        225,
+        225,
+        225,
+        225,
+        225,
+        225,
+        225,
+        225
+      ]
     },
     "componentiProfilo": {
       "potenzaLuceAnnua": {
@@ -865,11 +879,36 @@
     "profiloConsumiFonte": {
       "fonte": "ARERA - Monitoraggio Retail - Offerte e prezzi",
       "urlFonte": "https://www.arera.it/rapporti-e-relazioni/monitoraggio-retail/monitoraggio-retail-offerte-e-prezzi",
-      "acquisitoIl": "2026-09-21",
-      "profiloStandard": "Cliente domestico usato da ARERA per il monitoraggio delle offerte",
+      "acquisitoIl": "2026-09-22",
+      "profiloStandard": "Cliente tipo ARERA usato per il monitoraggio delle offerte: domestico residente a Milano, 3 kW e 2.700 kWh/anno; gas domestico a Milano, 1.400 Smc/anno. Il benchmark tecnico gas usa ambito Nord-Orientale, misuratore G4 e P=0,03852 GJ/Smc, coerentemente con gli esempi ARERA di bolletta standard.",
       "luceConsumoKwh": 2700,
       "gasConsumoSmc": 1400,
-      "potenzaKw": "3"
+      "potenzaKw": "3",
+      "localitaBenchmark": "Milano",
+      "residenzaLuce": "residente",
+      "consumiMensiliLuceKwh": [
+        225,
+        225,
+        225,
+        225,
+        225,
+        225,
+        225,
+        225,
+        225,
+        225,
+        225,
+        225
+      ],
+      "ambitoGas": "nord-orientale",
+      "classeMisuratoreGas": "G4",
+      "potereCalorificoGasGjSmc": 0.03852,
+      "regimeAccisaGas": "ordinario",
+      "profiloArisgamGas": "lombardia",
+      "urlFonteBenchmark": "https://www.arera.it/dati-e-statistiche/dettaglio/analisi-delle-offerte-disponibili-sul-portale-offerte",
+      "urlFonteBenchmarkGas": "https://www.arera.it/dati-e-statistiche/dettaglio/analisi-delle-offerte-disponibili-sul-portale-offerte-1",
+      "urlFonteEsempioBolletta": "https://www.arera.it/fileadmin/allegati/docs/24/136-24.pdf",
+      "notaBenchmark": "La stima media e un benchmark standardizzato, non una media geografica nazionale. I costi territoriali gas sono quelli del profilo di riferimento Milano/Lombardia; il confronto tra offerte usa lo stesso profilo per tutte le proposte."
     },
     "profiloMedioFonte": {
       "fonte": "Portale Offerte ARERA/Acquirente Unico Open Data",
@@ -881,7 +920,9 @@
       "numeroOfferteGas": 100,
       "luceConsumoKwh": 2700,
       "gasConsumoSmc": 1400,
-      "potenzaKw": "3"
+      "potenzaKw": "3",
+      "benchmarkTecnico": "ARERA cliente tipo Milano: luce residente 3 kW/2700 kWh; gas 1400 Smc, Nord-Orientale, G4, P 0,03852; fiscalita territoriale Lombardia.",
+      "notaBenchmark": "Il termine stima media indica un confronto standardizzato sul cliente tipo ARERA; non rappresenta la media geografica di tutte le famiglie italiane."
     },
     "componentiRegolateMeta": {
       "stato": "parziale_verificato",

@@ -5444,12 +5444,13 @@ let PARAMETRI_CALCOLO = {
     quotaFissaLuceAnnua: null,
     quotaFissaGasAnnua: null,
     potenzaKw: "3",
-    residenzaLuce: "",
-    regioneGas: "",
-    classeContatoreGas: "",
-    potereCalorificoGasGjSmc: "",
-    regimeAccisaGas: "",
-    regimeArisgamGas: "",
+    residenzaLuce: "residente",
+    consumiMensiliLuceKwh: [225, 225, 225, 225, 225, 225, 225, 225, 225, 225, 225, 225],
+    regioneGas: "nord-orientale",
+    classeContatoreGas: "g4-g6",
+    potereCalorificoGasGjSmc: 0.03852,
+    regimeAccisaGas: "ordinario",
+    regimeArisgamGas: "lombardia",
     tipoPrezzo: "fisso",
     tipoFornitura: "dual",
   },
@@ -6054,7 +6055,7 @@ let PARAMETRI_CALCOLO = {
 };
 let PERDITE_RETE_LUCE_VARIABILE = PARAMETRI_CALCOLO.perditeReteLuceVariabile;
 const TESTO_METODOLOGIA_CONSUMI_REALI = "I risparmi stimati sono calcolati sui consumi che hai inserito o confermato dalla bolletta. Applichiamo le condizioni economiche delle offerte allo stesso profilo di consumo, separando quota variabile e quota fissa.";
-const TESTO_METODOLOGIA_MEDIA_ARERA = "Quando non conosci i tuoi consumi, la comparazione viene fatta su consumi medi usando il catalogo ARERA e gli indici di mercato disponibili. Questa base omogenea serve a stimare il risparmio potenziale tra le diverse proposte.";
+const TESTO_METODOLOGIA_MEDIA_ARERA = "Quando non conosci i tuoi consumi, la comparazione usa un benchmark standardizzato coerente con il cliente tipo ARERA: luce domestica residente 3 kW e 2.700 kWh/anno; gas domestico 1.400 Smc/anno sul profilo tecnico di riferimento Milano/Lombardia. Non e una media geografica nazionale: serve a confrontare tutte le offerte sulla stessa base.";
 
 const STIMA_DOCUMENTALE_STATE = {
   fallbacks: [],
@@ -6137,7 +6138,7 @@ function riepilogoCompletezzaCosto(costo) {
 
 function classificaLivelloStima(attualeCosto, costoOfferta) {
   if (modalitaCalcolo === "media") {
-    return { code: "average", label: "Stima media", detail: "Profilo medio di riferimento; le componenti non determinabili restano indicate come parziali o n.n." };
+    return { code: "average", label: "Stima media", detail: "Benchmark standard cliente tipo ARERA (Milano/Lombardia); le componenti non determinabili restano indicate come parziali o n.n." };
   }
   const source = origineDocumentoConfronto();
   const fallbacks = fallbackDocumentaliAttivi();
@@ -7924,6 +7925,20 @@ function leggiConsumiMensiliLuce() {
     return Number.isFinite(value) && value >= 0 ? value : NaN;
   });
   return valori.every(Number.isFinite) ? valori : [];
+}
+
+function impostaConsumiMensiliLuce(valori = []) {
+  const source = Array.isArray(valori) ? valori.map(Number) : [];
+  ID_CONSUMI_MENSILI_LUCE.forEach((id, index) => {
+    const field = document.getElementById(id);
+    if (!field) return;
+    const value = source[index];
+    field.value = Number.isFinite(value) && value >= 0 ? String(value) : "";
+  });
+}
+
+function applicaConsumiMensiliProfiloMedio() {
+  impostaConsumiMensiliLuce(PARAMETRI_CALCOLO.profiloMedio?.consumiMensiliLuceKwh || []);
 }
 
 function calcolaAccisaLuce(consumo, regolate = {}) {
@@ -15213,6 +15228,32 @@ function pdfSafeAutofillValue(data, field) {
   return entry.normalized_value;
 }
 
+function pdfValidatedContractValue(data, field) {
+  const entry = pdfContractFieldEntry(data, field);
+  if (!entry || entry.status !== "completo") return undefined;
+  return entry.normalized_value;
+}
+
+function applicaDatiTecniciPdfAlModulo(data) {
+  if (!data || data.kind === "scheda_offerta") return;
+  const mappings = [
+    ["residenza_luce", "master-luce-residenza"],
+    ["classe_contatore_gas", "master-gas-contatore"],
+    ["potere_calorifico_gas_gj_smc", "master-gas-pcs"],
+    ["ambito_tariffario_gas", "master-gas-regione"],
+    ["regime_accisa_gas", "master-gas-accisa"],
+    ["regime_arisgam_gas", "master-gas-arisgam"],
+  ];
+  for (const [field, target] of mappings) {
+    const value = pdfSafeAutofillValue(data, field);
+    if (value !== undefined && value !== null && value !== "") setField(target, value);
+  }
+  const monthly = pdfValidatedContractValue(data, "consumi_mensili_luce_kwh");
+  if (Array.isArray(monthly) && monthly.length === 12 && monthly.every((value) => Number.isFinite(Number(value)) && Number(value) >= 0)) {
+    impostaConsumiMensiliLuce(monthly);
+  }
+}
+
 function pdfPreviewAutofillEntry(data, field) {
   const entry = pdfContractFieldEntry(data, field);
   if (!entry || entry.status !== "completo") return null;
@@ -16301,6 +16342,13 @@ const PDF_READINESS_FIELD_LABELS = Object.freeze({
   quota_fissa_vendita_gas_eur_anno: "quota fissa gas",
   tipo_prezzo_luce: "tipo prezzo luce",
   tipo_prezzo_gas: "tipo prezzo gas",
+  residenza_luce: "residenza della fornitura luce",
+  consumi_mensili_luce_kwh: "12 consumi mensili luce",
+  classe_contatore_gas: "classe contatore gas",
+  potere_calorifico_gas_gj_smc: "P/PCS gas",
+  ambito_tariffario_gas: "ambito tariffario gas",
+  regime_accisa_gas: "regime accisa gas",
+  regime_arisgam_gas: "profilo ARISGAM",
 });
 
 function mergePdfReadiness(target, source) {
@@ -16491,6 +16539,8 @@ function mergePdfDocuments(documents) {
       merged.quota_fissa_vendita_luce_eur_anno = pick(doc.quota_fissa_vendita_luce_eur_anno, merged.quota_fissa_vendita_luce_eur_anno);
       merged.potenza_impegnata_kw = pick(doc.potenza_impegnata_kw, merged.potenza_impegnata_kw);
       merged.potenza_disponibile_kw = pick(doc.potenza_disponibile_kw, merged.potenza_disponibile_kw);
+      merged.residenza_luce = pick(doc.residenza_luce, merged.residenza_luce);
+      merged.consumi_mensili_luce_kwh = pickArray(doc.consumi_mensili_luce_kwh, merged.consumi_mensili_luce_kwh);
       merged.pod = pick(doc.pod, merged.pod);
       merged.indirizzo_fornitura_luce = pick(doc.indirizzo_fornitura_luce, doc.indirizzo_fornitura, merged.indirizzo_fornitura_luce);
       [
@@ -16512,6 +16562,11 @@ function mergePdfDocuments(documents) {
       merged.quota_fissa_vendita_gas_eur_anno = pick(doc.quota_fissa_vendita_gas_eur_anno, merged.quota_fissa_vendita_gas_eur_anno);
       merged.pdr = pick(doc.pdr, merged.pdr);
       merged.indirizzo_fornitura_gas = pick(doc.indirizzo_fornitura_gas, doc.indirizzo_fornitura, merged.indirizzo_fornitura_gas);
+      merged.classe_contatore_gas = pick(doc.classe_contatore_gas, merged.classe_contatore_gas);
+      merged.potere_calorifico_gas_gj_smc = pick(doc.potere_calorifico_gas_gj_smc, merged.potere_calorifico_gas_gj_smc);
+      merged.ambito_tariffario_gas = pick(doc.ambito_tariffario_gas, merged.ambito_tariffario_gas);
+      merged.regime_accisa_gas = pick(doc.regime_accisa_gas, merged.regime_accisa_gas);
+      merged.regime_arisgam_gas = pick(doc.regime_arisgam_gas, merged.regime_arisgam_gas);
       [
         "nome_offerta_gas", "codice_offerta_gas", "tipo_prezzo_gas", "tipo_prezzo_evidenza_gas",
         "indice_riferimento_gas", "spread_gas_eur_smc", "decorrenza_condizioni_economiche_gas",
@@ -16800,6 +16855,7 @@ window.azzeraPdfEModulo = function azzeraPdfEModulo() {
   setField("master-gas-pcs", PARAMETRI_CALCOLO.profiloMedio.potereCalorificoGasGjSmc || "");
   setField("master-gas-accisa", PARAMETRI_CALCOLO.profiloMedio.regimeAccisaGas || "");
   setField("master-gas-arisgam", PARAMETRI_CALCOLO.profiloMedio.regimeArisgamGas || "");
+  applicaConsumiMensiliProfiloMedio();
 
   ["lead-nome", "lead-telefono", "lead-email", "lead-otp"].forEach(clearField);
   ["lead-consenso-servizio", "lead-consenso-partner", "offer-consent-checkbox"].forEach((id) => {
@@ -17345,6 +17401,7 @@ function applicaDatiPdfAlModulo(data) {
     setField("master-gas-pcs", PARAMETRI_CALCOLO.profiloMedio.potereCalorificoGasGjSmc || "");
     setField("master-gas-accisa", PARAMETRI_CALCOLO.profiloMedio.regimeAccisaGas || "");
   setField("master-gas-arisgam", PARAMETRI_CALCOLO.profiloMedio.regimeArisgamGas || "");
+    applicaConsumiMensiliProfiloMedio();
     setField("in-luce-tipo-att", PARAMETRI_CALCOLO.profiloMedio.tipoPrezzo);
     setField("in-gas-tipo-att", PARAMETRI_CALCOLO.profiloMedio.tipoPrezzo);
     setField("in-luce-cons-att", PARAMETRI_CALCOLO.profiloMedio.luceConsumoKwh);
@@ -17359,6 +17416,7 @@ function applicaDatiPdfAlModulo(data) {
 
   if (Array.isArray(selectedRows)) {
     applicaRigheAutocompilazionePdf(selectedRows);
+    applicaDatiTecniciPdfAlModulo(data);
     
     if (data.kind === "scheda_offerta") {
       apriDettagliNuovaOfferta();
@@ -17375,6 +17433,7 @@ function applicaDatiPdfAlModulo(data) {
   
 
   const isOffer = data.kind === "scheda_offerta";
+  if (!isOffer) applicaDatiTecniciPdfAlModulo(data);
   aggiornaProfiloPdfDaDati(data, isOffer ? "offer" : "current");
   if (isOffer) {
     apriDettagliNuovaOfferta();
@@ -17767,7 +17826,7 @@ function ottimizzaRisultatiMobile() {
   const copertura = document.getElementById("offers-ranking-explainer")?.textContent?.trim() || "";
   const origineDocumento = origineDocumentoConfronto();
   const origine = modalitaCalcolo === "media"
-    ? "Stima media su profilo di riferimento"
+    ? "Stima media su benchmark standard ARERA"
     : origineDocumento === "pdf"
       ? "Stima personalizzata da PDF"
       : origineDocumento === "photo"
@@ -18320,6 +18379,7 @@ if (document.readyState === "loading") {
               if(document.getElementById("master-gas-pcs")) document.getElementById("master-gas-pcs").value = PARAMETRI_CALCOLO.profiloMedio.potereCalorificoGasGjSmc || "";
               if(document.getElementById("master-gas-accisa")) document.getElementById("master-gas-accisa").value = PARAMETRI_CALCOLO.profiloMedio.regimeAccisaGas || "";
               if(document.getElementById("master-gas-arisgam")) document.getElementById("master-gas-arisgam").value = PARAMETRI_CALCOLO.profiloMedio.regimeArisgamGas || "";
+              applicaConsumiMensiliProfiloMedio();
 
               // B. SELEZIONE FORNITORI DI DEFAULT (Fondamentale se la funzione nativa li richiede)
               if(document.getElementById("nome-fornitore-att")) document.getElementById("nome-fornitore-att").value = "enel";
