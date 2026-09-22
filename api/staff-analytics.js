@@ -2620,6 +2620,15 @@ async function schedulerSelectOpportunity(user, settings) {
   return opportunity;
 }
 
+function schedulerEditorialWeekStartMs(timeZone, value) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (!Number.isFinite(date.getTime())) return null;
+  const local = schedulerLocalParts(timeZone || "Europe/Rome", date);
+  const [year, month, day] = String(local.date || "").split("-").map(Number);
+  if (!year || !month || !day || !local.weekday) return null;
+  return Date.UTC(year, month - 1, day) - (local.weekday - 1) * 86400000;
+}
+
 function schedulerArticleFrequencyAllows(settings, runs, now = Date.now()) {
   const weeks = Math.max(1, Math.min(4, Number(settings?.article_frequency_weeks) || 1));
   const last = (runs || []).find((run) =>
@@ -2632,7 +2641,28 @@ function schedulerArticleFrequencyAllows(settings, runs, now = Date.now()) {
   if (!last) return true;
   const when = Date.parse(last.finished_at || last.started_at || last.created_at || "");
   if (!Number.isFinite(when)) return true;
-  return now - when >= weeks * 7 * 86400000 - 6 * 3600000;
+
+  const zone = String(settings?.timezone || "Europe/Rome").trim() || "Europe/Rome";
+  const currentWeekStart = schedulerEditorialWeekStartMs(zone, new Date(now));
+  const lastWeekStart = schedulerEditorialWeekStartMs(zone, new Date(when));
+  if (!Number.isFinite(currentWeekStart) || !Number.isFinite(lastWeekStart)) return true;
+  return currentWeekStart - lastWeekStart >= weeks * 7 * 86400000;
+}
+
+function schedulerFrequencySkipRecoverable(slot, settings, runs, schedulerKey, now = Date.now()) {
+  if (String(slot?.kind || "") !== "article_prepare") return false;
+  const matching = (runs || []).filter((run) => run?.details?.scheduler_key === schedulerKey);
+  const failedAttempts = matching.filter((run) => String(run?.status || "") === "failed").length;
+  if (failedAttempts >= SCHEDULER_SLOT_MAX_ATTEMPTS_PER_DAY) return false;
+
+  const nonFailed = matching.filter((run) => String(run?.status || "") !== "failed");
+  if (!nonFailed.length) return false;
+  const onlyFrequencySkips = nonFailed.every((run) =>
+    String(run?.status || "") === "success"
+    && String(run?.details?.stage || "") === "skipped"
+    && String(run?.details?.reason || "") === "article_frequency_weeks"
+  );
+  return onlyFrequencySkips && schedulerArticleFrequencyAllows(settings, runs, now);
 }
 
 async function schedulerProcessResearchRun(run, user, settings) {
@@ -3346,7 +3376,9 @@ async function editorialAutopilotTick() {
     const minutes = schedulerSlotMinutes(slot.time_local);
     if (minutes === null || local.minutes < minutes) return false;
     const key = `${local.date}:${slot.id}`;
-    return !schedulerSlotAttemptState(runs, key).consumed;
+    const attemptState = schedulerSlotAttemptState(runs, key);
+    if (!attemptState.consumed) return true;
+    return schedulerFrequencySkipRecoverable(slot, settings, runs, key);
   })[0] || null;
   if (!due) return { ok: true, version: VERSION, active: true, action: "idle", local };
   const result = await schedulerProcessSlot(due, user, settings, runs, local);
