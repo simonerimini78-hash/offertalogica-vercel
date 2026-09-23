@@ -5,9 +5,6 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DOWNLOAD_DIR="$ROOT_DIR/.arera-download"
 AS_OF="${1:-}"
 SYNC_RESTARTED="${ARERA_SYNC_RESTARTED:-0}"
-SUCCESS=0
-BACKUP_READY=0
-BACKUP_DIR=""
 MAIN_REPO_DIR=""
 DAYS_BACK="${ARERA_DAYS_BACK:-14}"
 MAX_TIME="${ARERA_MAX_TIME:-900}"
@@ -155,8 +152,8 @@ ensure_static_surfaces_from_main() {
     public/sitemap.xml
   do
     if [ ! -f "$MAIN_REPO_DIR/$rel" ]; then
-      log "ERRORE: superficie pubblica necessaria non trovata nel MAIN: $MAIN_REPO_DIR/$rel"
-      return 1
+      log "AVVISO: superficie pubblica non trovata nel MAIN: $MAIN_REPO_DIR/$rel. Gli altri dataset continueranno."
+      continue
     fi
     if [ -f "$ROOT_DIR/$rel" ] && cmp -s "$MAIN_REPO_DIR/$rel" "$ROOT_DIR/$rel"; then
       continue
@@ -167,62 +164,40 @@ ensure_static_surfaces_from_main() {
   done
 }
 
-backup_outputs() {
-  BACKUP_DIR="$STAGING_DIR/rollback"
-  mkdir -p "$BACKUP_DIR"
+snapshot_group() {
+  local group="$1"
+  shift
+  local dir="$STAGING_DIR/rollback/$group"
+  rm -rf "$dir"
+  mkdir -p "$dir"
   local rel
-  for rel in \
-    data/calcolo-parametri.json \
-    public/data/calcolo-parametri.json \
-    data/offerte-arera-menu.json \
-    public/data/offerte-arera-menu.json \
-    data/arera-update-report.json \
-    public/data/energia-oggi.json \
-    public/pun-oggi.html \
-    public/psv-gas-oggi.html \
-    public/offerte-luce-gas-aggiornate.html \
-    public/sitemap.xml
-  do
-    mkdir -p "$BACKUP_DIR/$(dirname "$rel")"
+  for rel in "$@"; do
+    mkdir -p "$dir/$(dirname "$rel")"
     if [ -f "$ROOT_DIR/$rel" ]; then
-      cp -p "$ROOT_DIR/$rel" "$BACKUP_DIR/$rel"
+      cp -p "$ROOT_DIR/$rel" "$dir/$rel"
     else
-      : > "$BACKUP_DIR/$rel.__missing__"
+      : > "$dir/$rel.__missing__"
     fi
   done
-  BACKUP_READY=1
 }
 
-restore_outputs() {
-  [ "$BACKUP_READY" = "1" ] || return 0
+restore_group() {
+  local group="$1"
+  shift
+  local dir="$STAGING_DIR/rollback/$group"
   local rel
-  log "Ripristino atomico dei file precedenti: l'aggiornamento non verrà pubblicato parzialmente."
-  for rel in \
-    data/calcolo-parametri.json \
-    public/data/calcolo-parametri.json \
-    data/offerte-arera-menu.json \
-    public/data/offerte-arera-menu.json \
-    data/arera-update-report.json \
-    public/data/energia-oggi.json \
-    public/pun-oggi.html \
-    public/psv-gas-oggi.html \
-    public/offerte-luce-gas-aggiornate.html \
-    public/sitemap.xml
-  do
-    if [ -f "$BACKUP_DIR/$rel.__missing__" ]; then
+  for rel in "$@"; do
+    if [ -f "$dir/$rel.__missing__" ]; then
       rm -f "$ROOT_DIR/$rel"
-    elif [ -f "$BACKUP_DIR/$rel" ]; then
+    elif [ -f "$dir/$rel" ]; then
       mkdir -p "$ROOT_DIR/$(dirname "$rel")"
-      cp -p "$BACKUP_DIR/$rel" "$ROOT_DIR/$rel"
+      cp -p "$dir/$rel" "$ROOT_DIR/$rel"
     fi
   done
 }
 
 cleanup() {
   local status=$?
-  if [ "$SUCCESS" != "1" ]; then
-    restore_outputs || true
-  fi
   [ -z "${STAGING_DIR:-}" ] || rm -rf "$STAGING_DIR"
   return "$status"
 }
@@ -407,30 +382,74 @@ for offset in $(seq 0 $((DAYS_BACK - 1))); do
 done
 
 if [ -z "$SELECTED_DATE" ]; then
-  log "ERRORE: nessuna terna ARERA E/G/D completa e valida trovata negli ultimi $DAYS_BACK giorni."
-  log "I JSON esistenti non sono stati modificati."
-  exit 1
+  log "AVVISO: nessuna terna ARERA E/G/D completa e valida trovata negli ultimi $DAYS_BACK giorni."
+  log "Il catalogo offerte resterà all'ultima versione valida; gli altri dataset continueranno ad aggiornarsi."
 fi
 
-E_FILE="$(basename "$E_PATH")"
-G_FILE="$(basename "$G_PATH")"
-D_FILE="$(basename "$D_PATH")"
-
-backup_outputs
 ensure_static_surfaces_from_main
 
-log "Rileggo e convalido oggi gli indici ufficiali ARERA usati dal calcolatore."
-python3 "$ROOT_DIR/scripts/update-arera-reference-data.py" indices --package-root "$ROOT_DIR"
+CORE_FILES=(
+  "data/calcolo-parametri.json"
+  "public/data/calcolo-parametri.json"
+  "data/offerte-arera-menu.json"
+  "public/data/offerte-arera-menu.json"
+  "data/arera-update-report.json"
+)
+PARAM_FILES=(
+  "data/calcolo-parametri.json"
+  "public/data/calcolo-parametri.json"
+)
+OFFER_FILES=(
+  "data/offerte-arera-menu.json"
+  "public/data/offerte-arera-menu.json"
+  "data/arera-update-report.json"
+)
+REGULATED_FILES=(
+  "data/calcolo-parametri.json"
+  "public/data/calcolo-parametri.json"
+  ".arera-download/regulatory-source-state.json"
+)
+ENERGY_FILES=(
+  "public/data/energia-oggi.json"
+  "public/pun-oggi.html"
+  "public/psv-gas-oggi.html"
+  "public/sitemap.xml"
+)
+OFFER_SURFACE_FILES=(
+  "public/offerte-luce-gas-aggiornate.html"
+  "public/sitemap.xml"
+)
 
-log "Controllo e aggiorno i parametri regolati dalle fonti ufficiali ARERA/ADM."
-python3 "$ROOT_DIR/scripts/update-regulated-parameters.py" --package-root "$ROOT_DIR"
+snapshot_group "core-base" "${CORE_FILES[@]}"
 
-log "Genero e valido il JSON OffertaLogica con:"
-log "- luce: $E_FILE"
-log "- gas: $G_FILE"
-log "- dual: $D_FILE"
+INDICES_STATUS="mantenuti"
+CATALOG_STATUS="mantenuto"
+REGULATED_STATUS="mantenuti"
+ENERGY_STATUS="mantenuta"
+CATALOG_UPDATED=0
+REGULATED_UPDATED=0
+ENERGY_UPDATED=0
 
-python3 - "$ROOT_DIR" "$STAGING_DIR" "$SELECTED_DATE" "$E_FILE" "$G_FILE" "$D_FILE" <<'PY'
+log "Rileggo e convalido gli indici ufficiali ARERA usati dal calcolatore."
+if python3 "$ROOT_DIR/scripts/update-arera-reference-data.py" indices --package-root "$ROOT_DIR"; then
+  INDICES_STATUS="riletti/convalidati"
+else
+  log "AVVISO: aggiornamento indici non riuscito. Mantengo gli ultimi indici validi e continuo con gli altri dataset."
+  restore_group "core-base" "${PARAM_FILES[@]}"
+fi
+
+if [ -n "$SELECTED_DATE" ]; then
+  E_FILE="$(basename "$E_PATH")"
+  G_FILE="$(basename "$G_PATH")"
+  D_FILE="$(basename "$D_PATH")"
+
+  snapshot_group "offers" "${OFFER_FILES[@]}"
+  log "Genero e valido il JSON OffertaLogica con:"
+  log "- luce: $E_FILE"
+  log "- gas: $G_FILE"
+  log "- dual: $D_FILE"
+
+  if python3 - "$ROOT_DIR" "$STAGING_DIR" "$SELECTED_DATE" "$E_FILE" "$G_FILE" "$D_FILE" <<'PY'
 from __future__ import annotations
 
 import importlib.util
@@ -502,117 +521,38 @@ print(
 )
 print(f"[ARERA-LOCALE] Staging validato: {staging_path.relative_to(root)}")
 PY
+  then
+    log "Ricalcolo il benchmark medio usando esattamente il catalogo appena generato."
+    if python3 "$ROOT_DIR/scripts/update-arera-reference-data.py" benchmark --package-root "$ROOT_DIR"; then
+      CATALOG_UPDATED=1
+      CATALOG_STATUS="aggiornato con terna $SELECTED_DATE"
+    else
+      log "AVVISO: benchmark del nuovo catalogo non valido. Ripristino solo catalogo/parametri e continuo con gli altri dataset."
+      restore_group "offers" "${OFFER_FILES[@]}"
+      restore_group "core-base" "${PARAM_FILES[@]}"
+      CATALOG_STATUS="mantenuto (benchmark non valido)"
+      INDICES_STATUS="mantenuti per coerenza col catalogo precedente"
+    fi
+  else
+    log "AVVISO: generazione del catalogo non riuscita. Ripristino solo catalogo/parametri e continuo con gli altri dataset."
+    restore_group "offers" "${OFFER_FILES[@]}"
+    restore_group "core-base" "${PARAM_FILES[@]}"
+    CATALOG_STATUS="mantenuto (generazione non valida)"
+    INDICES_STATUS="mantenuti per coerenza col catalogo precedente"
+  fi
+else
+  # Gli indici sono incorporati anche nel catalogo. Senza una terna valida non
+  # possono avanzare da soli, altrimenti catalogo e parametri divergerebbero.
+  restore_group "core-base" "${PARAM_FILES[@]}"
+  INDICES_STATUS="mantenuti per coerenza col catalogo precedente"
+fi
 
-log "Ricalcolo il benchmark medio usando esattamente il catalogo appena generato."
-python3 "$ROOT_DIR/scripts/update-arera-reference-data.py" benchmark --package-root "$ROOT_DIR"
-
-log "Aggiorno e convalido i riferimenti energia giornalieri ARERA/GME."
-ensure_pdf_reader
-python3 "$ROOT_DIR/scripts/update-energy-today.py" \
-  --output "$ROOT_DIR/public/data/energia-oggi.json" \
-  --params "$ROOT_DIR/public/data/calcolo-parametri.json" \
-  --pun-page "$ROOT_DIR/public/pun-oggi.html" \
-  --gas-page "$ROOT_DIR/public/psv-gas-oggi.html" \
-  --sitemap "$ROOT_DIR/public/sitemap.xml"
-
-log "Eseguo la validazione completa del calcolatore e del contratto dati."
-(
-  cd "$ROOT_DIR"
-  node scripts/validate-calculator-data.mjs
-)
-
-python3 - "$ROOT_DIR" "$SELECTED_DATE" <<'PY'
-from __future__ import annotations
-
-import json
-import sys
-from datetime import date
-from pathlib import Path
-
-root = Path(sys.argv[1]).resolve()
-selected_date = sys.argv[2]
-today = date.today().isoformat()
-
-def load(relative: str):
-    return json.loads((root / relative).read_text(encoding="utf-8"))
-
-catalog = load("data/offerte-arera-menu.json")
-public_catalog = load("public/data/offerte-arera-menu.json")
-params = load("data/calcolo-parametri.json")
-public_params = load("public/data/calcolo-parametri.json")
-report = load("data/arera-update-report.json")
-energy = load("public/data/energia-oggi.json")
-
-if catalog != public_catalog:
-    raise RuntimeError("Catalogo data/public non identico")
-if params != public_params:
-    raise RuntimeError("Parametri data/public non identici")
-if catalog.get("aggiornatoIl") != selected_date:
-    raise RuntimeError("Data catalogo diversa dalla terna XML selezionata")
-if catalog.get("trasformatoreVersione") != "arera-menu-v5-sconti-durata-esplicita":
-    raise RuntimeError("Catalogo prodotto da un trasformatore diverso da quello MAIN atteso")
-
-all_rows = []
-for field in ("offerte", "offerteBusiness"):
-    value = catalog.get(field)
-    if not isinstance(value, list):
-        raise RuntimeError(f"Campo catalogo {field} non valido")
-    all_rows.extend(value)
-for row in all_rows:
-    if not isinstance(row.get("sconti"), list):
-        raise RuntimeError(f"Metadata sconti assente per {row.get('codice')}")
-
-stats = catalog.get("statistiche") or {}
-for field in ("scontiTotali", "offerteConSconti", "scontiConPrezzoSupportatoFonte"):
-    if field not in stats:
-        raise RuntimeError(f"Statistica integrità sconti mancante: {field}")
-
-if params.get("aggiornatoIl") != today:
-    raise RuntimeError("Parametri economici non convalidati nella data di esecuzione")
-for key in ("pun", "psv"):
-    detail = (params.get("indiciMercato") or {}).get(key) or {}
-    if detail.get("acquisitoIl") != today:
-        raise RuntimeError(f"Indice {key.upper()} non riletto/convalidato oggi")
-for key in ("pun", "psv", "psbg"):
-    detail = (params.get("indiciMercato") or {}).get(key) or {}
-    if float((catalog.get("indiciUsati") or {}).get(key)) != float(detail.get("valore")):
-        raise RuntimeError(f"Indice {key.upper()} diverso tra catalogo e parametri")
-
-consumption_source = ((params.get("parametriCalcolo") or {}).get("profiloConsumiFonte") or {})
-profile = ((params.get("parametriCalcolo") or {}).get("profiloMedio") or {})
-if consumption_source.get("acquisitoIl") != today:
-    raise RuntimeError("Profilo consumi ARERA non riletto/convalidato oggi")
-for source_key, profile_key in (("luceConsumoKwh", "luceConsumoKwh"), ("gasConsumoSmc", "gasConsumoSmc"), ("potenzaKw", "potenzaKw")):
-    if str(consumption_source.get(source_key)) != str(profile.get(profile_key)):
-        raise RuntimeError(f"Profilo consumi non coerente: {source_key}")
-
-profile_source = ((params.get("parametriCalcolo") or {}).get("profiloMedioFonte") or {})
-if profile_source.get("catalogoVersione") != catalog.get("versioneDati"):
-    raise RuntimeError("Benchmark medio non calcolato sul catalogo corrente")
-if profile_source.get("catalogoAggiornatoIl") != catalog.get("aggiornatoIl"):
-    raise RuntimeError("Benchmark medio con data catalogo non coerente")
-if report.get("versioneDati") != catalog.get("versioneDati") or report.get("pubblicazioneAutorizzata") is not True:
-    raise RuntimeError("Report ARERA non coerente con il catalogo pubblicato")
-if energy.get("acquisitoIl") != today:
-    raise RuntimeError("Dati energia giornalieri non riletti/convalidati oggi")
-pun_daily = energy.get("pun") or {}
-ig_daily = ((energy.get("gas") or {}).get("giornaliero") or {})
-if not pun_daily.get("data") or not isinstance(pun_daily.get("valoreEurMwh"), (int, float)):
-    raise RuntimeError("PUN Index GME giornaliero mancante dopo l'acquisizione")
-if not ig_daily.get("data") or not isinstance(ig_daily.get("valoreEurMwh"), (int, float)):
-    raise RuntimeError("IG Index GME giornaliero mancante dopo l'acquisizione")
-
-print(
-    "[ARERA-LOCALE] Integrità finale OK: "
-    f"catalogo={catalog.get('versioneDati')}, parametri={params.get('versioneDati')}, "
-    f"sconti={stats.get('scontiTotali')}, acquisizione={today}."
-)
-PY
-
-python3 "$ROOT_DIR/scripts/update-sitemap-lastmod.py" --root "$ROOT_DIR"
-
+# Catalogo + pagina offerte + relativo lastmod sono una singola unità coerente.
+# Un errore SEO non deve però bloccare energia o parametri regolati.
+snapshot_group "offer-surfaces" "${OFFER_SURFACE_FILES[@]}"
 log "Verifico la coerenza SEO tra dataset, pagine e sitemap."
-python3 - "$ROOT_DIR" <<'PYSEO'
+if python3 "$ROOT_DIR/scripts/update-sitemap-lastmod.py" --root "$ROOT_DIR"; then
+  if python3 - "$ROOT_DIR" <<'PYSEO'
 from __future__ import annotations
 
 import json
@@ -662,24 +602,150 @@ print(
     f"catalogo={catalog_date}, PUN={pun_date}, PSV={gas_date}."
 )
 PYSEO
+  then
+    :
+  else
+    log "AVVISO: coerenza SEO offerte non valida. Ripristino il gruppo offerte e continuo."
+    restore_group "offer-surfaces" "${OFFER_SURFACE_FILES[@]}"
+    if [ "$CATALOG_UPDATED" = "1" ]; then
+      restore_group "core-base" "${CORE_FILES[@]}"
+      CATALOG_UPDATED=0
+      CATALOG_STATUS="mantenuto (superficie SEO non valida)"
+      INDICES_STATUS="mantenuti per coerenza col catalogo precedente"
+    fi
+  fi
+else
+  log "AVVISO: aggiornamento superficie SEO offerte non riuscito. Ripristino il gruppo offerte e continuo."
+  restore_group "offer-surfaces" "${OFFER_SURFACE_FILES[@]}"
+  if [ "$CATALOG_UPDATED" = "1" ]; then
+    restore_group "core-base" "${CORE_FILES[@]}"
+    CATALOG_UPDATED=0
+    CATALOG_STATUS="mantenuto (superficie SEO non aggiornata)"
+    INDICES_STATUS="mantenuti per coerenza col catalogo precedente"
+  fi
+fi
 
-rm -f \
-  "$DOWNLOAD_DIR"/PO_Offerte_E_MLIBERO_*.xml \
-  "$DOWNLOAD_DIR"/PO_Offerte_G_MLIBERO_*.xml \
-  "$DOWNLOAD_DIR"/PO_Offerte_D_MLIBERO_*.xml \
-  "$DOWNLOAD_DIR"/*.part
-cp -f "$E_PATH" "$G_PATH" "$D_PATH" "$DOWNLOAD_DIR/"
+log "Eseguo la validazione completa del calcolatore e del contratto dati core."
+if ! (cd "$ROOT_DIR" && node scripts/validate-calculator-data.mjs); then
+  log "AVVISO: il gruppo catalogo/parametri corrente non supera la validazione. Ripristino il core precedente; energia continuerà indipendentemente."
+  restore_group "core-base" "${CORE_FILES[@]}"
+  CATALOG_UPDATED=0
+  CATALOG_STATUS="mantenuto (validazione core non superata)"
+  INDICES_STATUS="mantenuti (validazione core non superata)"
+  # Riallinea pagina offerte e relativi lastmod al catalogo ripristinato senza
+  # toccare i lastmod energia.
+  if ! python3 "$ROOT_DIR/scripts/update-sitemap-lastmod.py" --root "$ROOT_DIR"; then
+    log "AVVISO: impossibile riallineare la superficie offerte dopo il ripristino core."
+  fi
+fi
 
-SUCCESS=1
-log "Aggiornamento completato correttamente con la terna del $SELECTED_DATE."
-log "File aggiornati:"
-log "- data/offerte-arera-menu.json"
-log "- public/data/offerte-arera-menu.json"
-log "- data/arera-update-report.json"
-log "- data/calcolo-parametri.json"
-log "- public/data/calcolo-parametri.json"
-log "- public/data/energia-oggi.json"
-log "- public/pun-oggi.html"
-log "- public/psv-gas-oggi.html"
+snapshot_group "energy" "${ENERGY_FILES[@]}"
+log "Aggiorno e convalido i riferimenti energia giornalieri ARERA/GME."
+if ensure_pdf_reader && python3 "$ROOT_DIR/scripts/update-energy-today.py" \
+  --output "$ROOT_DIR/public/data/energia-oggi.json" \
+  --params "$ROOT_DIR/public/data/calcolo-parametri.json" \
+  --pun-page "$ROOT_DIR/public/pun-oggi.html" \
+  --gas-page "$ROOT_DIR/public/psv-gas-oggi.html" \
+  --sitemap "$ROOT_DIR/public/sitemap.xml"
+then
+  if python3 - "$ROOT_DIR" <<'PYSEO'
+from __future__ import annotations
+
+import json
+import re
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1]).resolve()
+catalog = json.loads((root / "public/data/offerte-arera-menu.json").read_text(encoding="utf-8"))
+energy = json.loads((root / "public/data/energia-oggi.json").read_text(encoding="utf-8"))
+sitemap = (root / "public/sitemap.xml").read_text(encoding="utf-8")
+offers = (root / "public/offerte-luce-gas-aggiornate.html").read_text(encoding="utf-8")
+pun_page = (root / "public/pun-oggi.html").read_text(encoding="utf-8")
+gas_page = (root / "public/psv-gas-oggi.html").read_text(encoding="utf-8")
+
+def lastmod(url: str) -> str:
+    match = re.search(
+        rf"<url><loc>{re.escape(url)}</loc><lastmod>(\d{{4}}-\d{{2}}-\d{{2}})</lastmod>",
+        sitemap,
+    )
+    if not match:
+        raise RuntimeError(f"URL sitemap non trovata: {url}")
+    return match.group(1)
+
+catalog_date = str(catalog.get("aggiornatoIl") or "")
+pun_date = str((energy.get("pun") or {}).get("data") or "")
+gas_date = str(((energy.get("gas") or {}).get("giornaliero") or {}).get("data") or "")
+if lastmod("https://offertalogica.it/offerte-luce-gas-aggiornate.html") != catalog_date:
+    raise RuntimeError("lastmod offerte non coerente con il catalogo ARERA")
+for url in re.findall(r"<loc>(https://offertalogica\.it/fornitori/[^<]+\.html)</loc>", sitemap):
+    if lastmod(url) != catalog_date:
+        raise RuntimeError(f"lastmod fornitore non coerente con il catalogo ARERA: {url}")
+if lastmod("https://offertalogica.it/pun-oggi.html") != pun_date:
+    raise RuntimeError("lastmod PUN sovrascritto da un dataset diverso")
+if lastmod("https://offertalogica.it/psv-gas-oggi.html") != gas_date:
+    raise RuntimeError("lastmod PSV sovrascritto da un dataset diverso")
+if f'"dateModified":"{pun_date}"' not in pun_page:
+    raise RuntimeError("dateModified PUN non coerente")
+if f'"dateModified":"{gas_date}"' not in gas_page:
+    raise RuntimeError("dateModified PSV non coerente")
+if not re.search(rf'"dateModified"\s*:\s*"{re.escape(catalog_date)}"', offers):
+    raise RuntimeError("dateModified offerte non coerente con il catalogo ARERA")
+if 'data-energy-method="pun"' not in pun_page or 'data-energy-method="gas"' not in gas_page:
+    raise RuntimeError("sezione Fonti e metodo non gestita dall'updater energia")
+print(
+    "[ARERA-LOCALE] Coerenza SEO OK: "
+    f"catalogo={catalog_date}, PUN={pun_date}, PSV={gas_date}."
+)
+PYSEO
+  then
+    ENERGY_UPDATED=1
+    ENERGY_STATUS="riletta/convalidata"
+  else
+    log "AVVISO: dati energia generati ma superfici SEO non coerenti. Ripristino solo il gruppo energia."
+    restore_group "energy" "${ENERGY_FILES[@]}"
+    ENERGY_STATUS="mantenuta (coerenza SEO non superata)"
+  fi
+else
+  log "AVVISO: aggiornamento energia non riuscito. Mantengo l'ultima versione valida e continuo."
+  restore_group "energy" "${ENERGY_FILES[@]}"
+  ENERGY_STATUS="mantenuta (acquisizione non riuscita)"
+fi
+
+# I parametri regolati sono deliberatamente l'ultimo gruppo acquisito: un loro
+# errore o rallentamento non deve impedire che offerte ed energia già valide
+# siano disponibili al publisher GitHub.
+snapshot_group "regulated" "${REGULATED_FILES[@]}"
+log "Controllo i parametri regolati dalle fonti ufficiali ARERA/ADM."
+if python3 "$ROOT_DIR/scripts/update-regulated-parameters.py" --package-root "$ROOT_DIR"; then
+  if (cd "$ROOT_DIR" && node scripts/validate-calculator-data.mjs); then
+    REGULATED_UPDATED=1
+    REGULATED_STATUS="controllati/aggiornati"
+  else
+    log "AVVISO: parametri regolati aggiornati ma core non coerente. Ripristino solo i parametri regolati."
+    restore_group "regulated" "${REGULATED_FILES[@]}"
+    REGULATED_STATUS="mantenuti (validazione core non superata)"
+  fi
+else
+  log "AVVISO: parametri regolati non aggiornabili. Mantengo l'ultima versione valida; offerte ed energia restano disponibili."
+  restore_group "regulated" "${REGULATED_FILES[@]}"
+  REGULATED_STATUS="mantenuti (controllo non superato)"
+fi
+
+if [ "$CATALOG_UPDATED" = "1" ]; then
+  rm -f \
+    "$DOWNLOAD_DIR"/PO_Offerte_E_MLIBERO_*.xml \
+    "$DOWNLOAD_DIR"/PO_Offerte_G_MLIBERO_*.xml \
+    "$DOWNLOAD_DIR"/PO_Offerte_D_MLIBERO_*.xml \
+    "$DOWNLOAD_DIR"/*.part
+  cp -f "$E_PATH" "$G_PATH" "$D_PATH" "$DOWNLOAD_DIR/"
+fi
+
+log "Aggiornamento giornaliero completato per gruppi indipendenti."
+log "- offerte ARERA: $CATALOG_STATUS"
+log "- indici/benchmark: $INDICES_STATUS"
+log "- parametri regolati: $REGULATED_STATUS"
+log "- energia PUN/IG/PSV: $ENERGY_STATUS"
+log "Superfici pubbliche gestite in coerenza con i rispettivi dataset:"
 log "- public/offerte-luce-gas-aggiornate.html"
-log "- public/sitemap.xml"
+log "Un dataset mantenuto alla data precedente non impedisce l'aggiornamento degli altri dataset validi."
