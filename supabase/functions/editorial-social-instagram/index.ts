@@ -1,6 +1,6 @@
 const API_VERSION = "v26.0";
 const INSTAGRAM_GRAPH = "https://graph.instagram.com";
-const VERSION = "0.12.45";
+const VERSION = "0.12.50";
 const PLATFORM = "instagram";
 const MAX_ATTEMPTS = 3;
 const MAX_CAROUSEL_SLIDES = 10;
@@ -14,7 +14,7 @@ const ALLOWED_ORIGINS = new Set([
 ]);
 
 const CORS_BASE_HEADERS = {
-  "access-control-allow-headers": "authorization, apikey, content-type, x-editorial-actor-id",
+  "access-control-allow-headers": "authorization, apikey, content-type, x-editorial-actor-id, x-offertalogica-autopilot-secret",
   "access-control-allow-methods": "POST, OPTIONS",
 };
 
@@ -70,6 +70,15 @@ function bearerToken(req: Request) {
   const raw = req.headers.get("authorization") || "";
   const match = raw.match(/^Bearer\s+(.+)$/i);
   return match?.[1]?.trim() || "";
+}
+
+function secureSecretEqual(leftValue, rightValue) {
+  const left = new TextEncoder().encode(String(leftValue || ""));
+  const right = new TextEncoder().encode(String(rightValue || ""));
+  if (!left.length || left.length !== right.length) return false;
+  let diff = 0;
+  for (let index = 0; index < left.length; index += 1) diff |= left[index] ^ right[index];
+  return diff === 0;
 }
 
 function validUuid(value: string) {
@@ -158,6 +167,8 @@ async function editorialContext(req: Request): Promise<EditorialContext> {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")?.replace(/\/+$/, "") || "";
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY")?.trim() || "";
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim() || "";
+  const schedulerSecret = Deno.env.get("EDITORIAL_AUTOPILOT_INSTAGRAM_SECRET")?.trim() || "";
+  const suppliedSchedulerSecret = String(req.headers.get("x-offertalogica-autopilot-secret") || "").trim();
   const jwt = bearerToken(req);
 
   if (!supabaseUrl || !anonKey || !serviceKey) {
@@ -167,7 +178,12 @@ async function editorialContext(req: Request): Promise<EditorialContext> {
     throw Object.assign(new Error("Sessione Redazione richiesta"), { status: 401 });
   }
 
-  if (jwt === serviceKey) {
+  const schedulerRequest = Boolean(schedulerSecret && secureSecretEqual(suppliedSchedulerSecret, schedulerSecret));
+  if (suppliedSchedulerSecret && !schedulerRequest) {
+    throw Object.assign(new Error("Segreto Autopilota non valido"), { status: 401 });
+  }
+
+  if (schedulerRequest) {
     const actorId = String(req.headers.get("x-editorial-actor-id") || "").trim();
     if (!validUuid(actorId)) {
       throw Object.assign(new Error("Attore Autopilota non valido"), { status: 401 });

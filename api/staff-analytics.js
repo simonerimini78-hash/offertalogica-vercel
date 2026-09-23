@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { json } from "../lib/http.js";
 
-const VERSION = "0.12.49";
+const VERSION = "0.12.50";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -28,7 +28,7 @@ const EDITORIAL_PAGE_FETCH_TIMEOUT_MS = 20000;
 const EDITORIAL_PLAN_POST_TYPES = new Set(["article_followup", "related", "evergreen", "service", "data"]);
 const EDITORIAL_PLAN_EDITABLE_STATUSES = new Set(["draft", "approved", "cancelled"]);
 const EDITORIAL_SOCIAL_PLATFORMS = new Set(["facebook", "instagram"]);
-const EDITORIAL_SOCIAL_RUNTIME_VERSION = "0.12.45";
+const EDITORIAL_SOCIAL_RUNTIME_VERSION = "0.12.50";
 const EDITORIAL_IMAGE_DEFAULT_MODEL = "gpt-image-2";
 const EDITORIAL_IMAGE_BUCKET = "editorial-images";
 const EDITORIAL_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
@@ -2688,6 +2688,16 @@ function schedulerArticleFrequencyAllows(settings, runs, now = Date.now()) {
   return currentWeekStart - lastWeekStart >= weeks * 7 * 86400000;
 }
 
+function schedulerArticlePublishAuthRecoverable(slot, runs, schedulerKey) {
+  if (String(slot?.kind || "") !== "article_publish") return false;
+  const matching = (runs || []).filter((run) => run?.details?.scheduler_key === schedulerKey);
+  if (matching.some((run) => String(run?.status || "") !== "failed")) return false;
+  const failed = matching.filter((run) => String(run?.status || "") === "failed");
+  if (failed.length !== SCHEDULER_SLOT_MAX_ATTEMPTS_PER_DAY) return false;
+  if (failed.some((run) => String(run?.details?.recovery_reason || "") === "social_auth_secret_v0.12.50")) return false;
+  return failed.every((run) => String(run?.last_error || "").includes("Sessione Redazione non valida o scaduta"));
+}
+
 function schedulerArticlePrepareRecoverable(slot, settings, runs, schedulerKey, now = Date.now()) {
   if (String(slot?.kind || "") !== "article_prepare") return false;
   if (Number(settings?.max_articles_per_cycle) <= 0) return false;
@@ -3044,10 +3054,24 @@ async function schedulerQueuePlanSocial(item, platforms) {
   return output;
 }
 
+function schedulerSocialSecret(platform) {
+  const envName = platform === "facebook"
+    ? "EDITORIAL_AUTOPILOT_FACEBOOK_SECRET"
+    : platform === "instagram"
+      ? "EDITORIAL_AUTOPILOT_INSTAGRAM_SECRET"
+      : "";
+  const secret = envName ? env(envName) : "";
+  if (!envName || secret.length < 32) {
+    throw new Error(`Autopilota: segreto dedicato ${platform || "social"} non configurato`);
+  }
+  return secret;
+}
+
 async function schedulerSocialFunction(user, platform, action, body = {}) {
   const { url, serviceKey } = supabaseConfig();
   if (!url || !serviceKey) throw new Error("Supabase server non configurato");
   if (!EDITORIAL_SOCIAL_PLATFORMS.has(platform)) throw new Error(`Canale social non supportato: ${platform}`);
+  const schedulerSecret = schedulerSocialSecret(platform);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 210000);
   try {
@@ -3058,6 +3082,7 @@ async function schedulerSocialFunction(user, platform, action, body = {}) {
         Authorization: `Bearer ${serviceKey}`,
         "Content-Type": "application/json",
         "x-editorial-actor-id": user.id,
+        "x-offertalogica-autopilot-secret": schedulerSecret,
       },
       body: JSON.stringify({ action, ...body }),
       cache: "no-store",
@@ -3301,6 +3326,7 @@ async function schedulerPublishPlanItem(user, context, slotKind, enabledPlatform
 async function schedulerProcessSlot(slot, user, settings, runs, local) {
   const schedulerKey = `${local.date}:${slot.id}`;
   const attemptState = schedulerSlotAttemptState(runs, schedulerKey);
+  const authSecretRecovery = schedulerArticlePublishAuthRecoverable(slot, runs, schedulerKey);
   const details = {
     scheduler_key: schedulerKey,
     slot_id: slot.id,
@@ -3311,7 +3337,8 @@ async function schedulerProcessSlot(slot, user, settings, runs, local) {
     stage: "started",
     slot_only: true,
     attempt: attemptState.failedAttempts + 1,
-    max_attempts: SCHEDULER_SLOT_MAX_ATTEMPTS_PER_DAY,
+    max_attempts: authSecretRecovery ? SCHEDULER_SLOT_MAX_ATTEMPTS_PER_DAY + 1 : SCHEDULER_SLOT_MAX_ATTEMPTS_PER_DAY,
+    ...(authSecretRecovery ? { recovery_reason: "social_auth_secret_v0.12.50" } : {}),
   };
   const run = await automationSchedulerRunStart(String(slot.kind || "research"), details);
   if (!run?.id) throw new Error("Autopilota: run schedulato non creato");
@@ -3446,7 +3473,8 @@ async function editorialAutopilotTick() {
     const key = `${local.date}:${slot.id}`;
     const attemptState = schedulerSlotAttemptState(runs, key);
     if (!attemptState.consumed) return true;
-    return schedulerArticlePrepareRecoverable(slot, settings, runs, key);
+    return schedulerArticlePrepareRecoverable(slot, settings, runs, key)
+      || schedulerArticlePublishAuthRecoverable(slot, runs, key);
   })[0] || null;
   if (!due) return { ok: true, version: VERSION, active: true, action: "idle", local };
   const result = await schedulerProcessSlot(due, user, settings, runs, local);
