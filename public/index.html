@@ -201,7 +201,7 @@
             }
         }
 
-        /* OFFERTALOGICA_HOME_DISCOVERY_V1_20260916 */
+        /* OFFERTALOGICA_HOME_DISCOVERY_V2_20260923 */
         .ol-site-header { position:relative; display:flex; align-items:center; justify-content:center; gap:28px; text-align:center; padding:20px 20px 30px; }
         .ol-desktop-nav { display:flex; align-items:center; justify-content:center; gap:6px; padding:6px; border:1px solid rgba(255,255,255,.68); border-radius:18px; background:rgba(255,255,255,.46); box-shadow:0 12px 34px rgba(15,23,42,.06); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px); }
         .ol-desktop-nav a { min-height:42px; display:flex; align-items:center; padding:9px 12px; border-radius:12px; color:var(--text-color); text-decoration:none; font-size:12.5px; font-weight:800; white-space:nowrap; }
@@ -253,8 +253,11 @@
         .ol-informa-head a { color:var(--primary); font-size:12px; font-weight:850; text-decoration:none; white-space:nowrap; }
         .ol-informa-list { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:9px; }
         .ol-informa-item { min-height:74px; display:block; padding:12px; border:1px solid rgba(203,213,225,.58); border-radius:13px; background:rgba(255,255,255,.72); color:var(--text-color); text-decoration:none; }
-        .ol-informa-item strong { font-size:13px; line-height:1.35; }
+        .ol-informa-item.has-thumb { display:flex; align-items:center; gap:10px; }
+        .ol-informa-copy { display:block; min-width:0; flex:1 1 auto; }
+        .ol-informa-item strong { display:block; font-size:13px; line-height:1.35; }
         .ol-informa-item small { display:block; margin-top:5px; color:var(--text-muted); font-size:11px; }
+        .ol-informa-thumb { width:64px; height:64px; flex:0 0 64px; object-fit:cover; border:1px solid rgba(203,213,225,.58); border-radius:10px; background:rgba(241,245,249,.8); }
         .ol-business-entry { margin-top:12px; display:flex; align-items:center; justify-content:space-between; gap:15px; min-height:72px; padding:15px 17px; border:1px solid rgba(134,239,172,.48); border-radius:17px; background:linear-gradient(145deg,rgba(240,253,244,.82),rgba(255,255,255,.64)); color:var(--text-color); text-decoration:none; }
         .ol-business-entry strong { font-size:14px; }
         .ol-business-entry span { display:block; margin-top:3px; color:var(--text-muted); font-size:11.5px; }
@@ -284,6 +287,8 @@
             .ol-informa-preview { padding:15px 12px; }
             .ol-informa-list { grid-template-columns:1fr; }
             .ol-informa-item { min-height:62px; }
+            .ol-informa-item.has-thumb { min-height:70px; }
+            .ol-informa-thumb { width:56px; height:56px; flex-basis:56px; border-radius:9px; }
         }
         @media (prefers-reduced-motion:reduce) { .ol-menu-backdrop,.ol-menu-drawer,.ol-menu-toggle span,.ol-menu-toggle::before,.ol-menu-toggle::after { transition:none !important; } }
 
@@ -18890,7 +18895,7 @@ if (document.readyState === "loading") {
 
 <script src="/assets/editorial-config.js"></script>
 <script>
-/* OFFERTALOGICA_HOME_DISCOVERY_V1_20260916 */
+/* OFFERTALOGICA_HOME_DISCOVERY_V2_20260923 */
 (() => {
   const toggle=document.getElementById('ol-menu-toggle');
   const backdrop=document.getElementById('ol-menu-backdrop');
@@ -18915,10 +18920,12 @@ if (document.readyState === "loading") {
   const lists=[...document.querySelectorAll('[data-informa-list]')];
   const cfg=window.OFFERTALOGICA_EDITORIAL_CONFIG;
   if(lists.length&&cfg?.supabaseUrl&&cfg?.supabaseAnonKey){
-    const q='/rest/v1/editorial_public_articles?select=slug,title,published_at&order=published_at.desc&limit=3';
+    const q='/rest/v1/editorial_public_articles?select=slug,title,published_at,featured_image_url&order=published_at.desc&limit=3';
     fetch(cfg.supabaseUrl+q,{headers:{apikey:cfg.supabaseAnonKey,Authorization:'Bearer '+cfg.supabaseAnonKey}}).then(r=>r.ok?r.json():Promise.reject()).then(rows=>{
       if(!Array.isArray(rows)||!rows.length)return;
-      const html=rows.map(row=>{ const title=String(row.title||'Articolo').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); const slug=encodeURIComponent(row.slug||''); const date=row.published_at?new Intl.DateTimeFormat('it-IT',{day:'numeric',month:'short',year:'numeric'}).format(new Date(row.published_at)):''; return `<a class="ol-informa-item" href="/articolo.html?slug=${slug}" data-discovery-link="informa-articolo"><strong>${title}</strong>${date?`<small>${date}</small>`:''}</a>`; }).join('');
+      const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+      const safeHttpsUrl=value=>{ try{ const url=new URL(String(value||'')); return url.protocol==='https:'?url.href:''; }catch{return '';} };
+      const html=rows.map(row=>{ const title=escapeHtml(row.title||'Articolo'); const slug=encodeURIComponent(row.slug||''); const date=row.published_at?new Intl.DateTimeFormat('it-IT',{day:'numeric',month:'short',year:'numeric'}).format(new Date(row.published_at)):''; const imageUrl=safeHttpsUrl(row.featured_image_url); const thumb=imageUrl?`<img class="ol-informa-thumb" src="${escapeHtml(imageUrl)}" alt="" loading="lazy" decoding="async" width="64" height="64">`:''; return `<a class="ol-informa-item${imageUrl?' has-thumb':''}" href="/articolo.html?slug=${slug}" data-discovery-link="informa-articolo"><span class="ol-informa-copy"><strong>${title}</strong>${date?`<small>${date}</small>`:''}</span>${thumb}</a>`; }).join('');
       lists.forEach(list=>{ list.innerHTML=html; list.querySelectorAll('[data-discovery-link]').forEach(a=>a.addEventListener('click',()=>trackEvent?.('home_discovery_clicked',{item:'informa-articolo',destination:a.getAttribute('href'),placement:a.closest('.ol-landing-discovery')?'landing':'calculator'}))); });
     }).catch(()=>{});
   }
