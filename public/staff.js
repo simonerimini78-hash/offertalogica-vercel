@@ -904,28 +904,62 @@
     return String(event.dataOrigin || "").trim();
   }
 
+  const selectedAnalyticsEventFilters = new Set();
+  let analyticsEventFilterMode = "any";
+
+  function analyticsEventFilterMatchesType(filterValue, eventType) {
+    return filterValue === "__lead_otp__" ? LEAD_OTP_EVENT_TYPES.has(eventType) : eventType === filterValue;
+  }
+
+  function updateAnalyticsEventFilterUi() {
+    const summary = byId("analyticsEventFilterSummary");
+    const selected = [...selectedAnalyticsEventFilters];
+    if (summary) {
+      summary.textContent = !selected.length
+        ? "Tutti gli eventi"
+        : selected.length === 1
+          ? (selected[0] === "__lead_otp__" ? "Funnel lead / OTP" : staffEventLabel(selected[0]))
+          : `${selected.length} eventi selezionati · ${analyticsEventFilterMode === "all" ? "AND" : "OR"}`;
+    }
+    byId("analyticsEventModeAny")?.classList.toggle("active", analyticsEventFilterMode === "any");
+    byId("analyticsEventModeAll")?.classList.toggle("active", analyticsEventFilterMode === "all");
+  }
+
   function populateAnalyticsFilters() {
-    const eventSelect = byId("analyticsEventFilter");
+    const eventOptions = byId("analyticsEventFilterOptions");
     const originSelect = byId("analyticsOriginFilter");
     const sourceSelect = byId("analyticsSourceFilter");
-    if (!eventSelect || !originSelect || !sourceSelect) return;
+    if (!eventOptions || !originSelect || !sourceSelect) return;
 
-    const selectedEvent = eventSelect.value;
     const selectedOrigin = originSelect.value;
     const selectedSource = sourceSelect.value;
     const observedEventTypes = cache.analytics.map(event => String(event.eventType || "").trim()).filter(Boolean);
     const eventTypes = [...new Set([...EXPECTED_ANALYTICS_EVENT_TYPES, ...observedEventTypes])].sort();
+    const validFilters = new Set(["__lead_otp__", ...eventTypes]);
+    [...selectedAnalyticsEventFilters].forEach(value => { if (!validFilters.has(value)) selectedAnalyticsEventFilters.delete(value); });
     const origins = [...new Set(cache.analytics.map(analyticsOrigin).filter(Boolean))].sort();
     const trafficSources = Array.isArray(cache.journeySummary?.trafficSources) && cache.journeySummary.trafficSources.length
       ? cache.journeySummary.trafficSources
       : Array.isArray(cache.analyticsSummary?.trafficSources) ? cache.analyticsSummary.trafficSources : [];
 
-    eventSelect.replaceChildren(
-      node("option", { value: "", text: "Tutti gli eventi" }),
-      node("option", { value: "__lead_otp__", text: "Solo funnel lead / OTP" }),
+    const makeEventOption = (value, label) => {
+      const input = node("input", { attrs: { type: "checkbox", value } });
+      input.checked = selectedAnalyticsEventFilters.has(value);
+      input.addEventListener("change", () => {
+        if (input.checked) selectedAnalyticsEventFilters.add(value);
+        else selectedAnalyticsEventFilters.delete(value);
+        updateAnalyticsEventFilterUi();
+        closeAnalyticsSession();
+        analyticsPages.events = 1;
+        renderAnalytics();
+      });
+      return node("label", {}, [input, node("span", { text: label })]);
+    };
+    eventOptions.replaceChildren(
+      makeEventOption("__lead_otp__", "Funnel lead / OTP"),
       ...eventTypes.map(value => {
         const observed = observedEventTypes.includes(value);
-        return node("option", { value, text: observed ? staffEventLabel(value) : `${staffEventLabel(value)} (0)` });
+        return makeEventOption(value, observed ? staffEventLabel(value) : `${staffEventLabel(value)} (0)`);
       })
     );
     originSelect.replaceChildren(
@@ -939,23 +973,37 @@
         text: `${item.label || item.key} (${formatNumber(item.count || 0)})`
       }))
     );
-    eventSelect.value = eventTypes.includes(selectedEvent) || selectedEvent === "__lead_otp__" ? selectedEvent : "";
     originSelect.value = origins.includes(selectedOrigin) ? selectedOrigin : "";
     sourceSelect.value = trafficSources.some(item => String(item.key || "") === selectedSource) ? selectedSource : "";
+    updateAnalyticsEventFilterUi();
   }
 
   function filteredAnalyticsEvents() {
-    const eventFilter = String(byId("analyticsEventFilter")?.value || "");
+    const eventFilters = [...selectedAnalyticsEventFilters];
     const originFilter = String(byId("analyticsOriginFilter")?.value || "");
     const sourceFilter = String(byId("analyticsSourceFilter")?.value || "");
-    return cache.analytics.filter(event => {
-      const eventType = String(event.eventType || "");
-      const eventMatches = !eventFilter
-        || (eventFilter === "__lead_otp__" ? LEAD_OTP_EVENT_TYPES.has(eventType) : eventType === eventFilter);
+    const baseRows = cache.analytics.filter(event => {
       const originMatches = !originFilter || analyticsOrigin(event) === originFilter;
       const sourceMatches = !sourceFilter || String(event.trafficSource || "") === sourceFilter;
-      return eventMatches && originMatches && sourceMatches;
+      return originMatches && sourceMatches;
     });
+    if (!eventFilters.length) return baseRows;
+    if (analyticsEventFilterMode === "any") {
+      return baseRows.filter(event => eventFilters.some(filterValue => analyticsEventFilterMatchesType(filterValue, String(event.eventType || ""))));
+    }
+    const qualifyingSessions = new Set();
+    const rowsBySession = new Map();
+    baseRows.forEach(event => {
+      const sessionId = String(event.sessionId || "").trim();
+      if (!sessionId) return;
+      if (!rowsBySession.has(sessionId)) rowsBySession.set(sessionId, []);
+      rowsBySession.get(sessionId).push(event);
+    });
+    rowsBySession.forEach((rows, sessionId) => {
+      const types = rows.map(event => String(event.eventType || ""));
+      if (eventFilters.every(filterValue => types.some(type => analyticsEventFilterMatchesType(filterValue, type)))) qualifyingSessions.add(sessionId);
+    });
+    return baseRows.filter(event => qualifyingSessions.has(String(event.sessionId || "").trim()));
   }
 
 
@@ -1131,6 +1179,10 @@
     "activation_channel_choice_opened", "activation_channel_selected", "activation_assistant_opened", "assistance_switcho_redirect", "business_switcho_requested",
   ]);
 
+  const SESSION_SWITCHO_EVENTS = new Set([
+    "offer_switcho_redirect", "switcho_landing_opened", "assistance_switcho_redirect", "business_switcho_requested",
+  ]);
+
   const SESSION_OFFER_ACTION_EVENTS = new Set([
     "offer_click_locked", "offer_consent_opened", "offer_partner_consent_missing",
     "offer_partner_consent_confirmed", "offer_request_started", "offer_request_recorded",
@@ -1183,7 +1235,11 @@
     const types = analyticsSessionTypes(rows);
     const has = type => types.has(type);
     const hasAny = set => [...set].some(type => types.has(type));
-    if (hasAny(SESSION_COMMERCIAL_EVENTS)) return { label: "Passaggio verso partner / Switcho avviato", tone: "ok" };
+    const ordered = rows.slice().sort(compareAnalyticsEventOrder);
+    const lastSwitchoIndex = ordered.reduce((lastIndex, item, index) => SESSION_SWITCHO_EVENTS.has(String(item.eventType || "")) ? index : lastIndex, -1);
+    if (lastSwitchoIndex >= 0 && lastSwitchoIndex < ordered.length - 1) return { label: "Passaggio verso Switcho registrato · attività OL successiva", tone: "warn" };
+    if (lastSwitchoIndex >= 0) return { label: "Passaggio verso Switcho registrato · esito esterno non determinabile", tone: "info" };
+    if (hasAny(SESSION_COMMERCIAL_EVENTS)) return { label: "Passaggio verso partner registrato · esito esterno non determinabile", tone: "info" };
     if (hasAny(SESSION_OFFER_ACTION_EVENTS)) return { label: "Offerta selezionata, passaggio esterno non completato", tone: "warn" };
     if (has("offers_rendered")) return { label: "Offerte raggiunte, nessun clic commerciale", tone: "warn" };
     const latestPdfEvent = [...rows].reverse().find(item => ["pdf_analysis_completed", "pdf_analysis_interrupted"].includes(String(item.eventType || "")));
@@ -1402,6 +1458,22 @@
     return `Nel tracciato disponibile mancano ${shown}${missing.length > 12 ? " e altre sequenze" : ""}. Questo segnala un buco di telemetria: non permette di dedurre quali azioni, se presenti, non siano state registrate.`;
   }
 
+  function analyticsSequenceGapBetween(previous, current) {
+    const previousSeq = analyticsEventSequence(previous);
+    const currentSeq = analyticsEventSequence(current);
+    if (previousSeq === null || currentSeq === null || currentSeq <= previousSeq + 1) return null;
+    return { from: previousSeq + 1, to: currentSeq - 1, count: currentSeq - previousSeq - 1 };
+  }
+
+  function analyticsSequenceGapNode(gap) {
+    if (!gap) return null;
+    const range = gap.from === gap.to ? `#${gap.from}` : `#${gap.from}–#${gap.to}`;
+    return node("div", { className: "analytics-sequence-gap" }, [
+      node("strong", { text: `Sequenza ${range} non presente nei dati registrati` }),
+      node("span", { text: "Il buco è reale nel tracciato disponibile, ma non consente di sapere quali eventi o azioni, se presenti, non siano stati registrati." }),
+    ]);
+  }
+
   function analyticsNarrativePdfQuality(rows = []) {
     const completed = [...rows].reverse().find(item => String(item.eventType || "") === "pdf_analysis_completed");
     if (!completed) return null;
@@ -1498,7 +1570,13 @@
     }
 
     const commercial = ordered.find(item => SESSION_COMMERCIAL_EVENTS.has(String(item.eventType || "")));
-    if (commercial) paragraphs.push({ text: `È registrato un passaggio commerciale/partner: ${analyticsSessionEventDescription(commercial)}.`, tone: "info" });
+    const lastSwitchoIndex = ordered.reduce((lastIndex, item, index) => SESSION_SWITCHO_EVENTS.has(String(item.eventType || "")) ? index : lastIndex, -1);
+    if (lastSwitchoIndex >= 0) {
+      const switchoEvent = ordered[lastSwitchoIndex];
+      const laterOlEvents = ordered.slice(lastSwitchoIndex + 1);
+      paragraphs.push({ text: `È registrata un’azione verso Switcho: ${analyticsSessionEventDescription(switchoEvent)}. Questo dato non dimostra un esito o una conversione sul sito esterno.`, tone: "info" });
+      if (laterOlEvents.length) paragraphs.push({ text: `Dopo quell’azione risultano ${laterOlEvents.length} eventi successivi registrati da OffertaLogica nella stessa sessione. È certo che la sessione OL ha avuto attività successiva; il tracciato non permette da solo di stabilire come l’utente sia tornato alla pagina.`, tone: "warn" });
+    } else if (commercial) paragraphs.push({ text: `È registrata un’azione verso un partner: ${analyticsSessionEventDescription(commercial)}. Il tracciato OffertaLogica non dimostra l’esito sul sito esterno.`, tone: "info" });
     else if (offers) paragraphs.push({ text: "Non risulta un passaggio finale verso partner/Switcho dopo le offerte nel tracciato disponibile.", tone: "warn" });
 
     const gapText = analyticsNarrativeGapText(ordered);
@@ -1759,8 +1837,11 @@
     if (!readableRows.length) {
       list.append(node("div", { className: "analytics-session-empty", text: "Nessuna azione leggibile registrata in questa sessione." }));
     } else {
-      readableRows.forEach(group => {
+      readableRows.forEach((group, index) => {
         const item = group.item;
+        const previousItem = index > 0 ? readableRows[index - 1].items[readableRows[index - 1].items.length - 1] : null;
+        const gapNode = analyticsSequenceGapNode(analyticsSequenceGapBetween(previousItem, item));
+        if (gapNode) list.append(gapNode);
         const isAutomatic = String(item.eventType || "").startsWith("assistance_prompt_");
         const displayTimestamp = item.clientTimestamp || item.createdAt;
         const orderNote = item.sessionEventSeq != null
@@ -1780,7 +1861,9 @@
     renderAnalyticsSessionPdfDiagnostics(rows);
     clear(technicalList);
     text(byId("analyticsSessionTechnicalSummary"), `Telemetria completa 1:1 — ${rows.length} eventi`);
-    rows.forEach(item => {
+    rows.forEach((item, index) => {
+      const gapNode = analyticsSequenceGapNode(analyticsSequenceGapBetween(index > 0 ? rows[index - 1] : null, item));
+      if (gapNode) technicalList.append(gapNode);
       const origin = [item.dataOrigin ? staffDataOriginLabel(item) : "", item.page].filter(Boolean).join(" · ") || "—";
       const offer = [item.provider, item.offerName].filter(Boolean).join(" · ");
       const detail = [origin, offer, analyticsEventValueText(item) !== "—" ? analyticsEventValueText(item) : ""].filter(Boolean).join(" · ") || "—";
@@ -2190,7 +2273,9 @@
     const filteredEvents = filteredAnalyticsEvents();
     const body = byId("analyticsRows");
     clear(body);
-    text(byId("analyticsFilterInfo"), `${formatNumber(filteredEvents.length)} risultati nei ${formatNumber(cache.analytics.length)} eventi recenti caricati · CSV = archivio completo`);
+    const selectedEventCount = selectedAnalyticsEventFilters.size;
+    const filterModeLabel = selectedEventCount > 1 ? ` · filtro ${analyticsEventFilterMode === "all" ? "AND per sessione" : "OR"}` : "";
+    text(byId("analyticsFilterInfo"), `${formatNumber(filteredEvents.length)} risultati nei ${formatNumber(cache.analytics.length)} eventi recenti caricati${filterModeLabel} · CSV = archivio completo`);
     const pageData = analyticsPageRows(filteredEvents, "events");
     if (!filteredEvents.length) body.append(node("tr", {}, [node("td", { text: "Nessun evento corrisponde ai filtri selezionati.", attrs: { colspan: "7" } })]));
     pageData.rows.forEach(event => {
@@ -4650,7 +4735,8 @@
     byId("landingPathRange")?.addEventListener("change", () => loadAnalytics({ silent: true }).catch(error => setMessage("error", friendlyError(error))));
     byId("switchoRange")?.addEventListener("change", () => { analyticsPages.switcho = 1; renderSwitchoAnalytics(); });
     byId("switchoSourceFilter")?.addEventListener("change", () => { analyticsPages.switcho = 1; renderSwitchoAnalytics(); });
-    byId("analyticsEventFilter")?.addEventListener("change", () => { analyticsPages.events = 1; renderAnalytics(); });
+    byId("analyticsEventModeAny")?.addEventListener("click", () => { analyticsEventFilterMode = "any"; updateAnalyticsEventFilterUi(); closeAnalyticsSession(); analyticsPages.events = 1; renderAnalytics(); });
+    byId("analyticsEventModeAll")?.addEventListener("click", () => { analyticsEventFilterMode = "all"; updateAnalyticsEventFilterUi(); closeAnalyticsSession(); analyticsPages.events = 1; renderAnalytics(); });
     byId("analyticsOriginFilter")?.addEventListener("change", () => { analyticsPages.events = 1; renderAnalytics(); });
     byId("analyticsSourceFilter")?.addEventListener("change", () => {
       closeAnalyticsSession();
@@ -4664,7 +4750,11 @@
     });
     byId("analyticsSessionClose")?.addEventListener("click", closeAnalyticsSession);
     byId("analyticsFilterReset")?.addEventListener("click", () => {
-      if (byId("analyticsEventFilter")) byId("analyticsEventFilter").value = "";
+      selectedAnalyticsEventFilters.clear();
+      analyticsEventFilterMode = "any";
+      byId("analyticsEventFilter")?.removeAttribute("open");
+      updateAnalyticsEventFilterUi();
+      byId("analyticsEventFilterOptions")?.querySelectorAll('input[type="checkbox"]').forEach(input => { input.checked = false; });
       if (byId("analyticsOriginFilter")) byId("analyticsOriginFilter").value = "";
       if (byId("analyticsSourceFilter")) byId("analyticsSourceFilter").value = "";
       closeAnalyticsSession();
