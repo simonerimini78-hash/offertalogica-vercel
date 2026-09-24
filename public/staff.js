@@ -1716,6 +1716,8 @@
   async function openAnalyticsSession(event = {}) {
     const sessionId = String(event.sessionId || "");
     if (!sessionId) return;
+    const eventFilterPanel = byId("analyticsEventFilter");
+    if (eventFilterPanel) eventFilterPanel.open = false;
     let rows = cache.analytics
       .filter(item => String(item.sessionId || "") === sessionId)
       .slice()
