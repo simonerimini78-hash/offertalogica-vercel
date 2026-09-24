@@ -904,40 +904,66 @@
     return String(event.dataOrigin || "").trim();
   }
 
-  function selectedAnalyticsEventFilters() {
-    return [...(byId("analyticsEventFilter")?.selectedOptions || [])]
-      .map(option => String(option.value || ""))
-      .filter(Boolean);
-  }
+  const selectedAnalyticsEventFilters = new Set();
+  let analyticsEventFilterMode = "any";
 
-  function analyticsEventFilterMatches(filterValue, eventType) {
+  function analyticsEventFilterMatchesType(filterValue, eventType) {
     return filterValue === "__lead_otp__" ? LEAD_OTP_EVENT_TYPES.has(eventType) : eventType === filterValue;
   }
 
+  function updateAnalyticsEventFilterUi() {
+    const summary = byId("analyticsEventFilterSummary");
+    const selected = [...selectedAnalyticsEventFilters];
+    if (summary) {
+      summary.textContent = !selected.length
+        ? "Tutti gli eventi"
+        : selected.length === 1
+          ? (selected[0] === "__lead_otp__" ? "Funnel lead / OTP" : staffEventLabel(selected[0]))
+          : `${selected.length} eventi selezionati · ${analyticsEventFilterMode === "all" ? "AND" : "OR"}`;
+    }
+    byId("analyticsEventModeAny")?.classList.toggle("active", analyticsEventFilterMode === "any");
+    byId("analyticsEventModeAll")?.classList.toggle("active", analyticsEventFilterMode === "all");
+  }
+
   function populateAnalyticsFilters() {
-    const eventSelect = byId("analyticsEventFilter");
+    const compatibilitySelect = byId("analyticsEventFilter");
+    const eventOptions = byId("analyticsEventFilterOptions");
     const originSelect = byId("analyticsOriginFilter");
     const sourceSelect = byId("analyticsSourceFilter");
-    if (!eventSelect || !originSelect || !sourceSelect) return;
+    if (!compatibilitySelect || !eventOptions || !originSelect || !sourceSelect) return;
 
-    const selectedEvents = new Set(selectedAnalyticsEventFilters());
     const selectedOrigin = originSelect.value;
     const selectedSource = sourceSelect.value;
     const observedEventTypes = cache.analytics.map(event => String(event.eventType || "").trim()).filter(Boolean);
     const eventTypes = [...new Set([...EXPECTED_ANALYTICS_EVENT_TYPES, ...observedEventTypes])].sort();
+    const validFilters = new Set(["__lead_otp__", ...eventTypes]);
+    [...selectedAnalyticsEventFilters].forEach(value => { if (!validFilters.has(value)) selectedAnalyticsEventFilters.delete(value); });
     const origins = [...new Set(cache.analytics.map(analyticsOrigin).filter(Boolean))].sort();
     const trafficSources = Array.isArray(cache.journeySummary?.trafficSources) && cache.journeySummary.trafficSources.length
       ? cache.journeySummary.trafficSources
       : Array.isArray(cache.analyticsSummary?.trafficSources) ? cache.analyticsSummary.trafficSources : [];
 
-    eventSelect.replaceChildren(
-      node("option", { value: "__lead_otp__", text: "Funnel lead / OTP" }),
+    compatibilitySelect.replaceChildren(node("option", { value: "", text: "Tutti gli eventi" }));
+    compatibilitySelect.value = "";
+    const makeEventOption = (value, label) => {
+      const input = node("input", { attrs: { type: "checkbox", value } });
+      input.checked = selectedAnalyticsEventFilters.has(value);
+      input.addEventListener("change", () => {
+        if (input.checked) selectedAnalyticsEventFilters.add(value);
+        else selectedAnalyticsEventFilters.delete(value);
+        updateAnalyticsEventFilterUi();
+        analyticsPages.events = 1;
+        renderAnalytics();
+      });
+      return node("label", {}, [input, node("span", { text: label })]);
+    };
+    eventOptions.replaceChildren(
+      makeEventOption("__lead_otp__", "Funnel lead / OTP"),
       ...eventTypes.map(value => {
         const observed = observedEventTypes.includes(value);
-        return node("option", { value, text: observed ? staffEventLabel(value) : `${staffEventLabel(value)} (0)` });
+        return makeEventOption(value, observed ? staffEventLabel(value) : `${staffEventLabel(value)} (0)`);
       })
     );
-    [...eventSelect.options].forEach(option => { option.selected = selectedEvents.has(option.value); });
     originSelect.replaceChildren(
       node("option", { value: "", text: "Tutte le origini" }),
       ...origins.map(value => node("option", { value, text: staffDataOriginLabel(value) }))
@@ -951,11 +977,11 @@
     );
     originSelect.value = origins.includes(selectedOrigin) ? selectedOrigin : "";
     sourceSelect.value = trafficSources.some(item => String(item.key || "") === selectedSource) ? selectedSource : "";
+    updateAnalyticsEventFilterUi();
   }
 
   function filteredAnalyticsEvents() {
-    const eventFilters = selectedAnalyticsEventFilters();
-    const eventMode = String(byId("analyticsEventMode")?.value || "any");
+    const eventFilters = [...selectedAnalyticsEventFilters];
     const originFilter = String(byId("analyticsOriginFilter")?.value || "");
     const sourceFilter = String(byId("analyticsSourceFilter")?.value || "");
     const baseRows = cache.analytics.filter(event => {
@@ -964,25 +990,20 @@
       return originMatches && sourceMatches;
     });
     if (!eventFilters.length) return baseRows;
-    if (eventMode !== "all") {
-      return baseRows.filter(event => {
-        const eventType = String(event.eventType || "");
-        return eventFilters.some(filterValue => analyticsEventFilterMatches(filterValue, eventType));
-      });
+    if (analyticsEventFilterMode === "any") {
+      return baseRows.filter(event => eventFilters.some(filterValue => analyticsEventFilterMatchesType(filterValue, String(event.eventType || ""))));
     }
-
-    const sessionTypes = new Map();
+    const qualifyingSessions = new Set();
+    const rowsBySession = new Map();
     baseRows.forEach(event => {
       const sessionId = String(event.sessionId || "").trim();
       if (!sessionId) return;
-      if (!sessionTypes.has(sessionId)) sessionTypes.set(sessionId, []);
-      sessionTypes.get(sessionId).push(String(event.eventType || ""));
+      if (!rowsBySession.has(sessionId)) rowsBySession.set(sessionId, []);
+      rowsBySession.get(sessionId).push(event);
     });
-    const qualifyingSessions = new Set();
-    sessionTypes.forEach((types, sessionId) => {
-      if (eventFilters.every(filterValue => types.some(type => analyticsEventFilterMatches(filterValue, type)))) {
-        qualifyingSessions.add(sessionId);
-      }
+    rowsBySession.forEach((rows, sessionId) => {
+      const types = rows.map(event => String(event.eventType || ""));
+      if (eventFilters.every(filterValue => types.some(type => analyticsEventFilterMatchesType(filterValue, type)))) qualifyingSessions.add(sessionId);
     });
     return baseRows.filter(event => qualifyingSessions.has(String(event.sessionId || "").trim()));
   }
@@ -2219,7 +2240,9 @@
     const filteredEvents = filteredAnalyticsEvents();
     const body = byId("analyticsRows");
     clear(body);
-    text(byId("analyticsFilterInfo"), `${formatNumber(filteredEvents.length)} risultati nei ${formatNumber(cache.analytics.length)} eventi recenti caricati · CSV = archivio completo`);
+    const selectedEventCount = selectedAnalyticsEventFilters.size;
+    const filterModeLabel = selectedEventCount > 1 ? ` · filtro ${analyticsEventFilterMode === "all" ? "AND per sessione" : "OR"}` : "";
+    text(byId("analyticsFilterInfo"), `${formatNumber(filteredEvents.length)} risultati nei ${formatNumber(cache.analytics.length)} eventi recenti caricati${filterModeLabel} · CSV = archivio completo`);
     const pageData = analyticsPageRows(filteredEvents, "events");
     if (!filteredEvents.length) body.append(node("tr", {}, [node("td", { text: "Nessun evento corrisponde ai filtri selezionati.", attrs: { colspan: "7" } })]));
     pageData.rows.forEach(event => {
@@ -4680,7 +4703,8 @@
     byId("switchoRange")?.addEventListener("change", () => { analyticsPages.switcho = 1; renderSwitchoAnalytics(); });
     byId("switchoSourceFilter")?.addEventListener("change", () => { analyticsPages.switcho = 1; renderSwitchoAnalytics(); });
     byId("analyticsEventFilter")?.addEventListener("change", () => { analyticsPages.events = 1; renderAnalytics(); });
-    byId("analyticsEventMode")?.addEventListener("change", () => { analyticsPages.events = 1; renderAnalytics(); });
+    byId("analyticsEventModeAny")?.addEventListener("click", () => { analyticsEventFilterMode = "any"; updateAnalyticsEventFilterUi(); analyticsPages.events = 1; renderAnalytics(); });
+    byId("analyticsEventModeAll")?.addEventListener("click", () => { analyticsEventFilterMode = "all"; updateAnalyticsEventFilterUi(); analyticsPages.events = 1; renderAnalytics(); });
     byId("analyticsOriginFilter")?.addEventListener("change", () => { analyticsPages.events = 1; renderAnalytics(); });
     byId("analyticsSourceFilter")?.addEventListener("change", () => {
       closeAnalyticsSession();
@@ -4694,10 +4718,12 @@
     });
     byId("analyticsSessionClose")?.addEventListener("click", closeAnalyticsSession);
     byId("analyticsFilterReset")?.addEventListener("click", () => {
-      if (byId("analyticsEventFilter")) {
-        [...byId("analyticsEventFilter").options].forEach(option => { option.selected = false; });
-      }
-      if (byId("analyticsEventMode")) byId("analyticsEventMode").value = "any";
+      if (byId("analyticsEventFilter")) byId("analyticsEventFilter").value = "";
+      selectedAnalyticsEventFilters.clear();
+      analyticsEventFilterMode = "any";
+      byId("analyticsEventFilterPanel")?.removeAttribute("open");
+      byId("analyticsEventFilterOptions")?.querySelectorAll('input[type="checkbox"]').forEach(input => { input.checked = false; });
+      updateAnalyticsEventFilterUi();
       if (byId("analyticsOriginFilter")) byId("analyticsOriginFilter").value = "";
       if (byId("analyticsSourceFilter")) byId("analyticsSourceFilter").value = "";
       closeAnalyticsSession();
