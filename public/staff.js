@@ -904,13 +904,23 @@
     return String(event.dataOrigin || "").trim();
   }
 
+  function selectedAnalyticsEventFilters() {
+    return [...(byId("analyticsEventFilter")?.selectedOptions || [])]
+      .map(option => String(option.value || ""))
+      .filter(Boolean);
+  }
+
+  function analyticsEventFilterMatches(filterValue, eventType) {
+    return filterValue === "__lead_otp__" ? LEAD_OTP_EVENT_TYPES.has(eventType) : eventType === filterValue;
+  }
+
   function populateAnalyticsFilters() {
     const eventSelect = byId("analyticsEventFilter");
     const originSelect = byId("analyticsOriginFilter");
     const sourceSelect = byId("analyticsSourceFilter");
     if (!eventSelect || !originSelect || !sourceSelect) return;
 
-    const selectedEvent = eventSelect.value;
+    const selectedEvents = new Set(selectedAnalyticsEventFilters());
     const selectedOrigin = originSelect.value;
     const selectedSource = sourceSelect.value;
     const observedEventTypes = cache.analytics.map(event => String(event.eventType || "").trim()).filter(Boolean);
@@ -921,13 +931,13 @@
       : Array.isArray(cache.analyticsSummary?.trafficSources) ? cache.analyticsSummary.trafficSources : [];
 
     eventSelect.replaceChildren(
-      node("option", { value: "", text: "Tutti gli eventi" }),
-      node("option", { value: "__lead_otp__", text: "Solo funnel lead / OTP" }),
+      node("option", { value: "__lead_otp__", text: "Funnel lead / OTP" }),
       ...eventTypes.map(value => {
         const observed = observedEventTypes.includes(value);
         return node("option", { value, text: observed ? staffEventLabel(value) : `${staffEventLabel(value)} (0)` });
       })
     );
+    [...eventSelect.options].forEach(option => { option.selected = selectedEvents.has(option.value); });
     originSelect.replaceChildren(
       node("option", { value: "", text: "Tutte le origini" }),
       ...origins.map(value => node("option", { value, text: staffDataOriginLabel(value) }))
@@ -939,23 +949,42 @@
         text: `${item.label || item.key} (${formatNumber(item.count || 0)})`
       }))
     );
-    eventSelect.value = eventTypes.includes(selectedEvent) || selectedEvent === "__lead_otp__" ? selectedEvent : "";
     originSelect.value = origins.includes(selectedOrigin) ? selectedOrigin : "";
     sourceSelect.value = trafficSources.some(item => String(item.key || "") === selectedSource) ? selectedSource : "";
   }
 
   function filteredAnalyticsEvents() {
-    const eventFilter = String(byId("analyticsEventFilter")?.value || "");
+    const eventFilters = selectedAnalyticsEventFilters();
+    const eventMode = String(byId("analyticsEventMode")?.value || "any");
     const originFilter = String(byId("analyticsOriginFilter")?.value || "");
     const sourceFilter = String(byId("analyticsSourceFilter")?.value || "");
-    return cache.analytics.filter(event => {
-      const eventType = String(event.eventType || "");
-      const eventMatches = !eventFilter
-        || (eventFilter === "__lead_otp__" ? LEAD_OTP_EVENT_TYPES.has(eventType) : eventType === eventFilter);
+    const baseRows = cache.analytics.filter(event => {
       const originMatches = !originFilter || analyticsOrigin(event) === originFilter;
       const sourceMatches = !sourceFilter || String(event.trafficSource || "") === sourceFilter;
-      return eventMatches && originMatches && sourceMatches;
+      return originMatches && sourceMatches;
     });
+    if (!eventFilters.length) return baseRows;
+    if (eventMode !== "all") {
+      return baseRows.filter(event => {
+        const eventType = String(event.eventType || "");
+        return eventFilters.some(filterValue => analyticsEventFilterMatches(filterValue, eventType));
+      });
+    }
+
+    const sessionTypes = new Map();
+    baseRows.forEach(event => {
+      const sessionId = String(event.sessionId || "").trim();
+      if (!sessionId) return;
+      if (!sessionTypes.has(sessionId)) sessionTypes.set(sessionId, []);
+      sessionTypes.get(sessionId).push(String(event.eventType || ""));
+    });
+    const qualifyingSessions = new Set();
+    sessionTypes.forEach((types, sessionId) => {
+      if (eventFilters.every(filterValue => types.some(type => analyticsEventFilterMatches(filterValue, type)))) {
+        qualifyingSessions.add(sessionId);
+      }
+    });
+    return baseRows.filter(event => qualifyingSessions.has(String(event.sessionId || "").trim()));
   }
 
 
@@ -4651,6 +4680,7 @@
     byId("switchoRange")?.addEventListener("change", () => { analyticsPages.switcho = 1; renderSwitchoAnalytics(); });
     byId("switchoSourceFilter")?.addEventListener("change", () => { analyticsPages.switcho = 1; renderSwitchoAnalytics(); });
     byId("analyticsEventFilter")?.addEventListener("change", () => { analyticsPages.events = 1; renderAnalytics(); });
+    byId("analyticsEventMode")?.addEventListener("change", () => { analyticsPages.events = 1; renderAnalytics(); });
     byId("analyticsOriginFilter")?.addEventListener("change", () => { analyticsPages.events = 1; renderAnalytics(); });
     byId("analyticsSourceFilter")?.addEventListener("change", () => {
       closeAnalyticsSession();
@@ -4664,7 +4694,10 @@
     });
     byId("analyticsSessionClose")?.addEventListener("click", closeAnalyticsSession);
     byId("analyticsFilterReset")?.addEventListener("click", () => {
-      if (byId("analyticsEventFilter")) byId("analyticsEventFilter").value = "";
+      if (byId("analyticsEventFilter")) {
+        [...byId("analyticsEventFilter").options].forEach(option => { option.selected = false; });
+      }
+      if (byId("analyticsEventMode")) byId("analyticsEventMode").value = "any";
       if (byId("analyticsOriginFilter")) byId("analyticsOriginFilter").value = "";
       if (byId("analyticsSourceFilter")) byId("analyticsSourceFilter").value = "";
       closeAnalyticsSession();
