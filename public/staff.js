@@ -926,10 +926,11 @@
   }
 
   function populateAnalyticsFilters() {
+    const compatibilitySelect = byId("analyticsEventFilter");
     const eventOptions = byId("analyticsEventFilterOptions");
     const originSelect = byId("analyticsOriginFilter");
     const sourceSelect = byId("analyticsSourceFilter");
-    if (!eventOptions || !originSelect || !sourceSelect) return;
+    if (!compatibilitySelect || !eventOptions || !originSelect || !sourceSelect) return;
 
     const selectedOrigin = originSelect.value;
     const selectedSource = sourceSelect.value;
@@ -942,6 +943,8 @@
       ? cache.journeySummary.trafficSources
       : Array.isArray(cache.analyticsSummary?.trafficSources) ? cache.analyticsSummary.trafficSources : [];
 
+    compatibilitySelect.replaceChildren(node("option", { value: "", text: "Tutti gli eventi" }));
+    compatibilitySelect.value = "";
     const makeEventOption = (value, label) => {
       const input = node("input", { attrs: { type: "checkbox", value } });
       input.checked = selectedAnalyticsEventFilters.has(value);
@@ -949,7 +952,6 @@
         if (input.checked) selectedAnalyticsEventFilters.add(value);
         else selectedAnalyticsEventFilters.delete(value);
         updateAnalyticsEventFilterUi();
-        closeAnalyticsSession();
         analyticsPages.events = 1;
         renderAnalytics();
       });
@@ -1005,7 +1007,6 @@
     });
     return baseRows.filter(event => qualifyingSessions.has(String(event.sessionId || "").trim()));
   }
-
 
   function analyticsEventSequence(event = {}) {
     const raw = event.sessionEventSeq ?? event.session_event_seq;
@@ -1179,10 +1180,6 @@
     "activation_channel_choice_opened", "activation_channel_selected", "activation_assistant_opened", "assistance_switcho_redirect", "business_switcho_requested",
   ]);
 
-  const SESSION_SWITCHO_EVENTS = new Set([
-    "offer_switcho_redirect", "switcho_landing_opened", "assistance_switcho_redirect", "business_switcho_requested",
-  ]);
-
   const SESSION_OFFER_ACTION_EVENTS = new Set([
     "offer_click_locked", "offer_consent_opened", "offer_partner_consent_missing",
     "offer_partner_consent_confirmed", "offer_request_started", "offer_request_recorded",
@@ -1235,11 +1232,7 @@
     const types = analyticsSessionTypes(rows);
     const has = type => types.has(type);
     const hasAny = set => [...set].some(type => types.has(type));
-    const ordered = rows.slice().sort(compareAnalyticsEventOrder);
-    const lastSwitchoIndex = ordered.reduce((lastIndex, item, index) => SESSION_SWITCHO_EVENTS.has(String(item.eventType || "")) ? index : lastIndex, -1);
-    if (lastSwitchoIndex >= 0 && lastSwitchoIndex < ordered.length - 1) return { label: "Passaggio verso Switcho registrato · attività OL successiva", tone: "warn" };
-    if (lastSwitchoIndex >= 0) return { label: "Passaggio verso Switcho registrato · esito esterno non determinabile", tone: "info" };
-    if (hasAny(SESSION_COMMERCIAL_EVENTS)) return { label: "Passaggio verso partner registrato · esito esterno non determinabile", tone: "info" };
+    if (hasAny(SESSION_COMMERCIAL_EVENTS)) return { label: "Passaggio verso partner / Switcho avviato", tone: "ok" };
     if (hasAny(SESSION_OFFER_ACTION_EVENTS)) return { label: "Offerta selezionata, passaggio esterno non completato", tone: "warn" };
     if (has("offers_rendered")) return { label: "Offerte raggiunte, nessun clic commerciale", tone: "warn" };
     const latestPdfEvent = [...rows].reverse().find(item => ["pdf_analysis_completed", "pdf_analysis_interrupted"].includes(String(item.eventType || "")));
@@ -1462,7 +1455,7 @@
     const previousSeq = analyticsEventSequence(previous);
     const currentSeq = analyticsEventSequence(current);
     if (previousSeq === null || currentSeq === null || currentSeq <= previousSeq + 1) return null;
-    return { from: previousSeq + 1, to: currentSeq - 1, count: currentSeq - previousSeq - 1 };
+    return { from: previousSeq + 1, to: currentSeq - 1 };
   }
 
   function analyticsSequenceGapNode(gap) {
@@ -1470,7 +1463,7 @@
     const range = gap.from === gap.to ? `#${gap.from}` : `#${gap.from}–#${gap.to}`;
     return node("div", { className: "analytics-sequence-gap" }, [
       node("strong", { text: `Sequenza ${range} non presente nei dati registrati` }),
-      node("span", { text: "Il buco è reale nel tracciato disponibile, ma non consente di sapere quali eventi o azioni, se presenti, non siano stati registrati." }),
+      node("span", { text: "Il tracciato disponibile non consente di stabilire quali eventi o azioni, se presenti, corrispondessero a questi numeri." }),
     ]);
   }
 
@@ -1570,13 +1563,7 @@
     }
 
     const commercial = ordered.find(item => SESSION_COMMERCIAL_EVENTS.has(String(item.eventType || "")));
-    const lastSwitchoIndex = ordered.reduce((lastIndex, item, index) => SESSION_SWITCHO_EVENTS.has(String(item.eventType || "")) ? index : lastIndex, -1);
-    if (lastSwitchoIndex >= 0) {
-      const switchoEvent = ordered[lastSwitchoIndex];
-      const laterOlEvents = ordered.slice(lastSwitchoIndex + 1);
-      paragraphs.push({ text: `È registrata un’azione verso Switcho: ${analyticsSessionEventDescription(switchoEvent)}. Questo dato non dimostra un esito o una conversione sul sito esterno.`, tone: "info" });
-      if (laterOlEvents.length) paragraphs.push({ text: `Dopo quell’azione risultano ${laterOlEvents.length} eventi successivi registrati da OffertaLogica nella stessa sessione. È certo che la sessione OL ha avuto attività successiva; il tracciato non permette da solo di stabilire come l’utente sia tornato alla pagina.`, tone: "warn" });
-    } else if (commercial) paragraphs.push({ text: `È registrata un’azione verso un partner: ${analyticsSessionEventDescription(commercial)}. Il tracciato OffertaLogica non dimostra l’esito sul sito esterno.`, tone: "info" });
+    if (commercial) paragraphs.push({ text: `È registrato un passaggio commerciale/partner: ${analyticsSessionEventDescription(commercial)}.`, tone: "info" });
     else if (offers) paragraphs.push({ text: "Non risulta un passaggio finale verso partner/Switcho dopo le offerte nel tracciato disponibile.", tone: "warn" });
 
     const gapText = analyticsNarrativeGapText(ordered);
@@ -1716,8 +1703,6 @@
   async function openAnalyticsSession(event = {}) {
     const sessionId = String(event.sessionId || "");
     if (!sessionId) return;
-    const eventFilterPanel = byId("analyticsEventFilter");
-    if (eventFilterPanel) eventFilterPanel.open = false;
     let rows = cache.analytics
       .filter(item => String(item.sessionId || "") === sessionId)
       .slice()
@@ -4737,8 +4722,9 @@
     byId("landingPathRange")?.addEventListener("change", () => loadAnalytics({ silent: true }).catch(error => setMessage("error", friendlyError(error))));
     byId("switchoRange")?.addEventListener("change", () => { analyticsPages.switcho = 1; renderSwitchoAnalytics(); });
     byId("switchoSourceFilter")?.addEventListener("change", () => { analyticsPages.switcho = 1; renderSwitchoAnalytics(); });
-    byId("analyticsEventModeAny")?.addEventListener("click", () => { analyticsEventFilterMode = "any"; updateAnalyticsEventFilterUi(); closeAnalyticsSession(); analyticsPages.events = 1; renderAnalytics(); });
-    byId("analyticsEventModeAll")?.addEventListener("click", () => { analyticsEventFilterMode = "all"; updateAnalyticsEventFilterUi(); closeAnalyticsSession(); analyticsPages.events = 1; renderAnalytics(); });
+    byId("analyticsEventFilter")?.addEventListener("change", () => { analyticsPages.events = 1; renderAnalytics(); });
+    byId("analyticsEventModeAny")?.addEventListener("click", () => { analyticsEventFilterMode = "any"; updateAnalyticsEventFilterUi(); analyticsPages.events = 1; renderAnalytics(); });
+    byId("analyticsEventModeAll")?.addEventListener("click", () => { analyticsEventFilterMode = "all"; updateAnalyticsEventFilterUi(); analyticsPages.events = 1; renderAnalytics(); });
     byId("analyticsOriginFilter")?.addEventListener("change", () => { analyticsPages.events = 1; renderAnalytics(); });
     byId("analyticsSourceFilter")?.addEventListener("change", () => {
       closeAnalyticsSession();
@@ -4752,11 +4738,12 @@
     });
     byId("analyticsSessionClose")?.addEventListener("click", closeAnalyticsSession);
     byId("analyticsFilterReset")?.addEventListener("click", () => {
+      if (byId("analyticsEventFilter")) byId("analyticsEventFilter").value = "";
       selectedAnalyticsEventFilters.clear();
       analyticsEventFilterMode = "any";
-      byId("analyticsEventFilter")?.removeAttribute("open");
-      updateAnalyticsEventFilterUi();
+      byId("analyticsEventFilterPanel")?.removeAttribute("open");
       byId("analyticsEventFilterOptions")?.querySelectorAll('input[type="checkbox"]').forEach(input => { input.checked = false; });
+      updateAnalyticsEventFilterUi();
       if (byId("analyticsOriginFilter")) byId("analyticsOriginFilter").value = "";
       if (byId("analyticsSourceFilter")) byId("analyticsSourceFilter").value = "";
       closeAnalyticsSession();
