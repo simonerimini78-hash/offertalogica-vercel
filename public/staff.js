@@ -94,6 +94,7 @@
     activation_channel_selected: "Canale attivazione selezionato",
     activation_data_copied: "Dati attivazione copiati",
     activation_assistant_opened: "Assistente attivazione aperto",
+    offer_card_clicked: "Card offerta cliccata",
     offer_click_locked: "Offerta selezionata",
     offer_consent_opened: "Consenso offerta aperto",
     offer_partner_consent_missing: "Consenso partner mancante",
@@ -735,6 +736,7 @@
     ["pdfSelected", "PDF"],
     ["comparisons", "Confronto completato"],
     ["offersViewed", "Offerte viste"],
+    ["cardClicked", "Card cliccate"],
     ["switcho", "Switcho"]
   ];
 
@@ -751,11 +753,14 @@
     const entries = Number(funnel.entries || 0);
     sessionFunnelDefinitions.forEach(([key, label]) => {
       const count = Number(funnel[key] || 0);
+      const offersViewed = Number(funnel.offersViewed || 0);
       const detail = key === "entries"
         ? "Sessioni uniche"
-        : entries
-          ? `${formatNumber((count / entries) * 100, 1)}% degli ingressi`
-          : "— degli ingressi";
+        : key === "cardClicked"
+          ? (offersViewed ? `${formatNumber((count / offersViewed) * 100, 1)}% delle sessioni che hanno visto offerte` : "— delle sessioni che hanno visto offerte")
+          : entries
+            ? `${formatNumber((count / entries) * 100, 1)}% degli ingressi`
+            : "— degli ingressi";
       target.append(node("div", { className: "funnel-step" }, [
         node("strong", { text: count }), node("span", { text: label }), node("small", { text: detail })
       ]));
@@ -1144,7 +1149,7 @@
         event.engagementOffersReachedSeconds != null && Number(event.engagementOffersReachedSeconds) > 0 ? `alle offerte ${formatDurationSeconds(event.engagementOffersReachedSeconds)}` : "",
       ].filter(Boolean).join(" · ") || "—";
     }
-    const selectedOfferValueEvent = ["offer_click_locked", "offer_consent_opened", "offer_partner_consent_confirmed", "offer_request_started", "offer_request_recorded", "offer_switcho_redirect", "switcho_landing_opened", "provider_site_redirect", "offer_redirect", "partner_funnel_opened", "activation_channel_choice_opened", "activation_channel_selected"].includes(String(event.eventType || ""));
+    const selectedOfferValueEvent = ["offer_card_clicked", "offer_click_locked", "offer_consent_opened", "offer_partner_consent_confirmed", "offer_request_started", "offer_request_recorded", "offer_switcho_redirect", "switcho_landing_opened", "provider_site_redirect", "offer_redirect", "partner_funnel_opened", "activation_channel_choice_opened", "activation_channel_selected"].includes(String(event.eventType || ""));
     const savingValue = selectedOfferValueEvent && event.annualDelta != null ? event.annualDelta : event.bestSaving;
     const routeLabels = { offertalogica_partner: "partner OffertaLogica", switcho_provider: "Switcho", provider_site: "sito fornitore", no_route: "nessun percorso" };
     const channelLabels = { bill_upload: "carica bolletta", switcho: "Switcho", provider_site: "sito fornitore", partner_redirect: "offerta partner" };
@@ -1170,7 +1175,7 @@
     "landing_self_service_click", "landing_assisted_click", "landing_free_app_click", "landing_premium_app_click",
     "comparison_path_selected", "comparison_started", "pdf_picker_opened", "pdf_file_selected", "pdf_analysis_started", "pdf_analysis_interrupted", "lead_modal_opened", "otp_request_started", "otp_verified",
     "activation_channel_choice_opened", "activation_channel_selected", "provider_site_redirect",
-    "offer_click_locked", "offer_consent_opened", "offer_partner_consent_confirmed", "offer_request_started",
+    "offer_card_clicked", "offer_click_locked", "offer_consent_opened", "offer_partner_consent_confirmed", "offer_request_started",
     "offer_request_recorded", "offer_switcho_redirect", "switcho_landing_opened", "offer_redirect",
     "partner_funnel_opened", "business_photovoltaic_tool_opened", "assistance_guide_opened",
     "assistance_callback_started", "assistance_callback_verified", "assistance_switcho_redirect",
@@ -1182,7 +1187,7 @@
   ]);
 
   const SESSION_OFFER_ACTION_EVENTS = new Set([
-    "offer_click_locked", "offer_consent_opened", "offer_partner_consent_missing",
+    "offer_card_clicked", "offer_click_locked", "offer_consent_opened", "offer_partner_consent_missing",
     "offer_partner_consent_confirmed", "offer_request_started", "offer_request_recorded",
     "offer_switcho_redirect", "switcho_landing_opened", "provider_site_redirect", "offer_redirect", "partner_funnel_opened",
     "activation_channel_choice_opened", "activation_channel_selected",
@@ -1193,7 +1198,7 @@
     "calculator_view", "comparison_path_selected", "comparison_started", "comparison_completed", "offers_rendered",
     "offers_bill_prompt_clicked", "pdf_picker_opened", "pdf_file_selected", "pdf_analysis_started", "pdf_analysis_completed", "pdf_analysis_interrupted", "pdf_data_confirmed",
     "lead_modal_opened", "otp_request_started", "otp_sent", "otp_verified",
-    "offer_click_locked", "offer_consent_opened", "offer_partner_consent_missing", "offer_partner_consent_confirmed",
+    "offer_card_clicked", "offer_click_locked", "offer_consent_opened", "offer_partner_consent_missing", "offer_partner_consent_confirmed",
     "offer_request_started", "offer_request_recorded", "offer_request_failed", "offer_switcho_redirect",
     "activation_channel_choice_opened", "activation_channel_selected", "provider_site_redirect",
     "switcho_landing_opened", "offer_redirect", "partner_funnel_opened",
@@ -1295,6 +1300,7 @@
       "offer_request_started",
       "offer_partner_consent_confirmed",
       "offer_consent_opened",
+      "offer_card_clicked",
       "offer_click_locked",
       "switcho_landing_opened",
     ];
@@ -1356,6 +1362,7 @@
       otp_request_started: "Ha richiesto l’invio dell’SMS",
       otp_sent: "SMS inviato",
       otp_verified: "Numero verificato",
+      offer_card_clicked: providerOffer ? `Ha cliccato la card ${providerOffer}` : "Ha cliccato una card offerta",
       offer_click_locked: providerOffer ? `Ha selezionato ${providerOffer}` : "Ha selezionato un’offerta",
       offer_consent_opened: providerOffer ? `Ha aperto il consenso per ${providerOffer}` : "Ha aperto il consenso dell’offerta",
       offer_partner_consent_confirmed: "Consenso partner confermato",

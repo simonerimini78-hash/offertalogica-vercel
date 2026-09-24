@@ -809,6 +809,7 @@ function topEntries(map, limit = 8) {
 }
 
 const OFFER_SELECTION_EVENT_TYPES = Object.freeze([
+  "offer_card_clicked",
   "activation_channel_choice_opened",
   "activation_channel_selected",
   "provider_site_redirect",
@@ -844,6 +845,8 @@ async function fetchOfferSelectionPage(from, offset = 0) {
 
 function offerSelectionSummaryFromRows(rows = []) {
   const uniqueSelections = new Map();
+  const cardClickSessions = new Set();
+  const cardClickSessionsBySource = new Map();
   (Array.isArray(rows) ? rows : []).forEach((row) => {
     const payload = rawAnalyticsPayload(row);
     if (payload.staffMode === true || String(payload.trafficAgent || "").toLowerCase() === "automation") return;
@@ -851,6 +854,12 @@ function offerSelectionSummaryFromRows(rows = []) {
     const offerName = String(payload.offerName || "").trim();
     if (!provider && !offerName) return;
     const sessionId = String(payload.sessionId || "").trim() || `event:${row.id || ""}`;
+    if (String(row?.event_type || "") === "offer_card_clicked") {
+      cardClickSessions.add(sessionId);
+      const sourceKey = normalizeTrafficSource(payload.trafficSource || payload.source || "direct");
+      if (!cardClickSessionsBySource.has(sourceKey)) cardClickSessionsBySource.set(sourceKey, new Set());
+      cardClickSessionsBySource.get(sourceKey).add(sessionId);
+    }
     const offerIdentity = String(payload.offerId || "").trim() || `${provider}::${offerName}`;
     const key = `${sessionId}::${offerIdentity}`;
     if (!uniqueSelections.has(key)) uniqueSelections.set(key, { provider, offerName });
@@ -864,13 +873,15 @@ function offerSelectionSummaryFromRows(rows = []) {
   });
   return {
     selections: uniqueSelections.size,
+    cardClicks: cardClickSessions.size,
+    cardClicksBySource: Object.fromEntries([...cardClickSessionsBySource.entries()].map(([key, sessions]) => [key, sessions.size])),
     topProviders: topEntries(byProvider, 100),
     topOffers: topEntries(byOffer, 100),
   };
 }
 
 async function loadOfferSelectionSummary(from = CAMPAIGN_BASELINE_ISO) {
-  if (!customerDbConfiguredForLandingAnalytics()) return { selections: 0, topProviders: [], topOffers: [] };
+  if (!customerDbConfiguredForLandingAnalytics()) return { selections: 0, cardClicks: 0, cardClicksBySource: {}, topProviders: [], topOffers: [] };
   const rows = [];
   for (let offset = 0; offset < OFFER_SELECTION_MAX_ROWS; offset += OFFER_SELECTION_PAGE_SIZE) {
     const page = await fetchOfferSelectionPage(from, offset);
@@ -1176,6 +1187,7 @@ function sessionFunnelFromGroups(groups = []) {
     otpSent: 0,
     otpVerified: 0,
     offersUnlocked: 0,
+    cardClicked: 0,
     offerAction: 0,
     redirects: 0,
   };
@@ -1208,7 +1220,8 @@ function sessionFunnelFromGroups(groups = []) {
     if (eventTypes.has("otp_sent")) funnel.otpSent += 1;
     if (eventTypes.has("otp_verified")) funnel.otpVerified += 1;
     if (eventTypes.has("offers_unlocked")) funnel.offersUnlocked += 1;
-    if (["offer_consent_opened", "offer_partner_consent_confirmed", "offer_switcho_redirect", "offer_redirect", "offer_request_recorded"].some((type) => eventTypes.has(type))) {
+    if (eventTypes.has("offer_card_clicked")) funnel.cardClicked += 1;
+    if (["offer_card_clicked", "offer_click_locked", "activation_channel_choice_opened", "activation_channel_selected", "offer_consent_opened", "offer_partner_consent_confirmed", "offer_switcho_redirect", "offer_redirect", "offer_request_recorded"].some((type) => eventTypes.has(type))) {
       funnel.offerAction += 1;
     }
     if (eventTypes.has("offer_redirect") || hasSwitcho) funnel.redirects += 1;
@@ -1681,7 +1694,7 @@ function analyticsSessionExportRows(rawRows = []) {
     const visitor = visitorDescriptor(ordered);
     const leadId = ordered.map((event) => event.leadId).find(Boolean) || "";
     const offersViewed = ordered.some((event) => event.eventType === "offers_rendered" && !isAutomaticLandingPreview(event));
-    const offerAction = ["offer_click_locked", "offer_consent_opened", "offer_partner_consent_confirmed", "offer_switcho_redirect", "offer_redirect", "offer_request_recorded"].some((type) => eventTypes.has(type));
+    const offerAction = ["offer_card_clicked", "offer_click_locked", "activation_channel_choice_opened", "activation_channel_selected", "offer_consent_opened", "offer_partner_consent_confirmed", "offer_switcho_redirect", "offer_redirect", "offer_request_recorded"].some((type) => eventTypes.has(type));
 
     const intentTerm = String(attribution.trafficTerm || "").trim();
     let intent = intentTerm;
@@ -2186,12 +2199,28 @@ export default async function handler(req, res) {
   }));
   const clickedProviders = decorateRouteRows(rawClickedProviders, providerRouteMap);
   const clickedOffers = decorateRouteRows(rawClickedOffers, offerRouteMap);
+  const mergedSessionFunnel = {
+    ...(recentJourneySummary.sessionFunnel || {}),
+    ...(exactSummary?.sessionFunnel || {}),
+  };
+  if (offerSelectionSummary) mergedSessionFunnel.cardClicked = Number(offerSelectionSummary.cardClicks || 0);
+  const recentFunnelsBySource = recentJourneySummary.sessionFunnelsBySource || {};
+  const exactFunnelsBySource = exactSummary?.sessionFunnelsBySource || {};
+  const cardClicksBySource = offerSelectionSummary?.cardClicksBySource || {};
+  const mergedSessionFunnelsBySource = {};
+  new Set([...Object.keys(recentFunnelsBySource), ...Object.keys(exactFunnelsBySource), ...Object.keys(cardClicksBySource)]).forEach((sourceKey) => {
+    mergedSessionFunnelsBySource[sourceKey] = {
+      ...(recentFunnelsBySource[sourceKey] || {}),
+      ...(exactFunnelsBySource[sourceKey] || {}),
+      cardClicked: Number(cardClicksBySource[sourceKey] || 0),
+    };
+  });
   const summary = exactSummary
     ? { ...(result.summary || {}), ...exactSummary, topProviders: clickedProviders, topOffers: clickedOffers, funnel: exactSummary.activity || exactSummary.funnel || result.summary?.funnel || {} }
     : { ...(result.summary || {}), topProviders: clickedProviders, topOffers: clickedOffers };
   const journeySummary = exactSummary
-    ? { ...recentJourneySummary, ...exactSummary, topProviders: clickedProviders, topOffers: clickedOffers, offerSelections: offerSelectionSummary?.selections ?? exactSummary.offerSelections ?? recentJourneySummary.offerAction ?? 0, activity: exactSummary.activity || recentJourneySummary.activity || {}, sessionFunnel: exactSummary.sessionFunnel || recentJourneySummary.sessionFunnel || {}, sessionFunnelsBySource: exactSummary.sessionFunnelsBySource || recentJourneySummary.sessionFunnelsBySource || {} }
-    : { ...recentJourneySummary, topProviders: clickedProviders, topOffers: clickedOffers, offerSelections: offerSelectionSummary?.selections ?? recentJourneySummary.offerAction ?? 0 };
+    ? { ...recentJourneySummary, ...exactSummary, topProviders: clickedProviders, topOffers: clickedOffers, offerSelections: offerSelectionSummary?.selections ?? exactSummary.offerSelections ?? recentJourneySummary.offerAction ?? 0, activity: exactSummary.activity || recentJourneySummary.activity || {}, sessionFunnel: mergedSessionFunnel, sessionFunnelsBySource: mergedSessionFunnelsBySource }
+    : { ...recentJourneySummary, topProviders: clickedProviders, topOffers: clickedOffers, offerSelections: offerSelectionSummary?.selections ?? recentJourneySummary.offerAction ?? 0, sessionFunnel: mergedSessionFunnel, sessionFunnelsBySource: mergedSessionFunnelsBySource };
 
   const responseOk = Boolean(result.ok || exactSummary);
   json(res, responseOk ? 200 : 500, {
