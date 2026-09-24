@@ -904,64 +904,28 @@
     return String(event.dataOrigin || "").trim();
   }
 
-  const selectedAnalyticsEventFilters = new Set();
-  let analyticsEventFilterMode = "any";
-
-  function analyticsEventFilterMatchesType(filterValue, eventType) {
-    return filterValue === "__lead_otp__" ? LEAD_OTP_EVENT_TYPES.has(eventType) : eventType === filterValue;
-  }
-
-  function updateAnalyticsEventFilterUi() {
-    const summary = byId("analyticsEventFilterSummary");
-    const selected = [...selectedAnalyticsEventFilters];
-    if (summary) {
-      summary.textContent = !selected.length
-        ? "Tutti gli eventi"
-        : selected.length === 1
-          ? (selected[0] === "__lead_otp__" ? "Funnel lead / OTP" : staffEventLabel(selected[0]))
-          : `${selected.length} eventi selezionati · ${analyticsEventFilterMode === "all" ? "AND" : "OR"}`;
-    }
-    byId("analyticsEventModeAny")?.classList.toggle("active", analyticsEventFilterMode === "any");
-    byId("analyticsEventModeAll")?.classList.toggle("active", analyticsEventFilterMode === "all");
-  }
-
   function populateAnalyticsFilters() {
-    const compatibilitySelect = byId("analyticsEventFilter");
-    const eventOptions = byId("analyticsEventFilterOptions");
+    const eventSelect = byId("analyticsEventFilter");
     const originSelect = byId("analyticsOriginFilter");
     const sourceSelect = byId("analyticsSourceFilter");
-    if (!compatibilitySelect || !eventOptions || !originSelect || !sourceSelect) return;
+    if (!eventSelect || !originSelect || !sourceSelect) return;
 
+    const selectedEvent = eventSelect.value;
     const selectedOrigin = originSelect.value;
     const selectedSource = sourceSelect.value;
     const observedEventTypes = cache.analytics.map(event => String(event.eventType || "").trim()).filter(Boolean);
     const eventTypes = [...new Set([...EXPECTED_ANALYTICS_EVENT_TYPES, ...observedEventTypes])].sort();
-    const validFilters = new Set(["__lead_otp__", ...eventTypes]);
-    [...selectedAnalyticsEventFilters].forEach(value => { if (!validFilters.has(value)) selectedAnalyticsEventFilters.delete(value); });
     const origins = [...new Set(cache.analytics.map(analyticsOrigin).filter(Boolean))].sort();
     const trafficSources = Array.isArray(cache.journeySummary?.trafficSources) && cache.journeySummary.trafficSources.length
       ? cache.journeySummary.trafficSources
       : Array.isArray(cache.analyticsSummary?.trafficSources) ? cache.analyticsSummary.trafficSources : [];
 
-    compatibilitySelect.replaceChildren(node("option", { value: "", text: "Tutti gli eventi" }));
-    compatibilitySelect.value = "";
-    const makeEventOption = (value, label) => {
-      const input = node("input", { attrs: { type: "checkbox", value } });
-      input.checked = selectedAnalyticsEventFilters.has(value);
-      input.addEventListener("change", () => {
-        if (input.checked) selectedAnalyticsEventFilters.add(value);
-        else selectedAnalyticsEventFilters.delete(value);
-        updateAnalyticsEventFilterUi();
-        analyticsPages.events = 1;
-        renderAnalytics();
-      });
-      return node("label", {}, [input, node("span", { text: label })]);
-    };
-    eventOptions.replaceChildren(
-      makeEventOption("__lead_otp__", "Funnel lead / OTP"),
+    eventSelect.replaceChildren(
+      node("option", { value: "", text: "Tutti gli eventi" }),
+      node("option", { value: "__lead_otp__", text: "Solo funnel lead / OTP" }),
       ...eventTypes.map(value => {
         const observed = observedEventTypes.includes(value);
-        return makeEventOption(value, observed ? staffEventLabel(value) : `${staffEventLabel(value)} (0)`);
+        return node("option", { value, text: observed ? staffEventLabel(value) : `${staffEventLabel(value)} (0)` });
       })
     );
     originSelect.replaceChildren(
@@ -975,38 +939,25 @@
         text: `${item.label || item.key} (${formatNumber(item.count || 0)})`
       }))
     );
+    eventSelect.value = eventTypes.includes(selectedEvent) || selectedEvent === "__lead_otp__" ? selectedEvent : "";
     originSelect.value = origins.includes(selectedOrigin) ? selectedOrigin : "";
     sourceSelect.value = trafficSources.some(item => String(item.key || "") === selectedSource) ? selectedSource : "";
-    updateAnalyticsEventFilterUi();
   }
 
   function filteredAnalyticsEvents() {
-    const eventFilters = [...selectedAnalyticsEventFilters];
+    const eventFilter = String(byId("analyticsEventFilter")?.value || "");
     const originFilter = String(byId("analyticsOriginFilter")?.value || "");
     const sourceFilter = String(byId("analyticsSourceFilter")?.value || "");
-    const baseRows = cache.analytics.filter(event => {
+    return cache.analytics.filter(event => {
+      const eventType = String(event.eventType || "");
+      const eventMatches = !eventFilter
+        || (eventFilter === "__lead_otp__" ? LEAD_OTP_EVENT_TYPES.has(eventType) : eventType === eventFilter);
       const originMatches = !originFilter || analyticsOrigin(event) === originFilter;
       const sourceMatches = !sourceFilter || String(event.trafficSource || "") === sourceFilter;
-      return originMatches && sourceMatches;
+      return eventMatches && originMatches && sourceMatches;
     });
-    if (!eventFilters.length) return baseRows;
-    if (analyticsEventFilterMode === "any") {
-      return baseRows.filter(event => eventFilters.some(filterValue => analyticsEventFilterMatchesType(filterValue, String(event.eventType || ""))));
-    }
-    const qualifyingSessions = new Set();
-    const rowsBySession = new Map();
-    baseRows.forEach(event => {
-      const sessionId = String(event.sessionId || "").trim();
-      if (!sessionId) return;
-      if (!rowsBySession.has(sessionId)) rowsBySession.set(sessionId, []);
-      rowsBySession.get(sessionId).push(event);
-    });
-    rowsBySession.forEach((rows, sessionId) => {
-      const types = rows.map(event => String(event.eventType || ""));
-      if (eventFilters.every(filterValue => types.some(type => analyticsEventFilterMatchesType(filterValue, type)))) qualifyingSessions.add(sessionId);
-    });
-    return baseRows.filter(event => qualifyingSessions.has(String(event.sessionId || "").trim()));
   }
+
 
   function analyticsEventSequence(event = {}) {
     const raw = event.sessionEventSeq ?? event.session_event_seq;
@@ -1451,22 +1402,6 @@
     return `Nel tracciato disponibile mancano ${shown}${missing.length > 12 ? " e altre sequenze" : ""}. Questo segnala un buco di telemetria: non permette di dedurre quali azioni, se presenti, non siano state registrate.`;
   }
 
-  function analyticsSequenceGapBetween(previous, current) {
-    const previousSeq = analyticsEventSequence(previous);
-    const currentSeq = analyticsEventSequence(current);
-    if (previousSeq === null || currentSeq === null || currentSeq <= previousSeq + 1) return null;
-    return { from: previousSeq + 1, to: currentSeq - 1 };
-  }
-
-  function analyticsSequenceGapNode(gap) {
-    if (!gap) return null;
-    const range = gap.from === gap.to ? `#${gap.from}` : `#${gap.from}–#${gap.to}`;
-    return node("div", { className: "analytics-sequence-gap" }, [
-      node("strong", { text: `Sequenza ${range} non presente nei dati registrati` }),
-      node("span", { text: "Il tracciato disponibile non consente di stabilire quali eventi o azioni, se presenti, corrispondessero a questi numeri." }),
-    ]);
-  }
-
   function analyticsNarrativePdfQuality(rows = []) {
     const completed = [...rows].reverse().find(item => String(item.eventType || "") === "pdf_analysis_completed");
     if (!completed) return null;
@@ -1824,11 +1759,8 @@
     if (!readableRows.length) {
       list.append(node("div", { className: "analytics-session-empty", text: "Nessuna azione leggibile registrata in questa sessione." }));
     } else {
-      readableRows.forEach((group, index) => {
+      readableRows.forEach(group => {
         const item = group.item;
-        const previousItem = index > 0 ? readableRows[index - 1].items[readableRows[index - 1].items.length - 1] : null;
-        const gapNode = analyticsSequenceGapNode(analyticsSequenceGapBetween(previousItem, item));
-        if (gapNode) list.append(gapNode);
         const isAutomatic = String(item.eventType || "").startsWith("assistance_prompt_");
         const displayTimestamp = item.clientTimestamp || item.createdAt;
         const orderNote = item.sessionEventSeq != null
@@ -1848,9 +1780,7 @@
     renderAnalyticsSessionPdfDiagnostics(rows);
     clear(technicalList);
     text(byId("analyticsSessionTechnicalSummary"), `Telemetria completa 1:1 — ${rows.length} eventi`);
-    rows.forEach((item, index) => {
-      const gapNode = analyticsSequenceGapNode(analyticsSequenceGapBetween(index > 0 ? rows[index - 1] : null, item));
-      if (gapNode) technicalList.append(gapNode);
+    rows.forEach(item => {
       const origin = [item.dataOrigin ? staffDataOriginLabel(item) : "", item.page].filter(Boolean).join(" · ") || "—";
       const offer = [item.provider, item.offerName].filter(Boolean).join(" · ");
       const detail = [origin, offer, analyticsEventValueText(item) !== "—" ? analyticsEventValueText(item) : ""].filter(Boolean).join(" · ") || "—";
@@ -2260,9 +2190,7 @@
     const filteredEvents = filteredAnalyticsEvents();
     const body = byId("analyticsRows");
     clear(body);
-    const selectedEventCount = selectedAnalyticsEventFilters.size;
-    const filterModeLabel = selectedEventCount > 1 ? ` · filtro ${analyticsEventFilterMode === "all" ? "AND per sessione" : "OR"}` : "";
-    text(byId("analyticsFilterInfo"), `${formatNumber(filteredEvents.length)} risultati nei ${formatNumber(cache.analytics.length)} eventi recenti caricati${filterModeLabel} · CSV = archivio completo`);
+    text(byId("analyticsFilterInfo"), `${formatNumber(filteredEvents.length)} risultati nei ${formatNumber(cache.analytics.length)} eventi recenti caricati · CSV = archivio completo`);
     const pageData = analyticsPageRows(filteredEvents, "events");
     if (!filteredEvents.length) body.append(node("tr", {}, [node("td", { text: "Nessun evento corrisponde ai filtri selezionati.", attrs: { colspan: "7" } })]));
     pageData.rows.forEach(event => {
@@ -4723,8 +4651,6 @@
     byId("switchoRange")?.addEventListener("change", () => { analyticsPages.switcho = 1; renderSwitchoAnalytics(); });
     byId("switchoSourceFilter")?.addEventListener("change", () => { analyticsPages.switcho = 1; renderSwitchoAnalytics(); });
     byId("analyticsEventFilter")?.addEventListener("change", () => { analyticsPages.events = 1; renderAnalytics(); });
-    byId("analyticsEventModeAny")?.addEventListener("click", () => { analyticsEventFilterMode = "any"; updateAnalyticsEventFilterUi(); analyticsPages.events = 1; renderAnalytics(); });
-    byId("analyticsEventModeAll")?.addEventListener("click", () => { analyticsEventFilterMode = "all"; updateAnalyticsEventFilterUi(); analyticsPages.events = 1; renderAnalytics(); });
     byId("analyticsOriginFilter")?.addEventListener("change", () => { analyticsPages.events = 1; renderAnalytics(); });
     byId("analyticsSourceFilter")?.addEventListener("change", () => {
       closeAnalyticsSession();
@@ -4739,11 +4665,6 @@
     byId("analyticsSessionClose")?.addEventListener("click", closeAnalyticsSession);
     byId("analyticsFilterReset")?.addEventListener("click", () => {
       if (byId("analyticsEventFilter")) byId("analyticsEventFilter").value = "";
-      selectedAnalyticsEventFilters.clear();
-      analyticsEventFilterMode = "any";
-      byId("analyticsEventFilterPanel")?.removeAttribute("open");
-      byId("analyticsEventFilterOptions")?.querySelectorAll('input[type="checkbox"]').forEach(input => { input.checked = false; });
-      updateAnalyticsEventFilterUi();
       if (byId("analyticsOriginFilter")) byId("analyticsOriginFilter").value = "";
       if (byId("analyticsSourceFilter")) byId("analyticsSourceFilter").value = "";
       closeAnalyticsSession();
