@@ -36,6 +36,7 @@ const ALLOWED_EVENT_TYPES = new Set([
   "activation_channel_selected",
   "activation_data_copied",
   "activation_assistant_opened",
+  "offer_card_clicked",
   "offer_click_locked",
   "offer_consent_opened",
   "offer_partner_consent_missing",

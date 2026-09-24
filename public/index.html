@@ -6579,6 +6579,7 @@ const ANALYTICS_USER_ACTION_EVENTS = new Set([
   "lead_modal_closed",
   "otp_request_started",
   "otp_verify_started",
+  "offer_card_clicked",
   "offer_click_locked",
   "activation_channel_choice_opened",
   "activation_channel_selected",
@@ -13196,6 +13197,23 @@ window.apriConsensoOfferta = function apriConsensoOfferta(offerta) {
     componentiSeparate: offerta?.componentiSeparate || null,
     rankingContext: OFFER_RENDER_CONTEXTS.get(String(offerta?.id || "")) || offerta?.rankingContext || null,
   };
+
+  const cardClickTracking = LEAD_STATE.selectedOffer.rankingContext || {};
+  trackEvent("offer_card_clicked", {
+    source: modalitaCalcolo === "media" ? "offer_card_media" : "offer_card_precise",
+    mode: modalitaCalcolo || "",
+    verified: Boolean(LEAD_STATE.verified),
+    offerId: LEAD_STATE.selectedOffer.id,
+    offerName: LEAD_STATE.selectedOffer.name,
+    provider: LEAD_STATE.selectedOffer.provider,
+    destinationType: LEAD_STATE.selectedOffer.destinationType,
+    destinationStatus: LEAD_STATE.selectedOffer.destinationStatus,
+    displayGroup: cardClickTracking.displayGroup || "",
+    economyRank: cardClickTracking.economyRank || null,
+    displayRank: cardClickTracking.displayRank || null,
+    annualCost: cardClickTracking.annualCost || null,
+    annualDelta: cardClickTracking.annualDelta || null,
+  });
 
   // Nel profilo medio la CTA non forza più Switcho: apre una scelta esplicita
   // tra confronto dedicato tramite bolletta e percorso assistito Switcho.
