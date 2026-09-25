@@ -1183,14 +1183,13 @@
 
   const SESSION_COMMERCIAL_EVENTS = new Set([
     "offer_switcho_redirect", "switcho_landing_opened", "provider_site_redirect", "offer_redirect", "partner_funnel_opened",
-    "activation_channel_choice_opened", "activation_channel_selected", "activation_assistant_opened", "assistance_switcho_redirect", "business_switcho_requested",
+    "activation_assistant_opened", "assistance_switcho_redirect", "business_switcho_requested",
   ]);
 
   const SESSION_OFFER_ACTION_EVENTS = new Set([
-    "offer_card_clicked", "offer_click_locked", "offer_consent_opened", "offer_partner_consent_missing",
+    "offer_click_locked", "offer_consent_opened", "offer_partner_consent_missing",
     "offer_partner_consent_confirmed", "offer_request_started", "offer_request_recorded",
     "offer_switcho_redirect", "switcho_landing_opened", "provider_site_redirect", "offer_redirect", "partner_funnel_opened",
-    "activation_channel_choice_opened", "activation_channel_selected",
   ]);
 
   const SESSION_MAIN_EVENT_TYPES = new Set([
@@ -1234,13 +1233,32 @@
     return values.length ? values[values.length - 1] : null;
   }
 
+  function analyticsCommercialActivationChoice(item = {}) {
+    const type = String(item.eventType || "");
+    if (!["activation_channel_choice_opened", "activation_channel_selected"].includes(type)) return false;
+    const route = String(item.route || "").trim();
+    const channel = String(item.channel || "").trim();
+    if (route === "internal_activatable_view" || channel === "internal") return false;
+    return ["offertalogica_partner", "switcho_provider", "provider_site"].includes(route)
+      || ["bill_upload", "switcho", "provider_site", "partner_redirect"].includes(channel);
+  }
+
+  function analyticsInternalAlternativeChoice(item = {}) {
+    if (!["activation_channel_choice_opened", "activation_channel_selected"].includes(String(item.eventType || ""))) return false;
+    return String(item.route || "").trim() === "internal_activatable_view" || String(item.channel || "").trim() === "internal";
+  }
+
   function analyticsSessionOutcome(rows = []) {
     const types = analyticsSessionTypes(rows);
     const has = type => types.has(type);
     const hasAny = set => [...set].some(type => types.has(type));
+    const hasCommercialActivationChoice = rows.some(analyticsCommercialActivationChoice);
+    const hasInternalAlternativeChoice = rows.some(analyticsInternalAlternativeChoice);
     if (hasAny(SESSION_COMMERCIAL_EVENTS)) return { label: "Passaggio verso partner / Switcho avviato", tone: "ok" };
-    if (hasAny(SESSION_OFFER_ACTION_EVENTS)) return { label: "Offerta selezionata, passaggio esterno non completato", tone: "warn" };
-    if (has("offers_rendered")) return { label: "Offerte raggiunte, nessun clic commerciale", tone: "warn" };
+    if (hasCommercialActivationChoice || hasAny(SESSION_OFFER_ACTION_EVENTS)) return { label: "Offerta selezionata, passaggio esterno non completato", tone: "warn" };
+    if (hasInternalAlternativeChoice) return { label: "Card non attivabile consultata, mostrate alternative attivabili", tone: "info" };
+    if (has("offer_card_clicked")) return { label: "Card offerta consultata, nessun percorso commerciale avviato", tone: "info" };
+    if (has("offers_rendered")) return { label: "Offerte raggiunte, nessuna card cliccata", tone: "warn" };
     const latestPdfEvent = [...rows].reverse().find(item => ["pdf_analysis_completed", "pdf_analysis_interrupted"].includes(String(item.eventType || "")));
     const pdfStatus = String(latestPdfEvent?.analysisStatus || (latestPdfEvent?.eventType === "pdf_analysis_interrupted" ? "interrupted" : "")).toLowerCase();
     if (pdfStatus === "failed") return { label: "PDF: errore tecnico", tone: "warn" };
@@ -1259,7 +1277,7 @@
     const types = analyticsSessionTypes(rows);
     const has = type => types.has(type);
     const assistedOnly = has("landing_assisted_click") && !has("landing_self_service_click");
-    const commercial = [...SESSION_COMMERCIAL_EVENTS].some(type => types.has(type));
+    const commercial = [...SESSION_COMMERCIAL_EVENTS].some(type => types.has(type)) || rows.some(analyticsCommercialActivationChoice);
     const landing = has("landing_view");
     const choice = has("landing_self_service_click") || has("landing_assisted_click");
     const comparison = has("comparison_started") || has("comparison_completed") || has("offers_rendered");
@@ -1291,6 +1309,10 @@
     ].filter(Boolean).join(" · ");
   }
 
+  function analyticsCardClickedEvent(rows = []) {
+    return [...rows].reverse().find(item => String(item.eventType || "") === "offer_card_clicked" && (item.offerName || item.provider)) || null;
+  }
+
   function analyticsSelectedOfferEvent(rows = []) {
     const priority = [
       "offer_switcho_redirect",
@@ -1300,7 +1322,6 @@
       "offer_request_started",
       "offer_partner_consent_confirmed",
       "offer_consent_opened",
-      "offer_card_clicked",
       "offer_click_locked",
       "switcho_landing_opened",
     ];
@@ -1738,6 +1759,7 @@
     const activeSeconds = analyticsSessionActiveSeconds(rows);
     const firstAction = rows.find(item => SESSION_USER_ACTION_EVENTS.has(String(item.eventType || "")));
     const offersCount = analyticsSessionLatestOffersCount(rows);
+    const cardClickedEvent = analyticsCardClickedEvent(rows);
     const selectedOfferEvent = analyticsSelectedOfferEvent(rows);
     const outcome = analyticsSessionOutcome(rows);
 
@@ -1771,11 +1793,20 @@
       node("div", {}, [node("span", { text: "Prima azione" }), node("strong", { text: firstAction ? staffEventLabel(firstAction) : "Nessuna" })]),
       node("div", {}, [node("span", { text: "Offerte" }), node("strong", { text: offersCount != null ? `${offersCount} visualizzate` : "Non raggiunte" })])
     );
+    if (cardClickedEvent) {
+      const cardClickedName = analyticsOfferDisplayName(cardClickedEvent);
+      const cardClickedDetails = analyticsOfferSelectionDetails(cardClickedEvent);
+      sessionFacts.push(node("div", {}, [
+        node("span", { text: "Card cliccata" }),
+        node("strong", { text: cardClickedName || "Card offerta" }),
+        ...(cardClickedDetails ? [node("small", { text: cardClickedDetails })] : []),
+      ]));
+    }
     if (selectedOfferEvent) {
       const selectedOfferName = analyticsOfferDisplayName(selectedOfferEvent);
       const selectedOfferDetails = analyticsOfferSelectionDetails(selectedOfferEvent);
       sessionFacts.push(node("div", {}, [
-        node("span", { text: "Offerta cliccata" }),
+        node("span", { text: "Offerta selezionata" }),
         node("strong", { text: selectedOfferName || "Offerta registrata" }),
         ...(selectedOfferDetails ? [node("small", { text: selectedOfferDetails })] : []),
       ]));

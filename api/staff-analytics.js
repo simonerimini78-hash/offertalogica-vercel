@@ -843,6 +843,19 @@ async function fetchOfferSelectionPage(from, offset = 0) {
   return Array.isArray(rows) ? rows : [];
 }
 
+function isCommercialOfferSelectionEvent(row, payload = {}) {
+  const type = String(row?.event_type || "");
+  if (type === "offer_card_clicked") return false;
+  if (type === "activation_channel_choice_opened" || type === "activation_channel_selected") {
+    const route = String(payload.route || "").trim();
+    const channel = String(payload.channel || "").trim();
+    if (route === "internal_activatable_view" || channel === "internal") return false;
+    return ["offertalogica_partner", "switcho_provider", "provider_site"].includes(route)
+      || ["bill_upload", "switcho", "provider_site", "partner_redirect"].includes(channel);
+  }
+  return true;
+}
+
 function offerSelectionSummaryFromRows(rows = []) {
   const uniqueSelections = new Map();
   const cardClickSessions = new Set();
@@ -860,6 +873,7 @@ function offerSelectionSummaryFromRows(rows = []) {
       if (!cardClickSessionsBySource.has(sourceKey)) cardClickSessionsBySource.set(sourceKey, new Set());
       cardClickSessionsBySource.get(sourceKey).add(sessionId);
     }
+    if (!isCommercialOfferSelectionEvent(row, payload)) return;
     const offerIdentity = String(payload.offerId || "").trim() || `${provider}::${offerName}`;
     const key = `${sessionId}::${offerIdentity}`;
     if (!uniqueSelections.has(key)) uniqueSelections.set(key, { provider, offerName });
@@ -1221,7 +1235,15 @@ function sessionFunnelFromGroups(groups = []) {
     if (eventTypes.has("otp_verified")) funnel.otpVerified += 1;
     if (eventTypes.has("offers_unlocked")) funnel.offersUnlocked += 1;
     if (eventTypes.has("offer_card_clicked")) funnel.cardClicked += 1;
-    if (["offer_card_clicked", "offer_click_locked", "activation_channel_choice_opened", "activation_channel_selected", "offer_consent_opened", "offer_partner_consent_confirmed", "offer_switcho_redirect", "offer_redirect", "offer_request_recorded"].some((type) => eventTypes.has(type))) {
+    const hasCommercialActivationChoice = group.some((event) => {
+      if (!["activation_channel_choice_opened", "activation_channel_selected"].includes(String(event?.eventType || ""))) return false;
+      const route = String(event?.route || "").trim();
+      const channel = String(event?.channel || "").trim();
+      if (route === "internal_activatable_view" || channel === "internal") return false;
+      return ["offertalogica_partner", "switcho_provider", "provider_site"].includes(route)
+        || ["bill_upload", "switcho", "provider_site", "partner_redirect"].includes(channel);
+    });
+    if (hasCommercialActivationChoice || ["offer_click_locked", "offer_consent_opened", "offer_partner_consent_confirmed", "offer_switcho_redirect", "offer_redirect", "offer_request_recorded"].some((type) => eventTypes.has(type))) {
       funnel.offerAction += 1;
     }
     if (eventTypes.has("offer_redirect") || hasSwitcho) funnel.redirects += 1;
@@ -1694,7 +1716,15 @@ function analyticsSessionExportRows(rawRows = []) {
     const visitor = visitorDescriptor(ordered);
     const leadId = ordered.map((event) => event.leadId).find(Boolean) || "";
     const offersViewed = ordered.some((event) => event.eventType === "offers_rendered" && !isAutomaticLandingPreview(event));
-    const offerAction = ["offer_card_clicked", "offer_click_locked", "activation_channel_choice_opened", "activation_channel_selected", "offer_consent_opened", "offer_partner_consent_confirmed", "offer_switcho_redirect", "offer_redirect", "offer_request_recorded"].some((type) => eventTypes.has(type));
+    const hasCommercialActivationChoice = ordered.some((event) => {
+      if (!["activation_channel_choice_opened", "activation_channel_selected"].includes(String(event?.eventType || ""))) return false;
+      const route = String(event?.route || "").trim();
+      const channel = String(event?.channel || "").trim();
+      if (route === "internal_activatable_view" || channel === "internal") return false;
+      return ["offertalogica_partner", "switcho_provider", "provider_site"].includes(route)
+        || ["bill_upload", "switcho", "provider_site", "partner_redirect"].includes(channel);
+    });
+    const offerAction = hasCommercialActivationChoice || ["offer_click_locked", "offer_consent_opened", "offer_partner_consent_confirmed", "offer_switcho_redirect", "offer_redirect", "offer_request_recorded"].some((type) => eventTypes.has(type));
 
     const intentTerm = String(attribution.trafficTerm || "").trim();
     let intent = intentTerm;
