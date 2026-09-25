@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="OffertaLogica Premium">
-  <meta name="offertalogica-app-version" content="APP v0.36.32">
+  <meta name="offertalogica-app-version" content="APP v0.36.33">
   <title>OffertaLogica Premium</title>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/assets/logo-offertalogica-icon.png?v=19">
@@ -800,7 +800,7 @@
 
       <section id="premiumSupportPanel" class="account-manage" aria-label="Richiesta assistenza" hidden></section>
 
-      <span class="version-badge">APP Premium v0.36.32</span>
+      <span class="version-badge">APP Premium v0.36.33</span>
     </section>
   </main>
 
@@ -1023,7 +1023,7 @@
       globalThis.OffertaLogicaPremiumBills?.init();
 
       if(!('serviceWorker' in navigator))return;
-      const CURRENT_RELEASE="0.36.32";
+      const CURRENT_RELEASE="0.36.33";
       let refreshing=false;let activationRequested=false;let registration=null;let pendingWorker=null;let manifestReloadPending=false;let controlledAtStart=Boolean(navigator.serviceWorker.controller);
       const boundRegistrations=new WeakSet();
       let updateCheckInFlight=null;let updateTimer=null;let retryTimer=null;let lastInteractionAt=Date.now();

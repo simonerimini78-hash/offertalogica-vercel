@@ -1,5 +1,5 @@
-// premium-analysis-info-ux-v03651-business-ranking-p3 + premium-business-account-segment-v03671 + premium-business-billing-p5 + premium-direct-compare-p6 + premium-direct-tab-p7 + premium-camera-direct-v03632 + premium-compare-retry-v03632
-const CACHE = "offertalogica-premium-v03632-camera-confronta-v2";
+// premium-analysis-info-ux-v03651-business-ranking-p3 + premium-business-account-segment-v03671 + premium-business-billing-p5 + premium-direct-compare-p6 + premium-direct-tab-p7 + premium-camera-direct-v03632 + premium-compare-ready-v03633
+const CACHE = "offertalogica-premium-v03633-confronta-ready-v1";
 const APP_SHELL = [
   "/app.html",
   "/app-dialog.js",

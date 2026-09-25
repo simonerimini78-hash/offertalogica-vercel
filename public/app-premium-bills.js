@@ -6,6 +6,8 @@
   const MAX_FILE_SIZE = 20_000_000;
   const ANALYSIS_POLL_MS = 5000;
   const ANALYSIS_STALE_MS = 90000;
+  const COMPARISON_RETRY_MS = 125;
+  const COMPARISON_RETRY_LIMIT = 240;
   const BILL_COLUMNS = "id, user_id, utility_id, contract_id, commodity, customer_segment, product_code, plan_code_snapshot, billing_period_start, billing_period_end, issue_date, due_date, total_amount_eur, original_file_name, file_size, file_sha256, storage_bucket, storage_path, processing_status, customer_status, automatic_screening_status, automatic_screening_summary, automatic_screening_reasons, automatic_screened_at, automatic_analysis_run_id, customer_analysis_data, red_verification_state, red_verification_result, red_verification_run_id, red_verified_at, created_at, updated_at";
   const UTILITY_COLUMNS = "id, label, supply_type, expected_bills_per_year, status";
   const CONTRACT_COLUMNS = "id, user_id, utility_id, provider_name, offer_name, pricing_type, contract_start, contract_end, fixed_price_expiry, electricity_price_eur_kwh, gas_price_eur_smc, electricity_fixed_fee_eur_year, gas_fixed_fee_eur_year, source, verification_status, is_current, arera_offer_code_electricity, arera_offer_code_gas, electricity_index_name, gas_index_name, electricity_spread_eur_kwh, gas_spread_eur_smc, electricity_formula, gas_formula, automatic_match_status, automatic_match_confidence, automatic_match_method, automatic_match_candidates, automatic_matched_at, automatic_match_catalog_version, customer_confirmation_status, customer_confirmed_at, customer_rejected_at, customer_selected_candidates, customer_confirmation_version, created_at, updated_at";
@@ -1512,13 +1514,17 @@
     compare.call(frame.contentWindow);
 
     const offers = doc.querySelector?.(".fornitori-consigliati-section");
-    const results = doc.getElementById("results-area");
     const offersVisible = Boolean(
       offers
       && frame.contentWindow?.getComputedStyle?.(offers)?.display !== "none"
     );
-    (offersVisible ? offers : (results || currentBlock))
-      ?.scrollIntoView?.({ behavior: "auto", block: "start" });
+    // Il comparatore principale espone avviaComparazioneDati() prima che i dati
+    // economici ufficiali siano pronti. In quel caso la funzione termina senza
+    // costruire il ranking. Non consideriamo quindi completato il trasferimento
+    // finché la sezione offerte non viene realmente resa visibile dal motore.
+    if (!offersVisible) return false;
+
+    offers.scrollIntoView?.({ behavior: "auto", block: "start" });
 
     const subtitle = document.getElementById("appBrowserSubtitle");
     if (subtitle) {
@@ -1559,12 +1565,12 @@
   }
 
   function schedulePendingComparisonRetry() {
-    if (pendingComparisonRetryTimer || pendingComparisonRetryCount >= 30) return;
+    if (pendingComparisonRetryTimer || pendingComparisonRetryCount >= COMPARISON_RETRY_LIMIT) return;
     pendingComparisonRetryCount += 1;
     pendingComparisonRetryTimer = setTimeout(() => {
       pendingComparisonRetryTimer = null;
       applyPendingComparisonPrefill();
-    }, 120);
+    }, COMPARISON_RETRY_MS);
   }
 
   function applyPendingPhotoToCalculator(frame) {
