@@ -1,5 +1,5 @@
 // premium-analysis-info-ux-v03651-business-ranking-p3 + premium-business-account-segment-v03671 + premium-business-billing-p5 + premium-direct-compare-p6 + premium-direct-tab-p7
-const CACHE = "offertalogica-premium-v03630-photo-bill-v1";
+const CACHE = "offertalogica-premium-v03631-camera-compare-fix-v1";
 const APP_SHELL = [
   "/app.html",
   "/app-dialog.js",

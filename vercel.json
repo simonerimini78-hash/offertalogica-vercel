@@ -288,7 +288,7 @@
         },
         {
           "key": "Permissions-Policy",
-          "value": "camera=(), microphone=(), geolocation=()"
+          "value": "camera=(self), microphone=(), geolocation=()"
         }
       ]
     }
@@ -303,6 +303,20 @@
           "op": "delete",
           "target": {
             "key": "x-frame-options"
+          }
+        },
+        {
+          "type": "response.headers",
+          "op": "delete",
+          "target": {
+            "key": "content-security-policy"
+          }
+        },
+        {
+          "type": "response.headers",
+          "op": "delete",
+          "target": {
+            "key": "permissions-policy"
           }
         }
       ]
