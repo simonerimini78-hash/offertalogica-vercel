@@ -1405,6 +1405,78 @@
     return currentBlock;
   }
 
+  function activatePremiumMobileManualMode(doc) {
+    const mobileManual = doc?.getElementById?.("mobile-fast-manual");
+    if (!mobileManual) return false;
+    mobileManual.click();
+    return true;
+  }
+
+  function ensurePremiumOfferModeControls(frame, doc) {
+    const mode = doc?.getElementById?.("master-tipo-fornitura");
+    const group = doc?.getElementById?.("offerte-ranking-group");
+    const heading = group?.querySelector?.(".offers-list-heading");
+    if (!mode || !group || !heading) return false;
+
+    let controls = doc.getElementById("premium-offer-mode-controls");
+    if (!controls) {
+      controls = doc.createElement("div");
+      controls.id = "premium-offer-mode-controls";
+      controls.setAttribute("role", "group");
+      controls.setAttribute("aria-label", "Filtri offerte Premium");
+      controls.style.cssText = "display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:end;margin:0 0 10px;padding:10px;border:1px solid #dbe7df;border-radius:12px;background:#f8fafc;";
+
+      const field = doc.createElement("label");
+      field.style.cssText = "display:grid;gap:4px;min-width:0;color:#123044;font-size:11px;font-weight:850;";
+      field.append(doc.createTextNode("Mostra offerte"));
+
+      const select = doc.createElement("select");
+      select.id = "premium-offer-mode-select";
+      select.style.cssText = "width:100%;min-height:42px;padding:8px 10px;border:1px solid #b9d7c4;border-radius:10px;background:#fff;color:#123044;font-size:13px;font-weight:750;";
+      Array.from(mode.options || []).forEach((option) => {
+        const copy = doc.createElement("option");
+        copy.value = option.value;
+        copy.textContent = option.textContent;
+        copy.disabled = option.disabled;
+        select.append(copy);
+      });
+      select.value = mode.value;
+      select.addEventListener("change", () => {
+        if (mode.value === select.value) return;
+        mode.value = select.value;
+        dispatchFieldEvent(mode, "change");
+      });
+      field.append(select);
+
+      const edit = doc.createElement("button");
+      edit.type = "button";
+      edit.textContent = "Altri filtri";
+      edit.style.cssText = "min-height:42px;padding:8px 11px;border:1px solid #b9d7c4;border-radius:10px;background:#fff;color:#166534;font-size:12px;font-weight:850;cursor:pointer;";
+      edit.addEventListener("click", () => {
+        const mobileManual = doc.getElementById("mobile-fast-manual");
+        const mobileFast = doc.documentElement?.classList?.contains("mobile-fast-flow");
+        if (mobileFast && mobileManual && !doc.body?.classList?.contains("mobile-fast-mode-manual")) mobileManual.click();
+        const target = doc.getElementById("master-common-filters") || doc.getElementById("mobile-private-input-flow");
+        frame.contentWindow?.setTimeout?.(() => target?.scrollIntoView?.({ behavior: "smooth", block: "center" }), 90);
+      });
+
+      controls.append(field, edit);
+      heading.insertAdjacentElement("afterend", controls);
+
+      if (!mode.dataset.premiumOfferModeSync) {
+        mode.dataset.premiumOfferModeSync = "1";
+        mode.addEventListener("change", () => {
+          const mirror = doc.getElementById("premium-offer-mode-select");
+          if (mirror) mirror.value = mode.value;
+        });
+      }
+    }
+
+    const select = doc.getElementById("premium-offer-mode-select");
+    if (select) select.value = mode.value;
+    return true;
+  }
+
   function applyPremiumComparisonProfile(frame, profile) {
     if (!frame || !profile) return false;
     let doc;
@@ -1462,7 +1534,15 @@
     }
 
     const precise = doc.getElementById("btn-attiva-precisi");
-    precise?.click();
+    const mobileFast = doc.documentElement?.classList?.contains("mobile-fast-flow");
+    let preciseModeActivated = false;
+    if (mobileFast && !doc.body?.classList?.contains("mobile-fast-mode-manual")) {
+      // Nel main mobile il click sul solo btn-attiva-precisi cambia il motore ma
+      // non rende visibili i controlli manuali. Il percorso mobile ufficiale
+      // imposta invece mobile-fast-mode-manual e poi attiva il confronto preciso.
+      preciseModeActivated = activatePremiumMobileManualMode(doc);
+    }
+    if (!preciseModeActivated) precise?.click();
 
     const mode = doc.getElementById("master-tipo-fornitura");
     if (mode && [...mode.options].some(option => option.value === profile.supplyMode)) {
@@ -1524,6 +1604,7 @@
     // finché la sezione offerte non viene realmente resa visibile dal motore.
     if (!offersVisible) return false;
 
+    ensurePremiumOfferModeControls(frame, doc);
     offers.scrollIntoView?.({ behavior: "auto", block: "start" });
 
     const subtitle = document.getElementById("appBrowserSubtitle");
@@ -2424,7 +2505,7 @@
           customer_status: "awaiting_review",
           metadata: {
             source: "premium_app",
-            app_version: "0.36.34",
+            app_version: "0.36.35",
             automatic_analysis: true,
             upload_complete: false
           }

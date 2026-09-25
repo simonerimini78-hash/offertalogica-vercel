@@ -1,5 +1,5 @@
-// premium-analysis-info-ux-v03651-business-ranking-p3 + premium-business-account-segment-v03671 + premium-business-billing-p5 + premium-direct-compare-p6 + premium-direct-tab-p7 + premium-camera-direct-v03632 + premium-compare-ready-v03633 + premium-calculator-entry-v03634
-const CACHE = "offertalogica-premium-v03634-calculator-entry-v1";
+// premium-analysis-info-ux-v03651-business-ranking-p3 + premium-business-account-segment-v03671 + premium-business-billing-p5 + premium-direct-compare-p6 + premium-direct-tab-p7 + premium-camera-direct-v03632 + premium-compare-ready-v03633 + premium-calculator-entry-v03634 + premium-offer-controls-v03635
+const CACHE = "offertalogica-premium-v03635-offer-controls-v1";
 const APP_SHELL = [
   "/app.html",
   "/app-dialog.js",
@@ -11,6 +11,7 @@ const APP_SHELL = [
   "/manifest.webmanifest",
   "/assets/logo-offertalogica-header.png",
   "/assets/logo-offertalogica-icon.png",
+  "/assets/logo-switcho.png",
   "/assets/app-icon-180.png",
   "/assets/app-icon-192.png",
   "/assets/app-icon-512.png",
