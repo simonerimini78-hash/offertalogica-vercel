@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="OffertaLogica Premium">
-  <meta name="offertalogica-app-version" content="APP v0.36.31">
+  <meta name="offertalogica-app-version" content="APP v0.36.32">
   <title>OffertaLogica Premium</title>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/assets/logo-offertalogica-icon.png?v=19">
@@ -577,7 +577,8 @@
         <div class="feature-symbol"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h3l2-2h6l2 2h3v12H4z"/><circle cx="12" cy="13" r="4"/></svg></div>
         <h2>Fotografa la bolletta</h2>
         <p>Scatta una foto: se leggiamo tutti i dati necessari apriamo subito le offerte. Se manca qualcosa ti chiediamo solo quei dati.</p>
-        <a class="cta" href="/?entry=app&bill_input=photo#pdf-upload-panel" data-app-url="/?entry=app&bill_input=photo#pdf-upload-panel" data-app-title="Fotografa la bolletta"><span>SCATTA FOTO</span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="m14 7 5 5-5 5"/></svg></a>
+        <input id="premiumBillPhotoCameraInput" type="file" accept="image/*" capture="environment" hidden>
+        <button id="premiumBillPhotoCameraButton" class="cta" type="button"><span>SCATTA FOTO</span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="m14 7 5 5-5 5"/></svg></button>
       </section>
 
       <div class="section-title"><h2>Archivio cloud Premium</h2><span id="premiumCloudBillsQuota">Non collegato</span></div>
@@ -799,7 +800,7 @@
 
       <section id="premiumSupportPanel" class="account-manage" aria-label="Richiesta assistenza" hidden></section>
 
-      <span class="version-badge">APP Premium v0.36.31</span>
+      <span class="version-badge">APP Premium v0.36.32</span>
     </section>
   </main>
 
@@ -879,7 +880,7 @@
       <button id="appBrowserBack" class="app-browser-back" type="button" aria-label="Torna all’app"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
       <div class="app-browser-title"><strong id="appBrowserTitle">OffertaLogica</strong><small id="appBrowserSubtitle"></small></div>
     </div>
-    <iframe id="appBrowserFrame" title="OffertaLogica" src="about:blank" allow="camera"></iframe>
+    <iframe id="appBrowserFrame" title="OffertaLogica" src="about:blank"></iframe>
   </section>
 
   <div class="nav-wrap"><nav class="nav" aria-label="Navigazione app">
@@ -1022,7 +1023,7 @@
       globalThis.OffertaLogicaPremiumBills?.init();
 
       if(!('serviceWorker' in navigator))return;
-      const CURRENT_RELEASE="0.36.31";
+      const CURRENT_RELEASE="0.36.32";
       let refreshing=false;let activationRequested=false;let registration=null;let pendingWorker=null;let manifestReloadPending=false;let controlledAtStart=Boolean(navigator.serviceWorker.controller);
       const boundRegistrations=new WeakSet();
       let updateCheckInFlight=null;let updateTimer=null;let retryTimer=null;let lastInteractionAt=Date.now();

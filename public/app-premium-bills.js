@@ -33,6 +33,9 @@
   const analysisAttemptFailures = new Set();
   let pollTimer = null;
   let pendingComparisonPrefill = null;
+  let pendingComparisonRetryTimer = null;
+  let pendingComparisonRetryCount = 0;
+  let pendingPhotoFile = null;
   let utilityHistoryObserver = null;
   let utilityHistoryRenderQueued = false;
   let checkConfirmationResolve = null;
@@ -1528,8 +1531,9 @@
 
   function preparePremiumComparisonPrefill(event) {
     const link = event.target instanceof Element ? event.target.closest('[data-app-url="/?entry=app#main-content"]') : null;
-    if (!link) return;
+    if (!link || pendingPhotoFile) return;
     pendingComparisonPrefill = buildPremiumComparisonProfile();
+    pendingComparisonRetryCount = 0;
   }
 
   function openPremiumComparisonFromTab(event) {
@@ -1540,22 +1544,96 @@
     const link = document.querySelector('#view-offers [data-app-url="/?entry=app#main-content"]');
     if (!link) return;
     pendingComparisonPrefill = profile;
+    pendingComparisonRetryCount = 0;
     link.click();
   }
 
-  function applyPendingComparisonPrefill() {
-    if (!pendingComparisonPrefill) return;
-    const frame = document.getElementById("appBrowserFrame");
-    if (!frame) return;
-    let isCalculator = false;
+  function calculatorFrameReady(frame) {
+    if (!frame) return false;
     try {
       const url = new URL(frame.contentWindow.location.href);
-      isCalculator = url.origin === location.origin && ["/", "/index.html"].includes(url.pathname);
-    } catch {}
-    if (!isCalculator) return;
-    const profile = pendingComparisonPrefill;
+      return url.origin === location.origin && ["/", "/index.html"].includes(url.pathname);
+    } catch {
+      return false;
+    }
+  }
+
+  function schedulePendingComparisonRetry() {
+    if (pendingComparisonRetryTimer || pendingComparisonRetryCount >= 30) return;
+    pendingComparisonRetryCount += 1;
+    pendingComparisonRetryTimer = setTimeout(() => {
+      pendingComparisonRetryTimer = null;
+      applyPendingComparisonPrefill();
+    }, 120);
+  }
+
+  function applyPendingPhotoToCalculator(frame) {
+    if (!pendingPhotoFile || !calculatorFrameReady(frame)) return false;
+    const analyzePhoto = frame.contentWindow?.analizzaFotoBolletta;
+    if (typeof analyzePhoto !== "function") return false;
+    const file = pendingPhotoFile;
+    pendingPhotoFile = null;
     pendingComparisonPrefill = null;
-    applyPremiumComparisonProfile(frame, profile);
+    pendingComparisonRetryCount = 0;
+    Promise.resolve(analyzePhoto.call(frame.contentWindow, file, "camera"))
+      .catch(error => console.error("[premium-photo-transfer]", error));
+    return true;
+  }
+
+  function applyPendingComparisonPrefill() {
+    const frame = document.getElementById("appBrowserFrame");
+    if (!frame) return;
+
+    if (pendingPhotoFile) {
+      if (!applyPendingPhotoToCalculator(frame)) schedulePendingComparisonRetry();
+      return;
+    }
+
+    if (!pendingComparisonPrefill) return;
+    if (!calculatorFrameReady(frame)) {
+      schedulePendingComparisonRetry();
+      return;
+    }
+    const profile = pendingComparisonPrefill;
+    if (applyPremiumComparisonProfile(frame, profile)) {
+      pendingComparisonPrefill = null;
+      pendingComparisonRetryCount = 0;
+      if (pendingComparisonRetryTimer) {
+        clearTimeout(pendingComparisonRetryTimer);
+        pendingComparisonRetryTimer = null;
+      }
+      return;
+    }
+    schedulePendingComparisonRetry();
+  }
+
+  function openPremiumPhotoCamera() {
+    const input = document.getElementById("premiumBillPhotoCameraInput");
+    if (!input || input.disabled) return;
+    input.value = "";
+    input.click();
+  }
+
+  function handlePremiumPhotoSelected(event) {
+    const input = event.currentTarget;
+    const file = input?.files?.[0] || null;
+    if (!file) return;
+    if (!String(file.type || "").toLowerCase().startsWith("image/")) {
+      setMessage("error", "La foto selezionata non è in un formato immagine valido.");
+      input.value = "";
+      return;
+    }
+    pendingPhotoFile = file;
+    pendingComparisonPrefill = null;
+    pendingComparisonRetryCount = 0;
+    const link = document.querySelector('#view-offers [data-app-url="/?entry=app#main-content"]');
+    if (!link) {
+      pendingPhotoFile = null;
+      setMessage("error", "Il confronto non è disponibile in questo momento.");
+      input.value = "";
+      return;
+    }
+    link.click();
   }
 
   function formatDecimal(value, maximumFractionDigits = 6) {
@@ -3116,6 +3194,8 @@
     document.addEventListener("click", preparePremiumComparisonPrefill, true);
     document.addEventListener("click", openPremiumComparisonFromTab);
     document.getElementById("appBrowserFrame")?.addEventListener("load", applyPendingComparisonPrefill);
+    document.getElementById("premiumBillPhotoCameraButton")?.addEventListener("click", openPremiumPhotoCamera);
+    document.getElementById("premiumBillPhotoCameraInput")?.addEventListener("change", handlePremiumPhotoSelected);
     renderComparisonAvailability();
     startUtilityConsumptionHistoryObserver();
 
@@ -3233,6 +3313,9 @@
     window.addEventListener("pagehide", () => {
       document.removeEventListener("click", preparePremiumComparisonPrefill, true);
       document.removeEventListener("click", openPremiumComparisonFromTab);
+      if (pendingComparisonRetryTimer) clearTimeout(pendingComparisonRetryTimer);
+      pendingComparisonRetryTimer = null;
+      pendingPhotoFile = null;
       authSubscription?.data?.subscription?.unsubscribe?.();
       if (pollTimer) clearTimeout(pollTimer);
       utilityHistoryObserver?.disconnect?.();
