@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { json } from "../lib/http.js";
 
-const VERSION = "0.12.50";
+const VERSION = "0.12.51";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -28,12 +28,14 @@ const EDITORIAL_PAGE_FETCH_TIMEOUT_MS = 20000;
 const EDITORIAL_PLAN_POST_TYPES = new Set(["article_followup", "related", "evergreen", "service", "data"]);
 const EDITORIAL_PLAN_EDITABLE_STATUSES = new Set(["draft", "approved", "cancelled"]);
 const EDITORIAL_SOCIAL_PLATFORMS = new Set(["facebook", "instagram"]);
-const EDITORIAL_SOCIAL_RUNTIME_VERSION = "0.12.50";
+const EDITORIAL_SOCIAL_RUNTIME_VERSION = "0.12.51";
 const EDITORIAL_IMAGE_DEFAULT_MODEL = "gpt-image-2";
 const EDITORIAL_IMAGE_BUCKET = "editorial-images";
 const EDITORIAL_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 const EDITORIAL_IMAGE_ARTICLE_STATUSES = new Set(["draft", "in_review", "changes_requested", "approved", "published"]);
 const EDITORIAL_IMAGE_QA_MAX_REGENERATIONS = 2;
+const EDITORIAL_SOCIAL_IMAGE_QA_MAX_REGENERATIONS = 2;
+const EDITORIAL_SOCIAL_IMAGE_SIZE = "1024x1024";
 const EDITORIAL_IMAGE_SOURCE_POLICY = "generated_from_scratch_no_web_source";
 const EDITORIAL_PAGE_UPDATE_ACTIONS = new Set([
   "prepare-editorial-update",
@@ -1283,28 +1285,113 @@ async function articleImageContext(idValue) {
   return { id, opportunity, article, state: articleImageState(opportunity) };
 }
 
-function articleImagePrompt(article, opportunity, guidance = "") {
-  const content = cleanEditorialText(article?.content, 2800).replace(/[#*_`>-]+/g, " ").replace(/\s+/g, " ");
+function cleanEditorialStringList(values, limit = 6, maxLength = 180) {
+  return (Array.isArray(values) ? values : [])
+    .map((value) => cleanEditorialText(value, maxLength).replace(/\s+/g, " "))
+    .filter(Boolean)
+    .slice(0, limit);
+}
+
+function editorialArticleVisualBriefSchema() {
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: ["primary_subject", "environment", "visual_story", "must_show", "must_avoid", "rationale"],
+    properties: {
+      primary_subject: { type: "string" },
+      environment: { type: "string" },
+      visual_story: { type: "string" },
+      must_show: { type: "array", minItems: 2, maxItems: 6, items: { type: "string" } },
+      must_avoid: { type: "array", minItems: 2, maxItems: 8, items: { type: "string" } },
+      rationale: { type: "string" },
+    },
+  };
+}
+
+async function buildEditorialArticleVisualBrief(article, opportunity, guidance = "") {
+  const content = cleanEditorialText(article?.content, 5000).replace(/[#*_`>-]+/g, " ").replace(/\s+/g, " ");
+  const notes = cleanEditorialText(manualIdeaMeta(opportunity)?.notes, 1000);
+  const extra = cleanEditorialText(guidance, 600);
+  const input = [
+    `Titolo articolo: ${cleanEditorialText(article?.title, 140)}.`,
+    `Sommario: ${cleanEditorialText(article?.excerpt, 320)}.`,
+    article?.category ? `Categoria: ${cleanEditorialText(article.category, 80)}.` : "",
+    content ? `Contenuto: ${content}.` : "",
+    notes ? `Note redazione: ${notes}.` : "",
+    extra ? `Indicazioni di rigenerazione: ${extra}.` : "",
+  ].filter(Boolean).join(" ");
+  const response = await openAiResponseRequest("", {
+    method: "POST",
+    body: {
+      model: editorialAiModel(),
+      instructions: [
+        "Sei un photo editor di una testata italiana di informazione al consumatore.",
+        "Trasforma esclusivamente il contenuto fornito in un brief fotografico concreto e verificabile.",
+        "Scegli un soggetto principale e una scena che rappresentino il nucleo specifico dell'articolo, non soltanto il settore generico.",
+        "I must_show devono essere elementi fisicamente visibili e coerenti con fatti o contesti presenti nel testo.",
+        "Evita cliché pubblicitari, scene stock generiche, elementi non supportati dall'articolo, interfacce inventate, testo leggibile e loghi.",
+        "Se il tema è astratto, usa una scena reale che renda visibile il problema concreto senza inventare dati o documenti.",
+      ].join(" "),
+      input,
+      reasoning: { effort: "low" },
+      max_output_tokens: 1400,
+      store: false,
+      text: {
+        format: {
+          type: "json_schema",
+          name: "offertalogica_article_visual_brief",
+          strict: true,
+          schema: editorialArticleVisualBriefSchema(),
+        },
+      },
+    },
+  });
+  let parsed;
+  try {
+    parsed = JSON.parse(responseOutputText(response));
+  } catch {
+    throw new Error("Brief immagine articolo: risposta AI non interpretabile");
+  }
+  const brief = {
+    primary_subject: cleanEditorialText(parsed?.primary_subject, 300),
+    environment: cleanEditorialText(parsed?.environment, 300),
+    visual_story: cleanEditorialText(parsed?.visual_story, 500),
+    must_show: cleanEditorialStringList(parsed?.must_show, 6, 180),
+    must_avoid: cleanEditorialStringList(parsed?.must_avoid, 8, 180),
+    rationale: cleanEditorialText(parsed?.rationale, 500),
+  };
+  if (!brief.primary_subject || !brief.environment || !brief.visual_story || brief.must_show.length < 2) {
+    throw new Error("Brief immagine articolo incompleto");
+  }
+  return brief;
+}
+
+function articleImagePrompt(article, opportunity, visualBrief, guidance = "") {
   const notes = cleanEditorialText(manualIdeaMeta(opportunity)?.notes, 800);
   const extra = cleanEditorialText(guidance, 600);
+  const mustShow = cleanEditorialStringList(visualBrief?.must_show, 6, 180).join("; ");
+  const mustAvoid = cleanEditorialStringList(visualBrief?.must_avoid, 8, 180).join("; ");
   return [
     "Create one entirely new, original high-resolution landscape editorial photograph from scratch for an Italian consumer-information article published by OffertaLogica.",
-    "Use only the textual context supplied in this prompt. Do not retrieve, reuse, trace, imitate, transform or derive from any existing web image, stock photograph, artwork, advertisement, brand campaign or third-party visual reference.",
+    "Use only the textual brief supplied here. Do not retrieve, reuse, trace, imitate, transform or derive from any existing web image, stock photograph, artwork, advertisement, brand campaign or third-party visual reference.",
     "Do not reproduce a recognizable copyrighted composition or the distinctive style of a named living artist or photographer.",
     `Article title: ${cleanEditorialText(article?.title, 140)}.`,
     `Article summary: ${cleanEditorialText(article?.excerpt, 320)}.`,
     article?.category ? `Editorial category: ${cleanEditorialText(article.category, 80)}.` : "",
-    content ? `Article context: ${content}.` : "",
+    `Primary visual subject: ${cleanEditorialText(visualBrief?.primary_subject, 300)}.`,
+    `Environment: ${cleanEditorialText(visualBrief?.environment, 300)}.`,
+    `Visual story: ${cleanEditorialText(visualBrief?.visual_story, 500)}.`,
+    mustShow ? `Elements that must be visibly represented: ${mustShow}.` : "",
+    mustAvoid ? `Elements and interpretations to avoid: ${mustAvoid}.` : "",
     notes ? `Editorial notes: ${notes}.` : "",
     extra ? `Requested revision or visual direction from the editor: ${extra}.` : "",
     "Visual direction: photorealistic, premium editorial-journalism photography, natural believable lighting, contemporary Italian/European context when relevant, visually clear but not advertising-like.",
-    "Composition: horizontal 3:2 hero image, strong central subject with generous safe margins so the same master can later be cropped for a static social post.",
+    "Composition: horizontal 3:2 hero image with an immediately understandable main subject. Give priority to the concrete visual anchors in the brief rather than a generic sector scene.",
     "Do not add text, captions, letters, numbers, logos, brand marks, watermarks, fake interfaces, readable documents, price tags, charts or infographic elements.",
-    "Do not invent a specific real person, company, event or document that the article does not establish. Prefer a truthful visual metaphor when the topic is abstract.",
-    "The image must look like a real professional photograph, not an illustration, 3D render, collage or stock-ad composition.",
+    "Do not invent a specific real person, company, event or document that the article does not establish.",
+    "The image must look like a real professional photograph, not an illustration, 3D render, collage or generic stock-ad composition.",
   ].filter(Boolean).join(" ");
 }
-
 function editorialImageQaSchema() {
   return {
     type: "object",
@@ -1345,12 +1432,18 @@ async function evaluateEditorialArticleImage(article, candidate) {
   const title = cleanEditorialText(article?.title, 140);
   const excerpt = cleanEditorialText(article?.excerpt, 320);
   const content = cleanEditorialText(article?.content, 1600).replace(/[#*_`>-]+/g, " ").replace(/\s+/g, " ");
+  const visualBrief = candidate?.visual_brief && typeof candidate.visual_brief === "object" ? candidate.visual_brief : null;
+  const mustShow = cleanEditorialStringList(visualBrief?.must_show, 6, 180).join("; ");
   const inputText = [
     "Valuta questa immagine come hero editoriale per un articolo informativo italiano di OffertaLogica.",
     `Titolo: ${title}.`,
     `Sommario: ${excerpt}.`,
     content ? `Contesto articolo: ${content}.` : "",
-    "Criteri obbligatori: l'immagine deve essere chiaramente pertinente al tema, comprensibile a colpo d'occhio, non fuorviante e adatta a un articolo editoriale informativo.",
+    visualBrief?.primary_subject ? `Soggetto visivo richiesto: ${cleanEditorialText(visualBrief.primary_subject, 300)}.` : "",
+    visualBrief?.visual_story ? `Scena richiesta: ${cleanEditorialText(visualBrief.visual_story, 500)}.` : "",
+    mustShow ? `Elementi concreti attesi: ${mustShow}.` : "",
+    "Criteri obbligatori: l'immagine deve essere chiaramente pertinente al tema specifico, rendere visibili gli elementi concreti richiesti, essere comprensibile a colpo d'occhio, non fuorviante e adatta a un articolo editoriale informativo.",
+    "Non approvare una fotografia solo perché appartiene genericamente allo stesso settore dell'articolo.",
     "Non penalizzare l'assenza di testo nell'immagine: il testo sovrapposto è volutamente vietato.",
     "Se uno dei criteri fallisce, spiega in modo breve il problema e fornisci una direzione concreta per la rigenerazione. Se tutti passano, regeneration_guidance deve essere una stringa vuota.",
   ].filter(Boolean).join(" ");
@@ -1411,7 +1504,8 @@ async function generateOpenAiArticleImage(article, opportunity, guidance = "") {
   const apiKey = env("OPENAI_API_KEY");
   if (!apiKey) throw new Error("OPENAI_API_KEY non configurata lato server");
   const model = editorialImageModel();
-  const prompt = articleImagePrompt(article, opportunity, guidance);
+  const visualBrief = await buildEditorialArticleVisualBrief(article, opportunity, guidance);
+  const prompt = articleImagePrompt(article, opportunity, visualBrief, guidance);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), EDITORIAL_IMAGE_GENERATION_TIMEOUT_MS);
   let response;
@@ -1452,7 +1546,7 @@ async function generateOpenAiArticleImage(article, opportunity, guidance = "") {
   }
   if (!buffer?.length) throw new Error("OpenAI non ha restituito un’immagine utilizzabile");
   if (buffer.length > EDITORIAL_IMAGE_MAX_BYTES) throw new Error("L’immagine HD generata supera 5 MB: rigenera l’immagine");
-  return { model, prompt, buffer };
+  return { model, prompt, buffer, visualBrief };
 }
 
 async function saveArticleImageState(user, opportunity, state) {
@@ -1491,6 +1585,7 @@ async function generateEditorialArticleImage(user, payload = {}) {
     quality: "high",
     model: generated.model,
     prompt: generated.prompt,
+    visual_brief: generated.visualBrief,
     guidance: cleanEditorialText(payload.guidance, 600) || null,
     alt_text: defaultArticleImageAlt(context.article),
     created_at: now,
@@ -2369,6 +2464,13 @@ async function deleteEditorialDraftArticle(user, payload = {}) {
       const objectPath = String(asset?.object_path || "").trim();
       if (objectPath.startsWith(generatedPrefix)) imagePaths.add(objectPath);
     }
+    const socialAssets = editorialSocialAssetsState(opportunity);
+    for (const socialAsset of Object.values(socialAssets.items || {})) {
+      for (const image of [socialAsset?.image, ...((Array.isArray(socialAsset?.history) ? socialAsset.history : []))]) {
+        const objectPath = String(image?.object_path || "").trim();
+        if (objectPath.startsWith(generatedPrefix)) imagePaths.add(objectPath);
+      }
+    }
   }
 
   const socialIds = (socialItems || []).map((row) => String(row.id || "")).filter(validUuid);
@@ -2495,6 +2597,507 @@ async function updateEditorialSocialPlanItem(user, payload = {}) {
   });
   if (!rows?.[0]?.id) throw new Error("Post del piano non aggiornato");
   return rows[0];
+}
+
+
+function editorialSocialAssetsState(opportunity) {
+  const raw = opportunity?.evidence?.social_assets;
+  const items = raw?.items && typeof raw.items === "object" ? raw.items : {};
+  return { schema_version: 1, items: { ...items } };
+}
+
+async function saveEditorialSocialAssetsState(user, opportunity, state) {
+  const evidence = {
+    ...(opportunity.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {}),
+    social_assets: state,
+  };
+  const rows = await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(opportunity.id)}`, {
+    method: "PATCH",
+    prefer: "return=representation",
+    body: { evidence, updated_at: new Date().toISOString(), decided_by: user.id },
+  });
+  if (!rows?.[0]?.id) throw new Error("Asset social: stato non salvato");
+  return rows[0];
+}
+
+async function editorialSocialAssetTarget(item) {
+  if (String(item?.post_type || "") !== "related") return null;
+  const id = String(item?.destination_target_id || "").trim();
+  if (!validUuid(id)) throw new Error("Asset social related: destinazione OffertaLogica non valida");
+  const rows = await serviceFetch(
+    `editorial_promotion_targets?select=id,label,url_path,category,enabled&id=eq.${encodeURIComponent(id)}&limit=1`,
+  );
+  const target = rows?.[0] || null;
+  if (!target?.enabled) throw new Error("Asset social related: destinazione OffertaLogica non disponibile");
+  return target;
+}
+
+function editorialSocialAssetFingerprint(article, item, target, articleImageUrl) {
+  return crypto.createHash("sha256").update(JSON.stringify({
+    article_id: article?.id || null,
+    article_title: article?.title || "",
+    article_excerpt: article?.excerpt || "",
+    article_content: String(article?.content || "").slice(0, 8000),
+    article_image_url: articleImageUrl || "",
+    plan_item_id: item?.id || null,
+    post_type: item?.post_type || "",
+    theme: item?.theme || "",
+    brief: item?.brief || "",
+    canonical_text: item?.canonical_text || "",
+    destination_target_id: item?.destination_target_id || null,
+    target_label: target?.label || "",
+    target_url_path: target?.url_path || "",
+    target_category: target?.category || "",
+  })).digest("hex");
+}
+
+function editorialSocialAssetBriefSchema() {
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: ["facebook_text", "instagram_text", "visual_subject", "visual_scene", "must_show", "must_avoid", "alt_text"],
+    properties: {
+      facebook_text: { type: "string" },
+      instagram_text: { type: "string" },
+      visual_subject: { type: "string" },
+      visual_scene: { type: "string" },
+      must_show: { type: "array", minItems: 2, maxItems: 6, items: { type: "string" } },
+      must_avoid: { type: "array", minItems: 2, maxItems: 8, items: { type: "string" } },
+      alt_text: { type: "string" },
+    },
+  };
+}
+
+function cleanEditorialSocialCopy(value, maxLength) {
+  return cleanEditorialText(value, maxLength)
+    .replace(/https?:\/\/\S+|www\.\S+/gi, "")
+    .replace(/\blink\s+in\s+bio\b/gi, "Approfondisci dal profilo OffertaLogica")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+}
+
+async function editorialSocialTargetContext(target) {
+  if (!target) return null;
+  const internalUrl = schedulerInternalPageUrl(target.url_path);
+  if (!internalUrl) return {
+    url: null,
+    label: cleanEditorialText(target.label, 180),
+    category: cleanEditorialText(target.category, 80) || null,
+    title: "",
+    h1: "",
+    description: "",
+  };
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), EDITORIAL_PAGE_FETCH_TIMEOUT_MS);
+  try {
+    const response = await fetch(internalUrl, {
+      headers: { "User-Agent": "OffertaLogica-Editorial-Social-Asset/1.0" },
+      redirect: "follow",
+      cache: "no-store",
+      signal: controller.signal,
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const html = (await response.text()).slice(0, TARGET_PAGE_MAX_BYTES);
+    return {
+      url: internalUrl,
+      label: cleanEditorialText(target.label, 180),
+      category: cleanEditorialText(target.category, 80) || null,
+      title: firstTagText(html, "title"),
+      h1: firstTagText(html, "h1"),
+      description: metaDescription(html),
+    };
+  } catch {
+    return {
+      url: internalUrl,
+      label: cleanEditorialText(target.label, 180),
+      category: cleanEditorialText(target.category, 80) || null,
+      title: "",
+      h1: "",
+      description: "",
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function buildEditorialSocialAssetBrief(article, item, target, targetContext = null) {
+  const content = cleanEditorialText(article?.content, 4200).replace(/[#*_`>-]+/g, " ").replace(/\s+/g, " ");
+  const destination = target
+    ? `${cleanEditorialText(target.label, 180)} | ${cleanEditorialText(target.url_path, 500)}${target.category ? ` | ${cleanEditorialText(target.category, 80)}` : ""}`
+    : `Articolo OffertaLogica: ${cleanEditorialText(article?.title, 140)}`;
+  const input = [
+    `Tipo post: ${cleanEditorialText(item?.post_type, 40)}.`,
+    `Tema piano: ${cleanEditorialText(item?.theme, 240)}.`,
+    item?.brief ? `Brief originale: ${cleanEditorialText(item.brief, 1200)}.` : "",
+    item?.canonical_text ? `Testo canonico esistente, da usare solo come contesto e non da copiare: ${cleanEditorialText(item.canonical_text, 2200)}.` : "",
+    `Titolo articolo: ${cleanEditorialText(article?.title, 140)}.`,
+    `Sommario articolo: ${cleanEditorialText(article?.excerpt, 320)}.`,
+    content ? `Contesto articolo: ${content}.` : "",
+    `Destinazione effettiva del post: ${destination}.`,
+    targetContext?.title ? `Titolo reale della pagina di destinazione: ${cleanEditorialText(targetContext.title, 300)}.` : "",
+    targetContext?.h1 ? `H1 reale della pagina di destinazione: ${cleanEditorialText(targetContext.h1, 300)}.` : "",
+    targetContext?.description ? `Descrizione reale della pagina di destinazione: ${cleanEditorialText(targetContext.description, 500)}.` : "",
+  ].filter(Boolean).join(" ");
+  const response = await openAiResponseRequest("", {
+    method: "POST",
+    body: {
+      model: editorialAiModel(),
+      instructions: [
+        "Sei il social editor di OffertaLogica.it. Prepara testi e brief visuale usando solo i contenuti forniti.",
+        "Il post non deve sembrare il duplicato dell'articolo: scegli un angolo pratico specifico e non ripetere titolo o sommario quasi alla lettera.",
+        "Per article_followup sviluppa un solo insight utile dell'articolo e invita ad approfondire l'articolo.",
+        "Per related crea un ponte esplicito ma prudente tra il problema trattato nell'articolo e la destinazione OffertaLogica indicata. Non promettere risparmi, risultati o funzioni non dimostrati dalla destinazione.",
+        "facebook_text: 220-700 caratteri, apertura concreta, 2-4 frasi, tono informativo, nessun URL perché verrà aggiunto dal sistema.",
+        "instagram_text: 220-900 caratteri, apertura concreta, 2-5 frasi, nessun URL e nessun 'link in bio'. Puoi chiudere con un invito neutro ad approfondire dal profilo OffertaLogica.",
+        "Non usare hashtag, emoji, slogan aggressivi o formule promozionali generiche.",
+        "Il visuale deve essere una nuova fotografia quadrata 1:1, pronta per il feed social, pertinente al tema specifico e chiaramente diversa per composizione e messaggio dalla hero dell'articolo.",
+        "Per related il visuale deve rendere percepibile il passaggio dal problema alla decisione/soluzione collegata alla destinazione, senza mostrare loghi, testo, prezzi, bollette leggibili o interfacce inventate.",
+      ].join(" "),
+      input,
+      reasoning: { effort: "low" },
+      max_output_tokens: 1800,
+      store: false,
+      text: {
+        format: {
+          type: "json_schema",
+          name: "offertalogica_social_asset_brief",
+          strict: true,
+          schema: editorialSocialAssetBriefSchema(),
+        },
+      },
+    },
+  });
+  let parsed;
+  try {
+    parsed = JSON.parse(responseOutputText(response));
+  } catch {
+    throw new Error("Asset social: brief AI non interpretabile");
+  }
+  const brief = {
+    facebook_text: cleanEditorialSocialCopy(parsed?.facebook_text, 900),
+    instagram_text: cleanEditorialSocialCopy(parsed?.instagram_text, 1100),
+    visual_subject: cleanEditorialText(parsed?.visual_subject, 320),
+    visual_scene: cleanEditorialText(parsed?.visual_scene, 600),
+    must_show: cleanEditorialStringList(parsed?.must_show, 6, 180),
+    must_avoid: cleanEditorialStringList(parsed?.must_avoid, 8, 180),
+    alt_text: cleanEditorialText(parsed?.alt_text, 180),
+  };
+  if (brief.facebook_text.length < 120 || brief.instagram_text.length < 120 || !brief.visual_subject || !brief.visual_scene || brief.must_show.length < 2) {
+    throw new Error("Asset social: brief incompleto");
+  }
+  return brief;
+}
+
+function editorialSocialImagePrompt(article, item, target, brief, guidance = "") {
+  const mustShow = cleanEditorialStringList(brief?.must_show, 6, 180).join("; ");
+  const mustAvoid = cleanEditorialStringList(brief?.must_avoid, 8, 180).join("; ");
+  const extra = cleanEditorialText(guidance, 600);
+  return [
+    "Create one entirely new, original high-resolution vertical editorial photograph from scratch for a static social post by OffertaLogica.it.",
+    "The image must be based only on the supplied editorial context and must not copy, trace, imitate or transform an existing image.",
+    `Post type: ${cleanEditorialText(item?.post_type, 40)}.`,
+    `Article topic: ${cleanEditorialText(article?.title, 140)}.`,
+    target ? `OffertaLogica destination context: ${cleanEditorialText(target.label, 180)}.` : "",
+    `Primary visual subject: ${cleanEditorialText(brief?.visual_subject, 320)}.`,
+    `Visual scene: ${cleanEditorialText(brief?.visual_scene, 600)}.`,
+    mustShow ? `Elements that must be visible: ${mustShow}.` : "",
+    mustAvoid ? `Elements to avoid: ${mustAvoid}.` : "",
+    extra ? `Regeneration guidance: ${extra}.` : "",
+    "Composition: square 1:1 social-feed image, one clear focal point, strong crop, natural believable lighting, professional Italian/European editorial photography.",
+    "Make the composition and visual emphasis clearly different from a generic article hero image. It must work as a standalone social visual, not as a second copy of the article cover.",
+    "Do not add text, captions, letters, numbers, logos, brand marks, watermarks, readable documents, prices, charts, fake interfaces or infographic overlays.",
+    "Do not invent a specific real person, company, event, document or measurable result that the supplied context does not establish.",
+    "The result must look like a real photograph, not an illustration, collage, 3D render or generic stock advertisement.",
+  ].filter(Boolean).join(" ");
+}
+
+async function generateOpenAiSocialImage(article, item, target, brief, guidance = "") {
+  const apiKey = env("OPENAI_API_KEY");
+  if (!apiKey) throw new Error("OPENAI_API_KEY non configurata lato server");
+  const model = editorialImageModel();
+  const prompt = editorialSocialImagePrompt(article, item, target, brief, guidance);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), EDITORIAL_IMAGE_GENERATION_TIMEOUT_MS);
+  let response;
+  try {
+    response = await fetch("https://api.openai.com/v1/images/generations", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model,
+        prompt,
+        size: EDITORIAL_SOCIAL_IMAGE_SIZE,
+        quality: "high",
+        output_format: "jpeg",
+        n: 1,
+      }),
+      cache: "no-store",
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (error?.name === "AbortError") throw new Error("Timeout durante la generazione dell'immagine social: riprova");
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) throw new Error(payload?.error?.message || `OpenAI Images ${response.status}`);
+  const itemPayload = Array.isArray(payload?.data) ? payload.data[0] : null;
+  let buffer = null;
+  if (itemPayload?.b64_json) buffer = Buffer.from(itemPayload.b64_json, "base64");
+  else if (itemPayload?.url) {
+    const remote = await fetch(itemPayload.url, { cache: "no-store" });
+    if (!remote.ok) throw new Error("Immagine social generata non scaricabile");
+    buffer = Buffer.from(await remote.arrayBuffer());
+  }
+  if (!buffer?.length) throw new Error("OpenAI non ha restituito un'immagine social utilizzabile");
+  if (buffer.length > EDITORIAL_IMAGE_MAX_BYTES) throw new Error("L'immagine social generata supera 5 MB");
+  return { model, prompt, buffer };
+}
+
+function editorialSocialImageQaSchema() {
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: ["relevant_to_article", "relevant_to_destination", "distinct_from_article_image", "clear", "misleading", "social_quality", "reason", "regeneration_guidance"],
+    properties: {
+      relevant_to_article: { type: "boolean" },
+      relevant_to_destination: { type: "boolean" },
+      distinct_from_article_image: { type: "boolean" },
+      clear: { type: "boolean" },
+      misleading: { type: "boolean" },
+      social_quality: { type: "boolean" },
+      reason: { type: "string" },
+      regeneration_guidance: { type: "string" },
+    },
+  };
+}
+
+async function evaluateEditorialSocialImage(article, item, target, brief, image, articleImageUrl) {
+  const imageUrl = String(image?.url || "").trim();
+  const heroUrl = String(articleImageUrl || "").trim();
+  if (!/^https:\/\//i.test(imageUrl) || !/^https:\/\//i.test(heroUrl)) throw new Error("QA immagine social: URL non valido");
+  const inputText = [
+    "Valuta la prima immagine come visuale quadrato 1:1 di un post social OffertaLogica. La seconda immagine è la hero dell'articolo e serve solo per verificare che il post social non sia un doppione visivo.",
+    `Titolo articolo: ${cleanEditorialText(article?.title, 140)}.`,
+    `Tipo post: ${cleanEditorialText(item?.post_type, 40)}.`,
+    `Tema post: ${cleanEditorialText(item?.theme, 240)}.`,
+    target ? `Destinazione OffertaLogica: ${cleanEditorialText(target.label, 180)}.` : "Destinazione: articolo collegato.",
+    `Soggetto richiesto: ${cleanEditorialText(brief?.visual_subject, 320)}.`,
+    `Scena richiesta: ${cleanEditorialText(brief?.visual_scene, 600)}.`,
+    `Elementi attesi: ${cleanEditorialStringList(brief?.must_show, 6, 180).join("; ")}.`,
+    "Criteri obbligatori: pertinenza specifica all'articolo, pertinenza all'angolo/destinazione del post, chiarezza a colpo d'occhio, qualità da feed social, assenza di elementi fuorvianti e differenza visiva sostanziale rispetto alla hero dell'articolo.",
+    "distinct_from_article_image è vero solo se soggetto, inquadratura o messaggio visivo cambiano abbastanza da non apparire come la stessa foto/copia nella griglia social.",
+    "Se un criterio fallisce, fornisci una direzione concreta per rigenerare; altrimenti regeneration_guidance deve essere vuoto.",
+  ].filter(Boolean).join(" ");
+  const response = await openAiResponseRequest("", {
+    method: "POST",
+    body: {
+      model: editorialAiModel(),
+      instructions: "Agisci come revisore social visuale severo. Non approvare immagini genericamente pertinenti o troppo simili alla hero dell'articolo.",
+      input: [{
+        role: "user",
+        content: [
+          { type: "input_text", text: inputText },
+          { type: "input_image", image_url: imageUrl, detail: "high" },
+          { type: "input_image", image_url: heroUrl, detail: "high" },
+        ],
+      }],
+      reasoning: { effort: "low" },
+      max_output_tokens: 1400,
+      store: false,
+      text: {
+        format: {
+          type: "json_schema",
+          name: "offertalogica_social_image_qa",
+          strict: true,
+          schema: editorialSocialImageQaSchema(),
+        },
+      },
+    },
+  });
+  let parsed;
+  try {
+    parsed = JSON.parse(responseOutputText(response));
+  } catch {
+    throw new Error("QA immagine social: risposta AI non interpretabile");
+  }
+  const relevantArticle = parsed?.relevant_to_article === true;
+  const relevantDestination = parsed?.relevant_to_destination === true;
+  const distinct = parsed?.distinct_from_article_image === true;
+  const clear = parsed?.clear === true;
+  const misleading = parsed?.misleading === true;
+  const socialQuality = parsed?.social_quality === true;
+  const passed = relevantArticle && relevantDestination && distinct && clear && !misleading && socialQuality;
+  return {
+    schema_version: 1,
+    status: passed ? "passed" : "failed",
+    evaluated_at: new Date().toISOString(),
+    model: editorialAiModel(),
+    relevant_to_article: relevantArticle,
+    relevant_to_destination: relevantDestination,
+    distinct_from_article_image: distinct,
+    clear,
+    misleading,
+    social_quality: socialQuality,
+    reason: cleanEditorialText(parsed?.reason, 600) || (passed ? "Visuale social coerente, distinta e pronta." : "QA visuale social non superata."),
+    regeneration_guidance: passed ? "" : cleanEditorialText(parsed?.regeneration_guidance, 600),
+  };
+}
+
+async function schedulerPrepareMissingSocialAsset(user) {
+  const rows = await serviceFetch(`editorial_research_opportunities?select=${opportunitySelect()}&status=eq.selected&opportunity_type=eq.new_article&order=updated_at.asc&limit=50`);
+  for (const opportunity of rows || []) {
+    const evidence = opportunity?.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {};
+    if (evidence?.article_generation_job?.source !== "scheduler") continue;
+    if (evidence?.article_generation?.status !== "draft_ready_for_review") continue;
+    if (!validUuid(String(opportunity.target_article_id || ""))) continue;
+
+    const articleRows = await serviceFetch(`editorial_articles?select=*&id=eq.${encodeURIComponent(opportunity.target_article_id)}&limit=1`);
+    const article = articleRows?.[0] || null;
+    if (!article?.id) continue;
+    const articleImage = articleImageState(opportunity);
+    const heroAsset = articleImage.current?.url
+      ? articleImage.current
+      : (String(articleImage.candidate?.qa?.status || "") === "passed" ? articleImage.candidate : null);
+    const articleImageUrl = String(heroAsset?.url || article.featured_image_url || "").trim();
+    if (!/^https:\/\//i.test(articleImageUrl)) continue;
+
+    const items = await serviceFetch(
+      `editorial_social_plan_items?select=*&source_article_id=eq.${encodeURIComponent(article.id)}&opportunity_id=eq.${encodeURIComponent(opportunity.id)}&status=in.(draft,approved,failed)&order=created_at.asc&limit=20`,
+    );
+    for (const item of items || []) {
+      if (!["article_followup", "related"].includes(String(item.post_type || ""))) continue;
+      const target = await editorialSocialAssetTarget(item);
+      const fingerprint = editorialSocialAssetFingerprint(article, item, target, articleImageUrl);
+      const state = editorialSocialAssetsState(opportunity);
+      let asset = state.items[item.id] && state.items[item.id].fingerprint === fingerprint
+        ? state.items[item.id]
+        : {
+            schema_version: 1,
+            plan_item_id: item.id,
+            post_type: item.post_type,
+            fingerprint,
+            source_item: {
+              post_type: item.post_type || null,
+              destination_target_id: item.destination_target_id || null,
+              theme: item.theme || "",
+              brief: item.brief || "",
+              canonical_text: item.canonical_text || "",
+            },
+            target: target ? { id: target.id, label: target.label, url_path: target.url_path, category: target.category || null } : null,
+            brief: null,
+            image: null,
+            history: [],
+            status: "pending",
+            updated_at: new Date().toISOString(),
+          };
+
+      if (!asset.brief) {
+        const targetContext = await editorialSocialTargetContext(target);
+        const brief = await buildEditorialSocialAssetBrief(article, item, target, targetContext);
+        asset = { ...asset, brief, target_context: targetContext, status: "brief_ready", updated_at: new Date().toISOString() };
+        state.items[item.id] = asset;
+        await saveEditorialSocialAssetsState(user, opportunity, state);
+        return { action: "social_asset_brief_generated", opportunity_id: opportunity.id, article_id: article.id, social_plan_item_id: item.id, post_type: item.post_type };
+      }
+
+      if (!asset.image?.url) {
+        const generated = await generateOpenAiSocialImage(article, item, target, asset.brief, "");
+        const objectPath = `autopilot/${article.id}/social/${item.id}/${Date.now()}-${crypto.randomUUID()}.jpg`;
+        const imageUrl = await uploadEditorialImageBuffer(objectPath, generated.buffer, "image/jpeg");
+        asset = {
+          ...asset,
+          image: {
+            source: "generated",
+            provider: "openai",
+            generation_mode: "text_to_image",
+            source_policy: EDITORIAL_IMAGE_SOURCE_POLICY,
+            url: imageUrl,
+            object_path: objectPath,
+            mime_type: "image/jpeg",
+            size: EDITORIAL_SOCIAL_IMAGE_SIZE,
+            quality: "high",
+            model: generated.model,
+            prompt: generated.prompt,
+            alt_text: asset.brief.alt_text || defaultArticleImageAlt(article),
+            attempt: 1,
+            qa: null,
+            created_at: new Date().toISOString(),
+          },
+          status: "image_generated",
+          updated_at: new Date().toISOString(),
+        };
+        state.items[item.id] = asset;
+        await saveEditorialSocialAssetsState(user, opportunity, state);
+        return { action: "social_asset_image_generated", opportunity_id: opportunity.id, article_id: article.id, social_plan_item_id: item.id, post_type: item.post_type };
+      }
+
+      const qaStatus = String(asset.image?.qa?.status || "");
+      if (!qaStatus) {
+        const qa = await evaluateEditorialSocialImage(article, item, target, asset.brief, asset.image, articleImageUrl);
+        asset = {
+          ...asset,
+          image: { ...asset.image, qa },
+          status: qa.status === "passed" ? "ready" : "qa_failed",
+          updated_at: new Date().toISOString(),
+        };
+        state.items[item.id] = asset;
+        await saveEditorialSocialAssetsState(user, opportunity, state);
+        return { action: qa.status === "passed" ? "social_asset_ready" : "social_asset_qa_failed", opportunity_id: opportunity.id, article_id: article.id, social_plan_item_id: item.id, post_type: item.post_type, qa };
+      }
+
+      if (qaStatus === "failed") {
+        const attempt = Math.max(1, Number(asset.image?.attempt) || 1);
+        if (attempt <= EDITORIAL_SOCIAL_IMAGE_QA_MAX_REGENERATIONS) {
+          const guidance = cleanEditorialText(asset.image?.qa?.regeneration_guidance, 600)
+            || "Rendi il visuale più specifico rispetto al tema del post e chiaramente diverso dalla hero dell'articolo.";
+          const generated = await generateOpenAiSocialImage(article, item, target, asset.brief, guidance);
+          const objectPath = `autopilot/${article.id}/social/${item.id}/${Date.now()}-${crypto.randomUUID()}.jpg`;
+          const imageUrl = await uploadEditorialImageBuffer(objectPath, generated.buffer, "image/jpeg");
+          const history = [...(Array.isArray(asset.history) ? asset.history : []), { ...asset.image, outcome: "qa_failed", archived_at: new Date().toISOString() }].slice(-4);
+          asset = {
+            ...asset,
+            history,
+            image: {
+              source: "generated",
+              provider: "openai",
+              generation_mode: "text_to_image",
+              source_policy: EDITORIAL_IMAGE_SOURCE_POLICY,
+              url: imageUrl,
+              object_path: objectPath,
+              mime_type: "image/jpeg",
+              size: EDITORIAL_SOCIAL_IMAGE_SIZE,
+              quality: "high",
+              model: generated.model,
+              prompt: generated.prompt,
+              alt_text: asset.brief.alt_text || defaultArticleImageAlt(article),
+              attempt: attempt + 1,
+              qa: null,
+              created_at: new Date().toISOString(),
+            },
+            status: "image_regenerated",
+            updated_at: new Date().toISOString(),
+          };
+          state.items[item.id] = asset;
+          await saveEditorialSocialAssetsState(user, opportunity, state);
+          return { action: "social_asset_regenerated_after_qa", opportunity_id: opportunity.id, article_id: article.id, social_plan_item_id: item.id, post_type: item.post_type, attempt: attempt + 1 };
+        }
+        asset = {
+          ...asset,
+          image: { ...asset.image, qa: { ...asset.image.qa, status: "human_review_required", exhausted_at: new Date().toISOString() } },
+          status: "human_review_required",
+          updated_at: new Date().toISOString(),
+        };
+        state.items[item.id] = asset;
+        await saveEditorialSocialAssetsState(user, opportunity, state);
+        return { action: "social_asset_human_review_required", opportunity_id: opportunity.id, article_id: article.id, social_plan_item_id: item.id, post_type: item.post_type };
+      }
+    }
+  }
+  return null;
 }
 
 async function automationRunsPayload() {
@@ -3117,7 +3720,7 @@ function schedulerSocialResultState(payload) {
   const result = String(payload?.result || payload?.status || "").trim();
   if (["published", "already_published", "skipped"].includes(result)) return "success";
   if (result === "ambiguous_publish") return "ambiguous";
-  if (["waiting_web", "in_progress", "carousel_required"].includes(result)) return "retry";
+  if (["waiting_web", "waiting_assets", "in_progress", "carousel_required"].includes(result)) return "retry";
   if (["failed", "retry_exhausted", "not_queued", "legacy_queue"].includes(result)) return "failed";
   return payload?.published === true ? "success" : "failed";
 }
@@ -3462,6 +4065,9 @@ async function editorialAutopilotTick() {
 
   const image = await schedulerPrepareMissingImage(user);
   if (image) return { ok: true, version: VERSION, active: true, ...image };
+
+  const socialAsset = await schedulerPrepareMissingSocialAsset(user);
+  if (socialAsset) return { ok: true, version: VERSION, active: true, ...socialAsset };
 
   const local = schedulerLocalParts(settings.timezone || "Europe/Rome");
   const schedule = await serviceFetch("editorial_automation_schedule?select=*&enabled=eq.true&order=sort_order.asc");

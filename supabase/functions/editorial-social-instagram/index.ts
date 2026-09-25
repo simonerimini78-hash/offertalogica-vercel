@@ -1,6 +1,6 @@
 const API_VERSION = "v26.0";
 const INSTAGRAM_GRAPH = "https://graph.instagram.com";
-const VERSION = "0.12.50";
+const VERSION = "0.12.51";
 const PLATFORM = "instagram";
 const MAX_ATTEMPTS = 3;
 const MAX_CAROUSEL_SLIDES = 10;
@@ -948,10 +948,37 @@ function trackedPlanDestination(rawUrl: string, item: any, platform: string) {
   }
 }
 
+async function loadPlanSocialAsset(ctx: EditorialContext, item: any) {
+  const opportunityId = String(item?.opportunity_id || "").trim();
+  if (!validUuid(opportunityId)) return null;
+  const rows = await serviceRows(
+    ctx,
+    `editorial_research_opportunities?id=eq.${encodeURIComponent(opportunityId)}&select=id,evidence&limit=1`,
+  );
+  const evidence = rows[0]?.evidence;
+  const asset = evidence?.social_assets?.items?.[String(item.id || "")] || null;
+  if (!asset || asset.status !== "ready") return null;
+  const sourceItem = asset?.source_item && typeof asset.source_item === "object" ? asset.source_item : null;
+  if (!sourceItem) return null;
+  if (String(sourceItem.post_type || "") !== String(item.post_type || "")) return null;
+  if (String(sourceItem.destination_target_id || "") !== String(item.destination_target_id || "")) return null;
+  if (String(sourceItem.theme || "") !== String(item.theme || "")) return null;
+  if (String(sourceItem.brief || "") !== String(item.brief || "")) return null;
+  if (String(sourceItem.canonical_text || "") !== String(item.canonical_text || "")) return null;
+  const imageUrl = String(asset?.image?.url || "").trim();
+  const instagramText = String(asset?.brief?.instagram_text || "").trim();
+  if (!validHttps(imageUrl) || String(asset?.image?.qa?.status || "") !== "passed" || !instagramText) return null;
+  return {
+    imageUrl,
+    altText: String(asset?.image?.alt_text || "").trim(),
+    instagramText,
+  };
+}
+
 async function loadPlanItemContext(ctx: EditorialContext, itemId: string) {
   const itemRows = await serviceRows(
     ctx,
-    `editorial_social_plan_items?id=eq.${encodeURIComponent(itemId)}&select=id,source_article_id,opportunity_id,post_type,destination_target_id,theme,brief,canonical_text,platforms,status&limit=1`,
+    `editorial_social_plan_items?id=eq.${encodeURIComponent(itemId)}&select=id,source_article_id,opportunity_id,post_type,destination_target_id,theme,brief,canonical_text,platforms,status,updated_at&limit=1`,
   );
   const item = itemRows[0] || null;
   if (!item) throw Object.assign(new Error("Post del piano non trovato"), { status: 404 });
@@ -964,8 +991,6 @@ async function loadPlanItemContext(ctx: EditorialContext, itemId: string) {
   if (!article || article.status !== "published") {
     throw Object.assign(new Error("L'articolo collegato deve essere pubblicato"), { status: 409 });
   }
-  const imageUrl = String(article.featured_image_url || "").trim();
-  if (!validHttps(imageUrl)) throw Object.assign(new Error("Immagine articolo non disponibile"), { status: 409 });
 
   let destination = articleUrl(String(article.slug || ""));
   if (item.post_type === "related" && validUuid(String(item.destination_target_id || ""))) {
@@ -985,17 +1010,17 @@ async function loadPlanItemContext(ctx: EditorialContext, itemId: string) {
     }
   }
 
+  const socialAsset = await loadPlanSocialAsset(ctx, item);
   return {
     item,
     article,
-    imageUrl,
+    socialAsset,
     destination: trackedPlanDestination(destination, item, PLATFORM),
   };
 }
 
-function composePlanCaption(item: any, destination: string) {
-  const base = String(item?.canonical_text || "").trim();
-  const caption = [base, destination ? `Approfondisci: ${destination}` : ""].filter(Boolean).join("\n\n");
+function composePlanCaption(socialAsset: any) {
+  const caption = String(socialAsset?.instagramText || "").trim();
   return caption.length <= 2200 ? caption : `${caption.slice(0, 2197).trimEnd()}…`;
 }
 
@@ -1011,10 +1036,15 @@ async function processPlanItem(
   const terminal = planQueueResult(req, publication, channel);
   if (terminal) return terminal;
 
-  const { item, article, imageUrl, destination } = await loadPlanItemContext(ctx, itemId);
-  if (!(await publicImageReady(imageUrl))) {
-    return json(req, { ok: true, version: VERSION, result: "waiting_web", published: false, error: "Immagine articolo non ancora disponibile per Meta" });
+  const { item, article, socialAsset, destination } = await loadPlanItemContext(ctx, itemId);
+  if (!socialAsset) {
+    return json(req, { ok: true, version: VERSION, result: "waiting_assets", published: false, error: "Asset social dedicato non ancora pronto" });
   }
+  if (!(await publicImageReady(socialAsset.imageUrl))) {
+    return json(req, { ok: true, version: VERSION, result: "waiting_web", published: false, error: "Immagine social dedicata non ancora disponibile per Meta" });
+  }
+  const caption = composePlanCaption(socialAsset);
+  if (!caption) return json(req, { ok: true, version: VERSION, result: "failed", published: false, error: "Testo Instagram del post vuoto" });
   const claimed = await claimPlanPublication(ctx, publication);
   if (!claimed) return json(req, { ok: true, version: VERSION, result: "in_progress", published: false });
 
@@ -1024,9 +1054,9 @@ async function processPlanItem(
     creationId = await createSingleImageContainer(
       instagramToken,
       account.id,
-      imageUrl,
-      composePlanCaption(item, destination),
-      String(article.featured_image_alt || article.title || "").slice(0, 1000),
+      socialAsset.imageUrl,
+      caption,
+      String(socialAsset.altText || article.featured_image_alt || article.title || "").slice(0, 1000),
     );
     await updatePlanPublication(ctx, itemId, {
       external_post_id: `container:${creationId}`,
@@ -1082,7 +1112,8 @@ async function processPlanItem(
       external_post_id: mediaId,
       external_post_url: media?.permalink || null,
       destination,
-      format: "static_plan_post",
+      image_url: socialAsset.imageUrl,
+      format: "static_plan_post_dedicated_image",
     });
   } catch (error) {
     const err = error as any;

@@ -1,5 +1,5 @@
 // @ts-nocheck
-// v0.12.50: autenticazione Autopilota con segreto dedicato; mantiene la sintesi social canonica v3.
+// v0.12.51: asset social dedicati, copy per canale e pubblicazione foto per i post del piano.
 // È incorporato anche qui per consentire il deploy diretto dall'editor web
 // Supabase senza dipendenze da file _shared esterni.
 
@@ -264,7 +264,7 @@ function buildSocialSummary(article: any = {}, options: { maxChars?: number } = 
 
 const API_VERSION = "v26.0";
 const FACEBOOK_GRAPH = "https://graph.facebook.com";
-const VERSION = "0.12.50";
+const VERSION = "0.12.51";
 const PLATFORM = "facebook";
 const MAX_ATTEMPTS = 3;
 const MAX_MESSAGE_CHARS = 7000;
@@ -354,6 +354,17 @@ function validPageId(value) {
 function validHttps(value) {
   try {
     return new URL(value).protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+
+async function publicImageReady(url) {
+  if (!validHttps(url)) return false;
+  try {
+    const response = await fetch(url, { method: "HEAD", cache: "no-store" });
+    return response.ok && String(response.headers.get("content-type") || "").toLowerCase().includes("image/");
   } catch {
     return false;
   }
@@ -777,6 +788,52 @@ async function createPagePost(pageToken, pageId, message, link) {
   return String(payload.id);
 }
 
+
+async function createPagePhotoPost(pageToken, pageId, caption, imageUrl) {
+  const endpoint = `${FACEBOOK_GRAPH}/${API_VERSION}/${encodeURIComponent(pageId)}/photos`;
+  const form = new URLSearchParams();
+  form.set("url", imageUrl);
+  form.set("caption", caption);
+  form.set("published", "true");
+
+  let response;
+  try {
+    response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${pageToken}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+        Accept: "application/json",
+      },
+      body: form,
+    });
+  } catch (cause) {
+    throw Object.assign(new Error("Connessione interrotta durante la pubblicazione foto Facebook: esito non verificabile"), {
+      status: 502,
+      phase: "publish_ambiguous",
+      cause,
+    });
+  }
+
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const phase = response.status >= 500 ? "publish_ambiguous" : "publish_rejected";
+    throw Object.assign(new Error("Facebook non ha accettato la pubblicazione della foto"), {
+      status: 502,
+      meta: metaError(payload),
+      phase,
+    });
+  }
+  if (!payload?.id) {
+    throw Object.assign(new Error("Facebook ha risposto senza identificativo della foto: esito non verificabile"), {
+      status: 502,
+      meta: metaError(payload),
+      phase: "publish_ambiguous",
+    });
+  }
+  return String(payload.id);
+}
+
 async function publishedPost(pageToken, postId) {
   const { response, payload } = await facebookGet(
     pageToken,
@@ -902,10 +959,37 @@ function trackedPlanDestination(rawUrl, item, platform) {
   }
 }
 
+async function loadPlanSocialAsset(ctx, item) {
+  const opportunityId = String(item?.opportunity_id || "").trim();
+  if (!validUuid(opportunityId)) return null;
+  const rows = await serviceRows(
+    ctx,
+    `editorial_research_opportunities?id=eq.${encodeURIComponent(opportunityId)}&select=id,evidence&limit=1`,
+  );
+  const evidence = rows[0]?.evidence;
+  const asset = evidence?.social_assets?.items?.[String(item.id || "")] || null;
+  if (!asset || asset.status !== "ready") return null;
+  const sourceItem = asset?.source_item && typeof asset.source_item === "object" ? asset.source_item : null;
+  if (!sourceItem) return null;
+  if (String(sourceItem.post_type || "") !== String(item.post_type || "")) return null;
+  if (String(sourceItem.destination_target_id || "") !== String(item.destination_target_id || "")) return null;
+  if (String(sourceItem.theme || "") !== String(item.theme || "")) return null;
+  if (String(sourceItem.brief || "") !== String(item.brief || "")) return null;
+  if (String(sourceItem.canonical_text || "") !== String(item.canonical_text || "")) return null;
+  const imageUrl = String(asset?.image?.url || "").trim();
+  const facebookText = String(asset?.brief?.facebook_text || "").trim();
+  if (!validHttps(imageUrl) || String(asset?.image?.qa?.status || "") !== "passed" || !facebookText) return null;
+  return {
+    imageUrl,
+    altText: String(asset?.image?.alt_text || "").trim(),
+    facebookText,
+  };
+}
+
 async function loadPlanItemContext(ctx, itemId) {
   const itemRows = await serviceRows(
     ctx,
-    `editorial_social_plan_items?id=eq.${encodeURIComponent(itemId)}&select=id,source_article_id,opportunity_id,post_type,destination_target_id,theme,brief,canonical_text,platforms,status&limit=1`,
+    `editorial_social_plan_items?id=eq.${encodeURIComponent(itemId)}&select=id,source_article_id,opportunity_id,post_type,destination_target_id,theme,brief,canonical_text,platforms,status,updated_at&limit=1`,
   );
   const item = itemRows[0] || null;
   if (!item) throw Object.assign(new Error("Post del piano non trovato"), { status: 404 });
@@ -939,7 +1023,8 @@ async function loadPlanItemContext(ctx, itemId) {
     }
   }
 
-  return { item, article, destination: trackedPlanDestination(destination, item, PLATFORM) };
+  const socialAsset = await loadPlanSocialAsset(ctx, item);
+  return { item, article, socialAsset, destination: trackedPlanDestination(destination, item, PLATFORM) };
 }
 
 async function processPlanItem(req, ctx, pageToken, pageId, itemId) {
@@ -952,9 +1037,15 @@ async function processPlanItem(req, ctx, pageToken, pageId, itemId) {
   if (identity.id !== pageId) {
     throw Object.assign(new Error("Il Page Access Token non appartiene alla Pagina Facebook configurata"), { status: 409 });
   }
-  const { item, destination } = await loadPlanItemContext(ctx, itemId);
-  const message = String(item.canonical_text || "").trim().slice(0, MAX_MESSAGE_CHARS);
-  if (!message) throw Object.assign(new Error("Testo del post vuoto"), { status: 422 });
+  const { item, socialAsset, destination } = await loadPlanItemContext(ctx, itemId);
+  if (!socialAsset) {
+    return json(req, { ok: true, version: VERSION, result: "waiting_assets", status: "waiting_assets", published: false, error: "Asset social dedicato non ancora pronto" });
+  }
+  if (!(await publicImageReady(socialAsset.imageUrl))) {
+    return json(req, { ok: true, version: VERSION, result: "waiting_web", status: "waiting_web", published: false, error: "Immagine social dedicata non ancora disponibile per Meta" });
+  }
+  const message = [socialAsset.facebookText, destination].filter(Boolean).join("\n\n").slice(0, MAX_MESSAGE_CHARS);
+  if (!message) throw Object.assign(new Error("Testo Facebook del post vuoto"), { status: 422 });
 
   const claimed = await claimPlanPublication(ctx, publication);
   if (!claimed) {
@@ -963,7 +1054,7 @@ async function processPlanItem(req, ctx, pageToken, pageId, itemId) {
 
   let postId = "";
   try {
-    postId = await createPagePost(pageToken, pageId, message, destination);
+    postId = await createPagePhotoPost(pageToken, pageId, message, socialAsset.imageUrl);
     const post = await publishedPost(pageToken, postId).catch(() => null);
     const now = new Date().toISOString();
     const updated = await updatePlanPublication(ctx, itemId, {
@@ -978,7 +1069,7 @@ async function processPlanItem(req, ctx, pageToken, pageId, itemId) {
       await updatePlanPublication(ctx, itemId, {
         status: "publishing",
         external_post_id: postId,
-        last_error: "ESITO INCERTO: post creato su Facebook ma conferma database non riuscita. Non ritentare automaticamente.",
+        last_error: "ESITO INCERTO: foto creata su Facebook ma conferma database non riuscita. Non ritentare automaticamente.",
         updated_at: new Date().toISOString(),
       }).catch(() => null);
       return json(req, { ok: true, version: VERSION, result: "ambiguous_publish", status: "ambiguous_publish", published: false, external_post_id: postId });
@@ -992,25 +1083,27 @@ async function processPlanItem(req, ctx, pageToken, pageId, itemId) {
       external_post_id: postId,
       external_post_url: post?.permalink_url || null,
       destination,
+      image_url: socialAsset.imageUrl,
+      format: "static_plan_photo",
     });
   } catch (error) {
-    const phase = String(error?.phase || "");
-    if (phase === "publish_ambiguous") {
+    const err = error;
+    const messageText = err?.message || "Errore Facebook";
+    if (err?.phase === "publish_ambiguous") {
       await updatePlanPublication(ctx, itemId, {
         status: "publishing",
         external_post_id: postId || null,
-        last_error: `ESITO INCERTO: ${String(error?.message || "pubblicazione Facebook non verificabile").slice(0, 800)} Non ritentare automaticamente.`,
+        last_error: `ESITO INCERTO: ${String(messageText).slice(0, 900)} Non ritentare automaticamente.`,
         updated_at: new Date().toISOString(),
       }).catch(() => null);
-      return json(req, { ok: true, version: VERSION, result: "ambiguous_publish", status: "ambiguous_publish", published: false, external_post_id: postId || null });
+      return json(req, { ok: true, version: VERSION, result: "ambiguous_publish", status: "ambiguous_publish", published: false, external_post_id: postId || null, meta: err?.meta || null });
     }
-    const message = error?.meta?.message ? `${error.message}: ${error.meta.message}` : String(error?.message || "Errore Facebook");
     await updatePlanPublication(ctx, itemId, {
       status: "failed",
-      last_error: message.slice(0, 1000),
+      last_error: String(messageText).slice(0, 1000),
       updated_at: new Date().toISOString(),
     }).catch(() => null);
-    return json(req, { ok: true, version: VERSION, result: "failed", status: "failed", published: false, error: message });
+    return json(req, { ok: true, version: VERSION, result: "failed", status: "failed", published: false, error: messageText, meta: err?.meta || null });
   }
 }
 
