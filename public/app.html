@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="OffertaLogica Premium">
-  <meta name="offertalogica-app-version" content="APP v0.36.33">
+  <meta name="offertalogica-app-version" content="APP v0.36.34">
   <title>OffertaLogica Premium</title>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/assets/logo-offertalogica-icon.png?v=19">
@@ -555,7 +555,7 @@
           <strong>Le tue utenze</strong><small id="homeUtilitiesCopy">Organizza abitazioni, luce e gas.</small>
           <span class="home-action-arrow" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></span>
         </button>
-        <a class="action home-action" href="/?entry=app#main-content" data-app-url="/?entry=app#main-content" data-app-title="Calcola il risparmio">
+        <a class="action home-action" href="/?landing=0&entry=calculator#main-content" data-app-url="/?landing=0&entry=calculator#main-content" data-app-title="Calcola il risparmio">
           <div class="action-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9"/><path d="M10 19V5"/><path d="M16 19v-8"/><path d="M22 19V3"/><path d="M2 19h22"/></svg></div>
           <strong>Calcola il risparmio</strong><small>Analizza consumi e costi.</small>
           <span class="home-action-arrow" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></span>
@@ -621,7 +621,7 @@
         <div class="status"><span class="status-dot"></span><span>Confronto gratuito disponibile</span></div>
         <h2>Scopri quanto puoi risparmiare</h2>
         <p>Usa i consumi medi oppure inserisci i tuoi dati.</p>
-        <a class="cta" href="/?entry=app#main-content" data-app-url="/?entry=app#main-content" data-app-title="Confronta le offerte"><span>INIZIA IL CONFRONTO</span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="m14 7 5 5-5 5"/></svg></a>
+        <a class="cta" href="/?landing=0&entry=calculator#main-content" data-app-url="/?landing=0&entry=calculator#main-content" data-app-title="Confronta le offerte"><span>INIZIA IL CONFRONTO</span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="m14 7 5 5-5 5"/></svg></a>
       </section>
       <section class="feature-card" style="margin-top:14px"><div class="feature-symbol"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg></div><h2>Catalogo offerte aggiornate</h2><p>Consulta le offerte luce, gas e dual.</p><a class="cta" href="/offerte-luce-gas-aggiornate.html" data-app-url="/offerte-luce-gas-aggiornate.html" data-app-title="Offerte aggiornate">APRI IL CATALOGO</a></section>
     </section>
@@ -800,7 +800,7 @@
 
       <section id="premiumSupportPanel" class="account-manage" aria-label="Richiesta assistenza" hidden></section>
 
-      <span class="version-badge">APP Premium v0.36.33</span>
+      <span class="version-badge">APP Premium v0.36.34</span>
     </section>
   </main>
 
@@ -1023,7 +1023,7 @@
       globalThis.OffertaLogicaPremiumBills?.init();
 
       if(!('serviceWorker' in navigator))return;
-      const CURRENT_RELEASE="0.36.33";
+      const CURRENT_RELEASE="0.36.34";
       let refreshing=false;let activationRequested=false;let registration=null;let pendingWorker=null;let manifestReloadPending=false;let controlledAtStart=Boolean(navigator.serviceWorker.controller);
       const boundRegistrations=new WeakSet();
       let updateCheckInFlight=null;let updateTimer=null;let retryTimer=null;let lastInteractionAt=Date.now();

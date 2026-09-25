@@ -1536,7 +1536,7 @@
   }
 
   function preparePremiumComparisonPrefill(event) {
-    const link = event.target instanceof Element ? event.target.closest('[data-app-url="/?entry=app#main-content"]') : null;
+    const link = event.target instanceof Element ? event.target.closest('[data-app-url="/?landing=0&entry=calculator#main-content"]') : null;
     if (!link || pendingPhotoFile) return;
     pendingComparisonPrefill = buildPremiumComparisonProfile();
     pendingComparisonRetryCount = 0;
@@ -1547,7 +1547,7 @@
     if (!tab) return;
     const profile = buildPremiumComparisonProfile();
     if (!profile) return;
-    const link = document.querySelector('#view-offers [data-app-url="/?entry=app#main-content"]');
+    const link = document.querySelector('#view-offers [data-app-url="/?landing=0&entry=calculator#main-content"]');
     if (!link) return;
     pendingComparisonPrefill = profile;
     pendingComparisonRetryCount = 0;
@@ -1632,7 +1632,7 @@
     pendingPhotoFile = file;
     pendingComparisonPrefill = null;
     pendingComparisonRetryCount = 0;
-    const link = document.querySelector('#view-offers [data-app-url="/?entry=app#main-content"]');
+    const link = document.querySelector('#view-offers [data-app-url="/?landing=0&entry=calculator#main-content"]');
     if (!link) {
       pendingPhotoFile = null;
       setMessage("error", "Il confronto non è disponibile in questo momento.");
@@ -2424,7 +2424,7 @@
           customer_status: "awaiting_review",
           metadata: {
             source: "premium_app",
-            app_version: "0.36.29",
+            app_version: "0.36.34",
             automatic_analysis: true,
             upload_complete: false
           }

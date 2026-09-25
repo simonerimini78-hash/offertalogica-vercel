@@ -323,7 +323,27 @@
       "dest": "https://offertalogica.it/assets/ol-app-access.css"
     },
     {
-      "src": "/(come-funziona|come-leggere-bolletta-luce-gas|offerte-luce-gas-aggiornate|partner|casa-smart|internet-casa)\\.html",
+      "src": "/offerte-luce-gas-aggiornate\\.html",
+      "dest": "https://offertalogica.it/offerte-luce-gas-aggiornate.html",
+      "transforms": [
+        {
+          "type": "response.headers",
+          "op": "delete",
+          "target": {
+            "key": "x-frame-options"
+          }
+        },
+        {
+          "type": "response.headers",
+          "op": "delete",
+          "target": {
+            "key": "content-security-policy"
+          }
+        }
+      ]
+    },
+    {
+      "src": "/(come-funziona|come-leggere-bolletta-luce-gas|partner|casa-smart|internet-casa)\\.html",
       "dest": "https://offertalogica.it/$1.html",
       "transforms": [
         {
