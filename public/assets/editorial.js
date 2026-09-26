@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.40";
+  const VERSION = "0.12.52";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const STATUSES = new Set(["draft", "in_review", "changes_requested", "approved", "published", "archived"]);
   const STATUS_LABELS = {draft:"Bozza",in_review:"In revisione",changes_requested:"Modifiche richieste",approved:"Approvato",published:"Pubblicato",archived:"Archiviato"};
@@ -386,7 +386,7 @@
     function setActionState(){
       const status=fields.status.value;const own=isOwnArticle()||(!fields.id.value&&Boolean(ownAuthor));const editorSelfReview=member?.role==="editor"&&own;
       form.querySelector("[data-review-save]").disabled=Boolean(currentArticle&&!own&&!canEditOtherArticle());
-      form.querySelector("[data-review-submit]").disabled=!(own&&["draft","changes_requested"].includes(status));
+      form.querySelector("[data-review-submit]").disabled=!(["draft","changes_requested"].includes(status)&&(own||can(member,"review_articles")));
       form.querySelector("[data-review-changes]").disabled=!can(member,"review_articles")||editorSelfReview||!(["in_review","approved"].includes(status));
       form.querySelector("[data-review-approve]").disabled=!can(member,"approve_articles")||editorSelfReview||status!=="in_review";
       form.querySelector("[data-review-publish]").disabled=!can(member,"publish_articles")||status!=="approved";
