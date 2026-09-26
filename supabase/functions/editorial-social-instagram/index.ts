@@ -1,6 +1,7 @@
 const API_VERSION = "v26.0";
 const INSTAGRAM_GRAPH = "https://graph.instagram.com";
-const VERSION = "0.12.51";
+const VERSION = "0.12.53";
+const SOCIAL_CARD_TEMPLATE_VERSION = "offertalogica_manual_cover_v1";
 const PLATFORM = "instagram";
 const MAX_ATTEMPTS = 3;
 const MAX_CAROUSEL_SLIDES = 10;
@@ -786,11 +787,18 @@ async function processAutopilotArticleIntro(
     return json(req, { ok: true, version: VERSION, result: "waiting_web", published: false });
   }
 
-  const imageUrl = String(article.featured_image_url || "").trim();
-  if (!validHttps(imageUrl) || !(await publicImageReady(imageUrl))) {
-    return json(req, { ok: true, version: VERSION, result: "waiting_web", published: false, error: "Immagine articolo non ancora disponibile per Meta" });
+  const introAsset = await loadArticleIntroSocialAsset(ctx, article);
+  if (!introAsset) {
+    return json(req, { ok: true, version: VERSION, result: "waiting_assets", published: false, error: "Cover editoriale articolo non ancora pronta" });
   }
-  const author = await loadArticleAuthor(ctx, article);
+  const imageUrl = String(introAsset.imageUrl || "").trim();
+  if (!validHttps(imageUrl) || !(await publicImageReady(imageUrl))) {
+    return json(req, { ok: true, version: VERSION, result: "waiting_web", published: false, error: "Cover editoriale articolo non ancora disponibile per Meta" });
+  }
+  const caption = String(introAsset.instagramText || "").trim();
+  if (!caption) {
+    return json(req, { ok: true, version: VERSION, result: "failed", published: false, error: "Testo Instagram dell'articolo vuoto" });
+  }
   const claimed = await claimPublication(ctx, publication);
   if (!claimed) return json(req, { ok: true, version: VERSION, result: "in_progress", published: false });
 
@@ -802,8 +810,8 @@ async function processAutopilotArticleIntro(
       instagramToken,
       account.id,
       imageUrl,
-      composeIntroCaption(article, author),
-      String(article.featured_image_alt || article.title || "").slice(0, 1000),
+      caption.length <= 2200 ? caption : `${caption.slice(0, 2197).trimEnd()}…`,
+      String(introAsset.altText || article.featured_image_alt || article.title || "").slice(0, 1000),
     );
     await updatePublication(ctx, publicationId, {
       external_post_id: `container:${creationId}`,
@@ -867,7 +875,8 @@ async function processAutopilotArticleIntro(
       published: true,
       external_post_id: mediaId,
       external_post_url: media?.permalink || null,
-      format: "static_article_intro",
+      format: "static_article_intro_branded_card",
+      image_url: imageUrl,
     });
   } catch (error) {
     const err = error as any;
@@ -965,14 +974,46 @@ async function loadPlanSocialAsset(ctx: EditorialContext, item: any) {
   if (String(sourceItem.theme || "") !== String(item.theme || "")) return null;
   if (String(sourceItem.brief || "") !== String(item.brief || "")) return null;
   if (String(sourceItem.canonical_text || "") !== String(item.canonical_text || "")) return null;
-  const imageUrl = String(asset?.image?.url || "").trim();
+  const imageUrl = String(asset?.card?.url || "").trim();
   const instagramText = String(asset?.brief?.instagram_text || "").trim();
-  if (!validHttps(imageUrl) || String(asset?.image?.qa?.status || "") !== "passed" || !instagramText) return null;
+  const cardValid = String(asset?.card?.template_version || "") === SOCIAL_CARD_TEMPLATE_VERSION;
+  const rawImageQaPassed = String(asset?.image?.qa?.status || "") === "passed";
+  if (!validHttps(imageUrl) || !cardValid || !rawImageQaPassed || !instagramText) return null;
   return {
     imageUrl,
-    altText: String(asset?.image?.alt_text || "").trim(),
+    altText: String(asset?.card?.alt_text || asset?.image?.alt_text || "").trim(),
     instagramText,
   };
+}
+
+async function loadArticleIntroSocialAsset(ctx: EditorialContext, article: any) {
+  const articleId = String(article?.id || "").trim();
+  if (!validUuid(articleId)) return null;
+  const rows = await serviceRows(
+    ctx,
+    `editorial_research_opportunities?target_article_id=eq.${encodeURIComponent(articleId)}&select=id,evidence&order=updated_at.desc&limit=5`,
+  );
+  for (const row of rows || []) {
+    const intro = row?.evidence?.social_assets?.article_intro || null;
+    if (!intro || String(intro.status || "") !== "ready") continue;
+    const source = intro?.source_article && typeof intro.source_article === "object" ? intro.source_article : null;
+    const card = intro?.card && typeof intro.card === "object" ? intro.card : null;
+    const instagramText = String(intro?.copy?.instagram_text || "").trim();
+    if (!source || !card || !instagramText) continue;
+    if (String(source.title || "") !== String(article.title || "")) continue;
+    if (String(source.excerpt || "") !== String(article.excerpt || "")) continue;
+    if (String(source.featured_image_url || "") !== String(article.featured_image_url || "")) continue;
+    if (String(card.template_version || "") !== SOCIAL_CARD_TEMPLATE_VERSION) continue;
+    if (String(card.source_image_url || "") !== String(article.featured_image_url || "")) continue;
+    const imageUrl = String(card.url || "").trim();
+    if (!validHttps(imageUrl)) continue;
+    return {
+      imageUrl,
+      altText: String(card.alt_text || article.featured_image_alt || article.title || "").trim(),
+      instagramText,
+    };
+  }
+  return null;
 }
 
 async function loadPlanItemContext(ctx: EditorialContext, itemId: string) {

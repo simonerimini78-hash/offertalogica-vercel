@@ -22,7 +22,8 @@
   },
   "dependencies": {
     "@paralleldrive/cuid2": "^2.2.2",
-    "formidable": "^3.5.4"
+    "formidable": "^3.5.4",
+    "sharp": "0.34.1"
   },
   "devDependencies": {
     "vercel": "^34.0.0"

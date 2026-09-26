@@ -1,7 +1,8 @@
 import crypto from "node:crypto";
 import { json } from "../lib/http.js";
+import { EDITORIAL_SOCIAL_CARD_TEMPLATE_VERSION, renderEditorialSocialCard } from "../lib/editorial-social-card.js";
 
-const VERSION = "0.12.51";
+const VERSION = "0.12.53";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -28,7 +29,7 @@ const EDITORIAL_PAGE_FETCH_TIMEOUT_MS = 20000;
 const EDITORIAL_PLAN_POST_TYPES = new Set(["article_followup", "related", "evergreen", "service", "data"]);
 const EDITORIAL_PLAN_EDITABLE_STATUSES = new Set(["draft", "approved", "cancelled"]);
 const EDITORIAL_SOCIAL_PLATFORMS = new Set(["facebook", "instagram"]);
-const EDITORIAL_SOCIAL_RUNTIME_VERSION = "0.12.51";
+const EDITORIAL_SOCIAL_RUNTIME_VERSION = "0.12.53";
 const EDITORIAL_IMAGE_DEFAULT_MODEL = "gpt-image-2";
 const EDITORIAL_IMAGE_BUCKET = "editorial-images";
 const EDITORIAL_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
@@ -2465,8 +2466,22 @@ async function deleteEditorialDraftArticle(user, payload = {}) {
       if (objectPath.startsWith(generatedPrefix)) imagePaths.add(objectPath);
     }
     const socialAssets = editorialSocialAssetsState(opportunity);
+    const introAssets = [
+      socialAssets.article_intro?.card,
+      ...((Array.isArray(socialAssets.article_intro?.card_history) ? socialAssets.article_intro.card_history : [])),
+    ];
+    for (const image of introAssets) {
+      const objectPath = String(image?.object_path || "").trim();
+      if (objectPath.startsWith(generatedPrefix)) imagePaths.add(objectPath);
+    }
     for (const socialAsset of Object.values(socialAssets.items || {})) {
-      for (const image of [socialAsset?.image, ...((Array.isArray(socialAsset?.history) ? socialAsset.history : []))]) {
+      const generatedAssets = [
+        socialAsset?.image,
+        ...((Array.isArray(socialAsset?.history) ? socialAsset.history : [])),
+        socialAsset?.card,
+        ...((Array.isArray(socialAsset?.card_history) ? socialAsset.card_history : [])),
+      ];
+      for (const image of generatedAssets) {
         const objectPath = String(image?.object_path || "").trim();
         if (objectPath.startsWith(generatedPrefix)) imagePaths.add(objectPath);
       }
@@ -2602,8 +2617,10 @@ async function updateEditorialSocialPlanItem(user, payload = {}) {
 
 function editorialSocialAssetsState(opportunity) {
   const raw = opportunity?.evidence?.social_assets;
-  const items = raw?.items && typeof raw.items === "object" ? raw.items : {};
-  return { schema_version: 1, items: { ...items } };
+  const safe = raw && typeof raw === "object" ? raw : {};
+  const items = safe?.items && typeof safe.items === "object" ? safe.items : {};
+  const articleIntro = safe?.article_intro && typeof safe.article_intro === "object" ? safe.article_intro : null;
+  return { ...safe, schema_version: 2, article_intro: articleIntro ? { ...articleIntro } : null, items: { ...items } };
 }
 
 async function saveEditorialSocialAssetsState(user, opportunity, state) {
@@ -2655,15 +2672,41 @@ function editorialSocialAssetBriefSchema() {
   return {
     type: "object",
     additionalProperties: false,
-    required: ["facebook_text", "instagram_text", "visual_subject", "visual_scene", "must_show", "must_avoid", "alt_text"],
+    required: ["facebook_text", "instagram_text", "cover_title", "cover_summary", "visual_subject", "visual_scene", "must_show", "must_avoid", "alt_text"],
     properties: {
       facebook_text: { type: "string" },
       instagram_text: { type: "string" },
+      cover_title: { type: "string" },
+      cover_summary: { type: "string" },
       visual_subject: { type: "string" },
       visual_scene: { type: "string" },
       must_show: { type: "array", minItems: 2, maxItems: 6, items: { type: "string" } },
       must_avoid: { type: "array", minItems: 2, maxItems: 8, items: { type: "string" } },
       alt_text: { type: "string" },
+    },
+  };
+}
+
+function editorialArticleIntroCopySchema() {
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: ["facebook_text", "instagram_text"],
+    properties: {
+      facebook_text: { type: "string" },
+      instagram_text: { type: "string" },
+    },
+  };
+}
+
+function editorialSocialCoverTextSchema() {
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: ["cover_title", "cover_summary"],
+    properties: {
+      cover_title: { type: "string" },
+      cover_summary: { type: "string" },
     },
   };
 }
@@ -2676,6 +2719,110 @@ function cleanEditorialSocialCopy(value, maxLength) {
     .replace(/\n{3,}/g, "\n\n")
     .replace(/[ \t]{2,}/g, " ")
     .trim();
+}
+
+function editorialArticleIntroAssetFingerprint(article, articleImageUrl) {
+  return crypto.createHash("sha256").update(JSON.stringify({
+    article_id: article?.id || null,
+    article_title: article?.title || "",
+    article_excerpt: article?.excerpt || "",
+    article_content: String(article?.content || "").slice(0, 8000),
+    article_image_url: articleImageUrl || "",
+    card_template_version: EDITORIAL_SOCIAL_CARD_TEMPLATE_VERSION,
+  })).digest("hex");
+}
+
+function editorialSocialCoverLabel(postType) {
+  if (postType === "related") return "SOLUZIONE OFFERTALOGICA";
+  if (postType === "article_followup") return "APPROFONDIMENTO";
+  return "IN SINTESI";
+}
+
+function editorialSocialBriefHasCover(brief) {
+  return Boolean(
+    cleanEditorialText(brief?.cover_title, 220).length >= 24
+    && cleanEditorialText(brief?.cover_summary, 420).length >= 70
+  );
+}
+
+async function buildEditorialArticleIntroCopy(article) {
+  const content = cleanEditorialText(article?.content, 4200).replace(/[#*_`>-]+/g, " ").replace(/\s+/g, " ");
+  const input = [
+    `Titolo articolo: ${cleanEditorialText(article?.title, 140)}.`,
+    `Sommario articolo: ${cleanEditorialText(article?.excerpt, 320)}.`,
+    content ? `Contesto articolo: ${content}.` : "",
+  ].filter(Boolean).join(" ");
+  const response = await openAiResponseRequest("", {
+    method: "POST",
+    body: {
+      model: editorialAiModel(),
+      instructions: [
+        "Sei il social editor di OffertaLogica.it. Scrivi il testo di lancio di un nuovo articolo usando esclusivamente le informazioni fornite.",
+        "Non duplicare titolo e sommario: apri con il problema o con il punto utile per il lettore e sintetizza in modo naturale perché vale la pena approfondire.",
+        "facebook_text: 220-650 caratteri, 2-4 frasi, tono informativo e concreto, nessun URL perché verrà aggiunto dal sistema.",
+        "instagram_text: 220-800 caratteri, 2-5 frasi, nessun URL e nessun 'link in bio'. Chiudi, se utile, con un invito neutro ad approfondire dal profilo OffertaLogica.",
+        "Non usare hashtag, emoji, promesse di risparmio, slogan aggressivi o informazioni non presenti nell'articolo.",
+      ].join(" "),
+      input,
+      reasoning: { effort: "low" },
+      max_output_tokens: 1200,
+      store: false,
+      text: {
+        format: {
+          type: "json_schema",
+          name: "offertalogica_article_intro_social_copy",
+          strict: true,
+          schema: editorialArticleIntroCopySchema(),
+        },
+      },
+    },
+  });
+  let parsed;
+  try {
+    parsed = JSON.parse(responseOutputText(response));
+  } catch {
+    throw new Error("Asset social articolo: copy AI non interpretabile");
+  }
+  const copy = {
+    facebook_text: cleanEditorialSocialCopy(parsed?.facebook_text, 850),
+    instagram_text: cleanEditorialSocialCopy(parsed?.instagram_text, 1000),
+  };
+  if (copy.facebook_text.length < 120 || copy.instagram_text.length < 120) {
+    throw new Error("Asset social articolo: copy incompleto");
+  }
+  return copy;
+}
+
+async function renderAndUploadEditorialSocialCard({ article, sourceImageUrl, postType, title, summary, label, storageSegment }) {
+  const rendered = await renderEditorialSocialCard({
+    sourceImageUrl,
+    postType,
+    label: label || editorialSocialCoverLabel(postType),
+    title,
+    summary,
+  });
+  if (!rendered?.buffer?.length) throw new Error("Cover social: rendering non riuscito");
+  if (rendered.buffer.length > EDITORIAL_IMAGE_MAX_BYTES) throw new Error("Cover social: file finale oltre 5 MB");
+  const segment = cleanEditorialText(storageSegment, 120).replace(/[^a-zA-Z0-9_-]+/g, "-") || "card";
+  const objectPath = `autopilot/${article.id}/social/${segment}/${Date.now()}-${crypto.randomUUID()}.jpg`;
+  const url = await uploadEditorialImageBuffer(objectPath, rendered.buffer, rendered.mimeType || "image/jpeg");
+  return {
+    source: "composed",
+    renderer: "sharp_svg",
+    template_version: rendered.templateVersion || EDITORIAL_SOCIAL_CARD_TEMPLATE_VERSION,
+    post_type: postType,
+    source_image_url: sourceImageUrl,
+    url,
+    object_path: objectPath,
+    mime_type: rendered.mimeType || "image/jpeg",
+    width: rendered.width || 1080,
+    height: rendered.height || 1350,
+    label: label || editorialSocialCoverLabel(postType),
+    title: cleanEditorialText(title, 220),
+    summary: cleanEditorialText(summary, 420),
+    alt_text: `Cover OffertaLogica Informa: ${cleanEditorialText(title, 160)}`.slice(0, 180),
+    created_at: new Date().toISOString(),
+  };
 }
 
 async function editorialSocialTargetContext(target) {
@@ -2722,6 +2869,64 @@ async function editorialSocialTargetContext(target) {
   }
 }
 
+async function buildEditorialSocialCoverText(article, item, target, targetContext = null, existingBrief = null) {
+  const destination = target
+    ? `${cleanEditorialText(target.label, 180)} | ${cleanEditorialText(target.url_path, 500)}${target.category ? ` | ${cleanEditorialText(target.category, 80)}` : ""}`
+    : `Articolo OffertaLogica: ${cleanEditorialText(article?.title, 140)}`;
+  const input = [
+    `Tipo post: ${cleanEditorialText(item?.post_type, 40)}.`,
+    `Tema piano: ${cleanEditorialText(item?.theme, 240)}.`,
+    `Titolo articolo: ${cleanEditorialText(article?.title, 140)}.`,
+    `Sommario articolo: ${cleanEditorialText(article?.excerpt, 320)}.`,
+    item?.canonical_text ? `Testo canonico del post, solo come contesto: ${cleanEditorialText(item.canonical_text, 1800)}.` : "",
+    existingBrief?.facebook_text ? `Copy Facebook già approvato: ${cleanEditorialText(existingBrief.facebook_text, 900)}.` : "",
+    existingBrief?.instagram_text ? `Copy Instagram già approvato: ${cleanEditorialText(existingBrief.instagram_text, 1100)}.` : "",
+    `Destinazione effettiva: ${destination}.`,
+    targetContext?.title ? `Titolo pagina destinazione: ${cleanEditorialText(targetContext.title, 300)}.` : "",
+    targetContext?.h1 ? `H1 pagina destinazione: ${cleanEditorialText(targetContext.h1, 300)}.` : "",
+    targetContext?.description ? `Descrizione pagina destinazione: ${cleanEditorialText(targetContext.description, 500)}.` : "",
+  ].filter(Boolean).join(" ");
+  const response = await openAiResponseRequest("", {
+    method: "POST",
+    body: {
+      model: editorialAiModel(),
+      instructions: [
+        "Scrivi solo il titolo e la micro-sintesi per una cover social OffertaLogica. Usa esclusivamente i contenuti forniti.",
+        "La cover deve aggiungere un angolo editoriale, non copiare il titolo dell'articolo e non fare promesse non dimostrate.",
+        "Per article_followup metti in primo piano un insight pratico dell'articolo.",
+        "Per related collega in modo chiaro ma prudente il problema dell'articolo alla destinazione OffertaLogica indicata.",
+        "cover_title: 35-95 caratteri, leggibile anche da solo.",
+        "cover_summary: 90-190 caratteri, una frase autonoma che completa il titolo senza ripeterlo.",
+        "Niente URL, hashtag, emoji o slogan promozionali generici.",
+      ].join(" "),
+      input,
+      reasoning: { effort: "low" },
+      max_output_tokens: 700,
+      store: false,
+      text: {
+        format: {
+          type: "json_schema",
+          name: "offertalogica_social_cover_text",
+          strict: true,
+          schema: editorialSocialCoverTextSchema(),
+        },
+      },
+    },
+  });
+  let parsed;
+  try {
+    parsed = JSON.parse(responseOutputText(response));
+  } catch {
+    throw new Error("Cover social: testo AI non interpretabile");
+  }
+  const cover = {
+    cover_title: cleanEditorialText(parsed?.cover_title, 220),
+    cover_summary: cleanEditorialText(parsed?.cover_summary, 420),
+  };
+  if (!editorialSocialBriefHasCover(cover)) throw new Error("Cover social: testo incompleto");
+  return cover;
+}
+
 async function buildEditorialSocialAssetBrief(article, item, target, targetContext = null) {
   const content = cleanEditorialText(article?.content, 4200).replace(/[#*_`>-]+/g, " ").replace(/\s+/g, " ");
   const destination = target
@@ -2751,8 +2956,10 @@ async function buildEditorialSocialAssetBrief(article, item, target, targetConte
         "Per related crea un ponte esplicito ma prudente tra il problema trattato nell'articolo e la destinazione OffertaLogica indicata. Non promettere risparmi, risultati o funzioni non dimostrati dalla destinazione.",
         "facebook_text: 220-700 caratteri, apertura concreta, 2-4 frasi, tono informativo, nessun URL perché verrà aggiunto dal sistema.",
         "instagram_text: 220-900 caratteri, apertura concreta, 2-5 frasi, nessun URL e nessun 'link in bio'. Puoi chiudere con un invito neutro ad approfondire dal profilo OffertaLogica.",
+        "cover_title: 35-95 caratteri. Deve essere il titolo della card social e deve essere diverso dal titolo dell'articolo, pur restando fedele al contenuto.",
+        "cover_summary: 90-190 caratteri. Deve spiegare in una frase autonoma il valore pratico del post senza ripetere cover_title.",
         "Non usare hashtag, emoji, slogan aggressivi o formule promozionali generiche.",
-        "Il visuale deve essere una nuova fotografia quadrata 1:1, pronta per il feed social, pertinente al tema specifico e chiaramente diversa per composizione e messaggio dalla hero dell'articolo.",
+        "Il visuale deve essere una nuova fotografia quadrata 1:1, pronta per essere inserita nella cover social OffertaLogica, pertinente al tema specifico e chiaramente diversa per composizione e messaggio dalla hero dell'articolo.",
         "Per related il visuale deve rendere percepibile il passaggio dal problema alla decisione/soluzione collegata alla destinazione, senza mostrare loghi, testo, prezzi, bollette leggibili o interfacce inventate.",
       ].join(" "),
       input,
@@ -2778,13 +2985,15 @@ async function buildEditorialSocialAssetBrief(article, item, target, targetConte
   const brief = {
     facebook_text: cleanEditorialSocialCopy(parsed?.facebook_text, 900),
     instagram_text: cleanEditorialSocialCopy(parsed?.instagram_text, 1100),
+    cover_title: cleanEditorialText(parsed?.cover_title, 220),
+    cover_summary: cleanEditorialText(parsed?.cover_summary, 420),
     visual_subject: cleanEditorialText(parsed?.visual_subject, 320),
     visual_scene: cleanEditorialText(parsed?.visual_scene, 600),
     must_show: cleanEditorialStringList(parsed?.must_show, 6, 180),
     must_avoid: cleanEditorialStringList(parsed?.must_avoid, 8, 180),
     alt_text: cleanEditorialText(parsed?.alt_text, 180),
   };
-  if (brief.facebook_text.length < 120 || brief.instagram_text.length < 120 || !brief.visual_subject || !brief.visual_scene || brief.must_show.length < 2) {
+  if (brief.facebook_text.length < 120 || brief.instagram_text.length < 120 || !editorialSocialBriefHasCover(brief) || !brief.visual_subject || !brief.visual_scene || brief.must_show.length < 2) {
     throw new Error("Asset social: brief incompleto");
   }
   return brief;
@@ -2965,6 +3174,82 @@ async function schedulerPrepareMissingSocialAsset(user) {
     const articleImageUrl = String(heroAsset?.url || article.featured_image_url || "").trim();
     if (!/^https:\/\//i.test(articleImageUrl)) continue;
 
+    const state = editorialSocialAssetsState(opportunity);
+
+    const articleFeaturedImageUrl = String(article.featured_image_url || "").trim();
+    const introImageUrl = /^https:\/\//i.test(articleFeaturedImageUrl) ? articleFeaturedImageUrl : articleImageUrl;
+    const introFingerprint = editorialArticleIntroAssetFingerprint(article, introImageUrl);
+    const introAlreadyCurrent = Boolean(
+      state.article_intro?.fingerprint === introFingerprint
+      && String(state.article_intro?.status || "") === "ready"
+      && /^https:\/\//i.test(String(state.article_intro?.card?.url || ""))
+      && String(state.article_intro?.card?.template_version || "") === EDITORIAL_SOCIAL_CARD_TEMPLATE_VERSION
+    );
+
+    // Prepara la stessa cover editoriale anche dopo la pubblicazione se manca o e' stale:
+    // evita che un article_intro resti bloccato in waiting_assets quando articolo e social
+    // vengono schedulati nello stesso ciclo.
+    if (String(article.status || "") !== "published" || !introAlreadyCurrent) {
+      let intro = state.article_intro && state.article_intro.fingerprint === introFingerprint
+        ? state.article_intro
+        : {
+            schema_version: 2,
+            article_id: article.id,
+            fingerprint: introFingerprint,
+            source_article: {
+              title: article.title || "",
+              excerpt: article.excerpt || "",
+              featured_image_url: introImageUrl,
+            },
+            copy: null,
+            card: null,
+            card_history: [],
+            status: "pending",
+            updated_at: new Date().toISOString(),
+          };
+
+      if (!intro.copy?.facebook_text || !intro.copy?.instagram_text) {
+        const copy = await buildEditorialArticleIntroCopy(article);
+        intro = { ...intro, copy, status: "copy_ready", updated_at: new Date().toISOString() };
+        state.article_intro = intro;
+        await saveEditorialSocialAssetsState(user, opportunity, state);
+        return { action: "article_intro_social_copy_generated", opportunity_id: opportunity.id, article_id: article.id };
+      }
+
+      const introCardValid = Boolean(
+        /^https:\/\//i.test(String(intro.card?.url || ""))
+        && String(intro.card?.template_version || "") === EDITORIAL_SOCIAL_CARD_TEMPLATE_VERSION
+        && String(intro.card?.source_image_url || "") === introImageUrl
+        && String(intro.card?.title || "") === cleanEditorialText(article.title, 220)
+        && String(intro.card?.summary || "") === cleanEditorialText(article.excerpt, 420)
+      );
+      if (!introCardValid) {
+        const card = await renderAndUploadEditorialSocialCard({
+          article,
+          sourceImageUrl: introImageUrl,
+          postType: "article_intro",
+          title: article.title,
+          summary: article.excerpt,
+          label: editorialSocialCoverLabel("article_intro"),
+          storageSegment: "article-intro",
+        });
+        const cardHistory = intro.card?.url
+          ? [...(Array.isArray(intro.card_history) ? intro.card_history : []), { ...intro.card, outcome: "superseded", archived_at: new Date().toISOString() }].slice(-3)
+          : (Array.isArray(intro.card_history) ? intro.card_history : []);
+        intro = { ...intro, card, card_history: cardHistory, status: "ready", updated_at: new Date().toISOString() };
+        state.article_intro = intro;
+        await saveEditorialSocialAssetsState(user, opportunity, state);
+        return { action: "article_intro_social_card_generated", opportunity_id: opportunity.id, article_id: article.id, template_version: card.template_version };
+      }
+
+      if (String(intro.status || "") !== "ready") {
+        intro = { ...intro, status: "ready", updated_at: new Date().toISOString() };
+        state.article_intro = intro;
+        await saveEditorialSocialAssetsState(user, opportunity, state);
+        return { action: "article_intro_social_ready", opportunity_id: opportunity.id, article_id: article.id };
+      }
+    }
+
     const items = await serviceFetch(
       `editorial_social_plan_items?select=*&source_article_id=eq.${encodeURIComponent(article.id)}&opportunity_id=eq.${encodeURIComponent(opportunity.id)}&status=in.(draft,approved,failed)&order=created_at.asc&limit=20`,
     );
@@ -2972,11 +3257,10 @@ async function schedulerPrepareMissingSocialAsset(user) {
       if (!["article_followup", "related"].includes(String(item.post_type || ""))) continue;
       const target = await editorialSocialAssetTarget(item);
       const fingerprint = editorialSocialAssetFingerprint(article, item, target, articleImageUrl);
-      const state = editorialSocialAssetsState(opportunity);
       let asset = state.items[item.id] && state.items[item.id].fingerprint === fingerprint
         ? state.items[item.id]
         : {
-            schema_version: 1,
+            schema_version: 2,
             plan_item_id: item.id,
             post_type: item.post_type,
             fingerprint,
@@ -2990,7 +3274,9 @@ async function schedulerPrepareMissingSocialAsset(user) {
             target: target ? { id: target.id, label: target.label, url_path: target.url_path, category: target.category || null } : null,
             brief: null,
             image: null,
+            card: null,
             history: [],
+            card_history: [],
             status: "pending",
             updated_at: new Date().toISOString(),
           };
@@ -2998,10 +3284,27 @@ async function schedulerPrepareMissingSocialAsset(user) {
       if (!asset.brief) {
         const targetContext = await editorialSocialTargetContext(target);
         const brief = await buildEditorialSocialAssetBrief(article, item, target, targetContext);
-        asset = { ...asset, brief, target_context: targetContext, status: "brief_ready", updated_at: new Date().toISOString() };
+        asset = { ...asset, schema_version: 2, brief, target_context: targetContext, status: "brief_ready", updated_at: new Date().toISOString() };
         state.items[item.id] = asset;
         await saveEditorialSocialAssetsState(user, opportunity, state);
         return { action: "social_asset_brief_generated", opportunity_id: opportunity.id, article_id: article.id, social_plan_item_id: item.id, post_type: item.post_type };
+      }
+
+      if (!editorialSocialBriefHasCover(asset.brief)) {
+        const targetContext = asset.target_context || await editorialSocialTargetContext(target);
+        const cover = await buildEditorialSocialCoverText(article, item, target, targetContext, asset.brief);
+        asset = {
+          ...asset,
+          schema_version: 2,
+          brief: { ...asset.brief, ...cover },
+          target_context: targetContext,
+          card: null,
+          status: String(asset.image?.qa?.status || "") === "passed" ? "card_pending" : "brief_ready",
+          updated_at: new Date().toISOString(),
+        };
+        state.items[item.id] = asset;
+        await saveEditorialSocialAssetsState(user, opportunity, state);
+        return { action: "social_asset_cover_text_generated", opportunity_id: opportunity.id, article_id: article.id, social_plan_item_id: item.id, post_type: item.post_type };
       }
 
       if (!asset.image?.url) {
@@ -3010,6 +3313,7 @@ async function schedulerPrepareMissingSocialAsset(user) {
         const imageUrl = await uploadEditorialImageBuffer(objectPath, generated.buffer, "image/jpeg");
         asset = {
           ...asset,
+          schema_version: 2,
           image: {
             source: "generated",
             provider: "openai",
@@ -3027,6 +3331,7 @@ async function schedulerPrepareMissingSocialAsset(user) {
             qa: null,
             created_at: new Date().toISOString(),
           },
+          card: null,
           status: "image_generated",
           updated_at: new Date().toISOString(),
         };
@@ -3040,13 +3345,15 @@ async function schedulerPrepareMissingSocialAsset(user) {
         const qa = await evaluateEditorialSocialImage(article, item, target, asset.brief, asset.image, articleImageUrl);
         asset = {
           ...asset,
+          schema_version: 2,
           image: { ...asset.image, qa },
-          status: qa.status === "passed" ? "ready" : "qa_failed",
+          card: qa.status === "passed" ? asset.card || null : null,
+          status: qa.status === "passed" ? "card_pending" : "qa_failed",
           updated_at: new Date().toISOString(),
         };
         state.items[item.id] = asset;
         await saveEditorialSocialAssetsState(user, opportunity, state);
-        return { action: qa.status === "passed" ? "social_asset_ready" : "social_asset_qa_failed", opportunity_id: opportunity.id, article_id: article.id, social_plan_item_id: item.id, post_type: item.post_type, qa };
+        return { action: qa.status === "passed" ? "social_asset_image_qa_passed" : "social_asset_qa_failed", opportunity_id: opportunity.id, article_id: article.id, social_plan_item_id: item.id, post_type: item.post_type, qa };
       }
 
       if (qaStatus === "failed") {
@@ -3060,6 +3367,7 @@ async function schedulerPrepareMissingSocialAsset(user) {
           const history = [...(Array.isArray(asset.history) ? asset.history : []), { ...asset.image, outcome: "qa_failed", archived_at: new Date().toISOString() }].slice(-4);
           asset = {
             ...asset,
+            schema_version: 2,
             history,
             image: {
               source: "generated",
@@ -3078,6 +3386,7 @@ async function schedulerPrepareMissingSocialAsset(user) {
               qa: null,
               created_at: new Date().toISOString(),
             },
+            card: null,
             status: "image_regenerated",
             updated_at: new Date().toISOString(),
           };
@@ -3087,13 +3396,50 @@ async function schedulerPrepareMissingSocialAsset(user) {
         }
         asset = {
           ...asset,
+          schema_version: 2,
           image: { ...asset.image, qa: { ...asset.image.qa, status: "human_review_required", exhausted_at: new Date().toISOString() } },
+          card: null,
           status: "human_review_required",
           updated_at: new Date().toISOString(),
         };
         state.items[item.id] = asset;
         await saveEditorialSocialAssetsState(user, opportunity, state);
         return { action: "social_asset_human_review_required", opportunity_id: opportunity.id, article_id: article.id, social_plan_item_id: item.id, post_type: item.post_type };
+      }
+
+      if (qaStatus !== "passed") continue;
+
+      const cardValid = Boolean(
+        /^https:\/\//i.test(String(asset.card?.url || ""))
+        && String(asset.card?.template_version || "") === EDITORIAL_SOCIAL_CARD_TEMPLATE_VERSION
+        && String(asset.card?.source_image_url || "") === String(asset.image.url || "")
+        && String(asset.card?.title || "") === cleanEditorialText(asset.brief.cover_title, 220)
+        && String(asset.card?.summary || "") === cleanEditorialText(asset.brief.cover_summary, 420)
+      );
+      if (!cardValid) {
+        const card = await renderAndUploadEditorialSocialCard({
+          article,
+          sourceImageUrl: asset.image.url,
+          postType: item.post_type,
+          title: asset.brief.cover_title,
+          summary: asset.brief.cover_summary,
+          label: editorialSocialCoverLabel(item.post_type),
+          storageSegment: `${item.id}-card`,
+        });
+        const cardHistory = asset.card?.url
+          ? [...(Array.isArray(asset.card_history) ? asset.card_history : []), { ...asset.card, outcome: "superseded", archived_at: new Date().toISOString() }].slice(-3)
+          : (Array.isArray(asset.card_history) ? asset.card_history : []);
+        asset = { ...asset, schema_version: 2, card, card_history: cardHistory, status: "ready", updated_at: new Date().toISOString() };
+        state.items[item.id] = asset;
+        await saveEditorialSocialAssetsState(user, opportunity, state);
+        return { action: "social_asset_card_generated", opportunity_id: opportunity.id, article_id: article.id, social_plan_item_id: item.id, post_type: item.post_type, template_version: card.template_version };
+      }
+
+      if (String(asset.status || "") !== "ready") {
+        asset = { ...asset, schema_version: 2, status: "ready", updated_at: new Date().toISOString() };
+        state.items[item.id] = asset;
+        await saveEditorialSocialAssetsState(user, opportunity, state);
+        return { action: "social_asset_ready", opportunity_id: opportunity.id, article_id: article.id, social_plan_item_id: item.id, post_type: item.post_type };
       }
     }
   }

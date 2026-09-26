@@ -1,5 +1,5 @@
 // @ts-nocheck
-// v0.12.51: asset social dedicati, copy per canale e pubblicazione foto per i post del piano.
+// v0.12.53: cover editoriali brandizzate deterministiche per intro e post del piano.
 // È incorporato anche qui per consentire il deploy diretto dall'editor web
 // Supabase senza dipendenze da file _shared esterni.
 
@@ -264,7 +264,8 @@ function buildSocialSummary(article: any = {}, options: { maxChars?: number } = 
 
 const API_VERSION = "v26.0";
 const FACEBOOK_GRAPH = "https://graph.facebook.com";
-const VERSION = "0.12.51";
+const VERSION = "0.12.53";
+const SOCIAL_CARD_TEMPLATE_VERSION = "offertalogica_manual_cover_v1";
 const PLATFORM = "facebook";
 const MAX_ATTEMPTS = 3;
 const MAX_MESSAGE_CHARS = 7000;
@@ -976,14 +977,46 @@ async function loadPlanSocialAsset(ctx, item) {
   if (String(sourceItem.theme || "") !== String(item.theme || "")) return null;
   if (String(sourceItem.brief || "") !== String(item.brief || "")) return null;
   if (String(sourceItem.canonical_text || "") !== String(item.canonical_text || "")) return null;
-  const imageUrl = String(asset?.image?.url || "").trim();
+  const imageUrl = String(asset?.card?.url || "").trim();
   const facebookText = String(asset?.brief?.facebook_text || "").trim();
-  if (!validHttps(imageUrl) || String(asset?.image?.qa?.status || "") !== "passed" || !facebookText) return null;
+  const cardValid = String(asset?.card?.template_version || "") === SOCIAL_CARD_TEMPLATE_VERSION;
+  const rawImageQaPassed = String(asset?.image?.qa?.status || "") === "passed";
+  if (!validHttps(imageUrl) || !cardValid || !rawImageQaPassed || !facebookText) return null;
   return {
     imageUrl,
-    altText: String(asset?.image?.alt_text || "").trim(),
+    altText: String(asset?.card?.alt_text || asset?.image?.alt_text || "").trim(),
     facebookText,
   };
+}
+
+async function loadArticleIntroSocialAsset(ctx, article) {
+  const articleId = String(article?.id || "").trim();
+  if (!validUuid(articleId)) return null;
+  const rows = await serviceRows(
+    ctx,
+    `editorial_research_opportunities?target_article_id=eq.${encodeURIComponent(articleId)}&select=id,evidence&order=updated_at.desc&limit=5`,
+  );
+  for (const row of rows || []) {
+    const intro = row?.evidence?.social_assets?.article_intro || null;
+    if (!intro || String(intro.status || "") !== "ready") continue;
+    const source = intro?.source_article && typeof intro.source_article === "object" ? intro.source_article : null;
+    const card = intro?.card && typeof intro.card === "object" ? intro.card : null;
+    const facebookText = String(intro?.copy?.facebook_text || "").trim();
+    if (!source || !card || !facebookText) continue;
+    if (String(source.title || "") !== String(article.title || "")) continue;
+    if (String(source.excerpt || "") !== String(article.excerpt || "")) continue;
+    if (String(source.featured_image_url || "") !== String(article.featured_image_url || "")) continue;
+    if (String(card.template_version || "") !== SOCIAL_CARD_TEMPLATE_VERSION) continue;
+    if (String(card.source_image_url || "") !== String(article.featured_image_url || "")) continue;
+    const imageUrl = String(card.url || "").trim();
+    if (!validHttps(imageUrl)) continue;
+    return {
+      imageUrl,
+      altText: String(card.alt_text || article.featured_image_alt || article.title || "").trim(),
+      facebookText,
+    };
+  }
+  return null;
 }
 
 async function loadPlanItemContext(ctx, itemId) {
@@ -1130,14 +1163,28 @@ async function processArticleQueue(req, ctx, pageToken, pageId, articleId, optio
     throw Object.assign(new Error("Il Page Access Token non appartiene alla Pagina Facebook configurata"), { status: 409 });
   }
 
-  const author = await loadArticleAuthor(ctx, article);
   const autopilotIntro = options?.autopilotIntro === true;
   const link = autopilotIntro
     ? trackedArticleDestination(article, PLATFORM, "article_intro")
     : articleUrl(String(article.slug || ""));
-  const composed = autopilotIntro
-    ? { message: composeAutopilotIntroMessage(article, author, link), summaryProfile: "autopilot_intro" }
-    : composeFacebookMessage(article, author);
+  let introAsset = null;
+  let composed;
+  if (autopilotIntro) {
+    introAsset = await loadArticleIntroSocialAsset(ctx, article);
+    if (!introAsset) {
+      return json(req, { ok: true, version: VERSION, result: "waiting_assets", status: "waiting_assets", published: false, error: "Cover editoriale articolo non ancora pronta" });
+    }
+    if (!(await publicImageReady(introAsset.imageUrl))) {
+      return json(req, { ok: true, version: VERSION, result: "waiting_web", status: "waiting_web", published: false, error: "Cover editoriale articolo non ancora disponibile per Meta" });
+    }
+    composed = {
+      message: [introAsset.facebookText, link].filter(Boolean).join("\n\n").slice(0, MAX_MESSAGE_CHARS),
+      summaryProfile: "autopilot_intro_branded_card",
+    };
+  } else {
+    const author = await loadArticleAuthor(ctx, article);
+    composed = composeFacebookMessage(article, author);
+  }
   const message = composed.message;
   if (!message || !validHttps(link)) {
     throw Object.assign(new Error("Contenuto Facebook non valido"), { status: 422 });
@@ -1160,7 +1207,9 @@ async function processArticleQueue(req, ctx, pageToken, pageId, articleId, optio
       return json(req, { ok: true, version: VERSION, result: "waiting_web", status: "waiting_web", published: false });
     }
 
-    postId = await createPagePost(pageToken, pageId, message, link);
+    postId = autopilotIntro
+      ? await createPagePhotoPost(pageToken, pageId, message, introAsset.imageUrl)
+      : await createPagePost(pageToken, pageId, message, link);
     const post = await publishedPost(pageToken, postId).catch(() => null);
     const now = new Date().toISOString();
     const updated = await updatePublication(ctx, publicationId, {
@@ -1196,7 +1245,8 @@ async function processArticleQueue(req, ctx, pageToken, pageId, articleId, optio
       page_name: identity.name || null,
       summary_version: SOCIAL_SUMMARY_VERSION,
       summary_profile: composed.summaryProfile,
-      format: autopilotIntro ? "article_intro" : "article_standard",
+      format: autopilotIntro ? "article_intro_branded_card" : "article_standard",
+      image_url: autopilotIntro ? introAsset?.imageUrl || null : null,
     });
   } catch (error) {
     const phase = String(error?.phase || "");
