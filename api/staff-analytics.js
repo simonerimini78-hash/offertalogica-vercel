@@ -1,8 +1,7 @@
 import crypto from "node:crypto";
 import { json } from "../lib/http.js";
-import { EDITORIAL_SOCIAL_CARD_TEMPLATE_VERSION, renderEditorialSocialCard } from "../lib/editorial-social-card.js";
 
-const VERSION = "0.12.53";
+const VERSION = "0.12.54";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -30,6 +29,31 @@ const EDITORIAL_PLAN_POST_TYPES = new Set(["article_followup", "related", "everg
 const EDITORIAL_PLAN_EDITABLE_STATUSES = new Set(["draft", "approved", "cancelled"]);
 const EDITORIAL_SOCIAL_PLATFORMS = new Set(["facebook", "instagram"]);
 const EDITORIAL_SOCIAL_RUNTIME_VERSION = "0.12.53";
+// Il renderer grafico usa sharp (modulo nativo): lo carichiamo solo quando serve
+// comporre una cover, così le API di ricerca/opportunità non dipendono dal suo startup.
+const EDITORIAL_SOCIAL_CARD_TEMPLATE_VERSION = "offertalogica_manual_cover_v1";
+let editorialSocialCardRendererPromise = null;
+
+async function editorialSocialCardRenderer() {
+  if (!editorialSocialCardRendererPromise) {
+    editorialSocialCardRendererPromise = import("../lib/editorial-social-card.js")
+      .then((module) => {
+        if (module?.EDITORIAL_SOCIAL_CARD_TEMPLATE_VERSION !== EDITORIAL_SOCIAL_CARD_TEMPLATE_VERSION) {
+          throw new Error("Cover social: versione template renderer non allineata");
+        }
+        if (typeof module?.renderEditorialSocialCard !== "function") {
+          throw new Error("Cover social: renderer non disponibile");
+        }
+        return module.renderEditorialSocialCard;
+      })
+      .catch((error) => {
+        editorialSocialCardRendererPromise = null;
+        throw error;
+      });
+  }
+  return editorialSocialCardRendererPromise;
+}
+
 const EDITORIAL_IMAGE_DEFAULT_MODEL = "gpt-image-2";
 const EDITORIAL_IMAGE_BUCKET = "editorial-images";
 const EDITORIAL_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
@@ -2794,6 +2818,7 @@ async function buildEditorialArticleIntroCopy(article) {
 }
 
 async function renderAndUploadEditorialSocialCard({ article, sourceImageUrl, postType, title, summary, label, storageSegment }) {
+  const renderEditorialSocialCard = await editorialSocialCardRenderer();
   const rendered = await renderEditorialSocialCard({
     sourceImageUrl,
     postType,
