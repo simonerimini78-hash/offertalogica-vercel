@@ -20006,7 +20006,26 @@ if (document.readyState === "loading") {
 
     /* OFFERTALOGICA_EXTERNAL_FAST_START_V2_20260922
        Solo instradamento: usa i percorsi già esistenti del calcolatore senza modificarne calcoli o validazioni. */
-    const externalFastStartQuery = new URLSearchParams(window.location.search).get("compare_start");
+    const externalEntryParams = new URLSearchParams(window.location.search || "");
+    const externalCustomerType = String(externalEntryParams.get("customer_type") || "").toLowerCase();
+    const externalBusinessActivity = String(externalEntryParams.get("business_activity") || "").toLowerCase();
+    if (externalCustomerType === "business" && !document.body.classList.contains("social-entry-active")) {
+      window.setTimeout(() => {
+        btnBusiness?.click();
+        const activitySelect = document.getElementById("business-attivita");
+        if (activitySelect && externalBusinessActivity) {
+          const supportedActivity = Array.from(activitySelect.options || []).some((option) => option.value === externalBusinessActivity);
+          if (supportedActivity) {
+            activitySelect.value = externalBusinessActivity;
+            activitySelect.dispatchEvent(new Event("change", { bubbles: true }));
+          }
+        }
+        const firstBusinessField = document.querySelector("#business-panel input:not([disabled]), #business-panel select:not([disabled])");
+        scrollFast(firstBusinessField || document.getElementById("business-panel"), "start");
+      }, 90);
+    }
+
+    const externalFastStartQuery = externalEntryParams.get("compare_start");
     const externalFastStartHash = new URLSearchParams(String(window.location.hash || "").replace(/^#/, "")).get("compare_start");
     const externalFastStart = String(externalFastStartQuery || externalFastStartHash || "").toLowerCase();
     if (["average", "photo", "pdf", "manual"].includes(externalFastStart) && !document.body.classList.contains("social-entry-active")) {

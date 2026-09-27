@@ -1077,7 +1077,7 @@
                     <h3 id="verdictTitle"></h3>
                     <p id="verdictText"></p>
                     <div id="switchoCta" class="switcho-cta">
-                        <a id="switchoLink" class="switcho-link" href="#" aria-disabled="true">Collegamento Switcho da configurare</a>
+                        <a id="switchoLink" class="switcho-link" href="#" aria-disabled="true" hidden></a>
                     </div>
                 </div>
             </div>
@@ -1811,7 +1811,8 @@ function evaluateEconomics() {
             els.switchoCta.classList.add('visible');
             els.switchoLink.href = SWITCHO_URL;
             els.switchoLink.removeAttribute('aria-disabled');
-            els.switchoLink.textContent = 'VERIFICA LE ALTERNATIVE INTERNET';
+            els.switchoLink.hidden = false;
+            els.switchoLink.textContent = 'SCOPRI LE ALTERNATIVE INTERNET';
         }
     }
 
