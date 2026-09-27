@@ -216,7 +216,7 @@
       <section class="panel" id="analyticsJourneysPanel" style="margin-top:14px">
         <div class="panel-head"><div><h3>Percorsi nel sito</h3><small id="analyticsJourneyScope">Una riga per sessione recente. I KPI restano separati dalla tabella e il CSV esporta il periodo completo.</small></div><div class="analytics-module-actions"><button class="button secondary compact" type="button" data-analytics-refresh>Aggiorna</button><button class="button secondary compact" type="button" data-analytics-export="paths">CSV</button></div></div>
         <div class="panel-body">
-          <div class="metrics"><article class="metric priority"><span>Autonomia</span><strong id="journeySelfService">0</strong></article><article class="metric"><span>Guidato → Switcho</span><strong id="journeyAssisted">0</strong></article><article class="metric"><span>Profilo medio</span><strong id="journeyAverage">0</strong></article><article class="metric"><span>Manuale</span><strong id="journeyManual">0</strong></article><article class="metric"><span>PDF</span><strong id="journeyPdf">0</strong></article><article class="metric"><span>Offerte viste</span><strong id="journeyOffers">0</strong></article><article class="metric"><span>Switcho</span><strong id="journeySwitcho">0</strong></article><article class="metric"><span>Sessioni analizzabili</span><strong id="journeySessions">0</strong></article></div>
+          <div class="metrics"><article class="metric priority"><span>Autonomia</span><strong id="journeySelfService">0</strong></article><article class="metric"><span>Guidato → Switcho</span><strong id="journeyAssisted">0</strong></article><article class="metric priority"><span>Vedi subito offerte</span><strong id="journeyAverage">0</strong><small>Prima stima senza bolletta</small></article><article class="metric"><span>Foto bolletta</span><strong id="journeyPhoto">0</strong></article><article class="metric"><span>PDF</span><strong id="journeyPdf">0</strong></article><article class="metric"><span>Manuale</span><strong id="journeyManual">0</strong></article><article class="metric"><span>Offerte viste</span><strong id="journeyOffers">0</strong></article><article class="metric priority"><span>Card cliccate</span><strong id="journeyCardClicks">0</strong><small id="journeyCardMeta">CTR card —</small></article><article class="metric"><span>Personalizzazione da card</span><strong id="journeyPersonalization">0</strong><small>Dalla card alla bolletta</small></article><article class="metric"><span>Switcho</span><strong id="journeySwitcho">0</strong></article><article class="metric"><span>Sessioni analizzabili</span><strong id="journeySessions">0</strong></article></div>
           <details class="analytics-details" open><summary>Sessioni — 10 risultati per pagina</summary><div class="analytics-details-content"><div class="table-wrap"><table class="data-table analytics-compact-table"><thead><tr><th>Data</th><th>Intenzione</th><th>Provenienza</th><th>Percorso landing</th><th>Confronto</th><th>Esito</th><th>Sessione</th></tr></thead><tbody id="journeyRows"></tbody></table></div><div class="analytics-pagination" id="journeyPagination"></div></div></details>
           <div class="analytics-module-note">“Intenzione” mostra il termine/keyword quando disponibile; altrimenti è esplicitamente un’inferenza dal comportamento registrato, non ciò che la persona pensa.</div>
         </div>
@@ -324,7 +324,7 @@
 </div>
 <div id="staffUpdateNotice" class="staff-update" role="status" aria-live="polite"><span id="staffUpdateNoticeText">Nuova versione disponibile.</span><button id="staffApplyUpdate" type="button" hidden>AGGIORNA</button></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.115.0/dist/umd/supabase.js"></script>
-<script src="/staff.js?v=0.37.27"></script>
+<script src="/staff.js?v=0.37.28"></script>
 <script src="/staff-governance-v2.5B.js"></script>
 <script defer src="/staff-management.js?v=0.36.94"></script>
 <script defer src="/staff-economics.js?v=0.37.19"></script>
@@ -429,7 +429,7 @@
 </script>
 <script>
   (()=>{
-    const CURRENT_RELEASE="0.37.27";
+    const CURRENT_RELEASE="0.37.28";
     const PRODUCTION_ORIGIN="https://staff.offertalogica.it";
     const isVercelDeployment=()=>location.hostname.toLowerCase().endsWith(".vercel.app");
     const redirectDeploymentToProduction=()=>{if(!isVercelDeployment())return false;const target=new URL(`${location.pathname}${location.search}${location.hash}`,PRODUCTION_ORIGIN);if(target.href===location.href)return false;location.replace(target.href);return true};

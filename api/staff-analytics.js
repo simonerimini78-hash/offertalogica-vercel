@@ -1063,9 +1063,14 @@ const COMPARISON_PATH_SIGNAL_EVENT_TYPES = new Set([
 
 function comparisonEventPathChoice(event = {}) {
   const raw = String(event.pathChoice || event.payload?.pathChoice || "").trim().toLowerCase();
+  const trigger = String(event.trigger || event.payload?.trigger || "").trim().toLowerCase();
   if (["average", "media", "profilo_medio", "arera_average_profile"].includes(raw)) return "average";
   if (["manual", "manuale", "manual_input"].includes(raw)) return "manual";
-  if (["pdf", "pdf_upload"].includes(raw)) return "pdf";
+  if (["photo", "foto", "bill_photo"].includes(raw)) return "photo";
+  if (["pdf", "pdf_upload"].includes(raw)) {
+    if (trigger === "photo_camera_choice") return "photo";
+    return "pdf";
+  }
   return "";
 }
 
@@ -1096,6 +1101,13 @@ function comparisonPathSignals(events = []) {
       return;
     }
 
+    // Foto e PDF restano distinti: il frontend usa pathChoice=pdf anche per la foto,
+    // ma il trigger esplicito permette di ricostruire correttamente il pulsante scelto.
+    if (eventType.startsWith("bill_photo_")) {
+      push("photo", "inferito");
+      return;
+    }
+
     // Qualunque evento PDF rappresenta un segnale reale del ramo PDF, anche nello storico.
     if (eventType.startsWith("pdf_")) {
       push("pdf", "inferito");
@@ -1122,14 +1134,16 @@ function comparisonPathSignals(events = []) {
 }
 
 function comparisonPathLabel(path = "") {
-  if (path === "average") return "profilo medio ARERA";
+  if (path === "average") return "vedi subito le offerte";
   if (path === "manual") return "manuale";
+  if (path === "photo") return "foto bolletta";
   if (path === "pdf") return "pdf";
   return "";
 }
 
 function activityFunnelFromEvents(events = []) {
   const funnel = {
+    photoPathSelected: 0,
     pdfPathSelected: 0,
     pdfPickerOpened: 0,
     pdfFileSelected: 0,
@@ -1155,7 +1169,8 @@ function activityFunnelFromEvents(events = []) {
     failedRequests: 0,
   };
   events.forEach((event) => {
-    if (event.eventType === "comparison_path_selected" && String(event.pathChoice || "") === "pdf") funnel.pdfPathSelected += 1;
+    if (event.eventType === "comparison_path_selected" && comparisonEventPathChoice(event) === "photo") funnel.photoPathSelected += 1;
+    if (event.eventType === "comparison_path_selected" && comparisonEventPathChoice(event) === "pdf") funnel.pdfPathSelected += 1;
     if (event.eventType === "pdf_picker_opened") funnel.pdfPickerOpened += 1;
     if (event.eventType === "pdf_file_selected") funnel.pdfFileSelected += 1;
     if (event.eventType === "pdf_analysis_started") funnel.pdfStarted += 1;
@@ -1189,6 +1204,7 @@ function sessionFunnelFromGroups(groups = []) {
     selfServiceSelected: 0,
     assistedSelected: 0,
     averageSelected: 0,
+    photoSelected: 0,
     manualSelected: 0,
     pdfSelected: 0,
     pdfStarted: 0,
@@ -1202,6 +1218,9 @@ function sessionFunnelFromGroups(groups = []) {
     otpVerified: 0,
     offersUnlocked: 0,
     cardClicked: 0,
+    cardClickedStandard: 0,
+    cardClickedPrecise: 0,
+    billPersonalizationFromOffer: 0,
     offerAction: 0,
     redirects: 0,
   };
@@ -1222,6 +1241,7 @@ function sessionFunnelFromGroups(groups = []) {
     if (hasSelfService) funnel.selfServiceSelected += 1;
     if (hasAssisted) funnel.assistedSelected += 1;
     if (pathSignals.paths.has("average")) funnel.averageSelected += 1;
+    if (pathSignals.paths.has("photo")) funnel.photoSelected += 1;
     if (pathSignals.paths.has("manual")) funnel.manualSelected += 1;
     if (pathSignals.paths.has("pdf")) funnel.pdfSelected += 1;
     if (eventTypes.has("pdf_analysis_started")) funnel.pdfStarted += 1;
@@ -1235,6 +1255,20 @@ function sessionFunnelFromGroups(groups = []) {
     if (eventTypes.has("otp_verified")) funnel.otpVerified += 1;
     if (eventTypes.has("offers_unlocked")) funnel.offersUnlocked += 1;
     if (eventTypes.has("offer_card_clicked")) funnel.cardClicked += 1;
+    if (group.some((event) =>
+      event.eventType === "offer_card_clicked"
+      && (String(event.mode || "").toLowerCase() === "media"
+        || String(event.source || "").toLowerCase() === "offer_card_media")
+    )) funnel.cardClickedStandard += 1;
+    if (group.some((event) =>
+      event.eventType === "offer_card_clicked"
+      && (String(event.mode || "").toLowerCase() === "precise"
+        || String(event.source || "").toLowerCase() === "offer_card_precise")
+    )) funnel.cardClickedPrecise += 1;
+    if (group.some((event) =>
+      event.eventType === "offers_bill_prompt_clicked"
+      && ["offer_card", "offer_path", "offer_card_media"].includes(String(event.pdfUploadSource || "").toLowerCase())
+    )) funnel.billPersonalizationFromOffer += 1;
     const hasCommercialActivationChoice = group.some((event) => {
       if (!["activation_channel_choice_opened", "activation_channel_selected"].includes(String(event?.eventType || ""))) return false;
       const route = String(event?.route || "").trim();
@@ -1664,6 +1698,7 @@ function analyticsSessionExportRows(rawRows = []) {
     const pathBasis = pathSignals.hasExplicit
       ? pathSignals.hasInferred ? "registrato + inferito dagli eventi" : "registrato"
       : comparisonPath ? "inferito dagli eventi storici" : "";
+    const hasPhotoSignal = pathSignals.paths.has("photo");
     const hasPdfSignal = pathSignals.paths.has("pdf");
 
     const pdfEvents = ordered.filter((event) => event.eventType.startsWith("pdf_") || (COMPARISON_PATH_SIGNAL_EVENT_TYPES.has(event.eventType) && comparisonEventDataOrigin(event) === "pdf_upload"));
@@ -1716,6 +1751,21 @@ function analyticsSessionExportRows(rawRows = []) {
     const visitor = visitorDescriptor(ordered);
     const leadId = ordered.map((event) => event.leadId).find(Boolean) || "";
     const offersViewed = ordered.some((event) => event.eventType === "offers_rendered" && !isAutomaticLandingPreview(event));
+    const cardClicked = eventTypes.has("offer_card_clicked");
+    const cardClickedStandard = ordered.some((event) =>
+      event.eventType === "offer_card_clicked"
+      && (String(event.payload?.mode || "").toLowerCase() === "media"
+        || String(event.payload?.source || "").toLowerCase() === "offer_card_media")
+    );
+    const cardClickedPrecise = ordered.some((event) =>
+      event.eventType === "offer_card_clicked"
+      && (String(event.payload?.mode || "").toLowerCase() === "precise"
+        || String(event.payload?.source || "").toLowerCase() === "offer_card_precise")
+    );
+    const billPersonalizationFromOffer = ordered.some((event) =>
+      event.eventType === "offers_bill_prompt_clicked"
+      && ["offer_card", "offer_path", "offer_card_media"].includes(String(event.payload?.pdfUploadSource || "").toLowerCase())
+    );
     const hasCommercialActivationChoice = ordered.some((event) => {
       if (!["activation_channel_choice_opened", "activation_channel_selected"].includes(String(event?.eventType || ""))) return false;
       const route = String(event?.route || "").trim();
@@ -1731,9 +1781,10 @@ function analyticsSessionExportRows(rawRows = []) {
     let intentBasis = intentTerm ? "termine/keyword disponibile" : "inferito dal comportamento";
     if (!intent) {
       if (hasAssisted && !hasSelf) intent = "Preferisce assistenza guidata";
+      else if (comparisonPath === "foto bolletta") intent = "Vuole personalizzare il confronto con una foto";
       else if (comparisonPath === "pdf") intent = "Vuole verificare la propria bolletta";
       else if (comparisonPath === "manuale") intent = "Vuole confrontare usando i propri consumi";
-      else if (comparisonPath === "profilo medio ARERA") intent = "Vuole una prima stima indicativa";
+      else if (comparisonPath === "vedi subito le offerte") intent = "Vuole vedere subito una prima stima";
       else if (offersViewed) intent = "Sta valutando offerte";
       else intent = "Intento non determinabile";
     }
@@ -1790,13 +1841,25 @@ function analyticsSessionExportRows(rawRows = []) {
       percorso_sequenza: comparisonPathSequence,
       percorso_base: pathBasis,
       profilo_medio_scelto: pathSignals.paths.has("average"),
+      foto_scelta: hasPhotoSignal,
+      foto_scelta_registrata: ordered.some((event) =>
+        event.eventType === "comparison_path_selected"
+        && comparisonEventPathChoice(event) === "photo"
+      ),
       manuale_scelto: pathSignals.paths.has("manual"),
       confronto_avviato: ordered.some((event) => event.eventType === "comparison_started" && !isAutomaticLandingPreview(event)),
       confronto_reale: hasRealComparison,
       offerte_visualizzate: offersViewed,
+      card_cliccata: cardClicked,
+      card_cliccata_standard: cardClickedStandard,
+      card_cliccata_personalizzata: cardClickedPrecise,
+      personalizzazione_da_card: billPersonalizationFromOffer,
       numero_offerte: ordered.map((event) => Number(event.payload?.visibleOffersCount)).filter((value) => Number.isFinite(value) && value > 0).pop() || "",
       pdf_scelto: hasPdfSignal,
-      pdf_scelto_registrato: ordered.some((event) => event.eventType === "comparison_path_selected" && String(event.payload?.pathChoice || "").toLowerCase() === "pdf"),
+      pdf_scelto_registrato: ordered.some((event) =>
+        event.eventType === "comparison_path_selected"
+        && comparisonEventPathChoice(event) === "pdf"
+      ),
       pdf_picker_aperto: eventTypes.has("pdf_picker_opened"),
       pdf_file_selezionato: eventTypes.has("pdf_file_selected"),
       pdf_upload_source: selectionEvent.pdfUploadSource || latestPdfPayload.pdfUploadSource || "",
@@ -1873,12 +1936,17 @@ function analyticsJourneySummary(rows = [], rawRows = []) {
     selfServiceSelected: items.filter((row) => String(row.scelta_percorso).includes("autonomia")).length,
     assistedSelected: items.filter((row) => String(row.scelta_percorso).includes("guidato")).length,
     averageSelected: items.filter((row) => row.profilo_medio_scelto).length,
+    photoSelected: items.filter((row) => row.foto_scelta).length,
     manualSelected: items.filter((row) => row.manuale_scelto).length,
     pdfSelected: items.filter((row) => row.pdf_scelto).length,
     pdfStarted: items.filter((row) => row.pdf_analisi_avviata).length,
     pdfCompleted: items.filter((row) => row.pdf_analisi_completata).length,
     comparisons: items.filter((row) => row.confronto_reale).length,
     offersViewed: items.filter((row) => row.offerte_visualizzate).length,
+    cardClicked: items.filter((row) => row.card_cliccata).length,
+    cardClickedStandard: items.filter((row) => row.card_cliccata_standard).length,
+    cardClickedPrecise: items.filter((row) => row.card_cliccata_personalizzata).length,
+    billPersonalizationFromOffer: items.filter((row) => row.personalizzazione_da_card).length,
     switcho: items.filter((row) => row.switcho).length,
     leadModalOpened: items.filter((row) => row.popup_lead).length,
     otpRequestStarted: items.filter((row) => row.otp_richiesto).length,
@@ -1898,7 +1966,12 @@ function analyticsJourneySummary(rows = [], rawRows = []) {
   });
   const activityEvents = (Array.isArray(rawRows) ? rawRows : []).map((row) => {
     const payload = rawAnalyticsPayload(row);
-    return { eventType: String(row.event_type || ""), dataOrigin: String(payload.dataOrigin || ""), pathChoice: String(payload.pathChoice || "") };
+    return {
+      eventType: String(row.event_type || ""),
+      dataOrigin: String(payload.dataOrigin || ""),
+      pathChoice: String(payload.pathChoice || ""),
+      trigger: String(payload.trigger || ""),
+    };
   });
   const bySource = {};
   Object.keys(trafficCounts).forEach((source) => {
@@ -1916,6 +1989,8 @@ function analyticsJourneySummary(rows = [], rawRows = []) {
     landingSelfService: count((row) => String(row.scelta_percorso).includes("autonomia")),
     landingAssisted: count((row) => String(row.scelta_percorso).includes("guidato")),
     average: count((row) => row.profilo_medio_scelto),
+    photo: count((row) => row.foto_scelta),
+    photoSelectedRecorded: count((row) => row.foto_scelta_registrata),
     manual: count((row) => row.manuale_scelto),
     pdf: count((row) => row.pdf_scelto),
     pdfSelectedRecorded: count((row) => row.pdf_scelto_registrato),
@@ -1926,6 +2001,10 @@ function analyticsJourneySummary(rows = [], rawRows = []) {
     pdfInterrupted: count((row) => row.pdf_analisi_interrotta),
     pdfWithMissingFields: count((row) => Number(row.pdf_missing_field_count || 0) > 0 || Boolean(row.pdf_missing_fields)),
     offersViewed: count((row) => row.offerte_visualizzate),
+    cardClicked: count((row) => row.card_cliccata),
+    cardClickedStandard: count((row) => row.card_cliccata_standard),
+    cardClickedPrecise: count((row) => row.card_cliccata_personalizzata),
+    billPersonalizationFromOffer: count((row) => row.personalizzazione_da_card),
     switcho: count((row) => row.switcho),
     partner: count((row) => row.partner),
   };

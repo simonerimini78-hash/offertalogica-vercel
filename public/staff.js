@@ -717,7 +717,7 @@
   }
 
   const activityFunnelDefinitions = [
-    ["pdfPathSelected", "PDF scelti"], ["pdfPickerOpened", "Selettori PDF"], ["pdfFileSelected", "File PDF scelti"],
+    ["photoPathSelected", "Foto scelta"], ["pdfPathSelected", "PDF scelti"], ["pdfPickerOpened", "Selettori PDF"], ["pdfFileSelected", "File PDF scelti"],
     ["pdfStarted", "PDF avviati"], ["pdfCompleted", "PDF letti"], ["pdfInterrupted", "PDF interrotti"], ["comparisons", "Confronti reali"],
     ["landingPreviews", "Anteprime automatiche landing"], ["leadModalOpened", "Popup aperti"],
     ["leadModalClosed", "Popup chiusi"], ["leadFormInvalid", "Form non validi"], ["otpRequestStarted", "Richieste OTP avviate"],
@@ -731,12 +731,14 @@
     ["pathSelected", "Scelta percorso"],
     ["selfServiceSelected", "Autonomia"],
     ["assistedSelected", "Guidato → Switcho"],
-    ["averageSelected", "Profilo medio"],
-    ["manualSelected", "Manuale"],
+    ["averageSelected", "Vedi subito offerte"],
+    ["photoSelected", "Foto bolletta"],
     ["pdfSelected", "PDF"],
+    ["manualSelected", "Manuale"],
     ["comparisons", "Confronto completato"],
     ["offersViewed", "Offerte viste"],
     ["cardClicked", "Card cliccate"],
+    ["billPersonalizationFromOffer", "Personalizzazione da card"],
     ["switcho", "Switcho"]
   ];
 
@@ -754,13 +756,16 @@
     sessionFunnelDefinitions.forEach(([key, label]) => {
       const count = Number(funnel[key] || 0);
       const offersViewed = Number(funnel.offersViewed || 0);
+      const cardClickedStandard = Number(funnel.cardClickedStandard || 0);
       const detail = key === "entries"
         ? "Sessioni uniche"
         : key === "cardClicked"
           ? (offersViewed ? `${formatNumber((count / offersViewed) * 100, 1)}% delle sessioni che hanno visto offerte` : "— delle sessioni che hanno visto offerte")
-          : entries
-            ? `${formatNumber((count / entries) * 100, 1)}% degli ingressi`
-            : "— degli ingressi";
+          : key === "billPersonalizationFromOffer"
+            ? (cardClickedStandard ? `${formatNumber((count / cardClickedStandard) * 100, 1)}% delle card standard cliccate` : "— delle card standard cliccate")
+            : entries
+              ? `${formatNumber((count / entries) * 100, 1)}% degli ingressi`
+              : "— degli ingressi";
       target.append(node("div", { className: "funnel-step" }, [
         node("strong", { text: count }), node("span", { text: label }), node("small", { text: detail })
       ]));
@@ -1978,9 +1983,16 @@
     text(byId("journeySelfService"), formatNumber(summary.landingSelfService || 0));
     text(byId("journeyAssisted"), formatNumber(summary.landingAssisted || 0));
     text(byId("journeyAverage"), formatNumber(summary.average || 0));
-    text(byId("journeyManual"), formatNumber(summary.manual || 0));
+    text(byId("journeyPhoto"), formatNumber(summary.photo || 0));
     text(byId("journeyPdf"), formatNumber(summary.pdf || 0));
+    text(byId("journeyManual"), formatNumber(summary.manual || 0));
     text(byId("journeyOffers"), formatNumber(summary.offersViewed || 0));
+    text(byId("journeyCardClicks"), formatNumber(summary.cardClicked || 0));
+    const cardCtr = Number(summary.offersViewed || 0)
+      ? `${formatNumber((Number(summary.cardClicked || 0) / Number(summary.offersViewed || 0)) * 100, 1)}%` : "—";
+    const cardSplit = `standard ${formatNumber(summary.cardClickedStandard || 0)} · personalizzate ${formatNumber(summary.cardClickedPrecise || 0)}`;
+    text(byId("journeyCardMeta"), `CTR card ${cardCtr} · ${cardSplit}`);
+    text(byId("journeyPersonalization"), formatNumber(summary.billPersonalizationFromOffer || 0));
     text(byId("journeySwitcho"), formatNumber(summary.switcho || 0));
     text(byId("journeySessions"), formatNumber(summary.sessions || rows.length));
     const body = byId("journeyRows");
