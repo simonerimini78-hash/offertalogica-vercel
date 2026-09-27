@@ -5472,6 +5472,85 @@
                 height: 5em;
             }
         }
+
+        /* OFFERTALOGICA_PUBLIC_V107_20260927: risultati standard orientati all'approfondimento della singola offerta.
+           Informazione comune centralizzata, card piu scansionabili e stessa gerarchia mobile/desktop. */
+        .offers-media-context {
+            margin: 0 0 12px;
+            padding: 9px 12px;
+            border: 1px solid rgba(37, 99, 235, .14);
+            border-radius: 10px;
+            background: #f8fafc;
+            color: #526274;
+            font-size: 12px;
+            line-height: 1.4;
+            font-weight: 650;
+            text-align: center;
+        }
+        .offers-media-context[hidden] { display: none !important; }
+        .offers-media-context strong { color: #123044; font-weight: 950; }
+
+        @media (min-width: 701px) {
+            .offer-result-group .offers-media-context {
+                margin: 0;
+                padding: 0 16px 11px;
+                border-top: 0;
+                border-bottom: 0;
+                border-radius: 0;
+                background: #f8fafc;
+            }
+            .offer-result-group .offers-list-heading + .offers-media-context + .offers-contact-trust {
+                padding-top: 0;
+            }
+            .partner-vertical-card {
+                min-height: 194px !important;
+            }
+        }
+
+        @media (max-width: 700px) {
+            html.mobile-fast-flow body.mobile-fast-results:not(.social-entry-active) #offerte-ranking-group .offers-media-context {
+                margin: 0 0 8px;
+                padding: 8px 9px;
+                border-color: #dbe7df;
+                border-radius: 10px;
+                background: #f8fafc;
+                color: #475569;
+                font-size: 10.5px;
+                line-height: 1.35;
+                text-align: left;
+            }
+            html.mobile-fast-flow body.mobile-fast-results:not(.social-entry-active) .partner-vertical-card {
+                padding: 10px !important;
+                gap: 6px !important;
+            }
+            html.mobile-fast-flow body.mobile-fast-results:not(.social-entry-active) .partner-brand-line {
+                min-height: 82px;
+                padding-top: 58px;
+            }
+            html.mobile-fast-flow body.mobile-fast-results:not(.social-entry-active) .partner-brand-line.is-split-brand {
+                min-height: 90px;
+                padding-top: 62px;
+            }
+            html.mobile-fast-flow body.mobile-fast-results:not(.social-entry-active) .offer-action-column:not(.is-switcho-panel) {
+                padding: 0;
+                border: 0;
+                background: transparent;
+            }
+            html.mobile-fast-flow body.mobile-fast-results:not(.social-entry-active) .offer-action-benefit {
+                display: block !important;
+                margin: 0 2px 5px;
+                color: #475569;
+                font-size: 11.5px;
+                line-height: 1.25;
+                font-weight: 800;
+            }
+            html.mobile-fast-flow body.mobile-fast-results:not(.social-entry-active) [id^="link-partner-"] {
+                min-height: 52px;
+                padding: 12px 13px !important;
+                font-size: 15px !important;
+                line-height: 1.15 !important;
+            }
+        }
 </style>
 <script>
 function avviaComparazioneDati() {
@@ -10244,14 +10323,11 @@ function testoProfiloStandardOfferta(offerta) {
   return "2.700 kWh/anno luce · 1.400 Smc/anno gas · 3 kW";
 }
 
-function htmlProfiloStandardOfferta(offerta) {
-  if (modalitaCalcolo !== "media") return "";
-  return `<span class="offer-standard-profile"><strong>Profilo standard usato:</strong> ${testoHtmlSicuro(testoProfiloStandardOfferta(offerta))}<small>Benchmark comune a tutte le offerte confrontate: non e una previsione della tua bolletta.</small></span>`;
-}
-
+// OFFERTALOGICA_PUBLIC_V107_20260927: nel profilo standard la card deve prima generare interesse
+// per la singola offerta; il routing successivo resta invariato e trasparente.
 function testoAzioneOfferta(offerta, attivabileOnline) {
   const switchoSupported = switchoSupportaFornitoreOfferta(offerta);
-  if (modalitaCalcolo === "media" && attivabileOnline) return "Scopri il tuo risparmio reale";
+  if (modalitaCalcolo === "media" && attivabileOnline) return "Scopri il tuo risparmio";
   if (modalitaCalcolo === "media" && switchoSupported) return "Scopri come proseguire";
   if (modalitaCalcolo === "media") return "Scopri le alternative attivabili";
   if (attivabileOnline) return "Vai all'offerta";
@@ -10260,7 +10336,7 @@ function testoAzioneOfferta(offerta, attivabileOnline) {
 }
 
 function testoBeneficioAzioneOfferta(offerta, attivabileOnline) {
-  if (modalitaCalcolo === "media" && attivabileOnline) return "Carica la bolletta e confrontiamo questa offerta con i tuoi consumi reali.";
+  if (modalitaCalcolo === "media") return "Ti interessa questa offerta?";
   if (attivabileOnline) return "Per questa offerta è disponibile un percorso online tramite OffertaLogica.";
   if (switchoSupportaFornitoreOfferta(offerta)) return "Percorso assistito separato: su Switcho le offerte disponibili possono essere diverse.";
   return "La mostriamo nel ranking anche senza accordi commerciali: puoi vedere le alternative con un percorso disponibile.";
@@ -10538,6 +10614,7 @@ function creaGruppoOfferte(id, classe, titolo, testo) {
       <div>${titolo}</div>
       <div>${testo}</div>
     </div>
+    <div class="offers-media-context" hidden></div>
     <div class="offers-contact-trust"><strong>Confronto senza registrazione.</strong> OffertaLogica non effettua chiamate telefoniche. Telefono ed email servono solo se prosegui tramite noi con un’offerta partner.</div>
     <div class="offer-group-cards"></div>
   `;
@@ -10597,6 +10674,12 @@ function testoFiltroOfferte(tipoTariffa, tipoFornitura) {
         ? "dual fuel luce e gas"
         : "forniture separate";
   return `${tariffa} / ${fornitura}`;
+}
+
+function testoProfiloStandardRanking(tipoFornitura) {
+  if (tipoFornitura === "luce") return "2.700 kWh/anno luce · 3 kW · residente";
+  if (tipoFornitura === "gas") return "1.400 Smc/anno gas";
+  return "2.700 kWh/anno luce · 1.400 Smc/anno gas · 3 kW";
 }
 
 function descriviTipoOfferta(offerta) {
@@ -11869,14 +11952,29 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
   ["offerte-partner-online-group", "offerte-consulente-group"].forEach((id) => {
     document.getElementById(id)?.remove();
   });
+  const titoloRanking = modalitaCalcolo === "media"
+    ? "Offerte più convenienti sul profilo standard"
+    : "Offerte più convenienti per costo annuo stimato";
+  const testoRanking = modalitaCalcolo === "media"
+    ? "Confrontale e approfondisci quella che ti interessa. L’ordine dipende dal costo annuo stimato, non dalle partnership."
+    : (OFFERTE_ARERA_MENU.length
+      ? "Ordinate per costo annuo stimato sul profilo selezionato. Offerte aggiornate ogni giorno."
+      : "Ordinate per costo annuo stimato tra le offerte disponibili. Offerte aggiornate ogni giorno.");
   const gruppoRanking = assicuraGruppoOfferte(
     "offerte-ranking-group",
     "ranking-group",
-    "Offerte più convenienti per costo annuo stimato",
-    OFFERTE_ARERA_MENU.length
-      ? "Ordinate per costo annuo stimato sul profilo selezionato. Offerte aggiornate ogni giorno."
-      : "Ordinate per costo annuo stimato tra le offerte disponibili. Offerte aggiornate ogni giorno."
+    titoloRanking,
+    testoRanking
   );
+  const mediaContext = gruppoRanking?.querySelector(".offers-media-context");
+  if (mediaContext) {
+    mediaContext.hidden = modalitaCalcolo !== "media";
+    if (modalitaCalcolo === "media") {
+      mediaContext.innerHTML = `<strong>Stessa base per tutte le offerte:</strong> ${testoHtmlSicuro(testoProfiloStandardRanking(tipoFornitura))}. È una stima iniziale, non una previsione della tua bolletta.`;
+    } else {
+      mediaContext.textContent = "";
+    }
+  }
   const contenitoreRanking = resetGruppoOfferte(gruppoRanking, hasVisibleOffers);
 
   offerteCalcolate.forEach(({ card, offerta }) => {
@@ -11948,7 +12046,6 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       const risparmioLabel = risparmio
         ? (modalitaCalcolo === "media" ? "Risparmio annuo stimato sul profilo standard" : "Risparmio annuo stimato")
         : "Costo annuo più alto";
-      const profiloStandardHtml = htmlProfiloStandardOfferta(offerta);
       const suffissoMensile = modalitaCalcolo === "media" ? "sul profilo standard" : "in media";
       const risparmioLockedLabel = risparmio ? "Risparmio potenziale stimato" : "Costo stimato superiore";
       const savingLineClass = risparmio ? "offer-saving-line" : "offer-saving-line is-negative";
@@ -12001,7 +12098,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       const percorsoDettaglio = percorsoBadgeText
         ? `<span class="offer-detail-pill">${testoHtmlSicuro(percorsoBadgeText)}</span>`
         : "";
-      const dettagliApertiDesktop = window.matchMedia?.("(min-width: 701px)")?.matches ? " open" : "";
+      const dettagliApertiDesktop = "";
       const dettagliCondizioniHtml = `
         <details class="offer-details-toggle"${dettagliApertiDesktop}>
           <summary>Dettagli e condizioni</summary>
@@ -12022,7 +12119,6 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
           <span class="${savingLineClass}"><span class="offer-metric-copy"><b>${risparmioLabel}</b><small>≈ ${euro(mediaMensileEquivalente(Math.abs(differenza)))} / mese ${risparmio ? suffissoMensile : `in più, ${suffissoMensile}`}</small></span><strong>${euro(Math.abs(differenza))} / anno</strong></span>
           <span class="offer-cost-line"><span class="offer-metric-copy"><b>${costoStimatoLabel}</b><small>≈ ${euro(mediaMensileEquivalente(costo))} / mese ${suffissoMensile}</small></span><strong>${euro(costo)} / anno</strong></span>
         </span>
-        ${profiloStandardHtml}
         ${dettagliCondizioniHtml}
       `;
       const billPrecisionButton = saving.querySelector(".offer-bill-precision");
@@ -13024,7 +13120,7 @@ function apriPercorsoOffertaMedia(offerta) {
   const route = configuraPercorsoOffertaMedia(offerta);
   if (title) {
     title.textContent = route.attivabileOnline
-      ? "Scopri il tuo risparmio reale"
+      ? "Scopri il tuo risparmio"
       : route.switchoSupported
         ? "Scopri come proseguire"
         : "Questa offerta resta nel confronto";
@@ -17967,7 +18063,7 @@ function ottimizzaRisultatiMobile() {
   const copertura = document.getElementById("offers-ranking-explainer")?.textContent?.trim() || "";
   const origineDocumento = origineDocumentoConfronto();
   const origine = modalitaCalcolo === "media"
-    ? "Stima media su benchmark standard ARERA"
+    ? "Profilo standard · approfondisci quella che ti interessa"
     : origineDocumento === "pdf"
       ? "Stima personalizzata da PDF"
       : origineDocumento === "photo"
