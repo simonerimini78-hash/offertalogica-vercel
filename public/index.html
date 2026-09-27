@@ -4566,32 +4566,36 @@
                 <button type="button" class="mobile-fast-info-button" data-fast-help="average" aria-label="Come funziona la prima stima?">i</button>
             </div>
 
-            <div class="mobile-fast-personalized-heading">
-                <strong>Oppure confronta sui tuoi consumi</strong>
-                <span>Hai una bolletta? Ottieni risultati personalizzati.</span>
-            </div>
+            <section class="mobile-fast-personalized-panel" aria-labelledby="mobile-fast-personalized-title">
+                <div class="mobile-fast-personalized-heading">
+                    <strong id="mobile-fast-personalized-title">Scopri quanto puoi risparmiare tu</strong>
+                    <span>Hai una bolletta? Usala per ottenere risultati personalizzati.</span>
+                </div>
 
-            <div class="mobile-fast-option-card is-photo-card">
-                <button type="button" class="mobile-fast-option is-photo-action" id="mobile-fast-photo" aria-pressed="false">
-                    <strong>Scatta una foto</strong>
-                    <small>Fotografa la bolletta</small>
-                </button>
-                <button type="button" class="mobile-fast-info-button" data-fast-help="photo" aria-label="Quale pagina della bolletta fotografare?">i</button>
-            </div>
-            <div class="mobile-fast-option-card">
-                <button type="button" class="mobile-fast-option" id="mobile-fast-pdf" aria-pressed="false">
-                    <strong>Carica il PDF</strong>
-                    <small>Usa la bolletta originale</small>
-                </button>
-                <button type="button" class="mobile-fast-info-button" data-fast-help="pdf" aria-label="Quale PDF della bolletta caricare?">i</button>
-            </div>
-            <div class="mobile-fast-option-card mobile-fast-option-card-manual">
-                <button type="button" class="mobile-fast-option mobile-fast-option-manual" id="mobile-fast-manual" aria-pressed="false">
-                    <strong>Inserisci i dati a mano</strong>
-                    <small>Se conosci già consumi e dati della fornitura</small>
-                </button>
-                <button type="button" class="mobile-fast-info-button" data-fast-help="manual" aria-label="Come funziona l’inserimento manuale?">i</button>
-            </div>
+                <div class="mobile-fast-personalized-actions">
+                    <div class="mobile-fast-option-card is-photo-card">
+                        <button type="button" class="mobile-fast-option is-photo-action" id="mobile-fast-photo" aria-pressed="false">
+                            <strong>Scatta una foto</strong>
+                            <small>Fotografa la bolletta</small>
+                        </button>
+                        <button type="button" class="mobile-fast-info-button" data-fast-help="photo" aria-label="Quale pagina della bolletta fotografare?">i</button>
+                    </div>
+                    <div class="mobile-fast-option-card">
+                        <button type="button" class="mobile-fast-option" id="mobile-fast-pdf" aria-pressed="false">
+                            <strong>Carica il PDF</strong>
+                            <small>Usa la bolletta originale</small>
+                        </button>
+                        <button type="button" class="mobile-fast-info-button" data-fast-help="pdf" aria-label="Quale PDF della bolletta caricare?">i</button>
+                    </div>
+                    <div class="mobile-fast-option-card mobile-fast-option-card-manual">
+                        <button type="button" class="mobile-fast-option mobile-fast-option-manual" id="mobile-fast-manual" aria-pressed="false">
+                            <strong>Inserisci i dati a mano</strong>
+                            <small>Se conosci già consumi e dati della fornitura</small>
+                        </button>
+                        <button type="button" class="mobile-fast-info-button" data-fast-help="manual" aria-label="Come funziona l’inserimento manuale?">i</button>
+                    </div>
+                </div>
+            </section>
         </div>
     </section>
     <div class="mobile-fast-help-backdrop" id="mobile-fast-help-backdrop" hidden>
@@ -5773,6 +5777,154 @@
         @media (prefers-reduced-motion: reduce) {
             .mobile-fast-option-card .mobile-fast-option {
                 transition: none !important;
+            }
+        }
+
+        /* OFFERTALOGICA_PUBLIC_V113_20260927: il percorso con bolletta e' un unico blocco visivo,
+           con due azioni primarie e inserimento manuale secondario. Logica e tracking V111 invariati. */
+        .mobile-fast-personalized-panel {
+            grid-column: 1 / -1;
+            min-width: 0;
+            display: grid;
+            gap: 12px;
+            padding: 15px;
+            border: 1px solid rgba(8,127,58,.16);
+            border-radius: 21px;
+            background:
+                radial-gradient(circle at 12% 0%, rgba(115,201,40,.10), transparent 33%),
+                linear-gradient(155deg, rgba(239,252,244,.94), rgba(248,251,249,.98) 58%, rgba(242,248,244,.96));
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.92), 0 10px 26px rgba(18,48,68,.055);
+        }
+        .mobile-fast-personalized-panel .mobile-fast-personalized-heading {
+            margin: 0 !important;
+            padding: 0 6px 2px !important;
+        }
+        .mobile-fast-personalized-panel .mobile-fast-personalized-heading::before { display: none !important; }
+        .mobile-fast-personalized-panel .mobile-fast-personalized-heading strong {
+            color: #087f3a !important;
+            font-size: 17px !important;
+            line-height: 1.15 !important;
+            letter-spacing: -.015em !important;
+        }
+        .mobile-fast-personalized-panel .mobile-fast-personalized-heading span {
+            margin-top: 2px;
+            color: #526b75 !important;
+            font-size: 12px !important;
+            line-height: 1.3 !important;
+        }
+        .mobile-fast-personalized-actions {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+            align-items: stretch;
+        }
+        .mobile-fast-personalized-panel .mobile-fast-option-card {
+            min-width: 0;
+            display: flex;
+        }
+        .mobile-fast-personalized-panel .mobile-fast-option-card:not(.mobile-fast-option-card-manual) .mobile-fast-option {
+            min-height: 96px !important;
+            padding: 27px 14px 14px !important;
+            border: 1px solid rgba(8,127,58,.18) !important;
+            border-radius: 16px !important;
+            background: rgba(255,255,255,.82) !important;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.95), 0 7px 16px rgba(18,48,68,.055) !important;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+        .mobile-fast-personalized-panel .mobile-fast-option-card:not(.mobile-fast-option-card-manual) .mobile-fast-option:hover,
+        .mobile-fast-personalized-panel .mobile-fast-option-card:not(.mobile-fast-option-card-manual) .mobile-fast-option:focus-visible {
+            transform: translateY(-1px) !important;
+            border-color: rgba(24,168,75,.42) !important;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.98), 0 10px 20px rgba(8,127,58,.09) !important;
+        }
+        .mobile-fast-personalized-panel .mobile-fast-option-card:not(.mobile-fast-option-card-manual) .mobile-fast-option strong {
+            color: #123044 !important;
+            font-size: 15px !important;
+        }
+        .mobile-fast-personalized-panel .mobile-fast-option-card:not(.mobile-fast-option-card-manual) .mobile-fast-option small {
+            color: #64748b !important;
+            font-size: 11px !important;
+        }
+        .mobile-fast-personalized-panel .mobile-fast-option-card-manual {
+            grid-column: 1 / -1 !important;
+            position: relative;
+            border-top: 1px solid rgba(8,127,58,.12);
+            padding-top: 8px;
+        }
+        .mobile-fast-personalized-panel .mobile-fast-option-card-manual .mobile-fast-option {
+            min-height: 52px !important;
+            padding: 10px 42px 10px 14px !important;
+            border: 0 !important;
+            border-radius: 13px !important;
+            background: rgba(255,255,255,.38) !important;
+            box-shadow: none !important;
+            display: grid !important;
+            align-content: center !important;
+            gap: 2px !important;
+        }
+        .mobile-fast-personalized-panel .mobile-fast-option-card-manual .mobile-fast-option:hover,
+        .mobile-fast-personalized-panel .mobile-fast-option-card-manual .mobile-fast-option:focus-visible {
+            transform: none !important;
+            background: rgba(255,255,255,.72) !important;
+            box-shadow: inset 0 0 0 1px rgba(8,127,58,.14) !important;
+        }
+        .mobile-fast-personalized-panel .mobile-fast-option-card-manual .mobile-fast-option strong {
+            color: #123044 !important;
+            font-size: 13.5px !important;
+        }
+        .mobile-fast-personalized-panel .mobile-fast-option-card-manual .mobile-fast-option small {
+            color: #718096 !important;
+            font-size: 10.5px !important;
+        }
+        .mobile-fast-personalized-panel .mobile-fast-info-button {
+            top: 8px !important;
+            right: 8px !important;
+        }
+        .mobile-fast-personalized-panel .mobile-fast-option-card-manual .mobile-fast-info-button {
+            top: 50% !important;
+            right: 8px !important;
+            transform: translateY(-50%) !important;
+        }
+        @media (min-width: 901px) {
+            .mobile-fast-options { grid-template-columns: 1fr !important; }
+            .mobile-fast-personalized-panel {
+                width: min(100%, 820px);
+                justify-self: center;
+                padding: 17px 18px;
+            }
+            .mobile-fast-option-card-average { width: min(100%, 960px); justify-self: center; }
+            .mobile-fast-personalized-actions { gap: 12px; }
+        }
+        @media (min-width: 701px) and (max-width: 900px) {
+            .mobile-fast-personalized-panel { padding: 15px; }
+        }
+        @media (max-width: 700px) {
+            .mobile-fast-personalized-panel {
+                gap: 9px;
+                padding: 11px 10px 10px;
+                border-radius: 18px;
+            }
+            .mobile-fast-personalized-panel .mobile-fast-personalized-heading { padding: 0 2px 1px !important; }
+            .mobile-fast-personalized-panel .mobile-fast-personalized-heading strong { font-size: 14px !important; }
+            .mobile-fast-personalized-panel .mobile-fast-personalized-heading span { font-size: 10.5px !important; }
+            .mobile-fast-personalized-actions { gap: 7px; }
+            .mobile-fast-personalized-panel .mobile-fast-option-card:not(.mobile-fast-option-card-manual) .mobile-fast-option {
+                min-height: 88px !important;
+                padding: 25px 7px 10px !important;
+                border-radius: 14px !important;
+            }
+            .mobile-fast-personalized-panel .mobile-fast-option-card:not(.mobile-fast-option-card-manual) .mobile-fast-option strong {
+                font-size: 13px !important;
+            }
+            .mobile-fast-personalized-panel .mobile-fast-option-card:not(.mobile-fast-option-card-manual) .mobile-fast-option small {
+                font-size: 10px !important;
+                line-height: 1.2 !important;
+            }
+            .mobile-fast-personalized-panel .mobile-fast-option-card-manual { padding-top: 6px; }
+            .mobile-fast-personalized-panel .mobile-fast-option-card-manual .mobile-fast-option {
+                min-height: 48px !important;
+                padding: 8px 38px 8px 10px !important;
             }
         }
 
