@@ -4555,34 +4555,40 @@
     <section class="mobile-fast-start" id="mobile-fast-start" aria-labelledby="mobile-fast-start-title">
         <div class="mobile-fast-start-heading">
             <h2 id="mobile-fast-start-title">Inizia il confronto</h2>
-            <p>Scegli il modo più comodo: foto, PDF, stima o inserimento manuale.</p>
+            <p>Scegli quanto vuoi approfondire: puoi vedere subito una prima stima oppure partire direttamente dalla tua bolletta.</p>
         </div>
         <div class="mobile-fast-options">
-            <div class="mobile-fast-option-card">
-                <button type="button" class="mobile-fast-option is-selected" id="mobile-fast-average" aria-pressed="true">
-                    <strong>Usa il profilo medio</strong>
-                    <small>Vedi subito una stima senza bolletta</small>
+            <div class="mobile-fast-option-card mobile-fast-option-card-average">
+                <button type="button" class="mobile-fast-option mobile-fast-option-average" id="mobile-fast-average" aria-pressed="false">
+                    <strong>Vedi subito le offerte</strong>
+                    <small>Prima stima senza bolletta</small>
                 </button>
-                <button type="button" class="mobile-fast-info-button" data-fast-help="average" aria-label="Come funziona il profilo medio?">i</button>
+                <button type="button" class="mobile-fast-info-button" data-fast-help="average" aria-label="Come funziona la prima stima?">i</button>
             </div>
+
+            <div class="mobile-fast-personalized-heading">
+                <strong>Oppure confronta sui tuoi consumi</strong>
+                <span>Hai una bolletta? Ottieni risultati personalizzati.</span>
+            </div>
+
             <div class="mobile-fast-option-card is-photo-card">
                 <button type="button" class="mobile-fast-option is-photo-action" id="mobile-fast-photo" aria-pressed="false">
                     <strong>Scatta una foto</strong>
-                    <small>Fotografa la pagina con consumi e prezzi</small>
+                    <small>Fotografa la bolletta</small>
                 </button>
                 <button type="button" class="mobile-fast-info-button" data-fast-help="photo" aria-label="Quale pagina della bolletta fotografare?">i</button>
             </div>
             <div class="mobile-fast-option-card">
                 <button type="button" class="mobile-fast-option" id="mobile-fast-pdf" aria-pressed="false">
                     <strong>Carica il PDF</strong>
-                    <small>Usa la bolletta originale ricevuta dal fornitore</small>
+                    <small>Usa la bolletta originale</small>
                 </button>
                 <button type="button" class="mobile-fast-info-button" data-fast-help="pdf" aria-label="Quale PDF della bolletta caricare?">i</button>
             </div>
-            <div class="mobile-fast-option-card">
-                <button type="button" class="mobile-fast-option" id="mobile-fast-manual" aria-pressed="false">
+            <div class="mobile-fast-option-card mobile-fast-option-card-manual">
+                <button type="button" class="mobile-fast-option mobile-fast-option-manual" id="mobile-fast-manual" aria-pressed="false">
                     <strong>Inserisci i dati a mano</strong>
-                    <small>Compila consumi e dati della fornitura</small>
+                    <small>Se conosci già consumi e dati della fornitura</small>
                 </button>
                 <button type="button" class="mobile-fast-info-button" data-fast-help="manual" aria-label="Come funziona l’inserimento manuale?">i</button>
             </div>
@@ -5470,6 +5476,125 @@
             }
             .mobile-fast-option-card .mobile-fast-option small {
                 height: 5em;
+            }
+        }
+
+        /* OFFERTALOGICA_PUBLIC_V111_20260927: scelta iniziale semplificata.
+           Un clic per la stima immediata; bolletta e inserimento manuale restano percorsi personalizzati separati. */
+        .mobile-fast-option-card-average,
+        .mobile-fast-personalized-heading,
+        .mobile-fast-option-card-manual {
+            grid-column: 1 / -1;
+        }
+        .mobile-fast-personalized-heading {
+            display: grid;
+            gap: 2px;
+            margin: 3px 2px 0;
+            padding-top: 9px;
+            border-top: 1px solid rgba(100,116,139,.16);
+            text-align: center;
+        }
+        .mobile-fast-personalized-heading strong {
+            color: #123044;
+            font-size: 14px;
+            line-height: 1.2;
+            font-weight: 900;
+        }
+        .mobile-fast-personalized-heading span {
+            color: #64748b;
+            font-size: 11.5px;
+            line-height: 1.25;
+            font-weight: 650;
+        }
+        .mobile-fast-option-card-average .mobile-fast-option {
+            min-height: 78px;
+            padding-top: 17px;
+            padding-bottom: 16px;
+            border-color: rgba(22,163,74,.55);
+            background: linear-gradient(135deg,#dcfce7 0%,#f0fdf4 54%,#ffffff 100%);
+            box-shadow: 0 10px 24px rgba(22,163,74,.11);
+        }
+        .mobile-fast-option-card-average .mobile-fast-option strong {
+            height: auto;
+            color: #166534;
+            font-size: 17px;
+        }
+        .mobile-fast-option-card-average .mobile-fast-option small {
+            height: auto;
+            color: #526274;
+            font-size: 11.5px;
+        }
+        .mobile-fast-option-average:disabled {
+            opacity: 1;
+            cursor: wait;
+        }
+        .mobile-fast-option-card-manual .mobile-fast-option {
+            min-height: 66px;
+            padding-top: 12px;
+            padding-bottom: 11px;
+            background: #f8fafc;
+        }
+        .mobile-fast-option-card-manual .mobile-fast-option strong,
+        .mobile-fast-option-card-manual .mobile-fast-option small {
+            height: auto;
+        }
+        body.unified-comparison-flow.mobile-fast-mode-average #comparison-submit-button,
+        html.mobile-fast-flow body.mobile-fast-mode-average #comparison-submit-button {
+            display: none !important;
+        }
+        @media (max-width: 700px) {
+            .mobile-fast-start-heading p {
+                max-width: 320px;
+            }
+            .mobile-fast-option-card-average .mobile-fast-option {
+                min-height: 72px !important;
+                padding: 14px 34px 13px 12px !important;
+                gap: 3px !important;
+            }
+            .mobile-fast-option-card-average .mobile-fast-option strong {
+                height: auto !important;
+                font-size: 16px !important;
+            }
+            .mobile-fast-option-card-average .mobile-fast-option small {
+                height: auto !important;
+                font-size: 11px !important;
+            }
+            .mobile-fast-personalized-heading {
+                margin-top: 1px;
+                padding-top: 8px;
+            }
+            .mobile-fast-personalized-heading strong {
+                font-size: 13px;
+            }
+            .mobile-fast-personalized-heading span {
+                font-size: 10.5px;
+            }
+            .mobile-fast-option-card:not(.mobile-fast-option-card-average):not(.mobile-fast-option-card-manual) .mobile-fast-option {
+                min-height: 84px !important;
+                padding: 29px 9px 9px !important;
+            }
+            .mobile-fast-option-card:not(.mobile-fast-option-card-average):not(.mobile-fast-option-card-manual) .mobile-fast-option strong {
+                height: auto !important;
+                min-height: 2.35em;
+                align-items: center;
+            }
+            .mobile-fast-option-card:not(.mobile-fast-option-card-average):not(.mobile-fast-option-card-manual) .mobile-fast-option small {
+                height: auto !important;
+                min-height: 2.5em;
+                align-items: flex-start;
+            }
+            .mobile-fast-option-card-manual .mobile-fast-option {
+                min-height: 58px !important;
+                padding: 11px 34px 10px 10px !important;
+                gap: 2px !important;
+            }
+            .mobile-fast-option-card-manual .mobile-fast-option strong {
+                height: auto !important;
+                font-size: 13px !important;
+            }
+            .mobile-fast-option-card-manual .mobile-fast-option small {
+                height: auto !important;
+                font-size: 10px !important;
             }
         }
 
@@ -19414,7 +19539,7 @@ if (document.readyState === "loading") {
     const btnPrivato = document.getElementById("btn-segmento-privato");
     const btnBusiness = document.getElementById("btn-segmento-business");
 
-    setMobileFastMode("average");
+    setMobileFastMode("average", null);
     compactSegmentState();
     if (submit) submit.textContent = "Scopri le offerte";
     window.__OL_OPEN_MOBILE_FAST_PDF__ = () => {
@@ -19431,12 +19556,36 @@ if (document.readyState === "loading") {
 
     btnAverage?.addEventListener("click", () => {
       tracciaSceltaPercorsoConfronto("average", "comparison_method_choice");
-      setMobileFastMode("average");
-      btnMedi?.click();
-      window.setTimeout(() => {
-        if (submit) submit.textContent = "Scopri le offerte";
-        scrollFast(submit, "center");
-      }, 90);
+      setMobileFastMode("average", "average");
+
+      const originalCopy = btnAverage.querySelector("small")?.textContent || "Prima stima senza bolletta";
+      const copy = btnAverage.querySelector("small");
+      let attempts = 0;
+      btnAverage.disabled = true;
+      if (copy) copy.textContent = "Prepariamo le offerte…";
+
+      const startAverage = () => {
+        attempts += 1;
+        if (typeof DATI_UFFICIALI_CONFRONTO_PRONTI !== "undefined" && DATI_UFFICIALI_CONFRONTO_PRONTI) {
+          btnMedi?.click();
+          window.setTimeout(() => {
+            window.__OL_A11Y_RESULTS_PENDING__ = true;
+            window.__OL_MOBILE_FAST_RESULTS_PENDING__ = true;
+            window.avviaComparazioneDati?.();
+            btnAverage.disabled = false;
+            if (copy) copy.textContent = originalCopy;
+          }, 40);
+          return;
+        }
+        if (attempts < 240) {
+          window.setTimeout(startAverage, 125);
+          return;
+        }
+        btnAverage.disabled = false;
+        setMobileFastMode("average", null);
+        if (copy) copy.textContent = "I dati stanno impiegando più del previsto. Tocca per riprovare.";
+      };
+      startAverage();
     });
 
     btnPhoto?.addEventListener("click", () => {
