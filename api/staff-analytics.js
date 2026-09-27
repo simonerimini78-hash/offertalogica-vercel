@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { json } from "../lib/http.js";
 
-const VERSION = "0.12.55";
+const VERSION = "0.12.56";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -10,6 +10,7 @@ const PAGE_SIZE = 25000;
 const DB_BATCH_SIZE = 500;
 const ANALYSIS_PAGE_SIZE = 1000;
 const ANALYSIS_MAX_ROWS_PER_SNAPSHOT = 20000;
+const ANALYSIS_SIGNAL_LIMIT = 100;
 const ANALYSIS_WINDOWS = [7, 28, 90];
 const OPPORTUNITY_STATUSES = new Set(["pending", "selected", "deferred", "rejected"]);
 const OPPORTUNITY_TYPES = new Set(["new_article", "social_only", "monitor"]);
@@ -943,7 +944,13 @@ async function editorialPlannerPreview() {
   }
 
   const analysis = await analysisPayload().catch(() => null);
-  const searchSignals = analysis?.ready && Array.isArray(analysis.signals) ? analysis.signals : [];
+  const allSearchSignals = analysis?.ready && Array.isArray(analysis.signals) ? analysis.signals : [];
+  const searchSignals = allSearchSignals.filter((signal) => {
+    const cycleStatus = String(signal?.cycle_opportunity?.status || "");
+    if (cycleStatus === "rejected" || cycleStatus === "completed") return false;
+    if (signal?.cycle_opportunity?.target_article_id) return false;
+    return true;
+  });
   const topSearchSignal = searchSignals.find((signal) => Number(signal.score || 0) >= minimumScore) || null;
   if (topSearchSignal) {
     candidates.push({
@@ -1003,6 +1010,10 @@ async function editorialPlannerPreview() {
     article_cycle_disabled: articleCycleDisabled,
     timezone: settings.timezone || "Europe/Rome",
     search_console_ready: Boolean(analysis?.ready),
+    search_signals_available: allSearchSignals.length,
+    search_signals_eligible: searchSignals.length,
+    search_signals_excluded_current_cycle: Math.max(0, allSearchSignals.length - searchSignals.length),
+    analysis_reference_snapshot_id: analysis?.reference_snapshot_id || null,
     decision,
     no_publish: noPublish,
     ordering: [
@@ -1046,24 +1057,42 @@ async function existingOpportunity(topicKey, snapshotId) {
   return (rows || []).find((row) => String(row?.evidence?.topic_key || "") === topicKey) || null;
 }
 
-async function saveEditorialOpportunity(user, topicKeyValue) {
+async function saveEditorialOpportunity(user, topicKeyValue, requestedStatusValue = "pending") {
   const topicKey = String(topicKeyValue || "").trim();
+  const requestedStatus = String(requestedStatusValue || "pending").trim();
   if (!topicKey || topicKey.length > 1000) throw new Error("Segnale editoriale non valido");
+  if (!["pending", "selected", "rejected"].includes(requestedStatus)) {
+    throw new Error("Decisione sul segnale non valida");
+  }
 
   const analysis = await analysisPayload();
   if (!analysis.ready) throw new Error("Storico Search Console non ancora sufficiente");
   const signal = (analysis.signals || []).find((row) => row.topic_key === topicKey);
-  if (!signal) throw new Error("Segnale non più disponibile nell'analisi corrente");
+  if (!signal) {
+    throw new Error(`Segnale non disponibile nella graduatoria corrente (primi ${Number(analysis.signal_limit || ANALYSIS_SIGNAL_LIMIT)} risultati)`);
+  }
 
-  const snapshot = analysis.snapshots.find((row) => Number(row.days) === 90)
+  const snapshot = analysis.snapshots.find((row) => String(row.id || "") === String(analysis.reference_snapshot_id || ""))
+    || analysis.snapshots.find((row) => Number(row.days) === 90)
     || analysis.snapshots.find((row) => Number(row.days) === 28)
     || analysis.snapshots[0];
   if (!snapshot?.id) throw new Error("Snapshot di riferimento non disponibile");
 
   const duplicate = await existingOpportunity(topicKey, snapshot.id);
-  if (duplicate) return { created: false, opportunity: duplicate };
+  if (duplicate) {
+    if (requestedStatus === "selected") {
+      const opportunity = await selectEditorialOpportunity(user, duplicate.id);
+      return { created: false, status_changed: duplicate.status !== "selected", opportunity };
+    }
+    if (requestedStatus === "rejected") {
+      const opportunity = await updateEditorialOpportunity(user, duplicate.id, "rejected");
+      return { created: false, status_changed: duplicate.status !== "rejected", opportunity };
+    }
+    return { created: false, status_changed: false, opportunity: duplicate };
+  }
 
   await upsertResearchTopic(user, signal);
+  const now = new Date().toISOString();
   const evidence = {
     source: "search_console",
     analysis_version: VERSION,
@@ -1074,6 +1103,7 @@ async function saveEditorialOpportunity(user, topicKeyValue) {
     page_urls: Array.isArray(signal.page_urls) ? signal.page_urls.slice(0, 5) : [],
     momentum_ratio: signal.momentum_ratio,
     metrics: signal.metrics,
+    analysis_reference_snapshot_id: snapshot.id,
     snapshots: analysis.snapshots.map((row) => ({
       id: row.id,
       days: row.days,
@@ -1082,7 +1112,7 @@ async function saveEditorialOpportunity(user, topicKeyValue) {
       row_count: row.row_count,
       captured_at: row.captured_at,
     })),
-    saved_at: new Date().toISOString(),
+    saved_at: now,
   };
   evidence.editorial_brief = opportunityEditorialBrief({ topic: signal.topic, evidence }, signal);
 
@@ -1100,9 +1130,15 @@ async function saveEditorialOpportunity(user, topicKeyValue) {
       status: "pending",
     },
   });
-  const opportunity = rows?.[0];
+  let opportunity = rows?.[0];
   if (!opportunity?.id) throw new Error("Opportunità editoriale non salvata");
-  return { created: true, opportunity };
+
+  if (requestedStatus === "selected") {
+    opportunity = await selectEditorialOpportunity(user, opportunity.id);
+  } else if (requestedStatus === "rejected") {
+    opportunity = await updateEditorialOpportunity(user, opportunity.id, "rejected");
+  }
+  return { created: true, status_changed: requestedStatus !== "pending", opportunity };
 }
 
 async function selectEditorialOpportunity(user, idValue) {
@@ -5584,12 +5620,47 @@ async function analysisPayload() {
 
   signals.sort((a, b) => b.score - a.score || (b.metrics["90"]?.impressions || 0) - (a.metrics["90"]?.impressions || 0));
 
+  const referenceSnapshot = snapshots.find((row) => Number(row.days) === 90)
+    || snapshots.find((row) => Number(row.days) === 28)
+    || snapshots[0]
+    || null;
+  let currentCycleByTopic = new Map();
+  if (referenceSnapshot?.id) {
+    const cycleRows = await serviceFetch(
+      `editorial_research_opportunities?select=${opportunitySelect()}&snapshot_id=eq.${encodeURIComponent(referenceSnapshot.id)}&order=updated_at.desc&limit=500`,
+    ).catch(() => []);
+    currentCycleByTopic = new Map();
+    for (const row of cycleRows || []) {
+      const topicKey = String(row?.evidence?.topic_key || "").trim();
+      if (!topicKey || currentCycleByTopic.has(topicKey)) continue;
+      currentCycleByTopic.set(topicKey, row);
+    }
+  }
+
+  const rankedSignals = signals.slice(0, ANALYSIS_SIGNAL_LIMIT).map((signal, index) => {
+    const cycleOpportunity = currentCycleByTopic.get(String(signal.topic_key || "")) || null;
+    return {
+      ...signal,
+      rank: index + 1,
+      cycle_opportunity: cycleOpportunity ? {
+        id: cycleOpportunity.id,
+        status: cycleOpportunity.status,
+        target_article_id: cycleOpportunity.target_article_id || null,
+        decided_at: cycleOpportunity.decided_at || null,
+      } : null,
+    };
+  });
+
   return {
     ok: true,
     version: VERSION,
     ready: true,
     snapshots,
+    reference_snapshot_id: referenceSnapshot?.id || null,
     truncated,
+    signals_total: signals.length,
+    signal_limit: ANALYSIS_SIGNAL_LIMIT,
+    signals_truncated: signals.length > ANALYSIS_SIGNAL_LIMIT,
     methodology: {
       demand_weight: 40,
       momentum_weight: 25,
@@ -5598,7 +5669,7 @@ async function analysisPayload() {
       grouping: "cluster lessicale deterministico delle query Search Console",
       writes_database: false,
     },
-    signals: signals.slice(0, 20),
+    signals: rankedSignals,
   };
 }
 
@@ -5658,7 +5729,7 @@ export default async function handler(req, res) {
     }
 
     if (req.method === "POST" && action === "save-editorial-opportunity") {
-      const result = await saveEditorialOpportunity(user, req.body?.topic_key);
+      const result = await saveEditorialOpportunity(user, req.body?.topic_key, req.body?.status);
       return json(res, 200, { ok: true, version: VERSION, result });
     }
 
