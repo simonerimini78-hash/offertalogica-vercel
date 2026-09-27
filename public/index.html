@@ -10391,7 +10391,7 @@ function testoProfiloStandardOfferta(offerta) {
   return "2.700 kWh/anno luce · 1.400 Smc/anno gas · 3 kW";
 }
 
-// OFFERTALOGICA_PUBLIC_V109_20260927: nel profilo standard la CTA ha un solo obiettivo:
+// OFFERTALOGICA_PUBLIC_V110_20260927: nel profilo standard la CTA ha un solo obiettivo:
 // trasformare l'interesse per una card in un confronto personalizzato. Il canale commerciale
 // della singola offerta viene spiegato soltanto dopo il clic e non altera il ranking.
 function testoAzioneOfferta(offerta, attivabileOnline) {
@@ -13238,7 +13238,7 @@ function configuraPercorsoOffertaMedia(offerta) {
   const alternativeAvailable = !attivabileOnline && !switchoSupported;
 
   if (profiloStandard) {
-    // V109: qualunque offerta abbia generato interesse puo portare al ricalcolo completo
+    // V110: qualunque offerta abbia generato interesse puo portare al ricalcolo completo
     // sui consumi della bolletta. Il caricamento non promette che l'offerta cliccata resti
     // nella stessa posizione: tutta la classifica viene ricalcolata.
     if (bill) bill.hidden = false;
@@ -13246,20 +13246,15 @@ function configuraPercorsoOffertaMedia(offerta) {
     if (alternatives) alternatives.hidden = true;
     if (alternativesLabel) alternativesLabel.textContent = "SCOPRI LE OFFERTE ATTIVABILI ONLINE";
 
-    if (note) {
-      if (attivabileOnline) {
-        note.textContent = "Caricando la bolletta ricalcoliamo tutte le offerte sui tuoi consumi: la classifica può cambiare. Se preferisci essere seguito, puoi scegliere anche il percorso assistito Switcho.";
-      } else if (switchoSupported) {
-        note.textContent = "Questa offerta non è attivabile direttamente tramite OffertaLogica. Puoi verificare se resta conveniente caricando la bolletta: ricalcoleremo tutta la classifica sui tuoi consumi. In alternativa puoi continuare con Switcho.";
-      } else {
-        note.textContent = "Questa offerta è mostrata per trasparenza e non è attivabile tramite OffertaLogica. Puoi comunque verificare se resta conveniente: carica la bolletta e ricalcoleremo tutte le offerte sui tuoi consumi.";
-      }
-    }
+    // Nel profilo standard la nota sotto le azioni sarebbe una ripetizione dell'introduzione
+    // e delle due CTA. La nascondiamo per mantenere il popup breve e orientato alla scelta.
+    if (note) note.hidden = true;
     return { attivabileOnline, switchoSupported, alternativeAvailable: false, profiloStandard: true };
   }
 
   // Fuori dal profilo standard il confronto e gia personalizzato: conserviamo il routing
   // commerciale esistente, senza chiedere una seconda personalizzazione.
+  if (note) note.hidden = false;
   if (bill) bill.hidden = !attivabileOnline;
   if (switcho) switcho.hidden = attivabileOnline ? false : !switchoSupported;
   if (alternatives) alternatives.hidden = !alternativeAvailable;
@@ -13289,11 +13284,11 @@ function apriPercorsoOffertaMedia(offerta) {
     if (title) title.textContent = "Scopri il tuo risparmio personalizzato";
     if (intro) {
       if (route.attivabileOnline) {
-        intro.innerHTML = `<strong>${testoHtmlSicuro(nomeOfferta)}</strong> ti interessa nella stima standard. Con la tua bolletta ricalcoliamo tutte le offerte sui tuoi consumi: questa offerta può restare conveniente oppure la classifica può cambiare.`;
+        intro.innerHTML = `<strong>${testoHtmlSicuro(nomeOfferta)}</strong> ti interessa nella stima standard. Puoi verificare quanto conviene sui tuoi consumi oppure scegliere il percorso assistito.`;
       } else if (route.switchoSupported) {
-        intro.innerHTML = `<strong>${testoHtmlSicuro(nomeOfferta)}</strong> ti interessa nella stima standard. Non e attivabile direttamente tramite OffertaLogica, ma puoi verificare se resta conveniente: con la tua bolletta ricalcoliamo tutta la classifica sui tuoi consumi.`;
+        intro.innerHTML = `<strong>${testoHtmlSicuro(nomeOfferta)}</strong> non è attivabile direttamente tramite OffertaLogica. Puoi verificare quanto conviene sui tuoi consumi oppure continuare con Switcho.`;
       } else {
-        intro.innerHTML = `<strong>${testoHtmlSicuro(nomeOfferta)}</strong> è mostrata per trasparenza e non è attivabile tramite OffertaLogica. Puoi comunque verificare se è davvero conveniente per te: con la tua bolletta ricalcoliamo tutte le offerte sui tuoi consumi.`;
+        intro.innerHTML = `<strong>${testoHtmlSicuro(nomeOfferta)}</strong> è mostrata per trasparenza e non è attivabile tramite OffertaLogica. Puoi comunque verificare quanto conviene sui tuoi consumi.`;
       }
     }
   } else {
