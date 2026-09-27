@@ -5473,7 +5473,7 @@
             }
         }
 
-        /* OFFERTALOGICA_PUBLIC_V107_20260927: risultati standard orientati all'approfondimento della singola offerta.
+        /* OFFERTALOGICA_PUBLIC_V108_20260927: risultati standard orientati all'approfondimento della singola offerta.
            Informazione comune centralizzata, card piu scansionabili e stessa gerarchia mobile/desktop. */
         .offers-media-context {
             margin: 0 0 12px;
@@ -5490,6 +5490,41 @@
         .offers-media-context[hidden] { display: none !important; }
         .offers-media-context strong { color: #123044; font-weight: 950; }
 
+        /* V108: la card mostra solo i dati decisionali; CTA prima delle condizioni. */
+        .partner-vertical-card > .offer-details-toggle {
+            grid-column: 1 / -1;
+            width: 100%;
+            margin-top: 0;
+            padding-top: 7px;
+            border-top: 1px solid rgba(148, 163, 184, .18);
+            box-sizing: border-box;
+        }
+        [id^="link-partner-"].offer-discovery-cta {
+            position: relative;
+            isolation: isolate;
+            overflow: hidden;
+            border: 1px solid rgba(21,128,61,.18) !important;
+            background: linear-gradient(135deg, #166534 0%, #16a34a 48%, #22c55e 100%) !important;
+            color: #ffffff !important;
+            box-shadow: 0 11px 26px rgba(22,163,74,.25), inset 0 1px 0 rgba(255,255,255,.24) !important;
+            animation: olOfferCtaBreathe 3.4s ease-in-out infinite;
+            transition: transform .18s ease, box-shadow .18s ease, filter .18s ease !important;
+        }
+        [id^="link-partner-"].offer-discovery-cta:hover {
+            filter: brightness(1.035);
+            box-shadow: 0 15px 32px rgba(22,163,74,.32), inset 0 1px 0 rgba(255,255,255,.28) !important;
+        }
+        [id^="link-partner-"].offer-discovery-cta:active {
+            transform: scale(.985);
+        }
+        @keyframes olOfferCtaBreathe {
+            0%, 100% { transform: scale(1); box-shadow: 0 11px 26px rgba(22,163,74,.23), inset 0 1px 0 rgba(255,255,255,.24); }
+            50% { transform: scale(1.012); box-shadow: 0 14px 32px rgba(22,163,74,.31), 0 0 0 4px rgba(34,197,94,.07), inset 0 1px 0 rgba(255,255,255,.28); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            [id^="link-partner-"].offer-discovery-cta { animation: none !important; }
+        }
+
         @media (min-width: 701px) {
             .offer-result-group .offers-media-context {
                 margin: 0;
@@ -5503,7 +5538,12 @@
                 padding-top: 0;
             }
             .partner-vertical-card {
-                min-height: 194px !important;
+                min-height: 168px !important;
+                padding-top: 16px !important;
+                padding-bottom: 14px !important;
+            }
+            .partner-vertical-card > .offer-details-toggle {
+                padding-top: 6px;
             }
         }
 
@@ -5521,15 +5561,38 @@
             }
             html.mobile-fast-flow body.mobile-fast-results:not(.social-entry-active) .partner-vertical-card {
                 padding: 10px !important;
-                gap: 6px !important;
+                gap: 5px !important;
+            }
+            html.mobile-fast-flow body.mobile-fast-results:not(.social-entry-active) .partner-meta {
+                gap: 5px;
             }
             html.mobile-fast-flow body.mobile-fast-results:not(.social-entry-active) .partner-brand-line {
-                min-height: 82px;
-                padding-top: 58px;
+                min-height: 70px;
+                padding-top: 54px;
             }
             html.mobile-fast-flow body.mobile-fast-results:not(.social-entry-active) .partner-brand-line.is-split-brand {
-                min-height: 90px;
-                padding-top: 62px;
+                min-height: 76px;
+                padding-top: 58px;
+            }
+            html.mobile-fast-flow body.mobile-fast-results:not(.social-entry-active) .partner-title {
+                font-size: 16px !important;
+                line-height: 1.18 !important;
+            }
+            html.mobile-fast-flow body.mobile-fast-results:not(.social-entry-active) .offer-metrics {
+                gap: 5px;
+                margin-top: 0;
+            }
+            html.mobile-fast-flow body.mobile-fast-results:not(.social-entry-active) .offer-saving-line {
+                padding: 8px 9px;
+            }
+            html.mobile-fast-flow body.mobile-fast-results:not(.social-entry-active) .offer-saving-line strong {
+                font-size: 21px;
+            }
+            html.mobile-fast-flow body.mobile-fast-results:not(.social-entry-active) .offer-cost-line {
+                padding: 1px 4px;
+            }
+            html.mobile-fast-flow body.mobile-fast-results:not(.social-entry-active) .offer-cost-line strong {
+                font-size: 14px;
             }
             html.mobile-fast-flow body.mobile-fast-results:not(.social-entry-active) .offer-action-column:not(.is-switcho-panel) {
                 padding: 0;
@@ -5537,18 +5600,23 @@
                 background: transparent;
             }
             html.mobile-fast-flow body.mobile-fast-results:not(.social-entry-active) .offer-action-benefit {
-                display: block !important;
-                margin: 0 2px 5px;
-                color: #475569;
-                font-size: 11.5px;
-                line-height: 1.25;
-                font-weight: 800;
+                display: none !important;
             }
             html.mobile-fast-flow body.mobile-fast-results:not(.social-entry-active) [id^="link-partner-"] {
                 min-height: 52px;
                 padding: 12px 13px !important;
+                border-radius: 14px !important;
                 font-size: 15px !important;
                 line-height: 1.15 !important;
+                font-weight: 900 !important;
+            }
+            html.mobile-fast-flow body.mobile-fast-results:not(.social-entry-active) .partner-vertical-card > .offer-details-toggle {
+                margin-top: 1px;
+                padding-top: 5px;
+            }
+            html.mobile-fast-flow body.mobile-fast-results:not(.social-entry-active) .partner-vertical-card > .offer-details-toggle summary {
+                margin-top: 0;
+                padding: 5px 7px;
             }
         }
 </style>
@@ -10323,7 +10391,7 @@ function testoProfiloStandardOfferta(offerta) {
   return "2.700 kWh/anno luce · 1.400 Smc/anno gas · 3 kW";
 }
 
-// OFFERTALOGICA_PUBLIC_V107_20260927: nel profilo standard la card deve prima generare interesse
+// OFFERTALOGICA_PUBLIC_V108_20260927: nel profilo standard la card deve prima generare interesse
 // per la singola offerta; il routing successivo resta invariato e trasparente.
 function testoAzioneOfferta(offerta, attivabileOnline) {
   const switchoSupported = switchoSupportaFornitoreOfferta(offerta);
@@ -11953,7 +12021,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
     document.getElementById(id)?.remove();
   });
   const titoloRanking = modalitaCalcolo === "media"
-    ? "Offerte più convenienti sul profilo standard"
+    ? "Offerte più convenienti"
     : "Offerte più convenienti per costo annuo stimato";
   const testoRanking = modalitaCalcolo === "media"
     ? "Confrontale e approfondisci quella che ti interessa. L’ordine dipende dal costo annuo stimato, non dalle partnership."
@@ -11970,7 +12038,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
   if (mediaContext) {
     mediaContext.hidden = modalitaCalcolo !== "media";
     if (modalitaCalcolo === "media") {
-      mediaContext.innerHTML = `<strong>Stessa base per tutte le offerte:</strong> ${testoHtmlSicuro(testoProfiloStandardRanking(tipoFornitura))}. È una stima iniziale, non una previsione della tua bolletta.`;
+      mediaContext.innerHTML = `<strong>Stima iniziale su profilo standard.</strong> Per conoscere il risultato sui tuoi consumi, approfondisci l’offerta che ti interessa.`;
     } else {
       mediaContext.textContent = "";
     }
@@ -12030,7 +12098,9 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       const tipoPrezzoBadge = offerta?.tipo === "variabile" ? "Prezzo variabile" : "Prezzo fisso";
       const badge = `<span class="offer-position-badge" style="display:inline-block; margin:0 0 6px; padding:3px 8px; border:1px solid; border-radius:999px; font-size:11px; font-weight:800; ${stileBadgeOfferta({ posizioneEconomica, gruppoVisuale })}">${badgeText}</span>`;
       const livelloStima = classificaLivelloStima(attualeComparabile, costoOfferta);
-      const livelloStimaBadge = `<span class="offer-estimate-level is-${livelloStima.code}" title="${testoHtmlSicuro(livelloStima.detail)}">${testoHtmlSicuro(livelloStima.label)}</span>`;
+      const livelloStimaBadge = modalitaCalcolo === "media"
+        ? ""
+        : `<span class="offer-estimate-level is-${livelloStima.code}" title="${testoHtmlSicuro(livelloStima.detail)}">${testoHtmlSicuro(livelloStima.label)}</span>`;
       const percorsoBadgeText = attivabileOnline
         ? "Attivabile online"
         : (separataMulti ? "Verifica con consulente" : "");
@@ -12041,12 +12111,18 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
         ? `<small style="display:block; margin-top:3px; color:#92400e; font-weight:700;">${tipoTariffa === "variabile" && offerta.tipo === "variabile" ? "Offerta variabile" : "Alternativa"} ${descriviTipoOfferta(offerta)} mostrata anche se il filtro selezionato e ${testoFiltroOfferte(tipoTariffa, tipoFornitura)}.</small>`
         : "";
       const costoStimatoLabel = modalitaCalcolo === "media"
-        ? `Costo stimato sul profilo standard ${ambito}`
+        ? "Spesa stimata"
         : `Costo stimato ${ambito}`;
       const risparmioLabel = risparmio
-        ? (modalitaCalcolo === "media" ? "Risparmio annuo stimato sul profilo standard" : "Risparmio annuo stimato")
+        ? (modalitaCalcolo === "media" ? "Risparmio stimato" : "Risparmio annuo stimato")
         : "Costo annuo più alto";
-      const suffissoMensile = modalitaCalcolo === "media" ? "sul profilo standard" : "in media";
+      const suffissoMensile = "in media";
+      const risparmioMensileHtml = modalitaCalcolo === "media"
+        ? ""
+        : `<small>≈ ${euro(mediaMensileEquivalente(Math.abs(differenza)))} / mese ${risparmio ? suffissoMensile : `in più, ${suffissoMensile}`}</small>`;
+      const costoMensileHtml = modalitaCalcolo === "media"
+        ? ""
+        : `<small>≈ ${euro(mediaMensileEquivalente(costo))} / mese ${suffissoMensile}</small>`;
       const risparmioLockedLabel = risparmio ? "Risparmio potenziale stimato" : "Costo stimato superiore";
       const savingLineClass = risparmio ? "offer-saving-line" : "offer-saving-line is-negative";
       const promozioniHtml = htmlPromozioniApplicateOfferta(offerta, costoOfferta);
@@ -12067,7 +12143,11 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
         const switchoPath = !mediaDiscoveryPath && !attivabileOnline && switchoSupported;
         card.dataset.activationRoute = attivabileOnline ? "offertalogica" : switchoSupported ? "switcho" : "none";
         const benefit = card.querySelector(".offer-action-benefit");
-        if (benefit) benefit.textContent = testoBeneficioAzioneOfferta(offerta, attivabileOnline);
+        if (benefit) {
+          benefit.textContent = testoBeneficioAzioneOfferta(offerta, attivabileOnline);
+          benefit.hidden = mediaDiscoveryPath;
+        }
+        link.classList.toggle("offer-discovery-cta", mediaDiscoveryPath);
         if (switchoPath) {
           link.classList.add("offer-switcho-cta");
           link.innerHTML = `<span class="offer-switcho-cta-title">Continua con</span><span class="offer-switcho-cta-brand" aria-hidden="true"><img class="offer-switcho-cta-logo" src="/assets/logo-switcho.png" alt=""></span>`;
@@ -12116,11 +12196,14 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       saving.innerHTML = `
         ${badge}${livelloStimaBadge}${bollettaPrecisionButton}
         <span class="offer-metrics">
-          <span class="${savingLineClass}"><span class="offer-metric-copy"><b>${risparmioLabel}</b><small>≈ ${euro(mediaMensileEquivalente(Math.abs(differenza)))} / mese ${risparmio ? suffissoMensile : `in più, ${suffissoMensile}`}</small></span><strong>${euro(Math.abs(differenza))} / anno</strong></span>
-          <span class="offer-cost-line"><span class="offer-metric-copy"><b>${costoStimatoLabel}</b><small>≈ ${euro(mediaMensileEquivalente(costo))} / mese ${suffissoMensile}</small></span><strong>${euro(costo)} / anno</strong></span>
+          <span class="${savingLineClass}"><span class="offer-metric-copy"><b>${risparmioLabel}</b>${risparmioMensileHtml}</span><strong>${euro(Math.abs(differenza))} / anno</strong></span>
+          <span class="offer-cost-line"><span class="offer-metric-copy"><b>${costoStimatoLabel}</b>${costoMensileHtml}</span><strong>${euro(costo)} / anno</strong></span>
         </span>
-        ${dettagliCondizioniHtml}
       `;
+      card.querySelector(":scope > .offer-details-toggle")?.remove();
+      const actionColumnForDetails = card.querySelector(".offer-action-column");
+      if (actionColumnForDetails) actionColumnForDetails.insertAdjacentHTML("afterend", dettagliCondizioniHtml);
+      else saving.insertAdjacentHTML("beforeend", dettagliCondizioniHtml);
       const billPrecisionButton = saving.querySelector(".offer-bill-precision");
       billPrecisionButton?.setAttribute("aria-label", `Carica bolletta per confronto preciso per ${titoloOffertaVisibile(offerta)}`);
       billPrecisionButton?.addEventListener("click", (event) => {
@@ -12506,6 +12589,62 @@ function apriAnteprimaConsensoOffertaStaff() {
   window.apriConsensoOfferta?.(offer);
 }
 
+function apriAnteprimaRisultatiStaff() {
+  if (!staffModeAttiva()) {
+    staffPreviewStatus("La modalità staff non è attiva.", true);
+    return;
+  }
+  chiudiPannelloAnteprimeStaff();
+  const target = new URL(window.location.href);
+  target.pathname = "/";
+  target.search = "";
+  target.hash = "";
+  target.searchParams.set("compare_start", "average");
+  window.location.assign(`${target.pathname}${target.search}`);
+}
+
+function apriAnteprimaRisultatiMobileStaff() {
+  if (!staffModeAttiva()) {
+    staffPreviewStatus("La modalità staff non è attiva.", true);
+    return;
+  }
+
+  const target = new URL(window.location.origin + "/");
+  target.searchParams.set("compare_start", "average");
+
+  const width = 390;
+  const height = 844;
+  const left = Math.max(0, Math.round((window.screen.availWidth - width) / 2));
+  const top = Math.max(0, Math.round((window.screen.availHeight - height) / 2));
+  const features = [
+    "popup=yes",
+    `width=${width}`,
+    `height=${height}`,
+    `left=${left}`,
+    `top=${top}`,
+    "resizable=yes",
+    "scrollbars=yes",
+  ].join(",");
+
+  const mobileWindow = window.open("about:blank", "offertalogica-staff-offers-mobile-preview", features);
+  if (!mobileWindow) {
+    staffPreviewStatus("Il browser ha bloccato la finestra Offerte mobile. Consenti i popup e riprova.", true);
+    return;
+  }
+
+  try {
+    mobileWindow.sessionStorage.setItem(STAFF_MODE_STORAGE_KEY, "true");
+    mobileWindow.sessionStorage.setItem(STAFF_MOBILE_PREVIEW_STORAGE_KEY, "true");
+    mobileWindow.location.replace(target.toString());
+    mobileWindow.resizeTo(width, height);
+    mobileWindow.focus();
+    chiudiPannelloAnteprimeStaff();
+  } catch {
+    mobileWindow.close();
+    staffPreviewStatus("Impossibile aprire l'anteprima Offerte mobile in questa finestra del browser.", true);
+  }
+}
+
 function apriHomeStaff() {
   chiudiPannelloAnteprimeStaff();
   window.location.assign("/?staffHome=1");
@@ -12582,6 +12721,8 @@ function creaPannelloAnteprimeStaff() {
     <p>Apri gli stessi popup e passaggi della pagina pubblica. Lead, consensi e webhook restano disattivati.</p>
     <div class="staff-preview-grid">
       <button type="button" id="staff-preview-home">Home</button>
+      <button type="button" id="staff-preview-offers">Offerte desktop</button>
+      <button type="button" id="staff-preview-offers-mobile">Offerte mobile</button>
       <button type="button" id="staff-preview-speed-test">Speed Test</button>
       <button type="button" id="staff-preview-fotovoltaico">Fotovoltaico</button>
       <button type="button" id="staff-preview-climatizzazione">Pompe di calore</button>
@@ -12598,6 +12739,8 @@ function creaPannelloAnteprimeStaff() {
   `;
   document.body.appendChild(panel);
   document.getElementById("staff-preview-home")?.addEventListener("click", apriHomeStaff);
+  document.getElementById("staff-preview-offers")?.addEventListener("click", apriAnteprimaRisultatiStaff);
+  document.getElementById("staff-preview-offers-mobile")?.addEventListener("click", apriAnteprimaRisultatiMobileStaff);
   document.getElementById("staff-preview-speed-test")?.addEventListener("click", () => apriPaginaAnteprimaStaff("/speed-test.html"));
   document.getElementById("staff-preview-fotovoltaico")?.addEventListener("click", () => apriPaginaAnteprimaStaff("/fotovoltaico.html"));
   document.getElementById("staff-preview-climatizzazione")?.addEventListener("click", () => apriPaginaAnteprimaStaff("/climatizzazione-pompa-di-calore.html"));
