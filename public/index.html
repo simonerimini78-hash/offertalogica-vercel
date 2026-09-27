@@ -10391,13 +10391,12 @@ function testoProfiloStandardOfferta(offerta) {
   return "2.700 kWh/anno luce · 1.400 Smc/anno gas · 3 kW";
 }
 
-// OFFERTALOGICA_PUBLIC_V108_20260927: nel profilo standard la card deve prima generare interesse
-// per la singola offerta; il routing successivo resta invariato e trasparente.
+// OFFERTALOGICA_PUBLIC_V109_20260927: nel profilo standard la CTA ha un solo obiettivo:
+// trasformare l'interesse per una card in un confronto personalizzato. Il canale commerciale
+// della singola offerta viene spiegato soltanto dopo il clic e non altera il ranking.
 function testoAzioneOfferta(offerta, attivabileOnline) {
   const switchoSupported = switchoSupportaFornitoreOfferta(offerta);
-  if (modalitaCalcolo === "media" && attivabileOnline) return "Scopri il tuo risparmio";
-  if (modalitaCalcolo === "media" && switchoSupported) return "Scopri come proseguire";
-  if (modalitaCalcolo === "media") return "Scopri le alternative attivabili";
+  if (modalitaCalcolo === "media") return "Scopri il tuo risparmio personalizzato";
   if (attivabileOnline) return "Vai all'offerta";
   if (switchoSupported) return "Continua con Switcho";
   return "Scopri le alternative attivabili";
@@ -12104,8 +12103,8 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       const percorsoBadgeText = attivabileOnline
         ? "Attivabile online"
         : (separataMulti ? "Verifica con consulente" : "");
-      // Nel profilo medio il caricamento bolletta viene proposto nel pannello
-      // "Scopri come proseguire", evitando CTA concorrenti dentro la card.
+      // Nel profilo standard il caricamento bolletta viene proposto dal percorso unico
+      // "Scopri il tuo risparmio personalizzato", evitando CTA concorrenti dentro la card.
       const bollettaPrecisionButton = "";
       const alternativeNote = alternativeFiltro
         ? `<small style="display:block; margin-top:3px; color:#92400e; font-weight:700;">${tipoTariffa === "variabile" && offerta.tipo === "variabile" ? "Offerta variabile" : "Alternativa"} ${descriviTipoOfferta(offerta)} mostrata anche se il filtro selezionato e ${testoFiltroOfferte(tipoTariffa, tipoFornitura)}.</small>`
@@ -13235,8 +13234,32 @@ function configuraPercorsoOffertaMedia(offerta) {
   const note = document.getElementById("offer-path-note");
   const attivabileOnline = offertaAttivabileOnline(offerta);
   const switchoSupported = switchoSupportaFornitoreOfferta(offerta);
+  const profiloStandard = modalitaCalcolo === "media";
   const alternativeAvailable = !attivabileOnline && !switchoSupported;
 
+  if (profiloStandard) {
+    // V109: qualunque offerta abbia generato interesse puo portare al ricalcolo completo
+    // sui consumi della bolletta. Il caricamento non promette che l'offerta cliccata resti
+    // nella stessa posizione: tutta la classifica viene ricalcolata.
+    if (bill) bill.hidden = false;
+    if (switcho) switcho.hidden = !(attivabileOnline || switchoSupported);
+    if (alternatives) alternatives.hidden = true;
+    if (alternativesLabel) alternativesLabel.textContent = "SCOPRI LE OFFERTE ATTIVABILI ONLINE";
+
+    if (note) {
+      if (attivabileOnline) {
+        note.textContent = "Caricando la bolletta ricalcoliamo tutte le offerte sui tuoi consumi: la classifica può cambiare. Se preferisci essere seguito, puoi scegliere anche il percorso assistito Switcho.";
+      } else if (switchoSupported) {
+        note.textContent = "Questa offerta non è attivabile direttamente tramite OffertaLogica. Puoi verificare se resta conveniente caricando la bolletta: ricalcoleremo tutta la classifica sui tuoi consumi. In alternativa puoi continuare con Switcho.";
+      } else {
+        note.textContent = "Questa offerta è mostrata per trasparenza e non è attivabile tramite OffertaLogica. Puoi comunque verificare se resta conveniente: carica la bolletta e ricalcoleremo tutte le offerte sui tuoi consumi.";
+      }
+    }
+    return { attivabileOnline, switchoSupported, alternativeAvailable: false, profiloStandard: true };
+  }
+
+  // Fuori dal profilo standard il confronto e gia personalizzato: conserviamo il routing
+  // commerciale esistente, senza chiedere una seconda personalizzazione.
   if (bill) bill.hidden = !attivabileOnline;
   if (switcho) switcho.hidden = attivabileOnline ? false : !switchoSupported;
   if (alternatives) alternatives.hidden = !alternativeAvailable;
@@ -13251,7 +13274,7 @@ function configuraPercorsoOffertaMedia(offerta) {
       note.textContent = "Puoi tornare al ranking completo oppure vedere, in una selezione separata, le offerte per cui è disponibile un percorso online. Il ranking economico originale non viene modificato.";
     }
   }
-  return { attivabileOnline, switchoSupported, alternativeAvailable };
+  return { attivabileOnline, switchoSupported, alternativeAvailable, profiloStandard: false };
 }
 
 function apriPercorsoOffertaMedia(offerta) {
@@ -13261,28 +13284,56 @@ function apriPercorsoOffertaMedia(offerta) {
   if (!modal) return;
   const nomeOfferta = titoloOffertaVisibile(offerta) || "questa offerta";
   const route = configuraPercorsoOffertaMedia(offerta);
-  if (title) {
-    title.textContent = route.attivabileOnline
-      ? "Scopri il tuo risparmio"
-      : route.switchoSupported
-        ? "Scopri come proseguire"
-        : "Questa offerta resta nel confronto";
-  }
-  if (intro) {
-    if (route.attivabileOnline) {
-      intro.innerHTML = `Con <strong>${testoHtmlSicuro(nomeOfferta)}</strong> puoi passare dalla stima a un confronto basato sui tuoi consumi reali.`;
-    } else if (route.switchoSupported) {
-      intro.innerHTML = `<strong>${testoHtmlSicuro(nomeOfferta)}</strong> è nel confronto OffertaLogica, ma non è attivabile tramite noi. Se preferisci assistenza puoi continuare con Switcho.`;
-    } else {
-      intro.innerHTML = `<strong>${testoHtmlSicuro(nomeOfferta)}</strong> resta visibile perché il ranking è economico e non dipende dalle partnership. OffertaLogica non ha un percorso di attivazione per questa offerta.`;
+
+  if (route.profiloStandard) {
+    if (title) title.textContent = "Scopri il tuo risparmio personalizzato";
+    if (intro) {
+      if (route.attivabileOnline) {
+        intro.innerHTML = `<strong>${testoHtmlSicuro(nomeOfferta)}</strong> ti interessa nella stima standard. Con la tua bolletta ricalcoliamo tutte le offerte sui tuoi consumi: questa offerta può restare conveniente oppure la classifica può cambiare.`;
+      } else if (route.switchoSupported) {
+        intro.innerHTML = `<strong>${testoHtmlSicuro(nomeOfferta)}</strong> ti interessa nella stima standard. Non e attivabile direttamente tramite OffertaLogica, ma puoi verificare se resta conveniente: con la tua bolletta ricalcoliamo tutta la classifica sui tuoi consumi.`;
+      } else {
+        intro.innerHTML = `<strong>${testoHtmlSicuro(nomeOfferta)}</strong> è mostrata per trasparenza e non è attivabile tramite OffertaLogica. Puoi comunque verificare se è davvero conveniente per te: con la tua bolletta ricalcoliamo tutte le offerte sui tuoi consumi.`;
+      }
+    }
+  } else {
+    if (title) {
+      title.textContent = route.attivabileOnline
+        ? "Scopri il tuo risparmio"
+        : route.switchoSupported
+          ? "Scopri come proseguire"
+          : "Questa offerta resta nel confronto";
+    }
+    if (intro) {
+      if (route.attivabileOnline) {
+        intro.innerHTML = `Con <strong>${testoHtmlSicuro(nomeOfferta)}</strong> puoi passare dalla stima a un confronto basato sui tuoi consumi reali.`;
+      } else if (route.switchoSupported) {
+        intro.innerHTML = `<strong>${testoHtmlSicuro(nomeOfferta)}</strong> è nel confronto OffertaLogica, ma non è attivabile tramite noi. Se preferisci assistenza puoi continuare con Switcho.`;
+      } else {
+        intro.innerHTML = `<strong>${testoHtmlSicuro(nomeOfferta)}</strong> resta visibile perché il ranking è economico e non dipende dalle partnership. OffertaLogica non ha un percorso di attivazione per questa offerta.`;
+      }
     }
   }
+
   modal.style.display = "flex";
-  a11yApriDialog(modal, route.attivabileOnline ? "#offer-path-bill" : route.switchoSupported ? "#offer-path-switcho" : "#offer-path-provider");
+  const focusTarget = route.profiloStandard
+    ? "#offer-path-bill"
+    : route.attivabileOnline
+      ? "#offer-path-bill"
+      : route.switchoSupported
+        ? "#offer-path-switcho"
+        : "#offer-path-provider";
+  a11yApriDialog(modal, focusTarget);
   const tracking = LEAD_STATE.selectedOffer?.rankingContext || {};
   trackEvent("activation_channel_choice_opened", {
     source: modalitaCalcolo === "media" ? "offer_card_media" : "offer_card_precise",
-    route: route.attivabileOnline ? "offertalogica_partner" : route.switchoSupported ? "switcho_provider" : "internal_activatable_view",
+    route: route.profiloStandard
+      ? "personalization_recalculation"
+      : route.attivabileOnline
+        ? "offertalogica_partner"
+        : route.switchoSupported
+          ? "switcho_provider"
+          : "internal_activatable_view",
     destinationType: LEAD_STATE.selectedOffer?.destinationType || "",
     destinationStatus: LEAD_STATE.selectedOffer?.destinationStatus || "",
     offerId: LEAD_STATE.selectedOffer?.id || "",
@@ -13296,15 +13347,22 @@ function apriPercorsoOffertaMedia(offerta) {
 
 function proseguiPercorsoOffertaConBolletta() {
   const offer = LEAD_STATE.selectedOffer || {};
-  if (!offertaAttivabileOnline(offer)) return;
-  trackEvent("activation_channel_selected", {
-    source: "offer_card_media",
-    channel: "bill_upload",
-    route: "offertalogica_partner",
-    offerId: offer.id || "",
-    offerName: offer.name || "",
-    provider: offer.provider || "",
-  });
+  const profiloStandard = modalitaCalcolo === "media";
+  if (!profiloStandard && !offertaAttivabileOnline(offer)) return;
+
+  // Nel profilo standard il caricamento bolletta e una personalizzazione del confronto,
+  // non una selezione di canale commerciale. caricaBollettaDaOfferte traccia gia
+  // offers_bill_prompt_clicked con l'offerta che ha generato l'interesse.
+  if (!profiloStandard) {
+    trackEvent("activation_channel_selected", {
+      source: "offer_card_precise",
+      channel: "bill_upload",
+      route: "offertalogica_partner",
+      offerId: offer.id || "",
+      offerName: offer.name || "",
+      provider: offer.provider || "",
+    });
+  }
   chiudiPercorsoOfferta();
   caricaBollettaDaOfferte({
     source: "offer_card",
@@ -18993,12 +19051,12 @@ if (document.readyState === "loading") {
 
 <div class="offer-path-backdrop" id="offer-path-backdrop" role="dialog" aria-modal="true" aria-labelledby="offer-path-title">
     <div class="offer-path-modal">
-        <h3 id="offer-path-title">Scopri come proseguire</h3>
-        <p class="offer-path-intro" id="offer-path-intro">La stima usa un profilo medio. Per un confronto dedicato a te puoi caricare la tua bolletta; se preferisci assistenza puoi continuare con Switcho.</p>
+        <h3 id="offer-path-title">Scopri il tuo risparmio personalizzato</h3>
+        <p class="offer-path-intro" id="offer-path-intro">La stima usa un profilo standard. Con la tua bolletta ricalcoliamo tutte le offerte sui tuoi consumi e la classifica può cambiare.</p>
         <div class="offer-path-actions">
             <button type="button" class="offer-path-option is-bill" id="offer-path-bill">
-                <strong>SCOPRI QUANTO PUOI RISPARMIARE DAVVERO</strong>
-                <small>Carica la tua bolletta per un confronto dedicato ai tuoi consumi reali.</small>
+                <strong>SCOPRI IL TUO RISPARMIO PERSONALIZZATO</strong>
+                <small>Carica la bolletta: ricalcoliamo tutte le offerte sui consumi della tua bolletta.</small>
             </button>
             <button type="button" class="offer-path-option is-switcho" id="offer-path-switcho">
                 <span class="offer-path-switcho-head"><span>CONTINUA CON</span><img class="offer-path-switcho-logo" src="/assets/logo-switcho.png" alt="Switcho"></span>

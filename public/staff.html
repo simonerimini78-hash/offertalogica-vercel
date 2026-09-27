@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <meta name="theme-color" content="#063f36">
+  <title>Control Center Staff - OffertaLogica</title>
+  <style>
+    :root {
+      --bg:#f3f6f4; --card:#fff; --text:#10231f; --muted:#66756f; --line:#d8e3de;
+      --green:#087a60; --green-dark:#064c3e; --green-soft:#edf9f5; --lime:#b8e62e;
+      --blue:#175cd3; --blue-soft:#eff8ff; --danger:#b42318; --danger-soft:#fef3f2;
+      --warn:#b54708; --warn-soft:#fffaeb; --ok:#027a48; --ok-soft:#ecfdf3;
+      --shadow:0 12px 34px rgba(16,35,31,.08);
+    }
+    *{box-sizing:border-box} html,body{min-height:100%;margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    button,input,select,textarea{font:inherit} button{cursor:pointer} [hidden]{display:none!important}
+    .topbar{position:sticky;top:0;z-index:30;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 18px;color:#fff;background:linear-gradient(120deg,var(--green-dark),var(--green) 68%,#70ad27);box-shadow:0 7px 24px rgba(6,76,62,.2)}
+    .brand{display:flex;align-items:center;gap:12px;min-width:0}.brand img{width:42px;height:42px;border-radius:11px;background:#fff;padding:5px}.brand h1{margin:0;font-size:19px}.brand p{margin:3px 0 0;color:rgba(255,255,255,.78);font-size:12px}
+    .top-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}.staff-chip{border:1px solid rgba(255,255,255,.3);border-radius:999px;padding:7px 10px;background:rgba(255,255,255,.12);font-size:12px;font-weight:800}
+    .button{border:0;border-radius:10px;padding:10px 13px;font-weight:800;color:var(--text);background:#e7eeeb}.button:disabled{cursor:not-allowed;opacity:.55}.button.primary{color:#fff;background:var(--green)}.button.light{color:#fff;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.12)}.button.secondary{color:#15345d;background:#e9f0f8}.button.danger{color:var(--danger);background:#fee4e2}.button.compact{padding:8px 10px;font-size:12px}
+    .auth-shell{display:grid;place-items:center;min-height:calc(100vh - 67px);padding:28px 16px}.auth-card{width:min(470px,100%);padding:26px;border:1px solid var(--line);border-radius:22px;background:var(--card);box-shadow:var(--shadow)}.auth-card h2{margin:0 0 8px;font-size:26px}.auth-card p{margin:0 0 20px;color:var(--muted);line-height:1.5}
+    .field{display:grid;gap:6px;margin-bottom:13px}.field label{font-size:12px;font-weight:800;color:#42534c}input,select,textarea{width:100%;min-height:42px;border:1px solid #cbd8d2;border-radius:9px;padding:9px 11px;color:var(--text);background:#fff;outline:none}input:focus,select:focus,textarea:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(8,122,96,.1)}
+    .message{margin:12px 0 0;border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.4}.message.info{color:var(--blue);background:var(--blue-soft)}.message.error{color:var(--danger);background:var(--danger-soft)}.message.success{color:var(--ok);background:var(--ok-soft)}
+    .app-shell{display:grid;grid-template-columns:230px minmax(0,1fr);min-height:calc(100vh - 67px)}
+    .sidebar{position:sticky;top:67px;height:calc(100vh - 67px);overflow:auto;border-right:1px solid var(--line);padding:14px;background:#fff}.nav-title{padding:6px 10px 9px;color:var(--muted);font-size:11px;font-weight:850;text-transform:uppercase;letter-spacing:.06em}.nav{display:grid;gap:5px}.nav-group-label{margin:12px 10px 3px;padding-top:10px;border-top:1px solid #e8efec;color:#87958f;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.11em}.nav-group-label:first-child{margin-top:0;padding-top:0;border-top:0}.nav button{display:flex;align-items:center;gap:9px;width:100%;border:0;border-radius:10px;padding:10px 11px;color:#344840;background:transparent;text-align:left;font-weight:750;transition:background .16s ease,color .16s ease,transform .16s ease}.nav button:hover{transform:translateX(2px)}.nav button:hover,.nav button.active{color:var(--green-dark);background:var(--green-soft)}.nav button.active{box-shadow:inset 3px 0 0 var(--green)}.nav button span:last-child{margin-left:auto;border-radius:999px;padding:2px 6px;color:var(--muted);background:#eef2f0;font-size:10px}.site-preview-menu{border:0}.site-preview-menu>summary{display:flex;align-items:center;justify-content:space-between;gap:9px;width:100%;border:0;border-radius:10px;padding:10px 11px;color:#344840;background:transparent;font-weight:750;cursor:pointer;list-style:none;transition:background .16s ease,color .16s ease}.site-preview-menu>summary::-webkit-details-marker{display:none}.site-preview-menu>summary::after{content:"▾";margin-left:auto;color:var(--muted);font-size:10px}.site-preview-menu[open]>summary{color:var(--green-dark);background:var(--green-soft)}.site-preview-menu[open]>summary::after{content:"▴"}.site-preview-options{display:grid;gap:4px;margin:4px 0 4px 10px;padding-left:8px;border-left:2px solid #dcebe5}.nav .site-preview-options button{padding:8px 9px;border-radius:8px;font-size:11px;font-weight:750}.nav .site-preview-options button::before{content:"↳";color:var(--green)}.side-note{margin-top:18px;border:1px solid var(--line);border-radius:12px;padding:11px;color:var(--muted);background:#fbfdfc;font-size:11px;line-height:1.45}
+    .main{min-width:0;padding:20px}.view{display:none;max-width:1680px;margin:0 auto}.view.active{display:block}.view-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:15px}.view-head h2{margin:0;font-size:26px;letter-spacing:-.025em}.view-head p{margin:5px 0 0;color:var(--muted);font-size:13px;line-height:1.45}.view-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}.control-kicker{display:inline-flex;margin-bottom:7px;border:1px solid #cfe3db;border-radius:999px;padding:4px 8px;color:var(--green-dark);background:var(--green-soft);font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.1em}
+    .metrics{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:11px;margin-bottom:15px}.cost-metrics{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}.metric{min-width:0;border:1px solid var(--line);border-radius:15px;padding:15px;background:var(--card);box-shadow:0 6px 20px rgba(16,35,31,.04)}.metric.priority{border-color:#cde2da;background:linear-gradient(180deg,#fff,#f8fcfa)}.metric.technical{border-style:dashed;background:#fafcfb;box-shadow:none}.metric span{display:block;color:var(--muted);font-size:11px;font-weight:800}.metric strong{display:block;margin-top:5px;font-size:25px;line-height:1.05;overflow-wrap:anywhere}.metric.priority strong{color:var(--green-dark)}.metric.technical strong{font-size:21px;color:#52635c}.metric small{display:block;margin-top:5px;color:var(--muted);font-size:10px}
+    .grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.panel{min-width:0;border:1px solid var(--line);border-radius:16px;background:var(--card);box-shadow:var(--shadow);overflow:hidden}.panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 15px;border-bottom:1px solid var(--line)}.panel-head h3{margin:0;font-size:16px}.panel-head small{color:var(--muted)}.panel-body{padding:15px}.empty{display:grid;place-items:center;min-height:170px;padding:24px;color:var(--muted);text-align:center;line-height:1.5}
+    .toolbar{display:grid;grid-template-columns:minmax(200px,1fr) 150px auto;gap:8px;padding:12px;border-bottom:1px solid var(--line);background:#fbfdfc}.toolbar.four{grid-template-columns:minmax(200px,1fr) 130px 130px auto}.toolbar button{min-height:42px}.analytics-event-filter-wrap{min-width:0}.analytics-event-filter{position:relative}.analytics-event-filter>summary{min-height:42px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:#fff;cursor:pointer;font-size:12px;font-weight:800;list-style:none}.analytics-event-filter>summary::-webkit-details-marker{display:none}.analytics-event-filter>summary::after{content:"▾";font-size:9px;color:var(--muted)}.analytics-event-filter[open]>summary::after{content:"▴"}.analytics-event-filter-menu{margin-top:8px;border:1px solid var(--line);border-radius:12px;background:#fff;padding:9px;box-shadow:0 10px 26px rgba(16,35,31,.08)}.analytics-event-filter-mode{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px}.analytics-event-filter-mode .button.active{background:var(--green-soft);color:var(--green-dark);border-color:#cfe3db}.analytics-event-filter-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px 14px;max-height:300px;overflow:auto;padding:2px}.analytics-event-filter-options label{display:flex;align-items:center;gap:8px;min-height:32px;padding:4px 6px;border-radius:7px;font-size:11px;line-height:1.25;cursor:pointer}.analytics-event-filter-options label:hover{background:#f5f8f7}.analytics-event-filter-options input{width:16px;height:16px;min-width:16px;margin:0}.analytics-funnel-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.analytics-funnel-actions select{width:auto;min-width:170px;min-height:36px;padding:7px 30px 7px 10px;font-size:12px;font-weight:800}.analytics-session-inspector{margin-top:14px;border:1px solid #cfe3db;border-radius:14px;background:#fbfdfc;overflow:hidden}.analytics-session-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:12px 13px;border-bottom:1px solid var(--line)}.analytics-session-head strong{display:block;font-size:13px}.analytics-session-head small{display:block;margin-top:3px;color:var(--muted);font-size:10px;line-height:1.4}.analytics-session-summary{display:grid;grid-template-columns:minmax(260px,1.2fr) minmax(360px,1.8fr);gap:10px;padding:12px 12px 0}.analytics-session-narrative{margin:10px 12px 0;border:1px solid #b2ddff;border-radius:12px;background:var(--blue-soft);padding:12px}.analytics-session-narrative strong{display:block;font-size:12px}.analytics-session-narrative>small{display:block;margin-top:3px;color:var(--muted);font-size:9px;line-height:1.4}.analytics-session-narrative-body{display:grid;gap:7px;margin-top:9px}.analytics-session-narrative-body p{margin:0;padding:8px 9px;border-radius:9px;background:#fff;border:1px solid #d8eaf7;font-size:11px;line-height:1.5}.analytics-session-narrative-body p.warn{border-color:#fedf89;background:var(--warn-soft)}.analytics-session-narrative-body p.info{border-color:#d5e4de;background:#fbfdfc}.analytics-session-narrative-code{display:block;margin-top:3px;color:var(--muted);font-size:9px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;overflow-wrap:anywhere}.analytics-session-outcome{border:1px solid #cfe3db;border-radius:12px;padding:12px;background:#fff}.analytics-session-outcome span,.analytics-session-facts span{display:block;color:var(--muted);font-size:9px;font-weight:850;text-transform:uppercase;letter-spacing:.05em}.analytics-session-outcome strong{display:block;margin-top:4px;font-size:17px;line-height:1.2}.analytics-session-outcome small{display:block;margin-top:6px;color:var(--muted);font-size:10px;line-height:1.4}.analytics-session-outcome.ok{border-color:#abefc6;background:var(--ok-soft)}.analytics-session-outcome.warn{border-color:#fedf89;background:var(--warn-soft)}.analytics-session-outcome.info{border-color:#b2ddff;background:var(--blue-soft)}.analytics-session-facts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}.analytics-session-facts>div{min-width:0;border:1px solid #e1ebe7;border-radius:10px;padding:10px;background:#fff}.analytics-session-facts strong{display:block;margin-top:4px;font-size:11px;overflow-wrap:anywhere}.analytics-session-funnel{display:grid;grid-template-columns:repeat(5,minmax(100px,1fr));gap:7px;padding:10px 12px 0}.analytics-session-funnel-step{display:grid;grid-template-columns:auto 1fr;column-gap:7px;align-items:center;border:1px solid #e1ebe7;border-radius:10px;padding:9px;background:#fff}.analytics-session-funnel-symbol{grid-row:1/3;display:grid;place-items:center;width:24px;height:24px;border-radius:999px;background:#eef2f1;color:#60716a;font-size:12px;font-weight:900}.analytics-session-funnel-step strong{font-size:11px}.analytics-session-funnel-step small{color:var(--muted);font-size:9px}.analytics-session-funnel-step.done{border-color:#abefc6;background:var(--ok-soft)}.analytics-session-funnel-step.done .analytics-session-funnel-symbol{color:var(--ok);background:#d1fadf}.analytics-session-funnel-step.miss{border-color:#fedf89;background:var(--warn-soft)}.analytics-session-funnel-step.miss .analytics-session-funnel-symbol{color:var(--warn);background:#fef0c7}.analytics-session-funnel-step.skip{border-style:dashed;background:#fafcfb}.analytics-session-section-title{padding:12px 12px 0}.analytics-session-section-title strong{font-size:11px}.analytics-session-section-title small{display:block;margin-top:2px;color:var(--muted);font-size:9px}.analytics-session-list{display:grid;gap:7px;padding:8px 12px 12px}.analytics-session-event{display:grid;grid-template-columns:132px minmax(150px,.8fr) minmax(180px,1.4fr);gap:10px;align-items:start;border:1px solid #e1ebe7;border-radius:10px;padding:9px;background:#fff}.analytics-session-event.readable{grid-template-columns:132px minmax(170px,.8fr) minmax(220px,1.7fr)}.analytics-session-event.technical{background:#fafcfb}.analytics-session-event time{font-size:10px;font-weight:800;color:#52635c}.analytics-session-event strong{font-size:11px}.analytics-session-event small{display:block;margin-top:3px;color:var(--muted);font-size:10px;line-height:1.35}.analytics-session-empty{border:1px dashed var(--line);border-radius:10px;padding:12px;color:var(--muted);background:#fff;font-size:11px}.analytics-session-technical{margin:0 12px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;overflow:hidden}.analytics-session-technical summary{cursor:pointer;padding:10px 11px;color:#42534c;background:#f8fbf9;font-size:10px;font-weight:850}.analytics-session-technical .analytics-session-list{padding-top:8px}.analytics-session-head-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}.analytics-event-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px}.analytics-raw-payload{margin-top:7px;border:1px solid #dfe8e4;border-radius:8px;background:#f5f8f7;overflow:hidden}.analytics-raw-payload summary{cursor:pointer;padding:7px 9px;font-size:9px;font-weight:850;color:#42534c}.analytics-raw-payload pre{margin:0;padding:10px;max-height:360px;overflow:auto;border-top:1px solid #dfe8e4;background:#101817;color:#e7f5ef;font-size:9px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}.analytics-pdf-diagnostics{margin:0 12px 12px;border:1px solid #cfe3db;border-radius:10px;background:#fff;overflow:hidden}.analytics-pdf-diagnostics[hidden]{display:none}.analytics-pdf-diagnostics-head{padding:10px 11px;border-bottom:1px solid var(--line);background:#f8fbf9}.analytics-pdf-diagnostics-head strong{font-size:11px}.analytics-pdf-diagnostics-head small{display:block;margin-top:2px;color:var(--muted);font-size:9px}.analytics-pdf-diagnostics table{width:100%;border-collapse:collapse;font-size:9px}.analytics-pdf-diagnostics th,.analytics-pdf-diagnostics td{padding:7px 8px;border-bottom:1px solid #edf2f0;text-align:left;vertical-align:top}.analytics-pdf-diagnostics .pdf-archive-links{display:flex;gap:6px;flex-wrap:wrap;padding:9px 10px}.analytics-session-repeat{display:inline-block;margin-left:6px;padding:2px 5px;border-radius:999px;background:#eef2f1;color:#52635c;font-size:9px;font-weight:850}
+    .table-wrap{overflow:auto}.data-table{width:100%;border-collapse:collapse;min-width:980px}.data-table th,.data-table td{padding:10px;border-bottom:1px solid #e7eeeb;text-align:left;vertical-align:top;font-size:12px}.data-table th{position:sticky;top:0;z-index:2;color:#42534c;background:#f8fbf9;font-size:11px}.data-table td strong{display:block}.data-table td small{display:block;margin-top:3px;color:var(--muted);line-height:1.35}.row-actions{display:flex;gap:5px;flex-wrap:wrap}
+    .badge{display:inline-flex;align-items:center;border-radius:999px;padding:4px 7px;font-size:10px;font-weight:850;background:#eef2f1}.badge.ok{color:var(--ok);background:var(--ok-soft)}.badge.warn{color:var(--warn);background:var(--warn-soft)}.badge.info{color:var(--blue);background:var(--blue-soft)}.badge.danger{color:var(--danger);background:var(--danger-soft)}
+    .funnel{display:grid;grid-template-columns:repeat(6,minmax(110px,1fr));gap:8px}.funnel-step{border:1px solid var(--line);border-radius:11px;padding:10px;background:#fbfdfc}.funnel-step strong{display:block;font-size:20px;color:var(--green-dark)}.funnel-step span{display:block;margin-top:3px;color:var(--muted);font-size:10px}.funnel-step small{display:block;margin-top:4px;color:#718078;font-size:9px;line-height:1.3}.switcho-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.switcho-toolbar select{width:auto;min-width:150px;min-height:36px;padding:7px 30px 7px 10px;font-size:12px;font-weight:800}.switcho-status{font-size:10px;font-weight:800}.switcho-session{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px}.rank-list{display:grid;gap:7px}.rank-row{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid var(--line);border-radius:10px;padding:9px 10px;background:#fbfdfc}.rank-row strong{font-size:12px}.rank-row span{color:var(--green-dark);font-weight:850}.offer-routing-row{align-items:flex-start}.rank-route-main{display:grid;gap:5px;min-width:0;flex:1}.rank-route-heading{display:flex;align-items:center;gap:7px;flex-wrap:wrap;min-width:0}.rank-route-heading strong{min-width:0;overflow-wrap:anywhere}.rank-route-meta{color:var(--muted);font-size:10px;line-height:1.35;font-weight:650}.rank-route-count{flex:0 0 auto;font-size:16px;line-height:1.2}.badge.route-ol{color:#0a6a35;background:#e3f7e9}.badge.route-switcho{color:#087b7d;background:#e4f8f7}.badge.route-external{color:#6b4d00;background:#fff4d6}.badge.route-none{color:#8b2f2f;background:#fdeaea}.badge.route-mixed{color:#5b3b91;background:#f0e9fb}.badge.route-unknown{color:#65746d;background:#edf1ef}
+    .landing-path-panel{margin-top:14px}.landing-path-head-copy{min-width:0}.landing-path-head-copy small{display:block;margin-top:3px;line-height:1.4}.landing-path-range{width:auto;min-width:142px;min-height:36px;padding:7px 30px 7px 10px;font-size:12px;font-weight:800}.landing-path-metrics{margin-bottom:12px}.landing-path-compare{display:grid;grid-template-columns:1fr 1fr;gap:11px}.landing-path-choice{border:1px solid var(--line);border-radius:14px;padding:13px;background:#fbfdfc}.landing-path-choice-head{display:flex;align-items:flex-end;justify-content:space-between;gap:10px}.landing-path-choice-head strong{font-size:13px}.landing-path-choice-head span{color:var(--green-dark);font-size:22px;font-weight:900}.landing-path-bar{height:8px;margin-top:10px;border-radius:999px;background:#e7eeeb;overflow:hidden}.landing-path-bar>span{display:block;width:0;height:100%;border-radius:inherit;background:linear-gradient(90deg,var(--green-dark),var(--green),#70ad27);transition:width .2s ease}.landing-path-status{margin-top:11px;color:var(--muted);font-size:11px;line-height:1.45}.landing-path-status.error{color:var(--danger)}
+    .customer-list{display:grid;gap:9px}.customer-card{border:1px solid var(--line);border-radius:13px;padding:12px;background:#fff}.customer-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.customer-head h3{margin:0;font-size:15px}.customer-head p{margin:3px 0 0;color:var(--muted);font-size:11px}.customer-meta{display:grid;grid-template-columns:repeat(4,minmax(110px,1fr));gap:7px;margin-top:10px}.mini{border:1px solid #e5ece9;border-radius:9px;padding:8px;background:#fbfdfc}.mini span{display:block;color:var(--muted);font-size:10px}.mini strong{display:block;margin-top:3px;font-size:12px;overflow-wrap:anywhere}.customer-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}.customer-resources{display:grid;gap:8px;margin-top:10px}.resource-card{border:1px solid #dfe9e5;border-radius:10px;padding:10px;background:#fbfdfc}.resource-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.resource-head strong{font-size:12px}.resource-head small{display:block;margin-top:3px;color:var(--muted);font-size:10px}.resource-list{display:grid;gap:5px;margin-top:7px}.resource-row{display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid #e5ece9;padding-top:6px}.resource-row-copy{min-width:0}.resource-row-copy strong{display:block;font-size:11px;overflow-wrap:anywhere}.resource-row-copy small{display:block;margin-top:2px;color:var(--muted);font-size:10px}.bulk-note{border:1px solid #fedf89;border-radius:10px;padding:9px 11px;color:#7a2e0e;background:#fffaeb;font-size:11px;line-height:1.4}
+    .module-frame{width:100%;height:calc(100vh - 128px);min-height:680px;border:1px solid var(--line);border-radius:16px;background:#fff;box-shadow:var(--shadow)}
+    .restricted{border:1px solid #fedf89;border-radius:13px;padding:14px;color:#7a2e0e;background:#fffaeb;line-height:1.5}
+    .version{margin-top:18px;color:var(--muted);font-size:11px;text-align:right}
+    .staff-update{position:fixed;z-index:1200;left:50%;bottom:22px;transform:translate(-50%,18px);width:min(calc(100% - 32px),560px);padding:12px 13px;border-radius:16px;background:#102f45;color:#fff;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 18px 42px rgba(16,47,69,.28);opacity:0;visibility:hidden;transition:.2s ease}.staff-update.show{opacity:1;visibility:visible;transform:translate(-50%,0)}.staff-update span{font-size:13px;font-weight:750;line-height:1.35}.staff-update button{flex:0 0 auto;border:0;border-radius:10px;padding:9px 11px;color:#102f45;background:#fff;font-size:12px;font-weight:900}.staff-update button:disabled{opacity:.7}
+
+    .confirm-layer{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:18px;background:rgba(9,30,25,.58);backdrop-filter:blur(3px)}.complimentary-layer{position:fixed;inset:0;z-index:990;display:grid;place-items:center;padding:18px;background:rgba(9,30,25,.62);backdrop-filter:blur(4px)}.complimentary-card{width:min(520px,100%);max-height:88vh;overflow:auto;border:1px solid var(--line);border-radius:20px;padding:20px;background:#fff;box-shadow:0 28px 70px rgba(9,30,25,.28)}.complimentary-card h2{margin:0;font-size:22px}.complimentary-target{margin:6px 0 0;color:var(--muted);font-size:12px;line-height:1.45}.complimentary-current{margin:14px 0;padding:11px 12px;border:1px solid #dfe9e5;border-radius:11px;background:#f7fbf9;color:#315a43;font-size:12px;line-height:1.45}.complimentary-form{display:grid;gap:12px}.complimentary-form label{display:grid;gap:6px;color:#42534c;font-size:12px;font-weight:800}.complimentary-form textarea{min-height:82px}.complimentary-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}.complimentary-actions .button{flex:1 1 145px}.complimentary-status{margin-top:11px;border-radius:10px;padding:10px 11px;font-size:12px;line-height:1.4}.complimentary-status.info{color:#175cd3;background:#eff8ff}.complimentary-status.error{color:var(--danger);background:#fef3f2}.complimentary-status.success{color:var(--ok);background:#ecfdf3}
+    .confirm-card{width:min(460px,100%);border:1px solid var(--line);border-radius:18px;padding:20px;background:#fff;box-shadow:0 24px 70px rgba(9,30,25,.28)}
+    .confirm-card h2{margin:0;font-size:21px}.confirm-card p{margin:10px 0 0;color:var(--muted);line-height:1.5}.confirm-keyword{margin-top:14px}.confirm-keyword label{display:block;margin-bottom:6px;color:#42534c;font-size:12px;font-weight:800}.confirm-keyword strong{color:var(--danger)}
+    .confirm-error{min-height:18px;margin-top:7px;color:var(--danger);font-size:12px}.confirm-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+    /* P5 governance: gli archivi usati per diagnostica/report restano consultabili ma non distruttivi dalla UI. */
+    [data-staff-view="costs"] .data-table th:last-child,[data-staff-view="costs"] .data-table td:last-child{display:none!important}
+    @media(max-width:1100px){.app-shell{grid-template-columns:1fr}.sidebar{position:sticky;top:67px;z-index:20;width:100%;height:auto;overflow-x:auto;border-right:0;border-bottom:1px solid var(--line);padding:8px}.nav-title,.nav-group-label,.side-note{display:none}.nav{display:flex;min-width:max-content}.nav button{width:auto;white-space:nowrap}.nav button:hover{transform:none}.site-preview-menu{position:relative}.site-preview-menu>summary{white-space:nowrap}.site-preview-options{position:absolute;z-index:50;top:100%;left:0;min-width:190px;margin:4px 0 0;padding:7px;border:1px solid var(--line);border-radius:10px;background:#fff;box-shadow:var(--shadow)}.nav .site-preview-options button{width:100%;white-space:nowrap}.main{padding:14px}.metrics{grid-template-columns:repeat(2,1fr)}.grid-3{grid-template-columns:1fr 1fr}.funnel{grid-template-columns:repeat(3,1fr)}.module-frame{height:calc(100vh - 150px)}}
+
+    .analytics-module-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap}.analytics-module-actions select{width:auto;min-width:140px;min-height:36px;padding:7px 30px 7px 10px;font-size:12px;font-weight:800}.analytics-details{margin-top:10px;border:1px solid var(--line);border-radius:12px;background:#fff;overflow:hidden}.analytics-details>summary{cursor:pointer;list-style:none;padding:11px 13px;background:#f8fbf9;color:#344840;font-size:11px;font-weight:850}.analytics-details>summary::-webkit-details-marker{display:none}.analytics-details>summary::after{content:"▾";float:right;color:var(--muted)}.analytics-details:not([open])>summary::after{content:"▸"}.analytics-details-content{padding:0 10px 10px}.analytics-pagination{display:flex;align-items:center;justify-content:center;gap:5px;flex-wrap:wrap;padding:10px 0 2px}.analytics-pagination button{min-width:32px;min-height:32px;border:1px solid var(--line);border-radius:8px;background:#fff;color:#344840;font-size:11px;font-weight:800}.analytics-pagination button.active{color:#fff;background:var(--green);border-color:var(--green)}.analytics-pagination button:disabled{cursor:default;opacity:.45}.analytics-pagination span{padding:0 3px;color:var(--muted);font-size:11px}.analytics-journey-intent{max-width:300px}.analytics-journey-intent strong{display:block;font-size:11px}.analytics-journey-intent small{display:block;margin-top:3px;color:var(--muted);font-size:9px;line-height:1.35}.analytics-pdf-status{display:grid;gap:3px;font-size:10px}.analytics-pdf-status strong{font-size:11px}.analytics-pdf-status small{color:var(--muted);line-height:1.35}.analytics-module-note{margin-top:9px;color:var(--muted);font-size:10px;line-height:1.4}.analytics-compact-table td{vertical-align:top}.analytics-compact-table td small{display:block;margin-top:3px;color:var(--muted);font-size:9px;line-height:1.35}
+    .analytics-export-actions{align-items:center}.analytics-export-actions select{width:auto;min-width:150px;min-height:42px;padding:8px 30px 8px 10px;font-size:12px;font-weight:800}.config-grid{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:8px;padding:14px}.config-card{border:1px solid var(--line);border-radius:11px;padding:11px;background:#fbfdfc}.config-card span{display:block;color:var(--muted);font-size:10px;font-weight:750}.config-card strong{display:block;margin-top:4px;font-size:13px;overflow-wrap:anywhere}.config-card small{display:block;margin-top:4px;color:var(--muted);font-size:10px;line-height:1.35}.request-note{margin-top:9px;padding:9px 10px;border:1px solid #fedf89;border-radius:10px;background:#fffaeb;color:#7a2e0e;font-size:11px;line-height:1.45}
+    @media(max-width:680px){.switcho-toolbar{width:100%}.switcho-toolbar select,.switcho-toolbar button{width:100%}.topbar{position:static;align-items:flex-start;flex-direction:column;padding:12px}.top-actions{width:100%;justify-content:flex-start}.app-shell{min-height:0}.sidebar{top:0}.main{padding:10px}.view-head{flex-direction:column}.view-actions{justify-content:flex-start}.metrics,.grid-2,.grid-3{grid-template-columns:1fr 1fr}.toolbar,.toolbar.four{grid-template-columns:1fr}.funnel{grid-template-columns:1fr 1fr}.customer-meta{grid-template-columns:1fr 1fr}.config-grid{grid-template-columns:1fr 1fr}.module-frame{height:calc(100vh - 120px);min-height:600px}.brand p{display:none}.landing-path-panel .panel-head{align-items:flex-start;flex-direction:column}.landing-path-range{width:100%}.landing-path-compare{grid-template-columns:1fr}.analytics-export-actions{width:100%}.analytics-export-actions select,.analytics-export-actions button{width:100%}.analytics-funnel-actions{width:100%}.analytics-funnel-actions select{width:100%}.analytics-module-actions{width:100%}.analytics-module-actions select,.analytics-module-actions button{width:100%}.analytics-session-summary{grid-template-columns:1fr}.analytics-session-facts{grid-template-columns:1fr 1fr}.analytics-session-funnel{grid-template-columns:1fr 1fr}.analytics-session-event,.analytics-session-event.readable{grid-template-columns:1fr}}
+  @media(max-width:760px){.analytics-event-filter-options{grid-template-columns:1fr}.analytics-event-filter-mode{grid-template-columns:1fr}.analytics-event-filter-menu{padding:7px}}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <img src="/assets/logo-offertalogica-icon.png" alt="OffertaLogica">
+    <div><h1>Control Center OffertaLogica</h1><p>Centro operativo per clienti, pratiche, verifiche e dati · v0.37.19</p></div>
+  </div>
+  <div class="top-actions" id="staffTopActions" hidden>
+    <span class="staff-chip" id="staffIdentity">Staff</span>
+    <button class="button light compact" id="staffRefresh" type="button">Aggiorna</button>
+    <button class="button light compact" id="staffLogout" type="button">Esci</button>
+  </div>
+</header>
+
+<section class="auth-shell" id="staffAuthView" hidden>
+  <form class="auth-card" id="staffLoginForm" novalidate>
+    <h2>Accesso staff unico</h2>
+    <p>Usa l’account Supabase autorizzato. La stessa sessione apre tutti i moduli senza token manuali.</p>
+    <div class="field"><label for="staffEmail">Email</label><input id="staffEmail" name="email" type="email" autocomplete="username" required></div>
+    <div class="field"><label for="staffPassword">Password</label><input id="staffPassword" name="password" type="password" autocomplete="current-password" minlength="8" required></div>
+    <button class="button primary" type="submit">ACCEDI ALL’AREA STAFF</button>
+    <div class="message" id="staffAuthMessage" hidden role="status"></div>
+  </form>
+</section>
+
+<section class="auth-shell" id="staffDeniedView" hidden>
+  <div class="auth-card"><h2>Accesso non autorizzato</h2><p>L’account è autenticato ma non risulta attivo come revisore o amministratore.</p><button class="button danger" id="staffDeniedLogout" type="button">DISCONNETTI ACCOUNT</button></div>
+</section>
+
+<div class="app-shell" id="staffApp" hidden>
+  <aside class="sidebar">
+    <div class="nav-title">Control Center</div>
+    <nav class="nav" aria-label="Moduli staff">
+      <div class="nav-group-label">Operatività</div>
+      <button type="button" data-staff-tab="overview" class="active">Controllo</button>
+      <button type="button" data-staff-tab="cases">Pratiche <span id="navCaseCount">0</span></button>
+      <button type="button" data-staff-tab="customers">Clienti e utenze <span id="navCustomerCount">0</span></button>
+      <button type="button" data-staff-tab="checks">Bollette e verifiche <span id="navCheckCount">0</span></button>
+      <div class="nav-group-label">Commerciale</div>
+      <button type="button" data-staff-tab="leads">Lead e attivazioni <span id="navLeadCount">0</span></button>
+      <div class="nav-group-label">Analisi</div>
+      <button type="button" data-staff-tab="analytics">Funnel e traffico</button>
+      <div class="nav-group-label" id="staffManagementGroup" hidden>Gestione</div>
+      <button type="button" id="staffCollaboratorsTab" data-staff-tab="collaborators" hidden>Collaboratori <span id="navCollaboratorCount">0</span></button>
+      <button type="button" id="staffEconomicsTab" hidden>Contabilità e tariffe</button>
+      <div class="nav-group-label">Strumenti tecnici</div>
+      <!-- OFFERTALOGICA_STAFF_PREVIEW_V109_20260927 -->
+      <details class="site-preview-menu" id="staffSitePreviewMenu">
+        <summary id="staffSitePreview">Verifica sito</summary>
+        <div class="site-preview-options" aria-label="Anteprime sito">
+          <button type="button" data-staff-preview-target="/" data-staff-preview-label="sito desktop">Sito desktop</button>
+          <button type="button" data-staff-preview-target="/" data-staff-preview-label="sito mobile" data-staff-preview-mobile="true">Sito mobile</button>
+          <button type="button" data-staff-preview-target="/" data-staff-preview-label="offerte desktop" data-staff-preview-hash="compare_start=average">Offerte desktop</button>
+          <button type="button" data-staff-preview-target="/" data-staff-preview-label="offerte mobile" data-staff-preview-hash="compare_start=average" data-staff-preview-mobile="true">Offerte mobile</button>
+        </div>
+      </details>
+      <button type="button" data-staff-tab="pdf">Diagnostica PDF</button>
+      <button type="button" data-staff-tab="costs">Diagnostica IA e configurazione</button>
+    </nav>
+    <div class="side-note">I PDF Premium sono accessibili allo staff soltanto dopo una richiesta di controllo del cliente. L’archivio diagnostico del lettore resta separato e serve ai test tecnici.</div>
+  </aside>
+
+  <main class="main">
+    <div class="message" id="staffPageMessage" hidden role="status"></div>
+
+    <section class="view active" data-staff-view="overview">
+      <div class="view-head"><div><span class="control-kicker">Centro operativo</span><h2>Controllo</h2><p>Vista immediata delle attività che richiedono attenzione e dello stato generale di OffertaLogica.</p></div></div>
+      <div class="metrics">
+        <article class="metric priority"><span>Pratiche aperte</span><strong id="overviewCases">—</strong><small>Problemi che richiedono attenzione</small></article>
+        <article class="metric priority"><span>Clienti Premium</span><strong id="overviewCustomers">—</strong><small>Profili registrati</small></article>
+        <article class="metric"><span>Lead recenti</span><strong id="overviewLeads">—</strong><small id="overviewLeadsMeta">Customer DB</small></article>
+        <article class="metric technical"><span>Indicatore tecnico · costo IA</span><strong id="overviewAiCost">—</strong><small>Analisi con tariffa configurata</small></article>
+      </div>
+      <div class="grid-2">
+        <section class="panel"><div class="panel-head"><h3>Priorità operative</h3><small>Pratiche raccolte dai moduli operativi</small></div><div class="panel-body" id="overviewTasks"><div class="empty">Caricamento…</div></div></section>
+        <section class="panel"><div class="panel-head"><h3>Acquisizione e conversione</h3><small>Funnel essenziale</small></div><div class="panel-body"><div class="funnel" id="overviewFunnel"></div></div></section>
+      </div>
+      <div class="version">Control Center Staff v0.37.19</div>
+    </section>
+
+    <section class="view" data-staff-view="cases">
+      <div class="view-head"><div><h2>Pratiche operative</h2><p>Un solo punto di ingresso per richieste cliente e problematiche rilevate dai moduli Premium: assistenza, verifiche bollette, cancellazioni account, pagamenti e analisi IA fallite.</p></div><div class="view-actions"><button class="button secondary" id="caseRefresh" type="button">Aggiorna</button></div></div>
+      <div class="metrics"><article class="metric"><span>Pratiche aperte</span><strong id="caseMetricTotal">0</strong></article><article class="metric"><span>Alta priorità</span><strong id="caseMetricHigh">0</strong></article><article class="metric"><span>Clienti coinvolti</span><strong id="caseMetricCustomers">0</strong></article><article class="metric"><span>Tipologie attive</span><strong id="caseMetricTypes">0</strong></article></div>
+      <section class="panel">
+        <div class="toolbar four"><input id="caseSearch" type="search" placeholder="Cerca cliente, email, tipo o stato"><select id="caseType"><option value="">Tutte le tipologie</option><option value="bill_check">Verifica bolletta</option><option value="account_deletion">Cancellazione account</option><option value="payment">Pagamento</option><option value="ai_failure">Analisi IA</option><option value="support_request">Richiesta assistenza</option></select><select id="casePriority"><option value="">Tutte le priorità</option><option value="high">Alta</option><option value="medium">Media</option><option value="low">Bassa</option></select><button class="button primary" id="caseApplyFilters" type="button">Filtra</button></div>
+        <div class="table-wrap"><table class="data-table"><thead><tr><th>Priorità</th><th>Tipo</th><th>Cliente</th><th>Stato</th><th>Data</th><th>Dettaglio</th><th>Azione</th></tr></thead><tbody id="caseRows"></tbody></table></div>
+      </section>
+      <div class="side-note" style="margin-top:14px">Le richieste inviate dall’app Premium entrano qui insieme alle problematiche rilevate automaticamente. Il canale usa la tabella comunicazioni Premium già esistente, senza cambiare database, API o flussi cliente di base.</div>
+    </section>
+
+    <section class="view" data-staff-view="leads">
+      <div class="view-head"><div><h2>Lead e attivazioni</h2><p>Contatti verificati, offerta scelta, consensi e stato economico. I click non sono conteggiati come vendite.</p></div><div class="view-actions"><button class="button secondary" id="leadCsv" type="button">Scarica CSV</button><button class="button danger" id="leadDeleteVisible" type="button">Elimina visibili</button><button class="button danger" id="leadReset" type="button">Azzera lead</button></div></div>
+      <div id="leadRestricted" class="restricted" hidden>Questo modulo contiene dati di contatto ed è riservato agli amministratori.</div>
+      <div id="leadContent">
+        <div class="metrics"><article class="metric"><span>Contatti</span><strong id="leadMetricTotal">0</strong></article><article class="metric"><span>OTP verificati</span><strong id="leadMetricVerified">0</strong></article><article class="metric"><span>Offerta scelta</span><strong id="leadMetricOffers">0</strong></article><article class="metric"><span>Entrate confermate</span><strong id="leadMetricRevenue">€ 0</strong></article></div>
+        <section class="panel"><div class="toolbar"><input id="leadSearch" type="search" placeholder="Cerca nome, email, telefono, fornitore"><select id="leadLimit"><option value="50">50 righe</option><option value="100">100 righe</option><option value="200">200 righe</option></select><button class="button primary" id="leadRefresh" type="button">Aggiorna</button></div><div class="table-wrap"><table class="data-table"><thead><tr><th>Data</th><th>Cliente</th><th>Contatti</th><th>Origine</th><th>Offerta scelta</th><th>Consensi</th><th>Monetizzazione</th><th>Azioni</th></tr></thead><tbody id="leadRows"></tbody></table></div></section>
+      </div>
+    </section>
+
+    <section class="view" data-staff-view="checks">
+      <div class="view-head"><div><h2>Bollette e verifiche</h2><p>Coda specialistica per PDF autorizzati, pre-analisi IA, validazione, anomalie ed esito al cliente.</p></div></div>
+      <iframe class="module-frame" id="checksFrame" title="Controlli Premium" data-src="/staff-premium.html?embedded=1"></iframe>
+    </section>
+
+    <section class="view" data-staff-view="customers">
+      <div class="view-head"><div><h2>Clienti e utenze</h2><p>Profili Premium, bollette, utenze e contratti. Ogni elemento può essere eliminato singolarmente oppure come blocco collegato.</p></div><div class="view-actions"><button class="button danger" id="customerDeleteVisible" type="button">Elimina clienti visibili</button></div></div>
+      <section class="panel"><div class="toolbar four"><input id="customerSearch" type="search" placeholder="Cerca cliente, email, utenza o fornitore"><select id="customerStatus"><option value="">Tutti gli account</option><option value="active">Attivi</option><option value="suspended">Sospesi</option><option value="deletion_requested">Cancellazione richiesta</option><option value="deleted">Eliminati</option></select><select id="customerLimit"><option value="100">100 profili</option><option value="250">250 profili</option><option value="500">500 profili</option></select><button class="button primary" id="customerRefresh" type="button">Aggiorna</button></div><div class="panel-body"><div class="customer-list" id="customerList"><div class="empty">Caricamento…</div></div></div></section>
+    </section>
+
+    <section class="view" data-staff-view="collaborators">
+      <div class="view-head"><div><h2>Collaboratori</h2><p>Gestisci collaboratori, ruoli, accessi e stato degli inviti.</p></div><div class="view-actions"><button class="button secondary" id="collaboratorShowRemoved" type="button">Mostra rimossi</button><button class="button secondary" id="collaboratorRefresh" type="button">Aggiorna</button></div></div>
+      <div id="collaboratorRestricted" class="restricted" hidden>Questo modulo è riservato al Proprietario.</div>
+      <section class="panel" id="collaboratorContent">
+        <form class="toolbar four" id="collaboratorAddForm" novalidate>
+          <input id="collaboratorEmail" name="email" type="email" autocomplete="off" placeholder="Email collaboratore" required>
+          <select id="collaboratorRole" name="role"><option value="technician">Tecnico</option><option value="admin">Amministratore</option></select>
+          <button class="button secondary" type="submit">Aggiungi collaboratore esistente</button>
+          <button class="button primary" id="collaboratorInvite" type="button">Invita nuovo</button>
+        </form>
+        <div class="metrics">
+          <article class="metric"><span>Collaboratori totali</span><strong id="collaboratorMetricTotal">0</strong></article>
+          <article class="metric"><span>Attivi</span><strong id="collaboratorMetricActive">0</strong></article>
+          <article class="metric"><span>Amministratori</span><strong id="collaboratorMetricAdmins">0</strong></article>
+          <article class="metric"><span>Tecnici</span><strong id="collaboratorMetricTechnicians">0</strong></article>
+        </div>
+        <div class="table-wrap"><table class="data-table"><thead><tr><th>Account</th><th>Ruolo</th><th>Stato</th><th>Creato</th><th>Aggiornato</th><th>Azioni</th></tr></thead><tbody id="collaboratorRows"></tbody></table></div>
+        <section class="panel" style="margin-top:14px">
+          <div class="panel-head">
+            <div><h3>Registro Audit</h3><small>Registro Owner delle operazioni Staff. Le categorie sono: Visualizzazione, Creazione, Modifica, Eliminazione / Rettifica, Esportazione e Assegnazione.</small></div>
+            <div class="view-actions">
+              <select id="collaboratorAuditCategory" aria-label="Categoria Audit">
+                <option value="ALL">Tutte le categorie</option>
+                <option value="VIEW">Visualizzazione</option>
+                <option value="CREATE">Creazione</option>
+                <option value="MODIFY">Modifica</option>
+                <option value="DELETE-RECTIFY">Eliminazione / Rettifica</option>
+                <option value="EXPORT">Esportazione</option>
+                <option value="ASSIGN">Assegnazione</option>
+              </select>
+              <button class="button secondary" id="collaboratorAuditExport" type="button">Esporta CSV</button>
+              <button class="button secondary" id="collaboratorAuditRefresh" type="button">Aggiorna Audit</button>
+            </div>
+          </div>
+          <div id="collaboratorAuditStatus" class="empty">Audit non ancora caricato.</div>
+          <div class="table-wrap"><table class="data-table"><thead><tr><th>Data</th><th>Categoria</th><th>Azione</th><th>Collaboratore</th><th>Risorsa</th><th>Esito</th><th>Motivo</th></tr></thead><tbody id="collaboratorAuditRows"></tbody></table></div>
+        </section>
+      </section>
+    </section>
+
+    <section class="view" data-staff-view="analytics">
+      <div class="view-head"><div><h2>Funnel e traffico</h2><p>Percorsi per sessione, provenienza, diagnostica PDF, offerte e passaggi a partner. I dati storici restano conservati; le nuove informazioni rendono più preciso il tracking futuro.</p><small id="analyticsBaseline">Punto zero campagna: 3 settembre 2026, 00:00</small></div><div class="view-actions analytics-export-actions"><select id="analyticsExportRange" aria-label="Periodo esportazione analytics"><option value="baseline" selected>Dal punto zero</option><option value="all">Storico completo</option></select><button class="button secondary" id="analyticsExportAll" type="button">Esporta tutto CSV</button><button class="button secondary" id="analyticsExportSessions" type="button">Esporta sessioni CSV</button></div></div>
+      <div class="metrics"><article class="metric"><span>Eventi registrati</span><strong id="analyticsEvents">0</strong><small>Tutti gli eventi dal punto zero disponibili al gestionale</small></article><article class="metric"><span>Sessioni attribuite</span><strong id="analyticsSessions">0</strong><small>SessionId unici con sorgente classificabile</small></article><article class="metric"><span>Lead collegati</span><strong id="analyticsLinkedLeads">0</strong></article><article class="metric"><span>Conversione OTP</span><strong id="analyticsOtpRate">—</strong><small>Sessioni OTP verificato / OTP inviato</small></article></div>
+
+      <section class="panel" id="analyticsFunnelPanel">
+        <div class="panel-head"><div><h3>Funnel sessioni uniche</h3><small>Le fasi di ramo non vengono più accorpate: autonomia, guidato, profilo medio, manuale e PDF restano distinguibili.</small></div><div class="analytics-module-actions"><select id="analyticsSourceFilter" aria-label="Filtra funnel per provenienza"><option value="">Tutte le provenienze</option></select><button class="button secondary compact" id="analyticsRefresh" type="button">Aggiorna</button><button class="button secondary compact" type="button" data-analytics-export="sessions">CSV</button></div></div>
+        <div class="panel-body"><div class="funnel" id="analyticsFunnel"></div><div class="landing-path-status" id="analyticsFunnelNote">Le percentuali sono riferite agli ingressi della provenienza selezionata; le modalità di confronto sono rami alternativi.</div></div>
+      </section>
+
+      <section class="panel" id="analyticsOfferRoutesPanel" style="margin-top:14px">
+        <div class="panel-head"><div><h3>Percorsi offerte per rete</h3><small>Classifica l’offerta selezionata in base al percorso realmente disponibile. Una sessione può comparire in più gruppi se esplora offerte diverse.</small></div><div class="analytics-module-actions"><button class="button secondary compact" type="button" data-analytics-refresh>Aggiorna</button></div></div>
+        <div class="panel-body">
+          <div class="metrics">
+            <article class="metric priority"><span>Partner OffertaLogica</span><strong id="offerRouteOlSessions">0</strong><small id="offerRouteOlMeta">Nessun percorso registrato</small></article>
+            <article class="metric"><span>Switcho, non OffertaLogica</span><strong id="offerRouteSwitchoSessions">0</strong><small id="offerRouteSwitchoMeta">Nessun percorso registrato</small></article>
+            <article class="metric"><span>Né OffertaLogica né Switcho</span><strong id="offerRouteExternalSessions">0</strong><small id="offerRouteExternalMeta">Nessun percorso registrato</small></article>
+          </div>
+          <div class="landing-path-status" id="offerRouteStatus">Il nuovo tracciamento distingue il tipo di percorso dalla card selezionata.</div>
+        </div>
+      </section>
+
+      <section class="panel" id="analyticsJourneysPanel" style="margin-top:14px">
+        <div class="panel-head"><div><h3>Percorsi nel sito</h3><small id="analyticsJourneyScope">Una riga per sessione recente. I KPI restano separati dalla tabella e il CSV esporta il periodo completo.</small></div><div class="analytics-module-actions"><button class="button secondary compact" type="button" data-analytics-refresh>Aggiorna</button><button class="button secondary compact" type="button" data-analytics-export="paths">CSV</button></div></div>
+        <div class="panel-body">
+          <div class="metrics"><article class="metric priority"><span>Autonomia</span><strong id="journeySelfService">0</strong></article><article class="metric"><span>Guidato → Switcho</span><strong id="journeyAssisted">0</strong></article><article class="metric"><span>Profilo medio</span><strong id="journeyAverage">0</strong></article><article class="metric"><span>Manuale</span><strong id="journeyManual">0</strong></article><article class="metric"><span>PDF</span><strong id="journeyPdf">0</strong></article><article class="metric"><span>Offerte viste</span><strong id="journeyOffers">0</strong></article><article class="metric"><span>Switcho</span><strong id="journeySwitcho">0</strong></article><article class="metric"><span>Sessioni analizzabili</span><strong id="journeySessions">0</strong></article></div>
+          <details class="analytics-details" open><summary>Sessioni — 10 risultati per pagina</summary><div class="analytics-details-content"><div class="table-wrap"><table class="data-table analytics-compact-table"><thead><tr><th>Data</th><th>Intenzione</th><th>Provenienza</th><th>Percorso landing</th><th>Confronto</th><th>Esito</th><th>Sessione</th></tr></thead><tbody id="journeyRows"></tbody></table></div><div class="analytics-pagination" id="journeyPagination"></div></div></details>
+          <div class="analytics-module-note">“Intenzione” mostra il termine/keyword quando disponibile; altrimenti è esplicitamente un’inferenza dal comportamento registrato, non ciò che la persona pensa.</div>
+        </div>
+      </section>
+
+      <section class="panel" id="analyticsPdfPanel" style="margin-top:14px">
+        <div class="panel-head"><div><h3>Percorso PDF</h3><small>Dal click sul percorso fino all’esito della lettura, ai dati mancanti, alla conferma, alle offerte e al passaggio finale.</small></div><div class="analytics-module-actions"><button class="button secondary compact" type="button" data-analytics-refresh>Aggiorna</button><button class="button secondary compact" type="button" data-analytics-export="pdf">CSV</button></div></div>
+        <div class="panel-body">
+          <div class="metrics"><article class="metric priority"><span>PDF scelto</span><strong id="pdfJourneySelected">0</strong><small>Storico inferito + nuove scelte esplicite</small></article><article class="metric"><span>Selettore aperto</span><strong id="pdfJourneyPicker">0</strong></article><article class="metric"><span>File selezionato</span><strong id="pdfJourneyFile">0</strong></article><article class="metric"><span>Analisi avviata</span><strong id="pdfJourneyStarted">0</strong></article><article class="metric"><span>Analisi completata</span><strong id="pdfJourneyCompleted">0</strong></article><article class="metric"><span>Interrotta</span><strong id="pdfJourneyInterrupted">0</strong></article><article class="metric"><span>Con dati mancanti</span><strong id="pdfJourneyMissing">0</strong></article><article class="metric"><span>Scelta esplicita registrata</span><strong id="pdfJourneyExplicit">0</strong><small>Disponibile dal nuovo tracking</small></article></div>
+          <details class="analytics-details"><summary>Dettaglio sessioni PDF — 10 risultati per pagina</summary><div class="analytics-details-content"><div class="table-wrap"><table class="data-table analytics-compact-table"><thead><tr><th>Data</th><th>Provenienza / intento</th><th>Passaggi PDF</th><th>Esito analisi</th><th>Dati mancanti / diagnostica</th><th>Dopo PDF</th><th>Sessione</th></tr></thead><tbody id="pdfJourneyRows"></tbody></table></div><div class="analytics-pagination" id="pdfJourneyPagination"></div></div></details>
+        </div>
+      </section>
+
+      <section class="panel" id="analyticsPhotoPanel" style="margin-top:14px">
+        <div class="panel-head"><div><h3>Foto bolletta</h3><small>Sessioni uniche dal punto zero: acquisizione foto, esito lettura, confronto automatico e offerte raggiunte.</small></div><div class="analytics-module-actions"><button class="button secondary compact" type="button" data-analytics-refresh>Aggiorna</button></div></div>
+        <div class="panel-body">
+          <div class="metrics">
+            <article class="metric priority"><span>Sessioni foto</span><strong id="photoJourneySessions">0</strong><small>Almeno un evento foto bolletta</small></article>
+            <article class="metric"><span>Fotocamera</span><strong id="photoJourneyCamera">0</strong></article>
+            <article class="metric"><span>Galleria</span><strong id="photoJourneyGallery">0</strong></article>
+            <article class="metric"><span>Letture avviate</span><strong id="photoJourneyStarted">0</strong></article>
+            <article class="metric"><span>Letture completate</span><strong id="photoJourneyCompleted">0</strong></article>
+            <article class="metric"><span>Dati completi</span><strong id="photoJourneyComplete">0</strong></article>
+            <article class="metric"><span>Dati mancanti</span><strong id="photoJourneyMissing">0</strong></article>
+            <article class="metric"><span>Non leggibili</span><strong id="photoJourneyUnreadable">0</strong></article>
+            <article class="metric"><span>Confronto automatico</span><strong id="photoJourneyAutoCompare">0</strong></article>
+            <article class="metric"><span>Offerte raggiunte</span><strong id="photoJourneyOffers">0</strong></article>
+          </div>
+          <div class="landing-path-status" id="photoJourneyStatus">Il conteggio è per sessione unica, non per numero grezzo di eventi.</div>
+        </div>
+      </section>
+
+      <section class="panel" id="switchoAnalyticsPanel" style="margin-top:14px">
+        <div class="panel-head"><div><h3>Percorso Switcho</h3><small>Una riga per sessione inviata verso Switcho, distinta per origine del passaggio e percorso precedente.</small></div><div class="analytics-module-actions"><select id="switchoRange" aria-label="Periodo passaggi Switcho"><option value="7d">Ultimi 7 giorni</option><option value="30d" selected>Ultimi 30 giorni</option><option value="all">Dal punto zero</option></select><select id="switchoSourceFilter" aria-label="Provenienza passaggi Switcho"><option value="">Tutte le provenienze</option></select><button class="button secondary compact" type="button" data-analytics-refresh>Aggiorna</button><button class="button secondary compact" id="switchoCsv" type="button" data-analytics-export="switcho">CSV</button></div></div>
+        <div class="panel-body"><div class="metrics"><article class="metric priority"><span>Sessioni verso Switcho</span><strong id="switchoSessions">0</strong><small>SessionId unici con passaggio registrato</small></article><article class="metric"><span>Scelte da card offerta</span><strong id="switchoOfferSelections">0</strong><small>Offerta identificata prima del passaggio</small></article><article class="metric"><span>Percorsi guidati</span><strong id="switchoGuided">0</strong><small>Passaggi senza specifica offerta associata</small></article><article class="metric"><span>Redirect avviati</span><strong id="switchoRedirects">0</strong><small>Redirect/landing Switcho avviati dal browser</small></article></div><div class="landing-path-status" id="switchoFilterInfo">Nessun passaggio Switcho nel periodo selezionato.</div><details class="analytics-details"><summary>Dettaglio passaggi Switcho — 10 risultati per pagina</summary><div class="analytics-details-content"><div class="table-wrap"><table class="data-table analytics-compact-table"><thead><tr><th>Data</th><th>Provenienza</th><th>Percorso</th><th>Offerta scelta</th><th>Ranking</th><th>Valori</th><th>Stato</th><th>Sessione</th></tr></thead><tbody id="switchoRows"></tbody></table></div><div class="analytics-pagination" id="switchoPagination"></div></div></details></div>
+      </section>
+
+      <section class="panel" style="margin-top:14px"><div class="panel-head"><div><h3>Attività registrate</h3><small>Volumi tecnici degli eventi; possono includere più azioni della stessa sessione.</small></div><div class="analytics-module-actions"><button class="button secondary compact" type="button" data-analytics-refresh>Aggiorna</button><button class="button secondary compact" type="button" data-analytics-export="events">CSV</button></div></div><div class="panel-body"><div class="funnel" id="analyticsActivity"></div></div></section>
+      <section class="panel" style="margin-top:14px"><div class="panel-head"><div><h3>Provenienza sessioni uniche</h3><small>Attribuzione per sessionId: Ads, organico, social, diretto e referral.</small></div><div class="analytics-module-actions"><button class="button secondary compact" type="button" data-analytics-refresh>Aggiorna</button><button class="button secondary compact" type="button" data-analytics-export="traffic">CSV</button></div></div><div class="panel-body"><div class="rank-list" id="analyticsTrafficSources"></div></div></section>
+
+      <section class="panel landing-path-panel" id="landingPathPanel"><div class="panel-head"><div class="landing-path-head-copy"><h3>Scelta percorso landing</h3><small>Confronta i click sui due percorsi. Le percentuali misurano la quota dei click di scelta, non le vendite.</small></div><div class="analytics-module-actions"><select class="landing-path-range" id="landingPathRange" aria-label="Periodo statistiche landing"><option value="7d">Ultimi 7 giorni</option><option value="30d" selected>Ultimi 30 giorni</option><option value="all">Tutto</option></select><button class="button secondary compact" type="button" data-analytics-refresh>Aggiorna</button><button class="button secondary compact" type="button" data-analytics-export="landing">CSV</button></div></div><div class="panel-body"><div class="metrics landing-path-metrics"><article class="metric"><span>Visualizzazioni landing</span><strong id="landingPathViews">—</strong><small>Visualizzazioni registrate: non sono sessioni uniche</small></article><article class="metric"><span>Scelte registrate</span><strong id="landingPathSelections">—</strong><small>Somma dei click sui due percorsi</small></article><article class="metric priority"><span>Confronto in autonomia</span><strong id="landingPathSelfCount">—</strong><small>Click sul percorso autonomo</small></article><article class="metric priority"><span>Preferisco essere guidato</span><strong id="landingPathAssistedCount">—</strong><small>Click verso il percorso guidato</small></article></div><div class="landing-path-compare" aria-label="Confronto percentuale delle scelte"><article class="landing-path-choice"><div class="landing-path-choice-head"><strong>Confronto in autonomia</strong><span id="landingPathSelfShare">—</span></div><div class="landing-path-bar" aria-hidden="true"><span id="landingPathSelfBar"></span></div></article><article class="landing-path-choice"><div class="landing-path-choice-head"><strong>Preferisco essere guidato</strong><span id="landingPathAssistedShare">—</span></div><div class="landing-path-bar" aria-hidden="true"><span id="landingPathAssistedBar"></span></div></article></div><div class="landing-path-status" id="landingPathStatus">Apri Statistiche per caricare i dati della landing.</div></div></section>
+
+      <div class="grid-2" style="margin-top:14px"><section class="panel"><div class="panel-head"><div><h3>Provider più cliccati</h3><small>Badge rete della card e percorso scelto dopo il click: bolletta/OffertaLogica, Switcho, sito fornitore o nessuna scelta.</small></div><div class="analytics-module-actions"><button class="button secondary compact" type="button" data-analytics-refresh>Aggiorna</button><button class="button secondary compact" type="button" data-analytics-export="offers">CSV</button></div></div><div class="panel-body"><div class="rank-list" id="analyticsProviders"></div></div></section><section class="panel"><div class="panel-head"><div><h3>Offerte più cliccate</h3><small>Per ogni offerta vedi a quale rete appartiene e come gli utenti hanno proseguito dopo averla selezionata.</small></div><div class="analytics-module-actions"><button class="button secondary compact" type="button" data-analytics-refresh>Aggiorna</button><button class="button secondary compact" type="button" data-analytics-export="offers">CSV</button></div></div><div class="panel-body"><div class="rank-list" id="analyticsOffers"></div></div></section></div>
+
+      <section class="panel" style="margin-top:14px" id="analyticsEventsPanel"><div class="panel-head"><div><h3>Eventi</h3><small>Archivio tecnico completo. La pagina mostra 10 righe alla volta; il CSV esporta tutti gli eventi del periodo.</small></div><div class="analytics-module-actions"><button class="button secondary compact" type="button" data-analytics-refresh>Aggiorna</button><button class="button secondary compact" type="button" data-analytics-export="events">CSV</button></div></div><div class="panel-body"><details class="analytics-details"><summary>Apri archivio eventi e filtri</summary><div class="analytics-details-content"><div class="toolbar four"><div class="analytics-event-filter-wrap"><details class="analytics-event-filter" id="analyticsEventFilterPanel"><summary id="analyticsEventFilterSummary">Tutti gli eventi</summary><div class="analytics-event-filter-menu"><div class="analytics-event-filter-mode" aria-label="Modalità filtro eventi"><button class="button secondary compact active" id="analyticsEventModeAny" type="button">Qualsiasi (OR)</button><button class="button secondary compact" id="analyticsEventModeAll" type="button">Tutti nella sessione (AND)</button></div><div class="analytics-event-filter-options" id="analyticsEventFilterOptions"></div></div></details><select id="analyticsEventFilter" aria-label="Filtro evento compatibilità" hidden><option value="">Tutti gli eventi</option></select></div><select id="analyticsOriginFilter" aria-label="Filtra per origine tecnica"><option value="">Tutte le origini</option></select><div id="analyticsFilterInfo" style="align-self:center;color:var(--muted);font-size:11px">Tutti gli eventi</div><button class="button secondary" id="analyticsFilterReset" type="button">Reimposta filtri</button></div><div class="analytics-session-inspector" id="analyticsSessionPanel" tabindex="-1" hidden><div class="analytics-session-head"><div><strong id="analyticsSessionTitle">Percorso sessione</strong><small id="analyticsSessionMeta"></small></div><div class="analytics-session-head-actions"><button class="button secondary compact" id="analyticsSessionCsv" type="button">CSV sessione</button><button class="button secondary compact" id="analyticsSessionClose" type="button">Chiudi</button></div></div><div class="analytics-session-summary" id="analyticsSessionSummary"></div><div class="analytics-session-narrative" id="analyticsSessionNarrative"></div><div class="analytics-session-funnel" id="analyticsSessionFunnel" aria-label="Funnel della sessione"></div><div class="analytics-session-section-title"><strong>Percorso leggibile</strong><small>Racconto ordinato delle azioni; le ripetizioni tecniche sono segnalate senza cancellare eventi.</small></div><div class="analytics-session-list" id="analyticsSessionEvents"></div><div class="analytics-pdf-diagnostics" id="analyticsSessionPdfDiagnostics" hidden></div><details class="analytics-session-technical"><summary id="analyticsSessionTechnicalSummary">Telemetria completa 1:1</summary><div class="analytics-session-list" id="analyticsSessionTechnicalEvents"></div></details></div><div class="table-wrap"><table class="data-table analytics-compact-table"><thead><tr><th>Data</th><th>Evento</th><th>Origine</th><th>Offerta</th><th>Valori</th><th>Lead</th><th>Azioni</th></tr></thead><tbody id="analyticsRows"></tbody></table></div><div class="analytics-pagination" id="analyticsEventsPagination"></div></div></details></div></section>
+    </section>
+
+    <section class="view" data-staff-view="pdf">
+      <div class="view-head"><div><h2>Diagnostica PDF</h2><p>Archivio tecnico del lettore gratuito: evidenze, correzioni e casi di regressione. Non è l’archivio delle bollette Premium.</p></div></div>
+      <iframe class="module-frame" id="pdfFrame" title="Archivio diagnostico PDF" data-src="/staff-pdf.html?embedded=1"></iframe>
+    </section>
+
+    <section class="view" data-staff-view="costs">
+      <div class="view-head"><div><h2>Diagnostica IA e configurazione</h2><p>Controllo tecnico di analisi, token, copertura dei costi verificati, tempi Staff e configurazione operativa. Lo storico tecnico resta conservato.</p></div><div class="view-actions"><button class="button secondary" id="costRefresh" type="button">Aggiorna</button></div></div>
+      <div class="metrics cost-metrics"><article class="metric"><span>Analisi IA</span><strong id="costRuns">0</strong></article><article class="metric"><span>Token totali</span><strong id="costTokens">0</strong></article><article class="metric"><span>Costo IA totale</span><strong id="costAi">0,00 €</strong><small id="costAiCoverage">Nessuna analisi registrata</small></article><article class="metric"><span>Costo medio / analisi</span><strong id="costAverageAnalysis">0,00 €</strong><small id="costAverageAnalysisMeta">Nessuna analisi contabilizzata</small></article><article class="metric"><span>Costo medio / cliente</span><strong id="costAverageCustomer">0,00 €</strong><small id="costAverageCustomerMeta">Nessun cliente contabilizzato</small></article><article class="metric"><span>Tempo / costo operatore</span><strong id="costHuman">0 min · 0,00 €</strong><small>Tariffa standard: 30 €/h</small></article></div>
+      <section class="panel" id="systemConfigPanel"><div class="panel-head"><div><h3>Configurazione operativa</h3><small>Controlli automatici di database, storage, IA, storico ARERA, costi e rate limit senza mostrare chiavi o segreti.</small></div><span id="systemConfigOverall" class="badge warn">DA VERIFICARE</span></div><div id="systemConfigGrid" class="config-grid"><div class="empty">Disponibile agli amministratori.</div></div></section>
+      <div class="grid-2"><section class="panel"><div class="panel-head"><h3>Ultime analisi IA</h3></div><div class="table-wrap"><table class="data-table"><thead><tr><th>Data</th><th>Origine</th><th>Stato</th><th>Modello</th><th>Token</th><th>Costo</th><th>Azioni</th></tr></thead><tbody id="costRunRows"></tbody></table></div></section><section class="panel"><div class="panel-head"><h3>Registro costi</h3></div><div class="table-wrap"><table class="data-table"><thead><tr><th>Data</th><th>Tipo</th><th>Fornitore</th><th>Quantità</th><th>Costo</th><th>Azioni</th></tr></thead><tbody id="costEventRows"></tbody></table></div></section></div>
+    </section>
+
+    <section class="view" data-staff-view="economics" id="staffEconomicsView"></section>
+  </main>
+</div>
+
+<div id="staffConfirmLayer" class="confirm-layer" role="dialog" aria-modal="true" aria-labelledby="staffConfirmTitle" hidden>
+  <div class="confirm-card">
+    <h2 id="staffConfirmTitle">Conferma operazione</h2>
+    <p id="staffConfirmMessage"></p>
+    <div id="staffConfirmKeywordWrap" class="confirm-keyword" hidden>
+      <label for="staffConfirmKeyword">Scrivi <strong id="staffConfirmKeywordLabel"></strong> per confermare</label>
+      <input id="staffConfirmKeyword" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false">
+      <div id="staffConfirmError" class="confirm-error" role="status"></div>
+    </div>
+    <div class="confirm-actions">
+      <button id="staffConfirmCancel" class="button" type="button">ANNULLA</button>
+      <button id="staffConfirmAccept" class="button danger" type="button">CONFERMA</button>
+    </div>
+  </div>
+</div>
+<div id="staffComplimentaryLayer" class="complimentary-layer" role="dialog" aria-modal="true" aria-labelledby="staffComplimentaryTitle" hidden>
+  <div class="complimentary-card">
+    <h2 id="staffComplimentaryTitle">Premium omaggio</h2>
+    <p id="staffComplimentaryTarget" class="complimentary-target">Seleziona un cliente.</p>
+    <div id="staffComplimentaryCurrent" class="complimentary-current">Nessun piano omaggio attivo.</div>
+    <form id="staffComplimentaryForm" class="complimentary-form" novalidate>
+      <label>Durata
+        <select name="duration" required>
+          <option value="1_month">1 mese</option>
+          <option value="3_months">3 mesi</option>
+          <option value="6_months">6 mesi</option>
+          <option value="12_months" selected>12 mesi</option>
+          <option value="unlimited">Senza scadenza</option>
+        </select>
+      </label>
+      <label>Motivo interno
+        <textarea name="reason" maxlength="500" placeholder="Esempio: account personale, omaggio famiglia, collaborazione"></textarea>
+      </label>
+    </form>
+    <div id="staffComplimentaryStatus" class="complimentary-status" hidden role="status"></div>
+    <div class="complimentary-actions">
+      <button id="staffComplimentaryCancel" class="button" type="button">ANNULLA</button>
+      <button id="staffComplimentaryRevoke" class="button danger" type="button" hidden>REVOCA OMAGGIO</button>
+      <button id="staffComplimentaryApply" class="button primary" type="button">CONCEDI PREMIUM</button>
+    </div>
+  </div>
+</div>
+<div id="staffUpdateNotice" class="staff-update" role="status" aria-live="polite"><span id="staffUpdateNoticeText">Nuova versione disponibile.</span><button id="staffApplyUpdate" type="button" hidden>AGGIORNA</button></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.115.0/dist/umd/supabase.js"></script>
+<script src="/staff.js?v=0.37.27"></script>
+<script src="/staff-governance-v2.5B.js"></script>
+<script defer src="/staff-management.js?v=0.36.94"></script>
+<script defer src="/staff-economics.js?v=0.37.19"></script>
+<script>
+  (()=>{
+    const STORAGE_KEY='offertalogica-premium-staff-auth';
+    const range=document.getElementById('landingPathRange');
+    const status=document.getElementById('landingPathStatus');
+    let requestSequence=0;
+    const byId=id=>document.getElementById(id);
+    const storedAccessToken=()=>{
+      try{
+        const raw=localStorage.getItem(STORAGE_KEY);
+        if(!raw)return '';
+        const parsed=JSON.parse(raw);
+        return String(parsed?.access_token||parsed?.session?.access_token||parsed?.currentSession?.access_token||'').trim();
+      }catch{return ''}
+    };
+    const numeric=value=>Number.isFinite(Number(value))?Number(value):0;
+    const percent=value=>Number.isFinite(Number(value))?`${new Intl.NumberFormat('it-IT',{minimumFractionDigits:0,maximumFractionDigits:1}).format(Number(value))}%`:'—';
+    const setText=(id,value)=>{const target=byId(id);if(target)target.textContent=String(value)};
+    const setBar=(id,value)=>{const target=byId(id);if(target)target.style.width=`${Math.max(0,Math.min(100,numeric(value)))}%`};
+    const rangeLabel=value=>value==='7d'?'ultimi 7 giorni':value==='all'?'tutto il periodo':'ultimi 30 giorni';
+    const setStatus=(message,error=false)=>{if(!status)return;status.textContent=message||'';status.classList.toggle('error',Boolean(error))};
+    const render=data=>{
+      const views=numeric(data?.views);
+      const selections=numeric(data?.totalSelections);
+      const self=numeric(data?.selfServiceClicks);
+      const assisted=numeric(data?.assistedClicks);
+      setText('landingPathViews',views);setText('landingPathSelections',selections);setText('landingPathSelfCount',self);setText('landingPathAssistedCount',assisted);
+      setText('landingPathSelfShare',percent(data?.selfServiceShare));setText('landingPathAssistedShare',percent(data?.assistedShare));
+      setBar('landingPathSelfBar',data?.selfServiceShare);setBar('landingPathAssistedBar',data?.assistedShare);
+      if(data?.configured===false){setStatus('Customer DB non configurato: nessun dato landing disponibile.',true);return}
+      setStatus(`Periodo: ${rangeLabel(data?.range||range?.value)}. Le percentuali confrontano esclusivamente i click sui due percorsi. Il percorso guidato misura il passaggio in uscita; l'esito successivo va riconciliato con il report del partner.`);
+    };
+    const reset=()=>{['landingPathViews','landingPathSelections','landingPathSelfCount','landingPathAssistedCount','landingPathSelfShare','landingPathAssistedShare'].forEach(id=>setText(id,'—'));setBar('landingPathSelfBar',0);setBar('landingPathAssistedBar',0)};
+    const refresh=async()=>{
+      const token=storedAccessToken();
+      if(!token){reset();setStatus('Sessione Staff non disponibile. Accedi nuovamente.',true);return}
+      const sequence=++requestSequence;
+      setStatus('Aggiornamento statistiche landing…');
+      try{
+        const selected=range?.value||'30d';
+        const response=await fetch(`/api/staff-analytics?limit=1&landingRange=${encodeURIComponent(selected)}`,{headers:{Authorization:`Bearer ${token}`},cache:'no-store'});
+        const payload=await response.json().catch(()=>({}));
+        if(sequence!==requestSequence)return;
+        if(!response.ok||!payload?.ok)throw new Error(payload?.error||`Errore HTTP ${response.status}`);
+        if(!payload?.landingPath?.ok)throw new Error(payload?.landingPath?.error||'Statistiche landing non disponibili');
+        render(payload.landingPath);
+      }catch(error){if(sequence!==requestSequence)return;reset();setStatus(String(error?.message||error||'Statistiche landing non disponibili.'),true)}
+    };
+    const analyticsTab=document.querySelector('[data-staff-tab="analytics"]');
+    analyticsTab?.addEventListener('click',()=>setTimeout(refresh,0));
+    byId('analyticsRefresh')?.addEventListener('click',()=>setTimeout(refresh,0));
+    byId('staffRefresh')?.addEventListener('click',()=>{if(document.querySelector('[data-staff-view="analytics"]')?.classList.contains('active'))setTimeout(refresh,0)});
+    range?.addEventListener('change',refresh);
+    addEventListener('load',()=>{if(document.querySelector('[data-staff-view="analytics"]')?.classList.contains('active'))refresh()},{once:true});
+  })();
+</script>
+<script>
+  (()=>{
+    const previewButtons=[...document.querySelectorAll('[data-staff-preview-target]')];
+    const pageMessage=document.getElementById('staffPageMessage');
+    const STORAGE_KEY='offertalogica-premium-staff-auth';
+    const setPreviewMessage=(kind,message)=>{if(!pageMessage)return;pageMessage.className=`message${kind?` ${kind}`:''}`;pageMessage.textContent=message||'';pageMessage.hidden=!message};
+    const storedAccessToken=()=>{
+      try{
+        const raw=localStorage.getItem(STORAGE_KEY);
+        if(!raw)return '';
+        const parsed=JSON.parse(raw);
+        return String(parsed?.access_token||parsed?.session?.access_token||parsed?.currentSession?.access_token||'').trim();
+      }catch{return ''}
+    };
+    const setPreviewButtonsDisabled=disabled=>previewButtons.forEach(button=>{button.disabled=Boolean(disabled)});
+    const openPreview=async button=>{
+      if(!button||button.disabled)return;
+      const target=String(button.dataset.staffPreviewTarget||'/').trim()||'/';
+      const label=String(button.dataset.staffPreviewLabel||'sito').trim()||'sito';
+      const previewHash=String(button.dataset.staffPreviewHash||'').trim();
+      const mobile=button.dataset.staffPreviewMobile==='true';
+      const width=390;
+      const height=844;
+      const left=Math.max(0,Math.round((window.screen.availWidth-width)/2));
+      const top=Math.max(0,Math.round((window.screen.availHeight-height)/2));
+      const features=mobile?[
+        'popup=yes',`width=${width}`,`height=${height}`,`left=${left}`,`top=${top}`,'resizable=yes','scrollbars=yes'
+      ].join(','):undefined;
+      const popup=mobile
+        ? window.open('about:blank','offertalogica-staff-site-mobile-preview',features)
+        : window.open('about:blank','_blank');
+      if(!popup){setPreviewMessage('error','Il browser ha bloccato la nuova scheda. Consenti i popup per l’Area Staff e riprova.');return}
+      setPreviewButtonsDisabled(true);
+      setPreviewMessage('info',`Apertura anteprima Staff: ${label}…`);
+      try{
+        const accessToken=storedAccessToken();
+        if(!accessToken)throw new Error('Sessione staff non disponibile. Esci e accedi nuovamente.');
+        const response=await fetch('/api/staff-preview',{
+          method:'POST',
+          headers:{'Content-Type':'application/json','Authorization':`Bearer ${accessToken}`},
+          body:JSON.stringify({action:'issue',target})
+        });
+        const payload=await response.json().catch(()=>({}));
+        if(!response.ok||!payload.ok||!payload.url)throw new Error(payload.error||`Errore HTTP ${response.status}`);
+        const previewUrl=new URL(payload.url);
+        if(previewHash){
+          const currentHash=new URLSearchParams(String(previewUrl.hash||'').replace(/^#/,''));
+          const requestedHash=new URLSearchParams(previewHash);
+          requestedHash.forEach((value,key)=>currentHash.set(key,value));
+          previewUrl.hash=currentHash.toString();
+        }
+        popup.location.replace(previewUrl.toString());
+        if(mobile){
+          try{popup.resizeTo(width,height);popup.focus()}catch{}
+        }
+        setPreviewMessage('success',`Anteprima Staff ${label} aperta. Lead e webhook reali restano disattivati dalla modalità Staff.`);
+      }catch(error){
+        try{popup.close()}catch{}
+        setPreviewMessage('error',String(error?.message||error||'Apertura modalità Staff non riuscita.'));
+      }finally{setPreviewButtonsDisabled(false)}
+    };
+    previewButtons.forEach(button=>button.addEventListener('click',()=>void openPreview(button)));
+  })();
+</script>
+<script>
+  (()=>{
+    const CURRENT_RELEASE="0.37.27";
+    const PRODUCTION_ORIGIN="https://staff.offertalogica.it";
+    const isVercelDeployment=()=>location.hostname.toLowerCase().endsWith(".vercel.app");
+    const redirectDeploymentToProduction=()=>{if(!isVercelDeployment())return false;const target=new URL(`${location.pathname}${location.search}${location.hash}`,PRODUCTION_ORIGIN);if(target.href===location.href)return false;location.replace(target.href);return true};
+    if(redirectDeploymentToProduction())return;
+    const VERSION_CHECK_TIMEOUT_MS=7000;
+    const VERSION_CHECK_INTERVAL_MS=20000;
+    const VERSION_WATCHDOG_INTERVAL_MS=30000;
+    const VERSION_STALE_AFTER_MS=65000;
+    const VERSION_FAILURE_NOTICE_AFTER=3;
+    let latestRelease="";let updateCheckInFlight=null;let updateTimer=null;let watchdogTimer=null;let dirty=false;
+    let lastSuccessfulVersionCheckAt=0;let consecutiveVersionFailures=0;
+    const frameStates=new Map();
+    const notice=document.getElementById('staffUpdateNotice');const noticeText=document.getElementById('staffUpdateNoticeText');const applyButton=document.getElementById('staffApplyUpdate');
+    const unsavedTarget=target=>target instanceof Element&&Boolean(target.closest('#staffComplimentaryForm,#staffSupportReplyForm,#collaboratorAddForm'));
+    const markDirty=event=>{if(unsavedTarget(event.target))dirty=true};
+    document.addEventListener('input',markDirty,true);document.addEventListener('change',markDirty,true);
+    const liveFrameWindows=()=>new Set([...document.querySelectorAll('iframe.module-frame')].map(frame=>frame.contentWindow).filter(Boolean));
+    const pruneFrameStates=()=>{const live=liveFrameWindows();for(const source of frameStates.keys())if(!live.has(source))frameStates.delete(source)};
+    const embeddedModuleUnsafe=()=>{pruneFrameStates();return[...frameStates.values()].some(state=>state.dirty||state.busy)||[...document.querySelectorAll('iframe.module-frame')].some(frame=>{try{const doc=frame.contentDocument;if(!doc)return false;return doc.body?.getAttribute('aria-busy')==='true'||doc.body?.dataset.updateDirty==='true'||Boolean(doc.querySelector('[role="dialog"]:not([hidden])'))}catch{return false}})};
+    const protectedWorkInProgress=()=>{if(document.body.getAttribute('aria-busy')==='true'||document.querySelector('[aria-busy="true"]'))return true;if(dirty||embeddedModuleUnsafe())return true;if(document.querySelector('[role="dialog"]:not([hidden])'))return true;return false};
+    const setUpdateNotice=(message,show=true)=>{if(noticeText)noticeText.textContent=message;if(notice)notice.classList.toggle('show',show)};
+    const resetUpdateButton=()=>{if(applyButton){applyButton.textContent='AGGIORNA';applyButton.hidden=true;applyButton.disabled=false}};
+    const showReady=()=>{setUpdateNotice('Nuova versione disponibile. Salva o chiudi ciò che stai facendo, poi premi AGGIORNA.');if(applyButton){applyButton.textContent='AGGIORNA';applyButton.hidden=false;applyButton.disabled=false}};
+    const showVersionCheckFailure=()=>{setUpdateNotice('Controllo aggiornamenti temporaneamente non disponibile. Premi RIPROVA.');if(applyButton){applyButton.textContent='RIPROVA';applyButton.hidden=false;applyButton.disabled=false}};
+    const releaseParts=value=>String(value||'').trim().split('.').map(part=>Number.parseInt(part,10));
+    const isNewerRelease=(candidate,current)=>{const next=releaseParts(candidate);const now=releaseParts(current);const length=Math.max(next.length,now.length);for(let index=0;index<length;index+=1){const a=Number.isFinite(next[index])?next[index]:0;const b=Number.isFinite(now[index])?now[index]:0;if(a>b)return true;if(a<b)return false}return false};
+    let versionChannelReady=null;
+    const retireLegacyRootWorker=async()=>{if(!('serviceWorker' in navigator))return;const rootScope=new URL('/',location.origin).href;const registrations=await navigator.serviceWorker.getRegistrations();await Promise.all(registrations.filter(reg=>reg.scope===rootScope&&[reg.installing,reg.waiting,reg.active].filter(Boolean).some(worker=>{try{return new URL(worker.scriptURL).pathname==='/sw.js'}catch{return false}})).map(reg=>reg.unregister()))};
+    const clearLegacyStaffCacheEntries=async()=>{if(!('caches' in window))return;const names=await caches.keys();await Promise.all(names.map(async name=>{const cache=await caches.open(name);const requests=await cache.keys();await Promise.all(requests.filter(request=>{try{const url=new URL(request.url);return url.origin===location.origin&&['/staff.html','/version.json'].includes(url.pathname)}catch{return false}}).map(request=>cache.delete(request))) }))};
+    const prepareVersionChannel=()=>{if(versionChannelReady)return versionChannelReady;versionChannelReady=Promise.allSettled([retireLegacyRootWorker(),clearLegacyStaffCacheEntries()]).then(()=>undefined);return versionChannelReady};
+    const fetchLatestRelease=async()=>{await prepareVersionChannel();const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),VERSION_CHECK_TIMEOUT_MS);try{const target=new URL('/version.json',location.origin);target.searchParams.set('release_check',CURRENT_RELEASE);target.searchParams.set('t',String(Date.now()));const response=await fetch(target.href,{cache:'no-store',headers:{'Cache-Control':'no-cache, no-store, max-age=0','Pragma':'no-cache'},signal:controller.signal});if(!response.ok)throw new Error(`Versione non disponibile: ${response.status}`);const payload=await response.json();return String(payload?.version||'').trim()}finally{clearTimeout(timeout)}};
+    const performUpdate=async()=>{if(!latestRelease)return;if(applyButton)applyButton.disabled=true;setUpdateNotice('Aggiornamento in corso…');await prepareVersionChannel();const target=new URL(location.href);target.searchParams.set('release',latestRelease);target.searchParams.set('t',String(Date.now()));location.replace(target.href)};
+    const applyUpdate=async()=>{if(!latestRelease)return;if(protectedWorkInProgress()){showReady();return}await performUpdate()};
+    const checkForUpdate=()=>{if(document.visibilityState==='hidden')return Promise.resolve();if(updateCheckInFlight)return updateCheckInFlight;updateCheckInFlight=(async()=>{const latest=await fetchLatestRelease();lastSuccessfulVersionCheckAt=Date.now();consecutiveVersionFailures=0;if(latest&&isNewerRelease(latest,CURRENT_RELEASE)){latestRelease=latest;showReady()}else{latestRelease="";setUpdateNotice('',false);resetUpdateButton()}})().catch(error=>{consecutiveVersionFailures+=1;if(error?.name!=='AbortError')console.warn('Controllo aggiornamento Area staff non disponibile',error);if(consecutiveVersionFailures>=VERSION_FAILURE_NOTICE_AFTER)showVersionCheckFailure()}).finally(()=>{updateCheckInFlight=null});return updateCheckInFlight};
+    const watchdogUpdateChecks=()=>{if(document.visibilityState==='hidden')return;if(!updateTimer)startUpdateChecks();if(!lastSuccessfulVersionCheckAt||Date.now()-lastSuccessfulVersionCheckAt>VERSION_STALE_AFTER_MS)void checkForUpdate()};
+    const stopUpdateChecks=()=>{if(updateTimer){clearInterval(updateTimer);updateTimer=null}if(watchdogTimer){clearInterval(watchdogTimer);watchdogTimer=null}};
+    const startUpdateChecks=()=>{if(!updateTimer)updateTimer=setInterval(()=>{void checkForUpdate()},VERSION_CHECK_INTERVAL_MS);if(!watchdogTimer)watchdogTimer=setInterval(watchdogUpdateChecks,VERSION_WATCHDOG_INTERVAL_MS);void checkForUpdate()};
+    const resumeUpdateChecks=()=>{if(document.visibilityState!=='hidden')startUpdateChecks()};
+    const updateButtonAction=async()=>{if(latestRelease){await applyUpdate();return}if(applyButton)applyButton.disabled=true;setUpdateNotice('Controllo aggiornamenti in corso…');consecutiveVersionFailures=0;await checkForUpdate();if(!latestRelease){if(consecutiveVersionFailures>0)showVersionCheckFailure();else resetUpdateButton()}};
+    addEventListener('offertalogica:staff-save-complete',()=>{dirty=false;if(latestRelease)showReady();else resumeUpdateChecks()});
+    addEventListener('message',event=>{if(event.origin!==location.origin||event.data?.type!=='offertalogica:staff-update-state')return;frameStates.set(event.source,{dirty:Boolean(event.data.dirty),busy:Boolean(event.data.busy)});if(latestRelease&&!event.data.dirty&&!event.data.busy)showReady()});
+    applyButton?.addEventListener('click',updateButtonAction);
+    addEventListener('focus',resumeUpdateChecks);addEventListener('online',resumeUpdateChecks);addEventListener('pageshow',resumeUpdateChecks);addEventListener('pagehide',stopUpdateChecks);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')resumeUpdateChecks();else stopUpdateChecks()});
+    if('serviceWorker' in navigator)navigator.serviceWorker.addEventListener('controllerchange',resumeUpdateChecks);
+    window.OffertaLogicaStaffUpdate=Object.freeze({currentRelease:CURRENT_RELEASE,check:checkForUpdate,status:()=>Object.freeze({currentRelease:CURRENT_RELEASE,latestRelease,lastSuccessfulVersionCheckAt,consecutiveVersionFailures,polling:Boolean(updateTimer),watchdog:Boolean(watchdogTimer)})});
+    void prepareVersionChannel().finally(startUpdateChecks);
+  })();
+</script>
+</body>
+</html>
