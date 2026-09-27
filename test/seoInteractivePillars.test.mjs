@@ -25,7 +25,9 @@ test('offerte aggiornate: scelta iniziale porta ai tre percorsi esistenti',()=>{
   assert.match(offers,/data-choice="bolletta"/);
   assert.match(offers,/data-choice="consumi"/);
   assert.match(offers,/data-choice="profilo"/);
-  assert.match(offers,/from=offerte-aggiornate-bolletta#pdf-upload-panel/);
+  assert.match(offers,/from=offerte-aggiornate-bolletta&amp;compare_start=pdf#pdf-upload-panel/);
+  assert.match(offers,/from=offerte-aggiornate-consumi&amp;compare_start=manual#mobile-private-input-flow/);
+  assert.match(offers,/from=offerte-aggiornate-profilo&amp;compare_start=average#mobile-fast-start/);
   assert.match(offers,/from=offerte-aggiornate-consumi/);
   assert.match(offers,/from=offerte-aggiornate-profilo/);
   assert.match(offers,/\/assets\/seo-energy-interactions\.js/);
