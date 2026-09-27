@@ -1,11 +1,15 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.57";
+  const VERSION = "0.12.58";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
+  const ANALYSIS_PAGE_SIZE = 10;
   let statusLoaded = false;
   let lastAnalysisPayload = null;
+  let analysisPage = 1;
+  let analysisSearchTerm = "";
+  let analysisScoreFilter = "all";
   let opportunityRows = [];
   let opportunityTopicKeys = new Set();
   let plannerDecision = null;
@@ -160,12 +164,41 @@
                 <p class="ol-autopilot-save-state" data-search-console-analysis-message>Servono gli snapshot 7, 28 e 90 giorni.</p>
                 <button class="ol-button ol-button-secondary" type="button" data-search-console-analyze disabled>Analizza storico</button>
               </div>
+              <div class="ol-autopilot-fields ol-autopilot-fields-compact" data-signal-controls hidden>
+                <div class="ol-field ol-field-compact">
+                  <label for="autopilot-signal-search">Cerca nella graduatoria</label>
+                  <input id="autopilot-signal-search" data-signal-search type="search" placeholder="Argomento, query o pagina">
+                </div>
+                <div class="ol-field ol-field-compact">
+                  <label for="autopilot-signal-score-filter">Punteggio</label>
+                  <select id="autopilot-signal-score-filter" data-signal-score-filter>
+                    <option value="all">Tutti i segnali</option>
+                    <option value="40plus">40–100</option>
+                    <option value="30to39">30–39</option>
+                    <option value="under30">Sotto 30</option>
+                  </select>
+                </div>
+              </div>
+              <div class="ol-autopilot-toolbar" data-signal-pagination-top hidden>
+                <p class="ol-autopilot-save-state" data-signal-page-summary></p>
+                <div class="ol-toolbar-group">
+                  <button class="ol-button ol-button-secondary ol-button-small" type="button" data-signal-page="prev">← Precedenti</button>
+                  <button class="ol-button ol-button-secondary ol-button-small" type="button" data-signal-page="next">Successivi →</button>
+                </div>
+              </div>
               <div class="ol-autopilot-archive-list" data-search-console-analysis-results></div>
+              <div class="ol-autopilot-toolbar" data-signal-pagination-bottom hidden>
+                <button class="ol-button ol-button-secondary ol-button-small" type="button" data-signal-page="prev">← Precedenti</button>
+                <div class="ol-toolbar-group">
+                  <button class="ol-button ol-button-secondary ol-button-small" type="button" data-jump-opportunities>Vai alle opportunità ↓</button>
+                  <button class="ol-button ol-button-secondary ol-button-small" type="button" data-signal-page="next">Successivi →</button>
+                </div>
+              </div>
             </div>
           </div>
         </section>
 
-        <section class="ol-autopilot-stage">
+        <section class="ol-autopilot-stage" data-opportunity-stage>
           <div class="ol-autopilot-stage-heading"><span class="ol-autopilot-stage-number">3</span><div><h4>Opportunità e preparazione contenuti</h4><p>Tutte le opportunità restano visibili in forma compatta. Se non intervieni decide l’Autopilota; puoi scegliere tu un tema diverso finché l’articolo non è stato avviato.</p></div></div>
           <p class="ol-autopilot-save-state" data-opportunity-message>Caricamento opportunità…</p>
           <div class="ol-autopilot-archive-list" data-opportunity-list><p class="ol-muted">Caricamento…</p></div>
@@ -203,6 +236,17 @@
     host.append(section);
     section.querySelector("[data-search-console-collect]")?.addEventListener("click", collect);
     section.querySelector("[data-search-console-analyze]")?.addEventListener("click", analyze);
+    section.querySelector("[data-signal-search]")?.addEventListener("input", (event) => {
+      analysisSearchTerm = String(event.currentTarget?.value || "").trim().toLocaleLowerCase("it");
+      analysisPage = 1;
+      if (lastAnalysisPayload) renderAnalysis(section, lastAnalysisPayload);
+    });
+    section.querySelector("[data-signal-score-filter]")?.addEventListener("change", (event) => {
+      analysisScoreFilter = String(event.currentTarget?.value || "all");
+      analysisPage = 1;
+      if (lastAnalysisPayload) renderAnalysis(section, lastAnalysisPayload);
+    });
+    section.addEventListener("click", handleAnalysisNavigation);
     section.addEventListener("click", handleOpportunityAction);
     statusLoaded = false;
     loadStatus(section);
@@ -1584,6 +1628,70 @@
     }
   }
 
+  function analysisSignalMatches(signal) {
+    const score = Number(signal?.score || 0);
+    if (analysisScoreFilter === "40plus" && score < 40) return false;
+    if (analysisScoreFilter === "30to39" && (score < 30 || score >= 40)) return false;
+    if (analysisScoreFilter === "under30" && score >= 30) return false;
+    if (!analysisSearchTerm) return true;
+
+    const haystack = [
+      signal?.topic,
+      signal?.editorial_brief?.article_angle,
+      ...(Array.isArray(signal?.query_examples) ? signal.query_examples : []),
+      ...(Array.isArray(signal?.page_urls) ? signal.page_urls : []),
+    ].filter(Boolean).join(" ").toLocaleLowerCase("it");
+    return haystack.includes(analysisSearchTerm);
+  }
+
+  function updateAnalysisPagination(section, filteredCount, totalCount) {
+    const pageCount = Math.max(1, Math.ceil(filteredCount / ANALYSIS_PAGE_SIZE));
+    analysisPage = Math.min(Math.max(1, analysisPage), pageCount);
+
+    const summary = section.querySelector("[data-signal-page-summary]");
+    if (summary) {
+      const filterNote = filteredCount === totalCount
+        ? `${numberIt(totalCount)} segnali`
+        : `${numberIt(filteredCount)} di ${numberIt(totalCount)} segnali`;
+      summary.textContent = `${filterNote} · ${ANALYSIS_PAGE_SIZE} per pagina · pagina ${analysisPage} di ${pageCount}`;
+    }
+
+    section.querySelectorAll('[data-signal-page="prev"]').forEach((button) => {
+      button.disabled = analysisPage <= 1 || filteredCount === 0;
+    });
+    section.querySelectorAll('[data-signal-page="next"]').forEach((button) => {
+      button.disabled = analysisPage >= pageCount || filteredCount === 0;
+    });
+
+    const hasSignals = totalCount > 0;
+    const controls = section.querySelector("[data-signal-controls]");
+    const top = section.querySelector("[data-signal-pagination-top]");
+    const bottom = section.querySelector("[data-signal-pagination-bottom]");
+    if (controls) controls.hidden = !hasSignals;
+    if (top) top.hidden = !hasSignals;
+    if (bottom) bottom.hidden = !hasSignals;
+
+    return pageCount;
+  }
+
+  function handleAnalysisNavigation(event) {
+    const section = event.currentTarget;
+    const pageButton = event.target.closest("[data-signal-page]");
+    const jumpButton = event.target.closest("[data-jump-opportunities]");
+
+    if (jumpButton) {
+      section.querySelector("[data-opportunity-stage]")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+    if (!pageButton || pageButton.disabled || !lastAnalysisPayload) return;
+
+    const direction = pageButton.dataset.signalPage;
+    if (direction === "prev") analysisPage -= 1;
+    if (direction === "next") analysisPage += 1;
+    renderAnalysis(section, lastAnalysisPayload);
+    section.querySelector("[data-signal-pagination-top]")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
   function renderAnalysis(section, payload) {
     lastAnalysisPayload = payload || null;
     const list = section.querySelector("[data-search-console-analysis-results]");
@@ -1593,6 +1701,7 @@
     if (!payload?.ready) {
       const missing = (payload?.missing || []).join(", ");
       list.innerHTML = "";
+      updateAnalysisPagination(section, 0, 0);
       message.textContent = `Storico incompleto. Mancano: ${missing || "snapshot richiesti"}.`;
       return;
     }
@@ -1600,40 +1709,57 @@
     const signals = Array.isArray(payload.signals) ? payload.signals : [];
     if (!signals.length) {
       list.innerHTML = '<p class="ol-muted">Nessun segnale utile trovato nello storico disponibile.</p>';
+      updateAnalysisPagination(section, 0, 0);
       message.textContent = "Analisi completata senza segnali utili.";
       return;
     }
 
-    list.innerHTML = signals.map((signal, index) => {
-      const momentum = Number.isFinite(Number(signal.momentum_ratio))
-        ? `${((Number(signal.momentum_ratio) - 1) * 100).toFixed(0)}% ritmo 7g vs media 28g`
-        : "ritmo recente non calcolabile";
-      const alreadySaved = opportunityTopicKeys.has(String(signal.topic_key || ""));
-      const brief = signal?.editorial_brief?.article_angle || "";
-      const queries = Array.isArray(signal?.query_examples) ? signal.query_examples.slice(0, 5) : [];
-      const rank = Number(signal.rank || (index + 1));
-      return `<div class="ol-autopilot-archive-item">
-        <strong>#${rank} · ${esc(signal.topic)} · punteggio ${Number(signal.score || 0)}/100</strong>
-        ${brief ? `<small><b>Possibile articolo:</b> ${esc(brief)}</small>` : ""}
-        <details style="margin-top:6px">
-          <summary>Dettagli Search Console</summary>
-          <small>${esc(metricSummary(signal, 7))} · ${esc(metricSummary(signal, 28))} · ${esc(metricSummary(signal, 90))}</small>
-          <small>${Number(signal.query_count || 0)} query collegate · ${Number(signal.page_count || 0)} pagine · ${esc(momentum)}</small>
-          ${queries.length ? `<small><b>Query principali:</b> ${esc(queries.join(" · "))}</small>` : ""}
-          ${contextPagesMarkup(signal.page_urls)}
-        </details>
-        <div class="ol-toolbar-group" style="margin-top:8px">
-          <button class="ol-button ol-button-secondary ol-button-small" type="button" data-save-opportunity="${esc(signal.topic_key || "")}" ${alreadySaved ? "disabled" : ""}>${alreadySaved ? "Già salvata" : "Scegli questo tema"}</button>
-        </div>
-      </div>`;
-    }).join("");
+    const filteredSignals = signals.filter(analysisSignalMatches);
+    const pageCount = updateAnalysisPagination(section, filteredSignals.length, signals.length);
+    analysisPage = Math.min(Math.max(1, analysisPage), pageCount);
+
+    if (!filteredSignals.length) {
+      list.innerHTML = '<p class="ol-muted">Nessun segnale corrisponde ai filtri attuali.</p>';
+    } else {
+      const startIndex = (analysisPage - 1) * ANALYSIS_PAGE_SIZE;
+      const visibleSignals = filteredSignals.slice(startIndex, startIndex + ANALYSIS_PAGE_SIZE);
+      list.innerHTML = visibleSignals.map((signal, index) => {
+        const momentum = Number.isFinite(Number(signal.momentum_ratio))
+          ? `${((Number(signal.momentum_ratio) - 1) * 100).toFixed(0)}% ritmo 7g vs media 28g`
+          : "ritmo recente non calcolabile";
+        const alreadySaved = opportunityTopicKeys.has(String(signal.topic_key || ""));
+        const brief = signal?.editorial_brief?.article_angle || "";
+        const queries = Array.isArray(signal?.query_examples) ? signal.query_examples.slice(0, 5) : [];
+        const fallbackRank = signals.indexOf(signal) + 1;
+        const rank = Number(signal.rank || fallbackRank || (startIndex + index + 1));
+        return `<div class="ol-autopilot-archive-item">
+          <strong>#${rank} · ${esc(signal.topic)} · punteggio ${Number(signal.score || 0)}/100</strong>
+          ${brief ? `<small><b>Possibile articolo:</b> ${esc(brief)}</small>` : ""}
+          <details style="margin-top:6px">
+            <summary>Mostra dettagli Search Console</summary>
+            <small>${esc(metricSummary(signal, 7))} · ${esc(metricSummary(signal, 28))} · ${esc(metricSummary(signal, 90))}</small>
+            <small>${Number(signal.query_count || 0)} query collegate · ${Number(signal.page_count || 0)} pagine · ${esc(momentum)}</small>
+            ${queries.length ? `<small><b>Query principali:</b> ${esc(queries.join(" · "))}</small>` : ""}
+            ${contextPagesMarkup(signal.page_urls)}
+          </details>
+          <div class="ol-toolbar-group" style="margin-top:8px">
+            <button class="ol-button ol-button-secondary ol-button-small" type="button" data-save-opportunity="${esc(signal.topic_key || "")}" ${alreadySaved ? "disabled" : ""}>${alreadySaved ? "Già salvata" : "Scegli questo tema"}</button>
+          </div>
+        </div>`;
+      }).join("");
+    }
 
     const total = Number(payload.signals_total || signals.length);
-    const shown = signals.length;
-    const truncationNote = payload.signals_truncated ? ` Sono mostrati i primi ${shown} di ${total}.` : ` Sono mostrati tutti i ${shown} segnali trovati.`;
+    const available = signals.length;
+    const backendNote = payload.signals_truncated
+      ? ` Il backend ha restituito i primi ${numberIt(available)} di ${numberIt(total)} cluster trovati.`
+      : ` ${numberIt(available)} segnali disponibili nella graduatoria.`;
+    const filterNote = filteredSignals.length !== signals.length
+      ? ` Il filtro corrente ne mostra ${numberIt(filteredSignals.length)}.`
+      : "";
     message.textContent = payload.truncated
-      ? `Analisi completata su un campione massimo di 20.000 righe per snapshot.${truncationNote}`
-      : `Graduatoria Search Console aggiornata.${truncationNote}`;
+      ? `Analisi completata su un campione massimo di 20.000 righe per snapshot.${backendNote}${filterNote}`
+      : `Graduatoria Search Console aggiornata.${backendNote}${filterNote}`;
   }
 
   async function loadAnalysis(section, quiet = false) {
