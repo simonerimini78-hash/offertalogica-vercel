@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.56";
+  const VERSION = "0.12.57";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
   let statusLoaded = false;
@@ -9,7 +9,6 @@
   let opportunityRows = [];
   let opportunityTopicKeys = new Set();
   let plannerDecision = null;
-  let plannerMinimumScore = null;
   const expandedOpportunityIds = new Set();
   let socialPlanItems = [];
   let socialChannels = [];
@@ -207,6 +206,7 @@
     section.addEventListener("click", handleOpportunityAction);
     statusLoaded = false;
     loadStatus(section);
+    loadAnalysis(section, true);
     loadOpportunities(section);
     loadPlannerPreview(section, true);
     loadSocialPlan(section);
@@ -421,9 +421,6 @@
     if (!box || !message) return;
     const decision = payload?.decision || null;
     plannerDecision = decision;
-    plannerMinimumScore = Number.isFinite(Number(payload?.minimum_opportunity_score))
-      ? Number(payload.minimum_opportunity_score)
-      : null;
     const engine = payload?.automation_enabled ? "motore configurato come attivo" : "motore ancora disattivato";
     if (!decision) {
       const reason = payload?.article_cycle_disabled
@@ -445,18 +442,11 @@
     const destination = decision.source === "search_console"
       ? "Segnale da classificare"
       : opportunityTypeLabel(decision.opportunity_type);
-    const searchActions = decision.source === "search_console" && decision.topic_key
-      ? `<div class="ol-toolbar-group" style="margin-top:8px">
-          <button class="ol-button ol-button-primary ol-button-small" type="button" data-signal-action="selected" data-signal-topic-key="${esc(decision.topic_key)}">Scegli questo tema</button>
-          <button class="ol-button ol-button-secondary ol-button-small" type="button" data-signal-action="rejected" data-signal-topic-key="${esc(decision.topic_key)}">Escludi da questo ciclo</button>
-        </div>`
-      : "";
     box.innerHTML = `<div class="ol-autopilot-archive-item">
       <strong>${esc(decision.topic || "Tema senza titolo")}</strong>
       <small>${esc(source)}${esc(deadline)} · ${esc(destination)}</small>
       <small>${esc(decision.reason || "Scelta deterministica secondo le priorità configurate.")}</small>
       <small>Dry-run: nessuno stato o contenuto è stato modificato.</small>
-      ${searchActions}
     </div>`;
     if (!quiet) message.textContent = `Scelta calcolata · ${engine}.`;
     else message.textContent = `Scelta automatica attuale · ${engine}.`;
@@ -1085,7 +1075,6 @@
     const discardImageButton = event.target.closest("[data-article-image-discard]");
     const socialPlanSaveButton = event.target.closest("[data-social-plan-save]");
     const saveButton = event.target.closest("[data-save-opportunity]");
-    const signalActionButton = event.target.closest("[data-signal-action][data-signal-topic-key]");
     const toggleButton = event.target.closest("[data-opportunity-toggle]");
     const statusButton = event.target.closest("[data-opportunity-id][data-opportunity-status]");
     const classifyButton = event.target.closest("[data-opportunity-classify]");
@@ -1308,54 +1297,6 @@
       } catch (error) {
         socialPlanSaveButton.disabled = false;
         if (planMessage) planMessage.textContent = `Post non salvato: ${error.message}`;
-      }
-      return;
-    }
-
-    if (signalActionButton) {
-      const topicKey = signalActionButton.dataset.signalTopicKey || "";
-      const action = signalActionButton.dataset.signalAction || "";
-      if (!topicKey || !["selected", "rejected"].includes(action) || signalActionButton.disabled) return;
-      const signal = (lastAnalysisPayload?.signals || []).find((row) => String(row?.topic_key || "") === topicKey)
-        || (plannerDecision?.topic_key === topicKey ? plannerDecision : null);
-      const topic = String(signal?.topic || "questo tema");
-      if (action === "rejected") {
-        const confirmed = window.confirm(`Escludere “${topic}” da questo ciclo? L’Autopilota passerà al segnale successivo. Il tema potrà essere rivalutato quando cambierà lo snapshot Search Console di riferimento.`);
-        if (!confirmed) return;
-      } else {
-        const previous = opportunityRows.find((item) =>
-          String(item.status || "") === "selected"
-          && !item.target_article_id
-          && String(item?.evidence?.topic_key || "") !== topicKey
-        );
-        if (previous && !window.confirm(`Sostituire la scelta attiva “${previous.topic || "opportunità precedente"}” con “${topic}”?`)) {
-          return;
-        }
-      }
-
-      signalActionButton.disabled = true;
-      if (message) {
-        message.textContent = action === "selected"
-          ? "Salvataggio della scelta manuale dalla graduatoria Search Console…"
-          : "Esclusione del segnale dal ciclo corrente…";
-      }
-      try {
-        await endpoint("save-editorial-opportunity", {
-          method: "POST",
-          body: { topic_key: topicKey, status: action },
-        });
-        await loadOpportunities(section, true);
-        await loadPlannerPreview(section, true);
-        const analysis = await endpoint("editorial-research-analysis");
-        renderAnalysis(section, analysis);
-        if (message) {
-          message.textContent = action === "selected"
-            ? `Tema scelto manualmente: “${topic}”. L’Autopilota continuerà da questa opportunità.`
-            : `Tema escluso da questo ciclo: “${topic}”. La scelta automatica è stata ricalcolata sul segnale successivo.`;
-        }
-      } catch (error) {
-        signalActionButton.disabled = false;
-        if (message) message.textContent = `Decisione sul segnale non salvata: ${error.message}`;
       }
       return;
     }
@@ -1667,62 +1608,44 @@
       const momentum = Number.isFinite(Number(signal.momentum_ratio))
         ? `${((Number(signal.momentum_ratio) - 1) * 100).toFixed(0)}% ritmo 7g vs media 28g`
         : "ritmo recente non calcolabile";
+      const alreadySaved = opportunityTopicKeys.has(String(signal.topic_key || ""));
       const brief = signal?.editorial_brief?.article_angle || "";
       const queries = Array.isArray(signal?.query_examples) ? signal.query_examples.slice(0, 5) : [];
-      const cycle = signal?.cycle_opportunity || null;
-      const cycleStatus = String(cycle?.status || "");
-      const locked = Boolean(cycle?.target_article_id) || cycleStatus === "completed";
-      const isSelected = cycleStatus === "selected" && !locked;
-      const isRejected = cycleStatus === "rejected";
-      const isAuto = Boolean(
-        plannerDecision?.topic_key
-        && String(plannerDecision.topic_key) === String(signal.topic_key || "")
-        && plannerDecision.source === "search_console"
-      );
-      const belowThreshold = Number.isFinite(plannerMinimumScore)
-        ? Number(signal.score || 0) < plannerMinimumScore
-        : false;
-      const badges = [
-        isAuto ? '<span class="ol-opportunity-badge is-auto">Scelta automatica</span>' : "",
-        isSelected ? '<span class="ol-opportunity-badge is-selected">Scelta manuale</span>' : "",
-        isRejected ? '<span class="ol-opportunity-badge">Escluso questo ciclo</span>' : "",
-        belowThreshold ? `<span class="ol-opportunity-badge">Sotto soglia ${Number(plannerMinimumScore)}/100</span>` : "",
-      ].filter(Boolean).join("");
-      const primaryLabel = isSelected ? "Scelta attiva" : (isRejected ? "Scegli comunque" : "Scegli questo tema");
-      const actionButtons = locked
-        ? '<span class="ol-opportunity-lock">Tema già collegato a un articolo in questo ciclo</span>'
-        : `<button class="ol-button ol-button-primary ol-button-small" type="button" data-signal-action="selected" data-signal-topic-key="${esc(signal.topic_key || "")}" ${isSelected ? "disabled" : ""}>${primaryLabel}</button>
-          <button class="ol-button ol-button-secondary ol-button-small" type="button" data-signal-action="rejected" data-signal-topic-key="${esc(signal.topic_key || "")}" ${isRejected ? "disabled" : ""}>${isRejected ? "Escluso" : "Escludi da questo ciclo"}</button>`;
-
-      return `<article class="ol-opportunity-card ${isSelected ? "is-selected" : ""}">
-        <div class="ol-opportunity-head">
-          <span class="ol-opportunity-number">#${Number(signal.rank || index + 1)}</span>
-          <div class="ol-opportunity-title">
-            <strong>${esc(signal.topic)} · ${Number(signal.score || 0)}/100</strong>
-            ${badges ? `<div class="ol-opportunity-badges">${badges}</div>` : ""}
-          </div>
-        </div>
-        ${brief ? `<div class="ol-opportunity-angle"><small><strong>Possibile articolo</strong></small><p>${esc(brief)}</p></div>` : ""}
-        <small class="ol-opportunity-signal">${esc(metricSummary(signal, 7))} · ${esc(metricSummary(signal, 28))} · ${esc(metricSummary(signal, 90))}</small>
-        <small class="ol-opportunity-signal">${Number(signal.query_count || 0)} query collegate · ${Number(signal.page_count || 0)} pagine · ${esc(momentum)}</small>
-        <details>
-          <summary>Vedi query e pagine che hanno prodotto il segnale</summary>
-          ${queries.length ? `<small class="ol-opportunity-queries"><strong>Query principali:</strong> ${esc(queries.join(" · "))}</small>` : '<small>Nessuna query di dettaglio disponibile.</small>'}
+      const rank = Number(signal.rank || (index + 1));
+      return `<div class="ol-autopilot-archive-item">
+        <strong>#${rank} · ${esc(signal.topic)} · punteggio ${Number(signal.score || 0)}/100</strong>
+        ${brief ? `<small><b>Possibile articolo:</b> ${esc(brief)}</small>` : ""}
+        <details style="margin-top:6px">
+          <summary>Dettagli Search Console</summary>
+          <small>${esc(metricSummary(signal, 7))} · ${esc(metricSummary(signal, 28))} · ${esc(metricSummary(signal, 90))}</small>
+          <small>${Number(signal.query_count || 0)} query collegate · ${Number(signal.page_count || 0)} pagine · ${esc(momentum)}</small>
+          ${queries.length ? `<small><b>Query principali:</b> ${esc(queries.join(" · "))}</small>` : ""}
           ${contextPagesMarkup(signal.page_urls)}
         </details>
-        <div class="ol-opportunity-actions">${actionButtons}</div>
-      </article>`;
+        <div class="ol-toolbar-group" style="margin-top:8px">
+          <button class="ol-button ol-button-secondary ol-button-small" type="button" data-save-opportunity="${esc(signal.topic_key || "")}" ${alreadySaved ? "disabled" : ""}>${alreadySaved ? "Già salvata" : "Scegli questo tema"}</button>
+        </div>
+      </div>`;
     }).join("");
 
     const total = Number(payload.signals_total || signals.length);
     const shown = signals.length;
-    const scope = total > shown
-      ? `Mostro i primi ${numberIt(shown)} segnali su ${numberIt(total)} cluster trovati.`
-      : `Mostro tutti i ${numberIt(total)} segnali trovati.`;
-    const truncation = payload.truncated
-      ? " L’analisi usa al massimo 20.000 righe per ciascuno snapshot."
-      : "";
-    message.textContent = `${scope} Il punteggio ordina i segnali ma non limita la tua scelta: puoi selezionare anche un tema sotto soglia.${truncation}`;
+    const truncationNote = payload.signals_truncated ? ` Sono mostrati i primi ${shown} di ${total}.` : ` Sono mostrati tutti i ${shown} segnali trovati.`;
+    message.textContent = payload.truncated
+      ? `Analisi completata su un campione massimo di 20.000 righe per snapshot.${truncationNote}`
+      : `Graduatoria Search Console aggiornata.${truncationNote}`;
+  }
+
+  async function loadAnalysis(section, quiet = false) {
+    const message = section?.querySelector("[data-search-console-analysis-message]");
+    if (!section?.isConnected) return;
+    if (!quiet && message) message.textContent = "Caricamento graduatoria Search Console…";
+    try {
+      const payload = await endpoint("editorial-research-analysis");
+      if (section.isConnected) renderAnalysis(section, payload);
+    } catch (error) {
+      if (message && !quiet) message.textContent = `Graduatoria non disponibile: ${error.message}`;
+    }
   }
 
   async function analyze(event) {
