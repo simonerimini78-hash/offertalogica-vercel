@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { json } from "../lib/http.js";
 
-const VERSION = "0.12.54";
+const VERSION = "0.12.55";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -507,6 +507,7 @@ function aggregateSnapshot(rows) {
         position_weighted: 0,
         position_weight: 0,
         queries: new Set(),
+        query_impressions: new Map(),
         pages: new Set(),
         page_impressions: new Map(),
       };
@@ -518,7 +519,9 @@ function aggregateSnapshot(rows) {
     const position = Math.max(0, numeric(row.avg_position));
     topic.clicks += clicks;
     topic.impressions += impressions;
-    topic.queries.add(String(row.query || ""));
+    const queryText = String(row.query || "");
+    topic.queries.add(queryText);
+    topic.query_impressions.set(queryText, (topic.query_impressions.get(queryText) || 0) + impressions);
     if (row.page_url) {
       const pageUrl = String(row.page_url);
       topic.pages.add(pageUrl);
@@ -544,6 +547,10 @@ function aggregateSnapshot(rows) {
     ctr: topic.impressions > 0 ? topic.clicks / topic.impressions : 0,
     avg_position: topic.position_weight > 0 ? topic.position_weighted / topic.position_weight : null,
     query_count: topic.queries.size,
+    query_examples: [...topic.query_impressions.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "it"))
+      .slice(0, 5)
+      .map(([query]) => query),
     page_count: topic.pages.size,
     page_urls: [...topic.page_impressions.entries()]
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
@@ -653,6 +660,55 @@ function manualIdeaRationale(priority, deadline) {
   return `Idea editoriale inserita manualmente dalla Redazione. Priorità ${priorityLabel}${deadline ? `; scadenza ${deadline}` : ""}. La priorità è distinta dal punteggio tecnico Search Console.`;
 }
 
+function opportunityEditorialBrief(opportunity, signal = null) {
+  const topic = cleanEditorialText(opportunity?.topic, 240) || "tema editoriale";
+  const evidence = opportunity?.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {};
+  const manual = manualIdeaMeta(opportunity);
+  const queryExamples = [...new Set([
+    ...(Array.isArray(evidence.query_examples) ? evidence.query_examples : []),
+    ...(Array.isArray(signal?.query_examples) ? signal.query_examples : []),
+  ].map((value) => cleanEditorialText(value, 220)).filter(Boolean))].slice(0, 5);
+  const contextPages = [...new Set([
+    ...(Array.isArray(evidence.page_urls) ? evidence.page_urls : []),
+    ...(Array.isArray(signal?.page_urls) ? signal.page_urls : []),
+  ].map((value) => normalizedHttps(value)).filter(Boolean))].slice(0, 5);
+
+  if (manual) {
+    const notes = cleanEditorialText(manual.notes, 900);
+    return {
+      source: "manual_idea",
+      search_intent: "Idea inserita manualmente dalla Redazione.",
+      article_angle: notes
+        ? `Seguire il taglio indicato dalla Redazione: ${notes}`
+        : `Sviluppare un nuovo articolo informativo su «${topic}», chiarendo il contesto, gli aspetti pratici da verificare e le alternative pertinenti con fonti aggiornate.`,
+      query_examples: queryExamples,
+      context_pages: contextPages,
+    };
+  }
+
+  const normalizedTopic = cleanToken(topic);
+  const commercialIntent = /\b(offerta|offerte|tariffa|tariffe|prezzo|prezzi|costo|costi|fornitore|fornitori|luce|gas|energia|energy|direct|contratto|contratti|mercato)\b/.test(normalizedTopic);
+  const questionIntent = /\b(come|quanto|perche|cosa|cos|conviene|convenienza|funziona|funzionamento|significa|leggere|calcolare|scegliere)\b/.test(normalizedTopic);
+  let articleAngle;
+  if (commercialIntent) {
+    articleAngle = `Spiegare che cos’è o a cosa si riferisce «${topic}», come funziona secondo fonti aggiornate, quali condizioni, costi o vincoli verificare e come confrontarlo con alternative pertinenti senza trasformare l’articolo in pubblicità.`;
+  } else if (questionIntent) {
+    articleAngle = `Rispondere direttamente all’intento di ricerca «${topic}» con una guida concreta: risposta iniziale chiara, passaggi o criteri utili, limiti da conoscere e fonti aggiornate per i dati che possono cambiare.`;
+  } else {
+    articleAngle = `Trasformare la ricerca «${topic}» in un articolo utile e comprensibile: spiegare il contesto, gli aspetti pratici rilevanti, cosa controllare, limiti ed eventuali alternative, verificando sul web i fatti aggiornabili.`;
+  }
+
+  return {
+    source: "search_console",
+    search_intent: queryExamples.length
+      ? `Gli utenti stanno cercando questo tema anche con query come: ${queryExamples.slice(0, 3).join(" · ")}.`
+      : `Gli utenti stanno mostrando interesse di ricerca per «${topic}».`,
+    article_angle: articleAngle,
+    query_examples: queryExamples,
+    context_pages: contextPages,
+  };
+}
+
 function manualIdeaDeadlineTime(value) {
   const parsed = value ? Date.parse(`${value}T12:00:00Z`) : NaN;
   return Number.isFinite(parsed) ? parsed : Number.POSITIVE_INFINITY;
@@ -660,6 +716,11 @@ function manualIdeaDeadlineTime(value) {
 
 function plannerCandidateComparator(a, b) {
   if (a.rank !== b.rank) return b.rank - a.rank;
+  if (a.rank === 500 && b.rank === 500) {
+    const aDecision = Date.parse(String(a.decided_at || "")) || 0;
+    const bDecision = Date.parse(String(b.decided_at || "")) || 0;
+    if (aDecision !== bDecision) return bDecision - aDecision;
+  }
   const aDeadline = manualIdeaDeadlineTime(a.deadline);
   const bDeadline = manualIdeaDeadlineTime(b.deadline);
   if (aDeadline !== bDeadline) return aDeadline - bDeadline;
@@ -687,9 +748,17 @@ async function opportunitiesPayload() {
     ok: true,
     version: VERSION,
     opportunities: opportunities.map((row) => {
+      const liveSignal = signalsByTopic.get(row?.evidence?.topic_key) || null;
       const savedPages = Array.isArray(row?.evidence?.page_urls) ? row.evidence.page_urls : [];
-      const livePages = signalsByTopic.get(row?.evidence?.topic_key)?.page_urls || [];
-      return { ...row, context_pages: (savedPages.length ? savedPages : livePages).slice(0, 5) };
+      const livePages = liveSignal?.page_urls || [];
+      const savedQueries = Array.isArray(row?.evidence?.query_examples) ? row.evidence.query_examples : [];
+      const liveQueries = liveSignal?.query_examples || [];
+      const enriched = {
+        ...row,
+        context_pages: (savedPages.length ? savedPages : livePages).slice(0, 5),
+        query_examples: (savedQueries.length ? savedQueries : liveQueries).slice(0, 5),
+      };
+      return { ...enriched, editorial_brief: opportunityEditorialBrief(enriched, liveSignal) };
     }),
   };
 }
@@ -846,6 +915,7 @@ async function editorialPlannerPreview() {
         score: Number(row.score || 0),
         status: row.status,
         created_at: row.created_at,
+        decided_at: row.decided_at || null,
         rank: 500,
         reason: "Opportunità già selezionata manualmente dalla Redazione: precede ogni scelta automatica.",
       });
@@ -999,6 +1069,7 @@ async function saveEditorialOpportunity(user, topicKeyValue) {
     analysis_version: VERSION,
     topic_key: signal.topic_key,
     query_count: signal.query_count,
+    query_examples: Array.isArray(signal.query_examples) ? signal.query_examples.slice(0, 5) : [],
     page_count: signal.page_count,
     page_urls: Array.isArray(signal.page_urls) ? signal.page_urls.slice(0, 5) : [],
     momentum_ratio: signal.momentum_ratio,
@@ -1013,6 +1084,7 @@ async function saveEditorialOpportunity(user, topicKeyValue) {
     })),
     saved_at: new Date().toISOString(),
   };
+  evidence.editorial_brief = opportunityEditorialBrief({ topic: signal.topic, evidence }, signal);
 
   const rows = await serviceFetch("editorial_research_opportunities", {
     method: "POST",
@@ -1033,11 +1105,82 @@ async function saveEditorialOpportunity(user, topicKeyValue) {
   return { created: true, opportunity };
 }
 
+async function selectEditorialOpportunity(user, idValue) {
+  const id = String(idValue || "").trim();
+  if (!validUuid(id)) throw new Error("Identificativo opportunità non valido");
+
+  const currentRows = await serviceFetch(
+    `editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(id)}&limit=1`,
+  );
+  const current = currentRows?.[0];
+  if (!current) throw new Error("Opportunità non trovata");
+  if (current.status === "completed") throw new Error("Un’opportunità completata non può essere selezionata");
+  if (current.target_article_id) {
+    throw new Error("L’articolo per questa opportunità è già stato avviato: la scelta non è più modificabile in questo ciclo");
+  }
+
+  let evidence = current.evidence && typeof current.evidence === "object" ? { ...current.evidence } : {};
+  let liveSignal = null;
+  if (evidence.source === "search_console" && evidence.topic_key) {
+    const analysis = await analysisPayload().catch(() => null);
+    if (analysis?.ready) {
+      liveSignal = (analysis.signals || []).find((row) => row.topic_key === evidence.topic_key) || null;
+    }
+    if (liveSignal) {
+      if (!Array.isArray(evidence.query_examples) || !evidence.query_examples.length) {
+        evidence.query_examples = Array.isArray(liveSignal.query_examples) ? liveSignal.query_examples.slice(0, 5) : [];
+      }
+      if (!Array.isArray(evidence.page_urls) || !evidence.page_urls.length) {
+        evidence.page_urls = Array.isArray(liveSignal.page_urls) ? liveSignal.page_urls.slice(0, 5) : [];
+      }
+      if (!evidence.metrics && liveSignal.metrics) evidence.metrics = liveSignal.metrics;
+      if (!evidence.query_count && liveSignal.query_count) evidence.query_count = liveSignal.query_count;
+      if (!evidence.page_count && liveSignal.page_count) evidence.page_count = liveSignal.page_count;
+    }
+  }
+  evidence.editorial_brief = opportunityEditorialBrief({ ...current, evidence }, liveSignal);
+
+  const now = new Date().toISOString();
+  // Una scelta umana deve essere univoca tra le opportunità non ancora avviate.
+  // Le opportunità già collegate a un articolo appartengono a cicli in corso/passati
+  // e restano intatte; il planner le ignora già quando sceglie il prossimo articolo.
+  await serviceFetch(
+    `editorial_research_opportunities?status=eq.selected&target_article_id=is.null&id=neq.${encodeURIComponent(id)}`,
+    {
+      method: "PATCH",
+      prefer: "return=minimal",
+      body: {
+        status: "pending",
+        decided_by: null,
+        decided_at: null,
+        updated_at: now,
+      },
+    },
+  );
+
+  const rows = await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    prefer: "return=representation",
+    body: {
+      status: "selected",
+      opportunity_type: ["monitor", "update_article"].includes(String(current.opportunity_type || "")) ? "new_article" : current.opportunity_type,
+      evidence,
+      decided_by: user.id,
+      decided_at: now,
+      updated_at: now,
+    },
+  });
+  const opportunity = rows?.[0];
+  if (!opportunity?.id) throw new Error("Scelta opportunità non salvata");
+  return opportunity;
+}
+
 async function updateEditorialOpportunity(user, idValue, statusValue) {
   const id = String(idValue || "").trim();
   const status = String(statusValue || "").trim();
   if (!validUuid(id)) throw new Error("Identificativo opportunità non valido");
   if (!OPPORTUNITY_STATUSES.has(status)) throw new Error("Stato opportunità non valido");
+  if (status === "selected") return selectEditorialOpportunity(user, id);
 
   const current = await serviceFetch(
     `editorial_research_opportunities?select=id,status,target_article_id&id=eq.${encodeURIComponent(id)}&limit=1`,
@@ -1920,6 +2063,9 @@ async function startOpenAiEditorialPackage({ opportunity, article, categories, t
   const manual = manualIdeaMeta(opportunity);
   const notes = cleanEditorialText(manual?.notes, 2000);
   const signal = opportunity?.evidence?.metrics ? JSON.stringify(opportunity.evidence.metrics) : "non disponibile";
+  const editorialBrief = opportunityEditorialBrief(opportunity);
+  const queryExamples = Array.isArray(editorialBrief.query_examples) ? editorialBrief.query_examples : [];
+  const contextPages = Array.isArray(editorialBrief.context_pages) ? editorialBrief.context_pages : [];
   const articleUrl = `https://offertalogica.it/articoli/${encodeURIComponent(article.slug)}.html`;
   const instructions = [
     "Sei il motore editoriale server-side di OffertaLogica.it.",
@@ -1934,8 +2080,10 @@ async function startOpenAiEditorialPackage({ opportunity, article, categories, t
     "Genera esattamente due post statici: article_followup rimanda all'articolo; related rimanda a UNA destinazione OffertaLogica consentita dall'elenco fornito.",
     "Non scegliere canali social: i canali sono decisi separatamente dalla Redazione.",
     "Non proporre Reel, video, TikTok o LinkedIn come strategia.",
+    "Il BRIEF EDITORIALE fornito nell'input è vincolante per il taglio dell'articolo: il tema Search Console non va usato come semplice titolo se non descrive già chiaramente l'intento.",
+    "Se il tema cita un marchio, prodotto o offerta, spiega prima che cosa sia e verifica condizioni e informazioni attuali da fonti affidabili; evita recensioni arbitrarie o conclusioni promozionali.",
   ].join(" ");
-  const input = `ARGOMENTO: ${opportunity.topic}\nTIPO: nuovo articolo\nNOTE REDAZIONE: ${notes || "nessuna"}\nSEGNALI SEARCH CONSOLE: ${signal}\nURL ARTICOLO DOPO PUBBLICAZIONE: ${articleUrl}\n\nCATEGORIE AMMESSE (restituisci esattamente uno slug):\n${categoryList}\n\nDESTINAZIONI PROMOZIONALI AMMESSE PER IL POST related (restituisci esattamente l'id scelto):\n${targetList || "nessuna"}\n\nVincoli editoriali: titolo <= 140 caratteri; excerpt <= 320; SEO title <= 70; SEO description <= 180; contenuto sostanziale, leggibile e realmente utile; almeno 2 fonti, includendo una fonte primaria se disponibile. Il post article_followup deve includere il link ${articleUrl}. Il post related deve includere l'URL della destinazione consentita scelta.`;
+  const input = `ARGOMENTO: ${opportunity.topic}\nTIPO: nuovo articolo\nBRIEF EDITORIALE: ${editorialBrief.article_angle}\nINTENTO DI RICERCA: ${editorialBrief.search_intent}\nQUERY COLLEGATE: ${queryExamples.length ? queryExamples.join(" | ") : "non disponibili"}\nPAGINE OFFERTALOGICA GIÀ INTERCETTATE: ${contextPages.length ? contextPages.join(" | ") : "nessuna"}\nNOTE REDAZIONE: ${notes || "nessuna"}\nSEGNALI SEARCH CONSOLE: ${signal}\nURL ARTICOLO DOPO PUBBLICAZIONE: ${articleUrl}\n\nCATEGORIE AMMESSE (restituisci esattamente uno slug):\n${categoryList}\n\nDESTINAZIONI PROMOZIONALI AMMESSE PER IL POST related (restituisci esattamente l'id scelto):\n${targetList || "nessuna"}\n\nVincoli editoriali: titolo <= 140 caratteri; excerpt <= 320; SEO title <= 70; SEO description <= 180; contenuto sostanziale, leggibile e realmente utile; almeno 2 fonti, includendo una fonte primaria se disponibile. Il post article_followup deve includere il link ${articleUrl}. Il post related deve includere l'URL della destinazione consentita scelta.`;
   const payload = await openAiResponseRequest("", {
     method: "POST",
     body: {
@@ -5383,11 +5531,16 @@ async function analysisPayload() {
       Math.min(100, Math.max(0, 40 * demand + 25 * momentum.score + 20 * position + 15 * engagement)),
     );
 
-    signals.push({
+    const signal = {
       topic_key: key,
       topic: basis.display_query,
       score,
       query_count: Math.max(seven?.query_count || 0, twentyEight?.query_count || 0, ninety?.query_count || 0),
+      query_examples: [...new Set([
+        ...(ninety?.query_examples || []),
+        ...(twentyEight?.query_examples || []),
+        ...(seven?.query_examples || []),
+      ])].slice(0, 5),
       page_count: Math.max(seven?.page_count || 0, twentyEight?.page_count || 0, ninety?.page_count || 0),
       page_urls: [...new Set([
         ...(ninety?.page_urls || []),
@@ -5415,7 +5568,18 @@ async function analysisPayload() {
           avg_position: roundMetric(ninety.avg_position, 2),
         } : null,
       },
-    });
+    };
+    signal.editorial_brief = opportunityEditorialBrief({
+      topic: signal.topic,
+      evidence: {
+        source: "search_console",
+        topic_key: signal.topic_key,
+        query_examples: signal.query_examples,
+        page_urls: signal.page_urls,
+        metrics: signal.metrics,
+      },
+    }, signal);
+    signals.push(signal);
   }
 
   signals.sort((a, b) => b.score - a.score || (b.metrics["90"]?.impressions || 0) - (a.metrics["90"]?.impressions || 0));

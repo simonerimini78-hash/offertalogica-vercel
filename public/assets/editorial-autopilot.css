@@ -34,3 +34,21 @@
 
 /* OffertaLogica Informa - Autopilota editoriale v0.12.43: contenuti piatti dentro blocchi operativi principali. */
 .ol-autopilot-panel{margin:0;min-width:0}.ol-autopilot-research-panel{min-width:0}.ol-autopilot-grid{gap:12px;margin-top:12px}.ol-autopilot-card{border:1px solid #d7e6dc!important;border-radius:10px!important;background:#fff!important;padding:15px!important;box-shadow:none!important}.ol-autopilot-card-heading{margin-bottom:12px}.ol-autopilot-card-heading h3{font-size:17px}.ol-autopilot-card>h3{font-size:17px}.ol-autopilot-status{border-radius:9px;background:#eef8f1}.ol-autopilot-savebar{background:#f4faf6;border-color:#cfe3d5}.ol-autopilot-stage{border:1px solid #d7e6dc;border-radius:10px;background:#fff;padding:15px}.ol-autopilot-pane{border:0;border-left:3px solid #b9d8c3;border-radius:6px;background:#f8fbf9;padding:12px}.ol-autopilot-stage-heading{margin-bottom:12px}.ol-autopilot-stage-number{border-radius:8px;background:#4b9b69}.ol-autopilot-workflow{gap:12px}.ol-autopilot-archive-item{border-color:#d7e6dc;border-radius:7px}.ol-autopilot-slot,.ol-autopilot-target,.ol-autopilot-check{border-color:#d7e6dc;background:#f8fbf9}.ol-autopilot-badge{background:#4b9b69}
+
+/* OffertaLogica Informa - Autopilota editoriale v0.12.55: opportunità compatte, brief visibile e override manuale. */
+.ol-opportunity-card{display:grid;gap:9px;padding:13px 14px;border:1px solid #d7e6dc;border-radius:10px;background:#fff}
+.ol-opportunity-card.is-selected{border-color:#7fbea0;box-shadow:0 0 0 2px rgba(75,155,105,.09)}
+.ol-opportunity-head{display:grid;grid-template-columns:34px minmax(0,1fr);gap:10px;align-items:start}
+.ol-opportunity-number{display:grid;width:30px;height:30px;place-items:center;border-radius:8px;background:#eef8f1;color:#246741;font-size:12px;font-weight:900}
+.ol-opportunity-title{min-width:0}.ol-opportunity-title>strong{font-size:14px;line-height:1.3;color:#17354a}
+.ol-opportunity-badges{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px}
+.ol-opportunity-badge{display:inline-flex;align-items:center;min-height:24px;padding:3px 8px;border-radius:999px;background:#f1f5f3;color:#475569;font-size:11px;font-weight:800}
+.ol-opportunity-badge.is-auto{background:#e8f6ec;color:#166534}.ol-opportunity-badge.is-selected{background:#dff3e6;color:#14532d}.ol-opportunity-badge.is-locked{background:#eef2f6;color:#334155}
+.ol-opportunity-angle{padding:9px 10px;border-left:3px solid #7fbea0;border-radius:5px;background:#f8fbf9}
+.ol-opportunity-angle small{display:block;color:#246741}.ol-opportunity-angle p{margin:3px 0 0;color:#233747;font-size:13px;line-height:1.45}
+.ol-opportunity-intent,.ol-opportunity-signal,.ol-opportunity-queries{display:block;color:var(--ol-muted);font-size:12px;line-height:1.4;overflow-wrap:anywhere}
+.ol-opportunity-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:1px}
+.ol-opportunity-lock{font-size:12px;font-weight:800;color:#64748b}
+.ol-opportunity-details{border-top:1px solid #e3ece7;padding-top:10px}.ol-opportunity-details[hidden]{display:none!important}
+.ol-opportunity-details-inner{display:grid;gap:5px}.ol-opportunity-details-inner small{display:block;color:var(--ol-muted);overflow-wrap:anywhere}
+@media(max-width:600px){.ol-opportunity-card{padding:11px}.ol-opportunity-head{grid-template-columns:30px minmax(0,1fr)}.ol-opportunity-number{width:28px;height:28px}.ol-opportunity-actions .ol-button{width:100%}}

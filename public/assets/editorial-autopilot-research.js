@@ -1,13 +1,15 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.49";
+  const VERSION = "0.12.55";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
   let statusLoaded = false;
   let lastAnalysisPayload = null;
   let opportunityRows = [];
   let opportunityTopicKeys = new Set();
+  let plannerDecision = null;
+  const expandedOpportunityIds = new Set();
   let socialPlanItems = [];
   let socialChannels = [];
   let automationRuns = [];
@@ -164,7 +166,7 @@
         </section>
 
         <section class="ol-autopilot-stage">
-          <div class="ol-autopilot-stage-heading"><span class="ol-autopilot-stage-number">3</span><div><h4>Opportunità e preparazione contenuti</h4><p>Qui confluiscono idee manuali e segnali Search Console. La provenienza resta visibile; la generazione prepara il pacchetto che il calendario potrà pubblicare in modalità Automatico completo.</p></div></div>
+          <div class="ol-autopilot-stage-heading"><span class="ol-autopilot-stage-number">3</span><div><h4>Opportunità e preparazione contenuti</h4><p>Tutte le opportunità restano visibili in forma compatta. Se non intervieni decide l’Autopilota; puoi scegliere tu un tema diverso finché l’articolo non è stato avviato.</p></div></div>
           <p class="ol-autopilot-save-state" data-opportunity-message>Caricamento opportunità…</p>
           <div class="ol-autopilot-archive-list" data-opportunity-list><p class="ol-muted">Caricamento…</p></div>
         </section>
@@ -205,6 +207,7 @@
     statusLoaded = false;
     loadStatus(section);
     loadOpportunities(section);
+    loadPlannerPreview(section, true);
     loadSocialPlan(section);
     loadAutomationRuns(section);
   }
@@ -411,11 +414,12 @@
     };
   }
 
-  function renderPlannerPreview(section, payload) {
+  function renderPlannerPreview(section, payload, quiet = false) {
     const box = section?.querySelector("[data-planner-result]");
     const message = section?.querySelector("[data-planner-message]");
     if (!box || !message) return;
-    const decision = payload?.decision;
+    const decision = payload?.decision || null;
+    plannerDecision = decision;
     const engine = payload?.automation_enabled ? "motore configurato come attivo" : "motore ancora disattivato";
     if (!decision) {
       const reason = payload?.article_cycle_disabled
@@ -424,7 +428,8 @@
           ? "La configurazione consente di chiudere il ciclo senza articolo."
           : "Nessun candidato disponibile con le regole attuali.";
       box.innerHTML = `<div class="ol-autopilot-archive-item"><strong>Nessun tema selezionato nel dry-run</strong><small>Soglia Search Console: ${Number(payload?.minimum_opportunity_score || 0)}/100 · ${esc(engine)}.</small><small>${esc(reason)}</small></div>`;
-      message.textContent = "Dry-run completato senza candidato.";
+      if (!quiet) message.textContent = "Dry-run completato senza candidato.";
+      if (opportunityRows.length) renderOpportunities(section, opportunityRows);
       return;
     }
     const source = decision.source === "manual_idea"
@@ -442,7 +447,21 @@
       <small>${esc(decision.reason || "Scelta deterministica secondo le priorità configurate.")}</small>
       <small>Dry-run: nessuno stato o contenuto è stato modificato.</small>
     </div>`;
-    message.textContent = `Scelta calcolata · ${engine}.`;
+    if (!quiet) message.textContent = `Scelta calcolata · ${engine}.`;
+    else message.textContent = `Scelta automatica attuale · ${engine}.`;
+    if (opportunityRows.length) renderOpportunities(section, opportunityRows);
+  }
+
+  async function loadPlannerPreview(section, quiet = false) {
+    if (!section?.isConnected) return;
+    const message = section.querySelector("[data-planner-message]");
+    try {
+      const payload = await endpoint("editorial-planner-preview");
+      if (section.isConnected) renderPlannerPreview(section, payload, quiet);
+    } catch (error) {
+      plannerDecision = null;
+      if (!quiet && message) message.textContent = `Anteprima non disponibile: ${error.message}`;
+    }
   }
 
   function contextPagesMarkup(pages) {
@@ -843,16 +862,95 @@
     }
   }
 
-  function opportunityActions(row) {
+  function plannerMatchesOpportunity(row) {
+    if (!plannerDecision || !row) return false;
+    if (plannerDecision.id && String(plannerDecision.id) === String(row.id || "")) return true;
+    if (!["pending", "selected"].includes(String(row.status || ""))) return false;
+    const decisionKey = String(plannerDecision.topic_key || "");
+    const rowKey = String(row?.evidence?.topic_key || "");
+    return Boolean(decisionKey && rowKey && decisionKey === rowKey);
+  }
+
+  function opportunityBriefText(row) {
+    const brief = row?.editorial_brief && typeof row.editorial_brief === "object" ? row.editorial_brief : null;
+    const manual = manualIdeaMeta(row);
+    if (brief?.article_angle) return String(brief.article_angle);
+    if (manual?.notes) return `Seguire il taglio indicato dalla Redazione: ${manual.notes}`;
+    return `Sviluppare un articolo informativo su «${row?.topic || "questo tema"}», chiarendo contesto, aspetti pratici, verifiche utili e alternative pertinenti con fonti aggiornate.`;
+  }
+
+  function opportunityQueryExamples(row) {
+    const fromRow = Array.isArray(row?.query_examples) ? row.query_examples : [];
+    const fromBrief = Array.isArray(row?.editorial_brief?.query_examples) ? row.editorial_brief.query_examples : [];
+    const fromEvidence = Array.isArray(row?.evidence?.query_examples) ? row.evidence.query_examples : [];
+    return [...new Set([...fromRow, ...fromBrief, ...fromEvidence].map((value) => String(value || "").trim()).filter(Boolean))].slice(0, 5);
+  }
+
+  function opportunityMetricsMarkup(row) {
+    if (manualIdeaMeta(row)) return "";
+    const metric = row?.evidence?.metrics?.["28"] || null;
+    const parts = [`Punteggio ${Number(row?.score || 0)}/100`];
+    if (metric) {
+      parts.push(`${numberIt(metric.impressions)} impressioni / 28g`);
+      if (metric.avg_position !== null && metric.avg_position !== undefined) parts.push(`pos. media ${Number(metric.avg_position).toFixed(1)}`);
+    }
+    const queryCount = Number(row?.evidence?.query_count || opportunityQueryExamples(row).length || 0);
+    if (queryCount) parts.push(`${numberIt(queryCount)} query collegate`);
+    return `<small class="ol-opportunity-signal">${esc(parts.join(" · "))}</small>`;
+  }
+
+  function opportunityPrimaryAction(row) {
+    const id = esc(row.id || "");
+    const status = String(row.status || "");
+    if (status === "completed" || row.target_article_id) {
+      return '<span class="ol-opportunity-lock">Articolo già avviato · scelta bloccata</span>';
+    }
+    if (status === "selected") {
+      return `<button class="ol-button ol-button-primary ol-button-small" type="button" disabled>Scelta attiva</button>`;
+    }
+    return `<button class="ol-button ol-button-primary ol-button-small" type="button" data-opportunity-id="${id}" data-opportunity-status="selected">Scegli questa opportunità</button>`;
+  }
+
+  function opportunityManagementActions(row) {
     const id = esc(row.id || "");
     const status = String(row.status || "");
     if (status === "completed" || row.target_article_id) return "";
     const buttons = [];
-    if (status !== "selected") buttons.push(`<button class="ol-button ol-button-secondary ol-button-small" type="button" data-opportunity-id="${id}" data-opportunity-status="selected">Seleziona</button>`);
     if (status !== "deferred") buttons.push(`<button class="ol-button ol-button-secondary ol-button-small" type="button" data-opportunity-id="${id}" data-opportunity-status="deferred">Rimanda</button>`);
     if (status !== "rejected") buttons.push(`<button class="ol-button ol-button-secondary ol-button-small" type="button" data-opportunity-id="${id}" data-opportunity-status="rejected">Rifiuta</button>`);
     if (status !== "pending") buttons.push(`<button class="ol-button ol-button-secondary ol-button-small" type="button" data-opportunity-id="${id}" data-opportunity-status="pending">Rimetti in attesa</button>`);
     return buttons.join("");
+  }
+
+  function opportunityBadgesMarkup(row) {
+    const badges = [];
+    const manual = manualIdeaMeta(row);
+    if (row.status === "selected" && !row.target_article_id) {
+      badges.push('<span class="ol-opportunity-badge is-selected">Scelta attiva</span>');
+    } else if (plannerMatchesOpportunity(row)) {
+      badges.push('<span class="ol-opportunity-badge is-auto">Scelta automatica</span>');
+    }
+    if (row.target_article_id) badges.push('<span class="ol-opportunity-badge is-locked">Articolo avviato</span>');
+    badges.push(`<span class="ol-opportunity-badge">${esc(opportunityStatusLabel(row.status))}</span>`);
+    badges.push(`<span class="ol-opportunity-badge">${manual ? `Idea manuale · ${esc(manualIdeaPriorityLabel(manual.priority))}` : `Search Console · ${Number(row.score || 0)}/100`}</span>`);
+    return badges.join("");
+  }
+
+  function opportunityDetailsMarkup(row) {
+    const management = opportunityManagementActions(row);
+    const queries = opportunityQueryExamples(row);
+    const source = manualIdeaMeta(row);
+    const workflow = row.status === "completed" ? updateCompletionMarkup(row) : selectedOpportunityWorkflow(row);
+    return `<div class="ol-opportunity-details-inner">
+      <small><strong>Perché è in lista</strong></small>
+      <small>${esc(row.rationale || "Segnale editoriale da valutare.")}</small>
+      ${source ? opportunitySourceDetails(row) : '<small>Origine: Search Console.</small>'}
+      ${queries.length ? `<small><strong>Ricerche collegate</strong></small><small>${esc(queries.join(" · "))}</small>` : ""}
+      ${source ? "" : contextPagesMarkup(row.context_pages)}
+      <small>Tipo corrente: ${esc(opportunityTypeLabel(row.opportunity_type))} · salvata ${esc(dateIt(row.created_at))}${row.decided_at ? ` · decisione ${esc(dateIt(row.decided_at))}` : ""}</small>
+      ${management ? `<div class="ol-toolbar-group" style="margin-top:8px">${management}</div>` : ""}
+      ${workflow || (row.status !== "selected" && !row.target_article_id ? '<small>Se la scegli, l’Autopilota la userà per il prossimo articolo e continuerà automaticamente secondo calendario e modalità configurati.</small>' : "")}
+    </div>`;
   }
 
   function selectedOpportunityWorkflow(row) {
@@ -905,19 +1003,47 @@
       list.innerHTML = '<p class="ol-muted">Nessuna opportunità salvata.</p>';
       message.textContent = "Salva manualmente un segnale dall’analisi quando vuoi conservarlo.";
     } else {
-      list.innerHTML = opportunityRows.map((row) => {
-        const decided = row.decided_at ? ` · decisione ${dateIt(row.decided_at)}` : "";
-        return `<div class="ol-autopilot-archive-item">
-          <strong>${opportunityHeading(row)}</strong>
-          <small>Tipo: ${esc(opportunityTypeLabel(row.opportunity_type))} · salvata ${esc(dateIt(row.created_at))}${esc(decided)}</small>
-          <small>${esc(row.rationale || "Segnale da valutare manualmente.")}</small>
-          ${opportunitySourceDetails(row)}
-          ${manualIdeaMeta(row) ? "" : contextPagesMarkup(row.context_pages)}
-          <div class="ol-toolbar-group" style="margin-top:8px">${opportunityActions(row)}</div>
-          ${row.status === "completed" ? updateCompletionMarkup(row) : selectedOpportunityWorkflow(row)}
-        </div>`;
+      const statusRank = { selected: 0, pending: 1, deferred: 2, rejected: 3, completed: 4 };
+      const visibleRows = [...opportunityRows].sort((left, right) => {
+        const leftRank = statusRank[left?.status] ?? 9;
+        const rightRank = statusRank[right?.status] ?? 9;
+        if (leftRank !== rightRank) return leftRank - rightRank;
+        if (leftRank <= 1 && Number(left?.score || 0) !== Number(right?.score || 0)) {
+          return Number(right?.score || 0) - Number(left?.score || 0);
+        }
+        return String(right?.updated_at || right?.created_at || "").localeCompare(String(left?.updated_at || left?.created_at || ""));
+      });
+
+      list.innerHTML = visibleRows.map((row, index) => {
+        const id = String(row.id || "");
+        const expanded = expandedOpportunityIds.has(id);
+        const queries = opportunityQueryExamples(row).slice(0, 3);
+        const searchIntent = String(row?.editorial_brief?.search_intent || "").trim();
+        return `<article class="ol-opportunity-card ${row.status === "selected" && !row.target_article_id ? "is-selected" : ""}" data-opportunity-card="${esc(id)}">
+          <div class="ol-opportunity-head">
+            <span class="ol-opportunity-number">#${index + 1}</span>
+            <div class="ol-opportunity-title">
+              <strong>${esc(row.topic || "Senza titolo")}</strong>
+              <div class="ol-opportunity-badges">${opportunityBadgesMarkup(row)}</div>
+            </div>
+          </div>
+          <div class="ol-opportunity-angle">
+            <small><strong>Di cosa parlerà l’articolo</strong></small>
+            <p>${esc(opportunityBriefText(row))}</p>
+          </div>
+          ${searchIntent ? `<small class="ol-opportunity-intent">${esc(searchIntent)}</small>` : ""}
+          ${opportunityMetricsMarkup(row)}
+          ${queries.length ? `<small class="ol-opportunity-queries"><strong>Query:</strong> ${esc(queries.join(" · "))}</small>` : ""}
+          <div class="ol-opportunity-actions">
+            ${opportunityPrimaryAction(row)}
+            <button class="ol-button ol-button-secondary ol-button-small" type="button" data-opportunity-toggle="${esc(id)}" aria-expanded="${expanded ? "true" : "false"}">${expanded ? "Chiudi dettagli" : "Apri dettagli"}</button>
+          </div>
+          <div class="ol-opportunity-details" data-opportunity-details="${esc(id)}" ${expanded ? "" : "hidden"}>
+            ${opportunityDetailsMarkup(row)}
+          </div>
+        </article>`;
       }).join("");
-      message.textContent = `${numberIt(opportunityRows.length)} opportunità persistenti. Il ciclo di aggiornamento può essere chiuso solo dopo verifica della pagina pubblicata.`;
+      message.textContent = `${numberIt(opportunityRows.length)} opportunità visibili. Se non scegli nulla, l’Autopilota mantiene la propria priorità; puoi scegliere un’altra opportunità finché l’articolo non è stato avviato.`;
     }
 
     if (lastAnalysisPayload) renderAnalysis(section, lastAnalysisPayload);
@@ -948,6 +1074,7 @@
     const discardImageButton = event.target.closest("[data-article-image-discard]");
     const socialPlanSaveButton = event.target.closest("[data-social-plan-save]");
     const saveButton = event.target.closest("[data-save-opportunity]");
+    const toggleButton = event.target.closest("[data-opportunity-toggle]");
     const statusButton = event.target.closest("[data-opportunity-id][data-opportunity-status]");
     const classifyButton = event.target.closest("[data-opportunity-classify]");
     const prepareButton = event.target.closest("[data-opportunity-prepare]");
@@ -960,6 +1087,15 @@
     const updateCompleteButton = event.target.closest("[data-update-complete]");
     const updateImpactButton = event.target.closest("[data-update-impact-check]");
     const message = section.querySelector("[data-opportunity-message]");
+
+    if (toggleButton) {
+      const id = toggleButton.dataset.opportunityToggle || "";
+      if (!id) return;
+      if (expandedOpportunityIds.has(id)) expandedOpportunityIds.delete(id);
+      else expandedOpportunityIds.add(id);
+      renderOpportunities(section, opportunityRows);
+      return;
+    }
 
     if (manualCancelButton) {
       resetManualIdeaEditor(section);
@@ -993,6 +1129,7 @@
             : "Idea salvata nella coda editoriale.";
         resetManualIdeaEditor(section, finalMessage);
         await loadOpportunities(section, true);
+        await loadPlannerPreview(section, true);
       } catch (error) {
         if (ideaMessage) ideaMessage.textContent = `Idea non salvata: ${error.message}`;
       } finally {
@@ -1007,10 +1144,7 @@
       plannerButton.disabled = true;
       if (plannerMessage) plannerMessage.textContent = "Calcolo priorità in corso…";
       try {
-        const payload = await endpoint("editorial-planner-preview");
-        renderPlannerPreview(section, payload);
-      } catch (error) {
-        if (plannerMessage) plannerMessage.textContent = `Anteprima non disponibile: ${error.message}`;
+        await loadPlannerPreview(section, false);
       } finally {
         plannerButton.disabled = false;
       }
@@ -1181,6 +1315,7 @@
           ? "Opportunità salvata in attesa di decisione manuale."
           : "Questa opportunità era già stata salvata per lo snapshot corrente.";
         await loadOpportunities(section, true);
+        await loadPlannerPreview(section, true);
       } catch (error) {
         saveButton.disabled = false;
         if (message) message.textContent = `Salvataggio non completato: ${error.message}`;
@@ -1192,15 +1327,37 @@
       const id = statusButton.dataset.opportunityId || "";
       const status = statusButton.dataset.opportunityStatus || "";
       if (!id || !status || statusButton.disabled) return;
+
+      if (status === "selected") {
+        const chosen = opportunityRows.find((item) => String(item.id || "") === id);
+        const previous = opportunityRows.find((item) =>
+          String(item.id || "") !== id
+          && String(item.status || "") === "selected"
+          && !item.target_article_id
+        );
+        if (previous && !window.confirm(`Sostituire la scelta attiva “${previous.topic || "opportunità precedente"}” con “${chosen?.topic || "questa opportunità"}”?`)) {
+          return;
+        }
+      }
+
       statusButton.disabled = true;
-      if (message) message.textContent = "Aggiornamento decisione…";
+      if (message) {
+        message.textContent = status === "selected"
+          ? "Salvataggio della scelta manuale…"
+          : "Aggiornamento decisione…";
+      }
       try {
         await endpoint("update-editorial-opportunity", {
           method: "POST",
           body: { id, status },
         });
-        if (message) message.textContent = `Decisione aggiornata: ${opportunityStatusLabel(status)}.`;
+        if (message) {
+          message.textContent = status === "selected"
+            ? "Scelta manuale salvata. Questa opportunità precede la scelta automatica finché l’articolo non viene avviato."
+            : `Decisione aggiornata: ${opportunityStatusLabel(status)}.`;
+        }
         await loadOpportunities(section, true);
+        await loadPlannerPreview(section, true);
       } catch (error) {
         statusButton.disabled = false;
         if (message) message.textContent = `Aggiornamento non completato: ${error.message}`;
@@ -1451,10 +1608,14 @@
         ? `${((Number(signal.momentum_ratio) - 1) * 100).toFixed(0)}% ritmo 7g vs media 28g`
         : "ritmo recente non calcolabile";
       const alreadySaved = opportunityTopicKeys.has(String(signal.topic_key || ""));
+      const brief = signal?.editorial_brief?.article_angle || "";
+      const queries = Array.isArray(signal?.query_examples) ? signal.query_examples.slice(0, 4) : [];
       return `<div class="ol-autopilot-archive-item">
         <strong>${esc(signal.topic)} · punteggio ${Number(signal.score || 0)}/100</strong>
         <small>${esc(metricSummary(signal, 7))} · ${esc(metricSummary(signal, 28))} · ${esc(metricSummary(signal, 90))}</small>
         <small>${Number(signal.query_count || 0)} query collegate · ${Number(signal.page_count || 0)} pagine · ${esc(momentum)}</small>
+        ${brief ? `<small><b>Possibile articolo:</b> ${esc(brief)}</small>` : ""}
+        ${queries.length ? `<small><b>Query principali:</b> ${esc(queries.join(" · "))}</small>` : ""}
         ${contextPagesMarkup(signal.page_urls)}
         <div class="ol-toolbar-group" style="margin-top:8px">
           <button class="ol-button ol-button-secondary ol-button-small" type="button" data-save-opportunity="${esc(signal.topic_key || "")}" ${alreadySaved ? "disabled" : ""}>${alreadySaved ? "Già salvata" : "Salva opportunità"}</button>
