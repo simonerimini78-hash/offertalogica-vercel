@@ -1,7 +1,10 @@
 const API_VERSION = "v26.0";
 const INSTAGRAM_GRAPH = "https://graph.instagram.com";
-const VERSION = "0.12.53";
-const SOCIAL_CARD_TEMPLATE_VERSION = "offertalogica_manual_cover_v1";
+const VERSION = "0.12.71";
+const SOCIAL_CARD_TEMPLATE_VERSIONS = new Set([
+  "offertalogica_manual_cover_v1",
+  "offertalogica_informa_card_v2",
+]);
 const PLATFORM = "instagram";
 const MAX_ATTEMPTS = 3;
 const MAX_CAROUSEL_SLIDES = 10;
@@ -976,7 +979,7 @@ async function loadPlanSocialAsset(ctx: EditorialContext, item: any) {
   if (String(sourceItem.canonical_text || "") !== String(item.canonical_text || "")) return null;
   const imageUrl = String(asset?.card?.url || "").trim();
   const instagramText = String(asset?.brief?.instagram_text || "").trim();
-  const cardValid = String(asset?.card?.template_version || "") === SOCIAL_CARD_TEMPLATE_VERSION;
+  const cardValid = SOCIAL_CARD_TEMPLATE_VERSIONS.has(String(asset?.card?.template_version || ""));
   const rawImageQaPassed = String(asset?.image?.qa?.status || "") === "passed";
   if (!validHttps(imageUrl) || !cardValid || !rawImageQaPassed || !instagramText) return null;
   return {
@@ -1003,7 +1006,7 @@ async function loadArticleIntroSocialAsset(ctx: EditorialContext, article: any) 
     if (String(source.title || "") !== String(article.title || "")) continue;
     if (String(source.excerpt || "") !== String(article.excerpt || "")) continue;
     if (String(source.featured_image_url || "") !== String(article.featured_image_url || "")) continue;
-    if (String(card.template_version || "") !== SOCIAL_CARD_TEMPLATE_VERSION) continue;
+    if (!SOCIAL_CARD_TEMPLATE_VERSIONS.has(String(card.template_version || ""))) continue;
     if (String(card.source_image_url || "") !== String(article.featured_image_url || "")) continue;
     const imageUrl = String(card.url || "").trim();
     if (!validHttps(imageUrl)) continue;

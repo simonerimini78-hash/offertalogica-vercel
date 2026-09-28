@@ -264,8 +264,11 @@ function buildSocialSummary(article: any = {}, options: { maxChars?: number } = 
 
 const API_VERSION = "v26.0";
 const FACEBOOK_GRAPH = "https://graph.facebook.com";
-const VERSION = "0.12.53";
-const SOCIAL_CARD_TEMPLATE_VERSION = "offertalogica_manual_cover_v1";
+const VERSION = "0.12.71";
+const SOCIAL_CARD_TEMPLATE_VERSIONS = new Set([
+  "offertalogica_manual_cover_v1",
+  "offertalogica_informa_card_v2",
+]);
 const PLATFORM = "facebook";
 const MAX_ATTEMPTS = 3;
 const MAX_MESSAGE_CHARS = 7000;
@@ -979,7 +982,7 @@ async function loadPlanSocialAsset(ctx, item) {
   if (String(sourceItem.canonical_text || "") !== String(item.canonical_text || "")) return null;
   const imageUrl = String(asset?.card?.url || "").trim();
   const facebookText = String(asset?.brief?.facebook_text || "").trim();
-  const cardValid = String(asset?.card?.template_version || "") === SOCIAL_CARD_TEMPLATE_VERSION;
+  const cardValid = SOCIAL_CARD_TEMPLATE_VERSIONS.has(String(asset?.card?.template_version || ""));
   const rawImageQaPassed = String(asset?.image?.qa?.status || "") === "passed";
   if (!validHttps(imageUrl) || !cardValid || !rawImageQaPassed || !facebookText) return null;
   return {
@@ -1006,7 +1009,7 @@ async function loadArticleIntroSocialAsset(ctx, article) {
     if (String(source.title || "") !== String(article.title || "")) continue;
     if (String(source.excerpt || "") !== String(article.excerpt || "")) continue;
     if (String(source.featured_image_url || "") !== String(article.featured_image_url || "")) continue;
-    if (String(card.template_version || "") !== SOCIAL_CARD_TEMPLATE_VERSION) continue;
+    if (!SOCIAL_CARD_TEMPLATE_VERSIONS.has(String(card.template_version || ""))) continue;
     if (String(card.source_image_url || "") !== String(article.featured_image_url || "")) continue;
     const imageUrl = String(card.url || "").trim();
     if (!validHttps(imageUrl)) continue;
