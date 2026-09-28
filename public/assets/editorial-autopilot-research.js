@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.64";
+  const VERSION = "0.12.65";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
   const ANALYSIS_PAGE_SIZE = 10;
@@ -921,7 +921,7 @@
       if (record) record.runs.push(run);
     }
 
-    return [...map.values()].map((record) => {
+    return [...map.values()].filter((record) => Boolean(record.articleId)).map((record) => {
       const latestAt = [
         ...(record.runs || []).map((run) => run?.started_at || run?.created_at || ""),
         ...(record.planItems || []).map((row) => row?.updated_at || row?.created_at || ""),
