@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { json } from "../lib/http.js";
 
-const VERSION = "0.12.69";
+const VERSION = "0.12.70";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -31,8 +31,8 @@ const EDITORIAL_PLAN_EDITABLE_STATUSES = new Set(["draft", "approved", "cancelle
 const EDITORIAL_SOCIAL_PLATFORMS = new Set(["facebook", "instagram"]);
 const EDITORIAL_SOCIAL_RUNTIME_VERSION = "0.12.53";
 // Il renderer grafico delle card social e' caricato solo quando serve.
-// Dalla v0.12.69 usa un renderer canvas 100% JavaScript per evitare dipendenze
-// native (libvips/Pango/Fontconfig) nel runtime serverless.
+// Dalla v0.12.70 usa resvg WebAssembly: nessun Pango/Fontconfig/libvips e nessun addon nativo
+// nel percorso di composizione della card. Il JPEG finale e' codificato in puro JavaScript.
 const EDITORIAL_SOCIAL_CARD_TEMPLATE_VERSION = "offertalogica_informa_card_v2";
 let editorialSocialCardRendererPromise = null;
 
@@ -3032,7 +3032,7 @@ async function renderAndUploadEditorialSocialCard({ article, sourceImageUrl, pos
     return {
       ...common,
       source: "composed",
-      renderer: rendered.renderer || "pureimage_canvas",
+      renderer: rendered.renderer || "resvg_wasm",
       template_version: rendered.templateVersion || EDITORIAL_SOCIAL_CARD_TEMPLATE_VERSION,
       url,
       object_path: objectPath,
@@ -3430,7 +3430,7 @@ async function schedulerPrepareMissingSocialAsset(user, options = {}) {
       && /^https:\/\//i.test(String(state.article_intro?.card?.url || ""))
       && String(state.article_intro?.card?.template_version || "") === EDITORIAL_SOCIAL_CARD_TEMPLATE_VERSION
       && String(state.article_intro?.card?.source || "") === "composed"
-      && String(state.article_intro?.card?.renderer || "") === "pureimage_canvas"
+      && String(state.article_intro?.card?.renderer || "") === "resvg_wasm"
     );
 
     // Prepara la stessa cover editoriale anche dopo la pubblicazione se manca o e' stale:
@@ -3467,7 +3467,7 @@ async function schedulerPrepareMissingSocialAsset(user, options = {}) {
         /^https:\/\//i.test(String(intro.card?.url || ""))
         && String(intro.card?.template_version || "") === EDITORIAL_SOCIAL_CARD_TEMPLATE_VERSION
         && String(intro.card?.source || "") === "composed"
-        && String(intro.card?.renderer || "") === "pureimage_canvas"
+        && String(intro.card?.renderer || "") === "resvg_wasm"
         && String(intro.card?.source_image_url || "") === introImageUrl
         && String(intro.card?.title || "") === cleanEditorialText(article.title, 220)
         && String(intro.card?.summary || "") === cleanEditorialText(article.excerpt, 420)
@@ -3666,7 +3666,7 @@ async function schedulerPrepareMissingSocialAsset(user, options = {}) {
         /^https:\/\//i.test(String(asset.card?.url || ""))
         && String(asset.card?.template_version || "") === EDITORIAL_SOCIAL_CARD_TEMPLATE_VERSION
         && String(asset.card?.source || "") === "composed"
-        && String(asset.card?.renderer || "") === "pureimage_canvas"
+        && String(asset.card?.renderer || "") === "resvg_wasm"
         && String(asset.card?.source_image_url || "") === String(asset.image.url || "")
         && String(asset.card?.title || "") === cleanEditorialText(asset.brief.cover_title, 220)
         && String(asset.card?.summary || "") === cleanEditorialText(asset.brief.cover_summary, 420)
@@ -4457,7 +4457,7 @@ function schedulerArticleIntroAssetIsOlInforma(context) {
     && /^https:\/\//i.test(String(intro.card?.url || ""))
     && String(intro.card?.template_version || "") === EDITORIAL_SOCIAL_CARD_TEMPLATE_VERSION
     && String(intro.card?.source || "") === "composed"
-    && String(intro.card?.renderer || "") === "pureimage_canvas"
+    && String(intro.card?.renderer || "") === "resvg_wasm"
   );
 }
 
@@ -4601,7 +4601,7 @@ function schedulerPlanAssetIsOlInforma(context, item) {
     && /^https:\/\//i.test(String(asset.card?.url || ""))
     && String(asset.card?.template_version || "") === EDITORIAL_SOCIAL_CARD_TEMPLATE_VERSION
     && String(asset.card?.source || "") === "composed"
-    && String(asset.card?.renderer || "") === "pureimage_canvas"
+    && String(asset.card?.renderer || "") === "resvg_wasm"
   );
 }
 
