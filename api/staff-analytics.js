@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { json } from "../lib/http.js";
 
-const VERSION = "0.12.68";
+const VERSION = "0.12.69";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -30,9 +30,10 @@ const EDITORIAL_PLAN_POST_TYPES = new Set(["article_followup", "related", "everg
 const EDITORIAL_PLAN_EDITABLE_STATUSES = new Set(["draft", "approved", "cancelled"]);
 const EDITORIAL_SOCIAL_PLATFORMS = new Set(["facebook", "instagram"]);
 const EDITORIAL_SOCIAL_RUNTIME_VERSION = "0.12.53";
-// Il renderer grafico usa sharp (modulo nativo): lo carichiamo solo quando serve
-// comporre una cover, così le API di ricerca/opportunità non dipendono dal suo startup.
-const EDITORIAL_SOCIAL_CARD_TEMPLATE_VERSION = "offertalogica_manual_cover_v1";
+// Il renderer grafico delle card social e' caricato solo quando serve.
+// Dalla v0.12.69 usa un renderer canvas 100% JavaScript per evitare dipendenze
+// native (libvips/Pango/Fontconfig) nel runtime serverless.
+const EDITORIAL_SOCIAL_CARD_TEMPLATE_VERSION = "offertalogica_informa_card_v2";
 let editorialSocialCardRendererPromise = null;
 
 async function editorialSocialCardRenderer() {
@@ -3031,7 +3032,7 @@ async function renderAndUploadEditorialSocialCard({ article, sourceImageUrl, pos
     return {
       ...common,
       source: "composed",
-      renderer: "sharp_svg",
+      renderer: rendered.renderer || "pureimage_canvas",
       template_version: rendered.templateVersion || EDITORIAL_SOCIAL_CARD_TEMPLATE_VERSION,
       url,
       object_path: objectPath,
@@ -3384,9 +3385,20 @@ async function evaluateEditorialSocialImage(article, item, target, brief, image,
   };
 }
 
-async function schedulerPrepareMissingSocialAsset(user) {
-  const rows = await serviceFetch(`editorial_research_opportunities?select=${opportunitySelect()}&status=in.(selected,completed)&opportunity_type=eq.new_article&order=updated_at.asc&limit=80`);
-  for (const opportunity of rows || []) {
+async function schedulerPrepareMissingSocialAsset(user, options = {}) {
+  const targetPostType = ["article_intro", "article_followup", "related"].includes(String(options?.targetPostType || ""))
+    ? String(options.targetPostType)
+    : "";
+  const selectedOnly = options?.selectedOnly === true;
+  const statusFilter = selectedOnly ? "eq.selected" : "in.(selected,completed)";
+  const rows = await serviceFetch(`editorial_research_opportunities?select=${opportunitySelect()}&status=${statusFilter}&opportunity_type=eq.new_article&order=updated_at.asc&limit=80`);
+  // Il ciclo editoriale corrente ha priorita' sulle rigenerazioni manuali di cicli gia' chiusi:
+  // un vecchio post non deve mai impedire bozza/pubblicazione/follow-up del nuovo articolo.
+  const orderedRows = [...(rows || [])].sort((left, right) => {
+    const rank = (row) => String(row?.status || "") === "selected" ? 0 : 1;
+    return rank(left) - rank(right);
+  });
+  for (const opportunity of orderedRows) {
     const evidence = opportunity?.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {};
     const regeneration = evidence?.social_regeneration && typeof evidence.social_regeneration === "object" ? evidence.social_regeneration : null;
     const regenerationItemId = validUuid(String(regeneration?.item_id || "")) && ["requested", "preparing"].includes(String(regeneration?.status || ""))
@@ -3418,13 +3430,13 @@ async function schedulerPrepareMissingSocialAsset(user) {
       && /^https:\/\//i.test(String(state.article_intro?.card?.url || ""))
       && String(state.article_intro?.card?.template_version || "") === EDITORIAL_SOCIAL_CARD_TEMPLATE_VERSION
       && String(state.article_intro?.card?.source || "") === "composed"
-      && String(state.article_intro?.card?.renderer || "") === "sharp_svg"
+      && String(state.article_intro?.card?.renderer || "") === "pureimage_canvas"
     );
 
     // Prepara la stessa cover editoriale anche dopo la pubblicazione se manca o e' stale:
     // evita che un article_intro resti bloccato in waiting_assets quando articolo e social
     // vengono schedulati nello stesso ciclo.
-    if (!regenerationItemId && (String(article.status || "") !== "published" || !introAlreadyCurrent)) {
+    if ((!targetPostType || targetPostType === "article_intro") && !regenerationItemId && (String(article.status || "") !== "published" || !introAlreadyCurrent)) {
       let intro = state.article_intro && state.article_intro.fingerprint === introFingerprint
         ? state.article_intro
         : {
@@ -3455,7 +3467,7 @@ async function schedulerPrepareMissingSocialAsset(user) {
         /^https:\/\//i.test(String(intro.card?.url || ""))
         && String(intro.card?.template_version || "") === EDITORIAL_SOCIAL_CARD_TEMPLATE_VERSION
         && String(intro.card?.source || "") === "composed"
-        && String(intro.card?.renderer || "") === "sharp_svg"
+        && String(intro.card?.renderer || "") === "pureimage_canvas"
         && String(intro.card?.source_image_url || "") === introImageUrl
         && String(intro.card?.title || "") === cleanEditorialText(article.title, 220)
         && String(intro.card?.summary || "") === cleanEditorialText(article.excerpt, 420)
@@ -3487,11 +3499,14 @@ async function schedulerPrepareMissingSocialAsset(user) {
       }
     }
 
+    if (targetPostType === "article_intro") continue;
+
     const items = await serviceFetch(
       `editorial_social_plan_items?select=*&source_article_id=eq.${encodeURIComponent(article.id)}&opportunity_id=eq.${encodeURIComponent(opportunity.id)}&status=in.(draft,approved,failed)&order=created_at.asc&limit=20`,
     );
     for (const item of items || []) {
       if (!["article_followup", "related"].includes(String(item.post_type || ""))) continue;
+      if (targetPostType && String(item.post_type || "") !== targetPostType) continue;
       if (regenerationItemId && String(item.id || "") !== regenerationItemId) continue;
       const target = await editorialSocialAssetTarget(item);
       const fingerprint = editorialSocialAssetFingerprint(article, item, target, articleImageUrl);
@@ -3651,7 +3666,7 @@ async function schedulerPrepareMissingSocialAsset(user) {
         /^https:\/\//i.test(String(asset.card?.url || ""))
         && String(asset.card?.template_version || "") === EDITORIAL_SOCIAL_CARD_TEMPLATE_VERSION
         && String(asset.card?.source || "") === "composed"
-        && String(asset.card?.renderer || "") === "sharp_svg"
+        && String(asset.card?.renderer || "") === "pureimage_canvas"
         && String(asset.card?.source_image_url || "") === String(asset.image.url || "")
         && String(asset.card?.title || "") === cleanEditorialText(asset.brief.cover_title, 220)
         && String(asset.card?.summary || "") === cleanEditorialText(asset.brief.cover_summary, 420)
@@ -4442,7 +4457,7 @@ function schedulerArticleIntroAssetIsOlInforma(context) {
     && /^https:\/\//i.test(String(intro.card?.url || ""))
     && String(intro.card?.template_version || "") === EDITORIAL_SOCIAL_CARD_TEMPLATE_VERSION
     && String(intro.card?.source || "") === "composed"
-    && String(intro.card?.renderer || "") === "sharp_svg"
+    && String(intro.card?.renderer || "") === "pureimage_canvas"
   );
 }
 
@@ -4586,7 +4601,7 @@ function schedulerPlanAssetIsOlInforma(context, item) {
     && /^https:\/\//i.test(String(asset.card?.url || ""))
     && String(asset.card?.template_version || "") === EDITORIAL_SOCIAL_CARD_TEMPLATE_VERSION
     && String(asset.card?.source || "") === "composed"
-    && String(asset.card?.renderer || "") === "sharp_svg"
+    && String(asset.card?.renderer || "") === "pureimage_canvas"
   );
 }
 
@@ -4808,12 +4823,6 @@ async function editorialAutopilotTick() {
   const image = await schedulerPrepareMissingImage(user);
   if (image) return { ok: true, version: VERSION, active: true, ...image };
 
-  const socialAsset = await schedulerPrepareMissingSocialAsset(user);
-  if (socialAsset) return { ok: true, version: VERSION, active: true, ...socialAsset };
-
-  const regeneratedSocial = await schedulerPublishRequestedSocialRegeneration(user);
-  if (regeneratedSocial) return { ok: true, version: VERSION, active: true, ...regeneratedSocial };
-
   const local = schedulerLocalParts(settings.timezone || "Europe/Rome");
   const schedule = await serviceFetch("editorial_automation_schedule?select=*&enabled=eq.true&order=sort_order.asc");
   runs = runs.length ? runs : await automationSchedulerRuns(120);
@@ -4827,9 +4836,73 @@ async function editorialAutopilotTick() {
     return schedulerArticlePrepareRecoverable(slot, settings, runs, key)
       || schedulerArticlePublishAuthRecoverable(slot, runs, key);
   })[0] || null;
-  if (!due) return { ok: true, version: VERSION, active: true, action: "idle", local };
-  const result = await schedulerProcessSlot(due, user, settings, runs, local);
-  return { ok: true, version: VERSION, active: true, slot: { id: due.id, kind: due.kind, label: due.label }, ...result };
+
+  // Ricerca e preparazione del nuovo articolo non dipendono dagli asset social di cicli precedenti.
+  // Eseguire prima questi slot impedisce a una rigenerazione social problematica di bloccare la settimana editoriale.
+  if (due && ["research", "article_prepare"].includes(String(due.kind || ""))) {
+    const result = await schedulerProcessSlot(due, user, settings, runs, local);
+    return { ok: true, version: VERSION, active: true, slot: { id: due.id, kind: due.kind, label: due.label }, ...result };
+  }
+
+  let socialAssetError = null;
+  const dueKind = String(due?.kind || "");
+  const dueAssetType = ({ article_publish: "article_intro", social_followup: "article_followup", social_related: "related" })[dueKind] || "";
+  try {
+    // Quando uno slot e' gia' dovuto, prepariamo soltanto l'asset necessario a QUELLO slot.
+    // Un'immagine del venerdi o del lunedi non puo' quindi ritardare la pubblicazione del mercoledi.
+    const socialAsset = dueAssetType
+      ? await schedulerPrepareMissingSocialAsset(user, { selectedOnly: true, targetPostType: dueAssetType })
+      : await schedulerPrepareMissingSocialAsset(user);
+    if (socialAsset) return { ok: true, version: VERSION, active: true, ...socialAsset };
+  } catch (error) {
+    socialAssetError = String(error?.message || error).slice(0, 1200);
+    console.error("editorial_social_asset_prepare_failed", socialAssetError);
+  }
+
+  let regenerationError = null;
+  // La rigenerazione manuale di un vecchio post e' background: non deve precedere uno slot
+  // settimanale gia' dovuto. Viene ripresa appena il calendario non ha un'azione prioritaria.
+  if (!due) {
+    try {
+      const regeneratedSocial = await schedulerPublishRequestedSocialRegeneration(user);
+      if (regeneratedSocial) return { ok: true, version: VERSION, active: true, ...regeneratedSocial };
+    } catch (error) {
+      regenerationError = String(error?.message || error).slice(0, 1200);
+      console.error("editorial_social_regeneration_failed", regenerationError);
+    }
+  }
+
+  if (due) {
+    // Gli slot che pubblicano contenuti social richiedono la card specifica dello slot. Se la sua
+    // preparazione fallisce, non consumiamo un tentativo: il prossimo heartbeat riprovera'.
+    if (socialAssetError && dueAssetType) {
+      return {
+        ok: true,
+        version: VERSION,
+        active: true,
+        action: "waiting_social_assets",
+        slot: { id: due.id, kind: due.kind, label: due.label },
+        local,
+        error: socialAssetError,
+      };
+    }
+    const result = await schedulerProcessSlot(due, user, settings, runs, local);
+    return { ok: true, version: VERSION, active: true, slot: { id: due.id, kind: due.kind, label: due.label }, ...result };
+  }
+
+  if (socialAssetError || regenerationError) {
+    return {
+      ok: true,
+      version: VERSION,
+      active: true,
+      action: "background_social_error",
+      local,
+      social_asset_error: socialAssetError,
+      regeneration_error: regenerationError,
+    };
+  }
+
+  return { ok: true, version: VERSION, active: true, action: "idle", local };
 }
 
 
