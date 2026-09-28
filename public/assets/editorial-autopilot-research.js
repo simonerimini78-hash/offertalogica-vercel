@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.67";
+  const VERSION = "0.12.74";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
   const ANALYSIS_PAGE_SIZE = 10;
@@ -1621,15 +1621,15 @@
     if (socialPlanRegenerateButton) {
       const id = socialPlanRegenerateButton.dataset.socialPlanRegenerate || "";
       if (!id || socialPlanRegenerateButton.disabled) return;
-      const warning = "Procedi solo se hai già eliminato manualmente le vecchie pubblicazioni di questo post da Facebook e Instagram. Il sistema rigenererà immagine, card OL Informa e testo social e poi ripubblicherà automaticamente. Continuare?";
+      const warning = "Procedi solo se hai già eliminato manualmente le vecchie pubblicazioni di questo post da Facebook e Instagram. Il testo social esistente verrà mantenuto: il sistema creerà subito una nuova foto, ricomporrà la card OL Informa e proverà a ripubblicare. Continuare?";
       if (!window.confirm(warning)) return;
       socialPlanRegenerateButton.disabled = true;
       const socialMessage = section.querySelector("[data-social-plan-message]");
-      if (socialMessage) socialMessage.textContent = "Rigenerazione richiesta. I prossimi heartbeat prepareranno nuova immagine, card OL Informa e ripubblicazione.";
+      if (socialMessage) socialMessage.textContent = "Rigenerazione in corso: nuova foto, QA, card OL Informa e ripubblicazione nello stesso passaggio…";
       try {
         await endpoint("regenerate-editorial-social-plan-item", { method: "POST", body: { id } });
         await Promise.all([loadSocialPlan(section), loadAutomationRuns(section)]);
-        if (socialMessage) socialMessage.textContent = "Rigenerazione avviata. Segui lo stato dell’articolo: la ripubblicazione avverrà automaticamente quando la nuova card OL Informa sarà pronta.";
+        if (socialMessage) socialMessage.textContent = "Rigenerazione completata. Aggiorno lo stato del post e della pubblicazione.";
       } catch (error) {
         if (socialMessage) socialMessage.textContent = `Rigenerazione non avviata: ${error.message}`;
         socialPlanRegenerateButton.disabled = false;

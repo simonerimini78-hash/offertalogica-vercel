@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { json } from "../lib/http.js";
 
-const VERSION = "0.12.73";
+const VERSION = "0.12.74";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -3328,6 +3328,9 @@ function editorialSocialImagePrompt(article, item, target, brief, guidance = "")
     "Make the composition and visual emphasis clearly different from a generic article hero image. It must work as a standalone social visual, not as a second copy of the article cover or as a generic advertising image.",
     "Do not add text, captions, letters, numbers, logos, brand marks, watermarks, readable documents, prices, charts, fake interfaces or infographic overlays.",
     "Do not invent a specific real person, company, event, document or measurable result that the supplied context does not establish.",
+    "Prefer a believable real-world editorial scene tied to the actual activity, equipment or environment described by the article; one clear subject, natural perspective, no staged advertising pose.",
+    "Do not use thermal-camera or infrared effects, heat-map overlays, glowing energy effects, abstract energy beams, oversized utility meters or generic visual metaphors unless the supplied context explicitly requires them.",
+    "For related posts, visualize the concrete problem or activity from the article, not an abstract 'OffertaLogica solution'; the card text provides the editorial connection.",
     "The result must look like a real photograph, not an illustration, collage, 3D render or generic stock advertisement.",
   ].filter(Boolean).join(" ");
 }
@@ -3827,19 +3830,31 @@ async function requestEditorialSocialRegeneration(user, payload = {}) {
   const cardHistory = Array.isArray(previous?.card_history) ? previous.card_history : [];
   if (previous?.image) history.push({ ...previous.image, outcome: "manual_regeneration_requested", archived_at: new Date().toISOString() });
   if (previous?.card) cardHistory.push({ ...previous.card, outcome: "manual_regeneration_requested", archived_at: new Date().toISOString() });
+  const previousBrief = previous?.brief && typeof previous.brief === "object" ? previous.brief : null;
+  const reusableBrief = previousBrief
+    ? {
+        ...previousBrief,
+        // Il testo social esistente resta invariato: la rigenerazione manuale serve a rifare
+        // solo visuale e impaginazione. Titolo/sintesi cover vengono ricostruiti per evitare
+        // di trascinare vecchie formule promozionali o badge non più ammessi.
+        cover_title: "",
+        cover_summary: "",
+      }
+    : null;
   state.items[itemId] = {
     schema_version: 2,
     plan_item_id: itemId,
     post_type: item.post_type,
-    fingerprint: null,
-    source_item: null,
-    target: null,
-    brief: null,
+    fingerprint: previous?.fingerprint || null,
+    source_item: previous?.source_item || null,
+    target: previous?.target || null,
+    target_context: previous?.target_context || null,
+    brief: reusableBrief,
     image: null,
     card: null,
     history: history.slice(-4),
     card_history: cardHistory.slice(-3),
-    status: "pending",
+    status: reusableBrief ? "brief_ready" : "pending",
     updated_at: new Date().toISOString(),
   };
   evidence.social_assets = state;
@@ -3860,7 +3875,32 @@ async function requestEditorialSocialRegeneration(user, payload = {}) {
   const updatedRows = await serviceFetch(`editorial_social_plan_items?id=eq.${encodeURIComponent(itemId)}`, {
     method: "PATCH", prefer: "return=representation", body: { status: "approved", scheduled_for: null, updated_at: new Date().toISOString(), updated_by: user.id },
   });
-  return { requested: true, item: updatedRows?.[0] || { ...item, status: "approved" }, article };
+
+  // Rigenerazione manuale immediata: non aspetta i heartbeat da 15 minuti.
+  // Ogni passaggio mantiene i controlli esistenti (cover text, immagine, QA, card OL Informa)
+  // e poi prova la pubblicazione nello stesso invocazione, entro il limite Vercel di 5 minuti.
+  const steps = [];
+  for (let index = 0; index < 8; index += 1) {
+    const step = await schedulerPrepareMissingSocialAsset(user);
+    if (!step) break;
+    if (String(step.social_plan_item_id || "") && String(step.social_plan_item_id || "") !== itemId) continue;
+    steps.push(step);
+    if (["social_asset_human_review_required", "social_asset_copy_human_review_required"].includes(String(step.action || ""))) {
+      return { requested: true, immediate: true, published: false, blocked: true, steps, item: updatedRows?.[0] || { ...item, status: "approved" }, article };
+    }
+    if (["social_asset_card_generated", "social_asset_ready"].includes(String(step.action || ""))) break;
+  }
+
+  const publication = await schedulerPublishRequestedSocialRegeneration(user);
+  return {
+    requested: true,
+    immediate: true,
+    published: String(publication?.action || "") === "social_regeneration_published",
+    steps,
+    publication,
+    item: updatedRows?.[0] || { ...item, status: "approved" },
+    article,
+  };
 }
 
 async function schedulerPublishRequestedSocialRegeneration(user) {
