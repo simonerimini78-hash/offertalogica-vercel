@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.66";
+  const VERSION = "0.12.67";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
   const ANALYSIS_PAGE_SIZE = 10;
@@ -844,7 +844,12 @@
   }
 
   function currentEditorialCycle() {
-    const anchor = automationRuns.find((run) => automationRunOpportunityId(run)) || null;
+    // Il ciclo corrente nasce dalla ricerca più recente che ha selezionato
+    // un'opportunità. I run social del ciclo precedente possono avvenire dopo
+    // (es. il lunedì) e non devono spostare la barra di avanzamento sul vecchio articolo.
+    const anchor = automationRuns.find((run) => {
+      return String(run?.run_type || "") === "research" && Boolean(automationRunOpportunityId(run));
+    }) || null;
     if (!anchor) return null;
     const opportunityId = automationRunOpportunityId(anchor);
     const articleRun = automationRuns.find((run) => automationRunOpportunityId(run) === opportunityId && automationRunArticleId(run)) || null;
@@ -856,7 +861,7 @@
   }
 
   function cycleRunState(runType, cycle) {
-    if (!cycle?.opportunityId) return { label: "da eseguire", tone: "pending" };
+    if (!cycle?.opportunityId) return { label: "da eseguire", tone: "pending", at: "" };
     const run = automationRuns.find((row) => {
       if (String(row?.run_type || "") !== runType) return false;
       if (automationRunOpportunityId(row) !== cycle.opportunityId) return false;
@@ -866,16 +871,17 @@
       }
       return true;
     }) || null;
-    if (!run) return { label: "da eseguire", tone: "pending" };
+    if (!run) return { label: "da eseguire", tone: "pending", at: "" };
+    const at = run.finished_at || run.started_at || run.created_at || "";
     const status = String(run.status || "");
     if (status === "success") {
       const stage = String(run?.details?.stage || "");
-      if (["skipped", "blocked", "waiting_human_review"].includes(stage)) return { label: "in attesa", tone: "pending" };
-      return { label: "completato", tone: "success" };
+      if (["skipped", "blocked", "waiting_human_review", "waiting_human_approval", "skipped_draft_mode"].includes(stage)) return { label: "in attesa", tone: "pending", at };
+      return { label: "completato", tone: "success", at };
     }
-    if (status === "failed") return { label: "errore", tone: "failed" };
-    if (status === "running") return { label: "in corso", tone: "running" };
-    return { label: status || "da eseguire", tone: "pending" };
+    if (status === "failed") return { label: "errore", tone: "failed", at };
+    if (status === "running") return { label: "in corso", tone: "running", at };
+    return { label: status || "da eseguire", tone: "pending", at };
   }
 
   function articlePublicUrl(article) {
@@ -1115,7 +1121,7 @@
     const carryover = pendingCarryoverRecord();
     const carryoverTitle = carryover?.article?.title || articleRelatedPlanItem(carryover, "related")?.theme || "Articolo del ciclo precedente";
     const carryoverState = carryover ? articleStepState(carryover, "social_related") : null;
-    box.innerHTML = `<strong>Ciclo articolo attuale</strong>${startedAt ? `<small class="ol-cycle-overview-note">Selezionato dal ciclo del ${esc(dateIt(startedAt))}. Gli stati sotto appartengono alla stessa opportunità editoriale.</small>` : ""}<div class="ol-cycle-steps">${steps.map((step) => `<span class="ol-cycle-step ol-cycle-step-${esc(step.tone)}"><b>${esc(step.title)}</b><small>${esc(step.label)}</small></span>`).join("")}</div>${carryover ? `<div class="ol-cycle-carryover"><strong>Da chiudere dal ciclo precedente</strong><small>${esc(carryoverTitle)} · Post OffertaLogica ${esc(carryoverState?.label || "in attesa")}</small></div>` : ""}`;
+    box.innerHTML = `<strong>Ciclo articolo attuale</strong>${startedAt ? `<small class="ol-cycle-overview-note">Ricerca del ${esc(dateIt(startedAt))}. La barra mostra esclusivamente l’avanzamento del nuovo articolo selezionato da questa ricerca.</small>` : ""}<div class="ol-cycle-steps">${steps.map((step) => `<span class="ol-cycle-step ol-cycle-step-${esc(step.tone)}"><b>${esc(step.title)}</b><small>${esc(step.label)}${step.at ? ` · ${esc(dateIt(step.at))}` : ""}</small></span>`).join("")}</div>${carryover ? `<div class="ol-cycle-carryover"><strong>Da chiudere dal ciclo precedente</strong><small>${esc(carryoverTitle)} · Post OffertaLogica ${esc(carryoverState?.label || "in attesa")}</small></div>` : ""}`;
   }
 
   function renderSocialPlan(section) {
