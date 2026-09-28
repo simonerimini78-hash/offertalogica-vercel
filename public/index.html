@@ -4762,7 +4762,7 @@
             <div class="upload-note"><strong>Controllo finale:</strong> il PDF serve a compilare i dati utili al confronto. Verifica i valori letti prima di procedere; il caricamento non avvia alcun cambio di fornitore.</div>
             <div class="pdf-review-static" id="pdf-review-static" tabindex="-1" role="status" aria-live="polite">
                 <strong id="pdf-review-title">Lettura PDF</strong>
-                <p id="pdf-review-copy">Seleziona uno o più PDF e premi “Analizza PDF”. Dopo la lettura controlla i dati inseriti prima di avviare il confronto.</p>
+                <p id="pdf-review-copy">Seleziona uno o più PDF: l’analisi parte automaticamente. Dopo la lettura controlla i dati inseriti prima di avviare il confronto.</p>
             </div>
         </div>
     </div>
@@ -12741,11 +12741,14 @@ window.avviaComparazioneDati = function avviaComparazioneDati() {
   const a11yUserRequestedResults = Boolean(window.__OL_A11Y_RESULTS_PENDING__);
   window.__OL_A11Y_RESULTS_PENDING__ = false;
   if (!DATI_UFFICIALI_CONFRONTO_PRONTI) {
-    const areaRisultati = document.getElementById("results-area");
-    if (areaRisultati) {
-      areaRisultati.style.display = "flex";
-      areaRisultati.innerHTML = `<div class="verdetto-box warning"><h2>Dati ufficiali in caricamento</h2><p>Il confronto parte solo dopo il caricamento dei dati economici aggiornati. Riprova tra qualche istante.</p></div>`;
-    }
+    // OFFERTALOGICA_PUBLIC_V116_20260928: lo stato di caricamento non deve mai
+    // sostituire il contenuto di #results-area. In caso contrario un messaggio
+    // temporaneo puo' restare sopra risultati validi (es. confronto da bolletta).
+    mostraGuida(
+      "comparison-next-step-guidance",
+      "<strong>Dati economici in caricamento.</strong> Attendi qualche istante e riprova: i dati inseriti restano disponibili.",
+      { scroll: true, focus: false }
+    );
     return;
   }
   nascondiGuida("comparison-next-step-guidance");
@@ -15774,7 +15777,7 @@ window.rimuoviFilePdf = function rimuoviFilePdf(id, source) {
     if (!pdfDocumentiAnalizzatiTutti().length) {
       if (panel) panel.style.display = "none";
       if (title) title.innerText = "Lettura PDF";
-      if (copy) copy.innerText = "Seleziona una bolletta o una scheda sintetica e premi Analizza PDF.";
+      if (copy) copy.innerText = "Seleziona una bolletta o una scheda sintetica: l’analisi partirà automaticamente.";
     }
   }
   aggiornaInterfacciaSelezionePdf();
@@ -15816,7 +15819,7 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
       }
     } else {
       if (title) title.innerText = "Prima seleziona il documento";
-      if (copy) copy.innerText = "Seleziona una bolletta PDF o una scheda sintetica, poi premi “Analizza PDF”. Dopo la lettura il modulo verrà compilato direttamente.";
+      if (copy) copy.innerText = "Seleziona una bolletta PDF o una scheda sintetica: l’analisi partirà automaticamente e il modulo verrà compilato direttamente.";
       if (confirmButton) confirmButton.disabled = true;
       nascondiGuida("pdf-confirm-guidance");
     }
@@ -16014,13 +16017,13 @@ window.confermaPdfECalcola = async function confermaPdfECalcola() {
   const copy = document.getElementById("pdf-review-copy");
   if (ambitoConfrontoAttivo() === "pending_gas") {
     if (copy) copy.innerText = "Dati luce confermati. Ora carica la bolletta gas: conserveremo i dati già letti e uniremo le due forniture senza sovrascriverle.";
-    mostraGuida("pdf-data-review-guidance", "<strong>La luce è stata memorizzata.</strong> Seleziona ora il PDF della bolletta gas e premi <strong>Analizza PDF</strong>.");
+    mostraGuida("pdf-data-review-guidance", "<strong>La luce è stata memorizzata.</strong> Seleziona ora il PDF della bolletta gas: l’analisi partirà automaticamente.");
     vaiAlCaricatoreScheda({ source: "pending_gas_followup" });
     return;
   }
   if (ambitoConfrontoAttivo() === "pending_luce") {
     if (copy) copy.innerText = "Dati gas confermati. Ora carica la bolletta luce: conserveremo i dati già letti e uniremo le due forniture senza sovrascriverle.";
-    mostraGuida("pdf-data-review-guidance", "<strong>Il gas è stato memorizzato.</strong> Seleziona ora il PDF della bolletta luce e premi <strong>Analizza PDF</strong>.");
+    mostraGuida("pdf-data-review-guidance", "<strong>Il gas è stato memorizzato.</strong> Seleziona ora il PDF della bolletta luce: l’analisi partirà automaticamente.");
     vaiAlCaricatoreScheda({ source: "pending_luce_followup" });
     return;
   }
@@ -17940,8 +17943,8 @@ function vaiAlCaricatoreScheda(options = {}) {
     const fromOffers = options?.source === "offers_personalization";
     notice.hidden = false;
     notice.innerHTML = fromOffers
-      ? '<span class="pdf-context-icon" aria-hidden="true">↓</span><span><strong>Personalizza il confronto.</strong> Seleziona la tua bolletta, poi premi <strong>Analizza PDF</strong>: useremo i consumi reali al posto del profilo medio.</span>'
-      : '<span class="pdf-context-icon" aria-hidden="true">↓</span><span><strong>Sei nel punto giusto.</strong> Seleziona qui il PDF della scheda sintetica, poi premi <strong>Analizza PDF</strong>.</span>';
+      ? '<span class="pdf-context-icon" aria-hidden="true">↓</span><span><strong>Personalizza il confronto.</strong> Seleziona la tua bolletta: l’analisi partirà automaticamente e useremo i consumi reali al posto del profilo medio.</span>'
+      : '<span class="pdf-context-icon" aria-hidden="true">↓</span><span><strong>Sei nel punto giusto.</strong> Seleziona qui il PDF della scheda sintetica: l’analisi partirà automaticamente.</span>';
   }
   panel?.scrollIntoView({ behavior: "smooth", block: "start" });
   panel?.classList.remove("pdf-upload-attention");
@@ -18848,6 +18851,8 @@ function collegaEventiUX() {
   document.getElementById("landing-premium-app")?.addEventListener("click", () => tracciaAccessoAppLanding("premium"));
   document.getElementById("offers-upload-bill")?.addEventListener("click", () => caricaBollettaDaOfferte({ source: "offers_personalization" }));
   document.getElementById("offers-keep-average")?.addEventListener("click", continuaConStimaMedia);
+  // OFFERTALOGICA_PUBLIC_V115_20260928: ogni nuovo PDF selezionato avvia subito l'analisi
+  // su mobile e desktop. Il pulsante manuale resta solo come fallback tecnico.
   document.getElementById("pdf-static-input")?.addEventListener("change", (event) => {
     const selected = Array.from(event.target?.files || []);
     const notice = document.getElementById("pdf-upload-context-notice");
@@ -18890,14 +18895,14 @@ function collegaEventiUX() {
     if (notice && (added || duplicates)) {
       notice.hidden = false;
       const duplicateCopy = duplicates ? ` ${duplicates === 1 ? "Un duplicato è stato ignorato." : `${duplicates} duplicati sono stati ignorati.`}` : "";
-      const mobileAutoCopy = esperienzaPdfMobileAttiva() ? " Analisi avviata automaticamente." : " Ora premi <strong>Analizza PDF</strong>.";
+      const autoAnalysisCopy = " Analisi avviata automaticamente.";
       notice.innerHTML = added
-        ? `<span class="pdf-context-icon" aria-hidden="true">✓</span><span><strong>${added === 1 ? "PDF aggiunto" : `${added} PDF aggiunti`}.</strong> I documenti precedenti restano memorizzati.${mobileAutoCopy}${duplicateCopy}</span>`
+        ? `<span class="pdf-context-icon" aria-hidden="true">✓</span><span><strong>${added === 1 ? "PDF aggiunto" : `${added} PDF aggiunti`}.</strong> I documenti precedenti restano memorizzati.${autoAnalysisCopy}${duplicateCopy}</span>`
         : `<span class="pdf-context-icon" aria-hidden="true">✓</span><span><strong>Nessun nuovo PDF aggiunto.</strong>${duplicateCopy}</span>`;
     }
-    if (added && esperienzaPdfMobileAttiva()) {
+    if (added) {
       window.preparaConfermaPdf?.().catch((error) => {
-        console.error("[mobile-pdf-auto-analysis]", error);
+        console.error("[pdf-auto-analysis]", error);
       });
     }
   });
@@ -19237,12 +19242,17 @@ if (document.readyState === "loading") {
 
       // 1. CLIC SU: percorso con stima media
       if(btnMedi) {
-          btnMedi.addEventListener("click", function() {
+          btnMedi.addEventListener("click", function(event) {
               if (!DATI_UFFICIALI_CONFRONTO_PRONTI) {
-                  const areaRisultati = document.getElementById("results-area");
-                  if (areaRisultati) {
-                      areaRisultati.style.display = "flex";
-                      areaRisultati.innerHTML = `<div class="verdetto-box warning"><h2>Dati ARERA in caricamento</h2><p>Il profilo medio viene applicato solo dopo il caricamento degli ultimi dati ARERA validi.</p></div>`;
+                  // OFFERTALOGICA_PUBLIC_V116_20260928: i click automatici di inizializzazione
+                  // non devono lasciare avvisi ARERA dentro l'area risultati. Se il click e'
+                  // dell'utente, mostriamo solo una guida non distruttiva.
+                  if (event?.isTrusted) {
+                      mostraGuida(
+                        "comparison-next-step-guidance",
+                        "<strong>Dati economici in caricamento.</strong> Attendi qualche istante: il profilo standard sara' disponibile appena i dati sono pronti.",
+                        { scroll: true, focus: false }
+                      );
                   }
                   return;
               }
@@ -20006,26 +20016,7 @@ if (document.readyState === "loading") {
 
     /* OFFERTALOGICA_EXTERNAL_FAST_START_V2_20260922
        Solo instradamento: usa i percorsi già esistenti del calcolatore senza modificarne calcoli o validazioni. */
-    const externalEntryParams = new URLSearchParams(window.location.search || "");
-    const externalCustomerType = String(externalEntryParams.get("customer_type") || "").toLowerCase();
-    const externalBusinessActivity = String(externalEntryParams.get("business_activity") || "").toLowerCase();
-    if (externalCustomerType === "business" && !document.body.classList.contains("social-entry-active")) {
-      window.setTimeout(() => {
-        btnBusiness?.click();
-        const activitySelect = document.getElementById("business-attivita");
-        if (activitySelect && externalBusinessActivity) {
-          const supportedActivity = Array.from(activitySelect.options || []).some((option) => option.value === externalBusinessActivity);
-          if (supportedActivity) {
-            activitySelect.value = externalBusinessActivity;
-            activitySelect.dispatchEvent(new Event("change", { bubbles: true }));
-          }
-        }
-        const firstBusinessField = document.querySelector("#business-panel input:not([disabled]), #business-panel select:not([disabled])");
-        scrollFast(firstBusinessField || document.getElementById("business-panel"), "start");
-      }, 90);
-    }
-
-    const externalFastStartQuery = externalEntryParams.get("compare_start");
+    const externalFastStartQuery = new URLSearchParams(window.location.search).get("compare_start");
     const externalFastStartHash = new URLSearchParams(String(window.location.hash || "").replace(/^#/, "")).get("compare_start");
     const externalFastStart = String(externalFastStartQuery || externalFastStartHash || "").toLowerCase();
     if (["average", "photo", "pdf", "manual"].includes(externalFastStart) && !document.body.classList.contains("social-entry-active")) {
