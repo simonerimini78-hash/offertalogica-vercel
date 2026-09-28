@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.63";
+  const VERSION = "0.12.64";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
   const ANALYSIS_PAGE_SIZE = 10;
@@ -72,7 +72,7 @@
           <div class="ol-cycle-overview" data-cycle-overview><strong>Caricamento stato ciclo…</strong></div>
           <div class="ol-autopilot-pair">
             <div class="ol-autopilot-pane">
-              <h5>Piano post</h5>
+              <h5>Articoli monitorati</h5>
               <p class="ol-autopilot-save-state" data-social-plan-message>Caricamento piano post…</p>
               <div class="ol-autopilot-archive-list ol-cycle-compact-list" data-social-plan-list><p class="ol-muted">Caricamento…</p></div>
             </div>
@@ -878,6 +878,188 @@
     return { label: status || "da eseguire", tone: "pending" };
   }
 
+  function articlePublicUrl(article) {
+    const slug = String(article?.slug || "").trim();
+    return slug ? `/articoli/${encodeURIComponent(slug)}.html` : "";
+  }
+
+  function articleHistoryRecords() {
+    const map = new Map();
+    const ensure = (key, patch = {}) => {
+      if (!key) return null;
+      if (!map.has(key)) {
+        map.set(key, {
+          key,
+          articleId: "",
+          opportunityId: "",
+          article: null,
+          planItems: [],
+          runs: [],
+        });
+      }
+      const current = map.get(key);
+      const next = { ...current, ...patch };
+      if (patch.article) next.article = { ...(current.article || {}), ...patch.article };
+      map.set(key, next);
+      return next;
+    };
+
+    for (const row of socialPlanItems) {
+      const article = row?.source_article && typeof row.source_article === "object" ? row.source_article : null;
+      const articleId = String(row?.source_article_id || article?.id || "").trim();
+      const opportunityId = String(row?.opportunity_id || "").trim();
+      const key = articleId || (opportunityId ? `opportunity:${opportunityId}` : "");
+      const record = ensure(key, { articleId, opportunityId, article });
+      if (record) record.planItems.push(row);
+    }
+
+    for (const run of automationRuns) {
+      const articleId = automationRunArticleId(run);
+      const opportunityId = automationRunOpportunityId(run);
+      const key = articleId || (opportunityId ? `opportunity:${opportunityId}` : "");
+      const record = ensure(key, { articleId, opportunityId });
+      if (record) record.runs.push(run);
+    }
+
+    return [...map.values()].map((record) => {
+      const latestAt = [
+        ...(record.runs || []).map((run) => run?.started_at || run?.created_at || ""),
+        ...(record.planItems || []).map((row) => row?.updated_at || row?.created_at || ""),
+        record.article?.published_at || "",
+      ].filter(Boolean).sort().reverse()[0] || "";
+      return { ...record, latestAt };
+    }).sort((a, b) => String(b.latestAt || "").localeCompare(String(a.latestAt || "")));
+  }
+
+  function articleRelatedPlanItem(record, postType) {
+    return (record?.planItems || []).find((row) => String(row?.post_type || "") === postType) || null;
+  }
+
+  function runStateLabelFromRun(run) {
+    if (!run) return null;
+    const status = String(run.status || "");
+    const stage = String(run?.details?.stage || "");
+    if (status === "success") {
+      if (["skipped", "blocked", "waiting_human_review", "waiting_human_approval", "skipped_draft_mode"].includes(stage)) return { label: "in attesa", tone: "pending" };
+      return { label: "completato", tone: "success" };
+    }
+    if (status === "failed") return { label: "errore", tone: "failed" };
+    if (status === "running") return { label: "in corso", tone: "running" };
+    return { label: status || "da eseguire", tone: "pending" };
+  }
+
+  function articlePlanState(item) {
+    if (!item) return { label: "da eseguire", tone: "pending" };
+    const status = String(item.status || "draft");
+    if (status === "published") return { label: "completato", tone: "success" };
+    if (status === "failed") return { label: "errore", tone: "failed" };
+    if (["publishing", "scheduled"].includes(status)) return { label: "in corso", tone: "running" };
+    if (status === "cancelled") return { label: "annullato", tone: "pending" };
+    return { label: "da eseguire", tone: "pending" };
+  }
+
+  function articleStepState(record, runType) {
+    const run = (record?.runs || []).find((row) => String(row?.run_type || "") === runType) || null;
+    if (run) return runStateLabelFromRun(run);
+    if (runType === "article_publish" && String(record?.article?.status || "") === "published") return { label: "completato", tone: "success" };
+    if (runType === "article_prepare" && record?.articleId) return { label: "completato", tone: "success" };
+    if (runType === "social_followup") return articlePlanState(articleRelatedPlanItem(record, "article_followup"));
+    if (runType === "social_related") return articlePlanState(articleRelatedPlanItem(record, "related"));
+    return { label: "da eseguire", tone: "pending" };
+  }
+
+  function articleCompletionState(record) {
+    const steps = ["article_prepare", "article_publish", "social_followup", "social_related"].map((type) => articleStepState(record, type));
+    if (steps.some((step) => step.tone === "failed")) return { label: "Attenzione", tone: "failed" };
+    if (steps.every((step) => step.tone === "success")) return { label: "Completo", tone: "success" };
+    return { label: "In corso", tone: "pending" };
+  }
+
+  function articleTimelineMarkup(record) {
+    const steps = [
+      ["article_prepare", "Bozza articolo"],
+      ["article_publish", "Articolo pubblicato"],
+      ["social_followup", "Post di venerdì"],
+      ["social_related", "Post OffertaLogica"],
+    ].map(([type, title]) => ({ title, ...articleStepState(record, type) }));
+    return `<div class="ol-cycle-steps ol-cycle-steps-article">${steps.map((step) => `<span class="ol-cycle-step ol-cycle-step-${esc(step.tone)}"><b>${esc(step.title)}</b><small>${esc(step.label)}</small></span>`).join("")}</div>`;
+  }
+
+  function planItemEditorMarkup(row) {
+    const id = String(row.id || "");
+    const editable = ["draft", "approved", "cancelled"].includes(String(row.status || ""));
+    const destination = row.destination_target
+      ? `${row.destination_target.label} · ${row.destination_target.url_path}`
+      : row.post_type === "article_followup" ? "Articolo collegato" : "—";
+    const statusOptions = [
+      ["draft", "Bozza"], ["approved", "Approvato"], ["cancelled", "Annullato"],
+    ].map(([value, label]) => `<option value="${value}" ${row.status === value ? "selected" : ""}>${label}</option>`).join("");
+    return `<details class="ol-cycle-row ol-cycle-row-nested" data-social-plan-item="${esc(id)}">
+      <summary class="ol-cycle-row-summary">
+        <span><strong>${esc(row.post_type === "related" ? "Post OffertaLogica" : "Follow-up")}</strong><small>${esc(destination)}</small></span>
+        <span class="ol-cycle-status-badge ol-cycle-status-${esc(String(row.status || "draft"))}">${esc(socialPlanStatusLabel(row.status))}</span>
+      </summary>
+      <div class="ol-cycle-row-body">
+        <small>${esc(row.theme || "")}</small>
+        <div class="ol-field" style="margin-top:8px"><label>Testo canonico</label><textarea data-social-plan-text="${esc(id)}" rows="4" maxlength="4000" ${editable ? "" : "disabled"}>${esc(row.canonical_text || "")}</textarea></div>
+        <div class="ol-field" style="margin-top:8px"><label>Canali espliciti</label><div class="ol-autopilot-sources">${platformChoicesMarkup(id, row.platforms || [], "data-social-plan-platform")}</div></div>
+        ${editable ? `<div class="ol-autopilot-fields" style="margin-top:8px"><div class="ol-field"><label>Stato editoriale</label><select data-social-plan-status="${esc(id)}">${statusOptions}</select></div></div><div class="ol-toolbar-group" style="margin-top:8px"><button class="ol-button ol-button-secondary ol-button-small" type="button" data-social-plan-save="${esc(id)}">Salva post</button></div>` : ""}
+      </div>
+    </details>`;
+  }
+
+  function pendingCarryoverRecord() {
+    const cycle = currentEditorialCycle();
+    return articleHistoryRecords().find((record) => {
+      if (!record?.articleId) return false;
+      if (cycle?.opportunityId && record.opportunityId === cycle.opportunityId) return false;
+      const relatedState = articleStepState(record, "social_related");
+      const publishState = articleStepState(record, "article_publish");
+      return publishState.tone === "success" && relatedState.tone !== "success";
+    }) || null;
+  }
+
+  function renderArticleHistory(section) {
+    const list = section?.querySelector("[data-social-plan-list]");
+    const message = section?.querySelector("[data-social-plan-message]");
+    if (!list || !message) return;
+    const records = articleHistoryRecords();
+    if (!records.length) {
+      list.innerHTML = '<p class="ol-muted">Nessun articolo ancora monitorato.</p>';
+      message.textContent = "Lo storico si popolerà quando il primo articolo avrà una bozza o un post collegato.";
+      renderCycleOverview(section);
+      return;
+    }
+    list.innerHTML = records.map((record) => {
+      const article = record.article || {};
+      const summary = articleCompletionState(record);
+      const publicUrl = articlePublicUrl(article);
+      const detailLines = [];
+      const articlePublishRun = (record.runs || []).find((run) => String(run?.run_type || "") === "article_publish") || null;
+      if (articlePublishRun?.started_at) detailLines.push(`Pubblicazione ${dateIt(articlePublishRun.started_at)}`);
+      else if (article?.published_at) detailLines.push(`Pubblicazione ${dateIt(article.published_at)}`);
+      const followup = articleRelatedPlanItem(record, "article_followup");
+      const related = articleRelatedPlanItem(record, "related");
+      const carryover = articleStepState(record, "social_related").tone !== "success" && articleStepState(record, "article_publish").tone === "success";
+      return `<details class="ol-cycle-row ol-article-history-row" data-article-history="${esc(record.key)}">
+        <summary class="ol-cycle-row-summary">
+          <span><strong>${esc(article.title || followup?.theme || related?.theme || "Articolo del ciclo")}</strong><small>${esc(detailLines.join(" · ") || (record.opportunityId ? `Opportunità ${record.opportunityId}` : "Cronologia articolo"))}</small></span>
+          <span class="ol-cycle-status-badge ol-cycle-status-${esc(summary.tone)}">${esc(summary.label)}</span>
+        </summary>
+        <div class="ol-cycle-row-body">
+          ${articleTimelineMarkup(record)}
+          ${carryover ? `<div class="ol-cycle-carryover-note"><strong>Da chiudere:</strong> il Post OffertaLogica di questo articolo non risulta ancora completato.</div>` : ""}
+          ${article.excerpt ? `<small>${esc(article.excerpt)}</small>` : ""}
+          ${publicUrl ? `<div class="ol-toolbar-group"><a class="ol-button ol-button-secondary ol-button-small" href="${esc(publicUrl)}" target="_blank" rel="noopener">Apri articolo pubblico</a></div>` : ""}
+          ${(record.planItems || []).length ? `<div class="ol-article-plan-group"><small class="ol-article-plan-title">Post collegati</small>${record.planItems.map((row) => planItemEditorMarkup(row)).join("")}</div>` : ""}
+          ${(record.runs || []).length ? `<div class="ol-article-run-log"><small class="ol-article-plan-title">Registro del ciclo</small>${(record.runs || []).slice(0, 8).map((run) => { const state = runStateLabelFromRun(run); return `<div class="ol-article-run-log-item"><strong>${esc(automationRunTypeLabel(run.run_type))}</strong><span>${esc(dateIt(run.started_at || run.created_at))}</span><em class="ol-cycle-status-inline ol-cycle-status-inline-${esc(state.tone)}">${esc(state.label)}</em></div>`; }).join("")}</div>` : ""}
+        </div>
+      </details>`;
+    }).join("");
+    message.textContent = `${numberIt(records.length)} articoli monitorati. Clicca una riga per vedere lo stato completo del ciclo di quell’articolo.`;
+    renderCycleOverview(section);
+  }
+
   function renderCycleOverview(section) {
     const box = section?.querySelector("[data-cycle-overview]");
     if (!box) return;
@@ -894,44 +1076,14 @@
       ["social_related", "Post OffertaLogica"],
     ].map(([type, title]) => ({ title, ...cycleRunState(type, cycle) }));
     const startedAt = cycle.anchor?.started_at || cycle.anchor?.created_at || "";
-    box.innerHTML = `<strong>Ciclo articolo attuale</strong>${startedAt ? `<small class="ol-cycle-overview-note">Selezionato dal ciclo del ${esc(dateIt(startedAt))}. Gli stati sotto appartengono alla stessa opportunità editoriale.</small>` : ""}<div class="ol-cycle-steps">${steps.map((step) => `<span class="ol-cycle-step ol-cycle-step-${esc(step.tone)}"><b>${esc(step.title)}</b><small>${esc(step.label)}</small></span>`).join("")}</div>`;
+    const carryover = pendingCarryoverRecord();
+    const carryoverTitle = carryover?.article?.title || articleRelatedPlanItem(carryover, "related")?.theme || "Articolo del ciclo precedente";
+    const carryoverState = carryover ? articleStepState(carryover, "social_related") : null;
+    box.innerHTML = `<strong>Ciclo articolo attuale</strong>${startedAt ? `<small class="ol-cycle-overview-note">Selezionato dal ciclo del ${esc(dateIt(startedAt))}. Gli stati sotto appartengono alla stessa opportunità editoriale.</small>` : ""}<div class="ol-cycle-steps">${steps.map((step) => `<span class="ol-cycle-step ol-cycle-step-${esc(step.tone)}"><b>${esc(step.title)}</b><small>${esc(step.label)}</small></span>`).join("")}</div>${carryover ? `<div class="ol-cycle-carryover"><strong>Da chiudere dal ciclo precedente</strong><small>${esc(carryoverTitle)} · Post OffertaLogica ${esc(carryoverState?.label || "in attesa")}</small></div>` : ""}`;
   }
 
   function renderSocialPlan(section) {
-    const list = section?.querySelector("[data-social-plan-list]");
-    const message = section?.querySelector("[data-social-plan-message]");
-    if (!list || !message) return;
-    if (!socialPlanItems.length) {
-      list.innerHTML = '<p class="ol-muted">Nessun post statico preparato.</p>';
-      message.textContent = "Il piano verrà popolato insieme alle bozze articolo generate dall’Autopilota.";
-      renderCycleOverview(section);
-      return;
-    }
-    list.innerHTML = socialPlanItems.map((row) => {
-      const id = String(row.id || "");
-      const editable = ["draft", "approved", "cancelled"].includes(String(row.status || ""));
-      const destination = row.destination_target
-        ? `${row.destination_target.label} · ${row.destination_target.url_path}`
-        : row.post_type === "article_followup" ? "Articolo collegato" : "—";
-      const statusOptions = [
-        ["draft", "Bozza"], ["approved", "Approvato"], ["cancelled", "Annullato"],
-      ].map(([value, label]) => `<option value="${value}" ${row.status === value ? "selected" : ""}>${label}</option>`).join("");
-      return `<details class="ol-cycle-row" data-social-plan-item="${esc(id)}">
-        <summary class="ol-cycle-row-summary">
-          <span><strong>${esc(row.theme || row.post_type || "Post statico")}</strong><small>${esc(destination)}</small></span>
-          <span class="ol-cycle-status-badge ol-cycle-status-${esc(String(row.status || "draft"))}">${esc(socialPlanStatusLabel(row.status))}</span>
-        </summary>
-        <div class="ol-cycle-row-body">
-          <small>${esc(row.post_type || "")}${row?.source_article_image?.featured_image_url ? " · immagine articolo disponibile" : " · immagine articolo non ancora approvata"}</small>
-          <div class="ol-field" style="margin-top:8px"><label>Testo canonico</label><textarea data-social-plan-text="${esc(id)}" rows="4" maxlength="4000" ${editable ? "" : "disabled"}>${esc(row.canonical_text || "")}</textarea></div>
-          <div class="ol-field" style="margin-top:8px"><label>Canali espliciti</label><div class="ol-autopilot-sources">${platformChoicesMarkup(id, row.platforms || [], "data-social-plan-platform")}</div></div>
-          ${editable ? `<div class="ol-autopilot-fields" style="margin-top:8px"><div class="ol-field"><label>Stato editoriale</label><select data-social-plan-status="${esc(id)}">${statusOptions}</select></div></div><div class="ol-toolbar-group" style="margin-top:8px"><button class="ol-button ol-button-secondary ol-button-small" type="button" data-social-plan-save="${esc(id)}">Salva post</button></div>` : ""}
-          <small>In Automatico completo la pubblicazione viene eseguita dallo scheduler nello slot previsto.</small>
-        </div>
-      </details>`;
-    }).join("");
-    message.textContent = `${numberIt(socialPlanItems.length)} post nel piano.`;
-    renderCycleOverview(section);
+    renderArticleHistory(section);
   }
 
   async function loadSocialPlan(section) {

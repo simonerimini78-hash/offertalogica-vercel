@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { json } from "../lib/http.js";
 
-const VERSION = "0.12.63";
+const VERSION = "0.12.64";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -2771,7 +2771,7 @@ async function editorialSocialPlanPayload() {
     targets = await serviceFetch(`editorial_promotion_targets?select=id,label,url_path,category&id=in.(${targetIds.map((id) => encodeURIComponent(id)).join(",")})`);
   }
   if (articleIds.length) {
-    articles = await serviceFetch(`editorial_articles?select=id,featured_image_url,featured_image_alt&id=in.(${articleIds.map((id) => encodeURIComponent(id)).join(",")})`);
+    articles = await serviceFetch(`editorial_articles?select=id,title,slug,status,published_at,excerpt,featured_image_url,featured_image_alt&id=in.(${articleIds.map((id) => encodeURIComponent(id)).join(",")})`);
   }
   const targetMap = new Map((targets || []).map((row) => [row.id, row]));
   const articleMap = new Map((articles || []).map((row) => [row.id, row]));
@@ -2782,6 +2782,7 @@ async function editorialSocialPlanPayload() {
     items: (items || []).map((row) => ({
       ...row,
       destination_target: targetMap.get(row.destination_target_id) || null,
+      source_article: articleMap.get(row.source_article_id) || null,
       source_article_image: articleMap.get(row.source_article_id) || null,
     })),
   };
@@ -3039,23 +3040,9 @@ async function renderAndUploadEditorialSocialCard({ article, sourceImageUrl, pos
       height: rendered.height || 1350,
     };
   } catch (error) {
-    // Il renderer Sharp e' un miglioramento grafico, non un requisito per far avanzare
-    // il calendario. Se il runtime nativo non e' disponibile, riutilizziamo l'immagine
-    // HTTPS gia' generata/approvata: le Edge Function ricevono comunque un asset valido
-    // e il tick puo' proseguire fino allo slot schedulato.
-    if (!/^https:\/\//i.test(normalizedSourceImageUrl)) throw error;
-    console.warn("editorial_social_card_renderer_fallback", String(error?.message || error).slice(0, 500));
-    return {
-      ...common,
-      source: "source_image_fallback",
-      renderer: "source_image_fallback",
-      url: normalizedSourceImageUrl,
-      object_path: null,
-      mime_type: null,
-      width: null,
-      height: null,
-      render_error: String(error?.message || error).slice(0, 500),
-    };
+    const message = String(error?.message || error).slice(0, 500);
+    console.warn("editorial_social_card_renderer_failed", message);
+    throw new Error(`Cover social OL Informa non generata: ${message}`);
   }
 }
 
@@ -3681,7 +3668,7 @@ async function schedulerPrepareMissingSocialAsset(user) {
 }
 
 async function automationRunsPayload() {
-  const rows = await serviceFetch("editorial_automation_runs?select=id,run_type,status,scheduled_for,started_at,finished_at,opportunity_id,article_id,social_plan_item_id,details,last_error,created_at&order=created_at.desc&limit=20");
+  const rows = await serviceFetch("editorial_automation_runs?select=id,run_type,status,scheduled_for,started_at,finished_at,opportunity_id,article_id,social_plan_item_id,details,last_error,created_at&order=created_at.desc&limit=100");
   return { ok: true, version: VERSION, runs: rows || [] };
 }
 
