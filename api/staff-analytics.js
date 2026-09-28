@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { json } from "../lib/http.js";
 
-const VERSION = "0.12.72";
+const VERSION = "0.12.73";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -2942,9 +2942,7 @@ function editorialArticleIntroAssetFingerprint(article, articleImageUrl) {
   })).digest("hex");
 }
 
-function editorialSocialCoverLabel(postType) {
-  if (postType === "related") return "SOLUZIONE OFFERTALOGICA";
-  if (postType === "article_followup") return "APPROFONDIMENTO";
+function editorialSocialCoverLabel() {
   return "IN SINTESI";
 }
 
@@ -3149,7 +3147,7 @@ async function buildEditorialSocialCoverText(article, item, target, targetContex
   return cover;
 }
 
-async function buildEditorialSocialAssetBrief(article, item, target, targetContext = null) {
+async function buildEditorialSocialAssetBrief(article, item, target, targetContext = null, qualityGuidance = "") {
   const content = cleanEditorialText(article?.content, 4200).replace(/[#*_`>-]+/g, " ").replace(/\s+/g, " ");
   const destination = target
     ? `${cleanEditorialText(target.label, 180)} | ${cleanEditorialText(target.url_path, 500)}${target.category ? ` | ${cleanEditorialText(target.category, 80)}` : ""}`
@@ -3166,6 +3164,7 @@ async function buildEditorialSocialAssetBrief(article, item, target, targetConte
     targetContext?.title ? `Titolo reale della pagina di destinazione: ${cleanEditorialText(targetContext.title, 300)}.` : "",
     targetContext?.h1 ? `H1 reale della pagina di destinazione: ${cleanEditorialText(targetContext.h1, 300)}.` : "",
     targetContext?.description ? `Descrizione reale della pagina di destinazione: ${cleanEditorialText(targetContext.description, 500)}.` : "",
+    qualityGuidance ? `Correzione obbligatoria richiesta dalla revisione precedente: ${cleanEditorialText(qualityGuidance, 700)}.` : "",
   ].filter(Boolean).join(" ");
   const response = await openAiResponseRequest("", {
     method: "POST",
@@ -3175,14 +3174,15 @@ async function buildEditorialSocialAssetBrief(article, item, target, targetConte
         "Sei il social editor di OffertaLogica.it. Prepara testi e brief visuale usando solo i contenuti forniti.",
         "Il post non deve sembrare il duplicato dell'articolo: scegli un angolo pratico specifico e non ripetere titolo o sommario quasi alla lettera.",
         "Per article_followup sviluppa un solo insight utile dell'articolo e invita ad approfondire l'articolo.",
-        "Per related crea un ponte esplicito ma prudente tra il problema trattato nell'articolo e la destinazione OffertaLogica indicata. Non promettere risparmi, risultati o funzioni non dimostrati dalla destinazione.",
+        "Per related scegli un solo punto pratico dell'articolo e collegalo a una funzione reale della pagina di destinazione. Il collegamento deve essere concreto e verificabile dai dati della pagina, non uno slogan.",
+        "Per related NON usare formule come 'Soluzione OffertaLogica', 'trovi la soluzione', 'soluzione collegata', 'approfondisci dal profilo' o frasi equivalenti. Il marchio non deve essere inserito nel titolo o nella sintesi della card salvo che sia indispensabile per capire la funzione reale citata.",
         "facebook_text: 220-700 caratteri, apertura concreta, 2-4 frasi, tono informativo, nessun URL perché verrà aggiunto dal sistema.",
         "instagram_text: 220-900 caratteri, apertura concreta, 2-5 frasi, nessun URL e nessun 'link in bio'. Puoi chiudere con un invito neutro ad approfondire dal profilo OffertaLogica.",
-        "cover_title: 35-95 caratteri. Deve essere il titolo della card social e deve essere diverso dal titolo dell'articolo, pur restando fedele al contenuto.",
-        "cover_summary: 90-190 caratteri. Deve spiegare in una frase autonoma il valore pratico del post senza ripetere cover_title.",
+        "cover_title: 35-95 caratteri. Deve essere naturale, specifico e immediatamente comprensibile anche senza leggere la caption. Evita formule astratte, burocratiche o da report.",
+        "cover_summary: 90-190 caratteri. Deve spiegare in una frase autonoma perché quel punto è utile al lettore, senza ripetere cover_title e senza trasformarsi in una CTA pubblicitaria.",
         "Non usare hashtag, emoji, slogan aggressivi o formule promozionali generiche.",
         "Il visuale deve essere una nuova fotografia quadrata 1:1, pronta per essere inserita nella cover social OffertaLogica, pertinente al tema specifico e chiaramente diversa per composizione e messaggio dalla hero dell'articolo.",
-        "Per related il visuale deve rendere percepibile il passaggio dal problema alla decisione/soluzione collegata alla destinazione, senza mostrare loghi, testo, prezzi, bollette leggibili o interfacce inventate.",
+        "Per related il visuale deve rappresentare il tema pratico del post; non deve illustrare genericamente una 'soluzione'. Non mostrare loghi, testo, prezzi, bollette leggibili o interfacce inventate.",
       ].join(" "),
       input,
       reasoning: { effort: "low" },
@@ -3218,14 +3218,95 @@ async function buildEditorialSocialAssetBrief(article, item, target, targetConte
   if (brief.facebook_text.length < 120 || brief.instagram_text.length < 120 || !editorialSocialBriefHasCover(brief) || !brief.visual_subject || !brief.visual_scene || brief.must_show.length < 2) {
     throw new Error("Asset social: brief incompleto");
   }
-  if (String(item?.post_type || "") === "related" && !/offertalogica/i.test(`${brief.cover_title} ${brief.cover_summary}`)) {
-    const destinationLabel = cleanEditorialText(target?.label, 120);
-    const bridge = destinationLabel
-      ? `Su OffertaLogica trovi ${destinationLabel.replace(/[.!?]+$/g, "")}.`
-      : "Su OffertaLogica trovi la soluzione collegata a questo approfondimento.";
-    brief.cover_summary = cleanEditorialText(`${brief.cover_summary} ${bridge}`, 420);
-  }
   return brief;
+}
+
+function editorialSocialCopyQaSchema() {
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: ["grounded_in_article", "grounded_in_destination", "specific_not_generic", "natural_professional_language", "cover_clear", "misleading", "reason", "rewrite_guidance"],
+    properties: {
+      grounded_in_article: { type: "boolean" },
+      grounded_in_destination: { type: "boolean" },
+      specific_not_generic: { type: "boolean" },
+      natural_professional_language: { type: "boolean" },
+      cover_clear: { type: "boolean" },
+      misleading: { type: "boolean" },
+      reason: { type: "string" },
+      rewrite_guidance: { type: "string" },
+    },
+  };
+}
+
+async function evaluateEditorialSocialCopy(article, item, target, targetContext, brief) {
+  const related = String(item?.post_type || "") === "related";
+  const text = [
+    `Tipo post: ${cleanEditorialText(item?.post_type, 40)}.`,
+    `Titolo articolo: ${cleanEditorialText(article?.title, 160)}.`,
+    `Sommario articolo: ${cleanEditorialText(article?.excerpt, 360)}.`,
+    target ? `Destinazione prevista: ${cleanEditorialText(target.label, 180)} | ${cleanEditorialText(target.url_path, 500)}.` : "Nessuna destinazione diversa dall'articolo.",
+    targetContext?.title ? `Titolo pagina destinazione: ${cleanEditorialText(targetContext.title, 300)}.` : "",
+    targetContext?.h1 ? `H1 pagina destinazione: ${cleanEditorialText(targetContext.h1, 300)}.` : "",
+    targetContext?.description ? `Descrizione pagina destinazione: ${cleanEditorialText(targetContext.description, 500)}.` : "",
+    `Titolo card proposto: ${cleanEditorialText(brief?.cover_title, 220)}.`,
+    `Sintesi card proposta: ${cleanEditorialText(brief?.cover_summary, 420)}.`,
+    `Caption Facebook proposta: ${cleanEditorialText(brief?.facebook_text, 900)}.`,
+    `Caption Instagram proposta: ${cleanEditorialText(brief?.instagram_text, 1100)}.`,
+  ].filter(Boolean).join(" ");
+  const response = await openAiResponseRequest("", {
+    method: "POST",
+    body: {
+      model: editorialAiModel(),
+      instructions: [
+        "Sei il revisore editoriale finale di OffertaLogica Informa. Devi essere severo: approva solo copy che sembrano scritti da una redazione professionale.",
+        "grounded_in_article è vero solo se titolo, sintesi e caption derivano chiaramente dai contenuti dell'articolo e non introducono affermazioni nuove.",
+        related
+          ? "grounded_in_destination è vero solo se il collegamento alla destinazione è concreto e sostenuto da titolo, H1 o descrizione reali della pagina. Un richiamo generico a OffertaLogica non basta."
+          : "Per questo post non esiste una destinazione distinta: imposta grounded_in_destination=true se il copy rimanda correttamente all'articolo.",
+        "specific_not_generic è falso per slogan, frasi vaghe, formule da report o testi che potrebbero essere riutilizzati quasi identici per qualsiasi articolo.",
+        "natural_professional_language è falso per espressioni macchinose o artificiali come 'soluzione collegata', 'due verifiche da distinguere', 'sono piani diversi', 'completare l'analisi' quando non sono indispensabili, o per CTA inserite a forza.",
+        "cover_clear è vero solo se titolo e sintesi della card sono utili, leggibili e coerenti con lo stile editoriale OffertaLogica Informa: informano prima di promuovere.",
+        "misleading è vero se il copy promette risultati, risparmi o funzioni non dimostrate dalle informazioni fornite.",
+        "Se qualcosa non va, rewrite_guidance deve indicare in modo concreto cosa riscrivere. Se tutto va bene, rewrite_guidance deve essere vuoto.",
+      ].join(" "),
+      input: text,
+      reasoning: { effort: "low" },
+      max_output_tokens: 900,
+      store: false,
+      text: {
+        format: {
+          type: "json_schema",
+          name: "offertalogica_social_copy_qa",
+          strict: true,
+          schema: editorialSocialCopyQaSchema(),
+        },
+      },
+    },
+  });
+  let parsed;
+  try { parsed = JSON.parse(responseOutputText(response)); }
+  catch { throw new Error("QA copy social: risposta AI non interpretabile"); }
+  const passed = parsed?.grounded_in_article === true
+    && parsed?.grounded_in_destination === true
+    && parsed?.specific_not_generic === true
+    && parsed?.natural_professional_language === true
+    && parsed?.cover_clear === true
+    && parsed?.misleading !== true;
+  return {
+    schema_version: 1,
+    status: passed ? "passed" : "failed",
+    evaluated_at: new Date().toISOString(),
+    model: editorialAiModel(),
+    grounded_in_article: parsed?.grounded_in_article === true,
+    grounded_in_destination: parsed?.grounded_in_destination === true,
+    specific_not_generic: parsed?.specific_not_generic === true,
+    natural_professional_language: parsed?.natural_professional_language === true,
+    cover_clear: parsed?.cover_clear === true,
+    misleading: parsed?.misleading === true,
+    reason: cleanEditorialText(parsed?.reason, 700),
+    rewrite_guidance: passed ? "" : cleanEditorialText(parsed?.rewrite_guidance, 700),
+  };
 }
 
 function editorialSocialImagePrompt(article, item, target, brief, guidance = "") {
@@ -3244,7 +3325,7 @@ function editorialSocialImagePrompt(article, item, target, brief, guidance = "")
     mustAvoid ? `Elements to avoid: ${mustAvoid}.` : "",
     extra ? `Regeneration guidance: ${extra}.` : "",
     "Composition: square 1:1 social-feed image, one clear focal point, strong crop, natural believable lighting, professional Italian/European editorial photography.",
-    "Make the composition and visual emphasis clearly different from a generic article hero image. It must work as a standalone social visual, not as a second copy of the article cover.",
+    "Make the composition and visual emphasis clearly different from a generic article hero image. It must work as a standalone social visual, not as a second copy of the article cover or as a generic advertising image.",
     "Do not add text, captions, letters, numbers, logos, brand marks, watermarks, readable documents, prices, charts, fake interfaces or infographic overlays.",
     "Do not invent a specific real person, company, event, document or measurable result that the supplied context does not establish.",
     "The result must look like a real photograph, not an illustration, collage, 3D render or generic stock advertisement.",
@@ -3536,12 +3617,32 @@ async function schedulerPrepareMissingSocialAsset(user, options = {}) {
 
       if (!asset.brief) {
         const targetContext = await editorialSocialTargetContext(target);
-        const brief = await buildEditorialSocialAssetBrief(article, item, target, targetContext);
-        asset = { ...asset, schema_version: 2, brief, target_context: targetContext, status: "brief_ready", updated_at: new Date().toISOString() };
+        if (String(item.post_type || "") === "related" && !cleanEditorialText(targetContext?.title || targetContext?.h1 || targetContext?.description, 500)) {
+          throw new Error("Asset social related: pagina OffertaLogica di destinazione non verificabile; pubblicazione bloccata");
+        }
+        let brief = await buildEditorialSocialAssetBrief(article, item, target, targetContext);
+        let copyQa = await evaluateEditorialSocialCopy(article, item, target, targetContext, brief);
+        if (copyQa.status !== "passed") {
+          const guidance = copyQa.rewrite_guidance || copyQa.reason || "Riscrivi con un angolo più concreto, naturale e specifico.";
+          brief = await buildEditorialSocialAssetBrief(article, item, target, targetContext, guidance);
+          copyQa = await evaluateEditorialSocialCopy(article, item, target, targetContext, brief);
+        }
+        brief = { ...brief, copy_qa: copyQa };
+        const copyReady = copyQa.status === "passed";
+        asset = { ...asset, schema_version: 2, brief, target_context: targetContext, status: copyReady ? "brief_ready" : "human_review_required", updated_at: new Date().toISOString() };
         state.items[item.id] = asset;
         await saveEditorialSocialAssetsState(user, opportunity, state);
-        return { action: "social_asset_brief_generated", opportunity_id: opportunity.id, article_id: article.id, social_plan_item_id: item.id, post_type: item.post_type };
+        return {
+          action: copyReady ? "social_asset_brief_generated" : "social_asset_copy_human_review_required",
+          opportunity_id: opportunity.id,
+          article_id: article.id,
+          social_plan_item_id: item.id,
+          post_type: item.post_type,
+          copy_qa: copyQa,
+        };
       }
+
+      if (asset.brief?.copy_qa && String(asset.brief.copy_qa.status || "") !== "passed") continue;
 
       if (!editorialSocialBriefHasCover(asset.brief)) {
         const targetContext = asset.target_context || await editorialSocialTargetContext(target);
