@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.61";
+  const VERSION = "0.12.63";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
   const ANALYSIS_PAGE_SIZE = 10;
@@ -834,11 +834,45 @@
     return ({ draft: "Bozza", approved: "Approvato", cancelled: "Annullato", scheduled: "Programmato", publishing: "Pubblicazione", published: "Pubblicato", failed: "Errore" })[status] || status || "—";
   }
 
-  function cycleRunState(runType) {
-    const run = automationRuns.find((row) => String(row?.run_type || "") === runType) || null;
+  function automationRunOpportunityId(run) {
+    const details = run?.details || {};
+    return String(run?.opportunity_id || details.selected_opportunity_id || details.opportunity_id || "").trim();
+  }
+
+  function automationRunArticleId(run) {
+    return String(run?.article_id || run?.details?.article_id || "").trim();
+  }
+
+  function currentEditorialCycle() {
+    const anchor = automationRuns.find((run) => automationRunOpportunityId(run)) || null;
+    if (!anchor) return null;
+    const opportunityId = automationRunOpportunityId(anchor);
+    const articleRun = automationRuns.find((run) => automationRunOpportunityId(run) === opportunityId && automationRunArticleId(run)) || null;
+    return {
+      opportunityId,
+      articleId: automationRunArticleId(articleRun),
+      anchor,
+    };
+  }
+
+  function cycleRunState(runType, cycle) {
+    if (!cycle?.opportunityId) return { label: "da eseguire", tone: "pending" };
+    const run = automationRuns.find((row) => {
+      if (String(row?.run_type || "") !== runType) return false;
+      if (automationRunOpportunityId(row) !== cycle.opportunityId) return false;
+      if (cycle.articleId && runType !== "research") {
+        const rowArticleId = automationRunArticleId(row);
+        if (rowArticleId && rowArticleId !== cycle.articleId) return false;
+      }
+      return true;
+    }) || null;
     if (!run) return { label: "da eseguire", tone: "pending" };
     const status = String(run.status || "");
-    if (status === "success") return { label: "completato", tone: "success" };
+    if (status === "success") {
+      const stage = String(run?.details?.stage || "");
+      if (["skipped", "blocked", "waiting_human_review"].includes(stage)) return { label: "in attesa", tone: "pending" };
+      return { label: "completato", tone: "success" };
+    }
     if (status === "failed") return { label: "errore", tone: "failed" };
     if (status === "running") return { label: "in corso", tone: "running" };
     return { label: status || "da eseguire", tone: "pending" };
@@ -847,14 +881,20 @@
   function renderCycleOverview(section) {
     const box = section?.querySelector("[data-cycle-overview]");
     if (!box) return;
+    const cycle = currentEditorialCycle();
+    if (!cycle) {
+      box.innerHTML = '<strong>Ciclo articolo attuale</strong><p class="ol-muted">Nessun ciclo con opportunità selezionata è ancora registrato.</p>';
+      return;
+    }
     const steps = [
       ["research", "Ricerca"],
       ["article_prepare", "Bozza articolo"],
       ["article_publish", "Pubblicazione"],
       ["social_followup", "Follow-up"],
       ["social_related", "Post OffertaLogica"],
-    ].map(([type, title]) => ({ title, ...cycleRunState(type) }));
-    box.innerHTML = `<strong>Ultimo stato registrato</strong><div class="ol-cycle-steps">${steps.map((step) => `<span class="ol-cycle-step ol-cycle-step-${esc(step.tone)}"><b>${esc(step.title)}</b><small>${esc(step.label)}</small></span>`).join("")}</div>`;
+    ].map(([type, title]) => ({ title, ...cycleRunState(type, cycle) }));
+    const startedAt = cycle.anchor?.started_at || cycle.anchor?.created_at || "";
+    box.innerHTML = `<strong>Ciclo articolo attuale</strong>${startedAt ? `<small class="ol-cycle-overview-note">Selezionato dal ciclo del ${esc(dateIt(startedAt))}. Gli stati sotto appartengono alla stessa opportunità editoriale.</small>` : ""}<div class="ol-cycle-steps">${steps.map((step) => `<span class="ol-cycle-step ol-cycle-step-${esc(step.tone)}"><b>${esc(step.title)}</b><small>${esc(step.label)}</small></span>`).join("")}</div>`;
   }
 
   function renderSocialPlan(section) {
