@@ -12382,8 +12382,21 @@ function aggiornaCoperturaConsumer(classificate, mostrate) {
 }
 
 function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitura) {
+  // OFFERTALOGICA_PUBLIC_V117_20260928_SELECTED_OFFER_CARD
+  // La proposta scelta dal menu facoltativo deve poter essere proseguita con la stessa
+  // card delle offerte del ranking. Se non rientra nelle offerte mostrate, la rendiamo
+  // in un gruppo dedicato senza inserirla nel ranking economico e senza alterarne l'ordine.
   const offerteCandidati = costruisciOfferteRanking(attuale, tipoTariffa, tipoFornitura);
-  assicuraSchedeOfferte(offerteCandidati);
+  const offertaSelezionataDaMenu = NUOVA_OFFERTA_AUTOMATICA?.offerta || null;
+  const idsCandidatiRanking = new Set(offerteCandidati.map((offerta) => String(offerta?.id || "")));
+  const offertaSelezionataExtra = offertaSelezionataDaMenu
+    && !idsCandidatiRanking.has(String(offertaSelezionataDaMenu?.id || ""))
+      ? offertaSelezionataDaMenu
+      : null;
+  const offerteDaCalcolare = offertaSelezionataExtra
+    ? [...offerteCandidati, offertaSelezionataExtra]
+    : offerteCandidati;
+  assicuraSchedeOfferte(offerteDaCalcolare);
   const sezioneFornitori = document.querySelector(".fornitori-consigliati-section");
   const contenitoreSchede = document.querySelector(".vertical-cards-container");
   const offerteCalcolate = [];
@@ -12401,7 +12414,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
   });
   const emptyMessage = assicuraMessaggioOfferteVuote();
 
-  offerteCandidati.forEach((offerta) => {
+  offerteDaCalcolare.forEach((offerta) => {
     const saving = document.getElementById(`risparmio-partner-${offerta.id}`);
     const card = saving?.closest(".partner-vertical-card");
     if (!saving || !card) return;
@@ -12411,12 +12424,15 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       return;
     }
 
+    const offertaSelezionata = Boolean(offertaSelezionataDaMenu)
+      && String(offerta?.id || "") === String(offertaSelezionataDaMenu?.id || "");
+    const soloOffertaSelezionata = Boolean(offertaSelezionataExtra) && offertaSelezionata;
     const compatibileRanking = offertaCompatibileConRanking(offerta, tipoTariffa, tipoFornitura);
     const filtroEsatto = tipoPrezzoCompatibileConRanking(offerta, tipoTariffa)
       && offertaCoerenteConFornitura(offerta, tipoFornitura);
     const attivabileOnline = offertaAttivabileOnline(offerta);
     const attivabileCoerente = attivabileOnline && filtroEsatto;
-    if (!compatibileRanking && !attivabileCoerente) {
+    if (!offertaSelezionata && !compatibileRanking && !attivabileCoerente) {
       card.style.setProperty("display", "none", "important");
       return;
     }
@@ -12444,10 +12460,12 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       risparmio,
       saving,
       ambito,
+      soloOffertaSelezionata,
     });
   });
 
-  const ordinateRanking = offerteCalcolate
+  const offerteCalcolateRanking = offerteCalcolate.filter((item) => !item.soloOffertaSelezionata);
+  const ordinateRanking = offerteCalcolateRanking
     .filter((item) => item.compatibileRanking)
     .sort((a, b) => (b.differenza - a.differenza) || (a.costo - b.costo))
     .map((item, index) => ({ ...item, posizioneEconomica: index + 1 }));
@@ -12467,8 +12485,16 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
   const attivabiliVisibili = visibili.filter((item) => item.attivabileOnline);
   const assistiteVisibili = visibili.filter((item) => !item.attivabileOnline);
   const idsVisibili = new Set(visibili.map((item) => String(item.offerta.id)));
-  const migliore = visibili[0] || ordinateRanking[0] || offerteCalcolate[0] || null;
+  const migliore = visibili[0] || ordinateRanking[0] || offerteCalcolateRanking[0] || null;
   const hasVisibleOffers = visibili.length > 0;
+  const idOffertaSelezionata = String(offertaSelezionataDaMenu?.id || "");
+  const selezionataCalcolata = idOffertaSelezionata
+    ? offerteCalcolate.find((item) => String(item.offerta?.id || "") === idOffertaSelezionata) || null
+    : null;
+  const selezionataInRanking = idOffertaSelezionata
+    ? ordinateRanking.find((item) => String(item.offerta?.id || "") === idOffertaSelezionata) || null
+    : null;
+  const mostraCardSelezionata = Boolean(selezionataCalcolata) && !idsVisibili.has(idOffertaSelezionata);
   aggiornaCoperturaConsumer(ordinateRanking.length, visibili.length);
 
   ["offerte-partner-online-group", "offerte-consulente-group"].forEach((id) => {
@@ -12488,6 +12514,16 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
     titoloRanking,
     testoRanking
   );
+  const gruppoOffertaSelezionata = assicuraGruppoOfferte(
+    "offerta-selezionata-group",
+    "selected-offer-group",
+    "Offerta selezionata",
+    "È la proposta che hai scelto dal menu. Puoi proseguire con lo stesso percorso disponibile nelle altre card."
+  );
+  if (gruppoOffertaSelezionata && gruppoRanking && contenitoreSchede) {
+    contenitoreSchede.insertBefore(gruppoOffertaSelezionata, gruppoRanking);
+  }
+  const contenitoreOffertaSelezionata = resetGruppoOfferte(gruppoOffertaSelezionata, mostraCardSelezionata);
   const mediaContext = gruppoRanking?.querySelector(".offers-media-context");
   if (mediaContext) {
     mediaContext.hidden = modalitaCalcolo !== "media";
@@ -12520,13 +12556,28 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
     if (!hasVisibleOffers) contenitoreSchede?.appendChild(emptyMessage);
   }
 
-  visibili.forEach(({ card, offerta, costo, costoOfferta, attualeComparabile, differenza, risparmio, saving, ambito, posizioneEconomica, posizioneGruppo, gruppoVisuale, attivabileOnline, compatibileRanking, filtroEsatto, alternativeFiltro }) => {
-      const contenitoreTarget = contenitoreRanking;
+  const elementiDaRenderizzare = visibili.map((item) => ({
+    ...item,
+    contenitoreTarget: contenitoreRanking,
+    offertaSelezionata: false,
+  }));
+  if (mostraCardSelezionata && selezionataCalcolata) {
+    elementiDaRenderizzare.unshift({
+      ...selezionataCalcolata,
+      posizioneEconomica: Number(selezionataInRanking?.posizioneEconomica || 0),
+      posizioneGruppo: 1,
+      gruppoVisuale: "selected",
+      contenitoreTarget: contenitoreOffertaSelezionata,
+      offertaSelezionata: true,
+    });
+  }
+
+  elementiDaRenderizzare.forEach(({ card, offerta, costo, costoOfferta, attualeComparabile, differenza, risparmio, saving, ambito, posizioneEconomica, posizioneGruppo, gruppoVisuale, attivabileOnline, compatibileRanking, filtroEsatto, alternativeFiltro, contenitoreTarget, offertaSelezionata }) => {
       const context = {
         economyRank: posizioneEconomica,
         displayRank: posizioneGruppo,
-        displayGroup: gruppoVisuale,
-        isTopEconomic: posizioneEconomica === 1,
+        displayGroup: offertaSelezionata ? "selected" : gruppoVisuale,
+        isTopEconomic: !offertaSelezionata && posizioneEconomica === 1,
         isActiveAffiliate: attivabileOnline,
         matchesSelectedFilter: Boolean(filtroEsatto),
         isFilterAlternative: Boolean(alternativeFiltro),
@@ -12540,15 +12591,17 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       OFFER_RENDER_CONTEXTS.set(String(offerta.id), context);
 
       card.style.display = "flex";
-      card.style.borderColor = posizioneEconomica === 1 ? "var(--primary)" : "var(--border)";
-      card.style.boxShadow = posizioneEconomica === 1 ? "0 0 0 1px rgba(16, 185, 129, 0.18)" : "none";
+      card.style.borderColor = (offertaSelezionata || posizioneEconomica === 1) ? "var(--primary)" : "var(--border)";
+      card.style.boxShadow = (offertaSelezionata || posizioneEconomica === 1) ? "0 0 0 1px rgba(16, 185, 129, 0.18)" : "none";
       card.classList.remove("locked-offer");
 
       const title = card.querySelector(".partner-title");
       const details = card.querySelector(".partner-details");
       const link = card.querySelector("a");
       const separataMulti = offertaSeparataMultiFornitore(offerta);
-      const badgeText = testoBadgeOfferta({ offerta, posizioneEconomica, posizioneGruppo, gruppoVisuale, costo, compatibileRanking }, migliore);
+      const badgeText = offertaSelezionata
+        ? (posizioneEconomica ? `Posizione economica ${posizioneEconomica}` : "Offerta selezionata")
+        : testoBadgeOfferta({ offerta, posizioneEconomica, posizioneGruppo, gruppoVisuale, costo, compatibileRanking }, migliore);
       const tipoPrezzoBadge = offerta?.tipo === "variabile" ? "Prezzo variabile" : "Prezzo fisso";
       const badge = `<span class="offer-position-badge" style="display:inline-block; margin:0 0 6px; padding:3px 8px; border:1px solid; border-radius:999px; font-size:11px; font-weight:800; ${stileBadgeOfferta({ posizioneEconomica, gruppoVisuale })}">${badgeText}</span>`;
       const livelloStima = classificaLivelloStima(attualeComparabile, costoOfferta);
