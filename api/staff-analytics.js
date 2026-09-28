@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { json } from "../lib/http.js";
 
-const VERSION = "0.12.56";
+const VERSION = "0.12.60";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -3661,13 +3661,27 @@ async function automationRunsPayload() {
 }
 
 
+function automationCronSecretEqual(left, right) {
+  const a = Buffer.from(String(left || ""));
+  const b = Buffer.from(String(right || ""));
+  return a.length > 0 && a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
 async function automationCronAuthorized(req) {
-  const secret = String(req.headers?.["x-offertalogica-autopilot-secret"] || "").trim();
-  if (secret.length < 32 || secret.length > 256) return false;
+  // Vercel Cron, quando CRON_SECRET e' configurato, invia
+  // Authorization: Bearer <CRON_SECRET>. Manteniamo anche il vecchio
+  // header dedicato per eventuali trigger esterni gia' configurati.
+  const authorization = String(req.headers?.authorization || "").trim();
+  const bearerSecret = authorization.match(/^Bearer\s+(.+)$/i)?.[1]?.trim() || "";
+  const vercelCronSecret = env("CRON_SECRET");
+  if (vercelCronSecret && automationCronSecretEqual(bearerSecret, vercelCronSecret)) return true;
+
+  const legacySecret = String(req.headers?.["x-offertalogica-autopilot-secret"] || bearerSecret || "").trim();
+  if (legacySecret.length < 32 || legacySecret.length > 256) return false;
   try {
     const verified = await serviceFetch("rpc/editorial_autopilot_verify_cron_secret", {
       method: "POST",
-      body: { p_secret: secret },
+      body: { p_secret: legacySecret },
     });
     return verified === true || verified?.verified === true;
   } catch {
