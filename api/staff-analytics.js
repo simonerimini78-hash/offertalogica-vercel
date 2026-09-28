@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { json } from "../lib/http.js";
 
-const VERSION = "0.12.70";
+const VERSION = "0.12.72";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -29,7 +29,7 @@ const EDITORIAL_PAGE_FETCH_TIMEOUT_MS = 20000;
 const EDITORIAL_PLAN_POST_TYPES = new Set(["article_followup", "related", "evergreen", "service", "data"]);
 const EDITORIAL_PLAN_EDITABLE_STATUSES = new Set(["draft", "approved", "cancelled"]);
 const EDITORIAL_SOCIAL_PLATFORMS = new Set(["facebook", "instagram"]);
-const EDITORIAL_SOCIAL_RUNTIME_VERSION = "0.12.53";
+const EDITORIAL_SOCIAL_RUNTIME_VERSION = "0.12.71";
 // Il renderer grafico delle card social e' caricato solo quando serve.
 // Dalla v0.12.70 usa resvg WebAssembly: nessun Pango/Fontconfig/libvips e nessun addon nativo
 // nel percorso di composizione della card. Il JPEG finale e' codificato in puro JavaScript.
