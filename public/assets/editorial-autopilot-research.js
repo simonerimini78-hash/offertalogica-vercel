@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.65";
+  const VERSION = "0.12.66";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
   const ANALYSIS_PAGE_SIZE = 10;
@@ -975,6 +975,40 @@
     return { label: "In corso", tone: "pending" };
   }
 
+  function articleOpportunity(record) {
+    const id = String(record?.opportunityId || "");
+    return opportunityRows.find((row) => String(row?.id || "") === id) || null;
+  }
+
+  function articleResearchMarkup(record) {
+    const opportunity = articleOpportunity(record);
+    if (!opportunity) return '<div class="ol-article-history-section"><strong>Ricerca selezionata</strong><small>Dati della selezione non disponibili nello storico caricato.</small></div>';
+    const queries = opportunityQueryExamples(opportunity);
+    const brief = opportunity?.editorial_brief && typeof opportunity.editorial_brief === "object" ? opportunity.editorial_brief : null;
+    return `<div class="ol-article-history-section">
+      <strong>Ricerca selezionata per questo articolo</strong>
+      <div class="ol-article-selected-topic"><b>${esc(opportunity.topic || "Tema non disponibile")}</b>${manualIdeaMeta(opportunity) ? '<span>Idea manuale</span>' : `<span>${Number(opportunity.score || 0)}/100</span>`}</div>
+      ${opportunity.rationale ? `<small><b>Perché è stata selezionata:</b> ${esc(opportunity.rationale)}</small>` : ""}
+      ${queries.length ? `<small><b>Query collegate:</b> ${esc(queries.join(" · "))}</small>` : ""}
+      ${brief?.search_intent ? `<small><b>Intento:</b> ${esc(brief.search_intent)}</small>` : ""}
+      ${brief?.article_angle ? `<small><b>Brief editoriale:</b> ${esc(brief.article_angle)}</small>` : ""}
+    </div>`;
+  }
+
+  function articleDraftMarkup(record) {
+    const article = record?.article || {};
+    if (!record?.articleId) return "";
+    const content = String(article.content || "").trim();
+    const sources = String(article.sources || "").trim();
+    return `<div class="ol-article-history-section">
+      <strong>Bozza / articolo</strong>
+      ${article.title ? `<small><b>Titolo:</b> ${esc(article.title)}</small>` : ""}
+      ${article.excerpt ? `<small><b>Sommario:</b> ${esc(article.excerpt)}</small>` : ""}
+      ${content ? `<details class="ol-article-text-details"><summary>Apri testo completo</summary><pre>${esc(content)}</pre></details>` : '<small>Testo della bozza non disponibile.</small>'}
+      ${sources ? `<details class="ol-article-text-details"><summary>Apri fonti</summary><pre>${esc(sources)}</pre></details>` : ""}
+    </div>`;
+  }
+
   function articleTimelineMarkup(record) {
     const steps = [
       ["article_prepare", "Bozza articolo"],
@@ -1004,6 +1038,7 @@
         <div class="ol-field" style="margin-top:8px"><label>Testo canonico</label><textarea data-social-plan-text="${esc(id)}" rows="4" maxlength="4000" ${editable ? "" : "disabled"}>${esc(row.canonical_text || "")}</textarea></div>
         <div class="ol-field" style="margin-top:8px"><label>Canali espliciti</label><div class="ol-autopilot-sources">${platformChoicesMarkup(id, row.platforms || [], "data-social-plan-platform")}</div></div>
         ${editable ? `<div class="ol-autopilot-fields" style="margin-top:8px"><div class="ol-field"><label>Stato editoriale</label><select data-social-plan-status="${esc(id)}">${statusOptions}</select></div></div><div class="ol-toolbar-group" style="margin-top:8px"><button class="ol-button ol-button-secondary ol-button-small" type="button" data-social-plan-save="${esc(id)}">Salva post</button></div>` : ""}
+        ${row.post_type === "related" && ["published", "failed"].includes(String(row.status || "")) ? `<div class="ol-social-regenerate-box"><small>Usa questa funzione solo dopo aver eliminato manualmente le vecchie pubblicazioni social, per evitare duplicati.</small><button class="ol-button ol-button-warning ol-button-small" type="button" data-social-plan-regenerate="${esc(id)}">Rigenera card OL Informa e ripubblica</button></div>` : ""}
       </div>
     </details>`;
   }
@@ -1049,7 +1084,8 @@
         <div class="ol-cycle-row-body">
           ${articleTimelineMarkup(record)}
           ${carryover ? `<div class="ol-cycle-carryover-note"><strong>Da chiudere:</strong> il Post OffertaLogica di questo articolo non risulta ancora completato.</div>` : ""}
-          ${article.excerpt ? `<small>${esc(article.excerpt)}</small>` : ""}
+          ${articleResearchMarkup(record)}
+          ${articleDraftMarkup(record)}
           ${publicUrl ? `<div class="ol-toolbar-group"><a class="ol-button ol-button-secondary ol-button-small" href="${esc(publicUrl)}" target="_blank" rel="noopener">Apri articolo pubblico</a></div>` : ""}
           ${(record.planItems || []).length ? `<div class="ol-article-plan-group"><small class="ol-article-plan-title">Post collegati</small>${record.planItems.map((row) => planItemEditorMarkup(row)).join("")}</div>` : ""}
           ${(record.runs || []).length ? `<div class="ol-article-run-log"><small class="ol-article-plan-title">Registro del ciclo</small>${(record.runs || []).slice(0, 8).map((run) => { const state = runStateLabelFromRun(run); return `<div class="ol-article-run-log-item"><strong>${esc(automationRunTypeLabel(run.run_type))}</strong><span>${esc(dateIt(run.started_at || run.created_at))}</span><em class="ol-cycle-status-inline ol-cycle-status-inline-${esc(state.tone)}">${esc(state.label)}</em></div>`; }).join("")}</div>` : ""}
@@ -1344,6 +1380,7 @@
     }
 
     if (lastAnalysisPayload) renderAnalysis(section, lastAnalysisPayload);
+    if (socialPlanItems.length) renderSocialPlan(section);
   }
 
   async function loadOpportunities(section, quiet = false) {
@@ -1370,6 +1407,7 @@
     const approveImageButton = event.target.closest("[data-article-image-approve]");
     const discardImageButton = event.target.closest("[data-article-image-discard]");
     const socialPlanSaveButton = event.target.closest("[data-social-plan-save]");
+    const socialPlanRegenerateButton = event.target.closest("[data-social-plan-regenerate]");
     const saveButton = event.target.closest("[data-save-opportunity]");
     const toggleButton = event.target.closest("[data-opportunity-toggle]");
     const statusButton = event.target.closest("[data-opportunity-id][data-opportunity-status]");
@@ -1570,6 +1608,25 @@
         const errorText = `Generazione non completata: ${error.message}`;
         if (message) message.textContent = errorText;
         await loadAutomationRuns(section).catch(() => {});
+      }
+      return;
+    }
+
+    if (socialPlanRegenerateButton) {
+      const id = socialPlanRegenerateButton.dataset.socialPlanRegenerate || "";
+      if (!id || socialPlanRegenerateButton.disabled) return;
+      const warning = "Procedi solo se hai già eliminato manualmente le vecchie pubblicazioni di questo post da Facebook e Instagram. Il sistema rigenererà immagine, card OL Informa e testo social e poi ripubblicherà automaticamente. Continuare?";
+      if (!window.confirm(warning)) return;
+      socialPlanRegenerateButton.disabled = true;
+      const socialMessage = section.querySelector("[data-social-plan-message]");
+      if (socialMessage) socialMessage.textContent = "Rigenerazione richiesta. I prossimi heartbeat prepareranno nuova immagine, card OL Informa e ripubblicazione.";
+      try {
+        await endpoint("regenerate-editorial-social-plan-item", { method: "POST", body: { id } });
+        await Promise.all([loadSocialPlan(section), loadAutomationRuns(section)]);
+        if (socialMessage) socialMessage.textContent = "Rigenerazione avviata. Segui lo stato dell’articolo: la ripubblicazione avverrà automaticamente quando la nuova card OL Informa sarà pronta.";
+      } catch (error) {
+        if (socialMessage) socialMessage.textContent = `Rigenerazione non avviata: ${error.message}`;
+        socialPlanRegenerateButton.disabled = false;
       }
       return;
     }

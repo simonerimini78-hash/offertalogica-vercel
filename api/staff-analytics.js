@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { json } from "../lib/http.js";
 
-const VERSION = "0.12.64";
+const VERSION = "0.12.66";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -2771,7 +2771,7 @@ async function editorialSocialPlanPayload() {
     targets = await serviceFetch(`editorial_promotion_targets?select=id,label,url_path,category&id=in.(${targetIds.map((id) => encodeURIComponent(id)).join(",")})`);
   }
   if (articleIds.length) {
-    articles = await serviceFetch(`editorial_articles?select=id,title,slug,status,published_at,excerpt,featured_image_url,featured_image_alt&id=in.(${articleIds.map((id) => encodeURIComponent(id)).join(",")})`);
+    articles = await serviceFetch(`editorial_articles?select=id,title,slug,status,published_at,created_at,updated_at,excerpt,content,sources,featured_image_url,featured_image_alt&id=in.(${articleIds.map((id) => encodeURIComponent(id)).join(",")})`);
   }
   const targetMap = new Map((targets || []).map((row) => [row.id, row]));
   const articleMap = new Map((articles || []).map((row) => [row.id, row]));
@@ -3217,6 +3217,13 @@ async function buildEditorialSocialAssetBrief(article, item, target, targetConte
   if (brief.facebook_text.length < 120 || brief.instagram_text.length < 120 || !editorialSocialBriefHasCover(brief) || !brief.visual_subject || !brief.visual_scene || brief.must_show.length < 2) {
     throw new Error("Asset social: brief incompleto");
   }
+  if (String(item?.post_type || "") === "related" && !/offertalogica/i.test(`${brief.cover_title} ${brief.cover_summary}`)) {
+    const destinationLabel = cleanEditorialText(target?.label, 120);
+    const bridge = destinationLabel
+      ? `Su OffertaLogica trovi ${destinationLabel.replace(/[.!?]+$/g, "")}.`
+      : "Su OffertaLogica trovi la soluzione collegata a questo approfondimento.";
+    brief.cover_summary = cleanEditorialText(`${brief.cover_summary} ${bridge}`, 420);
+  }
   return brief;
 }
 
@@ -3378,9 +3385,14 @@ async function evaluateEditorialSocialImage(article, item, target, brief, image,
 }
 
 async function schedulerPrepareMissingSocialAsset(user) {
-  const rows = await serviceFetch(`editorial_research_opportunities?select=${opportunitySelect()}&status=eq.selected&opportunity_type=eq.new_article&order=updated_at.asc&limit=50`);
+  const rows = await serviceFetch(`editorial_research_opportunities?select=${opportunitySelect()}&status=in.(selected,completed)&opportunity_type=eq.new_article&order=updated_at.asc&limit=80`);
   for (const opportunity of rows || []) {
     const evidence = opportunity?.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {};
+    const regeneration = evidence?.social_regeneration && typeof evidence.social_regeneration === "object" ? evidence.social_regeneration : null;
+    const regenerationItemId = validUuid(String(regeneration?.item_id || "")) && ["requested", "preparing"].includes(String(regeneration?.status || ""))
+      ? String(regeneration.item_id)
+      : "";
+    if (String(opportunity.status || "") === "completed" && !regenerationItemId) continue;
     if (evidence?.article_generation_job?.source !== "scheduler") continue;
     if (evidence?.article_generation?.status !== "draft_ready_for_review") continue;
     if (!validUuid(String(opportunity.target_article_id || ""))) continue;
@@ -3405,12 +3417,14 @@ async function schedulerPrepareMissingSocialAsset(user) {
       && String(state.article_intro?.status || "") === "ready"
       && /^https:\/\//i.test(String(state.article_intro?.card?.url || ""))
       && String(state.article_intro?.card?.template_version || "") === EDITORIAL_SOCIAL_CARD_TEMPLATE_VERSION
+      && String(state.article_intro?.card?.source || "") === "composed"
+      && String(state.article_intro?.card?.renderer || "") === "sharp_svg"
     );
 
     // Prepara la stessa cover editoriale anche dopo la pubblicazione se manca o e' stale:
     // evita che un article_intro resti bloccato in waiting_assets quando articolo e social
     // vengono schedulati nello stesso ciclo.
-    if (String(article.status || "") !== "published" || !introAlreadyCurrent) {
+    if (!regenerationItemId && (String(article.status || "") !== "published" || !introAlreadyCurrent)) {
       let intro = state.article_intro && state.article_intro.fingerprint === introFingerprint
         ? state.article_intro
         : {
@@ -3440,6 +3454,8 @@ async function schedulerPrepareMissingSocialAsset(user) {
       const introCardValid = Boolean(
         /^https:\/\//i.test(String(intro.card?.url || ""))
         && String(intro.card?.template_version || "") === EDITORIAL_SOCIAL_CARD_TEMPLATE_VERSION
+        && String(intro.card?.source || "") === "composed"
+        && String(intro.card?.renderer || "") === "sharp_svg"
         && String(intro.card?.source_image_url || "") === introImageUrl
         && String(intro.card?.title || "") === cleanEditorialText(article.title, 220)
         && String(intro.card?.summary || "") === cleanEditorialText(article.excerpt, 420)
@@ -3476,6 +3492,7 @@ async function schedulerPrepareMissingSocialAsset(user) {
     );
     for (const item of items || []) {
       if (!["article_followup", "related"].includes(String(item.post_type || ""))) continue;
+      if (regenerationItemId && String(item.id || "") !== regenerationItemId) continue;
       const target = await editorialSocialAssetTarget(item);
       const fingerprint = editorialSocialAssetFingerprint(article, item, target, articleImageUrl);
       let asset = state.items[item.id] && state.items[item.id].fingerprint === fingerprint
@@ -3633,6 +3650,8 @@ async function schedulerPrepareMissingSocialAsset(user) {
       const cardValid = Boolean(
         /^https:\/\//i.test(String(asset.card?.url || ""))
         && String(asset.card?.template_version || "") === EDITORIAL_SOCIAL_CARD_TEMPLATE_VERSION
+        && String(asset.card?.source || "") === "composed"
+        && String(asset.card?.renderer || "") === "sharp_svg"
         && String(asset.card?.source_image_url || "") === String(asset.image.url || "")
         && String(asset.card?.title || "") === cleanEditorialText(asset.brief.cover_title, 220)
         && String(asset.card?.summary || "") === cleanEditorialText(asset.brief.cover_summary, 420)
@@ -3662,6 +3681,114 @@ async function schedulerPrepareMissingSocialAsset(user) {
         await saveEditorialSocialAssetsState(user, opportunity, state);
         return { action: "social_asset_ready", opportunity_id: opportunity.id, article_id: article.id, social_plan_item_id: item.id, post_type: item.post_type };
       }
+    }
+  }
+  return null;
+}
+
+async function requestEditorialSocialRegeneration(user, payload = {}) {
+  const itemId = String(payload.id || "").trim();
+  if (!validUuid(itemId)) throw new Error("Identificativo post non valido");
+  const itemRows = await serviceFetch(`editorial_social_plan_items?select=*&id=eq.${encodeURIComponent(itemId)}&limit=1`);
+  const item = itemRows?.[0] || null;
+  if (!item?.id) throw new Error("Post del piano non trovato");
+  if (!["article_followup", "related"].includes(String(item.post_type || ""))) throw new Error("Rigenerazione disponibile solo per i post del ciclo articolo");
+  if (!validUuid(String(item.opportunity_id || "")) || !validUuid(String(item.source_article_id || ""))) throw new Error("Post non collegato correttamente a opportunità e articolo");
+
+  const [oppRows, articleRows] = await Promise.all([
+    serviceFetch(`editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(item.opportunity_id)}&limit=1`),
+    serviceFetch(`editorial_articles?select=id,title,status,slug&id=eq.${encodeURIComponent(item.source_article_id)}&limit=1`),
+  ]);
+  const opportunity = oppRows?.[0] || null;
+  const article = articleRows?.[0] || null;
+  if (!opportunity?.id || !article?.id) throw new Error("Articolo o opportunità collegata non trovati");
+  if (String(article.status || "") !== "published") throw new Error("La rigenerazione social è consentita solo per un articolo già pubblicato");
+
+  const evidence = opportunity.evidence && typeof opportunity.evidence === "object" ? { ...opportunity.evidence } : {};
+  const state = editorialSocialAssetsState(opportunity);
+  const previous = state.items?.[itemId] || null;
+  const history = Array.isArray(previous?.history) ? previous.history : [];
+  const cardHistory = Array.isArray(previous?.card_history) ? previous.card_history : [];
+  if (previous?.image) history.push({ ...previous.image, outcome: "manual_regeneration_requested", archived_at: new Date().toISOString() });
+  if (previous?.card) cardHistory.push({ ...previous.card, outcome: "manual_regeneration_requested", archived_at: new Date().toISOString() });
+  state.items[itemId] = {
+    schema_version: 2,
+    plan_item_id: itemId,
+    post_type: item.post_type,
+    fingerprint: null,
+    source_item: null,
+    target: null,
+    brief: null,
+    image: null,
+    card: null,
+    history: history.slice(-4),
+    card_history: cardHistory.slice(-3),
+    status: "pending",
+    updated_at: new Date().toISOString(),
+  };
+  evidence.social_assets = state;
+  evidence.social_regeneration = {
+    schema_version: 1,
+    item_id: itemId,
+    post_type: item.post_type,
+    status: "requested",
+    requested_at: new Date().toISOString(),
+    requested_by: user.id,
+  };
+  await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(opportunity.id)}`, {
+    method: "PATCH", prefer: "return=minimal", body: { evidence, updated_at: new Date().toISOString(), decided_by: user.id },
+  });
+  await serviceFetch(`editorial_social_plan_publications?social_plan_item_id=eq.${encodeURIComponent(itemId)}`, {
+    method: "DELETE", prefer: "return=minimal",
+  }).catch(() => {});
+  const updatedRows = await serviceFetch(`editorial_social_plan_items?id=eq.${encodeURIComponent(itemId)}`, {
+    method: "PATCH", prefer: "return=representation", body: { status: "approved", scheduled_for: null, updated_at: new Date().toISOString(), updated_by: user.id },
+  });
+  return { requested: true, item: updatedRows?.[0] || { ...item, status: "approved" }, article };
+}
+
+async function schedulerPublishRequestedSocialRegeneration(user) {
+  const opportunities = await serviceFetch(`editorial_research_opportunities?select=${opportunitySelect()}&order=updated_at.desc&limit=80`);
+  for (const opportunity of opportunities || []) {
+    const evidence = opportunity?.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {};
+    const regeneration = evidence?.social_regeneration && typeof evidence.social_regeneration === "object" ? evidence.social_regeneration : null;
+    const itemId = String(regeneration?.item_id || "");
+    if (!validUuid(itemId) || !["requested", "preparing"].includes(String(regeneration?.status || ""))) continue;
+    if (!validUuid(String(opportunity.target_article_id || ""))) continue;
+    const [articleRows, itemRows] = await Promise.all([
+      serviceFetch(`editorial_articles?select=*&id=eq.${encodeURIComponent(opportunity.target_article_id)}&limit=1`),
+      serviceFetch(`editorial_social_plan_items?select=*&id=eq.${encodeURIComponent(itemId)}&limit=1`),
+    ]);
+    const article = articleRows?.[0] || null;
+    const item = itemRows?.[0] || null;
+    if (!article?.id || !item?.id) continue;
+    const context = { opportunity, article };
+    if (!schedulerPlanAssetIsOlInforma(context, item)) {
+      if (String(regeneration.status || "") !== "preparing") {
+        const nextEvidence = { ...evidence, social_regeneration: { ...regeneration, status: "preparing", updated_at: new Date().toISOString() } };
+        await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(opportunity.id)}`, { method: "PATCH", prefer: "return=minimal", body: { evidence: nextEvidence, updated_at: new Date().toISOString() } });
+      }
+      continue;
+    }
+    const enabledPlatforms = await editorialEnabledSocialPlatforms();
+    const run = await automationSchedulerRunStart(String(item.post_type || "") === "related" ? "social_related" : "social_followup", {
+      stage: "manual_regeneration",
+      regeneration_item_id: itemId,
+      slot_only: false,
+    }, opportunity.id);
+    try {
+      const slotKind = String(item.post_type || "") === "related" ? "social_related" : "social_followup";
+      const result = await schedulerPublishPlanItem(user, context, slotKind, enabledPlatforms);
+      const nextEvidence = {
+        ...evidence,
+        social_regeneration: { ...regeneration, status: "completed", completed_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+      };
+      await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(opportunity.id)}`, { method: "PATCH", prefer: "return=minimal", body: { evidence: nextEvidence, updated_at: new Date().toISOString() } });
+      await automationRunFinish(run, "success", { opportunity_id: opportunity.id, article_id: article.id, social_plan_item_id: item.id, details: { ...(run?.details || {}), stage: "completed", publication_performed: true } });
+      return { action: "social_regeneration_published", opportunity_id: opportunity.id, article_id: article.id, social_plan_item_id: item.id, result };
+    } catch (error) {
+      await automationRunFinish(run, "failed", { opportunity_id: opportunity.id, article_id: article.id, social_plan_item_id: item.id, last_error: String(error?.message || error).slice(0, 2000), details: { ...(run?.details || {}), stage: "failed" } });
+      throw error;
     }
   }
   return null;
@@ -4306,6 +4433,19 @@ function schedulerSocialResultState(payload) {
   return payload?.published === true ? "success" : "failed";
 }
 
+function schedulerArticleIntroAssetIsOlInforma(context) {
+  const state = editorialSocialAssetsState(context?.opportunity);
+  const intro = state.article_intro || null;
+  return Boolean(
+    intro
+    && String(intro.status || "") === "ready"
+    && /^https:\/\//i.test(String(intro.card?.url || ""))
+    && String(intro.card?.template_version || "") === EDITORIAL_SOCIAL_CARD_TEMPLATE_VERSION
+    && String(intro.card?.source || "") === "composed"
+    && String(intro.card?.renderer || "") === "sharp_svg"
+  );
+}
+
 async function schedulerPublishArticleIntro(user, context, platforms) {
   if (!Array.isArray(platforms) || !platforms.length) {
     return {
@@ -4365,6 +4505,10 @@ async function schedulerPublishArticleIntro(user, context, platforms) {
       throw new Error("Autopilota: pubblicazione articolo non confermata");
     }
     nextContext = { ...nextContext, article: published };
+  }
+
+  if (!schedulerArticleIntroAssetIsOlInforma(nextContext)) {
+    throw new Error("Autopilota: card OL Informa dell'articolo non pronta o non valida; pubblicazione social fermata");
   }
 
   await schedulerQueueArticleSocial(nextContext.article.id, platforms);
@@ -4432,6 +4576,20 @@ async function schedulerCompleteOpportunityCycle(user, context, finalItem, reaso
   return true;
 }
 
+function schedulerPlanAssetIsOlInforma(context, item) {
+  const state = editorialSocialAssetsState(context?.opportunity);
+  const asset = state.items?.[String(item?.id || "")] || null;
+  return Boolean(
+    asset
+    && String(asset.status || "") === "ready"
+    && String(asset.image?.qa?.status || "") === "passed"
+    && /^https:\/\//i.test(String(asset.card?.url || ""))
+    && String(asset.card?.template_version || "") === EDITORIAL_SOCIAL_CARD_TEMPLATE_VERSION
+    && String(asset.card?.source || "") === "composed"
+    && String(asset.card?.renderer || "") === "sharp_svg"
+  );
+}
+
 async function schedulerPublishPlanItem(user, context, slotKind, enabledPlatforms) {
   const item = await schedulerPlanItemForCycle(context, slotKind);
   if (!item?.id) throw new Error(`Autopilota: post ${schedulerPlanPostType(slotKind)} non trovato`);
@@ -4445,6 +4603,9 @@ async function schedulerPublishPlanItem(user, context, slotKind, enabledPlatform
   }
   if (String(context.article.status || "") !== "published") {
     throw new Error("Autopilota: il post social non può partire prima della pubblicazione dell'articolo");
+  }
+  if (!schedulerPlanAssetIsOlInforma(context, item)) {
+    throw new Error("Autopilota: card OL Informa non pronta o non valida; pubblicazione social fermata");
   }
 
   const requested = Array.isArray(item.platforms) && item.platforms.length
@@ -4649,6 +4810,9 @@ async function editorialAutopilotTick() {
 
   const socialAsset = await schedulerPrepareMissingSocialAsset(user);
   if (socialAsset) return { ok: true, version: VERSION, active: true, ...socialAsset };
+
+  const regeneratedSocial = await schedulerPublishRequestedSocialRegeneration(user);
+  if (regeneratedSocial) return { ok: true, version: VERSION, active: true, ...regeneratedSocial };
 
   const local = schedulerLocalParts(settings.timezone || "Europe/Rome");
   const schedule = await serviceFetch("editorial_automation_schedule?select=*&enabled=eq.true&order=sort_order.asc");
@@ -5811,6 +5975,11 @@ export default async function handler(req, res) {
     if (req.method === "POST" && action === "update-editorial-social-plan-item") {
       const item = await updateEditorialSocialPlanItem(user, req.body || {});
       return json(res, 200, { ok: true, version: VERSION, item });
+    }
+
+    if (req.method === "POST" && action === "regenerate-editorial-social-plan-item") {
+      const result = await requestEditorialSocialRegeneration(user, req.body || {});
+      return json(res, 200, { ok: true, version: VERSION, result });
     }
 
     if (req.method === "GET" && action === "editorial-automation-runs") {
