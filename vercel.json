@@ -175,11 +175,5 @@
       "source": "/api/pv-estimate",
       "destination": "/api/unlock-offers"
     }
-  ],
-  "crons": [
-    {
-      "path": "/api/staff-analytics?action=editorial-autopilot-tick",
-      "schedule": "*/15 * * * *"
-    }
   ]
 }
