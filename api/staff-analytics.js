@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { json } from "../lib/http.js";
 
-const VERSION = "0.12.60";
+const VERSION = "0.12.61";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -3002,36 +3002,61 @@ async function buildEditorialArticleIntroCopy(article) {
 }
 
 async function renderAndUploadEditorialSocialCard({ article, sourceImageUrl, postType, title, summary, label, storageSegment }) {
-  const renderEditorialSocialCard = await editorialSocialCardRenderer();
-  const rendered = await renderEditorialSocialCard({
-    sourceImageUrl,
-    postType,
-    label: label || editorialSocialCoverLabel(postType),
-    title,
-    summary,
-  });
-  if (!rendered?.buffer?.length) throw new Error("Cover social: rendering non riuscito");
-  if (rendered.buffer.length > EDITORIAL_IMAGE_MAX_BYTES) throw new Error("Cover social: file finale oltre 5 MB");
-  const segment = cleanEditorialText(storageSegment, 120).replace(/[^a-zA-Z0-9_-]+/g, "-") || "card";
-  const objectPath = `autopilot/${article.id}/social/${segment}/${Date.now()}-${crypto.randomUUID()}.jpg`;
-  const url = await uploadEditorialImageBuffer(objectPath, rendered.buffer, rendered.mimeType || "image/jpeg");
-  return {
-    source: "composed",
-    renderer: "sharp_svg",
-    template_version: rendered.templateVersion || EDITORIAL_SOCIAL_CARD_TEMPLATE_VERSION,
+  const normalizedSourceImageUrl = String(sourceImageUrl || "").trim();
+  const common = {
+    template_version: EDITORIAL_SOCIAL_CARD_TEMPLATE_VERSION,
     post_type: postType,
-    source_image_url: sourceImageUrl,
-    url,
-    object_path: objectPath,
-    mime_type: rendered.mimeType || "image/jpeg",
-    width: rendered.width || 1080,
-    height: rendered.height || 1350,
+    source_image_url: normalizedSourceImageUrl,
     label: label || editorialSocialCoverLabel(postType),
     title: cleanEditorialText(title, 220),
     summary: cleanEditorialText(summary, 420),
     alt_text: `Cover OffertaLogica Informa: ${cleanEditorialText(title, 160)}`.slice(0, 180),
     created_at: new Date().toISOString(),
   };
+  try {
+    const renderEditorialSocialCard = await editorialSocialCardRenderer();
+    const rendered = await renderEditorialSocialCard({
+      sourceImageUrl: normalizedSourceImageUrl,
+      postType,
+      label: common.label,
+      title,
+      summary,
+    });
+    if (!rendered?.buffer?.length) throw new Error("Cover social: rendering non riuscito");
+    if (rendered.buffer.length > EDITORIAL_IMAGE_MAX_BYTES) throw new Error("Cover social: file finale oltre 5 MB");
+    const segment = cleanEditorialText(storageSegment, 120).replace(/[^a-zA-Z0-9_-]+/g, "-") || "card";
+    const objectPath = `autopilot/${article.id}/social/${segment}/${Date.now()}-${crypto.randomUUID()}.jpg`;
+    const url = await uploadEditorialImageBuffer(objectPath, rendered.buffer, rendered.mimeType || "image/jpeg");
+    return {
+      ...common,
+      source: "composed",
+      renderer: "sharp_svg",
+      template_version: rendered.templateVersion || EDITORIAL_SOCIAL_CARD_TEMPLATE_VERSION,
+      url,
+      object_path: objectPath,
+      mime_type: rendered.mimeType || "image/jpeg",
+      width: rendered.width || 1080,
+      height: rendered.height || 1350,
+    };
+  } catch (error) {
+    // Il renderer Sharp e' un miglioramento grafico, non un requisito per far avanzare
+    // il calendario. Se il runtime nativo non e' disponibile, riutilizziamo l'immagine
+    // HTTPS gia' generata/approvata: le Edge Function ricevono comunque un asset valido
+    // e il tick puo' proseguire fino allo slot schedulato.
+    if (!/^https:\/\//i.test(normalizedSourceImageUrl)) throw error;
+    console.warn("editorial_social_card_renderer_fallback", String(error?.message || error).slice(0, 500));
+    return {
+      ...common,
+      source: "source_image_fallback",
+      renderer: "source_image_fallback",
+      url: normalizedSourceImageUrl,
+      object_path: null,
+      mime_type: null,
+      width: null,
+      height: null,
+      render_error: String(error?.message || error).slice(0, 500),
+    };
+  }
 }
 
 async function editorialSocialTargetContext(target) {

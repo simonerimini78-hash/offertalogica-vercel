@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.58";
+  const VERSION = "0.12.61";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
   const ANALYSIS_PAGE_SIZE = 10;
@@ -17,6 +17,7 @@
   let socialPlanItems = [];
   let socialChannels = [];
   let automationRuns = [];
+  let automationRunsExpanded = false;
 
   function sessionRead() {
     try { return JSON.parse(sessionStorage.getItem(SESSION_KEY) || "null"); }
@@ -62,164 +63,172 @@
   function cardMarkup() {
     return `
       <div class="ol-autopilot-card-heading">
-        <div><h3>Flusso operativo del ciclo</h3><p>Idea o segnale → scelta → nuovo articolo → social → controllo. L’Editoriale usa i dati del sito come contesto ma non modifica mai le pagine esistenti.</p></div>
+        <div><h3>Stato del ciclo editoriale</h3><p>La vista principale mostra solo ciò che serve per capire dove si trova il ciclo. Ricerca e strumenti di dettaglio restano disponibili nelle sezioni chiuse sotto.</p></div>
       </div>
 
       <div class="ol-autopilot-workflow">
-        <section class="ol-autopilot-stage">
-          <div class="ol-autopilot-stage-heading"><span class="ol-autopilot-stage-number">1</span><div><h4>Idee e priorità</h4><p>Inserisci un tema manuale oppure verifica quale opportunità sceglierebbe oggi il planner.</p></div></div>
-          <div class="ol-autopilot-pair">
-            <div class="ol-autopilot-pane" data-manual-idea-editor>
-              <h5>Idea editoriale manuale</h5>
-              <div class="ol-autopilot-fields">
-                <div class="ol-field">
-                  <label for="autopilot-manual-idea-topic">Argomento</label>
-                  <input id="autopilot-manual-idea-topic" data-manual-idea-topic type="text" maxlength="240" placeholder="Es. nuova norma urgente sul mercato energia">
-                </div>
-                <div class="ol-field">
-                  <label>Destinazione</label>
-                  <input id="autopilot-manual-idea-type" data-manual-idea-type type="hidden" value="new_article">
-                  <div class="ol-autopilot-archive-item"><strong>Nuovo articolo</strong><small>L’Editoriale non modifica le pagine esistenti del sito.</small></div>
-                </div>
-                <div class="ol-field">
-                  <label for="autopilot-manual-idea-priority">Priorità</label>
-                  <select id="autopilot-manual-idea-priority" data-manual-idea-priority>
-                    <option value="normal">Normale · dopo i segnali Search Console sopra soglia</option>
-                    <option value="high">Alta · precede Search Console</option>
-                    <option value="urgent">Urgente · precede tutto salvo una scelta già selezionata</option>
-                  </select>
-                </div>
-                <div class="ol-field">
-                  <label for="autopilot-manual-idea-deadline">Scadenza facoltativa</label>
-                  <input id="autopilot-manual-idea-deadline" data-manual-idea-deadline type="date">
-                </div>
-                <div class="ol-field">
-                  <label for="autopilot-manual-idea-category">Categoria facoltativa</label>
-                  <input id="autopilot-manual-idea-category" data-manual-idea-category type="text" maxlength="80" placeholder="Es. Energia">
-                </div>
-
-                <div class="ol-field ol-autopilot-field-wide">
-                  <label for="autopilot-manual-idea-notes">Note editoriali</label>
-                  <textarea id="autopilot-manual-idea-notes" data-manual-idea-notes maxlength="2000" rows="3" placeholder="Perché è importante, taglio desiderato, fonti da verificare…"></textarea>
-                </div>
-              </div>
-              <div class="ol-autopilot-toolbar">
-                <p class="ol-autopilot-save-state" data-manual-idea-message>Le idee ad alta priorità o urgenti possono precedere i segnali automatici.</p>
-                <div class="ol-toolbar-group">
-                  <button class="ol-button ol-button-secondary" type="button" data-manual-idea-cancel hidden>Annulla modifica</button>
-                  <button class="ol-button ol-button-primary" type="button" data-manual-idea-save>Salva idea</button>
-                </div>
-              </div>
-            </div>
-
-            <div class="ol-autopilot-pane">
-              <h5>Anteprima priorità Autopilota</h5>
-              <p class="ol-muted">Calcola quale tema verrebbe scelto oggi. È un dry-run: non cambia stati, non crea bozze e non pubblica.</p>
-              <div class="ol-autopilot-toolbar">
-                <p class="ol-autopilot-save-state" data-planner-message>Nessuna anteprima calcolata.</p>
-                <button class="ol-button ol-button-secondary" type="button" data-planner-preview>Calcola scelta</button>
-              </div>
-              <div class="ol-autopilot-archive-list" data-planner-result></div>
-            </div>
-          </div>
-        </section>
-
-        <section class="ol-autopilot-stage">
-          <div class="ol-autopilot-stage-heading"><span class="ol-autopilot-stage-number">2</span><div><h4>Dati Search Console</h4><p>Acquisizione e analisi restano strumenti di controllo. Lo scheduler usa gli stessi dati quando è configurato.</p></div></div>
+        <section class="ol-autopilot-stage ol-autopilot-stage-priority">
+          <div class="ol-autopilot-stage-heading"><span class="ol-autopilot-stage-number">1</span><div><h4>Controllo del ciclo</h4><p>Stato sintetico, post preparati e ultimi eventi dello scheduler.</p></div></div>
+          <div class="ol-cycle-overview" data-cycle-overview><strong>Caricamento stato ciclo…</strong></div>
           <div class="ol-autopilot-pair">
             <div class="ol-autopilot-pane">
-              <h5>Acquisizione</h5>
-              <div class="ol-autopilot-fields ol-autopilot-fields-compact">
-                <div class="ol-field">
-                  <label for="autopilot-search-console-period">Periodo stabile</label>
-                  <select id="autopilot-search-console-period" data-search-console-days>
-                    <option value="7">Ultimi 7 giorni</option>
-                    <option value="28" selected>Ultimi 28 giorni</option>
-                    <option value="90">Ultimi 90 giorni</option>
-                  </select>
-                  <small>Il periodo termina 3 giorni fa per usare dati consolidati.</small>
-                </div>
-                <div class="ol-field">
-                  <label>Stato collegamento</label>
-                  <div class="ol-autopilot-archive-item" data-search-console-status>
-                    <strong>Verifica configurazione…</strong>
-                    <small>Controllo credenziali server e storico disponibile.</small>
-                  </div>
-                </div>
-              </div>
-              <div class="ol-field">
-                <label>Storico 7 / 28 / 90 giorni</label>
-                <div class="ol-autopilot-archive-list" data-search-console-history><p class="ol-muted">Caricamento storico…</p></div>
-              </div>
-              <div class="ol-autopilot-toolbar">
-                <p class="ol-autopilot-save-state" data-search-console-message>Acquisizione manuale controllata.</p>
-                <button class="ol-button ol-button-secondary" type="button" data-search-console-collect disabled>Acquisisci Search Console</button>
-              </div>
-            </div>
-
-            <div class="ol-autopilot-pane">
-              <h5>Analisi segnali</h5>
-              <p class="ol-muted">Punteggio tecnico 0–100 basato su domanda, ritmo recente, posizione e clic. Non crea né pubblica contenuti.</p>
-              <div class="ol-autopilot-toolbar">
-                <p class="ol-autopilot-save-state" data-search-console-analysis-message>Servono gli snapshot 7, 28 e 90 giorni.</p>
-                <button class="ol-button ol-button-secondary" type="button" data-search-console-analyze disabled>Analizza storico</button>
-              </div>
-              <div class="ol-autopilot-fields ol-autopilot-fields-compact" data-signal-controls hidden>
-                <div class="ol-field ol-field-compact">
-                  <label for="autopilot-signal-search">Cerca nella graduatoria</label>
-                  <input id="autopilot-signal-search" data-signal-search type="search" placeholder="Argomento, query o pagina">
-                </div>
-                <div class="ol-field ol-field-compact">
-                  <label for="autopilot-signal-score-filter">Punteggio</label>
-                  <select id="autopilot-signal-score-filter" data-signal-score-filter>
-                    <option value="all">Tutti i segnali</option>
-                    <option value="40plus">40–100</option>
-                    <option value="30to39">30–39</option>
-                    <option value="under30">Sotto 30</option>
-                  </select>
-                </div>
-              </div>
-              <div class="ol-autopilot-toolbar" data-signal-pagination-top hidden>
-                <p class="ol-autopilot-save-state" data-signal-page-summary></p>
-                <div class="ol-toolbar-group">
-                  <button class="ol-button ol-button-secondary ol-button-small" type="button" data-signal-page="prev">← Precedenti</button>
-                  <button class="ol-button ol-button-secondary ol-button-small" type="button" data-signal-page="next">Successivi →</button>
-                </div>
-              </div>
-              <div class="ol-autopilot-archive-list" data-search-console-analysis-results></div>
-              <div class="ol-autopilot-toolbar" data-signal-pagination-bottom hidden>
-                <button class="ol-button ol-button-secondary ol-button-small" type="button" data-signal-page="prev">← Precedenti</button>
-                <div class="ol-toolbar-group">
-                  <button class="ol-button ol-button-secondary ol-button-small" type="button" data-jump-opportunities>Vai alle opportunità ↓</button>
-                  <button class="ol-button ol-button-secondary ol-button-small" type="button" data-signal-page="next">Successivi →</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section class="ol-autopilot-stage" data-opportunity-stage>
-          <div class="ol-autopilot-stage-heading"><span class="ol-autopilot-stage-number">3</span><div><h4>Opportunità e preparazione contenuti</h4><p>Tutte le opportunità restano visibili in forma compatta. Se non intervieni decide l’Autopilota; puoi scegliere tu un tema diverso finché l’articolo non è stato avviato.</p></div></div>
-          <p class="ol-autopilot-save-state" data-opportunity-message>Caricamento opportunità…</p>
-          <div class="ol-autopilot-archive-list" data-opportunity-list><p class="ol-muted">Caricamento…</p></div>
-        </section>
-
-        <section class="ol-autopilot-stage">
-          <div class="ol-autopilot-stage-heading"><span class="ol-autopilot-stage-number">4</span><div><h4>Controllo del ciclo</h4><p>Post preparati e registro tecnico restano affiancati per capire subito cosa è pronto e cosa ha fatto lo scheduler.</p></div></div>
-          <div class="ol-autopilot-pair">
-            <div class="ol-autopilot-pane">
-              <h5>Piano post statici</h5>
-              <p class="ol-muted">I due post collegati restano elementi separati del piano. In Automatico completo vengono distribuiti negli slot successivi sui canali abilitati; nelle altre modalità restano sotto controllo umano.</p>
+              <h5>Piano post</h5>
               <p class="ol-autopilot-save-state" data-social-plan-message>Caricamento piano post…</p>
-              <div class="ol-autopilot-archive-list" data-social-plan-list><p class="ol-muted">Caricamento…</p></div>
+              <div class="ol-autopilot-archive-list ol-cycle-compact-list" data-social-plan-list><p class="ol-muted">Caricamento…</p></div>
             </div>
             <div class="ol-autopilot-pane">
               <h5>Ultimi cicli Autopilota</h5>
-              <p class="ol-muted">Registro tecnico dell’intero ciclo: ricerca, preparazione, pubblicazione articolo e social previsti dal calendario.</p>
-              <div class="ol-autopilot-archive-list" data-automation-run-list><p class="ol-muted">Caricamento…</p></div>
+              <p class="ol-muted">Vista compatta. Apri una riga solo se vuoi leggere il dettaglio tecnico.</p>
+              <div class="ol-autopilot-archive-list ol-cycle-compact-list" data-automation-run-list><p class="ol-muted">Caricamento…</p></div>
+              <div class="ol-autopilot-toolbar ol-cycle-history-toolbar" data-automation-run-toolbar hidden>
+                <button class="ol-button ol-button-secondary ol-button-small" type="button" data-automation-run-toggle>Mostra storico</button>
+              </div>
             </div>
           </div>
         </section>
+
+        <details class="ol-autopilot-stage ol-autopilot-stage-collapsible">
+          <summary class="ol-autopilot-stage-heading"><span class="ol-autopilot-stage-number">2</span><div><h4>Idee e priorità</h4><p>Apri solo per inserire un tema manuale o verificare la scelta del planner.</p></div><span class="ol-autopilot-stage-action" aria-hidden="true">Apri</span></summary>
+          <div class="ol-autopilot-stage-body">
+            <div class="ol-autopilot-pair">
+              <div class="ol-autopilot-pane" data-manual-idea-editor>
+                <h5>Idea editoriale manuale</h5>
+                <div class="ol-autopilot-fields">
+                  <div class="ol-field">
+                    <label for="autopilot-manual-idea-topic">Argomento</label>
+                    <input id="autopilot-manual-idea-topic" data-manual-idea-topic type="text" maxlength="240" placeholder="Es. nuova norma urgente sul mercato energia">
+                  </div>
+                  <div class="ol-field">
+                    <label>Destinazione</label>
+                    <input id="autopilot-manual-idea-type" data-manual-idea-type type="hidden" value="new_article">
+                    <div class="ol-autopilot-archive-item"><strong>Nuovo articolo</strong><small>L’Editoriale non modifica le pagine esistenti del sito.</small></div>
+                  </div>
+                  <div class="ol-field">
+                    <label for="autopilot-manual-idea-priority">Priorità</label>
+                    <select id="autopilot-manual-idea-priority" data-manual-idea-priority>
+                      <option value="normal">Normale · dopo i segnali Search Console sopra soglia</option>
+                      <option value="high">Alta · precede Search Console</option>
+                      <option value="urgent">Urgente · precede tutto salvo una scelta già selezionata</option>
+                    </select>
+                  </div>
+                  <div class="ol-field">
+                    <label for="autopilot-manual-idea-deadline">Scadenza facoltativa</label>
+                    <input id="autopilot-manual-idea-deadline" data-manual-idea-deadline type="date">
+                  </div>
+                  <div class="ol-field">
+                    <label for="autopilot-manual-idea-category">Categoria facoltativa</label>
+                    <input id="autopilot-manual-idea-category" data-manual-idea-category type="text" maxlength="80" placeholder="Es. Energia">
+                  </div>
+                  <div class="ol-field ol-autopilot-field-wide">
+                    <label for="autopilot-manual-idea-notes">Note editoriali</label>
+                    <textarea id="autopilot-manual-idea-notes" data-manual-idea-notes maxlength="2000" rows="3" placeholder="Perché è importante, taglio desiderato, fonti da verificare…"></textarea>
+                  </div>
+                </div>
+                <div class="ol-autopilot-toolbar">
+                  <p class="ol-autopilot-save-state" data-manual-idea-message>Le idee ad alta priorità o urgenti possono precedere i segnali automatici.</p>
+                  <div class="ol-toolbar-group">
+                    <button class="ol-button ol-button-secondary" type="button" data-manual-idea-cancel hidden>Annulla modifica</button>
+                    <button class="ol-button ol-button-primary" type="button" data-manual-idea-save>Salva idea</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="ol-autopilot-pane">
+                <h5>Anteprima priorità Autopilota</h5>
+                <p class="ol-muted">Calcola quale tema verrebbe scelto oggi. È un dry-run: non cambia stati, non crea bozze e non pubblica.</p>
+                <div class="ol-autopilot-toolbar">
+                  <p class="ol-autopilot-save-state" data-planner-message>Nessuna anteprima calcolata.</p>
+                  <button class="ol-button ol-button-secondary" type="button" data-planner-preview>Calcola scelta</button>
+                </div>
+                <div class="ol-autopilot-archive-list" data-planner-result></div>
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <details class="ol-autopilot-stage ol-autopilot-stage-collapsible">
+          <summary class="ol-autopilot-stage-heading"><span class="ol-autopilot-stage-number">3</span><div><h4>Dati Search Console</h4><p>Acquisizione, graduatoria dei segnali e strumenti di controllo.</p></div><span class="ol-autopilot-stage-action" aria-hidden="true">Apri</span></summary>
+          <div class="ol-autopilot-stage-body">
+            <div class="ol-autopilot-pair">
+              <div class="ol-autopilot-pane">
+                <h5>Acquisizione</h5>
+                <div class="ol-autopilot-fields ol-autopilot-fields-compact">
+                  <div class="ol-field">
+                    <label for="autopilot-search-console-period">Periodo stabile</label>
+                    <select id="autopilot-search-console-period" data-search-console-days>
+                      <option value="7">Ultimi 7 giorni</option>
+                      <option value="28" selected>Ultimi 28 giorni</option>
+                      <option value="90">Ultimi 90 giorni</option>
+                    </select>
+                    <small>Il periodo termina 3 giorni fa per usare dati consolidati.</small>
+                  </div>
+                  <div class="ol-field">
+                    <label>Stato collegamento</label>
+                    <div class="ol-autopilot-archive-item" data-search-console-status>
+                      <strong>Verifica configurazione…</strong>
+                      <small>Controllo credenziali server e storico disponibile.</small>
+                    </div>
+                  </div>
+                </div>
+                <div class="ol-field">
+                  <label>Storico 7 / 28 / 90 giorni</label>
+                  <div class="ol-autopilot-archive-list" data-search-console-history><p class="ol-muted">Caricamento storico…</p></div>
+                </div>
+                <div class="ol-autopilot-toolbar">
+                  <p class="ol-autopilot-save-state" data-search-console-message>Acquisizione manuale controllata.</p>
+                  <button class="ol-button ol-button-secondary" type="button" data-search-console-collect disabled>Acquisisci Search Console</button>
+                </div>
+              </div>
+
+              <div class="ol-autopilot-pane">
+                <h5>Analisi segnali</h5>
+                <p class="ol-muted">Punteggio tecnico 0–100 basato su domanda, ritmo recente, posizione e clic. Non crea né pubblica contenuti.</p>
+                <div class="ol-autopilot-toolbar">
+                  <p class="ol-autopilot-save-state" data-search-console-analysis-message>Servono gli snapshot 7, 28 e 90 giorni.</p>
+                  <button class="ol-button ol-button-secondary" type="button" data-search-console-analyze disabled>Analizza storico</button>
+                </div>
+                <div class="ol-autopilot-fields ol-autopilot-fields-compact" data-signal-controls hidden>
+                  <div class="ol-field ol-field-compact">
+                    <label for="autopilot-signal-search">Cerca nella graduatoria</label>
+                    <input id="autopilot-signal-search" data-signal-search type="search" placeholder="Argomento, query o pagina">
+                  </div>
+                  <div class="ol-field ol-field-compact">
+                    <label for="autopilot-signal-score-filter">Punteggio</label>
+                    <select id="autopilot-signal-score-filter" data-signal-score-filter>
+                      <option value="all">Tutti i segnali</option>
+                      <option value="40plus">40–100</option>
+                      <option value="30to39">30–39</option>
+                      <option value="under30">Sotto 30</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="ol-autopilot-toolbar" data-signal-pagination-top hidden>
+                  <p class="ol-autopilot-save-state" data-signal-page-summary></p>
+                  <div class="ol-toolbar-group">
+                    <button class="ol-button ol-button-secondary ol-button-small" type="button" data-signal-page="prev">← Precedenti</button>
+                    <button class="ol-button ol-button-secondary ol-button-small" type="button" data-signal-page="next">Successivi →</button>
+                  </div>
+                </div>
+                <div class="ol-autopilot-archive-list" data-search-console-analysis-results></div>
+                <div class="ol-autopilot-toolbar" data-signal-pagination-bottom hidden>
+                  <button class="ol-button ol-button-secondary ol-button-small" type="button" data-signal-page="prev">← Precedenti</button>
+                  <div class="ol-toolbar-group">
+                    <button class="ol-button ol-button-secondary ol-button-small" type="button" data-jump-opportunities>Vai alle opportunità ↓</button>
+                    <button class="ol-button ol-button-secondary ol-button-small" type="button" data-signal-page="next">Successivi →</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <details class="ol-autopilot-stage ol-autopilot-stage-collapsible" data-opportunity-stage>
+          <summary class="ol-autopilot-stage-heading"><span class="ol-autopilot-stage-number">4</span><div><h4>Opportunità e preparazione contenuti</h4><p>Graduatoria delle opportunità e strumenti di generazione. Chiusa di default.</p></div><span class="ol-autopilot-stage-action" aria-hidden="true">Apri</span></summary>
+          <div class="ol-autopilot-stage-body">
+            <p class="ol-autopilot-save-state" data-opportunity-message>Caricamento opportunità…</p>
+            <div class="ol-autopilot-archive-list" data-opportunity-list><p class="ol-muted">Caricamento…</p></div>
+          </div>
+        </details>
       </div>`;
   }
 
@@ -825,6 +834,29 @@
     return ({ draft: "Bozza", approved: "Approvato", cancelled: "Annullato", scheduled: "Programmato", publishing: "Pubblicazione", published: "Pubblicato", failed: "Errore" })[status] || status || "—";
   }
 
+  function cycleRunState(runType) {
+    const run = automationRuns.find((row) => String(row?.run_type || "") === runType) || null;
+    if (!run) return { label: "da eseguire", tone: "pending" };
+    const status = String(run.status || "");
+    if (status === "success") return { label: "completato", tone: "success" };
+    if (status === "failed") return { label: "errore", tone: "failed" };
+    if (status === "running") return { label: "in corso", tone: "running" };
+    return { label: status || "da eseguire", tone: "pending" };
+  }
+
+  function renderCycleOverview(section) {
+    const box = section?.querySelector("[data-cycle-overview]");
+    if (!box) return;
+    const steps = [
+      ["research", "Ricerca"],
+      ["article_prepare", "Bozza articolo"],
+      ["article_publish", "Pubblicazione"],
+      ["social_followup", "Follow-up"],
+      ["social_related", "Post OffertaLogica"],
+    ].map(([type, title]) => ({ title, ...cycleRunState(type) }));
+    box.innerHTML = `<strong>Ultimo stato registrato</strong><div class="ol-cycle-steps">${steps.map((step) => `<span class="ol-cycle-step ol-cycle-step-${esc(step.tone)}"><b>${esc(step.title)}</b><small>${esc(step.label)}</small></span>`).join("")}</div>`;
+  }
+
   function renderSocialPlan(section) {
     const list = section?.querySelector("[data-social-plan-list]");
     const message = section?.querySelector("[data-social-plan-message]");
@@ -832,6 +864,7 @@
     if (!socialPlanItems.length) {
       list.innerHTML = '<p class="ol-muted">Nessun post statico preparato.</p>';
       message.textContent = "Il piano verrà popolato insieme alle bozze articolo generate dall’Autopilota.";
+      renderCycleOverview(section);
       return;
     }
     list.innerHTML = socialPlanItems.map((row) => {
@@ -843,17 +876,22 @@
       const statusOptions = [
         ["draft", "Bozza"], ["approved", "Approvato"], ["cancelled", "Annullato"],
       ].map(([value, label]) => `<option value="${value}" ${row.status === value ? "selected" : ""}>${label}</option>`).join("");
-      return `<div class="ol-autopilot-archive-item" data-social-plan-item="${esc(id)}">
-        <strong>${esc(row.theme || row.post_type || "Post statico")} · ${esc(socialPlanStatusLabel(row.status))}</strong>
-        <small>${esc(row.post_type || "")} · destinazione: ${esc(destination)}</small>
-        ${row?.source_article_image?.featured_image_url ? `<small>Immagine articolo approvata disponibile per il futuro riuso nel post statico.</small>` : `<small>Immagine articolo non ancora approvata.</small>`}
-        <div class="ol-field" style="margin-top:8px"><label>Testo canonico</label><textarea data-social-plan-text="${esc(id)}" rows="4" maxlength="4000" ${editable ? "" : "disabled"}>${esc(row.canonical_text || "")}</textarea></div>
-        <div class="ol-field" style="margin-top:8px"><label>Canali espliciti</label><div class="ol-autopilot-sources">${platformChoicesMarkup(id, row.platforms || [], "data-social-plan-platform")}</div></div>
-        ${editable ? `<div class="ol-autopilot-fields" style="margin-top:8px"><div class="ol-field"><label>Stato editoriale</label><select data-social-plan-status="${esc(id)}">${statusOptions}</select></div></div><div class="ol-toolbar-group" style="margin-top:8px"><button class="ol-button ol-button-secondary ol-button-small" type="button" data-social-plan-save="${esc(id)}">Salva post</button></div>` : ""}
-        <small>La pubblicazione non parte dal pulsante di questo pannello: in Automatico completo viene eseguita dallo scheduler nello slot previsto.</small>
-      </div>`;
+      return `<details class="ol-cycle-row" data-social-plan-item="${esc(id)}">
+        <summary class="ol-cycle-row-summary">
+          <span><strong>${esc(row.theme || row.post_type || "Post statico")}</strong><small>${esc(destination)}</small></span>
+          <span class="ol-cycle-status-badge ol-cycle-status-${esc(String(row.status || "draft"))}">${esc(socialPlanStatusLabel(row.status))}</span>
+        </summary>
+        <div class="ol-cycle-row-body">
+          <small>${esc(row.post_type || "")}${row?.source_article_image?.featured_image_url ? " · immagine articolo disponibile" : " · immagine articolo non ancora approvata"}</small>
+          <div class="ol-field" style="margin-top:8px"><label>Testo canonico</label><textarea data-social-plan-text="${esc(id)}" rows="4" maxlength="4000" ${editable ? "" : "disabled"}>${esc(row.canonical_text || "")}</textarea></div>
+          <div class="ol-field" style="margin-top:8px"><label>Canali espliciti</label><div class="ol-autopilot-sources">${platformChoicesMarkup(id, row.platforms || [], "data-social-plan-platform")}</div></div>
+          ${editable ? `<div class="ol-autopilot-fields" style="margin-top:8px"><div class="ol-field"><label>Stato editoriale</label><select data-social-plan-status="${esc(id)}">${statusOptions}</select></div></div><div class="ol-toolbar-group" style="margin-top:8px"><button class="ol-button ol-button-secondary ol-button-small" type="button" data-social-plan-save="${esc(id)}">Salva post</button></div>` : ""}
+          <small>In Automatico completo la pubblicazione viene eseguita dallo scheduler nello slot previsto.</small>
+        </div>
+      </details>`;
     }).join("");
-    message.textContent = `${numberIt(socialPlanItems.length)} post nel piano. In Automatico completo i canali abilitati vengono gestiti dal calendario; negli altri modi restano sotto controllo umano.`;
+    message.textContent = `${numberIt(socialPlanItems.length)} post nel piano.`;
+    renderCycleOverview(section);
   }
 
   async function loadSocialPlan(section) {
@@ -869,14 +907,27 @@
     }
   }
 
+  function automationRunTypeLabel(type) {
+    return ({ research: "Ricerca", article_prepare: "Bozza articolo", article_publish: "Pubblicazione articolo", social_followup: "Follow-up", social_related: "Post OffertaLogica" })[type] || type || "Ciclo";
+  }
+
+  function automationRunStatusLabel(status) {
+    return ({ success: "Completato", failed: "Errore", running: "In corso" })[status] || status || "—";
+  }
+
   function renderAutomationRuns(section) {
     const list = section?.querySelector("[data-automation-run-list]");
+    const toolbar = section?.querySelector("[data-automation-run-toolbar]");
+    const toggle = section?.querySelector("[data-automation-run-toggle]");
     if (!list) return;
     if (!automationRuns.length) {
       list.innerHTML = '<p class="ol-muted">Nessun ciclo registrato.</p>';
+      if (toolbar) toolbar.hidden = true;
+      renderCycleOverview(section);
       return;
     }
-    list.innerHTML = automationRuns.slice(0, 12).map((run) => {
+    const visibleRuns = automationRunsExpanded ? automationRuns : automationRuns.slice(0, 5);
+    list.innerHTML = visibleRuns.map((run) => {
       const details = run?.details || {};
       const diagnostic = [];
       if (details.stage) diagnostic.push(`fase ${details.stage}`);
@@ -886,14 +937,23 @@
       if (details.selection_fallback_below_threshold) diagnostic.push("fallback sotto soglia");
       if (run.opportunity_id) diagnostic.push(`opportunità ${run.opportunity_id}`);
       if (run.article_id) diagnostic.push(`articolo ${run.article_id}`);
-      return `<div class="ol-autopilot-archive-item">
-        <strong>${esc(run.run_type || "ciclo")} · ${esc(run.status || "—")}</strong>
-        <small>Avvio ${esc(dateIt(run.started_at || run.created_at))}${run.finished_at ? ` · fine ${esc(dateIt(run.finished_at))}` : ""}</small>
-        ${diagnostic.length ? `<small>${esc(diagnostic.join(" · "))}</small>` : ""}
-        ${details.selection_reason ? `<small>${esc(details.selection_reason)}</small>` : ""}
-        ${run.last_error ? `<small>Errore: ${esc(run.last_error)}</small>` : `<small>Pubblicazione automatica: ${details.publication_performed ? "sì" : "no"}</small>`}
-      </div>`;
+      const status = String(run.status || "unknown");
+      return `<details class="ol-cycle-row">
+        <summary class="ol-cycle-row-summary">
+          <span><strong>${esc(automationRunTypeLabel(run.run_type))}</strong><small>${esc(dateIt(run.started_at || run.created_at))}</small></span>
+          <span class="ol-cycle-status-badge ol-cycle-status-${esc(status)}">${esc(automationRunStatusLabel(status))}</span>
+        </summary>
+        <div class="ol-cycle-row-body">
+          ${run.finished_at ? `<small>Fine ${esc(dateIt(run.finished_at))}</small>` : ""}
+          ${diagnostic.length ? `<small>${esc(diagnostic.join(" · "))}</small>` : ""}
+          ${details.selection_reason ? `<small>${esc(details.selection_reason)}</small>` : ""}
+          ${run.last_error ? `<small class="ol-cycle-error">Errore: ${esc(run.last_error)}</small>` : `<small>Pubblicazione automatica: ${details.publication_performed ? "sì" : "no"}</small>`}
+        </div>
+      </details>`;
     }).join("");
+    if (toolbar) toolbar.hidden = automationRuns.length <= 5;
+    if (toggle) toggle.textContent = automationRunsExpanded ? "Mostra solo gli ultimi 5" : `Mostra storico (${automationRuns.length})`;
+    renderCycleOverview(section);
   }
 
   async function loadAutomationRuns(section) {
@@ -1678,9 +1738,17 @@
     const section = event.currentTarget;
     const pageButton = event.target.closest("[data-signal-page]");
     const jumpButton = event.target.closest("[data-jump-opportunities]");
+    const historyToggle = event.target.closest("[data-automation-run-toggle]");
 
+    if (historyToggle) {
+      automationRunsExpanded = !automationRunsExpanded;
+      renderAutomationRuns(section);
+      return;
+    }
     if (jumpButton) {
-      section.querySelector("[data-opportunity-stage]")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      const target = section.querySelector("[data-opportunity-stage]");
+      if (target?.tagName === "DETAILS") target.open = true;
+      target?.scrollIntoView({ behavior: "smooth", block: "start" });
       return;
     }
     if (!pageButton || pageButton.disabled || !lastAnalysisPayload) return;
