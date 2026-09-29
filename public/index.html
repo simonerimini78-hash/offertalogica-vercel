@@ -14794,6 +14794,9 @@ function compattaDocumentoSimulatore(doc) {
     fornitore: String(doc.fornitore || ""),
     fornitore_luce: String(doc.fornitore_luce || ""),
     fornitore_gas: String(doc.fornitore_gas || ""),
+    nome_offerta: String(doc.nome_offerta || ""),
+    nome_offerta_luce: String(doc.nome_offerta_luce || ""),
+    nome_offerta_gas: String(doc.nome_offerta_gas || ""),
   };
   [
     "consumo_periodo_luce_kwh", "consumo_periodo_gas_smc",
@@ -14849,6 +14852,7 @@ function selezioneOffertaSimulatore(offerta) {
     id: String(offerta?.id || offerta?.codice || name),
     name,
     provider: String(offerta?.provider || "Fornitore"),
+    providerKey: String(offerta?.providerKey || (typeof chiaveFornitoreDaNome === "function" ? chiaveFornitoreDaNome(offerta?.provider || "") : "") || ""),
     type: String(offerta?.tipo || "fisso"),
     supply: commodities.length === 2 ? "dual" : commodities[0],
     customerType,
