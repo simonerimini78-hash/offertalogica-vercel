@@ -338,7 +338,7 @@ for relative_path in "${PUBLISH_FILES[@]}"; do
   cp "$SOURCE_ROOT/$relative_path" "$REPO_DIR/$relative_path"
 done
 
-if [ "$ENERGY_PUBLISH" = "1" ]; then
+if [ "$ENERGY_PUBLISH" = "1" ] || [ "$OFFER_PUBLISH" = "1" ]; then
   log "Rigenero pagine PUN/PSV e relativi lastmod dal JSON energia selezionato."
   python3 "$REPO_DIR/scripts/update-energy-today.py" \
     --sync-from-json \
