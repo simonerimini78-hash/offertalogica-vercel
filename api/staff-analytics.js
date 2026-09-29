@@ -1,7 +1,8 @@
 import crypto from "node:crypto";
 import { json } from "../lib/http.js";
+import { recordEditorialArticleAiEconomicEvent, recordEditorialImageAiEconomicEvent, recordEditorialSupportAiEconomicEvent } from "../lib/editorialAiEconomics.js";
 
-const VERSION = "0.12.74";
+const VERSION = "0.12.76";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -1550,6 +1551,7 @@ async function buildEditorialArticleVisualBrief(article, opportunity, guidance =
         },
       },
     },
+    economics: { activity: "article_visual_brief", articleId: article?.id || null, opportunityId: opportunity?.id || null },
   });
   let parsed;
   try {
@@ -1677,6 +1679,7 @@ async function evaluateEditorialArticleImage(article, candidate) {
         },
       },
     },
+    economics: { activity: "article_image_qa", articleId: article?.id || null },
   });
   const raw = responseOutputText(response);
   let parsed;
@@ -1739,6 +1742,17 @@ async function generateOpenAiArticleImage(article, opportunity, guidance = "") {
     clearTimeout(timeout);
   }
   const payload = await response.json().catch(() => null);
+  await recordEditorialImageAiEconomicEvent({
+    eventId: payload?.id || response.headers?.get?.("x-request-id") || `editorial-image:${crypto.randomUUID()}`,
+    response: payload || {},
+    model,
+    outcome: response.ok ? "completed" : "failed",
+    opportunityId: opportunity?.id || null,
+    articleId: article?.id || null,
+    size: "1536x1024",
+    quality: "high",
+    activity: "article_hero_image",
+  }).catch(() => {});
   if (!response.ok) throw new Error(payload?.error?.message || `OpenAI Images ${response.status}`);
   const item = Array.isArray(payload?.data) ? payload.data[0] : null;
   let buffer = null;
@@ -2065,7 +2079,7 @@ function editorialPackageSchema() {
   };
 }
 
-async function openAiResponseRequest(path, { method = "GET", body } = {}) {
+async function openAiResponseRequest(path, { method = "GET", body, economics = null } = {}) {
   const apiKey = env("OPENAI_API_KEY");
   if (!apiKey) throw new Error("OPENAI_API_KEY non configurata lato server");
   const controller = new AbortController();
@@ -2089,6 +2103,21 @@ async function openAiResponseRequest(path, { method = "GET", body } = {}) {
     clearTimeout(timeout);
   }
   const payload = await response.json().catch(() => null);
+  const hasBillableUsage = Boolean(payload?.usage) || (Array.isArray(payload?.output) && payload.output.some((item) => item?.type === "web_search_call"));
+  if (economics && hasBillableUsage) {
+    const eventId = String(payload?.id || response.headers?.get?.("x-request-id") || `editorial-support:${crypto.randomUUID()}`);
+    await recordEditorialSupportAiEconomicEvent({
+      eventId,
+      response: payload || {},
+      model: economics.model || body?.model || payload?.model || editorialAiModel(),
+      outcome: response.ok ? "completed" : "failed",
+      opportunityId: economics.opportunityId || null,
+      articleId: economics.articleId || null,
+      runSource: economics.runSource || "",
+      activity: economics.activity || "editorial_support",
+      socialPlanItemId: economics.socialPlanItemId || null,
+    }).catch(() => {});
+  }
   if (!response.ok) throw new Error(payload?.error?.message || `OpenAI ${response.status}`);
   return payload;
 }
@@ -2440,6 +2469,17 @@ async function checkEditorialArticlePackage(user, payload = {}) {
 
   const response = await retrieveOpenAiEditorialPackage(job.response_id);
   const status = String(response?.status || "");
+  if (!["queued", "in_progress"].includes(status)) {
+    await recordEditorialArticleAiEconomicEvent({
+      eventId: response?.id || job.response_id,
+      response: response || {},
+      model: job.model || editorialAiModel(),
+      outcome: status === "completed" ? "completed" : "failed",
+      opportunityId: id,
+      articleId: job.article_id || opportunity.target_article_id || null,
+      runSource,
+    }).catch(() => {});
+  }
   if (["queued", "in_progress"].includes(status)) {
     const now = new Date().toISOString();
     const nextEvidence = {
@@ -2984,6 +3024,7 @@ async function buildEditorialArticleIntroCopy(article) {
         },
       },
     },
+    economics: { activity: "article_intro_social_copy", articleId: article?.id || null },
   });
   let parsed;
   try {
@@ -3132,6 +3173,7 @@ async function buildEditorialSocialCoverText(article, item, target, targetContex
         },
       },
     },
+    economics: { activity: "social_cover_text", articleId: article?.id || null, socialPlanItemId: item?.id || null },
   });
   let parsed;
   try {
@@ -3197,6 +3239,7 @@ async function buildEditorialSocialAssetBrief(article, item, target, targetConte
         },
       },
     },
+    economics: { activity: "social_asset_brief", articleId: article?.id || null, socialPlanItemId: item?.id || null },
   });
   let parsed;
   try {
@@ -3283,6 +3326,7 @@ async function evaluateEditorialSocialCopy(article, item, target, targetContext,
         },
       },
     },
+    economics: { activity: "social_copy_qa", articleId: article?.id || null, socialPlanItemId: item?.id || null },
   });
   let parsed;
   try { parsed = JSON.parse(responseOutputText(response)); }
@@ -3365,6 +3409,17 @@ async function generateOpenAiSocialImage(article, item, target, brief, guidance 
     clearTimeout(timeout);
   }
   const payload = await response.json().catch(() => null);
+  await recordEditorialImageAiEconomicEvent({
+    eventId: payload?.id || response.headers?.get?.("x-request-id") || `editorial-social-image:${crypto.randomUUID()}`,
+    response: payload || {},
+    model,
+    outcome: response.ok ? "completed" : "failed",
+    articleId: article?.id || null,
+    socialPlanItemId: item?.id || null,
+    size: EDITORIAL_SOCIAL_IMAGE_SIZE,
+    quality: "high",
+    activity: "social_image",
+  }).catch(() => {});
   if (!response.ok) throw new Error(payload?.error?.message || `OpenAI Images ${response.status}`);
   const itemPayload = Array.isArray(payload?.data) ? payload.data[0] : null;
   let buffer = null;
@@ -3439,6 +3494,7 @@ async function evaluateEditorialSocialImage(article, item, target, brief, image,
         },
       },
     },
+    economics: { activity: "social_image_qa", articleId: article?.id || null, socialPlanItemId: item?.id || null },
   });
   let parsed;
   try {

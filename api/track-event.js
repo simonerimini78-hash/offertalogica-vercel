@@ -129,6 +129,7 @@ const ALLOWED_INTERACTIVE_TOOL_CODES = new Set([
   "fotovoltaico_agricoltura",
   "climatizzazione_pdc",
   "sicurezza_energia",
+  "simulatore_bolletta",
 ]);
 const ALLOWED_INTERACTIVE_TOOL_ACTIONS = new Set([
   "page_view",

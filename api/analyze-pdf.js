@@ -220,6 +220,8 @@ export default async function handler(req, res) {
         analysisStage,
         elapsedMs: Date.now() - requestStartedAt,
         errorCode: error ? String(error?.code || error?.name || error?.message || "pdf_analysis_error").slice(0, 120) : "",
+        source: archiveContext?.source || "",
+        toolCode: archiveContext?.source === "simulator" ? "simulatore_bolletta" : "",
         occurredAt: aiAccountingOccurredAt,
       });
     } catch (accountingError) {
