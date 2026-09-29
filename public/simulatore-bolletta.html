@@ -256,6 +256,94 @@
       .bill-lines li>strong{font-size:10.5px}
     }
 
+
+
+    /* v0.10.21 — bollette complete, controlli simmetrici, mobile-first */
+    .hero .shell{max-width:1180px}
+    .bill-paper.simulated .bill-tools{display:block!important;width:100%!important}
+    .bill-paper.simulated #offer-picker{display:block!important;width:100%!important;grid-column:1/-1!important}
+    .bill-paper.simulated .offer-picker-grid{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;width:100%!important;gap:8px!important}
+    .bill-paper.simulated .offer-picker .field{display:block!important;min-width:0!important;width:100%!important}
+    .bill-tools>.tool-button,.bill-paper.simulated .offer-picker .field select{
+      width:100%!important;height:44px!important;min-height:44px!important;margin:0!important;padding:8px 34px 8px 11px!important;
+      border:1px solid #cbd5e1!important;border-radius:12px!important;background-color:#fff!important;box-shadow:0 5px 14px rgba(15,23,42,.035)!important;
+      font:inherit!important;font-size:13px!important;font-weight:850!important;line-height:1.2!important;color:#2f4858!important
+    }
+    .bill-tools>.tool-button.primary-blue,#provider-select{border-color:#b9d0ff!important;color:#1d4ed8!important;background-color:#fff!important}
+    .bill-tools>.tool-button{padding-right:11px!important;text-align:center!important}
+    .bill-paper.simulated .offer-picker .field select{white-space:nowrap!important;text-overflow:ellipsis!important;overflow:hidden!important;text-align:center!important;text-align-last:center!important}
+    .bill-compare{align-items:start!important}
+    .bill-paper.real,.bill-paper.simulated{height:auto!important;align-self:start!important}
+    .simulate-action{grid-column:2!important;display:flex!important;justify-content:center!important;padding:10px 0 0!important}
+    .simulate-action .button{width:100%!important;min-height:48px!important;border-radius:12px!important}
+    .history-status{display:none!important}
+    .comparison-meta{position:relative}
+    body.simulator-has-result .comparison-meta{display:grid}
+    .result-actions{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)!important;gap:8px!important;width:100%!important}
+    .result-actions>.button,.result-actions-secondary,.result-actions-secondary>.button{width:100%!important;margin:0!important}
+    .result-actions-secondary{display:contents!important}
+    .bill-lines li.section-line{grid-template-columns:1fr!important;background:#f8fafc!important;color:#334155!important;font-weight:900!important}
+    .bill-lines li.section-line strong{display:none!important}
+    .bill-lines li.bill-component-row span{padding-left:12px;color:#64748b;font-size:.94em}
+    .bill-lines li.bill-component-row strong{font-weight:750;color:#475569}
+    .bill-lines li.bill-breakdown-row strong{font-variant-numeric:tabular-nums}
+    .saving-band{max-width:none!important;width:100%!important;margin:14px 0 0!important}
+    @media(max-width:700px){
+      .comparison-stage{display:block!important}
+      .bill-compare{display:grid!important;grid-template-columns:1fr!important;gap:10px!important}
+      .bill-paper{width:100%!important}
+      .bill-paper.simulated .bill-tools{height:60px!important;min-height:60px!important;padding:8px 10px!important}
+      .bill-paper.simulated .offer-picker-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;gap:8px!important}
+      .bill-tools>.tool-button,.bill-paper.simulated .offer-picker .field select{height:42px!important;min-height:42px!important;font-size:11.5px!important;padding-top:7px!important;padding-bottom:7px!important}
+      .bill-paper.simulated .offer-picker .field select{padding-left:9px!important;padding-right:28px!important}
+      .simulate-action{grid-column:1!important;padding:0!important;margin-top:0!important}
+      .simulate-action .button{width:100%!important;min-height:44px!important}
+      .saving-band,.comparison-meta,.bill-note{order:initial!important}
+      .saving-band{margin-top:10px!important}
+      .comparison-meta{margin-top:10px!important}
+      .result-actions{grid-template-columns:1fr!important}
+      .result-actions-secondary{display:contents!important}
+      .bill-lines li{grid-template-columns:minmax(112px,.46fr) minmax(0,.54fr)!important;align-items:start!important}
+      .bill-lines li.section-line{grid-template-columns:1fr!important}
+      .bill-lines li.bill-component-row span{padding-left:8px}
+    }
+    @media(max-width:380px){
+      .bill-tools>.tool-button,.bill-paper.simulated .offer-picker .field select{font-size:10.8px!important}
+      .bill-lines li{grid-template-columns:minmax(104px,.46fr) minmax(0,.54fr)!important}
+    }
+
+
+
+    /* v0.10.21-final — due bollette visivamente identiche; differiscono solo etichette e valori */
+    .bill-compare{align-items:stretch!important}
+    .bill-paper.real,.bill-paper.simulated{
+      height:100%!important;align-self:stretch!important;border:1px solid #cbd5e1!important;border-top:6px solid #64748b!important;box-shadow:0 12px 30px rgba(15,23,42,.055)!important;background:#fff!important
+    }
+    .bill-paper.real .doc-label,.bill-paper.simulated .doc-label{color:#475569!important}
+    .bill-paper.real .customer-badge,.bill-paper.simulated .customer-badge{background:#f1f5f9!important;color:#334155!important}
+    .bill-paper.real .bill-tools,.bill-paper.simulated .bill-tools{background:linear-gradient(135deg,#f8fafc,#fff)!important}
+    .bill-paper.real .bill-total,.bill-paper.simulated .bill-total{background:#f8fafc!important;border-top-color:#cbd5e1!important}
+    .bill-paper.real .bill-total strong,.bill-paper.simulated .bill-total strong{color:#0f172a!important}
+    .bill-paper-head{border-top:0!important}
+    .result-status{margin-top:14px!important}
+    body.simulator-has-result .saving-band{background:#f8fafc!important;border-color:#cbd5e1!important}
+    body.simulator-has-result .saving-copy span,body.simulator-has-result .saving-copy small{color:#475569!important}
+    body.simulator-has-result .saving-copy strong{color:#0f172a!important}
+    .bill-lines li.bill-component-row{background:#fcfdff}
+    .bill-lines li.bill-component-row span{font-style:normal}
+    @media(max-width:700px){
+      .topbar-inner{position:relative!important;display:flex!important;align-items:center!important;justify-content:center!important;min-height:66px!important;padding:8px 52px!important}
+      .brand{display:flex!important;align-items:center!important;justify-content:center!important;margin:0 auto!important}
+      .brand img{width:122px!important;height:auto!important;margin:0 auto!important}
+      .ol-menu-toggle{position:absolute!important;right:11px!important;top:50%!important;transform:translateY(-50%)!important;margin:0!important}
+      .breadcrumbs{justify-content:center!important;text-align:center!important;width:100%!important}
+      .bill-paper.real,.bill-paper.simulated{height:auto!important;border-radius:16px!important}
+      .result-status{margin-top:10px!important}
+    }
+    @media(max-width:420px){
+      .topbar-inner{padding-left:50px!important;padding-right:50px!important}
+      .brand img{width:114px!important}
+    }
   </style>
 </head>
 <body>
@@ -337,15 +425,14 @@
             </ul>
             <footer class="bill-total"><span>Totale bolletta simulata</span><strong id="simulated-total">—</strong></footer>
           </article>
+          <div class="simulate-action"><button class="button primary" id="simulate-selected-offer" type="button" disabled>Simula la bolletta</button></div>
         </div>
-        <div class="simulate-action"><button class="button primary" id="simulate-selected-offer" type="button" disabled>Simula la bolletta</button></div>
         <span class="result-status" id="result-status">Confronto pronto</span>
         <section class="saving-band" id="saving-box" aria-label="Differenza tra bolletta reale e simulata"><div class="saving-copy"><span id="saving-label">Risultato del confronto</span><strong id="saving-total">—</strong><small id="saving-percent">Stesso periodo e stessi consumi</small></div><div class="saving-equation"><strong id="saving-equation">— → —</strong><span>Bolletta reale → bolletta simulata</span></div></section>
-        <div class="history-status" id="history-status" role="status" aria-live="polite"></div>
         <div class="comparison-meta">
           <details class="info-card info-disclosure"><summary>Come viene calcolata</summary><div class="info-card-body"><ul><li>consumo del periodo letto dalla bolletta;</li><li>quota fissa riproporzionata sui giorni fatturati;</li><li>prezzo della nuova offerta;</li><li>altre voci mantenute come riferimento quando non dipendono dall'offerta simulata.</li></ul></div></details>
           <details class="info-card info-disclosure"><summary>Dati dell'offerta simulata</summary><div class="info-card-body"><p><strong>Fornitore:</strong> <span id="offer-provider">—</span></p><p><strong>Offerta:</strong> <span id="offer-name">—</span></p><p><strong>Tipologia:</strong> <span id="offer-type">—</span></p><p id="offer-price-line"><strong>Prezzo applicato:</strong> —</p></div></details>
-          <section class="info-card offer-cta"><h3>Vuoi attivare questa offerta?</h3><p>Prosegui con il percorso di attivazione previsto per l'offerta selezionata.</p><div class="result-actions"><button class="button primary" id="activate-selected-offer" type="button" disabled>Attiva l'offerta</button><div class="result-actions-secondary"><button class="button secondary" id="back-to-offers" type="button">Torna alle offerte</button><button class="button secondary" id="reset-simulator-bottom" type="button">Azzera tutto</button></div></div></section>
+          <section class="info-card offer-cta"><h3>Vuoi attivare questa offerta?</h3><p>Prosegui con il percorso di attivazione previsto per l'offerta selezionata.</p><div class="result-actions"><button class="button primary" id="activate-selected-offer" type="button" disabled>Attiva l'offerta</button><div class="result-actions-secondary"><button class="button secondary" id="back-to-offers" type="button">Passa a un'altra offerta</button><button class="button secondary" id="reset-simulator-bottom" type="button">Azzera tutto</button></div></div></section>
         </div>
         <p class="bill-note" id="bill-note"><strong>Nota:</strong> la bolletta simulata è una simulazione informativa OffertaLogica e non una fattura emessa dal fornitore.</p>
       </div>
@@ -419,6 +506,10 @@
     if(!input||typeof input!=="object")return null;
     const out={kind:String(input.kind||""),commodity:String(input.commodity||""),customer_type:String(input.customer_type||""),billing_period_start:String(input.billing_period_start||""),billing_period_end:String(input.billing_period_end||""),total_amount_eur:Number(input.total_amount_eur),fornitore:String(input.fornitore||""),fornitore_luce:String(input.fornitore_luce||""),fornitore_gas:String(input.fornitore_gas||""),nome_offerta:String(input.nome_offerta||""),nome_offerta_luce:String(input.nome_offerta_luce||""),nome_offerta_gas:String(input.nome_offerta_gas||"")};
     ["consumo_periodo_luce_kwh","consumo_periodo_gas_smc","prezzo_luce_eur_kwh","prezzo_gas_eur_smc","prezzo_vendita_bolletta_luce_eur_kwh","prezzo_vendita_bolletta_gas_eur_smc","quota_fissa_vendita_luce_eur_anno","quota_fissa_vendita_gas_eur_anno"].forEach((key)=>{const n=Number(input[key]);out[key]=Number.isFinite(n)?n:null;});
+    const compactBreakdown=(rows)=>Array.isArray(rows)?rows.map((row)=>({category:String(row?.category||""),label:String(row?.label||""),amount_eur:Number(row?.amount_eur)})).filter((row)=>row.category&&Number.isFinite(row.amount_eur)):[];
+    const compactComponents=(rows)=>Array.isArray(rows)?rows.map((row)=>({label:String(row?.label||""),value:Number(row?.value),value_text:String(row?.value_text||""),unit:String(row?.unit||"")})).filter((row)=>row.label&&(Number.isFinite(row.value)||row.value_text)):[];
+    out.bill_breakdown_luce=compactBreakdown(input.bill_breakdown_luce);out.bill_breakdown_gas=compactBreakdown(input.bill_breakdown_gas);
+    out.componenti_prezzo_luce=compactComponents(input.componenti_prezzo_luce);out.componenti_prezzo_gas=compactComponents(input.componenti_prezzo_gas);
     if(out.kind!=="bolletta"||!(out.total_amount_eur>0)||!out.billing_period_start||!out.billing_period_end)return null;
     return out;
   }
@@ -547,45 +638,105 @@
     return {mode:"historical_fixed",components:details,message:"Offerta presente e valida per l'intero periodo della bolletta. La simulazione usa le condizioni a prezzo fisso archiviate per quel periodo."};
   }
   function offerForHistoricalSimulation(offer,history){if(history?.mode!=="historical_fixed")return offer;const copy=JSON.parse(JSON.stringify(offer));Object.entries(history.components||{}).forEach(([commodity,item])=>{const version=item.version;if(!version||!copy.components?.[commodity])return;const price=Number(version.price),fixed=Number(version.annualFixedFee);if(price>0)copy.components[commodity].price=price;if(Number.isFinite(fixed)&&fixed>=0)copy.components[commodity].annualFixedFee=fixed;copy.components[commodity].historical=true;});return copy;}
-  function renderHistory(history){const node=$("history-status");if(!node)return;node.className="history-status is-visible "+(history.mode==="historical_fixed"?"is-ok":history.mode==="unavailable"?"is-info":"is-warn");const title=history.mode==="historical_fixed"?"Disponibilità storica verificata":history.mode==="historical_variable"?"Offerta presente, tariffa indicizzata":history.mode==="unavailable"?"Offerta non disponibile nel periodo":history.mode==="partial"?"Disponibilità solo parziale":"Disponibilità storica non verificabile";node.innerHTML=`<strong>${escapeHtml(title)}</strong>${escapeHtml(history.message||"")}`;}
+  function renderHistory(history){
+    const node=$("history-status");if(node){node.className="history-status";node.innerHTML="";}
+  }
+
+  const BILL_CATEGORY_ORDER={bill_materia:0,bill_transport:1,bill_system_charges:2,bill_excise:3,bill_vat:4,bill_other_charge:5};
+  function breakdownRowsForDoc(doc,commodity){const rows=doc?.[`bill_breakdown_${commodity}`];return Array.isArray(rows)?rows:[];}
+  function priceComponentsForDoc(doc,commodity){const rows=doc?.[`componenti_prezzo_${commodity}`];return Array.isArray(rows)?rows:[];}
+  function explicitMateriaAmount(doc,commodity){return breakdownRowsForDoc(doc,commodity).filter((row)=>row.category==="bill_materia"&&Number.isFinite(Number(row.amount_eur))).reduce((sum,row)=>sum+Number(row.amount_eur),0);}
+  function modeledCurrentSale(doc,commodity){const consumption=periodConsumption(doc,commodity),price=currentPrice(doc,commodity),fixed=currentFixed(doc,commodity),days=daysInclusive(doc.billing_period_start,doc.billing_period_end);if(!(consumption>0)||!(price>0)||!Number.isFinite(fixed)||fixed<0||!(days>0))return 0;return consumption*price+fixed*(days/365);}
+  function currentSaleAmount(doc,commodity){const explicit=explicitMateriaAmount(doc,commodity);return explicit>0?explicit:modeledCurrentSale(doc,commodity);}
+  function billCategoryLabel(category,commodity,originalLabel,multiSupply){
+    const suffix=multiSupply?` (${commodityLabel(commodity)})`:"";
+    if(category==="bill_materia")return `Spesa materia ${commodity==="luce"?"energia":"gas"}`;
+    if(category==="bill_transport")return `Trasporto e gestione contatore${suffix}`;
+    if(category==="bill_system_charges")return `Oneri di sistema${suffix}`;
+    if(category==="bill_excise")return `Accise / imposte${suffix}`;
+    if(category==="bill_vat")return `IVA${suffix}`;
+    return `${String(originalLabel||"Altre voci").trim()||"Altre voci"}${suffix}`;
+  }
+  function economicRowsFromDocs(){
+    const supply=commoditiesFromDocs(),multiSupply=supply.length>1,map=new Map();
+    for(const commodity of supply){
+      let materiaFound=false;
+      for(const doc of state.docs){
+        for(const row of breakdownRowsForDoc(doc,commodity)){
+          const amount=Number(row.amount_eur),category=String(row.category||"");if(!Number.isFinite(amount)||!category)continue;if(category==="bill_materia")materiaFound=true;
+          const label=billCategoryLabel(category,commodity,row.label,multiSupply),key=category==="bill_other_charge"?`${commodity}|${category}|${label.toLowerCase()}`:`${commodity}|${category}`;
+          const current=map.get(key)||{commodity,category,label,amount:0,derived:false};current.amount+=amount;map.set(key,current);
+        }
+      }
+      if(!materiaFound){const amount=state.docs.reduce((sum,doc)=>sum+currentSaleAmount(doc,commodity),0);if(amount>0){const key=`${commodity}|bill_materia`;map.set(key,{commodity,category:"bill_materia",label:billCategoryLabel("bill_materia",commodity,"",multiSupply),amount,derived:true});}}
+    }
+    return [...map.values()].sort((a,b)=>(BILL_CATEGORY_ORDER[a.category]??99)-(BILL_CATEGORY_ORDER[b.category]??99)||a.label.localeCompare(b.label,"it"));
+  }
+  function componentRowsFromDocs(){
+    const supply=commoditiesFromDocs(),multiSupply=supply.length>1,seen=new Map();
+    for(const commodity of supply){for(const doc of state.docs){for(const row of priceComponentsForDoc(doc,commodity)){const label=String(row.label||"").trim();if(!label)continue;const unit=String(row.unit||"").trim(),value=Number(row.value),text=String(row.value_text||"").trim();if(!Number.isFinite(value)&&!text)continue;const key=`${commodity}|${label.toLowerCase()}|${unit.toLowerCase()}`;if(seen.has(key))continue;seen.set(key,{commodity,label:`${label}${multiSupply?` (${commodityLabel(commodity)})`:""}`,value:Number.isFinite(value)?value:null,valueText:text,unit});}}}
+    return [...seen.values()];
+  }
+  function componentValue(row){if(Number.isFinite(row.value)){const unit=row.unit?` ${escapeHtml(row.unit)}`:"";return `${number(row.value,6)}${unit}`;}return escapeHtml(row.valueText||"—");}
+  function simulatedSaleForCommodity(payload,commodity){const value=Number(payload?.breakdown?.[commodity]?.venditaNuova);return Number.isFinite(value)?value:null;}
+  function buildEconomicComparisonRows(payload=null){
+    const rows=economicRowsFromDocs().map((row)=>({ ...row,realValue:row.amount,virtualValue:row.category==="bill_materia"?(payload?simulatedSaleForCommodity(payload,row.commodity):null):row.amount }));
+    const realTotal=state.docs.reduce((sum,doc)=>sum+(Number(doc.total_amount_eur)||0),0),virtualTotal=Number(payload?.summary?.simulatedTotal);
+    const realKnown=rows.reduce((sum,row)=>sum+(Number.isFinite(row.realValue)?row.realValue:0),0),virtualKnown=rows.reduce((sum,row)=>sum+(Number.isFinite(row.virtualValue)?row.virtualValue:0),0);
+    const realResidual=Number((realTotal-realKnown).toFixed(2)),virtualResidual=payload&&Number.isFinite(virtualTotal)?Number((virtualTotal-virtualKnown).toFixed(2)):realResidual;
+    if(Math.abs(realResidual)>.01||Math.abs(virtualResidual)>.01)rows.push({commodity:"",category:"bill_other_charge",label:"Altre voci non dettagliate",realValue:realResidual,virtualValue:payload?virtualResidual:realResidual,residual:true});
+    return rows;
+  }
+  function billRowsHtml({facts,side,payload=null,provider,offer}){
+    const real=side==="real",economicRows=buildEconomicComparisonRows(payload),components=componentRowsFromDocs();
+    let html=`<li><span>Periodo</span><strong>${facts.period}</strong></li><li><span>Tipo fornitura</span><strong>${facts.supplyLabel}</strong></li><li><span>Fornitore</span><strong>${escapeHtml(provider||"—")}</strong></li><li><span>Offerta</span><strong>${escapeHtml(offer||"—")}</strong></li><li><span>Consumo</span><strong>${facts.consumptionText}</strong></li><li class="section-line"><span>Dettaglio bolletta</span><strong></strong></li>`;
+    for(const row of economicRows){let value;if(real)value=euro(row.realValue);else if(row.category==="bill_materia"&&!payload)value=state.selected?"da simulare":"—";else value=euro(row.virtualValue);const rowLabel=row.derived?`${row.label} (ricostruita)`:row.label;html+=`<li class="bill-breakdown-row"><span>${escapeHtml(rowLabel)}</span><strong>${escapeHtml(value)}</strong></li>`;}
+    if(components.length){html+=`<li class="section-line"><span>Dettaglio prezzo materia</span><strong></strong></li>`;for(const row of components){const value=real?componentValue(row):(payload?"compreso nella materia simulata":"—");html+=`<li class="bill-component-row"><span>${escapeHtml(row.label)}</span><strong>${value}</strong></li>`;}}
+    return html;
+  }
 
   function simulateDocument(doc,offer){
-    const start=doc.billing_period_start,end=doc.billing_period_end,days=daysInclusive(start,end),original=Number(doc.total_amount_eur);if(!(days>0)||!(original>0))return null;const declared=doc.commodity==="dual"?["luce","gas"]:commoditiesFromDocs().filter((commodity)=>periodConsumption(doc,commodity)>0);const parts=[];
-    for(const commodity of declared){const component=offer.components?.[commodity];if(!component)continue;const consumption=periodConsumption(doc,commodity),priceCurrent=currentPrice(doc,commodity),fixedCurrent=currentFixed(doc,commodity),priceNew=Number(component.price),fixedNew=Number(component.annualFixedFee);if(!(consumption>0)||!(priceCurrent>0)||!Number.isFinite(fixedCurrent)||fixedCurrent<0||!(priceNew>0)||!Number.isFinite(fixedNew)||fixedNew<0)continue;const materiaCurrent=consumption*priceCurrent,fissoCurrent=fixedCurrent*(days/365),materiaNew=consumption*priceNew,fissoNew=fixedNew*(days/365);parts.push({commodity,attuale:{consumo:consumption,materia:materiaCurrent,quotaFissa:fissoCurrent,totale:materiaCurrent+fissoCurrent},nuova:{consumo:consumption,materia:materiaNew,quotaFissa:fissoNew,totale:materiaNew+fissoNew,prezzoEffettivo:priceNew,tipoPrezzo:component.type||offer.type}});}
+    const start=doc.billing_period_start,end=doc.billing_period_end,days=daysInclusive(start,end),original=Number(doc.total_amount_eur);if(!(days>0)||!(original>0))return null;
+    const declared=doc.commodity==="dual"?["luce","gas"]:["luce","gas"].filter((commodity)=>doc.commodity===commodity||periodConsumption(doc,commodity)>0),parts=[];
+    for(const commodity of declared){
+      const component=offer.components?.[commodity];if(!component)continue;const consumption=periodConsumption(doc,commodity),priceCurrent=currentPrice(doc,commodity),fixedCurrent=currentFixed(doc,commodity),priceNew=Number(component.price),fixedNew=Number(component.annualFixedFee);if(!(consumption>0)||!(priceCurrent>0)||!Number.isFinite(fixedCurrent)||fixedCurrent<0||!(priceNew>0)||!Number.isFinite(fixedNew)||fixedNew<0)continue;
+      const materiaCurrent=consumption*priceCurrent,fissoCurrent=fixedCurrent*(days/365),materiaNew=consumption*priceNew,fissoNew=fixedNew*(days/365),saleFromBill=explicitMateriaAmount(doc,commodity),currentSale=saleFromBill>0?saleFromBill:materiaCurrent+fissoCurrent;
+      parts.push({commodity,attuale:{consumo:consumption,materia:materiaCurrent,quotaFissa:fissoCurrent,totale:currentSale,totaleDaBolletta:saleFromBill>0},nuova:{consumo:consumption,materia:materiaNew,quotaFissa:fissoNew,totale:materiaNew+fissoNew,prezzoEffettivo:priceNew,tipoPrezzo:component.type||offer.type}});
+    }
     if(!parts.length)return null;const currentSale=parts.reduce((sum,item)=>sum+item.attuale.totale,0),newSale=parts.reduce((sum,item)=>sum+item.nuova.totale,0),rest=original-currentSale;if(rest<-.5)return null;const simulated=Math.max(0,rest+newSale);return {commodity:doc.commodity,start,end,giorni:days,provider:doc.fornitore_luce||doc.fornitore_gas||doc.fornitore||"",customerType:doc.customer_type||offer.customerType||customerTypeFromDocs()||"privato",totaleOriginale:original,totaleSimulato:simulated,risparmio:original-simulated,restoBolletta:Math.max(0,rest),componenti:parts};
   }
   function buildPayload(offer,history){
     const effective=offerForHistoricalSimulation(offer,history),simulations=state.docs.map((doc)=>simulateDocument(doc,effective)).filter(Boolean);if(!simulations.length)return null;const requested=new Set(Object.keys(effective.components||{})),covered=new Set();simulations.forEach((sim)=>sim.componenti.forEach((part)=>covered.add(part.commodity)));if([...requested].some((commodity)=>!covered.has(commodity)))return null;
     const original=simulations.reduce((sum,item)=>sum+item.totaleOriginale,0),simulated=simulations.reduce((sum,item)=>sum+item.totaleSimulato,0),saving=original-simulated,breakdown={luce:null,gas:null};
     for(const commodity of ["luce","gas"]){const parts=simulations.flatMap((sim)=>sim.componenti.filter((item)=>item.commodity===commodity));if(!parts.length)continue;breakdown[commodity]={consumo:parts.reduce((sum,item)=>sum+item.attuale.consumo,0),materiaAttuale:parts.reduce((sum,item)=>sum+item.attuale.materia,0),materiaNuova:parts.reduce((sum,item)=>sum+item.nuova.materia,0),fissoAttuale:parts.reduce((sum,item)=>sum+item.attuale.quotaFissa,0),fissoNuovo:parts.reduce((sum,item)=>sum+item.nuova.quotaFissa,0),venditaAttuale:parts.reduce((sum,item)=>sum+item.attuale.totale,0),venditaNuova:parts.reduce((sum,item)=>sum+item.nuova.totale,0),prezzoNuovo:parts[0].nuova.prezzoEffettivo,tipoPrezzo:parts[0].nuova.tipoPrezzo};}
-    return {version:3,createdAt:new Date().toISOString(),customerType:customerTypeFromDocs()||offer.customerType||"privato",offer:{id:offer.id,name:offer.name,provider:offer.provider,type:offer.type,supply:offer.supply,codes:offer.codes||[]},source:{provider:[...new Set(simulations.map((item)=>item.provider).filter(Boolean))].join(" + "),offerName:currentOfferLabel(),customerType:customerTypeFromDocs()||"privato"},summary:{originalTotal:Number(original.toFixed(2)),simulatedTotal:Number(simulated.toFixed(2)),saving:Number(saving.toFixed(2)),savingPercent:original>0?Number(((saving/original)*100).toFixed(1)):0,retainedBillAmount:Number(simulations.reduce((sum,item)=>sum+item.restoBolletta,0).toFixed(2))},bills:simulations.map((item)=>({commodity:item.commodity,start:item.start,end:item.end,days:item.giorni,provider:item.provider,originalTotal:Number(item.totaleOriginale.toFixed(2)),simulatedTotal:Number(item.totaleSimulato.toFixed(2)),saving:Number(item.risparmio.toFixed(2))})),breakdown,hasPromotions:false,method:history?.mode==="historical_fixed"?"historical_same_bill_replace_offer_component":"current_conditions_same_bill_replace_offer_component",history:{mode:history?.mode||"unknown",message:history?.message||""}};
+    return {version:4,createdAt:new Date().toISOString(),customerType:customerTypeFromDocs()||offer.customerType||"privato",offer:{id:offer.id,name:offer.name,provider:offer.provider,type:offer.type,supply:offer.supply,codes:offer.codes||[]},source:{provider:[...new Set(simulations.map((item)=>item.provider).filter(Boolean))].join(" + "),offerName:currentOfferLabel(),customerType:customerTypeFromDocs()||"privato"},summary:{originalTotal:Number(original.toFixed(2)),simulatedTotal:Number(simulated.toFixed(2)),saving:Number(saving.toFixed(2)),savingPercent:original>0?Number(((saving/original)*100).toFixed(1)):0,retainedBillAmount:Number(simulations.reduce((sum,item)=>sum+item.restoBolletta,0).toFixed(2))},bills:simulations.map((item)=>({commodity:item.commodity,start:item.start,end:item.end,days:item.giorni,provider:item.provider,originalTotal:Number(item.totaleOriginale.toFixed(2)),simulatedTotal:Number(item.totaleSimulato.toFixed(2)),saving:Number(item.risparmio.toFixed(2))})),breakdown,hasPromotions:false,method:history?.mode==="historical_fixed"?"historical_same_bill_replace_offer_component":"current_conditions_same_bill_replace_offer_component",history:{mode:history?.mode||"unknown",message:history?.message||""}};
   }
   function previewBillFacts(){
     if(!state.docs.length)return null;const bills=state.docs,period=bills.length===1?`${date(bills[0].billing_period_start)} – ${date(bills[0].billing_period_end)}`:`${bills.length} bollette analizzate`;const supply=commoditiesFromDocs(),supplyLabel=supply.length===2?"Luce e gas":commodityLabel(supply[0]);const customer=customerLabel(customerTypeFromDocs()||"privato");const providers=[...new Set(bills.flatMap((doc)=>[doc.fornitore_luce,doc.fornitore_gas,doc.fornitore]).map((v)=>String(v||"").trim()).filter(Boolean))].join(" · ");const consumptions=[];for(const commodity of ["luce","gas"]){const total=bills.reduce((sum,doc)=>sum+periodConsumption(doc,commodity),0);if(total>0)consumptions.push(`${commodityLabel(commodity)} ${number(total,2)} ${commodity==="luce"?"kWh":"Smc"}`);}const total=bills.reduce((sum,doc)=>sum+(Number(doc.total_amount_eur)||0),0);return {period,supplyLabel,customer,providers,consumptionText:consumptions.join(" · ")||"—",total};
   }
-  function renderSimulationPreview(){
-    const facts=previewBillFacts();if(!facts)return;const providerSelect=$("provider-select"),offerSelect=$("offer-select");const provider=state.selected?.provider||(providerSelect?.value?providerSelect.selectedOptions?.[0]?.textContent:"")||"—";const offer=state.selected?.name||(offerSelect?.value?offerSelect.selectedOptions?.[0]?.textContent:"")||"—";$("virtual-customer-badge").textContent=facts.customer;$("virtual-bill-lines").innerHTML=`<li><span>Periodo</span><strong>${facts.period}</strong></li><li><span>Tipo fornitura</span><strong>${facts.supplyLabel}</strong></li><li><span>Fornitore</span><strong>${escapeHtml(provider)}</strong></li><li><span>Offerta</span><strong>${escapeHtml(offer)}</strong></li><li><span>Consumo</span><strong>${facts.consumptionText}</strong></li><li class="section-line"><span>Componente offerta</span><strong>${offer!=="—"?"da simulare":"—"}</strong></li><li><span>Altre voci</span><strong>come bolletta reale</strong></li>`;$("simulated-total").textContent="—";
+  function selectedVirtualIdentity(payload=null){const providerSelect=$("provider-select"),offerSelect=$("offer-select");return {provider:payload?.offer?.provider||state.selected?.provider||(providerSelect?.value?providerSelect.selectedOptions?.[0]?.textContent:"")||"—",offer:payload?.offer?.name||state.selected?.name||(offerSelect?.value?offerSelect.selectedOptions?.[0]?.textContent:"")||"—"};}
+  function renderBillPanels(payload=null){
+    const facts=previewBillFacts();if(!facts)return;const virtual=selectedVirtualIdentity(payload);$("real-customer-badge").textContent=facts.customer;$("virtual-customer-badge").textContent=facts.customer;
+    $("real-bill-lines").innerHTML=billRowsHtml({facts,side:"real",payload,provider:facts.providers||"—",offer:currentOfferLabel()||"—"});
+    $("virtual-bill-lines").innerHTML=billRowsHtml({facts,side:"virtual",payload,provider:virtual.provider,offer:virtual.offer});
+    $("original-total").textContent=euro(facts.total);$("simulated-total").textContent=payload?.summary?euro(payload.summary.simulatedTotal):"—";
   }
+  function renderSimulationPreview(){renderBillPanels(null);}
   function clearSimulationResult(){
-    document.body.classList.remove("simulator-has-result");storeJson(PAYLOAD_KEY,null);const history=$("history-status");if(history){history.className="history-status";history.innerHTML="";}const status=$("result-status");if(status){status.classList.remove("is-ready");status.textContent="Confronto pronto";}$("saving-total").textContent="—";$("saving-percent").textContent="Stesso periodo e stessi consumi";$("saving-equation").textContent="— → —";$("activate-selected-offer").disabled=true;
+    document.body.classList.remove("simulator-has-result");storeJson(PAYLOAD_KEY,null);const status=$("result-status");if(status){status.classList.remove("is-ready");status.textContent="Confronto pronto";}$("saving-total").textContent="—";$("saving-percent").textContent="Stesso periodo e stessi consumi";$("saving-equation").textContent="— → —";$("activate-selected-offer").disabled=true;renderBillPanels(null);
   }
-  function renderDocsPreview(){
-    const facts=previewBillFacts();if(!facts)return;$("real-customer-badge").textContent=facts.customer;$("virtual-customer-badge").textContent=facts.customer;$("real-bill-lines").innerHTML=`<li><span>Periodo</span><strong>${facts.period}</strong></li><li><span>Tipo fornitura</span><strong>${facts.supplyLabel}</strong></li><li><span>Fornitore</span><strong>${escapeHtml(facts.providers||"—")}</strong></li><li><span>Offerta</span><strong>${escapeHtml(currentOfferLabel()||"—")}</strong></li><li><span>Consumo</span><strong>${facts.consumptionText}</strong></li><li class="section-line"><span>Componente offerta</span><strong>letta</strong></li><li><span>Altre voci</span><strong>da confrontare</strong></li>`;$("original-total").textContent=euro(facts.total);renderSimulationPreview();
-  }
+  function renderDocsPreview(){renderBillPanels(null);}
 
   function currentOfferLabel(){
     const parts=[];for(const doc of state.docs){const commodity=String(doc.commodity||"");if(commodity==="dual"){const luce=String(doc.nome_offerta_luce||"").trim(),gas=String(doc.nome_offerta_gas||"").trim(),generic=String(doc.nome_offerta||"").trim();if(luce&&gas){parts.push(luce===gas?luce:`Luce: ${luce} · Gas: ${gas}`);}else if(luce)parts.push(`Luce: ${luce}`);else if(gas)parts.push(`Gas: ${gas}`);else if(generic)parts.push(generic);continue;}const name=String(commodity==="luce"?(doc.nome_offerta_luce||doc.nome_offerta):(doc.nome_offerta_gas||doc.nome_offerta)||"").trim();if(name)parts.push(commoditiesFromDocs().length===2?`${commodityLabel(commodity)}: ${name}`:name);}return [...new Set(parts)].join(" · ");
   }
   function renderPayload(payload){
-    if(!payload?.summary||!payload.bills?.length)return;document.body.classList.add("simulator-has-result");$("empty-message")?.remove();const status=$("result-status");status.textContent=payload.history?.mode==="historical_fixed"?"Simulazione storica pronta":payload.customerType==="business"?"Confronto business pronto":"Confronto pronto";status.classList.add("is-ready");const bills=payload.bills,first=bills[0],period=bills.length===1?`${date(first.start)} – ${date(first.end)}`:`${bills.length} bollette analizzate`,supplyParts=[...new Set(bills.flatMap((item)=>item.commodity==="dual"?["luce","gas"]:[item.commodity]).filter((item)=>["luce","gas"].includes(item)))],supplyLabel=supplyParts.length===2?"Luce e gas":commodityLabel(supplyParts[0]),customer=customerLabel(payload.customerType);$("real-customer-badge").textContent=customer;$("virtual-customer-badge").textContent=customer;$("original-total").textContent=euro(payload.summary.originalTotal);$("simulated-total").textContent=euro(payload.summary.simulatedTotal);
-    const consumptionRows=[],currentRows=[],newRows=[];for(const commodity of ["luce","gas"]){const part=payload.breakdown?.[commodity];if(!part)continue;const label=commodityLabel(commodity);consumptionRows.push(`${label} ${number(part.consumo,2)} ${commodity==="luce"?"kWh":"Smc"}`);currentRows.push(`<li><span>Materia ${label.toLowerCase()}</span><strong>${euro(part.materiaAttuale)}</strong></li><li><span>Quota fissa vendita ${label.toLowerCase()}</span><strong>${euro(part.fissoAttuale)}</strong></li>`);newRows.push(`<li><span>Materia ${label.toLowerCase()}</span><strong>${euro(part.materiaNuova)}</strong></li><li><span>Quota fissa vendita ${label.toLowerCase()}</span><strong>${euro(part.fissoNuovo)}</strong></li>`);}const consumptionText=consumptionRows.join(" · ")||"—";
-    $("real-bill-lines").innerHTML=`<li><span>Periodo</span><strong>${period}</strong></li><li><span>Tipo fornitura</span><strong>${supplyLabel}</strong></li><li><span>Fornitore</span><strong>${escapeHtml(payload.source?.provider||"—")}</strong></li><li><span>Offerta</span><strong>${escapeHtml(payload.source?.offerName||"")}</strong></li><li><span>Consumo</span><strong>${consumptionText}</strong></li><li class="section-line"><span>Componente offerta</span><strong>letta</strong></li>${currentRows.join("")}<li><span>Altre voci mantenute</span><strong>${euro(payload.summary.retainedBillAmount)}</strong></li>`;
-    $("virtual-bill-lines").innerHTML=`<li><span>Periodo</span><strong>${period}</strong></li><li><span>Tipo fornitura</span><strong>${supplyLabel}</strong></li><li><span>Fornitore</span><strong>${escapeHtml(payload.offer?.provider||"—")}</strong></li><li><span>Offerta</span><strong>${escapeHtml(payload.offer?.name||"—")}</strong></li><li><span>Consumo</span><strong>${consumptionText}</strong></li><li class="section-line"><span>Componente offerta</span><strong>${payload.history?.mode==="historical_fixed"?"storica":"simulata"}</strong></li>${newRows.join("")}<li><span>Altre voci mantenute</span><strong>${euro(payload.summary.retainedBillAmount)}</strong></li>`;
-    const saving=Number(payload.summary.saving)||0,savingBox=$("saving-box");savingBox.classList.toggle("is-negative",saving<0);const historical=payload.history?.mode==="historical_fixed";$("saving-label").textContent=saving>=0?"Risparmio sul periodo":"Costo in più sul periodo";$("saving-total").textContent=euro(Math.abs(saving));$("saving-percent").textContent=`${number(Math.abs(payload.summary.savingPercent),1)}% ${saving>=0?"in meno":"in più"} sul periodo analizzato`;$("saving-equation").textContent=`${euro(payload.summary.originalTotal)} → ${euro(payload.summary.simulatedTotal)}`;
+    if(!payload?.summary||!payload.bills?.length)return;document.body.classList.add("simulator-has-result");renderBillPanels(payload);const status=$("result-status");if(status){status.textContent="Confronto pronto";status.classList.add("is-ready");}
+    const saving=Number(payload.summary.saving)||0,savingBox=$("saving-box");savingBox.classList.toggle("is-negative",saving<0);$("saving-label").textContent=saving>=0?"Risparmio sul periodo":"Costo in più sul periodo";$("saving-total").textContent=euro(Math.abs(saving));$("saving-percent").textContent=`${number(Math.abs(payload.summary.savingPercent),1)}% ${saving>=0?"in meno":"in più"} sul periodo analizzato`;$("saving-equation").textContent=`${euro(payload.summary.originalTotal)} → ${euro(payload.summary.simulatedTotal)}`;
     $("offer-provider").textContent=payload.offer?.provider||"—";$("offer-name").textContent=payload.offer?.name||"—";$("offer-type").textContent=payload.offer?.type==="variabile"?"Prezzo variabile":payload.offer?.type==="misto"?"Prezzi misti":"Prezzo fisso";const prices=[];for(const commodity of ["luce","gas"]){const part=payload.breakdown?.[commodity];if(part)prices.push(`${commodityLabel(commodity)}: ${number(part.prezzoNuovo,6)} €/${commodity==="luce"?"kWh":"Smc"}`);}$("offer-price-line").innerHTML=`<strong>Prezzo applicato:</strong> ${prices.join(" · ")||"—"}`;
-    const note=$("bill-note");if(note){if(historical)note.innerHTML="<strong>Nota:</strong> simulazione informativa OffertaLogica basata sulla disponibilità storica verificata dell'offerta e sulle condizioni a prezzo fisso archiviate per il periodo. Non è una fattura emessa dal fornitore.";else if(payload.history?.mode==="unavailable")note.innerHTML="<strong>Nota:</strong> questa offerta non era disponibile nel periodo della bolletta. La simulazione usa le condizioni attuali sugli stessi consumi.";else note.innerHTML="<strong>Nota:</strong> la bolletta virtuale è una simulazione informativa. Quando la verifica storica non è completa, il confronto non viene presentato come ricostruzione certa del passato.";}const activate=$("activate-selected-offer");if(activate)activate.disabled=!(state.selected||payload.offer);
+    const note=$("bill-note");if(note){note.innerHTML="<strong>Nota:</strong> la bolletta simulata mantiene le voci della bolletta reale che non dipendono dall'offerta e sostituisce la componente di vendita con quella dell'offerta selezionata. È una simulazione informativa OffertaLogica, non una fattura emessa dal fornitore.";}const activate=$("activate-selected-offer");if(activate)activate.disabled=!(state.selected||payload.offer);
   }
-  async function simulateSelected(){const select=$("offer-select");if(!state.docs.length||!select||select.value==="")return;const offer=state.filtered[Number(select.value)];if(!offer)return;state.selected=offer;storeJson(OFFER_KEY,offer);await loadCatalog();const history=historicalCheck(offer);state.history=history;renderHistory(history);const payload=buildPayload(offer,history);if(!payload){setUploadStatus("La bolletta non contiene tutti i dati economici necessari per simulare questa offerta senza inventare valori.","error");return;}storeJson(PAYLOAD_KEY,payload);renderPayload(payload);location.hash="risultato";window.setTimeout(()=>$("risultato")?.scrollIntoView({behavior:"smooth",block:"start"}),60);}
+  async function simulateSelected(){const select=$("offer-select");if(!state.docs.length||!select||select.value==="")return;const offer=state.filtered[Number(select.value)];if(!offer)return;state.selected=offer;storeJson(OFFER_KEY,offer);await loadCatalog();const history=historicalCheck(offer);state.history=history;renderHistory(history);const payload=buildPayload(offer,history);if(!payload){setUploadStatus("La bolletta non contiene tutti i dati economici necessari per simulare questa offerta senza inventare valori.","error");return;}storeJson(PAYLOAD_KEY,payload);renderPayload(payload);}
 
   $("choose-pdf-button")?.addEventListener("click",()=>{$("bill-pdf-input").value="";$("bill-pdf-input").click();});
   $("bill-pdf-input")?.addEventListener("change",(event)=>acceptDocuments(event.target.files,"pdf"));
