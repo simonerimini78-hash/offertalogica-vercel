@@ -1,6 +1,6 @@
 {
   "name": "offertalogica-vercel",
-  "version": "0.1.0",
+  "version": "0.10.14",
   "private": true,
   "type": "module",
   "scripts": {
@@ -17,13 +17,20 @@
     "audit:offers": "node scripts/audit-offers.mjs",
     "sync:arera": "node scripts/sync-arera-open-data.mjs",
     "shortlist:arera": "node scripts/shortlist-arera-candidates.mjs",
-    "promote:arera": "node scripts/promote-arera-offer.mjs"
+    "promote:arera": "node scripts/promote-arera-offer.mjs",
+    "editorial:generate": "node scripts/generate-editorial-static.mjs"
   },
   "dependencies": {
     "@paralleldrive/cuid2": "^2.2.2",
-    "formidable": "^3.5.4"
+    "formidable": "^3.5.4",
+    "pureimage": "0.4.18",
+    "sharp": "0.34.1"
   },
   "devDependencies": {
     "vercel": "^34.0.0"
+  },
+  "optionalDependencies": {
+    "@img/sharp-linux-x64": "0.34.1",
+    "@img/sharp-libvips-linux-x64": "1.1.0"
   }
 }
