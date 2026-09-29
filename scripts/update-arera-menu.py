@@ -21,7 +21,7 @@ from urllib.parse import urljoin
 NS = {"po": "http://www.acquirenteunico.it/schemas/SII_AU/OffertaRetail/01"}
 OPEN_DATA_URL = "https://www.ilportaleofferte.it/portaleOfferte/it/open-data.page"
 SOURCE_LABEL = "Portale Offerte ARERA/Acquirente Unico Open Data"
-CATALOG_TRANSFORMER_VERSION = "arera-menu-v5-sconti-durata-esplicita"
+CATALOG_TRANSFORMER_VERSION = "arera-menu-v6-partner-greenius"
 PUN_FALLBACK: float | None = None
 PSV_FALLBACK: float | None = None
 PSBG_FALLBACK: float | None = None
@@ -186,6 +186,7 @@ PROVIDERS: tuple[ProviderRule, ...] = (
     ProviderRule("enel", "Enel Energia", (r"\benel\b",)),
     ProviderRule("enercom", "Enercom", (r"\benercom\b",)),
     ProviderRule("engie", "Engie", (r"\bengie\b",)),
+    ProviderRule("greenius", "Greenius", (r"\bgreenius\b",), ("04362490403",)),
     ProviderRule("eja", "Eja Energia", (r"\beja\b",)),
     ProviderRule("elit", "Elit Energia", (r"\belit(?:\s+energia)?\b", r"\bmy\s+home\b"), ("11655010962",)),
     ProviderRule("hera", "Hera Comm", (r"\bhera\b",)),

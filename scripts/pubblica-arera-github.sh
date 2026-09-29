@@ -11,6 +11,8 @@ PUBLISH_FILES=(
   "data/offerte-arera-history.json"
   "public/data/offerte-arera-history.json"
   "data/arera-update-report.json"
+  "data/offerte-partner.json"
+  "public/data/offerte-partner.json"
   "data/calcolo-parametri.json"
   "public/data/calcolo-parametri.json"
   "public/data/energia-oggi.json"
@@ -24,15 +26,29 @@ log() {
   printf '[GITHUB-SYNC] %s\n' "$1"
 }
 
+rollback_repo_paths() {
+  local relative_path
+  for relative_path in "$@"; do
+    if git -C "$REPO_DIR" ls-files --error-unmatch "$relative_path" >/dev/null 2>&1; then
+      git -C "$REPO_DIR" checkout -- "$relative_path"
+    else
+      rm -f "$REPO_DIR/$relative_path"
+    fi
+  done
+}
+
 OFFER_VALID=1
 PARAMS_VALID=1
 ENERGY_VALID=1
+PARTNER_VALID=1
 OFFER_PUBLISH=0
 PARAMS_PUBLISH=0
 ENERGY_PUBLISH=0
+PARTNER_PUBLISH=0
 OFFER_DATE=""
 PARAMS_DATE=""
 ENERGY_DATE=""
+PARTNER_DATE=""
 
 # Verifica solo i file sorgente indispensabili a ciascun gruppo. Una famiglia
 # incompleta viene esclusa senza impedire la pubblicazione delle altre.
@@ -47,6 +63,11 @@ for relative_path in "${PUBLISH_FILES[@]}"; do
       if [ ! -s "$SOURCE_ROOT/$relative_path" ]; then
         OFFER_VALID=0
         log "AVVISO: gruppo offerte escluso, file mancante o vuoto: $relative_path"
+      fi
+      ;;
+    "data/offerte-partner.json"|"public/data/offerte-partner.json")
+      if [ ! -s "$SOURCE_ROOT/$relative_path" ]; then
+        PARTNER_VALID=0
       fi
       ;;
     "data/calcolo-parametri.json"|"public/data/calcolo-parametri.json")
@@ -157,6 +178,49 @@ PY
   fi
 fi
 
+if [ "$PARTNER_VALID" = "1" ]; then
+  if ! cmp -s "$SOURCE_ROOT/data/offerte-partner.json" "$SOURCE_ROOT/public/data/offerte-partner.json"; then
+    PARTNER_VALID=0
+    log "AVVISO: gruppo partner escluso, copie data/public non identiche."
+  elif PARTNER_DATE="$(python3 - "$SOURCE_ROOT/data/offerte-partner.json" <<'PY'
+import json, sys
+from pathlib import Path
+payload=json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+date=str(payload.get("aggiornatoIl") or "")
+if not date or not isinstance(payload.get("offerte"), list) or not isinstance(payload.get("offerteBusiness"), list):
+    raise SystemExit("Catalogo partner incompleto")
+print(date)
+PY
+  )"; then
+    REPO_PARTNER_DATE="$(python3 - "$REPO_DIR/data/offerte-partner.json" <<'PY'
+import json, sys
+from pathlib import Path
+p=Path(sys.argv[1])
+if not p.exists():
+    print("")
+else:
+    print(str(json.loads(p.read_text(encoding="utf-8")).get("aggiornatoIl") or ""))
+PY
+    )"
+    if [ -n "$REPO_PARTNER_DATE" ] && [[ "$PARTNER_DATE" < "$REPO_PARTNER_DATE" ]]; then
+      log "Gruppo partner locale più vecchio di GitHub: locale=$PARTNER_DATE GitHub=$REPO_PARTNER_DATE. Mantengo GitHub."
+    elif ! cmp -s "$SOURCE_ROOT/data/offerte-partner.json" "$REPO_DIR/data/offerte-partner.json" || \
+         ! cmp -s "$SOURCE_ROOT/public/data/offerte-partner.json" "$REPO_DIR/public/data/offerte-partner.json"; then
+      PARTNER_PUBLISH=1
+      log "Gruppo partner pubblicabile: locale=$PARTNER_DATE GitHub=${REPO_PARTNER_DATE:-assente}."
+    else
+      log "Gruppo partner già allineato: $PARTNER_DATE."
+    fi
+  else
+    PARTNER_VALID=0
+    log "AVVISO: gruppo partner non valido; gli altri gruppi continueranno."
+  fi
+else
+  if [ -s "$SOURCE_ROOT/data/offerte-partner.json" ] || [ -s "$SOURCE_ROOT/public/data/offerte-partner.json" ]; then
+    log "AVVISO: gruppo partner incompleto; mantengo GitHub."
+  fi
+fi
+
 if [ "$ENERGY_VALID" = "1" ]; then
   if ENERGY_DATE="$(python3 - "$SOURCE_ROOT/public/data/energia-oggi.json" <<'PY'
 import json, sys
@@ -222,6 +286,12 @@ for relative_path in "${PUBLISH_FILES[@]}"; do
         log "AVVISO: gruppo offerte annullato, file mancante dopo elaborazione: $relative_path"
       fi
       ;;
+    "data/offerte-partner.json"|"public/data/offerte-partner.json")
+      if [ "$PARTNER_PUBLISH" = "1" ] && [ ! -s "$SOURCE_ROOT/$relative_path" ]; then
+        PARTNER_PUBLISH=0
+        log "AVVISO: gruppo partner annullato, file mancante: $relative_path"
+      fi
+      ;;
     "data/calcolo-parametri.json"|"public/data/calcolo-parametri.json")
       if [ "$PARAMS_PUBLISH" = "1" ] && [ ! -s "$SOURCE_ROOT/$relative_path" ]; then
         PARAMS_PUBLISH=0
@@ -237,7 +307,7 @@ for relative_path in "${PUBLISH_FILES[@]}"; do
   esac
 done
 
-if [ "$OFFER_PUBLISH" = "0" ] && [ "$PARAMS_PUBLISH" = "0" ] && [ "$ENERGY_PUBLISH" = "0" ]; then
+if [ "$OFFER_PUBLISH" = "0" ] && [ "$PARAMS_PUBLISH" = "0" ] && [ "$ENERGY_PUBLISH" = "0" ] && [ "$PARTNER_PUBLISH" = "0" ]; then
   log "Nessun dataset valido differisce da GitHub; nessun commit necessario."
   exit 0
 fi
@@ -250,6 +320,9 @@ for relative_path in "${PUBLISH_FILES[@]}"; do
     "data/offerte-arera-menu.json"|"public/data/offerte-arera-menu.json"|\
     "data/offerte-arera-history.json"|"public/data/offerte-arera-history.json"|"data/arera-update-report.json")
       [ "$OFFER_PUBLISH" = "1" ] || continue
+      ;;
+    "data/offerte-partner.json"|"public/data/offerte-partner.json")
+      [ "$PARTNER_PUBLISH" = "1" ] || continue
       ;;
     "data/calcolo-parametri.json"|"public/data/calcolo-parametri.json")
       [ "$PARAMS_PUBLISH" = "1" ] || continue
@@ -281,10 +354,10 @@ if [ "$OFFER_PUBLISH" = "1" ]; then
 fi
 
 log "Verifico la coerenza dei gruppi selezionati prima della pubblicazione GitHub."
-if [ "$OFFER_PUBLISH" = "1" ] || [ "$PARAMS_PUBLISH" = "1" ]; then
+if [ "$OFFER_PUBLISH" = "1" ] || [ "$PARAMS_PUBLISH" = "1" ] || [ "$PARTNER_PUBLISH" = "1" ]; then
   if ! (cd "$REPO_DIR" && node scripts/validate-calculator-data.mjs); then
     log "ERRORE: validazione core non superata. Nessun commit verrà creato."
-    git -C "$REPO_DIR" checkout -- "${PUBLISH_FILES[@]}" 2>/dev/null || true
+    rollback_repo_paths "${PUBLISH_FILES[@]}"
     exit 1
   fi
 fi
@@ -292,12 +365,26 @@ fi
 if [ "$OFFER_PUBLISH" = "1" ] || [ "$ENERGY_PUBLISH" = "1" ]; then
   if ! python3 "$REPO_DIR/test/update_sitemap_lastmod_test.py"; then
     log "ERRORE: validazione sitemap/superfici non superata. Nessun commit verrà creato."
-    git -C "$REPO_DIR" checkout -- "${PUBLISH_FILES[@]}" 2>/dev/null || true
+    rollback_repo_paths "${PUBLISH_FILES[@]}"
     exit 1
   fi
 fi
 
-git -C "$REPO_DIR" add -- "${PUBLISH_FILES[@]}"
+ADD_FILES=()
+if [ "$OFFER_PUBLISH" = "1" ]; then
+  ADD_FILES+=("data/offerte-arera-menu.json" "public/data/offerte-arera-menu.json" "data/offerte-arera-history.json" "public/data/offerte-arera-history.json" "data/arera-update-report.json" "public/offerte-luce-gas-aggiornate.html" "public/sitemap.xml")
+fi
+if [ "$PARAMS_PUBLISH" = "1" ]; then
+  ADD_FILES+=("data/calcolo-parametri.json" "public/data/calcolo-parametri.json")
+fi
+if [ "$ENERGY_PUBLISH" = "1" ]; then
+  ADD_FILES+=("public/data/energia-oggi.json" "public/pun-oggi.html" "public/psv-gas-oggi.html" "public/sitemap.xml")
+fi
+if [ "$PARTNER_PUBLISH" = "1" ]; then
+  ADD_FILES+=("data/offerte-partner.json" "public/data/offerte-partner.json")
+fi
+
+git -C "$REPO_DIR" add -- "${ADD_FILES[@]}"
 
 if git -C "$REPO_DIR" diff --cached --quiet; then
   log "I dataset selezionati non producono differenze; nessun commit necessario."
@@ -315,6 +402,10 @@ fi
 if [ "$ENERGY_PUBLISH" = "1" ]; then
   [ -z "$COMMIT_SCOPE" ] || COMMIT_SCOPE="$COMMIT_SCOPE, "
   COMMIT_SCOPE="${COMMIT_SCOPE}energia $ENERGY_DATE"
+fi
+if [ "$PARTNER_PUBLISH" = "1" ]; then
+  [ -z "$COMMIT_SCOPE" ] || COMMIT_SCOPE="$COMMIT_SCOPE, "
+  COMMIT_SCOPE="${COMMIT_SCOPE}partner $PARTNER_DATE"
 fi
 
 # Il push resta l'ultimo passo: GitHub/Vercel ricevono soltanto gruppi già

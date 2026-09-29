@@ -1,0 +1,871 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import copy
+import hashlib
+import json
+import os
+import re
+import sys
+from dataclasses import dataclass
+from datetime import date, datetime
+from pathlib import Path
+from typing import Any
+
+SCHEMA_VERSION = 1
+PARTNER_CATALOG_VERSION = 1
+DEFAULT_PARTNER_ROOT = Path.home() / "Desktop" / "Offerte-Partner"
+ITALIAN_MONTHS = {
+    "gennaio": 1,
+    "febbraio": 2,
+    "marzo": 3,
+    "aprile": 4,
+    "maggio": 5,
+    "giugno": 6,
+    "luglio": 7,
+    "agosto": 8,
+    "settembre": 9,
+    "ottobre": 10,
+    "novembre": 11,
+    "dicembre": 12,
+}
+
+
+@dataclass(frozen=True)
+class ParseResult:
+    payload: dict[str, Any]
+    text: str
+
+
+def log(message: str) -> None:
+    print(f"[PARTNER-OFFERS] {message}")
+
+
+def normalize_space(value: str) -> str:
+    return re.sub(r"\s+", " ", str(value or "")).strip()
+
+
+def parse_number(raw: str | None) -> float | None:
+    if raw is None:
+        return None
+    value = str(raw).strip().replace(" ", "").replace(".", "").replace(",", ".")
+    try:
+        return round(float(value), 8)
+    except (TypeError, ValueError):
+        return None
+
+
+def parse_italian_date(raw: str | None) -> str | None:
+    if not raw:
+        return None
+    text = normalize_space(raw).lower()
+    match = re.search(r"\b(\d{1,2})\s+([a-zàèéìòù]+)\s+(\d{4})\b", text)
+    if not match:
+        return None
+    month = ITALIAN_MONTHS.get(match.group(2))
+    if not month:
+        return None
+    try:
+        return date(int(match.group(3)), month, int(match.group(1))).isoformat()
+    except ValueError:
+        return None
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def extract_pdf_text(path: Path) -> str:
+    try:
+        import pdfplumber  # type: ignore
+    except Exception as exc:  # pragma: no cover - runtime guard on Mac
+        raise RuntimeError("pdfplumber non disponibile") from exc
+
+    pages: list[str] = []
+    with pdfplumber.open(path) as pdf:
+        for page in pdf.pages[:1]:
+            pages.append(page.extract_text() or "")
+    text = "\n".join(pages).strip()
+    if not text:
+        raise ValueError("PDF senza testo estraibile")
+    return text
+
+
+def first_match(pattern: str, text: str, flags: int = re.I | re.S) -> str | None:
+    match = re.search(pattern, text, flags)
+    return match.group(1).strip() if match else None
+
+
+def detect_offer_name(text: str) -> str:
+    lines = [normalize_space(line) for line in text.splitlines()]
+    for idx, line in enumerate(lines):
+        if "riservate esclusivamente" not in line.lower():
+            continue
+        for candidate in lines[idx + 1 : idx + 6]:
+            if not candidate:
+                continue
+            low = candidate.lower()
+            if low.startswith("le presenti condizioni") or low.startswith("vendita di"):
+                break
+            if len(candidate) <= 120 and not candidate.endswith("."):
+                return candidate
+    return ""
+
+
+def parse_ccv(text: str, commodity: str) -> float | None:
+    patterns = [
+        r"CCV\s+FISSA\s*=\s*([0-9.,]+)\s*Euro/(?:Pdr|PdR)/Anno",
+        r"Commercializzazione\s+e\s+Vendita\s+CCV\s*([0-9.,]+)\s*(?:€|Euro)/pod/anno",
+    ]
+    for pattern in patterns:
+        value = parse_number(first_match(pattern, text))
+        if value is not None:
+            return value
+
+    if commodity == "luce":
+        inline = re.search(r"Commercializzazione\s+e\s+Vendita\s+CCV\s+([0-9.,]+)", text, re.I)
+        if inline:
+            value = parse_number(inline.group(1))
+            if value is not None and value >= 24:
+                return value
+        marker = re.search(r"Commercializzazione\s+e\s+Vendita\s+CCV", text, re.I)
+        if marker:
+            segment = text[marker.start() : marker.start() + 350]
+            values = [parse_number(raw) for raw in re.findall(r"([0-9.,]+)\s*(?:€|Euro)/pod/anno", segment, re.I)]
+            values = [value for value in values if value is not None and value >= 24]
+            if values:
+                return max(values)
+
+    unit = r"pod" if commodity == "luce" else r"(?:pdr|PdR|PDR)"
+    marker = re.search(r"Totale\s+Corrispettivi\s+Fissi\s+Annui", text, re.I)
+    if marker:
+        segment = text[marker.start() : marker.start() + 500]
+        match = re.search(rf"([0-9.,]+)\s*(?:€|Euro)/{unit}/anno", segment, re.I)
+        if match:
+            return parse_number(match.group(1))
+    return None
+
+
+def parse_electricity_spread(text: str) -> float | None:
+    candidates: list[tuple[int, float]] = []
+    pattern = re.compile(r"PUN\s+Index\s+GME(?:\s+(?:MONO|ORARIO))?\s*\+\s*([0-9.,]+)", re.I)
+    for match in pattern.finditer(text):
+        prefix = text[max(0, match.start() - 20) : match.start()].replace(" ", "")
+        if "1,1*" in prefix or "1.1*" in prefix:
+            continue
+        value = parse_number(match.group(1))
+        if value is not None:
+            candidates.append((match.start(), value))
+    return sorted(candidates)[0][1] if candidates else None
+
+
+def parse_gas_spread(text: str) -> float | None:
+    match = re.search(r"(?:Pgas\s*=\s*)?PSVt?\s*\+\s*([0-9.,]+)\s*Euro/Smc", text, re.I)
+    return parse_number(match.group(1)) if match else None
+
+
+def parse_fixed_price(text: str, commodity: str) -> float | None:
+    if commodity == "gas":
+        match = re.search(r"Prezzo\s+Gas\s+Fisso\s*([0-9.,]+)\s*Euro/Smc", text, re.I)
+        return parse_number(match.group(1)) if match else None
+
+    values = [parse_number(raw) for raw in re.findall(r"Fascia\s+Unica\s*=\s*([0-9.,]+)", text, re.I)]
+    values = [value for value in values if value is not None]
+    return values[0] if values else None
+
+
+def parse_cap(text: str, commodity: str) -> float | None:
+    if "P_CAP" not in text.upper():
+        return None
+    if commodity == "gas":
+        match = re.search(r"Tetto\s+Massimo\s+al\s+prezzo\s*-\s*P_CAP\s*=*\s*([0-9.,]+)\s*Euro/Smc", text, re.I)
+        if not match:
+            match = re.search(r"Tetto\s+Massimo\s+al\s+prezzo\s*-\s*P_CAP[^\n]*?([0-9.,]+)\s*Euro/Smc", text, re.I)
+        return parse_number(match.group(1)) if match else None
+
+    explicit = re.search(r"P_CAP\s*=\s*([0-9.,]+)\s*Al\s+netto\s+delle\s+perdite", text, re.I)
+    if explicit:
+        return parse_number(explicit.group(1))
+    marker = re.search(r"Tetto\s+Massimo\s+al\s+prezzo\s*-\s*P_CAP", text, re.I)
+    if marker:
+        segment = text[marker.start() : marker.start() + 350]
+        next_price = re.search(r"Prezzo\s+Energia\s+per\s+il\s+consumo", segment[1:], re.I)
+        if next_price:
+            segment = segment[: next_price.start() + 1]
+        values = [parse_number(v) for v in re.findall(r"\b([0-9]+[,.][0-9]+)\b", segment)]
+        values = [v for v in values if v is not None and 0 < v < 1]
+        if values:
+            return min(values)
+    return None
+
+
+def parse_bonus_sdd(text: str, commodity: str) -> dict[str, Any] | None:
+    match = re.search(
+        r"Bonus\s+SDD[^\n]{0,120}?([0-9.,]+)\s*(?:€|Euro)/(?:pod|pdr)/anno",
+        text,
+        re.I,
+    )
+    if not match:
+        match = re.search(
+            r"Bonus\s+SDD:\s*in\s+caso\s+di\s+pagamento\s+con\s+SDD\s+si\s+applica\s+uno\s+sconto\s+pari\s+a\s+([0-9.,]+)\s*(?:€|Euro)/(?:pod|pdr)/anno",
+            text,
+            re.I,
+        )
+    value = parse_number(match.group(1)) if match else None
+    if value is None:
+        return None
+    return {
+        "name": "Bonus SDD",
+        "value": value,
+        "unit": "EUR/anno",
+        "condition": "Pagamento tramite SDD",
+        "includedInRanking": False,
+    }
+
+
+def add_component(items: list[dict[str, Any]], name: str, value: float | None, unit: str, classification: str) -> None:
+    if value is None:
+        return
+    items.append({
+        "name": name,
+        "value": value,
+        "unit": unit,
+        "rankingTreatment": classification,
+    })
+
+
+def parse_extra_components(text: str, commodity: str) -> list[dict[str, Any]]:
+    items: list[dict[str, Any]] = []
+    if commodity == "luce":
+        green = first_match(r"fonti\s+rinnovabili,\s+ad\s+un\s+costo\s+pari\s+a\s+([0-9.,]+)\s*Euro/kWh", text)
+        modulation = first_match(r"Corrispettivo\s+di\s+modulazione\s+pari\s+a\s+([0-9.,]+)\s*Euro/kWh", text)
+        add_component(items, "Energia verde", parse_number(green), "EUR/kWh", "detail_only")
+        add_component(items, "Modulazione", parse_number(modulation), "EUR/kWh", "detail_only")
+    else:
+        ccv_var = first_match(r"CCV\s+Variabile\s*=\s*([0-9.,]+)\s*Euro/Smc", text)
+        carbon = first_match(r"corrispettivo\s+previsto\s+è\s+di\s+([0-9.,]+)\s*Euro/Smc", text)
+        cop = first_match(r"corrispettivo\s+COP[^\n]{0,120}?pari\s+a\s+([0-9.,]+)\s*Euro/Smc", text)
+        add_component(items, "CCV variabile", parse_number(ccv_var), "EUR/Smc", "detail_only")
+        add_component(items, "Crediti carbonio", parse_number(carbon), "EUR/Smc", "detail_only")
+        add_component(items, "COP", parse_number(cop), "EUR/Smc", "detail_only")
+    return items
+
+
+def parse_extra_fixed_components(text: str, commodity: str) -> list[dict[str, Any]]:
+    items: list[dict[str, Any]] = []
+    if commodity == "gas":
+        capacity = first_match(
+            r"corrispettivo\s+a\s+copertura\s+dei\s+costi\s+fissi\s+di\s+capacità\s+di\s+trasporto\s+pari\s+a\s+([0-9.,]+)\s*Euro/Pdr/anno",
+            text,
+        )
+        value = parse_number(capacity)
+        if value is not None:
+            items.append({
+                "name": "Capacità di trasporto - quota fissa CTE",
+                "value": value,
+                "unit": "EUR/anno",
+                "rankingTreatment": "annual_fixed_fee",
+            })
+    return items
+
+
+def commercial_family(name: str) -> str:
+    value = normalize_space(name).lower()
+    value = re.sub(r"\b(?:energia\s+elettrica|gas\s+naturale|luce|gas)\b", " ", value)
+    value = re.sub(r"\b24\s+mesi\b", " ", value)
+    value = re.sub(r"\s+", " ", value).strip()
+    return value
+
+
+def parse_greenius(path: Path, partner_key: str, partner_label: str, market_indices: dict[str, float]) -> ParseResult:
+    text = extract_pdf_text(path)
+    normalized = normalize_space(text)
+    if "GREENIUS Srl" not in text or "04362490403" not in text:
+        raise ValueError("CTE non riconosciuta come Greenius")
+
+    code = first_match(r"Codice\s+offerta:\s*([A-Z0-9]+)", text)
+    validity_raw = first_match(r"Validità\s+offerta\s+fino\s+al:\s*([^\n]+)", text)
+    valid_to = parse_italian_date(validity_raw)
+    offer_name = detect_offer_name(text)
+    commodity = "luce" if "CONDIZIONI TECNICO ECONOMICHE ENERGIA ELETTRICA" in text.upper() else "gas"
+    customer_type = "business" if "NON DOMESTICI" in text.upper() else "domestico"
+    price_type = "fisso" if re.search(r"Prezzo\s+(?:Energia|Gas)\s+Fisso", text, re.I) else "variabile"
+    annual_fixed_fee = parse_ccv(text, commodity)
+    extra_fixed_components = parse_extra_fixed_components(text, commodity)
+    if annual_fixed_fee is not None:
+        annual_fixed_fee = round(annual_fixed_fee + sum(float(item["value"]) for item in extra_fixed_components), 8)
+    cap_value = parse_cap(text, commodity)
+    fixed_price = parse_fixed_price(text, commodity) if price_type == "fisso" else None
+    spread = None
+    index_name = None
+    index_value = None
+    projected_price = fixed_price
+
+    if price_type == "variabile":
+        index_name = "PUN" if commodity == "luce" else "PSV"
+        spread = parse_electricity_spread(text) if commodity == "luce" else parse_gas_spread(text)
+        index_value = market_indices.get(index_name.lower())
+        if spread is not None and index_value is not None:
+            projected_price = round(index_value + spread, 8)
+            if cap_value is not None:
+                projected_price = min(projected_price, cap_value)
+
+    if not code or not valid_to or not offer_name:
+        raise ValueError("Campi identificativi CTE incompleti")
+    if annual_fixed_fee is None or projected_price is None:
+        raise ValueError("Dati economici essenziali non leggibili")
+
+    discounts: list[dict[str, Any]] = []
+    bonus = parse_bonus_sdd(text, commodity)
+    if bonus:
+        discounts.append(bonus)
+
+    source_hash = sha256_file(path)
+    now = datetime.now().astimezone().isoformat(timespec="seconds")
+    canonical_key = f"04362490403|{commodity}|{code}"
+    cap_enabled = cap_value is not None
+
+    payload = {
+        "schemaVersion": SCHEMA_VERSION,
+        "sourceType": "partner_direct",
+        "partner": {
+            "partnerKey": partner_key,
+            "partnerLabel": partner_label,
+        },
+        "identity": {
+            "canonicalKey": canonical_key,
+            "providerKey": "greenius",
+            "providerLabel": "Greenius",
+            "providerVat": "04362490403",
+            "offerCode": code,
+            "offerName": offer_name,
+            "commercialFamily": commercial_family(offer_name),
+        },
+        "classification": {
+            "commodity": commodity,
+            "customerType": customer_type,
+            "priceType": price_type,
+        },
+        "validity": {
+            "saleFrom": None,
+            "saleTo": valid_to,
+            "conditionsDurationMonths": 24 if price_type == "fisso" and "24 MESI" in offer_name.upper() else None,
+        },
+        "economics": {
+            "indexName": index_name,
+            "indexValueAtProjection": index_value,
+            "fixedPrice": fixed_price,
+            "spread": spread,
+            "annualFixedFee": annual_fixed_fee,
+            "networkLosses": {
+                "rankingPriceConvention": "included" if commodity == "luce" and price_type == "fisso" else ("net" if commodity == "luce" else None),
+            },
+            "variableComponents": parse_extra_components(text, commodity),
+            "fixedComponents": extra_fixed_components,
+            "cap": {
+                "enabled": cap_enabled,
+                "value": cap_value,
+                "unit": ("EUR/kWh" if commodity == "luce" else "EUR/Smc") if cap_enabled else None,
+                "validForMonths": 12 if cap_enabled else None,
+                "rule": "min(indice + spread, cap)" if cap_enabled else None,
+            },
+            "discounts": discounts,
+        },
+        "requirements": {
+            "sdd": True if "SDD" in text.upper() else None,
+            "digitalInvoice": True if "fatture tramite mail" in normalized.lower() else None,
+            "powerConstraints": None,
+            "geographicConstraints": None,
+            "other": [],
+        },
+        "activation": {
+            "channel": None,
+            "partnerDirect": True,
+        },
+        "rankingProjection": {
+            "eligible": True,
+            "price": projected_price,
+            "annualFixedFee": annual_fixed_fee,
+            "projectionRule": (
+                "prezzo fisso CTE comprensivo perdite" if price_type == "fisso" and commodity == "luce"
+                else "prezzo fisso CTE" if price_type == "fisso"
+                else "min(indice corrente + spread netto perdite, CAP)" if commodity == "luce" and cap_enabled
+                else "indice corrente + spread netto perdite" if commodity == "luce"
+                else "min(indice corrente + spread, CAP)" if cap_enabled
+                else "indice corrente + spread"
+            ),
+            "exclusionReason": None,
+        },
+        "source": {
+            "originalFile": path.name,
+            "fileHash": source_hash,
+            "normalizedAt": now,
+        },
+        "status": "normalizzata",
+    }
+    return ParseResult(payload=payload, text=text)
+
+
+def partner_key_from_dir(path: Path) -> str:
+    key = re.sub(r"[^a-z0-9]+", "-", path.name.lower()).strip("-")
+    return key or "partner"
+
+
+def parser_for_partner(path: Path, text_hint: str | None = None):
+    key = partner_key_from_dir(path)
+    if key == "greenius":
+        return parse_greenius
+    if text_hint and "GREENIUS Srl" in text_hint:
+        return parse_greenius
+    return None
+
+
+def load_market_indices(package_root: Path) -> dict[str, float]:
+    path = package_root / "data" / "offerte-arera-menu.json"
+    if not path.is_file():
+        return {}
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    indices = payload.get("indiciUsati") or {}
+    result: dict[str, float] = {}
+    for key in ("pun", "psv"):
+        value = indices.get(key)
+        if isinstance(value, (int, float)) and value > 0:
+            result[key] = float(value)
+    return result
+
+
+def write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    body = json.dumps(payload, ensure_ascii=False, indent=2) + "\n"
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    temporary.write_text(body, encoding="utf-8")
+    json.loads(temporary.read_text(encoding="utf-8"))
+    os.replace(temporary, path)
+
+
+def normalize_partner_folder(partner_dir: Path, package_root: Path, indices: dict[str, float]) -> tuple[int, int]:
+    source_dir = partner_dir / "00_DA_VALIDARE"
+    normalized_dir = partner_dir / "10_NORMALIZZATE"
+    normalized_dir.mkdir(parents=True, exist_ok=True)
+    if not source_dir.is_dir():
+        return 0, 0
+
+    partner_key = partner_key_from_dir(partner_dir)
+    partner_label = partner_dir.name
+    ok = 0
+    errors = 0
+    seen_codes: dict[str, str] = {}
+    existing_by_hash: dict[str, Path] = {}
+    for existing_path in normalized_dir.glob("*.json"):
+        try:
+            existing_payload = json.loads(existing_path.read_text(encoding="utf-8"))
+            existing_hash = str((existing_payload.get("source") or {}).get("fileHash") or "")
+            if existing_hash:
+                existing_by_hash[existing_hash] = existing_path
+        except Exception:
+            continue
+    for pdf_path in sorted(source_dir.glob("*.pdf")):
+        try:
+            digest_now = sha256_file(pdf_path)
+            if digest_now in existing_by_hash:
+                ok += 1
+                continue
+            parser = parser_for_partner(partner_dir)
+            if parser is None:
+                raise ValueError(f"nessun parser disponibile per il partner {partner_label}")
+            result = parser(pdf_path, partner_key, partner_label, indices)
+            code = str(result.payload["identity"]["offerCode"])
+            digest = str(result.payload["source"]["fileHash"])
+            if code in seen_codes and seen_codes[code] != digest:
+                raise ValueError(f"codice offerta duplicato con contenuti differenti: {code}")
+            seen_codes[code] = digest
+            target = normalized_dir / f"{code}.json"
+            if target.exists():
+                existing = json.loads(target.read_text(encoding="utf-8"))
+                existing_hash = str((existing.get("source") or {}).get("fileHash") or "")
+                if existing_hash == digest:
+                    result.payload["source"]["normalizedAt"] = existing.get("source", {}).get("normalizedAt") or result.payload["source"]["normalizedAt"]
+                else:
+                    archive_dir = partner_dir / "90_ARCHIVIO"
+                    archive_dir.mkdir(parents=True, exist_ok=True)
+                    archived_at = datetime.now().astimezone().strftime("%Y%m%dT%H%M%S%z")
+                    archive_target = archive_dir / f"{code}__{archived_at}.json"
+                    target.replace(archive_target)
+                    log(f"Versione normalizzata precedente archiviata: {archive_target.name}")
+            write_json_atomic(target, result.payload)
+            ok += 1
+        except Exception as exc:
+            errors += 1
+            log(f"ERRORE normalizzazione {pdf_path.name}: {exc}")
+    return ok, errors
+
+
+def refresh_ranking_projection(payload: dict[str, Any], market_indices: dict[str, float]) -> dict[str, Any]:
+    refreshed = copy.deepcopy(payload)
+    classification = refreshed.get("classification") or {}
+    economics = refreshed.get("economics") or {}
+    projection = refreshed.get("rankingProjection") or {}
+    price_type = str(classification.get("priceType") or "")
+    commodity = str(classification.get("commodity") or "")
+
+    annual_fixed_fee = economics.get("annualFixedFee")
+    if not isinstance(annual_fixed_fee, (int, float)):
+        raise ValueError("quota fissa normalizzata assente o non numerica")
+
+    if price_type == "fisso":
+        fixed_price = economics.get("fixedPrice")
+        if not isinstance(fixed_price, (int, float)):
+            raise ValueError("prezzo fisso normalizzato assente o non numerico")
+        current_price = float(fixed_price)
+        rule = "prezzo fisso CTE comprensivo perdite" if commodity == "luce" else "prezzo fisso CTE"
+    elif price_type == "variabile":
+        index_name = str(economics.get("indexName") or "").upper()
+        spread = economics.get("spread")
+        index_value = market_indices.get(index_name.lower())
+        if index_name not in {"PUN", "PSV"} or not isinstance(spread, (int, float)) or not isinstance(index_value, (int, float)):
+            raise ValueError("indice o spread normalizzato non disponibile per la proiezione corrente")
+        current_price = round(float(index_value) + float(spread), 8)
+        cap = economics.get("cap") or {}
+        cap_value = cap.get("value") if cap.get("enabled") is True else None
+        if isinstance(cap_value, (int, float)):
+            current_price = min(current_price, float(cap_value))
+        if commodity == "luce":
+            rule = "min(indice corrente + spread netto perdite, CAP)" if isinstance(cap_value, (int, float)) else "indice corrente + spread netto perdite"
+        else:
+            rule = "min(indice corrente + spread, CAP)" if isinstance(cap_value, (int, float)) else "indice corrente + spread"
+        economics["indexValueAtProjection"] = float(index_value)
+    else:
+        raise ValueError("tipo prezzo normalizzato non supportato")
+
+    projection.update({
+        "eligible": True,
+        "price": round(float(current_price), 8),
+        "annualFixedFee": round(float(annual_fixed_fee), 8),
+        "projectionRule": rule,
+        "exclusionReason": None,
+    })
+    refreshed["economics"] = economics
+    refreshed["rankingProjection"] = projection
+    return refreshed
+
+
+def validate_active_record(payload: dict[str, Any], source_path: Path) -> dict[str, Any]:
+    if payload.get("schemaVersion") != SCHEMA_VERSION:
+        raise ValueError(f"schemaVersion non supportata in {source_path.name}")
+    if payload.get("sourceType") != "partner_direct":
+        raise ValueError(f"sourceType non valida in {source_path.name}")
+    partner = payload.get("partner") or {}
+    identity = payload.get("identity") or {}
+    classification = payload.get("classification") or {}
+    validity = payload.get("validity") or {}
+    projection = payload.get("rankingProjection") or {}
+    required = {
+        "partnerKey": partner.get("partnerKey"),
+        "canonicalKey": identity.get("canonicalKey"),
+        "providerKey": identity.get("providerKey"),
+        "providerVat": identity.get("providerVat"),
+        "offerCode": identity.get("offerCode"),
+        "offerName": identity.get("offerName"),
+        "commodity": classification.get("commodity"),
+        "customerType": classification.get("customerType"),
+        "priceType": classification.get("priceType"),
+        "saleTo": validity.get("saleTo"),
+        "price": projection.get("price"),
+        "annualFixedFee": projection.get("annualFixedFee"),
+    }
+    missing = [key for key, value in required.items() if value in (None, "")]
+    if missing:
+        raise ValueError(f"campi obbligatori mancanti in {source_path.name}: {', '.join(missing)}")
+    if classification.get("commodity") not in {"luce", "gas"}:
+        raise ValueError(f"commodity non valida in {source_path.name}")
+    if classification.get("customerType") not in {"domestico", "business"}:
+        raise ValueError(f"customerType non valido in {source_path.name}")
+    if classification.get("priceType") not in {"fisso", "variabile"}:
+        raise ValueError(f"priceType non valido in {source_path.name}")
+    canonical_expected = f"{identity.get('providerVat')}|{classification.get('commodity')}|{identity.get('offerCode')}"
+    if str(identity.get("canonicalKey") or "").lower() != canonical_expected.lower():
+        raise ValueError(f"canonicalKey incoerente in {source_path.name}")
+    date.fromisoformat(str(validity.get("saleTo")))
+    if projection.get("eligible") is not True:
+        raise ValueError(f"offerta non marcata eligible in {source_path.name}")
+    if float(projection.get("price")) < 0 or float(projection.get("annualFixedFee")) < 0:
+        raise ValueError(f"valori economici negativi in {source_path.name}")
+    return payload
+
+
+def active_economic_signature(payload: dict[str, Any]) -> str:
+    identity = payload.get("identity") or {}
+    classification = payload.get("classification") or {}
+    validity = payload.get("validity") or {}
+    economics = payload.get("economics") or {}
+    projection = payload.get("rankingProjection") or {}
+    relevant = {
+        "providerVat": identity.get("providerVat"),
+        "offerCode": identity.get("offerCode"),
+        "commercialFamily": identity.get("commercialFamily"),
+        "classification": classification,
+        "validity": validity,
+        "economics": {
+            "indexName": economics.get("indexName"),
+            "fixedPrice": economics.get("fixedPrice"),
+            "spread": economics.get("spread"),
+            "annualFixedFee": economics.get("annualFixedFee"),
+            "networkLosses": economics.get("networkLosses"),
+            "variableComponents": economics.get("variableComponents"),
+            "fixedComponents": economics.get("fixedComponents"),
+            "cap": economics.get("cap"),
+            "discounts": economics.get("discounts"),
+        },
+        "rankingProjection": {
+            "price": projection.get("price"),
+            "annualFixedFee": projection.get("annualFixedFee"),
+            "projectionRule": projection.get("projectionRule"),
+        },
+    }
+    return json.dumps(relevant, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+def project_active_record(payload: dict[str, Any], market_indices: dict[str, float]) -> dict[str, Any]:
+    projected = json.loads(json.dumps(payload))
+    classification = projected.get("classification") or {}
+    economics = projected.get("economics") or {}
+    ranking = projected.get("rankingProjection") or {}
+    price_type = classification.get("priceType")
+    if price_type == "fisso":
+        fixed = economics.get("fixedPrice")
+        if isinstance(fixed, (int, float)) and fixed >= 0:
+            ranking["price"] = round(float(fixed), 8)
+    elif price_type == "variabile":
+        index_name = str(economics.get("indexName") or "").lower()
+        index_value = market_indices.get(index_name)
+        spread = economics.get("spread")
+        if not isinstance(index_value, (int, float)) or not isinstance(spread, (int, float)):
+            raise ValueError(f"indice/spread non disponibili per {projected.get('identity', {}).get('offerCode', 'offerta')} ")
+        price = float(index_value) + float(spread)
+        cap = economics.get("cap") or {}
+        if cap.get("enabled") and isinstance(cap.get("value"), (int, float)):
+            price = min(price, float(cap["value"]))
+        ranking["price"] = round(price, 8)
+        economics["indexValueAtProjection"] = round(float(index_value), 8)
+    projected["economics"] = economics
+    projected["rankingProjection"] = ranking
+    return projected
+
+
+def arera_like_row(payload: dict[str, Any]) -> dict[str, Any]:
+    identity = payload["identity"]
+    classification = payload["classification"]
+    validity = payload["validity"]
+    projection = payload["rankingProjection"]
+    partner = payload.get("partner") or {}
+    economics = payload.get("economics") or {}
+    available_partners = payload.get("_availablePartners") if isinstance(payload.get("_availablePartners"), list) else []
+    if not available_partners:
+        available_partners = [partner]
+    normalized_partners: list[dict[str, str]] = []
+    seen_partner_keys: set[str] = set()
+    for item in available_partners:
+        if not isinstance(item, dict):
+            continue
+        key = str(item.get("partnerKey") or "").strip()
+        if not key or key in seen_partner_keys:
+            continue
+        seen_partner_keys.add(key)
+        normalized_partners.append({
+            "partnerKey": key,
+            "partnerLabel": str(item.get("partnerLabel") or key).strip(),
+        })
+    normalized_partners.sort(key=lambda item: item["partnerKey"])
+    partner_keys = [item["partnerKey"] for item in normalized_partners]
+    primary_partner_key = str(partner.get("partnerKey") or "").strip() or (partner_keys[0] if partner_keys else "")
+    partner_labels = [item["partnerLabel"] for item in normalized_partners]
+    return {
+        "providerKey": identity["providerKey"],
+        "providerLabel": identity.get("providerLabel") or identity["providerKey"],
+        "fornitore": identity.get("providerLabel") or identity["providerKey"],
+        "commodity": classification["commodity"],
+        "tipo": classification["priceType"],
+        "nome": identity["offerName"],
+        "codice": identity["offerCode"],
+        "pivaVenditore": identity["providerVat"],
+        "dataInizio": validity.get("saleFrom") or "",
+        "dataFine": validity["saleTo"],
+        "customerType": classification["customerType"],
+        "tipoClienteCodice": "PARTNER_DIRECT",
+        "tipoOffertaCodice": "PARTNER_DIRECT",
+        "durataMesi": validity.get("conditionsDurationMonths"),
+        "indiceRiferimento": str(economics.get("indexName") or "").lower(),
+        "prezzo": float(projection["price"]),
+        "quotaFissaAnnua": float(projection["annualFixedFee"]),
+        "url": "#",
+        "fonte": f"CTE partner diretta {' / '.join(partner_labels) or primary_partner_key}".strip(),
+        "score": 900,
+        "qualitaPrezzo": "partner_cte_validata",
+        "provenienzaPrezzo": {
+            "sourceType": "partner_direct",
+            "partnerKey": primary_partner_key,
+            "partnerKeys": partner_keys,
+            "projectionRule": projection.get("projectionRule"),
+            "sourceDocument": payload.get("source", {}).get("originalFile"),
+        },
+        "provenienzaQuotaFissa": {
+            "sourceType": "partner_direct",
+            "partnerKey": primary_partner_key,
+            "partnerKeys": partner_keys,
+            "sourceDocument": payload.get("source", {}).get("originalFile"),
+        },
+        # I bonus condizionati restano documentati nei dettagli tecnici. Non vengono
+        # esposti come sconti di ranking finche il motore non puo verificarne la condizione.
+        "sconti": [],
+        "dettagliTecnici": {
+            "sourceType": "partner_direct",
+            "partnerKey": primary_partner_key,
+            "partnerKeys": partner_keys,
+            "partners": normalized_partners,
+            "commercialFamily": identity.get("commercialFamily") or "",
+            "canonicalKey": identity.get("canonicalKey") or "",
+            "sourceFile": payload.get("source", {}).get("originalFile"),
+            "sourceHash": payload.get("source", {}).get("fileHash"),
+            "economics": economics,
+            "requirements": payload.get("requirements") or {},
+        },
+        "sourceType": "partner_direct",
+        "partnerKey": primary_partner_key,
+        "partnerKeys": partner_keys,
+        "commercialFamily": identity.get("commercialFamily") or "",
+        "canonicalKey": identity.get("canonicalKey") or "",
+    }
+
+
+def build_active_catalog(partner_root: Path, package_root: Path) -> dict[str, Any]:
+    today = date.today()
+    market_indices = load_market_indices(package_root)
+    private_rows: list[dict[str, Any]] = []
+    business_rows: list[dict[str, Any]] = []
+    active_by_key: dict[str, dict[str, Any]] = {}
+    source_files = 0
+    expired = 0
+
+    if partner_root.is_dir():
+        for partner_dir in sorted(p for p in partner_root.iterdir() if p.is_dir()):
+            active_dir = partner_dir / "20_ATTIVE"
+            if not active_dir.is_dir():
+                continue
+            for path in sorted(active_dir.glob("*.json")):
+                raw_payload = json.loads(path.read_text(encoding="utf-8"))
+                payload = refresh_ranking_projection(raw_payload, market_indices)
+                payload = validate_active_record(payload, path)
+                source_files += 1
+                valid_to = date.fromisoformat(str(payload["validity"]["saleTo"]))
+                if valid_to < today:
+                    expired += 1
+                    continue
+
+                key = str(payload["identity"]["canonicalKey"])
+                signature = active_economic_signature(payload)
+                existing = active_by_key.get(key)
+                if existing is None:
+                    active_by_key[key] = {
+                        "payload": payload,
+                        "signature": signature,
+                        "partners": [payload.get("partner") or {}],
+                    }
+                    continue
+                if existing["signature"] != signature:
+                    raise ValueError(f"canonicalKey duplicata con condizioni economiche differenti in 20_ATTIVE: {key}")
+                existing["partners"].append(payload.get("partner") or {})
+
+    for item in active_by_key.values():
+        payload = copy.deepcopy(item["payload"])
+        payload["_availablePartners"] = item["partners"]
+        row = arera_like_row(payload)
+        if payload["classification"]["customerType"] == "business":
+            business_rows.append(row)
+        else:
+            private_rows.append(row)
+
+    private_rows.sort(key=lambda row: (row["providerKey"], row["commodity"], row["tipo"], row["codice"]))
+    business_rows.sort(key=lambda row: (row["providerKey"], row["commodity"], row["tipo"], row["codice"]))
+    updated = today.isoformat()
+    return {
+        "versioneDati": f"partner-menu-{updated}-v{PARTNER_CATALOG_VERSION}",
+        "schemaVersion": PARTNER_CATALOG_VERSION,
+        "fonte": "Offerte partner dirette validate nelle cartelle 20_ATTIVE; ranking economico indipendente dal canale commerciale.",
+        "aggiornatoIl": updated,
+        "offerte": private_rows,
+        "offerteBusiness": business_rows,
+        "statistiche": {
+            "fileAttiviLetti": source_files,
+            "offertePrivateAttive": len(private_rows),
+            "offerteBusinessAttive": len(business_rows),
+            "offerteScaduteEscluse": expired,
+        },
+    }
+
+
+def publish_active_catalog(partner_root: Path, package_root: Path) -> dict[str, Any] | None:
+    payload = build_active_catalog(partner_root, package_root)
+    data_target = package_root / "data" / "offerte-partner.json"
+    public_target = package_root / "public" / "data" / "offerte-partner.json"
+    source_files = int((payload.get("statistiche") or {}).get("fileAttiviLetti") or 0)
+    if source_files == 0 and not data_target.exists() and not public_target.exists():
+        log("Nessuna offerta in 20_ATTIVE e nessun catalogo partner precedente: pubblicazione iniziale non necessaria.")
+        return None
+    write_json_atomic(data_target, payload)
+    write_json_atomic(public_target, payload)
+    return payload
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Normalizza e pubblica le offerte partner dirette OffertaLogica.")
+    parser.add_argument("--package-root", type=Path, default=Path(__file__).resolve().parents[1])
+    parser.add_argument("--partner-root", type=Path, default=Path(os.environ.get("OFFERTALOGICA_PARTNER_ROOT", DEFAULT_PARTNER_ROOT)))
+    parser.add_argument("--normalize-only", action="store_true")
+    parser.add_argument("--publish-only", action="store_true")
+    return parser.parse_args()
+
+
+def main() -> int:
+    args = parse_args()
+    package_root = args.package_root.resolve()
+    partner_root = args.partner_root.expanduser().resolve()
+    indices = load_market_indices(package_root)
+
+    log(f"Radice partner: {partner_root}")
+    if not partner_root.exists():
+        log("Radice partner non trovata: nessuna normalizzazione e nessuna modifica al catalogo partner esistente.")
+        return 0
+
+    if not args.publish_only and partner_root.is_dir():
+        normalized_total = 0
+        errors_total = 0
+        for partner_dir in sorted(p for p in partner_root.iterdir() if p.is_dir()):
+            ok, errors = normalize_partner_folder(partner_dir, package_root, indices)
+            normalized_total += ok
+            errors_total += errors
+            if ok or errors:
+                log(f"{partner_dir.name}: {ok} normalizzate, {errors} errori.")
+        if errors_total:
+            log("Normalizzazione completata con errori: 00_DA_VALIDARE resta esclusa dalla pubblicazione.")
+        else:
+            log(f"Normalizzazione completata: {normalized_total} CTE elaborate.")
+
+    if not args.normalize_only:
+        payload = publish_active_catalog(partner_root, package_root)
+        if payload is not None:
+            stats = payload["statistiche"]
+            log(
+                "Catalogo attivo pubblicato localmente: "
+                f"{stats['offertePrivateAttive']} private, {stats['offerteBusinessAttive']} business, "
+                f"{stats['offerteScaduteEscluse']} scadute escluse."
+            )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

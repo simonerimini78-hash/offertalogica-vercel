@@ -100,6 +100,7 @@ sync_main_code() {
   for rel in \
     scripts/aggiorna-arera-locale-mac.sh \
     scripts/update-arera-menu.py \
+    scripts/update-partner-offers.py \
     scripts/update-arera-reference-data.py \
     scripts/update-regulated-parameters.py \
     scripts/update-energy-today.py \
@@ -404,6 +405,10 @@ OFFER_FILES=(
   "public/data/offerte-arera-menu.json"
   "data/arera-update-report.json"
 )
+PARTNER_FILES=(
+  "data/offerte-partner.json"
+  "public/data/offerte-partner.json"
+)
 REGULATED_FILES=(
   "data/calcolo-parametri.json"
   "public/data/calcolo-parametri.json"
@@ -425,6 +430,7 @@ snapshot_group "core-base" "${CORE_FILES[@]}"
 INDICES_STATUS="mantenuti"
 CATALOG_STATUS="mantenuto"
 REGULATED_STATUS="mantenuti"
+PARTNER_STATUS="mantenute"
 ENERGY_STATUS="mantenuta"
 CATALOG_UPDATED=0
 REGULATED_UPDATED=0
@@ -712,9 +718,9 @@ else
   ENERGY_STATUS="mantenuta (acquisizione non riuscita)"
 fi
 
-# I parametri regolati sono deliberatamente l'ultimo gruppo acquisito: un loro
-# errore o rallentamento non deve impedire che offerte ed energia già valide
-# siano disponibili al publisher GitHub.
+# I parametri regolati restano un gruppo indipendente: un loro errore o
+# rallentamento non deve impedire che offerte ed energia già valide siano
+# disponibili al publisher GitHub.
 snapshot_group "regulated" "${REGULATED_FILES[@]}"
 log "Controllo i parametri regolati dalle fonti ufficiali ARERA/ADM."
 if python3 "$ROOT_DIR/scripts/update-regulated-parameters.py" --package-root "$ROOT_DIR"; then
@@ -732,6 +738,25 @@ else
   REGULATED_STATUS="mantenuti (controllo non superato)"
 fi
 
+# Le offerte partner sono un gruppo indipendente. 00_DA_VALIDARE viene solo
+# normalizzata; il catalogo pubblicabile deriva esclusivamente da 20_ATTIVE.
+# Un errore partner non deve bloccare ARERA, energia o parametri regolati.
+snapshot_group "partner" "${PARTNER_FILES[@]}"
+log "Normalizzo le CTE partner e aggiorno il catalogo delle sole offerte approvate."
+if ensure_pdf_reader && python3 "$ROOT_DIR/scripts/update-partner-offers.py" --package-root "$ROOT_DIR"; then
+  if (cd "$ROOT_DIR" && node scripts/validate-calculator-data.mjs); then
+    PARTNER_STATUS="normalizzate/validate"
+  else
+    log "AVVISO: catalogo partner generato ma validazione non superata. Ripristino il gruppo partner precedente."
+    restore_group "partner" "${PARTNER_FILES[@]}"
+    PARTNER_STATUS="mantenute (validazione non superata)"
+  fi
+else
+  log "AVVISO: aggiornamento offerte partner non riuscito. Mantengo l'ultima versione valida e continuo."
+  restore_group "partner" "${PARTNER_FILES[@]}"
+  PARTNER_STATUS="mantenute (aggiornamento non riuscito)"
+fi
+
 if [ "$CATALOG_UPDATED" = "1" ]; then
   rm -f \
     "$DOWNLOAD_DIR"/PO_Offerte_E_MLIBERO_*.xml \
@@ -745,6 +770,7 @@ log "Aggiornamento giornaliero completato per gruppi indipendenti."
 log "- offerte ARERA: $CATALOG_STATUS"
 log "- indici/benchmark: $INDICES_STATUS"
 log "- parametri regolati: $REGULATED_STATUS"
+log "- offerte partner: $PARTNER_STATUS"
 log "- energia PUN/IG/PSV: $ENERGY_STATUS"
 log "Superfici pubbliche gestite in coerenza con i rispettivi dataset:"
 log "- public/offerte-luce-gas-aggiornate.html"

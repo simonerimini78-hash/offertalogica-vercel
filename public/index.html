@@ -6090,10 +6090,11 @@ function avviaComparazioneDati() {
 }
 </script>
 <script>
-let MOTORE_CALCOLO_VERSION = "motore-v15-stime-progressive-2026-09-22";
+let MOTORE_CALCOLO_VERSION = "motore-v16-partner-direct-2026-09-28";
 const DATI_CALCOLO_URLS = ["/data/calcolo-parametri.json", "data/calcolo-parametri.json"];
 const DATI_OFFERTE_URLS = ["/data/offerte-proposte.json", "data/offerte-proposte.json"];
 const DATI_ARERA_MENU_URLS = ["/data/offerte-arera-menu.json", "data/offerte-arera-menu.json"];
+const DATI_PARTNER_MENU_URLS = ["/data/offerte-partner.json", "data/offerte-partner.json"];
 const DATI_PROVIDER_BRAND_URLS = ["/data/provider-brand.json", "data/provider-brand.json"];
 let DATI_UFFICIALI_CONFRONTO_PRONTI = false;
 let DATI_CALCOLO_META = {
@@ -6110,6 +6111,11 @@ let DATI_ARERA_MENU_META = {
   versioneDati: "fallback-html-arera-menu-vuoto",
   fonte: "Archivio ARERA non caricato",
   aggiornatoIl: "2026-06-27",
+};
+let DATI_PARTNER_MENU_META = {
+  versioneDati: "partner-menu-non-caricato",
+  fonte: "Nessun catalogo partner diretto caricato",
+  aggiornatoIl: "",
 };
 let DATI_PROVIDER_BRAND_META = {
   versioneDati: "provider-brand-fallback-2026-07-05",
@@ -6129,6 +6135,7 @@ let PROVIDER_BRANDS = {
   eni: { label: "Plenitude", logo: "/assets/providers/plenitude-user.png" },
   engie: { label: "Engie", logo: "/assets/providers/engie-user.png" },
   eon: { label: "E.ON", logo: "/assets/providers/eon-user.png" },
+  greenius: { label: "Greenius", logo: null },
   iren: { label: "Iren Luce e Gas", logo: "/assets/providers/iren-user.png" },
   lene: { label: "Lene Energia", logo: "/assets/providers/lene-user.png" },
   magis: { label: "Magis Energia", logo: "/assets/providers/magis-user.png" },
@@ -8413,6 +8420,13 @@ function normalizzaRigaAreraMenu(riga) {
     indiceRiferimento: String(riga.indiceRiferimento || riga.provenienzaPrezzo?.indiceApplicato || "").trim().toLowerCase(),
     provenienzaPrezzo: normalizzaProvenienzaPrezzoArera(riga.provenienzaPrezzo),
     sconti: normalizzaScontiArera(riga.sconti, riga.durataMesi),
+    sourceType: String(riga.sourceType || "arera_open_data").trim(),
+    partnerKey: String(riga.partnerKey || "").trim(),
+    partnerKeys: Array.isArray(riga.partnerKeys)
+      ? [...new Set(riga.partnerKeys.map((value) => String(value || "").trim()).filter(Boolean))]
+      : (riga.partnerKey ? [String(riga.partnerKey).trim()] : []),
+    commercialFamily: String(riga.commercialFamily || riga.dettagliTecnici?.commercialFamily || "").trim(),
+    canonicalKey: String(riga.canonicalKey || riga.dettagliTecnici?.canonicalKey || "").trim(),
   };
 }
 
@@ -8517,6 +8531,92 @@ async function caricaOfferteAreraMenu() {
   }
 
   return false;
+}
+
+function chiaveEconomicaCatalogo(riga) {
+  if (!riga) return "";
+  const canonical = String(riga.canonicalKey || "").trim();
+  if (canonical) return canonical.toLowerCase();
+  const piva = String(riga.pivaVenditore || "").replace(/\s+/g, "").toLowerCase();
+  const commodity = String(riga.commodity || "").trim().toLowerCase();
+  const codice = String(riga.codice || "").replace(/\s+/g, "").toLowerCase();
+  return piva && commodity && codice ? `${piva}|${commodity}|${codice}` : "";
+}
+
+function applicaDatiPartnerMenu(data) {
+  const privateSource = Array.isArray(data?.offerte) ? data.offerte : [];
+  const businessSource = Array.isArray(data?.offerteBusiness) ? data.offerteBusiness : [];
+  if (!Array.isArray(privateSource) || !Array.isArray(businessSource)) return false;
+
+  const privateRows = privateSource
+    .map(normalizzaRigaAreraMenu)
+    .filter((riga) => riga && riga.sourceType === "partner_direct" && riga.customerType !== "business");
+  const businessRows = businessSource
+    .map(normalizzaRigaAreraMenu)
+    .filter((riga) => riga && riga.sourceType === "partner_direct" && riga.customerType === "business");
+
+  const existingByKey = new Map();
+  [...OFFERTE_ARERA_MENU, ...OFFERTE_ARERA_BUSINESS].forEach((riga) => {
+    const key = chiaveEconomicaCatalogo(riga);
+    if (key) existingByKey.set(key, riga);
+  });
+  const dedupe = (rows) => rows.filter((riga) => {
+    const key = chiaveEconomicaCatalogo(riga);
+    if (!key) return false;
+    const existing = existingByKey.get(key);
+    if (existing) {
+      const mergedPartnerKeys = new Set([
+        ...partnerKeysCatalogo(existing),
+        ...partnerKeysCatalogo(riga),
+      ]);
+      existing.partnerKeys = [...mergedPartnerKeys];
+      existing.partnerDirectAvailable = existing.partnerKeys.length > 0;
+      return false;
+    }
+    existingByKey.set(key, riga);
+    return true;
+  });
+
+  OFFERTE_ARERA_MENU = [...OFFERTE_ARERA_MENU, ...dedupe(privateRows)];
+  OFFERTE_ARERA_BUSINESS = [...OFFERTE_ARERA_BUSINESS, ...dedupe(businessRows)];
+  DATI_PARTNER_MENU_META = {
+    versioneDati: data.versioneDati || data.version || DATI_PARTNER_MENU_META.versioneDati,
+    fonte: data.fonte || DATI_PARTNER_MENU_META.fonte,
+    aggiornatoIl: data.aggiornatoIl || DATI_PARTNER_MENU_META.aggiornatoIl,
+  };
+  return true;
+}
+
+async function caricaOffertePartnerMenu() {
+  if (!window.fetch || window.location.protocol === "file:") return false;
+  for (const url of DATI_PARTNER_MENU_URLS) {
+    try {
+      const response = await fetch(url, { cache: "no-store" });
+      if (!response.ok) continue;
+      const data = await response.json();
+      return applicaDatiPartnerMenu(data);
+    } catch (error) {
+      // Il catalogo partner e opzionale: ARERA resta pienamente operativo.
+    }
+  }
+  return false;
+}
+
+function rigaCatalogoPartnerDiretta(riga) {
+  return String(riga?.sourceType || "") === "partner_direct";
+}
+
+function partnerKeysCatalogo(riga) {
+  const keys = Array.isArray(riga?.partnerKeys) ? riga.partnerKeys : [riga?.partnerKey];
+  return [...new Set(keys.map((value) => String(value || "").trim()).filter(Boolean))];
+}
+
+function rigaCatalogoAreraUfficiale(riga) {
+  return !rigaCatalogoPartnerDiretta(riga);
+}
+
+function catalogoContienePartnerDiretti() {
+  return OFFERTE_ARERA_MENU.some(rigaCatalogoPartnerDiretta) || OFFERTE_ARERA_BUSINESS.some(rigaCatalogoPartnerDiretta);
 }
 
 function normalizzaBrandProvider(key, brand) {
@@ -9916,7 +10016,7 @@ function leggiProfiloBusiness() {
     nomeOffertaGas: LEAD_STATE.pdfData?.nome_offerta_gas || null,
     codiceOffertaLuce: LEAD_STATE.pdfData?.codice_offerta_luce || null,
     codiceOffertaGas: LEAD_STATE.pdfData?.codice_offerta_gas || null,
-    metodologia: "Il confronto business usa esclusivamente componente energia/gas e quota fissa di vendita disponibili nel catalogo ARERA; non stima rete, oneri, imposte o IVA.",
+    metodologia: "Il confronto business usa esclusivamente componente energia/gas e quota fissa di vendita disponibili nel catalogo OffertaLogica; non stima rete, oneri, imposte o IVA.",
   };
 }
 
@@ -10111,7 +10211,9 @@ function renderRankingBusiness(profile, ranking) {
   );
   const scopeLine = document.createElement("span");
   scopeLine.className = "business-ranking-note-scope";
-  scopeLine.textContent = "Risultati basati su offerte business ARERA compatibili con il profilo aziendale inserito. La stima considera componente energia/gas e quota fissa di vendita. Rete, oneri, imposte e IVA non sono inclusi nella stima.";
+  scopeLine.textContent = catalogoContienePartnerDiretti()
+    ? "Risultati basati su offerte business ARERA compatibili con il profilo aziendale inserito e CTE partner dirette validate. La stima considera componente energia/gas e quota fissa di vendita. Rete, oneri, imposte e IVA non sono inclusi nella stima."
+    : "Risultati basati su offerte business ARERA compatibili con il profilo aziendale inserito. La stima considera componente energia/gas e quota fissa di vendita. Rete, oneri, imposte e IVA non sono inclusi nella stima.";
   note.append(guideLine, scopeLine);
   container.appendChild(note);
 
@@ -10218,7 +10320,9 @@ window.calcolaBusiness = function calcolaBusiness() {
     }
     if (copy) {
       copy.innerText = migliore.differenza >= 0
-        ? "Le offerte mostrate sono offerte business ARERA compatibili con le forniture indicate e sono ordinate per costo annuo stimato della componente di vendita."
+        ? (catalogoContienePartnerDiretti()
+          ? "Le offerte mostrate includono offerte business ARERA compatibili e CTE partner dirette validate, ordinate per costo annuo stimato della componente di vendita."
+          : "Le offerte mostrate sono offerte business ARERA compatibili con le forniture indicate e sono ordinate per costo annuo stimato della componente di vendita.")
         : "Nel catalogo business attuale non emerge una proposta con componente di vendita inferiore ai dati inseriti. Puoi comunque proseguire con il supporto del nostro partner Switcho.";
     }
   } else {
@@ -11288,11 +11392,18 @@ const REGOLE_ESCLUSIONE_ARERA_PRIVATI = [
 ];
 
 function parseDataArera(value) {
-  const match = String(value || "").match(/^(\d{2})\/(\d{2})\/(\d{4})_(\d{2}):(\d{2}):(\d{2})$/);
-  if (!match) return null;
-  const [, day, month, year, hour, minute, second] = match.map(Number);
-  const date = new Date(year, month - 1, day, hour, minute, second);
-  return Number.isNaN(date.getTime()) ? null : date;
+  const raw = String(value || "").trim();
+  const match = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})_(\d{2}):(\d{2}):(\d{2})$/);
+  if (match) {
+    const [, day, month, year, hour, minute, second] = match.map(Number);
+    const parsed = new Date(year, month - 1, day, hour, minute, second);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+  const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2}))?)?$/);
+  if (!iso) return null;
+  const [, year, month, day, hour = "23", minute = "59", second = "59"] = iso;
+  const parsed = new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), Number(second));
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
 function providerMenzionatoDaNomeOfferta(nome) {
@@ -11682,6 +11793,10 @@ function coppiaAreraEGStessaFamigliaCommerciale(luce, gas) {
   if (!luce || !gas) return false;
   if (luce.providerKey !== gas.providerKey || luce.tipo !== gas.tipo) return false;
 
+  const famigliaLuce = testoFornitoreNormalizzato(luce.commercialFamily || "");
+  const famigliaGas = testoFornitoreNormalizzato(gas.commercialFamily || "");
+  if (famigliaLuce && famigliaGas && famigliaLuce === famigliaGas) return true;
+
   // Match forte: i nomi commerciali sono speculari dopo aver rimosso soltanto
   // le parole che identificano la commodity e i marker tecnici specifici.
   // Esempi: "Fix Web Luce" / "FixWeb Gas", "MIA LUCE FIX WEB" /
@@ -11715,6 +11830,14 @@ function coppiaAreraEGStessaFamigliaCommerciale(luce, gas) {
 function coppiaAreraEGHaLegameDual(luce, gas, luciProvider = [], gasProvider = []) {
   if (!luce || !gas) return false;
   if (luce.providerKey !== gas.providerKey || luce.tipo !== gas.tipo) return false;
+  const sourceLuce = String(luce.sourceType || "arera_open_data");
+  const sourceGas = String(gas.sourceType || "arera_open_data");
+  if (sourceLuce !== sourceGas) return false;
+  if (sourceLuce === "partner_direct") {
+    const partnerLuce = new Set(partnerKeysCatalogo(luce));
+    const partnerGas = partnerKeysCatalogo(gas);
+    if (!partnerGas.some((key) => partnerLuce.has(key))) return false;
+  }
 
   // Ogni E+G ricostruita deve appartenere allo stesso venditore legale. Il
   // providerKey identifica il marchio/gruppo e da solo non e una prova sufficiente.
@@ -11742,12 +11865,14 @@ function coppiaAreraEGHaLegameDual(luce, gas, luciProvider = [], gasProvider = [
     && gasDualFormali[0].codice === gas.codice;
 }
 
-function miglioreCoppiaAreraEGPerProvider(providerKey, tipo, attuale) {
+function miglioreCoppiaAreraEGPerProvider(providerKey, tipo, attuale, soloAreraUfficiale = false) {
   const luci = OFFERTE_ARERA_MENU
     .filter((riga) => riga.providerKey === providerKey && riga.commodity === "luce" && riga.tipo === tipo)
+    .filter((riga) => !soloAreraUfficiale || rigaCatalogoAreraUfficiale(riga))
     .filter(rigaAreraIdonea);
   const gas = OFFERTE_ARERA_MENU
     .filter((riga) => riga.providerKey === providerKey && riga.commodity === "gas" && riga.tipo === tipo)
+    .filter((riga) => !soloAreraUfficiale || rigaCatalogoAreraUfficiale(riga))
     .filter(rigaAreraIdonea);
   let migliore = null;
   for (const luce of luci) {
@@ -11802,7 +11927,11 @@ function miglioreComposizioneAreraDualPerProvider(providerKey, tipo, attuale) {
 function rigaAreraDaCodice(codice) {
   const normalized = String(codice || "").trim();
   if (!normalized) return null;
-  return OFFERTE_ARERA_MENU.find((riga) => String(riga.codice || "").trim() === normalized && rigaAreraIdonea(riga)) || null;
+  return OFFERTE_ARERA_MENU.find((riga) => (
+    rigaCatalogoAreraUfficiale(riga)
+    && String(riga.codice || "").trim() === normalized
+    && rigaAreraIdonea(riga)
+  )) || null;
 }
 
 // OFFERTALOGICA_STRICT_ARERA_SOURCE_ROUTING_20260727
@@ -11883,6 +12012,7 @@ function rigaAreraPartnerCertificata(offerta, commodity, attuale = null) {
   if (!providerKey || !nomiAmmessi.size) return null;
 
   const candidate = OFFERTE_ARERA_MENU
+    .filter(rigaCatalogoAreraUfficiale)
     .filter((riga) => riga.providerKey === providerKey)
     .filter((riga) => riga.commodity === commodity && riga.tipo === offerta.tipo)
     .filter(rigaAreraIdonea)
@@ -11921,6 +12051,7 @@ function miglioreRigaAreraPerPartner(offerta, commodity, attuale) {
   if (!providerKey) return null;
 
   return OFFERTE_ARERA_MENU
+    .filter(rigaCatalogoAreraUfficiale)
     .filter((riga) => riga.providerKey === providerKey && riga.commodity === commodity && riga.tipo === offerta.tipo)
     .filter(rigaAreraIdonea)
     .map((riga) => {
@@ -11978,7 +12109,7 @@ function offertaPartnerConPrezziArera(offerta, attuale) {
     if (!OFFERTE_ARERA_MENU.length) return null;
     const providerKey = chiaveFornitoreDaNome(offerta.provider);
     if (!providerKey) return null;
-    const coppia = miglioreCoppiaAreraEGPerProvider(providerKey, offerta.tipo, attuale);
+    const coppia = miglioreCoppiaAreraEGPerProvider(providerKey, offerta.tipo, attuale, true);
     const luce = coppia?.luce || null;
     const gas = coppia?.gas || null;
     if (!luce || !gas) return null;
@@ -12062,6 +12193,13 @@ function offertaAreraRankingProvider(providerKey, tipo, tipoFornitura, attuale) 
     ? `${dual.codice} (${dual.codiceOffertaLuce} + ${dual.codiceOffertaGas})`
     : [luce?.codice, gas?.codice].filter(Boolean).join(" + ");
   const sorgenteCatalogo = composizioneDual?.sorgente || (dual ? "D" : "E/G");
+  const righeSelezionate = [dual?.luce, dual?.gas, luce, gas].filter(Boolean);
+  const daPartnerDiretto = righeSelezionate.some(rigaCatalogoPartnerDiretta);
+  const fontiRighe = [...new Set(righeSelezionate.map((riga) => String(riga?.fonte || "").trim()).filter(Boolean))];
+  const fonteRanking = daPartnerDiretto
+    ? (fontiRighe.join(" | ") || DATI_PARTNER_MENU_META.fonte)
+    : `${DATI_ARERA_MENU_META.fonte} Catalogo ${sorgenteCatalogo}`;
+  const dataFonteRanking = daPartnerDiretto ? DATI_PARTNER_MENU_META.aggiornatoIl : DATI_ARERA_MENU_META.aggiornatoIl;
   const offerta = normalizzaOfferta({
     id: dual?.codice
       ? `arera-dual-${dual.codice}`
@@ -12070,28 +12208,37 @@ function offertaAreraRankingProvider(providerKey, tipo, tipoFornitura, attuale) 
     nome: `${providerLabel} - ${nomiArera}`,
     tipo,
     fornitura: luce && gas && tipoFornitura === "dual" ? "dual" : "separate",
-    link: dual?.url || "#",
-    destinationType: "partner_lead",
-    destinationStatus: "da_contattare",
+    link: daPartnerDiretto ? "#" : (dual?.url || "#"),
+    destinationType: daPartnerDiretto ? "solo_confronto" : "partner_lead",
+    destinationStatus: daPartnerDiretto ? "solo_confronto" : "da_contattare",
     luce: voceDaRigaArera(luce),
     gas: voceDaRigaArera(gas),
     sconti: normalizzaScontiArera(dual?.sconti),
-    descrizione: `Ranking tecnico da Portale Offerte ARERA/AU (${sorgenteCatalogo}). Codici: ${codiciArera}`,
-    fonte: `${DATI_ARERA_MENU_META.fonte} Catalogo ${sorgenteCatalogo}. Codici: ${codiciArera}`,
-    aggiornataIl: DATI_ARERA_MENU_META.aggiornatoIl,
+    descrizione: daPartnerDiretto
+      ? `Ranking tecnico da CTE partner diretta validata. Codici: ${codiciArera}`
+      : `Ranking tecnico da Portale Offerte ARERA/AU (${sorgenteCatalogo}). Codici: ${codiciArera}`,
+    fonte: `${fonteRanking}. Codici: ${codiciArera}`,
+    aggiornataIl: dataFonteRanking,
     certificazione: {
-      catalogoArera: sorgenteCatalogo,
+      catalogoArera: daPartnerDiretto ? null : sorgenteCatalogo,
+      sourceType: daPartnerDiretto ? "partner_direct" : "arera_open_data",
       composizioneEconomicaGiornaliera: sorgenteCatalogo === "E+G",
-      datiEconomiciDaCatalogoPartner: false,
-      dataFonte: DATI_ARERA_MENU_META.aggiornatoIl,
+      datiEconomiciDaCatalogoPartner: daPartnerDiretto,
+      dataFonte: dataFonteRanking,
     },
   }, 0);
 
-  return arricchisciOffertaAreraConCommerciale(offerta, providerKey, tipo, tipoFornitura, nomiArera);
+  return daPartnerDiretto
+    ? offerta
+    : arricchisciOffertaAreraConCommerciale(offerta, providerKey, tipo, tipoFornitura, nomiArera);
 }
 
 function offertaAreraSeparataRanking(luce, gas, tipo) {
   const sameProvider = luce.providerKey === gas.providerKey;
+  const daPartnerDiretto = rigaCatalogoPartnerDiretta(luce) || rigaCatalogoPartnerDiretta(gas);
+  const fontiRighe = [...new Set([luce?.fonte, gas?.fonte].map((value) => String(value || "").trim()).filter(Boolean))];
+  const fonteRanking = daPartnerDiretto ? fontiRighe.join(" | ") : DATI_ARERA_MENU_META.fonte;
+  const dataFonteRanking = daPartnerDiretto ? DATI_PARTNER_MENU_META.aggiornatoIl : DATI_ARERA_MENU_META.aggiornatoIl;
   const providerLabel = sameProvider
     ? luce.providerLabel
     : `${luce.providerLabel} + ${gas.providerLabel}`;
@@ -12103,13 +12250,20 @@ function offertaAreraSeparataRanking(luce, gas, tipo) {
     tipo,
     fornitura: "separate",
     link: "#",
-    destinationType: "partner_lead",
-    destinationStatus: "da_contattare",
+    destinationType: daPartnerDiretto ? "solo_confronto" : "partner_lead",
+    destinationStatus: daPartnerDiretto ? "solo_confronto" : "da_contattare",
     luce: voceDaRigaArera(luce),
     gas: voceDaRigaArera(gas),
-    descrizione: `Ranking tecnico separato da Portale Offerte ARERA/AU. Codici: ${luce.codice} + ${gas.codice}`,
-    fonte: `${DATI_ARERA_MENU_META.fonte} Codici: ${luce.codice} + ${gas.codice}`,
-    aggiornataIl: DATI_ARERA_MENU_META.aggiornatoIl,
+    descrizione: daPartnerDiretto
+      ? `Ranking tecnico separato dal catalogo OffertaLogica, con almeno una CTE partner diretta. Codici: ${luce.codice} + ${gas.codice}`
+      : `Ranking tecnico separato da Portale Offerte ARERA/AU. Codici: ${luce.codice} + ${gas.codice}`,
+    fonte: `${fonteRanking} Codici: ${luce.codice} + ${gas.codice}`,
+    aggiornataIl: dataFonteRanking,
+    certificazione: {
+      sourceType: daPartnerDiretto ? "partner_direct" : "arera_open_data",
+      datiEconomiciDaCatalogoPartner: daPartnerDiretto,
+      dataFonte: dataFonteRanking,
+    },
     componentiSeparate: {
       luce: {
         providerKey: luce.providerKey,
@@ -12126,7 +12280,7 @@ function offertaAreraSeparataRanking(luce, gas, tipo) {
     },
   }, 0);
 
-  return sameProvider
+  return sameProvider && !daPartnerDiretto
     ? arricchisciOffertaAreraConCommerciale(offerta, luce.providerKey, tipo, "separate", nomiArera)
     : offerta;
 }
@@ -17894,6 +18048,7 @@ const PROVIDER_MATCHERS = [
   ["edison", ["edison"]],
   ["estra", ["estra", "estra energie"]],
   ["free", ["free luce e gas", "free lucegas"]],
+  ["greenius", ["greenius"]],
   ["butangas", ["butangas", "butan gas"]],
   ["unoenergy", ["unoenergy", "uno energy"]],
   ["enel", ["enel"]],
@@ -18259,9 +18414,11 @@ function applicaOffertaAlBloccoNuovo(offerta, providerKey) {
   impostaQuotaFissaAnnua("in-gas-fisso-nuov", "in-gas-fisso-nuov-unita", offerta.gas ? offerta.gas.quotaFissaAnnua : "");
 
   BLOCCO_AUTOFILL_NUOVA_OFFERTA = false;
-  const fonte = offerta.destinationType === "arera" || offerta?.certificazione?.datiEconomiciDaCatalogoPartner === false
-    ? "dati ARERA disponibili"
-    : "dati inseriti manualmente";
+  const fonte = offerta?.certificazione?.sourceType === "partner_direct"
+    ? "CTE partner diretta validata"
+    : (offerta.destinationType === "arera" || offerta?.certificazione?.datiEconomiciDaCatalogoPartner === false
+      ? "dati ARERA disponibili"
+      : "dati inseriti manualmente");
   const tipo = offerta.tipo === "variabile" ? "Prezzo variabile" : "Prezzo fisso";
   const durata = durataOffertaTesto(offerta);
   mostraHintNuovaOfferta(`Offerte disponibili di ${offerta.provider || etichettaFornitoreSelezionato()}\nOfferta selezionata per il confronto: ${offerta.nome}. ${tipo}${durata ? `, ${durata}` : ""}. Fonte: ${fonte}.\nPuoi modificare i valori sotto oppure inserire manualmente una proposta diversa.`);
@@ -19066,10 +19223,11 @@ function collegaEventiUX() {
   sincronizzaConsumiNuovaOfferta();
   aggiornaTestoPulsanteConfronto();
 
-  Promise.all([caricaDatiCalcolo(), caricaOfferteProposte(), caricaOfferteAreraMenu(), caricaProviderBrand()]).then(([calcoloOk, offerteOk, areraOk]) => {
+  Promise.all([caricaDatiCalcolo(), caricaOfferteProposte(), caricaOfferteAreraMenu(), caricaProviderBrand()]).then(async ([calcoloOk, offerteOk, areraOk]) => {
     DATI_UFFICIALI_CONFRONTO_PRONTI = Boolean(calcoloOk && offerteOk && areraOk);
     if (!DATI_UFFICIALI_CONFRONTO_PRONTI) return;
     sincronizzaIndiciMercatoConCatalogoArera();
+    await caricaOffertePartnerMenu();
     aggiornaSelectFornitoreNuovoDaCatalogo();
     assicuraSchedeOfferte();
 

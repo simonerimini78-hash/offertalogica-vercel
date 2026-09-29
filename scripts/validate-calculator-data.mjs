@@ -11,6 +11,10 @@ function readJson(path) {
   return JSON.parse(read(path));
 }
 
+function exists(path) {
+  return fs.existsSync(new URL(path, root));
+}
+
 function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
@@ -89,10 +93,44 @@ function validateAreraCatalog() {
   return arera;
 }
 
+
+function validatePartnerCatalog() {
+  const dataPath = "data/offerte-partner.json";
+  const publicPath = "public/data/offerte-partner.json";
+  const dataExists = exists(dataPath);
+  const publicExists = exists(publicPath);
+  assert(dataExists === publicExists, "catalogo partner: copie data/public incomplete");
+  if (!dataExists) return null;
+
+  assertSame(dataPath, publicPath);
+  const catalog = readJson(dataPath);
+  assert(catalog.versioneDati, "catalogo partner: versioneDati mancante");
+  assert(Array.isArray(catalog.offerte), "catalogo partner: offerte private mancanti");
+  assert(Array.isArray(catalog.offerteBusiness), "catalogo partner: offerte business mancanti");
+  const keys = new Set();
+  for (const row of [...catalog.offerte, ...catalog.offerteBusiness]) {
+    assert(row.sourceType === "partner_direct", `catalogo partner: sourceType non valida per ${row.codice || "sconosciuta"}`);
+    assert(row.providerKey && row.pivaVenditore && row.codice, "catalogo partner: identita incompleta");
+    assert(row.partnerKey, `catalogo partner: partnerKey mancante per ${row.codice}`);
+    assert(Array.isArray(row.partnerKeys) && row.partnerKeys.includes(row.partnerKey), `catalogo partner: partnerKeys incoerente per ${row.codice}`);
+    assert(["luce", "gas"].includes(row.commodity), `catalogo partner: commodity non valida per ${row.codice}`);
+    assert(["fisso", "variabile"].includes(row.tipo), `catalogo partner: tipo non valido per ${row.codice}`);
+    assert(["domestico", "business"].includes(row.customerType), `catalogo partner: customerType non valido per ${row.codice}`);
+    assert(Number.isFinite(Number(row.prezzo)) && Number(row.prezzo) >= 0, `catalogo partner: prezzo non valido per ${row.codice}`);
+    assert(Number.isFinite(Number(row.quotaFissaAnnua)) && Number(row.quotaFissaAnnua) >= 0, `catalogo partner: quota fissa non valida per ${row.codice}`);
+    assert(row.dataFine, `catalogo partner: dataFine mancante per ${row.codice}`);
+    const key = String(row.canonicalKey || `${row.pivaVenditore}|${row.commodity}|${row.codice}`);
+    assert(!keys.has(key), `catalogo partner: canonicalKey duplicata ${key}`);
+    keys.add(key);
+  }
+  return catalog;
+}
+
 function validateDataFiles() {
   assertSame("data/calcolo-parametri.json", "public/data/calcolo-parametri.json");
   assertSame("data/offerte-proposte.json", "public/data/offerte-proposte.json");
   validateAreraCatalog();
+  validatePartnerCatalog();
 
   const params = readJson("data/calcolo-parametri.json");
   const offers = readJson("data/offerte-proposte.json");
@@ -159,6 +197,7 @@ function validateCanonicalEconomicRouting() {
   const localUpdater = read("scripts/aggiorna-arera-locale-mac.sh");
   assert(localUpdater.includes("update-arera-reference-data.py\" indices"), "pipeline Mac: aggiornamento indici ufficiali mancante");
   assert(localUpdater.includes("update-arera-menu.py"), "pipeline Mac: generazione catalogo mancante");
+  assert(localUpdater.includes("update-partner-offers.py"), "pipeline Mac: aggiornamento offerte partner mancante");
   assert(localUpdater.includes("update-arera-reference-data.py\" benchmark"), "pipeline Mac: benchmark medio mancante");
   assert(localUpdater.includes("update-regulated-parameters.py"), "pipeline Mac: aggiornamento/guardia parametri regolati mancante");
   assert(localUpdater.includes("update-energy-today.py"), "pipeline Mac: dati energia giornalieri mancanti");

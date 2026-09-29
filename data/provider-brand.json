@@ -1,7 +1,7 @@
 {
-  "versioneDati": "provider-brand-2026-09-24-v45-accendi",
+  "versioneDati": "provider-brand-2026-09-28-v46-greenius",
   "fonte": "Registro brand OffertaLogica. I marchi sono usati solo per identificare offerte e fornitori confrontati; preferire asset ufficiali o di affiliazione quando disponibili.",
-  "aggiornatoIl": "2026-09-24",
+  "aggiornatoIl": "2026-09-28",
   "providers": {
     "a2a": {
       "label": "A2A",
@@ -68,6 +68,12 @@
       "logo": "/assets/providers/eon-user.png",
       "source": "asset fornito dal titolare OffertaLogica il 2026-07-07",
       "usageStatus": "asset_fornito_da_titolare"
+    },
+    "greenius": {
+      "label": "Greenius",
+      "logo": null,
+      "source": "CTE Greenius ricevute dal partner il 2026-09-28",
+      "usageStatus": "brand_da_cte_partner"
     },
     "edison": {
       "label": "Edison",
