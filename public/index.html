@@ -14781,6 +14781,9 @@ function datiBollettaCorrentePdf() {
 const BILL_SIMULATOR_STORAGE_KEY = "offertalogicaBillSimulatorV1";
 const BILL_SIMULATOR_DOCS_STORAGE_KEY = "offertalogicaBillSimulatorDocsV1";
 const BILL_SIMULATOR_OFFER_STORAGE_KEY = "offertalogicaBillSimulatorOfferV1";
+const BILL_SIMULATOR_ACTIVATION_STORAGE_KEY = "offertalogicaSimulatorActivationRequestV1";
+const BILL_SIMULATOR_RETURN_OFFERS_STORAGE_KEY = "offertalogicaSimulatorReturnOffersV1";
+const BILL_SIMULATOR_RETURN_URL_STORAGE_KEY = "offertalogicaBillSimulatorReturnUrlV1";
 
 function compattaDocumentoSimulatore(doc) {
   if (!doc || typeof doc !== "object") return null;
@@ -14823,6 +14826,23 @@ function codiciOffertaPerSimulatore(offerta, commodities = []) {
   return output;
 }
 
+function offertaAttivazionePerSimulatore(offerta) {
+  if (!offerta || typeof offerta !== "object") return null;
+  return {
+    id: String(offerta?.id || offerta?.codice || ""),
+    name: String(offerta?.nome || offerta?.name || titoloOffertaVisibile(offerta) || ""),
+    link: String(offerta?.link || ""),
+    officialUrl: String(offerta?.officialUrl || ""),
+    provider: String(offerta?.provider || offerta?.fornitore || ""),
+    fornitura: String(offerta?.fornitura || offerta?.ambito || ""),
+    destinationType: String(offerta?.destinationType || "partner_lead"),
+    destinationStatus: String(offerta?.destinationStatus || "pending_destination"),
+    monetizzazione: offerta?.monetizzazione || offerta?.monetization || null,
+    componentiSeparate: offerta?.componentiSeparate || null,
+    rankingContext: OFFER_RENDER_CONTEXTS.get(String(offerta?.id || "")) || offerta?.rankingContext || null,
+  };
+}
+
 function selezioneOffertaSimulatore(offerta) {
   if (!offerta || typeof offerta !== "object") return null;
   const rawComponents = componentiOffertaSimulatore(offerta);
@@ -14858,6 +14878,8 @@ function selezioneOffertaSimulatore(offerta) {
     customerType,
     codes: Object.values(codes),
     components,
+    source: "card",
+    activationOffer: offertaAttivazionePerSimulatore(offerta),
   };
 }
 
@@ -15082,6 +15104,7 @@ function apriSimulatoreBolletta(offerta) {
   const docs = documentiBollettaSimulatore().map(compattaDocumentoSimulatore).filter(Boolean);
   const payload = creaPayloadSimulatoreBolletta(offerta);
   try {
+    sessionStorage.setItem(BILL_SIMULATOR_RETURN_URL_STORAGE_KEY, window.location.href);
     sessionStorage.setItem(BILL_SIMULATOR_OFFER_STORAGE_KEY, JSON.stringify(selection));
     if (docs.length) sessionStorage.setItem(BILL_SIMULATOR_DOCS_STORAGE_KEY, JSON.stringify(docs));
     else sessionStorage.removeItem(BILL_SIMULATOR_DOCS_STORAGE_KEY);
@@ -15093,6 +15116,35 @@ function apriSimulatoreBolletta(offerta) {
   window.location.href = payload ? "/simulatore-bolletta.html#risultato" : "/simulatore-bolletta.html";
   return true;
 }
+
+function gestisciRitornoDalSimulatore() {
+  let shouldScroll = false;
+  try {
+    shouldScroll = sessionStorage.getItem(BILL_SIMULATOR_RETURN_OFFERS_STORAGE_KEY) === "1";
+    if (shouldScroll) sessionStorage.removeItem(BILL_SIMULATOR_RETURN_OFFERS_STORAGE_KEY);
+  } catch (error) {}
+  if (shouldScroll) {
+    window.setTimeout(() => {
+      document.querySelector(".fornitori-consigliati-section")?.scrollIntoView({ behavior: movimentoRidottoAttivo() ? "auto" : "smooth", block: "start" });
+    }, 80);
+  }
+
+  let request = null;
+  try {
+    const raw = sessionStorage.getItem(BILL_SIMULATOR_ACTIVATION_STORAGE_KEY);
+    if (raw) request = JSON.parse(raw);
+    if (raw) sessionStorage.removeItem(BILL_SIMULATOR_ACTIVATION_STORAGE_KEY);
+  } catch (error) {
+    try { sessionStorage.removeItem(BILL_SIMULATOR_ACTIVATION_STORAGE_KEY); } catch (ignore) {}
+  }
+  const offer = request?.offer;
+  if (!offer || typeof offer !== "object") return;
+  window.setTimeout(() => {
+    window.apriConsensoOfferta?.(offer);
+  }, 120);
+}
+
+if (typeof window.addEventListener === "function") window.addEventListener("pageshow", gestisciRitornoDalSimulatore);
 
 function aggiornaStatoPdfMobileDopoAnalisi({ files = [], validCurrent = [], validOffer = [], results = [] } = {}) {
   if (!esperienzaPdfMobileAttiva()) return;
