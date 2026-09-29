@@ -14864,13 +14864,20 @@ const BILL_SIMULATOR_RETURN_URL_STORAGE_KEY = "offertalogicaBillSimulatorReturnU
 
 function compattaDocumentoSimulatore(doc) {
   if (!doc || typeof doc !== "object") return null;
+  const numericOrNull = (raw) => {
+    if (raw === null || raw === undefined || raw === "") return null;
+    const value = Number(raw);
+    return Number.isFinite(value) ? value : null;
+  };
   const compact = {
     kind: String(doc.kind || ""),
     commodity: String(doc.commodity || ""),
     customer_type: String(doc.customer_type || ""),
     billing_period_start: String(doc.billing_period_start || ""),
     billing_period_end: String(doc.billing_period_end || ""),
-    total_amount_eur: Number(doc.total_amount_eur),
+    issue_date: String(doc.issue_date || ""),
+    due_date: String(doc.due_date || ""),
+    total_amount_eur: numericOrNull(doc.total_amount_eur),
     fornitore: String(doc.fornitore || ""),
     fornitore_luce: String(doc.fornitore_luce || ""),
     fornitore_gas: String(doc.fornitore_gas || ""),
@@ -14879,14 +14886,61 @@ function compattaDocumentoSimulatore(doc) {
     nome_offerta_gas: String(doc.nome_offerta_gas || ""),
   };
   [
+    "codice_offerta_luce", "codice_offerta_gas",
+    "tipo_prezzo_luce", "tipo_prezzo_gas",
+    "struttura_prezzo_luce", "struttura_prezzo_gas",
+    "indice_riferimento_luce", "indice_riferimento_gas",
+    "formula_prezzo_luce", "formula_prezzo_gas",
+    "periodicita_aggiornamento_indice_luce", "periodicita_aggiornamento_indice_gas",
+    "decorrenza_condizioni_economiche_luce", "decorrenza_condizioni_economiche_gas",
+    "scadenza_condizioni_economiche_luce", "scadenza_condizioni_economiche_gas",
+  ].forEach((key) => { compact[key] = String(doc[key] || ""); });
+  [
     "consumo_periodo_luce_kwh", "consumo_periodo_gas_smc",
     "prezzo_luce_eur_kwh", "prezzo_gas_eur_smc",
+    "prezzo_luce_f0_eur_kwh", "prezzo_luce_f1_eur_kwh", "prezzo_luce_f2_eur_kwh", "prezzo_luce_f3_eur_kwh", "prezzo_luce_f23_eur_kwh",
     "prezzo_vendita_bolletta_luce_eur_kwh", "prezzo_vendita_bolletta_gas_eur_smc",
     "quota_fissa_vendita_luce_eur_anno", "quota_fissa_vendita_gas_eur_anno",
-  ].forEach((key) => {
-    const value = Number(doc[key]);
-    compact[key] = Number.isFinite(value) ? value : null;
-  });
+    "spread_luce_eur_kwh", "spread_gas_eur_smc",
+    "moltiplicatore_indice_luce", "moltiplicatore_indice_gas",
+  ].forEach((key) => { compact[key] = numericOrNull(doc[key]); });
+  const compactBreakdown = (rows) => Array.isArray(rows)
+    ? rows.map((row) => ({
+        category: String(row?.category || ""),
+        label: String(row?.label || ""),
+        amount_eur: numericOrNull(row?.amount_eur),
+      })).filter((row) => row.category && row.label && Number.isFinite(row.amount_eur))
+    : [];
+  const compactComponents = (rows) => Array.isArray(rows)
+    ? rows.map((row) => ({
+        label: String(row?.label || ""),
+        value: numericOrNull(row?.value),
+        value_text: String(row?.value_text || ""),
+        unit: String(row?.unit || ""),
+        period: String(row?.period || "none"),
+        band: String(row?.band || "none"),
+      })).filter((row) => row.label && (Number.isFinite(row.value) || row.value_text))
+    : [];
+  const compactFixedDetail = (detail) => {
+    const row = detail?.commercial_component;
+    if (!row || typeof row !== "object") return null;
+    const value = numericOrNull(row.value);
+    const valueText = String(row.value_text || "");
+    if (!Number.isFinite(value) && !valueText) return null;
+    return {
+      label: String(row.label || "Quota fissa vendita"),
+      value: Number.isFinite(value) ? value : null,
+      value_text: valueText,
+      unit: String(row.unit || ""),
+      period: String(row.period || "none"),
+    };
+  };
+  compact.bill_breakdown_luce = compactBreakdown(doc.bill_breakdown_luce);
+  compact.bill_breakdown_gas = compactBreakdown(doc.bill_breakdown_gas);
+  compact.componenti_prezzo_luce = compactComponents(doc.componenti_prezzo_luce);
+  compact.componenti_prezzo_gas = compactComponents(doc.componenti_prezzo_gas);
+  compact.quota_fissa_dettaglio_luce = compactFixedDetail(doc.quota_fissa_dettaglio_luce);
+  compact.quota_fissa_dettaglio_gas = compactFixedDetail(doc.quota_fissa_dettaglio_gas);
   return compact.kind === "bolletta" && compact.billing_period_start && compact.billing_period_end && compact.total_amount_eur > 0
     ? compact
     : null;
